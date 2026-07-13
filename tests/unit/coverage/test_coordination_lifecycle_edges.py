@@ -621,26 +621,22 @@ def test_lease_state_root_and_core_failure_edges(tmp_path: Path) -> None:
         ttl_seconds=60,
         payload={"expected_head": "a" * 40},
     )
+    lease_request = {
+        "subject": "work/example",
+        "holder_ref": str(lease["holder_ref"]),
+        "expected_lease_id": str(lease["lease_id"]),
+        "expected_epoch": int(lease["epoch"]),
+        "expected_head": "a" * 40,
+    }
     with pytest.raises(ValueError, match="lease_resume_blocked_by_decision"):
-        lease_state.resume_lease(
-            db,
-            subject="work/example",
-            holder_ref=str(lease["holder_ref"]),
-            expected_lease_id=str(lease["lease_id"]),
-            expected_epoch=int(lease["epoch"]),
-            expected_head="a" * 40,
-            contrary_decision=True,
-        )
+        lease_state.resume_lease(db, contrary_decision=True, **lease_request)
     with pytest.raises(ValueError, match="lease_handoff_holder_not_quiesced"):
         lease_state.accept_lease_handoff(
             db,
-            subject="work/example",
             target_holder_ref="agent:test:case:target",
             offer_id="offer",
-            expected_lease_id=str(lease["lease_id"]),
-            expected_epoch=int(lease["epoch"]),
-            expected_head="a" * 40,
             holder_quiesced=False,
+            **{key: value for key, value in lease_request.items() if key != "holder_ref"},
         )
     expired_db = tmp_path / "expired.sqlite"
     expired = lease_state.acquire_lease(
@@ -650,15 +646,15 @@ def test_lease_state_root_and_core_failure_edges(tmp_path: Path) -> None:
         ttl_seconds=-1,
         payload={"expected_head": "a" * 40},
     )
+    expired_request = {
+        "subject": "work/expired",
+        "holder_ref": str(expired["holder_ref"]),
+        "expected_lease_id": str(expired["lease_id"]),
+        "expected_epoch": int(expired["epoch"]),
+        "expected_head": "a" * 40,
+    }
     with pytest.raises(ValueError, match="lease_expired"):
-        lease_state.renew_lease(
-            expired_db,
-            subject="work/expired",
-            holder_ref=str(expired["holder_ref"]),
-            expected_lease_id=str(expired["lease_id"]),
-            expected_epoch=int(expired["epoch"]),
-            expected_head="a" * 40,
-        )
+        lease_state.renew_lease(expired_db, **expired_request)
 
     with closing(sqlite3.connect(db)) as connection:
         connection.execute(
@@ -667,14 +663,7 @@ def test_lease_state_root_and_core_failure_edges(tmp_path: Path) -> None:
         )
         connection.commit()
     with pytest.raises(ValueError, match="lease_not_expired"):
-        lease_state.resume_lease(
-            db,
-            subject="work/example",
-            holder_ref=str(lease["holder_ref"]),
-            expected_lease_id=str(lease["lease_id"]),
-            expected_epoch=int(lease["epoch"]),
-            expected_head="a" * 40,
-        )
+        lease_state.resume_lease(db, **lease_request)
 
 
 def test_lease_core_ambiguous_missing_and_time_edges(tmp_path: Path) -> None:
@@ -733,22 +722,19 @@ def test_admission_and_prewrite_normalization_edges(tmp_path: Path, monkeypatch)
         "lease_generation_missing:work/example",
         "lease_head_stale:b!=a",
     ]
-    assert transitions._control_state_db({}, tmp_path) == tmp_path / ".ethos/state/state.sqlite"
-    assert (
-        transitions._control_state_db(
+    for status, expected_db in (
+        ({}, tmp_path / ".ethos/state/state.sqlite"),
+        (
             {
                 "worktrees": [
                     {"role": "work_lane", "path": tmp_path.as_posix()},
-                    {
-                        "role": "accepted_root",
-                        "path": (tmp_path / "accepted").as_posix(),
-                    },
+                    {"role": "accepted_root", "path": (tmp_path / "accepted").as_posix()},
                 ]
             },
-            tmp_path,
-        )
-        == tmp_path / "accepted/.ethos/state/state.sqlite"
-    )
+            tmp_path / "accepted/.ethos/state/state.sqlite",
+        ),
+    ):
+        assert transitions._control_state_db(status, tmp_path) == expected_db
 
     monkeypatch.setattr(transitions, "workspace_status", lambda _root: {"worktrees": []})
     monkeypatch.setattr(

@@ -7,12 +7,12 @@ summary = "Coordination-lifecycle edge tests use compact literal partitions whil
 
 [evidence]
 dated = "evidence/chronicle/coordination-lifecycle-edge-compression-20260713/2026-07-13.md"
-sha256 = "5342a65a04080189d2d000021fad353b9ff6cec57d92fd8bdcbb11c2d7116ad0"
+sha256 = "40d494fb6167734cb801319483441e839454184d5e27e4d7f442e58c213d3ae7"
 evidence_ids = [
   "evidence:coordination-lifecycle-edge-compression-20260713",
   "test:tests/unit/coverage/test_coordination_lifecycle_edges.py",
 ]
-binding = "The bounded OpenSpec carrier, canonical 767-line baseline, 750-line compact test representation, focused test result, generic parity receipt, and executed HEAD-bound proof jointly bind this slice."
+binding = "The bounded OpenSpec carrier, canonical 767-line baseline, 736-line compact test representation, focused test result, generic parity receipt, and executed HEAD-bound proof jointly bind this slice."
 verifier = "semantic"
 tests = [
   "uv run --all-packages --group dev pytest -q tests/unit/coverage/test_coordination_lifecycle_edges.py",

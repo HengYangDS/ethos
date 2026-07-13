@@ -9,7 +9,7 @@ dated = "evidence/chronicle/lane-status-coordination-summary/2026-07-09.md"
 sha256 = "cfeee802f42ce6925d19554711d2f3ed476847c1a410069934dffd08f69f07e2"
 evidence_ids = ["evidence:lane-status-coordination-summary"]
 binding = "lane status coordination summary source, tests, docs, OpenSpec, and evidence binding"
-verifier = "semantic_attested"
+verifier = "digest_only"
 tests = [
   "uv run --group dev pytest tests/unit/cli/lane_status/test_next_actions.py -q",
   "uv run --group dev ruff check packages/ethos/src/ethos/surface/cli/lane/core.py tests/unit/cli/lane_status/test_next_actions.py",
@@ -23,12 +23,6 @@ tests = [
 
 [evidence.freshness]
 mode = "historical"
-[scope]
-packages = ["ethos"]
-tests = ["tests/unit/cli/lane_status/test_next_actions.py"]
-docs = ["docs/reference/command-plane.md"]
-openspec = ["openspec/specs/repository-governance/spec.md"]
-
 [boundary]
 owner = "ethos-repository"
 scope = "Lane status reader-view visibility for Work Lane coordination small signals"

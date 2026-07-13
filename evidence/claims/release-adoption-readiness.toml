@@ -9,8 +9,8 @@ summary = "ETHOS records 2026-07-09 release smoke, external adoption pilot diagn
 dated = "evidence/chronicle/release-adoption-readiness/2026-07-09.md"
 sha256 = "3bcd6959507f6e5dd2c06a0a461714456a80490919381b08c081a4da70c7239e"
 evidence_ids = ["evidence:release-adoption-readiness"]
-binding = "semantic-attested release artifact, adoption pilot, remote-ref, and forge-run boundary evidence binding"
-verifier = "semantic_attested"
+binding = "digest-bound release artifact, adoption pilot, remote-ref, and forge-run boundary evidence binding"
+verifier = "digest_only"
 tests = [
   "uv run --package ethos ethos quality release --json",
   "uv run --package ethos ethos quality release-policy --json",

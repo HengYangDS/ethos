@@ -8,8 +8,8 @@ summary = "ETHOS schema-governs configured branch-role provenance, standard Work
 dated = "evidence/chronicle/role-binding-projection-hardening/2026-07-01.md"
 sha256 = "29507b8673ac3d69006ab1eb49530fb931fac2d3450f32ac4cb843d49ea74224"
 evidence_ids = ["evidence:ethos-role-binding-projection-hardening"]
-binding = "semantic role-binding projection hardening evidence binding"
-verifier = "semantic_attested"
+binding = "declared role-binding projection hardening evidence binding"
+verifier = "digest_only"
 tests = [
   "uv run --group dev pytest tests/unit/audit/test_coupling.py -q",
   "uv run --group dev pytest tests/unit/audit/test_coupling.py tests/unit/governance/validation/test_schemas.py::test_coupling_audit_payload_validates_binding_registry_contract tests/unit/governance/validation/test_schemas.py::test_coupling_audit_schema_rejects_ui_projection_fields -q",
@@ -33,27 +33,6 @@ tests = [
 
 [evidence.freshness]
 mode = "historical"
-[scope]
-packages = [
-  "ethos-repository",
-]
-schemas = [
-  "system/schemas/kernel/coupling-audit.schema.json",
-]
-tests = [
-  "tests/unit/audit/test_coupling.py",
-  "tests/architecture/test_product_design_contract.py",
-]
-docs = [
-  "evidence/chronicle/role-binding-projection-hardening/2026-07-01.md",
-  "docs/governance/product-design-contract.md",
-  "docs/reference/command-plane.md",
-  "docs/architecture/runner-and-mutation.md",
-  "docs/architecture/schema-validation.md",
-  "openspec/specs/adapters/spec.md",
-  "openspec/specs/repository-governance/spec.md",
-]
-
 [boundary]
 owner = "ethos-repository"
 scope = "Configured branch roles, standard Work Lane lifecycle binding, coupling schema, and host projection vocabulary boundaries"

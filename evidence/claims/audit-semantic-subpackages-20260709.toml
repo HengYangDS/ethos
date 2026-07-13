@@ -2,14 +2,14 @@
 id = "audit-semantic-subpackages-20260709"
 subject = "ethos:audit-semantic-subpackages-20260709"
 state = "active"
-summary = "ETHOS retired repository audit suffix-module debt into semantic subpackages without compatibility facades."
+summary = "ETHOS retired repository audit suffix-module debt into declared subpackages without compatibility facades."
 
 [evidence]
 dated = "evidence/chronicle/audit-semantic-subpackages-20260709/2026-07-09.md"
 sha256 = "9837d734373183d2d05346b3fb4a2e1454602bdd0c4cb2803a98bf05c7e90867"
 evidence_ids = ["evidence:audit-semantic-subpackages-20260709"]
-binding = "Semantic subpackage migration, no compatibility import shells, module-layout ratchet shrink, and full Python proof gate."
-verifier = "semantic_attested"
+binding = "Declared subpackage migration, no compatibility import shells, module-layout ratchet shrink, and full Python proof gate."
+verifier = "digest_only"
 tests = [
   "uv run --package ethos ethos quality module-layout --json",
   "uv run --group dev ruff check .",
@@ -20,16 +20,6 @@ tests = [
 
 [evidence.freshness]
 mode = "historical"
-[scope]
-packages = ["ethos"]
-tests = [
-  "tests/architecture/test_release_assets.py",
-  "tests/unit/audit/test_modes.py",
-  "tests/unit/coverage/test_cli_admission_final_edges.py",
-  "tests/unit/coverage/test_cov_v3_openspec_edges.py",
-  "tests/unit/coverage/test_free_surface_quality_edges.py",
-]
-
 [boundary]
 owner = "quality"
 scope = "Repository audit module-layout debt reduction by semantic subpackage migration."

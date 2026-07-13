@@ -10,7 +10,7 @@ dated = "evidence/chronicle/intake-mine-readmodel/2026-07-09.md"
 sha256 = "f66d893ea893362b1cb5c575736547fbc7b2f9ba94a4808e4d5bfcc8def47f44"
 evidence_ids = ["evidence:intake-mine-readmodel"]
 binding = "Focused tests, command-plane docs, command registry checks, type gate, code-size gate, and proof readiness cover the read-only intake mine surface and its no-auto-raise/no-auto-dispatch boundary."
-verifier = "semantic_attested"
+verifier = "digest_only"
 readiness_checks = [
   "ETHOS_ACTOR=codex PYTEST_ADDOPTS='-p no:cacheprovider' uv run --group dev pytest tests/unit/cli/test_intake_mine.py tests/unit/cli/test_contracts.py::test_intake_status_is_public_read_only_surface tests/unit/cli/test_contracts.py::test_intake_status_rejects_empty_configuration tests/unit/coverage/test_admission_land_evolution_rules_edges.py -k 'intake' -q",
   "ETHOS_ACTOR=codex uv run --group dev ruff check packages/ethos/src/ethos/domain/land/intake/core.py packages/ethos/src/ethos/surface/cli/intake.py packages/ethos/src/ethos/repository/registry/commands.py packages/ethos/src/ethos/repository/registry/docs/commands.py tests/unit/cli/test_intake_mine.py tests/unit/coverage/test_admission_land_evolution_rules_edges.py",

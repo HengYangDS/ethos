@@ -1666,6 +1666,30 @@ proof floor, policy digest, and implementation digest match the request.
 - **THEN** ETHOS SHALL project `independently_reexecuted`
 - **AND** SHALL NOT claim semantic correctness or mint authority.
 
+### Requirement: Semantic claim attestations are typed and candidate-external
+
+ETHOS SHALL treat `semantic_attested` as a distinct claim-assurance class only
+when a typed candidate-external receipt binds the exact claim, dated evidence,
+promotion-target semantic scope, and current HEAD. The receipt SHALL not mint
+authority. Historical or ordinary digest-bound claims SHALL remain portable
+without a receipt provider.
+
+#### Scenario: A semantic attestation receipt matches the active claim
+
+- **WHEN** an active `semantic_attested` claim is evaluated
+- **THEN** ETHOS SHALL validate the receipt schema, canonical payload digest,
+  reviewer role, basis, allow verdict, validity interval, receipt digest, claim
+  id, dated-evidence digest, semantic scope digest, and current HEAD
+- **AND** it SHALL reject a receipt stored inside the governed repository
+- **AND** it SHALL expose only an `attested` non-authorizing trust-envelope state
+
+#### Scenario: Existing labels lack a receipt
+
+- **WHEN** a legacy `semantic` or unreceipted `semantic_attested` claim is
+  migrated
+- **THEN** it SHALL be represented as `digest_only`
+- **AND** its summary and binding SHALL not claim semantic verification
+
 ### Requirement: Reference adapter stays provider-local and constrained
 
 The reference independent-identity adapter SHALL be one-shot and SHALL reject

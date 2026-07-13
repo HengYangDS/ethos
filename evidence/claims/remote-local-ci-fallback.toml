@@ -10,7 +10,7 @@ dated = "evidence/chronicle/remote-local-ci-fallback/2026-07-07.md"
 sha256 = "8982e40cb9d402d400f122c63c2b1adb486e52f6e52387e56b5da0279a850515"
 evidence_ids = ["evidence:remote-local-ci-fallback"]
 binding = "Remote availability probe and local-ci fallback binding"
-verifier = "semantic_attested"
+verifier = "digest_only"
 tests = [
   "tools/ci/scripts/run-local-ci.sh",
   "ETHOS_ROOT=$PWD uv run --group dev ethos publish --json",
@@ -23,14 +23,6 @@ tests = [
 
 [evidence.freshness]
 mode = "historical"
-[scope]
-packages = ["ethos"]
-tests = [
-  "tests/unit/coverage/test_admission_land_evolution_rules_edges.py",
-  "tests/unit/cli/test_contracts_closeout.py",
-  "tests/architecture/test_release_assets.py",
-]
-
 [boundary]
 owner = "ethos"
 scope = "Publish remote availability probe, local-ci fallback evidence class, and local owner gate entrypoint"

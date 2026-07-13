@@ -8,8 +8,8 @@ summary = "ETHOS gates public Python product-surface docstring coverage through 
 dated = "evidence/chronicle/docstring-quality-gate/2026-07-05.md"
 sha256 = "1f97eaaf28110d3d318cb59bebad02ec1dbe4ee36d64ecad44fc394cfe0e1c52"
 evidence_ids = ["evidence:ethos-docstring-quality-gate"]
-binding = "semantic docstring quality gate evidence binding"
-verifier = "semantic_attested"
+binding = "declared docstring quality gate evidence binding"
+verifier = "digest_only"
 tests = [
   "tools/ci/scripts/run-docstring-coverage.sh",
   "uv run --group dev pytest tests/architecture/test_release_assets.py tests/unit/cli/test_quality_surface_more.py tests/unit/governance/validation tests/unit/cli/test_contracts.py::test_quality_tool_profiles_command_reports_adapter_boundaries -q",
@@ -20,19 +20,6 @@ tests = [
 
 [evidence.freshness]
 mode = "historical"
-[scope]
-packages = ["ethos-quality", "ethos-repository"]
-tests = [
-  "tests/architecture/test_release_assets.py",
-  "tests/unit/cli/test_quality_surface_more.py",
-  "tests/unit/governance/validation",
-  "tests/unit/cli/test_contracts.py",
-]
-docs = [
-  ".config/README.md",
-  "openspec/changes/archive/2026-07-05-ethos-docstring-quality-gate-20260705/specs/ethos-quality/spec.md",
-]
-
 [boundary]
 owner = "ethos-quality"
 scope = "Public Python product-surface docstring coverage gate"

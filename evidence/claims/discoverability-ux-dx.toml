@@ -18,10 +18,6 @@ tests = [
 
 [evidence.freshness]
 mode = "historical"
-[scope]
-packages = ["ethos"]
-tests = ["tests/unit/product/test_orient.py"]
-
 [boundary]
 owner = "ethos-repository"
 scope = "Repository-local orientation reader view over status and report payloads"

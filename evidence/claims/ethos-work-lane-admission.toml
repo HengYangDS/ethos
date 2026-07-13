@@ -18,18 +18,6 @@ tests = [
 
 [evidence.freshness]
 mode = "historical"
-[scope]
-commands = [
-  "ethos lane status",
-  "ethos lane prewrite",
-  "ethos lane start",
-  "ethos land",
-  "ethos publish",
-]
-schemas = [
-  "system/schemas/kernel/mutation-decision.schema.json",
-]
-
 [boundary]
 owner = "ethos-adapters"
 scope = "Work Lane admission, prewrite, foreign lane visibility, and lease-backed starts"

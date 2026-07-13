@@ -9,7 +9,7 @@ dated = "evidence/chronicle/ci-module-layout-readiness/2026-07-09.md"
 sha256 = "addce8dab4aeae1aa5b5900693b36bb37153ade842ce4831310c6567c8c194e1"
 evidence_ids = ["evidence:ci-module-layout-readiness"]
 binding = "Digest-bound evidence for restoring module-layout/import-linter readiness."
-verifier = "semantic_attested"
+verifier = "digest_only"
 tests = [
   "uv run --group dev pytest -q tests/unit/policy/test_enterprise_readiness.py tests/unit/cli/test_quality_readiness.py",
   "tools/ci/scripts/run-import-linter.sh",

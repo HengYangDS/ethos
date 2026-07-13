@@ -19,7 +19,15 @@ that propose, test, or inspect effects on commitments.
 - **THEN** the operation is expressible through kernel objects without depending
   on repository, assistant, adapter, adopter, or hosted-runner packages
 - **AND** Claim binds evidence rather than owning lifecycle state
-- **AND** semantic claims require a semantic verifier
+- **AND** semantic claims require a current, candidate-external semantic attestation receipt
+
+#### Scenario: semantic attestation remains optional and bounded
+
+- **WHEN** a claim declares `semantic_attested`
+- **THEN** it SHALL bind a candidate-external receipt to its claim id, dated-evidence digest, semantic scope digest, and exact HEAD
+- **AND** the receipt SHALL name an independent reviewer role, basis, allow verdict, validity interval, and `mints_authority = false`
+- **AND** missing, malformed, stale, repository-local, or mismatched receipts SHALL block the claim
+- **AND** `digest_only` claims SHALL require no receipt directory, account, daemon, credential, network, or dedicated local account
 
 #### Scenario: Root text remains canonical and restrained
 - **WHEN** ETHOS adds or changes an active code, config, hook, system contract, or

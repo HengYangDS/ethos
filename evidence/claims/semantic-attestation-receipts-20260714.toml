@@ -1,0 +1,42 @@
+[claim]
+id = "semantic-attestation-receipts-20260714"
+subject = "ethos:semantic-attestation-receipts"
+state = "active"
+summary = "Typed external receipt admission distinguishes bounded review records from portable digest-bound evidence."
+
+[evidence]
+dated = "evidence/chronicle/semantic-attestation-receipts-20260714/2026-07-14.md"
+sha256 = "f6ee199d5c09a5fc3404c3c8e70e03b3eaf77c1da3ae75ac65f1c1d01b9f1f40"
+evidence_ids = ["evidence:semantic-attestation-receipts-20260714"]
+binding = "Claim, evidence digest, promotion scope, HEAD, and candidate-external receipt records."
+verifier = "digest_only"
+tests = ["pytest -q tests/unit/governance/test_semantic_attestation_receipts.py tests/unit/kernel/test_assurance_claims.py tests/unit/governance/test_claims.py"]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "semantic claim assurance and external receipt admission"
+
+[carriers]
+openspec = "openspec/changes/semantic-attestation-receipts-20260714"
+fallback = "Use digest-only evidence until a fresh candidate-external receipt is supplied."
+kill_signal = "A semantic attestation is admitted without exact claim, evidence, scope, HEAD, validity, or external-path binding."
+
+[promotion]
+targets = [
+  "packages/ethos-core/src/ethos_core/contracts/evidence/semantic.py",
+  "packages/ethos-core/src/ethos_core/models.py",
+  "packages/ethos/src/ethos/repository/evidence/claims.py",
+  "system/schemas/kernel/claim.schema.json",
+  "system/schemas/kernel/semantic-attestation-receipt.schema.json",
+  "openspec/changes/semantic-attestation-receipts-20260714",
+  "openspec/specs/kernel/spec.md",
+  "openspec/specs/repository-governance/spec.md",
+  "docs/governance/provenance-and-attestation.md",
+  "evidence/claims/semantic-attestation-receipts-20260714.toml",
+  "evidence/chronicle/semantic-attestation-receipts-20260714/2026-07-14.md",
+  "tests/unit/governance/test_semantic_attestation_receipts.py",
+  "tests/unit/kernel/test_assurance_claims.py",
+]

@@ -26,23 +26,6 @@ tests = [
 
 [evidence.freshness]
 mode = "historical"
-[scope]
-packages = [
-  "ethos-core",
-  "ethos-contracts",
-  "ethos-repository",
-  "ethos-assistants",
-  "ethos-adapters",
-  "ethos",
-  "ethos-test",
-]
-distributions = [
-  "distributions/npm",
-]
-adopters = [
-  "reference-adopter",
-]
-
 [boundary]
 owner = "ethos-contracts"
 scope = "Closed product topology migration and target package/distribution contracts"

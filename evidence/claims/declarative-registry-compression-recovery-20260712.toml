@@ -10,7 +10,7 @@ dated = "evidence/chronicle/declarative-registry-compression-recovery-20260712/2
 sha256 = "dbd74c05d866be3a8f5222a0ffc8e0b0601d63be56e405f75c9283668245d9ab"
 evidence_ids = ["evidence:declarative-registry-compression-recovery-20260712"]
 binding = "TOML declarations, frozen Pydantic contracts, static projection matrices, deleted former builders, and the bounded OpenSpec carrier bind this compression slice."
-verifier = "semantic"
+verifier = "digest_only"
 tests = [
   "uv run --all-packages --group dev pytest tests/unit/audit/test_coupling.py tests/unit/kernel/test_coupling_declaration.py tests/unit/kernel/test_standards_declaration.py tests/unit/release/test_standards.py tests/unit/coverage/test_cli_admission_final_edges.py -q",
   "tools/ci/scripts/run-python-lint.sh",
@@ -23,16 +23,6 @@ tests = [
 
 [evidence.freshness]
 mode = "historical"
-
-[scope]
-packages = ["ethos", "ethos-core"]
-system = ["system/coupling.toml", "system/standards.toml"]
-tests = [
-  "tests/unit/audit/test_coupling.py",
-  "tests/unit/kernel/test_coupling_declaration.py",
-  "tests/unit/kernel/test_standards_declaration.py",
-  "tests/unit/release/test_standards.py",
-]
 
 [boundary]
 owner = "ethos-repository"

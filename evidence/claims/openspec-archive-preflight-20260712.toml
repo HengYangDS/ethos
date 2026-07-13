@@ -8,8 +8,8 @@ summary = "ETHOS preflights each active OpenSpec archive through the configured 
 dated = "evidence/chronicle/openspec-archive-preflight-20260712/2026-07-12.md"
 sha256 = "586109f31a04483e6badceafefa5e8938f2959ab33df72f1932e923df6737c17"
 evidence_ids = ["evidence:openspec-archive-preflight-20260712"]
-binding = "The archived carrier, archive-task grammar, official archive receipt, lifecycle adapter, transition projections, focused regressions, and digest-bound preserve-retire recovery record bind official isolated archive preflight semantics."
-verifier = "semantic"
+binding = "The archived carrier, archive-task grammar, official archive receipt, lifecycle adapter, transition projections, focused regressions, and digest-bound preserve-retire recovery record bind isolated archive preflight behavior."
+verifier = "digest_only"
 tests = [
   "tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev pytest -q tests/unit/product/test_openspec_cache.py tests/unit/product/test_openspec_edges.py tests/unit/product/test_openspec_preflight.py tests/unit/product/test_openspec_substrate.py",
   "tools/ci/scripts/run-python-lint.sh",
@@ -21,21 +21,6 @@ tests = [
 
 [evidence.freshness]
 mode = "historical"
-
-[scope]
-packages = ["ethos"]
-tests = [
-  "tests/unit/product/test_openspec_cache.py",
-  "tests/unit/product/test_openspec_edges.py",
-  "tests/unit/product/test_openspec_preflight.py",
-  "tests/unit/product/test_openspec_substrate.py",
-  "tests/unit/cli/test_contracts.py",
-  "tests/unit/cli/test_contracts_proof.py",
-]
-docs = [
-  "docs/governance/openspec-governance.md",
-  "docs/reference/command-plane.md",
-]
 
 [boundary]
 owner = "ethos-adapters"

@@ -34,13 +34,6 @@ adopters may choose independent proof without inheriting this repository's
 reference provider.
 """
 
-PARSER_ASSURANCE_ALIASES = {"semantic": "semantic_attested"}
-"""Temporary parser-only migration mapping for tracked legacy claims.
-
-The alias is not an assurance class.  It keeps existing claims readable while
-they are migrated; serializers always emit the canonical class.
-"""
-
 ASSURANCE_FORBIDDEN_PHRASES = {
     "digest_only": ("semantic", "verified", "validates", "enforces", "guarantees", "proves"),
     "semantic_attested": ("verified", "validates", "enforces", "guarantees"),
@@ -59,11 +52,6 @@ and even then callers must bind it to its stated theorem.
 # Compatibility name used by a small number of direct contract tests.  It is
 # intentionally core-only and never encodes repository/adopter policy.
 CLAIM_OVERCLAIM_PHRASES = ASSURANCE_FORBIDDEN_PHRASES["digest_only"]
-
-
-def canonical_assurance_class(value: str) -> str:
-    """Return the canonical assurance class for one declared verifier token."""
-    return PARSER_ASSURANCE_ALIASES.get(value, value)
 
 
 @dataclass(frozen=True)
@@ -140,8 +128,7 @@ class EvidenceClaim:
             _tuple_text(self.evidence_ids, "evidence_ids"),
         )
         object.__setattr__(self, "binding", _require_text(self.binding, "binding"))
-        declared_verifier = _require_text(self.verifier, "verifier")
-        verifier = canonical_assurance_class(declared_verifier)
+        verifier = _require_text(self.verifier, "verifier")
         object.__setattr__(self, "verifier", verifier)
         if verifier not in ASSURANCE_CLASSES:
             msg = "verifier must name a supported assurance class"

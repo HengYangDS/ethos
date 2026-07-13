@@ -8,8 +8,8 @@ summary = "ETHOS exposes source-bound assistant context projection as an advisor
 dated = "evidence/chronicle/context-projection/2026-07-01.md"
 sha256 = "deedf0fc854e3ca34f099580638c9b02a49dc1815bad1561613a93b2e1fb19be"
 evidence_ids = ["evidence:ethos-context-projection-source-retrieval"]
-binding = "semantic-attested source-bound context projection evidence binding"
-verifier = "semantic_attested"
+binding = "digest-bound source-bound context projection evidence binding"
+verifier = "digest_only"
 tests = [
   "uv run --group dev pytest tests/unit/context/test_contracts.py tests/unit/context/test_schemas.py tests/unit/context/test_index_state.py tests/unit/context/test_retrieval.py tests/unit/context/test_selection.py tests/unit/context/test_cli.py -q",
   "uv run --group dev pytest tests/unit/assistants/test_context_provider.py tests/unit/assistants/test_server.py tests/unit/governance/validation -q",
@@ -24,24 +24,6 @@ tests = [
 
 [evidence.freshness]
 mode = "historical"
-[scope]
-packages = [
-  "ethos",
-  "ethos-contracts",
-  "ethos-adapters",
-  "ethos-assistants",
-  "ethos-repository",
-  "ethos-test",
-]
-docs = [
-  "docs/architecture/context-projection.md",
-  "docs/architecture/local-state.md",
-  "docs/architecture/agent-projections.md",
-  "docs/architecture/mcp-server.md",
-  "docs/architecture/schema-validation.md",
-  "docs/reference/command-plane.md",
-]
-
 [boundary]
 owner = "ethos"
 scope = "Source-bound assistant context projection over repository truth, backed by ignored local SQLite/FTS state."

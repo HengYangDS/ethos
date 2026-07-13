@@ -17,10 +17,6 @@ tests = [
 
 [evidence.freshness]
 mode = "historical"
-[scope]
-packages = ["ethos"]
-tests = ["tests/architecture/test_testing_platform.py"]
-
 [boundary]
 owner = "repository-governance"
 scope = "Generated coverage evidence physical write boundary for repository proof gates"

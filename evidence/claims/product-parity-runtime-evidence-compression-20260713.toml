@@ -15,7 +15,7 @@ evidence_ids = [
   "test:tests/unit/product/parity/test_report.py",
 ]
 binding = "The bounded OpenSpec carrier, dated 1,042-line baseline, inert parity test fixtures, literal runner and freshness case tables, 60-line net deletion, ratchet contraction, parity suite, and final executed proof jointly bind this compression slice."
-verifier = "semantic"
+verifier = "digest_only"
 tests = [
   "uv run --all-packages --group dev pytest -q tests/unit/product/parity",
   "tools/ci/scripts/run-python-lint.sh",
@@ -27,14 +27,6 @@ tests = [
 
 [evidence.freshness]
 mode = "historical"
-
-[scope]
-tests = [
-  "tests/unit/product/parity/snapshots.py",
-  "tests/unit/product/parity/test_runners.py",
-  "tests/unit/product/parity/test_evidence_writing.py",
-  "tests/unit/product/parity/test_report.py",
-]
 
 [boundary]
 owner = "quality"

@@ -29,17 +29,6 @@ tests = [
 
 [evidence.freshness]
 mode = "historical"
-[scope]
-docs = [
-  "README.md",
-  "docs/start/quickstart.md",
-  "docs/governance/product-design-contract.md",
-  "docs/governance/authority.md",
-  "docs/reference/command-plane.md",
-  "docs/reference/glossary.md",
-  "docs/_meta/authority_graph.toml",
-]
-
 [boundary]
 owner = "ethos-repository"
 scope = "Productization convergence across authority kernel, first-hour workflow, adoption planner safety, authority graph, and bounded shadow parity evidence"

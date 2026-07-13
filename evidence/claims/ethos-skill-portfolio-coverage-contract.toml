@@ -8,8 +8,8 @@ summary = "ETHOS checks repo-local skill portfolio MECE ownership through an act
 dated = "evidence/chronicle/skill-portfolio-coverage-contract/2026-07-06.md"
 sha256 = "6dd207228065c75ed4adb20538a59a0de21c9062c9cbe650f613469edb05f7ea"
 evidence_ids = ["evidence:ethos-skill-portfolio-coverage-contract"]
-binding = "semantic skill portfolio coverage evidence binding"
-verifier = "semantic_attested"
+binding = "declared skill portfolio coverage evidence binding"
+verifier = "digest_only"
 tests = [
   "uv run --group dev pytest tests/unit/cli/test_contracts.py::test_playbooks_commands_expose_repo_local_skills tests/unit/cli/test_contracts.py::test_playbooks_strict_mode_requires_portfolio_primary_subjects tests/unit/cli/test_contracts.py::test_playbooks_strict_mode_rejects_duplicate_primary_subject_owner tests/unit/governance/validation/test_schemas.py::test_schema_validation_report_covers_all_ethos_schemas -q",
   "uv run --group dev ty check packages/ethos/src/ethos/assistants/playbooks.py packages/ethos-core/src/ethos_core/contracts/skill/activation.py",
@@ -21,23 +21,6 @@ tests = [
 
 [evidence.freshness]
 mode = "historical"
-[scope]
-packages = [
-  "ethos",
-  "ethos-contracts",
-]
-schemas = [
-  "system/schemas/kernel/skill-activation.schema.json",
-  "system/schemas/kernel/skill-registry.schema.json",
-]
-tests = [
-  "tests/unit/cli/test_contracts.py",
-  "tests/unit/governance/validation",
-]
-docs = [
-  "docs/governance/playbooks-and-skills.md",
-]
-
 [boundary]
 owner = "ethos-assistants"
 scope = "Repo-local skill portfolio coverage and primary-subject ownership validation"

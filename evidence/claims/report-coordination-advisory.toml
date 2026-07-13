@@ -24,10 +24,6 @@ tests = [
 
 [evidence.freshness]
 mode = "historical"
-[scope]
-packages = ["ethos"]
-tests = ["tests/unit/domain/test_report.py"]
-
 [boundary]
 owner = "ethos-repository"
 scope = "Report reader-view visibility for Work Lane coordination advisory signals"

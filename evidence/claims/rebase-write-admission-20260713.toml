@@ -9,7 +9,7 @@ dated = "evidence/chronicle/rebase-write-admission-20260713/2026-07-13.md"
 sha256 = "89cd22a6bb37125471f25161a43f5b2fada4f2facc20b346945cf50be30cfb9f"
 evidence_ids = ["evidence:rebase-write-admission-20260713"]
 binding = "Digest-bound sanctioned-rebase lease-binding correction, detached-HEAD diagnostic evidence, focused regression contract, executed head-bound proof, and archived OpenSpec carrier."
-verifier = "semantic_attested"
+verifier = "digest_only"
 tests = [
   "tools/ci/scripts/run-ethos-lane.sh lane prewrite --paths packages/ethos/src/ethos/adapters/admission/prewrite.py --paths tests/unit/lanes/test_hook_admission.py --editor-root $(pwd) --require-editor-root --json",
   "uv run --all-packages --group dev pytest -q tests/unit/lanes/test_hook_admission.py",
@@ -21,10 +21,6 @@ tests = [
 
 [evidence.freshness]
 mode = "historical"
-
-[scope]
-packages = ["ethos"]
-tests = ["tests/unit/lanes/test_hook_admission.py"]
 
 [boundary]
 owner = "ethos-repository"

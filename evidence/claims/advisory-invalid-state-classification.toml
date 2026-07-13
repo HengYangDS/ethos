@@ -11,7 +11,7 @@ evidence_ids = [
   "test:tests/unit/cli/test_contracts.py::test_report_scorecard_is_derived_from_governance_checks",
 ]
 binding = "Historical dated evidence binds the declared claim to its focused verification references and promotion targets without asserting current repository state."
-verifier = "semantic"
+verifier = "digest_only"
 tests = [
   "tests/unit/cli/test_contracts.py::test_report_scorecard_is_derived_from_governance_checks",
 ]

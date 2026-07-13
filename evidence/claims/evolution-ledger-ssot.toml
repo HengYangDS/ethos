@@ -10,7 +10,7 @@ dated = "evidence/chronicle/evolution-ledger-ssot/2026-07-07.md"
 sha256 = "d3d710bb55125cd42dc70309f4c1f5c3580e31e5f8d07b11f93eb6edbe26bcd6"
 evidence_ids = ["evidence:evolution-ledger-ssot"]
 binding = "Evolution ledger SSOT binding"
-verifier = "semantic_attested"
+verifier = "digest_only"
 tests = [
   "ethos campaign hypotheses --json",
   "ethos quality schemas --json",
@@ -25,16 +25,6 @@ tests = [
 
 [evidence.freshness]
 mode = "historical"
-[scope]
-packages = ["ethos"]
-tests = [
-  "tests/unit/governance/test_evolution_ledger.py",
-  "tests/unit/coverage/test_admission_land_evolution_rules_edges.py",
-  "tests/unit/governance/validation",
-  "tests/unit/audit/test_depth.py",
-  "tests/unit/cli/test_contracts.py",
-]
-
 [boundary]
 owner = "ethos"
 scope = "Evolution ledger physical truth path, schema validation, campaign hypothesis reader, audit release files, assistant context resource, and config lint deletion robustness"

@@ -21,16 +21,6 @@ tests = [
 
 [evidence.freshness]
 mode = "historical"
-[scope]
-paths = [
-  "evidence/README.md",
-  "evidence/chronicle/",
-  "evidence/claims/",
-  "docs/architecture/product-ontology.md",
-  "docs/plans/terminal-governance-product-design.md",
-  "tests/architecture/test_evidence_layout.py",
-]
-
 [boundary]
 owner = "repository-governance"
 scope = "physical evidence layout and topic-scoped chronicle boundary"

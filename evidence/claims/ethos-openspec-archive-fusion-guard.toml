@@ -8,8 +8,8 @@ summary = "ETHOS blocks silent deletion of accepted OpenSpec scenario obligation
 dated = "evidence/chronicle/openspec-archive-fusion-guard/2026-07-05.md"
 sha256 = "b7fa3de9818828b9bbcf3269215c00e896aa46cf5c1f8ca79619fa7325ea81ce"
 evidence_ids = ["evidence:ethos-openspec-archive-fusion-guard"]
-binding = "semantic OpenSpec archive fusion guard evidence binding"
-verifier = "semantic_attested"
+binding = "declared OpenSpec archive fusion guard evidence binding"
+verifier = "digest_only"
 tests = [
   "uv run --group dev pytest tests/unit/audit/test_modes.py::test_openspec_shape_flags_removed_accepted_spec_obligations tests/unit/audit/test_modes.py::test_openspec_shape_allows_added_or_unchanged_spec_obligations -q",
   "uv run --group dev pytest tests/unit/audit/test_modes.py tests/unit/product/test_openspec_edges.py tests/unit/product/test_openspec_cache.py -q",
@@ -21,15 +21,6 @@ tests = [
 
 [evidence.freshness]
 mode = "historical"
-[scope]
-packages = ["ethos-repository"]
-tests = ["tests/unit/audit/test_modes.py"]
-docs = [
-  "docs/governance/product-design-contract.md",
-  "openspec/specs/repository-governance/spec.md",
-  "openspec/changes/archive/2026-07-05-ethos-openspec-archive-fusion-guard-20260705/specs/ethos-repository/spec.md",
-]
-
 [boundary]
 owner = "ethos-repository"
 scope = "OpenSpec archive closeout fusion guard for accepted scenario obligations"

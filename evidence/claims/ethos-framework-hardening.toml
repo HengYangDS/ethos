@@ -17,23 +17,6 @@ tests = [
 
 [evidence.freshness]
 mode = "historical"
-[scope]
-commands = [
-  "ethos prove",
-  "ethos quality docs-registry",
-  "ethos quality provenance",
-  "ethos assistants mcp-manifest",
-  "ethos campaign hypotheses",
-]
-schemas = [
-  "system/schemas/kernel/proof-run.schema.json",
-  "system/schemas/kernel/evidence-set.schema.json",
-  "system/schemas/kernel/provenance.schema.json",
-  "system/schemas/kernel/docs-registry.schema.json",
-  "system/schemas/kernel/assistant-projection.schema.json",
-  "system/schemas/kernel/mutation-decision.schema.json",
-]
-
 [boundary]
 owner = "ethos-repository"
 scope = "Framework proof, evidence, docs, assistants, and mutation contracts"

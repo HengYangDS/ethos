@@ -40,3 +40,14 @@ def test_independent_reexecution_cannot_claim_semantic_correctness() -> None:
             binding="The independent run proves semantic correctness.",
             verifier="independently_reexecuted",
         )
+
+
+def test_legacy_semantic_alias_is_not_a_claim_assurance_class() -> None:
+    with pytest.raises(ValueError, match="supported assurance class"):
+        EvidenceClaim(
+            id="claim:legacy-semantic",
+            change_id="change:example",
+            evidence_ids=("evidence:example",),
+            binding="A bounded historical observation.",
+            verifier="semantic",
+        )

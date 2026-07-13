@@ -10,7 +10,7 @@ dated = "evidence/chronicle/evidence-evolution-protocol/2026-07-08.md"
 sha256 = "9b70ebbe301cb4000ed4e35a7c35118d3d991e10af37d538d46c87591ad0bf11"
 evidence_ids = ["evidence:evidence-evolution-protocol"]
 binding = "Evidence freshness binds claims, chronicle records, and evolution ledger protocol checks."
-verifier = "semantic_attested"
+verifier = "digest_only"
 tests = [
   "uv run --all-packages --group dev pytest tests/unit/governance/test_evolution_ledger.py tests/unit/governance/validation/test_gates.py tests/unit/cli/test_contracts.py tests/unit/cli/test_contracts_proof.py tests/unit/governance/validation/test_schemas.py -q",
   "uv run --package ethos ethos quality evidence-freshness --json",
@@ -19,16 +19,6 @@ tests = [
 
 [evidence.freshness]
 mode = "historical"
-[scope]
-packages = ["ethos"]
-tests = [
-  "tests/unit/governance/test_evolution_ledger.py",
-  "tests/unit/governance/validation/test_gates.py",
-  "tests/unit/cli/test_contracts.py",
-  "tests/unit/cli/test_contracts_proof.py",
-  "tests/unit/governance/validation/test_schemas.py",
-]
-
 [boundary]
 owner = "ethos"
 scope = "Evidence freshness, evolution ledger protocol validation, default proof gate membership, and schema binding for structural evolution entries"

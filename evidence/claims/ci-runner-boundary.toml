@@ -10,7 +10,7 @@ dated = "evidence/chronicle/ci-runner-boundary/2026-07-08.md"
 sha256 = "09fd0f264751be4f28089d93b43ee81fef43ca086a3cf3af9e731c7b55d7f4d1"
 evidence_ids = ["evidence:ci-runner-boundary"]
 binding = "CI runner boundary evidence binding: configuration declares policy, tools execute reusable gates."
-verifier = "semantic_attested"
+verifier = "digest_only"
 tests = [
   "uv run --package ethos ethos openspec --lifecycle --json",
   "uv run --package ethos ethos quality generated-artifacts --json",

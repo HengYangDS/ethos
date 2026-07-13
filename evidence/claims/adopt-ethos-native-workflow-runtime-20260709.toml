@@ -9,7 +9,7 @@ dated = "evidence/chronicle/adopt-ethos-native-workflow-runtime-20260709/2026-07
 sha256 = "81699107fa5177263bc8350bf371a66871900465884c786e715a72bad47bcc15"
 evidence_ids = ["evidence:adopt-ethos-native-workflow-runtime-20260709"]
 binding = "digest-bound workflow runtime and practice-evolution adoption evidence"
-verifier = "semantic_attested"
+verifier = "digest_only"
 tests = [
   "uv run --group dev pytest -q tests/unit/governance/test_evolution_ledger.py tests/unit/kernel/test_workflow_contract.py",
   "uv run --group dev pytest -q tests/unit/governance/test_evolution_ledger.py tests/unit/kernel/test_workflow_contract.py tests/unit/domain/test_plan.py tests/unit/domain/test_report.py",
@@ -25,37 +25,6 @@ tests = [
 
 [evidence.freshness]
 mode = "historical"
-[scope]
-docs = [
-  "docs/architecture/workflow-runtime.md",
-  "docs/governance/evolution-campaign.md",
-  "docs/research/workflow-runtime-frameworks-20260709.md",
-]
-schemas = [
-  "system/schemas/contracts/workflows.schema.json",
-  "system/schemas/kernel/evolution-ledger.schema.json",
-  "system/schemas/kernel/workflow-run.schema.json",
-  "system/schemas/kernel/handoff-package.schema.json",
-  "system/schemas/kernel/skill-package-manifest.schema.json",
-]
-source = [
-  "packages/ethos-core/src/ethos_core/contracts/workflow.py",
-  "packages/ethos/src/ethos/repository/workflow/runtime.py",
-  "packages/ethos/src/ethos/repository/adoption/evolution.py",
-  "packages/ethos/src/ethos/repository/adoption/practice/selection.py",
-  "packages/ethos/src/ethos/domain/plan.py",
-  "packages/ethos/src/ethos/domain/report.py",
-  "packages/ethos/src/ethos/domain/reporting/scoring.py",
-]
-tests = [
-  "tests/unit/governance/test_evolution_ledger.py",
-  "tests/unit/kernel/test_workflow_contract.py",
-  "tests/unit/domain/test_plan.py",
-  "tests/unit/domain/test_report.py",
-  "tests/unit/domain/reporting/test_coordination.py",
-  "tests/unit/assistants/test_skill_packages.py",
-]
-
 [boundary]
 owner = "ethos-repository"
 scope = "Workflow runtime read model and governed-passage practice evolution; governed commitments are auditable handles, practice claims carry evaluated practice changes, and external frameworks remain bounded carriers, adapters, projections, or method packs."

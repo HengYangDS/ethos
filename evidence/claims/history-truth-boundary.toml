@@ -9,7 +9,7 @@ dated = "evidence/chronicle/history-truth-boundary/2026-07-08.md"
 sha256 = "3290c5419b0545d8fc233d40d6150f8bb7ab0c47342ae9f6d98788eae122a60e"
 evidence_ids = ["evidence:history-truth-boundary"]
 binding = "Repository-wide guard covers Chronicle and archived OpenSpec records while preserving historical meaning."
-verifier = "semantic_attested"
+verifier = "digest_only"
 tests = [
   "uv run --all-packages pytest tests/architecture/test_authority_residue_zero.py -q",
   "uv run --all-packages ethos quality claims --json",

@@ -13,7 +13,7 @@ evidence_ids = [
   "test:tests/unit/governance/test_claims.py",
 ]
 binding = "The dated chronicle, canonical claim inventory, focused claim-governance suite, and source deletion jointly bind one persisted claim representation."
-verifier = "semantic"
+verifier = "digest_only"
 tests = [
   "uv run --all-packages --group dev pytest tests/unit/governance/test_claims.py -q",
   "uv run --package ethos ethos quality claims --json",

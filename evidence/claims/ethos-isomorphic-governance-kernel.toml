@@ -22,22 +22,6 @@ tests = [
 
 [evidence.freshness]
 mode = "historical"
-[scope]
-packages = [
-  "ethos-contracts",
-  "ethos-repository",
-  "ethos-test",
-]
-docs = [
-  "docs/governance/product-design-contract.md",
-  "docs/architecture/adoption-profiles.md",
-  "docs/architecture/schema-validation.md",
-  "evidence/chronicle/isomorphic-governance-kernel/2026-07-01.md",
-]
-schemas = [
-  "system/schemas/kernel/governance-profile.schema.json",
-]
-
 [boundary]
 owner = "ethos-repository"
 scope = "Governed-repository kernel chain and adopter profile contract"

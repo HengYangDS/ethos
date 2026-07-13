@@ -3,14 +3,14 @@ id = "build-artifact-topology-contract-20260711"
 subject = "ethos:build-artifact-topology"
 state = "accepted"
 change_id = "build-artifact-topology-contract-20260711"
-summary = "ETHOS package-build producers route disposable distributions only to the semantic artifact home."
+summary = "ETHOS package-build producers route disposable distributions only to the declared artifact home."
 
 [evidence]
 dated = "evidence/chronicle/build-artifact-topology-contract-20260711/2026-07-11.md"
 sha256 = "3f400a5ab9ee665946182ffefa574fbeb1b8585fdfff4a0eb9bd928c53258d45"
 evidence_ids = ["evidence:build-artifact-topology-contract-20260711"]
 binding = "The gate declaration, packaged registry projection, contributor command, OpenSpec carrier, and topology audit bind package artifact routing."
-verifier = "semantic_attested"
+verifier = "digest_only"
 tests = [
   "tools/ci/scripts/run-python-tests.sh",
   "uv build --all-packages --out-dir build/artifacts/python --clear --no-create-gitignore",

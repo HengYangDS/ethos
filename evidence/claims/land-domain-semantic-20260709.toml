@@ -2,14 +2,14 @@
 id = "land-domain-semantic-20260709"
 subject = "ethos:land-domain-semantic-20260709"
 state = "active"
-summary = "ETHOS land-stage domain reducers moved from suffix-flat modules into semantic subpackages without compatibility facades."
+summary = "ETHOS land-stage domain reducers moved from suffix-flat modules into declared subpackages without compatibility facades."
 
 [evidence]
 dated = "evidence/chronicle/land-domain-semantic-20260709/2026-07-09.md"
 sha256 = "7b59ff35d649abbf0c5d1efefe1012242b4a509f0e4aa2ec7de79b1bcf246f88"
 evidence_ids = ["evidence:land-domain-semantic-20260709"]
-binding = "Semantic land-domain package migration, no compatibility import shells, package-root docstring-only boundaries, module-layout ratchet shrink, and focused validation."
-verifier = "semantic_attested"
+binding = "Declared land-domain package migration, no compatibility import shells, package-root docstring-only boundaries, module-layout ratchet shrink, and focused validation."
+verifier = "digest_only"
 tests = [
   "uv run --package ethos ethos quality module-layout --json",
   "uv run --group dev ruff check packages/ethos/src/ethos/domain/land packages/ethos/src/ethos/domain/campaign/closeout.py packages/ethos/src/ethos/domain/report.py packages/ethos/src/ethos/surface/cli/root/lifecycle.py packages/ethos/src/ethos/surface/cli/parity/core.py packages/ethos/src/ethos/surface/cli/fleet.py packages/ethos/src/ethos/surface/cli/intake.py tests/unit/coverage/test_core_state_claims_edges.py tests/unit/coverage/test_cov_domain_surface_edges.py tests/unit/coverage/test_admission_land_evolution_rules_edges.py tests/unit/coverage/test_cov_v3_clidomain_edges.py tests/unit/cli/test_contracts_land.py tests/unit/product/parity/test_gaps.py",

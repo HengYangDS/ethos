@@ -9,7 +9,7 @@ dated = "evidence/chronicle/refresh-base-postcondition-20260712/2026-07-12.md"
 sha256 = "4a855a2727fb8910cde3530bff62f818e1e895ddf256b892bd1be8c65c0d2283"
 evidence_ids = ["evidence:refresh-base-postcondition-20260712"]
 binding = "Focused lifecycle, projection, quality, and OpenSpec evidence for the ancestry-bound refresh transition."
-verifier = "semantic"
+verifier = "digest_only"
 tests = [
   "tests/unit/lanes/test_lanes_lifecycle.py",
   "tests/unit/cli/test_contracts_lane_refresh_base_projection.py",
@@ -20,14 +20,6 @@ tests = [
 
 [evidence.freshness]
 mode = "historical"
-
-[scope]
-packages = ["ethos"]
-tests = [
-  "tests/unit/lanes/test_lanes_lifecycle.py",
-  "tests/unit/cli/test_contracts_lane_refresh_base_projection.py",
-  "tests/support/contract_helpers.py",
-]
 
 [boundary]
 owner = "ethos-lifecycle"

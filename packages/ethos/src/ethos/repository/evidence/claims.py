@@ -1,20 +1,22 @@
 from __future__ import annotations
 
 import hashlib
+import json
+import os
 import re
 import tomllib
-from typing import TYPE_CHECKING
+from datetime import UTC
+from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 from ethos.repository.evidence.core import semantic_tree_digest
 from ethos.repository.profile import profile_root
+from ethos_core.contracts.evidence.semantic import SemanticAttestationReceipt
 from ethos_core.contracts.package.ontology import RETIRED_PRODUCT_FAMILY_TOKENS
 from ethos_core.models import EvidenceClaim
 from ethos_core.models import canonical_assurance_class
 from ethos_core.normalization.core import string_list
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 REPOSITORY_OVERCLAIM_PHRASES = (
     "adopter-domain storage",
@@ -71,6 +73,9 @@ _HISTORICAL_CARRIER_PREFIXES = (
     "evidence/chronicle/",
     "openspec/changes/archive/",
 )
+
+
+type _AttestationBinding = tuple[Path, str, str, str, str]
 
 
 def _sha256(path: Path) -> str:
@@ -231,7 +236,7 @@ def _active_product_claim_private_gaps(claim_id: str, payload: dict[str, Any]) -
 
 def _has_repository_overclaim(text: str, verifier: str) -> bool:
     """Return whether a non-formal verifier overclaims repository assurance."""
-    return canonical_assurance_class(verifier) != "formally_proven" and any(
+    return verifier != "formally_proven" and any(
         phrase in text.lower() for phrase in REPOSITORY_OVERCLAIM_PHRASES
     )
 
@@ -295,13 +300,120 @@ def _payload_text(value: object) -> str:
     return str(value)
 
 
-def _trust_envelope(
+def _external_receipt_path(
+    root: Path, receipt_dir_value: str, receipt_id: str
+) -> tuple[Path | None, str]:
+    """Resolve one receipt outside the governed repository or return its gap."""
+    receipt_dir = Path(receipt_dir_value).expanduser()
+    if not receipt_dir.is_absolute():
+        return None, "semantic_attestation_receipt_invalid"
+    receipt_dir = receipt_dir.resolve()
+    if receipt_dir.is_relative_to(root.resolve()):
+        return None, "semantic_attestation_receipt_inside_repository"
+    receipt_path = (receipt_dir / f"{receipt_id}.json").resolve()
+    if receipt_path.is_relative_to(root.resolve()):
+        return None, "semantic_attestation_receipt_inside_repository"
+    return (
+        (None, "semantic_attestation_receipt_required")
+        if not receipt_path.is_file()
+        else (receipt_path, "")
+    )
+
+
+def _receipt_binding_gaps(
     *,
-    root: Path,
-    claim_id: str,
-    payload: dict[str, Any],
-    dated: str,
-    evidence_digest_gap: bool,
+    receipt: SemanticAttestationReceipt,
+    raw: bytes,
+    config: dict[str, Any],
+    binding: _AttestationBinding,
+) -> list[str]:
+    """Return receipt facts that disagree with the exact active claim."""
+    _, claim_id, evidence_sha256, scope_sha256, current_head = binding
+    declared_digest, declared_scope, declared_head = (
+        str(config.get(key) or "") for key in ("receipt_sha256", "scope_sha256", "head")
+    )
+    now = datetime.now(UTC)
+    gaps = [
+        gap
+        for actual, declared, receipt_value, gap in (
+            (claim_id, claim_id, receipt.claim_id, "semantic_attestation_claim_id_mismatch"),
+            (
+                evidence_sha256,
+                evidence_sha256,
+                receipt.evidence_sha256,
+                "semantic_attestation_evidence_digest_mismatch",
+            ),
+            (
+                scope_sha256,
+                declared_scope,
+                receipt.scope_sha256,
+                "semantic_attestation_scope_digest_mismatch",
+            ),
+            (current_head, declared_head, receipt.head, "semantic_attestation_head_mismatch"),
+        )
+        if not actual or actual != declared or receipt_value != actual
+    ]
+    if hashlib.sha256(raw).hexdigest() != declared_digest:
+        gaps.append("semantic_attestation_receipt_digest_mismatch")
+    if (
+        receipt.issued_at > now
+        or receipt.valid_until <= now
+        or receipt.valid_until <= receipt.issued_at
+    ):
+        gaps.append("semantic_attestation_receipt_stale")
+    return gaps
+
+
+def _semantic_attestation(
+    evidence: dict[str, Any], binding: _AttestationBinding
+) -> dict[str, object]:
+    """Validate the optional, non-authorizing external receipt for one semantic claim."""
+    if evidence.get("verifier") != "semantic_attested":
+        return {}
+    config = evidence.get("semantic_attestation")
+    if not isinstance(config, dict):
+        return {
+            "state": "unattested",
+            "required_gaps": ["semantic_attestation_receipt_required"],
+        }
+    receipt_id = str(config.get("receipt_id") or "")
+    receipt_dir_value = os.environ.get("ETHOS_SEMANTIC_ATTESTATION_RECEIPT_DIR", "")
+    if (
+        not receipt_id
+        or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", receipt_id)
+        or not receipt_dir_value
+    ):
+        return {
+            "state": "unattested",
+            "required_gaps": ["semantic_attestation_receipt_required"],
+        }
+    receipt_path, path_gap = _external_receipt_path(binding[0], receipt_dir_value, receipt_id)
+    if path_gap:
+        return {
+            "state": "unattested" if path_gap.endswith("required") else "invalid",
+            "required_gaps": [path_gap],
+        }
+    try:
+        raw = receipt_path.read_bytes() if receipt_path else b""
+        receipt = SemanticAttestationReceipt.model_validate(json.loads(raw))
+    except (OSError, TypeError, ValueError):
+        return {
+            "state": "invalid",
+            "required_gaps": ["semantic_attestation_receipt_invalid"],
+        }
+    gaps = _receipt_binding_gaps(receipt=receipt, raw=raw, config=config, binding=binding)
+    return {
+        "state": "attested" if not gaps else "invalid",
+        "receipt_id": receipt_id,
+        "reviewer_role": receipt.reviewer_role,
+        "reviewer_ref": receipt.reviewer_ref,
+        "mints_authority": False,
+        "required_gaps": gaps,
+    }
+
+
+def _trust_envelope(
+    *, payload: dict[str, Any], dated: str, evidence_digest_gap: bool, binding: _AttestationBinding
 ) -> dict[str, object]:
     claim = payload.get("claim", {})
     boundary = payload.get("boundary", {})
@@ -315,6 +427,8 @@ def _trust_envelope(
     fallback = str(payload.get("fallback") or carriers.get("fallback") or "")
     kill_signal = str(payload.get("kill_signal") or carriers.get("kill_signal") or "")
     promotion_targets = _promotion_targets(promotion)
+    semantic_attestation = _semantic_attestation(payload.get("evidence", {}), binding)
+    envelope_gaps.extend(semantic_attestation.get("required_gaps", []))
 
     if not boundary_owner:
         envelope_gaps.append("boundary.owner_missing")
@@ -322,7 +436,7 @@ def _trust_envelope(
         envelope_gaps.append("boundary.scope_missing")
     if not openspec_carrier:
         envelope_gaps.append("carriers.openspec_missing")
-    elif not (root / openspec_carrier).exists():
+    elif not (binding[0] / openspec_carrier).exists():
         envelope_gaps.append(f"carriers.openspec_missing_path:{openspec_carrier}")
     if not fallback:
         envelope_gaps.append("fallback_missing")
@@ -330,15 +444,17 @@ def _trust_envelope(
         envelope_gaps.append("kill_signal_missing")
     if not promotion_targets:
         envelope_gaps.append("promotion.targets_missing")
-    for target in promotion_targets:
-        if not (root / target["path"]).exists():
-            envelope_gaps.append(f"promotion_target_missing:{target['path']}")
+    envelope_gaps.extend(
+        f"promotion_target_missing:{target['path']}"
+        for target in promotion_targets
+        if not (binding[0] / target["path"]).exists()
+    )
     if evidence_digest_gap:
         envelope_gaps.append("evidence.digest_untrusted")
 
     tests = payload.get("evidence", {}).get("tests", [])
     return {
-        "claim_id": claim_id,
+        "claim_id": binding[1],
         "state": claim.get("state", ""),
         "boundary": {
             "owner": boundary_owner,
@@ -361,6 +477,7 @@ def _trust_envelope(
             "ready": bool(promotion_targets)
             and not any(gap.startswith("promotion_target_missing:") for gap in envelope_gaps),
         },
+        "semantic_attestation": semantic_attestation,
         "required_gaps": envelope_gaps,
     }
 
@@ -425,11 +542,16 @@ def claims_report(
         gaps.extend(f"{claim_id}:evidence.{gap}" for gap in freshness_gaps)
         trust_envelope = (
             _trust_envelope(
-                root=root,
-                claim_id=claim_id,
                 payload=payload,
                 dated=str(dated),
                 evidence_digest_gap=evidence_digest_gap,
+                binding=(
+                    root,
+                    claim_id,
+                    actual_digest,
+                    str(freshness_record.get("current_semantic_sha256") or ""),
+                    current_head,
+                ),
             )
             if is_active
             else {}

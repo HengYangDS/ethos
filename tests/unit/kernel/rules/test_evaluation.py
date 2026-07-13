@@ -6,15 +6,23 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 from ethos.repository.policy.rules.check import rules_layer_report
+from ethos.repository.policy.rules.evaluation import active_valid_exceptions
+from ethos.repository.policy.rules.evaluation import fact_gaps
+from ethos.repository.policy.rules.evaluation import match_waiver
+from ethos.repository.policy.rules.evaluation import required_gate_details
 from ethos.repository.policy.rules.evaluation import rules_evaluation_report
+from ethos.repository.policy.rules.evaluation import scope_matches_path
 from ethos.repository.policy.rules.exceptions import rules_docs_manifest_report
 from ethos.repository.policy.schema import validate_schema_instance
 from ethos_core.contracts.rules import RuleEvalRequest
 from ethos_core.contracts.rules import RuleFactSnapshot
 from tests.unit.kernel.rules.snapshots import complete_snapshot
+from tests.unit.kernel.rules.snapshots import fact
 
 
-def test_rule_evaluation_blocks_missing_authorization_for_publish(tmp_path: Path) -> None:
+def test_rule_evaluation_blocks_missing_authorization_for_publish(
+    tmp_path: Path,
+) -> None:
     report = rules_evaluation_report(
         tmp_path,
         phase="publish",
@@ -43,17 +51,14 @@ def test_rule_evaluation_uses_authorization_fact_over_arguments(tmp_path: Path) 
     assert "authorization_required" in report["required_gaps"]
 
 
-def test_rule_evaluation_uses_fact_snapshot_and_fail_closed_inputs(tmp_path: Path) -> None:
+def test_rule_evaluation_uses_fact_snapshot_and_fail_closed_inputs(
+    tmp_path: Path,
+) -> None:
     missing_fact = RuleFactSnapshot(
         phase="plan",
         head="untracked",
         facts={
-            "changed_paths": {
-                "owner": "ethos-adapters",
-                "fresh": True,
-                "available": False,
-                "value": [],
-            }
+            "changed_paths": fact([], owner="ethos-adapters", available=False),
         },
     )
 
@@ -95,38 +100,58 @@ def test_rule_eval_request_snapshot_requires_prewrite_source_fact(
     assert "fact_unavailable:prewrite" in report["required_gaps"]
 
 
+def test_rule_evaluation_helper_edges(tmp_path: Path) -> None:
+    gaps = fact_gaps(
+        RuleFactSnapshot(
+            phase="plan",
+            head="untracked",
+            facts={
+                "malformed": "not-a-dict",
+                "noowner": {"available": True, "value": {}},
+            },
+        )
+    )
+    assert {"fact_malformed:malformed", "fact_owner_missing:noowner"} <= set(gaps)
+    assert scope_matches_path("branch:feature", "src/a.py") is False
+    assert (
+        active_valid_exceptions({"required_gaps": [], "exceptions": [{"status": "expired"}]}) == []
+    )
+    assert (
+        match_waiver(rule_id="wanted", path="notes/todo.md", exceptions=[{"rule_id": "other"}])
+        is None
+    )
+    assert (
+        match_waiver(
+            rule_id="r",
+            path="src/a.py",
+            exceptions=[{"rule_id": "r", "scope": "path:other"}],
+        )
+        is None
+    )
+    invalid = RuleEvalRequest(phase="nonsense").to_fact_snapshot(head="untracked")
+    assert (
+        "invalid_rule_phase:nonsense"
+        in rules_evaluation_report(tmp_path, phase="nonsense", fact_snapshot=invalid)[
+            "required_gaps"
+        ]
+    )
+    prove = rules_evaluation_report(tmp_path, phase="prove", changed_paths=(".ethos/rules.toml",))
+    assert not any(gap.startswith("gate_required:") for gap in prove["required_gaps"])
+    assert required_gate_details([{"required_gates_detail": [{"command": "x"}]}]) == []
+
+
 def test_rule_evaluation_blocks_timeout_nondeterminism_and_conflicts(
     tmp_path: Path,
 ) -> None:
-    snapshot = RuleFactSnapshot(
-        phase="plan",
-        head="untracked",
-        facts={
-            "changed_paths": {
-                "owner": "ethos-adapters",
-                "fresh": True,
-                "available": True,
-                "value": [],
-            },
-            "adapter": {
-                "owner": "ethos-adapters",
-                "fresh": False,
-                "available": False,
-                "value": {"timeout": True},
-            },
-            "compiler": {
-                "owner": "ethos-repository",
-                "fresh": True,
-                "available": True,
-                "value": {"deterministic": False},
-            },
-            "merge": {
-                "owner": "ethos-repository",
-                "fresh": True,
-                "available": True,
-                "value": {"unresolved_conflicts": ["rules/a.toml"]},
-            },
-        },
+    snapshot = complete_snapshot()
+    snapshot.facts.update(
+        {
+            "adapter": fact(
+                {"timeout": True}, owner="ethos-adapters", fresh=False, available=False
+            ),
+            "compiler": fact({"deterministic": False}, owner="ethos-repository"),
+            "merge": fact({"unresolved_conflicts": ["rules/a.toml"]}, owner="ethos-repository"),
+        }
     )
 
     report = rules_evaluation_report(tmp_path, phase="plan", fact_snapshot=snapshot)
@@ -140,35 +165,18 @@ def test_rule_evaluation_blocks_timeout_nondeterminism_and_conflicts(
 
 
 def test_rule_evaluation_blocks_embedded_source_fact_gaps(tmp_path: Path) -> None:
-    snapshot = RuleFactSnapshot(
-        phase="prove",
-        head="untracked",
-        facts={
-            "changed_paths": {
-                "owner": "ethos-adapters",
-                "fresh": True,
-                "available": True,
-                "value": [],
-            },
-            "claim_state": {
-                "owner": "ethos-repository.claims",
-                "fresh": True,
-                "available": True,
-                "value": {
-                    "ok": False,
-                    "required_gaps": ["claim_digest_mismatch:rules"],
-                },
-            },
-            "evidence_freshness": {
-                "owner": "ethos-repository.claims",
-                "fresh": True,
-                "available": True,
-                "value": {
-                    "ok": False,
-                    "stale": ["evidence/rules.md"],
-                },
-            },
-        },
+    snapshot = complete_snapshot(phase="prove")
+    snapshot.facts.update(
+        {
+            "claim_state": fact(
+                {"ok": False, "required_gaps": ["claim_digest_mismatch:rules"]},
+                owner="ethos-repository.claims",
+            ),
+            "evidence_freshness": fact(
+                {"ok": False, "stale": ["evidence/rules.md"]},
+                owner="ethos-repository.claims",
+            ),
+        }
     )
 
     report = rules_evaluation_report(tmp_path, phase="prove", fact_snapshot=snapshot)
@@ -192,7 +200,9 @@ def test_rule_evaluation_blocks_worktree_gaps_for_publish(tmp_path: Path) -> Non
     assert "fact_required_gap:worktree:protected_root_mutation" in report["required_gaps"]
 
 
-def test_inactive_profile_rule_does_not_affect_generic_evaluation(tmp_path: Path) -> None:
+def test_inactive_profile_rule_does_not_affect_generic_evaluation(
+    tmp_path: Path,
+) -> None:
     (tmp_path / ".ethos").mkdir()
     (tmp_path / ".ethos" / "rules.toml").write_text(
         """

@@ -7,13 +7,13 @@ summary = "Product-parity tests share inert payload/evidence setup and declarati
 
 [evidence]
 dated = "evidence/chronicle/product-parity-test-suite-compression-20260713/2026-07-13.md"
-sha256 = "04623634f0318355aad829b90be037b8046de9ea6c281df3df6dbbf9698c5fba"
+sha256 = "88237e763d2c29fb314728e44a966e6e5bcfce49cbac4c56a4bfb2d287b84d76"
 evidence_ids = [
   "evidence:product-parity-test-suite-compression-20260713",
   "test:tests/unit/product/parity/test_semantics.py",
   "test:tests/unit/product/parity/test_projection_semantics.py",
 ]
-binding = "The bounded OpenSpec carrier, dated 1,483-line baseline, canonical test fixtures, declarative parity case tables, measured deletion, coverage, and executed proof jointly bind this compression slice."
+binding = "The bounded OpenSpec carrier, dated 1,483-line baseline, canonical test fixtures, declarative parity case tables, measured deletion, coverage, regenerated generic shadow evidence, and executed proof jointly bind this compression slice."
 verifier = "semantic"
 tests = [
   "uv run --all-packages --group dev pytest -q tests/unit/product/parity tests/unit/coverage/test_cov_repository_edges.py",
@@ -51,4 +51,5 @@ targets = [
   { kind = "tests", path = "tests/unit/product/parity/test_gaps.py" },
   { kind = "openspec", path = "openspec/changes/product-parity-test-suite-compression-20260713" },
   { kind = "evidence", path = "evidence/chronicle/product-parity-test-suite-compression-20260713/2026-07-13.md" },
+  { kind = "evidence", path = "evidence/parity/generic-shadow.json" },
 ]

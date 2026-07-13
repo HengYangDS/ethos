@@ -8,19 +8,19 @@
 
 ## 2. Provider-local generic Git adapter
 
-- [ ] 2.1 Implement the default-off generic Git pre-receive adapter under the
+- [x] 2.1 Implement the default-off generic Git pre-receive adapter under the
   independent-verification extension, with one fixed Git tree lookup and no
   client-controlled command execution.
-- [ ] 2.2 Validate protected provider configuration, exact receipt storage,
+- [x] 2.2 Validate protected provider configuration, exact receipt storage,
   payload digest, signature, proposed commit/tree, remote, action, policy, and
   proof-floor bindings.
-- [ ] 2.3 Add focused tests for disabled mode, unprotected refs, valid protected
+- [x] 2.3 Add focused tests for disabled mode, unprotected refs, valid protected
   updates, deletion, stale/invalid receipts, policy/floor/tree mismatch, and
   physical placement.
 
 ## 3. Proof and closeout
 
-- [ ] 3.1 Validate OpenSpec, source budget, extension tests, and the selected
+- [x] 3.1 Validate OpenSpec, source budget, extension tests, and the selected
   adapter quality gates.
 - [ ] 3.2 Run a fresh HEAD-bound proof, archive the carrier, land through the
   candidate, and stop before remote publication.

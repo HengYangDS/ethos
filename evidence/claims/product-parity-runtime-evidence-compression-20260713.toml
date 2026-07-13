@@ -7,7 +7,7 @@ summary = "Product-parity runtime, evidence-writing, and report tests use compac
 
 [evidence]
 dated = "evidence/chronicle/product-parity-runtime-evidence-compression-20260713/2026-07-13.md"
-sha256 = "ac303d2d3ff1181178a59859b58f238d8f2d6db7fe9bccf10885900964c8f53e"
+sha256 = "23d3adb6a0458aae1ff8094934bf3d4355ae5a44a21f08bf9815d41de02f85a6"
 evidence_ids = [
   "evidence:product-parity-runtime-evidence-compression-20260713",
   "test:tests/unit/product/parity/test_runners.py",
@@ -55,4 +55,5 @@ targets = [
   { kind = "openspec", path = "openspec/changes/archive/2026-07-13-product-parity-runtime-evidence-compression-20260713" },
   { kind = "openspec", path = "openspec/specs/quality/spec.md" },
   { kind = "evidence", path = "evidence/chronicle/product-parity-runtime-evidence-compression-20260713/2026-07-13.md" },
+  { kind = "evidence", path = "evidence/parity/generic-shadow.json" },
 ]

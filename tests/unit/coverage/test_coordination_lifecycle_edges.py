@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-# ruff: noqa: ARG005, FBT003, PT018
+# ruff: noqa: ARG005, PT018
 import json
 import sqlite3
 import subprocess
@@ -27,13 +27,16 @@ from ethos_core.normalization.core import string_sequence
 
 BRANCH = "work/example"
 HEAD = "a" * 40
+HOLDER = "agent:test:case:holder"
+TARGET_HOLDER = "agent:test:case:target"
+LEASE_ID = "lease:one"
 
 
 def _lease_payload() -> dict[str, object]:
     return {
         "normalization_state": "normalized",
-        "holder_ref": "agent:test:case:holder",
-        "lease_id": "lease:one",
+        "holder_ref": HOLDER,
+        "lease_id": LEASE_ID,
         "epoch": 1,
         "expected_head": HEAD,
     }
@@ -57,6 +60,22 @@ def _lease_facts(**changes: object) -> LeaseFacts:
     )
 
 
+def _handoff_manifest(**changes: object) -> dict[str, object]:
+    return {
+        "package_id": "handoff:one",
+        "source_lane_ref": BRANCH,
+        "source_head": HEAD,
+        "target_holder_ref": TARGET_HOLDER,
+        **changes,
+    }
+
+
+def _patch_handoff_manifest(monkeypatch, manifest: dict[str, object]) -> None:
+    monkeypatch.setattr(
+        handoff.handoff_package, "verified_handoff_manifest", lambda **_: (manifest, [])
+    )
+
+
 def test_handoff_validation_helper_matrix(tmp_path: Path) -> None:
     assert handoff._holder_ref_gaps("bad", "also-bad") == [  # noqa: RUF100, SLF001 - exact private branch coverage
         "holder_ref_invalid",
@@ -64,8 +83,8 @@ def test_handoff_validation_helper_matrix(tmp_path: Path) -> None:
     ]
     binding = {
         "branch": BRANCH,
-        "holder_ref": "agent:test:case:holder",
-        "lease_id": "lease:one",
+        "holder_ref": HOLDER,
+        "lease_id": LEASE_ID,
         "epoch": 1,
     }
     for facts, expected in (
@@ -106,16 +125,16 @@ def test_handoff_validation_helper_matrix(tmp_path: Path) -> None:
         assert handoff._dirty_disposition_gaps(dirty_paths, disposition) == expected  # noqa: RUF100, SLF001 - exact private branch coverage
     context = tmp_path / "context.md"
     for content, context_text, expected in (
-        ("context\n", "also", "handoff_context_ambiguous"),
+        ("context\n", "also", ("", "handoff_context_ambiguous")),
         ("context\n", "", ("context\n", "")),
-        ("", "", "handoff_context_required"),
+        ("", "", ("", "handoff_context_required")),
     ):
         context.write_text(content, encoding="utf-8")
         result = handoff._handoff_context(context_text=context_text, context_file=context)  # noqa: RUF100, SLF001 - exact private branch coverage
-        assert result == expected if isinstance(expected, tuple) else result[1] == expected
-    assert handoff._handoff_context(context_text="", context_file=tmp_path / "missing.md")[1] == (  # noqa: RUF100, SLF001 - exact private branch coverage
-        "handoff_context_file_unreadable"
-    )
+        assert result == expected
+    assert handoff._handoff_context(  # noqa: RUF100, SLF001 - exact private branch coverage
+        context_text="", context_file=tmp_path / "missing.md"
+    ) == ("", "handoff_context_file_unreadable")
 
 
 def test_handoff_state_and_json_helpers(tmp_path: Path, monkeypatch) -> None:
@@ -164,26 +183,26 @@ def test_handoff_orchestration_catches_effect_failures(tmp_path: Path, monkeypat
     monkeypatch.setattr(
         handoff,
         "workspace_status",
-        lambda _root: {"role": "work_lane", "branch": "work/example", "dirty": False},
+        lambda _root: {"role": "work_lane", "branch": BRANCH, "dirty": False},
     )
     monkeypatch.setattr(
         handoff,
         "_git_value",
-        lambda _root, *args: "a" * 40 if args == ("rev-parse", "HEAD") else "b" * 40,
+        lambda _root, *args: HEAD if args == ("rev-parse", "HEAD") else "b" * 40,
     )
     monkeypatch.setattr(handoff, "changed_paths", lambda _root: ())
-    monkeypatch.setattr(handoff, "_current_lease", lambda **kwargs: _lease_payload())
+    monkeypatch.setattr(handoff, "_current_lease", lambda **_: _lease_payload())
     monkeypatch.setattr(
         handoff.handoff_package,
         "write_handoff_package",
-        lambda **kwargs: (_ for _ in ()).throw(ValueError("export-failed")),
+        lambda **_: (_ for _ in ()).throw(ValueError("export-failed")),
     )
     exported = handoff.export_cross_host_handoff(
         root=tmp_path,
         branch="work/example",
-        holder_ref="agent:test:case:holder",
-        target_holder_ref="agent:test:case:target",
-        lease_id="lease:one",
+        holder_ref=HOLDER,
+        target_holder_ref=TARGET_HOLDER,
+        lease_id=LEASE_ID,
         epoch=1,
         expect_head="a" * 40,
         context_text="context",
@@ -194,28 +213,19 @@ def test_handoff_orchestration_catches_effect_failures(tmp_path: Path, monkeypat
     )
     assert exported["required_gaps"] == ["handoff_export_failed:export-failed"]
 
-    manifest = {
-        "package_id": "handoff:one",
-        "source_lane_ref": "work/example",
-        "source_head": "a" * 40,
-        "target_holder_ref": "agent:test:case:target",
-    }
-    monkeypatch.setattr(
-        handoff.handoff_package,
-        "verified_handoff_manifest",
-        lambda **kwargs: (manifest, []),
-    )
+    manifest = _handoff_manifest()
+    _patch_handoff_manifest(monkeypatch, manifest)
     monkeypatch.setattr(handoff, "workspace_status", lambda _root: {"role": "accepted_root"})
-    monkeypatch.setattr(handoff, "_branch_exists", lambda *_args: False)
+    monkeypatch.setattr(handoff, "_branch_exists", lambda *_: False)
     monkeypatch.setattr(
         handoff.handoff_package,
         "apply_handoff_import",
-        lambda **kwargs: (_ for _ in ()).throw(ValueError("import-failed")),
+        lambda **_: (_ for _ in ()).throw(ValueError("import-failed")),
     )
     imported = handoff.import_cross_host_handoff(
         root=tmp_path,
         package=tmp_path / "package",
-        target_holder_ref="agent:test:case:target",
+        target_holder_ref=TARGET_HOLDER,
         apply=True,
     )
     assert imported["required_gaps"] == ["handoff_import_failed:import-failed"]
@@ -228,19 +238,9 @@ def test_handoff_import_and_revoke_validation_edges(tmp_path: Path, monkeypatch)
         "workspace_status",
         lambda _root: {"role": "work_lane", "branch": "work/other", "dirty": True},
     )
-    manifest = {
-        "package_id": "handoff:one",
-        "source_lane_ref": "work/example",
-        "source_head": "a" * 40,
-        "target_holder_ref": "agent:test:case:target",
-        "source_lease_binding": {},
-    }
-    monkeypatch.setattr(
-        handoff.handoff_package,
-        "verified_handoff_manifest",
-        lambda **kwargs: (manifest, []),
-    )
-    monkeypatch.setattr(handoff, "_branch_exists", lambda *_args: True)
+    manifest = _handoff_manifest(source_lease_binding={})
+    _patch_handoff_manifest(monkeypatch, manifest)
+    monkeypatch.setattr(handoff, "_branch_exists", lambda *_: True)
     imported = handoff.import_cross_host_handoff(
         root=tmp_path,
         package=tmp_path / "package",
@@ -262,8 +262,8 @@ def test_handoff_import_and_revoke_validation_edges(tmp_path: Path, monkeypatch)
         root=tmp_path,
         package=tmp_path / "package",
         acknowledgement=ack,
-        holder_ref="agent:test:case:holder",
-        lease_id="lease:one",
+        holder_ref=HOLDER,
+        lease_id=LEASE_ID,
         epoch=1,
         expect_head="a" * 40,
         apply=False,
@@ -282,23 +282,21 @@ def test_handoff_import_and_revoke_validation_edges(tmp_path: Path, monkeypatch)
 
 
 def test_handoff_revoke_effect_failure_and_success(tmp_path: Path, monkeypatch) -> None:
-    manifest = {
-        "package_id": "handoff:one",
-        "source_lane_ref": "work/example",
-        "source_lease_binding": {
-            "holder_ref": "agent:test:case:holder",
-            "lease_id": "lease:one",
+    manifest = _handoff_manifest(
+        source_lease_binding={
+            "holder_ref": HOLDER,
+            "lease_id": LEASE_ID,
             "epoch": 1,
-            "expected_head": "a" * 40,
-        },
-    }
+            "expected_head": HEAD,
+        }
+    )
     ack = tmp_path / "ack.json"
     ack.write_text(
         json.dumps(
             {
                 "acknowledgement_id": "ack:one",
                 "package_id": "handoff:one",
-                "destination_head": "a" * 40,
+                "destination_head": HEAD,
                 "source_lease_transferred": False,
             }
         ),
@@ -308,15 +306,11 @@ def test_handoff_revoke_effect_failure_and_success(tmp_path: Path, monkeypatch) 
     monkeypatch.setattr(
         handoff,
         "workspace_status",
-        lambda _root: {"role": "work_lane", "branch": "work/example"},
+        lambda _root: {"role": "work_lane", "branch": BRANCH},
     )
-    monkeypatch.setattr(
-        handoff.handoff_package,
-        "verified_handoff_manifest",
-        lambda **kwargs: (manifest, []),
-    )
-    monkeypatch.setattr(handoff, "_git_value", lambda *_args: "a" * 40)
-    monkeypatch.setattr(handoff, "_state_root", lambda **kwargs: tmp_path)
+    _patch_handoff_manifest(monkeypatch, manifest)
+    monkeypatch.setattr(handoff, "_git_value", lambda *_: HEAD)
+    monkeypatch.setattr(handoff, "_state_root", lambda **_: tmp_path)
     monkeypatch.setattr(
         handoff,
         "revoke_lease",
@@ -328,8 +322,8 @@ def test_handoff_revoke_effect_failure_and_success(tmp_path: Path, monkeypatch) 
             root=tmp_path,
             package=tmp_path / "package",
             acknowledgement=ack,
-            holder_ref="agent:test:case:holder",
-            lease_id="lease:one",
+            holder_ref=HOLDER,
+            lease_id=LEASE_ID,
             epoch=1,
             expect_head="a" * 40,
             apply=True,
@@ -380,7 +374,6 @@ def test_handoff_package_manifest_and_effect_edges(tmp_path: Path, monkeypatch) 
         "handoff_artifact_missing:missing.txt",
         "handoff_artifact_digest_mismatch:wrong.txt",
     ]
-    assert string_sequence("bad") == []
 
     monkeypatch.setattr(
         handoff_package.subprocess,
@@ -455,9 +448,9 @@ def test_handoff_package_existing_output_and_schema_failure(tmp_path: Path, monk
             branch="work/example",
             head="a" * 40,
             tree="b" * 40,
-            holder_ref="agent:test:case:holder",
-            target_holder_ref="agent:test:case:target",
-            lease_id="lease:one",
+            holder_ref=HOLDER,
+            target_holder_ref=TARGET_HOLDER,
+            lease_id=LEASE_ID,
             epoch=1,
             context="context",
             output_root=output,
@@ -474,34 +467,28 @@ def test_handoff_restore_and_empty_preservation_edges(tmp_path: Path, monkeypatc
         "_run",
         lambda _root, *args: calls.append(args),
     )
-    handoff_package._restore_preserved_work(
-        package=tmp_path,
-        manifest={"dirty_disposition": "clean"},
-        worktree=tmp_path,
-    )
-    assert calls == []
-    handoff_package._restore_preserved_work(
-        package=tmp_path,
-        manifest={
-            "dirty_disposition": "preserved",
-            "artifacts": [
-                {"kind": "tracked_patch", "path": "tracked.patch"},
-                {"kind": "untracked_archive", "path": "untracked.tar"},
+    for manifest, expected_calls in (
+        ({"dirty_disposition": "clean"}, []),
+        (
+            {
+                "dirty_disposition": "preserved",
+                "artifacts": [
+                    {"kind": "tracked_patch", "path": "tracked.patch"},
+                    {"kind": "untracked_archive", "path": "untracked.tar"},
+                ],
+            },
+            [
+                ("git", "apply", "--binary", (tmp_path / "tracked.patch").as_posix()),
+                ("tar", "-xf", (tmp_path / "untracked.tar").as_posix()),
             ],
-        },
-        worktree=tmp_path,
-    )
-    assert calls == [
-        ("git", "apply", "--binary", (tmp_path / "tracked.patch").as_posix()),
-        ("tar", "-xf", (tmp_path / "untracked.tar").as_posix()),
-    ]
-    calls.clear()
-    handoff_package._restore_preserved_work(
-        package=tmp_path,
-        manifest={"dirty_disposition": "preserved", "artifacts": []},
-        worktree=tmp_path,
-    )
-    assert calls == []
+        ),
+        ({"dirty_disposition": "preserved", "artifacts": []}, []),
+    ):
+        calls.clear()
+        handoff_package._restore_preserved_work(
+            package=tmp_path, manifest=manifest, worktree=tmp_path
+        )
+        assert calls == expected_calls
 
     monkeypatch.setattr(
         handoff_package.subprocess,
@@ -526,7 +513,7 @@ def test_handoff_restore_and_empty_preservation_edges(tmp_path: Path, monkeypatc
                 epoch=None,
                 ttl_seconds=0,
             ),
-            "",
+            "blocked",
             (
                 "work_lane_required",
                 "lane_branch_mismatch",
@@ -538,7 +525,7 @@ def test_handoff_restore_and_empty_preservation_edges(tmp_path: Path, monkeypatc
             ),
         ),
         ("renew", _lease_facts(), "planned", ()),
-        ("renew", _lease_facts(expect_head="b"), "", ("expect_head_mismatch",)),
+        ("renew", _lease_facts(expect_head="b"), "blocked", ("expect_head_mismatch",)),
     ],
 )
 def test_lease_request_reducer_matrix(
@@ -548,8 +535,7 @@ def test_lease_request_reducer_matrix(
     expected_gaps: tuple[str, ...],
 ) -> None:
     result = reduce_lease_request(lease_transition(operation), facts)
-    if expected_state:
-        assert result.state == expected_state
+    assert result.state == expected_state
     assert result.gaps == expected_gaps
 
 
@@ -576,7 +562,10 @@ def test_lease_operation_validation_and_dispatch_edges(tmp_path: Path, monkeypat
         db_path=tmp_path / "state.sqlite",
         operation="renew",
         branch="work/example",
-        expected_state={"holder_ref": "agent:test:case:holder", "target_holder_ref": ""},
+        expected_state={
+            "holder_ref": "agent:test:case:holder",
+            "target_holder_ref": "",
+        },
         offer_id="",
         lease_id="lease:one",
         epoch=1,
@@ -605,28 +594,30 @@ def test_lease_operation_validation_and_dispatch_edges(tmp_path: Path, monkeypat
 def test_lease_state_root_and_core_failure_edges(tmp_path: Path) -> None:
     accepted = tmp_path / "accepted"
     accepted.mkdir()
-    assert (
-        lease_ops._state_root(
-            {"worktrees": ["bad", {"role": "accepted_root", "path": accepted.as_posix()}]},
-            tmp_path,
-        )
-        == accepted
-    )
-    assert lease_ops._state_root({"worktrees": []}, tmp_path) == tmp_path
-    assert lease_ops._state_root({"worktrees": "bad"}, tmp_path) == tmp_path
-    assert (
-        lease_ops._state_root(
+    for status, expected_root in (
+        (
+            {
+                "worktrees": [
+                    "bad",
+                    {"role": "accepted_root", "path": accepted.as_posix()},
+                ]
+            },
+            accepted,
+        ),
+        ({"worktrees": []}, tmp_path),
+        ({"worktrees": "bad"}, tmp_path),
+        (
             {"worktrees": ["bad", {"role": "work_lane", "path": accepted.as_posix()}]},
             tmp_path,
-        )
-        == tmp_path
-    )
+        ),
+    ):
+        assert lease_ops._state_root(status, tmp_path) == expected_root
 
     db = tmp_path / "state.sqlite"
     lease = lease_state.acquire_lease(
         db,
         subject="work/example",
-        holder_ref="agent:test:case:holder",
+        holder_ref=HOLDER,
         ttl_seconds=60,
         payload={"expected_head": "a" * 40},
     )
@@ -655,7 +646,7 @@ def test_lease_state_root_and_core_failure_edges(tmp_path: Path) -> None:
     expired = lease_state.acquire_lease(
         expired_db,
         subject="work/expired",
-        holder_ref="agent:test:case:holder",
+        holder_ref=HOLDER,
         ttl_seconds=-1,
         payload={"expected_head": "a" * 40},
     )
@@ -713,10 +704,8 @@ def test_lease_core_ambiguous_missing_and_time_edges(tmp_path: Path) -> None:
         lease_state._expect_normalized({}, "work/one")
     assert lease_state._is_expired("invalid") is True
     assert lease_state._is_expired("2099-01-01T00:00:00") is False
-    assert lease_projection.integer_value(True) == 0
-    assert lease_projection.integer_value("2") == 2
-    assert lease_projection.integer_value("bad") == 0
-    assert lease_projection.integer_value(object()) == 0
+    for value, expected in ((True, 0), ("2", 2), ("bad", 0), (object(), 0)):
+        assert lease_projection.integer_value(value) == expected
 
 
 def test_admission_and_prewrite_normalization_edges(tmp_path: Path, monkeypatch) -> None:
@@ -750,24 +739,26 @@ def test_admission_and_prewrite_normalization_edges(tmp_path: Path, monkeypatch)
             {
                 "worktrees": [
                     {"role": "work_lane", "path": tmp_path.as_posix()},
-                    {"role": "accepted_root", "path": (tmp_path / "accepted").as_posix()},
+                    {
+                        "role": "accepted_root",
+                        "path": (tmp_path / "accepted").as_posix(),
+                    },
                 ]
             },
             tmp_path,
         )
         == tmp_path / "accepted/.ethos/state/state.sqlite"
     )
-    assert string_sequence("bad") == []
 
     monkeypatch.setattr(transitions, "workspace_status", lambda _root: {"worktrees": []})
     monkeypatch.setattr(
-        transitions, "leases_by_branch", lambda *args, **kwargs: {"work/example": _lease_payload()}
+        transitions, "leases_by_branch", lambda *_, **__: {BRANCH: _lease_payload()}
     )
-    monkeypatch.setattr(transitions.os, "environ", {"ETHOS_ACTOR": "agent:test:case:holder"})
+    monkeypatch.setattr(transitions.os, "environ", {"ETHOS_ACTOR": HOLDER})
     monkeypatch.setattr(
         transitions,
         "advance_lease_head",
-        lambda *args, **kwargs: (_ for _ in ()).throw(ValueError("stale")),
+        lambda *_, **__: (_ for _ in ()).throw(ValueError("stale")),
     )
     failed = transitions.work_lane_ref_transition_report(
         root=tmp_path,
@@ -778,45 +769,41 @@ def test_admission_and_prewrite_normalization_edges(tmp_path: Path, monkeypatch)
     )
     assert failed["state"] == "repair_required"
 
-    assert (
-        prewrite._lease_binding_reason(branch="work/example", lease={}, actor="", current_head="")
-        == "lane_lease_legacy_ambiguous:work/example"
-    )
-    assert (
-        prewrite._lease_binding_reason(
-            branch="work/example",
-            lease={"normalization_state": "normalized", "holder_ref": "other"},
-            actor="actor",
-            current_head="",
-        )
-        == "lease_holder_mismatch:work/example"
-    )
-    assert (
-        prewrite._lease_binding_reason(
-            branch="work/example",
-            lease={"normalization_state": "normalized", "holder_ref": "actor"},
-            actor="actor",
-            current_head="",
-        )
-        == "lease_generation_missing:work/example"
-    )
-    assert (
-        prewrite._lease_binding_reason(
-            branch="work/example",
-            lease={
+    for lease, actor, current_head, expected_reason in (
+        ({}, "", "", "lane_lease_legacy_ambiguous:work/example"),
+        (
+            {"normalization_state": "normalized", "holder_ref": "other"},
+            "actor",
+            "",
+            "lease_holder_mismatch:work/example",
+        ),
+        (
+            {"normalization_state": "normalized", "holder_ref": "actor"},
+            "actor",
+            "",
+            "lease_generation_missing:work/example",
+        ),
+        (
+            {
                 "normalization_state": "normalized",
                 "holder_ref": "actor",
                 "lease_id": "lease",
                 "epoch": 1,
                 "expected_head": "other",
             },
-            actor="actor",
-            current_head="head",
+            "actor",
+            "head",
+            "lease_head_stale:work/example",
+        ),
+    ):
+        assert (
+            prewrite._lease_binding_reason(
+                branch=BRANCH, lease=lease, actor=actor, current_head=current_head
+            )
+            == expected_reason
         )
-        == "lease_head_stale:work/example"
-    )
 
 
-def test_landed_string_list_scalar_is_empty() -> None:
+def test_string_sequence_normalizes_tuples_and_rejects_scalars() -> None:
     assert string_sequence(("a", 2)) == ["a", "2"]
     assert string_sequence("bad") == []

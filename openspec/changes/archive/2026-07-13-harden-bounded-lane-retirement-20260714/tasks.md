@@ -11,5 +11,5 @@
 
 - [x] 2.1 Run focused retirement tests and strict OpenSpec validation;
   execute the final head-bound ETHOS proof after archival and parity refresh.
-- [ ] 2.2 Archive the completed OpenSpec change, refresh any required parity
+- [x] 2.2 Archive the completed OpenSpec change, refresh any required parity
   evidence, and close the owned lane only after local proof passes.

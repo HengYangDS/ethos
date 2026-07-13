@@ -7,7 +7,7 @@ summary = "Product-parity tests share inert payload/evidence setup and declarati
 
 [evidence]
 dated = "evidence/chronicle/product-parity-test-suite-compression-20260713/2026-07-13.md"
-sha256 = "88237e763d2c29fb314728e44a966e6e5bcfce49cbac4c56a4bfb2d287b84d76"
+sha256 = "525ecd7d375d4c863a337de20df7425df6cd59577df5d58f15d1b992396aaca8"
 evidence_ids = [
   "evidence:product-parity-test-suite-compression-20260713",
   "test:tests/unit/product/parity/test_semantics.py",

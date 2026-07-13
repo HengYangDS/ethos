@@ -255,6 +255,7 @@ match_prefixes = [
   "historical_freshness_",
   "semantic_sha256_",
   "semantic_scope_",
+  "semantic_attestation_",
   "digest_mismatch",
   "compile_gaps",
   "python_source_gap",

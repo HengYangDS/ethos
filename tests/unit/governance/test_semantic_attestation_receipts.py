@@ -207,6 +207,31 @@ def test_semantic_attestation_claim_schema_requires_semantic_scope(
     assert report["ok"] is False
 
 
+def test_semantic_attestation_receipt_model_rejects_tampered_payload_digest() -> None:
+    """The typed receipt contract rejects a self-inconsistent canonical payload."""
+    from ethos_core.contracts.evidence.semantic import SemanticAttestationReceipt
+
+    payload = {
+        "schema_version": 1,
+        "kind": "semantic-attestation",
+        "claim_id": "sample-claim",
+        "evidence_sha256": "a" * 64,
+        "scope_sha256": "b" * 64,
+        "head": "c" * 40,
+        "reviewer_role": "independent_reviewer",
+        "reviewer_ref": "reviewer:sample",
+        "basis": "Reviewed the declared semantic scope.",
+        "verdict": "allow",
+        "issued_at": "2026-01-01T00:00:00+00:00",
+        "valid_until": "2099-01-01T00:00:00+00:00",
+        "mints_authority": False,
+        "payload_digest": "0" * 64,
+    }
+
+    with pytest.raises(ValueError, match="payload_digest"):
+        SemanticAttestationReceipt.model_validate(payload)
+
+
 def test_digest_only_claim_does_not_require_semantic_attestation(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

@@ -16,5 +16,5 @@
 ## 3. Verification and closeout
 
 - [x] 3.1 Validate claim, Chronicle, OpenSpec, docs topology, and focused tests.
-- [ ] 3.2 Run an executed proof at the committed Work Lane HEAD.
+- [x] 3.2 Run an executed proof at the committed Work Lane HEAD.
 - [ ] 3.3 Land locally through candidate/accepted closeout; do not publish remotely.

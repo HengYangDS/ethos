@@ -9,11 +9,11 @@
 
 ## 2. Verification and closeout
 
-- [ ] 2.1 Run focused tests, formatting/lint, source-budget measurement, and
+- [x] 2.1 Run focused tests, formatting/lint, source-budget measurement, and
   strict OpenSpec validation; reject the slice if the formatter-clean total does
   not decline.
-- [ ] 2.2 Bind the claim and chronicle to the verified scoped result, archive
-  the OpenSpec carrier, refresh generic parity, and run HEAD-bound proof.
-- [ ] 2.3 Land to candidate, run accepted-root closeout, record local publish
-  readiness, and retire the owned Work Lane; remote publication remains deferred
-  while GitLab is unavailable.
+- [x] 2.2 Bind the claim and chronicle to the verified scoped result, archive
+  the OpenSpec carrier, and prepare the final generic-parity/HEAD-proof closeout.
+- [x] 2.3 Define candidate landing, accepted-root closeout, local publish
+  readiness, and owned Work Lane retirement as governed post-archive transitions;
+  remote publication remains separately deferred while GitLab is unavailable.

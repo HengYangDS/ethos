@@ -272,7 +272,8 @@ def test_reference_adapter_profile_supports_the_offline_runtime_without_broker_s
     profile = module._sandbox_profile(config, checkout)
 
     assert "(deny default)" in profile
-    assert "(deny network*)" not in profile
+    assert '(import "system.sb")' in profile
+    assert "(deny network*)" in profile
     assert "(allow file-read*)" in profile
     assert "com.apple.SystemConfiguration.configd" in profile
     assert '(literal "/bin/ps")' in profile

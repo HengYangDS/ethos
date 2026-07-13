@@ -191,6 +191,8 @@ def _sandbox_profile(config: ReferenceVerifierConfig, checkout: Path) -> str:
         [
             "(version 1)",
             "(deny default)",
+            '(import "system.sb")',
+            "(deny network*)",
             "(allow file-read*)",
             f'(allow file-write* (subpath "{checkout.parent.as_posix()}"))',
             '(allow file-write* (literal "/dev/null"))',
@@ -374,6 +376,15 @@ def reexecute(config: ReferenceVerifierConfig, request: dict[str, object]) -> Pa
             "checkout",
             "--detach",
             config.commit,
+        )
+        _git_text(
+            config,
+            checkout,
+            "-C",
+            checkout.as_posix(),
+            "config",
+            "core.hooksPath",
+            ".githooks",
         )
         actual_commit = _git_text(config, checkout, "-C", checkout.as_posix(), "rev-parse", "HEAD")
         actual_tree = _git_text(

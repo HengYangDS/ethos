@@ -11,6 +11,7 @@ from ethos.adapters.mutation.resolution.lane import apply_lane_resolution
 from ethos.adapters.mutation.resolution.lane import plan_lane_resolution
 from ethos.adapters.mutation.resolution.receipts import verify_preservation_package
 from ethos.repository.policy.schema import validate_schema_instance
+from ethos.surface.cli.lane.resolution import _default_decision_path
 from tests.support.lane_helpers import git
 from tests.support.lane_helpers import init_repo
 
@@ -39,6 +40,19 @@ def _chronicle(repo: Path, disposition: str) -> str:
         f"record {disposition} decision",
     )
     return relative.as_posix()
+
+
+def test_resolution_decision_default_path_is_a_valid_local_artifact_home(
+    tmp_path: Path,
+) -> None:
+    assert _default_decision_path(tmp_path, "work/owner/recovery") == (
+        tmp_path
+        / "build"
+        / "artifacts"
+        / "lane-resolution"
+        / "decisions"
+        / "work-owner-recovery.json"
+    )
 
 
 def test_exceptional_resolution_recomputes_observation_before_effect(

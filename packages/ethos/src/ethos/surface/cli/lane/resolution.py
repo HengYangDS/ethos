@@ -43,6 +43,12 @@ _DEFAULT_CLEAR_OPTIONS = _ClearOptions(
 )
 
 
+def _default_decision_path(root: Path, branch: str) -> Path:
+    """Return the generated-artifact home for one lane-resolution decision."""
+    token = branch.strip().replace("/", "-") or "lane-resolution"
+    return root / "build" / "artifacts" / "lane-resolution" / "decisions" / f"{token}.json"
+
+
 def _emit(command: str, report: dict[str, object], *, json_output: bool) -> None:
     result = EthosResult(
         command=command,
@@ -65,22 +71,23 @@ def lane_resolution_decide(
     evidence_ref: Annotated[tuple[str, ...], Parameter(name="--evidence-ref")] = (),
     chronicle_ref: Annotated[str, Parameter(name="--chronicle-ref")],
     recovery_plan: Annotated[str, Parameter(name="--recovery-plan")],
-    decision_path: Annotated[Path, Parameter(name="--decision-path")],
+    decision_path: Annotated[Path | None, Parameter(name="--decision-path")] = None,
     break_glass: Annotated[bool, Parameter(name="--break-glass")] = False,
     apply: bool = False,
     root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
     """Record a first-phase exceptional judgment bound to an exact observation."""
+    repo = resolve_root(root)
     report = plan_lane_resolution(
-        root=resolve_root(root),
+        root=repo,
         branch=branch,
         disposition=disposition,
         reason=reason,
         evidence_refs=evidence_ref,
         chronicle_ref=chronicle_ref,
         recovery_plan=recovery_plan,
-        decision_path=decision_path,
+        decision_path=decision_path or _default_decision_path(repo, branch),
         break_glass=break_glass,
         apply=apply,
     )

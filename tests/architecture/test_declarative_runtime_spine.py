@@ -78,6 +78,11 @@ def test_wheel_resources_and_editable_build_hook_are_projections(monkeypatch) ->
     build_data: dict[str, object] = {}
     hook.initialize("standard", build_data)
     assert build_data == {}
+    for _, resource in WHEEL_PROJECTIONS:
+        assert (CORE_SOURCE / "data" / resource).is_file()
+    hook.finalize("standard", build_data, "unused")
+    for _, resource in WHEEL_PROJECTIONS:
+        assert not (CORE_SOURCE / "data" / resource).exists()
     hook.initialize("editable", build_data)
     for canonical, resource in WHEEL_PROJECTIONS:
         assert build_data["force_include_editable"][(ROOT / canonical).as_posix()] == (

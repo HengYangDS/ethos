@@ -36,13 +36,12 @@ def _source_lane(tmp_path: Path) -> tuple[Path, Path, dict[str, object]]:
 def _export(
     worktree: Path,
     started: dict[str, object],
-    *,
-    output_root: Path,
-    context: str,
-    context_option: str = "--context-text",
-    dirty_disposition: str = "",
-    blocked: bool = False,
+    **options: object,
 ) -> dict[str, object]:
+    output_root = options["output_root"]
+    context = options["context"]
+    assert isinstance(output_root, Path)
+    assert isinstance(context, str)
     lease = started["lease"]
     assert isinstance(lease, dict)
     args = (
@@ -61,9 +60,13 @@ def _export(
         str(lease["epoch"]),
         "--expect-head",
         git(worktree, "rev-parse", "HEAD"),
-        context_option,
+        str(options.get("context_option") or "--context-text"),
         context,
-        *(("--dirty-disposition", dirty_disposition) if dirty_disposition else ()),
+        *(
+            ("--dirty-disposition", str(disposition))
+            if (disposition := options.get("dirty_disposition"))
+            else ()
+        ),
         "--output-root",
         output_root.as_posix(),
         "--apply",
@@ -71,7 +74,7 @@ def _export(
         worktree.as_posix(),
         "--json",
     )
-    runner = run_ethos_blocked if blocked else run_ethos
+    runner = run_ethos_blocked if options.get("blocked") is True else run_ethos
     return runner(*args, cwd=worktree)
 
 

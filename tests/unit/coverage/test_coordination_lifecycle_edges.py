@@ -77,10 +77,10 @@ def _patch_handoff_manifest(monkeypatch, manifest: dict[str, object]) -> None:
 
 
 def test_handoff_validation_helper_matrix(tmp_path: Path) -> None:
-    assert handoff._holder_ref_gaps("bad", "also-bad") == [  # noqa: RUF100, SLF001 - exact private branch coverage
+    assert handoff._holder_ref_gaps("bad", "also-bad") == [
         "holder_ref_invalid",
         "target_holder_ref_invalid",
-    ]
+    ]  # noqa: RUF100, SLF001 - exact private branch coverage
     binding = {
         "branch": BRANCH,
         "holder_ref": HOLDER,
@@ -130,11 +130,11 @@ def test_handoff_validation_helper_matrix(tmp_path: Path) -> None:
         ("", "", ("", "handoff_context_required")),
     ):
         context.write_text(content, encoding="utf-8")
-        result = handoff._handoff_context(context_text=context_text, context_file=context)  # noqa: RUF100, SLF001 - exact private branch coverage
-        assert result == expected
-    assert handoff._handoff_context(  # noqa: RUF100, SLF001 - exact private branch coverage
-        context_text="", context_file=tmp_path / "missing.md"
-    ) == ("", "handoff_context_file_unreadable")
+        assert handoff._handoff_context(context_text=context_text, context_file=context) == expected  # noqa: RUF100, SLF001 - exact private branch coverage
+    assert handoff._handoff_context(context_text="", context_file=tmp_path / "missing.md") == (
+        "",
+        "handoff_context_file_unreadable",
+    )  # noqa: RUF100, SLF001 - exact private branch coverage
 
 
 def test_handoff_state_and_json_helpers(tmp_path: Path, monkeypatch) -> None:
@@ -162,9 +162,8 @@ def test_handoff_state_and_json_helpers(tmp_path: Path, monkeypatch) -> None:
         ({"worktrees": []}, tmp_path),
     ):
         assert (
-            handoff._current_lease(status=probe, repo=tmp_path, branch="work/example")["lease_id"]  # noqa: RUF100, SLF001 - exact private branch coverage
-            == "one"
-        )
+            handoff._current_lease(status=probe, repo=tmp_path, branch=BRANCH)["lease_id"] == "one"
+        )  # noqa: RUF100, SLF001 - exact private branch coverage
         assert handoff._state_root(status=probe, repo=tmp_path) == expected_root  # noqa: RUF100, SLF001 - exact private branch coverage
 
     gaps: list[str] = []
@@ -462,11 +461,7 @@ def test_handoff_package_existing_output_and_schema_failure(tmp_path: Path, monk
 
 def test_handoff_restore_and_empty_preservation_edges(tmp_path: Path, monkeypatch) -> None:
     calls: list[tuple[str, ...]] = []
-    monkeypatch.setattr(
-        handoff_package,
-        "_run",
-        lambda _root, *args: calls.append(args),
-    )
+    monkeypatch.setattr(handoff_package, "_run", lambda _root, *args: calls.append(args))
     for manifest, expected_calls in (
         ({"dirty_disposition": "clean"}, []),
         (
@@ -576,16 +571,16 @@ def test_lease_operation_validation_and_dispatch_edges(tmp_path: Path, monkeypat
     assert result["required_gaps"] == ["stale"]
     monkeypatch.undo()
     with pytest.raises(ValueError, match="lease_operation_unknown:bad"):
-        lease_ops._apply_lease_lifecycle_operation(
+        lease_ops._apply_lease_lifecycle_operation(  # noqa: RUF100, SLF001 - exact dispatch-error coverage
             db_path=tmp_path / "state.sqlite",
             operation="bad",
-            branch="work/example",
-            holder_ref="agent:test:case:holder",
+            branch=BRANCH,
+            holder_ref=HOLDER,
             target_holder_ref="",
             offer_id="",
-            lease_id="lease:one",
+            lease_id=LEASE_ID,
             epoch=1,
-            expect_head="a" * 40,
+            expect_head=HEAD,
             holder_quiesced=False,
             ttl_seconds=60,
         )
@@ -699,12 +694,12 @@ def test_lease_core_ambiguous_missing_and_time_edges(tmp_path: Path) -> None:
 
 def test_admission_and_prewrite_normalization_edges(tmp_path: Path, monkeypatch) -> None:
     assert (
-        admission.work_lane_ref_transition_report(
+        admission.work_lane_ref_transition_report(  # noqa: RUF100, SLF001 - exact admission state coverage
             root=tmp_path,
             phase="prepared",
             ref_name="refs/heads/work/new",
             old_value="0" * 40,
-            new_value="a" * 40,
+            new_value=HEAD,
         )["state"]
         == "admitted"
     )
@@ -791,5 +786,4 @@ def test_admission_and_prewrite_normalization_edges(tmp_path: Path, monkeypatch)
 
 
 def test_string_sequence_normalizes_tuples_and_rejects_scalars() -> None:
-    assert string_sequence(("a", 2)) == ["a", "2"]
-    assert string_sequence("bad") == []
+    assert string_sequence(("a", 2)) == ["a", "2"] and string_sequence("bad") == []

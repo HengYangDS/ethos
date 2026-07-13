@@ -7,7 +7,7 @@
 set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [[ "${ETHOS_RUNTIME_BOOTSTRAPPED:-}" != "1" ]]; then
+if [[ "${ETHOS_RUNTIME_BOOTSTRAPPED:-}" != "1" && -x "${script_dir}/with-python-runtime.sh" ]]; then
   exec "${script_dir}/with-python-runtime.sh" -- \
     uv run --all-packages --group dev env ETHOS_RUNTIME_BOOTSTRAPPED=1 "$0" "$@"
 fi

@@ -3,18 +3,35 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 from typing import Any
-from typing import cast
+from typing import TypedDict
 
+from ethos_core.normalization.core import object_sequence
 from ethos_core.normalization.core import string_list
+from ethos_core.normalization.core import string_mapping
 
 RELATION_TYPES = {"authority", "derived_view", "decision", "superseded_vocabulary"}
+
+
+class AuthorityEntry(TypedDict):
+    """Normalized authority-graph record consumed by validation."""
+
+    id: str
+    owner: str
+    canonical_for: list[str]
+    derived_from: list[str]
+    supersedes: list[str]
+    superseded_by: list[str]
+    doc_refs: list[str]
+    evidence_refs: list[str]
+    stable_path: str
+    relation_type: str
 
 
 def _graph_path(root: Path) -> Path:
     return root / "docs" / "_meta" / "authority_graph.toml"
 
 
-def _node_to_entry(node: dict[str, Any]) -> dict[str, object]:
+def _node_to_entry(node: dict[str, object]) -> AuthorityEntry:
     return {
         "id": str(node.get("id", "")),
         "owner": str(node.get("owner", "")),
@@ -61,7 +78,7 @@ def authority_graph_report(root: Path | None = None) -> dict[str, object]:
             "required_gaps": [f"authority_graph_invalid_toml:{exc}"],
         }
 
-    raw_nodes = payload.get("node", [])
+    raw_nodes = [string_mapping(node) for node in object_sequence(payload.get("node"))]
     entries = [_node_to_entry(node) for node in raw_nodes]
     by_id = {str(entry["id"]): entry for entry in entries}
     gaps: list[str] = []
@@ -97,7 +114,7 @@ def authority_graph_report(root: Path | None = None) -> dict[str, object]:
             if superseded not in by_id:
                 gaps.append(f"{entry_id}:supersedes_missing:{superseded}")
                 continue
-            superseded_by = cast("list[str]", by_id[superseded]["superseded_by"])
+            superseded_by = by_id[superseded]["superseded_by"]
             superseded_by.append(entry_id)
         if entry["relation_type"] == "derived_view":
             derived_from = {str(source) for source in entry["derived_from"]}
@@ -110,7 +127,7 @@ def authority_graph_report(root: Path | None = None) -> dict[str, object]:
                 gaps.append(f"{entry_id}:derived_view_missing_authority_derivation")
 
     for entry in entries:
-        superseded_by = cast("list[str]", entry["superseded_by"])
+        superseded_by = entry["superseded_by"]
         superseded_by.sort()
 
     return {

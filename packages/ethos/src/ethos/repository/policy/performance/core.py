@@ -8,6 +8,8 @@ import tomllib
 from pathlib import Path
 from typing import Any
 
+from ethos_core.normalization.core import string_mapping
+
 POLICY_PATH = Path(".config/checks/performance/policy.toml")
 SCHEMA_VERSION = 2
 DEFAULT_LATEST_PATH = Path("build/evidence/quality/performance/latest.json")
@@ -265,7 +267,7 @@ def _measurements(value: object) -> list[dict[str, object]]:
     """Normalize valid measurement mappings in source order."""
     if not isinstance(value, list):
         return []
-    return [dict(item) for item in value if isinstance(item, dict)]
+    return [string_mapping(item) for item in value if isinstance(item, dict)]
 
 
 def _summary(

@@ -16,3 +16,22 @@ def string_sequence(value: object) -> list[str]:
     if not isinstance(value, list | tuple):
         return []
     return [str(item) for item in value]
+
+
+def object_sequence(value: object) -> list[object]:
+    """Return list or tuple members as objects, or an empty list otherwise."""
+    if not isinstance(value, list | tuple):
+        return []
+    return list(value)
+
+
+def string_mapping(value: object) -> dict[str, object]:
+    """Return a string-keyed mapping projection, or an empty mapping otherwise."""
+    if not isinstance(value, dict):
+        return {}
+    return {str(key): item for key, item in value.items()}
+
+
+def integer(value: object, *, default: int = 0) -> int:
+    """Return an integer value without accepting booleans or arbitrary scalars."""
+    return value if isinstance(value, int) and not isinstance(value, bool) else default

@@ -16,6 +16,7 @@ from ethos_core.contracts.gates import DECLARATION_PATH
 from ethos_core.contracts.gates import GateDescriptor
 from ethos_core.contracts.gates import GateRegistryDeclaration
 from ethos_core.contracts.gates import load_gate_registry_declaration
+from ethos_core.normalization.core import string_mapping
 
 _GATE_DECLARATION = load_gate_registry_declaration()
 PRODUCT_DEFAULT_GATE_IDS = _GATE_DECLARATION.proof_sets.product_default
@@ -518,7 +519,8 @@ def gate_policy_conformance_gaps(
     by_action: dict[str, dict[str, object]] = {}
     for run in runs:
         if isinstance(run, dict):
-            by_action.setdefault(str(run.get("action_id", "")), run)
+            payload = string_mapping(run)
+            by_action.setdefault(str(payload.get("action_id", "")), payload)
     registry, required = _policy_registry_and_required(root, tree_ref)
     gaps: list[str] = []
     for gate_id in required:

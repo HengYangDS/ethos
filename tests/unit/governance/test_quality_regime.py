@@ -108,6 +108,29 @@ def test_ruff_runtime_cache_stays_under_build_runtime() -> None:
     assert "[tool.ruff" not in pyproject_text
 
 
+def test_ty_policy_is_zero_tolerance_without_ratchet_residue() -> None:
+    policy_text = (ROOT / ".config/checks/ty/policy.toml").read_text(encoding="utf-8")
+    policy = tomllib.loads(policy_text)
+
+    assert policy == {
+        "zero_tolerance": {
+            "packages": ["packages/ethos-core", "packages/ethos"],
+        }
+    }
+    assert "ratchet" not in policy_text
+    assert "baseline" not in policy_text
+
+
+def test_type_policy_projections_are_zero_tolerance_only() -> None:
+    command_help = (ROOT / "system/commands.toml").read_text(encoding="utf-8")
+    gitlab = (ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8")
+    template = (ROOT / ".config/ci/templates/hosted/gitlab-ci.yml").read_text(encoding="utf-8")
+
+    assert "zero diagnostics for every package" in command_help
+    for projection in (gitlab, template):
+        assert "requires zero diagnostics for every declared package" in projection
+
+
 def test_ruff_ratchet_has_no_zero_debt_ignore_residue() -> None:
     ratchet = tomllib.loads(
         (ROOT / ".config/checks/ruff/ratchet.toml").read_text(encoding="utf-8")
@@ -149,6 +172,12 @@ def test_ruff_ratchet_rejects_stale_baseline(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     runner.chmod(runner.stat().st_mode | stat.S_IXUSR)
+    runtime_wrapper = repo / "tools/ci/scripts/with-python-runtime.sh"
+    runtime_wrapper.write_text(
+        (ROOT / "tools/ci/scripts/with-python-runtime.sh").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    runtime_wrapper.chmod(runtime_wrapper.stat().st_mode | stat.S_IXUSR)
 
     bin_dir = repo / "bin"
     bin_dir.mkdir()
@@ -157,7 +186,10 @@ def test_ruff_ratchet_rejects_stale_baseline(tmp_path: Path) -> None:
         "#!/usr/bin/env bash\n"
         "set -euo pipefail\n"
         "shift  # run\n"
-        'if [ "$1" = "--group" ]; then shift 2; fi\n'
+        'while [[ "$1" == --* || "$1" == "--group" ]]; do\n'
+        '  if [ "$1" = "--group" ]; then shift 2; else shift; fi\n'
+        "done\n"
+        'if [ "$1" = "env" ]; then shift; exec env "$@"; fi\n'
         'if [ "$1" = "python" ]; then shift; exec "$PYTHON_BIN" "$@"; fi\n'
         'exec "$@"\n',
         encoding="utf-8",

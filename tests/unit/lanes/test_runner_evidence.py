@@ -23,10 +23,10 @@ def test_dry_run_runner_records_action_without_execution() -> None:
     assert result.exit_code is None
 
 
-def test_local_runner_executes_successful_command(tmp_path: Path) -> None:
+def test_local_runner_executes_successful_command_after_handler_declines(tmp_path: Path) -> None:
     node = ActionNode(id="python", kind="test", command=("python", "-c", "print('ok')"))
 
-    result = LocalSubprocessRunner().run(node, root=tmp_path)
+    result = LocalSubprocessRunner(inprocess_handler=lambda *_: None).run(node, root=tmp_path)
 
     assert result.state == "passed"
     assert result.exit_code == 0

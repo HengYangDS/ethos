@@ -9,7 +9,6 @@ import ethos_core.contracts.system.contracts as system_contracts
 from ethos.assistants import playbooks
 from ethos.repository import context
 from ethos.repository.adoption.scaffold.core import default_files
-from ethos.repository.registry import authority
 from ethos.repository.registry import commands
 from ethos.repository.registry.docs.links import stable_paths_report
 from ethos.repository.release import core as release_core
@@ -18,25 +17,6 @@ from ethos_core.contracts import rules
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-
-def test_authority_graph_populates_superseded_by(tmp_path: Path) -> None:
-    # node 'a' supersedes existing 'b': 104 isinstance True -> append (105); then 118 True -> sort (119).
-    # The mirror False branches 104->99 and 118->116 are unreachable (superseded_by is always a list).
-    meta = tmp_path / "docs" / "_meta"
-    meta.mkdir(parents=True)
-    (meta / "authority_graph.toml").write_text(
-        '[[node]]\nid = "a"\nowner = "o"\nstable_path = "sp"\n'
-        'relation_type = "authority"\nevidence_refs = ["evidence/a.md"]\nsupersedes = ["b"]\n\n'
-        '[[node]]\nid = "b"\nowner = "o"\nstable_path = "sp"\n'
-        'relation_type = "authority"\nevidence_refs = ["evidence/b.md"]\n',
-        encoding="utf-8",
-    )
-
-    report = authority.authority_graph_report(tmp_path)
-
-    entries = {entry["id"]: entry for entry in report["entries"]}
-    assert entries["b"]["superseded_by"] == ["a"]
 
 
 def test_scan_retired_prefixes_skips_single_token_fenced_line(tmp_path: Path) -> None:

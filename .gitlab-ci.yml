@@ -53,10 +53,9 @@ ethos:types:
   <<: *python_setup
   stage: quality
   script:
-    # `ethos quality types` enforces EVERY ty policy tier (.config/checks/ty/
-    # policy.toml): zero-tolerance packages must be 0 diagnostics, ratchet packages
-    # must stay within their baseline (which may only shrink). Fail-closed via the
-    # verdict->exit binding, so a breach fails the pipeline.
+    # `ethos quality types` requires zero diagnostics for every declared package.
+    # Unavailable or indeterminate ty execution also blocks through verdict-to-exit
+    # binding, so the pipeline cannot pass on an unverified type result.
     - tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev ethos quality types --json
 
 ethos:architecture:

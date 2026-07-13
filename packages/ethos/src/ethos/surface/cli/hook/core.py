@@ -20,6 +20,7 @@ from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import hook_app
 from ethos.surface.cli._base import resolve_root
 from ethos_core.contracts.branch.roles import load_branch_role_policy
+from ethos_core.normalization.core import string_sequence
 from ethos_core.result import EthosResult
 
 
@@ -64,7 +65,7 @@ def admit(
             "role": report["role"],
             "decision": decision_action,
         },
-        required_gaps=tuple(report["required_gaps"]),
+        required_gaps=tuple(string_sequence(report.get("required_gaps"))),
         next_actions=_hook_admit_next_actions(report),
         data=report,
     )
@@ -113,7 +114,7 @@ def pre_push(
             "role": report["role"],
             "decision": decision_action,
         },
-        required_gaps=tuple(report["required_gaps"]),
+        required_gaps=tuple(string_sequence(report.get("required_gaps"))),
         next_actions=(("ethos prove --execute --expect-head <head>",) if not report["ok"] else ()),
         data=report,
     )
@@ -173,7 +174,7 @@ def ref_transaction(
         ok=bool(report["ok"]),
         state=str(report["state"]),
         summary={"branch": report["branch"], "decision": decision_action},
-        required_gaps=tuple(report["required_gaps"]),
+        required_gaps=tuple(string_sequence(report.get("required_gaps"))),
         next_actions=(("ethos land --closeout",) if not report["ok"] else ()),
         data=report,
     )

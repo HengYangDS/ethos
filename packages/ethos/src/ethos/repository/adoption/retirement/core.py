@@ -13,6 +13,7 @@ from ethos.repository.policy.artifacts import generated_artifact_topology_report
 from ethos.repository.policy.docs.topology import docs_topology_report
 from ethos.repository.profile import load_repository_profile
 from ethos_core.normalization.core import string_list
+from ethos_core.normalization.core import string_mapping
 
 RETIREMENT_READY_STATES = {"retirement_ready", "ready_to_retire", "retired"}
 EXTERNAL_DEFAULT_STATES = RETIREMENT_READY_STATES | {"default", "rollback_window"}
@@ -220,12 +221,12 @@ def _read_backend_control(path: Path, control: str) -> tuple[dict[str, object], 
         return {}, f"retirement_backend_control_invalid:{control}"
 
 
-def _table(data: dict[str, object], key: str) -> dict[str, Any]:
-    table = data.get(key)
-    return table if isinstance(table, dict) else {}
+def _table(data: dict[str, object], key: str) -> dict[str, object]:
+    """Return one string-keyed table without leaking untyped TOML values."""
+    return string_mapping(data.get(key))
 
 
-def _backend_control_contract_gaps(contract: dict[str, Any]) -> list[str]:
+def _backend_control_contract_gaps(contract: dict[str, object]) -> list[str]:
     gaps: list[str] = []
     asset_kind = str(contract.get("asset_kind") or "")
     profile_binding = str(contract.get("profile_binding") or "")
@@ -237,7 +238,7 @@ def _backend_control_contract_gaps(contract: dict[str, Any]) -> list[str]:
 
 
 def _backend_control_current_gaps(
-    current: dict[str, Any], expected_external_state: str
+    current: dict[str, object], expected_external_state: str
 ) -> list[str]:
     gaps: list[str] = []
     control_state = str(current.get("state") or "")
@@ -276,7 +277,7 @@ def _backend_control_current_gaps(
     return gaps
 
 
-def _backend_control_forbidden_gaps(forbidden: dict[str, Any]) -> list[str]:
+def _backend_control_forbidden_gaps(forbidden: dict[str, object]) -> list[str]:
     gaps: list[str] = []
     for key in (
         "repo_local_execution_wrapper",
@@ -290,7 +291,7 @@ def _backend_control_forbidden_gaps(forbidden: dict[str, Any]) -> list[str]:
 
 
 def _backend_control_rollback_gaps(
-    rollback: dict[str, Any], expected_external_state: str
+    rollback: dict[str, object], expected_external_state: str
 ) -> list[str]:
     default_or_later = expected_external_state in EXTERNAL_DEFAULT_STATES
     preview = expected_external_state == "adoption_preview"
@@ -300,7 +301,7 @@ def _backend_control_rollback_gaps(
     return []
 
 
-def _embedded_backend_checks(repo: Path, embedded_backend: dict[str, Any]) -> dict[str, object]:
+def _embedded_backend_checks(repo: Path, embedded_backend: dict[str, object]) -> dict[str, object]:
     state = str(embedded_backend.get("state") or "")
     policy = str(embedded_backend.get("retirement_policy") or "")
     gaps = []
@@ -321,7 +322,7 @@ def _embedded_backend_checks(repo: Path, embedded_backend: dict[str, Any]) -> di
 
 
 def _product_boundary_checks(
-    product_root: Path, adoption_boundary: dict[str, Any]
+    product_root: Path, adoption_boundary: dict[str, object]
 ) -> dict[str, object]:
     forbidden = string_list(
         adoption_boundary.get("forbidden_external_product_roots"), drop_empty=True
@@ -342,7 +343,7 @@ def _docs_topology_checks(repo: Path) -> dict[str, object]:
         f"retirement_docs_topology:{gap}"
         for gap in string_list(report.get("required_gaps"), drop_empty=True)
     ]
-    summary = report.get("summary") if isinstance(report.get("summary"), dict) else {}
+    summary = string_mapping(report.get("summary"))
     return {
         "ok": not gaps,
         "state": report.get("state", ""),
@@ -364,7 +365,7 @@ def _generated_artifacts_checks(repo: Path) -> dict[str, object]:
         f"retirement_generated_artifacts:{gap}"
         for gap in string_list(report.get("required_gaps"), drop_empty=True)
     ]
-    summary = report.get("summary") if isinstance(report.get("summary"), dict) else {}
+    summary = string_mapping(report.get("summary"))
     return {
         "ok": not gaps,
         "state": report.get("state", ""),

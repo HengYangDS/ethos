@@ -26,6 +26,7 @@ from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import resolve_root
 from ethos_core.contracts.context.projection import ASSISTANT_TRUTH_BOUNDARY
 from ethos_core.contracts.context.projection import context_retrieval_smoke_queries
+from ethos_core.normalization.core import object_sequence
 from ethos_core.result import EthosResult
 
 
@@ -42,7 +43,7 @@ def assistants_doctor(
         command="assistants doctor",
         ok=True,
         state="ready",
-        summary={"surface_count": len(contract["surfaces"])},
+        summary={"surface_count": len(object_sequence(contract.get("surfaces")))},
         next_actions=("ethos assistants mcp-manifest",),
         data={"contract": contract},
     )
@@ -123,7 +124,7 @@ def assistants_context(
         ok=bool(retrieval["ok"]) if retrieval else True,
         state=str(retrieval["state"]) if retrieval else "ready",
         summary={
-            "protocol_count": len(bundle["protocols"]),
+            "protocol_count": len(object_sequence(bundle.get("protocols"))),
             "verified_count": retrieval["summary"]["verified_count"] if retrieval else 0,
         },
         required_gaps=tuple(retrieval["required_gaps"]) if retrieval else (),

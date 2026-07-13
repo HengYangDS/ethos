@@ -24,6 +24,7 @@ from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import resolve_root
 from ethos.surface.cli._gate_runner import run_inprocess_cli_gate
+from ethos_core.normalization.core import string_sequence
 from ethos_core.result import EthosResult
 
 if TYPE_CHECKING:
@@ -236,7 +237,7 @@ def prove(
             "gate_count": len(proof_runs),
         },
         required_gaps=(
-            tuple(audit["required_gaps"])
+            tuple(string_sequence(audit.get("required_gaps")))
             + lifecycle_gaps
             + tuple(graph_validation.gaps)
             + failed_gate_gaps

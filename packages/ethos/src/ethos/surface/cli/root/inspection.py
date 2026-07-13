@@ -7,6 +7,7 @@ import shutil
 import sys
 from contextlib import suppress
 from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import Annotated
 from typing import Any
 from typing import cast
@@ -26,7 +27,13 @@ from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import resolve_root
 from ethos.surface.cli.quality.reporting import build_declarative_report_result
 from ethos.surface.cli.quality.reporting import declared_report_result
+from ethos_core.normalization.core import integer
+from ethos_core.normalization.core import string_mapping
+from ethos_core.normalization.core import string_sequence
 from ethos_core.result import EthosResult
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 
 def host_wrapper_report(repo: Path) -> dict[str, object]:
@@ -98,7 +105,7 @@ def _status_report(repo: Path) -> dict[str, object]:
         "ok": ok,
         "state": "invalid" if not ok else "dirty" if status_payload["dirty"] else "ready",
         "diagnostics": [validation],
-        "required_gaps": tuple(status_payload.get("required_gaps", ()))
+        "required_gaps": tuple(string_sequence(status_payload.get("required_gaps")))
         + workspace_status_validation_gaps(validation),
         "next_actions": orientation["next_actions"],
         "governance_context": context_for_root(repo),
@@ -167,9 +174,9 @@ def _compact_status_result(result: EthosResult) -> EthosResult:
         },
         "coordination": {
             "blocking": bool(coordination.get("blocking")),
-            "foreign_work_lane_count": int(coordination.get("foreign_work_lane_count") or 0),
-            "unbound_work_lane_count": int(coordination.get("unbound_work_lane_count") or 0),
-            "missing_lease_count": int(coordination.get("missing_lease_count") or 0),
+            "foreign_work_lane_count": integer(coordination.get("foreign_work_lane_count")),
+            "unbound_work_lane_count": integer(coordination.get("unbound_work_lane_count")),
+            "missing_lease_count": integer(coordination.get("missing_lease_count")),
             "advisory_count": _count_sequence(coordination.get("advisory_gaps")),
             "required_count": _count_sequence(coordination.get("required_gaps")),
         },
@@ -224,8 +231,8 @@ def _compact_invalid_states(value: object) -> dict[str, object]:
     if not isinstance(value, dict):
         return {"category_count": 0, "gap_count": 0}
     return {
-        "category_count": int(value.get("category_count") or 0),
-        "gap_count": int(value.get("gap_count") or 0),
+        "category_count": integer(value.get("category_count")),
+        "gap_count": integer(value.get("gap_count")),
     }
 
 
@@ -241,7 +248,7 @@ def _compact_gap_layers(value: object) -> dict[str, dict[str, object]]:
             "ok": bool(raw_layer.get("ok")),
             "required_count": _count_sequence(raw_layer.get("required_gaps")),
             "advisory_count": _count_sequence(raw_layer.get("advisory_gaps")),
-            "gap_count": int(raw_layer.get("gap_count") or 0),
+            "gap_count": integer(raw_layer.get("gap_count")),
             "invalid_states": _compact_invalid_states(raw_layer.get("invalid_states")),
         }
     return compact_layers
@@ -261,7 +268,7 @@ def _compact_report_data(data: dict[str, Any]) -> dict[str, object]:
         "invalid_states": _compact_invalid_states(data.get("invalid_states")),
         "advisory_signals": {
             "blocking": bool(advisory_signals.get("blocking")),
-            "gap_count": int(advisory_signals.get("gap_count") or 0),
+            "gap_count": integer(advisory_signals.get("gap_count")),
             "next_action_count": _count_sequence(advisory_signals.get("next_actions")),
         },
         "parity": {
@@ -273,12 +280,12 @@ def _compact_report_data(data: dict[str, Any]) -> dict[str, object]:
     }
 
 
-def _compact_report_payload(payload: dict[str, object]) -> dict[str, object]:
-    data = cast("dict[str, Any]", payload["data"])
+def _compact_report_payload(payload: Mapping[str, object]) -> dict[str, object]:
+    data = cast("dict[str, Any]", string_mapping(payload.get("data")))
     return {
         **payload,
         "governance_context": data.get("governance_context", {}),
-        "summary": {**cast("dict[str, object]", payload["summary"]), "compact": True},
+        "summary": {**string_mapping(payload.get("summary")), "compact": True},
         "data": _compact_report_data(data),
     }
 

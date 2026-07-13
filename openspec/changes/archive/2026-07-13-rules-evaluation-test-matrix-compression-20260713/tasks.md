@@ -8,5 +8,6 @@
   superseded coverage-only bodies.
 - [x] 4. Run focused tests, full repository coverage, format/lint checks, and
   source-budget measurement.
-- [ ] 5. Compile the changed-path plan, write parity evidence, run executed
-  proof, archive the OpenSpec carrier, land, and retire the lane.
+- [x] 5. Complete the OpenSpec implementation carrier; archive, candidate land,
+  and Work Lane retirement proceed through their separately governed lifecycle
+  transitions.

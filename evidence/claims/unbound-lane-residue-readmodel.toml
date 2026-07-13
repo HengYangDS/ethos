@@ -8,8 +8,8 @@ summary = "ETHOS status exposes unbound Work Lane refs as inspectable residue ob
 dated = "evidence/chronicle/unbound-lane-residue-readmodel/2026-07-06.md"
 sha256 = "ec37c1e20493bc93858f0b351fd6d1f895ef19cd2b5df825143c23ee93352533"
 evidence_ids = ["evidence:unbound-lane-residue-readmodel"]
-binding = "semantic Work Lane residue read-model evidence binding"
-verifier = "semantic_attested"
+binding = "declared Work Lane residue read-model evidence binding"
+verifier = "digest_only"
 tests = [
   "uv run --group dev pytest tests/unit/lanes/test_lanes.py::test_workspace_status_reports_unbound_work_lane_ref_without_active_lane tests/unit/cli/test_contracts.py::test_status_reports_unbound_work_lane_ref_as_advisory_signal tests/unit/governance/validation/test_schemas.py::test_workspace_status_payload_validates_worktree_bindings tests/unit/governance/validation/test_schemas.py::test_schema_validation_report_covers_all_ethos_schemas tests/unit/coverage/test_core_state_claims_edges.py::test_git_and_coordination_edges -q",
   "uv run --group dev ruff check packages/ethos/src/ethos/adapters/repo/status/core.py packages/ethos/src/ethos/adapters/repo/status/bindings.py packages/ethos/src/ethos/adapters/repo/coordination.py system/schemas/kernel/workspace-status.schema.json tests/unit/lanes/test_lanes.py tests/unit/cli/test_contracts.py tests/unit/governance/validation tests/unit/coverage/test_core_state_claims_edges.py",
@@ -19,16 +19,6 @@ tests = [
 
 [evidence.freshness]
 mode = "historical"
-[scope]
-packages = ["ethos"]
-schemas = ["system/schemas/kernel/workspace-status.schema.json"]
-tests = [
-  "tests/unit/lanes/test_lanes.py",
-  "tests/unit/cli/test_contracts.py",
-  "tests/unit/governance/validation",
-  "tests/unit/coverage/test_core_state_claims_edges.py",
-]
-
 [boundary]
 owner = "ethos-repository"
 scope = "Workspace status visibility for unbound Work Lane residue refs"

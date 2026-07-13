@@ -2,14 +2,14 @@
 id = "ethos-coupling-governance"
 subject = "ethos:coupling-governance"
 state = "active"
-summary = "ETHOS preserves Git-native product semantics while schema-governing coupling audit output and digest-binding OpenSpec, native protocols, product-toolchain tools, host profiles, protocol adapters, distribution adapters, historical evidence, and fixtures through explicit binding layers."
+summary = "ETHOS preserves Git-native product behavior while schema-governing coupling audit output and digest-binding OpenSpec, native protocols, product-toolchain tools, host profiles, protocol adapters, distribution adapters, historical evidence, and fixtures through explicit binding layers."
 
 [evidence]
 dated = "evidence/chronicle/coupling-contract-hardening/2026-07-01.md"
 sha256 = "61e8c1bf7fbaa7db8298517a0dcfde2787047b0740739079a001ff75fb4b0f04"
 evidence_ids = ["evidence:ethos-coupling-governance"]
-binding = "semantic coupling governance evidence binding"
-verifier = "semantic_attested"
+binding = "declared coupling governance evidence binding"
+verifier = "digest_only"
 tests = [
   "uv run --group dev pytest -q",
   "uv run --group dev ruff check .",
@@ -28,26 +28,6 @@ tests = [
 
 [evidence.freshness]
 mode = "historical"
-[scope]
-packages = [
-  "ethos",
-  "ethos-adapters",
-  "ethos-contracts",
-  "ethos-repository",
-]
-docs = [
-  "docs/governance/product-design-contract.md",
-  "docs/governance/openspec-governance.md",
-  "docs/governance/release-governance.md",
-  "docs/architecture/runner-and-mutation.md",
-  "docs/architecture/schema-validation.md",
-  "docs/architecture/gate-runner.md",
-  "docs/architecture/package-ontology.md",
-  "docs/reference/command-plane.md",
-  "openspec/specs/adapters/spec.md",
-  "openspec/specs/repository-governance/spec.md",
-]
-
 [boundary]
 owner = "ethos-repository"
 scope = "Git-native repository semantics and provider boundary classification"

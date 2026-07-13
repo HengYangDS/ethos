@@ -10,26 +10,13 @@ dated = "evidence/chronicle/parity-evidence-transaction-20260712/2026-07-12.md"
 sha256 = "798735f54553af24f6d2f1010ecf3e99e2f352bab3e7b40e03f2c944de8a38af"
 evidence_ids = ["evidence:parity-evidence-transaction-20260712"]
 binding = "Work-Lane-owned parity refresh and proof-order evidence binding"
-verifier = "semantic_attested"
+verifier = "digest_only"
 tests = [
   "build/runtime/venv/bin/python -m pytest tests/unit/product/parity/test_evidence_freshness.py tests/unit/product/parity/test_gaps.py tests/unit/product/parity/test_evidence_writing.py -q",
 ]
 
 [evidence.freshness]
 mode = "historical"
-
-[scope]
-packages = ["ethos"]
-tests = [
-  "tests/unit/product/parity/test_evidence_freshness.py",
-  "tests/unit/product/parity/test_gaps.py",
-  "tests/unit/product/parity/test_evidence_writing.py",
-]
-docs = [
-  "docs/governance/product-design-contract.md",
-  ".agents/skills/ethos-change-lifecycle/SKILL.md",
-  "openspec/specs/repository-governance/spec.md",
-]
 
 [boundary]
 owner = "ethos-repository"

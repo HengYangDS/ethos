@@ -2,14 +2,14 @@
 id = "native-docs-topology"
 subject = "ethos:native-docs-topology"
 state = "active"
-summary = "ETHOS documentation topology uses a minimal semantic governed docs kernel instead of `current`/`future` truth lanes."
+summary = "ETHOS documentation topology uses a minimal declared governed docs kernel instead of `current`/`future` truth lanes."
 
 [evidence]
 dated = "evidence/chronicle/native-docs-topology/2026-07-08.md"
 sha256 = "0d8057e04aa908da01ec92143f26fd0cb98b8012ad7824ccc787bd0ce8d2b1aa"
 evidence_ids = ["evidence:native-docs-topology"]
-binding = "semantic docs topology, scaffold, OpenSpec, generated-artifact, and command-surface policy binding"
-verifier = "semantic_attested"
+binding = "declared docs topology, scaffold, OpenSpec, generated-artifact, and command-surface policy binding"
+verifier = "digest_only"
 tests = [
   "uv run --package ethos ethos plan --changed --json",
   "tools/ci/scripts/run-python-lint.sh",

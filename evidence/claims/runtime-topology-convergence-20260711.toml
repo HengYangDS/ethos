@@ -3,14 +3,14 @@ id = "runtime-topology-convergence-20260711"
 subject = "repository-governance:worktree-bound-runtime-topology"
 change_id = "runtime-topology-convergence-20260711"
 state = "active"
-summary = "ETHOS binds product-owned Python producers to a worktree-local semantic runtime while keeping dependency caching explicitly host- or CI-scoped, including safe cross-worktree bootstrap, lock-free marked owner-script handoff, recoverable generated coverage-writer locking, and fail-closed accepted-ref maintenance policy."
+summary = "ETHOS binds product-owned Python producers to a worktree-local declared runtime while keeping dependency caching explicitly host- or CI-scoped, including safe cross-worktree bootstrap, lock-free marked owner-script handoff, recoverable generated coverage-writer locking, and fail-closed accepted-ref maintenance policy."
 
 [evidence]
 dated = "evidence/chronicle/runtime-topology-convergence-20260711/2026-07-11.md"
 sha256 = "947cf311d1958fb53ef1d6692857014be64cf455b5af2d97f19bc1dcf9b39a04"
 evidence_ids = ["evidence:runtime-topology-convergence-20260711"]
 binding = "Archived OpenSpec carrier, runtime bootstrap and topology policy, provider-projection contract, cross-worktree and same-worktree cache-lock regressions, dead-owner coverage-lock recovery, fail-closed accepted-ref maintenance policy, local generated-artifact audit, and this dated Chronicle bind the worktree-local runtime boundary."
-verifier = "semantic_attested"
+verifier = "digest_only"
 tests = [
   "tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev pytest -q tests/architecture/test_ci_provider_projections.py",
   "tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev pytest -q tests/architecture/test_testing_platform.py",

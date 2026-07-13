@@ -24,20 +24,6 @@ tests = [
 
 [evidence.freshness]
 mode = "historical"
-[scope]
-packages = [
-  "ethos",
-  "ethos-repository",
-]
-schemas = [
-  "system/schemas/kernel/campaign.schema.json",
-  "system/schemas/kernel/campaign-closeout.schema.json",
-]
-docs = [
-  "docs/governance/evolution-campaign.md",
-  "docs/plans/terminal-governance-product-design.md",
-]
-
 [boundary]
 owner = "ethos-repository"
 scope = "Campaign manifest read model, campaign closeout package wiring, schema contract, and terminal productization campaign manifest"

@@ -2,14 +2,14 @@
 id = "shadow-identity-envelope"
 subject = "ethos:shadow-parity-identity-envelope"
 state = "active"
-summary = "ETHOS shadow parity reports and tracked parity evidence bind target identity, product identity, command identities, changed paths, and evidence input digests before adopter retirement checks consume semantic diff results."
+summary = "ETHOS shadow parity reports and tracked parity evidence bind target identity, product identity, command identities, changed paths, and evidence input digests before adopter retirement checks consume declared diff results."
 
 [evidence]
 dated = "evidence/chronicle/shadow-identity-envelope/2026-07-06.md"
 sha256 = "a89b354d840d028b8634d139e907765c4f10761511345ded6ea63183ac3cc523"
 evidence_ids = ["evidence:shadow-identity-envelope"]
-binding = "semantic shadow parity identity envelope evidence binding"
-verifier = "semantic_attested"
+binding = "declared shadow parity identity envelope evidence binding"
+verifier = "digest_only"
 tests = [
   "uv run --group dev pytest tests/unit/product/parity tests/unit/governance/validation tests/unit/cli/test_command_registry.py -q",
   "tools/ci/scripts/run-python-lint.sh",
@@ -22,20 +22,6 @@ tests = [
 
 [evidence.freshness]
 mode = "historical"
-[scope]
-packages = ["ethos"]
-schemas = ["system/schemas/kernel/shadow-parity.schema.json"]
-tests = [
-  "tests/unit/product/parity",
-  "tests/unit/product/parity",
-  "tests/unit/governance/validation",
-  "tests/unit/cli/test_command_registry.py",
-]
-docs = [
-  "docs/governance/capability-parity-ledger.md",
-  "docs/governance/adopter-boundary-and-retirement.md",
-]
-
 [boundary]
 owner = "ethos-repository"
 scope = "Shadow parity identity envelope for external-vs-embedded adopter comparison evidence"

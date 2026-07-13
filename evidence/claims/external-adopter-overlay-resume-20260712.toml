@@ -9,7 +9,7 @@ dated = "evidence/chronicle/external-adopter-overlay-resume-20260712/2026-07-12.
 sha256 = "a76adeddbb3540765ffa902a9a7c06a99a317736745a8d9a708644c063a49aec"
 evidence_ids = ["evidence:external-adopter-overlay-resume-20260712"]
 binding = "bounded local external-adopter overlay pilot evidence"
-verifier = "semantic_attested"
+verifier = "digest_only"
 tests = ["ethos prove --execute --expect-head <final-lane-head> --json"]
 
 [evidence.freshness]

@@ -2,14 +2,14 @@
 id = "module-layout-core-contracts-20260709"
 subject = "ethos:module-layout-core-contracts-20260709"
 state = "active"
-summary = "ETHOS retired two ethos-core suffix-module debts into semantic subpackages without compatibility facades."
+summary = "ETHOS retired two ethos-core suffix-module debts into declared subpackages without compatibility facades."
 
 [evidence]
 dated = "evidence/chronicle/module-layout-core-contracts-20260709/2026-07-09.md"
 sha256 = "eff019dd4538ebf02ea1c22fc759e568c35536e49187f3b25e682cecf5eecc9a"
 evidence_ids = ["evidence:module-layout-core-contracts-20260709"]
-binding = "Semantic subpackage migration, no compatibility facades, module-layout ratchet shrink, and focused proof."
-verifier = "semantic"
+binding = "Declared subpackage migration, no compatibility facades, module-layout ratchet shrink, and focused proof."
+verifier = "digest_only"
 tests = [
   "uv run --package ethos ethos quality module-layout --json",
   "python -m compileall -q packages/ethos-core/src/ethos_core packages/ethos/src/ethos",
@@ -31,14 +31,6 @@ tests = [
 
 [evidence.freshness]
 mode = "historical"
-[scope]
-packages = ["ethos-core", "ethos"]
-tests = [
-  "tests/unit/kernel/test_invalid_states.py",
-  "tests/unit/kernel/test_contracts.py",
-  "tests/unit/lanes/test_lanes_lifecycle.py",
-]
-
 [boundary]
 owner = "ethos-core"
 scope = "Core contract and invalid-state taxonomy module layout debt reduction."

@@ -21,13 +21,6 @@ tests = [
 
 [evidence.freshness]
 mode = "historical"
-[scope]
-packages = ["ethos"]
-tests = [
-  "tests/unit/policy/test_product_boundary.py",
-  "tests/unit/cli/test_quality_boundary.py",
-]
-
 [boundary]
 owner = "ethos-quality"
 scope = "Product-boundary scanner treatment of ignored .ethos/state local proof records"

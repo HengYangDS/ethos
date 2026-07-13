@@ -25,15 +25,6 @@ tests = [
 
 [evidence.freshness]
 mode = "historical"
-[scope]
-packages = ["ethos", "ethos-core"]
-tests = [
-  "tests/unit/governance/test_quality_regime.py",
-  "tests/architecture/test_testing_platform.py",
-  "tests/unit/governance/test_generated_artifact_topology.py",
-  "tests/unit/cli/test_generated_artifact_topology_cli.py",
-]
-
 [boundary]
 owner = "ethos-quality"
 scope = "Physical separation of pytest config policy, pytest runtime cache, and generated test evidence"

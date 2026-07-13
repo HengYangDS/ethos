@@ -8,8 +8,8 @@ summary = "ETHOS requires profile and adapter bindings to expose admission autho
 dated = "evidence/chronicle/adapter-admission-boundary/2026-07-05.md"
 sha256 = "db526df6f3812d91b8e0a0c70245a7d7c9e4ba1641b4ea1c2793ff5cf60d35ac"
 evidence_ids = ["evidence:ethos-adapter-admission-boundary"]
-binding = "semantic adapter admission boundary evidence binding"
-verifier = "semantic_attested"
+binding = "declared adapter admission boundary evidence binding"
+verifier = "digest_only"
 tests = [
   "uv run --group dev pytest tests/unit/audit/test_coupling.py -q",
   "uv run --package ethos ethos quality coupling-audit --json",
@@ -27,21 +27,6 @@ tests = [
 
 [evidence.freshness]
 mode = "historical"
-[scope]
-packages = [
-  "ethos-repository",
-]
-schemas = [
-  "system/schemas/kernel/coupling-audit.schema.json",
-]
-tests = [
-  "tests/unit/audit/test_coupling.py",
-]
-docs = [
-  "docs/governance/product-design-contract.md",
-  "openspec/changes/archive/2026-07-05-ethos-adapter-admission-boundary-20260705/specs/ethos-repository/spec.md",
-]
-
 [boundary]
 owner = "ethos-repository"
 scope = "Adapter/profile admission metadata for coupling registry participation"

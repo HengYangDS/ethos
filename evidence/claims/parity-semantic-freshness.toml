@@ -2,14 +2,14 @@
 id = "parity-semantic-freshness"
 subject = "ethos:parity-semantic-freshness"
 state = "active"
-summary = "Tracked shadow parity evidence remains fresh across its own evidence commit by binding the parity-relevant semantic Git tree as well as commit heads."
+summary = "Tracked shadow parity evidence remains fresh across its own evidence commit by binding the parity-relevant declared Git tree as well as commit heads."
 
 [evidence]
 dated = "evidence/chronicle/parity-semantic-freshness/2026-07-06.md"
 sha256 = "6a1aa0bc4beeb043234f61f3c968014227f6947ed116b7f29742876e35d637d8"
 evidence_ids = ["evidence:parity-semantic-freshness"]
-binding = "semantic parity freshness evidence binding"
-verifier = "semantic_attested"
+binding = "declared parity freshness evidence binding"
+verifier = "digest_only"
 tests = [
   "uv run --group dev pytest tests/unit/product/parity -q",
   "tools/ci/scripts/run-python-tests.sh",
@@ -24,13 +24,6 @@ tests = [
 
 [evidence.freshness]
 mode = "historical"
-[scope]
-packages = ["ethos"]
-tests = [
-  "tests/unit/product/parity",
-  "tests/unit/product/parity",
-]
-
 [boundary]
 owner = "ethos-repository"
 scope = "Tracked shadow parity evidence freshness over commit heads and parity-relevant semantic Git tree"

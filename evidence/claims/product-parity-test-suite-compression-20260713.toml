@@ -14,7 +14,7 @@ evidence_ids = [
   "test:tests/unit/product/parity/test_projection_semantics.py",
 ]
 binding = "The bounded OpenSpec carrier, dated 1,483-line baseline, canonical test fixtures, declarative parity case tables, measured deletion, coverage, regenerated generic shadow evidence, and executed proof jointly bind this compression slice."
-verifier = "semantic"
+verifier = "digest_only"
 tests = [
   "uv run --all-packages --group dev pytest -q tests/unit/product/parity tests/unit/coverage/test_cov_repository_edges.py",
   "tools/ci/scripts/run-python-lint.sh",
@@ -25,14 +25,6 @@ tests = [
 
 [evidence.freshness]
 mode = "historical"
-
-[scope]
-tests = [
-  "tests/unit/product/parity/snapshots.py",
-  "tests/unit/product/parity/test_semantics.py",
-  "tests/unit/product/parity/test_projection_semantics.py",
-  "tests/unit/product/parity/test_gaps.py",
-]
 
 [boundary]
 owner = "quality"

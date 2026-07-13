@@ -9,7 +9,7 @@ dated = "evidence/chronicle/publish-local-ci-evidence-readmodel/2026-07-09.md"
 sha256 = "dd0d74e4d217138170c6a66caf9f8f485afbd6813ec5cf9cedaa5744f9c50e44"
 evidence_ids = ["evidence:publish-local-ci-evidence-readmodel"]
 binding = "Digest-bound evidence for publish local-CI fallback evidence readmodel hardening."
-verifier = "semantic_attested"
+verifier = "digest_only"
 tests = [
   "uv run --group dev pytest -q tests/unit/cli/test_contracts_land.py tests/unit/cli/test_contracts_proof.py::test_campaign_closeout_reports_local_campaign_packages tests/architecture/test_ci_head_stability.py",
   "uv run --package ethos ethos quality types --json",

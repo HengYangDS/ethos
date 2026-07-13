@@ -3,14 +3,14 @@ id = "lane-public-primitives-20260709"
 subject = "ethos:lane-public-primitives-20260709"
 state = "active"
 change_id = "lane-public-primitives-20260709"
-summary = "Work Lane lifecycle shared helpers moved to a semantic public primitives package, and module-layout now blocks changed-file private from-import regressions."
+summary = "Work Lane lifecycle shared helpers moved to a declared public primitives package, and module-layout now blocks changed-file private from-import regressions."
 
 [evidence]
 dated = "evidence/chronicle/lane-public-primitives-20260709/2026-07-09.md"
 sha256 = "09f82788ff1f9390daacb71d3ebc452b7a0a7507a83a44335326b7520376ae27"
 evidence_ids = ["evidence:lane-public-primitives-20260709"]
 binding = "Focused lifecycle tests, module-layout regression tests, status parser regression tests, lint/format, module-layout, code-size, types, OpenSpec lifecycle, claims, evidence freshness, and HEAD-bound proof."
-verifier = "semantic_attested"
+verifier = "digest_only"
 tests = [
   "uv run --group dev pytest -q tests/unit/policy/test_module_layout.py tests/unit/policy/layout/test_import_discipline.py tests/unit/lanes/test_lanes_retire.py tests/unit/lanes/test_lanes_lifecycle.py tests/unit/coverage/test_cov_v3_mutation_edges.py tests/unit/coverage/test_cov_v2_config_refresh_edges.py tests/unit/coverage/test_ci_95_additional_edges.py tests/unit/coverage/test_lanes_final_edges.py tests/unit/coverage/test_mutation_retrieval_parity_edges.py",
   "tools/ci/scripts/run-python-lint.sh",
@@ -25,15 +25,6 @@ tests = [
 
 [evidence.freshness]
 mode = "historical"
-[scope]
-packages = ["ethos"]
-tests = [
-  "tests/unit/policy/test_module_layout.py",
-  "tests/unit/policy/layout/test_import_discipline.py",
-  "tests/unit/lanes/test_lanes_retire.py",
-  "tests/unit/lanes/test_lanes_lifecycle.py",
-]
-
 [boundary]
 owner = "ethos-quality"
 scope = "Work Lane lifecycle helper visibility and changed-file private from-import regression gating only."

@@ -9,7 +9,7 @@ dated = "evidence/chronicle/plan-residue-closeout-20260709/2026-07-09.md"
 sha256 = "efbe60ee4f5e9fa818bb7ef3d5d3524bfc7d04e260d2b6bf36d42eec9d8a5c26"
 evidence_ids = ["evidence:plan-residue-closeout-20260709"]
 binding = "Docs plan residue closeout record binding archived planning notes, plans index, and explicit local-vs-remote boundary."
-verifier = "semantic_attested"
+verifier = "digest_only"
 tests = [
   "uv run --package ethos ethos plan --changed --json",
   "uv run --package ethos ethos quality docs --json",

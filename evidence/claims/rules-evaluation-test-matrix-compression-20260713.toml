@@ -13,7 +13,7 @@ evidence_ids = [
   "test:tests/unit/kernel/rules/test_evaluation.py",
 ]
 binding = "The bounded OpenSpec carrier, dated baseline, immutable test-fact declarations, canonical helper-edge coverage, source-budget delta, and executed proof jointly bind this compression slice."
-verifier = "semantic"
+verifier = "digest_only"
 tests = [
   "uv run --all-packages --group dev pytest -q tests/unit/kernel/rules/test_evaluation.py tests/unit/coverage/test_cov_v2_policy_edges.py tests/unit/coverage/test_cov_v3_policy_edges.py",
   "uv run --all-packages --group dev ruff check tests/unit/kernel/rules/snapshots.py tests/unit/kernel/rules/test_evaluation.py tests/unit/coverage/test_cov_v2_policy_edges.py tests/unit/coverage/test_cov_v3_policy_edges.py",
@@ -25,14 +25,6 @@ tests = [
 
 [evidence.freshness]
 mode = "historical"
-
-[scope]
-tests = [
-  "tests/unit/kernel/rules/snapshots.py",
-  "tests/unit/kernel/rules/test_evaluation.py",
-  "tests/unit/coverage/test_cov_v2_policy_edges.py",
-  "tests/unit/coverage/test_cov_v3_policy_edges.py",
-]
 
 [boundary]
 owner = "quality"

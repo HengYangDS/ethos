@@ -8,8 +8,8 @@ summary = "Installed ethos-core packages load the invalid-state taxonomy from a 
 dated = "evidence/chronicle/invalid-state-release-resource/2026-07-08.md"
 sha256 = "ecfc6be72bb4aeada24d765f56e59defd07dc72a5bf4ab75d7fb67a0bd57c553"
 evidence_ids = ["evidence:invalid-state-release-resource"]
-binding = "semantic invalid-state taxonomy release resource"
-verifier = "semantic"
+binding = "declared invalid-state taxonomy release resource"
+verifier = "digest_only"
 tests = [
   "uv run --all-packages pytest tests/unit/kernel/test_invalid_states.py -q",
   "uv build --package ethos-core --wheel --out-dir /tmp/ethos-core-build-check",
@@ -17,10 +17,6 @@ tests = [
 
 [evidence.freshness]
 mode = "historical"
-[scope]
-packages = ["ethos-core"]
-tests = ["tests/unit/kernel/test_invalid_states.py"]
-
 [boundary]
 owner = "ethos-core"
 scope = "Invalid-state taxonomy source contract and package resource fallback"

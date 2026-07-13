@@ -8,8 +8,8 @@ summary = "ETHOS current kernel truth names the authority head Authority, remove
 dated = "evidence/chronicle/authority-kernel-head-rename/2026-07-08.md"
 sha256 = "c6622192e28b854787aee73ece78741564004a4d75fb0b276d0027264daf7156"
 evidence_ids = ["evidence:authority-kernel-head-rename"]
-binding = "semantic authority-kernel-head recovery evidence binding"
-verifier = "semantic_attested"
+binding = "declared authority-kernel-head recovery evidence binding"
+verifier = "digest_only"
 tests = [
   "uv run --all-packages --group dev pytest tests/unit/kernel/test_contracts.py tests/unit/kernel/test_invalid_states.py tests/unit/governance/validation tests/unit/governance/test_authority_graph.py tests/unit/lanes/test_state.py tests/architecture/test_product_design_contract.py -q",
   "uv run --all-packages ethos quality claims --json",

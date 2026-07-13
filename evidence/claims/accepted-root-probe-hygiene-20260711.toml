@@ -10,7 +10,7 @@ dated = "evidence/chronicle/accepted-root-probe-hygiene-20260711/2026-07-11.md"
 sha256 = "ca9591c1ff7e8a90026de2520010a301364d2a77c3838483cd1fe7f3bc8f30a6"
 evidence_ids = ["evidence:accepted-root-probe-hygiene-20260711"]
 binding = "Dirty provenance, workspace-status schema, reader-only orientation, focused tests, HEAD-bound proof, the accepted OpenSpec carrier, and this dated Chronicle bind the temporary-probe contract."
-verifier = "semantic_attested"
+verifier = "digest_only"
 tests = [
   "uv run --all-packages --group dev pytest -q tests/unit/lanes/test_lanes_retire.py tests/unit/product/test_orient.py tests/unit/governance/validation/test_schemas.py",
   "uv run --package ethos ethos openspec --lifecycle --json",

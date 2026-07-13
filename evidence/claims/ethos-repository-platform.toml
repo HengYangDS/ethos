@@ -23,20 +23,6 @@ tests = [
 
 [evidence.freshness]
 mode = "historical"
-[scope]
-packages = [
-  "ethos",
-  "ethos-core",
-  "ethos-contracts",
-  "ethos-repository",
-  "ethos-assistants",
-  "ethos-adapters",
-  "ethos-test",
-]
-distributions = [
-  "distributions/npm",
-]
-
 [boundary]
 owner = "ethos-repository"
 scope = "Repository platform scaffold, playbooks, fleet inspection, OpenSpec families, and standards adapters"

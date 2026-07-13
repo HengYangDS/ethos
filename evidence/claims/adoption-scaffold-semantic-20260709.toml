@@ -2,14 +2,14 @@
 id = "adoption-scaffold-semantic-20260709"
 subject = "ethos:adoption-scaffold-semantic-20260709"
 state = "active"
-summary = "ETHOS retired adoption scaffold suffix-flat residue into semantic subpackages without compatibility facades."
+summary = "ETHOS retired adoption scaffold suffix-flat residue into declared subpackages without compatibility facades."
 
 [evidence]
 dated = "evidence/chronicle/adoption-scaffold-semantic-20260709/2026-07-09.md"
 sha256 = "c99043557216fda63e5f10b33baebcab806e55663722f846604a76a9abc8daee"
 evidence_ids = ["evidence:adoption-scaffold-semantic-20260709"]
-binding = "Semantic scaffold package migration, no compatibility import shells, no package-root barrels, module-layout ratchet shrink, and focused validation."
-verifier = "semantic_attested"
+binding = "Declared scaffold package migration, no compatibility import shells, no package-root barrels, module-layout ratchet shrink, and focused validation."
+verifier = "digest_only"
 tests = [
   "uv run --package ethos ethos quality module-layout --json",
   "uv run --all-packages --group dev ruff check packages/ethos/src/ethos/repository/adoption tests/unit/coverage/test_cov_repository_edges.py tests/unit/coverage/test_cov_v3_registrymisc_edges.py tests/unit/coverage/test_free_surface_quality_edges.py",
@@ -23,15 +23,6 @@ tests = [
 
 [evidence.freshness]
 mode = "historical"
-[scope]
-packages = ["ethos"]
-tests = [
-  "tests/unit/coverage/test_cov_repository_edges.py",
-  "tests/unit/coverage/test_cov_v3_registrymisc_edges.py",
-  "tests/unit/coverage/test_free_surface_quality_edges.py",
-  "tests/unit/adoption",
-]
-
 [boundary]
 owner = "quality"
 scope = "Adoption scaffold module-layout debt reduction by semantic subpackage migration."

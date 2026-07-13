@@ -23,17 +23,6 @@ tests = [
 
 [evidence.freshness]
 mode = "historical"
-[scope]
-packages = ["ethos"]
-tests = [
-  "tests/unit/lanes/test_hook_admission.py",
-  "tests/unit/lanes/test_lanes.py",
-  "tests/unit/domain/test_report.py",
-  "tests/unit/cli/test_contracts_lane.py",
-  "tests/unit/product/test_orient.py",
-  "tests/unit/governance/validation/test_schemas.py",
-]
-
 [boundary]
 owner = "ethos-repository"
 scope = "Closeout disposition advisory read model for foreign Work Lanes and sanctioned Work Lane replay admission"

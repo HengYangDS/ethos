@@ -19,25 +19,6 @@ tests = [
 
 [evidence.freshness]
 mode = "historical"
-[scope]
-packages = [
-  "ethos",
-  "ethos-core",
-  "ethos-contracts",
-  "ethos-repository",
-  "ethos-assistants",
-  "ethos-adapters",
-  "ethos-test",
-]
-distributions = [
-  "distributions/npm",
-]
-docs = [
-  "docs/architecture/product-ontology.md",
-  "docs/architecture/package-ontology.md",
-  "docs/reference/command-plane.md",
-]
-
 [boundary]
 owner = "ethos-repository"
 scope = "Product truth reporting, scaffold diagnostics, command examples, and package ontology"

@@ -10,7 +10,7 @@ dated = "evidence/chronicle/report-coordination-required-risk-20260709/2026-07-0
 sha256 = "2ea3182ebb1582ab14c98ef90a6c438ea3357ed3f2080201e0532c1091a13a3d"
 evidence_ids = ["evidence:report-coordination-required-risk-20260709"]
 binding = "Report coordination risk required/advisory split evidence binding"
-verifier = "semantic_attested"
+verifier = "digest_only"
 tests = [
   "uv run --group dev pytest -q tests/unit/domain/test_report.py tests/unit/domain/reporting/test_coordination.py tests/unit/cli/test_contracts.py::test_report_scorecard_is_derived_from_governance_checks tests/unit/audit/test_modes.py::test_report_uses_shallow_repository_audit",
   "uv run --group dev ruff check packages/ethos/src/ethos/domain/report.py packages/ethos/src/ethos/domain/reporting/gaps.py packages/ethos/src/ethos/domain/reporting/scoring.py tests/unit/domain/test_report.py tests/unit/domain/reporting/test_coordination.py tests/unit/cli/test_contracts.py",

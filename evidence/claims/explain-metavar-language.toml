@@ -11,7 +11,7 @@ evidence_ids = [
   "test:tests/unit/cli/test_invalid_state_projection.py::test_explain_help_uses_gap_or_signal_language",
 ]
 binding = "Historical dated evidence binds the declared claim to its focused verification references and promotion targets without asserting current repository state."
-verifier = "semantic"
+verifier = "digest_only"
 tests = [
   "tests/unit/cli/test_invalid_state_projection.py::test_explain_help_uses_gap_or_signal_language",
 ]

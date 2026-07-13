@@ -19,17 +19,6 @@ tests = [
 
 [evidence.freshness]
 mode = "historical"
-[scope]
-packages = [
-  "ethos",
-  "ethos-core",
-  "ethos-contracts",
-  "ethos-adapters",
-  "ethos-repository",
-  "ethos-assistants",
-  "ethos-test",
-]
-
 [boundary]
 owner = "ethos-repository"
 scope = "Reference adopter parity through tracked evidence and generic profiles"

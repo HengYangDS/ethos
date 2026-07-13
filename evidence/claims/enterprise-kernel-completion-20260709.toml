@@ -9,7 +9,7 @@ dated = "evidence/chronicle/enterprise-kernel-completion-20260709/2026-07-09.md"
 sha256 = "d0b4d7a20571c4ee219de8223077b38dfd3208ad0f3fa67c6728aee1c401e1ab"
 evidence_ids = ["evidence:enterprise-kernel-completion-20260709"]
 binding = "governance-kernel gate, enterprise-readiness L4, generic adoption scaffold, command-plane docs, OpenSpec quality spec, owner script, and focused tests"
-verifier = "semantic"
+verifier = "digest_only"
 tests = [
   "uv run --package ethos ethos quality governance-kernel --json",
   "uv run --package ethos ethos quality product-boundary --json",
@@ -23,21 +23,6 @@ tests = [
 
 [evidence.freshness]
 mode = "historical"
-[scope]
-packages = ["ethos"]
-tests = [
-  "tests/unit/policy/test_governance_kernel.py",
-  "tests/unit/cli/test_contracts.py",
-  "tests/unit/policy/test_enterprise_readiness.py",
-  "tests/unit/cli/test_quality_readiness.py",
-  "tests/architecture/test_testing_platform.py",
-  "tests/architecture/test_release_assets.py",
-]
-docs = [
-  "docs/reference/command-plane.md",
-  "openspec/specs/quality/spec.md",
-]
-
 [boundary]
 owner = "ethos-quality"
 scope = "Executable governance-kernel quality gate for product and governed repositories; local closeout only"

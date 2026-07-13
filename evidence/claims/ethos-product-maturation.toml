@@ -17,22 +17,6 @@ tests = [
 
 [evidence.freshness]
 mode = "historical"
-[scope]
-commands = [
-  "ethos prove --execute",
-  "ethos quality schemas",
-  "ethos quality gates",
-  "ethos quality commits",
-  "ethos quality release",
-  "ethos assistants mcp-server",
-]
-release_files = [
-  "LICENSE",
-  "CONTRIBUTING.md",
-  "CHANGELOG.md",
-  ".ethos/release.toml",
-]
-
 [boundary]
 owner = "ethos-repository"
 scope = "Schema-validated command plane, executed gates, release readiness, and host profiles"

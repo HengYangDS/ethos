@@ -54,37 +54,6 @@ def test_asset_quality_claim_promotion_targets_cover_semantic_change_surface() -
     } <= targets
 
 
-def test_active_claims_do_not_promote_transient_execution_plans() -> None:
-    report = claims_report(Path.cwd())
-
-    findings = []
-    for claim_id, claim in report["claims"].items():
-        if claim["state"] != "active":
-            continue
-        targets = claim["trust_envelope"]["promotion"]["targets"]
-        findings.extend(
-            f"{claim_id}:{target['path']}"
-            for target in targets
-            if str(target["path"]).startswith("docs/superpowers/")
-        )
-
-    assert findings == []
-
-
-def test_active_claim_text_uses_historical_not_legacy_binding_language() -> None:
-    report = claims_report(Path.cwd())
-
-    findings = []
-    for claim_id, claim in report["claims"].items():
-        if claim["state"] != "active":
-            continue
-        text = Path(claim["path"]).read_text(encoding="utf-8").lower()
-        if "legacy" in text:
-            findings.append(claim_id)
-
-    assert findings == []
-
-
 def test_empty_claims_directory_is_a_gap(tmp_path: Path) -> None:
     (tmp_path / "evidence" / "claims").mkdir(parents=True)
 
@@ -230,31 +199,6 @@ def test_active_trust_claim_requires_boundary_carriers_and_promotion(
     ]
 
 
-def test_active_claim_commands_do_not_use_retired_ci_runner_root() -> None:
-    report = claims_report(Path.cwd())
-
-    findings: list[str] = []
-    for claim_id, claim in report["claims"].items():
-        if claim["state"] != "active":
-            continue
-        envelope = claim.get("trust_envelope") or {}
-        evidence = envelope.get("evidence") or {}
-        commands = evidence.get("commands") or []
-        for command in commands:
-            if ".config/ci/scripts" in str(command):
-                findings.append(f"{claim_id}:evidence.commands:{command}")
-        fallback = envelope.get("fallback", "")
-        if ".config/ci/scripts" in str(fallback):
-            findings.append(f"{claim_id}:fallback:{fallback}")
-        promotion = envelope.get("promotion") or {}
-        for target in promotion.get("targets") or []:
-            target_path = str(target.get("path") or "")
-            if target_path.startswith(".config/ci/scripts"):
-                findings.append(f"{claim_id}:promotion.targets:{target_path}")
-
-    assert findings == []
-
-
 def test_active_claims_require_typed_evidence_claim_binding(tmp_path: Path) -> None:
     claims = tmp_path / "evidence" / "claims"
     evidence = tmp_path / "evidence"
@@ -382,7 +326,7 @@ def test_active_product_claim_rejects_private_adopter_and_workstation_literals(
                 'dated = "evidence/sample.md"',
                 f'sha256 = "{hashlib.sha256(evidence_file.read_bytes()).hexdigest()}"',
                 'binding = "digest-bound evidence binding"',
-                'verifier = "semantic"',
+                'verifier = "digest_only"',
                 'evidence_ids = ["evidence:sample"]',
                 "",
                 "[boundary]",

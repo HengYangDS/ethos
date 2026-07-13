@@ -3,14 +3,14 @@ id = "evidence-lifecycle-signal-hygiene-20260711"
 subject = "ethos:evidence-lifecycle-signal-hygiene"
 state = "active"
 change_id = "evidence-lifecycle-signal-hygiene-20260711"
-summary = "Active claims declare whether their dated evidence is historical, head-bound, or semantic-scope-bound."
+summary = "Active claims declare whether their dated evidence is historical, head-bound, or declared-scope-bound."
 
 [evidence]
 dated = "evidence/chronicle/evidence-lifecycle-signal-hygiene-20260711/2026-07-11.md"
 sha256 = "ad3481dabea50a1fc672e5309c995c4ae94dd87413fe5057fa50597336248fa0"
 evidence_ids = ["evidence:evidence-lifecycle-signal-hygiene-20260711"]
 binding = "The claim freshness contract separates durable historical support from explicit currentness bindings."
-verifier = "semantic_attested"
+verifier = "digest_only"
 tests = [
   "ethos prove --execute --expect-head $(git rev-parse HEAD) --json",
 ]

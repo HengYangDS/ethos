@@ -27,14 +27,6 @@ tests = [
 
 [evidence.freshness]
 mode = "historical"
-[scope]
-docs = [
-  "docs/governance/product-design-contract.md",
-  "docs/architecture/package-ontology.md",
-  "docs/governance/product-boundary-convergence.md",
-  "docs/governance/capability-parity-ledger.md",
-]
-
 [boundary]
 owner = "ethos-contracts"
 scope = "Product design contract, package ontology, and product/adopter boundary"

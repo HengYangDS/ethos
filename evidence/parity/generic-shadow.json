@@ -3,13 +3,13 @@
   "adopter": "generic",
   "target": "<repo>",
   "generated_on": "2026-07-13",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 45 --json",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "5d006980e169e9dae4bd4ba6b65ecbf6069bd121",
-    "target_head": "5d006980e169e9dae4bd4ba6b65ecbf6069bd121",
-    "product_semantic_sha256": "80017ae3d3c66c2aa5699df40945884344ce3f6782253e00cffdf1ab58ce84fc",
-    "target_semantic_sha256": "80017ae3d3c66c2aa5699df40945884344ce3f6782253e00cffdf1ab58ce84fc",
-    "command_sha256": "0f4fe07b35c798871c38305d94accc83fd6a1a59b99d02ee3c2a60ac55bfca54"
+    "product_head": "0684e7dd47e1d8ab42a301417ee1c1e294924e9c",
+    "target_head": "0684e7dd47e1d8ab42a301417ee1c1e294924e9c",
+    "product_semantic_sha256": "c37213069ac0ce326e504f3fbef8e94aabf985b1855262b2f3e792562697b7aa",
+    "target_semantic_sha256": "c37213069ac0ce326e504f3fbef8e94aabf985b1855262b2f3e792562697b7aa",
+    "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
     "ok": true,
@@ -35,8 +35,8 @@
   },
   "identity": {
     "target_root": "<repo>",
-    "target_head": "5d006980e169e9dae4bd4ba6b65ecbf6069bd121",
-    "product_head": "5d006980e169e9dae4bd4ba6b65ecbf6069bd121",
+    "target_head": "0684e7dd47e1d8ab42a301417ee1c1e294924e9c",
+    "product_head": "0684e7dd47e1d8ab42a301417ee1c1e294924e9c",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -49,14 +49,14 @@
       "ethos land --json"
     ],
     "external_commands": [
-      "<repo>/.venv/bin/python -m ethos.cli status --root <repo> --json",
-      "<repo>/.venv/bin/python -m ethos.cli plan --changed --root <repo> --json",
-      "<repo>/.venv/bin/python -m ethos.cli prove --root <repo> --json",
-      "<repo>/.venv/bin/python -m ethos.cli report --root <repo> --json",
-      "<repo>/.venv/bin/python -m ethos.cli quality command-surface --root <repo> --json",
-      "<repo>/.venv/bin/python -m ethos.cli assistants doctor --json",
-      "<repo>/.venv/bin/python -m ethos.cli playbooks route --changed --root <repo> --json",
-      "<repo>/.venv/bin/python -m ethos.cli land --root <repo> --json"
+      "<repo>/build/runtime/venv/bin/python -m ethos.cli status --root <repo> --json",
+      "<repo>/build/runtime/venv/bin/python -m ethos.cli plan --changed --root <repo> --json",
+      "<repo>/build/runtime/venv/bin/python -m ethos.cli prove --root <repo> --json",
+      "<repo>/build/runtime/venv/bin/python -m ethos.cli report --root <repo> --json",
+      "<repo>/build/runtime/venv/bin/python -m ethos.cli quality command-surface --root <repo> --json",
+      "<repo>/build/runtime/venv/bin/python -m ethos.cli assistants doctor --json",
+      "<repo>/build/runtime/venv/bin/python -m ethos.cli playbooks route --changed --root <repo> --json",
+      "<repo>/build/runtime/venv/bin/python -m ethos.cli land --root <repo> --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -77,17 +77,17 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "f6e17d12f28b1124c619e6e4402ffba441e3a7448d41a667ee0884d61b2b864e"
+        "sha256": "678c63c1a5d9653c424b7a2370f2d6b18e573c49d57e5830da4cf9b08e13dba5"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "35b6c002c0b80188cc09197989654cef45850b86588c5f7985b9317e8ec0d43f"
+        "sha256": "bff2f7c3e2aaa49c7c488814fe004fdfe4e19339a47b76a9afa73b322fc0f6a5"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "1882ae3b9975ecc4086fd41e2e14e80964f4ec0c0d0c5c23637e6930bff84062"
+        "sha256": "82637ab9e5ef990a58ce03d082be784ebe1fef5df57fa512f1b31550add4738a"
       },
       {
         "path": "rules",

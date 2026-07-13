@@ -213,6 +213,7 @@
         "state": {
           "enum": [
             "bound_to_audit_root",
+            "external_declared_runner",
             "external_current_runner"
           ]
         },

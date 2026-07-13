@@ -120,7 +120,7 @@ def test_publish_reports_remote_tracking_sync_state(monkeypatch) -> None:
         },
     )
 
-    payload = run_ethos("publish", "--json")
+    payload = run_ethos("publish", "--probe-remote", "--json")
 
     assert payload["summary"]["remote_sync_state"] == "local_ahead"
     assert payload["summary"]["remote_ahead"] == 2
@@ -131,6 +131,32 @@ def test_publish_reports_remote_tracking_sync_state(monkeypatch) -> None:
     assert sync["remote_head"] == remote_head
     assert sync["remote_ref"].endswith("/" + sync["branch"])
     assert "remote_tracking_local_ahead" in sync["advisory_gaps"][0]
+
+
+def test_publish_does_not_probe_remote_without_explicit_flag(monkeypatch) -> None:
+    import ethos.surface.cli.root.lifecycle as lifecycle_cli  # noqa: PLC0415, RUF100 - local import isolates command dependencies
+
+    def unexpected_probe(_repo: Path) -> dict[str, object]:
+        raise AssertionError("publish must not probe a remote without --probe-remote")
+
+    monkeypatch.setattr(lifecycle_cli.git, "remote_availability", unexpected_probe)
+    monkeypatch.setattr(
+        lifecycle_cli.git,
+        "remote_availability_not_probed",
+        lambda _repo: {
+            "kind": "git_remote_availability",
+            "remote": "origin",
+            "state": "not_probed",
+            "available": False,
+            "blocking": False,
+            "required_gaps": [],
+            "advisory_gaps": [],
+        },
+    )
+
+    payload = run_ethos("publish", "--json")
+
+    assert payload["data"]["remote_availability"]["state"] == "not_probed"
 
 
 def test_publish_uses_configured_submit_branch_role_policy(tmp_path: Path) -> None:

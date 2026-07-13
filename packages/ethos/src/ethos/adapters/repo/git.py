@@ -299,3 +299,28 @@ def remote_availability(
         "required_gaps": [],
         "advisory_gaps": [f"remote_unavailable:{remote}"],
     }
+
+
+def remote_availability_not_probed(root: Path, remote: str = "origin") -> dict[str, object]:
+    """Describe a configured remote without performing a network reachability probe."""
+    url = git_stdout(root, "remote", "get-url", remote)
+    if not url:
+        return {
+            "kind": "git_remote_availability",
+            "remote": remote,
+            "state": "unconfigured",
+            "available": False,
+            "blocking": False,
+            "required_gaps": [],
+            "advisory_gaps": [f"remote_unconfigured:{remote}"],
+        }
+    return {
+        "kind": "git_remote_availability",
+        "remote": remote,
+        "url": url,
+        "state": "not_probed",
+        "available": False,
+        "blocking": False,
+        "required_gaps": [],
+        "advisory_gaps": [],
+    }

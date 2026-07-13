@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import tomllib
 from pathlib import Path
 
 import ethos
@@ -32,6 +33,20 @@ def _schema_source_root(audit_root: Path, runner_source_root: Path) -> Path:
     return runner_source_root
 
 
+def _declares_external_ethos_runner(audit_root: Path) -> bool:
+    """Return whether the audited adopter declares ETHOS as its command plane."""
+    project = audit_root / ".ethos" / "project.toml"
+    try:
+        payload = tomllib.loads(project.read_text(encoding="utf-8"))
+    except (FileNotFoundError, OSError, tomllib.TOMLDecodeError):
+        return False
+    command_plane = payload.get("command_plane")
+    if not isinstance(command_plane, dict):
+        return False
+    public = command_plane.get("public")
+    return isinstance(public, str) and "ethos" in public.split()
+
+
 def runtime_binding(root: Path) -> dict[str, object]:
     """Expose runner/schema/audit binding for agent- and human-friendly diagnosis."""
     audit_root = root.resolve()
@@ -40,15 +55,26 @@ def runtime_binding(root: Path) -> dict[str, object]:
     schema_source_root = _schema_source_root(audit_root, runner_source_root).resolve()
     runner_matches_audit_root = runner_source_root == audit_root
     schema_matches_audit_root = schema_source_root == audit_root
+    declared_external_runner = not runner_matches_audit_root and _declares_external_ethos_runner(
+        audit_root
+    )
     advisory_gaps: list[str] = []
-    if not runner_matches_audit_root:
+    if not runner_matches_audit_root and not declared_external_runner:
         advisory_gaps.append("workspace_status_runner_source_differs_from_audit_root")
-    if not schema_matches_audit_root:
+    if not schema_matches_audit_root and not declared_external_runner:
         advisory_gaps.append("workspace_status_schema_source_differs_from_audit_root")
-    state = "bound_to_audit_root" if not advisory_gaps else "external_current_runner"
+    state = (
+        "bound_to_audit_root"
+        if runner_matches_audit_root and schema_matches_audit_root
+        else "external_declared_runner"
+        if declared_external_runner
+        else "external_current_runner"
+    )
     next_action = (
         "runner, schema, and audit root are aligned"
-        if not advisory_gaps
+        if state == "bound_to_audit_root"
+        else "declared external runner is active; use a checkout-bound runner when changing command or schema surfaces"
+        if state == "external_declared_runner"
         else (
             "rerun with a package-bound runner from the audited checkout "
             "when changing command or schema surfaces"

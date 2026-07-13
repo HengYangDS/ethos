@@ -24,7 +24,7 @@ owner = "ethos-repository"
 scope = "Local-only current product observation against an isolated existing adopter; no authority, hosted, remote, account, credential, or semantic-correctness assertion."
 
 [carriers]
-openspec = "openspec/changes/current-head-real-adopter-evidence-20260713"
+openspec = "openspec/changes/archive/2026-07-13-current-head-real-adopter-evidence-20260713"
 fallback = "Retain generic product parity and historical external-adopter records without presenting them as this current product observation."
 kill_signal = "A claim treats a fail-closed overlay refusal as replacement success, exposes a local adopter identity or path, or asserts semantic correctness, hosted execution, remote publication, authority, or independent review."
 
@@ -32,7 +32,7 @@ kill_signal = "A claim treats a fail-closed overlay refusal as replacement succe
 targets = [
   { kind = "evidence", path = "evidence/claims/current-head-real-adopter-evidence-20260713.toml" },
   { kind = "evidence", path = "evidence/chronicle/current-head-real-adopter-evidence-20260713/2026-07-13.md" },
-  { kind = "openspec", path = "openspec/changes/current-head-real-adopter-evidence-20260713" },
+  { kind = "openspec", path = "openspec/changes/archive/2026-07-13-current-head-real-adopter-evidence-20260713" },
   { kind = "docs", path = "docs/evidence/README.md" },
   { kind = "docs", path = "docs/history/README.md" },
 ]

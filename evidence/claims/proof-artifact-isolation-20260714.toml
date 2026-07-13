@@ -1,0 +1,37 @@
+[claim]
+id = "proof-artifact-isolation-20260714"
+change_id = "proof-artifact-isolation-20260714"
+subject = "quality:proof-artifact-terminal-seal"
+state = "active"
+summary = "Product proof seals generated-artifact topology after the Python test and Ruff runtime boundaries, while adopter proof graphs remain independent of product-owned gates."
+
+[evidence]
+dated = "evidence/chronicle/proof-artifact-isolation-20260714/2026-07-14.md"
+sha256 = "232238f6896963a183d0c92302caf2411f25fe684c1b393e8455651e064e4be9"
+evidence_ids = ["evidence:proof-artifact-isolation-20260714"]
+binding = "OpenSpec terminal-seal delta, product/adopter graph regressions, owner-script cleanup symmetry, and local proof evidence bind the runtime-cache topology sequencing correction."
+verifier = "semantic"
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "quality"
+scope = "Product proof ordering and denied root runtime-cache cleanup; standalone topology and adopter proof policy remain unchanged."
+
+[carriers]
+openspec = "openspec/changes/proof-artifact-isolation-20260714"
+fallback = "Treat a surviving root cache as blocked topology drift and rerun the product owner gates; do not ignore, waive, or retry around the final seal."
+kill_signal = "A product proof evaluates generated-artifacts before its selected Python test or Ruff gate, an EXIT path leaves a denied root cache, or adopter proof gains a dependency on product-owned gates."
+
+[promotion]
+targets = [
+  "packages/ethos/src/ethos/repository/policy/gates.py",
+  "tools/ci/scripts/run-python-tests.sh",
+  "tests/unit/governance/validation/test_gates.py",
+  "tests/architecture/test_testing_platform.py",
+  "openspec/specs/quality/spec.md",
+  "openspec/changes/proof-artifact-isolation-20260714",
+  "evidence/claims/proof-artifact-isolation-20260714.toml",
+  "evidence/chronicle/proof-artifact-isolation-20260714/2026-07-14.md",
+]

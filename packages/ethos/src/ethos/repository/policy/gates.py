@@ -563,8 +563,46 @@ def gate_graph(
             if expected_gap not in declaration_gaps:
                 declaration_gaps.append(f"unknown_gate:{gate_id}")
             continue
-        nodes.append(gate.to_node())
+        nodes.append(_proof_gate_node(gate, selected_gate_ids=selected, root=root))
     return ActionGraph(
         nodes=tuple(nodes),
         validation_issues=tuple(dict.fromkeys(declaration_gaps)),
+    )
+
+
+def _proof_gate_node(
+    gate: GateDescriptor,
+    *,
+    selected_gate_ids: tuple[str, ...],
+    root: Path | None,
+) -> ActionNode:
+    """Compile one gate with product-only proof sequencing constraints.
+
+    The topology audit remains a standalone, read-only gate with no producer
+    dependency in the shared registry.  A product proof that includes its two
+    runtime-producing owner gates must, however, observe topology only after
+    they have reached their EXIT cleanup boundary.  This composition-time edge
+    preserves adopter proof graphs, which intentionally do not contain
+    product-owned Python gates.
+    """
+    node = gate.to_node()
+    if root is not None and not _is_product_root(root):
+        return node
+    if gate.id != "generated-artifacts":
+        return node
+    producers = ("unit-architecture", "ruff")
+    if not set(producers) <= set(selected_gate_ids):
+        return node
+    return ActionNode(
+        id=node.id,
+        kind=node.kind,
+        command=node.command,
+        inputs=node.inputs,
+        outputs=node.outputs,
+        policy=node.policy,
+        tool=node.tool,
+        tool_version=node.tool_version,
+        env=node.env,
+        depends_on=tuple(dict.fromkeys((*node.depends_on, *producers))),
+        metadata=node.metadata,
     )

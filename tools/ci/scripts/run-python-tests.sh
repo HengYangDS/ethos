@@ -57,8 +57,7 @@ cleanup_denied_runtime_residue() {
   # These homes are explicitly denied by the generated-artifact topology. They
   # are ignored local residue, never repository truth; clearing them before the
   # trust-bearing test gate keeps stale host state from deciding product tests.
-  rm -rf .pytest_cache .ruff_cache
-  rm -rf build/runtime/gitlab-ci-local
+  rm -rf .pytest_cache .ruff_cache build/runtime/gitlab-ci-local
 }
 
 cleanup_root_coverage_artifacts() {
@@ -74,6 +73,7 @@ release_coverage_lock() {
 }
 
 cleanup_and_release() {
+  cleanup_denied_runtime_residue
   cleanup_root_coverage_artifacts
   release_coverage_lock
   _ethos_verify_python_test_head_stability

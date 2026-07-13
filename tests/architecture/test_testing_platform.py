@@ -38,8 +38,7 @@ def test_python_test_platform_is_parallel_timeout_bound_and_owner_scripted() -> 
     assert "COVERAGE_FILE" in script
     assert "cleanup_root_coverage_artifacts" in script
     assert "cleanup_denied_runtime_residue" in script
-    assert "rm -rf .pytest_cache .ruff_cache" in script
-    assert "rm -rf build/runtime/gitlab-ci-local" in script
+    assert "rm -rf .pytest_cache .ruff_cache build/runtime/gitlab-ci-local" in script
     assert 'rm -f "${COVERAGE_FILE}" "${COVERAGE_FILE}".*' in script
     assert 'rm -f "${coverage_evidence_dir}/coverage.xml"' in script
     assert ".coverage.*" in (ROOT / ".gitignore").read_text(encoding="utf-8")
@@ -94,6 +93,8 @@ def test_python_test_gate_fails_closed_when_head_changes_during_run() -> None:
     assert "tools/ci/scripts/require-stable-head.sh verify" in script
     assert "_ethos_verify_python_test_head_stability" in script
     assert "trap cleanup_and_release EXIT" in script
+    exit_cleanup = script.split("cleanup_and_release() {", maxsplit=1)[1].split("}", maxsplit=1)[0]
+    assert "cleanup_denied_runtime_residue" in exit_cleanup
 
 
 def test_performance_and_report_mechanisms_have_declared_boundaries() -> None:

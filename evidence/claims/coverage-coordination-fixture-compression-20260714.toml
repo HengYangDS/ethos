@@ -2,7 +2,7 @@
 id = "coverage-coordination-fixture-compression-20260714"
 change_id = "coverage-coordination-fixture-compression-20260714"
 subject = "quality:cross-host-handoff-fixture-compression"
-state = "active"
+state = "accepted"
 summary = "Equivalent cross-host handoff export tests share one bounded typed command envelope while preserving case-specific inputs and outcomes."
 
 [evidence]

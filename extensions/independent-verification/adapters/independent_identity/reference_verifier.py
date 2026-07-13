@@ -78,16 +78,16 @@ def _mapping(value: object) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
 
-def _absolute(value: object, field: str) -> Path:
+def _absolute(value: object, field: str, *, preserve_symlink: bool = False) -> Path:
     if not isinstance(value, str) or not value:
         _fail(f"config_invalid:{field}")
     path = Path(value).expanduser()
     if not path.is_absolute():
         _fail(f"config_invalid:{field}")
     # The provider runtime is commonly a virtualenv's ``bin/python`` symlink.
-    # Resolving it here discards the virtualenv prefix and silently falls back to
-    # its base interpreter, losing the provider's pinned dependencies.
-    return path
+    # Resolving only that path discards the virtualenv prefix and silently falls
+    # back to its base interpreter, losing the provider's pinned dependencies.
+    return path if preserve_symlink else path.resolve()
 
 
 def _string(value: object, field: str) -> str:
@@ -117,7 +117,7 @@ def load_config(path: Path) -> ReferenceVerifierConfig:
         account=_string(identity.get("account"), "account"),
         remote=_string(source.get("remote"), "remote"),
         commit=commit,
-        runtime_python=_absolute(runtime.get("python"), "runtime.python"),
+        runtime_python=_absolute(runtime.get("python"), "runtime.python", preserve_symlink=True),
         implementation_digest=implementation_digest,
         signing_key=_absolute(signing.get("key"), "signing.key"),
         key_id=_string(signing.get("key_id"), "signing.key_id"),
@@ -205,6 +205,10 @@ def _sandbox_profile(config: ReferenceVerifierConfig, checkout: Path) -> str:
             '(deny file-write* (subpath "/var/db/ethos"))',
             '(deny file-read* (subpath "/Library/Application Support/ETHOS"))',
             '(deny file-write* (subpath "/Library/Application Support/ETHOS"))',
+            f'(deny file-read* (literal "{config.signing_key.as_posix()}"))',
+            f'(deny file-write* (literal "{config.signing_key.as_posix()}"))',
+            f'(deny file-read* (subpath "{config.receipt_store.as_posix()}"))',
+            f'(deny file-write* (subpath "{config.receipt_store.as_posix()}"))',
         ]
     )
 

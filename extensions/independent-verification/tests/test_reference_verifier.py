@@ -281,6 +281,8 @@ def test_reference_adapter_profile_supports_the_offline_runtime_without_broker_s
     assert checkout.parent.as_posix() in profile
     assert '(deny file-read* (subpath "/var/db/ethos"))' in profile
     assert '(deny file-read* (subpath "/etc/ethos"))' in profile
+    assert f'(deny file-read* (literal "{config.signing_key.as_posix()}"))' in profile
+    assert f'(deny file-read* (subpath "{config.receipt_store.as_posix()}"))' in profile
 
 
 def test_reference_adapter_does_not_treat_remote_location_as_policy(

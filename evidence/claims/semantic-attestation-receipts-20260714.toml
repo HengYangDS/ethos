@@ -10,7 +10,7 @@ sha256 = "f6ee199d5c09a5fc3404c3c8e70e03b3eaf77c1da3ae75ac65f1c1d01b9f1f40"
 evidence_ids = ["evidence:semantic-attestation-receipts-20260714"]
 binding = "Claim, evidence digest, promotion scope, HEAD, and candidate-external receipt records."
 verifier = "digest_only"
-tests = ["pytest -q tests/unit/governance/test_semantic_attestation_receipts.py tests/unit/kernel/test_assurance_claims.py tests/unit/governance/test_claims.py"]
+tests = ["tools/ci/scripts/run-python-tests.sh"]
 
 [evidence.freshness]
 mode = "historical"
@@ -28,7 +28,9 @@ kill_signal = "A semantic attestation is admitted without exact claim, evidence,
 targets = [
   "packages/ethos-core/src/ethos_core/contracts/evidence/semantic.py",
   "packages/ethos-core/src/ethos_core/models.py",
+  "packages/ethos/src/ethos/repository/evidence/attestation.py",
   "packages/ethos/src/ethos/repository/evidence/claims.py",
+  "system/invalid_states.toml",
   "system/schemas/kernel/claim.schema.json",
   "system/schemas/kernel/semantic-attestation-receipt.schema.json",
   "openspec/changes/semantic-attestation-receipts-20260714",

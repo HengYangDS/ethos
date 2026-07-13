@@ -15,6 +15,10 @@ ordinary adopter workflows must remain portable and local-first.
 - Remove the unused top-level claim scope mirror; promotion targets remain the
   single executable scope declaration.
 
+## Capabilities
+
+- `kernel`: subject=semantic-attestation-receipts; reuse=extend; change=modify; facet:lifecycle=validation; facet:surface=source,schema,test,openspec,evidence; facet:authority=source,test,schema,openspec,claim,evidence
+
 ## Out Of Scope
 
 - A mandatory reviewer account, daemon, credential, network operation, or

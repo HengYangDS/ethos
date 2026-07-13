@@ -14,19 +14,15 @@ from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
 from pathlib import Path
-from typing import NoReturn
 
-GIT = "/usr/bin/git"
-SSH_KEYGEN = "/usr/bin/ssh-keygen"
+GIT, SSH_KEYGEN = "/usr/bin/git", "/usr/bin/ssh-keygen"
+SHA256_SIZE, REF_UPDATE_FIELDS = 64, 3
 FIELDS = (
     "remote",
-    "commit",
-    "tree",
     "action",
     "proof_floor_id",
     "proof_floor_digest",
-    "policy_digest",
-    "implementation_digest",
+    *("policy_digest", "implementation_digest"),
 )
 
 
@@ -34,22 +30,16 @@ class RefusalError(RuntimeError):
     """Fail-closed provider-hook refusal."""
 
 
-def fail(code: str) -> NoReturn:
-    """Raise a stable refusal code."""
+def fail(code: str):
+    """Raise one stable refusal code."""
     raise RefusalError(code)
 
 
-def _sha(value: object) -> bool:
-    return (
-        isinstance(value, str) and len(value) == 64 and all(c in "0123456789abcdef" for c in value)
-    )
-
-
-def _oid(value: object) -> bool:
+def _hex(value: object, sizes: set[int]) -> bool:
     return (
         isinstance(value, str)
-        and len(value) in {40, 64}
-        and all(c in "0123456789abcdef" for c in value)
+        and len(value) in sizes
+        and all(char in "0123456789abcdef" for char in value)
     )
 
 
@@ -60,7 +50,8 @@ def _path(value: object, field: str) -> Path:
     return path.resolve()
 
 
-def _payload(receipt: dict[str, object]) -> bytes:
+def canonical_payload(receipt: dict[str, object]) -> bytes:
+    """Render the signed receipt body without its digest or signature."""
     body = {
         key: value for key, value in receipt.items() if key not in {"signature", "payload_digest"}
     }
@@ -70,100 +61,80 @@ def _payload(receipt: dict[str, object]) -> bytes:
 def load_config(path: Path) -> dict[str, object]:
     """Load only protected provider-owned hook configuration."""
     try:
-        stat = path.stat()
-        if stat.st_mode & 0o022 or path.parent.stat().st_mode & 0o022:
+        if path.stat().st_mode & 0o022 or path.parent.stat().st_mode & 0o022:
             fail("config_untrusted")
-        raw = tomllib.loads(path.read_text(encoding="utf-8"))
+        config = tomllib.loads(path.read_text(encoding="utf-8"))
     except (OSError, tomllib.TOMLDecodeError):
         fail("config_unreadable")
-    if not isinstance(raw, dict) or raw.get("mode") not in {"disabled", "required"}:
+    mode = config.get("mode") if isinstance(config, dict) else None
+    if mode not in {"disabled", "required"}:
         fail("config_invalid:mode")
-    if raw["mode"] == "disabled":
-        return raw
+    if mode == "disabled":
+        return config
     strings = ("remote", "action", "namespace", "proof_floor_id")
     hashes = ("proof_floor_digest", "policy_digest", "implementation_digest")
-    if any(not isinstance(raw.get(key), str) or not raw[key] for key in strings) or any(
-        not _sha(raw.get(key)) for key in hashes
-    ):
+    valid_strings = all(isinstance(config.get(key), str) and config[key] for key in strings)
+    if not valid_strings or not all(_hex(config.get(key), {SHA256_SIZE}) for key in hashes):
         fail("config_invalid:binding")
-    refs = raw.get("protected_refs")
-    if (
-        not isinstance(refs, list)
-        or not refs
-        or any(not isinstance(ref, str) or not ref.startswith("refs/") for ref in refs)
-    ):
+    refs, ttl = config.get("protected_refs"), config.get("freshness_seconds")
+    valid_refs = (
+        isinstance(refs, list)
+        and refs
+        and all(isinstance(ref, str) and ref.startswith("refs/") for ref in refs)
+    )
+    if not valid_refs:
         fail("config_invalid:protected_refs")
-    ttl = raw.get("freshness_seconds")
     if not isinstance(ttl, int) or isinstance(ttl, bool) or ttl < 1:
         fail("config_invalid:freshness_seconds")
-    raw.update(
-        bare_repository=_path(raw.get("bare_repository"), "bare_repository"),
-        receipt_store=_path(raw.get("receipt_store"), "receipt_store"),
-        allowed_signers=_path(raw.get("allowed_signers"), "allowed_signers"),
-    )
-    if (
-        not raw["bare_repository"].is_dir()
-        or not raw["receipt_store"].is_dir()
-        or not raw["allowed_signers"].is_file()
+    for field, kind in (
+        ("bare_repository", "is_dir"),
+        ("receipt_store", "is_dir"),
+        ("allowed_signers", "is_file"),
     ):
-        fail("config_invalid:provider_store")
-    return raw
+        value = _path(config.get(field), field)
+        if not getattr(value, kind)():
+            fail("config_invalid:provider_store")
+        config[field] = value
+    return config
+
+
+def _run(args: list[str], *, text: bool = False, data: bytes | None = None):
+    return subprocess.run(args, input=data, capture_output=True, text=text, check=False, timeout=5)
 
 
 def _signature_ok(receipt: dict[str, object], config: dict[str, object]) -> bool:
-    if (
-        not isinstance(receipt.get("signature"), str)
-        or receipt.get("signature_algorithm") != "ssh-ed25519"
-    ):
+    signature = receipt.get("signature")
+    if not isinstance(signature, str) or receipt.get("signature_algorithm") != "ssh-ed25519":
         return False
     try:
-        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8") as signature:
-            signature.write(receipt["signature"])
-            signature.flush()
-            result = subprocess.run(
-                [
-                    SSH_KEYGEN,
-                    "-Y",
-                    "verify",
-                    "-f",
-                    str(config["allowed_signers"]),
-                    "-I",
-                    str(receipt.get("key_id", "")),
-                    "-n",
-                    str(config["namespace"]),
-                    "-s",
-                    signature.name,
-                ],
-                input=_payload(receipt),
-                capture_output=True,
-                check=False,
-                timeout=5,
-            )
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8") as temporary:
+            temporary.write(signature)
+            temporary.flush()
+            command = [SSH_KEYGEN, "-Y", "verify"]
+            for option, value in (
+                ("-f", str(config["allowed_signers"])),
+                ("-I", str(receipt.get("key_id", ""))),
+                ("-n", str(config["namespace"])),
+                ("-s", temporary.name),
+            ):
+                command.extend((option, value))
+            return _run(command, data=canonical_payload(receipt)).returncode == 0
     except (OSError, subprocess.TimeoutExpired):
         return False
-    return result.returncode == 0
 
 
 def _tree(config: dict[str, object], commit: str) -> str:
-    result = subprocess.run(
-        [
-            GIT,
-            "--git-dir",
-            str(config["bare_repository"]),
-            "rev-parse",
-            f"{commit}^{{tree}}",
-        ],
-        capture_output=True,
+    result = _run(
+        [GIT, "--git-dir", str(config["bare_repository"]), "rev-parse", f"{commit}^{{tree}}"],
         text=True,
-        check=False,
-        timeout=5,
     )
-    if result.returncode or not _oid(result.stdout.strip()):
+    if result.returncode or not _hex(result.stdout.strip(), {40, SHA256_SIZE}):
         fail("proposed_tree_unavailable")
     return result.stdout.strip()
 
 
-def _timestamp(value: object) -> datetime:
+def parse_timestamp(value: object) -> datetime:
+    """Parse one receipt timestamp as a timezone-aware UTC instant."""
     try:
         parsed = datetime.fromisoformat(str(value))
     except ValueError:
@@ -175,40 +146,25 @@ def _timestamp(value: object) -> datetime:
 
 def _receipt(config: dict[str, object], commit: str, tree: str) -> None:
     try:
-        payload = json.loads(
-            (Path(config["receipt_store"]) / f"{commit}-{config['action']}.json").read_text(
-                encoding="utf-8"
-            )
-        )
+        path = Path(config["receipt_store"]) / f"{commit}-{config['action']}.json"
+        receipt = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         fail("receipt_missing")
-    if (
-        not isinstance(payload, dict)
-        or payload.get("result") != "pass"
-        or not _sha(payload.get("payload_digest"))
-    ):
+    if not isinstance(receipt, dict) or receipt.get("result") != "pass":
         fail("receipt_invalid")
-    if hashlib.sha256(_payload(payload)).hexdigest() != payload["payload_digest"]:
+    if not _hex(receipt.get("payload_digest"), {SHA256_SIZE}):
+        fail("receipt_invalid")
+    if hashlib.sha256(canonical_payload(receipt)).hexdigest() != receipt["payload_digest"]:
         fail("receipt_digest_invalid")
-    issued, until = (
-        _timestamp(payload.get("issued_at")),
-        _timestamp(payload.get("valid_until")),
-    )
-    now = datetime.now(UTC)
-    if (
-        now < issued
-        or now > until
-        or until - issued > timedelta(seconds=int(config["freshness_seconds"]))
+    issued, until = map(parse_timestamp, (receipt.get("issued_at"), receipt.get("valid_until")))
+    if not issued <= datetime.now(UTC) <= until or until - issued > timedelta(
+        seconds=int(config["freshness_seconds"])
     ):
         fail("receipt_stale")
-    expected = {
-        **{field: config[field] for field in FIELDS if field not in {"commit", "tree"}},
-        "commit": commit,
-        "tree": tree,
-    }
-    if any(payload.get(field) != value for field, value in expected.items()):
+    expected = {**{field: config[field] for field in FIELDS}, "commit": commit, "tree": tree}
+    if any(receipt.get(field) != value for field, value in expected.items()):
         fail("receipt_binding_mismatch")
-    if not _signature_ok(payload, config):
+    if not _signature_ok(receipt, config):
         fail("receipt_signature_invalid")
 
 
@@ -219,12 +175,12 @@ def enforce(config_path: Path, lines: list[str]) -> None:
         return
     for line in lines:
         fields = line.split()
-        if len(fields) != 3:
+        if len(fields) != REF_UPDATE_FIELDS:
             fail("stdin_invalid")
         _old, new, ref = fields
         if ref not in config["protected_refs"]:
             continue
-        if not _oid(new) or set(new) == {"0"}:
+        if not _hex(new, {40, SHA256_SIZE}) or set(new) == {"0"}:
             fail("protected_deletion")
         _receipt(config, new, _tree(config, new))
 
@@ -233,9 +189,8 @@ def main(argv: list[str] | None = None) -> int:
     """Run the provider-installed hook with standard pre-receive input."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, required=True)
-    args = parser.parse_args(argv)
     try:
-        enforce(args.config, sys.stdin.read().splitlines())
+        enforce(parser.parse_args(argv).config, sys.stdin.read().splitlines())
     except RefusalError as exc:
         sys.stderr.write(f"ethos-generic-pre-receive:{exc}\n")
         return 1

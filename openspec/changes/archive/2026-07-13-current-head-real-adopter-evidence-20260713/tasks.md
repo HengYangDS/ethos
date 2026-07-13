@@ -13,8 +13,15 @@
 - [x] 2.2 Route curated evidence and history indexes to the canonical record
   without creating a second proof root.
 
-## 3. Verification and closeout
+## 3. Verification and archive handoff
 
 - [x] 3.1 Validate claim, Chronicle, OpenSpec, docs topology, and focused tests.
 - [x] 3.2 Run an executed proof at the committed Work Lane HEAD.
-- [ ] 3.3 Land locally through candidate/accepted closeout; do not publish remotely.
+- [x] 3.3 Archive the completed carrier and record that candidate/accepted closeout is a separate governed transition; remote publication remains deferred.
+
+## Post-archive lifecycle boundary
+
+Candidate landing, accepted-root closeout, Work Lane retirement, and remote publication are
+transition receipts, not authored-state checklist assertions. After this archive is committed,
+run the separate `ethos land` admission, stop before any remote publication, and preserve
+that result in its own lifecycle evidence.

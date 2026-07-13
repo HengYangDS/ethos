@@ -165,6 +165,25 @@ def test_default_gate_graph_includes_ci_owner_quality_floor() -> None:
     assert nodes["shell-lint"].to_dict()["command"] == ["tools/ci/scripts/run-shell-lint.sh"]
 
 
+def test_default_gate_graph_runs_generated_artifact_seal_after_runtime_producers() -> None:
+    graph = gate_graph()
+    ordered_gate_ids = [node.id for node in graph.ordered_nodes()]
+
+    assert ordered_gate_ids.index("generated-artifacts") > ordered_gate_ids.index("ruff")
+    assert ordered_gate_ids.index("generated-artifacts") > ordered_gate_ids.index(
+        "unit-architecture"
+    )
+    nodes = {node.id: node for node in graph.nodes}
+    assert nodes["generated-artifacts"].depends_on == ("unit-architecture", "ruff")
+
+
+def test_explicit_topology_gate_stays_standalone() -> None:
+    graph = gate_graph(("generated-artifacts",))
+
+    assert graph.validate().ok is True
+    assert graph.nodes[0].depends_on == ()
+
+
 def test_adopter_profile_gate_graph_uses_profile_safe_default_floor(
     tmp_path: Path,
 ) -> None:

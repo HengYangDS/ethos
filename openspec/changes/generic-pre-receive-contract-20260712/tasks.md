@@ -2,7 +2,7 @@
 
 - [x] 1.1 Create the OpenSpec carrier and bind its optionality, external control
   plane, physical extension boundary, and no-account/no-daemon constraint.
-- [ ] 1.2 Obtain owner-authorized source-budget admission for the bounded
+- [x] 1.2 Obtain owner-authorized source-budget admission for the bounded
   `python_other` and test allowance; preserve the global hard cap.
 - [x] 1.3 Add the adapter requirement delta and validate the carrier.
 

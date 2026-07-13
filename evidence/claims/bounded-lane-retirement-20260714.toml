@@ -10,7 +10,7 @@ dated = "evidence/chronicle/bounded-lane-retirement-20260714/2026-07-14.md"
 sha256 = "6186140bcf9e710d96c259c4705655a4e9e3a138df3f1be7a0748aec57ed161a"
 evidence_ids = ["evidence:bounded-lane-retirement-20260714"]
 binding = "The focused regression suite, Python lint gate, OpenSpec carrier, and this digest-bound Chronicle establish bounded, fail-closed landed-retirement behavior."
-verifier = "semantic_attested"
+verifier = "digest_only"
 tests = [
   "uv run --all-packages --group dev pytest -q tests/unit/lanes/test_lanes_retire.py",
   "tools/ci/scripts/run-python-lint.sh",

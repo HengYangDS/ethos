@@ -35,7 +35,14 @@ reference provider.
 """
 
 ASSURANCE_FORBIDDEN_PHRASES = {
-    "digest_only": ("semantic", "verified", "validates", "enforces", "guarantees", "proves"),
+    "digest_only": (
+        "semantic",
+        "verified",
+        "validates",
+        "enforces",
+        "guarantees",
+        "proves",
+    ),
     "semantic_attested": ("verified", "validates", "enforces", "guarantees"),
     "independently_reviewed": ("verified", "semantic correctness", "guarantees"),
     "independently_reexecuted": ("semantic correctness", "verified", "guarantees"),

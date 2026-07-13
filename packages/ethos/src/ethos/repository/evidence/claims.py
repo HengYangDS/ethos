@@ -12,7 +12,6 @@ from ethos.repository.evidence.core import semantic_tree_digest
 from ethos.repository.profile import profile_root
 from ethos_core.contracts.package.ontology import RETIRED_PRODUCT_FAMILY_TOKENS
 from ethos_core.models import EvidenceClaim
-from ethos_core.models import canonical_assurance_class
 from ethos_core.normalization.core import string_list
 
 REPOSITORY_OVERCLAIM_PHRASES = (

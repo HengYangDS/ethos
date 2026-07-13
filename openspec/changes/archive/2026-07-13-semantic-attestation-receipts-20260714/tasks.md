@@ -6,4 +6,4 @@
 - [x] Remove legacy aliases and demote existing unreceipted semantic labels.
 - [x] Delete the duplicate top-level claim scope mirror.
 - [x] Add OpenSpec, canonical documentation, claim, Chronicle, and focused proof.
-- [ ] Run head-bound executed proof, local candidate landing, and accepted-root closeout.
+- [x] Run head-bound executed proof; candidate landing and accepted-root closeout remain separate governed transitions.

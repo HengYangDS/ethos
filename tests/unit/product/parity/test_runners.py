@@ -3,8 +3,9 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
-from typing import TYPE_CHECKING
 from typing import Any
+
+import pytest
 
 import ethos.adapters.shadow.core as shadow_core
 import ethos.adapters.shadow.execution as shadow_execution
@@ -12,28 +13,7 @@ from ethos.adapters.shadow.execution import run_embedded
 from ethos.adapters.shadow.execution import run_external
 from ethos.repository.evidence.parity.validation import SHADOW_COMMAND_ARGS
 from tests.support.ethos_cli_runner import run_ethos
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
-
-    import pytest
-
-
-def _successful_run(
-    calls: list[tuple[list[str], Path]],
-    *,
-    reported_command: str = "status",
-) -> Callable[..., subprocess.CompletedProcess[str]]:
-    def fake_run(command: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
-        calls.append((command, kwargs["cwd"]))
-        return subprocess.CompletedProcess(
-            command,
-            0,
-            stdout=json.dumps({"ok": True, "command": reported_command, "state": "ready"}),
-            stderr="",
-        )
-
-    return fake_run
+from tests.unit.product.parity.snapshots import successful_shadow_run
 
 
 def test_local_shadow_commands_exclude_remote_publication_probe() -> None:
@@ -167,132 +147,101 @@ def test_shadow_json_runner_normalizes_timeout_bytes(
     }
 
 
-def test_embedded_shadow_runner_accepts_pixi_pyproject_workspace(
+@pytest.mark.parametrize(
+    "case",
+    [
+        {
+            "name": "pixi-workspace",
+            "pyproject": '[tool.pixi.workspace]\nchannels = ["conda-forge"]\nplatforms = ["osx-arm64"]\n',
+            "backend": {
+                "kind": "pixi",
+                "command": "pixi run ethos status --json",
+                "blocking": False,
+                "required_gaps": [],
+            },
+            "argv": ["pixi", "run", "ethos", "status", "--json"],
+        },
+        {
+            "name": "pixi-task",
+            "pyproject": '[tool.pixi.tasks]\nethos = "python -m ethos.cli"\n',
+            "backend": {
+                "kind": "pixi",
+                "command": "pixi run ethos status --json",
+                "blocking": False,
+                "required_gaps": [],
+            },
+            "argv": ["pixi", "run", "ethos", "status", "--json"],
+        },
+        {
+            "name": "uv-workspace",
+            "pyproject": '[tool.uv.workspace]\nmembers = ["packages/ethos"]\n',
+            "backend": {
+                "kind": "uv-workspace",
+                "command": "uv run --package ethos ethos status --json",
+                "blocking": False,
+                "required_gaps": [],
+            },
+            "argv": ["uv", "run", "--package", "ethos", "ethos", "status", "--json"],
+        },
+    ],
+    ids=["pixi-workspace", "pixi-task", "uv-workspace"],
+)
+def test_embedded_shadow_runner_selects_declared_backend(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    case: dict[str, object],
 ) -> None:
-    target = tmp_path / "adopter"
-    target.mkdir()
-    (target / "pyproject.toml").write_text(
-        """
-[tool.pixi.workspace]
-channels = ["conda-forge"]
-platforms = ["osx-arm64"]
-""".lstrip(),
-        encoding="utf-8",
-    )
-    calls: list[tuple[list[str], Path]] = []
-
-    monkeypatch.setattr(subprocess, "run", _successful_run(calls))
-
-    result = run_embedded(target, ("status",), timeout_seconds=5)
-
-    assert result["exit_code"] == 0
-    assert result["json"]["ok"] is True
-    assert result["backend"] == {
-        "kind": "pixi",
-        "command": "pixi run ethos status --json",
-        "blocking": False,
-        "required_gaps": [],
-    }
-    assert calls == [(["pixi", "run", "ethos", "status", "--json"], target.resolve())]
-
-
-def test_shadow_embedded_runner_accepts_pixi_task_in_pyproject(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    repo = tmp_path / "repo"
+    repo = tmp_path / str(case["name"])
     repo.mkdir()
-    (repo / "pyproject.toml").write_text(
-        """
-[tool.pixi.tasks]
-ethos = "python -m ethos.cli"
-""".lstrip(),
-        encoding="utf-8",
-    )
+    (repo / "pyproject.toml").write_text(str(case["pyproject"]), encoding="utf-8")
     calls: list[tuple[list[str], Path]] = []
-
-    monkeypatch.setattr(subprocess, "run", _successful_run(calls))
-
-    result = run_embedded(repo, ("status",), timeout_seconds=5)
-
-    assert result["exit_code"] == 0
-    assert result["backend"] == {
-        "kind": "pixi",
-        "command": "pixi run ethos status --json",
-        "blocking": False,
-        "required_gaps": [],
-    }
-    assert calls == [(["pixi", "run", "ethos", "status", "--json"], repo.resolve())]
-
-
-def test_shadow_embedded_runner_accepts_uv_workspace(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    (repo / "pyproject.toml").write_text(
-        """
-[tool.uv.workspace]
-members = ["packages/ethos"]
-""".lstrip(),
-        encoding="utf-8",
-    )
-    calls: list[tuple[list[str], Path]] = []
-
-    monkeypatch.setattr(subprocess, "run", _successful_run(calls))
+    monkeypatch.setattr(subprocess, "run", successful_shadow_run(calls))
 
     result = run_embedded(repo, ("status",), timeout_seconds=5)
 
     assert result["exit_code"] == 0
     assert result["json"]["ok"] is True
-    assert result["backend"] == {
-        "kind": "uv-workspace",
-        "command": "uv run --package ethos ethos status --json",
-        "blocking": False,
-        "required_gaps": [],
-    }
-    assert calls == [
-        (
-            ["uv", "run", "--package", "ethos", "ethos", "status", "--json"],
-            repo.resolve(),
-        )
-    ]
+    assert result["backend"] == case["backend"]
+    assert calls == [(case["argv"], repo.resolve())]
 
 
-def test_external_shadow_runner_uses_cwd_for_commands_without_root_option(
+@pytest.mark.parametrize(
+    "case",
+    [
+        {
+            "command": ("assistants", "doctor"),
+            "reported": "assistants doctor",
+            "suffix": ["assistants", "doctor", "--json"],
+            "uses_cwd": True,
+        },
+        {
+            "command": ("status",),
+            "reported": "status",
+            "suffix": ["--root", "{root}", "--json"],
+            "uses_cwd": False,
+        },
+    ],
+    ids=["cwd-command", "rooted-command"],
+)
+def test_external_shadow_runner_binds_command_root(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    case: dict[str, object],
 ) -> None:
     calls: list[tuple[list[str], Path]] = []
-
     monkeypatch.setattr(
-        subprocess,
-        "run",
-        _successful_run(calls, reported_command="assistants doctor"),
+        subprocess, "run", successful_shadow_run(calls, reported_command=str(case["reported"]))
     )
 
-    run_external(tmp_path, ("assistants", "doctor"), timeout_seconds=5)
+    command = case["command"]
+    assert isinstance(command, tuple)
+    run_external(tmp_path, command, timeout_seconds=5)
 
-    assert calls[0][0][-3:] == ["assistants", "doctor", "--json"]
-    assert "--root" not in calls[0][0]
-    assert calls[0][1] == tmp_path.resolve()
-
-
-def test_external_shadow_runner_uses_root_option_for_rooted_commands(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    calls: list[tuple[list[str], Path]] = []
-
-    monkeypatch.setattr(subprocess, "run", _successful_run(calls))
-
-    run_external(tmp_path, ("status",), timeout_seconds=5)
-
-    assert calls[0][0][-3:] == ["--root", tmp_path.resolve().as_posix(), "--json"]
-    assert calls[0][1] != tmp_path.resolve()
+    suffix = case["suffix"]
+    assert isinstance(suffix, list)
+    expected = [str(part).format(root=tmp_path.resolve().as_posix()) for part in suffix]
+    assert calls[0][0][-len(expected) :] == expected
+    assert (calls[0][1] == tmp_path.resolve()) is case["uses_cwd"]
 
 
 def test_shadow_json_verdict_exit_code_one_is_not_infrastructure_failure(

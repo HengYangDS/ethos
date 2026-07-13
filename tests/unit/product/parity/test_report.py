@@ -1,13 +1,16 @@
 from __future__ import annotations
 
-import json
-import subprocess
 from typing import TYPE_CHECKING
+
+import pytest
 
 from ethos.repository.evidence.parity.core import shadow_parity_report
 from tests.unit.product.parity.snapshots import SHADOW_COMMANDS
 from tests.unit.product.parity.snapshots import complete_parity_evidence
+from tests.unit.product.parity.snapshots import git_head
+from tests.unit.product.parity.snapshots import init_git_repo
 from tests.unit.product.parity.snapshots import retarget_parity_evidence
+from tests.unit.product.parity.snapshots import write_parity_evidence
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -24,12 +27,7 @@ def test_shadow_parity_report_uses_tracked_matching_evidence(tmp_path: Path) -> 
         "blocking_vs_advisory",
         "external_false_negative",
     ]
-    evidence_dir = tmp_path / "evidence" / "parity"
-    evidence_dir.mkdir(parents=True)
-    (evidence_dir / "sample-adopter-shadow.json").write_text(
-        json.dumps(evidence),
-        encoding="utf-8",
-    )
+    write_parity_evidence(tmp_path, evidence)
 
     payload = shadow_parity_report(
         target=target,
@@ -80,109 +78,58 @@ def test_shadow_parity_report_uses_tracked_matching_evidence(tmp_path: Path) -> 
     assert payload["provenance"] == payload["execution_packages"][0]["provenance"]
 
 
-def test_shadow_parity_report_accepts_current_commit_parent_product_head(
+@pytest.mark.parametrize(
+    ("dimension", "freshness_key", "current_key", "accepted_key"),
+    [
+        ("product", "product_head", "current_product_head", "acceptable_product_heads"),
+        ("target", "target_head", "current_target_head", "acceptable_target_heads"),
+    ],
+    ids=["parent-product-head", "parent-target-head"],
+)
+def test_shadow_parity_report_accepts_relevant_parent_head(
     tmp_path: Path,
+    dimension: str,
+    freshness_key: str,
+    current_key: str,
+    accepted_key: str,
 ) -> None:
     target = tmp_path / "sample-adopter"
     target.mkdir()
+    parent_head = f"parent-{dimension}-head"
     evidence = complete_parity_evidence("sample-adopter")
     retarget_parity_evidence(evidence, adopter="sample-adopter", target=target)
-    evidence["freshness"]["product_head"] = "parent-product-head"
-    evidence_dir = tmp_path / "evidence" / "parity"
-    evidence_dir.mkdir(parents=True)
-    (evidence_dir / "sample-adopter-shadow.json").write_text(
-        json.dumps(evidence),
-        encoding="utf-8",
-    )
+    freshness = evidence["freshness"]
+    assert isinstance(freshness, dict)
+    freshness[freshness_key] = parent_head
+    write_parity_evidence(tmp_path, evidence)
 
     payload = shadow_parity_report(
         target=target,
         root=tmp_path,
         adopter="sample-adopter",
-        current_product_head="current-product-head",
-        acceptable_product_heads=("parent-product-head",),
+        **{current_key: f"current-{dimension}-head", accepted_key: (parent_head,)},
     )
 
     assert payload["ok"] is True
     assert payload["state"] == "matched"
     assert payload["required_gaps"] == []
-    freshness = payload["provenance"]["freshness"]
-    assert freshness["product_head"] == "parent-product-head"
-    assert freshness["current_product_head"] == "current-product-head"
-    assert freshness["product_head_current"] is False
-    assert freshness["product_head_accepted_by_relevant_tree"] is True
-
-
-def test_shadow_parity_report_accepts_current_commit_parent_target_head(
-    tmp_path: Path,
-) -> None:
-    target = tmp_path / "sample-adopter"
-    target.mkdir()
-    evidence = complete_parity_evidence("sample-adopter")
-    retarget_parity_evidence(evidence, adopter="sample-adopter", target=target)
-    evidence["freshness"]["target_head"] = "parent-target-head"
-    evidence_dir = tmp_path / "evidence" / "parity"
-    evidence_dir.mkdir(parents=True)
-    (evidence_dir / "sample-adopter-shadow.json").write_text(
-        json.dumps(evidence),
-        encoding="utf-8",
-    )
-
-    payload = shadow_parity_report(
-        target=target,
-        root=tmp_path,
-        adopter="sample-adopter",
-        current_target_head="current-target-head",
-        acceptable_target_heads=("parent-target-head",),
-    )
-
-    assert payload["ok"] is True
-    assert payload["state"] == "matched"
-    assert payload["required_gaps"] == []
-    freshness = payload["provenance"]["freshness"]
-    assert freshness["target_head"] == "parent-target-head"
-    assert freshness["current_target_head"] == "current-target-head"
-    assert freshness["target_head_current"] is False
-    assert freshness["target_head_accepted_by_relevant_tree"] is True
+    provenance = payload["provenance"]
+    assert isinstance(provenance, dict)
+    output_freshness = provenance["freshness"]
+    assert isinstance(output_freshness, dict)
+    assert output_freshness[freshness_key] == parent_head
+    assert output_freshness[current_key] == f"current-{dimension}-head"
+    assert output_freshness[f"{dimension}_head_current"] is False
+    assert output_freshness[f"{dimension}_head_accepted_by_relevant_tree"] is True
 
 
 def test_shadow_parity_report_rejects_target_head_mismatch(tmp_path: Path) -> None:
-    target = tmp_path / "sample-adopter"
-    target.mkdir()
-    subprocess.run(["git", "init", "-b", "dev"], cwd=target, check=True, capture_output=True)
-    (target / "README.md").write_text("# sample\n", encoding="utf-8")
-    subprocess.run(["git", "add", "."], cwd=target, check=True, capture_output=True)
-    subprocess.run(
-        [
-            "git",
-            "-c",
-            "user.name=Test User",
-            "-c",
-            "user.email=test@example.com",
-            "commit",
-            "-m",
-            "init",
-        ],
-        cwd=target,
-        check=True,
-        capture_output=True,
-    )
-    current_target_head = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
-        cwd=target,
-        text=True,
-        check=True,
-        capture_output=True,
-    ).stdout.strip()
+    target = init_git_repo(tmp_path / "sample-adopter")
+    current_target_head = git_head(target)
     evidence = complete_parity_evidence("sample-adopter")
     retarget_parity_evidence(evidence, adopter="sample-adopter", target=target)
     evidence["freshness"]["target_head"] = "stale-target-head"
-    evidence_dir = target / "evidence" / "parity"
-    evidence_dir.mkdir(parents=True)
-    (evidence_dir / "sample-adopter-shadow.json").write_text(
-        json.dumps(evidence),
-        encoding="utf-8",
-    )
+    write_parity_evidence(target, evidence)
 
     payload = shadow_parity_report(
         target=target,

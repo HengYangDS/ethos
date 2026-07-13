@@ -644,6 +644,21 @@ repository truth surfaces.
 - **AND** detached replay for accepted, candidate, submit, other, or unknown
   branches remains protected and fails closed
 
+#### Scenario: Sanctioned Work Lane replay binds its named ref
+
+- **GIVEN** `ethos lane refresh-base --apply --authorize --expect-head <head>`
+  is replaying a clean owned Work Lane onto the configured candidate branch
+- **AND** Git temporarily detaches `HEAD` and creates a replay commit
+- **WHEN** the commit-time fallback hook evaluates staged tracked paths from a
+  validated Git rebase `head-name` naming that configured `work/*` branch
+- **THEN** mutation admission retains detached `HEAD` as `current_head` for
+  diagnosis
+- **AND** it resolves the named Work Lane ref as `binding_head` for comparison
+  with the lease's `expected_head`
+- **AND** ordinary writes bind the lease to current `HEAD`
+- **AND** missing named refs, mismatched lease heads, accepted, candidate,
+  submit, other, and unknown detached branches remain protected and fail closed
+
 #### Scenario: refresh-base resolves parity projection-only conflicts as stale projection
 
 - **GIVEN** a clean Work Lane is stale behind the configured candidate branch

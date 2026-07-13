@@ -33,16 +33,19 @@ def _source_lane(tmp_path: Path) -> tuple[Path, Path, dict[str, object]]:
     return repo, worktree, started
 
 
-def test_cross_host_export_is_content_addressed_and_excludes_sqlite_lease(tmp_path: Path) -> None:
-    _, worktree, started = _source_lane(tmp_path)
-    context = tmp_path / "handoff-context.md"
-    context.write_text("Continue from the verified lane head.\n", encoding="utf-8")
-    head = git(worktree, "rev-parse", "HEAD")
+def _export(
+    worktree: Path,
+    started: dict[str, object],
+    *,
+    output_root: Path,
+    context: str,
+    context_option: str = "--context-text",
+    dirty_disposition: str = "",
+    blocked: bool = False,
+) -> dict[str, object]:
     lease = started["lease"]
     assert isinstance(lease, dict)
-    output_root = tmp_path / "handoff-output"
-
-    payload = run_ethos(
+    args = (
         "lane",
         "handoff",
         "export",
@@ -57,16 +60,35 @@ def test_cross_host_export_is_content_addressed_and_excludes_sqlite_lease(tmp_pa
         "--epoch",
         str(lease["epoch"]),
         "--expect-head",
-        head,
-        "--context-file",
-        context.as_posix(),
+        git(worktree, "rev-parse", "HEAD"),
+        context_option,
+        context,
+        *(("--dirty-disposition", dirty_disposition) if dirty_disposition else ()),
         "--output-root",
         output_root.as_posix(),
         "--apply",
         "--root",
         worktree.as_posix(),
         "--json",
-        cwd=worktree,
+    )
+    runner = run_ethos_blocked if blocked else run_ethos
+    return runner(*args, cwd=worktree)
+
+
+def test_cross_host_export_is_content_addressed_and_excludes_sqlite_lease(
+    tmp_path: Path,
+) -> None:
+    _, worktree, started = _source_lane(tmp_path)
+    context = tmp_path / "handoff-context.md"
+    context.write_text("Continue from the verified lane head.\n", encoding="utf-8")
+    head = git(worktree, "rev-parse", "HEAD")
+    output_root = tmp_path / "handoff-output"
+    payload = _export(
+        worktree,
+        started,
+        output_root=output_root,
+        context=context.as_posix(),
+        context_option="--context-file",
     )
 
     assert payload["ok"] is True
@@ -78,6 +100,8 @@ def test_cross_host_export_is_content_addressed_and_excludes_sqlite_lease(tmp_pa
     assert manifest["dirty_disposition"] == "clean"
     assert manifest["transfers_source_lease"] is False
     assert manifest["destination_creates_local_incarnation"] is True
+    lease = started["lease"]
+    assert isinstance(lease, dict)
     assert manifest["source_lease_binding"]["lease_id"] == lease["lease_id"]
     assert not any("sqlite" in path.name for path in package_dir.rglob("*"))
     assert "complete history" in git(
@@ -85,37 +109,17 @@ def test_cross_host_export_is_content_addressed_and_excludes_sqlite_lease(tmp_pa
     )
 
 
-def test_cross_host_export_blocks_dirty_lane_without_explicit_preservation(tmp_path: Path) -> None:
+def test_cross_host_export_blocks_dirty_lane_without_explicit_preservation(
+    tmp_path: Path,
+) -> None:
     _, worktree, started = _source_lane(tmp_path)
     (worktree / "README.md").write_text("# changed\n", encoding="utf-8")
-    lease = started["lease"]
-    assert isinstance(lease, dict)
-
-    payload = run_ethos_blocked(
-        "lane",
-        "handoff",
-        "export",
-        "--branch",
-        "work/feature",
-        "--holder-ref",
-        HOLDER_A,
-        "--target-holder-ref",
-        HOLDER_B,
-        "--lease-id",
-        str(lease["lease_id"]),
-        "--epoch",
-        str(lease["epoch"]),
-        "--expect-head",
-        git(worktree, "rev-parse", "HEAD"),
-        "--context-text",
-        "preserve work",
-        "--output-root",
-        (tmp_path / "handoff-output").as_posix(),
-        "--apply",
-        "--root",
-        worktree.as_posix(),
-        "--json",
-        cwd=worktree,
+    payload = _export(
+        worktree,
+        started,
+        output_root=tmp_path / "handoff-output",
+        context="preserve work",
+        blocked=True,
     )
 
     assert "dirty_disposition_required" in payload["required_gaps"]
@@ -126,72 +130,26 @@ def test_cross_host_export_rejects_committed_disposition_when_lane_is_dirty(
 ) -> None:
     _, worktree, started = _source_lane(tmp_path)
     (worktree / "README.md").write_text("# changed\n", encoding="utf-8")
-    lease = started["lease"]
-    assert isinstance(lease, dict)
-
-    payload = run_ethos_blocked(
-        "lane",
-        "handoff",
-        "export",
-        "--branch",
-        "work/feature",
-        "--holder-ref",
-        HOLDER_A,
-        "--target-holder-ref",
-        HOLDER_B,
-        "--lease-id",
-        str(lease["lease_id"]),
-        "--epoch",
-        str(lease["epoch"]),
-        "--expect-head",
-        git(worktree, "rev-parse", "HEAD"),
-        "--context-text",
-        "preserve work",
-        "--dirty-disposition",
-        "committed",
-        "--output-root",
-        (tmp_path / "handoff-output").as_posix(),
-        "--apply",
-        "--root",
-        worktree.as_posix(),
-        "--json",
-        cwd=worktree,
+    payload = _export(
+        worktree,
+        started,
+        output_root=tmp_path / "handoff-output",
+        context="preserve work",
+        dirty_disposition="committed",
+        blocked=True,
     )
 
     assert "dirty_disposition_mismatch" in payload["required_gaps"]
 
 
-def test_cross_host_import_creates_destination_local_incarnation_and_ack(tmp_path: Path) -> None:
+def test_cross_host_import_creates_destination_local_incarnation_and_ack(
+    tmp_path: Path,
+) -> None:
     _, worktree, started = _source_lane(tmp_path)
     lease = started["lease"]
     assert isinstance(lease, dict)
     output_root = tmp_path / "handoff-output"
-    exported = run_ethos(
-        "lane",
-        "handoff",
-        "export",
-        "--branch",
-        "work/feature",
-        "--holder-ref",
-        HOLDER_A,
-        "--target-holder-ref",
-        HOLDER_B,
-        "--lease-id",
-        str(lease["lease_id"]),
-        "--epoch",
-        str(lease["epoch"]),
-        "--expect-head",
-        git(worktree, "rev-parse", "HEAD"),
-        "--context-text",
-        "destination context",
-        "--output-root",
-        output_root.as_posix(),
-        "--apply",
-        "--root",
-        worktree.as_posix(),
-        "--json",
-        cwd=worktree,
-    )
+    exported = _export(worktree, started, output_root=output_root, context="destination context")
     package_dir = output_root / exported["data"]["package_id"]
 
     destination = init_repo(tmp_path / "destination")
@@ -249,40 +207,21 @@ def test_cross_host_import_creates_destination_local_incarnation_and_ack(tmp_pat
     assert active_leases(worktree.parent / "repo" / ".ethos" / "state" / "state.sqlite") == []
 
 
-def test_cross_host_import_restores_preserved_tracked_and_untracked_work(tmp_path: Path) -> None:
+def test_cross_host_import_restores_preserved_tracked_and_untracked_work(
+    tmp_path: Path,
+) -> None:
     _, worktree, started = _source_lane(tmp_path)
     lease = started["lease"]
     assert isinstance(lease, dict)
     (worktree / "README.md").write_text("# preserved tracked\n", encoding="utf-8")
     (worktree / "notes.txt").write_text("preserved untracked\n", encoding="utf-8")
     output_root = tmp_path / "handoff-output"
-    exported = run_ethos(
-        "lane",
-        "handoff",
-        "export",
-        "--branch",
-        "work/feature",
-        "--holder-ref",
-        HOLDER_A,
-        "--target-holder-ref",
-        HOLDER_B,
-        "--lease-id",
-        str(lease["lease_id"]),
-        "--epoch",
-        str(lease["epoch"]),
-        "--expect-head",
-        git(worktree, "rev-parse", "HEAD"),
-        "--context-text",
-        "preserved destination context",
-        "--dirty-disposition",
-        "preserved",
-        "--output-root",
-        output_root.as_posix(),
-        "--apply",
-        "--root",
-        worktree.as_posix(),
-        "--json",
-        cwd=worktree,
+    exported = _export(
+        worktree,
+        started,
+        output_root=output_root,
+        context="preserved destination context",
+        dirty_disposition="preserved",
     )
     package_dir = output_root / exported["data"]["package_id"]
     destination = init_repo(tmp_path / "destination")
@@ -316,62 +255,20 @@ def test_preserved_dirty_content_changes_package_identity(tmp_path: Path) -> Non
     output_root = tmp_path / "handoff-output"
 
     (worktree / "README.md").write_text("# first\n", encoding="utf-8")
-    first = run_ethos(
-        "lane",
-        "handoff",
-        "export",
-        "--branch",
-        "work/feature",
-        "--holder-ref",
-        HOLDER_A,
-        "--target-holder-ref",
-        HOLDER_B,
-        "--lease-id",
-        str(lease["lease_id"]),
-        "--epoch",
-        str(lease["epoch"]),
-        "--expect-head",
-        git(worktree, "rev-parse", "HEAD"),
-        "--context-text",
-        "preserved context",
-        "--dirty-disposition",
-        "preserved",
-        "--output-root",
-        output_root.as_posix(),
-        "--apply",
-        "--root",
-        worktree.as_posix(),
-        "--json",
-        cwd=worktree,
+    first = _export(
+        worktree,
+        started,
+        output_root=output_root,
+        context="preserved context",
+        dirty_disposition="preserved",
     )
     (worktree / "README.md").write_text("# second\n", encoding="utf-8")
-    second = run_ethos(
-        "lane",
-        "handoff",
-        "export",
-        "--branch",
-        "work/feature",
-        "--holder-ref",
-        HOLDER_A,
-        "--target-holder-ref",
-        HOLDER_B,
-        "--lease-id",
-        str(lease["lease_id"]),
-        "--epoch",
-        str(lease["epoch"]),
-        "--expect-head",
-        git(worktree, "rev-parse", "HEAD"),
-        "--context-text",
-        "preserved context",
-        "--dirty-disposition",
-        "preserved",
-        "--output-root",
-        output_root.as_posix(),
-        "--apply",
-        "--root",
-        worktree.as_posix(),
-        "--json",
-        cwd=worktree,
+    second = _export(
+        worktree,
+        started,
+        output_root=output_root,
+        context="preserved context",
+        dirty_disposition="preserved",
     )
 
     assert first["data"]["package_id"] != second["data"]["package_id"]
@@ -384,32 +281,7 @@ def test_cross_host_import_rolls_back_git_state_when_lease_creation_fails(
     lease = started["lease"]
     assert isinstance(lease, dict)
     output_root = tmp_path / "handoff-output"
-    exported = run_ethos(
-        "lane",
-        "handoff",
-        "export",
-        "--branch",
-        "work/feature",
-        "--holder-ref",
-        HOLDER_A,
-        "--target-holder-ref",
-        HOLDER_B,
-        "--lease-id",
-        str(lease["lease_id"]),
-        "--epoch",
-        str(lease["epoch"]),
-        "--expect-head",
-        git(worktree, "rev-parse", "HEAD"),
-        "--context-text",
-        "destination context",
-        "--output-root",
-        output_root.as_posix(),
-        "--apply",
-        "--root",
-        worktree.as_posix(),
-        "--json",
-        cwd=worktree,
-    )
+    exported = _export(worktree, started, output_root=output_root, context="destination context")
     package_dir = output_root / exported["data"]["package_id"]
     destination = init_repo(tmp_path / "destination")
     expected_worktree = destination.with_name("destination-work-feature")

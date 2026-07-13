@@ -1,0 +1,14 @@
+[adapter]
+id = "generic-git-pre-receive"
+kind = "provider-local-hook"
+status = "optional"
+default_enabled = false
+entrypoint = "pre_receive.py"
+
+[boundary]
+control_plane = "provider-owned TOML outside the governed repository"
+receipt_contract = "independent-verification signed receipt"
+must_not = [
+  "Become an ETHOS lifecycle command, product package, or adopter prerequisite.",
+  "Read pushed repository configuration, execute client input, or contact a network service.",
+]

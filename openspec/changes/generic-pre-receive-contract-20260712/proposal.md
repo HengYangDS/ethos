@@ -21,15 +21,10 @@ daemon, network service, or `yheng-agent-ethos` into an adoption prerequisite.
 
 ## Capabilities
 
-### New Capabilities
-
-- `generic-pre-receive-enforcement`: provider-local generic Git protection for
-  explicitly configured refs using exact independent-verification receipts.
-
-### Modified Capabilities
-
-- `adapters`: extend the optional external-evidence adapter boundary with a
-  default-off generic Git pre-receive projection.
+- `adapters`: subject=generic-git-pre-receive-receipt-adapter; reuse=extend;
+  change=modify; facet:lifecycle=validation,evidence,archive;
+  facet:surface=adapter,configuration,docs,test,openspec,evidence;
+  facet:authority=source,test,docs,openspec,claim,evidence
 
 ## Out Of Scope
 

@@ -10,6 +10,8 @@ an adopter prerequisite.
 - `extension.toml` declares the default-off provider boundary.
 - `adapters/independent_identity/reference_verifier.py` is the constrained,
   one-shot reference source.
+- `adapters/generic_git/` contains the optional generic Git pre-receive
+  adapter, its local manifest, and provider configuration contract.
 - `tests/` proves the path and its fail-closed behavior.
 
 ## Boundary

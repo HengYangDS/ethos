@@ -5,10 +5,10 @@
   "generated_on": "2026-07-13",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 60 --json",
   "freshness": {
-    "product_head": "cb5088d94b0021685e0c9463c7174f8d43df1618",
-    "target_head": "cb5088d94b0021685e0c9463c7174f8d43df1618",
-    "product_semantic_sha256": "c9bf43f99fbc28111360a0557b0360e8294ac9f49c42fbc1dab054e5b16fe023",
-    "target_semantic_sha256": "c9bf43f99fbc28111360a0557b0360e8294ac9f49c42fbc1dab054e5b16fe023",
+    "product_head": "a62ca5a87e006987e860f2996afac8c281ba8638",
+    "target_head": "a62ca5a87e006987e860f2996afac8c281ba8638",
+    "product_semantic_sha256": "68f89a4efe60d639637918f897b9aacb85e7d02813e76bd1ac86a708d14566e2",
+    "target_semantic_sha256": "68f89a4efe60d639637918f897b9aacb85e7d02813e76bd1ac86a708d14566e2",
     "command_sha256": "ce093632c7c1f49b26479009e235ef21fc39b4fc7bc8faf5bb58fbc14d47ec87"
   },
   "shadow": {
@@ -35,8 +35,8 @@
   },
   "identity": {
     "target_root": "<repo>",
-    "target_head": "cb5088d94b0021685e0c9463c7174f8d43df1618",
-    "product_head": "cb5088d94b0021685e0c9463c7174f8d43df1618",
+    "target_head": "a62ca5a87e006987e860f2996afac8c281ba8638",
+    "product_head": "a62ca5a87e006987e860f2996afac8c281ba8638",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -77,12 +77,12 @@
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "cd2e9f103d35ea6653815ba65fa9b892ecca849273c87a539eec3c8040c5e0ee"
+        "sha256": "5198ba54c633491f8a872b2c27495ced6dcd6150f433466c5a1a75814ab5d259"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "13d391596ccbcab800e2ac10a9eca55ece796ce4dc42b65c78b5a49e7b7ccb9e"
+        "sha256": "33e149f9846ae86cf85a6f0bcf9578f319da46b8cf9fb723e3e4b8f743e6974c"
       },
       {
         "path": "openspec",

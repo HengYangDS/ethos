@@ -77,6 +77,42 @@ def test_reference_adapter_rejects_foreign_sha_and_unallowlisted_remote(
     module.validate_request(config, _request(implementation_digest=""))
 
 
+def test_reference_adapter_preserves_the_configured_virtualenv_interpreter(
+    tmp_path: Path,
+) -> None:
+    module = _adapter()
+    runtime = tmp_path / "runtime" / "bin" / "python"
+    runtime.parent.mkdir(parents=True)
+    runtime.symlink_to(sys.executable)
+    config_path = tmp_path / "provider.toml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "[identity]",
+                'account = "verifier"',
+                "[source]",
+                'remote = "file:///trusted/mirror.git"',
+                f'commit = "{"a" * 40}"',
+                "[runtime]",
+                f'python = "{runtime.as_posix()}"',
+                f'implementation_digest = "{"b" * 64}"',
+                "[signing]",
+                f'key = "{(tmp_path / "issuer").as_posix()}"',
+                'key_id = "provider:reference"',
+                "[storage]",
+                f'receipt_store = "{(tmp_path / "receipts").as_posix()}"',
+                f'checkout_root = "{(tmp_path / "checkouts").as_posix()}"',
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    config = module.load_config(config_path)
+
+    assert config.runtime_python == runtime
+    assert config.runtime_python.is_symlink()
+
+
 def test_reference_adapter_canonicalizes_the_proof_floor_and_supplies_its_own_digest() -> None:
     module = _adapter()
     expected = hashlib.sha256(
@@ -173,12 +209,57 @@ def test_reference_adapter_uses_snapshot_parent_for_proof_execution(
 
     monkeypatch.setattr(module.subprocess, "run", run)
 
-    module._run(config, ["/usr/bin/git", "status"], checkout)
+    module._run(config, ["/usr/bin/git", "status"], checkout, prepared_checkout=True)
 
     assert captured["cwd"] == checkout.parent
     environment = captured["env"]
     assert environment["PYTHONPATH"].startswith(checkout.as_posix())
     assert environment["UV_OFFLINE"] == "1"
+
+
+def test_reference_adapter_keeps_clone_environment_free_of_snapshot_paths(
+    tmp_path: Path, monkeypatch
+) -> None:
+    module = _adapter()
+    config = _config(module, tmp_path)
+    config.sandbox_exec.write_text("", encoding="utf-8")
+    config.sandbox_exec.chmod(0o755)
+    checkout = config.checkout_root / "snapshot" / "checkout"
+    captured: dict[str, object] = {}
+
+    def run(*args, **kwargs):
+        captured.update(args=args, **kwargs)
+        return SimpleNamespace(returncode=0, stdout=b"", stderr=b"")
+
+    monkeypatch.setattr(module.subprocess, "run", run)
+
+    module._run(config, ["/usr/bin/git", "clone"], checkout)
+
+    environment = captured["env"]
+    assert "PYTHONPATH" not in environment
+    assert environment["HOME"] == config.checkout_root.parent.as_posix()
+
+
+def test_reference_adapter_creates_the_clone_workspace_before_dispatch(
+    tmp_path: Path, monkeypatch
+) -> None:
+    module = _adapter()
+    config = _config(module, tmp_path)
+    config.sandbox_exec.write_text("", encoding="utf-8")
+    config.sandbox_exec.chmod(0o755)
+    checkout = config.checkout_root / "snapshot" / "checkout"
+    captured: dict[str, object] = {}
+
+    def run(*args, **kwargs):
+        captured.update(args=args, **kwargs)
+        return SimpleNamespace(returncode=0, stdout=b"", stderr=b"")
+
+    monkeypatch.setattr(module.subprocess, "run", run)
+
+    module._run(config, ["/usr/bin/git", "clone"], checkout)
+
+    assert checkout.parent.is_dir()
+    assert captured["cwd"] == checkout.parent
 
 
 def test_reference_adapter_profile_supports_the_offline_runtime_without_broker_state(
@@ -192,9 +273,28 @@ def test_reference_adapter_profile_supports_the_offline_runtime_without_broker_s
 
     assert "(deny default)" in profile
     assert "(deny network*)" not in profile
-    assert "/opt/homebrew" in profile
+    assert "(allow file-read*)" in profile
     assert "com.apple.SystemConfiguration.configd" in profile
     assert '(literal "/bin/ps")' in profile
-    assert config.signing_key.as_posix() not in profile
-    assert config.receipt_store.as_posix() not in profile
+    assert '(literal "/dev/null")' in profile
+    assert '(literal "/dev")' in profile
     assert checkout.parent.as_posix() in profile
+    assert '(deny file-read* (subpath "/var/db/ethos"))' in profile
+    assert '(deny file-read* (subpath "/etc/ethos"))' in profile
+
+
+def test_reference_adapter_does_not_treat_remote_location_as_policy(
+    tmp_path: Path,
+) -> None:
+    module = _adapter()
+    config = _config(module, tmp_path)
+    mirror = tmp_path / "mirror.git"
+    config = module.ReferenceVerifierConfig(
+        **{**config.__dict__, "remote": f"file://{mirror.as_posix()}"}
+    )
+    checkout = config.checkout_root / "snapshot" / "checkout"
+
+    profile = module._sandbox_profile(config, checkout)
+
+    assert mirror.as_posix() not in profile
+    assert "file://" not in profile

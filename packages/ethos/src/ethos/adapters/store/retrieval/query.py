@@ -22,6 +22,9 @@ from ethos.adapters.store.retrieval.common import sha256_text
 from ethos.adapters.store.retrieval.sources import allowed_sources
 from ethos.adapters.store.retrieval.sources import dirty_allowed_sources
 from ethos.adapters.store.retrieval.sources import tracked_source_paths
+from ethos_core.normalization.core import object_sequence
+from ethos_core.normalization.core import string_mapping
+from ethos_core.normalization.core import string_sequence
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -162,8 +165,9 @@ def context_eval_report(
     fixture_reports: list[dict[str, object]] = []
     unsupported_count = 0
     critical_stale_hits = 0
-    for fixture in smoke_fixtures:
-        expected_paths = tuple(str(path) for path in fixture.get("expected_paths", ()))
+    for raw_fixture in object_sequence(smoke_fixtures):
+        fixture = string_mapping(raw_fixture)
+        expected_paths = tuple(string_sequence(fixture.get("expected_paths")))
         query = str(fixture["query"])
         search = search_context_index(root, query, limit=10)
         if not search["ok"]:

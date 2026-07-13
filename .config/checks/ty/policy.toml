@@ -1,22 +1,9 @@
-# ty type-check gate policy — separated from pyproject.toml (SoC: system/tools.toml
-# decides WHY ty runs; this file records the enforcement tiers).
-#
-# Type checking is the biggest determinism lever. Current two-package topology:
-#
-#   ZERO-TOLERANCE (must always be 0 diagnostics):
-#     - packages/ethos-core
-#
-#   RATCHET (frozen baseline; may only shrink):
-#     - packages/ethos (63 baseline)
-#
-# The gate (ethos quality types) runs `ty check` per package and compares against
-# these baselines: zero-tolerance packages fail on ANY diagnostic; ratchet packages
-# fail only if the count exceeds baseline. Baselines are lowered as debt is paid.
+# ty type-check policy. Every governed Python package is a fail-closed
+# zero-tolerance target: an unavailable tool, indeterminate result, or positive
+# diagnostic blocks the quality gate.
 
 [zero_tolerance]
 packages = [
   "packages/ethos-core",
+  "packages/ethos",
 ]
-
-[ratchet]
-"packages/ethos" = 63

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from contextlib import closing
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
@@ -232,7 +233,7 @@ def test_lane_lease_normalize_migrates_freeform_legacy_owner(tmp_path: Path) -> 
     )
     legacy_id = "legacy-lease"
     expires_at = (datetime.now(UTC) + timedelta(hours=1)).isoformat()
-    with sqlite3.connect(db_path) as connection:
+    with closing(sqlite3.connect(db_path)) as connection, connection:
         connection.execute("delete from leases where subject = 'seed'")
         connection.execute(
             "insert into leases(id, subject, owner, expires_at, payload_json) values (?, ?, ?, ?, ?)",

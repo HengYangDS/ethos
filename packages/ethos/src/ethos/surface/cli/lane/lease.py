@@ -21,6 +21,8 @@ from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import lane_handoff_app
 from ethos.surface.cli._base import lane_lease_app
 from ethos.surface.cli._base import resolve_root
+from ethos_core.normalization.core import integer
+from ethos_core.normalization.core import string_sequence
 from ethos_core.result import EthosResult
 
 
@@ -37,10 +39,10 @@ def _emit_lease_result(command: str, report: dict[str, object], *, json_output: 
         summary={
             "branch": report["branch"],
             "lease_id": str(summary_payload.get("lease_id") or ""),
-            "epoch": int(summary_payload.get("epoch") or 0),
+            "epoch": integer(summary_payload.get("epoch")),
             "holder_ref": str(summary_payload.get("holder_ref") or ""),
         },
-        required_gaps=tuple(str(gap) for gap in report["required_gaps"]),
+        required_gaps=tuple(string_sequence(report.get("required_gaps"))),
         next_actions=("ethos lane status --json",) if report["ok"] else (),
         data=report,
     )

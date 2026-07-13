@@ -422,7 +422,7 @@ def _completion_receipt(
     return LaneResolutionReceipt(
         receipt_id=f"lane-resolution-receipt:{uuid.uuid4()}",
         decision_id=str(decision["decision_id"]),
-        disposition=cast("Any", decision["disposition"]),
+        disposition=decision["disposition"],
         completed=True,
         state=state,
         observation_digest=observation.digest(),

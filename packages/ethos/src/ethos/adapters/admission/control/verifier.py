@@ -78,7 +78,7 @@ def main() -> int:
 
     proof = _json(proof_path)
     proof_head = _native_executed_proof_head(proof)
-    _require(proof_head, "candidate_proof_not_proven")
+    _require(bool(proof_head), "candidate_proof_not_proven")
     _require(proof_head == args.candidate_head, "candidate_proof_head_mismatch")
     proof_digest = _sha256(proof_path)
     verifier_digest = _sha256(verifier_path)

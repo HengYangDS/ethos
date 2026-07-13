@@ -129,7 +129,8 @@ def test_source_bound_uv_runner_uses_semantic_runtime_homes() -> None:
         == "allow"
     )
     assert (
-        'exec "${script_dir}/with-python-runtime.sh" -- uv run --package ethos ethos "$@"' in runner
+        'exec "${script_dir}/with-python-runtime.sh" -- uv run --all-packages --group dev ethos "$@"'
+        in runner
     )
     assert 'export UV_PROJECT_ENVIRONMENT="${repo_root}/build/runtime/venv"' in bootstrap
     assert 'export UV_CACHE_DIR="${XDG_CACHE_HOME:-${HOME}/.cache}/ethos/uv"' in bootstrap
@@ -168,7 +169,7 @@ def test_source_bound_uv_runner_uses_checkout_environment_and_host_cache(
     assert completed.stdout.splitlines() == [
         f"{repo}/build/runtime/venv",
         f"{tmp_path}/host-cache/ethos/uv",
-        "run --package ethos ethos status --json",
+        "run --all-packages --group dev ethos status --json",
     ]
     assert not (repo / "build/runtime/venv").exists()
     assert (tmp_path / "host-cache/ethos/uv").is_dir()

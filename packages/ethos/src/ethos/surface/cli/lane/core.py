@@ -28,6 +28,7 @@ from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import lane_app
 from ethos.surface.cli._base import lane_retire_app
 from ethos.surface.cli._base import resolve_root
+from ethos_core.normalization.core import string_sequence
 from ethos_core.result import EthosResult
 
 
@@ -64,8 +65,7 @@ def lane_status(
         state="ready" if ok else "invalid",
         summary=_lane_status_summary(status_payload),
         diagnostics=(validation,),
-        required_gaps=tuple(_object_list(status_payload.get("required_gaps", ())))
-        + validation_gaps,
+        required_gaps=tuple(string_sequence(status_payload.get("required_gaps"))) + validation_gaps,
         next_actions=_lane_status_next_actions(status_payload),
         data=status_payload,
     )
@@ -196,7 +196,7 @@ def prewrite(
             "path_count": len(paths),
             "role": report["role"],
         },
-        required_gaps=tuple(report["required_gaps"]),
+        required_gaps=tuple(string_sequence(report.get("required_gaps"))),
         next_actions=("ethos lane start <name>",) if not report["ok"] else (),
         data=report,
     )
@@ -232,7 +232,7 @@ def start(
             "branch": report["branch"],
             "path": report.get("path", ""),
         },
-        required_gaps=tuple(report["required_gaps"]),
+        required_gaps=tuple(string_sequence(report.get("required_gaps"))),
         next_actions=_start_next_actions(report),
         data=report,
     )
@@ -277,7 +277,7 @@ def lane_refresh_base(
             "head": report["head"],
             "candidate_head": report["candidate_head"],
         },
-        required_gaps=tuple(report["required_gaps"]),
+        required_gaps=tuple(string_sequence(report.get("required_gaps"))),
         next_actions=_refresh_base_next_actions(report),
         data=report,
     )
@@ -316,7 +316,7 @@ def lane_bind_claim(
             "branch": report["branch"],
             "claim_id": report["claim_id"],
         },
-        required_gaps=tuple(report["required_gaps"]),
+        required_gaps=tuple(string_sequence(report.get("required_gaps"))),
         next_actions=("ethos lane status",) if report["ok"] else ("ethos lane start <name>",),
         data=report,
     )
@@ -353,7 +353,7 @@ def lane_retire_unbound(
             "head": report["head"],
             "relation_to_accepted": report["relation_to_accepted"],
         },
-        required_gaps=tuple(report["required_gaps"]),
+        required_gaps=tuple(string_sequence(report.get("required_gaps"))),
         next_actions=("ethos status",) if report["ok"] else ("ethos lane status",),
         data=report,
     )
@@ -393,7 +393,7 @@ def lane_retire_superseded(
             "absorbed_by": report["absorbed_by"],
             "retire_ready": report["retire_ready"],
         },
-        required_gaps=tuple(report["required_gaps"]),
+        required_gaps=tuple(string_sequence(report.get("required_gaps"))),
         next_actions=("ethos status",) if report["ok"] else ("ethos lane status",),
         data=report,
     )
@@ -423,7 +423,7 @@ def lane_retire_landed(
         ok=bool(report["ok"]),
         state=str(report["state"]),
         summary=summary,
-        required_gaps=tuple(report["required_gaps"]),
+        required_gaps=tuple(string_sequence(report.get("required_gaps"))),
         next_actions=("ethos status",) if report["ok"] else ("ethos lane status",),
         data=report,
     )

@@ -11,6 +11,7 @@ from ethos.repository.profile import profile_root
 from ethos_core.contracts.package.ontology import RETIRED_PRODUCT_FAMILY_TOKENS
 from ethos_core.models import EvidenceClaim
 from ethos_core.models import canonical_assurance_class
+from ethos_core.normalization.core import string_list
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -433,7 +434,7 @@ def claims_report(
             if is_active
             else {}
         )
-        gaps.extend(f"{claim_id}:{gap}" for gap in trust_envelope.get("required_gaps", []))
+        gaps.extend(f"{claim_id}:{gap}" for gap in string_list(trust_envelope.get("required_gaps")))
         claims[claim_id] = {
             "path": path.relative_to(root).as_posix(),
             "evidence": str(dated),

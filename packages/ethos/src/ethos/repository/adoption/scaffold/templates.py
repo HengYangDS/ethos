@@ -22,6 +22,7 @@ from ethos_core.contracts.docs.topology import ROLE_VALUES
 from ethos_core.contracts.docs.topology import STATE_VALUES
 
 Profile = Literal["generic", "python", "monorepo", "github", "gitlab"]
+_PACKAGE_NAME = __package__ or "ethos.repository.adoption.scaffold"
 
 
 class TemplateModel(BaseModel):
@@ -144,7 +145,7 @@ TemplateContext = Annotated[
 @lru_cache(maxsize=1)
 def declaration() -> ScaffoldTemplateDeclaration:
     """Load and validate the packaged scaffold declaration."""
-    resource = files(__package__).joinpath("template_files/manifest.toml")
+    resource = files(_PACKAGE_NAME).joinpath("template_files/manifest.toml")
     return ScaffoldTemplateDeclaration.model_validate(tomllib.loads(resource.read_text()))
 
 
@@ -152,7 +153,7 @@ def declaration() -> ScaffoldTemplateDeclaration:
 def environment() -> Environment:
     """Return the strict packaged-template environment."""
     template_environment = Environment(
-        loader=PackageLoader(__package__, "template_files"),
+        loader=PackageLoader(_PACKAGE_NAME, "template_files"),
         undefined=StrictUndefined,
         autoescape=select_autoescape(default_for_string=False),
         keep_trailing_newline=True,

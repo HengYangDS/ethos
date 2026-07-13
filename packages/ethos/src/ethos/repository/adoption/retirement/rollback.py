@@ -7,6 +7,7 @@ from typing import Any
 from typing import cast
 
 from ethos_core.normalization.core import string_list
+from ethos_core.normalization.core import string_mapping
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -152,14 +153,14 @@ def rollback_manifest_required_scenario_gaps(
     gaps: list[str] = []
     target_head = str(manifest.get("target_head") or "")
     product_head = str(manifest.get("product_head") or "")
-    scenarios = manifest.get("scenarios")
-    if not isinstance(scenarios, dict):
+    raw_scenarios = manifest.get("scenarios")
+    if not isinstance(raw_scenarios, dict):
         gaps.append(f"retirement_rollback_window_evidence_manifest_invalid:{evidence_manifest}")
-        scenarios = {}
+    scenarios = string_mapping(raw_scenarios)
 
     for scenario in required_scenarios:
-        payload = scenarios.get(scenario)
-        if not isinstance(payload, dict):
+        payload = string_mapping(scenarios.get(scenario))
+        if not payload:
             gaps.append(f"retirement_rollback_window_manifest_scenario_missing:{scenario}")
             continue
         gaps.extend(

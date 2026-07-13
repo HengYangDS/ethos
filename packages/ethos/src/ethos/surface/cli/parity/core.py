@@ -20,6 +20,9 @@ from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import parity_app
 from ethos.surface.cli._base import resolve_root
+from ethos_core.normalization.core import object_sequence
+from ethos_core.normalization.core import string_mapping
+from ethos_core.normalization.core import string_sequence
 from ethos_core.result import EthosResult
 
 
@@ -31,9 +34,9 @@ def parity_ledger(*, json_output: JsonFlag = False) -> None:
         command="parity ledger",
         ok=bool(report["ok"]),
         state="classified",
-        summary=report["summary"],
+        summary=string_mapping(report.get("summary")),
         next_actions=("ethos parity gaps --adopter <adopter>",),
-        data={"records": report["records"]},
+        data={"records": object_sequence(report.get("records"))},
     )
     emit(result, json_output=json_output, enforce=False)
 
@@ -65,15 +68,16 @@ def parity_gaps(
     )
     evidence = report.get("evidence") if isinstance(report.get("evidence"), dict) else {}
     refresh = evidence.get("refresh_package") if isinstance(evidence, dict) else None
-    refresh_command = (
-        str(refresh["command"]) if isinstance(refresh, dict) and refresh.get("command") else ""
-    )
+    refresh_command = str(string_mapping(refresh).get("command") or "")
     result = EthosResult(
         command="parity gaps",
         ok=bool(report["ok"]),
-        state="clean" if report["ok"] else "gapped",
-        summary={"adopter": report["adopter"], "gap_count": len(report["required_gaps"])},
-        required_gaps=tuple(report["required_gaps"]),
+        state="clean" if report.get("ok") is True else "gapped",
+        summary={
+            "adopter": str(report.get("adopter") or ""),
+            "gap_count": len(string_sequence(report.get("required_gaps"))),
+        },
+        required_gaps=tuple(string_sequence(report.get("required_gaps"))),
         next_actions=(
             (
                 refresh_command
@@ -82,7 +86,7 @@ def parity_gaps(
                     "--execute --write-evidence"
                 ),
             )
-            if report["required_gaps"]
+            if string_sequence(report.get("required_gaps"))
             else ("ethos prove --full",)
         ),
         data=report,
@@ -122,7 +126,7 @@ def parity_shadow(
                 repo, target, adopter
             ),
         )
-    required_gaps = list(report["required_gaps"])
+    required_gaps = string_sequence(report.get("required_gaps"))
     evidence_path = ""
     write_admission: dict[str, object] = {}
     if write_evidence:

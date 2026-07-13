@@ -512,13 +512,11 @@ def test_quality_types_enforces_ty_policy_tiers() -> None:
 
     assert payload["command"] == "quality types"
     packages = payload["data"]["packages"]
-    # Zero-tolerance tier packages must report a zero limit; ratchet tiers a baseline.
-    # ethos-core absorbs the former ethos-contracts and ethos-quality zero-tolerance
-    # packages; ethos remains the ratchet-tier runtime.
+    # Every governed package is a zero-tolerance target.
     assert packages["packages/ethos-core"]["limit"] == 0
     assert packages["packages/ethos-core"]["tier"] == "zero_tolerance"
-    assert packages["packages/ethos"]["tier"] == "ratchet"
-    assert packages["packages/ethos"]["limit"] == 63
-    assert packages["packages/ethos"]["count"] <= packages["packages/ethos"]["limit"]
+    assert packages["packages/ethos"]["tier"] == "zero_tolerance"
+    assert packages["packages/ethos"]["limit"] == 0
+    assert packages["packages/ethos"]["count"] == 0
     # The gate binds its verdict to exit status (fail-closed): a breach exits non-zero.
     assert completed.returncode == (0 if payload["ok"] else 1)

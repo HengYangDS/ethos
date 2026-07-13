@@ -10,6 +10,8 @@ from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import resolve_root
+from ethos_core.normalization.core import object_sequence
+from ethos_core.normalization.core import string_sequence
 from ethos_core.result import EthosResult
 
 
@@ -30,7 +32,7 @@ def _adoption_result(
     )
     do_apply = request.apply and not mutation_gaps
     plan_payload = adoption_plan(target, profile=profile, overlay=overlay, apply=do_apply)
-    required_gaps = tuple(mutation_gaps) + tuple(plan_payload.get("required_gaps", ()))
+    required_gaps = tuple(mutation_gaps) + tuple(string_sequence(plan_payload.get("required_gaps")))
     ok = not required_gaps
     hooks_armed = False
     if do_apply and ok:
@@ -40,7 +42,7 @@ def _adoption_result(
         ok=ok,
         state="applied" if do_apply and ok else "blocked" if required_gaps else "planned",
         summary={
-            "planned_file_count": len(plan_payload["planned_files"]),
+            "planned_file_count": len(object_sequence(plan_payload.get("planned_files"))),
             "hooks_armed": hooks_armed,
         },
         next_actions=("ethos status",),

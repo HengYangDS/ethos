@@ -22,6 +22,7 @@ from ethos.repository.registry.docs.health import docs_health_report
 from ethos.repository.registry.profiles import governance_profile_report
 from ethos_core.contracts.skill.activation import normalize_skill_activation
 from ethos_core.contracts.skill.activation import skill_registry_digest
+from ethos_core.normalization.core import string_list
 from ethos_core.quality.gates import product_gate_plan
 from ethos_core.quality.profiles import product_quality_profile
 
@@ -93,8 +94,10 @@ def schema_validation_report(root: Path | None = None) -> dict[str, object]:
             schemas[path.name] = {"ok": True, "title": schema.get("title", "")}
     instances = _instance_validation_report(repo, mode=mode)
     for name, instance in instances.items():
-        if not instance["ok"]:
-            gaps.extend(f"instance:{name}:{gap}" for gap in instance["required_gaps"])
+        if instance.get("ok") is not True:
+            gaps.extend(
+                f"instance:{name}:{gap}" for gap in string_list(instance.get("required_gaps"))
+            )
     return {
         "ok": not gaps,
         "mode": mode,
@@ -188,7 +191,10 @@ def _instance_validation_report(root: Path, *, mode: str) -> dict[str, dict[str,
             )
         )
     gate_gaps = [
-        gap for result in gate_results for gap in result["required_gaps"] if not result["ok"]
+        gap
+        for result in gate_results
+        if result.get("ok") is not True
+        for gap in string_list(result.get("required_gaps"))
     ]
     instances["gate-registry"] = {"ok": not gate_gaps, "required_gaps": gate_gaps}
     instances["quality-profile"] = validate_schema_instance(
@@ -313,7 +319,8 @@ def _live_skill_contract_instances(root: Path) -> dict[str, dict[str, object]]:
             root=root,
         )
         package_gaps.extend(
-            f"{manifest_path.relative_to(root).as_posix()}:{gap}" for gap in result["required_gaps"]
+            f"{manifest_path.relative_to(root).as_posix()}:{gap}"
+            for gap in string_list(result.get("required_gaps"))
         )
     instances["live-skill-package-manifests"] = {
         "ok": not package_gaps,
@@ -337,9 +344,10 @@ def _capability_profiles_report(root: Path, *, mode: str) -> dict[str, object]:
             payload,
             root=root,
         )
-        if not validation["ok"]:
+        if validation.get("ok") is not True:
             gaps.extend(
-                f"{path.relative_to(root).as_posix()}:{gap}" for gap in validation["required_gaps"]
+                f"{path.relative_to(root).as_posix()}:{gap}"
+                for gap in string_list(validation.get("required_gaps"))
             )
     if mode == "adopter":
         advisory_gaps = gaps

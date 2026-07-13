@@ -5,9 +5,11 @@ from __future__ import annotations
 import hashlib
 import tomllib
 from typing import TYPE_CHECKING
+from typing import cast
 
 from ethos.repository.adoption.scaffold.templates import FamilyTemplateContext
 from ethos.repository.adoption.scaffold.templates import PackageTemplateContext
+from ethos.repository.adoption.scaffold.templates import Profile
 from ethos.repository.adoption.scaffold.templates import RepositoryTemplateContext
 from ethos.repository.adoption.scaffold.templates import SkillPackageTemplateContext
 from ethos.repository.adoption.scaffold.templates import declaration
@@ -44,7 +46,7 @@ def _repository_context(
 ) -> RepositoryTemplateContext:
     return RepositoryTemplateContext(
         project_name=root.name,
-        profile=profile,
+        profile=cast("Profile", profile),
         packages=_packages(root, profile),
         registry_digest=registry_digest,
     )

@@ -11,6 +11,7 @@ from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import playbooks_app
 from ethos.surface.cli._base import resolve_root
+from ethos_core.normalization.core import string_sequence
 from ethos_core.result import EthosResult
 
 
@@ -28,7 +29,7 @@ def playbooks_check(
         command="playbooks check",
         ok=bool(report["ok"]),
         state="ready" if report["ok"] else "gapped",
-        required_gaps=tuple(report["required_gaps"]),
+        required_gaps=tuple(string_sequence(report.get("required_gaps"))),
         next_actions=("ethos playbooks route",),
         data=report,
     )
@@ -60,7 +61,7 @@ def playbooks_route(
         command="playbooks route",
         ok=bool(report["ok"]),
         state="routed" if report["ok"] else "gapped",
-        required_gaps=tuple(report["required_gaps"]),
+        required_gaps=tuple(string_sequence(report.get("required_gaps"))),
         data=report,
     )
     emit(result, json_output=json_output, enforce=False)

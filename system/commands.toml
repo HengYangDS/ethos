@@ -316,7 +316,7 @@ report_handler = { provider = "ethos.surface.cli.quality.core:_product_quality_p
 name = "types"
 group = "quality"
 import_path = "ethos.surface.cli.quality.core:quality_types"
-help = "Enforce the ty type-check policy tiers (zero-tolerance + ratchet baselines)."
+help = "Enforce zero diagnostics for every package governed by the ty type policy."
 show = true
 report_handler = { provider = "ethos.adapters.gates.ty:ty_gate_report", summary = [
   { name = "package_count", path = [

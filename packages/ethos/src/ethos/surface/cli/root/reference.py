@@ -11,6 +11,8 @@ from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import resolve_root
+from ethos_core.normalization.core import string_mapping
+from ethos_core.normalization.core import string_sequence
 from ethos_core.result import EthosResult
 from ethos_core.state.invalid import UNCLASSIFIED
 from ethos_core.state.invalid import explain_gap
@@ -18,8 +20,8 @@ from ethos_core.state.invalid import explain_gap
 
 def explain(gap_or_signal: str, *, json_output: JsonFlag = False) -> None:
     """Explain a governance gap or advisory signal as a read-only invalid-state projection."""
-    data = explain_gap(gap_or_signal)
-    category_id = str(data["invalid_state"]["id"])
+    data = string_mapping(explain_gap(gap_or_signal))
+    category_id = str(string_mapping(data.get("invalid_state")).get("id") or "")
     result = EthosResult(
         command="explain",
         ok=category_id != UNCLASSIFIED,
@@ -89,7 +91,7 @@ def audit(
         ok=bool(audit_payload["ok"]),
         state="clean" if audit_payload["ok"] else "gapped",
         summary={"openspec_mode": mode},
-        required_gaps=tuple(audit_payload["required_gaps"]),
+        required_gaps=tuple(string_sequence(audit_payload.get("required_gaps"))),
         next_actions=("ethos report",) if audit_payload["ok"] else ("ethos audit --mode deep",),
         data=audit_payload,
     )

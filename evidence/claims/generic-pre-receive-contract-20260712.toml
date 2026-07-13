@@ -24,14 +24,14 @@ owner = "ethos-adapters"
 scope = "Optional provider-local generic Git pre-receive receipt enforcement; no adopter account, key, daemon, network service, or authority claim."
 
 [carriers]
-openspec = "openspec/changes/generic-pre-receive-contract-20260712"
+openspec = "openspec/changes/archive/2026-07-13-generic-pre-receive-contract-20260712"
 fallback = "Leave the adapter disabled or remove its provider hook; do not make independent verification an ordinary adopter prerequisite."
 kill_signal = "The adapter reads pushed configuration, executes client input, contacts a network service, claims semantic correctness, or becomes mandatory."
 
 [promotion]
 targets = [
   { kind = "source", path = "extensions/independent-verification/adapters/generic_git" },
-  { kind = "openspec", path = "openspec/changes/generic-pre-receive-contract-20260712" },
+  { kind = "openspec", path = "openspec/changes/archive/2026-07-13-generic-pre-receive-contract-20260712" },
   { kind = "evidence", path = "evidence/chronicle/generic-pre-receive-contract-20260712/2026-07-13.md" },
   { kind = "evidence", path = "evidence/claims/generic-pre-receive-contract-20260712.toml" },
 ]

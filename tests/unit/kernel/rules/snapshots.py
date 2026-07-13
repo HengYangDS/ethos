@@ -2,6 +2,35 @@ from __future__ import annotations
 
 from ethos_core.contracts.rules import RuleFactSnapshot
 
+READY_FACT_OWNERS = {
+    "worktree": "ethos-adapters.status",
+    "prewrite": "ethos-adapters.prewrite",
+    "openspec_state": "ethos-repository.self-audit",
+    "claim_state": "ethos-repository.claims",
+    "host_readiness": "ethos-repository.self-audit",
+    "command_registry": "ethos-repository.command-registry",
+    "projection_drift": "ethos-assistants.projections",
+}
+
+
+def fact(
+    value: object = None,
+    *,
+    owner: str = "test",
+    fresh: bool = True,
+    available: bool = True,
+) -> dict[str, object]:
+    return {
+        "owner": owner,
+        "fresh": fresh,
+        "available": available,
+        "value": {} if value is None else value,
+    }
+
+
+def passed() -> dict[str, object]:
+    return {"ok": True, "required_gaps": []}
+
 
 def complete_snapshot(
     *,
@@ -14,83 +43,12 @@ def complete_snapshot(
         phase=phase,
         head="untracked",
         facts={
-            "changed_paths": {
-                "owner": "ethos-adapters",
-                "fresh": True,
-                "available": True,
-                "value": list(changed_paths),
-            },
-            "mutation": {
-                "owner": "ethos-cli",
-                "fresh": True,
-                "available": True,
-                "value": mutation,
-            },
-            "authorization": {
-                "owner": "ethos-cli",
-                "fresh": True,
-                "available": True,
-                "value": authorized,
-            },
-            "actor": {
-                "owner": "ethos-cli",
-                "fresh": True,
-                "available": True,
-                "value": "local",
-            },
-            "scope": {
-                "owner": "ethos-cli",
-                "fresh": True,
-                "available": True,
-                "value": "repository",
-            },
-            "worktree": {
-                "owner": "ethos-adapters.status",
-                "fresh": True,
-                "available": True,
-                "value": {"ok": True, "required_gaps": []},
-            },
-            "prewrite": {
-                "owner": "ethos-adapters.prewrite",
-                "fresh": True,
-                "available": True,
-                "value": {"ok": True, "required_gaps": []},
-            },
-            "openspec_state": {
-                "owner": "ethos-repository.self-audit",
-                "fresh": True,
-                "available": True,
-                "value": {"ok": True, "required_gaps": []},
-            },
-            "claim_state": {
-                "owner": "ethos-repository.claims",
-                "fresh": True,
-                "available": True,
-                "value": {"ok": True, "required_gaps": []},
-            },
-            "evidence_freshness": {
-                "owner": "ethos-repository.claims",
-                "fresh": True,
-                "available": True,
-                "value": {"ok": True, "stale": []},
-            },
-            "host_readiness": {
-                "owner": "ethos-repository.self-audit",
-                "fresh": True,
-                "available": True,
-                "value": {"ok": True, "required_gaps": []},
-            },
-            "command_registry": {
-                "owner": "ethos-repository.command-registry",
-                "fresh": True,
-                "available": True,
-                "value": {"ok": True, "required_gaps": []},
-            },
-            "projection_drift": {
-                "owner": "ethos-assistants.projections",
-                "fresh": True,
-                "available": True,
-                "value": {"ok": True, "required_gaps": []},
-            },
+            "changed_paths": fact(list(changed_paths), owner="ethos-adapters"),
+            "mutation": fact(mutation, owner="ethos-cli"),
+            "authorization": fact(authorized, owner="ethos-cli"),
+            "actor": fact("local", owner="ethos-cli"),
+            "scope": fact("repository", owner="ethos-cli"),
+            **{name: fact(passed(), owner=owner) for name, owner in READY_FACT_OWNERS.items()},
+            "evidence_freshness": fact({"ok": True, "stale": []}, owner="ethos-repository.claims"),
         },
     )

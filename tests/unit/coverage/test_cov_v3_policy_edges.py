@@ -14,10 +14,6 @@ import ethos.repository.policy.gates as gates_mod
 from ethos.repository.policy.rules.check import rules_layer_report
 from ethos.repository.policy.rules.config import configured_gate_tables
 from ethos.repository.policy.rules.config import configured_rules
-from ethos.repository.policy.rules.evaluation import active_valid_exceptions
-from ethos.repository.policy.rules.evaluation import match_waiver
-from ethos.repository.policy.rules.evaluation import required_gate_details
-from ethos.repository.policy.rules.evaluation import rules_evaluation_report
 from ethos.repository.policy.rules.migration import rules_toml_text
 from ethos.repository.profile import load_repository_profile
 from ethos_core.contracts.gates import GateDescriptor
@@ -180,41 +176,6 @@ def test_configured_rules_without_globs_or_gates(tmp_path: Path) -> None:
     rules = configured_rules(tmp_path)
 
     assert rules == [{"id": "x.y", "owner": "team", "version": 1, "profile_layers": []}]
-
-
-def test_active_valid_exceptions_skips_inactive_item() -> None:
-    # A dict exception whose status is not "active" fails the guard at rules.py 547
-    # and loops back to 546 (547->546) without being collected.
-    active = active_valid_exceptions({"required_gaps": [], "exceptions": [{"status": "expired"}]})
-
-    assert active == []
-
-
-def test_match_waiver_skips_scope_mismatch() -> None:
-    # A matching rule_id whose scope does not match the path fails the check at
-    # rules.py 562 and loops back to 558 (562->558) -> no waiver returned.
-    waiver = match_waiver(
-        rule_id="r",
-        path="src/a.py",
-        exceptions=[{"rule_id": "r", "scope": "path:other"}],
-    )
-
-    assert waiver is None
-
-
-def test_rules_evaluation_prove_skips_gate_requirements(tmp_path: Path) -> None:
-    # phase == "prove" makes the guard at rules.py 621 False (621->626), so a matched
-    # blocking rule contributes no gate_required gaps.
-    report = rules_evaluation_report(tmp_path, phase="prove", changed_paths=(".ethos/rules.toml",))
-
-    gaps = [str(gap) for gap in report["required_gaps"]]
-    assert not any(gap.startswith("gate_required:") for gap in gaps)
-
-
-def test_required_gate_details_skips_idless_detail() -> None:
-    # A required_gates_detail entry without an "id" fails the guard at rules.py 758
-    # and loops back to 757 (758->757) -> nothing collected.
-    assert required_gate_details([{"required_gates_detail": [{"command": "x"}]}]) == []
 
 
 def test_rules_layer_report_strict_with_full_subject_depth(tmp_path: Path) -> None:

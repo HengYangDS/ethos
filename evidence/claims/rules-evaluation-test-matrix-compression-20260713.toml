@@ -1,0 +1,54 @@
+[claim]
+id = "rules-evaluation-test-matrix-compression-20260713"
+change_id = "rules-evaluation-test-matrix-compression-20260713"
+subject = "quality:rules-evaluation-test-matrix-compression"
+state = "active"
+summary = "Equivalent rule-evaluation facts use compact immutable declarations and one canonical helper-edge test; superseded coverage-only bodies are deleted without weakening the proof floor."
+
+[evidence]
+dated = "evidence/chronicle/rules-evaluation-test-matrix-compression-20260713/2026-07-13.md"
+sha256 = "d285777968d8cf1de03deb4f1714c3d4dd87b4f65d64dcafd2214bec6294174c"
+evidence_ids = [
+  "evidence:rules-evaluation-test-matrix-compression-20260713",
+  "test:tests/unit/kernel/rules/test_evaluation.py",
+]
+binding = "The bounded OpenSpec carrier, dated baseline, immutable test-fact declarations, canonical helper-edge coverage, source-budget delta, and executed proof jointly bind this compression slice."
+verifier = "semantic"
+tests = [
+  "uv run --all-packages --group dev pytest -q tests/unit/kernel/rules/test_evaluation.py tests/unit/coverage/test_cov_v2_policy_edges.py tests/unit/coverage/test_cov_v3_policy_edges.py",
+  "uv run --all-packages --group dev ruff check tests/unit/kernel/rules/snapshots.py tests/unit/kernel/rules/test_evaluation.py tests/unit/coverage/test_cov_v2_policy_edges.py tests/unit/coverage/test_cov_v3_policy_edges.py",
+  "tools/ci/scripts/run-python-tests.sh",
+  "uv run --package ethos ethos quality source-budget --json",
+  "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --write-evidence --json",
+  "uv run --package ethos ethos prove --execute --expect-head $(git rev-parse HEAD) --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[scope]
+tests = [
+  "tests/unit/kernel/rules/snapshots.py",
+  "tests/unit/kernel/rules/test_evaluation.py",
+  "tests/unit/coverage/test_cov_v2_policy_edges.py",
+  "tests/unit/coverage/test_cov_v3_policy_edges.py",
+]
+
+[boundary]
+owner = "quality"
+scope = "Rule-evaluation test-fixture representation and coverage-only test duplication; product policy semantics and public command behavior remain unchanged."
+
+[carriers]
+openspec = "openspec/changes/rules-evaluation-test-matrix-compression-20260713"
+fallback = "Restore the prior focused test bodies only if the compact fact declarations and canonical edge test cannot preserve the same public contracts and coverage; do not retain a second permanent test representation."
+kill_signal = "The scoped effective test-line total does not decline, a former fail-closed gap loses coverage, or the repository coverage floor falls below 100 percent."
+
+[promotion]
+targets = [
+  { kind = "tests", path = "tests/unit/kernel/rules/snapshots.py" },
+  { kind = "tests", path = "tests/unit/kernel/rules/test_evaluation.py" },
+  { kind = "tests", path = "tests/unit/coverage/test_cov_v2_policy_edges.py" },
+  { kind = "tests", path = "tests/unit/coverage/test_cov_v3_policy_edges.py" },
+  { kind = "openspec", path = "openspec/changes/rules-evaluation-test-matrix-compression-20260713" },
+  { kind = "evidence", path = "evidence/chronicle/rules-evaluation-test-matrix-compression-20260713/2026-07-13.md" },
+]

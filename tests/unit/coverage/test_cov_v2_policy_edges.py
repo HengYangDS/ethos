@@ -16,16 +16,10 @@ import ethos.repository.policy.docstrings.style as docstring_style
 from ethos.repository.policy.rules import check as check_mod
 from ethos.repository.policy.rules.check import rules_check_report
 from ethos.repository.policy.rules.compile import compile_rules
-from ethos.repository.policy.rules.evaluation import fact_gaps
-from ethos.repository.policy.rules.evaluation import match_waiver
-from ethos.repository.policy.rules.evaluation import rules_evaluation_report
-from ethos.repository.policy.rules.evaluation import scope_matches_path
 from ethos.repository.policy.rules.exceptions import _is_product_root
 from ethos.repository.policy.rules.exceptions import policy_exceptions_report
 from ethos.repository.policy.rules.exceptions import ttl_days_or_none
 from ethos.repository.policy.rules.migration import migrate_legacy_rules
-from ethos_core.contracts.rules import RuleEvalRequest
-from ethos_core.contracts.rules import RuleFactSnapshot
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -120,51 +114,6 @@ def test_rules_check_skips_non_dict_compiled_rule(
 
     assert "bogus-not-a-dict" not in report["resolved_rules"]
     assert report["resolved_rules"]
-
-
-def test_fact_gaps_flags_malformed_and_ownerless_facts() -> None:
-    # Non-dict fact value -> fact_malformed gap + continue (rules.py 509-510);
-    # dict fact without an owner -> fact_owner_missing gap (rules.py 512).
-    snapshot = RuleFactSnapshot(
-        phase="plan",
-        head="untracked",
-        facts={
-            "weird": "not-a-dict",
-            "noowner": {"available": True, "value": {}},
-        },
-    )
-
-    gaps = fact_gaps(snapshot)
-
-    assert "fact_malformed:weird" in gaps
-    assert "fact_owner_missing:noowner" in gaps
-
-
-def test_scope_matches_path_rejects_non_path_scope() -> None:
-    # scope is neither "repository" nor a "path:" prefix -> returns False (rules.py 534).
-    assert scope_matches_path("branch:feature", "src/a.py") is False
-
-
-def test_match_waiver_skips_rule_id_mismatch() -> None:
-    # The only exception targets a different rule_id, so the loop continues past it
-    # and no waiver is returned (rules.py 560).
-    waiver = match_waiver(
-        rule_id="wanted",
-        path="notes/todo.md",
-        exceptions=[{"rule_id": "other", "scope": "repository"}],
-    )
-
-    assert waiver is None
-
-
-def test_rules_evaluation_flags_invalid_phase(tmp_path: Path) -> None:
-    # A phase outside VALID_PHASES appends the invalid_rule_phase gap (rules.py 604).
-    snapshot = RuleEvalRequest(phase="nonsense").to_fact_snapshot(head="untracked")
-
-    report = rules_evaluation_report(tmp_path, phase="nonsense", fact_snapshot=snapshot)
-
-    assert "invalid_rule_phase:nonsense" in report["required_gaps"]
-    assert report["state"] == "block"
 
 
 def test_is_product_root_is_false_without_product_markers(tmp_path: Path) -> None:

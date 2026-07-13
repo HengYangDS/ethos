@@ -82,7 +82,7 @@ python_total = 58722
 global_total = 73739
 
 [quality.source_budget.debt]
-maximum_total = 5367
+maximum_total = 5451
 
 [[quality.source_budget.debt.records]]
 id = "program-foundation"
@@ -137,6 +137,17 @@ replacement = "compress duplicate landed-retirement fixtures and retain only the
 deletion_wave = "bounded-retirement-compression"
 expiry = "bounded-retirement-compression"
 allowance = 100
+
+[[quality.source_budget.debt.records]]
+id = "semantic-attestation-receipts-20260714"
+owner = "semantic-attestation-receipts-20260714"
+replacement = "compress the external semantic receipt verifier after receipt validation is shared with the evidence contract"
+deletion_wave = "semantic-attestation-compression"
+expiry = "semantic-attestation-compression"
+allowance = 84
+
+[quality.source_budget.debt.records.allowance_by_category]
+python_product = 84
 
 [gates.local-state-audit]
 command = "tools/ci/scripts/run-local-state-audit.sh"

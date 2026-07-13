@@ -313,7 +313,7 @@ def _trust_envelope(
     kill_signal = str(payload.get("kill_signal") or carriers.get("kill_signal") or "")
     promotion_targets = _promotion_targets(promotion)
     attestation = semantic_attestation(payload.get("evidence", {}), binding)
-    envelope_gaps.extend(attestation.get("required_gaps", []))
+    envelope_gaps.extend(string_list(attestation.get("required_gaps")))
 
     if not boundary_owner:
         envelope_gaps.append("boundary.owner_missing")

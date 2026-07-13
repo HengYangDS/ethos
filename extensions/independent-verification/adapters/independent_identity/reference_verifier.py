@@ -84,7 +84,10 @@ def _absolute(value: object, field: str) -> Path:
     path = Path(value).expanduser()
     if not path.is_absolute():
         _fail(f"config_invalid:{field}")
-    return path.resolve()
+    # The provider runtime is commonly a virtualenv's ``bin/python`` symlink.
+    # Resolving it here discards the virtualenv prefix and silently falls back to
+    # its base interpreter, losing the provider's pinned dependencies.
+    return path
 
 
 def _string(value: object, field: str) -> str:
@@ -184,27 +187,24 @@ def proof_child_environment(
 
 def _sandbox_profile(config: ReferenceVerifierConfig, checkout: Path) -> str:
     """Build a deny-by-default profile for the fixed Git and Python proof commands."""
-    roots = [
-        "/System",
-        "/usr",
-        "/bin",
-        "/sbin",
-        "/opt/homebrew",
-        config.runtime_python.parent.parent.as_posix(),
-        config.checkout_root.as_posix(),
-        checkout.parent.as_posix(),
-    ]
-    reads = " ".join(f'(subpath "{root}")' for root in roots)
     return "\n".join(
         [
             "(version 1)",
             "(deny default)",
-            f"(allow file-read* {reads})",
+            "(allow file-read*)",
             f'(allow file-write* (subpath "{checkout.parent.as_posix()}"))',
+            '(allow file-write* (literal "/dev/null"))',
+            '(allow file-read-metadata (literal "/dev"))',
             "(allow process-exec)",
             "(allow process-fork)",
             '(allow mach-lookup (global-name "com.apple.SystemConfiguration.configd"))',
             '(allow process-exec (with no-sandbox) (literal "/bin/ps"))',
+            '(deny file-read* (subpath "/etc/ethos"))',
+            '(deny file-write* (subpath "/etc/ethos"))',
+            '(deny file-read* (subpath "/var/db/ethos"))',
+            '(deny file-write* (subpath "/var/db/ethos"))',
+            '(deny file-read* (subpath "/Library/Application Support/ETHOS"))',
+            '(deny file-write* (subpath "/Library/Application Support/ETHOS"))',
         ]
     )
 
@@ -246,12 +246,19 @@ def publish_receipt(
 
 
 def _run(
-    config: ReferenceVerifierConfig, command: list[str], checkout: Path
+    config: ReferenceVerifierConfig,
+    command: list[str],
+    checkout: Path,
+    *,
+    prepared_checkout: bool = False,
 ) -> subprocess.CompletedProcess[bytes]:
+    """Run one allowlisted command after separating clone and proof environments."""
+    cwd = checkout.parent
+    cwd.mkdir(parents=True, exist_ok=True)
     return subprocess.run(
         sandboxed_command(config, command, checkout),
-        cwd=checkout.parent,
-        env=proof_child_environment(config, checkout=checkout if checkout.is_dir() else None),
+        cwd=cwd,
+        env=proof_child_environment(config, checkout=checkout if prepared_checkout else None),
         input=None,
         capture_output=True,
         check=False,
@@ -260,7 +267,7 @@ def _run(
 
 
 def _git_text(config: ReferenceVerifierConfig, checkout: Path, *args: str) -> str:
-    completed = _run(config, [_GIT.as_posix(), *args], checkout)
+    completed = _run(config, [_GIT.as_posix(), *args], checkout, prepared_checkout=True)
     if completed.returncode != 0:
         _fail("independent_checkout_failed")
     return completed.stdout.decode("utf-8", errors="replace").strip()
@@ -385,6 +392,7 @@ def reexecute(config: ReferenceVerifierConfig, request: dict[str, object]) -> Pa
                 "--json",
             ],
             checkout,
+            prepared_checkout=True,
         )
         try:
             proof_payload = json.loads(proof.stdout.decode("utf-8"))

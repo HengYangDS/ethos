@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import re
 import tomllib
-from pathlib import Path
+from pathlib import Path  # noqa: TC003 - runtime audit paths remain part of this public boundary
 from typing import Any
 
 from ethos.repository.evidence.attestation import AttestationBinding
@@ -65,7 +65,6 @@ ACTIVE_PRODUCT_CLAIM_PRIVATE_PATTERNS = (
         ),
     ),
 )
-_FRESHNESS_MODES = {"historical", "head_bound", "semantic_scope"}
 _HISTORICAL_CARRIER_PREFIXES = (
     "evidence/chronicle/",
     "openspec/changes/archive/",
@@ -222,12 +221,18 @@ def _active_product_claim_private_gaps(claim_id: str, payload: dict[str, Any]) -
     project token to understand product authority, evidence, fallback, or
     promotion scope.
     """
-    text = _payload_text(payload)
     return [
         f"{claim_id}:active_claim_private_coupling:{kind}"
         for kind, pattern in ACTIVE_PRODUCT_CLAIM_PRIVATE_PATTERNS
-        if pattern.search(text)
+        if pattern.search(_payload_text(payload))
     ]
+
+
+def _has_repository_overclaim(claim_text: str, verifier: str) -> bool:
+    """Return whether a non-formal verifier claims repository-wide authority."""
+    return verifier != "formally_proven" and any(
+        phrase in claim_text.lower() for phrase in REPOSITORY_OVERCLAIM_PHRASES
+    )
 
 
 def _active_claim_gaps(
@@ -276,9 +281,7 @@ def _active_claim_gaps(
         )
     except ValueError:
         gaps.append(f"{claim_id}:claim_assurance_invalid")
-    if str(verifier) != "formally_proven" and any(
-        phrase in claim_text.lower() for phrase in REPOSITORY_OVERCLAIM_PHRASES
-    ):
+    if _has_repository_overclaim(claim_text, str(verifier)):
         gaps.append(f"{claim_id}:claim_assurance_invalid")
     return gaps
 

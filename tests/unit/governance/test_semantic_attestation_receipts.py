@@ -230,6 +230,24 @@ def test_semantic_attestation_receipt_model_rejects_tampered_payload_digest() ->
 
     with pytest.raises(ValueError, match="payload_digest"):
         SemanticAttestationReceipt.model_validate(payload)
+    with pytest.raises(ValueError, match="valid dictionary"):
+        SemanticAttestationReceipt.model_validate([])
+
+
+def test_semantic_attestation_receipt_rejects_nonabsolute_receipt_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A relative receipt root is invalid rather than an implicit local fallback."""
+    root, head = _semantic_claim_fixture(tmp_path, monkeypatch)
+    monkeypatch.setenv("ETHOS_SEMANTIC_ATTESTATION_RECEIPT_DIR", "relative-receipts")
+    monkeypatch.setattr(
+        "ethos.repository.evidence.claims.semantic_tree_digest",
+        lambda *_a, **_k: "b" * 64,
+    )
+
+    report = claims_report(root, current_head=head)
+
+    assert "sample-claim:semantic_attestation_receipt_invalid" in report["required_gaps"]
 
 
 def test_digest_only_claim_does_not_require_semantic_attestation(

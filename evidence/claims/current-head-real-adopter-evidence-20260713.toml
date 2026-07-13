@@ -1,0 +1,38 @@
+[claim]
+id = "current-head-real-adopter-evidence-20260713"
+subject = "ethos:current-head-external-adopter-command-parity-observation"
+state = "active"
+summary = "Digest-bound local observation of current product command parity and fail-closed generic-overlay preservation on an isolated existing adopter."
+
+[evidence]
+dated = "evidence/chronicle/current-head-real-adopter-evidence-20260713/2026-07-13.md"
+sha256 = "c2eb4e22379dca4b1c6d00cc9ad827add605875486f72ac56e69e20d6144ab35"
+evidence_ids = ["evidence:current-head-real-adopter-evidence-20260713"]
+binding = "Digest-bound current product and isolated adopter revisions, raw-bundle identity, generic-overlay preservation result, and eight-command parity observation."
+verifier = "digest_only"
+tests = [
+  "ethos adopt --root <isolated-adopter> --profile generic --overlay --json",
+  "ethos adopt --root <isolated-adopter> --profile generic --overlay --apply --authorize --expect-head <adopter-head> --json",
+  "ethos parity shadow --adopter <adopter-id> --target <isolated-adopter> --execute --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "Local-only current product observation against an isolated existing adopter; no authority, hosted, remote, account, credential, or semantic-correctness assertion."
+
+[carriers]
+openspec = "openspec/changes/current-head-real-adopter-evidence-20260713"
+fallback = "Retain generic product parity and historical external-adopter records without presenting them as this current product observation."
+kill_signal = "A claim treats a fail-closed overlay refusal as replacement success, exposes a local adopter identity or path, or asserts semantic correctness, hosted execution, remote publication, authority, or independent review."
+
+[promotion]
+targets = [
+  { kind = "evidence", path = "evidence/claims/current-head-real-adopter-evidence-20260713.toml" },
+  { kind = "evidence", path = "evidence/chronicle/current-head-real-adopter-evidence-20260713/2026-07-13.md" },
+  { kind = "openspec", path = "openspec/changes/current-head-real-adopter-evidence-20260713" },
+  { kind = "docs", path = "docs/evidence/README.md" },
+  { kind = "docs", path = "docs/history/README.md" },
+]

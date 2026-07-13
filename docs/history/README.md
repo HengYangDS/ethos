@@ -27,6 +27,7 @@ not a current-state ledger or another evidence store.
 | Superseded decision texts | [Superseded decisions](../decisions/superseded/README.md) |
 | Completed change carriers and their closeout material | [OpenSpec archive](../../openspec/changes/archive/) |
 | Dated historical observations with their claim boundary | [Evidence Chronicle](../../evidence/chronicle/) |
+| Current-HEAD external-adopter observation and its completed carrier | [Claim](../../evidence/claims/current-head-real-adopter-evidence-20260713.toml), [Chronicle](../../evidence/chronicle/current-head-real-adopter-evidence-20260713/2026-07-13.md), and [OpenSpec change](../../openspec/changes/current-head-real-adopter-evidence-20260713/) |
 
 History preserves context. Source, tests, package metadata, canonical governance/reference docs, decisions,
 and evidence remain higher authority.

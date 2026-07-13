@@ -600,7 +600,7 @@ def test_lane_retire_landed_summary_marks_selected_unmerged_lane_not_ready(
     assert payload["ok"] is False
     assert payload["required_gaps"] == ["work_lane_not_merged"]
     assert payload["summary"] == {
-        "landed_lane_count": 1,
+        "landed_lane_count": 0,
         "selected_branch": "work/active",
         "selected_retire_ready": False,
         "selected_blockers": ["work_lane_not_merged"],

@@ -25,9 +25,15 @@ None.
 
 ### Modified Capabilities
 
-- `repository-governance`: bounded landed-lane retirement must not inspect or
-  mutate unrelated foreign Work Lanes, and unavailable target paths must remain
-  fail-closed.
+- `repository-governance`: subject=bounded-landed-lane-retirement; reuse=extend;
+  change=modify; facet:lifecycle=mutation,retirement; facet:surface=cli,openspec,
+  evidence,test; facet:authority=source,test,openspec,claim,evidence
+
+## Out of Scope
+
+- No remote probe, remote publication, or hosted CI claim.
+- No foreign Work Lane cleanup, Git worktree prune, lease repair, or branch deletion.
+- No relaxation that treats an unavailable selected worktree as clean.
 
 ## Impact
 

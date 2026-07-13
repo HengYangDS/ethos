@@ -45,14 +45,8 @@ def _chronicle(repo: Path, disposition: str) -> str:
 def test_resolution_decision_default_path_is_a_valid_local_artifact_home(
     tmp_path: Path,
 ) -> None:
-    assert _default_decision_path(tmp_path, "work/owner/recovery") == (
-        tmp_path
-        / "build"
-        / "artifacts"
-        / "lane-resolution"
-        / "decisions"
-        / "work-owner-recovery.json"
-    )
+    expected = tmp_path / "build/artifacts/lane-resolution/decisions/work-owner-recovery.json"
+    assert _default_decision_path(tmp_path, "work/owner/recovery") == expected
 
 
 def test_exceptional_resolution_recomputes_observation_before_effect(

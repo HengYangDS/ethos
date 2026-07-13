@@ -2,13 +2,13 @@
   "schema_version": 1,
   "adopter": "generic",
   "target": "<repo>",
-  "generated_on": "2026-07-12",
+  "generated_on": "2026-07-13",
   "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "097bd8384d67c1f333778d131fffc4238a9a8084",
-    "target_head": "097bd8384d67c1f333778d131fffc4238a9a8084",
-    "product_semantic_sha256": "2cd2716da6166d02d3348164daf572164c01fb0197c5dec7c8e39e5e3f345430",
-    "target_semantic_sha256": "2cd2716da6166d02d3348164daf572164c01fb0197c5dec7c8e39e5e3f345430",
+    "product_head": "4d28253054d421b96b086d3b0ce945c367f9e117",
+    "target_head": "4d28253054d421b96b086d3b0ce945c367f9e117",
+    "product_semantic_sha256": "6ef138326b99d34b9e83cb97c280a0f2233c9a832c78fa378d2542cbb7218fa0",
+    "target_semantic_sha256": "6ef138326b99d34b9e83cb97c280a0f2233c9a832c78fa378d2542cbb7218fa0",
     "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
@@ -35,9 +35,11 @@
   },
   "identity": {
     "target_root": "<repo>",
-    "target_head": "097bd8384d67c1f333778d131fffc4238a9a8084",
-    "product_head": "097bd8384d67c1f333778d131fffc4238a9a8084",
-    "changed_paths": [],
+    "target_head": "4d28253054d421b96b086d3b0ce945c367f9e117",
+    "product_head": "4d28253054d421b96b086d3b0ce945c367f9e117",
+    "changed_paths": [
+      "evidence/parity/generic-shadow.json"
+    ],
     "commands": [
       "ethos status --json",
       "ethos plan --changed --json",
@@ -49,14 +51,14 @@
       "ethos land --json"
     ],
     "external_commands": [
-      "<repo>/build/runtime/venv/bin/python -m ethos.cli status --root <repo> --json",
-      "<repo>/build/runtime/venv/bin/python -m ethos.cli plan --changed --root <repo> --json",
-      "<repo>/build/runtime/venv/bin/python -m ethos.cli prove --root <repo> --json",
-      "<repo>/build/runtime/venv/bin/python -m ethos.cli report --root <repo> --json",
-      "<repo>/build/runtime/venv/bin/python -m ethos.cli quality command-surface --root <repo> --json",
-      "<repo>/build/runtime/venv/bin/python -m ethos.cli assistants doctor --json",
-      "<repo>/build/runtime/venv/bin/python -m ethos.cli playbooks route --changed --root <repo> --json",
-      "<repo>/build/runtime/venv/bin/python -m ethos.cli land --root <repo> --json"
+      "<repo>/.venv/bin/python -m ethos.cli status --root <repo> --json",
+      "<repo>/.venv/bin/python -m ethos.cli plan --changed --root <repo> --json",
+      "<repo>/.venv/bin/python -m ethos.cli prove --root <repo> --json",
+      "<repo>/.venv/bin/python -m ethos.cli report --root <repo> --json",
+      "<repo>/.venv/bin/python -m ethos.cli quality command-surface --root <repo> --json",
+      "<repo>/.venv/bin/python -m ethos.cli assistants doctor --json",
+      "<repo>/.venv/bin/python -m ethos.cli playbooks route --changed --root <repo> --json",
+      "<repo>/.venv/bin/python -m ethos.cli land --root <repo> --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -72,22 +74,22 @@
       {
         "path": "docs",
         "kind": "directory",
-        "sha256": "6bd06ac44c1a71457f2cd68774d17caa3b93c572e5cd2ce8fd8b3912707f3d0b"
+        "sha256": "bc9a66a7846ced7c93412c7b0834ecf86b92c9aae01c170890a5f1e67fd7986c"
       },
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "1457b1e784f91684def0607e3e7048ee3728263f6e6b804129721c69a03db931"
+        "sha256": "f29171d0ed2d9b777a3f5ae6887400b4d52b474465578737f566c7d5d1f9268b"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "977e757c392187062ab3d1b1a36f3c894445781fa8388c1bf807c5e3b360bb4f"
+        "sha256": "afd9c2c2c280720f1bdc84f9e259ad9ac047b00ff258f7ce5015357a0cd70abf"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "9983f212a4a030ace8fc32af42584251112fde9ace01de26c586bbcfaa2bf645"
+        "sha256": "9c71cd3aa05d4064c1354a5b979b3627ad3c5a7c78f0800e868812218714289b"
       },
       {
         "path": "rules",

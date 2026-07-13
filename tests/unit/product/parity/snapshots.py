@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import subprocess
 from typing import TYPE_CHECKING
 
@@ -22,9 +23,55 @@ MIGRATED_CAPABILITIES = [
 
 SHADOW_COMMANDS = list(SHADOW_PARITY_COMMANDS)
 
+ACCEPTED_DIFFERENCE_REASONS = {
+    "external_required_gap_superset": "external product reports the embedded blocking gaps plus stricter required gaps",
+    "external_stricter_required_gap": "external product reports a stricter blocking gap allowed by shadow parity",
+    "external_stricter_plan_scope": "external product plans a stricter changed-scope gate set allowed by shadow parity",
+}
+
+
+def parity_payload(
+    command: str,
+    *,
+    ok: bool,
+    state: object,
+    gaps: tuple[str, ...] = (),
+    **fields: object,
+) -> dict[str, object]:
+    return {"ok": ok, "command": command, "state": state, "required_gaps": list(gaps), **fields}
+
+
+def accepted_difference(
+    kind: str,
+    command: str,
+    gaps: tuple[str, ...],
+) -> list[dict[str, object]]:
+    return [
+        {
+            "kind": kind,
+            "classification": "accepted",
+            "scope": kind,
+            "commands": [f"ethos {command}"],
+            "gaps": list(gaps),
+            "reason": ACCEPTED_DIFFERENCE_REASONS[kind],
+        }
+    ]
+
 
 def sha256_text(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def write_parity_evidence(
+    root: Path,
+    evidence: dict[str, object],
+    *,
+    adopter: str = "sample-adopter",
+) -> Path:
+    path = root / "evidence" / "parity" / f"{adopter}-shadow.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(evidence), encoding="utf-8")
+    return path
 
 
 def init_git_repo(path: Path) -> Path:

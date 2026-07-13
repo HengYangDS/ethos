@@ -1,0 +1,54 @@
+[claim]
+id = "product-parity-test-suite-compression-20260713"
+change_id = "product-parity-test-suite-compression-20260713"
+subject = "quality:product-parity-test-compression"
+state = "active"
+summary = "Product-parity tests share inert payload/evidence setup and declarative case tables, while distinct failure, schema, and integration boundaries retain named tests."
+
+[evidence]
+dated = "evidence/chronicle/product-parity-test-suite-compression-20260713/2026-07-13.md"
+sha256 = "04623634f0318355aad829b90be037b8046de9ea6c281df3df6dbbf9698c5fba"
+evidence_ids = [
+  "evidence:product-parity-test-suite-compression-20260713",
+  "test:tests/unit/product/parity/test_semantics.py",
+  "test:tests/unit/product/parity/test_projection_semantics.py",
+]
+binding = "The bounded OpenSpec carrier, dated 1,483-line baseline, canonical test fixtures, declarative parity case tables, measured deletion, coverage, and executed proof jointly bind this compression slice."
+verifier = "semantic"
+tests = [
+  "uv run --all-packages --group dev pytest -q tests/unit/product/parity tests/unit/coverage/test_cov_repository_edges.py",
+  "tools/ci/scripts/run-python-lint.sh",
+  "tools/ci/scripts/run-python-tests.sh",
+  "uv run --package ethos ethos quality source-budget --json",
+  "uv run --package ethos ethos prove --execute --expect-head $(git rev-parse HEAD) --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[scope]
+tests = [
+  "tests/unit/product/parity/snapshots.py",
+  "tests/unit/product/parity/test_semantics.py",
+  "tests/unit/product/parity/test_projection_semantics.py",
+  "tests/unit/product/parity/test_gaps.py",
+]
+
+[boundary]
+owner = "quality"
+scope = "Product-parity semantic test representation only; parity runtime behavior, evidence format, and public command contracts remain unchanged."
+
+[carriers]
+openspec = "openspec/changes/product-parity-test-suite-compression-20260713"
+fallback = "Restore the former named semantic test bodies only if the case tables lose diagnostic clarity, coverage, or public-contract precision; do not retain two permanent representations."
+kill_signal = "The scoped effective-line total does not decline, an accepted-difference or projection contract loses coverage, or repository coverage falls below 100 percent."
+
+[promotion]
+targets = [
+  { kind = "tests", path = "tests/unit/product/parity/snapshots.py" },
+  { kind = "tests", path = "tests/unit/product/parity/test_semantics.py" },
+  { kind = "tests", path = "tests/unit/product/parity/test_projection_semantics.py" },
+  { kind = "tests", path = "tests/unit/product/parity/test_gaps.py" },
+  { kind = "openspec", path = "openspec/changes/product-parity-test-suite-compression-20260713" },
+  { kind = "evidence", path = "evidence/chronicle/product-parity-test-suite-compression-20260713/2026-07-13.md" },
+]

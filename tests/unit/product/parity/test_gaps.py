@@ -16,9 +16,14 @@ from tests.unit.product.parity.snapshots import init_git_repo
 from tests.unit.product.parity.snapshots import retarget_parity_evidence
 from tests.unit.product.parity.snapshots import set_durable_evidence_root
 from tests.unit.product.parity.snapshots import sha256_text
+from tests.unit.product.parity.snapshots import write_parity_evidence
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+
+def parity_gaps(root: Path, *, adopter: str = "sample-adopter") -> dict[str, object]:
+    return run_ethos("parity", "gaps", "--adopter", adopter, "--root", root.as_posix(), "--json")
 
 
 def test_shadow_evidence_command_includes_product_root_only_for_external_target(
@@ -72,15 +77,7 @@ def test_parity_gaps_uses_product_evidence_root_for_missing_target(
 
 
 def test_parity_gaps_reports_shadow_gap_without_tracked_evidence(tmp_path: Path) -> None:
-    payload = run_ethos(
-        "parity",
-        "gaps",
-        "--adopter",
-        "sample-adopter",
-        "--root",
-        tmp_path.as_posix(),
-        "--json",
-    )
+    payload = parity_gaps(tmp_path)
 
     assert payload["ok"] is False
     assert payload["command"] == "parity gaps"
@@ -263,25 +260,12 @@ def test_parity_gaps_defaults_target_to_repo_for_self_governance() -> None:
 def test_parity_gaps_rejects_shadow_evidence_without_false_negative_gate(
     tmp_path: Path,
 ) -> None:
-    evidence_dir = tmp_path / "evidence" / "parity"
-    evidence_dir.mkdir(parents=True)
     stale = complete_parity_evidence("sample-adopter")
     stale["shadow"].pop("false_negative_count")
     stale["semantic_dimensions"] = ["blocking_vs_advisory"]
-    (evidence_dir / "sample-adopter-shadow.json").write_text(
-        json.dumps(stale),
-        encoding="utf-8",
-    )
+    write_parity_evidence(tmp_path, stale)
 
-    payload = run_ethos(
-        "parity",
-        "gaps",
-        "--adopter",
-        "sample-adopter",
-        "--root",
-        tmp_path.as_posix(),
-        "--json",
-    )
+    payload = parity_gaps(tmp_path)
 
     assert payload["ok"] is False
     assert "parity_evidence_invalid:sample-adopter:false_negative_count" in payload["required_gaps"]
@@ -294,22 +278,9 @@ def test_parity_gaps_rejects_shadow_evidence_without_false_negative_gate(
 def test_parity_gaps_uses_tracked_shadow_evidence_to_close_verified_capabilities(
     tmp_path: Path,
 ) -> None:
-    evidence_dir = tmp_path / "evidence" / "parity"
-    evidence_dir.mkdir(parents=True)
-    (evidence_dir / "sample-adopter-shadow.json").write_text(
-        json.dumps(complete_parity_evidence("sample-adopter")),
-        encoding="utf-8",
-    )
+    write_parity_evidence(tmp_path, complete_parity_evidence("sample-adopter"))
 
-    payload = run_ethos(
-        "parity",
-        "gaps",
-        "--adopter",
-        "sample-adopter",
-        "--root",
-        tmp_path.as_posix(),
-        "--json",
-    )
+    payload = parity_gaps(tmp_path)
 
     assert payload["ok"] is True
     assert payload["required_gaps"] == []
@@ -320,24 +291,11 @@ def test_parity_gaps_uses_tracked_shadow_evidence_to_close_verified_capabilities
 def test_parity_gaps_rejects_release_visible_local_paths_in_shadow_evidence(
     tmp_path: Path,
 ) -> None:
-    evidence_dir = tmp_path / "evidence" / "parity"
-    evidence_dir.mkdir(parents=True)
     evidence = complete_parity_evidence("sample-adopter")
     evidence["shadow"]["release_note"] = "/" + "Users" + "/person/private-checkout"
-    (evidence_dir / "sample-adopter-shadow.json").write_text(
-        json.dumps(evidence),
-        encoding="utf-8",
-    )
+    write_parity_evidence(tmp_path, evidence)
 
-    payload = run_ethos(
-        "parity",
-        "gaps",
-        "--adopter",
-        "sample-adopter",
-        "--root",
-        tmp_path.as_posix(),
-        "--json",
-    )
+    payload = parity_gaps(tmp_path)
 
     assert payload["ok"] is False
     assert (
@@ -349,38 +307,20 @@ def test_parity_gaps_rejects_release_visible_local_paths_in_shadow_evidence(
 def test_parity_gaps_rejects_shadow_evidence_without_freshness_identity(
     tmp_path: Path,
 ) -> None:
-    evidence_dir = tmp_path / "evidence" / "parity"
-    evidence_dir.mkdir(parents=True)
     stale = complete_parity_evidence("sample-adopter")
     stale.pop("freshness")
-    (evidence_dir / "sample-adopter-shadow.json").write_text(
-        json.dumps(stale),
-        encoding="utf-8",
-    )
+    write_parity_evidence(tmp_path, stale)
 
-    payload = run_ethos(
-        "parity",
-        "gaps",
-        "--adopter",
-        "sample-adopter",
-        "--root",
-        tmp_path.as_posix(),
-        "--json",
-    )
+    payload = parity_gaps(tmp_path)
 
     assert payload["ok"] is False
     assert "parity_evidence_invalid:sample-adopter:freshness" in payload["required_gaps"]
 
 
 def test_parity_gaps_rejects_product_head_mismatch(tmp_path: Path) -> None:
-    evidence_dir = tmp_path / "evidence" / "parity"
-    evidence_dir.mkdir(parents=True)
     stale = complete_parity_evidence("sample-adopter")
     stale["freshness"]["product_head"] = "old-product-head"
-    (evidence_dir / "sample-adopter-shadow.json").write_text(
-        json.dumps(stale),
-        encoding="utf-8",
-    )
+    write_parity_evidence(tmp_path, stale)
 
     payload = parity_gaps_report(
         adopter="sample-adopter",
@@ -396,40 +336,10 @@ def test_parity_gaps_rejects_product_head_mismatch(tmp_path: Path) -> None:
 
 
 def test_parity_gaps_accepts_evidence_updated_in_current_commit(tmp_path: Path) -> None:
-    subprocess.run(["git", "init", "-b", "dev"], cwd=tmp_path, check=True, capture_output=True)
-    (tmp_path / "README.md").write_text("# sample\n", encoding="utf-8")
-    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True, capture_output=True)
-    subprocess.run(
-        [
-            "git",
-            "-c",
-            "user.name=Test User",
-            "-c",
-            "user.email=test@example.com",
-            "commit",
-            "-m",
-            "base",
-        ],
-        cwd=tmp_path,
-        check=True,
-        capture_output=True,
-    )
-    parent_head = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
-        cwd=tmp_path,
-        check=True,
-        text=True,
-        capture_output=True,
-    ).stdout.strip()
-
-    evidence_dir = tmp_path / "evidence" / "parity"
-    evidence_dir.mkdir(parents=True)
+    parent_head = git_head(init_git_repo(tmp_path))
     evidence = complete_parity_evidence("sample-adopter")
     evidence["freshness"]["product_head"] = parent_head
-    (evidence_dir / "sample-adopter-shadow.json").write_text(
-        json.dumps(evidence),
-        encoding="utf-8",
-    )
+    write_parity_evidence(tmp_path, evidence)
     subprocess.run(["git", "add", "."], cwd=tmp_path, check=True, capture_output=True)
     subprocess.run(
         [
@@ -472,25 +382,12 @@ def test_parity_gaps_accepts_evidence_updated_in_current_commit(tmp_path: Path) 
 def test_parity_gaps_rejects_weak_shadow_evidence_that_lists_capabilities(
     tmp_path: Path,
 ) -> None:
-    evidence_dir = tmp_path / "evidence" / "parity"
-    evidence_dir.mkdir(parents=True)
     weak = complete_parity_evidence("sample-adopter")
     weak["shadow"] = {"ok": True, "required_gaps": [], "comparison_count": 1}
     weak.pop("capability_basis")
-    (evidence_dir / "sample-adopter-shadow.json").write_text(
-        json.dumps(weak),
-        encoding="utf-8",
-    )
+    write_parity_evidence(tmp_path, weak)
 
-    payload = run_ethos(
-        "parity",
-        "gaps",
-        "--adopter",
-        "sample-adopter",
-        "--root",
-        tmp_path.as_posix(),
-        "--json",
-    )
+    payload = parity_gaps(tmp_path)
 
     assert payload["ok"] is False
     assert "parity_evidence_invalid:sample-adopter" in payload["required_gaps"]
@@ -498,34 +395,22 @@ def test_parity_gaps_rejects_weak_shadow_evidence_that_lists_capabilities(
 
 
 def test_parity_gaps_rejects_incomplete_shadow_evidence(tmp_path: Path) -> None:
-    evidence_dir = tmp_path / "evidence" / "parity"
-    evidence_dir.mkdir(parents=True)
-    (evidence_dir / "sample-adopter-shadow.json").write_text(
-        json.dumps(
-            {
-                "shadow": {"ok": True, "required_gaps": []},
-                "verified_capabilities": [
-                    "work-lane-lifecycle",
-                    "proof-evidence-chronicle",
-                    "campaign-hypothesis-evolution",
-                    "assistant-playbooks-skills",
-                    "quality-determinism-local-state",
-                    "openspec-claims-trust-review",
-                ],
-            }
-        ),
-        encoding="utf-8",
+    write_parity_evidence(
+        tmp_path,
+        {
+            "shadow": {"ok": True, "required_gaps": []},
+            "verified_capabilities": [
+                "work-lane-lifecycle",
+                "proof-evidence-chronicle",
+                "campaign-hypothesis-evolution",
+                "assistant-playbooks-skills",
+                "quality-determinism-local-state",
+                "openspec-claims-trust-review",
+            ],
+        },
     )
 
-    payload = run_ethos(
-        "parity",
-        "gaps",
-        "--adopter",
-        "sample-adopter",
-        "--root",
-        tmp_path.as_posix(),
-        "--json",
-    )
+    payload = parity_gaps(tmp_path)
 
     assert payload["ok"] is False
     assert "parity_evidence_invalid:sample-adopter" in payload["required_gaps"]

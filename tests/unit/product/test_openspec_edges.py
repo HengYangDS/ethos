@@ -81,6 +81,13 @@ def test_selection_and_validation_helper_edge_cases() -> None:
     assert openspec_lifecycle.selected_change({"changes": [{"name": "only"}]}, None) == "only"
     assert (
         openspec_lifecycle.selected_change(
+            {"changes": [{"name": "fallback"}, {"status": "unknown"}]}, None
+        )
+        == "fallback"
+    )
+    assert openspec_lifecycle.selected_change({"changes": [{"status": "unknown"}]}, None) is None
+    assert (
+        openspec_lifecycle.selected_change(
             {
                 "changes": [
                     {"name": "older", "lastModified": "2026-01-01"},

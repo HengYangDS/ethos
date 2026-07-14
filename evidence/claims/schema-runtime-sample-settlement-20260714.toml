@@ -30,7 +30,7 @@ owner = "quality"
 scope = "Schema-file and live producer validation; no schema semantics or public command behavior is changed."
 
 [carriers]
-openspec = "openspec/changes/schema-runtime-sample-settlement-20260714"
+openspec = "openspec/changes/archive/2026-07-14-schema-runtime-sample-settlement-20260714"
 fallback = "Restore only the deleted runtime builders if a real producer contract is proven absent; do not replace them with a second shared fixture layer."
 kill_signal = "Schema quality turns green while a real producer payload violates its schema, or a deleted sample path remains referenced by active repository truth."
 
@@ -43,7 +43,7 @@ targets = [
   "tests/unit/kernel/test_skill_activation.py",
   "tests/unit/assistants/test_skill_packages.py",
   "openspec/specs/quality/spec.md",
-  "openspec/changes/schema-runtime-sample-settlement-20260714",
+  "openspec/changes/archive/2026-07-14-schema-runtime-sample-settlement-20260714",
   "evidence/claims/schema-runtime-sample-settlement-20260714.toml",
   "evidence/chronicle/schema-runtime-sample-settlement-20260714/2026-07-14.md",
 ]

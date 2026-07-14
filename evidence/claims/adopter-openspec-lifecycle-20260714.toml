@@ -13,8 +13,8 @@ verifier = "digest_only"
 
 [evidence.freshness]
 mode = "semantic_scope"
-head = "11271347c509307e94fd4bd77bbd1d2714d0e7e4"
-semantic_sha256 = "a5752c1c2eb2e52d272d7045774bfd7187786217454a2aa1261333983217aa05"
+head = "a1cbf1090a55e9138882dae3dfb3af5f1ea194f7"
+semantic_sha256 = "711d44897a31d8dae13e7c98a7cefe75ed3976e57d6669fac313d9ffba993921"
 
 [boundary]
 owner = "ethos-repository"
@@ -26,4 +26,4 @@ fallback = "Block lifecycle gaps; do not substitute code correctness or method p
 kill_signal = "A valid adopter bypasses official lifecycle in plan or proof."
 
 [promotion]
-targets = ["packages/ethos/src/ethos/surface/cli/root", "tests/unit/cli", "openspec/changes/archive/2026-07-14-adopter-openspec-lifecycle-20260714"]
+targets = ["packages/ethos/src/ethos/surface/cli/root", "tests/unit/cli"]

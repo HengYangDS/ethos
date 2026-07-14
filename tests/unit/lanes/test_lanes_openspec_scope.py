@@ -12,6 +12,7 @@ import ethos.surface.cli.root.planning as planning_cli
 import ethos.surface.cli.root.proof as proof_cli
 from ethos.adapters.admission.prewrite import prewrite_guard
 from ethos.adapters.mutation.lanes import start_work_lane
+from ethos.repository.adoption.planner import adoption_plan
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.lane_helpers import add_candidate_worktree
@@ -459,8 +460,6 @@ def test_plan_and_prove_receive_the_same_dirty_scope_paths(
 ) -> None:
     """Plan and proof pass dirty repository paths to the lifecycle read model."""
     repo = init_repo(tmp_path / "repo")
-    from ethos.repository.adoption.planner import adoption_plan
-
     adoption_plan(repo, profile="generic", apply=True)
     (repo / "README.md").write_text("base\n", encoding="utf-8")
     git(repo, "add", ".")
@@ -559,8 +558,6 @@ def test_prewrite_plan_and_prove_share_official_scope_coverage_verdict(
 ) -> None:
     """All entry points use the official list-selected Change companions."""
     repo = init_repo(tmp_path / "repo")
-    from ethos.repository.adoption.planner import adoption_plan
-
     adoption_plan(repo, profile="generic", apply=True)
     matching = repo / "openspec" / "changes" / "matching"
     (matching / "specs" / "repository-governance").mkdir(parents=True)

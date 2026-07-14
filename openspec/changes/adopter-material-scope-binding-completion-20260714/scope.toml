@@ -15,6 +15,7 @@ paths = [
   "packages/ethos-core/src/ethos_core/contracts/openspec/**",
   "packages/ethos/src/ethos/adapters/admission/prewrite.py",
   "packages/ethos/src/ethos/adapters/openspec/**",
+  "system/invalid_states.toml",
   "packages/ethos/src/ethos/repository/adoption/scaffold/template_files/core/profile.toml.j2",
   "packages/ethos/src/ethos/surface/cli/root/planning.py",
   "packages/ethos/src/ethos/surface/cli/root/proof.py",
@@ -27,4 +28,6 @@ paths = [
   "tests/unit/lanes/test_lanes_openspec_scope.py",
   "tests/unit/product/test_openspec_edges.py",
   "tests/unit/product/test_openspec_substrate.py",
+  "tests/unit/coverage/test_cov_v3_openspec_edges.py",
+  "tests/unit/product/parity/test_evidence_writing.py",
 ]

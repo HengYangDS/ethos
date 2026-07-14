@@ -35,7 +35,7 @@ owner = "quality"
 scope = "CLI lifecycle fixture and workspace-status schema test representation only; production lifecycle, command, schema, and dependency semantics remain unchanged."
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-13-test-contract-fixture-compression-20260714"
+openspec = "openspec/changes/archive/2026-07-14-test-contract-fixture-compression-20260714"
 fallback = "Restore the explicit fixture choreography or complete schema envelope only if helper reuse loses public-contract precision, coverage, or net deletion."
 kill_signal = "A command-specific state, gap, payload assertion, or schema rejection regresses, or formatter-clean scoped ELOC does not decline."
 
@@ -44,7 +44,7 @@ targets = [
   { kind = "tests", path = "tests/support/contract_helpers.py" },
   { kind = "tests", path = "tests/unit/cli/test_contracts_land.py" },
   { kind = "tests", path = "tests/unit/governance/validation/test_schemas.py" },
-  { kind = "openspec", path = "openspec/changes/archive/2026-07-13-test-contract-fixture-compression-20260714" },
+  { kind = "openspec", path = "openspec/changes/archive/2026-07-14-test-contract-fixture-compression-20260714" },
   { kind = "evidence", path = "evidence/claims/test-contract-fixture-compression-20260714.toml" },
   { kind = "evidence", path = "evidence/chronicle/test-contract-fixture-compression-20260714/2026-07-14.md" },
 ]

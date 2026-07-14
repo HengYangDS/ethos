@@ -140,6 +140,12 @@
         "submit_branch_prefix": {
           "type": "string"
         },
+        "release_mirror": {
+          "enum": [
+            "independent",
+            "accepted_ff"
+          ]
+        },
         "semantic_order": {
           "type": "array",
           "items": {

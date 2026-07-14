@@ -14,7 +14,11 @@ such residue; the proof sequence is not a closed final-state observation.
   Ruff and the Python test gate.
 - Make test-gate exit cleanup remove the same denied root runtime residue as
   test-gate entry cleanup.
-- Add regression coverage for ordering and symmetric cleanup.
+- Bind `ty` to the checkout's semantic runtime rather than a host-discovered
+  environment.
+- Keep every affected Python owner script executable by the macOS-provided
+  Bash 3.2; add regression coverage for ordering, cleanup, runtime binding,
+  and shell portability.
 
 ## Capabilities
 
@@ -24,4 +28,6 @@ such residue; the proof sequence is not a closed final-state observation.
 
 - No root cache path becomes allowed or ignored by the topology gate.
 - No retry, waiver, baseline, or compatibility path is introduced.
+- No host `.venv`, host site-packages, or newer Bash installation becomes a
+  prerequisite for a governed proof.
 - No foreign Work Lane, candidate checkout, or accepted root is mutated.

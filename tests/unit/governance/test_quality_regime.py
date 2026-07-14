@@ -108,6 +108,79 @@ def test_ruff_runtime_cache_stays_under_build_runtime() -> None:
     assert "[tool.ruff" not in pyproject_text
 
 
+def test_python_lint_owner_avoids_bash_4_only_mapfile(tmp_path: Path) -> None:
+    """Keep the owner gate executable by the macOS-provided Bash 3.2."""
+    repo = tmp_path / "repo"
+    scripts = repo / "tools" / "ci" / "scripts"
+    scripts.mkdir(parents=True)
+    (repo / ".config" / "checks" / "ruff").mkdir(parents=True)
+    (repo / ".config" / "checks" / "ruff" / "ruff.toml").write_text(
+        "",
+        encoding="utf-8",
+    )
+    (repo / "example.py").write_text("pass\n", encoding="utf-8")
+
+    runner = scripts / "run-python-lint.sh"
+    runner.write_text(
+        (ROOT / "tools/ci/scripts/run-python-lint.sh").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    runner.chmod(runner.stat().st_mode | stat.S_IXUSR)
+    ratchet = scripts / "run-ruff-ratchet.sh"
+    ratchet.write_text(
+        "#!/bin/sh\nexit 0\n",
+        encoding="utf-8",
+    )
+    ratchet.chmod(ratchet.stat().st_mode | stat.S_IXUSR)
+
+    bin_dir = repo / "bin"
+    bin_dir.mkdir()
+    git = bin_dir / "git"
+    git.write_text(
+        "#!/bin/sh\n"
+        'if [ "$1" = "rev-parse" ]; then printf "%s\\n" "$PWD"; exit 0; fi\n'
+        'if [ "$1" = "ls-files" ]; then printf "%s\\n" "example.py"; exit 0; fi\n'
+        "exit 1\n",
+        encoding="utf-8",
+    )
+    git.chmod(git.stat().st_mode | stat.S_IXUSR)
+    uv = bin_dir / "uv"
+    uv.write_text(
+        "#!/bin/sh\n"
+        "shift\n"
+        'while [ "$#" -gt 0 ]; do\n'
+        '  case "$1" in --group) shift 2 ;; --*) shift ;; *) break ;; esac\n'
+        "done\n"
+        'exec "$@"\n',
+        encoding="utf-8",
+    )
+    uv.chmod(uv.stat().st_mode | stat.S_IXUSR)
+    ruff = bin_dir / "ruff"
+    ruff.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    ruff.chmod(ruff.stat().st_mode | stat.S_IXUSR)
+
+    env = os.environ | {
+        "ETHOS_RUNTIME_BOOTSTRAPPED": "1",
+        "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}",
+    }
+    completed = subprocess.run(
+        [str(runner)],
+        cwd=repo,
+        env=env,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+    for owner in (
+        ROOT / "tools/ci/scripts/run-python-lint.sh",
+        ROOT / "tools/ci/scripts/run-ruff-ratchet.sh",
+        ROOT / "tools/ci/scripts/run-bandit.sh",
+    ):
+        assert "mapfile" not in owner.read_text(encoding="utf-8")
+    assert completed.returncode == 0, completed.stderr
+
+
 def test_ty_policy_is_zero_tolerance_without_ratchet_residue() -> None:
     policy_text = (ROOT / ".config/checks/ty/policy.toml").read_text(encoding="utf-8")
     policy = tomllib.loads(policy_text)
@@ -151,6 +224,7 @@ def test_ruff_ratchet_uses_tracked_python_file_set() -> None:
 
     assert 'git ls-files "*.py" "*.pyi"' in runner
     assert '"${python_quality_paths[@]}"' in runner
+    assert "mapfile" not in runner
     assert '"."' not in runner
 
 

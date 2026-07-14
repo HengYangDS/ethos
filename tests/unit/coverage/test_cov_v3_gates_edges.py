@@ -86,7 +86,17 @@ def test_ty_gate_report_invokes_ty_through_active_python(
     report = ty_gate_report(tmp_path)
 
     assert report["ok"] is True
-    assert calls == [[sys.executable, "-m", "ty", "check", "packages/rt/src"]]
+    assert calls == [
+        [
+            sys.executable,
+            "-m",
+            "ty",
+            "check",
+            "--python",
+            str(tmp_path / "build" / "runtime" / "venv"),
+            "packages/rt/src",
+        ]
+    ]
 
 
 def test_ty_gate_report_exposes_command_and_diagnostic_excerpt(

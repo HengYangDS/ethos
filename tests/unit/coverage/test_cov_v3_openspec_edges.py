@@ -86,8 +86,17 @@ def test_archive_delta_issues_specs_dir_without_spec_files(tmp_path: Path) -> No
 
 
 def test_workspace_signature_empty_without_openspec_dir(tmp_path: Path) -> None:
-    # A root with no openspec/ directory yields an empty signature (line 446).
+    # A root with no OpenSpec workspace has no lifecycle cache inputs.
     assert openspec_workspace.openspec_workspace_signature(tmp_path) == ()
+
+
+def test_workspace_signature_includes_missing_profile_when_openspec_exists(tmp_path: Path) -> None:
+    """The profile companion invalidates cached lifecycle results after creation."""
+    (tmp_path / "openspec").mkdir()
+
+    assert openspec_workspace.openspec_workspace_signature(tmp_path) == (
+        (".ethos/profile.toml", -1, -1),
+    )
 
 
 def test_active_claim_carriers_skips_inactive_and_empty_carrier(tmp_path: Path) -> None:

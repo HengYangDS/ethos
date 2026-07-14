@@ -47,41 +47,28 @@ material_change_scope_report = scope.material_change_scope_report
 
 def selected_change(list_payload: dict[str, Any], requested: str | None) -> str | None:
     """Select the OpenSpec change to inspect from list JSON and optional request."""
-    if requested:
-        return requested
+    selected = requested
     changes = list_payload.get("changes", [])
-    if not isinstance(changes, list):
-        return None
-    in_progress = [
-        item
-        for item in changes
-        if isinstance(item, dict)
-        and item.get("name")
-        and str(item.get("status") or "") == "in-progress"
-    ]
-    if in_progress:
-        return _latest_change_name(in_progress)
-    archiving = [
-        item
-        for item in changes
-        if isinstance(item, dict)
-        and item.get("name")
-        and str(item.get("status") or "") == "archiving"
-    ]
-    if archiving:
-        return _latest_change_name(archiving)
-    complete = [
-        item
-        for item in changes
-        if isinstance(item, dict)
-        and item.get("name")
-        and str(item.get("status") or "") in {"", "complete"}
-    ]
-    if complete:
-        return _latest_change_name(complete)
-    if len(changes) == 1 and isinstance(changes[0], dict):
-        return str(changes[0].get("name") or "") or None
-    return None
+    if selected is None and isinstance(changes, list):
+        status_groups = (
+            {"in-progress"},
+            {"archiving"},
+            {"", "complete"},
+        )
+        for statuses in status_groups:
+            candidates = [
+                item
+                for item in changes
+                if isinstance(item, dict)
+                and item.get("name")
+                and str(item.get("status") or "") in statuses
+            ]
+            if candidates:
+                selected = _latest_change_name(candidates)
+                break
+        if selected is None and len(changes) == 1 and isinstance(changes[0], dict):
+            selected = str(changes[0].get("name") or "") or None
+    return selected
 
 
 def _latest_change_name(changes: list[dict[str, Any]]) -> str:

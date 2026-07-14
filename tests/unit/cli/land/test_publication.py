@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from ethos.domain.land.publication import local_ci_owner_scripts
+from ethos.domain.land.publication import publication_readiness
 from ethos_core.contracts.branch.roles import load_branch_role_policy
 from tests.support.contract_helpers import adopt_and_commit
 from tests.support.contract_helpers import git
@@ -145,6 +146,21 @@ def test_publish_reports_synchronized_tracking_without_claiming_a_push(
         payload["next_actions"][0] == "remote tracking ref is synchronized; no push was performed"
     )
     assert payload["data"]["mutation"]["decision"]["verdict"] == "defer"
+
+
+def test_publication_readiness_uses_local_fallback_when_fallback_omits_evidence_status() -> None:
+    policy = load_branch_role_policy(Path.cwd())
+    fallback = {"evidence_status": {}}
+    publication = publication_readiness(
+        branch="dev",
+        local_ok=True,
+        policy=policy,
+        local_ci_fallback=fallback,
+    )
+
+    assert publication["next_actions"] == [
+        "run tools/ci/scripts/run-local-ci.sh as local fallback evidence"
+    ]
 
 
 def test_publish_does_not_probe_remote_without_explicit_flag(monkeypatch) -> None:

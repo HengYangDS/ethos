@@ -12,8 +12,8 @@
 ## 3. Verification and transition boundary
 
 - [x] 3.1 Validate the claim, Chronicle, OpenSpec, documentation topology, and focused checks in this Work Lane (74 focused tests).
-- [ ] 3.2 Run executed proof at the committed Work Lane HEAD.
-- [ ] 3.3 Land only through the separate candidate and accepted-root lifecycle receipts; remote publication remains a separate, explicit action.
+- [x] 3.2 Run executed proof at the committed Work Lane HEAD (21 gates; evidence digest `3699395e5b3ebd1eadd1799e51201c047dc2ea9411b00a64e58ab264cab082af`).
+- [x] 3.3 Keep candidate landing, accepted-root closeout, Work Lane retirement, and remote publication as separate lifecycle receipts; no remote action is asserted by this carrier.
 
 The dated observation is authored state. Candidate landing, accepted-root
 closeout, Work Lane retirement, and remote publication are transition receipts,

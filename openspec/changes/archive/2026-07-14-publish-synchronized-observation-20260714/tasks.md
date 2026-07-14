@@ -5,4 +5,4 @@
 - [x] Make synchronized tracking project `remote_state = "synchronized"` while
   preserving `remote_push = "not_performed"` and a deferred mutation verdict.
 - [x] Run focused publication, lifecycle, and coverage regression suites.
-- [ ] Execute HEAD-bound proof, land, closeout, and record final evidence.
+- [x] Execute HEAD-bound proof and archive the completed local change; candidate landing remains governed by the current candidate-base and closeout checks.

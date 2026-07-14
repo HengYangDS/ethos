@@ -7,13 +7,13 @@ summary = "Read-only publish readiness distinguishes a synchronized local tracki
 
 [evidence]
 dated = "evidence/chronicle/publish-synchronized-observation-20260714/2026-07-14.md"
-sha256 = "0ed4438661fbd001054280de05e62b20da7851aeb7172168c0b6598dc3ed6330"
+sha256 = "0732581db34dfcc3ece930084a1b3419f5191fc68f523b03e466f8f618db023d"
 evidence_ids = ["evidence:publish-synchronized-observation-20260714"]
-binding = "The active OpenSpec Change, publication reducer, CLI mutation envelope, regression fixture, and dated Chronicle bind the narrow remote-tracking observation."
+binding = "The archived OpenSpec record, publication reducer, CLI mutation envelope, regression fixture, and dated Chronicle bind the narrow remote-tracking observation."
 verifier = "digest_only"
 tests = [
   "uv run --all-packages --group dev pytest -q tests/unit/cli/land/test_publication.py tests/unit/cli/test_contracts_land.py tests/unit/coverage/test_admission_land_evolution_rules_edges.py tests/unit/coverage/core_state/test_claims_and_publication_edges.py --no-cov",
-  "uv run --package ethos ethos prove --execute --expect-head 215b1a98bfe630647aeb5727c33c6ff86cf4917a --json",
+  "ethos prove --execute --expect-head <pre-refresh-head> --json (passed before governed candidate-base refresh)",
 ]
 
 [evidence.freshness]
@@ -24,7 +24,7 @@ owner = "repository-governance"
 scope = "Read-only publication readiness projection for local remote-tracking synchronization; excludes remote mutation, credentials, submit-branch creation, and hosted-runner outcomes."
 
 [carriers]
-openspec = "openspec/changes/publish-synchronized-observation-20260714"
+openspec = "openspec/changes/archive/2026-07-14-publish-synchronized-observation-20260714"
 fallback = "Treat publication observation as deferred unless a local tracking comparison is synchronized; never infer a push from reachability or local proof."
 kill_signal = "A synchronized tracking observation reports remote_push as performed, authorizes remote mutation, claims a hosted-runner result, or obscures a non-synchronized tracking state."
 
@@ -33,6 +33,6 @@ targets = [
   "packages/ethos/src/ethos/domain/land/publication.py",
   "packages/ethos/src/ethos/surface/cli/root/lifecycle.py",
   "tests/unit/cli/land/test_publication.py",
-  "openspec/changes/publish-synchronized-observation-20260714",
+  "openspec/changes/archive/2026-07-14-publish-synchronized-observation-20260714",
   "evidence/chronicle/publish-synchronized-observation-20260714/2026-07-14.md",
 ]

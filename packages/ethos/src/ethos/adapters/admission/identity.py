@@ -15,7 +15,11 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from pathlib import Path
 
-_COMMIT_IDENTITY_FIELD_COUNT = 4
+_COMMIT_IDENTITY_FIELDS = ("author_name", "author_email", "committer_name", "committer_email")
+
+
+def _git(root: Path, *args: str, text: bool = False) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(["git", *args], cwd=root, check=False, text=text, capture_output=True)
 
 
 def commit_contained_in(root: Path, commit: str, branch: str) -> bool:
@@ -26,36 +30,17 @@ def commit_contained_in(root: Path, commit: str, branch: str) -> bool:
     already-proven truth and promotes nothing, so the candidate proof precondition does not
     apply. Missing branch or any git error → False (fall back to requiring proof — safe).
     """
-    contained = subprocess.run(
-        ["git", "merge-base", "--is-ancestor", commit, branch],
-        cwd=root,
-        capture_output=True,
-        check=False,
-    )
-    return contained.returncode == 0
+    return _git(root, "merge-base", "--is-ancestor", commit, branch).returncode == 0
 
 
 def _git_config(root: Path, key: str) -> str:
-    completed = subprocess.run(
-        ["git", "config", "--get", key],
-        cwd=root,
-        check=False,
-        text=True,
-        capture_output=True,
-    )
-    return completed.stdout.strip()
+    return _git(root, "config", "--get", key, text=True).stdout.strip()
 
 
 def _commit_exists(root: Path, revision: str) -> bool:
     if not revision or revision == "0" * 40:
         return False
-    completed = subprocess.run(
-        ["git", "cat-file", "-e", f"{revision}^{{commit}}"],
-        cwd=root,
-        check=False,
-        capture_output=True,
-    )
-    return completed.returncode == 0
+    return _git(root, "cat-file", "-e", f"{revision}^{{commit}}").returncode == 0
 
 
 def _pushed_commit_range(root: Path, *, pushed_head: str, remote_head: str) -> list[str]:
@@ -64,40 +49,18 @@ def _pushed_commit_range(root: Path, *, pushed_head: str, remote_head: str) -> l
     revspec = pushed_head
     if _commit_exists(root, remote_head):
         revspec = f"{remote_head}..{pushed_head}"
-    completed = subprocess.run(
-        ["git", "rev-list", revspec],
-        cwd=root,
-        check=False,
-        text=True,
-        capture_output=True,
-    )
+    completed = _git(root, "rev-list", revspec, text=True)
     if completed.returncode != 0:
         return []
-    return [line for line in completed.stdout.splitlines() if line]
+    return completed.stdout.splitlines()
 
 
 def _commit_identity(root: Path, revision: str) -> dict[str, str]:
-    completed = subprocess.run(
-        ["git", "show", "-s", "--format=%an%x00%ae%x00%cn%x00%ce", revision],
-        cwd=root,
-        check=False,
-        text=True,
-        capture_output=True,
-    )
+    completed = _git(root, "show", "-s", "--format=%an%x00%ae%x00%cn%x00%ce", revision, text=True)
     parts = completed.stdout.rstrip("\n").split("\x00")
-    if completed.returncode != 0 or len(parts) != _COMMIT_IDENTITY_FIELD_COUNT:
-        return {
-            "author_name": "",
-            "author_email": "",
-            "committer_name": "",
-            "committer_email": "",
-        }
-    return {
-        "author_name": parts[0],
-        "author_email": parts[1],
-        "committer_name": parts[2],
-        "committer_email": parts[3],
-    }
+    if completed.returncode == 0 and len(parts) == len(_COMMIT_IDENTITY_FIELDS):
+        return dict(zip(_COMMIT_IDENTITY_FIELDS, parts, strict=True))
+    return dict.fromkeys(_COMMIT_IDENTITY_FIELDS, "")
 
 
 def _identity_range_base(
@@ -119,11 +82,7 @@ def _identity_range_base(
 
 
 def push_identity_policy_report(
-    *,
-    root: Path,
-    pushed_head: str,
-    remote_head: str = "",
-    trusted_baseline: str = "",
+    root: Path, pushed_head: str, remote_head: str = "", trusted_baseline: str = ""
 ) -> dict[str, object]:
     """Report optional push-range Git identity admission.
 

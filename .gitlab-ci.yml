@@ -216,6 +216,11 @@ ethos:hosted-provider-observation:
 ethos:verify:
   <<: *python_setup
   stage: verify
+  variables:
+    # The arm64 hosted runner can terminate xdist workers under the full
+    # coverage suite. Keep the reusable owner script and its default parallel
+    # capability intact; this hosted projection deliberately runs one worker.
+    ETHOS_TEST_WORKERS: "1"
   script:
     # Make the runner checkout a real governed ETHOS working copy: wire the git
     # identity and signing from .ethos/workspace.toml [commit_policy] and arm

@@ -9,11 +9,13 @@ from typing import TYPE_CHECKING
 from typing import cast
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from ethos_core.contracts.branch.roles import BranchRolePolicy
 
 
 def remote_publication_deferred(
-    remote_availability: dict[str, object] | None = None,
+    remote_availability: Mapping[str, object] | None = None,
     *,
     root: Path | None = None,
 ) -> dict[str, object]:
@@ -103,7 +105,7 @@ def local_ci_fallback_evidence_status(
 
 
 def local_ci_fallback_package(
-    remote_availability: dict[str, object] | None = None,
+    remote_availability: Mapping[str, object] | None = None,
     *,
     root: Path | None = None,
     current_head: str = "",
@@ -179,12 +181,89 @@ def local_ci_owner_scripts(*, root: Path | None = None) -> list[str]:
     ]
 
 
+def _string_list(value: object) -> list[str]:
+    """Normalize a declared list without trusting an untyped projection."""
+    return [str(item) for item in value] if isinstance(value, list) else []
+
+
+def publication_topology_readiness(
+    *,
+    topology: Mapping[str, object] | None = None,
+    primary_availability: Mapping[str, object] | None = None,
+    mirror_availability: Mapping[str, object] | None = None,
+) -> dict[str, object]:
+    """Project the three-layer topology without collapsing remote roles.
+
+    The GitHub mirror can carry update and distribution when the GitLab primary is
+    unavailable; it never turns a GitLab-primary publication or hosted status into
+    a GitHub claim.  This function has no network side effects.
+    """
+    declared = topology or {}
+    primary = declared.get("primary")
+    mirror = declared.get("mirror")
+    local = declared.get("local")
+    primary = primary if isinstance(primary, dict) else {}
+    mirror = mirror if isinstance(mirror, dict) else {}
+    local = local if isinstance(local, dict) else {}
+    primary_state = str((primary_availability or {}).get("state") or "not_probed")
+    mirror_available = bool((mirror_availability or {}).get("available") is True)
+    primary_available = bool((primary_availability or {}).get("available") is True)
+    mirror_substitutions = _string_list(mirror.get("may_substitute_for"))
+    mirror_prohibitions = _string_list(mirror.get("may_not_substitute_for"))
+    mirror_substitutes = (
+        primary_state in {"unavailable", "unconfigured"}
+        and mirror_available
+        and "update" in mirror_substitutions
+        and "distribution" in mirror_substitutions
+    )
+    return {
+        "kind": "three_layer_dual_remote_publication",
+        "mode": str(declared.get("mode") or "single_remote_legacy"),
+        "local": {
+            "role": str(local.get("role") or "verification_and_install"),
+            "remote_independent": local.get("remote_independent") is not False,
+        },
+        "primary": {
+            "provider": str(primary.get("provider") or ""),
+            "remote": str(primary.get("remote") or "origin"),
+            "availability": primary_availability or {"state": "not_probed", "available": False},
+            "publication_role": "organization_primary_publication",
+        },
+        "mirror": {
+            "provider": str(mirror.get("provider") or ""),
+            "remote": str(mirror.get("remote") or ""),
+            "availability": mirror_availability or {"state": "not_probed", "available": False},
+            "role": str(mirror.get("role") or ""),
+            "may_substitute_for": mirror_substitutions,
+            "may_not_substitute_for": mirror_prohibitions,
+        },
+        "operating_state": (
+            "primary_available"
+            if primary_available
+            else "mirror_fallback_available"
+            if mirror_substitutes
+            else "remote_state_not_decisive"
+        ),
+        "github_mirror_substitutes_for": ["update", "distribution"] if mirror_substitutes else [],
+        "gitlab_primary_publication_claimed": False,
+        "gitlab_hosted_status_claimed": False,
+        "github_hosted_status_claimed": False,
+        "remote_publication_claimed": False,
+        "next_action": (
+            "use GitHub mirror for update and distribution; "
+            "GitLab primary publication remains deferred"
+            if mirror_substitutes
+            else "probe primary and mirror remotes before any remote publication decision"
+        ),
+    }
+
+
 def local_submit_package(
     *,
     branch: str,
     submit_branch: str,
-    remote_availability: dict[str, object] | None = None,
-    local_ci_fallback: dict[str, object] | None = None,
+    remote_availability: Mapping[str, object] | None = None,
+    local_ci_fallback: Mapping[str, object] | None = None,
 ) -> dict[str, object]:
     """Plan the local submit-branch package (remote push deferred)."""
     return {
@@ -206,15 +285,17 @@ def local_submit_package(
     }
 
 
-def publication_readiness(
+def publication_readiness(  # noqa: PLR0913, RUF100 - exact local/primary/mirror envelope preserves evidence boundaries
     *,
     branch: str,
     local_ok: bool,
     policy: BranchRolePolicy,
-    remote_availability: dict[str, object] | None = None,
-    local_ci_fallback: dict[str, object] | None = None,
+    remote_availability: Mapping[str, object] | None = None,
+    mirror_availability: Mapping[str, object] | None = None,
+    topology: Mapping[str, object] | None = None,
+    local_ci_fallback: Mapping[str, object] | None = None,
 ) -> dict[str, object]:
-    """Assemble publication readiness with remote probe and local-ci fallback."""
+    """Assemble publication readiness with local, primary, and mirror boundaries."""
     submit_branch = policy.submit_branch_for_source(branch)
     availability = remote_availability or {
         "kind": "git_remote_availability",
@@ -239,6 +320,11 @@ def publication_readiness(
         }
     )
     fallback = local_ci_fallback or local_ci_fallback_package(remote_availability=availability)
+    topology_state = publication_topology_readiness(
+        topology=topology,
+        primary_availability=availability,
+        mirror_availability=mirror_availability,
+    )
     evidence_status = fallback.get("evidence_status")
     if isinstance(evidence_status, dict):
         evidence_next_action = str(
@@ -257,6 +343,8 @@ def publication_readiness(
         next_action = "create configured submit branch when remote publication is available"
     if remote_state == "synchronized":
         next_action = "remote tracking ref is synchronized; no push was performed"
+    if topology_state["operating_state"] == "mirror_fallback_available":
+        next_action = str(topology_state["next_action"])
     next_actions = [next_action] if local_ok else ["resolve local publish readiness gaps"]
     return {
         "mode": "local_readiness",
@@ -266,6 +354,8 @@ def publication_readiness(
         "remote_state": remote_state,
         "remote_availability": availability,
         "remote_sync": sync,
+        "mirror_availability": mirror_availability or {"state": "not_probed", "available": False},
+        "publication_topology": topology_state,
         "fallback_evidence": fallback,
         "submit_branch": submit_branch,
         "local_submit_package": local_submit_package(

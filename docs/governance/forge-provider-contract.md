@@ -20,9 +20,11 @@ See also: [Product Design Contract](product-design-contract.md),
 
 ## Contract
 
-ETHOS supports GitHub and GitLab as symmetric hosted forge providers. They are
-carriers for the same Git-native repository governance contract, not separate
-product modes.
+ETHOS supports GitHub and GitLab as equivalent **provider adapters** for the
+same Git-native governance contract; they are not separate product modes. Their
+provider equivalence does not require symmetric publication authority. A
+repository may declare GitLab as its organizational primary publication source
+and GitHub as an independent mirror for update and distribution continuity.
 
 The provider contract is:
 
@@ -40,10 +42,28 @@ provider runtimes. A hosted forge may provide review UI, branch protection,
 runner status, artifacts, or remote publication observations; it does not own
 ETHOS lifecycle state.
 
+## Three-Layer, Dual-Remote Publication Topology
+
+A repository that declares `publication_topology.mode =
+"three_layer_dual_remote"` has three distinct roles:
+
+| Layer | Role | May claim | Must not claim |
+| --- | --- | --- | --- |
+| Local | Verification and installation | Local owner-gate and installation evidence | Remote publication or hosted CI success |
+| GitLab primary | Organizational publication source | GitLab publication and GitLab hosted observations, when separately observed | GitHub status as GitLab status |
+| GitHub mirror | Independent update and distribution mirror | Its own mirror, update, distribution, and hosted observations | GitLab-primary publication or GitLab hosted status |
+
+When the GitLab primary is unavailable but the GitHub mirror is available, the
+mirror may carry `update` and `distribution` only. It does not change the
+primary authority, and `ethos publish` remains read-only: it reports
+`remote_push = not_performed` and does not mint a publication claim.
+
 ## Required Provider Invariants
 
-1. **Mirror semantics**: GitHub and GitLab SHALL execute the same required gate
-   classes, thresholds, and evidence boundaries for a given profile.
+1. **Gate mirror semantics**: enabled GitHub and GitLab projections SHALL execute
+   the same required gate classes, thresholds, and evidence boundaries for a
+   given profile. This concerns proof parity, not organizational publication
+   authority.
 1. **Template ownership**: provider YAML SHALL be generated or checked from
    tracked provider templates. Hand-edited drift in hosted files is a governance
    gap.

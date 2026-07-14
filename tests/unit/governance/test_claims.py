@@ -560,3 +560,10 @@ def test_claim_with_unknown_freshness_mode_is_blocking(tmp_path: Path) -> None:
     report = claims_report(tmp_path, current_head="currenthead")
 
     assert "ethos-sample:evidence.freshness_mode_invalid" in report["required_gaps"]
+
+
+def test_active_product_claims_use_supported_assurance_classes() -> None:
+    report = claims_report(Path.cwd())
+
+    assert report["ok"] is True
+    assert report["required_gaps"] == []

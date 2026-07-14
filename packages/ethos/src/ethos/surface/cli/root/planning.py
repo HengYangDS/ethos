@@ -9,7 +9,6 @@ from ethos.domain.plan import contract_profile_matches
 from ethos.domain.plan import graph_for_paths
 from ethos.domain.plan import matching_rule_gates
 from ethos.repository.context import context_for_root
-from ethos.repository.context import is_product_root
 from ethos.repository.workflow.runtime import workflow_runtime_report
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
@@ -33,12 +32,7 @@ def plan(
     matched_rules, required_gates = matching_rule_gates(repo, paths)
     domain_contracts = contract_profile_matches(repo, paths)
     workflow_runtime = workflow_runtime_report(repo, changed_paths=paths)
-    openspec_lifecycle = (
-        openspec_governance_report(repo, lifecycle=True)
-        if is_product_root(repo)
-        else {"ok": True, "required_gaps": []}
-    )
-    lifecycle_gaps = tuple(str(gap) for gap in openspec_lifecycle.get("required_gaps", []))
+    openspec_lifecycle = openspec_governance_report(repo, lifecycle=True)
     ok = bool(openspec_lifecycle.get("ok"))
     result = EthosResult(
         command="plan",
@@ -50,7 +44,7 @@ def plan(
             "matched_rule_count": len(matched_rules),
             "required_gate_count": len(required_gates),
         },
-        required_gaps=lifecycle_gaps,
+        required_gaps=tuple(map(str, openspec_lifecycle.get("required_gaps", ()))),
         next_actions=("ethos prove --json",) if ok else ("ethos openspec --lifecycle --json",),
         governance_context=governance,
         data={

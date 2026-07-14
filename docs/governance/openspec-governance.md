@@ -115,3 +115,13 @@ Status: see front matter.
 Purpose: explain the repository truth represented by this ETHOS document.
 
 See also: [Documentation Index](../index.md), [Command Plane](../reference/command-plane.md), and [Glossary](../reference/glossary.md).
+
+
+## Adopter Lifecycle Parity
+
+`ethos plan` and `ethos prove` evaluate official OpenSpec lifecycle for every
+governed root, including valid adopters. Lifecycle gaps remain OpenSpec and
+repository-governance obligations: they are not code-correctness gates, and no
+Superpowers or other method package carries Change authority. Material-path
+scope admission remains the separately governed follow-up
+`adopter-material-change-scope-20260714`.

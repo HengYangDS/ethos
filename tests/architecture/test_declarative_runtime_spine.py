@@ -86,6 +86,7 @@ def test_wheel_resources_and_editable_build_hook_are_projections(monkeypatch) ->
     hook.initialize("standard", build_data)
     hook.clean(["standard"])
     hook.initialize("unsupported", build_data)
+    hook.finalize("unsupported", build_data, "unused")
     source_data = CORE_SOURCE / "data"
     source_data.mkdir()
     for canonical, resource in WHEEL_PROJECTIONS:

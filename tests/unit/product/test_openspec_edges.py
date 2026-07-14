@@ -40,6 +40,10 @@ def test_run_json_records_parse_errors_and_non_object_payloads(tmp_path: Path, m
     assert "Expecting value" in result["parse_error"]
 
 
+def test_openspec_command_timeout_allows_cold_official_cli_startup() -> None:
+    assert openspec_cli.OPENSPEC_COMMAND_TIMEOUT_SECONDS >= 60
+
+
 def test_run_json_returns_deterministic_timeout_payload(tmp_path: Path, monkeypatch) -> None:
     def fake_run(*_args, **_kwargs):  # type: ignore[no-untyped-def]
         raise subprocess.TimeoutExpired(cmd=["openspec", "doctor"], timeout=15)

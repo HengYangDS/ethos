@@ -133,9 +133,15 @@ def test_config_lint_targeted_toml_invocation_handles_empty_json_set(
     runner.chmod(0o755)
     install_taplo = repo / "tools/ci/scripts/install-taplo.sh"
     install_taplo.write_text(
-        "#!/usr/bin/env bash\nset -euo pipefail\ntaplo --version\n", encoding="utf-8"
+        "#!/usr/bin/env bash\nset -euo pipefail\n",
+        encoding="utf-8",
     )
     install_taplo.chmod(0o755)
+    bin_dir = repo / "bin"
+    bin_dir.mkdir()
+    taplo = bin_dir / "taplo"
+    taplo.write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
+    taplo.chmod(0o755)
 
     subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
     subprocess.run(["git", "add", "."], cwd=repo, check=True)
@@ -146,7 +152,11 @@ def test_config_lint_targeted_toml_invocation_handles_empty_json_set(
         check=False,
         capture_output=True,
         text=True,
-        env={**os.environ, "ETHOS_RUNTIME_BOOTSTRAPPED": "1"},
+        env={
+            **os.environ,
+            "ETHOS_RUNTIME_BOOTSTRAPPED": "1",
+            "PATH": bin_dir.as_posix() + os.pathsep + os.environ["PATH"],
+        },
     )
 
     assert completed.returncode == 0, completed.stdout + completed.stderr

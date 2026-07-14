@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 import json
 import stat
 import tomllib
@@ -7,11 +8,23 @@ from pathlib import Path
 
 from tests.support.architecture import run_json
 from tests.support.architecture import tool_block
-from tools.ci import format_selection
 
 ROOT = Path(__file__).resolve().parents[2]
 MIN_FORMAT_REGISTRY_ENTRIES = 8
 MIN_RUNBOOK_REGISTRY_ENTRIES = 6
+
+
+def _load_format_selection_module():
+    module_path = ROOT / "tools/ci/format_selection.py"
+    spec = importlib.util.spec_from_file_location("ethos_test_format_selection", module_path)
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+format_selection = _load_format_selection_module()
 
 
 def test_format_selection_config_is_fail_closed_and_executable() -> None:

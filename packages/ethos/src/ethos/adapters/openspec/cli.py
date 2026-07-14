@@ -8,7 +8,10 @@ from pathlib import Path
 from typing import Any
 
 OFFICIAL_NPX_PACKAGE = "@fission-ai/openspec@1.6.0"
-OPENSPEC_COMMAND_TIMEOUT_SECONDS = 15
+# The hosted bootstrap exposes the official OpenSpec CLI through an npx shim.
+# Cold package resolution can exceed the usual command budget, so lifecycle
+# checks must allow that bounded startup before declaring the repository gapped.
+OPENSPEC_COMMAND_TIMEOUT_SECONDS = 60
 
 
 def current_branch(root: Path) -> str:

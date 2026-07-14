@@ -6,5 +6,7 @@
 ## 2. Verification
 
 - [x] 2.1 Run focused tests, lint, strict validation, lifecycle, plan, and proof.
-- [ ] 2.2 Run HEAD-bound executed proof after commit.
+- [x] 2.2 Run HEAD-bound executed proof at
+  `4ee13511ce4621fe0aea1fd7dd992c375d3293c8` (21 gates; evidence digest
+  `794d3ad391368e9582dede15a10fc2c89f9eab5844541759b7cec4838f761972`).
 - [x] 2.3 Keep landing, archive, retirement, and publication separate.

@@ -84,7 +84,9 @@ def test_mutation_decisions_and_candidate_base_edges(monkeypatch, tmp_path: Path
     )
 
     monkeypatch.setattr(core, "load_branch_role_policy", lambda root: POLICY)
-    monkeypatch.setattr(core, "_git", lambda root, *args, check=True, **kwargs: cp(stdout="h1\n"))
+    monkeypatch.setattr(
+        core, "run_git", lambda root, *args, check=True, **kwargs: cp(stdout="h1\n")
+    )
     for candidate, gap in [
         (
             {
@@ -120,7 +122,7 @@ def test_mutation_decisions_and_candidate_base_edges(monkeypatch, tmp_path: Path
         "candidate_worktree_dirty"
     ]
     monkeypatch.setattr(core, "workspace_status", lambda root: status_for())
-    monkeypatch.setattr(core, "_is_ancestor", lambda root, ancestor, descendant: False)
+    monkeypatch.setattr(core, "is_ancestor", lambda root, ancestor, descendant: False)
     assert core.candidate_base_report(root=tmp_path)["required_gaps"] == ["candidate_base_stale"]
 
 

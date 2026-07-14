@@ -11,6 +11,7 @@ def run_git(
     *args: str,
     check: bool = True,
     env: dict[str, str] | None = None,
+    stdin: str | None = None,
 ) -> subprocess.CompletedProcess[str]:
     effective_env = None if env is None else {**os.environ, **env}
     return subprocess.run(
@@ -20,6 +21,7 @@ def run_git(
         text=True,
         capture_output=True,
         env=effective_env,
+        input=stdin,
     )
 
 

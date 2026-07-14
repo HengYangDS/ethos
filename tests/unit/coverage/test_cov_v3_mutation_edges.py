@@ -226,7 +226,7 @@ def test_land_blocks_when_proof_carry_to_candidate_fails(
     )
     monkeypatch.setattr(
         core,
-        "_git",
+        "run_git",
         lambda *_a, **_k: subprocess.CompletedProcess([], 0, "h1\n", ""),
     )
     monkeypatch.setattr(

@@ -38,6 +38,7 @@ def test_branch_role_policy_semantic_order_uses_configured_roles_without_hardcod
         "candidate_branch": "stage/integration",
         "work_branch_prefix": "lane/",
         "submit_branch_prefix": "review/",
+        "release_mirror": "independent",
         "semantic_order": [
             {
                 "role": "release_root",

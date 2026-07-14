@@ -17,6 +17,7 @@ from ethos.adapters.mutation.proof import executed_proof_record
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.repository.policy.gates import gate_policy_digest
 from ethos_core.contracts.branch.roles import PROTECTED_WRITE_ROLES
+from ethos_core.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
 from ethos_core.normalization.core import string_sequence
 
 __all__ = ["work_lane_ref_transition_report"]
@@ -301,12 +302,24 @@ def ref_move_admission_report(
 
     gaps: list[str] = []
     reason = ""
-    if branch == policy.accepted_branch:
+    candidate_policy = load_branch_role_policy(repo, policy.candidate_branch)
+    mirror = (
+        branch == candidate_policy.release_branch
+        and candidate_policy.release_mirror == RELEASE_MIRROR_ACCEPTED_FF
+    )
+    if mirror or branch == policy.accepted_branch:
         # Topology invariant (contained + ==candidate_head + fast-forward) is shared with
         # the push reducer via accepted_advance_gaps, so a raw ref move and a raw push are
         # judged identically. Proof and the closeout-intent marker are added below — proof
         # binds both planes, but the marker is a local-only "is this my closeout?" signal.
-        gaps.extend(accepted_advance_gaps(repo, policy, old_value=old_value, new_value=new_value))
+        gaps.extend(
+            accepted_advance_gaps(
+                repo,
+                candidate_policy if mirror else policy,
+                old_value=old_value,
+                new_value=new_value,
+            )
+        )
         gaps.extend(proof_gaps(repo, new_value))
         # Official-closeout discrimination (R12 load-bearing nail): the substantive
         # checks above cannot tell an official `ethos land --closeout` apart from a raw
@@ -333,8 +346,15 @@ def ref_move_admission_report(
             ),
         )
         if intent["gap"]:
-            gaps.append(str(intent["gap"]))
-        reason = "accepted_ref_move_bypasses_candidate_train"
+            gap = str(intent["gap"])
+            gaps.append(
+                gap.replace("accepted_ref_move", "release_mirror_ref_move") if mirror else gap
+            )
+        reason = (
+            "release_mirror_ref_move_bypasses_accepted_closeout"
+            if mirror
+            else "accepted_ref_move_bypasses_candidate_train"
+        )
     elif branch == policy.candidate_branch:
         # A candidate move to a commit the ACCEPTED branch already contains promotes no
         # new work — it is either a no-op or a refresh-from-accepted rewind (candidate reset

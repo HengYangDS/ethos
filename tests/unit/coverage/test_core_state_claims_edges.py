@@ -32,6 +32,8 @@ def cp(stdout: str = "", stderr: str = "", returncode: int = 0) -> subprocess.Co
 
 
 POLICY = SimpleNamespace(
+    release_branch="main",
+    release_mirror="independent",
     accepted_branch="dev",
     candidate_branch="candidate/dev",
     submit_branch_for_source=lambda branch: f"submit/{branch.replace('/', '-')}",
@@ -74,14 +76,14 @@ def accepted_status() -> dict[str, object]:
 
 
 def prepare_accepted_closeout(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(mutation_core, "load_branch_role_policy", lambda root: POLICY)
+    monkeypatch.setattr(mutation_core, "load_branch_role_policy", lambda root, *args: POLICY)
     monkeypatch.setattr(
         mutation_core,
         "evaluate_closeout_mutation",
         lambda *args, **kwargs: mutation_core.MutationEvaluation(ok=True, state="closeout_ready"),
     )
     monkeypatch.setattr(mutation_core, "workspace_status", lambda root: accepted_status())
-    monkeypatch.setattr(mutation_core, "_is_ancestor", lambda root, ancestor, descendant: True)
+    monkeypatch.setattr(mutation_core, "is_ancestor", lambda root, ancestor, descendant: True)
     monkeypatch.setattr(
         mutation_core,
         "carry_executed_proof_record",
@@ -278,7 +280,7 @@ def test_promotion_completeness_surfaces_adopter_code_correctness_gap(
 
 
 def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(mutation_core, "load_branch_role_policy", lambda root: POLICY)
+    monkeypatch.setattr(mutation_core, "load_branch_role_policy", lambda root, *args: POLICY)
     monkeypatch.setattr(mutation_core, "proof_gaps", lambda root, head: [])
     monkeypatch.setattr(
         mutation_core,
@@ -305,7 +307,7 @@ def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
     )
     monkeypatch.setattr(
         mutation_core,
-        "_git",
+        "run_git",
         lambda root, *args, check=True, **kwargs: cp(stdout="h1\n", returncode=0),
     )
     assert mutation_core.apply_land_to_candidate(
@@ -333,7 +335,7 @@ def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
     monkeypatch.setattr(mutation_core, "discard_executed_proof", lambda root, head: True)
     monkeypatch.setattr(
         mutation_core,
-        "_git",
+        "run_git",
         lambda root, *args, check=True, **kwargs: cp(
             stdout="h1\n",
             stderr="merge failed",
@@ -353,7 +355,7 @@ def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
             merge_envs.append(kwargs.get("env"))
         return cp(stdout="h1\n", returncode=0)
 
-    monkeypatch.setattr(mutation_core, "_git", fake_land_git)
+    monkeypatch.setattr(mutation_core, "run_git", fake_land_git)
     assert (
         mutation_core.apply_land_to_candidate(
             root=tmp_path,
@@ -368,14 +370,14 @@ def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
     assert merge_envs == [None]
 
     prepare_accepted_closeout(monkeypatch)
-    monkeypatch.setattr(mutation_core, "_is_ancestor", lambda root, ancestor, descendant: False)
+    monkeypatch.setattr(mutation_core, "is_ancestor", lambda root, ancestor, descendant: False)
     assert mutation_core.apply_candidate_to_accepted(
         root=tmp_path, authorized=True, expect_head="h1"
     )["required_gaps"] == ["candidate_diverged_from_accepted"]
-    monkeypatch.setattr(mutation_core, "_is_ancestor", lambda root, ancestor, descendant: True)
+    monkeypatch.setattr(mutation_core, "is_ancestor", lambda root, ancestor, descendant: True)
     monkeypatch.setattr(
         mutation_core,
-        "_git",
+        "run_git",
         lambda root, *args, check=True, **kwargs: cp(
             stdout="h1\n",
             stderr="cannot lock ref",
@@ -397,7 +399,7 @@ def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
         return cp(stdout="h1\n", returncode=0)
 
     fake_git_sync_failed.reset_attempts = 0
-    monkeypatch.setattr(mutation_core, "_git", fake_git_sync_failed)
+    monkeypatch.setattr(mutation_core, "run_git", fake_git_sync_failed)
     failed_sync = mutation_core.apply_candidate_to_accepted(
         root=tmp_path, authorized=True, expect_head="h1"
     )
@@ -416,7 +418,7 @@ def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
             return cp(stdout="", returncode=0)
         return cp(stdout="h1\n", returncode=0)
 
-    monkeypatch.setattr(mutation_core, "_git", fake_git_clean_after_sync)
+    monkeypatch.setattr(mutation_core, "run_git", fake_git_clean_after_sync)
     assert (
         mutation_core.apply_candidate_to_accepted(root=tmp_path, authorized=True, expect_head="h1")[
             "state"
@@ -444,7 +446,7 @@ def test_closeout_retries_transient_accepted_worktree_sync_failure(
             return cp(stdout="", returncode=0)
         return cp(stdout="h1\n", returncode=0)
 
-    monkeypatch.setattr(mutation_core, "_git", fake_git_sync_retry)
+    monkeypatch.setattr(mutation_core, "run_git", fake_git_sync_retry)
 
     retried_sync = mutation_core.apply_candidate_to_accepted(
         root=tmp_path, authorized=True, expect_head="h1"
@@ -469,7 +471,7 @@ def test_closeout_blocks_dirty_accepted_worktree_after_sync(
             return cp(stdout=" M README.md\n", returncode=0)
         return cp(stdout="h1\n", returncode=0)
 
-    monkeypatch.setattr(mutation_core, "_git", fake_git_dirty_after_sync)
+    monkeypatch.setattr(mutation_core, "run_git", fake_git_dirty_after_sync)
 
     dirty_after_sync = mutation_core.apply_candidate_to_accepted(
         root=tmp_path, authorized=True, expect_head="h1"
@@ -483,7 +485,7 @@ def test_mutation_admission_blocks_unarchived_openspec_carriers(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.setattr(mutation_core, "proof_gaps", lambda root, head: [])
-    monkeypatch.setattr(mutation_core, "_is_ancestor", lambda root, ancestor, descendant: True)
+    monkeypatch.setattr(mutation_core, "is_ancestor", lambda root, ancestor, descendant: True)
     change = tmp_path / "openspec" / "changes" / "done"
     change.mkdir(parents=True)
     (change / "tasks.md").write_text("- [x] done\n", encoding="utf-8")
@@ -520,7 +522,7 @@ def test_mutation_admission_blocks_active_openspec_carriers_on_closeout(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.setattr(mutation_core, "proof_gaps", lambda root, head: [])
-    monkeypatch.setattr(mutation_core, "_is_ancestor", lambda root, ancestor, descendant: True)
+    monkeypatch.setattr(mutation_core, "is_ancestor", lambda root, ancestor, descendant: True)
     change = tmp_path / "openspec" / "changes" / "wip"
     change.mkdir(parents=True)
     (change / "tasks.md").write_text("- [ ] unfinished\n", encoding="utf-8")

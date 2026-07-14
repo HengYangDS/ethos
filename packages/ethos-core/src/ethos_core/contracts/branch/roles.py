@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import subprocess
 import tomllib
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -15,6 +16,8 @@ ROLE_WORK_LANE = "work_lane"
 ROLE_SUBMIT_LANE = "submit_lane"
 ROLE_DETACHED = "detached"
 ROLE_OTHER = "other"
+
+RELEASE_MIRROR_ACCEPTED_FF = "accepted_ff"
 
 PROTECTED_WRITE_ROLES = frozenset(
     {
@@ -35,6 +38,7 @@ class BranchRolePolicy:
     candidate_branch: str = "candidate/dev"
     work_branch_prefix: str = "work/"
     submit_branch_prefix: str = "submit/"
+    release_mirror: str = "independent"
 
     def role_for_branch(self, branch: str) -> str:
         exact_roles = (
@@ -113,16 +117,29 @@ class BranchRolePolicy:
             "candidate_branch": self.candidate_branch,
             "work_branch_prefix": self.work_branch_prefix,
             "submit_branch_prefix": self.submit_branch_prefix,
+            "release_mirror": self.release_mirror,
             "semantic_order": [dict(record) for record in self.semantic_order()],
         }
 
 
-def load_branch_role_policy(root: Path) -> BranchRolePolicy:
+def load_branch_role_policy(root: Path, ref: str = "") -> BranchRolePolicy:
+    """Load the working-tree policy or one committed policy tree."""
     path = root / ".ethos" / "workspace.toml"
-    if not path.exists():
-        return BranchRolePolicy()
+    text = (
+        subprocess.run(
+            ["git", "show", f"{ref}:.ethos/workspace.toml"],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=False,
+        ).stdout
+        if ref
+        else path.read_text(encoding="utf-8")
+        if path.exists()
+        else ""
+    )
     try:
-        payload = tomllib.loads(path.read_text(encoding="utf-8"))
+        payload = tomllib.loads(text)
     except tomllib.TOMLDecodeError:
         return BranchRolePolicy()
     raw_policy = payload.get("branch_roles")
@@ -133,17 +150,17 @@ def load_branch_role_policy(root: Path) -> BranchRolePolicy:
         release_branch=_string_value(raw_policy.get("release_branch"), default.release_branch),
         accepted_branch=_string_value(raw_policy.get("accepted_branch"), default.accepted_branch),
         candidate_branch=_string_value(
-            raw_policy.get("candidate_branch"),
-            default.candidate_branch,
+            raw_policy.get("candidate_branch"), default.candidate_branch
         ),
         work_branch_prefix=_string_value(
-            raw_policy.get("work_branch_prefix"),
-            default.work_branch_prefix,
+            raw_policy.get("work_branch_prefix"), default.work_branch_prefix
         ),
         submit_branch_prefix=_string_value(
-            raw_policy.get("submit_branch_prefix"),
-            default.submit_branch_prefix,
+            raw_policy.get("submit_branch_prefix"), default.submit_branch_prefix
         ),
+        release_mirror=RELEASE_MIRROR_ACCEPTED_FF
+        if raw_policy.get("release_mirror") == RELEASE_MIRROR_ACCEPTED_FF
+        else "independent",
     )
 
 

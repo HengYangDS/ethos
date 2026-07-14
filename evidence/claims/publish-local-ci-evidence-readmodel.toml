@@ -39,7 +39,7 @@ targets = [
   "packages/ethos/src/ethos/domain/campaign/closeout.py",
   "packages/ethos/src/ethos/domain/land/publication.py",
   "packages/ethos/src/ethos/surface/cli/root/lifecycle.py",
-  "packages/ethos/src/ethos/repository/policy/schema_samples/large.py",
+  "tests/unit/cli/test_contracts_proof.py",
   "system/schemas/kernel/campaign-closeout.schema.json",
   "tools/ci/scripts/run-local-ci.sh",
   "tests/unit/cli/test_contracts_land.py",

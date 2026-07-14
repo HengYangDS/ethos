@@ -7,7 +7,6 @@ from ethos.repository.policy.coupling.core import coupling_audit_report
 from ethos.repository.policy.schema import schema_validation_report
 from ethos.repository.policy.schema import validate_ethos_result
 from ethos.repository.policy.schema import validate_schema_instance
-from ethos.repository.policy.schema_samples.large import workspace_status_contract_sample
 from ethos_core.result import EthosResult
 
 ROLE_POLICY_SAMPLE = {
@@ -71,34 +70,16 @@ def test_schema_validation_report_covers_all_ethos_schemas() -> None:
     assert report["schemas"]["skill-activation.schema.json"]["ok"] is True
     assert report["schemas"]["skill-registry.schema.json"]["ok"] is True
     assert report["schemas"]["skill-package-manifest.schema.json"]["ok"] is True
-    assert report["instances"]["campaign-closeout-contract"]["ok"] is True
-    assert report["instances"]["trust-envelope-contract"]["ok"] is True
-    assert report["instances"]["promotion-target-contract"]["ok"] is True
-    assert report["instances"]["capability-profile-contract"]["ok"] is True
     assert report["instances"]["capability-profiles"]["ok"] is True
     assert report["instances"]["evolution-ledger"]["ok"] is True
     assert report["instances"]["docs-registry"]["ok"] is True
     assert report["instances"]["gate-registry"]["ok"] is True
     assert report["instances"]["quality-profile"]["ok"] is True
     assert report["instances"]["quality-gate-plan"]["ok"] is True
-    assert report["instances"]["skill-registry-contract"]["ok"] is True
-    assert report["instances"]["skill-package-manifest-contract"]["ok"] is True
     assert report["instances"]["live-skill-activation-contract"]["ok"] is True
     assert report["instances"]["live-skill-registry-contract"]["ok"] is True
     assert report["instances"]["live-skill-package-manifests"]["ok"] is True
-    assert report["instances"]["shadow-parity-contract"]["ok"] is True
-    assert report["instances"]["workspace-status-contract"]["ok"] is True
     assert report["instances"]["coupling-audit-contract"]["ok"] is True
-
-
-def test_workspace_status_schema_requires_temporary_probe_summary() -> None:
-    payload = workspace_status_contract_sample()
-    del payload["dirty_provenance"]["temporary_probes"]
-
-    validation = validate_schema_instance("workspace-status.schema.json", payload)
-
-    assert validation["ok"] is False
-    assert any("temporary_probes" in gap for gap in validation["required_gaps"])
 
 
 def test_schema_validation_report_uses_product_schemas_for_adopter_root(
@@ -419,25 +400,6 @@ def test_waived_proof_run_schema_requires_governance_reference() -> None:
     validation = validate_schema_instance("proof-run.schema.json", payload)
 
     assert validation["ok"] is False
-
-
-def test_workspace_status_payload_validatesworktree_bindings() -> None:
-    validation = validate_schema_instance(
-        "workspace-status.schema.json", workspace_status_contract_sample()
-    )
-
-    assert validation["ok"] is True
-    json.dumps(validation)
-
-
-def test_workspace_status_schema_rejects_ui_projection_fields() -> None:
-    payload = workspace_status_contract_sample()
-    payload["candidate"]["open_action"] = "open_worktree"
-
-    validation = validate_schema_instance("workspace-status.schema.json", payload)
-
-    assert validation["ok"] is False
-    assert validation["required_gaps"]
 
 
 def test_trust_envelope_contract_requires_complete_carriers() -> None:

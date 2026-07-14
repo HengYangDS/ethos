@@ -4,6 +4,7 @@ from copy import deepcopy
 
 from ethos_core.contracts.skill.activation import normalize_skill_activation
 from ethos_core.contracts.skill.activation import skill_registry_digest
+from ethos.repository.policy.schema import validate_schema_instance
 
 
 def test_normalizes_activation_contract_without_compatibility_surface() -> None:
@@ -46,6 +47,8 @@ def test_normalizes_activation_contract_without_compatibility_surface() -> None:
     assert record["boundary"] == "thin-playbook-projection"
     assert record["source_version"] == 2
     assert "legacy" not in record
+    assert validate_schema_instance("skill-activation.schema.json", payload)["ok"] is True
+    assert validate_schema_instance("skill-registry.schema.json", registry)["ok"] is True
 
 
 def test_normalizes_external_v2_style_activation_contract() -> None:

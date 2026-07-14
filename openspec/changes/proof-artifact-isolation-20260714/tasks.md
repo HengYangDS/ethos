@@ -16,7 +16,14 @@
 
 ## 3. Verification and closeout
 
-- [ ] 3.1 Run focused tests, owner quality gates, and strict OpenSpec
+- [x] 3.1 Run focused tests, owner quality gates, and strict OpenSpec
   validation.
-- [ ] 3.2 Run owner quality gates and HEAD-bound proof.
-- [ ] 3.3 Refresh required parity evidence, land only with live candidate proof, and retire this owned lane after formal closeout.
+- [x] 3.2 Run owner quality gates and HEAD-bound proof.
+- [x] 3.3 Refresh required generic parity evidence for the verified lane head.
+
+## Post-archive lifecycle boundary
+
+Archive this completed carrier before any candidate mutation. Candidate landing
+requires a current candidate base and live candidate proof; accepted-root
+closeout, remote publication, and retirement of this owned lane remain separate
+governed transition receipts.

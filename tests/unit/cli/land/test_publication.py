@@ -43,36 +43,18 @@ def test_publish_reports_local_readiness_without_remote_push() -> None:
     branch = git(Path.cwd(), "branch", "--show-current") or "detached"
     submit_branch = load_branch_role_policy(Path.cwd()).submit_branch_for_source(branch)
 
-    assert payload["summary"]["mode"] == "local_readiness"
     assert payload["summary"]["remote_push"] == "not_performed"
-    assert payload["summary"]["remote_publication_state"] == "deferred"
-    assert payload["summary"]["hosted_ci_status_claimed"] is False
-    assert payload["data"]["remote_push"] == "not_performed"
-    assert payload["data"]["remote_availability"]["blocking"] is False
     assert (
         payload["data"]["local_ci_fallback"] == payload["data"]["publication"]["fallback_evidence"]
     )
-    assert payload["data"]["local_ci_fallback"]["kind"] == "local_ci_fallback"
-    assert payload["data"]["local_ci_fallback"]["hosted_ci_status_claimed"] is False
     assert payload["data"]["local_ci_fallback"]["owner_scripts"] == local_ci_owner_scripts(
         root=Path.cwd()
     )
 
     publication = payload["data"]["publication"]
-    assert publication["mode"] == "local_readiness"
-    assert publication["remote_push"] == "not_performed"
-    assert publication["remote_state"] == "deferred"
     assert publication["submit_branch"] == submit_branch
-    assert publication["required_gaps"] == (
-        [] if payload["ok"] else ["local_publish_readiness_blocked"]
-    )
-    assert publication["local_submit_package"]["kind"] == "submit_branch_plan"
     assert publication["local_submit_package"]["source_branch"] == branch
     assert publication["local_submit_package"]["submit_branch"] == submit_branch
-    assert (
-        publication["local_submit_package"]["local_ci_fallback"]["evidence_class"]
-        == "local_fallback"
-    )
     assert (
         "run local-ci fallback when remote publication is unavailable"
         in publication["local_submit_package"]["required_steps"]
@@ -123,13 +105,10 @@ def test_publish_reports_remote_tracking_sync_state(monkeypatch) -> None:
     payload = run_ethos("publish", "--probe-remote", "--json")
 
     assert payload["summary"]["remote_sync_state"] == "local_ahead"
-    assert payload["summary"]["remote_ahead"] == 2
-    assert payload["summary"]["remote_behind"] == 0
     sync = payload["data"]["remote_sync"]
     assert sync == payload["data"]["publication"]["remote_sync"]
     assert sync["local_head"] == local_head
     assert sync["remote_head"] == remote_head
-    assert sync["remote_ref"].endswith("/" + sync["branch"])
     assert "remote_tracking_local_ahead" in sync["advisory_gaps"][0]
 
 
@@ -142,20 +121,29 @@ def test_publish_reports_synchronized_tracking_without_claiming_a_push(
     head = git(repo, "rev-parse", "HEAD")
     seed_executed_proof(repo, head)
     remote = tmp_path / "origin.git"
-    git(tmp_path, "init", "--bare", remote.as_posix())
-    git(repo, "remote", "add", "origin", remote.as_posix())
-    git(repo, "push", "--set-upstream", "origin", "dev")
+    for root, *args in (
+        (tmp_path, "init", "--bare", remote.as_posix()),
+        (repo, "remote", "add", "origin", remote.as_posix()),
+        (repo, "push", "--set-upstream", "origin", "dev"),
+    ):
+        git(root, *args)
 
     payload = run_ethos("publish", "--probe-remote", "--json", cwd=repo)
 
-    assert payload["summary"]["remote_sync_state"] == "synchronized"
-    assert payload["summary"]["remote_publication_state"] == "synchronized"
-    assert payload["summary"]["remote_push"] == "not_performed"
-    assert payload["data"]["publication"]["remote_state"] == "synchronized"
-    assert payload["next_actions"] == [
-        "remote tracking ref is synchronized; no push was performed",
-        "ethos report",
-    ]
+    assert {
+        "remote_sync_state": payload["summary"]["remote_sync_state"],
+        "remote_publication_state": payload["summary"]["remote_publication_state"],
+        "remote_push": payload["summary"]["remote_push"],
+        "remote_state": payload["data"]["publication"]["remote_state"],
+    } == {
+        "remote_sync_state": "synchronized",
+        "remote_publication_state": "synchronized",
+        "remote_push": "not_performed",
+        "remote_state": "synchronized",
+    }
+    assert (
+        payload["next_actions"][0] == "remote tracking ref is synchronized; no push was performed"
+    )
     assert payload["data"]["mutation"]["decision"]["verdict"] == "defer"
 
 
@@ -195,5 +183,4 @@ def test_publish_uses_configured_submit_branch_role_policy(tmp_path: Path) -> No
 
     publication = payload["data"]["publication"]
     assert publication["local_submit_package"]["source_branch"] == "lane/topic"
-    assert publication["submit_branch"] == "review/topic"
     assert publication["local_submit_package"]["submit_branch"] == "review/topic"

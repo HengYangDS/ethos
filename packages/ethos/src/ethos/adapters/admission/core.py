@@ -17,6 +17,7 @@ from ethos.adapters.mutation.proof import executed_proof_record
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.repository.policy.gates import gate_policy_digest
 from ethos_core.contracts.branch.roles import PROTECTED_WRITE_ROLES
+from ethos_core.contracts.branch.roles import ROLE_SUBMIT_LANE
 from ethos_core.normalization.core import string_sequence
 
 __all__ = ["work_lane_ref_transition_report"]
@@ -137,8 +138,16 @@ def push_admission_report(
     policy = load_branch_role_policy(repo)
     branch = target_ref.removeprefix("refs/heads/")
     role = policy.role_for_branch(branch)
+    trusted_baseline = (
+        f"origin/{policy.accepted_branch}"
+        if role == ROLE_SUBMIT_LANE and remote_head == _ZERO_OID
+        else ""
+    )
     identity_report = push_identity_policy_report(
-        root=repo, pushed_head=pushed_head, remote_head=remote_head
+        root=repo,
+        pushed_head=pushed_head,
+        remote_head=remote_head,
+        trusted_baseline=trusted_baseline,
     )
     identity_gaps = list(cast("list[str]", identity_report["required_gaps"]))
     base = {

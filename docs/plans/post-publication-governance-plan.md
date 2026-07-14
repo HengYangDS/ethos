@@ -11,17 +11,21 @@ relations:
 Status: canonical.
 
 Purpose: define the next operating plan after local accepted-root closeout when
-remote GitLab is unavailable outside the private network and foreign Work Lanes
-remain visible.
+remote availability, remote publication, and foreign Work Lanes must remain
+separate governed facts.
 
 ## Non-Negotiable Boundaries
 
 Do not mutate, retire, reset, stash, or clean another Work Lane.
 The operational rule is: do not mutate, retire, reset, stash, or clean another Work Lane.
 
-- If remote GitLab is unavailable outside the private network, do not push and do
-  not claim remote publication. Keep `origin/dev` lag visible until the remote is
-  reachable again.
+- A default `ethos publish --json` does not probe or push a remote. It MUST
+  report `remote_availability_state = "not_probed"`, rather than infer that a
+  remote is unavailable. `--probe-remote` observes availability without
+  publishing.
+- An unavailable, reachable, synchronized, or divergent remote does not itself
+  establish remote publication. Keep `origin/dev` state visible and record a
+  separately admitted provider observation before any hosted claim.
 - Use local fallback evidence instead of hosted-CI or remote-publication claims:
   run `tools/ci/scripts/run-local-ci.sh`, then run HEAD-bound `ethos prove
   --execute --expect-head <HEAD> --json`.
@@ -32,14 +36,17 @@ The operational rule is: do not mutate, retire, reset, stash, or clean another W
   fallback proof, remote publication, hosted CI, and release/tag publication as
   separate states.
 
-## Phase 0: Local Publication Tail While Remote Is Unavailable
+## Phase 0: Local Publication Tail Before a Remote Decision
 
 Target state:
 
 - `dev == candidate/dev` for the local accepted-root train.
-- `origin/dev may lag` while remote GitLab is unreachable.
+- `origin/dev` may be unknown until an explicit read-only probe; this does not
+  change local readiness.
 - `ethos publish --json` reports `local_publish_ready`, `remote_push =
-  not_performed`, and a local fallback evidence next action.
+  not_performed`, `remote_publication_state = "deferred"`, and a local
+  fallback-evidence next action that distinguishes `not_probed` from
+  unavailable.
 
 Required evidence:
 
@@ -101,17 +108,18 @@ Stable kernel chain:
 Authority -> Subject -> Commitment -> Change -> Evidence -> Claim -> Chronicle
 ```
 
-## Phase 4: Remote Publication When Back On Network
+## Phase 4: Remote Synchronization and Publication Admission
 
-Only after remote GitLab is reachable:
+Only after an explicit provider decision authorizes publication:
 
-1. Re-check `git rev-list --left-right --count origin/dev...dev`.
-2. Confirm `origin/dev` is an ancestor of `dev`.
-3. Run `git push origin dev` without force.
-4. Run `git fetch origin dev`.
-5. Confirm `origin/dev == dev`.
-6. Re-run `ethos publish --json` and report remote state separately from local
-   fallback evidence.
+1. Run `ethos publish --probe-remote --json` and record the observed provider
+   availability separately from local readiness.
+2. Re-check `git rev-list --left-right --count origin/dev...dev`.
+3. Confirm `origin/dev` is an ancestor of `dev`; never force an accepted ref.
+4. Obtain the distinct publication admission, then push without force.
+5. Fetch and confirm the exact ref equality after the push.
+6. Record the provider event, actor, ref transition, and hosted-CI observation
+   as provider facts; do not recast them as local proof.
 
 ## Phase 5: Release Planning
 

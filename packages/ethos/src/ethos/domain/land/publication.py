@@ -49,6 +49,7 @@ def local_ci_fallback_evidence_status(
     repo: Path,
     *,
     current_head: str,
+    remote_availability_state: str = "not_probed",
 ) -> dict[str, object]:
     """Project whether local-ci fallback evidence is bound to the current HEAD."""
     relative_path = LOCAL_CI_FALLBACK_EVIDENCE_PATH.as_posix()
@@ -79,11 +80,18 @@ def local_ci_fallback_evidence_status(
     evidence_ok = payload.get("ok") is True
     current = bool(current_head) and evidence_head == current_head and evidence_ok
     state = "current" if current else "stale"
-    next_action = (
-        "remote unavailable; local-ci fallback evidence is current at HEAD"
-        if current
-        else "run tools/ci/scripts/run-local-ci.sh as local fallback evidence"
-    )
+    next_action = "run tools/ci/scripts/run-local-ci.sh as local fallback evidence"
+    if current:
+        if remote_availability_state == "not_probed":
+            next_action = (
+                "remote availability not probed; local-ci fallback evidence is current at HEAD"
+            )
+        elif remote_availability_state in {"unavailable", "unconfigured"}:
+            next_action = "remote unavailable; local-ci fallback evidence is current at HEAD"
+        else:
+            next_action = (
+                "remote availability observed; local-ci fallback evidence is current at HEAD"
+            )
     return {
         "state": state,
         "path": relative_path,
@@ -110,7 +118,11 @@ def local_ci_fallback_package(
         "blocking": False,
     }
     evidence_status = (
-        local_ci_fallback_evidence_status(root, current_head=current_head)
+        local_ci_fallback_evidence_status(
+            root,
+            current_head=current_head,
+            remote_availability_state=str(availability.get("state") or "not_probed"),
+        )
         if root is not None
         else {
             "state": "not_checked",

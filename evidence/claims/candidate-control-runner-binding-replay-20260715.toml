@@ -1,0 +1,50 @@
+[claim]
+id = "candidate-control-runner-binding-replay-20260715"
+subject = "ethos:accepted-ref-candidate-control-runner"
+state = "active"
+summary = "Accepted ref admission evaluates promoted candidate control through its exact clean checkout."
+
+[evidence]
+dated = "evidence/chronicle/candidate-control-runner-binding-replay-20260715/2026-07-15.md"
+sha256 = "2cfac6db57d848aa1059df1244b9c341d6cac2d32806bf5c37229b7021b2a1d6"
+evidence_ids = ["evidence:candidate-control-runner-binding-replay-20260715"]
+binding = "Candidate-runner provenance is bound to the accepted ref transition and the current replay lane."
+verifier = "digest_only"
+tests = [
+  "dash -n .githooks/reference-transaction",
+  "uv run --all-packages --group dev pytest -c .config/checks/pytest/pytest.ini --rootdir=. tests/unit/cli/test_hooks_runtime.py::test_git_hooks_use_repo_bound_python_runtime tests/unit/cli/test_hooks_runtime.py::test_reference_transaction_updates_work_lane_lease_after_commit -q",
+  "uv run --all-packages --group dev pytest -c .config/checks/pytest/pytest.ini --rootdir=. tests/unit/lanes/test_armed_hook_closeout_e2e.py::test_closeout_binds_semantic_hook_runner_to_candidate_checkout -q",
+  "uv run --all-packages --group dev pytest -c .config/checks/pytest/pytest.ini --rootdir=. tests/unit/lanes/test_armed_hook_closeout_e2e.py::test_raw_ref_move_to_proven_head_is_blocked_without_marker -q",
+  "uv run --all-packages --group dev pytest -c .config/checks/pytest/pytest.ini --rootdir=. tests/unit/lanes/test_armed_hook_closeout_e2e.py::test_sanctioned_land_and_closeout_pass_through_armed_hook -q",
+  "uv run --all-packages --group dev pytest -c .config/checks/pytest/pytest.ini --rootdir=. tests/unit/lanes/test_armed_hook_closeout_e2e.py::test_candidate_refresh_from_accepted_admitted_without_bypass -q",
+  "tools/ci/scripts/run-python-lint.sh",
+  "uv run openspec validate --all --strict",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "Accepted reference-transaction semantic runner provenance for candidate promotion."
+
+[carriers]
+openspec = "openspec/changes/candidate-control-runner-binding-replay-20260715"
+fallback = "Reject accepted ref movement when the exact clean candidate semantic runner cannot be bound."
+kill_signal = "An accepted ref transition is evaluated through accepted-old source or a candidate runner outside the exact promoted checkout."
+
+[promotion]
+targets = [
+  ".githooks/reference-transaction",
+  "tests/unit/cli/test_hooks_runtime.py",
+  "tests/unit/lanes/test_armed_hook_closeout_e2e.py",
+  "openspec/specs/adapters/spec.md",
+  "openspec/specs/repository-governance/spec.md",
+  "openspec/changes/candidate-control-runner-binding-replay-20260715/proposal.md",
+  "openspec/changes/candidate-control-runner-binding-replay-20260715/design.md",
+  "openspec/changes/candidate-control-runner-binding-replay-20260715/tasks.md",
+  "openspec/changes/candidate-control-runner-binding-replay-20260715/specs/adapters/spec.md",
+  "openspec/changes/candidate-control-runner-binding-replay-20260715/specs/repository-governance/spec.md",
+  "evidence/chronicle/candidate-control-runner-binding-replay-20260715/2026-07-15.md",
+  "evidence/claims/candidate-control-runner-binding-replay-20260715.toml",
+]

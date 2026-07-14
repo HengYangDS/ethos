@@ -38,6 +38,46 @@ runtime_runner="${repo_root}/tools/ci/scripts/with-python-runtime.sh"
 runtime_python="${ETHOS_PYTHON:-${PYTHON:-${repo_root}/build/runtime/venv/bin/python}}"
 ethos_pythonpath="$repo_root/packages/ethos/src:$repo_root/packages/ethos-core/src"
 
+# The accepted checkout owns this shell/CAS boundary.  On its prepared advance,
+# however, semantic admission must run from the exact clean candidate checkout being
+# promoted: incumbent imports are necessarily one tree behind the proposed ref.
+resolve_candidate_runner() {
+    candidate_branch="$1"
+    candidate_head="$2"
+    candidate_record="$(git worktree list --porcelain 2>/dev/null | awk -v want="refs/heads/${candidate_branch}" '
+        /^worktree / { path = substr($0, 10); head = ""; branch = ""; next }
+        /^HEAD / { head = substr($0, 6); next }
+        /^branch / { branch = substr($0, 8); next }
+        /^$/ {
+            if (branch == want) { print path "\t" head; found = 1; exit }
+            path = ""; head = ""; branch = ""
+        }
+        END {
+            if (!found && branch == want) { print path "\t" head }
+        }
+    ')"
+    candidate_root="$(printf '%s' "$candidate_record" | cut -f1)"
+    candidate_worktree_head="$(printf '%s' "$candidate_record" | cut -f2)"
+    [ -n "$candidate_root" ] || return 1
+    [ "$candidate_worktree_head" = "$candidate_head" ] || return 1
+    [ -d "$candidate_root" ] || return 1
+    # Ignored runtime/cache state is permitted, but tracked or ordinary untracked source
+    # makes the candidate checkout non-reproducible and therefore non-admissible.
+    [ -z "$(git -C "$candidate_root" status --porcelain 2>/dev/null)" ] || return 1
+    candidate_runtime_runner="$candidate_root/tools/ci/scripts/with-python-runtime.sh"
+    candidate_runtime_python="$candidate_root/build/runtime/venv/bin/python"
+    candidate_ethos_source="$(cd "$candidate_root/packages/ethos/src" 2>/dev/null && pwd -P)" || return 1
+    candidate_core_source="$(cd "$candidate_root/packages/ethos-core/src" 2>/dev/null && pwd -P)" || return 1
+    case "$candidate_ethos_source:$candidate_core_source" in
+        "$candidate_root"/*:"$candidate_root"/*) ;;
+        *) return 1 ;;
+    esac
+    candidate_pythonpath="$candidate_ethos_source:$candidate_core_source"
+    [ -x "$candidate_runtime_runner" ] || return 1
+    printf '%s\n%s\n%s\n%s\n' \
+        "$candidate_root" "$candidate_runtime_runner" "$candidate_runtime_python" "$candidate_pythonpath"
+}
+
 while read -r old_value new_value ref_name; do
     case "$ref_name" in
         refs/heads/*) ;;
@@ -63,10 +103,42 @@ while read -r old_value new_value ref_name; do
             fi
             ;;
     esac
-    verdict="$(PYTHONPATH="$ethos_pythonpath${PYTHONPATH:+:$PYTHONPATH}" \
-        "${runtime_runner}" -- "${runtime_python}" -m ethos.cli hook ref-transaction \
-        "$ref_name" "$old_value" "$new_value" --phase "$phase" \
-        --root "$repo_root" --json 2>/dev/null | tr -d ' \n')"
+    if [ "$phase" = "prepared" ] && [ "$branch" = "$accepted" ]; then
+        candidate_branch="$(awk '
+            /^\[branch_roles\][[:space:]]*$/ { in_roles = 1; next }
+            /^\[/ { in_roles = 0 }
+            in_roles && /^[[:space:]]*candidate_branch[[:space:]]*=/ {
+                value = $0
+                sub(/^[^=]*=[[:space:]]*"/, "", value)
+                sub(/".*$/, "", value)
+                print value
+                exit
+            }
+        ' "$repo_root/.ethos/workspace.toml" 2>/dev/null)"
+        [ -n "$candidate_branch" ] || candidate_branch="$(git -C "$repo_root" config --get ethos.candidateBranch 2>/dev/null)"
+        [ -n "$candidate_branch" ] || candidate_branch="$(git -C "$repo_root" config --get ethos.candidate_branch 2>/dev/null)"
+        [ -n "$candidate_branch" ] || candidate_branch="candidate/dev"
+        candidate_runner="$(resolve_candidate_runner "$candidate_branch" "$new_value")" || {
+            echo "ethos: blocked ref move on $ref_name — candidate semantic runner is unavailable." >&2
+            exit 1
+        }
+        candidate_root="$(printf '%s\n' "$candidate_runner" | sed -n '1p')"
+        candidate_runtime_runner="$(printf '%s\n' "$candidate_runner" | sed -n '2p')"
+        candidate_runtime_python="$(printf '%s\n' "$candidate_runner" | sed -n '3p')"
+        candidate_pythonpath="$(printf '%s\n' "$candidate_runner" | sed -n '4p')"
+        verdict="$(
+            cd "$candidate_root" || exit 1
+            PYTHONPATH="$candidate_pythonpath${PYTHONPATH:+:$PYTHONPATH}" \
+                "${candidate_runtime_runner}" -- "${candidate_runtime_python}" -m ethos.cli hook ref-transaction \
+                "$ref_name" "$old_value" "$new_value" --phase "$phase" \
+                --root "$repo_root" --json 2>/dev/null | tr -d ' \n'
+        )"
+    else
+        verdict="$(PYTHONPATH="$ethos_pythonpath${PYTHONPATH:+:$PYTHONPATH}" \
+            "${runtime_runner}" -- "${runtime_python}" -m ethos.cli hook ref-transaction \
+            "$ref_name" "$old_value" "$new_value" --phase "$phase" \
+            --root "$repo_root" --json 2>/dev/null | tr -d ' \n')"
+    fi
 
     if [ "$phase" = "committed" ]; then
         case "$verdict" in

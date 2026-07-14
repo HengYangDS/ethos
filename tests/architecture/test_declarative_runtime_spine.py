@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import tomllib
+import importlib.util
+import sys
+import types
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -49,19 +52,38 @@ def test_graph_and_workflow_projections_use_the_shared_kernel() -> None:
         assert token not in source
 
 
-def test_wheel_resources_are_canonical_source_links() -> None:
+def test_wheel_resources_and_build_hook_are_projections(monkeypatch) -> None:
     package_config = tomllib.loads(_read("packages/ethos-core/pyproject.toml"))
     build = package_config["tool"]["hatch"]["build"]
     wheel = build["targets"]["wheel"]["force-include"]
     sdist = build["targets"]["sdist"]["force-include"]
 
-    assert "hooks" not in build
+    assert build["hooks"]["custom"]["path"] == "build_hook.py"
     for canonical, resource in WHEEL_PROJECTIONS:
-        projection = CORE_SOURCE / "data" / resource
-        assert projection.is_symlink()
-        assert projection.resolve() == ROOT / canonical
+        assert (ROOT / canonical).is_file()
+        assert not (CORE_SOURCE / "data" / resource).exists()
         assert sdist[f"../../{canonical}"] == f"src/ethos_core/data/{resource}"
         assert wheel[f"src/ethos_core/data/{resource}"] == f"ethos_core/data/{resource}"
+    assert sdist["build_hook.py"] == "build_hook.py"
+    interface = types.ModuleType("hatchling.builders.hooks.plugin.interface")
+    interface.BuildHookInterface = type("Hook", (), {"root": property(lambda self: self._root)})
+    monkeypatch.setitem(sys.modules, interface.__name__, interface)
+    path = ROOT / "packages/ethos-core/build_hook.py"
+    spec = importlib.util.spec_from_file_location("ethos_core_build_hook", path)
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    hook = object.__new__(module.CustomBuildHook)
+    object.__setattr__(hook, "_root", (ROOT / "packages/ethos-core").as_posix())
+    build_data: dict[str, object] = {}
+    hook.initialize("standard", build_data)
+    hook.finalize("standard", build_data, "unused")
+    hook.initialize("editable", build_data)
+    for canonical, resource in WHEEL_PROJECTIONS:
+        assert build_data["force_include_editable"][(ROOT / canonical).as_posix()] == (
+            f"ethos_core/data/{resource}"
+        )
 
 
 def test_declaration_backed_runtime_policies_are_first_class() -> None:

@@ -713,6 +713,23 @@ def test_scope_reader_fails_closed_when_adopter_omits_material_paths(
     assert report["required_gaps"] == ["openspec_material_paths_missing"]
 
 
+def test_scope_reader_rejects_nonempty_invalid_material_paths(tmp_path: Path) -> None:
+    """A declared but invalid material-path payload cannot bypass admission."""
+    repo = init_repo(tmp_path / "repo")
+    (repo / ".ethos").mkdir(exist_ok=True)
+    (repo / ".ethos" / "profile.toml").write_text(
+        '[openspec]\nmaterial_paths = [""]\n', encoding="utf-8"
+    )
+
+    report = openspec_scope.material_change_scope_report(
+        repo,
+        changed_paths=("guidelines.md",),
+        active_change_names=(),
+    )
+
+    assert report["required_gaps"] == ["openspec_material_paths_invalid"]
+
+
 def test_scope_reader_accepts_overlap_and_ignores_nonmaterial_paths(
     tmp_path: Path,
 ) -> None:

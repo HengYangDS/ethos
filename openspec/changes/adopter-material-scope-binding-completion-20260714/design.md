@@ -38,8 +38,11 @@ not invalidate a path covered by another valid companion.
 Focused contract, admission, CLI plan/prove, and scaffold tests cover missing,
 covered, uncovered, invalid, official-selection, and exact-bootstrap cases.
 Strict official OpenSpec validation and lifecycle run separately from the
-ETHOS-owned companion validation. An executed proof binds the committed head;
-archive, candidate landing, accepted closeout, and publication remain distinct
+ETHOS-owned companion validation. Because the implementation changes the
+parity-relevant product tree, the admitted Work Lane refreshes and commits the
+tracked generic `evidence/parity/generic-shadow.json` witness before its
+committed-HEAD proof. An executed proof binds the committed head; archive,
+candidate landing, accepted closeout, and publication remain distinct
 transitions.
 
 The product change adds typed contracts, a read model, and focused regressions.

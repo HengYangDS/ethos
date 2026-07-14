@@ -7,9 +7,9 @@ summary = "ETHOS binds adopter material paths to valid official Change companion
 
 [evidence]
 dated = "evidence/chronicle/adopter-material-scope-binding-completion-20260714/2026-07-14.md"
-sha256 = "2e1c4a32115d708e4a25296d81794cb01b6f1199f15c47867a63e92dc3cd4ee5"
+sha256 = "0e3c384113edbbce3835b3fc700a70a4ad55f2ae9a48f1f19f7176c9deb9fb99"
 evidence_ids = ["evidence:adopter-material-scope-binding-completion-20260714"]
-binding = "Typed profile material paths, strict ETHOS-owned scope companions, common lifecycle read-model coverage, and bounded bootstrap admission."
+binding = "Typed profile material paths, strict ETHOS-owned scope companions, common lifecycle read-model coverage, bounded bootstrap admission, and a refreshed tracked generic shadow-parity witness."
 verifier = "digest_only"
 tests = [
   "uv run --group dev pytest -q tests/unit/kernel/test_openspec_contract.py tests/unit/lanes/test_lanes_openspec_scope.py tests/unit/cli/test_adopter_openspec_lifecycle.py tests/unit/cli/test_contracts.py tests/unit/cli/test_contracts_proof.py tests/unit/adoption/test_apply_sample.py tests/unit/adoption/test_scaffold_templates.py tests/unit/product/test_openspec_substrate.py",
@@ -17,6 +17,8 @@ tests = [
   "uv run --group dev ruff check <changed-python-files>",
   "uv run openspec validate adopter-material-scope-binding-completion-20260714 --strict --json",
   "tools/ci/scripts/run-ethos-lane.sh openspec --lifecycle --json",
+  "tools/ci/scripts/run-ethos-lane.sh parity shadow --adopter generic --target . --execute --write-evidence --json",
+  "tools/ci/scripts/run-ethos-lane.sh parity gaps --adopter generic --target . --json",
   "tools/ci/scripts/run-ethos-lane.sh prove --execute --expect-head <committed-head> --json",
 ]
 
@@ -56,4 +58,5 @@ targets = [
   "openspec/changes/adopter-material-scope-binding-completion-20260714",
   "evidence/claims/adopter-material-scope-binding-completion-20260714.toml",
   "evidence/chronicle/adopter-material-scope-binding-completion-20260714/2026-07-14.md",
+  "evidence/parity/generic-shadow.json",
 ]

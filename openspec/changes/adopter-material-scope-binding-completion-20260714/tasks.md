@@ -15,6 +15,8 @@
 - [x] Bind an active claim and Chronicle for the product Change.
 - [x] Bind measured additive source growth to a named follow-on compression
   record without resetting the global baseline.
+- [x] Refresh the tracked generic shadow-parity witness in this admitted Work
+  Lane after the parity-relevant source commit and before executed proof.
 - [x] Run focused validation, strict OpenSpec, and lifecycle before the
   committed HEAD-bound executed proof.
 - [ ] Archive only after implementation evidence is current; candidate landing,

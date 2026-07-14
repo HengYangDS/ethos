@@ -9,6 +9,7 @@ paths = [
   "openspec/changes/adopter-material-scope-binding-completion-20260714/**",
   "evidence/claims/adopter-material-scope-binding-completion-20260714.toml",
   "evidence/chronicle/adopter-material-scope-binding-completion-20260714/**",
+  "evidence/parity/generic-shadow.json",
   "evidence/claims/adopter-openspec-lifecycle-20260714.toml",
   "evidence/chronicle/adopter-openspec-lifecycle-20260714/2026-07-14.md",
   "packages/ethos-core/src/ethos_core/contracts/openspec/**",

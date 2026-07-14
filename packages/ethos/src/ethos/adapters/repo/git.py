@@ -67,6 +67,11 @@ def git_stdout(root: Path, *args: str) -> str:
     return completed.stdout.strip()
 
 
+def remote_url(root: Path, remote: str = "origin") -> str:
+    """Return a configured remote URL without probing network availability."""
+    return git_stdout(root, "remote", "get-url", remote.strip() or "origin")
+
+
 def remote_tracking_sync(root: Path, branch: str, remote: str = "origin") -> dict[str, object]:
     """Project local HEAD versus the local remote-tracking ref without network IO."""
     branch_name = branch.strip()
@@ -242,7 +247,7 @@ def remote_availability(
     root: Path, remote: str = "origin", *, timeout_seconds: float = 3.0
 ) -> dict[str, object]:
     """Probe whether a configured Git remote is reachable without mutating state."""
-    url = git_stdout(root, "remote", "get-url", remote)
+    url = remote_url(root, remote)
     if not url:
         return {
             "kind": "git_remote_availability",
@@ -303,7 +308,7 @@ def remote_availability(
 
 def remote_availability_not_probed(root: Path, remote: str = "origin") -> dict[str, object]:
     """Describe a configured remote without performing a network reachability probe."""
-    url = git_stdout(root, "remote", "get-url", remote)
+    url = remote_url(root, remote)
     if not url:
         return {
             "kind": "git_remote_availability",

@@ -4,6 +4,7 @@ from pathlib import Path
 
 from ethos.repository.release.attestation import release_attestation
 from ethos.repository.release.attestation import sbom_projection
+from ethos.repository.release.core import publication_topology
 from ethos.repository.release.core import release_policy_report
 from ethos.repository.release.core import version_manifest
 
@@ -45,6 +46,82 @@ def test_release_policy_reports_host_profile_separately_from_product_files() -> 
     }
     assert report["protected_refs"]["branches"] == ["main", "dev"]
     assert report["protected_refs"]["tags"] == ["v*"]
+
+
+def test_release_policy_projects_three_layer_dual_remote_topology() -> None:
+    report = release_policy_report(Path.cwd())
+
+    topology = report["publication_topology"]
+    assert topology == {
+        "mode": "three_layer_dual_remote",
+        "local": {"role": "verification_and_install", "remote_independent": True},
+        "primary": {
+            "provider": "gitlab",
+            "remote": "origin",
+            "role": "organization_primary_publication",
+        },
+        "mirror": {
+            "provider": "github",
+            "remote": "github",
+            "role": "independent_mirror_distribution",
+            "surfaces": {"ci": ".github/workflows/ci.yml"},
+            "may_substitute_for": ["update", "distribution"],
+            "may_not_substitute_for": [
+                "gitlab_primary_publication",
+                "gitlab_hosted_status",
+            ],
+        },
+    }
+    assert publication_topology({})["local"]["remote_independent"] is True
+
+
+def test_release_policy_reports_mirror_surface_gap_without_reclassifying_primary(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "repo"
+    (root / ".ethos").mkdir(parents=True)
+    for path in ("README.md", "LICENSE", "CONTRIBUTING.md", "CHANGELOG.md", ".gitlab-ci.yml"):
+        (root / path).write_text("x\n", encoding="utf-8")
+    (root / "pyproject.toml").write_text(
+        '[project]\nname = "sample"\nversion = "1.0.0"\n', encoding="utf-8"
+    )
+    (root / ".ethos" / "release.toml").write_text(
+        """[protected_refs]
+branches = ["main", "dev"]
+tags = ["v*"]
+
+[publication_topology]
+mode = "three_layer_dual_remote"
+primary_remote = "origin"
+primary_provider = "gitlab"
+mirror_remote = "github"
+mirror_provider = "github"
+mirror_role = "independent_mirror_distribution"
+
+[host_profile]
+provider = "gitlab"
+
+[host_profile.surfaces]
+ci = ".gitlab-ci.yml"
+
+[mirror_profile]
+provider = "github"
+remote = "github"
+role = "independent_mirror_distribution"
+
+[mirror_profile.surfaces]
+ci = ".github/workflows/ci.yml"
+
+[attestation]
+formats = ["in-toto", "slsa", "spdx-lite"]
+""",
+        encoding="utf-8",
+    )
+
+    report = release_policy_report(root)
+
+    assert "host_surface_missing:github:ci:.github/workflows/ci.yml" in report["required_gaps"]
+    assert "host_surface_missing:gitlab:ci:.gitlab-ci.yml" not in report["required_gaps"]
 
 
 def test_release_policy_uses_configured_branch_roles_for_protected_refs(

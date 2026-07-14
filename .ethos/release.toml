@@ -7,6 +7,17 @@ artifact_glob = "dist/*"
 branches = ["main", "dev"]
 tags = ["v*"]
 
+[publication_topology]
+mode = "three_layer_dual_remote"
+local_role = "verification_and_install"
+primary_remote = "origin"
+mirror_remote = "github"
+primary_provider = "gitlab"
+mirror_provider = "github"
+mirror_role = "independent_mirror_distribution"
+mirror_may_substitute_for = ["update", "distribution"]
+mirror_may_not_substitute_for = ["gitlab_primary_publication", "gitlab_hosted_status"]
+
 [host_profile]
 provider = "gitlab"
 
@@ -14,6 +25,14 @@ provider = "gitlab"
 ci = ".gitlab-ci.yml"
 merge_request_template = ".gitlab/merge_request_templates/default.md"
 issue_template = ".gitlab/issue_templates/task.md"
+
+[mirror_profile]
+provider = "github"
+remote = "github"
+role = "independent_mirror_distribution"
+
+[mirror_profile.surfaces]
+ci = ".github/workflows/ci.yml"
 
 [attestation]
 formats = ["in-toto", "slsa", "spdx-lite"]

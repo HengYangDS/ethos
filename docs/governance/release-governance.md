@@ -14,9 +14,14 @@ developer opens implementation code.
 
 Required product release surfaces are `README.md`, `LICENSE`,
 `CONTRIBUTING.md`, `CHANGELOG.md`, and `.ethos/release.toml`. Hosted forge and
-CI files are host-profile surfaces declared under `.ethos/release.toml`; the
-current product repository uses a GitLab host profile, but GitLab is not a
-product release-file requirement.
+CI files are profile surfaces declared under `.ethos/release.toml`; they are
+not product release-file requirements.
+
+The current release topology is three-layer and dual-remote: local verification
+and installation are remote-independent; GitLab is the organizational primary
+publication source; GitHub is an independent mirror for update and
+distribution. An available GitHub mirror during a GitLab outage does not prove
+GitLab publication, GitLab hosted CI, or repository proof.
 
 Release readiness is proven with:
 

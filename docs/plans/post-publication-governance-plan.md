@@ -41,8 +41,10 @@ The operational rule is: do not mutate, retire, reset, stash, or clean another W
 Target state:
 
 - `dev == candidate/dev` for the local accepted-root train.
-- `origin/dev` may be unknown until an explicit read-only probe; this does not
-  change local readiness.
+- The configured GitLab primary may be unknown until an explicit read-only
+  probe; this does not change local readiness.
+- A configured GitHub mirror is observed separately. During primary outage it
+  may carry update and distribution, never a GitLab-primary publication claim.
 - `ethos publish --json` reports `local_publish_ready`, `remote_push =
   not_performed`, `remote_publication_state = "deferred"`, and a local
   fallback-evidence next action that distinguishes `not_probed` from
@@ -108,17 +110,22 @@ Stable kernel chain:
 Authority -> Subject -> Commitment -> Change -> Evidence -> Claim -> Chronicle
 ```
 
-## Phase 4: Remote Synchronization and Publication Admission
+## Phase 4: Dual-Remote Synchronization and Publication Admission
 
 Only after an explicit provider decision authorizes publication:
 
-1. Run `ethos publish --probe-remote --json` and record the observed provider
-   availability separately from local readiness.
-2. Re-check `git rev-list --left-right --count origin/dev...dev`.
-3. Confirm `origin/dev` is an ancestor of `dev`; never force an accepted ref.
-4. Obtain the distinct publication admission, then push without force.
-5. Fetch and confirm the exact ref equality after the push.
-6. Record the provider event, actor, ref transition, and hosted-CI observation
+1. Run `ethos publish --probe-remote --json`. Record local readiness, GitLab
+   primary availability, GitHub mirror availability, and their tracking states
+   as separate facts.
+2. For GitLab primary publication, re-check
+   `git rev-list --left-right --count origin/dev...dev`, confirm `origin/dev`
+   is an ancestor of `dev`, and push without force only after the distinct
+   primary-publication admission.
+3. If GitLab is unavailable and GitHub is available, GitHub may carry the
+   separately admitted update and distribution transition. It must not be
+   described as GitLab primary publication or GitLab hosted CI.
+4. Fetch and confirm exact ref equality for whichever remote was actually
+   transitioned. Record provider, actor, ref transition, and hosted observation
    as provider facts; do not recast them as local proof.
 
 ## Phase 5: Release Planning

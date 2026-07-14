@@ -493,8 +493,15 @@ def gate_policy_digest(root: Path, *, tree_ref: str | None = None) -> str:
     working tree). See `_gate_policy_source_digest` for why the hook needs committed reads.
     """
     registry, required = _policy_registry_and_required(root, tree_ref)
+    selected_ids = set(required)
+    product = _is_product_root(root)
     fields = [
-        gate_policy_fields(registry[gate_id], root, tree_ref=tree_ref)
+        {
+            **gate_policy_fields(registry[gate_id], root, tree_ref=tree_ref),
+            "effective_dependencies": list(
+                effective_gate_dependencies(registry[gate_id], selected_ids, product=product)
+            ),
+        }
         for gate_id in required
         if gate_id in registry
     ]
@@ -547,6 +554,19 @@ def gate_policy_conformance_gaps(
     return gaps
 
 
+def effective_gate_dependencies(
+    gate: GateDescriptor, selected_ids: set[str], *, product: bool
+) -> tuple[str, ...]:
+    """Return a gate's selected-proof dependencies after product composition."""
+    if product and gate.id == "generated-artifacts":
+        return gate.depends_on + tuple(
+            gate_id
+            for gate_id in ("unit-architecture", "ruff")
+            if gate_id in selected_ids and gate_id not in gate.depends_on
+        )
+    return gate.depends_on
+
+
 def gate_graph(
     gate_ids: tuple[str, ...] = (),
     *,
@@ -556,8 +576,7 @@ def gate_graph(
     registry = gate_registry(root)
     selected = gate_ids or default_gate_ids(full=full, root=root)
     selected_ids = set(selected)
-    is_product = root is None or _is_product_root(root)
-    seal = is_product and {"unit-architecture", "ruff"} <= selected_ids
+    product = root is None or _is_product_root(root)
     declaration_gaps = list(adopter_gate_descriptor_gaps(root))
     nodes: list[ActionNode] = []
     for gate_id in selected:
@@ -568,11 +587,9 @@ def gate_graph(
                 declaration_gaps.append(f"unknown_gate:{gate_id}")
             continue
         node = gate.to_node()
-        if gate_id == "generated-artifacts" and seal:
-            node = replace(
-                node,
-                depends_on=tuple(dict.fromkeys((*node.depends_on, "unit-architecture", "ruff"))),
-            )
+        effective_dependencies = effective_gate_dependencies(gate, selected_ids, product=product)
+        if effective_dependencies != node.depends_on:
+            node = replace(node, depends_on=effective_dependencies)
         nodes.append(node)
     return ActionGraph(
         nodes=tuple(nodes),

@@ -13,7 +13,8 @@ fi
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "${repo_root}"
 
-mapfile -d "" -t python_security_paths < <(git ls-files -z "*.py")
+python_security_paths=()
+while IFS= read -r -d "" path; do python_security_paths+=("${path}"); done < <(git ls-files -z "*.py")
 if [[ "${#python_security_paths[@]}" -eq 0 ]]; then
   echo "no tracked Python files found for Bandit" >&2
   exit 1

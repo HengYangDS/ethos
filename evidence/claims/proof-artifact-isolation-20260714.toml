@@ -33,6 +33,8 @@ targets = [
   "tools/ci/scripts/run-bandit.sh",
   "tools/ci/scripts/run-python-tests.sh",
   "tests/unit/governance/validation/test_gates.py",
+  "tests/unit/governance/test_quality_regime.py",
+  "tests/unit/policy/test_gate_policy_digest.py",
   "tests/architecture/test_testing_platform.py",
   "tests/unit/coverage/test_cov_v3_gates_edges.py",
   "tests/unit/governance/test_quality_regime.py",

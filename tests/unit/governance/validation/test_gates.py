@@ -175,6 +175,10 @@ def test_default_gate_graph_runs_generated_artifact_seal_after_runtime_producers
     )
     nodes = {node.id: node for node in graph.nodes}
     assert nodes["generated-artifacts"].depends_on == ("unit-architecture", "ruff")
+    for producer in ("unit-architecture", "ruff"):
+        selected = gate_graph(("generated-artifacts", producer))
+        assert selected.nodes[0].depends_on == (producer,)
+        assert [node.id for node in selected.ordered_nodes()] == [producer, "generated-artifacts"]
 
 
 def test_explicit_topology_gate_stays_standalone() -> None:

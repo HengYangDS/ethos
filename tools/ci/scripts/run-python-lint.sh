@@ -22,7 +22,8 @@ mkdir -p "${ruff_cache_dir}"
 # Every tracked Python source file passes through the same Ruff config
 # and formatter so agent skills, CI adapters, tests, and product packages cannot
 # become side lanes.
-mapfile -d "" -t python_quality_paths < <(git ls-files -z "*.py" "*.pyi")
+python_quality_paths=()
+while IFS= read -r -d "" path; do python_quality_paths+=("${path}"); done < <(git ls-files -z "*.py" "*.pyi")
 if [[ "${#python_quality_paths[@]}" -eq 0 ]]; then
   echo "no tracked Python files found for Ruff" >&2
   exit 1

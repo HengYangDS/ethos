@@ -150,7 +150,9 @@ def test_conformance_skips_required_gate_absent_from_registry(tmp_path: Path) ->
     assert gate_policy_conformance_gaps([], tmp_path) == []
 
 
-def test_adopter_gate_descriptor_participates_in_policy_conformance(tmp_path: Path) -> None:
+def test_adopter_gate_descriptor_participates_in_policy_conformance(
+    tmp_path: Path,
+) -> None:
     (tmp_path / ".ethos").mkdir()
     (tmp_path / ".ethos/profile.toml").write_text(
         """profile_id = "acme"
@@ -221,7 +223,10 @@ def _product_like_repo_with_scripts(tmp_path: Path) -> Path:
 
 def _rev(repo: Path, ref: str) -> str:
     return subprocess.run(
-        ["git", "-C", str(repo), "rev-parse", ref], capture_output=True, text=True, check=True
+        ["git", "-C", str(repo), "rev-parse", ref],
+        capture_output=True,
+        text=True,
+        check=True,
     ).stdout.strip()
 
 
@@ -294,3 +299,22 @@ def test_committed_blob_encodes_str_stdout(tmp_path: Path) -> None:
         assert _committed_blob(tmp_path, "HEAD", "x") == b"hello"
     finally:
         policy_gates.subprocess.run = original  # type: ignore[assignment]
+
+
+def test_policy_digest_binds_terminal_seal_dependencies(tmp_path: Path, monkeypatch) -> None:
+    repo = _product_like_repo_with_scripts(tmp_path)
+    baseline = gate_policy_digest(repo)
+    original = policy_gates.effective_gate_dependencies
+
+    def without_ruff(
+        gate: GateDescriptor, selected_ids: set[str], *, product: bool
+    ) -> tuple[str, ...]:
+        return tuple(
+            dependency
+            for dependency in original(gate, selected_ids, product=product)
+            if dependency != "ruff"
+        )
+
+    monkeypatch.setattr(policy_gates, "effective_gate_dependencies", without_ruff)
+
+    assert gate_policy_digest(repo) != baseline

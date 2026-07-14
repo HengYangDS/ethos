@@ -15,11 +15,12 @@ def openspec_workspace_signature(root: Path) -> tuple[tuple[str, int, int], ...]
     invalidates a previously cached lifecycle result.
     """
     openspec_root = root / "openspec"
+    if not openspec_root.exists():
+        return ()
     signature: list[tuple[str, int, int]] = []
-    if openspec_root.exists():
-        for path in sorted(item for item in openspec_root.rglob("*") if item.is_file()):
-            stat = path.stat()
-            signature.append((path.relative_to(root).as_posix(), stat.st_mtime_ns, stat.st_size))
+    for path in sorted(item for item in openspec_root.rglob("*") if item.is_file()):
+        stat = path.stat()
+        signature.append((path.relative_to(root).as_posix(), stat.st_mtime_ns, stat.st_size))
     profile = root / ".ethos" / "profile.toml"
     if profile.exists():
         stat = profile.stat()

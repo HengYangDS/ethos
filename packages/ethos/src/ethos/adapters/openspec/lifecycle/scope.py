@@ -43,10 +43,10 @@ def material_change_scope_report(
     """Bind each declared material path to an official active Change companion.
 
     Scope completeness is a path-coverage invariant, not a global Change
-    hygiene gate.  Missing or malformed companions remain diagnostic facts on
+    hygiene gate. Missing or malformed companions remain diagnostic facts on
     their respective Change, but a changed material path is admitted whenever
     at least one official active or archiving Change supplies a valid matching
-    companion.  The caller supplies names selected from the official OpenSpec
+    companion. The caller supplies names selected from the official OpenSpec
     list; direct diagnostics may omit that selection and inspect unarchived
     directories without changing the command-plane reader semantics.
     """
@@ -65,39 +65,48 @@ def material_change_scope_report(
         bootstrap=None,
     )
     if not profile.exists:
-        return _material_scope_payload(binding._replace(state="not_applicable"))
-    if not profile.valid:
-        return _material_scope_payload(
-            binding._replace(required_gaps=("openspec_material_paths_profile_invalid",))
+        binding = binding._replace(state="not_applicable")
+    elif not profile.valid:
+        binding = binding._replace(required_gaps=("openspec_material_paths_profile_invalid",))
+    else:
+        binding = _material_scope_binding_for_profile(
+            root,
+            binding=binding,
+            policy_payload=profile.tables.get("openspec"),
+            active_change_names=active_change_names,
         )
-    policy_payload = profile.tables.get("openspec")
+    return _material_scope_payload(binding)
+
+
+def _material_scope_binding_for_profile(
+    root: Path,
+    *,
+    binding: MaterialScopeBinding,
+    policy_payload: object,
+    active_change_names: tuple[str, ...] | None,
+) -> MaterialScopeBinding:
+    """Project scope coverage after confirming an adopter profile exists and parses."""
     if _material_paths_missing(policy_payload):
-        return _material_scope_payload(
-            binding._replace(
-                state="material_paths_missing",
-                required_gaps=("openspec_material_paths_missing",),
-            )
+        return binding._replace(
+            state="material_paths_missing",
+            required_gaps=("openspec_material_paths_missing",),
         )
     try:
         policy = AdopterOpenSpecPolicy.model_validate(policy_payload)
     except ValidationError:
-        return _material_scope_payload(
-            binding._replace(required_gaps=("openspec_material_paths_invalid",))
-        )
+        return binding._replace(required_gaps=("openspec_material_paths_invalid",))
     material_patterns = policy.material_paths
     material_paths = tuple(
         path
-        for path in normalized_paths
+        for path in binding.changed_paths
         if any(_path_matches(path, pattern) for pattern in material_patterns)
     )
+    binding = binding._replace(
+        material_patterns=material_patterns,
+        material_paths=material_paths,
+    )
     if not material_paths:
-        return _material_scope_payload(
-            binding._replace(
-                state="no_material_paths",
-                material_patterns=material_patterns,
-                material_paths=material_paths,
-            )
-        )
+        return binding._replace(state="no_material_paths")
     changes = _change_scope_declarations(root, active_change_names=active_change_names)
     bootstrap = _bootstrap_scope_creation(
         root=root,
@@ -111,20 +120,27 @@ def material_change_scope_report(
         if isinstance(gaps, (list, tuple))
         for gap in gaps
     )
-    binding = binding._replace(
-        material_patterns=material_patterns,
-        material_paths=material_paths,
-        changes=changes,
-        advisory_gaps=diagnostics,
-    )
+    binding = binding._replace(changes=changes, advisory_gaps=diagnostics)
     if bootstrap is not None:
-        return _material_scope_payload(
-            binding._replace(
-                state="bootstrap_scope_creation",
-                advisory_gaps=(),
-                bootstrap=bootstrap,
-            )
+        return binding._replace(
+            state="bootstrap_scope_creation",
+            advisory_gaps=(),
+            bootstrap=bootstrap,
         )
+    covered, uncovered = _scope_coverage(material_paths, changes)
+    required_gaps = tuple(f"openspec_material_path_uncovered:{path}" for path in uncovered)
+    return binding._replace(
+        state="covered" if not required_gaps else "uncovered",
+        covered=covered,
+        uncovered=uncovered,
+        required_gaps=required_gaps,
+    )
+
+
+def _scope_coverage(
+    material_paths: tuple[str, ...], changes: tuple[dict[str, object], ...]
+) -> tuple[tuple[dict[str, object], ...], tuple[str, ...]]:
+    """Return valid companion coverage per changed material path."""
     covered: list[dict[str, object]] = []
     uncovered: list[str] = []
     for path in material_paths:
@@ -140,15 +156,7 @@ def material_change_scope_report(
             covered.append({"path": path, "changes": change_names})
         else:
             uncovered.append(path)
-    required_gaps = tuple(f"openspec_material_path_uncovered:{path}" for path in uncovered)
-    return _material_scope_payload(
-        binding._replace(
-            state="covered" if not required_gaps else "uncovered",
-            covered=tuple(covered),
-            uncovered=tuple(uncovered),
-            required_gaps=required_gaps,
-        )
-    )
+    return tuple(covered), tuple(uncovered)
 
 
 def _bootstrap_scope_creation(

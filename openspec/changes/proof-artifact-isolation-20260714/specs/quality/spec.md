@@ -59,3 +59,14 @@ surfaces.
   and EXIT cleanup
 - **AND** standalone `ethos quality generated-artifacts --json` remains
   read-only and fails closed on surviving root cache drift.
+
+#### Scenario: Runtime-producing quality owners stay semantically bound and portable
+
+- **WHEN** the product runs its type, lint, Ruff-ratchet, or Bandit owner
+  gates from a governed checkout
+- **THEN** `ty` resolves third-party imports against
+  `build/runtime/venv`, never an ambient host or root `.venv`
+- **AND** each owner gate preserves its tracked Python-file scope under the
+  macOS-provided Bash 3.2
+- **AND** no owner gate requires a newer shell or silently weakens its file
+  selection to obtain portability.

@@ -18,9 +18,18 @@ _DIAGNOSTIC_EXCERPT_LIMIT = 12
 def _diagnostic_report(root: Path, package_src: str) -> dict[str, object]:
     """Run ty and retain whether its diagnostic count is determinate."""
     command = f"ty check {package_src}"
+    semantic_environment = root / "build" / "runtime" / "venv"
     try:
         completed = subprocess.run(
-            [sys.executable, "-m", "ty", "check", package_src],
+            [
+                sys.executable,
+                "-m",
+                "ty",
+                "check",
+                "--python",
+                str(semantic_environment),
+                package_src,
+            ],
             cwd=root,
             text=True,
             capture_output=True,

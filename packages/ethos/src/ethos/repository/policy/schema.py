@@ -9,15 +9,6 @@ from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError
 
 from ethos.repository.policy.gates import gate_registry
-from ethos.repository.policy.schema_samples.core import campaign_contract_sample
-from ethos.repository.policy.schema_samples.core import capability_profile_contract_sample
-from ethos.repository.policy.schema_samples.core import promotion_target_contract_sample
-from ethos.repository.policy.schema_samples.core import shadow_parity_contract_sample
-from ethos.repository.policy.schema_samples.core import skill_activation_contract_sample
-from ethos.repository.policy.schema_samples.core import skill_package_manifest_contract_sample
-from ethos.repository.policy.schema_samples.core import trust_envelope_contract_sample
-from ethos.repository.policy.schema_samples.large import campaign_closeout_contract_sample
-from ethos.repository.policy.schema_samples.large import workspace_status_contract_sample
 from ethos.repository.registry.docs.health import docs_health_report
 from ethos.repository.registry.profiles import governance_profile_report
 from ethos_core.contracts.skill.activation import normalize_skill_activation
@@ -207,41 +198,6 @@ def _instance_validation_report(root: Path, *, mode: str) -> dict[str, dict[str,
         product_gate_plan(),
         root=root,
     )
-    instances["campaign-closeout-contract"] = validate_schema_instance(
-        "campaign-closeout.schema.json",
-        campaign_closeout_contract_sample(),
-        root=root,
-    )
-    instances["campaign-contract"] = validate_schema_instance(
-        "campaign.schema.json",
-        campaign_contract_sample(),
-        root=root,
-    )
-    instances["shadow-parity-contract"] = validate_schema_instance(
-        "shadow-parity.schema.json",
-        shadow_parity_contract_sample(),
-        root=root,
-    )
-    instances["workspace-status-contract"] = validate_schema_instance(
-        "workspace-status.schema.json",
-        workspace_status_contract_sample(),
-        root=root,
-    )
-    instances["trust-envelope-contract"] = validate_schema_instance(
-        "trust-envelope.schema.json",
-        trust_envelope_contract_sample(),
-        root=root,
-    )
-    instances["promotion-target-contract"] = validate_schema_instance(
-        "promotion-target.schema.json",
-        promotion_target_contract_sample(),
-        root=root,
-    )
-    instances["capability-profile-contract"] = validate_schema_instance(
-        "capability-profile.schema.json",
-        capability_profile_contract_sample(),
-        root=root,
-    )
     instances["governance-profile-contract"] = validate_schema_instance(
         "governance-profile.schema.json",
         governance_profile_report(),
@@ -251,26 +207,6 @@ def _instance_validation_report(root: Path, *, mode: str) -> dict[str, dict[str,
     instances["coupling-audit-contract"] = validate_schema_instance(
         "coupling-audit.schema.json",
         coupling_audit_report(root),
-        root=root,
-    )
-    skill_registry = normalize_skill_activation(
-        skill_activation_contract_sample(),
-        source=".agents/skills/activation.toml",
-    )
-    skill_registry["digest"] = skill_registry_digest(skill_registry)
-    instances["skill-activation-contract"] = validate_schema_instance(
-        "skill-activation.schema.json",
-        skill_activation_contract_sample(),
-        root=root,
-    )
-    instances["skill-registry-contract"] = validate_schema_instance(
-        "skill-registry.schema.json",
-        skill_registry,
-        root=root,
-    )
-    instances["skill-package-manifest-contract"] = validate_schema_instance(
-        "skill-package-manifest.schema.json",
-        skill_package_manifest_contract_sample(),
         root=root,
     )
     instances.update(_live_skill_contract_instances(root))

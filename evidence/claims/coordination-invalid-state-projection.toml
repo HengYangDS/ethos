@@ -36,7 +36,7 @@ targets = [
   "openspec/changes/archive/2026-07-07-coordination-invalid-state-projection/tasks.md",
   "openspec/changes/archive/2026-07-07-coordination-invalid-state-projection/specs/repository-governance/spec.md",
   "packages/ethos/src/ethos/adapters/repo/coordination.py",
-  "packages/ethos/src/ethos/repository/policy/schema_samples/large.py",
+  "tests/unit/lanes/test_lanes.py",
   "system/invalid_states.toml",
   "system/schemas/kernel/workspace-status.schema.json",
   "tests/unit/governance/validation",

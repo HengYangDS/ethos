@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 from ethos.assistants.skills.packages import compute_skill_package_digest
 from ethos.assistants.skills.packages import validate_skill_package_manifest
+from ethos.repository.policy.schema import validate_schema_instance
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -81,6 +82,27 @@ def test_skill_package_manifest_binds_entrypoint_digest(tmp_path: Path) -> None:
             "command": ["ethos", "report", "--json"],
         }
     ]
+    assert (
+        validate_schema_instance(
+            "skill-package-manifest.schema.json",
+            {
+                "schema_version": 2,
+                "id": "sample-skill",
+                "entrypoint": "SKILL.md",
+                "digest_algorithm": "sha256",
+                "include": ["SKILL.md"],
+                "expected_digest": digest,
+                "required_sections": [
+                    "When to Use",
+                    "Workflow",
+                    "Evidence",
+                    "Trust Boundary",
+                ],
+                "capability": result["capabilities"],
+            },
+        )["ok"]
+        is True
+    )
 
 
 def test_skill_package_manifest_rejects_stale_digest(tmp_path: Path) -> None:
@@ -388,7 +410,9 @@ def test_skill_markdown_rejects_overlong_entrypoint_without_progressive_disclosu
     assert "skill_quality_progressive_disclosure_missing:sample-skill" in result["required_gaps"]
 
 
-def test_skill_package_manifest_accepts_readonly_repo_local_script(tmp_path: Path) -> None:
+def test_skill_package_manifest_accepts_readonly_repo_local_script(
+    tmp_path: Path,
+) -> None:
     package_dir = _sample_package(tmp_path)
     scripts_dir = package_dir / "scripts"
     scripts_dir.mkdir()
@@ -428,7 +452,9 @@ command = ["scripts/audit.py", "."]
     ]
 
 
-def test_skill_package_manifest_rejects_untrusted_readonly_script(tmp_path: Path) -> None:
+def test_skill_package_manifest_rejects_untrusted_readonly_script(
+    tmp_path: Path,
+) -> None:
     package_dir = _sample_package(tmp_path)
     digest = compute_skill_package_digest(package_dir, ["SKILL.md"])
     (package_dir / "package.toml").write_text(

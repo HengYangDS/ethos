@@ -1,0 +1,49 @@
+[claim]
+id = "schema-runtime-sample-settlement-20260714"
+change_id = "schema-runtime-sample-settlement-20260714"
+subject = "quality:runtime-schema-sample-settlement"
+state = "active"
+summary = "Schema quality checks schema files and live producer payloads without duplicate synthetic contract builders in product runtime."
+
+[evidence]
+dated = "evidence/chronicle/schema-runtime-sample-settlement-20260714/2026-07-14.md"
+sha256 = "d7b842d4da010de00c1b976bffb7ee2ffe37007e9fca22dedb19d4ba217b1de9"
+evidence_ids = ["evidence:schema-runtime-sample-settlement-20260714"]
+binding = "Deleted runtime schema samples, retained live validation, producer-owned contract tests, source-budget evidence, parity, and HEAD-bound proof bind this removal."
+verifier = "digest_only"
+tests = [
+  "uv run --all-packages --group dev pytest -q tests/unit/governance/validation/test_schemas.py tests/unit/governance/test_evolution_ledger.py tests/unit/governance/test_claims_release_authority_more.py tests/unit/kernel/test_skill_activation.py tests/unit/assistants/test_skill_packages.py tests/unit/lanes/test_lanes.py tests/unit/cli/test_contracts_proof.py tests/unit/product/parity/test_accepted_differences.py",
+  "uv run --all-packages --group dev ruff format --check packages/ethos/src/ethos/repository/policy/schema.py tests/unit/governance/validation/test_schemas.py tests/unit/governance/test_evolution_ledger.py tests/unit/governance/test_claims_release_authority_more.py tests/unit/kernel/test_skill_activation.py tests/unit/assistants/test_skill_packages.py",
+  "uv run --all-packages --group dev ruff check packages/ethos/src/ethos/repository/policy/schema.py tests/unit/governance/validation/test_schemas.py tests/unit/governance/test_evolution_ledger.py tests/unit/governance/test_claims_release_authority_more.py tests/unit/kernel/test_skill_activation.py tests/unit/assistants/test_skill_packages.py",
+  "uv run --all-packages --group dev ethos quality schemas --json",
+  "uv run --all-packages --group dev ethos quality source-budget --json",
+  "uv run --all-packages --group dev ethos quality code-size --json",
+  "uv run --all-packages --group dev ethos parity shadow --adopter generic --target . --execute --write-evidence --json",
+  "ETHOS_TEST_WORKERS=1 uv run --all-packages --group dev ethos prove --execute --expect-head $(git rev-parse HEAD) --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "quality"
+scope = "Schema-file and live producer validation; no schema semantics or public command behavior is changed."
+
+[carriers]
+openspec = "openspec/changes/schema-runtime-sample-settlement-20260714"
+fallback = "Restore only the deleted runtime builders if a real producer contract is proven absent; do not replace them with a second shared fixture layer."
+kill_signal = "Schema quality turns green while a real producer payload violates its schema, or a deleted sample path remains referenced by active repository truth."
+
+[promotion]
+targets = [
+  "packages/ethos/src/ethos/repository/policy/schema.py",
+  "tests/unit/governance/validation/test_schemas.py",
+  "tests/unit/governance/test_evolution_ledger.py",
+  "tests/unit/governance/test_claims_release_authority_more.py",
+  "tests/unit/kernel/test_skill_activation.py",
+  "tests/unit/assistants/test_skill_packages.py",
+  "openspec/specs/quality/spec.md",
+  "openspec/changes/schema-runtime-sample-settlement-20260714",
+  "evidence/claims/schema-runtime-sample-settlement-20260714.toml",
+  "evidence/chronicle/schema-runtime-sample-settlement-20260714/2026-07-14.md",
+]

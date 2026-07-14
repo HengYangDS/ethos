@@ -883,14 +883,13 @@ test.
 
 ### Requirement: Canonical Workspace-Status Schema Sample Reuse
 
-ETHOS SHALL reuse the canonical valid workspace-status schema sample for
-schema acceptance and focused forbidden-field rejection tests when the sample
-contains the complete required envelope.
+ETHOS SHALL validate schemas through real producer payloads and focused local
+negative mutations. Synthetic production sample builders SHALL NOT be retained
+solely to make a schema-quality report green.
 
 #### Scenario: UI projection fields remain rejected
 
-- **WHEN** a workspace-status schema test adds a forbidden UI projection field
-  to the canonical valid sample
+- **WHEN** a workspace-status producer test adds a forbidden UI projection field
+to its real payload
 - **THEN** validation SHALL fail with required gaps
-- **AND THEN** the test SHALL not maintain a second full workspace-status
-  fixture.
+- **AND THEN** the validation SHALL remain owned by that producer boundary.

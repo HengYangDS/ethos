@@ -12,9 +12,6 @@ dependencies = [
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-[tool.hatch.build.hooks.custom]
-path = "src/ethos_core/packaging/hooks.py"
-
 [tool.hatch.build.targets.wheel.force-include]
 "src/ethos_core/data/commands.toml" = "ethos_core/data/commands.toml"
 "src/ethos_core/data/gates.toml" = "ethos_core/data/gates.toml"

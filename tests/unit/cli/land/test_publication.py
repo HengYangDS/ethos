@@ -150,17 +150,17 @@ def test_publish_reports_synchronized_tracking_without_claiming_a_push(
 
 def test_publication_readiness_uses_local_fallback_when_fallback_omits_evidence_status() -> None:
     policy = load_branch_role_policy(Path.cwd())
-    fallback = {"evidence_status": {}}
-    publication = publication_readiness(
-        branch="dev",
-        local_ok=True,
-        policy=policy,
-        local_ci_fallback=fallback,
-    )
+    for evidence_status in ({}, None):
+        publication = publication_readiness(
+            branch="dev",
+            local_ok=True,
+            policy=policy,
+            local_ci_fallback={"evidence_status": evidence_status},
+        )
 
-    assert publication["next_actions"] == [
-        "run tools/ci/scripts/run-local-ci.sh as local fallback evidence"
-    ]
+        assert publication["next_actions"] == [
+            "run tools/ci/scripts/run-local-ci.sh as local fallback evidence"
+        ]
 
 
 def test_publish_does_not_probe_remote_without_explicit_flag(monkeypatch) -> None:

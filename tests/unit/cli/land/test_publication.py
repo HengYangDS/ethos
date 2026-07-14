@@ -133,6 +133,32 @@ def test_publish_reports_remote_tracking_sync_state(monkeypatch) -> None:
     assert "remote_tracking_local_ahead" in sync["advisory_gaps"][0]
 
 
+def test_publish_reports_synchronized_tracking_without_claiming_a_push(
+    tmp_path: Path,
+) -> None:
+    """A matching tracking ref is an observation, not an executed publication."""
+    repo = init_git_repo(tmp_path / "repo")
+    adopt_and_commit(repo)
+    head = git(repo, "rev-parse", "HEAD")
+    seed_executed_proof(repo, head)
+    remote = tmp_path / "origin.git"
+    git(tmp_path, "init", "--bare", remote.as_posix())
+    git(repo, "remote", "add", "origin", remote.as_posix())
+    git(repo, "push", "--set-upstream", "origin", "dev")
+
+    payload = run_ethos("publish", "--probe-remote", "--json", cwd=repo)
+
+    assert payload["summary"]["remote_sync_state"] == "synchronized"
+    assert payload["summary"]["remote_publication_state"] == "synchronized"
+    assert payload["summary"]["remote_push"] == "not_performed"
+    assert payload["data"]["publication"]["remote_state"] == "synchronized"
+    assert payload["next_actions"] == [
+        "remote tracking ref is synchronized; no push was performed",
+        "ethos report",
+    ]
+    assert payload["data"]["mutation"]["decision"]["verdict"] == "defer"
+
+
 def test_publish_does_not_probe_remote_without_explicit_flag(monkeypatch) -> None:
     import ethos.surface.cli.root.lifecycle as lifecycle_cli  # noqa: PLC0415, RUF100 - local import isolates command dependencies
 

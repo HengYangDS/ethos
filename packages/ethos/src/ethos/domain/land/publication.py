@@ -238,25 +238,29 @@ def publication_readiness(
             "advisory_gaps": [],
         }
     )
-    remote_available = availability.get("available") is True
     fallback = local_ci_fallback or local_ci_fallback_package(remote_availability=availability)
     evidence_status = fallback.get("evidence_status")
-    evidence_next_action = (
-        str(cast("dict[str, object]", evidence_status).get("next_action") or "")
-        if isinstance(evidence_status, dict)
-        else "run tools/ci/scripts/run-local-ci.sh as local fallback evidence"
-    )
-    next_actions = ["resolve local publish readiness gaps"]
-    if local_ok and remote_available:
-        next_actions = ["create configured submit branch when remote publication is available"]
-    elif local_ok:
-        next_actions = [evidence_next_action]
+    if isinstance(evidence_status, dict):
+        evidence_next_action = str(evidence_status.get("next_action") or "")
+    else:
+        evidence_next_action = "run tools/ci/scripts/run-local-ci.sh as local fallback evidence"
+
+    # A synchronized tracking ref is a distinct observation. It confirms that the
+    # locally observed remote-tracking ref matches HEAD, while `remote_push` stays
+    # `not_performed` because this command never mutates a remote.
+    remote_state = "synchronized" if sync.get("state") == "synchronized" else "deferred"
+    next_action = evidence_next_action
+    if availability.get("available") is True:
+        next_action = "create configured submit branch when remote publication is available"
+    if remote_state == "synchronized":
+        next_action = "remote tracking ref is synchronized; no push was performed"
+    next_actions = [next_action] if local_ok else ["resolve local publish readiness gaps"]
     return {
         "mode": "local_readiness",
         "remote_push": "not_performed",
         # This is remote *publication* state, not remote reachability.
         # Reachability remains visible under remote_availability.state.
-        "remote_state": "deferred",
+        "remote_state": remote_state,
         "remote_availability": availability,
         "remote_sync": sync,
         "fallback_evidence": fallback,

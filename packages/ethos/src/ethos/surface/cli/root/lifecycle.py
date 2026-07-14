@@ -491,7 +491,9 @@ def publish(
         "next_publication_action": _first_string(publication.get("next_actions")),
     }
     publish_next_actions = _publish_next_actions(ok=ok, publication=publication)
-    publication_verdict = "block" if gaps else "defer" if remote_state == "deferred" else "allow"
+    # Read-only tracking synchronization observes an existing remote ref; it never
+    # upgrades this no-push command into an executed publication transition.
+    publication_verdict = "block" if gaps else "defer"
     transition_ok = ok and (not options.apply or publication_verdict == "allow")
     publish_expected_state = _publish_expected_state(
         repo=repo,

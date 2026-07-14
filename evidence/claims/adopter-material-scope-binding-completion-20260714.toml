@@ -2,12 +2,12 @@
 id = "adopter-material-scope-binding-completion-20260714"
 change_id = "adopter-material-scope-binding-completion-20260714"
 subject = "ethos:adopter-material-change-scope-binding"
-state = "active"
+state = "archived"
 summary = "ETHOS binds adopter material paths to valid official Change companions across prewrite, plan, and proof."
 
 [evidence]
 dated = "evidence/chronicle/adopter-material-scope-binding-completion-20260714/2026-07-14.md"
-sha256 = "0e3c384113edbbce3835b3fc700a70a4ad55f2ae9a48f1f19f7176c9deb9fb99"
+sha256 = "48130be78b252ecec30eb144f9361d009bc7dfc9d7db825030f7db7bd1a25eec"
 evidence_ids = ["evidence:adopter-material-scope-binding-completion-20260714"]
 binding = "Typed profile material paths, strict ETHOS-owned scope companions, common lifecycle read-model coverage, bounded bootstrap admission, and a refreshed tracked generic shadow-parity witness."
 verifier = "digest_only"
@@ -30,7 +30,7 @@ owner = "ethos-repository"
 scope = "Cross-adopter material-path-to-Change companion admission for prewrite, plan, and proof; excludes official workflow schema replacement and native code-correctness gate semantics."
 
 [carriers]
-openspec = "openspec/changes/adopter-material-scope-binding-completion-20260714"
+openspec = "openspec/changes/archive/2026-07-14-adopter-material-scope-binding-completion-20260714"
 fallback = "Block uncovered material paths while retaining official OpenSpec lifecycle and adopter-native proof gates."
 kill_signal = "A material adopter change can bypass Change coverage, borrow an unrelated Change, or lifecycle scope becomes a code-correctness or method-package authority."
 
@@ -58,7 +58,7 @@ targets = [
   "openspec/README.md",
   "openspec/changes/README.md",
   "openspec/specs/repository-governance/spec.md",
-  "openspec/changes/adopter-material-scope-binding-completion-20260714",
+  "openspec/changes/archive/2026-07-14-adopter-material-scope-binding-completion-20260714",
   "evidence/claims/adopter-material-scope-binding-completion-20260714.toml",
   "evidence/chronicle/adopter-material-scope-binding-completion-20260714/2026-07-14.md",
   "evidence/parity/generic-shadow.json",

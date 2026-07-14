@@ -15,5 +15,5 @@ cd "${repo_root}"
 
 export PYTHONPATH="${repo_root}/packages/ethos/src:${repo_root}/packages/ethos-core/src${PYTHONPATH:+:${PYTHONPATH}}"
 
-ethos_python="${ETHOS_PYTHON:-${PYTHON:-${UV_PROJECT_ENVIRONMENT}/bin/python}}"
+ethos_python="${ETHOS_PYTHON:-$(uv run --package ethos python -c 'import sys; print(sys.executable)')}"
 "${ethos_python}" -m ethos.cli quality governance-kernel --json

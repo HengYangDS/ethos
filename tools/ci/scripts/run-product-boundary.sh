@@ -17,8 +17,7 @@ export PYTHONPATH="${repo_root}/packages/ethos/src:${repo_root}/packages/ethos-c
 
 run_ethos_quality() {
   local check="$1"
-  local ethos_python="${ETHOS_PYTHON:-${PYTHON:-${UV_PROJECT_ENVIRONMENT}/bin/python}}"
-  "${ethos_python}" -m ethos.cli quality "${check}" --json
+  uv run --package ethos python -m ethos.cli quality "${check}" --json
 }
 
 run_ethos_quality product-boundary

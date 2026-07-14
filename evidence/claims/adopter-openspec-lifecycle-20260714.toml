@@ -13,8 +13,8 @@ verifier = "digest_only"
 
 [evidence.freshness]
 mode = "semantic_scope"
-head = "a1cbf1090a55e9138882dae3dfb3af5f1ea194f7"
-semantic_sha256 = "711d44897a31d8dae13e7c98a7cefe75ed3976e57d6669fac313d9ffba993921"
+head = "2d2c84a7797f9fd21cfc8a0896944de73eb88773"
+semantic_sha256 = "a62e4d38153eab28e4ee88dcc9d79051e743bf4868846d1e78cfaa7e3ea55410"
 
 [boundary]
 owner = "ethos-repository"

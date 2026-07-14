@@ -2034,6 +2034,19 @@ Change, not an OpenSpec workflow-schema extension.
 - **AND THEN** the completed companion SHALL cover itself and later material
   writes.
 
+
+#### Scenario: existing adopter bootstraps a missing profile declaration
+
+- **GIVEN** a valid tracked adopter profile has no `material_paths` declaration
+- **AND** exactly one official active Change is selected
+- **WHEN** prewrite evaluates only `.ethos/profile.toml`
+- **THEN** ETHOS MAY admit that write with
+  `profile_material_paths_bootstrap` provenance
+- **AND THEN** an explicit empty or malformed declaration, or a request that
+  includes another path, SHALL remain blocked
+- **AND THEN** later material writes SHALL require ordinary Change-local scope
+  coverage.
+
 ### Requirement: Accepted closeout remains candidate-first and non-self-approving
 
 ETHOS SHALL admit an accepted-branch advance only when it fast-forwards to the

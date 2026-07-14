@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from ethos.domain.land.publication import local_ci_fallback_evidence_status
 from tests.support.contract_helpers import adopt_and_commit
@@ -9,6 +9,9 @@ from tests.support.contract_helpers import git
 from tests.support.contract_helpers import init_git_repo
 from tests.support.contract_helpers import seed_executed_proof
 from tests.support.ethos_cli_runner import run_ethos
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def test_publish_labels_current_fallback_as_unprobed_when_origin_is_configured(

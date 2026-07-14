@@ -8,4 +8,5 @@ paths = [
   "openspec/changes/adopter-material-scope-bootstrap-20260715/**",
   "packages/ethos/src/ethos/adapters/openspec/lifecycle/scope.py",
   "tests/unit/lanes/test_lanes_openspec_scope.py",
+  "tests/unit/lanes/test_lanes_openspec_profile_bootstrap.py",
 ]

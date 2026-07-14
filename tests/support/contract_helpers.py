@@ -13,6 +13,7 @@ from typing import NamedTuple
 
 from ethos.adapters.mutation.proof import _promotion_required_gate_ids
 from ethos.repository.adoption.planner import adoption_plan
+from tests.support.ethos_cli_runner import run_ethos
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -33,8 +34,6 @@ def start_adopted_work_lane(
     holder_ref: str = "agent:test:case:agent-test",
 ) -> WorkLaneFixture:
     """Create a generic adopted repository, candidate worktree, and owned lane."""
-    from tests.support.ethos_cli_runner import run_ethos
-
     repo = init_git_repo(tmp_path / "repo")
     adopt_and_commit(repo)
     candidate = tmp_path / "repo-candidate-dev"

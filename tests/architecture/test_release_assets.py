@@ -56,6 +56,7 @@ def test_gitlab_ci_uses_ethos_public_command_plane() -> None:
     assert "npm run ethos -- --version" in text
     assert "npm run test:npm" in text
     assert "tools/ci/scripts/run-python-tests.sh" in text
+    assert 'ETHOS_TEST_WORKERS: "1"' in text
     assert "uv run --group dev pytest tests/unit tests/architecture -q" not in text
     assert "tools/ci/scripts/bootstrap-python.sh" in text
     assert "tools/ci/scripts/install-lychee.sh" in text

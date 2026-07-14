@@ -19,6 +19,6 @@
   Lane after the parity-relevant source commit and before executed proof.
 - [x] Run focused validation, strict OpenSpec, and lifecycle before the
   committed HEAD-bound executed proof.
-- [ ] Archive only after implementation evidence is current; candidate landing,
+- [x] Archive only after implementation evidence is current; candidate landing,
   accepted-root closeout, lane retirement, and remote publication are separate
   transitions.

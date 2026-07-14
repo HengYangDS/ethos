@@ -22,6 +22,8 @@ case = proposal + design + tasks + spec deltas + claim/evidence refs
 - Active change intent lives under `openspec/changes/<change-id>/`.
 - Archived changes are history after closeout; they are not reusable active work
   containers.
+- For adopters, `scope.toml` is ETHOS companion data beside an active Change;
+  it is not official OpenSpec workflow-schema metadata.
 
 Every non-trivial governance mutation should have a non-complete active change
 or an explicit attachment to one. Complete changes are historical records unless

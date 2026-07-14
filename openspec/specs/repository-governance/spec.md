@@ -98,6 +98,42 @@ OpenSpec remains mandatory governance, not a product substrate and not a second 
 - **THEN** it invokes the official OpenSpec CLI for status and strict validation
   instead of replacing OpenSpec with ad hoc repository parsing
 
+### Requirement: Adopter Material Change Scope Binding
+
+ETHOS SHALL require an adopter that uses OpenSpec lifecycle governance to
+declare a non-empty `[openspec].material_paths` profile list. For every changed
+material path, `ethos lane prewrite`, `ethos plan --changed`, and `ethos prove`
+SHALL use the same ETHOS-owned `scope.toml` companion read model over the
+official OpenSpec active or archiving Change selection. The companion is not an
+official OpenSpec workflow-schema extension.
+
+#### Scenario: material path is covered by a selected Change
+
+- **GIVEN** an adopter profile declares a material path and an officially
+  selected Change has a valid matching `scope.toml` companion
+- **WHEN** prewrite, changed planning, or proof evaluates that path
+- **THEN** all three surfaces SHALL report the same coverage fact
+- **AND** no material-scope required gap is emitted.
+
+#### Scenario: material path is uncovered
+
+- **GIVEN** a declared material path lacks coverage from every valid selected
+  Change companion
+- **WHEN** prewrite, changed planning, or proof evaluates the path
+- **THEN** the surface SHALL report
+  `openspec_material_path_uncovered:<path>`
+- **AND** it SHALL not substitute a native proof gate, private schema, or
+  method package for Change authority.
+
+#### Scenario: declaration and bootstrap fail closed
+
+- **WHEN** an adopter omits, empties, or invalidates `material_paths`
+- **THEN** lifecycle SHALL report a material-path declaration gap
+- **AND WHEN** the official active list identifies a new Change with no
+  companion
+- **THEN** prewrite MAY admit only that Change's exact absent `scope.toml`
+- **AND** the completed companion SHALL cover itself and later material writes.
+
 ### Requirement: Coupling Binding Registry
 ETHOS SHALL classify product-semantic hard bindings, mandatory governance
 dependencies, native protocols, product toolchains, profile or adapter

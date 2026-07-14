@@ -28,9 +28,21 @@ def _files_digest(files: dict[str, str]) -> str:
 @pytest.mark.parametrize(
     ("profile", "expected_count", "expected_digest"),
     [
-        ("generic", 66, "45319a36e1fc47df7c87996dfdcd06486cea5d4152acef3cb67326d63d9ec90b"),
-        ("github", 67, "65d2f3cbdee891ce6f9d83aa01686920911737876eafc8b35bf0b232c80952db"),
-        ("gitlab", 67, "9435cdfd7a3969ab474ee6d1285dde08b29af073318a07982322b23380bec168"),
+        (
+            "generic",
+            66,
+            "e1a491702e6f5fbbbe05202b1fe28047d8c1471e8cc335b5d2b02e1166b3d3df",
+        ),
+        (
+            "github",
+            67,
+            "24e1f861e3d16f2f2862b2ee342b1c79ca0b6f3b5301138b36d33f4f45e88e24",
+        ),
+        (
+            "gitlab",
+            67,
+            "c4bb696a73a0421cd9cdf8eaf0d26782950765d66f689c6030d28cdfe2ba725a",
+        ),
     ],
 )
 def test_scaffold_template_migration_preserves_default_file_bytes(
@@ -56,7 +68,7 @@ def test_monorepo_template_preserves_sorted_package_projection(tmp_path: Path) -
     files = default_files(root, "monorepo")
 
     assert (
-        _files_digest(files) == "fa80c42bfd079b3673a0a2c0aa7d596c3e70c3286572e1ac35aa9e080bd0e777"
+        _files_digest(files) == "c1b50e9c3ba373b70673dd93da01ad41dac3109d439efcb1b5fca8c7bd6be599"
     )
     assert files[".ethos/workspace.toml"].index('name = "alpha"') < files[
         ".ethos/workspace.toml"
@@ -175,7 +187,11 @@ def test_project_template_preserves_python_json_string_encoding() -> None:
                     "renderer": "skill-package",
                     "subject": "missing",
                 },
-                {"path": "activation.toml", "template": "a.j2", "renderer": "activation"},
+                {
+                    "path": "activation.toml",
+                    "template": "a.j2",
+                    "renderer": "activation",
+                },
             ],
             "family": [],
             "skill": [],

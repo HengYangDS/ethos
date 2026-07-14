@@ -16,6 +16,21 @@ A complete active change must contain:
 - `specs/<capability>/spec.md` deltas using official OpenSpec sections.
 - an active trust-bearing claim whose `carriers.openspec` points at the change.
 
+When an adopter declares material paths, add the ETHOS-owned companion:
+
+```toml
+# openspec/changes/<change-id>/scope.toml
+schema_version = 1
+paths = ["docs/governance/**", "openspec/changes/<change-id>/**"]
+```
+
+The companion binds material changed paths to the official active or archiving
+Change selection; it does not alter the official OpenSpec workflow schema.
+Create the Change with the official `openspec new change <change-id>` command
+first. Prewrite may bootstrap only that exact absent companion. Thereafter it
+must validate and cover itself as well as all material writes; no whole Change
+directory is exempt from admission.
+
 Use `template.md` as the authoring scaffold and validate with:
 
 ```bash

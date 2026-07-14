@@ -9,6 +9,8 @@ from ethos.adapters.openspec.preflight.core import openspec_archive_preflight_re
 from ethos.adapters.openspec.protocol.core import proposal_protocol_report
 from ethos.repository.profile import profile_root
 
+from . import scope
+
 if TYPE_CHECKING:
     from collections.abc import Callable
     from pathlib import Path
@@ -19,6 +21,7 @@ class OpenSpecRequest(NamedTuple):
 
     change: str | None
     lifecycle: bool
+    changed_paths: tuple[str, ...] = ()
 
 
 class OpenSpecReportContext(NamedTuple):
@@ -39,6 +42,9 @@ class OpenSpecLifecycleRuntime(NamedTuple):
     run_json: Callable[[Path, tuple[str, ...], tuple[str, ...]], dict[str, object]]
 
 
+material_change_scope_report = scope.material_change_scope_report
+
+
 def selected_change(list_payload: dict[str, Any], requested: str | None) -> str | None:
     """Select the OpenSpec change to inspect from list JSON and optional request."""
     if requested:
@@ -47,17 +53,47 @@ def selected_change(list_payload: dict[str, Any], requested: str | None) -> str 
     if not isinstance(changes, list):
         return None
     in_progress = [
-        item for item in changes if isinstance(item, dict) and item.get("status") == "in-progress"
+        item
+        for item in changes
+        if isinstance(item, dict)
+        and item.get("name")
+        and str(item.get("status") or "") == "in-progress"
     ]
     if in_progress:
-        return str(in_progress[0].get("name") or "")
-    if len(changes) == 1 and isinstance(changes[0], dict):
-        return str(changes[0].get("name") or "")
-    complete = [item for item in changes if isinstance(item, dict) and item.get("name")]
+        return _latest_change_name(in_progress)
+    archiving = [
+        item
+        for item in changes
+        if isinstance(item, dict)
+        and item.get("name")
+        and str(item.get("status") or "") == "archiving"
+    ]
+    if archiving:
+        return _latest_change_name(archiving)
+    complete = [
+        item
+        for item in changes
+        if isinstance(item, dict)
+        and item.get("name")
+        and str(item.get("status") or "") in {"", "complete"}
+    ]
     if complete:
-        latest = max(complete, key=lambda item: str(item.get("lastModified") or ""))
-        return str(latest.get("name") or "")
+        return _latest_change_name(complete)
+    if len(changes) == 1 and isinstance(changes[0], dict):
+        return str(changes[0].get("name") or "") or None
     return None
+
+
+def _latest_change_name(changes: list[dict[str, Any]]) -> str:
+    """Return the deterministically latest named OpenSpec Change."""
+    latest = max(
+        changes,
+        key=lambda item: (
+            str(item.get("lastModified") or ""),
+            str(item.get("name") or ""),
+        ),
+    )
+    return str(latest["name"])
 
 
 def validation_failures(validate_payload: dict[str, Any]) -> list[str]:
@@ -98,6 +134,7 @@ def openspec_official_cli(
 
 
 def empty_lifecycle(
+    root: Path,
     request: OpenSpecRequest,
     protected_branch_residue: dict[str, object],
 ) -> dict[str, Any]:
@@ -105,11 +142,16 @@ def empty_lifecycle(
     return {
         "enabled": request.lifecycle,
         "changes": [],
+        "scope_binding": scope.material_change_scope_report(
+            root,
+            changed_paths=request.changed_paths,
+            active_change_names=(),
+        ),
         "protected_branch_residue": protected_branch_residue,
     }
 
 
-def openspec_unavailable_report(context: OpenSpecReportContext) -> dict[str, Any]:
+def openspec_unavailable_report(root: Path, context: OpenSpecReportContext) -> dict[str, Any]:
     """Build a governance report when the official CLI is unavailable."""
     return {
         "ok": False,
@@ -124,12 +166,13 @@ def openspec_unavailable_report(context: OpenSpecReportContext) -> dict[str, Any
         "required_gaps": context.required_gaps,
         "advisory_gaps": context.advisory_gaps,
         "commands": {},
-        "lifecycle": empty_lifecycle(context.request, context.protected_branch_residue),
+        "lifecycle": empty_lifecycle(root, context.request, context.protected_branch_residue),
     }
 
 
 def openspec_timeout_report(
     *,
+    root: Path,
     context: OpenSpecReportContext,
     base_command: tuple[str, ...],
     doctor: dict[str, Any],
@@ -147,7 +190,7 @@ def openspec_timeout_report(
         "summary": {},
         "required_gaps": context.required_gaps,
         "advisory_gaps": context.advisory_gaps,
-        "lifecycle": empty_lifecycle(context.request, context.protected_branch_residue),
+        "lifecycle": empty_lifecycle(root, context.request, context.protected_branch_residue),
         "commands": {"doctor": doctor, "list": {}, "status": {}, "validate": {}},
     }
 
@@ -246,6 +289,9 @@ def lifecycle_report(
         return {
             "required_gaps": [],
             "changes": [],
+            "scope_binding": scope.material_change_scope_report(
+                root, changed_paths=request.changed_paths, active_change_names=()
+            ),
             "protected_branch_residue": residue,
         }
     changes_payload = list_payload.get("changes", [])
@@ -255,7 +301,9 @@ def lifecycle_report(
         change_names = [
             str(item.get("name"))
             for item in changes_payload
-            if isinstance(item, dict) and item.get("name")
+            if isinstance(item, dict)
+            and item.get("name")
+            and str(item.get("status") or "") in {"", "in-progress", "archiving", "complete"}
         ]
     else:
         change_names = []
@@ -314,8 +362,15 @@ def lifecycle_report(
                 ],
             }
         )
+    scope_binding = scope.material_change_scope_report(
+        root,
+        changed_paths=request.changed_paths,
+        active_change_names=tuple(change_names),
+    )
+    required_gaps.extend(str(gap) for gap in scope_binding["required_gaps"])
     return {
         "required_gaps": required_gaps,
         "changes": changes,
+        "scope_binding": scope_binding,
         "protected_branch_residue": residue,
     }

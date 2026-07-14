@@ -82,7 +82,7 @@ python_total = 58722
 global_total = 73739
 
 [quality.source_budget.debt]
-maximum_total = 5451
+maximum_total = 6569
 
 [[quality.source_budget.debt.records]]
 id = "program-foundation"
@@ -148,6 +148,19 @@ allowance = 84
 
 [quality.source_budget.debt.records.allowance_by_category]
 python_product = 84
+
+[[quality.source_budget.debt.records]]
+id = "adopter-material-scope-binding-completion-20260714"
+owner = "adopter-material-scope-binding-completion-20260714"
+replacement = "compress scope-binding fixtures and duplicate lifecycle wiring after the shared companion read model is consolidated"
+deletion_wave = "adopter-material-scope-compression"
+expiry = "adopter-material-scope-compression"
+allowance = 1118
+
+[quality.source_budget.debt.records.allowance_by_category]
+python_product = 428
+python_tests = 824
+jinja = 7
 
 [gates.local-state-audit]
 command = "tools/ci/scripts/run-local-state-audit.sh"

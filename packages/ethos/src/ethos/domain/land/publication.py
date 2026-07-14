@@ -79,7 +79,6 @@ def local_ci_fallback_evidence_status(
     evidence_head = str(payload.get("head") or "")
     evidence_ok = payload.get("ok") is True
     current = bool(current_head) and evidence_head == current_head and evidence_ok
-    state = "current" if current else "stale"
     next_action = "run tools/ci/scripts/run-local-ci.sh as local fallback evidence"
     if current:
         if remote_availability_state == "not_probed":
@@ -93,7 +92,7 @@ def local_ci_fallback_evidence_status(
                 "remote availability observed; local-ci fallback evidence is current at HEAD"
             )
     return {
-        "state": state,
+        "state": "current" if current else "stale",
         "path": relative_path,
         "current_head": current_head,
         "evidence_head": evidence_head,

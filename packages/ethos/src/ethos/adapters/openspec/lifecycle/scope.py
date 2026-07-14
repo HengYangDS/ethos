@@ -12,8 +12,8 @@ from typing import NamedTuple
 from pydantic import ValidationError
 
 from ethos.repository.profile import load_repository_profile
-from ethos_core.contracts.openspec import AdopterOpenSpecPolicy
-from ethos_core.contracts.openspec import ChangeScopeDeclaration
+from ethos_core.contracts.openspec.models import AdopterOpenSpecPolicy
+from ethos_core.contracts.openspec.models import ChangeScopeDeclaration
 
 if TYPE_CHECKING:
     from pathlib import Path

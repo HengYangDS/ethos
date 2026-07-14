@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import pytest
 
 import ethos.adapters.openspec.cli as openspec_cli
@@ -10,13 +12,11 @@ import ethos.surface.cli.root.planning as planning_cli
 import ethos.surface.cli.root.proof as proof_cli
 from ethos.adapters.admission.prewrite import prewrite_guard
 from ethos.adapters.mutation.lanes import start_work_lane
+from tests.support.ethos_cli_runner import run_ethos
+from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.lane_helpers import add_candidate_worktree
 from tests.support.lane_helpers import git
 from tests.support.lane_helpers import init_repo
-from tests.support.ethos_cli_runner import run_ethos
-from tests.support.ethos_cli_runner import run_ethos_blocked
-
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from pathlib import Path

@@ -241,7 +241,10 @@ def publication_readiness(
     fallback = local_ci_fallback or local_ci_fallback_package(remote_availability=availability)
     evidence_status = fallback.get("evidence_status")
     if isinstance(evidence_status, dict):
-        evidence_next_action = str(evidence_status.get("next_action") or "")
+        evidence_next_action = str(
+            evidence_status.get("next_action")
+            or "run tools/ci/scripts/run-local-ci.sh as local fallback evidence"
+        )
     else:
         evidence_next_action = "run tools/ci/scripts/run-local-ci.sh as local fallback evidence"
 

@@ -64,7 +64,7 @@ def test_wheel_resources_and_build_hook_are_projections(monkeypatch) -> None:
         assert not (CORE_SOURCE / "data" / resource).exists()
         assert sdist[f"../../{canonical}"] == f"src/ethos_core/data/{resource}"
         assert wheel[f"src/ethos_core/data/{resource}"] == f"ethos_core/data/{resource}"
-    assert sdist["build_hook.py"] == "build_hook.py"
+    assert sdist["../../tools/packaging/ethos_core_build_hook.py"] == "build_hook.py"
     interface = types.ModuleType("hatchling.builders.hooks.plugin.interface")
     interface.BuildHookInterface = type("Hook", (), {"root": property(lambda self: self._root)})
     monkeypatch.setitem(sys.modules, interface.__name__, interface)

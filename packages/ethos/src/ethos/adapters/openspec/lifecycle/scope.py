@@ -32,6 +32,7 @@ class MaterialScopeBinding(NamedTuple):
     required_gaps: tuple[str, ...]
     advisory_gaps: tuple[str, ...]
     bootstrap: dict[str, str] | None
+    profile_bootstrap: dict[str, str] | None
 
 
 def material_change_scope_report(
@@ -63,6 +64,7 @@ def material_change_scope_report(
         required_gaps=(),
         advisory_gaps=(),
         bootstrap=None,
+        profile_bootstrap=None,
     )
     if not profile.exists:
         binding = binding._replace(state="not_applicable")
@@ -86,6 +88,17 @@ def _material_scope_binding_for_profile(
     active_change_names: tuple[str, ...] | None,
 ) -> MaterialScopeBinding:
     """Project scope coverage after confirming an adopter profile exists and parses."""
+    profile_bootstrap = _profile_material_paths_bootstrap(
+        root=root,
+        changed_paths=binding.changed_paths,
+        policy_payload=policy_payload,
+        active_change_names=active_change_names,
+    )
+    if profile_bootstrap is not None:
+        return binding._replace(
+            state="profile_material_paths_bootstrap",
+            profile_bootstrap=profile_bootstrap,
+        )
     if _material_paths_missing(policy_payload):
         return binding._replace(
             state="material_paths_missing",
@@ -187,6 +200,36 @@ def _bootstrap_scope_creation(
     return {"change": str(change["name"]), "scope_path": requested}
 
 
+def _profile_material_paths_bootstrap(
+    *,
+    root: Path,
+    changed_paths: tuple[str, ...],
+    policy_payload: object,
+    active_change_names: tuple[str, ...] | None,
+) -> dict[str, str] | None:
+    """Admit only the one tracked profile write that adds a missing declaration.
+
+    Existing adopters predate the material-scope contract.  They need one
+    recoverable first write: add ``[openspec].material_paths`` to their
+    already-tracked profile, then use the normal exact ``scope.toml`` bootstrap.
+    The exception never treats an empty or malformed declaration as valid and
+    never admits an adjacent material path.
+    """
+    profile_path = ".ethos/profile.toml"
+    if not _material_declaration_absent(policy_payload):
+        return None
+    if changed_paths != (profile_path,) or not _is_tracked_path(root, profile_path):
+        return None
+    names = tuple(active_change_names or ())
+    if len(names) != 1:
+        return None
+    change_name = names[0]
+    change_root = root / "openspec" / "changes" / change_name
+    if not change_root.is_dir():
+        return None
+    return {"change": change_name, "profile_path": profile_path}
+
+
 def _is_untracked_scope_path(root: Path, path: str) -> bool:
     """Return whether the exact bootstrap companion has never entered Git's index."""
     completed = subprocess.run(
@@ -199,12 +242,29 @@ def _is_untracked_scope_path(root: Path, path: str) -> bool:
     return completed.returncode == 1
 
 
+def _is_tracked_path(root: Path, path: str) -> bool:
+    """Return whether a path is already tracked by Git."""
+    completed = subprocess.run(
+        ["git", "ls-files", "--error-unmatch", "--", path],
+        cwd=root,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    return completed.returncode == 0
+
+
 def _material_paths_missing(policy_payload: object) -> bool:
     """Return whether an adopter has not made the required material declaration."""
     if not isinstance(policy_payload, dict) or "material_paths" not in policy_payload:
         return True
     paths = policy_payload.get("material_paths")
     return isinstance(paths, list) and not paths
+
+
+def _material_declaration_absent(policy_payload: object) -> bool:
+    """Return true only when a legacy profile has no declaration at all."""
+    return not isinstance(policy_payload, dict) or "material_paths" not in policy_payload
 
 
 def _change_scope_declarations(
@@ -286,4 +346,5 @@ def _material_scope_payload(binding: MaterialScopeBinding) -> dict[str, Any]:
         "required_gaps": list(binding.required_gaps),
         "advisory_gaps": list(binding.advisory_gaps),
         "bootstrap": binding.bootstrap or {},
+        "profile_bootstrap": binding.profile_bootstrap or {},
     }

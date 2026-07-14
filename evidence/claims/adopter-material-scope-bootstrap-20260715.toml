@@ -1,0 +1,42 @@
+[claim]
+id = "adopter-material-scope-bootstrap-20260715"
+change_id = "adopter-material-scope-bootstrap-20260715"
+subject = "repository-governance:adopter-material-scope-bootstrap"
+state = "active"
+summary = "ETHOS permits one exact legacy profile declaration bootstrap before ordinary Change scope coverage begins."
+
+[evidence]
+dated = "evidence/chronicle/adopter-material-scope-bootstrap-20260715/2026-07-15.md"
+sha256 = "97277feded1b6d55a52c7fd31c2ea02a6084f2721ea1e60cf954b0308923c468"
+evidence_ids = ["evidence:adopter-material-scope-bootstrap-20260715"]
+binding = "Exact tracked-profile bootstrap provenance, focused regression coverage, and an active OpenSpec carrier."
+verifier = "digest_only"
+tests = [
+  "uv run --all-packages --group dev pytest -q tests/unit/lanes/test_lanes_openspec_scope.py -k 'profile_material_paths_bootstrap or tracked_legacy_profile_material_declaration'",
+  "tools/ci/scripts/run-ethos-lane.sh openspec --lifecycle --json",
+  "tools/ci/scripts/run-ethos-lane.sh prove --execute --expect-head <committed-head> --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "One exact tracked legacy profile write that introduces a missing material-path declaration."
+
+[carriers]
+openspec = "openspec/changes/adopter-material-scope-bootstrap-20260715"
+fallback = "Keep material-path declarations fail-closed until an accepted migration mechanism is available."
+kill_signal = "The bootstrap admits an adjacent path, an empty or malformed declaration, an untracked profile, or multiple selected Changes."
+
+[promotion]
+targets = [
+  "packages/ethos/src/ethos/adapters/openspec/lifecycle/scope.py",
+  "tests/unit/lanes/test_lanes_openspec_scope.py",
+  "docs/governance/openspec-governance.md",
+  "docs/governance/repository-profile-contract.md",
+  "openspec/specs/repository-governance/spec.md",
+  "openspec/changes/adopter-material-scope-bootstrap-20260715",
+  "evidence/claims/adopter-material-scope-bootstrap-20260715.toml",
+  "evidence/chronicle/adopter-material-scope-bootstrap-20260715/2026-07-15.md",
+]

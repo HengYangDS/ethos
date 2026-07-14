@@ -67,6 +67,11 @@ def git_stdout(root: Path, *args: str) -> str:
     return completed.stdout.strip()
 
 
+def committed_file_text(root: Path, ref: str, path: str) -> str:
+    """Return a tracked file's text from a committed tree, or '' when unavailable."""
+    return git_stdout(root, "show", f"{ref}:{path}") if ref else ""
+
+
 def remote_tracking_sync(root: Path, branch: str, remote: str = "origin") -> dict[str, object]:
     """Project local HEAD versus the local remote-tracking ref without network IO."""
     branch_name = branch.strip()

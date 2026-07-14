@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import subprocess
 import tomllib
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -122,22 +121,8 @@ class BranchRolePolicy:
         }
 
 
-def load_branch_role_policy(root: Path, ref: str = "") -> BranchRolePolicy:
-    """Load the working-tree policy or one committed policy tree."""
-    path = root / ".ethos" / "workspace.toml"
-    text = (
-        subprocess.run(
-            ["git", "show", f"{ref}:.ethos/workspace.toml"],
-            cwd=root,
-            capture_output=True,
-            text=True,
-            check=False,
-        ).stdout
-        if ref
-        else path.read_text(encoding="utf-8")
-        if path.exists()
-        else ""
-    )
+def branch_role_policy_from_text(text: str) -> BranchRolePolicy:
+    """Parse branch-role policy text without filesystem or provider access."""
     try:
         payload = tomllib.loads(text)
     except tomllib.TOMLDecodeError:
@@ -162,6 +147,12 @@ def load_branch_role_policy(root: Path, ref: str = "") -> BranchRolePolicy:
         if raw_policy.get("release_mirror") == RELEASE_MIRROR_ACCEPTED_FF
         else "independent",
     )
+
+
+def load_branch_role_policy(root: Path) -> BranchRolePolicy:
+    """Load branch-role policy from the current working tree."""
+    path = root / ".ethos" / "workspace.toml"
+    return branch_role_policy_from_text(path.read_text(encoding="utf-8") if path.exists() else "")
 
 
 def _string_value(value: Any, fallback: str) -> str:

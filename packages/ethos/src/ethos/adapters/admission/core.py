@@ -14,6 +14,7 @@ from ethos.adapters.admission.shell import command_risk
 from ethos.adapters.admission.shell import git_stash_policy
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.mutation.proof import executed_proof_record
+from ethos.adapters.repo.git import committed_file_text
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.repository.policy.gates import gate_policy_digest
 from ethos_core.contracts.branch.roles import PROTECTED_WRITE_ROLES
@@ -280,6 +281,7 @@ def ref_move_admission_report(
     out-of-band ref moves are blocked.
     """
     from ethos.adapters.mutation.core import proof_gaps
+    from ethos_core.contracts.branch.roles import branch_role_policy_from_text
     from ethos_core.contracts.branch.roles import load_branch_role_policy
 
     repo = root.resolve()
@@ -302,7 +304,9 @@ def ref_move_admission_report(
 
     gaps: list[str] = []
     reason = ""
-    candidate_policy = load_branch_role_policy(repo, policy.candidate_branch)
+    candidate_policy = branch_role_policy_from_text(
+        committed_file_text(repo, policy.candidate_branch, ".ethos/workspace.toml")
+    )
     mirror = (
         branch == candidate_policy.release_branch
         and candidate_policy.release_mirror == RELEASE_MIRROR_ACCEPTED_FF

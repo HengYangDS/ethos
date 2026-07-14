@@ -18,11 +18,13 @@ from ethos.adapters.mutation.proof import discard_executed_proof
 from ethos.adapters.mutation.proof import executed_proof_record
 from ethos.adapters.mutation.proof import gate_policy_gaps
 from ethos.adapters.mutation.proof import promotion_completeness_gaps
+from ethos.adapters.repo.git import committed_file_text
 from ethos.adapters.repo.status.core import workspace_status
 from ethos_core.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
 from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch.roles import ROLE_CANDIDATE
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
+from ethos_core.contracts.branch.roles import branch_role_policy_from_text
 from ethos_core.contracts.branch.roles import load_branch_role_policy
 from ethos_core.contracts.lifecycle.core import CLOSEOUT_MUTATION
 from ethos_core.contracts.lifecycle.core import WORK_LANE_MUTATION
@@ -103,7 +105,8 @@ def evaluate_mutation(request, *, root, current_head):
             transition=WORK_LANE_MUTATION,
         )
     closeout = cast(
-        "dict[str, object]", (status := workspace_status(root)).get("closeout_support", {})
+        "dict[str, object]",
+        (status := workspace_status(root)).get("closeout_support", {}),
     )
     return reduce_mutation(
         request,
@@ -230,7 +233,10 @@ def apply_candidate_to_accepted(
     current_head = run_git(root, "rev-parse", "HEAD").stdout.strip()
     decision = evaluate_closeout_mutation(
         MutationRequest(
-            command="closeout", apply=True, authorized=authorized, expect_head=expect_head
+            command="closeout",
+            apply=True,
+            authorized=authorized,
+            expect_head=expect_head,
         ),
         root=root,
         current_head=current_head,
@@ -246,7 +252,9 @@ def apply_candidate_to_accepted(
     status = workspace_status(root)
     candidate = cast("dict[str, object]", status["candidate"])
     candidate_head = str(candidate["head"])
-    policy = load_branch_role_policy(root, candidate_head)
+    policy = branch_role_policy_from_text(
+        committed_file_text(root, candidate_head, ".ethos/workspace.toml")
+    )
     if decision.state == "current" and policy.release_mirror != RELEASE_MIRROR_ACCEPTED_FF:
         return {
             **_accepted_payload(policy, current_head),

@@ -1,4 +1,4 @@
-# ruff: noqa: INP001, E501, S102
+# ruff: noqa: INP001, E501
 """Checkout loader; the sdist replaces this file with the packaged implementation."""
 
 # fmt: off

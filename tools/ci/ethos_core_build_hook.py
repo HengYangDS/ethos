@@ -1,4 +1,3 @@
-# ruff: noqa: INP001
 """Hatch build hook for declaration-resource projections."""
 
 from __future__ import annotations

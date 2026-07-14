@@ -128,6 +128,12 @@ def test_adopt_apply_makes_a_recognized_adopter_with_the_adopter_floor(
     assert profile.exists is True
     assert profile.valid is True
     assert profile.identity.get("profile_id") == tmp_path.name
+    assert profile.tables["openspec"]["material_paths"] == [
+        ".ethos/profile.toml",
+        "openspec/**",
+        "docs/governance/**",
+        "rules/**",
+    ]
     assert f'name = "{tmp_path.name}"' in (tmp_path / ".ethos/project.toml").read_text(
         encoding="utf-8"
     )
@@ -252,7 +258,9 @@ def _assert_maintainer_loop(text: str) -> None:
     assert "ethos quality" not in text
 
 
-def test_generated_quickstart_teaches_first_hour_not_maintainer_checks(tmp_path: Path) -> None:
+def test_generated_quickstart_teaches_first_hour_not_maintainer_checks(
+    tmp_path: Path,
+) -> None:
     adoption_plan(tmp_path, profile="generic", apply=True)
     _assert_maintainer_loop(
         (tmp_path / "docs/start/quickstart.md")

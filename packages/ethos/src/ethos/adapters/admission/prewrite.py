@@ -3,7 +3,9 @@ from __future__ import annotations
 import os
 import subprocess
 from pathlib import Path
+from typing import cast
 
+from ethos.adapters.openspec.core import openspec_governance_report
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.adapters.store.state.lease.projection import integer_value
@@ -44,6 +46,15 @@ def prewrite_guard(
     runtime_check = _runtime_binding_check(status)
     checked_paths = [_check_path(root=root, path=path, role=role) for path in paths]
     tracked_write_requested = any(path["tracked_candidate"] for path in checked_paths)
+    requested_paths = tuple(
+        str(path["relative_path"])
+        for path in checked_paths
+        if path["tracked_candidate"] is True and path["relative_path"]
+    )
+    openspec_lifecycle = openspec_governance_report(
+        root, lifecycle=True, changed_paths=requested_paths
+    )
+    material_scope = _material_scope_from_lifecycle(openspec_lifecycle)
     lease_check = _work_lane_lease_check(
         root=root,
         status=status,
@@ -60,6 +71,7 @@ def prewrite_guard(
         runtime_check=runtime_check,
         lease_check=lease_check,
         editor_check=editor_check,
+        material_scope=material_scope,
         blocked_paths=blocked_paths,
     )
     decision = _prewrite_decision(
@@ -81,6 +93,8 @@ def prewrite_guard(
         "runtime_binding": runtime_check,
         "work_lane_lease": lease_check,
         "editor_root": editor_check,
+        "openspec_lifecycle": openspec_lifecycle,
+        "material_scope": material_scope,
         "paths": checked_paths,
         "blocked_paths": blocked_paths,
         "request_binding": decision.subject.model_dump(mode="json"),
@@ -471,6 +485,7 @@ def _error(
     runtime_check: dict[str, object],
     lease_check: dict[str, object],
     editor_check: dict[str, object],
+    material_scope: dict[str, object],
     blocked_paths: list[dict[str, object]],
 ) -> str:
     error = ""
@@ -482,6 +497,9 @@ def _error(
         error = str(lease_check["reason"])
     if not error and editor_check["ok"] is not True:
         error = str(editor_check["reason"])
+    scope_gaps = material_scope.get("required_gaps")
+    if not error and isinstance(scope_gaps, list) and scope_gaps:
+        error = str(scope_gaps[0])
     return error
 
 
@@ -496,3 +514,24 @@ def _blocked_path_error(blocked_paths: list[dict[str, object]]) -> str:
     if blocked_paths:
         return "protected_lane_prewrite_blocked"
     return ""
+
+
+def _material_scope_from_lifecycle(report: dict[str, object]) -> dict[str, object]:
+    """Return the canonical scope read model projected by OpenSpec lifecycle."""
+    lifecycle = report.get("lifecycle")
+    if isinstance(lifecycle, dict):
+        scope_binding = lifecycle.get("scope_binding")
+        if isinstance(scope_binding, dict):
+            return cast("dict[str, object]", scope_binding)
+    return {
+        "ok": True,
+        "state": "not_available",
+        "changed_paths": [],
+        "material_patterns": [],
+        "material_paths": [],
+        "changes": [],
+        "covered_paths": [],
+        "uncovered_paths": [],
+        "required_gaps": [],
+        "advisory_gaps": [],
+    }

@@ -11,6 +11,8 @@ from ethos.adapters.gates.runner import DryRunRunner
 from ethos.adapters.gates.runner import LocalSubprocessRunner
 from ethos.adapters.mutation.proof import record_executed_proof
 from ethos.adapters.openspec.core import openspec_governance_report
+from ethos.adapters.repo.dirty.core import change_scope_paths_from_status
+from ethos.adapters.repo.status.core import workspace_status
 from ethos.repository.evidence.core import AdapterProofResult
 from ethos.repository.evidence.core import EvidenceSet
 from ethos.repository.evidence.core import ProofRun
@@ -136,7 +138,13 @@ def prove(
     audit = status_domain.audit_for_root(
         repo, openspec_mode="deep" if full else "shape", current_head=current_head
     )
-    openspec_lifecycle = openspec_governance_report(repo, lifecycle=True)
+    changed_paths = change_scope_paths_from_status(repo, workspace_status(repo))
+    openspec_lifecycle = openspec_governance_report(
+        repo,
+        lifecycle=True,
+        changed_paths=changed_paths,
+    )
+    lifecycle_gaps = tuple(str(gap) for gap in openspec_lifecycle.get("required_gaps", []))
     graph = gate_graph(gate, full=full, root=repo)
     graph_validation = graph.validate()
     gates_by_id = gate_registry(repo)
@@ -232,7 +240,7 @@ def prove(
         },
         required_gaps=(
             tuple(string_sequence(audit.get("required_gaps")))
-            + tuple(map(str, openspec_lifecycle.get("required_gaps", ())))
+            + lifecycle_gaps
             + tuple(graph_validation.gaps)
             + failed_gate_gaps
             + proof_gaps
@@ -246,6 +254,7 @@ def prove(
             "governance_context": audit["governance_context"],
             "repository_audit": audit,
             "openspec_lifecycle": openspec_lifecycle,
+            "changed_paths": list(changed_paths),
             "executed": execute,
             "scope": scope_binding["scope"],
             "scope_binding": scope_binding,

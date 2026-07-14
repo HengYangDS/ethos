@@ -153,6 +153,36 @@ def test_prove_surfaces_active_archive_preflight_gap(monkeypatch) -> None:
     assert payload["data"]["openspec_lifecycle"] == lifecycle
 
 
+def test_adopter_proof_surfaces_openspec_lifecycle_gap(monkeypatch, tmp_path: Path) -> None:
+    """An adopter proof cannot substitute a clean placeholder for lifecycle truth."""
+    repo = init_git_repo(tmp_path / "adopter")
+    adoption_plan(repo, profile="generic", apply=True)
+    git(repo, "add", ".")
+    git(repo, "commit", "-m", "adopt generic profile")
+    lifecycle_payload = {
+        "ok": False,
+        "required_gaps": ["openspec_claim_binding_missing:material-change"],
+    }
+    calls: list[tuple[Path, bool, tuple[str, ...]]] = []
+
+    def report(
+        root: Path, *, lifecycle: bool = False, changed_paths: tuple[str, ...] = ()
+    ) -> dict[str, object]:
+        calls.append((root, lifecycle, changed_paths))
+        return lifecycle_payload
+
+    monkeypatch.setattr(proof_cli, "openspec_governance_report", report)
+
+    payload = run_ethos_blocked("prove", "--root", repo.as_posix(), "--json")
+
+    assert calls == [(repo, True, ())]
+    assert payload["state"] == "gapped"
+    assert payload["required_gaps"] == lifecycle_payload["required_gaps"]
+    assert (
+        payload["data"]["openspec_lifecycle"]["required_gaps"] == lifecycle_payload["required_gaps"]
+    )
+
+
 def test_prove_accepts_proof_scope_compatibility_flag() -> None:
     payload = run_ethos("prove", "--scope", "proof-kernel", "--json")
 

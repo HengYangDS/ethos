@@ -91,6 +91,51 @@ def test_selection_and_validation_helper_edge_cases() -> None:
         )
         == "newer"
     )
+    assert (
+        openspec_lifecycle.selected_change(
+            {
+                "changes": [
+                    {
+                        "name": "completed-older",
+                        "status": "complete",
+                        "lastModified": "2026-07-14T09:00:00Z",
+                    },
+                    {
+                        "name": "completed-newer",
+                        "status": "complete",
+                        "lastModified": "2026-07-14T10:00:00Z",
+                    },
+                ]
+            },
+            None,
+        )
+        == "completed-newer"
+    )
+    assert (
+        openspec_lifecycle.selected_change(
+            {
+                "changes": [
+                    {
+                        "name": "complete-newest",
+                        "status": "complete",
+                        "lastModified": "2026-07-14T12:00:00Z",
+                    },
+                    {
+                        "name": "archiving",
+                        "status": "archiving",
+                        "lastModified": "2026-07-14T09:00:00Z",
+                    },
+                    {
+                        "name": "progressing",
+                        "status": "in-progress",
+                        "lastModified": "2026-07-14T08:00:00Z",
+                    },
+                ]
+            },
+            None,
+        )
+        == "progressing"
+    )
     assert openspec_lifecycle.selected_change({}, "requested") == "requested"
     assert openspec_lifecycle.validation_failures({"items": "bad"}) == [
         "openspec_validation_unreadable"
@@ -126,7 +171,10 @@ def test_completed_active_changes_report_handles_missing_cli_and_bad_list(
     )
     report = openspec_metadata_adapter.completed_active_changes_report(root)
     assert report["completed_changes"] == []
-    assert report["required_gaps"] == ["openspec_list_failed", "openspec_list_json_parse_failed"]
+    assert report["required_gaps"] == [
+        "openspec_list_failed",
+        "openspec_list_json_parse_failed",
+    ]
 
 
 def test_archive_closeout_reports_all_edge_gaps(tmp_path: Path) -> None:
@@ -181,7 +229,9 @@ def test_openspec_metadata_compatibility_checks_active_and_archived_changes(
     } == set(report["required_gaps"])
 
 
-def test_archive_metadata_created_after_archive_and_delta_detail_gaps(tmp_path: Path) -> None:
+def test_archive_metadata_created_after_archive_and_delta_detail_gaps(
+    tmp_path: Path,
+) -> None:
     root = tmp_path / "repo"
     archive = root / "openspec" / "changes" / "archive" / "2026-07-01-sample"
     spec = archive / "specs" / "capability" / "spec.md"
@@ -324,7 +374,10 @@ def test_openspec_governance_report_surfaces_command_parse_and_status_failures(
             payload = {"isComplete": False, "schemaName": "spec-driven"}
             parse_error = "bad status"
         elif args == ("validate", "--all", "--strict", "--json"):
-            payload = {"items": [{"valid": False, "type": "spec", "id": "cap"}], "summary": {}}
+            payload = {
+                "items": [{"valid": False, "type": "spec", "id": "cap"}],
+                "summary": {},
+            }
             exit_code = 1
             parse_error = "bad validate"
         else:

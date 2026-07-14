@@ -30,9 +30,10 @@ def openspec_governance_report(
     *,
     change: str | None = None,
     lifecycle: bool = False,
+    changed_paths: tuple[str, ...] = (),
 ) -> dict[str, Any]:
     """Return the ETHOS OpenSpec governance report for one repository root."""
-    request = OpenSpecRequest(change, lifecycle)
+    request = OpenSpecRequest(change, lifecycle, changed_paths)
     base_command = openspec_cli.openspec_base_command()
     if base_command is None:
         return _openspec_governance_report(
@@ -93,12 +94,13 @@ def _openspec_governance_report(
 
     if base_command is None:
         required_gaps.append("openspec_official_cli_missing")
-        return openspec_unavailable_report(context)
+        return openspec_unavailable_report(root, context)
 
     doctor = openspec_cli.run_json(root, base_command, ("doctor", "--json"))
     if doctor["parse_error"] == "openspec_command_timeout":
         required_gaps.extend(["openspec_doctor_unhealthy", "openspec_doctor_json_parse_failed"])
         return openspec_timeout_report(
+            root=root,
             context=context,
             base_command=base_command,
             doctor=doctor,
@@ -149,6 +151,7 @@ def _openspec_governance_report(
         "lifecycle": {
             "enabled": request.lifecycle,
             "changes": lifecycle_payload["changes"],
+            "scope_binding": lifecycle_payload["scope_binding"],
             "protected_branch_residue": lifecycle_payload["protected_branch_residue"],
         },
         "commands": {

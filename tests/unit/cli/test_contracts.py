@@ -14,6 +14,7 @@ from ethos_core.result import EthosResult
 from tests.support.contract_helpers import git
 from tests.support.contract_helpers import init_git_repo
 from tests.support.ethos_cli_runner import run_ethos
+from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.ethos_cli_runner import run_ethos_raw
 
 
@@ -109,7 +110,8 @@ def test_primary_commands_use_same_context_for_adopted_repository(
     adoption_plan(repo, profile="generic", apply=True)
 
     for command in PRIMARY_COMMANDS_WITH_GOVERNANCE_CONTEXT:
-        payload = run_ethos(*command[:-1], "--root", repo.as_posix(), command[-1])
+        runner = run_ethos_blocked if command[0] == "prove" else run_ethos
+        payload = runner(*command[:-1], "--root", repo.as_posix(), command[-1])
 
         context = payload["governance_context"]
         _assert_governed_repository_context(context, profile="generic")
@@ -311,6 +313,37 @@ def test_plan_changed_surfaces_active_archive_preflight_gap(monkeypatch) -> None
     assert payload["state"] == "gapped"
     assert payload["required_gaps"] == lifecycle["required_gaps"]
     assert payload["data"]["openspec_lifecycle"] == lifecycle
+
+
+def test_plan_adopter_surfaces_openspec_lifecycle_gap(monkeypatch, tmp_path: Path) -> None:
+    """An adopter plan cannot omit the shared Change lifecycle."""
+    repo = init_git_repo(tmp_path / "adopter")
+    adoption_plan(repo, profile="generic", apply=True)
+    git(repo, "add", ".")
+    git(repo, "commit", "-m", "adopt generic profile")
+    lifecycle_payload = {
+        "ok": False,
+        "required_gaps": ["openspec_claim_binding_missing:material-change"],
+    }
+    calls: list[tuple[Path, bool, tuple[str, ...]]] = []
+
+    def report(
+        root: Path, *, lifecycle: bool = False, changed_paths: tuple[str, ...] = ()
+    ) -> dict[str, object]:
+        calls.append((root, lifecycle, changed_paths))
+        return lifecycle_payload
+
+    monkeypatch.setattr(planning_cli, "openspec_governance_report", report)
+
+    payload = run_ethos("plan", "--changed", "--root", repo.as_posix(), "--json")
+
+    assert calls == [(repo, True, ())]
+    assert payload["ok"] is False
+    assert payload["state"] == "gapped"
+    assert payload["required_gaps"] == lifecycle_payload["required_gaps"]
+    assert (
+        payload["data"]["openspec_lifecycle"]["required_gaps"] == lifecycle_payload["required_gaps"]
+    )
 
 
 def test_plan_changed_maps_repository_rules_to_required_gates(tmp_path: Path) -> None:

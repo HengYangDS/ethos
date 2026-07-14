@@ -45,6 +45,23 @@ projected under `archive_preflight`. The same lifecycle projection is consumed
 by `ethos plan --changed`, `ethos prove`, and `ethos land`; accepted-root
 closeout evaluates it against the admitted candidate root.
 
+For adopters, the official active or archiving Change selection also feeds one
+ETHOS-owned material-scope read model. An adopter declares the material path
+families in `[openspec].material_paths`; an active Change may declare its
+covered paths in `openspec/changes/<id>/scope.toml`. The companion is not an
+official OpenSpec workflow-schema extension and cannot replace the official
+lifecycle. `lane prewrite`, `plan --changed`, and `prove` consume the same
+read model. An uncovered material path fails with
+`openspec_material_path_uncovered:<path>`; lifecycle scope is not a
+code-correctness gate and no method package carries Change authority.
+
+The only bootstrap exception is the exact absent
+`openspec/changes/<id>/scope.toml` for a Change that the official list already
+identifies as active. Once written, that companion must validate and cover
+itself. There is no blanket exemption for an OpenSpec directory, `.ethos/`, or
+a path family; missing or invalid unrelated companions remain diagnostics and
+do not override valid coverage supplied by another selected Change.
+
 Canonical capability profiles live beside canonical specs as
 `openspec/specs/<capability>/capability.toml`. They are validated by
 `capability-profile.schema.json` and record the family owner, primary invariant,

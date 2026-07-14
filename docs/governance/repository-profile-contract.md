@@ -91,7 +91,51 @@ local_state = ".ethos/state"
 [evidence]
 generated_roots = ["build/evidence"]
 host_local_roots = [".ethos/state", ".cache/local-state"]
+
+[openspec]
+material_paths = [
+  ".ethos/profile.toml",
+  "openspec/**",
+  "docs/governance/**",
+  "rules/**",
+]
 ```
+
+## Material OpenSpec Scope
+
+Every adopter profile SHALL declare a non-empty `[openspec].material_paths`
+list. These portable repository-relative glob patterns identify edits that
+require an active Change companion. Missing or empty declarations fail with
+`openspec_material_paths_missing`; malformed declarations fail with
+`openspec_material_paths_invalid`. ETHOS does not interpret an empty list as
+an opt-out.
+
+For every changed material path, `ethos lane prewrite`, `ethos plan --changed`,
+and `ethos prove` use the same official-OpenSpec selected Change list and the
+same ETHOS-owned `openspec/changes/<id>/scope.toml` companion read model. A
+valid companion covering the path admits it; otherwise the stable diagnostic
+is `openspec_material_path_uncovered:<path>`. This companion is adjacent to,
+not part of, the official OpenSpec workflow schema. An invalid unrelated
+companion remains a Change diagnostic and cannot defeat another selected
+Change's valid coverage.
+
+```toml
+# openspec/changes/<change-id>/scope.toml
+schema_version = 1
+paths = [
+  ".ethos/profile.toml",
+  "openspec/changes/<change-id>/**",
+  "docs/governance/**",
+]
+```
+
+Bootstrap is deliberately narrow. Create the Change with the official
+`openspec new change <id>` command, then admit only that exact Change's
+otherwise absent `scope.toml`, provided it is a declared material path and the
+official list identifies the Change as active. The finished companion must
+cover itself and all subsequent material writes. Lifecycle scope remains a
+repository-governance obligation, not an entry in
+`[proof].code_correctness_gates` and not authority for a method package.
 
 An adopter may add references to existing repository configuration:
 

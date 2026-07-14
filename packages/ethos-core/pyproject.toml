@@ -26,7 +26,7 @@ path = "build_hook.py"
 "src/ethos_core/data/generated_artifact_topology.toml" = "ethos_core/data/generated_artifact_topology.toml"
 
 [tool.hatch.build.targets.sdist.force-include]
-"../../tools/packaging/ethos_core_build_hook.py" = "build_hook.py"
+"../../tools/ci/ethos_core_build_hook.py" = "build_hook.py"
 "../../system/commands.toml" = "src/ethos_core/data/commands.toml"
 "../../system/gates.toml" = "src/ethos_core/data/gates.toml"
 "../../system/invalid_states.toml" = "src/ethos_core/data/invalid_states.toml"

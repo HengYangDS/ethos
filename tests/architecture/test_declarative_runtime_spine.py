@@ -83,6 +83,18 @@ def test_wheel_resources_and_editable_build_hook_are_projections(monkeypatch) ->
     hook.finalize("standard", build_data, "unused")
     for _, resource in WHEEL_PROJECTIONS:
         assert not (CORE_SOURCE / "data" / resource).exists()
+    hook.initialize("standard", build_data)
+    hook.clean(["standard"])
+    hook.initialize("unsupported", build_data)
+    source_data = CORE_SOURCE / "data"
+    source_data.mkdir()
+    for canonical, resource in WHEEL_PROJECTIONS:
+        (source_data / resource).write_bytes((ROOT / canonical).read_bytes())
+    hook.initialize("standard", build_data)
+    hook.finalize("standard", build_data, "unused")
+    for _, resource in WHEEL_PROJECTIONS:
+        (source_data / resource).unlink()
+    source_data.rmdir()
     hook.initialize("editable", build_data)
     for canonical, resource in WHEEL_PROJECTIONS:
         assert build_data["force_include_editable"][(ROOT / canonical).as_posix()] == (

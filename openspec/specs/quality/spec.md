@@ -221,9 +221,10 @@ Git, global ignores, provider projections, or hook-local behavior.
 
 ### Requirement: Generated Artifact Topology Gate
 
-ETHOS SHALL keep generated artifact placement auditable so source, configuration,
-semantic documentation, repository root, runtime state, generated proof output,
-and curated evidence remain distinct authority surfaces.
+ETHOS SHALL keep generated artifact placement auditable so source,
+configuration, semantic documentation, repository root, runtime state,
+generated proof output, and curated evidence remain distinct authority
+surfaces.
 
 #### Scenario: Root generated drift remains blocked while ignored test residue is local
 
@@ -266,6 +267,28 @@ and curated evidence remain distinct authority surfaces.
   `build/runtime/work/gitlab-ci-local`
 - **AND** cleanup commands may remove denied residue but do not make a producer
   that recreates denied homes compliant.
+
+#### Scenario: Product proof seals topology after runtime-producing gates
+
+- **WHEN** the default product proof executes its quality gates
+- **THEN** `generated-artifacts` runs after the Ruff and Python test gates
+- **AND** root `.pytest_cache/` and `.ruff_cache/` remain denied at the final
+  topology verdict
+- **AND** the Python test gate removes those denied root caches at both entry
+  and EXIT cleanup
+- **AND** standalone `ethos quality generated-artifacts --json` remains
+  read-only and fails closed on surviving root cache drift.
+
+#### Scenario: Runtime-producing quality owners stay semantically bound and portable
+
+- **WHEN** the product runs its type, lint, Ruff-ratchet, or Bandit owner
+  gates from a governed checkout
+- **THEN** `ty` resolves third-party imports against
+  `build/runtime/venv`, never an ambient host or root `.venv`
+- **AND** each owner gate preserves its tracked Python-file scope under the
+  macOS-provided Bash 3.2
+- **AND** no owner gate requires a newer shell or silently weakens its file
+  selection to obtain portability.
 
 ### Requirement: No Compatibility Residue Gate
 

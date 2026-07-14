@@ -20,7 +20,7 @@ owner = "quality"
 scope = "Product proof ordering, semantic runtime binding, and denied root runtime-cache cleanup; standalone topology, tracked-file scope, and adopter proof policy remain unchanged."
 
 [carriers]
-openspec = "openspec/changes/proof-artifact-isolation-20260714"
+openspec = "openspec/changes/archive/2026-07-14-proof-artifact-isolation-20260714"
 fallback = "Treat a surviving root cache as blocked topology drift and rerun the product owner gates; do not ignore, waive, or retry around the final seal."
 kill_signal = "A product proof evaluates generated-artifacts before its selected Python test or Ruff gate, an EXIT path leaves a denied root cache, types resolve against an ambient environment, an owner script requires Bash 4, or adopter proof gains a dependency on product-owned gates."
 
@@ -39,7 +39,7 @@ targets = [
   "tests/unit/coverage/test_cov_v3_gates_edges.py",
   "tests/unit/governance/test_quality_regime.py",
   "openspec/specs/quality/spec.md",
-  "openspec/changes/proof-artifact-isolation-20260714",
+  "openspec/changes/archive/2026-07-14-proof-artifact-isolation-20260714",
   "evidence/claims/proof-artifact-isolation-20260714.toml",
   "evidence/chronicle/proof-artifact-isolation-20260714/2026-07-14.md",
 ]

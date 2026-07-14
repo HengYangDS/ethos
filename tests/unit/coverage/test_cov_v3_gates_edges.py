@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import sys
 from typing import TYPE_CHECKING
 
 from ethos.adapters.gates import ty as ty_mod
@@ -66,7 +65,7 @@ def test_ty_gate_report_flags_zero_tolerance_violations(
     assert (report["ok"], report["state"]) == (False, "blocked")
 
 
-def test_ty_gate_report_invokes_ty_through_active_python(
+def test_ty_gate_report_invokes_ty_through_checkout_runtime(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     _write_policy(tmp_path, _zero_policy("packages/rt"))
@@ -88,7 +87,7 @@ def test_ty_gate_report_invokes_ty_through_active_python(
     assert report["ok"] is True
     assert calls == [
         [
-            sys.executable,
+            str(tmp_path / "build" / "runtime" / "venv" / "bin" / "python"),
             "-m",
             "ty",
             "check",

@@ -221,9 +221,8 @@ def test_python_lint_gate_has_no_tracked_python_side_lanes() -> None:
     script = (ROOT / "tools/ci/scripts/run-python-lint.sh").read_text(encoding="utf-8")
 
     assert tracked
-    assert "python_quality_paths=()" in script
-    assert "while IFS= read -r python_quality_path" in script
-    assert "mapfile" not in script
+    assert 'mapfile -d "" -t python_quality_paths' in script
+    assert "git ls-files -z" in script
     assert any(path.startswith(".agents/") for path in tracked)
 
 
@@ -231,9 +230,8 @@ def test_python_sast_gate_discovers_every_tracked_python_source() -> None:
     """Every tracked Python file is governed by one SAST law."""
     script = (ROOT / "tools/ci/scripts/run-bandit.sh").read_text(encoding="utf-8")
 
-    assert "python_security_paths=()" in script
-    assert "while IFS= read -r python_security_path" in script
-    assert "mapfile" not in script
+    assert 'mapfile -d "" -t python_security_paths' in script
+    assert "git ls-files -z" in script
     assert "no tracked Python files found for Bandit" in script
     assert "${python_security_paths[@]}" in script
     assert "-r packages" not in script

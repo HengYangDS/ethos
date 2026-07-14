@@ -108,8 +108,8 @@ def test_ruff_runtime_cache_stays_under_build_runtime() -> None:
     assert "[tool.ruff" not in pyproject_text
 
 
-def test_python_lint_owner_avoids_bash_4_only_mapfile(tmp_path: Path) -> None:
-    """Keep the owner gate executable by the macOS-provided Bash 3.2."""
+def test_python_lint_owner_uses_modern_bash_mapfile(tmp_path: Path) -> None:
+    """Require the governed Bash 4+ baseline instead of preserving Bash 3.2 paths."""
     repo = tmp_path / "repo"
     scripts = repo / "tools" / "ci" / "scripts"
     scripts.mkdir(parents=True)
@@ -139,7 +139,7 @@ def test_python_lint_owner_avoids_bash_4_only_mapfile(tmp_path: Path) -> None:
     git.write_text(
         "#!/bin/sh\n"
         'if [ "$1" = "rev-parse" ]; then printf "%s\\n" "$PWD"; exit 0; fi\n'
-        'if [ "$1" = "ls-files" ]; then printf "%s\\n" "example.py"; exit 0; fi\n'
+        'if [ "$1" = "ls-files" ]; then printf "%s\\0" "example.py"; exit 0; fi\n'
         "exit 1\n",
         encoding="utf-8",
     )
@@ -177,8 +177,14 @@ def test_python_lint_owner_avoids_bash_4_only_mapfile(tmp_path: Path) -> None:
         ROOT / "tools/ci/scripts/run-ruff-ratchet.sh",
         ROOT / "tools/ci/scripts/run-bandit.sh",
     ):
-        assert "mapfile" not in owner.read_text(encoding="utf-8")
+        assert 'mapfile -d "" -t' in owner.read_text(encoding="utf-8")
     assert completed.returncode == 0, completed.stderr
+
+
+def test_python_runtime_wrapper_requires_bash_4_or_newer() -> None:
+    wrapper = (ROOT / "tools/ci/scripts/with-python-runtime.sh").read_text(encoding="utf-8")
+
+    assert "BASH_VERSINFO[0] >= 4" in wrapper
 
 
 def test_ty_policy_is_zero_tolerance_without_ratchet_residue() -> None:
@@ -222,9 +228,9 @@ def test_ruff_ratchet_has_no_zero_debt_ignore_residue() -> None:
 def test_ruff_ratchet_uses_tracked_python_file_set() -> None:
     runner = (ROOT / "tools/ci/scripts/run-ruff-ratchet.sh").read_text(encoding="utf-8")
 
-    assert 'git ls-files "*.py" "*.pyi"' in runner
+    assert 'git ls-files -z "*.py" "*.pyi"' in runner
     assert '"${python_quality_paths[@]}"' in runner
-    assert "mapfile" not in runner
+    assert 'mapfile -d "" -t python_quality_paths' in runner
     assert '"."' not in runner
 
 

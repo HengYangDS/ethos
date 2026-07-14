@@ -6,6 +6,7 @@ import re
 import subprocess
 import sys
 import tomllib
+from dataclasses import replace
 from pathlib import Path
 from typing import cast
 
@@ -554,6 +555,9 @@ def gate_graph(
 ) -> ActionGraph:
     registry = gate_registry(root)
     selected = gate_ids or default_gate_ids(full=full, root=root)
+    selected_ids = set(selected)
+    is_product = root is None or _is_product_root(root)
+    seal = is_product and {"unit-architecture", "ruff"} <= selected_ids
     declaration_gaps = list(adopter_gate_descriptor_gaps(root))
     nodes: list[ActionNode] = []
     for gate_id in selected:
@@ -563,46 +567,14 @@ def gate_graph(
             if expected_gap not in declaration_gaps:
                 declaration_gaps.append(f"unknown_gate:{gate_id}")
             continue
-        nodes.append(_proof_gate_node(gate, selected_gate_ids=selected, root=root))
+        node = gate.to_node()
+        if gate_id == "generated-artifacts" and seal:
+            node = replace(
+                node,
+                depends_on=tuple(dict.fromkeys((*node.depends_on, "unit-architecture", "ruff"))),
+            )
+        nodes.append(node)
     return ActionGraph(
         nodes=tuple(nodes),
         validation_issues=tuple(dict.fromkeys(declaration_gaps)),
-    )
-
-
-def _proof_gate_node(
-    gate: GateDescriptor,
-    *,
-    selected_gate_ids: tuple[str, ...],
-    root: Path | None,
-) -> ActionNode:
-    """Compile one gate with product-only proof sequencing constraints.
-
-    The topology audit remains a standalone, read-only gate with no producer
-    dependency in the shared registry.  A product proof that includes its two
-    runtime-producing owner gates must, however, observe topology only after
-    they have reached their EXIT cleanup boundary.  This composition-time edge
-    preserves adopter proof graphs, which intentionally do not contain
-    product-owned Python gates.
-    """
-    node = gate.to_node()
-    if root is not None and not _is_product_root(root):
-        return node
-    if gate.id != "generated-artifacts":
-        return node
-    producers = ("unit-architecture", "ruff")
-    if not set(producers) <= set(selected_gate_ids):
-        return node
-    return ActionNode(
-        id=node.id,
-        kind=node.kind,
-        command=node.command,
-        inputs=node.inputs,
-        outputs=node.outputs,
-        policy=node.policy,
-        tool=node.tool,
-        tool_version=node.tool_version,
-        env=node.env,
-        depends_on=tuple(dict.fromkeys((*node.depends_on, *producers))),
-        metadata=node.metadata,
     )

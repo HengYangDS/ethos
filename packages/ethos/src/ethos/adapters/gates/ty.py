@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import re
 import subprocess
-import sys
 import tomllib
 from typing import TYPE_CHECKING
 
@@ -18,44 +17,28 @@ _DIAGNOSTIC_EXCERPT_LIMIT = 12
 def _diagnostic_report(root: Path, package_src: str) -> dict[str, object]:
     """Run ty and retain whether its diagnostic count is determinate."""
     command = f"ty check {package_src}"
-    semantic_environment = root / "build" / "runtime" / "venv"
+    venv = root / "build/runtime/venv"
     try:
         completed = subprocess.run(
-            [
-                sys.executable,
-                "-m",
-                "ty",
-                "check",
-                "--python",
-                str(semantic_environment),
-                package_src,
-            ],
+            [str(venv / "bin/python"), "-m", "ty", "check", "--python", str(venv), package_src],
             cwd=root,
             text=True,
             capture_output=True,
             check=False,
         )
+        output = completed.stdout + completed.stderr
     except OSError as error:
-        return {
-            "count": None,
-            "returncode": None,
-            "state": "tool_error",
-            "command": command,
-            "diagnostic_excerpt": [f"{type(error).__name__}: {error}"],
-        }
-    output = completed.stdout + completed.stderr
-    count = _diagnostic_count_from_output(output)
-    if count is None:
+        completed = None
+        output = f"{type(error).__name__}: {error}"
+    count = _diagnostic_count_from_output(output) if completed is not None else None
+    returncode = completed.returncode if completed is not None else None
+    if count is None or (count == 0 and returncode):
         state = "tool_error"
-    elif count > 0:
-        state = "diagnostics"
-    elif completed.returncode == 0:
-        state = "clean"
     else:
-        state = "tool_error"
+        state = "diagnostics" if count else "clean"
     return {
         "count": count,
-        "returncode": completed.returncode,
+        "returncode": returncode,
         "state": state,
         "command": command,
         "diagnostic_excerpt": _diagnostic_excerpt(output),
@@ -64,21 +47,18 @@ def _diagnostic_report(root: Path, package_src: str) -> dict[str, object]:
 
 def _diagnostic_count_from_output(output: str) -> int | None:
     """Return a count only for a terminal ty result; unknown output is an error."""
-    if "All checks passed" in output:
-        return 0
     match = _COUNT_RE.search(output)
-    return int(match.group(1)) if match else None
+    return 0 if "All checks passed" in output else int(match.group(1)) if match else None
 
 
 def _diagnostic_excerpt(output: str) -> list[str]:
-    return [line for line in (line.strip() for line in output.splitlines()) if line][
+    return [line.strip() for line in output.splitlines() if line.strip()][
         :_DIAGNOSTIC_EXCERPT_LIMIT
     ]
 
 
 def _package_result(root: Path, package: str) -> dict[str, object]:
-    report = _diagnostic_report(root, f"{package}/src")
-    return {**report, "limit": 0, "tier": "zero_tolerance"}
+    return _diagnostic_report(root, f"{package}/src") | {"limit": 0, "tier": "zero_tolerance"}
 
 
 def ty_gate_report(root: Path) -> dict[str, object]:

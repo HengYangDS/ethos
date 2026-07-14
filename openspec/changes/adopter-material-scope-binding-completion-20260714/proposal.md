@@ -22,6 +22,8 @@ schema, proof gates, or a method package carry repository governance.
   and bootstrap regressions.
 - Bind the additive implementation to a named source-budget debt record and a
   follow-on compression wave without resetting the global baseline.
+- Refresh the product's tracked generic shadow-parity witness after the
+  parity-relevant implementation changes, before the committed-HEAD proof.
 
 ## Capabilities
 

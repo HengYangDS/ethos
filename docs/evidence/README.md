@@ -29,7 +29,8 @@ the evidence root for the reviewed record that carries each claim:
 | Machine-readable, HEAD-bound parity comparison | [Parity evidence](../../evidence/parity/) |
 | Evidence-root layout and promotion boundary | [Evidence root](../../evidence/README.md) |
 | Historical isolated overlay observation | [Claim](../../evidence/claims/real-adopter-provider-parity-evidence-20260712.toml) and [Chronicle](../../evidence/chronicle/real-adopter-provider-parity-evidence-20260712/2026-07-12.md) |
-| Current-HEAD isolated adopter command-parity observation | [Claim](../../evidence/claims/current-head-real-adopter-evidence-20260713.toml) and [Chronicle](../../evidence/chronicle/current-head-real-adopter-evidence-20260713/2026-07-13.md) |
+| Latest candidate-HEAD isolated adopter command-parity observation | [Claim](../../evidence/claims/current-head-real-adopter-evidence-20260714.toml) and [Chronicle](../../evidence/chronicle/current-head-real-adopter-evidence-20260714/2026-07-14.md) |
+| Prior candidate-HEAD observation | [Claim](../../evidence/claims/current-head-real-adopter-evidence-20260713.toml) and [Chronicle](../../evidence/chronicle/current-head-real-adopter-evidence-20260713/2026-07-13.md) |
 
 Machine output belongs under generated homes such as `build/ethos/` or
 `build/evidence/` until it is reviewed and promoted. This lane owns promoted

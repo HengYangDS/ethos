@@ -1,0 +1,32 @@
+[claim]
+id = "current-head-real-adopter-evidence-20260714"
+subject = "ethos:current-candidate-head-external-adopter-command-parity-observation"
+state = "active"
+summary = "Digest-bound historical observation of one candidate product revision's command parity and fail-closed generic-overlay preservation on an isolated existing adopter."
+
+[evidence]
+dated = "evidence/chronicle/current-head-real-adopter-evidence-20260714/2026-07-14.md"
+sha256 = "87eea542220a5bdf8ed6a671784ca7653e7ef81764e85b85b6173821baafe678"
+evidence_ids = ["evidence:current-head-real-adopter-evidence-20260714"]
+binding = "Digest-bound candidate product and isolated adopter revisions, raw-bundle identity, generic-overlay preservation result, and eight-command parity observation."
+verifier = "digest_only"
+tests = ["ethos adopt --root <isolated-adopter> --profile generic --overlay --json", "ethos adopt --root <isolated-adopter> --profile generic --overlay --apply --authorize --expect-head <adopter-head> --json", "ethos parity shadow --root <candidate-product> --adopter <adopter-id> --target <isolated-adopter> --execute --json"]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-adapters"
+scope = "Optional, provider-neutral local observation; no adopter account, key, daemon, network service, semantic assertion, or authority claim."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-14-current-head-real-adopter-evidence-20260714"
+fallback = "Treat this observation as historical; do not make independent verification or yheng-agent-ethos an ordinary adopter prerequisite."
+kill_signal = "The observation rewrites the adopter, promotes raw host-local material, claims semantic correctness, or becomes mandatory for ordinary adoption."
+
+[promotion]
+targets = [
+  { kind = "evidence", path = "evidence/chronicle/current-head-real-adopter-evidence-20260714/2026-07-14.md" },
+  { kind = "evidence", path = "evidence/claims/current-head-real-adopter-evidence-20260714.toml" },
+  { kind = "openspec", path = "openspec/changes/archive/2026-07-14-current-head-real-adopter-evidence-20260714" },
+]

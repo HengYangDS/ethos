@@ -10,6 +10,7 @@ import ethos.adapters.openspec.lifecycle.core as openspec_lifecycle
 import ethos.adapters.openspec.lifecycle.scope as openspec_scope
 import ethos.surface.cli.root.planning as planning_cli
 import ethos.surface.cli.root.proof as proof_cli
+from ethos.adapters.admission.prewrite import _material_scope_from_lifecycle
 from ethos.adapters.admission.prewrite import prewrite_guard
 from ethos.adapters.mutation.lanes import start_work_lane
 from ethos.repository.adoption.planner import adoption_plan
@@ -116,6 +117,12 @@ def test_prewrite_uses_same_official_scope_candidates_as_plan_and_prove(
     ]
     assert prewrite["ok"] is True
     assert prewrite["material_scope"] == lifecycle["lifecycle"]["scope_binding"]
+
+    unavailable = _material_scope_from_lifecycle({})
+    assert unavailable["state"] == "not_available"
+    assert unavailable["ok"] is True
+    malformed = _material_scope_from_lifecycle({"lifecycle": {"scope_binding": "bad"}})
+    assert malformed == unavailable
 
 
 def test_prewrite_bootstrap_reads_untracked_official_change_scope_companion(
@@ -741,8 +748,10 @@ def test_scope_reader_accepts_overlap_and_ignores_nonmaterial_paths(
     )
     first = repo / "openspec" / "changes" / "first"
     second = repo / "openspec" / "changes" / "second"
+    unselected = repo / "openspec" / "changes" / "unselected"
     first.mkdir(parents=True)
     second.mkdir(parents=True)
+    unselected.mkdir(parents=True)
     (first / "scope.toml").write_text('schema_version = 1\npaths = ["docs/**"]\n', encoding="utf-8")
     (second / "scope.toml").write_text(
         'schema_version = 1\npaths = ["docs/governance/**"]\n', encoding="utf-8"

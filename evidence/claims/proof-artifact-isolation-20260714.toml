@@ -3,14 +3,14 @@ id = "proof-artifact-isolation-20260714"
 change_id = "proof-artifact-isolation-20260714"
 subject = "quality:proof-artifact-terminal-seal"
 state = "active"
-summary = "Product proof seals generated-artifact topology after its runtime producers, with type resolution bound to the checkout semantic venv and owner scripts portable to macOS Bash 3.2."
+summary = "Product proof seals generated-artifact topology after its runtime producers, with type resolution bound to the checkout venv and owner scripts portable to macOS Bash 3.2."
 
 [evidence]
 dated = "evidence/chronicle/proof-artifact-isolation-20260714/2026-07-14.md"
 sha256 = "26f3e8fa4a20b083f7f2b89884ddaf64dab586fb566ccd47ff08e4b2daf57300"
 evidence_ids = ["evidence:proof-artifact-isolation-20260714"]
-binding = "OpenSpec terminal-seal delta, product/adopter graph regressions, semantic-runtime type resolution, Bash-portability regressions, owner cleanup symmetry, and local proof evidence bind the quality-runtime correction."
-verifier = "semantic"
+binding = "OpenSpec terminal-seal delta, product/adopter graph regressions, checkout-runtime type resolution, Bash-portability regressions, owner cleanup symmetry, and local proof evidence bind the quality-runtime correction."
+verifier = "digest_only"
 
 [evidence.freshness]
 mode = "historical"

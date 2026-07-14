@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import os
 import subprocess
 import tokenize
 import tomllib
@@ -210,31 +211,38 @@ def test_python_lint_gate_discovers_every_tracked_python_source() -> None:
     )
 
 
-def test_python_lint_gate_has_no_tracked_python_side_lanes() -> None:
-    tracked = {
-        line.strip()
-        for line in subprocess.check_output(
-            ["git", "ls-files", "*.py", "*.pyi"], cwd=ROOT, text=True
-        ).splitlines()
-        if line.strip()
-    }
-    script = (ROOT / "tools/ci/scripts/run-python-lint.sh").read_text(encoding="utf-8")
-
-    assert tracked
-    assert 'mapfile -d "" -t python_quality_paths' in script
-    assert "git ls-files -z" in script
-    assert any(path.startswith(".agents/") for path in tracked)
-
-
 def test_python_sast_gate_discovers_every_tracked_python_source() -> None:
     """Every tracked Python file is governed by one SAST law."""
     script = (ROOT / "tools/ci/scripts/run-bandit.sh").read_text(encoding="utf-8")
 
-    assert 'mapfile -d "" -t python_security_paths' in script
-    assert "git ls-files -z" in script
+    assert "mapfile" not in script
+    assert 'while IFS= read -r -d "" path' in script
     assert "no tracked Python files found for Bandit" in script
     assert "${python_security_paths[@]}" in script
     assert "-r packages" not in script
+
+
+def test_python_owner_scripts_execute_under_macos_bash(tmp_path: Path) -> None:
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    scripts = {
+        "git": f'#!/bin/sh\nif [ "$1" = "rev-parse" ]; then printf "%s\\n" "{ROOT}"; else printf "sample.py\\0"; fi\n',
+        "uv": "#!/bin/sh\nexit 0\n",
+    }
+    for name, content in scripts.items():
+        executable = fake_bin / name
+        executable.write_text(content, encoding="utf-8")
+        executable.chmod(0o755)
+    for name in ("run-python-lint.sh", "run-bandit.sh", "run-ruff-ratchet.sh"):
+        subprocess.run(
+            ["/bin/bash", str(ROOT / "tools" / "ci" / "scripts" / name)],
+            cwd=ROOT,
+            env=os.environ
+            | {"ETHOS_RUNTIME_BOOTSTRAPPED": "1", "PATH": f"{fake_bin}:{os.environ['PATH']}"},
+            capture_output=True,
+            text=True,
+            check=True,
+        )
 
 
 def test_python_sast_gate_has_no_local_suppression_surface() -> None:

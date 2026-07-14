@@ -6,11 +6,8 @@
 # callers may supply a host or CI cache explicitly. Neither location is evidence,
 # coordination, or authority state.
 set -euo pipefail
-(( BASH_VERSINFO[0] >= 4 )) || { echo "ETHOS requires Bash >=4" >&2; exit 2; }
 
-if [[ "${1:-}" == "--" ]]; then
-  shift
-fi
+[[ "${1:-}" != "--" ]] || shift
 if [[ "$#" -eq 0 ]]; then
   echo "usage: with-python-runtime.sh -- <command> [args...]" >&2
   exit 2

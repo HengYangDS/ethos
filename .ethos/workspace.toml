@@ -2,6 +2,7 @@
 release_branch = "main"
 accepted_branch = "dev"
 candidate_branch = "candidate/dev"
+release_mirror = "accepted_ff"
 work_branch_prefix = "work/"
 submit_branch_prefix = "submit/"
 

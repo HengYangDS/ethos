@@ -100,8 +100,30 @@ def _commit_identity(root: Path, revision: str) -> dict[str, str]:
     }
 
 
+def _identity_range_base(
+    root: Path,
+    *,
+    pushed_head: str,
+    remote_head: str,
+    trusted_baseline: str,
+) -> tuple[str, bool, list[str]]:
+    if remote_head != "0" * 40 or not trusted_baseline:
+        return remote_head, True, []
+    if not _commit_exists(root, trusted_baseline):
+        return "", False, [f"push_identity_submit_baseline_missing:{trusted_baseline}"]
+    if not _commit_exists(root, pushed_head) or commit_contained_in(
+        root, trusted_baseline, pushed_head
+    ):
+        return trusted_baseline, True, []
+    return "", False, [f"push_identity_submit_baseline_not_ancestor:{trusted_baseline}"]
+
+
 def push_identity_policy_report(
-    *, root: Path, pushed_head: str, remote_head: str = ""
+    *,
+    root: Path,
+    pushed_head: str,
+    remote_head: str = "",
+    trusted_baseline: str = "",
 ) -> dict[str, object]:
     """Report optional push-range Git identity admission.
 
@@ -134,9 +156,16 @@ def push_identity_policy_report(
     if not expected_email:
         gaps.append("push_identity_user_email_missing")
     head_exists = _commit_exists(root, pushed_head)
+    range_base, range_is_trusted, baseline_gaps = _identity_range_base(
+        root,
+        pushed_head=pushed_head,
+        remote_head=remote_head,
+        trusted_baseline=trusted_baseline,
+    )
+    gaps.extend(baseline_gaps)
     commits = (
-        _pushed_commit_range(root, pushed_head=pushed_head, remote_head=remote_head)
-        if head_exists
+        _pushed_commit_range(root, pushed_head=pushed_head, remote_head=range_base)
+        if head_exists and range_is_trusted
         else []
     )
     if pushed_head and not head_exists:

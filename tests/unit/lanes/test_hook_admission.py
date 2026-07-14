@@ -511,6 +511,112 @@ def test_push_identity_policy_accepts_configured_user_over_new_range(
     assert report["ok"] is True
 
 
+def test_new_submit_push_uses_origin_accepted_baseline_for_identity_range(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    git(repo, "config", "user.name", "Canonical User")
+    git(repo, "config", "user.email", "canonical@example.invalid")
+    git(repo, "config", "ethos.pushIdentityPolicy", "configured-user")
+    monkeypatch.setenv("GIT_AUTHOR_NAME", "Legacy User")
+    monkeypatch.setenv("GIT_AUTHOR_EMAIL", "legacy@example.invalid")
+    monkeypatch.setenv("GIT_COMMITTER_NAME", "Legacy User")
+    monkeypatch.setenv("GIT_COMMITTER_EMAIL", "legacy@example.invalid")
+    (repo / "legacy.txt").write_text("legacy\n", encoding="utf-8")
+    git(repo, "add", "legacy.txt")
+    git(repo, "commit", "-m", "legacy identity")
+    accepted_head = git(repo, "rev-parse", "HEAD")
+    git(repo, "update-ref", "refs/remotes/origin/dev", accepted_head)
+    monkeypatch.setenv("GIT_AUTHOR_NAME", "Canonical User")
+    monkeypatch.setenv("GIT_AUTHOR_EMAIL", "canonical@example.invalid")
+    monkeypatch.setenv("GIT_COMMITTER_NAME", "Canonical User")
+    monkeypatch.setenv("GIT_COMMITTER_EMAIL", "canonical@example.invalid")
+    (repo / "new.txt").write_text("new\n", encoding="utf-8")
+    git(repo, "add", "new.txt")
+    git(repo, "commit", "-m", "new identity")
+    pushed_head = git(repo, "rev-parse", "HEAD")
+
+    report = push_admission_report(
+        root=repo,
+        target_ref="refs/heads/submit/identity-baseline",
+        pushed_head=pushed_head,
+        remote_head="0" * 40,
+    )
+    identity = report["identity_policy"]
+
+    assert identity["checked_commit_count"] == 1
+    assert identity["violations"] == []
+
+
+def test_new_submit_push_blocks_without_a_trusted_origin_accepted_baseline(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    git(repo, "config", "user.name", "Canonical User")
+    git(repo, "config", "user.email", "canonical@example.invalid")
+    git(repo, "config", "ethos.pushIdentityPolicy", "configured-user")
+    monkeypatch.setenv("GIT_AUTHOR_NAME", "Canonical User")
+    monkeypatch.setenv("GIT_AUTHOR_EMAIL", "canonical@example.invalid")
+    monkeypatch.setenv("GIT_COMMITTER_NAME", "Canonical User")
+    monkeypatch.setenv("GIT_COMMITTER_EMAIL", "canonical@example.invalid")
+    (repo / "new.txt").write_text("new\n", encoding="utf-8")
+    git(repo, "add", "new.txt")
+    git(repo, "commit", "-m", "new identity")
+    pushed_head = git(repo, "rev-parse", "HEAD")
+
+    report = push_admission_report(
+        root=repo,
+        target_ref="refs/heads/submit/identity-baseline",
+        pushed_head=pushed_head,
+        remote_head="0" * 40,
+    )
+    identity = report["identity_policy"]
+
+    assert identity["ok"] is False
+    assert identity["checked_commit_count"] == 0
+    assert identity["violations"] == []
+    assert "push_identity_submit_baseline_missing:origin/dev" in identity["required_gaps"]
+
+
+def test_new_submit_push_blocks_when_origin_accepted_baseline_is_not_an_ancestor(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    git(repo, "config", "user.name", "Canonical User")
+    git(repo, "config", "user.email", "canonical@example.invalid")
+    git(repo, "config", "ethos.pushIdentityPolicy", "configured-user")
+    monkeypatch.setenv("GIT_AUTHOR_NAME", "Canonical User")
+    monkeypatch.setenv("GIT_AUTHOR_EMAIL", "canonical@example.invalid")
+    monkeypatch.setenv("GIT_COMMITTER_NAME", "Canonical User")
+    monkeypatch.setenv("GIT_COMMITTER_EMAIL", "canonical@example.invalid")
+    git(repo, "checkout", "-b", "remote-source")
+    (repo / "remote.txt").write_text("remote\n", encoding="utf-8")
+    git(repo, "add", "remote.txt")
+    git(repo, "commit", "-m", "remote accepted history")
+    git(repo, "update-ref", "refs/remotes/origin/dev", "HEAD")
+    git(repo, "checkout", "dev")
+    (repo / "new.txt").write_text("new\n", encoding="utf-8")
+    git(repo, "add", "new.txt")
+    git(repo, "commit", "-m", "new identity")
+    pushed_head = git(repo, "rev-parse", "HEAD")
+
+    report = push_admission_report(
+        root=repo,
+        target_ref="refs/heads/submit/identity-baseline",
+        pushed_head=pushed_head,
+        remote_head="0" * 40,
+    )
+    identity = report["identity_policy"]
+
+    assert identity["ok"] is False
+    assert identity["checked_commit_count"] == 0
+    assert identity["violations"] == []
+    assert "push_identity_submit_baseline_not_ancestor:origin/dev" in identity["required_gaps"]
+
+
 def test_push_identity_policy_reports_missing_configured_user_and_unreadable_head(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

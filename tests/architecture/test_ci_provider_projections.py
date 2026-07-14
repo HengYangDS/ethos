@@ -242,7 +242,11 @@ def test_local_emulator_run_requires_optional_tool_when_materializing(
 def test_local_emulator_run_executes_a_selected_formal_provider_job(monkeypatch, tmp_path) -> None:
     ci_templates = _load_ci_templates_module()
     commands: list[list[str]] = []
-    monkeypatch.setattr(ci_templates.shutil, "which", lambda _tool: "/usr/local/bin/emulator")
+    monkeypatch.setattr(
+        ci_templates.shutil,
+        "which",
+        lambda tool: "/usr/local/bin/emulator" if tool in {"act", "gitlab-ci-local"} else None,
+    )
     monkeypatch.setattr(ci_templates, "_tool_version", lambda tool: f"{tool} 1.0")
     monkeypatch.setattr(
         ci_templates,

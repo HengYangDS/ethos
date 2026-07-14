@@ -1,0 +1,29 @@
+[claim]
+id = "adopter-openspec-lifecycle-20260714"
+subject = "ethos:adopter-openspec-lifecycle"
+state = "active"
+summary = "Plan and proof evaluate official OpenSpec lifecycle for valid adopters."
+
+[evidence]
+dated = "evidence/chronicle/adopter-openspec-lifecycle-20260714/2026-07-14.md"
+sha256 = "b2da726fea1672417bc748543ba282349eef04f107c1b21bf49506fefcebc3d4"
+evidence_ids = ["evidence:adopter-openspec-lifecycle-20260714"]
+binding = "Universal adopter lifecycle evidence binding."
+verifier = "digest_only"
+
+[evidence.freshness]
+mode = "semantic_scope"
+head = "eb39913b6b97dad0e4813a40977a4269c3cc85c2"
+semantic_sha256 = "bc5f9d18b6e6c3ac56eee52b39a56fe0683b65d1e745e22ed5e653351377d980"
+
+[boundary]
+owner = "ethos-repository"
+scope = "Universal adopter lifecycle in plan and prove."
+
+[carriers]
+openspec = "openspec/changes/adopter-openspec-lifecycle-20260714"
+fallback = "Block lifecycle gaps; do not substitute code correctness or method packages."
+kill_signal = "A valid adopter bypasses official lifecycle in plan or proof."
+
+[promotion]
+targets = ["packages/ethos/src/ethos/surface/cli/root", "tests/unit/cli", "openspec/changes/adopter-openspec-lifecycle-20260714"]

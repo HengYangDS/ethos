@@ -298,3 +298,12 @@ Purpose: define the stable adopter profile entrypoint and validation contract.
 See also: [Product Design Contract](product-design-contract.md),
 [Config Boundary Model](config-boundary-model.md), and
 [Adopter Boundary And Retirement](adopter-boundary-and-retirement.md).
+
+
+## OpenSpec Lifecycle
+
+A valid adopter uses the same official OpenSpec lifecycle in planning and proof
+as the product. Lifecycle is not a `[proof] code_correctness_gates` entry.
+Portable material-path scope admission is deferred to the explicit OpenSpec
+Change `adopter-material-change-scope-20260714`; no method package is a
+governance substitute.

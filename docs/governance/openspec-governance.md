@@ -133,7 +133,6 @@ Purpose: explain the repository truth represented by this ETHOS document.
 
 See also: [Documentation Index](../index.md), [Command Plane](../reference/command-plane.md), and [Glossary](../reference/glossary.md).
 
-
 ## Adopter Lifecycle Parity
 
 `ethos plan` and `ethos prove` evaluate official OpenSpec lifecycle for every

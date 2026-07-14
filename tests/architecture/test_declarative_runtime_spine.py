@@ -59,15 +59,30 @@ def test_wheel_resources_and_build_hook_are_projections(monkeypatch) -> None:
     sdist = build["targets"]["sdist"]["force-include"]
 
     assert build["hooks"]["custom"]["path"] == "build_hook.py"
+    checkout_loader = _read("packages/ethos-core/build_hook.py")
+    assert "exec(" not in checkout_loader
+    interface = types.ModuleType("hatchling.builders.hooks.plugin.interface")
+    interface.BuildHookInterface = type("Hook", (), {"root": property(lambda self: self._root)})
+    monkeypatch.setitem(sys.modules, interface.__name__, interface)
+    isolated_path = ROOT / "packages/ethos-core/build_hook.py"
+    isolated_spec = importlib.util.spec_from_file_location(
+        "isolated_checkout_loader", isolated_path
+    )
+    assert isolated_spec is not None
+    assert isolated_spec.loader is not None
+    isolated_module = importlib.util.module_from_spec(isolated_spec)
+    original_sys_path = list(sys.path)
+    sys.path[:] = [entry for entry in sys.path if Path(entry or ".").resolve() != ROOT]
+    try:
+        isolated_spec.loader.exec_module(isolated_module)
+    finally:
+        sys.path[:] = original_sys_path
     for canonical, resource in WHEEL_PROJECTIONS:
         assert (ROOT / canonical).is_file()
         assert not (CORE_SOURCE / "data" / resource).exists()
         assert sdist[f"../../{canonical}"] == f"src/ethos_core/data/{resource}"
         assert wheel[f"src/ethos_core/data/{resource}"] == f"ethos_core/data/{resource}"
     assert sdist["../../tools/ci/ethos_core_build_hook.py"] == "build_hook.py"
-    interface = types.ModuleType("hatchling.builders.hooks.plugin.interface")
-    interface.BuildHookInterface = type("Hook", (), {"root": property(lambda self: self._root)})
-    monkeypatch.setitem(sys.modules, interface.__name__, interface)
     path = ROOT / "packages/ethos-core/build_hook.py"
     spec = importlib.util.spec_from_file_location("ethos_core_build_hook", path)
     assert spec is not None

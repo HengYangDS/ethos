@@ -8,6 +8,7 @@ import json
 import sqlite3
 import subprocess
 from contextlib import closing
+from functools import partial
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -21,10 +22,12 @@ import ethos.adapters.store.state.lease.projection as state_projection
 import ethos.adapters.store.state.lease.projection as state_read
 from ethos.adapters.mutation import core as mutation_core
 from ethos.adapters.mutation import proof as mutation_proof
+from ethos.adapters.mutation.closeout import core as closeout_core
 from ethos.adapters.repo import coordination
 from ethos.adapters.repo import git
 from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
+from ethos_core.contracts.branch.roles import BranchRolePolicy
 
 
 def cp(stdout: str = "", stderr: str = "", returncode: int = 0) -> subprocess.CompletedProcess[str]:
@@ -425,6 +428,39 @@ def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
         ]
         == "accepted_validated"
     )
+
+
+def test_release_mirror_closeout_edge_paths(monkeypatch, tmp_path):
+    promote = partial(
+        closeout_core.promote_candidate_to_accepted,
+        root=tmp_path,
+        policy=BranchRolePolicy(release_mirror="accepted_ff"),
+        current_head="old",
+        candidate_head="new",
+        candidate_path=tmp_path,
+        worktrees=[],
+        is_ancestor_fn=lambda *_args: True,
+    )
+    assert (
+        promote(run_git=lambda *_args, **_kwargs: cp())["required_gaps"][0]
+        == "release_mirror_release_branch_missing"
+    )
+    transition = closeout_core.CloseoutTransition("refs/heads/main", "old", "new", "new")
+    worktrees = [{"branch": "main", "worktree_binding": "linked", "path": str(tmp_path)}]
+    assert (
+        closeout_core._sync_mirror(transition, worktrees, "new", "old", lambda *_a, **_k: cp())[
+            "worktree_sync"
+        ]
+        == "synced"
+    )
+    failed = closeout_core._sync_mirror(
+        transition, worktrees, "new", "old", lambda *_a, **_k: cp(stderr="sync", returncode=1)
+    )
+    monkeypatch.setattr(closeout_core, "_sync_mirror", lambda *_a: failed)
+    assert promote(
+        run_git=lambda _r, *a, **_k: cp("old\n") if a[:1] == ("rev-parse",) else cp(),
+        carry_proof=lambda **_k: {"ok": True, "required_gaps": []},
+    )["required_gaps"] == ["release_mirror_worktree_sync_failed"]
 
 
 def test_closeout_retries_transient_accepted_worktree_sync_failure(

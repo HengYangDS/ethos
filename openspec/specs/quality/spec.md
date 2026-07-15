@@ -150,6 +150,26 @@ same owner scripts SHALL participate in the default ETHOS proof floor.
 - **AND** YAML files are linted with the configured Yamllint policy
 - **AND** `.gitlab-ci.yml` does not duplicate Taplo or Yamllint policy inline
 
+### Requirement: Structural Blank-Line Contract
+
+ETHOS SHALL use one blank line as the only separator between adjacent semantic
+blocks in active governed text carriers. It SHALL reject leading, trailing, and
+repeated blank-line runs through the carrier's native formatter where one owns
+the language, or through the shared structural reader otherwise. Python SHALL
+remain governed only by Ruff's language-native formatting contract.
+
+#### Scenario: Active configuration has repeated blank lines
+
+- **WHEN** an active governed configuration or provider projection contains two
+  or more consecutive blank lines
+- **THEN** its owning quality command fails with a line-addressed diagnostic
+
+#### Scenario: Shell embeds another language
+
+- **WHEN** a Shell carrier contains a heredoc body
+- **THEN** the structural reader checks the outer Shell layout without applying
+  the Shell blank-line contract inside the embedded body
+
 #### Scenario: Shell quality executes through the owner script
 
 - **WHEN** hosted CI or `ethos quality shell --json` runs

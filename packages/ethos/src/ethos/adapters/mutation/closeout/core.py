@@ -133,7 +133,7 @@ def _execute_promotion(
             target_root=request.root,
             head=request.candidate_head,
         )
-        if failure := _proof_carry_failure(request, proof):
+        if failure := proof_carry_failure(request, proof):
             return failure
         update = _atomic_update(request.root, accepted, release, dependencies.run_git)
         if update.returncode:
@@ -289,14 +289,14 @@ def _proof_digest(root, head):
     return str(record.get("evidence", {}).get("digest", "")) if isinstance(record, dict) else ""
 
 
-def _proof_required_gaps(proof: object) -> list[str]:
+def proof_required_gaps(proof: object) -> list[str]:
     if not isinstance(proof, dict):
         return ["proof_invalid"]
     raw = proof.get("required_gaps", [])
     return [str(gap) for gap in raw] if isinstance(raw, list) else ["proof_invalid"]
 
 
-def _proof_carry_failure(request: CloseoutRequest, proof: object) -> dict[str, object] | None:
+def proof_carry_failure(request: CloseoutRequest, proof: object) -> dict[str, object] | None:
     if not isinstance(proof, dict):
         return _blocked(
             request.policy,
@@ -308,7 +308,7 @@ def _proof_carry_failure(request: CloseoutRequest, proof: object) -> dict[str, o
         return _blocked(
             request.policy,
             request.current_head,
-            _proof_required_gaps(proof),
+            proof_required_gaps(proof),
             proof_carry=proof,
         )
     return None

@@ -31,7 +31,9 @@ protected_refs = ["refs/heads/main"]
 
 The shown digests are placeholders, not valid values. The bare repository,
 receipt directory, and signer list must already exist before `mode =
-"required"` is used.
+"required"` is used. If the provider has a global `core.hooksPath`, configure
+that bare repository's `core.hooksPath` explicitly to its provider-owned hook
+directory; otherwise Git will not consult the default `<bare>/hooks` location.
 
 Install the provider's standard pre-receive wrapper so it executes only the
 fixed adapter and config path:

@@ -2034,7 +2034,6 @@ Change, not an OpenSpec workflow-schema extension.
 - **AND THEN** the completed companion SHALL cover itself and later material
   writes.
 
-
 #### Scenario: existing adopter bootstraps a missing profile declaration
 
 - **GIVEN** a valid tracked adopter profile has no `material_paths` declaration

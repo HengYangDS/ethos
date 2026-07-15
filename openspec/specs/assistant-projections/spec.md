@@ -107,4 +107,3 @@ stores.
   artifact contract says otherwise
 - **AND** canonical repository skill work belongs in the declared skill source
   for the terminal design
-

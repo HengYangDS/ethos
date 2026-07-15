@@ -82,7 +82,7 @@ python_total = 58722
 global_total = 73739
 
 [quality.source_budget.debt]
-maximum_total = 6569
+maximum_total = 6759
 
 [[quality.source_budget.debt.records]]
 id = "program-foundation"
@@ -161,6 +161,19 @@ allowance = 1118
 python_product = 428
 python_tests = 824
 jinja = 7
+
+[[quality.source_budget.debt.records]]
+id = "repository-text-layout-completion-20260715"
+owner = "repository-text-layout-completion-20260715"
+replacement = "consolidate shared text-layout diagnostics into native owner integrations after the active-carrier boundary is proven"
+deletion_wave = "repository-text-layout-compression"
+expiry = "repository-text-layout-compression"
+allowance = 190
+
+[quality.source_budget.debt.records.allowance_by_category]
+python_tools = 66
+python_tests = 113
+shell = 11
 
 [gates.local-state-audit]
 command = "tools/ci/scripts/run-local-state-audit.sh"

@@ -69,7 +69,6 @@ DEFAULT_POLICY: dict[str, Any] = {
     ],
 }
 
-
 def load_policy() -> dict[str, Any]:
     """Load repository hygiene policy with deterministic defaults."""
     if not POLICY_PATH.exists():
@@ -77,14 +76,12 @@ def load_policy() -> dict[str, Any]:
     data = tomllib.loads(POLICY_PATH.read_text(encoding="utf-8"))
     return DEFAULT_POLICY | data
 
-
 def string_list(policy: dict[str, Any], key: str) -> list[str]:
     """Return a policy string-list value or an empty list for malformed input."""
     value = policy.get(key, [])
     if not isinstance(value, list):
         return []
     return [item for item in value if isinstance(item, str)]
-
 
 policy = load_policy()
 text_suffixes = set(string_list(policy, "text_suffixes"))

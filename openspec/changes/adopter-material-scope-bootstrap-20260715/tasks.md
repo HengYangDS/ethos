@@ -11,7 +11,7 @@
 
 ## Verification and closeout
 
-- [ ] Run focused tests, strict OpenSpec, lifecycle, claims, parity, and an
+- [x] Run focused tests, strict OpenSpec, lifecycle, claims, parity, and an
   executed HEAD-bound proof on the final committed head.
 - [x] Archive only after the verification evidence is current; candidate
   landing, accepted-root closeout, local installation, GitLab publication, and

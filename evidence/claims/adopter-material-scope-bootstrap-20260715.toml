@@ -7,7 +7,7 @@ summary = "ETHOS permits one exact legacy profile declaration bootstrap before o
 
 [evidence]
 dated = "evidence/chronicle/adopter-material-scope-bootstrap-20260715/2026-07-15.md"
-sha256 = "97277feded1b6d55a52c7fd31c2ea02a6084f2721ea1e60cf954b0308923c468"
+sha256 = "00b4217be0913a5cca6028c09f3e951a9f81ad1d18bc6a7fdf39e24afadba5b6"
 evidence_ids = ["evidence:adopter-material-scope-bootstrap-20260715"]
 binding = "Exact tracked-profile bootstrap provenance, focused regression coverage, and an active OpenSpec carrier."
 verifier = "digest_only"

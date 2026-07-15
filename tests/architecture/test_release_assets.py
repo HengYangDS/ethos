@@ -6,7 +6,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def test_gitlab_visible_project_files_exist() -> None:
+def test_hosted_provider_project_files_exist() -> None:
     required = {
         "CHANGELOG.md",
         "CONTRIBUTING.md",
@@ -14,11 +14,33 @@ def test_gitlab_visible_project_files_exist() -> None:
         ".gitlab-ci.yml",
         ".gitlab/merge_request_templates/default.md",
         ".gitlab/issue_templates/task.md",
+        ".github/workflows/ci.yml",
+        ".github/pull_request_template.md",
+        ".github/ISSUE_TEMPLATE/task.md",
     }
 
     files = {path.relative_to(ROOT).as_posix() for path in ROOT.rglob("*") if path.is_file()}
 
     assert required <= files
+
+
+def test_provider_review_templates_share_the_governed_change_contract() -> None:
+    pull_request = (ROOT / ".github/pull_request_template.md").read_text(encoding="utf-8")
+    github_issue = (ROOT / ".github/ISSUE_TEMPLATE/task.md").read_text(encoding="utf-8")
+    merge_request = (ROOT / ".gitlab/merge_request_templates/default.md").read_text(
+        encoding="utf-8"
+    )
+    gitlab_issue = (ROOT / ".gitlab/issue_templates/task.md").read_text(encoding="utf-8")
+
+    for template in (pull_request, merge_request):
+        assert "tools/ci/scripts/run-python-tests.sh" in template
+        assert "tools/ci/scripts/run-python-lint.sh" in template
+        assert "ethos audit --mode shape --json" in template
+        assert "ethos report --json" in template
+    for template in (github_issue, gitlab_issue):
+        assert "## Subject" in template
+        assert "## Contract" in template
+        assert "## Evidence" in template
 
 
 def test_merge_request_template_uses_current_ethos_command_plane() -> None:

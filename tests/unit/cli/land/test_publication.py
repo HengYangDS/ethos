@@ -64,34 +64,72 @@ def test_publish_reports_local_readiness_without_remote_push() -> None:
     assert payload["next_actions"]
 
 
-def test_publication_topology_admits_github_distribution_fallback_without_gitlab_claim() -> None:
+def test_publication_topology_projects_peer_complete_github_without_gitlab_claim() -> None:
     topology = {
-        "mode": "three_layer_dual_remote",
+        "mode": "three_layer_peer_complete",
         "local": {"role": "verification_and_install", "remote_independent": True},
-        "primary": {"provider": "gitlab", "remote": "origin"},
-        "mirror": {
+        "gitlab": {
+            "provider": "gitlab",
+            "remote": "origin",
+            "role": "organization_primary_publication",
+            "capabilities": ["repository", "ci_cd", "update", "distribution"],
+        },
+        "github": {
             "provider": "github",
             "remote": "github",
-            "role": "independent_mirror_distribution",
-            "may_substitute_for": ["update", "distribution"],
-            "may_not_substitute_for": [
-                "gitlab_primary_publication",
-                "gitlab_hosted_status",
-            ],
+            "role": "independent_complete_repository",
+            "capabilities": ["repository", "ci_cd", "update", "distribution"],
         },
     }
     projection = publication_topology_readiness(
         topology=topology,
-        primary_availability={"state": "unavailable", "available": False},
-        mirror_availability={"state": "available", "available": True},
+        gitlab_availability={"state": "unavailable", "available": False},
+        github_availability={"state": "available", "available": True},
     )
 
     assert projection["local"]["remote_independent"] is True
-    assert projection["operating_state"] == "mirror_fallback_available"
-    assert projection["github_mirror_substitutes_for"] == ["update", "distribution"]
+    assert projection["operating_state"] == "github_peer_plane_available"
+    assert projection["provider_capability_parity"] == {
+        "required": ["repository", "ci_cd", "update", "distribution"],
+        "equal": True,
+        "state": "equal",
+    }
+    assert projection["available_provider_planes"] == ["github"]
+    assert projection["github_repository_plane_claimed"] is False
     assert projection["gitlab_primary_publication_claimed"] is False
     assert projection["gitlab_hosted_status_claimed"] is False
     assert projection["remote_publication_claimed"] is False
+
+
+def test_publication_topology_keeps_candidate_local_only() -> None:
+    topology = {
+        "mode": "three_layer_peer_complete",
+        "local": {"role": "verification_and_install", "remote_independent": True},
+        "gitlab": {"capabilities": ["repository", "ci_cd", "update", "distribution"]},
+        "github": {"capabilities": ["repository", "ci_cd", "update", "distribution"]},
+        "remote_ref_policy": {
+            "accepted_branches": ["dev", "main", "submit/*"],
+            "excluded_branches": ["candidate/dev"],
+        },
+    }
+    policy = load_branch_role_policy(Path.cwd())
+
+    publication = publication_readiness(
+        branch="candidate/dev",
+        local_ok=True,
+        policy=policy,
+        topology=topology,
+    )
+
+    assert publication["remote_target_branch"] == "candidate/dev"
+    assert publication["remote_transition_allowed"] is False
+    assert publication["next_actions"] == [
+        "candidate/dev is local-only; fast-forward dev before any remote transition"
+    ]
+    assert publication["local_submit_package"]["required_steps"] == [
+        "fast-forward accepted root from candidate role; candidate branch is local-only",
+        "run local-ci fallback when remote publication is unavailable",
+    ]
 
 
 def test_publish_reports_remote_tracking_sync_state(monkeypatch) -> None:

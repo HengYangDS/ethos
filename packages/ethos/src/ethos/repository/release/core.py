@@ -67,67 +67,129 @@ def _surface_table(profile: object) -> dict[str, str]:
     }
 
 
-def _host_profile(config: dict[str, Any]) -> dict[str, Any]:
-    profile = config.get("host_profile", {})
-    if isinstance(profile, dict) and profile:
+def _profile(config: dict[str, Any], provider: str) -> dict[str, Any]:
+    """Project one declared forge profile without granting it authority."""
+    profiles = config.get("provider_profiles", {})
+    profile = profiles.get(provider, {}) if isinstance(profiles, dict) else {}
+    if not isinstance(profile, dict):
+        profile = {}
+    if not profile:
         return {
-            "provider": str(profile.get("provider", "")),
+            "provider": "",
+            "remote": "",
+            "role": "",
+            "capabilities": [],
+            "surfaces": {},
+        }
+    return {
+        "provider": str(profile.get("provider") or provider),
+        "remote": str(profile.get("remote") or ""),
+        "role": str(profile.get("role") or ""),
+        "capabilities": _string_list(profile.get("capabilities")),
+        "surfaces": _surface_table(profile),
+    }
+
+
+def _host_profile(config: dict[str, Any]) -> dict[str, Any]:
+    """Keep the GitLab primary profile available to legacy adapter views."""
+    profile = _profile(config, "gitlab")
+    if profile["provider"]:
+        return {
+            "provider": str(profile["provider"]),
             "layer": "profile_config",
-            "surfaces": _surface_table(profile),
+            "surfaces": dict(profile["surfaces"]),
+        }
+    legacy = config.get("host_profile", {})
+    if isinstance(legacy, dict) and legacy:
+        return {
+            "provider": str(legacy.get("provider", "")),
+            "layer": "profile_config",
+            "surfaces": _surface_table(legacy),
         }
     return {"provider": "", "layer": "profile_config", "surfaces": {}}
 
 
 def publication_topology(config: dict[str, Any]) -> dict[str, Any]:
-    """Project local, primary, and mirror release roles from tracked policy.
-
-    This is a policy declaration, not proof of any remote's reachability or a
-    successful publication.  The local layer remains remote-independent.
-    """
+    """Project local and two complete provider planes from tracked policy."""
     topology = config.get("publication_topology", {})
-    mirror = config.get("mirror_profile", {})
-    if not isinstance(topology, dict):
-        topology = {}
-    if not isinstance(mirror, dict):
-        mirror = {}
+    topology = topology if isinstance(topology, dict) else {}
+    mode = str(topology.get("mode") or "")
+    modern = mode == "three_layer_peer_complete"
+    gitlab = _profile(config, "gitlab")
+    github = _profile(config, "github")
+    capabilities = _string_list(topology.get("provider_capabilities"))
+    remote_accepted_branches = _string_list(topology.get("remote_accepted_branches"))
+    remote_excluded_branches = _string_list(topology.get("remote_excluded_branches"))
     return {
-        "mode": str(topology.get("mode") or ""),
+        "mode": mode,
         "local": {
             "role": str(topology.get("local_role") or "verification_and_install"),
             "remote_independent": True,
         },
-        "primary": {
-            "provider": str(topology.get("primary_provider") or ""),
-            "remote": str(topology.get("primary_remote") or "origin"),
-            "role": "organization_primary_publication",
+        "gitlab": {
+            "provider": str(gitlab["provider"] or "gitlab"),
+            "remote": str(gitlab["remote"] or topology.get("primary_remote") or "origin"),
+            "role": str(gitlab["role"] or ("organization_primary_publication" if modern else "")),
+            "capabilities": _string_list(gitlab["capabilities"]) or capabilities,
+            "surfaces": dict(gitlab["surfaces"]),
         },
-        "mirror": {
-            "provider": str(mirror.get("provider") or topology.get("mirror_provider") or ""),
-            "remote": str(mirror.get("remote") or topology.get("mirror_remote") or ""),
-            "role": str(mirror.get("role") or topology.get("mirror_role") or ""),
-            "surfaces": _surface_table(mirror),
-            "may_substitute_for": _string_list(topology.get("mirror_may_substitute_for")),
-            "may_not_substitute_for": _string_list(topology.get("mirror_may_not_substitute_for")),
+        "github": {
+            "provider": str(github["provider"] or "github"),
+            "remote": str(github["remote"] or topology.get("github_remote") or "github"),
+            "role": str(github["role"] or ("independent_complete_repository" if modern else "")),
+            "capabilities": _string_list(github["capabilities"]) or capabilities,
+            "surfaces": dict(github["surfaces"]),
+        },
+        "remote_ref_policy": {
+            "accepted_branches": remote_accepted_branches,
+            "excluded_branches": remote_excluded_branches,
         },
     }
 
 
-def _publication_topology_gaps(root: Path, topology: dict[str, Any]) -> list[str]:
-    """Return missing mirror surfaces and required topology declaration gaps."""
+def _publication_topology_gaps(
+    root: Path,
+    topology: dict[str, Any],
+    *,
+    branch_policy: Any,
+) -> list[str]:
+    """Return missing complete-provider surfaces and capability declaration gaps."""
     gaps: list[str] = []
-    mirror = topology["mirror"]
-    mirror_provider = str(mirror["provider"])
-    for key, path in mirror["surfaces"].items():
-        if not (root / path).exists():
-            gaps.append(f"host_surface_missing:{mirror_provider}:{key}:{path}")
-    if topology["mode"] == "three_layer_dual_remote":
-        primary = topology["primary"]
-        if not str(primary["provider"]) or not str(primary["remote"]):
-            gaps.append("publication_primary_remote_incomplete")
-        if not mirror_provider or not str(mirror["remote"]):
-            gaps.append("publication_mirror_remote_incomplete")
-        if not str(mirror["role"]):
-            gaps.append("publication_mirror_role_missing")
+    if topology["mode"] != "three_layer_peer_complete":
+        return gaps
+    required_capabilities = {"repository", "ci_cd", "update", "distribution"}
+    required_surfaces = {"ci", "review_template", "issue_template"}
+    remote_ref_policy = topology["remote_ref_policy"]
+    expected_accepted_branches = [
+        branch_policy.accepted_branch,
+        branch_policy.release_branch,
+        f"{branch_policy.submit_branch_prefix}*",
+    ]
+    accepted_branches = _string_list(remote_ref_policy["accepted_branches"])
+    excluded_branches = _string_list(remote_ref_policy["excluded_branches"])
+    if accepted_branches != expected_accepted_branches:
+        gaps.append("remote_accepted_branches_policy_missing")
+    if branch_policy.candidate_branch in accepted_branches:
+        gaps.append("remote_candidate_branch_accepted")
+    if branch_policy.candidate_branch not in excluded_branches:
+        gaps.append("remote_candidate_branch_not_excluded")
+    for provider_key, incomplete_gap in (
+        ("gitlab", "publication_gitlab_capabilities_incomplete"),
+        ("github", "publication_github_capabilities_incomplete"),
+    ):
+        profile = topology[provider_key]
+        provider = str(profile["provider"])
+        for key, path in profile["surfaces"].items():
+            if not (root / path).exists():
+                gaps.append(f"host_surface_missing:{provider}:{key}:{path}")
+        if not str(profile["provider"]) or not str(profile["remote"]):
+            gaps.append(f"publication_{provider_key}_remote_incomplete")
+        if not str(profile["role"]):
+            gaps.append(f"publication_{provider_key}_role_missing")
+        if set(_string_list(profile["capabilities"])) != required_capabilities:
+            gaps.append(incomplete_gap)
+        for surface in sorted(required_surfaces - set(profile["surfaces"])):
+            gaps.append(f"publication_{provider_key}_surface_missing:{surface}")
     return gaps
 
 
@@ -153,7 +215,7 @@ def release_policy_report(root: Path) -> dict[str, Any]:
     for key, path in host_profile["surfaces"].items():
         if not (root / path).exists():
             gaps.append(f"host_surface_missing:{provider}:{key}:{path}")
-    gaps.extend(_publication_topology_gaps(root, topology))
+    gaps.extend(_publication_topology_gaps(root, topology, branch_policy=branch_policy))
     if set(attestation.get("formats", [])) < {"in-toto", "slsa", "spdx-lite"}:
         gaps.append("attestation_formats_incomplete")
     return {

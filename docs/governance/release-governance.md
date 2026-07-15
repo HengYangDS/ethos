@@ -17,11 +17,16 @@ Required product release surfaces are `README.md`, `LICENSE`,
 CI files are profile surfaces declared under `.ethos/release.toml`; they are
 not product release-file requirements.
 
-The current release topology is three-layer and dual-remote: local verification
-and installation are remote-independent; GitLab is the organizational primary
-publication source; GitHub is an independent mirror for update and
-distribution. An available GitHub mirror during a GitLab outage does not prove
-GitLab publication, GitLab hosted CI, or repository proof.
+The current release topology is three-layer and peer-complete: local verification
+and installation are remote-independent; GitLab and GitHub are complete hosted
+repository and CI/CD planes with the same declared repository, CI/CD, update,
+and distribution capabilities. GitLab alone remains the organizational primary
+publication source. Each provider's observations remain provider-specific:
+GitHub success does not prove GitLab publication or GitLab hosted CI, and GitLab
+success does not prove GitHub hosted CI or repository proof.
+
+`candidate/dev` remains local-only and must not be pushed to either provider.
+The common remote admission whitelist is `dev`, `main`, and `submit/*`.
 
 Release readiness is proven with:
 

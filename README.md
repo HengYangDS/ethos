@@ -129,9 +129,15 @@ repositories apply to ETHOS product changes.
 
 ## Release Readiness
 
-GitLab-visible project governance is tracked in `LICENSE`, `CONTRIBUTING.md`,
-`CHANGELOG.md`, `.gitlab-ci.yml`, and GitLab templates. Use
-`ethos quality release --json` before publishing.
+GitLab and GitHub are peer complete hosted repository and CI/CD planes.
+GitLab alone remains the organizational primary publication source; GitHub
+retains independent repository, CI/CD, update, and distribution capability.
+`candidate/dev` is a local-only integration ref and is never sent to either
+provider. Both hosted remotes admit only `dev`, `main`, and `submit/*`.
+Their tracked surfaces include `LICENSE`, `CONTRIBUTING.md`, `CHANGELOG.md`,
+`.gitlab-ci.yml`, GitLab templates, `.github/workflows/ci.yml`, and GitHub
+issue and pull-request templates. Use `ethos quality release --json` before
+publishing.
 
 ## Development
 

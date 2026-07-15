@@ -3,6 +3,20 @@ stages:
   - verify
   - package
 
+# The local integration ref is not a hosted CI target. Both hosted providers
+# accept only the accepted/release roots and review lanes: dev, main, submit/*.
+workflow:
+  rules:
+    - if: >-
+        $CI_PIPELINE_SOURCE == "merge_request_event" &&
+        $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME =~ /^submit\/.+/ &&
+        ($CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "dev" ||
+        $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main")
+    - if: '$CI_COMMIT_BRANCH == "dev"'
+    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_COMMIT_BRANCH =~ /^submit\/.+/'
+    - when: never
+
 variables:
   UV_LINK_MODE: copy
   UV_CACHE_DIR: build/runtime/tool-cache/uv

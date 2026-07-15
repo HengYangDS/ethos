@@ -21,7 +21,7 @@ def test_version_manifest_keeps_workspace_packages_aligned() -> None:
     }
 
 
-def test_release_policy_reports_host_profile_separately_from_product_files() -> None:
+def test_release_policy_projects_peer_complete_provider_profiles() -> None:
     report = release_policy_report(Path.cwd())
 
     assert report["ok"] is True
@@ -34,54 +34,67 @@ def test_release_policy_reports_host_profile_separately_from_product_files() -> 
         "CHANGELOG.md",
         ".ethos/release.toml",
     ]
-    assert "gitlab" not in report
     assert report["host_profile"] == {
         "provider": "gitlab",
         "layer": "profile_config",
         "surfaces": {
             "ci": ".gitlab-ci.yml",
-            "merge_request_template": ".gitlab/merge_request_templates/default.md",
+            "review_template": ".gitlab/merge_request_templates/default.md",
             "issue_template": ".gitlab/issue_templates/task.md",
         },
     }
     assert report["protected_refs"]["branches"] == ["main", "dev"]
     assert report["protected_refs"]["tags"] == ["v*"]
-
-
-def test_release_policy_projects_three_layer_dual_remote_topology() -> None:
-    report = release_policy_report(Path.cwd())
-
-    topology = report["publication_topology"]
-    assert topology == {
-        "mode": "three_layer_dual_remote",
+    assert report["publication_topology"] == {
+        "mode": "three_layer_peer_complete",
         "local": {"role": "verification_and_install", "remote_independent": True},
-        "primary": {
+        "gitlab": {
             "provider": "gitlab",
             "remote": "origin",
             "role": "organization_primary_publication",
+            "capabilities": ["repository", "ci_cd", "update", "distribution"],
+            "surfaces": {
+                "ci": ".gitlab-ci.yml",
+                "review_template": ".gitlab/merge_request_templates/default.md",
+                "issue_template": ".gitlab/issue_templates/task.md",
+            },
         },
-        "mirror": {
+        "github": {
             "provider": "github",
             "remote": "github",
-            "role": "independent_mirror_distribution",
-            "surfaces": {"ci": ".github/workflows/ci.yml"},
-            "may_substitute_for": ["update", "distribution"],
-            "may_not_substitute_for": [
-                "gitlab_primary_publication",
-                "gitlab_hosted_status",
-            ],
+            "role": "independent_complete_repository",
+            "capabilities": ["repository", "ci_cd", "update", "distribution"],
+            "surfaces": {
+                "ci": ".github/workflows/ci.yml",
+                "review_template": ".github/pull_request_template.md",
+                "issue_template": ".github/ISSUE_TEMPLATE/task.md",
+            },
+        },
+        "remote_ref_policy": {
+            "accepted_branches": ["dev", "main", "submit/*"],
+            "excluded_branches": ["candidate/dev"],
         },
     }
     assert publication_topology({})["local"]["remote_independent"] is True
 
 
-def test_release_policy_reports_mirror_surface_gap_without_reclassifying_primary(
+def test_release_policy_rejects_incomplete_peer_provider_profile(
     tmp_path: Path,
 ) -> None:
     root = tmp_path / "repo"
     (root / ".ethos").mkdir(parents=True)
-    for path in ("README.md", "LICENSE", "CONTRIBUTING.md", "CHANGELOG.md", ".gitlab-ci.yml"):
-        (root / path).write_text("x\n", encoding="utf-8")
+    for path in (
+        "README.md",
+        "LICENSE",
+        "CONTRIBUTING.md",
+        "CHANGELOG.md",
+        ".gitlab-ci.yml",
+        ".gitlab/merge_request_templates/default.md",
+        ".gitlab/issue_templates/task.md",
+    ):
+        target = root / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("x\n", encoding="utf-8")
     (root / "pyproject.toml").write_text(
         '[project]\nname = "sample"\nversion = "1.0.0"\n', encoding="utf-8"
     )
@@ -91,25 +104,31 @@ branches = ["main", "dev"]
 tags = ["v*"]
 
 [publication_topology]
-mode = "three_layer_dual_remote"
+mode = "three_layer_peer_complete"
 primary_remote = "origin"
-primary_provider = "gitlab"
-mirror_remote = "github"
-mirror_provider = "github"
-mirror_role = "independent_mirror_distribution"
+github_remote = "github"
+provider_capabilities = ["repository", "ci_cd", "update", "distribution"]
+remote_accepted_branches = ["dev", "main", "submit/*"]
+remote_excluded_branches = ["candidate/dev"]
 
-[host_profile]
+[provider_profiles.gitlab]
 provider = "gitlab"
+remote = "origin"
+role = "organization_primary_publication"
+capabilities = ["repository", "ci_cd", "update", "distribution"]
 
-[host_profile.surfaces]
+[provider_profiles.gitlab.surfaces]
 ci = ".gitlab-ci.yml"
+review_template = ".gitlab/merge_request_templates/default.md"
+issue_template = ".gitlab/issue_templates/task.md"
 
-[mirror_profile]
+[provider_profiles.github]
 provider = "github"
 remote = "github"
-role = "independent_mirror_distribution"
+role = "independent_complete_repository"
+capabilities = ["repository", "ci_cd"]
 
-[mirror_profile.surfaces]
+[provider_profiles.github.surfaces]
 ci = ".github/workflows/ci.yml"
 
 [attestation]
@@ -121,6 +140,85 @@ formats = ["in-toto", "slsa", "spdx-lite"]
     report = release_policy_report(root)
 
     assert "host_surface_missing:github:ci:.github/workflows/ci.yml" in report["required_gaps"]
+    assert "publication_github_capabilities_incomplete" in report["required_gaps"]
+    assert "publication_github_surface_missing:issue_template" in report["required_gaps"]
+    assert "publication_github_surface_missing:review_template" in report["required_gaps"]
+
+
+def test_release_policy_reports_github_surface_gap_without_reclassifying_gitlab(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "repo"
+    (root / ".ethos").mkdir(parents=True)
+    for path in (
+        "README.md",
+        "LICENSE",
+        "CONTRIBUTING.md",
+        "CHANGELOG.md",
+        ".gitlab-ci.yml",
+        ".gitlab/merge_request_templates/default.md",
+        ".gitlab/issue_templates/task.md",
+    ):
+        target = root / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("x\n", encoding="utf-8")
+    (root / "pyproject.toml").write_text(
+        '[project]\nname = "sample"\nversion = "1.0.0"\n', encoding="utf-8"
+    )
+    (root / ".ethos" / "release.toml").write_text(
+        """[protected_refs]
+branches = ["main", "dev"]
+tags = ["v*"]
+
+[publication_topology]
+mode = "three_layer_peer_complete"
+primary_remote = "origin"
+github_remote = "github"
+provider_capabilities = ["repository", "ci_cd", "update", "distribution"]
+remote_accepted_branches = ["dev", "main", "submit/*"]
+remote_excluded_branches = ["candidate/dev"]
+
+[provider_profiles.gitlab]
+provider = "gitlab"
+remote = "origin"
+role = "organization_primary_publication"
+capabilities = ["repository", "ci_cd", "update", "distribution"]
+
+[provider_profiles.gitlab.surfaces]
+ci = ".gitlab-ci.yml"
+review_template = ".gitlab/merge_request_templates/default.md"
+issue_template = ".gitlab/issue_templates/task.md"
+
+[provider_profiles.github]
+provider = "github"
+remote = "github"
+role = "independent_complete_repository"
+capabilities = ["repository", "ci_cd", "update", "distribution"]
+
+[provider_profiles.github.surfaces]
+ci = ".github/workflows/ci.yml"
+review_template = ".github/pull_request_template.md"
+issue_template = ".github/ISSUE_TEMPLATE/task.md"
+
+[attestation]
+formats = ["in-toto", "slsa", "spdx-lite"]
+""",
+        encoding="utf-8",
+    )
+
+    report = release_policy_report(root)
+
+    assert "host_surface_missing:github:ci:.github/workflows/ci.yml" in report["required_gaps"]
+    assert (
+        "host_surface_missing:github:review_template:.github/pull_request_template.md"
+        in report["required_gaps"]
+    )
+    assert (
+        "host_surface_missing:github:issue_template:.github/ISSUE_TEMPLATE/task.md"
+        in report["required_gaps"]
+    )
+    assert "publication_gitlab_capabilities_incomplete" not in report["required_gaps"]
+    assert "publication_github_capabilities_incomplete" not in report["required_gaps"]
     assert "host_surface_missing:gitlab:ci:.gitlab-ci.yml" not in report["required_gaps"]
 
 
@@ -161,7 +259,78 @@ def test_release_policy_uses_configured_branch_roles_for_protected_refs(
     assert report["host_profile"]["provider"] == "gitlab"
 
 
-def test_release_policy_does_not_accept_retired_provider_section(tmp_path: Path) -> None:
+def test_release_policy_requires_local_candidate_exclusion_for_peer_remotes(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "repo"
+    (root / ".ethos").mkdir(parents=True)
+    for path in (
+        "README.md",
+        "LICENSE",
+        "CONTRIBUTING.md",
+        "CHANGELOG.md",
+        ".gitlab-ci.yml",
+        ".gitlab/merge_request_templates/default.md",
+        ".gitlab/issue_templates/task.md",
+        ".github/workflows/ci.yml",
+        ".github/pull_request_template.md",
+        ".github/ISSUE_TEMPLATE/task.md",
+    ):
+        target = root / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("x\n", encoding="utf-8")
+    (root / "pyproject.toml").write_text(
+        '[project]\nname = "sample"\nversion = "1.0.0"\n', encoding="utf-8"
+    )
+    (root / ".ethos" / "release.toml").write_text(
+        """[protected_refs]
+branches = ["main", "dev"]
+tags = ["v*"]
+
+[publication_topology]
+mode = "three_layer_peer_complete"
+remote_accepted_branches = ["dev", "main", "submit/*", "candidate/dev"]
+remote_excluded_branches = []
+provider_capabilities = ["repository", "ci_cd", "update", "distribution"]
+
+[provider_profiles.gitlab]
+provider = "gitlab"
+remote = "origin"
+role = "organization_primary_publication"
+capabilities = ["repository", "ci_cd", "update", "distribution"]
+
+[provider_profiles.gitlab.surfaces]
+ci = ".gitlab-ci.yml"
+review_template = ".gitlab/merge_request_templates/default.md"
+issue_template = ".gitlab/issue_templates/task.md"
+
+[provider_profiles.github]
+provider = "github"
+remote = "github"
+role = "independent_complete_repository"
+capabilities = ["repository", "ci_cd", "update", "distribution"]
+
+[provider_profiles.github.surfaces]
+ci = ".github/workflows/ci.yml"
+review_template = ".github/pull_request_template.md"
+issue_template = ".github/ISSUE_TEMPLATE/task.md"
+
+[attestation]
+formats = ["in-toto", "slsa", "spdx-lite"]
+""",
+        encoding="utf-8",
+    )
+
+    report = release_policy_report(root)
+
+    assert "remote_accepted_branches_policy_missing" in report["required_gaps"]
+    assert "remote_candidate_branch_accepted" in report["required_gaps"]
+    assert "remote_candidate_branch_not_excluded" in report["required_gaps"]
+
+
+def test_release_policy_does_not_accept_retired_provider_section(
+    tmp_path: Path,
+) -> None:
     root = tmp_path / "repo"
     (root / ".ethos").mkdir(parents=True)
     for path in ("README.md", "LICENSE", "CONTRIBUTING.md", "CHANGELOG.md"):
@@ -244,7 +413,9 @@ def test_sbom_projection_lists_workspace_and_lockfile_transitive_packages() -> N
     assert sbom["package_layers"]["lockfile_transitive"] > 0
 
 
-def test_sbom_projection_handles_missing_and_irregular_lockfile_packages(tmp_path: Path) -> None:
+def test_sbom_projection_handles_missing_and_irregular_lockfile_packages(
+    tmp_path: Path,
+) -> None:
     root = tmp_path / "repo"
     (root / "packages" / "sample").mkdir(parents=True)
     (root / "pyproject.toml").write_text(

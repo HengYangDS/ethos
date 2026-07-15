@@ -63,7 +63,7 @@ def test_current_fallback_marks_observed_remote_without_claiming_publication(
     )
 
 
-def test_publish_projects_gitlab_primary_and_github_mirror_separately(
+def test_publish_projects_peer_complete_gitlab_and_github_planes_separately(
     tmp_path: Path, monkeypatch
 ) -> None:
     repo = init_git_repo(tmp_path / "repo")
@@ -71,12 +71,49 @@ def test_publish_projects_gitlab_primary_and_github_mirror_separately(
     head = git(repo, "rev-parse", "HEAD")
     seed_executed_proof(repo, head)
     write_role_policy(repo)
-    (repo / ".github" / "workflows").mkdir(parents=True)
-    (repo / ".github" / "workflows" / "ci.yml").write_text("name: ci\n", encoding="utf-8")
+    for path in (
+        ".gitlab-ci.yml",
+        ".gitlab/merge_request_templates/default.md",
+        ".gitlab/issue_templates/task.md",
+        ".github/workflows/ci.yml",
+        ".github/pull_request_template.md",
+        ".github/ISSUE_TEMPLATE/task.md",
+    ):
+        target = repo / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("surface\n", encoding="utf-8")
     release = repo / ".ethos" / "release.toml"
     release.write_text(
         release.read_text(encoding="utf-8")
-        + """\n[publication_topology]\nmode = \"three_layer_dual_remote\"\nprimary_remote = \"origin\"\nprimary_provider = \"gitlab\"\nmirror_remote = \"github\"\nmirror_provider = \"github\"\nmirror_role = \"independent_mirror_distribution\"\nmirror_may_substitute_for = [\"update\", \"distribution\"]\nmirror_may_not_substitute_for = [\"gitlab_primary_publication\", \"gitlab_hosted_status\"]\n\n[mirror_profile]\nprovider = \"github\"\nremote = \"github\"\nrole = \"independent_mirror_distribution\"\n\n[mirror_profile.surfaces]\nci = \".github/workflows/ci.yml\"\n""",
+        + """
+[publication_topology]
+mode = "three_layer_peer_complete"
+primary_remote = "origin"
+github_remote = "github"
+provider_capabilities = ["repository", "ci_cd", "update", "distribution"]
+
+[provider_profiles.gitlab]
+provider = "gitlab"
+remote = "origin"
+role = "organization_primary_publication"
+capabilities = ["repository", "ci_cd", "update", "distribution"]
+
+[provider_profiles.gitlab.surfaces]
+ci = ".gitlab-ci.yml"
+review_template = ".gitlab/merge_request_templates/default.md"
+issue_template = ".gitlab/issue_templates/task.md"
+
+[provider_profiles.github]
+provider = "github"
+remote = "github"
+role = "independent_complete_repository"
+capabilities = ["repository", "ci_cd", "update", "distribution"]
+
+[provider_profiles.github.surfaces]
+ci = ".github/workflows/ci.yml"
+review_template = ".github/pull_request_template.md"
+issue_template = ".github/ISSUE_TEMPLATE/task.md"
+""",
         encoding="utf-8",
     )
     git(repo, "remote", "add", "origin", "ssh://gitlab.invalid/ethos.git")
@@ -97,10 +134,12 @@ def test_publish_projects_gitlab_primary_and_github_mirror_separately(
     payload = run_ethos("publish", "--probe-remote", "--json", cwd=repo)
 
     assert payload["data"]["remote_availability"]["remote"] == "origin"
-    assert payload["data"]["mirror_availability"]["remote"] == "github"
+    assert payload["data"]["github_availability"]["remote"] == "github"
     topology = payload["data"]["publication_topology"]
-    assert topology["operating_state"] == "mirror_fallback_available"
-    assert topology["github_mirror_substitutes_for"] == ["update", "distribution"]
+    assert topology["operating_state"] == "github_peer_plane_available"
+    assert topology["provider_capability_parity"]["equal"] is True
+    assert topology["available_provider_planes"] == ["github"]
+    assert topology["github_repository_plane_claimed"] is False
     assert topology["gitlab_primary_publication_claimed"] is False
     assert topology["gitlab_hosted_status_claimed"] is False
     assert topology["remote_publication_claimed"] is False

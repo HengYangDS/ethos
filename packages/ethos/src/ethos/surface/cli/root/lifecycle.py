@@ -15,7 +15,9 @@ import ethos.adapters.repo.git as git
 import ethos.domain.land.core as land_core
 import ethos.domain.land.publication as land_publication
 from ethos.adapters.admission.control.replacement import control_replacement_report
-from ethos.adapters.admission.evidence.external import independent_verification_admission_report
+from ethos.adapters.admission.evidence.external import (
+    independent_verification_admission_report,
+)
 from ethos.adapters.admission.evidence.external import independent_verification_request
 from ethos.adapters.mutation.core import MutationEvaluation
 from ethos.adapters.mutation.core import MutationRequest
@@ -209,7 +211,7 @@ def _closeout_expected_state(payload: _CloseoutPayload) -> dict[str, object]:
     }
 
 
-def _publish_expected_state(  # noqa: PLR0913, RUF100 - mutation state binds both primary and mirror observations
+def _publish_expected_state(  # noqa: PLR0913, RUF100 - mutation state binds both peer-provider observations
     *,
     repo: Path,
     branch: str,
@@ -217,10 +219,10 @@ def _publish_expected_state(  # noqa: PLR0913, RUF100 - mutation state binds bot
     publication: Mapping[str, object],
     remote_sync: Mapping[str, object],
     remote_availability: Mapping[str, object],
-    mirror_availability: Mapping[str, object],
+    github_availability: Mapping[str, object],
 ) -> dict[str, object]:
     submit_branch = str(publication.get("submit_branch") or "")
-    target_branch = submit_branch or branch
+    target_branch = str(publication.get("remote_target_branch") or submit_branch or branch)
     remote = str(remote_availability.get("remote") or "origin")
     return {
         "root": repo.resolve().as_posix(),
@@ -232,8 +234,9 @@ def _publish_expected_state(  # noqa: PLR0913, RUF100 - mutation state binds bot
         "observed_remote_head": str(remote_sync.get("remote_head") or ""),
         "remote_availability_state": str(remote_availability.get("state") or "not_probed"),
         "remote_sync_state": str(remote_sync.get("state") or "not_checked"),
-        "mirror_remote": str(mirror_availability.get("remote") or ""),
-        "mirror_availability_state": str(mirror_availability.get("state") or "not_probed"),
+        "github_remote": str(github_availability.get("remote") or ""),
+        "github_availability_state": str(github_availability.get("state") or "not_probed"),
+        "remote_transition_allowed": publication.get("remote_transition_allowed") is True,
     }
 
 
@@ -456,8 +459,12 @@ def publish(
         and bool(independent_verification.get("ok"))
     )
     release_topology = publication_topology(release_config(repo))
-    primary_remote = str(release_topology["primary"]["remote"] or "origin")
-    mirror_remote = str(release_topology["mirror"]["remote"] or "")
+    primary_remote = str(release_topology["gitlab"]["remote"] or "origin")
+    github_remote = (
+        str(release_topology["github"]["remote"] or "github")
+        if release_topology["mode"] == "three_layer_peer_complete"
+        else ""
+    )
     remote_sync = git.remote_tracking_sync(repo, str(branch), remote=primary_remote)
     if options.probe_remote:
         primary_availability = (
@@ -475,8 +482,8 @@ def publish(
         **primary_availability,
         "tracking_sync": remote_sync,
     }
-    if not mirror_remote:
-        mirror_availability = {
+    if not github_remote:
+        github_availability = {
             "kind": "git_remote_availability",
             "remote": "",
             "state": "unconfigured",
@@ -486,9 +493,9 @@ def publish(
             "advisory_gaps": [],
         }
     elif options.probe_remote:
-        mirror_availability = git.remote_availability(repo, mirror_remote)
+        github_availability = git.remote_availability(repo, github_remote)
     else:
-        mirror_availability = git.remote_availability_not_probed(repo, mirror_remote)
+        github_availability = git.remote_availability_not_probed(repo, github_remote)
     local_ci_fallback = land_publication.local_ci_fallback_package(
         remote_availability=remote_availability,
         root=repo,
@@ -499,7 +506,7 @@ def publish(
         local_ok=ok,
         policy=load_branch_role_policy(repo),
         remote_availability=remote_availability,
-        mirror_availability=mirror_availability,
+        github_availability=github_availability,
         topology=release_topology,
         local_ci_fallback=local_ci_fallback,
     )
@@ -513,7 +520,9 @@ def publish(
         "remote_publication_state": remote_state,
         "remote_availability_state": remote_availability_state,
         "remote_sync_state": str(remote_sync.get("state") or "not_checked"),
-        "mirror_availability_state": str(mirror_availability.get("state") or "not_probed"),
+        "github_availability_state": str(github_availability.get("state") or "not_probed"),
+        "gitlab_availability_state": remote_availability_state,
+        "remote_transition_allowed": publication.get("remote_transition_allowed") is True,
         "remote_ahead": _int_value(remote_sync.get("ahead")),
         "remote_behind": _int_value(remote_sync.get("behind")),
         "hosted_ci_status_claimed": False,
@@ -535,7 +544,7 @@ def publish(
         publication=publication,
         remote_sync=remote_sync,
         remote_availability=remote_availability,
-        mirror_availability=mirror_availability,
+        github_availability=github_availability,
     )
     result = EthosResult(
         command="publish",
@@ -563,7 +572,8 @@ def publish(
             "remote_push": remote_push,
             "remote_availability": remote_availability,
             "remote_sync": remote_sync,
-            "mirror_availability": mirror_availability,
+            "gitlab_availability": remote_availability,
+            "github_availability": github_availability,
             "publication_topology": publication["publication_topology"],
             "local_ci_fallback": local_ci_fallback,
             "publication": publication,

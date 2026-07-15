@@ -117,6 +117,22 @@ def test_provider_yaml_invokes_owner_scripts_not_inline_policy() -> None:
     assert "hosted_gitlab_status_claimed=true" not in combined
 
 
+def test_hosted_ci_excludes_local_candidate_and_accepts_only_remote_ref_policy() -> None:
+    github = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    gitlab = (ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8")
+    release = tomllib.loads((ROOT / ".ethos/release.toml").read_text(encoding="utf-8"))
+    topology = release["publication_topology"]
+
+    assert topology["remote_accepted_branches"] == ["dev", "main", "submit/*"]
+    assert topology["remote_excluded_branches"] == ["candidate/dev"]
+    assert "candidate/dev" not in github
+    assert '$CI_COMMIT_BRANCH == "candidate/dev"' not in gitlab
+    assert "submit/**" in github
+    assert "$CI_COMMIT_BRANCH =~ /^submit\\/.+/" in gitlab
+    assert '$CI_COMMIT_BRANCH == "dev"' in gitlab
+    assert '$CI_COMMIT_BRANCH == "main"' in gitlab
+
+
 def test_provider_python_producers_are_runtime_bound() -> None:
     runtime = "tools/ci/scripts/with-python-runtime.sh -- uv"
     provider_paths = [

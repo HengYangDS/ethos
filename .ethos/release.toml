@@ -8,31 +8,35 @@ branches = ["main", "dev"]
 tags = ["v*"]
 
 [publication_topology]
-mode = "three_layer_dual_remote"
+mode = "three_layer_peer_complete"
 local_role = "verification_and_install"
 primary_remote = "origin"
-mirror_remote = "github"
-primary_provider = "gitlab"
-mirror_provider = "github"
-mirror_role = "independent_mirror_distribution"
-mirror_may_substitute_for = ["update", "distribution"]
-mirror_may_not_substitute_for = ["gitlab_primary_publication", "gitlab_hosted_status"]
+github_remote = "github"
+remote_accepted_branches = ["dev", "main", "submit/*"]
+remote_excluded_branches = ["candidate/dev"]
+provider_capabilities = ["repository", "ci_cd", "update", "distribution"]
 
-[host_profile]
+[provider_profiles.gitlab]
 provider = "gitlab"
+remote = "origin"
+role = "organization_primary_publication"
+capabilities = ["repository", "ci_cd", "update", "distribution"]
 
-[host_profile.surfaces]
+[provider_profiles.gitlab.surfaces]
 ci = ".gitlab-ci.yml"
-merge_request_template = ".gitlab/merge_request_templates/default.md"
+review_template = ".gitlab/merge_request_templates/default.md"
 issue_template = ".gitlab/issue_templates/task.md"
 
-[mirror_profile]
+[provider_profiles.github]
 provider = "github"
 remote = "github"
-role = "independent_mirror_distribution"
+role = "independent_complete_repository"
+capabilities = ["repository", "ci_cd", "update", "distribution"]
 
-[mirror_profile.surfaces]
+[provider_profiles.github.surfaces]
 ci = ".github/workflows/ci.yml"
+review_template = ".github/pull_request_template.md"
+issue_template = ".github/ISSUE_TEMPLATE/task.md"
 
 [attestation]
 formats = ["in-toto", "slsa", "spdx-lite"]

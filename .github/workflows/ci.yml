@@ -2,11 +2,14 @@ name: ETHOS CI
 
 on:
   pull_request:
+    branches:
+      - dev
+      - main
   push:
     branches:
       - dev
-      - candidate/dev
       - main
+      - submit/**
   workflow_dispatch:
 
 permissions:

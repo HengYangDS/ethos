@@ -1,18 +1,18 @@
 [claim]
 id = "three-layer-dual-remote-release-topology-20260715"
 change_id = "three-layer-dual-remote-release-topology-20260715"
-subject = "repository-governance:three-layer-dual-remote-publication"
+subject = "repository-governance:three-layer-peer-complete-provider-publication"
 state = "active"
-summary = "ETHOS declares remote-independent local verification, GitLab primary publication, and optional GitHub mirror update and distribution without collapsing their evidence boundaries."
+summary = "ETHOS declares remote-independent local verification plus GitLab and GitHub peer-complete repository and CI/CD planes, with GitLab retained as organizational primary publication authority."
 
 [evidence]
 dated = "evidence/chronicle/three-layer-dual-remote-release-topology-20260715/2026-07-15.md"
-sha256 = "cd6c95b2dc54c1b4e36909d0d548199351a6d25b06e3b3f3c376de3605cdb65e"
+sha256 = "1bc28b106152824db3896d814048ce515973624d34dec507f1dacbbf0608be0b"
 evidence_ids = ["evidence:three-layer-dual-remote-release-topology-20260715"]
-binding = "The active OpenSpec carrier, release topology declaration, primary/mirror publication projection, focused tests, and bounded local quality evidence bind this change without asserting a remote transition."
+binding = "The active OpenSpec carrier, peer-complete GitLab/GitHub provider-profile declaration, provider-specific publication projection, focused tests, and bounded local quality evidence bind this change without asserting a remote transition."
 verifier = "digest_only"
 tests = [
-  "tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev pytest -q tests/unit/release/test_policy_attestation.py tests/unit/cli/land/test_publication.py tests/unit/cli/land/test_remote_publication_observability.py",
+  "tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev pytest -q tests/architecture/test_release_assets.py tests/unit/release/test_policy_attestation.py tests/unit/cli/land/test_publication.py tests/unit/cli/land/test_remote_publication_observability.py",
   "tools/ci/scripts/run-python-lint.sh",
   "tools/ci/scripts/run-ethos-lane.sh quality types --json",
   ".agents/skills/ethos-quality-gate-governance/scripts/quality_audit.py .",
@@ -26,17 +26,23 @@ mode = "historical"
 
 [boundary]
 owner = "repository-governance"
-scope = "Tracked three-layer, dual-remote release topology and read-only primary/mirror availability projection; excludes remote configuration, push, mirroring execution, tag creation, and hosted-CI assertions."
+scope = "Tracked three-layer, peer-complete provider release topology and read-only GitLab/GitHub availability projection; excludes remote configuration, push, replication execution, tag creation, and hosted-CI assertions."
 
 [carriers]
 openspec = "openspec/changes/three-layer-dual-remote-release-topology-20260715"
-fallback = "Keep local verification and installation remote-independent; treat GitLab primary publication and GitHub mirror distribution as separate, explicitly admitted provider transitions."
-kill_signal = "A GitHub mirror becomes required for adoption, is described as GitLab primary publication, supplies a GitLab hosted-status claim, or causes local verification to require a remote."
+fallback = "Keep local verification and installation remote-independent; treat GitLab and GitHub remote transitions as separate, explicitly admitted provider transitions, with GitLab primary publication authority unchanged."
+kill_signal = "Either provider loses declared complete repository or CI/CD capability; GitHub is described as GitLab primary publication; either provider supplies the other provider status claim; or local verification begins to require a remote."
 
 [promotion]
 targets = [
   { kind = "source", path = ".config/checks/ruff/ratchet.toml" },
   { kind = "source", path = ".ethos/release.toml" },
+  { kind = "source", path = ".github/pull_request_template.md" },
+  { kind = "source", path = ".github/ISSUE_TEMPLATE/task.md" },
+  { kind = "source", path = ".github/workflows/ci.yml" },
+  { kind = "source", path = ".gitlab-ci.yml" },
+  { kind = "source", path = ".gitlab/merge_request_templates/default.md" },
+  { kind = "source", path = ".gitlab/issue_templates/task.md" },
   { kind = "docs", path = "docs/governance/forge-provider-contract.md" },
   { kind = "docs", path = "docs/governance/release-governance.md" },
   { kind = "docs", path = "docs/plans/post-publication-governance-plan.md" },
@@ -44,6 +50,7 @@ targets = [
   { kind = "source", path = "packages/ethos/src/ethos/domain/land/publication.py" },
   { kind = "source", path = "packages/ethos/src/ethos/repository/release/core.py" },
   { kind = "source", path = "packages/ethos/src/ethos/surface/cli/root/lifecycle.py" },
+  { kind = "tests", path = "tests/architecture/test_release_assets.py" },
   { kind = "tests", path = "tests/unit/release/test_policy_attestation.py" },
   { kind = "tests", path = "tests/unit/cli/land/test_publication.py" },
   { kind = "tests", path = "tests/unit/cli/land/test_remote_publication_observability.py" },

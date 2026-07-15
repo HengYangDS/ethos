@@ -19,6 +19,8 @@ from ethos.adapters.repo.status.core import workspace_status
 from ethos.repository.policy.gates import gate_policy_digest
 from ethos_core.contracts.branch.roles import PROTECTED_WRITE_ROLES
 from ethos_core.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
+from ethos_core.contracts.branch.roles import branch_role_policy_from_text
+from ethos_core.contracts.branch.roles import load_branch_role_policy
 from ethos_core.normalization.core import string_sequence
 
 __all__ = ["work_lane_ref_transition_report"]
@@ -132,9 +134,6 @@ def push_admission_report(
     executed proof bound to the exact pushed HEAD. Pushes to unprotected refs (work
     lanes, feature branches) are admitted untouched.
     """
-    from ethos.adapters.mutation.core import proof_gaps
-    from ethos_core.contracts.branch.roles import load_branch_role_policy
-
     repo = root.resolve()
     policy = load_branch_role_policy(repo)
     branch = target_ref.removeprefix("refs/heads/")
@@ -162,7 +161,7 @@ def push_admission_report(
         "required_gaps": [],
     }
     proof_required = role in PROTECTED_WRITE_ROLES
-    proof_required_gaps = proof_gaps(repo, pushed_head) if proof_required else []
+    proof_required_gaps = _proof_gaps(repo, pushed_head) if proof_required else []
     # The push plane must enforce the SAME candidate-train topology as the local ref-move
     # reducer, or a raw `git push --force <proven-old-sha>:dev` rewinds/side-steps the
     # accepted branch that ref_move_admission_report blocks (the pushed head is proven but
@@ -202,6 +201,13 @@ def _proof_evidence_digest(root: Path, head: str) -> str:
     if not isinstance(record, dict):
         return ""
     return str(record.get("evidence_digest", ""))
+
+
+def _proof_gaps(root: Path, head: str) -> list[str]:
+    """Load mutation proof admission lazily to keep the hook import graph acyclic."""
+    from ethos.adapters.mutation.core import proof_gaps
+
+    return proof_gaps(root, head)
 
 
 def accepted_advance_gaps(
@@ -280,10 +286,6 @@ def ref_move_admission_report(
     sanctioned `ethos land --closeout` path satisfies (1)+(2) by construction, so only
     out-of-band ref moves are blocked.
     """
-    from ethos.adapters.mutation.core import proof_gaps
-    from ethos_core.contracts.branch.roles import branch_role_policy_from_text
-    from ethos_core.contracts.branch.roles import load_branch_role_policy
-
     repo = root.resolve()
     policy = load_branch_role_policy(repo)
     branch = ref_name.removeprefix("refs/heads/")
@@ -324,7 +326,7 @@ def ref_move_admission_report(
                 new_value=new_value,
             )
         )
-        gaps.extend(proof_gaps(repo, new_value))
+        gaps.extend(_proof_gaps(repo, new_value))
         # Official-closeout discrimination (R12 load-bearing nail): the substantive
         # checks above cannot tell an official `ethos land --closeout` apart from a raw
         # `git update-ref` to the same proven candidate head — both are byte-identical.
@@ -367,7 +369,7 @@ def ref_move_admission_report(
         # refresh-base` now that the ETHOS_ALLOW_REF_MOVE bypass is gone. Forward candidate
         # advances (new work not yet on accepted) still require proof.
         if not commit_contained_in(repo, new_value, policy.accepted_branch):
-            gaps.extend(proof_gaps(repo, new_value))
+            gaps.extend(_proof_gaps(repo, new_value))
         reason = "protected_ref_move_not_proven"
     else:
         return base

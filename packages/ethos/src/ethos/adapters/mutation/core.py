@@ -7,6 +7,8 @@ import ethos.adapters.mutation.remediation.core as remediation
 from ethos.adapters.admission.evidence.external import independent_verification_admission_report
 from ethos.adapters.admission.evidence.external import independent_verification_request
 from ethos.adapters.mutation.carriers import openspec_carrier_gaps
+from ethos.adapters.mutation.closeout.core import CloseoutDependencies
+from ethos.adapters.mutation.closeout.core import CloseoutRequest
 from ethos.adapters.mutation.closeout.core import promote_candidate_to_accepted
 from ethos.adapters.mutation.decision import MutationEvaluation
 from ethos.adapters.mutation.decision import MutationRequest
@@ -263,16 +265,20 @@ def apply_candidate_to_accepted(
             "candidate_head": candidate_head,
         }
     return promote_candidate_to_accepted(
-        root=root,
-        policy=policy,
-        current_head=current_head,
-        candidate_head=candidate_head,
-        candidate_path=Path(str(candidate["worktree_path"])),
-        worktrees=cast("list[dict[str, object]]", status.get("worktrees", [])),
-        run_git=run_git,
-        is_ancestor_fn=is_ancestor,
-        carry_proof=carry_executed_proof_record,
-        discard_proof=discard_executed_proof,
+        CloseoutRequest(
+            root=root,
+            policy=policy,
+            current_head=current_head,
+            candidate_head=candidate_head,
+            candidate_path=Path(str(candidate["worktree_path"])),
+            worktrees=cast("list[dict[str, object]]", status.get("worktrees", [])),
+        ),
+        dependencies=CloseoutDependencies(
+            run_git=run_git,
+            is_ancestor=is_ancestor,
+            carry_proof=carry_executed_proof_record,
+            discard_proof=discard_executed_proof,
+        ),
     )
 
 

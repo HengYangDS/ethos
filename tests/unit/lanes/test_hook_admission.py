@@ -428,6 +428,65 @@ def test_push_admission_blocks_unproven_push_to_protected_role(tmp_path) -> None
     assert lane["state"] == "admitted"
 
 
+def test_push_admission_rejects_local_candidate_and_non_remote_refs(tmp_path) -> None:
+    repo = init_repo(tmp_path / "repo")
+    (repo / ".ethos").mkdir(exist_ok=True)
+    (repo / ".ethos" / "release.toml").write_text(
+        """[publication_topology]
+mode = "three_layer_peer_complete"
+remote_accepted_branches = ["dev", "main", "submit/*"]
+remote_excluded_branches = ["candidate/dev"]
+
+[provider_profiles.gitlab]
+provider = "gitlab"
+remote = "origin"
+role = "organization_primary_publication"
+capabilities = ["repository", "ci_cd", "update", "distribution"]
+
+[provider_profiles.gitlab.surfaces]
+ci = ".gitlab-ci.yml"
+review_template = ".gitlab/merge_request_templates/default.md"
+issue_template = ".gitlab/issue_templates/task.md"
+
+[provider_profiles.github]
+provider = "github"
+remote = "github"
+role = "independent_complete_repository"
+capabilities = ["repository", "ci_cd", "update", "distribution"]
+
+[provider_profiles.github.surfaces]
+ci = ".github/workflows/ci.yml"
+review_template = ".github/pull_request_template.md"
+issue_template = ".github/ISSUE_TEMPLATE/task.md"
+""",
+        encoding="utf-8",
+    )
+    head = git(repo, "rev-parse", "HEAD")
+
+    candidate = push_admission_report(
+        root=repo,
+        target_ref="refs/heads/candidate/dev",
+        pushed_head=head,
+    )
+    other = push_admission_report(
+        root=repo,
+        target_ref="refs/heads/feature/remote-forbidden",
+        pushed_head=head,
+    )
+
+    assert candidate["ok"] is False
+    assert "remote_candidate_branch_forbidden" in candidate["required_gaps"]
+    assert candidate["remote_ref_policy"] == {
+        "ok": True,
+        "accepted_branches": ["dev", "main", "submit/*"],
+        "excluded_branches": ["candidate/dev"],
+        "candidate_branch": "candidate/dev",
+        "required_gaps": [],
+    }
+    assert other["ok"] is False
+    assert "remote_branch_not_accepted" in other["required_gaps"]
+
+
 def test_push_identity_policy_blocks_new_commits_outside_configured_user(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

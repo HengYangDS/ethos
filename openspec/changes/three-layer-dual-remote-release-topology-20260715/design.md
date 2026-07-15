@@ -18,6 +18,8 @@ The release policy declares three roles:
 `candidate/dev` is an internal local integration root. The common remote-ref
 policy permits `dev`, `main`, and `submit/*` on both providers and excludes
 `candidate/dev` from both provider CI triggers and remote transitions.
+The local pre-push admission reads the same policy and rejects an excluded or
+otherwise unaccepted hosted destination before provider contact.
 
 The two provider profiles independently declare the same repository, CI/CD,
 update, and distribution capabilities and their matching CI, review-template,

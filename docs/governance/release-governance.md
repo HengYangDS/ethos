@@ -26,7 +26,8 @@ GitHub success does not prove GitLab publication or GitLab hosted CI, and GitLab
 success does not prove GitHub hosted CI or repository proof.
 
 `candidate/dev` remains local-only and must not be pushed to either provider.
-The common remote admission whitelist is `dev`, `main`, and `submit/*`.
+The common remote admission whitelist is `dev`, `main`, and `submit/*`; local
+pre-push admission enforces it before any provider-specific branch protection.
 
 Release readiness is proven with:
 

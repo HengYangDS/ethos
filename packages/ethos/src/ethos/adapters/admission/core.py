@@ -16,6 +16,7 @@ from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.mutation.proof import executed_proof_record
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.repository.policy.gates import gate_policy_digest
+from ethos.repository.release.core import remote_ref_policy_report
 from ethos_core.contracts.branch.roles import PROTECTED_WRITE_ROLES
 from ethos_core.normalization.core import string_sequence
 
@@ -137,6 +138,7 @@ def push_admission_report(
     policy = load_branch_role_policy(repo)
     branch = target_ref.removeprefix("refs/heads/")
     role = policy.role_for_branch(branch)
+    remote_ref_policy = remote_ref_policy_report(repo)
     identity_report = push_identity_policy_report(
         repo,
         pushed_head,
@@ -156,9 +158,24 @@ def push_admission_report(
         "pushed_head": pushed_head,
         "remote_head": remote_head,
         "identity_policy": identity_report,
+        "remote_ref_policy": remote_ref_policy,
         "decision": {"action": "allow", "reason": "push_admitted"},
         "required_gaps": [],
     }
+    remote_ref_gaps = (
+        list(cast("list[str]", remote_ref_policy["required_gaps"]))
+        if remote_ref_policy["ok"]
+        else []
+    )
+    if remote_ref_policy["ok"]:
+        accepted_branches = cast("list[str]", remote_ref_policy["accepted_branches"])
+        if branch in cast("list[str]", remote_ref_policy["excluded_branches"]):
+            remote_ref_gaps.append("remote_candidate_branch_forbidden")
+        elif branch and not any(
+            branch == pattern.removesuffix("*") if pattern.endswith("*") else branch == pattern
+            for pattern in accepted_branches
+        ):
+            remote_ref_gaps.append("remote_branch_not_accepted")
     proof_required = role in PROTECTED_WRITE_ROLES
     proof_required_gaps = proof_gaps(repo, pushed_head) if proof_required else []
     # The push plane must enforce the SAME candidate-train topology as the local ref-move
@@ -172,11 +189,11 @@ def push_admission_report(
         if branch == policy.accepted_branch
         else []
     )
-    gaps = [*identity_gaps, *proof_required_gaps, *topology_gaps]
+    gaps = [*identity_gaps, *remote_ref_gaps, *proof_required_gaps, *topology_gaps]
     if gaps:
         reason = (
             "push_to_protected_role_not_proven"
-            if proof_required_gaps or topology_gaps
+            if remote_ref_gaps or proof_required_gaps or topology_gaps
             else "pushed_commit_identity_not_allowed"
         )
         base.update(

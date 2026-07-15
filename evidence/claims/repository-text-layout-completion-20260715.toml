@@ -2,14 +2,14 @@
 id = "repository-text-layout-completion-20260715"
 change_id = "repository-text-layout-completion-20260715"
 subject = "quality:repository-text-layout"
-state = "active"
-summary = "One structural blank-line separator is checked on active text carriers while each language-native formatter remains the authority for its language."
+state = "archived"
+summary = "One structural blank-line separator is checked on governed text carriers while each language-native formatter remains the authority for its language."
 
 [evidence]
 dated = "evidence/chronicle/repository-text-layout-completion-20260715/2026-07-15.md"
-sha256 = "27092b684869803bb1c6f043bf049d18f9f7e0d055c1c1bfc95cc638c7ef1d90"
+sha256 = "33c26cd50c8221ad44ed3e3534482f2bccaa33a12a1b7512d47545577ffb9fe3"
 evidence_ids = ["evidence:repository-text-layout-completion-20260715"]
-binding = "The active OpenSpec carrier, native owner scripts, shared structural reader, focused regressions, and dated Chronicle bind this bounded text-layout change."
+binding = "The archived official OpenSpec carrier, native owner scripts, shared structural reader, focused regressions, and dated Chronicle bind this bounded text-layout change."
 verifier = "digest_only"
 tests = [
   "uv run --all-packages --group dev python -m pytest -q tests/unit/governance/test_structural_whitespace.py tests/unit/governance/test_quality_regime.py tests/architecture/test_format_architecture_runbook_mcp.py",
@@ -29,12 +29,12 @@ mode = "historical"
 
 [boundary]
 owner = "ethos-quality-gate-governance"
-scope = "Active repository text blank-line structure, native formatter ownership, shared non-native carrier diagnostics, and provider-template parity."
+scope = "Repository text blank-line structure, native formatter ownership, shared non-native carrier diagnostics, and provider-template parity."
 
 [carriers]
-openspec = "openspec/changes/repository-text-layout-completion-20260715"
-fallback = "Use the language-native owner scripts and repair the active carrier; do not add a formatter bypass or a private style authority."
-kill_signal = "An active text carrier can retain repeated blank lines, the shared reader overrides a native formatter, or a provider projection drifts from its template."
+openspec = "openspec/changes/archive/2026-07-15-repository-text-layout-completion-20260715"
+fallback = "Use the language-native owner scripts and repair the governed carrier; do not add a formatter bypass or a private style authority."
+kill_signal = "A governed text carrier can retain repeated blank lines, the shared reader overrides a native formatter, or a provider projection drifts from its template."
 
 [promotion]
 targets = [
@@ -51,7 +51,7 @@ targets = [
   "openspec/specs/quality/spec.md",
   "openspec/specs/assistant-projections/spec.md",
   "tests/unit/governance/test_structural_whitespace.py",
-  "openspec/changes/repository-text-layout-completion-20260715",
+  "openspec/changes/archive/2026-07-15-repository-text-layout-completion-20260715",
   "evidence/chronicle/repository-text-layout-completion-20260715/2026-07-15.md",
   "evidence/claims/repository-text-layout-completion-20260715.toml",
 ]

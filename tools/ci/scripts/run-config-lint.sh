@@ -161,4 +161,4 @@ if ((${#yaml_files[@]})); then
     "${yaml_files[@]}"
 fi
 
-python tools/ci/structural_whitespace.py
+(($#)) || python tools/ci/structural_whitespace.py

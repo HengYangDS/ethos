@@ -51,6 +51,28 @@ def _official_open_spec_result(
     }
 
 
+def _mock_official_active_change(monkeypatch, name: str) -> None:
+    """Bind one named active Change to the official-command test seam."""
+    monkeypatch.setattr(openspec_cli, "openspec_base_command", lambda: ("openspec",))
+    monkeypatch.setattr(
+        openspec_cli,
+        "run_json",
+        lambda _root, _base, args: _official_open_spec_result(
+            args, [{"name": name, "status": "in-progress"}]
+        ),
+    )
+    monkeypatch.setattr(
+        openspec_lifecycle,
+        "active_claim_openspec_carriers",
+        lambda _root: {f"openspec/changes/{name}"},
+    )
+    monkeypatch.setattr(
+        openspec_lifecycle,
+        "proposal_protocol_report",
+        lambda _root, _change: {"ok": True, "required_gaps": []},
+    )
+
+
 def test_prewrite_uses_same_official_scope_candidates_as_plan_and_prove(
     tmp_path: Path,
     monkeypatch,
@@ -80,24 +102,7 @@ def test_prewrite_uses_same_official_scope_candidates_as_plan_and_prove(
         apply=True,
     )
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
-    monkeypatch.setattr(openspec_cli, "openspec_base_command", lambda: ("openspec",))
-    monkeypatch.setattr(
-        openspec_cli,
-        "run_json",
-        lambda _root, _base, args: _official_open_spec_result(
-            args, [{"name": "matching", "status": "in-progress"}]
-        ),
-    )
-    monkeypatch.setattr(
-        openspec_lifecycle,
-        "active_claim_openspec_carriers",
-        lambda _root: {"openspec/changes/matching"},
-    )
-    monkeypatch.setattr(
-        openspec_lifecycle,
-        "proposal_protocol_report",
-        lambda _root, _change: {"ok": True, "required_gaps": []},
-    )
+    _mock_official_active_change(monkeypatch, "matching")
 
     lifecycle = openspec_core.openspec_governance_report(
         worktree,
@@ -153,24 +158,7 @@ def test_prewrite_bootstrap_reads_untracked_official_change_scope_companion(
     (change / "scope.toml").write_text(
         'schema_version = 1\npaths = ["guidelines.md"]\n', encoding="utf-8"
     )
-    monkeypatch.setattr(openspec_cli, "openspec_base_command", lambda: ("openspec",))
-    monkeypatch.setattr(
-        openspec_cli,
-        "run_json",
-        lambda _root, _base, args: _official_open_spec_result(
-            args, [{"name": "bootstrap", "status": "in-progress"}]
-        ),
-    )
-    monkeypatch.setattr(
-        openspec_lifecycle,
-        "active_claim_openspec_carriers",
-        lambda _root: {"openspec/changes/bootstrap"},
-    )
-    monkeypatch.setattr(
-        openspec_lifecycle,
-        "proposal_protocol_report",
-        lambda _root, _change: {"ok": True, "required_gaps": []},
-    )
+    _mock_official_active_change(monkeypatch, "bootstrap")
 
     report = prewrite_guard(
         root=worktree,
@@ -222,24 +210,7 @@ def test_prewrite_bootstrap_requires_valid_untracked_scope_companion(
     change.mkdir(parents=True)
     if scope_body is not None:
         (change / "scope.toml").write_text(scope_body, encoding="utf-8")
-    monkeypatch.setattr(openspec_cli, "openspec_base_command", lambda: ("openspec",))
-    monkeypatch.setattr(
-        openspec_cli,
-        "run_json",
-        lambda _root, _base, args: _official_open_spec_result(
-            args, [{"name": "bootstrap", "status": "in-progress"}]
-        ),
-    )
-    monkeypatch.setattr(
-        openspec_lifecycle,
-        "active_claim_openspec_carriers",
-        lambda _root: {"openspec/changes/bootstrap"},
-    )
-    monkeypatch.setattr(
-        openspec_lifecycle,
-        "proposal_protocol_report",
-        lambda _root, _change: {"ok": True, "required_gaps": []},
-    )
+    _mock_official_active_change(monkeypatch, "bootstrap")
 
     report = prewrite_guard(
         root=worktree,
@@ -282,24 +253,7 @@ def test_prewrite_admits_only_new_official_scope_file_for_bootstrap(
     change = worktree / "openspec" / "changes" / "bootstrap"
     change.mkdir(parents=True)
     scope_path = change / "scope.toml"
-    monkeypatch.setattr(openspec_cli, "openspec_base_command", lambda: ("openspec",))
-    monkeypatch.setattr(
-        openspec_cli,
-        "run_json",
-        lambda _root, _base, args: _official_open_spec_result(
-            args, [{"name": "bootstrap", "status": "in-progress"}]
-        ),
-    )
-    monkeypatch.setattr(
-        openspec_lifecycle,
-        "active_claim_openspec_carriers",
-        lambda _root: {"openspec/changes/bootstrap"},
-    )
-    monkeypatch.setattr(
-        openspec_lifecycle,
-        "proposal_protocol_report",
-        lambda _root, _change: {"ok": True, "required_gaps": []},
-    )
+    _mock_official_active_change(monkeypatch, "bootstrap")
 
     bootstrap = prewrite_guard(
         root=worktree,
@@ -370,24 +324,7 @@ def test_prewrite_bootstrap_scope_must_cover_its_own_path(
     change.mkdir(parents=True)
     scope_path = change / "scope.toml"
     scope_path.write_text('schema_version = 1\npaths = ["guidelines.md"]\n', encoding="utf-8")
-    monkeypatch.setattr(openspec_cli, "openspec_base_command", lambda: ("openspec",))
-    monkeypatch.setattr(
-        openspec_cli,
-        "run_json",
-        lambda _root, _base, args: _official_open_spec_result(
-            args, [{"name": "bootstrap", "status": "in-progress"}]
-        ),
-    )
-    monkeypatch.setattr(
-        openspec_lifecycle,
-        "active_claim_openspec_carriers",
-        lambda _root: {"openspec/changes/bootstrap"},
-    )
-    monkeypatch.setattr(
-        openspec_lifecycle,
-        "proposal_protocol_report",
-        lambda _root, _change: {"ok": True, "required_gaps": []},
-    )
+    _mock_official_active_change(monkeypatch, "bootstrap")
 
     report = prewrite_guard(
         root=worktree,
@@ -425,24 +362,7 @@ def test_uncovered_material_path_blocks_prewrite_plan_and_prove(
         apply=True,
     )
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
-    monkeypatch.setattr(openspec_cli, "openspec_base_command", lambda: ("openspec",))
-    monkeypatch.setattr(
-        openspec_cli,
-        "run_json",
-        lambda _root, _base, args: _official_open_spec_result(
-            args, [{"name": "matching", "status": "in-progress"}]
-        ),
-    )
-    monkeypatch.setattr(
-        openspec_lifecycle,
-        "active_claim_openspec_carriers",
-        lambda _root: {"openspec/changes/matching"},
-    )
-    monkeypatch.setattr(
-        openspec_lifecycle,
-        "proposal_protocol_report",
-        lambda _root, _change: {"ok": True, "required_gaps": []},
-    )
+    _mock_official_active_change(monkeypatch, "matching")
     (worktree / "guidelines.md").write_text("# Changed\n", encoding="utf-8")
     expected = "openspec_material_path_uncovered:guidelines.md"
 
@@ -661,24 +581,7 @@ def test_prewrite_does_not_rebootstrap_a_tracked_scope_companion(
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
     scope_path = worktree / "openspec" / "changes" / "bootstrap" / "scope.toml"
     scope_path.unlink()
-    monkeypatch.setattr(openspec_cli, "openspec_base_command", lambda: ("openspec",))
-    monkeypatch.setattr(
-        openspec_cli,
-        "run_json",
-        lambda _root, _base, args: _official_open_spec_result(
-            args, [{"name": "bootstrap", "status": "in-progress"}]
-        ),
-    )
-    monkeypatch.setattr(
-        openspec_lifecycle,
-        "active_claim_openspec_carriers",
-        lambda _root: {"openspec/changes/bootstrap"},
-    )
-    monkeypatch.setattr(
-        openspec_lifecycle,
-        "proposal_protocol_report",
-        lambda _root, _change: {"ok": True, "required_gaps": []},
-    )
+    _mock_official_active_change(monkeypatch, "bootstrap")
 
     report = prewrite_guard(
         root=worktree,
@@ -798,6 +701,91 @@ def test_scope_reader_handles_invalid_profile_and_product_root_compatibly(
     assert product["required_gaps"] == []
 
 
+def test_prewrite_bootstraps_only_tracked_legacy_profile_material_declaration(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    """A legacy adopter may add only its missing profile declaration first."""
+    repo = init_repo(tmp_path / "repo")
+    profile_path = repo / ".ethos" / "profile.toml"
+    profile_path.parent.mkdir(exist_ok=True)
+    profile_path.write_text('profile_id = "legacy-adopter"\n', encoding="utf-8")
+    git(repo, "add", ".")
+    git(repo, "commit", "-m", "add legacy adopted profile")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    worktree = tmp_path / "repo-work-owned"
+    start_work_lane(
+        root=repo,
+        name="owned",
+        path=worktree,
+        holder_ref="agent:test:case:agent-test",
+        apply=True,
+    )
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    (worktree / "openspec" / "changes" / "matching").mkdir(parents=True)
+    _mock_official_active_change(monkeypatch, "matching")
+
+    profile = worktree / ".ethos" / "profile.toml"
+    admitted = prewrite_guard(
+        root=worktree,
+        paths=[profile],
+        editor_root=worktree,
+        require_editor_root=True,
+    )
+    widened = prewrite_guard(
+        root=worktree,
+        paths=[profile, worktree / "openspec" / "changes" / "matching" / "scope.toml"],
+        editor_root=worktree,
+        require_editor_root=True,
+    )
+
+    assert admitted["ok"] is True
+    assert admitted["material_scope"]["state"] == "profile_material_paths_bootstrap"
+    assert admitted["material_scope"]["profile_bootstrap"] == {
+        "change": "matching",
+        "profile_path": ".ethos/profile.toml",
+    }
+    assert widened["ok"] is False
+    assert widened["error"] == "openspec_material_paths_missing"
+
+
+@pytest.mark.parametrize(
+    ("profile_body", "case", "change_names"),
+    [
+        ("[openspec]\nmaterial_paths = []\n", "empty", ("matching",)),
+        ('profile_id = "legacy-adopter"\n', "untracked", ("matching",)),
+        ('profile_id = "legacy-adopter"\n', "multiple", ("first", "second")),
+    ],
+)
+def test_profile_material_paths_bootstrap_rejects_nonunique_or_nonlegacy_profile(
+    tmp_path: Path,
+    profile_body: str,
+    case: str,
+    change_names: tuple[str, ...],
+) -> None:
+    """Bootstrap requires one Change and a tracked profile with no declaration."""
+    repo = init_repo(tmp_path / "repo")
+    profile = repo / ".ethos" / "profile.toml"
+    profile.parent.mkdir(exist_ok=True)
+    profile.write_text(profile_body, encoding="utf-8")
+    git(repo, "add", ".")
+    git(repo, "commit", "-m", "add adopter profile")
+    if case == "untracked":
+        git(repo, "rm", "--cached", ".ethos/profile.toml")
+    for name in change_names:
+        (repo / "openspec" / "changes" / name).mkdir(parents=True)
+
+    report = openspec_scope.material_change_scope_report(
+        repo,
+        changed_paths=(".ethos/profile.toml",),
+        active_change_names=change_names,
+    )
+
+    assert report["state"] == "material_paths_missing"
+    assert report["profile_bootstrap"] == {}
+    assert report["required_gaps"] == ["openspec_material_paths_missing"]
+
+
 def test_prewrite_rejects_material_profile_write_without_scope_companion(
     tmp_path: Path,
     monkeypatch,
@@ -821,24 +809,7 @@ def test_prewrite_rejects_material_profile_write_without_scope_companion(
     )
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
     (worktree / "openspec" / "changes" / "unrelated").mkdir(parents=True)
-    monkeypatch.setattr(openspec_cli, "openspec_base_command", lambda: ("openspec",))
-    monkeypatch.setattr(
-        openspec_cli,
-        "run_json",
-        lambda _root, _base, args: _official_open_spec_result(
-            args, [{"name": "unrelated", "status": "in-progress"}]
-        ),
-    )
-    monkeypatch.setattr(
-        openspec_lifecycle,
-        "active_claim_openspec_carriers",
-        lambda _root: {"openspec/changes/unrelated"},
-    )
-    monkeypatch.setattr(
-        openspec_lifecycle,
-        "proposal_protocol_report",
-        lambda _root, _change: {"ok": True, "required_gaps": []},
-    )
+    _mock_official_active_change(monkeypatch, "unrelated")
 
     report = prewrite_guard(
         root=worktree,

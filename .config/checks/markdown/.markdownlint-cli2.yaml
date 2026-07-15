@@ -20,6 +20,8 @@ ignores:
   - ".agents/skills/**"
   # Local, non-published working state.
   - ".ethos/**"
+  # Host-local agent state is ignored and never part of repository prose.
+  - ".serena/**"
 
 config:
   # Line length is not enforced: governance prose intentionally runs long in

@@ -431,35 +431,46 @@ def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
 
 
 def test_release_mirror_closeout_edge_paths(monkeypatch, tmp_path):
-    promote = partial(
-        closeout_core.promote_candidate_to_accepted,
+    request = closeout_core.CloseoutRequest(
         root=tmp_path,
         policy=BranchRolePolicy(release_mirror="accepted_ff"),
         current_head="old",
         candidate_head="new",
         candidate_path=tmp_path,
         worktrees=[],
-        is_ancestor_fn=lambda *_args: True,
     )
-    assert (
-        promote(run_git=lambda *_args, **_kwargs: cp())["required_gaps"][0]
-        == "release_mirror_release_branch_missing"
+    dependencies = closeout_core.CloseoutDependencies(
+        run_git=lambda *_args, **_kwargs: cp(),
+        is_ancestor=lambda *_args: True,
+        carry_proof=lambda **_kwargs: {"ok": True, "required_gaps": []},
+        discard_proof=lambda *_args: None,
     )
+    promote = partial(
+        closeout_core.promote_candidate_to_accepted,
+        request,
+        dependencies=dependencies,
+    )
+    assert promote()["required_gaps"][0] == "release_mirror_release_branch_missing"
     transition = closeout_core.CloseoutTransition("refs/heads/main", "old", "new", "new")
     worktrees = [{"branch": "main", "worktree_binding": "linked", "path": str(tmp_path)}]
     assert (
-        closeout_core._sync_mirror(transition, worktrees, "new", "old", lambda *_a, **_k: cp())[
-            "worktree_sync"
-        ]
+        closeout_core.sync_release_mirror(
+            transition, worktrees, "new", "old", lambda *_a, **_k: cp()
+        )["worktree_sync"]
         == "synced"
     )
-    failed = closeout_core._sync_mirror(
+    failed = closeout_core.sync_release_mirror(
         transition, worktrees, "new", "old", lambda *_a, **_k: cp(stderr="sync", returncode=1)
     )
-    monkeypatch.setattr(closeout_core, "_sync_mirror", lambda *_a: failed)
-    assert promote(
-        run_git=lambda _r, *a, **_k: cp("old\n") if a[:1] == ("rev-parse",) else cp(),
-        carry_proof=lambda **_k: {"ok": True, "required_gaps": []},
+    monkeypatch.setattr(closeout_core, "sync_release_mirror", lambda *_a: failed)
+    assert closeout_core.promote_candidate_to_accepted(
+        request,
+        dependencies=closeout_core.CloseoutDependencies(
+            run_git=lambda _r, *a, **_k: cp("old\n") if a[:1] == ("rev-parse",) else cp(),
+            is_ancestor=lambda *_args: True,
+            carry_proof=lambda **_k: {"ok": True, "required_gaps": []},
+            discard_proof=lambda *_args: None,
+        ),
     )["required_gaps"] == ["release_mirror_worktree_sync_failed"]
 
 

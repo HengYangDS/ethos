@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import ethos.adapters.mutation.remediation.core as remediation
 from ethos.adapters.admission.closeout_intent.core import CloseoutTransition
@@ -18,110 +20,181 @@ from ethos.repository.policy.gates import gate_policy_digest
 from ethos_core.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
 from ethos_core.contracts.branch.roles import BranchRolePolicy
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+
+@dataclass(frozen=True)
+class CloseoutDependencies:
+    """Injected closeout collaborators; production uses the canonical adapters."""
+
+    run_git: Callable[..., object] = run_git
+    is_ancestor: Callable[..., bool] = is_ancestor
+    carry_proof: Callable[..., dict[str, object]] = carry_executed_proof_record
+    discard_proof: Callable[..., object] = discard_executed_proof
+
+
+_DEFAULT_DEPENDENCIES = CloseoutDependencies()
+
+
+@dataclass(frozen=True)
+class CloseoutRequest:
+    """Immutable promotion inputs shared by validation and execution."""
+
+    root: Path
+    policy: BranchRolePolicy
+    current_head: str
+    candidate_head: str
+    candidate_path: Path
+    worktrees: list[dict[str, object]]
+
 
 def promote_candidate_to_accepted(
+    request: CloseoutRequest,
     *,
-    root: Path,
-    policy: BranchRolePolicy,
-    current_head: str,
-    candidate_head: str,
-    candidate_path: Path,
-    worktrees: list[dict[str, object]],
-    run_git=run_git,
-    is_ancestor_fn=is_ancestor,
-    carry_proof=carry_executed_proof_record,
-    discard_proof=discard_executed_proof,
+    dependencies: CloseoutDependencies = _DEFAULT_DEPENDENCIES,
 ) -> dict[str, object]:
     """Promote candidate; when enabled, atomically fast-forward release too."""
-    if not is_ancestor_fn(root, current_head, candidate_head):
+    preflight = _promotion_preflight(request, dependencies)
+    if isinstance(preflight, dict):
+        return preflight
+    return _execute_promotion(request, preflight, dependencies)
+
+
+def _promotion_preflight(
+    request: CloseoutRequest, dependencies: CloseoutDependencies
+) -> tuple[CloseoutTransition, CloseoutTransition | None, str] | dict[str, object]:
+    if not dependencies.is_ancestor(request.root, request.current_head, request.candidate_head):
         return _blocked(
-            policy,
-            current_head,
+            request.policy,
+            request.current_head,
             ["candidate_diverged_from_accepted"],
-            candidate_head=candidate_head,
+            candidate_head=request.candidate_head,
         )
-    mirror = policy.release_mirror == RELEASE_MIRROR_ACCEPTED_FF
+    mirror = request.policy.release_mirror == RELEASE_MIRROR_ACCEPTED_FF
     release_old = (
-        run_git(root, "rev-parse", policy.release_branch, check=False).stdout.strip()
+        dependencies.run_git(
+            request.root, "rev-parse", request.policy.release_branch, check=False
+        ).stdout.strip()
         if mirror
         else ""
     )
-    if mirror and (not release_old or not is_ancestor_fn(root, release_old, current_head)):
+    if mirror and (
+        not release_old
+        or not dependencies.is_ancestor(request.root, release_old, request.current_head)
+    ):
         gap = (
             "release_mirror_release_branch_missing"
             if not release_old
             else "release_mirror_ahead_of_accepted"
-            if is_ancestor_fn(root, current_head, release_old)
+            if dependencies.is_ancestor(request.root, request.current_head, release_old)
             else "release_mirror_diverged"
         )
-        return _blocked(policy, current_head, [gap], candidate_head=candidate_head)
-    accepted = _transition(root, policy.accepted_branch, candidate_head, run_git)
-    release = _transition(root, policy.release_branch, candidate_head, run_git) if mirror else None
-    sweep_stale_closeout_intents(root)
+        return _blocked(
+            request.policy, request.current_head, [gap], candidate_head=request.candidate_head
+        )
+    accepted = _transition(
+        request.root, request.policy.accepted_branch, request.candidate_head, dependencies.run_git
+    )
+    release = (
+        _transition(
+            request.root,
+            request.policy.release_branch,
+            request.candidate_head,
+            dependencies.run_git,
+        )
+        if mirror
+        else None
+    )
+    return accepted, release, release_old
+
+
+def _execute_promotion(
+    request: CloseoutRequest,
+    preflight: tuple[CloseoutTransition, CloseoutTransition | None, str],
+    dependencies: CloseoutDependencies,
+) -> dict[str, object]:
+    accepted, release, release_old = preflight
+    sweep_stale_closeout_intents(request.root)
     intents = [
         write_closeout_intent(
-            root=root,
+            root=request.root,
             transition=item,
-            evidence_digest=_proof_digest(candidate_path, candidate_head),
-            gate_policy_digest=gate_policy_digest(root, tree_ref=candidate_head),
+            evidence_digest=_proof_digest(request.candidate_path, request.candidate_head),
+            gate_policy_digest=gate_policy_digest(request.root, tree_ref=request.candidate_head),
         )
         for item in (accepted, release)
         if item
     ]
     try:
-        proof = carry_proof(source_root=candidate_path, target_root=root, head=candidate_head)
+        proof = dependencies.carry_proof(
+            source_root=request.candidate_path,
+            target_root=request.root,
+            head=request.candidate_head,
+        )
         if not proof["ok"]:
-            return _blocked(policy, current_head, list(proof["required_gaps"]), proof_carry=proof)
-        update = _atomic_update(root, accepted, release, run_git)
-        if update.returncode:
-            discard_proof(root, candidate_head)
             return _blocked(
-                policy,
-                current_head,
+                request.policy,
+                request.current_head,
+                list(proof["required_gaps"]),
+                proof_carry=proof,
+            )
+        update = _atomic_update(request.root, accepted, release, dependencies.run_git)
+        if update.returncode:
+            dependencies.discard_proof(request.root, request.candidate_head)
+            return _blocked(
+                request.policy,
+                request.current_head,
                 ["accepted_advanced_concurrently"],
                 remediation=remediation.remediation_for_gaps(["accepted_advanced_concurrently"]),
                 stderr=update.stderr.strip(),
             )
-        synced, attempts = _sync(root, candidate_head, run_git)
+        synced, attempts = _sync(request.root, request.candidate_head, dependencies.run_git)
         if synced.returncode:
             return _blocked(
-                policy,
-                current_head,
+                request.policy,
+                request.current_head,
                 ["accepted_worktree_sync_failed"],
-                candidate_head=candidate_head,
+                candidate_head=request.candidate_head,
                 stderr=synced.stderr.strip(),
                 sync_attempts=attempts,
             )
-        checked = run_git(root, "status", "--short", check=False)
+        checked = dependencies.run_git(request.root, "status", "--short", check=False)
         if checked.returncode or checked.stdout.strip():
             return _blocked(
-                policy,
-                current_head,
+                request.policy,
+                request.current_head,
                 ["accepted_worktree_dirty_after_sync"],
-                candidate_head=candidate_head,
+                candidate_head=request.candidate_head,
                 stderr=checked.stderr.strip(),
                 status=checked.stdout.strip(),
             )
-        mirror_result = _sync_mirror(release, worktrees, candidate_head, release_old, run_git)
+        mirror_result = sync_release_mirror(
+            release,
+            request.worktrees,
+            request.candidate_head,
+            release_old,
+            dependencies.run_git,
+        )
         if mirror_result["worktree_sync"] in {"failed", "dirty"}:
             return _blocked(
-                policy,
-                current_head,
+                request.policy,
+                request.current_head,
                 [
                     "release_mirror_worktree_sync_failed"
                     if mirror_result["worktree_sync"] == "failed"
                     else "release_mirror_worktree_dirty_after_sync"
                 ],
-                candidate_head=candidate_head,
+                candidate_head=request.candidate_head,
                 release_mirror=mirror_result,
             )
         return {
             "ok": True,
             "state": "accepted_validated",
-            "branch": policy.accepted_branch,
-            "source_branch": policy.candidate_branch,
-            "head": candidate_head,
-            "previous_head": current_head,
+            "branch": request.policy.accepted_branch,
+            "source_branch": request.policy.candidate_branch,
+            "head": request.candidate_head,
+            "previous_head": request.current_head,
             "proof_carry": proof,
             "sync_attempts": attempts,
             "release_mirror": mirror_result,
@@ -129,7 +202,7 @@ def promote_candidate_to_accepted(
         }
     finally:
         for intent in intents:
-            clear_closeout_intent(root, str(intent["nonce"]))
+            clear_closeout_intent(request.root, str(intent["nonce"]))
 
 
 def _atomic_update(root, accepted, release, run_git):
@@ -164,7 +237,7 @@ def _sync(root, head, run_git):
     return run_git(root, "reset", "--hard", head, check=False), 2
 
 
-def _sync_mirror(transition, worktrees, head, previous, run_git):
+def sync_release_mirror(transition, worktrees, head, previous, run_git):
     if transition is None:
         return {"mode": "independent", "worktree_sync": "not_enabled"}
     branch = transition.ref_name.removeprefix("refs/heads/")

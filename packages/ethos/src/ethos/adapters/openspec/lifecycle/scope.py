@@ -121,6 +121,10 @@ def _material_scope_binding_for_profile(
     if not material_paths:
         return binding._replace(state="no_material_paths")
     changes = _change_scope_declarations(root, active_change_names=active_change_names)
+    changes = (
+        *changes,
+        *_current_archive_scope_declarations(root, binding.changed_paths),
+    )
     bootstrap = _bootstrap_scope_creation(
         root=root,
         material_paths=material_paths,
@@ -316,6 +320,63 @@ def _change_scope_declarations(
                 "name": change_root.name,
                 "state": "active_or_archiving",
                 "scope_path": relative,
+                "paths": list(declaration.paths),
+                "ok": True,
+                "required_gaps": [],
+            }
+        )
+    return tuple(declarations)
+
+
+def _current_archive_scope_declarations(
+    root: Path, changed_paths: tuple[str, ...]
+) -> tuple[dict[str, object], ...]:
+    """Read only archives that participate in the supplied current change scope."""
+    archive_root = root / "openspec" / "changes" / "archive"
+    if not archive_root.is_dir():
+        return ()
+    declarations: list[dict[str, object]] = []
+    for change_root in sorted(path for path in archive_root.iterdir() if path.is_dir()):
+        relative_root = change_root.relative_to(root).as_posix()
+        if not any(
+            path == relative_root or path.startswith(f"{relative_root}/") for path in changed_paths
+        ):
+            continue
+        scope_path = change_root / "scope.toml"
+        relative_scope = scope_path.relative_to(root).as_posix()
+        if not scope_path.exists():
+            declarations.append(
+                {
+                    "name": change_root.name,
+                    "state": "archive_missing",
+                    "scope_path": relative_scope,
+                    "paths": [],
+                    "ok": False,
+                    "required_gaps": [f"openspec_archive_scope_missing:{change_root.name}"],
+                }
+            )
+            continue
+        try:
+            declaration = ChangeScopeDeclaration.model_validate(
+                tomllib.loads(scope_path.read_text(encoding="utf-8"))
+            )
+        except (OSError, tomllib.TOMLDecodeError, ValidationError):
+            declarations.append(
+                {
+                    "name": change_root.name,
+                    "state": "archive_invalid",
+                    "scope_path": relative_scope,
+                    "paths": [],
+                    "ok": False,
+                    "required_gaps": [f"openspec_archive_scope_invalid:{change_root.name}"],
+                }
+            )
+            continue
+        declarations.append(
+            {
+                "name": change_root.name,
+                "state": "current_archive",
+                "scope_path": relative_scope,
                 "paths": list(declaration.paths),
                 "ok": True,
                 "required_gaps": [],

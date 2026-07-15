@@ -159,6 +159,11 @@ def test_archive_preflight_raw_failure_families_reduce_to_carrier_invalid() -> N
     assert classify("official_archive_result_invalid") == "carrier_invalid"
 
 
+def test_current_archive_scope_diagnostics_reduce_to_carrier_invalid() -> None:
+    assert classify("archive_missing") == "carrier_invalid"
+    assert classify("archive_invalid") == "carrier_invalid"
+
+
 def test_longest_prefix_wins_on_overlap() -> None:
     # a specific prefix beats a generic one sharing a stem
     assert classify("write_admission_not_armed:core.hooksPath") == "substrate_untrusted"

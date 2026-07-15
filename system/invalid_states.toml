@@ -196,6 +196,8 @@ summary = "The carrier — OpenSpec workspace, change, archive, delta specs, met
 match_prefixes = [
   "carrier_invalid",
   "openspec_",
+  "archive_missing",
+  "archive_invalid",
   "material_paths_missing",
   "official_openspec_",
   "official_archive_",

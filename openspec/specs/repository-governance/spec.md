@@ -2064,10 +2064,14 @@ change scope; it remains excluded for all unrelated future changes.
 #### Scenario: final archive reconciliation remains covered
 
 - **GIVEN** a completed Change is archived in the current Work Lane change
-  scope and its archive has a valid matching `scope.toml`
+  scope and its archive has a valid `scope.toml`
 - **WHEN** prewrite, changed planning, or proof evaluates a material path from
   that same current scope
-- **THEN** the archive companion may cover the path
+- **THEN** the archive companion may cover declared matching paths
+- **AND THEN** it SHALL cover paths inside that selected archive directory,
+  including the companion itself, only for this reconciliation
+- **AND THEN** it SHALL not cover a path outside that archive unless the
+  companion explicitly matches it
 - **AND** the same scope verdict is returned on all three surfaces.
 
 #### Scenario: historical archive cannot authorize unrelated material work

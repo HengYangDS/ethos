@@ -73,6 +73,20 @@ def _mock_official_active_change(monkeypatch, name: str, status: str = "in-progr
     )
 
 
+def _worktree(repo: Path, tmp_path: Path, monkeypatch) -> Path:
+    worktree = tmp_path / "repo-work-owned"
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    start_work_lane(
+        root=repo,
+        name="owned",
+        path=worktree,
+        holder_ref="agent:test:case:agent-test",
+        apply=True,
+    )
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    return worktree
+
+
 def test_prewrite_uses_same_official_scope_candidates_as_plan_and_prove(
     tmp_path: Path,
     monkeypatch,
@@ -92,16 +106,7 @@ def test_prewrite_uses_same_official_scope_candidates_as_plan_and_prove(
     (repo / "openspec" / "changes" / "unknown-directory").mkdir(parents=True)
     git(repo, "add", ".")
     git(repo, "commit", "-m", "add adopter scope fixture")
-    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
-    worktree = tmp_path / "repo-work-owned"
-    start_work_lane(
-        root=repo,
-        name="owned",
-        path=worktree,
-        holder_ref="agent:test:case:agent-test",
-        apply=True,
-    )
-    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    worktree = _worktree(repo, tmp_path, monkeypatch)
     _mock_official_active_change(monkeypatch, "matching")
 
     lifecycle = openspec_core.openspec_governance_report(
@@ -143,16 +148,7 @@ def test_prewrite_bootstrap_reads_untracked_official_change_scope_companion(
     (repo / "guidelines.md").write_text("# Guidelines\n", encoding="utf-8")
     git(repo, "add", ".")
     git(repo, "commit", "-m", "declare adopter material paths")
-    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
-    worktree = tmp_path / "repo-work-owned"
-    start_work_lane(
-        root=repo,
-        name="owned",
-        path=worktree,
-        holder_ref="agent:test:case:agent-test",
-        apply=True,
-    )
-    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    worktree = _worktree(repo, tmp_path, monkeypatch)
     change = worktree / "openspec" / "changes" / "bootstrap"
     change.mkdir(parents=True)
     (change / "scope.toml").write_text(
@@ -196,16 +192,7 @@ def test_prewrite_bootstrap_requires_valid_untracked_scope_companion(
     (repo / "guidelines.md").write_text("# Guidelines\n", encoding="utf-8")
     git(repo, "add", ".")
     git(repo, "commit", "-m", "declare adopter material paths")
-    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
-    worktree = tmp_path / "repo-work-owned"
-    start_work_lane(
-        root=repo,
-        name="owned",
-        path=worktree,
-        holder_ref="agent:test:case:agent-test",
-        apply=True,
-    )
-    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    worktree = _worktree(repo, tmp_path, monkeypatch)
     change = worktree / "openspec" / "changes" / "bootstrap"
     change.mkdir(parents=True)
     if scope_body is not None:
@@ -240,16 +227,7 @@ def test_prewrite_admits_only_new_official_scope_file_for_bootstrap(
     (repo / "guidelines.md").write_text("# Guidelines\n", encoding="utf-8")
     git(repo, "add", ".")
     git(repo, "commit", "-m", "declare adopter material paths")
-    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
-    worktree = tmp_path / "repo-work-owned"
-    start_work_lane(
-        root=repo,
-        name="owned",
-        path=worktree,
-        holder_ref="agent:test:case:agent-test",
-        apply=True,
-    )
-    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    worktree = _worktree(repo, tmp_path, monkeypatch)
     change = worktree / "openspec" / "changes" / "bootstrap"
     change.mkdir(parents=True)
     scope_path = change / "scope.toml"
@@ -310,16 +288,7 @@ def test_prewrite_bootstrap_scope_must_cover_its_own_path(
     )
     git(repo, "add", ".")
     git(repo, "commit", "-m", "declare scope material paths")
-    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
-    worktree = tmp_path / "repo-work-owned"
-    start_work_lane(
-        root=repo,
-        name="owned",
-        path=worktree,
-        holder_ref="agent:test:case:agent-test",
-        apply=True,
-    )
-    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    worktree = _worktree(repo, tmp_path, monkeypatch)
     change = worktree / "openspec" / "changes" / "bootstrap"
     change.mkdir(parents=True)
     scope_path = change / "scope.toml"
@@ -352,16 +321,7 @@ def test_uncovered_material_path_blocks_prewrite_plan_and_prove(
     (repo / "guidelines.md").write_text("# Guidelines\n", encoding="utf-8")
     git(repo, "add", ".")
     git(repo, "commit", "-m", "declare uncovered material path")
-    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
-    worktree = tmp_path / "repo-work-owned"
-    start_work_lane(
-        root=repo,
-        name="owned",
-        path=worktree,
-        holder_ref="agent:test:case:agent-test",
-        apply=True,
-    )
-    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    worktree = _worktree(repo, tmp_path, monkeypatch)
     _mock_official_active_change(monkeypatch, "matching")
     (worktree / "guidelines.md").write_text("# Changed\n", encoding="utf-8")
     expected = "openspec_material_path_uncovered:guidelines.md"
@@ -479,6 +439,56 @@ def test_archiving_scope_covers_path_despite_unrelated_incomplete_change(
     assert "openspec_scope_missing:unrelated-incomplete" in binding["advisory_gaps"]
 
 
+@pytest.mark.parametrize(
+    ("scope_body", "state", "diagnostic", "external"),
+    [
+        (
+            'schema_version = 1\npaths = ["guidelines.md"]\n',
+            "covered",
+            "",
+            False,
+        ),
+        (None, "uncovered", "openspec_archive_scope_missing:change", False),
+        ("paths = [\n", "uncovered", "openspec_archive_scope_invalid:change", False),
+        ('schema_version = 1\npaths = ["guidelines.md"]\n', "uncovered", "", True),
+    ],
+)
+def test_current_archive_scope_is_reconciliation_only(
+    tmp_path: Path, scope_body: str | None, state: str, diagnostic: str, external: bool
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    profile = repo / ".ethos" / "profile.toml"
+    profile.parent.mkdir(exist_ok=True)
+    profile.write_text(
+        '[openspec]\nmaterial_paths = [".ethos/profile.toml", "guidelines.md", "openspec/**"]\n'
+    )
+    archive = repo / "openspec" / "changes" / "archive" / "change"
+    archive.mkdir(parents=True)
+    if scope_body is not None:
+        (archive / "scope.toml").write_text(scope_body)
+    metadata = archive / ".openspec.yaml"
+    metadata.write_text("schema: spec-driven\ncreated: 2026-07-15\n")
+    archive_paths = (
+        metadata.relative_to(repo).as_posix(),
+        (archive / "scope.toml").relative_to(repo).as_posix(),
+    )
+    material_paths = (
+        "guidelines.md",
+        *archive_paths,
+        *((".ethos/profile.toml",) if external else ()),
+    )
+    current = openspec_scope.material_change_scope_report(
+        repo, changed_paths=material_paths, active_change_names=()
+    )
+    historical = openspec_scope.material_change_scope_report(
+        repo, changed_paths=("guidelines.md",), active_change_names=()
+    )
+    uncovered = material_paths if diagnostic else ((".ethos/profile.toml",) if external else ())
+    assert (current["state"], historical["state"]) == (state, "uncovered")
+    assert tuple(current["uncovered_paths"]) == uncovered
+    assert diagnostic in current["advisory_gaps"] or not diagnostic
+
+
 def test_prewrite_plan_and_prove_share_official_scope_coverage_verdict(
     tmp_path: Path,
     monkeypatch,
@@ -504,16 +514,7 @@ def test_prewrite_plan_and_prove_share_official_scope_coverage_verdict(
     )
     git(repo, "add", ".")
     git(repo, "commit", "-m", "add matching scope fixture")
-    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
-    worktree = tmp_path / "repo-work-owned"
-    start_work_lane(
-        root=repo,
-        name="owned",
-        path=worktree,
-        holder_ref="agent:test:case:agent-test",
-        apply=True,
-    )
-    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    worktree = _worktree(repo, tmp_path, monkeypatch)
     monkeypatch.setattr(openspec_cli, "openspec_base_command", lambda: ("openspec",))
     monkeypatch.setattr(
         openspec_cli,
@@ -569,16 +570,7 @@ def test_prewrite_does_not_rebootstrap_a_tracked_scope_companion(
     )
     git(repo, "add", ".")
     git(repo, "commit", "-m", "track bootstrap scope")
-    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
-    worktree = tmp_path / "repo-work-owned"
-    start_work_lane(
-        root=repo,
-        name="owned",
-        path=worktree,
-        holder_ref="agent:test:case:agent-test",
-        apply=True,
-    )
-    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    worktree = _worktree(repo, tmp_path, monkeypatch)
     scope_path = worktree / "openspec" / "changes" / "bootstrap" / "scope.toml"
     scope_path.unlink()
     _mock_official_active_change(monkeypatch, "bootstrap")
@@ -712,16 +704,7 @@ def test_prewrite_bootstraps_tracked_legacy_profile_from_fresh_official_change(
     profile_path.write_text('profile_id = "legacy-adopter"\n', encoding="utf-8")
     git(repo, "add", ".")
     git(repo, "commit", "-m", "add legacy adopted profile")
-    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
-    worktree = tmp_path / "repo-work-owned"
-    start_work_lane(
-        root=repo,
-        name="owned",
-        path=worktree,
-        holder_ref="agent:test:case:agent-test",
-        apply=True,
-    )
-    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    worktree = _worktree(repo, tmp_path, monkeypatch)
     (worktree / "openspec" / "changes" / "matching").mkdir(parents=True)
     _mock_official_active_change(monkeypatch, "matching", status="no-tasks")
 
@@ -801,16 +784,7 @@ def test_prewrite_rejects_material_profile_write_without_scope_companion(
     )
     git(repo, "add", ".")
     git(repo, "commit", "-m", "declare profile material path")
-    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
-    worktree = tmp_path / "repo-work-owned"
-    start_work_lane(
-        root=repo,
-        name="owned",
-        path=worktree,
-        holder_ref="agent:test:case:agent-test",
-        apply=True,
-    )
-    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    worktree = _worktree(repo, tmp_path, monkeypatch)
     (worktree / "openspec" / "changes" / "unrelated").mkdir(parents=True)
     _mock_official_active_change(monkeypatch, "unrelated")
 

@@ -10,5 +10,5 @@
 
 ## 3. Transition evidence
 
-- [ ] 3.1 Commit source, tests, carrier, and active claim.
-- [ ] 3.2 Generate fresh generic parity evidence on the clean semantic HEAD, then execute proof and governed land.
+- [x] 3.1 Commit source, tests, carrier, and active claim.
+- [x] 3.2 Generate fresh generic parity evidence on the clean semantic HEAD, then execute proof before governed land.

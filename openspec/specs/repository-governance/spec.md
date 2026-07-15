@@ -105,7 +105,11 @@ declare a non-empty `[openspec].material_paths` profile list. For every changed
 material path, `ethos lane prewrite`, `ethos plan --changed`, and `ethos prove`
 SHALL use the same ETHOS-owned `scope.toml` companion read model over the
 official OpenSpec active or archiving Change selection. The companion is not an
-official OpenSpec workflow-schema extension.
+official OpenSpec workflow-schema extension. A legacy adopter MAY bootstrap
+only its already-tracked `.ethos/profile.toml` declaration against exactly one
+official unarchived Change with status `no-tasks`; that fallback SHALL apply
+only to this one profile-only write and SHALL NOT make that Change cover any
+other material path.
 
 #### Scenario: material path is covered by a selected Change
 
@@ -133,6 +137,15 @@ official OpenSpec workflow-schema extension.
   companion
 - **THEN** prewrite MAY admit only that Change's exact absent `scope.toml`
 - **AND** the completed companion SHALL cover itself and later material writes.
+
+#### Scenario: fresh official Change bootstraps only the legacy profile
+
+- **GIVEN** exactly one official unarchived Change has status `no-tasks`
+- **AND** the existing adopter profile is tracked and lacks the declaration
+- **WHEN** prewrite evaluates only `.ethos/profile.toml`
+- **THEN** it SHALL admit the profile bootstrap for that Change
+- **AND** it SHALL NOT admit any additional path or use the Change to cover a
+  normal material write.
 
 ### Requirement: Coupling Binding Registry
 ETHOS SHALL classify product-semantic hard bindings, mandatory governance

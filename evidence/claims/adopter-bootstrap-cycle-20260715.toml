@@ -21,7 +21,7 @@ owner = "repository-governance"
 scope = "The tracked legacy profile-only material-path declaration bootstrap; no normal material-path coverage or Change lifecycle expansion."
 
 [carriers]
-openspec = "openspec/changes/adopter-bootstrap-cycle-20260715"
+openspec = "openspec/changes/archive/2026-07-15-adopter-bootstrap-cycle-20260715"
 fallback = "Retain the existing fail-closed material-path gap until a completed active Change and scope companion exist."
 kill_signal = "A no-tasks Change covers a non-profile path, more than one Change is admitted, or an untracked, malformed, empty, or widened profile write passes prewrite."
 
@@ -32,6 +32,6 @@ targets = [
   "tests/unit/lanes/test_lanes_openspec_scope.py",
   "tests/unit/product/test_openspec_cache.py",
   "openspec/specs/repository-governance/spec.md",
-  "openspec/changes/adopter-bootstrap-cycle-20260715",
+  "openspec/changes/archive/2026-07-15-adopter-bootstrap-cycle-20260715",
   "evidence/claims/adopter-bootstrap-cycle-20260715.toml",
 ]

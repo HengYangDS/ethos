@@ -755,6 +755,7 @@ def test_prewrite_bootstraps_only_tracked_legacy_profile_material_declaration(
         ("[openspec]\nmaterial_paths = []\n", "empty", ("matching",)),
         ('profile_id = "legacy-adopter"\n', "untracked", ("matching",)),
         ('profile_id = "legacy-adopter"\n', "multiple", ("first", "second")),
+        ('profile_id = "legacy-adopter"\n', "missing-change", ("matching",)),
     ],
 )
 def test_profile_material_paths_bootstrap_rejects_nonunique_or_nonlegacy_profile(
@@ -772,8 +773,9 @@ def test_profile_material_paths_bootstrap_rejects_nonunique_or_nonlegacy_profile
     git(repo, "commit", "-m", "add adopter profile")
     if case == "untracked":
         git(repo, "rm", "--cached", ".ethos/profile.toml")
-    for name in change_names:
-        (repo / "openspec" / "changes" / name).mkdir(parents=True)
+    if case != "missing-change":
+        for name in change_names:
+            (repo / "openspec" / "changes" / name).mkdir(parents=True)
 
     report = openspec_scope.material_change_scope_report(
         repo,

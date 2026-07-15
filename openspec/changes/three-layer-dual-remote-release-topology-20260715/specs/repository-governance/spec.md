@@ -34,7 +34,9 @@ organizational primary publication authority.
 - **WHEN** ETHOS projects the remote publication policy for either provider
 - **THEN** it SHALL admit only `dev`, `main`, and `submit/*`
 - **AND** it SHALL explicitly exclude `candidate/dev` from GitLab and GitHub
-  remote transitions.
+  remote transitions
+- **AND** local pre-push admission SHALL reject an excluded or unaccepted
+  destination before provider contact.
 
 #### Scenario: provider observations remain distinct
 

@@ -64,7 +64,9 @@ not mint a publication claim.
 `candidate/dev` is an internal local integration ref, never a hosted-provider
 ref. Both GitLab and GitHub SHALL admit only `dev`, `main`, and `submit/*` for
 remote transition. The tracked release policy is the common whitelist; a
-provider-specific exception is not permitted.
+provider-specific exception is not permitted. The local pre-push admission uses
+that same whitelist, so it rejects a `candidate/dev` destination before either
+provider is contacted.
 
 ## Required Provider Invariants
 

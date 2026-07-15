@@ -5,6 +5,7 @@ from pathlib import Path
 from ethos.repository.release.attestation import release_attestation
 from ethos.repository.release.attestation import sbom_projection
 from ethos.repository.release.core import publication_topology
+from ethos.repository.release.core import remote_ref_policy_report
 from ethos.repository.release.core import release_policy_report
 from ethos.repository.release.core import version_manifest
 
@@ -76,6 +77,13 @@ def test_release_policy_projects_peer_complete_provider_profiles() -> None:
         },
     }
     assert publication_topology({})["local"]["remote_independent"] is True
+    assert remote_ref_policy_report(Path.cwd()) == {
+        "ok": True,
+        "accepted_branches": ["dev", "main", "submit/*"],
+        "excluded_branches": ["candidate/dev"],
+        "candidate_branch": "candidate/dev",
+        "required_gaps": [],
+    }
 
 
 def test_release_policy_rejects_incomplete_peer_provider_profile(

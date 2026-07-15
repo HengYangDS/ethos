@@ -193,6 +193,36 @@ def _publication_topology_gaps(
     return gaps
 
 
+def remote_ref_policy_report(root: Path) -> dict[str, Any]:
+    """Return the configured hosted-ref boundary without observing a remote."""
+    policy = load_branch_role_policy(root)
+    topology = publication_topology(release_config(root))
+    ref_policy = topology["remote_ref_policy"]
+    accepted_branches = _string_list(ref_policy["accepted_branches"])
+    excluded_branches = _string_list(ref_policy["excluded_branches"])
+    expected_accepted_branches = [
+        policy.accepted_branch,
+        policy.release_branch,
+        f"{policy.submit_branch_prefix}*",
+    ]
+    gaps: list[str] = []
+    if topology["mode"] != "three_layer_peer_complete":
+        gaps.append("remote_ref_policy_unavailable")
+    if accepted_branches != expected_accepted_branches:
+        gaps.append("remote_accepted_branches_policy_missing")
+    if policy.candidate_branch in accepted_branches:
+        gaps.append("remote_candidate_branch_accepted")
+    if policy.candidate_branch not in excluded_branches:
+        gaps.append("remote_candidate_branch_not_excluded")
+    return {
+        "ok": not gaps,
+        "accepted_branches": accepted_branches,
+        "excluded_branches": excluded_branches,
+        "candidate_branch": policy.candidate_branch,
+        "required_gaps": gaps,
+    }
+
+
 def release_policy_report(root: Path) -> dict[str, Any]:
     config = release_config(root)
     missing_files = [path for path in REQUIRED_RELEASE_FILES if not (root / path).exists()]

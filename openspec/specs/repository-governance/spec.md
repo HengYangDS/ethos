@@ -2020,7 +2020,9 @@ ETHOS SHALL require each adopter profile to declare a non-empty
 `ethos lane prewrite`, `ethos plan --changed`, and `ethos prove` SHALL use the
 same ETHOS-owned `scope.toml` companion read model over the official OpenSpec
 active or archiving Change selection. `scope.toml` remains a companion beside a
-Change, not an OpenSpec workflow-schema extension.
+Change, not an OpenSpec workflow-schema extension. A completed archive MAY
+participate only when the archive itself contributes to the current Work Lane
+change scope; it remains excluded for all unrelated future changes.
 
 #### Scenario: covered material path is admitted across all surfaces
 
@@ -2058,6 +2060,32 @@ Change, not an OpenSpec workflow-schema extension.
   includes another path, SHALL remain blocked
 - **AND THEN** later material writes SHALL require ordinary Change-local scope
   coverage.
+
+#### Scenario: final archive reconciliation remains covered
+
+- **GIVEN** a completed Change is archived in the current Work Lane change
+  scope and its archive has a valid matching `scope.toml`
+- **WHEN** prewrite, changed planning, or proof evaluates a material path from
+  that same current scope
+- **THEN** the archive companion may cover the path
+- **AND** the same scope verdict is returned on all three surfaces.
+
+#### Scenario: historical archive cannot authorize unrelated material work
+
+- **GIVEN** an archive has a valid `scope.toml` but no file from that archive is
+  in the current Work Lane change scope
+- **WHEN** prewrite, changed planning, or proof evaluates a matching material
+  path
+- **THEN** the archive is excluded from scope coverage
+- **AND** an uncovered path emits `openspec_material_path_uncovered:<path>`.
+
+#### Scenario: archive companion diagnostics remain carrier-invalid
+
+- **GIVEN** a current archive companion is missing or malformed
+- **WHEN** lifecycle scope reports its diagnostic
+- **THEN** the emitted diagnostic SHALL reduce to the shared carrier-invalid
+  invalid-state category
+- **AND** it SHALL not grant material-path coverage.
 
 ### Requirement: Accepted closeout remains candidate-first and non-self-approving
 

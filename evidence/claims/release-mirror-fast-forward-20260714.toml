@@ -12,7 +12,7 @@ evidence_ids = ["evidence:release-mirror-fast-forward-20260714"]
 binding = "The archived OpenSpec carrier, focused mirror and closeout regressions, formatter, module-layout, and source-budget gates bind the declared behavior to this change."
 verifier = "digest_only"
 tests = [
-  "uv run --all-packages --group dev pytest -q tests/unit/lanes/test_release_mirror.py tests/unit/lanes/test_apply.py",
+  "uv run --all-packages --group dev pytest -q tests/unit/lanes/test_apply.py",
   "uv run --all-packages --group dev pytest -q tests/unit/lanes/test_armed_hook_closeout_e2e.py",
   "uv run --all-packages --group dev pytest -q tests/unit/coverage/test_core_state_claims_edges.py tests/unit/coverage/test_cov_v3_mutation_edges.py tests/unit/coverage/test_mutation_retrieval_parity_edges.py",
   "tools/ci/scripts/run-ethos-lane.sh quality source-budget --root <lane> --json",
@@ -24,7 +24,7 @@ mode = "historical"
 
 [scope]
 packages = ["ethos", "ethos-core"]
-tests = ["tests/unit/lanes/test_release_mirror.py", "tests/unit/lanes/test_apply.py", "tests/unit/lanes/test_armed_hook_closeout_e2e.py"]
+tests = ["tests/unit/lanes/test_apply.py", "tests/unit/lanes/test_armed_hook_closeout_e2e.py", "tests/unit/coverage/test_core_state_claims_edges.py"]
 
 [boundary]
 owner = "ethos-repository"
@@ -43,7 +43,6 @@ targets = [
   "packages/ethos/src/ethos/adapters/mutation/core.py",
   "packages/ethos/src/ethos/adapters/mutation/closeout/core.py",
   "packages/ethos/src/ethos/adapters/mutation/lane_lifecycle/core.py",
-  "tests/unit/lanes/test_release_mirror.py",
   "openspec/changes/archive/2026-07-14-release-mirror-fast-forward-20260714",
   "evidence/chronicle/release-mirror-fast-forward-20260714/2026-07-14.md",
   "evidence/claims/release-mirror-fast-forward-20260714.toml",

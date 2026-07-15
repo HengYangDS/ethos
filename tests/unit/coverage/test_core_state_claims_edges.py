@@ -472,6 +472,8 @@ def test_release_mirror_closeout_edge_paths(monkeypatch, tmp_path):
             discard_proof=lambda *_args: None,
         ),
     )["required_gaps"] == ["release_mirror_worktree_sync_failed"]
+    assert closeout_core.proof_required_gaps({"required_gaps": "invalid"}) == ["proof_invalid"]
+    assert closeout_core.proof_carry_failure(request, object()) is not None
 
 
 def test_closeout_retries_transient_accepted_worktree_sync_failure(

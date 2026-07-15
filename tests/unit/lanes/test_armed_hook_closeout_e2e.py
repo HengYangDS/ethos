@@ -130,7 +130,15 @@ def _seed_semantic_runtime(root: Path, source_root: Path) -> None:
         )
     _seed_core_declaration_resources(root, source_root)
     runtime_home = root / "build" / "runtime" / "venv"
-    runtime_home.parent.mkdir(parents=True)
+    # A linked worktree may already inherit its ignored runtime directory from
+    # the initial checkout. Recreate only this fixture-owned semantic venv so
+    # the test remains independent of host checkout residue.
+    if runtime_home.exists() or runtime_home.is_symlink():
+        if runtime_home.is_dir() and not runtime_home.is_symlink():
+            shutil.rmtree(runtime_home)
+        else:
+            runtime_home.unlink()
+    runtime_home.parent.mkdir(parents=True, exist_ok=True)
     runtime_home.mkdir()
     for name in ("bin", "lib", "include"):
         source = _TEST_VENV / name

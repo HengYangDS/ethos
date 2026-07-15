@@ -377,7 +377,10 @@ def _current_archive_scope_declarations(
                 "name": change_root.name,
                 "state": "current_archive",
                 "scope_path": relative_scope,
-                "paths": list(declaration.paths),
+                "paths": [
+                    *declaration.paths,
+                    f"{relative_root}/**",
+                ],
                 "ok": True,
                 "required_gaps": [],
             }

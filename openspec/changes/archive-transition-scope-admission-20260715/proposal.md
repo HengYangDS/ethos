@@ -8,8 +8,9 @@ its own legal archive transition.
 
 ## What Changes
 
-- Permit a valid archived Change companion to cover a material path only while
-  a file from that same dated archive is part of the current Work Lane diff.
+- Permit a valid archived Change companion to cover matching material paths only
+  while a file from that same dated archive is part of the current Work Lane
+  diff; its own archive directory is implicitly covered for that one transition.
 - Preserve active and archiving Change selection as the ordinary admission
   path; an old archive remains unable to authorize later work.
 - Classify an unusable current archive companion as carrier-invalid without

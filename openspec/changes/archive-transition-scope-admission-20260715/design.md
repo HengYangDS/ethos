@@ -27,7 +27,10 @@ files beneath one dated archive, while the active Change is no longer selected.
    is inside that archive directory. This makes current diff participation the
    sole selector, rather than archive age, name, or a claim reference.
 2. A valid archive `scope.toml` can cover only requested material paths that it
-   matches. A past archive not present in the current diff remains invisible.
+   matches, except that a selected archive implicitly covers its own directory.
+   That narrow self-coverage lets the final `scope.toml` and other archive output
+   be committed without granting authority outside the archive. A past archive
+   not present in the current diff remains invisible.
 3. Missing and malformed current archive companions emit explicit diagnostics
    and reduce to the existing carrier-invalid taxonomy. They never grant
    coverage.

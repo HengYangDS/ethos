@@ -51,14 +51,14 @@ def _official_open_spec_result(
     }
 
 
-def _mock_official_active_change(monkeypatch, name: str) -> None:
-    """Bind one named active Change to the official-command test seam."""
+def _mock_official_active_change(monkeypatch, name: str, status: str = "in-progress") -> None:
+    """Bind one named official Change to the test seam."""
     monkeypatch.setattr(openspec_cli, "openspec_base_command", lambda: ("openspec",))
     monkeypatch.setattr(
         openspec_cli,
         "run_json",
         lambda _root, _base, args: _official_open_spec_result(
-            args, [{"name": name, "status": "in-progress"}]
+            args, [{"name": name, "status": status}]
         ),
     )
     monkeypatch.setattr(
@@ -701,11 +701,11 @@ def test_scope_reader_handles_invalid_profile_and_product_root_compatibly(
     assert product["required_gaps"] == []
 
 
-def test_prewrite_bootstraps_only_tracked_legacy_profile_material_declaration(
+def test_prewrite_bootstraps_tracked_legacy_profile_from_fresh_official_change(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    """A legacy adopter may add only its missing profile declaration first."""
+    """A fresh official Change admits only the legacy profile declaration first."""
     repo = init_repo(tmp_path / "repo")
     profile_path = repo / ".ethos" / "profile.toml"
     profile_path.parent.mkdir(exist_ok=True)
@@ -723,7 +723,7 @@ def test_prewrite_bootstraps_only_tracked_legacy_profile_material_declaration(
     )
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
     (worktree / "openspec" / "changes" / "matching").mkdir(parents=True)
-    _mock_official_active_change(monkeypatch, "matching")
+    _mock_official_active_change(monkeypatch, "matching", status="no-tasks")
 
     profile = worktree / ".ethos" / "profile.toml"
     admitted = prewrite_guard(
@@ -740,6 +740,7 @@ def test_prewrite_bootstraps_only_tracked_legacy_profile_material_declaration(
     )
 
     assert admitted["ok"] is True
+    assert admitted["openspec_lifecycle"]["lifecycle"]["changes"] == []
     assert admitted["material_scope"]["state"] == "profile_material_paths_bootstrap"
     assert admitted["material_scope"]["profile_bootstrap"] == {
         "change": "matching",

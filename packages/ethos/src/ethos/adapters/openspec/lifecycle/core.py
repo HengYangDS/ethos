@@ -71,6 +71,24 @@ def selected_change(list_payload: dict[str, Any], requested: str | None) -> str 
     return selected
 
 
+def _profile_bootstrap_change_names(
+    changes_payload: object, active_change_names: list[str]
+) -> tuple[str, ...]:
+    """Include the sole fresh official Change only for profile bootstrap scope."""
+    if active_change_names:
+        return tuple(active_change_names)
+    if not isinstance(changes_payload, list):
+        return ()
+    no_task_names = tuple(
+        str(item.get("name"))
+        for item in changes_payload
+        if isinstance(item, dict)
+        and item.get("name")
+        and str(item.get("status") or "") == "no-tasks"
+    )
+    return no_task_names if len(no_task_names) == 1 else ()
+
+
 def _latest_change_name(changes: list[dict[str, Any]]) -> str:
     """Return the deterministically latest named OpenSpec Change."""
     latest = max(
@@ -294,6 +312,7 @@ def lifecycle_report(
         ]
     else:
         change_names = []
+    profile_bootstrap_names = _profile_bootstrap_change_names(changes_payload, change_names)
 
     active_claim_carriers = active_claim_openspec_carriers(root)
     required_gaps: list[str] = []
@@ -352,7 +371,7 @@ def lifecycle_report(
     scope_binding = scope.material_change_scope_report(
         root,
         changed_paths=request.changed_paths,
-        active_change_names=tuple(change_names),
+        active_change_names=profile_bootstrap_names,
     )
     required_gaps.extend(str(gap) for gap in scope_binding["required_gaps"])
     return {

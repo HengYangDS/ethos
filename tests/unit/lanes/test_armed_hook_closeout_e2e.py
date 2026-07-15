@@ -63,7 +63,7 @@ def _seed_proof(root: Path, head: str) -> None:
     record_executed_proof(root, EvidenceSet.from_runs(id="p", head=head, runs=runs).to_dict())
 
 
-def _armed_repo(tmp_path: Path) -> Path:
+def _armed_repo(tmp_path: Path, *, mirror: bool = False) -> Path:
     """A scratch candidate-train repo with the REAL reference-transaction hook armed and NO
     ETHOS_ALLOW_REF_MOVE in the environment.
 
@@ -102,8 +102,14 @@ def _armed_repo(tmp_path: Path) -> Path:
     shutil.copy(_RUNTIME_BOOTSTRAP_SRC, runtime_script_dir / "with-python-runtime.sh")
     (runtime_script_dir / "with-python-runtime.sh").chmod(0o755)
     (repo / "README.md").write_text("# x\n", encoding="utf-8")
+    if mirror:
+        policy = repo / ".ethos" / "workspace.toml"
+        policy.parent.mkdir(exist_ok=True)
+        policy.write_text('[branch_roles]\nrelease_mirror = "accepted_ff"\n', encoding="utf-8")
     _g(repo, "add", ".")
     _commit(repo, "init")
+    if mirror:
+        _g(repo, "branch", "main")
     _g(repo, "config", "core.hooksPath", ".githooks")
     _g(repo, "config", "ethos.acceptedBranch", "dev")
     candidate = tmp_path / "cand"
@@ -194,7 +200,7 @@ def test_sanctioned_land_and_closeout_pass_through_armed_hook(tmp_path: Path) ->
     if not _HOOK_SRC.exists():
         return
     os.environ["ETHOS_ACTOR"] = "agent:test:case:agent-test"
-    repo = _armed_repo(tmp_path)
+    repo = _armed_repo(tmp_path, mirror=True)
 
     candidate_head = _land_proven_work(repo, tmp_path, "w", "hi\n")
     assert _g(repo, "rev-parse", "candidate/dev").stdout.strip() == candidate_head
@@ -204,6 +210,7 @@ def test_sanctioned_land_and_closeout_pass_through_armed_hook(tmp_path: Path) ->
     assert closeout["ok"] is True, closeout
     assert closeout["state"] == "accepted_validated"
     assert _g(repo, "rev-parse", "dev").stdout.strip() == candidate_head
+    assert _g(repo, "rev-parse", "main").stdout.strip() == candidate_head
 
 
 def test_raw_ref_move_to_proven_head_is_blocked_without_marker(tmp_path: Path) -> None:
@@ -214,7 +221,7 @@ def test_raw_ref_move_to_proven_head_is_blocked_without_marker(tmp_path: Path) -
     if not _HOOK_SRC.exists():
         return
     os.environ["ETHOS_ACTOR"] = "agent:test:case:agent-test"
-    repo = _armed_repo(tmp_path)
+    repo = _armed_repo(tmp_path, mirror=True)
 
     candidate_head = _land_proven_work(repo, tmp_path, "w", "hi\n")
     dev_before = _g(repo, "rev-parse", "dev").stdout.strip()
@@ -224,11 +231,14 @@ def test_raw_ref_move_to_proven_head_is_blocked_without_marker(tmp_path: Path) -
     raw = _g(repo, "update-ref", "refs/heads/dev", candidate_head, dev_before)
     assert raw.returncode != 0
     assert _g(repo, "rev-parse", "dev").stdout.strip() == dev_before
+    raw_main = _g(repo, "update-ref", "refs/heads/main", candidate_head, dev_before)
+    assert raw_main.returncode != 0
 
     # The sanctioned closeout of the identical head writes the marker and is admitted.
     closeout = apply_candidate_to_accepted(root=repo, authorized=True, expect_head=dev_before)
     assert closeout["ok"] is True, closeout
     assert _g(repo, "rev-parse", "dev").stdout.strip() == candidate_head
+    assert _g(repo, "rev-parse", "main").stdout.strip() == candidate_head
 
 
 def test_candidate_refresh_from_accepted_admitted_without_bypass(

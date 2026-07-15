@@ -21,6 +21,7 @@ from ethos_core.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
 from ethos_core.contracts.branch.roles import BranchRolePolicy
 
 if TYPE_CHECKING:
+    import subprocess
     from collections.abc import Callable
 
 
@@ -28,9 +29,9 @@ if TYPE_CHECKING:
 class CloseoutDependencies:
     """Injected closeout collaborators; production uses the canonical adapters."""
 
-    run_git: Callable[..., object] = run_git
+    run_git: Callable[..., subprocess.CompletedProcess[str]] = run_git
     is_ancestor: Callable[..., bool] = is_ancestor
-    carry_proof: Callable[..., dict[str, object]] = carry_executed_proof_record
+    carry_proof: Callable[..., object] = carry_executed_proof_record
     discard_proof: Callable[..., object] = discard_executed_proof
 
 
@@ -132,11 +133,11 @@ def _execute_promotion(
             target_root=request.root,
             head=request.candidate_head,
         )
-        if not proof["ok"]:
+        if not isinstance(proof, dict) or proof.get("ok") is not True:
             return _blocked(
                 request.policy,
                 request.current_head,
-                list(proof["required_gaps"]),
+                _proof_required_gaps(proof),
                 proof_carry=proof,
             )
         update = _atomic_update(request.root, accepted, release, dependencies.run_git)
@@ -291,3 +292,10 @@ def _blocked(policy, current, gaps, **extra):
 def _proof_digest(root, head):
     record = executed_proof_record(root, head)
     return str(record.get("evidence", {}).get("digest", "")) if isinstance(record, dict) else ""
+
+
+def _proof_required_gaps(proof: object) -> list[str]:
+    if not isinstance(proof, dict):
+        return ["proof_carry_invalid"]
+    raw = proof.get("required_gaps", [])
+    return [str(gap) for gap in raw] if isinstance(raw, list) else ["proof_carry_invalid"]

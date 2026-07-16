@@ -51,6 +51,13 @@ release-status verification, successful hosted compatibility results, package
 proof, and a separate reviewed repository change; the date alone performs no
 transition.
 
+The exact Node proof uses the npm bundled with each official Node archive. The
+local Linux runs for Node 24.18.0 and 26.5.0 both supplied npm 11.11.0. The
+repository keeps `packageManager = "npm@11.12.1"`, but this change does not
+provision or prove that npm release. Package-manager supply and enforcement are
+a separate reviewed decision so the Node matrix does not silently change two
+runtime variables at once.
+
 Published package scope is intentionally narrower than repository history.
 Distribution manifests must use explicit allowlists for neutral launcher assets
 and package documentation. They must not publish historical evidence, archived

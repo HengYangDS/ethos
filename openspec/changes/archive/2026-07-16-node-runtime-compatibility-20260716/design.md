@@ -26,6 +26,17 @@ change may evaluate current official release status, hosted compatibility
 results, package evidence, and rollback readiness before deciding whether to
 promote Node 26.
 
+The compatibility runner intentionally uses the npm bundled with each official
+Node archive. Both local Linux proof runs supplied npm 11.11.0. The existing
+`packageManager = "npm@11.12.1"` declaration remains unchanged and is not
+claimed as proven by this change; provisioning or enforcing one npm release
+across both Node versions requires a separate package-manager supply decision.
+
+Executable-source growth is recorded as named, measured compression debt under
+the repository source-budget policy. The debt expires at the Node 26 review
+gate and must be repaid by consolidating the fake-process test scaffolding and
+compatibility-runner parsing without removing the exact matrix contract.
+
 ## Alternatives
 
 A single system-wide Node rewrite was rejected because workstation,

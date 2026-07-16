@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import os
+import re
 import stat
 import subprocess
 import tomllib
@@ -195,7 +196,9 @@ def test_node_runtime_compatibility_has_one_policy_and_runner_owner() -> None:
     assert "npm run ethos -- --version" in runner
     assert "npm run test:npm" in runner
     assert '"packageManager": "npm@11.12.1"' in package
-    assert 'version="${NODE_VERSION:-24.18.0}"' in installer
+    installer_default = re.search(r'version="\$\{NODE_VERSION:-([^}]+)\}"', installer)
+    assert installer_default is not None
+    assert installer_default.group(1) == policy["default_version"]
     assert 'tool = "node + npm"' in catalog
     assert 'config = ".config/checks/node/runtime.toml"' in catalog
     assert 'gate = "tools/ci/scripts/run-node-compatibility.sh"' in catalog

@@ -9,6 +9,8 @@ import sys
 import tomllib
 from pathlib import Path
 
+import yaml
+
 from tests.support.architecture import tool_block
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -120,26 +122,21 @@ def test_provider_yaml_invokes_owner_scripts_not_inline_policy() -> None:
 def test_gitlab_node_compatibility_matrix_projects_the_runtime_policy() -> None:
     providers = {str(entry["provider"]): entry for entry in _projection_entries()}
     runner = "tools/ci/scripts/run-node-compatibility.sh"
-    gitlab = (ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8")
-    npm_job = gitlab.split("\nethos:npm:\n", 1)[1].split("\nethos:package:\n", 1)[0]
-    npm_package_job = gitlab.split("\nethos:npm-package:\n", 1)[1]
+    policy = tomllib.loads((ROOT / ".config/checks/node/runtime.toml").read_text(encoding="utf-8"))
+    gitlab_text = (ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8")
+    gitlab = yaml.safe_load(gitlab_text)
+    npm_job = gitlab["ethos:npm"]
+    npm_package_job = gitlab["ethos:npm-package"]
+    matrix = npm_job["parallel"]["matrix"]
 
     assert runner in providers["gitlab"]["required_owner_scripts"]
     assert runner not in providers["github"]["required_owner_scripts"]
-    assert (
-        'parallel:\n    matrix:\n      - NODE_VERSION:\n          - "24.18.0"\n          - "26.5.0"'
-        in npm_job
-    )
-    assert "tools/ci/scripts/install-node.sh" in npm_job
-    assert runner in npm_job
-    assert "npm config set engine-strict true" not in npm_job
-    assert "npm ci --ignore-scripts" not in npm_job
-    assert "npm run ethos -- --version" not in npm_job
-    assert "npm run test:npm" not in npm_job
-    assert "tools/ci/scripts/install-node.sh" in npm_package_job
-    assert runner not in npm_package_job
+    assert matrix == [{"NODE_VERSION": policy["compatibility_versions"]}]
+    assert npm_job["script"] == ["tools/ci/scripts/install-node.sh", runner]
+    assert npm_package_job["script"][0] == "tools/ci/scripts/install-node.sh"
+    assert runner not in npm_package_job["script"]
     assert "NODE_VERSION" not in npm_package_job
-    assert "npm run test:npm" in npm_package_job
+    assert "npm run test:npm" in npm_package_job["script"]
 
 
 def test_provider_python_producers_are_runtime_bound() -> None:

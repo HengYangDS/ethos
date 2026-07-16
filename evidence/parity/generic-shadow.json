@@ -2,14 +2,14 @@
   "schema_version": 1,
   "adopter": "generic",
   "target": "<repo>",
-  "generated_on": "2026-07-15",
-  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 180 --json",
+  "generated_on": "2026-07-16",
+  "command": "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 30 --json",
   "freshness": {
-    "product_head": "134529b3f7b12e72e23ee1252758307d9933bfe3",
-    "target_head": "134529b3f7b12e72e23ee1252758307d9933bfe3",
-    "product_semantic_sha256": "e659b96ca8723f91a4f36cc1ebbc23e2746a5c5038986c7d2a7decaff910a91a",
-    "target_semantic_sha256": "e659b96ca8723f91a4f36cc1ebbc23e2746a5c5038986c7d2a7decaff910a91a",
-    "command_sha256": "928fc4e2a939cefad29143006f6f9f0486733e6e26404736aff0c6342374752f"
+    "product_head": "d4f930b026f6ecd72360066624537da05acf50d6",
+    "target_head": "d4f930b026f6ecd72360066624537da05acf50d6",
+    "product_semantic_sha256": "bf9d894a85055c42d3beb58dd1dbbb2fcd4afad13edb7d08a0ea00e64b46da52",
+    "target_semantic_sha256": "bf9d894a85055c42d3beb58dd1dbbb2fcd4afad13edb7d08a0ea00e64b46da52",
+    "command_sha256": "3eb4f380bd45fab1beefef0bb0debfc384c7bdbf853e6d64c25888ca7e0df2ac"
   },
   "shadow": {
     "ok": true,
@@ -35,8 +35,8 @@
   },
   "identity": {
     "target_root": "<repo>",
-    "target_head": "134529b3f7b12e72e23ee1252758307d9933bfe3",
-    "product_head": "134529b3f7b12e72e23ee1252758307d9933bfe3",
+    "target_head": "d4f930b026f6ecd72360066624537da05acf50d6",
+    "product_head": "d4f930b026f6ecd72360066624537da05acf50d6",
     "changed_paths": [],
     "commands": [
       "ethos status --json",
@@ -49,14 +49,14 @@
       "ethos land --json"
     ],
     "external_commands": [
-      "<repo>/build/runtime/venv/bin/python -m ethos.cli status --root <repo> --json",
-      "<repo>/build/runtime/venv/bin/python -m ethos.cli plan --changed --root <repo> --json",
-      "<repo>/build/runtime/venv/bin/python -m ethos.cli prove --root <repo> --json",
-      "<repo>/build/runtime/venv/bin/python -m ethos.cli report --root <repo> --json",
-      "<repo>/build/runtime/venv/bin/python -m ethos.cli quality command-surface --root <repo> --json",
-      "<repo>/build/runtime/venv/bin/python -m ethos.cli assistants doctor --json",
-      "<repo>/build/runtime/venv/bin/python -m ethos.cli playbooks route --changed --root <repo> --json",
-      "<repo>/build/runtime/venv/bin/python -m ethos.cli land --root <repo> --json"
+      "<repo>/.venv/bin/python3 -m ethos.cli status --root <repo> --json",
+      "<repo>/.venv/bin/python3 -m ethos.cli plan --changed --root <repo> --json",
+      "<repo>/.venv/bin/python3 -m ethos.cli prove --root <repo> --json",
+      "<repo>/.venv/bin/python3 -m ethos.cli report --root <repo> --json",
+      "<repo>/.venv/bin/python3 -m ethos.cli quality command-surface --root <repo> --json",
+      "<repo>/.venv/bin/python3 -m ethos.cli assistants doctor --json",
+      "<repo>/.venv/bin/python3 -m ethos.cli playbooks route --changed --root <repo> --json",
+      "<repo>/.venv/bin/python3 -m ethos.cli land --root <repo> --json"
     ],
     "embedded_commands": [
       "uv run --package ethos ethos status --json",
@@ -72,22 +72,22 @@
       {
         "path": "docs",
         "kind": "directory",
-        "sha256": "ab065172de259e522eccc38b1891c54f1735edc8b8d7bf0816f29b49d4959718"
+        "sha256": "073d1f541238f8e400e7fbe01b3f297bba7d57d558227a135ccfc02923bbdb80"
       },
       {
         "path": "evidence",
         "kind": "directory",
-        "sha256": "1b9bee21a7a465227292d1011597da005c657c3e5a0fdf5766c851b4ea2eccc9"
+        "sha256": "876d14e014f3b27fe9830c15f5d260d635c147ee3ce333fc73145c46b2584085"
       },
       {
         "path": "evidence/claims",
         "kind": "directory",
-        "sha256": "e3482ba1b8c8a2a0b7a03a37b86bfdd295e63690bad8db78490ae994205e9a58"
+        "sha256": "e9178d5500f486e05ee26c99448a209212074f152e9d5f56b76e50f5dffb8eb0"
       },
       {
         "path": "openspec",
         "kind": "directory",
-        "sha256": "3ec4391c38041db3507ed04552cb011069271b023b33ebf4875b08ebb1cc7985"
+        "sha256": "8ee1c27edd5b079511a0caf011b11f8966600c1047e8a5994e242a6670836c9a"
       },
       {
         "path": "rules",

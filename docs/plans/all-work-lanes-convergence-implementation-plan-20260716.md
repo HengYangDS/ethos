@@ -1,7 +1,23 @@
+---
+subject: ethos:all-work-lanes-convergence-implementation-plan-20260716
+role: plan
+state: planned
+relations:
+  implements: all-work-lanes-convergence-program-20260716
+  derives_from: repository-governance, archived-all-work-lanes-convergence-decision
+---
+
 # All Work Lanes Convergence — Implementation Plan
 
+Purpose: sequence the governed local implementation and closeout of the exact
+legacy Work Lane cohort while preserving foreign ownership and evidence bounds.
+
+See also: [Convergence Program](all-work-lanes-convergence-program-20260716.md),
+[Mutation Rules](../../rules/mutation.md), and
+[Repository Governance Specification](../../openspec/specs/repository-governance/spec.md).
+
 > **Execution contract:** use the owned carrier
-> `/Users/yheng/projects/ethos-work-all-lanes-convergence-20260716`; run exact
+> `<owned-governance-worktree>`; run exact
 > prewrite before tracked writes; never edit a foreign Work Lane; never use
 > `git stash`; preserve local closeout separately from remote publication.
 
@@ -203,7 +219,7 @@ Required outcomes:
 2. Re-audit candidate cleanliness and carried proof.
 3. From a current runner, run accepted-root closeout dry-run, then
    `ethos land --closeout --apply --authorize --expect-head <old-dev>
-   --root /Users/yheng/projects/ethos --json`.
+   --root <accepted-root> --json`.
 4. Verify `dev == candidate/dev == <proven-head>` and both protected worktrees
    are clean. Do not infer remote convergence.
 

@@ -1,10 +1,2 @@
 schema_version = 1
-paths = [
-  "docs/plans/all-work-lanes-convergence-program-20260716.md",
-  "docs/plans/all-work-lanes-convergence-implementation-plan-20260716.md",
-  "evidence/claims/all-work-lanes-convergence-20260716.toml",
-  "evidence/chronicle/all-work-lanes-convergence-20260716/**",
-  "openspec/changes/all-work-lanes-convergence-20260716/**",
-  "openspec/specs/repository-governance/spec.md",
-  "evidence/parity/generic-shadow.json",
-]
+paths = ["docs/plans/all-work-lanes-convergence-program-20260716.md", "docs/plans/all-work-lanes-convergence-implementation-plan-20260716.md", "evidence/claims/all-work-lanes-convergence-20260716.toml", "evidence/chronicle/all-work-lanes-convergence-20260716/**", "openspec/changes/all-work-lanes-convergence-20260716/**", "openspec/specs/repository-governance/spec.md", "evidence/parity/generic-shadow.json"]

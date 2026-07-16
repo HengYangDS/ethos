@@ -3,19 +3,17 @@
 - [x] 1. Freeze the initial 60-ref legacy cohort, record the 61-ref live snapshot
   including this carrier, and create the program plan, implementation plan,
   claim, Chronicle, and inventory after exact Work Lane prewrite admission.
-- [ ] 2. Re-observe the three valid foreign implementation leases, obtain normal
-  holder-bound completion/handoff where possible, and otherwise replay their
-  preserved intent without mutating foreign worktrees.
-- [ ] 3. Implement and independently review the 11 semantic families with
-  test-first current-candidate behavior rather than wholesale stale-lane merges.
-- [ ] 4. Promote exact exceptional-resolution judgments for every missing-lease,
-  dirty, owner-uncertain, or diverged-unbound lane and verify preservation and
-  supersession/integration evidence.
-- [ ] 5. Complete focused and full validation, strict OpenSpec lifecycle,
-  Chronicle/claim digest binding, generic parity, and HEAD-bound executed proof
-  so this carrier is complete and archiveable.
+- [x] 2. Verify the graph partition of 36 closeout candidates and 24
+  implementation refs, the exact 11-family coverage, the post-audit hosted
+  overlay, and the current valid/missing lease and dirty-state boundaries.
+- [x] 3. Define cohort-bound authority, holder/handoff rules, preservation-first
+  exceptional resolution, successor implementation sequencing, local lifecycle
+  closeout, recovery retention, and remote-publication exclusions.
+- [ ] 4. Run strict carrier validation, refresh the Chronicle/claim binding,
+  complete generic parity when required, and obtain HEAD-bound executed proof so
+  this governance decision is archiveable and landable.
 
-Candidate landing, accepted-root closeout, exact cohort retirement, governance
-carrier retirement, and remote publication are post-archive lifecycle
-transitions. Remote publication remains deferred and is not a completion task
-for this change.
+The 11-family implementation, candidate/accepted promotion of those successor
+changes, exact cohort retirement, final successor retirement, and remote
+publication are post-archive lifecycle work. They do not remain unchecked tasks
+inside this governance carrier. Remote publication stays deferred.

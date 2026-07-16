@@ -8,10 +8,11 @@
 ## Objective
 
 Converge the exact 60 legacy `work/*` refs observed by the 2026-07-16 audit.
-For each ref, either promote its still-valid intent into accepted repository
-truth or prove that later accepted work superseded it, preserve every dirty or
-owner-uncertain delta before irreversible action, and then close the exact
-cohort through governed local Work Lane lifecycle commands.
+This governance carrier first promotes the exact cohort, decision policy, and
+implementation plan into accepted truth. Owned successor lanes then promote or
+supersede each still-valid intent, preserve every dirty or owner-uncertain delta
+before irreversible action, and close the exact cohort through governed local
+Work Lane lifecycle commands.
 
 This is a local closeout program. It does not publish or push any remote ref.
 It also does not create reusable authority over a future `work/*` ref. The
@@ -117,8 +118,12 @@ planned dispositions live in the tracked inventory rather than this summary.
   independent task review before it is marked complete.
 - Scope is expanded by exact material paths before writes; the OpenSpec carrier
   is not a blanket exemption.
-- The carrier is committed in bounded checkpoints. After parity-relevant source
-  changes, generic shadow parity is refreshed and committed in this lane.
+- This governance carrier is archived, proven, landed, accepted, and retired
+  before any missing-lease exceptional effect. Its accepted Chronicle is the
+  prior judgment consumed by later exact decisions.
+- Implementation continues in one or more owned successor lanes. Each successor
+  is committed in bounded checkpoints. After parity-relevant source changes,
+  generic shadow parity is refreshed and committed in that same lane.
 - Executed proof is HEAD-bound. Any HEAD movement invalidates prior proof.
 
 ## Local closeout definition
@@ -130,8 +135,9 @@ following for the frozen cohort:
    evidence;
 2. all dirty/owner-uncertain content has a verified preservation or accepted
    integration outcome;
-3. the active carrier is complete and archived before proof;
-4. the final carrier HEAD has passing strict OpenSpec, plan, parity, required
+3. the governance carrier was accepted before exceptional resolution, and each
+   later active change carrier is complete and archived before its proof;
+4. the final implementation HEAD has passing strict OpenSpec, plan, parity, required
    quality gates, and HEAD-bound executed proof;
 5. candidate and accepted roots converge through sanctioned ETHOS commands;
 6. every exact legacy branch/worktree/lease is retired or explicitly blocked by

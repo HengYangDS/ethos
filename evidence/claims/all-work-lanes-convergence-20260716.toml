@@ -6,7 +6,7 @@ summary = "The exact 60-ref legacy ETHOS Work Lane cohort is governed by an inve
 
 [evidence]
 dated = "evidence/chronicle/all-work-lanes-convergence-20260716/2026-07-16.md"
-sha256 = "a77dfa34a95b0116fe27e8fecea563dd79c0c29615903ebef55191e7a83003e0"
+sha256 = "a6d4dda0cf409674de19a1bbba66559fab62e422786d40337a05441312eeaa3a"
 evidence_ids = ["evidence:all-work-lanes-convergence-20260716"]
 binding = "The dated Chronicle and exact lane inventory digest bind the recorded cohort, policy, and observed local facts; later lifecycle commands append their own evidence."
 verifier = "digest_only"
@@ -26,7 +26,7 @@ owner = "ethos-repository"
 scope = "Exact local convergence of the 60 legacy work/* refs frozen on 2026-07-16; future refs and remote publication are excluded."
 
 [carriers]
-openspec = "openspec/changes/all-work-lanes-convergence-20260716"
+openspec = "openspec/changes/archive/2026-07-16-all-work-lanes-convergence-20260716"
 fallback = "Keep every unresolved lane visible and preserved; block destructive closeout until exact current evidence and accepted judgment exist."
 kill_signal = "A lane is deleted from graph ancestry, branch naming, process absence, or wildcard authorization without exact observation, preservation, accepted judgment, and lifecycle evidence."
 
@@ -37,6 +37,6 @@ targets = [
   "evidence/claims/all-work-lanes-convergence-20260716.toml",
   "evidence/chronicle/all-work-lanes-convergence-20260716/2026-07-16.md",
   "evidence/chronicle/all-work-lanes-convergence-20260716/lane-inventory.json",
-  "openspec/changes/all-work-lanes-convergence-20260716",
+  "openspec/changes/archive/2026-07-16-all-work-lanes-convergence-20260716",
   "openspec/specs/repository-governance/spec.md",
 ]

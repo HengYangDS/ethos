@@ -23,11 +23,11 @@
 
 1. Complete only the governance carrier checklist: exact cohort, classification,
    policy, plans, inventory, Chronicle, claim, and requirement delta.
-2. Run strict OpenSpec lifecycle, claim validation, plan, and parity; complete
-   every pre-archive task and archive the carrier through official OpenSpec
-   semantics.
-3. Commit the archived carrier, then obtain HEAD-bound executed proof for that
-   stable archived HEAD.
+2. Run strict OpenSpec lifecycle, claim validation, and plan; complete every
+   pre-archive task and archive the carrier through official OpenSpec semantics.
+3. Commit the archived carrier, refresh and commit generic parity evidence for
+   that archived semantic tree, then obtain HEAD-bound executed proof for the
+   final stable HEAD.
 4. Land the proven governance HEAD to `candidate/dev`, perform sanctioned
    accepted-root closeout, and verify accepted/candidate equality and cleanliness.
 5. Retire `work/all-lanes-convergence-20260716` through its holder-bound landed

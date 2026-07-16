@@ -6,9 +6,9 @@ summary = "The ETHOS npm launcher has an exact Node 24.18.0 and 26.5.0 compatibi
 
 [evidence]
 dated = "evidence/chronicle/node-runtime-compatibility-20260716/2026-07-16.md"
-sha256 = "ea20961ef98da4a0f4d5a3c0ae0ae4150756410f4f23a81d759450efe1b346fd"
+sha256 = "92040a32a1ff253345c18261fd78ba34b628a698024946bf0a8ec578ac9e90f7"
 evidence_ids = ["evidence:node-runtime-compatibility-20260716"]
-binding = "The exact policy, pinned official-archive checksums, owner installer and runner, provider template, architecture regressions, local Linux observations, and dated Chronicle bind this Node-only compatibility decision; hosted execution and npm package-manager supply remain outside the claim."
+binding = "The exact policy, pinned official-archive checksums, checkout-bound policy parsing, owner installer and runner, provider template, architecture regressions, local Linux observations, and dated Chronicle bind this Node-only compatibility decision; hosted execution and npm package-manager supply remain outside the claim."
 verifier = "digest_only"
 tests = [
   "pytest tests/architecture/test_release_assets.py tests/architecture/test_ci_provider_projections.py -q",

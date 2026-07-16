@@ -47,7 +47,8 @@ else
 fi
 
 archive_sha256="$(
-  "${python_command}" - "${policy_path}" "${version}" "linux_${arch}" <<'PY_POLICY'
+  "${script_dir}/with-python-runtime.sh" -- \
+    "${python_command}" - "${policy_path}" "${version}" "linux_${arch}" <<'PY_POLICY'
 import re
 import sys
 import tomllib

@@ -4,6 +4,7 @@
 # invocation uses the current hosted default without promoting the candidate.
 set -euo pipefail
 
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "${repo_root}"
 
@@ -24,7 +25,8 @@ fi
 
 requested_version="${NODE_VERSION:-}"
 resolved_version="$(
-  "${python_command}" - "${policy_path}" "${requested_version}" <<'PY_POLICY'
+  "${script_dir}/with-python-runtime.sh" -- \
+    "${python_command}" - "${policy_path}" "${requested_version}" <<'PY_POLICY'
 from __future__ import annotations
 
 import sys

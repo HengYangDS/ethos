@@ -116,6 +116,7 @@ yaml_allowed_roots = [
 ], files = [
   "package.json",
   "package-lock.json",
+  "evidence/chronicle/all-work-lanes-convergence-20260716/lane-inventory.json",
 ] }
 ".j2" = { roots = ["packages/"] }
 ".mjs" = { roots = ["distributions/npm/"] }

@@ -59,6 +59,8 @@ runner rather than provider-inline npm command bodies.
 - **THEN** `.config/checks/node/runtime.toml` declares Node 24.18.0 and Node
   26.5.0 as the exact compatibility set
 - **AND** the provider selects one declared release through `NODE_VERSION`
+- **AND** the installer verifies the selected official archive against a
+  policy-pinned SHA-256 value before extraction
 - **AND** `tools/ci/scripts/run-node-compatibility.sh` rejects an active-runtime
   mismatch before npm executes
 - **AND** the runner enables npm engine-strict behavior and executes

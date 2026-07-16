@@ -187,6 +187,11 @@ def test_node_runtime_compatibility_has_one_policy_and_runner_owner() -> None:
     assert policy["compatibility_versions"] == ["24.18.0", "26.5.0"]
     assert policy["next_default_candidate"] == "26.5.0"
     assert policy["review_not_before"] == date(2026, 10, 28)
+    archive_sha256 = policy["archive_sha256"]
+    assert set(archive_sha256) == set(policy["compatibility_versions"])
+    for checksums in archive_sha256.values():
+        assert set(checksums) == {"linux_arm64", "linux_x64"}
+        assert all(re.fullmatch(r"[a-f0-9]{64}", digest) for digest in checksums.values())
     assert runner_path.stat().st_mode & stat.S_IXUSR
     assert ".config/checks/node/runtime.toml" in runner
     assert "tomllib" in runner
@@ -306,6 +311,9 @@ def test_ci_node_installer_is_architecture_aware() -> None:
     assert "download-file.sh" in installer
     assert "ETHOS_CI_TOOL_CACHE_DIR" in installer
     assert "build/runtime/tool-cache/ci-tools" in installer
+    assert ".config/checks/node/runtime.toml" in installer
+    assert "archive_sha256" in installer
+    assert "sha256sum -c" in installer
     assert "tar tJf" in installer
     assert "command -v node" in installer
     assert "tar xJf" in installer

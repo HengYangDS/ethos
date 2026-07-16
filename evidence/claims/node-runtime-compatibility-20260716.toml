@@ -6,9 +6,9 @@ summary = "The ETHOS npm launcher has an exact Node 24.18.0 and 26.5.0 compatibi
 
 [evidence]
 dated = "evidence/chronicle/node-runtime-compatibility-20260716/2026-07-16.md"
-sha256 = "127a46b5d7e81e0dc9ff26d3a97cf812b9eda165dca45f2aa6b2221139fb87d6"
+sha256 = "ea20961ef98da4a0f4d5a3c0ae0ae4150756410f4f23a81d759450efe1b346fd"
 evidence_ids = ["evidence:node-runtime-compatibility-20260716"]
-binding = "The exact policy, owner runner, provider template, architecture regressions, local Linux observations, and dated Chronicle bind this Node-only compatibility decision; hosted execution and npm package-manager supply remain outside the claim."
+binding = "The exact policy, pinned official-archive checksums, owner installer and runner, provider template, architecture regressions, local Linux observations, and dated Chronicle bind this Node-only compatibility decision; hosted execution and npm package-manager supply remain outside the claim."
 verifier = "digest_only"
 tests = [
   "pytest tests/architecture/test_release_assets.py tests/architecture/test_ci_provider_projections.py -q",
@@ -27,12 +27,12 @@ mode = "historical"
 
 [boundary]
 owner = "ethos-distribution"
-scope = "Exact Node runtime acceptance, hosted packaging-default separation, provider projection, and managed-runtime authority boundaries."
+scope = "Exact Node runtime acceptance, pinned official-archive verification, hosted packaging-default separation, provider projection, and managed-runtime authority boundaries."
 
 [carriers]
 openspec = "openspec/changes/archive/2026-07-16-node-runtime-compatibility-20260716"
 fallback = "Keep Node 24.18.0 as the package default and revert to the prior single-release hosted verification path."
-kill_signal = "A declared runtime cannot execute the launcher and package dry run, CI diverges from the policy, or repository work rewrites a separately managed runtime."
+kill_signal = "A declared runtime cannot execute the launcher and package dry run, an official archive fails its pinned checksum, CI diverges from the policy, or repository work rewrites a separately managed runtime."
 
 [promotion]
 targets = [
@@ -49,5 +49,6 @@ targets = [
   "system/tools.toml",
   "tests/architecture/test_ci_provider_projections.py",
   "tests/architecture/test_release_assets.py",
+  "tools/ci/scripts/install-node.sh",
   "tools/ci/scripts/run-node-compatibility.sh",
 ]

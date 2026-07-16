@@ -37,7 +37,10 @@ Node runtime ownership remains layered rather than mechanically unified:
 - A maintainer workstation runtime is owned by the workstation software
   supply chain, not by this repository.
 - `.config/checks/node/runtime.toml` owns the exact releases used to prove the
-  npm launcher. The current set is Node 24.18.0 and Node 26.5.0.
+  npm launcher and the pinned Linux archive SHA-256 values. The current set is
+  Node 24.18.0 and Node 26.5.0.
+- `tools/ci/scripts/install-node.sh` verifies the selected official archive
+  against that policy before extraction.
 - Hosted npm compatibility jobs select one exact declared release and execute
   `tools/ci/scripts/run-node-compatibility.sh`.
 - Hosted packaging keeps the installer default at Node 24.18.0 so compatibility

@@ -55,6 +55,7 @@ emulator_supported_inputs = []
 emulator_hosted_only_reason = ""
 required_owner_scripts = [
   "tools/ci/scripts/bootstrap-python.sh",
+  "tools/ci/scripts/run-node-compatibility.sh",
   "tools/ci/scripts/run-python-lint.sh",
   "tools/ci/scripts/run-config-lint.sh",
   "tools/ci/scripts/run-json-schema-check.sh",

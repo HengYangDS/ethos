@@ -1,9 +1,21 @@
 from __future__ import annotations
 
 import importlib.util
+import os
+import stat
+import subprocess
+import tomllib
+from datetime import date
 from pathlib import Path
 
+from tests.support.architecture import tool_block
+
 ROOT = Path(__file__).resolve().parents[2]
+
+
+def _write_fake_executable(path: Path, body: str) -> None:
+    path.write_text(body, encoding="utf-8")
+    path.chmod(path.stat().st_mode | stat.S_IXUSR)
 
 
 def test_gitlab_visible_project_files_exist() -> None:
@@ -51,9 +63,9 @@ def test_gitlab_ci_uses_ethos_public_command_plane() -> None:
     # unreachable through the runner's registry egress. See install-node.sh.
     assert "image: node:24" not in text
     assert "tools/ci/scripts/install-node.sh" in text
+    assert "tools/ci/scripts/run-node-compatibility.sh" in text
     assert "npm config set engine-strict true" in text
     assert "npm ci --ignore-scripts" in text
-    assert "npm run ethos -- --version" in text
     assert "npm run test:npm" in text
     assert "tools/ci/scripts/run-python-tests.sh" in text
     assert 'ETHOS_TEST_WORKERS: "1"' in text
@@ -157,6 +169,126 @@ def test_ci_lychee_installer_is_architecture_aware() -> None:
     assert "tar tzf" in installer
     assert "command -v lychee" in installer
     assert "tar xz -C /usr/local/bin lychee" not in installer
+
+
+def test_node_runtime_compatibility_has_one_policy_and_runner_owner() -> None:
+    policy_path = ROOT / ".config/checks/node/runtime.toml"
+    runner_path = ROOT / "tools/ci/scripts/run-node-compatibility.sh"
+    policy = tomllib.loads(policy_path.read_text(encoding="utf-8"))
+    runner = runner_path.read_text(encoding="utf-8")
+    package = (ROOT / "package.json").read_text(encoding="utf-8")
+    installer = (ROOT / "tools/ci/scripts/install-node.sh").read_text(encoding="utf-8")
+    catalog = tool_block(ROOT, "node_runtime_compatibility")
+
+    assert policy["schema"] == "ethos-node-runtime-compatibility-v1"
+    assert policy["owner"] == "ethos-quality-gate-governance"
+    assert policy["default_version"] == "24.18.0"
+    assert policy["compatibility_versions"] == ["24.18.0", "26.5.0"]
+    assert policy["next_default_candidate"] == "26.5.0"
+    assert policy["review_not_before"] == date(2026, 10, 28)
+    assert runner_path.stat().st_mode & stat.S_IXUSR
+    assert ".config/checks/node/runtime.toml" in runner
+    assert "tomllib" in runner
+    assert "NODE_VERSION" in runner
+    assert "npm_config_engine_strict=true" in runner
+    assert "npm ci --ignore-scripts" in runner
+    assert "npm run ethos -- --version" in runner
+    assert "npm run test:npm" in runner
+    assert '"packageManager": "npm@11.12.1"' in package
+    assert 'version="${NODE_VERSION:-24.18.0}"' in installer
+    assert 'tool = "node + npm"' in catalog
+    assert 'config = ".config/checks/node/runtime.toml"' in catalog
+    assert 'gate = "tools/ci/scripts/run-node-compatibility.sh"' in catalog
+    assert "planned = true" not in catalog
+
+
+def test_node_runtime_compatibility_runner_executes_exact_acceptance_sequence(
+    tmp_path: Path,
+) -> None:
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    npm_log = tmp_path / "npm.log"
+    _write_fake_executable(
+        fake_bin / "node",
+        """#!/bin/sh
+printf 'v%s\\n' "${FAKE_NODE_VERSION}"
+""",
+    )
+    _write_fake_executable(
+        fake_bin / "npm",
+        """#!/bin/sh
+printf '%s|engine=%s\\n' "$*" "${npm_config_engine_strict:-}" >> "${FAKE_NPM_LOG}"
+""",
+    )
+    env = os.environ.copy()
+    env.update(
+        {
+            "PATH": f"{fake_bin}{os.pathsep}{env['PATH']}",
+            "NODE_VERSION": "24.18.0",
+            "FAKE_NODE_VERSION": "24.18.0",
+            "FAKE_NPM_LOG": str(npm_log),
+        }
+    )
+
+    result = subprocess.run(
+        ["/bin/bash", "tools/ci/scripts/run-node-compatibility.sh"],
+        cwd=ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    calls = [line for line in npm_log.read_text(encoding="utf-8").splitlines() if line]
+    assert calls == [
+        "--version|engine=",
+        "ci --ignore-scripts|engine=true",
+        "run ethos -- --version|engine=true",
+        "run test:npm|engine=true",
+    ]
+
+
+def test_node_runtime_compatibility_runner_rejects_version_mismatch_before_npm(
+    tmp_path: Path,
+) -> None:
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    npm_log = tmp_path / "npm.log"
+    _write_fake_executable(
+        fake_bin / "node",
+        """#!/bin/sh
+printf 'v%s\\n' "${FAKE_NODE_VERSION}"
+""",
+    )
+    _write_fake_executable(
+        fake_bin / "npm",
+        """#!/bin/sh
+printf 'called\\n' >> "${FAKE_NPM_LOG}"
+""",
+    )
+    env = os.environ.copy()
+    env.update(
+        {
+            "PATH": f"{fake_bin}{os.pathsep}{env['PATH']}",
+            "NODE_VERSION": "24.18.0",
+            "FAKE_NODE_VERSION": "26.5.0",
+            "FAKE_NPM_LOG": str(npm_log),
+        }
+    )
+
+    result = subprocess.run(
+        ["/bin/bash", "tools/ci/scripts/run-node-compatibility.sh"],
+        cwd=ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode != 0
+    assert "Node runtime mismatch: requested 24.18.0, active 26.5.0" in result.stderr
+    assert not npm_log.exists()
 
 
 def test_ci_node_installer_is_architecture_aware() -> None:

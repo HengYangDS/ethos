@@ -117,6 +117,31 @@ def test_provider_yaml_invokes_owner_scripts_not_inline_policy() -> None:
     assert "hosted_gitlab_status_claimed=true" not in combined
 
 
+def test_gitlab_node_compatibility_matrix_projects_the_runtime_policy() -> None:
+    providers = {str(entry["provider"]): entry for entry in _projection_entries()}
+    runner = "tools/ci/scripts/run-node-compatibility.sh"
+    gitlab = (ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8")
+    npm_job = gitlab.split("\nethos:npm:\n", 1)[1].split("\nethos:package:\n", 1)[0]
+    npm_package_job = gitlab.split("\nethos:npm-package:\n", 1)[1]
+
+    assert runner in providers["gitlab"]["required_owner_scripts"]
+    assert runner not in providers["github"]["required_owner_scripts"]
+    assert (
+        'parallel:\n    matrix:\n      - NODE_VERSION:\n          - "24.18.0"\n          - "26.5.0"'
+        in npm_job
+    )
+    assert "tools/ci/scripts/install-node.sh" in npm_job
+    assert runner in npm_job
+    assert "npm config set engine-strict true" not in npm_job
+    assert "npm ci --ignore-scripts" not in npm_job
+    assert "npm run ethos -- --version" not in npm_job
+    assert "npm run test:npm" not in npm_job
+    assert "tools/ci/scripts/install-node.sh" in npm_package_job
+    assert runner not in npm_package_job
+    assert "NODE_VERSION" not in npm_package_job
+    assert "npm run test:npm" in npm_package_job
+
+
 def test_provider_python_producers_are_runtime_bound() -> None:
     runtime = "tools/ci/scripts/with-python-runtime.sh -- uv"
     provider_paths = [

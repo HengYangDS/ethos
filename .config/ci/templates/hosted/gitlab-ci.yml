@@ -235,18 +235,17 @@ ethos:verify:
 
 ethos:npm:
   stage: verify
-  # Runs on python:3.12 (kept layer-cached on the runner) with Node installed
-  # from nodejs.org, because the node:24 Docker image is unreachable through this
-  # runner's registry egress — see tools/ci/scripts/install-node.sh.
+  parallel:
+    matrix:
+      - NODE_VERSION:
+          - "24.18.0"
+          - "26.5.0"
+  # Runs on python:3.12 (kept layer-cached on the runner) with exact Node
+  # releases installed from nodejs.org; see the runtime policy and installer.
   image: python:3.12
   script:
     - tools/ci/scripts/install-node.sh
-    - node --version
-    - npm --version
-    - npm config set engine-strict true
-    - npm ci --ignore-scripts
-    - npm run ethos -- --version
-    - npm run test:npm
+    - tools/ci/scripts/run-node-compatibility.sh
 
 ethos:package:
   <<: *python_setup

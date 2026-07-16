@@ -9,7 +9,7 @@
 - [x] 3. Define cohort-bound authority, holder/handoff rules, preservation-first
   exceptional resolution, successor implementation sequencing, local lifecycle
   closeout, recovery retention, and remote-publication exclusions.
-- [ ] 4. Run strict carrier validation, refresh the Chronicle/claim binding,
+- [x] 4. Run strict carrier validation, refresh the Chronicle/claim binding,
   and compile the change plan so this governance decision is complete and
   archiveable.
 

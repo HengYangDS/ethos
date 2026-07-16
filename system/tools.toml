@@ -188,6 +188,13 @@ profile = "product"
 gate = "tools/ci/scripts/install-gitleaks.sh and tools/ci/scripts/install-node.sh"
 
 [[tool]]
+concern = "node_runtime_compatibility"
+tool = "node + npm"
+config = ".config/checks/node/runtime.toml"
+profile = "distribution"
+gate = "tools/ci/scripts/run-node-compatibility.sh"
+
+[[tool]]
 concern = "local_ci_fallback"
 tool = "ETHOS local-ci owner gate bundle"
 config = "tools/ci/scripts/run-local-ci.sh + tools/ci/scripts/require-stable-head.sh"

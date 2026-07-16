@@ -30,6 +30,27 @@ The distribution boundary is:
 This keeps npm, PyPI, GitLab, and future package managers as adapters over one
 ETHOS command plane.
 
+## Node Runtime Compatibility
+
+Node runtime ownership remains layered rather than mechanically unified:
+
+- A maintainer workstation runtime is owned by the workstation software
+  supply chain, not by this repository.
+- `.config/checks/node/runtime.toml` owns the exact releases used to prove the
+  npm launcher. The current set is Node 24.18.0 and Node 26.5.0.
+- Hosted npm compatibility jobs select one exact declared release and execute
+  `tools/ci/scripts/run-node-compatibility.sh`.
+- Hosted packaging keeps the installer default at Node 24.18.0 so compatibility
+  expansion does not silently promote the release baseline.
+- IDE-, desktop-, and application-managed Node runtimes remain owned by those
+  applications and are not repository mutation targets.
+
+Node 26.5.0 is the next default candidate, not the current default. The date
+2026-10-28 is only the earliest review trigger. Promotion requires current
+release-status verification, successful hosted compatibility results, package
+proof, and a separate reviewed repository change; the date alone performs no
+transition.
+
 Published package scope is intentionally narrower than repository history.
 Distribution manifests must use explicit allowlists for neutral launcher assets
 and package documentation. They must not publish historical evidence, archived

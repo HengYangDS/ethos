@@ -194,6 +194,7 @@ def test_node_runtime_compatibility_has_one_policy_and_runner_owner() -> None:
         assert all(re.fullmatch(r"[a-f0-9]{64}", digest) for digest in checksums.values())
     assert runner_path.stat().st_mode & stat.S_IXUSR
     assert ".config/checks/node/runtime.toml" in runner
+    assert "with-python-runtime.sh" in runner
     assert "tomllib" in runner
     assert "NODE_VERSION" in runner
     assert "npm_config_engine_strict=true" in runner
@@ -312,6 +313,7 @@ def test_ci_node_installer_is_architecture_aware() -> None:
     assert "ETHOS_CI_TOOL_CACHE_DIR" in installer
     assert "build/runtime/tool-cache/ci-tools" in installer
     assert ".config/checks/node/runtime.toml" in installer
+    assert "with-python-runtime.sh" in installer
     assert "archive_sha256" in installer
     assert "sha256sum -c" in installer
     assert "tar tJf" in installer

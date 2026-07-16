@@ -82,7 +82,7 @@ python_total = 58722
 global_total = 73739
 
 [quality.source_budget.debt]
-maximum_total = 6919
+maximum_total = 6924
 
 [[quality.source_budget.debt.records]]
 id = "program-foundation"
@@ -181,11 +181,11 @@ owner = "node-runtime-compatibility-20260716"
 replacement = "consolidate fake-process fixtures, checksum-policy parsing, and installer validation without removing the exact Node matrix contract"
 deletion_wave = "node-runtime-compatibility-compression"
 expiry = "2026-10-28"
-allowance = 160
+allowance = 165
 
 [quality.source_budget.debt.records.allowance_by_category]
-python_tests = 133
-shell = 104
+python_tests = 135
+shell = 107
 
 [gates.local-state-audit]
 command = "tools/ci/scripts/run-local-state-audit.sh"

@@ -83,7 +83,7 @@ product gap is implemented; raw deletion is not an acceptable substitute.
 The ordered transitions are:
 
 1. inventory and governance decision carrier;
-2. strict completion, archive, parity, and HEAD-bound proof for that carrier;
+2. strict completion and parity, followed by archive and stable-HEAD proof;
 3. governance carrier land, accepted-root closeout, and self-retirement;
 4. owned successor lanes for test-first semantic implementation;
 5. successor strict completion, archive, parity, and HEAD-bound proof;

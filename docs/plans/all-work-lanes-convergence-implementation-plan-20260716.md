@@ -23,13 +23,16 @@
 
 1. Complete only the governance carrier checklist: exact cohort, classification,
    policy, plans, inventory, Chronicle, claim, and requirement delta.
-2. Run strict OpenSpec lifecycle, claim validation, plan, parity, and HEAD-bound
-   executed proof; archive the carrier through official OpenSpec semantics.
-3. Land the proven governance HEAD to `candidate/dev`, perform sanctioned
+2. Run strict OpenSpec lifecycle, claim validation, plan, and parity; complete
+   every pre-archive task and archive the carrier through official OpenSpec
+   semantics.
+3. Commit the archived carrier, then obtain HEAD-bound executed proof for that
+   stable archived HEAD.
+4. Land the proven governance HEAD to `candidate/dev`, perform sanctioned
    accepted-root closeout, and verify accepted/candidate equality and cleanliness.
-4. Retire `work/all-lanes-convergence-20260716` through its holder-bound landed
+5. Retire `work/all-lanes-convergence-20260716` through its holder-bound landed
    retirement path.
-5. Start an owned successor implementation lane from the accepted governance
+6. Start an owned successor implementation lane from the accepted governance
    HEAD. Bind its claim/scope to this accepted program. No exceptional legacy
    lane effect is allowed before this checkpoint is accepted.
 

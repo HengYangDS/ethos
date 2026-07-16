@@ -10,10 +10,11 @@
   exceptional resolution, successor implementation sequencing, local lifecycle
   closeout, recovery retention, and remote-publication exclusions.
 - [ ] 4. Run strict carrier validation, refresh the Chronicle/claim binding,
-  complete generic parity when required, and obtain HEAD-bound executed proof so
-  this governance decision is archiveable and landable.
+  compile the change plan, and complete generic parity when required so this
+  governance decision is complete and archiveable.
 
 The 11-family implementation, candidate/accepted promotion of those successor
 changes, exact cohort retirement, final successor retirement, and remote
 publication are post-archive lifecycle work. They do not remain unchecked tasks
-inside this governance carrier. Remote publication stays deferred.
+inside this governance carrier. After archive, its stable HEAD receives
+executed proof before candidate landing. Remote publication stays deferred.

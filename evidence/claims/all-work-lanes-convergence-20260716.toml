@@ -6,7 +6,7 @@ summary = "The exact 60-ref legacy ETHOS Work Lane cohort is governed by an inve
 
 [evidence]
 dated = "evidence/chronicle/all-work-lanes-convergence-20260716/2026-07-16.md"
-sha256 = "2bafc556af706cdcabd27caa418928643b1cffbd099938c454011b2c6f9032b8"
+sha256 = "a14df685d54970f080f386e09431b388cc2fcc8890ae9a9c804d9eb4b290ff41"
 evidence_ids = ["evidence:all-work-lanes-convergence-20260716"]
 binding = "The dated Chronicle and exact lane inventory digest bind the recorded cohort, policy, and observed local facts; later lifecycle commands append their own evidence."
 verifier = "digest_only"

@@ -1,4 +1,20 @@
+---
+subject: ethos:all-work-lanes-convergence-program-20260716
+role: plan
+state: active
+relations:
+  governs: exact local Work Lane cohort convergence
+  carrier: openspec/changes/archive/2026-07-16-all-work-lanes-convergence-20260716
+---
+
 # All Work Lanes Convergence Program — 2026-07-16
+
+Purpose: govern the exact legacy Work Lane cohort through evidence-preserving
+local convergence without claiming unverified remote or foreign-owner outcomes.
+
+See also: [Implementation Plan](all-work-lanes-convergence-implementation-plan-20260716.md),
+[Repository Governance Specification](../../openspec/specs/repository-governance/spec.md),
+and [Evidence Rules](../../rules/evidence.md).
 
 - Status: active local convergence program
 - Carrier: `work/all-lanes-convergence-20260716`

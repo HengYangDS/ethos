@@ -82,15 +82,18 @@ product gap is implemented; raw deletion is not an acceptable substitute.
 
 The ordered transitions are:
 
-1. inventory and accepted governance carrier;
-2. test-first semantic implementation;
-3. strict OpenSpec completion and archive;
-4. parity refresh on the committed semantic tree;
-5. HEAD-bound executed proof;
-6. land to candidate;
-7. sanctioned accepted-root closeout;
-8. exact cohort preservation/retirement; and
-9. governance-carrier retirement.
+1. inventory and governance decision carrier;
+2. strict completion, archive, parity, and HEAD-bound proof for that carrier;
+3. governance carrier land, accepted-root closeout, and self-retirement;
+4. owned successor lanes for test-first semantic implementation;
+5. successor strict completion, archive, parity, and HEAD-bound proof;
+6. successor land and sanctioned accepted-root closeout;
+7. exact cohort preservation and retirement; and
+8. final successor-lane retirement.
+
+The accepted governance Chronicle therefore exists before any exceptional
+missing-lease or irreversible effect and removes a circular dependency between
+implementation completion and resolution authority.
 
 Candidate landing, accepted closeout, retirement, and remote publication are
 separate facts. Remote publication remains deferred.

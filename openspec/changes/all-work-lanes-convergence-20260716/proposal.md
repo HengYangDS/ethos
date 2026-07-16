@@ -19,12 +19,13 @@ the user's current instruction into future wildcard authority.
 - Establish a cohort-bound convergence program that re-observes every mutable
   target before effect, respects valid foreign holders, and requires accepted
   Chronicle evidence for exceptional missing-lease or irreversible resolution.
-- Reconcile and implement the 11 semantic families carried by the legacy refs,
-  using test-first current-candidate implementations instead of wholesale stale
-  branch merges.
-- Preserve dirty/owner-uncertain content before retirement, integrate or prove
-  supersession, complete HEAD-bound proof, advance candidate and accepted roots
-  through sanctioned ETHOS commands, and retire the exact cohort locally.
+- Record the test-first implementation and retirement plan for the 11 semantic
+  families. Subsequent owned successor changes implement that plan instead of
+  wholesale merging stale branches.
+- Promote this governance decision before any missing-lease exceptional effect.
+  Successor changes then preserve dirty/owner-uncertain content, integrate or
+  demonstrate supersession, prove their HEADs, advance candidate and accepted
+  roots through sanctioned commands, and retire the exact cohort locally.
 - Keep recovery-package clearing, remote Git push, and distribution publication
   outside this change.
 

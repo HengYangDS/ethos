@@ -19,6 +19,20 @@
    Chronicle, claim, and tracked inventory after exact prewrite.
 5. Validate the carrier and commit the governance checkpoint.
 
+## Phase 0.5 — Promote the governance decision first
+
+1. Complete only the governance carrier checklist: exact cohort, classification,
+   policy, plans, inventory, Chronicle, claim, and requirement delta.
+2. Run strict OpenSpec lifecycle, claim validation, plan, parity, and HEAD-bound
+   executed proof; archive the carrier through official OpenSpec semantics.
+3. Land the proven governance HEAD to `candidate/dev`, perform sanctioned
+   accepted-root closeout, and verify accepted/candidate equality and cleanliness.
+4. Retire `work/all-lanes-convergence-20260716` through its holder-bound landed
+   retirement path.
+5. Start an owned successor implementation lane from the accepted governance
+   HEAD. Bind its claim/scope to this accepted program. No exceptional legacy
+   lane effect is allowed before this checkpoint is accepted.
+
 ## Phase 1 — Resolve valid foreign leases without impersonation
 
 For `expert-review-remediation`, `hosted-observation-targets`, and
@@ -164,12 +178,13 @@ Required outcomes:
 - preserve target-root proof carry and armed-hook closeout behavior; and
 - run the focused e2e tests before integration.
 
-## Phase 3 — Proof and carrier archive
+## Phase 3 — Successor proof and carrier archive
 
-1. Re-run exact prewrite for every changed path and update `scope.toml`.
-2. Complete all pre-archive checklist items and strict OpenSpec lifecycle
-   validation.
-3. Update Chronicle commands/results and its bound claim digest.
+1. Re-run exact prewrite for every successor changed path and update the active
+   implementation carrier scope.
+2. Complete all implementation pre-archive checklist items and strict OpenSpec
+   lifecycle validation.
+3. Update the successor Chronicle commands/results and its bound claim digest.
 4. Commit parity-relevant source, run `ethos parity gaps --json`, refresh generic
    shadow parity when stale, and commit that evidence.
 5. Archive the active carrier through official OpenSpec semantics and commit the

@@ -11,6 +11,7 @@ def advisory_gaps(
     claim_report: dict[str, object],
     playbooks: dict[str, object],
     status_payload: dict[str, object] | None = None,
+    hosted_observation: dict[str, object] | None = None,
 ) -> tuple[str, ...]:
     """Collect non-blocking small signals that should stay visible in report.
 
@@ -27,6 +28,7 @@ def advisory_gaps(
         *string_list(openspec.get("advisory_gaps")),
         *string_list(claim_report.get("advisory_gaps")),
         *string_list(playbooks.get("advisory_gaps")),
+        *string_list((hosted_observation or {}).get("advisory_gaps")),
     ]
     return tuple(dict.fromkeys(values))
 
@@ -75,7 +77,41 @@ def advisory_next_actions(advisory_gaps: tuple[str, ...]) -> tuple[str, ...]:
                     "ethos quality evidence-freshness --json",
                 ]
             )
+        if gap.startswith("provider_not_configured:"):
+            provider = gap.rsplit(":", 1)[-1].upper()
+            actions.append(
+                f"ETHOS_HOSTED_{provider}_REPO=<host/owner/repo> "
+                "ETHOS_HOSTED_OBSERVATION_EXECUTE=1 "
+                "tools/ci/scripts/run-hosted-provider-observation.sh"
+            )
+        elif gap.startswith(
+            (
+                "hosted_provider_observation_",
+                "provider_tool_unavailable:",
+                "provider_observation_failed:",
+            )
+        ):
+            actions.append("tools/ci/scripts/run-hosted-provider-observation.sh")
     return tuple(dict.fromkeys(actions))
+
+
+def local_publication_projection(
+    required_gaps: tuple[str, ...],
+    proof_readiness: dict[str, object],
+) -> dict[str, object]:
+    """Project local publication state without authorizing a transition."""
+    proof_gaps = string_list(proof_readiness.get("required_gaps"))
+    gaps = list(dict.fromkeys((*required_gaps, *proof_gaps)))
+    local_ready = not gaps and proof_readiness.get("blocking") is not True
+    return {
+        "kind": "local_publication_scorecard_projection",
+        "state": "local_publish_ready" if local_ready else "blocked",
+        "local_ready": local_ready,
+        "blocking": not local_ready,
+        "required_gaps": gaps,
+        "remote_publication_claimed": False,
+        "transition_authority": False,
+    }
 
 
 def string_list(value: object) -> list[str]:

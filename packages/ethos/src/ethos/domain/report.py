@@ -20,6 +20,7 @@ from ethos.repository.adoption.evolution import evolution_report
 from ethos.repository.adoption.planner import adoption_scaffold_report
 from ethos.repository.adoption.planner import available_profiles
 from ethos.repository.evidence.claims import claims_report
+from ethos.repository.evidence.hosted.core import hosted_observation_report
 from ethos.repository.evidence.parity.core import parity_gaps_report
 from ethos.repository.evidence.parity.core import parity_ledger_report
 from ethos.repository.policy.schema import schema_validation_report
@@ -39,6 +40,7 @@ def scorecard_report(repo: Path, *, product_root: Path | None = None) -> dict[st
     docs_report = docs_health_report(repo)
     current_head = git_adapter.current_tracked_head(repo)
     proof_readiness = proof_readiness_report(repo, current_head)
+    hosted_observation = hosted_observation_report(repo, current_head=current_head)
     audit_profile = str(cast("dict[str, object]", audit["governance_context"])["profile"])
     product_profile = audit_profile == "product"
     claim_report = claims_report(repo, current_head=current_head, adopter_mode=not product_profile)
@@ -146,9 +148,12 @@ def scorecard_report(repo: Path, *, product_root: Path | None = None) -> dict[st
     effective_score = max(0, nominal_score - hard_quality_penalty - coordination_risk_penalty)
     coordination_risk_count = len(coordination_required_gaps) + len(coordination_advisory_gaps)
     advisory_gap_items = reporting_gaps.advisory_gaps(
-        audit, claim_report, playbooks, status_payload
+        audit, claim_report, playbooks, status_payload, hosted_observation
     )
     advisory_action_items = reporting_gaps.advisory_next_actions(advisory_gap_items)
+    local_publication = reporting_gaps.local_publication_projection(
+        result_required_gaps, proof_readiness
+    )
     has_advisory_signals = bool(advisory_gap_items or coordination_advisory_gaps)
     report_ok = all(value == 1 for value in scores.values()) and not result_required_gaps
     report_state = "gapped" if not report_ok else "advisory" if has_advisory_signals else "ready"
@@ -191,6 +196,8 @@ def scorecard_report(repo: Path, *, product_root: Path | None = None) -> dict[st
             "parity_pending_count": parity_pending_count,
             "advisory_gap_count": len(advisory_gap_items),
             "proof_evidence_class": str(proof_readiness.get("evidence_class") or "local_readiness"),
+            "local_publication_state": str(local_publication["state"]),
+            "hosted_observation_state": str(hosted_observation["state"]),
         },
         "required_gaps": result_required_gaps,
         "next_actions": next_actions,
@@ -215,6 +222,8 @@ def scorecard_report(repo: Path, *, product_root: Path | None = None) -> dict[st
             "scorecards": [reporting_gaps.skills_scorecard(playbooks)],
             "repository_audit": audit,
             "proof_readiness": proof_readiness,
+            "local_publication": local_publication,
+            "hosted_observation": hosted_observation,
             "docs": docs_report,
             "claims": claim_report,
             "assistant_projection": projection,

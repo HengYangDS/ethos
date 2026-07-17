@@ -11,10 +11,7 @@ from ethos_core.contracts.artifacts.topology import generated_artifact_contract
 from ethos_core.contracts.artifacts.topology import load_generated_artifact_topology_declaration
 from ethos_core.contracts.artifacts.topology import path_policy_for
 from ethos_core.contracts.artifacts.topology import path_policy_from_declaration
-
-
-def _git(root: Path, *args: str) -> None:
-    subprocess.run(["git", *args], cwd=root, check=True, capture_output=True, text=True)
+from tests.support.contract_helpers import git as _git
 
 
 def _init_repo(root: Path) -> None:

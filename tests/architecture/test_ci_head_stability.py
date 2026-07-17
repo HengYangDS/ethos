@@ -4,20 +4,11 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from tests.support.contract_helpers import git as _git
+
 ROOT = Path(__file__).resolve().parents[2]
 HEAD_GUARD = ROOT / "tools/ci/scripts/require-stable-head.sh"
 LOCAL_CI = ROOT / "tools/ci/scripts/run-local-ci.sh"
-
-
-def _git(repo: Path, *args: str) -> str:
-    result = subprocess.run(
-        ["git", *args],
-        cwd=repo,
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    return result.stdout.strip()
 
 
 def _commit(repo: Path, filename: str, content: str, message: str) -> str:

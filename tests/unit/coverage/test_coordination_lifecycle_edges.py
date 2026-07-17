@@ -717,21 +717,19 @@ def test_admission_and_prewrite_normalization_edges(tmp_path: Path, monkeypatch)
         "lease_generation_missing:work/example",
         "lease_head_stale:b!=a",
     ]
-    for status, expected_db in (
-        ({}, tmp_path / ".ethos/state/state.sqlite"),
+    for worktrees, expected_db in (
+        ([], tmp_path / ".ethos/state/state.sqlite"),
         (
-            {
-                "worktrees": [
-                    {"role": "work_lane", "path": tmp_path.as_posix()},
-                    {"role": "accepted_root", "path": (tmp_path / "accepted").as_posix()},
-                ]
-            },
+            [
+                {"role": "work_lane", "path": tmp_path.as_posix()},
+                {"role": "accepted_root", "path": (tmp_path / "accepted").as_posix()},
+            ],
             tmp_path / "accepted/.ethos/state/state.sqlite",
         ),
     ):
-        assert transitions._control_state_db(status, tmp_path) == expected_db
+        assert transitions._control_state_db(worktrees, tmp_path) == expected_db
 
-    monkeypatch.setattr(transitions, "workspace_status", lambda _root: {"worktrees": []})
+    monkeypatch.setattr(transitions, "worktree_records", lambda *_, **__: [])
     monkeypatch.setattr(
         transitions, "leases_by_branch", lambda *_, **__: {BRANCH: _lease_payload()}
     )

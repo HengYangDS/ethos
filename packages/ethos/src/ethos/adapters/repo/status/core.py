@@ -127,7 +127,7 @@ def workspace_status(root: Path) -> dict[str, object]:
     head = _safe_ref(root, "HEAD")
     policy = load_branch_role_policy(repo)
     role = policy.role_for_branch(branch)
-    worktrees = _worktrees(root, current_path=current_path, policy=policy)
+    worktrees = worktree_records(root, current_path=current_path, policy=policy)
     candidate = _candidate_status(root, worktrees, policy=policy)
     lease_by_branch = leases_by_branch(worktrees, current_path=current_path)
     bindings = branch_bindings(
@@ -335,12 +335,13 @@ def _non_git_status(root: Path) -> dict[str, object]:
     }
 
 
-def _worktrees(
+def worktree_records(
     root: Path,
     *,
     current_path: Path,
     policy: BranchRolePolicy,
 ) -> list[dict[str, str]]:
+    """Return normalized Git worktree records without probing each worktree's state."""
     output = git_stdout_checked(root, "worktree", "list", "--porcelain")
     entries: list[dict[str, str]] = []
     current: dict[str, str] = {}

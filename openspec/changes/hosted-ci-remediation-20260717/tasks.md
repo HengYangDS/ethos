@@ -6,7 +6,7 @@
 
 ## 2. Pre-archive proof
 
-- [ ] 2.1 Run focused, owner-gate, quality, OpenSpec, and HEAD-bound proof.
+- [x] 2.1 Run focused, owner-gate, quality, OpenSpec, and HEAD-bound proof.
 
 ## Post-archive boundary
 

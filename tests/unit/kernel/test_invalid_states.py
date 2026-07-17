@@ -26,6 +26,8 @@ ROOT = Path(__file__).resolve().parents[3]
 _NON_GAP_TOKENS = {
     "required_gaps",
     "advisory_gaps",
+    "observation_gaps",
+    "observation_gap_count",
     "waived_gaps",
     "coordination_gaps",
     "validation_gaps",

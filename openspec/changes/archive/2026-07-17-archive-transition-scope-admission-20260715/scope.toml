@@ -1,10 +1,2 @@
 schema_version = 1
-paths = [
-  "evidence/claims/archive-transition-scope-admission-20260715.toml",
-  "evidence/chronicle/archive-transition-scope-admission-20260715/**",
-  "openspec/**",
-  "packages/ethos/src/ethos/adapters/openspec/lifecycle/scope.py",
-  "system/invalid_states.toml",
-  "tests/unit/kernel/test_invalid_states.py",
-  "tests/unit/lanes/test_lanes_openspec_scope.py",
-]
+paths = ["evidence/claims/archive-transition-scope-admission-20260715.toml", "evidence/chronicle/archive-transition-scope-admission-20260715/**", "openspec/**", "packages/ethos/src/ethos/adapters/openspec/lifecycle/scope.py", "system/invalid_states.toml", "tests/unit/kernel/test_invalid_states.py", "tests/unit/lanes/test_lanes_openspec_scope.py"]

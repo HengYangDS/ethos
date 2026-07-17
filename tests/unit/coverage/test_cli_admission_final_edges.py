@@ -44,12 +44,7 @@ from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 from ethos_core.contracts.registry.declarations import load_coupling_declaration
 from ethos_core.result import EthosResult
-
-# fmt: off
-
-
-def cp(stdout: str = "", stderr: str = "", returncode: int = 0) -> subprocess.CompletedProcess[str]:
-    return subprocess.CompletedProcess(["cmd"], returncode, stdout, stderr)
+from tests.support.subprocesses import completed as cp
 
 
 def test_hook_admit_next_actions_prefer_admission_report_actions() -> None:

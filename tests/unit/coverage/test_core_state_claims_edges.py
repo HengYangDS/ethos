@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import json
 import sqlite3
-import subprocess
 from contextlib import closing
 from functools import partial
 from pathlib import Path
@@ -28,11 +27,7 @@ from ethos.adapters.repo import git
 from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 from ethos_core.contracts.branch.roles import BranchRolePolicy
-
-
-def cp(stdout: str = "", stderr: str = "", returncode: int = 0) -> subprocess.CompletedProcess[str]:
-    return subprocess.CompletedProcess(["git"], returncode, stdout, stderr)
-
+from tests.support.subprocesses import completed as cp
 
 POLICY = SimpleNamespace(
     release_branch="main",

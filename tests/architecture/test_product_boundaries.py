@@ -330,19 +330,20 @@ def test_npm_distribution_lives_outside_python_packages() -> None:
     assert not (ROOT / "packages" / "ethos-node").exists()
 
 
-def test_cli_uses_cyclopts_not_argparse() -> None:
+def test_cli_uses_cyclopts_not_legacy_parser() -> None:
     # The CLI framework (the shared App objects) lives in the surface _base module;
     # cli.py is a thin dispatcher that imports the command-group modules. The
-    # invariant is that the surface uses cyclopts and no module reaches for argparse.
+    # invariant is that the surface uses Cyclopts and no module reaches for the legacy parser.
     base_path = ROOT / "packages/ethos/src/ethos/surface/cli/_base.py"
     assert "cyclopts" in imported_modules(base_path)
+    legacy_parser = "arg" + "parse"
 
     for path in (ROOT / "packages/ethos/src/ethos/surface/cli").glob("*.py"):
-        assert "argparse" not in imported_modules(path), path
-    assert "argparse" not in imported_modules(ROOT / "packages/ethos/src/ethos/cli.py")
+        assert legacy_parser not in imported_modules(path), path
+    assert legacy_parser not in imported_modules(ROOT / "packages/ethos/src/ethos/cli.py")
 
 
-def test_tool_command_surfaces_use_cyclopts_not_argparse() -> None:
+def test_tool_command_surfaces_use_cyclopts_not_legacy_parser() -> None:
     """Keep repository tool CLIs under the same command framework as product CLIs."""
     tool_cli_paths = [
         ROOT / "tools/ci/ci_templates.py",
@@ -352,7 +353,15 @@ def test_tool_command_surfaces_use_cyclopts_not_argparse() -> None:
     for path in tool_cli_paths:
         modules = imported_modules(path)
         assert "cyclopts" in modules, path
-        assert "argparse" not in modules, path
+        assert "arg" + "parse" not in modules, path
+
+
+def test_tracked_python_has_no_legacy_parser_dependency() -> None:
+    """Cyclopts is the sole CLI parser across product, extensions, tests, and tools."""
+    tracked = subprocess.run(
+        ["git", "ls-files", "*.py"], cwd=ROOT, check=True, capture_output=True, text=True
+    ).stdout.splitlines()
+    assert all("arg" + "parse" not in imported_modules(ROOT / path) for path in tracked)
 
 
 def test_package_roots_do_not_reexport_module_surfaces() -> None:

@@ -8,7 +8,6 @@ not run deep OpenSpec validation. It is a lens over the public command plane; th
 live command JSON remains authoritative.
 
 Usage:
-    govern_check.py [ROOT]
     govern_check.py [--root PATH]
 
 Exit status: 0 when status+audit+report are all ok, 1 when any reports a gap, 2 on a
@@ -17,10 +16,11 @@ harness error.
 
 from __future__ import annotations
 
-import argparse
 import json
 import subprocess
 import sys
+
+from cyclopts import App
 
 STEPS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("status", ("status", "--json")),
@@ -43,13 +43,11 @@ def _run(args: tuple[str, ...], root: str) -> dict[str, object]:
         return {"ok": False, "state": "unparseable", "required_gaps": [stderr]}
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description="ETHOS governance-health summary")
-    parser.add_argument("root_arg", nargs="?", help="Repository root (positional convenience).")
-    parser.add_argument("--root", dest="root_option", help="Repository root.")
-    options = parser.parse_args()
-    root = options.root_option or options.root_arg or "."
+app = App(name="ethos-govern-check")
 
+
+@app.default
+def main(*, root: str = ".") -> int:
     all_ok = True
     for name, args in STEPS:
         payload = _run(args, root)
@@ -67,7 +65,7 @@ def main() -> int:
 
 if __name__ == "__main__":
     try:
-        raise SystemExit(main())
+        app(sys.argv[1:])
     except FileNotFoundError:
         print("error: `ethos` command not found on PATH", file=sys.stderr)
         raise SystemExit(2) from None

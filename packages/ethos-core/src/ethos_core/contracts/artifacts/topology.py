@@ -252,36 +252,6 @@ def generated_artifact_contract(
     return (declaration or load_generated_artifact_topology_declaration()).to_contract()
 
 
-def is_product_adopter_path(
-    path: Path | str,
-    declaration: GeneratedArtifactTopologyDeclaration | None = None,
-) -> bool:
-    """Return whether a product-repository path embeds adopter-specific roots."""
-    rel = normalize_artifact_path(path)
-    topology = declaration or load_generated_artifact_topology_declaration()
-    return _topology_rule_matches("product-adopter-root", rel, topology)
-
-
-def is_runner_script_path(path: Path | str) -> bool:
-    """Return whether a path lives under the repository-owned runner script home."""
-    return _matches_prefix(normalize_artifact_path(path), "tools/ci/scripts/")
-
-
-def is_retired_config_script_path(path: Path | str) -> bool:
-    """Return whether a path revives the retired executable config script home."""
-    return _matches_prefix(normalize_artifact_path(path), ".config/ci/scripts/")
-
-
-def is_denied_root_cache_path(
-    path: Path | str,
-    declaration: GeneratedArtifactTopologyDeclaration | None = None,
-) -> bool:
-    """Return whether a path revives a root-level tool cache home."""
-    rel = normalize_artifact_path(path)
-    topology = declaration or load_generated_artifact_topology_declaration()
-    return _topology_rule_matches("denied-root-cache", rel, topology)
-
-
 def is_generated_artifact_path(
     path: Path | str,
     declaration: GeneratedArtifactTopologyDeclaration | None = None,

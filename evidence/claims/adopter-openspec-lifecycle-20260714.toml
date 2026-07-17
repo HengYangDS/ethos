@@ -6,15 +6,15 @@ summary = "Plan and proof evaluate official OpenSpec lifecycle for valid adopter
 
 [evidence]
 dated = "evidence/chronicle/adopter-openspec-lifecycle-20260714/2026-07-14.md"
-sha256 = "aa29a63e2cbb7a8d0aff8a609024e72d41811e560984ad9c8660c57976d1aadd"
+sha256 = "dcded049afffea2719ea3f7a2efbb8b6716766a2eac7defa07ee983dec8a3a62"
 evidence_ids = ["evidence:adopter-openspec-lifecycle-20260714"]
 binding = "Universal adopter lifecycle evidence binding."
 verifier = "digest_only"
 
 [evidence.freshness]
 mode = "semantic_scope"
-head = "7b6acbd3f31096fffcee49b076c7bc4b1749c436"
-semantic_sha256 = "423fbc5b6104e2da200d4806178d379ee619653aac184907bf1a449c74d925ce"
+head = "3480e419c818affa57a29fdeab30057190414612"
+semantic_sha256 = "64019bbcb94bae79e1595e3746e1415146feed72233d880d105ce0aa75b9bfc3"
 
 [boundary]
 owner = "ethos-repository"

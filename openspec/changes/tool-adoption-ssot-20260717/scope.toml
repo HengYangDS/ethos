@@ -2,7 +2,9 @@ schema_version = 1
 paths = [
   ".config/checks/repository-hygiene/policy.toml",
   "evidence/claims/tool-adoption-ssot-20260717.toml",
+  "evidence/claims/adopter-openspec-lifecycle-20260714.toml",
   "evidence/chronicle/tool-adoption-ssot-20260717/**",
+  "evidence/chronicle/adopter-openspec-lifecycle-20260714/2026-07-14.md",
   "evidence/parity/generic-shadow.json",
   "openspec/changes/tool-adoption-ssot-20260717/**",
   "openspec/specs/quality/spec.md",

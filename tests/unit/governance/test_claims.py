@@ -6,9 +6,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from ethos.repository.evidence.claims import claims_report
-from ethos.repository.evidence.core import semantic_tree_digest
-from tests.support.contract_helpers import git
-from tests.support.contract_helpers import init_git_repo
 
 if TYPE_CHECKING:
     import pytest
@@ -581,6 +578,10 @@ def test_exact_lifecycle_semantic_scope_ignores_unrelated_reader_but_stales_on_p
     tmp_path: Path,
 ) -> None:
     """Only actual lifecycle implementation/regression files govern this claim."""
+    from ethos.repository.evidence.core import semantic_tree_digest
+    from tests.support.contract_helpers import git
+    from tests.support.contract_helpers import init_git_repo
+
     repo = init_git_repo(tmp_path / "repo")
     targets = (
         "packages/ethos/src/ethos/surface/cli/root/planning.py",

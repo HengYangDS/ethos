@@ -371,6 +371,86 @@ def test_act_emulator_uses_docker_context_when_no_endpoint_is_explicit(
     assert environment["DOCKER_HOST"] == "unix:///context/docker.sock"
 
 
+def test_github_emulator_run_materializes_an_independent_git_source(
+    monkeypatch, tmp_path: Path
+) -> None:
+    ci_templates = _load_ci_templates_module()
+    source_dir = tmp_path / "build/runtime/work/github-act/source"
+    source_dir.mkdir(parents=True)
+    entry = {
+        "provider": "github",
+        "projection": ".github/workflows/ci.yml",
+        "template": ".config/ci/templates/hosted/github-actions.yml",
+        "emulator_tool": "act",
+        "emulator_event": "workflow_dispatch",
+        "emulator_job": "quality",
+        "emulator_image": "catthehacker/ubuntu:act-latest",
+        "emulator_state_dir": "build/runtime/work/github-act",
+        "emulator_supported_inputs": [],
+        "emulator_hosted_only_reason": "",
+    }
+    summary = {
+        "branch": "work/example",
+        "head": "expected-head",
+        "dirty": False,
+        "status_short": "",
+        "changed_scope": {
+            "staged_paths": [],
+            "unstaged_paths": [],
+            "tracked_changed_paths": [],
+            "untracked_count": 0,
+            "untracked_preview": [],
+            "untracked_preview_limit": 12,
+        },
+    }
+    recorded: dict[str, object] = {}
+    materialization = {
+        "kind": "independent_git_checkout",
+        "source_dir": str(source_dir),
+        "source_head": "expected-head",
+        "source_head_matches_expected": True,
+        "git_directory_is_real": True,
+        "uses_external_object_alternates": False,
+        "tracked_diff_bytes": 0,
+    }
+    monkeypatch.setattr(ci_templates, "ROOT", tmp_path)
+    monkeypatch.setattr(ci_templates, "_provider_entry", lambda _provider: entry)
+    monkeypatch.setattr(ci_templates.shutil, "which", lambda _tool: "/usr/local/bin/act")
+    monkeypatch.setattr(ci_templates, "_tool_version", lambda _tool: "act 1.0")
+    monkeypatch.setattr(ci_templates, "_git_summary", lambda: summary)
+    monkeypatch.setattr(
+        ci_templates,
+        "materialize_emulator_source",
+        lambda **kwargs: recorded.update(materialization=kwargs) or materialization,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        ci_templates,
+        "_run_command",
+        lambda command, **kwargs: (
+            recorded.update(command=command, run=kwargs)
+            or {"returncode": 0, "ok": True, "stdout": "", "stderr": ""}
+        ),
+    )
+
+    assert (
+        ci_templates.emulator_evidence(
+            "github",
+            mode="run",
+            dry_run=False,
+            allow_untracked=True,
+            output=tmp_path / "github-run.json",
+        )
+        == 0
+    )
+    assert recorded["materialization"] == {
+        "source_root": tmp_path,
+        "state_dir": tmp_path / "build/runtime/work/github-act",
+        "expected_head": "expected-head",
+    }
+    assert recorded["run"]["cwd"] == source_dir
+
+
 def test_local_emulator_wrappers_do_not_require_optional_flag_environment() -> None:
     base_env = os.environ.copy()
     base_env.pop("ETHOS_LOCAL_EMULATOR_DRY_RUN", None)
@@ -528,7 +608,7 @@ def test_gitlab_materialization_creates_an_independent_git_snapshot(
         text=True,
     ).stdout.strip()
 
-    materialization = ci_templates.materialize_gitlab_source(
+    materialization = ci_templates.materialize_emulator_source(
         source_root=linked_worktree,
         state_dir=state_dir,
         expected_head=expected_head,

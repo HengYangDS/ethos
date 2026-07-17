@@ -16,5 +16,5 @@
 ## 3. Governance closeout
 
 - [x] 3.1 Bind the active Claim and dated Chronicle to the completed carrier.
-- [ ] 3.2 Run strict official OpenSpec validation, ETHOS lifecycle, parity,
+- [x] 3.2 Run strict official OpenSpec validation, ETHOS lifecycle, parity,
   and final committed-HEAD proof before archive or land.

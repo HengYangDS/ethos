@@ -36,6 +36,9 @@ forbidden_stash_patterns = [
 ]
 stash_policy_allowlist = [
   "do not use",
+  "never use",
+  "no git stash",
+  "no `git stash`",
   "must not use",
   "reject",
   "forbidden",

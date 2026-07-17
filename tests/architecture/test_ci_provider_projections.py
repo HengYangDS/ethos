@@ -74,6 +74,7 @@ def test_hosted_provider_templates_are_projection_sources() -> None:
             assert entry[field] == value
         assert entry["emulator_supported_inputs"] == []
         assert entry["emulator_hosted_only_reason"] == ""
+        assert "PYTHONWARNINGS: error" in projection.read_text(encoding="utf-8")
 
 
 def test_provider_yaml_invokes_owner_scripts_not_inline_policy() -> None:
@@ -155,6 +156,12 @@ def test_provider_python_producers_are_runtime_bound() -> None:
 
         assert uv_producers, relative_path
         assert all(runtime in line for line in uv_producers), relative_path
+
+
+def test_local_ci_fails_on_python_warnings() -> None:
+    assert "export PYTHONWARNINGS=error" in (
+        ROOT / "tools/ci/scripts/run-local-ci.sh"
+    ).read_text(encoding="utf-8")
 
 
 def test_openspec_ci_supply_is_pinned_to_the_supported_release() -> None:

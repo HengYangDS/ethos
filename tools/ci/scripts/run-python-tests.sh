@@ -186,6 +186,7 @@ PY
 pytest_targets=(tests/unit tests/architecture)
 pytest_common_args=(
   -c "${pytest_config_path}"
+  -W error
   --rootdir=.
   --cov-config="${coverage_config_dir}/coverage.ini"
   --cov=ethos

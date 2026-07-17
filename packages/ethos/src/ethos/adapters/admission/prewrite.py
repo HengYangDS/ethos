@@ -141,7 +141,7 @@ def _effective_write_context(*, root: Path, role: str, branch: str) -> dict[str,
         return {
             "role": role,
             "branch": branch,
-            "source": "workspace_status",
+            "source": "prewrite_context",
             "rebase_head_name": "",
         }
     rebase_branch = _rebase_head_branch(root)
@@ -151,7 +151,7 @@ def _effective_write_context(*, root: Path, role: str, branch: str) -> dict[str,
         return {
             "role": role,
             "branch": branch,
-            "source": "workspace_status",
+            "source": "prewrite_context",
             "rebase_head_name": rebase_branch,
         }
     return {

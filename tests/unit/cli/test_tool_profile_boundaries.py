@@ -6,6 +6,7 @@ import tomllib
 from pathlib import Path
 
 import pytest
+
 from ethos_core.quality.profiles import tool_profiles
 
 ROOT = Path(__file__).resolve().parents[3]

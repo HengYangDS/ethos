@@ -186,12 +186,12 @@ def test_quality_tool_profiles_command_reports_adapter_boundaries() -> None:
     assert payload["ok"] is True
     assert payload["command"] == "quality tool-profiles"
     adapters = {adapter["id"]: adapter for adapter in payload["data"]["tool_adapters"]}
-    assert adapters["ruff"]["asset_classes"] == ["python-code"]
-    assert adapters["lychee"]["asset_classes"] == ["markdown-docs"]
-    assert adapters["shellcheck"]["asset_classes"] == ["shell-scripts"]
-    assert adapters["taplo"]["asset_classes"] == ["toml-config"]
-    assert adapters["ethos-docstrings-google"]["asset_classes"] == ["python-code"]
-    assert adapters["ethos-module-layout"]["asset_classes"] == ["python-code"]
+    assert adapters["python_format_lint"]["standard"] == "ruff"
+    assert adapters["links"]["standard"] == "lychee"
+    assert adapters["shell"]["standard"] == "shellcheck"
+    assert adapters["toml"]["standard"] == "taplo"
+    assert adapters["python_docstrings"]["standard"] == "ethos-docstrings-google"
+    assert adapters["python_module_layout"]["standard"] == "ethos-module-layout"
 
 
 def test_quality_docs_registry_surfaces_all_required_gaps(tmp_path: Path) -> None:

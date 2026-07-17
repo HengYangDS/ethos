@@ -49,16 +49,16 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-def _product_quality_profile(_root: Path) -> object:
-    return product_quality_profile()
+def _product_quality_profile(root: Path) -> object:
+    return product_quality_profile(root)
 
 
 def _proof_lattice(_root: Path) -> object:
     return proof_lattice()
 
 
-def _tool_profiles(_root: Path) -> object:
-    return tool_profiles()
+def _tool_profiles(root: Path) -> object:
+    return tool_profiles(root)
 
 
 def _standard_adapter_registry(_root: Path) -> object:

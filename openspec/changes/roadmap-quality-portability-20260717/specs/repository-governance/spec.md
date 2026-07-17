@@ -53,7 +53,7 @@ unrelated future changes.
 #### Scenario: existing adopter bootstraps a missing profile declaration
 
 - **GIVEN** a valid tracked adopter profile has no `material_paths` declaration
-- **AND** exactly one official unarchived Change has status `no-tasks`
+- **AND** exactly one official active Change is selected
 - **WHEN** prewrite evaluates only `.ethos/profile.toml`
 - **THEN** ETHOS MAY admit that write with
   `profile_material_paths_bootstrap` provenance
@@ -61,3 +61,33 @@ unrelated future changes.
   includes another path, SHALL remain blocked
 - **AND THEN** later material writes SHALL require ordinary Change-local scope
   coverage.
+
+#### Scenario: final archive reconciliation remains covered
+
+- **GIVEN** a completed Change is archived in the current Work Lane change
+  scope and its archive has a valid `scope.toml`
+- **WHEN** prewrite, changed planning, or proof evaluates a material path from
+  that same current scope
+- **THEN** the archive companion may cover declared matching paths
+- **AND THEN** it SHALL cover paths inside that selected archive directory,
+  including the companion itself, only for this reconciliation
+- **AND THEN** it SHALL not cover a path outside that archive unless the
+  companion explicitly matches it
+- **AND** the same scope verdict is returned on all three surfaces.
+
+#### Scenario: historical archive cannot authorize unrelated material work
+
+- **GIVEN** an archive has a valid `scope.toml` but no file from that archive is
+  in the current Work Lane change scope
+- **WHEN** prewrite, changed planning, or proof evaluates a matching material
+  path
+- **THEN** the archive is excluded from scope coverage
+- **AND** an uncovered path emits `openspec_material_path_uncovered:<path>`.
+
+#### Scenario: archive companion diagnostics remain carrier-invalid
+
+- **GIVEN** a current archive companion is missing or malformed
+- **WHEN** lifecycle scope reports its diagnostic
+- **THEN** the emitted diagnostic SHALL reduce to the shared carrier-invalid
+  invalid-state category
+- **AND** it SHALL not grant material-path coverage.

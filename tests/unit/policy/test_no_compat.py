@@ -3,14 +3,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from ethos.repository.policy.no_compat.core import no_compat_report
+from tests.support import write_text as _write
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-
-def _write(path: Path, text: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(text, encoding="utf-8")
 
 
 def test_no_compat_report_blocks_production_residue(tmp_path: Path) -> None:

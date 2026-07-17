@@ -216,7 +216,6 @@ shell = 12
 toml = 46
 yaml = 4
 
-
 [[quality.source_budget.debt.records]]
 id = "bounded-status-read-model-20260718"
 owner = "refresh-base-ledger-merge-20260717"

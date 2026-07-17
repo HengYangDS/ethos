@@ -464,7 +464,8 @@ def emulator_evidence(
                 state_dir=ROOT / str(emulation["emulator_state_dir"]),
                 expected_head=str(git_start["head"]),
             )
-            execution_root = Path(str(materialization["source_dir"]))
+            if provider == "github":
+                execution_root = Path(str(materialization["source_dir"]))
         except RuntimeError as exc:
             issue = str(exc)
             materialization["issue"] = issue

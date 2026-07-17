@@ -266,6 +266,7 @@ def test_local_emulator_run_requires_optional_tool_when_materializing(
 def test_local_emulator_run_executes_a_selected_formal_provider_job(monkeypatch, tmp_path) -> None:
     ci_templates = _load_ci_templates_module()
     commands: list[list[str]] = []
+    execution_roots: list[Path] = []
     monkeypatch.setattr(
         ci_templates.shutil,
         "which",
@@ -274,9 +275,15 @@ def test_local_emulator_run_executes_a_selected_formal_provider_job(monkeypatch,
     monkeypatch.setattr(ci_templates, "_tool_version", lambda tool: f"{tool} 1.0")
     monkeypatch.setattr(
         ci_templates,
+        "materialize_emulator_source",
+        lambda **kwargs: {"source_dir": str(kwargs["state_dir"] / "source")},
+    )
+    monkeypatch.setattr(
+        ci_templates,
         "_run_command",
         lambda command, **_kwargs: (
             commands.append(command)
+            or execution_roots.append(_kwargs["cwd"])
             or {"returncode": 0, "ok": True, "stdout": "executed", "stderr": ""}
         ),
     )
@@ -333,6 +340,10 @@ def test_local_emulator_run_executes_a_selected_formal_provider_job(monkeypatch,
         }
 
     assert commands == [expected["github"], expected["gitlab"]]
+    assert execution_roots == [
+        ROOT / "build/runtime/work/github-act/source",
+        ROOT,
+    ]
 
 
 def test_act_emulator_uses_docker_context_when_no_endpoint_is_explicit(

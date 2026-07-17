@@ -285,46 +285,7 @@ def _change_scope_declarations(
             continue
         if selected is not None and change_root.name not in selected:
             continue
-        scope_path = change_root / "scope.toml"
-        relative = scope_path.relative_to(root).as_posix()
-        if not scope_path.exists():
-            declarations.append(
-                {
-                    "name": change_root.name,
-                    "state": "missing",
-                    "scope_path": relative,
-                    "paths": [],
-                    "ok": False,
-                    "required_gaps": [f"openspec_scope_missing:{change_root.name}"],
-                }
-            )
-            continue
-        try:
-            declaration = ChangeScopeDeclaration.model_validate(
-                tomllib.loads(scope_path.read_text(encoding="utf-8"))
-            )
-        except (OSError, tomllib.TOMLDecodeError, ValidationError):
-            declarations.append(
-                {
-                    "name": change_root.name,
-                    "state": "invalid",
-                    "scope_path": relative,
-                    "paths": [],
-                    "ok": False,
-                    "required_gaps": [f"openspec_scope_invalid:{change_root.name}"],
-                }
-            )
-            continue
-        declarations.append(
-            {
-                "name": change_root.name,
-                "state": "active_or_archiving",
-                "scope_path": relative,
-                "paths": list(declaration.paths),
-                "ok": True,
-                "required_gaps": [],
-            }
-        )
+        declarations.append(_scope_declaration(root, change_root, state="active_or_archiving"))
     return tuple(declarations)
 
 
@@ -342,50 +303,38 @@ def _current_archive_scope_declarations(
             path == relative_root or path.startswith(f"{relative_root}/") for path in changed_paths
         ):
             continue
-        scope_path = change_root / "scope.toml"
-        relative_scope = scope_path.relative_to(root).as_posix()
-        if not scope_path.exists():
-            declarations.append(
-                {
-                    "name": change_root.name,
-                    "state": "archive_missing",
-                    "scope_path": relative_scope,
-                    "paths": [],
-                    "ok": False,
-                    "required_gaps": [f"openspec_archive_scope_missing:{change_root.name}"],
-                }
-            )
-            continue
-        try:
-            declaration = ChangeScopeDeclaration.model_validate(
-                tomllib.loads(scope_path.read_text(encoding="utf-8"))
-            )
-        except (OSError, tomllib.TOMLDecodeError, ValidationError):
-            declarations.append(
-                {
-                    "name": change_root.name,
-                    "state": "archive_invalid",
-                    "scope_path": relative_scope,
-                    "paths": [],
-                    "ok": False,
-                    "required_gaps": [f"openspec_archive_scope_invalid:{change_root.name}"],
-                }
-            )
-            continue
         declarations.append(
-            {
-                "name": change_root.name,
-                "state": "current_archive",
-                "scope_path": relative_scope,
-                "paths": [
-                    *declaration.paths,
-                    f"{relative_root}/**",
-                ],
-                "ok": True,
-                "required_gaps": [],
-            }
+            _scope_declaration(root, change_root, state="current_archive", archive=True)
         )
     return tuple(declarations)
+
+
+def _scope_declaration(
+    root: Path, change_root: Path, *, state: str, archive: bool = False
+) -> dict[str, object]:
+    """Read one active or current-archive scope companion fail-closed."""
+    scope_path = change_root / "scope.toml"
+    try:
+        paths = list(
+            ChangeScopeDeclaration.model_validate(
+                tomllib.loads(scope_path.read_text(encoding="utf-8"))
+            ).paths
+        )
+        issue = ""
+    except (OSError, tomllib.TOMLDecodeError, ValidationError):
+        paths = []
+        issue = "missing" if not scope_path.exists() else "invalid"
+    if archive and not issue:
+        paths.append(f"{change_root.relative_to(root).as_posix()}/**")
+    prefix = "openspec_archive_scope" if archive else "openspec_scope"
+    return {
+        "name": change_root.name,
+        "state": state if not issue else f"{'archive_' if archive else ''}{issue}",
+        "scope_path": scope_path.relative_to(root).as_posix(),
+        "paths": paths,
+        "ok": not issue,
+        "required_gaps": [] if not issue else [f"{prefix}_{issue}:{change_root.name}"],
+    }
 
 
 def _path_matches(path: str, pattern: str) -> bool:

@@ -440,21 +440,16 @@ def test_archiving_scope_covers_path_despite_unrelated_incomplete_change(
 
 
 @pytest.mark.parametrize(
-    ("scope_body", "state", "diagnostic", "external"),
+    ("scope_body", "state", "diagnostic", "extra_path"),
     [
-        (
-            'schema_version = 1\npaths = ["guidelines.md"]\n',
-            "covered",
-            "",
-            False,
-        ),
-        (None, "uncovered", "openspec_archive_scope_missing:change", False),
-        ("paths = [\n", "uncovered", "openspec_archive_scope_invalid:change", False),
-        ('schema_version = 1\npaths = ["guidelines.md"]\n', "uncovered", "", True),
+        ('schema_version = 1\npaths = ["guidelines.md"]\n', "covered", "", None),
+        (None, "uncovered", "openspec_archive_scope_missing:change", None),
+        ("paths = [\n", "uncovered", "openspec_archive_scope_invalid:change", None),
+        ('schema_version = 1\npaths = ["guidelines.md"]\n', "uncovered", "", ".ethos/profile.toml"),
     ],
 )
 def test_current_archive_scope_is_reconciliation_only(
-    tmp_path: Path, scope_body: str | None, state: str, diagnostic: str, external: bool
+    tmp_path: Path, scope_body: str | None, state: str, diagnostic: str, extra_path: str | None
 ) -> None:
     repo = init_repo(tmp_path / "repo")
     profile = repo / ".ethos" / "profile.toml"
@@ -475,7 +470,7 @@ def test_current_archive_scope_is_reconciliation_only(
     material_paths = (
         "guidelines.md",
         *archive_paths,
-        *((".ethos/profile.toml",) if external else ()),
+        *((extra_path,) if extra_path else ()),
     )
     current = openspec_scope.material_change_scope_report(
         repo, changed_paths=material_paths, active_change_names=()
@@ -483,7 +478,7 @@ def test_current_archive_scope_is_reconciliation_only(
     historical = openspec_scope.material_change_scope_report(
         repo, changed_paths=("guidelines.md",), active_change_names=()
     )
-    uncovered = material_paths if diagnostic else ((".ethos/profile.toml",) if external else ())
+    uncovered = material_paths if diagnostic else ((extra_path,) if extra_path else ())
     assert (current["state"], historical["state"]) == (state, "uncovered")
     assert tuple(current["uncovered_paths"]) == uncovered
     assert diagnostic in current["advisory_gaps"] or not diagnostic

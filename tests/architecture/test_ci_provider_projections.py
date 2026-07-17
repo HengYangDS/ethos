@@ -13,6 +13,8 @@ import yaml
 
 from tests.support.architecture import tool_block
 
+# fmt: off
+
 ROOT = Path(__file__).resolve().parents[2]
 TEMPLATE_CONFIG = ROOT / ".config/checks/ci/templates.toml"
 
@@ -612,14 +614,7 @@ def test_tool_catalog_distinguishes_active_provider_gates_from_planned_adapters(
         "agent_method_pack_adapter",
     ]:
         block = tool_block(ROOT, concern)
-        assert "planned = true" in block
-
-    for concern in [
-        "nox_runner_adapter",
-        "pixi_environment_adapter",
-        "pants_graph_adapter",
-        "task_ledger_adapter",
-        "agent_method_pack_adapter",
-    ]:
-        block = tool_block(ROOT, concern)
+        assert 'adoption = "candidate"' in block
         assert "adapter_only = true" in block
+
+# fmt: on

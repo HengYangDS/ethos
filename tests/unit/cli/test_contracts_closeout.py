@@ -110,6 +110,19 @@ def test_land_closeout_defers_control_replacement_without_incumbent_receipt(
     assert payload["state"] == "deferred"
     assert payload["data"]["mutation"]["decision"]["verdict"] == "defer"
     assert "incumbent_or_bootstrap_verifier_required" in payload["required_gaps"]
+    bootstrap = payload["data"]["closeout_bootstrap"]
+    verifier = bootstrap["control_verifier"]
+    assert verifier["required"] is True
+    assert verifier["provenance_boundary"] == "candidate-external"
+    assert verifier["bootstrap_contract"]["accepted_head"] == git(repo, "rev-parse", "HEAD")
+    assert verifier["bootstrap_contract"]["candidate_head"] == candidate_head
+    assert verifier["bootstrap_contract"]["mints_authority"] is False
+    assert verifier["bootstrap_contract"]["reusable_authorization"] is False
+    assert payload["next_actions"] == [
+        "use data.closeout_bootstrap.control_verifier to mint a candidate-external "
+        "one-shot receipt, then rerun ethos land --closeout "
+        "--control-verifier-receipt <absolute-path> --json"
+    ]
     assert git(repo, "rev-parse", "HEAD") != candidate_head
 
 
@@ -360,6 +373,34 @@ def test_land_closeout_exposes_bootstrap_package_for_current_runner(
     )
     assert runner_binding["runner_matches_audit_root"] == bootstrap["runner_matches_audit_root"]
     assert runner_binding["advisory_gaps"] == bootstrap["runner_advisories"]
+    control_verifier = {
+        "required": False,
+        "provenance_boundary": "candidate-external",
+        "receipt_option": "--control-verifier-receipt <absolute-path>",
+        "bootstrap_contract": {
+            "kind": "control-replacement-bootstrap-decision",
+            "decision": "bootstrap/control-replacement",
+            "accepted_head": accepted_head,
+            "candidate_head": candidate_head,
+            "candidate_proof": {
+                "kind": "closeout_proof_target",
+                "role": "candidate",
+                "root": candidate.resolve().as_posix(),
+                "head": candidate_head,
+                "reason": "accepted-root closeout promotes the candidate head",
+            },
+            "one_shot": True,
+            "mints_authority": False,
+            "reusable_authorization": False,
+        },
+        "required_order": [
+            "place the verifier, bootstrap decision, proof record, and receipt outside candidate_root",
+            "bind the bootstrap decision to the exact accepted and candidate heads",
+            "bind it to the immutable verifier digest and candidate proof digest",
+            "run the candidate-external verifier to mint one receipt",
+            "pass that receipt explicitly to accepted-root closeout",
+        ],
+    }
     assert bootstrap == {
         "kind": "closeout_bootstrap",
         "mode": "maintainer_break_glass_local",
@@ -388,6 +429,7 @@ def test_land_closeout_exposes_bootstrap_package_for_current_runner(
             "head": candidate_head,
             "reason": "accepted-root closeout promotes the candidate head",
         },
+        "control_verifier": control_verifier,
         "blocking": False,
         "required_gaps": [],
         "command": (
@@ -399,6 +441,7 @@ def test_land_closeout_exposes_bootstrap_package_for_current_runner(
             "bind --root to the clean accepted_root checkout",
             "audit the configured candidate worktree before accepted-root movement",
             "prove the configured candidate head before accepted-root movement",
+            "for a control replacement, obtain a candidate-external verifier receipt bound to those exact heads",
             "fast-forward accepted_root from candidate only after proof and lifecycle gates pass",
             "defer remote push until remote publication is available",
         ],

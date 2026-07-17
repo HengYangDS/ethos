@@ -82,7 +82,7 @@ python_total = 58722
 global_total = 73739
 
 [quality.source_budget.debt]
-maximum_total = 7026
+maximum_total = 7151
 
 [[quality.source_budget.debt.records]]
 id = "program-foundation"
@@ -186,6 +186,18 @@ allowance = 165
 [quality.source_budget.debt.records.allowance_by_category]
 python_tests = 135
 shell = 107
+
+[[quality.source_budget.debt.records]]
+id = "adopter-lifecycle-claim-freshness-20260718"
+owner = "adopter-lifecycle-claim-freshness-20260718"
+replacement = "fold behavioral semantic-scope regressions into the existing lifecycle claim suite and remove the temporary claim-scope carrier after durable lifecycle evidence is refreshed."
+deletion_wave = "adopter-lifecycle-claim-freshness-compression"
+expiry = "adopter-lifecycle-claim-freshness-compression"
+allowance = 125
+
+[quality.source_budget.debt.records.allowance_by_category]
+python_tests = 89
+toml = 24
 
 [[quality.source_budget.debt.records]]
 id = "hosted-ci-remediation-20260717"

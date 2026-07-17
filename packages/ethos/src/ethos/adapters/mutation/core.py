@@ -4,7 +4,9 @@ from pathlib import Path
 from typing import cast
 
 import ethos.adapters.mutation.remediation.core as remediation
-from ethos.adapters.admission.evidence.external import independent_verification_admission_report
+from ethos.adapters.admission.evidence.external import (
+    independent_verification_admission_report,
+)
 from ethos.adapters.admission.evidence.external import independent_verification_request
 from ethos.adapters.mutation.carriers import openspec_carrier_gaps
 from ethos.adapters.mutation.closeout.core import CloseoutDependencies
@@ -20,6 +22,7 @@ from ethos.adapters.mutation.proof import discard_executed_proof
 from ethos.adapters.mutation.proof import executed_proof_record
 from ethos.adapters.mutation.proof import gate_policy_gaps
 from ethos.adapters.mutation.proof import promotion_completeness_gaps
+from ethos.adapters.repo.dirty.core import dirty_provenance
 from ethos.adapters.repo.git import committed_file_text
 from ethos.adapters.repo.status.core import workspace_status
 from ethos_core.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
@@ -32,6 +35,8 @@ from ethos_core.contracts.lifecycle.core import CLOSEOUT_MUTATION
 from ethos_core.contracts.lifecycle.core import WORK_LANE_MUTATION
 from ethos_core.contracts.lifecycle.core import MutationFacts
 from ethos_core.contracts.lifecycle.core import reduce_mutation
+
+# fmt: off
 
 __all__ = ["MutationEvaluation", "MutationRequest", "mutation_envelope"]
 
@@ -98,7 +103,7 @@ def _closeout_candidate_gaps(root, candidate, current_head, *, require_proof=Tru
     )
 
 
-def evaluate_mutation(request, *, root, current_head):
+def evaluate_mutation(request, *, root, current_head, status=None):
     if not request.apply and request.command != "land":
         return reduce_mutation(
             request,
@@ -106,10 +111,8 @@ def evaluate_mutation(request, *, root, current_head):
             facts=MutationFacts(),
             transition=WORK_LANE_MUTATION,
         )
-    closeout = cast(
-        "dict[str, object]",
-        (status := workspace_status(root)).get("closeout_support", {}),
-    )
+    status = status if status is not None else workspace_status(root)
+    closeout = cast("dict[str, object]", status.get("closeout_support", {}))
     return reduce_mutation(
         request,
         current_head=current_head,
@@ -291,10 +294,11 @@ def _accepted_payload(policy, head):
     }
 
 
-def candidate_base_report(*, root: Path) -> dict[str, object]:
+def candidate_base_report(*, root: Path, status=None) -> dict[str, object]:
     policy = load_branch_role_policy(root)
     current_head = run_git(root, "rev-parse", "HEAD").stdout.strip()
-    status = workspace_status(root)
+    supplied_status = status is not None
+    status = status if status is not None else workspace_status(root)
     candidate = cast("dict[str, object]", status["candidate"])
 
     def fail(gaps: list[str], **extra: object) -> dict[str, object]:
@@ -305,13 +309,12 @@ def candidate_base_report(*, root: Path) -> dict[str, object]:
     if not candidate["worktree_exists"]:
         return fail(["candidate_worktree_missing"])
     candidate_path = Path(str(candidate["worktree_path"]))
-    candidate_status = workspace_status(candidate_path)
-    if candidate_status["dirty"]:
+    if dirty_provenance(candidate_path)["dirty"] if supplied_status else workspace_status(candidate_path)["dirty"]:
         return fail(
             ["candidate_worktree_dirty"],
             path=candidate_path.as_posix(),
         )
-    candidate_head = str(candidate["head"])
+    candidate_head = run_git(root, "rev-parse", policy.candidate_branch, check=False).stdout.strip()
     if not is_ancestor(root, candidate_head, current_head):
         return fail(
             ["candidate_base_stale"],
@@ -328,3 +331,5 @@ def candidate_base_report(*, root: Path) -> dict[str, object]:
         "path": candidate_path.as_posix(),
         "required_gaps": [],
     }
+
+# fmt: on

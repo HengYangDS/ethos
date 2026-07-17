@@ -15,7 +15,9 @@ import ethos.adapters.repo.git as git
 import ethos.domain.land.core as land_core
 import ethos.domain.land.publication as land_publication
 from ethos.adapters.admission.control.replacement import control_replacement_report
-from ethos.adapters.admission.evidence.external import independent_verification_admission_report
+from ethos.adapters.admission.evidence.external import (
+    independent_verification_admission_report,
+)
 from ethos.adapters.admission.evidence.external import independent_verification_request
 from ethos.adapters.mutation.core import MutationEvaluation
 from ethos.adapters.mutation.core import MutationRequest
@@ -39,6 +41,8 @@ from ethos_core.result import EthosResult
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
+
+# fmt: off
 
 
 @dataclass(frozen=True)
@@ -334,7 +338,9 @@ def land(
         authorized=authorize,
         expect_head=expect_head,
     )
-    decision = evaluate_mutation(request, root=repo, current_head=current_head)
+    decision = evaluate_mutation(
+        request, root=repo, current_head=current_head, status=None if apply else status_payload
+    )
     audit = land_core.repository_audit_after_admission(repo, decision)
     lifecycle = completed_active_changes_report(repo)
     gaps = _gap_tuple(audit) + decision.gaps + closeout_gaps + _gap_tuple(lifecycle)
@@ -350,7 +356,7 @@ def land(
         gaps = gaps + _gap_tuple(update)
         ok = bool(update["ok"])
     elif ok:
-        update = candidate_base_report(root=repo)
+        update = candidate_base_report(root=repo, status=status_payload)
         if not update["ok"]:
             gaps = gaps + _gap_tuple(update)
             ok = False
@@ -552,3 +558,5 @@ def publish(
         },
     )
     emit(result, json_output=json_output, enforce=options.apply)
+
+# fmt: on

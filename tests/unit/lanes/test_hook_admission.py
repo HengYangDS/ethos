@@ -25,17 +25,6 @@ from tests.support.lane_helpers import git
 from tests.support.lane_helpers import init_repo
 
 
-def test_cast_worktrees_treats_non_list_status_payload_as_empty() -> None:
-    assert admission_prewrite.cast_worktrees(None) == []
-    assert admission_prewrite.cast_worktrees({"branch": "work/x"}) == []
-
-
-def test_cast_worktrees_normalizes_dict_items_and_skips_noise() -> None:
-    assert admission_prewrite.cast_worktrees([{"branch": "work/x", "head": 1}, "noise"]) == [
-        {"branch": "work/x", "head": "1"}
-    ]
-
-
 @pytest.fixture
 def leased_worktree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     repo = init_repo(tmp_path / "repo")

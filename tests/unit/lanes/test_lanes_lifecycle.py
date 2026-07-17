@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+import ethos.adapters.admission.prewrite as prewrite
 from ethos.adapters.admission.prewrite import prewrite_guard
 from ethos.adapters.mutation import lanes as lane_mutation
 from ethos.adapters.mutation.lanes import bind_work_lane_claim
@@ -185,16 +186,16 @@ def test_prewrite_allows_owned_work_lane_with_matching_editor_root(
     )
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
 
-    report = prewrite_guard(
+    monkeypatch.setattr(prewrite, "workspace_status", pytest.fail, raising=False)
+
+    report = prewrite.prewrite_guard(
         root=worktree,
         paths=[worktree / "README.md"],
         editor_root=worktree,
         require_editor_root=True,
     )
 
-    assert report["ok"] is True
-    assert report["role"] == "work_lane"
-    assert report["error"] == ""
+    assert (report["ok"], report["role"], report["error"]) == (True, "work_lane", "")
 
 
 def test_prewrite_blocks_product_root_when_runner_source_differs(

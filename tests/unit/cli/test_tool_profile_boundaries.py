@@ -5,6 +5,9 @@ import subprocess
 import tomllib
 from pathlib import Path
 
+import pytest
+from ethos_core.quality.profiles import tool_profiles
+
 ROOT = Path(__file__).resolve().parents[3]
 
 
@@ -40,9 +43,13 @@ def test_tool_catalog_schema_requires_a_declared_adoption_state() -> None:
     tool_schema = schema["properties"]["tool"]["items"]
 
     assert "adoption" in tool_schema["required"]
-    assert tool_schema["properties"]["adoption"]["enum"] == [
-        "active",
-        "candidate",
-        "deferred",
-        "rejected",
-    ]
+    assert tool_schema["properties"]["adoption"]["enum"] == ["active", "candidate", "deferred", "rejected"]  # fmt: skip
+
+
+def test_tool_profiles_reject_a_non_list_catalog(tmp_path: Path) -> None:
+    catalog = tmp_path / "system" / "tools.toml"
+    catalog.parent.mkdir()
+    catalog.write_text("tool = {}", encoding="utf-8")
+
+    with pytest.raises(TypeError, match="must declare a tool array"):
+        tool_profiles(tmp_path)

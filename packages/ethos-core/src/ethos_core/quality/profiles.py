@@ -117,7 +117,7 @@ def tool_profiles(root: Path) -> dict[str, object]:
     catalog = tomllib.loads(catalog_path.read_text(encoding="utf-8"))
     entries = catalog.get("tool", [])
     if not isinstance(entries, list):
-        raise ValueError("system/tools.toml must declare a tool array")
+        raise TypeError("system/tools.toml must declare a tool array")
     return {
         "schema_version": 1,
         "tool_adapters": [

@@ -989,4 +989,3 @@ exact repository-relative file path.
 - **THEN** the format-selection owner script reports that JSON as outside its
   declared carrier home
 - **AND** no broad Chronicle-root allowance is inferred.
-

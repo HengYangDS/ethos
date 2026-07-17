@@ -10,6 +10,8 @@ from pathlib import Path
 from tests.support.architecture import run_json
 from tests.support.architecture import tool_block
 
+# fmt: off
+
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -108,9 +110,9 @@ def test_non_pip_vulnerability_scanners_remain_planned() -> None:
     config = tomllib.loads((ROOT / ".config/checks/security/audit.toml").read_text())
     assert config["osv_scanner"]["state"] == "planned_profile_gate"
 
-    for concern in ["osv_vuln", "image_package_scan", "signing"]:
-        block = tool_block(ROOT, concern)
-        assert "planned = true" in block
+    expected_adoption = {"osv_vuln": "candidate", "image_package_scan": "deferred", "signing": "candidate"}
+    for concern, adoption in expected_adoption.items():
+        assert f'adoption = "{adoption}"' in tool_block(ROOT, concern)
 
 
 def test_config_lint_targeted_toml_invocation_handles_empty_json_set(
@@ -160,3 +162,5 @@ def test_config_lint_targeted_toml_invocation_handles_empty_json_set(
     )
 
     assert completed.returncode == 0, completed.stdout + completed.stderr
+
+# fmt: on

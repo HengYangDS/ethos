@@ -8,6 +8,8 @@ from pathlib import Path
 from tests.support.architecture import run_json
 from tests.support.architecture import tool_block
 
+# fmt: off
+
 ROOT = Path(__file__).resolve().parents[2]
 SHA256_HEX_LENGTH = 64
 
@@ -75,9 +77,9 @@ def test_evidence_and_release_gates_have_active_owner_surfaces() -> None:
         assert script.is_file()
         assert script.stat().st_mode & stat.S_IXUSR
 
-    for concern in ["osv_vuln", "image_package_scan", "signing"]:
-        block = tool_block(ROOT, concern)
-        assert "planned = true" in block
+    expected_adoption = {"osv_vuln": "candidate", "image_package_scan": "deferred", "signing": "candidate"}
+    for concern, adoption in expected_adoption.items():
+        assert f'adoption = "{adoption}"' in tool_block(ROOT, concern)
 
 
 def test_ci_and_runbook_project_evidence_and_release_gates() -> None:
@@ -95,3 +97,5 @@ def test_ci_and_runbook_project_evidence_and_release_gates() -> None:
         assert script in combined_ci
         assert script in runbook
         assert script in template_config
+
+# fmt: on

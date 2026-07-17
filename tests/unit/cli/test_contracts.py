@@ -6,13 +6,13 @@ import re
 from pathlib import Path
 
 import ethos.adapters.openspec.cli as openspec_cli
+import ethos.adapters.repo.status.core as status_core
 import ethos.surface.cli.root.planning as planning_cli
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.surface.cli._base import emit
 from ethos_core.contracts.package.ontology import package_ontology_report
 from ethos_core.result import EthosResult
-from tests.support.contract_helpers import git
-from tests.support.contract_helpers import init_git_repo
+from tests.support.contract_helpers import git, init_git_repo
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.ethos_cli_runner import run_ethos_raw
@@ -92,7 +92,9 @@ def _assert_governed_repository_context(context: dict[str, object], *, profile: 
     assert "posture" not in context
 
 
-def test_primary_commands_expose_top_level_governance_context() -> None:
+def test_primary_commands_expose_top_level_governance_context(monkeypatch) -> None:
+    monkeypatch.setattr(status_core, "_foreign_work_lanes", lambda *_args, **_kwargs: [])
+
     for command in PRIMARY_COMMANDS_WITH_GOVERNANCE_CONTEXT:
         payload = run_ethos(*command)
 

@@ -20,7 +20,19 @@ def _diagnostic_report(root: Path, package_src: str) -> dict[str, object]:
     venv = root / "build/runtime/venv"
     try:
         completed = subprocess.run(
-            [str(venv / "bin/python"), "-m", "ty", "check", "--python", str(venv), package_src],
+            [
+                str(venv / "bin/python"),
+                "-m",
+                "ty",
+                "check",
+                "--python",
+                str(venv),
+                "--extra-search-path",
+                str(root / "packages" / "ethos-core" / "src"),
+                "--extra-search-path",
+                str(root / "packages" / "ethos" / "src"),
+                package_src,
+            ],
             cwd=root,
             text=True,
             capture_output=True,

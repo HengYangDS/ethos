@@ -14,7 +14,12 @@ fi
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "${repo_root}"
 
-"${UV_PROJECT_ENVIRONMENT}/bin/python" - <<'PY'
+python_command="${PYTHON:-python3}"
+if [[ -n "${UV_PROJECT_ENVIRONMENT:-}" ]]; then
+  python_command="${UV_PROJECT_ENVIRONMENT}/bin/python"
+fi
+
+"${python_command}" - <<'PY'
 from __future__ import annotations
 
 import json
@@ -53,6 +58,9 @@ DEFAULT_POLICY: dict[str, Any] = {
     ],
     "stash_policy_allowlist": [
         "do not use",
+        "never use",
+        "no git stash",
+        "no `git stash`",
         "must not use",
         "reject",
         "forbidden",

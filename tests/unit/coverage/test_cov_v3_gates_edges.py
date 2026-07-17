@@ -93,6 +93,10 @@ def test_ty_gate_report_invokes_ty_through_checkout_runtime(
             "check",
             "--python",
             str(tmp_path / "build" / "runtime" / "venv"),
+            "--extra-search-path",
+            str(tmp_path / "packages" / "ethos-core" / "src"),
+            "--extra-search-path",
+            str(tmp_path / "packages" / "ethos" / "src"),
             "packages/rt/src",
         ]
     ]

@@ -61,6 +61,8 @@ def test_repository_hygiene_rejects_global_ignored_ds_store(tmp_path: Path) -> N
     ("guidance", "expected_returncode", "expected_message"),
     [
         ("Git stash\nand chat transcripts are not handoff carriers.\n", 0, ""),
+        ("Never use git stash as a closeout carrier.\n", 0, ""),
+        ("No git stash is permitted in this workflow.\n", 0, ""),
         (
             "When blocked, git stash, then retry.\n",
             1,

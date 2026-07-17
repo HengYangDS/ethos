@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import subprocess
 import tomllib
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -33,15 +34,15 @@ class RepositoryProfile:
     tables: dict[str, dict[str, Any]]
 
 
-def load_repository_profile(root: Path) -> RepositoryProfile:
+def load_repository_profile(root: Path, *, tree_ref: str | None = None) -> RepositoryProfile:
     repo = root.resolve()
-    profile_path = repo / ".ethos" / "profile.toml"
+    exists, text = _profile_text(repo, tree_ref)
     roots = dict(DEFAULT_ROOTS)
     identity: dict[str, str] = {}
     evidence: dict[str, tuple[str, ...]] = {}
     previous_projection: dict[str, str] = {}
     tables: dict[str, dict[str, Any]] = {}
-    if not profile_path.exists():
+    if not exists:
         return RepositoryProfile(
             root=repo,
             exists=False,
@@ -54,7 +55,7 @@ def load_repository_profile(root: Path) -> RepositoryProfile:
             tables=tables,
         )
     try:
-        payload = tomllib.loads(profile_path.read_text(encoding="utf-8"))
+        payload = tomllib.loads(text)
     except tomllib.TOMLDecodeError:
         return RepositoryProfile(
             root=repo,
@@ -102,6 +103,28 @@ def load_repository_profile(root: Path) -> RepositoryProfile:
         previous_projection=previous_projection,
         tables=tables,
     )
+
+
+def _profile_text(repo: Path, tree_ref: str | None) -> tuple[bool, str]:
+    if (
+        tree_ref
+        and subprocess.run(
+            ["git", "-C", str(repo), "rev-parse", "--verify", f"{tree_ref}^{{commit}}"],
+            capture_output=True,
+            check=False,
+        ).returncode
+        == 0
+    ):
+        result = subprocess.run(
+            ["git", "-C", str(repo), "show", f"{tree_ref}:.ethos/profile.toml"],
+            capture_output=True,
+            check=False,
+        )
+        return result.returncode == 0, result.stdout.decode("utf-8")
+    try:
+        return True, (repo / ".ethos" / "profile.toml").read_text(encoding="utf-8")
+    except OSError:
+        return False, ""
 
 
 def profile_root(root: Path, key: str) -> Path:

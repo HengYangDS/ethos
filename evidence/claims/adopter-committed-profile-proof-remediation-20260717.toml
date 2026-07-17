@@ -1,0 +1,40 @@
+[claim]
+id = "adopter-committed-profile-proof-remediation-20260717"
+change_id = "adopter-committed-profile-proof-remediation-20260717"
+subject = "ethos:adopter-committed-profile-proof-remediation"
+state = "active"
+summary = "ETHOS adds committed-profile closeout policy resolution to the current candidate baseline without weakening the active proof floor."
+
+[evidence]
+dated = "evidence/chronicle/adopter-committed-profile-proof-remediation-20260717/2026-07-17.md"
+sha256 = "c9e5c2b31cbc7a070dfe93df0a90196bff3f3ab9d59f2d09aa19d9c063f91ee9"
+evidence_ids = ["evidence:adopter-committed-profile-proof-remediation-20260717"]
+binding = "The active OpenSpec carrier, focused committed-profile and armed-hook regression, existing source-budget contract, refreshed generic parity evidence, and exact-HEAD proof bind this implementation."
+verifier = "digest_only"
+tests = []
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "repository-governance"
+scope = "Committed-tree adopter profile resolution and linked-worktree closeout admission in the current candidate baseline."
+
+[carriers]
+openspec = "openspec/changes/adopter-committed-profile-proof-remediation-20260717"
+
+fallback = "Keep committed-profile changes unlandable until the existing proof floor passes without policy debt or scope exclusions."
+kill_signal = "An implementation weakens candidate-tree policy resolution, bypasses the raw-reference-move guard, increases budget allowance, or treats stale parity evidence as current."
+
+[promotion]
+targets = [
+  "packages/ethos/src/ethos/repository/profile.py",
+  "packages/ethos/src/ethos/repository/policy/gates.py",
+  "packages/ethos/src/ethos/adapters/mutation/proof.py",
+  "tests/unit/lanes/test_armed_hook_closeout_e2e.py",
+  "evidence/parity/generic-shadow.json",
+  "openspec/specs/repository-governance/spec.md",
+  "openspec/changes/adopter-committed-profile-proof-remediation-20260717",
+  "evidence/claims/adopter-committed-profile-proof-remediation-20260717.toml",
+  "evidence/chronicle/adopter-committed-profile-proof-remediation-20260717/2026-07-17.md",
+]

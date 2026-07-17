@@ -51,8 +51,7 @@ def observation_summary(observations: list[dict[str, Any]], *, execute: bool) ->
     states = [str(item.get("observation_state") or "") for item in observations]
     gaps = []
     for item, state in zip(observations, states, strict=True):
-        prefix = "provider_output_invalid" if state == "observation_failed" and item.get("returncode") == 0 else GAPS.get(state)
-        if prefix:
+        if prefix := "provider_output_invalid" if state == "observation_failed" and item.get("returncode") == 0 else GAPS.get(state):
             gaps.append(f"{prefix}:{item.get('provider')}")
     observed = states.count("observed")
     state = "observed" if observed == len(states) else "partial" if observed else "not_configured" if set(states) == {"not_configured"} else "observation_failed"

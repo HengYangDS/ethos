@@ -8,5 +8,5 @@
   required contract fields in JSON Schema.
 - [x] 4. Pass focused CLI, kernel, and schema tests plus configuration lint and
   focused Ruff checks.
-- [ ] 5. Refresh parity, run HEAD-bound proof, bind final claim/Chronicle
-  evidence, archive the change, and land through candidate.
+- [x] 5. Refresh parity, run HEAD-bound proof, bind final claim/Chronicle
+  evidence, archive the change, and prepare candidate landing.

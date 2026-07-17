@@ -4,9 +4,12 @@ import json
 from pathlib import Path
 
 import ethos.surface.cli.root.proof as proof_cli
+from ethos.adapters.gates.runner import ActionRunResult
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.repository.policy.schema import validate_schema_instance
+from ethos_core.action_graph.core import ActionGraph
 from ethos_core.contracts.branch.roles import load_branch_role_policy
+from ethos_core.contracts.gates import GateDescriptor
 from tests.support.contract_helpers import git
 from tests.support.contract_helpers import init_git_repo
 from tests.support.ethos_cli_runner import run_ethos
@@ -471,10 +474,6 @@ root_subject = \"sample\"
 
 
 def test_prove_execute_can_select_real_gates(monkeypatch, tmp_path: Path) -> None:
-    from ethos.adapters.gates.runner import ActionRunResult
-    from ethos_core.action_graph.core import ActionGraph
-    from ethos_core.contracts.gates import GateDescriptor
-
     recorded: dict[str, object] = {}
     gate = GateDescriptor(
         id="isolated-proof",
@@ -493,7 +492,7 @@ def test_prove_execute_can_select_real_gates(monkeypatch, tmp_path: Path) -> Non
         def __init__(self, *args: object, **kwargs: object) -> None:
             pass
 
-        def run(self, node, *, root: Path) -> ActionRunResult:
+        def run(self, node, *, _root: Path) -> ActionRunResult:
             return ActionRunResult(
                 action_id=node.id,
                 command=node.command,
@@ -536,11 +535,6 @@ def test_prove_execute_can_select_real_gates(monkeypatch, tmp_path: Path) -> Non
 def test_prove_execute_preserves_non_trust_bearing_gate_classification(
     monkeypatch,
 ) -> None:
-    import ethos.surface.cli.root.proof as proof_cli
-    from ethos.adapters.gates.runner import ActionRunResult
-    from ethos_core.action_graph.core import ActionGraph
-    from ethos_core.contracts.gates import GateDescriptor
-
     diagnostic_gate = GateDescriptor(
         id="diagnostic-only",
         kind="lint",
@@ -572,7 +566,7 @@ def test_prove_execute_preserves_non_trust_bearing_gate_classification(
         def __init__(self, *args, **kwargs) -> None:
             pass
 
-        def run(self, node, *, root):
+        def run(self, node, *, _root):
             return ActionRunResult(
                 action_id=node.id,
                 command=node.command,

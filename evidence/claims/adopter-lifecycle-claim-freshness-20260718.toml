@@ -7,7 +7,7 @@ summary = "Universal adopter lifecycle claim freshness binds only its plan/prove
 
 [evidence]
 dated = "evidence/chronicle/adopter-lifecycle-claim-freshness-20260718/2026-07-18.md"
-sha256 = "70455207b33334cf24015a4d4f9bd0f6fc8148e38cb5e47dbf29afaa80f21f5b"
+sha256 = "59baa2cdd3ce59d0bb4d6858116143473c3d6f5b38c3b58a980b2a3e9aded472"
 evidence_ids = ["evidence:adopter-lifecycle-claim-freshness-20260718"]
 binding = "Active OpenSpec carrier, exact selected-scope regression, claims reader, and dated Chronicle bind this evidence-scope correction."
 verifier = "digest_only"

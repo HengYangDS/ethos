@@ -100,7 +100,8 @@ def test_work_lane_ref_transition_prepared_checks_holder_generation_and_old_head
     monkeypatch.setenv("ETHOS_ACTOR", "agent:codex:thread:first")
 
     def unexpected_workspace_status(_root: Path) -> dict[str, object]:
-        raise AssertionError("work-lane ref transition must not build full workspace status")
+        message = "work-lane ref transition must not build full workspace status"
+        raise AssertionError(message)
 
     monkeypatch.setattr(transitions, "workspace_status", unexpected_workspace_status, raising=False)
 

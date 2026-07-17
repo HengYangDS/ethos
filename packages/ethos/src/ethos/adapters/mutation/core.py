@@ -4,9 +4,7 @@ from pathlib import Path
 from typing import cast
 
 import ethos.adapters.mutation.remediation.core as remediation
-from ethos.adapters.admission.evidence.external import (
-    independent_verification_admission_report,
-)
+from ethos.adapters.admission.evidence.external import independent_verification_admission_report
 from ethos.adapters.admission.evidence.external import independent_verification_request
 from ethos.adapters.mutation.carriers import openspec_carrier_gaps
 from ethos.adapters.mutation.closeout.core import CloseoutDependencies
@@ -309,7 +307,12 @@ def candidate_base_report(*, root: Path, status=None) -> dict[str, object]:
     if not candidate["worktree_exists"]:
         return fail(["candidate_worktree_missing"])
     candidate_path = Path(str(candidate["worktree_path"]))
-    if dirty_provenance(candidate_path)["dirty"] if supplied_status else workspace_status(candidate_path)["dirty"]:
+    candidate_dirty = (
+        dirty_provenance(candidate_path)["dirty"]
+        if supplied_status
+        else workspace_status(candidate_path)["dirty"]
+    )
+    if candidate_dirty:
         return fail(
             ["candidate_worktree_dirty"],
             path=candidate_path.as_posix(),

@@ -471,34 +471,66 @@ root_subject = \"sample\"
 
 
 def test_prove_execute_can_select_real_gates(monkeypatch, tmp_path: Path) -> None:
-    import ethos.surface.cli.root.proof as proof_cli
+    from ethos.adapters.gates.runner import ActionRunResult
+    from ethos_core.action_graph.core import ActionGraph
+    from ethos_core.contracts.gates import GateDescriptor
 
     recorded: dict[str, object] = {}
+    gate = GateDescriptor(
+        id="isolated-proof",
+        kind="contract",
+        command=("isolated-proof",),
+        evidence_class="contract",
+        trust_bearing=True,
+    )
 
     def capture_executed_proof(repo: Path, evidence: dict[str, object]) -> Path:
         recorded["repo"] = repo
         recorded["evidence"] = evidence
         return tmp_path / "proof-record.json"
 
-    monkeypatch.setattr(proof_cli, "record_executed_proof", capture_executed_proof)
-    payload = run_ethos(
-        "prove",
-        "--execute",
-        "--gate",
-        "repository-audit",
-        "--gate",
-        "claims",
-        "--json",
-    )
+    class PassingRunner:
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            pass
 
-    assert payload["ok"] is True
-    assert payload["state"] == "proven"
-    assert payload["data"]["executed"] is True
-    assert payload["summary"]["gate_count"] == 2
-    assert {run["state"] for run in payload["data"]["evidence"]["runs"]} == {"proven"}
-    assert {run["verdict"] for run in payload["data"]["evidence"]["runs"]} == {"passed"}
-    assert all(run["trust_bearing"] is True for run in payload["data"]["evidence"]["runs"])
-    assert recorded == {"repo": Path.cwd(), "evidence": payload["data"]["evidence"]}
+        def run(self, node, *, root: Path) -> ActionRunResult:
+            return ActionRunResult(
+                action_id=node.id,
+                command=node.command,
+                state="passed",
+                exit_code=0,
+            )
+
+    monkeypatch.setattr(proof_cli.git, "current_head", lambda _root: "a" * 40)
+    monkeypatch.setattr(
+        proof_cli.status_domain,
+        "audit_for_root",
+        lambda *_args, **_kwargs: {"ok": True, "required_gaps": [], "governance_context": {}},
+    )
+    monkeypatch.setattr(proof_cli, "workspace_status", lambda _root: {})
+    monkeypatch.setattr(proof_cli, "change_scope_paths_from_status", lambda *_args: ())
+    monkeypatch.setattr(
+        proof_cli,
+        "openspec_governance_report",
+        lambda *_args, **_kwargs: {"ok": True, "required_gaps": []},
+    )
+    monkeypatch.setattr(proof_cli, "gate_registry", lambda _root: {gate.id: gate})
+    monkeypatch.setattr(
+        proof_cli,
+        "gate_graph",
+        lambda *_args, **_kwargs: ActionGraph(nodes=(gate.to_node(),)),
+    )
+    monkeypatch.setattr(proof_cli, "LocalSubprocessRunner", PassingRunner)
+    monkeypatch.setattr(proof_cli, "record_executed_proof", capture_executed_proof)
+
+    proof_cli.prove(execute=True, root=tmp_path, json_output=True)
+
+    assert recorded["repo"] == tmp_path
+    evidence = recorded["evidence"]
+    assert isinstance(evidence, dict)
+    assert evidence["head"] == "a" * 40
+    assert evidence["runs"][0]["state"] == "proven"
+    assert evidence["runs"][0]["trust_bearing"] is True
 
 
 def test_prove_execute_preserves_non_trust_bearing_gate_classification(

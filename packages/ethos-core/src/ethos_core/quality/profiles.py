@@ -5,6 +5,8 @@ from pathlib import Path
 
 from ethos_core.quality.models import QualityAssetClass
 
+_TOOL_CATALOG_ARRAY_REQUIRED = "system/tools.toml must declare a tool array"
+
 ASSET_CLASSES = (
     QualityAssetClass(
         class_name="python-code",
@@ -117,7 +119,7 @@ def tool_profiles(root: Path) -> dict[str, object]:
     catalog = tomllib.loads(catalog_path.read_text(encoding="utf-8"))
     entries = catalog.get("tool", [])
     if not isinstance(entries, list):
-        raise TypeError("system/tools.toml must declare a tool array")
+        raise TypeError(_TOOL_CATALOG_ARRAY_REQUIRED)
     return {
         "schema_version": 1,
         "tool_adapters": [

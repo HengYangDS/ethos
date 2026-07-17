@@ -17,6 +17,9 @@ from ethos.repository.policy.docs.topology import docs_topology_report
 from ethos.repository.policy.governance.kernel import governance_kernel_report
 from ethos.repository.registry.commands import PUBLIC_WORKFLOW_COMMANDS
 from ethos.repository.release.core import release_policy_report
+from ethos_core.normalization.core import object_sequence as _object_list
+from ethos_core.normalization.core import string_mapping as _mapping
+from ethos_core.normalization.core import string_sequence as _string_list
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -167,24 +170,6 @@ def enterprise_readiness_report(root: Path) -> dict[str, object]:
             "command_plane": list(PUBLIC_WORKFLOW_COMMANDS),
         },
     }
-
-
-def _mapping(value: object) -> dict[str, object]:
-    if isinstance(value, dict):
-        return cast("dict[str, object]", value)
-    return {}
-
-
-def _object_list(value: object) -> list[object]:
-    if isinstance(value, list):
-        return cast("list[object]", value)
-    if isinstance(value, tuple):
-        return list(value)
-    return []
-
-
-def _string_list(value: object) -> list[str]:
-    return [str(item) for item in _object_list(value)]
 
 
 def _int_field(mapping: dict[str, object], key: str) -> int:

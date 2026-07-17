@@ -28,6 +28,7 @@ from ethos.surface.cli.quality.reporting import declared_report_result
 from ethos_core.normalization.core import integer
 from ethos_core.normalization.core import string_mapping
 from ethos_core.normalization.core import string_sequence
+from ethos_core.normalization.core import string_sequence as _string_list
 from ethos_core.result import EthosResult
 
 if TYPE_CHECKING:
@@ -184,11 +185,6 @@ def _count_sequence(value: object) -> int:
     if isinstance(value, list | tuple):
         return len(value)
     return 0
-
-
-def _string_list(value: object) -> list[str]:
-    """Return a string-list projection without passing through arbitrary values."""
-    return [str(item) for item in value] if isinstance(value, list | tuple) else []
 
 
 def _compact_invalid_states(value: object) -> dict[str, object]:

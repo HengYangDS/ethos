@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from typing import cast
 
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.repository.context import context_for_root
@@ -11,6 +10,8 @@ from ethos.repository.registry.commands import SCORECARD_COMMANDS
 from ethos.repository.registry.profiles import governance_profile_report
 from ethos_core.contracts.docs.topology import required_docs_topology_paths
 from ethos_core.kernel import KERNEL_CHAIN
+from ethos_core.normalization.core import string_mapping as _mapping
+from ethos_core.normalization.core import string_sequence as _string_list
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -350,18 +351,6 @@ def _generic_adoption_scaffold_check(plan: Mapping[str, object]) -> dict[str, ob
             "docs_kernel_path_count": len(docs_kernel),
         },
     }
-
-
-def _mapping(value: object) -> dict[str, object]:
-    if isinstance(value, dict):
-        return cast("dict[str, object]", value)
-    return {}
-
-
-def _string_list(value: object) -> list[str]:
-    if isinstance(value, list | tuple):
-        return [str(item) for item in value]
-    return []
 
 
 def _dedupe(values: Iterable[str]) -> list[str]:

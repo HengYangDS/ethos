@@ -12,11 +12,7 @@ from ethos.repository.audit import _write_admission_armed_gaps
 from ethos.repository.openspec.audit import openspec_shape_report
 from ethos.repository.openspec.audit import protected_branch_active_change_required_gaps
 from tests.support import ethos_cli_runner
-
-
-def _git(root: Path, *args: str) -> None:
-    subprocess.run(["git", *args], cwd=root, text=True, check=True, capture_output=True)
-
+from tests.support.contract_helpers import git as _git
 
 OFFICIAL_OPENSPEC_CONFIG = (
     "schema: spec-driven\n"

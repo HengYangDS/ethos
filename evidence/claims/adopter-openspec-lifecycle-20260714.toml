@@ -6,7 +6,7 @@ summary = "Plan and proof evaluate official OpenSpec lifecycle for valid adopter
 
 [evidence]
 dated = "evidence/chronicle/adopter-openspec-lifecycle-20260714/2026-07-14.md"
-sha256 = "ed110d03f7bf44cd35f5812b0b9edd564ea2f3f4d763734e841d172bf596ae8f"
+sha256 = "659391803f9e81a934b152d5ba8a2947a18d3d92c6cba1ed44f39872444eda5f"
 evidence_ids = ["evidence:adopter-openspec-lifecycle-20260714"]
 binding = "Universal adopter lifecycle evidence binding."
 verifier = "digest_only"

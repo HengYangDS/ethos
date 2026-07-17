@@ -21,9 +21,9 @@ owner = "ethos-repository"
 scope = "Exact semantic freshness binding for the active universal-adopter-lifecycle claim."
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-17-adopter-lifecycle-claim-freshness-20260718"
+openspec = "openspec/changes/adopter-lifecycle-claim-freshness-20260718"
 fallback = "Restore the preceding claim scope only with its matching evidence digest; do not weaken semantic freshness."
 kill_signal = "An unrelated root reader or CLI test stales the lifecycle claim, or a selected lifecycle implementation change leaves it current."
 
 [promotion]
-targets = ["evidence/claims/adopter-openspec-lifecycle-20260714.toml", "evidence/chronicle/adopter-openspec-lifecycle-20260714/2026-07-14.md", "tests/unit/governance/test_claims.py", "openspec/changes/archive/2026-07-17-adopter-lifecycle-claim-freshness-20260718", "evidence/claims/adopter-lifecycle-claim-freshness-20260718.toml", "evidence/chronicle/adopter-lifecycle-claim-freshness-20260718", ".ethos/rules.toml"]
+targets = ["evidence/claims/adopter-openspec-lifecycle-20260714.toml", "evidence/chronicle/adopter-openspec-lifecycle-20260714/2026-07-14.md", "tests/unit/governance/test_claims.py", "openspec/changes/adopter-lifecycle-claim-freshness-20260718", "evidence/claims/adopter-lifecycle-claim-freshness-20260718.toml", "evidence/chronicle/adopter-lifecycle-claim-freshness-20260718"]

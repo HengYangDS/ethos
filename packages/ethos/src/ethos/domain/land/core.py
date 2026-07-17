@@ -129,7 +129,7 @@ def closeout_bootstrap_package(
                 "reusable_authorization": False,
             },
             "required_order": [
-                "place the verifier, bootstrap decision, proof record, and receipt outside candidate_root",
+                "place verifier, decision, proof, and receipt outside candidate_root",
                 "bind the bootstrap decision to the exact accepted and candidate heads",
                 "bind it to the immutable verifier digest and candidate proof digest",
                 "run the candidate-external verifier to mint one receipt",
@@ -144,7 +144,7 @@ def closeout_bootstrap_package(
             "bind --root to the clean accepted_root checkout",
             "audit the configured candidate worktree before accepted-root movement",
             "prove the configured candidate head before accepted-root movement",
-            "for a control replacement, obtain a candidate-external verifier receipt bound to those exact heads",
+            "for a control replacement, obtain a candidate-external receipt for those heads",
             "fast-forward accepted_root from candidate only after proof and lifecycle gates pass",
             "defer remote push until remote publication is available",
         ],

@@ -11,7 +11,7 @@ sha256 = "59baa2cdd3ce59d0bb4d6858116143473c3d6f5b38c3b58a980b2a3e9aded472"
 evidence_ids = ["evidence:adopter-lifecycle-claim-freshness-20260718"]
 binding = "Active OpenSpec carrier, exact selected-scope regression, claims reader, and dated Chronicle bind this evidence-scope correction."
 verifier = "digest_only"
-tests = ["pytest -q tests/unit/governance/test_claims.py::test_adopter_lifecycle_claim_uses_exact_behavioral_semantic_scope tests/unit/governance/test_claims.py::test_exact_lifecycle_semantic_scope_ignores_unrelated_reader_but_stales_on_proof_change", "ethos quality claims --json", "openspec validate --all --strict --json", "ethos openspec --change adopter-lifecycle-claim-freshness-20260718 --lifecycle --json", "ethos prove --execute --expect-head <committed-head> --json"]
+tests = ["pytest -q tests/unit/governance/test_claims.py::test_adopter_lifecycle_claim_uses_exact_behavioral_semantic_scope tests/unit/cli/test_contracts_proof.py", "ethos quality claims --json", "openspec validate --all --strict --json", "ethos openspec --lifecycle --json", "ethos prove --execute --expect-head <committed-head> --json"]
 
 [evidence.freshness]
 mode = "historical"

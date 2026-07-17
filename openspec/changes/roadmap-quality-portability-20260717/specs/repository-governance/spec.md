@@ -9,9 +9,11 @@ same ETHOS-owned `scope.toml` companion read model over the official OpenSpec
 active or archiving Change selection. `scope.toml` remains a companion beside a
 Change, not an OpenSpec workflow-schema extension. A legacy adopter MAY
 bootstrap only its already-tracked `.ethos/profile.toml` declaration against
-exactly one official unarchived Change with status `no-tasks`; that fallback
-applies only to this one profile-only write and SHALL NOT make that Change cover
-any other material path.
+exactly one official active Change; that fallback applies only to this one
+profile-only write and SHALL NOT make that Change cover any other material
+path. A completed archive MAY participate only when the archive itself
+contributes to the current Work Lane change scope; it remains excluded for all
+unrelated future changes.
 
 #### Scenario: covered material path is admitted across all surfaces
 

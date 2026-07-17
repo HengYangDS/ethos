@@ -286,17 +286,20 @@ def test_candidate_paths_prune_recursive_allowed_homes_but_scan_adjacent_drift(
     declaration = load_generated_artifact_topology_declaration()
     allowed = tmp_path / "build/runtime/tool-cache/pytest/deep/cache.json"
     denied = tmp_path / "build/runtime/random-cache/state.json"
-    allowed.parent.mkdir(parents=True)
-    denied.parent.mkdir(parents=True)
-    allowed.write_text("{}\n", encoding="utf-8")
-    denied.write_text("{}\n", encoding="utf-8")
+    source = tmp_path / "packages/sample/module.py"
+    for path in (allowed, denied, source):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("{}\n", encoding="utf-8")
 
     candidates = {
         path.relative_to(tmp_path).as_posix()
         for path in artifacts_mod._candidate_paths(tmp_path, declaration)
     }
 
-    assert "build/runtime/tool-cache/pytest/deep/cache.json" not in candidates
+    assert {
+        "build/runtime/tool-cache/pytest/deep/cache.json",
+        "packages/sample/module.py",
+    }.isdisjoint(candidates)
     assert "build/runtime/random-cache/state.json" in candidates
 
 

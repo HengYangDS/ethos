@@ -560,3 +560,15 @@ def test_claim_with_unknown_freshness_mode_is_blocking(tmp_path: Path) -> None:
     report = claims_report(tmp_path, current_head="currenthead")
 
     assert "ethos-sample:evidence.freshness_mode_invalid" in report["required_gaps"]
+
+
+def test_adopter_lifecycle_claim_uses_exact_behavioral_semantic_scope() -> None:
+    report = claims_report(Path.cwd())
+    claim = report["claims"]["adopter-openspec-lifecycle-20260714"]
+
+    assert claim["freshness"]["paths"] == [
+        "packages/ethos/src/ethos/surface/cli/root/planning.py",
+        "packages/ethos/src/ethos/surface/cli/root/proof.py",
+        "tests/unit/cli/test_adopter_openspec_lifecycle.py",
+        "tests/unit/cli/test_contracts_proof.py",
+    ]

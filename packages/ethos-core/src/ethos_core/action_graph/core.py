@@ -73,7 +73,7 @@ class ActionGraph:
             gaps=gaps,
         )
 
-    def topological_nodes(self) -> tuple[ActionNode, ...]:
+    def ordered_nodes(self) -> tuple[ActionNode, ...]:
         ordered_ids = self.plan().ordered_ids
         by_id = {node.id: node for node in self.nodes}
         return tuple(by_id[node_id] for node_id in ordered_ids if node_id in by_id)
@@ -85,9 +85,6 @@ class ActionGraph:
                 for node in sorted(self.nodes, key=lambda item: item.id)
             )
         )
-
-    def ordered_nodes(self) -> tuple[ActionNode, ...]:
-        return self.topological_nodes()
 
     def to_dict(self) -> dict[str, Any]:
         validation = self.validate()

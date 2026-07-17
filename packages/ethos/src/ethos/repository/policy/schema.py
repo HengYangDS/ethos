@@ -190,7 +190,7 @@ def _instance_validation_report(root: Path, *, mode: str) -> dict[str, dict[str,
     instances["gate-registry"] = {"ok": not gate_gaps, "required_gaps": gate_gaps}
     instances["quality-profile"] = validate_schema_instance(
         "quality-profile.schema.json",
-        product_quality_profile(),
+        product_quality_profile(root),
         root=root,
     )
     instances["quality-gate-plan"] = validate_schema_instance(

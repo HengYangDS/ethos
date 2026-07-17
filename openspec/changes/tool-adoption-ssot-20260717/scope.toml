@@ -1,0 +1,22 @@
+schema_version = 1
+paths = [
+  ".config/checks/repository-hygiene/policy.toml",
+  "evidence/claims/tool-adoption-ssot-20260717.toml",
+  "evidence/chronicle/tool-adoption-ssot-20260717/**",
+  "openspec/changes/tool-adoption-ssot-20260717/**",
+  "openspec/specs/quality/spec.md",
+  "packages/ethos-core/src/ethos_core/quality/profiles.py",
+  "packages/ethos/src/ethos/adapters/gates/ty.py",
+  "packages/ethos/src/ethos/repository/policy/schema.py",
+  "packages/ethos/src/ethos/surface/cli/quality/core.py",
+  "system/schemas/contracts/tools.schema.json",
+  "system/schemas/kernel/quality-profile.schema.json",
+  "system/tools.toml",
+  "tests/unit/cli/test_contracts.py",
+  "tests/unit/cli/test_tool_profile_boundaries.py",
+  "tests/unit/coverage/test_cov_v3_gates_edges.py",
+  "tests/architecture/test_repository_hygiene.py",
+  "tests/unit/governance/validation/test_schemas.py",
+  "tests/unit/kernel/test_quality.py",
+  "tools/ci/scripts/run-repository-hygiene.sh",
+]

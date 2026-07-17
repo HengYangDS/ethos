@@ -1,13 +1,2 @@
 schema_version = 1
-
-paths = [
-  "packages/ethos/src/ethos/repository/profile.py",
-  "packages/ethos/src/ethos/repository/policy/gates.py",
-  "packages/ethos/src/ethos/adapters/mutation/proof.py",
-  "tests/unit/lanes/test_armed_hook_closeout_e2e.py",
-  "evidence/parity/generic-shadow.json",
-  "evidence/claims/adopter-committed-profile-proof-remediation-20260717.toml",
-  "evidence/chronicle/adopter-committed-profile-proof-remediation-20260717/**",
-  "openspec/changes/adopter-committed-profile-proof-remediation-20260717/**",
-  "openspec/specs/repository-governance/spec.md",
-]
+paths = ["packages/ethos/src/ethos/repository/profile.py", "packages/ethos/src/ethos/repository/policy/gates.py", "packages/ethos/src/ethos/adapters/mutation/proof.py", "tests/unit/lanes/test_armed_hook_closeout_e2e.py", "evidence/parity/generic-shadow.json", "evidence/claims/adopter-committed-profile-proof-remediation-20260717.toml", "evidence/chronicle/adopter-committed-profile-proof-remediation-20260717/**", "openspec/changes/adopter-committed-profile-proof-remediation-20260717/**", "openspec/specs/repository-governance/spec.md"]

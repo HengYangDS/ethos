@@ -21,7 +21,7 @@ from ethos.adapters.repo.status.core import workspace_status
 from ethos.assistants.projections import projection_contract
 from ethos.domain.status import audit_for_root
 from ethos.domain.status import status_worktree_gaps
-from ethos.domain.status import string_list
+from ethos_core.normalization.core import string_list
 from ethos.repository.evidence.claims import claims_report
 from ethos.repository.registry.commands import command_registry_report
 from ethos_core.contracts.context.projection import ASSISTANT_TRUTH_BOUNDARY

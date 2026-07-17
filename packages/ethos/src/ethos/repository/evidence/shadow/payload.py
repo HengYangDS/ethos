@@ -10,7 +10,7 @@ from ethos.repository.evidence.parity.validation import SHADOW_PARITY_COMMANDS
 from ethos.repository.evidence.parity.validation import migratable_capability_list
 from ethos.repository.evidence.parity.validation import semantic_tree_digest
 from ethos.repository.evidence.parity.validation import sha256_text
-from ethos.repository.evidence.parity.validation import string_list
+from ethos_core.normalization.core import string_list
 from ethos.repository.evidence.shadow.routing import requires_product_root_argument
 from ethos.repository.evidence.shadow.routing import target_command_argument
 from ethos.repository.evidence.shadow.routing import tracked_target_identity

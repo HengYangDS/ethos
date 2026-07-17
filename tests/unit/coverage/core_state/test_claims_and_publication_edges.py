@@ -99,7 +99,9 @@ def test_land_publication_and_parity_head_edges(
         "required_gaps"
     ] == ["local_publish_readiness_blocked"]
     monkeypatch.setattr(land_core, "load_branch_role_policy", lambda root: POLICY)
-    monkeypatch.setattr(land_core, "workspace_status", lambda repo: {"candidate": {"head": "c1"}})
+    monkeypatch.setattr(
+        land_core, "workspace_status", lambda repo, **_kwargs: {"candidate": {"head": "c1"}}
+    )
     monkeypatch.setattr(land_core.git_adapter, "current_tracked_head", lambda root: "h1")
     package = land_core.closeout_bootstrap_package(
         repo=tmp_path, audit_root=tmp_path / "candidate", required_gaps=("gap",)

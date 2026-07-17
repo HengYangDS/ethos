@@ -20,7 +20,7 @@ def closeout_audit_root(repo: Path, decision: object) -> Path:
     """Resolve closeout audit root, preserving land.workspace_status patchability."""
     if not getattr(decision, "ok", False):
         return repo
-    candidate = workspace_status(repo).get("candidate", {})
+    candidate = workspace_status(repo, include_foreign_path_scope=False).get("candidate", {})
     if not isinstance(candidate, dict):
         return repo
     candidate_path = str(candidate.get("worktree_path") or "")
@@ -71,7 +71,7 @@ def closeout_bootstrap_package(
 ) -> dict[str, object]:
     """Build the closeout bootstrap package (command to run against accepted_root)."""
     policy = load_branch_role_policy(repo)
-    status = workspace_status(repo)
+    status = workspace_status(repo, include_foreign_path_scope=False)
     candidate = status.get("candidate") if isinstance(status.get("candidate"), dict) else {}
     accepted_head = git_adapter.current_tracked_head(repo)
     expect_head = accepted_head or "<HEAD>"

@@ -127,6 +127,11 @@ def test_report_uses_shallow_repository_audit(monkeypatch) -> None:
         "coverage_quality_report",
         lambda _repo: {"ok": True, "state": "clean", "required_gaps": []},
     )
+    monkeypatch.setattr(
+        reporting_scoring,
+        "source_budget_report",
+        lambda _repo: {"ok": True, "state": "clean", "required_gaps": []},
+    )
 
     payload = ethos_cli_runner.run_ethos("report", "--json")
 

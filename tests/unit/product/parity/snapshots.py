@@ -65,23 +65,28 @@ def sha256_text(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
-def successful_shadow_run(
+def successful_shadow_popen(
     calls: list[tuple[list[str], Path]],
     *,
     reported_command: str = "status",
-) -> Callable[..., subprocess.CompletedProcess[str]]:
-    """Return an inert successful subprocess runner and record its invocation."""
+) -> Callable[..., object]:
+    """Return an inert successful shadow process and record its invocation."""
 
-    def fake_run(command: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+    class Process:
+        returncode = 0
+
+        def __init__(self, command: list[str]) -> None:
+            self.command = command
+
+        def communicate(self, timeout: int | None = None) -> tuple[str, str]:
+            _ = timeout
+            return json.dumps({"ok": True, "command": reported_command, "state": "ready"}), ""
+
+    def fake_popen(command: list[str], **kwargs: Any) -> Process:
         calls.append((command, kwargs["cwd"]))
-        return subprocess.CompletedProcess(
-            command,
-            0,
-            stdout=json.dumps({"ok": True, "command": reported_command, "state": "ready"}),
-            stderr="",
-        )
+        return Process(command)
 
-    return fake_run
+    return fake_popen
 
 
 def checkout_work_lane(repo: Path) -> None:

@@ -82,7 +82,7 @@ python_total = 58722
 global_total = 73739
 
 [quality.source_budget.debt]
-maximum_total = 7151
+maximum_total = 7927
 
 [[quality.source_budget.debt.records]]
 id = "program-foundation"
@@ -213,6 +213,20 @@ shell = 12
 toml = 46
 yaml = 4
 
+
+[[quality.source_budget.debt.records]]
+id = "bounded-status-read-model-20260718"
+owner = "refresh-base-ledger-merge-20260717"
+replacement = "consolidate bounded foreign-lane status fixtures and semantic rebase-recovery harnesses after coordination readers and ledger fixtures share one contract carrier"
+deletion_wave = "bounded-status-compression"
+expiry = "bounded-status-compression"
+allowance = 776
+
+[quality.source_budget.debt.records.allowance_by_category]
+python_product = 180
+python_tests = 528
+toml = 10
+json = 20
 [gates.local-state-audit]
 command = "tools/ci/scripts/run-local-state-audit.sh"
 blocking = true

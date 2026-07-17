@@ -157,10 +157,20 @@ def test_config_lint_targeted_toml_invocation_handles_empty_json_set(
         env={
             **os.environ,
             "ETHOS_RUNTIME_BOOTSTRAPPED": "1",
-            "PATH": bin_dir.as_posix() + os.pathsep + os.environ["PATH"],
+            "PATH": bin_dir.as_posix() + os.pathsep + "/usr/bin:/bin",
+            "PYTHON": Path(os.sys.executable).as_posix(),
         },
     )
 
     assert completed.returncode == 0, completed.stdout + completed.stderr
+
+def test_scope_binding_requirement_has_one_accepted_authority() -> None:
+    spec = (ROOT / "openspec/specs/repository-governance/spec.md").read_text(encoding="utf-8")
+
+    assert "### Requirement: Authoritative Adopter Material Change Scope Binding" in spec
+    assert spec.count("Adopter Material Change Scope Binding") == 1
+    assert "scope.toml` remains a companion beside a\nChange" in spec
+    assert "not an OpenSpec workflow-schema extension" in spec
+
 
 # fmt: on

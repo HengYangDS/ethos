@@ -62,7 +62,7 @@ def test_blank_line_owners_use_native_or_shared_policy_without_duplication() -> 
     assert "max-start: 0" in yaml
     assert "max-end: 0" in yaml
     markdown_runner = (ROOT / "tools/ci/scripts/run-markdown-lint.sh").read_text(encoding="utf-8")
-    assert "python tools/ci/structural_whitespace.py" in config_runner
+    assert "ethos_python" in config_runner
     assert 'python tools/ci/structural_whitespace.py "${shell_files[@]}"' in shell_runner
     assert "python tools/ci/structural_whitespace.py" in markdown_runner
 

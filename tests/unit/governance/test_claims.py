@@ -6,6 +6,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from ethos.repository.evidence.claims import claims_report
+from ethos.repository.evidence.core import semantic_tree_digest
+from tests.support.contract_helpers import git
+from tests.support.contract_helpers import init_git_repo
 
 if TYPE_CHECKING:
     import pytest
@@ -560,3 +563,99 @@ def test_claim_with_unknown_freshness_mode_is_blocking(tmp_path: Path) -> None:
     report = claims_report(tmp_path, current_head="currenthead")
 
     assert "ethos-sample:evidence.freshness_mode_invalid" in report["required_gaps"]
+
+
+def test_adopter_lifecycle_claim_uses_exact_behavioral_semantic_scope() -> None:
+    report = claims_report(Path.cwd())
+    claim = report["claims"]["adopter-openspec-lifecycle-20260714"]
+
+    assert claim["freshness"]["paths"] == [
+        "packages/ethos/src/ethos/surface/cli/root/planning.py",
+        "packages/ethos/src/ethos/surface/cli/root/proof.py",
+        "tests/unit/cli/test_adopter_openspec_lifecycle.py",
+        "tests/unit/cli/test_contracts_proof.py",
+    ]
+
+
+def test_exact_lifecycle_semantic_scope_ignores_unrelated_reader_but_stales_on_proof_change(
+    tmp_path: Path,
+) -> None:
+    """Only actual lifecycle implementation/regression files govern this claim."""
+    repo = init_git_repo(tmp_path / "repo")
+    targets = (
+        "packages/ethos/src/ethos/surface/cli/root/planning.py",
+        "packages/ethos/src/ethos/surface/cli/root/proof.py",
+        "tests/unit/cli/test_adopter_openspec_lifecycle.py",
+        "tests/unit/cli/test_contracts_proof.py",
+    )
+    for path in (*targets, "packages/ethos/src/ethos/surface/cli/root/reference.py"):
+        target = repo / path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("initial\n", encoding="utf-8")
+    evidence = repo / "evidence" / "chronicle" / "lifecycle" / "2026-07-18.md"
+    evidence.parent.mkdir(parents=True)
+    evidence.write_text("lifecycle evidence\n", encoding="utf-8")
+    carrier = repo / "openspec" / "changes" / "archive" / "lifecycle"
+    carrier.mkdir(parents=True)
+    (carrier / "proposal.md").write_text("# Lifecycle\n", encoding="utf-8")
+    git(repo, "add", ".")
+    git(repo, "commit", "-m", "seed lifecycle fixture")
+    source_head = git(repo, "rev-parse", "HEAD")
+    digest = semantic_tree_digest(repo, head=source_head, relevant_paths=targets)
+    claim = repo / "evidence" / "claims" / "lifecycle.toml"
+    claim.parent.mkdir(parents=True, exist_ok=True)
+    claim.write_text(
+        "\n".join(
+            [
+                "[claim]",
+                'id = "lifecycle"',
+                'subject = "ethos:lifecycle"',
+                'state = "active"',
+                'summary = "lifecycle adapter behavior"',
+                "",
+                "[evidence]",
+                'dated = "evidence/chronicle/lifecycle/2026-07-18.md"',
+                f'sha256 = "{hashlib.sha256(evidence.read_bytes()).hexdigest()}"',
+                'evidence_ids = ["evidence:lifecycle"]',
+                'binding = "exact lifecycle behavior binding"',
+                'verifier = "digest_only"',
+                "",
+                "[evidence.freshness]",
+                'mode = "semantic_scope"',
+                f'head = "{source_head}"',
+                f'semantic_sha256 = "{digest}"',
+                "",
+                "[boundary]",
+                'owner = "ethos-repository"',
+                'scope = "lifecycle adapter behavior"',
+                "",
+                "[carriers]",
+                'openspec = "openspec/changes/archive/lifecycle"',
+                'fallback = "block lifecycle gaps"',
+                'kill_signal = "lifecycle bypass"',
+                "",
+                "[promotion]",
+                f"targets = {list(targets)!r}",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    git(repo, "add", claim.relative_to(repo).as_posix())
+    git(repo, "commit", "-m", "record lifecycle claim")
+
+    assert claims_report(repo, current_head=git(repo, "rev-parse", "HEAD"))["required_gaps"] == []
+
+    unrelated = repo / "packages/ethos/src/ethos/surface/cli/root/reference.py"
+    unrelated.write_text("unrelated reader change\n", encoding="utf-8")
+    git(repo, "add", unrelated.relative_to(repo).as_posix())
+    git(repo, "commit", "-m", "change unrelated reader")
+    assert claims_report(repo, current_head=git(repo, "rev-parse", "HEAD"))["required_gaps"] == []
+
+    proof = repo / "packages/ethos/src/ethos/surface/cli/root/proof.py"
+    proof.write_text("lifecycle behavior changed\n", encoding="utf-8")
+    git(repo, "add", proof.relative_to(repo).as_posix())
+    git(repo, "commit", "-m", "change lifecycle proof")
+    report = claims_report(repo, current_head=git(repo, "rev-parse", "HEAD"))
+
+    assert report["required_gaps"] == ["lifecycle:evidence.semantic_scope_stale"]

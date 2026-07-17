@@ -27,11 +27,14 @@ from pathlib import Path
 
 from ethos.adapters.mutation.core import apply_candidate_to_accepted
 from ethos.adapters.mutation.core import apply_land_to_candidate
-from ethos.adapters.mutation.lane_lifecycle.refresh import refresh_candidate_from_accepted
+from ethos.adapters.mutation.lane_lifecycle.refresh import (
+    refresh_candidate_from_accepted,
+)
 from ethos.adapters.mutation.proof import record_executed_proof
 from ethos.adapters.store.state.lease.lifecycle.core import acquire_lease
 from ethos.repository.evidence.core import EvidenceSet
 from ethos.repository.policy.gates import promotion_required_gate_ids
+from tests.support.contract_helpers import _declare_minimal_code_correctness
 from tests.support.contract_helpers import conformant_proof_run
 
 _HOOK_SRC = Path(__file__).resolve().parents[3] / ".githooks" / "reference-transaction"
@@ -63,7 +66,7 @@ def _seed_proof(root: Path, head: str) -> None:
     record_executed_proof(root, EvidenceSet.from_runs(id="p", head=head, runs=runs).to_dict())
 
 
-def _armed_repo(tmp_path: Path, *, mirror: bool = False) -> Path:
+def _armed_repo(tmp_path: Path, *, mirror: bool = False, adopter_profile: bool = False) -> Path:
     """A scratch candidate-train repo with the REAL reference-transaction hook armed and NO
     ETHOS_ALLOW_REF_MOVE in the environment.
 
@@ -102,6 +105,11 @@ def _armed_repo(tmp_path: Path, *, mirror: bool = False) -> Path:
     shutil.copy(_RUNTIME_BOOTSTRAP_SRC, runtime_script_dir / "with-python-runtime.sh")
     (runtime_script_dir / "with-python-runtime.sh").chmod(0o755)
     (repo / "README.md").write_text("# x\n", encoding="utf-8")
+    if adopter_profile:
+        profile = repo / ".ethos" / "profile.toml"
+        profile.parent.mkdir(exist_ok=True)
+        profile.write_text('profile_id = "armed-adopter"\n', encoding="utf-8")
+        _declare_minimal_code_correctness(repo)
     if mirror:
         policy = repo / ".ethos" / "workspace.toml"
         policy.parent.mkdir(exist_ok=True)
@@ -158,7 +166,10 @@ def _seed_core_declaration_resources(root: Path, source_root: Path) -> None:
         (source_root / "system" / "workflows.toml", "workflows.toml"),
         (source_root / "system" / "coupling.toml", "coupling.toml"),
         (source_root / "system" / "standards.toml", "standards.toml"),
-        (source_root / "system" / "policies" / "evidence-layout.toml", "evidence_layout.toml"),
+        (
+            source_root / "system" / "policies" / "evidence-layout.toml",
+            "evidence_layout.toml",
+        ),
         (
             source_root / "system" / "policies" / "generated-artifact-topology.toml",
             "generated_artifact_topology.toml",
@@ -176,7 +187,9 @@ def _materialize_accepted_ethos_package(repo: Path) -> Path:
     return package
 
 
-def _land_proven_work(repo: Path, tmp_path: Path, name: str, content: str) -> str:
+def _land_proven_work(
+    repo: Path, tmp_path: Path, name: str, content: str, *, profile_mode: str = ""
+) -> str:
     """Create a lease-backed work lane, commit + prove work, land it onto candidate.
     Returns the candidate head."""
     work = tmp_path / name
@@ -194,6 +207,8 @@ def _land_proven_work(repo: Path, tmp_path: Path, name: str, content: str) -> st
     )
     _g(repo, "worktree", "add", "-b", f"work/{name}", str(work), "candidate/dev")
     (work / f"{name}.txt").write_text(content, encoding="utf-8")
+    if profile_mode == "drop":
+        (work / ".ethos" / "profile.toml").unlink()
     _g(work, "add", ".")
     work_head = _commit(work, f"work {name}")
     _seed_proof(work, work_head)
@@ -208,9 +223,9 @@ def test_sanctioned_land_and_closeout_pass_through_armed_hook(tmp_path: Path) ->
     if not _HOOK_SRC.exists():
         return
     os.environ["ETHOS_ACTOR"] = "agent:test:case:agent-test"
-    repo = _armed_repo(tmp_path, mirror=True)
+    repo = _armed_repo(tmp_path, mirror=True, adopter_profile=True)
 
-    candidate_head = _land_proven_work(repo, tmp_path, "w", "hi\n")
+    candidate_head = _land_proven_work(repo, tmp_path, "w", "hi\n", profile_mode="drop")
     assert _g(repo, "rev-parse", "candidate/dev").stdout.strip() == candidate_head
 
     dev_before = _g(repo, "rev-parse", "dev").stdout.strip()
@@ -229,9 +244,9 @@ def test_raw_ref_move_to_proven_head_is_blocked_without_marker(tmp_path: Path) -
     if not _HOOK_SRC.exists():
         return
     os.environ["ETHOS_ACTOR"] = "agent:test:case:agent-test"
-    repo = _armed_repo(tmp_path, mirror=True)
+    repo = _armed_repo(tmp_path, mirror=True, adopter_profile=True)
 
-    candidate_head = _land_proven_work(repo, tmp_path, "w", "hi\n")
+    candidate_head = _land_proven_work(repo, tmp_path, "w", "hi\n", profile_mode="drop")
     dev_before = _g(repo, "rev-parse", "dev").stdout.strip()
     # Even with a valid proof pre-placed at the accepted root, a raw ref move carries no
     # closeout-intent marker for this transition, so the hook aborts it.

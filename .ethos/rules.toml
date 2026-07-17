@@ -82,7 +82,7 @@ python_total = 58722
 global_total = 73739
 
 [quality.source_budget.debt]
-maximum_total = 6924
+maximum_total = 7026
 
 [[quality.source_budget.debt.records]]
 id = "program-foundation"
@@ -186,6 +186,20 @@ allowance = 165
 [quality.source_budget.debt.records.allowance_by_category]
 python_tests = 135
 shell = 107
+
+[[quality.source_budget.debt.records]]
+id = "hosted-ci-remediation-20260717"
+owner = "hosted-ci-remediation-20260717"
+replacement = "archive the active carrier; retain only the existing owner script and focused regressions"
+deletion_wave = "hosted-ci-remediation-closeout"
+expiry = "hosted-ci-remediation-closeout"
+allowance = 102
+
+[quality.source_budget.debt.records.allowance_by_category]
+python_tests = 40
+shell = 12
+toml = 46
+yaml = 4
 
 [gates.local-state-audit]
 command = "tools/ci/scripts/run-local-state-audit.sh"

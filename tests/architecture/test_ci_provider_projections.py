@@ -427,6 +427,7 @@ def test_github_emulator_run_materializes_an_independent_git_source(
     monkeypatch.setattr(ci_templates, "ROOT", tmp_path)
     monkeypatch.setattr(ci_templates, "_provider_entry", lambda _provider: entry)
     monkeypatch.setattr(ci_templates.shutil, "which", lambda _tool: "/usr/local/bin/act")
+    monkeypatch.setattr(ci_templates, "_docker_context_endpoint", lambda: "")
     monkeypatch.setattr(ci_templates, "_tool_version", lambda _tool: "act 1.0")
     monkeypatch.setattr(ci_templates, "_git_summary", lambda: summary)
     monkeypatch.setattr(

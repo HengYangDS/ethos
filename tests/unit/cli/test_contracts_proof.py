@@ -492,7 +492,8 @@ def test_prove_execute_can_select_real_gates(monkeypatch, tmp_path: Path) -> Non
         def __init__(self, *args: object, **kwargs: object) -> None:
             pass
 
-        def run(self, node, *, _root: Path) -> ActionRunResult:
+        def run(self, node, *, root: Path) -> ActionRunResult:
+            assert root == tmp_path
             return ActionRunResult(
                 action_id=node.id,
                 command=node.command,
@@ -504,7 +505,11 @@ def test_prove_execute_can_select_real_gates(monkeypatch, tmp_path: Path) -> Non
     monkeypatch.setattr(
         proof_cli.status_domain,
         "audit_for_root",
-        lambda *_args, **_kwargs: {"ok": True, "required_gaps": [], "governance_context": {}},
+        lambda *_args, **_kwargs: {
+            "ok": True,
+            "required_gaps": [],
+            "governance_context": {},
+        },
     )
     monkeypatch.setattr(proof_cli, "workspace_status", lambda _root: {})
     monkeypatch.setattr(proof_cli, "change_scope_paths_from_status", lambda *_args: ())
@@ -566,7 +571,8 @@ def test_prove_execute_preserves_non_trust_bearing_gate_classification(
         def __init__(self, *args, **kwargs) -> None:
             pass
 
-        def run(self, node, *, _root):
+        def run(self, node, *, root):
+            assert root == Path.cwd()
             return ActionRunResult(
                 action_id=node.id,
                 command=node.command,

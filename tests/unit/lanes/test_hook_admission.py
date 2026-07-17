@@ -268,7 +268,7 @@ def test_pre_tool_hook_keeps_non_work_lane_detached_rebase_protected(
     assert report["admission"]["effective_context"] == {
         "role": "detached",
         "branch": "detached",
-        "source": "workspace_status",
+        "source": "prewrite_context",
         "rebase_head_name": "dev",
     }
     assert report["decision"] == {

@@ -50,12 +50,6 @@ def cp(stdout: str = "", stderr: str = "", returncode: int = 0) -> subprocess.Co
     return subprocess.CompletedProcess(["cmd"], returncode, stdout, stderr)
 
 
-def test_prewrite_cast_worktrees_skips_non_dict_entries() -> None:
-    assert admission_prewrite.cast_worktrees([{"branch": "work/x"}, "bad"]) == [
-        {"branch": "work/x"}
-    ]
-
-
 def test_hook_admit_next_actions_prefer_admission_report_actions() -> None:
     for report, expected in (
         (
@@ -93,7 +87,7 @@ def test_admission_prewrite_and_hook_success_edges(
 ) -> None:
     monkeypatch.setattr(
         admission_prewrite,
-        "workspace_status",
+        "_prewrite_status",
         lambda root: {"role": ROLE_ACCEPTED_ROOT, "branch": "dev"},
     )
     monkeypatch.setattr(
@@ -110,7 +104,7 @@ def test_admission_prewrite_and_hook_success_edges(
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
     monkeypatch.setattr(
         admission_prewrite,
-        "workspace_status",
+        "_prewrite_status",
         lambda root: {
             "root": root.as_posix(),
             "role": ROLE_WORK_LANE,

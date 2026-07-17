@@ -1,12 +1,12 @@
 [claim]
 id = "hosted-provider-observation-targets-20260716"
 subject = "ethos:hosted-provider-observation-and-report-closure"
-state = "active"
+state = "completed"
 summary = "Hosted provider observations use explicit runtime repository targets, expose bounded observation gaps, and remain separate from report-local publication and proof authority."
 
 [evidence]
 dated = "evidence/chronicle/hosted-provider-observation-targets-20260716/2026-07-16.md"
-sha256 = "76131047e62ebf30ba6bf9a11fead5a4e1a4554236a1818ea6038911b815f71e"
+sha256 = "18e10d7f06f71fde78395f54841d0259a693fe924593d7ccf189537b753dd4ce"
 evidence_ids = ["evidence:hosted-provider-observation-targets-20260716"]
 binding = "Active OpenSpec carrier, RED/GREEN regressions, explicit target policy, observation evidence reader, report projection, and dated Chronicle."
 verifier = "digest_only"

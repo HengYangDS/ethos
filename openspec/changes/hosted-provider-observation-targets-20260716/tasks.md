@@ -18,9 +18,9 @@
 
 - [x] 2.1 Pass focused architecture/domain tests, configuration lint, and strict
   OpenSpec lifecycle validation.
-- [ ] 2.2 Materialize bounded local emulator run evidence for GitHub and GitLab,
+- [x] 2.2 Materialize bounded local emulator run evidence for GitHub and GitLab,
   or record missing optional emulator tools through their owner scripts.
-- [ ] 2.3 Execute a local GitLab observation with an explicit target, verify
+- [x] 2.3 Execute a local GitLab observation with an explicit target, verify
   GitHub is reported not_configured, and preserve all hosted/publication claim
   flags as false.
 - [x] 2.4 Create the active claim and dated Chronicle carrier for this change

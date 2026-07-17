@@ -4,6 +4,7 @@ stages:
   - package
 
 variables:
+  PYTHONWARNINGS: error
   UV_LINK_MODE: copy
   UV_CACHE_DIR: build/runtime/tool-cache/uv
   LYCHEE_CACHE_DIR: build/runtime/tool-cache/lychee

@@ -13,7 +13,7 @@
 
 ## 3. Verification and lifecycle transition
 
-- [ ] 3.1 Run focused tests, strict OpenSpec validation, lifecycle validation,
+- [x] 3.1 Run focused tests, strict OpenSpec validation, lifecycle validation,
   changed planning, and head-bound executed proof before archive.
 - [x] 3.2 Archive this Change only after all implementation tasks are complete;
   DDWG archive, candidate landing, accepted closeout, and publication are

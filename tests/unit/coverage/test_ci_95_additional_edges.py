@@ -24,11 +24,7 @@ from ethos.adapters.store.retrieval import query as retrieval_query
 from ethos.adapters.store.retrieval import sources as retrieval_sources
 from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
-
-
-def cp(stdout: str = "", stderr: str = "", returncode: int = 0) -> subprocess.CompletedProcess[str]:
-    return subprocess.CompletedProcess(["git"], returncode, stdout, stderr)
-
+from tests.support.subprocesses import completed as cp
 
 POLICY = SimpleNamespace(
     accepted_branch="dev",

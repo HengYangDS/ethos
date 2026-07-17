@@ -13,10 +13,7 @@ import ethos.adapters.mutation.lane_lifecycle.projection_rebase.core as lane_pro
 from ethos.adapters.mutation import lanes
 from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
-
-
-def cp(stdout: str = "", stderr: str = "", returncode: int = 0) -> subprocess.CompletedProcess[str]:
-    return subprocess.CompletedProcess(["git"], returncode, stdout, stderr)
+from tests.support.subprocesses import completed as cp
 
 
 def fake_git(

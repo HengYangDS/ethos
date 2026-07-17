@@ -9,7 +9,6 @@ digest-bound receipt for one accepted-to-candidate transition.
 
 from __future__ import annotations
 
-import argparse
 import hashlib
 import json
 import subprocess
@@ -17,7 +16,13 @@ import sys
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
+from typing import Annotated
 from typing import Any
+
+from cyclopts import App
+from cyclopts import Parameter
+from pydantic import BaseModel
+from pydantic import ConfigDict
 
 CONTROL_PREFIXES = (
     ".githooks/",
@@ -45,20 +50,34 @@ CONTROL_PREFIXES = (
 )
 
 
-def main() -> int:
-    args = _parser().parse_args()
-    accepted_root = Path(args.accepted_root).resolve()
-    candidate_root = Path(args.candidate_root).resolve()
-    proof_path = Path(args.candidate_proof).resolve()
-    decision_path = Path(args.bootstrap_chronicle).resolve()
-    output_path = Path(args.write_receipt).resolve()
+class VerificationRequest(BaseModel):
+    """Strict boundary request for one control-replacement verification."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    accepted_root: Path
+    candidate_root: Path
+    accepted_head: str
+    candidate_head: str
+    candidate_proof: Path
+    bootstrap_chronicle: Path
+    write_receipt: Path
+
+
+def main(request: Annotated[VerificationRequest, Parameter(name="*")]) -> int:
+    accepted_root = request.accepted_root.resolve()
+    candidate_root = request.candidate_root.resolve()
+    proof_path = request.candidate_proof.resolve()
+    decision_path = request.bootstrap_chronicle.resolve()
+    output_path = request.write_receipt.resolve()
     verifier_path = Path(__file__).resolve()
 
     _require(
-        _git(accepted_root, "rev-parse", "HEAD") == args.accepted_head, "accepted_head_mismatch"
+        _git(accepted_root, "rev-parse", "HEAD") == request.accepted_head,
+        "accepted_head_mismatch",
     )
     _require(
-        _git(candidate_root, "rev-parse", "HEAD") == args.candidate_head,
+        _git(candidate_root, "rev-parse", "HEAD") == request.candidate_head,
         "candidate_head_mismatch",
     )
     _run(
@@ -66,12 +85,15 @@ def main() -> int:
         "git",
         "merge-base",
         "--is-ancestor",
-        args.accepted_head,
-        args.candidate_head,
+        request.accepted_head,
+        request.candidate_head,
     )
 
     changed_paths = _git(
-        candidate_root, "diff", "--name-only", f"{args.accepted_head}..{args.candidate_head}"
+        candidate_root,
+        "diff",
+        "--name-only",
+        f"{request.accepted_head}..{request.candidate_head}",
     ).splitlines()
     control_paths = sorted(path for path in changed_paths if _is_control_path(path))
     _require(bool(control_paths), "control_replacement_not_detected")
@@ -79,15 +101,15 @@ def main() -> int:
     proof = _json(proof_path)
     proof_head = _native_executed_proof_head(proof)
     _require(bool(proof_head), "candidate_proof_not_proven")
-    _require(proof_head == args.candidate_head, "candidate_proof_head_mismatch")
+    _require(proof_head == request.candidate_head, "candidate_proof_head_mismatch")
     proof_digest = _sha256(proof_path)
     verifier_digest = _sha256(verifier_path)
 
     decision = _json(decision_path)
     _validate_bootstrap_decision(
         decision,
-        accepted_head=args.accepted_head,
-        candidate_head=args.candidate_head,
+        accepted_head=request.accepted_head,
+        candidate_head=request.candidate_head,
         verifier_digest=verifier_digest,
         proof_digest=proof_digest,
     )
@@ -96,14 +118,14 @@ def main() -> int:
         "schema_version": 1,
         "kind": "control-replacement-verifier",
         "provenance": "protected_external_bootstrap",
-        "accepted_head": args.accepted_head,
-        "candidate_head": args.candidate_head,
+        "accepted_head": request.accepted_head,
+        "candidate_head": request.candidate_head,
         "control_paths": control_paths,
         "accepted_control_digest": _control_digest(
-            candidate_root, args.accepted_head, control_paths
+            candidate_root, request.accepted_head, control_paths
         ),
         "candidate_control_digest": _control_digest(
-            candidate_root, args.candidate_head, control_paths
+            candidate_root, request.candidate_head, control_paths
         ),
         "verifier_path": verifier_path.as_posix(),
         "verifier_sha256": verifier_digest,
@@ -121,16 +143,7 @@ def main() -> int:
     return 0
 
 
-def _parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--accepted-root", required=True)
-    parser.add_argument("--candidate-root", required=True)
-    parser.add_argument("--accepted-head", required=True)
-    parser.add_argument("--candidate-head", required=True)
-    parser.add_argument("--candidate-proof", required=True)
-    parser.add_argument("--bootstrap-chronicle", required=True)
-    parser.add_argument("--write-receipt", required=True)
-    return parser
+app = App(name="ethos-control-verifier", default_command=main)
 
 
 def _validate_bootstrap_decision(
@@ -242,4 +255,4 @@ def _require(condition: bool, message: str) -> None:  # noqa: FBT001
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    app(sys.argv[1:])

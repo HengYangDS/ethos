@@ -3,6 +3,7 @@ paths = [
   ".config/checks/repository-hygiene/policy.toml",
   "evidence/claims/tool-adoption-ssot-20260717.toml",
   "evidence/chronicle/tool-adoption-ssot-20260717/**",
+  "evidence/parity/generic-shadow.json",
   "openspec/changes/tool-adoption-ssot-20260717/**",
   "openspec/specs/quality/spec.md",
   "packages/ethos-core/src/ethos_core/quality/profiles.py",

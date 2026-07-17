@@ -4,10 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path  # noqa: TC003 - cyclopts needs runtime types in signatures
-from typing import TYPE_CHECKING
 from typing import Annotated
 from typing import Any
-from typing import cast
+from typing import Mapping
 
 from cyclopts import Parameter
 
@@ -35,10 +34,9 @@ from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import resolve_root
 from ethos_core.contracts.branch.roles import load_branch_role_policy
+from ethos_core.normalization.core import string_mapping
+from ethos_core.normalization.core import string_sequence
 from ethos_core.result import EthosResult
-
-if TYPE_CHECKING:
-    from collections.abc import Mapping
 
 # fmt: off
 
@@ -75,25 +73,12 @@ class _PublishOptions:
 _DEFAULT_PUBLISH_OPTIONS = _PublishOptions()
 
 
-def _mapping_payload(value: object) -> dict[str, object]:
-    """Return a JSON mapping payload, or an empty mapping for malformed data."""
-    return cast("dict[str, object]", value) if isinstance(value, dict) else {}
-
-
 def _gap_tuple(payload: Mapping[str, object]) -> tuple[str, ...]:
-    """Read required gaps from a JSON payload as strings."""
-    raw_gaps = payload.get("required_gaps", ())
-    if isinstance(raw_gaps, list | tuple):
-        return tuple(str(gap) for gap in raw_gaps)
-    return ()
+    return tuple(string_sequence(payload.get("required_gaps")))
 
 
 def _first_string(value: object) -> str:
-    """Return the first string-like item from a JSON list payload."""
-    if isinstance(value, list) and value:
-        return str(value[0])
-    return ""
-
+    return next(iter(string_sequence(value)), "")
 
 def _int_value(value: object, *, default: int = 0) -> int:
     """Return an integer from a JSON scalar without trusting arbitrary objects."""
@@ -169,8 +154,7 @@ def _publish_next_actions(*, ok: bool, publication: dict[str, object]) -> tuple[
     if not ok:
         return ("ethos land --json",)
 
-    publication_actions = cast("list[object]", publication.get("next_actions", []))
-    actions = [str(action) for action in publication_actions]
+    actions = string_sequence(publication.get("next_actions"))
     actions.append("ethos report")
     return tuple(dict.fromkeys(actions))
 
@@ -183,7 +167,7 @@ def _land_expected_state(
     closeout_support: Mapping[str, object],
 ) -> dict[str, object]:
     policy = load_branch_role_policy(repo)
-    candidate = _mapping_payload(status_payload.get("candidate", {}))
+    candidate = string_mapping(status_payload.get("candidate"))
     return {
         "root": repo.resolve().as_posix(),
         "source_ref": f"refs/heads/{status_payload.get('branch', '')}",
@@ -199,7 +183,7 @@ def _land_expected_state(
 def _closeout_expected_state(payload: _CloseoutPayload) -> dict[str, object]:
     policy = load_branch_role_policy(payload.repo)
     status_payload = workspace_status(payload.repo, include_foreign_path_scope=False)
-    candidate = _mapping_payload(status_payload.get("candidate", {}))
+    candidate = string_mapping(status_payload.get("candidate"))
     return {
         "root": payload.repo.resolve().as_posix(),
         "accepted_ref": f"refs/heads/{policy.accepted_branch}",
@@ -272,7 +256,7 @@ def land(
         audit = land_core.repository_audit_after_admission(audit_root, decision)
         lifecycle = completed_active_changes_report(audit_root)
         status_payload = workspace_status(repo, include_foreign_path_scope=False)
-        candidate = _mapping_payload(status_payload.get("candidate", {}))
+        candidate = string_mapping(status_payload.get("candidate"))
         control_replacement = control_replacement_report(
             accepted_root=repo,
             candidate_root=audit_root,
@@ -280,13 +264,18 @@ def land(
             candidate_head=str(candidate.get("head") or current_head),
             external_receipt=control_verifier_receipt,
         )
-        control_gaps = _gap_tuple(control_replacement)
-        gaps = _gap_tuple(audit) + decision.gaps + _gap_tuple(lifecycle) + control_gaps
+        control_gaps = tuple(string_sequence(control_replacement.get("required_gaps")))
+        gaps = (
+            tuple(string_sequence(audit.get("required_gaps")))
+            + decision.gaps
+            + tuple(string_sequence(lifecycle.get("required_gaps")))
+            + control_gaps
+        )
         ok = bool(audit["ok"]) and decision.ok and bool(lifecycle["ok"]) and not control_gaps
         update: dict[str, object] = {}
         if ok and apply:
             fresh_status = workspace_status(repo, include_foreign_path_scope=False)
-            fresh_candidate = _mapping_payload(fresh_status.get("candidate", {}))
+            fresh_candidate = string_mapping(fresh_status.get("candidate"))
             control_replacement = control_replacement_report(
                 accepted_root=repo,
                 candidate_root=audit_root,
@@ -294,7 +283,7 @@ def land(
                 candidate_head=str(fresh_candidate.get("head") or current_head),
                 external_receipt=control_verifier_receipt,
             )
-            fresh_control_gaps = _gap_tuple(control_replacement)
+            fresh_control_gaps = tuple(string_sequence(control_replacement.get("required_gaps")))
             if fresh_control_gaps:
                 gaps = gaps + fresh_control_gaps
                 ok = False
@@ -304,7 +293,7 @@ def land(
                 authorized=authorize,
                 expect_head=expect_head,
             )
-            gaps = gaps + _gap_tuple(update)
+            gaps = gaps + tuple(string_sequence(update.get("required_gaps")))
             ok = bool(update["ok"])
         result = _closeout_result(
             _CloseoutPayload(
@@ -326,10 +315,10 @@ def land(
 
     governance = context_for_root(repo)
     status_payload = workspace_status(repo, include_foreign_path_scope=False)
-    closeout_support = _mapping_payload(status_payload.get("closeout_support", {}))
+    closeout_support = string_mapping(status_payload.get("closeout_support"))
     closeout_gaps: tuple[str, ...] = ()
     if status_payload.get("role") == "work_lane" and not closeout_support.get("supported"):
-        closeout_gaps = _gap_tuple(closeout_support)
+        closeout_gaps = tuple(string_sequence(closeout_support.get("required_gaps")))
     request = MutationRequest(
         command="land",
         apply=apply,
@@ -341,7 +330,12 @@ def land(
     )
     audit = land_core.repository_audit_after_admission(repo, decision)
     lifecycle = completed_active_changes_report(repo)
-    gaps = _gap_tuple(audit) + decision.gaps + closeout_gaps + _gap_tuple(lifecycle)
+    gaps = (
+        tuple(string_sequence(audit.get("required_gaps")))
+        + decision.gaps
+        + closeout_gaps
+        + tuple(string_sequence(lifecycle.get("required_gaps")))
+    )
     ok = bool(audit["ok"]) and decision.ok and bool(lifecycle["ok"]) and not closeout_gaps
     update: dict[str, object] = {}
     if ok and apply:
@@ -351,17 +345,17 @@ def land(
             expect_head=expect_head,
             admitted_decision=decision,
         )
-        gaps = gaps + _gap_tuple(update)
+        gaps = gaps + tuple(string_sequence(update.get("required_gaps")))
         ok = bool(update["ok"])
     elif ok:
         update = candidate_base_report(root=repo, status=status_payload)
         if not update["ok"]:
-            gaps = gaps + _gap_tuple(update)
+            gaps = gaps + tuple(string_sequence(update.get("required_gaps")))
             ok = False
     proof_readiness: dict[str, object] = {}
     if ok and not apply:
         proof_readiness = proof_readiness_report(repo, current_head)
-        gaps = gaps + _gap_tuple(proof_readiness)
+        gaps = gaps + tuple(string_sequence(proof_readiness.get("required_gaps")))
         ok = not bool(proof_readiness["blocking"])
     state = (
         "ready_to_land"
@@ -443,10 +437,10 @@ def publish(
         protected_branch_active_change_required_gaps(repo, current_branch=str(branch))
     )
     gaps = (
-        _gap_tuple(audit)
+        tuple(string_sequence(audit.get("required_gaps")))
         + decision.gaps
         + release_carrier_gaps
-        + _gap_tuple(independent_verification)
+        + tuple(string_sequence(independent_verification.get("required_gaps")))
     )
     ok = (
         bool(audit["ok"])
@@ -499,7 +493,7 @@ def publish(
             independent_verification.get("evidence_class") or "local_readiness"
         ),
         "submit_branch": str(publication.get("submit_branch") or ""),
-        "next_publication_action": _first_string(publication.get("next_actions")),
+        "next_publication_action": next(iter(string_sequence(publication.get("next_actions"))), ""),
     }
     publish_next_actions = _publish_next_actions(ok=ok, publication=publication)
     # Read-only tracking synchronization observes an existing remote ref; it never

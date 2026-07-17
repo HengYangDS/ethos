@@ -7,7 +7,7 @@ from typing import cast
 
 from ethos.repository.evidence.parity.validation import SHADOW_PARITY_COMMANDS
 from ethos.repository.evidence.parity.validation import parity_evidence
-from ethos.repository.evidence.parity.validation import string_list
+from ethos_core.normalization.core import string_list
 from ethos.repository.evidence.parity.validation import tracked_evidence_provenance
 from ethos.repository.evidence.shadow.payload import PARITY_RELEVANT_PATHS
 from ethos.repository.evidence.shadow.payload import SHADOW_PARITY_DIMENSIONS

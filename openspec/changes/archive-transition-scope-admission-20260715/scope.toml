@@ -6,5 +6,5 @@ paths = [
   "packages/ethos/src/ethos/adapters/openspec/lifecycle/scope.py",
   "system/invalid_states.toml",
   "tests/unit/kernel/test_invalid_states.py",
-  "tests/unit/lanes/test_lanes_openspec_archive_scope.py",
+  "tests/unit/lanes/test_lanes_openspec_scope.py",
 ]

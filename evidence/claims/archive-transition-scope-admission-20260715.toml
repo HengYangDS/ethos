@@ -35,7 +35,7 @@ targets = [
   "packages/ethos/src/ethos/adapters/openspec/lifecycle/scope.py",
   "system/invalid_states.toml",
   "tests/unit/kernel/test_invalid_states.py",
-  "tests/unit/lanes/test_lanes_openspec_archive_scope.py",
+  "tests/unit/lanes/test_lanes_openspec_scope.py",
   "openspec/specs/repository-governance/spec.md",
   "openspec/changes/archive-transition-scope-admission-20260715",
   "evidence/chronicle/archive-transition-scope-admission-20260715/2026-07-15.md",

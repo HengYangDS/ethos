@@ -21,7 +21,7 @@ from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 from ethos_core.normalization.core import string_sequence
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class LandedRetirementRuntime:
     """Explicit dependencies used to retire landed Work Lanes."""
 

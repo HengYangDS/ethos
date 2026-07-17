@@ -38,7 +38,7 @@ UNCLASSIFIED = "unclassified_invalid_state"
 _TAXONOMY_RESOURCE = "data/invalid_states.toml"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class InvalidStateCategory:
     """One node-derived failure class. chain_term names the node whose precondition
     failed; match_prefixes are the gap-string prefixes that reduce to it."""

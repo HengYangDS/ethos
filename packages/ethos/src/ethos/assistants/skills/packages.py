@@ -22,7 +22,7 @@ _SKILL_WORKFLOW_STEP_LIMIT = 8
 _SHA256_PATTERN = re.compile(r"^sha256:[0-9a-f]{64}$")
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class SkillPackageResult:
     skill_id: str
     manifest_path: str

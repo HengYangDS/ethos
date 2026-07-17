@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class MutationRequest:
     """The bounded intent and confirmation supplied to a mutation boundary."""
 
@@ -24,7 +24,7 @@ class MutationRequest:
         }
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class MutationEvaluation:
     """Pure lifecycle decision; the public contract remains ``AdmissionDecision``."""
 
@@ -33,7 +33,7 @@ class MutationEvaluation:
     gaps: tuple[str, ...] = ()
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class MutationTransition:
     """Immutable transition declaration interpreted by ``reduce_mutation``."""
 
@@ -46,7 +46,7 @@ class MutationTransition:
     current_state: str = ""
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class MutationFacts:
     """Already-observed facts supplied by an imperative adapter to the reducer."""
 
@@ -58,7 +58,7 @@ class MutationFacts:
     current: bool = False
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class LeaseTransition:
     """Immutable operation declaration for the local lease lifecycle."""
 
@@ -68,7 +68,7 @@ class LeaseTransition:
     requires_offer: bool = False
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class LeaseFacts:
     """Observed local lease facts supplied to the pure lease reducer."""
 
@@ -85,7 +85,7 @@ class LeaseFacts:
     initial_gaps: tuple[str, ...] = ()
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class GuardedTransition:
     """State names for a fact-only transition with no effectful knowledge."""
 

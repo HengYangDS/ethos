@@ -125,7 +125,7 @@ def _read_mapping(path: Path, gap: str) -> tuple[dict[str, Any], str]:
     return cast("dict[str, Any]", payload), ""
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class IndependentVerificationPolicy:
     """Policy depth for one named action; provider details never appear here."""
 
@@ -136,7 +136,7 @@ class IndependentVerificationPolicy:
             raise ValueError(_INDEPENDENT_VERIFICATION_MODE_ERROR)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class IndependentVerificationProvider:
     """Protected host-local facts used to verify an optional provider receipt."""
 

@@ -364,6 +364,36 @@ def test_tracked_python_has_no_legacy_parser_dependency() -> None:
     assert all("arg" + "parse" not in imported_modules(ROOT / path) for path in tracked)
 
 
+def test_internal_value_models_are_slotted_and_do_not_add_attrs() -> None:
+    """Keep two model layers: strict Pydantic boundaries and lean internal values."""
+    for root in (ROOT / "packages", ROOT / "extensions"):
+        for path in root.rglob("*.py"):
+            assert "attrs" not in imported_modules(path), path
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.ClassDef):
+                    continue
+                decorators = [
+                    decorator
+                    for decorator in node.decorator_list
+                    if isinstance(decorator, ast.Call)
+                    and isinstance(decorator.func, ast.Name)
+                    and decorator.func.id == "dataclass"
+                ]
+                for decorator in decorators:
+                    keywords = {
+                        keyword.arg: keyword.value
+                        for keyword in decorator.keywords
+                        if keyword.arg is not None
+                    }
+                    frozen = keywords.get("frozen")
+                    slots = keywords.get("slots")
+                    assert isinstance(frozen, ast.Constant), path
+                    assert frozen.value is True, path
+                    assert isinstance(slots, ast.Constant), path
+                    assert slots.value is True, path
+
+
 def test_package_roots_do_not_reexport_module_surfaces() -> None:
     for path in (ROOT / "packages").glob("*/src/*/__init__.py"):
         tree = ast.parse(path.read_text(encoding="utf-8"))

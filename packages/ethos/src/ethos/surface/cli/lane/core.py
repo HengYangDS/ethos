@@ -32,7 +32,7 @@ from ethos_core.normalization.core import string_sequence
 from ethos_core.result import EthosResult
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class _RetireSupersededOptions:
     """CLI options for `ethos lane retire superseded`."""
 

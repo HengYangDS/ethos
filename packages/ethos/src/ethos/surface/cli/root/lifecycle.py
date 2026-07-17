@@ -43,7 +43,7 @@ if TYPE_CHECKING:
 # fmt: off
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class _CloseoutPayload:
     repo: Path
     mutation: MutationRequest
@@ -58,7 +58,7 @@ class _CloseoutPayload:
     control_replacement: dict[str, object]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class _PublishOptions:
     """CLI options for `ethos publish`, including legacy hook metadata."""
 

@@ -42,7 +42,7 @@ def _fail(code: str) -> NoReturn:
     raise VerificationError(code)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class ReferenceVerifierConfig:
     """Provider-local configuration; never place this in an adopter repository."""
 

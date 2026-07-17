@@ -16,7 +16,7 @@ def _stable_json(payload: dict[str, Any]) -> str:
     return json.dumps(payload, sort_keys=True, separators=(",", ":"))
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class ActionNode:
     id: str
     kind: str
@@ -54,7 +54,7 @@ class ActionNode:
         return payload
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class ActionGraph:
     nodes: tuple[ActionNode, ...]
     validation_issues: tuple[str, ...] = ()

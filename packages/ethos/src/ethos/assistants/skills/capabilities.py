@@ -45,7 +45,7 @@ _READONLY_ETHOS_COMMANDS = {
 }
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class CapabilityValidationContext:
     skill_id: str
     capability_id: str

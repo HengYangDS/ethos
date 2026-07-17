@@ -20,7 +20,7 @@ DEFAULT_ROOTS = {
 }
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class RepositoryProfile:
     root: Path
     exists: bool

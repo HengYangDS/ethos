@@ -50,7 +50,7 @@ def trim_output(text: str, *, limit: int = 4000) -> str:
     return f"{text[:limit]}\n[trimmed {trimmed} bytes]"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class AdapterProofResult:
     action_id: str
     command: tuple[str, ...]
@@ -63,7 +63,7 @@ class AdapterProofResult:
     diagnostics: tuple[dict[str, Any], ...] = ()
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class ProofRun:
     action_id: str
     command: tuple[str, ...]
@@ -122,7 +122,7 @@ class ProofRun:
         }
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class EvidenceSet:
     id: str
     head: str

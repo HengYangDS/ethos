@@ -30,7 +30,7 @@ PROTECTED_WRITE_ROLES = frozenset(
 )
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class BranchRolePolicy:
     release_branch: str = "main"
     accepted_branch: str = "dev"

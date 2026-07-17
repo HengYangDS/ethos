@@ -41,7 +41,7 @@ _LOCAL_PATH_PATTERN = re.compile(
 )
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class ShadowIdentityContext:
     target: Path
     root: Path | None

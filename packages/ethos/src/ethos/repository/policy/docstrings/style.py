@@ -24,7 +24,7 @@ _GOOGLE_SECTIONS = {
 _LEGACY_FIELD_RE = re.compile(r"^\s*:(?:param|type|returns?|rtype|raises?)\b")
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class DocstringStyleIssue:
     """A style or signature violation in an existing docstring."""
 

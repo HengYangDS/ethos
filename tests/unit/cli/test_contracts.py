@@ -12,9 +12,11 @@ from ethos.repository.adoption.planner import adoption_plan
 from ethos.surface.cli._base import emit
 from ethos_core.contracts.package.ontology import package_ontology_report
 from ethos_core.result import EthosResult
-
-from tests.support.contract_helpers import git, init_git_repo
-from tests.support.ethos_cli_runner import run_ethos, run_ethos_blocked, run_ethos_raw
+from tests.support.contract_helpers import git
+from tests.support.contract_helpers import init_git_repo
+from tests.support.ethos_cli_runner import run_ethos
+from tests.support.ethos_cli_runner import run_ethos_blocked
+from tests.support.ethos_cli_runner import run_ethos_raw
 
 
 def test_status_json_contract() -> None:
@@ -667,7 +669,8 @@ def test_openspec_uses_official_native_cli(monkeypatch) -> None:
         elif args == ("validate", "--all", "--strict", "--json"):
             payload = {"items": [], "summary": {"totals": {"failed": 0}}}
         else:
-            raise AssertionError(f"unexpected OpenSpec command: {args}")
+            message = f"unexpected OpenSpec command: {args}"
+            raise AssertionError(message)
         return {
             "command": ["openspec", *args],
             "exit_code": 0,

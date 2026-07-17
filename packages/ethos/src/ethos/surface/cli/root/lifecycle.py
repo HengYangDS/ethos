@@ -15,9 +15,7 @@ import ethos.adapters.repo.git as git
 import ethos.domain.land.core as land_core
 import ethos.domain.land.publication as land_publication
 from ethos.adapters.admission.control.replacement import control_replacement_report
-from ethos.adapters.admission.evidence.external import (
-    independent_verification_admission_report,
-)
+from ethos.adapters.admission.evidence.external import independent_verification_admission_report
 from ethos.adapters.admission.evidence.external import independent_verification_request
 from ethos.adapters.mutation.core import MutationEvaluation
 from ethos.adapters.mutation.core import MutationRequest

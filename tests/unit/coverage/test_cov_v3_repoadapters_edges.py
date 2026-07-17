@@ -70,7 +70,7 @@ def test_path_overlaps_empty_component_returns_false() -> None:
 # --- adapters/repo/status/core.py -------------------------------------------
 
 
-def test_worktrees_skips_blank_lines_with_empty_current(
+def test_worktree_records_skips_blank_lines_with_empty_current(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     # A leading blank line finds an empty ``current`` (484->489); the trailing blank line
@@ -82,7 +82,7 @@ def test_worktrees_skips_blank_lines_with_empty_current(
 
     monkeypatch.setattr(status, "git_stdout_checked", _stub_run_git)
     policy = load_branch_role_policy(tmp_path)
-    entries = status._worktrees(tmp_path, current_path=tmp_path, policy=policy)
+    entries = status.worktree_records(tmp_path, current_path=tmp_path, policy=policy)
     assert len(entries) == 1
     assert entries[0]["branch"] == "main"
     assert entries[0]["path"] == "/linked"

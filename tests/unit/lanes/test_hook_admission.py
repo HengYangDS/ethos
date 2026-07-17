@@ -7,7 +7,6 @@ from pathlib import Path
 
 import pytest
 
-import ethos.adapters.store.state.lease.lifecycle.core as state
 from ethos.adapters.admission import identity as admission_identity
 from ethos.adapters.admission import prewrite as admission_prewrite
 from ethos.adapters.admission.core import hook_admission_report
@@ -23,23 +22,13 @@ from ethos.repository.evidence.core import ProofRun
 from tests.support.contract_helpers import conformant_proof_run
 from tests.support.lane_helpers import git
 from tests.support.lane_helpers import init_repo
+from tests.support.lane_helpers import leased_worktree as create_leased_worktree
 
 
 @pytest.fixture
 def leased_worktree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     repo = init_repo(tmp_path / "repo")
-    worktree = tmp_path / "repo-work-feature"
-    git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "dev")
-    state.acquire_lease(
-        repo / ".ethos" / "state" / "state.sqlite",
-        subject="work/feature",
-        holder_ref="agent:test:case:agent-a",
-        payload={
-            "path": worktree.as_posix(),
-            "branch": "work/feature",
-            "expected_head": git(worktree, "rev-parse", "HEAD"),
-        },
-    )
+    worktree = create_leased_worktree(repo, tmp_path / "repo-work-feature")
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
     return worktree
 

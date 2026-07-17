@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from ethos.adapters.store.state.lease.lifecycle import core as state
 from tests.support.contract_helpers import git
 from tests.support.contract_helpers import init_git_repo as init_repo
 
@@ -22,12 +23,29 @@ __all__ = (
     "assert_no_ui_projection",
     "git",
     "init_repo",
+    "leased_worktree",
     "write_role_policy",
 )
 
 
 def add_candidate_worktree(repo: Path, path: Path) -> Path:
     git(repo, "worktree", "add", "-b", "candidate/dev", path.as_posix(), "dev")
+    return path
+
+
+def leased_worktree(repo: Path, path: Path, *, holder_ref: str = "agent:test:case:agent-a") -> Path:
+    """Create one owned worktree with a matching lease for admission tests."""
+    git(repo, "worktree", "add", "-b", "work/feature", path.as_posix(), "dev")
+    state.acquire_lease(
+        repo / ".ethos" / "state" / "state.sqlite",
+        subject="work/feature",
+        holder_ref=holder_ref,
+        payload={
+            "path": path.as_posix(),
+            "branch": "work/feature",
+            "expected_head": git(path, "rev-parse", "HEAD"),
+        },
+    )
     return path
 
 

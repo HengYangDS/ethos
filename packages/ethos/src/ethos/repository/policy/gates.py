@@ -419,6 +419,20 @@ def _committed_registry_and_floor(
     )
 
 
+def committed_product_default_gate_ids(root: Path, tree_ref: str) -> tuple[str, ...] | None:
+    """Return a product promotion floor from the immutable ``tree_ref`` declaration.
+
+    A local closeout runner is deliberately sourced from accepted truth while it
+    audits a candidate checkout.  Its import-time declaration can therefore be
+    older than the candidate's ``system/gates.toml``.  Completeness must range
+    over the candidate tree's declared floor, just as the policy digest already
+    does; otherwise a candidate that legitimately removes a default gate is
+    rechecked against the incumbent floor and cannot be closed out.
+    """
+    committed = _committed_registry_and_floor(root, tree_ref)
+    return committed[1] if committed is not None else None
+
+
 def _policy_registry_and_required(
     root: Path, tree_ref: str | None
 ) -> tuple[dict[str, GateDescriptor], tuple[str, ...]]:

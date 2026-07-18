@@ -57,8 +57,7 @@ def test_contributing_declares_commit_and_signature_policy() -> None:
 def test_gitlab_ci_uses_ethos_public_command_plane() -> None:
     text = (ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8")
 
-    assert "ethos audit" in text
-    assert "ethos report" in text
+    assert "tools/ci/scripts/run-head-bound-proof.sh" in text
     # The npm jobs run on the layer-cached python:3.12 image and install Node
     # from nodejs.org (install-node.sh), because the node:24 Docker image is
     # unreachable through the runner's registry egress. See install-node.sh.

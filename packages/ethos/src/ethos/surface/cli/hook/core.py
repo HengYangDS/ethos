@@ -92,7 +92,9 @@ def pre_push(
     remote_head: Annotated[str, Parameter(name="--remote-head")] = "",
     reconciliation_receipt_path: Annotated[str, Parameter(name="--reconciliation-receipt")] = "",
     observed_origin_head: Annotated[str, Parameter(name="--observed-origin-head")] = "",
+    observed_origin_main_head: Annotated[str, Parameter(name="--observed-origin-main-head")] = "",
     observed_github_head: Annotated[str, Parameter(name="--observed-github-head")] = "",
+    observed_github_main_head: Annotated[str, Parameter(name="--observed-github-main-head")] = "",
     root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
@@ -111,7 +113,9 @@ def pre_push(
         reconciliation=ReconciliationObservation(
             receipt_path=reconciliation_receipt_path,
             origin_head=observed_origin_head,
+            origin_main_head=observed_origin_main_head,
             github_head=observed_github_head,
+            github_main_head=observed_github_main_head,
         ),
     )
     decision = report.get("decision", {})
@@ -148,12 +152,16 @@ def reconciliation_receipt_command(
         error = "reconciliation receipt must be outside the repository root"
         raise ValueError(error)
     origin_head = git_adapter.git_stdout(repo, "rev-parse", "--verify", "origin/dev")
+    origin_main_head = git_adapter.git_stdout(repo, "rev-parse", "--verify", "origin/main")
     github_head = git_adapter.git_stdout(repo, "rev-parse", "--verify", "github/dev")
+    github_main_head = git_adapter.git_stdout(repo, "rev-parse", "--verify", "github/main")
     gaps = tuple(
         gap
         for gap, head in (
             ("reconciliation_origin_tracking_missing", origin_head),
+            ("reconciliation_origin_main_tracking_missing", origin_main_head),
             ("reconciliation_github_tracking_missing", github_head),
+            ("reconciliation_github_main_tracking_missing", github_main_head),
         )
         if not head
     )
@@ -162,6 +170,7 @@ def reconciliation_receipt_command(
         source_head=source_head,
         origin_head=origin_head,
         github_head=github_head,
+        main_heads=(origin_main_head, github_main_head),
     )
     if not gaps:
         target.parent.mkdir(parents=True, exist_ok=True)

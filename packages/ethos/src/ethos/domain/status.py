@@ -20,13 +20,9 @@ from ethos.repository.context import is_product_root
 from ethos.repository.evidence.claims import claims_report
 from ethos.repository.policy.schema import schema_validation_report
 from ethos.repository.registry.docs.health import docs_health_report
-from ethos_core.normalization.core import string_list as _string_list
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-
-string_list = _string_list
 
 
 def adoption_mutation_gaps(

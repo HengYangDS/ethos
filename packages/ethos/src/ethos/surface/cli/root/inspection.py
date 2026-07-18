@@ -28,7 +28,6 @@ from ethos.surface.cli.quality.reporting import declared_report_result
 from ethos_core.normalization.core import integer
 from ethos_core.normalization.core import string_mapping
 from ethos_core.normalization.core import string_sequence
-from ethos_core.normalization.core import string_sequence as _string_list
 from ethos_core.result import EthosResult
 
 if TYPE_CHECKING:
@@ -128,7 +127,7 @@ def _compact_status_result(result: EthosResult) -> EthosResult:
         "changed_path_count": _count_sequence(data.get("changed_paths")),
         "landing_readiness": {
             "state": landing.get("state", ""),
-            "required_gaps": _string_list(landing.get("required_gaps")),
+            "required_gaps": string_sequence(landing.get("required_gaps")),
             "next_action": landing.get("next_action", ""),
         },
         "candidate": {

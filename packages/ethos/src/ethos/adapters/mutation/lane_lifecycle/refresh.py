@@ -23,7 +23,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class LaneRefreshRuntime:
     """Explicit dependencies used for candidate and Work Lane base refresh."""
 

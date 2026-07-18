@@ -17,9 +17,9 @@ from ethos.repository.policy.docs.topology import docs_topology_report
 from ethos.repository.policy.governance.kernel import governance_kernel_report
 from ethos.repository.registry.commands import PUBLIC_WORKFLOW_COMMANDS
 from ethos.repository.release.core import release_policy_report
-from ethos_core.normalization.core import object_sequence as _object_list
-from ethos_core.normalization.core import string_mapping as _mapping
-from ethos_core.normalization.core import string_sequence as _string_list
+from ethos_core.normalization.core import object_sequence
+from ethos_core.normalization.core import string_mapping
+from ethos_core.normalization.core import string_sequence
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -187,8 +187,8 @@ def _int_field(mapping: dict[str, object], key: str) -> int:
 
 
 def _workspace_status_check(status: dict[str, object]) -> dict[str, object]:
-    coordination = _mapping(status.get("coordination"))
-    required_gaps = _string_list(status.get("required_gaps"))
+    coordination = string_mapping(status.get("coordination"))
+    required_gaps = string_sequence(status.get("required_gaps"))
     if coordination.get("blocking"):
         required_gaps.append("enterprise_readiness_coordination_blocking")
     return {
@@ -199,14 +199,14 @@ def _workspace_status_check(status: dict[str, object]) -> dict[str, object]:
             "role": status.get("role"),
             "dirty": status.get("dirty"),
             "coordination_blocking": coordination.get("blocking", False),
-            "foreign_work_lane_count": len(_object_list(status.get("foreign_work_lanes"))),
+            "foreign_work_lane_count": len(object_sequence(status.get("foreign_work_lanes"))),
         },
     }
 
 
 def _scorecard_check(scorecard: dict[str, object]) -> dict[str, object]:
-    summary = _mapping(scorecard.get("summary"))
-    required_gaps = _string_list(scorecard.get("required_gaps"))
+    summary = string_mapping(scorecard.get("summary"))
+    required_gaps = string_sequence(scorecard.get("required_gaps"))
     parity_pending_count = _int_field(summary, "parity_pending_count")
     governance_gap_count = _int_field(summary, "governance_gap_count")
     if parity_pending_count:
@@ -222,29 +222,29 @@ def _scorecard_check(scorecard: dict[str, object]) -> dict[str, object]:
 
 
 def _simple_report_check(report: dict[str, object]) -> dict[str, object]:
-    required_gaps = _string_list(report.get("required_gaps"))
+    required_gaps = string_sequence(report.get("required_gaps"))
     return {
         "ok": bool(report.get("ok")) and not required_gaps,
         "state": str(report.get("state") or ("clean" if not required_gaps else "blocked")),
         "required_gaps": required_gaps,
-        "summary": _mapping(report.get("summary")),
+        "summary": string_mapping(report.get("summary")),
     }
 
 
 def _governance_context_check(context: dict[str, object]) -> dict[str, object]:
     required_gaps: list[str] = []
-    subject = _mapping(context.get("subject"))
+    subject = string_mapping(context.get("subject"))
     if context.get("single_kernel") is not True:
         required_gaps.append("enterprise_readiness_single_kernel_missing")
     if subject.get("kind") != "repository":
         required_gaps.append("enterprise_readiness_subject_not_repository")
-    transition = _string_list(context.get("transition_commands"))
+    transition = string_sequence(context.get("transition_commands"))
     expected = list(PUBLIC_WORKFLOW_COMMANDS)
     if transition != expected:
         required_gaps.append("enterprise_readiness_transition_commands_mismatch")
-    if "ethos orient" not in _string_list(context.get("reader_view_commands")):
+    if "ethos orient" not in string_sequence(context.get("reader_view_commands")):
         required_gaps.append("enterprise_readiness_orient_reader_view_missing")
-    if "ethos report" not in _string_list(context.get("scorecard_commands")):
+    if "ethos report" not in string_sequence(context.get("scorecard_commands")):
         required_gaps.append("enterprise_readiness_report_scorecard_missing")
     return {
         "ok": not required_gaps,
@@ -265,7 +265,7 @@ def _claim_carrier_check(root: Path, claims: dict[str, object]) -> dict[str, obj
         if not (root / "evidence" / "claims" / f"{claim}.toml").exists()
     ]
     required_gaps = [f"enterprise_readiness_claim_missing:{claim}" for claim in missing]
-    required_gaps.extend(_string_list(claims.get("required_gaps")))
+    required_gaps.extend(string_sequence(claims.get("required_gaps")))
     return {
         "ok": not required_gaps,
         "state": "clean" if not required_gaps else "blocked",
@@ -273,7 +273,7 @@ def _claim_carrier_check(root: Path, claims: dict[str, object]) -> dict[str, obj
         "summary": {
             "closure_claim_count": len(CLOSURE_CLAIMS),
             "missing_closure_claim_count": len(missing),
-            "claim_gap_count": len(_string_list(claims.get("required_gaps"))),
+            "claim_gap_count": len(string_sequence(claims.get("required_gaps"))),
         },
     }
 

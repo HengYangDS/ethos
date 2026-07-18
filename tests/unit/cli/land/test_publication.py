@@ -102,7 +102,6 @@ def test_publish_reports_remote_tracking_sync_state(monkeypatch) -> None:
             "advisory_gaps": [f"remote_tracking_local_ahead:{remote}/{branch}:2"],
         },
     )
-
     payload = run_ethos("publish", "--probe-remote", "--json")
 
     assert payload["summary"]["remote_sync_state"] == "local_ahead"

@@ -455,6 +455,7 @@ def publish(
         and bool(independent_verification.get("ok"))
     )
     remote_sync = git.remote_tracking_sync(repo, str(branch))
+    remote_matrix = git.publication_remote_syncs(repo, str(branch))
     remote_availability = {
         **(
             git.remote_availability(repo)
@@ -474,6 +475,7 @@ def publish(
         policy=load_branch_role_policy(repo),
         remote_availability=remote_availability,
         local_ci_fallback=local_ci_fallback,
+        remote_matrix=remote_matrix,
     )
     remote_state = str(publication.get("remote_state") or "deferred")
     remote_push = str(publication.get("remote_push") or "not_performed")
@@ -485,6 +487,7 @@ def publish(
         "remote_publication_state": remote_state,
         "remote_availability_state": remote_availability_state,
         "remote_sync_state": str(remote_sync.get("state") or "not_checked"),
+        "remote_reconciliation_state": str(remote_matrix.get("state") or "pending"),
         "remote_ahead": _int_value(remote_sync.get("ahead")),
         "remote_behind": _int_value(remote_sync.get("behind")),
         "hosted_ci_status_claimed": False,
@@ -533,6 +536,7 @@ def publish(
             "remote_push": remote_push,
             "remote_availability": remote_availability,
             "remote_sync": remote_sync,
+            "remote_matrix": remote_matrix,
             "local_ci_fallback": local_ci_fallback,
             "publication": publication,
             "mutation": mutation_envelope(

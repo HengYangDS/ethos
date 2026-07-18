@@ -109,10 +109,7 @@ def test_gitlab_profile_adds_ci_projection(tmp_path: Path) -> None:
     assert "tools/ci/scripts/run-python" not in ci
     assert "uv run --group dev pytest" not in ci
     assert "uv run --group dev ruff" not in ci
-    assert "[publication.local]" in release
-    assert "[[publication.remote]]" in release
-    assert 'id = "gitlab"' in release
-    assert 'id = "github"' in release
+    assert 'remotes = ["origin", "github"]' in release
     assert "candidate/dev" not in ci
     assert r"submit\/.+$" in ci
 

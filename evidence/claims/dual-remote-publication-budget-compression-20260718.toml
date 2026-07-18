@@ -1,0 +1,29 @@
+[claim]
+id = "dual-remote-publication-budget-compression-20260718"
+change_id = "dual-remote-publication-budget-compression-20260718"
+subject = "ethos:dual-remote-publication-topology"
+state = "active"
+summary = "Compact dual-remote parsing retains explicit topology boundaries."
+
+[evidence]
+dated = "evidence/chronicle/dual-remote-publication-budget-compression-20260718/2026-07-18.md"
+sha256 = "75820e7eb7915720e7ec52932ddb655773ee73da8193b69de48c334191688e99"
+evidence_ids = ["evidence:dual-remote-publication-budget-compression-20260718"]
+binding = "Dated topology record, compact parser, verbose compatibility regression, and declared remote admission are digest-bound."
+verifier = "digest_only"
+tests = ["pytest -q tests/unit/release/test_policy_attestation.py tests/unit/lanes/test_hook_admission.py tests/unit/cli/land/test_publication.py tests/unit/adoption/test_profiles.py tests/unit/adoption/test_scaffold_templates.py tests/architecture/test_ci_provider_projections.py", "openspec validate --all --strict --json", "ethos openspec --lifecycle --json", "ethos prove --execute --expect-head <committed-head> --json"]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "Compact equal GitLab/GitHub topology parsing and explicit remote admission."
+
+[carriers]
+openspec = "openspec/changes/dual-remote-publication-budget-compression-20260718"
+fallback = "Retain explicit named remote admission without a compact declaration."
+kill_signal = "A valid verbose declaration fails, or an implicit, candidate, work, or unknown remote is admitted."
+
+[promotion]
+targets = [".ethos/release.toml", "packages/ethos/src/ethos/adapters/admission/core.py", "packages/ethos/src/ethos/domain/land/publication.py", "packages/ethos/src/ethos/repository/adoption/scaffold/template_files/core/release.toml.j2", "packages/ethos/src/ethos/repository/release/publication.py", "packages/ethos/src/ethos/surface/cli/hook/core.py", "packages/ethos/src/ethos/surface/cli/root/lifecycle.py", "tests/unit/adoption/test_profiles.py", "tests/unit/adoption/test_scaffold_templates.py", "tests/unit/release/test_policy_attestation.py", "evidence/claims/dual-remote-publication-budget-compression-20260718.toml", "evidence/chronicle/dual-remote-publication-budget-compression-20260718/2026-07-18.md", "openspec/changes/dual-remote-publication-budget-compression-20260718"]

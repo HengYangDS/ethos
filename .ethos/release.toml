@@ -15,32 +15,8 @@ ci = ".gitlab-ci.yml"
 merge_request_template = ".gitlab/merge_request_templates/default.md"
 issue_template = ".gitlab/issue_templates/task.md"
 
-[publication.local]
-id = "local"
-role = "local_verification_install"
-mode = "offline"
-verification_command = "tools/ci/scripts/run-local-ci.sh"
-installation_command = "tools/ci/scripts/run-local-install-smoke.sh"
-
-[publication.branch_admission]
-candidate_role = "local_only"
-remote_branches = "accepted_release_submit_only"
-
-[[publication.remote]]
-id = "gitlab"
-role = "organization_collaboration"
-provider = "gitlab"
-git_remote = "origin"
-ci_surface = ".gitlab-ci.yml"
-capabilities = ["repository", "ci_cd", "publication"]
-
-[[publication.remote]]
-id = "github"
-role = "public_distribution"
-provider = "github"
-git_remote = "github"
-ci_surface = ".github/workflows/ci.yml"
-capabilities = ["repository", "ci_cd", "publication"]
+[publication]
+remotes = ["origin", "github"]
 
 [attestation]
 formats = ["in-toto", "slsa", "spdx-lite"]

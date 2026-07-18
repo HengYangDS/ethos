@@ -91,9 +91,7 @@ def pre_push(
     *,
     remote_head: Annotated[str, Parameter(name="--remote-head")] = "",
     remote: Annotated[str, Parameter(name="--remote")] = "origin",
-    reconciliation_receipt_path: Annotated[
-        str, Parameter(name="--reconciliation-receipt")
-    ] = "",
+    reconciliation_receipt_path: Annotated[str, Parameter(name="--reconciliation-receipt")] = "",
     observed_origin_head: Annotated[str, Parameter(name="--observed-origin-head")] = "",
     observed_origin_main_head: Annotated[str, Parameter(name="--observed-origin-main-head")] = "",
     observed_github_head: Annotated[str, Parameter(name="--observed-github-head")] = "",
@@ -135,9 +133,7 @@ def pre_push(
             "decision": decision_action,
         },
         required_gaps=tuple(string_sequence(report.get("required_gaps"))),
-        next_actions=(
-            ("ethos prove --execute --expect-head <head>",) if not report["ok"] else ()
-        ),
+        next_actions=(("ethos prove --execute --expect-head <head>",) if not report["ok"] else ()),
         data=report,
     )
     emit(result, json_output=json_output, enforce=True)
@@ -181,9 +177,7 @@ def reconciliation_receipt_command(
     )
     if not gaps:
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(
-            json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-        )
+        target.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     result = EthosResult(
         command="hook reconciliation-receipt",
         ok=not gaps,
@@ -283,9 +277,7 @@ def install(
         # Record the accepted branch so the reference-transaction hook knows which ref
         # to fail-closed on (the hook runs as a plain shell script with no ETHOS import).
         accepted = load_branch_role_policy(repo).accepted_branch
-        accepted_branch_recorded = git_adapter.set_config(
-            repo, "ethos.acceptedBranch", accepted
-        )
+        accepted_branch_recorded = git_adapter.set_config(repo, "ethos.acceptedBranch", accepted)
         # Git's files ref backend represents `pack-refs` as raw create/delete
         # transactions that a fail-closed accepted-ref hook cannot safely distinguish
         # from semantic mutations. Keep automatic maintenance away from that ambiguous

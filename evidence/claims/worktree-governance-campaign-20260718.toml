@@ -3,13 +3,13 @@ id = "worktree-governance-campaign-20260718"
 subject = "ethos:repo-first-worktree-governance-campaign"
 state = "active"
 change_id = "repo-first-worktree-governance-campaign-20260718"
-summary = "The dedicated repo-first worktree-governance campaign scopes serial local implementation and selected-campaign closeout without asserting recovery, migration, retirement, remote, or foreign-lane completion."
+summary = "The dedicated repo-first worktree-governance campaign records a locally closed bootstrap and serially scopes its active fail-closed retirement successor without asserting recovery, migration, remote, foreign-lane, or portfolio completion."
 
 [evidence]
 dated = "evidence/chronicle/worktree-governance-campaign-20260718/2026-07-18.md"
-sha256 = "ec42243aa603912f0068bce524859782608b75c1438fecaeb291d81662f4ff0c"
+sha256 = "6b499cd36e0fada1d8415c3e61bc5a1337b9921d0605f36ffab94721f761097f"
 evidence_ids = ["evidence:worktree-governance-campaign-20260718"]
-binding = "Dedicated campaign manifest, selector-bounded closeout report, archived OpenSpec carrier, focused regressions, and a dated local-only Chronicle bind the bootstrap boundary."
+binding = "Dedicated campaign manifest, archived bootstrap carrier, local accepted-root closeout receipt summary, selector-bounded campaign report, and dated local-only Chronicle bind the bootstrap transition without importing successor completion."
 verifier = "digest_only"
 tests = [
   "pytest -q tests/unit/cli/test_contracts_proof.py::test_campaign_closeout_scopes_to_selected_campaign tests/unit/cli/test_contracts_proof.py::test_campaign_closeout_unknown_selector_reports_gap",
@@ -24,12 +24,12 @@ mode = "historical"
 
 [boundary]
 owner = "ethos-repository"
-scope = "Dedicated strict-serial repo-first worktree-governance campaign bootstrap and selected-campaign read-only local closeout."
+scope = "Dedicated strict-serial repo-first worktree-governance bootstrap closeout and active successor routing; recovery, migration, remote, foreign-lane, and portfolio outcomes remain excluded."
 
 [carriers]
 openspec = "openspec/changes/archive/2026-07-18-repo-first-worktree-governance-campaign-20260718"
-fallback = "Keep all future worktree-governance transitions blocked behind their own owned OpenSpec lanes; use unscoped campaign reports only for portfolio-wide observation."
-kill_signal = "A selected campaign closeout imports another campaign’s lifecycle gaps, or the bootstrap implies authority to mutate a foreign, unknown, or App-managed Work Lane."
+fallback = "Keep every future worktree-governance transition behind its own owned OpenSpec lane; use only repository-local closeout evidence for the bootstrap and unscoped campaign reports only for portfolio observation."
+kill_signal = "A campaign step becomes active before its dependency is retired, a bootstrap receipt is treated as successor completion, or campaign visibility is used to mutate a foreign, unknown, or App-managed Work Lane."
 
 [promotion]
 targets = [

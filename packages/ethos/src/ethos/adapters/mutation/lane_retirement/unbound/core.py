@@ -42,7 +42,13 @@ def retire_unbound_work_lane_ref(  # noqa: PLR0913, RUF100 - exact request envel
     authorized: bool = False,
     runtime: UnboundRetirementRuntime | None = None,
 ) -> dict[str, object]:
-    """Retire a work-lane ref that is not linked to a local worktree."""
+    """Inspect an unbound Work Lane ref without treating absence as safety.
+
+    An unbound ref has no locally observable checkout, lease holder, or
+    uncommitted-file inventory.  Ordinary retirement must therefore not delete
+    it merely because its registered worktree is absent.  An evidence-bound
+    exceptional deletion admission is required instead.
+    """
     active_runtime = runtime or UnboundRetirementRuntime()
     repo = active_runtime.repo_root(root)
     status = active_runtime.workspace_status(repo)
@@ -129,6 +135,8 @@ def _unbound_retire_gaps(context: dict[str, object]) -> list[str]:
         gaps.append("unbound_retire_not_work_lane")
     elif current is None:
         gaps.append("unbound_retire_ref_not_unbound")
+    else:
+        gaps.append("unbound_retire_requires_exceptional_deletion_admission")
     if not reason:
         gaps.append("retire_reason_required")
     if expect_head is None or not str(expect_head).strip():

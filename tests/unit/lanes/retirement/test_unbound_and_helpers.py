@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-def test_retire_unbound_work_lane_ref_dry_run_reports_head_bound_plan(
+def test_retire_unbound_work_lane_ref_requires_exceptional_deletion_admission(
     tmp_path: Path,
 ) -> None:
     repo = init_repo(tmp_path / "repo")
@@ -32,8 +32,8 @@ def test_retire_unbound_work_lane_ref_dry_run_reports_head_bound_plan(
         reason="superseded by accepted root",
     )
 
-    assert report["ok"] is True
-    assert report["state"] == "ready_to_retire_unbound"
+    assert report["ok"] is False
+    assert report["state"] == "blocked"
     assert report["head"] == head
     assert report["mutation"]["request"] == {
         "command": "lane-retire-unbound",
@@ -42,11 +42,12 @@ def test_retire_unbound_work_lane_ref_dry_run_reports_head_bound_plan(
         "expect_head": head,
     }
     assert report["mutation"]["ref"] == "refs/heads/work/stale-ref"
-    assert report["mutation"]["decision"]["verdict"] == "allow"
+    assert report["mutation"]["decision"]["verdict"] == "block"
+    assert report["required_gaps"] == ["unbound_retire_requires_exceptional_deletion_admission"]
     assert git(repo, "rev-parse", "--verify", "work/stale-ref") == head
 
 
-def test_retire_unbound_work_lane_ref_apply_deletes_only_matching_ref(
+def test_retire_unbound_work_lane_ref_apply_preserves_ref_without_exceptional_admission(
     tmp_path: Path,
 ) -> None:
     repo = init_repo(tmp_path / "repo")
@@ -63,16 +64,16 @@ def test_retire_unbound_work_lane_ref_apply_deletes_only_matching_ref(
         authorized=True,
     )
 
-    assert report["ok"] is True
-    assert report["state"] == "retired_unbound"
-    assert report["retired_ref"] == "refs/heads/work/stale-ref"
+    assert report["ok"] is False
+    assert report["state"] == "blocked"
+    assert report["required_gaps"] == ["unbound_retire_requires_exceptional_deletion_admission"]
     assert (
         subprocess.run(
             ["git", "show-ref", "--verify", "--quiet", "refs/heads/work/stale-ref"],
             cwd=repo,
             check=False,
         ).returncode
-        == 1
+        == 0
     )
 
 
@@ -137,6 +138,7 @@ def test_retire_unbound_work_lane_ref_requires_reason_authorization_and_head(
         "authorization_required",
         "expect_head_required",
         "retire_reason_required",
+        "unbound_retire_requires_exceptional_deletion_admission",
     ]
 
 
@@ -153,7 +155,9 @@ def test_lane_retirement_repo_root_falls_back_when_git_root_unavailable(
     assert lane_lifecycle_core.repo_root(tmp_path) == tmp_path.resolve()
 
 
-def test_retire_unbound_work_lane_ref_reports_delete_failure(monkeypatch, tmp_path: Path) -> None:
+def test_retire_unbound_work_lane_ref_does_not_attempt_delete_without_exceptional_admission(
+    monkeypatch, tmp_path: Path
+) -> None:
     repo = init_repo(tmp_path / "repo")
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     git(repo, "branch", "work/stale-ref", "dev")
@@ -177,8 +181,8 @@ def test_retire_unbound_work_lane_ref_reports_delete_failure(monkeypatch, tmp_pa
     )
 
     assert report["ok"] is False
-    assert report["required_gaps"] == ["unbound_ref_delete_failed"]
-    assert report["stderr"] == "locked ref"
+    assert report["required_gaps"] == ["unbound_retire_requires_exceptional_deletion_admission"]
+    assert git(repo, "rev-parse", "--verify", "work/stale-ref") == head
 
 
 def test_retire_unbound_work_lane_ref_classifies_branch_input_gaps(

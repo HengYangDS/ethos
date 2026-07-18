@@ -173,7 +173,7 @@ def test_retire_superseded_work_lane_reports_apply_remove_failure(
         check: bool = False,
     ) -> subprocess.CompletedProcess[str]:
         assert check is False
-        if args[:3] == ("worktree", "remove", "--force"):
+        if args[:2] == ("worktree", "remove"):
             return subprocess.CompletedProcess(args, 128, stdout="", stderr="locked")
         return lane_lifecycle_core.run_git(root, *args, check=check)
 
@@ -187,6 +187,33 @@ def test_retire_superseded_work_lane_reports_apply_remove_failure(
     assert report["state"] == "blocked"
     assert report["required_gaps"] == ["worktree_remove_failed"]
     assert report["stderr"] == "locked"
+
+
+def test_retire_superseded_work_lane_blocks_when_target_changes_after_plan(
+    tmp_path: Path,
+) -> None:
+    repo, lane, head, accepted, _database = superseded_work_lane(tmp_path)
+
+    def stale_ref(
+        root: Path,
+        *args: str,
+        check: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        assert check is False
+        if args == ("rev-parse", f"refs/heads/{_SUPERSEDED_BRANCH}"):
+            return subprocess.CompletedProcess(args, 0, stdout="b" * 40 + "\n", stderr="")
+        return lane_lifecycle_core.run_git(root, *args, check=check)
+
+    runtime = lane_retirement_core.SupersededRetirementRuntime(
+        run_git=stale_ref,
+        shared=RetirementRuntime(run_git=stale_ref),
+    )
+    report = _retire_superseded(repo, head, accepted, apply=True, runtime=runtime)
+
+    assert report["ok"] is False
+    assert report["required_gaps"] == ["retirement_ref_stale"]
+    assert lane.exists()
+    assert git(repo, "rev-parse", "--verify", _SUPERSEDED_BRANCH) == head
 
 
 def test_retire_superseded_private_helpers_cover_unavailable_status(

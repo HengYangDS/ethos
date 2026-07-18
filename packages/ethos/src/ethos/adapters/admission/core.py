@@ -6,6 +6,7 @@ from typing import cast
 
 from ethos.adapters.admission.closeout_intent.core import MarkerExpectation
 from ethos.adapters.admission.closeout_intent.core import consume_closeout_intent
+from ethos.adapters.admission.identity import ReconciliationObservation
 from ethos.adapters.admission.identity import commit_contained_in
 from ethos.adapters.admission.identity import push_identity_policy_report
 from ethos.adapters.admission.prewrite import has_invalid_path_token_character
@@ -63,6 +64,8 @@ HOOK_LAYERS = {
         "fallback": True,
     },
 }
+
+_NO_RECONCILIATION = ReconciliationObservation()
 
 
 def hook_admission_report(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
@@ -127,6 +130,7 @@ def push_admission_report(
     target_ref: str,
     pushed_head: str,
     remote_head: str = "",
+    reconciliation: ReconciliationObservation = _NO_RECONCILIATION,
 ) -> dict[str, object]:
     """Admit or block a push whose destination is a protected role.
 
@@ -147,6 +151,16 @@ def push_admission_report(
         f"origin/{policy.accepted_branch}"
         if role == "submit_lane" and remote_head == _ZERO_OID
         else "",
+        reconciliation=(
+            ReconciliationObservation(
+                submit_branch=branch,
+                receipt_path=reconciliation.receipt_path,
+                origin_head=reconciliation.origin_head,
+                github_head=reconciliation.github_head,
+            )
+            if role == "submit_lane" and remote_head == _ZERO_OID
+            else _NO_RECONCILIATION
+        ),
     )
     identity_gaps = list(cast("list[str]", identity_report["required_gaps"]))
     base = {

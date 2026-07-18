@@ -146,7 +146,7 @@ def test_lane_retirement_repo_root_falls_back_when_git_root_unavailable(
     monkeypatch,
     tmp_path: Path,
 ) -> None:
-    def fail_git(_root: Path, *args: str, check: bool = True):
+    def fail_git(_root: Path, *args: str, _check: bool = True):
         assert args == ("rev-parse", "--show-toplevel")
         raise subprocess.CalledProcessError(128, ["git", *args])
 

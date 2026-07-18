@@ -48,7 +48,6 @@ def remove_linked_lane(
     lane_path = Path(path) if path else Path()
     expected = (expect_head or "").strip()
     gaps = _linked_lane_reobservation_gaps(
-        repo,
         branch=branch,
         path=path,
         expect_head=expected,
@@ -94,7 +93,6 @@ def remove_linked_lane(
 
 
 def _linked_lane_reobservation_gaps(
-    repo: Path,
     *,
     branch: str,
     path: str,

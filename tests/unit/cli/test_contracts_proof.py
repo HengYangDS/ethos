@@ -741,7 +741,7 @@ def test_campaign_closeout_scopes_to_selected_campaign() -> None:
     assert [item["id"] for item in package["campaigns"]] == ["terminal-openspec-productization"]
 
 
-def test_campaign_status_exposes_archive_ready_bootstrap_without_terminal_claim() -> None:
+def test_campaign_status_exposes_archive_ready_retirement_without_terminal_claim() -> None:
     payload = run_ethos(
         "campaign",
         "status",
@@ -753,11 +753,14 @@ def test_campaign_status_exposes_archive_ready_bootstrap_without_terminal_claim(
     assert payload["ok"] is True
     campaign = payload["data"]["campaigns"][0]
     bootstrap = campaign["steps"][0]
-    assert bootstrap["state"] == "archive_ready"
-    assert bootstrap["closeout"]["state"] == "planned"
+    retirement = campaign["steps"][1]
+    assert bootstrap["state"] == "retired"
+    assert bootstrap["closeout"]["state"] == "retired"
+    assert retirement["state"] == "archive_ready"
+    assert retirement["closeout"]["state"] == "planned"
     assert campaign["step_summary"]["archive_ready"] == 1
-    assert campaign["step_summary"]["closed"] == 0
-    assert campaign["lane_topology"]["active_steps"] == ["campaign-bootstrap"]
+    assert campaign["step_summary"]["closed"] == 1
+    assert campaign["lane_topology"]["active_steps"] == ["retirement-fail-closed"]
 
 
 def test_campaign_closeout_unknown_selector_reports_gap() -> None:

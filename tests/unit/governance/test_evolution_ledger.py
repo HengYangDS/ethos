@@ -322,17 +322,20 @@ def test_campaign_report_exposes_manifest_steps_and_closeout_progress() -> None:
     }
 
 
-def test_campaign_report_exposes_archive_ready_bootstrap_without_closeout() -> None:
+def test_campaign_report_exposes_archive_ready_retirement_without_closeout() -> None:
     report = campaign_report(Path.cwd(), campaign_id="repo-first-worktree-governance-v2")
 
     assert report["ok"] is True
     campaign = report["campaigns"][0]
     bootstrap = campaign["steps"][0]
-    assert bootstrap["state"] == "archive_ready"
-    assert bootstrap["closeout"]["state"] == "planned"
+    retirement = campaign["steps"][1]
+    assert bootstrap["state"] == "retired"
+    assert bootstrap["closeout"]["state"] == "retired"
+    assert retirement["state"] == "archive_ready"
+    assert retirement["closeout"]["state"] == "planned"
     assert campaign["step_summary"]["archive_ready"] == 1
-    assert campaign["step_summary"]["closed"] == 0
-    assert campaign["lane_topology"]["active_steps"] == ["campaign-bootstrap"]
+    assert campaign["step_summary"]["closed"] == 1
+    assert campaign["lane_topology"]["active_steps"] == ["retirement-fail-closed"]
 
 
 def test_evolution_report_exposes_practice_selection_and_fate() -> None:

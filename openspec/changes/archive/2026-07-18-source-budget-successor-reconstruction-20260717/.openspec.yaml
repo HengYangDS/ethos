@@ -1,0 +1,5 @@
+schema: spec-driven
+created: 2026-07-17
+goal: Port strict source-budget policy, inventory, proof, and evidence semantics
+  without changing baseline or terminal limits; preserve candidate
+  bounded-reader behavior and normalize candidate-added debt records.

@@ -24,6 +24,7 @@ __all__ = (
     "git",
     "init_repo",
     "leased_worktree",
+    "superseded_work_lane",
     "write_role_policy",
 )
 
@@ -64,6 +65,40 @@ def absorb_obsolete_delta_in_accepted(repo: Path) -> str:
         "absorb obsolete lane delta",
     )
     return git(repo, "rev-parse", "dev")
+
+
+def superseded_work_lane(
+    tmp_path: Path,
+    *,
+    absorbed: bool = True,
+    holder_ref: str = "agent:test:case:agent-a",
+) -> tuple[Path, Path, str, str, Path]:
+    """Create an owned obsolete lane and optionally absorb its change on dev."""
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    lane = tmp_path / "repo-work-superseded"
+    git(repo, "worktree", "add", "-b", "work/superseded", lane.as_posix(), "dev")
+    (lane / "obsolete.txt").write_text("obsolete\n", encoding="utf-8")
+    git(lane, "add", "obsolete.txt")
+    git(
+        lane,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "obsolete lane delta",
+    )
+    head = git(lane, "rev-parse", "HEAD")
+    accepted = (
+        absorb_obsolete_delta_in_accepted(repo) if absorbed else git(repo, "rev-parse", "dev")
+    )
+    database = repo / ".ethos" / "state" / "state.sqlite"
+    state.acquire_lease(
+        database, subject="work/superseded", holder_ref=holder_ref, ttl_seconds=3600
+    )
+    return repo, lane, head, accepted, database
 
 
 def write_role_policy(

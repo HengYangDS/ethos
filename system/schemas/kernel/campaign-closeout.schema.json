@@ -472,6 +472,24 @@
             "type": "string"
           }
         },
+        "lifecycle": {
+          "type": "object",
+          "required": [
+            "stage",
+            "write_root",
+            "write_path",
+            "commit_before_proof",
+            "authority_boundary"
+          ],
+          "properties": {
+            "stage": { "type": "string" },
+            "write_root": { "type": "string" },
+            "write_path": { "type": "string" },
+            "commit_before_proof": { "type": "boolean" },
+            "authority_boundary": { "type": "string" }
+          },
+          "additionalProperties": false
+        },
         "command": {
           "type": "string"
         },

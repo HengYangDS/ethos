@@ -9,6 +9,7 @@ from tests.support.contract_helpers import adopt_and_commit
 from tests.support.contract_helpers import commit_fixture_file
 from tests.support.contract_helpers import git
 from tests.support.contract_helpers import init_git_repo
+from tests.support.contract_helpers import init_repo_with_candidate
 from tests.support.contract_helpers import seed_executed_proof
 from tests.support.contract_helpers import start_adopted_work_lane
 from tests.support.ethos_cli_runner import run_ethos
@@ -21,16 +22,7 @@ if TYPE_CHECKING:
 
 
 def test_land_dry_run_reports_dirty_work_lane_gap(tmp_path: Path) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    git(
-        repo,
-        "worktree",
-        "add",
-        "-b",
-        "candidate/dev",
-        (tmp_path / "repo-candidate-dev").as_posix(),
-        "dev",
-    )
+    repo, _candidate = init_repo_with_candidate(tmp_path)
     worktree = tmp_path / "repo-work-feature"
     run_ethos(
         "lane",
@@ -61,16 +53,7 @@ def test_land_blocks_completed_active_openspec_change_before_candidate_landing(
 ) -> None:
     import ethos.surface.cli.root.lifecycle as lifecycle_cli  # noqa: PLC0415, RUF100 - local import isolates import-time state for this test
 
-    repo = init_git_repo(tmp_path / "repo")
-    git(
-        repo,
-        "worktree",
-        "add",
-        "-b",
-        "candidate/dev",
-        (tmp_path / "repo-candidate-dev").as_posix(),
-        "dev",
-    )
+    repo, _candidate = init_repo_with_candidate(tmp_path)
     worktree = tmp_path / "repo-work-feature"
     run_ethos(
         "lane",

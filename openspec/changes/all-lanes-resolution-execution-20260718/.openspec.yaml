@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-07-18
+goal: Close only evidence-proven absorbed lanes, preserve dirty content, and
+  record blocks for unresolved or holder-bound lanes.

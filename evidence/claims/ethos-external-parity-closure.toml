@@ -2,32 +2,23 @@
 id = "ethos-external-parity-closure"
 subject = "ethos:external-parity-closure"
 state = "active"
-summary = "External ETHOS can interpret the alphasim-dmgr reference adopter through evidence-driven parity gaps and shadow comparison without using embedded ETHOS as product truth."
+summary = "External ETHOS can interpret the reference adopter through evidence-driven parity gaps and shadow comparison without using embedded ETHOS as product truth."
 
 [evidence]
 dated = "evidence/chronicle/external-parity-closure/2026-07-01.md"
-sha256 = "5a0ecafd3ff13c023af220a2b255e84f2f374323f8fb8ffdf3d3e2e282ed4434"
+sha256 = "8140046ca4b337db463ab07818bfd2b4f5facb0086325331f27dabae37a09c1d"
 evidence_ids = ["evidence:ethos-external-parity-closure"]
 binding = "digest-bound external comparison evidence binding"
 verifier = "digest_only"
 tests = [
-  "uv run --group dev pytest -q tests/unit/product/test_parity.py tests/unit/cli/test_contracts.py tests/unit/governance/test_validation_gates.py",
-  "uv run --package ethos ethos parity shadow --target /Users/yheng/projects/alphasim-dmgr-fix-b3 --execute --timeout-seconds 30 --json",
-  "uv run --package ethos ethos parity gaps --adopter alphasim-dmgr --json",
+  "uv run --group dev pytest -q tests/unit/product/parity tests/unit/cli/test_contracts.py tests/unit/governance/validation",
+  "uv run --package ethos ethos parity shadow --target <adopter-repo> --execute --timeout-seconds 30 --json",
+  "uv run --package ethos ethos parity gaps --adopter reference-adopter --json",
   "uv run --package ethos ethos prove --json",
 ]
 
-[scope]
-packages = [
-  "ethos",
-  "ethos-core",
-  "ethos-contracts",
-  "ethos-adapters",
-  "ethos-repository",
-  "ethos-assistants",
-  "ethos-test",
-]
-
+[evidence.freshness]
+mode = "historical"
 [boundary]
 owner = "ethos-repository"
 scope = "Reference adopter parity through tracked evidence and generic profiles"
@@ -36,12 +27,11 @@ scope = "Reference adopter parity through tracked evidence and generic profiles"
 openspec = "openspec/specs/repository-governance/spec.md"
 
 fallback = "Use tracked parity evidence and adopter profile reports without promoting adopter internals into product core."
-kill_signal = "ETHOS core requires alphasim-dmgr private terms to prove generic parity."
+kill_signal = "ETHOS core requires named private adopter terms to prove generic parity."
 
 [promotion]
 targets = [
   "evidence/chronicle/external-parity-closure/2026-07-01.md",
-  "evidence/parity/alphasim-dmgr-shadow.json",
   "docs/governance/capability-parity-ledger.md",
   "openspec/specs/repository-governance/spec.md",
 ]

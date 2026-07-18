@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from tests.support.ethos_cli_runner import run_ethos
+from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.unit.context.test_retrieval import init_repo
 
 if TYPE_CHECKING:
@@ -120,9 +121,9 @@ def test_assistants_context_query_propagates_missing_index_gap(tmp_path: Path) -
     assert payload["data"]["context"]["context_projection"]["selection"]["verified_count"] == 0
 
 
-def test_context_retrieval_cannot_close_proof_gaps(tmp_path: Path) -> None:
+def test_context_retrieval_cannot_satisfy_proof_requirements(tmp_path: Path) -> None:
     repo = init_repo(tmp_path / "repo")
-    before = run_ethos("prove", "--root", repo.as_posix(), "--json")
+    before = run_ethos_blocked("prove", "--root", repo.as_posix(), "--json")
 
     run_ethos(
         "assistants",
@@ -142,7 +143,7 @@ def test_context_retrieval_cannot_close_proof_gaps(tmp_path: Path) -> None:
         "workspace status schema validation",
         "--json",
     )
-    after = run_ethos("prove", "--root", repo.as_posix(), "--json")
+    after = run_ethos_blocked("prove", "--root", repo.as_posix(), "--json")
 
     assert context["data"]["context"]["context_projection"]["selection"]["verified_count"] >= 1
     assert after["ok"] == before["ok"]

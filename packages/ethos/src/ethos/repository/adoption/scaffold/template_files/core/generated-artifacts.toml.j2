@@ -1,0 +1,56 @@
+# Declarative generated-artifact topology contract for this adopted
+# repository.
+# Runtime bytes belong in ignored semantic homes; only curated evidence becomes
+# repository truth after review/promotion.
+
+[contract]
+name = "generated-artifact-topology"
+version = 1
+truth_boundary = "declarative_policy"
+
+[lifecycle.runtime_cache]
+homes = [".cache/local-state", ".ethos/state", "build/runtime/tool-cache", "build/runtime/work"]
+tracked = false
+promotion_allowed = false
+rule = "delete or recreate from source commands; never promote runtime cache"
+
+[lifecycle.machine_evidence]
+homes = ["build/evidence", "build/ethos"]
+tracked = false
+promotion_allowed = true
+rule = "regenerate on HEAD movement; promote only by explicit review or command"
+
+[lifecycle.local_artifact]
+homes = ["build/artifacts"]
+tracked = false
+promotion_allowed = false
+rule = "rebuild from package metadata or release commands"
+
+[lifecycle.curated_evidence]
+homes = ["docs/evidence", "evidence/chronicle", "evidence/parity"]
+tracked = true
+promotion_allowed = false
+rule = "retire or supersede by tracked review; do not clean as cache"
+
+[denied.root_cache]
+homes = [
+  ".import_linter_cache",
+  ".import-linter-cache",
+  ".pytest_cache",
+  ".ruff_cache",
+  ".mypy_cache",
+  ".tox",
+  ".nox",
+  ".uv-cache",
+]
+
+[denied.legacy_flat_home]
+homes = ["build/cache", "build/runtime/gitlab-ci-local", "dist"]
+
+[routes]
+tool_cache = "build/runtime/tool-cache/<tool>"
+provider_work = "build/runtime/work/<provider>"
+machine_evidence = "build/evidence/<concern>"
+ethos_machine_projection = "build/ethos/<concern>"
+local_artifact = "build/artifacts/<kind>"
+curated_evidence = "docs/evidence/<topic> or evidence/chronicle/<topic>/<date>.md"

@@ -1,0 +1,124 @@
+schema = "ethos-format-selection-v1"
+owner = "ethos-quality-gate-governance"
+summary = "Fail-closed executable-carrier admission audit."
+runner = "tools/ci/scripts/run-format-selection.sh"
+
+[[format]]
+extensions = [".py", ".pyi"]
+carrier = "Python source"
+owner = ".config/checks/ruff/ruff.toml"
+execution = "tools/ci/scripts/run-python-lint.sh"
+truth_boundary = "source"
+
+[[format]]
+extensions = [".md"]
+carrier = "Markdown"
+owner = ".config/checks/markdown/.markdownlint-cli2.yaml"
+execution = "tools/ci/scripts/run-markdown-lint.sh"
+truth_boundary = "human docs and plans"
+
+[[format]]
+extensions = [".toml"]
+carrier = "TOML"
+owner = ".config/checks/taplo/taplo.toml"
+execution = "tools/ci/scripts/run-config-lint.sh"
+truth_boundary = "hand-authored config"
+
+[[format]]
+extensions = [".yml", ".yaml"]
+carrier = "YAML"
+owner = ".config/checks/yaml/yamllint.yaml"
+execution = "tools/ci/scripts/run-config-lint.sh"
+truth_boundary = "ecosystem-native projections only"
+
+[[format]]
+extensions = [".json"]
+carrier = "JSON"
+owner = "system/schemas/ + tools/ci/scripts/run-config-lint.sh"
+execution = "tools/ci/scripts/run-config-lint.sh"
+truth_boundary = "machine output, schemas, and external standards"
+
+[[format]]
+extensions = [".jsonl"]
+carrier = "JSONL"
+owner = "system/formats.toml"
+execution = "report-only"
+truth_boundary = "generated append-only streams, not tracked source of truth"
+
+[[format]]
+extensions = [".sh"]
+carrier = "Shell"
+owner = ".config/checks/shell/.shellcheckrc"
+execution = "tools/ci/scripts/run-shell-lint.sh"
+truth_boundary = "runner adapter scripts"
+
+[[format]]
+extensions = [".ini"]
+carrier = "INI"
+owner = "tool-native config owner"
+execution = "tools/ci/scripts/run-config-lint.sh or tool-specific gate"
+truth_boundary = "tool-native config"
+
+[[format]]
+extensions = [".lock"]
+carrier = "Lockfile"
+owner = "ecosystem-native package manager"
+execution = "package-manager-specific verification"
+truth_boundary = "dependency resolution evidence"
+
+[[format]]
+extensions = [".mjs"]
+carrier = "JavaScript module"
+owner = "npm distribution surface"
+execution = "npm run test:npm"
+truth_boundary = "distribution adapter"
+
+[[format]]
+extensions = [".c4"]
+carrier = "LikeC4 model"
+owner = ".config/checks/architecture/projection.toml"
+execution = "tools/ci/scripts/run-architecture-projection-drift.sh"
+truth_boundary = "architecture source projection input"
+
+[[format]]
+extensions = [".mmd"]
+carrier = "Mermaid diagram"
+owner = ".config/checks/architecture/projection.toml"
+execution = "tools/ci/scripts/run-architecture-projection-drift.sh"
+truth_boundary = "generated architecture projection output"
+
+[[format]]
+extensions = [".j2"]
+carrier = "Jinja2 template"
+owner = "packages/ethos/src/ethos/repository/adoption/scaffold/templates.py + template_files/manifest.toml"
+execution = "tools/ci/scripts/run-python-tests.sh"
+truth_boundary = "tracked scaffold declarations compiled through strict typed contexts"
+
+[policy]
+forbid_tracked_extensions = [".pickle", ".pkl", ".joblib"]
+unregistered_extension = "block"
+jsonl_allowed_roots = ["build/", ".ethos/state/"]
+yaml_allowed_roots = [
+  ".github/",
+  ".gitlab-ci.yml",
+  ".config/ci/",
+  ".config/checks/",
+  "openspec/",
+  ".pre-commit-config.yaml",
+]
+
+[policy.extension_paths]
+".ini" = { roots = [".config/"] }
+".json" = { roots = [
+  "system/schemas/",
+  "evidence/parity/",
+  "distributions/npm/",
+], files = [
+  "package.json",
+  "package-lock.json",
+  "evidence/chronicle/all-work-lanes-convergence-20260716/lane-inventory.json",
+] }
+".j2" = { roots = ["packages/"] }
+".mjs" = { roots = ["distributions/npm/"] }
+".c4" = { roots = [".config/checks/architecture/models/"] }
+".mmd" = { roots = ["docs/architecture/_generated/"] }

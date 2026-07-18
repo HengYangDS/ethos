@@ -10,7 +10,7 @@ from ethos.repository.evidence.core import EvidenceSet
 from ethos.repository.evidence.core import ProofRun
 from ethos.repository.evidence.core import provenance_envelope
 from ethos.repository.evidence.core import trim_output
-from ethos_core.action_graph import ActionNode
+from ethos_core.action_graph.core import ActionNode
 
 
 def test_dry_run_runner_records_action_without_execution() -> None:
@@ -23,10 +23,10 @@ def test_dry_run_runner_records_action_without_execution() -> None:
     assert result.exit_code is None
 
 
-def test_local_runner_executes_successful_command(tmp_path: Path) -> None:
+def test_local_runner_executes_successful_command_after_handler_declines(tmp_path: Path) -> None:
     node = ActionNode(id="python", kind="test", command=("python", "-c", "print('ok')"))
 
-    result = LocalSubprocessRunner().run(node, root=tmp_path)
+    result = LocalSubprocessRunner(inprocess_handler=lambda *_: None).run(node, root=tmp_path)
 
     assert result.state == "passed"
     assert result.exit_code == 0
@@ -66,7 +66,7 @@ def test_local_runner_reports_missing_command_as_structured_failure(tmp_path: Pa
     node = ActionNode(
         id="missing-script",
         kind="quality",
-        command=(".config/ci/scripts/missing.sh",),
+        command=("tools/ci/scripts/missing.sh",),
     )
 
     result = LocalSubprocessRunner().run(node, root=tmp_path)
@@ -78,9 +78,9 @@ def test_local_runner_reports_missing_command_as_structured_failure(tmp_path: Pa
     assert result.diagnostics == (
         {
             "kind": "command_not_found",
-            "missing": ".config/ci/scripts/missing.sh",
+            "missing": "tools/ci/scripts/missing.sh",
             "cwd": str(tmp_path),
-            "required_gaps": ["missing_command:.config/ci/scripts/missing.sh"],
+            "required_gaps": ["missing_command:tools/ci/scripts/missing.sh"],
         },
     )
 

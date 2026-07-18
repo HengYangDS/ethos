@@ -78,6 +78,198 @@
       "additionalProperties": {
         "type": "string"
       }
+    },
+    "runtime": {
+      "type": "object",
+      "required": [
+        "truth_boundary",
+        "run_state_locality",
+        "run_state_schema",
+        "event_stream_locality",
+        "handoff_package_schema",
+        "public_lifecycle_commands"
+      ],
+      "properties": {
+        "truth_boundary": {
+          "const": "derived_repository_projection"
+        },
+        "run_state_locality": {
+          "type": "string"
+        },
+        "run_state_schema": {
+          "type": "string"
+        },
+        "event_stream_locality": {
+          "type": "string"
+        },
+        "handoff_package_schema": {
+          "type": "string"
+        },
+        "public_lifecycle_commands": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "evolution_bridge": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "node": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "enforcement"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "control",
+              "producer",
+              "action",
+              "handoff",
+              "guardrail"
+            ]
+          },
+          "command": {
+            "type": "string"
+          },
+          "enforcement": {
+            "enum": [
+              "guarded",
+              "handoff-guarded",
+              "evidence-only",
+              "advisory"
+            ]
+          },
+          "requires": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "produces": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "event": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "locality",
+          "chronicle_promotion"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "decision",
+              "evidence",
+              "state_change",
+              "practice_change"
+            ]
+          },
+          "locality": {
+            "type": "string"
+          },
+          "chronicle_promotion": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "eval": {
+      "type": "object",
+      "required": [
+        "metric_names",
+        "bounds",
+        "truth_boundary"
+      ],
+      "properties": {
+        "metric_names": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "pass_at_k",
+              "pass_power_k",
+              "weighted_score",
+              "instability_gap"
+            ]
+          },
+          "minItems": 1
+        },
+        "bounds": {
+          "const": "closed_unit_interval"
+        },
+        "truth_boundary": {
+          "const": "skill_metadata_only"
+        }
+      },
+      "additionalProperties": false
+    },
+    "evolution": {
+      "type": "object",
+      "required": [
+        "learning_path",
+        "selection_policy",
+        "commitment_effect_policy",
+        "practice_claim_policy",
+        "practice_change_policy",
+        "truth_boundary"
+      ],
+      "properties": {
+        "learning_path": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "research",
+              "hypothesis",
+              "experiment",
+              "evaluation",
+              "canonization",
+              "retirement"
+            ]
+          },
+          "minItems": 1
+        },
+        "selection_policy": {
+          "const": "evidence_weighted_candidate_comparison"
+        },
+        "truth_boundary": {
+          "const": "evolution_ledger_claim_evidence_chronicle"
+        },
+        "practice_claim_policy": {
+          "const": "practice_claim_is_evolution_carrier_for_governed_commitment_effect"
+        },
+        "commitment_effect_policy": {
+          "const": "practice_claim_declares_create_compose_refine_replace_remove_or_reject_commitment_effect"
+        },
+        "practice_change_policy": {
+          "const": "relation_to_incumbent_determines_introduce_compose_refine_supersede_retire_or_reject"
+        }
+      },
+      "additionalProperties": false
     }
   }
 }

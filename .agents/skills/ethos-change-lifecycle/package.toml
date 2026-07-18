@@ -11,7 +11,7 @@ include = [
 ]
 exclude = [".DS_Store"]
 required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
-expected_digest = "sha256:b7c62ceec06a545005a05cb188c1209ebf70bc8b2c06a63815539ab9a63e7ab2"
+expected_digest = "sha256:e822b0c848d09a09109a1047df75a57bbace51dc90f1bdeef1111b722bf07970"
 
 [quality]
 placeholder_allowed = false
@@ -37,6 +37,23 @@ id = "ethos.land"
 kind = "command_mutation_guarded"
 command = ["ethos", "land", "--json"]
 guard = "ethos lane prewrite before land; land verdict gates the candidate fast-forward"
+
+[[capability]]
+id = "ethos.parity"
+kind = "command_mutation_guarded"
+command = [
+  "ethos",
+  "parity",
+  "shadow",
+  "--adopter",
+  "generic",
+  "--target",
+  ".",
+  "--execute",
+  "--write-evidence",
+  "--json",
+]
+guard = "refreshes and commits parity evidence in the admitted Work Lane before executed proof and land"
 
 [[capability]]
 id = "ethos.publish"

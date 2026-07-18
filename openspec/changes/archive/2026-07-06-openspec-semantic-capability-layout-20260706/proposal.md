@@ -13,7 +13,7 @@ semantics.
   only the capability identity changes.
 - Update capability profiles, scaffold defaults, repository audit requirements,
   tests, and templates so future adopters receive the semantic layout.
-- Absorb the test-gate mechanisms that fit ETHOS from di-effect and alphasim:
+- Absorb the test-gate mechanisms that fit ETHOS from alternate mechanism corpus and reference-adopter:
   parallel-capable pytest, timeout protection, durations visibility, JUnit output,
   opt-in benchmark/reporting profiles, generated test artifacts under `build/evidence`,
   repository hygiene checks, and Google-style public docstring governance.

@@ -129,7 +129,7 @@ def test_release_policy_reports_host_surface_gaps_without_product_file_coupling(
     assert "host_surface_missing:gitlab:ci:.gitlab-ci.yml" in report["required_gaps"]
 
 
-def test_release_attestation_is_in_toto_and_slsa_shaped() -> None:
+def test_release_attestation_is_in_toto_slsa_and_lockfile_material_shaped() -> None:
     attestation = release_attestation(
         root=Path.cwd(),
         head="abc123",
@@ -140,11 +140,109 @@ def test_release_attestation_is_in_toto_and_slsa_shaped() -> None:
     assert attestation["predicateType"].endswith("/ethos-release/v1")
     assert attestation["predicate"]["slsa"]["builder"]["id"] == "ethos"
     assert attestation["subject"][0]["name"] == "ethos@0.1.0a1"
+    materials = attestation["predicate"]["slsa"]["materials"]
+    material_uris = {material["uri"] for material in materials}
+    assert "git+repository" in material_uris
+    assert "ethos+evidence" in material_uris
+    assert "file+uv.lock" in material_uris
+    assert "ethos+sbom" in material_uris
+    assert attestation["predicate"]["sbom"]["lockfile"]["path"] == "uv.lock"
+    assert attestation["predicate"]["sbom"]["package_layers"]["lockfile_transitive"] > 0
 
 
-def test_sbom_projection_lists_workspace_packages_without_owning_truth() -> None:
+def test_sbom_projection_lists_workspace_and_lockfile_transitive_packages() -> None:
     sbom = sbom_projection(Path.cwd())
 
     assert sbom["format"] == "SPDX-lite"
     assert sbom["truth"] == "pyproject-and-lockfile"
-    assert {package["name"] for package in sbom["packages"]} >= {"ethos", "ethos-core"}
+    assert sbom["lockfile"]["path"] == "uv.lock"
+    assert sbom["lockfile"]["digest"].startswith("sha256:")
+    package_names = {package["name"] for package in sbom["packages"]}
+    assert package_names >= {"ethos", "ethos-core", "pytest"}
+    assert any(
+        package["name"] == "pytest" and package["layer"] == "lockfile_transitive"
+        for package in sbom["packages"]
+    )
+    assert sbom["package_layers"]["workspace"] >= 2
+    assert sbom["package_layers"]["lockfile_transitive"] > 0
+
+
+def test_sbom_projection_handles_missing_and_irregular_lockfile_packages(tmp_path: Path) -> None:
+    root = tmp_path / "repo"
+    (root / "packages" / "sample").mkdir(parents=True)
+    (root / "pyproject.toml").write_text(
+        '[project]\nname = "sample-root"\nversion = "1.0.0"\n',
+        encoding="utf-8",
+    )
+    (root / "packages" / "sample" / "pyproject.toml").write_text(
+        '[project]\nname = "sample"\nversion = "1.0.0"\n',
+        encoding="utf-8",
+    )
+
+    without_lock = sbom_projection(root)
+    assert without_lock["lockfile"]["digest"] == ""
+    assert without_lock["package_layers"]["lockfile_transitive"] == 0
+
+    (root / "uv.lock").write_text(
+        """
+[[package]]
+name = "editable"
+version = "1.0.0"
+source = { editable = "." }
+
+[[package]]
+name = ""
+version = "1.0.0"
+
+[[package]]
+name = "alpha"
+version = "2.0.0"
+source = { registry = "https://example.test/simple" }
+wheels = [
+  { url = "alpha.whl", hash = "sha256:wheel" },
+  "not-a-wheel"
+]
+sdist = { hash = "sha256:sdist" }
+
+[[package]]
+name = "beta"
+version = "3.0.0"
+wheels = "not-a-list"
+sdist = "not-a-table"
+
+[[package]]
+name = "gamma"
+version = "4.0.0"
+wheels = [
+  { url = "gamma.whl" }
+]
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    with_lock = sbom_projection(root)
+    transitive = [
+        package for package in with_lock["packages"] if package["layer"] == "lockfile_transitive"
+    ]
+
+    assert [package["name"] for package in transitive] == ["alpha", "beta", "gamma"]
+    assert transitive[0]["source"] == "https://example.test/simple"
+    assert transitive[0]["hashes"] == ["sha256:wheel"]
+    assert transitive[0]["sdist_hash"] == "sha256:sdist"
+    assert "hashes" not in transitive[1]
+    assert "sdist_hash" not in transitive[1]
+    assert "hashes" not in transitive[2]
+
+
+def test_sbom_projection_ignores_non_table_lockfile_entries(tmp_path: Path) -> None:
+    root = tmp_path / "repo"
+    root.mkdir()
+    (root / "pyproject.toml").write_text(
+        '[project]\nname = "sample-root"\nversion = "1.0.0"\n',
+        encoding="utf-8",
+    )
+    (root / "uv.lock").write_text('package = ["not-a-table"]\n', encoding="utf-8")
+
+    sbom = sbom_projection(root)
+
+    assert sbom["package_layers"]["lockfile_transitive"] == 0

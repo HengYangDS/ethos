@@ -1,0 +1,8 @@
+schema = "ethos-node-runtime-compatibility-v1"
+owner = "ethos-quality-gate-governance"
+summary = "Exact Node releases accepted by the ETHOS npm launcher and the reviewed default-promotion boundary."
+default_version = "24.18.0"
+compatibility_versions = ["24.18.0", "26.5.0"]
+archive_sha256 = { "24.18.0" = { linux_arm64 = "58c9520501f6ae2b52d5b210444e24b9d0c029a58c5011b797bc1fe7105886f6", linux_x64 = "55aa7153f9d88f28d765fcdad5ae6945b5c0f98a36881703817e4c450fa76742" }, "26.5.0" = { linux_arm64 = "036df0b49662ebb350eb56f1cac603699b1e9ed1e2603ee129fefda473479030", linux_x64 = "9f619528f1db5ddc41dccf54211066fb42228d69a156733c69cb9d6cc92e358c" } }
+next_default_candidate = "26.5.0"
+review_not_before = 2026-10-28

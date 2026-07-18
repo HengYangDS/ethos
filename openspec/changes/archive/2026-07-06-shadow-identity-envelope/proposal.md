@@ -30,7 +30,7 @@ outputs, but the input identity was not first-class in the report or schema.
 ## Out of Scope
 
 - No adopter-specific product ontology, package, or fixture directory is added.
-- No alphasim-dmgr embedded backend is retired by this change.
+- No reference-adopter embedded backend is retired by this change.
 - No rollback-window, domain false-negative suite, or remote publication gate is
   claimed complete by this change.
 
@@ -39,5 +39,5 @@ outputs, but the input identity was not first-class in the report or schema.
 - Affected code: shadow parity adapter and tracked parity evidence builder.
 - Affected schema: `system/schemas/kernel/shadow-parity.schema.json`.
 - Affected tests: product parity and schema validation tests.
-- No adopter-specific directories, alphasim-specific product fixtures, remote
+- No adopter-specific directories, reference-adopter-specific product fixtures, remote
   publication, or embedded retirement is performed by this change.

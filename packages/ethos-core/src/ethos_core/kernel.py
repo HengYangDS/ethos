@@ -8,7 +8,7 @@ pure leaf.
 from __future__ import annotations
 
 KERNEL_CHAIN = (
-    "JudgmentSource",
+    "Authority",
     "Subject",
     "Commitment",
     "Change",

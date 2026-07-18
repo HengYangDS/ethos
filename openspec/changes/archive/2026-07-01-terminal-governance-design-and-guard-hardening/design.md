@@ -76,7 +76,7 @@ recommended facets, boundary rules, and proof profile. Proposal entries must
 name live capabilities directly and record subject, reuse stance, change
 stance, and lifecycle/surface/authority facets.
 
-This absorbs the useful `di-effect` practice of capability-local profiles,
+This absorbs the useful `alternate mechanism corpus` practice of capability-local profiles,
 family taxonomy, direct routing, reuse metadata, and dynamic facets. ETHOS keeps
 the taxonomy smaller and product-neutral: facets help routing and review but do
 not create ownership, and no adopter-specific domain terms become product
@@ -94,7 +94,7 @@ refs, and archived Markdown links. The archive wrapper also protects existing
 scenarios from accidental deletion unless the delta explicitly removes or
 renames them.
 
-This absorbs the useful `di-effect` archive-normalization and live-spec-diff
+This absorbs the useful `alternate mechanism corpus` archive-normalization and live-spec-diff
 guard pattern. ETHOS adapts it to the terminal product by keeping the next
 action under `ethos openspec --lifecycle --json` and by tying lifecycle health
 to claims and evidence.
@@ -111,8 +111,8 @@ directory is not a complete governance substrate because it gives agents no
 local routing grammar and no reviewable template for capability metadata.
 
 This absorbs the useful productization stance from both reference
-repositories: `di-effect` makes the OpenSpec workspace self-describing, while
-`alphasim-dmgr` keeps public operation behind one `ethos ...` command plane.
+repositories: `alternate mechanism corpus` makes the OpenSpec workspace self-describing, while
+`reference-adopter` keeps public operation behind one `ethos ...` command plane.
 ETHOS keeps both: scaffolded OpenSpec files are rich enough to guide work, but
 the workflow still enters through ETHOS commands.
 

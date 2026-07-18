@@ -6,14 +6,19 @@ ETHOS SHALL connect repository lifecycle semantics to provider-specific Git,
 SQLite, process, package-manager, hosted CI, and protocol runtimes without
 treating any provider as product truth.
 ## Requirements
-### Requirement: Authorized Mutation
-ETHOS SHALL block apply-mode land and publish unless authorization and expected
-HEAD binding are explicit.
+### Requirement: Exact-request Mutation Admission
+ETHOS SHALL block apply-mode land and publish unless execution confirmation,
+expected HEAD binding, applicable Commitments, current facts, and required
+Evidence admit the exact request. Confirmation SHALL NOT authenticate a caller
+or create reusable authorization.
 
 #### Scenario: Apply mode is requested
 - **WHEN** `ethos land --apply` or `ethos publish --apply` runs
-- **THEN** ETHOS requires explicit authorization and expected HEAD before any
+- **THEN** ETHOS requires explicit confirmation and expected HEAD before any
   mutation can proceed
+- **AND** the decision binds action, resource, expected state, policy refs,
+  evidence refs, and decision basis
+- **AND** it mints no role, token, session, or reusable permission.
 
 ### Requirement: Work Lane Topology
 ETHOS SHALL classify linked worktrees by lane role and surface foreign Work
@@ -37,9 +42,9 @@ Lanes without entering their file trees.
   worktree metadata
 - **AND** ETHOS reports `foreign_work_lane_present` as a coordination signal
 - **AND** ETHOS does not read, modify, close, or clean the foreign lane
-- **AND** ETHOS reports the current actor capability as observe-only, with
-  foreign lane write, land, and retire actions forbidden unless a later owner,
-  handoff, or maintainer break-glass path admits them
+- **AND** ETHOS reports a non-authoritative action preview with observe as the
+  only candidate action and write, land, and retire blocked
+- **AND** actual mutation re-evaluates its exact current request.
 
 ### Requirement: Prewrite Admission
 ETHOS SHALL gate tracked writes through the current Work Lane role and editor
@@ -65,7 +70,7 @@ ETHOS SHALL acquire local lease records when creating Work Lanes through the
 public lane command plane.
 
 #### Scenario: Work Lane start is applied
-- **WHEN** `ethos lane start <name> --apply --owner <owner>` runs from a clean
+- **WHEN** `ethos lane start <name> --apply --holder-ref <holder-ref>` runs from a clean
   accepted root and succeeds
 - **THEN** ETHOS creates a `work/<name>` linked worktree
 - **AND** ETHOS records an active lease in ignored local state under
@@ -74,7 +79,7 @@ public lane command plane.
   state because it has no ETHOS lease or claim boundary
 
 #### Scenario: Work Lane start is requested from a non-accepted or dirty root
-- **WHEN** `ethos lane start <name> --apply --owner <owner>` runs from an
+- **WHEN** `ethos lane start <name> --apply --holder-ref <holder-ref>` runs from an
   existing `work/*` lane or a dirty accepted root
 - **THEN** ETHOS blocks the request with
   `lane_start_requires_clean_accepted_root`
@@ -99,6 +104,103 @@ ETHOS SHALL keep local runtime state separate from durable evidence.
 - **THEN** the evidence is HEAD-bound, digest-addressed, and separate from
   ignored local runtime state
 
+### Requirement: Bounded External Evidence Adapters
+
+ETHOS SHALL verify external identity assertions, hosted-enforcement receipts,
+and control-replacement verifier receipts only when the applicable Commitment
+requires them. Adapters SHALL store no credentials and SHALL NOT mint
+authority. Optional provider-local reference implementations SHALL live in a
+declared extension bundle, never in an unowned root-level adapter directory.
+
+#### Scenario: control replacement uses protected bootstrap evidence
+
+- **WHEN** a candidate changes admission, proof floors, schemas, hooks,
+  identity trust, enforcement adapters, or declarative controls
+- **THEN** closeout requires a receipt outside the candidate tree binding both
+  heads, both control digests, verifier digest, candidate proof, and bootstrap
+  Chronicle decision
+- **AND** the candidate proof is a native executed `ethos prove --execute --json`
+  result with `command = "prove"`, `ok = true`, `state = "proven"`,
+  `data.executed = true`, and matching candidate HEAD bindings in
+  `data.evidence.head` and `data.provenance.predicate.head`
+- **AND** a hand-authored `{head, state}` envelope is not accepted as candidate
+  proof
+- **AND** missing or unverifiable provenance returns `defer`.
+
+#### Scenario: hosted prevention requires exact receipt
+
+- **WHEN** ETHOS claims hosted prevention for a ref transition
+- **THEN** a provider receipt binds the exact action, resource, old value, new
+  value, observation, coverage, and receipt digest
+- **AND** local hooks or provider configuration alone do not prove prevention.
+
+#### Scenario: provider-local reference implementation is physically bounded
+
+- **WHEN** ETHOS ships the default-off independent-verification reference source
+- **THEN** it resides at
+  `extensions/independent-verification/adapters/independent_identity/reference_verifier.py`
+- **AND** its manifest, documentation, and focused tests are colocated in that
+  extension bundle
+- **AND** no root-level `reference_adapters/` source, forwarding module, or
+  compatibility alias remains
+- **AND** the extension does not create an adopter policy, account, key,
+  network, daemon, or scheduling requirement.
+
+#### Scenario: Generic Git server enforcement is disabled by default
+
+- **WHEN** a provider has not installed the generic Git pre-receive adapter or
+  its protected provider-local configuration selects `disabled`
+- **THEN** ordinary ETHOS adoption, status, plan, prove, land, and local
+  publication readiness require no account, key, receipt store, daemon, network
+  service, or `yheng-agent-ethos` user
+- **AND** the adapter does not mint authority or alter product lifecycle truth.
+
+#### Scenario: A protected generic Git update has an exact independent receipt
+
+- **WHEN** a provider-enabled generic Git pre-receive adapter receives a
+  non-deletion update for a configured protected ref
+- **THEN** it accepts the update only when its provider-store receipt has a
+  valid protected-anchor signature and exactly binds the configured remote,
+  proposed commit, proposed tree, action, proof-floor ID/digest, gate-policy
+  digest, and verifier implementation digest
+- **AND** it rejects absent, stale, failed, malformed, unsigned, or mismatched
+  receipts before Git accepts the ref.
+
+#### Scenario: An update is outside the configured protected set
+
+- **WHEN** a generic Git pre-receive adapter receives an update for a ref not
+  named by its provider-local protected-ref configuration
+- **THEN** it does not require a receipt for that ref
+- **AND** it does not execute a client-supplied command or infer policy from the
+  proposed tree.
+
+#### Scenario: The server adapter remains a thin physical extension
+
+- **WHEN** ETHOS ships the generic Git pre-receive reference adapter
+- **THEN** its source, manifest, documentation, and focused tests reside under
+  `extensions/independent-verification/adapters/generic_git/` or that extension
+  bundle's colocated test surface
+- **AND** no root-level `reference_adapters/` source, forwarding module, or
+  compatibility alias exists
+- **AND** GitHub and GitLab adapters remain projections over the same receipt
+  contract rather than separate governance kernels.
+
+### Requirement: Cross-host Handoff Adapter
+
+ETHOS SHALL transfer content-addressed Git and context artifacts, never the
+source SQLite lease. Preserved tracked and non-ignored untracked work SHALL be
+restored before the destination lease is acknowledged, and partial imports
+SHALL roll back branch and worktree residue.
+
+#### Scenario: preserved handoff is imported safely
+
+- **WHEN** a verified preserved handoff package is imported into a clean
+  accepted-root clone
+- **THEN** ETHOS creates a destination-local branch, worktree, lane incarnation,
+  and lease
+- **AND** restores tracked and non-ignored untracked content before acknowledgement
+- **AND** rolls back branch and worktree state if restoration or lease creation fails.
+
 ### Requirement: Internal ETHOS Gate Fast Path
 ETHOS SHALL execute internal ETHOS JSON gates in-process when safe.
 
@@ -110,7 +212,8 @@ ETHOS SHALL execute internal ETHOS JSON gates in-process when safe.
 ### Requirement: Official OpenSpec Lifecycle Adapter
 
 ETHOS SHALL compose official OpenSpec CLI output with ETHOS lifecycle carrier
-review.
+review and SHALL preflight an active change's archiveability through an isolated
+official archive projection before proof, land, or accepted-root closeout.
 
 #### Scenario: Archive closeout gaps block land and closeout
 
@@ -120,6 +223,29 @@ review.
   closeout
 - **THEN** ETHOS reports the archive issue as a required gap
 - **AND** land or closeout remains blocked until archive state is repaired.
+
+#### Scenario: Active change fails official archive simulation
+
+- **GIVEN** an active change is syntactically valid but the configured official
+  OpenSpec archive command would reject its delta against the current canonical
+  specs
+- **WHEN** ETHOS evaluates OpenSpec lifecycle for the change
+- **THEN** ETHOS runs the official archive only in a disposable workspace copy
+- **AND** returns the official diagnostic code, message, and fix under the
+  change's `archive_preflight` data
+- **AND** reports a change-scoped required gap
+- **AND** proof, land, and accepted-root closeout remain blocked
+- **AND** the source OpenSpec workspace remains unchanged.
+
+#### Scenario: Active change passes official archive simulation
+
+- **GIVEN** an active change's official archive simulation succeeds
+- **WHEN** ETHOS evaluates OpenSpec lifecycle for the change
+- **THEN** lifecycle records a successful isolated preflight
+- **AND** it does not archive the source change, complete tasks, or mint
+  authority
+- **AND** a later source change requires lifecycle to evaluate archiveability
+  again.
 
 ### Requirement: Work Lane Claim Binding Projection
 ETHOS SHALL expose Work Lane ownership as claim boundary evidence for
@@ -158,3 +284,52 @@ change is explicitly selected.
   OpenSpec list output
 - **AND** each change is checked for carriers, claim binding, proposal metadata,
   capability profile health, and out-of-scope boundaries.
+
+### Requirement: Optional tool adapters remain replaceable
+ETHOS SHALL expose optional adapter boundaries for environment runners, graph
+systems, task ledgers, external workflow frameworks, and agent method packs
+without making them product substrate. Useful external practices MAY be mapped
+to ETHOS contracts, adapters, evidence classes, projections, or method packs
+only through accepted governance changes that keep lifecycle truth inside the
+ETHOS kernel contract.
+
+#### Scenario: Adapter profile is reported
+
+- **WHEN** `ethos quality tool-profiles --json` reports tool adapters
+- **THEN** Nox, Pixi, Pants, task-ledger, and agent-method-pack entries SHALL be
+  visible as adapter-only boundaries
+- **AND** their output SHALL NOT replace ETHOS proof, OpenSpec lifecycle checks,
+  claims, evidence, or Git-native Work Lane semantics.
+
+#### Scenario: External workflow frameworks are classified
+- **WHEN** ETHOS evaluates Comet, Spec Kit, BMAD, Superpowers, Task Master, Agent OS, OpenSPDD, Shotgun, or fspec
+- **THEN** their useful practices may be mapped to ETHOS contracts, adapters, evidence classes, projections, or method packs
+- **AND** their command planes, hidden state directories, task stores, and phase names do not become ETHOS lifecycle truth by default
+
+### Requirement: Protected ref hooks bind semantic evaluation to promoted control
+
+ETHOS SHALL keep the accepted checkout as the fail-closed shell-hook boundary
+for an accepted-ref transaction. When that transaction promotes a candidate
+head, it SHALL evaluate the semantic ref-admission reducer using a clean linked
+checkout of the configured candidate branch at that exact promoted head.
+
+#### Scenario: candidate control implementation differs from accepted checkout
+
+- **GIVEN** the accepted checkout contains an older control implementation
+- **AND** the configured candidate checkout is clean, bound to the configured
+  candidate branch, and resolves to the promoted candidate head
+- **AND** the candidate changes admission or proof-policy behavior
+- **WHEN** official accepted-root closeout advances the accepted ref
+- **THEN** the protected hook SHALL run the candidate-tree semantic evaluator
+  against the candidate head
+- **AND** it SHALL bind runner source, candidate checkout, candidate head, and
+  transition fields explicitly
+- **AND** it SHALL not reject solely because accepted-old source would compute
+  a different policy result.
+
+#### Scenario: candidate semantic runner cannot be bound
+
+- **WHEN** the configured candidate checkout is missing, dirty, detached,
+  stale, or its semantic runtime cannot be bound to that checkout
+- **THEN** the accepted-ref hook SHALL reject the transition
+- **AND** it SHALL not fall back to accepted-old semantic source.

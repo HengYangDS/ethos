@@ -1,26 +1,22 @@
-schema_version = 1
+[claim]
 id = "explain-projection-language"
-summary = "CLI help and docs describe explain as gap-or-signal invalid-state projection."
-state = "accepted"
 subject = "command-plane:explain-projection-language"
-evidence = "evidence/chronicle/explain-projection-language/2026-07-07.md"
+state = "accepted"
+summary = "CLI help and docs describe explain as gap-or-signal invalid-state projection."
 
-[bindings]
-head = "ae71d1f78cbed2d73d3a85f5cc3460b7eab67466"
+[evidence]
+dated = "evidence/chronicle/explain-projection-language/2026-07-07.md"
+sha256 = "b400f5391beb2aa402bf7535e18fdac13117247466415344fcd060efffd2e837"
+tests = [
+  "tests/unit/cli/test_invalid_state_projection.py::test_explain_help_uses_gap_or_signal_language",
+  "tests/architecture/test_product_boundaries.py::test_command_plane_docs_use_gap_or_signal_explain_language",
+]
+
+[evidence.freshness]
+mode = "historical"
 
 [carriers]
 openspec = "openspec/changes/archive/2026-07-07-explain-projection-language"
 
-[[claim_bindings]]
-kind = "test"
-ref = "tests/unit/cli/test_invalid_state_projection.py::test_explain_help_uses_gap_or_signal_language"
-
-[[claim_bindings]]
-kind = "test"
-ref = "tests/architecture/test_product_boundaries.py::test_command_plane_docs_use_gap_or_signal_explain_language"
-
-[[promotion_targets]]
-path = "packages/ethos/src/ethos/cli.py"
-
-[[promotion_targets]]
-path = "docs/reference/command-plane.md"
+[promotion]
+targets = ["packages/ethos/src/ethos/cli.py", "docs/reference/command-plane.md"]

@@ -1,0 +1,77 @@
+[meta]
+version = 2
+source_of_truth = "repository"
+expected_registry_digest = "{{ registry_digest }}"
+
+[[skill]]
+id = "ethos-repository-governance"
+path = ".agents/skills/ethos-repository-governance/SKILL.md"
+package_manifest = ".agents/skills/ethos-repository-governance/package.toml"
+subject = "repository-governance"
+operation = "govern"
+authority = "primary"
+lifecycle = "active"
+subjects = ["repository-governance", "ethos", "adoption", "changed-scope"]
+path_globs = [
+  "AGENTS.md",
+  "docs/index.md",
+  "docs/start/**",
+  "evolution/**",
+  "evidence/claims/**",
+  "packages/**",
+  "schemas/**",
+  "tests/**",
+  "uv.lock",
+  "pyproject.toml",
+]
+intent_tokens = ["ethos", "governance", "proof", "adoption", "skills"]
+pre_reads = ["AGENTS.md", "docs/governance/ethos.md"]
+during_rules = [
+  "treat skills as projections over repository truth",
+  "use ETHOS command JSON as machine evidence",
+]
+post_checks = ["ethos playbooks check --mode v2-strict --json", "ethos report --json"]
+commands = ["ethos status", "ethos plan", "ethos prove", "ethos report"]
+boundary = "workflow-package-projection"
+
+[[skill]]
+id = "ethos-skill-portfolio-governance"
+path = ".agents/skills/ethos-skill-portfolio-governance/SKILL.md"
+package_manifest = ".agents/skills/ethos-skill-portfolio-governance/package.toml"
+subject = "skill-portfolio"
+operation = "govern"
+authority = "primary"
+lifecycle = "active"
+subjects = ["skill-portfolio", "skills", "activation", "projection-drift", "changed-scope"]
+path_globs = [".agents/skills/**"]
+intent_tokens = ["skill", "skills", "meta-skill", "playbook", "activation", "projection"]
+pre_reads = ["AGENTS.md", ".agents/skills/README.md"]
+during_rules = [
+  "add a skill only for repeated repository-specific procedure",
+  "keep SKILL.md narrow and evidence-bound",
+]
+post_checks = ["ethos playbooks check --mode v2-strict --json", "ethos report --json"]
+may_coactivate = ["ethos-repository-governance"]
+commands = ["ethos playbooks check", "ethos playbooks route", "ethos report"]
+boundary = "workflow-package-projection"
+
+[[skill]]
+id = "ethos-adoption-profile-governance"
+path = ".agents/skills/ethos-adoption-profile-governance/SKILL.md"
+package_manifest = ".agents/skills/ethos-adoption-profile-governance/package.toml"
+subject = "adoption-profile"
+operation = "adopt"
+authority = "primary"
+lifecycle = "active"
+subjects = ["adoption-profile", "adoption", "profile", "adapter", "changed-scope"]
+path_globs = [".ethos/**", "docs/governance/**", "openspec/**", ".gitlab-ci.yml", ".github/**"]
+intent_tokens = ["adopt", "adoption", "profile", "adapter", "other repository"]
+pre_reads = ["AGENTS.md", "docs/governance/ethos.md"]
+during_rules = [
+  "profile changes proof depth and adapters, not command semantics",
+  "durable adopter truth must be promoted into tracked repository surfaces",
+]
+post_checks = ["ethos playbooks check --mode v2-strict --json", "ethos report --json"]
+may_coactivate = ["ethos-repository-governance"]
+commands = ["ethos adopt", "ethos status", "ethos playbooks check", "ethos report", "ethos prove"]
+boundary = "workflow-package-projection"

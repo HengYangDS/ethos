@@ -32,98 +32,245 @@ generated_outputs_tracked_truth = false
 
 [quality.code_size]
 # Role-based effective-LOC limits (AST-computed, excluding blanks/comments/
-# docstrings). Adopted from the di-effect module_layout study (see
-# .ethos/quality-regime-decision.md §3.1): a flat "every file <=400" rule is crude
-# — it forces a command aggregator and a logic module to the same bar. Instead:
+# docstrings). Adopted from ETHOS module-layout policy and system axioms: a flat "every file <=400" rule is crude
+# — it forces a command aggregator and a logic module to the same bar. Instead,
+# one limit per role, calibrated to the repo's actual effective-LOC distribution
+# (each limit sits near the role's p90–p95 so the genuine tail must split while
+# cohesive mid-size modules stay whole):
 #
-#   role=logic   (domain/adapters/kernel reducers): soft 400 / hard 600
-#   role=surface (CLI command groups / aggregators):  soft 800
-#   role=test    (broad contract coverage):           soft/hard 1200
+#   role=logic   (domain/adapters/kernel reducers):   500
+#   role=surface (CLI command groups / aggregators):  750
+#   role=test    (broad contract coverage):          1000
 #
-# A GLOBAL hard ceiling (global_hard_effective_max_lines) caps every file so a
-# "surface" label cannot be an excuse for unbounded growth (forcing function,
-# principle 2: failure-blocking moves upstream). NEW files get NO per-file
-# exception — they are blocked at their role's hard limit. Existing monoliths keep
-# a SHRINKING ratchet exception pinned to current size until they drop under the
-# role hard limit. Split triggers (public functions / classes / flat siblings) are
-# tracked in the decision doc; the mechanical gate here is size.
-global_hard_effective_max_lines = 1200
-hard_effective_max_lines = 600
-default_effective_max_lines = 400
+# There is NO per-file exemption and NO soft/hard split: a governance runtime that
+# forbids `# pragma: no cover` cannot ship a size-exemption table either. An
+# over-limit file is decomposed into a semantic sub-package (rules/module_layout.md
+# §1), never frozen at its current size.
+default_effective_max_lines = 500
 # Surface role: CLI command modules are legitimately larger thin wiring sheets
-# (bind-args -> domain call -> emit), bounded but not held to the logic 400.
+# (bind-args -> domain call -> emit), bounded but not held to the logic limit.
 surface_effective_max_lines = 800
-surface_path_globs = ["packages/ethos/src/ethos/cli.py", "packages/ethos/src/ethos/surface/**"]
-# Test files carry broad contract coverage; capped at a looser category limit
-# (still bounded to prevent unbounded growth), not the product 400.
-test_effective_max_lines = 1200
+surface_path_globs = [
+  "packages/ethos/src/ethos/cli.py",
+  "packages/ethos/src/ethos/surface/**",
+]
+# Test files carry broad contract coverage; capped at the same category limit as
+# surface (still bounded to prevent unbounded growth), not the product limit.
+test_effective_max_lines = 800
 
-[[quality.code_size.exception]]
-path = "packages/ethos/src/ethos/cli.py"
-effective_max_lines = 824
-reason = "surface aggregator mid-split; ratchet caps at current — sink command bodies to domain + split into surface/cli/<group>.py each under surface soft (800)"
+[quality.source_budget]
+# The parent of the global-declarative-compression Work Lane. This baseline is
+# never reset by a migration; every tracked executable carrier remains visible.
+baseline_head = "2dab77f169eceb2d45f917358c2a7487e7ac8db6"
+enforcement = "transition"
 
-[[quality.code_size.exception]]
-path = "packages/ethos/src/ethos/repository/policy/rules.py"
-effective_max_lines = 1083
-reason = "rules engine; relocate to ethos-core/method with sub-module split to reach 400"
+[quality.source_budget.baseline]
+python_product = 35675
+python_tests = 46730
+python_tools = 1038
+python_other = 446
+shell = 1445
+js = 89
+toml = 11633
+yaml = 1082
+json = 6439
+ini = 70
+jinja = 671
+diagram = 24
+python_total = 83889
+global_total = 105342
 
-[[quality.code_size.exception]]
-path = "packages/ethos/src/ethos/adapters/store/retrieval.py"
-effective_max_lines = 967
-reason = "context index engine; split index/verify/search sub-modules to reach 400"
+[quality.source_budget.terminal]
+python_total = 58722
+global_total = 73739
 
-[[quality.code_size.exception]]
-path = "packages/ethos/src/ethos/repository/policy/schema.py"
-effective_max_lines = 764
-reason = "schema validation; relocate to ethos-core/contract with split to reach 400"
+[quality.source_budget.debt]
+maximum_total = 7927
 
-[[quality.code_size.exception]]
-path = "packages/ethos/src/ethos/adapters/openspec.py"
-effective_max_lines = 688
-reason = "openspec adapter; split by concern to reach 400"
+[[quality.source_budget.debt.records]]
+id = "program-foundation"
+owner = "global-declarative-compression-program-20260711"
+replacement = "source budget, carrier admission, and declaration compiler foundation"
+deletion_wave = "T5"
+expiry = "T5"
+allowance = 1428
 
-[[quality.code_size.exception]]
-path = "packages/ethos/src/ethos/repository/adoption/planner.py"
-effective_max_lines = 673
-reason = "adoption planner; split scaffold/detect to reach 400"
+[quality.source_budget.debt.records.allowance_by_category]
+python_product = 352
+python_tests = 400
+python_tools = 250
+toml = 714
+json = 16
 
-[[quality.code_size.exception]]
-path = "packages/ethos/src/ethos/adapters/shadow.py"
-effective_max_lines = 647
-reason = "shadow parity; split classify/report to reach 400"
+[[quality.source_budget.debt.records]]
+id = "candidate-train-reconciliation"
+owner = "global-declarative-compression-program-20260711"
+replacement = "candidate-train semantic integrations pending T8 scenario, runner, template, and provider-copy consolidation"
+deletion_wave = "T8"
+expiry = "T8"
+allowance = 3237
 
-[[quality.code_size.exception]]
-path = "packages/ethos/src/ethos/repository/policy/coupling.py"
-effective_max_lines = 640
-reason = "coupling audit; split by binding kind to reach 400"
+[quality.source_budget.debt.records.allowance_by_category]
+python_product = 1096
+python_tests = 2057
+python_other = 508
+shell = 368
+yaml = 4
+json = 102
+jinja = 15
 
-[[quality.code_size.exception]]
-path = "packages/ethos/src/ethos/repository/evidence/parity.py"
-effective_max_lines = 554
-reason = "parity report; split evidence/gaps to reach 400"
+[[quality.source_budget.debt.records]]
+id = "openspec-archive-preflight-20260712"
+owner = "openspec-archive-preflight-20260712"
+replacement = "collapse isolated archive preflight after the official lifecycle API exposes a source-safe dry-run receipt"
+deletion_wave = "archive-closeout"
+expiry = "archive-closeout"
+allowance = 602
 
-[[quality.code_size.exception]]
-path = "packages/ethos/src/ethos/adapters/mutation/lanes.py"
-effective_max_lines = 509
-reason = "work lane lifecycle; split by lane operation to reach 400"
+[quality.source_budget.debt.records.allowance_by_category]
+python_product = 253
+python_tests = 267
+yaml = 2
+toml = 80
 
-[[quality.code_size.exception]]
-path = "packages/ethos/src/ethos/repository/registry/docs.py"
-effective_max_lines = 500
-reason = "docs registry; split registry/validation to reach 400"
+[[quality.source_budget.debt.records]]
+id = "bounded-lane-retirement-20260714"
+owner = "bounded-lane-retirement-20260714"
+replacement = "compress duplicate landed-retirement fixtures and retain only the minimal regression carrier"
+deletion_wave = "bounded-retirement-compression"
+expiry = "bounded-retirement-compression"
+allowance = 100
 
-[[quality.code_size.exception]]
-path = "packages/ethos/src/ethos/adapters/repo/status.py"
-effective_max_lines = 415
-reason = "workspace status; minor split to reach 400"
+[[quality.source_budget.debt.records]]
+id = "semantic-attestation-receipts-20260714"
+owner = "semantic-attestation-receipts-20260714"
+replacement = "compress the external semantic receipt verifier after receipt validation is shared with the evidence contract"
+deletion_wave = "semantic-attestation-compression"
+expiry = "semantic-attestation-compression"
+allowance = 84
 
-[[quality.code_size.exception]]
-path = "tests/unit/cli/test_contracts.py"
-effective_max_lines = 2702
-reason = "broad CLI contract coverage; ratchet caps at current — split per-command test modules as cli.py splits"
+[quality.source_budget.debt.records.allowance_by_category]
+python_product = 84
 
-[[quality.code_size.exception]]
-path = "tests/unit/product/test_parity.py"
-effective_max_lines = 1512
-reason = "parity/shadow contract coverage; ratchet caps at current — split as parity.py splits"
+[[quality.source_budget.debt.records]]
+id = "adopter-material-scope-binding-completion-20260714"
+owner = "adopter-material-scope-binding-completion-20260714"
+replacement = "compress scope-binding fixtures and duplicate lifecycle wiring after the shared companion read model is consolidated"
+deletion_wave = "adopter-material-scope-compression"
+expiry = "adopter-material-scope-compression"
+allowance = 1118
+
+[quality.source_budget.debt.records.allowance_by_category]
+python_product = 428
+python_tests = 824
+jinja = 7
+
+[[quality.source_budget.debt.records]]
+id = "repository-text-layout-completion-20260715"
+owner = "repository-text-layout-completion-20260715"
+replacement = "consolidate shared text-layout diagnostics into native owner integrations after the active-carrier boundary is proven"
+deletion_wave = "repository-text-layout-compression"
+expiry = "repository-text-layout-compression"
+allowance = 190
+
+[quality.source_budget.debt.records.allowance_by_category]
+python_tools = 66
+python_tests = 113
+shell = 11
+
+[[quality.source_budget.debt.records]]
+id = "node-runtime-compatibility-20260716"
+owner = "node-runtime-compatibility-20260716"
+replacement = "consolidate fake-process fixtures, checksum-policy parsing, and installer validation without removing the exact Node matrix contract"
+deletion_wave = "node-runtime-compatibility-compression"
+expiry = "2026-10-28"
+allowance = 165
+
+[quality.source_budget.debt.records.allowance_by_category]
+python_tests = 135
+shell = 107
+
+[[quality.source_budget.debt.records]]
+id = "adopter-lifecycle-claim-freshness-20260718"
+owner = "adopter-lifecycle-claim-freshness-20260718"
+replacement = "fold behavioral semantic-scope regressions into the existing lifecycle claim suite and remove the temporary claim-scope carrier after durable lifecycle evidence is refreshed."
+deletion_wave = "adopter-lifecycle-claim-freshness-compression"
+expiry = "adopter-lifecycle-claim-freshness-compression"
+allowance = 125
+
+[quality.source_budget.debt.records.allowance_by_category]
+python_tests = 89
+toml = 24
+
+[[quality.source_budget.debt.records]]
+id = "hosted-ci-remediation-20260717"
+owner = "hosted-ci-remediation-20260717"
+replacement = "archive the active carrier; retain only the existing owner script and focused regressions"
+deletion_wave = "hosted-ci-remediation-closeout"
+expiry = "hosted-ci-remediation-closeout"
+allowance = 102
+
+[quality.source_budget.debt.records.allowance_by_category]
+python_tests = 40
+shell = 12
+toml = 46
+yaml = 4
+
+[[quality.source_budget.debt.records]]
+id = "bounded-status-read-model-20260718"
+owner = "refresh-base-ledger-merge-20260717"
+replacement = "consolidate bounded foreign-lane status fixtures and semantic rebase-recovery harnesses after coordination readers and ledger fixtures share one contract carrier"
+deletion_wave = "bounded-status-compression"
+expiry = "bounded-status-compression"
+allowance = 776
+
+[quality.source_budget.debt.records.allowance_by_category]
+python_product = 180
+python_tests = 528
+toml = 10
+json = 20
+[gates.local-state-audit]
+command = "tools/ci/scripts/run-local-state-audit.sh"
+blocking = true
+
+[[rule]]
+id = "local-state-boundary"
+risk = "local-state-truth-boundary"
+paths = [
+  ".config/checks/local-state/**",
+  "tools/ci/local_state_audit.py",
+  "tools/ci/scripts/run-local-state-audit.sh",
+]
+requires = ["local-state-audit"]
+evidence = ["build/evidence/local-state/audit.json"]
+
+[gates.quality-audit]
+command = ".agents/skills/ethos-quality-gate-governance/scripts/quality_audit.py ."
+blocking = true
+
+[[rule]]
+id = "quality-gate-governance"
+risk = "quality-gate-owner-drift"
+paths = [
+  ".agents/skills/ethos-quality-gate-governance/**",
+  ".config/checks/**",
+  "tools/ci/scripts/**",
+  "system/tools.toml",
+]
+requires = ["quality-audit"]
+evidence = ["quality_gate_audit"]
+
+[gates.skill-portfolio-audit]
+command = ".agents/skills/ethos-skill-portfolio-governance/scripts/portfolio_audit.py ."
+blocking = true
+
+[[rule]]
+id = "skill-portfolio-governance"
+risk = "skill-package-projection-drift"
+paths = [
+  ".agents/skills/**",
+  "rules/skills.md",
+  "docs/governance/playbooks-and-skills.md",
+]
+requires = ["skill-portfolio-audit"]
+evidence = ["skill_portfolio_audit"]

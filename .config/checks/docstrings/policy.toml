@@ -2,7 +2,7 @@
 # Owned by .config/checks/docstrings/; CI invokes the ETHOS quality command.
 
 paths = ["packages/ethos/src", "packages/ethos-core/src"]
-fail_under = 95
+fail_under = 100
 skip_private = true
 skip_init = false
 style = "google"

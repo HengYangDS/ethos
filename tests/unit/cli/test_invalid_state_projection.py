@@ -45,6 +45,17 @@ def test_report_classifies_current_gap_layers_into_invalid_states() -> None:
         assert payload["data"]["invalid_states"]["gap_count"] >= len(parity_gaps)
 
 
+def test_explain_projects_head_unbound_advisory_to_evidence_state() -> None:
+    payload = run_ethos("explain", "sample:evidence.head_unbound", "--json")
+
+    assert payload["ok"] is True
+    assert payload["summary"] == {
+        "gap": "sample:evidence.head_unbound",
+        "invalid_state": "evidence_missing_or_stale",
+    }
+    assert payload["data"]["invalid_state"]["node"] == "Evidence"
+
+
 def test_explain_projects_advisory_signal_without_required_gap_overclaim() -> None:
     signal = (
         "openspec_protected_branch_active_change_unarchived:"

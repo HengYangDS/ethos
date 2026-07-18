@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 
 from ethos.adapters.gates import runner
-from ethos_core.action_graph import ActionNode
+from ethos_core.action_graph.core import ActionNode
 
 
 def test_local_runner_executes_ethos_internal_json_gate_inprocess(monkeypatch) -> None:

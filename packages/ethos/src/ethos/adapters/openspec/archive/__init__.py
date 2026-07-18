@@ -1,0 +1,1 @@
+"""OpenSpec archive semantic subpackage."""

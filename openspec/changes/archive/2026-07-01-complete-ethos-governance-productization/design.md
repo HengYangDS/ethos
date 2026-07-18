@@ -25,14 +25,14 @@ docs, canonical specs, or dated evidence carry promoted truth.
   carriers.
 - Add OpenSpec lifecycle review that distinguishes valid shape from complete
   change lifecycle and archive readiness.
-- Keep adopter-specific rules, including dmgr raw/cache parity, in profiles and
+- Keep adopter-specific rules, including adopter adopter-domain storage parity, in profiles and
   parity evidence instead of ETHOS core semantics.
 - Make scaffolding, docs, schemas, and tests cover the full governance skeleton.
 
 **Non-Goals:**
 
 - Do not vendor OpenSpec or replace its CLI semantics.
-- Do not move dmgr-specific raw/cache or alphasim terms into ETHOS core.
+- Do not move adopter-specific adopter-domain storage or reference-adopter terms into ETHOS core.
 - Do not make hosted CI, assistant memory, MCP, ACP, or Backlog/intake a truth
   store.
 - Do not require every daily command to run full tests, build, and deep
@@ -72,7 +72,7 @@ docs, canonical specs, or dated evidence carry promoted truth.
    Neither is sufficient for trust without claim, OpenSpec, executed proof, and
    promotion evidence.
 
-6. **dmgr remains a reference adopter.** ETHOS validates parity against dmgr
+6. **reference adopter remains profile-bound.** ETHOS validates parity against reference adopter
    through profile mappings and shadow evidence. Product packages speak in
    subjects, contracts, gates, evidence, promotion, and providers; adopter terms
    stay in profiles or evidence.

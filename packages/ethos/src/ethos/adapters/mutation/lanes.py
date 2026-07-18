@@ -1,64 +1,59 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import cast
 
-import ethos.adapters.mutation.lanes_refresh as _refresh
-import ethos.adapters.mutation.lanes_retire as _retire
-from ethos.adapters.mutation.lanes_retire import _git
-from ethos.adapters.mutation.lanes_retire import _is_ancestor
-from ethos.adapters.mutation.lanes_retire import _repo_root
-from ethos.adapters.mutation.lanes_retire import _slug
-from ethos.adapters.mutation.lanes_retire import (
-    retire_landed_work_lanes as _retire_landed_work_lanes,
-)
-from ethos.adapters.mutation.lanes_retire import (
-    retire_unbound_work_lane_ref as _retire_unbound_work_lane_ref,
-)
-from ethos.adapters.repo.status import changed_paths
-from ethos.adapters.repo.status import workspace_status
-from ethos.adapters.store.state import acquire_lease
-from ethos.adapters.store.state import active_leases
-from ethos.adapters.store.state import delete_lease
-from ethos.adapters.store.state import update_lease_payload
-from ethos_core.contracts.branch_roles import ROLE_ACCEPTED_ROOT
-from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
-from ethos_core.contracts.branch_roles import load_branch_role_policy
+import ethos.adapters.mutation.lane_lifecycle.refresh as lanes_refresh
+import ethos.adapters.mutation.lane_retirement.core as lane_retirement_core
+import ethos.adapters.mutation.lane_retirement.landed.core as landed_retirement
+import ethos.adapters.mutation.lane_retirement.unbound.core as unbound_retirement
+import ethos.adapters.repo.status.bindings as status_bindings
+from ethos.adapters.mutation.lane_lifecycle.core import default_candidate_path
+from ethos.adapters.mutation.lane_lifecycle.core import is_ancestor
+from ethos.adapters.mutation.lane_lifecycle.core import repo_root
+from ethos.adapters.mutation.lane_lifecycle.core import run_git
+from ethos.adapters.mutation.lane_lifecycle.core import slug
+from ethos.adapters.repo.dirty.core import changed_paths
+from ethos.adapters.repo.status.core import workspace_status
+from ethos.adapters.store.state.lease.lifecycle.core import acquire_lease
+from ethos.adapters.store.state.lease.lifecycle.effects import delete_lease
+from ethos.adapters.store.state.lease.lifecycle.effects import update_lease_payload
+from ethos.adapters.store.state.lease.projection import active_leases
+from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
+from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
+from ethos_core.contracts.branch.roles import load_branch_role_policy
+from ethos_core.contracts.coordination import HolderRef
+
+if TYPE_CHECKING:
+    from ethos.adapters.mutation.lane_retirement.core import SupersededLaneRetirementRequest
 
 
-# Keep the historical private helper surface on this module for internal tests
-# and patchable adapters. lanes_refresh uses the shared implementation in
-# lanes_retire; this compatibility helper preserves the old private surface.
-def _default_candidate_path(repo: Path, candidate_branch: str) -> Path:
-    return repo.with_name(f"{repo.name}-{_slug(candidate_branch)}")
-
-
-__all__ = (
-    "retire_landed_work_lanes",
-    "retire_unbound_work_lane_ref",
-)
-
-
-def start_work_lane(
+def start_work_lane(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
     *,
     root: Path,
     name: str,
-    path: Path,
-    owner: str,
+    path: Path | None = None,
+    holder_ref: str,
     claim_id: str | None = None,
     apply: bool = False,
 ) -> dict[str, object]:
-    repo = _repo_root(root)
+    repo = repo_root(root)
     policy = load_branch_role_policy(repo)
-    slug = _slug(name)
-    branch = policy.work_branch(slug)
-    target = path.resolve()
-    if not owner.strip():
+    lane_slug = slug(name)
+    branch = policy.work_branch(lane_slug)
+    # Default the lane home to the canonical sibling of the accepted root
+    # (repo-<branch-slug>) so lanes stop scattering into /tmp; callers may
+    # still pin an explicit path.
+    target = (path or default_candidate_path(repo, branch)).resolve()
+    try:
+        normalized_holder_ref = HolderRef.parse(holder_ref).serialize()
+    except ValueError:
         return {
             "ok": False,
             "state": "blocked",
             "branch": branch,
-            "required_gaps": ["missing_owner"],
+            "required_gaps": ["holder_ref_invalid"],
         }
     if not apply:
         return {
@@ -66,6 +61,7 @@ def start_work_lane(
             "state": "planned",
             "branch": branch,
             "path": target.as_posix(),
+            "runner_bootstrap": _runner_bootstrap(target),
             "required_gaps": [],
         }
     status = workspace_status(repo)
@@ -113,7 +109,7 @@ def start_work_lane(
             "path": target.as_posix(),
             "required_gaps": ["branch_already_exists"],
         }
-    completed = _git(
+    completed = run_git(
         repo,
         "worktree",
         "add",
@@ -135,11 +131,12 @@ def start_work_lane(
     lease = acquire_lease(
         repo / ".ethos" / "state" / "state.sqlite",
         subject=branch,
-        owner=owner,
+        holder_ref=normalized_holder_ref,
         payload={
             "path": target.as_posix(),
             "branch": branch,
             "claim_id": claim_id or "",
+            "expected_head": str(candidate["head"]),
         },
     )
     return {
@@ -150,9 +147,10 @@ def start_work_lane(
         "base_head": str(candidate["head"]),
         "path": target.as_posix(),
         "worktree": _started_worktree(branch=branch, path=target),
-        "owner": owner,
+        "holder_ref": normalized_holder_ref,
         "claim_id": claim_id or "",
         "lease": lease,
+        "runner_bootstrap": _runner_bootstrap(target),
         "required_gaps": [],
     }
 
@@ -164,7 +162,7 @@ def bind_work_lane_claim(
     branch: str | None = None,
     apply: bool = False,
 ) -> dict[str, object]:
-    repo = _repo_root(root)
+    repo = repo_root(root)
     status = workspace_status(repo)
     target_branch = branch or str(status["branch"])
     gaps: list[str] = []
@@ -184,17 +182,17 @@ def bind_work_lane_claim(
             "state": "blocked",
             "branch": target_branch,
             "claim_id": claim_id,
-            "owner": str(lease.get("owner") or "") if lease else "",
+            "holder_ref": str(lease.get("holder_ref") or "") if lease else "",
             "required_gaps": sorted(set(gaps)),
         }
-    owner = str(cast("dict[str, object]", lease)["owner"])
+    holder_ref = str(cast("dict[str, object]", lease)["holder_ref"])
     if not apply:
         return {
             "ok": True,
             "state": "planned",
             "branch": target_branch,
             "claim_id": claim_id,
-            "owner": owner,
+            "holder_ref": holder_ref,
             "required_gaps": [],
         }
     updated = update_lease_payload(
@@ -207,7 +205,7 @@ def bind_work_lane_claim(
         "state": "bound" if updated else "blocked",
         "branch": target_branch,
         "claim_id": claim_id.strip() if updated else "",
-        "owner": str(updated.get("owner") or owner),
+        "holder_ref": str(updated.get("holder_ref") or holder_ref),
         "lease": updated,
         "required_gaps": [] if updated else [f"work_lane_missing_lease:{target_branch}"],
     }
@@ -220,7 +218,7 @@ def bootstrap_candidate(
     expect_head: str | None = None,
     apply: bool = False,
 ) -> dict[str, object]:
-    """Bootstrap candidate role while preserving this module's patchable adapters."""
+    """Bootstrap candidate role through the lane refresh command contract."""
     return _call_refresh(
         "bootstrap_candidate",
         root=root,
@@ -237,7 +235,7 @@ def refresh_candidate_from_accepted(
     authorized: bool = False,
     expect_head: str | None = None,
 ) -> dict[str, object]:
-    """Refresh candidate from accepted while preserving patchable adapters."""
+    """Refresh candidate from accepted through the lane refresh command contract."""
     return _call_refresh(
         "refresh_candidate_from_accepted",
         root=root,
@@ -254,7 +252,7 @@ def refresh_work_lane_base(
     authorized: bool = False,
     expect_head: str | None = None,
 ) -> dict[str, object]:
-    """Refresh a work lane base while preserving patchable adapters."""
+    """Refresh a Work Lane base through the lane refresh command contract."""
     return _call_refresh(
         "refresh_work_lane_base",
         root=root,
@@ -265,33 +263,22 @@ def refresh_work_lane_base(
 
 
 def _call_refresh(name: str, **kwargs: object) -> dict[str, object]:
-    previous = _refresh_previous(_refresh)
-    try:
-        _patch_refresh_adapters(_refresh)
-        return cast("dict[str, object]", getattr(_refresh, name)(**kwargs))
-    finally:
-        _restore_refresh_adapters(_refresh, previous)
-
-
-def _refresh_previous(refresh: object) -> dict[str, object]:
-    namespace = cast("dict[str, object]", refresh.__dict__)
-    return {
-        key: namespace[key] for key in ("workspace_status", "changed_paths", "_is_ancestor", "_git")
-    }
-
-
-def _patch_refresh_adapters(refresh: object) -> None:
-    namespace = cast("dict[str, object]", refresh.__dict__)
-    namespace.update(
-        workspace_status=workspace_status,
-        changed_paths=changed_paths,
-        _is_ancestor=_is_ancestor,
-        _git=_git,
+    return cast(
+        "dict[str, object]",
+        getattr(lanes_refresh, name)(**kwargs, runtime=_lane_refresh_runtime()),
     )
 
 
-def _restore_refresh_adapters(refresh: object, previous: dict[str, object]) -> None:
-    cast("dict[str, object]", refresh.__dict__).update(previous)
+def _lane_refresh_runtime() -> lanes_refresh.LaneRefreshRuntime:
+    return lanes_refresh.LaneRefreshRuntime(
+        repo_root=repo_root,
+        default_candidate_path=default_candidate_path,
+        load_branch_role_policy=load_branch_role_policy,
+        workspace_status=workspace_status,
+        changed_paths=lambda root: list(changed_paths(root)),
+        is_ancestor=is_ancestor,
+        run_git=run_git,
+    )
 
 
 def _status_work_lane(
@@ -309,7 +296,7 @@ def _status_work_lane(
     return None
 
 
-def _state_root(status: dict[str, object], fallback: Path) -> Path:
+def _state_root(status: dict[str, object], default_root: Path) -> Path:
     worktrees = status.get("worktrees")
     if isinstance(worktrees, list):
         for worktree in worktrees:
@@ -317,7 +304,7 @@ def _state_root(status: dict[str, object], fallback: Path) -> Path:
                 continue
             if worktree.get("role") == ROLE_ACCEPTED_ROOT and worktree.get("path"):
                 return Path(str(cast("dict[str, object]", worktree)["path"]))
-    return fallback
+    return default_root
 
 
 def _active_lease(db_path: Path, subject: str) -> dict[str, object] | None:
@@ -328,12 +315,14 @@ def _active_lease(db_path: Path, subject: str) -> dict[str, object] | None:
 
 
 def _branch_exists(root: Path, branch: str) -> bool:
-    completed = _git(root, "show-ref", "--verify", "--quiet", f"refs/heads/{branch}", check=False)
+    completed = run_git(
+        root, "show-ref", "--verify", "--quiet", f"refs/heads/{branch}", check=False
+    )
     return completed.returncode == 0
 
 
 def _started_worktree(*, branch: str, path: Path) -> dict[str, str]:
-    head = _git(path, "rev-parse", "HEAD").stdout.strip()
+    head = run_git(path, "rev-parse", "HEAD").stdout.strip()
     return {
         "branch": branch,
         "path": path.as_posix(),
@@ -343,6 +332,73 @@ def _started_worktree(*, branch: str, path: Path) -> dict[str, str]:
     }
 
 
+def _runner_bootstrap(target: Path) -> dict[str, str]:
+    """Return the non-mutating source-bound runner contract for a new lane."""
+    resolved = target.resolve().as_posix()
+    return {
+        "command": "tools/ci/scripts/run-ethos-lane.sh",
+        "project_environment": "build/runtime/venv",
+        "environment_scope": "checkout",
+        "uv_cache": "host_or_ci_content_addressed",
+        "cache_scope": "host_or_ci",
+        "next_action": (f"cd {resolved} && tools/ci/scripts/run-ethos-lane.sh status --json"),
+    }
+
+
+def _retirement_leases_by_branch(
+    worktrees: list[dict[str, str]], *, current_path: Path
+) -> dict[str, dict[str, object]]:
+    leases = status_bindings.leases_by_branch(worktrees, current_path=current_path)
+    control_root = current_path
+    for worktree in worktrees:
+        if worktree.get("role") == ROLE_ACCEPTED_ROOT and worktree.get("path"):
+            control_root = Path(str(worktree["path"]))
+            break
+    leases.update(
+        {
+            str(lease["subject"]): lease
+            for lease in active_leases(control_root / ".ethos" / "state" / "state.sqlite")
+        }
+    )
+    return leases
+
+
+def _retirement_shared_runtime() -> lane_retirement_core.lane_retirement_shared.RetirementRuntime:
+    return lane_retirement_core.lane_retirement_shared.RetirementRuntime(run_git=run_git)
+
+
+def _landed_retirement_runtime() -> landed_retirement.LandedRetirementRuntime:
+    return landed_retirement.LandedRetirementRuntime(
+        repo_root=repo_root,
+        workspace_status=workspace_status,
+        leases_by_branch=_retirement_leases_by_branch,
+        is_ancestor=is_ancestor,
+        delete_lease=delete_lease,
+        shared=_retirement_shared_runtime(),
+    )
+
+
+def _superseded_retirement_runtime() -> lane_retirement_core.SupersededRetirementRuntime:
+    return lane_retirement_core.SupersededRetirementRuntime(
+        repo_root=repo_root,
+        workspace_status=workspace_status,
+        leases_by_branch=_retirement_leases_by_branch,
+        is_ancestor=is_ancestor,
+        run_git=run_git,
+        delete_lease=delete_lease,
+        shared=_retirement_shared_runtime(),
+    )
+
+
+def _unbound_retirement_runtime() -> unbound_retirement.UnboundRetirementRuntime:
+    return unbound_retirement.UnboundRetirementRuntime(
+        repo_root=repo_root,
+        workspace_status=workspace_status,
+        delete_lease=delete_lease,
+        shared=_retirement_shared_runtime(),
+    )
+
+
 def retire_landed_work_lanes(
     *,
     root: Path,
@@ -350,38 +406,30 @@ def retire_landed_work_lanes(
     expect_head: str | None = None,
     apply: bool = False,
 ) -> dict[str, object]:
-    """Retire landed lanes while preserving this module's patchable adapters."""
-    previous = {
-        "_repo_root": _retire.__dict__["_repo_root"],
-        "workspace_status": _retire.workspace_status,
-        "active_leases": _retire.active_leases,
-        "delete_lease": _retire.delete_lease,
-        "_is_ancestor": _retire.__dict__["_is_ancestor"],
-        "_git": _retire.__dict__["_git"],
-    }
-    try:
-        _retire.__dict__["_repo_root"] = _repo_root
-        _retire.workspace_status = workspace_status
-        _retire.active_leases = active_leases
-        _retire.delete_lease = delete_lease
-        _retire.__dict__["_is_ancestor"] = _is_ancestor
-        _retire.__dict__["_git"] = _git
-        return _retire_landed_work_lanes(
-            root=root,
-            branch=branch,
-            expect_head=expect_head,
-            apply=apply,
-        )
-    finally:
-        _retire.__dict__["_repo_root"] = previous["_repo_root"]
-        _retire.workspace_status = previous["workspace_status"]
-        _retire.active_leases = previous["active_leases"]
-        _retire.delete_lease = previous["delete_lease"]
-        _retire.__dict__["_is_ancestor"] = previous["_is_ancestor"]
-        _retire.__dict__["_git"] = previous["_git"]
+    """Retire landed Work Lanes through explicit runtime bindings."""
+    return landed_retirement.retire_landed_work_lanes(
+        root=root,
+        branch=branch,
+        expect_head=expect_head,
+        apply=apply,
+        runtime=_landed_retirement_runtime(),
+    )
 
 
-def retire_unbound_work_lane_ref(
+def retire_superseded_work_lane(
+    *,
+    root: Path,
+    request: SupersededLaneRetirementRequest,
+) -> dict[str, object]:
+    """Retire a superseded linked Work Lane through explicit runtime bindings."""
+    return lane_retirement_core.retire_superseded_work_lane(
+        root=root,
+        request=request,
+        runtime=_superseded_retirement_runtime(),
+    )
+
+
+def retire_unbound_work_lane_ref(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
     *,
     root: Path,
     branch: str,
@@ -390,25 +438,13 @@ def retire_unbound_work_lane_ref(
     apply: bool = False,
     authorized: bool = False,
 ) -> dict[str, object]:
-    """Retire an unbound lane ref while preserving this module's patchable adapters."""
-    previous = {
-        "workspace_status": _retire.workspace_status,
-        "delete_lease": _retire.delete_lease,
-        "_git": _retire.__dict__["_git"],
-    }
-    try:
-        _retire.workspace_status = workspace_status
-        _retire.delete_lease = delete_lease
-        _retire.__dict__["_git"] = _git
-        return _retire_unbound_work_lane_ref(
-            root=root,
-            branch=branch,
-            expect_head=expect_head,
-            reason=reason,
-            apply=apply,
-            authorized=authorized,
-        )
-    finally:
-        _retire.workspace_status = previous["workspace_status"]
-        _retire.delete_lease = previous["delete_lease"]
-        _retire.__dict__["_git"] = previous["_git"]
+    """Retire an unbound Work Lane ref through explicit runtime bindings."""
+    return unbound_retirement.retire_unbound_work_lane_ref(
+        root=root,
+        branch=branch,
+        expect_head=expect_head,
+        reason=reason,
+        apply=apply,
+        authorized=authorized,
+        runtime=_unbound_retirement_runtime(),
+    )

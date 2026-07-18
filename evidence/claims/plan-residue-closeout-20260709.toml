@@ -1,0 +1,45 @@
+[claim]
+id = "plan-residue-closeout-20260709"
+subject = "ethos:plan-residue-closeout"
+state = "active"
+summary = "ETHOS archives the completed self-healing closeout intelligence planning record instead of leaving active-plan residue after local closeout."
+
+[evidence]
+dated = "evidence/chronicle/plan-residue-closeout-20260709/2026-07-09.md"
+sha256 = "efbe60ee4f5e9fa818bb7ef3d5d3524bfc7d04e260d2b6bf36d42eec9d8a5c26"
+evidence_ids = ["evidence:plan-residue-closeout-20260709"]
+binding = "Docs plan residue closeout record binding archived planning notes, plans index, and explicit local-vs-remote boundary."
+verifier = "digest_only"
+tests = [
+  "uv run --package ethos ethos plan --changed --json",
+  "uv run --package ethos ethos quality docs --json",
+  "uv run --package ethos ethos quality docs-topology --json",
+  "uv run --package ethos ethos quality claims --json",
+  "uv run --package ethos ethos quality product-boundary --json",
+  "uv run --package ethos ethos openspec --lifecycle --json",
+  "uv run --package ethos ethos prove --execute --expect-head <head> --json",
+  "uv run --package ethos ethos report --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+[boundary]
+owner = "repository-governance"
+scope = "Archival closeout for stale self-healing closeout intelligence plan residue; no runtime, remote publication, adopter-private, or foreign-lane mutation claim."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-09-plan-residue-closeout"
+fallback = "If another stale active planning record remains after its implementation was locally closed out, archive the plan with evidence instead of leaving an unchecked work item."
+kill_signal = "A completed and locally closed-out ETHOS plan remains in active state with unchecked closeout work after the implementation is already accepted."
+
+[promotion]
+targets = [
+  "docs/plans/self-healing-closeout-intelligence/task_plan.md",
+  "docs/plans/self-healing-closeout-intelligence/findings.md",
+  "docs/plans/self-healing-closeout-intelligence/progress.md",
+  "docs/plans/README.md",
+  "evidence/claims/plan-residue-closeout-20260709.toml",
+  "evidence/chronicle/plan-residue-closeout-20260709/2026-07-09.md",
+  "openspec/changes/archive/2026-07-09-plan-residue-closeout",
+  "openspec/changes/archive/2026-07-09-plan-residue-closeout/specs/repository-governance/spec.md",
+]

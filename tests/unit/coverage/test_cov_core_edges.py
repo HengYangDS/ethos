@@ -8,12 +8,15 @@ from pathlib import Path
 
 import pytest
 
+import ethos_core.contracts.system.contracts as system_contracts
 from ethos_core import models
-from ethos_core.contracts import system_contracts
-from ethos_core.contracts.branch_roles import BranchRolePolicy
-from ethos_core.contracts.branch_roles import load_branch_role_policy
-from ethos_core.contracts.context_projection import redact_secret_like
+from ethos_core.contracts.branch.roles import BranchRolePolicy
+from ethos_core.contracts.branch.roles import load_branch_role_policy
+from ethos_core.contracts.context.projection import redact_secret_like
 from ethos_core.quality.models import QualityFinding
+from ethos_core.quality.models import ToolAdapterProfile
+
+# fmt: off
 
 
 def test_quality_finding_to_dict_serializes_all_fields() -> None:
@@ -53,6 +56,8 @@ def test_quality_finding_to_dict_serializes_all_fields() -> None:
         "message",
         "path",
     }
+    adapter = ToolAdapterProfile("ruff", "ruff", ("python-code",), ("lint",), "format boundary")
+    assert adapter.to_dict()["asset_classes"] == ["python-code"]
 
 
 def test_redact_secret_like_masks_secret_and_preserves_plain_text() -> None:
@@ -95,9 +100,9 @@ def test_load_branch_role_policy_falls_back_on_non_string_value(tmp_path: Path) 
 
 def test_require_text_rejects_empty_and_whitespace_only_fields() -> None:
     with pytest.raises(ValueError, match="id must be non-empty"):
-        models.JudgmentSource(id="", authority="anthropic")
-    with pytest.raises(ValueError, match="authority must be non-empty"):
-        models.JudgmentSource(id="js:1", authority="   ")
+        models.Authority(id="", order_ref="anthropic")
+    with pytest.raises(ValueError, match="order_ref must be non-empty"):
+        models.Authority(id="authority:1", order_ref="   ")
 
 
 def test_evidence_claim_to_dict_serializes_all_fields() -> None:
@@ -105,14 +110,14 @@ def test_evidence_claim_to_dict_serializes_all_fields() -> None:
         id="claim:serialize",
         change_id="change:serialize",
         evidence_ids=("evidence:one", "evidence:two"),
-        binding="digest binding verified",
+        binding="digest binding recorded",
         verifier="digest_only",
     )
     assert claim.to_dict() == {
         "id": "claim:serialize",
         "change_id": "change:serialize",
         "evidence_ids": ["evidence:one", "evidence:two"],
-        "binding": "digest binding verified",
+        "binding": "digest binding recorded",
         "verifier": "digest_only",
     }
 
@@ -142,3 +147,5 @@ def test_schema_validation_gaps_reports_unreadable_schema(tmp_path: Path) -> Non
 
     assert len(gaps) == 1
     assert gaps[0].startswith("system_schema_unreadable:authority:")
+
+# fmt: on

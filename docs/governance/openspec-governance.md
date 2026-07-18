@@ -36,12 +36,45 @@ design, tasks, delta specs, and an active trust-bearing claim whose
 `carriers.openspec` points at the change. A syntactically valid change without a
 claim binding reports `openspec_claim_binding_missing:<change>`.
 
+Lifecycle also asks the configured official CLI to archive each active change
+inside a disposable copy of `openspec/`. This is an archiveability preflight,
+not a second delta parser: ETHOS neither rewrites delta operations nor mutates
+the source workspace. An official failure becomes
+`openspec_archive_preflight_failed:<change>:<code>` with the official diagnostic
+projected under `archive_preflight`. The same lifecycle projection is consumed
+by `ethos plan --changed`, `ethos prove`, and `ethos land`; accepted-root
+closeout evaluates it against the admitted candidate root.
+
+For adopters, the official active or archiving Change selection also feeds one
+ETHOS-owned material-scope read model. An adopter declares the material path
+families in `[openspec].material_paths`; an active Change may declare its
+covered paths in `openspec/changes/<id>/scope.toml`. The companion is not an
+official OpenSpec workflow-schema extension and cannot replace the official
+lifecycle. `lane prewrite`, `plan --changed`, and `prove` consume the same
+read model. An uncovered material path fails with
+`openspec_material_path_uncovered:<path>`; lifecycle scope is not a
+code-correctness gate and no method package carries Change authority.
+
+The only bootstrap exception is the exact absent
+`openspec/changes/<id>/scope.toml` for a Change that the official list already
+identifies as active. Once written, that companion must validate and cover
+itself. There is no blanket exemption for an OpenSpec directory, `.ethos/`, or
+a path family; missing or invalid unrelated companions remain diagnostics and
+do not override valid coverage supplied by another selected Change.
+
+For a valid tracked adopter profile created before the material-path contract,
+ETHOS also permits one migration write: exactly `.ethos/profile.toml`, while
+the declaration is absent and exactly one official active Change is selected.
+This emits `profile_material_paths_bootstrap`. It is not scope coverage, does
+not repair an empty or malformed declaration, and is followed by the normal
+exact Change-local `scope.toml` bootstrap.
+
 Canonical capability profiles live beside canonical specs as
 `openspec/specs/<capability>/capability.toml`. They are validated by
 `capability-profile.schema.json` and record the family owner, primary invariant,
 routing question, boundary rules, and proof profile. They are routing and
 contract metadata; promoted truth still lives in source, tests, schemas,
-current docs, claims, and dated evidence.
+canonical docs, claims, and dated evidence.
 
 ## Product Protocol
 
@@ -106,3 +139,12 @@ Status: see front matter.
 Purpose: explain the repository truth represented by this ETHOS document.
 
 See also: [Documentation Index](../index.md), [Command Plane](../reference/command-plane.md), and [Glossary](../reference/glossary.md).
+
+## Adopter Lifecycle Parity
+
+`ethos plan` and `ethos prove` evaluate official OpenSpec lifecycle for every
+governed root, including valid adopters. Lifecycle gaps remain OpenSpec and
+repository-governance obligations: they are not code-correctness gates, and no
+Superpowers or other method package carries Change authority. Material-path
+scope admission remains the separately governed follow-up
+`adopter-material-change-scope-20260714`.

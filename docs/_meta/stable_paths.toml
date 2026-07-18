@@ -41,3 +41,48 @@ freeze_level = "hard"
 path = "docs/architecture/product-ontology.md"
 reason = "package ontology"
 freeze_level = "hard"
+
+[[stable_path]]
+path = "docs/decisions/README.md"
+reason = "durable decision records index"
+freeze_level = "hard"
+
+[[stable_path]]
+path = "docs/decisions/decision-index.md"
+reason = "durable decision record routing"
+freeze_level = "hard"
+
+[[stable_path]]
+path = "docs/README.md"
+reason = "common docs topology root"
+freeze_level = "hard"
+
+[[stable_path]]
+path = "docs/evidence/README.md"
+reason = "common evidence-docs lane"
+freeze_level = "hard"
+
+[[stable_path]]
+path = "docs/governance/README.md"
+reason = "product governance docs index"
+freeze_level = "hard"
+
+[[stable_path]]
+path = "docs/plans/README.md"
+reason = "product planning docs index"
+freeze_level = "hard"
+
+[[stable_path]]
+path = "docs/history/README.md"
+reason = "common history-docs lane"
+freeze_level = "hard"
+
+[[stable_path]]
+path = "docs/reference/README.md"
+reason = "common reference-docs lane"
+freeze_level = "hard"
+
+[[stable_path]]
+path = "docs/architecture/docs-topology.md"
+reason = "documentation topology contract"
+freeze_level = "hard"

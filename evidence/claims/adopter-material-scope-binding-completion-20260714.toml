@@ -1,0 +1,65 @@
+[claim]
+id = "adopter-material-scope-binding-completion-20260714"
+change_id = "adopter-material-scope-binding-completion-20260714"
+subject = "ethos:adopter-material-change-scope-binding"
+state = "archived"
+summary = "ETHOS binds adopter material paths to valid official Change companions across prewrite, plan, and proof."
+
+[evidence]
+dated = "evidence/chronicle/adopter-material-scope-binding-completion-20260714/2026-07-14.md"
+sha256 = "48130be78b252ecec30eb144f9361d009bc7dfc9d7db825030f7db7bd1a25eec"
+evidence_ids = ["evidence:adopter-material-scope-binding-completion-20260714"]
+binding = "Typed profile material paths, strict ETHOS-owned scope companions, common lifecycle read-model coverage, bounded bootstrap admission, and a refreshed tracked generic shadow-parity witness."
+verifier = "digest_only"
+tests = [
+  "uv run --group dev pytest -q tests/unit/kernel/test_openspec_contract.py tests/unit/lanes/test_lanes_openspec_scope.py tests/unit/cli/test_adopter_openspec_lifecycle.py tests/unit/cli/test_contracts.py tests/unit/cli/test_contracts_proof.py tests/unit/adoption/test_apply_sample.py tests/unit/adoption/test_scaffold_templates.py tests/unit/product/test_openspec_substrate.py",
+  "uv run --group dev ruff format --check <changed-python-files>",
+  "uv run --group dev ruff check <changed-python-files>",
+  "uv run openspec validate adopter-material-scope-binding-completion-20260714 --strict --json",
+  "tools/ci/scripts/run-ethos-lane.sh openspec --lifecycle --json",
+  "tools/ci/scripts/run-ethos-lane.sh parity shadow --adopter generic --target . --execute --write-evidence --json",
+  "tools/ci/scripts/run-ethos-lane.sh parity gaps --adopter generic --target . --json",
+  "tools/ci/scripts/run-ethos-lane.sh prove --execute --expect-head <committed-head> --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "Cross-adopter material-path-to-Change companion admission for prewrite, plan, and proof; excludes official workflow schema replacement and native code-correctness gate semantics."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-14-adopter-material-scope-binding-completion-20260714"
+fallback = "Block uncovered material paths while retaining official OpenSpec lifecycle and adopter-native proof gates."
+kill_signal = "A material adopter change can bypass Change coverage, borrow an unrelated Change, or lifecycle scope becomes a code-correctness or method-package authority."
+
+[promotion]
+targets = [
+  "packages/ethos-core/src/ethos_core/contracts/openspec",
+  "packages/ethos/src/ethos/adapters/admission/prewrite.py",
+  "packages/ethos/src/ethos/adapters/openspec",
+  "packages/ethos/src/ethos/repository/adoption/scaffold/template_files/core/profile.toml.j2",
+  "packages/ethos/src/ethos/surface/cli/root/planning.py",
+  "packages/ethos/src/ethos/surface/cli/root/proof.py",
+  "tests/unit/kernel/test_openspec_contract.py",
+  "tests/unit/lanes/test_lanes_openspec_scope.py",
+  "tests/unit/cli/test_adopter_openspec_lifecycle.py",
+  "tests/unit/cli/test_contracts.py",
+  "tests/unit/cli/test_contracts_proof.py",
+  "tests/unit/adoption/test_apply_sample.py",
+  "tests/unit/adoption/test_scaffold_templates.py",
+  "tests/unit/product/test_openspec_substrate.py",
+  "tests/unit/coverage/test_cov_v3_openspec_edges.py",
+  "tests/unit/product/parity/test_evidence_writing.py",
+  "system/invalid_states.toml",
+  "docs/governance/openspec-governance.md",
+  "docs/governance/repository-profile-contract.md",
+  "openspec/README.md",
+  "openspec/changes/README.md",
+  "openspec/specs/repository-governance/spec.md",
+  "openspec/changes/archive/2026-07-14-adopter-material-scope-binding-completion-20260714",
+  "evidence/claims/adopter-material-scope-binding-completion-20260714.toml",
+  "evidence/chronicle/adopter-material-scope-binding-completion-20260714/2026-07-14.md",
+  "evidence/parity/generic-shadow.json",
+]

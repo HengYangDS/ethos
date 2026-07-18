@@ -44,5 +44,5 @@ def test_reference_adopter_profile_fixture_keeps_terms_outside_product_core() ->
     fixture = reference_adopter_profile_fixture()
 
     assert fixture["boundary"] == "adopter-profile-only"
-    assert fixture["profile_terms"] == ["raw/cache parity", "domain cache contract"]
+    assert fixture["profile_terms"] == ["adopter-domain storage parity", "domain cache contract"]
     assert fixture["core_product_terms"] == []

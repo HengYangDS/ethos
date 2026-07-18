@@ -27,7 +27,7 @@ required gaps. The CI script invokes that command; the threshold lives only in
 - Reusing Ruff `D` rules directly was rejected for the first hard gate because
   the current package roots produce hundreds of public/private docstring-style
   findings, forcing noisy helper docstrings rather than product-surface intent.
-- Copying di-effect's full docstring stack was rejected as premature for ETHOS:
+- Copying alternate mechanism corpus's full docstring stack was rejected as premature for ETHOS:
   ETHOS can absorb the separation of concern and coverage threshold idea without
   adding a parallel toolchain.
 

@@ -8,32 +8,20 @@ summary = "ETHOS exposes the active Python coverage floor through a read-only qu
 dated = "evidence/chronicle/coverage-quality-readmodel/2026-07-06.md"
 sha256 = "1c4a68b644017aa5cc16433f882fc00bc68c295a55136795698d93de43740da9"
 evidence_ids = ["evidence:ethos-coverage-quality-readmodel"]
-binding = "semantic coverage quality read-model evidence binding"
-verifier = "semantic"
+binding = "declared coverage quality read-model evidence binding"
+verifier = "digest_only"
 tests = [
   "uv run --group dev pytest tests/unit/policy/test_coverage.py tests/unit/cli/test_quality_surface_more.py::test_quality_coverage_reports_policy_and_latest_artifact tests/unit/cli/test_contracts.py::test_quality_help_lists_canonical_commands -q",
   "uv run --group dev pytest tests/unit/kernel/test_invalid_states.py::test_every_emitted_gap_classifies_to_exactly_one_node -q",
-  "uv run --group dev ruff check packages/ethos/src/ethos/repository/policy/coverage.py packages/ethos/src/ethos/surface/cli/quality.py tests/unit/policy/test_coverage.py tests/unit/cli/test_quality_surface_more.py tests/unit/cli/test_contracts.py tests/unit/kernel/test_invalid_states.py",
-  "uv run --group dev ruff format --check packages/ethos/src/ethos/repository/policy/coverage.py packages/ethos/src/ethos/surface/cli/quality.py tests/unit/policy/test_coverage.py tests/unit/cli/test_quality_surface_more.py tests/unit/cli/test_contracts.py tests/unit/kernel/test_invalid_states.py",
-  "uv run --group dev ty check packages/ethos/src/ethos/repository/policy/coverage.py packages/ethos/src/ethos/surface/cli/quality.py",
-  ".config/ci/scripts/run-python-tests.sh",
+  "uv run --group dev ruff check packages/ethos/src/ethos/repository/policy/coverage.py packages/ethos/src/ethos/surface/cli/quality/core.py tests/unit/policy/test_coverage.py tests/unit/cli/test_quality_surface_more.py tests/unit/cli/test_contracts.py tests/unit/kernel/test_invalid_states.py",
+  "uv run --group dev ruff format --check packages/ethos/src/ethos/repository/policy/coverage.py packages/ethos/src/ethos/surface/cli/quality/core.py tests/unit/policy/test_coverage.py tests/unit/cli/test_quality_surface_more.py tests/unit/cli/test_contracts.py tests/unit/kernel/test_invalid_states.py",
+  "uv run --group dev ty check packages/ethos/src/ethos/repository/policy/coverage.py packages/ethos/src/ethos/surface/cli/quality/core.py",
+  "tools/ci/scripts/run-python-tests.sh",
   "ETHOS_ROOT=$PWD uv run --group dev ethos quality coverage --json",
 ]
 
-[scope]
-packages = [
-  "ethos",
-]
-tests = [
-  "tests/unit/policy/test_coverage.py",
-  "tests/unit/cli/test_quality_surface_more.py",
-  "tests/unit/cli/test_contracts.py",
-  "tests/unit/kernel/test_invalid_states.py",
-]
-docs = [
-  "openspec/specs/quality/spec.md",
-]
-
+[evidence.freshness]
+mode = "historical"
 [boundary]
 owner = "ethos-quality"
 scope = "Read-only Python coverage quality floor and latest artifact visibility"
@@ -41,7 +29,7 @@ scope = "Read-only Python coverage quality floor and latest artifact visibility"
 [carriers]
 openspec = "openspec/changes/archive/2026-07-05-coverage-quality-readmodel"
 
-fallback = "Use .config/ci/scripts/run-python-tests.sh directly to produce trust-bearing coverage evidence."
+fallback = "Use tools/ci/scripts/run-python-tests.sh directly to produce trust-bearing coverage evidence."
 kill_signal = "Coverage policy can be active in system/tools.toml and proof while lacking a read-only ETHOS command surface."
 
 [promotion]
@@ -53,7 +41,7 @@ targets = [
   "openspec/changes/archive/2026-07-05-coverage-quality-readmodel/tasks.md",
   "openspec/changes/archive/2026-07-05-coverage-quality-readmodel/specs/ethos-quality/spec.md",
   "packages/ethos/src/ethos/repository/policy/coverage.py",
-  "packages/ethos/src/ethos/surface/cli/quality.py",
+  "packages/ethos/src/ethos/surface/cli/quality/core.py",
   "tests/unit/policy/test_coverage.py",
   "tests/unit/cli/test_quality_surface_more.py",
   "tests/unit/cli/test_contracts.py",

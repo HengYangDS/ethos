@@ -1,0 +1,49 @@
+[claim]
+id = "release-mirror-fast-forward-20260714"
+subject = "ethos:accepted-to-release-fast-forward-mirror"
+change_id = "release-mirror-fast-forward-20260714"
+state = "active"
+summary = "ETHOS can opt into proof-bound atomic accepted-to-release fast-forward mirroring without weakening protected-ref admission."
+
+[evidence]
+dated = "evidence/chronicle/release-mirror-fast-forward-20260714/2026-07-14.md"
+sha256 = "63872970353d2d96173924be53e276c8f795894668aa6bef88e6513e2e45a136"
+evidence_ids = ["evidence:release-mirror-fast-forward-20260714"]
+binding = "The archived OpenSpec carrier, focused mirror and closeout regressions, formatter, module-layout, and source-budget gates bind the declared behavior to this change."
+verifier = "digest_only"
+tests = [
+  "uv run --all-packages --group dev pytest -q tests/unit/lanes/test_apply.py",
+  "uv run --all-packages --group dev pytest -q tests/unit/lanes/test_armed_hook_closeout_e2e.py",
+  "uv run --all-packages --group dev pytest -q tests/unit/coverage/test_core_state_claims_edges.py tests/unit/coverage/test_cov_v3_mutation_edges.py tests/unit/coverage/test_mutation_retrieval_parity_edges.py",
+  "tools/ci/scripts/run-ethos-lane.sh quality source-budget --root <lane> --json",
+  "uv run ethos quality module-layout --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[scope]
+packages = ["ethos", "ethos-core"]
+tests = ["tests/unit/lanes/test_apply.py", "tests/unit/lanes/test_armed_hook_closeout_e2e.py", "tests/unit/coverage/test_core_state_claims_edges.py"]
+
+[boundary]
+owner = "ethos-repository"
+scope = "Optional release mirror declaration, protected-ref admission, atomic closeout transaction, and linked release-worktree synchronization."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-14-release-mirror-fast-forward-20260714"
+fallback = "Keep release independent unless the candidate committed policy explicitly enables accepted_ff; block raw protected-ref moves."
+kill_signal = "A raw release move can bypass the exact closeout intent or a failed atomic/synchronization path silently reports success."
+
+[promotion]
+targets = [
+  ".ethos/workspace.toml",
+  "packages/ethos-core/src/ethos_core/contracts/branch/roles.py",
+  "packages/ethos/src/ethos/adapters/admission/core.py",
+  "packages/ethos/src/ethos/adapters/mutation/core.py",
+  "packages/ethos/src/ethos/adapters/mutation/closeout/core.py",
+  "packages/ethos/src/ethos/adapters/mutation/lane_lifecycle/core.py",
+  "openspec/changes/archive/2026-07-14-release-mirror-fast-forward-20260714",
+  "evidence/chronicle/release-mirror-fast-forward-20260714/2026-07-14.md",
+  "evidence/claims/release-mirror-fast-forward-20260714.toml",
+]

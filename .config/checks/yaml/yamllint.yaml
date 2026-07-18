@@ -9,13 +9,11 @@ rules:
     max: 160
   new-lines:
     type: unix
+  empty-lines:
+    max: 1
+    max-start: 0
+    max-end: 0
   trailing-spaces: enable
   truthy:
-    allowed-values:
-      - "false"
-      - "no"
-      - "off"
-      - "on"
-      - "true"
-      - "yes"
+    allowed-values: ["false", "no", "off", "on", "true", "yes"]
     check-keys: false

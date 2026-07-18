@@ -1,0 +1,15 @@
+schema = "ethos-hosted-provider-observation-v1"
+owner = "ethos-quality-gate-governance"
+summary = "Capture hosted provider observation envelopes without converting them into repository proof."
+runner = "tools/ci/scripts/run-hosted-provider-observation.sh"
+output = "build/evidence/hosted-ci/observation.json"
+providers = ["github", "gitlab"]
+
+[provider]
+github.repository_target_env = "ETHOS_HOSTED_GITHUB_REPO"
+gitlab.repository_target_env = "ETHOS_HOSTED_GITLAB_REPO"
+
+[boundary]
+evidence_class = "hosted_provider_observation"
+claim = "Provider facts may be observed here; repository proof remains ETHOS-owned."
+not_claimed = ["repository proof passed", "hosted GitHub status passed", "hosted GitLab status passed", "remote publication succeeded"]

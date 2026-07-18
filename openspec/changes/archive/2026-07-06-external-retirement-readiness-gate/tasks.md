@@ -5,4 +5,4 @@
 - [x] 3. Add `ethos fleet retirement-readiness --target <repo> --json`.
 - [x] 4. Register the command in docs/command-example validation.
 - [x] 5. Add focused unit and CLI tests.
-- [x] 6. Refresh alphasim-dmgr shadow evidence and document remaining lifecycle blockers.
+- [x] 6. Refresh reference-adopter shadow evidence and document remaining lifecycle blockers.

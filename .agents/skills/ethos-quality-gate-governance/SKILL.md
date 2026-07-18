@@ -17,7 +17,7 @@ provider projections.
 
 1. Read `AGENTS.md`, `rules/mutation.md`, `rules/evidence.md`,
    `docs/governance/product-design-contract.md`, and the relevant quality spec.
-2. Put reusable commands in `.config/ci/scripts/` and tool-native policy under
+2. Put reusable commands in `tools/ci/scripts/` and tool-native policy under
    `.config/checks/<concern>/` or the smallest stable native config owner.
 3. Keep `pyproject.toml` limited to package/workspace metadata unless a tool has
    no better native owner.
@@ -35,13 +35,13 @@ provider projections.
 Use owner scripts and proof output:
 
 ```bash
-.config/ci/scripts/run-python-lint.sh
-.config/ci/scripts/run-config-lint.sh
-.config/ci/scripts/run-shell-lint.sh
+tools/ci/scripts/run-python-lint.sh
+tools/ci/scripts/run-config-lint.sh
+tools/ci/scripts/run-shell-lint.sh
 .agents/skills/ethos-quality-gate-governance/scripts/quality_audit.py .
 ethos quality types --json
 ethos quality docstrings --json
-# After `.config/ci/scripts/run-python-tests.sh` has produced coverage.xml:
+# After `tools/ci/scripts/run-python-tests.sh` has produced coverage.xml:
 ethos quality coverage --json
 ethos prove --execute --expect-head "$(git rev-parse HEAD)" --json
 ```

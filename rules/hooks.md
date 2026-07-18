@@ -4,7 +4,7 @@ Purpose: place guards at the earliest useful failure point.
 
 | Field | Rule |
 | --- | --- |
-| Authority | [Terminal Governance Product Design](../docs/architecture/terminal-governance-product-design.md), `ethos lane prewrite --json` |
+| Authority | [Terminal Governance Product Design](../docs/plans/terminal-governance-product-design.md), `ethos lane prewrite --json` |
 | Trigger | Any host or tool supports a hook before context use, file write, shell execution, commit, push, or CI publish. |
 | Action | Install the earliest hook that can block the invalid action. |
 | Evidence | Hook report or equivalent command JSON shows target root, role, paths, and decision. |
@@ -39,3 +39,8 @@ Pre-tool hooks must reject tracked writes when the tool call cannot prove:
 An implicit shell working directory, cached chat context, or IDE-selected root is
 not sufficient proof. Wrong-root writes are a hook failure, not just an agent
 mistake.
+
+Pre-run hooks must reject `git stash` mutation commands because stash is a hidden
+change carrier. `git stash list` and `git stash show` remain observation-only;
+`push`, `save`, `apply`, `pop`, `drop`, `clear`, `store`, and implicit stash
+creation are blocked with `git_stash_forbidden`.

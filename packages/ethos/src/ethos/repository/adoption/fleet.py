@@ -13,7 +13,8 @@ def _has_docs(root: Path) -> bool:
     docs_root = profile_root(root, "docs")
     return (
         (docs_root / "index.md").exists()
-        or any((docs_root / "current").glob("*.md"))
+        or any((docs_root / "governance").glob("*.md"))
+        or any((docs_root / "reference").glob("*.md"))
         or (root / "README.md").exists()
     )
 

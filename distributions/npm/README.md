@@ -1,6 +1,6 @@
 ---
 subject: distributions:npm
-role: distribution adapter
+role: reference
 state: active
 relations: wraps Python command plane
 ---

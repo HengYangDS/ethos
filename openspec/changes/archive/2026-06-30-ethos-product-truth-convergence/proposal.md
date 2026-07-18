@@ -1,7 +1,7 @@
 ## Why
 
 ETHOS must become the external product truth for repository governance instead
-of remaining a dmgr-embedded implementation with product-like behavior. The
+of remaining a reference adopter-embedded implementation with product-like behavior. The
 previous state had a good design contract, but the physical package homes,
 capability parity ledger, fast verification path, and adopter shadow-parity
 control plane were still incomplete.

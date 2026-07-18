@@ -6,8 +6,8 @@ to reproduce safely. The current workspace validates, yet it lacks in-repository
 OpenSpec READMEs, family vocabulary, capability profile templates, and a fully
 codified final-design carrier for the remaining productization decisions.
 
-This change absorbs reusable mechanisms from `di-effect` and
-`alphasim-dmgr-fix-b3` without importing their domain vocabulary or creating a
+This change absorbs reusable mechanisms from `alternate mechanism corpus` and
+`reference adopter workspace` without importing their domain vocabulary or creating a
 second command plane.
 
 ## What Changes

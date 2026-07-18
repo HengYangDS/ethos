@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-from ethos_core.contracts.context_projection import (
-    context_retrieval_smoke_queries as _context_retrieval_smoke_queries,
-)
+import ethos_core.contracts.context.projection as context_projection_contract
 
 SAMPLE_REPOSITORIES = (
     "sample-basic-git",
@@ -15,7 +13,7 @@ SAMPLE_REPOSITORIES = (
 
 
 def context_retrieval_smoke_queries() -> tuple[dict[str, object], ...]:
-    return _context_retrieval_smoke_queries()
+    return context_projection_contract.context_retrieval_smoke_queries()
 
 
 def sample_repository_names() -> tuple[str, ...]:
@@ -130,7 +128,7 @@ def malformed_governance_lifecycle() -> dict[str, object]:
 def reference_adopter_profile_fixture() -> dict[str, object]:
     return {
         "boundary": "adopter-profile-only",
-        "profile_terms": ["raw/cache parity", "domain cache contract"],
+        "profile_terms": ["adopter-domain storage parity", "domain cache contract"],
         "core_product_terms": [],
         "evidence": {
             "kind": "shadow_parity_evidence",

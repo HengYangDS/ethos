@@ -1,0 +1,1 @@
+"""Shadow parity adapter package."""

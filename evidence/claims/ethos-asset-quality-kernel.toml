@@ -2,16 +2,16 @@
 id = "ethos-asset-quality-kernel"
 subject = "ethos:quality-kernel"
 state = "active"
-summary = "ETHOS quality, determinism, docs quality, and proof policy semantics are a first-class product capability."
+summary = "ETHOS quality, determinism, docs quality, and proof policy are a first-class product capability."
 
 [evidence]
 dated = "evidence/chronicle/asset-quality-kernel/2026-07-01.md"
 sha256 = "3f1fb1d71ea3e0c9d7d906585e9eadff9b12caf11607a25f5d47d5d80ab049a6"
 evidence_ids = ["evidence:ethos-asset-quality-kernel"]
-binding = "semantic quality-kernel evidence binding"
-verifier = "semantic"
+binding = "declared quality-kernel evidence binding"
+verifier = "digest_only"
 tests = [
-  "uv run --group dev pytest tests/unit/kernel/test_quality.py tests/unit/governance/test_docs_registry.py tests/unit/governance/test_validation_gates.py tests/unit/cli/test_contracts.py tests/unit/governance/test_evolution_ledger.py tests/unit/product/test_parity.py tests/architecture/test_product_boundaries.py -q",
+  "uv run --group dev pytest tests/unit/kernel/test_quality.py tests/unit/governance/test_docs_registry.py tests/unit/governance/validation tests/unit/cli/test_contracts.py tests/unit/governance/test_evolution_ledger.py tests/unit/product/parity tests/architecture/test_product_boundaries.py -q",
   "uv run --group dev pytest -q",
   "uv run --group dev ruff check .",
   "uv run openspec validate --all --strict --json",
@@ -32,24 +32,8 @@ tests = [
   "npm run test:npm",
 ]
 
-[scope]
-packages = [
-  "ethos",
-  "ethos-contracts",
-  "ethos-quality",
-  "ethos-repository",
-]
-schemas = [
-  "system/schemas/kernel/gate.schema.json",
-  "system/schemas/kernel/proof-run.schema.json",
-  "system/schemas/kernel/quality-asset.schema.json",
-  "system/schemas/kernel/quality-finding.schema.json",
-  "system/schemas/kernel/quality-gate-plan.schema.json",
-  "system/schemas/kernel/quality-profile.schema.json",
-  "system/schemas/kernel/review-record.schema.json",
-  "system/schemas/kernel/host-capability.schema.json",
-]
-
+[evidence.freshness]
+mode = "historical"
 [boundary]
 owner = "ethos-quality"
 scope = "Quality assets, gate descriptors, docs profile, and proof-state lattice"
@@ -109,16 +93,16 @@ targets = [
   "openspec/specs/quality/spec.md",
   "packages/ethos/pyproject.toml",
   "packages/ethos/src/ethos/adapters/gates/runner.py",
-  "packages/ethos-core/src/ethos_core/contracts/capability_parity.py",
-  "packages/ethos-core/src/ethos_core/contracts/package_ontology.py",
-  "packages/ethos-core/src/ethos_core/action_graph.py",
+  "packages/ethos-core/src/ethos_core/contracts/capability/parity.py",
+  "packages/ethos-core/src/ethos_core/contracts/package/ontology.py",
+  "packages/ethos-core/src/ethos_core/action_graph/core.py",
   "packages/ethos-core/README.md",
   "pyproject.toml",
   "uv.lock",
   "packages/ethos/pyproject.toml",
   "packages/ethos/src/ethos/cli.py",
   "packages/ethos/pyproject.toml",
-  "packages/ethos/src/ethos/repository/registry/docs.py",
+  "packages/ethos/src/ethos/repository/registry/docs",
   "packages/ethos/src/ethos/repository/evidence/core.py",
   "packages/ethos/src/ethos/repository/adoption/evolution.py",
   "packages/ethos/src/ethos/repository/policy/gates.py",
@@ -127,11 +111,13 @@ targets = [
   "packages/ethos/src/ethos/repository/audit.py",
   "packages/ethos-core/pyproject.toml",
   "packages/ethos-core/src/ethos_core/quality/__init__.py",
-  "packages/ethos-core/src/ethos_core/quality/docs_profile.py",
+  "packages/ethos-core/src/ethos_core/quality/docs/__init__.py",
+  "packages/ethos-core/src/ethos_core/quality/docs/profile.py",
   "packages/ethos-core/src/ethos_core/quality/gates.py",
   "packages/ethos-core/src/ethos_core/quality/models.py",
   "packages/ethos-core/src/ethos_core/quality/profiles.py",
-  "packages/ethos-core/src/ethos_core/quality/proof_policy.py",
+  "packages/ethos-core/src/ethos_core/quality/proof/__init__.py",
+  "packages/ethos-core/src/ethos_core/quality/proof/policy.py",
   "system/schemas/kernel/action.schema.json",
   "system/schemas/kernel/docs-registry.schema.json",
   "system/schemas/kernel/evolution-ledger.schema.json",
@@ -150,10 +136,10 @@ targets = [
   "tests/unit/cli/test_contracts.py",
   "tests/unit/governance/test_docs_registry.py",
   "tests/unit/kernel/test_contracts.py",
-  "tests/unit/product/test_parity.py",
+  "tests/unit/product/parity",
   "tests/unit/kernel/test_quality.py",
   "tests/unit/release/test_policy_attestation.py",
   "tests/unit/lanes/test_runner_evidence.py",
-  "tests/unit/governance/test_validation_gates.py",
+  "tests/unit/governance/validation",
   "tests/unit/governance/test_evolution_ledger.py",
 ]

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import subprocess
 from pathlib import Path
 
 from ethos.adapters.mutation import core as mutation
@@ -8,8 +7,11 @@ from ethos.adapters.mutation.core import MutationRequest
 from ethos.adapters.mutation.core import apply_land_to_candidate
 from ethos.adapters.mutation.core import evaluate_mutation
 from ethos.adapters.mutation.lanes import start_work_lane
+from ethos.adapters.mutation.proof import _promotion_required_gate_ids
 from ethos.adapters.mutation.proof import executed_proof_record
 from ethos.adapters.mutation.proof import record_executed_proof
+from ethos.adapters.mutation.remediation.core import remediation_for_gaps
+from tests.support.contract_helpers import git
 
 
 def seed_proof(root: Path, head: str) -> None:
@@ -22,33 +24,16 @@ def seed_proof(root: Path, head: str) -> None:
     body — proof cannot be faked, in tests or production.
     """
     from ethos.repository.evidence.core import EvidenceSet
-    from ethos.repository.evidence.core import ProofRun
+    from tests.support.contract_helpers import conformant_proof_run
 
-    run = ProofRun(
-        action_id="python-tests",
-        command=("pytest",),
-        exit_code=0,
-        stdout="",
-        stderr="",
-        state="proven",
-        evidence_class="test",
-        verdict="passed",
-        trust_bearing=True,
-        diagnostics=(),
+    # Seed a COMPLETE, POLICY-CONFORMANT promotion proof: one conformant run per required
+    # gate id for `root` (its canonical command / trust_bearing / evidence_class), so it
+    # covers the land floor AND passes gate-policy conformance.
+    runs = tuple(
+        conformant_proof_run(gate_id, root) for gate_id in _promotion_required_gate_ids(root)
     )
-    evidence = EvidenceSet.from_runs(id="proof", head=head, runs=(run,)).to_dict()
+    evidence = EvidenceSet.from_runs(id="proof", head=head, runs=runs).to_dict()
     record_executed_proof(root, evidence)
-
-
-def git(root: Path, *args: str) -> str:
-    completed = subprocess.run(
-        ["git", *args],
-        cwd=root,
-        check=True,
-        text=True,
-        capture_output=True,
-    )
-    return completed.stdout.strip()
 
 
 def init_repo(path: Path) -> Path:
@@ -78,7 +63,13 @@ def add_candidate_worktree(repo: Path, path: Path) -> Path:
 
 
 def add_owned_work_lane(repo: Path, name: str, path: Path) -> Path:
-    report = start_work_lane(root=repo, name=name, path=path, owner="agent:test", apply=True)
+    report = start_work_lane(
+        root=repo,
+        name=name,
+        path=path,
+        holder_ref="agent:test:case:agent-test",
+        apply=True,
+    )
     assert report["ok"] is True
     return path
 
@@ -454,8 +445,6 @@ def test_apply_land_reuses_admitted_decision_after_runtime_proof_cleanup(tmp_pat
 
 
 def test_mutation_remediation_explains_dirty_stale_overlap_and_concurrent_advance() -> None:
-    from ethos.adapters.mutation.core import remediation_for_gaps
-
     hints = remediation_for_gaps(
         [
             "work_lane_dirty",
@@ -474,3 +463,18 @@ def test_mutation_remediation_explains_dirty_stale_overlap_and_concurrent_advanc
     assert "dirty_provenance" in " ".join(hints[0]["next_actions"])
     assert "work/base" in " ".join(hints[2]["next_actions"])
     assert "rebase candidate onto it" in " ".join(hints[3]["next_actions"])
+
+
+def test_remediation_for_gaps_lives_in_semantic_subpackage() -> None:
+    hints = remediation_for_gaps(("candidate_base_stale",))
+
+    assert hints == [
+        {
+            "gap": "candidate_base_stale",
+            "kind": "stale_base",
+            "next_actions": [
+                "ethos lane refresh-base --apply --authorize --expect-head <head> --json",
+                "rerun proof after the lane is replayed onto candidate/dev",
+            ],
+        }
+    ]

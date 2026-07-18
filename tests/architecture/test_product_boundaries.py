@@ -8,9 +8,11 @@ import subprocess
 import tomllib
 from pathlib import Path
 
-from ethos_core.contracts.package_ontology import RETIRED_PRODUCT_FAMILIES
-from ethos_core.contracts.package_ontology import RETIRED_PRODUCT_FAMILY_TOKENS
-from ethos_core.contracts.package_ontology import package_ontology_report
+from ethos.repository.policy.boundary.product import contributor_policy_report
+from ethos.repository.policy.boundary.product import product_boundary_report
+from ethos_core.contracts.package.ontology import RETIRED_PRODUCT_FAMILIES
+from ethos_core.contracts.package.ontology import RETIRED_PRODUCT_FAMILY_TOKENS
+from ethos_core.contracts.package.ontology import package_ontology_report
 
 ROOT = Path(__file__).resolve().parents[2]
 RETIRED_PUBLIC_ROOTS = {
@@ -52,6 +54,8 @@ HOST_PROJECTION_LABELS = (
     "Open Worktree",
     "Checkout",
 )
+
+
 CURRENT_COMPATIBILITY_RESIDUE = (
     "legacy",
     "legacy-compat",
@@ -102,7 +106,6 @@ def test_kernel_has_no_side_effect_or_profile_imports() -> None:
         "sqlite3",
         "subprocess",
         "tools",
-        "dmgr",
     }
 
     for path in (ROOT / "packages/ethos-core/src").rglob("*.py"):
@@ -138,11 +141,82 @@ def test_semantic_target_packages_do_not_import_provider_execution() -> None:
             assert imported_modules(path).isdisjoint(forbidden), path
 
 
+def test_product_surfaces_are_author_and_adopter_neutral() -> None:
+    report = product_boundary_report(ROOT)
+
+    assert report["ok"] is True, report["findings"]
+
+
+def test_workspace_contributor_policy_is_multi_actor() -> None:
+    report = contributor_policy_report(ROOT)
+
+    assert report["ok"] is True, report["findings"]
+    summary = report["summary"]
+    policy = report["policy"]
+    assert summary["identity_mode"] == "external"
+    assert summary["identity_count"] >= 2
+    assert {"maintainer", "team", "bot"} <= set(summary["roles"])
+    assert policy["identity_model"] == "external_role_policy"
+    assert {
+        "git_author",
+        "git_committer",
+        "work_lane_actor",
+        "reviewer",
+        "maintainer",
+        "bot",
+        "team",
+        "adopter_side_owner",
+    } <= set(policy["distinct_identity_facts"])
+
+
+def test_product_release_metadata_has_no_person_attribution() -> None:
+    import json
+    import tomllib
+
+    npm_manifest = json.loads((ROOT / "distributions/npm/package.json").read_text())
+    assert "author" not in npm_manifest
+    assert "authors" not in npm_manifest
+    assert "maintainers" not in npm_manifest
+
+    for rel in (
+        "pyproject.toml",
+        "packages/ethos/pyproject.toml",
+        "packages/ethos-core/pyproject.toml",
+    ):
+        project = tomllib.loads((ROOT / rel).read_text(encoding="utf-8"))["project"]
+        assert "authors" not in project
+        assert "maintainers" not in project
+
+
+def test_distribution_package_manifest_is_enterprise_neutral() -> None:
+    report = product_boundary_report(ROOT)
+    npm_manifest = json.loads((ROOT / "distributions/npm/package.json").read_text())
+    root_manifest = json.loads((ROOT / "package.json").read_text())
+
+    assert report["ok"] is True, report["findings"]
+    assert root_manifest["private"] is True
+    assert npm_manifest["files"] == ["bin/ethos.mjs", "README.md"]
+    assert "author" not in npm_manifest
+    assert "authors" not in npm_manifest
+    assert "maintainers" not in npm_manifest
+    assert "contributors" not in npm_manifest
+    assert "distribution_manifest_files" in report["policy"]
+    assert "historical evidence" in report["policy"]["distribution_boundary"]
+
+
 def test_product_python_code_does_not_hardcode_adopter_terms() -> None:
-    for path in (ROOT / "packages").glob("*/src/**/*.py"):
-        text = path.read_text(encoding="utf-8")
-        assert "alphasim" not in text.lower(), path
-        assert "dmgr" not in text.lower(), path
+    report = product_boundary_report(ROOT)
+
+    assert report["ok"] is True, report["findings"]
+
+
+def test_active_product_surfaces_have_no_named_private_reference_dependency() -> None:
+    report = product_boundary_report(ROOT)
+
+    assert report["ok"] is True, report["findings"]
+    assert report["summary"]["by_kind"].get("private_reference_literal", 0) == 0
+    assert "private_reference_boundary" in report["policy"]
+    assert not (ROOT / ".ethos" / "quality-regime-decision.md").exists()
 
 
 def test_current_product_surfaces_do_not_use_retired_self_terms() -> None:
@@ -268,6 +342,19 @@ def test_cli_uses_cyclopts_not_argparse() -> None:
     assert "argparse" not in imported_modules(ROOT / "packages/ethos/src/ethos/cli.py")
 
 
+def test_tool_command_surfaces_use_cyclopts_not_argparse() -> None:
+    """Keep repository tool CLIs under the same command framework as product CLIs."""
+    tool_cli_paths = [
+        ROOT / "tools/ci/ci_templates.py",
+        ROOT / "tools/ci/hosted_observation.py",
+    ]
+
+    for path in tool_cli_paths:
+        modules = imported_modules(path)
+        assert "cyclopts" in modules, path
+        assert "argparse" not in modules, path
+
+
 def test_package_roots_do_not_reexport_module_surfaces() -> None:
     for path in (ROOT / "packages").glob("*/src/*/__init__.py"):
         tree = ast.parse(path.read_text(encoding="utf-8"))
@@ -347,7 +434,7 @@ def test_retired_public_roots_are_not_console_scripts() -> None:
         assert f"{retired} =" not in pyproject
 
 
-def test_current_docs_do_not_promote_retired_public_roots() -> None:
+def test_canonical_docs_do_not_promote_retired_public_roots() -> None:
     for path in [ROOT / "README.md", *(ROOT / "docs").rglob("*.md")]:
         text = path.read_text(encoding="utf-8")
         for retired in RETIRED_PUBLIC_ROOTS:
@@ -366,14 +453,24 @@ def test_current_docs_do_not_promote_retired_public_roots() -> None:
 
 
 def test_product_behavior_does_not_live_in_tools_directory() -> None:
-    assert not (ROOT / "tools").exists()
+    tools_root = ROOT / "tools"
+    assert tools_root.exists()
+    allowed = {tools_root / "ci", tools_root / "ci" / "scripts"}
+    runtime_cache_dirs = {"__pycache__", ".pytest_cache", ".ruff_cache"}
+    product_dirs = {
+        path
+        for path in tools_root.rglob("*")
+        if path.is_dir() and not any(part in runtime_cache_dirs for part in path.parts)
+    }
+    assert product_dirs <= allowed
+    assert all(path.suffix == ".sh" for path in (tools_root / "ci" / "scripts").iterdir())
 
 
 def test_pre_commit_uses_local_deterministic_quality_hook() -> None:
     config = (ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
 
     assert "repo: local" in config
-    assert ".config/ci/scripts/run-python-lint.sh" in config
+    assert "tools/ci/scripts/run-python-lint.sh" in config
     assert "uv run --group dev ruff check" not in config
     assert "github.com" not in config
 
@@ -415,9 +512,9 @@ def test_npm_launcher_is_distribution_adapter_not_python_family() -> None:
     assert manifest["name"] == "@agentic-workflow/ethos"
     assert manifest["bin"] == {"ethos": "bin/ethos.mjs"}
     assert manifest["private"] is False
-    assert manifest["repository"]["url"].endswith("/dig/research/agentic-workflow/ethos.git")
-    assert manifest["homepage"].endswith("/dig/research/agentic-workflow/ethos")
-    assert manifest["bugs"]["url"].endswith("/dig/research/agentic-workflow/ethos/-/issues")
+    assert manifest["repository"]["url"] == "https://example.invalid/ethos.git"
+    assert manifest["homepage"] == "https://example.invalid/ethos"
+    assert manifest["bugs"]["url"] == "https://example.invalid/ethos/issues"
     assert manifest["publishConfig"]["access"] == "public"
     assert "governance" in manifest["keywords"]
 

@@ -1,213 +1,36 @@
 from __future__ import annotations
 
-import subprocess
 from typing import TYPE_CHECKING
 
-from ethos.repository.adoption.retirement import retirement_readiness_report
+from ethos.repository.adoption.retirement.core import retirement_readiness_report
 from ethos.repository.profile import load_repository_profile
 from ethos.repository.profile import profile_table
 from tests.support.ethos_cli_runner import run_ethos
+from tests.unit.adoption.retirement.fixtures import STANDARD_ROLLBACK_SCENARIOS
+from tests.unit.adoption.retirement.fixtures import git_add_all
+from tests.unit.adoption.retirement.fixtures import git_head
+from tests.unit.adoption.retirement.fixtures import init_git_repo
+from tests.unit.adoption.retirement.fixtures import prepare_terminal_profile
+from tests.unit.adoption.retirement.fixtures import terminal_report
+from tests.unit.adoption.retirement.fixtures import terminal_rollback
+from tests.unit.adoption.retirement.fixtures import write_profile
 
 if TYPE_CHECKING:
     from pathlib import Path
 
     import pytest
 
-STANDARD_ROLLBACK_SCENARIOS = (
-    "proof_report",
-    "work_lane_closeout",
-    "domain_gate",
-    "assistant_playbook",
-)
 
-
-def _git(root: Path, *args: str) -> str:
-    return subprocess.check_output(
-        ["git", "-C", root.as_posix(), *args],
-        text=True,
-        stderr=subprocess.DEVNULL,
-    ).strip()
-
-
-def _init_git_repo(root: Path) -> None:
-    subprocess.run(["git", "-C", root.as_posix(), "init", "-q"], check=True)
-    subprocess.run(
-        ["git", "-C", root.as_posix(), "config", "user.email", "test@example.com"], check=True
-    )
-    subprocess.run(["git", "-C", root.as_posix(), "config", "user.name", "Test User"], check=True)
-    subprocess.run(
-        ["git", "-C", root.as_posix(), "commit", "--allow-empty", "-q", "-m", "initial"],
-        check=True,
-    )
-
-
-def _git_head(root: Path) -> str:
-    return _git(root, "rev-parse", "HEAD")
-
-
-def _git_add_all(root: Path) -> None:
-    subprocess.run(["git", "-C", root.as_posix(), "add", "-A"], check=True)
-
-
-def _terminal_rollback(adopter: Path, product: Path) -> dict[str, object]:
-    return {
-        "state": "complete",
-        "completed_scenarios": STANDARD_ROLLBACK_SCENARIOS,
-        "target_head": _git_head(adopter),
-        "product_head": _git_head(product),
-    }
-
-
-def _prepare_terminal_profile(
-    tmp_path: Path, *, rollback_overrides: dict[str, object] | None = None
-) -> tuple[Path, Path]:
+def _adopter_product(tmp_path: Path) -> tuple[Path, Path]:
     adopter = tmp_path / "adopter"
     product = tmp_path / "product"
     adopter.mkdir()
     product.mkdir()
-    _init_git_repo(adopter)
-    _init_git_repo(product)
-    rollback = _terminal_rollback(adopter, product)
-    if rollback_overrides:
-        rollback.update(rollback_overrides)
-    _write_profile(
-        adopter,
-        external_state="retirement_ready",
-        embedded_state="frozen_fallback",
-        rollback=rollback,
-    )
-    _git_add_all(adopter)
     return adopter, product
 
 
-def _terminal_report(adopter: Path, product: Path) -> dict[str, object]:
-    parity = {"ok": True, "required_gaps": [], "pending_packages": [], "adopter": "sample"}
-    shadow = {"ok": True, "state": "matched", "required_gaps": [], "false_negative_count": 0}
-    return retirement_readiness_report(
-        target=adopter,
-        product_root=product,
-        parity_gaps=parity,
-        shadow=shadow,
-    )
-
-
-def _write_profile(
-    root: Path,
-    *,
-    external_state: str,
-    embedded_state: str,
-    rollback: dict[str, object] | None = None,
-) -> None:
-    (root / ".ethos").mkdir(parents=True)
-    (root / ".config").mkdir()
-    (root / "docs/current/development/workflow").mkdir(parents=True)
-    (root / "docs/evidence").mkdir(parents=True)
-    (root / "claims").mkdir()
-    (root / "rules").mkdir()
-    (root / "openspec").mkdir()
-    (root / ".agents/skills").mkdir(parents=True)
-    (root / "docs/current/development/workflow/external-ethos-adoption.md").write_text(
-        "# policy\n",
-        encoding="utf-8",
-    )
-    rollback_table = ""
-    if rollback is not None:
-        evidence_manifest = str(
-            rollback.get("evidence_manifest") or "docs/evidence/rollback-window.toml"
-        )
-        manifest_kind = str(rollback.get("manifest") or "complete")
-        completed_items = rollback.get("completed_scenarios", ())
-        required_items = rollback.get("required_scenarios", ())
-        if manifest_kind == "placeholder":
-            (root / evidence_manifest).parent.mkdir(parents=True, exist_ok=True)
-            (root / evidence_manifest).write_text(
-                "# rollback window\n",
-                encoding="utf-8",
-            )
-        else:
-            scenario_lines = []
-            target_head = str(rollback.get("target_head") or "")
-            product_head = str(rollback.get("product_head") or "")
-            for item in completed_items:
-                evidence_path = f"docs/evidence/rollback-window/{item}.json"
-                (root / evidence_path).parent.mkdir(parents=True, exist_ok=True)
-                (root / evidence_path).write_text("{}\n", encoding="utf-8")
-                scenario_lines.extend(
-                    [
-                        f"[scenarios.{item}]",
-                        f'target_head = "{target_head}"',
-                        f'product_head = "{product_head}"',
-                        f'evidence = "{evidence_path}"',
-                        f'command = "ethos {item}"',
-                        f'digest = "sha256:{item}"',
-                        "",
-                    ]
-                )
-            (root / evidence_manifest).parent.mkdir(parents=True, exist_ok=True)
-            (root / evidence_manifest).write_text(
-                "\n".join(
-                    [
-                        "schema_version = 1",
-                        f'target_head = "{target_head}"',
-                        f'product_head = "{product_head}"',
-                        "",
-                        *scenario_lines,
-                    ]
-                ),
-                encoding="utf-8",
-            )
-        completed = "\n".join(f'  "{item}",' for item in completed_items)
-        required = "\n".join(f'  "{item}",' for item in required_items)
-        rollback_table = (
-            "\n[rollback_window]\n"
-            f'state = "{rollback.get("state", "")}"\n'
-            f'evidence_manifest = "{evidence_manifest}"\n'
-            "completed_scenarios = [\n"
-            f"{completed}\n"
-            "]\n"
-            "required_scenarios = [\n"
-            f"{required}\n"
-            "]\n"
-        )
-    (root / ".ethos/profile.toml").write_text(
-        f'''schema_version = 1
-profile_id = "sample"
-profile_version = "1"
-ethos_contract_version = "1"
-
-[roots]
-tool_config = ".config"
-rules = "rules"
-docs = "docs"
-durable_evidence = "docs/evidence"
-openspec = "openspec"
-claims = "claims"
-agent_skills = ".agents/skills"
-
-[embedded_backend]
-state = "{embedded_state}"
-retirement_policy = "docs/current/development/workflow/external-ethos-adoption.md"
-
-[external_backend]
-state = "{external_state}"
-minimum_version = "external>=embedded"
-shadow_required = true
-{rollback_table}
-[adoption_boundary]
-binding_manifest = ".ethos/profile.toml"
-execution_config_root = ".config"
-forbidden_external_product_roots = [
-  "adopters/sample",
-  "profiles/sample",
-  "tests/fixtures/adopters/sample",
-]
-''',
-        encoding="utf-8",
-    )
-
-
 def test_repository_profile_exposes_generic_tables(tmp_path: Path) -> None:
-    _write_profile(tmp_path, external_state="adoption_preview", embedded_state="active")
+    write_profile(tmp_path, external_state="adoption_preview", embedded_state="active")
 
     profile = load_repository_profile(tmp_path)
 
@@ -219,11 +42,8 @@ def test_repository_profile_exposes_generic_tables(tmp_path: Path) -> None:
 def test_retirement_readiness_blocks_until_external_default_and_embedded_frozen(
     tmp_path: Path,
 ) -> None:
-    adopter = tmp_path / "adopter"
-    product = tmp_path / "product"
-    adopter.mkdir()
-    product.mkdir()
-    _write_profile(adopter, external_state="adoption_preview", embedded_state="active")
+    adopter, product = _adopter_product(tmp_path)
+    write_profile(adopter, external_state="adoption_preview", embedded_state="active")
     parity = {"ok": True, "required_gaps": [], "pending_packages": [], "adopter": "sample"}
     shadow = {"ok": True, "state": "matched", "required_gaps": [], "false_negative_count": 0}
 
@@ -243,11 +63,8 @@ def test_retirement_readiness_blocks_until_external_default_and_embedded_frozen(
 
 
 def test_retirement_readiness_next_actions_follow_current_stage(tmp_path: Path) -> None:
-    adopter = tmp_path / "adopter"
-    product = tmp_path / "product"
-    adopter.mkdir()
-    product.mkdir()
-    _write_profile(
+    adopter, product = _adopter_product(tmp_path)
+    write_profile(
         adopter,
         external_state="adoption_preview",
         embedded_state="active_until_external_ge_embedded",
@@ -277,19 +94,16 @@ def test_retirement_readiness_next_actions_follow_current_stage(tmp_path: Path) 
 def test_retirement_readiness_rejects_product_core_adopter_directories(
     tmp_path: Path,
 ) -> None:
-    adopter = tmp_path / "adopter"
-    product = tmp_path / "product"
-    adopter.mkdir()
-    product.mkdir()
-    _init_git_repo(adopter)
-    _init_git_repo(product)
-    _write_profile(
+    adopter, product = _adopter_product(tmp_path)
+    init_git_repo(adopter)
+    init_git_repo(product)
+    write_profile(
         adopter,
         external_state="retirement_ready",
         embedded_state="frozen_fallback",
-        rollback=_terminal_rollback(adopter, product),
+        rollback=terminal_rollback(adopter, product),
     )
-    _git_add_all(adopter)
+    git_add_all(adopter)
     (product / "adopters/sample").mkdir(parents=True)
     parity = {"ok": True, "required_gaps": [], "pending_packages": [], "adopter": "sample"}
     shadow = {"ok": True, "state": "matched", "required_gaps": [], "false_negative_count": 0}
@@ -305,14 +119,211 @@ def test_retirement_readiness_rejects_product_core_adopter_directories(
     assert "forbidden_external_product_root_present:adopters/sample" in report["required_gaps"]
 
 
+def test_retirement_readiness_validates_declared_backend_control_manifest(
+    tmp_path: Path,
+) -> None:
+    adopter, product = _adopter_product(tmp_path)
+    write_profile(
+        adopter,
+        external_state="adoption_preview",
+        embedded_state="active_until_external_ge_embedded",
+        control={"default_backend": "external", "external_backend": "default"},
+    )
+    parity = {"ok": True, "required_gaps": [], "pending_packages": [], "adopter": "sample"}
+    shadow = {"ok": True, "state": "matched", "required_gaps": [], "false_negative_count": 0}
+
+    report = retirement_readiness_report(
+        target=adopter,
+        product_root=product,
+        parity_gaps=parity,
+        shadow=shadow,
+    )
+
+    assert report["ok"] is False
+    assert report["checks"]["backend_control"]["ok"] is False
+    assert (
+        report["checks"]["backend_control"]["path"]
+        == (adopter / ".config/interfaces/external-ethos-backend.toml").as_posix()
+    )
+    assert (
+        "retirement_backend_control_default_mismatch:embedded:external" in report["required_gaps"]
+    )
+    assert (
+        "retirement_backend_control_external_backend_mismatch:preview:default"
+        in report["required_gaps"]
+    )
+    assert any("external-ethos-backend" in action for action in report["next_actions"])
+
+
+def test_retirement_readiness_rejects_missing_backend_control_manifest(
+    tmp_path: Path,
+) -> None:
+    adopter, product = _adopter_product(tmp_path)
+    write_profile(
+        adopter,
+        external_state="adoption_preview",
+        embedded_state="active_until_external_ge_embedded",
+        control={"write": False},
+    )
+    parity = {"ok": True, "required_gaps": [], "pending_packages": [], "adopter": "sample"}
+    shadow = {"ok": True, "state": "matched", "required_gaps": [], "false_negative_count": 0}
+
+    report = retirement_readiness_report(
+        target=adopter,
+        product_root=product,
+        parity_gaps=parity,
+        shadow=shadow,
+    )
+
+    assert report["checks"]["backend_control"]["ok"] is False
+    assert (
+        "retirement_backend_control_missing:.config/interfaces/external-ethos-backend.toml"
+        in report["required_gaps"]
+    )
+
+
+def test_retirement_readiness_rejects_backend_control_path_and_parse_gaps(
+    tmp_path: Path,
+) -> None:
+    product = tmp_path / "product"
+    product.mkdir()
+
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    write_profile(
+        outside,
+        external_state="default",
+        embedded_state="reference_only",
+        control={"path": "../external-ethos-backend.toml"},
+    )
+    outside_report = retirement_readiness_report(target=outside, product_root=product)
+
+    assert (
+        "retirement_backend_control_path_outside_repo:../external-ethos-backend.toml"
+        in outside_report["required_gaps"]
+    )
+    assert outside_report["state"] == "backend_control_open"
+
+    invalid = tmp_path / "invalid-control"
+    invalid.mkdir()
+    write_profile(
+        invalid,
+        external_state="default",
+        embedded_state="reference_only",
+        control={},
+    )
+    (invalid / ".config/interfaces/external-ethos-backend.toml").write_text(
+        "[",
+        encoding="utf-8",
+    )
+    invalid_report = retirement_readiness_report(target=invalid, product_root=product)
+
+    assert (
+        "retirement_backend_control_invalid:.config/interfaces/external-ethos-backend.toml"
+        in invalid_report["required_gaps"]
+    )
+
+
+def test_retirement_readiness_reports_backend_control_contract_and_state_gaps(
+    tmp_path: Path,
+) -> None:
+    adopter, product = _adopter_product(tmp_path)
+    write_profile(
+        adopter,
+        external_state="default",
+        embedded_state="reference_only",
+        control={
+            "state": "adoption_preview",
+            "default_backend": "embedded",
+            "external_backend": "preview",
+            "rollback_mode": "direct_flip",
+        },
+    )
+    control_path = adopter / ".config/interfaces/external-ethos-backend.toml"
+    control_path.write_text(
+        control_path.read_text(encoding="utf-8")
+        .replace('asset_kind = "ExternalEthosBackendSwitch"', 'asset_kind = "WrongKind"')
+        .replace('profile_binding = ".ethos/profile.toml"', 'profile_binding = "other.toml"')
+        .replace("repo_local_execution_wrapper = true", "repo_local_execution_wrapper = false"),
+        encoding="utf-8",
+    )
+
+    report = retirement_readiness_report(target=adopter, product_root=product)
+
+    gaps = report["required_gaps"]
+    assert "retirement_backend_control_asset_kind_invalid:WrongKind" in gaps
+    assert "retirement_backend_control_profile_binding_invalid:other.toml" in gaps
+    assert "retirement_backend_control_state_mismatch:default:adoption_preview" in gaps
+    assert "retirement_backend_control_default_mismatch:external:embedded" in gaps
+    assert "retirement_backend_control_external_backend_mismatch:default:preview" in gaps
+    assert "retirement_backend_control_rollback_mode_invalid:direct_flip" in gaps
+    assert "retirement_backend_control_forbidden_not_true:repo_local_execution_wrapper" in gaps
+
+
+def test_retirement_readiness_accepts_default_backend_control_manifest(
+    tmp_path: Path,
+) -> None:
+    adopter, product = _adopter_product(tmp_path)
+    write_profile(
+        adopter,
+        external_state="default",
+        embedded_state="reference_only",
+        control={
+            "state": "default",
+            "default_backend": "external",
+            "external_backend": "default",
+        },
+    )
+    control_path = adopter / ".config/interfaces/external-ethos-backend.toml"
+    control_path.write_text(
+        f'{control_path.read_text(encoding="utf-8")}\n[rollback_window]\nstate = "planned"\n',
+        encoding="utf-8",
+    )
+
+    report = retirement_readiness_report(target=adopter, product_root=product)
+
+    assert report["checks"]["backend_control"]["ok"] is True
+    assert not any(gap.startswith("retirement_backend_control_") for gap in report["required_gaps"])
+
+
+def test_retirement_readiness_requires_backend_control_rollback_window_for_ready_state(
+    tmp_path: Path,
+) -> None:
+    adopter, product = _adopter_product(tmp_path)
+    write_profile(
+        adopter,
+        external_state="retirement_ready",
+        embedded_state="frozen_fallback",
+        control={"default_backend": "external", "external_backend": "default"},
+    )
+    parity = {"ok": True, "required_gaps": [], "pending_packages": "unknown", "adopter": "sample"}
+    shadow = {
+        "ok": False,
+        "state": "different",
+        "required_gaps": [],
+        "false_negative_count": "not-a-number",
+    }
+
+    report = retirement_readiness_report(
+        target=adopter,
+        product_root=product,
+        parity_gaps=parity,
+        shadow=shadow,
+    )
+
+    gaps = report["required_gaps"]
+    assert "retirement_backend_control_external_backend_mismatch:retirement_ready:default" in gaps
+    assert "retirement_backend_control_rollback_window_not_declared" in gaps
+    assert "retirement_shadow:retirement_shadow_not_matched" in gaps
+    assert report["checks"]["parity"]["summary"]["pending_package_count"] == 0
+    assert report["checks"]["shadow"]["summary"]["false_negative_count"] == 0
+
+
 def test_retirement_readiness_requires_rollback_window_evidence_for_terminal_state(
     tmp_path: Path,
 ) -> None:
-    adopter = tmp_path / "adopter"
-    product = tmp_path / "product"
-    adopter.mkdir()
-    product.mkdir()
-    _write_profile(adopter, external_state="retirement_ready", embedded_state="frozen_fallback")
+    adopter, product = _adopter_product(tmp_path)
+    write_profile(adopter, external_state="retirement_ready", embedded_state="frozen_fallback")
     parity = {"ok": True, "required_gaps": [], "pending_packages": [], "adopter": "sample"}
     shadow = {"ok": True, "state": "matched", "required_gaps": [], "false_negative_count": 0}
 
@@ -333,23 +344,58 @@ def test_retirement_readiness_requires_rollback_window_evidence_for_terminal_sta
 def test_retirement_readiness_can_pass_when_profile_and_evidence_are_terminal(
     tmp_path: Path,
 ) -> None:
-    adopter, product = _prepare_terminal_profile(tmp_path)
+    adopter, product = prepare_terminal_profile(tmp_path)
 
-    report = _terminal_report(adopter, product)
+    report = terminal_report(adopter, product)
 
     assert report["ok"] is True
     assert report["state"] == "ready"
     assert report["required_gaps"] == []
 
 
+def test_retirement_readiness_blocks_generated_artifact_drift(
+    tmp_path: Path,
+) -> None:
+    adopter, product = prepare_terminal_profile(tmp_path)
+    (adopter / "report.json").write_text("{}\n", encoding="utf-8")
+    git_add_all(adopter)
+
+    report = terminal_report(adopter, product)
+
+    assert report["ok"] is False
+    assert report["state"] == "generated_artifacts_open"
+    assert (
+        "retirement_generated_artifacts:generated_artifact_repo_root_drift:report.json"
+        in report["required_gaps"]
+    )
+    assert report["checks"]["generated_artifacts"]["ok"] is False
+    assert any("ethos quality generated-artifacts" in action for action in report["next_actions"])
+
+
+def test_retirement_readiness_blocks_missing_docs_topology_kernel(
+    tmp_path: Path,
+) -> None:
+    adopter, product = prepare_terminal_profile(tmp_path)
+    (adopter / "docs/decisions/decision-code-links.md").unlink()
+    git_add_all(adopter)
+
+    report = terminal_report(adopter, product)
+
+    assert report["ok"] is False
+    assert report["state"] == "docs_topology_open"
+    assert (
+        "retirement_docs_topology:docs_topology_missing:docs/decisions/decision-code-links.md"
+        in report["required_gaps"]
+    )
+    assert report["checks"]["docs_topology"]["ok"] is False
+    assert any("ethos quality docs-topology" in action for action in report["next_actions"])
+
+
 def test_retirement_readiness_rejects_placeholder_rollback_manifest(
     tmp_path: Path,
 ) -> None:
-    adopter = tmp_path / "adopter"
-    product = tmp_path / "product"
-    adopter.mkdir()
-    product.mkdir()
-    _write_profile(
+    adopter, product = _adopter_product(tmp_path)
+    write_profile(
         adopter,
         external_state="retirement_ready",
         embedded_state="frozen_fallback",
@@ -379,12 +425,12 @@ def test_retirement_readiness_rejects_placeholder_rollback_manifest(
 def test_retirement_readiness_rejects_rollback_manifest_outside_repo(
     tmp_path: Path,
 ) -> None:
-    adopter, product = _prepare_terminal_profile(
+    adopter, product = prepare_terminal_profile(
         tmp_path,
         rollback_overrides={"evidence_manifest": "../rollback-window.toml"},
     )
 
-    report = _terminal_report(adopter, product)
+    report = terminal_report(adopter, product)
 
     assert report["ok"] is False
     assert (
@@ -395,11 +441,11 @@ def test_retirement_readiness_rejects_rollback_manifest_outside_repo(
 def test_retirement_readiness_rejects_missing_rollback_manifest(
     tmp_path: Path,
 ) -> None:
-    adopter, product = _prepare_terminal_profile(tmp_path)
+    adopter, product = prepare_terminal_profile(tmp_path)
     (adopter / "docs/evidence/rollback-window.toml").unlink()
-    _git_add_all(adopter)
+    git_add_all(adopter)
 
-    report = _terminal_report(adopter, product)
+    report = terminal_report(adopter, product)
 
     assert report["ok"] is False
     assert (
@@ -411,11 +457,11 @@ def test_retirement_readiness_rejects_missing_rollback_manifest(
 def test_retirement_readiness_rejects_unparseable_rollback_manifest(
     tmp_path: Path,
 ) -> None:
-    adopter, product = _prepare_terminal_profile(tmp_path)
+    adopter, product = prepare_terminal_profile(tmp_path)
     (adopter / "docs/evidence/rollback-window.toml").write_text("[", encoding="utf-8")
-    _git_add_all(adopter)
+    git_add_all(adopter)
 
-    report = _terminal_report(adopter, product)
+    report = terminal_report(adopter, product)
 
     assert report["ok"] is False
     assert (
@@ -426,20 +472,20 @@ def test_retirement_readiness_rejects_unparseable_rollback_manifest(
 def test_retirement_readiness_rejects_manifest_without_scenarios(
     tmp_path: Path,
 ) -> None:
-    adopter, product = _prepare_terminal_profile(tmp_path)
+    adopter, product = prepare_terminal_profile(tmp_path)
     (adopter / "docs/evidence/rollback-window.toml").write_text(
         "\n".join(
             [
                 "schema_version = 1",
-                f'target_head = "{_git_head(adopter)}"',
-                f'product_head = "{_git_head(product)}"',
+                f'target_head = "{git_head(adopter)}"',
+                f'product_head = "{git_head(product)}"',
             ]
         ),
         encoding="utf-8",
     )
-    _git_add_all(adopter)
+    git_add_all(adopter)
 
-    report = _terminal_report(adopter, product)
+    report = terminal_report(adopter, product)
 
     assert report["ok"] is False
     assert (
@@ -454,13 +500,13 @@ def test_retirement_readiness_rejects_manifest_without_scenarios(
 def test_retirement_readiness_rejects_incomplete_scenario_bindings(
     tmp_path: Path,
 ) -> None:
-    adopter, product = _prepare_terminal_profile(tmp_path)
+    adopter, product = prepare_terminal_profile(tmp_path)
     (adopter / "docs/evidence/rollback-window.toml").write_text(
         "\n".join(
             [
                 "schema_version = 1",
-                f'target_head = "{_git_head(adopter)}"',
-                f'product_head = "{_git_head(product)}"',
+                f'target_head = "{git_head(adopter)}"',
+                f'product_head = "{git_head(product)}"',
                 "",
                 "[scenarios.proof_report]",
                 'target_head = "different-target"',
@@ -469,9 +515,9 @@ def test_retirement_readiness_rejects_incomplete_scenario_bindings(
         ),
         encoding="utf-8",
     )
-    _git_add_all(adopter)
+    git_add_all(adopter)
 
-    report = _terminal_report(adopter, product)
+    report = terminal_report(adopter, product)
 
     assert report["ok"] is False
     assert (
@@ -499,25 +545,25 @@ def test_retirement_readiness_rejects_incomplete_scenario_bindings(
 def test_retirement_readiness_rejects_bad_scenario_evidence_paths(
     tmp_path: Path,
 ) -> None:
-    adopter, product = _prepare_terminal_profile(tmp_path)
+    adopter, product = prepare_terminal_profile(tmp_path)
     manifest = adopter / "docs/evidence/rollback-window.toml"
     manifest.write_text(
         "\n".join(
             [
                 "schema_version = 1",
-                f'target_head = "{_git_head(adopter)}"',
-                f'product_head = "{_git_head(product)}"',
+                f'target_head = "{git_head(adopter)}"',
+                f'product_head = "{git_head(product)}"',
                 "",
                 "[scenarios.proof_report]",
-                f'target_head = "{_git_head(adopter)}"',
-                f'product_head = "{_git_head(product)}"',
+                f'target_head = "{git_head(adopter)}"',
+                f'product_head = "{git_head(product)}"',
                 'evidence = "../outside.json"',
                 'command = "ethos prove"',
                 'digest = "sha256:proof"',
                 "",
                 "[scenarios.work_lane_closeout]",
-                f'target_head = "{_git_head(adopter)}"',
-                f'product_head = "{_git_head(product)}"',
+                f'target_head = "{git_head(adopter)}"',
+                f'product_head = "{git_head(product)}"',
                 'evidence = "docs/evidence/missing.json"',
                 'command = "ethos land"',
                 'digest = "sha256:land"',
@@ -525,9 +571,9 @@ def test_retirement_readiness_rejects_bad_scenario_evidence_paths(
         ),
         encoding="utf-8",
     )
-    _git_add_all(adopter)
+    git_add_all(adopter)
 
-    report = _terminal_report(adopter, product)
+    report = terminal_report(adopter, product)
 
     assert report["ok"] is False
     assert (
@@ -543,17 +589,14 @@ def test_retirement_readiness_rejects_bad_scenario_evidence_paths(
 def test_retirement_readiness_requires_tracked_rollback_manifest(
     tmp_path: Path,
 ) -> None:
-    adopter = tmp_path / "adopter"
-    product = tmp_path / "product"
-    adopter.mkdir()
-    product.mkdir()
-    _init_git_repo(adopter)
-    _init_git_repo(product)
-    _write_profile(
+    adopter, product = _adopter_product(tmp_path)
+    init_git_repo(adopter)
+    init_git_repo(product)
+    write_profile(
         adopter,
         external_state="retirement_ready",
         embedded_state="frozen_fallback",
-        rollback=_terminal_rollback(adopter, product),
+        rollback=terminal_rollback(adopter, product),
     )
     parity = {"ok": True, "required_gaps": [], "pending_packages": [], "adopter": "sample"}
     shadow = {"ok": True, "state": "matched", "required_gaps": [], "false_negative_count": 0}
@@ -579,22 +622,19 @@ def test_retirement_readiness_requires_tracked_rollback_manifest(
 def test_retirement_readiness_rejects_unreachable_rollback_heads(
     tmp_path: Path,
 ) -> None:
-    adopter = tmp_path / "adopter"
-    product = tmp_path / "product"
-    adopter.mkdir()
-    product.mkdir()
-    _init_git_repo(adopter)
-    _init_git_repo(product)
-    rollback = _terminal_rollback(adopter, product)
+    adopter, product = _adopter_product(tmp_path)
+    init_git_repo(adopter)
+    init_git_repo(product)
+    rollback = terminal_rollback(adopter, product)
     rollback["target_head"] = "0" * 40
     rollback["product_head"] = "1" * 40
-    _write_profile(
+    write_profile(
         adopter,
         external_state="retirement_ready",
         embedded_state="frozen_fallback",
         rollback=rollback,
     )
-    _git_add_all(adopter)
+    git_add_all(adopter)
     parity = {"ok": True, "required_gaps": [], "pending_packages": [], "adopter": "sample"}
     shadow = {"ok": True, "state": "matched", "required_gaps": [], "false_negative_count": 0}
 
@@ -618,19 +658,16 @@ def test_fleet_retirement_readiness_cli_reports_profile_stage(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    adopter = tmp_path / "adopter"
-    product = tmp_path / "product"
-    adopter.mkdir()
-    product.mkdir()
-    _init_git_repo(adopter)
-    _init_git_repo(product)
-    _write_profile(
+    adopter, product = _adopter_product(tmp_path)
+    init_git_repo(adopter)
+    init_git_repo(product)
+    write_profile(
         adopter,
         external_state="retirement_ready",
         embedded_state="frozen_fallback",
-        rollback=_terminal_rollback(adopter, product),
+        rollback=terminal_rollback(adopter, product),
     )
-    _git_add_all(adopter)
+    git_add_all(adopter)
 
     def fake_parity_gaps_report(**kwargs):
         assert kwargs["adopter"] == "sample"
@@ -691,20 +728,18 @@ def test_retirement_readiness_reports_missing_and_invalid_profiles(tmp_path: Pat
 def test_retirement_readiness_reports_binding_and_backend_contract_gaps(
     tmp_path: Path,
 ) -> None:
-    adopter = tmp_path / "adopter"
-    product = tmp_path / "product"
-    adopter.mkdir()
-    product.mkdir()
-    _write_profile(adopter, external_state="default", embedded_state="reference_only")
+    adopter, product = _adopter_product(tmp_path)
+    write_profile(adopter, external_state="default", embedded_state="reference_only")
     (adopter / ".config").rmdir()
     profile_path = adopter / ".ethos/profile.toml"
     profile_path.write_text(
         profile_path.read_text(encoding="utf-8")
+        .replace('binding_manifest = ".ethos/profile.toml"', 'binding_manifest = "profile.toml"')
         .replace('execution_config_root = ".config"', 'execution_config_root = "tooling"')
         .replace('minimum_version = "external>=embedded"', 'minimum_version = "external<embedded"')
         .replace("shadow_required = true", "shadow_required = false")
         .replace(
-            'retirement_policy = "docs/current/development/workflow/external-ethos-adoption.md"',
+            'retirement_policy = "docs/governance/external-ethos-adoption.md"',
             'retirement_policy = "docs/missing.md"',
         ),
         encoding="utf-8",
@@ -725,6 +760,8 @@ def test_retirement_readiness_reports_binding_and_backend_contract_gaps(
     )
 
     gaps = report["required_gaps"]
+    assert "retirement_binding_manifest_not_generic:profile.toml" in gaps
+    assert "retirement_binding_manifest_missing:profile.toml" in gaps
     assert "retirement_execution_config_root_not_config:tooling" in gaps
     assert "retirement_execution_config_root_missing:tooling" in gaps
     assert "retirement_external_minimum_version_not_ge_embedded" in gaps
@@ -735,14 +772,28 @@ def test_retirement_readiness_reports_binding_and_backend_contract_gaps(
     assert "retirement_shadow:retirement_shadow_false_negative_count:2" in gaps
 
 
+def test_retirement_readiness_reports_embedded_not_frozen_stage(tmp_path: Path) -> None:
+    adopter, product = _adopter_product(tmp_path)
+    write_profile(adopter, external_state="default", embedded_state="active")
+    parity = {"ok": True, "required_gaps": [], "pending_packages": [], "adopter": "sample"}
+    shadow = {"ok": True, "state": "matched", "required_gaps": [], "false_negative_count": 0}
+
+    report = retirement_readiness_report(
+        target=adopter,
+        product_root=product,
+        parity_gaps=parity,
+        shadow=shadow,
+    )
+
+    assert report["state"] == "embedded_not_frozen"
+    assert "retirement_lifecycle_incomplete:embedded_not_frozen" in report["required_gaps"]
+
+
 def test_retirement_readiness_distinguishes_shadow_and_rollback_stages(
     tmp_path: Path,
 ) -> None:
-    adopter = tmp_path / "adopter"
-    product = tmp_path / "product"
-    adopter.mkdir()
-    product.mkdir()
-    _write_profile(adopter, external_state="rollback_window", embedded_state="frozen_fallback")
+    adopter, product = _adopter_product(tmp_path)
+    write_profile(adopter, external_state="rollback_window", embedded_state="frozen_fallback")
     parity = {"ok": True, "required_gaps": [], "pending_packages": [], "adopter": "sample"}
 
     shadow_open = retirement_readiness_report(
@@ -769,19 +820,16 @@ def test_fleet_retirement_readiness_execute_shadow_branch(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    adopter = tmp_path / "adopter"
-    product = tmp_path / "product"
-    adopter.mkdir()
-    product.mkdir()
-    _init_git_repo(adopter)
-    _init_git_repo(product)
-    _write_profile(
+    adopter, product = _adopter_product(tmp_path)
+    init_git_repo(adopter)
+    init_git_repo(product)
+    write_profile(
         adopter,
         external_state="retirement_ready",
         embedded_state="frozen_fallback",
-        rollback=_terminal_rollback(adopter, product),
+        rollback=terminal_rollback(adopter, product),
     )
-    _git_add_all(adopter)
+    git_add_all(adopter)
 
     def fake_parity_gaps_report(**kwargs):
         return {
@@ -797,7 +845,7 @@ def test_fleet_retirement_readiness_execute_shadow_branch(
         return {"ok": True, "state": "matched", "required_gaps": [], "false_negative_count": 0}
 
     monkeypatch.setattr("ethos.surface.cli.fleet.parity_gaps_report", fake_parity_gaps_report)
-    monkeypatch.setattr("ethos.adapters.shadow.run_shadow_parity", fake_run_shadow_parity)
+    monkeypatch.setattr("ethos.adapters.shadow.core.run_shadow_parity", fake_run_shadow_parity)
 
     payload = run_ethos(
         "fleet",

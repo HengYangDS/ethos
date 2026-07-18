@@ -11,14 +11,15 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from typing import cast
 
-from ethos.adapters.openspec import openspec_governance_report
-from ethos.repository import audit as repository_audit_module
+import ethos.repository.audit as repository_audit_module
+from ethos.adapters.openspec.core import openspec_governance_report
+from ethos.adapters.repo.git import current_head as git_current_head
 from ethos.repository.adoption.fleet import inspect_adopter
-from ethos.repository.adoption.planner import detect_repo_profile
-from ethos.repository.context import governance_context
+from ethos.repository.context import context_for_root
+from ethos.repository.context import is_product_root
 from ethos.repository.evidence.claims import claims_report
 from ethos.repository.policy.schema import schema_validation_report
-from ethos.repository.registry.docs import docs_health_report
+from ethos.repository.registry.docs.health import docs_health_report
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -53,13 +54,6 @@ def adoption_mutation_gaps(
     return tuple(gaps)
 
 
-def is_product_root(root: Path) -> bool:
-    """True when root is the ETHOS product repository (has packages/ethos + kernel schemas)."""
-    return (root / "packages" / "ethos" / "README.md").exists() and (
-        root / "system" / "schemas" / "kernel"
-    ).exists()
-
-
 def audit_for_root(
     root: Path, *, openspec_mode: str = "shape", current_head: str = ""
 ) -> dict[str, object]:
@@ -88,7 +82,7 @@ def adopter_audit(root: Path) -> dict[str, object]:
     """Compose the adopter-repository audit (adopter + schema + claims + docs)."""
     adopter = inspect_adopter(root)
     schemas = schema_validation_report(root)
-    claims = claims_report(root)
+    claims = claims_report(root, current_head=git_current_head(root), adopter_mode=True)
     docs = docs_health_report(root)
     gaps = list(cast("list[str]", adopter["required_gaps"])) + [
         f"schema:{gap}" for gap in cast("list[str]", schemas["required_gaps"])
@@ -98,10 +92,7 @@ def adopter_audit(root: Path) -> dict[str, object]:
     return {
         "ok": not gaps,
         "mode": "repository",
-        "governance_context": governance_context(
-            root,
-            profile=detect_repo_profile(root),
-        ),
+        "governance_context": context_for_root(root),
         "required_gaps": gaps,
         "adopter": adopter,
         "schemas": {

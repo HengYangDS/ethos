@@ -1,0 +1,48 @@
+---
+subject: docs:root
+role: index
+state: canonical
+relations:
+  canonical_for: documentation navigation
+---
+
+# ETHOS Documentation Root
+
+Status: canonical.
+
+Purpose: route ETHOS product documentation through the minimal governed docs
+kernel: durable decisions, dated evidence, stable references, and history, with
+product extensions for architecture, governance, concepts, plans, research, and
+start guides.
+
+See also: [Product Index](index.md), [Decision Records](decisions/README.md),
+[Evidence Docs](evidence/README.md), [Reference Docs](reference/README.md), and
+[Docs Topology](architecture/docs-topology.md).
+
+## Common Kernel
+
+| Lane | Owns |
+| --- | --- |
+| `decisions/` | Durable rulings with explicit scope and revisit trigger. |
+| `evidence/` | Dated proof, manifests, smoke notes, and closeout records. |
+| `reference/` | Stable vocabulary, boundaries, and governance references. |
+| `history/` | Retired rationale and archival logs. |
+
+## ETHOS Product Extensions
+
+| Root | Owns |
+| --- | --- |
+| `architecture/` | Product architecture and contract explanations. |
+| `governance/` | Product governance models and policies. |
+| `concepts/`, `plans/`, `research/`, `start/` | Product-specific explanation, planning, research, and onboarding. |
+
+Truth state is document metadata, not path topology. Use the explicit
+front matter vocabulary (`state: canonical`, `state: active`, `state: planned`,
+`state: experimental`, `state: superseded`, or `state: archived`) to express
+lifecycle. Do not use `current` or `future` as state values, and do not create
+`current/` or `future/` documentation roots.
+
+The required kernel is the same for single repositories, monorepos, and
+multi-repository governed subjects. Product-specific roots are extensions. They
+do not replace the minimal semantic common kernel required across governed
+repositories.

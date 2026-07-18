@@ -6,18 +6,55 @@ configuration plane, not a truth center.
 ## Separation of concerns
 
 - `pyproject.toml` is limited to Python package/workspace metadata and uv wiring.
-- `pytest.ini` is the pytest source of truth.
-- `ruff.toml` is the Ruff root source of truth because Ruff resolves path globs
-  relative to the config file location.
+- `.config/checks/pytest/pytest.ini` is the pytest config owner and points pytest runtime cache to `build/runtime/tool-cache/pytest`, not `.config/`. Owner scripts pass it with `-c` and `--rootdir=.` so pytest still evaluates the repository subject.
+- `.config/checks/ruff/ruff.toml` is the Ruff config owner. Owner scripts call Ruff with explicit `--config` from the repository root, so path globs are repository-relative without keeping a root config file.
 - `.config/checks/<concern>/` holds reusable tool payloads by concern.
-- `.config/ci/scripts/run-python-lint.sh` owns the executable Python lint proof surface: Ruff check, Ruff format check, and ignored-rule ratchet.
-- `.config/checks/coverage/coverage.ini` owns the Python coverage floor; `.config/checks/coverage/policy.toml` records the evidence-bound hard/aspirational boundary. Generated coverage data and XML go to `build/evidence/quality/tests/coverage/`, not `.config/`. Pytest temporary directories default outside the repository so fixture roots cannot masquerade as repository truth.
+- `tools/ci/scripts/run-python-lint.sh` owns the executable Python lint proof surface: Ruff check, Ruff format check, and ignored-rule ratchet, all bound to `.config/checks/ruff/ruff.toml`; Ruff runtime cache is forced to `build/runtime/tool-cache/ruff/`, never root `.ruff_cache/`. Direct quality-bearing Ruff invocations must use `--config .config/checks/ruff/ruff.toml` or the owner script, because Ruff rule policy lives in a non-root owner file and root `pyproject.toml` is not a Ruff policy or cache-routing surface.
+- `.config/checks/coverage/coverage.ini` owns the Python coverage floor; `.config/checks/coverage/policy.toml` records the evidence-bound hard/aspirational boundary. Generated coverage data and XML go to `build/evidence/quality/tests/coverage/`, pytest JUnit evidence goes to `build/evidence/quality/tests/pytest/`, pytest cache goes to ignored `build/runtime/tool-cache/pytest/`, and pytest temporary directories default outside the repository so fixture roots cannot masquerade as repository truth. Pytest policy and cache routing stay in `.config/checks/pytest/pytest.ini`; root `pyproject.toml` is not a pytest policy or cache-routing surface.
 - `.config/checks/docstrings/policy.toml` owns public-surface docstring coverage.
-- `.config/checks/taplo/taplo.toml` owns TOML canonical formatting; `.config/ci/scripts/run-config-lint.sh` also enforces TOML/JSON parseability, no TOML trailing whitespace, and exactly one final newline for TOML/JSON.
-- `.config/checks/yaml/yamllint.yaml` owns YAML linting; CI invokes it through `.config/ci/scripts/run-config-lint.sh`.
-- `.config/checks/shell/.shellcheckrc` owns ShellCheck policy; `.config/ci/scripts/run-shell-lint.sh` is the runner.
-- `.config/ci/scripts/run-repository-hygiene.sh` owns cross-file hygiene such as tracked-file size, LF endings, final newline, JSON parseability, and merge-conflict marker detection.
-- `.config/ci/scripts/` holds reusable runner bootstrap logic; hosted CI YAML is
+- `.config/checks/module-layout/policy.toml` owns semantic subpackage, suffix-flat, package `__init__.py` facade, and import-alias layout policy; `tools/ci/scripts/run-module-layout.sh` is the reusable runner.
+- `.config/checks/taplo/taplo.toml` owns TOML canonical formatting; `tools/ci/scripts/run-config-lint.sh` also enforces TOML/JSON parseability, no TOML trailing whitespace, and exactly one final newline for TOML/JSON.
+- `.config/checks/yaml/yamllint.yaml` owns YAML linting, including one structural blank line between semantic blocks; CI invokes it through `tools/ci/scripts/run-config-lint.sh`.
+- `.config/checks/whitespace/policy.toml` owns the shared one-blank-line contract for active non-native JSON, INI, Jinja, and Shell carriers. Markdown, TOML, and YAML remain owned by markdownlint, Taplo, and Yamllint; Python remains owned by Ruff.
+- `.config/checks/shell/.shellcheckrc` owns ShellCheck policy; `tools/ci/scripts/run-shell-lint.sh` is the runner.
+- `.config/checks/markdown/.markdownlint-cli2.yaml` owns Markdown lint policy; `tools/ci/scripts/run-markdown-lint.sh` installs Node (via `install-node.sh`) and runs `markdownlint-cli2`. The gate is lint-only — it never rewrites files — so it is safe over the digest-pinned governance documents; `evidence/`, `openspec/`, generated projections, and local state are excluded by the config.
+- `.config/checks/prose/codespell.toml` owns report-first prose spelling policy; `tools/ci/scripts/run-prose-check.sh` runs `codespell` without rewriting files and excludes archives, generated projections, evidence, and lockfiles.
+- `.config/checks/deptry/policy.toml` owns dependency hygiene policy; `tools/ci/scripts/run-dependency-hygiene.sh` runs `deptry` per Python distribution so package metadata is checked without treating the workspace root as a runtime package.
+- `.config/checks/schema/jsonschema.toml` owns JSON Schema metaschema hygiene; `tools/ci/scripts/run-json-schema-check.sh` validates tracked schema documents while command payload validation stays in ETHOS command tests and runtime checks.
+- `.config/checks/security/audit.toml` owns the Python vulnerability audit boundary. `tools/ci/scripts/run-python-vulnerability-audit.sh` exports a frozen resolved requirements input from `uv.lock` and runs `pip-audit` against that input; OSV, image/package scanning, hosted CI success, and remote publication remain explicitly unclaimed.
+- The root `.gitleaks.toml` owns secret-scanning policy (gitleaks resolves its config from a git-discoverable location, so it stays at the root); `tools/ci/scripts/run-secrets-scan.sh` installs the pinned binary via `install-gitleaks.sh` and runs the scan. `.config/checks/secrets/README.md` records the ownership boundary.
+- `tools/ci/scripts/run-repository-hygiene.sh` owns cross-file hygiene such as tracked-file size, LF endings, final newline, JSON parseability, and merge-conflict marker detection.
+- `.config/ci/templates/hosted/` owns provider CI template sources.
+  `.github/workflows/ci.yml` and `.gitlab-ci.yml` are checked projections over
+  those templates; `tools/ci/scripts/run-ci-template-check.sh` is the drift gate.
+- `.config/ci/emulators/` owns local provider emulator config for `act` and
+  `gitlab-ci-local`. Emulator wrappers emit local evidence only and must not
+  claim hosted GitHub or GitLab status.
+- `.config/checks/github/actionlint.toml` owns GitHub workflow syntax policy;
+  `tools/ci/scripts/run-actionlint.sh` executes the provider syntax gate and
+  falls back to the pinned upstream GitHub release binary when no local
+  `actionlint` is installed.
+- `.config/checks/ci/hosted-observation.toml` owns hosted provider observation envelopes; `tools/ci/scripts/run-hosted-provider-observation.sh` records GitHub/GitLab provider facts or tool-discovery state without claiming repository proof, hosted CI success, or remote publication.
+- `.config/checks/format/selection.toml` owns fail-closed executable-carrier
+  admission and file-format boundary checks; `tools/ci/scripts/run-format-selection.sh`
+  is the reusable runner.
+- `.config/checks/architecture/projection.toml` owns architecture projection
+  drift checks from `.config/checks/architecture/models/` source to generated Mermaid. The generated
+  diagram is review aid, not architecture truth.
+- `.config/checks/runbook/registry.toml` owns runbook registry drift;
+  `docs/reference/runbook-registry.md` is the human-facing registry.
+- `.config/checks/mcp/smoke.toml` owns MCP projection smoke. The smoke gate
+  checks local projection configuration only and does not claim MCP semantic
+  correctness or repository proof.
+- `.config/checks/evidence/closeout.toml` owns closeout evidence manifest
+  checks. It hashes reviewed claim, chronicle, and OpenSpec carriers while
+  keeping raw logs/generated reports out of repository truth.
+- `.config/checks/local-state/audit.toml` owns local/generated state boundary
+  checks. Runtime state remains ignored unless promoted into reviewed evidence.
+- `.config/release/supply-chain.toml` owns ETHOS-native release evidence
+  envelopes for SBOM, attestation, and release policy. External signing and SLSA
+  upload adapters remain optional until separately admitted.
+- `tools/ci/scripts/` holds reusable runner bootstrap logic; hosted CI YAML is
   only a provider projection that calls these scripts.
 - `system/tools.toml` records why each gate exists, which profile owns it, where
   its configuration lives, and which reusable script executes it when the gate is
@@ -26,13 +63,25 @@ configuration plane, not a truth center.
 ## Root exceptions
 
 Some root files remain because tools or repository substrates require root-native
-discovery: `AGENTS.md`, `README.md`, `CONTRIBUTING.md`, `pyproject.toml`,
-`uv.lock`, `pytest.ini`, `ruff.toml`, `.pre-commit-config.yaml`, `.gitlab-ci.yml`,
-`package.json`, `package-lock.json`, and `justfile`. These are admitted root
-surfaces, not permission to move reusable gate policy back into the root.
+discovery: `AGENTS.md`, `README.md`, `CONTRIBUTING.md`, `CHANGELOG.md`, `LICENSE`,
+`pyproject.toml`, `uv.lock`, `.gitignore`, `.gitleaks.toml`, `.pre-commit-config.yaml`,
+`.gitlab-ci.yml`, `package.json`, and `package-lock.json`. These are admitted root surfaces, not permission to move
+reusable gate policy back into the root.
 
 ## Boundary rule
 
 Do not duplicate the same policy in multiple files. If a provider surface needs a
 policy, make it invoke the owning config or script instead of re-stating the
 policy inline.
+
+## Generated/local state topology
+
+Configuration under `.config/checks/` owns policy only. Runtime caches and
+local generated outputs must use semantic ignored homes: `.cache/local-state/`
+for host-local coordination, `build/runtime/tool-cache/<tool>/` for tool caches,
+`build/runtime/venv/` for source-bound Work Lane virtual environments,
+`build/runtime/work/<provider>/` for provider emulator work state,
+`build/evidence/` for machine evidence, `build/ethos/` for ETHOS machine
+projections, and `build/artifacts/<kind>/` for local package/build outputs.
+Root cache directories such as `.import_linter_cache/`, `.pytest_cache/`,
+`.ruff_cache/`, `.uv-cache/`, and root `dist/` are denied residue, not owners.

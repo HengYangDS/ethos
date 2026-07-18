@@ -4,10 +4,12 @@ from __future__ import annotations
 
 from pathlib import Path  # noqa: TC003 - Cyclopts resolves CLI annotations at import time.
 from typing import Annotated
+from typing import Any
+from typing import cast
 
 from cyclopts import Parameter
 
-from ethos.domain import land as _land
+from ethos.domain.campaign.closeout import campaign_closeout_report
 from ethos.repository.adoption.evolution import campaign_report
 from ethos.repository.adoption.evolution import evolution_ledger
 from ethos.surface.cli._base import JsonFlag
@@ -28,6 +30,8 @@ def campaign_status(
     """Report canonical campaign model."""
     repo = resolve_root(root)
     report = campaign_report(repo, campaign_id=campaign)
+    required_gap_values = cast("tuple[object, ...]", report.get("required_gaps", ()))
+    required_gaps = tuple(str(gap) for gap in required_gap_values)
     result = EthosResult(
         command="campaign status",
         ok=bool(report["ok"]),
@@ -36,11 +40,11 @@ def campaign_status(
             "active_campaign_count": report["active_count"],
             "campaign_count": report["campaign_count"],
         },
-        required_gaps=tuple(report["required_gaps"]),
+        required_gaps=required_gaps,
         next_actions=("ethos campaign closeout --json",),
         data=report,
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @campaign_app.command
@@ -60,7 +64,7 @@ def hypotheses(
         next_actions=("ethos audit --mode shape",),
         data=ledger,
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @campaign_app.command(name="closeout")
@@ -73,24 +77,32 @@ def campaign_closeout(
 ) -> None:
     """Report the local campaign closeout package without publishing remotely."""
     repo = resolve_root(root)
-    report = _land.campaign_closeout_report(
+    report = campaign_closeout_report(
         repo=repo,
         adopter=adopter,
         target=(target or repo).resolve(),
     )
+    remote_publication = cast("dict[str, Any]", report.get("remote_publication", {}))
+    parity = cast("dict[str, Any]", report.get("parity", {}))
+    release = cast("dict[str, Any]", report.get("release", {}))
+    evolution = cast("dict[str, Any]", report.get("evolution", {}))
+    parity_pending = cast("tuple[object, ...]", parity.get("pending_packages", ()))
+    evolution_gap_values = cast("tuple[object, ...]", evolution.get("required_gaps", ()))
+    release_gap_values = cast("tuple[object, ...]", release.get("required_gaps", ()))
+    evolution_gaps = tuple(str(gap) for gap in evolution_gap_values)
+    release_gaps = tuple(str(gap) for gap in release_gap_values)
     result = EthosResult(
         command="campaign closeout",
         ok=bool(report["ok"]),
         state=str(report["state"]),
         summary={
             "adopter": adopter,
-            "remote_state": report["remote_publication"]["state"],
-            "parity_pending_count": len(report["parity"]["pending_packages"]),
-            "release_ok": report["release"]["ok"],
+            "remote_state": remote_publication.get("state", ""),
+            "parity_pending_count": len(parity_pending),
+            "release_ok": release.get("ok", False),
         },
-        required_gaps=tuple(report["evolution"]["required_gaps"])
-        + tuple(report["release"]["required_gaps"]),
+        required_gaps=evolution_gaps + release_gaps,
         next_actions=("ethos land --apply --authorize --expect-head <git-head>",),
         data=report,
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)

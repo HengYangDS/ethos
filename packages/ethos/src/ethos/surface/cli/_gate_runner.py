@@ -18,10 +18,31 @@ from typing import TYPE_CHECKING
 from ethos.adapters.gates.runner import ActionRunResult
 from ethos.adapters.gates.runner import classify_action_result
 from ethos.surface.cli._base import app
-from ethos.surface.cli._base import load_command_groups as _load_command_groups
+from ethos.surface.cli._base import load_command_groups
 
 if TYPE_CHECKING:
-    from ethos_core.action_graph import ActionNode
+    from ethos_core.action_graph.core import ActionNode
+
+
+def _current_cwd() -> Path | None:
+    """Return the current directory, or None when the host removed it."""
+    try:
+        return Path.cwd()
+    except OSError:
+        return None
+
+
+def _restore_cwd(previous_cwd: Path | None, root: Path) -> None:
+    """Restore process cwd without raising when a worktree disappeared."""
+    for candidate in (previous_cwd, root, Path("/")):
+        if candidate is None:
+            continue
+        try:
+            os.chdir(candidate)
+        except OSError:
+            continue
+        else:
+            return
 
 
 def run_inprocess_cli_gate(node: ActionNode, root: Path) -> ActionRunResult | None:
@@ -36,13 +57,16 @@ def run_inprocess_cli_gate(node: ActionNode, root: Path) -> ActionRunResult | No
         return None
     stdout = StringIO()
     stderr = StringIO()
-    previous_cwd = Path.cwd()
+    previous_cwd = _current_cwd()
+    cwd_unavailable = previous_cwd is None
+    if cwd_unavailable:
+        stderr.write("FileNotFoundError: current working directory is unavailable")
     exit_code = 0
     try:
         os.chdir(root)
         with redirect_stdout(stdout), redirect_stderr(stderr):
             try:
-                _load_command_groups(command_args)
+                load_command_groups(command_args)
                 app(command_args, exit_on_error=False)
             except SystemExit as exc:
                 exit_code = exc.code if isinstance(exc.code, int) else 1
@@ -50,7 +74,9 @@ def run_inprocess_cli_gate(node: ActionNode, root: Path) -> ActionRunResult | No
         exit_code = 1
         stderr.write(f"{type(exc).__name__}: {exc}")
     finally:
-        os.chdir(previous_cwd)
+        _restore_cwd(previous_cwd, root)
+    if cwd_unavailable:
+        exit_code = 1
     state, diagnostics = classify_action_result(
         exit_code=exit_code,
         stdout=stdout.getvalue(),

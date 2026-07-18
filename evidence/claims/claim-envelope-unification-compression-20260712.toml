@@ -1,0 +1,42 @@
+[claim]
+id = "claim-envelope-unification-compression-20260712"
+change_id = "claim-envelope-unification-compression-20260712"
+subject = "ethos:claim-envelope-unification-compression"
+state = "active"
+summary = "Tracked claims use one canonical envelope and the alternate top-level parser is deleted."
+
+[evidence]
+dated = "evidence/chronicle/claim-envelope-unification-compression-20260712/2026-07-12.md"
+sha256 = "a504555088ef341748226af1dc0e3111ad3909e9b5a3eb4ddd02b0a4ef86f46e"
+evidence_ids = [
+  "evidence:claim-envelope-unification-compression-20260712",
+  "test:tests/unit/governance/test_claims.py",
+]
+binding = "The dated chronicle, canonical claim inventory, focused claim-governance suite, and source deletion jointly bind one persisted claim representation."
+verifier = "digest_only"
+tests = [
+  "uv run --all-packages --group dev pytest tests/unit/governance/test_claims.py -q",
+  "uv run --package ethos ethos quality claims --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "Tracked evidence claims and the claim-report parser's canonical-envelope admission boundary"
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-12-claim-envelope-unification-compression-20260712"
+fallback = "Revert the bounded migration if canonical claim parsing or claim-report projection regresses."
+kill_signal = "An alternate top-level claim record or a second parser is accepted."
+
+[promotion]
+targets = [
+  { kind = "source", path = "packages/ethos/src/ethos/repository/evidence/claims.py" },
+  { kind = "tests", path = "tests/unit/governance/test_claims.py" },
+  { kind = "evidence", path = "evidence/claims/advisory-invalid-state-classification.toml" },
+  { kind = "evidence", path = "evidence/claims/retire-owner-boundary.toml" },
+  { kind = "openspec", path = "openspec/changes/archive/2026-07-12-claim-envelope-unification-compression-20260712" },
+  { kind = "evidence", path = "evidence/chronicle/claim-envelope-unification-compression-20260712/2026-07-12.md" },
+]

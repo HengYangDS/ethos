@@ -6,7 +6,7 @@ summary = "Records digest-bound evidence for Work Lane admission, foreign lane v
 
 [evidence]
 dated = "evidence/chronicle/work-lane-admission/2026-06-30.md"
-sha256 = "d871787f4fb3e33543168dcb9655ef28d1e0b41ad4845e80a955e66e8e20bf5a"
+sha256 = "db20eb65f77b86f016528a6d3372ba658996112019bb783c239ab000b3eed113"
 evidence_ids = ["evidence:ethos-work-lane-admission"]
 binding = "digest-bound lane admission evidence binding"
 verifier = "digest_only"
@@ -16,18 +16,8 @@ tests = [
   "tests/unit/cli/test_contracts.py",
 ]
 
-[scope]
-commands = [
-  "ethos lane status",
-  "ethos lane prewrite",
-  "ethos lane start",
-  "ethos land",
-  "ethos publish",
-]
-schemas = [
-  "system/schemas/kernel/mutation-decision.schema.json",
-]
-
+[evidence.freshness]
+mode = "historical"
 [boundary]
 owner = "ethos-adapters"
 scope = "Work Lane admission, prewrite, foreign lane visibility, and lease-backed starts"

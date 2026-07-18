@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ethos.local/schemas/lane-lease.schema.json",
+  "title": "ETHOS Lane Lease",
+  "type": "object",
+  "required": [
+    "lane_incarnation_id",
+    "lease_id",
+    "lane_ref",
+    "holder_ref",
+    "epoch",
+    "issued_at",
+    "renewed_at",
+    "expires_at",
+    "expected_head",
+    "claim_id",
+    "path_scope",
+    "coordination_scope",
+    "mints_authority",
+    "filesystem_fence",
+    "distributed_lock"
+  ],
+  "properties": {
+    "lane_incarnation_id": {"type": "string", "minLength": 1},
+    "lease_id": {"type": "string", "minLength": 1},
+    "lane_ref": {"type": "string", "minLength": 1},
+    "holder_ref": {
+      "type": "string",
+      "pattern": "^[^\\s:]+:[^\\s:]+:[^\\s:]+:[^\\s:]+$"
+    },
+    "epoch": {"type": "integer", "minimum": 1},
+    "issued_at": {"type": "string", "format": "date-time"},
+    "renewed_at": {"type": "string", "format": "date-time"},
+    "expires_at": {"type": "string", "format": "date-time"},
+    "expected_head": {"type": "string"},
+    "claim_id": {"type": "string"},
+    "path_scope": {"type": "array", "items": {"type": "string"}},
+    "coordination_scope": {"const": "git_common_directory"},
+    "mints_authority": {"const": false},
+    "filesystem_fence": {"const": false},
+    "distributed_lock": {"const": false}
+  },
+  "additionalProperties": false
+}

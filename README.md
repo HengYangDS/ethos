@@ -10,6 +10,21 @@ ETHOS does not take over your domain model, CI provider, assistant host, or issu
 tracker. Those systems stay adapters or projections. Repository source, tests,
 schemas, docs, evidence, and promoted decisions remain the truth.
 
+## Isomorphic Governance
+
+ETHOS governs the ETHOS product repository and adopted repositories through the
+same kernel: authority, subject, commitment, change, evidence, claim, and chronicle.
+Product and adopter work differ by profiles and adapters, not by separate command
+planes or private truth stores. This is not product cloning: each governed
+repository keeps its domain model, provider surfaces, and local shape while ETHOS
+applies one evidence-bound transition loop.
+
+The same commands answer the same transition questions in every governed
+repository: where am I, what may mutate, which proof is required, can this land,
+and what publication boundary remains. Repository truth stays in source, tests,
+schemas, docs, evidence, and promoted decisions; profiles tune checks and proof
+depth, while adapters project local providers without becoming truth stores.
+
 ## First Hour
 
 The first hour is deliberately small. Start with a first-glance orientation,
@@ -69,10 +84,10 @@ ETHOS product truth is judged from one source and projected through one canonica
 chain:
 
 ```text
-JudgmentSource -> Subject -> Commitment -> Change -> Evidence -> Claim -> Chronicle
+Authority -> Subject -> Commitment -> Change -> Evidence -> Claim -> Chronicle
 ```
 
-`JudgmentSource` is the authority for product decisions. `Subject` names the
+`Authority` anchors product decisions. `Subject` names the
 governed object. `Commitment` collects contracts, policies, specs, and decisions.
 `Change` owns the lifecycle. `Evidence` carries proof material. `Claim` binds
 evidence and does not own lifecycle state. `Chronicle` records judged history,
@@ -121,8 +136,8 @@ GitLab-visible project governance is tracked in `LICENSE`, `CONTRIBUTING.md`,
 ## Development
 
 ```bash
-uv run --group dev pytest
-uv run --group dev ruff check .
+tools/ci/scripts/run-python-tests.sh
+tools/ci/scripts/run-python-lint.sh
 uv run --package ethos ethos orient --json
 uv run --package ethos ethos status --json
 uv run --package ethos ethos report --json

@@ -1,2 +1,19 @@
-project: ethos
-version: 1
+schema: spec-driven
+context: |
+  ETHOS is the repository governance product. It treats OpenSpec as the
+  official specification-change surface while source, tests, schemas, claims,
+  and evidence remain higher-authority proof carriers.
+rules:
+  proposal:
+    - Explain the problem, intended change, and explicit out-of-scope boundary.
+    - Name affected capabilities and include ETHOS routing metadata.
+  specs:
+    - Use ADDED, MODIFIED, REMOVED, or RENAMED Requirements sections.
+    - Include at least one Scenario with WHEN and THEN clauses for each
+      requirement.
+  tasks:
+    - Track implementation, tests, documentation, and closeout evidence as
+      checkable items.
+  design:
+    - Record architecture, tradeoffs, authority boundaries, and migration risks
+      for non-trivial changes.

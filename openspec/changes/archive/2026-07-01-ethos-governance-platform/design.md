@@ -1,6 +1,6 @@
 ## Context
 
-ETHOS is the governing product. Adopter repositories such as dmgr provide
+ETHOS is the governing product. Adopter repositories such as reference adopter provide
 profiles, rules, skills, and domain contracts, but those semantics must not be
 hardcoded into product core.
 

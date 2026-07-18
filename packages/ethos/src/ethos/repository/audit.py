@@ -5,30 +5,27 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import cast
 
-import ethos.repository.audit_openspec as _audit_openspec
 from ethos.assistants.playbooks import playbooks_report
 from ethos.repository.adoption.evolution import evolution_report
-from ethos.repository.audit_design import DESIGN_INTEGRITY_DOCS
-from ethos.repository.audit_design import DESIGN_INTEGRITY_FORBIDDEN_ROOT_PATHS
-from ethos.repository.audit_design import DESIGN_INTEGRITY_FORBIDDEN_TERMS
-from ethos.repository.audit_design import DESIGN_INTEGRITY_REQUIRED_TERMS
-from ethos.repository.audit_design import DESIGN_INTEGRITY_VENDOR_TERMS
-from ethos.repository.audit_design import _design_integrity_report
-from ethos.repository.audit_design import _front_matter_ok
-from ethos.repository.audit_openspec import _active_change_violations_for_role
-from ethos.repository.audit_openspec import _completed_unarchived_changes
-from ethos.repository.audit_openspec import _openspec_provider_missing_report
-from ethos.repository.audit_openspec import _openspec_shape_report as _openspec_shape_report_impl
 from ethos.repository.context import governance_context
+from ethos.repository.design.integrity import DESIGN_INTEGRITY_DOCS
+from ethos.repository.design.integrity import DESIGN_INTEGRITY_FORBIDDEN_ROOT_PATHS
+from ethos.repository.design.integrity import DESIGN_INTEGRITY_FORBIDDEN_TERMS
+from ethos.repository.design.integrity import DESIGN_INTEGRITY_REQUIRED_TERMS
+from ethos.repository.design.integrity import DESIGN_INTEGRITY_VENDOR_TERMS
+from ethos.repository.design.integrity import design_integrity_report
+from ethos.repository.design.integrity import front_matter_ok
 from ethos.repository.evidence.claims import claims_report
-from ethos.repository.policy.coupling import coupling_audit_report
+from ethos.repository.openspec.audit import openspec_provider_missing_report
+from ethos.repository.openspec.audit import openspec_shape_report
+from ethos.repository.policy.coupling.core import coupling_audit_report
 from ethos.repository.policy.schema import schema_validation_report
 from ethos.repository.registry.authority import authority_graph_report
 from ethos.repository.registry.commands import command_registry_report
 from ethos.repository.release.core import REQUIRED_RELEASE_FILES as PRODUCT_RELEASE_FILES
-from ethos_core.contracts.package_ontology import package_ontology_report
-from ethos_core.contracts.package_ontology import workspace_package_config_report
-from ethos_core.contracts.system_contracts import system_contracts_report
+from ethos_core.contracts.package.ontology import package_ontology_report
+from ethos_core.contracts.package.ontology import workspace_package_config_report
+from ethos_core.contracts.system.contracts import system_contracts_report
 
 OpenSpecReporter = Callable[[Path], dict[str, object]]
 
@@ -38,8 +35,6 @@ __all__ = (
     "DESIGN_INTEGRITY_FORBIDDEN_TERMS",
     "DESIGN_INTEGRITY_REQUIRED_TERMS",
     "DESIGN_INTEGRITY_VENDOR_TERMS",
-    "_active_change_violations_for_role",
-    "_completed_unarchived_changes",
 )
 
 _PACKAGE_ONTOLOGY = package_ontology_report()
@@ -80,7 +75,7 @@ REQUIRED_DOCS = (
     "docs/architecture/schema-validation.md",
     "docs/governance/commit-signature-policy.md",
     "docs/governance/conversation-ledger.md",
-    "docs/governance/judgment-source.md",
+    "docs/governance/authority.md",
     "docs/governance/product-design-contract.md",
     "docs/governance/product-boundary-convergence.md",
     "docs/governance/capability-parity-ledger.md",
@@ -108,6 +103,8 @@ REQUIRED_SCHEMAS = (
     "evidence-set.schema.json",
     "provenance.schema.json",
     "chronicle.schema.json",
+    "semantic-attestation-receipt.schema.json",
+    "control-replacement-verifier-receipt.schema.json",
     "evolution.schema.json",
     "docs-registry.schema.json",
     "evolution-ledger.schema.json",
@@ -116,9 +113,10 @@ REQUIRED_SCHEMAS = (
     "skill-activation.schema.json",
     "skill-registry.schema.json",
     "skill-package-manifest.schema.json",
+    "lane-lease.schema.json",
     "mutation-decision.schema.json",
     "workspace-status.schema.json",
-    "judgment-source.schema.json",
+    "authority.schema.json",
     "authority-graph.schema.json",
     "quality-asset.schema.json",
     "quality-finding.schema.json",
@@ -223,7 +221,7 @@ def repository_audit(
     physical_target_homes_present = not target_package_missing and not target_distribution_missing
     docs_missing = [doc for doc in REQUIRED_DOCS if not (root / doc).exists()]
     docs_without_front_matter = [
-        doc for doc in REQUIRED_DOCS if (root / doc).exists() and not _front_matter_ok(root / doc)
+        doc for doc in REQUIRED_DOCS if (root / doc).exists() and not front_matter_ok(root / doc)
     ]
     schemas_missing = [
         schema
@@ -245,11 +243,11 @@ def repository_audit(
     schema_report = schema_validation_report(root)
     evolution = evolution_report(root)
     coupling = coupling_audit_report(root)
-    design_integrity = _design_integrity_report(root)
+    design_integrity = design_integrity_report(root)
     if openspec_mode == "shape":
-        openspec = _openspec_shape_report(root)
+        openspec = openspec_shape_report(root)
     elif openspec_reporter is None:
-        openspec = _openspec_provider_missing_report(root)
+        openspec = openspec_provider_missing_report(root)
     else:
         openspec = openspec_reporter(root)
     claim_gaps = [str(gap) for gap in cast("list[str]", claim_report["required_gaps"])]
@@ -364,8 +362,3 @@ def repository_audit(
         "system_contracts": system_contracts,
         "required_gaps": gaps,
     }
-
-
-def _openspec_shape_report(root: Path) -> dict[str, object]:
-    _audit_openspec.subprocess = subprocess
-    return _openspec_shape_report_impl(root)

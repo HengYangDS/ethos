@@ -9,27 +9,17 @@ head = "31842a226c5cc4c183f52527a6eb90fc484c0913"
 dated = "evidence/chronicle/skill-portfolio-hardening/2026-07-06.md"
 sha256 = "4295442d85663a1d084535214ff649168d35534ffeb53fdecd4d00376f652527"
 evidence_ids = ["evidence:skill-portfolio-hardening"]
-binding = "semantic skill portfolio hardening evidence binding"
-verifier = "semantic"
+binding = "declared skill portfolio hardening evidence binding"
+verifier = "digest_only"
 tests = [
-  "uv run --group dev ruff check packages/ethos/src/ethos/assistants/skill_packages.py packages/ethos/src/ethos/assistants/playbooks.py tests/unit/assistants/test_skill_packages.py tests/unit/assistants/test_playbooks.py",
+  "uv run --group dev ruff check packages/ethos/src/ethos/assistants/skills/packages.py packages/ethos/src/ethos/assistants/playbooks.py tests/unit/assistants/test_skill_packages.py tests/unit/assistants/test_playbooks.py",
   "uv run --group dev pytest tests/unit/assistants/test_skill_packages.py tests/unit/assistants/test_playbooks.py -q",
   "uv run --package ethos ethos playbooks check --mode v2-strict --json",
   "uv run --package ethos ethos quality projection-drift --json",
 ]
 
-[scope]
-packages = ["ethos"]
-tests = [
-  "tests/unit/assistants/test_skill_packages.py",
-  "tests/unit/assistants/test_playbooks.py",
-]
-docs = [
-  ".agents/skills/ethos-skill-portfolio-governance/SKILL.md",
-  ".agents/skills/ethos-skill-portfolio-governance/references/portfolio-design.md",
-  "openspec/changes/skill-portfolio-hardening/specs/ethos-assistants/spec.md",
-]
-
+[evidence.freshness]
+mode = "historical"
 [boundary]
 owner = "ethos-assistants"
 scope = "Repo-local skill portfolio route ownership, trigger quality, progressive disclosure, and digest-bound projection checks"
@@ -52,7 +42,7 @@ targets = [
   "evidence/chronicle/skill-portfolio-hardening/2026-07-06.md",
   "openspec/changes/archive/2026-07-05-skill-portfolio-hardening",
   "packages/ethos/src/ethos/assistants/playbooks.py",
-  "packages/ethos/src/ethos/assistants/skill_packages.py",
+  "packages/ethos/src/ethos/assistants/skills/packages.py",
   "tests/unit/assistants/test_playbooks.py",
   "tests/unit/assistants/test_skill_packages.py",
 ]

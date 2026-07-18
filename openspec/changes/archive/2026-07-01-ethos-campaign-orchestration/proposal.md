@@ -29,5 +29,5 @@ closeout package.
 ## Out Of Scope
 
 - Do not implement every terminal productization lane in this change.
-- Do not copy dmgr Backlog or Mission vocabulary into ETHOS core.
+- Do not copy reference adopter Backlog or Mission vocabulary into ETHOS core.
 - Do not make Work Lane presence itself promote claim or evidence truth.

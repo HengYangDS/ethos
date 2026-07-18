@@ -23,14 +23,14 @@ risks reintroducing retired topology during archive or release work.
   CLI/adapters composition.
 - Require target MECE OpenSpec families and prevent active changes from
   reintroducing old families.
-- Keep generic and alphasim-dmgr parity closure evidence tracked while treating
-  alphasim-dmgr embedded ETHOS as adopter oracle/fallback, not product truth.
+- Keep generic and reference-adopter parity closure evidence tracked while treating
+  reference-adopter embedded ETHOS as adopter oracle/fallback, not product truth.
 - Validate all Python packages with Hatchling wheel/sdist local build smoke.
 
 ## Non-goals
 
 - Do not remote publish.
-- Do not delete alphasim-dmgr embedded ETHOS from the adopter repository.
+- Do not delete reference-adopter embedded ETHOS from the adopter repository.
 - Do not enter or mutate another agent's Work Lane.
 - Do not introduce npm/Homebrew/Docker/CI marketplace publication.
 

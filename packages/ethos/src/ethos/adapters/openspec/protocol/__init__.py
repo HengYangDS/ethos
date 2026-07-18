@@ -1,0 +1,1 @@
+"""OpenSpec protocol semantic subpackage."""

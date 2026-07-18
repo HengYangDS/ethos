@@ -2,9 +2,47 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ethos.repository.registry.docs import build_docs_registry
-from ethos.repository.registry.docs import command_examples_report
-from ethos.repository.registry.docs import docs_health_report
+from ethos.repository.registry.docs.commands import command_examples_report
+from ethos.repository.registry.docs.health import docs_health_report
+from ethos.repository.registry.docs.registry import DEFAULT_ALLOWED_ROLES
+from ethos.repository.registry.docs.registry import DEFAULT_ALLOWED_STATES
+from ethos.repository.registry.docs.registry import allowed_roles
+from ethos.repository.registry.docs.registry import build_docs_registry
+from ethos_core.contracts.docs.topology import ROLE_VALUES
+from ethos_core.contracts.docs.topology import STATE_VALUES
+
+
+def test_default_allowed_states_are_sourced_from_topology_contract() -> None:
+    # SSOT: the docs-registry allowed-state vocabulary must be derived from the
+    # topology contract's STATE_VALUES, not an independent hand-maintained copy
+    # that can silently diverge (add a state to the contract and this stays in lockstep).
+    assert frozenset(STATE_VALUES) == DEFAULT_ALLOWED_STATES
+
+
+def test_default_allowed_roles_are_sourced_from_topology_contract() -> None:
+    # SSOT: the docs-registry allowed-role vocabulary is the contract's kernel
+    # ROLE_VALUES, never an independent copy.
+    assert frozenset(ROLE_VALUES) == DEFAULT_ALLOWED_ROLES
+
+
+def test_allowed_roles_union_kernel_with_taxonomy_never_removes_kernel(tmp_path: Path) -> None:
+    # Extension roles declared in a repo taxonomy are ADDED to the kernel set;
+    # a taxonomy can never shrink the inherited role vocabulary.
+    meta = tmp_path / "docs" / "_meta"
+    meta.mkdir(parents=True)
+    (meta / "taxonomy.toml").write_text('[roles]\nallowed = ["runbook"]\n', encoding="utf-8")
+    allowed = allowed_roles(tmp_path)
+    assert "runbook" in allowed  # taxonomy addition present
+    assert frozenset(ROLE_VALUES) <= allowed  # every kernel role still valid
+
+
+def test_allowed_roles_ignores_malformed_taxonomy_roles(tmp_path: Path) -> None:
+    # A taxonomy whose [roles].allowed is not a list is ignored; the kernel
+    # vocabulary still applies unchanged.
+    meta = tmp_path / "docs" / "_meta"
+    meta.mkdir(parents=True)
+    (meta / "taxonomy.toml").write_text('[roles]\nallowed = "not-a-list"\n', encoding="utf-8")
+    assert allowed_roles(tmp_path) == set(ROLE_VALUES)
 
 
 def test_docs_registry_indexes_subject_metadata() -> None:
@@ -28,7 +66,7 @@ def test_docs_health_report_has_no_missing_metadata() -> None:
 
 
 def test_docs_quality_report_enforces_taxonomy_and_visible_sections() -> None:
-    from ethos.repository.registry.docs import docs_quality_report
+    from ethos.repository.registry.docs.quality import docs_quality_report
 
     report = docs_quality_report(Path.cwd())
 
@@ -48,6 +86,20 @@ def test_command_examples_do_not_leak_retired_roots() -> None:
     assert report["ok"] is True
     assert report["required_gaps"] == []
     assert any(example["command"].startswith("ethos ") for example in report["examples"])
+
+
+def test_command_examples_allow_repo_owned_ci_scripts_only(tmp_path: Path) -> None:
+    (tmp_path / "README.md").write_text(
+        "```bash\ntools/ci/scripts/run-python-tests.sh\ntools/dev/run-anything.sh\n```\n",
+        encoding="utf-8",
+    )
+
+    report = command_examples_report(tmp_path)
+
+    assert (
+        "unknown_command_example:README.md:3:tools/dev/run-anything.sh" in report["required_gaps"]
+    )
+    assert not any("tools/ci/scripts/run-python-tests.sh" in gap for gap in report["required_gaps"])
 
 
 def test_command_examples_treat_evidence_as_observational(tmp_path: Path) -> None:
@@ -107,6 +159,25 @@ ethos lane nope --json
         in report["required_gaps"]
     )
     assert "unknown_ethos_command_example:README.md:5:ethos lane nope" in report["required_gaps"]
+
+
+def test_command_examples_accept_lane_resolution_receipt_commands(tmp_path: Path) -> None:
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "README.md").write_text(
+        """# Example
+
+```bash
+ethos lane resolution inventory --json
+ethos lane resolution clear --decision-id <decision-id> --break-glass --confirm-irreversible --apply
+```
+""",
+        encoding="utf-8",
+    )
+
+    report = command_examples_report(tmp_path)
+
+    assert report["ok"] is True
+    assert report["required_gaps"] == []
 
 
 def test_command_examples_validate_wrapped_uv_ethos_commands(tmp_path: Path) -> None:

@@ -17,22 +17,61 @@ def _tuple_text(values: tuple[str, ...], field_name: str) -> tuple[str, ...]:
     return tuple(_require_text(value, field_name) for value in values)
 
 
-SEMANTIC_VERIFIERS = {"semantic"}
-DIGEST_ONLY_VERIFIERS = {"digest_only"}
-CLAIM_OVERCLAIM_PHRASES = ("semantic",)
+ASSURANCE_CLASSES = frozenset(
+    {
+        "digest_only",
+        "semantic_attested",
+        "independently_reviewed",
+        "independently_reexecuted",
+        "formally_proven",
+    }
+)
+"""The complete claim-assurance vocabulary.
+
+Each class says what the supplied evidence *actually establishes*.  The value
+is deliberately about evidence depth rather than a tool, provider, or actor so
+adopters may choose independent proof without inheriting this repository's
+reference provider.
+"""
+
+ASSURANCE_FORBIDDEN_PHRASES = {
+    "digest_only": (
+        "semantic",
+        "verified",
+        "validates",
+        "enforces",
+        "guarantees",
+        "proves",
+    ),
+    "semantic_attested": ("verified", "validates", "enforces", "guarantees"),
+    "independently_reviewed": ("verified", "semantic correctness", "guarantees"),
+    "independently_reexecuted": ("semantic correctness", "verified", "guarantees"),
+    "formally_proven": (),
+}
+"""Conclusion vocabulary that each assurance class must reject.
+
+The policy is intentionally conservative: an independent execution proves
+only that exact bound floor ran elsewhere, not the semantic correctness of the
+change.  A named formal proof is the only class that may make a proof claim,
+and even then callers must bind it to its stated theorem.
+"""
+
+# Compatibility name used by a small number of direct contract tests.  It is
+# intentionally core-only and never encodes repository/adopter policy.
+CLAIM_OVERCLAIM_PHRASES = ASSURANCE_FORBIDDEN_PHRASES["digest_only"]
 
 
 @dataclass(frozen=True)
-class JudgmentSource:
+class Authority:
     id: str
-    authority: str
+    order_ref: str
     derived_views: tuple[str, ...] = ()
     policy_refs: tuple[str, ...] = ()
-    chain_term: str = field(default="judgment_source", init=False)
+    chain_term: str = field(default="authority", init=False)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "id", _require_text(self.id, "id"))
-        object.__setattr__(self, "authority", _require_text(self.authority, "authority"))
+        object.__setattr__(self, "order_ref", _require_text(self.order_ref, "order_ref"))
         object.__setattr__(
             self,
             "derived_views",
@@ -47,7 +86,7 @@ class JudgmentSource:
     def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
-            "authority": self.authority,
+            "order_ref": self.order_ref,
             "derived_views": list(self.derived_views),
             "policy_refs": list(self.policy_refs),
         }
@@ -96,16 +135,16 @@ class EvidenceClaim:
             _tuple_text(self.evidence_ids, "evidence_ids"),
         )
         object.__setattr__(self, "binding", _require_text(self.binding, "binding"))
-        object.__setattr__(self, "verifier", _require_text(self.verifier, "verifier"))
-        if self.verifier not in DIGEST_ONLY_VERIFIERS | SEMANTIC_VERIFIERS:
-            msg = "verifier must be one of digest_only or semantic"
+        verifier = _require_text(self.verifier, "verifier")
+        object.__setattr__(self, "verifier", verifier)
+        if verifier not in ASSURANCE_CLASSES:
+            msg = "verifier must name a supported assurance class"
             raise ValueError(msg)
         binding = self.binding.lower()
-        if self.verifier not in SEMANTIC_VERIFIERS and any(
-            phrase in binding for phrase in CLAIM_OVERCLAIM_PHRASES
-        ):
-            msg = "semantic claims require semantic verifier"
-            raise ValueError(msg)
+        for phrase in ASSURANCE_FORBIDDEN_PHRASES[verifier]:
+            if phrase in binding:
+                msg = f"assurance class {verifier} does not permit {phrase}"
+                raise ValueError(msg)
 
     def to_dict(self) -> dict[str, Any]:
         return {

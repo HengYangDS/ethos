@@ -1,0 +1,49 @@
+[claim]
+id = "lane-status-coordination-summary"
+subject = "ethos:lane-status-coordination-summary"
+state = "active"
+summary = "ETHOS lane status exposes Work Lane coordination small signals in summary without changing advisory authority."
+
+[evidence]
+dated = "evidence/chronicle/lane-status-coordination-summary/2026-07-09.md"
+sha256 = "cfeee802f42ce6925d19554711d2f3ed476847c1a410069934dffd08f69f07e2"
+evidence_ids = ["evidence:lane-status-coordination-summary"]
+binding = "lane status coordination summary source, tests, docs, OpenSpec, and evidence binding"
+verifier = "digest_only"
+tests = [
+  "uv run --group dev pytest tests/unit/cli/lane_status/test_next_actions.py -q",
+  "uv run --group dev ruff check packages/ethos/src/ethos/surface/cli/lane/core.py tests/unit/cli/lane_status/test_next_actions.py",
+  "uv run --package ethos ethos quality types --json",
+  "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --write-evidence --timeout-seconds 60 --json",
+  "uv run --package ethos ethos parity gaps --json",
+  "uv run --package ethos ethos openspec --lifecycle --json",
+  "uv run --package ethos ethos report --json",
+  "uv run --package ethos ethos prove --execute --expect-head $(git rev-parse HEAD) --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+[boundary]
+owner = "ethos-repository"
+scope = "Lane status reader-view visibility for Work Lane coordination small signals"
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-09-lane-status-coordination-summary-20260709"
+fallback = "Use full data.coordination from ethos lane status --json if the lifted summary fields drift."
+kill_signal = "lane status summary grants mutation authority over foreign lanes or hides existing coordination advisory signals."
+
+[promotion]
+targets = [
+  "packages/ethos/src/ethos/surface/cli/lane/core.py",
+  "tests/unit/cli/lane_status/test_next_actions.py",
+  "docs/reference/command-plane.md",
+  "openspec/specs/repository-governance/spec.md",
+  "openspec/changes/archive/2026-07-09-lane-status-coordination-summary-20260709/proposal.md",
+  "openspec/changes/archive/2026-07-09-lane-status-coordination-summary-20260709/design.md",
+  "openspec/changes/archive/2026-07-09-lane-status-coordination-summary-20260709/tasks.md",
+  "openspec/changes/archive/2026-07-09-lane-status-coordination-summary-20260709/.openspec.yaml",
+  "openspec/changes/archive/2026-07-09-lane-status-coordination-summary-20260709/specs/repository-governance/spec.md",
+  "evidence/chronicle/lane-status-coordination-summary/2026-07-09.md",
+  "evidence/claims/lane-status-coordination-summary.toml",
+  "evidence/parity/generic-shadow.json",
+]

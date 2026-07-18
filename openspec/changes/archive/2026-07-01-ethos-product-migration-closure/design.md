@@ -4,7 +4,7 @@
 
 The external ETHOS repository is the product truth. Historical in-product
 migration hosts are not fallback mechanisms; fallback belongs to adopters such
-as alphasim-dmgr through explicit backend selection and shadow parity evidence.
+as reference-adopter through explicit backend selection and shadow parity evidence.
 
 ## Package Topology
 

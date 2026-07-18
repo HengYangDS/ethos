@@ -1,0 +1,13 @@
+[release]
+version_source = "pyproject.toml"
+tag_pattern = "v{version}"
+
+[attestation]
+formats = ["in-toto", "slsa", "spdx-lite"]
+{% if profile in ["gitlab", "github"] %}
+[host_profile]
+provider = {{ profile | json }}
+
+[host_profile.surfaces]
+ci = {{ host_ci | json }}
+{% endif %}

@@ -1,0 +1,35 @@
+# Python and local editor/runtime state.
+.venv/
+__pycache__/
+*.py[cod]
+
+# ETHOS local coordination state is host-local.
+.ethos/state/*
+!.ethos/state/.gitignore
+
+# Semantic ignored generated homes. The declarative contract lives in
+# .config/ethos/generated-artifacts.toml; these directories are outputs, not
+# repository truth.
+.cache/
+build/
+
+# Root tool caches and package output are denied residue. Tools must route
+# caches to build/runtime/tool-cache/<tool>/, provider work to
+# build/runtime/work/<provider>/, machine evidence to build/evidence/ or
+# build/ethos/, and local artifacts to build/artifacts/<kind>/.
+.import_linter_cache/
+.import-linter-cache/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.tox/
+.nox/
+.uv-cache/
+dist/
+
+# Root coverage and pytest residue may be ignored local cleanup debt, but
+# tracked copies are still generated-artifact topology violations.
+.coverage
+.coverage.*
+coverage.xml
+junit.xml

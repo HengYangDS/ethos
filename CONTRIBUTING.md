@@ -5,20 +5,25 @@ history.
 
 ## Identity
 
-Use this repository identity for commits:
+Use your own organization-approved Git identity. ETHOS does not require a
+single built-in author. This repository's accepted humans, teams, and automation
+accounts are declared in `.ethos/workspace.toml` under `[commit_policy]` and
+`[[commit_policy.allowed_identities]]`. In multi-contributor repositories,
+add or delegate through role-based team, contributor, reviewer, maintainer, and
+automation entries instead of changing ETHOS product code or assuming a single
+author.
 
 ```bash
-git config user.name "Yang HENG"
-git config user.email "heng.yang.ds@hotmail.com"
+git config user.name "<your-name-or-team>"
+git config user.email "<your-approved-email>"
 git config commit.gpgsign true
 git config gpg.format ssh
 ```
 
-Expected author: `Yang HENG <heng.yang.ds@hotmail.com>`.
-
-SSH signing is required for maintainer commits. ETHOS validates current commit
-identity and signature policy directly instead of normalizing historical aliases
-through tracked repository metadata.
+SSH signing is required for maintainer and automation commits in this
+repository. ETHOS validates current commit identity, role allowlist membership,
+and signing policy directly instead of normalizing historical aliases through
+tracked repository metadata.
 
 ## Commit Names
 
@@ -38,14 +43,14 @@ Avoid vague subjects such as `Update files` or product claims without evidence.
 Before proposing a change:
 
 ```bash
-uv run --group dev pytest tests/unit tests/architecture -q
-uv run --group dev ruff check .
-uv run --package ethos ethos audit --json
+tools/ci/scripts/run-python-tests.sh
+tools/ci/scripts/run-python-lint.sh
+uv run --package ethos ethos audit --mode shape --json
 uv run --package ethos ethos report --json
 ```
 
 Changes that affect package metadata should also run:
 
 ```bash
-uv build --all-packages
+uv build --all-packages --out-dir build/artifacts/python --clear --no-create-gitignore
 ```

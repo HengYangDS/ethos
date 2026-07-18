@@ -1,6 +1,6 @@
 ---
 subject: ethos:protocol-contracts
-role: reference
+role: explanation
 state: canonical
 relations:
   canonical_for: ecosystem compatibility

@@ -1,6 +1,6 @@
 ---
 subject: ethos:fleet-adopters
-role: reference
+role: explanation
 state: canonical
 relations:
   canonical_for: external repository governance
@@ -18,10 +18,23 @@ inspection is data-driven: adopter names, domain contracts, branch roles,
 assistant surfaces, and hosted providers belong in the adopter repository or
 profile.
 
-This keeps ETHOS core reusable. A dmgr-style repository can declare raw/cache
-contracts, assistant projections, Backlog intake, and OpenSpec changes in its
-own tracked profile and configuration without adding dmgr terms to product
-packages.
+For an existing repository, fleet onboarding begins with a strict dry-run. If
+the plan finds differing adopter-owned governance files, the owner can choose
+`ethos adopt --overlay` explicitly. Overlay is not a force mode: it preserves
+the adopter-owned files, exposes their digests in command JSON, and still
+rejects conflicting ETHOS-owned binding surfaces. A fleet record becomes
+adoption evidence only after the adopter's own tracked profile and
+profile-appropriate proof exist.
+
+When an adopter uses non-default branch names, its tracked
+`.ethos/workspace.toml` must map the existing release, accepted, candidate,
+work, and submit roles. The mapping preserves ETHOS transition semantics while
+leaving branch names and branch-provider policy under adopter authority.
+
+This keeps ETHOS core reusable. A domain-specific repository can declare its
+own data contracts, assistant projections, intake adapters, and OpenSpec
+changes in its tracked profile and configuration without adding that domain's
+terms to product packages.
 
 Status: see front matter.
 

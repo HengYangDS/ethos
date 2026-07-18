@@ -5,7 +5,7 @@
 schema = "system/schemas/contracts/formats.schema.json"
 
 [carriers.markdown]
-use = "Human judgment, Tao, design, reviews, retrospectives, docs."
+use = "Human judgment, design, reviews, retrospectives, docs."
 not_for = "Machine-only state or large append-only event streams."
 
 [carriers.toml]

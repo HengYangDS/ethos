@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from ethos_core.action_graph import ActionNode
+from ethos_core.action_graph.core import ActionNode
 
 
 @dataclass(frozen=True)

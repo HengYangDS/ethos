@@ -55,7 +55,7 @@ evidence = ["evidence/chronicle/openspec-archive-closeout/2026-07-02.md"]
 [[step]]
 id = "hooked-write-admission"
 title = "Hooked write admission"
-state = "active"
+state = "closed"
 ordinal = 4
 depends_on = ["openspec-archive-closeout"]
 openspec_change = "ethos-hooked-write-admission"
@@ -63,9 +63,9 @@ work_lane = "work/hooked-write-admission-runtime"
 claim_id = "ethos-hooked-write-admission"
 
 [step.closeout]
-state = "planned"
-accepted_head = ""
-candidate_head = ""
+state = "retired"
+accepted_head = "c17b8939f8d55082d226b3090c03a1c37cd48b37"
+candidate_head = "d735b62add0a0d5dc7ebdf8cb0e7e1d8deadec30"
 evidence = ["evidence/chronicle/hooked-write-admission/2026-07-02.md"]
 
 [[step]]

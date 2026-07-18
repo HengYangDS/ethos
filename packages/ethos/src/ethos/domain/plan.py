@@ -9,26 +9,30 @@ surface→domain→... layering acyclic.
 from __future__ import annotations
 
 import fnmatch
+import tomllib
+from pathlib import Path
 from typing import TYPE_CHECKING
+from typing import Any
 from typing import cast
 
+import ethos.repository.workflow.runtime as workflow_runtime
 from ethos.adapters.config import rules_config
-from ethos.adapters.repo.status import workspace_status
+from ethos.adapters.repo.status.core import workspace_status
 from ethos.assistants.projections import projection_contract
 from ethos.domain.status import audit_for_root
 from ethos.domain.status import status_worktree_gaps
 from ethos.domain.status import string_list
 from ethos.repository.evidence.claims import claims_report
 from ethos.repository.registry.commands import command_registry_report
-from ethos_core.action_graph import ActionGraph
-from ethos_core.action_graph import ActionNode
-from ethos_core.contracts.context_projection import ASSISTANT_TRUTH_BOUNDARY
+from ethos_core.contracts.context.projection import ASSISTANT_TRUTH_BOUNDARY
 from ethos_core.contracts.rules import RuleAttestation
 from ethos_core.contracts.rules import RuleFactSnapshot
 from ethos_core.contracts.rules import stable_digest
+from ethos_core.contracts.system.contracts import load_system_contract
+from ethos_core.contracts.workflow import action_graph_from_workflow_contract
 
 if TYPE_CHECKING:
-    from pathlib import Path
+    from ethos_core.action_graph.core import ActionGraph
 
 
 def path_matches(path: str, pattern: str) -> bool:
@@ -85,36 +89,64 @@ def matching_rule_gates(
     return matched_rules, required_gates
 
 
+def contract_profile_matches(root: Path, paths: tuple[str, ...]) -> list[dict[str, object]]:
+    """Match changed paths against configured adopter/domain contract profiles."""
+    config = rules_config(root)
+    raw_profile_config = config.get("contract_profile")
+    raw_profiles = raw_profile_config if isinstance(raw_profile_config, list) else []
+    matches: list[dict[str, object]] = []
+    for raw_profile in cast("list[object]", raw_profiles):
+        if not isinstance(raw_profile, dict):
+            continue
+        profile_id = str(raw_profile.get("id", ""))
+        policy = raw_profile.get("policy")
+        if not isinstance(policy, str) or not policy:
+            continue
+        policy_path = root / policy
+        if not policy_path.exists():
+            continue
+        policy_data = tomllib.loads(policy_path.read_text(encoding="utf-8"))
+        raw_contracts = (
+            policy_data.get("contract") if isinstance(policy_data.get("contract"), list) else []
+        )
+        for raw_contract in cast("list[object]", raw_contracts):
+            if not isinstance(raw_contract, dict):
+                continue
+            matched_paths = [
+                path
+                for path in paths
+                if any(
+                    path_matches(path, pattern)
+                    for pattern in string_list(raw_contract.get("paths"))
+                )
+            ]
+            if not matched_paths:
+                continue
+            matches.append(
+                {
+                    "profile": profile_id,
+                    "contract": str(raw_contract.get("id", "")),
+                    "surface": str(raw_contract.get("surface", "")),
+                    "matched_paths": matched_paths,
+                    "protects": string_list(raw_contract.get("protects")),
+                    "required_evidence": string_list(raw_contract.get("required_evidence")),
+                }
+            )
+    return matches
+
+
+def workflow_runtime_report(root: Path, *, changed_paths: tuple[str, ...] = ()) -> dict[str, Any]:
+    """Return workflow runtime projection for plan-stage callers."""
+    return workflow_runtime.workflow_runtime_report(root, changed_paths=changed_paths)
+
+
 def graph_for_paths(paths: tuple[str, ...]) -> ActionGraph:
-    """Build the deterministic status→prove→audit action graph for changed paths."""
-    inputs = tuple(sorted(paths)) or ("pyproject.toml",)
-    nodes = (
-        ActionNode(
-            id="status",
-            kind="inspection",
-            command=("ethos", "status", "--json"),
-            inputs=inputs,
-            outputs=(),
-            policy="required",
-        ),
-        ActionNode(
-            id="prove",
-            kind="proof",
-            command=("ethos", "prove", "--json"),
-            inputs=inputs,
-            outputs=("evidence/latest-proof.json",),
-            policy="required",
-        ),
-        ActionNode(
-            id="repository-audit",
-            kind="governance",
-            command=("ethos", "audit", "--json"),
-            inputs=inputs,
-            outputs=(),
-            policy="required",
-        ),
+    """Build the plan action graph from the declared workflow runtime contract."""
+    return action_graph_from_workflow_contract(
+        load_system_contract(Path(), "workflows"),
+        changed_paths=paths,
+        node_ids=("status", "plan", "prove"),
     )
-    return ActionGraph(nodes=nodes)
 
 
 def rule_fact(
@@ -233,10 +265,8 @@ def rule_fact_snapshot(
         facts["openspec_state"] = unavailable_rule_fact("ethos-repository.self-audit", exc)
         facts["host_readiness"] = unavailable_rule_fact("ethos-repository.self-audit", exc)
     try:
-        claims = claims_report(repo)
+        claims = claims_report(repo, current_head=head, adopter_mode=audit_mode == "adopter")
         claim_gaps = [str(gap) for gap in cast("list[object]", claims.get("required_gaps", []))]
-        if audit_mode == "adopter":
-            claim_gaps = [gap for gap in claim_gaps if gap != "claims_missing"]
         claims_ok = bool(claims.get("ok", False)) or not claim_gaps
         facts["claim_state"] = rule_fact(
             owner="ethos-repository.claims",

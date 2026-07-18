@@ -12,9 +12,9 @@
 
 - [x] 2.1 Refresh the owned lane onto the current candidate and bind the matrix
   to accepted HEAD `97e256e43794272f2a3a2a0c16734be9e3e577be`.
-- [ ] 2.2 Refresh parity and run the final HEAD-bound executed proof for this
+- [x] 2.2 Refresh parity and run the final HEAD-bound executed proof for this
   policy carrier.
-- [ ] 2.3 Mark the proof complete and archive the carrier through the official
+- [x] 2.3 Mark the proof complete and archive the carrier through the official
   OpenSpec path before candidate land.
 
 ## Post-Accepted Program Boundary

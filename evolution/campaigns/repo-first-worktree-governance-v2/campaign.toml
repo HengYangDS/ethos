@@ -1,0 +1,165 @@
+id = "repo-first-worktree-governance-v2"
+state = "active"
+owner = "ethos-repository"
+objective = "Converge ETHOS worktree governance on repository-local authority, recoverable dirty-state preservation, deletion-scope admission, and independently closed Work Lane lifecycle transitions."
+claim_id = "worktree-governance-campaign-20260718"
+
+[[step]]
+id = "campaign-bootstrap"
+title = "Campaign bootstrap and scoped closeout"
+state = "active"
+ordinal = 1
+depends_on = []
+openspec_change = "repo-first-worktree-governance-campaign-20260718"
+work_lane = "work/20260718-worktree-governance-campaign"
+claim_id = "worktree-governance-campaign-20260718"
+
+[step.closeout]
+state = "planned"
+accepted_head = ""
+candidate_head = ""
+evidence = []
+
+[[step]]
+id = "retirement-fail-closed"
+title = "Retirement fail-closed"
+state = "planned"
+ordinal = 2
+depends_on = ["campaign-bootstrap"]
+openspec_change = "worktree-retirement-fail-closed-20260718"
+work_lane = "work/worktree-retirement-fail-closed-20260718"
+claim_id = "worktree-retirement-fail-closed-20260718"
+
+[step.closeout]
+state = "planned"
+accepted_head = ""
+candidate_head = ""
+evidence = []
+
+[[step]]
+id = "recovery-package-v2"
+title = "Recovery package v2"
+state = "planned"
+ordinal = 3
+depends_on = ["retirement-fail-closed"]
+openspec_change = "worktree-recovery-package-v2-20260718"
+work_lane = "work/worktree-recovery-package-v2-20260718"
+claim_id = "worktree-recovery-package-v2-20260718"
+
+[step.closeout]
+state = "planned"
+accepted_head = ""
+candidate_head = ""
+evidence = []
+
+[[step]]
+id = "deletion-scope-admission"
+title = "Deletion-scope admission"
+state = "planned"
+ordinal = 4
+depends_on = ["recovery-package-v2"]
+openspec_change = "worktree-deletion-scope-admission-20260718"
+work_lane = "work/worktree-deletion-scope-admission-20260718"
+claim_id = "worktree-deletion-scope-admission-20260718"
+
+[step.closeout]
+state = "planned"
+accepted_head = ""
+candidate_head = ""
+evidence = []
+
+[[step]]
+id = "records-init-and-seal"
+title = "Records initialization and sealing"
+state = "planned"
+ordinal = 5
+depends_on = ["deletion-scope-admission"]
+openspec_change = "worktree-records-init-and-seal-20260718"
+work_lane = "work/worktree-records-init-and-seal-20260718"
+claim_id = "worktree-records-init-and-seal-20260718"
+
+[step.closeout]
+state = "planned"
+accepted_head = ""
+candidate_head = ""
+evidence = []
+
+[[step]]
+id = "worktree-governance-inventory"
+title = "Worktree governance inventory"
+state = "planned"
+ordinal = 6
+depends_on = ["records-init-and-seal"]
+openspec_change = "worktree-governance-inventory-20260718"
+work_lane = "work/worktree-governance-inventory-20260718"
+claim_id = "worktree-governance-inventory-20260718"
+
+[step.closeout]
+state = "planned"
+accepted_head = ""
+candidate_head = ""
+evidence = []
+
+[[step]]
+id = "clean-worktree-migration"
+title = "Clean worktree migration"
+state = "planned"
+ordinal = 7
+depends_on = ["worktree-governance-inventory"]
+openspec_change = "worktree-clean-migration-20260718"
+work_lane = "work/worktree-clean-migration-20260718"
+claim_id = "worktree-clean-migration-20260718"
+
+[step.closeout]
+state = "planned"
+accepted_head = ""
+candidate_head = ""
+evidence = []
+
+[[step]]
+id = "worktree-retirement-saga"
+title = "Worktree retirement saga"
+state = "planned"
+ordinal = 8
+depends_on = ["clean-worktree-migration"]
+openspec_change = "worktree-retirement-saga-20260718"
+work_lane = "work/worktree-retirement-saga-20260718"
+claim_id = "worktree-retirement-saga-20260718"
+
+[step.closeout]
+state = "planned"
+accepted_head = ""
+candidate_head = ""
+evidence = []
+
+[[step]]
+id = "exceptional-dirty-preserve-retire"
+title = "Exceptional dirty preserve-retire"
+state = "planned"
+ordinal = 9
+depends_on = ["worktree-retirement-saga"]
+openspec_change = "worktree-dirty-preserve-retire-20260718"
+work_lane = "work/worktree-dirty-preserve-retire-20260718"
+claim_id = "worktree-dirty-preserve-retire-20260718"
+
+[step.closeout]
+state = "planned"
+accepted_head = ""
+candidate_head = ""
+evidence = []
+
+[[step]]
+id = "portfolio-convergence"
+title = "Portfolio convergence"
+state = "planned"
+ordinal = 10
+depends_on = ["exceptional-dirty-preserve-retire"]
+openspec_change = "worktree-portfolio-convergence-20260718"
+work_lane = "work/worktree-portfolio-convergence-20260718"
+claim_id = "worktree-portfolio-convergence-20260718"
+
+[step.closeout]
+state = "planned"
+accepted_head = ""
+candidate_head = ""
+evidence = []

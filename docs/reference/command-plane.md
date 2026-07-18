@@ -441,7 +441,10 @@ apply mode is a no-op in that state and does not require proof for a head that i
 already accepted.
 
 `ethos campaign closeout --json` is the campaign-mode local closeout report. It
-does not mutate Git and does not push. The output aggregates workspace
+does not mutate Git and does not push. `--campaign <id>` narrows its campaign
+package and local campaign-readiness calculation to one explicit manifest; it
+reports the selector and fails closed when that manifest is absent. The selector
+does not assert that unselected campaigns are healthy. The output aggregates workspace
 `closeout_support`, trust closeout, intake projection state, evolution
 state, release policy, parity backlog, planned shadow parity execution, and
 publish readiness under `data.packages`. The `trust_closeout` package composes

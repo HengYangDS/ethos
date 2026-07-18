@@ -70,6 +70,7 @@ def hypotheses(
 @campaign_app.command(name="closeout")
 def campaign_closeout(
     *,
+    campaign: str | None = None,
     adopter: str = "generic",
     target: Annotated[Path | None, Parameter(name="--target")] = None,
     root: RootOption | None = None,
@@ -81,6 +82,7 @@ def campaign_closeout(
         repo=repo,
         adopter=adopter,
         target=(target or repo).resolve(),
+        campaign_id=campaign,
     )
     remote_publication = cast("dict[str, Any]", report.get("remote_publication", {}))
     parity = cast("dict[str, Any]", report.get("parity", {}))
@@ -89,19 +91,23 @@ def campaign_closeout(
     parity_pending = cast("tuple[object, ...]", parity.get("pending_packages", ()))
     evolution_gap_values = cast("tuple[object, ...]", evolution.get("required_gaps", ()))
     release_gap_values = cast("tuple[object, ...]", release.get("required_gaps", ()))
+    campaign_data = cast("dict[str, Any]", report.get("campaigns", {}))
+    campaign_gap_values = cast("tuple[object, ...]", campaign_data.get("required_gaps", ()))
     evolution_gaps = tuple(str(gap) for gap in evolution_gap_values)
     release_gaps = tuple(str(gap) for gap in release_gap_values)
+    campaign_gaps = tuple(str(gap) for gap in campaign_gap_values)
     result = EthosResult(
         command="campaign closeout",
         ok=bool(report["ok"]),
         state=str(report["state"]),
         summary={
             "adopter": adopter,
+            "campaign": campaign or "",
             "remote_state": remote_publication.get("state", ""),
             "parity_pending_count": len(parity_pending),
             "release_ok": release.get("ok", False),
         },
-        required_gaps=evolution_gaps + release_gaps,
+        required_gaps=evolution_gaps + release_gaps + campaign_gaps,
         next_actions=("ethos land --apply --authorize --expect-head <git-head>",),
         data=report,
     )

@@ -11,6 +11,7 @@
     "intake_projection",
     "evolution",
     "campaigns",
+    "requested_campaign",
     "release",
     "parity",
     "shadow_parity",
@@ -40,6 +41,9 @@
     },
     "campaigns": {
       "$ref": "#/$defs/campaignPackage"
+    },
+    "requested_campaign": {
+      "type": "string"
     },
     "release": {
       "type": "object"
@@ -137,6 +141,9 @@
           "items": {
             "type": "object"
           }
+        },
+        "requested_campaign": {
+          "type": "string"
         }
       },
       "additionalProperties": false

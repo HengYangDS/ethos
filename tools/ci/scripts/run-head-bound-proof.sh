@@ -6,32 +6,20 @@ dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; if [[ "${ETHOS_RUNTIME_BOOT
 fi
 cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 [[ $# -le 1 ]] || { echo "usage: $0 [expected-head]" >&2; exit 2; }
-head="${1:-$(git rev-parse HEAD)}"
-out="${ETHOS_PROOF_EVIDENCE_DIR:-build/evidence/quality/proof}"
-receipt="${out}/executed-proof.json"
-stderr="${out}/executed-proof.stderr.log"
-mkdir -p "${out}"
-rm -f "${receipt}" "${stderr}"
+head="${1:-$(git rev-parse HEAD)}"; out="${ETHOS_PROOF_EVIDENCE_DIR:-build/evidence/quality/proof}"
+receipt="${out}/executed-proof.json"; stderr="${out}/executed-proof.stderr.log"
+readiness="${ETHOS_READINESS_EVIDENCE_DIR:-build/evidence/quality/readiness}"
+audit="${readiness}/audit.json"; report="${readiness}/report.json"
+mkdir -p "${out}" "${readiness}"
+rm -f "${receipt}" "${stderr}" "${audit}" "${report}"
+uv run --package ethos ethos audit --json >"${audit}"
+uv run --package ethos ethos report --json >"${report}"
 set +e
 uv run --package ethos ethos prove --execute --expect-head "${head}" --json >"${receipt}" 2>"${stderr}"
 proof_status=$?
 set -e
 set +e
-python3 - "${receipt}" "${head}" "${proof_status}" <<'PY'
-import hashlib,json,sys
-from pathlib import Path
-path, expected_head, proof_status = Path(sys.argv[1]), sys.argv[2], int(sys.argv[3])
-try:
-    proof = json.loads(path.read_text(encoding="utf-8"))
-except (OSError, json.JSONDecodeError) as error:
-    print(json.dumps({"kind": "ethos_head_bound_proof_receipt", "ok": False, "state": "invalid_receipt", "expected_head": expected_head, "proof_exit_code": proof_status, "error": str(error)}, sort_keys=True))
-    raise SystemExit(1)
-summary, data = proof.get("summary"), proof.get("data")
-bound = data.get("expected_head") if isinstance(data, dict) else {}
-ok = proof.get("ok") is True and proof_status == 0 and isinstance(bound, dict) and bound.get("ok") is True
-print(json.dumps({"kind": "ethos_head_bound_proof_receipt", "ok": ok, "state": proof.get("state", "unknown"), "head": bound.get("current", "") if isinstance(bound, dict) else "", "expected_head": expected_head, "head_matches_expected": bound.get("ok") is True if isinstance(bound, dict) else False, "gate_count": summary.get("gate_count", 0) if isinstance(summary, dict) else 0, "evidence_digest": summary.get("evidence_digest", "") if isinstance(summary, dict) else "", "required_gap_count": len(proof.get("required_gaps", [])), "proof_exit_code": proof_status, "receipt": path.as_posix(), "receipt_sha256": hashlib.sha256(path.read_bytes()).hexdigest()}, sort_keys=True))
-raise SystemExit(0 if ok else 1)
-PY
+python3 tools/ci/emit_readiness_receipt.py "${audit}" "${report}" "${receipt}"
 receipt_status=$?
 set -e
 if [[ ${proof_status} -ne 0 || ${receipt_status} -ne 0 ]]; then

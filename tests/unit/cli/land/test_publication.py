@@ -4,6 +4,7 @@ from pathlib import Path
 
 from ethos.domain.land.publication import local_ci_owner_scripts
 from ethos.domain.land.publication import publication_readiness
+from ethos.domain.land.publication import publication_with_remote_matrix
 from ethos_core.contracts.branch.roles import load_branch_role_policy
 from tests.support.contract_helpers import adopt_and_commit
 from tests.support.contract_helpers import git
@@ -110,6 +111,9 @@ def test_publish_reports_remote_tracking_sync_state(monkeypatch) -> None:
     assert sync["local_head"] == local_head
     assert sync["remote_head"] == remote_head
     assert "remote_tracking_local_ahead" in sync["advisory_gaps"][0]
+    assert publication_with_remote_matrix(
+        {"next_actions": []}, {"state": "reconciliation_required"}, remote_available=True
+    )["next_actions"]
 
 
 def test_publish_reports_synchronized_tracking_without_claiming_a_push(

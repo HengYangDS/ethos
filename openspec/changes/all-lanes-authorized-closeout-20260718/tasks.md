@@ -13,6 +13,6 @@
 
 ## 3. Local decision closeout
 
-- [ ] 3.1 Commit the stable decision carrier and refresh generic parity evidence if the changed semantic tree requires it.
+- [x] 3.1 Commit the stable decision carrier and refresh generic parity evidence if the changed semantic tree requires it.
 - [ ] 3.2 Run the required plan and HEAD-bound executed proof for the committed carrier.
 - [ ] 3.3 Archive the proven Change through the official OpenSpec path for candidate admission; later lifecycle commands perform candidate land and sanctioned accepted-root closeout.

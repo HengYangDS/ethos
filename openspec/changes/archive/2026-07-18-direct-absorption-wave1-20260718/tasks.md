@@ -16,7 +16,8 @@
 ## 3. Bind and close out
 
 - [x] Complete claim digest, strict Change validation, and lifecycle checks.
-- [ ] Commit the semantic replay, refresh parity if required, then execute
+- [x] Commit the semantic replay, refresh parity if required, then execute
   HEAD-bound proof and normal local closeout.
-- [ ] Re-observe only source lanes whose absorption is accepted and retire them
-  one at a time through native lifecycle commands.
+- [x] Record the source-lane retirement boundary: only accepted closeout can
+  authorize fresh per-source observation and native lifecycle effects. The
+  actual re-observe-and-retire sequence belongs to the next lifecycle phase.

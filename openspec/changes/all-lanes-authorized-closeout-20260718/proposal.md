@@ -29,6 +29,8 @@ candidate baseline, and records why any remaining target is blocked.
   receipt for every retire, preserve-retire, or block result.
 - Repair shadow-parity external execution so a current checkout-bound runtime
   takes precedence over a stale root `.venv` that cannot import ETHOS.
+- Admit only this carrier's exact Chronicle matrix path through the existing
+  fail-closed JSON format-selection policy.
 - Keep local closeout, local CI fallback evidence, remote reconciliation,
   remote push, and hosted CI as separate evidence planes.
 
@@ -49,8 +51,8 @@ candidate baseline, and records why any remaining target is blocked.
 
 ## Impact
 
-- This Change's OpenSpec artifacts, scope, claim, Chronicle, and local
-  resolution matrix.
+- This Change's OpenSpec artifacts, scope, claim, Chronicle, exact JSON carrier
+  admission, and local resolution matrix.
 - A current local Work Lane closeout plan and, only where audit proves a product
   behavior is missing, focused source and regression-test changes on the owned
   Work Lane.

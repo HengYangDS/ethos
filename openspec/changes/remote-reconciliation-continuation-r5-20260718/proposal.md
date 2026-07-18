@@ -10,7 +10,7 @@ The historical r3 carrier preserved remote ancestry and input evidence but was a
 
 ## Capabilities
 
-- repository-governance: subject=maintainer-remote-reconciliation; reuse=extend; change=modify; facet:lifecycle=validation,closeout,publish,archive; facet:surface=docs,openspec,evidence; facet:authority=source,openspec,claim,evidence
+- `repository-governance`: subject=maintainer-remote-reconciliation; reuse=extend; change=modify; facet:lifecycle=validation,closeout,publish,archive; facet:surface=docs,openspec,evidence; facet:authority=source,openspec,claim,evidence
 
 ## Out Of Scope
 

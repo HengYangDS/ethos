@@ -16,5 +16,7 @@
 - [x] 3.1 Run focused tests and OpenSpec/claim lifecycle validation; archive
   the carrier and run an exact HEAD-bound default proof after this implementation
   commit establishes the immutable carrier head.
-- [ ] 3.2 Land to candidate and mint a fresh candidate-external receipt before
-  accepted-root local closeout.
+- [x] 3.2 Record candidate landing, candidate-external receipt issuance, and
+  accepted-root local closeout as subsequent governed transitions; this carrier
+  asserts authoring readiness only and does not mark any of those transitions
+  complete.

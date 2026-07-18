@@ -13,6 +13,8 @@ force updates would discard reachable history.
   through ordinary merge ancestry before a protected-ref update is considered.
 - Keep local proof, local closeout, remote ref observation, and hosted-provider
   observation separate evidence classes.
+- Compress one equivalent closeout-manifest TOML array so the mandatory carrier
+  fields remain within the existing source budget without changing policy.
 
 ## Capabilities
 

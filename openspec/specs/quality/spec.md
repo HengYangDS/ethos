@@ -672,13 +672,25 @@ truth.
 
 ETHOS SHALL measure maintained executable source across product code, tests,
 tools, shell, JavaScript, declarations, schemas, templates, and tracked derived
-projections, and SHALL reject an unbounded source increase that lacks an explicit
-compression-debt record. When a stale Work Lane is reconstructed on a newer
-candidate train, candidate-owned debt records MUST remain visible, every active
-record MUST have one registered ISO-8601 deletion wave and expiry, and measured
-settlement MUST remove only the named allowance. Reconstruction MUST preserve the
-immutable baseline and terminal targets and MUST regenerate evidence from the
-successor HEAD.
+projections. It SHALL reject an unbounded source increase that lacks an explicit
+compression-debt record, but that global report SHALL not be part of the default
+fine-grained promotion proof floor. Source-budget remains required for full
+proof and global compression closeout. When a stale Work Lane is reconstructed
+on a newer candidate train, candidate-owned debt records MUST remain visible,
+every active record MUST have one registered ISO-8601 deletion wave and expiry,
+and measured settlement MUST remove only the named allowance. Reconstruction
+MUST preserve immutable baseline and terminal targets and regenerate evidence
+from the successor HEAD.
+
+#### Scenario: A fine-grained Change and a global compression debt coexist
+
+- **WHEN** a fine-grained Change runs the default executed promotion proof
+- **THEN** the proof SHALL not fail only because `ethos quality source-budget
+  --json` reports a current global compression gap
+- **AND** `ethos report --json` SHALL expose that gap in a distinct advisory
+  global-compression layer with a direct source-budget action
+- **AND** `ethos prove --full` and global compression closeout SHALL still
+  require a clean source-budget report before claiming program completion.
 
 #### Scenario: A migration reports global source deltas
 
@@ -690,7 +702,7 @@ successor HEAD.
   tools
 - **AND** each active debt record names the added surface, owner, replacement,
   expiry, deletion wave, and expected net deletion
-- **AND** a stale, missing, expired, or over-budget debt record is a required gap
+- **AND** a stale, missing, expired, or over-budget debt record is a required gap.
 
 #### Scenario: Archived OpenSpec metadata remains historical evidence
 
@@ -1066,3 +1078,4 @@ HEAD-stability check as its unsharded execution.
 - **THEN** it combines all completed shard coverage before enforcing the
   declared coverage floor
 - **AND** it leaves no trust-bearing claim that a hosted provider ran.
+

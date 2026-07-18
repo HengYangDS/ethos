@@ -173,6 +173,27 @@ def test_source_budget_reports_all_executable_carriers_and_blocks_unfunded_growt
     assert grown["required_gaps"] == ["source_budget_exceeded:global_total:7>6"]
 
 
+def test_source_budget_classifies_non_product_python_and_non_code_carriers(tmp_path) -> None:
+    archived = "openspec/changes/archive/2026-07-18-closed/.openspec.yaml"
+    files = {
+        "scripts/tool.py": "value = 1\n",
+        "notes.txt": "ignored\n",
+        "config/current.ini": "; comment\nvalue = 1\n",
+        "diagram/current.mmd": "%% comment\nflowchart TD\n",
+        archived: "schema: spec-driven\n",
+    }
+    for relative, content in files.items():
+        path = tmp_path / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8")
+
+    assert prove._source_budget_category("scripts/tool.py") == "python_other"
+    assert prove._source_budget_category("notes.txt") is None
+    assert prove._source_budget_category(archived) is None
+    assert prove._carrier_effective_lines(tmp_path / "config/current.ini", "ini") == 1
+    assert prove._carrier_effective_lines(tmp_path / "diagram/current.mmd", "diagram") == 1
+
+
 def test_source_budget_derives_python_total_allowance_from_python_categories(tmp_path, monkeypatch):
     relative = "packages/ethos/src/ethos/domain/current.py"
     path = tmp_path / relative

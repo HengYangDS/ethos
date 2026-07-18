@@ -6,6 +6,7 @@ from ethos.repository.release.attestation import release_attestation
 from ethos.repository.release.attestation import sbom_projection
 from ethos.repository.release.core import release_policy_report
 from ethos.repository.release.core import version_manifest
+from ethos.repository.release.publication import publication_branch_admission
 from ethos.repository.release.publication import publication_topology
 
 
@@ -132,6 +133,62 @@ def test_release_topology_retains_verbose_remote_declaration_compatibility() -> 
     assert topology["state"] == "ready"
     assert topology["gitlab"]["git_remote"] == "origin"
     assert topology["github"]["git_remote"] == "github"
+
+
+def test_release_topology_rejects_invalid_and_incomplete_declarations() -> None:
+    invalid = publication_topology({"publication": "invalid"})
+    named = publication_topology({"publication": {"gitlab_remote": "origin"}})
+    incomplete = publication_topology({"publication": {}})
+    oversized = publication_topology(
+        {
+            "publication": {
+                "remote": [
+                    {
+                        "id": "gitlab",
+                        "role": "organization_collaboration",
+                        "provider": "gitlab",
+                        "git_remote": "origin",
+                        "ci_surface": ".gitlab-ci.yml",
+                        "capabilities": ["repository", "ci_cd", "publication"],
+                    },
+                    {
+                        "id": "github",
+                        "role": "public_distribution",
+                        "provider": "github",
+                        "git_remote": "github",
+                        "ci_surface": ".github/workflows/ci.yml",
+                        "capabilities": ["repository", "ci_cd", "publication"],
+                    },
+                    {"id": "extra"},
+                ]
+            }
+        }
+    )
+
+    assert invalid["required_gaps"] == ["publication_topology_declaration_invalid"]
+    assert named["required_gaps"] == ["publication_topology_github_remote_missing"]
+    assert incomplete["required_gaps"] == ["publication_topology_declaration_invalid"]
+    assert "publication_topology_remote_count_invalid:3" in oversized["required_gaps"]
+    assert publication_branch_admission(
+        publication_topology({"publication": {"remotes": ["origin", "github"]}}),
+        branch="dev",
+        candidate_branch="candidate/dev",
+        remote_name="",
+        enforce=True,
+    )["enforcement_gaps"] == ["publication_remote_name_missing"]
+    topology = publication_topology({"publication": {"remotes": ["origin", "github"]}})
+    assert publication_branch_admission(
+        topology,
+        branch="work/topic",
+        candidate_branch="candidate/dev",
+        remote_name="origin",
+    )["enforcement_gaps"] == ["publication_remote_branch_forbidden:work/topic"]
+    assert publication_branch_admission(
+        topology,
+        branch="dev",
+        candidate_branch="candidate/dev",
+        remote_name="elsewhere",
+    )["enforcement_gaps"] == ["publication_remote_target_unknown:elsewhere"]
 
 
 def test_release_policy_uses_configured_branch_roles_for_protected_refs(

@@ -22,7 +22,7 @@ from ethos.surface.cli._base import resolve_root
 from ethos_core.result import EthosResult
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class _ClearOptions:
     """CLI request fields for the explicit recovery-package clear transition."""
 

@@ -25,13 +25,6 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-def string_list(value: object) -> list[str]:
-    """Coerce an arbitrary value to list[str] (empty if not a list)."""
-    if not isinstance(value, list):
-        return []
-    return [str(item) for item in value]
-
-
 def adoption_mutation_gaps(
     *,
     apply: bool,

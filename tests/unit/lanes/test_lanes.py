@@ -470,6 +470,7 @@ def test_workspace_status_reports_branchworktree_bindings_without_ui_actions(
         "candidate_branch": "candidate/dev",
         "work_branch_prefix": "work/",
         "submit_branch_prefix": "submit/",
+        "release_mirror": "independent",
         "semantic_order": [
             {
                 "role": "release_root",

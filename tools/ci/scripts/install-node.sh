@@ -11,6 +11,9 @@
 set -euo pipefail
 
 version="${NODE_VERSION:-24.18.0}"
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+repo_root="$(cd "${script_dir}/../../.." && pwd)"
+policy_path="${repo_root}/.config/checks/node/runtime.toml"
 
 if command -v node >/dev/null 2>&1; then
   installed="$(node --version)"
@@ -22,10 +25,10 @@ fi
 
 if ! command -v curl >/dev/null 2>&1; then
   apt-get update
-  apt-get install -y --no-install-recommends curl ca-certificates xz-utils
-elif ! command -v xz >/dev/null 2>&1; then
+  apt-get install -y --no-install-recommends curl ca-certificates xz-utils coreutils
+elif ! command -v xz >/dev/null 2>&1 || ! command -v sha256sum >/dev/null 2>&1; then
   apt-get update
-  apt-get install -y --no-install-recommends xz-utils
+  apt-get install -y --no-install-recommends xz-utils coreutils
 fi
 
 case "$(uname -m)" in
@@ -33,6 +36,34 @@ case "$(uname -m)" in
   aarch64|arm64) arch="arm64" ;;
   *) echo "Unsupported node architecture: $(uname -m)" >&2; exit 1 ;;
 esac
+
+if command -v python3 >/dev/null 2>&1; then
+  python_command="python3"
+elif command -v python >/dev/null 2>&1; then
+  python_command="python"
+else
+  echo "Python 3 is required to read ${policy_path}" >&2
+  exit 1
+fi
+
+archive_sha256="$(
+  "${script_dir}/with-python-runtime.sh" -- \
+    "${python_command}" - "${policy_path}" "${version}" "linux_${arch}" <<'PY_POLICY'
+import re
+import sys
+import tomllib
+from pathlib import Path
+
+policy = tomllib.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+version = sys.argv[2]
+platform = sys.argv[3]
+checksums = policy.get("archive_sha256", {})
+digest = checksums.get(version, {}).get(platform, "")
+if re.fullmatch(r"[a-f0-9]{64}", digest) is None:
+    raise SystemExit(f"Node archive SHA-256 missing for {version} {platform}")
+print(digest)
+PY_POLICY
+)"
 
 archive="node-v${version}-linux-${arch}.tar.xz"
 url="https://nodejs.org/dist/v${version}/${archive}"
@@ -43,13 +74,22 @@ archive_path="${cache_dir}/${archive}"
 tmpdir="$(mktemp -d)"
 trap 'rm -rf "${tmpdir}"' EXIT
 
-script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 mkdir -p "${cache_dir}"
 
-if [ ! -s "${archive_path}" ] || ! tar tJf "${archive_path}" >/dev/null 2>&1; then
+verify_archive_checksum() {
+  printf '%s  %s\n' "${archive_sha256}" "${archive_path}" | sha256sum -c -
+}
+
+if [ ! -s "${archive_path}" ] || ! tar tJf "${archive_path}" >/dev/null 2>&1 || ! verify_archive_checksum >/dev/null 2>&1; then
   rm -f "${archive_path}"
   echo "Installing node v${version} for linux-${arch} from ${url}"
   "${script_dir}/download-file.sh" "${url}" "${archive_path}"
+fi
+
+if ! verify_archive_checksum; then
+  rm -f "${archive_path}"
+  echo "Node archive checksum mismatch: ${archive}" >&2
+  exit 1
 fi
 
 tar xJf "${archive_path}" -C "${tmpdir}"

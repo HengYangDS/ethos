@@ -1,0 +1,29 @@
+[claim]
+id = "archive-transition-scope-admission-20260715"
+change_id = "archive-transition-scope-admission-20260715"
+subject = "ethos:archive-transition-scope-admission"
+state = "active"
+summary = "ETHOS admits a current archive companion and its own archive directory only for one archive reconciliation diff."
+
+[evidence]
+dated = "evidence/chronicle/archive-transition-scope-admission-20260715/2026-07-15.md"
+sha256 = "e1c7115812f029573a5f7079d677617289bc4eeba87eb49b202f0e2b5614ed8c"
+binding = "Current-diff archive selection, archive-directory self-coverage, focused regressions, strict OpenSpec validation, changed planning, and head-bound proof bind this narrow exception to final archive reconciliation only."
+verifier = "digest_only"
+evidence_ids = ["evidence:archive-transition-scope-admission-20260715"]
+tests = ["uv run --no-sync python -m pytest -q tests/unit/lanes/test_lanes_openspec_scope.py tests/unit/kernel/test_invalid_states.py", "tools/ci/scripts/run-ethos-lane.sh openspec --lifecycle --json", "tools/ci/scripts/run-ethos-lane.sh plan --changed --json", "tools/ci/scripts/run-ethos-lane.sh prove --execute --expect-head <committed-head> --json"]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "Current-diff-only archived OpenSpec companion selection and archive-directory self-coverage for material paths; excludes standing historical authority, archive-external implicit coverage, claim binding, archive completeness, and provider publication controls."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-17-archive-transition-scope-admission-20260715"
+fallback = "Reject uncovered material paths when no active, archiving, or current-diff archive companion validly covers them."
+kill_signal = "An archive with no path in the current Work Lane diff covers a material write, a malformed archive companion grants coverage, or archive self-coverage reaches a path outside its own directory."
+
+[promotion]
+targets = ["packages/ethos/src/ethos/adapters/openspec/lifecycle/scope.py", "system/invalid_states.toml", "tests/unit/kernel/test_invalid_states.py", "tests/unit/lanes/test_lanes_openspec_scope.py", "openspec/specs/repository-governance/spec.md", "openspec/changes/archive/2026-07-17-archive-transition-scope-admission-20260715", "evidence/chronicle/archive-transition-scope-admission-20260715/2026-07-15.md", "evidence/claims/archive-transition-scope-admission-20260715.toml"]

@@ -7,7 +7,6 @@ from typing import cast
 
 from ethos.repository.evidence.parity.validation import SHADOW_PARITY_COMMANDS
 from ethos.repository.evidence.parity.validation import parity_evidence
-from ethos.repository.evidence.parity.validation import string_list
 from ethos.repository.evidence.parity.validation import tracked_evidence_provenance
 from ethos.repository.evidence.shadow.payload import PARITY_RELEVANT_PATHS
 from ethos.repository.evidence.shadow.payload import SHADOW_PARITY_DIMENSIONS
@@ -20,6 +19,7 @@ from ethos.repository.evidence.shadow.routing import target_command_argument
 from ethos.repository.evidence.shadow.routing import target_identity
 from ethos.repository.evidence.shadow.routing import tracked_target_identity
 from ethos_core.contracts.capability.parity import capability_parity_records
+from ethos_core.normalization.core import string_list
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -119,10 +119,7 @@ def write_tracked_parity_evidence(
 ) -> Path:
     path = parity_evidence_path(root=root, adopter=adopter)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        json.dumps(evidence, indent=2, sort_keys=False) + "\n",
-        encoding="utf-8",
-    )
+    path.write_text(json.dumps(evidence, separators=(",", ":")) + "\n", encoding="utf-8")
     return path
 
 

@@ -6,8 +6,11 @@ from pathlib import Path
 from typing import cast
 
 from ethos.adapters.openspec.core import openspec_governance_report
+from ethos.adapters.repo.git import git_stdout_checked
+from ethos.adapters.repo.runtime.core import runtime_binding
 from ethos.adapters.repo.status.bindings import leases_by_branch
-from ethos.adapters.repo.status.core import workspace_status
+from ethos.adapters.repo.status.core import current_branch
+from ethos.adapters.repo.status.core import worktree_records
 from ethos.adapters.store.state.lease.projection import integer_value
 from ethos_core.contracts.admission import AdmissionDecision
 from ethos_core.contracts.admission import DecisionBasis
@@ -38,9 +41,8 @@ def prewrite_guard(
     editor_root: Path | None = None,
     require_editor_root: bool = False,
 ) -> dict[str, object]:
-    status = workspace_status(root)
-    status_role = str(status["role"])
-    status_branch = str(status["branch"])
+    status = _prewrite_status(root)
+    status_role, status_branch = str(status["role"]), str(status["branch"])
     effective = _effective_write_context(root=root, role=status_role, branch=status_branch)
     role = effective["role"]
     runtime_check = _runtime_binding_check(status)
@@ -103,6 +105,28 @@ def prewrite_guard(
     }
 
 
+def _prewrite_status(root: Path) -> dict[str, object]:
+    """Read only the branch, runtime, and lease context needed for write admission."""
+    try:
+        repo = Path(git_stdout_checked(root, "rev-parse", "--show-toplevel")).resolve()
+    except (OSError, subprocess.CalledProcessError):
+        return {
+            "root": str(root),
+            "branch": "untracked",
+            "role": "other",
+            "runtime_binding": runtime_binding(root),
+            "worktrees": [],
+        }
+    policy = load_branch_role_policy(repo)
+    return {
+        "root": str(root),
+        "branch": (branch := current_branch(repo)),
+        "role": policy.role_for_branch(branch),
+        "runtime_binding": runtime_binding(repo),
+        "worktrees": worktree_records(repo, current_path=repo, policy=policy),
+    }
+
+
 def _effective_write_context(*, root: Path, role: str, branch: str) -> dict[str, str]:
     """Return the write-admission context for hook-time Git lifecycle states.
 
@@ -117,7 +141,7 @@ def _effective_write_context(*, root: Path, role: str, branch: str) -> dict[str,
         return {
             "role": role,
             "branch": branch,
-            "source": "workspace_status",
+            "source": "prewrite_context",
             "rebase_head_name": "",
         }
     rebase_branch = _rebase_head_branch(root)
@@ -127,7 +151,7 @@ def _effective_write_context(*, root: Path, role: str, branch: str) -> dict[str,
         return {
             "role": role,
             "branch": branch,
-            "source": "workspace_status",
+            "source": "prewrite_context",
             "rebase_head_name": rebase_branch,
         }
     return {
@@ -247,7 +271,8 @@ def _work_lane_lease_check(
 
 def _work_lane_lease(*, root: Path, status: dict[str, object], branch: str) -> dict[str, object]:
     current_path = Path(str(status.get("root") or root)).resolve()
-    leases = leases_by_branch(cast_worktrees(status.get("worktrees")), current_path=current_path)
+    worktrees = cast("list[dict[str, str]]", status["worktrees"])
+    leases = leases_by_branch(worktrees, current_path=current_path)
     return leases.get(branch, {})
 
 
@@ -344,17 +369,6 @@ def _prewrite_decision(  # noqa: PLR0913, RUF100 - exact request envelope preser
         next=(("repair_required_gap",) if error else ()),
         required_gaps=((error,) if error else ()),
     )
-
-
-def cast_worktrees(value: object) -> list[dict[str, str]]:
-    if not isinstance(value, list):
-        return []
-    result: list[dict[str, str]] = []
-    for item in value:
-        if not isinstance(item, dict):
-            continue
-        result.append({str(key): str(val) for key, val in item.items()})
-    return result
 
 
 def _runtime_binding_check(status: dict[str, object]) -> dict[str, object]:

@@ -18,7 +18,10 @@
         "type": "object",
         "required": [
           "concern",
-          "tool"
+          "tool",
+          "config",
+          "profile",
+          "adoption"
         ],
         "properties": {
           "concern": {
@@ -26,8 +29,39 @@
           },
           "tool": {
             "type": "string"
+          },
+          "config": {
+            "type": "string",
+            "minLength": 1
+          },
+          "profile": {
+            "type": "string",
+            "minLength": 1
+          },
+          "adoption": {
+            "type": "string",
+            "enum": ["active", "candidate", "deferred", "rejected"]
+          },
+          "adapter_only": {
+            "type": "boolean"
+          },
+          "artifacts": {
+            "type": "string"
+          },
+          "checksums": {
+            "type": "string"
+          },
+          "gate": {
+            "type": "string"
+          },
+          "history": {
+            "type": "boolean"
+          },
+          "optional": {
+            "type": "string"
           }
-        }
+        },
+        "additionalProperties": false
       }
     }
   }

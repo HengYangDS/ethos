@@ -1,11 +1,16 @@
 from __future__ import annotations
 
 import json
+import os
+import signal
 import subprocess
 import sys
 import tomllib
-from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import Any
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 ROOT_OPTION_COMMANDS = {
     ("status",),
@@ -17,6 +22,13 @@ ROOT_OPTION_COMMANDS = {
     ("land",),
     ("publish",),
 }
+_TERMINATION_GRACE_SECONDS = 1
+
+
+def external_python(target: Path) -> str:
+    """Use the target worktree interpreter when it exists, not the caller's."""
+    python = target.resolve() / ".venv" / "bin" / "python"
+    return python.as_posix() if python.is_file() else sys.executable
 
 
 def run_external(
@@ -25,15 +37,17 @@ def run_external(
     *,
     timeout_seconds: int,
 ) -> dict[str, Any]:
+    python = external_python(target)
+    target = target.resolve()
     if command not in ROOT_OPTION_COMMANDS:
         return run_json_command(
-            [sys.executable, "-m", "ethos.cli", *command, "--json"],
-            cwd=target.resolve(),
+            [python, "-m", "ethos.cli", *command, "--json"],
+            cwd=target,
             timeout_seconds=timeout_seconds,
         )
     return run_json_command(
         [
-            sys.executable,
+            python,
             "-m",
             "ethos.cli",
             *command,
@@ -41,7 +55,7 @@ def run_external(
             target.as_posix(),
             "--json",
         ],
-        cwd=Path.cwd(),
+        cwd=target,
         timeout_seconds=timeout_seconds,
     )
 
@@ -146,29 +160,69 @@ def run_json_command(
     cwd: Path,
     timeout_seconds: int,
 ) -> dict[str, Any]:
+    process = subprocess.Popen(
+        command,
+        cwd=cwd,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        start_new_session=True,
+    )
     try:
-        completed = subprocess.run(
-            command,
-            cwd=cwd,
-            text=True,
-            capture_output=True,
-            check=False,
-            timeout=timeout_seconds,
-            start_new_session=True,
-        )
+        stdout, stderr = process.communicate(timeout=timeout_seconds)
     except subprocess.TimeoutExpired as exc:
+        _terminate_process_group(process.pid)
+        try:
+            stdout, stderr = process.communicate(timeout=_TERMINATION_GRACE_SECONDS)
+        except subprocess.TimeoutExpired:
+            _kill_process_group(process.pid)
+            try:
+                stdout, stderr = process.communicate(timeout=_TERMINATION_GRACE_SECONDS)
+            except subprocess.TimeoutExpired:
+                stdout, stderr = _text(exc.stdout), _text(exc.stderr)
         return {
             "exit_code": 124,
-            "stdout": _text(exc.stdout),
-            "stderr": _text(exc.stderr) or "timeout",
+            "stdout": _text(stdout) or _text(exc.stdout),
+            "stderr": _text(stderr) or _text(exc.stderr) or "timeout",
             "json": {},
         }
     return {
-        "exit_code": completed.returncode,
-        "stdout": completed.stdout,
-        "stderr": completed.stderr,
-        "json": parse_json_from_stdout(completed.stdout),
+        "exit_code": process.returncode,
+        "stdout": stdout,
+        "stderr": stderr,
+        "json": parse_json_from_stdout(stdout),
     }
+
+
+def _terminate_process_group(pid: int) -> None:
+    """Terminate the session created for a timed-out shadow command.
+
+    Shadow execution deliberately creates a session so an external runner cannot
+    inherit this process group's signals.  ``subprocess.run`` only terminates its
+    direct child on timeout, however; package runners such as ``uv`` can leave
+    their command child behind holding workspace locks.  Kill the created process
+    group as one bounded unit before returning timeout evidence.
+    """
+    if pid <= 0:
+        return
+    try:
+        os.killpg(pid, signal.SIGTERM)
+    except ProcessLookupError:
+        return
+    except PermissionError:
+        return
+
+
+def _kill_process_group(pid: int) -> None:
+    """Force-stop a shadow session that ignored the bounded TERM grace period."""
+    if pid <= 0:
+        return
+    try:
+        os.killpg(pid, signal.SIGKILL)
+    except ProcessLookupError:
+        return
+    except PermissionError:
+        return
 
 
 def _text(value: str | bytes | None) -> str:

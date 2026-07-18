@@ -82,6 +82,19 @@ class ReportHandlerDeclaration(BaseModel):
     bind_root: bool = True
 
 
+class ToolHandlerDeclaration(BaseModel):
+    """One immutable quality-tool binding compiled from the command registry."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    gate_id: str = Field(min_length=1)
+    tool: str = Field(min_length=1)
+    command: tuple[str, ...] = Field(min_length=1)
+    file_globs: tuple[str, ...] = ()
+    exclude_prefixes: tuple[str, ...] = ()
+    append_files: bool = True
+
+
 class CommandDeclaration(BaseModel):
     """One immutable native Cyclopts command declaration."""
 
@@ -93,6 +106,7 @@ class CommandDeclaration(BaseModel):
     help: str = Field(min_length=1)
     show: bool = True
     report_handler: ReportHandlerDeclaration | None = None
+    tool_handler: ToolHandlerDeclaration | None = None
 
 
 class CommandRegistryDeclaration(BaseModel):

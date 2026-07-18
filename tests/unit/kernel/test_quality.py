@@ -31,7 +31,7 @@ def test_quality_package_is_focused_and_importable() -> None:
 
 
 def test_quality_profile_covers_repository_asset_classes() -> None:
-    profile = product_quality_profile()
+    profile = product_quality_profile(ROOT)
     asset_classes = {asset["class"] for asset in profile["asset_classes"]}
     dimensions = {
         dimension for asset in profile["asset_classes"] for dimension in asset["dimensions"]

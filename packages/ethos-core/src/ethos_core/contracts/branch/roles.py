@@ -16,6 +16,8 @@ ROLE_SUBMIT_LANE = "submit_lane"
 ROLE_DETACHED = "detached"
 ROLE_OTHER = "other"
 
+RELEASE_MIRROR_ACCEPTED_FF = "accepted_ff"
+
 PROTECTED_WRITE_ROLES = frozenset(
     {
         ROLE_RELEASE_ROOT,
@@ -28,13 +30,14 @@ PROTECTED_WRITE_ROLES = frozenset(
 )
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class BranchRolePolicy:
     release_branch: str = "main"
     accepted_branch: str = "dev"
     candidate_branch: str = "candidate/dev"
     work_branch_prefix: str = "work/"
     submit_branch_prefix: str = "submit/"
+    release_mirror: str = "independent"
 
     def role_for_branch(self, branch: str) -> str:
         exact_roles = (
@@ -113,16 +116,15 @@ class BranchRolePolicy:
             "candidate_branch": self.candidate_branch,
             "work_branch_prefix": self.work_branch_prefix,
             "submit_branch_prefix": self.submit_branch_prefix,
+            "release_mirror": self.release_mirror,
             "semantic_order": [dict(record) for record in self.semantic_order()],
         }
 
 
-def load_branch_role_policy(root: Path) -> BranchRolePolicy:
-    path = root / ".ethos" / "workspace.toml"
-    if not path.exists():
-        return BranchRolePolicy()
+def branch_role_policy_from_text(text: str) -> BranchRolePolicy:
+    """Parse branch-role policy text without filesystem or provider access."""
     try:
-        payload = tomllib.loads(path.read_text(encoding="utf-8"))
+        payload = tomllib.loads(text)
     except tomllib.TOMLDecodeError:
         return BranchRolePolicy()
     raw_policy = payload.get("branch_roles")
@@ -133,18 +135,24 @@ def load_branch_role_policy(root: Path) -> BranchRolePolicy:
         release_branch=_string_value(raw_policy.get("release_branch"), default.release_branch),
         accepted_branch=_string_value(raw_policy.get("accepted_branch"), default.accepted_branch),
         candidate_branch=_string_value(
-            raw_policy.get("candidate_branch"),
-            default.candidate_branch,
+            raw_policy.get("candidate_branch"), default.candidate_branch
         ),
         work_branch_prefix=_string_value(
-            raw_policy.get("work_branch_prefix"),
-            default.work_branch_prefix,
+            raw_policy.get("work_branch_prefix"), default.work_branch_prefix
         ),
         submit_branch_prefix=_string_value(
-            raw_policy.get("submit_branch_prefix"),
-            default.submit_branch_prefix,
+            raw_policy.get("submit_branch_prefix"), default.submit_branch_prefix
         ),
+        release_mirror=RELEASE_MIRROR_ACCEPTED_FF
+        if raw_policy.get("release_mirror") == RELEASE_MIRROR_ACCEPTED_FF
+        else "independent",
     )
+
+
+def load_branch_role_policy(root: Path) -> BranchRolePolicy:
+    """Load branch-role policy from the current working tree."""
+    path = root / ".ethos" / "workspace.toml"
+    return branch_role_policy_from_text(path.read_text(encoding="utf-8") if path.exists() else "")
 
 
 def _string_value(value: Any, fallback: str) -> str:

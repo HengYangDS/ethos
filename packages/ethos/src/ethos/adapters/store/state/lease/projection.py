@@ -10,6 +10,8 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from typing import Any
 
+from ethos_core.normalization.core import string_sequence
+
 if TYPE_CHECKING:
     from pathlib import Path
 
@@ -83,12 +85,6 @@ def json_object(value: str) -> dict[str, Any]:
     return payload if isinstance(payload, dict) else {}
 
 
-def string_list(value: object) -> list[str]:
-    if not isinstance(value, list | tuple):
-        return []
-    return [str(item) for item in value if str(item)]
-
-
 def integer_value(value: object) -> int:
     """Normalize a lease integer field without trusting an untyped payload."""
     if isinstance(value, bool):
@@ -114,6 +110,6 @@ def lease_contract_fields(payload: dict[str, Any]) -> dict[str, Any]:
         "renewed_at": str(payload.get("renewed_at") or ""),
         "expected_head": str(payload.get("expected_head") or ""),
         "claim_id": str(payload.get("claim_id") or ""),
-        "path_scope": string_list(payload.get("path_scope")),
+        "path_scope": string_sequence(payload.get("path_scope"), drop_empty=True),
         "normalization_state": str(payload.get("normalization_state") or "legacy_ambiguous"),
     }

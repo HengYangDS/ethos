@@ -8,6 +8,7 @@ from ethos.adapters.repo.coordination import branch_path_scope
 from ethos.adapters.repo.coordination import coordination_gaps
 from ethos.adapters.repo.coordination import coordination_package
 from ethos.adapters.repo.coordination import foreign_work_lane
+from ethos.adapters.repo.coordination import foreign_work_lane_deferred
 from ethos.adapters.repo.coordination import workspace_required_gaps
 from ethos.adapters.repo.dirty.core import changed_paths
 from ethos.adapters.repo.dirty.core import dirty_provenance
@@ -114,7 +115,15 @@ def current_branch(root: Path) -> str:
     return git_stdout_checked(root, "branch", "--show-current") or "detached"
 
 
-def workspace_status(root: Path) -> dict[str, object]:
+def workspace_status(root: Path, *, include_foreign_path_scope: bool = True) -> dict[str, object]:
+    """Return workspace truth, optionally deferring foreign path-scope expansion.
+
+    Foreign lane path scopes require one Git history diff per visible Work Lane.
+    They are necessary for a coordination inventory and mutation admission, but
+    not for bounded readers that only need the local branch, dirty paths, and
+    aggregate coordination signals. The default remains the complete
+    workspace-status contract; callers must opt into the bounded read model.
+    """
     try:
         repo = Path(git_stdout_checked(root, "rev-parse", "--show-toplevel")).resolve()
     except subprocess.CalledProcessError:
@@ -127,7 +136,7 @@ def workspace_status(root: Path) -> dict[str, object]:
     head = _safe_ref(root, "HEAD")
     policy = load_branch_role_policy(repo)
     role = policy.role_for_branch(branch)
-    worktrees = _worktrees(root, current_path=current_path, policy=policy)
+    worktrees = worktree_records(root, current_path=current_path, policy=policy)
     candidate = _candidate_status(root, worktrees, policy=policy)
     lease_by_branch = leases_by_branch(worktrees, current_path=current_path)
     bindings = branch_bindings(
@@ -137,8 +146,10 @@ def workspace_status(root: Path) -> dict[str, object]:
         policy=policy,
         lease_by_branch=lease_by_branch,
     )
-    current_scope, current_scope_state = branch_path_scope(
-        repo, branch=branch, candidate_branch=policy.candidate_branch
+    current_scope, current_scope_state = (
+        branch_path_scope(repo, branch=branch, candidate_branch=policy.candidate_branch)
+        if include_foreign_path_scope
+        else ((), "deferred")
     )
     foreign = _foreign_work_lanes(
         worktrees,
@@ -150,6 +161,7 @@ def workspace_status(root: Path) -> dict[str, object]:
         candidate_branch=policy.candidate_branch,
         lease_by_branch=lease_by_branch,
         root=repo,
+        include_path_scope=include_foreign_path_scope,
     )
     coordination_required_gaps, coordination_advisory_gaps = coordination_gaps(
         foreign, current_role=role, current_scope_state=current_scope_state
@@ -335,12 +347,13 @@ def _non_git_status(root: Path) -> dict[str, object]:
     }
 
 
-def _worktrees(
+def worktree_records(
     root: Path,
     *,
     current_path: Path,
     policy: BranchRolePolicy,
 ) -> list[dict[str, str]]:
+    """Return normalized Git worktree records without probing each worktree's state."""
     output = git_stdout_checked(root, "worktree", "list", "--porcelain")
     entries: list[dict[str, str]] = []
     current: dict[str, str] = {}
@@ -389,6 +402,7 @@ def _foreign_work_lanes(  # noqa: PLR0913, RUF100 - exact request envelope prese
     candidate_branch: str,
     lease_by_branch: dict[str, dict[str, object]],
     root: Path,
+    include_path_scope: bool,
 ) -> list[dict[str, object]]:
     foreign: list[dict[str, object]] = []
     for worktree in worktrees:
@@ -398,6 +412,16 @@ def _foreign_work_lanes(  # noqa: PLR0913, RUF100 - exact request envelope prese
             continue
         branch = str(worktree["branch"])
         lease = lease_by_branch.get(branch, {})
+        claim_id = lease_claim_id(lease)
+        if not include_path_scope:
+            foreign.append(
+                foreign_work_lane_deferred(
+                    worktree,
+                    lease=lease,
+                    claim_id=claim_id,
+                )
+            )
+            continue
         foreign.append(
             foreign_work_lane(
                 worktree,
@@ -405,9 +429,9 @@ def _foreign_work_lanes(  # noqa: PLR0913, RUF100 - exact request envelope prese
                 current_path_scope=current_path_scope,
                 current_scope_state=current_scope_state,
                 candidate_branch=candidate_branch,
-                lease=lease,
                 root=root,
-                claim_id=lease_claim_id(lease),
+                lease=lease,
+                claim_id=claim_id,
                 relation_to_accepted=ref_relation(root, branch, accepted_branch),
                 dirty_paths=_worktree_dirty_paths(worktree),
             )

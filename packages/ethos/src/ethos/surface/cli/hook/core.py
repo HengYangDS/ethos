@@ -90,11 +90,11 @@ def pre_push(
     root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
-    """Evaluate push admission before a ref is sent to a hosted provider.
+    """Evaluate push admission before a ref is pushed to a protected role.
 
-    Hosted remotes accept only `dev`, `main`, and `submit/*`; `candidate/dev` is
-    local-only. Accepted, release, and submit destinations additionally require an
-    executed proof bound to the pushed HEAD. Called by .githooks/pre-push.
+    Pushing to an accepted/candidate ref requires an executed proof bound to the
+    pushed HEAD — the same precondition `land` enforces, now bound to the push tail so
+    a raw `git push` cannot move a protected ref unproven. Called by .githooks/pre-push.
     """
     repo = resolve_root(root)
     report = push_admission_report(

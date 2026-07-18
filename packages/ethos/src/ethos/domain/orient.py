@@ -22,6 +22,7 @@ def orientation_packet(
     *,
     status_payload: Mapping[str, Any],
     report_payload: Mapping[str, Any] | None = None,
+    command_prefix: str = "",
 ) -> dict[str, Any]:
     """Build a compact reader view from status/report truth payloads."""
     closeout = _dict(status_payload.get("closeout_support"))
@@ -57,16 +58,19 @@ def orientation_packet(
         closeout=closeout,
         temporary_probe_count=int(temporary_probes["count"]),
     )
-    next_actions = _next_actions(
-        {
-            "role": role,
-            "dirty": dirty,
-            "gaps": gaps,
-            "closeout": closeout,
-            "report_payload": report_payload,
-            "advisory_next_actions": report_advisory_next_actions,
-            "temporary_probe_count": temporary_probes["count"],
-        }
+    next_actions = _bound_actions(
+        _next_actions(
+            {
+                "role": role,
+                "dirty": dirty,
+                "gaps": gaps,
+                "closeout": closeout,
+                "report_payload": report_payload,
+                "advisory_next_actions": report_advisory_next_actions,
+                "temporary_probe_count": temporary_probes["count"],
+            }
+        ),
+        command_prefix=command_prefix,
     )
     current_head = _current_head(status_payload, branch=str(status_payload.get("branch") or ""))
     return {
@@ -438,6 +442,19 @@ def _next_actions(context: Mapping[str, Any]) -> list[str]:
     elif isinstance(report_payload, dict):
         actions = string_sequence(report_payload.get("next_actions")) or actions
     return _dedupe([*actions, *advisory_next_actions])
+
+
+def _bound_actions(actions: list[str], *, command_prefix: str) -> list[str]:
+    """Bind reader actions to the checkout that produced their evidence."""
+    if not command_prefix:
+        return actions
+    checkout = command_prefix.removeprefix("cd ").split(" && ", 1)[0]
+    return [
+        f"{command_prefix} {action.removeprefix('ethos ')}"
+        if action.startswith("ethos ")
+        else f"cd {checkout} && {action}"
+        for action in actions
+    ]
 
 
 def _human_summary(context: Mapping[str, Any]) -> str:

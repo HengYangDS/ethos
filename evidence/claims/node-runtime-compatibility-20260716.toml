@@ -1,0 +1,54 @@
+[claim]
+id = "node-runtime-compatibility-20260716"
+subject = "distribution:node-runtime-compatibility"
+state = "archived"
+summary = "The ETHOS npm launcher has an exact Node 24.18.0 and 26.5.0 compatibility boundary while Node 24.18.0 remains the hosted packaging default."
+
+[evidence]
+dated = "evidence/chronicle/node-runtime-compatibility-20260716/2026-07-16.md"
+sha256 = "92040a32a1ff253345c18261fd78ba34b628a698024946bf0a8ec578ac9e90f7"
+evidence_ids = ["evidence:node-runtime-compatibility-20260716"]
+binding = "The exact policy, pinned official-archive checksums, checkout-bound policy parsing, owner installer and runner, provider template, architecture regressions, local Linux observations, and dated Chronicle bind this Node-only compatibility decision; hosted execution and npm package-manager supply remain outside the claim."
+verifier = "digest_only"
+tests = [
+  "pytest tests/architecture/test_release_assets.py tests/architecture/test_ci_provider_projections.py -q",
+  "tools/ci/scripts/run-config-lint.sh",
+  "tools/ci/scripts/run-shell-lint.sh",
+  "tools/ci/scripts/run-ci-template-check.sh",
+  "openspec validate --all --strict --json",
+  "git archive --format=tar HEAD | docker run --rm -i --platform linux/arm64 -e NODE_VERSION=24.18.0 -w /work python:3.12 bash -lc 'tar -xf - && tools/ci/scripts/install-node.sh && python -m pip install --disable-pip-version-check uv && tools/ci/scripts/run-node-compatibility.sh'",
+  "git archive --format=tar HEAD | docker run --rm -i --platform linux/arm64 -e NODE_VERSION=26.5.0 -w /work python:3.12 bash -lc 'tar -xf - && tools/ci/scripts/install-node.sh && python -m pip install --disable-pip-version-check uv && tools/ci/scripts/run-node-compatibility.sh'",
+  "ethos quality source-budget --json",
+  "ethos prove --execute --expect-head <committed-head> --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-distribution"
+scope = "Exact Node runtime acceptance, pinned official-archive verification, hosted packaging-default separation, provider projection, and managed-runtime authority boundaries."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-16-node-runtime-compatibility-20260716"
+fallback = "Keep Node 24.18.0 as the package default and revert to the prior single-release hosted verification path."
+kill_signal = "A declared runtime cannot execute the launcher and package dry run, an official archive fails its pinned checksum, CI diverges from the policy, or repository work rewrites a separately managed runtime."
+
+[promotion]
+targets = [
+  ".config/checks/ci/templates.toml",
+  ".config/checks/node/runtime.toml",
+  ".config/ci/templates/hosted/gitlab-ci.yml",
+  ".ethos/rules.toml",
+  ".gitlab-ci.yml",
+  "docs/architecture/distribution.md",
+  "evidence/chronicle/node-runtime-compatibility-20260716/2026-07-16.md",
+  "evidence/claims/node-runtime-compatibility-20260716.toml",
+  "openspec/changes/archive/2026-07-16-node-runtime-compatibility-20260716",
+  "openspec/specs/distribution/spec.md",
+  "system/tools.toml",
+  "tests/architecture/test_ci_provider_projections.py",
+  "tests/architecture/test_release_assets.py",
+  "tools/ci/scripts/install-node.sh",
+  "tools/ci/scripts/run-node-compatibility.sh",
+]

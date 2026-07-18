@@ -34,7 +34,7 @@ from ethos.repository.policy.boundary.catalog import SKIPPED_PRODUCT_DIR_PARTS
 from ethos.repository.policy.boundary.catalog import TEXT_SUFFIXES
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class Finding:
     path: str
     line: int

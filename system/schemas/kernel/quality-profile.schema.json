@@ -15,14 +15,21 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["id", "standard", "asset_classes", "dimensions", "boundary", "maturity"],
+        "required": ["id", "concern", "tool", "standard", "config", "profile", "adoption"],
         "properties": {
           "id": {"type": "string", "minLength": 1},
+          "concern": {"type": "string", "minLength": 1},
+          "tool": {"type": "string", "minLength": 1},
           "standard": {"type": "string", "minLength": 1},
-          "asset_classes": {"type": "array", "items": {"type": "string", "minLength": 1}},
-          "dimensions": {"type": "array", "items": {"type": "string", "minLength": 1}},
-          "boundary": {"type": "string", "minLength": 1},
-          "maturity": {"type": "string", "minLength": 1}
+          "config": {"type": "string", "minLength": 1},
+          "profile": {"type": "string", "minLength": 1},
+          "adoption": {"enum": ["active", "candidate", "deferred", "rejected"]},
+          "adapter_only": {"type": "boolean"},
+          "artifacts": {"type": "string"},
+          "checksums": {"type": "string"},
+          "gate": {"type": "string"},
+          "history": {"type": "boolean"},
+          "optional": {"type": "string"}
         },
         "additionalProperties": false
       }

@@ -65,7 +65,7 @@ def _git(root: Path, *args: str, input_bytes: bytes | None = None) -> bytes:
         return result.stdout
     detail = result.stderr.decode("utf-8", errors="replace").strip()
     command = "git " + " ".join(args)
-    message = f"GitLab source materialization failed: {command}: {detail}"
+    message = f"Local emulator source materialization failed: {command}: {detail}"
     raise RuntimeError(message)
 
 
@@ -76,7 +76,7 @@ def _remove_path(path: Path) -> None:
         path.unlink()
 
 
-def materialize_gitlab_source(
+def materialize_emulator_source(
     *,
     source_root: Path,
     state_dir: Path,
@@ -280,6 +280,7 @@ def _run_command(
     dry_run: bool,
     tool_required: bool = True,
     env: dict[str, str] | None = None,
+    cwd: Path = ROOT,
 ) -> dict[str, Any]:
     if dry_run:
         return {"returncode": None, "ok": True, "stdout": "", "stderr": ""}
@@ -292,7 +293,7 @@ def _run_command(
             "stdout": "",
             "stderr": "tool not found",
         }
-    result = subprocess.run(command, cwd=ROOT, capture_output=True, text=True, check=False, env=env)
+    result = subprocess.run(command, cwd=cwd, capture_output=True, text=True, check=False, env=env)
     return {
         "returncode": result.returncode,
         "ok": result.returncode == 0,
@@ -440,6 +441,7 @@ def emulator_evidence(
     output_path = output or output_dir / f"{mode}.json"
     started_at = datetime.now(UTC)
     git_start = _git_summary()
+    execution_root = ROOT
     issue = _materialization_issue(mode, dry_run=dry_run, allow_untracked=allow_untracked)
     executable = shutil.which(tool)
     materialization: dict[str, Any] = {
@@ -452,16 +454,18 @@ def emulator_evidence(
     if (
         not issue
         and executable is not None
-        and provider == "gitlab"
+        and provider in {"github", "gitlab"}
         and mode == "run"
         and not dry_run
     ):
         try:
-            materialization |= materialize_gitlab_source(
+            materialization |= materialize_emulator_source(
                 source_root=ROOT,
                 state_dir=ROOT / str(emulation["emulator_state_dir"]),
                 expected_head=str(git_start["head"]),
             )
+            if provider == "github":
+                execution_root = Path(str(materialization["source_dir"]))
         except RuntimeError as exc:
             issue = str(exc)
             materialization["issue"] = issue
@@ -473,6 +477,7 @@ def emulator_evidence(
             dry_run=dry_run,
             tool_required=_emulator_tool_required(mode, dry_run=dry_run),
             env=_emulator_environment(tool),
+            cwd=execution_root,
         )
     )
     finished_at = datetime.now(UTC)

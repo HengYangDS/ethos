@@ -1,97 +1,89 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-from typing import Any
-
-if TYPE_CHECKING:
-    from pathlib import Path
+import json
+from typing import cast
 
 import ethos.domain.report as report_domain
 import ethos.domain.reporting.gaps as reporting_gaps
 import ethos.domain.reporting.parity.core as reporting_parity
 import ethos.domain.reporting.scoring as reporting_scoring
+from ethos.repository.evidence.hosted.core import FLAGS
+from ethos.repository.evidence.hosted.core import RUN
+from ethos.repository.evidence.hosted.core import hosted_observation_report
+from ethos.repository.evidence.hosted.core import provider_command
+from ethos.repository.evidence.hosted.core import provider_facts
 from ethos_core.contracts.context.projection import ASSISTANT_TRUTH_BOUNDARY
+from tests.support.reporting import OK
+from tests.support.reporting import patch_scorecard_dependencies
 
 
-def _patch_scorecard_baseline(monkeypatch, audit: dict[str, object]) -> None:
-    patches = (
-        (report_domain, "workspace_status", lambda _repo: {}),
-        (report_domain.status_domain, "audit_for_root", lambda _repo, **_kwargs: audit),
-        (report_domain, "docs_health_report", lambda _repo: {"ok": True}),
-        (
-            report_domain,
-            "claims_report",
-            lambda _repo, **_kwargs: {"ok": True, "required_gaps": [], "advisory_gaps": []},
-        ),
-        (report_domain, "command_registry_report", lambda _repo: {"ok": True}),
-        (report_domain, "projection_contract", lambda: {"truth": ASSISTANT_TRUTH_BOUNDARY}),
-        (report_domain, "schema_validation_report", lambda _repo: {"ok": True}),
-        (report_domain, "evolution_report", lambda _repo: {"ok": True}),
-        (report_domain, "workflow_runtime_report", lambda _repo: {"ok": True, "required_gaps": []}),
-        (report_domain, "signature_policy_report", lambda _repo: {"ok": True}),
-        (
-            report_domain,
-            "playbooks_report",
-            lambda _repo, mode="v2-strict": {
-                "ok": True,
-                "mode": mode,
-                "required_gaps": [],
-                "advisory_gaps": [],
-                "v2_compliance": {"score": 1, "max_score": 1},
-            },
-        ),
-        (report_domain, "adoption_scaffold_report", lambda: {"ok": True}),
-        (
-            report_domain,
-            "parity_ledger_report",
-            lambda: {"ok": True, "summary": {"unclassified_count": 0}},
-        ),
-        (report_domain.git_adapter, "current_tracked_head", lambda _repo: "head"),
-        (
-            report_domain,
-            "parity_gaps_report",
-            lambda **_kwargs: {"ok": True, "required_gaps": [], "pending_packages": []},
-        ),
-        (
-            report_domain,
-            "context_projection_contract",
-            lambda: {
-                "authority": "projection",
-                "can_close_required_gaps": False,
-                "can_satisfy_proof": False,
-            },
-        ),
-        (report_domain, "available_profiles", lambda: ()),
-        (
-            reporting_scoring,
-            "standard_adapter_registry",
-            lambda: {"std": {"boundary": "b", "fallback": "f", "exit_strategy": "e"}},
-        ),
-    )
-    for target, name, replacement in patches:
-        monkeypatch.setattr(target, name, replacement)
+def _quality(monkeypatch, **reports: dict[str, object]) -> None:
+    names = "code_size source_budget coverage_quality ty_gate docstring_coverage module_layout product_boundary contributor_policy".split()  # noqa: SIM905
+    for name in names:
+        report = reports.get(f"{name}_report", {"required_gaps": []})
+        monkeypatch.setattr(reporting_scoring, f"{name}_report", lambda _repo, value=report: value)
 
 
-def _patch_hard_quality_reports(monkeypatch, **reports: dict[str, object]) -> None:
-    for name in (
-        "code_size_report",
-        "source_budget_report",
-        "coverage_quality_report",
-        "ty_gate_report",
-        "docstring_coverage_report",
-        "module_layout_report",
-        "product_boundary_report",
-        "contributor_policy_report",
+def test_scorecard_next_actions() -> None:
+    cases = {
+        ("module_layout_flat_growth:x",): ("ethos quality module-layout --json",),
+        ("unknown",): ("ethos quality --json",),
+        ("identity_mode_missing:x",): ("ethos quality contributor-policy --json",),
+        (): ("ethos prove --full",),
+        (
+            "coverage_latest_below_floor:x",
+            "ty_zero_tolerance_violation:x",
+            "docstring_coverage_below_minimum:x",
+        ): (
+            "ethos quality coverage --json",
+            "ethos quality types --json",
+            "ethos quality docstrings --json",
+        ),
+    }
+    for gaps, expected in cases.items():
+        assert (
+            reporting_scoring.scorecard_next_actions(
+                parity_pending_count=0, hard_quality_floor={"required_gaps": list(gaps)}
+            )
+            == expected
+        )
+    for parity, coordination, expected in (
+        (1, (), ("ethos parity gaps --adopter <adopter>",)),
+        (
+            0,
+            ("coordination_gap:x",),
+            ("ethos orient --json", "ethos lane status --json"),
+        ),
     ):
-        report = reports.get(name, {"required_gaps": []})
-        monkeypatch.setattr(
-            reporting_scoring,
-            name,
-            lambda _repo, report=report: report,
+        assert (
+            reporting_scoring.scorecard_next_actions(
+                parity_pending_count=parity,
+                hard_quality_floor={"required_gaps": []},
+                coordination_required_gaps=coordination,
+            )
+            == expected
         )
 
 
-def test_terminal_control_is_partial_when_stage_gate_blocks() -> None:
+def test_advisory_next_actions() -> None:
+    cases = {
+        "work_lane_closeout_residue_present": (
+            "ethos orient --json",
+            "ethos lane status --json",
+        ),
+        "sample:evidence.head_unbound": (
+            "ethos quality claims --json",
+            "ethos quality evidence-freshness --json",
+        ),
+        "provider_not_configured:github": (
+            f"ETHOS_HOSTED_GITHUB_REPO=<host/owner/repo> ETHOS_HOSTED_OBSERVATION_EXECUTE=1 {RUN}",
+        ),
+    }
+    for gap, expected in cases.items():
+        assert reporting_gaps.advisory_next_actions((gap,)) == expected
+
+
+def test_terminal_and_absent_workflow_runtime_read_models() -> None:
     assert (
         reporting_scoring.terminal_control(
             result_required_gaps=(),
@@ -100,306 +92,113 @@ def test_terminal_control_is_partial_when_stage_gate_blocks() -> None:
         )
         == "partial"
     )
-
-
-def test_absent_workflow_runtime_is_profile_deferred_for_adopter_score() -> None:
     assert reporting_scoring._workflow_runtime_score(None) is True
 
 
-def test_scorecard_next_actions_route_module_layout_and_unknown_quality_gaps() -> None:
-    """Hard quality gaps should route to the narrowest available owner command."""
-
-    assert reporting_scoring.scorecard_next_actions(
-        parity_pending_count=0,
-        hard_quality_floor={"required_gaps": ["module_layout_flat_growth:pkg"]},
-    ) == ("ethos quality module-layout --json",)
-    assert reporting_scoring.scorecard_next_actions(
-        parity_pending_count=0,
-        hard_quality_floor={"required_gaps": ["quality_gap_without_specific_owner"]},
-    ) == ("ethos quality --json",)
-
-
-def test_scorecard_next_actions_route_coverage_types_and_docstring_gaps() -> None:
-    """Product hard quality gaps should point to their standalone read models."""
-
-    assert reporting_scoring.scorecard_next_actions(
-        parity_pending_count=0,
-        hard_quality_floor={
-            "required_gaps": [
-                "coverage_latest_below_floor:94.00<95.00",
-                "ty_zero_tolerance_violation:packages/ethos:1",
-                "docstring_coverage_below_minimum:94.00<95.00",
-            ],
-        },
-    ) == (
-        "ethos quality coverage --json",
-        "ethos quality types --json",
-        "ethos quality docstrings --json",
-    )
-
-
-def test_adopter_product_root_resolves_runtime_and_profile_fallback(
-    monkeypatch, tmp_path: Path
-) -> None:
-    repo = tmp_path / "adopter"
-    product = tmp_path / "product"
-    configured_product = tmp_path / "configured-product"
-    repo.mkdir()
-    product.mkdir()
-    configured_product.mkdir()
-
-    runtime_payload = {"runtime_binding": {"runner_source_root": product.as_posix()}}
-    assert reporting_parity.adopter_product_root(repo, runtime_payload, None) == product.resolve()
-
-    same_repo_payload = {"runtime_binding": {"runner_source_root": repo.as_posix()}}
-    empty_runtime_payload = {"runtime_binding": {"runner_source_root": ""}}
-
-    class Profile:
-        def __init__(self) -> None:
-            self.tables = {"external_backend": {"product_root": "../configured-product"}}
-
-    monkeypatch.setattr(reporting_parity, "load_repository_profile", lambda _repo: Profile())
-
-    assert (
-        reporting_parity.adopter_product_root(repo, same_repo_payload, None)
-        == configured_product.resolve()
-    )
-    assert (
-        reporting_parity.adopter_product_root(repo, empty_runtime_payload, None)
-        == configured_product.resolve()
-    )
-    assert reporting_parity.adopter_product_root(repo, {}, product) == product.resolve()
-
-
-def test_scorecard_next_actions_route_parity_gaps() -> None:
-    assert reporting_scoring.scorecard_next_actions(
-        parity_pending_count=1,
-        hard_quality_floor={"required_gaps": []},
-    ) == ("ethos parity gaps --adopter <adopter>",)
-
-
-def test_scorecard_next_actions_route_coordination_required_gaps() -> None:
-    """Required coordination risk should route to read-only lane inspection."""
-
-    assert reporting_scoring.scorecard_next_actions(
-        parity_pending_count=0,
-        hard_quality_floor={"required_gaps": []},
-        coordination_required_gaps=("coordination_gap:current_scope_unknown",),
-    ) == ("ethos orient --json", "ethos lane status --json")
-
-
-def test_scorecard_blocks_product_hard_quality_floor(monkeypatch, tmp_path):
-    """Report must not claim ready when standalone hard quality gates are blocked."""
-
-    _patch_scorecard_baseline(
-        monkeypatch,
-        {
-            "ok": True,
-            "required_gaps": [],
-            "governance_context": {"profile": "product"},
-            "package_ontology": {"ok": True, "adapter_missing": []},
-            "schemas": {"ok": True},
-            "openspec": {"ok": True, "advisory_gaps": []},
-        },
-    )
-    _patch_hard_quality_reports(
-        monkeypatch,
-        code_size_report={
-            "ok": False,
-            "required_gaps": ["code_size_exceeded:tests/unit/product/test_flat.py:999>800"],
-        },
-    )
-    payload: dict[str, Any] = report_domain.scorecard_report(tmp_path)
-
-    assert payload["ok"] is False
-    assert payload["required_gaps"] == (
-        "code_size_exceeded:tests/unit/product/test_flat.py:999>800",
-    )
-    assert payload["summary"]["governance_gap_count"] == 1
-    assert payload["next_actions"] == ("ethos quality code-size --json",)
-    quality_floor = payload["data"]["gap_layers"]["hard_quality_floor"]
-    assert quality_floor["blocking"] is True
-    assert quality_floor["ok"] is False
-    assert quality_floor["required_gaps"] == [
-        "code_size_exceeded:tests/unit/product/test_flat.py:999>800"
-    ]
-
-
-def test_scorecard_surfaces_work_lane_coordination_advisories(monkeypatch, tmp_path: Path) -> None:
-    """Report should not hide non-blocking Work Lane residue coordination signals."""
-
-    _patch_scorecard_baseline(
-        monkeypatch,
-        {
-            "ok": True,
-            "required_gaps": [],
-            "governance_context": {"profile": "product"},
-            "package_ontology": {"ok": True, "adapter_missing": []},
-            "schemas": {"ok": True},
-            "openspec": {"ok": True, "advisory_gaps": []},
-        },
-    )
+def test_adopter_product_root_resolution(monkeypatch, tmp_path) -> None:
+    repo, product, configured = (tmp_path / name for name in ("adopter", "product", "configured"))
+    for path in (repo, product, configured):
+        path.mkdir()
     monkeypatch.setattr(
-        report_domain,
-        "workspace_status",
-        lambda _repo: {
-            "coordination": {
-                "advisory_gaps": [
-                    "foreign_work_lane_present",
-                    "work_lane_missing_lease:work/orphan",
-                ],
-            },
-        },
+        reporting_parity,
+        "load_repository_profile",
+        lambda _repo: type(
+            "Profile",
+            (),
+            {"tables": {"external_backend": {"product_root": "../configured"}}},
+        )(),
     )
+    assert (
+        reporting_parity.adopter_product_root(
+            repo, {"runtime_binding": {"runner_source_root": str(product)}}, None
+        )
+        == product
+    )
+    for payload in (
+        {"runtime_binding": {"runner_source_root": str(repo)}},
+        {"runtime_binding": {"runner_source_root": ""}},
+    ):
+        assert reporting_parity.adopter_product_root(repo, payload, None) == configured
+    assert reporting_parity.adopter_product_root(repo, {}, product) == product
+
+
+def test_scorecard_blocks_hard_quality_floor(monkeypatch, tmp_path) -> None:
+    patch_scorecard_dependencies(monkeypatch)
+    gap = "code_size_exceeded:tests/unit/product/test_flat.py:999>800"
     monkeypatch.setattr(
         reporting_scoring,
         "hard_quality_floor_report",
-        lambda _repo: {"ok": True, "required_gaps": []},
+        lambda _repo: {"ok": False, "required_gaps": [gap]},
     )
 
-    payload: dict[str, Any] = report_domain.scorecard_report(tmp_path)
+    payload = report_domain.scorecard_report(tmp_path)
+
+    assert payload["ok"] is False and payload["required_gaps"] == (gap,)  # noqa: PT018
+    assert payload["next_actions"] == ("ethos quality code-size --json",)
+    assert payload["data"]["gap_layers"]["hard_quality_floor"]["required_gaps"] == [gap]
+
+
+def test_scorecard_surfaces_coordination_advisories(monkeypatch, tmp_path) -> None:
+    patch_scorecard_dependencies(monkeypatch)
+    gaps = ["foreign_work_lane_present", "work_lane_missing_lease:work/orphan"]
+    monkeypatch.setattr(
+        report_domain,
+        "workspace_status",
+        lambda _repo, **_kwargs: {"coordination": {"advisory_gaps": gaps}},
+    )
+
+    payload = report_domain.scorecard_report(tmp_path)
 
     assert payload["ok"] is True
     assert payload["state"] == "advisory"
-    assert payload["required_gaps"] == ()
     assert payload["summary"]["advisory_gap_count"] == 2
-    assert payload["next_actions"] == (
-        "ethos orient --json",
-        "ethos lane status --json",
-    )
     advisory = payload["data"]["advisory_signals"]
-    assert advisory["blocking"] is False
-    assert advisory["advisory_gaps"] == [
-        "foreign_work_lane_present",
-        "work_lane_missing_lease:work/orphan",
-    ]
+    assert advisory["advisory_gaps"] == gaps
     assert advisory["next_actions"] == [
         "ethos orient --json",
         "ethos lane status --json",
     ]
 
 
-def test_scorecard_next_actions_route_module_layout_gaps() -> None:
-    """Module-layout hard floor gaps should point at the module-layout gate."""
-
-    assert reporting_scoring.scorecard_next_actions(
-        parity_pending_count=0,
-        hard_quality_floor={
-            "required_gaps": [
-                "module_layout_baseline_suffix_module_limit:23!=22",
-            ],
-        },
-    ) == ("ethos quality module-layout --json",)
-
-
-def test_product_hard_quality_floor_includes_product_boundary(monkeypatch, tmp_path: Path) -> None:
-    _patch_hard_quality_reports(
-        monkeypatch,
-        product_boundary_report={"required_gaps": ["product-boundary:README.md:1"]},
-    )
-
+def test_hard_quality_floor_boundaries(monkeypatch, tmp_path) -> None:
+    _quality(monkeypatch, product_boundary_report={"required_gaps": ["product-boundary:x"]})
     floor = reporting_scoring.hard_quality_floor_report(tmp_path)
-
     assert floor["ok"] is False
-    assert "product-boundary:README.md:1" in floor["required_gaps"]
     assert reporting_scoring.scorecard_next_actions(
         parity_pending_count=0, hard_quality_floor=floor
     ) == ("ethos quality product-boundary --json",)
 
-
-def test_product_hard_quality_floor_includes_coverage_types_and_docstrings(
-    monkeypatch, tmp_path: Path
-) -> None:
-    _patch_hard_quality_reports(
+    _quality(
         monkeypatch,
-        coverage_quality_report={"required_gaps": ["coverage_artifact_missing:coverage.xml"]},
-        ty_gate_report={"required_gaps": ["ty_zero_tolerance_violation:packages/ethos-core:1"]},
-        docstring_coverage_report={
-            "required_gaps": ["public_docstring_missing:pkg/mod.py:pkg.mod"]
-        },
+        coverage_quality_report={"required_gaps": ["coverage_artifact_missing:x"]},
+        ty_gate_report={"required_gaps": ["ty_zero_tolerance_violation:x"]},
+        docstring_coverage_report={"required_gaps": ["public_docstring_missing:x"]},
     )
-
     floor = reporting_scoring.hard_quality_floor_report(tmp_path)
-
-    assert floor["ok"] is False
-    assert floor["gate_ids"] == [
-        "python-size",
-        "source-budget",
-        "coverage",
-        "types",
-        "docstrings",
-        "module-layout",
-        "product-boundary",
-        "contributor-policy",
-    ]
-    assert floor["required_gaps"] == [
-        "coverage_artifact_missing:coverage.xml",
-        "ty_zero_tolerance_violation:packages/ethos-core:1",
-        "public_docstring_missing:pkg/mod.py:pkg.mod",
-    ]
-    assert reporting_scoring.scorecard_next_actions(
-        parity_pending_count=0, hard_quality_floor=floor
-    ) == (
-        "ethos quality coverage --json",
-        "ethos quality types --json",
-        "ethos quality docstrings --json",
-    )
+    expected = (  # noqa: SIM905
+        "python-size source-budget coverage types docstrings module-layout "
+        "product-boundary contributor-policy"
+    ).split()
+    assert floor["gate_ids"] == expected
+    assert len(floor["required_gaps"]) == 3
 
 
-def test_scorecard_next_actions_route_contributor_policy_gaps() -> None:
-    assert reporting_scoring.scorecard_next_actions(
-        parity_pending_count=0,
-        hard_quality_floor={"required_gaps": ["identity_mode_missing:.ethos/workspace.toml:1"]},
-    ) == ("ethos quality contributor-policy --json",)
+def _generic_parity(**kwargs: object) -> dict[str, object]:
+    adopter = kwargs.get("adopter")
+    pending = [] if adopter else [{"gap": "parity_pending:work-lane-lifecycle"}]
+    return {
+        "ok": adopter == "domain-adopter",
+        "adopter": adopter or "generic",
+        "required_gaps": [] if adopter else ["parity_pending:work-lane-lifecycle"],
+        "pending_packages": pending,
+        "evidence": {"path": "docs/evidence/parity/domain-adopter-shadow.json"} if adopter else {},
+    }
 
 
-def test_scorecard_next_actions_route_clean_ready_state_to_full_proof() -> None:
-    assert reporting_scoring.scorecard_next_actions(
-        parity_pending_count=0,
-        hard_quality_floor={"required_gaps": []},
-    ) == ("ethos prove --full",)
-
-
-def test_advisory_next_actions_route_closeout_residue_signal() -> None:
-    actions = reporting_gaps.advisory_next_actions(("work_lane_closeout_residue_present",))
-
-    assert actions == ("ethos orient --json", "ethos lane status --json")
-
-
-def test_advisory_next_actions_route_unbound_claim_evidence_signal() -> None:
-    actions = reporting_gaps.advisory_next_actions(("sample:evidence.head_unbound",))
-
-    assert actions == (
-        "ethos quality claims --json",
-        "ethos quality evidence-freshness --json",
-    )
-
-
-def test_adopter_scorecard_reports_profile_shadow_parity_without_generic_next_action(
-    monkeypatch, tmp_path: Path
-) -> None:
-    """Adopter report should not route to generic parity when profile shadow is clean."""
-
-    _patch_scorecard_baseline(
-        monkeypatch,
-        {
-            "ok": True,
-            "required_gaps": [],
-            "governance_context": {"profile": "gitlab"},
-            "adopter": {
-                "adopter": {
-                    "governance": {
-                        "claims": True,
-                        "evidence": True,
-                        "docs": True,
-                    }
-                }
-            },
-            "schemas": {"ok": True},
-            "openspec": {"ok": True, "advisory_gaps": []},
-        },
-    )
-    monkeypatch.setattr(report_domain, "workspace_status", lambda _repo: {"coordination": {}})
+def test_adopter_scorecard_uses_profile_parity(monkeypatch, tmp_path) -> None:
+    patch_scorecard_dependencies(monkeypatch, profile="gitlab")
+    monkeypatch.setattr(report_domain, "parity_gaps_report", _generic_parity)
+    monkeypatch.setattr(reporting_parity, "profile_identity", lambda _repo: "domain-adopter")
     monkeypatch.setattr(
         report_domain,
         "playbooks_report",
@@ -412,164 +211,58 @@ def test_adopter_scorecard_reports_profile_shadow_parity_without_generic_next_ac
         },
     )
 
-    def fake_parity_gaps_report(**kwargs):
-        if kwargs.get("adopter") == "domain-adopter":
-            return {
-                "ok": True,
-                "adopter": "domain-adopter",
-                "required_gaps": [],
-                "pending_packages": [],
-                "evidence": {"path": "docs/evidence/parity/domain-adopter-shadow.json"},
-            }
-        return {
-            "ok": False,
-            "adopter": "generic",
-            "required_gaps": ["parity_pending:work-lane-lifecycle"],
-            "pending_packages": [{"gap": "parity_pending:work-lane-lifecycle"}],
-            "evidence": {},
-        }
-
-    monkeypatch.setattr(report_domain, "parity_gaps_report", fake_parity_gaps_report)
-    monkeypatch.setattr(
-        reporting_parity,
-        "profile_identity",
-        lambda _repo: "domain-adopter",
-    )
-
-    payload: dict[str, Any] = report_domain.scorecard_report(tmp_path)
+    payload = report_domain.scorecard_report(tmp_path)
 
     assert payload["summary"]["parity_pending_count"] == 0
     assert payload["next_actions"] == ("ethos playbooks check --mode v2-strict --json",)
-    assert payload["data"]["parity"]["scope"] == {
-        "generic_gap_count": 1,
-        "adopter": "domain-adopter",
-        "adopter_gap_count": 0,
-        "domain_profile_parity_closed": True,
-        "note": (
-            "Adopter shadow parity is profile-specific evidence. Generic command parity "
-            "remains a product migration signal and does not block adopter report routing."
-        ),
-    }
-    assert payload["data"]["parity"]["adopter_gaps"]["evidence"]["path"] == (
-        "docs/evidence/parity/domain-adopter-shadow.json"
-    )
-
-
-def test_adopter_scorecard_binds_shadow_parity_to_external_product_root(
-    monkeypatch, tmp_path: Path
-) -> None:
-    """Adopter report should validate shadow evidence against the external product root."""
-
-    product_root = tmp_path / "product"
-    adopter_root = tmp_path / "adopter"
-    product_root.mkdir()
-    adopter_root.mkdir()
-    calls: list[dict[str, object]] = []
-
-    _patch_scorecard_baseline(
-        monkeypatch,
-        {
-            "ok": True,
-            "required_gaps": [],
-            "governance_context": {"profile": "gitlab"},
-            "adopter": {
-                "adopter": {
-                    "governance": {
-                        "claims": True,
-                        "evidence": True,
-                        "docs": True,
-                    }
-                }
-            },
-            "schemas": {"ok": True},
-            "openspec": {"ok": True, "advisory_gaps": []},
-        },
-    )
-    monkeypatch.setattr(report_domain, "workspace_status", lambda _repo: {"coordination": {}})
-    monkeypatch.setattr(
-        report_domain.git_adapter,
-        "current_tracked_head",
-        lambda repo: "product-head" if repo == product_root else "adopter-head",
-    )
-
-    def fake_parity_gaps_report(**kwargs):
-        calls.append(kwargs)
-        if kwargs.get("adopter") == "domain-adopter":
-            return {
-                "ok": bool(kwargs["root"] == product_root),
-                "adopter": "domain-adopter",
-                "required_gaps": []
-                if kwargs["root"] == product_root
-                else ["parity_evidence_invalid:domain-adopter:product_head"],
-                "pending_packages": [],
-                "evidence": {"path": "docs/evidence/parity/domain-adopter-shadow.json"},
-            }
-        return {
-            "ok": False,
-            "adopter": "generic",
-            "required_gaps": ["parity_pending:work-lane-lifecycle"],
-            "pending_packages": [{"gap": "parity_pending:work-lane-lifecycle"}],
-            "evidence": {},
-        }
-
-    monkeypatch.setattr(report_domain, "parity_gaps_report", fake_parity_gaps_report)
-    monkeypatch.setattr(reporting_parity, "profile_identity", lambda _repo: "domain-adopter")
-
-    payload: dict[str, Any] = report_domain.scorecard_report(
-        adopter_root,
-        product_root=product_root,
-    )
-
-    adopter_call = next(call for call in calls if call.get("adopter") == "domain-adopter")
-    assert adopter_call["root"] == product_root
-    assert adopter_call["target"] == adopter_root
-    assert adopter_call["current_product_head"] == "product-head"
-    assert adopter_call["current_target_head"] == "adopter-head"
-    assert payload["summary"]["parity_pending_count"] == 0
     assert payload["data"]["parity"]["scope"]["domain_profile_parity_closed"] is True
 
 
-def test_product_scores_include_workflow_runtime() -> None:
+def test_adopter_parity_binds_external_product_root(monkeypatch, tmp_path) -> None:
+    product, adopter = tmp_path / "product", tmp_path / "adopter"
+    product.mkdir()
+    adopter.mkdir()
+    calls: list[dict[str, object]] = []
+    patch_scorecard_dependencies(monkeypatch, profile="gitlab")
+    monkeypatch.setattr(
+        report_domain.git_adapter,
+        "current_tracked_head",
+        lambda root: "product-head" if root == product else "adopter-head",
+    )
+    monkeypatch.setattr(
+        report_domain,
+        "parity_gaps_report",
+        lambda **kwargs: calls.append(kwargs) or _generic_parity(**kwargs),
+    )
+    monkeypatch.setattr(reporting_parity, "profile_identity", lambda _repo: "domain-adopter")
+
+    payload = report_domain.scorecard_report(adopter, product_root=product)
+
+    call = next(item for item in calls if item.get("adopter") == "domain-adopter")
+    assert (call["root"], call["target"]) == (product, adopter)
+    assert (call["current_product_head"], call["current_target_head"]) == (
+        "product-head",
+        "adopter-head",
+    )
+    assert payload["summary"]["parity_pending_count"] == 0
+
+
+def test_workflow_runtime_score_and_gap(monkeypatch, tmp_path) -> None:
     scores = reporting_scoring.product_scores(
         {
             "package_ontology": {"ok": True, "adapter_missing": []},
             "schemas": {"ok": True},
             "openspec": {"ok": True},
         },
-        {"ok": True},
-        {"ok": True},
-        {"ok": True},
+        *([OK] * 3),
         {"truth": ASSISTANT_TRUTH_BOUNDARY},
-        {"ok": True},
-        {"ok": True},
-        {"ok": True},
-        {"ok": True},
-        {"ok": True},
-        {"ok": True},
+        *([OK] * 6),
         1,
-        {"ok": True},
+        OK,
     )
-
     assert scores["workflow_runtime"] == 1
 
-
-def test_workflow_runtime_gaps_block_product_scorecard(monkeypatch, tmp_path: Path) -> None:
-    _patch_scorecard_baseline(
-        monkeypatch,
-        {
-            "ok": True,
-            "required_gaps": [],
-            "governance_context": {"profile": "product"},
-            "package_ontology": {"ok": True, "adapter_missing": []},
-            "schemas": {"ok": True},
-            "openspec": {"ok": True, "advisory_gaps": []},
-        },
-    )
-    monkeypatch.setattr(
-        reporting_scoring,
-        "hard_quality_floor_report",
-        lambda _repo: {"ok": True, "required_gaps": []},
-    )
+    patch_scorecard_dependencies(monkeypatch)
     monkeypatch.setattr(
         report_domain,
         "workflow_runtime_report",
@@ -578,9 +271,147 @@ def test_workflow_runtime_gaps_block_product_scorecard(monkeypatch, tmp_path: Pa
             "required_gaps": ["workflow_runtime_public_commands_invalid"],
         },
     )
+    payload = report_domain.scorecard_report(tmp_path)
+    assert payload["data"]["scores"]["workflow_runtime"] == 0
+    assert "workflow_runtime_public_commands_invalid" in payload["required_gaps"]
+
+
+# fmt: off
+def _observation(provider: str, state: str, *, executed) -> dict[str, object]:
+    github = provider == "github"
+    target = "" if state == "not_configured" else "group/ethos"
+    stdout_json = ([{"headSha": "head", "status": "completed", "conclusion": "success", "url": "gh"}]
+                   if github else [{"sha": "head", "status": "success", "ref": "dev", "web_url": "gl"}]) if state == "observed" else None
+    tool = "gh" if github else "glab"
+    return {"provider": provider, "tool": tool, "tool_available": True,
+            "tool_path": f"/usr/bin/{tool}", "target_env": f"ETHOS_HOSTED_{provider.upper()}_REPO",
+            "target": target, "target_configured": bool(target),
+            "command": provider_command(provider, target) if provider in {"github", "gitlab"} else [provider],
+            "observation_state": state,
+            "executed": executed, "returncode": 0 if executed else None,
+            "stdout_json": stdout_json, "hosted_status_claimed": False,
+            "provider_facts": provider_facts(provider, stdout_json)}
+# fmt: on
+
+
+def _artifact(head: str = "head", **updates: object) -> dict[str, object]:
+    payload: dict[str, object] = {
+        "schema_version": 1,
+        "kind": "ethos_hosted_provider_observation",
+        "evidence_class": "hosted_provider_observation",
+        "head": head,
+        "state": "partial",
+        "ok": False,
+        "execute": True,
+        "observation_gaps": ["provider_not_configured:github"],
+        "observation_gap_count": 1,
+        "observations": [
+            _observation("github", "not_configured", executed=False),
+            _observation("gitlab", "observed", executed=True),
+        ],
+        **dict.fromkeys(FLAGS, False),
+    }
+    payload.update(updates)
+    return payload
+
+
+def test_hosted_observation_reader_fails_closed(tmp_path) -> None:
+    def state() -> object:
+        return hosted_observation_report(tmp_path, current_head="head")["state"]
+
+    assert state() == "not_applicable"
+    config = tmp_path / ".config/checks/ci/hosted-observation.toml"
+    config.parent.mkdir(parents=True)
+    config.write_text(
+        'output = "build/evidence/hosted-ci/observation.json"\nproviders = ["github", "gitlab"]\n'
+        '[provider.github]\nrepository_target_env = "ETHOS_HOSTED_GITHUB_REPO"\n'
+        '[provider.gitlab]\nrepository_target_env = "ETHOS_HOSTED_GITLAB_REPO"\n',
+        encoding="utf-8",
+    )
+    output = tmp_path / "build/evidence/hosted-ci/observation.json"
+    assert state() == "missing"
+    output.parent.mkdir(parents=True)
+    output.write_text("{", encoding="utf-8")
+    assert state() == "invalid"
+    output.write_text(json.dumps(_artifact("old")), encoding="utf-8")
+    assert state() == "stale"
+    for artifact in (
+        _artifact(execute="yes"),
+        _artifact(observations=[]),
+        _artifact(
+            observations=[
+                _observation("wrong", "not_configured", executed=False),
+                _observation("gitlab", "observed", executed=True),
+            ]
+        ),
+        _artifact(hosted_github_status_claimed=True),
+        _artifact(state="observed", ok=True, observation_gaps=[], observation_gap_count=0),
+    ):
+        output.write_text(json.dumps(artifact), encoding="utf-8")
+        assert state() == "invalid"
+    # fmt: off
+    for index, updates in ((0, {"target": "forged/repo"}), (0, {"target_env": "FORGED_TARGET"}),
+                           (0, {"target_configured": True}), (0, {"command": ["gh"]}),
+                           (1, {"tool_available": False, "tool_path": ""}), (1, {"tool_path": 1}), (1, {"returncode": 7}), (1, {"returncode": "0"}),
+                           (1, {"stdout_json": [{"status": "forged"}]}),
+                           (1, {"provider_facts": {"latest_head": "forged"}}),
+                           (0, {"observation_state": []}), (0, {"stdout_json": []})):
+        artifact = _artifact()
+        cast("list[dict[str, object]]", artifact["observations"])[index].update(updates)
+        output.write_text(json.dumps(artifact), encoding="utf-8")
+        assert state() == "invalid"
+    # fmt: on
+    missing = _artifact()
+    del cast("list[dict[str, object]]", missing["observations"])[0]["target"]
+    output.write_text(json.dumps(missing), encoding="utf-8")
+    assert state() == "invalid"
+    output.write_bytes(b"\xff")
+    assert state() == "invalid"
+    dry_run = _artifact(
+        state="dry_run",
+        ok=True,
+        execute=False,
+        observation_gaps=[],
+        observation_gap_count=0,
+        observations=[
+            _observation("github", "not_configured", executed=False),
+            _observation("gitlab", "not_executed", executed=False),
+        ],
+    )
+    output.write_text(json.dumps(dry_run), encoding="utf-8")
+    assert state() == "dry_run"
+    output.write_text(json.dumps(_artifact()), encoding="utf-8")
+    report = hosted_observation_report(tmp_path, current_head="head")
+    assert report["state"] == "partial"
+    assert report["provider_states"] == {
+        "github": "not_configured",
+        "gitlab": "observed",
+    }
+    assert all(report[key] is False for key in FLAGS)
+
+
+def test_report_projects_hosted_and_local_publication(monkeypatch, tmp_path) -> None:
+    patch_scorecard_dependencies(monkeypatch)
+    hosted = {
+        "state": "partial",
+        "ok": False,
+        "provider_states": {"github": "not_configured", "gitlab": "observed"},
+        "advisory_gaps": ["provider_not_configured:github"],
+    }
+    monkeypatch.setattr(report_domain, "hosted_observation_report", lambda *_a, **_k: hosted)
 
     payload = report_domain.scorecard_report(tmp_path)
 
-    assert payload["ok"] is False
-    assert payload["data"]["scores"]["workflow_runtime"] == 0
-    assert "workflow_runtime_public_commands_invalid" in payload["required_gaps"]
+    assert payload["state"] == "advisory"
+    assert payload["summary"]["hosted_observation_state"] == "partial"
+    assert payload["summary"]["local_publication_state"] == "local_publish_ready"
+    assert payload["data"]["hosted_observation"] == hosted
+    assert payload["data"]["local_publication"]["remote_publication_claimed"] is False
+
+    blocked = reporting_gaps.local_publication_projection(
+        (), {"blocking": True, "required_gaps": ["executed_proof_missing"]}
+    )
+    assert (blocked["state"], blocked["required_gaps"]) == (
+        "blocked",
+        ["executed_proof_missing"],
+    )

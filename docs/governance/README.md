@@ -28,6 +28,7 @@ belongs under `docs/plans/` with `state: planned` until promoted.
 - [Forge Provider Contract](forge-provider-contract.md)
 - [OpenSpec Governance](openspec-governance.md)
 - [Repository Profile Contract](repository-profile-contract.md)
+- [Repository Text Layout](repository-text-layout.md)
 - [Optional Independent Verification Adoption](independent-verification-adoption.md)
 - [Config Boundary Model](config-boundary-model.md)
 - [Standards Adoption Policy](standards-adoption-policy.md)

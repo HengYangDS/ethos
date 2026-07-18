@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import cast
 
 from ethos.domain.reporting.scoring import adopter_quality_floor_report
+from ethos_core.normalization.core import string_sequence
 from ethos_core.state.invalid import invalid_state_projection
 
 
@@ -11,6 +12,7 @@ def advisory_gaps(
     claim_report: dict[str, object],
     playbooks: dict[str, object],
     status_payload: dict[str, object] | None = None,
+    hosted_observation: dict[str, object] | None = None,
 ) -> tuple[str, ...]:
     """Collect non-blocking small signals that should stay visible in report.
 
@@ -23,10 +25,11 @@ def advisory_gaps(
     openspec = cast("dict[str, object]", audit.get("openspec") or {})
     coordination = cast("dict[str, object]", (status_payload or {}).get("coordination") or {})
     values = [
-        *string_list(coordination.get("advisory_gaps")),
-        *string_list(openspec.get("advisory_gaps")),
-        *string_list(claim_report.get("advisory_gaps")),
-        *string_list(playbooks.get("advisory_gaps")),
+        *string_sequence(coordination.get("advisory_gaps"), drop_empty=True),
+        *string_sequence(openspec.get("advisory_gaps"), drop_empty=True),
+        *string_sequence(claim_report.get("advisory_gaps"), drop_empty=True),
+        *string_sequence(playbooks.get("advisory_gaps"), drop_empty=True),
+        *string_sequence((hosted_observation or {}).get("advisory_gaps"), drop_empty=True),
     ]
     return tuple(dict.fromkeys(values))
 
@@ -75,13 +78,41 @@ def advisory_next_actions(advisory_gaps: tuple[str, ...]) -> tuple[str, ...]:
                     "ethos quality evidence-freshness --json",
                 ]
             )
+        if gap.startswith("provider_not_configured:"):
+            provider = gap.rsplit(":", 1)[-1].upper()
+            actions.append(
+                f"ETHOS_HOSTED_{provider}_REPO=<host/owner/repo> "
+                "ETHOS_HOSTED_OBSERVATION_EXECUTE=1 "
+                "tools/ci/scripts/run-hosted-provider-observation.sh"
+            )
+        elif gap.startswith(
+            (
+                "hosted_provider_observation_",
+                "provider_tool_unavailable:",
+                "provider_observation_failed:",
+            )
+        ):
+            actions.append("tools/ci/scripts/run-hosted-provider-observation.sh")
     return tuple(dict.fromkeys(actions))
 
 
-def string_list(value: object) -> list[str]:
-    if not isinstance(value, list | tuple):
-        return []
-    return [str(item) for item in value if str(item)]
+def local_publication_projection(
+    required_gaps: tuple[str, ...],
+    proof_readiness: dict[str, object],
+) -> dict[str, object]:
+    """Project local publication state without authorizing a transition."""
+    proof_gaps = string_sequence(proof_readiness.get("required_gaps"), drop_empty=True)
+    gaps = list(dict.fromkeys((*required_gaps, *proof_gaps)))
+    local_ready = not gaps and proof_readiness.get("blocking") is not True
+    return {
+        "kind": "local_publication_scorecard_projection",
+        "state": "local_publish_ready" if local_ready else "blocked",
+        "local_ready": local_ready,
+        "blocking": not local_ready,
+        "required_gaps": gaps,
+        "remote_publication_claimed": False,
+        "transition_authority": False,
+    }
 
 
 def coordination_risk_gaps(
@@ -92,14 +123,14 @@ def coordination_risk_gaps(
     coordination = cast("dict[str, object]", status_payload.get("coordination") or {})
     audit_required = tuple(
         gap
-        for gap in string_list(audit.get("required_gaps"))
+        for gap in string_sequence(audit.get("required_gaps"), drop_empty=True)
         if gap.startswith("coordination_gap:")
     )
-    status_required = tuple(string_list(coordination.get("required_gaps")))
+    status_required = tuple(string_sequence(coordination.get("required_gaps"), drop_empty=True))
     required = tuple(dict.fromkeys((*audit_required, *status_required)))
     required_set = set(required)
-    audit_coordination = tuple(string_list(audit.get("coordination_gaps")))
-    status_advisory = tuple(string_list(coordination.get("advisory_gaps")))
+    audit_coordination = tuple(string_sequence(audit.get("coordination_gaps"), drop_empty=True))
+    status_advisory = tuple(string_sequence(coordination.get("advisory_gaps"), drop_empty=True))
     advisory = tuple(
         dict.fromkeys(
             gap for gap in (*audit_coordination, *status_advisory) if gap not in required_set

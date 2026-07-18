@@ -25,10 +25,9 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from ethos.adapters.mutation.core import apply_candidate_to_accepted, apply_land_to_candidate
-from ethos.adapters.mutation.lane_lifecycle.refresh import (
-    refresh_candidate_from_accepted,
-)
+from ethos.adapters.mutation.core import apply_candidate_to_accepted
+from ethos.adapters.mutation.core import apply_land_to_candidate
+from ethos.adapters.mutation.lane_lifecycle.refresh import refresh_candidate_from_accepted
 from ethos.adapters.mutation.proof import record_executed_proof
 from ethos.adapters.store.state.lease.lifecycle.core import acquire_lease
 from ethos.repository.evidence.core import EvidenceSet
@@ -65,7 +64,7 @@ def _seed_proof(root: Path, head: str) -> None:
     record_executed_proof(root, EvidenceSet.from_runs(id="p", head=head, runs=runs).to_dict())
 
 
-def _armed_repo(tmp_path: Path, *, mirror: bool = False, adopter_profile: bool = False) -> Path:
+def _armed_repo(tmp_path: Path, *, mirror: bool = False) -> Path:
     """A scratch candidate-train repo with the REAL reference-transaction hook armed and NO
     ETHOS_ALLOW_REF_MOVE in the environment.
 
@@ -104,11 +103,10 @@ def _armed_repo(tmp_path: Path, *, mirror: bool = False, adopter_profile: bool =
     shutil.copy(_RUNTIME_BOOTSTRAP_SRC, runtime_script_dir / "with-python-runtime.sh")
     (runtime_script_dir / "with-python-runtime.sh").chmod(0o755)
     (repo / "README.md").write_text("# x\n", encoding="utf-8")
-    if adopter_profile:
-        profile = repo / ".ethos" / "profile.toml"
-        profile.parent.mkdir(exist_ok=True)
-        profile.write_text('profile_id = "armed-adopter"\n', encoding="utf-8")
-        _declare_minimal_code_correctness(repo)
+    profile = repo / ".ethos" / "profile.toml"
+    profile.parent.mkdir(exist_ok=True)
+    profile.write_text('profile_id = "armed-adopter"\n', encoding="utf-8")
+    _declare_minimal_code_correctness(repo)
     if mirror:
         policy = repo / ".ethos" / "workspace.toml"
         policy.parent.mkdir(exist_ok=True)
@@ -186,9 +184,7 @@ def _materialize_accepted_ethos_package(repo: Path) -> Path:
     return package
 
 
-def _land_proven_work(
-    repo: Path, tmp_path: Path, name: str, content: str, *, profile_mode: str = ""
-) -> str:
+def _land_proven_work(repo: Path, tmp_path: Path, name: str, content: str) -> str:
     """Create a lease-backed work lane, commit + prove work, land it onto candidate.
     Returns the candidate head."""
     work = tmp_path / name
@@ -206,8 +202,7 @@ def _land_proven_work(
     )
     _g(repo, "worktree", "add", "-b", f"work/{name}", str(work), "candidate/dev")
     (work / f"{name}.txt").write_text(content, encoding="utf-8")
-    if profile_mode == "drop":
-        (work / ".ethos" / "profile.toml").unlink()
+    (work / ".ethos" / "profile.toml").unlink(missing_ok=True)
     _g(work, "add", ".")
     work_head = _commit(work, f"work {name}")
     _seed_proof(work, work_head)
@@ -216,36 +211,14 @@ def _land_proven_work(
     return work_head
 
 
-def test_sanctioned_land_and_closeout_pass_through_armed_hook(tmp_path: Path) -> None:
-    """With the bypass removed, sanctioned land + closeout still advance candidate then dev
-    through the armed reference-transaction hook."""
+def test_committed_profile_closeout_blocks_raw_move(tmp_path: Path) -> None:
+    """A missing candidate profile is not inherited: raw moves block, official closeout passes."""
     if not _HOOK_SRC.exists():
         return
     os.environ["ETHOS_ACTOR"] = "agent:test:case:agent-test"
-    repo = _armed_repo(tmp_path, mirror=True, adopter_profile=True)
+    repo = _armed_repo(tmp_path, mirror=True)
 
-    candidate_head = _land_proven_work(repo, tmp_path, "w", "hi\n", profile_mode="drop")
-    assert _g(repo, "rev-parse", "candidate/dev").stdout.strip() == candidate_head
-
-    dev_before = _g(repo, "rev-parse", "dev").stdout.strip()
-    closeout = apply_candidate_to_accepted(root=repo, authorized=True, expect_head=dev_before)
-    assert closeout["ok"] is True, closeout
-    assert closeout["state"] == "accepted_validated"
-    assert _g(repo, "rev-parse", "dev").stdout.strip() == candidate_head
-    assert _g(repo, "rev-parse", "main").stdout.strip() == candidate_head
-
-
-def test_raw_ref_move_to_proven_head_is_blocked_without_marker(tmp_path: Path) -> None:
-    """A hand-typed `git update-ref dev <candidate_head>` — proof present but NO one-shot
-    closeout-intent marker — is aborted by the armed hook, while the sanctioned closeout of
-    the very same head succeeds. This is the discrimination the removed env bypass used to
-    defeat."""
-    if not _HOOK_SRC.exists():
-        return
-    os.environ["ETHOS_ACTOR"] = "agent:test:case:agent-test"
-    repo = _armed_repo(tmp_path, mirror=True, adopter_profile=True)
-
-    candidate_head = _land_proven_work(repo, tmp_path, "w", "hi\n", profile_mode="drop")
+    candidate_head = _land_proven_work(repo, tmp_path, "w", "hi\n")
     dev_before = _g(repo, "rev-parse", "dev").stdout.strip()
     # Even with a valid proof pre-placed at the accepted root, a raw ref move carries no
     # closeout-intent marker for this transition, so the hook aborts it.

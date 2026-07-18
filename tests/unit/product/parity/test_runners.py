@@ -301,7 +301,7 @@ def test_embedded_shadow_runner_selects_declared_backend(
             "command": ("status",),
             "reported": "status",
             "suffix": ["--root", "{root}", "--json"],
-            "uses_cwd": False,
+            "uses_cwd": True,
         },
     ],
     ids=["cwd-command", "rooted-command"],

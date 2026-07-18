@@ -211,7 +211,14 @@ def _land_proven_work(repo: Path, tmp_path: Path, name: str, content: str) -> st
 
 
 def test_committed_profile_closeout_blocks_raw_move(tmp_path: Path) -> None:
-    """A missing candidate profile is not inherited: raw moves block, official closeout passes."""
+    """An accepted_ff closeout binds both protected refs to candidate semantics.
+
+    The test keeps the real reference-transaction hook armed, proves raw moves of
+    both ``dev`` and ``main`` block, then makes the accepted checkout's hook reducer
+    unusable.  The sanctioned atomic closeout must still advance both refs through
+    the clean candidate checkout, or the release-mirror half of the transaction
+    would be judged by stale incumbent source.
+    """
     if not _HOOK_SRC.exists():
         return
     os.environ["ETHOS_ACTOR"] = "agent:test:case:agent-test"
@@ -228,7 +235,13 @@ def test_committed_profile_closeout_blocks_raw_move(tmp_path: Path) -> None:
     raw_main = _g(repo, "update-ref", "refs/heads/main", candidate_head, dev_before)
     assert raw_main.returncode != 0
 
-    # The sanctioned closeout of the identical head writes the marker and is admitted.
+    accepted_package = _materialize_accepted_ethos_package(repo)
+    accepted_hook_core = accepted_package / "src" / "ethos" / "surface" / "cli" / "hook" / "core.py"
+    accepted_hook_core.write_text("raise SystemExit(91)\n", encoding="utf-8")
+
+    # The sanctioned closeout of the identical head writes markers for both protected
+    # refs and is judged by the candidate runner, not the intentionally unusable
+    # incumbent reducer.
     closeout = apply_candidate_to_accepted(root=repo, authorized=True, expect_head=dev_before)
     assert closeout["ok"] is True, closeout
     assert _g(repo, "rev-parse", "dev").stdout.strip() == candidate_head

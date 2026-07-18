@@ -34,8 +34,6 @@ if ! command -v shellcheck >/dev/null 2>&1; then
   fi
 fi
 
-# ShellCheck discovers only conventional per-directory rc files; its GitHub-hosted
-# package does not support a custom configuration-file argument. Keep the tracked policy
-# as the canonical owner and project its two portable settings explicitly.
+# GitHub ShellCheck lacks a custom rcfile flag; use portable policy arguments.
 shellcheck --shell=bash --severity=style "${shell_files[@]}"
 python tools/ci/structural_whitespace.py "${shell_files[@]}"

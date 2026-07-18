@@ -1,6 +1,5 @@
 schema = "ethos-ci-template-consistency-v1"
 owner = "ethos-quality-gate-governance"
-summary = "Hosted forge CI files are projections over tracked provider templates."
 
 [[projection]]
 provider = "github"

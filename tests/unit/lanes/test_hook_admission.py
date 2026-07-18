@@ -25,6 +25,69 @@ from tests.support.lane_helpers import init_repo
 from tests.support.lane_helpers import leased_worktree as create_leased_worktree
 
 
+def _write_equal_remote_topology(repo: Path) -> None:
+    release = repo / ".ethos" / "release.toml"
+    release.parent.mkdir(exist_ok=True)
+    release.write_text(
+        """
+[publication.local]
+id = "local"
+mode = "offline"
+verification_command = "tools/ci/scripts/run-local-ci.sh"
+installation_command = "tools/ci/scripts/run-local-install-smoke.sh"
+
+[publication.branch_admission]
+candidate_role = "local_only"
+remote_branches = "accepted_release_submit_only"
+
+[[publication.remote]]
+id = "gitlab"
+role = "organization_collaboration"
+provider = "gitlab"
+git_remote = "origin"
+ci_surface = ".gitlab-ci.yml"
+capabilities = ["repository", "ci_cd", "publication"]
+
+[[publication.remote]]
+id = "github"
+role = "public_distribution"
+provider = "github"
+git_remote = "github"
+ci_surface = ".github/workflows/ci.yml"
+capabilities = ["repository", "ci_cd", "publication"]
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+
+def test_push_admission_rejects_candidate_and_undeclared_remote_targets(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    _write_equal_remote_topology(repo)
+    head = git(repo, "rev-parse", "HEAD")
+
+    candidate = push_admission_report(
+        root=repo,
+        target_ref="refs/heads/candidate/dev",
+        pushed_head=head,
+        remote_name="origin",
+    )
+    unknown = push_admission_report(
+        root=repo,
+        target_ref="refs/heads/dev",
+        pushed_head=head,
+        remote_name="unknown",
+    )
+
+    assert candidate["ok"] is False
+    assert (
+        "publication_candidate_branch_remote_forbidden:candidate/dev" in candidate["required_gaps"]
+    )
+    assert unknown["ok"] is False
+    assert "publication_remote_target_unknown:unknown" in unknown["required_gaps"]
+
+
 @pytest.fixture
 def leased_worktree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     repo = init_repo(tmp_path / "repo")

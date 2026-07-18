@@ -357,65 +357,56 @@ def test_tool_command_surfaces_use_cyclopts_not_legacy_parser() -> None:
 
 
 def test_tracked_python_has_no_legacy_parser_dependency() -> None:
-    """Cyclopts is the sole CLI parser across product, extensions, tests, and tools."""
-    tracked = subprocess.run(
-        ["git", "ls-files", "*.py"],
-        cwd=ROOT,
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout.splitlines()
-    assert all("arg" + "parse" not in imported_modules(ROOT / path) for path in tracked)
-
-
-def test_internal_value_models_are_slotted_and_do_not_add_attrs() -> None:
-    """Keep strict Pydantic boundaries and lean internal values without a third model layer."""
-    for path in (
-        ROOT / relative
+    assert all(
+        "arg" + "parse" not in imported_modules(ROOT / relative)
         for relative in subprocess.run(
             ["git", "ls-files", "*.py"], cwd=ROOT, check=True, capture_output=True, text=True
         ).stdout.splitlines()
-    ):
-        tree = ast.parse(path.read_text(encoding="utf-8"))
-        assert not {"attr", "attrs"} & imported_modules(path)
-        assert all(
+    )
+
+
+def test_internal_value_models_are_slotted_and_do_not_add_attrs() -> None:
+    assert all(
+        not {"attr", "attrs"} & imported_modules(path)
+        and all(
             ast.unparse(decorator) == "dataclass(frozen=True, slots=True)"
-            for node in ast.walk(tree)
+            for node in ast.walk(ast.parse(path.read_text(encoding="utf-8")))
             if isinstance(node, ast.ClassDef)
             for decorator in node.decorator_list
             if isinstance(decorator, ast.Call)
             and isinstance(decorator.func, ast.Name)
             and decorator.func.id == "dataclass"
-        ), path
+        )
+        for path in (
+            ROOT / relative
+            for relative in subprocess.run(
+                ["git", "ls-files", "*.py"], cwd=ROOT, check=True, capture_output=True, text=True
+            ).stdout.splitlines()
+        )
+    )
 
 
 def test_tracked_python_has_no_export_barrels() -> None:
-    """Public names come from defining modules; tracked code has no `__all__` surface."""
-    tracked = subprocess.run(
-        ["git", "ls-files", "*.py"],
-        cwd=ROOT,
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout.splitlines()
-    for relative in tracked:
-        path = ROOT / relative
-        tree = ast.parse(path.read_text(encoding="utf-8"))
-        assert all(
-            not (
-                isinstance(node, ast.Assign)
-                and any(
-                    isinstance(target, ast.Name) and target.id == "__all__"
-                    for target in node.targets
-                )
+    assert not any(
+        (
+            isinstance(node, ast.Assign)
+            and any(
+                isinstance(target, ast.Name) and target.id == "__all__" for target in node.targets
             )
-            and not (
-                isinstance(node, ast.AnnAssign)
-                and isinstance(node.target, ast.Name)
-                and node.target.id == "__all__"
-            )
-            for node in ast.walk(tree)
-        ), path
+        )
+        or (
+            isinstance(node, ast.AnnAssign)
+            and isinstance(node.target, ast.Name)
+            and node.target.id == "__all__"
+        )
+        for path in (
+            ROOT / relative
+            for relative in subprocess.run(
+                ["git", "ls-files", "*.py"], cwd=ROOT, check=True, capture_output=True, text=True
+            ).stdout.splitlines()
+        )
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8")))
+    )
 
 
 def test_openspec_is_official_governance_surface_not_command_root() -> None:

@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import ethos.adapters.shadow.core as shadow_core
+from ethos.repository.evidence.shadow.routing import parity_evidence_repository_root
+from ethos.repository.evidence.shadow.routing import tracked_target_identity
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_raw
 from tests.unit.product.parity.snapshots import MIGRATED_CAPABILITIES
@@ -352,6 +355,20 @@ def test_parity_shadow_write_evidence_defaults_to_generic_adopter(
     }
     assert evidence["freshness"]["command_sha256"] == sha256_text(expected_command)
     assert rendered_evidence == json.dumps(evidence, separators=(",", ":")) + "\n"
+
+
+def test_parity_routing_treats_linked_worktrees_as_one_repository(tmp_path: Path) -> None:
+    product = init_git_repo(tmp_path / "product")
+    linked = tmp_path / "linked"
+    subprocess.run(
+        ["git", "worktree", "add", "-b", "work/linked-parity", linked.as_posix()],
+        cwd=product,
+        check=True,
+        capture_output=True,
+    )
+
+    assert parity_evidence_repository_root(root=product, target=linked) == product.resolve()
+    assert tracked_target_identity(root=product, adopter="generic", target=linked) == "<repo>"
 
 
 def test_tracked_parity_evidence_uses_repository_governance_terms() -> None:

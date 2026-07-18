@@ -7,9 +7,9 @@
 
 ## 2. Local convergence
 
-- [ ] 2.1 Refresh the owned lane from the current candidate and re-observe
+- [x] 2.1 Refresh the owned lane from the current candidate and re-observe
   protected and submit refs immediately before merge.
-- [ ] 2.2 Merge the current submit tip with an ordinary merge, then refresh
+- [x] 2.2 Merge the current submit tip with an ordinary merge, then refresh
   parity and execute a HEAD-bound proof.
 - [ ] 2.3 Archive this carrier only after its documented local implementation
   stage is complete; prove the archive-transition head before candidate land.

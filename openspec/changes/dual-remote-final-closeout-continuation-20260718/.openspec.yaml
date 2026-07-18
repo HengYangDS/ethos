@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-07-18
+goal: Reconcile current candidate and submit tips through local closeout,
+  ordinary protected pushes, and submit retirement without force.

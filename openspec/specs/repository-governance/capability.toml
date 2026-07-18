@@ -5,16 +5,13 @@ decision_axes = ["lifecycle", "surface", "authority"]
 boundary_rules = ["Capability IDs name stable product semantics, not implementation package names.", "OpenSpec records are specification carriers, not truth owners.", "Provider, adopter, or host-specific state remains in adapters, profiles, or evidence."]
 aliases = []
 
-[owner]
-package = "ethos"
-scope = "repository lifecycle governance, Work Lanes, claims, evidence, evolution, release readiness, and OpenSpec carriers"
+owner.package = "ethos"
+owner.scope = "repository lifecycle governance, Work Lanes, claims, evidence, evolution, release readiness, and OpenSpec carriers"
 
-[recommended_facets]
-lifecycle = ["authoring", "validation", "runtime", "archive", "release"]
-surface = ["cli", "docs", "schema", "openspec", "evidence", "skill", "scaffold", "ci", "package"]
-authority = ["source", "test", "schema", "docs", "openspec", "claim", "evidence"]
+recommended_facets.lifecycle = ["authoring", "validation", "runtime", "archive", "release"]
+recommended_facets.surface = ["cli", "docs", "schema", "openspec", "evidence", "skill", "scaffold", "ci", "package"]
+recommended_facets.authority = ["source", "test", "schema", "docs", "openspec", "claim", "evidence"]
 
-[proof_profile]
-default_command = "ethos prove --json"
-executed_command = "ethos prove --execute --json"
-required_gates = ["claims", "schemas"]
+proof_profile.default_command = "ethos prove --json"
+proof_profile.executed_command = "ethos prove --execute --json"
+proof_profile.required_gates = ["claims", "schemas"]

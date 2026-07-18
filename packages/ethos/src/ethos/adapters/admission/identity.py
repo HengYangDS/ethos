@@ -158,7 +158,9 @@ def _reconciliation_baselines(
     observation: ReconciliationObservation,
 ) -> tuple[tuple[str, ...], list[str]]:
     """Read one exact receipt; it scopes history but never grants mutation authority."""
-    if not observation.submit_branch or not _commit_exists(root, pushed_head):
+    if (not observation.submit_branch and not observation.receipt_path) or not _commit_exists(
+        root, pushed_head
+    ):
         return (), []
     primary_suffices = _commit_exists(root, primary_baseline) and commit_contained_in(
         root, primary_baseline, pushed_head
@@ -170,8 +172,9 @@ def _reconciliation_baselines(
     receipt = _read_reconciliation_receipt(observation.receipt_path)
     if receipt is None:
         return (), ["push_identity_reconciliation_receipt_invalid"]
+    submit_branch = observation.submit_branch or str(receipt.get("submit_branch") or "")
     expected = reconciliation_receipt_payload(
-        submit_branch=observation.submit_branch,
+        submit_branch=submit_branch,
         source_head=pushed_head,
         origin_head=str(receipt.get("origin_head") or ""),
         github_head=str(receipt.get("github_head") or ""),

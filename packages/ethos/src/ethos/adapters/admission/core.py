@@ -149,14 +149,15 @@ def push_admission_report(
         else "",
         reconciliation=(
             ReconciliationObservation(
-                submit_branch=branch,
+                submit_branch=branch if role == "submit_lane" else reconciliation.submit_branch,
                 receipt_path=reconciliation.receipt_path,
                 origin_head=reconciliation.origin_head,
                 origin_main_head=reconciliation.origin_main_head,
                 github_head=reconciliation.github_head,
                 github_main_head=reconciliation.github_main_head,
             )
-            if role == "submit_lane" and remote_head == _ZERO_OID
+            if (role == "submit_lane" and remote_head == _ZERO_OID)
+            or (role in PROTECTED_WRITE_ROLES and reconciliation.receipt_path)
             else _NO_RECONCILIATION
         ),
     )

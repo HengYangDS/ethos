@@ -219,7 +219,7 @@ def publication_readiness(
         "remote_state": state,
         "remote_availability": availability,
         "remote_sync": sync,
-        "remote_topology": topology if isinstance(topology, dict) else {"legacy": True},
+        "remote_topology": topology if isinstance(topology, dict) else {"state": "unspecified"},
         "remote_observations": observations,
         "fallback_evidence": fallback,
         "submit_branch": submit,

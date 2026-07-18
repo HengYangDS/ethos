@@ -740,14 +740,14 @@
     "remoteTopology": {
       "type": "object",
       "required": [
-        "legacy"
+        "state"
       ],
       "properties": {
-        "legacy": {
-          "type": "boolean"
+        "state": {
+          "type": "string"
         }
       },
-      "additionalProperties": true
+      "additionalProperties": false
     },
     "remoteObservations": {
       "type": "object",

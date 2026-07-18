@@ -2,11 +2,7 @@ family = "repository-governance"
 primary_invariant = "The repository-governance capability protects repository lifecycle governance, Work Lanes, claims, evidence, evolution, release readiness, and OpenSpec carriers."
 routing_question = "Does this change alter repository lifecycle, truth admission, evidence, claim, chronicle, or evolution governance?"
 decision_axes = ["lifecycle", "surface", "authority"]
-boundary_rules = [
-  "Capability IDs name stable product semantics, not implementation package names.",
-  "OpenSpec records are specification carriers, not truth owners.",
-  "Provider, adopter, or host-specific state remains in adapters, profiles, or evidence.",
-]
+boundary_rules = ["Capability IDs name stable product semantics, not implementation package names.", "OpenSpec records are specification carriers, not truth owners.", "Provider, adopter, or host-specific state remains in adapters, profiles, or evidence."]
 aliases = []
 
 [owner]

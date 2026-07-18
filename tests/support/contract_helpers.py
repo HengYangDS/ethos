@@ -8,15 +8,12 @@ seeding) are the cross-cutting setup every split imports.
 from __future__ import annotations
 
 import subprocess
-from typing import TYPE_CHECKING
+from pathlib import Path
 from typing import NamedTuple
 
 from ethos.adapters.mutation.proof import _promotion_required_gate_ids
 from ethos.repository.adoption.planner import adoption_plan
 from tests.support.ethos_cli_runner import run_ethos
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 class WorkLaneFixture(NamedTuple):
@@ -79,6 +76,18 @@ def commit_fixture_file(root: Path, relative: str, content: str, message: str) -
         message,
     )
     return git(root, "rev-parse", "HEAD")
+
+
+def write_chronicle_decision(repo: Path, *, topic: str, token: str) -> str:
+    """Write and commit a minimal accepted Chronicle decision fixture."""
+    relative = Path("evidence") / "chronicle" / topic / f"{token}.md"
+    commit_fixture_file(
+        repo,
+        relative.as_posix(),
+        f"decision: lane_resolution/{token}\n",
+        f"record {token} decision",
+    )
+    return relative.as_posix()
 
 
 def git(root: Path, *args: str) -> str:

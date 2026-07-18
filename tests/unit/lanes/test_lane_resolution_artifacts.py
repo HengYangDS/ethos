@@ -13,28 +13,9 @@ from ethos.adapters.mutation.resolution.receipts import LaneResolutionClearReque
 from ethos.adapters.mutation.resolution.receipts import clear_lane_resolution_package
 from ethos.adapters.mutation.resolution.receipts import lane_resolution_inventory
 from ethos.adapters.mutation.resolution.receipts import write_resolution_receipt
-from tests.support.lane_helpers import git
+from tests.support.contract_helpers import write_chronicle_decision
 from tests.support.lane_helpers import init_repo
 from tests.support.lane_helpers import orphan_work_lane
-
-
-def _chronicle(repo: Path, token: str) -> str:
-    relative = Path("evidence") / "chronicle" / "lane-resolution-artifacts" / f"{token}.md"
-    document = repo / relative
-    document.parent.mkdir(parents=True, exist_ok=True)
-    document.write_text(f"decision: lane_resolution/{token}\n", encoding="utf-8")
-    git(repo, "add", relative.as_posix())
-    git(
-        repo,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        f"record {token} decision",
-    )
-    return relative.as_posix()
 
 
 def _preserve(repo: Path, lane: Path, tmp_path: Path) -> dict[str, object]:
@@ -46,7 +27,9 @@ def _preserve(repo: Path, lane: Path, tmp_path: Path) -> dict[str, object]:
         disposition="preserve",
         reason="Preserve recoverable owner-unknown work.",
         evidence_refs=("evidence:review",),
-        chronicle_ref=_chronicle(repo, "preserve"),
+        chronicle_ref=write_chronicle_decision(
+            repo, topic="lane-resolution-artifacts", token="preserve"
+        ),
         recovery_plan="Preserve the exact observed state before any later judgment.",
         decision_path=decision_path,
         break_glass=False,
@@ -167,7 +150,9 @@ def test_manual_clear_requires_exact_chronicle_and_manifest_binding(
         request=LaneResolutionClearRequest(
             decision_id=decision_id,
             expect_manifest_sha256=manifest_sha256,
-            chronicle_ref=_chronicle(repo, "clear-preservation"),
+            chronicle_ref=write_chronicle_decision(
+                repo, topic="lane-resolution-artifacts", token="clear-preservation"
+            ),
             reason="",
             break_glass=False,
             confirm_irreversible=False,
@@ -232,7 +217,9 @@ def test_manual_clear_removal_failure_keeps_package_and_discards_clear_receipt(
     package = repo / str(applied["preservation_package"]["path"])
     manifest_sha256 = hashlib.sha256((package / "manifest.json").read_bytes()).hexdigest()
     decision_id = str(applied["receipt"]["decision_id"])
-    chronicle_ref = _chronicle(repo, "clear-preservation")
+    chronicle_ref = write_chronicle_decision(
+        repo, topic="lane-resolution-artifacts", token="clear-preservation"
+    )
 
     original_rmtree = receipt_adapter.shutil.rmtree
 

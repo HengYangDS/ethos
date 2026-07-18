@@ -18,6 +18,7 @@ from ethos.adapters.repo.runtime.core import runtime_binding
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.adapters.store.state.lease.projection import active_leases
 from ethos_core.contracts.branch.roles import BranchRolePolicy
+from tests.support.contract_helpers import commit_fixture_file
 from tests.support.contract_helpers import write_role_policy
 from tests.support.lane_helpers import add_candidate_worktree
 from tests.support.lane_helpers import git
@@ -356,7 +357,7 @@ def test_start_work_lane_apply_starts_from_candidate_branch(tmp_path: Path) -> N
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     candidate_head = git(repo, "rev-parse", "candidate/dev")
     (repo / "README.md").write_text("# changed on dev\n", encoding="utf-8")
-    _commit(repo, "README.md", "advance dev only")
+    commit_fixture_file(repo, "README.md", "# changed on dev\n", "advance dev only")
     worktree = tmp_path / "repo-work-feature"
 
     report = start_work_lane(
@@ -372,24 +373,6 @@ def test_start_work_lane_apply_starts_from_candidate_branch(tmp_path: Path) -> N
     assert git(repo, "rev-parse", "dev") != candidate_head
 
 
-def _commit(root: Path, path: str, message: str) -> None:
-    git(root, "add", path)
-    git(
-        root,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        message,
-    )
-
-
-def _commit_file(root: Path, path: str, content: str, message: str) -> None:
-    (root / path).write_text(content, encoding="utf-8")
-    _commit(root, path, message)
-
 
 def _stale_work_lane(
     tmp_path: Path,
@@ -402,9 +385,9 @@ def _stale_work_lane(
     candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     worktree = tmp_path / "repo-work-feature"
     git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "candidate/dev")
-    _commit_file(candidate, candidate_path, "# candidate\n", "advance candidate")
+    commit_fixture_file(candidate, candidate_path, "# candidate\n", "advance candidate")
     if commit_lane:
-        _commit_file(worktree, lane_path, "# feature\n", "feature work")
+        commit_fixture_file(worktree, lane_path, "# feature\n", "feature work")
     return repo, candidate, worktree, git(worktree, "rev-parse", "HEAD"), git(
         candidate, "rev-parse", "HEAD"
     )
@@ -454,19 +437,31 @@ def test_refresh_work_lane_base_handles_source_budget_debt_conflicts(
 ) -> None:
     repo = init_repo(tmp_path / "repo")
     _rules(repo, [("base", 10)])
-    _commit(repo, ".ethos/rules.toml", "declare source budget debt")
+    rules = ".ethos/rules.toml"
+    commit_fixture_file(repo, rules, (repo / rules).read_text(encoding="utf-8"), "declare source budget debt")
     candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     worktree = tmp_path / "repo-work-feature"
     git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "candidate/dev")
     _rules(candidate, [("base", 10), (candidate_record, 20)])
     if outside_change:
-        rules = candidate / ".ethos" / "rules.toml"
-        rules.write_text(
-            rules.read_text(encoding="utf-8") + "\n[unrelated]\nvalue = true\n", encoding="utf-8"
+        candidate_rules = candidate / rules
+        candidate_rules.write_text(
+            candidate_rules.read_text(encoding="utf-8") + "\n[unrelated]\nvalue = true\n",
+            encoding="utf-8",
         )
-    _commit(candidate, ".ethos/rules.toml", "add candidate debt")
+    commit_fixture_file(
+        candidate,
+        rules,
+        (candidate / rules).read_text(encoding="utf-8"),
+        "add candidate debt",
+    )
     _rules(worktree, [("base", 10), (lane_record, 30)])
-    _commit(worktree, ".ethos/rules.toml", "add lane debt")
+    commit_fixture_file(
+        worktree,
+        rules,
+        (worktree / rules).read_text(encoding="utf-8"),
+        "add lane debt",
+    )
     previous_head = git(worktree, "rev-parse", "HEAD")
     candidate_head = git(candidate, "rev-parse", "HEAD")
 
@@ -571,7 +566,8 @@ def test_refresh_work_lane_base_blocks_unavailable_file_backed_ssh_before_rebase
     key.parent.mkdir()
     key.write_text("private\n", encoding="utf-8")
     key.with_name("signing-key.pub").write_text("public\n", encoding="utf-8")
-    _commit(worktree, "keys", "add signing key fixture")
+    git(worktree, "add", "keys")
+    git(worktree, "-c", "user.name=Test User", "-c", "user.email=test@example.com", "commit", "-m", "add signing key fixture")
     previous_head = git(worktree, "rev-parse", "HEAD")
     original_run_git = lane_mutation.run_git
     rebase_calls: list[tuple[str, ...]] = []
@@ -604,7 +600,7 @@ def test_refresh_work_lane_base_blocks_snapshot_moved_during_preflight(
     _, candidate, worktree, previous_head, _ = _stale_work_lane(tmp_path)
 
     def move_candidate(*_args: object, **_kwargs: object) -> list[str]:
-        _commit_file(candidate, "LATE.md", "# late\n", "advance candidate late")
+        commit_fixture_file(candidate, "LATE.md", "# late\n", "advance candidate late")
         return []
 
     monkeypatch.setattr(lane_refresh, "_signing_preflight_gaps", move_candidate, raising=False)

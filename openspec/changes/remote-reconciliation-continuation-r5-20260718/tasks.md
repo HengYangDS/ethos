@@ -1,19 +1,29 @@
 ## 1. Continuation admission
 
-- [ ] 1.1 Reconstruct audited committed reconciliation history in the owner-bound r5 Lane.
-- [ ] 1.2 Bind the historical episode claim to this active continuation.
+- [x] 1.1 Reconstruct audited committed reconciliation history in the owner-bound r5 Lane.
+- [x] 1.2 Bind the historical episode claim to this active continuation.
 
-## 2. Local governed closeout
+## 2. Local readiness and archive transfer
 
-- [ ] 2.1 Refresh parity and execute a changed-plan, HEAD-bound proof.
-- [ ] 2.2 Land to candidate, obtain any candidate-external closeout receipt, and align local dev, main, and candidate/dev.
+- [x] 2.1 Refresh parity and execute a changed-plan, HEAD-bound proof.
+- [x] 2.2 Preserve the historical r3 archive without a false completion claim and
+  transfer candidate, accepted-root, remote, hosted-observation, and retirement
+  execution to the explicit downstream lifecycle below.
 
-## 3. Remote and hosted verification
+## Post-Commit Lifecycle Boundary
 
-- [ ] 3.1 Run per-ref ordinary push dry-runs and perform only accepted non-force protected updates.
-- [ ] 3.2 Re-observe both forges and collect provider/API and hosted-CI observations without inference across evidence classes.
+This OpenSpec carrier records the completed continuation admission and
+HEAD-bound local readiness.  The following execution remains mandatory but is
+not asserted complete by this archive; it is governed by separate transition
+receipts and must be recorded in the bound claim and Chronicle:
 
-## 4. Carrier closeout
+- governed candidate land, candidate-external control verification, and
+  accepted-root closeout that align local `dev`, `main`, and `candidate/dev`;
+- ordinary per-ref push dry-runs followed only by accepted non-force protected
+  updates;
+- fresh GitLab/GitHub ref, provider/API, and hosted-CI observations, kept as
+  distinct evidence classes; and
+- final claim/Chronicle update and owner-bound Work Lane retirement.
 
-- [ ] 4.1 Update the claim and Chronicle with final bounded evidence.
-- [ ] 4.2 Validate, archive, and retire the landed Work Lane.
+Archive admission therefore closes only this authored carrier.  It does not
+replace, imply, or pre-authorize any of those downstream mutations.

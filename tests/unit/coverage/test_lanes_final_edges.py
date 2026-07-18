@@ -3,6 +3,7 @@
 # matching patched runtime functions; unused parameters document those contracts.
 
 from __future__ import annotations
+# fmt: off
 
 import subprocess
 from pathlib import Path
@@ -31,7 +32,7 @@ def fake_git(
         for prefix, response in responses.items():
             if args[: len(prefix)] == prefix:
                 return response
-        return default or cp(returncode=0)
+        return default or cp(stdout="c1\n" if args == ("rev-parse", "candidate/dev") else "")
 
     return run
 
@@ -176,7 +177,8 @@ def test_lanes_remaining_branches(monkeypatch, tmp_path: Path) -> None:
                     "-c",
                     "rebase.updateRefs=false",
                     "rebase",
-                    "candidate/dev",
+                    "c1",
+                    "h1",
                 ): cp(returncode=1, stderr="rebase fail"),
             },
             calls=calls,
@@ -186,8 +188,9 @@ def test_lanes_remaining_branches(monkeypatch, tmp_path: Path) -> None:
         root=tmp_path, apply=True, authorized=True, expect_head="h1"
     )
     assert failed["required_gaps"] == ["refresh_base_failed"]
-    assert ("-c", "rebase.updateRefs=false", "rebase", "candidate/dev") in calls
+    assert ("-c", "rebase.updateRefs=false", "rebase", "c1", "h1") in calls
     assert ("rebase", "--abort") in calls
+# fmt: on
 
     monkeypatch.setattr(
         lanes,
@@ -360,7 +363,7 @@ def test_refresh_work_lane_base_disables_update_refs_during_rebase(
         fake_git(
             {
                 ("rev-parse", "HEAD"): cp(stdout="h1\n"),
-                ("-c", "rebase.updateRefs=false", "rebase", "candidate/dev"): cp(returncode=0),
+                ("-c", "rebase.updateRefs=false", "rebase", "c1", "h1"): cp(returncode=0),
             },
             calls=calls,
         ),
@@ -374,8 +377,8 @@ def test_refresh_work_lane_base_disables_update_refs_during_rebase(
     )
 
     assert report["state"] == "base_refreshed"
-    assert ("-c", "rebase.updateRefs=false", "rebase", "candidate/dev") in calls
-    assert ("rebase", "candidate/dev") not in calls
+    assert ("-c", "rebase.updateRefs=false", "rebase", "c1", "h1") in calls
+    assert ("rebase", "c1", "h1") not in calls
 
 
 def test_refresh_work_lane_base_aborts_when_projection_continue_fails(
@@ -410,7 +413,8 @@ def test_refresh_work_lane_base_aborts_when_projection_continue_fails(
                     "-c",
                     "rebase.updateRefs=false",
                     "rebase",
-                    "candidate/dev",
+                    "c1",
+                    "h1",
                 ): cp(returncode=1, stderr="projection conflict"),
                 ("diff",): cp(stdout="evidence/parity/generic-shadow.json\n"),
                 ("checkout",): cp(returncode=0),
@@ -431,5 +435,5 @@ def test_refresh_work_lane_base_aborts_when_projection_continue_fails(
     )
 
     assert failed["required_gaps"] == ["refresh_base_failed"]
-    assert ("-c", "rebase.updateRefs=false", "rebase", "candidate/dev") in calls
+    assert ("-c", "rebase.updateRefs=false", "rebase", "c1", "h1") in calls
     assert ("rebase", "--abort") in calls

@@ -92,11 +92,6 @@ def prepare_accepted_closeout(monkeypatch: pytest.MonkeyPatch) -> None:
         "carry_executed_proof_record",
         lambda **kwargs: {"ok": True, "state": "carried", "required_gaps": []},
     )
-    monkeypatch.setattr(
-        closeout_core,
-        "_atomic_update",
-        lambda *_args, **_kwargs: cp(stdout="", returncode=0),
-    )
 
 
 def evidence_for(head: str, runs: list[dict[str, object]] | None = None) -> dict[str, object]:
@@ -393,28 +388,17 @@ def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
         lambda root, *args, check=True, **kwargs: cp(
             stdout="h1\n",
             stderr="cannot lock ref",
-            returncode=1 if args[-2:] == ("update-ref", "--stdin") else 0,
+            returncode=1 if args[:1] == ("update-ref",) else 0,
         ),
-    )
-    monkeypatch.setattr(
-        closeout_core,
-        "_atomic_update",
-        lambda *_args, **_kwargs: cp(stderr="cannot lock ref", returncode=1),
     )
     assert mutation_core.apply_candidate_to_accepted(
         root=tmp_path, authorized=True, expect_head="h1"
-    )["required_gaps"] == ["accepted_atomic_update_rejected"]
-
-    monkeypatch.setattr(
-        closeout_core,
-        "_atomic_update",
-        lambda *_args, **_kwargs: cp(stdout="", returncode=0),
-    )
+    )["required_gaps"] == ["accepted_advanced_concurrently"]
 
     def fake_git_sync_failed(_root, *args, check=True, **_kwargs):
         _ = check
         reset_attempts = fake_git_sync_failed.reset_attempts
-        if args[-2:] == ("update-ref", "--stdin"):
+        if args[:1] == ("update-ref",):
             return cp(stdout="", returncode=0)
         if args[:2] == ("reset", "--hard"):
             fake_git_sync_failed.reset_attempts = reset_attempts + 1
@@ -433,7 +417,7 @@ def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
 
     def fake_git_clean_after_sync(_root, *args, check=True, **_kwargs):
         _ = check
-        if args[-2:] == ("update-ref", "--stdin"):
+        if args[:1] == ("update-ref",):
             return cp(stdout="", returncode=0)
         if args[:2] == ("reset", "--hard"):
             return cp(stdout="", returncode=0)
@@ -448,35 +432,6 @@ def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
         ]
         == "accepted_validated"
     )
-
-
-def test_closeout_reports_observed_accepted_concurrency(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    """A rejected atomic update is concurrent only when the accepted ref moved."""
-    prepare_accepted_closeout(monkeypatch)
-    monkeypatch.setattr(
-        closeout_core,
-        "_atomic_update",
-        lambda *_args, **_kwargs: cp(stderr="cannot lock ref", returncode=1),
-    )
-    monkeypatch.setattr(
-        mutation_core,
-        "run_git",
-        lambda _root, *args, **_kwargs: cp(
-            stdout="concurrent\n"
-            if args[:3] == ("rev-parse", "--verify", "refs/heads/dev")
-            else "h1\n"
-        ),
-    )
-
-    concurrent = mutation_core.apply_candidate_to_accepted(
-        root=tmp_path, authorized=True, expect_head="h1"
-    )
-
-    assert concurrent["required_gaps"] == ["accepted_advanced_concurrently"]
-    assert concurrent["observed_accepted_head"] == "concurrent"
-    assert concurrent["remediation"][0]["kind"] == "accepted_advanced_concurrently"
 
 
 def test_release_mirror_closeout_edge_paths(monkeypatch, tmp_path):
@@ -509,18 +464,9 @@ def test_release_mirror_closeout_edge_paths(monkeypatch, tmp_path):
         == "synced"
     )
     failed = closeout_core.sync_release_mirror(
-        transition,
-        worktrees,
-        "new",
-        "old",
-        lambda *_a, **_k: cp(stderr="sync", returncode=1),
+        transition, worktrees, "new", "old", lambda *_a, **_k: cp(stderr="sync", returncode=1)
     )
     monkeypatch.setattr(closeout_core, "sync_release_mirror", lambda *_a: failed)
-    monkeypatch.setattr(
-        closeout_core,
-        "_atomic_update",
-        lambda *_args, **_kwargs: cp(stdout="", returncode=0),
-    )
     assert closeout_core.promote_candidate_to_accepted(
         request,
         dependencies=closeout_core.CloseoutDependencies(
@@ -533,6 +479,50 @@ def test_release_mirror_closeout_edge_paths(monkeypatch, tmp_path):
     assert closeout_core.proof_required_gaps({"required_gaps": "invalid"}) == ["proof_invalid"]
     assert closeout_core.proof_required_gaps(object()) == ["proof_invalid"]
     assert closeout_core.proof_carry_failure(request, object()) is not None
+
+
+def test_changed_hook_bootstrap_reports_incomplete_release_mirror(monkeypatch, tmp_path):
+    request = closeout_core.CloseoutRequest(
+        root=tmp_path,
+        policy=BranchRolePolicy(release_mirror="accepted_ff"),
+        current_head="old",
+        candidate_head="new",
+        candidate_path=tmp_path,
+        worktrees=[],
+    )
+
+    def fake_git(_root, *args, **_kwargs):
+        if args[:2] == ("rev-parse", "main"):
+            return cp("old\n")
+        if args[:2] == ("rev-parse", "old:.githooks/reference-transaction"):
+            return cp("old-hook\n")
+        if args[:2] == ("rev-parse", "new:.githooks/reference-transaction"):
+            return cp("new-hook\n")
+        if args[:1] == ("update-ref",):
+            fake_git.update_count += 1
+            return (
+                cp() if fake_git.update_count == 1 else cp(stderr="release rejected", returncode=1)
+            )
+        if args[:2] == ("reset", "--hard") or args[:2] == ("status", "--short"):
+            return cp()
+        return cp("old\n")
+
+    fake_git.update_count = 0
+    monkeypatch.setattr(closeout_core, "_proof_digest", lambda *_args: "proof")
+    monkeypatch.setattr(closeout_core, "gate_policy_digest", lambda *_args, **_kwargs: "policy")
+    result = closeout_core.promote_candidate_to_accepted(
+        request,
+        dependencies=closeout_core.CloseoutDependencies(
+            run_git=fake_git,
+            is_ancestor=lambda *_args: True,
+            carry_proof=lambda **_kwargs: {"ok": True, "required_gaps": []},
+            discard_proof=lambda *_args: None,
+        ),
+    )
+
+    assert result["required_gaps"] == ["release_mirror_bootstrap_incomplete"]
+    assert result["accepted_advanced"] is True
+    assert result["release_mirror"]["bootstrap"] == "incomplete"
 
 
 def test_closeout_retries_transient_accepted_worktree_sync_failure(
@@ -571,7 +561,7 @@ def test_closeout_blocks_dirty_accepted_worktree_after_sync(
 
     def fake_git_dirty_after_sync(_root, *args, check=True, **_kwargs):
         _ = check
-        if args[-2:] == ("update-ref", "--stdin"):
+        if args[:1] == ("update-ref",):
             return cp(stdout="", returncode=0)
         if args[:2] == ("reset", "--hard"):
             return cp(stdout="", returncode=0)

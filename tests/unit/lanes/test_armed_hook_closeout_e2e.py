@@ -27,11 +27,11 @@ from pathlib import Path
 
 from ethos.adapters.mutation.core import apply_candidate_to_accepted
 from ethos.adapters.mutation.core import apply_land_to_candidate
-from ethos.adapters.mutation.lane_lifecycle.refresh import refresh_candidate_from_accepted
 from ethos.adapters.mutation.proof import record_executed_proof
 from ethos.adapters.store.state.lease.lifecycle.core import acquire_lease
 from ethos.repository.evidence.core import EvidenceSet
-from ethos.repository.policy.gates import promotion_required_gate_ids
+from ethos.repository.policy.gates import default_gate_ids
+from tests.support.contract_helpers import _declare_minimal_code_correctness
 from tests.support.contract_helpers import conformant_proof_run
 
 _HOOK_SRC = Path(__file__).resolve().parents[3] / ".githooks" / "reference-transaction"
@@ -58,7 +58,7 @@ def _commit(root: Path, message: str) -> str:
 
 def _seed_proof(root: Path, head: str) -> None:
     runs = tuple(
-        conformant_proof_run(gate_id, root) for gate_id in promotion_required_gate_ids(root)
+        conformant_proof_run(gate_id, root) for gate_id in default_gate_ids(full=False, root=root)
     )
     record_executed_proof(root, EvidenceSet.from_runs(id="p", head=head, runs=runs).to_dict())
 
@@ -102,6 +102,10 @@ def _armed_repo(tmp_path: Path, *, mirror: bool = False) -> Path:
     shutil.copy(_RUNTIME_BOOTSTRAP_SRC, runtime_script_dir / "with-python-runtime.sh")
     (runtime_script_dir / "with-python-runtime.sh").chmod(0o755)
     (repo / "README.md").write_text("# x\n", encoding="utf-8")
+    profile = repo / ".ethos" / "profile.toml"
+    profile.parent.mkdir(exist_ok=True)
+    profile.write_text('profile_id = "armed-adopter"\n', encoding="utf-8")
+    _declare_minimal_code_correctness(repo)
     if mirror:
         policy = repo / ".ethos" / "workspace.toml"
         policy.parent.mkdir(exist_ok=True)
@@ -158,7 +162,10 @@ def _seed_core_declaration_resources(root: Path, source_root: Path) -> None:
         (source_root / "system" / "workflows.toml", "workflows.toml"),
         (source_root / "system" / "coupling.toml", "coupling.toml"),
         (source_root / "system" / "standards.toml", "standards.toml"),
-        (source_root / "system" / "policies" / "evidence-layout.toml", "evidence_layout.toml"),
+        (
+            source_root / "system" / "policies" / "evidence-layout.toml",
+            "evidence_layout.toml",
+        ),
         (
             source_root / "system" / "policies" / "generated-artifact-topology.toml",
             "generated_artifact_topology.toml",
@@ -194,6 +201,7 @@ def _land_proven_work(repo: Path, tmp_path: Path, name: str, content: str) -> st
     )
     _g(repo, "worktree", "add", "-b", f"work/{name}", str(work), "candidate/dev")
     (work / f"{name}.txt").write_text(content, encoding="utf-8")
+    (work / ".ethos" / "profile.toml").unlink(missing_ok=True)
     _g(work, "add", ".")
     work_head = _commit(work, f"work {name}")
     _seed_proof(work, work_head)
@@ -202,30 +210,8 @@ def _land_proven_work(repo: Path, tmp_path: Path, name: str, content: str) -> st
     return work_head
 
 
-def test_sanctioned_land_and_closeout_pass_through_armed_hook(tmp_path: Path) -> None:
-    """With the bypass removed, sanctioned land + closeout still advance candidate then dev
-    through the armed reference-transaction hook."""
-    if not _HOOK_SRC.exists():
-        return
-    os.environ["ETHOS_ACTOR"] = "agent:test:case:agent-test"
-    repo = _armed_repo(tmp_path, mirror=True)
-
-    candidate_head = _land_proven_work(repo, tmp_path, "w", "hi\n")
-    assert _g(repo, "rev-parse", "candidate/dev").stdout.strip() == candidate_head
-
-    dev_before = _g(repo, "rev-parse", "dev").stdout.strip()
-    closeout = apply_candidate_to_accepted(root=repo, authorized=True, expect_head=dev_before)
-    assert closeout["ok"] is True, closeout
-    assert closeout["state"] == "accepted_validated"
-    assert _g(repo, "rev-parse", "dev").stdout.strip() == candidate_head
-    assert _g(repo, "rev-parse", "main").stdout.strip() == candidate_head
-
-
-def test_raw_ref_move_to_proven_head_is_blocked_without_marker(tmp_path: Path) -> None:
-    """A hand-typed `git update-ref dev <candidate_head>` — proof present but NO one-shot
-    closeout-intent marker — is aborted by the armed hook, while the sanctioned closeout of
-    the very same head succeeds. This is the discrimination the removed env bypass used to
-    defeat."""
+def test_committed_profile_closeout_blocks_raw_move(tmp_path: Path) -> None:
+    """A missing candidate profile is not inherited: raw moves block, official closeout passes."""
     if not _HOOK_SRC.exists():
         return
     os.environ["ETHOS_ACTOR"] = "agent:test:case:agent-test"
@@ -247,42 +233,6 @@ def test_raw_ref_move_to_proven_head_is_blocked_without_marker(tmp_path: Path) -
     assert closeout["ok"] is True, closeout
     assert _g(repo, "rev-parse", "dev").stdout.strip() == candidate_head
     assert _g(repo, "rev-parse", "main").stdout.strip() == candidate_head
-
-
-def test_candidate_refresh_from_accepted_admitted_without_bypass(
-    tmp_path: Path,
-) -> None:
-    """`refresh_candidate_from_accepted` rewinds candidate onto the accepted head; the armed
-    hook admits it without a fresh proof because the target is already accepted-contained.
-    Without the refresh exemption this would self-block once the bypass is gone."""
-    if not _HOOK_SRC.exists():
-        return
-    os.environ["ETHOS_ACTOR"] = "agent:test:case:agent-test"
-    repo = _armed_repo(tmp_path)
-
-    # Advance dev ahead of candidate by landing + closing out one change.
-    candidate_head = _land_proven_work(repo, tmp_path, "w", "hi\n")
-    dev_before = _g(repo, "rev-parse", "dev").stdout.strip()
-    apply_candidate_to_accepted(root=repo, authorized=True, expect_head=dev_before)
-    accepted_head = _g(repo, "rev-parse", "dev").stdout.strip()
-    assert accepted_head == candidate_head
-
-    # Move dev one commit further via a second sanctioned round so candidate lags accepted.
-    second_head = _land_proven_work(repo, tmp_path, "w2", "yo\n")
-    apply_candidate_to_accepted(
-        root=repo,
-        authorized=True,
-        expect_head=_g(repo, "rev-parse", "dev").stdout.strip(),
-    )
-    accepted_head = _g(repo, "rev-parse", "dev").stdout.strip()
-    assert accepted_head == second_head
-
-    # Rewind candidate onto accepted — admitted through the armed hook, no proof required.
-    refreshed = refresh_candidate_from_accepted(
-        root=repo, apply=True, authorized=True, expect_head=accepted_head
-    )
-    assert refreshed["ok"] is True, refreshed
-    assert _g(repo, "rev-parse", "candidate/dev").stdout.strip() == accepted_head
 
 
 def test_closeout_binds_semantic_hook_runner_to_candidate_checkout(

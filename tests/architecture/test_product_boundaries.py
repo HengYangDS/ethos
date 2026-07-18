@@ -356,57 +356,38 @@ def test_tool_command_surfaces_use_cyclopts_not_legacy_parser() -> None:
         assert "arg" + "parse" not in modules, path
 
 
-def test_tracked_python_has_no_legacy_parser_dependency() -> None:
-    assert all(
-        "arg" + "parse" not in imported_modules(ROOT / relative)
-        for relative in subprocess.run(
-            ["git", "ls-files", "*.py"], cwd=ROOT, check=True, capture_output=True, text=True
-        ).stdout.splitlines()
-    )
-
-
-def test_internal_value_models_are_slotted_and_do_not_add_attrs() -> None:
-    assert all(
-        not {"attr", "attrs"} & imported_modules(path)
-        and all(
+def test_tracked_python_follows_parser_model_and_export_policy() -> None:
+    for relative in subprocess.run(
+        ["git", "ls-files", "*.py"], cwd=ROOT, check=True, capture_output=True, text=True
+    ).stdout.splitlines():
+        path = ROOT / relative
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        assert "arg" + "parse" not in imported_modules(path), path
+        assert not {"attr", "attrs"} & imported_modules(path), path
+        assert all(
             ast.unparse(decorator) == "dataclass(frozen=True, slots=True)"
-            for node in ast.walk(ast.parse(path.read_text(encoding="utf-8")))
+            for node in ast.walk(tree)
             if isinstance(node, ast.ClassDef)
             for decorator in node.decorator_list
             if isinstance(decorator, ast.Call)
             and isinstance(decorator.func, ast.Name)
             and decorator.func.id == "dataclass"
-        )
-        for path in (
-            ROOT / relative
-            for relative in subprocess.run(
-                ["git", "ls-files", "*.py"], cwd=ROOT, check=True, capture_output=True, text=True
-            ).stdout.splitlines()
-        )
-    )
-
-
-def test_tracked_python_has_no_export_barrels() -> None:
-    assert not any(
-        (
-            isinstance(node, ast.Assign)
-            and any(
-                isinstance(target, ast.Name) and target.id == "__all__" for target in node.targets
+        ), path
+        assert not any(
+            (
+                isinstance(node, ast.Assign)
+                and any(
+                    isinstance(target, ast.Name) and target.id == "__all__"
+                    for target in node.targets
+                )
             )
-        )
-        or (
-            isinstance(node, ast.AnnAssign)
-            and isinstance(node.target, ast.Name)
-            and node.target.id == "__all__"
-        )
-        for path in (
-            ROOT / relative
-            for relative in subprocess.run(
-                ["git", "ls-files", "*.py"], cwd=ROOT, check=True, capture_output=True, text=True
-            ).stdout.splitlines()
-        )
-        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8")))
-    )
+            or (
+                isinstance(node, ast.AnnAssign)
+                and isinstance(node.target, ast.Name)
+                and node.target.id == "__all__"
+            )
+            for node in ast.walk(tree)
+        ), path
 
 
 def test_openspec_is_official_governance_surface_not_command_root() -> None:

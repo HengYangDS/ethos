@@ -10,7 +10,6 @@ from ethos.repository.evidence.parity.validation import parity_evidence
 from ethos.repository.evidence.parity.validation import tracked_evidence_provenance
 from ethos.repository.evidence.shadow.payload import PARITY_RELEVANT_PATHS
 from ethos.repository.evidence.shadow.payload import SHADOW_PARITY_DIMENSIONS
-from ethos.repository.evidence.shadow.payload import build_tracked_parity_evidence
 from ethos.repository.evidence.shadow.routing import REPOSITORY_TARGET
 from ethos.repository.evidence.shadow.routing import parity_evidence_path
 from ethos.repository.evidence.shadow.routing import parity_evidence_repository_root
@@ -23,8 +22,6 @@ from ethos_core.normalization.core import string_list
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
-
-__all__ = ["build_tracked_parity_evidence"]
 
 
 def parity_ledger_report() -> dict[str, object]:

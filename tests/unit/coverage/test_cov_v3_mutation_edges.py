@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 
 import ethos.adapters.mutation.lane_lifecycle.refresh as lanes_refresh
 import ethos.adapters.mutation.lane_retirement.unbound.core as unbound_retirement
+import ethos_core.contracts.lifecycle.core as lifecycle_contract
 from ethos.adapters.mutation import core
 from ethos.adapters.mutation import lanes
 from ethos.adapters.mutation import proof as mutation_proof
@@ -74,7 +75,7 @@ def test_closeout_candidate_gaps_dirty_worktree(tmp_path: Path) -> None:
 
 def test_evaluate_closeout_mutation_requires_authorization_and_head(tmp_path: Path) -> None:
     # apply without authorization/expect_head appends both gaps (lines 203, 206).
-    request = core.MutationRequest(
+    request = lifecycle_contract.MutationRequest(
         command="closeout", apply=True, authorized=False, expect_head=None
     )
     decision = core.evaluate_closeout_mutation(request, root=tmp_path, current_head="x")
@@ -87,7 +88,7 @@ def test_evaluate_closeout_mutation_accepted_root_dirty(tmp_path: Path) -> None:
     # An accepted-root checkout that is dirty is blocked as accepted_root_dirty (line 213).
     repo = _init_repo(tmp_path / "acc")  # branch dev == accepted_root
     (repo / "residue.txt").write_text("dirty\n", encoding="utf-8")  # untracked -> dirty
-    request = core.MutationRequest(
+    request = lifecycle_contract.MutationRequest(
         command="closeout", apply=False, authorized=False, expect_head=None
     )
     decision = core.evaluate_closeout_mutation(request, root=repo, current_head=_head(repo))
@@ -98,7 +99,9 @@ def test_evaluate_closeout_mutation_accepted_root_dirty(tmp_path: Path) -> None:
 def test_apply_land_to_candidate_returns_blocked_decision(tmp_path: Path) -> None:
     # A not-ok admitted decision returns the blocked payload early (line 247).
     repo = _init_repo(tmp_path / "repo")
-    blocked = core.MutationEvaluation(ok=False, state="blocked", gaps=("authorization_required",))
+    blocked = lifecycle_contract.MutationEvaluation(
+        ok=False, state="blocked", gaps=("authorization_required",)
+    )
     result = core.apply_land_to_candidate(
         root=repo, authorized=False, expect_head=None, admitted_decision=blocked
     )
@@ -234,7 +237,7 @@ def test_land_blocks_when_proof_carry_to_candidate_fails(
         "carry_executed_proof_record",
         lambda **_k: {"ok": False, "required_gaps": ["proof_not_proven"]},
     )
-    ready = core.MutationEvaluation(ok=True, state="land_ready")
+    ready = lifecycle_contract.MutationEvaluation(ok=True, state="land_ready")
     result = core.apply_land_to_candidate(
         root=tmp_path, authorized=True, expect_head="h1", admitted_decision=ready
     )

@@ -17,17 +17,6 @@ from tests.support.contract_helpers import init_git_repo as init_repo
 if TYPE_CHECKING:
     from pathlib import Path
 
-__all__ = (
-    "absorb_obsolete_delta_in_accepted",
-    "add_candidate_worktree",
-    "assert_no_ui_projection",
-    "git",
-    "init_repo",
-    "leased_worktree",
-    "orphan_work_lane",
-    "superseded_work_lane",
-)
-
 
 def add_candidate_worktree(repo: Path, path: Path) -> Path:
     git(repo, "worktree", "add", "-b", "candidate/dev", path.as_posix(), "dev")

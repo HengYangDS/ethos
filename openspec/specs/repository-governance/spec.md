@@ -2502,11 +2502,18 @@ ETHOS SHALL allow `ethos campaign closeout --campaign <campaign-id> --json` to e
 ETHOS SHALL model repo-first worktree governance v2 as a dedicated strict-serial campaign. Its bootstrap SHALL record Git as authority for refs, history, and linked-worktree registration; ETHOS as authority for policy, ownership, admission, receipts, and lifecycle gates; and an optional future backup system only as an independent backup mechanism for sealed records. The bootstrap SHALL not authorize cross-repository lifecycle transfer, foreign-lane mutation, or dirty-state retirement.
 
 #### Scenario: Bootstrap exposes independent future slices
-- **GIVEN** the repo-first worktree governance campaign is active
+- **GIVEN** the repo-first worktree governance campaign is active or archive-ready
 - **WHEN** `ethos campaign status --campaign repo-first-worktree-governance-v2 --json` runs
 - **THEN** it exposes one active bootstrap step and ordered planned successor steps
 - **AND** every successor declares its own OpenSpec change, Work Lane, Claim, and planned closeout record
 - **AND** the campaign topology is `strict_serial`.
+
+#### Scenario: Archive-ready bootstrap remains non-terminal
+- **GIVEN** the bootstrap OpenSpec carrier was officially archived before its Work Lane is locally closed
+- **WHEN** the bootstrap step is recorded as `archive_ready`
+- **THEN** it resolves only to its archived carrier
+- **AND** its closeout record remains non-terminal
+- **AND** it does not claim candidate land, accepted-root closeout, or Work Lane retirement.
 
 #### Scenario: Foreign lane remains outside bootstrap authority
 - **GIVEN** a visible linked Work Lane has no owned lease or owner handoff for the bootstrap holder
@@ -2527,4 +2534,3 @@ ETHOS SHALL reserve repository-adjacent topology for future governed worktree an
 - **THEN** Git remains the authority for committed refs and worktree registration
 - **AND** ETHOS remains the authority for admission, lifecycle, receipt, and retirement decisions
 - **AND** the topology alone does not authorize a filesystem deletion or restore.
-

@@ -7,7 +7,7 @@ claim_id = "worktree-governance-campaign-20260718"
 [[step]]
 id = "campaign-bootstrap"
 title = "Campaign bootstrap and scoped closeout"
-state = "active"
+state = "archive_ready"
 ordinal = 1
 depends_on = []
 openspec_change = "repo-first-worktree-governance-campaign-20260718"

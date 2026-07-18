@@ -741,6 +741,25 @@ def test_campaign_closeout_scopes_to_selected_campaign() -> None:
     assert [item["id"] for item in package["campaigns"]] == ["terminal-openspec-productization"]
 
 
+def test_campaign_status_exposes_archive_ready_bootstrap_without_terminal_claim() -> None:
+    payload = run_ethos(
+        "campaign",
+        "status",
+        "--campaign",
+        "repo-first-worktree-governance-v2",
+        "--json",
+    )
+
+    assert payload["ok"] is True
+    campaign = payload["data"]["campaigns"][0]
+    bootstrap = campaign["steps"][0]
+    assert bootstrap["state"] == "archive_ready"
+    assert bootstrap["closeout"]["state"] == "planned"
+    assert campaign["step_summary"]["archive_ready"] == 1
+    assert campaign["step_summary"]["closed"] == 0
+    assert campaign["lane_topology"]["active_steps"] == ["campaign-bootstrap"]
+
+
 def test_campaign_closeout_unknown_selector_reports_gap() -> None:
     payload = run_ethos(
         "campaign",

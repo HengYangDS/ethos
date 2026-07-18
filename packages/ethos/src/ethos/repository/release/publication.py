@@ -37,7 +37,7 @@ def publication_branch_admission(
     accepted_branch = str(policy.get("accepted_branch") or "dev")
     release_branch = str(policy.get("release_branch") or "main")
     submit_branch_prefix = str(policy.get("submit_branch_prefix") or "submit/")
-    remote_name = str(policy.get("remote_name") or "origin")
+    remote_name = str(policy["remote_name"]) if "remote_name" in policy else "origin"
     enforce = bool(policy.get("enforce", True))
     legacy = bool(topology.get("legacy"))
     gaps = [] if legacy or not enforce else _strings(topology.get("required_gaps"))

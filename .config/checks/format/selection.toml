@@ -119,6 +119,7 @@ yaml_allowed_roots = [
   "evidence/chronicle/all-work-lanes-convergence-20260716/lane-inventory.json",
   "evidence/chronicle/all-lanes-convergence-replay-20260718/lane-resolution-matrix.json",
   "evidence/chronicle/all-lanes-authorized-closeout-20260718/current-lane-matrix.json",
+  "evidence/chronicle/all-lanes-resolution-execution-20260718/lane-resolution-matrix.json",
 ] }
 ".j2" = { roots = ["packages/"] }
 ".mjs" = { roots = ["distributions/npm/"] }

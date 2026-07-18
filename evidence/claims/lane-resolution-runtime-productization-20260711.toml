@@ -11,9 +11,7 @@ sha256 = "2f97489e05f1544247377c0ce3f8f8edec15d1cc75d20f7f2407e2601158d4b7"
 evidence_ids = ["evidence:lane-resolution-runtime-productization-verification"]
 binding = "archived OpenSpec carrier and user-authorized local productization scope"
 verifier = "digest_only"
-tests = [
-  "ethos prove --execute --expect-head <lane-head> --json",
-]
+tests = ["ethos prove --execute --expect-head <lane-head> --json"]
 
 [evidence.freshness]
 mode = "historical"
@@ -28,10 +26,4 @@ fallback = "Keep existing recovery packages intact and invoke ETHOS through an e
 kill_signal = "Any path reintroduces root cache or root virtual-environment creation for new lanes, clears a package without manifest-bound Chronicle evidence, or makes a local artifact authoritative."
 
 [promotion]
-targets = [
-  "packages/ethos/src/ethos/adapters/mutation/resolution/lane.py",
-  "packages/ethos/src/ethos/adapters/mutation/resolution/receipts.py",
-  "packages/ethos-core/src/ethos_core/contracts/resolution/lane.py",
-  "system/policies/generated-artifact-topology.toml",
-  "tests/unit/governance/test_generated_artifact_topology.py",
-]
+targets = ["packages/ethos/src/ethos/adapters/mutation/resolution/lane.py", "packages/ethos/src/ethos/adapters/mutation/resolution/receipts.py", "packages/ethos-core/src/ethos_core/contracts/resolution/lane.py", "system/policies/generated-artifact-topology.toml", "tests/unit/governance/test_generated_artifact_topology.py"]

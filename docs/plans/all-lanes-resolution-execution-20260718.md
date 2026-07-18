@@ -11,6 +11,14 @@ relations:
 
 Status: active owned Work Lane.
 
+Purpose: turn the fresh exact Work Lane inventory into portable, accepted,
+preservation-first resolution decisions without inventing authority over foreign
+holders or deleting unresolved work.
+
+See also: [Mutation Rules](../../rules/mutation.md),
+[Evidence Rules](../../rules/evidence.md), and
+[All Work Lanes Resolution Chronicle](../../evidence/chronicle/all-lanes-resolution-execution-20260718/2026-07-18.md).
+
 ## Objective
 
 Convert the fresh exact Work Lane matrix into accepted, two-phase local
@@ -45,3 +53,6 @@ separate authority boundary is still required.
 - Dirty work is never discarded manually.
 - The 2026-07-16 frozen cohort and 2026-07-18 post-freeze rows remain separate
   matrix dimensions.
+- Linked worktree locations are stored as a neutral token plus a SHA-256
+  binding, so accepted evidence retains exact-observation identity without
+  publishing workstation-specific paths.

@@ -215,7 +215,7 @@ allowance_by_category = { python_product = 170, python_tests = 157, toml = 9 }
 [[quality.source_budget.debt.records]]
 id = "repo-first-worktree-governance-bootstrap-20260718"
 owner = "repo-first-worktree-governance-campaign-20260718"
-replacement = "complete the campaign bootstrap closeout and archive the active carrier; later campaign slices must use their own evidence-bound growth decisions"
+replacement = "complete the campaign bootstrap local closeout and retire its owned Work Lane; the archived carrier is retained as historical evidence, and later campaign slices must use their own evidence-bound growth decisions"
 deletion_wave = "repo-first-worktree-governance"
 expiry = "2026-07-25"
 allowance = 213

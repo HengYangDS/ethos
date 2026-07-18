@@ -328,77 +328,133 @@ def _openspec_carrier_state(root: Path, change: str) -> str:
 
 
 def _campaign_required_gaps(root: Path, campaign: dict[str, Any]) -> list[str]:
-    gaps: list[str] = []
-    gaps.extend(
+    steps = campaign["steps"]
+    gaps = _campaign_metadata_gaps(campaign, steps)
+    step_by_id = {step["id"]: step for step in steps if step["id"]}
+    for index, step in enumerate(steps, start=1):
+        gaps.extend(_campaign_step_gaps(root, campaign["id"], steps, step_by_id, index, step))
+    return gaps
+
+
+def _campaign_metadata_gaps(campaign: dict[str, Any], steps: list[dict[str, Any]]) -> list[str]:
+    gaps = [
         f"campaign_{field}_missing:{campaign['id']}"
         for field in ("id", "state", "owner", "objective", "claim_id")
         if not campaign[field]
-    )
-    steps = campaign["steps"]
+    ]
     step_by_id = {step["id"]: step for step in steps if step["id"]}
     if len(step_by_id) != len([step for step in steps if step["id"]]):
         gaps.append(f"campaign_step_id_duplicate:{campaign['id']}")
     if len(campaign["lane_topology"]["active_steps"]) > 1:
         gaps.append(f"campaign_active_step_not_serial:{campaign['id']}")
-    for index, step in enumerate(steps, start=1):
-        step_id = step["id"] or "unnamed"
-        for field in ("id", "title", "openspec_change", "work_lane", "claim_id"):
-            if not step[field]:
-                gaps.append(f"campaign_step_{field}_missing:{campaign['id']}:{step_id}")
-        if step["ordinal"] != index:
-            gaps.append(f"campaign_step_ordinal_invalid:{campaign['id']}:{step_id}")
-        expected_dependency = [] if index == 1 else [steps[index - 2]["id"]]
-        if step["depends_on"] != expected_dependency:
-            gaps.append(f"campaign_step_dependency_not_serial:{campaign['id']}:{step_id}")
-        for dependency in step["depends_on"]:
-            dependency_step = step_by_id.get(dependency)
-            if dependency_step is None:
-                gaps.append(
-                    f"campaign_step_dependency_missing:{campaign['id']}:{step_id}:{dependency}"
-                )
-                continue
-            if step["state"] != "planned" and dependency_step["closeout"]["state"] != "retired":
-                gaps.append(
-                    f"campaign_step_dependency_not_retired:{campaign['id']}:{step_id}:{dependency}"
-                )
-        if step["state"] in {"closed", "retired"} and step["closeout"]["state"] not in {
-            "closed",
-            "retired",
-        }:
-            gaps.append(f"campaign_step_closeout_state_incomplete:{campaign['id']}:{step_id}")
-        if step["closeout"]["state"] in {"closed", "retired"}:
-            closeout = step["closeout"]
-            if not closeout["accepted_head"] or not closeout["candidate_head"]:
-                gaps.append(f"campaign_step_closeout_head_missing:{campaign['id']}:{step_id}")
-            if not closeout["evidence"]:
-                gaps.append(f"campaign_step_closeout_evidence_missing:{campaign['id']}:{step_id}")
-        change = step["openspec_change"]
-        carrier_state = _openspec_carrier_state(root, change)
-        execution_step = step["state"] in {"active", "in_progress", "landed"}
-        archive_ready_step = step["state"] == "archive_ready"
-        terminal_step = step["state"] in {"closed", "retired"}
-        terminal_closeout = step["closeout"]["state"] in {"closed", "retired"}
-        if execution_step and terminal_closeout:
-            gaps.append(f"campaign_step_execution_closeout_terminal:{campaign['id']}:{step_id}")
-        if archive_ready_step and terminal_closeout:
-            gaps.append(f"campaign_step_archive_ready_closeout_terminal:{campaign['id']}:{step_id}")
-        if terminal_closeout and not terminal_step:
-            gaps.append(f"campaign_step_terminal_closeout_nonterminal:{campaign['id']}:{step_id}")
-        if carrier_state == "ambiguous":
-            gaps.append(f"campaign_step_openspec_ambiguous:{campaign['id']}:{step_id}")
-        elif archive_ready_step and carrier_state != "archived":
+    return gaps
+
+
+def _campaign_step_gaps(
+    root: Path,
+    campaign_id: str,
+    steps: list[dict[str, Any]],
+    step_by_id: dict[str, dict[str, Any]],
+    index: int,
+    step: dict[str, Any],
+) -> list[str]:
+    step_id = step["id"] or "unnamed"
+    gaps = _campaign_step_shape_gaps(campaign_id, steps, index, step, step_id)
+    gaps.extend(_campaign_step_dependency_gaps(campaign_id, step, step_id, step_by_id))
+    gaps.extend(_campaign_step_closeout_gaps(campaign_id, step, step_id))
+    gaps.extend(_campaign_step_carrier_gaps(root, campaign_id, step, step_id))
+    return gaps
+
+
+def _campaign_step_shape_gaps(
+    campaign_id: str,
+    steps: list[dict[str, Any]],
+    index: int,
+    step: dict[str, Any],
+    step_id: str,
+) -> list[str]:
+    gaps = [
+        f"campaign_step_{field}_missing:{campaign_id}:{step_id}"
+        for field in ("id", "title", "openspec_change", "work_lane", "claim_id")
+        if not step[field]
+    ]
+    if step["ordinal"] != index:
+        gaps.append(f"campaign_step_ordinal_invalid:{campaign_id}:{step_id}")
+    expected_dependency = [] if index == 1 else [steps[index - 2]["id"]]
+    if step["depends_on"] != expected_dependency:
+        gaps.append(f"campaign_step_dependency_not_serial:{campaign_id}:{step_id}")
+    return gaps
+
+
+def _campaign_step_dependency_gaps(
+    campaign_id: str,
+    step: dict[str, Any],
+    step_id: str,
+    step_by_id: dict[str, dict[str, Any]],
+) -> list[str]:
+    gaps: list[str] = []
+    for dependency in step["depends_on"]:
+        dependency_step = step_by_id.get(dependency)
+        if dependency_step is None:
+            gaps.append(f"campaign_step_dependency_missing:{campaign_id}:{step_id}:{dependency}")
+        elif step["state"] != "planned" and dependency_step["closeout"]["state"] != "retired":
             gaps.append(
-                f"campaign_step_archive_ready_openspec_not_archived:{campaign['id']}:{step_id}"
+                f"campaign_step_dependency_not_retired:{campaign_id}:{step_id}:{dependency}"
             )
-        elif execution_step and carrier_state == "archived":
-            gaps.append(f"campaign_step_active_openspec_archived:{campaign['id']}:{step_id}")
-        elif terminal_step and carrier_state != "archived":
-            gaps.append(f"campaign_step_terminal_openspec_not_archived:{campaign['id']}:{step_id}")
-        needs_existing_carrier = (
-            step["state"] != "planned" or step["closeout"]["state"] != "planned"
-        )
-        if needs_existing_carrier and change and carrier_state == "missing":
-            gaps.append(f"campaign_step_openspec_missing:{campaign['id']}:{step_id}")
+    return gaps
+
+
+def _campaign_step_closeout_gaps(
+    campaign_id: str,
+    step: dict[str, Any],
+    step_id: str,
+) -> list[str]:
+    terminal_step = step["state"] in {"closed", "retired"}
+    terminal_closeout = step["closeout"]["state"] in {"closed", "retired"}
+    gaps: list[str] = []
+    if terminal_step and not terminal_closeout:
+        gaps.append(f"campaign_step_closeout_state_incomplete:{campaign_id}:{step_id}")
+    if terminal_closeout:
+        closeout = step["closeout"]
+        if not closeout["accepted_head"] or not closeout["candidate_head"]:
+            gaps.append(f"campaign_step_closeout_head_missing:{campaign_id}:{step_id}")
+        if not closeout["evidence"]:
+            gaps.append(f"campaign_step_closeout_evidence_missing:{campaign_id}:{step_id}")
+    if step["state"] in {"active", "in_progress", "landed"} and terminal_closeout:
+        gaps.append(f"campaign_step_execution_closeout_terminal:{campaign_id}:{step_id}")
+    if step["state"] == "archive_ready" and terminal_closeout:
+        gaps.append(f"campaign_step_archive_ready_closeout_terminal:{campaign_id}:{step_id}")
+    if terminal_closeout and not terminal_step:
+        gaps.append(f"campaign_step_terminal_closeout_nonterminal:{campaign_id}:{step_id}")
+    return gaps
+
+
+def _campaign_step_carrier_gaps(
+    root: Path,
+    campaign_id: str,
+    step: dict[str, Any],
+    step_id: str,
+) -> list[str]:
+    change = step["openspec_change"]
+    carrier_state = _openspec_carrier_state(root, change)
+    execution_step = step["state"] in {"active", "in_progress", "landed"}
+    archive_ready_step = step["state"] == "archive_ready"
+    terminal_step = step["state"] in {"closed", "retired"}
+    gaps: list[str] = []
+    if carrier_state == "ambiguous":
+        gaps.append(f"campaign_step_openspec_ambiguous:{campaign_id}:{step_id}")
+    elif archive_ready_step and carrier_state != "archived":
+        gaps.append(f"campaign_step_archive_ready_openspec_not_archived:{campaign_id}:{step_id}")
+    elif execution_step and carrier_state == "archived":
+        gaps.append(f"campaign_step_active_openspec_archived:{campaign_id}:{step_id}")
+    elif terminal_step and carrier_state != "archived":
+        gaps.append(f"campaign_step_terminal_openspec_not_archived:{campaign_id}:{step_id}")
+    if (
+        (step["state"] != "planned" or step["closeout"]["state"] != "planned")
+        and change
+        and carrier_state == "missing"
+    ):
+        gaps.append(f"campaign_step_openspec_missing:{campaign_id}:{step_id}")
     return gaps
 
 

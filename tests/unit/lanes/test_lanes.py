@@ -6,11 +6,11 @@ from typing import TYPE_CHECKING
 from ethos.adapters.mutation.lanes import start_work_lane
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.repository.policy.schema import validate_schema_instance
+from tests.support.contract_helpers import write_role_policy
 from tests.support.lane_helpers import add_candidate_worktree
 from tests.support.lane_helpers import assert_no_ui_projection
 from tests.support.lane_helpers import git
 from tests.support.lane_helpers import init_repo
-from tests.support.lane_helpers import write_role_policy
 
 if TYPE_CHECKING:
     from pathlib import Path

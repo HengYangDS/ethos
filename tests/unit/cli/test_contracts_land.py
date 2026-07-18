@@ -12,10 +12,10 @@ from tests.support.contract_helpers import init_git_repo
 from tests.support.contract_helpers import init_repo_with_candidate
 from tests.support.contract_helpers import seed_executed_proof
 from tests.support.contract_helpers import start_adopted_work_lane
+from tests.support.contract_helpers import write_role_policy
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.ethos_cli_runner import run_ethos_raw
-from tests.support.ethos_cli_runner import write_role_policy
 
 if TYPE_CHECKING:
     from pathlib import Path

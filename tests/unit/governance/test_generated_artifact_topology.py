@@ -4,6 +4,8 @@ import os
 import subprocess
 from pathlib import Path
 
+import pytest
+
 from ethos.repository.policy import artifacts as artifacts_mod
 from ethos.repository.policy.artifacts import generated_artifact_entrypoint_audit
 from ethos.repository.policy.artifacts import generated_artifact_topology_report
@@ -21,6 +23,37 @@ def _init_repo(root: Path) -> None:
     _git(root, "init", "-b", "dev")
     _git(root, "config", "user.name", "Test User")
     _git(root, "config", "user.email", "test@example.com")
+
+
+def _fake_uv(tmp_path: Path, body: str) -> Path:
+    fake_uv = tmp_path / "bin" / "uv"
+    fake_uv.parent.mkdir()
+    fake_uv.write_text(body, encoding="utf-8")
+    fake_uv.chmod(0o755)
+    return fake_uv
+
+
+def _environment(fake_uv: Path, **values: str | None) -> dict[str, str]:
+    environment = {**os.environ, "PATH": f"{fake_uv.parent}:{os.environ['PATH']}"}
+    for key, value in values.items():
+        if value is None:
+            environment.pop(key, None)
+        else:
+            environment[key] = value
+    return environment
+
+
+def _run_bootstrap(
+    repo: Path, environment: dict[str, str], *command: str
+) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [Path("tools/ci/scripts/with-python-runtime.sh").resolve().as_posix(), "--", *command],
+        cwd=repo,
+        env=environment,
+        check=True,
+        text=True,
+        capture_output=True,
+    )
 
 
 def test_generated_artifact_topology_declaration_drives_contract_and_policy() -> None:
@@ -545,190 +578,131 @@ url="https://nodejs.org/dist/v1/node.tar.xz"
     assert audit["required_gaps"] == []
 
 
-def test_semantic_runtime_bootstrap_exports_checkout_environment_and_host_cache(
+_UV_CONTEXT = '#!/usr/bin/env bash\nprintf \'%s\\n%s\\n%s\\n\' "$UV_PROJECT_ENVIRONMENT" "$UV_CACHE_DIR" "$*"\n'
+
+
+@pytest.mark.parametrize(
+    ("body", "values", "command", "expected"),
+    [
+        (
+            _UV_CONTEXT,
+            {
+                "XDG_CACHE_HOME": "host-cache",
+                "UV_PROJECT_ENVIRONMENT": None,
+                "UV_CACHE_DIR": None,
+                "ETHOS_UV_CACHE_DIR": None,
+            },
+            ("uv", "run", "--no-sync", "--version"),
+            ("environment", "host-cache/ethos/uv", "run --no-sync --version"),
+        ),
+        (
+            '#!/usr/bin/env bash\nprintf \'%s\\n%s\\n\' "$UV_PROJECT_ENVIRONMENT" "$UV_CACHE_DIR"\n',
+            {"UV_CACHE_DIR": "ci-cache/uv", "ETHOS_UV_CACHE_DIR": None},
+            ("uv", "--version"),
+            ("environment", "ci-cache/uv"),
+        ),
+        (
+            "#!/usr/bin/env bash\nprintf '%s\\n' \"$UV_CACHE_DIR\"\n",
+            {"UV_CACHE_DIR": "ci-cache/uv", "ETHOS_UV_CACHE_DIR": "operator-cache/uv"},
+            ("uv", "--version"),
+            ("operator-cache/uv",),
+        ),
+    ],
+)
+def test_semantic_runtime_bootstrap_selects_cache(
     tmp_path: Path,
+    body: str,
+    values: dict[str, str | None],
+    command: tuple[str, ...],
+    expected: tuple[str, ...],
 ) -> None:
     repo = tmp_path / "repo"
     _init_repo(repo)
-    fake_uv = tmp_path / "bin" / "uv"
-    fake_uv.parent.mkdir()
-    fake_uv.write_text(
-        '#!/usr/bin/env bash\nprintf \'%s\\n%s\\n%s\\n\' "$UV_PROJECT_ENVIRONMENT" "$UV_CACHE_DIR" "$*"\n',
-        encoding="utf-8",
-    )
-    fake_uv.chmod(0o755)
-    bootstrap = Path("tools/ci/scripts/with-python-runtime.sh").resolve()
-    environment = dict(os.environ)
-    environment["PATH"] = f"{fake_uv.parent}:{environment['PATH']}"
-    environment["XDG_CACHE_HOME"] = (tmp_path / "host-cache").as_posix()
-    environment.pop("UV_PROJECT_ENVIRONMENT", None)
-    environment.pop("UV_CACHE_DIR", None)
-    environment.pop("ETHOS_UV_CACHE_DIR", None)
+    fake_uv = _fake_uv(tmp_path, body)
+    actual = _run_bootstrap(
+        repo,
+        _environment(
+            fake_uv,
+            **{
+                key: (tmp_path / value).as_posix() if value is not None else None
+                for key, value in values.items()
+            },
+        ),
+        *command,
+    ).stdout.splitlines()
 
-    completed = subprocess.run(
-        [bootstrap.as_posix(), "--", "uv", "run", "--no-sync", "--version"],
-        cwd=repo,
-        env=environment,
-        check=True,
-        text=True,
-        capture_output=True,
-    )
-
-    assert completed.stdout.splitlines() == [
-        f"{repo}/build/runtime/venv",
-        f"{tmp_path}/host-cache/ethos/uv",
-        "run --no-sync --version",
+    assert actual == [
+        f"{repo}/build/runtime/venv"
+        if value == "environment"
+        else f"{tmp_path}/{value}"
+        if "/" in value
+        else value
+        for value in expected
     ]
+    if "operator-cache/uv" in expected:
+        assert (tmp_path / "operator-cache/uv").is_dir()
 
 
-def test_semantic_runtime_bootstrap_preserves_explicit_ci_cache(tmp_path: Path) -> None:
-    repo = tmp_path / "repo"
-    _init_repo(repo)
-    fake_uv = tmp_path / "bin" / "uv"
-    fake_uv.parent.mkdir()
-    fake_uv.write_text(
-        '#!/usr/bin/env bash\nprintf \'%s\\n%s\\n\' "$UV_PROJECT_ENVIRONMENT" "$UV_CACHE_DIR"\n',
-        encoding="utf-8",
-    )
-    fake_uv.chmod(0o755)
-    bootstrap = Path("tools/ci/scripts/with-python-runtime.sh").resolve()
-    environment = dict(os.environ)
-    environment["PATH"] = f"{fake_uv.parent}:{environment['PATH']}"
-    ci_cache = tmp_path / "ci-cache" / "uv"
-    environment["UV_CACHE_DIR"] = ci_cache.as_posix()
-    environment.pop("ETHOS_UV_CACHE_DIR", None)
-
-    completed = subprocess.run(
-        [bootstrap.as_posix(), "--", "uv", "--version"],
-        cwd=repo,
-        env=environment,
-        check=True,
-        text=True,
-        capture_output=True,
-    )
-
-    assert completed.stdout.splitlines() == [
-        f"{repo}/build/runtime/venv",
-        ci_cache.as_posix(),
-    ]
-
-
-def test_semantic_runtime_bootstrap_prefers_ethos_cache_override(
+@pytest.mark.parametrize(
+    ("values", "expected_cache", "expected_command"),
+    [
+        (
+            {
+                "XDG_CACHE_HOME": "host-cache",
+                "UV_PROJECT_ENVIRONMENT": None,
+                "UV_CACHE_DIR": None,
+                "ETHOS_UV_CACHE_DIR": None,
+                "ETHOS_RUNTIME_ROOT": None,
+            },
+            "host-cache/ethos/uv",
+            ("status", "--json"),
+        ),
+        (
+            {
+                "UV_PROJECT_ENVIRONMENT": "outer/build/runtime/venv",
+                "UV_CACHE_DIR": "host-cache/ethos/uv",
+                "ETHOS_RUNTIME_ROOT": "outer",
+                "ETHOS_UV_CACHE_DIR": None,
+            },
+            "nested-bootstrap",
+            (),
+        ),
+    ],
+)
+def test_semantic_runtime_bootstrap_rewrites_checkout_python(
     tmp_path: Path,
+    values: dict[str, str | None],
+    expected_cache: str,
+    expected_command: tuple[str, ...],
 ) -> None:
     repo = tmp_path / "repo"
     _init_repo(repo)
-    fake_uv = tmp_path / "bin" / "uv"
-    fake_uv.parent.mkdir()
-    fake_uv.write_text(
-        "#!/usr/bin/env bash\nprintf '%s\\n' \"$UV_CACHE_DIR\"\n",
-        encoding="utf-8",
+    fake_uv = _fake_uv(tmp_path, _UV_CONTEXT)
+    checkout_python = repo.resolve() / "build/runtime/venv/bin/python"
+    actual = _run_bootstrap(
+        repo,
+        _environment(
+            fake_uv,
+            **{
+                key: (tmp_path / value).as_posix() if value is not None else None
+                for key, value in values.items()
+            },
+        ),
+        checkout_python.as_posix(),
+        "-m",
+        "ethos.cli",
+        *expected_command,
+    ).stdout.splitlines()
+
+    assert actual[0] == f"{repo.resolve()}/build/runtime/venv"
+    assert actual[2] == "run --group dev python -m ethos.cli" + (
+        f" {' '.join(expected_command)}" if expected_command else ""
     )
-    fake_uv.chmod(0o755)
-    bootstrap = Path("tools/ci/scripts/with-python-runtime.sh").resolve()
-    environment = dict(os.environ)
-    environment["PATH"] = f"{fake_uv.parent}:{environment['PATH']}"
-    environment["UV_CACHE_DIR"] = (tmp_path / "ci-cache" / "uv").as_posix()
-    ethos_cache = tmp_path / "operator-cache" / "uv"
-    environment["ETHOS_UV_CACHE_DIR"] = ethos_cache.as_posix()
-
-    completed = subprocess.run(
-        [bootstrap.as_posix(), "--", "uv", "--version"],
-        cwd=repo,
-        env=environment,
-        check=True,
-        text=True,
-        capture_output=True,
-    )
-
-    assert completed.stdout == f"{ethos_cache}\n"
-    assert ethos_cache.is_dir()
-
-
-def test_semantic_runtime_bootstrap_materializes_missing_checkout_python(
-    tmp_path: Path,
-) -> None:
-    repo = tmp_path / "repo"
-    _init_repo(repo)
-    fake_uv = tmp_path / "bin" / "uv"
-    fake_uv.parent.mkdir()
-    fake_uv.write_text(
-        '#!/usr/bin/env bash\nprintf \'%s\\n%s\\n%s\\n\' "$UV_PROJECT_ENVIRONMENT" "$UV_CACHE_DIR" "$*"\n',
-        encoding="utf-8",
-    )
-    fake_uv.chmod(0o755)
-    bootstrap = Path("tools/ci/scripts/with-python-runtime.sh").resolve()
-    environment = dict(os.environ)
-    environment["PATH"] = f"{fake_uv.parent}:{environment['PATH']}"
-    environment["XDG_CACHE_HOME"] = (tmp_path / "host-cache").as_posix()
-    environment.pop("UV_PROJECT_ENVIRONMENT", None)
-    environment.pop("UV_CACHE_DIR", None)
-    environment.pop("ETHOS_UV_CACHE_DIR", None)
-    environment.pop("ETHOS_RUNTIME_ROOT", None)
-    resolved_repo = repo.resolve()
-    checkout_python = resolved_repo / "build" / "runtime" / "venv" / "bin" / "python"
-
-    completed = subprocess.run(
-        [
-            bootstrap.as_posix(),
-            "--",
-            checkout_python.as_posix(),
-            "-m",
-            "ethos.cli",
-            "status",
-            "--json",
-        ],
-        cwd=repo,
-        env=environment,
-        check=True,
-        text=True,
-        capture_output=True,
-    )
-
-    assert completed.stdout.splitlines() == [
-        f"{resolved_repo}/build/runtime/venv",
-        f"{tmp_path}/host-cache/ethos/uv",
-        "run --group dev python -m ethos.cli status --json",
-    ]
+    if expected_cache == "nested-bootstrap":
+        assert Path(actual[1]).parent == tmp_path / "host-cache/ethos/uv/nested-bootstrap"
+    else:
+        assert actual[1] == f"{tmp_path}/{expected_cache}"
     assert not checkout_python.exists()
-
-
-def test_semantic_runtime_bootstrap_namespaces_nested_cache_under_selected_root(
-    tmp_path: Path,
-) -> None:
-    repo = tmp_path / "repo"
-    _init_repo(repo)
-    fake_uv = tmp_path / "bin" / "uv"
-    fake_uv.parent.mkdir()
-    fake_uv.write_text(
-        '#!/usr/bin/env bash\nprintf \'%s\\n%s\\n%s\\n\' "$UV_PROJECT_ENVIRONMENT" "$UV_CACHE_DIR" "$*"\n',
-        encoding="utf-8",
-    )
-    fake_uv.chmod(0o755)
-    bootstrap = Path("tools/ci/scripts/with-python-runtime.sh").resolve()
-    environment = dict(os.environ)
-    environment["PATH"] = f"{fake_uv.parent}:{environment['PATH']}"
-    cache_root = tmp_path / "host-cache" / "ethos" / "uv"
-    outer_root = tmp_path / "outer"
-    environment["UV_PROJECT_ENVIRONMENT"] = (outer_root / "build" / "runtime" / "venv").as_posix()
-    environment["UV_CACHE_DIR"] = cache_root.as_posix()
-    environment["ETHOS_RUNTIME_ROOT"] = outer_root.as_posix()
-    environment.pop("ETHOS_UV_CACHE_DIR", None)
-    checkout_python = repo.resolve() / "build" / "runtime" / "venv" / "bin" / "python"
-
-    completed = subprocess.run(
-        [bootstrap.as_posix(), "--", checkout_python.as_posix(), "-m", "ethos.cli"],
-        cwd=repo,
-        env=environment,
-        check=True,
-        text=True,
-        capture_output=True,
-    )
-
-    environment_home, nested_cache, command = completed.stdout.splitlines()
-    assert environment_home == f"{repo.resolve()}/build/runtime/venv"
-    assert Path(nested_cache).parent == cache_root / "nested-bootstrap"
-    assert command == "run --group dev python -m ethos.cli"
 
 
 def test_semantic_runtime_bootstrap_detaches_owner_script_from_uv_sync_lock(

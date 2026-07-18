@@ -8,7 +8,7 @@ ETHOS already treats a Work Lane as the normal mutation boundary and OpenSpec as
 
 - Create a dedicated, strict-serial campaign with one active bootstrap step and explicit future independent steps.
 - Make campaign closeout selection explicit, read-only, schema-compatible, and observable in the output envelope.
-- Bind bootstrap scope to an active claim, OpenSpec carrier, dated Chronicle, and future local-closeout evidence.
+- Bind bootstrap scope to an active claim, OpenSpec carrier, dated Chronicle, a bounded source-budget record, and future local-closeout evidence.
 - Preserve the repo-first directory grammar: `<repo>`, `<repo>-worktrees/<date>-<task>`, and `<repo>-records/{.staging,evidence,recovery}/<timestamp>-<purpose>`.
 
 **Non-Goals:**
@@ -22,6 +22,7 @@ ETHOS already treats a Work Lane as the normal mutation boundary and OpenSpec as
 2. **Bounded closeout selection.** `ethos campaign closeout --campaign <id>` passes the selector to the campaign report. The output records the requested selector and only evaluates selected campaign manifests for the campaign package and local readiness.
 3. **No implicit authority transfer.** Git remains authoritative for refs/history/registration; ETHOS remains authoritative for policy, ownership, receipts, and gates. The campaign is an orchestration record only.
 4. **Frozen topology, later mechanics.** Directory grammar and dirty-state recovery order are contractual now; capture, sealing, deletion admission, and retirement are separately implemented later to avoid a bootstrap that claims unsafe mechanics as done.
+5. **Bounded bootstrap budget.** The campaign records its measured TOML growth as temporary, category-specific source-budget debt with an expiry and deletion wave. This preserves the existing readable serial carrier instead of concealing governance state through format-only compression; it does not settle or absorb foreign debt.
 
 ## Risks / Trade-offs
 

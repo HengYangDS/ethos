@@ -6,7 +6,7 @@ ETHOS observes a large portfolio of linked Work Lanes whose location, ownership,
 
 - Add a dedicated strict-serial campaign for repo-first worktree governance v2.
 - Add `--campaign` selection to the read-only campaign closeout report so one campaign can be evaluated without unrelated active campaigns becoming implicit blockers.
-- Bind the bootstrap lane, OpenSpec carrier, claim, scoped evidence, and implementation contract to the campaign’s first step.
+- Bind the bootstrap lane, OpenSpec carrier, claim, scoped evidence, implementation contract, and a bounded source-budget record to the campaign’s first step.
 - State the frozen directory grammar and authority split as repository-governance behavior, while deferring destructive recovery and migration mechanics to later campaign steps.
 
 ## Capabilities
@@ -24,6 +24,7 @@ ETHOS observes a large portfolio of linked Work Lanes whose location, ownership,
 - This bootstrap does not capture, move, retire, delete, prune, or modify any foreign, unknown, App-managed, or runtime-managed worktree.
 - It does not create a workstation-wide lifecycle authority, invoke Kopia, or use Git stash as recovery machinery.
 - It does not implement later recovery-package, deletion-admission, records, migration, or retirement-saga steps; those remain independently OpenSpec-backed campaign steps.
+- It does not settle unrelated source-budget debt or import another lane’s growth allowance; the bootstrap record is bounded to this carrier and its declared deletion wave.
 
 ## Impact
 

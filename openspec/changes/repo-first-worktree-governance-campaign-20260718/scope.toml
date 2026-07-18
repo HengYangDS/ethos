@@ -2,6 +2,9 @@ schema_version = 1
 paths = [
   "docs/governance/evolution-campaign.md",
   "docs/reference/command-plane.md",
+  ".ethos/rules.toml",
+  "evidence/claims/adopter-openspec-lifecycle-20260714.toml",
+  "evidence/chronicle/adopter-openspec-lifecycle-20260714/**",
   "evidence/claims/worktree-governance-campaign-20260718.toml",
   "evidence/chronicle/worktree-governance-campaign-20260718/**",
   "evolution/campaigns/repo-first-worktree-governance-v2/**",

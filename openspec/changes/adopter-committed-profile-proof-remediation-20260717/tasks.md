@@ -12,9 +12,11 @@
 ## 3. Proof and evidence
 
 - [x] 3.1 Pass the existing source-budget contract without new debt, allowance, or exclusion.
-- [ ] 3.2 Run strict OpenSpec/lifecycle/claim validation and a reliable full-suite proof.
-- [ ] 3.3 Regenerate generic parity evidence at the stable implementation HEAD and commit it.
-- [ ] 3.4 Run exact-HEAD executed proof, archive this Change, and prove the archive-transition HEAD.
+- [x] 3.2 Run strict OpenSpec/lifecycle/claim validation and a reliable full-suite proof.
+- [x] 3.3 Regenerate generic parity evidence at the stable implementation HEAD and commit it.
+- [ ] 3.4 After this task update is committed, run a new exact-HEAD executed proof.
+      Archive only if that proof passes, then prove the archive-transition HEAD.
+      Do not mark this task complete until both official receipts exist.
 
 Candidate landing, accepted-root closeout, Work Lane retirement, and GitLab or
 GitHub publication are separate transitions and are intentionally not closed by

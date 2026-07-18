@@ -18,6 +18,9 @@ and both the GitLab `submit/dual-remote-reconciliation-20260718` and GitHub
    effect.  Any move invalidates the pending action.
 4. Keep proof, local closeout, remote mutation, remote observation, and hosted
    observation as separate evidence classes.
+5. Archive this carrier after the source-level local-convergence proof.  Run
+   candidate/accepted closeout and external ref effects only after that archive,
+   with fresh observations at every effect boundary.
 
 ## Risks
 

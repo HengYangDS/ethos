@@ -16,6 +16,7 @@ import pytest
 
 import ethos.adapters.shadow.core as shadow_core
 import ethos.repository.evidence.parity.core as parity
+import ethos.repository.evidence.shadow.payload as shadow_payload
 import ethos.surface.cli.parity.core as parity_cli
 from ethos.assistants import playbooks
 from ethos.assistants.skills import portfolio
@@ -48,7 +49,7 @@ def test_shadow_identity_takes_dict_branch(tmp_path: Path) -> None:
         },
     }
 
-    evidence = parity.build_tracked_parity_evidence(
+    evidence = shadow_payload.build_tracked_parity_evidence(
         adopter="demo",
         target=tmp_path,
         shadow=shadow,
@@ -86,7 +87,7 @@ def test_shadow_parity_report_flags_target_mismatch(tmp_path: Path) -> None:
     # at line 412 and routing the report into the `invalid` branch.
     other = tmp_path / "other"
     other.mkdir()
-    evidence = parity.build_tracked_parity_evidence(
+    evidence = shadow_payload.build_tracked_parity_evidence(
         adopter="demo",
         target=other,
         shadow={"ok": True, "required_gaps": [], "accepted_summary": {"total_count": 1}},

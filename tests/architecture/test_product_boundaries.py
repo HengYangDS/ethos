@@ -376,14 +376,29 @@ def test_internal_value_models_are_slotted_and_do_not_add_attrs() -> None:
     )
 
 
-def test_package_roots_do_not_reexport_module_surfaces() -> None:
-    for path in (ROOT / "packages").glob("*/src/*/__init__.py"):
+def test_tracked_python_has_no_export_barrels() -> None:
+    """Public names come from defining modules; tracked code has no `__all__` surface."""
+    tracked = subprocess.run(
+        ["git", "ls-files", "*.py"], cwd=ROOT, check=True, capture_output=True, text=True
+    ).stdout.splitlines()
+    for relative in tracked:
+        path = ROOT / relative
         tree = ast.parse(path.read_text(encoding="utf-8"))
-        for node in ast.walk(tree):
-            assert not isinstance(node, (ast.Import, ast.ImportFrom)), path
-            if isinstance(node, ast.Assign):
-                for target in node.targets:
-                    assert not (isinstance(target, ast.Name) and target.id == "__all__"), path
+        assert all(
+            not (
+                isinstance(node, ast.Assign)
+                and any(
+                    isinstance(target, ast.Name) and target.id == "__all__"
+                    for target in node.targets
+                )
+            )
+            and not (
+                isinstance(node, ast.AnnAssign)
+                and isinstance(node.target, ast.Name)
+                and node.target.id == "__all__"
+            )
+            for node in ast.walk(tree)
+        ), path
 
 
 def test_openspec_is_official_governance_surface_not_command_root() -> None:

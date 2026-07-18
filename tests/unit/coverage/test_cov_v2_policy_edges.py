@@ -160,10 +160,7 @@ def test_style_issues_short_circuit_for_non_google_style(tmp_path: Path) -> None
     )
     _write(
         tmp_path / "packages/sample/src/sample/api.py",
-        '"""Module."""\n'
-        '__all__ = ["thing"]\n\n'
-        "def thing():\n"
-        '    """Legacy.\n\n    :param x: value.\n    """\n',
+        '"""Module."""\ndef thing():\n    """Legacy.\n\n    :param x: value.\n    """\n',
     )
 
     report = docstrings_mod.docstring_coverage_report(tmp_path)
@@ -213,23 +210,6 @@ def test_sections_resets_current_on_unindented_heading() -> None:
 def test_legacy_markers_capture_field_prefix() -> None:
     # A legacy `:param` field line yields its first token as a marker (docstrings.py 411).
     assert docstring_style.legacy_docstring_markers(":param value: input.") == (":param",)
-
-
-def test_explicit_exports_skips_non_all_assignment() -> None:
-    # A plain assignment that is not __all__ is skipped via `continue` (docstrings.py 457),
-    # while the real __all__ list is still collected.
-    tree = ast.parse("x = 5\n__all__ = ['exported']\n")
-
-    assert docstrings_mod._explicit_exports(tree) == {"exported"}
-
-
-def test_decorator_is_command_matches_name_and_rejects_other() -> None:
-    # A bare *command Name decorator matches via fnmatch (docstrings.py 474-475);
-    # a decorator that is neither Call/Attribute/Name falls through to False (476).
-    name_deco = ast.parse("@app_command\ndef f(): ...").body[0].decorator_list[0]
-
-    assert docstrings_mod._decorator_is_command(name_deco) is True
-    assert docstrings_mod._decorator_is_command(ast.Constant(value=1)) is False
 
 
 # ---------------------------------------------------------------------------

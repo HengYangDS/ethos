@@ -10,8 +10,7 @@ from pathlib import Path
 from typing import Any
 from typing import cast
 
-from ethos.adapters.mutation.core import MutationRequest
-from ethos.adapters.mutation.core import mutation_envelope
+from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.mutation.lane_lifecycle.core import repo_root
 from ethos.adapters.mutation.lane_lifecycle.core import run_git
 from ethos.adapters.repo.status.core import workspace_status
@@ -24,6 +23,7 @@ from ethos.adapters.store.state.lease.projection import integer_value
 from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.coordination import HolderRef
 from ethos_core.contracts.lifecycle.core import LeaseFacts
+from ethos_core.contracts.lifecycle.core import MutationRequest
 from ethos_core.contracts.lifecycle.core import lease_transition
 from ethos_core.contracts.lifecycle.core import reduce_lease_request
 

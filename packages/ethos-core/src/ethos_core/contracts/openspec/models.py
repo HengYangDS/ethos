@@ -10,8 +10,6 @@ from pydantic import ConfigDict
 from pydantic import Field
 from pydantic import field_validator
 
-__all__ = ["AdopterOpenSpecPolicy", "ChangeScopeDeclaration"]
-
 _DUPLICATE_SCOPE_PATHS = "scope paths must be unique"
 _DUPLICATE_MATERIAL_PATHS = "material paths must be unique"
 _INVALID_SCOPE_PATTERN = "scope path must be a non-empty relative POSIX pattern"

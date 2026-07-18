@@ -135,22 +135,6 @@ def test_module_name_without_src_segment() -> None:
     assert docstrings_mod._module_name("foo/bar.py") == "foo.bar"
 
 
-def test_explicit_exports_ignores_non_sequence_all_value() -> None:
-    # An `__all__` assigned a non list/tuple/set value fails the isinstance guard at
-    # docstrings.py 458 and loops back to 450 (458->450) -> nothing collected.
-    tree = ast.parse('__all__ = "single"\n')
-
-    assert docstrings_mod._explicit_exports(tree) == set()
-
-
-def test_explicit_exports_skips_non_constant_element() -> None:
-    # A non-Constant element (a Name) inside __all__ fails the guard at
-    # docstrings.py 460 and loops back to 459 (460->459); the str constant is kept.
-    tree = ast.parse("__all__ = [foo, 'ok']\n")
-
-    assert docstrings_mod._explicit_exports(tree) == {"ok"}
-
-
 # ---------------------------------------------------------------------------
 # ethos.repository.policy.gates
 # ---------------------------------------------------------------------------

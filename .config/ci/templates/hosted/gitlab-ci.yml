@@ -4,6 +4,10 @@ stages:
   - package
 
 variables:
+  # Source-budget policy binds to a historical baseline commit. Retain the
+  # complete graph so its object is available to the proof gate; a shallow
+  # checkout would make that pinned policy identity spuriously unresolved.
+  GIT_DEPTH: "0"
   PYTHONWARNINGS: error
   UV_LINK_MODE: copy
   UV_CACHE_DIR: build/runtime/tool-cache/uv

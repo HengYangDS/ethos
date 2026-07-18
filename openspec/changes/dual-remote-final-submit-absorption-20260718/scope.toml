@@ -1,2 +1,0 @@
-schema_version = 1
-paths = [".config/checks/ci/templates.toml", ".config/ci/templates/hosted/github-actions.yml", ".config/ci/templates/hosted/gitlab-ci.yml", ".github/workflows/ci.yml", ".gitlab-ci.yml", "tests/architecture/test_ci_provider_projections.py", "tools/ci/scripts/run-head-bound-proof.sh", "openspec/changes/dual-remote-final-submit-absorption-20260718/**", "evidence/claims/dual-remote-final-submit-absorption-20260718.toml", "evidence/chronicle/dual-remote-final-submit-absorption-20260718/**", "openspec/specs/repository-governance/spec.md"]

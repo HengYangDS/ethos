@@ -60,7 +60,6 @@ def test_hosted_provider_templates_are_projection_sources() -> None:
             "emulator_event": "pipeline",
             "emulator_job": "ethos:lint",
             "emulator_image": "python:3.12",
-            "emulator_state_dir": "build/runtime/work/gitlab-ci-local",
         },
     }
     for provider, entry in providers.items():
@@ -74,6 +73,7 @@ def test_hosted_provider_templates_are_projection_sources() -> None:
             assert entry[field] == value
         assert entry["emulator_supported_inputs"] == []
         assert entry["emulator_hosted_only_reason"] == ""
+        assert entry.get("emulator_state_dir", "") == ""
         assert "PYTHONWARNINGS: error" in projection.read_text(encoding="utf-8")
 
 

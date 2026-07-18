@@ -1,7 +1,6 @@
 schema = "ethos-ci-template-consistency-v1"
 owner = "ethos-quality-gate-governance"
 summary = "Hosted forge CI files are projections over tracked provider templates."
-
 [[projection]]
 provider = "github"
 template = ".config/ci/templates/hosted/github-actions.yml"
@@ -10,7 +9,6 @@ emulator_tool = "act"
 emulator_event = "workflow_dispatch"
 emulator_job = "quality"
 emulator_image = "catthehacker/ubuntu:act-latest"
-emulator_state_dir = "build/runtime/work/github-act"
 emulator_supported_inputs = []
 emulator_hosted_only_reason = ""
 required_owner_scripts = [
@@ -43,7 +41,6 @@ required_owner_scripts = [
   "tools/ci/scripts/run-release-supply-chain.sh",
   "tools/ci/scripts/run-hosted-provider-observation.sh",
 ]
-
 [[projection]]
 provider = "gitlab"
 template = ".config/ci/templates/hosted/gitlab-ci.yml"
@@ -52,7 +49,6 @@ emulator_tool = "gitlab-ci-local"
 emulator_event = "pipeline"
 emulator_job = "ethos:lint"
 emulator_image = "python:3.12"
-emulator_state_dir = "build/runtime/work/gitlab-ci-local"
 emulator_supported_inputs = []
 emulator_hosted_only_reason = ""
 required_owner_scripts = [
@@ -85,7 +81,6 @@ required_owner_scripts = [
   "tools/ci/scripts/run-release-supply-chain.sh",
   "tools/ci/scripts/run-hosted-provider-observation.sh",
 ]
-
 [evidence]
 local_github_emulator_dir = "build/evidence/local-ci/github"
 local_gitlab_emulator_dir = "build/evidence/local-ci/gitlab"

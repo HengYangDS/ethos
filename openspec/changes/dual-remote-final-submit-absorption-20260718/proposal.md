@@ -30,7 +30,7 @@ before a fresh local closeout would make remote state outrun local evidence.
 
 - CI templates, generated provider projections, CI architecture regression, and
   a proof-receipt owner script from the exact submitted patch.
-- This Change, its scoped claim and Chronicle, governed local closeout, and
+- This Change, its continuation claim and Chronicle, governed local closeout, and
   no-force GitLab/GitHub publication observations.
 
 ## Out Of Scope

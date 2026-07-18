@@ -1,2 +1,2 @@
 schema_version = 1
-paths = ["docs/plans/all-lanes-resolution-execution-20260718.md", "evidence/claims/all-lanes-resolution-execution-20260718.toml", "evidence/chronicle/all-lanes-resolution-execution-20260718/**", "openspec/changes/all-lanes-resolution-execution-20260718/**", "openspec/specs/repository-governance/spec.md"]
+paths = [".config/checks/format/selection.toml", "docs/plans/all-lanes-resolution-execution-20260718.md", "evidence/claims/all-lanes-resolution-execution-20260718.toml", "evidence/claims/lane-resolution-runtime-productization-20260711.toml", "evidence/chronicle/all-lanes-resolution-execution-20260718/**", "openspec/changes/all-lanes-resolution-execution-20260718/**", "openspec/specs/repository-governance/spec.md"]

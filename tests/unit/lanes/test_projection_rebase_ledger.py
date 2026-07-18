@@ -189,6 +189,29 @@ def test_resolver_merges_disjoint_updates_to_existing_records(tmp_path) -> None:
     assert status["allowance_by_category"] == {"python_tests": 100}
 
 
+def test_resolver_preserves_one_sided_retirement_and_peer_append(tmp_path) -> None:
+    stages = {
+        "base": SimpleNamespace(stdout=_rules([("base", 10), ("retired", 20)]), returncode=0),
+        "candidate": SimpleNamespace(stdout=_rules([("base", 10)]), returncode=0),
+        "lane": SimpleNamespace(
+            stdout=_rules([("base", 10), ("retired", 20), ("lane", 30)]), returncode=0
+        ),
+    }
+    calls: list[tuple[str, ...]] = []
+    (tmp_path / ".ethos").mkdir()
+
+    result = ledger.resolve_source_budget_ledger_rebase_conflict(
+        tmp_path, runtime=SimpleNamespace(run_git=_git(stages, calls))
+    )
+
+    assert result["ok"] is True
+    debt = ledger.tomllib.loads((tmp_path / ledger.RULES_PATH).read_text(encoding="utf-8"))[
+        "quality"
+    ]["source_budget"]["debt"]
+    assert debt["maximum_total"] == 40
+    assert [record["id"] for record in debt["records"]] == ["base", "lane"]
+
+
 def test_resolver_refuses_to_claim_success_when_staging_fails(tmp_path) -> None:
     stages = {
         "base": SimpleNamespace(stdout=_rules([("base", 10)]), returncode=0),
@@ -226,7 +249,7 @@ def test_resolver_refuses_to_claim_success_when_staging_fails(tmp_path) -> None:
         {
             "base": SimpleNamespace(stdout=_rules([("base", 10)]), returncode=0),
             "candidate": SimpleNamespace(stdout=_rules([("candidate", 20)]), returncode=0),
-            "lane": SimpleNamespace(stdout=_rules([("base", 10), ("lane", 30)]), returncode=0),
+            "lane": SimpleNamespace(stdout=_rules([("base", 11), ("lane", 30)]), returncode=0),
         },
         {
             "base": SimpleNamespace(stdout=_rules([("base", 10)]), returncode=0),
@@ -309,19 +332,31 @@ def test_semantic_ledger_helpers_cover_merge_and_render_edges(tmp_path) -> None:
         "nested",
         "nested-base",
         1,
-        {"id": "nested", "allowance": 1, "allowance_by_category": {"left": 1, "right": 1}},
+        {
+            "id": "nested",
+            "allowance": 1,
+            "allowance_by_category": {"left": 1, "right": 1},
+        },
     )
     nested_candidate = ledger.LedgerRecord(
         "nested",
         "nested-candidate",
         1,
-        {"id": "nested", "allowance": 1, "allowance_by_category": {"left": 2, "right": 1}},
+        {
+            "id": "nested",
+            "allowance": 1,
+            "allowance_by_category": {"left": 2, "right": 1},
+        },
     )
     nested_lane = ledger.LedgerRecord(
         "nested",
         "nested-lane",
         1,
-        {"id": "nested", "allowance": 1, "allowance_by_category": {"left": 1, "right": 2}},
+        {
+            "id": "nested",
+            "allowance": 1,
+            "allowance_by_category": {"left": 1, "right": 2},
+        },
     )
     merged_nested = ledger.merge_records([nested_base], [nested_candidate], [nested_lane])
     assert merged_nested is not None

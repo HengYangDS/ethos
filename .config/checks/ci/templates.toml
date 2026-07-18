@@ -1,5 +1,6 @@
 schema = "ethos-ci-template-consistency-v1"
 owner = "ethos-quality-gate-governance"
+summary = "Hosted forge CI files are projections over tracked provider templates."
 
 [[projection]]
 provider = "github"
@@ -31,6 +32,7 @@ required_owner_scripts = [
   "tools/ci/scripts/run-secrets-scan.sh",
   "tools/ci/scripts/run-python-tests.sh",
   "tools/ci/scripts/run-head-bound-proof.sh",
+  "tools/ci/emit_readiness_receipt.py",
   "tools/ci/scripts/run-ci-template-check.sh",
   "tools/ci/scripts/run-actionlint.sh",
   "tools/ci/scripts/run-format-selection.sh",
@@ -74,6 +76,7 @@ required_owner_scripts = [
   "tools/ci/scripts/run-secrets-scan.sh",
   "tools/ci/scripts/run-python-tests.sh",
   "tools/ci/scripts/run-head-bound-proof.sh",
+  "tools/ci/emit_readiness_receipt.py",
   "tools/ci/scripts/run-ci-template-check.sh",
   "tools/ci/scripts/run-format-selection.sh",
   "tools/ci/scripts/run-architecture-projection-drift.sh",

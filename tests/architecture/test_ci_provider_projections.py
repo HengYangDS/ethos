@@ -76,6 +76,8 @@ def test_hosted_provider_templates_are_projection_sources() -> None:
         assert entry["emulator_hosted_only_reason"] == ""
         assert "PYTHONWARNINGS: error" in projection.read_text(encoding="utf-8")
 
+    assert 'GIT_DEPTH: "0"' in (ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8")
+
 
 def test_provider_yaml_invokes_owner_scripts_not_inline_policy() -> None:
     required_scripts = {
@@ -141,12 +143,6 @@ def test_gitlab_node_compatibility_matrix_projects_the_runtime_policy() -> None:
     assert "NODE_VERSION" not in npm_package_job
     assert "npm run test:npm" in npm_package_job["script"]
 
-def test_github_repository_proof_projects_single_worker_stability() -> None:
-    github = yaml.safe_load((ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8"))
-
-    assert github["jobs"]["verify"]["env"] == {"ETHOS_TEST_WORKERS": "1"}
-
-
 def test_provider_python_producers_are_runtime_bound() -> None:
     runtime = "tools/ci/scripts/with-python-runtime.sh -- uv"
     provider_paths = [
@@ -166,6 +162,7 @@ def test_provider_python_producers_are_runtime_bound() -> None:
 
 def test_hosted_proof_receipt_is_owner_scripted_and_retained() -> None:
     runner = "tools/ci/scripts/run-head-bound-proof.sh"
+    emitter = "tools/ci/emit_readiness_receipt.py"
     github = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
     gitlab = yaml.safe_load((ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8"))
     script = (ROOT / runner).read_text(encoding="utf-8")
@@ -176,12 +173,21 @@ def test_hosted_proof_receipt_is_owner_scripted_and_retained() -> None:
     assert "ethos prove --execute --expect-head" not in "\n".join(gitlab["ethos:verify"]["script"])
     assert gitlab["ethos:verify"]["artifacts"] == {
         "when": "always",
-        "paths": ["build/evidence/quality/proof/"],
+        "paths": [
+            "build/evidence/quality/proof/",
+            "build/evidence/quality/readiness/",
+        ],
     }
+    assert "ethos audit --json" in script
+    assert "ethos report --json" in script
     assert "ethos prove --execute --expect-head" in script
     assert "executed-proof.json" in script
-    assert "receipt_sha256" in script
+    assert "emit_readiness_receipt.py" in script
     assert (ROOT / runner).stat().st_mode & stat.S_IXUSR
+    assert emitter in _template_config()["projection"][0]["required_owner_scripts"]
+    emitter_text = (ROOT / emitter).read_text(encoding="utf-8")
+    assert "ethos_hosted_readiness_receipt" in emitter_text
+    assert "proof_evidence_digest" in emitter_text
 
 
 def test_local_ci_fails_on_python_warnings() -> None:

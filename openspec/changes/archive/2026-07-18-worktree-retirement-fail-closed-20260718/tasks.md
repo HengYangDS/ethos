@@ -16,3 +16,4 @@
 - [x] 3.3 Archive the completed carrier.
 - [ ] 3.4 Run the final exact-HEAD proof after this archived-carrier correction, then perform local candidate land and accepted-root closeout.
 - [ ] 3.5 Retire only this owned implementation lane after its independent local closeout receipt exists.
+- [x] 3.6 Repair the post-archive full-proof regressions: shrink the stale ignored-rule ratchet after an in-scope unused parameter was removed, and update the retired lifecycle edge fixture to model the required immediate reobservation before a non-forced worktree removal.

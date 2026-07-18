@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path  # noqa: TC003 - cyclopts needs runtime types in signatures
+from typing import TYPE_CHECKING
 from typing import Annotated
 from typing import Any
-from typing import Mapping
 
 from cyclopts import Parameter
 
@@ -37,6 +37,9 @@ from ethos_core.contracts.branch.roles import load_branch_role_policy
 from ethos_core.normalization.core import string_mapping
 from ethos_core.normalization.core import string_sequence
 from ethos_core.result import EthosResult
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 # fmt: off
 

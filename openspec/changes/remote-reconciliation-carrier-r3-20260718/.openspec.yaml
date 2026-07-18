@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-07-18
+goal: Create a claim-bound normal-merge reconciliation that preserves every
+  fresh observed protected tip before any remote update is considered.

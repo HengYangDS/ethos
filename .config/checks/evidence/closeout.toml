@@ -4,11 +4,7 @@ runner = "tools/ci/scripts/run-closeout-evidence-manifest.sh"
 summary = "Hash reviewed closeout evidence references without promoting generated logs to truth."
 output = "build/evidence/workflow/closeout/manifest.json"
 
-required_roots = [
-  "evidence/claims",
-  "evidence/chronicle",
-  "openspec/changes",
-]
+required_roots = ["evidence/claims", "evidence/chronicle", "openspec/changes"]
 
 [[topic]]
 id = "tooling-adoption-roadmap"

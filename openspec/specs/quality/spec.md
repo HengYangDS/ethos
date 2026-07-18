@@ -695,7 +695,8 @@ from the successor HEAD.
 Source-budget measurement is repository-wide compression governance. It SHALL
 remain independently invocable and visible, but SHALL NOT be embedded in the
 default proof floor or used as a correctness proxy for an unrelated,
-fine-grained OpenSpec Change. A source-budget breach requires its own
+fine-grained OpenSpec Change. The full proof and terminal compression closeout
+SHALL include it. A source-budget breach requires its own
 compression-program carrier and cannot be silently waived by a feature Change.
 
 #### Scenario: A migration reports global source deltas

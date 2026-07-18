@@ -1,0 +1,35 @@
+[claim]
+id = "refresh-base-source-budget-scope-recovery-20260718"
+change_id = "refresh-base-source-budget-scope-recovery-20260718"
+subject = "ethos:work-lane-refresh-source-budget-scope"
+state = "active"
+summary = "Refresh-base preserves candidate content only for an archived, evidence-bound source-budget scope correction."
+
+[evidence]
+dated = "evidence/chronicle/refresh-base-source-budget-scope-recovery-20260718/2026-07-18.md"
+sha256 = "94c5b48d30a614fe71037d91597cc19adc8eeb04aa2acc3065532de006276c9f"
+evidence_ids = ["evidence:refresh-base-source-budget-scope-recovery-20260718"]
+binding = "The archived source-budget scope claim/carrier reader, exact candidate-index invariant checks, focused regressions, and governed replay bind this recovery without weakening source-conflict admission."
+verifier = "digest_only"
+tests = ["pytest -q tests/unit/coverage/test_lanes_final_edges.py -k source_budget_scope", "openspec validate --all --strict --json", "ethos openspec --lifecycle --json", "ethos lane refresh-base --apply --authorize --expect-head <lane-head> --json"]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "Exact candidate-authoritative source-budget proof-scope recovery during an owned Work Lane replay."
+
+[carriers]
+openspec = "openspec/changes/refresh-base-source-budget-scope-recovery-20260718"
+fallback = "Leave the replay conflict blocked unless archived carrier evidence and all candidate invariants are present."
+kill_signal = "A path outside the exact scope, an unarchived or undeclared carrier, or incomplete candidate semantics is auto-resolved."
+
+[promotion]
+targets = [
+  "packages/ethos/src/ethos/adapters/mutation/lane_lifecycle/projection_rebase/core.py",
+  "tests/unit/coverage/test_lanes_final_edges.py",
+  "openspec/changes/refresh-base-source-budget-scope-recovery-20260718",
+  "evidence/claims/refresh-base-source-budget-scope-recovery-20260718.toml",
+  "evidence/chronicle/refresh-base-source-budget-scope-recovery-20260718/2026-07-18.md",
+]

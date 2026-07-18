@@ -301,7 +301,9 @@ def _replay_work_lane(
         return report(ok=False, state="blocked", head=current_head, gaps=snapshot_gaps)
     completed = runtime.run_git(root, "-c", "rebase.updateRefs=false", "rebase", candidate_head,
                                 current_head, check=False)
-    projection_resolution = resolve_projection_rebase(root, completed, runtime=runtime)
+    projection_resolution = resolve_projection_rebase(
+        root, completed, runtime=runtime, candidate_head=candidate_head
+    )
     projection_recovered = completed.returncode != 0 and projection_resolution["ok"]
     if completed.returncode != 0 and not projection_recovered:
         runtime.run_git(root, "rebase", "--abort", check=False)
@@ -363,13 +365,26 @@ def _replay_work_lane(
         result = report(ok=True, state="base_refreshed", head=refreshed_head, gaps=[],
                         previous_head=current_head)
         if projection_recovered:
-            semantic = "semantic_ledger_merged:source_budget_debt" in projection_resolution["gaps"]
+            projection_refresh_required = any(
+                gap.startswith("projection_regeneration_required:")
+                for gap in projection_resolution["gaps"]
+            )
+            recovered_semantics = bool(projection_resolution["gaps"])
             result.update(
                 {
-                    "state": "base_refreshed" if semantic else "base_refreshed_projection_stale",
-                    "projection_refresh_required": not semantic,
+                    "state": (
+                        "base_refreshed_projection_stale"
+                        if projection_refresh_required
+                        else "base_refreshed"
+                    ),
+                    "projection_refresh_required": projection_refresh_required,
                     "projection_refresh_gaps": projection_resolution["gaps"],
-                    "stale_projection_paths": projection_resolution["paths"],
+                    "stale_projection_paths": (
+                        projection_resolution["paths"] if projection_refresh_required else []
+                    ),
+                    "semantic_recovery_paths": (
+                        projection_resolution["paths"] if recovered_semantics else []
+                    ),
                     "next_actions": projection_resolution["next_actions"]
                     + ["ethos prove --execute --expect-head $(git rev-parse HEAD) --json"],
                 }

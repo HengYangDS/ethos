@@ -10,6 +10,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import ethos.adapters.mutation.lane_lifecycle.projection_rebase.core as lane_projection_rebase
+import ethos.adapters.mutation.lane_lifecycle.refresh as lane_refresh
 from ethos.adapters.mutation import lanes
 from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
@@ -389,6 +390,206 @@ def test_projection_rebase_rejects_staged_parity_projection_for_the_wrong_adopte
 
     assert resolved["ok"] is True
     assert ("checkout", "--ours", "--", "evidence/parity/generic-shadow.json") in calls
+
+
+def test_projection_rebase_preserves_candidate_source_budget_scope_correction(
+    monkeypatch, tmp_path: Path
+) -> None:
+    paths = [
+        "packages/ethos/src/ethos/domain/reporting/scoring.py",
+        "tests/unit/domain/test_report.py",
+        "tests/unit/governance/validation/test_gates.py",
+    ]
+    candidate = {
+        paths[0]: "def global_compression_report(repo):\n    return source_budget_report(repo)\n",
+        paths[1]: "def test_scorecard_surfaces_global_compression_separately():\n    pass\n",
+        paths[2]: 'assert "source-budget" in [node.id for node in gate_graph(full=True).nodes]\n',
+    }
+    calls: list[tuple[str, ...]] = []
+    diff_calls = 0
+
+    def run_git(_root: Path, *args: str, check: bool = True):
+        nonlocal diff_calls
+        del check
+        calls.append(tuple(args))
+        if args[:3] == ("diff", "--name-only", "--diff-filter=U"):
+            diff_calls += 1
+            return cp(stdout="\n".join(paths) + "\n" if diff_calls <= 2 else "")
+        if args[:1] == ("show",):
+            stage_path = args[1]
+            if stage_path.startswith(":0:"):
+                return cp(returncode=1)
+            return cp(stdout=candidate[stage_path.removeprefix(":2:")])
+        if args[:1] in {("checkout",), ("add",)}:
+            return cp(returncode=0)
+        if args == ("-c", "core.editor=true", "rebase", "--continue"):
+            return cp(returncode=0)
+        return cp(returncode=1, stderr="unexpected git call")
+
+    monkeypatch.setattr(lane_projection_rebase, "run_git", run_git)
+    monkeypatch.setattr(
+        lane_projection_rebase,
+        "archived_source_budget_scope_bound",
+        lambda _root, requested: requested == paths,
+    )
+    monkeypatch.setattr(
+        lane_projection_rebase,
+        "candidate_source_budget_scope_context",
+        lambda _root, _head, *, git: True,
+    )
+    monkeypatch.setattr(
+        lane_projection_rebase,
+        "candidate_source_budget_scope_invariant",
+        lambda _root, path, *, git: path in paths,
+    )
+
+    resolved = lane_projection_rebase.resolve_projection_rebase(
+        tmp_path,
+        cp(returncode=1, stderr="source budget scope conflict"),
+    )
+
+    assert resolved["ok"] is True
+    assert resolved["paths"] == paths
+    assert ("checkout", "--ours", "--", *paths) in calls
+    assert ("add", *paths) in calls
+
+
+def test_projection_rebase_rejects_unbound_source_budget_scope_conflict(
+    monkeypatch, tmp_path: Path
+) -> None:
+    paths = [
+        "packages/ethos/src/ethos/domain/reporting/scoring.py",
+        "tests/unit/domain/test_report.py",
+        "tests/unit/governance/validation/test_gates.py",
+    ]
+
+    monkeypatch.setattr(
+        lane_projection_rebase,
+        "run_git",
+        fake_git({("diff",): cp(stdout="\n".join(paths) + "\n")}),
+    )
+    monkeypatch.setattr(
+        lane_projection_rebase,
+        "archived_source_budget_scope_bound",
+        lambda _root, _requested: False,
+    )
+
+    resolved = lane_projection_rebase.resolve_projection_rebase(
+        tmp_path,
+        cp(returncode=1, stderr="unbound source budget scope conflict"),
+    )
+
+    assert resolved["ok"] is False
+    assert resolved["paths"] == []
+
+
+def test_archived_source_budget_scope_requires_the_exact_archived_claim(tmp_path: Path) -> None:
+    claim_root = tmp_path / "evidence" / "claims"
+    carrier = (
+        tmp_path
+        / "openspec"
+        / "changes"
+        / "archive"
+        / "2026-07-18-fine-grained-source-budget-scope-20260718"
+    )
+    claim_root.mkdir(parents=True)
+    carrier.mkdir(parents=True)
+    paths = list(lane_projection_rebase.SOURCE_BUDGET_SCOPE_PATHS)
+    claim = claim_root / "fine-grained-source-budget-scope-20260718.toml"
+    claim.write_text(
+        "\n".join(
+            [
+                "[claim]",
+                'id = "fine-grained-source-budget-scope-20260718"',
+                'change_id = "fine-grained-source-budget-scope-20260718"',
+                'subject = "quality:source-budget-proof-scope"',
+                'state = "archived"',
+                "",
+                "[boundary]",
+                'scope = "Default fine-grained promotion proof versus global source-budget compression closeout."',
+                "",
+                "[carriers]",
+                'openspec = "openspec/changes/archive/2026-07-18-fine-grained-source-budget-scope-20260718"',
+                "",
+                "[promotion]",
+                f"targets = {paths!r}",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    assert lane_projection_rebase.archived_source_budget_scope_bound(tmp_path, paths) is True
+
+    claim.write_text(
+        claim.read_text(encoding="utf-8").replace(
+            'id = "fine-grained-source-budget-scope-20260718"',
+            'id = "another-source-budget-claim"',
+        ),
+        encoding="utf-8",
+    )
+
+    assert lane_projection_rebase.archived_source_budget_scope_bound(tmp_path, paths) is False
+
+
+def test_source_budget_semantic_recovery_does_not_require_projection_regeneration(
+    monkeypatch, tmp_path: Path
+) -> None:
+    paths = list(lane_projection_rebase.SOURCE_BUDGET_SCOPE_PATHS)
+    heads = iter(("lane", "lane", "candidate", "rebased", "rebased"))
+    ancestors = iter((False, True))
+
+    def run_git(
+        _root: Path, *args: str, check: bool = True
+    ) -> subprocess.CompletedProcess[str]:
+        del check
+        if args[:1] == ("rev-parse",):
+            return cp(stdout=f"{next(heads)}\n")
+        if args[:3] == ("-c", "rebase.updateRefs=false", "rebase"):
+            return cp(returncode=1, stderr="source budget scope conflict")
+        return cp(returncode=0)
+
+    runtime = lane_refresh.LaneRefreshRuntime(
+        load_branch_role_policy=lambda _root: SimpleNamespace(candidate_branch="candidate/dev"),
+        workspace_status=lambda _root: {
+            "role": ROLE_WORK_LANE,
+            "dirty": False,
+            "branch": "work/source-budget",
+            "candidate": {
+                "exists": True,
+                "worktree_exists": True,
+                "worktree_path": "candidate",
+                "head": "candidate",
+            },
+        },
+        changed_paths=lambda _path: [],
+        is_ancestor=lambda *_args: next(ancestors),
+        run_git=run_git,
+    )
+    monkeypatch.setattr(
+        lane_refresh,
+        "resolve_projection_rebase",
+        lambda *_args, **_kwargs: {
+            "ok": True,
+            "paths": paths,
+            "gaps": ["semantic_scope_preserved:source_budget_proof_scope"],
+            "next_actions": ["rerun source-budget validation and HEAD-bound proof"],
+            "stderr": "",
+        },
+    )
+
+    report = lane_refresh.refresh_work_lane_base(
+        root=tmp_path,
+        apply=True,
+        authorized=True,
+        expect_head="lane",
+        runtime=runtime,
+    )
+
+    assert report["state"] == "base_refreshed"
+    assert report["projection_refresh_required"] is False
+    assert report["stale_projection_paths"] == []
+    assert report["semantic_recovery_paths"] == paths
 
 
 def test_refresh_work_lane_base_disables_update_refs_during_rebase(

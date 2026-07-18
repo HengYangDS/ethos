@@ -6,6 +6,7 @@ from ethos.repository.release.attestation import release_attestation
 from ethos.repository.release.attestation import sbom_projection
 from ethos.repository.release.core import release_policy_report
 from ethos.repository.release.core import version_manifest
+from ethos.repository.release.publication import publication_topology
 
 
 def test_version_manifest_keeps_workspace_packages_aligned() -> None:
@@ -70,8 +71,8 @@ def test_release_policy_rejects_unequal_remote_capability_declaration() -> None:
     report = release_policy_report(root)
     config = (root / ".ethos" / "release.toml").read_text(encoding="utf-8")
     changed = config.replace(
-        'capabilities = ["repository", "ci_cd", "publication"]',
-        'capabilities = ["repository"]',
+        'remotes = ["origin", "github"]',
+        'remotes = ["origin", "origin"]',
         1,
     )
     scratch = root / "build" / "runtime" / "dual-remote-policy-test"
@@ -99,7 +100,38 @@ def test_release_policy_rejects_unequal_remote_capability_declaration() -> None:
         shutil.rmtree(scratch)
 
     assert report["publication_topology"]["state"] == "ready"
-    assert "publication_topology_capabilities_invalid:gitlab" in invalid["required_gaps"]
+    assert "publication_topology_git_remotes_duplicate" in invalid["required_gaps"]
+
+
+def test_release_topology_retains_verbose_remote_declaration_compatibility() -> None:
+    topology = publication_topology(
+        {
+            "publication": {
+                "remote": [
+                    {
+                        "id": "gitlab",
+                        "role": "organization_collaboration",
+                        "provider": "gitlab",
+                        "git_remote": "origin",
+                        "ci_surface": ".gitlab-ci.yml",
+                        "capabilities": ["repository", "ci_cd", "publication"],
+                    },
+                    {
+                        "id": "github",
+                        "role": "public_distribution",
+                        "provider": "github",
+                        "git_remote": "github",
+                        "ci_surface": ".github/workflows/ci.yml",
+                        "capabilities": ["repository", "ci_cd", "publication"],
+                    },
+                ]
+            }
+        }
+    )
+
+    assert topology["state"] == "ready"
+    assert topology["gitlab"]["git_remote"] == "origin"
+    assert topology["github"]["git_remote"] == "github"
 
 
 def test_release_policy_uses_configured_branch_roles_for_protected_refs(

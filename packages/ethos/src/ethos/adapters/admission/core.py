@@ -13,10 +13,14 @@ from ethos.adapters.admission.prewrite import has_invalid_path_token_character
 from ethos.adapters.admission.prewrite import prewrite_guard
 from ethos.adapters.admission.shell import command_risk
 from ethos.adapters.admission.shell import git_stash_policy
+from ethos.adapters.mutation.core import proof_gaps
 from ethos.adapters.mutation.proof import executed_proof_record
 from ethos.adapters.repo.git import committed_file_text
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.repository.policy.gates import gate_policy_digest
+from ethos.repository.release.core import release_config
+from ethos.repository.release.publication import publication_branch_admission
+from ethos.repository.release.publication import publication_topology
 from ethos_core.contracts.branch.roles import PROTECTED_WRITE_ROLES
 from ethos_core.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
 from ethos_core.contracts.branch.roles import branch_role_policy_from_text
@@ -86,9 +90,7 @@ def hook_admission_report(  # noqa: PLR0913, RUF100 - exact request envelope pre
         "layer": normalized_layer,
         "hook": HOOK_LAYERS[normalized_layer],
         "target_root": repo.as_posix(),
-        "expected_root": expected_root.resolve().as_posix()
-        if expected_root
-        else repo.as_posix(),
+        "expected_root": expected_root.resolve().as_posix() if expected_root else repo.as_posix(),
         "role": status["role"],
         "branch": status["branch"],
         "editor_root": editor_root.resolve().as_posix() if editor_root else "",
@@ -123,13 +125,7 @@ def hook_admission_report(  # noqa: PLR0913, RUF100 - exact request envelope pre
 
 
 def push_admission_report(
-    *,
-    root: Path,
-    target_ref: str,
-    pushed_head: str,
-    remote_head: str = "",
-    reconciliation: ReconciliationObservation = _NO_RECONCILIATION,
-    remote_name: str = "origin",
+    *, root: Path, target_ref: str, pushed_head: str, **options: object
 ) -> dict[str, object]:
     """Admit or block a push whose destination is a protected role.
 
@@ -139,10 +135,14 @@ def push_admission_report(
     executed proof bound to the exact pushed HEAD. Pushes to unprotected refs (work
     lanes, feature branches) are admitted untouched.
     """
-    from ethos.repository.release.core import release_config
-    from ethos.repository.release.publication import publication_branch_admission
-    from ethos.repository.release.publication import publication_topology
-
+    remote_head = str(options.get("remote_head") or "")
+    remote_name = str(options.get("remote_name") or "origin")
+    reconciliation = options.get("reconciliation", _NO_RECONCILIATION)
+    reconciliation = (
+        reconciliation
+        if isinstance(reconciliation, ReconciliationObservation)
+        else _NO_RECONCILIATION
+    )
     repo = root.resolve()
     policy = load_branch_role_policy(repo)
     branch = target_ref.removeprefix("refs/heads/")
@@ -158,9 +158,7 @@ def push_admission_report(
         remote_name=remote_name,
         enforce=not bool(topology.get("legacy")),
     )
-    branch_admission_gaps = list(
-        cast("list[str]", branch_admission["enforcement_gaps"])
-    )
+    branch_admission_gaps = list(cast("list[str]", branch_admission["enforcement_gaps"]))
     identity_report = push_identity_policy_report(
         repo,
         pushed_head,
@@ -199,7 +197,7 @@ def push_admission_report(
         "required_gaps": [],
     }
     proof_required = role in PROTECTED_WRITE_ROLES and not branch_admission_gaps
-    proof_required_gaps = _proof_gaps(repo, pushed_head) if proof_required else []
+    proof_required_gaps = proof_gaps(repo, pushed_head) if proof_required else []
     # The push plane must enforce the SAME candidate-train topology as the local ref-move
     # reducer, or a raw `git push --force <proven-old-sha>:dev` rewinds/side-steps the
     # accepted branch that ref_move_admission_report blocks (the pushed head is proven but
@@ -207,9 +205,7 @@ def push_admission_report(
     # old-value, pushed_head the new. Only the accepted branch carries this invariant;
     # the candidate branch's proof gate is already covered above.
     topology_gaps = (
-        accepted_advance_gaps(
-            repo, policy, old_value=remote_head, new_value=pushed_head
-        )
+        accepted_advance_gaps(repo, policy, old_value=remote_head, new_value=pushed_head)
         if branch == policy.accepted_branch
         else []
     )
@@ -260,13 +256,6 @@ def _proof_evidence_digest(root: Path, head: str) -> str:
     if not isinstance(record, dict):
         return ""
     return str(record.get("evidence_digest", ""))
-
-
-def _proof_gaps(root: Path, head: str) -> list[str]:
-    """Load mutation proof admission lazily to keep the hook import graph acyclic."""
-    from ethos.adapters.mutation.core import proof_gaps
-
-    return proof_gaps(root, head)
 
 
 def accepted_advance_gaps(
@@ -385,7 +374,7 @@ def ref_move_admission_report(
                 new_value=new_value,
             )
         )
-        gaps.extend(_proof_gaps(repo, new_value))
+        gaps.extend(proof_gaps(repo, new_value))
         # Official-closeout discrimination (R12 load-bearing nail): the substantive
         # checks above cannot tell an official `ethos land --closeout` apart from a raw
         # `git update-ref` to the same proven candidate head — both are byte-identical.
@@ -413,9 +402,7 @@ def ref_move_admission_report(
         if intent["gap"]:
             gap = str(intent["gap"])
             gaps.append(
-                gap.replace("accepted_ref_move", "release_mirror_ref_move")
-                if mirror
-                else gap
+                gap.replace("accepted_ref_move", "release_mirror_ref_move") if mirror else gap
             )
         reason = (
             "release_mirror_ref_move_bypasses_accepted_closeout"
@@ -430,7 +417,7 @@ def ref_move_admission_report(
         # refresh-base` now that the ETHOS_ALLOW_REF_MOVE bypass is gone. Forward candidate
         # advances (new work not yet on accepted) still require proof.
         if not commit_contained_in(repo, new_value, policy.accepted_branch):
-            gaps.extend(_proof_gaps(repo, new_value))
+            gaps.extend(proof_gaps(repo, new_value))
         reason = "protected_ref_move_not_proven"
     else:
         return base
@@ -542,9 +529,7 @@ def _post_write_report(
     base["branch"] = status["branch"]
     base["changed_paths"] = changed_paths
     expected = {_relative(repo, path) for path in expected_paths}
-    unexpected = [
-        path for path in changed_paths if not expected or path not in expected
-    ]
+    unexpected = [path for path in changed_paths if not expected or path not in expected]
     base["unexpected_paths"] = unexpected
     if status["role"] in PROTECTED_WRITE_ROLES and changed_paths:
         return _fused(base, "post_write_protected_root_dirty")

@@ -6,9 +6,9 @@
 
 ## 2. History-preserving reconciliation
 
-- [ ] 2.1 Re-observe all four remote inputs immediately before merging.
-- [ ] 2.2 Merge each observed remote tip with normal merge commits and review every conflict resolution.
-- [ ] 2.3 Verify the resulting head is a descendant of all four observed tips.
+- [x] 2.1 Re-observe all four remote inputs immediately before merging.
+- [x] 2.2 Merge each observed remote tip with normal merge commits and review every conflict resolution.
+- [x] 2.3 Verify the resulting head is a descendant of all four observed tips.
 
 ## 3. Local governed closeout
 

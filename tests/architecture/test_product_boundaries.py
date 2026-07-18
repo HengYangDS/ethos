@@ -356,43 +356,32 @@ def test_tool_command_surfaces_use_cyclopts_not_legacy_parser() -> None:
         assert "arg" + "parse" not in modules, path
 
 
-def test_tracked_python_has_no_legacy_parser_dependency() -> None:
-    """Cyclopts is the sole CLI parser across product, extensions, tests, and tools."""
-    tracked = subprocess.run(
+def test_tracked_python_follows_parser_model_and_export_policy() -> None:
+    for relative in subprocess.run(
         ["git", "ls-files", "*.py"], cwd=ROOT, check=True, capture_output=True, text=True
-    ).stdout.splitlines()
-    assert all("arg" + "parse" not in imported_modules(ROOT / path) for path in tracked)
-
-
-def test_internal_value_models_are_slotted_and_do_not_add_attrs() -> None:
-    """Keep strict Pydantic boundaries and lean internal values without a third model layer."""
-    sources = [
-        path for root in (ROOT / "packages", ROOT / "extensions") for path in root.rglob("*.py")
-    ]
-    assert all("attrs" not in imported_modules(path) for path in sources)
-    decorators = [path.read_text(encoding="utf-8") for path in sources]
-    assert sum(source.count("@dataclass(") for source in decorators) == sum(
-        source.count("@dataclass(frozen=True, slots=True)") for source in decorators
-    )
-
-
-def test_tracked_python_has_no_export_barrels() -> None:
-    """Public names come from defining modules; tracked code has no `__all__` surface."""
-    tracked = subprocess.run(
-        ["git", "ls-files", "*.py"], cwd=ROOT, check=True, capture_output=True, text=True
-    ).stdout.splitlines()
-    for relative in tracked:
+    ).stdout.splitlines():
         path = ROOT / relative
         tree = ast.parse(path.read_text(encoding="utf-8"))
+        assert "arg" + "parse" not in imported_modules(path), path
+        assert not {"attr", "attrs"} & imported_modules(path), path
         assert all(
-            not (
+            ast.unparse(decorator) == "dataclass(frozen=True, slots=True)"
+            for node in ast.walk(tree)
+            if isinstance(node, ast.ClassDef)
+            for decorator in node.decorator_list
+            if isinstance(decorator, ast.Call)
+            and isinstance(decorator.func, ast.Name)
+            and decorator.func.id == "dataclass"
+        ), path
+        assert not any(
+            (
                 isinstance(node, ast.Assign)
                 and any(
                     isinstance(target, ast.Name) and target.id == "__all__"
                     for target in node.targets
                 )
             )
-            and not (
+            or (
                 isinstance(node, ast.AnnAssign)
                 and isinstance(node.target, ast.Name)
                 and node.target.id == "__all__"
@@ -617,7 +606,9 @@ def test_npm_launcher_fallback_executes_python_command_once(tmp_path: Path) -> N
     assert log.read_text(encoding="utf-8").splitlines() == ["-P -m ethos.cli --version"]
 
 
-def test_npm_launcher_does_not_execute_untrusted_cwd_source_checkout(tmp_path: Path) -> None:
+def test_npm_launcher_does_not_execute_untrusted_cwd_source_checkout(
+    tmp_path: Path,
+) -> None:
     node = shutil.which("node")
     if not node:
         return

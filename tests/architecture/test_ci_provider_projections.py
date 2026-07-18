@@ -141,6 +141,12 @@ def test_gitlab_node_compatibility_matrix_projects_the_runtime_policy() -> None:
     assert "NODE_VERSION" not in npm_package_job
     assert "npm run test:npm" in npm_package_job["script"]
 
+def test_github_repository_proof_projects_single_worker_stability() -> None:
+    github = yaml.safe_load((ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8"))
+
+    assert github["jobs"]["verify"]["env"] == {"ETHOS_TEST_WORKERS": "1"}
+
+
 def test_provider_python_producers_are_runtime_bound() -> None:
     runtime = "tools/ci/scripts/with-python-runtime.sh -- uv"
     provider_paths = [

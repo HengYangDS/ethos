@@ -534,7 +534,7 @@ def test_ssh_signing_transport_uses_launchd_agent_socket(monkeypatch: pytest.Mon
     def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
         calls.append((tuple(command), kwargs))
         if command[:2] == ["launchctl", "getenv"]:
-            return subprocess.CompletedProcess(command, 0, "/tmp/agent.sock\n", "")
+            return subprocess.CompletedProcess(command, 0, "agent.sock\n", "")
         if command[:2] == ["ssh-add", "-T"]:
             return subprocess.CompletedProcess(
                 command,
@@ -546,16 +546,19 @@ def test_ssh_signing_transport_uses_launchd_agent_socket(monkeypatch: pytest.Mon
 
     monkeypatch.setattr(lane_refresh.subprocess, "run", fake_run)
 
-    assert lane_refresh.ssh_signing_transport_ready("/tmp/signing-key.pub") is True
-    assert calls[0][0] == ("ssh-add", "-T", "/tmp/signing-key.pub")
+    public_key = "signing-key.pub"
+    agent_socket = "agent.sock"
+
+    assert lane_refresh.ssh_signing_transport_ready(public_key) is True
+    assert calls[0][0] == ("ssh-add", "-T", public_key)
     assert calls[1][0] == ("launchctl", "getenv", "SSH_AUTH_SOCK")
-    assert calls[2][1]["env"] == {"SSH_AUTH_SOCK": "/tmp/agent.sock"}
+    assert calls[2][1]["env"] == {"SSH_AUTH_SOCK": agent_socket}
     monkeypatch.setattr(lane_refresh.subprocess, "run", lambda command, **_kwargs: subprocess.CompletedProcess(command, 0, "", ""))
-    assert lane_refresh.ssh_signing_transport_ready("/tmp/signing-key.pub") is True
+    assert lane_refresh.ssh_signing_transport_ready(public_key) is True
     def unavailable(*_args: object, **_kwargs: object) -> None:
         raise OSError
     monkeypatch.setattr(lane_refresh.subprocess, "run", unavailable)
-    assert lane_refresh.ssh_signing_transport_ready("/tmp/signing-key.pub") is False
+    assert lane_refresh.ssh_signing_transport_ready(public_key) is False
 
 
 def test_refresh_work_lane_base_blocks_unavailable_file_backed_ssh_before_rebase(
@@ -625,7 +628,7 @@ def test_refresh_work_lane_base_rechecks_configured_candidate_ref(tmp_path: Path
         load_branch_role_policy=lambda _root: SimpleNamespace(candidate_branch="stage/dev"),
         workspace_status=lambda _root: {
             "role": "work_lane", "dirty": False, "branch": "work/feature",
-            "candidate": {"exists": True, "worktree_exists": True, "worktree_path": "/tmp/c", "head": "c1"},
+            "candidate": {"exists": True, "worktree_exists": True, "worktree_path": "candidate", "head": "c1"},
         },
         changed_paths=lambda _path: [], is_ancestor=lambda *_args: False, run_git=run_git,
     )
@@ -665,7 +668,7 @@ def test_refresh_work_lane_base_rejects_attach_and_post_cas_races(tmp_path: Path
     heads, ancestors = iter(("work", "work", "candidate", "rebased", head)), iter((False, True))
     def run(_root: Path, *args: str, **_kwargs: object) -> subprocess.CompletedProcess[str]:
         return subprocess.CompletedProcess(["git", *args], attach_code if args == ("switch", "work/feature") else 0, f"{next(heads)}\n" if args[:1] == ("rev-parse",) else "", "attach")
-    runtime = lane_refresh.LaneRefreshRuntime(load_branch_role_policy=lambda _root: SimpleNamespace(candidate_branch="candidate/dev"), workspace_status=lambda _root: {"role": "work_lane", "dirty": False, "branch": "work/feature", "candidate": {"exists": True, "worktree_exists": True, "worktree_path": "/tmp/c", "head": "candidate"}}, changed_paths=lambda _path: [], is_ancestor=lambda *_args: next(ancestors), run_git=run)
+    runtime = lane_refresh.LaneRefreshRuntime(load_branch_role_policy=lambda _root: SimpleNamespace(candidate_branch="candidate/dev"), workspace_status=lambda _root: {"role": "work_lane", "dirty": False, "branch": "work/feature", "candidate": {"exists": True, "worktree_exists": True, "worktree_path": "candidate", "head": "candidate"}}, changed_paths=lambda _path: [], is_ancestor=lambda *_args: next(ancestors), run_git=run)
     report = lane_refresh.refresh_work_lane_base(root=tmp_path, apply=True, authorized=True, expect_head="work", runtime=runtime)
     assert report["required_gaps"] == [gap]
 

@@ -12,10 +12,8 @@ fi
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "${repo_root}"
 
-if (($#)); then
-  shell_files=("$@")
-else
-  shell_files=()
+shell_files=("$@")
+if (($# == 0)); then
   while IFS= read -r target; do
     shell_files+=("${target}")
   done < <(git ls-files '*.sh')

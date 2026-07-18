@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 from typing import Protocol
@@ -82,6 +83,8 @@ def resolve_projection_only_rebase_conflict(
 ) -> ProjectionResolution:
     git = runtime.run_git if runtime is not None else run_git
     paths = unmerged_paths(root, runtime=runtime)
+    if paths and all(staged_parity_projection(root, path, git=git) for path in paths):
+        return parity_projection_resolution(paths)
     adopters = [parity_adopter(path) for path in paths]
     result = projection_resolution(ok=False)
     if paths and all(adopters):
@@ -93,20 +96,7 @@ def resolve_projection_only_rebase_conflict(
             if added.returncode != 0:
                 result = projection_resolution(ok=False, paths=paths)
             else:
-                result = projection_resolution(
-                    ok=True,
-                    paths=paths,
-                    gaps=[
-                        f"projection_regeneration_required:parity:{adopter}" for adopter in adopters
-                    ],
-                    next_actions=[
-                        (
-                            "ethos parity shadow --adopter "
-                            f"{adopter} --target . --execute --write-evidence --json"
-                        )
-                        for adopter in adopters
-                    ],
-                )
+                result = parity_projection_resolution(paths)
     return result
 
 
@@ -192,4 +182,34 @@ def resolve_projection_rebase(
         gaps=gaps,
         next_actions=next_actions,
         stderr="projection rebase recovery exceeded bounded step limit",
+    )
+
+
+def parity_projection_resolution(paths: list[str]) -> ProjectionResolution:
+    """Render the bounded regeneration obligation for parity projections."""
+    adopters = [parity_adopter(path) for path in paths]
+    return projection_resolution(
+        ok=True,
+        paths=paths,
+        gaps=[f"projection_regeneration_required:parity:{adopter}" for adopter in adopters],
+        next_actions=[
+            f"ethos parity shadow --adopter {adopter} --target . --execute --write-evidence --json"
+            for adopter in adopters
+        ],
+    )
+
+
+def staged_parity_projection(root: Path, path: str, *, git: Any) -> bool:
+    """Return whether rerere staged a structurally valid parity JSON projection."""
+    staged = git(root, "show", f":0:{path}", check=False)
+    if staged.returncode != 0:
+        return False
+    try:
+        payload = json.loads(staged.stdout)
+    except json.JSONDecodeError:
+        return False
+    return (
+        isinstance(payload, dict)
+        and payload.get("schema_version") == 1
+        and payload.get("adopter") == parity_adopter(path)
     )

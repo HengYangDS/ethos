@@ -30,6 +30,7 @@ def campaign_closeout_report(
     repo: Path,
     adopter: str,
     target: Path,
+    campaign_id: str | None = None,
 ) -> dict[str, object]:
     """Compose the full campaign-closeout report (local readiness + parity + trust)."""
     status_payload = workspace_status(repo)
@@ -41,7 +42,7 @@ def campaign_closeout_report(
     intake_projection = intake_projection_report(repo)
     branch = str(status_payload["branch"])
     evolution = evolution_report(repo)
-    campaign = campaign_report(repo)
+    campaign = campaign_report(repo, campaign_id=campaign_id)
     release = release_policy_report(repo)
     current_target_head = git_adapter.current_tracked_head(target)
     current_product_head = git_adapter.current_tracked_head(repo)
@@ -118,6 +119,7 @@ def campaign_closeout_report(
             "campaign_count": int(cast("int", campaign["campaign_count"])),
             "required_gaps": list(cast("list[object]", campaign["required_gaps"])),
             "campaigns": campaign["campaigns"],
+            "requested_campaign": campaign_id or "",
         },
     }
     ok = local_ready and bool(campaign["ok"]) and not trust_closeout["required_gaps"]
@@ -129,6 +131,7 @@ def campaign_closeout_report(
         "intake_projection": intake_projection,
         "evolution": evolution,
         "campaigns": campaign,
+        "requested_campaign": campaign_id or "",
         "release": release,
         "parity": parity,
         "shadow_parity": shadow,

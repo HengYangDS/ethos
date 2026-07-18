@@ -724,6 +724,38 @@ def test_campaign_status_reports_manifest_steps() -> None:
     } <= set(campaign["steps"][0])
 
 
+def test_campaign_closeout_scopes_to_selected_campaign() -> None:
+    payload = run_ethos(
+        "campaign",
+        "closeout",
+        "--campaign",
+        "terminal-openspec-productization",
+        "--json",
+    )
+
+    assert payload["command"] == "campaign closeout"
+    assert payload["summary"]["campaign"] == "terminal-openspec-productization"
+    assert payload["data"]["requested_campaign"] == "terminal-openspec-productization"
+    package = payload["data"]["packages"]["campaign"]
+    assert package["requested_campaign"] == "terminal-openspec-productization"
+    assert [item["id"] for item in package["campaigns"]] == ["terminal-openspec-productization"]
+
+
+def test_campaign_closeout_unknown_selector_reports_gap() -> None:
+    payload = run_ethos(
+        "campaign",
+        "closeout",
+        "--campaign",
+        "absent-campaign",
+        "--json",
+    )
+
+    assert payload["state"] == "gapped"
+    assert "campaign_missing:absent-campaign" in payload["required_gaps"]
+    assert payload["data"]["requested_campaign"] == "absent-campaign"
+    assert payload["data"]["packages"]["campaign"]["campaigns"] == []
+
+
 def test_campaign_closeout_reports_local_campaign_packages() -> None:
     branch = git(Path.cwd(), "branch", "--show-current") or "detached"
     expected_submit = load_branch_role_policy(Path.cwd()).submit_branch_for_source(branch)
@@ -811,7 +843,7 @@ def test_campaign_closeout_reports_local_campaign_packages() -> None:
         "remote_state": "deferred",
     }
     validation = validate_schema_instance("campaign-closeout.schema.json", payload["data"])
-    assert validation["ok"] is True
+    assert validation["ok"] is True, validation["required_gaps"]
 
 
 def test_init_command_is_adoption_alias_without_writing(tmp_path: Path) -> None:

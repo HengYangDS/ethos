@@ -784,6 +784,14 @@ multiple OpenSpec-backed Work Lanes and their closeout state.
 - **AND** planned future steps do not block closeout before their Work Lane is
   active.
 
+#### Scenario: Campaign closeout scopes one explicit campaign
+
+- **GIVEN** more than one campaign manifest exists
+- **WHEN** `ethos campaign closeout --campaign <campaign-id> --json` runs
+- **THEN** the campaign package includes only the selected campaign
+- **AND** the report records the requested selector
+- **AND** unrelated campaign gaps do not become selected-campaign gaps.
+
 ### Requirement: Productized OpenSpec Substrate
 
 ETHOS SHALL provide an inspectable OpenSpec workspace substrate for product and

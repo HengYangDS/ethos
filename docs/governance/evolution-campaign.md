@@ -115,8 +115,11 @@ next planned step with no active lane; the reader exposes that successor rather
 than inventing an active lane. Any state/carrier disagreement is a required
 campaign gap, not an advisory display detail.
 
-`ethos campaign closeout --json` exposes the local campaign closeout package. It
-is a read-only aggregation of Work Lane closeout support, publication readiness,
+`ethos campaign closeout --json` exposes the local campaign closeout package. An
+explicit `--campaign <id>` evaluates only the named campaign and exposes the
+selector; it does not make unrelated campaign state part of that selected
+campaign's readiness. The command remains a read-only aggregation of Work Lane
+closeout support, publication readiness,
 release policy, campaign manifests, unresolved parity packages, and shadow
 parity execution plans. Remote publication remains deferred until an adapter is
 available; local campaign closeout still proceeds through the configured

@@ -24,7 +24,7 @@ before a fresh local closeout would make remote state outrun local evidence.
 
 ### Modified Capabilities
 
-- `repository-governance`: subject=maintainer-final-dual-remote-submit-absorption; reuse=extend; change=modify; facet:lifecycle=authoring,validation,closeout,publish,retirement; facet:surface=ci,docs,openspec,evidence,claim; facet:authority=source,test,openspec,claim,evidence. Final dual-remote submit absorption retains the observed submit tip by ordinary merge, completes local proof/closeout before protected updates, and keeps remote mutation, observation, and hosted CI as distinct evidence classes.
+- `repository-governance`: subject=maintainer-final-dual-remote-submit-absorption; reuse=extend; change=modify; facet:lifecycle=authoring,validation,closeout,publish,retirement; facet:surface=ci,docs,openspec,evidence,claim; facet:authority=source,test,openspec,claim,evidence.
 
 ## Impact
 
@@ -32,7 +32,6 @@ before a fresh local closeout would make remote state outrun local evidence.
   a proof-receipt owner script from the exact submitted patch.
 - This Change, its scoped claim and Chronicle, governed local closeout, and
   no-force GitLab/GitHub publication observations.
-
 
 ## Out Of Scope
 

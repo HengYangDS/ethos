@@ -24,3 +24,11 @@ invariant for that correction. All other conflict sets SHALL remain fail-closed.
   source/test invariant is absent
 - **THEN** ETHOS SHALL NOT resolve the conflict automatically
 - **AND** refresh-base SHALL retain its ordinary fail-closed result.
+
+#### Scenario: semantic recovery and a parity projection coexist
+
+- **WHEN** the same refresh also recovers a generated parity projection
+- **THEN** only that generated projection SHALL populate
+  `stale_projection_paths` and require regeneration
+- **AND** the source-budget implementation and test paths SHALL remain in
+  separately named semantic-recovery diagnostics.

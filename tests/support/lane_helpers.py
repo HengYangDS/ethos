@@ -24,8 +24,8 @@ __all__ = (
     "git",
     "init_repo",
     "leased_worktree",
+    "orphan_work_lane",
     "superseded_work_lane",
-    "write_role_policy",
 )
 
 
@@ -67,6 +67,14 @@ def absorb_obsolete_delta_in_accepted(repo: Path) -> str:
     return git(repo, "rev-parse", "dev")
 
 
+def orphan_work_lane(tmp_path: Path) -> tuple[Path, Path]:
+    """Create an unleased Work Lane for exceptional-resolution tests."""
+    repo = init_repo(tmp_path / "repo")
+    lane = tmp_path / "repo-work-orphan"
+    git(repo, "worktree", "add", "-b", "work/orphan", lane.as_posix(), "dev")
+    return repo, lane
+
+
 def superseded_work_lane(
     tmp_path: Path,
     *,
@@ -99,40 +107,6 @@ def superseded_work_lane(
         database, subject="work/superseded", holder_ref=holder_ref, ttl_seconds=3600
     )
     return repo, lane, head, accepted, database
-
-
-def write_role_policy(
-    repo: Path,
-    *,
-    candidate_branch: str = "stage/dev",
-    work_branch_prefix: str = "lane/",
-    submit_branch_prefix: str = "review/",
-) -> None:
-    (repo / ".ethos" / "workspace.toml").write_text(
-        "\n".join(
-            [
-                "[branch_roles]",
-                'release_branch = "main"',
-                'accepted_branch = "dev"',
-                f'candidate_branch = "{candidate_branch}"',
-                f'work_branch_prefix = "{work_branch_prefix}"',
-                f'submit_branch_prefix = "{submit_branch_prefix}"',
-                "",
-            ]
-        ),
-        encoding="utf-8",
-    )
-    git(repo, "add", ".ethos/workspace.toml")
-    git(
-        repo,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "configure branch roles",
-    )
 
 
 def assert_no_ui_projection(value: object) -> None:

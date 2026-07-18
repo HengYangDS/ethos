@@ -122,6 +122,44 @@ def init_repo_with_candidate(tmp_path: Path) -> tuple[Path, Path]:
     return repo, candidate
 
 
+def write_role_policy(
+    repo: Path,
+    *,
+    release_branch: str = "main",
+    accepted_branch: str = "dev",
+    candidate_branch: str = "stage/dev",
+    work_branch_prefix: str = "lane/",
+    submit_branch_prefix: str = "review/",
+) -> None:
+    """Write and commit a branch-role policy fixture."""
+    workspace_path = repo / ".ethos" / "workspace.toml"
+    workspace_path.write_text(
+        "\n".join(
+            (
+                "[branch_roles]",
+                f'release_branch = "{release_branch}"',
+                f'accepted_branch = "{accepted_branch}"',
+                f'candidate_branch = "{candidate_branch}"',
+                f'work_branch_prefix = "{work_branch_prefix}"',
+                f'submit_branch_prefix = "{submit_branch_prefix}"',
+                "",
+            )
+        ),
+        encoding="utf-8",
+    )
+    git(repo, "add", workspace_path.as_posix())
+    git(
+        repo,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "configure branch roles",
+    )
+
+
 def adopt_and_commit(repo: Path) -> None:
     plan = adoption_plan(repo, profile="generic", apply=True)
     assert plan["applied"] is True

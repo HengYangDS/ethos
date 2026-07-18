@@ -9,9 +9,14 @@ relations:
 
 # Authorized Work Lane Cohort Closeout — 2026-07-18
 
+Status: active decision carrier; local proof-gate remediation is in progress.
+
 Purpose: move the currently observed ETHOS `work/*` cohort to an exact,
 evidence-bound local outcome without claiming foreign ownership, remote
 publication, or hosted verification.
+
+See also: [Product Design Contract](../governance/product-design-contract.md)
+and the [active OpenSpec Change](../../openspec/changes/all-lanes-authorized-closeout-20260718/).
 
 This is a two-level program.  The current Work Lane promotes the governance
 decision first.  Only after its accepted-root closeout may separately admitted

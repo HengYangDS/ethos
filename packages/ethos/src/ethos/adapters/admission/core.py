@@ -152,7 +152,9 @@ def push_admission_report(
                 submit_branch=branch,
                 receipt_path=reconciliation.receipt_path,
                 origin_head=reconciliation.origin_head,
+                origin_main_head=reconciliation.origin_main_head,
                 github_head=reconciliation.github_head,
+                github_main_head=reconciliation.github_main_head,
             )
             if role == "submit_lane" and remote_head == _ZERO_OID
             else _NO_RECONCILIATION

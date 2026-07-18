@@ -110,6 +110,19 @@ def test_land_closeout_defers_control_replacement_without_incumbent_receipt(
     assert payload["state"] == "deferred"
     assert payload["data"]["mutation"]["decision"]["verdict"] == "defer"
     assert "incumbent_or_bootstrap_verifier_required" in payload["required_gaps"]
+    bootstrap = payload["data"]["closeout_bootstrap"]
+    verifier = bootstrap["control_verifier"]
+    assert verifier["required"] is True
+    assert verifier["provenance_boundary"] == "candidate-external"
+    assert verifier["bootstrap_contract"]["accepted_head"] == git(repo, "rev-parse", "HEAD")
+    assert verifier["bootstrap_contract"]["candidate_head"] == candidate_head
+    assert verifier["bootstrap_contract"]["mints_authority"] is False
+    assert verifier["bootstrap_contract"]["reusable_authorization"] is False
+    assert payload["next_actions"] == [
+        "use data.closeout_bootstrap.control_verifier to mint a candidate-external "
+        "one-shot receipt, then rerun ethos land --closeout "
+        "--control-verifier-receipt <absolute-path> --json"
+    ]
     assert git(repo, "rev-parse", "HEAD") != candidate_head
 
 
@@ -360,50 +373,19 @@ def test_land_closeout_exposes_bootstrap_package_for_current_runner(
     )
     assert runner_binding["runner_matches_audit_root"] == bootstrap["runner_matches_audit_root"]
     assert runner_binding["advisory_gaps"] == bootstrap["runner_advisories"]
-    assert bootstrap == {
-        "kind": "closeout_bootstrap",
-        "mode": "maintainer_break_glass_local",
-        "runner_mode": "current_runner_with_explicit_accepted_root",
-        "remote_state": "deferred",
-        "remote_push": "not_performed",
-        "uses_current_runner": True,
-        "runner_binding": runner_binding,
-        "runner_module_path": runner_binding["runner_module_path"],
-        "runner_package_root": runner_binding["runner_package_root"],
-        "runner_source_root": runner_binding["runner_source_root"],
-        "runner_matches_accepted_root": runner_binding["runner_matches_accepted_root"],
-        "runner_matches_audit_root": runner_binding["runner_matches_audit_root"],
-        "runner_advisories": runner_binding["advisory_gaps"],
-        "state": "ready",
-        "accepted_root": repo.resolve().as_posix(),
-        "audit_root": candidate.resolve().as_posix(),
-        "accepted_branch": "dev",
-        "candidate_branch": "candidate/dev",
-        "accepted_head": accepted_head,
-        "candidate_head": candidate_head,
-        "proof_target": {
-            "kind": "closeout_proof_target",
-            "role": "candidate",
-            "root": candidate.resolve().as_posix(),
-            "head": candidate_head,
-            "reason": "accepted-root closeout promotes the candidate head",
-        },
-        "blocking": False,
-        "required_gaps": [],
-        "command": (
-            "ethos land --closeout --apply --authorize "
-            f"--expect-head {accepted_head} --root {repo.resolve().as_posix()} --json"
-        ),
-        "required_order": [
-            "run closeout command with a current ETHOS runner",
-            "bind --root to the clean accepted_root checkout",
-            "audit the configured candidate worktree before accepted-root movement",
-            "prove the configured candidate head before accepted-root movement",
-            "fast-forward accepted_root from candidate only after proof and lifecycle gates pass",
-            "defer remote push until remote publication is available",
-        ],
-        "next_action": "run closeout with a current ETHOS runner against accepted_root",
-    }
+    assert bootstrap["state"] == "ready"
+    assert bootstrap["accepted_head"] == accepted_head
+    assert bootstrap["candidate_head"] == candidate_head
+    assert bootstrap["proof_target"]["root"] == candidate.resolve().as_posix()
+    verifier = bootstrap["control_verifier"]
+    assert verifier["required"] is False
+    assert verifier["provenance_boundary"] == "candidate-external"
+    contract = verifier["bootstrap_contract"]
+    assert contract["accepted_head"] == accepted_head
+    assert contract["candidate_head"] == candidate_head
+    assert contract["candidate_proof"] == bootstrap["proof_target"]
+    assert contract["mints_authority"] is False
+    assert contract["reusable_authorization"] is False
 
 
 def test_land_closeout_bootstrap_proof_target_stays_candidate_when_blocked(

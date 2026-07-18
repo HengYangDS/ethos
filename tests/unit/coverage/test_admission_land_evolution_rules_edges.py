@@ -51,7 +51,7 @@ def status(
 
 
 def test_admission_hook_layers_and_postwrite_fuse(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(admission, "workspace_status", lambda repo: status())
+    monkeypatch.setattr(admission, "workspace_status", lambda repo, **_kwargs: status())
     assert admission.hook_admission_report(root=tmp_path, layer="unknown")["state"] == "admitted"
     assert (
         admission.hook_admission_report(root=tmp_path, layer="context", expected_root=tmp_path)[
@@ -72,7 +72,7 @@ def test_admission_hook_layers_and_postwrite_fuse(monkeypatch, tmp_path: Path) -
     monkeypatch.setattr(
         admission,
         "workspace_status",
-        lambda repo: status(ROLE_ACCEPTED_ROOT, changed=["README.md"]),
+        lambda repo, **_kwargs: status(ROLE_ACCEPTED_ROOT, changed=["README.md"]),
     )
     protected = admission.hook_admission_report(
         root=tmp_path, layer="post-write", paths=[Path("README.md")]
@@ -83,7 +83,7 @@ def test_admission_hook_layers_and_postwrite_fuse(monkeypatch, tmp_path: Path) -
     monkeypatch.setattr(
         admission,
         "workspace_status",
-        lambda repo: status(ROLE_WORK_LANE, changed=["unexpected.md"]),
+        lambda repo, **_kwargs: status(ROLE_WORK_LANE, changed=["unexpected.md"]),
     )
     unexpected = admission.hook_admission_report(
         root=tmp_path, layer="post-write", paths=[Path("README.md")]
@@ -194,7 +194,7 @@ def test_land_readiness_projection_edges(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(
         land_core,
         "workspace_status",
-        lambda repo: {"candidate": {"worktree_path": str(tmp_path / "candidate")}},
+        lambda repo, **_kwargs: {"candidate": {"worktree_path": str(tmp_path / "candidate")}},
     )
     assert land_core.closeout_audit_root(tmp_path, decision) == tmp_path / "candidate"
     skipped = land_core.repository_audit_after_admission(tmp_path, SimpleNamespace(ok=False))
@@ -342,7 +342,7 @@ def test_land_publication_additional_boundary_edges(monkeypatch, tmp_path: Path)
     monkeypatch.setattr(
         land_core,
         "workspace_status",
-        lambda _repo: {"candidate": "not-a-dict"},
+        lambda _repo, **_kwargs: {"candidate": "not-a-dict"},
     )
     assert land_core.closeout_audit_root(tmp_path, decision) == tmp_path
 

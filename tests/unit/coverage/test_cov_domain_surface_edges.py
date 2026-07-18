@@ -25,7 +25,7 @@ def test_land_closeout_audit_root_non_dict_candidate(monkeypatch, tmp_path: Path
     monkeypatch.setattr(
         land_core,
         "workspace_status",
-        lambda repo: {"candidate": "not-a-dict"},
+        lambda repo, **_kwargs: {"candidate": "not-a-dict"},
     )
     assert land_core.closeout_audit_root(tmp_path, decision) == tmp_path
 

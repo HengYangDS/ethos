@@ -85,7 +85,9 @@ def prepare_accepted_closeout(monkeypatch: pytest.MonkeyPatch) -> None:
         "evaluate_closeout_mutation",
         lambda *args, **kwargs: mutation_core.MutationEvaluation(ok=True, state="closeout_ready"),
     )
-    monkeypatch.setattr(mutation_core, "workspace_status", lambda root: accepted_status())
+    monkeypatch.setattr(
+        mutation_core, "workspace_status", lambda root, **_kwargs: accepted_status()
+    )
     monkeypatch.setattr(mutation_core, "is_ancestor", lambda root, ancestor, descendant: True)
     monkeypatch.setattr(
         mutation_core,
@@ -288,7 +290,7 @@ def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
     monkeypatch.setattr(
         mutation_core,
         "workspace_status",
-        lambda root: status_for(closeout_gaps=["trust_gap"]),
+        lambda root, **_kwargs: status_for(closeout_gaps=["trust_gap"]),
     )
     decision = mutation_core.evaluate_mutation(
         mutation_core.MutationRequest("land", True, True, "h1"),
@@ -298,7 +300,7 @@ def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
     assert decision.gaps == ("trust_gap",)
 
     ready_decision = mutation_core.MutationEvaluation(ok=True, state="land_ready")
-    monkeypatch.setattr(mutation_core, "workspace_status", lambda root: status_for())
+    monkeypatch.setattr(mutation_core, "workspace_status", lambda root, **_kwargs: status_for())
     monkeypatch.setattr(
         mutation_core,
         "candidate_base_report",
@@ -540,7 +542,7 @@ def test_mutation_admission_blocks_unarchived_openspec_carriers(
     change.mkdir(parents=True)
     (change / "tasks.md").write_text("- [x] done\n", encoding="utf-8")
 
-    monkeypatch.setattr(mutation_core, "workspace_status", lambda root: status_for())
+    monkeypatch.setattr(mutation_core, "workspace_status", lambda root, **_kwargs: status_for())
     land_decision = mutation_core.evaluate_mutation(
         mutation_core.MutationRequest("land", True, True, "h1"),
         root=tmp_path,
@@ -557,7 +559,7 @@ def test_mutation_admission_blocks_any_active_openspec_carrier_before_land(
     change.mkdir(parents=True)
     (change / "tasks.md").write_text("- [x] started\n- [ ] not archived\n", encoding="utf-8")
 
-    monkeypatch.setattr(mutation_core, "workspace_status", lambda root: status_for())
+    monkeypatch.setattr(mutation_core, "workspace_status", lambda root, **_kwargs: status_for())
 
     land_decision = mutation_core.evaluate_mutation(
         mutation_core.MutationRequest("land", True, True, "h1"),
@@ -580,7 +582,7 @@ def test_mutation_admission_blocks_active_openspec_carriers_on_closeout(
     monkeypatch.setattr(
         mutation_core,
         "workspace_status",
-        lambda root: status_for(
+        lambda root, **_kwargs: status_for(
             role=ROLE_ACCEPTED_ROOT,
             candidate={
                 "exists": True,
@@ -699,6 +701,16 @@ def test_git_and_coordination_edges(monkeypatch: pytest.MonkeyPatch, tmp_path: P
         )
         == "disjoint"
     )
+    assert (
+        coordination.coordination_state(
+            current_role=ROLE_WORK_LANE,
+            current_path_scope=("a",),
+            current_scope_state="deferred",
+            foreign_path_scope=("b",),
+            foreign_scope_state="bounded",
+        )
+        == "deferred"
+    )
     required, advisory = coordination.coordination_gaps(
         [
             {
@@ -712,6 +724,22 @@ def test_git_and_coordination_edges(monkeypatch: pytest.MonkeyPatch, tmp_path: P
     )
     assert required == ["coordination_gap:current_scope_unknown"]
     assert "coordination_gap:scope_overlap:work/x" in advisory
+    deferred_lane = coordination.foreign_work_lane_deferred(
+        {
+            "path": "/workspace/foreign",
+            "head": "h1",
+            "branch": "work/foreign",
+            "role": ROLE_WORK_LANE,
+            "worktree_binding": "linked",
+        },
+        lease={"holder_ref": "agent:test:case:foreign"},
+        claim_id="claim",
+        dirty_paths=("unobserved",),
+    )
+    assert deferred_lane["scope_state"] == "deferred"
+    assert deferred_lane["coordination_state"] == "advisory"
+    assert deferred_lane["closeout_disposition"] == "none"
+    assert coordination._combined_scope_state("deferred", ("a",)) == "deferred"  # noqa: RUF100, SLF001 - exact deferred-scope reducer coverage
     package = coordination.coordination_package(
         [{"lease_state": "missing", "coordination_state": "unknown"}],
         required_gaps=["g"],

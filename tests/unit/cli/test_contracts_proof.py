@@ -511,7 +511,7 @@ def test_prove_execute_can_select_real_gates(monkeypatch, tmp_path: Path) -> Non
             "governance_context": {},
         },
     )
-    monkeypatch.setattr(proof_cli, "workspace_status", lambda _root: {})
+    monkeypatch.setattr(proof_cli, "workspace_status", lambda _root, **_kwargs: {})
     monkeypatch.setattr(proof_cli, "change_scope_paths_from_status", lambda *_args: ())
     monkeypatch.setattr(
         proof_cli,

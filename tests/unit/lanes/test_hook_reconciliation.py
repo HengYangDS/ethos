@@ -19,38 +19,41 @@ from tests.support.lane_helpers import git
 from tests.support.lane_helpers import init_repo
 
 
+def _use_identity(
+    repo: Path, monkeypatch: pytest.MonkeyPatch, label: str, *, configure: bool = False
+) -> None:
+    name, email = f"{label} User", f"{label.lower()}@example.invalid"
+    if configure:
+        git(repo, "config", "user.name", name)
+        git(repo, "config", "user.email", email)
+        git(repo, "config", "ethos.pushIdentityPolicy", "configured-user")
+    for role in ("AUTHOR", "COMMITTER"):
+        monkeypatch.setenv(f"GIT_{role}_NAME", name)
+        monkeypatch.setenv(f"GIT_{role}_EMAIL", email)
+
+
+def _commit_file(repo: Path, name: str, content: str, message: str) -> str:
+    (repo / name).write_text(content, encoding="utf-8")
+    git(repo, "add", name)
+    git(repo, "commit", "-m", message)
+    return git(repo, "rev-parse", "HEAD")
+
+
 def test_new_submit_push_reconciles_divergent_origin_and_github_identity_baselines(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
     repo = init_repo(tmp_path / "repo")
-    git(repo, "config", "user.name", "Canonical User")
-    git(repo, "config", "user.email", "canonical@example.invalid")
-    git(repo, "config", "ethos.pushIdentityPolicy", "configured-user")
-    monkeypatch.setenv("GIT_AUTHOR_NAME", "Legacy User")
-    monkeypatch.setenv("GIT_AUTHOR_EMAIL", "legacy@example.invalid")
-    monkeypatch.setenv("GIT_COMMITTER_NAME", "Legacy User")
-    monkeypatch.setenv("GIT_COMMITTER_EMAIL", "legacy@example.invalid")
-    (repo / "legacy.txt").write_text("legacy\n", encoding="utf-8")
-    git(repo, "add", "legacy.txt")
-    git(repo, "commit", "-m", "legacy history")
-    legacy_head = git(repo, "rev-parse", "HEAD")
+    _use_identity(repo, monkeypatch, "Canonical", configure=True)
+    _use_identity(repo, monkeypatch, "Legacy")
+    legacy_head = _commit_file(repo, "legacy.txt", "legacy\n", "legacy history")
     git(repo, "update-ref", "refs/remotes/github/dev", legacy_head)
     git(repo, "checkout", "-b", "origin-source", "HEAD~1")
-    (repo / "origin.txt").write_text("origin\n", encoding="utf-8")
-    git(repo, "add", "origin.txt")
-    git(repo, "commit", "-m", "origin history")
-    origin_head = git(repo, "rev-parse", "HEAD")
+    origin_head = _commit_file(repo, "origin.txt", "origin\n", "origin history")
     git(repo, "update-ref", "refs/remotes/origin/dev", origin_head)
     git(repo, "checkout", "dev")
-    monkeypatch.setenv("GIT_AUTHOR_NAME", "Canonical User")
-    monkeypatch.setenv("GIT_AUTHOR_EMAIL", "canonical@example.invalid")
-    monkeypatch.setenv("GIT_COMMITTER_NAME", "Canonical User")
-    monkeypatch.setenv("GIT_COMMITTER_EMAIL", "canonical@example.invalid")
-    (repo / "carrier.txt").write_text("carrier\n", encoding="utf-8")
-    git(repo, "add", "carrier.txt")
-    git(repo, "commit", "-m", "reconciliation carrier")
-    pushed_head = git(repo, "rev-parse", "HEAD")
+    _use_identity(repo, monkeypatch, "Canonical")
+    pushed_head = _commit_file(repo, "carrier.txt", "carrier\n", "reconciliation carrier")
     receipt_path = tmp_path / "dual-remote-reconciliation.json"
     receipt_path.write_text(
         json.dumps(
@@ -87,14 +90,9 @@ def test_new_submit_push_reconciles_dev_and_main_identity_baselines(
     tmp_path: Path,
 ) -> None:
     repo = init_repo(tmp_path / "repo")
-    git(repo, "config", "user.name", "Canonical User")
-    git(repo, "config", "user.email", "canonical@example.invalid")
-    git(repo, "config", "ethos.pushIdentityPolicy", "configured-user")
+    _use_identity(repo, monkeypatch, "Canonical", configure=True)
     base = git(repo, "rev-parse", "HEAD")
-    monkeypatch.setenv("GIT_AUTHOR_NAME", "Legacy User")
-    monkeypatch.setenv("GIT_AUTHOR_EMAIL", "legacy@example.invalid")
-    monkeypatch.setenv("GIT_COMMITTER_NAME", "Legacy User")
-    monkeypatch.setenv("GIT_COMMITTER_EMAIL", "legacy@example.invalid")
+    _use_identity(repo, monkeypatch, "Legacy")
     heads: dict[str, str] = {}
     branches: list[str] = []
     for remote, role in (
@@ -106,16 +104,15 @@ def test_new_submit_push_reconciles_dev_and_main_identity_baselines(
         branch = f"legacy-{remote}-{role}"
         branches.append(branch)
         git(repo, "checkout", "-b", branch, base)
-        (repo / f"{remote}-{role}.txt").write_text(f"{remote}-{role}\n", encoding="utf-8")
-        git(repo, "add", f"{remote}-{role}.txt")
-        git(repo, "commit", "-m", f"legacy {remote} {role}")
-        heads[f"{remote}_{role}"] = git(repo, "rev-parse", "HEAD")
+        heads[f"{remote}_{role}"] = _commit_file(
+            repo,
+            f"{remote}-{role}.txt",
+            f"{remote}-{role}\n",
+            f"legacy {remote} {role}",
+        )
         git(repo, "update-ref", f"refs/remotes/{remote}/{role}", "HEAD")
     git(repo, "checkout", "dev")
-    monkeypatch.setenv("GIT_AUTHOR_NAME", "Canonical User")
-    monkeypatch.setenv("GIT_AUTHOR_EMAIL", "canonical@example.invalid")
-    monkeypatch.setenv("GIT_COMMITTER_NAME", "Canonical User")
-    monkeypatch.setenv("GIT_COMMITTER_EMAIL", "canonical@example.invalid")
+    _use_identity(repo, monkeypatch, "Canonical")
     for branch in branches:
         git(repo, "merge", "--no-ff", branch, "-m", f"merge {branch}")
     pushed_head = git(repo, "rev-parse", "HEAD")
@@ -157,23 +154,12 @@ def test_new_submit_push_blocks_divergence_without_an_exact_receipt(
     tmp_path: Path,
 ) -> None:
     repo = init_repo(tmp_path / "repo")
-    git(repo, "config", "user.name", "Canonical User")
-    git(repo, "config", "user.email", "canonical@example.invalid")
-    git(repo, "config", "ethos.pushIdentityPolicy", "configured-user")
+    _use_identity(repo, monkeypatch, "Canonical", configure=True)
     git(repo, "checkout", "-b", "origin-source")
-    (repo / "origin.txt").write_text("origin\n", encoding="utf-8")
-    git(repo, "add", "origin.txt")
-    git(repo, "commit", "-m", "origin history")
+    _commit_file(repo, "origin.txt", "origin\n", "origin history")
     git(repo, "update-ref", "refs/remotes/origin/dev", "HEAD")
     git(repo, "checkout", "dev")
-    monkeypatch.setenv("GIT_AUTHOR_NAME", "Canonical User")
-    monkeypatch.setenv("GIT_AUTHOR_EMAIL", "canonical@example.invalid")
-    monkeypatch.setenv("GIT_COMMITTER_NAME", "Canonical User")
-    monkeypatch.setenv("GIT_COMMITTER_EMAIL", "canonical@example.invalid")
-    (repo / "carrier.txt").write_text("carrier\n", encoding="utf-8")
-    git(repo, "add", "carrier.txt")
-    git(repo, "commit", "-m", "reconciliation carrier")
-    pushed_head = git(repo, "rev-parse", "HEAD")
+    pushed_head = _commit_file(repo, "carrier.txt", "carrier\n", "reconciliation carrier")
 
     report = push_admission_report(
         root=repo,
@@ -192,29 +178,14 @@ def test_new_submit_push_blocks_reconciliation_receipt_when_remote_observation_i
     tmp_path: Path,
 ) -> None:
     repo = init_repo(tmp_path / "repo")
-    git(repo, "config", "user.name", "Canonical User")
-    git(repo, "config", "user.email", "canonical@example.invalid")
-    git(repo, "config", "ethos.pushIdentityPolicy", "configured-user")
+    _use_identity(repo, monkeypatch, "Canonical", configure=True)
     git(repo, "checkout", "-b", "origin-source")
-    (repo / "origin.txt").write_text("origin\n", encoding="utf-8")
-    git(repo, "add", "origin.txt")
-    git(repo, "commit", "-m", "origin history")
-    origin_head = git(repo, "rev-parse", "HEAD")
+    origin_head = _commit_file(repo, "origin.txt", "origin\n", "origin history")
     git(repo, "update-ref", "refs/remotes/origin/dev", origin_head)
     git(repo, "checkout", "dev")
-    (repo / "github.txt").write_text("github\n", encoding="utf-8")
-    git(repo, "add", "github.txt")
-    git(repo, "commit", "-m", "github history")
-    github_head = git(repo, "rev-parse", "HEAD")
+    github_head = _commit_file(repo, "github.txt", "github\n", "github history")
     git(repo, "update-ref", "refs/remotes/github/dev", github_head)
-    monkeypatch.setenv("GIT_AUTHOR_NAME", "Canonical User")
-    monkeypatch.setenv("GIT_AUTHOR_EMAIL", "canonical@example.invalid")
-    monkeypatch.setenv("GIT_COMMITTER_NAME", "Canonical User")
-    monkeypatch.setenv("GIT_COMMITTER_EMAIL", "canonical@example.invalid")
-    (repo / "carrier.txt").write_text("carrier\n", encoding="utf-8")
-    git(repo, "add", "carrier.txt")
-    git(repo, "commit", "-m", "reconciliation carrier")
-    pushed_head = git(repo, "rev-parse", "HEAD")
+    pushed_head = _commit_file(repo, "carrier.txt", "carrier\n", "reconciliation carrier")
     receipt_path = tmp_path / "stale-reconciliation.json"
     receipt_path.write_text(
         json.dumps(
@@ -284,7 +255,9 @@ def test_reconciliation_receipt_command_records_exact_tracking_observation(
     assert json.loads(receipt_path.read_text(encoding="utf-8")) == payload["data"]["receipt"]
 
 
-def test_reconciliation_receipt_command_blocks_missing_tracking_refs(tmp_path: Path) -> None:
+def test_reconciliation_receipt_command_blocks_missing_tracking_refs(
+    tmp_path: Path,
+) -> None:
     repo = init_repo(tmp_path / "repo")
     receipt_path = tmp_path / "dual-remote-reconciliation.json"
 
@@ -311,7 +284,9 @@ def test_reconciliation_receipt_command_blocks_missing_tracking_refs(tmp_path: P
     assert not receipt_path.exists()
 
 
-def test_reconciliation_receipt_command_rejects_repository_local_output(tmp_path: Path) -> None:
+def test_reconciliation_receipt_command_rejects_repository_local_output(
+    tmp_path: Path,
+) -> None:
     repo = init_repo(tmp_path / "repo")
     receipt_path = repo / "submit-reconciliation.json"
 

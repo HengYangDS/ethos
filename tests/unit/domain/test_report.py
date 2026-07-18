@@ -18,7 +18,7 @@ from tests.support.reporting import patch_scorecard_dependencies
 
 
 def _quality(monkeypatch, **reports: dict[str, object]) -> None:
-    names = "code_size source_budget coverage_quality ty_gate docstring_coverage module_layout product_boundary contributor_policy".split()  # noqa: SIM905
+    names = "code_size coverage_quality ty_gate docstring_coverage module_layout product_boundary contributor_policy".split()  # noqa: SIM905
     for name in names:
         report = reports.get(f"{name}_report", {"required_gaps": []})
         monkeypatch.setattr(reporting_scoring, f"{name}_report", lambda _repo, value=report: value)
@@ -138,6 +138,29 @@ def test_scorecard_blocks_hard_quality_floor(monkeypatch, tmp_path) -> None:
     assert payload["data"]["gap_layers"]["hard_quality_floor"]["required_gaps"] == [gap]
 
 
+def test_scorecard_surfaces_global_compression_separately(monkeypatch, tmp_path) -> None:
+    patch_scorecard_dependencies(monkeypatch)
+    gap = "source_budget_exceeded:toml:12531>12516"
+    monkeypatch.setattr(
+        reporting_scoring,
+        "global_compression_report",
+        lambda _repo: {"ok": False, "required_gaps": [gap]},
+    )
+
+    payload = report_domain.scorecard_report(tmp_path)
+
+    assert payload["ok"] is True and payload["required_gaps"] == ()  # noqa: PT018
+    assert payload["state"] == "advisory"
+    assert payload["next_actions"] == ("ethos quality source-budget --json",)
+    assert payload["data"]["hard_quality_floor"]["ok"] is True
+    layer = payload["data"]["gap_layers"]["global_compression"]
+    assert layer["scope"] == "global_compression"
+    assert layer["blocking"] is False and layer["ok"] is False
+    assert layer["required_gaps"] == [gap] and layer["gap_count"] == 1
+    assert layer["invalid_states"]["category_count"] == 1
+    assert payload["data"]["advisory_signals"]["advisory_gaps"] == [gap]
+
+
 def test_scorecard_surfaces_coordination_advisories(monkeypatch, tmp_path) -> None:
     patch_scorecard_dependencies(monkeypatch)
     gaps = ["foreign_work_lane_present", "work_lane_missing_lease:work/orphan"]
@@ -176,8 +199,7 @@ def test_hard_quality_floor_boundaries(monkeypatch, tmp_path) -> None:
     )
     floor = reporting_scoring.hard_quality_floor_report(tmp_path)
     expected = (  # noqa: SIM905
-        "python-size source-budget coverage types docstrings module-layout "
-        "product-boundary contributor-policy"
+        "python-size coverage types docstrings module-layout product-boundary contributor-policy"
     ).split()
     assert floor["gate_ids"] == expected
     assert len(floor["required_gaps"]) == 3

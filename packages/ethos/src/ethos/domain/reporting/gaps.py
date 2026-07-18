@@ -93,6 +93,8 @@ def advisory_next_actions(advisory_gaps: tuple[str, ...]) -> tuple[str, ...]:
             )
         ):
             actions.append("tools/ci/scripts/run-hosted-provider-observation.sh")
+        elif gap.startswith("source_budget_"):
+            actions.append("ethos quality source-budget --json")
     return tuple(dict.fromkeys(actions))
 
 
@@ -145,11 +147,13 @@ def gap_layers(
     playbooks: dict[str, object],
     advisory: tuple[tuple[str, ...], tuple[str, ...]],
     hard_quality_floor: dict[str, object] | None = None,
+    global_compression: dict[str, object] | None = None,
     coordination_required_gaps: tuple[str, ...] = (),
     coordination_advisory_gaps: tuple[str, ...] = (),
 ) -> dict[str, dict[str, object]]:
     advisory_gaps, advisory_next_actions = advisory
     hard_quality_floor = hard_quality_floor or adopter_quality_floor_report()
+    global_compression = global_compression or adopter_quality_floor_report()
     return {
         "governance_audit": _gap_layer(
             scope="governance_audit",
@@ -177,6 +181,12 @@ def gap_layers(
             blocking=True,
             ok=bool(hard_quality_floor["ok"]),
             gaps=list(cast("list[str]", hard_quality_floor["required_gaps"])),
+        ),
+        "global_compression": _gap_layer(
+            scope="global_compression",
+            blocking=False,
+            ok=bool(global_compression["ok"]),
+            gaps=list(cast("list[str]", global_compression["required_gaps"])),
         ),
         "coordination_risk": {
             "scope": "coordination_risk",

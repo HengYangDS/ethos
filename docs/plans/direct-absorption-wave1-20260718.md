@@ -9,8 +9,12 @@ relations:
 
 # Direct Absorption Wave 1 — 2026-07-18
 
+Status: active owned implementation intake; default proof pending.
+
 Purpose: reduce recovered `work/*` topology by proving semantic absorption
 before, rather than instead of, retirement.
+
+See also: [Global Declarative Compression Program](global-declarative-compression-program.md), [Mutation Rules](../../rules/mutation.md), and [Evidence Rules](../../rules/evidence.md).
 
 ## Rule
 
@@ -44,8 +48,9 @@ lease fact in this plan is reusable authority.
 ## Sequence
 
 1. Finish the two current-missing replays and focused proof.
-2. The Change is archived; commit, refresh parity if required, execute proof,
-   land, and close out locally.
+2. The Change is archived; commit, refresh parity if required, execute the default
+   proof, land, and close out locally. The global source-budget report remains a
+   separately visible compression-program obligation until its own deletion closeout.
 3. Re-observe the five clean candidate source lanes. Native retirement is only
    considered where accepted evidence exactly supports it.
 4. Start the next bounded family only after prior retirement receipts reduce

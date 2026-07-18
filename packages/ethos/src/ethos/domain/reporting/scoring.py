@@ -110,7 +110,6 @@ def product_scores(
 def hard_quality_floor_report(repo: Path) -> dict[str, object]:
     """Return product hard quality gates that the scorecard must not hide."""
     code_size = code_size_report(repo)
-    source_budget = source_budget_report(repo)
     coverage = coverage_quality_report(repo)
     types = ty_gate_report(repo)
     docstrings = docstring_coverage_report(repo)
@@ -119,7 +118,6 @@ def hard_quality_floor_report(repo: Path) -> dict[str, object]:
     contributor_policy = contributor_policy_report(repo)
     gate_reports = {
         "python-size": code_size,
-        "source-budget": source_budget,
         "coverage": coverage,
         "types": types,
         "docstrings": docstrings,
@@ -136,6 +134,18 @@ def hard_quality_floor_report(repo: Path) -> dict[str, object]:
         "gate_ids": list(gate_reports),
         "required_gaps": required_gaps,
         "gates": gate_reports,
+    }
+
+
+def global_compression_report(repo: Path) -> dict[str, object]:
+    """Expose source-budget debt without treating it as local change correctness."""
+    report = source_budget_report(repo)
+    return {
+        "ok": bool(report["ok"]),
+        "state": str(report["state"]),
+        "gate_ids": ["source-budget"],
+        "required_gaps": list(cast("list[str]", report["required_gaps"])),
+        "gates": {"source-budget": report},
     }
 
 

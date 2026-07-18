@@ -25,7 +25,7 @@ _PRESERVATION_PACKAGE_INVALID = "lane_resolution_preservation_package_invalid"
 _PRESERVATION_PACKAGE_OUTSIDE_ROOT = "lane_resolution_preservation_package_outside_root"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class LaneResolutionClearRequest:
     """Exact request envelope for one irreversible package-clear operation."""
 

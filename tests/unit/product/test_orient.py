@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from ethos.domain.orient import _bound_actions
 from ethos.domain.orient import human_orientation_lines
 from ethos.domain.orient import orientation_packet
 from ethos.surface.cli.quality.reporting import build_declarative_report_result
@@ -46,7 +47,7 @@ def test_orient_json_is_projection_not_truth_store() -> None:
     assert isinstance(orientation["readiness"]["advisory_items"], list)
     assert isinstance(orientation["readiness"]["advisory_next_actions"], list)
     for action in orientation["readiness"]["advisory_next_actions"]:
-        assert action in orientation["next_actions"]
+        assert action.removeprefix("ethos ") in "\n".join(orientation["next_actions"])
     assert payload["summary"]["role"] == orientation["where"]["role"]
     assert (
         payload["summary"]["foreign_work_lane_count"]
@@ -670,3 +671,33 @@ def test_human_orientation_lines_marks_blocking_coordination_without_next_action
     assert "readiness: score 12/16, governance gaps 2, parity pending 1" in lines
     assert "coordination: 2 foreign lane(s), 1 unbound ref(s), blocking" in lines
     assert lines[-1] == "next: ethos explain scope_overlap --json | ethos report --json"
+
+
+def test_orient_binds_emitted_ethos_actions_to_its_checkout() -> None:
+    packet = orientation_packet(
+        status_payload={
+            "root": "/repo with space",
+            "branch": "work/demo",
+            "role": "work_lane",
+            "head": "abcdef1234567890",
+            "dirty": False,
+            "changed_paths": [],
+            "required_gaps": [],
+            "closeout_support": {"supported": True},
+            "coordination": {},
+            "candidate": {},
+            "runtime_binding": {},
+            "landing_readiness": {},
+            "foreign_work_lanes": [],
+        },
+        command_prefix="cd '/repo with space' && tools/ci/scripts/run-ethos-lane.sh",
+    )
+
+    assert packet["next_actions"] == [
+        "cd '/repo with space' && tools/ci/scripts/run-ethos-lane.sh plan --changed --json",
+        "cd '/repo with space' && tools/ci/scripts/run-ethos-lane.sh prove --execute --expect-head $(git rev-parse HEAD) --json",
+        "cd '/repo with space' && tools/ci/scripts/run-ethos-lane.sh land --json",
+    ]
+    assert _bound_actions(["git status --short"], command_prefix="cd /repo && runner") == [
+        "cd /repo && git status --short"
+    ]

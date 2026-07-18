@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import hashlib
 import subprocess
-import sys
 from typing import TYPE_CHECKING
 from typing import Any
 
 from ethos.adapters.shadow.execution import ROOT_OPTION_COMMANDS
 from ethos.adapters.shadow.execution import embedded_backend
+from ethos.adapters.shadow.execution import external_python
 from ethos.repository.profile import profile_evidence_roots
 
 if TYPE_CHECKING:
@@ -41,11 +41,12 @@ def command_label_from_tuple(command: tuple[str, ...]) -> str:
 
 
 def external_command_label(target: Path, command: tuple[str, ...]) -> str:
+    python = external_python(target)
     if command not in ROOT_OPTION_COMMANDS:
-        return " ".join([sys.executable, "-m", "ethos.cli", *command, "--json"])
+        return " ".join([python, "-m", "ethos.cli", *command, "--json"])
     return " ".join(
         [
-            sys.executable,
+            python,
             "-m",
             "ethos.cli",
             *command,

@@ -25,7 +25,7 @@ def plan(
 ) -> None:
     """Plan deterministic action graph."""
     repo = resolve_root(root)
-    status_payload = workspace_status(repo)
+    status_payload = workspace_status(repo, include_foreign_path_scope=False)
     governance = context_for_root(repo)
     paths = change_scope_paths_from_status(repo, status_payload) if changed else ()
     graph = graph_for_paths(paths)

@@ -14,14 +14,19 @@ ignores:
   - "node_modules/**"
   # Governance artifacts under version/digest control — not prose to lint.
   - "evidence/**"
-  # OpenSpec owns the format of its specs and changes (tool-generated shape).
+  # OpenSpec owns the schema and wider Markdown shape of its specs and changes.
+  # The shared structural reader still checks the universal blank-line boundary.
   - "openspec/**"
   # Generated projections (SSOT lives in skills/ source; .agents/skills is a build).
   - ".agents/skills/**"
   # Local, non-published working state.
   - ".ethos/**"
+  # Host-local agent state is ignored and never part of repository prose.
+  - ".serena/**"
 
 config:
+  # One blank line separates adjacent Markdown blocks; MD012 owns this syntax.
+  MD012: {maximum: 1}
   # Line length is not enforced: governance prose intentionally runs long in
   # tables, command examples, and digest strings.
   MD013: false

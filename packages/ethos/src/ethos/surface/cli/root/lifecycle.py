@@ -7,7 +7,6 @@ from pathlib import Path  # noqa: TC003 - cyclopts needs runtime types in signat
 from typing import TYPE_CHECKING
 from typing import Annotated
 from typing import Any
-from typing import cast
 
 from cyclopts import Parameter
 
@@ -15,9 +14,7 @@ import ethos.adapters.repo.git as git
 import ethos.domain.land.core as land_core
 import ethos.domain.land.publication as land_publication
 from ethos.adapters.admission.control.replacement import control_replacement_report
-from ethos.adapters.admission.evidence.external import (
-    independent_verification_admission_report,
-)
+from ethos.adapters.admission.evidence.external import independent_verification_admission_report
 from ethos.adapters.admission.evidence.external import independent_verification_request
 from ethos.adapters.mutation.core import MutationEvaluation
 from ethos.adapters.mutation.core import MutationRequest
@@ -32,20 +29,22 @@ from ethos.adapters.openspec.metadata.core import completed_active_changes_repor
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.repository.context import context_for_root
 from ethos.repository.openspec.audit import protected_branch_active_change_required_gaps
-from ethos.repository.release.core import publication_topology
-from ethos.repository.release.core import release_config
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import resolve_root
 from ethos_core.contracts.branch.roles import load_branch_role_policy
+from ethos_core.normalization.core import string_mapping
+from ethos_core.normalization.core import string_sequence
 from ethos_core.result import EthosResult
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+# fmt: off
 
-@dataclass(frozen=True)
+
+@dataclass(frozen=True, slots=True)
 class _CloseoutPayload:
     repo: Path
     mutation: MutationRequest
@@ -60,7 +59,7 @@ class _CloseoutPayload:
     control_replacement: dict[str, object]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class _PublishOptions:
     """CLI options for `ethos publish`, including legacy hook metadata."""
 
@@ -77,25 +76,12 @@ class _PublishOptions:
 _DEFAULT_PUBLISH_OPTIONS = _PublishOptions()
 
 
-def _mapping_payload(value: object) -> dict[str, object]:
-    """Return a JSON mapping payload, or an empty mapping for malformed data."""
-    return cast("dict[str, object]", value) if isinstance(value, dict) else {}
-
-
 def _gap_tuple(payload: Mapping[str, object]) -> tuple[str, ...]:
-    """Read required gaps from a JSON payload as strings."""
-    raw_gaps = payload.get("required_gaps", ())
-    if isinstance(raw_gaps, list | tuple):
-        return tuple(str(gap) for gap in raw_gaps)
-    return ()
+    return tuple(string_sequence(payload.get("required_gaps")))
 
 
 def _first_string(value: object) -> str:
-    """Return the first string-like item from a JSON list payload."""
-    if isinstance(value, list) and value:
-        return str(value[0])
-    return ""
-
+    return next(iter(string_sequence(value)), "")
 
 def _int_value(value: object, *, default: int = 0) -> int:
     """Return an integer from a JSON scalar without trusting arbitrary objects."""
@@ -171,8 +157,7 @@ def _publish_next_actions(*, ok: bool, publication: dict[str, object]) -> tuple[
     if not ok:
         return ("ethos land --json",)
 
-    publication_actions = cast("list[object]", publication.get("next_actions", []))
-    actions = [str(action) for action in publication_actions]
+    actions = string_sequence(publication.get("next_actions"))
     actions.append("ethos report")
     return tuple(dict.fromkeys(actions))
 
@@ -185,7 +170,7 @@ def _land_expected_state(
     closeout_support: Mapping[str, object],
 ) -> dict[str, object]:
     policy = load_branch_role_policy(repo)
-    candidate = _mapping_payload(status_payload.get("candidate", {}))
+    candidate = string_mapping(status_payload.get("candidate"))
     return {
         "root": repo.resolve().as_posix(),
         "source_ref": f"refs/heads/{status_payload.get('branch', '')}",
@@ -200,8 +185,8 @@ def _land_expected_state(
 
 def _closeout_expected_state(payload: _CloseoutPayload) -> dict[str, object]:
     policy = load_branch_role_policy(payload.repo)
-    status_payload = workspace_status(payload.repo)
-    candidate = _mapping_payload(status_payload.get("candidate", {}))
+    status_payload = workspace_status(payload.repo, include_foreign_path_scope=False)
+    candidate = string_mapping(status_payload.get("candidate"))
     return {
         "root": payload.repo.resolve().as_posix(),
         "accepted_ref": f"refs/heads/{policy.accepted_branch}",
@@ -211,7 +196,7 @@ def _closeout_expected_state(payload: _CloseoutPayload) -> dict[str, object]:
     }
 
 
-def _publish_expected_state(  # noqa: PLR0913, RUF100 - mutation state binds both peer-provider observations
+def _publish_expected_state(
     *,
     repo: Path,
     branch: str,
@@ -219,10 +204,9 @@ def _publish_expected_state(  # noqa: PLR0913, RUF100 - mutation state binds bot
     publication: Mapping[str, object],
     remote_sync: Mapping[str, object],
     remote_availability: Mapping[str, object],
-    github_availability: Mapping[str, object],
 ) -> dict[str, object]:
     submit_branch = str(publication.get("submit_branch") or "")
-    target_branch = str(publication.get("remote_target_branch") or submit_branch or branch)
+    target_branch = submit_branch or branch
     remote = str(remote_availability.get("remote") or "origin")
     return {
         "root": repo.resolve().as_posix(),
@@ -234,9 +218,6 @@ def _publish_expected_state(  # noqa: PLR0913, RUF100 - mutation state binds bot
         "observed_remote_head": str(remote_sync.get("remote_head") or ""),
         "remote_availability_state": str(remote_availability.get("state") or "not_probed"),
         "remote_sync_state": str(remote_sync.get("state") or "not_checked"),
-        "github_remote": str(github_availability.get("remote") or ""),
-        "github_availability_state": str(github_availability.get("state") or "not_probed"),
-        "remote_transition_allowed": publication.get("remote_transition_allowed") is True,
     }
 
 
@@ -277,8 +258,8 @@ def land(
         audit_root = land_core.closeout_audit_root(repo, decision)
         audit = land_core.repository_audit_after_admission(audit_root, decision)
         lifecycle = completed_active_changes_report(audit_root)
-        status_payload = workspace_status(repo)
-        candidate = _mapping_payload(status_payload.get("candidate", {}))
+        status_payload = workspace_status(repo, include_foreign_path_scope=False)
+        candidate = string_mapping(status_payload.get("candidate"))
         control_replacement = control_replacement_report(
             accepted_root=repo,
             candidate_root=audit_root,
@@ -286,13 +267,18 @@ def land(
             candidate_head=str(candidate.get("head") or current_head),
             external_receipt=control_verifier_receipt,
         )
-        control_gaps = _gap_tuple(control_replacement)
-        gaps = _gap_tuple(audit) + decision.gaps + _gap_tuple(lifecycle) + control_gaps
+        control_gaps = tuple(string_sequence(control_replacement.get("required_gaps")))
+        gaps = (
+            tuple(string_sequence(audit.get("required_gaps")))
+            + decision.gaps
+            + tuple(string_sequence(lifecycle.get("required_gaps")))
+            + control_gaps
+        )
         ok = bool(audit["ok"]) and decision.ok and bool(lifecycle["ok"]) and not control_gaps
         update: dict[str, object] = {}
         if ok and apply:
-            fresh_status = workspace_status(repo)
-            fresh_candidate = _mapping_payload(fresh_status.get("candidate", {}))
+            fresh_status = workspace_status(repo, include_foreign_path_scope=False)
+            fresh_candidate = string_mapping(fresh_status.get("candidate"))
             control_replacement = control_replacement_report(
                 accepted_root=repo,
                 candidate_root=audit_root,
@@ -300,7 +286,7 @@ def land(
                 candidate_head=str(fresh_candidate.get("head") or current_head),
                 external_receipt=control_verifier_receipt,
             )
-            fresh_control_gaps = _gap_tuple(control_replacement)
+            fresh_control_gaps = tuple(string_sequence(control_replacement.get("required_gaps")))
             if fresh_control_gaps:
                 gaps = gaps + fresh_control_gaps
                 ok = False
@@ -310,7 +296,7 @@ def land(
                 authorized=authorize,
                 expect_head=expect_head,
             )
-            gaps = gaps + _gap_tuple(update)
+            gaps = gaps + tuple(string_sequence(update.get("required_gaps")))
             ok = bool(update["ok"])
         result = _closeout_result(
             _CloseoutPayload(
@@ -331,21 +317,28 @@ def land(
         return
 
     governance = context_for_root(repo)
-    status_payload = workspace_status(repo)
-    closeout_support = _mapping_payload(status_payload.get("closeout_support", {}))
+    status_payload = workspace_status(repo, include_foreign_path_scope=False)
+    closeout_support = string_mapping(status_payload.get("closeout_support"))
     closeout_gaps: tuple[str, ...] = ()
     if status_payload.get("role") == "work_lane" and not closeout_support.get("supported"):
-        closeout_gaps = _gap_tuple(closeout_support)
+        closeout_gaps = tuple(string_sequence(closeout_support.get("required_gaps")))
     request = MutationRequest(
         command="land",
         apply=apply,
         authorized=authorize,
         expect_head=expect_head,
     )
-    decision = evaluate_mutation(request, root=repo, current_head=current_head)
+    decision = evaluate_mutation(
+        request, root=repo, current_head=current_head, status=None if apply else status_payload
+    )
     audit = land_core.repository_audit_after_admission(repo, decision)
     lifecycle = completed_active_changes_report(repo)
-    gaps = _gap_tuple(audit) + decision.gaps + closeout_gaps + _gap_tuple(lifecycle)
+    gaps = (
+        tuple(string_sequence(audit.get("required_gaps")))
+        + decision.gaps
+        + closeout_gaps
+        + tuple(string_sequence(lifecycle.get("required_gaps")))
+    )
     ok = bool(audit["ok"]) and decision.ok and bool(lifecycle["ok"]) and not closeout_gaps
     update: dict[str, object] = {}
     if ok and apply:
@@ -355,17 +348,17 @@ def land(
             expect_head=expect_head,
             admitted_decision=decision,
         )
-        gaps = gaps + _gap_tuple(update)
+        gaps = gaps + tuple(string_sequence(update.get("required_gaps")))
         ok = bool(update["ok"])
     elif ok:
-        update = candidate_base_report(root=repo)
+        update = candidate_base_report(root=repo, status=status_payload)
         if not update["ok"]:
-            gaps = gaps + _gap_tuple(update)
+            gaps = gaps + tuple(string_sequence(update.get("required_gaps")))
             ok = False
     proof_readiness: dict[str, object] = {}
     if ok and not apply:
         proof_readiness = proof_readiness_report(repo, current_head)
-        gaps = gaps + _gap_tuple(proof_readiness)
+        gaps = gaps + tuple(string_sequence(proof_readiness.get("required_gaps")))
         ok = not bool(proof_readiness["blocking"])
     state = (
         "ready_to_land"
@@ -442,15 +435,15 @@ def publish(
         action="publish",
         request=independent_verification_request(root=repo, action="publish"),
     )
-    branch = workspace_status(repo)["branch"]
+    branch = workspace_status(repo, include_foreign_path_scope=False)["branch"]
     release_carrier_gaps = tuple(
         protected_branch_active_change_required_gaps(repo, current_branch=str(branch))
     )
     gaps = (
-        _gap_tuple(audit)
+        tuple(string_sequence(audit.get("required_gaps")))
         + decision.gaps
         + release_carrier_gaps
-        + _gap_tuple(independent_verification)
+        + tuple(string_sequence(independent_verification.get("required_gaps")))
     )
     ok = (
         bool(audit["ok"])
@@ -458,44 +451,16 @@ def publish(
         and not release_carrier_gaps
         and bool(independent_verification.get("ok"))
     )
-    release_topology = publication_topology(release_config(repo))
-    primary_remote = str(release_topology["gitlab"]["remote"] or "origin")
-    github_remote = (
-        str(release_topology["github"]["remote"] or "github")
-        if release_topology["mode"] == "three_layer_peer_complete"
-        else ""
-    )
-    remote_sync = git.remote_tracking_sync(repo, str(branch), remote=primary_remote)
-    if options.probe_remote:
-        primary_availability = (
-            git.remote_availability(repo)
-            if primary_remote == "origin"
-            else git.remote_availability(repo, primary_remote)
-        )
-    else:
-        primary_availability = (
-            git.remote_availability_not_probed(repo)
-            if primary_remote == "origin"
-            else git.remote_availability_not_probed(repo, primary_remote)
-        )
+    remote_sync = git.remote_tracking_sync(repo, str(branch))
+    remote_matrix = git.publication_remote_syncs(repo, str(branch))
     remote_availability = {
-        **primary_availability,
+        **(
+            git.remote_availability(repo)
+            if options.probe_remote
+            else git.remote_availability_not_probed(repo)
+        ),
         "tracking_sync": remote_sync,
     }
-    if not github_remote:
-        github_availability = {
-            "kind": "git_remote_availability",
-            "remote": "",
-            "state": "unconfigured",
-            "available": False,
-            "blocking": False,
-            "required_gaps": [],
-            "advisory_gaps": [],
-        }
-    elif options.probe_remote:
-        github_availability = git.remote_availability(repo, github_remote)
-    else:
-        github_availability = git.remote_availability_not_probed(repo, github_remote)
     local_ci_fallback = land_publication.local_ci_fallback_package(
         remote_availability=remote_availability,
         root=repo,
@@ -506,9 +471,12 @@ def publish(
         local_ok=ok,
         policy=load_branch_role_policy(repo),
         remote_availability=remote_availability,
-        github_availability=github_availability,
-        topology=release_topology,
         local_ci_fallback=local_ci_fallback,
+    )
+    publication = land_publication.publication_with_remote_matrix(
+        publication,
+        remote_matrix,
+        remote_available=bool(remote_availability.get("available")),
     )
     remote_state = str(publication.get("remote_state") or "deferred")
     remote_push = str(publication.get("remote_push") or "not_performed")
@@ -520,9 +488,7 @@ def publish(
         "remote_publication_state": remote_state,
         "remote_availability_state": remote_availability_state,
         "remote_sync_state": str(remote_sync.get("state") or "not_checked"),
-        "github_availability_state": str(github_availability.get("state") or "not_probed"),
-        "gitlab_availability_state": remote_availability_state,
-        "remote_transition_allowed": publication.get("remote_transition_allowed") is True,
+        "remote_reconciliation_state": str(remote_matrix.get("state") or "pending"),
         "remote_ahead": _int_value(remote_sync.get("ahead")),
         "remote_behind": _int_value(remote_sync.get("behind")),
         "hosted_ci_status_claimed": False,
@@ -530,7 +496,7 @@ def publish(
             independent_verification.get("evidence_class") or "local_readiness"
         ),
         "submit_branch": str(publication.get("submit_branch") or ""),
-        "next_publication_action": _first_string(publication.get("next_actions")),
+        "next_publication_action": next(iter(string_sequence(publication.get("next_actions"))), ""),
     }
     publish_next_actions = _publish_next_actions(ok=ok, publication=publication)
     # Read-only tracking synchronization observes an existing remote ref; it never
@@ -544,7 +510,6 @@ def publish(
         publication=publication,
         remote_sync=remote_sync,
         remote_availability=remote_availability,
-        github_availability=github_availability,
     )
     result = EthosResult(
         command="publish",
@@ -572,9 +537,7 @@ def publish(
             "remote_push": remote_push,
             "remote_availability": remote_availability,
             "remote_sync": remote_sync,
-            "gitlab_availability": remote_availability,
-            "github_availability": github_availability,
-            "publication_topology": publication["publication_topology"],
+            "remote_matrix": remote_matrix,
             "local_ci_fallback": local_ci_fallback,
             "publication": publication,
             "mutation": mutation_envelope(
@@ -598,3 +561,5 @@ def publish(
         },
     )
     emit(result, json_output=json_output, enforce=options.apply)
+
+# fmt: on

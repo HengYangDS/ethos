@@ -165,6 +165,4 @@ def test_governance_kernel_blocks_docs_and_generic_scaffold_gaps(tmp_path: Path)
 
 
 def test_governance_kernel_helpers_cover_non_sequence_and_dedupe_edges() -> None:
-    assert governance_kernel._mapping("not-a-table") == {}
-    assert governance_kernel._string_list("not-a-sequence") == []
     assert governance_kernel._dedupe(["a", "b", "a"]) == ["a", "b"]

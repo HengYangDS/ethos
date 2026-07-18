@@ -62,6 +62,13 @@ itself. There is no blanket exemption for an OpenSpec directory, `.ethos/`, or
 a path family; missing or invalid unrelated companions remain diagnostics and
 do not override valid coverage supplied by another selected Change.
 
+For a valid tracked adopter profile created before the material-path contract,
+ETHOS also permits one migration write: exactly `.ethos/profile.toml`, while
+the declaration is absent and exactly one official active Change is selected.
+This emits `profile_material_paths_bootstrap`. It is not scope coverage, does
+not repair an empty or malformed declaration, and is followed by the normal
+exact Change-local `scope.toml` bootstrap.
+
 Canonical capability profiles live beside canonical specs as
 `openspec/specs/<capability>/capability.toml`. They are validated by
 `capability-profile.schema.json` and record the family owner, primary invariant,

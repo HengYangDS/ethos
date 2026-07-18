@@ -16,6 +16,7 @@ fi
 
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "${repo_root}"
+export PYTHONWARNINGS=error
 
 ethos_local_ci_head="$(tools/ci/scripts/require-stable-head.sh capture)"
 _ethos_verify_local_ci_head_stability() {

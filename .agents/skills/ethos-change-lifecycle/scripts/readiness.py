@@ -16,10 +16,11 @@ read-only gate reports a gap (so a caller can gate on it), 2 on a harness error.
 
 from __future__ import annotations
 
-import argparse
 import json
 import subprocess
 import sys
+
+from cyclopts import App
 
 READONLY_STEPS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("status", ("status", "--json")),
@@ -42,14 +43,14 @@ def _run(args: tuple[str, ...], root: str) -> dict[str, object]:
         return {"ok": False, "state": "unparseable", "required_gaps": [stderr]}
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description="ETHOS change-lifecycle readiness driver")
-    parser.add_argument("--root", default=".")
-    options = parser.parse_args()
+app = App(name="ethos-readiness")
 
+
+@app.default
+def main(*, root: str = ".") -> int:
     all_ok = True
     for name, args in READONLY_STEPS:
-        payload = _run(args, options.root)
+        payload = _run(args, root)
         ok = bool(payload.get("ok"))
         state = payload.get("state", "?")
         gaps = list(payload.get("required_gaps", []))
@@ -68,7 +69,7 @@ def main() -> int:
 
 if __name__ == "__main__":
     try:
-        raise SystemExit(main())
+        app(sys.argv[1:])
     except FileNotFoundError:
         print("error: `ethos` command not found on PATH", file=sys.stderr)
         raise SystemExit(2) from None

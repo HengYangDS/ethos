@@ -8,7 +8,6 @@ quality/repository deps load only when this group is imported (lazy path).
 
 from __future__ import annotations
 
-import tomllib
 from typing import TYPE_CHECKING
 from typing import cast
 
@@ -17,6 +16,7 @@ import ethos.domain.prove as prove_domain
 import ethos.repository.audit as repository_audit_module
 import ethos.repository.release.core as release_policy_module
 import ethos.surface.cli.results.tool as tool_results
+from ethos.adapters.config import rules_config
 from ethos.adapters.gates.signature import signature_policy_report
 from ethos.repository.evidence.core import EvidenceSet
 from ethos.repository.evidence.core import ProofRun
@@ -49,16 +49,16 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-def _product_quality_profile(_root: Path) -> object:
-    return product_quality_profile()
+def _product_quality_profile(root: Path) -> object:
+    return product_quality_profile(root)
 
 
 def _proof_lattice(_root: Path) -> object:
     return proof_lattice()
 
 
-def _tool_profiles(_root: Path) -> object:
-    return tool_profiles()
+def _tool_profiles(root: Path) -> object:
+    return tool_profiles(root)
 
 
 def _standard_adapter_registry(_root: Path) -> object:
@@ -132,111 +132,6 @@ def quality_docs(
     emit(result, json_output=json_output, enforce=False)
 
 
-def markdown_links(
-    *,
-    root: RootOption | None = None,
-    json_output: JsonFlag = False,
-) -> None:
-    """Run markdown link checks through the configured adapter."""
-    repo = resolve_root(root)
-    files = [
-        path
-        for path in git_adapter.git_files(repo, "*.md")
-        if not path.startswith(("evidence/", "docs/archive/"))
-    ]
-    tool_results.emit_quality_tool_result(
-        root=repo,
-        gate_id="markdown-links",
-        tool="lychee",
-        command=[
-            "lychee",
-            "--config",
-            ".config/checks/lychee/lychee.toml",
-            "--no-progress",
-            *files,
-        ],
-        files=files,
-        result_command="quality markdown-links",
-        json_output=json_output,
-    )
-
-
-def shell_quality(
-    *,
-    root: RootOption | None = None,
-    json_output: JsonFlag = False,
-) -> None:
-    """Run shell script lint checks through ShellCheck."""
-    repo = resolve_root(root)
-    files = git_adapter.git_files(repo, "*.sh")
-    tool_results.emit_quality_tool_result(
-        root=repo,
-        gate_id="shell-lint",
-        tool="bash",
-        command=["bash", "tools/ci/scripts/run-shell-lint.sh", *files],
-        files=files,
-        result_command="quality shell",
-        json_output=json_output,
-    )
-
-
-def toml_quality(
-    *,
-    root: RootOption | None = None,
-    json_output: JsonFlag = False,
-) -> None:
-    """Run TOML syntax and format checks through Taplo."""
-    repo = resolve_root(root)
-    files = git_adapter.git_files(repo, "*.toml")
-    tool_results.emit_quality_tool_result(
-        root=repo,
-        gate_id="toml-config",
-        tool="bash",
-        command=["bash", "tools/ci/scripts/run-config-lint.sh", *files],
-        files=files,
-        result_command="quality toml",
-        json_output=json_output,
-    )
-
-
-def yaml_quality(
-    *,
-    root: RootOption | None = None,
-    json_output: JsonFlag = False,
-) -> None:
-    """Run YAML projection checks through yamllint."""
-    repo = resolve_root(root)
-    files = git_adapter.git_files(repo, "*.yml", "*.yaml")
-    tool_results.emit_quality_tool_result(
-        root=repo,
-        gate_id="yaml-config",
-        tool="bash",
-        command=["bash", "tools/ci/scripts/run-config-lint.sh", *files],
-        files=files,
-        result_command="quality yaml",
-        json_output=json_output,
-    )
-
-
-def npm_quality(
-    *,
-    root: RootOption | None = None,
-    json_output: JsonFlag = False,
-) -> None:
-    """Run npm distribution pack smoke checks without publishing."""
-    repo = resolve_root(root)
-    files = ["package.json"] if (repo / "package.json").exists() else []
-    tool_results.emit_quality_tool_result(
-        root=repo,
-        gate_id="npm-pack",
-        tool="npm",
-        command=["npm", "run", "test:npm"],
-        files=files,
-        result_command="quality npm",
-        json_output=json_output,
-    )
-
-
 def format_policy(
     *,
     root: RootOption | None = None,
@@ -244,13 +139,8 @@ def format_policy(
 ) -> None:
     """Report format-policy readiness."""
     repo = resolve_root(root)
-    policy_path = repo / ".ethos" / "rules.toml"
-    if policy_path.exists():
-        policy = tomllib.loads(policy_path.read_text(encoding="utf-8"))
-        gaps: tuple[str, ...] = ()
-    else:
-        policy = {}
-        gaps = ("format_policy_missing:.ethos/rules.toml",)
+    policy = rules_config(repo)
+    gaps = () if policy else ("format_policy_missing:.ethos/rules.toml",)
     result = EthosResult(
         command="quality format-policy",
         ok=not gaps,
@@ -403,12 +293,18 @@ def release_attestation_command(
     emit(result, json_output=json_output, enforce=False)
 
 
+QUALITY_DECLARATIONS = load_command_registry_declaration().group("quality")
 REPORT_COMMANDS = compile_report_handlers(
-    declarations=load_command_registry_declaration().group("quality"),
+    declarations=QUALITY_DECLARATIONS,
+    import_path_prefix="ethos.surface.cli.quality.core:",
+)
+TOOL_COMMANDS = tool_results.compile_quality_tool_handlers(
+    declarations=QUALITY_DECLARATIONS,
     import_path_prefix="ethos.surface.cli.quality.core:",
 )
 globals().update(
     {function_name: command.make_handler() for function_name, command in REPORT_COMMANDS.items()}
+    | TOOL_COMMANDS
 )
 
 

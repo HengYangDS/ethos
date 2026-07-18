@@ -286,6 +286,11 @@ def test_report_scorecard_is_derived_from_governance_checks(monkeypatch) -> None
         "coverage_quality_report",
         lambda _repo: {"ok": True, "state": "clean", "required_gaps": []},
     )
+    monkeypatch.setattr(
+        reporting_scoring,
+        "source_budget_report",
+        lambda _repo: {"ok": True, "state": "clean", "required_gaps": []},
+    )
 
     def clean_parity_gaps_report(**_kwargs):
         return {"ok": True, "required_gaps": [], "pending_packages": []}

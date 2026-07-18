@@ -375,6 +375,7 @@ group = "quality"
 import_path = "ethos.surface.cli.quality.core:markdown_links"
 help = "Run markdown link checks through the configured adapter."
 show = true
+tool_handler = { gate_id = "markdown-links", tool = "lychee", command = ["lychee", "--config", ".config/checks/lychee/lychee.toml", "--no-progress"], file_globs = ["*.md"], exclude_prefixes = ["evidence/", "docs/archive/"] }
 
 [[commands]]
 name = "shell"
@@ -382,6 +383,7 @@ group = "quality"
 import_path = "ethos.surface.cli.quality.core:shell_quality"
 help = "Run shell script lint checks through ShellCheck."
 show = true
+tool_handler = { gate_id = "shell-lint", tool = "bash", command = ["bash", "tools/ci/scripts/run-shell-lint.sh"], file_globs = ["*.sh"] }
 
 [[commands]]
 name = "toml"
@@ -389,6 +391,7 @@ group = "quality"
 import_path = "ethos.surface.cli.quality.core:toml_quality"
 help = "Run TOML syntax and format checks through Taplo."
 show = true
+tool_handler = { gate_id = "toml-config", tool = "bash", command = ["bash", "tools/ci/scripts/run-config-lint.sh"], file_globs = ["*.toml"] }
 
 [[commands]]
 name = "yaml"
@@ -396,6 +399,7 @@ group = "quality"
 import_path = "ethos.surface.cli.quality.core:yaml_quality"
 help = "Run YAML projection checks through yamllint."
 show = true
+tool_handler = { gate_id = "yaml-config", tool = "bash", command = ["bash", "tools/ci/scripts/run-config-lint.sh"], file_globs = ["*.yml", "*.yaml"] }
 
 [[commands]]
 name = "coverage"
@@ -481,6 +485,7 @@ group = "quality"
 import_path = "ethos.surface.cli.quality.core:npm_quality"
 help = "Run npm distribution pack smoke checks without publishing."
 show = true
+tool_handler = { gate_id = "npm-pack", tool = "npm", command = ["npm", "run", "test:npm"], file_globs = ["package.json"], append_files = false }
 
 [[commands]]
 name = "generated-artifacts"

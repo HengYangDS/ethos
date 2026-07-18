@@ -5,6 +5,7 @@
 # - TOML format/lint policy: .config/checks/taplo/taplo.toml
 # - YAML lint policy: .config/checks/yaml/yamllint.yaml
 # - JSON syntax hygiene: Python stdlib parser, no formatting policy restated here.
+# - Shared non-native blank-line policy: .config/checks/whitespace/policy.toml.
 # - Provider CI calls this script; it does not restate policy inline.
 set -euo pipefail
 
@@ -14,13 +15,11 @@ if [[ "${ETHOS_RUNTIME_BOOTSTRAPPED:-}" != "1" ]]; then
     uv run --all-packages --group dev env ETHOS_RUNTIME_BOOTSTRAPPED=1 "$0" "$@"
 fi
 
-repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-cd "${repo_root}"
+cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+ethos_python="${ETHOS_PYTHON:-${PYTHON:-python3}}"
+toml_files=() yaml_files=() json_files=()
 
 if (($#)); then
-  toml_files=()
-  yaml_files=()
-  json_files=()
   for target in "$@"; do
     case "${target}" in
       *.toml) toml_files+=("${target}") ;;
@@ -30,9 +29,6 @@ if (($#)); then
     esac
   done
 else
-  toml_files=()
-  yaml_files=()
-  json_files=()
   while IFS= read -r target; do
     toml_files+=("${target}")
   done < <(git ls-files '*.toml')
@@ -45,47 +41,16 @@ else
 fi
 
 filter_existing_files() {
-  local target
-  for target in "$@"; do
-    [[ -f "${target}" ]] && printf '%s\n' "${target}"
-  done
+  existing_files=()
+  for target in "$@"; do [[ -f "${target}" ]] && existing_files+=("${target}"); done
 }
 
-toml_existing=()
-if ((${#toml_files[@]})); then
-  while IFS= read -r target; do
-    toml_existing+=("${target}")
-  done < <(filter_existing_files "${toml_files[@]}")
-fi
-toml_files=()
-if ((${#toml_existing[@]})); then
-  toml_files=("${toml_existing[@]}")
-fi
-
-yaml_existing=()
-if ((${#yaml_files[@]})); then
-  while IFS= read -r target; do
-    yaml_existing+=("${target}")
-  done < <(filter_existing_files "${yaml_files[@]}")
-fi
-yaml_files=()
-if ((${#yaml_existing[@]})); then
-  yaml_files=("${yaml_existing[@]}")
-fi
-
-json_existing=()
-if ((${#json_files[@]})); then
-  while IFS= read -r target; do
-    json_existing+=("${target}")
-  done < <(filter_existing_files "${json_files[@]}")
-fi
-json_files=()
-if ((${#json_existing[@]})); then
-  json_files=("${json_existing[@]}")
-fi
+if ((${#toml_files[@]})); then filter_existing_files "${toml_files[@]}"; toml_files=("${existing_files[@]}"); fi
+if ((${#yaml_files[@]})); then filter_existing_files "${yaml_files[@]}"; yaml_files=("${existing_files[@]}"); fi
+if ((${#json_files[@]})); then filter_existing_files "${json_files[@]}"; json_files=("${existing_files[@]}"); fi
 
 if ((${#toml_files[@]})); then
-  python - "${toml_files[@]}" <<'PY'
+  "${ethos_python}" - "${toml_files[@]}" <<'PY'
 from __future__ import annotations
 
 import sys
@@ -116,7 +81,7 @@ PY
 fi
 
 if ((${#json_files[@]})); then
-  python - "${json_files[@]}" <<'PY'
+  "${ethos_python}" - "${json_files[@]}" <<'PY'
 from __future__ import annotations
 
 import json
@@ -143,7 +108,6 @@ if ((${#toml_files[@]})); then
   # taplo publishes no linux-aarch64 wheel, so `uv run --with taplo` builds a broken
   # Rust sdist on the ARM runner. install-taplo.sh provides a prebuilt binary (or the
   # dev's on-PATH taplo) so format/lint run the same everywhere.
-  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
   "${script_dir}/install-taplo.sh"
   taplo format --check \
     --config .config/checks/taplo/taplo.toml \
@@ -159,3 +123,5 @@ if ((${#yaml_files[@]})); then
     --config-file .config/checks/yaml/yamllint.yaml \
     "${yaml_files[@]}"
 fi
+
+(($#)) || "${ethos_python}" tools/ci/structural_whitespace.py

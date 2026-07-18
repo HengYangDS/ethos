@@ -14,6 +14,9 @@ from ethos_core.contracts.branch.roles import BranchRolePolicy
 from ethos_core.contracts.branch.roles import load_branch_role_policy
 from ethos_core.contracts.context.projection import redact_secret_like
 from ethos_core.quality.models import QualityFinding
+from ethos_core.quality.models import ToolAdapterProfile
+
+# fmt: off
 
 
 def test_quality_finding_to_dict_serializes_all_fields() -> None:
@@ -53,6 +56,8 @@ def test_quality_finding_to_dict_serializes_all_fields() -> None:
         "message",
         "path",
     }
+    adapter = ToolAdapterProfile("ruff", "ruff", ("python-code",), ("lint",), "format boundary")
+    assert adapter.to_dict()["asset_classes"] == ["python-code"]
 
 
 def test_redact_secret_like_masks_secret_and_preserves_plain_text() -> None:
@@ -142,3 +147,5 @@ def test_schema_validation_gaps_reports_unreadable_schema(tmp_path: Path) -> Non
 
     assert len(gaps) == 1
     assert gaps[0].startswith("system_schema_unreadable:authority:")
+
+# fmt: on

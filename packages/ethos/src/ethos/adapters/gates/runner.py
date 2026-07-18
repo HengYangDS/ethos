@@ -10,7 +10,7 @@ from typing import Any
 from ethos_core.action_graph.core import ActionNode
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class ActionRunResult:
     action_id: str
     command: tuple[str, ...]

@@ -47,6 +47,7 @@ fi
 ethos_python="${ETHOS_PYTHON:-${PYTHON:-${UV_PROJECT_ENVIRONMENT}/bin/python}}"
 mkdir -p "${coverage_evidence_dir}" "${pytest_evidence_dir}" "${pytest_tmp_dir}"
 export COVERAGE_FILE="${coverage_evidence_dir}/.coverage"
+export RUFF_CACHE_DIR="${RUFF_CACHE_DIR:-${repo_root}/build/runtime/tool-cache/ruff}"
 coverage_lock_acquired="false"
 sharded_mode="false"
 if [[ "${shards}" != "1" && "${shards}" != "serial" ]]; then
@@ -186,6 +187,7 @@ PY
 pytest_targets=(tests/unit tests/architecture)
 pytest_common_args=(
   -c "${pytest_config_path}"
+  -W error
   --rootdir=.
   --cov-config="${coverage_config_dir}/coverage.ini"
   --cov=ethos

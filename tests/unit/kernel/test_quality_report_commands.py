@@ -7,9 +7,11 @@ from ethos.surface.cli.quality.reporting import CompiledReportCommand
 from ethos.surface.cli.quality.reporting import build_declarative_report_result
 from ethos.surface.cli.quality.reporting import compile_report_handlers
 from ethos.surface.cli.quality.reporting import declared_report_handler
+from ethos.surface.cli.results.tool import compile_quality_tool_handlers
 from ethos_core.contracts.commands import CommandDeclaration
 from ethos_core.contracts.commands import ReportHandlerDeclaration
 from ethos_core.contracts.commands import ReportSummaryField
+from ethos_core.contracts.commands import ToolHandlerDeclaration
 from ethos_core.contracts.commands import load_command_registry_declaration
 
 
@@ -89,6 +91,28 @@ def test_report_handler_declarations_compile_without_python_specs() -> None:
     )
     assert performance.bind_current_head is True
     assert performance.state_mode == "advisory_gaps"
+
+
+def test_tool_handler_declarations_compile_from_the_command_registry() -> None:
+    commands = load_command_registry_declaration().group("quality")
+    handlers = compile_quality_tool_handlers(declarations=commands)
+
+    assert set(handlers) == {
+        "markdown_links",
+        "npm_quality",
+        "shell_quality",
+        "toml_quality",
+        "yaml_quality",
+    }
+    assert next(
+        command for command in commands if command.name == "markdown-links"
+    ).tool_handler == ToolHandlerDeclaration(
+        gate_id="markdown-links",
+        tool="lychee",
+        command=("lychee", "--config", ".config/checks/lychee/lychee.toml", "--no-progress"),
+        file_globs=("*.md",),
+        exclude_prefixes=("evidence/", "docs/archive/"),
+    )
 
 
 def test_compiled_report_commands_keep_provider_reference_in_the_declaration() -> None:

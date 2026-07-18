@@ -85,21 +85,6 @@ def test_candidate_worktree_gaps_dirty(tmp_path: Path) -> None:
     ]
 
 
-def test_candidate_report_includes_stderr_when_present() -> None:
-    # A non-empty stderr is attached to the report (line 145).
-    context = {
-        "ok": False,
-        "state": "blocked",
-        "branch": "candidate/dev",
-        "head": "h",
-        "previous_head": "p",
-        "path": "/workspace/x",
-        "required_gaps": ["x"],
-    }
-    report = lanes_refresh._candidate_report(context, stderr="boom")
-    assert report["stderr"] == "boom"
-
-
 # --- adapters/mutation/lane_retirement/landed/core.py ------------------------
 
 

@@ -67,9 +67,9 @@ def git_stdout(root: Path, *args: str) -> str:
     return completed.stdout.strip()
 
 
-def remote_url(root: Path, remote: str = "origin") -> str:
-    """Return a configured remote URL without probing network availability."""
-    return git_stdout(root, "remote", "get-url", remote.strip() or "origin")
+def committed_file_text(root: Path, ref: str, path: str) -> str:
+    """Return a tracked file's text from a committed tree, or '' when unavailable."""
+    return git_stdout(root, "show", f"{ref}:{path}") if ref else ""
 
 
 def remote_tracking_sync(root: Path, branch: str, remote: str = "origin") -> dict[str, object]:
@@ -146,6 +146,39 @@ def remote_tracking_sync(root: Path, branch: str, remote: str = "origin") -> dic
         "blocking": False,
         "required_gaps": [],
         "advisory_gaps": advisory,
+    }
+
+
+def publication_remote_syncs(root: Path, branch: str) -> dict[str, object]:
+    """Project configured GitLab/GitHub branches without granting either authority."""
+    records: dict[str, dict[str, object]] = {}
+    configured = set(git_stdout(root, "remote").splitlines())
+    for remote in ("origin", "github"):
+        if remote not in configured:
+            continue
+        records[remote] = remote_tracking_sync(root, branch, remote)
+    states = {str(record.get("state") or "not_checked") for record in records.values()}
+    synchronized = bool(records) and states == {"synchronized"}
+    reconciliation_required = any(
+        state in {"diverged", "local_behind", "remote_tracking_missing"} for state in states
+    )
+    return {
+        "kind": "git_remote_tracking_matrix",
+        "branch": branch,
+        "remotes": records,
+        "configured_remote_count": len(records),
+        "state": "synchronized"
+        if synchronized
+        else "reconciliation_required"
+        if reconciliation_required
+        else "pending",
+        "blocking": False,
+        "required_gaps": [],
+        "advisory_gaps": [
+            f"remote_reconciliation_required:{name}:{record.get('state')}"
+            for name, record in records.items()
+            if record.get("state") != "synchronized"
+        ],
     }
 
 
@@ -247,7 +280,7 @@ def remote_availability(
     root: Path, remote: str = "origin", *, timeout_seconds: float = 3.0
 ) -> dict[str, object]:
     """Probe whether a configured Git remote is reachable without mutating state."""
-    url = remote_url(root, remote)
+    url = git_stdout(root, "remote", "get-url", remote)
     if not url:
         return {
             "kind": "git_remote_availability",
@@ -308,7 +341,7 @@ def remote_availability(
 
 def remote_availability_not_probed(root: Path, remote: str = "origin") -> dict[str, object]:
     """Describe a configured remote without performing a network reachability probe."""
-    url = remote_url(root, remote)
+    url = git_stdout(root, "remote", "get-url", remote)
     if not url:
         return {
             "kind": "git_remote_availability",

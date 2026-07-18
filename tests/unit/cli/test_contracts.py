@@ -6,6 +6,7 @@ import re
 from pathlib import Path
 
 import ethos.adapters.openspec.cli as openspec_cli
+import ethos.adapters.repo.status.core as status_core
 import ethos.surface.cli.root.planning as planning_cli
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.surface.cli._base import emit
@@ -92,7 +93,9 @@ def _assert_governed_repository_context(context: dict[str, object], *, profile: 
     assert "posture" not in context
 
 
-def test_primary_commands_expose_top_level_governance_context() -> None:
+def test_primary_commands_expose_top_level_governance_context(monkeypatch) -> None:
+    monkeypatch.setattr(status_core, "_foreign_work_lanes", lambda *_args, **_kwargs: [])
+
     for command in PRIMARY_COMMANDS_WITH_GOVERNANCE_CONTEXT:
         payload = run_ethos(*command)
 
@@ -186,12 +189,12 @@ def test_quality_tool_profiles_command_reports_adapter_boundaries() -> None:
     assert payload["ok"] is True
     assert payload["command"] == "quality tool-profiles"
     adapters = {adapter["id"]: adapter for adapter in payload["data"]["tool_adapters"]}
-    assert adapters["ruff"]["asset_classes"] == ["python-code"]
-    assert adapters["lychee"]["asset_classes"] == ["markdown-docs"]
-    assert adapters["shellcheck"]["asset_classes"] == ["shell-scripts"]
-    assert adapters["taplo"]["asset_classes"] == ["toml-config"]
-    assert adapters["ethos-docstrings-google"]["asset_classes"] == ["python-code"]
-    assert adapters["ethos-module-layout"]["asset_classes"] == ["python-code"]
+    assert adapters["python_format_lint"]["standard"] == "ruff"
+    assert adapters["links"]["standard"] == "lychee"
+    assert adapters["shell"]["standard"] == "shellcheck"
+    assert adapters["toml"]["standard"] == "taplo"
+    assert adapters["python_docstrings"]["standard"] == "ethos-docstrings-google"
+    assert adapters["python_module_layout"]["standard"] == "ethos-module-layout"
 
 
 def test_quality_docs_registry_surfaces_all_required_gaps(tmp_path: Path) -> None:
@@ -666,7 +669,8 @@ def test_openspec_uses_official_native_cli(monkeypatch) -> None:
         elif args == ("validate", "--all", "--strict", "--json"):
             payload = {"items": [], "summary": {"totals": {"failed": 0}}}
         else:
-            raise AssertionError(f"unexpected OpenSpec command: {args}")
+            message = f"unexpected OpenSpec command: {args}"
+            raise AssertionError(message)
         return {
             "command": ["openspec", *args],
             "exit_code": 0,

@@ -74,10 +74,8 @@ warmups = int(policy.get("warmup_samples", 1))
 if samples < 1 or warmups < 0:
     raise SystemExit("performance policy sample counts must be non-negative and non-zero")
 
-
 def command_name(command: dict[str, object]) -> str:
     return "ethos " + " ".join(str(item) for item in command["argv"])
-
 
 def run_cold(argv: list[str]) -> tuple[float, bytes]:
     started = time.perf_counter()
@@ -91,7 +89,6 @@ def run_cold(argv: list[str]) -> tuple[float, bytes]:
         stderr = completed.stderr.decode("utf-8", errors="replace").strip()
         raise SystemExit(f"performance command failed: {' '.join(argv)}: {stderr}")
     return elapsed, completed.stdout
-
 
 def run_hot(argv: list[str]) -> tuple[float, bytes]:
     stdout = io.StringIO()
@@ -107,12 +104,10 @@ def run_hot(argv: list[str]) -> tuple[float, bytes]:
                 ) from exc
     return (time.perf_counter() - started) * 1000, stdout.getvalue().encode("utf-8")
 
-
 def p95(values: list[float]) -> float:
     ordered = sorted(values)
     index = max(0, min(len(ordered) - 1, round((len(ordered) - 1) * 0.95)))
     return ordered[index]
-
 
 measurements: list[dict[str, object]] = []
 for command in commands:

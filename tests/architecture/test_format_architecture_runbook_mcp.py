@@ -9,6 +9,8 @@ from pathlib import Path
 from tests.support.architecture import run_json
 from tests.support.architecture import tool_block
 
+# fmt: off
+
 ROOT = Path(__file__).resolve().parents[2]
 MIN_FORMAT_REGISTRY_ENTRIES = 8
 MIN_RUNBOOK_REGISTRY_ENTRIES = 6
@@ -158,4 +160,6 @@ def test_optional_adapters_and_supply_chain_remain_planned() -> None:
         "agent_method_pack_adapter",
     ]:
         block = tool_block(ROOT, concern)
-        assert "planned = true" in block
+        assert 'adoption = "candidate"' in block
+
+# fmt: on

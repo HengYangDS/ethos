@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import importlib.util
-import subprocess
 from pathlib import Path
+
+from tests.support.contract_helpers import git as _git
 
 ROOT = Path(__file__).resolve().parents[4]
 AUDIT_PATH = ROOT / "tools" / "ci" / "local_state_audit.py"
@@ -15,17 +16,6 @@ def _load_audit_module() -> object:
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
-
-
-def _git(repo: Path, *args: str) -> str:
-    result = subprocess.run(
-        ["git", *args],
-        cwd=repo,
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-    return result.stdout
 
 
 def _init_repo(repo: Path) -> None:

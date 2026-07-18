@@ -4,6 +4,8 @@ import tomllib
 from pathlib import Path
 from typing import Any
 
+from ethos_core.normalization.core import string_list
+
 POLICY_PATH = Path(".config/checks/module-layout/policy.toml")
 DEFAULT_PATHS = ("packages/ethos/src", "packages/ethos-core/src")
 DEFAULT_FLAT_DIRECTORY_LIMIT = 8
@@ -36,10 +38,3 @@ def python_files(root: Path, policy: dict[str, Any]) -> list[Path]:
         elif base.exists():
             files.extend(sorted(base.rglob("*.py")))
     return [path for path in files if "__pycache__" not in path.parts]
-
-
-def string_list(value: object) -> list[str]:
-    """Normalize policy list values to strings."""
-    if not isinstance(value, list):
-        return []
-    return [str(item) for item in value]

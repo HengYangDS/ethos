@@ -12,12 +12,12 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import cast
 
 from ethos.adapters.repo.status.bindings import leases_by_branch
-from ethos.adapters.repo.status.core import workspace_status
+from ethos.adapters.repo.status.core import worktree_records
 from ethos.adapters.store.state.lease.lifecycle.core import advance_lease_head
 from ethos.adapters.store.state.lease.projection import integer_value
+from ethos_core.contracts.branch.roles import load_branch_role_policy
 
 _ZERO_OID = "0" * 40
 
@@ -37,7 +37,6 @@ def work_lane_ref_transition_report(
     than an atomic rollback claim.
     """
     repo = root.resolve()
-    status = workspace_status(repo)
     branch = ref_name.removeprefix("refs/heads/")
     # A ref CREATION (old==zero) starts the lane saga; a ref DELETION (new==zero) tears it
     # down; and a no-op does not change the ref at all. None promotes anything to a
@@ -67,7 +66,8 @@ def work_lane_ref_transition_report(
             new_value=new_value,
             reason=reason,
         )
-    worktrees = cast("list[dict[str, str]]", status.get("worktrees", []))
+    policy = load_branch_role_policy(repo)
+    worktrees = worktree_records(repo, current_path=repo, policy=policy)
     leases = leases_by_branch(worktrees, current_path=repo)
     lease = leases.get(branch, {})
     actor = os.environ.get("ETHOS_ACTOR", "").strip()
@@ -98,7 +98,7 @@ def work_lane_ref_transition_report(
         return base
     try:
         updated = advance_lease_head(
-            _control_state_db(status, repo),
+            _control_state_db(worktrees, repo),
             subject=branch,
             holder_ref=actor,
             expected_lease_id=str(lease.get("lease_id") or lease.get("id") or ""),
@@ -160,8 +160,8 @@ def _work_lane_lease_transition_gaps(
     return gaps
 
 
-def _control_state_db(status: dict[str, object], repo: Path) -> Path:
-    for worktree in cast("list[dict[str, str]]", status.get("worktrees", [])):
+def _control_state_db(worktrees: list[dict[str, str]], repo: Path) -> Path:
+    for worktree in worktrees:
         if worktree.get("role") == "accepted_root" and worktree.get("path"):
             return Path(worktree["path"]) / ".ethos" / "state" / "state.sqlite"
     return repo / ".ethos" / "state" / "state.sqlite"

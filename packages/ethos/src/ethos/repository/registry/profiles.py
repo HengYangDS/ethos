@@ -79,7 +79,7 @@ COMMITTEE_ROLES = (
 )
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class GovernanceProfile:
     id: str
     mode: str

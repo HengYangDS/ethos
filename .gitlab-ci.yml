@@ -3,21 +3,8 @@ stages:
   - verify
   - package
 
-# The local integration ref is not a hosted CI target. Both hosted providers
-# accept only the accepted/release roots and review lanes: dev, main, submit/*.
-workflow:
-  rules:
-    - if: >-
-        $CI_PIPELINE_SOURCE == "merge_request_event" &&
-        $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME =~ /^submit\/.+/ &&
-        ($CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "dev" ||
-        $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "main")
-    - if: '$CI_COMMIT_BRANCH == "dev"'
-    - if: '$CI_COMMIT_BRANCH == "main"'
-    - if: '$CI_COMMIT_BRANCH =~ /^submit\/.+/'
-    - when: never
-
 variables:
+  PYTHONWARNINGS: error
   UV_LINK_MODE: copy
   UV_CACHE_DIR: build/runtime/tool-cache/uv
   LYCHEE_CACHE_DIR: build/runtime/tool-cache/lychee
@@ -97,7 +84,6 @@ ethos:hygiene:
   script:
     - tools/ci/scripts/run-repository-hygiene.sh
 
-
 ethos:product-boundary:
   <<: *python_setup
   stage: quality
@@ -115,7 +101,6 @@ ethos:docstrings:
   stage: quality
   script:
     - tools/ci/scripts/run-docstring-coverage.sh
-
 
 ethos:module-layout:
   <<: *python_setup
@@ -251,18 +236,17 @@ ethos:verify:
 
 ethos:npm:
   stage: verify
-  # Runs on python:3.12 (kept layer-cached on the runner) with Node installed
-  # from nodejs.org, because the node:24 Docker image is unreachable through this
-  # runner's registry egress — see tools/ci/scripts/install-node.sh.
+  parallel:
+    matrix:
+      - NODE_VERSION:
+          - "24.18.0"
+          - "26.5.0"
+  # Runs on python:3.12 (kept layer-cached on the runner) with exact Node
+  # releases installed from nodejs.org; see the runtime policy and installer.
   image: python:3.12
   script:
     - tools/ci/scripts/install-node.sh
-    - node --version
-    - npm --version
-    - npm config set engine-strict true
-    - npm ci --ignore-scripts
-    - npm run ethos -- --version
-    - npm run test:npm
+    - tools/ci/scripts/run-node-compatibility.sh
 
 ethos:package:
   <<: *python_setup

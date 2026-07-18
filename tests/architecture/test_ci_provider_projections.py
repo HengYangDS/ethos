@@ -9,7 +9,11 @@ import sys
 import tomllib
 from pathlib import Path
 
+import yaml
+
 from tests.support.architecture import tool_block
+
+# fmt: off
 
 ROOT = Path(__file__).resolve().parents[2]
 TEMPLATE_CONFIG = ROOT / ".config/checks/ci/templates.toml"
@@ -70,6 +74,7 @@ def test_hosted_provider_templates_are_projection_sources() -> None:
             assert entry[field] == value
         assert entry["emulator_supported_inputs"] == []
         assert entry["emulator_hosted_only_reason"] == ""
+        assert "PYTHONWARNINGS: error" in projection.read_text(encoding="utf-8")
 
 
 def test_provider_yaml_invokes_owner_scripts_not_inline_policy() -> None:
@@ -117,21 +122,24 @@ def test_provider_yaml_invokes_owner_scripts_not_inline_policy() -> None:
     assert "hosted_gitlab_status_claimed=true" not in combined
 
 
-def test_hosted_ci_excludes_local_candidate_and_accepts_only_remote_ref_policy() -> None:
-    github = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
-    gitlab = (ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8")
-    release = tomllib.loads((ROOT / ".ethos/release.toml").read_text(encoding="utf-8"))
-    topology = release["publication_topology"]
+def test_gitlab_node_compatibility_matrix_projects_the_runtime_policy() -> None:
+    providers = {str(entry["provider"]): entry for entry in _projection_entries()}
+    runner = "tools/ci/scripts/run-node-compatibility.sh"
+    policy = tomllib.loads((ROOT / ".config/checks/node/runtime.toml").read_text(encoding="utf-8"))
+    gitlab_text = (ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8")
+    gitlab = yaml.safe_load(gitlab_text)
+    npm_job = gitlab["ethos:npm"]
+    npm_package_job = gitlab["ethos:npm-package"]
+    matrix = npm_job["parallel"]["matrix"]
 
-    assert topology["remote_accepted_branches"] == ["dev", "main", "submit/*"]
-    assert topology["remote_excluded_branches"] == ["candidate/dev"]
-    assert "candidate/dev" not in github
-    assert '$CI_COMMIT_BRANCH == "candidate/dev"' not in gitlab
-    assert "submit/**" in github
-    assert "$CI_COMMIT_BRANCH =~ /^submit\\/.+/" in gitlab
-    assert '$CI_COMMIT_BRANCH == "dev"' in gitlab
-    assert '$CI_COMMIT_BRANCH == "main"' in gitlab
-
+    assert runner in providers["gitlab"]["required_owner_scripts"]
+    assert runner not in providers["github"]["required_owner_scripts"]
+    assert matrix == [{"NODE_VERSION": policy["compatibility_versions"]}]
+    assert npm_job["script"] == ["tools/ci/scripts/install-node.sh", runner]
+    assert npm_package_job["script"][0] == "tools/ci/scripts/install-node.sh"
+    assert runner not in npm_package_job["script"]
+    assert "NODE_VERSION" not in npm_package_job
+    assert "npm run test:npm" in npm_package_job["script"]
 
 def test_provider_python_producers_are_runtime_bound() -> None:
     runtime = "tools/ci/scripts/with-python-runtime.sh -- uv"
@@ -148,6 +156,12 @@ def test_provider_python_producers_are_runtime_bound() -> None:
 
         assert uv_producers, relative_path
         assert all(runtime in line for line in uv_producers), relative_path
+
+
+def test_local_ci_fails_on_python_warnings() -> None:
+    assert "export PYTHONWARNINGS=error" in (
+        ROOT / "tools/ci/scripts/run-local-ci.sh"
+    ).read_text(encoding="utf-8")
 
 
 def test_openspec_ci_supply_is_pinned_to_the_supported_release() -> None:
@@ -258,6 +272,7 @@ def test_local_emulator_run_requires_optional_tool_when_materializing(
 def test_local_emulator_run_executes_a_selected_formal_provider_job(monkeypatch, tmp_path) -> None:
     ci_templates = _load_ci_templates_module()
     commands: list[list[str]] = []
+    execution_roots: list[Path] = []
     monkeypatch.setattr(
         ci_templates.shutil,
         "which",
@@ -266,9 +281,15 @@ def test_local_emulator_run_executes_a_selected_formal_provider_job(monkeypatch,
     monkeypatch.setattr(ci_templates, "_tool_version", lambda tool: f"{tool} 1.0")
     monkeypatch.setattr(
         ci_templates,
+        "materialize_emulator_source",
+        lambda **kwargs: {"source_dir": str(kwargs["state_dir"] / "source")},
+    )
+    monkeypatch.setattr(
+        ci_templates,
         "_run_command",
         lambda command, **_kwargs: (
             commands.append(command)
+            or execution_roots.append(_kwargs["cwd"])
             or {"returncode": 0, "ok": True, "stdout": "executed", "stderr": ""}
         ),
     )
@@ -325,6 +346,10 @@ def test_local_emulator_run_executes_a_selected_formal_provider_job(monkeypatch,
         }
 
     assert commands == [expected["github"], expected["gitlab"]]
+    assert execution_roots == [
+        ROOT / "build/runtime/work/github-act/source",
+        ROOT,
+    ]
 
 
 def test_act_emulator_uses_docker_context_when_no_endpoint_is_explicit(
@@ -361,6 +386,87 @@ def test_act_emulator_uses_docker_context_when_no_endpoint_is_explicit(
     )
 
     assert environment["DOCKER_HOST"] == "unix:///context/docker.sock"
+
+
+def test_github_emulator_run_materializes_an_independent_git_source(
+    monkeypatch, tmp_path: Path
+) -> None:
+    ci_templates = _load_ci_templates_module()
+    source_dir = tmp_path / "build/runtime/work/github-act/source"
+    source_dir.mkdir(parents=True)
+    entry = {
+        "provider": "github",
+        "projection": ".github/workflows/ci.yml",
+        "template": ".config/ci/templates/hosted/github-actions.yml",
+        "emulator_tool": "act",
+        "emulator_event": "workflow_dispatch",
+        "emulator_job": "quality",
+        "emulator_image": "catthehacker/ubuntu:act-latest",
+        "emulator_state_dir": "build/runtime/work/github-act",
+        "emulator_supported_inputs": [],
+        "emulator_hosted_only_reason": "",
+    }
+    summary = {
+        "branch": "work/example",
+        "head": "expected-head",
+        "dirty": False,
+        "status_short": "",
+        "changed_scope": {
+            "staged_paths": [],
+            "unstaged_paths": [],
+            "tracked_changed_paths": [],
+            "untracked_count": 0,
+            "untracked_preview": [],
+            "untracked_preview_limit": 12,
+        },
+    }
+    recorded: dict[str, object] = {}
+    materialization = {
+        "kind": "independent_git_checkout",
+        "source_dir": str(source_dir),
+        "source_head": "expected-head",
+        "source_head_matches_expected": True,
+        "git_directory_is_real": True,
+        "uses_external_object_alternates": False,
+        "tracked_diff_bytes": 0,
+    }
+    monkeypatch.setattr(ci_templates, "ROOT", tmp_path)
+    monkeypatch.setattr(ci_templates, "_provider_entry", lambda _provider: entry)
+    monkeypatch.setattr(ci_templates.shutil, "which", lambda _tool: "/usr/local/bin/act")
+    monkeypatch.setattr(ci_templates, "_docker_context_endpoint", lambda: "")
+    monkeypatch.setattr(ci_templates, "_tool_version", lambda _tool: "act 1.0")
+    monkeypatch.setattr(ci_templates, "_git_summary", lambda: summary)
+    monkeypatch.setattr(
+        ci_templates,
+        "materialize_emulator_source",
+        lambda **kwargs: recorded.update(materialization=kwargs) or materialization,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        ci_templates,
+        "_run_command",
+        lambda command, **kwargs: (
+            recorded.update(command=command, run=kwargs)
+            or {"returncode": 0, "ok": True, "stdout": "", "stderr": ""}
+        ),
+    )
+
+    assert (
+        ci_templates.emulator_evidence(
+            "github",
+            mode="run",
+            dry_run=False,
+            allow_untracked=True,
+            output=tmp_path / "github-run.json",
+        )
+        == 0
+    )
+    assert recorded["materialization"] == {
+        "source_root": tmp_path,
+        "state_dir": tmp_path / "build/runtime/work/github-act",
+        "expected_head": "expected-head",
+    }
+    assert recorded["run"]["cwd"] == source_dir
 
 
 def test_local_emulator_wrappers_do_not_require_optional_flag_environment() -> None:
@@ -520,7 +626,7 @@ def test_gitlab_materialization_creates_an_independent_git_snapshot(
         text=True,
     ).stdout.strip()
 
-    materialization = ci_templates.materialize_gitlab_source(
+    materialization = ci_templates.materialize_emulator_source(
         source_root=linked_worktree,
         state_dir=state_dir,
         expected_head=expected_head,
@@ -606,14 +712,7 @@ def test_tool_catalog_distinguishes_active_provider_gates_from_planned_adapters(
         "agent_method_pack_adapter",
     ]:
         block = tool_block(ROOT, concern)
-        assert "planned = true" in block
-
-    for concern in [
-        "nox_runner_adapter",
-        "pixi_environment_adapter",
-        "pants_graph_adapter",
-        "task_ledger_adapter",
-        "agent_method_pack_adapter",
-    ]:
-        block = tool_block(ROOT, concern)
+        assert 'adoption = "candidate"' in block
         assert "adapter_only = true" in block
+
+# fmt: on

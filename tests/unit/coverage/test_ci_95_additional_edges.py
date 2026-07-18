@@ -24,11 +24,7 @@ from ethos.adapters.store.retrieval import query as retrieval_query
 from ethos.adapters.store.retrieval import sources as retrieval_sources
 from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
-
-
-def cp(stdout: str = "", stderr: str = "", returncode: int = 0) -> subprocess.CompletedProcess[str]:
-    return subprocess.CompletedProcess(["git"], returncode, stdout, stderr)
-
+from tests.support.subprocesses import completed as cp
 
 POLICY = SimpleNamespace(
     accepted_branch="dev",
@@ -301,21 +297,35 @@ def test_shadow_process_json_backend_and_semantic_edges(
     assert shadow_execution.process_failed({"exit_code": 1, "json": verdict}) is False
     assert shadow_execution.process_failed({"exit_code": 2, "json": verdict}) is True
 
-    class TimeoutRun:
-        def __call__(self, *args: object, **kwargs: object) -> object:
+    class TimeoutProcess:
+        pid = 4321
+
+        def communicate(self, timeout: int | None = None) -> tuple[str, str]:
+            _ = timeout
             raise subprocess.TimeoutExpired(cmd=["x"], timeout=1, output="out", stderr="err")
 
-    monkeypatch.setattr(shadow_execution.subprocess, "run", TimeoutRun())
+    monkeypatch.setattr(
+        shadow_execution.subprocess, "Popen", lambda *_args, **_kwargs: TimeoutProcess()
+    )
+    monkeypatch.setattr(shadow_execution.os, "killpg", lambda *_args: None)
     assert (
         shadow_execution.run_json_command(["x"], cwd=tmp_path, timeout_seconds=1)["exit_code"]
         == 124
     )
     monkeypatch.setattr(
         shadow_execution.subprocess,
-        "run",
-        lambda *args, **kwargs: cp(
-            stdout='prefix {"ok":true,"command":"status","required_gaps":[]} suffix'
-        ),
+        "Popen",
+        lambda *_args, **_kwargs: type(
+            "Process",
+            (),
+            {
+                "returncode": 0,
+                "communicate": lambda self, timeout=None: (
+                    'prefix {"ok":true,"command":"status","required_gaps":[]} suffix',
+                    "",
+                ),
+            },
+        )(),
     )
     assert (
         shadow_execution.run_json_command(["x"], cwd=tmp_path, timeout_seconds=1)["json"]["command"]

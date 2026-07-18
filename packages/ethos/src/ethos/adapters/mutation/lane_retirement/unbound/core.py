@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class UnboundRetirementRuntime:
     """Explicit dependencies used to retire unbound Work Lane refs."""
 

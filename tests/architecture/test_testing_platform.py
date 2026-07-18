@@ -7,6 +7,8 @@ import tokenize
 import tomllib
 from pathlib import Path
 
+# fmt: off
+
 ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -37,6 +39,7 @@ def test_python_test_platform_is_parallel_timeout_bound_and_owner_scripted() -> 
     assert "--junitxml" in script
     assert "--durations" in script
     assert "COVERAGE_FILE" in script
+    assert "RUFF_CACHE_DIR" in script
     assert "cleanup_root_coverage_artifacts" in script
     assert "cleanup_denied_runtime_residue" in script
     assert "rm -rf .pytest_cache .ruff_cache build/runtime/gitlab-ci-local" in script
@@ -111,7 +114,7 @@ def test_performance_and_report_mechanisms_have_declared_boundaries() -> None:
     assert by_concern["test_performance"]["gate"] == "ethos quality performance --json"
     assert by_concern["test_performance"]["config"] == ".config/checks/performance/policy.toml"
     assert by_concern["test_performance"]["artifacts"] == "build/evidence/quality/performance/"
-    assert by_concern["test_reporting"]["planned"] is True
+    assert by_concern["test_reporting"]["adoption"] == "candidate"
 
 
 def test_performance_evidence_is_head_bound_and_local_only() -> None:
@@ -271,3 +274,5 @@ def test_python_sast_gate_has_no_local_suppression_surface() -> None:
 def _python_comments_contain(source: str, needle: str) -> bool:
     tokens = tokenize.generate_tokens(io.StringIO(source).readline)
     return any(token.type == tokenize.COMMENT and needle in token.string for token in tokens)
+
+# fmt: on

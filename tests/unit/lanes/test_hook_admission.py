@@ -7,7 +7,6 @@ from pathlib import Path
 
 import pytest
 
-import ethos.adapters.store.state.lease.lifecycle.core as state
 from ethos.adapters.admission import identity as admission_identity
 from ethos.adapters.admission import prewrite as admission_prewrite
 from ethos.adapters.admission.core import hook_admission_report
@@ -23,34 +22,13 @@ from ethos.repository.evidence.core import ProofRun
 from tests.support.contract_helpers import conformant_proof_run
 from tests.support.lane_helpers import git
 from tests.support.lane_helpers import init_repo
-
-
-def test_cast_worktrees_treats_non_list_status_payload_as_empty() -> None:
-    assert admission_prewrite.cast_worktrees(None) == []
-    assert admission_prewrite.cast_worktrees({"branch": "work/x"}) == []
-
-
-def test_cast_worktrees_normalizes_dict_items_and_skips_noise() -> None:
-    assert admission_prewrite.cast_worktrees([{"branch": "work/x", "head": 1}, "noise"]) == [
-        {"branch": "work/x", "head": "1"}
-    ]
+from tests.support.lane_helpers import leased_worktree as create_leased_worktree
 
 
 @pytest.fixture
 def leased_worktree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     repo = init_repo(tmp_path / "repo")
-    worktree = tmp_path / "repo-work-feature"
-    git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "dev")
-    state.acquire_lease(
-        repo / ".ethos" / "state" / "state.sqlite",
-        subject="work/feature",
-        holder_ref="agent:test:case:agent-a",
-        payload={
-            "path": worktree.as_posix(),
-            "branch": "work/feature",
-            "expected_head": git(worktree, "rev-parse", "HEAD"),
-        },
-    )
+    worktree = create_leased_worktree(repo, tmp_path / "repo-work-feature")
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
     return worktree
 
@@ -279,7 +257,7 @@ def test_pre_tool_hook_keeps_non_work_lane_detached_rebase_protected(
     assert report["admission"]["effective_context"] == {
         "role": "detached",
         "branch": "detached",
-        "source": "workspace_status",
+        "source": "prewrite_context",
         "rebase_head_name": "dev",
     }
     assert report["decision"] == {
@@ -426,65 +404,6 @@ def test_push_admission_blocks_unproven_push_to_protected_role(tmp_path) -> None
     )
     assert lane["ok"] is True
     assert lane["state"] == "admitted"
-
-
-def test_push_admission_rejects_local_candidate_and_non_remote_refs(tmp_path) -> None:
-    repo = init_repo(tmp_path / "repo")
-    (repo / ".ethos").mkdir(exist_ok=True)
-    (repo / ".ethos" / "release.toml").write_text(
-        """[publication_topology]
-mode = "three_layer_peer_complete"
-remote_accepted_branches = ["dev", "main", "submit/*"]
-remote_excluded_branches = ["candidate/dev"]
-
-[provider_profiles.gitlab]
-provider = "gitlab"
-remote = "origin"
-role = "organization_primary_publication"
-capabilities = ["repository", "ci_cd", "update", "distribution"]
-
-[provider_profiles.gitlab.surfaces]
-ci = ".gitlab-ci.yml"
-review_template = ".gitlab/merge_request_templates/default.md"
-issue_template = ".gitlab/issue_templates/task.md"
-
-[provider_profiles.github]
-provider = "github"
-remote = "github"
-role = "independent_complete_repository"
-capabilities = ["repository", "ci_cd", "update", "distribution"]
-
-[provider_profiles.github.surfaces]
-ci = ".github/workflows/ci.yml"
-review_template = ".github/pull_request_template.md"
-issue_template = ".github/ISSUE_TEMPLATE/task.md"
-""",
-        encoding="utf-8",
-    )
-    head = git(repo, "rev-parse", "HEAD")
-
-    candidate = push_admission_report(
-        root=repo,
-        target_ref="refs/heads/candidate/dev",
-        pushed_head=head,
-    )
-    other = push_admission_report(
-        root=repo,
-        target_ref="refs/heads/feature/remote-forbidden",
-        pushed_head=head,
-    )
-
-    assert candidate["ok"] is False
-    assert "remote_candidate_branch_forbidden" in candidate["required_gaps"]
-    assert candidate["remote_ref_policy"] == {
-        "ok": True,
-        "accepted_branches": ["dev", "main", "submit/*"],
-        "excluded_branches": ["candidate/dev"],
-        "candidate_branch": "candidate/dev",
-        "required_gaps": [],
-    }
-    assert other["ok"] is False
-    assert "remote_branch_not_accepted" in other["required_gaps"]
 
 
 def test_push_identity_policy_blocks_new_commits_outside_configured_user(

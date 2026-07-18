@@ -15,6 +15,7 @@ ROLE_POLICY_SAMPLE = {
     "candidate_branch": "candidate/dev",
     "work_branch_prefix": "work/",
     "submit_branch_prefix": "submit/",
+    "release_mirror": "independent",
     "semantic_order": [
         {
             "role": "release_root",

@@ -4,9 +4,9 @@
 #
 # Profiles decide which gates run by default. Presence in the catalog does NOT
 # make a tool mandatory for every repository.
-# `planned = true` records a roadmap commitment, not a current proof gap. A
-# planned tool becomes an active gate only after it has a config owner, reusable
-# script or native gate owner, registry entry, CI projection, and proof coverage.
+# Every tool declares one adoption state: `active` is an admitted current
+# mechanism; `candidate` awaits full admission; `deferred` is intentionally
+# postponed; `rejected` is recorded but not admissible as a product mechanism.
 # Derived from the terminal design "Tool Catalog" table. This is the target
 # catalog; gate implementations converge here in Phase E2 (quality-proof-ratchet).
 
@@ -17,6 +17,7 @@ concern = "python_format_lint"
 tool = "ruff"
 config = ".config/checks/ruff/ruff.toml + .config/checks/ruff/ratchet.toml"
 profile = "minimal"
+adoption = "active"
 gate = "tools/ci/scripts/run-python-lint.sh"
 
 [[tool]]
@@ -25,6 +26,7 @@ tool = "pytest + pytest-xdist + pytest-timeout"
 config = ".config/checks/pytest/pytest.ini + .config/checks/pytest/policy.toml"
 artifacts = "build/evidence/quality/tests/"
 profile = "minimal"
+adoption = "active"
 gate = "tools/ci/scripts/run-python-tests.sh"
 
 [[tool]]
@@ -33,6 +35,7 @@ tool = "Hypothesis"
 config = ".config/checks/pytest/policy.toml"
 artifacts = "build/runtime/tool-cache/hypothesis/"
 profile = "product"
+adoption = "active"
 gate = "tools/ci/scripts/run-python-tests.sh"
 
 [[tool]]
@@ -41,6 +44,7 @@ tool = "ethos-command-performance"
 config = ".config/checks/performance/policy.toml"
 artifacts = "build/evidence/quality/performance/"
 profile = "product"
+adoption = "active"
 gate = "ethos quality performance --json"
 
 [[tool]]
@@ -48,13 +52,14 @@ concern = "test_reporting"
 tool = "allure-pytest"
 config = ".config/checks/pytest/policy.toml"
 profile = "product"
-planned = true
+adoption = "candidate"
 
 [[tool]]
 concern = "python_typing"
 tool = "ty"
 config = ".config/checks/ty/"
 profile = "product"
+adoption = "active"
 gate = "ethos quality types --json"
 
 [[tool]]
@@ -62,6 +67,7 @@ concern = "import_boundaries"
 tool = "import-linter"
 config = ".config/checks/import-linter/"
 profile = "product"
+adoption = "active"
 gate = "tools/ci/scripts/run-import-linter.sh"
 
 [[tool]]
@@ -69,6 +75,7 @@ concern = "python_sast"
 tool = "bandit"
 config = ".config/checks/bandit/"
 profile = "product"
+adoption = "active"
 gate = "tools/ci/scripts/run-bandit.sh"
 
 [[tool]]
@@ -76,6 +83,7 @@ concern = "links"
 tool = "lychee"
 config = ".config/checks/lychee/"
 profile = "product"
+adoption = "active"
 gate = "ethos quality markdown-links"
 
 [[tool]]
@@ -84,6 +92,7 @@ tool = "coverage.py + pytest-cov"
 config = ".config/checks/coverage/coverage.ini"
 artifacts = "build/evidence/quality/tests/coverage/"
 profile = "product"
+adoption = "active"
 gate = "tools/ci/scripts/run-python-tests.sh"
 
 [[tool]]
@@ -91,6 +100,7 @@ concern = "python_docstrings"
 tool = "ethos-docstrings-google"
 config = ".config/checks/docstrings/policy.toml"
 profile = "product"
+adoption = "active"
 gate = "tools/ci/scripts/run-docstring-coverage.sh"
 
 [[tool]]
@@ -98,6 +108,7 @@ concern = "python_module_layout"
 tool = "ethos-module-layout"
 config = ".config/checks/module-layout/policy.toml"
 profile = "product"
+adoption = "active"
 gate = "tools/ci/scripts/run-module-layout.sh"
 
 [[tool]]
@@ -105,6 +116,7 @@ concern = "compatibility_residue"
 tool = "ethos-no-compat"
 config = "packages/ethos/src/ethos/repository/policy/no_compat/core.py"
 profile = "product"
+adoption = "active"
 gate = "tools/ci/scripts/run-no-compat.sh"
 
 [[tool]]
@@ -113,6 +125,7 @@ tool = "deptry"
 config = ".config/checks/deptry/policy.toml"
 artifacts = "build/evidence/quality/dependency/"
 profile = "product"
+adoption = "active"
 gate = "tools/ci/scripts/run-dependency-hygiene.sh"
 
 [[tool]]
@@ -120,6 +133,7 @@ concern = "governance_kernel"
 tool = "ethos-governance-kernel"
 config = "packages/ethos/src/ethos/repository/policy/governance/kernel.py"
 profile = "product"
+adoption = "active"
 gate = "tools/ci/scripts/run-governance-kernel.sh"
 
 [[tool]]
@@ -127,6 +141,7 @@ concern = "product_boundary"
 tool = "ethos-product-boundary"
 config = "packages/ethos/src/ethos/repository/policy/boundary/product.py"
 profile = "product"
+adoption = "active"
 gate = "tools/ci/scripts/run-product-boundary.sh"
 
 [[tool]]
@@ -134,6 +149,7 @@ concern = "repository_hygiene"
 tool = "python stdlib + git ls-files"
 config = ".config/checks/repository-hygiene/policy.toml"
 profile = "minimal"
+adoption = "active"
 gate = "tools/ci/scripts/run-repository-hygiene.sh"
 
 [[tool]]
@@ -141,6 +157,7 @@ concern = "toml"
 tool = "taplo"
 config = ".config/checks/taplo/taplo.toml"
 profile = "minimal"
+adoption = "active"
 gate = "tools/ci/scripts/run-config-lint.sh"
 
 [[tool]]
@@ -148,6 +165,7 @@ concern = "markdown_style"
 tool = "markdownlint-cli2"
 config = ".config/checks/markdown/.markdownlint-cli2.yaml"
 profile = "product"
+adoption = "active"
 gate = "tools/ci/scripts/run-markdown-lint.sh"
 
 [[tool]]
@@ -155,6 +173,7 @@ concern = "prose"
 tool = "codespell"
 config = ".config/checks/prose/codespell.toml"
 profile = "product"
+adoption = "active"
 gate = "tools/ci/scripts/run-prose-check.sh"
 
 [[tool]]
@@ -162,6 +181,7 @@ concern = "yaml"
 tool = "yamllint"
 config = ".config/checks/yaml/yamllint.yaml"
 profile = "minimal"
+adoption = "active"
 gate = "tools/ci/scripts/run-config-lint.sh"
 
 [[tool]]
@@ -169,6 +189,7 @@ concern = "json_syntax"
 tool = "python json"
 config = "tools/ci/scripts/run-config-lint.sh"
 profile = "minimal"
+adoption = "active"
 gate = "tools/ci/scripts/run-config-lint.sh"
 
 [[tool]]
@@ -176,6 +197,7 @@ concern = "json_schema"
 tool = "check-jsonschema"
 config = ".config/checks/schema/jsonschema.toml + system/schemas/"
 profile = "minimal"
+adoption = "active"
 gate = "tools/ci/scripts/run-json-schema-check.sh"
 
 [[tool]]
@@ -185,7 +207,16 @@ config = "tools/ci/scripts/download-file.sh"
 checksums = "pinned installer SHA-256 values"
 artifacts = "build/runtime/tool-cache/ci-tools/"
 profile = "product"
+adoption = "active"
 gate = "tools/ci/scripts/install-gitleaks.sh and tools/ci/scripts/install-node.sh"
+
+[[tool]]
+concern = "node_runtime_compatibility"
+tool = "node + npm"
+config = ".config/checks/node/runtime.toml"
+profile = "distribution"
+adoption = "active"
+gate = "tools/ci/scripts/run-node-compatibility.sh"
 
 [[tool]]
 concern = "local_ci_fallback"
@@ -193,6 +224,7 @@ tool = "ETHOS local-ci owner gate bundle"
 config = "tools/ci/scripts/run-local-ci.sh + tools/ci/scripts/require-stable-head.sh"
 artifacts = "build/evidence/quality/tests/"
 profile = "minimal"
+adoption = "active"
 gate = "tools/ci/scripts/run-local-ci.sh"
 
 [[tool]]
@@ -200,6 +232,7 @@ concern = "shell"
 tool = "shellcheck"
 config = ".config/checks/shell/.shellcheckrc"
 profile = "product"
+adoption = "active"
 gate = "tools/ci/scripts/run-shell-lint.sh"
 
 [[tool]]
@@ -207,14 +240,14 @@ concern = "docker"
 tool = "hadolint"
 config = ".config/checks/docker/"
 profile = "distribution"
-planned = true
+adoption = "deferred"
 
 [[tool]]
 concern = "sql"
 tool = "sqlfluff"
 config = ".config/checks/sqlfluff/"
 profile = "extension"
-planned = true
+adoption = "deferred"
 
 [[tool]]
 concern = "secrets"
@@ -223,6 +256,7 @@ optional = "trufflehog"
 config = ".gitleaks.toml"
 history = true
 profile = "product"
+adoption = "active"
 gate = "tools/ci/scripts/run-secrets-scan.sh"
 
 [[tool]]
@@ -232,13 +266,14 @@ config = ".config/checks/security/audit.toml"
 artifacts = "build/evidence/quality/security/"
 gate = "tools/ci/scripts/run-python-vulnerability-audit.sh"
 profile = "security"
+adoption = "active"
 
 [[tool]]
 concern = "osv_vuln"
 tool = "osv-scanner"
 config = ".config/checks/security/audit.toml"
 profile = "security"
-planned = true
+adoption = "candidate"
 
 [[tool]]
 concern = "sbom"
@@ -247,20 +282,21 @@ config = ".config/release/supply-chain.toml"
 artifacts = "build/evidence/release/"
 gate = "tools/ci/scripts/run-release-supply-chain.sh"
 profile = "release"
+adoption = "active"
 
 [[tool]]
 concern = "image_package_scan"
 tool = "grype"
 config = ".config/checks/security/"
 profile = "release"
-planned = true
+adoption = "deferred"
 
 [[tool]]
 concern = "signing"
 tool = "sigstore,cosign"
 config = ".config/release/supply-chain.toml"
 profile = "release"
-planned = true
+adoption = "candidate"
 adapter_only = true
 
 [[tool]]
@@ -270,6 +306,7 @@ config = ".config/release/supply-chain.toml"
 artifacts = "build/evidence/release/"
 gate = "tools/ci/scripts/run-release-supply-chain.sh"
 profile = "release"
+adoption = "active"
 
 [[tool]]
 concern = "ci_template_consistency"
@@ -277,6 +314,7 @@ tool = "ethos-ci-template-sync"
 config = ".config/ci/templates/hosted/ + .config/checks/ci/templates.toml"
 gate = "tools/ci/scripts/run-ci-template-check.sh"
 profile = "provider"
+adoption = "active"
 
 [[tool]]
 concern = "github_workflow_syntax"
@@ -284,6 +322,7 @@ tool = "actionlint"
 config = ".config/checks/github/actionlint.toml"
 gate = "tools/ci/scripts/run-actionlint.sh"
 profile = "provider"
+adoption = "active"
 
 [[tool]]
 concern = "github_local_emulator"
@@ -292,6 +331,7 @@ config = ".config/checks/ci/templates.toml"
 artifacts = "build/evidence/local-ci/github/"
 gate = "tools/ci/scripts/run-github-local-emulator.sh"
 profile = "provider"
+adoption = "active"
 
 [[tool]]
 concern = "gitlab_local_emulator"
@@ -300,6 +340,7 @@ config = ".config/checks/ci/templates.toml"
 artifacts = "build/evidence/local-ci/gitlab/"
 gate = "tools/ci/scripts/run-gitlab-local-emulator.sh"
 profile = "provider"
+adoption = "active"
 
 [[tool]]
 concern = "architecture_modeling"
@@ -308,6 +349,7 @@ config = ".config/checks/architecture/"
 artifacts = "docs/architecture/_generated/"
 gate = "tools/ci/scripts/run-architecture-projection-drift.sh"
 profile = "architecture"
+adoption = "active"
 
 [[tool]]
 concern = "architecture_projection_drift"
@@ -315,6 +357,7 @@ tool = "ethos-architecture-projection-drift"
 config = ".config/checks/architecture/projection.toml"
 gate = "tools/ci/scripts/run-architecture-projection-drift.sh"
 profile = "architecture"
+adoption = "active"
 
 [[tool]]
 concern = "format_selection"
@@ -322,13 +365,14 @@ tool = "ethos-format-selection"
 config = ".config/checks/format/selection.toml"
 gate = "tools/ci/scripts/run-format-selection.sh"
 profile = "product"
+adoption = "active"
 
 [[tool]]
 concern = "semantic_owner_redundancy"
 tool = "ethos-semantic-owner + redundancy audit"
 config = ".config/checks/architecture/semantic-owner.toml"
 profile = "product"
-planned = true
+adoption = "candidate"
 
 [[tool]]
 concern = "generated_artifact_topology"
@@ -337,6 +381,7 @@ config = "system/policies/generated-artifact-topology.toml + packages/ethos-core
 artifacts = "build/evidence/generated-artifacts/"
 gate = "ethos quality generated-artifacts --json"
 profile = "product"
+adoption = "active"
 
 [[tool]]
 concern = "local_state_audit"
@@ -345,6 +390,7 @@ config = ".config/checks/local-state/audit.toml"
 artifacts = "build/evidence/local-state/"
 gate = "tools/ci/scripts/run-local-state-audit.sh"
 profile = "product"
+adoption = "active"
 
 [[tool]]
 concern = "closeout_evidence_manifest"
@@ -353,6 +399,7 @@ config = ".config/checks/evidence/closeout.toml"
 artifacts = "build/evidence/workflow/closeout/"
 gate = "tools/ci/scripts/run-closeout-evidence-manifest.sh"
 profile = "product"
+adoption = "active"
 
 [[tool]]
 concern = "runbook_registry"
@@ -360,6 +407,7 @@ tool = "ethos-runbook-registry"
 config = ".config/checks/runbook/registry.toml + docs/reference/runbook-registry.md"
 gate = "tools/ci/scripts/run-runbook-registry-check.sh"
 profile = "docs"
+adoption = "active"
 
 [[tool]]
 concern = "mcp_smoke"
@@ -368,13 +416,14 @@ config = ".config/checks/mcp/smoke.toml"
 artifacts = "build/evidence/agent/mcp/"
 gate = "tools/ci/scripts/run-mcp-smoke.sh"
 profile = "agent-projection"
+adoption = "active"
 
 [[tool]]
 concern = "nox_runner_adapter"
 tool = "nox"
 config = "adopter-owned noxfile.py"
 profile = "python-adopter"
-planned = true
+adoption = "candidate"
 adapter_only = true
 
 [[tool]]
@@ -382,7 +431,7 @@ concern = "pixi_environment_adapter"
 tool = "pixi"
 config = "adopter-owned pixi.toml or pyproject [tool.pixi]"
 profile = "adopter-toolchain"
-planned = true
+adoption = "candidate"
 adapter_only = true
 
 [[tool]]
@@ -390,7 +439,7 @@ concern = "pants_graph_adapter"
 tool = "pants"
 config = "adopter-owned pants.toml"
 profile = "adopter-toolchain"
-planned = true
+adoption = "candidate"
 adapter_only = true
 
 [[tool]]
@@ -398,7 +447,7 @@ concern = "task_ledger_adapter"
 tool = "Backlog-compatible task ledger"
 config = "adopter-owned task ledger profile"
 profile = "adopter"
-planned = true
+adoption = "candidate"
 adapter_only = true
 
 [[tool]]
@@ -406,7 +455,7 @@ concern = "agent_method_pack_adapter"
 tool = "Superpowers-compatible method pack"
 config = "host-installed official plugin or equivalent method pack"
 profile = "agent-projection"
-planned = true
+adoption = "candidate"
 adapter_only = true
 
 [[tool]]
@@ -416,3 +465,4 @@ config = ".config/checks/ci/hosted-observation.toml"
 artifacts = "build/evidence/hosted-ci/"
 gate = "tools/ci/scripts/run-hosted-provider-observation.sh"
 profile = "provider"
+adoption = "active"

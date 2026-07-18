@@ -53,6 +53,8 @@ def coordination_state(
 ) -> str:
     if current_role != ROLE_WORK_LANE:
         return "advisory"
+    if current_scope_state == "deferred" or foreign_scope_state == "deferred":
+        return "deferred"
     if current_scope_state == "unknown" or foreign_scope_state == "unknown":
         return "unknown"
     if scopes_overlap(current_path_scope, foreign_path_scope):
@@ -75,7 +77,9 @@ def foreign_work_lane(  # noqa: PLR0913, RUF100 - exact request envelope preserv
 ) -> dict[str, object]:
     branch = str(worktree["branch"])
     committed_scope, committed_state = branch_path_scope(
-        root, branch=branch, candidate_branch=candidate_branch
+        root,
+        branch=branch,
+        candidate_branch=candidate_branch,
     )
     path_scope = tuple(dict.fromkeys((*committed_scope, *dirty_paths)))
     scope_state = _combined_scope_state(committed_state, path_scope)
@@ -158,9 +162,58 @@ def lease_summary(lease: dict[str, object]) -> dict[str, object]:
 
 
 def _combined_scope_state(committed_state: str, path_scope: tuple[str, ...]) -> str:
+    if committed_state == "deferred":
+        return "deferred"
     if committed_state == "unknown":
         return "unknown"
     return "bounded" if path_scope else "empty"
+
+
+def foreign_work_lane_deferred(
+    worktree: dict[str, str],
+    *,
+    lease: dict[str, object],
+    claim_id: str,
+    relation_to_accepted: str = "unknown",
+    dirty_paths: tuple[str, ...] = (),
+) -> dict[str, object]:
+    """Project foreign-lane lifecycle facts without running a history diff."""
+    branch = str(worktree["branch"])
+    holder_ref = str(lease.get("holder_ref") or "")
+    # A bounded reader intentionally does not inspect branch relation or foreign
+    # dirty state. It must not manufacture closeout residue from that absence.
+    disposition = "none"
+    return {
+        "path": worktree["path"],
+        "head": worktree["head"],
+        "branch": branch,
+        "role": worktree["role"],
+        "worktree_binding": worktree["worktree_binding"],
+        "lease": lease_summary(lease),
+        "lease_state": "leased" if holder_ref else "missing",
+        "claim_id": claim_id,
+        "claim_binding": "bound" if claim_id else "missing",
+        "relation_to_accepted": relation_to_accepted,
+        "closeout_disposition": disposition,
+        "residue_state": residue_state(disposition),
+        "next_action": lane_next_action(
+            disposition,
+            branch=branch,
+            head=str(worktree["head"]),
+        ),
+        "dirty": bool(dirty_paths),
+        "dirty_paths": list(dirty_paths),
+        "path_scope": [],
+        "scope_state": "deferred",
+        "coordination_state": "advisory",
+        "action_preview": AdmissionDecision.action_preview(
+            action="observe",
+            resource=branch,
+            blocked_actions=FOREIGN_WORK_LANE_FORBIDDEN_ACTIONS,
+            why=("foreign_lane_requires_handoff_or_accepted_decision",),
+        ),
+        "handoff_required": FOREIGN_WORK_LANE_HANDOFF_REQUIRED,
+    }
 
 
 def coordination_gaps(

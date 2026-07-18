@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING
+
+import pytest
 
 from ethos.assistants.skills.packages import compute_skill_package_digest
 from ethos.assistants.skills.packages import validate_skill_package_manifest
@@ -43,7 +46,14 @@ def _sample_package(root: Path) -> Path:
     return package_dir
 
 
-def _write_manifest(package_dir: Path, expected_digest: str) -> Path:
+def _capability_toml(records: tuple[tuple[str, str, tuple[str, ...]], ...]) -> str:
+    return "\n\n".join(
+        f'[[capability]]\nid = "{identifier}"\nkind = "{kind}"\ncommand = {json.dumps(command)}'
+        for identifier, kind, command in records
+    )
+
+
+def _write_manifest(package_dir: Path, expected_digest: str, capabilities: str = "") -> Path:
     path = package_dir / "package.toml"
     path.write_text(
         f"""
@@ -55,10 +65,7 @@ include = ["SKILL.md"]
 expected_digest = "{expected_digest}"
 required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
 
-[[capability]]
-id = "ethos.report"
-kind = "command_readonly"
-command = ["ethos", "report", "--json"]
+{capabilities or _capability_toml((("ethos.report", "command_readonly", ("ethos", "report", "--json")),))}
 """.lstrip(),
         encoding="utf-8",
     )
@@ -251,90 +258,61 @@ placeholder_allowed = false
     assert "skill_quality_placeholder_section:sample-skill:When to Use" in result["required_gaps"]
 
 
-def test_skill_package_manifest_validates_capability_semantics(tmp_path: Path) -> None:
-    package_dir = _sample_package(tmp_path)
-    digest = compute_skill_package_digest(package_dir, ["SKILL.md"])
-    (package_dir / "package.toml").write_text(
-        f"""
-schema_version = 2
-id = "sample-skill"
-entrypoint = "SKILL.md"
-digest_algorithm = "sha256"
-include = ["SKILL.md"]
-expected_digest = "{digest}"
-required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
-
-[[capability]]
-id = "ethos.land"
-kind = "command_readonly"
-command = ["ethos", "land", "--apply"]
-
-[[capability]]
-id = "ethos.status"
-kind = "command_mutation_guarded"
-command = ["ethos", "status", "--json"]
-""".lstrip(),
-        encoding="utf-8",
-    )
-
-    result = validate_skill_package_manifest(
-        tmp_path,
-        ".agents/skills/sample-skill/package.toml",
-    )
-
-    assert result["ok"] is False
-    assert (
-        "skill_package_capability_readonly_mutating:sample-skill:ethos.land"
-        in result["required_gaps"]
-    )
-    assert (
-        "skill_package_capability_guard_missing:sample-skill:ethos.status"
-        in result["required_gaps"]
-    )
-
-
-def test_skill_package_manifest_rejects_untrusted_readonly_capabilities(
+@pytest.mark.parametrize(
+    ("records", "required_gaps"),
+    [
+        (
+            (
+                ("ethos.land", "command_readonly", ("ethos", "land", "--apply")),
+                (
+                    "ethos.status",
+                    "command_mutation_guarded",
+                    ("ethos", "status", "--json"),
+                ),
+            ),
+            (
+                "skill_package_capability_readonly_mutating:sample-skill:ethos.land",
+                "skill_package_capability_guard_missing:sample-skill:ethos.status",
+            ),
+        ),
+        (
+            (
+                ("shell.delete", "command_readonly", ("rm", "-rf", "tmp")),
+                ("script.inspect", "script_readonly", ("scripts/inspect.sh",)),
+            ),
+            (
+                "skill_package_capability_readonly_untrusted:sample-skill:shell.delete",
+                "skill_package_capability_readonly_untrusted:sample-skill:script.inspect",
+            ),
+        ),
+        (
+            (
+                ("sample.escape", "script_readonly", ("../outside.sh",)),
+                ("sample.mutating", "script_readonly", ("scripts/audit.py", "--apply")),
+            ),
+            (
+                "skill_package_capability_readonly_untrusted:sample-skill:sample.escape",
+                "skill_package_capability_readonly_mutating:sample-skill:sample.mutating",
+            ),
+        ),
+    ],
+)
+def test_skill_package_manifest_rejects_capability_policy(
     tmp_path: Path,
+    records: tuple[tuple[str, str, tuple[str, ...]], ...],
+    required_gaps: tuple[str, ...],
 ) -> None:
     package_dir = _sample_package(tmp_path)
-    digest = compute_skill_package_digest(package_dir, ["SKILL.md"])
-    (package_dir / "package.toml").write_text(
-        f"""
-schema_version = 2
-id = "sample-skill"
-entrypoint = "SKILL.md"
-digest_algorithm = "sha256"
-include = ["SKILL.md"]
-expected_digest = "{digest}"
-required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
-
-[[capability]]
-id = "shell.delete"
-kind = "command_readonly"
-command = ["rm", "-rf", "tmp"]
-
-[[capability]]
-id = "script.inspect"
-kind = "script_readonly"
-command = ["scripts/inspect.sh"]
-""".lstrip(),
-        encoding="utf-8",
+    manifest = _write_manifest(
+        package_dir,
+        compute_skill_package_digest(package_dir, ["SKILL.md"]),
+        _capability_toml(records),
     )
 
-    result = validate_skill_package_manifest(
-        tmp_path,
-        ".agents/skills/sample-skill/package.toml",
-    )
+    result = validate_skill_package_manifest(tmp_path, manifest.relative_to(tmp_path).as_posix())
 
     assert result["ok"] is False
-    assert (
-        "skill_package_capability_readonly_untrusted:sample-skill:shell.delete"
-        in result["required_gaps"]
-    )
-    assert (
-        "skill_package_capability_readonly_untrusted:sample-skill:script.inspect"
-        in result["required_gaps"]
-    )
+    assert set(required_gaps) <= set(result["required_gaps"])
 
 
 def test_skill_package_manifest_rejects_non_proof_internal_commands(
@@ -450,50 +428,6 @@ command = ["scripts/audit.py", "."]
             "command": ["scripts/audit.py", "."],
         }
     ]
-
-
-def test_skill_package_manifest_rejects_untrusted_readonly_script(
-    tmp_path: Path,
-) -> None:
-    package_dir = _sample_package(tmp_path)
-    digest = compute_skill_package_digest(package_dir, ["SKILL.md"])
-    (package_dir / "package.toml").write_text(
-        f'''
-schema_version = 2
-id = "sample-skill"
-entrypoint = "SKILL.md"
-digest_algorithm = "sha256"
-include = ["SKILL.md"]
-expected_digest = "{digest}"
-required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
-
-[[capability]]
-id = "sample.escape"
-kind = "script_readonly"
-command = ["../outside.sh"]
-
-[[capability]]
-id = "sample.mutating"
-kind = "script_readonly"
-command = ["scripts/audit.py", "--apply"]
-'''.lstrip(),
-        encoding="utf-8",
-    )
-
-    result = validate_skill_package_manifest(
-        tmp_path,
-        ".agents/skills/sample-skill/package.toml",
-    )
-
-    assert result["ok"] is False
-    assert (
-        "skill_package_capability_readonly_untrusted:sample-skill:sample.escape"
-        in result["required_gaps"]
-    )
-    assert (
-        "skill_package_capability_readonly_mutating:sample-skill:sample.mutating"
-        in result["required_gaps"]
-    )
 
 
 def test_skill_package_manifest_accepts_eval_metadata(tmp_path: Path) -> None:

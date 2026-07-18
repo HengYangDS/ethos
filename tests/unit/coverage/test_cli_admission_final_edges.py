@@ -44,16 +44,7 @@ from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 from ethos_core.contracts.registry.declarations import load_coupling_declaration
 from ethos_core.result import EthosResult
-
-
-def cp(stdout: str = "", stderr: str = "", returncode: int = 0) -> subprocess.CompletedProcess[str]:
-    return subprocess.CompletedProcess(["cmd"], returncode, stdout, stderr)
-
-
-def test_prewrite_cast_worktrees_skips_non_dict_entries() -> None:
-    assert admission_prewrite.cast_worktrees([{"branch": "work/x"}, "bad"]) == [
-        {"branch": "work/x"}
-    ]
+from tests.support.subprocesses import completed as cp
 
 
 def test_hook_admit_next_actions_prefer_admission_report_actions() -> None:
@@ -93,7 +84,7 @@ def test_admission_prewrite_and_hook_success_edges(
 ) -> None:
     monkeypatch.setattr(
         admission_prewrite,
-        "workspace_status",
+        "_prewrite_status",
         lambda root: {"role": ROLE_ACCEPTED_ROOT, "branch": "dev"},
     )
     monkeypatch.setattr(
@@ -110,7 +101,7 @@ def test_admission_prewrite_and_hook_success_edges(
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
     monkeypatch.setattr(
         admission_prewrite,
-        "workspace_status",
+        "_prewrite_status",
         lambda root: {
             "root": root.as_posix(),
             "role": ROLE_WORK_LANE,
@@ -151,7 +142,7 @@ def test_admission_prewrite_and_hook_success_edges(
     monkeypatch.setattr(
         admission,
         "workspace_status",
-        lambda root: {
+        lambda root, **_kwargs: {
             "role": ROLE_ACCEPTED_ROOT,
             "branch": "dev",
             "dirty": False,
@@ -187,7 +178,7 @@ def test_admission_prewrite_and_hook_success_edges(
     monkeypatch.setattr(
         admission,
         "workspace_status",
-        lambda root: {
+        lambda root, **_kwargs: {
             "role": ROLE_WORK_LANE,
             "branch": "work/x",
             "dirty": False,
@@ -333,7 +324,7 @@ def test_cli_wrappers_emit_expected_results(
     monkeypatch.setattr(
         inspection_cli,
         "workspace_status",
-        lambda repo: {
+        lambda repo, **_kwargs: {
             "dirty": False,
             "branch": "dev",
             "changed_paths": [],
@@ -344,7 +335,7 @@ def test_cli_wrappers_emit_expected_results(
     monkeypatch.setattr(
         lifecycle_cli,
         "workspace_status",
-        lambda repo: {
+        lambda repo, **_kwargs: {
             "role": "work_lane",
             "branch": "dev",
             "dirty": False,
@@ -396,7 +387,11 @@ def test_cli_wrappers_emit_expected_results(
     monkeypatch.setattr(
         lifecycle_cli,
         "candidate_base_report",
-        lambda root: {"ok": False, "required_gaps": ["candidate_base_stale"], "state": "blocked"},
+        lambda root, status=None: {
+            "ok": False,
+            "required_gaps": ["candidate_base_stale"],
+            "state": "blocked",
+        },
     )
     monkeypatch.setattr(lifecycle_cli.git, "current_head", lambda repo: "h1")
     monkeypatch.setattr(
@@ -417,7 +412,7 @@ def test_cli_wrappers_emit_expected_results(
     monkeypatch.setattr(
         lifecycle_cli,
         "candidate_base_report",
-        lambda root: {"ok": True, "required_gaps": [], "state": "base_current"},
+        lambda root, status=None: {"ok": True, "required_gaps": [], "state": "base_current"},
     )
     lifecycle_cli.land(json_output=True)
     assert emitted[-1].state == "ready_to_land"
@@ -681,3 +676,6 @@ def test_remaining_helper_edges(monkeypatch: pytest.MonkeyPatch, tmp_path: Path)
     )
     monkeypatch.setattr(retrieval_sources, "tracked_files", lambda root: [])
     assert retrieval_sources.allowed_sources(tmp_path) == []
+
+
+# fmt: on

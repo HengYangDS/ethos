@@ -7,59 +7,12 @@ from ethos.adapters.mutation.core import MutationRequest
 from ethos.adapters.mutation.core import apply_land_to_candidate
 from ethos.adapters.mutation.core import evaluate_mutation
 from ethos.adapters.mutation.lanes import start_work_lane
-from ethos.adapters.mutation.proof import _promotion_required_gate_ids
 from ethos.adapters.mutation.proof import executed_proof_record
-from ethos.adapters.mutation.proof import record_executed_proof
 from ethos.adapters.mutation.remediation.core import remediation_for_gaps
 from tests.support.contract_helpers import git
-
-
-def seed_proof(root: Path, head: str) -> None:
-    """Seed a HEAD-keyed executed-proof record, as `ethos prove --execute` would.
-
-    evaluate_mutation now requires executed proof at the current HEAD before a
-    merge; tests exercising the OTHER admission gates seed the proof so the proof
-    gate is satisfied and the intended gap is isolated. The record is
-    self-authenticating (digest recomputed on read), so this seeds a REAL evidence
-    body — proof cannot be faked, in tests or production.
-    """
-    from ethos.repository.evidence.core import EvidenceSet
-    from tests.support.contract_helpers import conformant_proof_run
-
-    # Seed a COMPLETE, POLICY-CONFORMANT promotion proof: one conformant run per required
-    # gate id for `root` (its canonical command / trust_bearing / evidence_class), so it
-    # covers the land floor AND passes gate-policy conformance.
-    runs = tuple(
-        conformant_proof_run(gate_id, root) for gate_id in _promotion_required_gate_ids(root)
-    )
-    evidence = EvidenceSet.from_runs(id="proof", head=head, runs=runs).to_dict()
-    record_executed_proof(root, evidence)
-
-
-def init_repo(path: Path) -> Path:
-    path.mkdir(parents=True)
-    git(path, "init", "-b", "dev")
-    (path / "README.md").write_text("# sample\n", encoding="utf-8")
-    # Generated state (incl. HEAD-keyed proof records) is ignored, as in a real
-    # adopted repo — so a proof record never dirties the work lane.
-    (path / ".gitignore").write_text(".ethos/state/\n", encoding="utf-8")
-    git(path, "add", ".")
-    git(
-        path,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "init",
-    )
-    return path
-
-
-def add_candidate_worktree(repo: Path, path: Path) -> Path:
-    git(repo, "worktree", "add", "-b", "candidate/dev", path.as_posix(), "dev")
-    return path
+from tests.support.contract_helpers import init_git_repo as init_repo
+from tests.support.contract_helpers import seed_executed_proof as seed_proof
+from tests.support.lane_helpers import add_candidate_worktree
 
 
 def add_owned_work_lane(repo: Path, name: str, path: Path) -> Path:
@@ -312,7 +265,7 @@ def test_accepted_root_closeout_fast_forwards_configured_candidate_branch(
     tmp_path: Path,
 ) -> None:
     repo = init_repo(tmp_path / "repo")
-    (repo / ".ethos").mkdir()
+    (repo / ".ethos").mkdir(exist_ok=True)
     (repo / ".ethos" / "workspace.toml").write_text(
         "[branch_roles]\n"
         'release_branch = "release"\n'

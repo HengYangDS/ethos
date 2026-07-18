@@ -34,11 +34,13 @@ def _product_gate_registry() -> dict[str, GateDescriptor]:
 def _adopter_gate_overlay(
     root: Path | None,
     product_registry: dict[str, GateDescriptor],
+    *,
+    tree_ref: str | None = None,
 ) -> tuple[dict[str, GateDescriptor], tuple[str, ...]]:
     """Compile repository-native gate descriptors from an adopter profile."""
-    if not _adopter_profile_active(root):
+    if not _adopter_profile_active(root, tree_ref=tree_ref):
         return {}, ()
-    profile = load_repository_profile(cast("Path", root))
+    profile = load_repository_profile(cast("Path", root), tree_ref=tree_ref)
     proof_table = profile.tables.get("proof", {})
     raw_gates = proof_table.get("gates", []) if isinstance(proof_table, dict) else []
     if not isinstance(raw_gates, list):
@@ -87,17 +89,21 @@ def _adopter_gate(raw_gate: object, *, index: int) -> tuple[GateDescriptor | Non
     return gate, ""
 
 
-def gate_registry(root: Path | None = None) -> dict[str, GateDescriptor]:
+def gate_registry(
+    root: Path | None = None, *, tree_ref: str | None = None
+) -> dict[str, GateDescriptor]:
     """Compile product gates plus a typed repository-native adopter overlay."""
     registry = _product_gate_registry()
-    overlay, _ = _adopter_gate_overlay(root, registry)
+    overlay, _ = _adopter_gate_overlay(root, registry, tree_ref=tree_ref)
     return {**registry, **overlay}
 
 
-def adopter_gate_descriptor_gaps(root: Path | None) -> tuple[str, ...]:
+def adopter_gate_descriptor_gaps(
+    root: Path | None, *, tree_ref: str | None = None
+) -> tuple[str, ...]:
     """Return fail-closed gaps for incomplete or invalid adopter gate descriptors."""
     registry = _product_gate_registry()
-    _, gaps = _adopter_gate_overlay(root, registry)
+    _, gaps = _adopter_gate_overlay(root, registry, tree_ref=tree_ref)
     return gaps
 
 
@@ -131,7 +137,7 @@ def _adopter_native_code_correctness_gates(profile: object) -> tuple[str, ...]:
     return tuple(str(gate_id) for gate_id in declared if str(gate_id))
 
 
-def _adopter_profile_active(root: Path | None) -> bool:
+def _adopter_profile_active(root: Path | None, *, tree_ref: str | None = None) -> bool:
     """Return True only for a VALID adopter profile on a non-product root.
 
     Keying the floor on bare `.exists` let any `.ethos/profile.toml` — 0-byte, invalid
@@ -143,7 +149,7 @@ def _adopter_profile_active(root: Path | None) -> bool:
         return False
     if _is_product_root(root):
         return False
-    profile = load_repository_profile(root)
+    profile = load_repository_profile(root, tree_ref=tree_ref)
     return profile.exists and profile.valid
 
 
@@ -257,7 +263,9 @@ def _code_correctness_map(profile: object) -> dict[str, dict[str, str]]:
     return parsed
 
 
-def adopter_code_correctness_gaps(root: Path | None) -> tuple[str, ...]:
+def adopter_code_correctness_gaps(
+    root: Path | None, *, tree_ref: str | None = None
+) -> tuple[str, ...]:
     """Completeness gaps for an adopter's native code-correctness proof surface.
 
     Beyond "declared non-empty" (the old single check), this verifies the declared gates
@@ -272,12 +280,12 @@ def adopter_code_correctness_gaps(root: Path | None) -> tuple[str, ...]:
     cannot detect an honest-shaped semantic no-op (a real-looking harness over zero checks)
     — that residual closes via governed profile-diff review and DR-0006 re-execution.
     """
-    if not _adopter_profile_active(root):
+    if not _adopter_profile_active(root, tree_ref=tree_ref):
         return ()
-    profile = load_repository_profile(cast("Path", root))
+    profile = load_repository_profile(cast("Path", root), tree_ref=tree_ref)
     if not _adopter_native_code_correctness_gates(profile):
         return (ADOPTER_MISSING_CODE_CORRECTNESS_GATE,)
-    overlay, _ = _adopter_gate_overlay(root, _product_gate_registry())
+    overlay, _ = _adopter_gate_overlay(root, _product_gate_registry(), tree_ref=tree_ref)
     vocab = _code_correctness_axis_vocab(profile)
     mapping = _code_correctness_map(profile)
     gaps: list[str] = []
@@ -304,8 +312,10 @@ def adopter_code_correctness_gaps(root: Path | None) -> tuple[str, ...]:
     return tuple(dict.fromkeys(gaps))
 
 
-def default_gate_ids(*, full: bool = False, root: Path | None = None) -> tuple[str, ...]:
-    if _adopter_profile_active(root):
+def default_gate_ids(
+    *, full: bool = False, root: Path | None = None, tree_ref: str | None = None
+) -> tuple[str, ...]:
+    if _adopter_profile_active(root, tree_ref=tree_ref):
         # Adopted repositories expose their proof depth through `.ethos/profile.toml`
         # and repository-native gates. The product code-correctness floor must not
         # assume product-owned `tools/ci/scripts/*` exist in every adopter — but the
@@ -314,7 +324,7 @@ def default_gate_ids(*, full: bool = False, root: Path | None = None) -> tuple[s
         # axis-coverage/equivalence checks, are enforced by adopter_code_correctness_gaps
         # (completeness gaps), NOT by a non-executable sentinel here — this set must stay
         # registry-executable for gate_graph.
-        profile = load_repository_profile(cast("Path", root))
+        profile = load_repository_profile(cast("Path", root), tree_ref=tree_ref)
         native = _adopter_native_code_correctness_gates(profile)
         return (*ADOPTER_DEFAULT_GATE_IDS, *native)
     if full:
@@ -325,14 +335,16 @@ def default_gate_ids(*, full: bool = False, root: Path | None = None) -> tuple[s
     return PRODUCT_DEFAULT_GATE_IDS
 
 
-def promotion_required_gate_ids(root: Path | None = None) -> tuple[str, ...]:
+def promotion_required_gate_ids(
+    root: Path | None = None, *, tree_ref: str | None = None
+) -> tuple[str, ...]:
     """The gate ids a promotion proof must fully cover for this root (the LAND floor).
 
     Public alias of `default_gate_ids(full=False, root=root)` — the single definition
     the completeness check, the policy digest, and the executable graph all resolve, so
     they never drift.
     """
-    return default_gate_ids(full=False, root=root)
+    return default_gate_ids(full=False, root=root, tree_ref=tree_ref)
 
 
 _PYTHON_INTERPRETER_RE = re.compile(r"^python(3(\.\d+)?)?$")
@@ -422,7 +434,10 @@ def _policy_registry_and_required(
         committed = _committed_registry_and_floor(root, tree_ref)
         if committed is not None:
             return committed
-    return gate_registry(root), promotion_required_gate_ids(root)
+    return (
+        gate_registry(root, tree_ref=tree_ref),
+        promotion_required_gate_ids(root, tree_ref=tree_ref),
+    )
 
 
 def _gate_policy_source_digest(

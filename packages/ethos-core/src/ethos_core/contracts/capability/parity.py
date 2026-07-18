@@ -4,7 +4,7 @@ from dataclasses import asdict
 from dataclasses import dataclass
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class CapabilityParityRecord:
     capability: str
     source_location: str

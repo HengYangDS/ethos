@@ -1,0 +1,2 @@
+schema_version = 1
+paths = ["docs/plans/all-work-lanes-convergence-replay-20260718.md", "evidence/claims/all-lanes-convergence-replay-20260718.toml", "evidence/chronicle/all-lanes-convergence-replay-20260718/**", "evidence/parity/generic-shadow.json", "openspec/changes/all-lanes-convergence-replay-20260718/**", "openspec/specs/repository-governance/spec.md", "packages/ethos/src/ethos/adapters/mutation/lane_lifecycle/refresh.py", "tests/unit/coverage/test_lanes_final_edges.py", "tests/unit/lanes/test_lanes_lifecycle.py"]

@@ -64,7 +64,7 @@ def test_action_graph_delegates_ordering_to_shared_graph_plan() -> None:
         )
     )
 
-    assert [node.id for node in graph.topological_nodes()] == ["status", "prove", "publish"]
+    assert [node.id for node in graph.ordered_nodes()] == ["status", "prove", "publish"]
     source = inspect.getsource(ActionGraph)
     assert "GraphKernel" in source
     assert ".plan()" in source

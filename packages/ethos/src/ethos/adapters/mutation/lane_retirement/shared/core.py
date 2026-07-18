@@ -23,7 +23,7 @@ def _run_git_adapter(root: Path, *args: str, check: bool = True) -> Any:
     return run_git(root, *args, check=check)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class RetirementRuntime:
     """Explicit adapter binding for Work Lane retirement operations."""
 

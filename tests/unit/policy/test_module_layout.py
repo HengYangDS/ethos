@@ -7,11 +7,7 @@ import pytest
 
 import ethos.repository.policy.layout.imports.core as layout_imports
 from ethos.repository.policy.layout.core import module_layout_report
-
-
-def _write(path: Path, text: str = "") -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(text, encoding="utf-8")
+from tests.support import write_text as _write
 
 
 def _write_suffix_baseline_policy(

@@ -48,7 +48,7 @@ def playbooks_route(
     """Route a subject to repo-local ETHOS playbooks."""
     repo = resolve_root(root)
     route_subject = "changed-scope" if changed else subject
-    status_payload = workspace_status(repo)
+    status_payload = workspace_status(repo, include_foreign_path_scope=False)
     changed_paths = change_scope_paths_from_status(repo, status_payload) if changed else ()
     report = route_playbook(
         repo,

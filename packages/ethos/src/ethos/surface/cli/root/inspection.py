@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-import os
-import shutil
+import pathlib
+import shlex
 import sys
-from contextlib import suppress
-from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Annotated
 from typing import Any
@@ -36,55 +34,12 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
 
 
-def host_wrapper_report(repo: Path) -> dict[str, object]:
-    """Report whether PATH resolves `ethos` to a host wrapper with fixed root drift."""
-    command_path = shutil.which("ethos") or ""
-    if not command_path:
-        return {
-            "kind": "host_wrapper",
-            "state": "not_found",
-            "path": "",
-            "repository_root": repo.as_posix(),
-            "advisory_gaps": ["host_wrapper_not_found"],
-            "next_action": "run via `uv run --package ethos ethos ...` from the target checkout",
-        }
-    path = Path(command_path).resolve()
-    text = ""
-    with suppress(OSError):
-        text = path.read_text(encoding="utf-8", errors="replace")
-    fixed_root = (
-        "ETHOS_ROOT" in text
-        and "$HOME/projects/ethos" in text
-        and "git rev-parse" not in text
-        and "findSourceRoot" not in text
-    )
-    env_root = os.environ.get("ETHOS_ROOT", "")
-    advisory_gaps: list[str] = []
-    if fixed_root and not env_root:
-        advisory_gaps.append("host_wrapper_fixed_root")
-    state = "fixed_root_wrapper" if fixed_root and not env_root else "ok"
-    next_action = (
-        "set ETHOS_ROOT explicitly or run `uv run --package ethos ethos ...` "
-        "from the target checkout"
-        if advisory_gaps
-        else "host wrapper does not force a different repository root"
-    )
-    return {
-        "kind": "host_wrapper",
-        "state": state,
-        "path": path.as_posix(),
-        "repository_root": repo.as_posix(),
-        "env_ethos_root": env_root,
-        "advisory_gaps": advisory_gaps,
-        "next_action": next_action,
-    }
-
-
-def _orient_report(repo: Path) -> dict[str, object]:
+def _orient_report(repo: pathlib.Path) -> dict[str, object]:
     """Supply orient's facts without assembling its CLI envelope."""
     packet = orient_domain.orientation_packet(
-        status_payload=workspace_status(repo),
+        status_payload=workspace_status(repo, include_foreign_path_scope=False),
         report_payload=scorecard_report(repo),
+        command_prefix=_checkout_command_prefix(repo),
     )
     return {
         "ok": True,
@@ -95,11 +50,14 @@ def _orient_report(repo: Path) -> dict[str, object]:
     }
 
 
-def _status_report(repo: Path) -> dict[str, object]:
+def _status_report(repo: pathlib.Path) -> dict[str, object]:
     """Supply validated status facts without assembling its CLI envelope."""
-    status_payload = workspace_status(repo)
+    status_payload = workspace_status(repo, include_foreign_path_scope=False)
     validation = workspace_status_validation(repo, status_payload)
-    orientation = orient_domain.orientation_packet(status_payload=status_payload)
+    orientation = orient_domain.orientation_packet(
+        status_payload=status_payload,
+        command_prefix=_checkout_command_prefix(repo),
+    )
     ok = bool(validation["ok"])
     return {
         "ok": ok,
@@ -114,10 +72,16 @@ def _status_report(repo: Path) -> dict[str, object]:
     }
 
 
+def _checkout_command_prefix(repo: pathlib.Path) -> str:
+    """Return the source-bound command prefix for actions emitted by this checkout."""
+    resolved = pathlib.Path(repo).resolve()
+    return f"cd {shlex.quote(resolved.as_posix())} && tools/ci/scripts/run-ethos-lane.sh"
+
+
 def _scorecard_reader_report(
-    repo: Path,
+    repo: pathlib.Path,
     *,
-    product_root: Path | None = None,
+    product_root: pathlib.Path | None = None,
 ) -> dict[str, object]:
     """Supply scorecard facts for the report reader projection."""
     return scorecard_report(repo, product_root=product_root)
@@ -163,7 +127,7 @@ def _compact_status_result(result: EthosResult) -> EthosResult:
         "changed_path_count": _count_sequence(data.get("changed_paths")),
         "landing_readiness": {
             "state": landing.get("state", ""),
-            "required_gaps": _string_list(landing.get("required_gaps")),
+            "required_gaps": string_sequence(landing.get("required_gaps")),
             "next_action": landing.get("next_action", ""),
         },
         "candidate": {
@@ -220,11 +184,6 @@ def _count_sequence(value: object) -> int:
     if isinstance(value, list | tuple):
         return len(value)
     return 0
-
-
-def _string_list(value: object) -> list[str]:
-    """Return a string-list projection without passing through arbitrary values."""
-    return [str(item) for item in value] if isinstance(value, list | tuple) else []
 
 
 def _compact_invalid_states(value: object) -> dict[str, object]:
@@ -293,7 +252,7 @@ def _compact_report_payload(payload: Mapping[str, object]) -> dict[str, object]:
 def report(
     *,
     root: RootOption | None = None,
-    product_root: Annotated[Path | None, Parameter(name="--product-root")] = None,
+    product_root: Annotated[pathlib.Path | None, Parameter(name="--product-root")] = None,
     json_output: JsonFlag = False,
     compact: Annotated[bool, Parameter(name="--compact")] = False,
 ) -> None:
@@ -330,21 +289,16 @@ def doctor(
         initialize_state(db_path)
     status_payload = workspace_status(repo)
     runtime = status_payload.get("runtime_binding", {})
-    wrapper_report = host_wrapper_report(repo)
     result = EthosResult(
         command="doctor",
         ok=True,
         state="ready",
-        summary={
-            "state_db_exists": db_path.exists(),
-            "host_wrapper_state": wrapper_report["state"],
-        },
+        summary={"state_db_exists": db_path.exists()},
         next_actions=("ethos status",),
         data={
             "state_db": str(db_path),
             "initialized": init_state,
             "runtime_binding": runtime,
-            "host_wrapper": wrapper_report,
         },
     )
     emit(result, json_output=json_output, enforce=False)

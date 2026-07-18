@@ -27,6 +27,15 @@ class WorkLaneFixture(NamedTuple):
     worktree: Path
 
 
+def start_adopted_candidate(tmp_path: Path) -> tuple[Path, Path]:
+    """Create an adopted accepted root and its candidate worktree."""
+    repo = init_git_repo(tmp_path / "repo")
+    adopt_and_commit(repo)
+    candidate = tmp_path / "repo-candidate-dev"
+    git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
+    return repo, candidate
+
+
 def start_adopted_work_lane(
     tmp_path: Path,
     *,
@@ -34,10 +43,7 @@ def start_adopted_work_lane(
     holder_ref: str = "agent:test:case:agent-test",
 ) -> WorkLaneFixture:
     """Create a generic adopted repository, candidate worktree, and owned lane."""
-    repo = init_git_repo(tmp_path / "repo")
-    adopt_and_commit(repo)
-    candidate = tmp_path / "repo-candidate-dev"
-    git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
+    repo, candidate = start_adopted_candidate(tmp_path)
     worktree = tmp_path / f"repo-work-{name}"
     run_ethos(
         "lane",
@@ -106,6 +112,14 @@ def init_git_repo(path: Path) -> Path:
         "init",
     )
     return path
+
+
+def init_repo_with_candidate(tmp_path: Path) -> tuple[Path, Path]:
+    """Create a minimal accepted root and its linked candidate checkout."""
+    repo = init_git_repo(tmp_path / "repo")
+    candidate = tmp_path / "repo-candidate-dev"
+    git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
+    return repo, candidate
 
 
 def adopt_and_commit(repo: Path) -> None:

@@ -6,6 +6,9 @@ from typing import Protocol
 from typing import TypedDict
 
 from ethos.adapters.mutation.lane_lifecycle.core import run_git
+from ethos.adapters.mutation.lane_lifecycle.projection_rebase.ledger import (
+    resolve_source_budget_ledger_rebase_conflict,
+)
 
 PARITY_EVIDENCE_ROOT = Path("evidence/parity")
 PARITY_SHADOW_SUFFIX = "-shadow.json"
@@ -160,6 +163,13 @@ def resolve_projection_rebase(
                 stderr="",
             )
         projection_result = resolve_projection_only_rebase_conflict(root, runtime=runtime)
+        if not projection_result["ok"]:
+            projection_result = resolve_source_budget_ledger_rebase_conflict(
+                root,
+                runtime=runtime,
+                resolution=projection_resolution,
+                unmerged_paths=unmerged_paths,
+            )
         if projection_result["ok"]:
             append_unique(paths, projection_result["paths"])
             append_unique(gaps, projection_result["gaps"])

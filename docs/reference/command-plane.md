@@ -217,7 +217,7 @@ ethos lane resolution inventory --json
 ethos lane resolution clear --decision-id <decision-id> --expect-manifest-sha256 <sha256> --chronicle-ref <accepted-chronicle> --reason <why> --break-glass --confirm-irreversible --apply
 ethos lane retire landed --branch <work-lane-branch> --expect-head <work-lane-head> --apply
 ethos lane retire superseded --branch <work-lane-branch> --expect-head <work-lane-head> --absorbed-by <accepted-head> --reason <why> --authorize --apply
-ethos lane retire unbound --branch <work-lane-branch> --expect-head <git-head> --reason <why> --authorize --apply
+ethos lane retire unbound --branch <work-lane-branch> --expect-head <git-head> --reason <why>
 ```
 
 When `--root` is omitted, CLI commands resolve the current Git worktree root
@@ -379,19 +379,19 @@ ref deletion,
 ETHOS attempts to restore the ref before reporting the blocked cleanup. It does
 not replace `ethos land` or `ethos lane retire landed`; it closes a distinct superseded
 linked-lane residue state.
-`ethos lane retire unbound` is the maintainer cleanup path for local unbound
+`ethos lane retire unbound` is a fail-closed inspection path for local unbound
 Work Lane refs that already appear in `data.coordination.unbound_work_lane_refs`.
 It is dry-run by default; apply mode requires `--authorize`, `--expect-head`,
 and a non-empty `--reason`, then deletes `refs/heads/<branch>` with a
 head-bound Git ref transaction. It does not replace `ethos land` or
-`ethos lane retire landed`, and it does not remove linked worktrees.
+`ethos lane retire landed`, and it does not remove linked worktrees. It preserves the ref and reports that exceptional deletion admission is required.
 The standard local lifecycle is product state even when a host provides its own
 presentation: create the Work Lane through `ethos lane start`, attach claim
 evidence with `ethos lane bind-claim` when needed, refresh the lane base only
 through `ethos lane refresh-base`, land only through `ethos land`, retire
 landed lanes through `ethos lane retire landed`, retire absorbed linked-lane
-residue through `ethos lane retire superseded`, and retire unbound residue refs
-through `ethos lane retire unbound`. Raw Git
+residue through `ethos lane retire superseded`, and inspect unbound residue refs
+through `ethos lane retire unbound` before a separately admitted exceptional deletion path. Raw Git
 worktree creation is an observable repository fact, but it is not admitted as
 the standard ETHOS workflow state because it has no ETHOS lease or claim
 boundary. `ethos orient --json` provides a derived reader view for human/agent discoverability;

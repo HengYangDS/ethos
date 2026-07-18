@@ -267,14 +267,15 @@ def test_retire_landed_work_lane_apply_removes_selected_clean_merged_lane(
     assert git(repo, "branch", "--list", _LANDED_BRANCH) == ""
 
 
-def test_remove_linked_lane_restores_ref_when_worktree_remove_fails(
-    monkeypatch,
+def test_remove_linked_lane_removes_clean_worktree_before_deleting_exact_ref(
     tmp_path: Path,
 ) -> None:
     repo = init_repo(tmp_path / "repo")
+    lane_path = tmp_path / "repo-work-stuck"
+    lane_path.mkdir()
     lane = {
         "branch": "work/stuck",
-        "path": (tmp_path / "repo-work-stuck").as_posix(),
+        "path": lane_path.as_posix(),
     }
     calls: list[tuple[str, ...]] = []
 
@@ -285,40 +286,47 @@ def test_remove_linked_lane_restores_ref_when_worktree_remove_fails(
     ) -> subprocess.CompletedProcess[str]:
         assert check is False
         calls.append(args)
-        if args[:3] == ("update-ref", "-d", "refs/heads/work/stuck"):
+        if _repo == repo and args[:1] == ("rev-parse",):
+            return subprocess.CompletedProcess(args, 0, stdout="a" * 40 + "\n", stderr="")
+        if _repo == lane_path and args == ("rev-parse", "refs/heads/work/stuck"):
+            return subprocess.CompletedProcess(args, 0, stdout="a" * 40 + "\n", stderr="")
+        if _repo == lane_path and args == ("rev-parse", "HEAD"):
+            return subprocess.CompletedProcess(args, 0, stdout="a" * 40 + "\n", stderr="")
+        if _repo == lane_path and args == (
+            "status",
+            "--porcelain",
+            "--untracked-files=all",
+        ):
             return subprocess.CompletedProcess(args, 0, stdout="", stderr="")
-        if args[:3] == ("worktree", "remove", "--force"):
-            return subprocess.CompletedProcess(args, 128, stdout="", stderr="locked")
-        if args[:2] == ("update-ref", "refs/heads/work/stuck"):
+        if _repo == lane_path and args[:2] == ("worktree", "remove"):
+            return subprocess.CompletedProcess(args, 0, stdout="", stderr="")
+        if _repo == repo and args[:3] == ("update-ref", "-d", "refs/heads/work/stuck"):
             return subprocess.CompletedProcess(args, 0, stdout="", stderr="")
         raise AssertionError(args)
 
-    monkeypatch.setattr(retirement_shared, "run_git", fake_run_git)
+    runtime = retirement_shared.RetirementRuntime(run_git=fake_run_git)
 
-    report = retirement_shared.remove_linked_lane(repo, lane, expect_head="a" * 40)
+    report = retirement_shared.remove_linked_lane(repo, lane, expect_head="a" * 40, runtime=runtime)
 
-    assert report == {
-        "ok": False,
-        "state": "blocked",
-        "required_gaps": ["worktree_remove_failed"],
-        "stderr": "locked",
-        "rollback_stderr": "",
-    }
+    assert report == {}
     assert calls == [
+        ("rev-parse", "refs/heads/work/stuck"),
+        ("rev-parse", "HEAD"),
+        ("status", "--porcelain", "--untracked-files=all"),
+        ("worktree", "remove", lane["path"]),
         ("update-ref", "-d", "refs/heads/work/stuck", "a" * 40),
-        ("worktree", "remove", "--force", lane["path"]),
-        ("update-ref", "refs/heads/work/stuck", "a" * 40, "0" * 40),
     ]
 
 
-def test_remove_linked_lane_reports_restore_failure_when_partial_cleanup_persists(
-    monkeypatch,
+def test_remove_linked_lane_blocks_before_effect_when_reobservation_is_stale_or_dirty(
     tmp_path: Path,
 ) -> None:
     repo = init_repo(tmp_path / "repo")
+    lane_path = tmp_path / "repo-work-stuck"
+    lane_path.mkdir()
     lane = {
         "branch": "work/stuck",
-        "path": (tmp_path / "repo-work-stuck").as_posix(),
+        "path": lane_path.as_posix(),
     }
 
     def fake_run_git(
@@ -327,25 +335,76 @@ def test_remove_linked_lane_reports_restore_failure_when_partial_cleanup_persist
         check: bool = False,
     ) -> subprocess.CompletedProcess[str]:
         assert check is False
-        if args[:3] == ("update-ref", "-d", "refs/heads/work/stuck"):
-            return subprocess.CompletedProcess(args, 0, stdout="", stderr="")
-        if args[:3] == ("worktree", "remove", "--force"):
-            return subprocess.CompletedProcess(args, 128, stdout="", stderr="locked")
-        if args[:2] == ("update-ref", "refs/heads/work/stuck"):
-            return subprocess.CompletedProcess(args, 1, stdout="", stderr="restore failed")
+        if _repo == lane_path and args == ("rev-parse", "refs/heads/work/stuck"):
+            return subprocess.CompletedProcess(args, 0, stdout="b" * 40 + "\n", stderr="")
+        if _repo == lane_path and args == ("rev-parse", "HEAD"):
+            return subprocess.CompletedProcess(args, 0, stdout="a" * 40 + "\n", stderr="")
+        if _repo == lane_path and args == (
+            "status",
+            "--porcelain",
+            "--untracked-files=all",
+        ):
+            return subprocess.CompletedProcess(args, 0, stdout="?? uncommitted.txt\n", stderr="")
         raise AssertionError(args)
 
-    monkeypatch.setattr(retirement_shared, "run_git", fake_run_git)
+    runtime = retirement_shared.RetirementRuntime(run_git=fake_run_git)
 
-    report = retirement_shared.remove_linked_lane(repo, lane, expect_head="a" * 40)
+    report = retirement_shared.remove_linked_lane(repo, lane, expect_head="a" * 40, runtime=runtime)
 
     assert report == {
         "ok": False,
         "state": "blocked",
-        "required_gaps": ["worktree_remove_failed", "branch_restore_failed"],
-        "stderr": "locked",
-        "rollback_stderr": "restore failed",
+        "required_gaps": ["retirement_ref_stale", "work_lane_dirty"],
     }
+
+
+def test_remove_linked_lane_preserves_newer_ref_after_worktree_removal(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    lane_path = tmp_path / "repo-work-stuck"
+    lane_path.mkdir()
+    lane = {"branch": "work/stuck", "path": lane_path.as_posix()}
+    calls: list[tuple[str, ...]] = []
+
+    def fake_run_git(
+        _repo: Path,
+        *args: str,
+        check: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        assert check is False
+        calls.append(args)
+        if _repo == lane_path and args == ("rev-parse", "refs/heads/work/stuck"):
+            return subprocess.CompletedProcess(args, 0, stdout="a" * 40 + "\n", stderr="")
+        if _repo == lane_path and args == ("rev-parse", "HEAD"):
+            return subprocess.CompletedProcess(args, 0, stdout="a" * 40 + "\n", stderr="")
+        if _repo == lane_path and args == (
+            "status",
+            "--porcelain",
+            "--untracked-files=all",
+        ):
+            return subprocess.CompletedProcess(args, 0, stdout="", stderr="")
+        if _repo == lane_path and args[:2] == ("worktree", "remove"):
+            return subprocess.CompletedProcess(args, 0, stdout="", stderr="")
+        if _repo == repo and args[:3] == ("update-ref", "-d", "refs/heads/work/stuck"):
+            return subprocess.CompletedProcess(args, 1, stdout="", stderr="cannot lock ref")
+        raise AssertionError(args)
+
+    report = retirement_shared.remove_linked_lane(
+        repo,
+        lane,
+        expect_head="a" * 40,
+        runtime=retirement_shared.RetirementRuntime(run_git=fake_run_git),
+    )
+
+    assert report == {
+        "ok": False,
+        "state": "blocked",
+        "required_gaps": ["branch_delete_failed_after_worktree_removed"],
+        "stderr": "cannot lock ref",
+    }
+    assert ("worktree", "remove", lane["path"]) in calls
+    assert ("update-ref", "-d", "refs/heads/work/stuck", "a" * 40) in calls
 
 
 def test_candidate_status_reports_commits_behind_accepted(tmp_path: Path) -> None:

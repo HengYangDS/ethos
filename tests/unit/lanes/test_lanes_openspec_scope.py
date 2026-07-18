@@ -87,6 +87,45 @@ def _worktree(repo: Path, tmp_path: Path, monkeypatch) -> Path:
     return worktree
 
 
+def _owned_adopter_scope_lane(
+    tmp_path: Path,
+    monkeypatch,
+    material_paths: tuple[str, ...],
+    *,
+    seed_guidelines: bool = True,
+) -> tuple[Path, Path]:
+    repo = init_repo(tmp_path / "repo")
+    (repo / ".ethos").mkdir(exist_ok=True)
+    paths = ", ".join(f'"{path}"' for path in material_paths)
+    (repo / ".ethos" / "profile.toml").write_text(
+        f"[openspec]\nmaterial_paths = [{paths}]\n", encoding="utf-8"
+    )
+    if seed_guidelines:
+        (repo / "guidelines.md").write_text("# Guidelines\n", encoding="utf-8")
+    git(repo, "add", ".")
+    git(repo, "commit", "-m", "declare adopter material paths")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    worktree = tmp_path / "repo-work-owned"
+    start_work_lane(
+        root=repo,
+        name="owned",
+        path=worktree,
+        holder_ref="agent:test:case:agent-test",
+        apply=True,
+    )
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    return repo, worktree
+
+
+def _prewrite(worktree: Path, *paths: Path) -> dict[str, object]:
+    return prewrite_guard(
+        root=worktree,
+        paths=list(paths),
+        editor_root=worktree,
+        require_editor_root=True,
+    )
+
+
 def test_prewrite_uses_same_official_scope_candidates_as_plan_and_prove(
     tmp_path: Path,
     monkeypatch,
@@ -114,12 +153,7 @@ def test_prewrite_uses_same_official_scope_candidates_as_plan_and_prove(
         lifecycle=True,
         changed_paths=("guidelines.md",),
     )
-    prewrite = prewrite_guard(
-        root=worktree,
-        paths=[worktree / "guidelines.md"],
-        editor_root=worktree,
-        require_editor_root=True,
-    )
+    prewrite = _prewrite(worktree, worktree / "guidelines.md")
 
     assert lifecycle["lifecycle"]["scope_binding"]["state"] == "covered"
     assert [item["name"] for item in lifecycle["lifecycle"]["scope_binding"]["changes"]] == [
@@ -140,15 +174,7 @@ def test_prewrite_bootstrap_reads_untracked_official_change_scope_companion(
     monkeypatch,
 ) -> None:
     """A valid untracked companion admits later material writes for its official Change."""
-    repo = init_repo(tmp_path / "repo")
-    (repo / ".ethos").mkdir(exist_ok=True)
-    (repo / ".ethos" / "profile.toml").write_text(
-        '[openspec]\nmaterial_paths = ["guidelines.md"]\n', encoding="utf-8"
-    )
-    (repo / "guidelines.md").write_text("# Guidelines\n", encoding="utf-8")
-    git(repo, "add", ".")
-    git(repo, "commit", "-m", "declare adopter material paths")
-    worktree = _worktree(repo, tmp_path, monkeypatch)
+    _repo, worktree = _owned_adopter_scope_lane(tmp_path, monkeypatch, ("guidelines.md",))
     change = worktree / "openspec" / "changes" / "bootstrap"
     change.mkdir(parents=True)
     (change / "scope.toml").write_text(
@@ -156,12 +182,7 @@ def test_prewrite_bootstrap_reads_untracked_official_change_scope_companion(
     )
     _mock_official_active_change(monkeypatch, "bootstrap")
 
-    report = prewrite_guard(
-        root=worktree,
-        paths=[worktree / "guidelines.md"],
-        editor_root=worktree,
-        require_editor_root=True,
-    )
+    report = _prewrite(worktree, worktree / "guidelines.md")
 
     assert report["ok"] is True
     assert report["material_scope"]["state"] == "covered"
@@ -184,27 +205,14 @@ def test_prewrite_bootstrap_requires_valid_untracked_scope_companion(
     expected: str,
 ) -> None:
     """A bare or malformed Change directory never grants a material write exemption."""
-    repo = init_repo(tmp_path / "repo")
-    (repo / ".ethos").mkdir(exist_ok=True)
-    (repo / ".ethos" / "profile.toml").write_text(
-        '[openspec]\nmaterial_paths = ["guidelines.md"]\n', encoding="utf-8"
-    )
-    (repo / "guidelines.md").write_text("# Guidelines\n", encoding="utf-8")
-    git(repo, "add", ".")
-    git(repo, "commit", "-m", "declare adopter material paths")
-    worktree = _worktree(repo, tmp_path, monkeypatch)
+    _repo, worktree = _owned_adopter_scope_lane(tmp_path, monkeypatch, ("guidelines.md",))
     change = worktree / "openspec" / "changes" / "bootstrap"
     change.mkdir(parents=True)
     if scope_body is not None:
         (change / "scope.toml").write_text(scope_body, encoding="utf-8")
     _mock_official_active_change(monkeypatch, "bootstrap")
 
-    report = prewrite_guard(
-        root=worktree,
-        paths=[worktree / "guidelines.md"],
-        editor_root=worktree,
-        require_editor_root=True,
-    )
+    report = _prewrite(worktree, worktree / "guidelines.md")
 
     assert report["ok"] is False
     assert report["error"] == expected
@@ -216,29 +224,17 @@ def test_prewrite_admits_only_new_official_scope_file_for_bootstrap(
     monkeypatch,
 ) -> None:
     """A single absent scope companion is the only bootstrap write exception."""
-    repo = init_repo(tmp_path / "repo")
-    (repo / ".ethos").mkdir(exist_ok=True)
-    (repo / ".ethos" / "profile.toml").write_text(
-        "[openspec]\n"
-        'material_paths = ["guidelines.md", ".ethos/profile.toml", '
-        '"openspec/changes/bootstrap/**"]\n',
-        encoding="utf-8",
+    _repo, worktree = _owned_adopter_scope_lane(
+        tmp_path,
+        monkeypatch,
+        ("guidelines.md", ".ethos/profile.toml", "openspec/changes/bootstrap/**"),
     )
-    (repo / "guidelines.md").write_text("# Guidelines\n", encoding="utf-8")
-    git(repo, "add", ".")
-    git(repo, "commit", "-m", "declare adopter material paths")
-    worktree = _worktree(repo, tmp_path, monkeypatch)
     change = worktree / "openspec" / "changes" / "bootstrap"
     change.mkdir(parents=True)
     scope_path = change / "scope.toml"
     _mock_official_active_change(monkeypatch, "bootstrap")
 
-    bootstrap = prewrite_guard(
-        root=worktree,
-        paths=[scope_path],
-        editor_root=worktree,
-        require_editor_root=True,
-    )
+    bootstrap = _prewrite(worktree, scope_path)
 
     assert bootstrap["ok"] is True
     assert bootstrap["material_scope"]["state"] == "bootstrap_scope_creation"
@@ -253,16 +249,12 @@ def test_prewrite_admits_only_new_official_scope_file_for_bootstrap(
         '"openspec/changes/bootstrap/**"]\n',
         encoding="utf-8",
     )
-    covered = prewrite_guard(
-        root=worktree,
-        paths=[
-            worktree / "guidelines.md",
-            worktree / ".ethos" / "profile.toml",
-            scope_path,
-            change / "proposal.md",
-        ],
-        editor_root=worktree,
-        require_editor_root=True,
+    covered = _prewrite(
+        worktree,
+        worktree / "guidelines.md",
+        worktree / ".ethos" / "profile.toml",
+        scope_path,
+        change / "proposal.md",
     )
 
     assert covered["ok"] is True
@@ -280,27 +272,19 @@ def test_prewrite_bootstrap_scope_must_cover_its_own_path(
     monkeypatch,
 ) -> None:
     """A companion that omits itself cannot bootstrap its own tracked write."""
-    repo = init_repo(tmp_path / "repo")
-    (repo / ".ethos").mkdir(exist_ok=True)
-    (repo / ".ethos" / "profile.toml").write_text(
-        '[openspec]\nmaterial_paths = ["openspec/changes/bootstrap/**"]\n',
-        encoding="utf-8",
+    _repo, worktree = _owned_adopter_scope_lane(
+        tmp_path,
+        monkeypatch,
+        ("openspec/changes/bootstrap/**",),
+        seed_guidelines=False,
     )
-    git(repo, "add", ".")
-    git(repo, "commit", "-m", "declare scope material paths")
-    worktree = _worktree(repo, tmp_path, monkeypatch)
     change = worktree / "openspec" / "changes" / "bootstrap"
     change.mkdir(parents=True)
     scope_path = change / "scope.toml"
     scope_path.write_text('schema_version = 1\npaths = ["guidelines.md"]\n', encoding="utf-8")
     _mock_official_active_change(monkeypatch, "bootstrap")
 
-    report = prewrite_guard(
-        root=worktree,
-        paths=[scope_path],
-        editor_root=worktree,
-        require_editor_root=True,
-    )
+    report = _prewrite(worktree, scope_path)
 
     assert report["ok"] is False
     assert (
@@ -313,25 +297,12 @@ def test_uncovered_material_path_blocks_prewrite_plan_and_prove(
     monkeypatch,
 ) -> None:
     """All product surfaces project the same uncovered-path diagnostic."""
-    repo = init_repo(tmp_path / "repo")
-    (repo / ".ethos").mkdir(exist_ok=True)
-    (repo / ".ethos" / "profile.toml").write_text(
-        '[openspec]\nmaterial_paths = ["guidelines.md"]\n', encoding="utf-8"
-    )
-    (repo / "guidelines.md").write_text("# Guidelines\n", encoding="utf-8")
-    git(repo, "add", ".")
-    git(repo, "commit", "-m", "declare uncovered material path")
-    worktree = _worktree(repo, tmp_path, monkeypatch)
+    _repo, worktree = _owned_adopter_scope_lane(tmp_path, monkeypatch, ("guidelines.md",))
     _mock_official_active_change(monkeypatch, "matching")
     (worktree / "guidelines.md").write_text("# Changed\n", encoding="utf-8")
     expected = "openspec_material_path_uncovered:guidelines.md"
 
-    prewrite = prewrite_guard(
-        root=worktree,
-        paths=[worktree / "guidelines.md"],
-        editor_root=worktree,
-        require_editor_root=True,
-    )
+    prewrite = _prewrite(worktree, worktree / "guidelines.md")
     plan = run_ethos("plan", "--changed", "--root", worktree.as_posix(), "--json")
     prove = run_ethos_blocked("prove", "--root", worktree.as_posix(), "--json")
 
@@ -526,12 +497,7 @@ def test_prewrite_plan_and_prove_share_official_scope_coverage_verdict(
     governed_path = worktree / "docs" / "governance" / "ethos.md"
     governed_path.write_text("# Changed\n", encoding="utf-8")
 
-    prewrite = prewrite_guard(
-        root=worktree,
-        paths=[governed_path],
-        editor_root=worktree,
-        require_editor_root=True,
-    )
+    prewrite = _prewrite(worktree, governed_path)
     plan = run_ethos("plan", "--changed", "--root", worktree.as_posix(), "--json")
     prove = run_ethos("prove", "--root", worktree.as_posix(), "--json")
     plan_scope = plan["data"]["openspec_lifecycle"]["lifecycle"]["scope_binding"]
@@ -570,12 +536,7 @@ def test_prewrite_does_not_rebootstrap_a_tracked_scope_companion(
     scope_path.unlink()
     _mock_official_active_change(monkeypatch, "bootstrap")
 
-    report = prewrite_guard(
-        root=worktree,
-        paths=[scope_path],
-        editor_root=worktree,
-        require_editor_root=True,
-    )
+    report = _prewrite(worktree, scope_path)
 
     assert report["ok"] is False
     assert report["material_scope"]["state"] == "uncovered"
@@ -704,17 +665,11 @@ def test_prewrite_bootstraps_tracked_legacy_profile_from_fresh_official_change(
     _mock_official_active_change(monkeypatch, "matching", status="no-tasks")
 
     profile = worktree / ".ethos" / "profile.toml"
-    admitted = prewrite_guard(
-        root=worktree,
-        paths=[profile],
-        editor_root=worktree,
-        require_editor_root=True,
-    )
-    widened = prewrite_guard(
-        root=worktree,
-        paths=[profile, worktree / "openspec" / "changes" / "matching" / "scope.toml"],
-        editor_root=worktree,
-        require_editor_root=True,
+    admitted = _prewrite(worktree, profile)
+    widened = _prewrite(
+        worktree,
+        profile,
+        worktree / "openspec" / "changes" / "matching" / "scope.toml",
     )
 
     assert admitted["ok"] is True
@@ -783,12 +738,7 @@ def test_prewrite_rejects_material_profile_write_without_scope_companion(
     (worktree / "openspec" / "changes" / "unrelated").mkdir(parents=True)
     _mock_official_active_change(monkeypatch, "unrelated")
 
-    report = prewrite_guard(
-        root=worktree,
-        paths=[worktree / ".ethos" / "profile.toml"],
-        editor_root=worktree,
-        require_editor_root=True,
-    )
+    report = _prewrite(worktree, worktree / ".ethos" / "profile.toml")
 
     assert report["ok"] is False
     assert report["error"] == "openspec_material_path_uncovered:.ethos/profile.toml"

@@ -6,7 +6,7 @@ import ethos.adapters.store.state.lease.lifecycle.core as state
 from ethos.surface.cli.lane.core import _lane_status_next_actions
 from ethos.surface.cli.lane.core import _lane_status_summary
 from tests.support.contract_helpers import git
-from tests.support.contract_helpers import init_git_repo
+from tests.support.contract_helpers import init_repo_with_candidate
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -17,16 +17,7 @@ from tests.support.ethos_cli_runner import run_ethos
 def test_lane_status_next_action_does_not_suggest_prewrite_from_accepted_root(
     tmp_path: Path,
 ) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    git(
-        repo,
-        "worktree",
-        "add",
-        "-b",
-        "candidate/dev",
-        (tmp_path / "repo-candidate-dev").as_posix(),
-        "dev",
-    )
+    repo, _candidate = init_repo_with_candidate(tmp_path)
     foreign = tmp_path / "repo-work-foreign"
     git(repo, "worktree", "add", "-b", "work/foreign", foreign.as_posix(), "dev")
 
@@ -46,16 +37,7 @@ def test_lane_status_next_action_does_not_suggest_prewrite_from_accepted_root(
 def test_lane_status_next_action_keeps_prewrite_for_current_work_lane(
     tmp_path: Path,
 ) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    git(
-        repo,
-        "worktree",
-        "add",
-        "-b",
-        "candidate/dev",
-        (tmp_path / "repo-candidate-dev").as_posix(),
-        "dev",
-    )
+    repo, _candidate = init_repo_with_candidate(tmp_path)
     worktree = tmp_path / "repo-work-owned"
     git(repo, "worktree", "add", "-b", "work/owned", worktree.as_posix(), "dev")
     state.acquire_lease(
@@ -131,16 +113,7 @@ def test_lane_status_summary_lifts_coordination_signals_from_status_payload() ->
 def test_lane_status_cli_summary_exposes_coordination_reader_signals(
     tmp_path: Path,
 ) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    git(
-        repo,
-        "worktree",
-        "add",
-        "-b",
-        "candidate/dev",
-        (tmp_path / "repo-candidate-dev").as_posix(),
-        "dev",
-    )
+    repo, _candidate = init_repo_with_candidate(tmp_path)
     foreign = tmp_path / "repo-work-foreign"
     git(repo, "worktree", "add", "-b", "work/foreign", foreign.as_posix(), "dev")
     (foreign / "README.md").write_text("# changed\n", encoding="utf-8")

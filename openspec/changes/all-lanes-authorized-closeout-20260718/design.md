@@ -8,6 +8,12 @@ input for a preservation, handoff, replay, or retirement decision.  The full
 `ethos lane status --json` reader is the starting point for every decision, and
 the target's Git/lease facts are recomputed immediately before an effect.
 
+During pre-proof parity refresh, the legacy root `.venv` in this Work Lane was
+present but could not import `ethos`, while the checkout-bound
+`build/runtime/venv` could. Shadow parity must use the latter whenever it is
+available so its external observation tests the current checkout runtime rather
+than stale local residue.
+
 This Change is the first owned governance carrier.  It does not turn foreign
 paths into writable paths and does not perform a foreign-lane effect before its
 Chronicle decision is accepted.  It records the audit and bounded successor
@@ -72,6 +78,12 @@ transition.
    prepared and applied one lane at a time.  Each apply is preceded by a fresh
    full observation and followed by status/report inspection, which prevents a
    moving leased lane from inheriting a stale `--expect-head`.
+
+7. **Bind shadow external execution to the current runtime topology.** For an
+   ETHOS checkout with `build/runtime/venv/bin/python`, the shadow adapter uses
+   that interpreter before considering a legacy root `.venv`. This maintains
+   an independent process boundary without turning ignored migration residue
+   into a false parity failure.
 
 ## Risks / Trade-offs
 

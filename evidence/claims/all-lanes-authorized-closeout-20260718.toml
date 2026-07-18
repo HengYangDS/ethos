@@ -3,19 +3,20 @@ id = "all-lanes-authorized-closeout-20260718"
 subject = "ethos:authorized-work-lane-cohort-closeout"
 state = "active"
 change_id = "all-lanes-authorized-closeout-20260718"
-summary = "The owned decision carrier records a complete current Work Lane cohort audit and accepted-decision boundary; it does not itself mutate foreign lanes or claim remote/hosted completion."
+summary = "The owned decision carrier records a complete current Work Lane cohort audit, accepted-decision boundary, and source-bound shadow-parity runtime correction; it does not itself mutate foreign lanes or claim remote/hosted completion."
 
 [evidence]
 dated = "evidence/chronicle/all-lanes-authorized-closeout-20260718/2026-07-18.md"
-sha256 = "43879037ca17abb43933b6f253f16c1da43f84598b51025bd965073de8955153"
+sha256 = "553535a5311ba14ca29aedf34117dba0a61208dc72e31b73604e97db2e26472c"
 evidence_ids = ["evidence:all-lanes-authorized-closeout-20260718"]
-binding = "Exact full lane-status observation, read-only intent audit, bounded OpenSpec Change, dated Chronicle, and owned Work Lane lease define this governance-decision boundary."
+binding = "Exact full lane-status observation, read-only intent audit, source-bound shadow-parity runtime regression, bounded OpenSpec Change, dated Chronicle, and owned Work Lane lease define this governance-decision boundary."
 verifier = "digest_only"
 tests = [
   "tools/ci/scripts/run-ethos-lane.sh lane status --json",
   "uv run openspec validate all-lanes-authorized-closeout-20260718 --strict --json",
   "tools/ci/scripts/run-ethos-lane.sh openspec --lifecycle --json",
   "tools/ci/scripts/run-ethos-lane.sh quality claims --json",
+  "tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev pytest tests/unit/product/parity/test_runners.py::test_external_shadow_runner_prefers_source_bound_runtime_to_root_dot_venv -q",
   "tools/ci/scripts/run-ethos-lane.sh prove --execute --expect-head <committed-head> --json",
 ]
 

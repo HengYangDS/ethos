@@ -52,3 +52,20 @@ unpreserved dirty overlay.
 - **THEN** ETHOS requires a recoverable semantic or preservation outcome before
   its native unbound retirement path
 - **AND** it does not delete the ref merely because it lacks a linked worktree.
+
+### Requirement: Shadow parity external execution honors checkout runtime topology
+
+ETHOS SHALL select the checkout-bound `build/runtime/venv/bin/python` for a
+shadow-parity external command when that interpreter exists. It SHALL select
+that runtime before a legacy root `.venv/bin/python`, so ignored migration
+residue that cannot import ETHOS does not make a current Work Lane appear to
+have an external command failure.
+
+#### Scenario: Stale root environment does not block current parity
+
+- **WHEN** a Work Lane has both `build/runtime/venv/bin/python` and a root
+  `.venv/bin/python` that lacks the ETHOS package
+- **THEN** shadow parity invokes the checkout-bound runtime for its external
+  command
+- **AND** it can produce current parity evidence instead of reporting an
+  `external_command_failed` gap solely because of the stale root environment.

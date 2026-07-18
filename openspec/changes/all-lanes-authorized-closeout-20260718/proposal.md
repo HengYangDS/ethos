@@ -27,6 +27,8 @@ candidate baseline, and records why any remaining target is blocked.
 - Require each follow-on semantic replay to use the normal `status -> plan ->
   prove -> land -> accepted-root closeout` lifecycle and retain an explicit
   receipt for every retire, preserve-retire, or block result.
+- Repair shadow-parity external execution so a current checkout-bound runtime
+  takes precedence over a stale root `.venv` that cannot import ETHOS.
 - Keep local closeout, local CI fallback evidence, remote reconciliation,
   remote push, and hosted CI as separate evidence planes.
 

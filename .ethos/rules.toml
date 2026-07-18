@@ -97,6 +97,7 @@ waves = [
   { id = "hosted-ci-remediation-closeout", due_on = "2026-07-18", state = "active" },
   { id = "adopter-lifecycle-claim-freshness-compression", due_on = "2026-07-18", state = "active" },
   { id = "bounded-status-compression", due_on = "2026-07-18", state = "active" },
+  { id = "dual-remote-reconciliation-compression", due_on = "2026-07-18", state = "active" },
 ]
 
 [[quality.source_budget.debt.records]]
@@ -204,8 +205,9 @@ id = "dual-remote-reconciliation-admission-20260718"
 owner = "remote-reconciliation-admission-20260718"
 replacement = "fold dual-remote reconciliation receipt validation into the shared external-evidence contract after provider-neutral receipt verification is available"
 deletion_wave = "dual-remote-reconciliation-compression"
-expiry = "dual-remote-reconciliation-compression"
+expiry = "2026-07-18"
 allowance = 336
+expected_net_deletion = 336
 
 [quality.source_budget.debt.records.allowance_by_category]
 python_product = 170

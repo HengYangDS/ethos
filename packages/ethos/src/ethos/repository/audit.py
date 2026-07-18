@@ -8,11 +8,6 @@ from typing import cast
 from ethos.assistants.playbooks import playbooks_report
 from ethos.repository.adoption.evolution import evolution_report
 from ethos.repository.context import governance_context
-from ethos.repository.design.integrity import DESIGN_INTEGRITY_DOCS
-from ethos.repository.design.integrity import DESIGN_INTEGRITY_FORBIDDEN_ROOT_PATHS
-from ethos.repository.design.integrity import DESIGN_INTEGRITY_FORBIDDEN_TERMS
-from ethos.repository.design.integrity import DESIGN_INTEGRITY_REQUIRED_TERMS
-from ethos.repository.design.integrity import DESIGN_INTEGRITY_VENDOR_TERMS
 from ethos.repository.design.integrity import design_integrity_report
 from ethos.repository.design.integrity import front_matter_ok
 from ethos.repository.evidence.claims import claims_report
@@ -28,14 +23,6 @@ from ethos_core.contracts.package.ontology import workspace_package_config_repor
 from ethos_core.contracts.system.contracts import system_contracts_report
 
 OpenSpecReporter = Callable[[Path], dict[str, object]]
-
-__all__ = (
-    "DESIGN_INTEGRITY_DOCS",
-    "DESIGN_INTEGRITY_FORBIDDEN_ROOT_PATHS",
-    "DESIGN_INTEGRITY_FORBIDDEN_TERMS",
-    "DESIGN_INTEGRITY_REQUIRED_TERMS",
-    "DESIGN_INTEGRITY_VENDOR_TERMS",
-)
 
 _PACKAGE_ONTOLOGY = package_ontology_report()
 TARGET_PRODUCT_PACKAGES = tuple(

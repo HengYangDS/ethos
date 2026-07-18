@@ -8,11 +8,11 @@ from typing import cast
 import ethos.adapters.repo.git as git_adapter
 import ethos.domain.land.parity.core as land_parity
 from ethos.adapters.admission.prewrite import prewrite_guard
-from ethos.repository.evidence.parity.core import build_tracked_parity_evidence
 from ethos.repository.evidence.parity.core import parity_gaps_report
 from ethos.repository.evidence.parity.core import parity_ledger_report
 from ethos.repository.evidence.parity.core import shadow_parity_report
 from ethos.repository.evidence.parity.core import write_tracked_parity_evidence
+from ethos.repository.evidence.shadow.payload import build_tracked_parity_evidence
 from ethos.repository.evidence.shadow.routing import parity_evidence_path
 from ethos.repository.evidence.shadow.routing import parity_evidence_repository_root
 from ethos.surface.cli._base import JsonFlag

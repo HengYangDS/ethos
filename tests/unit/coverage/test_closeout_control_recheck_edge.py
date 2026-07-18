@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 import ethos.surface.cli.root.lifecycle as root_lifecycle
-from ethos.adapters.mutation.core import MutationEvaluation
+from ethos_core.contracts.lifecycle.core import MutationEvaluation
 
 
 def test_closeout_rechecks_control_receipt_before_effect(tmp_path: Path, monkeypatch) -> None:

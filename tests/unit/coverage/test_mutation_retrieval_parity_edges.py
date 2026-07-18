@@ -9,6 +9,8 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import ethos.repository.evidence.parity.core as parity
+import ethos.repository.evidence.shadow.payload as shadow_payload
+import ethos_core.contracts.lifecycle.core as lifecycle_contract
 from ethos.adapters.mutation import core
 from ethos.adapters.mutation import lanes
 from ethos.adapters.mutation.lane_lifecycle.core import default_candidate_path
@@ -67,7 +69,9 @@ def test_mutation_decisions_and_candidate_base_edges(monkeypatch, tmp_path: Path
     )
     monkeypatch.setattr(core, "executed_proof_record", lambda root, head: None)
     decision = core.evaluate_mutation(
-        core.MutationRequest(command="land", apply=True, authorized=False, expect_head="other"),
+        lifecycle_contract.MutationRequest(
+            command="land", apply=True, authorized=False, expect_head="other"
+        ),
         root=tmp_path,
         current_head="h1",
     )
@@ -183,7 +187,7 @@ def test_lanes_helpers_claim_binding_bootstrap_and_refresh(monkeypatch, tmp_path
 
 
 def valid_shadow_evidence(tmp_path: Path, adopter: str = "generic") -> dict[str, object]:
-    return parity.build_tracked_parity_evidence(
+    return shadow_payload.build_tracked_parity_evidence(
         adopter=adopter,
         target=tmp_path,
         shadow={

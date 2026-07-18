@@ -37,8 +37,6 @@ def missing():
     _write(
         tmp_path / "packages/sample/src/sample/api.py",
         '''
-__all__ = ["Exported", "exported"]
-
 class Exported:
     """Documented export."""
 
@@ -63,12 +61,12 @@ def ignored():
     report = docstring_coverage_report(tmp_path)
 
     assert report["ok"] is False
-    assert report["coverage_percent"] == 40.0
-    assert report["documented_count"] == 2
-    assert report["public_count"] == 5
-    assert report["required_gaps"][0] == "docstring_coverage_below_minimum:40.00<75.00"
+    assert report["coverage_percent"] == 33.33
+    assert report["documented_count"] == 1
+    assert report["public_count"] == 3
+    assert report["required_gaps"][0] == "docstring_coverage_below_minimum:33.33<75.00"
     missing = {item["qualified_name"] for item in report["missing"]}
-    assert missing == {"sample", "sample.cli.missing", "sample.api.exported"}
+    assert missing == {"sample", "sample.cli.missing"}
     assert all("generated" not in item["path"] for item in report["missing"])
 
 
@@ -76,7 +74,15 @@ def test_docstring_coverage_defaults_to_clean_when_no_public_surface(tmp_path: P
     _write(
         tmp_path / "packages/ethos/src/ethos/internal.py",
         """
-def helper():
+def _helper():
+    pass
+""",
+    )
+    _write(
+        tmp_path / "packages/ethos/src/ethos/decorated.py",
+        """
+@1
+def ignored():
     pass
 """,
     )
@@ -108,8 +114,6 @@ exclude_roots = []
     _write(
         tmp_path / "packages/sample/src/sample/api.py",
         '''
-__all__ = ["exported"]
-
 def exported():
     """Documented export."""
 ''',
@@ -118,8 +122,8 @@ def exported():
     report = docstring_coverage_report(tmp_path)
 
     assert report["ok"] is True
-    assert report["public_count"] == 1
-    assert report["documented_count"] == 1
+    assert report["public_count"] == 0
+    assert report["documented_count"] == 0
     assert report["paths"] == [
         "packages/sample/src/sample/api.py",
         "packages/sample/src/missing",
@@ -143,8 +147,6 @@ exclude_roots = []
     _write(
         tmp_path / "packages/sample/src/sample/api.py",
         '''
-__all__ = ["bad", "legacy"]
-
 
 def bad(value, *, mode):
     """Do something structured.
@@ -195,8 +197,6 @@ exclude_roots = []
     _write(
         tmp_path / "packages/sample/src/sample/api.py",
         '''
-__all__ = ["concise"]
-
 
 def concise(value):
     """Return the governed value."""

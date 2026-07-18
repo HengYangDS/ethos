@@ -555,6 +555,12 @@ def test_ssh_signing_transport_uses_launchd_agent_socket(monkeypatch: pytest.Mon
     assert calls[0][0] == ("ssh-add", "-T", "/tmp/signing-key.pub")
     assert calls[1][0] == ("launchctl", "getenv", "SSH_AUTH_SOCK")
     assert calls[2][1]["env"] == {"SSH_AUTH_SOCK": "/tmp/agent.sock"}
+    monkeypatch.setattr(lane_refresh.subprocess, "run", lambda command, **_kwargs: subprocess.CompletedProcess(command, 0, "", ""))
+    assert lane_refresh.ssh_signing_transport_ready("/tmp/signing-key.pub") is True
+    def unavailable(*_args: object, **_kwargs: object) -> None:
+        raise OSError
+    monkeypatch.setattr(lane_refresh.subprocess, "run", unavailable)
+    assert lane_refresh.ssh_signing_transport_ready("/tmp/signing-key.pub") is False
 
 
 def test_refresh_work_lane_base_blocks_unavailable_file_backed_ssh_before_rebase(
@@ -616,7 +622,7 @@ def test_refresh_work_lane_base_rechecks_configured_candidate_ref(tmp_path: Path
 
     def run_git(_root: Path, *args: str, **_kwargs: object) -> subprocess.CompletedProcess[str]:
         calls.append(args)
-        stdout = "moved\n" if args == ("rev-parse", "stage/dev") else "h1\n" if args == ("rev-parse", "HEAD") else ""
+        stdout = {"stage/dev": "moved\n", "HEAD": "h1\n", "commit.gpgsign": "true", "gpg.format": "ssh", "user.signingkey": "missing"}.get(args[-1], "")
         return subprocess.CompletedProcess(["git", *args], 0, stdout, "")
 
     runtime = lane_refresh.LaneRefreshRuntime(
@@ -656,6 +662,16 @@ def test_refresh_work_lane_base_does_not_overwrite_branch_moved_before_cas(
 
     assert report["required_gaps"] == ["refresh_base_snapshot_stale:work_lane"]
     assert git(worktree, "rev-parse", "HEAD") == candidate_head
+
+
+@pytest.mark.parametrize(("attach_code", "head", "gap"), [(1, "rebased", "refresh_base_worktree_attach_failed"), (0, "moved", "refresh_base_snapshot_stale:work_lane")])
+def test_refresh_work_lane_base_rejects_attach_and_post_cas_races(tmp_path: Path, attach_code: int, head: str, gap: str) -> None:
+    heads, ancestors = iter(("work", "work", "candidate", "rebased", head)), iter((False, True))
+    def run(_root: Path, *args: str, **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(["git", *args], attach_code if args == ("switch", "work/feature") else 0, f"{next(heads)}\n" if args[:1] == ("rev-parse",) else "", "attach")
+    runtime = lane_refresh.LaneRefreshRuntime(load_branch_role_policy=lambda _root: SimpleNamespace(candidate_branch="candidate/dev"), workspace_status=lambda _root: {"role": "work_lane", "dirty": False, "branch": "work/feature", "candidate": {"exists": True, "worktree_exists": True, "worktree_path": "/tmp/c", "head": "candidate"}}, changed_paths=lambda _path: [], is_ancestor=lambda *_args: next(ancestors), run_git=run)
+    report = lane_refresh.refresh_work_lane_base(root=tmp_path, apply=True, authorized=True, expect_head="work", runtime=runtime)
+    assert report["required_gaps"] == [gap]
 
 
 def test_refresh_work_lane_base_rejects_noop_rebase_success(tmp_path: Path, monkeypatch) -> None:

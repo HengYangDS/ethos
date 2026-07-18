@@ -387,7 +387,11 @@ def test_cli_wrappers_emit_expected_results(
     monkeypatch.setattr(
         lifecycle_cli,
         "candidate_base_report",
-        lambda root, status=None: {"ok": False, "required_gaps": ["candidate_base_stale"], "state": "blocked"},
+        lambda root, status=None: {
+            "ok": False,
+            "required_gaps": ["candidate_base_stale"],
+            "state": "blocked",
+        },
     )
     monkeypatch.setattr(lifecycle_cli.git, "current_head", lambda repo: "h1")
     monkeypatch.setattr(
@@ -672,5 +676,6 @@ def test_remaining_helper_edges(monkeypatch: pytest.MonkeyPatch, tmp_path: Path)
     )
     monkeypatch.setattr(retrieval_sources, "tracked_files", lambda root: [])
     assert retrieval_sources.allowed_sources(tmp_path) == []
+
 
 # fmt: on

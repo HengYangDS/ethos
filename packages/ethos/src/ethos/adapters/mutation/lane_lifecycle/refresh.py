@@ -343,36 +343,23 @@ def _replay_work_lane(
         if updated.returncode != 0:
             restored = runtime.run_git(root, "switch", branch, check=False)
             return report(
-                ok=False,
-                state="blocked",
-                head=_ref_head(root, "HEAD", runtime=runtime),
+                ok=False, state="blocked", head=_ref_head(root, "HEAD", runtime=runtime),
                 gaps=[
                     "refresh_base_snapshot_stale:work_lane",
                     *([] if restored.returncode == 0 else ["refresh_base_worktree_restore_failed"]),
                 ],
-                previous_head=current_head,
-                stderr=updated.stderr.strip(),
-            )
+                previous_head=current_head, stderr=updated.stderr.strip())
         attached = runtime.run_git(root, "switch", branch, check=False)
         if attached.returncode != 0:
-            return report(
-                ok=False,
-                state="blocked",
-                head=rebased_head,
-                gaps=["refresh_base_worktree_attach_failed"],
-                previous_head=current_head,
-                stderr=attached.stderr.strip(),
-            )
+            return report(ok=False, state="blocked", head=rebased_head,
+                          gaps=["refresh_base_worktree_attach_failed"],
+                          previous_head=current_head, stderr=attached.stderr.strip())
         refreshed_head = _ref_head(root, "HEAD", runtime=runtime)
         if refreshed_head != rebased_head:
-            return report(
-                ok=False,
-                state="blocked",
-                head=refreshed_head,
-                gaps=["refresh_base_snapshot_stale:work_lane"],
-                previous_head=current_head,
-                stderr="work-lane branch advanced after refresh compare-and-swap",
-            )
+            return report(ok=False, state="blocked", head=refreshed_head,
+                          gaps=["refresh_base_snapshot_stale:work_lane"],
+                          previous_head=current_head,
+                          stderr="work-lane branch advanced after refresh compare-and-swap")
         result = report(ok=True, state="base_refreshed", head=refreshed_head, gaps=[],
                         previous_head=current_head)
         if projection_recovered:

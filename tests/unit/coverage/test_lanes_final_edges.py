@@ -653,8 +653,9 @@ def test_refresh_base_keeps_semantic_paths_out_of_stale_projection_paths(
     assert report["state"] == "base_refreshed_projection_stale"
     assert report["stale_projection_paths"] == [projection]
     assert report["semantic_recovery_paths"] == semantic_paths
-    assert report["semantic_recovery_gaps"] == [
-        "semantic_scope_preserved:source_budget_proof_scope"
+    assert report["projection_refresh_gaps"] == [
+        "projection_regeneration_required:parity:generic",
+        "semantic_scope_preserved:source_budget_proof_scope",
     ]
 
 

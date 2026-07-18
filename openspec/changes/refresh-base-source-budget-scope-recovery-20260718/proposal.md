@@ -20,6 +20,10 @@ authority for the correction.
 - Keep all other path sets, missing archive/claim evidence, and incomplete
   candidate semantics fail-closed.
 
+The recovery retains `source-budget` in the full proof. The default proof remains
+the fine-grained admission floor; neither proof set reclassifies a budget result
+as local code correctness.
+
 ## Capabilities
 
 - `repository-governance`: subject=work-lane-refresh-source-budget-scope; reuse=extend; change=modify; facet:lifecycle=mutation,validation; facet:surface=cli,quality; facet:authority=source,test,openspec,claim,evidence

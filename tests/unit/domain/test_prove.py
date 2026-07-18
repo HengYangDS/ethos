@@ -187,11 +187,27 @@ def test_source_budget_classifies_non_product_python_and_non_code_carriers(tmp_p
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(content, encoding="utf-8")
 
-    assert prove._source_budget_category("scripts/tool.py") == "python_other"
-    assert prove._source_budget_category("notes.txt") is None
-    assert prove._source_budget_category(archived) is None
-    assert prove._carrier_effective_lines(tmp_path / "config/current.ini", "ini") == 1
-    assert prove._carrier_effective_lines(tmp_path / "diagram/current.mmd", "diagram") == 1
+    assert prove.source_budget_carrier_report(tmp_path / "scripts/tool.py", "scripts/tool.py") == {
+        "category": "python_other",
+        "effective_lines": 1,
+    }
+    assert prove.source_budget_carrier_report(tmp_path / "notes.txt", "notes.txt") == {
+        "category": None,
+        "effective_lines": 0,
+    }
+    assert prove.source_budget_carrier_report(tmp_path / archived, archived) == {
+        "category": None,
+        "effective_lines": 0,
+    }
+    assert prove.source_budget_carrier_report(
+        tmp_path / "config/current.ini", "config/current.ini"
+    ) == {
+        "category": "ini",
+        "effective_lines": 1,
+    }
+    assert prove.source_budget_carrier_report(
+        tmp_path / "diagram/current.mmd", "diagram/current.mmd"
+    ) == {"category": "diagram", "effective_lines": 1}
 
 
 def test_source_budget_derives_python_total_allowance_from_python_categories(tmp_path, monkeypatch):

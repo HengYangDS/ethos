@@ -1,53 +1,58 @@
-# ruff: noqa: ARG005
 # These boundary tests preserve patched subprocess signatures.
 
 from __future__ import annotations
 
-from pathlib import Path
+from dataclasses import dataclass
 from types import SimpleNamespace
+from typing import TYPE_CHECKING
 
 import ethos.adapters.mutation.lane_lifecycle.projection_rebase.core as source_budget
 import ethos.adapters.mutation.lane_lifecycle.refresh as lane_refresh
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 from tests.support.subprocesses import completed as cp
 
+if TYPE_CHECKING:
+    from pathlib import Path
 
-def _write_claim(
-    root: Path,
-    *,
-    claim_id: str = "fine-grained-source-budget-scope-20260718",
-    change_id: str = "fine-grained-source-budget-scope-20260718",
-    subject: str = "quality:source-budget-proof-scope",
-    state: str = "archived",
-    scope: str = "Default fine-grained promotion proof versus global source-budget compression closeout.",
-    carrier: str = (
-        "openspec/changes/archive/2026-07-18-fine-grained-source-budget-scope-20260718"
-    ),
-    targets: object = None,
-    create_carrier: bool = True,
-) -> Path:
+
+@dataclass(frozen=True)
+class _ClaimFixture:
+    claim_id: str = "fine-grained-source-budget-scope-20260718"
+    change_id: str = "fine-grained-source-budget-scope-20260718"
+    subject: str = "quality:source-budget-proof-scope"
+    state: str = "archived"
+    scope: str = (
+        "Default fine-grained promotion proof versus global source-budget compression closeout."
+    )
+    carrier: str = "openspec/changes/archive/2026-07-18-fine-grained-source-budget-scope-20260718"
+    targets: object = None
+    create_carrier: bool = True
+
+
+def _write_claim(root: Path, fixture: _ClaimFixture | None = None) -> Path:
+    fixture = fixture or _ClaimFixture()
     claim = root / "evidence" / "claims" / "fine-grained-source-budget-scope-20260718.toml"
     claim.parent.mkdir(parents=True, exist_ok=True)
-    if create_carrier:
-        (root / carrier).mkdir(parents=True, exist_ok=True)
+    if fixture.create_carrier:
+        (root / fixture.carrier).mkdir(parents=True, exist_ok=True)
     paths = list(source_budget.SOURCE_BUDGET_SCOPE_PATHS)
     claim.write_text(
         "\n".join(
             (
                 "[claim]",
-                f'id = "{claim_id}"',
-                f'change_id = "{change_id}"',
-                f'subject = "{subject}"',
-                f'state = "{state}"',
+                f'id = "{fixture.claim_id}"',
+                f'change_id = "{fixture.change_id}"',
+                f'subject = "{fixture.subject}"',
+                f'state = "{fixture.state}"',
                 "",
                 "[boundary]",
-                f'scope = "{scope}"',
+                f'scope = "{fixture.scope}"',
                 "",
                 "[carriers]",
-                f'openspec = "{carrier}"',
+                f'openspec = "{fixture.carrier}"',
                 "",
                 "[promotion]",
-                f"targets = {paths if targets is None else targets!r}",
+                f"targets = {paths if fixture.targets is None else fixture.targets!r}",
                 "",
             )
         ),
@@ -61,16 +66,16 @@ def test_archived_scope_reader_requires_exact_valid_carrier(tmp_path: Path) -> N
     assert source_budget.archived_source_budget_scope_bound(tmp_path, paths) is False
     assert source_budget.archived_source_budget_scope_bound(tmp_path, ["README.md"]) is False
 
-    claim = _write_claim(tmp_path, create_carrier=False)
+    claim = _write_claim(tmp_path, _ClaimFixture(create_carrier=False))
     assert source_budget.archived_source_budget_scope_bound(tmp_path, paths) is False
     claim.write_text("not valid = [toml", encoding="utf-8")
     assert source_budget.archived_source_budget_scope_bound(tmp_path, paths) is False
 
-    _write_claim(tmp_path, carrier="unexpected/carrier")
+    _write_claim(tmp_path, _ClaimFixture(carrier="unexpected/carrier"))
     assert source_budget.archived_source_budget_scope_bound(tmp_path, paths) is False
-    _write_claim(tmp_path, targets="not-a-list")
+    _write_claim(tmp_path, _ClaimFixture(targets="not-a-list"))
     assert source_budget.archived_source_budget_scope_bound(tmp_path, paths) is False
-    _write_claim(tmp_path, targets=paths[:-1])
+    _write_claim(tmp_path, _ClaimFixture(targets=paths[:-1]))
     assert source_budget.archived_source_budget_scope_bound(tmp_path, paths) is False
     _write_claim(tmp_path)
     assert source_budget.archived_source_budget_scope_bound(tmp_path, paths) is True
@@ -280,12 +285,12 @@ def test_projection_rebase_preserves_exact_candidate_source_budget_scope(
     monkeypatch.setattr(
         source_budget,
         "candidate_source_budget_scope_context",
-        lambda _root, _head, *, git: True,
+        lambda _root, _head, **_kwargs: True,
     )
     monkeypatch.setattr(
         source_budget,
         "candidate_source_budget_scope_invariant",
-        lambda _root, path, *, git: path in paths,
+        lambda _root, path, **_kwargs: path in paths,
     )
 
     resolved = source_budget.resolve_projection_rebase(

@@ -1,12 +1,14 @@
-# ruff: noqa: ARG005
 # These boundary tests preserve patched subprocess signatures.
 
 from __future__ import annotations
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import ethos.adapters.mutation.lane_lifecycle.projection_rebase.core as projection_rebase
 from tests.support.subprocesses import completed as cp
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 def test_parity_projection_reader_rejects_unmerged_and_write_failures(
@@ -23,11 +25,16 @@ def test_parity_projection_reader_rejects_unmerged_and_write_failures(
 
     for failing_action in ("checkout", "add"):
 
-        def run_git(_root: Path, *args: str, check: bool = True):
+        def run_git(
+            _root: Path,
+            *args: str,
+            check: bool = True,
+            _failing_action: str = failing_action,
+        ):
             del check
             if args[:1] == ("diff",):
                 return cp(stdout="evidence/parity/generic-shadow.json\n")
-            return cp(returncode=1) if args[:1] == (failing_action,) else cp(returncode=0)
+            return cp(returncode=1) if args[:1] == (_failing_action,) else cp(returncode=0)
 
         monkeypatch.setattr(projection_rebase, "run_git", run_git)
         assert projection_rebase.resolve_projection_only_rebase_conflict(tmp_path) == {

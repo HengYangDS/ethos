@@ -112,6 +112,7 @@ def _profile_text(repo: Path, tree_ref: str | None) -> tuple[bool, str]:
             ["git", "-C", str(repo), "rev-parse", "--verify", f"{tree_ref}^{{commit}}"],
             capture_output=True,
             check=False,
+            text=True,
         ).returncode
         == 0
     ):
@@ -119,8 +120,9 @@ def _profile_text(repo: Path, tree_ref: str | None) -> tuple[bool, str]:
             ["git", "-C", str(repo), "show", f"{tree_ref}:.ethos/profile.toml"],
             capture_output=True,
             check=False,
+            text=True,
         )
-        return result.returncode == 0, result.stdout.decode("utf-8")
+        return result.returncode == 0, result.stdout
     try:
         return True, (repo / ".ethos" / "profile.toml").read_text(encoding="utf-8")
     except OSError:

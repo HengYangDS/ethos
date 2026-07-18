@@ -1,0 +1,41 @@
+[claim]
+id = "all-lanes-authorized-closeout-20260718"
+subject = "ethos:authorized-work-lane-cohort-closeout"
+state = "active"
+change_id = "all-lanes-authorized-closeout-20260718"
+summary = "The owned decision carrier records a complete current Work Lane cohort audit and accepted-decision boundary; it does not itself mutate foreign lanes or claim remote/hosted completion."
+
+[evidence]
+dated = "evidence/chronicle/all-lanes-authorized-closeout-20260718/2026-07-18.md"
+sha256 = "43879037ca17abb43933b6f253f16c1da43f84598b51025bd965073de8955153"
+evidence_ids = ["evidence:all-lanes-authorized-closeout-20260718"]
+binding = "Exact full lane-status observation, read-only intent audit, bounded OpenSpec Change, dated Chronicle, and owned Work Lane lease define this governance-decision boundary."
+verifier = "digest_only"
+tests = [
+  "tools/ci/scripts/run-ethos-lane.sh lane status --json",
+  "uv run openspec validate all-lanes-authorized-closeout-20260718 --strict --json",
+  "tools/ci/scripts/run-ethos-lane.sh openspec --lifecycle --json",
+  "tools/ci/scripts/run-ethos-lane.sh quality claims --json",
+  "tools/ci/scripts/run-ethos-lane.sh prove --execute --expect-head <committed-head> --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "Accepted decision foundation for exact local Work Lane preservation, handoff, exceptional resolution, semantic replay, and bounded retirement; no foreign mutation or remote/hosted success claim is made by this carrier."
+
+[carriers]
+openspec = "openspec/changes/all-lanes-authorized-closeout-20260718"
+fallback = "Keep every foreign and unbound target intact, preserve dirty content before interpretation, and start a separately admitted successor only after this decision carrier reaches accepted truth."
+kill_signal = "A visible foreign lane is mutated, retired, deleted, or declared absorbed without a fresh exact target observation and its normal holder-bound or accepted exceptional lifecycle evidence."
+
+[promotion]
+targets = [
+  "docs/plans/all-lanes-authorized-closeout-20260718.md",
+  "evidence/claims/all-lanes-authorized-closeout-20260718.toml",
+  "evidence/chronicle/all-lanes-authorized-closeout-20260718",
+  "openspec/changes/all-lanes-authorized-closeout-20260718",
+  "openspec/specs/repository-governance/spec.md",
+]

@@ -2,14 +2,14 @@
 id = "fine-grained-source-budget-scope-20260718"
 change_id = "fine-grained-source-budget-scope-20260718"
 subject = "quality:source-budget-proof-scope"
-state = "active"
+state = "archived"
 summary = "Source-budget remains strict global compression evidence while fine-grained promotion proof uses the local correctness floor."
 
 [evidence]
 dated = "evidence/chronicle/fine-grained-source-budget-scope-20260718/2026-07-18.md"
-sha256 = "20c0ca9fec515af4fc9152bd659e9b0608b584e5dd20f6a99fd3dad4d7794ec7"
+sha256 = "165575e618531210b0cd3e19c490c67ef724d88ea1e9c84e4cd0143fae7f07a0"
 evidence_ids = ["evidence:fine-grained-source-budget-scope-20260718"]
-binding = "The active OpenSpec carrier, gate declaration, scorecard boundary, focused regressions, and dated Chronicle bind this scope correction without asserting global debt settlement."
+binding = "The archived OpenSpec carrier, gate declaration, scorecard boundary, focused regressions, and dated Chronicle bind this scope correction without asserting global debt settlement."
 verifier = "digest_only"
 tests = ["pytest -q tests/unit/domain/test_report.py tests/unit/governance/validation/test_gates.py", "ethos quality source-budget --json", "ethos prove --full --json"]
 
@@ -21,9 +21,9 @@ owner = "quality"
 scope = "Default fine-grained promotion proof versus global source-budget compression closeout."
 
 [carriers]
-openspec = "openspec/changes/fine-grained-source-budget-scope-20260718"
+openspec = "openspec/changes/archive/2026-07-18-fine-grained-source-budget-scope-20260718"
 fallback = "Keep source-budget visible as a global blocker; do not treat it as a per-change proof gate."
 kill_signal = "An allowance, baseline, terminal target, debt cap, or source inventory exclusion changes without a dedicated global compression decision."
 
 [promotion]
-targets = ["system/gates.toml", "packages/ethos/src/ethos/domain/report.py", "packages/ethos/src/ethos/domain/reporting/gaps.py", "packages/ethos/src/ethos/domain/reporting/scoring.py", "tests/unit/domain/test_report.py", "tests/unit/governance/validation/test_gates.py", "openspec/specs/quality/spec.md", "openspec/changes/fine-grained-source-budget-scope-20260718", "evidence/claims/fine-grained-source-budget-scope-20260718.toml", "evidence/chronicle/fine-grained-source-budget-scope-20260718"]
+targets = ["system/gates.toml", "packages/ethos/src/ethos/domain/report.py", "packages/ethos/src/ethos/domain/reporting/gaps.py", "packages/ethos/src/ethos/domain/reporting/scoring.py", "tests/unit/domain/test_report.py", "tests/unit/governance/validation/test_gates.py", "openspec/specs/quality/spec.md", "openspec/changes/archive/2026-07-18-fine-grained-source-budget-scope-20260718", "evidence/claims/fine-grained-source-budget-scope-20260718.toml", "evidence/chronicle/fine-grained-source-budget-scope-20260718"]

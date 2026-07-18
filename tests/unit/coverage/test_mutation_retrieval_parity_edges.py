@@ -68,7 +68,7 @@ def test_mutation_decisions_and_candidate_base_edges(monkeypatch, tmp_path: Path
     monkeypatch.setattr(
         core,
         "workspace_status",
-        lambda root: status_for(role=ROLE_ACCEPTED_ROOT, dirty=True),
+        lambda root, **_kwargs: status_for(role=ROLE_ACCEPTED_ROOT, dirty=True),
     )
     monkeypatch.setattr(core, "executed_proof_record", lambda root, head: None)
     decision = core.evaluate_mutation(
@@ -110,18 +110,18 @@ def test_mutation_decisions_and_candidate_base_edges(monkeypatch, tmp_path: Path
         monkeypatch.setattr(
             core,
             "workspace_status",
-            lambda root, candidate=candidate: status_for(candidate=candidate),
+            lambda root, candidate=candidate, **_kwargs: status_for(candidate=candidate),
         )
         assert core.candidate_base_report(root=tmp_path)["required_gaps"] == [gap]
     monkeypatch.setattr(
         core,
         "workspace_status",
-        lambda root: status_for(dirty=(root.as_posix() == "/workspace/candidate")),
+        lambda root, **_kwargs: status_for(dirty=(root.as_posix() == "/workspace/candidate")),
     )
     assert core.candidate_base_report(root=tmp_path)["required_gaps"] == [
         "candidate_worktree_dirty"
     ]
-    monkeypatch.setattr(core, "workspace_status", lambda root: status_for())
+    monkeypatch.setattr(core, "workspace_status", lambda root, **_kwargs: status_for())
     monkeypatch.setattr(core, "is_ancestor", lambda root, ancestor, descendant: False)
     assert core.candidate_base_report(root=tmp_path)["required_gaps"] == ["candidate_base_stale"]
 

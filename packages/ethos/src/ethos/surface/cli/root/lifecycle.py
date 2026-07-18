@@ -198,7 +198,7 @@ def _land_expected_state(
 
 def _closeout_expected_state(payload: _CloseoutPayload) -> dict[str, object]:
     policy = load_branch_role_policy(payload.repo)
-    status_payload = workspace_status(payload.repo)
+    status_payload = workspace_status(payload.repo, include_foreign_path_scope=False)
     candidate = _mapping_payload(status_payload.get("candidate", {}))
     return {
         "root": payload.repo.resolve().as_posix(),
@@ -271,7 +271,7 @@ def land(
         audit_root = land_core.closeout_audit_root(repo, decision)
         audit = land_core.repository_audit_after_admission(audit_root, decision)
         lifecycle = completed_active_changes_report(audit_root)
-        status_payload = workspace_status(repo)
+        status_payload = workspace_status(repo, include_foreign_path_scope=False)
         candidate = _mapping_payload(status_payload.get("candidate", {}))
         control_replacement = control_replacement_report(
             accepted_root=repo,
@@ -285,7 +285,7 @@ def land(
         ok = bool(audit["ok"]) and decision.ok and bool(lifecycle["ok"]) and not control_gaps
         update: dict[str, object] = {}
         if ok and apply:
-            fresh_status = workspace_status(repo)
+            fresh_status = workspace_status(repo, include_foreign_path_scope=False)
             fresh_candidate = _mapping_payload(fresh_status.get("candidate", {}))
             control_replacement = control_replacement_report(
                 accepted_root=repo,
@@ -325,7 +325,7 @@ def land(
         return
 
     governance = context_for_root(repo)
-    status_payload = workspace_status(repo)
+    status_payload = workspace_status(repo, include_foreign_path_scope=False)
     closeout_support = _mapping_payload(status_payload.get("closeout_support", {}))
     closeout_gaps: tuple[str, ...] = ()
     if status_payload.get("role") == "work_lane" and not closeout_support.get("supported"):
@@ -438,7 +438,7 @@ def publish(
         action="publish",
         request=independent_verification_request(root=repo, action="publish"),
     )
-    branch = workspace_status(repo)["branch"]
+    branch = workspace_status(repo, include_foreign_path_scope=False)["branch"]
     release_carrier_gaps = tuple(
         protected_branch_active_change_required_gaps(repo, current_branch=str(branch))
     )

@@ -500,12 +500,14 @@
           "enum": [
             "bounded",
             "empty",
+            "deferred",
             "unknown"
           ]
         },
         "coordination_state": {
           "enum": [
             "advisory",
+            "deferred",
             "disjoint",
             "overlap",
             "unknown"

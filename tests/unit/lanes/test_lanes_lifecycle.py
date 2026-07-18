@@ -383,17 +383,7 @@ def test_start_work_lane_apply_starts_from_candidate_branch(tmp_path: Path) -> N
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     candidate_head = git(repo, "rev-parse", "candidate/dev")
     (repo / "README.md").write_text("# changed on dev\n", encoding="utf-8")
-    git(repo, "add", "README.md")
-    git(
-        repo,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "advance dev only",
-    )
+    _commit(repo, "README.md", "advance dev only")
     worktree = tmp_path / "repo-work-feature"
 
     report = start_work_lane(
@@ -407,6 +397,138 @@ def test_start_work_lane_apply_starts_from_candidate_branch(tmp_path: Path) -> N
     assert report["ok"] is True
     assert git(worktree, "rev-parse", "HEAD") == candidate_head
     assert git(repo, "rev-parse", "dev") != candidate_head
+
+
+def _commit(root: Path, path: str, message: str) -> None:
+    git(root, "add", path)
+    git(
+        root,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        message,
+    )
+
+
+def _rules(root: Path, records: list[tuple[str, int]]) -> None:
+    blocks = [
+        "\n".join(
+            (
+                "[[quality.source_budget.debt.records]]",
+                f'id = "{identifier}"',
+                'owner = "test"',
+                'replacement = "test replacement"',
+                'deletion_wave = "test"',
+                'expiry = "test"',
+                f"allowance = {allowance}",
+            )
+        )
+        for identifier, allowance in records
+    ]
+    rules = root / ".ethos" / "rules.toml"
+    rules.parent.mkdir(exist_ok=True)
+    rules.write_text(
+        "\n\n".join(
+            (
+                "[quality.source_budget.debt]",
+                f"maximum_total = {sum(allowance for _identifier, allowance in records)}",
+                *blocks,
+                '[gates.local-state-audit]\ncommand = "test"\nblocking = true',
+                "",
+            )
+        ),
+        encoding="utf-8",
+    )
+
+
+@pytest.mark.parametrize(
+    ("candidate_record", "lane_record", "outside_change", "ok"),
+    [
+        ("candidate", "lane", False, True),
+        ("shared", "shared", False, False),
+        ("candidate", "lane", True, False),
+    ],
+)
+def test_refresh_work_lane_base_handles_source_budget_debt_conflicts(
+    tmp_path: Path, candidate_record: str, lane_record: str, *, outside_change: bool, ok: bool
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    _rules(repo, [("base", 10)])
+    _commit(repo, ".ethos/rules.toml", "declare source budget debt")
+    candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    worktree = tmp_path / "repo-work-feature"
+    git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "candidate/dev")
+    _rules(candidate, [("base", 10), (candidate_record, 20)])
+    if outside_change:
+        rules = candidate / ".ethos" / "rules.toml"
+        rules.write_text(
+            rules.read_text(encoding="utf-8") + "\n[unrelated]\nvalue = true\n", encoding="utf-8"
+        )
+    _commit(candidate, ".ethos/rules.toml", "add candidate debt")
+    _rules(worktree, [("base", 10), (lane_record, 30)])
+    _commit(worktree, ".ethos/rules.toml", "add lane debt")
+    previous_head = git(worktree, "rev-parse", "HEAD")
+    candidate_head = git(candidate, "rev-parse", "HEAD")
+
+    report = refresh_work_lane_base(
+        root=worktree, apply=True, authorized=True, expect_head=previous_head
+    )
+
+    assert report["ok"] is ok
+    if not ok:
+        assert report["required_gaps"] == ["refresh_base_failed"]
+        assert git(worktree, "rev-parse", "HEAD") == previous_head
+        return
+    merged = (worktree / ".ethos" / "rules.toml").read_text(encoding="utf-8")
+    assert report["state"] == "base_refreshed"
+    assert report["projection_refresh_required"] is False
+    assert report["candidate_head"] == candidate_head
+    assert "maximum_total = 60" in merged
+    assert all(f'id = "{identifier}"' in merged for identifier in ("base", "candidate", "lane"))
+    assert (
+        git(repo, "merge-base", "--is-ancestor", candidate_head, git(worktree, "rev-parse", "HEAD"))
+        == ""
+    )
+
+
+@pytest.mark.parametrize(
+    ("candidate_record", "lane_record", "outside_change"),
+    [
+        ("shared", "shared", False),
+        ("candidate", "lane", True),
+    ],
+)
+def test_refresh_work_lane_base_refuses_non_additive_source_budget_debt_conflicts(
+    tmp_path: Path, candidate_record: str, lane_record: str, *, outside_change: bool
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    _rules(repo, [("base", 10)])
+    _commit(repo, ".ethos/rules.toml", "declare source budget debt")
+    candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    worktree = tmp_path / "repo-work-feature"
+    git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "candidate/dev")
+    _rules(candidate, [("base", 10), (candidate_record, 20)])
+    if outside_change:
+        rules = candidate / ".ethos" / "rules.toml"
+        rules.write_text(
+            rules.read_text(encoding="utf-8") + "\n[unrelated]\nvalue = true\n",
+            encoding="utf-8",
+        )
+    _commit(candidate, ".ethos/rules.toml", "add candidate debt")
+    _rules(worktree, [("base", 10), (lane_record, 30)])
+    _commit(worktree, ".ethos/rules.toml", "add lane debt")
+    previous_head = git(worktree, "rev-parse", "HEAD")
+
+    report = refresh_work_lane_base(
+        root=worktree, apply=True, authorized=True, expect_head=previous_head
+    )
+
+    assert report["ok"] is False
+    assert report["required_gaps"] == ["refresh_base_failed"]
+    assert git(worktree, "rev-parse", "HEAD") == previous_head
 
 
 def test_refresh_work_lane_base_plans_stale_candidate_base(tmp_path: Path) -> None:
@@ -423,29 +545,9 @@ def test_refresh_work_lane_base_plans_stale_candidate_base(tmp_path: Path) -> No
         "candidate/dev",
     )
     (candidate / "CANDIDATE.md").write_text("# candidate\n", encoding="utf-8")
-    git(candidate, "add", "CANDIDATE.md")
-    git(
-        candidate,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "advance candidate",
-    )
+    _commit(candidate, "CANDIDATE.md", "advance candidate")
     (worktree / "FEATURE.md").write_text("# feature\n", encoding="utf-8")
-    git(worktree, "add", "FEATURE.md")
-    git(
-        worktree,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "feature work",
-    )
+    _commit(worktree, "FEATURE.md", "feature work")
     work_head = git(worktree, "rev-parse", "HEAD")
     candidate_head = git(candidate, "rev-parse", "HEAD")
 
@@ -478,29 +580,9 @@ def test_refresh_work_lane_base_apply_rebases_current_lane(tmp_path: Path) -> No
         "candidate/dev",
     )
     (candidate / "CANDIDATE.md").write_text("# candidate\n", encoding="utf-8")
-    git(candidate, "add", "CANDIDATE.md")
-    git(
-        candidate,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "advance candidate",
-    )
+    _commit(candidate, "CANDIDATE.md", "advance candidate")
     (worktree / "FEATURE.md").write_text("# feature\n", encoding="utf-8")
-    git(worktree, "add", "FEATURE.md")
-    git(
-        worktree,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "feature work",
-    )
+    _commit(worktree, "FEATURE.md", "feature work")
     previous_head = git(worktree, "rev-parse", "HEAD")
     candidate_head = git(candidate, "rev-parse", "HEAD")
 
@@ -539,29 +621,9 @@ def test_refresh_work_lane_base_rejects_noop_rebase_success(tmp_path: Path, monk
         "candidate/dev",
     )
     (candidate / "CANDIDATE.md").write_text("# candidate\n", encoding="utf-8")
-    git(candidate, "add", "CANDIDATE.md")
-    git(
-        candidate,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "advance candidate",
-    )
+    _commit(candidate, "CANDIDATE.md", "advance candidate")
     (worktree / "FEATURE.md").write_text("# feature\n", encoding="utf-8")
-    git(worktree, "add", "FEATURE.md")
-    git(
-        worktree,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "feature work",
-    )
+    _commit(worktree, "FEATURE.md", "feature work")
     previous_head = git(worktree, "rev-parse", "HEAD")
     candidate_head = git(candidate, "rev-parse", "HEAD")
     original_run_git = lane_mutation.run_git
@@ -609,17 +671,7 @@ def test_refresh_work_lane_base_apply_requires_authorization_and_expected_head(
         "candidate/dev",
     )
     (candidate / "CANDIDATE.md").write_text("# candidate\n", encoding="utf-8")
-    git(candidate, "add", "CANDIDATE.md")
-    git(
-        candidate,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "advance candidate",
-    )
+    _commit(candidate, "CANDIDATE.md", "advance candidate")
 
     report = refresh_work_lane_base(
         root=worktree,

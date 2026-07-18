@@ -144,7 +144,7 @@ def test_scorecard_surfaces_coordination_advisories(monkeypatch, tmp_path) -> No
     monkeypatch.setattr(
         report_domain,
         "workspace_status",
-        lambda _repo: {"coordination": {"advisory_gaps": gaps}},
+        lambda _repo, **_kwargs: {"coordination": {"advisory_gaps": gaps}},
     )
 
     payload = report_domain.scorecard_report(tmp_path)

@@ -103,11 +103,16 @@ while read -r old_value new_value ref_name; do
             fi
             ;;
     esac
-    if [ "$phase" = "prepared" ] && [ "$branch" = "$accepted" ]; then
-        candidate_branch="$(awk '
+    # An accepted_ff closeout atomically advances both the accepted ref and its
+    # release mirror. Both transitions are protected closeout surfaces: they need
+    # the exact clean candidate semantic runner, not the incumbent checkout (which
+    # remains one tree behind throughout the transaction). Ordinary refs retain the
+    # existing fail-open runner path.
+    if [ "$phase" = "prepared" ]; then
+        release_mirror="$(awk '
             /^\[branch_roles\][[:space:]]*$/ { in_roles = 1; next }
             /^\[/ { in_roles = 0 }
-            in_roles && /^[[:space:]]*candidate_branch[[:space:]]*=/ {
+            in_roles && /^[[:space:]]*release_mirror[[:space:]]*=/ {
                 value = $0
                 sub(/^[^=]*=[[:space:]]*"/, "", value)
                 sub(/".*$/, "", value)
@@ -115,24 +120,59 @@ while read -r old_value new_value ref_name; do
                 exit
             }
         ' "$repo_root/.ethos/workspace.toml" 2>/dev/null)"
-        [ -n "$candidate_branch" ] || candidate_branch="$(git -C "$repo_root" config --get ethos.candidateBranch 2>/dev/null)"
-        [ -n "$candidate_branch" ] || candidate_branch="$(git -C "$repo_root" config --get ethos.candidate_branch 2>/dev/null)"
-        [ -n "$candidate_branch" ] || candidate_branch="candidate/dev"
-        candidate_runner="$(resolve_candidate_runner "$candidate_branch" "$new_value")" || {
-            echo "ethos: blocked ref move on $ref_name — candidate semantic runner is unavailable." >&2
-            exit 1
-        }
-        candidate_root="$(printf '%s\n' "$candidate_runner" | sed -n '1p')"
-        candidate_runtime_runner="$(printf '%s\n' "$candidate_runner" | sed -n '2p')"
-        candidate_runtime_python="$(printf '%s\n' "$candidate_runner" | sed -n '3p')"
-        candidate_pythonpath="$(printf '%s\n' "$candidate_runner" | sed -n '4p')"
-        verdict="$(
-            cd "$candidate_root" || exit 1
-            PYTHONPATH="$candidate_pythonpath${PYTHONPATH:+:$PYTHONPATH}" \
-                "${candidate_runtime_runner}" -- "${candidate_runtime_python}" -m ethos.cli hook ref-transaction \
+        [ -n "$release_mirror" ] || release_mirror="independent"
+        release_branch="$(awk '
+            /^\[branch_roles\][[:space:]]*$/ { in_roles = 1; next }
+            /^\[/ { in_roles = 0 }
+            in_roles && /^[[:space:]]*release_branch[[:space:]]*=/ {
+                value = $0
+                sub(/^[^=]*=[[:space:]]*"/, "", value)
+                sub(/".*$/, "", value)
+                print value
+                exit
+            }
+        ' "$repo_root/.ethos/workspace.toml" 2>/dev/null)"
+        [ -n "$release_branch" ] || release_branch="$(git -C "$repo_root" config --get ethos.releaseBranch 2>/dev/null)"
+        [ -n "$release_branch" ] || release_branch="$(git -C "$repo_root" config --get ethos.release_branch 2>/dev/null)"
+        [ -n "$release_branch" ] || release_branch="main"
+
+        if [ "$branch" = "$accepted" ] || \
+            { [ "$release_mirror" = "accepted_ff" ] && [ "$branch" = "$release_branch" ]; }; then
+            candidate_branch="$(awk '
+                /^\[branch_roles\][[:space:]]*$/ { in_roles = 1; next }
+                /^\[/ { in_roles = 0 }
+                in_roles && /^[[:space:]]*candidate_branch[[:space:]]*=/ {
+                    value = $0
+                    sub(/^[^=]*=[[:space:]]*"/, "", value)
+                    sub(/".*$/, "", value)
+                    print value
+                    exit
+                }
+            ' "$repo_root/.ethos/workspace.toml" 2>/dev/null)"
+            [ -n "$candidate_branch" ] || candidate_branch="$(git -C "$repo_root" config --get ethos.candidateBranch 2>/dev/null)"
+            [ -n "$candidate_branch" ] || candidate_branch="$(git -C "$repo_root" config --get ethos.candidate_branch 2>/dev/null)"
+            [ -n "$candidate_branch" ] || candidate_branch="candidate/dev"
+            candidate_runner="$(resolve_candidate_runner "$candidate_branch" "$new_value")" || {
+                echo "ethos: blocked ref move on $ref_name — candidate semantic runner is unavailable." >&2
+                exit 1
+            }
+            candidate_root="$(printf '%s\n' "$candidate_runner" | sed -n '1p')"
+            candidate_runtime_runner="$(printf '%s\n' "$candidate_runner" | sed -n '2p')"
+            candidate_runtime_python="$(printf '%s\n' "$candidate_runner" | sed -n '3p')"
+            candidate_pythonpath="$(printf '%s\n' "$candidate_runner" | sed -n '4p')"
+            verdict="$(
+                cd "$candidate_root" || exit 1
+                PYTHONPATH="$candidate_pythonpath${PYTHONPATH:+:$PYTHONPATH}" \
+                    "${candidate_runtime_runner}" -- "${candidate_runtime_python}" -m ethos.cli hook ref-transaction \
+                    "$ref_name" "$old_value" "$new_value" --phase "$phase" \
+                    --root "$repo_root" --json 2>/dev/null | tr -d ' \n'
+            )"
+        else
+            verdict="$(PYTHONPATH="$ethos_pythonpath${PYTHONPATH:+:$PYTHONPATH}" \
+                "${runtime_runner}" -- "${runtime_python}" -m ethos.cli hook ref-transaction \
                 "$ref_name" "$old_value" "$new_value" --phase "$phase" \
-                --root "$repo_root" --json 2>/dev/null | tr -d ' \n'
-        )"
+                --root "$repo_root" --json 2>/dev/null | tr -d ' \n')"
+        fi
     else
         verdict="$(PYTHONPATH="$ethos_pythonpath${PYTHONPATH:+:$PYTHONPATH}" \
             "${runtime_runner}" -- "${runtime_python}" -m ethos.cli hook ref-transaction \

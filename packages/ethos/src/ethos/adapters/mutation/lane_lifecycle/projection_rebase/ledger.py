@@ -157,18 +157,22 @@ def parse(text: str) -> tuple[str, list[LedgerRecord]] | None:
 def merge_records(
     base: list[LedgerRecord], candidate: list[LedgerRecord], lane: list[LedgerRecord]
 ) -> list[LedgerRecord] | None:
-    """Three-way merge records by stable ID, rejecting destructive or overlapping edits."""
+    """Merge records by stable ID, including a one-sided retirement against an untouched peer."""
     base_by_id = {record.identifier: record for record in base}
     candidate_by_id = {record.identifier: record for record in candidate}
     lane_by_id = {record.identifier: record for record in lane}
-    if not all(
-        identifier in candidate_by_id and identifier in lane_by_id for identifier in base_by_id
-    ):
-        return None
     merged: list[LedgerRecord] = []
     for base_record in base:
-        candidate_record = candidate_by_id[base_record.identifier]
-        lane_record = lane_by_id[base_record.identifier]
+        candidate_record = candidate_by_id.get(base_record.identifier)
+        lane_record = lane_by_id.get(base_record.identifier)
+        if candidate_record is None:
+            if lane_record == base_record:
+                continue
+            return None
+        if lane_record is None:
+            if candidate_record == base_record:
+                continue
+            return None
         if candidate_record.data == base_record.data:
             merged.append(lane_record)
         elif lane_record.data in (base_record.data, candidate_record.data):

@@ -346,6 +346,12 @@ def _provider_paths(entry: dict[str, Any]) -> dict[str, str]:
     }
 
 
+def _emulator_state_dir(provider: str, emulation: dict[str, Any]) -> str:
+    return str(emulation["emulator_state_dir"]) or (
+        f"build/runtime/work/{provider}{'-act' if provider == 'github' else '-ci-local'}"
+    )
+
+
 def _emulator_command(
     provider: str, paths: dict[str, str], emulation: dict[str, Any], mode: str
 ) -> list[str]:
@@ -366,10 +372,7 @@ def _emulator_command(
             ]
         )
     command = [tool]
-    state_dir = str(
-        emulation["emulator_state_dir"]
-        or f"build/runtime/work/{'github-act' if provider == 'github' else 'gitlab-ci-local'}"
-    )
+    state_dir = _emulator_state_dir(provider, emulation)
     if mode == "run":
         source_dir = str(Path(state_dir) / "source")
         command.extend(["--cwd", source_dir, "--file", paths["projected_file"]])
@@ -392,20 +395,12 @@ def _file_facts(paths: dict[str, str]) -> dict[str, dict[str, Any]]:
     return facts
 
 
-def _mode_allows_untracked(mode: str, *, dry_run: bool) -> bool:
-    return _mode_is_observation(mode, dry_run=dry_run)
-
-
 def _mode_is_observation(mode: str, *, dry_run: bool) -> bool:
     return dry_run or mode in {"doctor", "list", "dry-run"}
 
 
-def _emulator_tool_required(mode: str, *, dry_run: bool) -> bool:
-    return not _mode_is_observation(mode, dry_run=dry_run)
-
-
 def _materialization_issue(mode: str, *, dry_run: bool, allow_untracked: bool) -> str:
-    if allow_untracked or _mode_allows_untracked(mode, dry_run=dry_run):
+    if allow_untracked or _mode_is_observation(mode, dry_run=dry_run):
         return ""
     untracked = _git_lines("ls-files", "--others", "--exclude-standard")
     if not untracked:
@@ -448,7 +443,7 @@ def emulator_evidence(
     issue = _materialization_issue(mode, dry_run=dry_run, allow_untracked=allow_untracked)
     executable = shutil.which(tool)
     materialization: dict[str, Any] = {
-        "mode_allows_untracked": _mode_allows_untracked(mode, dry_run=dry_run),
+        "mode_allows_untracked": _mode_is_observation(mode, dry_run=dry_run),
         "normal_run_refuses_untracked_by_default": True,
         "untracked_allowed": allow_untracked,
         "untracked_policy": "refuse_before_emulator_run",
@@ -464,11 +459,7 @@ def emulator_evidence(
         try:
             materialization |= materialize_emulator_source(
                 source_root=ROOT,
-                state_dir=ROOT
-                / str(
-                    emulation["emulator_state_dir"]
-                    or f"build/runtime/work/{'github-act' if provider == 'github' else 'gitlab-ci-local'}"
-                ),
+                state_dir=ROOT / _emulator_state_dir(provider, emulation),
                 expected_head=str(git_start["head"]),
             )
             if provider == "github":
@@ -482,7 +473,7 @@ def emulator_evidence(
         else _run_command(
             command,
             dry_run=dry_run,
-            tool_required=_emulator_tool_required(mode, dry_run=dry_run),
+            tool_required=not _mode_is_observation(mode, dry_run=dry_run),
             env=_emulator_environment(tool),
             cwd=execution_root,
         )

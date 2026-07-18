@@ -330,6 +330,19 @@ def test_external_shadow_runner_binds_command_root(
     assert calls[0][0][0] == shadow_execution.external_python(tmp_path)
 
 
+def test_external_shadow_runner_prefers_source_bound_runtime_to_root_dot_venv(
+    tmp_path: Path,
+) -> None:
+    runtime_python = tmp_path / "build/runtime/venv/bin/python"
+    runtime_python.parent.mkdir(parents=True)
+    runtime_python.touch()
+    legacy_python = tmp_path / ".venv/bin/python"
+    legacy_python.parent.mkdir(parents=True)
+    legacy_python.touch()
+
+    assert shadow_execution.external_python(tmp_path) == runtime_python.as_posix()
+
+
 def test_shadow_json_verdict_exit_code_one_is_not_infrastructure_failure(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

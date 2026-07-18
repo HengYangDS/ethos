@@ -6,5 +6,5 @@
 ## 2. Validation
 
 - [x] 2.1 Run focused release-policy and formatter checks.
-- [ ] 2.2 Run strict OpenSpec validation, lifecycle/claim checks, HEAD-bound
-  proof, and local candidate land.
+- [x] 2.2 Run strict OpenSpec validation, lifecycle/claim checks, and HEAD-bound
+  proof before archive.

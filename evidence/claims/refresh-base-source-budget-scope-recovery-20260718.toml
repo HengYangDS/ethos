@@ -2,12 +2,12 @@
 id = "refresh-base-source-budget-scope-recovery-20260718"
 change_id = "refresh-base-source-budget-scope-recovery-20260718"
 subject = "ethos:work-lane-refresh-source-budget-scope"
-state = "active"
+state = "archived"
 summary = "Refresh-base preserves candidate content only for an archived, evidence-bound source-budget scope correction."
 
 [evidence]
 dated = "evidence/chronicle/refresh-base-source-budget-scope-recovery-20260718/2026-07-18.md"
-sha256 = "4fe58e733cc9dc4c59440ecc7fcfb16993bf391d4284593c6c1472a5b6d2f1db"
+sha256 = "2aff305c35d00c6c85b457d76d61cb6423aaa9f4f0aa00b11e8355b1e09c82d8"
 evidence_ids = ["evidence:refresh-base-source-budget-scope-recovery-20260718"]
 binding = "The archived source-budget scope claim/carrier reader, exact candidate-index invariant checks, focused regressions, result classification, full-proof retention, and governed replay bind this recovery without weakening source-conflict admission."
 verifier = "digest_only"
@@ -21,7 +21,7 @@ owner = "ethos-repository"
 scope = "Exact candidate-authoritative source-budget proof-scope recovery during an owned Work Lane replay."
 
 [carriers]
-openspec = "openspec/changes/refresh-base-source-budget-scope-recovery-20260718"
+openspec = "openspec/changes/archive/2026-07-18-refresh-base-source-budget-scope-recovery-20260718"
 fallback = "Leave the replay conflict blocked unless archived carrier evidence and all candidate invariants are present."
 kill_signal = "A path outside the exact scope, an unarchived or undeclared carrier, or incomplete candidate semantics is auto-resolved."
 
@@ -34,7 +34,7 @@ targets = [
   "openspec/specs/quality/spec.md",
   "tests/unit/lanes/test_projection_rebase_source_budget.py",
   "tests/unit/domain/test_prove.py",
-  "openspec/changes/refresh-base-source-budget-scope-recovery-20260718",
+  "openspec/changes/archive/2026-07-18-refresh-base-source-budget-scope-recovery-20260718",
   "evidence/claims/refresh-base-source-budget-scope-recovery-20260718.toml",
   "evidence/chronicle/refresh-base-source-budget-scope-recovery-20260718/2026-07-18.md",
 ]

@@ -8,5 +8,5 @@
 ## 2. Validation
 
 - [x] 2.1 Run focused replay, lifecycle, and formatter checks.
-- [ ] 2.2 Run formal refresh-base, parity regeneration, HEAD-bound proof, and
-  local candidate land.
+- [x] 2.2 Run formal refresh-base, parity regeneration, and HEAD-bound proof
+  before archive.

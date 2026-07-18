@@ -8,5 +8,5 @@
 ## 2. Validation
 
 - [x] 2.1 Run focused refresh projection tests and Ruff format/check.
-- [ ] 2.2 Run official validation, lifecycle, claim checks, refresh-base replay,
-  parity regeneration, HEAD-bound proof, and local candidate land.
+- [x] 2.2 Run official validation, lifecycle, claim checks, refresh-base replay,
+  parity regeneration, and HEAD-bound proof before archive.

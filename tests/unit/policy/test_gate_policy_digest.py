@@ -26,6 +26,7 @@ from ethos.repository.policy import gates as policy_gates
 from ethos.repository.policy.gates import _committed_blob
 from ethos.repository.policy.gates import _committed_registry_and_floor
 from ethos.repository.policy.gates import canonical_gate_command
+from ethos.repository.policy.gates import committed_product_default_gate_ids
 from ethos.repository.policy.gates import gate_policy_conformance_gaps
 from ethos.repository.policy.gates import gate_policy_digest
 from ethos.repository.policy.gates import gate_policy_fields
@@ -253,6 +254,24 @@ def test_committed_tree_digest_is_pure_function_of_head(tmp_path: Path) -> None:
     assert gate_policy_digest(repo) == digest_v2
     # Re-resolving each head is stable regardless of the working-tree state.
     assert gate_policy_digest(repo, tree_ref=v1) == digest_v1
+
+
+def test_committed_product_floor_is_pure_function_of_candidate_tree(tmp_path: Path) -> None:
+    """Accepted-runner closeout must honor a candidate's declared default floor."""
+    repo = _product_like_repo_with_scripts(tmp_path)
+    incumbent = _rev(repo, "HEAD")
+    gates = repo / "system" / "gates.toml"
+    removed = "toml-config"
+    gates.write_text(
+        gates.read_text(encoding="utf-8").replace(f'  "{removed}",\n', "", 1),
+        encoding="utf-8",
+    )
+    subprocess.run(["git", "-C", str(repo), "add", "system/gates.toml"], check=True)
+    subprocess.run(["git", "-C", str(repo), "commit", "-q", "-m", "candidate floor"], check=True)
+    candidate = _rev(repo, "HEAD")
+
+    assert removed in committed_product_default_gate_ids(repo, incumbent)
+    assert removed not in committed_product_default_gate_ids(repo, candidate)
 
 
 def test_committed_tree_digest_falls_back_when_ref_unresolvable(tmp_path: Path) -> None:

@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class _ClaimFixture:
     claim_id: str = "fine-grained-source-budget-scope-20260718"
     change_id: str = "fine-grained-source-budget-scope-20260718"

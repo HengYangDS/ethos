@@ -134,7 +134,7 @@ def source_budget_json_schema() -> dict[str, object]:
     }
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class SourceBudgetPolicyLoad:
     """A configuration read that either yields one typed policy or explicit gaps."""
 

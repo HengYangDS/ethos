@@ -344,6 +344,16 @@ keeps the candidate projection, completes the replay, and returns
 `projection_refresh_gaps`, `stale_projection_paths`, and next actions to
 regenerate parity evidence before head-bound proof. Any non-projection conflict
 still aborts as `refresh_base_failed`.
+When `release_mirror = "accepted_ff"` and the candidate changes the tracked
+`reference-transaction` shell hook, `ethos land --closeout` uses a bounded local
+deployment bootstrap sequence: it first performs the normal intent- and proof-bound
+accepted-ref compare-and-swap, synchronizes the accepted checkout, and then
+performs the normal intent- and proof-bound release-mirror compare-and-swap
+through the promoted hook. Unchanged-hook mirror closeouts remain one atomic ref
+transaction. The bootstrap never disables a hook, redirects `core.hooksPath`, or
+performs a raw ref update; failure after the first leg reports
+`release_mirror_bootstrap_incomplete` rather than successful closeout.
+
 `ethos lane candidate --refresh-from-accepted --json` checks whether a clean
 candidate train can be reset to the accepted root. Apply mode requires
 `--authorize` plus `--expect-head`; it is the recovery path when accepted-root
@@ -420,8 +430,8 @@ publication remains an adapter responsibility. `publish --json` reports
 independent `data.remote_observations` targets. It does not infer one target
 from the other, push either target, or claim hosted CI; the remote publication
 state may remain `deferred` or report observed synchronization while preserving
-that no-push boundary. The command still exposes the configured
-submit branch plan. Remote reachability is separate and appears under
+that no-push boundary. The command still exposes the configured submit branch
+plan. Remote reachability is separate and appears under
 `data.remote_availability.state` and `data.publication.remote_availability.state`.
 The local fallback package also reports
 `data.local_ci_fallback.evidence_status` and

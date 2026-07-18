@@ -40,7 +40,6 @@ _RUNTIME_BOOTSTRAP_SRC = (
 )
 _TEST_PYTHON = Path(os.environ.get("ETHOS_TEST_PYTHON", os.sys.executable)).absolute()
 _TEST_VENV = _TEST_PYTHON.parent.parent
-_LEGACY_HOOK_REF = "0d7749c56c30857ebc373489186e756324ec3378"
 
 
 def _g(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
@@ -64,7 +63,7 @@ def _seed_proof(root: Path, head: str) -> None:
     record_executed_proof(root, EvidenceSet.from_runs(id="p", head=head, runs=runs).to_dict())
 
 
-def _armed_repo(tmp_path: Path, *, mirror: bool = False, legacy_hook: bool = False) -> Path:
+def _armed_repo(tmp_path: Path, *, mirror: bool = False, incumbent_hook: str | None = None) -> Path:
     """A scratch candidate-train repo with the REAL reference-transaction hook armed and NO
     ETHOS_ALLOW_REF_MOVE in the environment.
 
@@ -97,29 +96,10 @@ def _armed_repo(tmp_path: Path, *, mirror: bool = False, legacy_hook: bool = Fal
     hooks = repo / ".githooks"
     hooks.mkdir()
     hook = hooks / "reference-transaction"
-    if legacy_hook:
-        hook.write_bytes(
-            subprocess.run(
-                ["git", "show", f"{_LEGACY_HOOK_REF}:.githooks/reference-transaction"],
-                cwd=_HOOK_SRC.parent.parent,
-                capture_output=True,
-                check=True,
-            ).stdout
-        )
-        hook.write_text(
-            hook.read_text(encoding="utf-8").replace(
-                '    branch="${ref_name#refs/heads/}"\n',
-                '    branch="${ref_name#refs/heads/}"\n'
-                '    if [ "$branch" = "main" ]; then\n'
-                '        echo "ethos: legacy mirror hook rejected $ref_name." >&2\n'
-                "        exit 1\n"
-                "    fi\n",
-                1,
-            ),
-            encoding="utf-8",
-        )
-    else:
+    if incumbent_hook is None:
         shutil.copy(_HOOK_SRC, hook)
+    else:
+        hook.write_text(incumbent_hook, encoding="utf-8")
     hook.chmod(0o755)
     runtime_script_dir = repo / "tools" / "ci" / "scripts"
     runtime_script_dir.mkdir(parents=True)
@@ -207,14 +187,7 @@ def _materialize_accepted_ethos_package(repo: Path) -> Path:
     return package
 
 
-def _land_proven_work(
-    repo: Path,
-    tmp_path: Path,
-    name: str,
-    content: str,
-    *,
-    upgrade_hook: bool = False,
-) -> str:
+def _land_proven_work(repo: Path, tmp_path: Path, name: str, content: str) -> str:
     """Create a lease-backed work lane, commit + prove work, land it onto candidate.
     Returns the candidate head."""
     work = tmp_path / name
@@ -232,12 +205,31 @@ def _land_proven_work(
     )
     _g(repo, "worktree", "add", "-b", f"work/{name}", str(work), "candidate/dev")
     (work / f"{name}.txt").write_text(content, encoding="utf-8")
-    if upgrade_hook:
-        shutil.copy(_HOOK_SRC, work / ".githooks" / "reference-transaction")
-        (work / ".githooks" / "reference-transaction").chmod(0o755)
     (work / ".ethos" / "profile.toml").unlink(missing_ok=True)
     _g(work, "add", ".")
     work_head = _commit(work, f"work {name}")
+    _seed_proof(work, work_head)
+    landed = apply_land_to_candidate(root=work, authorized=True, expect_head=work_head)
+    assert landed["ok"] is True, landed
+    return work_head
+
+
+def _land_proven_hook_revision(repo: Path, tmp_path: Path, hook_source: str) -> str:
+    """Land a hook revision through the ordinary lease/proof candidate path."""
+    name = "hook-routing"
+    work = tmp_path / name
+    candidate_head = _g(repo, "rev-parse", "candidate/dev").stdout.strip()
+    acquire_lease(
+        _lease_db(repo),
+        subject=f"work/{name}",
+        holder_ref="agent:test:case:agent-test",
+        payload={"expected_head": candidate_head},
+    )
+    _g(repo, "worktree", "add", "-b", f"work/{name}", str(work), "candidate/dev")
+    hook = work / ".githooks" / "reference-transaction"
+    hook.write_text(hook_source, encoding="utf-8")
+    _g(work, "add", ".githooks/reference-transaction")
+    work_head = _commit(work, "candidate shell routing")
     _seed_proof(work, work_head)
     landed = apply_land_to_candidate(root=work, authorized=True, expect_head=work_head)
     assert landed["ok"] is True, landed
@@ -282,70 +274,15 @@ def test_committed_profile_closeout_blocks_raw_move(tmp_path: Path) -> None:
     assert _g(repo, "rev-parse", "main").stdout.strip() == candidate_head
 
 
-def test_hook_removal_blocks_closeout_before_accepted_refs_move(tmp_path: Path) -> None:
-    """A changed candidate hook must remain executable before sanctioned closeout CAS."""
-    if not _HOOK_SRC.exists():
-        return
-    os.environ["ETHOS_ACTOR"] = "agent:test:case:agent-test"
-    repo = _armed_repo(tmp_path, mirror=True)
-    work = tmp_path / "remove-hook"
-    candidate_before = _g(repo, "rev-parse", "candidate/dev").stdout.strip()
-    acquire_lease(
-        _lease_db(repo),
-        subject="work/remove-hook",
-        holder_ref="agent:test:case:agent-test",
-        payload={"expected_head": candidate_before},
-    )
-    _g(repo, "worktree", "add", "-b", "work/remove-hook", str(work), "candidate/dev")
-    (work / ".githooks" / "reference-transaction").unlink()
-    (work / ".ethos" / "profile.toml").unlink(missing_ok=True)
-    _g(work, "add", ".")
-    work_head = _commit(work, "remove candidate hook")
-    _seed_proof(work, work_head)
-    landed = apply_land_to_candidate(root=work, authorized=True, expect_head=work_head)
-    assert landed["ok"] is True, landed
-    candidate_head = _g(repo, "rev-parse", "candidate/dev").stdout.strip()
-    dev_before = _g(repo, "rev-parse", "dev").stdout.strip()
-    main_before = _g(repo, "rev-parse", "main").stdout.strip()
-    _seed_proof(repo, candidate_head)
-
-    closeout = apply_candidate_to_accepted(root=repo, authorized=True, expect_head=dev_before)
-
-    assert closeout["ok"] is False, closeout
-    assert closeout["required_gaps"] == ["candidate_closeout_hook_unavailable"]
-    assert _g(repo, "rev-parse", "dev").stdout.strip() == dev_before
-    assert _g(repo, "rev-parse", "main").stdout.strip() == main_before
+def _hook_from_ref(root: Path, ref: str) -> str:
+    """Read a tracked hook revision so the fixture models a real shell transition."""
+    completed = _g(root, "show", f"{ref}:.githooks/reference-transaction")
+    assert completed.returncode == 0, completed.stderr
+    return completed.stdout
 
 
-def test_candidate_hook_bootstraps_accepted_ff_closeout_from_legacy_incumbent(
-    tmp_path: Path,
-) -> None:
-    """Official closeout selects a repaired candidate hook for its sole CAS.
-
-    Raw Git remains on the legacy configured accepted hook and blocks the release
-    mirror. The official atomic closeout must instead use the candidate hook
-    directory, while retaining exact intents and candidate semantic admission.
-    """
-    if not _HOOK_SRC.exists():
-        return
-    os.environ["ETHOS_ACTOR"] = "agent:test:case:agent-test"
-    repo = _armed_repo(tmp_path, mirror=True, legacy_hook=True)
-    candidate_head = _land_proven_work(repo, tmp_path, "w", "hi\n", upgrade_hook=True)
-    dev_before = _g(repo, "rev-parse", "dev").stdout.strip()
-    _seed_proof(repo, candidate_head)
-    raw_main = _g(repo, "update-ref", "refs/heads/main", candidate_head, dev_before)
-    assert raw_main.returncode != 0
-    assert _g(repo, "rev-parse", "main").stdout.strip() == dev_before
-
-    closeout = apply_candidate_to_accepted(root=repo, authorized=True, expect_head=dev_before)
-
-    assert closeout["ok"] is True, closeout
-    assert _g(repo, "rev-parse", "dev").stdout.strip() == candidate_head
-    assert _g(repo, "rev-parse", "main").stdout.strip() == candidate_head
-
-
-def test_closeout_binds_semantic_hook_runner_to_candidate_checkout(
-    tmp_path: Path,
+def _assert_candidate_runner_closeout(
+    tmp_path: Path, *, mirror: bool, promoted_branches: tuple[str, ...]
 ) -> None:
     """A candidate control change must not be judged by accepted-old source.
 
@@ -357,7 +294,7 @@ def test_closeout_binds_semantic_hook_runner_to_candidate_checkout(
     if not _HOOK_SRC.exists():
         return
     os.environ["ETHOS_ACTOR"] = "agent:test:case:agent-test"
-    repo = _armed_repo(tmp_path)
+    repo = _armed_repo(tmp_path, mirror=mirror)
     candidate = tmp_path / "cand"
 
     candidate_head = _land_proven_work(repo, tmp_path, "w", "hi\n")
@@ -368,11 +305,86 @@ def test_closeout_binds_semantic_hook_runner_to_candidate_checkout(
     assert not (candidate / "packages" / "ethos").is_symlink()
 
     accepted_package = _materialize_accepted_ethos_package(repo)
-    accepted_hook_core = accepted_package / "src" / "ethos" / "surface" / "cli" / "hook" / "core.py"
-    accepted_hook_core.write_text("raise SystemExit(91)\n", encoding="utf-8")
+    accepted_admission_core = (
+        accepted_package / "src" / "ethos" / "adapters" / "admission" / "core.py"
+    )
+    accepted_admission_core.write_text(
+        accepted_admission_core.read_text(encoding="utf-8")
+        + "\n\ndef ref_move_admission_report(*_args, **_kwargs):\n"
+        + "    return {\n"
+        + "        'ok': False,\n"
+        + "        'state': 'blocked',\n"
+        + "        'branch': 'incumbent',\n"
+        + "        'decision': {'action': 'block', 'reason': 'incumbent_runner'},\n"
+        + "        'required_gaps': ['incumbent_runner'],\n"
+        + "    }\n",
+        encoding="utf-8",
+    )
 
     closeout = apply_candidate_to_accepted(root=repo, authorized=True, expect_head=dev_before)
 
     assert closeout["ok"] is True, closeout
-    assert _g(repo, "rev-parse", "dev").stdout.strip() == candidate_head
+    for branch in promoted_branches:
+        assert _g(repo, "rev-parse", branch).stdout.strip() == candidate_head
     assert candidate.resolve() != repo.resolve()
+
+
+def test_closeout_binds_semantic_hook_runner_to_candidate_checkout(
+    tmp_path: Path,
+) -> None:
+    _assert_candidate_runner_closeout(tmp_path, mirror=False, promoted_branches=("dev",))
+
+
+def test_mirrored_closeout_binds_candidate_runner_for_both_protected_refs(
+    tmp_path: Path,
+) -> None:
+    _assert_candidate_runner_closeout(tmp_path, mirror=True, promoted_branches=("dev", "main"))
+
+
+def test_mirrored_closeout_bootstraps_changed_shell_hook(tmp_path: Path) -> None:
+    """A new candidate shell hook reaches main only after the accepted leg lands.
+
+    The incumbent shell is deliberately kept on the old accepted routing: it uses the
+    candidate semantic runner for dev but invokes incumbent semantic source for main.
+    The promoted candidate hook adds the release routing. A one-shot atomic transaction
+    would therefore fail on main; governed closeout must execute the exact dev leg,
+    sync accepted, then execute the exact main leg through the promoted shell.
+    """
+    if not _HOOK_SRC.exists():
+        return
+    os.environ["ETHOS_ACTOR"] = "agent:test:case:agent-test"
+    source_root = Path(__file__).resolve().parents[3]
+    repo = _armed_repo(
+        tmp_path,
+        mirror=True,
+        incumbent_hook=_hook_from_ref(source_root, "ac153735^"),
+    )
+    candidate = tmp_path / "cand"
+    candidate_head = _land_proven_hook_revision(repo, tmp_path, _hook_from_ref(source_root, "HEAD"))
+    candidate_hook = candidate / ".githooks" / "reference-transaction"
+
+    accepted_before = (repo / ".githooks" / "reference-transaction").read_text(encoding="utf-8")
+    assert "release_mirror" not in accepted_before
+    assert candidate_hook.read_text(encoding="utf-8") != accepted_before
+
+    accepted_package = _materialize_accepted_ethos_package(repo)
+    accepted_admission_core = (
+        accepted_package / "src" / "ethos" / "adapters" / "admission" / "core.py"
+    )
+    accepted_admission_core.write_text(
+        "raise SystemExit(91)\n",
+        encoding="utf-8",
+    )
+    closeout = apply_candidate_to_accepted(
+        root=repo,
+        authorized=True,
+        expect_head=_g(repo, "rev-parse", "dev").stdout.strip(),
+    )
+
+    assert closeout["ok"] is True, closeout
+    assert closeout["release_mirror"]["bootstrap"] == "completed"
+    assert _g(repo, "rev-parse", "dev").stdout.strip() == candidate_head
+    assert _g(repo, "rev-parse", "main").stdout.strip() == candidate_head
+    assert (repo / ".githooks" / "reference-transaction").read_text(
+        encoding="utf-8"
+    ) == candidate_hook.read_text(encoding="utf-8")

@@ -1,0 +1,5 @@
+schema: spec-driven
+created: 2026-07-18
+goal: Replay the preserved all-lanes safety repairs onto the current clean
+  candidate, retain fail-closed refresh semantics, resolve source-budget
+  evidence, and complete authorized local closeout.

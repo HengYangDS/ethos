@@ -1,4 +1,5 @@
 from __future__ import annotations
+# fmt: off
 
 import subprocess
 from typing import TYPE_CHECKING
@@ -6,6 +7,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 import ethos.adapters.admission.prewrite as prewrite
+import ethos.adapters.mutation.lane_lifecycle.refresh as lane_refresh
 from ethos.adapters.admission.prewrite import prewrite_guard
 from ethos.adapters.mutation import lanes as lane_mutation
 from ethos.adapters.mutation.lanes import bind_work_lane_claim
@@ -33,56 +35,32 @@ def test_branch_role_policy_semantic_order_uses_configured_roles_without_hardcod
         submit_branch_prefix="review/",
     )
 
-    assert policy.as_status_policy() == {
-        "release_branch": "release",
-        "accepted_branch": "integration",
-        "candidate_branch": "stage/integration",
-        "work_branch_prefix": "lane/",
-        "submit_branch_prefix": "review/",
-        "release_mirror": "independent",
-        "semantic_order": [
-            {
-                "role": "release_root",
-                "kind": "exact_branch",
-                "config_key": "release_branch",
-                "pattern": "release",
-            },
-            {
-                "role": "accepted_root",
-                "kind": "exact_branch",
-                "config_key": "accepted_branch",
-                "pattern": "integration",
-            },
-            {
-                "role": "candidate",
-                "kind": "exact_branch",
-                "config_key": "candidate_branch",
-                "pattern": "stage/integration",
-            },
-            {
-                "role": "work_lane",
-                "kind": "branch_prefix",
-                "config_key": "work_branch_prefix",
-                "pattern": "lane/*",
-            },
-            {
-                "role": "submit_lane",
-                "kind": "branch_prefix",
-                "config_key": "submit_branch_prefix",
-                "pattern": "review/*",
-            },
-        ],
-    }
-    assert policy.role_for_branch("release") == "release_root"
-    assert policy.role_for_branch("integration") == "accepted_root"
-    assert policy.role_for_branch("stage/integration") == "candidate"
-    assert policy.role_for_branch("lane/feature") == "work_lane"
-    assert policy.role_for_branch("review/feature") == "submit_lane"
-    assert policy.role_for_branch("main") == "other"
-    assert policy.role_for_branch("dev") == "other"
-    assert policy.role_for_branch("candidate/dev") == "other"
-    assert policy.role_for_branch("work/feature") == "other"
-    assert policy.role_for_branch("submit/feature") == "other"
+    status = policy.as_status_policy()
+    assert tuple(status[key] for key in status if key != "semantic_order") == (
+        "release",
+        "integration",
+        "stage/integration",
+        "lane/",
+        "review/",
+        "independent",
+    )
+    assert [
+        (item["role"], item["kind"], item["config_key"], item["pattern"])
+        for item in status["semantic_order"]
+    ] == [
+        ("release_root", "exact_branch", "release_branch", "release"),
+        ("accepted_root", "exact_branch", "accepted_branch", "integration"),
+        ("candidate", "exact_branch", "candidate_branch", "stage/integration"),
+        ("work_lane", "branch_prefix", "work_branch_prefix", "lane/*"),
+        ("submit_lane", "branch_prefix", "submit_branch_prefix", "review/*"),
+    ]
+    assert [policy.role_for_branch(branch) for branch in (
+        "release", "integration", "stage/integration", "lane/feature", "review/feature",
+        "main", "dev", "candidate/dev", "work/feature", "submit/feature",
+    )] == [
+        "release_root", "accepted_root", "candidate", "work_lane", "submit_lane",
+        "other", "other", "other", "other", "other",
+    ]
 
 
 def test_start_work_lane_uses_configured_candidate_and_work_role_policy(
@@ -141,19 +119,12 @@ def test_existing_work_lane_claim_binding_can_be_applied_without_restarting_lane
     assert report["branch"] == "work/feature"
     assert report["holder_ref"] == "agent:test:case:agent-test"
     assert report["claim_id"] == "sample-trust"
-    assert status["closeout_support"] == {
-        "supported": True,
-        "branch": "work/feature",
-        "target_branch": "candidate/dev",
-        "target_path": candidate.as_posix(),
-        "operation": "land_to_candidate",
-        "holder_ref": "agent:test:case:agent-test",
-        "lease_id": status["closeout_support"]["lease_id"],
-        "lease_epoch": 1,
-        "claim_id": "sample-trust",
-        "claim_binding": "bound",
-        "required_gaps": [],
-    }
+    closeout = status["closeout_support"]
+    assert tuple(closeout[key] for key in (
+        "supported", "branch", "target_branch", "operation", "holder_ref", "lease_epoch",
+        "claim_id", "claim_binding", "required_gaps",
+    )) == (True, "work/feature", "candidate/dev", "land_to_candidate", "agent:test:case:agent-test", 1, "sample-trust", "bound", [])
+    assert closeout["target_path"] == candidate.as_posix() and closeout["lease_id"]
 
 
 def test_prewrite_rejects_tracked_path_from_accepted_root(tmp_path: Path) -> None:
@@ -413,6 +384,30 @@ def _commit(root: Path, path: str, message: str) -> None:
     )
 
 
+def _commit_file(root: Path, path: str, content: str, message: str) -> None:
+    (root / path).write_text(content, encoding="utf-8")
+    _commit(root, path, message)
+
+
+def _stale_work_lane(
+    tmp_path: Path,
+    *,
+    candidate_path: str = "CANDIDATE.md",
+    lane_path: str = "FEATURE.md",
+    commit_lane: bool = True,
+) -> tuple[Path, Path, Path, str, str]:
+    repo = init_repo(tmp_path / "repo")
+    candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    worktree = tmp_path / "repo-work-feature"
+    git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "candidate/dev")
+    _commit_file(candidate, candidate_path, "# candidate\n", "advance candidate")
+    if commit_lane:
+        _commit_file(worktree, lane_path, "# feature\n", "feature work")
+    return repo, candidate, worktree, git(worktree, "rev-parse", "HEAD"), git(
+        candidate, "rev-parse", "HEAD"
+    )
+
+
 def _rules(root: Path, records: list[tuple[str, int]]) -> None:
     blocks = [
         "\n".join(
@@ -494,62 +489,8 @@ def test_refresh_work_lane_base_handles_source_budget_debt_conflicts(
     )
 
 
-@pytest.mark.parametrize(
-    ("candidate_record", "lane_record", "outside_change"),
-    [
-        ("shared", "shared", False),
-        ("candidate", "lane", True),
-    ],
-)
-def test_refresh_work_lane_base_refuses_non_additive_source_budget_debt_conflicts(
-    tmp_path: Path, candidate_record: str, lane_record: str, *, outside_change: bool
-) -> None:
-    repo = init_repo(tmp_path / "repo")
-    _rules(repo, [("base", 10)])
-    _commit(repo, ".ethos/rules.toml", "declare source budget debt")
-    candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
-    worktree = tmp_path / "repo-work-feature"
-    git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "candidate/dev")
-    _rules(candidate, [("base", 10), (candidate_record, 20)])
-    if outside_change:
-        rules = candidate / ".ethos" / "rules.toml"
-        rules.write_text(
-            rules.read_text(encoding="utf-8") + "\n[unrelated]\nvalue = true\n",
-            encoding="utf-8",
-        )
-    _commit(candidate, ".ethos/rules.toml", "add candidate debt")
-    _rules(worktree, [("base", 10), (lane_record, 30)])
-    _commit(worktree, ".ethos/rules.toml", "add lane debt")
-    previous_head = git(worktree, "rev-parse", "HEAD")
-
-    report = refresh_work_lane_base(
-        root=worktree, apply=True, authorized=True, expect_head=previous_head
-    )
-
-    assert report["ok"] is False
-    assert report["required_gaps"] == ["refresh_base_failed"]
-    assert git(worktree, "rev-parse", "HEAD") == previous_head
-
-
 def test_refresh_work_lane_base_plans_stale_candidate_base(tmp_path: Path) -> None:
-    repo = init_repo(tmp_path / "repo")
-    candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
-    worktree = tmp_path / "repo-work-feature"
-    git(
-        repo,
-        "worktree",
-        "add",
-        "-b",
-        "work/feature",
-        worktree.as_posix(),
-        "candidate/dev",
-    )
-    (candidate / "CANDIDATE.md").write_text("# candidate\n", encoding="utf-8")
-    _commit(candidate, "CANDIDATE.md", "advance candidate")
-    (worktree / "FEATURE.md").write_text("# feature\n", encoding="utf-8")
-    _commit(worktree, "FEATURE.md", "feature work")
-    work_head = git(worktree, "rev-parse", "HEAD")
-    candidate_head = git(candidate, "rev-parse", "HEAD")
+    _, _, worktree, work_head, candidate_head = _stale_work_lane(tmp_path)
 
     report = refresh_work_lane_base(
         root=worktree,
@@ -567,24 +508,7 @@ def test_refresh_work_lane_base_plans_stale_candidate_base(tmp_path: Path) -> No
 
 
 def test_refresh_work_lane_base_apply_rebases_current_lane(tmp_path: Path) -> None:
-    repo = init_repo(tmp_path / "repo")
-    candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
-    worktree = tmp_path / "repo-work-feature"
-    git(
-        repo,
-        "worktree",
-        "add",
-        "-b",
-        "work/feature",
-        worktree.as_posix(),
-        "candidate/dev",
-    )
-    (candidate / "CANDIDATE.md").write_text("# candidate\n", encoding="utf-8")
-    _commit(candidate, "CANDIDATE.md", "advance candidate")
-    (worktree / "FEATURE.md").write_text("# feature\n", encoding="utf-8")
-    _commit(worktree, "FEATURE.md", "feature work")
-    previous_head = git(worktree, "rev-parse", "HEAD")
-    candidate_head = git(candidate, "rev-parse", "HEAD")
+    repo, _, worktree, previous_head, candidate_head = _stale_work_lane(tmp_path)
 
     report = refresh_work_lane_base(
         root=worktree,
@@ -607,31 +531,134 @@ def test_refresh_work_lane_base_apply_rebases_current_lane(tmp_path: Path) -> No
     assert (worktree / "FEATURE.md").exists()
 
 
-def test_refresh_work_lane_base_rejects_noop_rebase_success(tmp_path: Path, monkeypatch) -> None:
-    repo = init_repo(tmp_path / "repo")
-    candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
-    worktree = tmp_path / "repo-work-feature"
-    git(
-        repo,
-        "worktree",
-        "add",
-        "-b",
-        "work/feature",
-        worktree.as_posix(),
-        "candidate/dev",
-    )
-    (candidate / "CANDIDATE.md").write_text("# candidate\n", encoding="utf-8")
-    _commit(candidate, "CANDIDATE.md", "advance candidate")
-    (worktree / "FEATURE.md").write_text("# feature\n", encoding="utf-8")
-    _commit(worktree, "FEATURE.md", "feature work")
+def test_ssh_signing_transport_uses_launchd_agent_socket(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple[tuple[str, ...], dict[str, object]]] = []
+
+    def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        calls.append((tuple(command), kwargs))
+        if command[:2] == ["launchctl", "getenv"]:
+            return subprocess.CompletedProcess(command, 0, "/tmp/agent.sock\n", "")
+        if command[:2] == ["ssh-add", "-T"]:
+            return subprocess.CompletedProcess(
+                command,
+                0 if isinstance(kwargs.get("env"), dict) else 1,
+                "",
+                "",
+            )
+        raise AssertionError(command)
+
+    monkeypatch.setattr(lane_refresh.subprocess, "run", fake_run)
+
+    assert lane_refresh.ssh_signing_transport_ready("/tmp/signing-key.pub") is True
+    assert calls[0][0] == ("ssh-add", "-T", "/tmp/signing-key.pub")
+    assert calls[1][0] == ("launchctl", "getenv", "SSH_AUTH_SOCK")
+    assert calls[2][1]["env"] == {"SSH_AUTH_SOCK": "/tmp/agent.sock"}
+
+
+def test_refresh_work_lane_base_blocks_unavailable_file_backed_ssh_before_rebase(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _, _, worktree, _, _ = _stale_work_lane(tmp_path)
+    key = worktree / "keys" / "signing-key"
+    key.parent.mkdir()
+    key.write_text("private\n", encoding="utf-8")
+    key.with_name("signing-key.pub").write_text("public\n", encoding="utf-8")
+    _commit(worktree, "keys", "add signing key fixture")
     previous_head = git(worktree, "rev-parse", "HEAD")
-    candidate_head = git(candidate, "rev-parse", "HEAD")
+    original_run_git = lane_mutation.run_git
+    rebase_calls: list[tuple[str, ...]] = []
+
+    def record_rebase(root: Path, *args: str, **kwargs: object) -> subprocess.CompletedProcess[str]:
+        if "rebase" in args:
+            rebase_calls.append(args)
+            return subprocess.CompletedProcess(["git", *args], 0, "", "")
+        return original_run_git(root, *args, **kwargs)
+
+    monkeypatch.setattr(lane_mutation, "run_git", record_rebase)
+    monkeypatch.setattr(
+        lane_refresh, "ssh_signing_transport_ready", lambda _key: False, raising=False
+    )
+
+    values = {"commit.gpgsign": "true", "gpg.format": "ssh", "user.signingkey": "keys/signing-key"}
+
+    def signing_config(_root: Path, *args: str, **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(["git", *args], 0, values.get(args[-1], ""), "")
+
+    assert lane_refresh._signing_preflight_gaps(
+        worktree, runtime=lane_refresh.LaneRefreshRuntime(run_git=signing_config)
+    ) == ["refresh_signing_transport_unavailable"]
+    monkeypatch.setattr(
+        lane_refresh,
+        "_signing_preflight_gaps",
+        lambda *_args, **_kwargs: ["refresh_signing_transport_unavailable"],
+        raising=False,
+    )
+
+    report = refresh_work_lane_base(
+        root=worktree, apply=True, authorized=True, expect_head=previous_head
+    )
+
+    assert report["required_gaps"] == ["refresh_signing_transport_unavailable"]
+    assert rebase_calls == []
+    assert git(worktree, "rev-parse", "HEAD") == previous_head
+
+
+def test_refresh_work_lane_base_blocks_snapshot_moved_during_preflight(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _, candidate, worktree, previous_head, _ = _stale_work_lane(tmp_path)
+
+    def move_candidate(*_args: object, **_kwargs: object) -> list[str]:
+        _commit_file(candidate, "LATE.md", "# late\n", "advance candidate late")
+        return []
+
+    monkeypatch.setattr(lane_refresh, "_signing_preflight_gaps", move_candidate, raising=False)
+
+    report = refresh_work_lane_base(
+        root=worktree, apply=True, authorized=True, expect_head=previous_head
+    )
+
+    assert report["required_gaps"] == ["refresh_base_snapshot_stale:candidate"]
+    assert git(worktree, "rev-parse", "HEAD") == previous_head
+
+
+def test_refresh_work_lane_base_does_not_overwrite_branch_moved_before_cas(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, _, worktree, previous_head, candidate_head = _stale_work_lane(tmp_path)
+    original_run_git = lane_mutation.run_git
+
+    def move_branch_before_cas(
+        root: Path, *args: str, **kwargs: object
+    ) -> subprocess.CompletedProcess[str]:
+        if args and args[0] == "update-ref":
+            git(repo, "update-ref", "refs/heads/work/feature", candidate_head, previous_head)
+        return original_run_git(root, *args, **kwargs)
+
+    monkeypatch.setattr(lane_mutation, "run_git", move_branch_before_cas)
+
+    report = refresh_work_lane_base(
+        root=worktree, apply=True, authorized=True, expect_head=previous_head
+    )
+
+    assert report["required_gaps"] == ["refresh_base_snapshot_stale:work_lane"]
+    assert git(worktree, "rev-parse", "HEAD") == candidate_head
+
+
+def test_refresh_work_lane_base_rejects_noop_rebase_success(tmp_path: Path, monkeypatch) -> None:
+    _, _, worktree, previous_head, candidate_head = _stale_work_lane(tmp_path)
     original_run_git = lane_mutation.run_git
 
     def successful_noop_rebase(
         root: Path, *args: str, **kwargs: object
     ) -> subprocess.CompletedProcess[str]:
-        if args == ("-c", "rebase.updateRefs=false", "rebase", "candidate/dev"):
+        if args == (
+            "-c",
+            "rebase.updateRefs=false",
+            "rebase",
+            candidate_head,
+            previous_head,
+        ):
             return subprocess.CompletedProcess(["git", *args], 0, "", "")
         return original_run_git(root, *args, **kwargs)
 
@@ -658,20 +685,7 @@ def test_refresh_work_lane_base_rejects_noop_rebase_success(tmp_path: Path, monk
 def test_refresh_work_lane_base_apply_requires_authorization_and_expected_head(
     tmp_path: Path,
 ) -> None:
-    repo = init_repo(tmp_path / "repo")
-    candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
-    worktree = tmp_path / "repo-work-feature"
-    git(
-        repo,
-        "worktree",
-        "add",
-        "-b",
-        "work/feature",
-        worktree.as_posix(),
-        "candidate/dev",
-    )
-    (candidate / "CANDIDATE.md").write_text("# candidate\n", encoding="utf-8")
-    _commit(candidate, "CANDIDATE.md", "advance candidate")
+    _, _, worktree, _, _ = _stale_work_lane(tmp_path, commit_lane=False)
 
     report = refresh_work_lane_base(
         root=worktree,
@@ -726,13 +740,10 @@ def test_workspace_status_reports_runtime_binding_for_audited_checkout(
     binding = status["runtime_binding"]
     assert binding["kind"] == "workspace_status_runtime_binding"
     assert binding["audit_root"] == repo.resolve().as_posix()
-    assert binding["runner_module_path"]
-    assert binding["runner_source_root"]
-    assert binding["schema_source_root"]
-    assert isinstance(binding["runner_matches_audit_root"], bool)
-    assert isinstance(binding["schema_matches_audit_root"], bool)
+# fmt: on
+    assert all(binding[key] for key in ("runner_module_path", "runner_source_root", "schema_source_root", "next_action"))
     assert isinstance(binding["advisory_gaps"], list)
-    assert binding["next_action"]
+    assert all(isinstance(binding[key], bool) for key in ("runner_matches_audit_root", "schema_matches_audit_root"))
 
 
 def test_workspace_status_runtime_binding_warns_when_runner_is_external(

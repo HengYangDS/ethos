@@ -1,0 +1,9 @@
+schema_version = 1
+paths = [
+  "docs/plans/all-lanes-authorized-closeout-20260718.md",
+  "evidence/claims/all-lanes-authorized-closeout-20260718.toml",
+  "evidence/chronicle/all-lanes-authorized-closeout-20260718/**",
+  "evidence/parity/generic-shadow.json",
+  "openspec/changes/all-lanes-authorized-closeout-20260718/**",
+  "openspec/specs/repository-governance/spec.md",
+]

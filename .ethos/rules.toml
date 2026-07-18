@@ -85,7 +85,7 @@ python_total = 58722
 global_total = 73739
 
 [quality.source_budget.debt]
-maximum_total = 8163
+maximum_total = 8376
 waves = [
   { id = "T5", due_on = "2026-07-18", state = "active" },
   { id = "T8", due_on = "2026-07-18", state = "active" },
@@ -98,6 +98,7 @@ waves = [
   { id = "adopter-lifecycle-claim-freshness-compression", due_on = "2026-07-18", state = "active" },
   { id = "bounded-status-compression", due_on = "2026-07-18", state = "active" },
   { id = "dual-remote-reconciliation-compression", due_on = "2026-07-18", state = "active" },
+  { id = "repo-first-worktree-governance", due_on = "2026-07-25", state = "active" },
 ]
 
 [[quality.source_budget.debt.records]]
@@ -210,6 +211,16 @@ allowance = 336
 expected_net_deletion = 336
 
 allowance_by_category = { python_product = 170, python_tests = 157, toml = 9 }
+
+[[quality.source_budget.debt.records]]
+id = "repo-first-worktree-governance-bootstrap-20260718"
+owner = "repo-first-worktree-governance-campaign-20260718"
+replacement = "complete the campaign bootstrap closeout and archive the active carrier; later campaign slices must use their own evidence-bound growth decisions"
+deletion_wave = "repo-first-worktree-governance"
+expiry = "2026-07-25"
+allowance = 213
+expected_net_deletion = 213
+allowance_by_category = { toml = 213 }
 
 [gates.local-state-audit]
 command = "tools/ci/scripts/run-local-state-audit.sh"

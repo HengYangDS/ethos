@@ -34,6 +34,11 @@ ETHOS SHALL model repo-first worktree governance v2 as a dedicated strict-serial
 ### Requirement: Repo-first preservation topology contract
 ETHOS SHALL reserve repository-adjacent topology for future governed worktree and record operations as `<projects-root>/<repo>-worktrees/<yyyymmdd>-<task-slug>` and `<projects-root>/<repo>-records/{.staging,evidence,recovery}/<timestamp>-<purpose>`. Status labels such as sealed, restorable, legacy-v1, or unverified SHALL be recorded in manifests rather than introduced as top-level topology classes.
 
+#### Scenario: Bootstrap growth remains explicit and bounded
+- **WHEN** the bootstrap adds new repository-governance declarations that exceed the current source-budget allowance
+- **THEN** the active source-budget policy records only the measured category growth, an expiry, a deletion wave, and this campaign as owner
+- **AND** the record does not settle, transfer, or authorize growth in any foreign lane or unrelated campaign.
+
 #### Scenario: Topology contract does not create a second lifecycle authority
 - **WHEN** a later campaign slice uses the topology contract to plan preservation or recovery
 - **THEN** Git remains the authority for committed refs and worktree registration

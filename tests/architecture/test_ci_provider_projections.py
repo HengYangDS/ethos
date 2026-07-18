@@ -158,6 +158,26 @@ def test_provider_python_producers_are_runtime_bound() -> None:
         assert all(runtime in line for line in uv_producers), relative_path
 
 
+def test_hosted_proof_receipt_is_owner_scripted_and_retained() -> None:
+    runner = "tools/ci/scripts/run-head-bound-proof.sh"
+    github = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    gitlab = yaml.safe_load((ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8"))
+    script = (ROOT / runner).read_text(encoding="utf-8")
+
+    assert runner in github
+    assert runner in gitlab["ethos:verify"]["script"]
+    assert "ethos prove --execute --expect-head" not in github
+    assert "ethos prove --execute --expect-head" not in "\n".join(gitlab["ethos:verify"]["script"])
+    assert gitlab["ethos:verify"]["artifacts"] == {
+        "when": "always",
+        "paths": ["build/evidence/quality/proof/"],
+    }
+    assert "ethos prove --execute --expect-head" in script
+    assert "executed-proof.json" in script
+    assert "receipt_sha256" in script
+    assert (ROOT / runner).stat().st_mode & stat.S_IXUSR
+
+
 def test_local_ci_fails_on_python_warnings() -> None:
     assert "export PYTHONWARNINGS=error" in (
         ROOT / "tools/ci/scripts/run-local-ci.sh"

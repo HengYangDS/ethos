@@ -6,15 +6,15 @@ summary = "Plan and proof evaluate official OpenSpec lifecycle for valid adopter
 
 [evidence]
 dated = "evidence/chronicle/adopter-openspec-lifecycle-20260714/2026-07-14.md"
-sha256 = "f543572d5bfaa22a68bcda726065cda37dfe44c09169b686e70993d0b6c579a0"
+sha256 = "e5d98fb525f104b5421ec09d5e37cf7a011f3bb1c9919fab45851ad53f1cd47c"
 evidence_ids = ["evidence:adopter-openspec-lifecycle-20260714"]
 binding = "Universal adopter lifecycle evidence binding."
 verifier = "digest_only"
 
 [evidence.freshness]
 mode = "semantic_scope"
-head = "73c08ea7950e6a2e9541eeb16504286c33b7ae78"
-semantic_sha256 = "8fb4c5f5e1956c905407bb29630ae3348c7f59f0cf642c8716725dc8dcdfe2f7"
+head = "ea3fd502c0f8367011338318fb881d5d9b16f178"
+semantic_sha256 = "2c1943d3977b15c79ddc1bba6c551d5ad576f3cad7747941bc210e6864cd7328"
 
 [boundary]
 owner = "ethos-repository"
@@ -26,4 +26,9 @@ fallback = "Block lifecycle gaps; do not substitute code correctness or method p
 kill_signal = "A valid adopter bypasses official lifecycle in plan or proof."
 
 [promotion]
-targets = ["packages/ethos/src/ethos/surface/cli/root/planning.py", "packages/ethos/src/ethos/surface/cli/root/proof.py", "tests/unit/cli/test_adopter_openspec_lifecycle.py", "tests/unit/cli/test_contracts_proof.py"]
+targets = [
+  "packages/ethos/src/ethos/surface/cli/root/planning.py",
+  "packages/ethos/src/ethos/surface/cli/root/proof.py",
+  "tests/unit/cli/test_adopter_openspec_lifecycle.py",
+  "tests/unit/cli/test_contracts_proof.py",
+]

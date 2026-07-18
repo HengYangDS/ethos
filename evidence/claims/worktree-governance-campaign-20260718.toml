@@ -7,7 +7,7 @@ summary = "The dedicated repo-first worktree-governance campaign scopes serial l
 
 [evidence]
 dated = "evidence/chronicle/worktree-governance-campaign-20260718/2026-07-18.md"
-sha256 = "2ce30cc73a9d18e147bb2805194fa1dce2374ad3f73e60aa9f2b536c89afce04"
+sha256 = "07275a00b9e75d4097c54b0436b3493f27497aab5ea8fe43851f6eedf3946446"
 evidence_ids = ["evidence:worktree-governance-campaign-20260718"]
 binding = "Dedicated campaign manifest, selector-bounded closeout report, active OpenSpec carrier, focused regressions, and a dated local-only Chronicle bind the bootstrap boundary."
 verifier = "digest_only"

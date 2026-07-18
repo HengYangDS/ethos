@@ -16,15 +16,13 @@ import ethos.domain.land.publication as land_publication
 from ethos.adapters.admission.control.replacement import control_replacement_report
 from ethos.adapters.admission.evidence.external import independent_verification_admission_report
 from ethos.adapters.admission.evidence.external import independent_verification_request
-from ethos.adapters.mutation.core import MutationEvaluation
-from ethos.adapters.mutation.core import MutationRequest
 from ethos.adapters.mutation.core import apply_candidate_to_accepted
 from ethos.adapters.mutation.core import apply_land_to_candidate
 from ethos.adapters.mutation.core import candidate_base_report
 from ethos.adapters.mutation.core import evaluate_closeout_mutation
 from ethos.adapters.mutation.core import evaluate_mutation
-from ethos.adapters.mutation.core import mutation_envelope
 from ethos.adapters.mutation.core import proof_readiness_report
+from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.openspec.metadata.core import completed_active_changes_report
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.repository.context import context_for_root
@@ -34,6 +32,8 @@ from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import resolve_root
 from ethos_core.contracts.branch.roles import load_branch_role_policy
+from ethos_core.contracts.lifecycle.core import MutationEvaluation
+from ethos_core.contracts.lifecycle.core import MutationRequest
 from ethos_core.normalization.core import string_mapping
 from ethos_core.normalization.core import string_sequence
 from ethos_core.result import EthosResult

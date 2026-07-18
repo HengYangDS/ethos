@@ -3,12 +3,12 @@ from __future__ import annotations
 from pathlib import Path
 
 from ethos.adapters.mutation import core as mutation
-from ethos.adapters.mutation.core import MutationRequest
 from ethos.adapters.mutation.core import apply_land_to_candidate
 from ethos.adapters.mutation.core import evaluate_mutation
 from ethos.adapters.mutation.lanes import start_work_lane
 from ethos.adapters.mutation.proof import executed_proof_record
 from ethos.adapters.mutation.remediation.core import remediation_for_gaps
+from ethos_core.contracts.lifecycle.core import MutationRequest
 from tests.support.contract_helpers import git
 from tests.support.contract_helpers import init_git_repo as init_repo
 from tests.support.contract_helpers import seed_executed_proof as seed_proof

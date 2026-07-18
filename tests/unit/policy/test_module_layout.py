@@ -190,7 +190,6 @@ def test_module_layout_flags_package_init_facades(tmp_path: Path) -> None:
             """Compatibility facade."""
             from ethos.sample.core import public
 
-            __all__ = ["public"]
             '''
         ),
     )
@@ -205,7 +204,7 @@ def test_module_layout_flags_package_init_facades(tmp_path: Path) -> None:
         {
             "gap": "module_layout_package_init_facade:packages/ethos/src/ethos/sample/__init__.py",
             "path": "packages/ethos/src/ethos/sample/__init__.py",
-            "reasons": ["import", "explicit_exports"],
+            "reasons": ["import"],
         }
     ]
     assert report["summary"]["package_init_facade_count"] == 1
@@ -526,7 +525,7 @@ def test_module_layout_flags_import_alias_and_runtime_init_code(tmp_path: Path) 
     ]
 
 
-def test_module_layout_package_init_all_annotation_and_duplicate_reasons(
+def test_module_layout_package_init_facade_with_duplicate_imports(
     tmp_path: Path,
 ) -> None:
     _write(
@@ -536,7 +535,6 @@ def test_module_layout_package_init_all_annotation_and_duplicate_reasons(
             """Facade init."""
             from ethos.sample.core import one
             from ethos.sample.core import two
-            __all__: list[str] = ["one", "two"]
             '''
         ),
     )
@@ -551,7 +549,7 @@ def test_module_layout_package_init_all_annotation_and_duplicate_reasons(
         {
             "gap": "module_layout_package_init_facade:packages/ethos/src/ethos/facade/__init__.py",
             "path": "packages/ethos/src/ethos/facade/__init__.py",
-            "reasons": ["import", "explicit_exports"],
+            "reasons": ["import"],
         }
     ]
 
@@ -566,7 +564,6 @@ def test_module_layout_flags_module_import_only_facade(tmp_path: Path) -> None:
 
             from ethos.sample.report import render
 
-            __all__ = ["render"]
             '''
         ),
     )
@@ -582,7 +579,7 @@ def test_module_layout_flags_module_import_only_facade(tmp_path: Path) -> None:
         {
             "gap": "module_layout_module_facade:packages/ethos/src/ethos/sample/core.py",
             "path": "packages/ethos/src/ethos/sample/core.py",
-            "reasons": ["import_only", "explicit_exports"],
+            "reasons": ["import_only"],
         }
     ]
 

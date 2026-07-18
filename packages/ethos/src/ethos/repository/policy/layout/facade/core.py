@@ -92,8 +92,6 @@ def package_init_facade_reasons(tree: ast.Module) -> list[str]:
     for node in body:
         if isinstance(node, (ast.Import, ast.ImportFrom)):
             _append_reason(reasons, "import")
-        elif assigns_all(node):
-            _append_reason(reasons, "explicit_exports")
         elif not isinstance(node, ast.Pass):
             _append_reason(reasons, "runtime_code")
     return reasons
@@ -103,34 +101,17 @@ def module_facade_reasons(tree: ast.Module) -> list[str]:
     """Return reasons an ordinary module is only an import facade."""
     body = _body_without_docstring(tree)
     import_only = False
-    explicit_exports = False
     runtime_code = False
     for node in body:
         if _is_future_import(node):
             continue
         if _is_non_future_import(node) or _is_type_checking_import_block(node):
             import_only = True
-        elif assigns_all(node):
-            explicit_exports = True
         elif not isinstance(node, ast.Pass):
             runtime_code = True
     if runtime_code or not import_only:
         return []
-    reasons = ["import_only"]
-    if explicit_exports:
-        reasons.append("explicit_exports")
-    return reasons
-
-
-def assigns_all(node: ast.AST) -> bool:
-    """Return whether an AST node assigns `__all__`."""
-    if isinstance(node, ast.Assign):
-        return any(
-            isinstance(target, ast.Name) and target.id == "__all__" for target in node.targets
-        )
-    if isinstance(node, ast.AnnAssign):
-        return isinstance(node.target, ast.Name) and node.target.id == "__all__"
-    return False
+    return ["import_only"]
 
 
 def _body_without_docstring(tree: ast.Module) -> list[ast.stmt]:

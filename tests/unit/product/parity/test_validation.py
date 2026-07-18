@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ethos.repository.evidence.parity.core import build_tracked_parity_evidence
 from ethos.repository.evidence.parity.validation import command_matches_identity
 from ethos.repository.evidence.parity.validation import parity_evidence
 from ethos.repository.evidence.parity.validation import validate_parity_evidence
+from ethos.repository.evidence.shadow.payload import build_tracked_parity_evidence
 from tests.unit.product.parity.snapshots import complete_parity_evidence
 
 if TYPE_CHECKING:

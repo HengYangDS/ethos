@@ -1,0 +1,11 @@
+name: ethos
+on: [push, pull_request]
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: ethos status --json
+      - run: ethos report --json
+      - run: ethos prove --json

@@ -1,0 +1,36 @@
+schema_version = 1
+id = "evidence-layout"
+source_refs = ["system/policies/evidence-layout.toml"]
+profile_curated_root = "docs/evidence"
+root_missing_gap = "evidence_root_missing"
+
+[kernel]
+mode = "kernel_evidence"
+allowed_root_files = ["README.md"]
+allowed_root_dirs = ["claims", "chronicle", "parity"]
+claim_file_glob = "*.toml"
+nested_claim_file_glob = "*/*.toml"
+chronicle_record_glob = "*/*.md"
+flat_chronicle_glob = "*.md"
+parity_artifact_glob = "*"
+root_file_not_allowed_gap_prefix = "evidence_root_file_not_allowed"
+root_dir_not_allowed_gap_prefix = "evidence_root_dir_not_allowed"
+claim_nested_file_gap_prefix = "evidence_claim_nested_file"
+chronicle_flat_markdown_gap_prefix = "evidence_chronicle_flat_markdown"
+
+[[kernel.required_subroot]]
+name = "claims"
+gap = "evidence_claims_root_missing"
+
+[[kernel.required_subroot]]
+name = "chronicle"
+gap = "evidence_chronicle_root_missing"
+
+[[kernel.required_subroot]]
+name = "parity"
+gap = "evidence_parity_root_missing"
+
+[curated_profile]
+mode = "curated_profile_evidence"
+allowed_root_files = ["README.md"]
+root_file_not_allowed_gap_prefix = "evidence_root_file_not_allowed"

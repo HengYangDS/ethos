@@ -6,18 +6,18 @@ summary = "ETHOS requires profile and adapter bindings to expose admission autho
 
 [evidence]
 dated = "evidence/chronicle/adapter-admission-boundary/2026-07-05.md"
-sha256 = "a96684b044d4d42b6be338bc1bc46d8632e83cb0e3be6eaa42e29a358acea4da"
+sha256 = "db526df6f3812d91b8e0a0c70245a7d7c9e4ba1641b4ea1c2793ff5cf60d35ac"
 evidence_ids = ["evidence:ethos-adapter-admission-boundary"]
-binding = "semantic adapter admission boundary evidence binding"
-verifier = "semantic"
+binding = "declared adapter admission boundary evidence binding"
+verifier = "digest_only"
 tests = [
   "uv run --group dev pytest tests/unit/audit/test_coupling.py -q",
   "uv run --package ethos ethos quality coupling-audit --json",
-  "uv run --group dev ruff check packages/ethos/src/ethos/repository/policy/coupling.py tests/unit/audit/test_coupling.py",
-  "uv run --group dev ruff format --check packages/ethos/src/ethos/repository/policy/coupling.py tests/unit/audit/test_coupling.py",
+  "uv run --group dev ruff check packages/ethos/src/ethos/repository/policy/coupling tests/unit/audit/test_coupling.py",
+  "uv run --group dev ruff format --check packages/ethos/src/ethos/repository/policy/coupling tests/unit/audit/test_coupling.py",
   "uv run --group dev ruff check .",
   "uv run --group dev ruff format --check .",
-  ".config/ci/scripts/run-python-tests.sh",
+  "tools/ci/scripts/run-python-tests.sh",
   "uv run --package ethos ethos openspec --lifecycle --json",
   "uv run --package ethos ethos quality claims --json",
   "uv run --package ethos ethos quality schemas --json",
@@ -25,21 +25,8 @@ tests = [
   "uv run --package ethos ethos prove --execute --expect-head $(git rev-parse HEAD) --json",
 ]
 
-[scope]
-packages = [
-  "ethos-repository",
-]
-schemas = [
-  "system/schemas/kernel/coupling-audit.schema.json",
-]
-tests = [
-  "tests/unit/audit/test_coupling.py",
-]
-docs = [
-  "docs/governance/product-design-contract.md",
-  "openspec/changes/archive/2026-07-05-ethos-adapter-admission-boundary-20260705/specs/ethos-repository/spec.md",
-]
-
+[evidence.freshness]
+mode = "historical"
 [boundary]
 owner = "ethos-repository"
 scope = "Adapter/profile admission metadata for coupling registry participation"
@@ -53,7 +40,7 @@ kill_signal = "A provider, model host, editor host, memory surface, or distribut
 [promotion]
 targets = [
   "evidence/chronicle/adapter-admission-boundary/2026-07-05.md",
-  "packages/ethos/src/ethos/repository/policy/coupling.py",
+  "packages/ethos/src/ethos/repository/policy/coupling",
   "system/schemas/kernel/coupling-audit.schema.json",
   "tests/unit/audit/test_coupling.py",
   "docs/governance/product-design-contract.md",

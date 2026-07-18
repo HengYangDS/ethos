@@ -1,0 +1,39 @@
+[claim]
+id = "history-truth-boundary"
+subject = "ethos:history-truth-boundary"
+state = "active"
+summary = "ETHOS current truth keeps Authority while historical evidence and archived OpenSpec records preserve chronology and meaning without retaining retired authority-head tokens."
+
+[evidence]
+dated = "evidence/chronicle/history-truth-boundary/2026-07-08.md"
+sha256 = "3290c5419b0545d8fc233d40d6150f8bb7ab0c47342ae9f6d98788eae122a60e"
+evidence_ids = ["evidence:history-truth-boundary"]
+binding = "Repository-wide guard covers Chronicle and archived OpenSpec records while preserving historical meaning."
+verifier = "digest_only"
+tests = [
+  "uv run --all-packages pytest tests/architecture/test_authority_residue_zero.py -q",
+  "uv run --all-packages ethos quality claims --json",
+  "uv run --all-packages ethos openspec --lifecycle --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+[boundary]
+owner = "repository-governance"
+scope = "repository-wide zero-residue boundary for retired authority-head vocabulary while preserving historical meaning"
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-08-history-truth-boundary"
+fallback = "If a cleanup scan finds retired authority-head vocabulary anywhere in repository records, remove the token while preserving the record meaning."
+kill_signal = "Any repository record, current or archived, exposes retired authority-head vocabulary, or historical meaning is lost while removing the token."
+
+[promotion]
+targets = [
+  "tests/architecture/test_authority_residue_zero.py",
+  "openspec/changes/archive/2026-07-08-history-truth-boundary/proposal.md",
+  "openspec/changes/archive/2026-07-08-history-truth-boundary/design.md",
+  "openspec/changes/archive/2026-07-08-history-truth-boundary/tasks.md",
+  "openspec/changes/archive/2026-07-08-history-truth-boundary/specs/repository-governance/spec.md",
+  "evidence/chronicle/history-truth-boundary/2026-07-08.md",
+  "evidence/claims/history-truth-boundary.toml",
+]

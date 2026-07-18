@@ -1,0 +1,37 @@
+[claim]
+id = "generic-pre-receive-contract-20260712"
+subject = "ethos:optional-generic-git-pre-receive-receipt-adapter"
+state = "active"
+summary = "Digest-bound local evidence for an optional provider-local generic Git pre-receive adapter that consumes exact independent-verification receipts."
+
+[evidence]
+dated = "evidence/chronicle/generic-pre-receive-contract-20260712/2026-07-13.md"
+sha256 = "8875d81520e8951936e20dfef3741a120812d544356e4c8923aea0e72f50116c"
+evidence_ids = ["evidence:generic-pre-receive-contract-20260712"]
+binding = "Digest-bound extension-local source, manifest, provider-local configuration contract, focused fail-closed tests, and OpenSpec carrier."
+verifier = "digest_only"
+tests = [
+  "uv run --locked --group dev pytest -q extensions/independent-verification/tests/test_generic_git_pre_receive.py",
+  "uv run --locked --group dev ruff check extensions/independent-verification",
+  "tools/ci/scripts/run-config-lint.sh",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-adapters"
+scope = "Optional provider-local generic Git pre-receive receipt enforcement; no adopter account, key, daemon, network service, or authority claim."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-13-generic-pre-receive-contract-20260712"
+fallback = "Leave the adapter disabled or remove its provider hook; do not make independent verification an ordinary adopter prerequisite."
+kill_signal = "The adapter reads pushed configuration, executes client input, contacts a network service, claims semantic correctness, or becomes mandatory."
+
+[promotion]
+targets = [
+  { kind = "source", path = "extensions/independent-verification/adapters/generic_git" },
+  { kind = "openspec", path = "openspec/changes/archive/2026-07-13-generic-pre-receive-contract-20260712" },
+  { kind = "evidence", path = "evidence/chronicle/generic-pre-receive-contract-20260712/2026-07-13.md" },
+  { kind = "evidence", path = "evidence/claims/generic-pre-receive-contract-20260712.toml" },
+]

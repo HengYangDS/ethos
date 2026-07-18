@@ -2,18 +2,18 @@
 id = "ethos-governed-repository-context"
 subject = "ethos:governed-repository-context"
 state = "active"
-summary = "ETHOS exposes one governed repository contract through shared governance context, command semantics, evidence, profile boundaries, and repository-neutral report layers."
+summary = "ETHOS exposes one governed repository contract through shared governance context, command behavior, evidence, profile boundaries, and repository-neutral report layers."
 
 [evidence]
 dated = "evidence/chronicle/governed-repository-context/2026-07-01.md"
 sha256 = "06d62adb5914056f8a24fa20bcfa77583e4f1547360bcf0ba95e826b00e2c2a6"
 evidence_ids = ["evidence:ethos-governed-repository-context"]
-binding = "semantic governed repository context evidence binding"
-verifier = "semantic"
+binding = "declared governed repository context evidence binding"
+verifier = "digest_only"
 tests = [
   "uv run --group dev pytest -q tests/unit/cli/test_contracts.py::test_repository_audit_reports_governed_repository_shape tests/unit/cli/test_contracts.py::test_prove_uses_repository_audit_for_non_product_repo tests/unit/cli/test_contracts.py::test_report_uses_adopter_scorecard_for_non_product_repo tests/unit/cli/test_contracts.py::test_report_scorecard_is_derived_from_governance_checks",
   "uv run --group dev pytest -q tests/unit/adoption/test_apply_sample.py::test_adopt_rules_use_single_kernel_governance_entrypoints tests/architecture/test_product_design_contract.py::test_product_design_contract_defines_governed_repository",
-  "uv run --group dev pytest -q tests/architecture/test_product_design_contract.py tests/unit/audit/test_depth.py tests/unit/governance/test_validation_gates.py tests/unit/adoption/test_apply_sample.py",
+  "uv run --group dev pytest -q tests/architecture/test_product_design_contract.py tests/unit/audit/test_depth.py tests/unit/governance/validation tests/unit/adoption/test_apply_sample.py",
   "uv run --group dev pytest -q tests/unit/cli/test_contracts.py::test_repository_audit_reports_governed_repository_shape tests/unit/cli/test_contracts.py::test_prove_uses_repository_audit_for_non_product_repo tests/unit/cli/test_contracts.py::test_report_uses_adopter_scorecard_for_non_product_repo tests/unit/cli/test_contracts.py::test_report_scorecard_is_derived_from_governance_checks tests/unit/cli/test_contracts.py::test_prove_returns_evidence_and_provenance",
   "uv run openspec validate --all --strict --json",
   "uv run --package ethos ethos audit --mode shape --json",
@@ -25,31 +25,11 @@ tests = [
   "uv run --package ethos ethos quality claims --json",
   "uv run --package ethos ethos quality release-policy --json",
   "uv run --package ethos ethos prove --execute --gate repository-audit --gate claims --gate schemas --expect-head $(git rev-parse HEAD) --json",
-  "uv run --package ethos ethos campaign closeout --adopter alphasim-dmgr --target /Users/yheng/projects/alphasim-dmgr-fix-b3 --json",
+  "uv run --package ethos ethos campaign closeout --adopter reference-adopter --target <adopter-repo> --json",
 ]
 
-[scope]
-packages = [
-  "ethos-contracts",
-  "ethos-repository",
-  "ethos",
-]
-schemas = []
-tests = [
-  "tests/unit/cli/test_contracts.py",
-  "tests/unit/adoption/test_apply_sample.py",
-  "tests/architecture/test_product_design_contract.py",
-]
-docs = [
-  "evidence/chronicle/governed-repository-context/2026-07-01.md",
-  "docs/governance/product-design-contract.md",
-  "docs/governance/evolution-campaign.md",
-  "docs/architecture/adoption-profiles.md",
-  "docs/reference/command-plane.md",
-  "openspec/specs/contracts/spec.md",
-  "openspec/specs/repository-governance/spec.md",
-]
-
+[evidence.freshness]
+mode = "historical"
 [boundary]
 owner = "ethos-contracts"
 scope = "Shared governed repository context contract, product profile, adoption profiles, and repository-neutral report layers"

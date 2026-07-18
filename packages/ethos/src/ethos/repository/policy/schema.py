@@ -7,22 +7,13 @@ from typing import Any
 
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError
-from jsonschema.exceptions import ValidationError
 
 from ethos.repository.policy.gates import gate_registry
-from ethos.repository.policy.schema_sample_large import _campaign_closeout_contract_sample
-from ethos.repository.policy.schema_sample_large import _workspace_status_contract_sample
-from ethos.repository.policy.schema_samples import _campaign_contract_sample
-from ethos.repository.policy.schema_samples import _capability_profile_contract_sample
-from ethos.repository.policy.schema_samples import _promotion_target_contract_sample
-from ethos.repository.policy.schema_samples import _shadow_parity_contract_sample
-from ethos.repository.policy.schema_samples import _skill_activation_contract_sample
-from ethos.repository.policy.schema_samples import _skill_package_manifest_contract_sample
-from ethos.repository.policy.schema_samples import _trust_envelope_contract_sample
-from ethos.repository.registry.docs import docs_health_report
+from ethos.repository.registry.docs.health import docs_health_report
 from ethos.repository.registry.profiles import governance_profile_report
-from ethos_core.contracts.skill_activation import normalize_skill_activation
-from ethos_core.contracts.skill_activation import skill_registry_digest
+from ethos_core.contracts.skill.activation import normalize_skill_activation
+from ethos_core.contracts.skill.activation import skill_registry_digest
+from ethos_core.normalization.core import string_list
 from ethos_core.quality.gates import product_gate_plan
 from ethos_core.quality.profiles import product_quality_profile
 
@@ -94,8 +85,10 @@ def schema_validation_report(root: Path | None = None) -> dict[str, object]:
             schemas[path.name] = {"ok": True, "title": schema.get("title", "")}
     instances = _instance_validation_report(repo, mode=mode)
     for name, instance in instances.items():
-        if not instance["ok"]:
-            gaps.extend(f"instance:{name}:{gap}" for gap in instance["required_gaps"])
+        if instance.get("ok") is not True:
+            gaps.extend(
+                f"instance:{name}:{gap}" for gap in string_list(instance.get("required_gaps"))
+            )
     return {
         "ok": not gaps,
         "mode": mode,
@@ -116,10 +109,9 @@ def validate_schema_instance(
     schema_root = root or _repo_root()
     schema = _bundle_local_refs(load_schema(schema_name, root=schema_root), root=schema_root)
     validator = Draft202012Validator(schema)
-    try:
-        validator.validate(payload)
-    except ValidationError as exc:
-        return {"ok": False, "required_gaps": [exc.message]}
+    errors = sorted(validator.iter_errors(payload), key=lambda item: item.json_path)
+    if errors:
+        return {"ok": False, "required_gaps": [error.message for error in errors]}
     return {"ok": True, "required_gaps": []}
 
 
@@ -142,7 +134,7 @@ def _bundle_node(value: Any, *, root: Path, seen: frozenset[str]) -> Any:
 
 
 def _instance_validation_report(root: Path, *, mode: str) -> dict[str, dict[str, object]]:
-    from ethos.repository.policy.coupling import coupling_audit_report
+    from ethos.repository.policy.coupling.core import coupling_audit_report
 
     instances: dict[str, dict[str, object]] = {}
     ledger_path = root / "evolution" / "ledger.toml"
@@ -190,52 +182,20 @@ def _instance_validation_report(root: Path, *, mode: str) -> dict[str, dict[str,
             )
         )
     gate_gaps = [
-        gap for result in gate_results for gap in result["required_gaps"] if not result["ok"]
+        gap
+        for result in gate_results
+        if result.get("ok") is not True
+        for gap in string_list(result.get("required_gaps"))
     ]
     instances["gate-registry"] = {"ok": not gate_gaps, "required_gaps": gate_gaps}
     instances["quality-profile"] = validate_schema_instance(
         "quality-profile.schema.json",
-        product_quality_profile(),
+        product_quality_profile(root),
         root=root,
     )
     instances["quality-gate-plan"] = validate_schema_instance(
         "quality-gate-plan.schema.json",
         product_gate_plan(),
-        root=root,
-    )
-    instances["campaign-closeout-contract"] = validate_schema_instance(
-        "campaign-closeout.schema.json",
-        _campaign_closeout_contract_sample(),
-        root=root,
-    )
-    instances["campaign-contract"] = validate_schema_instance(
-        "campaign.schema.json",
-        _campaign_contract_sample(),
-        root=root,
-    )
-    instances["shadow-parity-contract"] = validate_schema_instance(
-        "shadow-parity.schema.json",
-        _shadow_parity_contract_sample(),
-        root=root,
-    )
-    instances["workspace-status-contract"] = validate_schema_instance(
-        "workspace-status.schema.json",
-        _workspace_status_contract_sample(),
-        root=root,
-    )
-    instances["trust-envelope-contract"] = validate_schema_instance(
-        "trust-envelope.schema.json",
-        _trust_envelope_contract_sample(),
-        root=root,
-    )
-    instances["promotion-target-contract"] = validate_schema_instance(
-        "promotion-target.schema.json",
-        _promotion_target_contract_sample(),
-        root=root,
-    )
-    instances["capability-profile-contract"] = validate_schema_instance(
-        "capability-profile.schema.json",
-        _capability_profile_contract_sample(),
         root=root,
     )
     instances["governance-profile-contract"] = validate_schema_instance(
@@ -247,26 +207,6 @@ def _instance_validation_report(root: Path, *, mode: str) -> dict[str, dict[str,
     instances["coupling-audit-contract"] = validate_schema_instance(
         "coupling-audit.schema.json",
         coupling_audit_report(root),
-        root=root,
-    )
-    skill_registry = normalize_skill_activation(
-        _skill_activation_contract_sample(),
-        source=".agents/skills/activation.toml",
-    )
-    skill_registry["digest"] = skill_registry_digest(skill_registry)
-    instances["skill-activation-contract"] = validate_schema_instance(
-        "skill-activation.schema.json",
-        _skill_activation_contract_sample(),
-        root=root,
-    )
-    instances["skill-registry-contract"] = validate_schema_instance(
-        "skill-registry.schema.json",
-        skill_registry,
-        root=root,
-    )
-    instances["skill-package-manifest-contract"] = validate_schema_instance(
-        "skill-package-manifest.schema.json",
-        _skill_package_manifest_contract_sample(),
         root=root,
     )
     instances.update(_live_skill_contract_instances(root))
@@ -315,7 +255,8 @@ def _live_skill_contract_instances(root: Path) -> dict[str, dict[str, object]]:
             root=root,
         )
         package_gaps.extend(
-            f"{manifest_path.relative_to(root).as_posix()}:{gap}" for gap in result["required_gaps"]
+            f"{manifest_path.relative_to(root).as_posix()}:{gap}"
+            for gap in string_list(result.get("required_gaps"))
         )
     instances["live-skill-package-manifests"] = {
         "ok": not package_gaps,
@@ -339,9 +280,10 @@ def _capability_profiles_report(root: Path, *, mode: str) -> dict[str, object]:
             payload,
             root=root,
         )
-        if not validation["ok"]:
+        if validation.get("ok") is not True:
             gaps.extend(
-                f"{path.relative_to(root).as_posix()}:{gap}" for gap in validation["required_gaps"]
+                f"{path.relative_to(root).as_posix()}:{gap}"
+                for gap in string_list(validation.get("required_gaps"))
             )
     if mode == "adopter":
         advisory_gaps = gaps

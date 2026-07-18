@@ -1,0 +1,48 @@
+[claim]
+id = "land-proof-readiness"
+subject = "ethos:land-proof-readiness"
+state = "active"
+summary = "ETHOS land dry-run no longer reports Work Lane ready_to_land without valid executed proof for the exact HEAD."
+
+[evidence]
+dated = "evidence/chronicle/land-proof-readiness/2026-07-09.md"
+sha256 = "b6dd82253474d33f2c14cbfd8a2395577c68f894eef20abe59bfb8461e24b8ee"
+evidence_ids = ["evidence:land-proof-readiness"]
+binding = "Declared evidence binding for proof-grounded Work Lane land readiness."
+verifier = "digest_only"
+tests = [
+  "uv run --group dev pytest tests/unit/cli/test_contracts_land.py tests/unit/cli/test_contracts_closeout.py tests/unit/cli/test_lifecycle_hardening.py -q",
+  "uv run --group dev ruff check packages/ethos/src/ethos/adapters/mutation/core.py packages/ethos/src/ethos/domain/land/publication.py packages/ethos/src/ethos/surface/cli/root/lifecycle.py tests/unit/cli/test_contracts_land.py",
+  "uv run --group dev ruff format --check packages/ethos/src/ethos/adapters/mutation/core.py packages/ethos/src/ethos/domain/land/publication.py packages/ethos/src/ethos/surface/cli/root/lifecycle.py tests/unit/cli/test_contracts_land.py",
+  "uv run --package ethos ethos openspec --lifecycle --json",
+  "uv run --package ethos ethos quality claims --json",
+  "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --write-evidence --timeout-seconds 45 --json",
+  "uv run --package ethos ethos parity gaps --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+[boundary]
+owner = "repository-governance"
+scope = "Work Lane land dry-run readiness and exact-HEAD executed proof visibility"
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-09-land-proof-readiness-20260709"
+fallback = "Treat Work Lane land dry-run as blocked and run ethos prove --execute --expect-head <HEAD> --json before landing."
+kill_signal = "A clean Work Lane can report ready_to_land while executed proof for its current HEAD is missing or invalid."
+
+[promotion]
+targets = [
+  "packages/ethos/src/ethos/adapters/mutation/core.py",
+  "packages/ethos/src/ethos/domain/land/publication.py",
+  "packages/ethos/src/ethos/surface/cli/root/lifecycle.py",
+  "tests/unit/cli/test_contracts_land.py",
+  "openspec/specs/repository-governance/spec.md",
+  "openspec/changes/archive/2026-07-09-land-proof-readiness-20260709/proposal.md",
+  "openspec/changes/archive/2026-07-09-land-proof-readiness-20260709/design.md",
+  "openspec/changes/archive/2026-07-09-land-proof-readiness-20260709/tasks.md",
+  "openspec/changes/archive/2026-07-09-land-proof-readiness-20260709/specs/repository-governance/spec.md",
+  "evidence/chronicle/land-proof-readiness/2026-07-09.md",
+  "evidence/claims/land-proof-readiness.toml",
+  "evidence/parity/generic-shadow.json",
+]

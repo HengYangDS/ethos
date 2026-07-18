@@ -26,7 +26,7 @@ or kept adopter-private profile roots out of product ontology.
 ## Out of Scope
 
 - No adopter-specific product directories are introduced.
-- No alphasim-dmgr embedded backend is deleted or frozen by this change.
+- No reference-adopter embedded backend is deleted or frozen by this change.
 - No rollback-window completion or final Retirement Decision is claimed.
 
 ## Impact

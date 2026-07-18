@@ -3,10 +3,7 @@
   "$id": "https://ethos/system/authority",
   "type": "object",
   "title": "ETHOS Authority Contract",
-  "required": [
-    "schema",
-    "order"
-  ],
+  "required": ["schema", "order"],
   "properties": {
     "schema": {
       "type": "string"

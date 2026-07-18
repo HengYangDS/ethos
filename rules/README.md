@@ -30,6 +30,7 @@ Delete, demote, or move rules that cannot fill this record.
 | Proof and claims | [Evidence Rules](evidence.md) |
 | Release work | [Release Rules](release.md) |
 | Skills | [Skill Rules](skills.md) and [Skills](../.agents/skills/README.md) |
+| Declarative runtime modernization | [Declarative Runtime Rules](declarative_runtime.md) |
 | Hosts and tooling | [Agent Entry Points](../AGENTS.md) |
 
 ## Placement

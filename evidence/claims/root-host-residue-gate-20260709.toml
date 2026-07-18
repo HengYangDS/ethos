@@ -1,0 +1,47 @@
+[claim]
+id = "root-host-residue-gate-20260709"
+subject = "ethos:root-host-residue-gate"
+state = "active"
+summary = "Repository hygiene fails closed on configured root host-local residue hidden by global Git ignores."
+
+[evidence]
+dated = "evidence/chronicle/root-host-residue-gate-20260709/2026-07-09.md"
+sha256 = "8817e832e4de063bbb90ddf3c5feca50a635df9de43d408a95f715e3a919bc3f"
+evidence_ids = ["evidence:root-host-residue-gate-20260709"]
+binding = "Digest-bound evidence for repository hygiene host-local residue boundary."
+verifier = "digest_only"
+tests = [
+  "tools/ci/scripts/run-repository-hygiene.sh",
+  "uv run --group dev pytest -q tests/architecture/test_repository_hygiene.py",
+  "uv run --group dev ruff check tests/architecture/test_repository_hygiene.py",
+  "uv run --group dev ruff format --check tests/architecture/test_repository_hygiene.py",
+  "uv run --no-project --with taplo taplo fmt --check .config/checks/repository-hygiene/policy.toml system/tools.toml",
+  "uv run --no-project --with taplo taplo check .config/checks/repository-hygiene/policy.toml system/tools.toml",
+  "uv run --package ethos ethos openspec --lifecycle --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+[boundary]
+owner = "quality"
+scope = "Repository hygiene owner script and root host-local residue policy."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-09-root-host-residue-gate"
+fallback = "Remove host-local residue intentionally; do not stash or promote it."
+kill_signal = "tools/ci/scripts/run-repository-hygiene.sh allows root .DS_Store, Thumbs.db, or Desktop.ini to remain hidden."
+
+[promotion]
+targets = [
+  ".config/checks/repository-hygiene/policy.toml",
+  "tools/ci/scripts/run-repository-hygiene.sh",
+  "system/tools.toml",
+  "tests/architecture/test_repository_hygiene.py",
+  "openspec/specs/quality/spec.md",
+  "openspec/changes/archive/2026-07-09-root-host-residue-gate/proposal.md",
+  "openspec/changes/archive/2026-07-09-root-host-residue-gate/design.md",
+  "openspec/changes/archive/2026-07-09-root-host-residue-gate/tasks.md",
+  "openspec/changes/archive/2026-07-09-root-host-residue-gate/specs/quality/spec.md",
+  "evidence/chronicle/root-host-residue-gate-20260709/2026-07-09.md",
+  "evidence/claims/root-host-residue-gate-20260709.toml",
+]

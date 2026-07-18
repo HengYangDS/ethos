@@ -1,0 +1,67 @@
+## ADDED Requirements
+
+### Requirement: Governed transition commands fail closed on blocking verdicts
+
+ETHOS transition commands that gate proof, land, or publish SHALL expose blocking
+verdicts through both command JSON and non-zero process exit status unless the
+command is explicitly documented as a read-only scorecard or reader view.
+
+#### Scenario: gapped proof refuses through process status
+
+- **WHEN** `ethos prove --expect-head <non-current-head> --json` runs
+- **THEN** the JSON payload reports `ok=false`
+- **AND** the payload includes `expected_head_mismatch` in `required_gaps`
+- **AND** the process exits with non-zero status
+
+### Requirement: Protected roots are observe-only by default
+
+Protected-root shell pre-run admission SHALL deny unknown mutation-capable
+commands unless the command is explicitly classified as read-only or binds its
+tracked paths through prewrite admission.
+
+#### Scenario: unknown shell command targets a protected root
+
+- **WHEN** a shell pre-run check sees an unclassified command in an accepted,
+  candidate, or release root without bound paths
+- **THEN** ETHOS blocks the command as protected-root mutation risk
+- **AND** the caller must route the change through an owned Work Lane and
+  `ethos lane prewrite`
+
+### Requirement: Work Lane writes are lease and actor bound
+
+Tracked Work Lane writes SHALL require an active Work Lane lease and a runtime
+actor that matches the lease owner.
+
+#### Scenario: actor does not own the Work Lane lease
+
+- **WHEN** `ethos lane prewrite` runs for a Work Lane whose lease owner differs
+  from `ETHOS_ACTOR`
+- **THEN** the report blocks the write with a Work Lane actor mismatch gap
+- **AND** visibility of the Work Lane does not authorize write, land, retire, or
+  cleanup
+
+### Requirement: Candidate ref movement is proof-bound
+
+Candidate ref movement SHALL be protected by executed proof bound to the new
+candidate head, just like accepted-root closeout.
+
+#### Scenario: raw candidate ref update lacks executed proof
+
+- **WHEN** a ref update attempts to move `candidate/dev` without sanctioned ETHOS
+  land semantics and executed proof for the new head
+- **THEN** the reference-transaction admission blocks the ref movement
+- **AND** sanctioned land may proceed only through the explicit ETHOS ref-move
+  allowance after its own proof checks
+
+### Requirement: Publish reports local readiness without remote publication
+
+`ethos publish` SHALL report local publish readiness and deferred remote
+publication as separate facts, using current state vocabulary only.
+
+#### Scenario: local publish readiness is available but remote push is deferred
+
+- **WHEN** `ethos publish --json` runs without applying a remote push
+- **THEN** the state is `local_publish_ready` when local gates are satisfied
+- **AND** `remote_push` is `not_performed`
+- **AND** hosted CI success is not claimed
+- **AND** the payload does not expose retired publish-state vocabulary

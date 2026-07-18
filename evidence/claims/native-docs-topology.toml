@@ -1,0 +1,68 @@
+[claim]
+id = "native-docs-topology"
+subject = "ethos:native-docs-topology"
+state = "active"
+summary = "ETHOS documentation topology uses a minimal declared governed docs kernel instead of `current`/`future` truth lanes."
+
+[evidence]
+dated = "evidence/chronicle/native-docs-topology/2026-07-08.md"
+sha256 = "0d8057e04aa908da01ec92143f26fd0cb98b8012ad7824ccc787bd0ce8d2b1aa"
+evidence_ids = ["evidence:native-docs-topology"]
+binding = "declared docs topology, scaffold, OpenSpec, generated-artifact, and command-surface policy binding"
+verifier = "digest_only"
+tests = [
+  "uv run --package ethos ethos plan --changed --json",
+  "tools/ci/scripts/run-python-lint.sh",
+  "tools/ci/scripts/run-python-tests.sh",
+  "tools/ci/scripts/run-shell-lint.sh",
+  "uv run --package ethos ethos quality docs-topology --json",
+  "uv run --package ethos ethos quality docs-registry --json",
+  "uv run --package ethos ethos quality generated-artifacts --json",
+  "ETHOS_ACTOR=codex uv run --all-packages ethos parity shadow --adopter generic --target . --execute --write-evidence --json",
+  "uv run --package ethos ethos parity gaps --json",
+  "uv run openspec validate --all --strict --json",
+  "uv run --group dev pytest tests/unit/kernel/test_invalid_states.py tests/unit/governance/test_docs_topology.py -q",
+  "uv run --group dev pytest tests/architecture/test_release_assets.py::test_python_test_gate_enforces_coverage_floor tests/architecture/test_testing_platform.py::test_python_test_platform_is_parallel_timeout_bound_and_owner_scripted tests/architecture/test_testing_platform.py::test_python_test_gate_isolates_worker_local_proof_state -q",
+  "uv run --group dev pytest tests/unit/audit/test_modes.py::test_report_uses_shallow_repository_audit tests/unit/cli/test_contracts.py::test_quality_schema_gate_and_commit_commands_are_available tests/unit/cli/test_contracts.py::test_report_scorecard_is_derived_from_governance_checks tests/unit/cli/test_contracts_closeout.py::test_land_closeout_apply_fast_forwards_accepted_root_from_candidate tests/unit/coverage/test_cov_adapters_edges.py::test_signature_policy_clean_when_signing_required tests/unit/lanes/test_hook_admission.py::test_proof_state_dir_defaults_to_repository_local_state tests/unit/lanes/test_hook_admission.py::test_proof_state_dir_test_override_is_worker_local -q",
+]
+
+[evidence.freshness]
+mode = "historical"
+[boundary]
+owner = "ethos-repository"
+scope = "Minimal semantic documentation topology, adoption scaffold extension boundaries, generated-artifact docs boundary, and command-surface governed-doc selectors."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-08-native-docs-topology"
+fallback = "Keep required docs topology to navigation, decisions, evidence, history, and reference while product or domain docs remain optional extension roots."
+kill_signal = "A required docs topology path, scaffold output, or active navigation surface reintroduces predecessor `current`/`future` docs roots or mandatory contract/evolution replacement lanes."
+
+[promotion]
+targets = [
+  "docs/README.md",
+  "docs/index.md",
+  "docs/architecture/docs-topology.md",
+  "docs/reference/command-plane.md",
+  "docs/decisions/accepted/DR-0004-native-documentation-topology-contract.md",
+  "docs/decisions/superseded/DR-0002-documentation-topology-isomorphism-contract.md",
+  "openspec/specs/repository-governance/spec.md",
+  "openspec/changes/archive/2026-07-08-native-docs-topology/proposal.md",
+  "openspec/changes/archive/2026-07-08-native-docs-topology/design.md",
+  "openspec/changes/archive/2026-07-08-native-docs-topology/tasks.md",
+  "openspec/changes/archive/2026-07-08-native-docs-topology/specs/repository-governance/spec.md",
+  "packages/ethos-core/src/ethos_core/contracts/docs/topology.py",
+  "packages/ethos-core/src/ethos_core/contracts/artifacts/topology.py",
+  "packages/ethos/src/ethos/repository/policy/docs/topology.py",
+  "packages/ethos/src/ethos/repository/adoption/scaffold/core.py",
+  "packages/ethos/src/ethos/repository/adoption/scaffold/templates.py",
+  "packages/ethos/src/ethos/repository/adoption/scaffold/template_files/documents",
+  "packages/ethos/src/ethos/repository/registry/commands.py",
+  "tests/unit/governance/test_docs_topology.py",
+  "tests/architecture/test_generated_artifact_topology_docs.py",
+  "tests/unit/adoption/test_apply_sample.py",
+  "tests/unit/adoption/test_retirement.py",
+  "tests/unit/cli/test_command_registry.py",
+  "tests/unit/coverage/test_cov_v2_registry_edges.py",
+  "evidence/chronicle/native-docs-topology/2026-07-08.md",
+  "evidence/claims/native-docs-topology.toml",
+]

@@ -10,29 +10,21 @@ dated = "evidence/chronicle/evolution-ledger-ssot/2026-07-07.md"
 sha256 = "d3d710bb55125cd42dc70309f4c1f5c3580e31e5f8d07b11f93eb6edbe26bcd6"
 evidence_ids = ["evidence:evolution-ledger-ssot"]
 binding = "Evolution ledger SSOT binding"
-verifier = "semantic"
+verifier = "digest_only"
 tests = [
   "ethos campaign hypotheses --json",
   "ethos quality schemas --json",
   "openspec validate evolution-ledger-ssot-20260707 --strict --json",
   "openspec validate --all --strict --json",
-  ".config/ci/scripts/run-python-lint.sh",
-  ".config/ci/scripts/run-config-lint.sh",
-  ".config/ci/scripts/run-docstring-coverage.sh",
-  ".config/ci/scripts/run-python-tests.sh",
+  "tools/ci/scripts/run-python-lint.sh",
+  "tools/ci/scripts/run-config-lint.sh",
+  "tools/ci/scripts/run-docstring-coverage.sh",
+  "tools/ci/scripts/run-python-tests.sh",
   "ethos prove --execute --expect-head 978a98021b23d2843a0aff7b75313126d4f4ed55 --json",
 ]
 
-[scope]
-packages = ["ethos"]
-tests = [
-  "tests/unit/governance/test_evolution_ledger.py",
-  "tests/unit/coverage/test_admission_land_evolution_rules_edges.py",
-  "tests/unit/governance/test_validation_gates.py",
-  "tests/unit/audit/test_depth.py",
-  "tests/unit/cli/test_contracts.py",
-]
-
+[evidence.freshness]
+mode = "historical"
 [boundary]
 owner = "ethos"
 scope = "Evolution ledger physical truth path, schema validation, campaign hypothesis reader, audit release files, assistant context resource, and config lint deletion robustness"
@@ -50,9 +42,9 @@ targets = [
   "packages/ethos/src/ethos/repository/adoption/evolution.py",
   "packages/ethos/src/ethos/repository/policy/schema.py",
   "packages/ethos/src/ethos/repository/audit.py",
-  "packages/ethos/src/ethos/assistants/context.py",
+  "packages/ethos/src/ethos/assistants/context/bundle.py",
   "system/schemas/kernel/evolution-ledger.schema.json",
-  ".config/ci/scripts/run-config-lint.sh",
+  "tools/ci/scripts/run-config-lint.sh",
   "openspec/changes/archive/2026-07-06-evolution-ledger-ssot-20260707",
   "evidence/claims/evolution-ledger-ssot.toml",
   "evidence/chronicle/evolution-ledger-ssot/2026-07-07.md",

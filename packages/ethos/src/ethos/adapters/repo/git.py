@@ -14,13 +14,18 @@ from pathlib import Path
 
 def current_head(root: Path) -> str:
     """Return the current HEAD sha, or 'untracked' if not a resolvable ref."""
-    completed = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
-        cwd=root,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
+    try:
+        completed = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=root,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+    except (FileNotFoundError, NotADirectoryError):
+        # root does not exist (e.g. a stale or foreign target path): treat as untracked
+        # rather than crashing — the caller reports a gap, not an exception.
+        return "untracked"
     if completed.returncode != 0:
         return "untracked"
     return completed.stdout.strip()
@@ -32,18 +37,116 @@ def current_tracked_head(root: Path) -> str:
     return "" if head == "untracked" else head
 
 
-def git_stdout(root: Path, *args: str) -> str:
-    """Run `git <args>` in root and return stripped stdout, or '' on failure."""
+def git_stdout_checked(root: Path, *args: str) -> str:
+    """Run `git <args>` in root and return stdout, raising on failure."""
     completed = subprocess.run(
         ["git", *args],
         cwd=root,
+        check=True,
         text=True,
         capture_output=True,
-        check=False,
     )
+    return completed.stdout.rstrip("\n")
+
+
+def git_stdout(root: Path, *args: str) -> str:
+    """Run `git <args>` in root and return stripped stdout, or '' on failure."""
+    try:
+        completed = subprocess.run(
+            ["git", *args],
+            cwd=root,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+    except (FileNotFoundError, NotADirectoryError):
+        # root does not exist: no git facts to read, same as a failed command.
+        return ""
     if completed.returncode != 0:
         return ""
     return completed.stdout.strip()
+
+
+def committed_file_text(root: Path, ref: str, path: str) -> str:
+    """Return a tracked file's text from a committed tree, or '' when unavailable."""
+    return git_stdout(root, "show", f"{ref}:{path}") if ref else ""
+
+
+def remote_tracking_sync(root: Path, branch: str, remote: str = "origin") -> dict[str, object]:
+    """Project local HEAD versus the local remote-tracking ref without network IO."""
+    branch_name = branch.strip()
+    remote_name = remote.strip() or "origin"
+    remote_ref = f"{remote_name}/{branch_name}" if branch_name else remote_name
+    local_head = current_tracked_head(root)
+    if not branch_name:
+        return {
+            "kind": "git_remote_tracking_sync",
+            "remote": remote_name,
+            "branch": branch_name,
+            "remote_ref": remote_ref,
+            "state": "branch_unknown",
+            "local_head": local_head,
+            "remote_head": "",
+            "ahead": 0,
+            "behind": 0,
+            "available": False,
+            "blocking": False,
+            "required_gaps": [],
+            "advisory_gaps": ["remote_tracking_branch_unknown"],
+        }
+    remote_head = git_stdout(root, "rev-parse", "--verify", remote_ref)
+    if not remote_head:
+        return {
+            "kind": "git_remote_tracking_sync",
+            "remote": remote_name,
+            "branch": branch_name,
+            "remote_ref": remote_ref,
+            "state": "remote_tracking_missing",
+            "local_head": local_head,
+            "remote_head": "",
+            "ahead": 0,
+            "behind": 0,
+            "available": False,
+            "blocking": False,
+            "required_gaps": [],
+            "advisory_gaps": [f"remote_tracking_missing:{remote_ref}"],
+        }
+    counts = git_stdout(root, "rev-list", "--left-right", "--count", f"{remote_ref}...HEAD")
+    try:
+        behind_text, ahead_text = counts.split()[:2]
+        behind = int(behind_text)
+        ahead = int(ahead_text)
+    except (IndexError, ValueError):
+        behind = 0
+        ahead = 0
+    if ahead and behind:
+        state = "diverged"
+    elif ahead:
+        state = "local_ahead"
+    elif behind:
+        state = "local_behind"
+    else:
+        state = "synchronized"
+    advisory = (
+        []
+        if state == "synchronized"
+        else [f"remote_tracking_{state}:{remote_ref}:{ahead}:{behind}"]
+    )
+    return {
+        "kind": "git_remote_tracking_sync",
+        "remote": remote_name,
+        "branch": branch_name,
+        "remote_ref": remote_ref,
+        "state": state,
+        "local_head": local_head,
+        "remote_head": remote_head,
+        "ahead": ahead,
+        "behind": behind,
+        "available": True,
+        "blocking": False,
+        "required_gaps": [],
+        "advisory_gaps": advisory,
+    }
 
 
 def set_hooks_path(root: Path, hooks_path: str) -> bool:
@@ -200,4 +303,29 @@ def remote_availability(
         "stderr": completed.stderr.strip(),
         "required_gaps": [],
         "advisory_gaps": [f"remote_unavailable:{remote}"],
+    }
+
+
+def remote_availability_not_probed(root: Path, remote: str = "origin") -> dict[str, object]:
+    """Describe a configured remote without performing a network reachability probe."""
+    url = git_stdout(root, "remote", "get-url", remote)
+    if not url:
+        return {
+            "kind": "git_remote_availability",
+            "remote": remote,
+            "state": "unconfigured",
+            "available": False,
+            "blocking": False,
+            "required_gaps": [],
+            "advisory_gaps": [f"remote_unconfigured:{remote}"],
+        }
+    return {
+        "kind": "git_remote_availability",
+        "remote": remote,
+        "url": url,
+        "state": "not_probed",
+        "available": False,
+        "blocking": False,
+        "required_gaps": [],
+        "advisory_gaps": [],
     }

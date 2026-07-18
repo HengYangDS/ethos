@@ -1,0 +1,17 @@
+schema = "ethos-closeout-evidence-manifest-v1"
+owner = "ethos-quality-gate-governance"
+runner = "tools/ci/scripts/run-closeout-evidence-manifest.sh"
+summary = "Hash reviewed closeout evidence references without promoting generated logs to truth."
+output = "build/evidence/workflow/closeout/manifest.json"
+
+required_roots = [
+  "evidence/claims",
+  "evidence/chronicle",
+  "openspec/changes",
+]
+
+[[topic]]
+id = "tooling-adoption-roadmap"
+claim = "evidence/claims/tooling-adoption-roadmap.toml"
+chronicle = "evidence/chronicle/tooling-adoption-roadmap/2026-07-09.md"
+openspec = "openspec/changes/archive/2026-07-09-complete-planning-closeout/tasks.md"

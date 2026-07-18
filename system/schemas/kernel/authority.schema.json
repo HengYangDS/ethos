@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ethos.local/schemas/authority.schema.json",
+  "title": "ETHOS Authority",
+  "type": "object",
+  "required": ["id", "order_ref", "derived_views", "policy_refs"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "order_ref": {"type": "string", "minLength": 1},
+    "derived_views": {"type": "array", "items": {"type": "string"}},
+    "policy_refs": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": false
+}

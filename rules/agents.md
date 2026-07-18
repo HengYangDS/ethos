@@ -23,6 +23,6 @@ Purpose: define how agents load repository truth and avoid stale context.
 - Before non-trivial governance design, rule, skill-system, hook, scaffold,
   release, evidence, or product-shape mutation, verify the dedicated OpenSpec
   change with `openspec status --change <change> --json`.
-- Use repo-local skills from `skills/` when activation matches.
+- Use repo-local skills from `.agents/skills/` when activation matches.
 - Use official external skills as method packs; do not vendor their runtime
   instructions into repository truth.

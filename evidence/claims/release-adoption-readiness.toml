@@ -1,0 +1,59 @@
+[claim]
+id = "release-adoption-evidence"
+subject = "ethos:release-adoption-readiness"
+state = "active"
+change_id = "2026-07-08-release-adoption-readiness"
+summary = "ETHOS records 2026-07-09 release smoke, external adoption pilot diagnostics, local publish readiness, and local-versus-remote delivery boundary evidence without asserting forge-run checks or registry delivery."
+
+[evidence]
+dated = "evidence/chronicle/release-adoption-readiness/2026-07-09.md"
+sha256 = "3bcd6959507f6e5dd2c06a0a461714456a80490919381b08c081a4da70c7239e"
+evidence_ids = ["evidence:release-adoption-readiness"]
+binding = "digest-bound release artifact, adoption pilot, remote-ref, and forge-run boundary evidence binding"
+verifier = "digest_only"
+tests = [
+  "uv run --package ethos ethos quality release --json",
+  "uv run --package ethos ethos quality release-policy --json",
+  "uv run --package ethos ethos quality release-attestation --json",
+  "uv build --all-packages",
+  "npm ci --ignore-scripts",
+  "npm exec -- ethos --version",
+  "node distributions/npm/bin/ethos.mjs --version",
+  "npm pack --dry-run",
+  "uv run --package ethos ethos adopt --root <generic-pilot> --profile generic --apply --authorize --expect-head <head> --json",
+  "uv run --package ethos ethos adopt --root <python-pilot> --profile python --apply --authorize --expect-head <head> --json",
+  "uv run --package ethos ethos adopt --root <gitlab-pilot> --profile gitlab --apply --authorize --expect-head <head> --json",
+  "uv run --package ethos ethos adopt --root <gitlab-conflict-pilot> --profile gitlab --apply --authorize --expect-head <head> --json",
+  "uv run --package ethos ethos status --root <pilot> --json",
+  "uv run --package ethos ethos report --root <pilot> --json",
+  "uv run --package ethos ethos playbooks check --root <pilot> --mode v2-strict --json",
+  "uv run --package ethos ethos prove --root <pilot> --json",
+  "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --write-evidence --json",
+  "uv run --package ethos ethos parity gaps --json",
+  "git ls-remote origin refs/heads/dev",
+  "uv run --package ethos ethos publish --json",
+  "uv run --package ethos ethos prove --execute --expect-head $(git rev-parse HEAD) --json",
+  "tools/ci/scripts/run-local-ci.sh",
+]
+
+[evidence.freshness]
+mode = "historical"
+[boundary]
+owner = "ethos-repository"
+scope = "Release smoke, external adoption pilots, local publish readiness, remote-ref alignment, and hosted-CI claim boundary"
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-08-release-adoption-readiness"
+fallback = "Keep release and adoption run logs as diagnostics only and do not claim release/adoption readiness until tracked evidence is refreshed."
+kill_signal = "Local release or adoption readiness is presented as hosted CI success, remote publication, registry publication, or external adopter overwrite authority."
+
+[promotion]
+targets = [
+  "evidence/chronicle/release-adoption-readiness/2026-07-09.md",
+  "evidence/claims/release-adoption-readiness.toml",
+  "evidence/parity/generic-shadow.json",
+  "openspec/changes/archive/2026-07-08-release-adoption-readiness/proposal.md",
+  "openspec/changes/archive/2026-07-08-release-adoption-readiness/design.md",
+  "openspec/changes/archive/2026-07-08-release-adoption-readiness/tasks.md",
+  "openspec/changes/archive/2026-07-08-release-adoption-readiness/specs/repository-governance/spec.md",
+]

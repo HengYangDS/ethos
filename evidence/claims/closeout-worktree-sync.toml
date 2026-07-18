@@ -1,19 +1,21 @@
-schema_version = 1
+[claim]
 id = "closeout-worktree-sync"
-summary = "Accepted-root closeout now synchronizes the accepted worktree and index to the promoted candidate head."
-state = "accepted"
 subject = "repository-governance:closeout-worktree-sync"
-evidence = "evidence/chronicle/closeout-worktree-sync/2026-07-07.md"
+state = "accepted"
+summary = "Accepted-root closeout now synchronizes the accepted worktree and index to the promoted candidate head."
 
-[bindings]
-head = "1c5c481e138e9ed02d18b8bde3a1814c21d7ce76"
+[evidence]
+dated = "evidence/chronicle/closeout-worktree-sync/2026-07-07.md"
+sha256 = "8dc08746caed118370aa6c35f5fcacebd44f29b252ecda0e8005745a3a0f1eb6"
+tests = [
+  "tests/unit/lanes/test_apply.py::test_accepted_root_closeout_fast_forwards_configured_candidate_branch",
+]
+
+[evidence.freshness]
+mode = "historical"
 
 [carriers]
 openspec = "openspec/changes/archive/2026-07-07-closeout-worktree-sync"
 
-[[claim_bindings]]
-kind = "test"
-ref = "tests/unit/lanes/test_apply.py::test_accepted_root_closeout_fast_forwards_configured_candidate_branch"
-
-[[promotion_targets]]
-path = "packages/ethos/src/ethos/adapters/mutation/core.py"
+[promotion]
+targets = ["packages/ethos/src/ethos/adapters/mutation/core.py"]

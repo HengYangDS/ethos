@@ -1,0 +1,58 @@
+[claim]
+id = "closeout-residue-advisory"
+subject = "ethos:closeout-residue-advisory"
+state = "active"
+summary = "ETHOS exposes closeout residue as a non-authorizing foreign-lane disposition read model and keeps sanctioned Work Lane replay inside admission."
+
+[evidence]
+dated = "evidence/chronicle/closeout-residue-advisory/2026-07-09.md"
+sha256 = "1b25bc6e502f70622793ff85d5b9ba378a4e2d8dca3473155e412da4d60e4097"
+evidence_ids = ["evidence:closeout-residue-advisory"]
+binding = "workspace-status foreign-lane closeout disposition, report advisory routing, sanctioned Work Lane replay admission, and OpenSpec repository-governance scenarios"
+verifier = "digest_only"
+tests = [
+  "uv run --package ethos ethos openspec --lifecycle --json",
+  "openspec validate --all --strict --json",
+  "python -m json.tool system/schemas/kernel/workspace-status.schema.json",
+  "uv run --all-packages --group dev ruff check packages/ethos/src/ethos/adapters/admission/prewrite.py packages/ethos/src/ethos/adapters/repo/coordination.py packages/ethos/src/ethos/adapters/repo/status/bindings.py packages/ethos/src/ethos/adapters/repo/status/core.py packages/ethos/src/ethos/domain/report.py packages/ethos/src/ethos/domain/orient.py tests/unit/lanes/test_hook_admission.py tests/unit/lanes/test_lanes.py tests/unit/domain/test_report.py tests/unit/governance/validation/test_schemas.py",
+  "uv run --all-packages --group dev pytest tests/unit/lanes/test_hook_admission.py tests/unit/lanes/test_lanes.py tests/unit/domain/test_report.py tests/unit/cli/test_contracts_lane.py tests/unit/product/test_orient.py tests/unit/governance/validation/test_schemas.py -q",
+  "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --write-evidence --timeout-seconds 60 --json",
+  "uv run --package ethos ethos parity gaps --json",
+  "uv run --package ethos ethos quality claims --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+[boundary]
+owner = "ethos-repository"
+scope = "Closeout disposition advisory read model for foreign Work Lanes and sanctioned Work Lane replay admission"
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-08-closeout-residue-advisory"
+
+fallback = "Use ethos lane status --json and inspect foreign Work Lane relation, dirty state, lease, and claim binding directly."
+kill_signal = "status/report hide foreign-lane closeout disposition, or advisory signals imply mutation authority over a foreign Work Lane."
+
+[promotion]
+targets = [
+  "packages/ethos/src/ethos/adapters/admission/prewrite.py",
+  "packages/ethos/src/ethos/adapters/repo/coordination.py",
+  "packages/ethos/src/ethos/adapters/repo/status/bindings.py",
+  "packages/ethos/src/ethos/adapters/repo/status/core.py",
+  "packages/ethos/src/ethos/domain/orient.py",
+  "packages/ethos/src/ethos/domain/report.py",
+  "system/schemas/kernel/workspace-status.schema.json",
+  "tests/unit/lanes/test_hook_admission.py",
+  "tests/unit/lanes/test_lanes.py",
+  "tests/unit/domain/test_report.py",
+  "tests/unit/governance/validation/test_schemas.py",
+  "openspec/specs/repository-governance/spec.md",
+  "openspec/changes/archive/2026-07-08-closeout-residue-advisory/.openspec.yaml",
+  "openspec/changes/archive/2026-07-08-closeout-residue-advisory/proposal.md",
+  "openspec/changes/archive/2026-07-08-closeout-residue-advisory/design.md",
+  "openspec/changes/archive/2026-07-08-closeout-residue-advisory/tasks.md",
+  "openspec/changes/archive/2026-07-08-closeout-residue-advisory/specs/repository-governance/spec.md",
+  "evidence/chronicle/closeout-residue-advisory/2026-07-09.md",
+  "evidence/claims/closeout-residue-advisory.toml",
+  "evidence/parity/generic-shadow.json",
+]

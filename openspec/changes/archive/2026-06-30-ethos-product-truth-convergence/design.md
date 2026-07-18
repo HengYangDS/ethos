@@ -5,8 +5,8 @@ ETHOS now distinguishes three product states:
 1. Target product homes: buildable packages that define the future ontology.
 2. Migration hosts: existing implementation packages that remain active until
    parity-driven migration is complete.
-3. Adopter profiles: repository-specific governance such as dmgr raw/cache and
-   alphasim compatibility, which must not enter product core.
+3. Adopter profiles: repository-specific governance such as adopter adopter-domain storage and
+   reference-adopter compatibility, which must not enter product core.
 
 The public command plane gains `ethos parity` as a product migration control
 surface. The command emits the capability ledger, reports remaining migration

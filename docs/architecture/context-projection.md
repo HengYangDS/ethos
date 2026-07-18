@@ -1,6 +1,6 @@
 ---
 subject: ethos:context-projection
-role: reference
+role: explanation
 state: canonical
 relations:
   canonical_for: source-verified assistant retrieval

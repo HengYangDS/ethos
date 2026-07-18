@@ -1,0 +1,3 @@
+# No independent_verification table: default local-first behaviour is disabled.
+profile_id = "external-disabled"
+profile_version = 1

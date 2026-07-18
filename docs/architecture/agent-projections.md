@@ -1,6 +1,6 @@
 ---
 subject: ethos:agent-projections
-role: reference
+role: explanation
 state: canonical
 relations:
   canonical_for: assistant and protocol surfaces
@@ -23,7 +23,7 @@ Repo-local Skills V2 packages follow the same boundary. `SKILL.md` is a
 loadable workflow package, `package.toml` is package inventory and digest
 metadata, and `.agents/skills/activation.toml` is the ETHOS activation registry
 input. None of those surfaces can introduce repository truth outside source,
-tests, schemas, current docs, promoted OpenSpec records, claims, evidence, and
+tests, schemas, canonical docs, promoted OpenSpec records, claims, evidence, and
 command JSON.
 
 Projection rules:

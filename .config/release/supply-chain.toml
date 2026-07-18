@@ -1,0 +1,20 @@
+schema = "ethos-release-supply-chain-v1"
+owner = "ethos-quality-gate-governance"
+runner = "tools/ci/scripts/run-release-supply-chain.sh"
+summary = "Release-profile evidence uses ETHOS-native SBOM, attestation, and policy envelopes before optional external signing adapters."
+output = "build/evidence/release/supply-chain.json"
+
+commands = [
+  "uv run --package ethos ethos quality sbom --json",
+  "uv run --package ethos ethos quality release-attestation --json",
+  "uv run --package ethos ethos quality release-policy --json",
+]
+
+[boundary]
+claim = "local release evidence envelope generated"
+not_claimed = [
+  "remote release published",
+  "cosign signature uploaded",
+  "SLSA provenance uploaded",
+  "hosted CI passed",
+]

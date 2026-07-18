@@ -1,23 +1,22 @@
-schema_version = 1
+[claim]
 id = "protected-openspec-residue-gate"
-summary = "OpenSpec shape audit surfaces protected branch active-carrier residue while blocking current protected roots."
-state = "accepted"
 subject = "repository-governance:protected-openspec-residue-gate"
-evidence = "evidence/chronicle/protected-openspec-residue-gate/2026-07-07.md"
+state = "accepted"
+summary = "OpenSpec shape audit surfaces protected branch active-carrier residue while blocking current protected roots."
 
-[bindings]
-head = "20d92d5ded67b78fc18edff8c2314a203d9eea0e"
+[evidence]
+dated = "evidence/chronicle/protected-openspec-residue-gate/2026-07-07.md"
+sha256 = "9ec953a492f008447c710488fe085a63a3072eaf197eb6cb4066c4359dc95273"
+tests = [
+  "tests/unit/audit/test_modes.py::test_openspec_shape_surfaces_active_change_on_non_current_protected_branch",
+  "tests/unit/audit/test_modes.py::test_openspec_shape_blocks_active_change_on_current_release_root",
+]
+
+[evidence.freshness]
+mode = "historical"
 
 [carriers]
 openspec = "openspec/changes/archive/2026-07-07-protected-openspec-residue-gate"
 
-[[claim_bindings]]
-kind = "test"
-ref = "tests/unit/audit/test_modes.py::test_openspec_shape_surfaces_active_change_on_non_current_protected_branch"
-
-[[claim_bindings]]
-kind = "test"
-ref = "tests/unit/audit/test_modes.py::test_openspec_shape_blocks_active_change_on_current_release_root"
-
-[[promotion_targets]]
-path = "packages/ethos/src/ethos/repository/audit_openspec.py"
+[promotion]
+targets = ["packages/ethos/src/ethos/repository/openspec/audit.py"]

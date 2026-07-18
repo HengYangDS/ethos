@@ -27,13 +27,19 @@ The adopter owns domain truth:
 
 - domain contracts and compatibility boundaries;
 - repository-native tool configuration;
-- current docs and decisions;
+- canonical docs and decisions;
 - durable evidence;
 - repo-local skills and projections;
 - domain-specific gates and accepted exceptions.
 
 A profile changes required gates, proof depth, evidence classes, and adapter
 bindings. It does not change ETHOS command semantics or kernel ontology.
+
+Independent proof re-execution is one such adapter binding. It is default-off,
+may be selected only for particular actions, and keeps provider identity, keys,
+anchors, and receipt paths outside the adopter repository. A generic product
+self-shadow cannot establish the external subject and evidence ownership needed
+for adopter parity.
 
 ## Migration Lifecycle
 
@@ -54,10 +60,11 @@ profile contract
 
 An embedded implementation may be retired only after external ETHOS is proven
 at least as strong for the adopter. This proof must be same repository, same
-HEAD, same changed paths, same evidence inputs, and structured shadow diff.
-The first retirement gate is the shadow identity envelope: tracked evidence must
-bind target root, target HEAD, product HEAD, compared command identities, changed
-paths, and evidence input digests before semantic diff results can be used.
+HEAD, same changed paths, same evidence inputs, structured shadow diff, and a
+clean documentation-topology audit for the adopter target. The first retirement
+gate is the shadow identity envelope: tracked evidence must bind target root,
+target HEAD, product HEAD, compared command identities, changed paths, and
+evidence input digests before semantic diff results can be used.
 
 Allowed outcomes:
 
@@ -79,6 +86,7 @@ external accepts stale evidence
 external turns blocking into advisory
 external treats dry-run as live proof
 external loses domain gate planning obligations
+external permits embedded retirement while the common docs kernel is missing
 ```
 
 ## Rollback Window

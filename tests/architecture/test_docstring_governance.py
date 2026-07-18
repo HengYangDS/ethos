@@ -11,8 +11,9 @@ def test_docstring_policy_admits_google_style_with_signature_checks() -> None:
         (ROOT / ".config/checks/docstrings/policy.toml").read_text(encoding="utf-8")
     )
     ruff = (ROOT / ".config/checks/ruff/ruff.toml").read_text(encoding="utf-8")
-    runner = (ROOT / ".config/ci/scripts/run-docstring-coverage.sh").read_text(encoding="utf-8")
+    runner = (ROOT / "tools/ci/scripts/run-docstring-coverage.sh").read_text(encoding="utf-8")
 
+    assert policy["fail_under"] == 100
     assert policy["style"] == "google"
     assert policy["allow_short_docstrings"] is True
     assert policy["check_structured_signature"] is True
@@ -23,11 +24,11 @@ def test_docstring_policy_admits_google_style_with_signature_checks() -> None:
 
 
 def test_docstring_gate_exposes_broader_nonblocking_inventory() -> None:
-    source = (ROOT / "packages/ethos/src/ethos/repository/policy/docstrings.py").read_text(
+    source = (ROOT / "packages/ethos/src/ethos/repository/policy/docstrings/core.py").read_text(
         encoding="utf-8"
     )
-    quality = (ROOT / "packages/ethos/src/ethos/surface/cli/quality.py").read_text(encoding="utf-8")
+    commands = (ROOT / "system/commands.toml").read_text(encoding="utf-8")
 
     assert "advisory_public_definition_inventory" in source
     assert '"blocking": False' in source
-    assert "advisory_missing_count" in quality
+    assert "advisory_missing_count" in commands

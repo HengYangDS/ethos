@@ -1,0 +1,1 @@
+"""Campaign-stage domain reducers."""

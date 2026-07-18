@@ -4,7 +4,6 @@ import hashlib
 from pathlib import Path  # noqa: TC003
 
 from ethos.repository.evidence.claims import claims_report
-from ethos.repository.registry.authority import authority_graph_report
 from ethos.repository.release.core import release_config
 from ethos.repository.release.core import release_policy_report
 from ethos.repository.release.core import version_manifest
@@ -58,7 +57,7 @@ targets = ["docs/guide.md", "missing.py"]
     assert report["ok"] is False
     gaps = report["required_gaps"]
     assert "sample:evidence.head_stale:old-head!=new-head" in gaps
-    assert "sample:semantic_overclaim_requires_semantic_verifier" in gaps
+    assert "sample:claim_assurance_invalid" in gaps
     assert "sample:fallback_missing" in gaps
     assert "sample:kill_signal_missing" in gaps
     assert "sample:promotion_target_missing:missing.py" in gaps
@@ -141,63 +140,3 @@ signing = "local"
     assert "host_surface_missing:gitlab:ci:.gitlab-ci.yml" in report["required_gaps"]
     assert "attestation_formats_incomplete" in report["required_gaps"]
     assert "release_file_missing:README.md" in report["required_gaps"]
-
-
-def test_authority_graph_report_validates_shape_refs_and_reverse_supersession(tmp_path: Path):
-    graph = tmp_path / "docs" / "_meta" / "authority_graph.toml"
-    graph.parent.mkdir(parents=True)
-    (tmp_path / "docs" / "root.md").write_text("root", encoding="utf-8")
-    (tmp_path / "evidence" / "root.md").parent.mkdir()
-    (tmp_path / "evidence" / "root.md").write_text("ev", encoding="utf-8")
-    graph.write_text(
-        """
-[[node]]
-id = "root"
-owner = "team"
-canonical_for = ["truth"]
-stable_path = "docs/root.md"
-relation_type = "authority"
-doc_refs = ["docs/root.md"]
-evidence_refs = ["evidence/root.md"]
-
-[[node]]
-id = "view"
-owner = "team"
-derived_from = ["root"]
-supersedes = ["old"]
-stable_path = "docs/missing.md"
-relation_type = "derived_view"
-doc_refs = ["docs/missing.md"]
-evidence_refs = ["docs/not-evidence.md"]
-
-[[node]]
-id = "old"
-owner = "team"
-stable_path = "docs/root.md"
-relation_type = "superseded_vocabulary"
-doc_refs = ["docs/root.md"]
-evidence_refs = ["evidence/missing.md"]
-""".strip(),
-        encoding="utf-8",
-    )
-
-    report = authority_graph_report(tmp_path)
-    entries = {entry["id"]: entry for entry in report["entries"]}
-
-    assert report["ok"] is False
-    assert entries["old"]["superseded_by"] == ["view"]
-    assert "view:stable_path_missing:docs/missing.md" in report["required_gaps"]
-    assert "view:doc_ref_missing:docs/missing.md" in report["required_gaps"]
-    assert "view:evidence_ref_not_evidence:docs/not-evidence.md" in report["required_gaps"]
-    assert "old:evidence_ref_missing:evidence/missing.md" in report["required_gaps"]
-
-
-def test_authority_graph_report_handles_missing_and_invalid_toml(tmp_path: Path):
-    missing = authority_graph_report(tmp_path)
-    assert missing["required_gaps"] == ["authority_graph_missing"]
-
-    graph = tmp_path / "docs" / "_meta" / "authority_graph.toml"
-    graph.parent.mkdir(parents=True)
-    graph.write_text("[[node]\n", encoding="utf-8")
-    invalid = authority_graph_report(tmp_path)
-    assert invalid["required_gaps"][0].startswith("authority_graph_invalid_toml:")

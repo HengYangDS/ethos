@@ -9,7 +9,7 @@ pytest in this lane uses `pyproject.toml [tool.pytest.ini_options] pythonpath`
   (a file only the lane has) collects+passes; `ethos_repository.governance_profiles.__file__`
   resolves to the lane path under pytest.
 - The venv editable-install `.pth` hardcodes ABSOLUTE main-repo paths
-  (`/Users/yheng/projects/ethos/packages/*/src`). This ONLY affects bare
+  (`<accepted-root>/packages/*/src`). This ONLY affects bare
   `import ethos.cli` (non-pytest) and the `ethos` CLI binary — NOT pytest.
 - **Consequence for verification**: `python -m pytest ...` from the lane cwd is the
   AUTHORITATIVE verifier. Do NOT verify via the `ethos` CLI binary (it runs main-repo code).

@@ -4,7 +4,8 @@ from pathlib import Path
 
 from ethos.repository.registry.commands import command_registry_report
 from ethos.repository.registry.commands import public_commands
-from ethos.repository.registry.docs import command_examples_report
+from ethos.repository.registry.docs.commands import command_examples_report
+from ethos_core.contracts.commands import load_command_registry_declaration
 
 
 def test_command_registry_separates_public_workflow_from_maintainer_reference() -> None:
@@ -46,6 +47,17 @@ def test_command_registry_separates_public_workflow_from_maintainer_reference() 
     assert report["reader_view_count"] == 1
     assert report["scorecard_count"] == 1
     assert report["setup_count"] == 3
+
+
+def test_command_registry_classifications_compile_from_the_declaration() -> None:
+    declaration = load_command_registry_declaration()
+    report = command_registry_report()
+
+    assert tuple(report["public_workflow_commands"]) == declaration.sets.public_workflow
+    assert tuple(report["reader_view_commands"]) == declaration.sets.reader_view
+    assert tuple(report["scorecard_commands"]) == declaration.sets.scorecard
+    assert tuple(report["setup_commands"]) == declaration.sets.setup
+    assert tuple(report["maintainer_reference_commands"]) == (declaration.sets.maintainer_reference)
 
 
 def test_openspec_is_governance_dependency_not_second_public_command_plane() -> None:
@@ -117,17 +129,17 @@ def test_command_registry_scans_docs_for_retired_public_roots(tmp_path: Path) ->
 
 def test_command_registry_respects_adopter_command_surface_policy(tmp_path: Path) -> None:
     (tmp_path / "rules" / "ethos").mkdir(parents=True)
-    (tmp_path / "docs" / "current").mkdir(parents=True)
+    (tmp_path / "docs" / "governance").mkdir(parents=True)
     (tmp_path / "docs" / "evidence").mkdir(parents=True)
     (tmp_path / "rules" / "ethos" / "command-surface.toml").write_text(
         """
 [policy]
-current_doc_globs = ["docs/current/*.md"]
+governed_doc_globs = ["docs/governance/*.md"]
 historical_exempt_roots = ["evidence"]
 """.lstrip(),
         encoding="utf-8",
     )
-    (tmp_path / "docs" / "current" / "bad.md").write_text(
+    (tmp_path / "docs" / "governance" / "bad.md").write_text(
         "Do not promote `proof` here.\n",
         encoding="utf-8",
     )
@@ -140,7 +152,7 @@ historical_exempt_roots = ["evidence"]
 
     assert report["ok"] is False
     assert report["retired_public_root_mentions"] == [
-        "docs/current/bad.md:1:proof",
+        "docs/governance/bad.md:1:proof",
     ]
 
 
@@ -172,8 +184,8 @@ def test_current_product_surfaces_do_not_expose_legacy_compatibility_terms() -> 
     surfaces = (
         Path("packages/ethos/src/ethos/cli.py"),
         Path("packages/ethos/src/ethos/assistants/playbooks.py"),
-        Path("packages/ethos-core/src/ethos_core/contracts/skill_activation.py"),
-        Path("packages/ethos/src/ethos/adapters/shadow.py"),
+        Path("packages/ethos-core/src/ethos_core/contracts/skill/activation.py"),
+        Path("packages/ethos/src/ethos/adapters/shadow/core.py"),
         Path("system/schemas/kernel/campaign-closeout.schema.json"),
         Path("system/schemas/kernel/shadow-parity.schema.json"),
         Path("system/schemas/kernel/skill-registry.schema.json"),

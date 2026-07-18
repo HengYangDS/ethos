@@ -4,9 +4,9 @@ Describe the ETHOS subject, contract, transition, and inscriptions.
 
 ## Evidence
 
-- [ ] `uv run --group dev pytest tests/unit tests/architecture -q`
-- [ ] `uv run --group dev ruff check .`
-- [ ] `uv run --package ethos ethos self audit --json`
+- [ ] `tools/ci/scripts/run-python-tests.sh`
+- [ ] `tools/ci/scripts/run-python-lint.sh`
+- [ ] `uv run --package ethos ethos audit --mode shape --json`
 - [ ] `uv run --package ethos ethos report --json`
 
 ## Governance

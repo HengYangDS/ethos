@@ -16,8 +16,8 @@ Purpose: define tracked write admission and Work Lane discipline.
 - `accepted_root` and `candidate` checkouts are observe-only for normal edits.
 - Before writing, run `ethos status --json` and `ethos lane prewrite`.
 - Write-capable tools must carry an explicit target root or working directory
-  matching the admitted Work Lane. Do not rely on the chat session's default
-  filesystem context for tracked writes.
+  matching the admitted Work Lane. Do not rely on the host launch context's default
+  filesystem path for tracked writes.
 - When no `--root` is supplied, ETHOS commands bind to the current Git worktree
   root, not an accepted-root checkout or host launch directory.
 - Product-repository mutation admission must fail closed when the command
@@ -26,8 +26,15 @@ Purpose: define tracked write admission and Work Lane discipline.
 - If a write tool cannot bind target root, branch role, editor root, and target
   paths before mutation, treat it as degraded mode and run explicit prewrite
   immediately before the write.
-- If protected-root mutation is detected after the fact, stop normal work. Only
-  rollback, migration to a Work Lane, recovery evidence, or violation reporting
-  is allowed until the protected root is clean.
+- If protected-root mutation is detected after the fact, stop normal work. The
+  change must be classified before any further product work: useful work is
+  absorbed into an owned Work Lane with visible evidence, and useless or unsafe
+  pollution is reverted from the protected root. Only rollback, migration to a
+  Work Lane, recovery evidence, or violation reporting is allowed until the
+  protected root is clean.
+
+- Do not use `git stash` as a backup, handoff, residue, or closeout carrier.
+  Dirty work must either be absorbed into an owned Work Lane with visible
+  evidence or reverted from the protected root after classification.
 - Accepted-root closeout is not normal editing. It must run through audited
   closeout command semantics.

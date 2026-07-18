@@ -1,106 +1,19 @@
 from __future__ import annotations
 
-import sqlite3
-import subprocess
-from contextlib import closing
-from datetime import UTC
-from datetime import datetime
-from datetime import timedelta
+import shutil
 from typing import TYPE_CHECKING
 
-from ethos.adapters.admission.prewrite import prewrite_guard
-from ethos.adapters.mutation.lanes import bind_work_lane_claim
-from ethos.adapters.mutation.lanes import refresh_work_lane_base
 from ethos.adapters.mutation.lanes import start_work_lane
-from ethos.adapters.repo.status import workspace_status
-from ethos.adapters.store.state import active_leases
+from ethos.adapters.repo.status.core import workspace_status
 from ethos.repository.policy.schema import validate_schema_instance
-from ethos_core.contracts.branch_roles import BranchRolePolicy
+from tests.support.lane_helpers import add_candidate_worktree
+from tests.support.lane_helpers import assert_no_ui_projection
+from tests.support.lane_helpers import git
+from tests.support.lane_helpers import init_repo
+from tests.support.lane_helpers import write_role_policy
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-
-def git(root: Path, *args: str) -> str:
-    completed = subprocess.run(
-        ["git", *args],
-        cwd=root,
-        check=True,
-        text=True,
-        capture_output=True,
-    )
-    return completed.stdout.strip()
-
-
-def init_repo(path: Path) -> Path:
-    path.mkdir(parents=True)
-    git(path, "init", "-b", "dev")
-    (path / ".gitignore").write_text(".ethos/state/*\n!.ethos/state/.gitignore\n", encoding="utf-8")
-    (path / "README.md").write_text("# sample\n", encoding="utf-8")
-    (path / ".ethos" / "state").mkdir(parents=True)
-    (path / ".ethos" / "state" / ".gitignore").write_text("*\n!.gitignore\n", encoding="utf-8")
-    git(path, "add", ".")
-    git(
-        path,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "init",
-    )
-    return path
-
-
-def add_candidate_worktree(repo: Path, path: Path) -> Path:
-    git(repo, "worktree", "add", "-b", "candidate/dev", path.as_posix(), "dev")
-    return path
-
-
-def write_role_policy(
-    repo: Path,
-    *,
-    candidate_branch: str = "stage/dev",
-    work_branch_prefix: str = "lane/",
-    submit_branch_prefix: str = "review/",
-) -> None:
-    (repo / ".ethos" / "workspace.toml").write_text(
-        "\n".join(
-            [
-                "[branch_roles]",
-                'release_branch = "main"',
-                'accepted_branch = "dev"',
-                f'candidate_branch = "{candidate_branch}"',
-                f'work_branch_prefix = "{work_branch_prefix}"',
-                f'submit_branch_prefix = "{submit_branch_prefix}"',
-                "",
-            ]
-        ),
-        encoding="utf-8",
-    )
-    git(repo, "add", ".ethos/workspace.toml")
-    git(
-        repo,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "configure branch roles",
-    )
-
-
-def assert_no_ui_projection(value: object) -> None:
-    if isinstance(value, dict):
-        forbidden = {"open_action", "open_label", "action", "label"}
-        assert not (forbidden & set(value))
-        for child in value.values():
-            assert_no_ui_projection(child)
-    elif isinstance(value, list):
-        for child in value:
-            assert_no_ui_projection(child)
 
 
 def test_workspace_status_reports_stage_gates_for_accepted_root(tmp_path: Path) -> None:
@@ -124,7 +37,13 @@ def test_workspace_status_reports_stage_gates_for_owned_work_lane(tmp_path: Path
     repo = init_repo(tmp_path / "repo")
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     worktree = tmp_path / "repo-work-feature"
-    start_work_lane(root=repo, name="feature", path=worktree, owner="agent:test", apply=True)
+    start_work_lane(
+        root=repo,
+        name="feature",
+        path=worktree,
+        holder_ref="agent:test:case:agent-test",
+        apply=True,
+    )
 
     status = workspace_status(worktree)
 
@@ -145,7 +64,13 @@ def test_workspace_status_stage_gates_keep_authoring_open_when_lane_is_dirty(
     repo = init_repo(tmp_path / "repo")
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     worktree = tmp_path / "repo-work-feature"
-    start_work_lane(root=repo, name="feature", path=worktree, owner="agent:test", apply=True)
+    start_work_lane(
+        root=repo,
+        name="feature",
+        path=worktree,
+        holder_ref="agent:test:case:agent-test",
+        apply=True,
+    )
     (worktree / "README.md").write_text("# dirty\n", encoding="utf-8")
 
     status = workspace_status(worktree)
@@ -165,14 +90,53 @@ def test_workspace_status_stage_gates_keep_authoring_open_with_foreign_lane(
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     current = tmp_path / "repo-work-current"
     foreign = tmp_path / "repo-work-foreign"
-    start_work_lane(root=repo, name="current", path=current, owner="agent:current", apply=True)
-    start_work_lane(root=repo, name="foreign", path=foreign, owner="agent:foreign", apply=True)
+    start_work_lane(
+        root=repo,
+        name="current",
+        path=current,
+        holder_ref="agent:test:case:agent-current",
+        apply=True,
+    )
+    start_work_lane(
+        root=repo,
+        name="foreign",
+        path=foreign,
+        holder_ref="agent:test:case:agent-foreign",
+        apply=True,
+    )
 
     status = workspace_status(current)
 
     assert status["stage_gates"]["authoring_allowed"] is True
     assert status["stage_gates"]["integration_allowed"] is True
     assert status["stage_gates"]["recommended_next_command"] == "ethos land --json"
+
+
+def test_workspace_status_reports_missing_foreign_worktree_without_crashing(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    foreign = tmp_path / "repo-work-foreign"
+    git(repo, "worktree", "add", "-b", "work/foreign", foreign.as_posix(), "dev")
+    git(repo, "worktree", "lock", foreign.as_posix(), "--reason", "simulate stale registry")
+    # Simulate a concurrent host or agent removing the physical worktree while
+    # Git's registry still advertises it. ETHOS must surface the lane as
+    # unobservable, not crash closeout/status readers.
+    shutil.rmtree(foreign)
+
+    status = workspace_status(repo)
+    lane = status["foreign_work_lanes"][0]
+
+    assert lane["branch"] == "work/foreign"
+    assert lane["worktree_binding"] == "missing"
+    assert lane["dirty"] is False
+    assert lane["dirty_paths"] == []
+    assert lane["scope_state"] == "empty"
+    assert lane["coordination_state"] == "advisory"
+    assert status["coordination"]["blocking"] is False
+    assert status["required_gaps"] == []
+    assert validate_schema_instance("workspace-status.schema.json", status)["ok"] is True
 
 
 def test_workspace_status_reports_foreign_work_lanes_without_reading_them(tmp_path: Path) -> None:
@@ -191,20 +155,35 @@ def test_workspace_status_reports_foreign_work_lanes_without_reading_them(tmp_pa
             "path": foreign.as_posix(),
             "role": "work_lane",
             "worktree_binding": "linked",
-            "lease_owner": "",
+            "lease": {
+                "lane_incarnation_id": "",
+                "lease_id": "",
+                "holder_ref": "",
+                "epoch": 0,
+                "expected_head": "",
+                "expires_at": "",
+                "normalization_state": "legacy_ambiguous",
+                "mints_authority": False,
+            },
             "lease_state": "missing",
             "claim_id": "",
             "claim_binding": "missing",
+            "relation_to_accepted": "ancestor_of_accepted",
+            "closeout_disposition": "none",
+            "residue_state": "clean_or_none",
+            "next_action": "observe lane state; use owner-bound lifecycle command when ready",
             "dirty": False,
             "dirty_paths": [],
             "path_scope": [],
             "scope_state": "empty",
             "coordination_state": "advisory",
-            "current_actor_capability": "observe",
-            "allowed_actions": ["observe"],
-            "forbidden_actions": ["write", "land", "retire"],
-            "write_policy": "owner_only",
-            "retire_policy": "owner_handoff_or_maintainer_break_glass",
+            "action_preview": {
+                "candidate_actions": ["observe"],
+                "blocked_actions": ["write", "land", "retire"],
+                "why": ["foreign_lane_requires_handoff_or_accepted_decision"],
+                "mints_authority": False,
+                "recheck_required": True,
+            },
             "handoff_required": True,
         }
     ]
@@ -237,6 +216,9 @@ def test_workspace_status_reports_foreign_work_lanes_without_reading_them(tmp_pa
         "missing_lease_count": 1,
         "overlap_count": 0,
         "unknown_scope_count": 0,
+        "closeout_residue_count": 0,
+        "dirty_closeout_residue_count": 0,
+        "closeout_residue_lanes": [],
         "next_action": "bind or inspect Work Lane leases before candidate integration",
         "migration_recommendations": [],
     }
@@ -246,12 +228,181 @@ def test_workspace_status_reports_foreign_work_lanes_without_reading_them(tmp_pa
         "target_branch": "candidate/dev",
         "target_path": (tmp_path / "repo-candidate-dev").as_posix(),
         "operation": "",
-        "owner": "",
+        "holder_ref": "",
+        "lease_id": "",
+        "lease_epoch": 0,
         "claim_id": "",
         "claim_binding": "unbound",
         "required_gaps": ["protected_root_mutation"],
     }
     assert_no_ui_projection(status)
+
+
+def test_workspace_status_explains_landed_dirty_lane_preservation_path(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    worktree = tmp_path / "repo-work-feature"
+    start_work_lane(
+        root=repo,
+        name="feature",
+        path=worktree,
+        holder_ref="agent:test:case:agent-test",
+        claim_id="sample-claim",
+        apply=True,
+    )
+    (worktree / "README.md").write_text("# unpreserved residue\n", encoding="utf-8")
+
+    status = workspace_status(repo)
+
+    lane = status["foreign_work_lanes"][0]
+    assert lane["closeout_disposition"] == "landed_dirty"
+    assert lane["residue_state"] == "unpreserved_worktree_delta"
+    assert lane["next_action"] == (
+        "owner must preserve or intentionally discard dirty worktree delta before retirement"
+    )
+    assert "ethos lane retire landed" not in lane["next_action"]
+    assert status["coordination_gaps"] == [
+        "foreign_work_lane_present",
+        "work_lane_closeout_residue_present",
+    ]
+
+
+def test_workspace_status_calls_claim_bound_landed_lane_retire_ready(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    worktree = tmp_path / "repo-work-feature"
+    start_work_lane(
+        root=repo,
+        name="feature",
+        path=worktree,
+        holder_ref="agent:test:case:agent-test",
+        claim_id="sample-claim",
+        apply=True,
+    )
+
+    status = workspace_status(repo)
+
+    lane = status["foreign_work_lanes"][0]
+    assert lane["relation_to_accepted"] == "ancestor_of_accepted"
+    assert lane["lease_state"] == "leased"
+    assert lane["claim_binding"] == "bound"
+    assert lane["closeout_disposition"] == "retire_ready"
+    assert lane["next_action"] == (
+        "retire clean absorbed Work Lane with "
+        "ethos lane retire landed --branch work/feature "
+        f"--expect-head {lane['head']} --apply --json"
+    )
+    assert status["coordination_gaps"] == [
+        "foreign_work_lane_present",
+        "work_lane_closeout_residue_present",
+    ]
+    assert status["coordination"]["advisory_gaps"] == [
+        "foreign_work_lane_present",
+        "work_lane_closeout_residue_present",
+    ]
+
+
+def test_ref_relation_reports_unknown_when_ref_is_missing(tmp_path: Path) -> None:
+    from ethos.adapters.repo.status.bindings import ref_relation
+
+    repo = init_repo(tmp_path / "repo")
+
+    assert ref_relation(repo, "work/missing", "dev") == "unknown"
+
+
+def test_closeout_disposition_classifier_is_mece() -> None:
+    from ethos.adapters.repo.coordination import closeout_disposition
+
+    assert (
+        closeout_disposition(
+            lease_state="leased",
+            claim_binding="bound",
+            relation_to_accepted="ancestor_of_accepted",
+            dirty=False,
+        )
+        == "retire_ready"
+    )
+    assert (
+        closeout_disposition(
+            lease_state="leased",
+            claim_binding="missing",
+            relation_to_accepted="ancestor_of_accepted",
+            dirty=False,
+        )
+        == "none"
+    )
+    assert (
+        closeout_disposition(
+            lease_state="missing",
+            claim_binding="missing",
+            relation_to_accepted="ancestor_of_accepted",
+            dirty=False,
+        )
+        == "none"
+    )
+    assert (
+        closeout_disposition(
+            lease_state="leased",
+            claim_binding="bound",
+            relation_to_accepted="ancestor_of_accepted",
+            dirty=True,
+        )
+        == "landed_dirty"
+    )
+    assert (
+        closeout_disposition(
+            lease_state="leased",
+            claim_binding="bound",
+            relation_to_accepted="descendant_of_accepted",
+            dirty=False,
+        )
+        == "unlanded"
+    )
+    assert (
+        closeout_disposition(
+            lease_state="leased",
+            claim_binding="bound",
+            relation_to_accepted="diverged_from_accepted",
+            dirty=False,
+        )
+        == "diverged"
+    )
+    assert (
+        closeout_disposition(
+            lease_state="leased",
+            claim_binding="bound",
+            relation_to_accepted="unknown",
+            dirty=False,
+        )
+        == "unknown"
+    )
+
+
+def test_workspace_status_does_not_call_fresh_empty_leased_lane_retire_ready(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    worktree = tmp_path / "repo-work-feature"
+    start_work_lane(
+        root=repo,
+        name="feature",
+        path=worktree,
+        holder_ref="agent:test:case:agent-test",
+        apply=True,
+    )
+
+    status = workspace_status(repo)
+
+    assert status["foreign_work_lanes"][0]["relation_to_accepted"] == "ancestor_of_accepted"
+    assert status["foreign_work_lanes"][0]["lease_state"] == "leased"
+    assert status["foreign_work_lanes"][0]["closeout_disposition"] == "none"
+    assert status["coordination_gaps"] == ["foreign_work_lane_present"]
+    assert status["coordination"]["advisory_gaps"] == ["foreign_work_lane_present"]
 
 
 def test_workspace_status_reports_unbound_work_lane_ref_without_active_lane(
@@ -299,7 +450,7 @@ def test_workspace_status_reports_unbound_work_lane_ref_without_active_lane(
     assert_no_ui_projection(status)
 
 
-def test_workspace_status_reports_branch_worktree_bindings_without_ui_actions(
+def test_workspace_status_reports_branchworktree_bindings_without_ui_actions(
     tmp_path: Path,
 ) -> None:
     repo = init_repo(tmp_path / "repo")
@@ -319,6 +470,7 @@ def test_workspace_status_reports_branch_worktree_bindings_without_ui_actions(
         "candidate_branch": "candidate/dev",
         "work_branch_prefix": "work/",
         "submit_branch_prefix": "submit/",
+        "release_mirror": "independent",
         "semantic_order": [
             {
                 "role": "release_root",
@@ -399,97 +551,7 @@ def test_workspace_status_uses_configured_branch_role_policy(tmp_path: Path) -> 
     assert workspace_status(repo)["role"] == "release_root"
 
 
-def test_branch_role_policy_semantic_order_uses_configured_roles_without_hardcoded_names() -> None:
-    policy = BranchRolePolicy(
-        release_branch="release",
-        accepted_branch="integration",
-        candidate_branch="stage/integration",
-        work_branch_prefix="lane/",
-        submit_branch_prefix="review/",
-    )
-
-    assert policy.as_status_policy() == {
-        "release_branch": "release",
-        "accepted_branch": "integration",
-        "candidate_branch": "stage/integration",
-        "work_branch_prefix": "lane/",
-        "submit_branch_prefix": "review/",
-        "semantic_order": [
-            {
-                "role": "release_root",
-                "kind": "exact_branch",
-                "config_key": "release_branch",
-                "pattern": "release",
-            },
-            {
-                "role": "accepted_root",
-                "kind": "exact_branch",
-                "config_key": "accepted_branch",
-                "pattern": "integration",
-            },
-            {
-                "role": "candidate",
-                "kind": "exact_branch",
-                "config_key": "candidate_branch",
-                "pattern": "stage/integration",
-            },
-            {
-                "role": "work_lane",
-                "kind": "branch_prefix",
-                "config_key": "work_branch_prefix",
-                "pattern": "lane/*",
-            },
-            {
-                "role": "submit_lane",
-                "kind": "branch_prefix",
-                "config_key": "submit_branch_prefix",
-                "pattern": "review/*",
-            },
-        ],
-    }
-    assert policy.role_for_branch("release") == "release_root"
-    assert policy.role_for_branch("integration") == "accepted_root"
-    assert policy.role_for_branch("stage/integration") == "candidate"
-    assert policy.role_for_branch("lane/feature") == "work_lane"
-    assert policy.role_for_branch("review/feature") == "submit_lane"
-    assert policy.role_for_branch("main") == "other"
-    assert policy.role_for_branch("dev") == "other"
-    assert policy.role_for_branch("candidate/dev") == "other"
-    assert policy.role_for_branch("work/feature") == "other"
-    assert policy.role_for_branch("submit/feature") == "other"
-
-
-def test_start_work_lane_uses_configured_candidate_and_work_role_policy(
-    tmp_path: Path,
-) -> None:
-    repo = init_repo(tmp_path / "repo")
-    write_role_policy(repo)
-    git(
-        repo,
-        "worktree",
-        "add",
-        "-b",
-        "stage/dev",
-        (tmp_path / "repo-stage-dev").as_posix(),
-        "dev",
-    )
-    worktree = tmp_path / "repo-lane-feature"
-
-    report = start_work_lane(
-        root=repo,
-        name="feature",
-        path=worktree,
-        owner="agent:test",
-        apply=True,
-    )
-
-    assert report["ok"] is True
-    assert report["branch"] == "lane/feature"
-    assert report["base"] == "stage/dev"
-    assert git(worktree, "branch", "--show-current") == "lane/feature"
-
-
-def test_workspace_status_reports_current_work_lane_closeout_support(tmp_path: Path) -> None:
+def test_workspace_status_reports_current_work_lanecloseout_support(tmp_path: Path) -> None:
     repo = init_repo(tmp_path / "repo")
     candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     worktree = tmp_path / "repo-work-feature"
@@ -497,7 +559,7 @@ def test_workspace_status_reports_current_work_lane_closeout_support(tmp_path: P
         root=repo,
         name="feature",
         path=worktree,
-        owner="agent:test",
+        holder_ref="agent:test:case:agent-test",
         apply=True,
     )
 
@@ -509,7 +571,9 @@ def test_workspace_status_reports_current_work_lane_closeout_support(tmp_path: P
         "target_branch": "candidate/dev",
         "target_path": candidate.as_posix(),
         "operation": "land_to_candidate",
-        "owner": "agent:test",
+        "holder_ref": "agent:test:case:agent-test",
+        "lease_id": status["closeout_support"]["lease_id"],
+        "lease_epoch": 1,
         "claim_id": "",
         "claim_binding": "missing",
         "required_gaps": [],
@@ -525,7 +589,7 @@ def test_workspace_status_projects_work_lane_claim_binding(tmp_path: Path) -> No
         root=repo,
         name="feature",
         path=worktree,
-        owner="agent:test",
+        holder_ref="agent:test:case:agent-test",
         claim_id="sample-trust",
         apply=True,
     )
@@ -538,46 +602,9 @@ def test_workspace_status_projects_work_lane_claim_binding(tmp_path: Path) -> No
         "target_branch": "candidate/dev",
         "target_path": candidate.as_posix(),
         "operation": "land_to_candidate",
-        "owner": "agent:test",
-        "claim_id": "sample-trust",
-        "claim_binding": "bound",
-        "required_gaps": [],
-    }
-
-
-def test_existing_work_lane_claim_binding_can_be_applied_without_restarting_lane(
-    tmp_path: Path,
-) -> None:
-    repo = init_repo(tmp_path / "repo")
-    candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
-    worktree = tmp_path / "repo-work-feature"
-    start_work_lane(
-        root=repo,
-        name="feature",
-        path=worktree,
-        owner="agent:test",
-        apply=True,
-    )
-
-    report = bind_work_lane_claim(
-        root=worktree,
-        claim_id="sample-trust",
-        apply=True,
-    )
-    status = workspace_status(worktree)
-
-    assert report["ok"] is True
-    assert report["state"] == "bound"
-    assert report["branch"] == "work/feature"
-    assert report["owner"] == "agent:test"
-    assert report["claim_id"] == "sample-trust"
-    assert status["closeout_support"] == {
-        "supported": True,
-        "branch": "work/feature",
-        "target_branch": "candidate/dev",
-        "target_path": candidate.as_posix(),
-        "operation": "land_to_candidate",
-        "owner": "agent:test",
+        "holder_ref": "agent:test:case:agent-test",
+        "lease_id": status["closeout_support"]["lease_id"],
+        "lease_epoch": 1,
         "claim_id": "sample-trust",
         "claim_binding": "bound",
         "required_gaps": [],
@@ -591,8 +618,20 @@ def test_workspace_status_blocks_current_work_lane_when_foreign_scope_overlaps(
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     first = tmp_path / "repo-work-first"
     second = tmp_path / "repo-work-second"
-    start_work_lane(root=repo, name="first", path=first, owner="agent:first", apply=True)
-    start_work_lane(root=repo, name="second", path=second, owner="agent:second", apply=True)
+    start_work_lane(
+        root=repo,
+        name="first",
+        path=first,
+        holder_ref="agent:test:case:agent-first",
+        apply=True,
+    )
+    start_work_lane(
+        root=repo,
+        name="second",
+        path=second,
+        holder_ref="agent:test:case:agent-second",
+        apply=True,
+    )
 
     (first / "README.md").write_text("# first\n", encoding="utf-8")
     git(first, "add", "README.md")
@@ -625,7 +664,13 @@ def test_workspace_status_blocks_current_work_lane_when_foreign_scope_overlaps(
     assert status["foreign_work_lanes"][0]["path_scope"] == ["README.md"]
     assert status["foreign_work_lanes"][0]["scope_state"] == "bounded"
     assert status["foreign_work_lanes"][0]["coordination_state"] == "overlap"
-    assert status["foreign_work_lanes"][0]["current_actor_capability"] == "observe"
+    assert status["foreign_work_lanes"][0]["action_preview"] == {
+        "candidate_actions": ["observe"],
+        "blocked_actions": ["write", "land", "retire"],
+        "why": ["foreign_lane_requires_handoff_or_accepted_decision"],
+        "mints_authority": False,
+        "recheck_required": True,
+    }
     # scope_overlap is same-file-only (git's ff-only land backstops a genuine conflict),
     # so it is advisory, not blocking: concurrent lanes sharing a directory no longer
     # serialize.
@@ -645,8 +690,20 @@ def test_workspace_status_blocks_current_work_lane_when_foreign_dirty_scope_over
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     first = tmp_path / "repo-work-first"
     second = tmp_path / "repo-work-second"
-    start_work_lane(root=repo, name="first", path=first, owner="agent:first", apply=True)
-    start_work_lane(root=repo, name="second", path=second, owner="agent:second", apply=True)
+    start_work_lane(
+        root=repo,
+        name="first",
+        path=first,
+        holder_ref="agent:test:case:agent-first",
+        apply=True,
+    )
+    start_work_lane(
+        root=repo,
+        name="second",
+        path=second,
+        holder_ref="agent:test:case:agent-second",
+        apply=True,
+    )
 
     (first / "packages").mkdir()
     (first / "packages" / "core.py").write_text("# dirty foreign\n", encoding="utf-8")
@@ -677,28 +734,6 @@ def test_workspace_status_blocks_current_work_lane_when_foreign_dirty_scope_over
     assert status["closeout_support"]["required_gaps"] == []
 
 
-def test_workspace_status_blocks_raw_work_lane_without_lease(tmp_path: Path) -> None:
-    repo = init_repo(tmp_path / "repo")
-    candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
-    worktree = tmp_path / "repo-work-raw"
-    git(repo, "worktree", "add", "-b", "work/raw", worktree.as_posix(), "dev")
-
-    status = workspace_status(worktree)
-
-    assert status["closeout_support"] == {
-        "supported": False,
-        "branch": "work/raw",
-        "target_branch": "candidate/dev",
-        "target_path": candidate.as_posix(),
-        "operation": "land_to_candidate",
-        "owner": "",
-        "claim_id": "",
-        "claim_binding": "missing",
-        "required_gaps": ["work_lane_missing_lease:work/raw"],
-    }
-    assert status["required_gaps"] == ["work_lane_missing_lease:work/raw"]
-
-
 def test_workspace_status_reports_current_work_lane_closeout_gaps(
     tmp_path: Path,
 ) -> None:
@@ -713,62 +748,6 @@ def test_workspace_status_reports_current_work_lane_closeout_gaps(
     assert status["closeout_support"]["supported"] is False
     assert status["closeout_support"]["operation"] == "land_to_candidate"
     assert status["closeout_support"]["required_gaps"] == ["work_lane_dirty"]
-
-
-def test_workspace_status_reports_closeout_owner_from_lane_lease(tmp_path: Path) -> None:
-    repo = init_repo(tmp_path / "repo")
-    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
-    worktree = tmp_path / "repo-work-feature"
-
-    report = start_work_lane(
-        root=repo,
-        name="feature",
-        path=worktree,
-        owner="agent:test",
-        apply=True,
-    )
-    status = workspace_status(worktree)
-
-    assert report["ok"] is True
-    assert status["closeout_support"]["owner"] == "agent:test"
-
-
-def test_workspace_status_ignores_retired_state_lease_schema(tmp_path: Path) -> None:
-    repo = init_repo(tmp_path / "repo")
-    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
-    state_db = repo / ".ethos" / "state" / "state.sqlite"
-    expires_at = datetime.now(UTC) + timedelta(hours=1)
-    with closing(sqlite3.connect(state_db)) as connection:
-        connection.execute(
-            """
-            create table leases (
-              id text primary key,
-              owner text not null default '',
-              resource text not null default '',
-              expires_at text not null default '',
-              created_at text not null
-            )
-            """
-        )
-        connection.execute(
-            """
-            insert into leases(id, owner, resource, expires_at, created_at)
-            values (?, ?, ?, ?, ?)
-            """,
-            (
-                "lease:retired",
-                "agent:retired",
-                "work/retired",
-                expires_at.isoformat(),
-                datetime.now(UTC).isoformat(),
-            ),
-        )
-
-    status = workspace_status(repo)
-    leases = active_leases(state_db)
-
-    assert status["role"] == "accepted_root"
-    assert leases == []
 
 
 def test_workspace_status_output_validates_against_workspace_status_schema(
@@ -813,6 +792,7 @@ def test_workspace_status_reports_missing_candidate_branch(tmp_path: Path) -> No
         "behind_accepted": 0,
     }
     assert "candidate_branch_missing" in status["required_gaps"]
+    assert validate_schema_instance("workspace-status.schema.json", status)["ok"] is True
 
 
 def test_workspace_status_reports_candidate_branch_without_worktree(tmp_path: Path) -> None:
@@ -824,465 +804,41 @@ def test_workspace_status_reports_candidate_branch_without_worktree(tmp_path: Pa
     assert status["candidate"]["exists"] is True
     assert status["candidate"]["worktree_exists"] is False
     assert status["candidate"]["worktree_path"] == ""
+    assert status["candidate"]["worktree_binding"] == "unbound"
     assert "candidate_worktree_missing" in status["required_gaps"]
+    assert validate_schema_instance("workspace-status.schema.json", status)["ok"] is True
 
 
-def test_prewrite_rejects_tracked_path_from_accepted_root(tmp_path: Path) -> None:
-    repo = init_repo(tmp_path / "repo")
-
-    report = prewrite_guard(
-        root=repo,
-        paths=[repo / "README.md"],
-        editor_root=repo,
-        require_editor_root=True,
-    )
-
-    assert report["ok"] is False
-    assert report["error"] == "protected_lane_prewrite_blocked"
-    assert report["role"] == "accepted_root"
-
-
-def test_prewrite_allows_owned_work_lane_with_matching_editor_root(tmp_path: Path) -> None:
-    repo = init_repo(tmp_path / "repo")
-    worktree = tmp_path / "repo-work-owned"
-    git(repo, "worktree", "add", "-b", "work/owned", worktree.as_posix(), "dev")
-
-    report = prewrite_guard(
-        root=worktree,
-        paths=[worktree / "README.md"],
-        editor_root=worktree,
-        require_editor_root=True,
-    )
-
-    assert report["ok"] is True
-    assert report["role"] == "work_lane"
-    assert report["error"] == ""
-
-
-def test_prewrite_blocks_product_root_when_runner_source_differs(
-    tmp_path: Path,
-    monkeypatch,
-) -> None:
-    repo = init_repo(tmp_path / "repo")
-    worktree = tmp_path / "repo-work-owned"
-    git(repo, "worktree", "add", "-b", "work/owned", worktree.as_posix(), "dev")
-    product_marker = worktree / "packages" / "ethos" / "src" / "ethos" / "__init__.py"
-    product_marker.parent.mkdir(parents=True)
-    product_marker.write_text("", encoding="utf-8")
-    external_runner = tmp_path / "external" / "packages" / "ethos" / "src" / "ethos" / "__init__.py"
-    external_runner.parent.mkdir(parents=True)
-    (tmp_path / "external" / "pyproject.toml").write_text(
-        "[project]\nname='external'\n", encoding="utf-8"
-    )
-    external_runner.write_text("", encoding="utf-8")
-    monkeypatch.setattr("ethos.adapters.repo.status.ethos.__file__", external_runner.as_posix())
-
-    report = prewrite_guard(
-        root=worktree,
-        paths=[worktree / "README.md"],
-        editor_root=worktree,
-        require_editor_root=True,
-    )
-
-    assert report["ok"] is False
-    assert report["error"] == "root_binding_mismatch"
-    assert report["runtime_binding"]["product_audit_root"] is True
-    assert report["runtime_binding"]["runner_matches_audit_root"] is False
-
-
-def test_prewrite_rejects_work_lane_without_editor_root_binding(tmp_path: Path) -> None:
-    repo = init_repo(tmp_path / "repo")
-    worktree = tmp_path / "repo-work-owned"
-    git(repo, "worktree", "add", "-b", "work/owned", worktree.as_posix(), "dev")
-
-    report = prewrite_guard(
-        root=worktree,
-        paths=[worktree / "README.md"],
-    )
-
-    assert report["ok"] is False
-    assert report["role"] == "work_lane"
-    assert report["error"] == "editor_root_missing"
-
-
-def test_prewrite_rejects_protected_lane_roles(tmp_path: Path) -> None:
-    cases = {
-        "release_root": ("main",),
-        "candidate": ("candidate/dev",),
-        "submit_lane": ("submit/review",),
-        "other": ("feature/unknown",),
-    }
-    for role, checkout_args in cases.items():
-        repo = init_repo(tmp_path / f"repo-{role}")
-        git(repo, "checkout", "-b", *checkout_args)
-
-        report = prewrite_guard(
-            root=repo,
-            paths=[repo / "README.md"],
-            editor_root=repo,
-            require_editor_root=True,
-        )
-
-        assert report["ok"] is False
-        assert report["role"] == role
-        assert report["error"] == "protected_lane_prewrite_blocked"
-
-
-def test_prewrite_rejects_detached_lane(tmp_path: Path) -> None:
-    repo = init_repo(tmp_path / "repo-detached")
-    git(repo, "checkout", "--detach", "HEAD")
-
-    report = prewrite_guard(
-        root=repo,
-        paths=[repo / "README.md"],
-        editor_root=repo,
-        require_editor_root=True,
-    )
-
-    assert report["ok"] is False
-    assert report["role"] == "detached"
-    assert report["error"] == "protected_lane_prewrite_blocked"
-
-
-def test_start_work_lane_apply_creates_worktree_and_records_lease(tmp_path: Path) -> None:
-    repo = init_repo(tmp_path / "repo")
-    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
-    worktree = tmp_path / "repo-work-feature"
-
-    report = start_work_lane(
-        root=repo,
-        name="feature",
-        path=worktree,
-        owner="agent:test",
-        apply=True,
-    )
-
-    assert report["ok"] is True
-    assert report["branch"] == "work/feature"
-    assert report["worktree"] == {
-        "branch": "work/feature",
-        "path": worktree.resolve().as_posix(),
-        "head": git(worktree, "rev-parse", "HEAD"),
-        "role": "work_lane",
-        "worktree_binding": "linked",
-    }
-    assert worktree.exists()
-    assert git(worktree, "branch", "--show-current") == "work/feature"
-    leases = active_leases(repo / ".ethos" / "state" / "state.sqlite")
-    assert [(lease["subject"], lease["owner"]) for lease in leases] == [
-        ("work/feature", "agent:test")
-    ]
-
-
-def test_start_work_lane_apply_requires_candidate_branch(tmp_path: Path) -> None:
-    repo = init_repo(tmp_path / "repo")
-    worktree = tmp_path / "repo-work-feature"
-
-    report = start_work_lane(
-        root=repo,
-        name="feature",
-        path=worktree,
-        owner="agent:test",
-        apply=True,
-    )
-
-    assert report["ok"] is False
-    assert report["state"] == "blocked"
-    assert "candidate_branch_missing" in report["required_gaps"]
-    assert not worktree.exists()
-
-
-def test_start_work_lane_apply_requires_candidate_worktree(tmp_path: Path) -> None:
-    repo = init_repo(tmp_path / "repo")
-    git(repo, "branch", "candidate/dev", "dev")
-    worktree = tmp_path / "repo-work-feature"
-
-    report = start_work_lane(
-        root=repo,
-        name="feature",
-        path=worktree,
-        owner="agent:test",
-        apply=True,
-    )
-
-    assert report["ok"] is False
-    assert report["state"] == "blocked"
-    assert "candidate_worktree_missing" in report["required_gaps"]
-    assert not worktree.exists()
-
-
-def test_start_work_lane_apply_rejects_dirty_candidate_worktree(tmp_path: Path) -> None:
-    repo = init_repo(tmp_path / "repo")
-    candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
-    (candidate / "README.md").write_text("# dirty candidate\n", encoding="utf-8")
-    worktree = tmp_path / "repo-work-feature"
-
-    report = start_work_lane(
-        root=repo,
-        name="feature",
-        path=worktree,
-        owner="agent:test",
-        apply=True,
-    )
-
-    assert report["ok"] is False
-    assert report["state"] == "blocked"
-    assert report["required_gaps"] == ["candidate_worktree_dirty"]
-    assert not worktree.exists()
-
-
-def test_start_work_lane_apply_starts_from_candidate_branch(tmp_path: Path) -> None:
-    repo = init_repo(tmp_path / "repo")
-    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
-    candidate_head = git(repo, "rev-parse", "candidate/dev")
-    (repo / "README.md").write_text("# changed on dev\n", encoding="utf-8")
-    git(repo, "add", "README.md")
-    git(
-        repo,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "advance dev only",
-    )
-    worktree = tmp_path / "repo-work-feature"
-
-    report = start_work_lane(
-        root=repo,
-        name="feature",
-        path=worktree,
-        owner="agent:test",
-        apply=True,
-    )
-
-    assert report["ok"] is True
-    assert git(worktree, "rev-parse", "HEAD") == candidate_head
-    assert git(repo, "rev-parse", "dev") != candidate_head
-
-
-def test_refresh_work_lane_base_plans_stale_candidate_base(tmp_path: Path) -> None:
-    repo = init_repo(tmp_path / "repo")
-    candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
-    worktree = tmp_path / "repo-work-feature"
-    git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "candidate/dev")
-    (candidate / "CANDIDATE.md").write_text("# candidate\n", encoding="utf-8")
-    git(candidate, "add", "CANDIDATE.md")
-    git(
-        candidate,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "advance candidate",
-    )
-    (worktree / "FEATURE.md").write_text("# feature\n", encoding="utf-8")
-    git(worktree, "add", "FEATURE.md")
-    git(
-        worktree,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "feature work",
-    )
-    work_head = git(worktree, "rev-parse", "HEAD")
-    candidate_head = git(candidate, "rev-parse", "HEAD")
-
-    report = refresh_work_lane_base(
-        root=worktree,
-        apply=False,
-        authorized=False,
-        expect_head=None,
-    )
-
-    assert report["ok"] is True
-    assert report["state"] == "ready_to_refresh_base"
-    assert report["branch"] == "work/feature"
-    assert report["head"] == work_head
-    assert report["candidate_head"] == candidate_head
-    assert report["required_gaps"] == []
-
-
-def test_refresh_work_lane_base_apply_rebases_current_lane(tmp_path: Path) -> None:
-    repo = init_repo(tmp_path / "repo")
-    candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
-    worktree = tmp_path / "repo-work-feature"
-    git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "candidate/dev")
-    (candidate / "CANDIDATE.md").write_text("# candidate\n", encoding="utf-8")
-    git(candidate, "add", "CANDIDATE.md")
-    git(
-        candidate,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "advance candidate",
-    )
-    (worktree / "FEATURE.md").write_text("# feature\n", encoding="utf-8")
-    git(worktree, "add", "FEATURE.md")
-    git(
-        worktree,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "feature work",
-    )
-    previous_head = git(worktree, "rev-parse", "HEAD")
-    candidate_head = git(candidate, "rev-parse", "HEAD")
-
-    report = refresh_work_lane_base(
-        root=worktree,
-        apply=True,
-        authorized=True,
-        expect_head=previous_head,
-    )
-
-    refreshed_head = git(worktree, "rev-parse", "HEAD")
-    assert report["ok"] is True
-    assert report["state"] == "base_refreshed"
-    assert report["branch"] == "work/feature"
-    assert report["previous_head"] == previous_head
-    assert report["head"] == refreshed_head
-    assert report["candidate_head"] == candidate_head
-    assert report["required_gaps"] == []
-    assert refreshed_head != previous_head
-    assert git(repo, "merge-base", "--is-ancestor", candidate_head, refreshed_head) == ""
-    assert (worktree / "CANDIDATE.md").exists()
-    assert (worktree / "FEATURE.md").exists()
-
-
-def test_refresh_work_lane_base_apply_requires_authorization_and_expected_head(
+def test_workspace_status_reports_missing_candidate_registry_worktree_without_crashing(
     tmp_path: Path,
 ) -> None:
     repo = init_repo(tmp_path / "repo")
     candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
-    worktree = tmp_path / "repo-work-feature"
-    git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "candidate/dev")
-    (candidate / "CANDIDATE.md").write_text("# candidate\n", encoding="utf-8")
-    git(candidate, "add", "CANDIDATE.md")
-    git(
-        candidate,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "advance candidate",
-    )
+    git(repo, "worktree", "lock", candidate.as_posix(), "--reason", "simulate stale registry")
 
-    report = refresh_work_lane_base(
-        root=worktree,
-        apply=True,
-        authorized=False,
-        expect_head=None,
-    )
-
-    assert report["ok"] is False
-    assert report["state"] == "blocked"
-    assert report["required_gaps"] == ["authorization_required", "expect_head_required"]
-
-
-def test_start_work_lane_apply_requires_clean_accepted_root(tmp_path: Path) -> None:
-    repo = init_repo(tmp_path / "repo")
-    current_worktree = tmp_path / "repo-work-current"
-    new_worktree = tmp_path / "repo-work-nested"
-    git(repo, "worktree", "add", "-b", "work/current", current_worktree.as_posix(), "dev")
-
-    report = start_work_lane(
-        root=current_worktree,
-        name="nested",
-        path=new_worktree,
-        owner="agent:test",
-        apply=True,
-    )
-
-    assert report["ok"] is False
-    assert report["state"] == "blocked"
-    assert "lane_start_requires_clean_accepted_root" in report["required_gaps"]
-    assert not new_worktree.exists()
-
-
-def test_start_work_lane_apply_rejects_dirty_accepted_root(tmp_path: Path) -> None:
-    repo = init_repo(tmp_path / "repo")
-    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
-    worktree = tmp_path / "repo-work-feature"
-    (repo / "README.md").write_text("# changed\n", encoding="utf-8")
-
-    report = start_work_lane(
-        root=repo,
-        name="feature",
-        path=worktree,
-        owner="agent:test",
-        apply=True,
-    )
-
-    assert report["ok"] is False
-    assert report["state"] == "blocked"
-    assert report["role"] == "accepted_root"
-    assert report["dirty"] is True
-    assert "lane_start_requires_clean_accepted_root" in report["required_gaps"]
-    assert not worktree.exists()
-
-
-def test_workspace_status_reports_runtime_binding_for_audited_checkout(tmp_path: Path) -> None:
-    repo = init_repo(tmp_path / "repo")
-    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    shutil.rmtree(candidate)
 
     status = workspace_status(repo)
 
-    binding = status["runtime_binding"]
-    assert binding["kind"] == "workspace_status_runtime_binding"
-    assert binding["audit_root"] == repo.resolve().as_posix()
-    assert binding["runner_module_path"]
-    assert binding["runner_source_root"]
-    assert binding["schema_source_root"]
-    assert isinstance(binding["runner_matches_audit_root"], bool)
-    assert isinstance(binding["schema_matches_audit_root"], bool)
-    assert isinstance(binding["advisory_gaps"], list)
-    assert binding["next_action"]
-
-
-def test_workspace_status_runtime_binding_warns_when_runner_is_external(
-    tmp_path: Path,
-    monkeypatch,
-) -> None:
-    repo = init_repo(tmp_path / "repo")
-    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
-    external_runner = tmp_path / "external" / "packages" / "ethos" / "src" / "ethos" / "__init__.py"
-    external_runner.parent.mkdir(parents=True)
-    (tmp_path / "external" / "pyproject.toml").write_text(
-        "[project]\nname='external'\n", encoding="utf-8"
-    )
-    external_runner.write_text("", encoding="utf-8")
-
-    monkeypatch.setattr("ethos.adapters.repo.status.ethos.__file__", external_runner.as_posix())
-
-    status = workspace_status(repo)
-
-    binding = status["runtime_binding"]
-    assert binding["state"] == "external_current_runner"
-    assert binding["runner_matches_audit_root"] is False
-    assert "workspace_status_runner_source_differs_from_audit_root" in binding["advisory_gaps"]
-    assert "package-bound runner" in binding["next_action"]
+    assert status["candidate"]["exists"] is True
+    assert status["candidate"]["worktree_exists"] is False
+    assert status["candidate"]["worktree_path"] == candidate.as_posix()
+    assert status["candidate"]["worktree_binding"] == "missing"
+    assert "candidate_worktree_missing" in status["required_gaps"]
+    assert validate_schema_instance("workspace-status.schema.json", status)["ok"] is True
 
 
 def test_workspace_status_reports_landing_readiness_for_current_work_lane(tmp_path: Path) -> None:
     repo = init_repo(tmp_path / "repo")
     candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     worktree = tmp_path / "repo-work-feature"
-    start_work_lane(root=repo, name="feature", path=worktree, owner="agent:test", apply=True)
+    start_work_lane(
+        root=repo,
+        name="feature",
+        path=worktree,
+        holder_ref="agent:test:case:agent-test",
+        apply=True,
+    )
 
     status = workspace_status(worktree)
 
@@ -1303,7 +859,13 @@ def test_workspace_status_reports_stale_landing_readiness_before_land(tmp_path: 
     repo = init_repo(tmp_path / "repo")
     candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     worktree = tmp_path / "repo-work-feature"
-    start_work_lane(root=repo, name="feature", path=worktree, owner="agent:test", apply=True)
+    start_work_lane(
+        root=repo,
+        name="feature",
+        path=worktree,
+        holder_ref="agent:test:case:agent-test",
+        apply=True,
+    )
     (candidate / "CANDIDATE.md").write_text("# candidate\n", encoding="utf-8")
     git(candidate, "add", "CANDIDATE.md")
     git(

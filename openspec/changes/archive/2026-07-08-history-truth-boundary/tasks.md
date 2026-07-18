@@ -1,0 +1,4 @@
+- [x] Preserve historical evidence and archived OpenSpec meaning without retired authority-head tokens.
+- [x] Apply authority residue guard to all git-admissible repository records.
+- [x] Replace positive-preservation regression with repository-wide zero-residue invariant.
+- [x] Keep active current truth on `Authority` only.

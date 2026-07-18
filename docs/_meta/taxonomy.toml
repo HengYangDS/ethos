@@ -6,4 +6,37 @@ owner = "ethos-maintainers"
 required = ["subject", "role", "state", "relations"]
 
 [states]
-allowed = ["canonical", "active", "experimental", "superseded", "archived"]
+allowed = ["canonical", "active", "planned", "experimental", "superseded", "archived"]
+
+# Document roles name the FUNCTION of a document (directory names its subject
+# domain). The kernel role vocabulary is inherited from the ETHOS contract and
+# always valid; entries here are ADDED to that kernel set, never subtracted.
+[roles]
+allowed = [
+  "index",
+  "explanation",
+  "reference",
+  "decision",
+  "policy",
+  "evidence",
+  "history",
+  "template",
+  "plan",
+  "research",
+  "findings",
+  "progress",
+  "ledger",
+  "how-to",
+]
+
+# Extension roots map a product/adopter docs root to the document roles it may
+# hold. Kernel roots (decisions/, evidence/, history/, reference/) are bound by
+# the ETHOS contract; these are ETHOS's OWN product extensions. An adopter
+# declares its own roots here without editing ETHOS core.
+[extension_roots]
+"docs/architecture" = ["explanation", "reference", "index"]
+"docs/governance" = ["policy", "explanation", "ledger", "index"]
+"docs/concepts" = ["explanation", "index"]
+"docs/plans" = ["plan", "findings", "progress", "index"]
+"docs/research" = ["research", "plan", "index"]
+"docs/start" = ["how-to", "index"]

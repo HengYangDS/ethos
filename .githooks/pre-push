@@ -1,15 +1,15 @@
 #!/bin/sh
 # ETHOS pre-push admission: a push to a protected role (accepted/candidate) requires
-# an executed proof bound to the pushed HEAD. Installed via `ethos hook install`.
-# git feeds "<local ref> <local sha> <remote ref> <remote sha>" lines on stdin.
+# an executed proof bound to the pushed HEAD. When a checkout opts into
+# ethos.pushIdentityPolicy=configured-user, every newly pushed commit must also match
+# the checkout's configured Git author/committer identity. Installed via
+# `ethos hook install`. git feeds "<local ref> <local sha> <remote ref> <remote sha>"
+# lines on stdin.
 set -e
 
 repo_root="$(git rev-parse --show-toplevel)"
-if [ -x "$repo_root/.venv/bin/python" ]; then
-    ethos_python="$repo_root/.venv/bin/python"
-else
-    ethos_python="${PYTHON:-python}"
-fi
+runtime_runner="${repo_root}/tools/ci/scripts/with-python-runtime.sh"
+runtime_python="${ETHOS_PYTHON:-${PYTHON:-${repo_root}/build/runtime/venv/bin/python}}"
 ethos_pythonpath="$repo_root/packages/ethos/src:$repo_root/packages/ethos-core/src"
 
 while read -r local_ref local_sha remote_ref remote_sha; do
@@ -18,10 +18,10 @@ while read -r local_ref local_sha remote_ref remote_sha; do
         0000000000000000000000000000000000000000) continue ;;  # branch deletion
     esac
     if ! PYTHONPATH="$ethos_pythonpath${PYTHONPATH:+:$PYTHONPATH}" \
-        "$ethos_python" -m ethos.cli hook pre-push "$remote_ref" "$local_sha" \
-        --root "$repo_root" --json >/dev/null 2>&1; then
-        echo "ethos: push to $remote_ref blocked — not proven at $local_sha" >&2
-        echo "ethos: run 'ethos prove --execute --expect-head $local_sha' then retry" >&2
+        "${runtime_runner}" -- "${runtime_python}" -m ethos.cli hook pre-push "$remote_ref" "$local_sha" \
+        --remote-head "$remote_sha" --root "$repo_root" --json >/dev/null 2>&1; then
+        echo "ethos: push to $remote_ref blocked by pre-push admission at $local_sha" >&2
+        echo "ethos: run 'ethos hook pre-push $remote_ref $local_sha --remote-head $remote_sha --json' for details" >&2
         exit 1
     fi
 done

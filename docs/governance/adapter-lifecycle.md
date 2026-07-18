@@ -1,6 +1,6 @@
 ---
 subject: ethos:adapter-lifecycle
-role: reference
+role: explanation
 state: canonical
 relations:
   canonical_for: adapter lifecycle
@@ -25,3 +25,19 @@ Status: see front matter.
 Purpose: explain the repository truth represented by this ETHOS document.
 
 See also: [Documentation Index](../index.md), [Command Plane](../reference/command-plane.md), and [Glossary](../reference/glossary.md).
+
+## Admission checklist
+
+An adapter becomes active only when it has all owner surfaces:
+
+1. a `system/tools.toml` entry that states profile, boundary, and gate;
+2. an owner config under `.config/` or an adopter-owned native config;
+3. a reusable `tools/ci/scripts/` or `ethos ...` execution surface;
+4. CI/hook projection that invokes the owner surface without duplicating policy;
+5. tests or proof that verify the boundary and forbidden claims.
+
+Environment runners such as Nox and Pixi, graph systems such as Pants, task
+ledgers, MCP, and agent method packs remain adapter-only unless a future accepted
+decision changes their binding class. Their output can route work or provide
+observation evidence, but it cannot replace ETHOS proof, claims, OpenSpec
+lifecycle checks, or Git-native Work Lane semantics.

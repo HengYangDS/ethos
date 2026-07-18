@@ -10,12 +10,12 @@ from __future__ import annotations
 from pathlib import Path  # noqa: TC003 - cyclopts needs the runtime type for --target
 from typing import cast
 
-from ethos.adapters.repo import git as _gitio
-from ethos.domain import land as _land
+import ethos.adapters.repo.git as git_adapter
+import ethos.domain.land.parity.core as land_parity
 from ethos.repository.adoption.fleet import inspect_adopter
-from ethos.repository.adoption.retirement import retirement_readiness_report
-from ethos.repository.evidence.parity import parity_gaps_report
-from ethos.repository.evidence.parity import shadow_parity_report
+from ethos.repository.adoption.retirement.core import retirement_readiness_report
+from ethos.repository.evidence.parity.core import parity_gaps_report
+from ethos.repository.evidence.parity.core import shadow_parity_report
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import emit
@@ -40,7 +40,7 @@ def fleet_inspect(
         required_gaps=tuple(required_gaps),
         data=report,
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @fleet_app.command(name="retirement-readiness")
@@ -59,7 +59,7 @@ def fleet_retirement_readiness(
     profile = load_repository_profile(target)
     adopter = profile.identity.get("profile_id") or target.resolve().name
     if execute_shadow:
-        from ethos.adapters.shadow import run_shadow_parity
+        from ethos.adapters.shadow.core import run_shadow_parity
 
         shadow = run_shadow_parity(
             target=target,
@@ -71,10 +71,12 @@ def fleet_retirement_readiness(
             target=target,
             root=product_root,
             adopter=adopter,
-            current_target_head=_gitio.current_tracked_head(target),
-            current_product_head=_gitio.current_tracked_head(product_root),
-            acceptable_product_heads=_land.acceptable_parity_product_heads(product_root, adopter),
-            acceptable_target_heads=_land.acceptable_parity_target_heads(
+            current_target_head=git_adapter.current_tracked_head(target),
+            current_product_head=git_adapter.current_tracked_head(product_root),
+            acceptable_product_heads=land_parity.acceptable_parity_product_heads(
+                product_root, adopter
+            ),
+            acceptable_target_heads=land_parity.acceptable_parity_target_heads(
                 product_root, target, adopter
             ),
         )
@@ -82,10 +84,12 @@ def fleet_retirement_readiness(
         adopter=adopter,
         root=product_root,
         target=target,
-        current_target_head=_gitio.current_tracked_head(target),
-        current_product_head=_gitio.current_tracked_head(product_root),
-        acceptable_product_heads=_land.acceptable_parity_product_heads(product_root, adopter),
-        acceptable_target_heads=_land.acceptable_parity_target_heads(product_root, target, adopter),
+        current_target_head=git_adapter.current_tracked_head(target),
+        current_product_head=git_adapter.current_tracked_head(product_root),
+        acceptable_product_heads=land_parity.acceptable_parity_product_heads(product_root, adopter),
+        acceptable_target_heads=land_parity.acceptable_parity_target_heads(
+            product_root, target, adopter
+        ),
     )
     report = retirement_readiness_report(
         target=target,
@@ -107,4 +111,4 @@ def fleet_retirement_readiness(
         next_actions=tuple(next_actions),
         data=report,
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)

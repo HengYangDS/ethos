@@ -1,0 +1,5 @@
+schema: spec-driven
+created: 2026-07-16
+goal: Keep the format-selection audit fail-closed while allowing the exact
+  curated Chronicle inventory required by the accepted Work Lane convergence
+  program.

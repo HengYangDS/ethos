@@ -1,6 +1,6 @@
 ---
 subject: ethos:schema-validation
-role: reference
+role: explanation
 state: canonical
 relations:
   canonical_for: JSON protocol validation

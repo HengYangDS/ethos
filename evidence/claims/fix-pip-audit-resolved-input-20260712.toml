@@ -1,0 +1,41 @@
+[claim]
+id = "fix-pip-audit-resolved-input-20260712"
+subject = "ethos:python-vulnerability-audit"
+state = "active"
+change_id = "fix-pip-audit-resolved-input-20260712"
+summary = "ETHOS audits the frozen uv-exported dependency set without re-resolving dependencies or bootstrapping pip."
+
+[evidence]
+dated = "evidence/chronicle/fix-pip-audit-resolved-input-20260712/2026-07-12.md"
+sha256 = "54c6996375cbe73adce0714b86f28197003c649514b26234d060637dcc1055d2"
+evidence_ids = ["evidence:fix-pip-audit-resolved-input-20260712"]
+binding = "The owner script, focused regression test, active OpenSpec carrier, and dated Chronicle bind the input-bound Python vulnerability audit."
+verifier = "digest_only"
+tests = [
+  "uv run --group dev pytest -q tests/architecture/test_dependency_prose_schema_gates.py::test_python_vulnerability_audit_scans_uv_exported_resolved_input",
+  "tools/ci/scripts/run-python-vulnerability-audit.sh",
+  "uv run --package ethos ethos openspec --lifecycle --json",
+  "uv run --package ethos ethos prove --execute --expect-head $(git rev-parse HEAD) --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-quality-gate-governance"
+scope = "Python dependency vulnerability auditing over the frozen uv-exported resolved requirements input."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-12-fix-pip-audit-resolved-input-20260712"
+fallback = "Fail the owner gate when the exported dependency set or vulnerability-service audit cannot complete; do not re-enable dependency resolution or pip bootstrap."
+kill_signal = "The Python vulnerability gate resolves dependencies, upgrades pip tooling, or claims an audit input other than the frozen uv-exported requirements set."
+
+[promotion]
+targets = [
+  "tools/ci/scripts/run-python-vulnerability-audit.sh",
+  "tests/architecture/test_dependency_prose_schema_gates.py",
+  "openspec/changes/archive/2026-07-12-fix-pip-audit-resolved-input-20260712",
+  "openspec/specs/quality/spec.md",
+  "evidence/chronicle/fix-pip-audit-resolved-input-20260712/2026-07-12.md",
+  "evidence/claims/fix-pip-audit-resolved-input-20260712.toml",
+]

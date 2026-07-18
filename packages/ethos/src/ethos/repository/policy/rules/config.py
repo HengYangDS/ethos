@@ -1,0 +1,157 @@
+"""Rules configuration: rules.toml loading, profile resolution, raw-rule normalization."""
+
+from __future__ import annotations
+
+import tomllib
+from typing import TYPE_CHECKING
+from typing import Any
+from typing import cast
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+
+def _rules_path(root: Path) -> Path:
+    return root / ".ethos" / "rules.toml"
+
+
+def _load_rules_config(root: Path) -> dict[str, Any]:
+    path = _rules_path(root)
+    if not path.exists():
+        return {}
+    try:
+        return tomllib.loads(path.read_text(encoding="utf-8"))
+    except tomllib.TOMLDecodeError as exc:
+        return {"_parse_error": str(exc)}
+
+
+def _normalize_profile(profile: str) -> str:
+    if profile == "python-package":
+        return "python"
+    return profile
+
+
+def _profile_stack(root: Path) -> list[str]:
+    config = _load_rules_config(root)
+    profiles = config.get("profiles")
+    if isinstance(profiles, dict) and isinstance(profiles.get("active"), list):
+        normalized = [_normalize_profile(str(item)) for item in profiles["active"]]
+        stack = list(dict.fromkeys(normalized)) or ["generic"]
+        if "generic" not in stack:
+            stack.insert(0, "generic")
+        return stack
+    workspace = root / ".ethos" / "workspace.toml"
+    if workspace.exists():
+        return ["generic"]
+    return ["generic"]
+
+
+def _is_legacy_rule_item(item: dict[str, Any]) -> bool:
+    return bool({"risk", "paths", "requires", "evidence"}.intersection(item))
+
+
+def configured_rules(root: Path) -> list[dict[str, Any]]:
+    """Return normalized rule dicts from .ethos/rules.toml, including legacy rule normalization."""
+    config = _load_rules_config(root)
+    rules = config.get("rule")
+    if not isinstance(rules, list):
+        return []
+    normalized: list[dict[str, Any]] = []
+    for item in rules:
+        if not isinstance(item, dict):
+            normalized.append({"id": "", "_invalid": "rule_not_table"})
+            continue
+        normalized.append(_normalize_rule_item(item))
+    return normalized
+
+
+def _normalize_rule_item(item: dict[str, Any]) -> dict[str, Any]:
+    legacy_rule = _is_legacy_rule_item(item)
+    path_globs = item.get("path_globs", item.get("paths"))
+    required_gates = item.get("required_gates", item.get("requires"))
+    evidence_requirements = item.get("evidence_requirements", item.get("evidence", []))
+    payload: dict[str, Any] = {}
+    for key in (
+        "id",
+        "owner",
+        "authority_ref",
+        "contract_ref",
+        "subject",
+        "severity",
+        "stop_condition",
+    ):
+        if key in item:
+            payload[key] = item[key]
+    if legacy_rule:
+        _apply_legacy_rule_defaults(payload, item)
+    raw_version = item.get("version", 1)
+    payload["version"] = int(raw_version) if str(raw_version).isdigit() else raw_version
+    payload["profile_layers"] = (
+        [str(layer) for layer in item.get("profile_layers", [])]
+        if isinstance(item.get("profile_layers"), list)
+        else []
+    )
+    if isinstance(path_globs, list):
+        payload["path_globs"] = [str(path) for path in path_globs]
+    if isinstance(required_gates, list):
+        payload["required_gates"] = [str(gate) for gate in required_gates]
+    if isinstance(evidence_requirements, list) and evidence_requirements:
+        payload["evidence_requirements"] = [str(req) for req in evidence_requirements]
+    if "non_waivable" in item:
+        payload["non_waivable"] = bool(item["non_waivable"])
+    return payload
+
+
+def _apply_legacy_rule_defaults(payload: dict[str, Any], item: dict[str, Any]) -> None:
+    rule_id = str(item.get("id") or "legacy-rule")
+    risk = str(item.get("risk") or rule_id.replace(".", "_"))
+    payload.setdefault("id", rule_id)
+    payload.setdefault("owner", "repo-local")
+    payload.setdefault("authority_ref", ".ethos/rules.toml")
+    payload.setdefault("contract_ref", ".ethos/rules.toml")
+    payload.setdefault("subject", risk)
+    payload.setdefault("severity", "advisory")
+    payload.setdefault("stop_condition", risk)
+
+
+def configured_gate_tables(root: Path) -> dict[str, dict[str, object]]:
+    """Return gate table entries from .ethos/rules.toml [gates] section."""
+    config = _load_rules_config(root)
+    configured = cast(
+        "dict[str, object]",
+        config.get("gates") if isinstance(config.get("gates"), dict) else {},
+    )
+    gates: dict[str, dict[str, object]] = {}
+    for gate_id, gate in configured.items():
+        if not isinstance(gate, dict):
+            continue
+        gate_table = cast("dict[str, object]", gate)
+        payload: dict[str, object] = {}
+        if "command" in gate_table:
+            payload["command"] = str(gate_table["command"])
+        if "blocking" in gate_table:
+            payload["blocking"] = gate_table["blocking"] is not False
+        if payload:
+            gates[str(gate_id)] = payload
+    return gates
+
+
+def _legacy_state(root: Path) -> dict[str, object]:
+    config = _load_rules_config(root)
+    if not config:
+        return {"legacy_detected": False}
+    legacy_keys = {"formats", "artifacts", "determinism", "standards", "gates"}
+    rules = config.get("rule")
+    legacy_rule_items = isinstance(rules, list) and any(
+        isinstance(item, dict) and _is_legacy_rule_item(item) for item in rules
+    )
+    has_v2_rules = isinstance(config.get("profiles"), dict) or (
+        isinstance(rules, list) and not legacy_rule_items
+    )
+    return {
+        "legacy_detected": (
+            legacy_rule_items or (bool(legacy_keys.intersection(config)) and not has_v2_rules)
+        ),
+        "has_v2_rules": has_v2_rules,
+        "legacy_rule_items": legacy_rule_items,
+    }

@@ -1,6 +1,6 @@
 ---
 subject: ethos:runner-mutation
-role: reference
+role: explanation
 state: canonical
 relations:
   canonical_for: workspace execution boundary
@@ -56,10 +56,12 @@ semantics. Adapters derive presentation from `worktree_binding`; they do not
 own branch role, lane, or mutation semantics.
 Foreign Work Lanes appear in `foreign_work_lanes` and in the `coordination`
 package. Presence is advisory when scopes are disjoint or the current checkout
-is observe-only. Candidate integration from a Work Lane is blocking when the
-current lane and a foreign lane have overlapping or unknown path scope; the
-status payload reports `coordination_gap:*` in `required_gaps` before a later
-merge can accidentally let one agent overwrite another agent's obligation.
+is observe-only. Candidate integration from a Work Lane is blocked by required
+coordination gaps for the current lane, such as unknown current scope. Foreign
+unknown scope and same-file/ancestor-scope overlap are surfaced as advisory
+`coordination_gap:*` contention, leaving Git's fast-forward land as the final
+mutation arbiter without serializing unrelated agents that merely share a
+directory.
 `ethos lane start --apply --json` returns the newly created Work Lane under
 `data.worktree` with the same binding vocabulary. Start admission also rejects a
 dirty candidate worktree with `candidate_worktree_dirty`, so a new Work Lane
@@ -76,9 +78,9 @@ The standard Work Lane lifecycle is command-bound: `ethos lane start` creates
 and leases the lane, `ethos lane bind-claim` attaches claim boundary evidence
 when needed, `ethos lane refresh-base` replays a stale lane onto the configured
 candidate branch, `ethos land` advances the configured candidate branch, and
-`ethos lane retire-landed` removes only an explicitly named landed Work Lane at
+`ethos lane retire landed` removes only an explicitly named landed Work Lane at
 the expected Work Lane HEAD.
-`ethos lane retire-unbound` removes only an explicitly named unbound Work Lane
+`ethos lane retire unbound` removes only an explicitly named unbound Work Lane
 ref that status already exposed, and only when `--expect-head`, `--reason`, and
 `--authorize` prove the maintainer intended that exact ref deletion. Raw Git
 worktree creation can exist as a repository fact, but it is not standard ETHOS
@@ -114,10 +116,30 @@ runner is allowed to execute the protected closeout with an explicit
 `--root <accepted-root>`, while remote push remains `deferred` and the candidate
 worktree is audited and proven before accepted-root movement.
 
+When a candidate changed a control path and needs a protected external bootstrap
+receipt, the candidate-proof input is the native JSON result of
+`ethos prove --execute --json`. The verifier requires `command = "prove"`,
+`ok = true`, `state = "proven"`, `data.executed = true`, and matching candidate
+HEAD bindings at `data.evidence.head` and
+`data.provenance.predicate.head`. A hand-written `{head, state}` envelope is
+not a proof record. This keeps the bootstrap adapter bound to the product proof
+contract without adding a profile, provider, or adopter-specific branch.
+
+If the accepted root and candidate branch already resolve to the same HEAD,
+closeout is current rather than ready-to-mutate. `ethos land --closeout --json`
+reports `state = "accepted_current"`, `closeout_bootstrap.state = "current"`,
+and `ethos publish` as the next action. Apply mode is a no-op in that state: it
+still requires `--authorize` and `--expect-head` as mutation-safety intent, but
+it does not require a new candidate proof because no new candidate head is being
+promoted.
+
 `ethos publish` is a local readiness command until a remote publication adapter
-is available. It reports `remote_push = "not_performed"` and a
+is available. It reports `remote_push = "not_performed"`,
+`summary.remote_publication_state = "deferred"`, and a
 `publication.mode = "local_readiness"` package with the planned submit branch
-under the configured submit prefix. Remote push is deliberately deferred; local
+under the configured submit prefix. Remote reachability is reported separately
+under `remote_availability.state`; an available remote does not mean remote push
+or hosted CI has been performed. Remote push is deliberately deferred; local
 proof and candidate closeout are still the required preparation.
 
 The publication payload also carries `publication.local_submit_package`, a

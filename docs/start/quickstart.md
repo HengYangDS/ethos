@@ -1,6 +1,6 @@
 ---
 subject: docs:start
-role: workflow
+role: how-to
 state: active
 relations:
   canonical_for: first run
@@ -80,7 +80,8 @@ ethos publish
 
 For scripts and agents, `ethos status --json` exposes the safe first-glance
 fields in `summary`: current role, dirty state, changed-path count, visible
-foreign Work Lane count, visible unbound Work Lane ref count, and whether
+foreign Work Lane count, visible unbound Work Lane ref count, missing-lease
+count, dirty foreign Work Lane count, advisory coordination count, and whether
 coordination is currently blocking. Treat those fields as visibility only;
 inspect `data.coordination` before any handoff, merge, land, retirement, or
 cleanup decision.

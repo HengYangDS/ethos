@@ -1,0 +1,63 @@
+[claim]
+id = "ci-runner-boundary"
+subject = "ethos:ci-runner-boundary"
+state = "active"
+change_id = "ci-runner-boundary-20260708"
+summary = "ETHOS keeps CI and quality runner scripts under tools/ci/scripts while .config/checks remains the policy configuration root."
+
+[evidence]
+dated = "evidence/chronicle/ci-runner-boundary/2026-07-08.md"
+sha256 = "09fd0f264751be4f28089d93b43ee81fef43ca086a3cf3af9e731c7b55d7f4d1"
+evidence_ids = ["evidence:ci-runner-boundary"]
+binding = "CI runner boundary evidence binding: configuration declares policy, tools execute reusable gates."
+verifier = "digest_only"
+tests = [
+  "uv run --package ethos ethos openspec --lifecycle --json",
+  "uv run --package ethos ethos quality generated-artifacts --json",
+  "uv run --package ethos ethos quality gates --json",
+  "uv run --package ethos ethos quality command-surface --json",
+  "uv run --group dev pytest tests/unit/governance/test_claims.py::test_active_claim_commands_do_not_use_retired_ci_runner_root -q",
+  "uv run --group dev pytest tests/architecture/test_ci_script_executable.py tests/architecture/test_release_assets.py tests/architecture/test_testing_platform.py tests/unit/governance/validation/test_gates.py tests/unit/kernel/test_quality.py tests/unit/cli/test_quality_surface_more.py tests/unit/governance/test_generated_artifact_topology.py -q",
+  "uv run --package ethos ethos prove --execute --expect-head <head> --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+[boundary]
+owner = "ethos-quality"
+scope = "CI and quality runner physical ownership boundary between configuration policy and executable tooling"
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-08-ci-runner-boundary"
+fallback = "Keep invoking existing runner scripts only after moving or restoring them under a single repository-owned executable tooling root."
+kill_signal = "A current quality gate, CI projection, pre-commit hook, skill, or claim treats .config/ci/scripts as the active reusable runner owner root."
+
+[promotion]
+targets = [
+  "tools/ci/scripts/run-local-ci.sh",
+  "tools/ci/scripts/run-python-lint.sh",
+  "tools/ci/scripts/run-python-tests.sh",
+  "tools/ci/scripts/run-config-lint.sh",
+  "tools/ci/scripts/run-shell-lint.sh",
+  "tools/ci/scripts/run-docstring-coverage.sh",
+  "tools/ci/scripts/run-module-layout.sh",
+  ".config/README.md",
+  ".gitlab-ci.yml",
+  ".pre-commit-config.yaml",
+  "system/tools.toml",
+  "docs/governance/product-design-contract.md",
+  "packages/ethos-core/src/ethos_core/contracts/artifacts/topology.py",
+  "packages/ethos-core/src/ethos_core/quality/gates.py",
+  "packages/ethos/src/ethos/domain/land/publication.py",
+  "packages/ethos/src/ethos/repository/policy/gates.py",
+  "packages/ethos/src/ethos/surface/cli/quality/core.py",
+  "openspec/specs/quality/spec.md",
+  "openspec/specs/repository-governance/spec.md",
+  "openspec/changes/archive/2026-07-08-ci-runner-boundary/proposal.md",
+  "openspec/changes/archive/2026-07-08-ci-runner-boundary/design.md",
+  "openspec/changes/archive/2026-07-08-ci-runner-boundary/tasks.md",
+  "openspec/changes/archive/2026-07-08-ci-runner-boundary/specs/quality/spec.md",
+  "openspec/changes/archive/2026-07-08-ci-runner-boundary/specs/repository-governance/spec.md",
+  "evidence/chronicle/ci-runner-boundary/2026-07-08.md",
+  "evidence/claims/ci-runner-boundary.toml",
+]

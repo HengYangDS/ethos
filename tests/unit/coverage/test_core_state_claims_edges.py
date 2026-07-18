@@ -8,21 +8,26 @@ import json
 import sqlite3
 import subprocess
 from contextlib import closing
+from functools import partial
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
+import ethos.adapters.store.state.events as state_events
+import ethos.adapters.store.state.events as state_schema
+import ethos.adapters.store.state.lease.lifecycle.core as state
+import ethos.adapters.store.state.lease.lifecycle.effects as state_effects
+import ethos.adapters.store.state.lease.projection as state_projection
+import ethos.adapters.store.state.lease.projection as state_read
 from ethos.adapters.mutation import core as mutation_core
 from ethos.adapters.mutation import proof as mutation_proof
+from ethos.adapters.mutation.closeout import core as closeout_core
 from ethos.adapters.repo import coordination
 from ethos.adapters.repo import git
-from ethos.adapters.store import state
-from ethos.domain import land
-from ethos.repository.evidence import claims
-from ethos.repository.registry import authority
-from ethos_core.contracts.branch_roles import ROLE_ACCEPTED_ROOT
-from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
+from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
+from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
+from ethos_core.contracts.branch.roles import BranchRolePolicy
 
 
 def cp(stdout: str = "", stderr: str = "", returncode: int = 0) -> subprocess.CompletedProcess[str]:
@@ -30,6 +35,8 @@ def cp(stdout: str = "", stderr: str = "", returncode: int = 0) -> subprocess.Co
 
 
 POLICY = SimpleNamespace(
+    release_branch="main",
+    release_mirror="independent",
     accepted_branch="dev",
     candidate_branch="candidate/dev",
     submit_branch_for_source=lambda branch: f"submit/{branch.replace('/', '-')}",
@@ -52,11 +59,41 @@ def status_for(
         or {
             "exists": True,
             "worktree_exists": True,
-            "worktree_path": "/tmp/candidate",
+            "worktree_path": "/workspace/candidate",
             "head": "c1",
         },
         "closeout_support": {"required_gaps": closeout_gaps or []},
     }
+
+
+def accepted_status() -> dict[str, object]:
+    return status_for(
+        role=ROLE_ACCEPTED_ROOT,
+        candidate={
+            "exists": True,
+            "worktree_exists": True,
+            "worktree_path": "/workspace/c",
+            "head": "c2",
+        },
+    )
+
+
+def prepare_accepted_closeout(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(mutation_core, "load_branch_role_policy", lambda root, *args: POLICY)
+    monkeypatch.setattr(
+        mutation_core,
+        "evaluate_closeout_mutation",
+        lambda *args, **kwargs: mutation_core.MutationEvaluation(ok=True, state="closeout_ready"),
+    )
+    monkeypatch.setattr(
+        mutation_core, "workspace_status", lambda root, **_kwargs: accepted_status()
+    )
+    monkeypatch.setattr(mutation_core, "is_ancestor", lambda root, ancestor, descendant: True)
+    monkeypatch.setattr(
+        mutation_core,
+        "carry_executed_proof_record",
+        lambda **kwargs: {"ok": True, "state": "carried", "required_gaps": []},
+    )
 
 
 def evidence_for(head: str, runs: list[dict[str, object]] | None = None) -> dict[str, object]:
@@ -71,7 +108,9 @@ def evidence_for(head: str, runs: list[dict[str, object]] | None = None) -> dict
     return body
 
 
-def test_mutation_proof_record_rejects_forgery_and_accepts_sealed(tmp_path: Path) -> None:
+def test_mutation_proof_record_rejects_forgery_and_accepts_sealed(
+    tmp_path: Path,
+) -> None:
     assert mutation_proof.executed_proof_record(tmp_path, "h1") is None
     evidence = evidence_for("h1")
     path = mutation_proof.record_executed_proof(tmp_path, evidence)
@@ -92,6 +131,97 @@ def test_mutation_proof_record_rejects_forgery_and_accepts_sealed(tmp_path: Path
             [{"verdict": "passed", "trust_bearing": True, "state": "executed"}]
         )
         is False
+    )
+
+
+def test_mutation_proof_record_merges_same_head_gate_runs(tmp_path: Path) -> None:
+    first = evidence_for(
+        "h1",
+        [
+            {
+                "action_id": "repository-audit",
+                "verdict": "passed",
+                "state": "proven",
+                "trust_bearing": True,
+            }
+        ],
+    )
+    second = evidence_for(
+        "h1",
+        [
+            {
+                "action_id": "claims",
+                "verdict": "passed",
+                "state": "proven",
+                "trust_bearing": True,
+            }
+        ],
+    )
+
+    mutation_proof.record_executed_proof(tmp_path, first)
+    path = mutation_proof.record_executed_proof(tmp_path, second)
+
+    record = mutation_proof.executed_proof_record(tmp_path, "h1")
+    assert record is not None
+    evidence = record["evidence"]
+    runs = evidence["runs"]
+    assert [run["action_id"] for run in runs] == ["repository-audit", "claims"]
+    assert evidence["digest"] == mutation_proof._evidence_digest(evidence)
+    assert json.loads(path.read_text(encoding="utf-8"))["evidence_digest"] == evidence["digest"]
+
+
+def test_mutation_proof_merge_handles_legacy_index_and_invalid_runs() -> None:
+    existing = {
+        "id": "old",
+        "head": "h1",
+        "durability": "local",
+        "runs": [
+            {
+                "id": "legacy-gate",
+                "verdict": "passed",
+                "state": "proven",
+                "trust_bearing": True,
+            },
+            "not-a-run",
+            {"verdict": "passed", "state": "proven", "trust_bearing": True},
+        ],
+    }
+    incoming = {
+        "id": "new",
+        "head": "h1",
+        "durability": "local",
+        "runs": [
+            {
+                "id": "legacy-gate",
+                "verdict": "passed",
+                "state": "proven",
+                "trust_bearing": True,
+                "refreshed": True,
+            },
+            {"verdict": "passed", "state": "proven", "trust_bearing": True},
+        ],
+    }
+
+    merged = mutation_proof._merge_same_head_evidence(existing, incoming)
+
+    assert merged["id"] == "new"
+    assert merged["head"] == "h1"
+    assert merged["durability"] == "local"
+    assert merged["runs"] == [
+        {
+            "id": "legacy-gate",
+            "verdict": "passed",
+            "state": "proven",
+            "trust_bearing": True,
+            "refreshed": True,
+        },
+        {"verdict": "passed", "state": "proven", "trust_bearing": True},
+        {"verdict": "passed", "state": "proven", "trust_bearing": True},
+    ]
+    assert merged["digest"] == mutation_proof._evidence_digest(merged)
+    assert (
+        mutation_proof._merge_same_head_evidence({"runs": "bad"}, incoming)["runs"]
+        == incoming["runs"]
     )
 
 
@@ -127,85 +257,132 @@ def test_mutation_proof_record_carries_only_verified_records(tmp_path: Path) -> 
     assert mutation_proof.executed_proof_record(target, "h1") is not None
 
 
-def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(mutation_core, "load_branch_role_policy", lambda root: POLICY)
-    monkeypatch.setattr(mutation_core, "_proof_gaps", lambda root, head: [])
+def test_promotion_completeness_surfaces_adopter_code_correctness_gap(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    full = evidence_for(
+        "h1",
+        [
+            {
+                "action_id": "required",
+                "verdict": "passed",
+                "state": "proven",
+                "trust_bearing": True,
+            }
+        ],
+    )
+    mutation_proof.record_executed_proof(tmp_path, full)
+    monkeypatch.setattr(mutation_proof, "_promotion_required_gate_ids", lambda root: ("required",))
     monkeypatch.setattr(
-        mutation_core, "workspace_status", lambda root: status_for(closeout_gaps=["trust_gap"])
+        mutation_proof,
+        "adopter_code_correctness_gaps",
+        lambda root: ("adopter_code_correctness_missing",),
+    )
+
+    assert mutation_proof.promotion_completeness_gaps(tmp_path, "h1") == [
+        "adopter_code_correctness_missing"
+    ]
+
+
+def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(mutation_core, "load_branch_role_policy", lambda root, *args: POLICY)
+    monkeypatch.setattr(mutation_core, "proof_gaps", lambda root, head: [])
+    monkeypatch.setattr(
+        mutation_core,
+        "workspace_status",
+        lambda root, **_kwargs: status_for(closeout_gaps=["trust_gap"]),
     )
     decision = mutation_core.evaluate_mutation(
-        mutation_core.MutationRequest("land", True, True, "h1"), root=tmp_path, current_head="h1"
+        mutation_core.MutationRequest("land", True, True, "h1"),
+        root=tmp_path,
+        current_head="h1",
     )
     assert decision.gaps == ("trust_gap",)
 
-    ready_decision = mutation_core.MutationDecision(ok=True, state="land_ready")
-    monkeypatch.setattr(mutation_core, "workspace_status", lambda root: status_for())
+    ready_decision = mutation_core.MutationEvaluation(ok=True, state="land_ready")
+    monkeypatch.setattr(mutation_core, "workspace_status", lambda root, **_kwargs: status_for())
     monkeypatch.setattr(
         mutation_core,
         "candidate_base_report",
-        lambda root: {"ok": False, "required_gaps": ["candidate_base_stale"], "state": "blocked"},
+        lambda root: {
+            "ok": False,
+            "required_gaps": ["candidate_base_stale"],
+            "state": "blocked",
+        },
     )
     monkeypatch.setattr(
         mutation_core,
-        "_git",
+        "run_git",
         lambda root, *args, check=True, **kwargs: cp(stdout="h1\n", returncode=0),
     )
     assert mutation_core.apply_land_to_candidate(
-        root=tmp_path, authorized=True, expect_head="h1", admitted_decision=ready_decision
+        root=tmp_path,
+        authorized=True,
+        expect_head="h1",
+        admitted_decision=ready_decision,
     )["required_gaps"] == ["candidate_base_stale"]
     monkeypatch.setattr(
         mutation_core,
         "candidate_base_report",
-        lambda root: {"ok": True, "path": str(tmp_path / "candidate"), "required_gaps": []},
+        lambda root: {
+            "ok": True,
+            "path": str(tmp_path / "candidate"),
+            "required_gaps": [],
+        },
     )
+    # The proof carry now runs BEFORE the ref move at both tails; stub it to succeed so
+    # these white-box ordering tests exercise the git edges rather than proof presence.
     monkeypatch.setattr(
         mutation_core,
-        "_git",
+        "carry_executed_proof_record",
+        lambda **kwargs: {"ok": True, "state": "carried", "required_gaps": []},
+    )
+    monkeypatch.setattr(mutation_core, "discard_executed_proof", lambda root, head: True)
+    monkeypatch.setattr(
+        mutation_core,
+        "run_git",
         lambda root, *args, check=True, **kwargs: cp(
-            stdout="h1\n", stderr="merge failed", returncode=1 if args[:1] == ("merge",) else 0
+            stdout="h1\n",
+            stderr="merge failed",
+            returncode=1 if args[:1] == ("merge",) else 0,
         ),
     )
     assert mutation_core.apply_land_to_candidate(
-        root=tmp_path, authorized=True, expect_head="h1", admitted_decision=ready_decision
+        root=tmp_path,
+        authorized=True,
+        expect_head="h1",
+        admitted_decision=ready_decision,
     )["required_gaps"] == ["candidate_update_failed"]
-    monkeypatch.setattr(
-        mutation_core,
-        "_git",
-        lambda root, *args, check=True, **kwargs: cp(stdout="h1\n", returncode=0),
-    )
+    merge_envs: list[dict[str, str] | None] = []
+
+    def fake_land_git(root, *args, check=True, **kwargs):
+        if args[:1] == ("merge",):
+            merge_envs.append(kwargs.get("env"))
+        return cp(stdout="h1\n", returncode=0)
+
+    monkeypatch.setattr(mutation_core, "run_git", fake_land_git)
     assert (
         mutation_core.apply_land_to_candidate(
-            root=tmp_path, authorized=True, expect_head="h1", admitted_decision=ready_decision
+            root=tmp_path,
+            authorized=True,
+            expect_head="h1",
+            admitted_decision=ready_decision,
         )["state"]
         == "candidate_validated"
     )
+    # The candidate merge no longer carries a ref-move escape env — it earns admission
+    # through the armed hook after the proof is pre-carried.
+    assert merge_envs == [None]
 
-    monkeypatch.setattr(
-        mutation_core,
-        "evaluate_closeout_mutation",
-        lambda *args, **kwargs: mutation_core.MutationDecision(ok=True, state="closeout_ready"),
-    )
-    monkeypatch.setattr(
-        mutation_core,
-        "workspace_status",
-        lambda root: status_for(
-            role=ROLE_ACCEPTED_ROOT,
-            candidate={
-                "exists": True,
-                "worktree_exists": True,
-                "worktree_path": "/tmp/c",
-                "head": "c2",
-            },
-        ),
-    )
-    monkeypatch.setattr(mutation_core, "_is_ancestor", lambda root, ancestor, descendant: False)
+    prepare_accepted_closeout(monkeypatch)
+    monkeypatch.setattr(mutation_core, "is_ancestor", lambda root, ancestor, descendant: False)
     assert mutation_core.apply_candidate_to_accepted(
         root=tmp_path, authorized=True, expect_head="h1"
     )["required_gaps"] == ["candidate_diverged_from_accepted"]
-    monkeypatch.setattr(mutation_core, "_is_ancestor", lambda root, ancestor, descendant: True)
+    monkeypatch.setattr(mutation_core, "is_ancestor", lambda root, ancestor, descendant: True)
     monkeypatch.setattr(
         mutation_core,
-        "_git",
+        "run_git",
         lambda root, *args, check=True, **kwargs: cp(
             stdout="h1\n",
             stderr="cannot lock ref",
@@ -218,18 +395,23 @@ def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
 
     def fake_git_sync_failed(_root, *args, check=True, **_kwargs):
         _ = check
+        reset_attempts = fake_git_sync_failed.reset_attempts
         if args[:1] == ("update-ref",):
             return cp(stdout="", returncode=0)
         if args[:2] == ("reset", "--hard"):
+            fake_git_sync_failed.reset_attempts = reset_attempts + 1
             return cp(stdout="", stderr="sync failed", returncode=1)
         return cp(stdout="h1\n", returncode=0)
 
-    monkeypatch.setattr(mutation_core, "_git", fake_git_sync_failed)
+    fake_git_sync_failed.reset_attempts = 0
+    monkeypatch.setattr(mutation_core, "run_git", fake_git_sync_failed)
     failed_sync = mutation_core.apply_candidate_to_accepted(
         root=tmp_path, authorized=True, expect_head="h1"
     )
     assert failed_sync["required_gaps"] == ["accepted_worktree_sync_failed"]
     assert failed_sync["state"] == "blocked"
+    assert failed_sync["sync_attempts"] == 1
+    assert fake_git_sync_failed.reset_attempts == 1
 
     def fake_git_clean_after_sync(_root, *args, check=True, **_kwargs):
         _ = check
@@ -241,7 +423,7 @@ def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
             return cp(stdout="", returncode=0)
         return cp(stdout="h1\n", returncode=0)
 
-    monkeypatch.setattr(mutation_core, "_git", fake_git_clean_after_sync)
+    monkeypatch.setattr(mutation_core, "run_git", fake_git_clean_after_sync)
     assert (
         mutation_core.apply_candidate_to_accepted(root=tmp_path, authorized=True, expect_head="h1")[
             "state"
@@ -250,29 +432,86 @@ def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
     )
 
 
+def test_release_mirror_closeout_edge_paths(monkeypatch, tmp_path):
+    request = closeout_core.CloseoutRequest(
+        root=tmp_path,
+        policy=BranchRolePolicy(release_mirror="accepted_ff"),
+        current_head="old",
+        candidate_head="new",
+        candidate_path=tmp_path,
+        worktrees=[],
+    )
+    dependencies = closeout_core.CloseoutDependencies(
+        run_git=lambda *_args, **_kwargs: cp(),
+        is_ancestor=lambda *_args: True,
+        carry_proof=lambda **_kwargs: {"ok": True, "required_gaps": []},
+        discard_proof=lambda *_args: None,
+    )
+    promote = partial(
+        closeout_core.promote_candidate_to_accepted,
+        request,
+        dependencies=dependencies,
+    )
+    assert promote()["required_gaps"][0] == "release_mirror_release_branch_missing"
+    transition = closeout_core.CloseoutTransition("refs/heads/main", "old", "new", "new")
+    worktrees = [{"branch": "main", "worktree_binding": "linked", "path": str(tmp_path)}]
+    assert (
+        closeout_core.sync_release_mirror(
+            transition, worktrees, "new", "old", lambda *_a, **_k: cp()
+        )["worktree_sync"]
+        == "synced"
+    )
+    failed = closeout_core.sync_release_mirror(
+        transition, worktrees, "new", "old", lambda *_a, **_k: cp(stderr="sync", returncode=1)
+    )
+    monkeypatch.setattr(closeout_core, "sync_release_mirror", lambda *_a: failed)
+    assert closeout_core.promote_candidate_to_accepted(
+        request,
+        dependencies=closeout_core.CloseoutDependencies(
+            run_git=lambda _r, *a, **_k: cp("old\n") if a[:1] == ("rev-parse",) else cp(),
+            is_ancestor=lambda *_args: True,
+            carry_proof=lambda **_k: {"ok": True, "required_gaps": []},
+            discard_proof=lambda *_args: None,
+        ),
+    )["required_gaps"] == ["release_mirror_worktree_sync_failed"]
+    assert closeout_core.proof_required_gaps({"required_gaps": "invalid"}) == ["proof_invalid"]
+    assert closeout_core.proof_required_gaps(object()) == ["proof_invalid"]
+    assert closeout_core.proof_carry_failure(request, object()) is not None
+
+
+def test_closeout_retries_transient_accepted_worktree_sync_failure(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    prepare_accepted_closeout(monkeypatch)
+    reset_attempts = {"count": 0}
+
+    def fake_git_sync_retry(_root, *args, check=True, **_kwargs):
+        _ = check
+        if args[:1] == ("update-ref",):
+            return cp(stdout="", returncode=0)
+        if args[:2] == ("reset", "--hard"):
+            reset_attempts["count"] += 1
+            if reset_attempts["count"] == 1:
+                return cp(stdout="", stderr="Unable to create index.lock", returncode=1)
+            return cp(stdout="", returncode=0)
+        if args[:2] == ("status", "--short"):
+            return cp(stdout="", returncode=0)
+        return cp(stdout="h1\n", returncode=0)
+
+    monkeypatch.setattr(mutation_core, "run_git", fake_git_sync_retry)
+
+    retried_sync = mutation_core.apply_candidate_to_accepted(
+        root=tmp_path, authorized=True, expect_head="h1"
+    )
+
+    assert retried_sync["state"] == "accepted_validated"
+    assert retried_sync["sync_attempts"] == 2
+
+
 def test_closeout_blocks_dirty_accepted_worktree_after_sync(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    monkeypatch.setattr(mutation_core, "load_branch_role_policy", lambda root: POLICY)
-    monkeypatch.setattr(
-        mutation_core,
-        "evaluate_closeout_mutation",
-        lambda *args, **kwargs: mutation_core.MutationDecision(ok=True, state="closeout_ready"),
-    )
-    monkeypatch.setattr(
-        mutation_core,
-        "workspace_status",
-        lambda root: status_for(
-            role=ROLE_ACCEPTED_ROOT,
-            candidate={
-                "exists": True,
-                "worktree_exists": True,
-                "worktree_path": "/tmp/c",
-                "head": "c2",
-            },
-        ),
-    )
-    monkeypatch.setattr(mutation_core, "_is_ancestor", lambda root, ancestor, descendant: True)
+    prepare_accepted_closeout(monkeypatch)
 
     def fake_git_dirty_after_sync(_root, *args, check=True, **_kwargs):
         _ = check
@@ -284,7 +523,7 @@ def test_closeout_blocks_dirty_accepted_worktree_after_sync(
             return cp(stdout=" M README.md\n", returncode=0)
         return cp(stdout="h1\n", returncode=0)
 
-    monkeypatch.setattr(mutation_core, "_git", fake_git_dirty_after_sync)
+    monkeypatch.setattr(mutation_core, "run_git", fake_git_dirty_after_sync)
 
     dirty_after_sync = mutation_core.apply_candidate_to_accepted(
         root=tmp_path, authorized=True, expect_head="h1"
@@ -297,13 +536,13 @@ def test_closeout_blocks_dirty_accepted_worktree_after_sync(
 def test_mutation_admission_blocks_unarchived_openspec_carriers(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    monkeypatch.setattr(mutation_core, "_proof_gaps", lambda root, head: [])
-    monkeypatch.setattr(mutation_core, "_is_ancestor", lambda root, ancestor, descendant: True)
+    monkeypatch.setattr(mutation_core, "proof_gaps", lambda root, head: [])
+    monkeypatch.setattr(mutation_core, "is_ancestor", lambda root, ancestor, descendant: True)
     change = tmp_path / "openspec" / "changes" / "done"
     change.mkdir(parents=True)
     (change / "tasks.md").write_text("- [x] done\n", encoding="utf-8")
 
-    monkeypatch.setattr(mutation_core, "workspace_status", lambda root: status_for())
+    monkeypatch.setattr(mutation_core, "workspace_status", lambda root, **_kwargs: status_for())
     land_decision = mutation_core.evaluate_mutation(
         mutation_core.MutationRequest("land", True, True, "h1"),
         root=tmp_path,
@@ -315,12 +554,12 @@ def test_mutation_admission_blocks_unarchived_openspec_carriers(
 def test_mutation_admission_blocks_any_active_openspec_carrier_before_land(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    monkeypatch.setattr(mutation_core, "_proof_gaps", lambda root, head: [])
+    monkeypatch.setattr(mutation_core, "proof_gaps", lambda root, head: [])
     change = tmp_path / "openspec" / "changes" / "wip"
     change.mkdir(parents=True)
     (change / "tasks.md").write_text("- [x] started\n- [ ] not archived\n", encoding="utf-8")
 
-    monkeypatch.setattr(mutation_core, "workspace_status", lambda root: status_for())
+    monkeypatch.setattr(mutation_core, "workspace_status", lambda root, **_kwargs: status_for())
 
     land_decision = mutation_core.evaluate_mutation(
         mutation_core.MutationRequest("land", True, True, "h1"),
@@ -334,8 +573,8 @@ def test_mutation_admission_blocks_any_active_openspec_carrier_before_land(
 def test_mutation_admission_blocks_active_openspec_carriers_on_closeout(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    monkeypatch.setattr(mutation_core, "_proof_gaps", lambda root, head: [])
-    monkeypatch.setattr(mutation_core, "_is_ancestor", lambda root, ancestor, descendant: True)
+    monkeypatch.setattr(mutation_core, "proof_gaps", lambda root, head: [])
+    monkeypatch.setattr(mutation_core, "is_ancestor", lambda root, ancestor, descendant: True)
     change = tmp_path / "openspec" / "changes" / "wip"
     change.mkdir(parents=True)
     (change / "tasks.md").write_text("- [ ] unfinished\n", encoding="utf-8")
@@ -343,7 +582,7 @@ def test_mutation_admission_blocks_active_openspec_carriers_on_closeout(
     monkeypatch.setattr(
         mutation_core,
         "workspace_status",
-        lambda root: status_for(
+        lambda root, **_kwargs: status_for(
             role=ROLE_ACCEPTED_ROOT,
             candidate={
                 "exists": True,
@@ -364,22 +603,37 @@ def test_mutation_admission_blocks_active_openspec_carriers_on_closeout(
 
 def test_store_state_lease_events_and_malformed_rows(tmp_path: Path) -> None:
     db = tmp_path / ".ethos" / "state" / "state.sqlite"
-    state.initialize_state(db)
-    assert state._safe_table("events") == "events"
+    state_schema.initialize_state(db)
+    assert state_events.safe_table("events") == "events"
     with pytest.raises(ValueError):
-        state._safe_table("bad")
-    state.append_event(db, event_type="e", subject="s", payload={"x": 1})
-    state.append_chronicle_event(db, event_type="c", subject="s", payload={"y": 2})
-    assert state.list_events(db)[0]["payload"] == {"x": 1}
-    assert state.list_chronicle_events(db)[0]["payload"] == {"y": 2}
+        state_events.safe_table("bad")
+    assert "insert into events" in state_events.insert_event_sql("events")
+    assert "from chronicle_events" in state_events.select_event_sql("chronicle_events")
+    with closing(sqlite3.connect(db)) as connection, pytest.raises(ValueError):
+        state_projection.table_columns(connection, "events")
+    state_events.append_event(db, event_type="e", subject="s", payload={"x": 1})
+    state_events.append_chronicle_event(db, event_type="c", subject="s", payload={"y": 2})
+    assert state_events.list_events(db)[0]["payload"] == {"x": 1}
+    assert state_events.list_chronicle_events(db)[0]["payload"] == {"y": 2}
 
-    assert state.update_lease_payload(db, subject="missing", payload={"claim_id": "c"}) == {}
-    lease = state.acquire_lease(db, subject="work/x", owner="me", ttl_seconds=60, payload={"a": 1})
-    updated = state.update_lease_payload(db, subject="work/x", payload={"claim_id": "c"})
-    assert updated["payload"] == {"a": 1, "claim_id": "c"}
-    assert state.active_leases(db)[0]["id"] == lease["id"]
-    assert state.delete_lease(db, subject="work/x") == 1
-    assert state.active_leases(db) == []
+    assert (
+        state_effects.update_lease_payload(db, subject="missing", payload={"claim_id": "c"}) == {}
+    )
+    lease = state.acquire_lease(
+        db,
+        subject="work/x",
+        holder_ref="agent:test:case:me",
+        ttl_seconds=60,
+        payload={"a": 1},
+    )
+    updated = state_effects.update_lease_payload(db, subject="work/x", payload={"claim_id": "c"})
+    assert updated["payload"]["a"] == 1
+    assert updated["payload"]["claim_id"] == "c"
+    assert updated["payload"]["holder_ref"] == "agent:test:case:me"
+    assert updated["payload"]["normalization_state"] == "normalized"
+    assert state_read.active_leases(db)[0]["id"] == lease["id"]
+    assert state_effects.delete_lease(db, subject="work/x") == 1
+    assert state_read.active_leases(db) == []
 
     with closing(sqlite3.connect(db)) as connection:
         connection.execute(
@@ -389,18 +643,16 @@ def test_store_state_lease_events_and_malformed_rows(tmp_path: Path) -> None:
             "insert into leases(id, subject, owner, expires_at, payload_json) values ('badjson','s','o','2999-01-01T00:00:00+00:00','[]')"
         )
         connection.commit()
-    leases = state.active_leases(db)
-    assert leases == [
-        {
-            "id": "badjson",
-            "subject": "s",
-            "owner": "o",
-            "expires_at": "2999-01-01T00:00:00+00:00",
-            "payload": {},
-        }
-    ]
-    assert state.delete_lease(tmp_path / "missing.sqlite", subject="x") == 0
-    assert state.list_events(tmp_path / "missing.sqlite") == []
+    leases = state_read.active_leases(db)
+    assert len(leases) == 1
+    assert leases[0]["id"] == "badjson"
+    assert leases[0]["subject"] == "s"
+    assert leases[0]["expires_at"] == "2999-01-01T00:00:00+00:00"
+    assert leases[0]["holder_ref"] == ""
+    assert leases[0]["normalization_state"] == "legacy_ambiguous"
+    assert leases[0]["payload"] == {}
+    assert state_effects.delete_lease(tmp_path / "missing.sqlite", subject="x") == 0
+    assert state_events.list_events(tmp_path / "missing.sqlite") == []
 
 
 def test_git_and_coordination_edges(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -449,21 +701,45 @@ def test_git_and_coordination_edges(monkeypatch: pytest.MonkeyPatch, tmp_path: P
         )
         == "disjoint"
     )
+    assert (
+        coordination.coordination_state(
+            current_role=ROLE_WORK_LANE,
+            current_path_scope=("a",),
+            current_scope_state="deferred",
+            foreign_path_scope=("b",),
+            foreign_scope_state="bounded",
+        )
+        == "deferred"
+    )
     required, advisory = coordination.coordination_gaps(
-        [{"branch": "work/x", "lease_state": "missing", "coordination_state": "overlap"}],
+        [
+            {
+                "branch": "work/x",
+                "lease_state": "missing",
+                "coordination_state": "overlap",
+            }
+        ],
         current_role=ROLE_WORK_LANE,
         current_scope_state="unknown",
     )
     assert required == ["coordination_gap:current_scope_unknown"]
     assert "coordination_gap:scope_overlap:work/x" in advisory
-    assert coordination.foreign_work_lane_capability() == {
-        "current_actor_capability": "observe",
-        "allowed_actions": ["observe"],
-        "forbidden_actions": ["write", "land", "retire"],
-        "write_policy": "owner_only",
-        "retire_policy": "owner_handoff_or_maintainer_break_glass",
-        "handoff_required": True,
-    }
+    deferred_lane = coordination.foreign_work_lane_deferred(
+        {
+            "path": "/workspace/foreign",
+            "head": "h1",
+            "branch": "work/foreign",
+            "role": ROLE_WORK_LANE,
+            "worktree_binding": "linked",
+        },
+        lease={"holder_ref": "agent:test:case:foreign"},
+        claim_id="claim",
+        dirty_paths=("unobserved",),
+    )
+    assert deferred_lane["scope_state"] == "deferred"
+    assert deferred_lane["coordination_state"] == "advisory"
+    assert deferred_lane["closeout_disposition"] == "none"
+    assert coordination._combined_scope_state("deferred", ("a",)) == "deferred"  # noqa: RUF100, SLF001 - exact deferred-scope reducer coverage
     package = coordination.coordination_package(
         [{"lease_state": "missing", "coordination_state": "unknown"}],
         required_gaps=["g"],
@@ -478,6 +754,52 @@ def test_git_and_coordination_edges(monkeypatch: pytest.MonkeyPatch, tmp_path: P
         package["next_action"]
         == "resolve required Work Lane coordination gaps before candidate integration"
     )
+    residue_package = coordination.coordination_package(
+        [
+            {
+                "branch": "work/landed-dirty",
+                "lease_state": "leased",
+                "coordination_state": "advisory",
+                "closeout_disposition": "landed_dirty",
+                "residue_state": "unpreserved_worktree_delta",
+                "dirty": True,
+            },
+            {
+                "branch": "work/retire-ready",
+                "lease_state": "leased",
+                "coordination_state": "advisory",
+                "closeout_disposition": "retire_ready",
+                "residue_state": "clean_or_none",
+                "dirty": False,
+            },
+            {
+                "branch": "work/none",
+                "lease_state": "leased",
+                "coordination_state": "advisory",
+                "closeout_disposition": "none",
+                "residue_state": "clean_or_none",
+                "dirty": False,
+            },
+        ],
+        required_gaps=[],
+        advisory_gaps=["work_lane_closeout_residue_present"],
+    )
+    assert residue_package["closeout_residue_count"] == 2
+    assert residue_package["dirty_closeout_residue_count"] == 1
+    assert residue_package["closeout_residue_lanes"] == [
+        {
+            "branch": "work/landed-dirty",
+            "closeout_disposition": "landed_dirty",
+            "residue_state": "unpreserved_worktree_delta",
+            "dirty": True,
+        },
+        {
+            "branch": "work/retire-ready",
+            "closeout_disposition": "retire_ready",
+            "residue_state": "clean_or_none",
+            "dirty": False,
+        },
+    ]
     unbound_package = coordination.coordination_package(
         [],
         required_gaps=[],
@@ -502,130 +824,3 @@ def test_git_and_coordination_edges(monkeypatch: pytest.MonkeyPatch, tmp_path: P
     assert coordination.workspace_required_gaps(
         ["work_lane_missing_lease:work/x", "other"], candidate={"exists": False}
     ) == ["work_lane_missing_lease:work/x", "candidate_branch_missing"]
-
-
-def test_claims_trust_envelope_and_report_edges(tmp_path: Path) -> None:
-    assert claims.claims_report(tmp_path)["required_gaps"] == ["claims_missing"]
-    assert claims._promotion_kind("docs/a.md") == "docs"
-    assert claims._promotion_kind("schemas/a.json") == "schema"
-    assert claims._promotion_kind("openspec/x") == "openspec"
-    assert claims._promotion_kind("tests/a.py") == "tests"
-    assert claims._promotion_targets(
-        {"targets": ["docs/a.md", {"path": "src/a.py"}, {"path": "", "kind": "source"}]}
-    ) == [
-        {"kind": "docs", "path": "docs/a.md"},
-        {"kind": "source", "path": "src/a.py"},
-    ]
-    assert claims._has_repository_overclaim("published and verified", "digest") is True
-    assert claims._has_repository_overclaim("published and verified", "semantic") is False
-
-    evidence = tmp_path / "evidence" / "proof.md"
-    evidence.parent.mkdir(parents=True)
-    evidence.write_text("proof", encoding="utf-8")
-    claim_dir = tmp_path / "evidence" / "claims"
-    claim_dir.mkdir(parents=True)
-    (claim_dir / "c1.toml").write_text(
-        """
-[claim]
-id = "c1"
-state = "active"
-subject = "subject"
-summary = "published and verified"
-
-[evidence]
-dated = "evidence/proof.md"
-sha256 = "bad"
-evidence_ids = []
-binding = "raw/cache validates"
-verifier = "digest"
-head = "old"
-
-[boundary]
-owner = ""
-scope = ""
-
-[carriers]
-openspec = "openspec/changes/missing"
-
-[promotion]
-targets = ["docs/missing.md"]
-""".strip(),
-        encoding="utf-8",
-    )
-    report = claims.claims_report(tmp_path, current_head="new")
-    gaps = set(report["required_gaps"])
-    assert "c1:evidence_ids_missing" in gaps
-    assert "c1:semantic_overclaim_requires_semantic_verifier" in gaps
-    assert "c1:evidence.sha256_mismatch" in gaps
-    assert "c1:evidence.head_stale:old!=new" in gaps
-    assert "c1:boundary.owner_missing" in gaps
-    assert "c1:boundary.scope_missing" in gaps
-    assert "c1:fallback_missing" in gaps
-    assert "c1:kill_signal_missing" in gaps
-    assert "c1:promotion_target_missing:docs/missing.md" in gaps
-
-
-def test_land_publication_and_parity_head_edges(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    assert (
-        land.local_submit_package(branch="work/x", submit_branch="submit/x")["remote_state"]
-        == "deferred"
-    )
-    assert land.publication_readiness(branch="work/x", local_ok=False, policy=POLICY)[
-        "required_gaps"
-    ] == ["local_publish_readiness_blocked"]
-    monkeypatch.setattr(land, "load_branch_role_policy", lambda root: POLICY)
-    monkeypatch.setattr(land, "workspace_status", lambda repo: {"candidate": {"head": "c1"}})
-    monkeypatch.setattr(land._gitio, "current_tracked_head", lambda root: "h1")
-    package = land.closeout_bootstrap_package(
-        repo=tmp_path, audit_root=tmp_path / "candidate", required_gaps=("gap",)
-    )
-    assert package["blocking"] is True and "--expect-head h1" in package["command"]
-    assert package["mode"] == "maintainer_break_glass_local"
-    assert package["runner_mode"] == "current_runner_with_explicit_accepted_root"
-    assert package["remote_state"] == "deferred"
-    assert package["uses_current_runner"] is True
-    assert package["runner_binding"]["kind"] == "closeout_runner_binding"
-    assert package["runner_module_path"] == package["runner_binding"]["runner_module_path"]
-    assert package["runner_source_root"] == package["runner_binding"]["runner_source_root"]
-    assert isinstance(package["runner_matches_accepted_root"], bool)
-    assert isinstance(package["runner_matches_audit_root"], bool)
-    assert isinstance(package["runner_advisories"], list)
-    assert (
-        package["required_order"][-1] == "defer remote push until remote publication is available"
-    )
-
-    # Parity currency now derives from the parity-relevant tree via
-    # commits_equivalent_over_paths: the boundary (last relevant-path commit) plus every
-    # commit up to head. Mock that helper's git calls: rev-list -1 <head> -- <paths>
-    # returns the boundary "b0"; rev-list b0..h1 returns the intervening commits.
-    def _stub_git_stdout(root: object, *args: str) -> str:
-        if args[:2] == ("rev-list", "-1"):
-            return "b0"  # boundary commit for the relevant pathspec
-        if len(args) == 2 and args[0] == "rev-list" and args[1] == "b0..h1":
-            return "h1\np1"  # commits after the boundary, up to head
-        if args[:1] == ("rev-list",):
-            return "h1\np1\nb0"
-        return "h1"
-
-    monkeypatch.setattr(land._gitio, "current_tracked_head", lambda root: "h1")
-    monkeypatch.setattr(land._gitio, "git_stdout", _stub_git_stdout)
-    assert land.acceptable_parity_product_heads(tmp_path, "generic") == ("h1", "p1", "b0")
-    monkeypatch.setattr(land._gitio, "same_git_repository", lambda left, right: True)
-    assert land.acceptable_parity_target_heads(tmp_path, tmp_path, "generic") == ("h1", "p1", "b0")
-    monkeypatch.setattr(land._gitio, "current_tracked_head", lambda root: "")
-    assert land.acceptable_parity_product_heads(tmp_path, "generic") == ()
-    assert land.acceptable_parity_target_heads(tmp_path, tmp_path, "generic") == ()
-
-
-def test_authority_graph_empty_entries_are_valid(tmp_path: Path) -> None:
-    graph = tmp_path / "docs" / "_meta" / "authority_graph.toml"
-    graph.parent.mkdir(parents=True)
-    graph.write_text("", encoding="utf-8")
-
-    report = authority.authority_graph_report(tmp_path)
-
-    assert report["ok"] is True
-    assert report["entries"] == []
-    assert report["required_gaps"] == []

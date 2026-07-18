@@ -4,7 +4,7 @@ import tomllib
 from typing import TYPE_CHECKING
 from typing import Any
 
-from ethos_core.contracts.branch_roles import load_branch_role_policy
+from ethos_core.contracts.branch.roles import load_branch_role_policy
 
 if TYPE_CHECKING:
     from pathlib import Path

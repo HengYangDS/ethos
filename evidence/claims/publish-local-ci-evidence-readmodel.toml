@@ -1,0 +1,56 @@
+[claim]
+id = "publish-local-ci-evidence-readmodel"
+subject = "ethos:publish-local-ci-evidence-readmodel"
+state = "active"
+summary = "Publish readiness reports HEAD-bound local CI fallback evidence while excluding forge-run checks and remote delivery claims."
+
+[evidence]
+dated = "evidence/chronicle/publish-local-ci-evidence-readmodel/2026-07-09.md"
+sha256 = "dd0d74e4d217138170c6a66caf9f8f485afbd6813ec5cf9cedaa5744f9c50e44"
+evidence_ids = ["evidence:publish-local-ci-evidence-readmodel"]
+binding = "Digest-bound evidence for publish local-CI fallback evidence readmodel hardening."
+verifier = "digest_only"
+tests = [
+  "uv run --group dev pytest -q tests/unit/cli/test_contracts_land.py tests/unit/cli/test_contracts_proof.py::test_campaign_closeout_reports_local_campaign_packages tests/architecture/test_ci_head_stability.py",
+  "uv run --package ethos ethos quality types --json",
+  "bash -n tools/ci/scripts/run-local-ci.sh",
+  "uv run --package ethos ethos quality schemas --json",
+  "uv run --package ethos ethos quality claims --json",
+  "uv run --package ethos ethos quality evidence-freshness --json",
+  "uv run --package ethos ethos parity gaps --adopter generic --json",
+  "uv run --package ethos ethos openspec --lifecycle --json",
+  "uv run --package ethos ethos report --json",
+  "uv run --package ethos ethos prove --execute --expect-head $(git rev-parse HEAD) --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+[boundary]
+owner = "quality"
+scope = "Publish/local-CI fallback readmodel and evidence freshness; local readiness only"
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-09-publish-local-ci-evidence-readmodel"
+fallback = "Use remote availability plus local owner-script fallback evidence; rerun local CI when evidence is stale, invalid, or missing."
+kill_signal = "ethos publish reports local fallback evidence as current without a matching HEAD, or claims hosted CI / remote publication from local fallback evidence."
+
+[promotion]
+targets = [
+  "packages/ethos/src/ethos/domain/campaign/closeout.py",
+  "packages/ethos/src/ethos/domain/land/publication.py",
+  "packages/ethos/src/ethos/surface/cli/root/lifecycle.py",
+  "tests/unit/cli/test_contracts_proof.py",
+  "system/schemas/kernel/campaign-closeout.schema.json",
+  "tools/ci/scripts/run-local-ci.sh",
+  "tests/unit/cli/test_contracts_land.py",
+  "tests/unit/cli/test_contracts_proof.py",
+  "tests/architecture/test_ci_head_stability.py",
+  "docs/reference/command-plane.md",
+  "openspec/specs/quality/spec.md",
+  "openspec/changes/archive/2026-07-09-publish-local-ci-evidence-readmodel/proposal.md",
+  "openspec/changes/archive/2026-07-09-publish-local-ci-evidence-readmodel/design.md",
+  "openspec/changes/archive/2026-07-09-publish-local-ci-evidence-readmodel/tasks.md",
+  "openspec/changes/archive/2026-07-09-publish-local-ci-evidence-readmodel/specs/quality/spec.md",
+  "evidence/chronicle/publish-local-ci-evidence-readmodel/2026-07-09.md",
+  "evidence/claims/publish-local-ci-evidence-readmodel.toml",
+]

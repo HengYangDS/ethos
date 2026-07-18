@@ -1,0 +1,51 @@
+[claim]
+id = "generated-artifact-root-test-residue"
+subject = "ethos:generated-artifact-root-test-residue"
+state = "active"
+summary = "ETHOS generated-artifacts gate tolerates only ignored, untracked root coverage/pytest residue while blocking real root drift."
+
+[evidence]
+dated = "evidence/chronicle/generated-artifact-root-test-residue/2026-07-09.md"
+sha256 = "5a8646d8e3a462098a2f5dcbc4e20c7f4df9359b42697523d0a9652871bb4bfa"
+evidence_ids = ["evidence:generated-artifact-root-test-residue"]
+binding = "Generated-artifact topology contract, quality gate implementation, OpenSpec carrier, and focused regression tests."
+verifier = "digest_only"
+tests = [
+  "uv run --group dev pytest -q tests/unit/governance/test_generated_artifact_topology.py tests/unit/cli/test_generated_artifact_topology_cli.py tests/architecture/test_generated_artifact_topology_docs.py tests/architecture/test_testing_platform.py tests/unit/governance/validation/test_gates.py",
+  "tools/ci/scripts/run-python-lint.sh",
+  "uv run --package ethos ethos quality types --json",
+  "uv run --package ethos ethos quality docs-registry --json",
+  "uv run --package ethos ethos quality docs-topology --json",
+  "uv run --package ethos ethos quality generated-artifacts --json",
+  "uv run --package ethos ethos prove --execute --gate generated-artifacts --gate unit-architecture --expect-head <head> --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+[boundary]
+owner = "ethos-quality"
+scope = "Generated-artifact topology classification for ignored local root test residue."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-09-generated-artifact-root-test-residue"
+fallback = "Remove the ignored-local residue classification and require manual cleanup before generated-artifacts proof."
+kill_signal = "Tracked root generated artifacts or unrelated root output can pass generated-artifacts without required gaps."
+
+[promotion]
+targets = [
+  ".gitignore",
+  "docs/architecture/generated-artifact-topology.md",
+  "docs/decisions/accepted/DR-0001-generated-artifact-topology-contract.md",
+  "openspec/specs/quality/spec.md",
+  "openspec/changes/archive/2026-07-09-generated-artifact-root-test-residue/.openspec.yaml",
+  "openspec/changes/archive/2026-07-09-generated-artifact-root-test-residue/proposal.md",
+  "openspec/changes/archive/2026-07-09-generated-artifact-root-test-residue/design.md",
+  "openspec/changes/archive/2026-07-09-generated-artifact-root-test-residue/tasks.md",
+  "openspec/changes/archive/2026-07-09-generated-artifact-root-test-residue/specs/quality/spec.md",
+  "packages/ethos-core/src/ethos_core/contracts/artifacts/topology.py",
+  "packages/ethos/src/ethos/repository/policy/artifacts.py",
+  "tests/architecture/test_testing_platform.py",
+  "tests/unit/governance/test_generated_artifact_topology.py",
+  "evidence/chronicle/generated-artifact-root-test-residue/2026-07-09.md",
+  "evidence/claims/generated-artifact-root-test-residue.toml",
+]

@@ -1,0 +1,5 @@
+schema: spec-driven
+created: 2026-07-14
+goal: Permit a valid one-time profile declaration and Change scope companion
+  bootstrap for existing adopters after authoritative material-scope binding is
+  introduced.

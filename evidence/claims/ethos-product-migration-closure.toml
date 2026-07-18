@@ -6,7 +6,7 @@ summary = "Records digest-bound evidence for product migration host retirement, 
 
 [evidence]
 dated = "evidence/chronicle/product-migration-closure/2026-07-01.md"
-sha256 = "54fe582224a66ab30de9e8bf284f6630e66f5a91535aa246bf3919f5dde4e969"
+sha256 = "d667e06b4879be0b9351e061685a3c5434e575e7341f17ef23b7edaa64ce3269"
 evidence_ids = ["evidence:ethos-product-migration-closure"]
 binding = "digest-bound migration evidence binding"
 verifier = "digest_only"
@@ -24,23 +24,8 @@ tests = [
   "uv run --package ethos ethos prove --full --execute --json",
 ]
 
-[scope]
-packages = [
-  "ethos-core",
-  "ethos-contracts",
-  "ethos-repository",
-  "ethos-assistants",
-  "ethos-adapters",
-  "ethos",
-  "ethos-test",
-]
-distributions = [
-  "distributions/npm",
-]
-adopters = [
-  "alphasim-dmgr",
-]
-
+[evidence.freshness]
+mode = "historical"
 [boundary]
 owner = "ethos-contracts"
 scope = "Closed product topology migration and target package/distribution contracts"
@@ -55,6 +40,6 @@ kill_signal = "Active migration-host packages reappear in product topology."
 targets = [
   "evidence/chronicle/product-migration-closure/2026-07-01.md",
   "docs/architecture/package-ontology.md",
-  "packages/ethos-core/src/ethos_core/contracts/package_ontology.py",
+  "packages/ethos-core/src/ethos_core/contracts/package/ontology.py",
   "openspec/specs/contracts/spec.md",
 ]

@@ -8,21 +8,25 @@ this group is imported).
 
 from __future__ import annotations
 
-from ethos.adapters.store.retrieval import context_eval_report
-from ethos.adapters.store.retrieval import purge_context_index
-from ethos.adapters.store.retrieval import rebuild_context_index
-from ethos.adapters.store.retrieval import search_context_index
-from ethos.assistants.context import context_bundle
+import sys
+
+from ethos.adapters.store.retrieval.indexing import purge_context_index
+from ethos.adapters.store.retrieval.indexing import rebuild_context_index
+from ethos.adapters.store.retrieval.query import context_eval_report
+from ethos.adapters.store.retrieval.query import search_context_index
+from ethos.assistants.context.bundle import context_bundle
 from ethos.assistants.mcp import mcp_manifest
 from ethos.assistants.projections import projection_contract
 from ethos.assistants.server import mcp_server_descriptor
+from ethos.assistants.server import serve_mcp
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import assistants_app
 from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import resolve_root
-from ethos_core.contracts.context_projection import ASSISTANT_TRUTH_BOUNDARY
-from ethos_core.contracts.context_projection import context_retrieval_smoke_queries
+from ethos_core.contracts.context.projection import ASSISTANT_TRUTH_BOUNDARY
+from ethos_core.contracts.context.projection import context_retrieval_smoke_queries
+from ethos_core.normalization.core import object_sequence
 from ethos_core.result import EthosResult
 
 
@@ -39,11 +43,11 @@ def assistants_doctor(
         command="assistants doctor",
         ok=True,
         state="ready",
-        summary={"surface_count": len(contract["surfaces"])},
+        summary={"surface_count": len(object_sequence(contract.get("surfaces")))},
         next_actions=("ethos assistants mcp-manifest",),
         data={"contract": contract},
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @assistants_app.command
@@ -57,7 +61,7 @@ def check_projections(*, json_output: JsonFlag = False) -> None:
         next_actions=("ethos quality projection-drift",),
         data={"contract": contract},
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @assistants_app.command(name="mcp-manifest")
@@ -75,12 +79,21 @@ def mcp_manifest_command(*, json_output: JsonFlag = False) -> None:
         next_actions=("ethos assistants check-projections",),
         data={"manifest": manifest},
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @assistants_app.command(name="mcp-server")
-def mcp_server_command(*, json_output: JsonFlag = False) -> None:
-    """Describe the ETHOS MCP server adapter."""
+def mcp_server_command(
+    *,
+    root: RootOption | None = None,
+    serve: bool = False,
+    json_output: JsonFlag = False,
+) -> None:
+    """Describe or serve the ETHOS read-only MCP stdio adapter."""
+    repo = resolve_root(root)
+    if serve:
+        serve_mcp(root=repo, reader=sys.stdin, writer=sys.stdout)
+        return
     descriptor = mcp_server_descriptor()
     result = EthosResult(
         command="assistants mcp-server",
@@ -90,7 +103,7 @@ def mcp_server_command(*, json_output: JsonFlag = False) -> None:
         next_actions=("ethos assistants mcp-manifest",),
         data={"server": descriptor},
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @assistants_app.command(name="context")
@@ -111,13 +124,13 @@ def assistants_context(
         ok=bool(retrieval["ok"]) if retrieval else True,
         state=str(retrieval["state"]) if retrieval else "ready",
         summary={
-            "protocol_count": len(bundle["protocols"]),
+            "protocol_count": len(object_sequence(bundle.get("protocols"))),
             "verified_count": retrieval["summary"]["verified_count"] if retrieval else 0,
         },
         required_gaps=tuple(retrieval["required_gaps"]) if retrieval else (),
         data={"context": bundle},
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @assistants_app.command(name="search")
@@ -139,7 +152,7 @@ def assistants_search(
         required_gaps=tuple(report["required_gaps"]),
         data={"selection": report["selection"]},
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @assistants_app.command(name="context-index")
@@ -164,7 +177,7 @@ def assistants_context_index(
         else (),
         data=dict(report.get("data", {})),
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @assistants_app.command(name="context-purge")
@@ -186,7 +199,7 @@ def assistants_context_purge(
         required_gaps=tuple(report["required_gaps"]),
         data=dict(report.get("data", {})),
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @assistants_app.command(name="context-eval")
@@ -208,4 +221,4 @@ def assistants_context_eval(
         required_gaps=tuple(report["required_gaps"]),
         data=dict(report.get("data", {})),
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)

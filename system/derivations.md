@@ -1,36 +1,41 @@
 # ETHOS Derivations
 
-> Design derivations of the Tao axioms (`system/tao.md`). Each is a mechanism that
-> eliminates a class of invalid state; none is a root axiom. Product description
-> lives in `docs/`; durable machine contracts in `system/*.toml`.
+> Design derivations of the derived axioms (`system/axioms.md`). Each mechanism
+> eliminates a class of invalid state. Product description lives in `docs/`;
+> durable machine contracts live in `system/*.toml`.
 
 ## Five-layer separation
 
-Judgment, contract, method, instrumentation, and proof are separated into distinct
-layers (Tao / Contract / Method / Instrumentation / Proof). — from **Form**: keep
-the human-trustable and the machine-executable in different representations
-(Markdown for judgment, TOML for durable config, JSON for API output).
+Judgment, contract, method, instrumentation, and proof are separated into
+stable layers: Axioms / Contract / Method / Instrumentation / Proof.
 
-## First-principle derivations
+This follows **Authority before surface** and **Boundary before adapter**:
+Markdown carries human judgment, TOML carries durable config, JSON carries
+machine output, and provider files project the repository-owned contract instead
+of owning product semantics.
 
-- **Fail upstream.** Failure blocking moves upstream; the best gate makes an invalid
-  action impossible before it mutates tracked truth. — from **Purpose** (shift-left
-  is the strongest invalid-state reducer).
-- **Provable truth store.** A truth store that cannot be proved or projected safely
-  is not a truth store. — from **Trust** + **Purpose**.
+## First-order derivations
+
+- **Fail upstream.** Failure blocking moves upstream; the strongest gate makes an
+  invalid action impossible before it mutates tracked truth. This follows
+  **Signal before disorder** and **Evidence before claim**.
+- **Provable truth store.** A store that cannot be proved or projected safely is
+  not a trustworthy store. This follows **Evidence before claim**.
 - **Checkable generated surface.** A generated surface is a liability unless its
-  drift is checkable. — from **Trust**.
-- **Derive, don't store.** A workflow state derived from Git, OpenSpec, evidence, and
-  contracts beats mutable private state. — from **Purpose** + **Trust**.
-- **Tool by total maintenance.** A tool is preferred over hand-written code only when
-  it reduces total product maintenance, not merely local effort. — from **Parsimony**.
+  drift is checkable. This follows **Authority before surface**.
+- **Derive, do not duplicate.** Workflow state derived from Git, OpenSpec,
+  evidence, and contracts is stronger than mutable private state. This follows
+  **Authority before surface** and **Parsimony before expansion**.
+- **Tool by total maintenance.** A tool is preferred over hand-written code only
+  when it reduces total product maintenance, not merely local effort. This
+  follows **Parsimony before expansion**.
 - **No compatibility residue.** Compatibility residue is a cost center once
-  destructive migration is allowed. — from **Parsimony**.
+  destructive migration is allowed. This follows **Parsimony before expansion**.
 
 ## Kernel-chain principle
 
-One canonical chain, judged from one source and projected once. The concrete
-seven-node chain and per-node obligations are architecture, documented in
-`docs/architecture/terminal-governance-product-design.md`; the enforced per-node
-duty table lives with the schemas and kernel-contract tests. — from **Purpose** +
-**Trust** + **Parsimony** (a single source of truth, projected — never duplicated).
+One canonical chain, judged from one source and projected once. The seven-node
+chain and per-node obligations are architecture, documented in
+`docs/plans/terminal-governance-product-design.md`; enforced per-node
+checks live with schemas and kernel-contract tests. This follows **Authority
+before surface**, **Evidence before claim**, and **Parsimony before expansion**.

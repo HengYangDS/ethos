@@ -4,16 +4,19 @@ from __future__ import annotations
 
 import configparser
 import tomllib
-import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any
+
+import defusedxml.ElementTree as DefusedET
+from defusedxml.ElementTree import ParseError
 
 COVERAGE_CONFIG_DIR = Path(".config/checks/coverage")
 COVERAGE_EVIDENCE_DIR = Path("build/evidence/quality/tests/coverage")
 POLICY_PATH = COVERAGE_CONFIG_DIR / "policy.toml"
 CONFIG_PATH = COVERAGE_CONFIG_DIR / "coverage.ini"
 ARTIFACT_PATH = COVERAGE_EVIDENCE_DIR / "coverage.xml"
-OWNER_SCRIPT = ".config/ci/scripts/run-python-tests.sh"
+WRITE_LOCK_PATH = COVERAGE_EVIDENCE_DIR / ".write.lock"
+OWNER_SCRIPT = "tools/ci/scripts/run-python-tests.sh"
 
 
 def coverage_quality_report(root: Path) -> dict[str, object]:
@@ -21,7 +24,15 @@ def coverage_quality_report(root: Path) -> dict[str, object]:
     policy, policy_gaps = _load_policy(root / POLICY_PATH)
     config, config_gaps = _load_config(root / CONFIG_PATH)
     artifact, artifact_gaps = _load_artifact(root / ARTIFACT_PATH)
+    writer_active = (root / WRITE_LOCK_PATH).exists()
     gaps = [*policy_gaps, *config_gaps, *artifact_gaps]
+    advisory_gaps: list[str] = []
+
+    if writer_active and f"coverage_artifact_missing:{ARTIFACT_PATH.as_posix()}" in gaps:
+        gaps.remove(f"coverage_artifact_missing:{ARTIFACT_PATH.as_posix()}")
+        advisory_gaps.append(f"coverage_artifact_writer_active:{WRITE_LOCK_PATH.as_posix()}")
+        artifact["writer_active"] = True
+        artifact["writer_lock"] = WRITE_LOCK_PATH.as_posix()
 
     hard_floor = _number(policy.get("current_hard_floor"))
     branch_required = bool(policy.get("branch_coverage_required", False))
@@ -36,9 +47,10 @@ def coverage_quality_report(root: Path) -> dict[str, object]:
     if hard_floor is not None and latest_percent is not None and latest_percent < hard_floor:
         gaps.append(f"coverage_latest_below_floor:{latest_percent:.2f}<{hard_floor:.2f}")
 
+    state = "blocked" if gaps else "in_progress" if advisory_gaps else "clean"
     return {
         "ok": not gaps,
-        "state": "clean" if not gaps else "blocked",
+        "state": state,
         "policy": {
             "path": POLICY_PATH.as_posix(),
             "current_hard_floor": hard_floor,
@@ -56,6 +68,7 @@ def coverage_quality_report(root: Path) -> dict[str, object]:
         "owner_script": OWNER_SCRIPT,
         "latest_artifact": artifact,
         "required_gaps": gaps,
+        "advisory_gaps": advisory_gaps,
     }
 
 
@@ -94,8 +107,8 @@ def _load_artifact(path: Path) -> tuple[dict[str, Any], list[str]]:
             "present": False,
         }, [f"coverage_artifact_missing:{ARTIFACT_PATH.as_posix()}"]
     try:
-        root = ET.parse(path).getroot()
-    except ET.ParseError:
+        root = DefusedET.parse(path).getroot()
+    except ParseError:
         return {
             "path": ARTIFACT_PATH.as_posix(),
             "present": True,

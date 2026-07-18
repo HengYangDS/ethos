@@ -11,11 +11,12 @@ from pathlib import Path
 
 import pytest
 
-from ethos.adapters.repo import status
-from ethos.repository import audit_openspec
-from ethos.repository.adoption import scaffold_docs
-from ethos_core import invalid_states
-from ethos_core.quality import proof_policy
+import ethos.adapters.repo.dirty.core as repo_dirty
+import ethos.adapters.repo.runtime.core as repo_runtime
+import ethos.adapters.repo.status.core as status
+import ethos.repository.openspec.audit as openspec_audit
+import ethos_core.state.invalid as invalid_states
+from ethos_core.quality.proof import policy as proof_policy
 
 
 def test_taxonomy_path_falls_back_when_no_toml_in_parents(
@@ -24,7 +25,7 @@ def test_taxonomy_path_falls_back_when_no_toml_in_parents(
 ) -> None:
     # Resolve the module from a temp location with no system/invalid_states.toml in
     # any parent, so the search loop exhausts and returns the relative fallback.
-    fake_module = tmp_path / "a" / "b" / "invalid_states.py"
+    fake_module = tmp_path / "a" / "b" / "state" / "invalid.py"
     fake_module.parent.mkdir(parents=True)
     fake_module.write_text("", encoding="utf-8")
     monkeypatch.setattr(invalid_states, "__file__", str(fake_module))
@@ -44,7 +45,7 @@ def test_source_root_for_module_returns_parent_when_no_workspace_marker(
     module = tmp_path / "pkg" / "mod.py"
     module.parent.mkdir(parents=True)
     module.write_text("", encoding="utf-8")
-    assert status._source_root_for_module(module) == module.parent
+    assert repo_runtime._source_root_for_module(module) == module.parent
 
 
 def test_safe_ref_returns_empty_on_git_failure(tmp_path: Path) -> None:
@@ -53,31 +54,25 @@ def test_safe_ref_returns_empty_on_git_failure(tmp_path: Path) -> None:
 
 
 def test_porcelain_path_extracts_rename_target() -> None:
-    assert status._porcelain_path('"old name" -> "new name"') == "new name"
+    assert repo_dirty._porcelain_path('"old name" -> "new name"') == "new name"
 
 
 def test_dirty_kind_conflicted_and_deleted() -> None:
-    assert status._dirty_kind("U", "U") == "conflicted"
-    assert status._dirty_kind("A", "A") == "conflicted"
-    assert status._dirty_kind("D", " ") == "deleted"
+    assert repo_dirty._dirty_kind("U", "U") == "conflicted"
+    assert repo_dirty._dirty_kind("A", "A") == "conflicted"
+    assert repo_dirty._dirty_kind("D", " ") == "deleted"
 
 
-def test_release_toml_github_profile_appends_host_block() -> None:
-    toml = scaffold_docs._release_toml("github")
-    assert "[host_profile]" in toml
-    assert 'provider = "github"' in toml
-
-
-def test_active_change_names_in_ref_returns_empty_on_git_failure(
+def testactive_change_names_in_ref_returns_empty_on_git_failure(
     tmp_path: Path,
 ) -> None:
     # ls-tree against a nonexistent ref in a non-repo fails -> [].
-    assert audit_openspec._active_change_names_in_ref(tmp_path, "no-such-ref") == []
+    assert openspec_audit.active_change_names_in_ref(tmp_path, "no-such-ref") == []
 
 
 def test_current_branch_role_resolves_from_policy(tmp_path: Path) -> None:
     # A non-repo root resolves an empty current branch to a role string, not a raise.
-    assert isinstance(audit_openspec._current_branch_role(tmp_path), str)
+    assert isinstance(openspec_audit._current_branch_role(tmp_path), str)
 
 
 def test_protected_branch_report_deduplicates_same_branch_role_change(
@@ -94,13 +89,13 @@ def test_protected_branch_report_deduplicates_same_branch_role_change(
         def role_for_branch(self, branch: str) -> str:
             return "release_root" if branch == "shared" else "candidate"
 
-    monkeypatch.setattr(audit_openspec, "load_branch_role_policy", lambda _root: _Policy())
-    monkeypatch.setattr(audit_openspec, "_branch_exists", lambda _root, _branch: True)
+    monkeypatch.setattr(openspec_audit, "load_branch_role_policy", lambda _root: _Policy())
+    monkeypatch.setattr(openspec_audit, "_branch_exists", lambda _root, _branch: True)
     monkeypatch.setattr(
-        audit_openspec, "_active_change_names_in_ref", lambda _root, _branch: ["change-a"]
+        openspec_audit, "active_change_names_in_ref", lambda _root, _branch: ["change-a"]
     )
 
-    report = audit_openspec.protected_branch_active_change_report(tmp_path, current_branch="work")
+    report = openspec_audit.protected_branch_active_change_report(tmp_path, current_branch="work")
 
     # "shared" contributes exactly one record despite being visited twice.
     shared_records = [r for r in report["records"] if r["branch"] == "shared"]
@@ -113,7 +108,7 @@ def test_protected_branch_required_gaps_skips_non_dict_record(
 ) -> None:
     # Defensive guard: a malformed (non-dict) record in the report is skipped.
     monkeypatch.setattr(
-        audit_openspec,
+        openspec_audit,
         "protected_branch_active_change_report",
         lambda _root, *, current_branch: {
             "records": [
@@ -122,7 +117,7 @@ def test_protected_branch_required_gaps_skips_non_dict_record(
             ]
         },
     )
-    gaps = audit_openspec.protected_branch_active_change_required_gaps(
+    gaps = openspec_audit.protected_branch_active_change_required_gaps(
         tmp_path, current_branch="work", roles={"release_root"}
     )
     assert gaps == ["g"]

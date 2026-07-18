@@ -1,0 +1,45 @@
+[claim]
+id = "proof-artifact-isolation-20260714"
+change_id = "proof-artifact-isolation-20260714"
+subject = "quality:proof-artifact-terminal-seal"
+state = "active"
+summary = "Product proof seals generated-artifact topology after its runtime producers, with type resolution bound to the checkout venv and owner scripts portable to macOS Bash 3.2."
+
+[evidence]
+dated = "evidence/chronicle/proof-artifact-isolation-20260714/2026-07-14.md"
+sha256 = "26f3e8fa4a20b083f7f2b89884ddaf64dab586fb566ccd47ff08e4b2daf57300"
+evidence_ids = ["evidence:proof-artifact-isolation-20260714"]
+binding = "OpenSpec terminal-seal delta, product/adopter graph regressions, checkout-runtime type resolution, Bash-portability regressions, owner cleanup symmetry, and local proof evidence bind the quality-runtime correction."
+verifier = "digest_only"
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "quality"
+scope = "Product proof ordering, semantic runtime binding, and denied root runtime-cache cleanup; standalone topology, tracked-file scope, and adopter proof policy remain unchanged."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-14-proof-artifact-isolation-20260714"
+fallback = "Treat a surviving root cache as blocked topology drift and rerun the product owner gates; do not ignore, waive, or retry around the final seal."
+kill_signal = "A product proof evaluates generated-artifacts before its selected Python test or Ruff gate, an EXIT path leaves a denied root cache, types resolve against an ambient environment, an owner script requires Bash 4, or adopter proof gains a dependency on product-owned gates."
+
+[promotion]
+targets = [
+  "packages/ethos/src/ethos/repository/policy/gates.py",
+  "packages/ethos/src/ethos/adapters/gates/ty.py",
+  "tools/ci/scripts/run-python-lint.sh",
+  "tools/ci/scripts/run-ruff-ratchet.sh",
+  "tools/ci/scripts/run-bandit.sh",
+  "tools/ci/scripts/run-python-tests.sh",
+  "tests/unit/governance/validation/test_gates.py",
+  "tests/unit/governance/test_quality_regime.py",
+  "tests/unit/policy/test_gate_policy_digest.py",
+  "tests/architecture/test_testing_platform.py",
+  "tests/unit/coverage/test_cov_v3_gates_edges.py",
+  "tests/unit/governance/test_quality_regime.py",
+  "openspec/specs/quality/spec.md",
+  "openspec/changes/archive/2026-07-14-proof-artifact-isolation-20260714",
+  "evidence/claims/proof-artifact-isolation-20260714.toml",
+  "evidence/chronicle/proof-artifact-isolation-20260714/2026-07-14.md",
+]

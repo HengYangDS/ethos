@@ -1,0 +1,43 @@
+[claim]
+id = "retire-landed-apply-verdict-20260709"
+subject = "ethos:retire-landed-apply-verdict"
+state = "active"
+change_id = "retire-landed-apply-verdict-20260709"
+summary = "ETHOS retire-landed apply summaries now preserve the selected retirement outcome when post-apply lane listings no longer contain the removed selected lane."
+
+[evidence]
+dated = "evidence/chronicle/retire-landed-apply-verdict-20260709/2026-07-09.md"
+sha256 = "f767aaa562de9fe8bd4315e1c2d902dd266c3afbc57b6931dea4d630d66bd6e8"
+evidence_ids = ["evidence:retire-landed-apply-verdict-20260709"]
+binding = "TDD regression for post-apply selected retirement summary plus existing retire-landed lifecycle contract tests."
+verifier = "digest_only"
+tests = [
+  "uv run --group dev pytest -q tests/unit/cli/lane/test_retire_landed.py::test_summary_preserves_retired_selected_after_apply",
+  "uv run --group dev pytest -q tests/unit/cli/lane/test_retire_landed.py::test_summary_preserves_retired_selected_after_apply tests/unit/cli/test_contracts_lane.py::test_lane_retire_landed_summary_marks_selected_unmerged_lane_not_ready tests/unit/cli/test_contracts_lane.py::test_lane_retire_landed_apply_removes_selected_branch tests/unit/cli/test_contracts_land.py::test_configured_branch_roles_drive_local_lifecycle_commands",
+  "tools/ci/scripts/run-python-lint.sh",
+  "uv run --group dev pytest -q tests/unit/cli/lane/test_retire_landed.py tests/unit/cli/test_contracts_lane.py tests/unit/cli/test_contracts_land.py tests/unit/lanes/test_lanes_retire.py",
+  "uv run --package ethos ethos quality code-size --json",
+  "uv run --package ethos ethos quality types --json",
+  "uv run --package ethos ethos quality claims --json",
+  "uv run --package ethos ethos quality evidence-freshness --json",
+  "uv run --package ethos ethos parity gaps --adopter generic --target . --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+[boundary]
+owner = "ethos"
+scope = "lane retire-landed apply JSON summary hardening only."
+
+[carriers]
+openspec = "openspec/specs/repository-governance/spec.md"
+fallback = "Inline the previous summary composition in lane_retire_landed and remove the post-apply selected-outcome regression if the JSON contract must shrink."
+kill_signal = "A successful retire-landed apply can omit selected readiness or mark the selected retired branch as not ready because it is absent from data.lanes."
+
+[promotion]
+targets = [
+  "packages/ethos/src/ethos/surface/cli/lane/core.py",
+  "tests/unit/cli/lane/test_retire_landed.py",
+  "evidence/chronicle/retire-landed-apply-verdict-20260709/2026-07-09.md",
+  "evidence/claims/retire-landed-apply-verdict-20260709.toml",
+]

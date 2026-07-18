@@ -1,0 +1,6 @@
+- [x] Add foreign Work Lane accepted-root relation and closeout disposition to workspace status.
+- [x] Surface closeout residue as a coarse advisory signal.
+- [x] Keep missing lease separate from retire-ready closeout disposition.
+- [x] Route report next actions to read-only inspection.
+- [x] Cover workspace status, report routing, schema, and CLI projections.
+- [x] Keep sanctioned Work Lane refresh-base replay inside hook admission without opening detached protected writes.

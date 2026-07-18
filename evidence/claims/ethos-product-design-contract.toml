@@ -6,7 +6,7 @@ summary = "ETHOS now has a canonical product design contract, target package ont
 
 [evidence]
 dated = "evidence/chronicle/product-design-contract/2026-07-01.md"
-sha256 = "1dadf15d9ea1cbaa1fd7df2bc1db7000256219915d60b0bb1a9e2d6f3261258b"
+sha256 = "93a1873b0de7fd1178fb3d3ee690f1393deb26fb66587b4de7bc7dd39abb4b9e"
 evidence_ids = ["evidence:ethos-product-design-contract"]
 binding = "digest-bound design evidence binding"
 verifier = "digest_only"
@@ -25,14 +25,8 @@ tests = [
   "uv run --package ethos ethos report --json",
 ]
 
-[scope]
-docs = [
-  "docs/governance/product-design-contract.md",
-  "docs/architecture/package-ontology.md",
-  "docs/governance/product-boundary-convergence.md",
-  "docs/governance/capability-parity-ledger.md",
-]
-
+[evidence.freshness]
+mode = "historical"
 [boundary]
 owner = "ethos-contracts"
 scope = "Product design contract, package ontology, and product/adopter boundary"

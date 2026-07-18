@@ -1,6 +1,6 @@
 ---
 subject: docs:index
-role: reference
+role: index
 state: canonical
 relations:
   canonical_for: docs navigation
@@ -19,14 +19,24 @@ and [Glossary](reference/glossary.md).
 Start with [Start](start/quickstart.md), then read
 [Kernel Model](concepts/kernel-model.md),
 [Product Design Contract](governance/product-design-contract.md),
-[Terminal Governance Product Design](architecture/terminal-governance-product-design.md),
+[Terminal Governance Product Design](plans/terminal-governance-product-design.md),
+[Global Declarative Compression Program](plans/global-declarative-compression-program.md),
+[Tooling Adoption Roadmap](plans/tooling-adoption-roadmap.md),
+[Complete Implementation Roadmap](plans/complete-implementation-roadmap.md),
+[Mechanism Comparison Audit](reference/mechanism-comparison-audit.md),
 [Package Ontology](architecture/package-ontology.md),
 [Product Boundary Convergence](governance/product-boundary-convergence.md),
+[Enterprise Readiness Closeout](governance/enterprise-readiness-closeout.md),
 [Capability Parity Ledger](governance/capability-parity-ledger.md),
 [Repository Profile Contract](governance/repository-profile-contract.md),
+[Optional Independent Verification Adoption](governance/independent-verification-adoption.md),
 [Config Boundary Model](governance/config-boundary-model.md),
+[Post-Publication Governance Plan](plans/post-publication-governance-plan.md),
 [Adopter Boundary And Retirement](governance/adopter-boundary-and-retirement.md),
 [Distribution](architecture/distribution.md),
+[Workflow Runtime](architecture/workflow-runtime.md),
+[Declarative Governance Compiler](architecture/declarative-governance-compiler.md),
+[Declarative Runtime Spine Modernization](plans/declarative-runtime-spine-modernization.md),
 [Action Graph](architecture/action-graph.md), and
 [Evolution](governance/evolution-campaign.md). Product gaps captured
 from the design conversation are tracked in the
@@ -35,8 +45,7 @@ Executable migration parity is exposed by `ethos parity ledger` and governed by
 the [Capability Parity Ledger](governance/capability-parity-ledger.md).
 
 The documentation system uses Subject, Role, State, and Relation metadata so
-humans and agents can navigate without treating historical material as current
-truth.
+humans and agents can navigate without treating historical or planned material as canonical truth without checking front matter state and evidence.
 
 ## Discovery By Audience
 
@@ -54,28 +63,46 @@ or maintainer break-glass evidence.
 
 ## Maps
 
+- Root docs: [Documentation Root](README.md)
 - Start: [Quickstart](start/quickstart.md)
 - Concepts: [Kernel Model](concepts/kernel-model.md)
 - Command plane: [Command Plane](reference/command-plane.md)
 - Glossary: [Glossary](reference/glossary.md)
 - Product design contract: [Product Design Contract](governance/product-design-contract.md)
-- Terminal target design: [Terminal Governance Product Design](architecture/terminal-governance-product-design.md)
+- Decision Records: [Decision Records](decisions/README.md)
+- Governance docs: [Governance Documentation](governance/README.md)
+- Evidence docs: [Evidence Documentation](evidence/README.md)
+- Plans docs: [Plans Documentation](plans/README.md)
+- History docs: [History Documentation](history/README.md)
+- Terminal target design: [Terminal Governance Product Design](plans/terminal-governance-product-design.md)
+- Global compression program: [Global Declarative Compression Program](plans/global-declarative-compression-program.md)
+- Tooling adoption roadmap: [Tooling Adoption Roadmap](plans/tooling-adoption-roadmap.md)
+- Complete implementation roadmap: [Complete Implementation Roadmap](plans/complete-implementation-roadmap.md)
+- Mechanism comparison audit: [Mechanism Comparison Audit](reference/mechanism-comparison-audit.md)
 - Rule system: [Rules System](../rules/README.md)
 - Skills: [Skills](../.agents/skills/README.md)
 - Target package ontology: [Package Ontology](architecture/package-ontology.md)
 - Boundary convergence: [Product Boundary Convergence](governance/product-boundary-convergence.md)
+- Enterprise readiness: [Enterprise Readiness Closeout](governance/enterprise-readiness-closeout.md)
 - Capability parity: [Capability Parity Ledger](governance/capability-parity-ledger.md)
 - Repository profile contract: [Repository Profile Contract](governance/repository-profile-contract.md)
+- Repository text layout: [Repository Text Layout](governance/repository-text-layout.md)
+- Optional independent verification: [Independent Verification Adoption](governance/independent-verification-adoption.md)
+- Forge provider contract: [Forge Provider Contract](governance/forge-provider-contract.md)
 - Config boundary model: [Config Boundary Model](governance/config-boundary-model.md)
+- Post-publication governance: [Post-Publication Governance Plan](plans/post-publication-governance-plan.md)
 - Adopter boundary and retirement: [Adopter Boundary And Retirement](governance/adopter-boundary-and-retirement.md)
-- Current package migration state: [Product Ontology](architecture/product-ontology.md)
+- Product ontology and package migration status: [Product Ontology](architecture/product-ontology.md)
 - Distribution: [Distribution](architecture/distribution.md)
+- Workflow runtime: [Workflow Runtime](architecture/workflow-runtime.md)
 - Protocol contracts: [Protocol Contracts](architecture/protocol-contracts.md)
 - Agent projections: [Agent Projections](architecture/agent-projections.md)
 - Adoption profiles: [Adoption Profiles](architecture/adoption-profiles.md)
 - Fleet and adopters: [Fleet And Adopters](architecture/fleet-and-adopters.md)
 - Gate runner: [Gate Runner](architecture/gate-runner.md)
 - Local state: [Local State](architecture/local-state.md)
+- Generated artifact topology: [Generated Artifact Topology](architecture/generated-artifact-topology.md)
+- Documentation topology: [Documentation Topology](architecture/docs-topology.md)
 - MCP server: [MCP Server](architecture/mcp-server.md)
 - Runner and mutation boundary: [Runner And Mutation](architecture/runner-and-mutation.md)
 - Schema validation: [Schema Validation](architecture/schema-validation.md)

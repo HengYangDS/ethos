@@ -1,0 +1,16 @@
+[claim]
+id = "global-declarative-compression-program-20260711"
+subject = "quality:global-declarative-compression-foundation"
+state = "accepted"
+summary = "Archived declarative-compression foundation; terminal global compression remains explicitly open."
+
+[evidence]
+dated = "evidence/chronicle/global-declarative-compression-program-20260711/2026-07-12.md"
+sha256 = "446d57b10a6bc5764996a0b220dd4c4990196c39ba692eb6ae1dae61326a1076"
+evidence_ids = ["evidence:global-declarative-compression-program-20260711"]
+binding = "Archived carrier and dated Chronicle bind the completed foundation."
+verifier = "digest_only"
+tests = ["ethos prove --execute --expect-head $(git rev-parse HEAD) --json"]
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-12-global-declarative-compression-program-20260711"

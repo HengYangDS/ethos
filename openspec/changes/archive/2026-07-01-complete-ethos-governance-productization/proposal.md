@@ -22,8 +22,8 @@ verifiable lifecycle.
   Backlog/intake state become repository truth.
 - Add provider-neutral contracts for capability profiles and trust envelopes.
 - Add reusable ETHOS test fixtures for valid and malformed governance lifecycles.
-- Preserve dmgr as a reference adopter profile and parity target without
-  hardcoding dmgr terms into ETHOS core packages.
+- Preserve reference adopter as a reference adopter profile and parity target without
+  hardcoding reference adopter terms into ETHOS core packages.
 
 ## Capabilities
 

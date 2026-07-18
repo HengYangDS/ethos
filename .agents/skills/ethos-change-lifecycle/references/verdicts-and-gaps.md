@@ -24,7 +24,8 @@ NON-ZERO — the block is enforced, not advisory. A read-only command (`status`,
 | gap (prefix) | meaning | next action |
 | --- | --- | --- |
 | `protected_root_mutation` | you tried to mutate an accepted/candidate/release root directly | move to a work lane (`ethos lane start`) and edit there |
-| `work_lane_dirty` | the work lane has uncommitted changes | commit or stash, then retry |
+| `work_lane_dirty` | the work lane has uncommitted changes | commit the bounded Work Lane change or deliberately revert/absorb the residue through a governed lane; do not use stash as the carrier |
+| `protected_root_mutation` | accepted/candidate/release root has tracked dirty work | stop normal work; classify the pollution; absorb useful work into an owned Work Lane with evidence or revert useless/unsafe pollution from the protected root; do not stash |
 | `authorization_required` | `land/publish --apply` without `--authorize` | add `--authorize` once you intend the mutation |
 | `expect_head_required` / `expect_head_mismatch` | missing or stale `--expect-head` | pass `--expect-head "$(git rev-parse HEAD)"` |
 | `proof_not_proven` | no executed proof bound to the current HEAD | run `ethos prove --execute --expect-head "$(git rev-parse HEAD)"` first |

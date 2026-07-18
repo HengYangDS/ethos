@@ -1,0 +1,46 @@
+[claim]
+id = "isomorphic-governance-discoverability"
+subject = "ethos:isomorphic-governance-discoverability"
+state = "active"
+summary = "ETHOS makes one-kernel governance of itself and adopted repositories discoverable without product cloning."
+
+[evidence]
+dated = "evidence/chronicle/isomorphic-governance-discoverability/2026-07-09.md"
+sha256 = "37ae8c3853e8188f3c8058270aaa7d74b1486f74b687cf8b6958839837c1cee2"
+evidence_ids = ["evidence:isomorphic-governance-discoverability"]
+binding = "first-glance docs, architecture regression test, and OpenSpec carrier binding"
+verifier = "digest_only"
+tests = [
+  "uv run --group dev pytest -q tests/architecture/test_product_design_contract.py::test_first_glance_docs_make_isomorphic_governance_discoverable",
+  "uv run --group dev pytest -q tests/architecture/test_product_design_contract.py tests/unit/governance/test_profiles.py tests/unit/kernel/test_contracts.py",
+  "uv run --package ethos ethos quality docs --json",
+  "tools/ci/scripts/run-markdown-lint.sh",
+]
+
+[evidence.freshness]
+mode = "historical"
+[boundary]
+owner = "repository-governance"
+scope = "First-glance discoverability for the existing governed repository model"
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-08-isomorphic-governance-discoverability"
+
+fallback = "Use governance_context in ethos report/status payloads and repository-governance specs as the source when first-glance docs drift."
+kill_signal = "The docs imply a separate command plane, a new ontology role, or product cloning of adopted repositories."
+
+[promotion]
+targets = [
+  "README.md",
+  "docs/governance/product-design-contract.md",
+  "docs/reference/glossary.md",
+  "tests/architecture/test_product_design_contract.py",
+  "openspec/changes/archive/2026-07-08-isomorphic-governance-discoverability/.openspec.yaml",
+  "openspec/changes/archive/2026-07-08-isomorphic-governance-discoverability/proposal.md",
+  "openspec/changes/archive/2026-07-08-isomorphic-governance-discoverability/design.md",
+  "openspec/changes/archive/2026-07-08-isomorphic-governance-discoverability/tasks.md",
+  "openspec/changes/archive/2026-07-08-isomorphic-governance-discoverability/specs/repository-governance/spec.md",
+  "openspec/specs/repository-governance/spec.md",
+  "evidence/chronicle/isomorphic-governance-discoverability/2026-07-09.md",
+  "evidence/claims/isomorphic-governance-discoverability.toml",
+]

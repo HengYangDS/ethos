@@ -1,0 +1,28 @@
+schema = "ethos-codespell-policy-v1"
+owner = "ethos-quality-gate-governance"
+summary = "Report-first spelling gate for human-facing docs and current governance surfaces."
+runner = "tools/ci/scripts/run-prose-check.sh"
+paths = [
+  "README.md",
+  "CONTRIBUTING.md",
+  "AGENTS.md",
+  "docs",
+  "rules",
+  "openspec/specs",
+]
+skip = [
+  "docs/archive",
+  "docs/architecture/_generated",
+  "evidence",
+  "openspec/changes/archive",
+  "uv.lock",
+]
+ignore_words = [
+  "alos",
+  "crate",
+  "datas",
+  "fo",
+  "nd",
+  "ot",
+  "ue",
+]

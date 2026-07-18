@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ethos.assistants.context import context_bundle
+from ethos.assistants.context.bundle import context_bundle
 from ethos.repository.policy.schema import validate_schema_instance
 
 

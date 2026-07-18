@@ -1,30 +1,40 @@
 minimum_pre_commit_version: "4.0.0"
-default_install_hook_types:
-  - pre-commit
+default_install_hook_types: [pre-commit]
 
 repos:
   - repo: local
     hooks:
       - id: python-lint
         name: python lint, format, and ruff ratchet
-        entry: .config/ci/scripts/run-python-lint.sh
+        entry: tools/ci/scripts/run-python-lint.sh
+        language: system
+        types_or: [python, pyi]
+        pass_filenames: false
+
+      - id: module-layout
+        name: semantic module layout
+        entry: tools/ci/scripts/run-module-layout.sh
         language: system
         types_or: [python, pyi]
         pass_filenames: false
       - id: config-lint
         name: config lint
-        entry: .config/ci/scripts/run-config-lint.sh
+        entry: tools/ci/scripts/run-config-lint.sh
         language: system
         files: \.(toml|ya?ml|json)$
-        pass_filenames: true
       - id: repository-hygiene
         name: repository hygiene
-        entry: .config/ci/scripts/run-repository-hygiene.sh
+        entry: tools/ci/scripts/run-repository-hygiene.sh
+        language: system
+        pass_filenames: false
+      - id: product-boundary
+        name: product boundary and contributor policy
+        entry: tools/ci/scripts/run-product-boundary.sh
         language: system
         pass_filenames: false
       - id: shell-lint
         name: shell lint
-        entry: .config/ci/scripts/run-shell-lint.sh
+        entry: tools/ci/scripts/run-shell-lint.sh
         language: system
         types: [shell]
         pass_filenames: true

@@ -1,0 +1,41 @@
+[claim]
+id = "invalid-state-release-resource"
+subject = "ethos:invalid-state-release-resource"
+state = "active"
+summary = "Installed ethos-core packages load the invalid-state taxonomy from a wheel projection when no source checkout is present."
+
+[evidence]
+dated = "evidence/chronicle/invalid-state-release-resource/2026-07-08.md"
+sha256 = "ecfc6be72bb4aeada24d765f56e59defd07dc72a5bf4ab75d7fb67a0bd57c553"
+evidence_ids = ["evidence:invalid-state-release-resource"]
+binding = "declared invalid-state taxonomy release resource"
+verifier = "digest_only"
+tests = [
+  "uv run --all-packages pytest tests/unit/kernel/test_invalid_states.py -q",
+  "uv build --package ethos-core --wheel --out-dir /tmp/ethos-core-build-check",
+]
+
+[evidence.freshness]
+mode = "historical"
+[boundary]
+owner = "ethos-core"
+scope = "Invalid-state taxonomy source contract and package resource fallback"
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-08-invalid-state-release-resource"
+fallback = "Read system/invalid_states.toml in a source checkout; installed package usage requires the wheel projection."
+kill_signal = "An installed ethos-core wheel cannot load invalid-state categories outside a repository checkout, or its resource is not projected from system/invalid_states.toml."
+
+[promotion]
+targets = [
+  "evidence/claims/invalid-state-release-resource.toml",
+  "evidence/chronicle/invalid-state-release-resource/2026-07-08.md",
+  "openspec/changes/archive/2026-07-08-invalid-state-release-resource/proposal.md",
+  "openspec/changes/archive/2026-07-08-invalid-state-release-resource/design.md",
+  "openspec/changes/archive/2026-07-08-invalid-state-release-resource/tasks.md",
+  "openspec/changes/archive/2026-07-08-invalid-state-release-resource/specs/repository-governance/spec.md",
+  "system/invalid_states.toml",
+  "packages/ethos-core/pyproject.toml",
+  "packages/ethos-core/src/ethos_core/state/invalid.py",
+  "tests/unit/kernel/test_invalid_states.py",
+]

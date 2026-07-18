@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-07-17
+goal: Restore reproducible GitLab hosted validation without weakening security
+  verdicts or conflating provider evidence.

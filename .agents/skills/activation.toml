@@ -1,8 +1,8 @@
 [meta]
 version = 2
 source_of_truth = "repository"
-expected_registry_digest = "sha256:ef060e14f2fa1ab6f4ea41b8dbe6644a89901d1561b356c4137d9628950633be"
-expected_generator_digest = "sha256:eb3b84583ee7cc26a50336a0384fe7bb4745e04c38d1ec23770c56d6a47f235a"
+expected_registry_digest = "sha256:2bb25019aadb7d9ae35fa917927a6bb704322b25e1a6b752d9543358bd4c4cfb"
+expected_generator_digest = "sha256:be0c3b214501f0e8078e86be4538725dd722aa58a21f10e0804bb62d9efa4c4a"
 
 [coverage]
 required_primary_subjects = [
@@ -92,7 +92,7 @@ intent_tokens = [
   "change",
   "loop",
 ]
-pre_reads = ["AGENTS.md", "rules/mutation.md", "system/tao.md"]
+pre_reads = ["AGENTS.md", "rules/mutation.md", "system/axioms.md"]
 during_rules = [
   "read the decision verdict; never assume success",
   "dry-run readiness is not executed proof",
@@ -128,7 +128,7 @@ path_globs = [
   "docs/governance/playbooks-and-skills.md",
   "system/schemas/kernel/skill-*.schema.json",
   "packages/ethos/src/ethos/assistants/**",
-  "packages/ethos-core/src/ethos_core/contracts/skill_activation.py",
+  "packages/ethos-core/src/ethos_core/contracts/skill/activation.py",
   "tests/unit/assistants/**",
   "tests/unit/cli/test_contracts.py",
 ]
@@ -184,13 +184,16 @@ subjects = [
 ]
 path_globs = [
   ".config/**",
+  ".github/workflows/**",
   ".gitlab-ci.yml",
   ".pre-commit-config.yaml",
   "pyproject.toml",
+  "uv.lock",
   "pytest.ini",
   "ruff.toml",
   "system/tools.toml",
   "system/quality-*.toml",
+  "tools/ci/**",
   "packages/ethos/src/ethos/repository/policy/gates.py",
   "tests/unit/governance/**",
   "tests/architecture/**",
@@ -216,9 +219,9 @@ during_rules = [
   "proof default floor must include the active quality floor",
 ]
 post_checks = [
-  ".config/ci/scripts/run-python-lint.sh",
-  ".config/ci/scripts/run-config-lint.sh",
-  ".config/ci/scripts/run-shell-lint.sh",
+  "tools/ci/scripts/run-python-lint.sh",
+  "tools/ci/scripts/run-config-lint.sh",
+  "tools/ci/scripts/run-shell-lint.sh",
   ".agents/skills/ethos-quality-gate-governance/scripts/quality_audit.py .",
   "ethos prove --json",
 ]
@@ -251,7 +254,7 @@ path_globs = [
   "openspec/specs/adapters/**",
   "openspec/specs/repository-governance/**",
   "tests/unit/adoption/**",
-  "tests/unit/product/test_parity.py",
+  "tests/unit/product/parity/**",
 ]
 intent_tokens = [
   "adopt",

@@ -1,9 +1,12 @@
 from __future__ import annotations
 
-from ethos.assistants.context import context_bundle
+from ethos.assistants.context.bundle import context_bundle
+
+McpEntry = dict[str, object]
+McpManifest = dict[str, dict[str, McpEntry]]
 
 
-def mcp_manifest() -> dict[str, object]:
+def mcp_manifest() -> McpManifest:
     return {
         "resources": {
             "ethos://context/bundle": {
@@ -40,10 +43,6 @@ def mcp_manifest() -> dict[str, object]:
             "ethos.plan": {
                 "capability": "mcp_tool_readonly",
                 "command": ["ethos", "plan", "--changed", "--json"],
-            },
-            "ethos.prove": {
-                "capability": "mcp_tool_proof",
-                "command": ["ethos", "prove", "--json"],
             },
             "ethos.explain": {
                 "capability": "mcp_tool_readonly",

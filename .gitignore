@@ -1,17 +1,36 @@
 .venv/
 .idea/
-.pytest_cache/
-.ruff_cache/
 __pycache__/
 *.py[cod]
 .ethos/state/*
 !.ethos/state/.gitignore
-dist/
 build/
+# Semantic ignored generated homes under build/.
+build/runtime/tool-cache/uv/
+build/runtime/tool-cache/
+build/runtime/work/
+build/evidence/
+build/ethos/
+build/artifacts/
+.cache/
 *.egg-info/
 node_modules/
 npm-debug.log*
-.claude/skills/
+.claude/
 
 .coverage
 coverage.xml
+.coverage.*
+junit.xml
+
+# Root tool caches are denied by generated-artifact topology; tools must use
+# build/runtime/tool-cache/<tool>/ or .cache/local-state/.
+.import_linter_cache/
+.import-linter-cache/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.tox/
+.nox/
+.uv-cache/
+dist/

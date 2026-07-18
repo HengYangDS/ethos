@@ -1,32 +1,39 @@
 ---
 subject: ethos:self-healing-closeout-intelligence-progress
 role: progress
-state: active
-relations: supports: self-healing closeout intelligence lane
+state: archived
+relations:
+  archived_by: evidence/claims/plan-residue-closeout-20260709.toml
+  summarized_by: evidence/chronicle/plan-residue-closeout-20260709/2026-07-09.md
 ---
 
 # Progress
 
-## Status:
+## Status
 
-Active work-lane planning document.
+Archived. The original `work/self-healing-closeout-intelligence` batch has been
+landed into local product truth; this file is retained only as historical
+progress evidence.
 
-## Purpose:
+## Purpose
 
-Keep the self-healing closeout intelligence batch recoverable and auditable.
+Close the stale active-plan residue left after the batch was already absorbed
+into accepted product state.
 
-## See also:
+## Completed checklist
 
-- `docs/plans/self-healing-closeout-intelligence/task_plan.md`
-- `docs/plans/self-healing-closeout-intelligence/findings.md`
-- `docs/plans/self-healing-closeout-intelligence/progress.md`
+- [x] Created work lane `work/self-healing-closeout-intelligence` from
+      `candidate/dev` at `da298d1`.
+- [x] Implemented dirty provenance.
+- [x] Implemented closeout guidance.
+- [x] Implemented overlap migration recommendation.
+- [x] Recorded coverage policy truth boundary.
+- [x] Added ref-transaction regression.
+- [x] Validated focused and full Python quality gates.
+- [x] Landed locally, closed out into accepted root, and replaced active-plan
+      residue with this archived record.
 
+## Boundary
 
-- [x] Created work lane `work/self-healing-closeout-intelligence` from `candidate/dev` at `da298d1`.
-- [x] Implement dirty provenance.
-- [x] Implement closeout guidance.
-- [x] Implement overlap migration recommendation.
-- [x] Record coverage policy truth boundary.
-- [x] Add ref-transaction regression.
-- [x] Validate focused and full Python quality gates.
-- [ ] Land, close out, publish, retire, and remember.
+Remote publication is not claimed here. ETHOS local closeout, candidate/accepted
+root convergence, and remote publication remain separate states.

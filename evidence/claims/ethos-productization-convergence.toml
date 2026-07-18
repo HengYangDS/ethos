@@ -2,11 +2,11 @@
 id = "ethos-productization-convergence"
 subject = "ethos:productization-convergence"
 state = "active"
-summary = "Records the ETHOS productization convergence batch across judgment-source kernel, first-hour workflow, adoption planner safety, authority graph read model, and bounded command shadow results."
+summary = "Records the ETHOS productization convergence batch across authority kernel, first-hour workflow, adoption planner safety, authority graph read model, and bounded command shadow results."
 
 [evidence]
 dated = "evidence/chronicle/productization-convergence/2026-07-01.md"
-sha256 = "f92e1ddb853843ee09fdb7d9d8700b6e0277879f8c4b176a99bbddc5dc976a36"
+sha256 = "515487846aa6da2b8384eb2980aa78b722fad9fdf0610c6f8d8900f98d07a2bd"
 evidence_ids = ["evidence:ethos-productization-convergence"]
 binding = "digest-bound convergence evidence binding"
 verifier = "digest_only"
@@ -23,29 +23,20 @@ tests = [
   "uv run --package ethos ethos prove --expect-head \"$(git rev-parse HEAD)\" --json",
   "uv run --package ethos ethos prove --full --execute --json",
   "uv run --package ethos ethos parity gaps --json",
-  "uv run --package ethos ethos parity shadow --target /Users/yheng/projects/alphasim-dmgr-fix-b3 --execute --timeout-seconds 60 --json",
-  "uv run --package ethos ethos parity shadow --target /Users/yheng/projects/di-effect --execute --timeout-seconds 60 --json",
+  "uv run --package ethos ethos parity shadow --target <adopter-repo> --execute --timeout-seconds 60 --json",
+  "uv run --package ethos ethos parity shadow --target <sample-adopter-repo> --execute --timeout-seconds 60 --json",
 ]
 
-[scope]
-docs = [
-  "README.md",
-  "docs/start/quickstart.md",
-  "docs/governance/product-design-contract.md",
-  "docs/governance/judgment-source.md",
-  "docs/reference/command-plane.md",
-  "docs/reference/glossary.md",
-  "docs/_meta/authority_graph.toml",
-]
-
+[evidence.freshness]
+mode = "historical"
 [boundary]
 owner = "ethos-repository"
-scope = "Productization convergence across judgment-source kernel, first-hour workflow, adoption planner safety, authority graph, and bounded shadow parity evidence"
+scope = "Productization convergence across authority kernel, first-hour workflow, adoption planner safety, authority graph, and bounded shadow parity evidence"
 
 [carriers]
 openspec = "openspec/changes/archive/2026-07-01-ethos-productization-convergence"
 
-fallback = "Keep ETHOS local readiness and generic command parity claims separate from hosted CI, remote publication, dmgr raw/cache parity, domain backend retirement, and di-effect publish readiness."
+fallback = "Keep ETHOS local readiness and generic command parity claims separate from hosted CI, remote publication, reference adopter-domain storage parity, domain backend retirement, and sample adopter publish readiness."
 kill_signal = "Productization convergence claims require external hosted publication, adopter domain backend retirement, or provider-specific runtime truth to be considered complete."
 
 [promotion]
@@ -55,7 +46,7 @@ targets = [
   "README.md",
   "docs/start/quickstart.md",
   "docs/governance/product-design-contract.md",
-  "docs/governance/judgment-source.md",
+  "docs/governance/authority.md",
   "docs/reference/command-plane.md",
   "docs/reference/glossary.md",
   "docs/_meta/authority_graph.toml",
@@ -64,13 +55,13 @@ targets = [
   "openspec/specs/repository-governance/spec.md",
   "packages/ethos-core/src/ethos_core/models.py",
   "packages/ethos/src/ethos/repository/context.py",
-  "packages/ethos/src/ethos/repository/registry/docs.py",
+  "packages/ethos/src/ethos/repository/registry/docs",
   "packages/ethos/src/ethos/repository/adoption/planner.py",
-  "packages/ethos/src/ethos/repository/evidence/parity.py",
+  "packages/ethos/src/ethos/repository/evidence/parity/core.py",
   "packages/ethos/src/ethos/cli.py",
   "tests/unit/adoption/test_profiles.py",
   "tests/unit/governance/test_authority_graph.py",
   "tests/unit/cli/test_contracts.py",
-  "tests/unit/product/test_parity.py",
+  "tests/unit/product/parity",
   "tests/architecture/test_product_design_contract.py",
 ]

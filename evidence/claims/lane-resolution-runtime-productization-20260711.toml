@@ -1,0 +1,37 @@
+[claim]
+id = "lane-resolution-runtime-productization-20260711"
+subject = "repository-governance:lane-resolution-runtime-productization"
+change_id = "lane-resolution-runtime-productization-20260711"
+state = "active"
+summary = "The active change hardens local lane-resolution receipt discovery, retention clearing, and source-bound runtime bootstrap."
+
+[evidence]
+dated = "evidence/chronicle/lane-resolution-runtime-productization/2026-07-11.md"
+sha256 = "2f97489e05f1544247377c0ce3f8f8edec15d1cc75d20f7f2407e2601158d4b7"
+evidence_ids = ["evidence:lane-resolution-runtime-productization-verification"]
+binding = "archived OpenSpec carrier and user-authorized local productization scope"
+verifier = "digest_only"
+tests = [
+  "ethos prove --execute --expect-head <lane-head> --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "repository-governance"
+scope = "Local lane-resolution receipts, retention clear, and source-bound Work Lane runner bootstrap."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-11-lane-resolution-runtime-productization-20260711"
+fallback = "Keep existing recovery packages intact and invoke ETHOS through an explicit current-worktree uv runner until the bounded surfaces are proven."
+kill_signal = "Any path reintroduces root cache or root virtual-environment creation for new lanes, clears a package without manifest-bound Chronicle evidence, or makes a local artifact authoritative."
+
+[promotion]
+targets = [
+  "packages/ethos/src/ethos/adapters/mutation/resolution/lane.py",
+  "packages/ethos/src/ethos/adapters/mutation/resolution/receipts.py",
+  "packages/ethos-core/src/ethos_core/contracts/resolution/lane.py",
+  "system/policies/generated-artifact-topology.toml",
+  "tests/unit/governance/test_generated_artifact_topology.py",
+]

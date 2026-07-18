@@ -6,31 +6,19 @@ summary = "Shadow parity rejects external false negatives and accepts only equiv
 
 [evidence]
 dated = "evidence/chronicle/shadow-false-negative-gate/2026-07-06.md"
-sha256 = "abe0ef7c15037af807f59e7c48a9ea073540bd3575e366f659c2650c3f7be6b1"
+sha256 = "6a34c79177018445f91b3a360ca2dd8b484d5a481fe6861b685c395145531285"
 evidence_ids = ["evidence:shadow-false-negative-gate"]
 binding = "runtime shadow comparison, tracked parity evidence validation, schema contract, and focused test proof"
-verifier = "semantic"
+verifier = "digest_only"
 tests = [
-  "uv run --group dev pytest tests/unit/product/test_parity.py -q",
-  "uv run --group dev pytest tests/unit/product/test_parity_generic.py tests/unit/governance/test_validation_gates.py tests/unit/cli/test_contracts.py -q",
+  "uv run --group dev pytest tests/unit/product/parity/test_semantics.py tests/unit/product/parity/test_runners.py -q",
+  "uv run --group dev pytest tests/unit/product/parity/test_projection_semantics.py tests/unit/product/parity/test_accepted_differences.py tests/unit/product/parity/test_identity.py tests/unit/product/parity/test_validation.py tests/unit/governance/validation tests/unit/cli/test_contracts.py -q",
   "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 35 --write-evidence --json",
   "uv run --package ethos ethos parity gaps --json",
 ]
 
-[scope]
-packages = ["ethos"]
-schemas = ["system/schemas/kernel/shadow-parity.schema.json"]
-tests = [
-  "tests/unit/product/test_parity.py",
-  "tests/unit/product/test_parity_generic.py",
-  "tests/unit/governance/test_validation_gates.py",
-  "tests/unit/cli/test_contracts.py",
-]
-docs = [
-  "docs/governance/capability-parity-ledger.md",
-  "docs/governance/adopter-boundary-and-retirement.md",
-]
-
+[evidence.freshness]
+mode = "historical"
 [boundary]
 owner = "ethos-repository"
 scope = "Runtime and tracked-evidence false-negative protection for external-vs-embedded shadow parity"
@@ -50,11 +38,12 @@ targets = [
   "openspec/changes/archive/2026-07-06-shadow-false-negative-gate/design.md",
   "openspec/changes/archive/2026-07-06-shadow-false-negative-gate/tasks.md",
   "openspec/changes/archive/2026-07-06-shadow-false-negative-gate/specs/ethos-repository/spec.md",
-  "packages/ethos/src/ethos/adapters/shadow.py",
-  "packages/ethos/src/ethos/repository/evidence/parity.py",
-  "packages/ethos/src/ethos/repository/evidence/parity_validation.py",
-  "packages/ethos/src/ethos/repository/policy/schema_samples.py",
+  "packages/ethos/src/ethos/adapters/shadow/core.py",
+  "packages/ethos/src/ethos/adapters/shadow/semantics.py",
+  "packages/ethos/src/ethos/repository/evidence/parity/core.py",
+  "packages/ethos/src/ethos/repository/evidence/parity/validation.py",
+  "tests/unit/product/parity/test_accepted_differences.py",
   "system/schemas/kernel/shadow-parity.schema.json",
-  "tests/unit/product/test_parity.py",
-  "tests/unit/product/test_parity_generic.py",
+  "tests/unit/product/parity",
+  "tests/unit/product/parity",
 ]

@@ -11,4 +11,4 @@
 ## 3. Validation
 
 - [x] 3.1 Run focused topology, scaffold, and publication tests plus lint.
-- [ ] 3.2 Run strict validation, lifecycle, parity, HEAD-bound proof, and land.
+- [x] 3.2 Run strict validation, lifecycle, parity, HEAD-bound proof, and land.

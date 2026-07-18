@@ -1,33 +1,5 @@
-[claim]
-id = "remote-reconciliation-carrier-r3-20260718"
-subject = "ethos:maintainer-remote-reconciliation"
-state = "active"
-change_id = "remote-reconciliation-carrier-r3-20260718"
-summary = "This bounded claim records an owner-bound normal-merge reconciliation of observed protected refs; it does not establish any later remote or hosted state."
-
-[evidence]
-dated = "evidence/chronicle/remote-reconciliation-carrier-r3-20260718/2026-07-18.md"
-sha256 = "886ba1ab8d5ced2ed6e431a50604f5ce248e23f91682770019c73ce05d5c3d9c"
-evidence_ids = ["evidence:remote-reconciliation-carrier-r3-20260718:preflight"]
-binding = "The active OpenSpec carrier, scope, dated Chronicle, owner-bound Lane, and later HEAD-bound proof form the bounded evidence chain."
-verifier = "digest_only"
-tests = ["git ls-remote --heads origin dev main", "git ls-remote --heads github dev main", "ethos openspec --lifecycle --json", "ethos quality claims --json", "ethos prove --execute --expect-head <reconciliation-head> --json"]
-
-[evidence.freshness]
-mode = "historical"
-
-[boundary]
-owner = "ETHOS maintainers"
-scope = "One dated remote-reconciliation episode across configured GitLab and GitHub protected refs."
-
-[carriers]
-openspec = "openspec/changes/remote-reconciliation-carrier-r3-20260718"
-fallback = "Stop before remote mutation and refresh the exact remote input set in a new dated observation."
-kill_signal = "Any recorded remote tip changes, a merge lacks a recorded tip ancestor, local proof fails, or a protected update is rejected."
-
-[promotion]
-targets = [
-  "openspec/changes/remote-reconciliation-carrier-r3-20260718",
-  "evidence/claims/remote-reconciliation-carrier-r3-20260718.toml",
-  "evidence/chronicle/remote-reconciliation-carrier-r3-20260718/2026-07-18.md",
-]
+claim = { id = "remote-reconciliation-carrier-r3-20260718", subject = "ethos:maintainer-remote-reconciliation", state = "active", change_id = "remote-reconciliation-carrier-r3-20260718", summary = "This bounded claim records an owner-bound normal-merge reconciliation of observed protected refs; it does not establish any later remote or hosted state." }
+evidence = { dated = "evidence/chronicle/remote-reconciliation-carrier-r3-20260718/2026-07-18.md", sha256 = "886ba1ab8d5ced2ed6e431a50604f5ce248e23f91682770019c73ce05d5c3d9c", evidence_ids = ["evidence:remote-reconciliation-carrier-r3-20260718:preflight"], binding = "The active OpenSpec carrier, scope, dated Chronicle, owner-bound Lane, and later HEAD-bound proof form the bounded evidence chain.", verifier = "digest_only", tests = ["git ls-remote --heads origin dev main", "git ls-remote --heads github dev main", "ethos openspec --lifecycle --json", "ethos quality claims --json", "ethos prove --execute --expect-head <reconciliation-head> --json"], freshness = { mode = "historical" } }
+boundary = { owner = "ETHOS maintainers", scope = "One dated remote-reconciliation episode across configured GitLab and GitHub protected refs." }
+carriers = { openspec = "openspec/changes/remote-reconciliation-carrier-r3-20260718", fallback = "Stop before remote mutation and refresh the exact remote input set in a new dated observation.", kill_signal = "Any recorded remote tip changes, a merge lacks a recorded tip ancestor, local proof fails, or a protected update is rejected." }
+promotion = { targets = ["openspec/changes/remote-reconciliation-carrier-r3-20260718", "evidence/claims/remote-reconciliation-carrier-r3-20260718.toml", "evidence/chronicle/remote-reconciliation-carrier-r3-20260718/2026-07-18.md"] }

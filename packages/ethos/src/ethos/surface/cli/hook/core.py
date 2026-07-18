@@ -142,7 +142,8 @@ def reconciliation_receipt_command(
     repo = resolve_root(root)
     target = write_receipt.expanduser().resolve()
     if target.is_relative_to(repo):
-        raise ValueError("reconciliation receipt must be outside the repository root")
+        error = "reconciliation receipt must be outside the repository root"
+        raise ValueError(error)
     origin_head = git_adapter.git_stdout(repo, "rev-parse", "--verify", "origin/dev")
     github_head = git_adapter.git_stdout(repo, "rev-parse", "--verify", "github/dev")
     gaps = tuple(

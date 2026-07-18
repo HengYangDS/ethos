@@ -2,11 +2,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import ethos.adapters.store.state.lease.lifecycle.core as state
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
-from tests.support.lane_helpers import git
 from tests.support.lane_helpers import init_repo
+from tests.support.lane_helpers import leased_worktree
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -19,18 +18,7 @@ def test_hook_admit_accepts_multiple_keyword_paths(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo = init_repo(tmp_path / "repo")
-    worktree = tmp_path / "repo-work-feature"
-    git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "dev")
-    state.acquire_lease(
-        repo / ".ethos" / "state" / "state.sqlite",
-        subject="work/feature",
-        holder_ref="agent:test:case:agent-a",
-        payload={
-            "path": worktree.as_posix(),
-            "branch": "work/feature",
-            "expected_head": git(worktree, "rev-parse", "HEAD"),
-        },
-    )
+    worktree = leased_worktree(repo, tmp_path / "repo-work-feature")
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
 
     payload = run_ethos(
@@ -60,18 +48,7 @@ def test_hook_admit_blocks_control_character_path_token_before_root_join(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo = init_repo(tmp_path / "repo")
-    worktree = tmp_path / "repo-work-feature"
-    git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "dev")
-    state.acquire_lease(
-        repo / ".ethos" / "state" / "state.sqlite",
-        subject="work/feature",
-        holder_ref="agent:test:case:agent-a",
-        payload={
-            "path": worktree.as_posix(),
-            "branch": "work/feature",
-            "expected_head": git(worktree, "rev-parse", "HEAD"),
-        },
-    )
+    worktree = leased_worktree(repo, tmp_path / "repo-work-feature")
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
 
     payload = run_ethos_blocked(

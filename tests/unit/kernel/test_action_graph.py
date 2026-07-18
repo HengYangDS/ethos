@@ -23,7 +23,7 @@ def test_action_graph_orders_dependencies_before_dependents() -> None:
         )
     )
 
-    assert [node.id for node in graph.topological_nodes()] == ["status", "prove", "publish"]
+    assert [node.id for node in graph.ordered_nodes()] == ["status", "prove", "publish"]
     assert graph.to_dict()["nodes"][0]["id"] == "status"
 
 

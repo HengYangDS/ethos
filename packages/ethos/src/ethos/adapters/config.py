@@ -10,6 +10,11 @@ import tomllib
 from typing import TYPE_CHECKING
 from typing import cast
 
+from pydantic import ValidationError
+
+from ethos_core.contracts.source_budget.core import SourceBudgetPolicy
+from ethos_core.contracts.source_budget.core import SourceBudgetPolicyLoad
+
 if TYPE_CHECKING:
     from pathlib import Path
 
@@ -32,11 +37,21 @@ def code_size_policy(root: Path) -> dict[str, object]:
     return cast("dict[str, object]", code_size) if isinstance(code_size, dict) else {}
 
 
-def source_budget_policy(root: Path) -> dict[str, object]:
-    """Project the global source-budget contract from the rules configuration."""
+def source_budget_policy(root: Path) -> SourceBudgetPolicyLoad:
+    """Load the global source-budget contract without dropping malformed data."""
     rules = rules_config(root)
     quality = rules.get("quality")
     if not isinstance(quality, dict):
-        return {}
+        return SourceBudgetPolicyLoad(policy=None, required_gaps=("source_budget_policy_missing",))
     budget = quality.get("source_budget")
-    return cast("dict[str, object]", budget) if isinstance(budget, dict) else {}
+    if not isinstance(budget, dict):
+        return SourceBudgetPolicyLoad(policy=None, required_gaps=("source_budget_policy_missing",))
+    try:
+        policy = SourceBudgetPolicy.model_validate(budget)
+    except ValidationError as exc:
+        gaps = tuple(
+            f"source_budget_policy_invalid:{'.'.join(map(str, error['loc']))}"
+            for error in exc.errors()
+        )
+        return SourceBudgetPolicyLoad(policy=None, required_gaps=gaps)
+    return SourceBudgetPolicyLoad(policy=policy, required_gaps=())

@@ -61,7 +61,7 @@ and even then callers must bind it to its stated theorem.
 CLAIM_OVERCLAIM_PHRASES = ASSURANCE_FORBIDDEN_PHRASES["digest_only"]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class Authority:
     id: str
     order_ref: str
@@ -92,7 +92,7 @@ class Authority:
         }
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class Subject:
     id: str
     kind: str
@@ -117,7 +117,7 @@ class Subject:
         }
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class EvidenceClaim:
     id: str
     change_id: str

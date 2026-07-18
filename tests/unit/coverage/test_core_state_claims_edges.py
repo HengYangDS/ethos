@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import json
 import sqlite3
-import subprocess
 from contextlib import closing
 from functools import partial
 from pathlib import Path
@@ -28,11 +27,7 @@ from ethos.adapters.repo import git
 from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 from ethos_core.contracts.branch.roles import BranchRolePolicy
-
-
-def cp(stdout: str = "", stderr: str = "", returncode: int = 0) -> subprocess.CompletedProcess[str]:
-    return subprocess.CompletedProcess(["git"], returncode, stdout, stderr)
-
+from tests.support.subprocesses import completed as cp
 
 POLICY = SimpleNamespace(
     release_branch="main",
@@ -272,11 +267,15 @@ def test_promotion_completeness_surfaces_adopter_code_correctness_gap(
         ],
     )
     mutation_proof.record_executed_proof(tmp_path, full)
-    monkeypatch.setattr(mutation_proof, "_promotion_required_gate_ids", lambda root: ("required",))
+    monkeypatch.setattr(
+        mutation_proof,
+        "_promotion_required_gate_ids",
+        lambda root, **_kwargs: ("required",),
+    )
     monkeypatch.setattr(
         mutation_proof,
         "adopter_code_correctness_gaps",
-        lambda root: ("adopter_code_correctness_missing",),
+        lambda root, **_kwargs: ("adopter_code_correctness_missing",),
     )
 
     assert mutation_proof.promotion_completeness_gaps(tmp_path, "h1") == [

@@ -185,11 +185,6 @@ def test_advisory_next_actions_skips_non_matching_gap() -> None:
 # --------------------------------------------------------------------------- #
 
 
-def test_string_list_returns_empty_for_non_list() -> None:
-    # A non-list value takes the guard at line 30 and returns [].
-    assert status.string_list("not-a-list") == []
-
-
 def test_adoption_mutation_gaps_flags_head_mismatch() -> None:
     # apply+authorize with a tracked head and a mismatching expect_head reaches the elif
     # at line 51-52 and appends expected_head_mismatch.

@@ -6,8 +6,11 @@ import signal
 import subprocess
 import sys
 import tomllib
-from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import Any
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 ROOT_OPTION_COMMANDS = {
     ("status",),
@@ -22,21 +25,29 @@ ROOT_OPTION_COMMANDS = {
 _TERMINATION_GRACE_SECONDS = 1
 
 
+def external_python(target: Path) -> str:
+    """Use the target worktree interpreter when it exists, not the caller's."""
+    python = target.resolve() / ".venv" / "bin" / "python"
+    return python.as_posix() if python.is_file() else sys.executable
+
+
 def run_external(
     target: Path,
     command: tuple[str, ...],
     *,
     timeout_seconds: int,
 ) -> dict[str, Any]:
+    python = external_python(target)
+    target = target.resolve()
     if command not in ROOT_OPTION_COMMANDS:
         return run_json_command(
-            [sys.executable, "-m", "ethos.cli", *command, "--json"],
-            cwd=target.resolve(),
+            [python, "-m", "ethos.cli", *command, "--json"],
+            cwd=target,
             timeout_seconds=timeout_seconds,
         )
     return run_json_command(
         [
-            sys.executable,
+            python,
             "-m",
             "ethos.cli",
             *command,
@@ -44,7 +55,7 @@ def run_external(
             target.as_posix(),
             "--json",
         ],
-        cwd=Path.cwd(),
+        cwd=target,
         timeout_seconds=timeout_seconds,
     )
 

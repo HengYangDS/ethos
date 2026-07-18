@@ -10,7 +10,7 @@ from ethos.repository.policy.layout.filesystem.core import DEFAULT_FLAT_GROWTH_A
 from ethos.repository.policy.layout.filesystem.core import DEFAULT_FLAT_GROWTH_EXISTING_MODULE_LIMIT
 from ethos.repository.policy.layout.filesystem.core import DEFAULT_PATHS
 from ethos.repository.policy.layout.filesystem.core import python_files
-from ethos.repository.policy.layout.filesystem.core import string_list
+from ethos_core.normalization.core import string_list
 
 
 def flat_growth_findings(root: Path, policy: dict[str, Any]) -> list[dict[str, object]]:

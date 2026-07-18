@@ -4,26 +4,18 @@ from pathlib import Path
 
 import pytest
 
-import ethos.adapters.store.state.lease.lifecycle.core as state
 from ethos.adapters.admission.core import hook_admission_report
 from ethos.adapters.admission.prewrite import has_control_character
 from ethos.adapters.admission.prewrite import has_path_whitespace
 from tests.support.ethos_cli_runner import run_ethos_blocked
-from tests.support.lane_helpers import git
 from tests.support.lane_helpers import init_repo
+from tests.support.lane_helpers import leased_worktree
 
 
 @pytest.fixture
 def worktree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     repo = init_repo(tmp_path / "repo")
-    worktree = tmp_path / "repo-work-feature"
-    git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "dev")
-    state.acquire_lease(
-        repo / ".ethos" / "state" / "state.sqlite",
-        subject="work/feature",
-        holder_ref="agent:test:case:agent-a",
-        payload={"path": worktree.as_posix(), "branch": "work/feature"},
-    )
+    worktree = leased_worktree(repo, tmp_path / "repo-work-feature")
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
     return worktree
 

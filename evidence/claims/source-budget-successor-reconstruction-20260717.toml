@@ -1,0 +1,28 @@
+[claim]
+id = "source-budget-successor-reconstruction-20260717"
+subject = "quality:source-budget-successor-reconstruction"
+state = "active"
+summary = "Active carrier for bounded source-budget reconstruction; partial local evidence only."
+
+[evidence]
+dated = "evidence/chronicle/source-budget-successor-reconstruction-20260717/2026-07-17.md"
+sha256 = "1f079ded4ac2cfedc48f4284ed45f31c53f34ae405ac4db2f44b1902ef62f7f0"
+evidence_ids = ["evidence:source-budget-successor-reconstruction-20260717"]
+binding = "The archived OpenSpec carrier, typed policy, present-worktree inventory, explicit debt lifecycle, and partial local record are bound without a proof or publication claim."
+verifier = "digest_only"
+tests = ["ethos quality source-budget --json", "build/runtime/venv/bin/python -m pytest -q tests/unit/kernel/test_source_budget_contract.py tests/unit/adapters/repo/test_source_budget.py tests/unit/adapters/test_config.py tests/unit/domain/test_prove.py"]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-quality-gate-governance"
+scope = "Source-budget reconstruction before HEAD-bound proof and closeout."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-18-source-budget-successor-reconstruction-20260717"
+fallback = "Keep the predecessor lifecycle unresolved; do not promote this partial record."
+kill_signal = "Malformed policy, expired debt, unmeasured carrier, or stale evidence blocks progression."
+
+[promotion]
+targets = [".ethos/rules.toml", "evidence/claims/source-budget-successor-reconstruction-20260717.toml", "evidence/chronicle/source-budget-successor-reconstruction-20260717/2026-07-17.md", "openspec/changes/archive/2026-07-18-source-budget-successor-reconstruction-20260717", "packages/ethos-core/src/ethos_core/contracts/source_budget/core.py", "packages/ethos/src/ethos/adapters/config.py", "packages/ethos/src/ethos/adapters/repo/source_budget/core.py", "packages/ethos/src/ethos/domain/prove.py", "system/schemas/kernel/source-budget.schema.json", "tests/unit/kernel/test_source_budget_contract.py", "tests/unit/adapters/repo/test_source_budget.py", "tests/unit/adapters/test_config.py", "tests/unit/domain/test_prove.py"]

@@ -149,6 +149,39 @@ def remote_tracking_sync(root: Path, branch: str, remote: str = "origin") -> dic
     }
 
 
+def publication_remote_syncs(root: Path, branch: str) -> dict[str, object]:
+    """Project configured GitLab/GitHub branches without granting either authority."""
+    records: dict[str, dict[str, object]] = {}
+    configured = set(git_stdout(root, "remote").splitlines())
+    for remote in ("origin", "github"):
+        if remote not in configured:
+            continue
+        records[remote] = remote_tracking_sync(root, branch, remote)
+    states = {str(record.get("state") or "not_checked") for record in records.values()}
+    synchronized = bool(records) and states == {"synchronized"}
+    reconciliation_required = any(
+        state in {"diverged", "local_behind", "remote_tracking_missing"} for state in states
+    )
+    return {
+        "kind": "git_remote_tracking_matrix",
+        "branch": branch,
+        "remotes": records,
+        "configured_remote_count": len(records),
+        "state": "synchronized"
+        if synchronized
+        else "reconciliation_required"
+        if reconciliation_required
+        else "pending",
+        "blocking": False,
+        "required_gaps": [],
+        "advisory_gaps": [
+            f"remote_reconciliation_required:{name}:{record.get('state')}"
+            for name, record in records.items()
+            if record.get("state") != "synchronized"
+        ],
+    }
+
+
 def set_hooks_path(root: Path, hooks_path: str) -> bool:
     """Wire git core.hooksPath to hooks_path (the sanctioned local-entrance write)."""
     completed = subprocess.run(

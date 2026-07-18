@@ -5,19 +5,19 @@ from graphlib import CycleError
 from graphlib import TopologicalSorter
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class GraphValidation:
     ok: bool
     gaps: tuple[str, ...] = ()
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class GraphNode:
     id: str
     depends_on: tuple[str, ...] = ()
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class GraphEdge:
     source: str
     target: str
@@ -31,7 +31,7 @@ class GraphEdge:
         }
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class GraphPlan:
     ok: bool
     ordered_ids: tuple[str, ...]
@@ -47,7 +47,7 @@ class GraphPlan:
         }
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class GraphKernel:
     nodes: tuple[GraphNode, ...]
 

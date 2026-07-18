@@ -41,7 +41,7 @@ _MARKER_SUBDIR = Path("ethos") / "closeout-intent"
 _SCHEMA_VERSION = 1
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class CloseoutTransition:
     """The exact accepted-ref move an official closeout authorizes.
 
@@ -55,7 +55,7 @@ class CloseoutTransition:
     candidate_head: str
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class MarkerExpectation:
     """The proof/policy digests a matched marker must carry to authorize the move.
 

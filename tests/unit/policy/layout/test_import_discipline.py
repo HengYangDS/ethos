@@ -5,14 +5,10 @@ from typing import TYPE_CHECKING
 from ethos.repository.policy.layout.core import module_layout_report
 from ethos.repository.policy.layout.imports.core import _status_paths
 from ethos.repository.policy.layout.imports.core import private_from_import_regression_findings
+from tests.support import write_text as _write
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-
-def _write(path: Path, text: str = "") -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(text, encoding="utf-8")
 
 
 def test_module_layout_blocks_private_from_import_regression(

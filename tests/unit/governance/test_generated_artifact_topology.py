@@ -8,16 +8,10 @@ from ethos.repository.policy import artifacts as artifacts_mod
 from ethos.repository.policy.artifacts import generated_artifact_entrypoint_audit
 from ethos.repository.policy.artifacts import generated_artifact_topology_report
 from ethos_core.contracts.artifacts.topology import generated_artifact_contract
-from ethos_core.contracts.artifacts.topology import is_denied_root_cache_path
-from ethos_core.contracts.artifacts.topology import is_retired_config_script_path
-from ethos_core.contracts.artifacts.topology import is_runner_script_path
 from ethos_core.contracts.artifacts.topology import load_generated_artifact_topology_declaration
 from ethos_core.contracts.artifacts.topology import path_policy_for
 from ethos_core.contracts.artifacts.topology import path_policy_from_declaration
-
-
-def _git(root: Path, *args: str) -> None:
-    subprocess.run(["git", *args], cwd=root, check=True, capture_output=True, text=True)
+from tests.support.contract_helpers import git as _git
 
 
 def _init_repo(root: Path) -> None:
@@ -448,17 +442,6 @@ def test_path_policy_denies_generated_output_under_governed_docs() -> None:
     assert report["required_gap"] == (
         "generated_artifact_governed_docs_drift:docs/reference/report.json"
     )
-
-
-def test_runner_script_helpers_match_only_active_and_retired_script_homes() -> None:
-    assert is_runner_script_path("tools/ci/scripts/run-python-tests.sh") is True
-    assert is_runner_script_path("tools/ci") is False
-
-    assert is_retired_config_script_path(".config/ci/scripts/run-python-tests.sh") is True
-    assert is_retired_config_script_path(".config/ci") is False
-
-    assert is_denied_root_cache_path(".import_linter_cache/cache.sqlite") is True
-    assert is_denied_root_cache_path(".cache/local-state/worktree/leases.json") is False
 
 
 def test_path_policy_reviews_runner_scripts_and_denies_retired_config_scripts() -> None:

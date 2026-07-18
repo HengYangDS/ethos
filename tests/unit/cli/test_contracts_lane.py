@@ -10,9 +10,25 @@ if TYPE_CHECKING:
 
 from tests.support.contract_helpers import git
 from tests.support.contract_helpers import init_git_repo
+from tests.support.contract_helpers import init_repo_with_candidate
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.ethos_cli_runner import write_role_policy
+
+
+def _retire_landed(repo: Path, *arguments: str, blocked: bool = False) -> dict[str, object]:
+    return (run_ethos_blocked if blocked else run_ethos)(
+        "lane", "retire", "landed", *arguments, "--root", repo.as_posix(), "--json", cwd=repo
+    )
+
+
+def _acquire_lane_lease(repo: Path, branch: str) -> None:
+    state.acquire_lease(
+        repo / ".ethos" / "state" / "state.sqlite",
+        subject=branch,
+        holder_ref="agent:test:case:agent-a",
+        ttl_seconds=3600,
+    )
 
 
 def test_lane_status_reports_live_workspace_schema_validation() -> None:
@@ -228,16 +244,7 @@ def test_hook_install_blocks_when_hook_script_missing(tmp_path: Path) -> None:
 
 
 def test_lane_start_apply_creates_worktree_and_lease(tmp_path: Path) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    git(
-        repo,
-        "worktree",
-        "add",
-        "-b",
-        "candidate/dev",
-        (tmp_path / "repo-candidate-dev").as_posix(),
-        "dev",
-    )
+    repo, _candidate = init_repo_with_candidate(tmp_path)
     worktree = tmp_path / "repo-work-feature"
 
     payload = run_ethos(
@@ -273,16 +280,7 @@ def test_lane_start_apply_creates_worktree_and_lease(tmp_path: Path) -> None:
 
 
 def test_lane_start_accepts_claim_binding(tmp_path: Path) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    git(
-        repo,
-        "worktree",
-        "add",
-        "-b",
-        "candidate/dev",
-        (tmp_path / "repo-candidate-dev").as_posix(),
-        "dev",
-    )
+    repo, _candidate = init_repo_with_candidate(tmp_path)
     worktree = tmp_path / "repo-work-feature"
 
     payload = run_ethos(
@@ -311,16 +309,7 @@ def test_lane_start_accepts_claim_binding(tmp_path: Path) -> None:
 
 
 def test_lane_bind_claim_applies_to_existing_work_lane(tmp_path: Path) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    git(
-        repo,
-        "worktree",
-        "add",
-        "-b",
-        "candidate/dev",
-        (tmp_path / "repo-candidate-dev").as_posix(),
-        "dev",
-    )
+    repo, _candidate = init_repo_with_candidate(tmp_path)
     worktree = tmp_path / "repo-work-feature"
     run_ethos(
         "lane",
@@ -360,16 +349,7 @@ def test_lane_bind_claim_applies_to_existing_work_lane(tmp_path: Path) -> None:
 
 
 def test_status_reports_foreign_work_lane_as_coordination_gap(tmp_path: Path) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    git(
-        repo,
-        "worktree",
-        "add",
-        "-b",
-        "candidate/dev",
-        (tmp_path / "repo-candidate-dev").as_posix(),
-        "dev",
-    )
+    repo, _candidate = init_repo_with_candidate(tmp_path)
     worktree = tmp_path / "repo-work-feature"
     run_ethos(
         "lane",
@@ -411,16 +391,7 @@ def test_status_reports_foreign_work_lane_as_coordination_gap(tmp_path: Path) ->
 
 
 def test_status_marks_raw_git_worktree_without_ethos_lease(tmp_path: Path) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    git(
-        repo,
-        "worktree",
-        "add",
-        "-b",
-        "candidate/dev",
-        (tmp_path / "repo-candidate-dev").as_posix(),
-        "dev",
-    )
+    repo, _candidate = init_repo_with_candidate(tmp_path)
     raw_worktree = tmp_path / "repo-work-raw"
     git(repo, "worktree", "add", "-b", "work/raw", raw_worktree.as_posix(), "dev")
 
@@ -452,16 +423,7 @@ def test_status_marks_raw_git_worktree_without_ethos_lease(tmp_path: Path) -> No
 def test_status_reports_unbound_work_lane_ref_as_advisory_signal(
     tmp_path: Path,
 ) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    git(
-        repo,
-        "worktree",
-        "add",
-        "-b",
-        "candidate/dev",
-        (tmp_path / "repo-candidate-dev").as_posix(),
-        "dev",
-    )
+    repo, _candidate = init_repo_with_candidate(tmp_path)
     git(repo, "branch", "work/stale-ref", "dev")
 
     payload = run_ethos("status", "--root", repo.as_posix(), "--json", cwd=repo)
@@ -551,16 +513,7 @@ def test_lane_candidate_apply_default_path_uses_configured_candidate_role(
 def test_lane_retire_landed_summary_marks_selected_unmerged_lane_not_ready(
     monkeypatch, tmp_path: Path
 ) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    git(
-        repo,
-        "worktree",
-        "add",
-        "-b",
-        "candidate/dev",
-        (tmp_path / "repo-candidate-dev").as_posix(),
-        "dev",
-    )
+    repo, _candidate = init_repo_with_candidate(tmp_path)
     landed = tmp_path / "repo-work-landed"
     git(repo, "worktree", "add", "-b", "work/landed", landed.as_posix(), "dev")
     active = tmp_path / "repo-work-active"
@@ -585,17 +538,7 @@ def test_lane_retire_landed_summary_marks_selected_unmerged_lane_not_ready(
     )
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
 
-    payload = run_ethos_blocked(
-        "lane",
-        "retire",
-        "landed",
-        "--branch",
-        "work/active",
-        "--root",
-        repo.as_posix(),
-        "--json",
-        cwd=repo,
-    )
+    payload = _retire_landed(repo, "--branch", "work/active", blocked=True)
 
     assert payload["ok"] is False
     assert payload["required_gaps"] == ["work_lane_not_merged"]
@@ -610,30 +553,11 @@ def test_lane_retire_landed_summary_marks_selected_unmerged_lane_not_ready(
 def test_lane_retire_landed_dry_run_blocks_foreign_lane_without_authority(
     tmp_path: Path,
 ) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    git(
-        repo,
-        "worktree",
-        "add",
-        "-b",
-        "candidate/dev",
-        (tmp_path / "repo-candidate-dev").as_posix(),
-        "dev",
-    )
+    repo, _candidate = init_repo_with_candidate(tmp_path)
     foreign = tmp_path / "repo-work-foreign"
     git(repo, "worktree", "add", "-b", "work/foreign", foreign.as_posix(), "dev")
 
-    payload = run_ethos_blocked(
-        "lane",
-        "retire",
-        "landed",
-        "--branch",
-        "work/foreign",
-        "--root",
-        repo.as_posix(),
-        "--json",
-        cwd=repo,
-    )
+    payload = _retire_landed(repo, "--branch", "work/foreign", blocked=True)
 
     assert payload["command"] == "lane retire landed"
     assert payload["ok"] is False
@@ -643,29 +567,11 @@ def test_lane_retire_landed_dry_run_blocks_foreign_lane_without_authority(
 
 
 def test_lane_retire_landed_apply_requires_explicit_branch(tmp_path: Path) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    git(
-        repo,
-        "worktree",
-        "add",
-        "-b",
-        "candidate/dev",
-        (tmp_path / "repo-candidate-dev").as_posix(),
-        "dev",
-    )
+    repo, _candidate = init_repo_with_candidate(tmp_path)
     worktree = tmp_path / "repo-work-landed"
     git(repo, "worktree", "add", "-b", "work/landed", worktree.as_posix(), "dev")
 
-    payload = run_ethos_blocked(
-        "lane",
-        "retire",
-        "landed",
-        "--apply",
-        "--root",
-        repo.as_posix(),
-        "--json",
-        cwd=repo,
-    )
+    payload = _retire_landed(repo, "--apply", blocked=True)
 
     assert payload["command"] == "lane retire landed"
     assert payload["ok"] is False
@@ -674,38 +580,13 @@ def test_lane_retire_landed_apply_requires_explicit_branch(tmp_path: Path) -> No
 
 
 def test_lane_retire_landed_apply_requires_expected_head(monkeypatch, tmp_path: Path) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    git(
-        repo,
-        "worktree",
-        "add",
-        "-b",
-        "candidate/dev",
-        (tmp_path / "repo-candidate-dev").as_posix(),
-        "dev",
-    )
+    repo, _candidate = init_repo_with_candidate(tmp_path)
     worktree = tmp_path / "repo-work-landed"
     git(repo, "worktree", "add", "-b", "work/landed", worktree.as_posix(), "dev")
 
-    state.acquire_lease(
-        repo / ".ethos" / "state" / "state.sqlite",
-        subject="work/landed",
-        holder_ref="agent:test:case:agent-a",
-        ttl_seconds=3600,
-    )
+    _acquire_lane_lease(repo, "work/landed")
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
-    payload = run_ethos_blocked(
-        "lane",
-        "retire",
-        "landed",
-        "--branch",
-        "work/landed",
-        "--apply",
-        "--root",
-        repo.as_posix(),
-        "--json",
-        cwd=repo,
-    )
+    payload = _retire_landed(repo, "--branch", "work/landed", "--apply", blocked=True)
 
     assert payload["command"] == "lane retire landed"
     assert payload["ok"] is False
@@ -714,40 +595,20 @@ def test_lane_retire_landed_apply_requires_expected_head(monkeypatch, tmp_path: 
 
 
 def test_lane_retire_landed_apply_removes_selected_branch(monkeypatch, tmp_path: Path) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    git(
-        repo,
-        "worktree",
-        "add",
-        "-b",
-        "candidate/dev",
-        (tmp_path / "repo-candidate-dev").as_posix(),
-        "dev",
-    )
+    repo, _candidate = init_repo_with_candidate(tmp_path)
     worktree = tmp_path / "repo-work-landed"
     git(repo, "worktree", "add", "-b", "work/landed", worktree.as_posix(), "dev")
     worktree_head = git(worktree, "rev-parse", "HEAD")
 
-    state.acquire_lease(
-        repo / ".ethos" / "state" / "state.sqlite",
-        subject="work/landed",
-        holder_ref="agent:test:case:agent-a",
-        ttl_seconds=3600,
-    )
+    _acquire_lane_lease(repo, "work/landed")
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
-    payload = run_ethos(
-        "lane",
-        "retire",
-        "landed",
+    payload = _retire_landed(
+        repo,
         "--branch",
         "work/landed",
         "--expect-head",
         worktree_head,
         "--apply",
-        "--root",
-        repo.as_posix(),
-        "--json",
-        cwd=repo,
     )
 
     assert payload["command"] == "lane retire landed"
@@ -758,16 +619,7 @@ def test_lane_retire_landed_apply_removes_selected_branch(monkeypatch, tmp_path:
 
 
 def test_lane_retire_unbound_apply_removes_matching_ref(tmp_path: Path) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    git(
-        repo,
-        "worktree",
-        "add",
-        "-b",
-        "candidate/dev",
-        (tmp_path / "repo-candidate-dev").as_posix(),
-        "dev",
-    )
+    repo, _candidate = init_repo_with_candidate(tmp_path)
     git(repo, "branch", "work/stale-ref", "dev")
     head = git(repo, "rev-parse", "work/stale-ref")
 
@@ -804,16 +656,7 @@ def test_lane_retire_unbound_apply_removes_matching_ref(tmp_path: Path) -> None:
 
 
 def test_lane_retire_unbound_apply_requires_authorization(tmp_path: Path) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    git(
-        repo,
-        "worktree",
-        "add",
-        "-b",
-        "candidate/dev",
-        (tmp_path / "repo-candidate-dev").as_posix(),
-        "dev",
-    )
+    repo, _candidate = init_repo_with_candidate(tmp_path)
     git(repo, "branch", "work/stale-ref", "dev")
     head = git(repo, "rev-parse", "work/stale-ref")
 

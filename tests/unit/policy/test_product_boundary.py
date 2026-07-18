@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from ethos.repository.policy.boundary import product as boundary
+from tests.support import write_text as _write
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -10,11 +11,6 @@ if TYPE_CHECKING:
 
 def term_from_parts(*parts: str) -> str:
     return "".join(parts)
-
-
-def _write(path: Path, text: str = "") -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(text, encoding="utf-8")
 
 
 def _workspace(root: Path, body: str) -> None:

@@ -127,7 +127,7 @@ def _compact_status_result(result: EthosResult) -> EthosResult:
         "changed_path_count": _count_sequence(data.get("changed_paths")),
         "landing_readiness": {
             "state": landing.get("state", ""),
-            "required_gaps": _string_list(landing.get("required_gaps")),
+            "required_gaps": string_sequence(landing.get("required_gaps")),
             "next_action": landing.get("next_action", ""),
         },
         "candidate": {
@@ -184,11 +184,6 @@ def _count_sequence(value: object) -> int:
     if isinstance(value, list | tuple):
         return len(value)
     return 0
-
-
-def _string_list(value: object) -> list[str]:
-    """Return a string-list projection without passing through arbitrary values."""
-    return [str(item) for item in value] if isinstance(value, list | tuple) else []
 
 
 def _compact_invalid_states(value: object) -> dict[str, object]:

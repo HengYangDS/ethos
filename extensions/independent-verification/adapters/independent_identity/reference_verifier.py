@@ -9,7 +9,6 @@ no provider URL override, and no scheduling or daemon mode.
 
 from __future__ import annotations
 
-import argparse
 import hashlib
 import json
 import os
@@ -24,6 +23,8 @@ from datetime import datetime
 from datetime import timedelta
 from pathlib import Path
 from typing import NoReturn
+
+from cyclopts import App
 
 _GIT = Path("/usr/bin/git")
 _SSH_KEYGEN = Path("/usr/bin/ssh-keygen")
@@ -41,7 +42,7 @@ def _fail(code: str) -> NoReturn:
     raise VerificationError(code)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class ReferenceVerifierConfig:
     """Provider-local configuration; never place this in an adopter repository."""
 
@@ -394,13 +395,13 @@ def _load_request(path: Path) -> dict[str, object]:
     return request
 
 
-def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--config", type=Path, required=True)
-    parser.add_argument("--request", type=Path, required=True)
-    args = parser.parse_args(argv)
+app = App(name="ethos-reference-verifier")
+
+
+@app.default
+def main(*, config: Path, request: Path) -> int:
     try:
-        receipt = reexecute(load_config(args.config), _load_request(args.request))
+        receipt = reexecute(load_config(config), _load_request(request))
     except (OSError, json.JSONDecodeError, VerificationError) as exc:
         sys.stdout.write(json.dumps({"ok": False, "error": str(exc)}) + "\n")
         return 1
@@ -409,4 +410,4 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    app(sys.argv[1:])

@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Execute proof into generated evidence and print its head-bound receipt.
+set -euo pipefail
+dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; if [[ "${ETHOS_RUNTIME_BOOTSTRAPPED:-}" != 1 ]]; then
+  exec "${dir}/with-python-runtime.sh" -- uv run --all-packages --group dev env ETHOS_RUNTIME_BOOTSTRAPPED=1 "$0" "$@"
+fi
+cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+[[ $# -le 1 ]] || { echo "usage: $0 [expected-head]" >&2; exit 2; }
+head="${1:-$(git rev-parse HEAD)}"; out="${ETHOS_PROOF_EVIDENCE_DIR:-build/evidence/quality/proof}"
+receipt="${out}/executed-proof.json"; stderr="${out}/executed-proof.stderr.log"
+readiness="${ETHOS_READINESS_EVIDENCE_DIR:-build/evidence/quality/readiness}"
+audit="${readiness}/audit.json"; report="${readiness}/report.json"
+mkdir -p "${out}" "${readiness}"
+rm -f "${receipt}" "${stderr}" "${audit}" "${report}"
+uv run --package ethos ethos audit --json >"${audit}"
+uv run --package ethos ethos report --json >"${report}"
+set +e
+uv run --package ethos ethos prove --execute --expect-head "${head}" --json >"${receipt}" 2>"${stderr}"
+proof_status=$?
+set -e
+set +e
+python3 tools/ci/emit_readiness_receipt.py "${audit}" "${report}" "${receipt}"
+receipt_status=$?
+set -e
+if [[ ${proof_status} -ne 0 || ${receipt_status} -ne 0 ]]; then
+  [[ ! -s "${stderr}" ]] || { echo "ETHOS proof diagnostics (last 200 lines):" >&2; tail -n 200 "${stderr}" >&2; }
+  (( proof_status )) && exit "${proof_status}"
+  exit "${receipt_status}"
+fi
+rm -f "${stderr}"

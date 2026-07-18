@@ -3,6 +3,7 @@ paths = [
   "docs/architecture/runner-and-mutation.md",
   "docs/governance/product-design-contract.md",
   "docs/reference/command-plane.md",
+  ".config/checks/ruff/ratchet.toml",
   "evolution/campaigns/repo-first-worktree-governance-v2/campaign.toml",
   "evidence/claims/worktree-governance-campaign-20260718.toml",
   "evidence/chronicle/worktree-governance-campaign-20260718/**",
@@ -16,4 +17,5 @@ paths = [
   "tests/unit/lanes/test_lanes_retire_superseded.py",
   "tests/unit/lanes/retirement/test_unbound_and_helpers.py",
   "tests/unit/cli/test_contracts_lane.py",
+  "tests/unit/coverage/test_ci_95_additional_edges.py",
 ]

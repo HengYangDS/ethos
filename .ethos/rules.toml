@@ -209,10 +209,7 @@ expiry = "2026-07-18"
 allowance = 336
 expected_net_deletion = 336
 
-[quality.source_budget.debt.records.allowance_by_category]
-python_product = 170
-python_tests = 157
-toml = 9
+allowance_by_category = { python_product = 170, python_tests = 157, toml = 9 }
 
 [gates.local-state-audit]
 command = "tools/ci/scripts/run-local-state-audit.sh"

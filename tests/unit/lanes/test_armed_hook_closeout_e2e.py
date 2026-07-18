@@ -40,6 +40,7 @@ _RUNTIME_BOOTSTRAP_SRC = (
 )
 _TEST_PYTHON = Path(os.environ.get("ETHOS_TEST_PYTHON", os.sys.executable)).absolute()
 _TEST_VENV = _TEST_PYTHON.parent.parent
+_LEGACY_HOOK_REF = "0d7749c56c30857ebc373489186e756324ec3378"
 
 
 def _g(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
@@ -63,7 +64,7 @@ def _seed_proof(root: Path, head: str) -> None:
     record_executed_proof(root, EvidenceSet.from_runs(id="p", head=head, runs=runs).to_dict())
 
 
-def _armed_repo(tmp_path: Path, *, mirror: bool = False) -> Path:
+def _armed_repo(tmp_path: Path, *, mirror: bool = False, legacy_hook: bool = False) -> Path:
     """A scratch candidate-train repo with the REAL reference-transaction hook armed and NO
     ETHOS_ALLOW_REF_MOVE in the environment.
 
@@ -95,8 +96,31 @@ def _armed_repo(tmp_path: Path, *, mirror: bool = False) -> Path:
     (repo / ".gitignore").write_text(".ethos/state/\nbuild\npackages\n", encoding="utf-8")
     hooks = repo / ".githooks"
     hooks.mkdir()
-    shutil.copy(_HOOK_SRC, hooks / "reference-transaction")
-    (hooks / "reference-transaction").chmod(0o755)
+    hook = hooks / "reference-transaction"
+    if legacy_hook:
+        hook.write_bytes(
+            subprocess.run(
+                ["git", "show", f"{_LEGACY_HOOK_REF}:.githooks/reference-transaction"],
+                cwd=_HOOK_SRC.parent.parent,
+                capture_output=True,
+                check=True,
+            ).stdout
+        )
+        hook.write_text(
+            hook.read_text(encoding="utf-8").replace(
+                '    branch="${ref_name#refs/heads/}"\n',
+                '    branch="${ref_name#refs/heads/}"\n'
+                '    if [ "$branch" = "main" ]; then\n'
+                '        echo "ethos: legacy mirror hook rejected $ref_name." >&2\n'
+                "        exit 1\n"
+                "    fi\n",
+                1,
+            ),
+            encoding="utf-8",
+        )
+    else:
+        shutil.copy(_HOOK_SRC, hook)
+    hook.chmod(0o755)
     runtime_script_dir = repo / "tools" / "ci" / "scripts"
     runtime_script_dir.mkdir(parents=True)
     shutil.copy(_RUNTIME_BOOTSTRAP_SRC, runtime_script_dir / "with-python-runtime.sh")
@@ -183,7 +207,14 @@ def _materialize_accepted_ethos_package(repo: Path) -> Path:
     return package
 
 
-def _land_proven_work(repo: Path, tmp_path: Path, name: str, content: str) -> str:
+def _land_proven_work(
+    repo: Path,
+    tmp_path: Path,
+    name: str,
+    content: str,
+    *,
+    upgrade_hook: bool = False,
+) -> str:
     """Create a lease-backed work lane, commit + prove work, land it onto candidate.
     Returns the candidate head."""
     work = tmp_path / name
@@ -201,6 +232,9 @@ def _land_proven_work(repo: Path, tmp_path: Path, name: str, content: str) -> st
     )
     _g(repo, "worktree", "add", "-b", f"work/{name}", str(work), "candidate/dev")
     (work / f"{name}.txt").write_text(content, encoding="utf-8")
+    if upgrade_hook:
+        shutil.copy(_HOOK_SRC, work / ".githooks" / "reference-transaction")
+        (work / ".githooks" / "reference-transaction").chmod(0o755)
     (work / ".ethos" / "profile.toml").unlink(missing_ok=True)
     _g(work, "add", ".")
     work_head = _commit(work, f"work {name}")
@@ -243,6 +277,33 @@ def test_committed_profile_closeout_blocks_raw_move(tmp_path: Path) -> None:
     # refs and is judged by the candidate runner, not the intentionally unusable
     # incumbent reducer.
     closeout = apply_candidate_to_accepted(root=repo, authorized=True, expect_head=dev_before)
+    assert closeout["ok"] is True, closeout
+    assert _g(repo, "rev-parse", "dev").stdout.strip() == candidate_head
+    assert _g(repo, "rev-parse", "main").stdout.strip() == candidate_head
+
+
+def test_candidate_hook_bootstraps_accepted_ff_closeout_from_legacy_incumbent(
+    tmp_path: Path,
+) -> None:
+    """Official closeout selects a repaired candidate hook for its sole CAS.
+
+    Raw Git remains on the legacy configured accepted hook and blocks the release
+    mirror. The official atomic closeout must instead use the candidate hook
+    directory, while retaining exact intents and candidate semantic admission.
+    """
+    if not _HOOK_SRC.exists():
+        return
+    os.environ["ETHOS_ACTOR"] = "agent:test:case:agent-test"
+    repo = _armed_repo(tmp_path, mirror=True, legacy_hook=True)
+    candidate_head = _land_proven_work(repo, tmp_path, "w", "hi\n", upgrade_hook=True)
+    dev_before = _g(repo, "rev-parse", "dev").stdout.strip()
+    _seed_proof(repo, candidate_head)
+    raw_main = _g(repo, "update-ref", "refs/heads/main", candidate_head, dev_before)
+    assert raw_main.returncode != 0
+    assert _g(repo, "rev-parse", "main").stdout.strip() == dev_before
+
+    closeout = apply_candidate_to_accepted(root=repo, authorized=True, expect_head=dev_before)
+
     assert closeout["ok"] is True, closeout
     assert _g(repo, "rev-parse", "dev").stdout.strip() == candidate_head
     assert _g(repo, "rev-parse", "main").stdout.strip() == candidate_head

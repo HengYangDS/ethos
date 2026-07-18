@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+import subprocess
 from typing import TYPE_CHECKING
 
 import ethos.adapters.mutation.remediation.core as remediation
@@ -21,7 +22,6 @@ from ethos_core.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
 from ethos_core.contracts.branch.roles import BranchRolePolicy
 
 if TYPE_CHECKING:
-    import subprocess
     from collections.abc import Callable
 
 
@@ -210,14 +210,14 @@ def _execute_promotion(
 def _atomic_update(root, candidate_path, accepted, release, run_git):
     """Use candidate hooks only when the candidate replaces the hook control path."""
     candidate_hook = candidate_path / ".githooks" / "reference-transaction"
-    if not _candidate_replaces_hook(root, candidate_path, candidate_hook, run_git):
+    if not _candidate_replaces_hook(root, candidate_path, run_git):
         return _run_atomic_update(root, accepted, release, run_git)
     if not candidate_hook.is_file() or not candidate_hook.stat().st_mode & 0o111:
         return _missing_candidate_hook_result(candidate_hook.parent)
     return _run_atomic_update(root, accepted, release, run_git, hook_path=candidate_hook.parent)
 
 
-def _candidate_replaces_hook(root, candidate_path, candidate_hook, run_git):
+def _candidate_replaces_hook(root, candidate_path, run_git):
     """Detect a tracked candidate hook replacement without reading mutable config."""
     candidate_blob = _tree_blob(candidate_path, "HEAD", ".githooks/reference-transaction", run_git)
     accepted_blob = _tree_blob(root, "HEAD", ".githooks/reference-transaction", run_git)
@@ -251,8 +251,6 @@ def _run_atomic_update(root, accepted, release, run_git, *, hook_path=None):
 
 def _missing_candidate_hook_result(hooks_path):
     """Block before a hook-replacement closeout could run without candidate source."""
-    import subprocess
-
     return subprocess.CompletedProcess(
         args=("git", "update-ref", "--stdin"),
         returncode=1,

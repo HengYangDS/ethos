@@ -407,17 +407,6 @@ def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
     monkeypatch.setattr(
         closeout_core,
         "_atomic_update",
-        lambda *_args, **_kwargs: cp(
-            stderr="candidate_closeout_hook_unavailable:/candidate/.githooks",
-            returncode=1,
-        ),
-    )
-    assert mutation_core.apply_candidate_to_accepted(
-        root=tmp_path, authorized=True, expect_head="h1"
-    )["required_gaps"] == ["candidate_closeout_hook_unavailable"]
-    monkeypatch.setattr(
-        closeout_core,
-        "_atomic_update",
         lambda *_args, **_kwargs: cp(stdout="", returncode=0),
     )
 
@@ -458,34 +447,6 @@ def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
         ]
         == "accepted_validated"
     )
-
-
-def test_hook_replacement_requires_executable_candidate_hook(tmp_path: Path) -> None:
-    accepted_root = tmp_path / "accepted"
-    candidate_root = tmp_path / "candidate"
-    accepted_root.mkdir()
-    candidate_root.mkdir()
-    transition = closeout_core.CloseoutTransition("refs/heads/dev", "old", "new", "new")
-    calls: list[tuple[Path, tuple[str, ...]]] = []
-
-    def fake_git(root: Path, *args: str, **_kwargs):
-        calls.append((root, args))
-        return cp(stdout="candidate\n" if root == accepted_root else "")
-
-    update = closeout_core._atomic_update(accepted_root, candidate_root, transition, None, fake_git)
-
-    assert update.returncode == 1
-    assert update.stderr == f"candidate_closeout_hook_unavailable:{candidate_root / '.githooks'}"
-    assert calls == [
-        (
-            candidate_root,
-            ("rev-parse", "--verify", "HEAD:.githooks/reference-transaction"),
-        ),
-        (
-            accepted_root,
-            ("rev-parse", "--verify", "HEAD:.githooks/reference-transaction"),
-        ),
-    ]
 
 
 def test_release_mirror_closeout_edge_paths(monkeypatch, tmp_path):

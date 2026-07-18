@@ -12,5 +12,7 @@
 ## 3. Verification And Closeout
 
 - [x] 3.1 Add focused dirty, stale-observation, partial-transition, and unbound-preservation regressions.
-- [x] 3.2 Run focused tests, lint, OpenSpec lifecycle validation, claim validation, parity refresh, and exact-HEAD local proof.
-- [x] 3.3 Archive the completed carrier, perform local candidate and accepted-root closeout, then retire only this owned lane.
+- [x] 3.2 Run focused tests, lint, OpenSpec lifecycle validation, claim validation, and parity refresh for the implementation carrier.
+- [x] 3.3 Archive the completed carrier.
+- [ ] 3.4 Run the final exact-HEAD proof after this archived-carrier correction, then perform local candidate land and accepted-root closeout.
+- [ ] 3.5 Retire only this owned implementation lane after its independent local closeout receipt exists.

@@ -25,7 +25,7 @@ evidence = [
 [[step]]
 id = "retirement-fail-closed"
 title = "Retirement fail-closed"
-state = "active"
+state = "archive_ready"
 ordinal = 2
 depends_on = ["campaign-bootstrap"]
 openspec_change = "worktree-retirement-fail-closed-20260718"

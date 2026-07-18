@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-07-18
+goal: Converge the remaining dual-remote submit refs through a proof-bound local
+  closeout and direct no-force pushes.

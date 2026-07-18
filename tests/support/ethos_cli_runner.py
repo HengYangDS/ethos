@@ -34,41 +34,70 @@ class ImplicitApplyCheckoutError(AssertionError):
         )
 
 
-def _test_git_config_overlay_keys(env: MutableMapping[str, str]) -> tuple[str, ...]:
-    """Return pytest's indexed Git config overlay environment keys."""
+def _test_git_config_overlay_items(
+    env: MutableMapping[str, str],
+) -> tuple[tuple[str, str], ...]:
+    """Return complete indexed Git configuration overlay entries from ``env``."""
     raw_count = env.get("GIT_CONFIG_COUNT", "0")
     try:
         count = int(raw_count)
     except ValueError:
         count = 0
-    keys = ["GIT_CONFIG_COUNT"]
+    return tuple(
+        (key, value)
+        for index in range(count)
+        if (key := env.get(f"GIT_CONFIG_KEY_{index}")) is not None
+        and (value := env.get(f"GIT_CONFIG_VALUE_{index}")) is not None
+    )
+
+
+def _clear_test_git_config_overlay(env: MutableMapping[str, str]) -> None:
+    """Remove every indexed Git configuration variable from ``env``."""
+    raw_count = env.pop("GIT_CONFIG_COUNT", "0")
+    try:
+        count = int(raw_count)
+    except ValueError:
+        count = 0
     for index in range(count):
-        keys.extend((f"GIT_CONFIG_KEY_{index}", f"GIT_CONFIG_VALUE_{index}"))
-    return tuple(keys)
+        env.pop(f"GIT_CONFIG_KEY_{index}", None)
+        env.pop(f"GIT_CONFIG_VALUE_{index}", None)
+
+
+def _write_test_git_config_overlay(
+    env: MutableMapping[str, str], entries: tuple[tuple[str, str], ...]
+) -> None:
+    """Write one dense indexed Git configuration overlay into ``env``."""
+    if not entries:
+        return
+    env["GIT_CONFIG_COUNT"] = str(len(entries))
+    for index, (key, value) in enumerate(entries):
+        env[f"GIT_CONFIG_KEY_{index}"] = key
+        env[f"GIT_CONFIG_VALUE_{index}"] = value
 
 
 def _without_test_git_config_overlay(env: MutableMapping[str, str]) -> dict[str, str]:
-    """Copy ``env`` without pytest's environment-backed Git config overlay.
-
-    The autouse git fixture disables commit signing through ``GIT_CONFIG_*`` so
-    throwaway test repositories can commit without depending on a developer key.
-    Product CLI checks must inspect repository truth, not that test-only overlay.
-    Keep identity variables, but remove indexed Git config entries.
-    """
+    """Remove test identity overlay but retain fsmonitor execution isolation."""
     clean = dict(env)
-    for key in _test_git_config_overlay_keys(env):
-        clean.pop(key, None)
+    retained = tuple(
+        (key, value)
+        for key, value in _test_git_config_overlay_items(env)
+        if key == "core.fsmonitor" and value == "false"
+    )
+    _clear_test_git_config_overlay(clean)
+    _write_test_git_config_overlay(clean, retained)
     return clean
 
 
 def _remove_test_git_config_overlay(env: MutableMapping[str, str]) -> dict[str, str]:
-    """Remove pytest's Git config overlay in-place and return removed values."""
-    removed: dict[str, str] = {}
-    for key in _test_git_config_overlay_keys(env):
-        value = env.pop(key, None)
-        if value is not None:
-            removed[key] = value
-    return removed
+    """Remove identity overlays in-place but retain fsmonitor safety."""
+    original = dict(env)
+    replacement = _without_test_git_config_overlay(env)
+    _clear_test_git_config_overlay(env)
+    _write_test_git_config_overlay(
+        env,
+        _test_git_config_overlay_items(replacement),
+    )
+    return original
 
 
 def run_ethos(*args: str, cwd: Path | None = None) -> dict[str, Any]:

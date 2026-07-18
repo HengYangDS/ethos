@@ -3,6 +3,12 @@
 # the local SSOT for Python/uv/OpenSpec setup used by hosted jobs.
 set -euo pipefail
 
+repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+# Hosted owner scripts use `uv run --no-sync` after bootstrap. Materialize the
+# same checkout-bound environment first so they cannot fall back to a default
+# `.venv` or ambient interpreter.
+export UV_PROJECT_ENVIRONMENT="${repo_root}/build/runtime/venv"
+
 python -m pip install --upgrade pip >/dev/null
 pip install uv
 # The openspec shim execs `npx`, so Node.js must exist in the python:3.12 image the
@@ -15,3 +21,4 @@ fi
 printf '%s\n' '#!/usr/bin/env bash' 'exec npx --yes @fission-ai/openspec@1.6.0 "$@"' > /usr/local/bin/openspec
 chmod +x /usr/local/bin/openspec
 uv --version
+uv sync --all-packages --group dev

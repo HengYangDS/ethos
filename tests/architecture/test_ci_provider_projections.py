@@ -209,6 +209,16 @@ def test_openspec_ci_supply_is_pinned_to_the_supported_release() -> None:
     assert "npm install -g @fission-ai/openspec@1.6.0" in adopter_gitlab_template
 
 
+def test_hosted_python_bootstrap_materializes_the_source_bound_runtime() -> None:
+    bootstrap = (ROOT / "tools/ci/scripts/bootstrap-python.sh").read_text(encoding="utf-8")
+
+    environment = 'export UV_PROJECT_ENVIRONMENT="${repo_root}/build/runtime/venv"'
+    sync = "uv sync --all-packages --group dev"
+    assert environment in bootstrap
+    assert sync in bootstrap
+    assert bootstrap.index(environment) < bootstrap.index(sync)
+
+
 def test_markdown_lint_excludes_uv_cache_projection() -> None:
     config = (ROOT / ".config/checks/markdown/.markdownlint-cli2.yaml").read_text(encoding="utf-8")
     gitignore = (ROOT / ".gitignore").read_text(encoding="utf-8")

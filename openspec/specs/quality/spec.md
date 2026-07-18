@@ -1078,4 +1078,3 @@ HEAD-stability check as its unsharded execution.
 - **THEN** it combines all completed shard coverage before enforcing the
   declared coverage floor
 - **AND** it leaves no trust-bearing claim that a hosted provider ran.
-

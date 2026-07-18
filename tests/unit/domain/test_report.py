@@ -155,8 +155,10 @@ def test_scorecard_surfaces_global_compression_separately(monkeypatch, tmp_path)
     assert payload["data"]["hard_quality_floor"]["ok"] is True
     layer = payload["data"]["gap_layers"]["global_compression"]
     assert layer["scope"] == "global_compression"
-    assert layer["blocking"] is False and layer["ok"] is False
-    assert layer["required_gaps"] == [gap] and layer["gap_count"] == 1
+    assert layer["blocking"] is False
+    assert layer["ok"] is False
+    assert layer["required_gaps"] == [gap]
+    assert layer["gap_count"] == 1
     assert layer["invalid_states"]["category_count"] == 1
     assert payload["data"]["advisory_signals"]["advisory_gaps"] == [gap]
 

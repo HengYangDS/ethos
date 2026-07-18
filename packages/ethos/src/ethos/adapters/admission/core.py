@@ -13,7 +13,7 @@ from ethos.adapters.admission.prewrite import has_invalid_path_token_character
 from ethos.adapters.admission.prewrite import prewrite_guard
 from ethos.adapters.admission.shell import command_risk
 from ethos.adapters.admission.shell import git_stash_policy
-from ethos.adapters.mutation.core import proof_gaps
+from ethos.adapters.mutation import core as mutation_core
 from ethos.adapters.mutation.proof import executed_proof_record
 from ethos.adapters.repo.git import committed_file_text
 from ethos.adapters.repo.status.core import workspace_status
@@ -197,7 +197,7 @@ def push_admission_report(
         "required_gaps": [],
     }
     proof_required = role in PROTECTED_WRITE_ROLES and not branch_admission_gaps
-    proof_required_gaps = proof_gaps(repo, pushed_head) if proof_required else []
+    proof_required_gaps = mutation_core.proof_gaps(repo, pushed_head) if proof_required else []
     # The push plane must enforce the SAME candidate-train topology as the local ref-move
     # reducer, or a raw `git push --force <proven-old-sha>:dev` rewinds/side-steps the
     # accepted branch that ref_move_admission_report blocks (the pushed head is proven but
@@ -374,7 +374,7 @@ def ref_move_admission_report(
                 new_value=new_value,
             )
         )
-        gaps.extend(proof_gaps(repo, new_value))
+        gaps.extend(mutation_core.proof_gaps(repo, new_value))
         # Official-closeout discrimination (R12 load-bearing nail): the substantive
         # checks above cannot tell an official `ethos land --closeout` apart from a raw
         # `git update-ref` to the same proven candidate head — both are byte-identical.
@@ -417,7 +417,7 @@ def ref_move_admission_report(
         # refresh-base` now that the ETHOS_ALLOW_REF_MOVE bypass is gone. Forward candidate
         # advances (new work not yet on accepted) still require proof.
         if not commit_contained_in(repo, new_value, policy.accepted_branch):
-            gaps.extend(proof_gaps(repo, new_value))
+            gaps.extend(mutation_core.proof_gaps(repo, new_value))
         reason = "protected_ref_move_not_proven"
     else:
         return base

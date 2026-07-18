@@ -172,6 +172,9 @@
         "remote_state": {
           "enum": [
             "available",
+            "synchronized",
+            "targets_available",
+            "target_available",
             "deferred"
           ]
         },
@@ -198,6 +201,12 @@
         },
         "remote_sync": {
           "$ref": "#/$defs/remoteTrackingSync"
+        },
+        "remote_topology": {
+          "$ref": "#/$defs/remoteTopology"
+        },
+        "remote_observations": {
+          "$ref": "#/$defs/remoteObservations"
         },
         "fallback_evidence": {
           "$ref": "#/$defs/localCiFallback"
@@ -727,6 +736,37 @@
         }
       },
       "additionalProperties": false
+    },
+    "remoteTopology": {
+      "type": "object",
+      "required": [
+        "legacy"
+      ],
+      "properties": {
+        "legacy": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": true
+    },
+    "remoteObservations": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "availability",
+          "sync"
+        ],
+        "properties": {
+          "availability": {
+            "$ref": "#/$defs/remoteAvailability"
+          },
+          "sync": {
+            "$ref": "#/$defs/remoteTrackingSync"
+          }
+        },
+        "additionalProperties": false
+      }
     },
     "localCiFallback": {
       "type": "object",

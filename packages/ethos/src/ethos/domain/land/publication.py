@@ -13,7 +13,23 @@ if TYPE_CHECKING:
 
 LOCAL_CI_FALLBACK_EVIDENCE_PATH = Path("build/evidence/local-ci/fallback.json")
 _FALLBACK = "run tools/ci/scripts/run-local-ci.sh as local fallback evidence"
-_NOT_PROBED: dict[str, object] = {"state": "not_probed", "available": False}
+_NOT_PROBED: dict[str, object] = {
+    "kind": "git_remote_availability",
+    "remote": "origin",
+    "state": "not_probed",
+    "available": False,
+    "blocking": False,
+    "required_gaps": [],
+    "advisory_gaps": [],
+}
+_NOT_CHECKED_SYNC: dict[str, object] = {
+    "kind": "git_remote_tracking_sync",
+    "state": "not_checked",
+    "available": False,
+    "blocking": False,
+    "required_gaps": [],
+    "advisory_gaps": [],
+}
 _REMOTE_PAIR = 2
 
 
@@ -21,7 +37,7 @@ def remote_publication_deferred(
     remote_availability: dict[str, object] | None = None, *, root: Path | None = None
 ) -> dict[str, object]:
     """Describe deferred remote publication without claiming adapter success."""
-    availability = remote_availability or {"remote": "origin", **_NOT_PROBED}
+    availability = remote_availability or dict(_NOT_PROBED)
     return {
         "remote_push": "not_performed",
         "state": "deferred",
@@ -55,7 +71,13 @@ def local_ci_fallback_evidence_status(
             if remote_availability_state in {"unavailable", "unconfigured"}
             else "observed"
         )
-        action = f"remote availability {state}; local-ci fallback evidence is current at HEAD"
+        action = (
+            "remote availability not probed; local-ci fallback evidence is current at HEAD"
+            if state == "not probed"
+            else "remote unavailable; local-ci fallback evidence is current at HEAD"
+            if state == "unavailable"
+            else "remote availability observed; local-ci fallback evidence is current at HEAD"
+        )
     return {
         "state": "current" if current else "stale",
         "path": relative,
@@ -88,7 +110,7 @@ def local_ci_fallback_package(
     current_head: str = "",
 ) -> dict[str, object]:
     """Describe local fallback evidence without claiming hosted CI success."""
-    availability = remote_availability or {"remote": "origin", **_NOT_PROBED}
+    availability = remote_availability or dict(_NOT_PROBED)
     status = (
         local_ci_fallback_evidence_status(
             root,
@@ -145,7 +167,7 @@ def publication_readiness(
     sync = (
         _object(availability.get("tracking_sync"))
         if isinstance(availability.get("tracking_sync"), dict)
-        else {"state": "not_checked", "available": False}
+        else dict(_NOT_CHECKED_SYNC)
     )
     observations = {
         key: _object(value)

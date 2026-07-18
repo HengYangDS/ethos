@@ -15,6 +15,7 @@ paths = [
   "evidence/parity/generic-shadow.json",
   "openspec/changes/dual-remote-publication-equivalence-successor-20260718/**",
   "openspec/specs/repository-governance/spec.md",
+  "openspec/specs/dual-remote-publication/spec.md",
   "packages/ethos/src/ethos/adapters/admission/core.py",
   "packages/ethos/src/ethos/domain/land/publication.py",
   "packages/ethos/src/ethos/repository/adoption/scaffold/**",

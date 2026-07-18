@@ -24,6 +24,11 @@ ETHOS supports GitHub and GitLab as symmetric hosted forge providers. They are
 carriers for the same Git-native repository governance contract, not separate
 product modes.
 
+GitLab is the organization-collaboration plane and GitHub is the public-distribution
+plane. Both carry the same repository, CI/CD, and publication capabilities; neither
+is a fallback for, or authority above, the other. Hosted CI accepts only `dev`,
+`main`, and `submit/*`; `candidate/dev` and `work/*` remain local-only.
+
 The provider contract is:
 
 ```text

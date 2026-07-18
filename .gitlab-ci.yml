@@ -3,6 +3,14 @@ stages:
   - verify
   - package
 
+# Candidate integration is local-only. Hosted pipelines run only for remote-eligible
+# branches, plus merge-request validation.
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == "dev" || $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH =~ /^submit\/.+$/'
+    - when: never
+
 variables:
   # Source-budget policy binds to a historical baseline commit. Retain the
   # complete graph so its object remains available; a shallow checkout would

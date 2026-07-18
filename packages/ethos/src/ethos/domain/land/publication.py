@@ -213,31 +213,26 @@ def publication_readiness(
     policy: BranchRolePolicy,
     remote_availability: dict[str, object] | None = None,
     local_ci_fallback: dict[str, object] | None = None,
+    topology: dict[str, object] | None = None,
+    remote_observations: dict[str, dict[str, object]] | None = None,
 ) -> dict[str, object]:
-    """Assemble publication readiness with remote probe and local-ci fallback."""
+    """Assemble local readiness and independent no-push remote observations."""
     submit_branch = policy.submit_branch_for_source(branch)
-    availability = remote_availability or {
-        "kind": "git_remote_availability",
-        "remote": "origin",
-        "state": "not_probed",
-        "available": False,
-        "blocking": False,
-        "required_gaps": [],
-        "advisory_gaps": [],
-    }
+    availability = remote_availability or _not_probed_availability("origin")
     sync_value = availability.get("tracking_sync")
     sync = (
         cast("dict[str, object]", sync_value)
         if isinstance(sync_value, dict)
-        else {
-            "kind": "git_remote_tracking_sync",
-            "state": "not_checked",
-            "available": False,
-            "blocking": False,
-            "required_gaps": [],
-            "advisory_gaps": [],
-        }
+        else _not_checked_sync()
     )
+    observations = _remote_observations(
+        remote_availability=availability,
+        remote_sync=sync,
+        observations=remote_observations,
+    )
+    gitlab_observation = observations["gitlab"]
+    availability = cast("dict[str, object]", gitlab_observation["availability"])
+    sync = cast("dict[str, object]", gitlab_observation["sync"])
     fallback = local_ci_fallback or local_ci_fallback_package(remote_availability=availability)
     evidence_status = fallback.get("evidence_status")
     if isinstance(evidence_status, dict):
@@ -251,9 +246,27 @@ def publication_readiness(
     # A synchronized tracking ref is a distinct observation. It confirms that the
     # locally observed remote-tracking ref matches HEAD, while `remote_push` stays
     # `not_performed` because this command never mutates a remote.
-    remote_state = "synchronized" if sync.get("state") == "synchronized" else "deferred"
+    synchronized = [
+        target
+        for target in ("gitlab", "github")
+        if cast("dict[str, object]", observations[target]["sync"]).get("state") == "synchronized"
+    ]
+    available = [
+        target
+        for target in ("gitlab", "github")
+        if cast("dict[str, object]", observations[target]["availability"]).get("available") is True
+    ]
+    remote_state = (
+        "synchronized"
+        if synchronized
+        else "targets_available"
+        if remote_observations and len(available) == 2
+        else "target_available"
+        if remote_observations and available
+        else "deferred"
+    )
     next_action = evidence_next_action
-    if availability.get("available") is True:
+    if available:
         next_action = "create configured submit branch when remote publication is available"
     if remote_state == "synchronized":
         next_action = "remote tracking ref is synchronized; no push was performed"
@@ -266,6 +279,8 @@ def publication_readiness(
         "remote_state": remote_state,
         "remote_availability": availability,
         "remote_sync": sync,
+        "remote_topology": topology or {"legacy": True},
+        "remote_observations": observations,
         "fallback_evidence": fallback,
         "submit_branch": submit_branch,
         "local_submit_package": local_submit_package(
@@ -277,6 +292,51 @@ def publication_readiness(
         "required_gaps": [] if local_ok else ["local_publish_readiness_blocked"],
         "next_actions": next_actions,
     }
+
+
+def _not_probed_availability(remote: str) -> dict[str, object]:
+    """Return a bounded no-network availability observation for one remote."""
+    return {
+        "kind": "git_remote_availability",
+        "remote": remote,
+        "state": "not_probed",
+        "available": False,
+        "blocking": False,
+        "required_gaps": [],
+        "advisory_gaps": [],
+    }
+
+
+def _not_checked_sync() -> dict[str, object]:
+    """Return a bounded tracking observation without reading a remote ref."""
+    return {
+        "kind": "git_remote_tracking_sync",
+        "state": "not_checked",
+        "available": False,
+        "blocking": False,
+        "required_gaps": [],
+        "advisory_gaps": [],
+    }
+
+
+def _remote_observations(
+    *,
+    remote_availability: dict[str, object],
+    remote_sync: dict[str, object],
+    observations: dict[str, dict[str, object]] | None,
+) -> dict[str, dict[str, object]]:
+    """Normalize independent GitLab/GitHub observations without hierarchy."""
+    gitlab = (
+        dict(observations["gitlab"])
+        if observations and isinstance(observations.get("gitlab"), dict)
+        else {"availability": remote_availability, "sync": remote_sync}
+    )
+    github = (
+        dict(observations["github"])
+        if observations and isinstance(observations.get("github"), dict)
+        else {"availability": _not_probed_availability(""), "sync": _not_checked_sync()}
+    )
+    return {"gitlab": gitlab, "github": github}
 
 
 def publication_with_remote_matrix(

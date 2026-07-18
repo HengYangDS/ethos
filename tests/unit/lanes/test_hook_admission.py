@@ -88,6 +88,23 @@ def test_push_admission_rejects_candidate_and_undeclared_remote_targets(
     assert "publication_remote_target_unknown:unknown" in unknown["required_gaps"]
 
 
+def test_push_admission_rejects_work_branch_before_proof_lookup(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path / "repo")
+    _write_equal_remote_topology(repo)
+    head = git(repo, "rev-parse", "HEAD")
+
+    report = push_admission_report(
+        root=repo,
+        target_ref="refs/heads/work/dual-remote",
+        pushed_head=head,
+        remote_name="github",
+    )
+
+    assert report["ok"] is False
+    assert "publication_remote_branch_forbidden:work/dual-remote" in report["required_gaps"]
+    assert not any("proof" in str(gap) for gap in report["required_gaps"])
+
+
 @pytest.fixture
 def leased_worktree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     repo = init_repo(tmp_path / "repo")

@@ -1,6 +1,12 @@
 stages:
   - verify
 
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == "dev" || $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH =~ /^submit\/.+$/'
+    - when: never
+
 ethos:verify:
   stage: verify
   image: python:3.12

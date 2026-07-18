@@ -31,6 +31,7 @@ match_prefixes = [
   "rules_strict",
   "protected_branches_policy_missing",
   "protected_tags_policy_missing",
+  "publication_topology_",
   "signing_required",
   "commit_signing",
   "head_signature_not_good",
@@ -63,6 +64,8 @@ match_prefixes = [
   "head_subject_not_conventional",
   "holder_ref_invalid",
   "target_holder_ref_invalid",
+  "publication_remote_target_unknown",
+  "publication_remote_name_missing",
 ]
 
 [[category]]
@@ -137,6 +140,8 @@ match_prefixes = [
   "change_unbounded",
   "work_lane_",
   "candidate_",
+  "publication_candidate_branch_remote_forbidden",
+  "publication_remote_branch_forbidden",
   "retire_branch",
   "retire_reason_required",
   "unbound_retire_",

@@ -31,17 +31,17 @@ def _files_digest(files: dict[str, str]) -> str:
         (
             "generic",
             66,
-            "e1a491702e6f5fbbbe05202b1fe28047d8c1471e8cc335b5d2b02e1166b3d3df",
+            "626a61efb1f76a06226dd0165dd461518b5697d34499e69ffc35fb286facc411",
         ),
         (
             "github",
             67,
-            "24e1f861e3d16f2f2862b2ee342b1c79ca0b6f3b5301138b36d33f4f45e88e24",
+            "6b20e2fc6c58a9bb7f69faca51441d7cc58ef1c7be7f736767932176cffca505",
         ),
         (
             "gitlab",
             67,
-            "c4bb696a73a0421cd9cdf8eaf0d26782950765d66f689c6030d28cdfe2ba725a",
+            "7bf3cae231b1bfc18c1d6779d1b7628fdf2e2276a2378a92d8d90d6bc5061405",
         ),
     ],
 )
@@ -68,7 +68,7 @@ def test_monorepo_template_preserves_sorted_package_projection(tmp_path: Path) -
     files = default_files(root, "monorepo")
 
     assert (
-        _files_digest(files) == "c1b50e9c3ba373b70673dd93da01ad41dac3109d439efcb1b5fca8c7bd6be599"
+        _files_digest(files) == "34318840945d68a034e26551be17c1b45bcb334194da1260e6e1b1e9c2da4364"
     )
     assert files[".ethos/workspace.toml"].index('name = "alpha"') < files[
         ".ethos/workspace.toml"

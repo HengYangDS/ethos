@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path  # noqa: TC003 - cyclopts needs runtime types in signatures
-from typing import TYPE_CHECKING
 from typing import Annotated
 from typing import Any
+from typing import cast
 
 from cyclopts import Parameter
 
@@ -14,7 +15,9 @@ import ethos.adapters.repo.git as git
 import ethos.domain.land.core as land_core
 import ethos.domain.land.publication as land_publication
 from ethos.adapters.admission.control.replacement import control_replacement_report
-from ethos.adapters.admission.evidence.external import independent_verification_admission_report
+from ethos.adapters.admission.evidence.external import (
+    independent_verification_admission_report,
+)
 from ethos.adapters.admission.evidence.external import independent_verification_request
 from ethos.adapters.mutation.core import apply_candidate_to_accepted
 from ethos.adapters.mutation.core import apply_land_to_candidate
@@ -27,6 +30,10 @@ from ethos.adapters.openspec.metadata.core import completed_active_changes_repor
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.repository.context import context_for_root
 from ethos.repository.openspec.audit import protected_branch_active_change_required_gaps
+from ethos.repository.release.core import release_config
+from ethos.repository.release.publication import publication_branch_admission
+from ethos.repository.release.publication import publication_topology
+from ethos.repository.release.publication import topology_remotes
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import emit
@@ -37,9 +44,6 @@ from ethos_core.contracts.lifecycle.core import MutationRequest
 from ethos_core.normalization.core import string_mapping
 from ethos_core.normalization.core import string_sequence
 from ethos_core.result import EthosResult
-
-if TYPE_CHECKING:
-    from collections.abc import Mapping
 
 # fmt: off
 
@@ -71,6 +75,7 @@ class _PublishOptions:
     authorize: bool = False
     expect_head: Annotated[str | None, Parameter(name="--expect-head")] = None
     probe_remote: Annotated[bool, Parameter(name="--probe-remote")] = False
+    remote: Annotated[str | None, Parameter(name="--remote")] = None
 
 
 _DEFAULT_PUBLISH_OPTIONS = _PublishOptions()
@@ -202,23 +207,110 @@ def _publish_expected_state(
     branch: str,
     current_head: str,
     publication: Mapping[str, object],
-    remote_sync: Mapping[str, object],
-    remote_availability: Mapping[str, object],
+    remote_observations: Mapping[str, object],
+    branch_admission: Mapping[str, object],
 ) -> dict[str, object]:
     submit_branch = str(publication.get("submit_branch") or "")
     target_branch = submit_branch or branch
-    remote = str(remote_availability.get("remote") or "origin")
+    targets: list[dict[str, object]] = []
+    for identifier, observation in remote_observations.items():
+        if not isinstance(observation, Mapping):
+            continue
+        availability = _mapping_payload(observation.get("availability"))
+        sync = _mapping_payload(observation.get("sync"))
+        targets.append(
+            {
+                "id": str(identifier),
+                "remote": str(availability.get("remote") or ""),
+                "availability_state": str(availability.get("state") or "not_probed"),
+                "sync_state": str(sync.get("state") or "not_checked"),
+                "observed_remote_ref": str(sync.get("remote_ref") or ""),
+                "observed_remote_head": str(sync.get("remote_head") or ""),
+            }
+        )
     return {
         "root": repo.resolve().as_posix(),
         "source_ref": f"refs/heads/{branch}",
         "source_head": current_head,
-        "remote": remote,
         "target_ref": f"refs/heads/{target_branch}",
-        "observed_remote_ref": str(remote_sync.get("remote_ref") or ""),
-        "observed_remote_head": str(remote_sync.get("remote_head") or ""),
-        "remote_availability_state": str(remote_availability.get("state") or "not_probed"),
-        "remote_sync_state": str(remote_sync.get("state") or "not_checked"),
+        # Preserve the legacy primary-target envelope while exposing the full pair.
+        "remote": str(_mapping_payload(_mapping_payload(remote_observations.get("gitlab")).get("availability")).get("remote") or "origin"),
+        "observed_remote_ref": str(_mapping_payload(_mapping_payload(remote_observations.get("gitlab")).get("sync")).get("remote_ref") or ""),
+        "observed_remote_head": str(_mapping_payload(_mapping_payload(remote_observations.get("gitlab")).get("sync")).get("remote_head") or ""),
+        "remote_availability_state": str(_mapping_payload(_mapping_payload(remote_observations.get("gitlab")).get("availability")).get("state") or "not_probed"),
+        "remote_sync_state": str(_mapping_payload(_mapping_payload(remote_observations.get("gitlab")).get("sync")).get("state") or "not_checked"),
+        "remote_targets": targets,
+        "branch_admission": dict(branch_admission),
     }
+
+
+def _mapping_payload(value: object) -> dict[str, object]:
+    """Return a JSON mapping payload or an empty mapping for malformed data."""
+    return cast("dict[str, object]", value) if isinstance(value, dict) else {}
+
+
+def _remote_observations(
+    *,
+    repo: Path,
+    branch: str,
+    gitlab_remote: str,
+    github_remote: str,
+    probe_remote: bool,
+) -> dict[str, dict[str, object]]:
+    """Read declared remote targets independently without pushing."""
+
+    def observation(remote: str) -> dict[str, object]:
+        if probe_remote:
+            availability = git.remote_availability(repo, remote)
+        else:
+            availability = git.remote_availability_not_probed(repo, remote)
+        return {
+            "availability": availability,
+            "sync": git.remote_tracking_sync(repo, branch, remote),
+        }
+
+    def missing() -> dict[str, object]:
+        return {
+            "availability": git.remote_availability_not_probed(repo, ""),
+            "sync": {
+                "kind": "git_remote_tracking_sync",
+                "state": "not_checked",
+                "available": False,
+                "blocking": False,
+                "required_gaps": [],
+                "advisory_gaps": [],
+            },
+        }
+
+    gitlab = observation(gitlab_remote) if gitlab_remote else missing()
+    configured = set(git.git_stdout(repo, "remote").splitlines())
+    # The GitHub projection is independent but an absent remote remains a bounded
+    # observation, not a synthetic network probe.
+    if github_remote in configured:
+        github = observation(github_remote)
+    else:
+        github = {
+            "availability": {
+                "kind": "git_remote_availability",
+                "remote": github_remote,
+                "state": "unconfigured",
+                "available": False,
+                "blocking": False,
+                "required_gaps": [],
+                "advisory_gaps": [f"remote_unconfigured:{github_remote}"],
+            },
+            "sync": {
+                "kind": "git_remote_tracking_sync",
+                "remote": github_remote,
+                "branch": branch,
+                "state": "not_checked",
+                "available": False,
+                "blocking": False,
+                "required_gaps": [],
+                "advisory_gaps": [],
+            },
+        }
+    return {"gitlab": gitlab, "github": github}
 
 
 def _validate_legacy_publish_hook_args(args: tuple[str, ...]) -> None:
@@ -451,16 +543,39 @@ def publish(
         and not release_carrier_gaps
         and bool(independent_verification.get("ok"))
     )
-    remote_sync = git.remote_tracking_sync(repo, str(branch))
+    remote_topology = publication_topology(release_config(repo))
+    raw_topology_gaps = remote_topology.get("required_gaps", [])
+    topology_gaps = (
+        tuple(str(gap) for gap in raw_topology_gaps)
+        if isinstance(raw_topology_gaps, list)
+        else ()
+    )
+    gaps = gaps + topology_gaps
+    ok = ok and not topology_gaps
+    policy = load_branch_role_policy(repo)
+    configured_remotes = topology_remotes(remote_topology)
+    gitlab_remote = configured_remotes.get("gitlab", "origin")
+    github_remote = configured_remotes.get("github", "github")
+    branch_admission = publication_branch_admission(
+        remote_topology,
+        branch=str(branch),
+        candidate_branch=str(getattr(policy, "candidate_branch", "candidate/dev")),
+        accepted_branch=str(getattr(policy, "accepted_branch", "dev")),
+        release_branch=str(getattr(policy, "release_branch", "main")),
+        submit_branch_prefix=str(getattr(policy, "submit_branch_prefix", "submit/")),
+        remote_name=options.remote or "origin",
+    )
+    remote_observations = _remote_observations(
+        repo=repo,
+        branch=str(branch),
+        gitlab_remote=gitlab_remote,
+        github_remote=github_remote,
+        probe_remote=options.probe_remote,
+    )
+    gitlab_observation = _mapping_payload(remote_observations["gitlab"])
+    remote_availability = _mapping_payload(gitlab_observation.get("availability"))
+    remote_sync = _mapping_payload(gitlab_observation.get("sync"))
     remote_matrix = git.publication_remote_syncs(repo, str(branch))
-    remote_availability = {
-        **(
-            git.remote_availability(repo)
-            if options.probe_remote
-            else git.remote_availability_not_probed(repo)
-        ),
-        "tracking_sync": remote_sync,
-    }
     local_ci_fallback = land_publication.local_ci_fallback_package(
         remote_availability=remote_availability,
         root=repo,
@@ -469,9 +584,11 @@ def publish(
     publication = land_publication.publication_readiness(
         branch=str(branch),
         local_ok=ok,
-        policy=load_branch_role_policy(repo),
+        policy=policy,
         remote_availability=remote_availability,
         local_ci_fallback=local_ci_fallback,
+        topology=remote_topology,
+        remote_observations=remote_observations,
     )
     publication = land_publication.publication_with_remote_matrix(
         publication,
@@ -489,6 +606,12 @@ def publish(
         "remote_availability_state": remote_availability_state,
         "remote_sync_state": str(remote_sync.get("state") or "not_checked"),
         "remote_reconciliation_state": str(remote_matrix.get("state") or "pending"),
+        "gitlab_remote_state": str(remote_availability.get("state") or "not_probed"),
+        "github_remote_state": str(
+            _mapping_payload(_mapping_payload(remote_observations["github"]).get("availability")).get("state")
+            or "not_probed"
+        ),
+        "remote_mutation_allowed": bool(branch_admission.get("remote_mutation_allowed")),
         "remote_ahead": _int_value(remote_sync.get("ahead")),
         "remote_behind": _int_value(remote_sync.get("behind")),
         "hosted_ci_status_claimed": False,
@@ -508,8 +631,8 @@ def publish(
         branch=str(branch),
         current_head=current_head,
         publication=publication,
-        remote_sync=remote_sync,
-        remote_availability=remote_availability,
+        remote_observations=remote_observations,
+        branch_admission=branch_admission,
     )
     result = EthosResult(
         command="publish",
@@ -538,6 +661,9 @@ def publish(
             "remote_availability": remote_availability,
             "remote_sync": remote_sync,
             "remote_matrix": remote_matrix,
+            "remote_topology": remote_topology,
+            "publication_branch_admission": branch_admission,
+            "remote_observations": remote_observations,
             "local_ci_fallback": local_ci_fallback,
             "publication": publication,
             "mutation": mutation_envelope(

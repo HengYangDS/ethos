@@ -475,7 +475,11 @@ def publish(
         policy=load_branch_role_policy(repo),
         remote_availability=remote_availability,
         local_ci_fallback=local_ci_fallback,
-        remote_matrix=remote_matrix,
+    )
+    publication = land_publication.publication_with_remote_matrix(
+        publication,
+        remote_matrix,
+        remote_available=bool(remote_availability.get("available")),
     )
     remote_state = str(publication.get("remote_state") or "deferred")
     remote_push = str(publication.get("remote_push") or "not_performed")

@@ -83,6 +83,7 @@ def test_python_vulnerability_audit_scans_uv_exported_resolved_input() -> None:
     assert "--disable-pip" in runner
     assert 'pip_audit_warning_filters="${PYTHONWARNINGS:+${PYTHONWARNINGS},}' in runner
     assert "sre_constants" in runner
+    assert "Path(sys.argv[1]).read_text" in runner
 
     payload = run_json(ROOT, ["tools/ci/scripts/run-python-vulnerability-audit.sh"])
     persisted = json.loads(

@@ -14,7 +14,7 @@ POLICY_PATH = Path(".config/checks/whitespace/policy.toml")
 HEREDOC_START = re.compile(r"<<-?\s*['\"]?([A-Za-z_][A-Za-z0-9_]*)")
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class WhitespacePolicy:
     """Immutable structural layout rules for shared text carriers."""
 

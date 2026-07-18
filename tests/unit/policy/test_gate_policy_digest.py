@@ -17,9 +17,9 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from ethos.adapters.mutation.proof import _promotion_required_gate_ids
 from ethos.adapters.mutation.proof import _proof_path
 from ethos.adapters.mutation.proof import gate_policy_gaps
+from ethos.adapters.mutation.proof import promotion_completeness_gaps
 from ethos.adapters.mutation.proof import record_executed_proof
 from ethos.repository.evidence.core import EvidenceSet
 from ethos.repository.policy import gates as policy_gates
@@ -188,7 +188,7 @@ def test_gate_policy_gaps_flags_stale_digest(tmp_path: Path) -> None:
     # the live one is stale (a gate's policy changed since the proof was recorded).
     subprocess.run(["git", "-C", str(tmp_path), "init", "-q"], check=True)
     head = "a" * 40
-    runs = tuple(conformant_proof_run(g, tmp_path) for g in _promotion_required_gate_ids(tmp_path))
+    runs = tuple(conformant_proof_run(g, tmp_path) for g in promotion_required_gate_ids(tmp_path))
     record_executed_proof(
         tmp_path, EvidenceSet.from_runs(id="proof", head=head, runs=runs).to_dict()
     )
@@ -272,6 +272,16 @@ def test_committed_product_floor_is_pure_function_of_candidate_tree(tmp_path: Pa
 
     assert removed in committed_product_default_gate_ids(repo, incumbent)
     assert removed not in committed_product_default_gate_ids(repo, candidate)
+
+    candidate_floor = committed_product_default_gate_ids(repo, candidate)
+    assert candidate_floor is not None
+    evidence = EvidenceSet.from_runs(
+        id="candidate-floor",
+        head=candidate,
+        runs=tuple(conformant_proof_run(gate_id, repo) for gate_id in candidate_floor),
+    ).to_dict()
+    record_executed_proof(repo, evidence)
+    assert promotion_completeness_gaps(repo, candidate) == []
 
 
 def test_committed_tree_digest_falls_back_when_ref_unresolvable(tmp_path: Path) -> None:

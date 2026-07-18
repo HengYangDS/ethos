@@ -12,6 +12,49 @@ from ethos_core.contracts.evidence.layout import load_evidence_layout_declaratio
 from tests.support.ethos_cli_runner import run_ethos
 
 
+def _write(path: Path, text: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+
+
+def _profile(root: Path, *, durable_evidence: str, claims: str = "") -> None:
+    roots = f'claims = "{claims}"\n' if claims else ""
+    _write(
+        root / ".ethos/profile.toml", f'[roots]\n{roots}durable_evidence = "{durable_evidence}"\n'
+    )
+
+
+def _write_claim(root: Path, claims: str, evidence: Path) -> None:
+    digest = hashlib.sha256(evidence.read_bytes()).hexdigest()
+    _write(
+        root / claims / "sample.toml",
+        f'[claim]\nid = "sample"\nstate = "superseded"\n\n[evidence]\ndated = "{evidence.relative_to(root).as_posix()}"\nsha256 = "{digest}"\n',
+    )
+
+
+def _write_freshness_support(root: Path, claim: str) -> None:
+    _write(root / "docs/decision.md", "# Decision\n")
+    _write(root / "tests/proof.py", "def test_ok():\n    assert True\n")
+    _write(
+        root / "evolution/ledger.toml",
+        f'''schema = "system/schemas/kernel/evolution-ledger.schema.json"
+
+[[hypothesis]]
+id = "sample"
+campaign = "sample-campaign"
+state = "active"
+owner = "ethos-maintainers"
+claim = "{claim}"
+challenge = "Evidence layout must remain explicit."
+transition = "shape -> canonize"
+proof_refs = ["ethos quality evidence-freshness --json"]
+review_refs = ["tests/proof.py"]
+decision_refs = ["docs/decision.md"]
+retirement_conditions = ["evidence layout is clean"]
+''',
+    )
+
+
 def test_evidence_topology_accepts_kernel_layout(tmp_path: Path) -> None:
     evidence = tmp_path / "evidence"
     (evidence / "claims").mkdir(parents=True)
@@ -84,51 +127,13 @@ def test_quality_evidence_freshness_blocks_evidence_topology_gaps(
 ) -> None:
     evidence = tmp_path / "evidence"
     chronicle = evidence / "chronicle" / "topic" / "2026-07-08.md"
-    chronicle.parent.mkdir(parents=True)
-    chronicle.write_text("proof", encoding="utf-8")
+    _write(chronicle, "proof")
     (evidence / "claims").mkdir()
     (evidence / "parity").mkdir()
-    (evidence / "README.md").write_text("# Evidence\n", encoding="utf-8")
-    (evidence / "root-proof.md").write_text("root clutter", encoding="utf-8")
-    digest = hashlib.sha256(chronicle.read_bytes()).hexdigest()
-    claim_text = f'''
-[claim]
-id = "sample"
-state = "superseded"
-
-[evidence]
-dated = "evidence/chronicle/topic/2026-07-08.md"
-sha256 = "{digest}"
-'''.strip()
-    (evidence / "claims" / "sample.toml").write_text(claim_text, encoding="utf-8")
-
-    (tmp_path / "docs").mkdir()
-    (tmp_path / "docs" / "decision.md").write_text("# Decision\n", encoding="utf-8")
-    (tmp_path / "tests").mkdir()
-    (tmp_path / "tests" / "proof.py").write_text(
-        "def test_ok():\n    assert True\n", encoding="utf-8"
-    )
-    ledger = tmp_path / "evolution" / "ledger.toml"
-    ledger.parent.mkdir()
-    ledger.write_text(
-        """
-schema = "system/schemas/kernel/evolution-ledger.schema.json"
-
-[[hypothesis]]
-id = "sample"
-campaign = "sample-campaign"
-state = "active"
-owner = "ethos-maintainers"
-claim = "Evidence topology gaps must block freshness."
-challenge = "Root clutter makes evidence ambiguous."
-transition = "shape -> canonize"
-proof_refs = ["ethos status --json"]
-review_refs = ["tests/proof.py"]
-decision_refs = ["docs/decision.md"]
-retirement_conditions = ["topology is clean"]
-""".strip(),
-        encoding="utf-8",
-    )
+    _write(evidence / "README.md", "# Evidence\n")
+    _write(evidence / "root-proof.md", "root clutter")
+    _write_claim(tmp_path, "evidence/claims", chronicle)
+    _write_freshness_support(tmp_path, "Evidence topology gaps must block freshness.")
 
     payload = run_ethos(
         "quality",
@@ -151,65 +156,15 @@ retirement_conditions = ["topology is clean"]
 def test_quality_evidence_freshness_uses_profile_durable_evidence_root(
     tmp_path: Path,
 ) -> None:
-    profile = tmp_path / ".ethos" / "profile.toml"
-    profile.parent.mkdir(parents=True)
-    profile.write_text(
-        """
-[roots]
-claims = "claims"
-durable_evidence = "docs/evidence"
-""".strip(),
-        encoding="utf-8",
-    )
+    _profile(tmp_path, claims="claims", durable_evidence="docs/evidence")
     docs_evidence = tmp_path / "docs" / "evidence"
     (docs_evidence / "claims").mkdir(parents=True)
     chronicle = docs_evidence / "chronicle" / "topic" / "2026-07-08.md"
-    chronicle.parent.mkdir(parents=True)
-    chronicle.write_text("profile evidence root proof", encoding="utf-8")
+    _write(chronicle, "profile evidence root proof")
     (docs_evidence / "parity").mkdir(parents=True)
-    (docs_evidence / "README.md").write_text("# Evidence\n", encoding="utf-8")
-
-    claims = tmp_path / "claims"
-    claims.mkdir()
-    digest = hashlib.sha256(chronicle.read_bytes()).hexdigest()
-    claims.joinpath("sample.toml").write_text(
-        f'''
-[claim]
-id = "sample"
-state = "superseded"
-
-[evidence]
-dated = "docs/evidence/chronicle/topic/2026-07-08.md"
-sha256 = "{digest}"
-'''.strip(),
-        encoding="utf-8",
-    )
-    (tmp_path / "docs" / "decision.md").write_text("# Decision\n", encoding="utf-8")
-    (tmp_path / "tests").mkdir()
-    (tmp_path / "tests" / "proof.py").write_text(
-        "def test_ok():\n    assert True\n", encoding="utf-8"
-    )
-    ledger = tmp_path / "evolution" / "ledger.toml"
-    ledger.parent.mkdir()
-    ledger.write_text(
-        """
-schema = "system/schemas/kernel/evolution-ledger.schema.json"
-
-[[hypothesis]]
-id = "sample"
-campaign = "sample-campaign"
-state = "active"
-owner = "ethos-maintainers"
-claim = "Profile evidence roots must be honored."
-challenge = "Adopter docs/evidence roots must not be reported as missing evidence/."
-transition = "profile -> freshness"
-proof_refs = ["ethos quality evidence-freshness --json"]
-review_refs = ["tests/proof.py"]
-decision_refs = ["docs/decision.md"]
-retirement_conditions = ["profile root honored"]
-""".strip(),
-        encoding="utf-8",
-    )
+    _write(docs_evidence / "README.md", "# Evidence\n")
+    _write_claim(tmp_path, "claims", chronicle)
+    _write_freshness_support(tmp_path, "Profile evidence roots must be honored.")
 
     payload = run_ethos(
         "quality",
@@ -302,62 +257,12 @@ durable_evidence = "docs/evidence"
 def test_quality_evidence_freshness_accepts_profile_curated_docs_evidence_layout(
     tmp_path: Path,
 ) -> None:
-    profile = tmp_path / ".ethos" / "profile.toml"
-    profile.parent.mkdir(parents=True)
-    profile.write_text(
-        """
-[roots]
-claims = "claims"
-durable_evidence = "docs/evidence"
-""".strip(),
-        encoding="utf-8",
-    )
+    _profile(tmp_path, claims="claims", durable_evidence="docs/evidence")
     curated = tmp_path / "docs" / "evidence" / "delivery" / "2026-07-08.md"
-    curated.parent.mkdir(parents=True)
-    curated.write_text("curated adopter delivery evidence", encoding="utf-8")
-    (tmp_path / "docs" / "evidence" / "README.md").write_text("# Evidence\n", encoding="utf-8")
-
-    claims = tmp_path / "claims"
-    claims.mkdir()
-    digest = hashlib.sha256(curated.read_bytes()).hexdigest()
-    claims.joinpath("sample.toml").write_text(
-        f'''
-[claim]
-id = "sample"
-state = "superseded"
-
-[evidence]
-dated = "docs/evidence/delivery/2026-07-08.md"
-sha256 = "{digest}"
-'''.strip(),
-        encoding="utf-8",
-    )
-    (tmp_path / "docs" / "decision.md").write_text("# Decision\n", encoding="utf-8")
-    (tmp_path / "tests").mkdir()
-    (tmp_path / "tests" / "proof.py").write_text(
-        "def test_ok():\n    assert True\n", encoding="utf-8"
-    )
-    ledger = tmp_path / "evolution" / "ledger.toml"
-    ledger.parent.mkdir()
-    ledger.write_text(
-        """
-schema = "system/schemas/kernel/evolution-ledger.schema.json"
-
-[[hypothesis]]
-id = "sample"
-campaign = "sample-campaign"
-state = "active"
-owner = "ethos-maintainers"
-claim = "Profile evidence roots may hold curated adopter delivery evidence."
-challenge = "Adopter docs/evidence delivery trees are curated evidence, not product kernel clutter."
-transition = "profile -> curated evidence"
-proof_refs = ["ethos quality evidence-freshness --json"]
-review_refs = ["tests/proof.py"]
-decision_refs = ["docs/decision.md"]
-retirement_conditions = ["curated docs evidence accepted"]
-""".strip(),
-        encoding="utf-8",
-    )
+    _write(curated, "curated adopter delivery evidence")
+    _write(tmp_path / "docs/evidence/README.md", "# Evidence\n")
+    _write_claim(tmp_path, "claims", curated)
+    _write_freshness_support(tmp_path, "Profile evidence roots may hold curated delivery evidence.")
 
     payload = run_ethos(
         "quality",

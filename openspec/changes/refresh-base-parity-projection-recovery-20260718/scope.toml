@@ -1,0 +1,8 @@
+schema_version = 1
+paths = [
+  "packages/ethos/src/ethos/adapters/mutation/lane_lifecycle/projection_rebase/core.py",
+  "tests/unit/coverage/test_lanes_final_edges.py",
+  "openspec/changes/refresh-base-parity-projection-recovery-20260718/**",
+  "evidence/claims/refresh-base-parity-projection-recovery-20260718.toml",
+  "evidence/chronicle/refresh-base-parity-projection-recovery-20260718/**",
+]

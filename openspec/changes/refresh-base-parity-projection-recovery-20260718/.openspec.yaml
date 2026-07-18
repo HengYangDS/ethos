@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-07-18
+goal: Replay owned work lanes onto candidate without treating a validated
+  generated parity conflict as source conflict.

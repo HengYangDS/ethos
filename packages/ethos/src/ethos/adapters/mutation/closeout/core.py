@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-import subprocess
 from typing import TYPE_CHECKING
 
 import ethos.adapters.mutation.remediation.core as remediation

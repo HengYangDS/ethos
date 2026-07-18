@@ -366,7 +366,10 @@ def _emulator_command(
             ]
         )
     command = [tool]
-    state_dir = str(emulation["emulator_state_dir"])
+    state_dir = str(
+        emulation["emulator_state_dir"]
+        or f"build/runtime/work/{'github-act' if provider == 'github' else 'gitlab-ci-local'}"
+    )
     if mode == "run":
         source_dir = str(Path(state_dir) / "source")
         command.extend(["--cwd", source_dir, "--file", paths["projected_file"]])
@@ -461,7 +464,11 @@ def emulator_evidence(
         try:
             materialization |= materialize_emulator_source(
                 source_root=ROOT,
-                state_dir=ROOT / str(emulation["emulator_state_dir"]),
+                state_dir=ROOT
+                / str(
+                    emulation["emulator_state_dir"]
+                    or f"build/runtime/work/{'github-act' if provider == 'github' else 'gitlab-ci-local'}"
+                ),
                 expected_head=str(git_start["head"]),
             )
             if provider == "github":

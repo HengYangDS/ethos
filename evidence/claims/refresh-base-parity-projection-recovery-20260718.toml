@@ -11,7 +11,7 @@ sha256 = "d138e4ba6fd270f44d70236961168d59dfbfdcfa8abde379e22526601a4abd42"
 evidence_ids = ["evidence:refresh-base-parity-projection-recovery-20260718"]
 binding = "The exact stage-0 parity JSON reader, focused regression, official OpenSpec carrier, and replay evidence bind recovery without relaxing source-conflict admission."
 verifier = "digest_only"
-tests = ["pytest -q tests/unit/coverage/test_lanes_final_edges.py -k projection_rebase", "ruff check packages/ethos/src/ethos/adapters/mutation/lane_lifecycle/projection_rebase/core.py tests/unit/coverage/test_lanes_final_edges.py", "openspec validate --all --strict --json", "ethos openspec --lifecycle --json", "ethos lane refresh-base --apply --authorize --expect-head <lane-head> --json"]
+tests = ["pytest -q tests/unit/lanes/test_projection_rebase_parity.py", "ruff check packages/ethos/src/ethos/adapters/mutation/lane_lifecycle/projection_rebase/core.py tests/unit/lanes/test_projection_rebase_parity.py", "openspec validate --all --strict --json", "ethos openspec --lifecycle --json", "ethos lane refresh-base --apply --authorize --expect-head <lane-head> --json"]
 
 [evidence.freshness]
 mode = "historical"
@@ -28,7 +28,7 @@ kill_signal = "A non-parity path, malformed JSON, unsupported schema, or differe
 [promotion]
 targets = [
   "packages/ethos/src/ethos/adapters/mutation/lane_lifecycle/projection_rebase/core.py",
-  "tests/unit/coverage/test_lanes_final_edges.py",
+  "tests/unit/lanes/test_projection_rebase_parity.py",
   "openspec/changes/refresh-base-parity-projection-recovery-20260718",
   "evidence/claims/refresh-base-parity-projection-recovery-20260718.toml",
   "evidence/chronicle/refresh-base-parity-projection-recovery-20260718/2026-07-18.md",

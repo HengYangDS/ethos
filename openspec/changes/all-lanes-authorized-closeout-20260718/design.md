@@ -14,6 +14,11 @@ present but could not import `ethos`, while the checkout-bound
 available so its external observation tests the current checkout runtime rather
 than stale local residue.
 
+The first HEAD-bound proof then exposed one independent carrier-placement gap:
+the curated Chronicle matrix was valid JSON but was not named by the existing
+fail-closed exact-file policy. The matrix remains in its evidence home; the
+policy admits that exact path without allowing the Chronicle root.
+
 This Change is the first owned governance carrier.  It does not turn foreign
 paths into writable paths and does not perform a foreign-lane effect before its
 Chronicle decision is accepted.  It records the audit and bounded successor
@@ -84,6 +89,10 @@ transition.
    that interpreter before considering a legacy root `.venv`. This maintains
    an independent process boundary without turning ignored migration residue
    into a false parity failure.
+
+8. **Admit the exact matrix carrier, not its directory.** The format-selection
+   policy names `current-lane-matrix.json` as one curated machine carrier. It
+   does not admit future JSON files under `evidence/chronicle/` by implication.
 
 ## Risks / Trade-offs
 

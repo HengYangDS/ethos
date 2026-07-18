@@ -9,7 +9,8 @@ relations:
 
 # Direct Absorption Wave 1 — 2026-07-18
 
-Status: active owned implementation intake; default proof pending.
+Status: archived owned implementation intake; local closeout complete, accepted
+closeout and per-lane lifecycle effects pending.
 
 Purpose: reduce recovered `work/*` topology by proving semantic absorption
 before, rather than instead of, retirement.

@@ -4,6 +4,10 @@ stages:
   - package
 
 variables:
+  # Source-budget policy binds to a historical baseline commit. Retain the
+  # complete graph so its object remains available; a shallow checkout would
+  # make that pinned policy identity spuriously unresolved.
+  GIT_DEPTH: "0"
   PYTHONWARNINGS: error
   UV_LINK_MODE: copy
   UV_CACHE_DIR: build/runtime/tool-cache/uv
@@ -230,9 +234,12 @@ ethos:verify:
     - openspec --version
     - tools/ci/scripts/run-python-tests.sh
     - openspec validate --all --strict --json
-    - tools/ci/scripts/with-python-runtime.sh -- uv run --package ethos ethos audit --json
-    - tools/ci/scripts/with-python-runtime.sh -- uv run --package ethos ethos report --json
-    - tools/ci/scripts/with-python-runtime.sh -- uv run --package ethos ethos prove --execute --expect-head "$(git rev-parse HEAD)" --json
+    - tools/ci/scripts/run-head-bound-proof.sh
+  artifacts:
+    when: always
+    paths:
+      - build/evidence/quality/proof/
+      - build/evidence/quality/readiness/
 
 ethos:npm:
   stage: verify

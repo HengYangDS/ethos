@@ -328,6 +328,69 @@ def test_projection_rebase_skips_empty_projection_patch(monkeypatch, tmp_path: P
     assert ("rebase", "--skip") in calls
 
 
+def test_projection_rebase_stages_rerere_resolved_parity_projection(monkeypatch, tmp_path: Path) -> None:
+    calls: list[tuple[str, ...]] = []
+    diff_calls = 0
+
+    def run_git(_root: Path, *args: str, check: bool = True):
+        nonlocal diff_calls
+        del check
+        calls.append(tuple(args))
+        if args[:3] == ("diff", "--name-only", "--diff-filter=U"):
+            diff_calls += 1
+            return cp(stdout="evidence/parity/generic-shadow.json\n" if diff_calls == 1 else "")
+        if args == ("show", ":0:evidence/parity/generic-shadow.json"):
+            return cp(stdout='{"schema_version":1,"adopter":"generic"}')
+        if args == ("-c", "core.editor=true", "rebase", "--continue"):
+            return cp(returncode=0)
+        return cp(returncode=1, stderr="unexpected git call")
+
+    monkeypatch.setattr(lane_projection_rebase, "run_git", run_git)
+
+    resolved = lane_projection_rebase.resolve_projection_rebase(
+        tmp_path,
+        cp(returncode=1, stderr="rerere applied prior resolution"),
+    )
+
+    assert resolved["ok"] is True
+    assert resolved["paths"] == ["evidence/parity/generic-shadow.json"]
+    assert ("show", ":0:evidence/parity/generic-shadow.json") in calls
+    assert not any(call[:1] == ("checkout",) for call in calls)
+    assert ("-c", "core.editor=true", "rebase", "--continue") in calls
+
+
+def test_projection_rebase_rejects_staged_parity_projection_for_the_wrong_adopter(
+    monkeypatch, tmp_path: Path
+) -> None:
+    calls: list[tuple[str, ...]] = []
+    diff_calls = 0
+
+    def run_git(_root: Path, *args: str, check: bool = True):
+        nonlocal diff_calls
+        del check
+        calls.append(tuple(args))
+        if args[:3] == ("diff", "--name-only", "--diff-filter=U"):
+            diff_calls += 1
+            return cp(stdout="evidence/parity/generic-shadow.json\n" if diff_calls == 1 else "")
+        if args == ("show", ":0:evidence/parity/generic-shadow.json"):
+            return cp(stdout='{"schema_version":1,"adopter":"other"}')
+        if args[:1] in {("checkout",), ("add",)}:
+            return cp(returncode=0)
+        if args == ("-c", "core.editor=true", "rebase", "--continue"):
+            return cp(returncode=0)
+        return cp(returncode=1, stderr="unexpected git call")
+
+    monkeypatch.setattr(lane_projection_rebase, "run_git", run_git)
+
+    resolved = lane_projection_rebase.resolve_projection_rebase(
+        tmp_path,
+        cp(returncode=1, stderr="staged payload mismatch"),
+    )
+
+    assert resolved["ok"] is True
+    assert ("checkout", "--ours", "--", "evidence/parity/generic-shadow.json") in calls
+
+
 def test_refresh_work_lane_base_disables_update_refs_during_rebase(
     monkeypatch,
     tmp_path: Path,

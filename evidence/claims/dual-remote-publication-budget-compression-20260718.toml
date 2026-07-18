@@ -21,9 +21,9 @@ owner = "ethos-repository"
 scope = "Equal GitLab/GitHub topology parsing and explicit remote admission."
 
 [carriers]
-openspec = "openspec/changes/dual-remote-publication-budget-compression-20260718"
+openspec = "openspec/changes/archive/2026-07-18-dual-remote-publication-budget-compression-20260718"
 fallback = "Retain explicit named remote admission without a compact declaration."
 kill_signal = "A valid verbose declaration fails, or an implicit, candidate, work, or unknown remote is admitted."
 
 [promotion]
-targets = [".ethos/release.toml", "packages/ethos/src/ethos/adapters/admission/core.py", "packages/ethos/src/ethos/domain/land/publication.py", "packages/ethos/src/ethos/repository/adoption/scaffold/template_files/core/release.toml.j2", "packages/ethos/src/ethos/repository/release/publication.py", "packages/ethos/src/ethos/surface/cli/hook/core.py", "packages/ethos/src/ethos/surface/cli/root/lifecycle.py", "tests/unit/adoption/test_profiles.py", "tests/unit/adoption/test_scaffold_templates.py", "tests/unit/release/test_policy_attestation.py", "evidence/claims/dual-remote-publication-budget-compression-20260718.toml", "evidence/chronicle/dual-remote-publication-budget-compression-20260718/2026-07-18.md", "openspec/changes/dual-remote-publication-budget-compression-20260718"]
+targets = [".ethos/release.toml", "packages/ethos/src/ethos/adapters/admission/core.py", "packages/ethos/src/ethos/domain/land/publication.py", "packages/ethos/src/ethos/repository/adoption/scaffold/template_files/core/release.toml.j2", "packages/ethos/src/ethos/repository/release/publication.py", "packages/ethos/src/ethos/surface/cli/hook/core.py", "packages/ethos/src/ethos/surface/cli/root/lifecycle.py", "tests/unit/adoption/test_profiles.py", "tests/unit/adoption/test_scaffold_templates.py", "tests/unit/release/test_policy_attestation.py", "evidence/claims/dual-remote-publication-budget-compression-20260718.toml", "evidence/chronicle/dual-remote-publication-budget-compression-20260718/2026-07-18.md", "openspec/changes/archive/2026-07-18-dual-remote-publication-budget-compression-20260718"]

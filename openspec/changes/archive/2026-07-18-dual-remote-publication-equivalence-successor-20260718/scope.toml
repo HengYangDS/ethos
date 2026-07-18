@@ -13,7 +13,7 @@ paths = [
   "evidence/claims/dual-remote-publication-equivalence-successor-20260718.toml",
   "evidence/chronicle/dual-remote-publication-equivalence-successor-20260718/**",
   "evidence/parity/generic-shadow.json",
-  "openspec/changes/dual-remote-publication-equivalence-successor-20260718/**",
+  "openspec/changes/archive/2026-07-18-dual-remote-publication-equivalence-successor-20260718/**",
   "openspec/specs/repository-governance/spec.md",
   "openspec/specs/dual-remote-publication/spec.md",
   "packages/ethos/src/ethos/adapters/admission/core.py",

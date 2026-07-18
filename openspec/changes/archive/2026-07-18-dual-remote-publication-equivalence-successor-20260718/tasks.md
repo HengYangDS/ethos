@@ -13,4 +13,5 @@
 
 - [x] 3.1 Add focused, integration, and scaffold regressions; run formatter, lint, types, and relevant full tests.
 - [x] 3.2 Record claim and dated Chronicle; final parity refresh and HEAD-bound proof occur after the immutable archive tree is committed.
-- [ ] 3.3 Land the owned lane locally through candidate only after final proof; report GitLab and GitHub observations separately from local closure.
+- [x] 3.3 Archive after final proof and record GitLab/GitHub observations as
+  separate from the post-archive local candidate-land transition.

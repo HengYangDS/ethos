@@ -2,12 +2,12 @@
 id = "dual-remote-publication-equivalence-successor-20260718"
 change_id = "dual-remote-publication-equivalence-successor-20260718"
 subject = "ethos:dual-remote-publication-topology"
-state = "active"
+state = "archived"
 summary = "Local, GitLab, and GitHub publication topology retains explicit target and branch boundaries."
 
 [evidence]
 dated = "evidence/chronicle/dual-remote-publication-equivalence-successor-20260718/2026-07-18.md"
-sha256 = "72659f9bd5339383ad5361ea71eaaef0b7e7d86a4632064c8c44866725893405"
+sha256 = "a303c1af0cd5be255bfbb1cafcfb9e698686d4323747f064b6f2e5680dfca68f"
 evidence_ids = ["evidence:dual-remote-publication-equivalence-successor-20260718"]
 binding = "Dated topology record, named remote admission, provider projection, scaffold, and no-push observation evidence are digest-bound."
 verifier = "digest_only"

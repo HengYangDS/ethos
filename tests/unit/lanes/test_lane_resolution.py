@@ -13,14 +13,7 @@ from ethos.adapters.mutation.resolution.receipts import verify_preservation_pack
 from ethos.repository.policy.schema import validate_schema_instance
 from ethos.surface.cli.lane.resolution import _default_decision_path
 from tests.support.lane_helpers import git
-from tests.support.lane_helpers import init_repo
-
-
-def _orphan_lane(tmp_path: Path) -> tuple[Path, Path]:
-    repo = init_repo(tmp_path / "repo")
-    lane = tmp_path / "repo-work-orphan"
-    git(repo, "worktree", "add", "-b", "work/orphan", lane.as_posix(), "dev")
-    return repo, lane
+from tests.support.lane_helpers import orphan_work_lane
 
 
 def _chronicle(repo: Path, disposition: str) -> str:
@@ -52,7 +45,7 @@ def test_resolution_decision_default_path_is_a_valid_local_artifact_home(
 def test_exceptional_resolution_recomputes_observation_before_effect(
     tmp_path: Path,
 ) -> None:
-    repo, lane = _orphan_lane(tmp_path)
+    repo, lane = orphan_work_lane(tmp_path)
     decision_path = tmp_path / "decision.json"
     planned = plan_lane_resolution(
         root=repo,
@@ -83,7 +76,7 @@ def test_exceptional_resolution_recomputes_observation_before_effect(
 def test_exceptional_resolution_observation_binds_untracked_content(
     tmp_path: Path,
 ) -> None:
-    repo, lane = _orphan_lane(tmp_path)
+    repo, lane = orphan_work_lane(tmp_path)
     untracked = lane / "notes.txt"
     untracked.write_text("first\n", encoding="utf-8")
     decision_path = tmp_path / "decision.json"
@@ -115,7 +108,7 @@ def test_exceptional_resolution_observation_binds_untracked_content(
 def test_exceptional_resolution_requires_accepted_chronicle_binding(
     tmp_path: Path,
 ) -> None:
-    repo, _ = _orphan_lane(tmp_path)
+    repo, _ = orphan_work_lane(tmp_path)
     planned = plan_lane_resolution(
         root=repo,
         branch="work/orphan",
@@ -136,7 +129,7 @@ def test_exceptional_resolution_requires_accepted_chronicle_binding(
 def test_preserve_resolution_writes_recovery_package_and_completion_receipt(
     tmp_path: Path,
 ) -> None:
-    repo, lane = _orphan_lane(tmp_path)
+    repo, lane = orphan_work_lane(tmp_path)
     (lane / "README.md").write_text("# dirty preserved\n", encoding="utf-8")
     decision_path = tmp_path / "decision.json"
     plan_lane_resolution(
@@ -170,7 +163,7 @@ def test_preserve_resolution_writes_recovery_package_and_completion_receipt(
 def test_preserve_resolution_includes_non_ignored_untracked_files(
     tmp_path: Path,
 ) -> None:
-    repo, lane = _orphan_lane(tmp_path)
+    repo, lane = orphan_work_lane(tmp_path)
     (lane / "notes.txt").write_text("owner-unknown work\n", encoding="utf-8")
     decision_path = tmp_path / "decision.json"
     plan_lane_resolution(
@@ -209,7 +202,7 @@ def test_preserve_resolution_includes_non_ignored_untracked_files(
 def test_preserve_retire_requires_break_glass_and_irreversible_confirmation(
     tmp_path: Path,
 ) -> None:
-    repo, lane = _orphan_lane(tmp_path)
+    repo, lane = orphan_work_lane(tmp_path)
     (lane / "README.md").write_text("# dirty preserved then retired\n", encoding="utf-8")
     decision_path = tmp_path / "decision.json"
 
@@ -255,7 +248,7 @@ def test_preserve_retire_requires_break_glass_and_irreversible_confirmation(
 def test_preserve_retire_keeps_verified_recovery_package_before_lane_removal(
     tmp_path: Path,
 ) -> None:
-    repo, lane = _orphan_lane(tmp_path)
+    repo, lane = orphan_work_lane(tmp_path)
     (lane / "README.md").write_text("# tracked delta\n", encoding="utf-8")
     (lane / "notes.txt").write_text("untracked delta\n", encoding="utf-8")
     decision_path = tmp_path / "decision.json"
@@ -340,7 +333,7 @@ def test_preservation_package_verifier_fails_closed_on_invalid_packages(
 def test_resolution_decision_and_receipt_validate_against_kernel_schemas(
     tmp_path: Path,
 ) -> None:
-    repo, _ = _orphan_lane(tmp_path)
+    repo, _ = orphan_work_lane(tmp_path)
     decision_path = tmp_path / "decision.json"
     planned = plan_lane_resolution(
         root=repo,
@@ -376,7 +369,7 @@ def test_resolution_decision_and_receipt_validate_against_kernel_schemas(
 
 
 def test_resolution_rejects_tampered_schema_constants(tmp_path: Path) -> None:
-    repo, _ = _orphan_lane(tmp_path)
+    repo, _ = orphan_work_lane(tmp_path)
     decision_path = tmp_path / "decision.json"
     plan_lane_resolution(
         root=repo,
@@ -408,7 +401,7 @@ def test_resolution_rejects_tampered_schema_constants(tmp_path: Path) -> None:
 def test_resolution_decide_does_not_write_tracked_chronicle_path(
     tmp_path: Path,
 ) -> None:
-    repo, _ = _orphan_lane(tmp_path)
+    repo, _ = orphan_work_lane(tmp_path)
     decision_path = repo / "evidence" / "chronicle" / "decision.json"
 
     planned = plan_lane_resolution(
@@ -432,7 +425,7 @@ def test_resolution_decide_does_not_write_tracked_chronicle_path(
 def test_retire_resolution_requires_clean_target_and_irreversible_confirmation(
     tmp_path: Path,
 ) -> None:
-    repo, lane = _orphan_lane(tmp_path)
+    repo, lane = orphan_work_lane(tmp_path)
     decision_path = tmp_path / "decision.json"
     plan_lane_resolution(
         root=repo,
@@ -474,7 +467,7 @@ def test_retire_resolution_requires_clean_target_and_irreversible_confirmation(
 
 
 def test_break_glass_requires_reconciliation_receipt(tmp_path: Path) -> None:
-    repo, _ = _orphan_lane(tmp_path)
+    repo, _ = orphan_work_lane(tmp_path)
     decision_path = tmp_path / "decision.json"
     planned = plan_lane_resolution(
         root=repo,

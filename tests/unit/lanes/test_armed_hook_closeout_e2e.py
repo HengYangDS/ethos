@@ -25,6 +25,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from ethos.adapters.mutation.closeout import core as closeout_core
 from ethos.adapters.mutation.core import apply_candidate_to_accepted
 from ethos.adapters.mutation.core import apply_land_to_candidate
 from ethos.adapters.mutation.proof import record_executed_proof
@@ -33,6 +34,7 @@ from ethos.repository.evidence.core import EvidenceSet
 from ethos.repository.policy.gates import default_gate_ids
 from tests.support.contract_helpers import _declare_minimal_code_correctness
 from tests.support.contract_helpers import conformant_proof_run
+from tests.support.subprocesses import completed as cp
 
 _HOOK_SRC = Path(__file__).resolve().parents[3] / ".githooks" / "reference-transaction"
 _RUNTIME_BOOTSTRAP_SRC = (
@@ -280,6 +282,25 @@ def test_committed_profile_closeout_blocks_raw_move(tmp_path: Path) -> None:
     assert closeout["ok"] is True, closeout
     assert _g(repo, "rev-parse", "dev").stdout.strip() == candidate_head
     assert _g(repo, "rev-parse", "main").stdout.strip() == candidate_head
+
+
+def test_hook_replacement_requires_executable_candidate_hook(tmp_path: Path) -> None:
+    """A changed candidate hook must exist and be executable before closeout CAS."""
+    accepted_root = tmp_path / "accepted"
+    candidate_root = tmp_path / "candidate"
+    accepted_root.mkdir()
+    candidate_root.mkdir()
+    transition = closeout_core.CloseoutTransition("refs/heads/dev", "old", "new", "new")
+
+    def fake_git(root: Path, *_args: str, **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        return cp(stdout="candidate\n" if root == accepted_root else "")
+
+    update = closeout_core._atomic_update(  # noqa: SLF001 - direct fail-closed contract
+        accepted_root, candidate_root, transition, None, fake_git
+    )
+
+    assert update.returncode == 1
+    assert update.stderr == f"candidate_closeout_hook_unavailable:{candidate_root / '.githooks'}"
 
 
 def test_candidate_hook_bootstraps_accepted_ff_closeout_from_legacy_incumbent(

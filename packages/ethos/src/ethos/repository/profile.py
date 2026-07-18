@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import subprocess
 import tomllib
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -33,40 +34,20 @@ class RepositoryProfile:
     tables: dict[str, dict[str, Any]]
 
 
-def load_repository_profile(root: Path) -> RepositoryProfile:
+def load_repository_profile(root: Path, *, tree_ref: str | None = None) -> RepositoryProfile:
     repo = root.resolve()
-    profile_path = repo / ".ethos" / "profile.toml"
+    exists, text = _profile_text(repo, tree_ref)
     roots = dict(DEFAULT_ROOTS)
     identity: dict[str, str] = {}
     evidence: dict[str, tuple[str, ...]] = {}
     previous_projection: dict[str, str] = {}
     tables: dict[str, dict[str, Any]] = {}
-    if not profile_path.exists():
-        return RepositoryProfile(
-            root=repo,
-            exists=False,
-            valid=True,
-            source="",
-            identity=identity,
-            roots=roots,
-            evidence=evidence,
-            previous_projection=previous_projection,
-            tables=tables,
-        )
+    valid = True
     try:
-        payload = tomllib.loads(profile_path.read_text(encoding="utf-8"))
+        payload = tomllib.loads(text) if exists else {}
     except tomllib.TOMLDecodeError:
-        return RepositoryProfile(
-            root=repo,
-            exists=True,
-            valid=False,
-            source=".ethos/profile.toml",
-            identity=identity,
-            roots=roots,
-            evidence=evidence,
-            previous_projection=previous_projection,
-            tables=tables,
-        )
+        payload = {}
+        valid = False
     identity = {
         str(key): str(value)
         for key, value in payload.items()
@@ -93,15 +74,34 @@ def load_repository_profile(root: Path) -> RepositoryProfile:
         }
     return RepositoryProfile(
         root=repo,
-        exists=True,
-        valid=True,
-        source=".ethos/profile.toml",
+        exists=exists,
+        valid=valid,
+        source=".ethos/profile.toml" if exists else "",
         identity=identity,
         roots=roots,
         evidence=evidence,
         previous_projection=previous_projection,
         tables=tables,
     )
+
+
+def _git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["git", "-C", str(repo), *args], capture_output=True, check=False, text=True
+    )
+
+
+def _profile_text(repo: Path, tree_ref: str | None) -> tuple[bool, str]:
+    if tree_ref:
+        result = _git(repo, "show", f"{tree_ref}:.ethos/profile.toml")
+        if result.returncode == 0:
+            return True, result.stdout
+        if _git(repo, "rev-parse", "--verify", f"{tree_ref}^{{commit}}").returncode == 0:
+            return False, ""
+    try:
+        return True, (repo / ".ethos" / "profile.toml").read_text(encoding="utf-8")
+    except OSError:
+        return False, ""
 
 
 def profile_root(root: Path, key: str) -> Path:

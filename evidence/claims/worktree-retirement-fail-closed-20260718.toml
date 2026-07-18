@@ -7,7 +7,7 @@ summary = "Ordinary linked Work Lane retirement reobserves path, ref, head, and 
 
 [evidence]
 dated = "evidence/chronicle/worktree-retirement-fail-closed-20260718/2026-07-18.md"
-sha256 = "e543014d96c1aa50bac3480160ed3aa33d7ed369ce27ba2bf7c416c2c9086657"
+sha256 = "2930ee1b9279e84a3a3cd30a6ee2b0376e078fc012a06456397c0badbd71a461"
 evidence_ids = ["evidence:worktree-retirement-fail-closed-20260718"]
 binding = "Focused linked-lane and unbound-ref regressions, archived OpenSpec carrier, campaign transition, and this Chronicle bind ordinary fail-closed retirement only; preservation-package v2 and exceptional deletion remain later work."
 verifier = "digest_only"
@@ -25,7 +25,7 @@ owner = "ethos-repository"
 scope = "Routine local linked Work Lane retirement and ordinary unbound-ref blocking; no recovery-package v2, exceptional deletion, migration, foreign-lane, remote, or hosted claim."
 
 [carriers]
-openspec = "openspec/changes/worktree-retirement-fail-closed-20260718"
+openspec = "openspec/changes/archive/2026-07-18-worktree-retirement-fail-closed-20260718"
 fallback = "Block ordinary retirement and preserve the selected target; route dirty, unavailable, stale, unbound, foreign, ambiguous, or deletion-admission cases to their own later evidence-bound workflow."
 kill_signal = "An ordinary retirement uses force, deletes a ref before a clean worktree removal, deletes an unbound ref solely because registration is absent, or treats stale observation as authorization."
 
@@ -42,6 +42,6 @@ targets = [
   "evidence/chronicle/worktree-governance-campaign-20260718/2026-07-18.md",
   "evidence/claims/worktree-retirement-fail-closed-20260718.toml",
   "evidence/chronicle/worktree-retirement-fail-closed-20260718/2026-07-18.md",
-  "openspec/changes/worktree-retirement-fail-closed-20260718",
+  "openspec/changes/archive/2026-07-18-worktree-retirement-fail-closed-20260718",
   "openspec/specs/repository-governance/spec.md",
 ]

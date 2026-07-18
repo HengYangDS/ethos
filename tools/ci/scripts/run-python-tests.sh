@@ -54,6 +54,20 @@ if [[ "${shards}" != "1" && "${shards}" != "serial" ]]; then
   sharded_mode="true"
 fi
 
+# Tests launch Git subprocesses against temporary repositories. Disable only
+# fsmonitor through Git's process-local overlay; append rather than replacing
+# existing entries so caller-owned test configuration is preserved.
+export GIT_CONFIG_COUNT="${GIT_CONFIG_COUNT:-0}"
+git_config_count="${GIT_CONFIG_COUNT}"
+if ! [[ "${git_config_count}" =~ ^[0-9]+$ ]]; then
+  echo "GIT_CONFIG_COUNT must be a non-negative integer" >&2
+  exit 2
+fi
+git_config_fsmonitor_index="${git_config_count}"
+export GIT_CONFIG_KEY_"${git_config_fsmonitor_index}"=core.fsmonitor
+export GIT_CONFIG_VALUE_"${git_config_fsmonitor_index}"=false
+export GIT_CONFIG_COUNT="$((git_config_count + 1))"
+
 cleanup_denied_runtime_residue() {
   # These homes are explicitly denied by the generated-artifact topology. They
   # are ignored local residue, never repository truth; clearing them before the

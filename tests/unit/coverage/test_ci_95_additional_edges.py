@@ -263,6 +263,12 @@ def test_candidate_refresh_bootstrap_and_retire_edges(
         root: Path, *args: str, check: bool = True, **kwargs: object
     ) -> subprocess.CompletedProcess[str]:
         calls.append(args)
+        if args == ("rev-parse", "refs/heads/work/x"):
+            return cp(stdout="h2\n")
+        if args == ("rev-parse", "HEAD"):
+            return cp(stdout="h2\n")
+        if args == ("status", "--porcelain", "--untracked-files=all"):
+            return cp(stdout="")
         return cp(returncode=0)
 
     monkeypatch.setattr(lanes, "run_git", git_retire)
@@ -283,6 +289,7 @@ def test_candidate_refresh_bootstrap_and_retire_edges(
         )["state"]
         == "retired"
     )
+    assert ("worktree", "remove", str(tmp_path / "w")) in calls
     assert ("update-ref", "-d", "refs/heads/work/x", "h2") in calls
 
 

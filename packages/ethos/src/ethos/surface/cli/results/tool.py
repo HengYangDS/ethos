@@ -42,9 +42,6 @@ def compile_quality_tool_handlers(*, declarations, import_path_prefix=None) -> d
 
 def _tool_handler(declaration):
     handler = declaration.tool_handler
-    if handler is None:
-        msg = f"tool handler declaration missing: {declaration.import_path}"
-        raise ValueError(msg)
 
     def command(*, root: RootOption | None = None, json_output: JsonFlag = False) -> None:
         repo = resolve_root(root)

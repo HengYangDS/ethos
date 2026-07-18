@@ -232,7 +232,11 @@ ethos:verify:
     - openspec validate --all --strict --json
     - tools/ci/scripts/with-python-runtime.sh -- uv run --package ethos ethos audit --json
     - tools/ci/scripts/with-python-runtime.sh -- uv run --package ethos ethos report --json
-    - tools/ci/scripts/with-python-runtime.sh -- uv run --package ethos ethos prove --execute --expect-head "$(git rev-parse HEAD)" --json
+    - tools/ci/scripts/run-head-bound-proof.sh
+  artifacts:
+    when: always
+    paths:
+      - build/evidence/quality/proof/
 
 ethos:npm:
   stage: verify

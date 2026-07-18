@@ -26,8 +26,12 @@ _TERMINATION_GRACE_SECONDS = 1
 
 
 def external_python(target: Path) -> str:
-    """Use the target worktree interpreter when it exists, not the caller's."""
-    python = target.resolve() / ".venv" / "bin" / "python"
+    """Use the target's source-bound runtime before legacy local residue."""
+    root = target.resolve()
+    python = root / "build" / "runtime" / "venv" / "bin" / "python"
+    if python.is_file():
+        return python.as_posix()
+    python = root / ".venv" / "bin" / "python"
     return python.as_posix() if python.is_file() else sys.executable
 
 

@@ -6,4 +6,6 @@ paths = [
   "evidence/parity/generic-shadow.json",
   "openspec/changes/all-lanes-authorized-closeout-20260718/**",
   "openspec/specs/repository-governance/spec.md",
+  "packages/ethos/src/ethos/adapters/shadow/execution.py",
+  "tests/unit/product/parity/test_runners.py",
 ]

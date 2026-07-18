@@ -101,6 +101,9 @@ remain separate, expressly unperformed stages requiring further authorization.
 
 - Every long command writes a bounded temporary log and receipt, records PID,
   exit code, completion time, and parsed JSON result, and has a timeout.
+- Shadow parity resolves the checkout-bound `build/runtime/venv` before a
+  legacy root `.venv`; a stale compatibility environment cannot make a current
+  Work Lane appear unable to run ETHOS.
 - Effects are serial; audit work can parallelize, but two irreversible lane
   transitions never race in the shared Git common directory.
 - Every apply follows `fresh observe -> dry run -> exact apply -> receipt ->

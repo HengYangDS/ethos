@@ -8,6 +8,7 @@
 
 - [x] 2.1 Bind the active Change, scope, claim, dated Chronicle, and closeout plan to the owned Work Lane.
 - [x] 2.2 Validate the active OpenSpec Change, claim digest, schema/plan obligations, and archiveability without treating a planning artifact as an authorization token.
+- [ ] 2.3 Add a red regression for shadow parity runtime selection, make the smallest source-bound runtime fix, and refresh the blocked generic parity evidence.
 
 ## 3. Local decision closeout
 

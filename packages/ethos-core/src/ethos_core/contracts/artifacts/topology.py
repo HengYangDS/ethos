@@ -8,20 +8,18 @@ without encoding one adopter, profile, or repository-specific fixture name.
 from __future__ import annotations
 
 import tomllib
-from functools import lru_cache
 from pathlib import Path
 from typing import Any
 from typing import Literal
 from typing import cast
 
-import celpy
-from celpy.celtypes import BoolType
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import model_validator
 
 from ethos_core._resources import declaration_text
 from ethos_core._resources import resolve_declaration_path
+from ethos_core.contracts.cel import evaluate_cel_predicate
 
 DECLARATION_PATH = Path("system/policies/generated-artifact-topology.toml")
 _DECLARATION_RESOURCE = "data/generated_artifact_topology.toml"
@@ -260,42 +258,6 @@ def is_generated_artifact_path(
     rel = normalize_artifact_path(path)
     topology = declaration or load_generated_artifact_topology_declaration()
     return _topology_rule_matches("generated", rel, topology)
-
-
-def evaluate_cel_predicate(
-    expression: str,
-    *,
-    facts: dict[str, object],
-    policy: dict[str, object],
-    rule: dict[str, object],
-) -> bool:
-    """Evaluate a restricted CEL predicate over immutable topology fact maps."""
-    result = _evaluate_cel(expression, facts=facts, policy=policy, rule=rule)
-    if not isinstance(result, BoolType):
-        msg = "CEL predicate must return a boolean"
-        raise TypeError(msg)
-    return bool(result)
-
-
-def _evaluate_cel(
-    expression: str,
-    *,
-    facts: dict[str, object],
-    policy: dict[str, object],
-    rule: dict[str, object],
-) -> object:
-    activation = cast(
-        "dict[str, object]",
-        celpy.json_to_cel({"facts": facts, "policy": policy, "rule": rule}),
-    )
-    return _cel_program(expression).evaluate(cast("Any", activation))
-
-
-@lru_cache
-def _cel_program(expression: str) -> Any:
-    """Compile and cache a declaration-owned CEL predicate."""
-    environment = celpy.Environment()
-    return environment.program(environment.compile(expression))
 
 
 def _topology_facts(rel: str) -> dict[str, object]:

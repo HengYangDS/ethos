@@ -1,0 +1,2 @@
+schema_version = 1
+paths = ["docs/plans/all-lanes-resolution-execution-20260718.md", "evidence/claims/all-lanes-resolution-execution-20260718.toml", "evidence/chronicle/all-lanes-resolution-execution-20260718/**", "openspec/changes/all-lanes-resolution-execution-20260718/**", "openspec/specs/repository-governance/spec.md"]

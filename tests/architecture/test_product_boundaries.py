@@ -370,29 +370,23 @@ def test_tracked_python_has_no_legacy_parser_dependency() -> None:
 
 def test_internal_value_models_are_slotted_and_do_not_add_attrs() -> None:
     """Keep strict Pydantic boundaries and lean internal values without a third model layer."""
-    tracked = subprocess.run(
-        ["git", "ls-files", "*.py"],
-        cwd=ROOT,
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout.splitlines()
-    sources = [ROOT / path for path in tracked]
-    assert all(not {"attr", "attrs"} & imported_modules(path) for path in sources)
-    for path in sources:
+    for path in (
+        ROOT / relative
+        for relative in subprocess.run(
+            ["git", "ls-files", "*.py"], cwd=ROOT, check=True, capture_output=True, text=True
+        ).stdout.splitlines()
+    ):
         tree = ast.parse(path.read_text(encoding="utf-8"))
-        decorators = [
-            ast.unparse(decorator)
+        assert not {"attr", "attrs"} & imported_modules(path)
+        assert all(
+            ast.unparse(decorator) == "dataclass(frozen=True, slots=True)"
             for node in ast.walk(tree)
             if isinstance(node, ast.ClassDef)
             for decorator in node.decorator_list
             if isinstance(decorator, ast.Call)
             and isinstance(decorator.func, ast.Name)
             and decorator.func.id == "dataclass"
-        ]
-        assert all(decorator == "dataclass(frozen=True, slots=True)" for decorator in decorators), (
-            path
-        )
+        ), path
 
 
 def test_tracked_python_has_no_export_barrels() -> None:

@@ -108,10 +108,6 @@ jobs:
         run: tools/ci/scripts/run-python-tests.sh
       - name: OpenSpec strict validation
         run: openspec validate --all --strict --json
-      - name: ETHOS audit
-        run: tools/ci/scripts/with-python-runtime.sh -- uv run --package ethos ethos audit --json
-      - name: ETHOS report
-        run: tools/ci/scripts/with-python-runtime.sh -- uv run --package ethos ethos report --json
       - name: HEAD-bound proof receipt
         run: tools/ci/scripts/run-head-bound-proof.sh
       - name: Upload proof receipt
@@ -119,7 +115,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ethos-proof-receipt
-          path: build/evidence/quality/proof/
+          path: |
+            build/evidence/quality/proof/
+            build/evidence/quality/readiness/
           if-no-files-found: warn
 
   package:

@@ -82,6 +82,77 @@ def test_new_submit_push_reconciles_divergent_origin_and_github_identity_baselin
     assert identity["violations"] == []
 
 
+def test_new_submit_push_reconciles_dev_and_main_identity_baselines(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    git(repo, "config", "user.name", "Canonical User")
+    git(repo, "config", "user.email", "canonical@example.invalid")
+    git(repo, "config", "ethos.pushIdentityPolicy", "configured-user")
+    base = git(repo, "rev-parse", "HEAD")
+    monkeypatch.setenv("GIT_AUTHOR_NAME", "Legacy User")
+    monkeypatch.setenv("GIT_AUTHOR_EMAIL", "legacy@example.invalid")
+    monkeypatch.setenv("GIT_COMMITTER_NAME", "Legacy User")
+    monkeypatch.setenv("GIT_COMMITTER_EMAIL", "legacy@example.invalid")
+    heads: dict[str, str] = {}
+    branches: list[str] = []
+    for remote, role in (
+        ("origin", "dev"),
+        ("origin", "main"),
+        ("github", "dev"),
+        ("github", "main"),
+    ):
+        branch = f"legacy-{remote}-{role}"
+        branches.append(branch)
+        git(repo, "checkout", "-b", branch, base)
+        (repo / f"{remote}-{role}.txt").write_text(f"{remote}-{role}\n", encoding="utf-8")
+        git(repo, "add", f"{remote}-{role}.txt")
+        git(repo, "commit", "-m", f"legacy {remote} {role}")
+        heads[f"{remote}_{role}"] = git(repo, "rev-parse", "HEAD")
+        git(repo, "update-ref", f"refs/remotes/{remote}/{role}", "HEAD")
+    git(repo, "checkout", "dev")
+    monkeypatch.setenv("GIT_AUTHOR_NAME", "Canonical User")
+    monkeypatch.setenv("GIT_AUTHOR_EMAIL", "canonical@example.invalid")
+    monkeypatch.setenv("GIT_COMMITTER_NAME", "Canonical User")
+    monkeypatch.setenv("GIT_COMMITTER_EMAIL", "canonical@example.invalid")
+    for branch in branches:
+        git(repo, "merge", "--no-ff", branch, "-m", f"merge {branch}")
+    pushed_head = git(repo, "rev-parse", "HEAD")
+    receipt_path = tmp_path / "four-ref-reconciliation.json"
+    receipt_path.write_text(
+        json.dumps(
+            reconciliation_receipt_payload(
+                submit_branch="submit/four-ref-reconciliation",
+                source_head=pushed_head,
+                origin_head=heads["origin_dev"],
+                origin_main_head=heads["origin_main"],
+                github_head=heads["github_dev"],
+                github_main_head=heads["github_main"],
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    report = push_admission_report(
+        root=repo,
+        target_ref="refs/heads/submit/four-ref-reconciliation",
+        pushed_head=pushed_head,
+        remote_head="0" * 40,
+        reconciliation=ReconciliationObservation(
+            receipt_path=receipt_path.as_posix(),
+            origin_head=heads["origin_dev"],
+            origin_main_head=heads["origin_main"],
+            github_head=heads["github_dev"],
+            github_main_head=heads["github_main"],
+        ),
+    )
+
+    identity = report["identity_policy"]
+    assert identity["ok"] is True
+    assert identity["violations"] == []
+
+
 def test_new_submit_push_blocks_divergence_without_an_exact_receipt(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -184,7 +255,9 @@ def test_reconciliation_receipt_command_records_exact_tracking_observation(
     origin_head = git(repo, "rev-parse", "HEAD")
     github_head = git(repo, "rev-parse", "HEAD")
     git(repo, "update-ref", "refs/remotes/origin/dev", origin_head)
+    git(repo, "update-ref", "refs/remotes/origin/main", origin_head)
     git(repo, "update-ref", "refs/remotes/github/dev", github_head)
+    git(repo, "update-ref", "refs/remotes/github/main", github_head)
     receipt_path = tmp_path / "dual-remote-reconciliation.json"
 
     payload = run_ethos(
@@ -206,7 +279,9 @@ def test_reconciliation_receipt_command_records_exact_tracking_observation(
         submit_branch="submit/dual-remote-reconciliation",
         source_head=origin_head,
         origin_head=origin_head,
+        origin_main_head=origin_head,
         github_head=github_head,
+        github_main_head=github_head,
     )
     assert json.loads(receipt_path.read_text(encoding="utf-8")) == payload["data"]["receipt"]
 
@@ -231,7 +306,9 @@ def test_reconciliation_receipt_command_blocks_missing_tracking_refs(tmp_path: P
     assert payload["state"] == "blocked"
     assert payload["required_gaps"] == [
         "reconciliation_origin_tracking_missing",
+        "reconciliation_origin_main_tracking_missing",
         "reconciliation_github_tracking_missing",
+        "reconciliation_github_main_tracking_missing",
     ]
     assert not receipt_path.exists()
 

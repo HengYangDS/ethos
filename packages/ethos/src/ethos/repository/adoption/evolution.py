@@ -332,7 +332,7 @@ def _campaign_required_gaps(root: Path, campaign: dict[str, Any]) -> list[str]:
     gaps = _campaign_metadata_gaps(campaign, steps)
     step_by_id = {step["id"]: step for step in steps if step["id"]}
     for index, step in enumerate(steps, start=1):
-        gaps.extend(_campaign_step_gaps(root, campaign["id"], steps, step_by_id, index, step))
+        gaps.extend(_campaign_step_gaps(root, campaign, step_by_id, index, step))
     return gaps
 
 
@@ -352,12 +352,13 @@ def _campaign_metadata_gaps(campaign: dict[str, Any], steps: list[dict[str, Any]
 
 def _campaign_step_gaps(
     root: Path,
-    campaign_id: str,
-    steps: list[dict[str, Any]],
+    campaign: dict[str, Any],
     step_by_id: dict[str, dict[str, Any]],
     index: int,
     step: dict[str, Any],
 ) -> list[str]:
+    campaign_id = campaign["id"]
+    steps = campaign["steps"]
     step_id = step["id"] or "unnamed"
     gaps = _campaign_step_shape_gaps(campaign_id, steps, index, step, step_id)
     gaps.extend(_campaign_step_dependency_gaps(campaign_id, step, step_id, step_by_id))

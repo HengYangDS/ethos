@@ -40,6 +40,7 @@ from typing import Any
 
 from ethos.repository.policy.gates import adopter_code_correctness_gaps
 from ethos.repository.policy.gates import adopter_gate_descriptor_gaps
+from ethos.repository.policy.gates import committed_product_default_gate_ids
 from ethos.repository.policy.gates import default_gate_ids
 from ethos.repository.policy.gates import gate_policy_conformance_gaps
 from ethos.repository.policy.gates import gate_policy_digest
@@ -201,6 +202,10 @@ def _promotion_required_gate_ids(root: Path, *, tree_ref: str | None = None) -> 
     that the land proof legitimately does not carry, so completeness binds to
     the default set, not the full set.
     """
+    if tree_ref is not None:
+        committed = committed_product_default_gate_ids(root, tree_ref)
+        if committed is not None:
+            return committed
     return default_gate_ids(full=False, root=root, tree_ref=tree_ref)
 
 

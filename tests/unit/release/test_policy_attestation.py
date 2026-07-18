@@ -47,6 +47,24 @@ def test_release_policy_reports_host_profile_separately_from_product_files() -> 
     assert report["protected_refs"]["tags"] == ["v*"]
 
 
+def test_release_policy_reports_equal_gitlab_and_github_publication_topology() -> None:
+    report = release_policy_report(Path.cwd())
+
+    topology = report["publication_topology"]
+    assert topology["state"] == "ready"
+    assert topology["legacy"] is False
+    assert topology["local"] == {
+        "id": "local",
+        "role": "local_verification_install",
+        "mode": "offline",
+        "verification_command": "tools/ci/scripts/run-local-ci.sh",
+        "installation_command": "tools/ci/scripts/run-local-install-smoke.sh",
+    }
+    assert topology["gitlab"]["capabilities"] == ["repository", "ci_cd", "publication"]
+    assert topology["github"]["capabilities"] == ["repository", "ci_cd", "publication"]
+    assert topology["gitlab"]["git_remote"] != topology["github"]["git_remote"]
+
+
 def test_release_policy_uses_configured_branch_roles_for_protected_refs(
     tmp_path: Path,
 ) -> None:

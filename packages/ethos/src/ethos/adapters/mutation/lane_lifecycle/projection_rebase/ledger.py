@@ -40,7 +40,7 @@ Resolution = Callable[..., ProjectionResolution]
 UnmergedPaths = Callable[..., list[str]]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class LedgerRecord:
     """One source-budget record, retaining semantic data and its source block."""
 

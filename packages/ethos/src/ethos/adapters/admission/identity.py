@@ -23,7 +23,7 @@ _COMMIT_IDENTITY_FIELDS = (
 )
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class ReconciliationObservation:
     """One-shot observed bounds for a new dual-remote submit carrier."""
 

@@ -7,7 +7,7 @@ summary = "Equal dual-remote parsing retains explicit topology boundaries."
 
 [evidence]
 dated = "evidence/chronicle/dual-remote-publication-budget-compression-20260718/2026-07-18.md"
-sha256 = "75820e7eb7915720e7ec52932ddb655773ee73da8193b69de48c334191688e99"
+sha256 = "01f3a352c1b2215d2856fec3bd1775d91ab91443c417bb8af3497c65b88b535c"
 evidence_ids = ["evidence:dual-remote-publication-budget-compression-20260718"]
 binding = "Dated topology record, parser, verbose compatibility regression, and declared remote admission are digest-bound; repository-wide source-budget accounting is separate."
 verifier = "digest_only"

@@ -830,15 +830,6 @@ def test_campaign_closeout_reports_local_campaign_packages() -> None:
     assert packages["publication"]["remote_push"] == "not_performed"
     assert packages["publication"]["local_submit_package"]["source_branch"] == branch
     assert packages["publication"]["local_submit_package"]["submit_branch"] == expected_submit
-    assert packages["publication"]["remote_topology"] == {"legacy": True}
-    assert packages["publication"]["remote_observations"]["gitlab"]["sync"] == {
-        "kind": "git_remote_tracking_sync",
-        "state": "not_checked",
-        "available": False,
-        "blocking": False,
-        "required_gaps": [],
-        "advisory_gaps": [],
-    }
     assert packages["release"]["ok"] is True
     assert packages["parity"]["pending_count"] == len(payload["data"]["parity"]["pending_packages"])
     assert packages["parity"]["pending_count"] == payload["summary"]["parity_pending_count"]

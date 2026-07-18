@@ -10,6 +10,7 @@ from ethos.repository.evidence.parity.core import parity_gaps_report
 from ethos.repository.evidence.shadow.routing import parity_evidence_path
 from ethos.repository.evidence.topology import evidence_topology_report
 from ethos.repository.profile import profile_relative_root
+from ethos_core.contracts.evidence.layout import load_evidence_layout_declaration
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -26,39 +27,34 @@ def evidence_freshness_report(root: Path, *, current_head: str) -> dict[str, Any
         A read-only report for the public evidence freshness quality gate.
     """
     head = current_head
-    claim_report = claims_report(root, current_head=head)
-    evolution = evolution_report(root)
-    topology = evidence_topology_report(root)
+    declaration = load_evidence_layout_declaration()
+    reports = {
+        "claims": claims_report(root, current_head=head),
+        "evolution": evolution_report(root),
+        "topology": evidence_topology_report(root),
+        "parity": _generic_parity_freshness(root=root, current_head=head),
+    }
     evidence_root = profile_relative_root(root, "durable_evidence")
-    parity = _generic_parity_freshness(root=root, current_head=head)
-    parity_gaps = tuple(cast("list[str]", parity["required_gaps"]))
-    required_gaps = (
-        tuple(cast("list[str]", claim_report["required_gaps"]))
-        + tuple(cast("list[str]", evolution["required_gaps"]))
-        + tuple(cast("list[str]", topology["required_gaps"]))
-        + parity_gaps
+    components = tuple(
+        cast("dict[str, object]", {"ok": bool(report["ok"])}) for report in reports.values()
     )
+    required_gaps = tuple(
+        gap for report in reports.values() for gap in cast("list[str]", report["required_gaps"])
+    )
+    parity_gaps = cast("list[str]", reports["parity"]["required_gaps"])
     return {
-        "ok": (
-            bool(claim_report["ok"])
-            and bool(evolution["ok"])
-            and bool(topology["ok"])
-            and bool(parity["ok"])
-        ),
+        "ok": declaration.freshness_ok(components),
         "summary": {
             "evidence_roots": [evidence_root],
             "current_head": head,
-            "evolution_active_count": evolution["active_count"],
-            "topology_issue_count": len(topology["required_gaps"]),
+            "evolution_active_count": reports["evolution"]["active_count"],
+            "topology_issue_count": len(cast("list[str]", reports["topology"]["required_gaps"])),
             "parity_issue_count": len(parity_gaps),
         },
         "required_gaps": list(required_gaps),
         "data": {
-            "stale": list(parity_gaps),
-            "claims": claim_report,
-            "evolution": evolution,
-            "topology": topology,
-            "parity": parity,
+            "stale": parity_gaps,
+            **reports,
         },
     }
 

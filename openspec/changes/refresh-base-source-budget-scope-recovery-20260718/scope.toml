@@ -1,0 +1,9 @@
+schema_version = 1
+paths = [
+  "packages/ethos/src/ethos/adapters/mutation/lane_lifecycle/projection_rebase/core.py",
+  "packages/ethos/src/ethos/adapters/mutation/lane_lifecycle/refresh.py",
+  "tests/unit/coverage/test_lanes_final_edges.py",
+  "openspec/changes/refresh-base-source-budget-scope-recovery-20260718/**",
+  "evidence/claims/refresh-base-source-budget-scope-recovery-20260718.toml",
+  "evidence/chronicle/refresh-base-source-budget-scope-recovery-20260718/**",
+]

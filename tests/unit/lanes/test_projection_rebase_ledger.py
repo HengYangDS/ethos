@@ -326,6 +326,10 @@ def test_semantic_ledger_helpers_cover_merge_and_render_edges(tmp_path) -> None:
     assert ledger.merge_records([base], [base], [changed]) == [changed]
     assert ledger.merge_records([base], [changed], [base]) == [changed]
     assert ledger.merge_records([base], [changed], [changed]) == [changed]
+    assert ledger.merge_records([base], [], [base]) == []
+    assert ledger.merge_records([base], [base], []) == []
+    assert ledger.merge_records([base], [], [changed]) is None
+    assert ledger.merge_records([base], [changed], []) is None
     conflicting = ledger.LedgerRecord("base", "conflicting", 30, {"id": "base", "allowance": 30})
     assert ledger.merge_records([base], [changed], [conflicting]) is None
     nested_base = ledger.LedgerRecord(

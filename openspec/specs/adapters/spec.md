@@ -333,3 +333,19 @@ checkout of the configured candidate branch at that exact promoted head.
   stale, or its semantic runtime cannot be bound to that checkout
 - **THEN** the accepted-ref hook SHALL reject the transition
 - **AND** it SHALL not fall back to accepted-old semantic source.
+
+#### Scenario: changed managed shell hook bootstraps an accepted-to-release mirror
+
+- **GIVEN** the candidate policy enables `release_mirror = "accepted_ff"`
+- **AND** the candidate changes the tracked `reference-transaction` shell hook
+- **AND** the incumbent shell can admit the accepted transition only through the
+  candidate semantic runner
+- **WHEN** official closeout performs the hook deployment bootstrap
+- **THEN** it SHALL advance the accepted ref through an ordinary exact-intent,
+  proof-bound compare-and-swap
+- **AND** it SHALL synchronize the accepted checkout before advancing the
+  release mirror through the promoted shell hook
+- **AND** it SHALL not use a direct ref update, hook disablement, or hook-path
+  override
+- **AND** it SHALL report incomplete release-mirror bootstrap residue rather
+  than accepted closeout when the second transition cannot complete.

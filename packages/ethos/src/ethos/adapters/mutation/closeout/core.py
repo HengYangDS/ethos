@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -22,6 +21,7 @@ from ethos_core.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
 from ethos_core.contracts.branch.roles import BranchRolePolicy
 
 if TYPE_CHECKING:
+    import subprocess
     from collections.abc import Callable
 
 
@@ -123,115 +123,169 @@ def _execute_promotion(
 ) -> dict[str, object]:
     accepted, release, release_old = preflight
     sweep_stale_closeout_intents(request.root)
-    intents = [
-        write_closeout_intent(
-            root=request.root,
-            transition=item,
-            evidence_digest=_proof_digest(request.candidate_path, request.candidate_head),
-            gate_policy_digest=gate_policy_digest(request.root, tree_ref=request.candidate_head),
+    proof = dependencies.carry_proof(
+        source_root=request.candidate_path,
+        target_root=request.root,
+        head=request.candidate_head,
+    )
+    if failure := proof_carry_failure(request, proof):
+        return failure
+    digest = _proof_digest(request.candidate_path, request.candidate_head)
+    policy_digest = gate_policy_digest(request.root, tree_ref=request.candidate_head)
+    bootstrap = _hook_bootstrap_required(request, release, dependencies)
+    first_leg = (
+        (accepted,)
+        if bootstrap
+        else tuple(item for item in (accepted, release) if item is not None)
+    )
+    sync_attempts = _advance_and_sync_accepted(
+        request, dependencies, first_leg, digest, policy_digest
+    )
+    if isinstance(sync_attempts, dict):
+        return sync_attempts
+    if bootstrap and release:
+        release_intents = _write_intents(request.root, (release,), digest, policy_digest)
+        try:
+            mirror_update = _ref_transaction(request.root, (release,), dependencies.run_git)
+        finally:
+            _clear_intents(request.root, release_intents)
+        if mirror_update.returncode:
+            return _blocked(
+                request.policy,
+                request.candidate_head,
+                ["release_mirror_bootstrap_incomplete"],
+                candidate_head=request.candidate_head,
+                accepted_advanced=True,
+                release_mirror={
+                    "mode": RELEASE_MIRROR_ACCEPTED_FF,
+                    "branch": request.policy.release_branch,
+                    "previous_head": release_old,
+                    "head": release_old,
+                    "worktree_sync": "not_attempted",
+                    "bootstrap": "incomplete",
+                    "stderr": mirror_update.stderr.strip(),
+                },
+            )
+    mirror_result = sync_release_mirror(
+        release,
+        request.worktrees,
+        request.candidate_head,
+        release_old,
+        dependencies.run_git,
+    )
+    if mirror_result["worktree_sync"] in {"failed", "dirty"}:
+        return _blocked(
+            request.policy,
+            request.candidate_head,
+            [
+                "release_mirror_worktree_sync_failed"
+                if mirror_result["worktree_sync"] == "failed"
+                else "release_mirror_worktree_dirty_after_sync"
+            ],
+            candidate_head=request.candidate_head,
+            release_mirror=mirror_result,
         )
-        for item in (accepted, release)
+    if bootstrap:
+        mirror_result["bootstrap"] = "completed"
+    return {
+        "ok": True,
+        "state": "accepted_validated",
+        "branch": request.policy.accepted_branch,
+        "source_branch": request.policy.candidate_branch,
+        "head": request.candidate_head,
+        "previous_head": request.current_head,
+        "proof_carry": proof,
+        "sync_attempts": sync_attempts,
+        "release_mirror": mirror_result,
+        "required_gaps": [],
+    }
+
+
+def _advance_and_sync_accepted(
+    request,
+    dependencies,
+    transitions,
+    evidence_digest,
+    policy_digest,
+):
+    intents = _write_intents(request.root, transitions, evidence_digest, policy_digest)
+    try:
+        update = _ref_transaction(request.root, transitions, dependencies.run_git)
+    finally:
+        _clear_intents(request.root, intents)
+    if update.returncode:
+        dependencies.discard_proof(request.root, request.candidate_head)
+        return _blocked(
+            request.policy,
+            request.current_head,
+            ["accepted_advanced_concurrently"],
+            remediation=remediation.remediation_for_gaps(["accepted_advanced_concurrently"]),
+            stderr=update.stderr.strip(),
+        )
+    synced, attempts = _sync(request.root, request.candidate_head, dependencies.run_git)
+    if synced.returncode:
+        return _blocked(
+            request.policy,
+            request.current_head,
+            ["accepted_worktree_sync_failed"],
+            candidate_head=request.candidate_head,
+            stderr=synced.stderr.strip(),
+            sync_attempts=attempts,
+        )
+    checked = dependencies.run_git(request.root, "status", "--short", check=False)
+    if checked.returncode or checked.stdout.strip():
+        return _blocked(
+            request.policy,
+            request.current_head,
+            ["accepted_worktree_dirty_after_sync"],
+            candidate_head=request.candidate_head,
+            stderr=checked.stderr.strip(),
+            status=checked.stdout.strip(),
+        )
+    return attempts
+
+
+def _hook_bootstrap_required(request, release, dependencies):
+    if release is None:
+        return False
+    accepted_blob = dependencies.run_git(
+        request.root,
+        "rev-parse",
+        f"{request.current_head}:.githooks/reference-transaction",
+        check=False,
+    )
+    candidate_blob = dependencies.run_git(
+        request.root,
+        "rev-parse",
+        f"{request.candidate_head}:.githooks/reference-transaction",
+        check=False,
+    )
+    return (
+        accepted_blob.returncode == 0
+        and candidate_blob.returncode == 0
+        and accepted_blob.stdout.strip() != candidate_blob.stdout.strip()
+    )
+
+
+def _write_intents(root, transitions, evidence_digest, policy_digest):
+    return [
+        write_closeout_intent(
+            root=root,
+            transition=item,
+            evidence_digest=evidence_digest,
+            gate_policy_digest=policy_digest,
+        )
+        for item in transitions
         if item
     ]
-    try:
-        proof = dependencies.carry_proof(
-            source_root=request.candidate_path,
-            target_root=request.root,
-            head=request.candidate_head,
-        )
-        if failure := proof_carry_failure(request, proof):
-            return failure
-        update = _atomic_update(
-            request.root,
-            request.candidate_path,
-            accepted,
-            release,
-            dependencies.run_git,
-        )
-        if update.returncode:
-            dependencies.discard_proof(request.root, request.candidate_head)
-            return _atomic_update_failure(request, accepted, update, dependencies.run_git)
-        synced, attempts = _sync(request.root, request.candidate_head, dependencies.run_git)
-        if synced.returncode:
-            return _blocked(
-                request.policy,
-                request.current_head,
-                ["accepted_worktree_sync_failed"],
-                candidate_head=request.candidate_head,
-                stderr=synced.stderr.strip(),
-                sync_attempts=attempts,
-            )
-        checked = dependencies.run_git(request.root, "status", "--short", check=False)
-        if checked.returncode or checked.stdout.strip():
-            return _blocked(
-                request.policy,
-                request.current_head,
-                ["accepted_worktree_dirty_after_sync"],
-                candidate_head=request.candidate_head,
-                stderr=checked.stderr.strip(),
-                status=checked.stdout.strip(),
-            )
-        mirror_result = sync_release_mirror(
-            release,
-            request.worktrees,
-            request.candidate_head,
-            release_old,
-            dependencies.run_git,
-        )
-        if mirror_result["worktree_sync"] in {"failed", "dirty"}:
-            return _blocked(
-                request.policy,
-                request.current_head,
-                [
-                    "release_mirror_worktree_sync_failed"
-                    if mirror_result["worktree_sync"] == "failed"
-                    else "release_mirror_worktree_dirty_after_sync"
-                ],
-                candidate_head=request.candidate_head,
-                release_mirror=mirror_result,
-            )
-        return {
-            "ok": True,
-            "state": "accepted_validated",
-            "branch": request.policy.accepted_branch,
-            "source_branch": request.policy.candidate_branch,
-            "head": request.candidate_head,
-            "previous_head": request.current_head,
-            "proof_carry": proof,
-            "sync_attempts": attempts,
-            "release_mirror": mirror_result,
-            "required_gaps": [],
-        }
-    finally:
-        for intent in intents:
-            clear_closeout_intent(request.root, str(intent["nonce"]))
 
 
-def _atomic_update(root, candidate_path, accepted, release, run_git):
-    """Use candidate hooks only when the candidate replaces the hook control path."""
-    candidate_hook = candidate_path / ".githooks" / "reference-transaction"
-    if not _candidate_replaces_hook(root, candidate_path, run_git):
-        return _run_atomic_update(root, accepted, release, run_git)
-    if not candidate_hook.is_file() or not candidate_hook.stat().st_mode & 0o111:
-        return _missing_candidate_hook_result(candidate_hook.parent)
-    return _run_atomic_update(root, accepted, release, run_git, hook_path=candidate_hook.parent)
+def _clear_intents(root, intents):
+    for intent in intents:
+        clear_closeout_intent(root, str(intent["nonce"]))
 
 
-def _candidate_replaces_hook(root, candidate_path, run_git):
-    """Detect a tracked candidate hook replacement without reading mutable config."""
-    candidate_blob = _tree_blob(candidate_path, "HEAD", ".githooks/reference-transaction", run_git)
-    accepted_blob = _tree_blob(root, "HEAD", ".githooks/reference-transaction", run_git)
-    return candidate_blob != accepted_blob
-
-
-def _tree_blob(root, tree_ref, path, run_git):
-    """Read one tracked blob identity; a missing path yields an empty sentinel."""
-    return run_git(root, "rev-parse", "--verify", f"{tree_ref}:{path}", check=False).stdout.strip()
-
-
-def _run_atomic_update(root, accepted, release, run_git, *, hook_path=None):
-    """Execute the all-or-nothing ref program, optionally with a scoped hook path."""
-    transitions = (accepted, release) if release else (accepted,)
+def _ref_transaction(root, transitions, run_git):
     program = "\n".join(
         [
             "start",
@@ -241,51 +295,7 @@ def _run_atomic_update(root, accepted, release, run_git, *, hook_path=None):
             "",
         ]
     )
-    args = (
-        ("-c", f"core.hooksPath={hook_path.as_posix()}", "update-ref", "--stdin")
-        if hook_path is not None
-        else ("update-ref", "--stdin")
-    )
-    return run_git(root, *args, check=False, stdin=program)
-
-
-def _missing_candidate_hook_result(hooks_path):
-    """Block before a hook-replacement closeout could run without candidate source."""
-    return subprocess.CompletedProcess(
-        args=("git", "update-ref", "--stdin"),
-        returncode=1,
-        stdout="",
-        stderr=f"candidate_closeout_hook_unavailable:{hooks_path.as_posix()}",
-    )
-
-
-def _atomic_update_failure(request, accepted, update, run_git):
-    """Classify CAS failure from the observed accepted ref, not an assumed race."""
-    accepted_now = run_git(
-        request.root, "rev-parse", "--verify", accepted.ref_name, check=False
-    ).stdout.strip()
-    if accepted_now and accepted_now != accepted.old_value:
-        gaps = ["accepted_advanced_concurrently"]
-        return _blocked(
-            request.policy,
-            request.current_head,
-            gaps,
-            remediation=remediation.remediation_for_gaps(gaps),
-            stderr=update.stderr.strip(),
-            observed_accepted_head=accepted_now,
-        )
-    gap = (
-        "candidate_closeout_hook_unavailable"
-        if "candidate_closeout_hook_unavailable:" in update.stderr
-        else "accepted_atomic_update_rejected"
-    )
-    return _blocked(
-        request.policy,
-        request.current_head,
-        [gap],
-        stderr=update.stderr.strip(),
-        observed_accepted_head=accepted_now or accepted.old_value,
-    )
+    return run_git(root, "update-ref", "--stdin", check=False, stdin=program)
 
 
 def _transition(root, branch, head, run_git):

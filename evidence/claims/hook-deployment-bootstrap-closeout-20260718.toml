@@ -1,0 +1,29 @@
+[claim]
+id = "hook-deployment-bootstrap-closeout-20260718"
+subject = "ethos:managed-hook-deployment-bootstrap-closeout"
+state = "active"
+change_id = "hook-deployment-bootstrap-closeout-20260718"
+summary = "A changed managed protected-ref shell hook reaches the accepted checkout through bounded official local closeout."
+
+[evidence]
+dated = "evidence/chronicle/hook-deployment-bootstrap-closeout-20260718/2026-07-18.md"
+sha256 = "2258682f6255149ab2aca7e2b1aae53356e1e75c6f34b927d27b56f7a0f6be7b"
+evidence_ids = ["evidence:hook-deployment-bootstrap-closeout-20260718"]
+binding = "Active OpenSpec carrier, armed-hook regression, bounded closeout implementation, and dated Chronicle record the deployment-bootstrap boundary."
+verifier = "digest_only"
+tests = ["pytest -q tests/unit/lanes/test_armed_hook_closeout_e2e.py tests/unit/coverage/test_core_state_claims_edges.py tests/unit/cli/test_contracts_closeout.py tests/unit/lanes/test_ref_move_admission.py", "shellcheck .githooks/reference-transaction", "ethos openspec --lifecycle --json", "ethos prove --execute --expect-head <committed-head> --json"]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "Local managed-hook deployment bootstrap for accepted_ff closeout only."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-18-hook-deployment-bootstrap-closeout-20260718"
+fallback = "Reject closeout without moving main when a changed hook cannot be promoted through the ordinary accepted transition."
+kill_signal = "A changed shell hook requires a bypass, a raw ref move, or an unreported dev/main divergence."
+
+[promotion]
+targets = ["docs/reference/command-plane.md", "packages/ethos/src/ethos/adapters/mutation/closeout/core.py", "tests/unit/lanes/test_armed_hook_closeout_e2e.py", "openspec/changes/archive/2026-07-18-hook-deployment-bootstrap-closeout-20260718", "evidence/claims/hook-deployment-bootstrap-closeout-20260718.toml", "evidence/chronicle/hook-deployment-bootstrap-closeout-20260718"]

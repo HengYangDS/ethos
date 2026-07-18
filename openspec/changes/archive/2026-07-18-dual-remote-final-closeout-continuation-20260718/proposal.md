@@ -11,10 +11,16 @@ or submit deletion.
 - Bind the existing remote-reconciliation claim to this active continuation.
 - Refresh from the current candidate, re-observe submit and protected refs, and
   retain the current divergent submit tip through an ordinary merge.
-- Execute current-HEAD proof, candidate/accepted closeout, per-ref no-force
-  push dry-runs and updates, then delete only submit refs proved absorbed.
+- Execute current-HEAD proof and archive this source-level convergence carrier.
 - Preserve the first archive as historical evidence; foreign Work Lanes remain
   outside this continuation's mutation authority.
+
+## Completion Boundary
+
+This carrier ends when its ordinary merges, parity receipt, executed local proof,
+and OpenSpec archive are complete.  The same session then performs the
+candidate/accepted closeout and per-ref remote effects from the accepted state;
+those effects are not falsely pre-certified by this archived source carrier.
 
 ## Capabilities
 

@@ -10,11 +10,13 @@ missing-lease exceptional effect.
 ## What Changes
 
 - Promote a fresh exact Work Lane resolution matrix and a bounded Chronicle
-  policy for `retire`, `preserve-retire`, and `block` dispositions.
+  policy for `preserve`, `retire`, `preserve-retire`, and `block`
+  dispositions.
 - Extend the repository-governance specification with the already implemented
   digest-bound Chronicle-disposition scenario for native resolution decisions.
 - Execute only the later native two-phase decisions that match the accepted
-  matrix and fresh target observation; leave all residual/holder/post-freeze
+  matrix and fresh target observation; preserve the seven selected dirty
+  residuals without retirement and leave all holder-bound or other residual
   rows explicitly blocked rather than implying absorption.
 
 ## Capabilities

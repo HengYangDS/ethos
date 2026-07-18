@@ -7,7 +7,7 @@ summary = "This bounded claim records an owner-bound normal-merge reconciliation
 
 [evidence]
 dated = "evidence/chronicle/remote-reconciliation-carrier-r3-20260718/2026-07-18.md"
-sha256 = "ce12284b67aabe8426f6de258f5117d15761ad8994a437acafe622e337a1a26e"
+sha256 = "886ba1ab8d5ced2ed6e431a50604f5ce248e23f91682770019c73ce05d5c3d9c"
 evidence_ids = ["evidence:remote-reconciliation-carrier-r3-20260718:preflight"]
 binding = "The active OpenSpec carrier, scope, dated Chronicle, owner-bound Lane, and later HEAD-bound proof form the bounded evidence chain."
 verifier = "digest_only"

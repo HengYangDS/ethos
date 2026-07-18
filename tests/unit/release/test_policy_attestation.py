@@ -65,6 +65,43 @@ def test_release_policy_reports_equal_gitlab_and_github_publication_topology() -
     assert topology["gitlab"]["git_remote"] != topology["github"]["git_remote"]
 
 
+def test_release_policy_rejects_unequal_remote_capability_declaration() -> None:
+    root = Path.cwd()
+    report = release_policy_report(root)
+    config = (root / ".ethos" / "release.toml").read_text(encoding="utf-8")
+    changed = config.replace(
+        'capabilities = ["repository", "ci_cd", "publication"]',
+        'capabilities = ["repository"]',
+        1,
+    )
+    scratch = root / "build" / "runtime" / "dual-remote-policy-test"
+    scratch.mkdir(parents=True, exist_ok=True)
+    try:
+        (scratch / ".ethos").mkdir(exist_ok=True)
+        (scratch / ".ethos" / "release.toml").write_text(changed, encoding="utf-8")
+        for path in (
+            "README.md",
+            "LICENSE",
+            "CONTRIBUTING.md",
+            "CHANGELOG.md",
+            "pyproject.toml",
+        ):
+            source = root / path
+            (scratch / path).write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
+        (scratch / ".ethos" / "workspace.toml").write_text(
+            (root / ".ethos" / "workspace.toml").read_text(encoding="utf-8"),
+            encoding="utf-8",
+        )
+        invalid = release_policy_report(scratch)
+    finally:
+        import shutil
+
+        shutil.rmtree(scratch)
+
+    assert report["publication_topology"]["state"] == "ready"
+    assert "publication_topology_capabilities_invalid:gitlab" in invalid["required_gaps"]
+
+
 def test_release_policy_uses_configured_branch_roles_for_protected_refs(
     tmp_path: Path,
 ) -> None:
@@ -102,7 +139,9 @@ def test_release_policy_uses_configured_branch_roles_for_protected_refs(
     assert report["host_profile"]["provider"] == "gitlab"
 
 
-def test_release_policy_does_not_accept_retired_provider_section(tmp_path: Path) -> None:
+def test_release_policy_does_not_accept_retired_provider_section(
+    tmp_path: Path,
+) -> None:
     root = tmp_path / "repo"
     (root / ".ethos").mkdir(parents=True)
     for path in ("README.md", "LICENSE", "CONTRIBUTING.md", "CHANGELOG.md"):
@@ -185,7 +224,9 @@ def test_sbom_projection_lists_workspace_and_lockfile_transitive_packages() -> N
     assert sbom["package_layers"]["lockfile_transitive"] > 0
 
 
-def test_sbom_projection_handles_missing_and_irregular_lockfile_packages(tmp_path: Path) -> None:
+def test_sbom_projection_handles_missing_and_irregular_lockfile_packages(
+    tmp_path: Path,
+) -> None:
     root = tmp_path / "repo"
     (root / "packages" / "sample").mkdir(parents=True)
     (root / "pyproject.toml").write_text(

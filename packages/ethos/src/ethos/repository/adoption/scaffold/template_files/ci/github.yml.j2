@@ -1,5 +1,11 @@
 name: ethos
-on: [push, pull_request]
+on:
+  pull_request:
+  push:
+    branches:
+      - dev
+      - main
+      - 'submit/**'
 jobs:
   verify:
     runs-on: ubuntu-latest

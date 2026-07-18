@@ -86,7 +86,9 @@ def hook_admission_report(  # noqa: PLR0913, RUF100 - exact request envelope pre
         "layer": normalized_layer,
         "hook": HOOK_LAYERS[normalized_layer],
         "target_root": repo.as_posix(),
-        "expected_root": expected_root.resolve().as_posix() if expected_root else repo.as_posix(),
+        "expected_root": expected_root.resolve().as_posix()
+        if expected_root
+        else repo.as_posix(),
         "role": status["role"],
         "branch": status["branch"],
         "editor_root": editor_root.resolve().as_posix() if editor_root else "",
@@ -127,6 +129,7 @@ def push_admission_report(
     pushed_head: str,
     remote_head: str = "",
     reconciliation: ReconciliationObservation = _NO_RECONCILIATION,
+    remote_name: str = "origin",
 ) -> dict[str, object]:
     """Admit or block a push whose destination is a protected role.
 
@@ -136,15 +139,33 @@ def push_admission_report(
     executed proof bound to the exact pushed HEAD. Pushes to unprotected refs (work
     lanes, feature branches) are admitted untouched.
     """
+    from ethos.repository.release.core import release_config
+    from ethos.repository.release.publication import publication_branch_admission
+    from ethos.repository.release.publication import publication_topology
+
     repo = root.resolve()
     policy = load_branch_role_policy(repo)
     branch = target_ref.removeprefix("refs/heads/")
     role = policy.role_for_branch(branch)
+    topology = publication_topology(release_config(repo))
+    branch_admission = publication_branch_admission(
+        topology,
+        branch=branch,
+        candidate_branch=policy.candidate_branch,
+        accepted_branch=policy.accepted_branch,
+        release_branch=policy.release_branch,
+        submit_branch_prefix=policy.submit_branch_prefix,
+        remote_name=remote_name,
+        enforce=not bool(topology.get("legacy")),
+    )
+    branch_admission_gaps = list(
+        cast("list[str]", branch_admission["enforcement_gaps"])
+    )
     identity_report = push_identity_policy_report(
         repo,
         pushed_head,
         remote_head,
-        f"origin/{policy.accepted_branch}"
+        f"{remote_name}/{policy.accepted_branch}"
         if role == "submit_lane" and remote_head == _ZERO_OID
         else "",
         reconciliation=(
@@ -169,13 +190,15 @@ def push_admission_report(
         "target_ref": target_ref,
         "target_branch": branch,
         "role": role,
+        "remote_name": remote_name,
         "pushed_head": pushed_head,
         "remote_head": remote_head,
+        "publication_branch_admission": branch_admission,
         "identity_policy": identity_report,
         "decision": {"action": "allow", "reason": "push_admitted"},
         "required_gaps": [],
     }
-    proof_required = role in PROTECTED_WRITE_ROLES
+    proof_required = role in PROTECTED_WRITE_ROLES and not branch_admission_gaps
     proof_required_gaps = _proof_gaps(repo, pushed_head) if proof_required else []
     # The push plane must enforce the SAME candidate-train topology as the local ref-move
     # reducer, or a raw `git push --force <proven-old-sha>:dev` rewinds/side-steps the
@@ -184,14 +207,35 @@ def push_admission_report(
     # old-value, pushed_head the new. Only the accepted branch carries this invariant;
     # the candidate branch's proof gate is already covered above.
     topology_gaps = (
-        accepted_advance_gaps(repo, policy, old_value=remote_head, new_value=pushed_head)
+        accepted_advance_gaps(
+            repo, policy, old_value=remote_head, new_value=pushed_head
+        )
         if branch == policy.accepted_branch
         else []
     )
-    gaps = [*identity_gaps, *proof_required_gaps, *topology_gaps]
+    gaps = [
+        *branch_admission_gaps,
+        *identity_gaps,
+        *proof_required_gaps,
+        *topology_gaps,
+    ]
     if gaps:
         reason = (
-            "push_to_protected_role_not_proven"
+            "publication_candidate_branch_remote_forbidden"
+            if branch == policy.candidate_branch and branch_admission_gaps
+            else "publication_remote_branch_forbidden"
+            if any(
+                gap.startswith("publication_remote_branch_forbidden:")
+                for gap in branch_admission_gaps
+            )
+            else "publication_remote_name_missing"
+            if "publication_remote_name_missing" in branch_admission_gaps
+            else "publication_remote_target_unknown"
+            if any(
+                gap.startswith("publication_remote_target_unknown:")
+                for gap in branch_admission_gaps
+            )
+            else "push_to_protected_role_not_proven"
             if proof_required_gaps or topology_gaps
             else "pushed_commit_identity_not_allowed"
         )
@@ -369,7 +413,9 @@ def ref_move_admission_report(
         if intent["gap"]:
             gap = str(intent["gap"])
             gaps.append(
-                gap.replace("accepted_ref_move", "release_mirror_ref_move") if mirror else gap
+                gap.replace("accepted_ref_move", "release_mirror_ref_move")
+                if mirror
+                else gap
             )
         reason = (
             "release_mirror_ref_move_bypasses_accepted_closeout"
@@ -496,7 +542,9 @@ def _post_write_report(
     base["branch"] = status["branch"]
     base["changed_paths"] = changed_paths
     expected = {_relative(repo, path) for path in expected_paths}
-    unexpected = [path for path in changed_paths if not expected or path not in expected]
+    unexpected = [
+        path for path in changed_paths if not expected or path not in expected
+    ]
     base["unexpected_paths"] = unexpected
     if status["role"] in PROTECTED_WRITE_ROLES and changed_paths:
         return _fused(base, "post_write_protected_root_dirty")

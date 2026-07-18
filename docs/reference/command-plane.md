@@ -416,9 +416,11 @@ ethos publish --apply --authorize --expect-head <git-head>
 
 Those commands still report readiness in the current implementation; remote
 publication remains an adapter responsibility. `publish --json` reports
-`summary.remote_push = "not_performed"`,
-`summary.remote_publication_state = "deferred"`, and
-`data.publication.remote_state = "deferred"` while still exposing the configured
+`summary.remote_push = "not_performed"` and exposes GitLab and GitHub as
+independent `data.remote_observations` targets. It does not infer one target
+from the other, push either target, or claim hosted CI; the remote publication
+state may remain `deferred` or report observed synchronization while preserving
+that no-push boundary. The command still exposes the configured
 submit branch plan. Remote reachability is separate and appears under
 `data.remote_availability.state` and `data.publication.remote_availability.state`.
 The local fallback package also reports

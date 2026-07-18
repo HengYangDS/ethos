@@ -172,7 +172,7 @@ def render_template(name: str, context: TemplateContext) -> str:
     payload = context.model_dump(mode="json")
     if isinstance(context, RepositoryTemplateContext):
         payload["host_ci"] = {
-            "github": ".github/workflows/ethos.yml",
+            "github": ".github/workflows/ci.yml",
             "gitlab": ".gitlab-ci.yml",
         }.get(context.profile, "")
     return environment().get_template(name).render(payload)

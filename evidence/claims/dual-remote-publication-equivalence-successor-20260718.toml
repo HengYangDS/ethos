@@ -1,0 +1,60 @@
+[claim]
+id = "dual-remote-publication-equivalence-successor-20260718"
+change_id = "dual-remote-publication-equivalence-successor-20260718"
+subject = "ethos:dual-remote-publication-topology"
+state = "active"
+summary = "Local, GitLab, and GitHub publication topology retains explicit target and branch boundaries."
+
+[evidence]
+dated = "evidence/chronicle/dual-remote-publication-equivalence-successor-20260718/2026-07-18.md"
+sha256 = "72659f9bd5339383ad5361ea71eaaef0b7e7d86a4632064c8c44866725893405"
+evidence_ids = ["evidence:dual-remote-publication-equivalence-successor-20260718"]
+binding = "Dated topology record, named remote admission, provider projection, scaffold, and no-push observation evidence are digest-bound."
+verifier = "digest_only"
+tests = [
+  ".venv/bin/pytest -q tests/unit/release/test_policy_attestation.py tests/unit/lanes/test_hook_admission.py tests/architecture/test_ci_provider_projections.py tests/unit/adoption/test_profiles.py tests/unit/cli/land/test_publication.py",
+  ".venv/bin/ruff check packages/ethos/src/ethos/repository/release packages/ethos/src/ethos/adapters/admission/core.py packages/ethos/src/ethos/domain/land/publication.py packages/ethos/src/ethos/surface/cli/root/lifecycle.py",
+  "openspec validate --all --strict --json",
+  "ethos openspec --lifecycle --json",
+  "ethos prove --execute --expect-head <committed-head> --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "Declared equal GitLab and GitHub publication topology, remote branch admission, and no-push observations."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-18-dual-remote-publication-equivalence-successor-20260718"
+fallback = "Retain local-only candidate admission and do not elevate either remote to a governance authority."
+kill_signal = "A candidate or work branch can reach a declared remote, a remote target is implicit, or one remote observation claims the other target state."
+
+[promotion]
+targets = [
+  ".ethos/release.toml",
+  ".githooks/pre-push",
+  ".config/ci/templates/hosted/github-actions.yml",
+  ".config/ci/templates/hosted/gitlab-ci.yml",
+  ".github/workflows/ci.yml",
+  ".gitlab-ci.yml",
+  "docs/governance/forge-provider-contract.md",
+  "docs/governance/release-governance.md",
+  "docs/reference/command-plane.md",
+  "evidence/claims/dual-remote-publication-equivalence-successor-20260718.toml",
+  "evidence/chronicle/dual-remote-publication-equivalence-successor-20260718/2026-07-18.md",
+  "openspec/changes/archive/2026-07-18-dual-remote-publication-equivalence-successor-20260718",
+  "openspec/specs/repository-governance/spec.md",
+  "packages/ethos/src/ethos/adapters/admission/core.py",
+  "packages/ethos/src/ethos/domain/land/publication.py",
+  "packages/ethos/src/ethos/repository/adoption/scaffold",
+  "packages/ethos/src/ethos/repository/release",
+  "packages/ethos/src/ethos/surface/cli/hook/core.py",
+  "packages/ethos/src/ethos/surface/cli/root/lifecycle.py",
+  "tests/architecture/test_ci_provider_projections.py",
+  "tests/unit/adoption/test_profiles.py",
+  "tests/unit/cli/land/test_publication.py",
+  "tests/unit/lanes/test_hook_admission.py",
+  "tests/unit/release/test_policy_attestation.py",
+]

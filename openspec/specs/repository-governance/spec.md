@@ -1267,16 +1267,28 @@ repository-root `dist/` default.
 
 ETHOS SHALL support GitHub and GitLab as hosted forge providers that project the
 same repository governance contract without changing `status -> plan -> prove ->
-land -> publish` semantics.
+land -> publish` semantics. GitLab and GitHub SHALL be independent remote planes
+with equal `repository`, `ci_cd`, and `publication` capabilities; their distinct
+organization-collaboration and public-distribution roles SHALL NOT create
+precedence, failover, or replacement semantics. Provider CI SHALL accept only
+`dev`, `main`, and `submit/*`; the local-only `candidate/dev` and every `work/*`
+branch SHALL be excluded.
 
 #### Scenario: Dual provider templates mirror one gate contract
 
-- **WHEN** a repository enables both GitHub and GitLab provider profiles
-- **THEN** provider templates SHALL invoke repository-owned gate scripts or
-  `ethos ...` commands for the same required gate classes
-- **AND** provider YAML drift SHALL be checkable from tracked template sources
-- **AND** provider-specific syntax checks SHALL NOT be treated as repository
-  proof by themselves.
+- **WHEN** the provider templates and projections are inspected
+- **THEN** GitHub and GitLab SHALL include `dev`, `main`, and `submit/*`
+- **AND** neither SHALL include `candidate/dev`
+- **AND** each SHALL invoke repository-owned gate scripts or `ethos ...`
+  command surfaces rather than duplicating policy inline.
+
+#### Scenario: Local candidate is excluded from hosted providers
+
+- **WHEN** the provider templates and projections are inspected
+- **THEN** GitHub and GitLab SHALL include `dev`, `main`, and `submit/*`
+- **AND** neither SHALL include `candidate/dev`
+- **AND** each SHALL invoke repository-owned gate scripts or `ethos ...`
+  command surfaces rather than duplicating policy inline.
 
 #### Scenario: Local provider emulation remains local evidence
 
@@ -1293,6 +1305,30 @@ land -> publish` semantics.
 - **AND** normal emulator run modes SHALL refuse untracked files by default
   because provider materialization can omit them
 - **AND** it SHALL explicitly state that hosted provider status was not claimed.
+
+### Requirement: Equal dual-remote publication topology
+
+ETHOS SHALL model publication as one local verification/install layer and two
+independent remote targets: GitLab organization collaboration and GitHub public
+distribution. Each target SHALL expose equal `repository`, `ci_cd`, and
+`publication` capabilities; no target SHALL become a fallback or authority
+above the other. Remote admission and hosted CI SHALL allow only `dev`, `main`,
+and `submit/*`; `candidate/dev` and every `work/*` branch SHALL remain local.
+`ethos publish` SHALL observe declared targets independently without pushing or
+claiming hosted CI success.
+
+#### Scenario: explicit remote admission preserves local candidate isolation
+
+- **WHEN** pre-push admission receives a named declared target and `candidate/dev`
+- **THEN** it SHALL reject the destination before proof admission
+- **AND** it SHALL emit `publication_candidate_branch_remote_forbidden:candidate/dev`.
+
+#### Scenario: independent remote observations remain no-push
+
+- **WHEN** `ethos publish` observes GitLab and GitHub
+- **THEN** it SHALL expose each target separately
+- **AND** `remote_push` SHALL remain `not_performed`
+- **AND** hosted CI status SHALL remain unclaimed.
 
 ### Requirement: Tool adoption remains profile and adapter scoped
 

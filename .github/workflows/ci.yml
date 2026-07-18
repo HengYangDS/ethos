@@ -5,8 +5,8 @@ on:
   push:
     branches:
       - dev
-      - candidate/dev
       - main
+      - 'submit/**'
   workflow_dispatch:
 
 permissions:

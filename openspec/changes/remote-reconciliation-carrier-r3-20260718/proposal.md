@@ -16,17 +16,12 @@ force updates would discard reachable history.
 
 ## Capabilities
 
-### New Capabilities
+- `repository-governance`: subject=maintainer-remote-reconciliation; reuse=extend; change=modify; facet:lifecycle=authoring,validation,closeout,publish; facet:surface=docs,openspec,evidence; facet:authority=source,openspec,claim,evidence
 
-- None.
+## Out Of Scope
 
-### Modified Capabilities
-
-- : add a bounded requirement for normal-merge,
-  evidence-first reconciliation of divergent protected refs.
-
-## Impact
-
-The change affects this OpenSpec carrier, claim, Chronicle, and the resulting
-Git history. It does not add dependencies, alter a release version or tag, use
-a force update, or treat local proof as remote or hosted-provider proof.
+- No force update, rebase, reset-based ref movement, stash-based conflict
+  bypass, release, version change, or tag.
+- No claim that local proof establishes remote equality or hosted-provider
+  success.
+- No mutation of foreign Work Lanes or their artifacts.

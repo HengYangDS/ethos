@@ -213,7 +213,6 @@ def publication_readiness(
     policy: BranchRolePolicy,
     remote_availability: dict[str, object] | None = None,
     local_ci_fallback: dict[str, object] | None = None,
-    remote_matrix: dict[str, object] | None = None,
 ) -> dict[str, object]:
     """Assemble publication readiness with remote probe and local-ci fallback."""
     submit_branch = policy.submit_branch_for_source(branch)
@@ -240,7 +239,6 @@ def publication_readiness(
         }
     )
     fallback = local_ci_fallback or local_ci_fallback_package(remote_availability=availability)
-    matrix = remote_matrix or _pending_remote_matrix()
     evidence_status = fallback.get("evidence_status")
     if isinstance(evidence_status, dict):
         evidence_next_action = str(
@@ -255,9 +253,7 @@ def publication_readiness(
     # `not_performed` because this command never mutates a remote.
     remote_state = "synchronized" if sync.get("state") == "synchronized" else "deferred"
     next_action = evidence_next_action
-    if availability.get("available") is True and matrix.get("state") == "reconciliation_required":
-        next_action = "reconcile diverged remotes before creating a submit branch"
-    elif availability.get("available") is True:
+    if availability.get("available") is True:
         next_action = "create configured submit branch when remote publication is available"
     if remote_state == "synchronized":
         next_action = "remote tracking ref is synchronized; no push was performed"
@@ -270,7 +266,6 @@ def publication_readiness(
         "remote_state": remote_state,
         "remote_availability": availability,
         "remote_sync": sync,
-        "remote_matrix": matrix,
         "fallback_evidence": fallback,
         "submit_branch": submit_branch,
         "local_submit_package": local_submit_package(
@@ -284,13 +279,16 @@ def publication_readiness(
     }
 
 
-def _pending_remote_matrix() -> dict[str, object]:
+def publication_with_remote_matrix(
+    publication: dict[str, object],
+    matrix: dict[str, object],
+    *,
+    remote_available: bool,
+) -> dict[str, object]:
+    """Refine the publication next action without changing its compatibility shape."""
+    if not remote_available or matrix.get("state") != "reconciliation_required":
+        return publication
     return {
-        "kind": "git_remote_tracking_matrix",
-        "state": "pending",
-        "remotes": {},
-        "configured_remote_count": 0,
-        "blocking": False,
-        "required_gaps": [],
-        "advisory_gaps": [],
+        **publication,
+        "next_actions": ["reconcile diverged remotes before creating a submit branch"],
     }

@@ -25,7 +25,6 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from ethos.adapters.mutation.closeout import core as closeout_core
 from ethos.adapters.mutation.core import apply_candidate_to_accepted
 from ethos.adapters.mutation.core import apply_land_to_candidate
 from ethos.adapters.mutation.proof import record_executed_proof
@@ -34,7 +33,6 @@ from ethos.repository.evidence.core import EvidenceSet
 from ethos.repository.policy.gates import default_gate_ids
 from tests.support.contract_helpers import _declare_minimal_code_correctness
 from tests.support.contract_helpers import conformant_proof_run
-from tests.support.subprocesses import completed as cp
 
 _HOOK_SRC = Path(__file__).resolve().parents[3] / ".githooks" / "reference-transaction"
 _RUNTIME_BOOTSTRAP_SRC = (
@@ -284,21 +282,39 @@ def test_committed_profile_closeout_blocks_raw_move(tmp_path: Path) -> None:
     assert _g(repo, "rev-parse", "main").stdout.strip() == candidate_head
 
 
-def test_hook_replacement_requires_executable_candidate_hook(tmp_path: Path) -> None:
-    """A changed candidate hook must exist and be executable before closeout CAS."""
-    accepted_root = tmp_path / "accepted"
-    candidate_root = tmp_path / "candidate"
-    accepted_root.mkdir()
-    candidate_root.mkdir()
-    transition = closeout_core.CloseoutTransition("refs/heads/dev", "old", "new", "new")
+def test_hook_removal_blocks_closeout_before_accepted_refs_move(tmp_path: Path) -> None:
+    """A changed candidate hook must remain executable before sanctioned closeout CAS."""
+    if not _HOOK_SRC.exists():
+        return
+    os.environ["ETHOS_ACTOR"] = "agent:test:case:agent-test"
+    repo = _armed_repo(tmp_path, mirror=True)
+    work = tmp_path / "remove-hook"
+    candidate_before = _g(repo, "rev-parse", "candidate/dev").stdout.strip()
+    acquire_lease(
+        _lease_db(repo),
+        subject="work/remove-hook",
+        holder_ref="agent:test:case:agent-test",
+        payload={"expected_head": candidate_before},
+    )
+    _g(repo, "worktree", "add", "-b", "work/remove-hook", str(work), "candidate/dev")
+    (work / ".githooks" / "reference-transaction").unlink()
+    (work / ".ethos" / "profile.toml").unlink(missing_ok=True)
+    _g(work, "add", ".")
+    work_head = _commit(work, "remove candidate hook")
+    _seed_proof(work, work_head)
+    landed = apply_land_to_candidate(root=work, authorized=True, expect_head=work_head)
+    assert landed["ok"] is True, landed
+    candidate_head = _g(repo, "rev-parse", "candidate/dev").stdout.strip()
+    dev_before = _g(repo, "rev-parse", "dev").stdout.strip()
+    main_before = _g(repo, "rev-parse", "main").stdout.strip()
+    _seed_proof(repo, candidate_head)
 
-    def fake_git(root: Path, *_args: str, **_kwargs: object) -> subprocess.CompletedProcess[str]:
-        return cp(stdout="candidate\n" if root == accepted_root else "")
+    closeout = apply_candidate_to_accepted(root=repo, authorized=True, expect_head=dev_before)
 
-    update = closeout_core._atomic_update(accepted_root, candidate_root, transition, None, fake_git)
-
-    assert update.returncode == 1
-    assert update.stderr == f"candidate_closeout_hook_unavailable:{candidate_root / '.githooks'}"
+    assert closeout["ok"] is False, closeout
+    assert closeout["required_gaps"] == ["candidate_closeout_hook_unavailable"]
+    assert _g(repo, "rev-parse", "dev").stdout.strip() == dev_before
+    assert _g(repo, "rev-parse", "main").stdout.strip() == main_before
 
 
 def test_candidate_hook_bootstraps_accepted_ff_closeout_from_legacy_incumbent(

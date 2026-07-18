@@ -1,0 +1,13 @@
+schema_version = 1
+paths = [
+  "docs/governance/evolution-campaign.md",
+  "docs/reference/command-plane.md",
+  "evidence/claims/worktree-governance-campaign-20260718.toml",
+  "evidence/chronicle/worktree-governance-campaign-20260718/**",
+  "evolution/campaigns/repo-first-worktree-governance-v2/**",
+  "openspec/changes/repo-first-worktree-governance-campaign-20260718/**",
+  "openspec/specs/repository-governance/spec.md",
+  "packages/ethos/src/ethos/domain/campaign/closeout.py",
+  "packages/ethos/src/ethos/surface/cli/campaign.py",
+  "tests/unit/cli/test_contracts_proof.py",
+]

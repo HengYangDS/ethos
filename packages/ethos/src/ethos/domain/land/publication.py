@@ -6,99 +6,77 @@ import json
 import re
 from pathlib import Path
 from typing import TYPE_CHECKING
-from typing import cast
 
 if TYPE_CHECKING:
     from ethos_core.contracts.branch.roles import BranchRolePolicy
 
+LOCAL_CI_FALLBACK_EVIDENCE_PATH = Path("build/evidence/local-ci/fallback.json")
+_FALLBACK = "run tools/ci/scripts/run-local-ci.sh as local fallback evidence"
+_NOT_PROBED = {"state": "not_probed", "available": False}
+_REMOTE_PAIR = 2
+
 
 def remote_publication_deferred(
-    remote_availability: dict[str, object] | None = None,
-    *,
-    root: Path | None = None,
+    remote_availability: dict[str, object] | None = None, *, root: Path | None = None
 ) -> dict[str, object]:
-    """Describe the deferred remote-publication state (no remote adapter success)."""
-    availability = remote_availability or {
-        "kind": "git_remote_availability",
-        "remote": "origin",
-        "state": "not_probed",
-        "available": False,
-        "blocking": False,
-        "required_gaps": [],
-        "advisory_gaps": [],
-    }
-    state = str(availability.get("state") or "not_probed")
-    reason = (
-        "remote unavailable; use local-ci fallback evidence"
-        if state in {"unavailable", "unconfigured"}
-        else "remote publication adapter unavailable"
-    )
+    """Describe deferred remote publication without claiming adapter success."""
+    availability = remote_availability or {"remote": "origin", **_NOT_PROBED}
     return {
         "remote_push": "not_performed",
         "state": "deferred",
-        "reason": reason,
+        "reason": "remote unavailable; use local-ci fallback evidence"
+        if availability.get("state") in {"unavailable", "unconfigured"}
+        else "remote publication adapter unavailable",
         "availability": availability,
         "fallback": local_ci_fallback_package(remote_availability=availability, root=root),
     }
 
 
-LOCAL_CI_FALLBACK_EVIDENCE_PATH = Path("build/evidence/local-ci/fallback.json")
-
-
 def local_ci_fallback_evidence_status(
-    repo: Path,
-    *,
-    current_head: str,
-    remote_availability_state: str = "not_probed",
+    repo: Path, *, current_head: str, remote_availability_state: str = "not_probed"
 ) -> dict[str, object]:
     """Project whether local-ci fallback evidence is bound to the current HEAD."""
-    relative_path = LOCAL_CI_FALLBACK_EVIDENCE_PATH.as_posix()
-    path = repo / LOCAL_CI_FALLBACK_EVIDENCE_PATH
-    if not path.exists():
-        return {
-            "state": "missing",
-            "path": relative_path,
-            "current_head": current_head,
-            "evidence_head": "",
-            "ok": False,
-            "next_action": "run tools/ci/scripts/run-local-ci.sh as local fallback evidence",
-        }
+    relative = LOCAL_CI_FALLBACK_EVIDENCE_PATH.as_posix()
     try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
+        payload = json.loads((repo / LOCAL_CI_FALLBACK_EVIDENCE_PATH).read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return _evidence_status("missing", relative, current_head)
     except json.JSONDecodeError:
-        return {
-            "state": "invalid",
-            "path": relative_path,
-            "current_head": current_head,
-            "evidence_head": "",
-            "ok": False,
-            "next_action": (
-                "rerun tools/ci/scripts/run-local-ci.sh to refresh local fallback evidence"
-            ),
-        }
+        return _evidence_status("invalid", relative, current_head)
     evidence_head = str(payload.get("head") or "")
-    evidence_ok = payload.get("ok") is True
-    current = bool(current_head) and evidence_head == current_head and evidence_ok
-    next_action = "run tools/ci/scripts/run-local-ci.sh as local fallback evidence"
+    current = bool(current_head) and evidence_head == current_head and payload.get("ok") is True
+    action = _FALLBACK
     if current:
-        if remote_availability_state == "not_probed":
-            next_action = (
-                "remote availability not probed; local-ci fallback evidence is current at HEAD"
-            )
-        elif remote_availability_state in {"unavailable", "unconfigured"}:
-            next_action = "remote unavailable; local-ci fallback evidence is current at HEAD"
-        else:
-            next_action = (
-                "remote availability observed; local-ci fallback evidence is current at HEAD"
-            )
+        state = (
+            "not probed"
+            if remote_availability_state == "not_probed"
+            else "unavailable"
+            if remote_availability_state in {"unavailable", "unconfigured"}
+            else "observed"
+        )
+        action = f"remote availability {state}; local-ci fallback evidence is current at HEAD"
     return {
         "state": "current" if current else "stale",
-        "path": relative_path,
+        "path": relative,
         "current_head": current_head,
         "evidence_head": evidence_head,
         "ok": current,
         "command": str(payload.get("command") or ""),
-        "next_action": next_action,
+        "next_action": action,
+    }
+
+
+def _evidence_status(state: str, path: str, current_head: str) -> dict[str, object]:
+    """Render a missing or invalid fallback-evidence status."""
+    return {
+        "state": state,
+        "path": path,
+        "current_head": current_head,
+        "evidence_head": "",
+        "ok": False,
+        "next_action": _FALLBACK
+        if state in {"missing", "not_checked"}
+        else "rerun tools/ci/scripts/run-local-ci.sh to refresh local fallback evidence",
     }
 
 
@@ -108,29 +86,18 @@ def local_ci_fallback_package(
     root: Path | None = None,
     current_head: str = "",
 ) -> dict[str, object]:
-    """Describe local CI fallback evidence without claiming hosted CI success."""
-    availability = remote_availability or {
-        "kind": "git_remote_availability",
-        "remote": "origin",
-        "state": "not_probed",
-        "available": False,
-        "blocking": False,
-    }
-    evidence_status = (
+    """Describe local fallback evidence without claiming hosted CI success."""
+    availability = remote_availability or {"remote": "origin", **_NOT_PROBED}
+    status = (
         local_ci_fallback_evidence_status(
             root,
             current_head=current_head,
             remote_availability_state=str(availability.get("state") or "not_probed"),
         )
-        if root is not None
-        else {
-            "state": "not_checked",
-            "path": LOCAL_CI_FALLBACK_EVIDENCE_PATH.as_posix(),
-            "current_head": current_head,
-            "evidence_head": "",
-            "ok": False,
-            "next_action": "run tools/ci/scripts/run-local-ci.sh as local fallback evidence",
-        }
+        if root
+        else _evidence_status(
+            "not_checked", LOCAL_CI_FALLBACK_EVIDENCE_PATH.as_posix(), current_head
+        )
     )
     return {
         "kind": "local_ci_fallback",
@@ -140,7 +107,7 @@ def local_ci_fallback_package(
         "remote_availability_state": str(availability.get("state") or "not_probed"),
         "command": "tools/ci/scripts/run-local-ci.sh",
         "owner_scripts": local_ci_owner_scripts(root=root),
-        "evidence_status": evidence_status,
+        "evidence_status": status,
     }
 
 
@@ -156,47 +123,104 @@ def local_ci_owner_scripts(*, root: Path | None = None) -> list[str]:
                 )
             )
         )
-    return [
-        "tools/ci/scripts/run-python-lint.sh",
-        "tools/ci/scripts/run-config-lint.sh",
-        "tools/ci/scripts/run-shell-lint.sh",
-        "tools/ci/scripts/run-markdown-lint.sh",
-        "tools/ci/scripts/run-import-linter.sh",
-        "tools/ci/scripts/run-docstring-coverage.sh",
-        "tools/ci/scripts/run-module-layout.sh",
-        "tools/ci/scripts/run-bandit.sh",
-        "tools/ci/scripts/run-repository-hygiene.sh",
-        "tools/ci/scripts/run-secrets-scan.sh",
-        "tools/ci/scripts/run-ci-template-check.sh",
-        "tools/ci/scripts/run-format-selection.sh",
-        "tools/ci/scripts/run-architecture-projection-drift.sh",
-        "tools/ci/scripts/run-runbook-registry-check.sh",
-        "tools/ci/scripts/run-mcp-smoke.sh",
-        "tools/ci/scripts/run-closeout-evidence-manifest.sh",
-        "tools/ci/scripts/run-local-state-audit.sh",
-        "tools/ci/scripts/run-release-supply-chain.sh",
-        "tools/ci/scripts/run-python-tests.sh",
-    ]
+    names = """run-python-lint run-config-lint run-shell-lint run-markdown-lint
+run-import-linter run-docstring-coverage run-module-layout run-bandit
+run-repository-hygiene run-secrets-scan run-ci-template-check run-format-selection
+run-architecture-projection-drift run-runbook-registry-check run-mcp-smoke
+run-closeout-evidence-manifest run-local-state-audit run-release-supply-chain
+run-python-tests"""
+    return [f"tools/ci/scripts/{name}.sh" for name in names.split()]
 
 
-def local_submit_package(
-    *,
-    branch: str,
-    submit_branch: str,
-    remote_availability: dict[str, object] | None = None,
-    local_ci_fallback: dict[str, object] | None = None,
+def publication_readiness(
+    *, branch: str, local_ok: bool, policy: BranchRolePolicy, **options: object
 ) -> dict[str, object]:
-    """Plan the local submit-branch package (remote push deferred)."""
+    """Assemble local readiness and independent no-push remote observations."""
+    remote_availability = options.get("remote_availability")
+    local_ci_fallback = options.get("local_ci_fallback")
+    topology = options.get("topology")
+    remote_observations = options.get("remote_observations")
+    availability = remote_availability if isinstance(remote_availability, dict) else _NOT_PROBED
+    sync = (
+        availability.get("tracking_sync")
+        if isinstance(availability.get("tracking_sync"), dict)
+        else {"state": "not_checked", "available": False}
+    )
+    observations = (
+        remote_observations
+        if isinstance(remote_observations, dict)
+        else {"gitlab": {"availability": availability, "sync": sync}}
+    )
+    primary = observations.get("gitlab", {})
+    availability, sync = (
+        primary.get("availability", availability),
+        primary.get("sync", sync),
+    )
+    fallback = (
+        local_ci_fallback
+        if isinstance(local_ci_fallback, dict)
+        else local_ci_fallback_package(remote_availability=availability)
+    )
+    available = [
+        item
+        for item in observations.values()
+        if item.get("availability", {}).get("available") is True
+    ]
+    synchronized = any(
+        item.get("sync", {}).get("state") == "synchronized" for item in observations.values()
+    )
+    state = (
+        "synchronized"
+        if synchronized
+        else "targets_available"
+        if remote_observations and len(available) == _REMOTE_PAIR
+        else "target_available"
+        if remote_observations and available
+        else "deferred"
+    )
+    evidence = fallback.get("evidence_status")
+    action = (
+        "remote tracking ref is synchronized; no push was performed"
+        if synchronized
+        else "create configured submit branch when remote publication is available"
+        if available
+        else str(evidence.get("next_action") or _FALLBACK)
+        if isinstance(evidence, dict)
+        else _FALLBACK
+    )
+    submit = policy.submit_branch_for_source(branch)
+    return {
+        "mode": "local_readiness",
+        "remote_push": "not_performed",
+        "remote_state": state,
+        "remote_availability": availability,
+        "remote_sync": sync,
+        "remote_topology": topology if isinstance(topology, dict) else {"legacy": True},
+        "remote_observations": observations,
+        "fallback_evidence": fallback,
+        "submit_branch": submit,
+        "local_submit_package": _submit_package(branch, submit, availability, fallback),
+        "required_gaps": [] if local_ok else ["local_publish_readiness_blocked"],
+        "next_actions": [action] if local_ok else ["resolve local publish readiness gaps"],
+    }
+
+
+def _submit_package(
+    branch: str,
+    submit: str,
+    availability: dict[str, object],
+    fallback: dict[str, object],
+) -> dict[str, object]:
+    """Return the local plan for a future configured submit branch."""
     return {
         "kind": "submit_branch_plan",
         "source_branch": branch,
-        "submit_branch": submit_branch,
+        "submit_branch": submit,
         "remote_push": "not_performed",
         "remote_state": "deferred",
         "blocking": False,
-        "remote_availability": remote_availability or {"state": "not_probed", "available": False},
-        "local_ci_fallback": local_ci_fallback
-        or local_ci_fallback_package(remote_availability=remote_availability),
+        "remote_availability": availability,
+        "local_ci_fallback": fallback,
         "required_steps": [
             "land work lane to candidate role",
             "fast-forward accepted root from candidate role",
@@ -206,149 +230,28 @@ def local_submit_package(
     }
 
 
-def publication_readiness(
+def local_submit_package(
     *,
     branch: str,
-    local_ok: bool,
-    policy: BranchRolePolicy,
+    submit_branch: str,
     remote_availability: dict[str, object] | None = None,
     local_ci_fallback: dict[str, object] | None = None,
-    topology: dict[str, object] | None = None,
-    remote_observations: dict[str, dict[str, object]] | None = None,
 ) -> dict[str, object]:
-    """Assemble local readiness and independent no-push remote observations."""
-    submit_branch = policy.submit_branch_for_source(branch)
-    availability = remote_availability or _not_probed_availability("origin")
-    sync_value = availability.get("tracking_sync")
-    sync = (
-        cast("dict[str, object]", sync_value)
-        if isinstance(sync_value, dict)
-        else _not_checked_sync()
-    )
-    observations = _remote_observations(
-        remote_availability=availability,
-        remote_sync=sync,
-        observations=remote_observations,
-    )
-    gitlab_observation = observations["gitlab"]
-    availability = cast("dict[str, object]", gitlab_observation["availability"])
-    sync = cast("dict[str, object]", gitlab_observation["sync"])
+    """Return the public compatibility projection of the local submit plan."""
+    availability = remote_availability or _NOT_PROBED
     fallback = local_ci_fallback or local_ci_fallback_package(remote_availability=availability)
-    evidence_status = fallback.get("evidence_status")
-    if isinstance(evidence_status, dict):
-        evidence_next_action = str(
-            evidence_status.get("next_action")
-            or "run tools/ci/scripts/run-local-ci.sh as local fallback evidence"
-        )
-    else:
-        evidence_next_action = "run tools/ci/scripts/run-local-ci.sh as local fallback evidence"
-
-    # A synchronized tracking ref is a distinct observation. It confirms that the
-    # locally observed remote-tracking ref matches HEAD, while `remote_push` stays
-    # `not_performed` because this command never mutates a remote.
-    synchronized = [
-        target
-        for target in ("gitlab", "github")
-        if cast("dict[str, object]", observations[target]["sync"]).get("state") == "synchronized"
-    ]
-    available = [
-        target
-        for target in ("gitlab", "github")
-        if cast("dict[str, object]", observations[target]["availability"]).get("available") is True
-    ]
-    remote_state = (
-        "synchronized"
-        if synchronized
-        else "targets_available"
-        if remote_observations and len(available) == 2
-        else "target_available"
-        if remote_observations and available
-        else "deferred"
-    )
-    next_action = evidence_next_action
-    if available:
-        next_action = "create configured submit branch when remote publication is available"
-    if remote_state == "synchronized":
-        next_action = "remote tracking ref is synchronized; no push was performed"
-    next_actions = [next_action] if local_ok else ["resolve local publish readiness gaps"]
-    return {
-        "mode": "local_readiness",
-        "remote_push": "not_performed",
-        # This is remote *publication* state, not remote reachability.
-        # Reachability remains visible under remote_availability.state.
-        "remote_state": remote_state,
-        "remote_availability": availability,
-        "remote_sync": sync,
-        "remote_topology": topology or {"legacy": True},
-        "remote_observations": observations,
-        "fallback_evidence": fallback,
-        "submit_branch": submit_branch,
-        "local_submit_package": local_submit_package(
-            branch=branch,
-            submit_branch=submit_branch,
-            remote_availability=availability,
-            local_ci_fallback=fallback,
-        ),
-        "required_gaps": [] if local_ok else ["local_publish_readiness_blocked"],
-        "next_actions": next_actions,
-    }
-
-
-def _not_probed_availability(remote: str) -> dict[str, object]:
-    """Return a bounded no-network availability observation for one remote."""
-    return {
-        "kind": "git_remote_availability",
-        "remote": remote,
-        "state": "not_probed",
-        "available": False,
-        "blocking": False,
-        "required_gaps": [],
-        "advisory_gaps": [],
-    }
-
-
-def _not_checked_sync() -> dict[str, object]:
-    """Return a bounded tracking observation without reading a remote ref."""
-    return {
-        "kind": "git_remote_tracking_sync",
-        "state": "not_checked",
-        "available": False,
-        "blocking": False,
-        "required_gaps": [],
-        "advisory_gaps": [],
-    }
-
-
-def _remote_observations(
-    *,
-    remote_availability: dict[str, object],
-    remote_sync: dict[str, object],
-    observations: dict[str, dict[str, object]] | None,
-) -> dict[str, dict[str, object]]:
-    """Normalize independent GitLab/GitHub observations without hierarchy."""
-    gitlab = (
-        dict(observations["gitlab"])
-        if observations and isinstance(observations.get("gitlab"), dict)
-        else {"availability": remote_availability, "sync": remote_sync}
-    )
-    github = (
-        dict(observations["github"])
-        if observations and isinstance(observations.get("github"), dict)
-        else {"availability": _not_probed_availability(""), "sync": _not_checked_sync()}
-    )
-    return {"gitlab": gitlab, "github": github}
+    return _submit_package(branch, submit_branch, availability, fallback)
 
 
 def publication_with_remote_matrix(
-    publication: dict[str, object],
-    matrix: dict[str, object],
-    *,
-    remote_available: bool,
+    publication: dict[str, object], matrix: dict[str, object], *, remote_available: bool
 ) -> dict[str, object]:
-    """Refine the publication next action without changing its compatibility shape."""
-    if not remote_available or matrix.get("state") != "reconciliation_required":
-        return publication
-    return {
-        **publication,
-        "next_actions": ["reconcile diverged remotes before creating a submit branch"],
-    }
+    """Refine the no-push next action for a reconciliation requirement."""
+    return (
+        {
+            **publication,
+            "next_actions": ["reconcile diverged remotes before creating a submit branch"],
+        }
+        if remote_available and matrix.get("state") == "reconciliation_required"
+        else publication
+    )

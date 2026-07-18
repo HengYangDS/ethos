@@ -92,6 +92,11 @@ def prepare_accepted_closeout(monkeypatch: pytest.MonkeyPatch) -> None:
         "carry_executed_proof_record",
         lambda **kwargs: {"ok": True, "state": "carried", "required_gaps": []},
     )
+    monkeypatch.setattr(
+        closeout_core,
+        "_atomic_update",
+        lambda *_args, **_kwargs: cp(stdout="", returncode=0),
+    )
 
 
 def evidence_for(head: str, runs: list[dict[str, object]] | None = None) -> dict[str, object]:
@@ -388,17 +393,38 @@ def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
         lambda root, *args, check=True, **kwargs: cp(
             stdout="h1\n",
             stderr="cannot lock ref",
-            returncode=1 if args[:1] == ("update-ref",) else 0,
+            returncode=1 if args[-2:] == ("update-ref", "--stdin") else 0,
+        ),
+    )
+    monkeypatch.setattr(
+        closeout_core,
+        "_atomic_update",
+        lambda *_args, **_kwargs: cp(stderr="cannot lock ref", returncode=1),
+    )
+    assert mutation_core.apply_candidate_to_accepted(
+        root=tmp_path, authorized=True, expect_head="h1"
+    )["required_gaps"] == ["accepted_atomic_update_rejected"]
+    monkeypatch.setattr(
+        closeout_core,
+        "_atomic_update",
+        lambda *_args, **_kwargs: cp(
+            stderr="candidate_closeout_hook_unavailable:/candidate/.githooks",
+            returncode=1,
         ),
     )
     assert mutation_core.apply_candidate_to_accepted(
         root=tmp_path, authorized=True, expect_head="h1"
-    )["required_gaps"] == ["accepted_advanced_concurrently"]
+    )["required_gaps"] == ["candidate_closeout_hook_unavailable"]
+    monkeypatch.setattr(
+        closeout_core,
+        "_atomic_update",
+        lambda *_args, **_kwargs: cp(stdout="", returncode=0),
+    )
 
     def fake_git_sync_failed(_root, *args, check=True, **_kwargs):
         _ = check
         reset_attempts = fake_git_sync_failed.reset_attempts
-        if args[:1] == ("update-ref",):
+        if args[-2:] == ("update-ref", "--stdin"):
             return cp(stdout="", returncode=0)
         if args[:2] == ("reset", "--hard"):
             fake_git_sync_failed.reset_attempts = reset_attempts + 1
@@ -417,7 +443,7 @@ def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
 
     def fake_git_clean_after_sync(_root, *args, check=True, **_kwargs):
         _ = check
-        if args[:1] == ("update-ref",):
+        if args[-2:] == ("update-ref", "--stdin"):
             return cp(stdout="", returncode=0)
         if args[:2] == ("reset", "--hard"):
             return cp(stdout="", returncode=0)
@@ -432,6 +458,34 @@ def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
         ]
         == "accepted_validated"
     )
+
+
+def test_hook_replacement_requires_executable_candidate_hook(tmp_path: Path) -> None:
+    accepted_root = tmp_path / "accepted"
+    candidate_root = tmp_path / "candidate"
+    accepted_root.mkdir()
+    candidate_root.mkdir()
+    transition = closeout_core.CloseoutTransition("refs/heads/dev", "old", "new", "new")
+    calls: list[tuple[Path, tuple[str, ...]]] = []
+
+    def fake_git(root: Path, *args: str, **_kwargs):
+        calls.append((root, args))
+        return cp(stdout="candidate\n" if root == accepted_root else "")
+
+    update = closeout_core._atomic_update(accepted_root, candidate_root, transition, None, fake_git)
+
+    assert update.returncode == 1
+    assert update.stderr == f"candidate_closeout_hook_unavailable:{candidate_root / '.githooks'}"
+    assert calls == [
+        (
+            candidate_root,
+            ("rev-parse", "--verify", "HEAD:.githooks/reference-transaction"),
+        ),
+        (
+            accepted_root,
+            ("rev-parse", "--verify", "HEAD:.githooks/reference-transaction"),
+        ),
+    ]
 
 
 def test_release_mirror_closeout_edge_paths(monkeypatch, tmp_path):
@@ -464,9 +518,18 @@ def test_release_mirror_closeout_edge_paths(monkeypatch, tmp_path):
         == "synced"
     )
     failed = closeout_core.sync_release_mirror(
-        transition, worktrees, "new", "old", lambda *_a, **_k: cp(stderr="sync", returncode=1)
+        transition,
+        worktrees,
+        "new",
+        "old",
+        lambda *_a, **_k: cp(stderr="sync", returncode=1),
     )
     monkeypatch.setattr(closeout_core, "sync_release_mirror", lambda *_a: failed)
+    monkeypatch.setattr(
+        closeout_core,
+        "_atomic_update",
+        lambda *_args, **_kwargs: cp(stdout="", returncode=0),
+    )
     assert closeout_core.promote_candidate_to_accepted(
         request,
         dependencies=closeout_core.CloseoutDependencies(
@@ -517,7 +580,7 @@ def test_closeout_blocks_dirty_accepted_worktree_after_sync(
 
     def fake_git_dirty_after_sync(_root, *args, check=True, **_kwargs):
         _ = check
-        if args[:1] == ("update-ref",):
+        if args[-2:] == ("update-ref", "--stdin"):
             return cp(stdout="", returncode=0)
         if args[:2] == ("reset", "--hard"):
             return cp(stdout="", returncode=0)

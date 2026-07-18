@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-07-18
+goal: Keep the local accepted_ff closeout hook boundary on the exact candidate
+  hook source when that source replaces the incumbent hook.

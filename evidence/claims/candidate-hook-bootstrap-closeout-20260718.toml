@@ -1,0 +1,40 @@
+[claim]
+id = "candidate-hook-bootstrap-closeout-20260718"
+subject = "ethos:candidate-hook-bootstrap-closeout"
+state = "active"
+change_id = "candidate-hook-bootstrap-closeout-20260718"
+summary = "Official local closeout selects the clean candidate hook for its atomic protected-ref transaction while raw Git remains on configured hook policy."
+
+[evidence]
+dated = "evidence/chronicle/candidate-hook-bootstrap-closeout-20260718/2026-07-18.md"
+sha256 = "2a68d7dd7b3bfa31858afc75e1ba84c2fe6e8733f70217fdba09f011d0ee0c15"
+evidence_ids = ["evidence:candidate-hook-bootstrap-closeout-20260718"]
+binding = "The active OpenSpec carrier, armed hook regression, lifecycle checks, exact proof, and candidate-external receipt bind the one-shot candidate-hook bootstrap route."
+verifier = "digest_only"
+tests = [
+  "pytest -q tests/unit/lanes/test_armed_hook_closeout_e2e.py tests/unit/coverage/test_core_state_claims_edges.py",
+  "ethos openspec --change candidate-hook-bootstrap-closeout-20260718 --lifecycle --json",
+  "ethos prove --execute --expect-head <committed-head> --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "Local candidate hook selection for one official accepted_ff closeout atomic update."
+
+[carriers]
+openspec = "openspec/changes/candidate-hook-bootstrap-closeout-20260718"
+fallback = "Block closeout when the exact candidate hook cannot be used; retain normal configured hook policy for raw Git operations."
+kill_signal = "An official closeout mutates global hook configuration, proceeds without an executable candidate hook, or raw Git uses the closeout-only candidate hook route."
+
+[promotion]
+targets = [
+  "packages/ethos/src/ethos/adapters/mutation/closeout/core.py",
+  "tests/unit/lanes/test_armed_hook_closeout_e2e.py",
+  "openspec/specs/repository-governance/spec.md",
+  "openspec/changes/candidate-hook-bootstrap-closeout-20260718",
+  "evidence/claims/candidate-hook-bootstrap-closeout-20260718.toml",
+  "evidence/chronicle/candidate-hook-bootstrap-closeout-20260718/2026-07-18.md",
+]

@@ -92,10 +92,16 @@ def _promotion_preflight(
             else "release_mirror_diverged"
         )
         return _blocked(
-            request.policy, request.current_head, [gap], candidate_head=request.candidate_head
+            request.policy,
+            request.current_head,
+            [gap],
+            candidate_head=request.candidate_head,
         )
     accepted = _transition(
-        request.root, request.policy.accepted_branch, request.candidate_head, dependencies.run_git
+        request.root,
+        request.policy.accepted_branch,
+        request.candidate_head,
+        dependencies.run_git,
     )
     release = (
         _transition(
@@ -135,16 +141,16 @@ def _execute_promotion(
         )
         if failure := proof_carry_failure(request, proof):
             return failure
-        update = _atomic_update(request.root, accepted, release, dependencies.run_git)
+        update = _atomic_update(
+            request.root,
+            request.candidate_path,
+            accepted,
+            release,
+            dependencies.run_git,
+        )
         if update.returncode:
             dependencies.discard_proof(request.root, request.candidate_head)
-            return _blocked(
-                request.policy,
-                request.current_head,
-                ["accepted_advanced_concurrently"],
-                remediation=remediation.remediation_for_gaps(["accepted_advanced_concurrently"]),
-                stderr=update.stderr.strip(),
-            )
+            return _atomic_update_failure(request, accepted, update, dependencies.run_git)
         synced, attempts = _sync(request.root, request.candidate_head, dependencies.run_git)
         if synced.returncode:
             return _blocked(
@@ -201,7 +207,30 @@ def _execute_promotion(
             clear_closeout_intent(request.root, str(intent["nonce"]))
 
 
-def _atomic_update(root, accepted, release, run_git):
+def _atomic_update(root, candidate_path, accepted, release, run_git):
+    """Use candidate hooks only when the candidate replaces the hook control path."""
+    candidate_hook = candidate_path / ".githooks" / "reference-transaction"
+    if not _candidate_replaces_hook(root, candidate_path, candidate_hook, run_git):
+        return _run_atomic_update(root, accepted, release, run_git)
+    if not candidate_hook.is_file() or not candidate_hook.stat().st_mode & 0o111:
+        return _missing_candidate_hook_result(candidate_hook.parent)
+    return _run_atomic_update(root, accepted, release, run_git, hook_path=candidate_hook.parent)
+
+
+def _candidate_replaces_hook(root, candidate_path, candidate_hook, run_git):
+    """Detect a tracked candidate hook replacement without reading mutable config."""
+    candidate_blob = _tree_blob(candidate_path, "HEAD", ".githooks/reference-transaction", run_git)
+    accepted_blob = _tree_blob(root, "HEAD", ".githooks/reference-transaction", run_git)
+    return candidate_blob != accepted_blob
+
+
+def _tree_blob(root, tree_ref, path, run_git):
+    """Read one tracked blob identity; a missing path yields an empty sentinel."""
+    return run_git(root, "rev-parse", "--verify", f"{tree_ref}:{path}", check=False).stdout.strip()
+
+
+def _run_atomic_update(root, accepted, release, run_git, *, hook_path=None):
+    """Execute the all-or-nothing ref program, optionally with a scoped hook path."""
     transitions = (accepted, release) if release else (accepted,)
     program = "\n".join(
         [
@@ -212,7 +241,53 @@ def _atomic_update(root, accepted, release, run_git):
             "",
         ]
     )
-    return run_git(root, "update-ref", "--stdin", check=False, stdin=program)
+    args = (
+        ("-c", f"core.hooksPath={hook_path.as_posix()}", "update-ref", "--stdin")
+        if hook_path is not None
+        else ("update-ref", "--stdin")
+    )
+    return run_git(root, *args, check=False, stdin=program)
+
+
+def _missing_candidate_hook_result(hooks_path):
+    """Block before a hook-replacement closeout could run without candidate source."""
+    import subprocess
+
+    return subprocess.CompletedProcess(
+        args=("git", "update-ref", "--stdin"),
+        returncode=1,
+        stdout="",
+        stderr=f"candidate_closeout_hook_unavailable:{hooks_path.as_posix()}",
+    )
+
+
+def _atomic_update_failure(request, accepted, update, run_git):
+    """Classify CAS failure from the observed accepted ref, not an assumed race."""
+    accepted_now = run_git(
+        request.root, "rev-parse", "--verify", accepted.ref_name, check=False
+    ).stdout.strip()
+    if accepted_now and accepted_now != accepted.old_value:
+        gaps = ["accepted_advanced_concurrently"]
+        return _blocked(
+            request.policy,
+            request.current_head,
+            gaps,
+            remediation=remediation.remediation_for_gaps(gaps),
+            stderr=update.stderr.strip(),
+            observed_accepted_head=accepted_now,
+        )
+    gap = (
+        "candidate_closeout_hook_unavailable"
+        if "candidate_closeout_hook_unavailable:" in update.stderr
+        else "accepted_atomic_update_rejected"
+    )
+    return _blocked(
+        request.policy,
+        request.current_head,
+        [gap],
+        stderr=update.stderr.strip(),
+        observed_accepted_head=accepted_now or accepted.old_value,
+    )
 
 
 def _transition(root, branch, head, run_git):

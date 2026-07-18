@@ -10,8 +10,7 @@ from typing import Any
 from typing import cast
 
 import ethos.adapters.mutation.lane_lifecycle.handoff.package as handoff_package
-from ethos.adapters.mutation.core import MutationRequest
-from ethos.adapters.mutation.core import mutation_envelope
+from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.mutation.lane_lifecycle.core import repo_root
 from ethos.adapters.mutation.lane_lifecycle.core import run_git
 from ethos.adapters.repo.dirty.core import changed_paths
@@ -25,6 +24,7 @@ from ethos_core.contracts.coordination import HolderRef
 from ethos_core.contracts.lifecycle.core import HANDOFF_EXPORT
 from ethos_core.contracts.lifecycle.core import HANDOFF_IMPORT
 from ethos_core.contracts.lifecycle.core import HANDOFF_REVOKE_SOURCE
+from ethos_core.contracts.lifecycle.core import MutationRequest
 from ethos_core.contracts.lifecycle.core import reduce_guards
 
 if TYPE_CHECKING:

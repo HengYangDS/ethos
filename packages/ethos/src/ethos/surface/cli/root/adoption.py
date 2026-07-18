@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import ethos.adapters.repo.git as git
-from ethos.adapters.mutation.core import MutationRequest
 from ethos.domain.status import adoption_mutation_gaps
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import resolve_root
+from ethos_core.contracts.lifecycle.core import MutationRequest
 from ethos_core.normalization.core import object_sequence
 from ethos_core.normalization.core import string_sequence
 from ethos_core.result import EthosResult

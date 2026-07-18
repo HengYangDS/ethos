@@ -24,7 +24,7 @@ from ethos.adapters.admission.closeout_intent.core import CloseoutTransition
 from ethos.adapters.admission.closeout_intent.core import write_closeout_intent
 from ethos.adapters.admission.core import push_admission_report
 from ethos.adapters.admission.core import ref_move_admission_report
-from ethos.adapters.admission.core import work_lane_ref_transition_report
+from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.mutation.proof import _promotion_required_gate_ids
 from ethos.adapters.mutation.proof import executed_proof_record
 from ethos.adapters.mutation.proof import record_executed_proof

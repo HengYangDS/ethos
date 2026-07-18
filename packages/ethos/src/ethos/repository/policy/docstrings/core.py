@@ -109,10 +109,7 @@ def _python_files(root: Path, policy: dict[str, Any]) -> list[Path]:
 
 
 def _public_symbols(root: Path, policy: dict[str, Any]) -> list[PublicSurfaceSymbol]:
-    symbols: list[PublicSurfaceSymbol] = []
-    for path in _python_files(root, policy):
-        symbols.extend(_file_symbols(root, path))
-    return symbols
+    return [symbol for path in _python_files(root, policy) for symbol in _file_symbols(root, path)]
 
 
 def _excluded(rel: str, policy: dict[str, Any]) -> bool:
@@ -138,13 +135,11 @@ def _file_symbols(root: Path, path: Path) -> list[PublicSurfaceSymbol]:
                 documented=bool(ast.get_docstring(tree)),
             )
         )
-    exports = _explicit_exports(tree)
-    for node in tree.body:
-        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
-            if _is_cli_command(node) or node.name in exports:
-                symbols.append(_symbol(rel, module_name, node, "function"))
-        elif isinstance(node, ast.ClassDef) and node.name in exports:
-            symbols.append(_symbol(rel, module_name, node, "class"))
+    symbols.extend(
+        _symbol(rel, module_name, node, "function")
+        for node in tree.body
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef) and _is_cli_command(node)
+    )
     return symbols
 
 
@@ -243,23 +238,6 @@ def _module_name(rel: str) -> str:
     if parts[-1] == "__init__":
         parts = parts[:-1]
     return ".".join(parts)
-
-
-def _explicit_exports(tree: ast.Module) -> set[str]:
-    exports: set[str] = set()
-    for node in tree.body:
-        if not isinstance(node, ast.Assign):
-            continue
-        targets_all = (
-            isinstance(target, ast.Name) and target.id == "__all__" for target in node.targets
-        )
-        if not any(targets_all):
-            continue
-        if isinstance(node.value, ast.List | ast.Tuple | ast.Set):
-            for item in node.value.elts:
-                if isinstance(item, ast.Constant) and isinstance(item.value, str):
-                    exports.add(item.value)
-    return exports
 
 
 def _is_cli_command(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:

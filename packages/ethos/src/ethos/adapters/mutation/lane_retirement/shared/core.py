@@ -7,9 +7,9 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import Protocol
 
-from ethos.adapters.mutation.core import MutationRequest
-from ethos.adapters.mutation.core import mutation_envelope
+from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.mutation.lane_lifecycle.core import run_git
+from ethos_core.contracts.lifecycle.core import MutationRequest
 
 if TYPE_CHECKING:
     from pathlib import Path

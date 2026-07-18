@@ -17,8 +17,8 @@ def test_repository_audit_reports_design_integrity_contract() -> None:
 
 
 def test_repository_audit_blocks_design_truth_center_regression(tmp_path: Path) -> None:
-    from ethos.repository.audit import DESIGN_INTEGRITY_DOCS
     from ethos.repository.audit import repository_audit
+    from ethos.repository.design.integrity import DESIGN_INTEGRITY_DOCS
 
     for relative in DESIGN_INTEGRITY_DOCS:
         source = Path.cwd() / relative
@@ -50,8 +50,8 @@ def test_repository_audit_blocks_design_truth_center_regression(tmp_path: Path) 
 
 
 def test_repository_audit_blocks_vendor_center_leak(tmp_path: Path) -> None:
-    from ethos.repository.audit import DESIGN_INTEGRITY_DOCS
     from ethos.repository.audit import repository_audit
+    from ethos.repository.design.integrity import DESIGN_INTEGRITY_DOCS
 
     for relative in DESIGN_INTEGRITY_DOCS:
         source = Path.cwd() / relative
@@ -77,8 +77,8 @@ def test_repository_audit_blocks_vendor_center_leak(tmp_path: Path) -> None:
 
 
 def test_repository_audit_blocks_root_projection_pollution(tmp_path: Path) -> None:
-    from ethos.repository.audit import DESIGN_INTEGRITY_DOCS
     from ethos.repository.audit import repository_audit
+    from ethos.repository.design.integrity import DESIGN_INTEGRITY_DOCS
 
     for relative in DESIGN_INTEGRITY_DOCS:
         source = Path.cwd() / relative

@@ -9,13 +9,17 @@ admission surface.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import subprocess
-from typing import TYPE_CHECKING
+from pathlib import Path
 
-if TYPE_CHECKING:
-    from pathlib import Path
-
-_COMMIT_IDENTITY_FIELDS = ("author_name", "author_email", "committer_name", "committer_email")
+_COMMIT_IDENTITY_FIELDS = (
+    "author_name",
+    "author_email",
+    "committer_name",
+    "committer_email",
+)
 
 
 def _git(root: Path, *args: str, text: bool = False) -> subprocess.CompletedProcess[str]:
@@ -55,6 +59,16 @@ def _pushed_commit_range(root: Path, *, pushed_head: str, remote_head: str) -> l
     return completed.stdout.splitlines()
 
 
+def _pushed_commit_range_excluding(
+    root: Path, *, pushed_head: str, trusted_baselines: tuple[str, ...]
+) -> list[str]:
+    """List only commits absent from every explicitly trusted baseline."""
+    if not _commit_exists(root, pushed_head):
+        return []
+    completed = _git(root, "rev-list", pushed_head, "--not", *trusted_baselines, text=True)
+    return completed.stdout.splitlines() if completed.returncode == 0 else []
+
+
 def _commit_identity(root: Path, revision: str) -> dict[str, str]:
     completed = _git(root, "show", "-s", "--format=%an%x00%ae%x00%cn%x00%ce", revision, text=True)
     parts = completed.stdout.rstrip("\n").split("\x00")
@@ -81,8 +95,88 @@ def _identity_range_base(
     return "", False, [f"push_identity_submit_baseline_not_ancestor:{trusted_baseline}"]
 
 
+def reconciliation_receipt_payload(
+    *, submit_branch: str, source_head: str, origin_head: str, github_head: str
+) -> dict[str, object]:
+    """Build the deterministic, non-authorizing dual-remote observation payload."""
+    payload: dict[str, object] = {
+        "schema_version": 1,
+        "kind": "submit-reconciliation",
+        "submit_branch": submit_branch,
+        "source_head": source_head,
+        "origin_ref": "origin/dev",
+        "origin_head": origin_head,
+        "github_ref": "github/dev",
+        "github_head": github_head,
+        "mints_authority": False,
+    }
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+    return {**payload, "payload_digest": hashlib.sha256(encoded).hexdigest()}
+
+
+def _read_reconciliation_receipt(path: str) -> dict[str, object] | None:
+    if not path:
+        return None
+    try:
+        payload = json.loads(Path(path).expanduser().resolve().read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def _reconciliation_baselines(
+    root: Path,
+    *,
+    pushed_head: str,
+    submit_branch: str,
+    primary_baseline: str,
+    reconciliation_receipt_path: str,
+    observed_origin_head: str,
+    observed_github_head: str,
+) -> tuple[tuple[str, ...], list[str]]:
+    """Read one exact receipt; it scopes history but never grants mutation authority."""
+    if not submit_branch or not _commit_exists(root, pushed_head):
+        return (), []
+    if _commit_exists(root, primary_baseline) and commit_contained_in(
+        root, primary_baseline, pushed_head
+    ):
+        return (), []
+    if not reconciliation_receipt_path:
+        return (), ["push_identity_reconciliation_receipt_required"]
+    receipt = _read_reconciliation_receipt(reconciliation_receipt_path)
+    if receipt is None:
+        return (), ["push_identity_reconciliation_receipt_invalid"]
+    expected = reconciliation_receipt_payload(
+        submit_branch=submit_branch,
+        source_head=pushed_head,
+        origin_head=str(receipt.get("origin_head") or ""),
+        github_head=str(receipt.get("github_head") or ""),
+    )
+    gaps: list[str] = []
+    for field, expected_value in expected.items():
+        if receipt.get(field) != expected_value:
+            gaps.append(f"push_identity_reconciliation_receipt_{field}_mismatch")
+    origin_head = str(receipt.get("origin_head") or "")
+    github_head = str(receipt.get("github_head") or "")
+    if observed_origin_head != origin_head:
+        gaps.append("push_identity_reconciliation_origin_head_stale")
+    if observed_github_head != github_head:
+        gaps.append("push_identity_reconciliation_github_head_stale")
+    missing = [head for head in (origin_head, github_head) if not _commit_exists(root, head)]
+    if missing:
+        gaps.extend(f"push_identity_reconciliation_baseline_missing:{head}" for head in missing)
+    return (origin_head, github_head) if not gaps else (), gaps
+
+
 def push_identity_policy_report(
-    root: Path, pushed_head: str, remote_head: str = "", trusted_baseline: str = ""
+    root: Path,
+    pushed_head: str,
+    remote_head: str = "",
+    trusted_baseline: str = "",
+    reconciliation_submit_branch: str = "",
+    reconciliation_receipt_path: str = "",
+    observed_origin_head: str = "",
+    observed_github_head: str = "",
 ) -> dict[str, object]:
     """Report optional push-range Git identity admission.
 
@@ -115,17 +209,36 @@ def push_identity_policy_report(
     if not expected_email:
         gaps.append("push_identity_user_email_missing")
     head_exists = _commit_exists(root, pushed_head)
+    trusted_reconciliation_baselines, reconciliation_gaps = _reconciliation_baselines(
+        root,
+        pushed_head=pushed_head,
+        submit_branch=reconciliation_submit_branch,
+        primary_baseline=trusted_baseline,
+        reconciliation_receipt_path=reconciliation_receipt_path,
+        observed_origin_head=observed_origin_head,
+        observed_github_head=observed_github_head,
+    )
     range_base, range_is_trusted, baseline_gaps = _identity_range_base(
         root,
         pushed_head=pushed_head,
         remote_head=remote_head,
         trusted_baseline=trusted_baseline,
     )
-    gaps.extend(baseline_gaps)
+    gaps.extend(reconciliation_gaps)
+    if not trusted_reconciliation_baselines:
+        gaps.extend(baseline_gaps)
     commits = (
-        _pushed_commit_range(root, pushed_head=pushed_head, remote_head=range_base)
-        if head_exists and range_is_trusted
-        else []
+        _pushed_commit_range_excluding(
+            root,
+            pushed_head=pushed_head,
+            trusted_baselines=trusted_reconciliation_baselines,
+        )
+        if trusted_reconciliation_baselines
+        else (
+            _pushed_commit_range(root, pushed_head=pushed_head, remote_head=range_base)
+            if head_exists and range_is_trusted
+            else []
+        )
     )
     if pushed_head and not head_exists:
         gaps.append("push_identity_commit_range_unreadable")

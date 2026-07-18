@@ -127,6 +127,9 @@ def push_admission_report(
     target_ref: str,
     pushed_head: str,
     remote_head: str = "",
+    reconciliation_receipt_path: str = "",
+    observed_origin_head: str = "",
+    observed_github_head: str = "",
 ) -> dict[str, object]:
     """Admit or block a push whose destination is a protected role.
 
@@ -147,6 +150,12 @@ def push_admission_report(
         f"origin/{policy.accepted_branch}"
         if role == "submit_lane" and remote_head == _ZERO_OID
         else "",
+        reconciliation_submit_branch=branch
+        if role == "submit_lane" and remote_head == _ZERO_OID
+        else "",
+        reconciliation_receipt_path=reconciliation_receipt_path,
+        observed_origin_head=observed_origin_head,
+        observed_github_head=observed_github_head,
     )
     identity_gaps = list(cast("list[str]", identity_report["required_gaps"]))
     base = {

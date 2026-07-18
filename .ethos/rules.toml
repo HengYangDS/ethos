@@ -85,7 +85,7 @@ python_total = 58722
 global_total = 73739
 
 [quality.source_budget.debt]
-maximum_total = 7827
+maximum_total = 8004
 waves = [
   { id = "T5", due_on = "2026-07-18", state = "active" },
   { id = "T8", due_on = "2026-07-18", state = "active" },
@@ -170,16 +170,6 @@ expected_net_deletion = 165
 allowance_by_category = { python_tests = 135, shell = 107 }
 
 [[quality.source_budget.debt.records]]
-id = "hosted-ci-remediation-20260717"
-owner = "hosted-ci-remediation-20260717"
-replacement = "archive the active carrier; retain only the existing owner script and focused regressions"
-deletion_wave = "hosted-ci-remediation-closeout"
-expiry = "2026-07-18"
-allowance = 102
-expected_net_deletion = 102
-allowance_by_category = { python_tests = 40, shell = 12, toml = 46, yaml = 4 }
-
-[[quality.source_budget.debt.records]]
 id = "adopter-lifecycle-claim-freshness-20260718"
 owner = "adopter-lifecycle-claim-freshness-20260718"
 replacement = "fold behavioral semantic-scope regressions into the existing lifecycle claim suite and remove the temporary claim-scope carrier after durable lifecycle evidence is refreshed."
@@ -190,6 +180,16 @@ expected_net_deletion = 125
 allowance_by_category = { python_tests = 89, toml = 24 }
 
 [[quality.source_budget.debt.records]]
+id = "hosted-ci-remediation-20260717"
+owner = "hosted-ci-remediation-20260717"
+replacement = "archive the active carrier; retain only the existing owner script and focused regressions"
+deletion_wave = "hosted-ci-remediation-closeout"
+expiry = "2026-07-18"
+allowance = 102
+expected_net_deletion = 102
+allowance_by_category = { python_tests = 40, shell = 12, toml = 46, yaml = 4 }
+
+[[quality.source_budget.debt.records]]
 id = "bounded-status-read-model-20260718"
 owner = "refresh-base-ledger-merge-20260717"
 replacement = "consolidate bounded foreign-lane status fixtures and semantic rebase-recovery harnesses after coordination readers and ledger fixtures share one contract carrier"
@@ -198,6 +198,17 @@ expiry = "2026-07-18"
 allowance = 776
 expected_net_deletion = 776
 allowance_by_category = { python_product = 180, python_tests = 528, toml = 10, json = 20 }
+
+[[quality.source_budget.debt.records]]
+id = "dual-remote-reconciliation-admission-20260718"
+owner = "remote-reconciliation-admission-20260718"
+replacement = "fold dual-remote reconciliation receipt validation into the shared external-evidence contract after provider-neutral receipt verification is available"
+deletion_wave = "dual-remote-reconciliation-compression"
+expiry = "dual-remote-reconciliation-compression"
+allowance = 177
+
+[quality.source_budget.debt.records.allowance_by_category]
+python_product = 177
 
 [gates.local-state-audit]
 command = "tools/ci/scripts/run-local-state-audit.sh"

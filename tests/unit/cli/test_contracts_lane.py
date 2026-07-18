@@ -11,9 +11,9 @@ if TYPE_CHECKING:
 from tests.support.contract_helpers import git
 from tests.support.contract_helpers import init_git_repo
 from tests.support.contract_helpers import init_repo_with_candidate
+from tests.support.contract_helpers import write_role_policy
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
-from tests.support.ethos_cli_runner import write_role_policy
 
 
 def _retire_landed(repo: Path, *arguments: str, blocked: bool = False) -> dict[str, object]:

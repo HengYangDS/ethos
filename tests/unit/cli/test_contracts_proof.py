@@ -250,16 +250,6 @@ def test_prove_rejects_mismatched_expected_head() -> None:
     assert payload["data"]["expected_head"]["ok"] is False
 
 
-def test_prove_rejects_mismatched_expected_head_with_nonzero_exit() -> None:
-    payload = run_ethos_blocked("prove", "--expect-head", "not-the-current-head", "--json")
-
-    assert payload["ok"] is False
-    assert payload["state"] == "gapped"
-    assert "expected_head_mismatch" in payload["required_gaps"]
-    assert payload["data"]["expected_head"]["expected"] == "not-the-current-head"
-    assert payload["data"]["expected_head"]["ok"] is False
-
-
 def test_init_apply_rejects_untracked_expected_head(tmp_path: Path) -> None:
     target = tmp_path / "sample"
     target.mkdir()

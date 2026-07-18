@@ -15,13 +15,7 @@ from ethos.adapters.mutation.resolution.receipts import lane_resolution_inventor
 from ethos.adapters.mutation.resolution.receipts import write_resolution_receipt
 from tests.support.lane_helpers import git
 from tests.support.lane_helpers import init_repo
-
-
-def _orphan_lane(tmp_path: Path) -> tuple[Path, Path]:
-    repo = init_repo(tmp_path / "repo")
-    lane = tmp_path / "repo-work-orphan"
-    git(repo, "worktree", "add", "-b", "work/orphan", lane.as_posix(), "dev")
-    return repo, lane
+from tests.support.lane_helpers import orphan_work_lane
 
 
 def _chronicle(repo: Path, token: str) -> str:
@@ -72,7 +66,7 @@ def _preserve(repo: Path, lane: Path, tmp_path: Path) -> dict[str, object]:
 def test_resolution_materializes_immutable_receipt_and_inventory(
     tmp_path: Path,
 ) -> None:
-    repo, lane = _orphan_lane(tmp_path)
+    repo, lane = orphan_work_lane(tmp_path)
     applied = _preserve(repo, lane, tmp_path)
 
     receipt = applied["receipt"]
@@ -104,7 +98,7 @@ def test_resolution_materializes_immutable_receipt_and_inventory(
 def test_resolution_receipt_refuses_to_overwrite_existing_decision(
     tmp_path: Path,
 ) -> None:
-    repo, lane = _orphan_lane(tmp_path)
+    repo, lane = orphan_work_lane(tmp_path)
     applied = _preserve(repo, lane, tmp_path)
 
     with pytest.raises(FileExistsError):
@@ -112,7 +106,7 @@ def test_resolution_receipt_refuses_to_overwrite_existing_decision(
 
 
 def test_inventory_reports_receipt_without_preservation_package(tmp_path: Path) -> None:
-    repo, lane = _orphan_lane(tmp_path)
+    repo, lane = orphan_work_lane(tmp_path)
     applied = _preserve(repo, lane, tmp_path)
 
     package = repo / str(applied["preservation_package"]["path"])
@@ -161,7 +155,7 @@ def test_inventory_keeps_legacy_manifest_visible_without_inventing_receipt(
 def test_manual_clear_requires_exact_chronicle_and_manifest_binding(
     tmp_path: Path,
 ) -> None:
-    repo, lane = _orphan_lane(tmp_path)
+    repo, lane = orphan_work_lane(tmp_path)
     applied = _preserve(repo, lane, tmp_path)
     package = repo / str(applied["preservation_package"]["path"])
     manifest_path = package / "manifest.json"
@@ -233,7 +227,7 @@ def test_manual_clear_reports_missing_package_and_manifest_mismatch(tmp_path: Pa
 def test_manual_clear_removal_failure_keeps_package_and_discards_clear_receipt(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    repo, lane = _orphan_lane(tmp_path)
+    repo, lane = orphan_work_lane(tmp_path)
     applied = _preserve(repo, lane, tmp_path)
     package = repo / str(applied["preservation_package"]["path"])
     manifest_sha256 = hashlib.sha256((package / "manifest.json").read_bytes()).hexdigest()

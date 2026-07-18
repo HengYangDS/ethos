@@ -12,7 +12,6 @@ from pathlib import Path
 
 import pytest
 
-import ethos.adapters.admission.core as admission
 import ethos.adapters.admission.prewrite as prewrite
 import ethos.adapters.admission.transitions as transitions
 import ethos.adapters.mutation.lane_lifecycle.handoff.core as handoff
@@ -694,7 +693,7 @@ def test_lease_core_ambiguous_missing_and_time_edges(tmp_path: Path) -> None:
 
 def test_admission_and_prewrite_normalization_edges(tmp_path: Path, monkeypatch) -> None:
     assert (
-        admission.work_lane_ref_transition_report(  # noqa: RUF100, SLF001 - exact admission state coverage
+        transitions.work_lane_ref_transition_report(  # noqa: RUF100, SLF001 - exact admission state coverage
             root=tmp_path,
             phase="prepared",
             ref_name="refs/heads/work/new",

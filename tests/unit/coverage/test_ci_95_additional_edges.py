@@ -17,6 +17,7 @@ import ethos.adapters.shadow.execution as shadow_execution
 import ethos.adapters.shadow.semantics as shadow_semantics
 import ethos.adapters.store.state.lease.lifecycle.core as state
 import ethos.repository.evidence.parity.core as parity
+import ethos.repository.evidence.shadow.payload as shadow_payload
 from ethos.adapters.mutation import lanes
 from ethos.adapters.store.retrieval import common as retrieval_common
 from ethos.adapters.store.retrieval import indexing as retrieval_indexing
@@ -445,7 +446,7 @@ def test_parity_evidence_validation_edges(tmp_path: Path) -> None:
 
     target = tmp_path / "target"
     target.mkdir()
-    payload = parity.build_tracked_parity_evidence(
+    payload = shadow_payload.build_tracked_parity_evidence(
         adopter="generic",
         target=target,
         shadow={"ok": True, "required_gaps": [], "accepted_summary": {}},
@@ -465,7 +466,7 @@ def test_parity_evidence_validation_edges(tmp_path: Path) -> None:
     )["evidence"]["required_gaps"]
     assert "parity_evidence_invalid:generic:unknown_capability" in gaps
 
-    payload = parity.build_tracked_parity_evidence(
+    payload = shadow_payload.build_tracked_parity_evidence(
         adopter="generic",
         target=target,
         shadow={"ok": True, "required_gaps": [], "accepted_summary": {}},

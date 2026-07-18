@@ -327,6 +327,7 @@ def test_external_shadow_runner_binds_command_root(
     expected = [str(part).format(root=tmp_path.resolve().as_posix()) for part in suffix]
     assert calls[0][0][-len(expected) :] == expected
     assert (calls[0][1] == tmp_path.resolve()) is case["uses_cwd"]
+    assert calls[0][0][0] == shadow_execution.external_python(tmp_path)
 
 
 def test_shadow_json_verdict_exit_code_one_is_not_infrastructure_failure(

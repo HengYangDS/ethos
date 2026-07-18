@@ -12,6 +12,8 @@
 
 ## 3. Local governed closeout
 
+- [x] 3.0 Compress four equivalent TOML layout lines in the closeout manifest
+  without changing parsed configuration or source-budget policy.
 - [ ] 3.1 Refresh required parity and execute changed-plan and HEAD-bound proof.
 - [ ] 3.2 Land to `candidate/dev`, run the external closeout verifier, and align local `dev`, `main`, and `candidate/dev`.
 

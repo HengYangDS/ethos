@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 # ruff: noqa: ARG005, FBT003
-import argparse
 import hashlib
 import json
 import runpy
@@ -10,7 +9,6 @@ from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 from pydantic import ValidationError
@@ -74,16 +72,6 @@ def _enforcement_payload(now: datetime) -> dict[str, object]:
 
 
 def test_verifier_helpers_cover_fail_closed_edges(tmp_path: Path, monkeypatch) -> None:
-    parser = verifier._parser()  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
-    assert {action.dest for action in parser._actions} >= {  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
-        "accepted_root",
-        "candidate_root",
-        "accepted_head",
-        "candidate_head",
-        "candidate_proof",
-        "bootstrap_chronicle",
-        "write_receipt",
-    }
     assert verifier._is_control_path("system/gates.toml") is True  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
     assert verifier._is_control_path("README.md") is False  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
 
@@ -218,16 +206,6 @@ def test_verifier_main_projects_exact_receipt(tmp_path: Path, monkeypatch) -> No
     proof = _write_json(tmp_path / "proof.json", _native_proof_payload("b"))
     decision = _write_json(tmp_path / "decision.json", {"decision": "bound"})
     receipt = tmp_path / "receipt.json"
-    args = argparse.Namespace(
-        accepted_root=accepted_root.as_posix(),
-        candidate_root=candidate_root.as_posix(),
-        accepted_head="a",
-        candidate_head="b",
-        candidate_proof=proof.as_posix(),
-        bootstrap_chronicle=decision.as_posix(),
-        write_receipt=receipt.as_posix(),
-    )
-    monkeypatch.setattr(verifier, "_parser", lambda: SimpleNamespace(parse_args=lambda: args))
     monkeypatch.setattr(
         verifier,
         "_git",
@@ -255,7 +233,20 @@ def test_verifier_main_projects_exact_receipt(tmp_path: Path, monkeypatch) -> No
     monkeypatch.setattr(verifier, "_validate_bootstrap_decision", lambda *args, **kwargs: None)
     monkeypatch.setattr(verifier, "_control_digest", lambda *args, **kwargs: "d" * 64)
 
-    assert verifier.main() == 0
+    assert (
+        verifier.main(
+            verifier.VerificationRequest(
+                accepted_root=accepted_root,
+                candidate_root=candidate_root,
+                accepted_head="a",
+                candidate_head="b",
+                candidate_proof=proof,
+                bootstrap_chronicle=decision,
+                write_receipt=receipt,
+            )
+        )
+        == 0
+    )
     projected = json.loads(receipt.read_text())
     assert projected["control_paths"] == ["system/gates.toml"]
     assert projected["verdict"] == "allow"

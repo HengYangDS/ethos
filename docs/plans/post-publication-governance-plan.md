@@ -33,19 +33,16 @@ The operational rule is: do not mutate, retire, reset, stash, or clean another W
   foreign Work Lanes are coordination signals only unless the owner hands them
   off or a maintainer records break-glass evidence.
 - Keep local closeout, candidate convergence, accepted-root convergence, local
-  fallback proof, each provider's repository and CI/CD observations, remote
-  publication, and release/tag publication as separate states.
+  fallback proof, remote publication, hosted CI, and release/tag publication as
+  separate states.
 
 ## Phase 0: Local Publication Tail Before a Remote Decision
 
 Target state:
 
 - `dev == candidate/dev` for the local accepted-root train.
-- The configured GitLab primary may be unknown until an explicit read-only
-  probe; this does not change local readiness.
-- GitLab and GitHub are peer complete repository and CI/CD planes with equal
-  declared repository, CI/CD, update, and distribution capabilities. GitHub
-  never establishes a GitLab-primary publication claim or GitLab hosted status.
+- `origin/dev` may be unknown until an explicit read-only probe; this does not
+  change local readiness.
 - `ethos publish --json` reports `local_publish_ready`, `remote_push =
   not_performed`, `remote_publication_state = "deferred"`, and a local
   fallback-evidence next action that distinguishes `not_probed` from
@@ -111,25 +108,17 @@ Stable kernel chain:
 Authority -> Subject -> Commitment -> Change -> Evidence -> Claim -> Chronicle
 ```
 
-## Phase 4: Dual-Remote Synchronization and Publication Admission
+## Phase 4: Remote Synchronization and Publication Admission
 
 Only after an explicit provider decision authorizes publication:
 
-1. Run `ethos publish --probe-remote --json`. Record local readiness, GitLab
-   primary availability, GitHub complete-plane availability, and their tracking
-   states as separate facts.
-2. Verify both providers retain equal declared repository, CI/CD, update, and
-   distribution capability. Their CI/CD observations are separate and neither
-   provider's result is evidence for the other.
-3. For GitLab primary publication, re-check
-   `git rev-list --left-right --count origin/dev...dev`, confirm `origin/dev`
-   is an ancestor of `dev`, and push without force only after the distinct
-   primary-publication admission.
-4. GitHub repository, CI/CD, update, and distribution transitions require their
-   own admission and exact-ref verification. They must not be described as
-   GitLab primary publication or GitLab hosted CI.
-5. Fetch and confirm exact ref equality for whichever remote was actually
-   transitioned. Record provider, actor, ref transition, and hosted observation
+1. Run `ethos publish --probe-remote --json` and record the observed provider
+   availability separately from local readiness.
+2. Re-check `git rev-list --left-right --count origin/dev...dev`.
+3. Confirm `origin/dev` is an ancestor of `dev`; never force an accepted ref.
+4. Obtain the distinct publication admission, then push without force.
+5. Fetch and confirm the exact ref equality after the push.
+6. Record the provider event, actor, ref transition, and hosted-CI observation
    as provider facts; do not recast them as local proof.
 
 ## Phase 5: Release Planning

@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from ethos_core.contracts.gates import GateDescriptor
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class QualityAssetClass:
     class_name: str
     role: str
@@ -22,7 +22,7 @@ class QualityAssetClass:
         }
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class ToolAdapterProfile:
     id: str
     standard: str
@@ -42,7 +42,7 @@ class ToolAdapterProfile:
 QualityGateDescriptor = GateDescriptor
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class QualityFinding:
     id: str
     severity: str

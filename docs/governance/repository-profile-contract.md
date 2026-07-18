@@ -137,6 +137,17 @@ cover itself and all subsequent material writes. Lifecycle scope remains a
 repository-governance obligation, not an entry in
 `[proof].code_correctness_gates` and not authority for a method package.
 
+### Existing-Adopter Bootstrap
+
+An adopter that already has a valid, tracked `.ethos/profile.toml` but predates
+this contract has one narrow migration write. If exactly one official active
+Change is selected, `lane prewrite` may admit only that profile path while the
+`[openspec].material_paths` declaration is absent. The result is
+`profile_material_paths_bootstrap`; it does not cover another path, does not
+accept an explicit empty or malformed declaration, and does not replace the
+normal Change-local `scope.toml` bootstrap. Once the declaration is written,
+all later material writes use ordinary scope coverage.
+
 An adopter may add references to existing repository configuration:
 
 ```toml

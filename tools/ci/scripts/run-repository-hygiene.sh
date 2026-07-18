@@ -14,7 +14,7 @@ fi
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "${repo_root}"
 
-"${UV_PROJECT_ENVIRONMENT}/bin/python" - <<'PY'
+env PATH="${UV_PROJECT_ENVIRONMENT:+${UV_PROJECT_ENVIRONMENT}/bin:}${PATH}" "${PYTHON:-python3}" - <<'PY'
 from __future__ import annotations
 
 import json
@@ -52,7 +52,7 @@ DEFAULT_POLICY: dict[str, Any] = {
         "stash-diff",
     ],
     "stash_policy_allowlist": [
-        "do not use",
+        "do not use", "never use", "no git stash", "no `git stash`",
         "must not use",
         "reject",
         "forbidden",
@@ -69,7 +69,6 @@ DEFAULT_POLICY: dict[str, Any] = {
     ],
 }
 
-
 def load_policy() -> dict[str, Any]:
     """Load repository hygiene policy with deterministic defaults."""
     if not POLICY_PATH.exists():
@@ -77,14 +76,12 @@ def load_policy() -> dict[str, Any]:
     data = tomllib.loads(POLICY_PATH.read_text(encoding="utf-8"))
     return DEFAULT_POLICY | data
 
-
 def string_list(policy: dict[str, Any], key: str) -> list[str]:
     """Return a policy string-list value or an empty list for malformed input."""
     value = policy.get(key, [])
     if not isinstance(value, list):
         return []
     return [item for item in value if isinstance(item, str)]
-
 
 policy = load_policy()
 text_suffixes = set(string_list(policy, "text_suffixes"))

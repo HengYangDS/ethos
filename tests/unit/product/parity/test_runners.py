@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import os
+import signal
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -13,7 +15,7 @@ from ethos.adapters.shadow.execution import run_embedded
 from ethos.adapters.shadow.execution import run_external
 from ethos.repository.evidence.parity.validation import SHADOW_COMMAND_ARGS
 from tests.support.ethos_cli_runner import run_ethos
-from tests.unit.product.parity.snapshots import successful_shadow_run
+from tests.unit.product.parity.snapshots import successful_shadow_popen
 
 
 def test_local_shadow_commands_exclude_remote_publication_probe() -> None:
@@ -127,15 +129,24 @@ def test_shadow_json_runner_normalizes_timeout_bytes(
 ) -> None:
     command = ["ethos", "status", "--json"]
 
-    def timeout(*_args: Any, **_kwargs: Any) -> subprocess.CompletedProcess[str]:
-        raise subprocess.TimeoutExpired(
-            command,
-            timeout=1,
-            output=b'{"partial":true}',
-            stderr=b"timed out",
-        )
+    class TimedOutProcess:
+        pid = 4321
+        calls = 0
 
-    monkeypatch.setattr(subprocess, "run", timeout)
+        def communicate(self, timeout: int | None = None):
+            _ = timeout
+            self.calls += 1
+            if self.calls == 1:
+                raise subprocess.TimeoutExpired(
+                    command,
+                    timeout=1,
+                    output=b'{"partial":true}',
+                    stderr=b"timed out",
+                )
+            return b'{"partial":true}', b"timed out"
+
+    monkeypatch.setattr(subprocess, "Popen", lambda *_args, **_kwargs: TimedOutProcess())
+    monkeypatch.setattr(os, "killpg", lambda *_args: None)
 
     result = shadow_execution.run_json_command(command, cwd=tmp_path, timeout_seconds=1)
 
@@ -145,6 +156,78 @@ def test_shadow_json_runner_normalizes_timeout_bytes(
         "stderr": "timed out",
         "json": {},
     }
+
+
+def test_shadow_json_runner_terminates_timed_out_command_session(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    command = ["ethos", "status", "--json"]
+    killed: list[tuple[int, int]] = []
+
+    class TimedOutProcess:
+        pid = 4321
+        calls = 0
+
+        def communicate(self, timeout: int | None = None):
+            _ = timeout
+            self.calls += 1
+            if self.calls == 1:
+                raise subprocess.TimeoutExpired(command, timeout=1)
+            return "", ""
+
+    monkeypatch.setattr(subprocess, "Popen", lambda *_args, **_kwargs: TimedOutProcess())
+    monkeypatch.setattr(os, "killpg", lambda pid, signal: killed.append((pid, signal)))
+
+    result = shadow_execution.run_json_command(command, cwd=tmp_path, timeout_seconds=1)
+
+    assert result["exit_code"] == 124
+    assert killed == [(4321, signal.SIGTERM)]
+
+
+def test_shadow_json_runner_escalates_when_term_grace_expires(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    command = ["ethos", "status", "--json"]
+    killed: list[tuple[int, int]] = []
+
+    class TimedOutProcess:
+        pid = 4321
+        calls = 0
+
+        def communicate(self, timeout: int | None = None):
+            self.calls += 1
+            if self.calls <= 2:
+                raise subprocess.TimeoutExpired(command, timeout=timeout or 1)
+            return "", ""
+
+    monkeypatch.setattr(subprocess, "Popen", lambda *_args, **_kwargs: TimedOutProcess())
+    monkeypatch.setattr(os, "killpg", lambda pid, signal: killed.append((pid, signal)))
+
+    result = shadow_execution.run_json_command(command, cwd=tmp_path, timeout_seconds=1)
+
+    assert result["exit_code"] == 124
+    assert killed == [(4321, signal.SIGTERM), (4321, signal.SIGKILL)]
+
+
+@pytest.mark.parametrize(
+    "helper",
+    [
+        shadow_execution._terminate_process_group,  # noqa: RUF100, SLF001 - exact cleanup boundary coverage
+        shadow_execution._kill_process_group,  # noqa: RUF100, SLF001 - exact cleanup boundary coverage
+    ],
+)
+@pytest.mark.parametrize("error", [ProcessLookupError, PermissionError])
+def test_shadow_process_group_cleanup_tolerates_absent_or_forbidden_groups(
+    monkeypatch: pytest.MonkeyPatch,
+    helper,
+    error,
+) -> None:
+    monkeypatch.setattr(os, "killpg", lambda *_args: (_ for _ in ()).throw(error()))
+
+    helper(0)
+    helper(4321)
 
 
 @pytest.mark.parametrize(
@@ -195,7 +278,7 @@ def test_embedded_shadow_runner_selects_declared_backend(
     repo.mkdir()
     (repo / "pyproject.toml").write_text(str(case["pyproject"]), encoding="utf-8")
     calls: list[tuple[list[str], Path]] = []
-    monkeypatch.setattr(subprocess, "run", successful_shadow_run(calls))
+    monkeypatch.setattr(subprocess, "Popen", successful_shadow_popen(calls))
 
     result = run_embedded(repo, ("status",), timeout_seconds=5)
 
@@ -218,7 +301,7 @@ def test_embedded_shadow_runner_selects_declared_backend(
             "command": ("status",),
             "reported": "status",
             "suffix": ["--root", "{root}", "--json"],
-            "uses_cwd": False,
+            "uses_cwd": True,
         },
     ],
     ids=["cwd-command", "rooted-command"],
@@ -230,7 +313,9 @@ def test_external_shadow_runner_binds_command_root(
 ) -> None:
     calls: list[tuple[list[str], Path]] = []
     monkeypatch.setattr(
-        subprocess, "run", successful_shadow_run(calls, reported_command=str(case["reported"]))
+        subprocess,
+        "Popen",
+        successful_shadow_popen(calls, reported_command=str(case["reported"])),
     )
 
     command = case["command"]
@@ -242,6 +327,7 @@ def test_external_shadow_runner_binds_command_root(
     expected = [str(part).format(root=tmp_path.resolve().as_posix()) for part in suffix]
     assert calls[0][0][-len(expected) :] == expected
     assert (calls[0][1] == tmp_path.resolve()) is case["uses_cwd"]
+    assert calls[0][0][0] == shadow_execution.external_python(tmp_path)
 
 
 def test_shadow_json_verdict_exit_code_one_is_not_infrastructure_failure(
@@ -258,11 +344,23 @@ def test_shadow_json_verdict_exit_code_one_is_not_infrastructure_failure(
         "required_gaps": ["x"],
     }
 
-    def fake_run(command: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
-        return subprocess.CompletedProcess(command, 1, stdout=json.dumps(payload), stderr="")
+    class Process:
+        returncode = 1
+
+        def communicate(self, timeout: int | None = None) -> tuple[str, str]:
+            _ = timeout
+            return json.dumps(payload), ""
+
+    original_popen = subprocess.Popen
+
+    def fake_popen(*args: Any, **kwargs: Any) -> Process | subprocess.Popen[str]:
+        command = args[0]
+        if command[0] == "git":
+            return original_popen(*args, **kwargs)
+        return Process()
 
     monkeypatch.setattr(shadow_core, "READ_ONLY_COMMANDS", (("status",),))
-    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(subprocess, "Popen", fake_popen)
 
     report = shadow_core.run_shadow_parity(repo, timeout_seconds=5)
 
@@ -293,32 +391,47 @@ def test_shadow_exit_code_above_one_is_process_failure_even_with_verdict() -> No
     )
 
 
-def test_shadow_json_runner_isolates_timeout_process_session(
+def test_shadow_json_runner_creates_an_isolated_timeout_process_session(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     calls: list[dict[str, object]] = []
 
-    def fake_run(command: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+    class TimedOutProcess:
+        pid = 9876
+        calls = 0
+
+        def communicate(self, timeout: int | None = None):
+            self.calls += 1
+            calls.append(
+                {
+                    "timeout": timeout,
+                }
+            )
+            if self.calls == 1:
+                raise subprocess.TimeoutExpired(
+                    ["ethos", "status", "--json"],
+                    timeout,
+                    output="partial",
+                    stderr="late",
+                )
+            return "partial", "late"
+
+    def fake_popen(command: list[str], **kwargs: Any) -> TimedOutProcess:
         calls.append(
             {
                 "command": command,
                 "cwd": kwargs["cwd"],
                 "text": kwargs["text"],
-                "capture_output": kwargs["capture_output"],
-                "check": kwargs["check"],
-                "timeout": kwargs["timeout"],
+                "stdout": kwargs["stdout"],
+                "stderr": kwargs["stderr"],
                 "start_new_session": kwargs["start_new_session"],
             }
         )
-        raise subprocess.TimeoutExpired(
-            command,
-            kwargs["timeout"],
-            output="partial",
-            stderr="late",
-        )
+        return TimedOutProcess()
 
-    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(subprocess, "Popen", fake_popen)
+    monkeypatch.setattr(os, "killpg", lambda *_args: None)
 
     result = shadow_execution.run_json_command(
         ["ethos", "status", "--json"],
@@ -337,9 +450,10 @@ def test_shadow_json_runner_isolates_timeout_process_session(
             "command": ["ethos", "status", "--json"],
             "cwd": tmp_path,
             "text": True,
-            "capture_output": True,
-            "check": False,
-            "timeout": 7,
+            "stdout": subprocess.PIPE,
+            "stderr": subprocess.PIPE,
             "start_new_session": True,
-        }
+        },
+        {"timeout": 7},
+        {"timeout": 1},
     ]

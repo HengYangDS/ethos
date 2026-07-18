@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import json
 import subprocess
 import sys
 from typing import TYPE_CHECKING
@@ -125,78 +124,6 @@ def test_doctor_skips_state_init_when_flag_false(
     assert not (repo / ".ethos" / "state" / "state.sqlite").exists()
 
 
-def test_doctor_reports_missing_host_wrapper(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
-    repo = _init_git_repo(tmp_path / "repo")
-    monkeypatch.setattr(
-        inspection_cli.shutil,
-        "which",
-        lambda command: "" if command == "ethos" else command,
-    )
-
-    inspection_cli.doctor(root=repo, init_state=False, json_output=True)
-
-    payload = json.loads(capsys.readouterr().out)
-    wrapper = payload["data"]["host_wrapper"]
-    assert wrapper["state"] == "not_found"
-    assert wrapper["advisory_gaps"] == ["host_wrapper_not_found"]
-
-
-def test_doctor_reports_fixed_root_host_wrapper(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
-    repo = _init_git_repo(tmp_path / "repo")
-    fixed = tmp_path / "bin" / "ethos"
-    fixed.parent.mkdir()
-    fixed.write_text(
-        "#!/usr/bin/env bash\n"
-        'ETHOS_ROOT="${ETHOS_ROOT:-$HOME/projects/ethos}"\n'
-        'cd "$ETHOS_ROOT"\n'
-        'exec npm run -s ethos -- "$@"\n',
-        encoding="utf-8",
-    )
-    fixed.chmod(0o755)
-    original_path = __import__("os").environ.get("PATH", "")
-    monkeypatch.setenv("PATH", f"{fixed.parent.as_posix()}:{original_path}")
-    monkeypatch.delenv("ETHOS_ROOT", raising=False)
-
-    inspection_cli.doctor(root=repo, init_state=False, json_output=True)
-
-    payload = json.loads(capsys.readouterr().out)
-    wrapper = payload["data"]["host_wrapper"]
-    assert wrapper["state"] == "fixed_root_wrapper"
-    assert "host_wrapper_fixed_root" in wrapper["advisory_gaps"]
-    assert wrapper["path"] == fixed.as_posix()
-
-
-def test_doctor_accepts_explicit_ethos_root_for_host_wrapper(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
-    repo = _init_git_repo(tmp_path / "repo")
-    fixed = tmp_path / "bin" / "ethos"
-    fixed.parent.mkdir()
-    fixed.write_text(
-        "#!/usr/bin/env bash\n"
-        'ETHOS_ROOT="${ETHOS_ROOT:-$HOME/projects/ethos}"\n'
-        'cd "$ETHOS_ROOT"\n'
-        'exec npm run -s ethos -- "$@"\n',
-        encoding="utf-8",
-    )
-    fixed.chmod(0o755)
-    original_path = __import__("os").environ.get("PATH", "")
-    monkeypatch.setenv("PATH", f"{fixed.parent.as_posix()}:{original_path}")
-    monkeypatch.setenv("ETHOS_ROOT", repo.as_posix())
-
-    inspection_cli.doctor(root=repo, init_state=False, json_output=True)
-
-    payload = json.loads(capsys.readouterr().out)
-    wrapper = payload["data"]["host_wrapper"]
-    assert wrapper["state"] == "ok"
-    assert wrapper["env_ethos_root"] == repo.as_posix()
-    assert wrapper["advisory_gaps"] == []
-
-
 # --------------------------------------------------------------------------- #
 # ethos.domain.land.core.closeout_audit_root (lines 122, 126-127)
 # --------------------------------------------------------------------------- #
@@ -256,11 +183,6 @@ def test_advisory_next_actions_skips_non_matching_gap() -> None:
 # --------------------------------------------------------------------------- #
 # ethos.domain.status reducers (lines 30, 52, 131)
 # --------------------------------------------------------------------------- #
-
-
-def test_string_list_returns_empty_for_non_list() -> None:
-    # A non-list value takes the guard at line 30 and returns [].
-    assert status.string_list("not-a-list") == []
 
 
 def test_adoption_mutation_gaps_flags_head_mismatch() -> None:

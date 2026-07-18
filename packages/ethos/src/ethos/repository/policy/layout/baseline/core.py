@@ -6,7 +6,7 @@ from typing import Any
 
 import ethos.repository.policy.layout.git.core as layout_git
 from ethos.repository.policy.layout.filesystem.core import POLICY_PATH
-from ethos.repository.policy.layout.filesystem.core import string_list
+from ethos_core.normalization.core import string_list
 
 if TYPE_CHECKING:
     from pathlib import Path

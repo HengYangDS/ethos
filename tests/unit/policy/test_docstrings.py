@@ -4,14 +4,10 @@ from typing import TYPE_CHECKING
 
 import ethos.repository.policy.docstrings.core as docstrings_core
 from ethos.repository.policy.docstrings.core import docstring_coverage_report
+from tests.support import write_text as _write
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-
-def _write(path: Path, text: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(text, encoding="utf-8")
 
 
 def test_docstring_coverage_reports_public_surface_gaps(tmp_path: Path) -> None:

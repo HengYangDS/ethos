@@ -41,11 +41,6 @@ _RELEASE_VISIBLE_LOCAL_PATH_PATTERN = re.compile(
 )
 
 
-def string_list(value: object) -> list[str]:
-    """Return a string-normalized list when the payload field is list-shaped."""
-    return [str(item) for item in value] if isinstance(value, list) else []
-
-
 def tracked_evidence_provenance(
     evidence: dict[str, object],
     *,

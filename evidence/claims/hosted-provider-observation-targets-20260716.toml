@@ -1,0 +1,28 @@
+[claim]
+id = "hosted-provider-observation-targets-20260716"
+subject = "ethos:hosted-provider-observation-and-report-closure"
+state = "completed"
+summary = "Hosted provider observations use explicit runtime repository targets, expose bounded observation gaps, and remain separate from report-local publication and proof authority."
+
+[evidence]
+dated = "evidence/chronicle/hosted-provider-observation-targets-20260716/2026-07-16.md"
+sha256 = "ae2d0d7d7c323c997077d2af8ceef9309ee0e7b4027346f8cc21bd3d9e32b509"
+evidence_ids = ["evidence:hosted-provider-observation-targets-20260716"]
+binding = "Active OpenSpec carrier, RED/GREEN regressions, explicit target policy, observation evidence reader, report projection, and dated Chronicle."
+verifier = "digest_only"
+tests = ["pytest tests/architecture/test_hosted_provider_observation.py tests/unit/domain/test_report.py -q", "ETHOS_TEST_WORKERS=4 tools/ci/scripts/run-python-tests.sh", "tools/ci/scripts/run-python-lint.sh", "tools/ci/scripts/run-config-lint.sh", ".agents/skills/ethos-quality-gate-governance/scripts/quality_audit.py .", "ethos quality source-budget --json", "openspec validate hosted-provider-observation-targets-20260716 --strict --json"]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-quality-gate-governance"
+scope = "Explicit provider targeting, bounded hosted observation state, generated evidence freshness, and read-only report projection."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-17-hosted-provider-observation-targets-20260716"
+fallback = "Restore the previous observation-only envelope and omit report projection while keeping all hosted and publication claims false."
+kill_signal = "An unconfigured provider executes, a configured command omits --repo, observation gaps become repository proof gaps, or report claims hosted or remote publication success."
+
+[promotion]
+targets = [".config/checks/ci/hosted-observation.toml", "evidence/claims/hosted-provider-observation-targets-20260716.toml", "evidence/chronicle/hosted-provider-observation-targets-20260716/2026-07-16.md", "openspec/changes/archive/2026-07-17-hosted-provider-observation-targets-20260716", "openspec/specs/proof-hosts/spec.md", "openspec/specs/repository-governance/spec.md", "packages/ethos/src/ethos/domain/report.py", "packages/ethos/src/ethos/domain/reporting/gaps.py", "packages/ethos/src/ethos/repository/evidence/hosted", "tests/architecture/test_hosted_provider_observation.py", "tests/unit/domain/test_report.py", "tools/ci/hosted_observation.py", "system/invalid_states.toml", "tests/support/reporting.py", "tests/unit/domain/reporting/test_coordination.py", "tests/unit/kernel/test_invalid_states.py"]

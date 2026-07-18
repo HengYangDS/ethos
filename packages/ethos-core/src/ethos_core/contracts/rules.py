@@ -24,7 +24,7 @@ def stable_digest(payload: object) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class Rule:
     id: str
     owner: str
@@ -63,7 +63,7 @@ class Rule:
         return payload
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class RuleSet:
     id: str
     profile_layers: tuple[str, ...]
@@ -82,7 +82,7 @@ class RuleSet:
         return stable_digest(self.to_dict())
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class RuleFactSnapshot:
     phase: str
     head: str
@@ -105,7 +105,7 @@ class RuleFactSnapshot:
         return str(self.to_dict()["digest"])
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class RuleEvalRequest:
     phase: str
     changed_paths: tuple[str, ...] = ()
@@ -166,7 +166,7 @@ class RuleEvalRequest:
         )
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class PolicyException:
     id: str
     rule_id: str
@@ -200,7 +200,7 @@ class PolicyException:
         return base
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class RuleAttestation:
     head: str
     evaluation_digest: str

@@ -28,11 +28,9 @@ if path.exists():
     if isinstance(raw, dict):
         policy = raw
 
-
 def _str(key: str) -> str:
     value = policy.get(key)
     return value if isinstance(value, str) else ""
-
 
 def _configured_identity() -> tuple[str, str]:
     expected_name = _str("expected_name")
@@ -50,7 +48,6 @@ def _configured_identity() -> tuple[str, str]:
             if isinstance(name, str) and isinstance(email, str) and name and email:
                 return name, email
     return "", ""
-
 
 required = "1" if policy.get("signing_required") is True else ""
 name, email = _configured_identity()

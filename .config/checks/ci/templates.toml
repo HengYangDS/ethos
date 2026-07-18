@@ -10,6 +10,7 @@ emulator_tool = "act"
 emulator_event = "workflow_dispatch"
 emulator_job = "quality"
 emulator_image = "catthehacker/ubuntu:act-latest"
+emulator_state_dir = "build/runtime/work/github-act"
 emulator_supported_inputs = []
 emulator_hosted_only_reason = ""
 required_owner_scripts = [
@@ -55,6 +56,7 @@ emulator_supported_inputs = []
 emulator_hosted_only_reason = ""
 required_owner_scripts = [
   "tools/ci/scripts/bootstrap-python.sh",
+  "tools/ci/scripts/run-node-compatibility.sh",
   "tools/ci/scripts/run-python-lint.sh",
   "tools/ci/scripts/run-config-lint.sh",
   "tools/ci/scripts/run-json-schema-check.sh",

@@ -4,6 +4,7 @@ import hashlib
 import importlib.util
 import json
 import subprocess
+import sys
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
@@ -156,3 +157,50 @@ def test_protected_updates_reject_missing_invalid_stale_and_mismatched_receipts(
     )
     with pytest.raises(ADAPTER.RefusalError, match="receipt_stale"):
         ADAPTER.enforce(config, [line])
+
+
+def test_bare_repository_pre_receive_hook_uses_provider_owned_hook_path(
+    tmp_path: Path,
+) -> None:
+    """Reject a protected push until its receipt exists despite global hook config."""
+    config, values, _, _ = _setup(tmp_path)
+    bare, work = Path(values["bare_repository"]), tmp_path / "work"
+    hooks = bare / "provider-hooks"
+    hooks.mkdir()
+    _git(bare, "config", "core.hooksPath", hooks.as_posix())
+    hook = hooks / "pre-receive"
+    hook.write_text(
+        f"#!/bin/sh\nexec {sys.executable} {MODULE.as_posix()} --config {config.as_posix()}\n",
+        encoding="utf-8",
+    )
+    hook.chmod(0o755)
+
+    _git(work, "checkout", "-b", "protected")
+    (work / "file").write_text("protected\n", encoding="utf-8")
+    _git(work, "commit", "-am", "protected")
+    protected_commit = _git(work, "rev-parse", "HEAD")
+
+    denied = subprocess.run(
+        ["/usr/bin/git", "push", "origin", "HEAD:refs/heads/main"],
+        cwd=work,
+        check=False,
+        text=True,
+        capture_output=True,
+    )
+    assert denied.returncode != 0
+    assert "ethos-generic-pre-receive:receipt_missing" in denied.stderr
+
+    _write_receipt(
+        values,
+        protected_commit,
+        _git(work, "rev-parse", "HEAD^{tree}"),
+    )
+    accepted = subprocess.run(
+        ["/usr/bin/git", "push", "origin", "HEAD:refs/heads/main"],
+        cwd=work,
+        check=False,
+        text=True,
+        capture_output=True,
+    )
+    assert accepted.returncode == 0, accepted.stderr
+    assert _git(bare, "rev-parse", "refs/heads/main") == protected_commit

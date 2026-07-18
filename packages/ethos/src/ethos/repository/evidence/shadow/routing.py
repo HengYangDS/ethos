@@ -1,12 +1,9 @@
 from __future__ import annotations
 
 import subprocess
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 from ethos.repository.profile import profile_relative_root
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 REPOSITORY_TARGET = "<repo>"
 PRODUCT_REPOSITORY_TARGET = "<product-repo>"
@@ -52,13 +49,14 @@ def requires_product_root_argument(*, root: Path | None, target: Path | None) ->
 
 
 def same_git_repository(left: Path, right: Path) -> bool:
-    """True when both paths resolve to the same underlying git repository."""
+    """Return whether two paths share one Git common directory."""
     left_common = git_common_dir(left)
     right_common = git_common_dir(right)
     return bool(left_common and right_common and left_common == right_common)
 
 
 def git_common_dir(path: Path) -> str:
+    """Return the resolved Git common directory, or an empty string when absent."""
     if not path.exists():
         return ""
     completed = subprocess.run(
@@ -70,7 +68,10 @@ def git_common_dir(path: Path) -> str:
     )
     if completed.returncode != 0:
         return ""
-    return str((path / completed.stdout.strip()).resolve())
+    common_dir = Path(completed.stdout.strip())
+    if not common_dir.is_absolute():
+        common_dir = path / common_dir
+    return common_dir.resolve().as_posix()
 
 
 def target_identity(*, root: Path | None, adopter: str, target: Path) -> str:

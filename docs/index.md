@@ -86,6 +86,7 @@ or maintainer break-glass evidence.
 - Enterprise readiness: [Enterprise Readiness Closeout](governance/enterprise-readiness-closeout.md)
 - Capability parity: [Capability Parity Ledger](governance/capability-parity-ledger.md)
 - Repository profile contract: [Repository Profile Contract](governance/repository-profile-contract.md)
+- Repository text layout: [Repository Text Layout](governance/repository-text-layout.md)
 - Optional independent verification: [Independent Verification Adoption](governance/independent-verification-adoption.md)
 - Forge provider contract: [Forge Provider Contract](governance/forge-provider-contract.md)
 - Config boundary model: [Config Boundary Model](governance/config-boundary-model.md)

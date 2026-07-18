@@ -16,8 +16,8 @@ from ethos.adapters.store.state.events import initialize_state
 from ethos.adapters.store.state.events import now
 from ethos.adapters.store.state.lease.projection import json_object
 from ethos.adapters.store.state.lease.projection import lease_contract_fields
-from ethos.adapters.store.state.lease.projection import string_list
 from ethos_core.contracts.coordination import HolderRef
+from ethos_core.normalization.core import string_sequence
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -58,7 +58,7 @@ def acquire_lease(
         "renewed_at": str(supplied_payload.get("renewed_at") or now.isoformat()),
         "expected_head": str(supplied_payload.get("expected_head") or ""),
         "claim_id": str(supplied_payload.get("claim_id") or ""),
-        "path_scope": string_list(supplied_payload.get("path_scope")),
+        "path_scope": string_sequence(supplied_payload.get("path_scope"), drop_empty=True),
         "coordination_scope": "git_common_directory",
         "mints_authority": False,
         "filesystem_fence": False,
@@ -448,7 +448,7 @@ def _normalized_lease_payload(  # noqa: PLR0913, RUF100 - exact request envelope
         "renewed_at": now.isoformat(),
         "expected_head": expected_head,
         "claim_id": str(payload.get("claim_id") or ""),
-        "path_scope": string_list(payload.get("path_scope")),
+        "path_scope": string_sequence(payload.get("path_scope"), drop_empty=True),
         "coordination_scope": "git_common_directory",
         "mints_authority": False,
         "filesystem_fence": False,

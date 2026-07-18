@@ -98,42 +98,6 @@ OpenSpec remains mandatory governance, not a product substrate and not a second 
 - **THEN** it invokes the official OpenSpec CLI for status and strict validation
   instead of replacing OpenSpec with ad hoc repository parsing
 
-### Requirement: Adopter Material Change Scope Binding
-
-ETHOS SHALL require an adopter that uses OpenSpec lifecycle governance to
-declare a non-empty `[openspec].material_paths` profile list. For every changed
-material path, `ethos lane prewrite`, `ethos plan --changed`, and `ethos prove`
-SHALL use the same ETHOS-owned `scope.toml` companion read model over the
-official OpenSpec active or archiving Change selection. The companion is not an
-official OpenSpec workflow-schema extension.
-
-#### Scenario: material path is covered by a selected Change
-
-- **GIVEN** an adopter profile declares a material path and an officially
-  selected Change has a valid matching `scope.toml` companion
-- **WHEN** prewrite, changed planning, or proof evaluates that path
-- **THEN** all three surfaces SHALL report the same coverage fact
-- **AND** no material-scope required gap is emitted.
-
-#### Scenario: material path is uncovered
-
-- **GIVEN** a declared material path lacks coverage from every valid selected
-  Change companion
-- **WHEN** prewrite, changed planning, or proof evaluates the path
-- **THEN** the surface SHALL report
-  `openspec_material_path_uncovered:<path>`
-- **AND** it SHALL not substitute a native proof gate, private schema, or
-  method package for Change authority.
-
-#### Scenario: declaration and bootstrap fail closed
-
-- **WHEN** an adopter omits, empties, or invalidates `material_paths`
-- **THEN** lifecycle SHALL report a material-path declaration gap
-- **AND WHEN** the official active list identifies a new Change with no
-  companion
-- **THEN** prewrite MAY admit only that Change's exact absent `scope.toml`
-- **AND** the completed companion SHALL cover itself and later material writes.
-
 ### Requirement: Coupling Binding Registry
 ETHOS SHALL classify product-semantic hard bindings, mandatory governance
 dependencies, native protocols, product toolchains, profile or adapter
@@ -710,6 +674,22 @@ repository truth surfaces.
 - **AND** ETHOS does not report the Work Lane as ready to land until fresh proof
   admits the regenerated evidence
 
+#### Scenario: refresh-base merges independent source-budget debt additions
+
+- **GIVEN** a clean Work Lane is stale behind the configured candidate branch
+- **AND** replay conflicts only on `.ethos/rules.toml`
+- **AND** both sides retain every base source-budget debt record byte-for-byte,
+  preserve all content outside that debt section, and add only distinct valid
+  debt record identifiers with non-negative allowances
+- **WHEN** `ethos lane refresh-base --apply --authorize --expect-head <head>
+  --json` runs
+- **THEN** ETHOS writes the candidate-side record order followed by the Work Lane
+  additions, recomputes `maximum_total`, and returns `state = "base_refreshed"`
+- **AND** it reports `semantic_ledger_merged:source_budget_debt` without marking
+  parity projection refresh as required
+- **AND** duplicate additions, malformed records, changed base records, changed
+  adjacent content, or any additional conflict path remain fail-closed
+
 #### Scenario: refresh-base keeps semantic conflicts blocked
 
 - **GIVEN** a clean Work Lane is stale behind the configured candidate branch
@@ -916,6 +896,33 @@ non-authoritative action preview rather than a reusable permission.
 - **AND** actual mutation re-evaluates the exact current request
 - **AND** legacy actor-capability fields cannot be replayed as authority and are
   retired after client migration.
+
+#### Scenario: bounded readers defer foreign path scopes
+
+- **WHEN** a bounded status, planning, proof, landing, publication, or scorecard
+  reader needs local state and aggregate lane signals but not a coordination
+  inventory
+- **THEN** ETHOS MAY defer foreign Work Lane path scopes instead of running one
+  history diff per visible foreign lane
+- **AND** each deferred lane remains explicitly marked `scope_state=deferred`
+  while retaining its non-authoritative observe-only coordination state
+- **AND** the reader preserves observable lane count and lease signals without
+  inferring path overlap, branch relation, dirty foreign contents, or retirement
+  readiness
+- **AND** full `lane status` and mutation admission retain exact foreign path
+  scope computation before making any coordination decision.
+
+#### Scenario: bounded-reader regression debt is explicit and temporary
+
+- **WHEN** the bounded status read model introduces a focused regression carrier
+  before its full and bounded fixtures can share a smaller harness
+- **THEN** any source-budget allowance names that exact carrier, owner,
+  replacement, and deletion wave
+- **AND** its allowance is limited to the measured temporary carrier cost
+- **AND** the ledger's aggregate maximum equals the sum of its append-only
+  records
+- **AND** later fixture consolidation removes the allowance rather than making
+  it permanent.
 
 #### Scenario: normalized lease has one concrete current holder
 
@@ -2007,7 +2014,13 @@ ETHOS SHALL require each adopter profile to declare a non-empty
 `ethos lane prewrite`, `ethos plan --changed`, and `ethos prove` SHALL use the
 same ETHOS-owned `scope.toml` companion read model over the official OpenSpec
 active or archiving Change selection. `scope.toml` remains a companion beside a
-Change, not an OpenSpec workflow-schema extension.
+Change, not an OpenSpec workflow-schema extension. A legacy adopter MAY
+bootstrap only its already-tracked `.ethos/profile.toml` declaration against
+exactly one official active Change; that fallback applies only to this one
+profile-only write and SHALL NOT make that Change cover any other material
+path. A completed archive MAY participate only when the archive itself
+contributes to the current Work Lane change scope; it remains excluded for all
+unrelated future changes.
 
 #### Scenario: covered material path is admitted across all surfaces
 
@@ -2025,11 +2038,251 @@ Change, not an OpenSpec workflow-schema extension.
 - **AND THEN** it SHALL not substitute a proof gate, private schema, or method
   package for Change authority.
 
+#### Scenario: incomplete unrelated companions remain diagnostic
+
+- **GIVEN** one official active or archiving Change has a missing or invalid
+  companion and another selected Change has a valid matching companion
+- **WHEN** a material path covered by the valid companion is evaluated
+- **THEN** the path is covered
+- **AND** incomplete companion details remain advisory diagnostics rather than
+  a global coverage gap.
+
 #### Scenario: declaration and bootstrap fail closed
 
 - **WHEN** an adopter omits, empties, or invalidates `material_paths`
 - **THEN** ETHOS SHALL report a material-path declaration gap
 - **AND WHEN** an official new Change needs its absent companion created
-- **THEN** prewrite MAY admit only that exact `scope.toml` path
-- **AND THEN** the completed companion SHALL cover itself and later material
-  writes.
+- **THEN** prewrite MAY admit only that exact untracked Change-local
+  `scope.toml` path
+- **AND THEN** the completed companion SHALL be syntactically valid, cover
+  itself, and cover later material writes.
+
+#### Scenario: existing adopter bootstraps a missing profile declaration
+
+- **GIVEN** a valid tracked adopter profile has no `material_paths` declaration
+- **AND** exactly one official active Change is selected
+- **WHEN** prewrite evaluates only `.ethos/profile.toml`
+- **THEN** ETHOS MAY admit that write with
+  `profile_material_paths_bootstrap` provenance
+- **AND THEN** an explicit empty or malformed declaration, or a request that
+  includes another path, SHALL remain blocked
+- **AND THEN** later material writes SHALL require ordinary Change-local scope
+  coverage.
+
+#### Scenario: final archive reconciliation remains covered
+
+- **GIVEN** a completed Change is archived in the current Work Lane change
+  scope and its archive has a valid `scope.toml`
+- **WHEN** prewrite, changed planning, or proof evaluates a material path from
+  that same current scope
+- **THEN** the archive companion may cover declared matching paths
+- **AND THEN** it SHALL cover paths inside that selected archive directory,
+  including the companion itself, only for this reconciliation
+- **AND THEN** it SHALL not cover a path outside that archive unless the
+  companion explicitly matches it
+- **AND** the same scope verdict is returned on all three surfaces.
+
+#### Scenario: historical archive cannot authorize unrelated material work
+
+- **GIVEN** an archive has a valid `scope.toml` but no file from that archive is
+  in the current Work Lane change scope
+- **WHEN** prewrite, changed planning, or proof evaluates a matching material
+  path
+- **THEN** the archive is excluded from scope coverage
+- **AND** an uncovered path emits `openspec_material_path_uncovered:<path>`.
+
+#### Scenario: archive companion diagnostics remain carrier-invalid
+
+- **GIVEN** a current archive companion is missing or malformed
+- **WHEN** lifecycle scope reports its diagnostic
+- **THEN** the emitted diagnostic SHALL reduce to the shared carrier-invalid
+  invalid-state category
+- **AND** it SHALL not grant material-path coverage.
+
+### Requirement: Accepted closeout remains candidate-first and non-self-approving
+
+ETHOS SHALL admit an accepted-branch advance only when it fast-forwards to the
+live candidate head, carries candidate-head proof, and is an official closeout
+identified by a one-shot transition marker. Candidate-tree semantic evaluation
+shall determine the promoted tree's admission policy; the accepted checkout
+shall retain the protected Git-hook and CAS boundary.
+
+#### Scenario: raw update-ref targets a proven candidate head
+
+- **GIVEN** the candidate checkout is clean and has a complete proof for its
+  live head
+- **WHEN** a caller runs raw `git update-ref` to move the accepted branch to
+  that head without official closeout intent
+- **THEN** the accepted-ref hook SHALL reject the move
+- **AND** candidate-tree semantic evaluation SHALL not make the marker optional.
+
+### Requirement: Cohort-bound full Work Lane convergence
+
+ETHOS SHALL treat a request to converge multiple Work Lanes as an exact,
+observation-bound local program and SHALL NOT interpret a branch prefix or
+session instruction as reusable wildcard authority.
+
+#### Scenario: a convergence cohort is frozen before mutation
+
+- **GIVEN** a maintainer requests convergence of multiple existing Work Lanes
+- **WHEN** the program begins
+- **THEN** a separate owned governance Work Lane records the exact branch, HEAD,
+  worktree binding, dirty state, lease/incarnation evidence, claim binding,
+  intended disposition, and target-observation evidence for each lane
+- **AND** later-created refs are outside the cohort unless separately admitted
+- **AND** every effect recomputes mutable target facts before mutation.
+
+#### Scenario: graph absorption does not erase a dirty overlay
+
+- **GIVEN** a lane HEAD is equal to or an ancestor of accepted truth
+- **AND** its linked worktree contains a dirty tracked or untracked delta
+- **WHEN** convergence classifies the lane
+- **THEN** the delta is preserved and semantically reviewed before retirement
+- **AND** graph ancestry alone cannot authorize deletion.
+
+#### Scenario: a valid foreign lease remains holder-bound
+
+- **GIVEN** a cohort lane has a normalized valid lease owned by another holder
+- **WHEN** convergence needs its implementation or closeout
+- **THEN** normal holder completion or a quiesced exact handoff is preferred
+- **AND** process absence, provider identity, or a supplied holder string does
+  not grant takeover authority
+- **AND** replay in an owned successor keeps the original lane observe-only.
+
+#### Scenario: exceptional cohort resolution consumes accepted judgment
+
+- **GIVEN** a cohort lane is dirty, missing trusted lease state, owner-uncertain,
+  or requires irreversible retirement
+- **WHEN** the lane is resolved
+- **THEN** an accepted Chronicle has already bound the exact policy and target
+- **AND** a fresh two-phase decision binds one exact observation and recovery
+  plan
+- **AND** dirty content is preserved before retirement
+- **AND** a stale observation blocks the effect instead of falling back to raw
+  Git deletion.
+
+#### Scenario: local convergence completion keeps evidence planes separate
+
+- **WHEN** all cohort intent has been integrated or explicitly superseded
+- **THEN** strict carrier completion, parity, HEAD-bound executed proof,
+  candidate landing, accepted-root closeout, and lane retirement are verified as
+  distinct transitions
+- **AND** recovery-package retention remains independent
+- **AND** local completion does not claim remote push, hosted execution, or
+  distribution publication.
+
+### Requirement: Report distinguishes local publication and hosted observation state
+
+ETHOS report SHALL expose local publication readiness and hosted provider
+observation status as separate read-only projections without performing a
+remote probe or minting proof, hosted-success, or publication authority.
+
+#### Scenario: Current hosted observation is projected
+
+- **WHEN** ethos report runs and the configured hosted observation artifact
+  binds the current tracked head
+- **THEN** report data SHALL include hosted_observation state, freshness,
+  provider-state summary, and bounded observation gaps
+- **AND** those gaps SHALL remain advisory rather than repository proof
+  required_gaps
+- **AND** hosted GitHub status claimed, hosted GitLab status claimed, and remote
+  publication claimed SHALL remain false
+
+#### Scenario: Hosted observation is missing invalid or stale
+
+- **WHEN** the hosted observation artifact is missing, malformed, or bound to a
+  different tracked head
+- **THEN** report SHALL expose missing, invalid, or stale hosted observation
+  state
+- **AND** it SHALL provide a bounded next action to rerun the observation owner
+  script
+- **AND** the scorecard SHALL remain read-only
+
+#### Scenario: Local publication readiness is projected
+
+- **WHEN** ethos report summarizes current blockers and proof readiness
+- **THEN** report data SHALL include a local_publication projection that
+  distinguishes ready from blocked local state
+- **AND** the projection SHALL list its local blockers
+- **AND** remote publication claimed SHALL remain false
+- **AND** the projection SHALL NOT replace the ethos publish transition verdict
+
+### Requirement: Lifecycle claim semantic scope is behavior-exact
+
+An active claim that attests universal adopter OpenSpec lifecycle SHALL declare `semantic_scope` promotion targets for the lifecycle command implementations and their behavioral regressions. It SHALL NOT use a broad CLI directory merely because the implementation resides there. The semantic-scope reader SHALL fail closed when any declared lifecycle implementation or regression target changes.
+
+#### Scenario: Unrelated CLI reader change does not stale lifecycle evidence
+
+- **WHEN** a change outside the declared lifecycle implementation and regression targets changes a CLI reader file
+- **THEN** the lifecycle claim semantic digest remains current
+- **AND** the claim reader does not emit `evidence.semantic_scope_stale`
+
+#### Scenario: Lifecycle implementation change stales lifecycle evidence
+
+- **WHEN** a declared lifecycle command implementation or behavioral regression target changes
+- **THEN** the lifecycle claim reader emits `evidence.semantic_scope_stale`
+- **AND** ETHOS requires a governed evidence refresh before the claim is clean
+
+### Requirement: Refresh-base replay is signing-bound and compare-and-swap safe
+
+When a Work Lane refresh requires SSH commit signing through a configured
+file-backed key, ETHOS SHALL establish signing transport before the replay can
+start. It SHALL revalidate the admitted Work Lane and candidate SHA snapshots,
+replay the admitted Work Lane SHA against the admitted candidate SHA in
+detached state, and compare-and-swap the Work Lane ref from its admitted old
+SHA before attaching it again.
+
+#### Scenario: unavailable signing transport blocks before replay
+
+- **GIVEN** `commit.gpgsign` is truthy, `gpg.format` is `ssh`, and
+  `user.signingkey` resolves to a file-backed key with no usable agent transport
+- **WHEN** `lane refresh-base --apply` runs
+- **THEN** it reports `refresh_signing_transport_unavailable`
+- **AND** it does not start a rebase or advance the Work Lane ref.
+
+#### Scenario: admitted snapshots move during preflight
+
+- **GIVEN** a refresh has captured Work Lane and candidate SHA values
+- **WHEN** either value changes before replay begins
+- **THEN** it reports the corresponding `refresh_base_snapshot_stale` gap
+- **AND** it does not start a rebase or advance the Work Lane ref.
+
+#### Scenario: Work Lane moves before replay compare-and-swap
+
+- **GIVEN** detached replay has produced a candidate-descended refreshed SHA
+- **WHEN** the Work Lane ref no longer equals its admitted old SHA
+- **THEN** ETHOS reports `refresh_base_snapshot_stale:work_lane`
+- **AND** it reattaches to the newer branch state without overwriting that ref.
+
+### Requirement: Committed Adopter Profile Policy At Closeout
+
+ETHOS SHALL resolve adopter proof policy from the promoted committed tree when
+accepted-root closeout evaluates an exact candidate advance before the accepted
+worktree has reset to that candidate commit.  The implementation of this policy
+SHALL remain subject to the active proof floor; a proof failure SHALL be
+remediated in a separately active Change without weakening closeout policy,
+source-budget limits, evidence binding, or the raw-reference-move guard.
+
+#### Scenario: candidate proof policy is evaluated during accepted-root closeout
+
+- **GIVEN** a candidate commit changes a valid non-product repository profile
+  that defines its native proof gates
+- **WHEN** a reference-transaction hook evaluates the proposed accepted-root
+  advance before the accepted worktree resets to that candidate commit
+- **THEN** ETHOS SHALL resolve the profile, required proof floor, gate
+  descriptors, policy digest, and run conformance from the promoted committed
+  tree
+- **AND** a profile absent from that resolvable candidate tree SHALL be treated
+  as absent rather than inherited from the accepted-old working tree
+- **AND** raw accepted-root moves without a matching one-shot closeout intent
+  SHALL remain blocked.
+
+#### Scenario: closeout-policy remediation does not lower the acceptance bar
+
+- **GIVEN** a Change introduces committed-profile closeout policy resolution
+- **WHEN** it is prepared for candidate landing
+- **THEN** it SHALL preserve candidate-tree policy resolution and the
+  raw-reference-move guard
+- **AND** it SHALL pass the existing proof floor without adding source-budget
+  debt, allowance, or an exclusion for the remediation
+- **AND** regenerated evidence and later proof SHALL bind the corrective HEAD.

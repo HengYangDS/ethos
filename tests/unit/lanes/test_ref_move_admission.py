@@ -19,6 +19,7 @@ from pathlib import Path
 
 import pytest
 
+import ethos.adapters.admission.transitions as transitions
 from ethos.adapters.admission.closeout_intent.core import CloseoutTransition
 from ethos.adapters.admission.closeout_intent.core import write_closeout_intent
 from ethos.adapters.admission.core import push_admission_report
@@ -98,7 +99,13 @@ def test_work_lane_ref_transition_prepared_checks_holder_generation_and_old_head
     )
     monkeypatch.setenv("ETHOS_ACTOR", "agent:codex:thread:first")
 
-    report = work_lane_ref_transition_report(
+    def unexpected_workspace_status(_root: Path) -> dict[str, object]:
+        message = "work-lane ref transition must not build full workspace status"
+        raise AssertionError(message)
+
+    monkeypatch.setattr(transitions, "workspace_status", unexpected_workspace_status, raising=False)
+
+    report = transitions.work_lane_ref_transition_report(
         root=lane,
         phase="prepared",
         ref_name="refs/heads/work/current",
@@ -109,7 +116,7 @@ def test_work_lane_ref_transition_prepared_checks_holder_generation_and_old_head
     assert report["decision"]["action"] == "allow"
     assert report["lease"]["epoch"] == 1
 
-    stale = work_lane_ref_transition_report(
+    stale = transitions.work_lane_ref_transition_report(
         root=lane,
         phase="prepared",
         ref_name="refs/heads/work/current",

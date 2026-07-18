@@ -1,0 +1,37 @@
+[claim]
+id = "adopter-bootstrap-cycle-20260715"
+subject = "repository-governance:adopter-profile-material-path-bootstrap"
+state = "active"
+change_id = "adopter-bootstrap-cycle-20260715"
+summary = "ETHOS admits exactly the one legacy profile declaration after a sole official no-tasks Change is created, without widening material scope coverage."
+
+[evidence]
+dated = "evidence/chronicle/adopter-bootstrap-cycle-20260715/2026-07-15.md"
+sha256 = "e90c07074725601625c05798498e6f186c0d0d645b1124a1e081337d6394debe"
+evidence_ids = ["evidence:adopter-bootstrap-cycle-20260715"]
+binding = "Focused regression, lifecycle validation, executed proof, and the official OpenSpec carrier bind this active implementation claim."
+verifier = "digest_only"
+tests = []
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "repository-governance"
+scope = "The tracked legacy profile-only material-path declaration bootstrap; no normal material-path coverage or Change lifecycle expansion."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-15-adopter-bootstrap-cycle-20260715"
+fallback = "Retain the existing fail-closed material-path gap until a completed active Change and scope companion exist."
+kill_signal = "A no-tasks Change covers a non-profile path, more than one Change is admitted, or an untracked, malformed, empty, or widened profile write passes prewrite."
+
+[promotion]
+targets = [
+  "packages/ethos/src/ethos/adapters/openspec/lifecycle/core.py",
+  "packages/ethos/src/ethos/adapters/openspec/lifecycle/scope.py",
+  "tests/unit/lanes/test_lanes_openspec_scope.py",
+  "tests/unit/product/test_openspec_cache.py",
+  "openspec/specs/repository-governance/spec.md",
+  "openspec/changes/archive/2026-07-15-adopter-bootstrap-cycle-20260715",
+  "evidence/claims/adopter-bootstrap-cycle-20260715.toml",
+]

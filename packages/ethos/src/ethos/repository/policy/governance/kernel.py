@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from typing import cast
 
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.repository.context import context_for_root
@@ -11,6 +10,8 @@ from ethos.repository.registry.commands import SCORECARD_COMMANDS
 from ethos.repository.registry.profiles import governance_profile_report
 from ethos_core.contracts.docs.topology import required_docs_topology_paths
 from ethos_core.kernel import KERNEL_CHAIN
+from ethos_core.normalization.core import string_mapping
+from ethos_core.normalization.core import string_sequence
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -105,7 +106,7 @@ def governance_kernel_report(root: Path) -> dict[str, object]:
         "generic-adoption-scaffold": _generic_adoption_scaffold_check(generic_plan),
     }
     required_gaps = _dedupe(
-        gap for check in checks.values() for gap in _string_list(check.get("required_gaps"))
+        gap for check in checks.values() for gap in string_sequence(check.get("required_gaps"))
     )
     return {
         "ok": not required_gaps,
@@ -137,8 +138,8 @@ def governance_kernel_report(root: Path) -> dict[str, object]:
 
 
 def _runtime_context_check(context: Mapping[str, object]) -> dict[str, object]:
-    subject = _mapping(context.get("subject"))
-    authority = _mapping(context.get("authority"))
+    subject = string_mapping(context.get("subject"))
+    authority = string_mapping(context.get("authority"))
     required_gaps = _dedupe(
         [
             *_field_gaps(
@@ -216,15 +217,15 @@ def _field_gaps(*, value: object, expected: object, gap: str) -> list[str]:
 
 
 def _list_field_gaps(*, value: object, expected: Iterable[str], gap: str) -> list[str]:
-    return [] if _string_list(value) == [str(item) for item in expected] else [gap]
+    return [] if string_sequence(value) == [str(item) for item in expected] else [gap]
 
 
 def _profile_isomorphism_check(report: Mapping[str, object]) -> dict[str, object]:
-    profiles = _mapping(report.get("profiles"))
+    profiles = string_mapping(report.get("profiles"))
     payloads = _profile_payloads(profiles)
     required_gaps = _dedupe(
         [
-            *_string_list(report.get("required_gaps")),
+            *string_sequence(report.get("required_gaps")),
             *_missing_profile_gaps(profiles),
             *(
                 []
@@ -233,7 +234,7 @@ def _profile_isomorphism_check(report: Mapping[str, object]) -> dict[str, object
             ),
             *_shared_profile_field_gaps(payloads),
             *_allowed_difference_gaps(payloads),
-            *_shared_kernel_gaps(_mapping(report.get("shared_kernel"))),
+            *_shared_kernel_gaps(string_mapping(report.get("shared_kernel"))),
         ]
     )
     return {
@@ -243,13 +244,15 @@ def _profile_isomorphism_check(report: Mapping[str, object]) -> dict[str, object
         "summary": {
             "profile_count": len(profiles),
             "isomorphic": report.get("isomorphic"),
-            "allowed_differences": _string_list(report.get("allowed_differences")),
+            "allowed_differences": string_sequence(report.get("allowed_differences")),
         },
     }
 
 
 def _profile_payloads(profiles: Mapping[str, object]) -> dict[str, dict[str, object]]:
-    return {profile_id: _mapping(profiles.get(profile_id)) for profile_id in REQUIRED_PROFILE_IDS}
+    return {
+        profile_id: string_mapping(profiles.get(profile_id)) for profile_id in REQUIRED_PROFILE_IDS
+    }
 
 
 def _missing_profile_gaps(profiles: Mapping[str, object]) -> list[str]:
@@ -266,10 +269,10 @@ def _shared_profile_field_gaps(payloads: Mapping[str, Mapping[str, object]]) -> 
     reference = payloads[REQUIRED_PROFILE_IDS[0]]
     gaps: list[str] = []
     for field in SHARED_PROFILE_FIELDS:
-        expected = _string_list(reference.get(field))
+        expected = string_sequence(reference.get(field))
         for profile_id in REQUIRED_PROFILE_IDS[1:]:
             payload = payloads[profile_id]
-            if _string_list(payload.get(field)) != expected:
+            if string_sequence(payload.get(field)) != expected:
                 gaps.append(f"governance_kernel_profile_field_mismatch:{profile_id}:{field}")
     return gaps
 
@@ -320,8 +323,8 @@ def _product_docs_check(root: Path) -> dict[str, object]:
 
 
 def _generic_adoption_scaffold_check(plan: Mapping[str, object]) -> dict[str, object]:
-    required_gaps = _string_list(plan.get("required_gaps"))
-    planned_files = set(_string_list(plan.get("planned_files")))
+    required_gaps = string_sequence(plan.get("required_gaps"))
+    planned_files = set(string_sequence(plan.get("planned_files")))
     docs_kernel = set(required_docs_topology_paths())
     missing_docs = sorted(docs_kernel - planned_files)
     required_gaps.extend(
@@ -350,18 +353,6 @@ def _generic_adoption_scaffold_check(plan: Mapping[str, object]) -> dict[str, ob
             "docs_kernel_path_count": len(docs_kernel),
         },
     }
-
-
-def _mapping(value: object) -> dict[str, object]:
-    if isinstance(value, dict):
-        return cast("dict[str, object]", value)
-    return {}
-
-
-def _string_list(value: object) -> list[str]:
-    if isinstance(value, list | tuple):
-        return [str(item) for item in value]
-    return []
 
 
 def _dedupe(values: Iterable[str]) -> list[str]:

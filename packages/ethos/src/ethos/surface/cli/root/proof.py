@@ -138,7 +138,9 @@ def prove(
     audit = status_domain.audit_for_root(
         repo, openspec_mode="deep" if full else "shape", current_head=current_head
     )
-    changed_paths = change_scope_paths_from_status(repo, workspace_status(repo))
+    changed_paths = change_scope_paths_from_status(
+        repo, workspace_status(repo, include_foreign_path_scope=False)
+    )
     openspec_lifecycle = openspec_governance_report(
         repo,
         lifecycle=True,

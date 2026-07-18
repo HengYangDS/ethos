@@ -4,7 +4,6 @@ from __future__ import annotations
 import ast
 import json
 import sqlite3
-import subprocess
 from contextlib import closing
 from pathlib import Path
 from types import SimpleNamespace
@@ -21,11 +20,7 @@ from ethos.adapters.store.retrieval import schema as retrieval_schema
 from ethos.adapters.store.retrieval import sources as retrieval_sources
 from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
-
-
-def cp(stdout: str = "", stderr: str = "", returncode: int = 0) -> subprocess.CompletedProcess[str]:
-    return subprocess.CompletedProcess(["git"], returncode, stdout, stderr)
-
+from tests.support.subprocesses import completed as cp
 
 POLICY = SimpleNamespace(
     accepted_branch="dev",
@@ -68,7 +63,7 @@ def test_mutation_decisions_and_candidate_base_edges(monkeypatch, tmp_path: Path
     monkeypatch.setattr(
         core,
         "workspace_status",
-        lambda root: status_for(role=ROLE_ACCEPTED_ROOT, dirty=True),
+        lambda root, **_kwargs: status_for(role=ROLE_ACCEPTED_ROOT, dirty=True),
     )
     monkeypatch.setattr(core, "executed_proof_record", lambda root, head: None)
     decision = core.evaluate_mutation(
@@ -84,7 +79,9 @@ def test_mutation_decisions_and_candidate_base_edges(monkeypatch, tmp_path: Path
     )
 
     monkeypatch.setattr(core, "load_branch_role_policy", lambda root: POLICY)
-    monkeypatch.setattr(core, "_git", lambda root, *args, check=True, **kwargs: cp(stdout="h1\n"))
+    monkeypatch.setattr(
+        core, "run_git", lambda root, *args, check=True, **kwargs: cp(stdout="h1\n")
+    )
     for candidate, gap in [
         (
             {
@@ -108,19 +105,19 @@ def test_mutation_decisions_and_candidate_base_edges(monkeypatch, tmp_path: Path
         monkeypatch.setattr(
             core,
             "workspace_status",
-            lambda root, candidate=candidate: status_for(candidate=candidate),
+            lambda root, candidate=candidate, **_kwargs: status_for(candidate=candidate),
         )
         assert core.candidate_base_report(root=tmp_path)["required_gaps"] == [gap]
     monkeypatch.setattr(
         core,
         "workspace_status",
-        lambda root: status_for(dirty=(root.as_posix() == "/workspace/candidate")),
+        lambda root, **_kwargs: status_for(dirty=(root.as_posix() == "/workspace/candidate")),
     )
     assert core.candidate_base_report(root=tmp_path)["required_gaps"] == [
         "candidate_worktree_dirty"
     ]
-    monkeypatch.setattr(core, "workspace_status", lambda root: status_for())
-    monkeypatch.setattr(core, "_is_ancestor", lambda root, ancestor, descendant: False)
+    monkeypatch.setattr(core, "workspace_status", lambda root, **_kwargs: status_for())
+    monkeypatch.setattr(core, "is_ancestor", lambda root, ancestor, descendant: False)
     assert core.candidate_base_report(root=tmp_path)["required_gaps"] == ["candidate_base_stale"]
 
 

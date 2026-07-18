@@ -6,8 +6,8 @@ from __future__ import annotations
 
 import json
 import sqlite3
-import subprocess
 from contextlib import closing
+from functools import partial
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -21,17 +21,17 @@ import ethos.adapters.store.state.lease.projection as state_projection
 import ethos.adapters.store.state.lease.projection as state_read
 from ethos.adapters.mutation import core as mutation_core
 from ethos.adapters.mutation import proof as mutation_proof
+from ethos.adapters.mutation.closeout import core as closeout_core
 from ethos.adapters.repo import coordination
 from ethos.adapters.repo import git
 from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
-
-
-def cp(stdout: str = "", stderr: str = "", returncode: int = 0) -> subprocess.CompletedProcess[str]:
-    return subprocess.CompletedProcess(["git"], returncode, stdout, stderr)
-
+from ethos_core.contracts.branch.roles import BranchRolePolicy
+from tests.support.subprocesses import completed as cp
 
 POLICY = SimpleNamespace(
+    release_branch="main",
+    release_mirror="independent",
     accepted_branch="dev",
     candidate_branch="candidate/dev",
     submit_branch_for_source=lambda branch: f"submit/{branch.replace('/', '-')}",
@@ -74,14 +74,16 @@ def accepted_status() -> dict[str, object]:
 
 
 def prepare_accepted_closeout(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(mutation_core, "load_branch_role_policy", lambda root: POLICY)
+    monkeypatch.setattr(mutation_core, "load_branch_role_policy", lambda root, *args: POLICY)
     monkeypatch.setattr(
         mutation_core,
         "evaluate_closeout_mutation",
         lambda *args, **kwargs: mutation_core.MutationEvaluation(ok=True, state="closeout_ready"),
     )
-    monkeypatch.setattr(mutation_core, "workspace_status", lambda root: accepted_status())
-    monkeypatch.setattr(mutation_core, "_is_ancestor", lambda root, ancestor, descendant: True)
+    monkeypatch.setattr(
+        mutation_core, "workspace_status", lambda root, **_kwargs: accepted_status()
+    )
+    monkeypatch.setattr(mutation_core, "is_ancestor", lambda root, ancestor, descendant: True)
     monkeypatch.setattr(
         mutation_core,
         "carry_executed_proof_record",
@@ -265,11 +267,15 @@ def test_promotion_completeness_surfaces_adopter_code_correctness_gap(
         ],
     )
     mutation_proof.record_executed_proof(tmp_path, full)
-    monkeypatch.setattr(mutation_proof, "_promotion_required_gate_ids", lambda root: ("required",))
+    monkeypatch.setattr(
+        mutation_proof,
+        "_promotion_required_gate_ids",
+        lambda root, **_kwargs: ("required",),
+    )
     monkeypatch.setattr(
         mutation_proof,
         "adopter_code_correctness_gaps",
-        lambda root: ("adopter_code_correctness_missing",),
+        lambda root, **_kwargs: ("adopter_code_correctness_missing",),
     )
 
     assert mutation_proof.promotion_completeness_gaps(tmp_path, "h1") == [
@@ -278,12 +284,12 @@ def test_promotion_completeness_surfaces_adopter_code_correctness_gap(
 
 
 def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(mutation_core, "load_branch_role_policy", lambda root: POLICY)
+    monkeypatch.setattr(mutation_core, "load_branch_role_policy", lambda root, *args: POLICY)
     monkeypatch.setattr(mutation_core, "proof_gaps", lambda root, head: [])
     monkeypatch.setattr(
         mutation_core,
         "workspace_status",
-        lambda root: status_for(closeout_gaps=["trust_gap"]),
+        lambda root, **_kwargs: status_for(closeout_gaps=["trust_gap"]),
     )
     decision = mutation_core.evaluate_mutation(
         mutation_core.MutationRequest("land", True, True, "h1"),
@@ -293,7 +299,7 @@ def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
     assert decision.gaps == ("trust_gap",)
 
     ready_decision = mutation_core.MutationEvaluation(ok=True, state="land_ready")
-    monkeypatch.setattr(mutation_core, "workspace_status", lambda root: status_for())
+    monkeypatch.setattr(mutation_core, "workspace_status", lambda root, **_kwargs: status_for())
     monkeypatch.setattr(
         mutation_core,
         "candidate_base_report",
@@ -305,7 +311,7 @@ def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
     )
     monkeypatch.setattr(
         mutation_core,
-        "_git",
+        "run_git",
         lambda root, *args, check=True, **kwargs: cp(stdout="h1\n", returncode=0),
     )
     assert mutation_core.apply_land_to_candidate(
@@ -333,7 +339,7 @@ def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
     monkeypatch.setattr(mutation_core, "discard_executed_proof", lambda root, head: True)
     monkeypatch.setattr(
         mutation_core,
-        "_git",
+        "run_git",
         lambda root, *args, check=True, **kwargs: cp(
             stdout="h1\n",
             stderr="merge failed",
@@ -353,7 +359,7 @@ def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
             merge_envs.append(kwargs.get("env"))
         return cp(stdout="h1\n", returncode=0)
 
-    monkeypatch.setattr(mutation_core, "_git", fake_land_git)
+    monkeypatch.setattr(mutation_core, "run_git", fake_land_git)
     assert (
         mutation_core.apply_land_to_candidate(
             root=tmp_path,
@@ -368,14 +374,14 @@ def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
     assert merge_envs == [None]
 
     prepare_accepted_closeout(monkeypatch)
-    monkeypatch.setattr(mutation_core, "_is_ancestor", lambda root, ancestor, descendant: False)
+    monkeypatch.setattr(mutation_core, "is_ancestor", lambda root, ancestor, descendant: False)
     assert mutation_core.apply_candidate_to_accepted(
         root=tmp_path, authorized=True, expect_head="h1"
     )["required_gaps"] == ["candidate_diverged_from_accepted"]
-    monkeypatch.setattr(mutation_core, "_is_ancestor", lambda root, ancestor, descendant: True)
+    monkeypatch.setattr(mutation_core, "is_ancestor", lambda root, ancestor, descendant: True)
     monkeypatch.setattr(
         mutation_core,
-        "_git",
+        "run_git",
         lambda root, *args, check=True, **kwargs: cp(
             stdout="h1\n",
             stderr="cannot lock ref",
@@ -397,7 +403,7 @@ def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
         return cp(stdout="h1\n", returncode=0)
 
     fake_git_sync_failed.reset_attempts = 0
-    monkeypatch.setattr(mutation_core, "_git", fake_git_sync_failed)
+    monkeypatch.setattr(mutation_core, "run_git", fake_git_sync_failed)
     failed_sync = mutation_core.apply_candidate_to_accepted(
         root=tmp_path, authorized=True, expect_head="h1"
     )
@@ -416,13 +422,60 @@ def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
             return cp(stdout="", returncode=0)
         return cp(stdout="h1\n", returncode=0)
 
-    monkeypatch.setattr(mutation_core, "_git", fake_git_clean_after_sync)
+    monkeypatch.setattr(mutation_core, "run_git", fake_git_clean_after_sync)
     assert (
         mutation_core.apply_candidate_to_accepted(root=tmp_path, authorized=True, expect_head="h1")[
             "state"
         ]
         == "accepted_validated"
     )
+
+
+def test_release_mirror_closeout_edge_paths(monkeypatch, tmp_path):
+    request = closeout_core.CloseoutRequest(
+        root=tmp_path,
+        policy=BranchRolePolicy(release_mirror="accepted_ff"),
+        current_head="old",
+        candidate_head="new",
+        candidate_path=tmp_path,
+        worktrees=[],
+    )
+    dependencies = closeout_core.CloseoutDependencies(
+        run_git=lambda *_args, **_kwargs: cp(),
+        is_ancestor=lambda *_args: True,
+        carry_proof=lambda **_kwargs: {"ok": True, "required_gaps": []},
+        discard_proof=lambda *_args: None,
+    )
+    promote = partial(
+        closeout_core.promote_candidate_to_accepted,
+        request,
+        dependencies=dependencies,
+    )
+    assert promote()["required_gaps"][0] == "release_mirror_release_branch_missing"
+    transition = closeout_core.CloseoutTransition("refs/heads/main", "old", "new", "new")
+    worktrees = [{"branch": "main", "worktree_binding": "linked", "path": str(tmp_path)}]
+    assert (
+        closeout_core.sync_release_mirror(
+            transition, worktrees, "new", "old", lambda *_a, **_k: cp()
+        )["worktree_sync"]
+        == "synced"
+    )
+    failed = closeout_core.sync_release_mirror(
+        transition, worktrees, "new", "old", lambda *_a, **_k: cp(stderr="sync", returncode=1)
+    )
+    monkeypatch.setattr(closeout_core, "sync_release_mirror", lambda *_a: failed)
+    assert closeout_core.promote_candidate_to_accepted(
+        request,
+        dependencies=closeout_core.CloseoutDependencies(
+            run_git=lambda _r, *a, **_k: cp("old\n") if a[:1] == ("rev-parse",) else cp(),
+            is_ancestor=lambda *_args: True,
+            carry_proof=lambda **_k: {"ok": True, "required_gaps": []},
+            discard_proof=lambda *_args: None,
+        ),
+    )["required_gaps"] == ["release_mirror_worktree_sync_failed"]
+    assert closeout_core.proof_required_gaps({"required_gaps": "invalid"}) == ["proof_invalid"]
+    assert closeout_core.proof_required_gaps(object()) == ["proof_invalid"]
+    assert closeout_core.proof_carry_failure(request, object()) is not None
 
 
 def test_closeout_retries_transient_accepted_worktree_sync_failure(
@@ -444,7 +497,7 @@ def test_closeout_retries_transient_accepted_worktree_sync_failure(
             return cp(stdout="", returncode=0)
         return cp(stdout="h1\n", returncode=0)
 
-    monkeypatch.setattr(mutation_core, "_git", fake_git_sync_retry)
+    monkeypatch.setattr(mutation_core, "run_git", fake_git_sync_retry)
 
     retried_sync = mutation_core.apply_candidate_to_accepted(
         root=tmp_path, authorized=True, expect_head="h1"
@@ -469,7 +522,7 @@ def test_closeout_blocks_dirty_accepted_worktree_after_sync(
             return cp(stdout=" M README.md\n", returncode=0)
         return cp(stdout="h1\n", returncode=0)
 
-    monkeypatch.setattr(mutation_core, "_git", fake_git_dirty_after_sync)
+    monkeypatch.setattr(mutation_core, "run_git", fake_git_dirty_after_sync)
 
     dirty_after_sync = mutation_core.apply_candidate_to_accepted(
         root=tmp_path, authorized=True, expect_head="h1"
@@ -483,12 +536,12 @@ def test_mutation_admission_blocks_unarchived_openspec_carriers(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.setattr(mutation_core, "proof_gaps", lambda root, head: [])
-    monkeypatch.setattr(mutation_core, "_is_ancestor", lambda root, ancestor, descendant: True)
+    monkeypatch.setattr(mutation_core, "is_ancestor", lambda root, ancestor, descendant: True)
     change = tmp_path / "openspec" / "changes" / "done"
     change.mkdir(parents=True)
     (change / "tasks.md").write_text("- [x] done\n", encoding="utf-8")
 
-    monkeypatch.setattr(mutation_core, "workspace_status", lambda root: status_for())
+    monkeypatch.setattr(mutation_core, "workspace_status", lambda root, **_kwargs: status_for())
     land_decision = mutation_core.evaluate_mutation(
         mutation_core.MutationRequest("land", True, True, "h1"),
         root=tmp_path,
@@ -505,7 +558,7 @@ def test_mutation_admission_blocks_any_active_openspec_carrier_before_land(
     change.mkdir(parents=True)
     (change / "tasks.md").write_text("- [x] started\n- [ ] not archived\n", encoding="utf-8")
 
-    monkeypatch.setattr(mutation_core, "workspace_status", lambda root: status_for())
+    monkeypatch.setattr(mutation_core, "workspace_status", lambda root, **_kwargs: status_for())
 
     land_decision = mutation_core.evaluate_mutation(
         mutation_core.MutationRequest("land", True, True, "h1"),
@@ -520,7 +573,7 @@ def test_mutation_admission_blocks_active_openspec_carriers_on_closeout(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.setattr(mutation_core, "proof_gaps", lambda root, head: [])
-    monkeypatch.setattr(mutation_core, "_is_ancestor", lambda root, ancestor, descendant: True)
+    monkeypatch.setattr(mutation_core, "is_ancestor", lambda root, ancestor, descendant: True)
     change = tmp_path / "openspec" / "changes" / "wip"
     change.mkdir(parents=True)
     (change / "tasks.md").write_text("- [ ] unfinished\n", encoding="utf-8")
@@ -528,7 +581,7 @@ def test_mutation_admission_blocks_active_openspec_carriers_on_closeout(
     monkeypatch.setattr(
         mutation_core,
         "workspace_status",
-        lambda root: status_for(
+        lambda root, **_kwargs: status_for(
             role=ROLE_ACCEPTED_ROOT,
             candidate={
                 "exists": True,
@@ -647,6 +700,16 @@ def test_git_and_coordination_edges(monkeypatch: pytest.MonkeyPatch, tmp_path: P
         )
         == "disjoint"
     )
+    assert (
+        coordination.coordination_state(
+            current_role=ROLE_WORK_LANE,
+            current_path_scope=("a",),
+            current_scope_state="deferred",
+            foreign_path_scope=("b",),
+            foreign_scope_state="bounded",
+        )
+        == "deferred"
+    )
     required, advisory = coordination.coordination_gaps(
         [
             {
@@ -660,6 +723,22 @@ def test_git_and_coordination_edges(monkeypatch: pytest.MonkeyPatch, tmp_path: P
     )
     assert required == ["coordination_gap:current_scope_unknown"]
     assert "coordination_gap:scope_overlap:work/x" in advisory
+    deferred_lane = coordination.foreign_work_lane_deferred(
+        {
+            "path": "/workspace/foreign",
+            "head": "h1",
+            "branch": "work/foreign",
+            "role": ROLE_WORK_LANE,
+            "worktree_binding": "linked",
+        },
+        lease={"holder_ref": "agent:test:case:foreign"},
+        claim_id="claim",
+        dirty_paths=("unobserved",),
+    )
+    assert deferred_lane["scope_state"] == "deferred"
+    assert deferred_lane["coordination_state"] == "advisory"
+    assert deferred_lane["closeout_disposition"] == "none"
+    assert coordination._combined_scope_state("deferred", ("a",)) == "deferred"  # noqa: RUF100, SLF001 - exact deferred-scope reducer coverage
     package = coordination.coordination_package(
         [{"lease_state": "missing", "coordination_state": "unknown"}],
         required_gaps=["g"],

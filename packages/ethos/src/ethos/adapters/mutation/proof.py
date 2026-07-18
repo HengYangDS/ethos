@@ -192,7 +192,7 @@ def record_executed_proof(root: Path, evidence: dict[str, Any]) -> Path:
     return path
 
 
-def _promotion_required_gate_ids(root: Path) -> tuple[str, ...]:
+def _promotion_required_gate_ids(root: Path, *, tree_ref: str | None = None) -> tuple[str, ...]:
     """Return the gate ids a promotion proof must fully cover for this root.
 
     This is the LAND floor: exactly the default (non-full) gate set that
@@ -201,7 +201,7 @@ def _promotion_required_gate_ids(root: Path) -> tuple[str, ...]:
     that the land proof legitimately does not carry, so completeness binds to
     the default set, not the full set.
     """
-    return default_gate_ids(full=False, root=root)
+    return default_gate_ids(full=False, root=root, tree_ref=tree_ref)
 
 
 def _runs_cover_required_set(runs: object, required: tuple[str, ...]) -> bool:
@@ -236,11 +236,11 @@ def promotion_completeness_gaps(root: Path, head: str) -> list[str]:
     # proof floor with no tests/lint/types dimension — a contentless proof must not be
     # promotion-worthy. This is a completeness requirement (not an executable gate), so
     # it is surfaced here rather than injected into the executable floor.
-    gaps.extend(adopter_code_correctness_gaps(root))
-    gaps.extend(adopter_gate_descriptor_gaps(root))
+    gaps.extend(adopter_code_correctness_gaps(root, tree_ref=head))
+    gaps.extend(adopter_gate_descriptor_gaps(root, tree_ref=head))
     evidence = record.get("evidence")
     runs = evidence.get("runs") if isinstance(evidence, dict) else None
-    required = _promotion_required_gate_ids(root)
+    required = _promotion_required_gate_ids(root, tree_ref=head)
     if not _runs_cover_required_set(runs, required):
         present = (
             {run.get("action_id") for run in runs if isinstance(run, dict)}
@@ -267,7 +267,7 @@ def gate_policy_gaps(root: Path, head: str) -> list[str]:
     if record is None:
         return []
     gaps: list[str] = []
-    gaps.extend(adopter_gate_descriptor_gaps(root))
+    gaps.extend(adopter_gate_descriptor_gaps(root, tree_ref=head))
     stored_digest = str(record.get("gate_policy_digest", ""))
     # Resolve the LIVE digest against head's COMMITTED tree, not the working tree. The
     # reference-transaction hook validates an accepted-branch move while the accepted

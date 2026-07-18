@@ -20,12 +20,9 @@ See also: [Product Design Contract](product-design-contract.md),
 
 ## Contract
 
-ETHOS supports GitHub and GitLab as equivalent **provider adapters** for the
-same Git-native governance contract; they are not separate product modes. Their
-provider equivalence permits equal repository and CI/CD capability without
-symmetric organizational publication authority. A repository may declare GitLab
-as its organizational primary publication source and GitHub as an independent,
-complete repository and CI/CD plane.
+ETHOS supports GitHub and GitLab as symmetric hosted forge providers. They are
+carriers for the same Git-native repository governance contract, not separate
+product modes.
 
 The provider contract is:
 
@@ -43,42 +40,10 @@ provider runtimes. A hosted forge may provide review UI, branch protection,
 runner status, artifacts, or remote publication observations; it does not own
 ETHOS lifecycle state.
 
-## Three-Layer, Peer-Complete Provider Topology
-
-A repository that declares `publication_topology.mode =
-"three_layer_peer_complete"` has three distinct roles:
-
-| Layer | Role | May claim | Must not claim |
-| --- | --- | --- | --- |
-| Local | Verification and installation | Local owner-gate and installation evidence | Remote publication or hosted CI success |
-| GitLab primary | Organizational primary publication plus complete repository and CI/CD plane | GitLab publication, repository, and hosted observations when separately observed | GitHub status as GitLab status |
-| GitHub peer plane | Independent complete repository and CI/CD plane | GitHub repository, CI/CD, update, distribution, and hosted observations when separately observed | GitLab-primary publication or GitLab hosted status |
-
-GitLab and GitHub SHALL each declare the same complete capability set:
-`repository`, `ci_cd`, `update`, and `distribution`. GitLab remains the
-organizational primary publication source. A GitHub outage does not reduce
-GitLab capability; a GitLab outage does not reduce GitHub capability. `ethos
-publish` remains read-only: it reports `remote_push = not_performed` and does
-not mint a publication claim.
-
-`candidate/dev` is an internal local integration ref, never a hosted-provider
-ref. Both GitLab and GitHub SHALL admit only `dev`, `main`, and `submit/*` for
-remote transition. The tracked release policy is the common whitelist; a
-provider-specific exception is not permitted. The local pre-push admission uses
-that same whitelist, so it rejects a `candidate/dev` destination before either
-provider is contacted.
-
 ## Required Provider Invariants
 
-1. **Peer-complete capability parity**: enabled GitHub and GitLab provider
-   profiles SHALL each declare repository, CI/CD, update, and distribution
-   capability and SHALL expose the corresponding tracked CI, review-template,
-   and issue-template surfaces. The required gate classes, thresholds, and
-   evidence boundaries SHALL be the same for a given profile. This concerns
-   provider capability parity, not organizational publication authority.
-1. **Remote-ref parity**: GitLab and GitHub SHALL use the same remote-ref
-   whitelist: `dev`, `main`, and `submit/*`. They SHALL reject
-   `candidate/dev`; it remains a local candidate-integration root.
+1. **Mirror semantics**: GitHub and GitLab SHALL execute the same required gate
+   classes, thresholds, and evidence boundaries for a given profile.
 1. **Template ownership**: provider YAML SHALL be generated or checked from
    tracked provider templates. Hand-edited drift in hosted files is a governance
    gap.

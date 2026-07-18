@@ -161,25 +161,23 @@ def generated_artifact_entrypoint_audit(root: Path) -> dict[str, Any]:
 
 
 def _entrypoint_files(root: Path) -> list[tuple[str, Path]]:
-    candidates: dict[str, Path] = {}
-    for rel in _ENTRYPOINT_EXPLICIT_FILES:
-        path = root / rel
-        if path.is_file():
-            candidates[rel] = path
-    for pattern in _ENTRYPOINT_GLOB_PATTERNS:
-        for path in root.glob(pattern):
-            if path.is_file():
-                candidates[path.relative_to(root).as_posix()] = path
-    return [(rel, candidates[rel]) for rel in sorted(candidates)]
+    candidates = {rel: path for rel in _ENTRYPOINT_EXPLICIT_FILES if (path := root / rel).is_file()}
+    candidates.update(
+        (path.relative_to(root).as_posix(), path)
+        for pattern in _ENTRYPOINT_GLOB_PATTERNS
+        for path in root.glob(pattern)
+        if path.is_file()
+    )
+    return sorted(candidates.items())
 
 
 def _entrypoint_findings(rel: str, text: str) -> list[dict[str, str]]:
     active_text = "\n".join(_active_entrypoint_lines(text))
     producer_text = _entrypoint_producer_text(rel, text, active_text)
-    findings: list[dict[str, str]] = []
-    findings.extend(_denied_home_findings(rel, producer_text))
-    findings.extend(_tool_route_findings(rel, active_text, text))
-    return findings
+    return [
+        *_denied_home_findings(rel, producer_text),
+        *_tool_route_findings(rel, active_text, text),
+    ]
 
 
 def _entrypoint_producer_text(rel: str, text: str, active_text: str) -> str:
@@ -217,111 +215,92 @@ def _structured_task_commands(task: object) -> list[str]:
 
 
 def _active_entrypoint_lines(text: str) -> list[str]:
-    lines: list[str] = []
-    for raw in text.splitlines():
-        stripped = raw.strip()
-        if not stripped or stripped.startswith("#"):
-            continue
-        lines.append(stripped)
-    return lines
+    return [line for raw in text.splitlines() if (line := raw.strip()) and not line.startswith("#")]
 
 
 def _denied_home_findings(rel: str, active_text: str) -> list[dict[str, str]]:
-    findings: list[dict[str, str]] = []
-    for line in active_text.splitlines():
-        if _is_cleanup_line(line):
-            continue
-        findings.extend(_denied_root_cache_findings(rel, line))
-        findings.extend(_denied_generated_home_findings(rel, line))
-    return findings
-
-
-def _denied_root_cache_findings(rel: str, line: str) -> list[dict[str, str]]:
     return [
         _entrypoint_finding(
             rel,
-            check="denied-root-cache-home",
-            boundary="active entrypoints may not produce root tool cache homes",
-            required_gap=f"generated_artifact_entrypoint_denied_root_cache:{rel}:{token}",
+            check=check,
+            boundary=boundary,
+            required_gap=f"{gap_prefix}:{rel}:{token}",
         )
-        for token in _DENIED_ENTRYPOINT_CACHE_TOKENS
-        if _contains_denied_home_token(line, token)
-    ]
-
-
-def _denied_generated_home_findings(rel: str, line: str) -> list[dict[str, str]]:
-    return [
-        _entrypoint_finding(
-            rel,
-            check="denied-flat-generated-home",
-            boundary="active entrypoints may not produce flat or retired generated homes",
-            required_gap=f"generated_artifact_entrypoint_denied_generated_home:{rel}:{token}",
+        for line in active_text.splitlines()
+        if not _is_cleanup_line(line)
+        for check, boundary, gap_prefix, tokens in (
+            (
+                "denied-root-cache-home",
+                "active entrypoints may not produce root tool cache homes",
+                "generated_artifact_entrypoint_denied_root_cache",
+                _DENIED_ENTRYPOINT_CACHE_TOKENS,
+            ),
+            (
+                "denied-flat-generated-home",
+                "active entrypoints may not produce flat or retired generated homes",
+                "generated_artifact_entrypoint_denied_generated_home",
+                _DENIED_ENTRYPOINT_HOME_TOKENS,
+            ),
         )
-        for token in _DENIED_ENTRYPOINT_HOME_TOKENS
+        for token in tokens
         if _contains_denied_home_token(line, token)
     ]
 
 
 def _tool_route_findings(rel: str, active_text: str, full_text: str) -> list[dict[str, str]]:
-    findings = _pytest_config_findings(rel, active_text)
-    if not _is_executable_entrypoint(rel):
-        return findings
-
+    if rel != ".gitlab-ci.yml" and not rel.startswith(("tools/", ".github/", ".githooks/")):
+        return _pytest_config_findings(rel, active_text)
     producer_text = "\n".join(
         line for line in active_text.splitlines() if not _is_cleanup_line(line)
     )
-    findings.extend(_runtime_bootstrap_findings(rel, producer_text))
-    findings.extend(_ruff_route_findings(rel, producer_text, full_text))
-    findings.extend(_import_linter_route_findings(rel, producer_text, full_text))
-    findings.extend(_pytest_runner_findings(rel, producer_text, full_text))
-    findings.extend(_package_build_route_findings(rel, producer_text))
-    findings.extend(_gitlab_local_route_findings(rel, producer_text))
-    return findings
+    return [
+        *_pytest_config_findings(rel, active_text),
+        *_runtime_bootstrap_findings(rel, producer_text),
+        *_ruff_route_findings(rel, producer_text, full_text),
+        *_import_linter_route_findings(rel, producer_text, full_text),
+        *_pytest_runner_findings(rel, producer_text, full_text),
+        *_package_build_route_findings(rel, producer_text),
+        *_gitlab_local_route_findings(rel, producer_text),
+    ]
 
 
 def _runtime_bootstrap_findings(rel: str, producer_text: str) -> list[dict[str, str]]:
     """Reject executable Python/uv paths that evade the semantic bootstrap."""
     if rel == _RUNTIME_BOOTSTRAP_PATH:
         return []
-    root_venv = _ROOT_VENV_RUNTIME_TOKEN in producer_text
     bootstrap_bound = "with-python-runtime.sh" in producer_text
-    bare_uv = "uv run" in producer_text and not bootstrap_bound
-    bare_python = (
-        rel not in _PYTHON_BOOTSTRAP_EXEMPTIONS
-        and bool(_PYTHON_EXECUTION_PATTERN.search(producer_text))
-        and not bootstrap_bound
+    checks = (
+        (
+            _ROOT_VENV_RUNTIME_TOKEN in producer_text,
+            "root-venv-runtime",
+            "active execution must not fall back to root .venv",
+            "root_venv_runtime",
+        ),
+        (
+            "uv run" in producer_text and not bootstrap_bound,
+            "uv-runtime-bootstrap",
+            "active uv execution must route through the semantic runtime bootstrap",
+            "uv_runtime_unbound",
+        ),
+        (
+            rel not in _PYTHON_BOOTSTRAP_EXEMPTIONS
+            and bool(_PYTHON_EXECUTION_PATTERN.search(producer_text))
+            and not bootstrap_bound,
+            "python-runtime-bootstrap",
+            "active Python execution must route through the semantic runtime bootstrap",
+            "python_runtime_unbound",
+        ),
     )
-    findings: list[dict[str, str]] = []
-    if root_venv:
-        findings.append(
-            _entrypoint_finding(
-                rel,
-                check="root-venv-runtime",
-                boundary="active execution must not fall back to root .venv",
-                required_gap=f"generated_artifact_entrypoint_root_venv_runtime:{rel}",
-            )
+    return [
+        _entrypoint_finding(
+            rel,
+            check=check,
+            boundary=boundary,
+            required_gap=f"generated_artifact_entrypoint_{gap}:{rel}",
         )
-    if bare_uv:
-        findings.append(
-            _entrypoint_finding(
-                rel,
-                check="uv-runtime-bootstrap",
-                boundary="active uv execution must route through the semantic runtime bootstrap",
-                required_gap=f"generated_artifact_entrypoint_uv_runtime_unbound:{rel}",
-            )
-        )
-    if bare_python:
-        findings.append(
-            _entrypoint_finding(
-                rel,
-                check="python-runtime-bootstrap",
-                boundary=(
-                    "active Python execution must route through the semantic runtime bootstrap"
-                ),
-                required_gap=f"generated_artifact_entrypoint_python_runtime_unbound:{rel}",
-            )
-        )
-    return findings
+        for applies, check, boundary, gap in checks
+        if applies
+    ]
 
 
 def _pytest_config_findings(rel: str, active_text: str) -> list[dict[str, str]]:
@@ -342,9 +321,9 @@ def _pytest_config_findings(rel: str, active_text: str) -> list[dict[str, str]]:
 
 
 def _ruff_route_findings(rel: str, producer_text: str, full_text: str) -> list[dict[str, str]]:
-    if not _mentions_ruff(producer_text) or (
-        "--cache-dir" in producer_text or "RUFF_CACHE_DIR" in full_text
-    ):
+    if not (
+        "ruff check" in producer_text or "ruff format" in producer_text or '"ruff"' in producer_text
+    ) or ("--cache-dir" in producer_text or "RUFF_CACHE_DIR" in full_text):
         return []
     return [
         _entrypoint_finding(
@@ -418,42 +397,24 @@ def _package_build_route_findings(rel: str, producer_text: str) -> list[dict[str
             required_gap=f"generated_artifact_entrypoint_package_artifacts_unrouted:{rel}",
         )
         for line in producer_text.splitlines()
-        if _mentions_package_build(line) and "--out-dir build/artifacts/" not in line
+        if ("uv build" in line or "hatch build" in line or "python -m build" in line)
+        and "--out-dir build/artifacts/" not in line
     ]
 
 
 def _gitlab_local_route_findings(rel: str, producer_text: str) -> list[dict[str, str]]:
-    if not _mentions_gitlab_local(producer_text) or (
-        "build/runtime/work/gitlab-ci-local" in producer_text
-    ):
-        return []
-    return [
-        _entrypoint_finding(
-            rel,
-            check="gitlab-local-state-routing",
-            boundary=(
-                "gitlab-ci-local provider state must route to build/runtime/work/gitlab-ci-local"
-            ),
-            required_gap=f"generated_artifact_entrypoint_gitlab_state_unrouted:{rel}",
-        )
-    ]
-
-
-def _mentions_ruff(text: str) -> bool:
-    return "ruff check" in text or "ruff format" in text or '"ruff"' in text
-
-
-def _mentions_package_build(line: str) -> bool:
-    return "uv build" in line or "hatch build" in line or "python -m build" in line
-
-
-def _mentions_gitlab_local(text: str) -> bool:
-    return "gitlab-ci-local" in text
-
-
-def _is_executable_entrypoint(rel: str) -> bool:
     return (
-        rel.startswith(("tools/ci/", ".github/workflows/", ".githooks/")) or rel == ".gitlab-ci.yml"
+        []
+        if "gitlab-ci-local" not in producer_text
+        or "build/runtime/work/gitlab-ci-local" in producer_text
+        else [
+            _entrypoint_finding(
+                rel,
+                check="gitlab-local-state-routing",
+                boundary="gitlab-ci-local state must route to build/runtime/work/gitlab-ci-local",
+                required_gap=f"generated_artifact_entrypoint_gitlab_state_unrouted:{rel}",
+            )
+        ]
     )
 
 
@@ -501,6 +462,23 @@ def _entrypoint_finding(
 
 def _candidate_paths(root: Path, declaration: GeneratedArtifactTopologyDeclaration) -> list[Path]:
     candidates: dict[str, Path] = {}
+    prefixes = (
+        *declaration.product_adopter_root_prefixes,
+        *(
+            item.prefix.rstrip("/")
+            for group in (
+                "declarative_prefix",
+                "review_prefix",
+                "denied_prefix",
+                "denied_root_cache_prefix",
+                "denied_legacy_generated_prefix",
+            )
+            for item in getattr(declaration, group)
+        ),
+        declaration.cache_flat_root_prefix,
+        declaration.runtime_flat_root_prefix,
+    )
+    descendant_prefixes = tuple(f"{prefix}/" for prefix in prefixes)
     for rel in _explicit_denied_roots(declaration):
         path = root / rel
         if path.exists():
@@ -514,7 +492,7 @@ def _candidate_paths(root: Path, declaration: GeneratedArtifactTopologyDeclarati
         ]
         if directory != root:
             rel = rel_directory.as_posix()
-            if rel not in candidates:
+            if rel not in candidates and (rel in prefixes or rel.startswith(descendant_prefixes)):
                 policy = path_policy_from_declaration(rel_directory, declaration)
                 if policy["decision"] == "deny" and not any(
                     child.is_file() for child in directory.rglob("*")
@@ -523,8 +501,18 @@ def _candidate_paths(root: Path, declaration: GeneratedArtifactTopologyDeclarati
         for name in filenames:
             path = directory / name
             rel = path.relative_to(root).as_posix()
+            generated = (
+                name not in declaration.source_metadata_filenames
+                and not name.endswith(declaration.source_schema_suffix)
+                and (
+                    name in declaration.generated_filenames
+                    or path.suffix in declaration.generated_suffixes
+                    or name.startswith(declaration.generated_filename_prefixes)
+                )
+            )
             if (
                 rel not in candidates
+                and (generated or rel in prefixes or rel.startswith(descendant_prefixes))
                 and path_policy_from_declaration(path.relative_to(root), declaration)["decision"]
                 != "ignore"
             ):
@@ -541,29 +529,21 @@ def _skip_descendant(rel: Path, declaration: GeneratedArtifactTopologyDeclaratio
 
 def _explicit_denied_roots(declaration: GeneratedArtifactTopologyDeclaration) -> list[str]:
     contract = generated_artifact_contract(declaration)
-    roots: list[str] = []
-    for group in ("denied_root_cache_prefixes", "denied_legacy_generated_prefixes"):
-        for item in contract[group]:
-            prefix = str(item["prefix"]).rstrip("/")
-            if prefix:
-                roots.append(prefix)
-    return roots
+    return [
+        prefix
+        for group in ("denied_root_cache_prefixes", "denied_legacy_generated_prefixes")
+        for item in contract[group]
+        if (prefix := str(item["prefix"]).rstrip("/"))
+    ]
 
 
 def _is_ignored_local_test_residue(root: Path, rel: str) -> bool:
-    if "/" in rel:
-        return False
-    if rel not in _ROOT_TEST_RESIDUE_FILENAMES and not rel.startswith(_ROOT_TEST_RESIDUE_PREFIXES):
-        return False
-    return _git_ignored(root, rel) and not _git_tracked(root, rel)
-
-
-def _git_ignored(root: Path, rel: str) -> bool:
-    return _git_status_check(root, "check-ignore", "--quiet", "--", rel)
-
-
-def _git_tracked(root: Path, rel: str) -> bool:
-    return _git_status_check(root, "ls-files", "--error-unmatch", "--", rel)
+    return (
+        "/" not in rel
+        and (rel in _ROOT_TEST_RESIDUE_FILENAMES or rel.startswith(_ROOT_TEST_RESIDUE_PREFIXES))
+        and _git_status_check(root, "check-ignore", "--quiet", "--", rel)
+        and not _git_status_check(root, "ls-files", "--error-unmatch", "--", rel)
+    )
 
 
 def _git_status_check(root: Path, *args: str) -> bool:

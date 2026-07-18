@@ -14,10 +14,13 @@ from ethos.adapters.admission.shell import command_risk
 from ethos.adapters.admission.shell import git_stash_policy
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.mutation.proof import executed_proof_record
+from ethos.adapters.repo.git import committed_file_text
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.repository.policy.gates import gate_policy_digest
-from ethos.repository.release.core import remote_ref_policy_report
 from ethos_core.contracts.branch.roles import PROTECTED_WRITE_ROLES
+from ethos_core.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
+from ethos_core.contracts.branch.roles import branch_role_policy_from_text
+from ethos_core.contracts.branch.roles import load_branch_role_policy
 from ethos_core.normalization.core import string_sequence
 
 __all__ = ["work_lane_ref_transition_report"]
@@ -74,7 +77,9 @@ def hook_admission_report(  # noqa: PLR0913, RUF100 - exact request envelope pre
 ) -> dict[str, object]:
     normalized_layer = _normalize_layer(layer)
     repo = root.resolve()
-    status = workspace_status(repo)
+    # Hook admission needs current-checkout truth, not a full foreign-lane
+    # history inventory. Keep the pre-commit path bounded under heavy concurrency.
+    status = workspace_status(repo, include_foreign_path_scope=False)
     target_paths = _target_paths(repo, paths or [])
     base = {
         "ok": True,
@@ -131,14 +136,10 @@ def push_admission_report(
     executed proof bound to the exact pushed HEAD. Pushes to unprotected refs (work
     lanes, feature branches) are admitted untouched.
     """
-    from ethos.adapters.mutation.core import proof_gaps
-    from ethos_core.contracts.branch.roles import load_branch_role_policy
-
     repo = root.resolve()
     policy = load_branch_role_policy(repo)
     branch = target_ref.removeprefix("refs/heads/")
     role = policy.role_for_branch(branch)
-    remote_ref_policy = remote_ref_policy_report(repo)
     identity_report = push_identity_policy_report(
         repo,
         pushed_head,
@@ -158,26 +159,11 @@ def push_admission_report(
         "pushed_head": pushed_head,
         "remote_head": remote_head,
         "identity_policy": identity_report,
-        "remote_ref_policy": remote_ref_policy,
         "decision": {"action": "allow", "reason": "push_admitted"},
         "required_gaps": [],
     }
-    remote_ref_gaps = (
-        list(cast("list[str]", remote_ref_policy["required_gaps"]))
-        if remote_ref_policy["ok"]
-        else []
-    )
-    if remote_ref_policy["ok"]:
-        accepted_branches = cast("list[str]", remote_ref_policy["accepted_branches"])
-        if branch in cast("list[str]", remote_ref_policy["excluded_branches"]):
-            remote_ref_gaps.append("remote_candidate_branch_forbidden")
-        elif branch and not any(
-            branch == pattern.removesuffix("*") if pattern.endswith("*") else branch == pattern
-            for pattern in accepted_branches
-        ):
-            remote_ref_gaps.append("remote_branch_not_accepted")
     proof_required = role in PROTECTED_WRITE_ROLES
-    proof_required_gaps = proof_gaps(repo, pushed_head) if proof_required else []
+    proof_required_gaps = _proof_gaps(repo, pushed_head) if proof_required else []
     # The push plane must enforce the SAME candidate-train topology as the local ref-move
     # reducer, or a raw `git push --force <proven-old-sha>:dev` rewinds/side-steps the
     # accepted branch that ref_move_admission_report blocks (the pushed head is proven but
@@ -189,11 +175,11 @@ def push_admission_report(
         if branch == policy.accepted_branch
         else []
     )
-    gaps = [*identity_gaps, *remote_ref_gaps, *proof_required_gaps, *topology_gaps]
+    gaps = [*identity_gaps, *proof_required_gaps, *topology_gaps]
     if gaps:
         reason = (
             "push_to_protected_role_not_proven"
-            if remote_ref_gaps or proof_required_gaps or topology_gaps
+            if proof_required_gaps or topology_gaps
             else "pushed_commit_identity_not_allowed"
         )
         base.update(
@@ -217,6 +203,13 @@ def _proof_evidence_digest(root: Path, head: str) -> str:
     if not isinstance(record, dict):
         return ""
     return str(record.get("evidence_digest", ""))
+
+
+def _proof_gaps(root: Path, head: str) -> list[str]:
+    """Load mutation proof admission lazily to keep the hook import graph acyclic."""
+    from ethos.adapters.mutation.core import proof_gaps
+
+    return proof_gaps(root, head)
 
 
 def accepted_advance_gaps(
@@ -295,9 +288,6 @@ def ref_move_admission_report(
     sanctioned `ethos land --closeout` path satisfies (1)+(2) by construction, so only
     out-of-band ref moves are blocked.
     """
-    from ethos.adapters.mutation.core import proof_gaps
-    from ethos_core.contracts.branch.roles import load_branch_role_policy
-
     repo = root.resolve()
     policy = load_branch_role_policy(repo)
     branch = ref_name.removeprefix("refs/heads/")
@@ -318,13 +308,27 @@ def ref_move_admission_report(
 
     gaps: list[str] = []
     reason = ""
-    if branch == policy.accepted_branch:
+    candidate_policy = branch_role_policy_from_text(
+        committed_file_text(repo, policy.candidate_branch, ".ethos/workspace.toml")
+    )
+    mirror = (
+        branch == candidate_policy.release_branch
+        and candidate_policy.release_mirror == RELEASE_MIRROR_ACCEPTED_FF
+    )
+    if mirror or branch == policy.accepted_branch:
         # Topology invariant (contained + ==candidate_head + fast-forward) is shared with
         # the push reducer via accepted_advance_gaps, so a raw ref move and a raw push are
         # judged identically. Proof and the closeout-intent marker are added below — proof
         # binds both planes, but the marker is a local-only "is this my closeout?" signal.
-        gaps.extend(accepted_advance_gaps(repo, policy, old_value=old_value, new_value=new_value))
-        gaps.extend(proof_gaps(repo, new_value))
+        gaps.extend(
+            accepted_advance_gaps(
+                repo,
+                candidate_policy if mirror else policy,
+                old_value=old_value,
+                new_value=new_value,
+            )
+        )
+        gaps.extend(_proof_gaps(repo, new_value))
         # Official-closeout discrimination (R12 load-bearing nail): the substantive
         # checks above cannot tell an official `ethos land --closeout` apart from a raw
         # `git update-ref` to the same proven candidate head — both are byte-identical.
@@ -350,8 +354,15 @@ def ref_move_admission_report(
             ),
         )
         if intent["gap"]:
-            gaps.append(str(intent["gap"]))
-        reason = "accepted_ref_move_bypasses_candidate_train"
+            gap = str(intent["gap"])
+            gaps.append(
+                gap.replace("accepted_ref_move", "release_mirror_ref_move") if mirror else gap
+            )
+        reason = (
+            "release_mirror_ref_move_bypasses_accepted_closeout"
+            if mirror
+            else "accepted_ref_move_bypasses_candidate_train"
+        )
     elif branch == policy.candidate_branch:
         # A candidate move to a commit the ACCEPTED branch already contains promotes no
         # new work — it is either a no-op or a refresh-from-accepted rewind (candidate reset
@@ -360,7 +371,7 @@ def ref_move_admission_report(
         # refresh-base` now that the ETHOS_ALLOW_REF_MOVE bypass is gone. Forward candidate
         # advances (new work not yet on accepted) still require proof.
         if not commit_contained_in(repo, new_value, policy.accepted_branch):
-            gaps.extend(proof_gaps(repo, new_value))
+            gaps.extend(_proof_gaps(repo, new_value))
         reason = "protected_ref_move_not_proven"
     else:
         return base

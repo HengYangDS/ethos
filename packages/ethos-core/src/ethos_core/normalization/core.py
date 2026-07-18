@@ -11,11 +11,12 @@ def string_list(value: object, *, drop_empty: bool = False) -> list[str]:
     return [item for item in values if item] if drop_empty else values
 
 
-def string_sequence(value: object) -> list[str]:
+def string_sequence(value: object, *, drop_empty: bool = False) -> list[str]:
     """Return stringified list or tuple values, or an empty list otherwise."""
     if not isinstance(value, list | tuple):
         return []
-    return [str(item) for item in value]
+    values = [str(item) for item in value]
+    return [item for item in values if item] if drop_empty else values
 
 
 def object_sequence(value: object) -> list[object]:

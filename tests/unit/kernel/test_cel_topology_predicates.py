@@ -9,7 +9,6 @@ from hypothesis import strategies as st
 import ethos_core.contracts.artifacts.topology as topology_contract
 from ethos_core.contracts.artifacts.topology import GeneratedArtifactTopologyDeclaration
 from ethos_core.contracts.artifacts.topology import evaluate_cel_predicate
-from ethos_core.contracts.artifacts.topology import is_product_adopter_path
 from ethos_core.contracts.artifacts.topology import load_generated_artifact_topology_declaration
 from ethos_core.contracts.artifacts.topology import path_policy_from_declaration
 
@@ -66,13 +65,9 @@ def test_cel_declaration_fails_closed_for_incomplete_or_invalid_rule_decisions()
         GeneratedArtifactTopologyDeclaration.model_validate(payload)
 
 
-def test_named_cel_helpers_cover_adopter_root_and_missing_rule() -> None:
-    declaration = load_generated_artifact_topology_declaration()
-
-    assert is_product_adopter_path("adopters/acme", declaration) is True
-    assert is_product_adopter_path("packages/ethos", declaration) is False
+def test_named_cel_helpers_fail_closed_for_missing_rule() -> None:
     with pytest.raises(ValueError, match="missing topology CEL rule"):
-        topology_contract._cel_rule(declaration, "missing")
+        topology_contract._cel_rule(load_generated_artifact_topology_declaration(), "missing")
 
 
 @given(

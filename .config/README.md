@@ -14,7 +14,8 @@ configuration plane, not a truth center.
 - `.config/checks/docstrings/policy.toml` owns public-surface docstring coverage.
 - `.config/checks/module-layout/policy.toml` owns semantic subpackage, suffix-flat, package `__init__.py` facade, and import-alias layout policy; `tools/ci/scripts/run-module-layout.sh` is the reusable runner.
 - `.config/checks/taplo/taplo.toml` owns TOML canonical formatting; `tools/ci/scripts/run-config-lint.sh` also enforces TOML/JSON parseability, no TOML trailing whitespace, and exactly one final newline for TOML/JSON.
-- `.config/checks/yaml/yamllint.yaml` owns YAML linting; CI invokes it through `tools/ci/scripts/run-config-lint.sh`.
+- `.config/checks/yaml/yamllint.yaml` owns YAML linting, including one structural blank line between semantic blocks; CI invokes it through `tools/ci/scripts/run-config-lint.sh`.
+- `.config/checks/whitespace/policy.toml` owns the shared one-blank-line contract for active non-native JSON, INI, Jinja, and Shell carriers. Markdown, TOML, and YAML remain owned by markdownlint, Taplo, and Yamllint; Python remains owned by Ruff.
 - `.config/checks/shell/.shellcheckrc` owns ShellCheck policy; `tools/ci/scripts/run-shell-lint.sh` is the runner.
 - `.config/checks/markdown/.markdownlint-cli2.yaml` owns Markdown lint policy; `tools/ci/scripts/run-markdown-lint.sh` installs Node (via `install-node.sh`) and runs `markdownlint-cli2`. The gate is lint-only — it never rewrites files — so it is safe over the digest-pinned governance documents; `evidence/`, `openspec/`, generated projections, and local state are excluded by the config.
 - `.config/checks/prose/codespell.toml` owns report-first prose spelling policy; `tools/ci/scripts/run-prose-check.sh` runs `codespell` without rewriting files and excludes archives, generated projections, evidence, and lockfiles.

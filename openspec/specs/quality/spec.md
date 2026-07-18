@@ -8,13 +8,27 @@ and asset-governance semantics as a first-class product capability.
 ### Requirement: Quality Asset Model
 
 ETHOS SHALL model repository assets across code, docs, shell, configuration,
-evidence, release artifacts, and adopter profiles.
+evidence, release artifacts, and adopter profiles. The tracked tool catalog
+SHALL be the sole declaration of a quality tool's identity, profile, adoption
+state, configuration, and optional gate boundary.
 
 #### Scenario: Asset policy is reported
 
 - **WHEN** `ethos quality asset-policy --json` runs
-- **THEN** ETHOS reports asset classes, dimensions, and mature tool adapter
+- **THEN** ETHOS reports asset classes, dimensions, and catalog-derived tool
   profiles without executing provider tools
+
+#### Scenario: Tool profiles are catalog-derived
+
+- **WHEN** `ethos quality tool-profiles --json` or
+  `ethos quality asset-policy --json` reports quality tool adapters
+- **THEN** every adapter is derived from exactly one `system/tools.toml` entry
+- **AND** its concern, tool identity, configuration, profile, adoption state,
+  and optional gate agree with that entry
+- **AND** the tools contract requires an adoption state of `active`,
+  `candidate`, `deferred`, or `rejected`
+- **AND** no parallel static Python tool-adapter registry supplies conflicting
+  tool truth
 
 ### Requirement: Python Lint and Format Ratchet
 
@@ -149,6 +163,26 @@ same owner scripts SHALL participate in the default ETHOS proof floor.
   with Taplo
 - **AND** YAML files are linted with the configured Yamllint policy
 - **AND** `.gitlab-ci.yml` does not duplicate Taplo or Yamllint policy inline
+
+### Requirement: Structural Blank-Line Contract
+
+ETHOS SHALL use one blank line as the only separator between adjacent semantic
+blocks in active governed text carriers. It SHALL reject leading, trailing, and
+repeated blank-line runs through the carrier's native formatter where one owns
+the language, or through the shared structural reader otherwise. Python SHALL
+remain governed only by Ruff's language-native formatting contract.
+
+#### Scenario: Active configuration has repeated blank lines
+
+- **WHEN** an active governed configuration or provider projection contains two
+  or more consecutive blank lines
+- **THEN** its owning quality command fails with a line-addressed diagnostic
+
+#### Scenario: Shell embeds another language
+
+- **WHEN** a Shell carrier contains a heredoc body
+- **THEN** the structural reader checks the outer Shell layout without applying
+  the Shell blank-line contract inside the embedded body
 
 #### Scenario: Shell quality executes through the owner script
 
@@ -513,8 +547,11 @@ projection, and tests or proof coverage.
 ### Requirement: Python Vulnerability Audit Gate
 
 ETHOS SHALL run Python dependency vulnerability auditing through a reusable owner
-script that uses a supported resolved dependency input and keeps scanner claim
-boundaries explicit.
+script that uses a supported resolved dependency input, keeps scanner claim
+boundaries explicit, and retries only classified transient transport failures
+before parsing scanner output. The retry policy SHALL use a fixed bounded attempt
+limit and SHALL fail closed when the scanner reports vulnerabilities, emits
+malformed JSON, or fails for any unclassified reason.
 
 #### Scenario: pip-audit scans uv-exported resolved requirements
 
@@ -531,6 +568,23 @@ boundaries explicit.
 - **AND** the gate SHALL NOT claim that `pip-audit` reads `uv.lock` directly
 - **AND** the gate SHALL NOT claim OSV scanner coverage, image/package scanning,
   hosted CI success, or remote publication.
+
+#### Scenario: transient scanner transport disconnect is retried within bounds
+
+- **WHEN** `pip-audit` fails before producing usable JSON with a classified
+  transient transport-disconnect diagnostic
+- **THEN** the owner script SHALL retry at most once after a fixed delay
+- **AND** it SHALL continue only if a later attempt succeeds with valid JSON
+- **AND** it SHALL not create tracked retry state or transform the resulting
+  evidence into hosted-provider proof.
+
+#### Scenario: vulnerability or non-transient scanner failure remains final
+
+- **WHEN** `pip-audit` reports a vulnerability, produces malformed JSON, or
+  fails with an unclassified diagnostic
+- **THEN** the owner script SHALL return a nonzero result without retrying that
+  result
+- **AND** it SHALL NOT emit a passing vulnerability-audit summary.
 
 ### Requirement: Proof gates are fail-closed for CI and hooks
 
@@ -619,7 +673,12 @@ truth.
 ETHOS SHALL measure maintained executable source across product code, tests,
 tools, shell, JavaScript, declarations, schemas, templates, and tracked derived
 projections, and SHALL reject an unbounded source increase that lacks an explicit
-compression-debt record.
+compression-debt record. When a stale Work Lane is reconstructed on a newer
+candidate train, candidate-owned debt records MUST remain visible, every active
+record MUST have one registered ISO-8601 deletion wave and expiry, and measured
+settlement MUST remove only the named allowance. Reconstruction MUST preserve the
+immutable baseline and terminal targets and MUST regenerate evidence from the
+successor HEAD.
 
 #### Scenario: A migration reports global source deltas
 
@@ -643,6 +702,26 @@ compression-debt record.
   remain in the source-budget inventory
 - **AND** the exclusion SHALL not broaden to archived proposals, designs, tasks,
   specification deltas, or arbitrary YAML paths.
+
+#### Scenario: Successor reconstruction preserves candidate debt and settled deletion
+
+- **GIVEN** a source-budget Work Lane is stale behind `candidate/dev`
+- **AND** candidate has added valid debt records while the stale Lane has measured settlement of a distinct record
+- **WHEN** ETHOS reconstructs source-budget behavior in a new candidate-based Work Lane
+- **THEN** the resulting policy retains candidate-only records with explicit lifecycle fields
+- **AND** it removes only the settled record's allowance
+- **AND** its aggregate allowance equals the sum of all retained active records
+- **AND** it preserves the declared baseline and terminal limits
+- **AND** stale parity, proof, and claim artifacts are regenerated rather than replayed as evidence
+
+#### Scenario: Active debt rollover remains bounded and explicit
+
+- **GIVEN** inherited active debt waves and matching record expiries are dated July 17, 2026
+- **AND** the candidate train advances before the successor can produce clean proof
+- **WHEN** the successor records its one-time lifecycle rollover
+- **THEN** the inherited active waves and matching expiries move to July 18, 2026
+- **AND** no record ID, expected deletion, allowance, aggregate cap, baseline, terminal limit, or settled deletion changes
+- **AND** a later rollover requires a new recorded decision rather than an implicit extension
 
 ### Requirement: Executable Carrier Admission
 
@@ -892,6 +971,7 @@ solely to make a schema-quality report green.
 - **WHEN** a workspace-status producer test adds a forbidden UI projection field
 to its real payload
 - **THEN** validation SHALL fail with required gaps
+
 ### Requirement: Runtime-Owned Schema Contract Validation
 
 ETHOS SHALL validate published schemas and real repository producer payloads
@@ -904,3 +984,85 @@ exercise schema shape.
   to its real payload
 - **THEN** validation SHALL fail with required gaps
 - **AND THEN** the validation SHALL remain owned by that producer boundary.
+
+### Requirement: Structural blank-line contract
+
+ETHOS SHALL use one blank line as the only separator between adjacent semantic
+blocks in active governed text carriers. It SHALL reject leading, trailing, and
+repeated blank-line runs through the carrier's native formatter where one owns
+the language, or through the shared structural reader otherwise. Python SHALL
+remain governed only by Ruff's language-native formatting contract.
+
+#### Scenario: active configuration has repeated blank lines
+
+- **WHEN** an active governed configuration or provider projection contains two
+  or more consecutive blank lines
+- **THEN** its owning quality command fails with a line-addressed diagnostic
+
+#### Scenario: Shell embeds another language
+
+- **WHEN** a Shell carrier contains a heredoc body
+- **THEN** the structural reader checks the outer Shell layout without applying
+  the Shell blank-line contract inside the embedded body
+
+#### Scenario: Active OpenSpec carrier contains repeated blank lines
+
+- **WHEN** an active OpenSpec spec or Change Markdown carrier contains two or
+  more consecutive blank lines
+- **THEN** the shared reader reports the repeated blank run without replacing
+  official OpenSpec schema validation
+
+### Requirement: Curated JSON Evidence Carrier Admission
+
+ETHOS SHALL keep tracked JSON placement fail-closed and SHALL admit a curated
+Chronicle JSON evidence carrier only when the format-selection policy names its
+exact repository-relative file path.
+
+#### Scenario: Exact convergence inventory is admitted
+
+- **WHEN** the tracked Work Lane convergence inventory is present at
+  `evidence/chronicle/all-work-lanes-convergence-20260716/lane-inventory.json`
+- **THEN** the format-selection owner script accepts that exact file as a
+  declared JSON carrier
+- **AND** the audit remains clean when every other JSON path satisfies its
+  declared carrier boundary.
+
+#### Scenario: Unlisted Chronicle JSON remains blocked
+
+- **WHEN** a tracked JSON file appears under `evidence/chronicle/` without an
+  exact file declaration
+- **THEN** the format-selection owner script reports that JSON as outside its
+  declared carrier home
+- **AND** no broad Chronicle-root allowance is inferred.
+
+### Requirement: Portable configuration-lint interpreter resolution
+
+ETHOS configuration-lint owner scripts SHALL run inline Python standard-library
+validation through an explicit bounded interpreter chain: `ETHOS_PYTHON`, then
+`PYTHON`, then `python3`. They SHALL NOT require a bare `python` command alias.
+Targeted TOML-only invocations SHALL retain all TOML checks even when no JSON or
+YAML target is present.
+
+#### Scenario: standalone runtime lacks a python alias
+
+- **GIVEN** a standalone configuration-lint fixture exposes `python3` but no
+  bare `python` executable
+- **WHEN** its targeted TOML check runs with runtime bootstrap already marked
+- **THEN** the TOML parser, newline, whitespace, Taplo format, and Taplo lint
+  checks complete successfully
+- **AND** the runner does not invoke the absent `python` alias.
+
+### Requirement: Isolated sharded Python test evidence preserves the quality floor
+
+ETHOS SHALL permit the Python test owner script to use an explicit isolated
+evidence root, pytest base temporary directory, and finite shard count while
+preserving the same selected tests, coverage combination, coverage floor, and
+HEAD-stability check as its unsharded execution.
+
+#### Scenario: isolated sharded execution completes
+
+- **WHEN** the Python test owner script runs with isolated evidence and
+  temporary paths plus a positive shard count
+- **THEN** it combines all completed shard coverage before enforcing the
+  declared coverage floor
+- **AND** it leaves no trust-bearing claim that a hosted provider ran.

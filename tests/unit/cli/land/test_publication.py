@@ -4,7 +4,7 @@ from pathlib import Path
 
 from ethos.domain.land.publication import local_ci_owner_scripts
 from ethos.domain.land.publication import publication_readiness
-from ethos.domain.land.publication import publication_topology_readiness
+from ethos.domain.land.publication import publication_with_remote_matrix
 from ethos_core.contracts.branch.roles import load_branch_role_policy
 from tests.support.contract_helpers import adopt_and_commit
 from tests.support.contract_helpers import git
@@ -64,74 +64,6 @@ def test_publish_reports_local_readiness_without_remote_push() -> None:
     assert payload["next_actions"]
 
 
-def test_publication_topology_projects_peer_complete_github_without_gitlab_claim() -> None:
-    topology = {
-        "mode": "three_layer_peer_complete",
-        "local": {"role": "verification_and_install", "remote_independent": True},
-        "gitlab": {
-            "provider": "gitlab",
-            "remote": "origin",
-            "role": "organization_primary_publication",
-            "capabilities": ["repository", "ci_cd", "update", "distribution"],
-        },
-        "github": {
-            "provider": "github",
-            "remote": "github",
-            "role": "independent_complete_repository",
-            "capabilities": ["repository", "ci_cd", "update", "distribution"],
-        },
-    }
-    projection = publication_topology_readiness(
-        topology=topology,
-        gitlab_availability={"state": "unavailable", "available": False},
-        github_availability={"state": "available", "available": True},
-    )
-
-    assert projection["local"]["remote_independent"] is True
-    assert projection["operating_state"] == "github_peer_plane_available"
-    assert projection["provider_capability_parity"] == {
-        "required": ["repository", "ci_cd", "update", "distribution"],
-        "equal": True,
-        "state": "equal",
-    }
-    assert projection["available_provider_planes"] == ["github"]
-    assert projection["github_repository_plane_claimed"] is False
-    assert projection["gitlab_primary_publication_claimed"] is False
-    assert projection["gitlab_hosted_status_claimed"] is False
-    assert projection["remote_publication_claimed"] is False
-
-
-def test_publication_topology_keeps_candidate_local_only() -> None:
-    topology = {
-        "mode": "three_layer_peer_complete",
-        "local": {"role": "verification_and_install", "remote_independent": True},
-        "gitlab": {"capabilities": ["repository", "ci_cd", "update", "distribution"]},
-        "github": {"capabilities": ["repository", "ci_cd", "update", "distribution"]},
-        "remote_ref_policy": {
-            "accepted_branches": ["dev", "main", "submit/*"],
-            "excluded_branches": ["candidate/dev"],
-        },
-    }
-    policy = load_branch_role_policy(Path.cwd())
-
-    publication = publication_readiness(
-        branch="candidate/dev",
-        local_ok=True,
-        policy=policy,
-        topology=topology,
-    )
-
-    assert publication["remote_target_branch"] == "candidate/dev"
-    assert publication["remote_transition_allowed"] is False
-    assert publication["next_actions"] == [
-        "candidate/dev is local-only; fast-forward dev before any remote transition"
-    ]
-    assert publication["local_submit_package"]["required_steps"] == [
-        "fast-forward accepted root from candidate role; candidate branch is local-only",
-        "run local-ci fallback when remote publication is unavailable",
-    ]
-
-
 def test_publish_reports_remote_tracking_sync_state(monkeypatch) -> None:
     import ethos.surface.cli.root.lifecycle as lifecycle_cli  # noqa: PLC0415, RUF100 - local import isolates import-time state for this test
 
@@ -142,9 +74,9 @@ def test_publish_reports_remote_tracking_sync_state(monkeypatch) -> None:
     monkeypatch.setattr(
         lifecycle_cli.git,
         "remote_availability",
-        lambda _repo, remote="origin": {
+        lambda _repo: {
             "kind": "git_remote_availability",
-            "remote": remote,
+            "remote": "origin",
             "state": "available",
             "available": True,
             "blocking": False,
@@ -171,7 +103,6 @@ def test_publish_reports_remote_tracking_sync_state(monkeypatch) -> None:
             "advisory_gaps": [f"remote_tracking_local_ahead:{remote}/{branch}:2"],
         },
     )
-
     payload = run_ethos("publish", "--probe-remote", "--json")
 
     assert payload["summary"]["remote_sync_state"] == "local_ahead"
@@ -180,6 +111,9 @@ def test_publish_reports_remote_tracking_sync_state(monkeypatch) -> None:
     assert sync["local_head"] == local_head
     assert sync["remote_head"] == remote_head
     assert "remote_tracking_local_ahead" in sync["advisory_gaps"][0]
+    assert publication_with_remote_matrix(
+        {"next_actions": []}, {"state": "reconciliation_required"}, remote_available=True
+    )["next_actions"]
 
 
 def test_publish_reports_synchronized_tracking_without_claiming_a_push(
@@ -235,7 +169,7 @@ def test_publication_readiness_uses_local_fallback_when_fallback_omits_evidence_
 def test_publish_does_not_probe_remote_without_explicit_flag(monkeypatch) -> None:
     import ethos.surface.cli.root.lifecycle as lifecycle_cli  # noqa: PLC0415, RUF100 - local import isolates command dependencies
 
-    def unexpected_probe(_repo: Path, _remote: str = "origin") -> dict[str, object]:
+    def unexpected_probe(_repo: Path) -> dict[str, object]:
         message = "publish must not probe a remote without --probe-remote"
         raise AssertionError(message)
 
@@ -243,9 +177,9 @@ def test_publish_does_not_probe_remote_without_explicit_flag(monkeypatch) -> Non
     monkeypatch.setattr(
         lifecycle_cli.git,
         "remote_availability_not_probed",
-        lambda _repo, remote="origin": {
+        lambda _repo: {
             "kind": "git_remote_availability",
-            "remote": remote,
+            "remote": "origin",
             "state": "not_probed",
             "available": False,
             "blocking": False,

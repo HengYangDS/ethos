@@ -20,7 +20,7 @@ def closeout_audit_root(repo: Path, decision: object) -> Path:
     """Resolve closeout audit root, preserving land.workspace_status patchability."""
     if not getattr(decision, "ok", False):
         return repo
-    candidate = workspace_status(repo).get("candidate", {})
+    candidate = workspace_status(repo, include_foreign_path_scope=False).get("candidate", {})
     if not isinstance(candidate, dict):
         return repo
     candidate_path = str(candidate.get("worktree_path") or "")
@@ -71,7 +71,7 @@ def closeout_bootstrap_package(
 ) -> dict[str, object]:
     """Build the closeout bootstrap package (command to run against accepted_root)."""
     policy = load_branch_role_policy(repo)
-    status = workspace_status(repo)
+    status = workspace_status(repo, include_foreign_path_scope=False)
     candidate = status.get("candidate") if isinstance(status.get("candidate"), dict) else {}
     accepted_head = git_adapter.current_tracked_head(repo)
     expect_head = accepted_head or "<HEAD>"
@@ -114,6 +114,28 @@ def closeout_bootstrap_package(
         "accepted_head": accepted_head,
         "candidate_head": candidate_head,
         "proof_target": proof_target,
+        "control_verifier": {
+            "required": "incumbent_or_bootstrap_verifier_required" in required_gaps,
+            "provenance_boundary": "candidate-external",
+            "receipt_option": "--control-verifier-receipt <absolute-path>",
+            "bootstrap_contract": {
+                "kind": "control-replacement-bootstrap-decision",
+                "decision": "bootstrap/control-replacement",
+                "accepted_head": accepted_head,
+                "candidate_head": candidate_head,
+                "candidate_proof": proof_target,
+                "one_shot": True,
+                "mints_authority": False,
+                "reusable_authorization": False,
+            },
+            "required_order": [
+                "place verifier, decision, proof, and receipt outside candidate_root",
+                "bind the bootstrap decision to the exact accepted and candidate heads",
+                "bind it to the immutable verifier digest and candidate proof digest",
+                "run the candidate-external verifier to mint one receipt",
+                "pass that receipt explicitly to accepted-root closeout",
+            ],
+        },
         "blocking": bool(required_gaps),
         "required_gaps": list(required_gaps),
         "command": command,
@@ -122,6 +144,7 @@ def closeout_bootstrap_package(
             "bind --root to the clean accepted_root checkout",
             "audit the configured candidate worktree before accepted-root movement",
             "prove the configured candidate head before accepted-root movement",
+            "for a control replacement, obtain a candidate-external receipt for those heads",
             "fast-forward accepted_root from candidate only after proof and lifecycle gates pass",
             "defer remote push until remote publication is available",
         ],
@@ -165,6 +188,12 @@ def closeout_next_actions(
         return (
             "ethos lane candidate --refresh-from-accepted "
             f"--apply --authorize --expect-head {current_head} --json",
+        )
+    if "incumbent_or_bootstrap_verifier_required" in gaps:
+        return (
+            "use data.closeout_bootstrap.control_verifier to mint a candidate-external "
+            "one-shot receipt, then rerun ethos land --closeout "
+            "--control-verifier-receipt <absolute-path> --json",
         )
     return ("ethos prove --json",)
 

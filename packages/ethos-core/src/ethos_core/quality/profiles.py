@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+import tomllib
+from pathlib import Path
+
 from ethos_core.quality.models import QualityAssetClass
-from ethos_core.quality.models import ToolAdapterProfile
+
+_TOOL_CATALOG_ARRAY_REQUIRED = "system/tools.toml must declare a tool array"
 
 ASSET_CLASSES = (
     QualityAssetClass(
@@ -30,8 +34,20 @@ ASSET_CLASSES = (
     QualityAssetClass(
         class_name="markdown-docs",
         role="reader-facing repository knowledge",
-        dimensions=("format", "links", "anchors", "front-matter", "command-examples", "spelling"),
-        default_adapters=("markdown-it", "lychee", "codespell", "ethos-command-registry"),
+        dimensions=(
+            "format",
+            "links",
+            "anchors",
+            "front-matter",
+            "command-examples",
+            "spelling",
+        ),
+        default_adapters=(
+            "markdown-it",
+            "lychee",
+            "codespell",
+            "ethos-command-registry",
+        ),
     ),
     QualityAssetClass(
         class_name="shell-scripts",
@@ -77,169 +93,12 @@ ASSET_CLASSES = (
     ),
 )
 
-TOOL_ADAPTERS = (
-    ToolAdapterProfile(
-        id="ruff",
-        standard="Ruff Python lint and format",
-        asset_classes=("python-code",),
-        dimensions=("format", "lint"),
-        boundary="adapter-executes-tool-quality-owns-verdict",
-    ),
-    ToolAdapterProfile(
-        id="ethos-docstrings-google",
-        standard="ETHOS public-surface Google docstring coverage and style",
-        asset_classes=("python-code",),
-        dimensions=("documentation", "intent"),
-        boundary="inprocess-policy-checks-public-surface-intent",
-    ),
-    ToolAdapterProfile(
-        id="ethos-module-layout",
-        standard="ETHOS semantic subpackage and module-layout policy",
-        asset_classes=("python-code",),
-        dimensions=("module-layout", "semantic-subpackages", "import-discipline"),
-        boundary="inprocess-policy-checks-layout-no-compatibility-facades",
-    ),
-    ToolAdapterProfile(
-        id="pytest",
-        standard="pytest",
-        asset_classes=("python-code",),
-        dimensions=("test",),
-        boundary="adapter-executes-tests-quality-classifies-evidence",
-    ),
-    ToolAdapterProfile(
-        id="ty",
-        standard="Python type checking",
-        asset_classes=("python-code",),
-        dimensions=("type",),
-        boundary="optional-type-adapter",
-    ),
-    ToolAdapterProfile(
-        id="lychee",
-        standard="link checking",
-        asset_classes=("markdown-docs",),
-        dimensions=("links",),
-        boundary="adapter-checks-links-docs-profile-owns-requirement",
-    ),
-    ToolAdapterProfile(
-        id="markdown-it",
-        standard="CommonMark-compatible parsing",
-        asset_classes=("markdown-docs",),
-        dimensions=("anchors", "structure"),
-        boundary="parser-adapter-not-doc-truth",
-    ),
-    ToolAdapterProfile(
-        id="shellcheck",
-        standard="ShellCheck",
-        asset_classes=("shell-scripts",),
-        dimensions=("lint",),
-        boundary="shell-quality-adapter",
-    ),
-    ToolAdapterProfile(
-        id="shfmt",
-        standard="shfmt",
-        asset_classes=("shell-scripts",),
-        dimensions=("format",),
-        boundary="shell-format-adapter",
-    ),
-    ToolAdapterProfile(
-        id="taplo",
-        standard="Taplo TOML",
-        asset_classes=("toml-config",),
-        dimensions=("format", "schema"),
-        boundary="toml-quality-adapter",
-    ),
-    ToolAdapterProfile(
-        id="jsonschema",
-        standard="JSON Schema draft 2020-12",
-        asset_classes=("json-contracts",),
-        dimensions=("schema",),
-        boundary="contract-validation-adapter",
-    ),
-    ToolAdapterProfile(
-        id="yamllint",
-        standard="YAML linting",
-        asset_classes=("yaml-config",),
-        dimensions=("format", "lint"),
-        boundary="yaml-quality-adapter",
-    ),
-    ToolAdapterProfile(
-        id="deptry",
-        standard="Python dependency hygiene",
-        asset_classes=("python-code",),
-        dimensions=("dependency-hygiene",),
-        boundary="package-local-metadata-check-not-vulnerability-audit",
-    ),
-    ToolAdapterProfile(
-        id="pip-audit",
-        standard="Python dependency vulnerability audit",
-        asset_classes=("python-code",),
-        dimensions=("vulnerability",),
-        boundary="uv-exported-resolved-requirements-scan-not-direct-uv-lock-or-osv-claim",
-    ),
-    ToolAdapterProfile(
-        id="codespell",
-        standard="spelling lint",
-        asset_classes=("markdown-docs",),
-        dimensions=("spelling",),
-        boundary="report-first-prose-check-no-rewrite-no-evidence-truth",
-    ),
-    ToolAdapterProfile(
-        id="check-jsonschema",
-        standard="JSON Schema metaschema validation",
-        asset_classes=("json-contracts", "toml-config", "yaml-config"),
-        dimensions=("schema",),
-        boundary="schema-document-hygiene-not-command-payload-proof",
-    ),
-    ToolAdapterProfile(
-        id="hosted-provider-observation",
-        standard="GitHub/GitLab hosted observation envelope",
-        asset_classes=("yaml-config", "evidence"),
-        dimensions=("provider-observation",),
-        boundary="observation-only-not-repository-proof-or-hosted-success-claim",
-    ),
-    ToolAdapterProfile(
-        id="nox",
-        standard="Nox Python session runner",
-        asset_classes=("adopter-profile",),
-        dimensions=("session-runner",),
-        boundary="adapter-only-adopter-owned-command-plane-not-ethos-core",
-    ),
-    ToolAdapterProfile(
-        id="pixi",
-        standard="Pixi environment manager",
-        asset_classes=("adopter-profile",),
-        dimensions=("environment-runner",),
-        boundary="adapter-only-environment-profile-not-ethos-runtime-substrate",
-    ),
-    ToolAdapterProfile(
-        id="pants",
-        standard="Pants graph build system",
-        asset_classes=("adopter-profile",),
-        dimensions=("graph-changed-scope",),
-        boundary="adapter-only-graph-signal-not-ethos-kernel",
-    ),
-    ToolAdapterProfile(
-        id="task-ledger",
-        standard="Task ledger or backlog intake adapter",
-        asset_classes=("adopter-profile",),
-        dimensions=("intake", "task-projection"),
-        boundary="adapter-only-task-ui-not-change-claim-lifecycle-owner",
-    ),
-    ToolAdapterProfile(
-        id="agent-method-pack",
-        standard="Agent method pack discipline",
-        asset_classes=("adopter-profile",),
-        dimensions=("agent-discipline", "review", "verification"),
-        boundary="optional-method-pack-not-proof-substitute-or-runtime-dependency",
-    ),
-)
 
-
-def product_quality_profile() -> dict[str, object]:
+def product_quality_profile(root: Path) -> dict[str, object]:
     return {
         "schema_version": 1,
         "asset_classes": [asset.to_dict() for asset in ASSET_CLASSES],
-        "tool_adapters": [adapter.to_dict() for adapter in TOOL_ADAPTERS],
+        **tool_profiles(root),
         "format_governance": {
             "human_config": ["toml-config"],
             "machine_contract": ["json-contracts"],
@@ -249,8 +108,23 @@ def product_quality_profile() -> dict[str, object]:
     }
 
 
-def tool_profiles() -> dict[str, object]:
+def tool_profiles(root: Path) -> dict[str, object]:
+    catalog_path = root / "system" / "tools.toml"
+    if not catalog_path.is_file():
+        catalog_path = next(
+            parent / "system" / "tools.toml"
+            for parent in Path(__file__).resolve().parents
+            if (parent / "system" / "tools.toml").is_file()
+        )
+    catalog = tomllib.loads(catalog_path.read_text(encoding="utf-8"))
+    entries = catalog.get("tool", [])
+    if not isinstance(entries, list):
+        raise TypeError(_TOOL_CATALOG_ARRAY_REQUIRED)
     return {
         "schema_version": 1,
-        "tool_adapters": [adapter.to_dict() for adapter in TOOL_ADAPTERS],
+        "tool_adapters": [
+            {"id": entry["concern"], "standard": entry["tool"], **entry}
+            for entry in entries
+            if isinstance(entry, dict)
+        ],
     }

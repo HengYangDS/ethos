@@ -7,36 +7,13 @@ artifact_glob = "dist/*"
 branches = ["main", "dev"]
 tags = ["v*"]
 
-[publication_topology]
-mode = "three_layer_peer_complete"
-local_role = "verification_and_install"
-primary_remote = "origin"
-github_remote = "github"
-remote_accepted_branches = ["dev", "main", "submit/*"]
-remote_excluded_branches = ["candidate/dev"]
-provider_capabilities = ["repository", "ci_cd", "update", "distribution"]
-
-[provider_profiles.gitlab]
+[host_profile]
 provider = "gitlab"
-remote = "origin"
-role = "organization_primary_publication"
-capabilities = ["repository", "ci_cd", "update", "distribution"]
 
-[provider_profiles.gitlab.surfaces]
+[host_profile.surfaces]
 ci = ".gitlab-ci.yml"
-review_template = ".gitlab/merge_request_templates/default.md"
+merge_request_template = ".gitlab/merge_request_templates/default.md"
 issue_template = ".gitlab/issue_templates/task.md"
-
-[provider_profiles.github]
-provider = "github"
-remote = "github"
-role = "independent_complete_repository"
-capabilities = ["repository", "ci_cd", "update", "distribution"]
-
-[provider_profiles.github.surfaces]
-ci = ".github/workflows/ci.yml"
-review_template = ".github/pull_request_template.md"
-issue_template = ".github/ISSUE_TEMPLATE/task.md"
 
 [attestation]
 formats = ["in-toto", "slsa", "spdx-lite"]

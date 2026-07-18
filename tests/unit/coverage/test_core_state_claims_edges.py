@@ -404,6 +404,7 @@ def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
     assert mutation_core.apply_candidate_to_accepted(
         root=tmp_path, authorized=True, expect_head="h1"
     )["required_gaps"] == ["accepted_atomic_update_rejected"]
+
     monkeypatch.setattr(
         closeout_core,
         "_atomic_update",
@@ -447,6 +448,35 @@ def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
         ]
         == "accepted_validated"
     )
+
+
+def test_closeout_reports_observed_accepted_concurrency(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A rejected atomic update is concurrent only when the accepted ref moved."""
+    prepare_accepted_closeout(monkeypatch)
+    monkeypatch.setattr(
+        closeout_core,
+        "_atomic_update",
+        lambda *_args, **_kwargs: cp(stderr="cannot lock ref", returncode=1),
+    )
+    monkeypatch.setattr(
+        mutation_core,
+        "run_git",
+        lambda _root, *args, **_kwargs: cp(
+            stdout="concurrent\n"
+            if args[:3] == ("rev-parse", "--verify", "refs/heads/dev")
+            else "h1\n"
+        ),
+    )
+
+    concurrent = mutation_core.apply_candidate_to_accepted(
+        root=tmp_path, authorized=True, expect_head="h1"
+    )
+
+    assert concurrent["required_gaps"] == ["accepted_advanced_concurrently"]
+    assert concurrent["observed_accepted_head"] == "concurrent"
+    assert concurrent["remediation"][0]["kind"] == "accepted_advanced_concurrently"
 
 
 def test_release_mirror_closeout_edge_paths(monkeypatch, tmp_path):

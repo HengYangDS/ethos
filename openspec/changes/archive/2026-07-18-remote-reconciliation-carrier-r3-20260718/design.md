@@ -40,6 +40,10 @@ publication and hosted-provider observation.
    remote ref equality, and hosted-provider status are observed independently.
 4. **The Lane is claim-bound before merge execution.** The carrier prevents an
    untracked operational change from becoming the closeout narrative.
+5. **Budget enforcement remains intact.** The required claim and companion
+   scope add seven TOML effective lines, so the carrier compresses one existing
+   closeout-manifest array by four equivalent layout lines. The parsed config
+   remains identical; no baseline, debt, allowance, or threshold changes.
 
 ## Risks / Trade-offs
 

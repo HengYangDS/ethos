@@ -19,6 +19,7 @@ import ethos.adapters.store.state.lease.lifecycle.core as state
 import ethos.adapters.store.state.lease.lifecycle.effects as state_effects
 import ethos.adapters.store.state.lease.projection as state_projection
 import ethos.adapters.store.state.lease.projection as state_read
+import ethos_core.contracts.lifecycle.core as lifecycle_contract
 from ethos.adapters.mutation import core as mutation_core
 from ethos.adapters.mutation import proof as mutation_proof
 from ethos.adapters.mutation.closeout import core as closeout_core
@@ -78,7 +79,9 @@ def prepare_accepted_closeout(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         mutation_core,
         "evaluate_closeout_mutation",
-        lambda *args, **kwargs: mutation_core.MutationEvaluation(ok=True, state="closeout_ready"),
+        lambda *args, **kwargs: lifecycle_contract.MutationEvaluation(
+            ok=True, state="closeout_ready"
+        ),
     )
     monkeypatch.setattr(
         mutation_core, "workspace_status", lambda root, **_kwargs: accepted_status()
@@ -292,13 +295,13 @@ def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
         lambda root, **_kwargs: status_for(closeout_gaps=["trust_gap"]),
     )
     decision = mutation_core.evaluate_mutation(
-        mutation_core.MutationRequest("land", True, True, "h1"),
+        lifecycle_contract.MutationRequest("land", True, True, "h1"),
         root=tmp_path,
         current_head="h1",
     )
     assert decision.gaps == ("trust_gap",)
 
-    ready_decision = mutation_core.MutationEvaluation(ok=True, state="land_ready")
+    ready_decision = lifecycle_contract.MutationEvaluation(ok=True, state="land_ready")
     monkeypatch.setattr(mutation_core, "workspace_status", lambda root, **_kwargs: status_for())
     monkeypatch.setattr(
         mutation_core,
@@ -543,7 +546,7 @@ def test_mutation_admission_blocks_unarchived_openspec_carriers(
 
     monkeypatch.setattr(mutation_core, "workspace_status", lambda root, **_kwargs: status_for())
     land_decision = mutation_core.evaluate_mutation(
-        mutation_core.MutationRequest("land", True, True, "h1"),
+        lifecycle_contract.MutationRequest("land", True, True, "h1"),
         root=tmp_path,
         current_head="h1",
     )
@@ -561,7 +564,7 @@ def test_mutation_admission_blocks_any_active_openspec_carrier_before_land(
     monkeypatch.setattr(mutation_core, "workspace_status", lambda root, **_kwargs: status_for())
 
     land_decision = mutation_core.evaluate_mutation(
-        mutation_core.MutationRequest("land", True, True, "h1"),
+        lifecycle_contract.MutationRequest("land", True, True, "h1"),
         root=tmp_path,
         current_head="h1",
     )
@@ -592,7 +595,7 @@ def test_mutation_admission_blocks_active_openspec_carriers_on_closeout(
         ),
     )
     closeout_decision = mutation_core.evaluate_closeout_mutation(
-        mutation_core.MutationRequest("closeout", False, False, "h1"),
+        lifecycle_contract.MutationRequest("closeout", False, False, "h1"),
         root=tmp_path,
         current_head="h1",
     )

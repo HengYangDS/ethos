@@ -17,13 +17,12 @@ import ethos.adapters.admission.core as admission
 import ethos.adapters.admission.prewrite as admission_prewrite
 import ethos.adapters.admission.shell as admission_shell
 import ethos.adapters.config as adapters_config
-import ethos.adapters.mutation.core as mutation_core
 import ethos.adapters.store.retrieval.query as retrieval_query
 import ethos.adapters.store.retrieval.sources as retrieval_sources
 import ethos.cli as cli_entrypoint
 import ethos.repository.audit as repository_audit
-import ethos.repository.evidence.parity.core as evidence_parity
 import ethos.repository.evidence.parity.validation as parity_validation
+import ethos.repository.evidence.shadow.payload as shadow_payload
 import ethos.repository.policy.coupling.registry as coupling_registry
 import ethos.repository.policy.coupling.release as coupling_release
 import ethos.repository.policy.gates as policy_gates
@@ -34,6 +33,7 @@ import ethos.surface.cli.root.inspection as inspection_cli
 import ethos.surface.cli.root.lifecycle as lifecycle_cli
 import ethos.surface.cli.root.reference as reference_cli
 import ethos.surface.cli.root.registry as root_registry
+import ethos_core.contracts.lifecycle.core as lifecycle_contract
 from ethos.repository.design.integrity import front_matter_ok
 from ethos.repository.openspec.audit import active_change_violations_for_role
 from ethos.repository.openspec.audit import completed_unarchived_changes
@@ -372,7 +372,7 @@ def test_cli_wrappers_emit_expected_results(
     monkeypatch.setattr(
         lifecycle_cli,
         "evaluate_mutation",
-        lambda *args, **kwargs: mutation_core.MutationEvaluation(ok=True, state="land_ready"),
+        lambda *args, **kwargs: lifecycle_contract.MutationEvaluation(ok=True, state="land_ready"),
     )
     monkeypatch.setattr(
         lifecycle_cli.land_core,
@@ -656,7 +656,7 @@ def test_remaining_helper_edges(monkeypatch: pytest.MonkeyPatch, tmp_path: Path)
         )
         is False
     )
-    payload = evidence_parity.build_tracked_parity_evidence(
+    payload = shadow_payload.build_tracked_parity_evidence(
         adopter="a",
         target=tmp_path,
         shadow={"ok": True, "required_gaps": []},

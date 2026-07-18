@@ -68,9 +68,8 @@ def test_module_layout_facade_type_checking_and_private_alias_edges(tmp_path: Pa
         tmp_path / "packages" / "ethos" / "src" / "ethos" / "sample" / "annotated.py",
         textwrap.dedent(
             '''
-            """Annotated exports."""
+            """Import facade."""
             from ethos.sample.core import item
-            __all__: list[str] = ["item"]
             '''
         ),
     )
@@ -116,7 +115,7 @@ def test_module_layout_facade_type_checking_and_private_alias_edges(tmp_path: Pa
     assert report["private_alias_findings"] == []
     assert any(
         item["path"] == "packages/ethos/src/ethos/sample/annotated.py"
-        and item["reasons"] == ["import_only", "explicit_exports"]
+        and item["reasons"] == ["import_only"]
         for item in report["module_facade_findings"]
     )
     assert any(

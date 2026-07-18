@@ -10,9 +10,6 @@ from ethos.adapters.mutation.carriers import openspec_carrier_gaps
 from ethos.adapters.mutation.closeout.core import CloseoutDependencies
 from ethos.adapters.mutation.closeout.core import CloseoutRequest
 from ethos.adapters.mutation.closeout.core import promote_candidate_to_accepted
-from ethos.adapters.mutation.decision import MutationEvaluation
-from ethos.adapters.mutation.decision import MutationRequest
-from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.mutation.lane_lifecycle.core import is_ancestor
 from ethos.adapters.mutation.lane_lifecycle.core import run_git
 from ethos.adapters.mutation.proof import carry_executed_proof_record
@@ -31,12 +28,10 @@ from ethos_core.contracts.branch.roles import branch_role_policy_from_text
 from ethos_core.contracts.branch.roles import load_branch_role_policy
 from ethos_core.contracts.lifecycle.core import CLOSEOUT_MUTATION
 from ethos_core.contracts.lifecycle.core import WORK_LANE_MUTATION
+from ethos_core.contracts.lifecycle.core import MutationEvaluation
 from ethos_core.contracts.lifecycle.core import MutationFacts
+from ethos_core.contracts.lifecycle.core import MutationRequest
 from ethos_core.contracts.lifecycle.core import reduce_mutation
-
-# fmt: off
-
-__all__ = ["MutationEvaluation", "MutationRequest", "mutation_envelope"]
 
 
 def proof_gaps(root, current_head):
@@ -334,5 +329,6 @@ def candidate_base_report(*, root: Path, status=None) -> dict[str, object]:
         "path": candidate_path.as_posix(),
         "required_gaps": [],
     }
+
 
 # fmt: on

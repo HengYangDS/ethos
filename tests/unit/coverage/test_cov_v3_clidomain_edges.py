@@ -12,9 +12,9 @@ import ethos.domain.reporting.gaps as reporting_gaps
 import ethos.surface.cli.hook.core as hook
 import ethos.surface.cli.root.inspection as inspection_cli
 import ethos.surface.cli.root.proof as proof_cli
-from ethos.adapters.mutation.core import MutationEvaluation
 from ethos.domain import orient
 from ethos.domain import status
+from ethos_core.contracts.lifecycle.core import MutationEvaluation
 
 if TYPE_CHECKING:
     from pathlib import Path

@@ -13,7 +13,6 @@ from ethos.adapters.admission.prewrite import has_invalid_path_token_character
 from ethos.adapters.admission.prewrite import prewrite_guard
 from ethos.adapters.admission.shell import command_risk
 from ethos.adapters.admission.shell import git_stash_policy
-from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.mutation.proof import executed_proof_record
 from ethos.adapters.repo.git import committed_file_text
 from ethos.adapters.repo.status.core import workspace_status
@@ -23,9 +22,6 @@ from ethos_core.contracts.branch.roles import RELEASE_MIRROR_ACCEPTED_FF
 from ethos_core.contracts.branch.roles import branch_role_policy_from_text
 from ethos_core.contracts.branch.roles import load_branch_role_policy
 from ethos_core.normalization.core import string_sequence
-
-__all__ = ["work_lane_ref_transition_report"]
-
 
 if TYPE_CHECKING:
     from pathlib import Path

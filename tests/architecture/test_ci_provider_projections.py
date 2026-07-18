@@ -76,6 +76,8 @@ def test_hosted_provider_templates_are_projection_sources() -> None:
         assert entry["emulator_hosted_only_reason"] == ""
         assert "PYTHONWARNINGS: error" in projection.read_text(encoding="utf-8")
 
+    assert 'GIT_DEPTH: "0"' in (ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8")
+
 
 def test_provider_yaml_invokes_owner_scripts_not_inline_policy() -> None:
     required_scripts = {

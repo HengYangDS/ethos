@@ -9,6 +9,12 @@ relations:
 
 # All Work Lanes Convergence Replay — 2026-07-18
 
+Status: active local Work Lane replay.
+
+Purpose: complete the owned refresh-safety replay and its evidence-bound local closeout.
+
+See also: [Mutation Rules](../../rules/mutation.md), [Evidence Rules](../../rules/evidence.md), and [OpenSpec Governance](../governance/openspec-governance.md).
+
 ## Objective
 
 Complete the preserved current-contract safety intent in one clean successor

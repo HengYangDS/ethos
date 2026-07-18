@@ -1,11 +1,11 @@
 ## Context
 
-The 2026-07-16 accepted program permits exceptional resolution only after an
+The 2026-07-18 accepted program permits exceptional resolution only after an
 accepted Chronicle. The current local topology is not the old frozen snapshot:
-there are 81 current rows, and Git-level re-observation separates 14 clean
-absorbed frozen lanes, four absorbed dirty lanes, 33 frozen residual branches,
-three valid leased frozen lanes, one diverged unbound ref, and 26 post-freeze
-rows.
+there are 68 current target rows, comprising 67 linked Work Lanes and one
+diverged unbound ref. Git-level re-observation finds 34 missing leases, 33
+normalized active leases, 14 dirty linked worktrees, and no missing-lease row
+whose branch head is already accepted.
 
 ## Goals / Non-Goals
 
@@ -27,10 +27,11 @@ rows.
 1. **Matrix before exceptional action.** The matrix freezes branch/head/dirty
    observations and records their planned resolution. Native apply recomputes
    the same values and rejects stale decisions.
-2. **Three disposition classes.** Clean accepted ancestors and the one
-   patch-equivalent ref receive `retire`; absorbed dirty rows receive
-   `preserve-retire`; unresolved, holder-bound, unbound, and post-freeze rows
-   receive `block`.
+2. **Current disposition classes.** Seven missing-lease, diverged, dirty linked
+   rows receive `preserve`. Clean residual, holder-bound, and unbound rows
+   receive `block`; the unbound ref also receives a separate content-addressed
+   Git bundle. The current matrix selects neither `retire` nor
+   `preserve-retire`.
 3. **Existing command semantics stay canonical.** This change documents the
    existing Chronicle digest and disposition binding rather than adding a
    second resolver or a wildcard cleanup mechanism.
@@ -41,7 +42,7 @@ rows.
 
 - A concurrent target mutation makes its decision stale; the native resolver
   must reject it and the matrix is re-observed.
-- `git cherry` patch equivalence is evidence for one specific clean ref, not a
+- Patch equivalence and accepted ancestry are evidence for one exact ref, not a
   generic semantic equivalence algorithm.
 - Blocking a residual lane is less satisfying than deletion but preserves
   evidence and prevents false completion.

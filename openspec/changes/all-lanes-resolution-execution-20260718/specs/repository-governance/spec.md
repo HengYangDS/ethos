@@ -6,6 +6,17 @@ ETHOS SHALL offer an explicit `preserve-retire` exceptional disposition for a
 dirty foreign or orphan Work Lane only after accepted Chronicle evidence has
 bound the exact resolution.
 
+#### Scenario: dirty residual lane is preserved without retirement
+
+- **GIVEN** a linked Work Lane is dirty, missing a normalized lease, and its
+  accepted Chronicle decision selects `lane_resolution/preserve`
+- **WHEN** a maintainer records and applies the exact native two-phase decision
+- **THEN** ETHOS recomputes the lane observation
+- **AND** writes and verifies a digest-bound bundle, tracked patch, untracked
+  archive when needed, and manifest
+- **AND** retains the exact branch and linked worktree for later semantic replay
+- **AND** emits a non-authoritative preservation receipt
+
 #### Scenario: dirty lane is preserved before retirement
 
 - **GIVEN** a linked Work Lane is dirty and its accepted Chronicle decision
@@ -28,8 +39,9 @@ bound the exact resolution.
 #### Scenario: Chronicle disposition is bound before the effect
 
 - **GIVEN** an accepted Chronicle explicitly selects
-  `lane_resolution/retire`, `lane_resolution/preserve-retire`, or
-  `lane_resolution/block` for one resolution class
+  `lane_resolution/preserve`, `lane_resolution/retire`,
+  `lane_resolution/preserve-retire`, or `lane_resolution/block` for one
+  resolution class
 - **WHEN** a maintainer records a native two-phase resolution decision
 - **THEN** ETHOS binds the Chronicle path and SHA-256 digest together with the
   exact target observation digest

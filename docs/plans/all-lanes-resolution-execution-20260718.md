@@ -24,19 +24,24 @@ separate authority boundary is still required.
 1. Archive this carrier only after its claim, matrix, and Chronicle validate.
 2. Prove and land the policy carrier through candidate and sanctioned accepted
    closeout.
-3. For every matrix row selected for `retire` or `preserve-retire`, run native
-   `lane resolution decide` then `lane resolution apply`; use its exact decision
-   artifact and re-observed digest, never a loop-level assumption.
-4. Record native `block` outcomes for residual, unbound, holder-bound, and
-   post-freeze rows without writing to their Work Lanes.
-5. Re-observe all refs, worktrees, leases, resolution receipts, proof state,
+3. For every matrix row selected for `preserve`, run native
+   `lane resolution decide` then `lane resolution apply`; verify its bundle,
+   tracked patch, untracked archive when present, manifest, and receipt without
+   deleting the branch or worktree.
+4. Run `retire` or `preserve-retire` only if a fresh re-observation still selects
+   that exact disposition. The current matrix selects neither.
+5. Record native `block` outcomes for clean residual and holder-bound linked
+   rows. Preserve the unbound ref as a content-addressed Git bundle before its
+   non-destructive block record.
+6. Re-observe all refs, worktrees, leases, resolution receipts, proof state,
    and publish readiness. Keep remote and hosted planes explicitly deferred.
 
 ## Non-Negotiable Boundaries
 
 - Valid foreign leases stay holder-bound.
 - A non-empty `git cherry` residual is not declared absorbed by branch age.
-- Dirty work is preserved by the resolver or remains blocked; it is never
-  discarded manually.
+- Missing-lease dirty residuals are preserved by the resolver and retained for
+  semantic replay; valid leased dirty overlays remain holder-blocked.
+- Dirty work is never discarded manually.
 - The 2026-07-16 frozen cohort and 2026-07-18 post-freeze rows remain separate
   matrix dimensions.

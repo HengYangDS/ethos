@@ -32,7 +32,7 @@ ETHOS SHALL model repo-first worktree governance v2 as a dedicated strict-serial
 - **AND** the lane remains an observation requiring its own holder-bound or accepted exceptional process.
 
 ### Requirement: Repo-first preservation topology contract
-ETHOS SHALL reserve repository-adjacent topology for future governed worktree and record operations as `/Users/yheng/projects/<repo>-worktrees/<yyyymmdd>-<task-slug>` and `/Users/yheng/projects/<repo>-records/{.staging,evidence,recovery}/<timestamp>-<purpose>`. Status labels such as sealed, restorable, legacy-v1, or unverified SHALL be recorded in manifests rather than introduced as top-level topology classes.
+ETHOS SHALL reserve repository-adjacent topology for future governed worktree and record operations as `<projects-root>/<repo>-worktrees/<yyyymmdd>-<task-slug>` and `<projects-root>/<repo>-records/{.staging,evidence,recovery}/<timestamp>-<purpose>`. Status labels such as sealed, restorable, legacy-v1, or unverified SHALL be recorded in manifests rather than introduced as top-level topology classes.
 
 #### Scenario: Topology contract does not create a second lifecycle authority
 - **WHEN** a later campaign slice uses the topology contract to plan preservation or recovery

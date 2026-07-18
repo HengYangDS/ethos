@@ -295,9 +295,7 @@ def test_hook_replacement_requires_executable_candidate_hook(tmp_path: Path) -> 
     def fake_git(root: Path, *_args: str, **_kwargs: object) -> subprocess.CompletedProcess[str]:
         return cp(stdout="candidate\n" if root == accepted_root else "")
 
-    update = closeout_core._atomic_update(  # noqa: SLF001 - direct fail-closed contract
-        accepted_root, candidate_root, transition, None, fake_git
-    )
+    update = closeout_core._atomic_update(accepted_root, candidate_root, transition, None, fake_git)
 
     assert update.returncode == 1
     assert update.stderr == f"candidate_closeout_hook_unavailable:{candidate_root / '.githooks'}"

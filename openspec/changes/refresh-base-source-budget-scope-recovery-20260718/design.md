@@ -29,6 +29,10 @@ replay. Only `projection_regeneration_required:*` makes the refresh result a
 stale-projection state and populates `stale_projection_paths`. The exact
 source-budget paths remain in separately named semantic-recovery diagnostics.
 
+The default proof remains the fine-grained admission floor. The full proof
+retains `source-budget` as global compression evidence; it must not be treated
+as local code correctness.
+
 ## Consequences
 
 This does not turn a generic conflict preference into a policy. It recognizes a

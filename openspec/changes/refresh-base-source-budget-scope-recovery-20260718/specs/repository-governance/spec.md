@@ -18,6 +18,14 @@ invariant for that correction. All other conflict sets SHALL remain fail-closed.
 - **THEN** ETHOS SHALL preserve the candidate stage-2 files and continue replay
 - **AND** it SHALL require normal post-refresh validation and HEAD-bound proof.
 
+#### Scenario: full proof retains global source-budget evidence
+
+- **WHEN** the candidate policy separates a fine-grained default proof from
+  repository-wide compression closeout
+- **THEN** the default proof SHALL omit `source-budget`
+- **AND** the full proof SHALL retain `source-budget` without calling it local
+  code correctness.
+
 #### Scenario: candidate authority cannot be proved
 
 - **WHEN** any exact path, archived claim, carrier promotion target, or candidate

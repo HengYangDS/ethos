@@ -150,6 +150,15 @@ def _carrier_effective_lines(path: Path, category: str) -> int:
     return count
 
 
+def source_budget_carrier_report(path: Path, relative: str) -> dict[str, object]:
+    """Return the public category and effective-line read model for one carrier."""
+    category = _source_budget_category(relative)
+    return {
+        "category": category,
+        "effective_lines": _carrier_effective_lines(path, category) if category else 0,
+    }
+
+
 def _source_budget_allowance(
     policy: SourceBudgetPolicy,
 ) -> tuple[int, dict[str, int], list[str]]:

@@ -370,9 +370,6 @@ def _replay_work_lane(
                 for gap in projection_resolution["gaps"]
                 if gap.startswith("projection_regeneration_required:")
             ]
-            semantic_gaps = [
-                gap for gap in projection_resolution["gaps"] if gap not in projection_gaps
-            ]
             projection_paths = [
                 path
                 for path in projection_resolution["paths"]
@@ -392,7 +389,6 @@ def _replay_work_lane(
                     "projection_refresh_gaps": projection_resolution["gaps"],
                     "stale_projection_paths": projection_paths,
                     "semantic_recovery_paths": semantic_paths,
-                    "semantic_recovery_gaps": semantic_gaps,
                     "next_actions": projection_resolution["next_actions"]
                     + ["ethos prove --execute --expect-head $(git rev-parse HEAD) --json"],
                 }

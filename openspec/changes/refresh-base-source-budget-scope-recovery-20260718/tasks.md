@@ -2,7 +2,8 @@
 
 - [x] 1.1 Add RED regressions for accepted and rejected source-budget scope
   recovery.
-- [x] 1.2 Implement the archived-claim and candidate-index invariant reader.
+- [x] 1.2 Implement the archived-claim, candidate-index invariant reader, and
+  full-proof boundary restoration.
 
 ## 2. Validation
 

@@ -15,6 +15,8 @@ authority for the correction.
   archived, claim-bound candidate carrier declares all of them.
 - Preserve candidate stage-2 content only when it proves the global-compression
   scorecard projection and the default-versus-full proof-floor contract.
+- Keep exact semantic recovery diagnostics separate from stale generated parity
+  projection diagnostics.
 - Keep all other path sets, missing archive/claim evidence, and incomplete
   candidate semantics fail-closed.
 

@@ -592,6 +592,72 @@ def test_source_budget_semantic_recovery_does_not_require_projection_regeneratio
     assert report["semantic_recovery_paths"] == paths
 
 
+def test_refresh_base_keeps_semantic_paths_out_of_stale_projection_paths(
+    monkeypatch, tmp_path: Path
+) -> None:
+    projection = "evidence/parity/generic-shadow.json"
+    semantic_paths = list(lane_projection_rebase.SOURCE_BUDGET_SCOPE_PATHS)
+    heads = iter(("lane", "lane", "candidate", "rebased", "rebased"))
+    ancestors = iter((False, True))
+
+    def run_git(
+        _root: Path, *args: str, check: bool = True
+    ) -> subprocess.CompletedProcess[str]:
+        del check
+        if args[:1] == ("rev-parse",):
+            return cp(stdout=f"{next(heads)}\n")
+        if args[:3] == ("-c", "rebase.updateRefs=false", "rebase"):
+            return cp(returncode=1, stderr="mixed replay recovery")
+        return cp(returncode=0)
+
+    runtime = lane_refresh.LaneRefreshRuntime(
+        load_branch_role_policy=lambda _root: SimpleNamespace(candidate_branch="candidate/dev"),
+        workspace_status=lambda _root: {
+            "role": ROLE_WORK_LANE,
+            "dirty": False,
+            "branch": "work/mixed-recovery",
+            "candidate": {
+                "exists": True,
+                "worktree_exists": True,
+                "worktree_path": "candidate",
+                "head": "candidate",
+            },
+        },
+        changed_paths=lambda _path: [],
+        is_ancestor=lambda *_args: next(ancestors),
+        run_git=run_git,
+    )
+    monkeypatch.setattr(
+        lane_refresh,
+        "resolve_projection_rebase",
+        lambda *_args, **_kwargs: {
+            "ok": True,
+            "paths": [projection, *semantic_paths],
+            "gaps": [
+                "projection_regeneration_required:parity:generic",
+                "semantic_scope_preserved:source_budget_proof_scope",
+            ],
+            "next_actions": [],
+            "stderr": "",
+        },
+    )
+
+    report = lane_refresh.refresh_work_lane_base(
+        root=tmp_path,
+        apply=True,
+        authorized=True,
+        expect_head="lane",
+        runtime=runtime,
+    )
+
+    assert report["state"] == "base_refreshed_projection_stale"
+    assert report["stale_projection_paths"] == [projection]
+    assert report["semantic_recovery_paths"] == semantic_paths
+    assert report["semantic_recovery_gaps"] == [
+        "semantic_scope_preserved:source_budget_proof_scope"
+    ]
+
+
 def test_refresh_work_lane_base_disables_update_refs_during_rebase(
     monkeypatch,
     tmp_path: Path,

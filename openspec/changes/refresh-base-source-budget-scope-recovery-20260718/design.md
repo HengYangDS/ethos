@@ -24,6 +24,11 @@ The resolver checks these facts from the current replay tree and Git index, then
 uses the candidate version only for that exact conflict set. Any missing fact
 returns no resolution and preserves ordinary fail-closed behavior.
 
+Generated parity projections and this semantic recovery may occur in the same
+replay. Only `projection_regeneration_required:*` makes the refresh result a
+stale-projection state and populates `stale_projection_paths`. The exact
+source-budget paths remain in separately named semantic-recovery diagnostics.
+
 ## Consequences
 
 This does not turn a generic conflict preference into a policy. It recognizes a

@@ -117,10 +117,10 @@ def reconciliation_receipt_payload(
     source_head: str,
     origin_head: str,
     github_head: str,
-    origin_main_head: str = "",
-    github_main_head: str = "",
+    main_heads: tuple[str, str] = ("", ""),
 ) -> dict[str, object]:
     """Build the deterministic, non-authorizing dual-remote observation payload."""
+    origin_main_head, github_main_head = main_heads
     payload: dict[str, object] = {
         "schema_version": 1,
         "kind": "submit-reconciliation",
@@ -174,9 +174,11 @@ def _reconciliation_baselines(
         submit_branch=observation.submit_branch,
         source_head=pushed_head,
         origin_head=str(receipt.get("origin_head") or ""),
-        origin_main_head=str(receipt.get("origin_main_head") or ""),
         github_head=str(receipt.get("github_head") or ""),
-        github_main_head=str(receipt.get("github_main_head") or ""),
+        main_heads=(
+            str(receipt.get("origin_main_head") or ""),
+            str(receipt.get("github_main_head") or ""),
+        ),
     )
     gaps: list[str] = []
     for field, expected_value in expected.items():

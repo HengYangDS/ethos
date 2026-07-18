@@ -169,9 +169,8 @@ def reconciliation_receipt_command(
         submit_branch=submit_branch,
         source_head=source_head,
         origin_head=origin_head,
-        origin_main_head=origin_main_head,
         github_head=github_head,
-        github_main_head=github_main_head,
+        main_heads=(origin_main_head, github_main_head),
     )
     if not gaps:
         target.parent.mkdir(parents=True, exist_ok=True)

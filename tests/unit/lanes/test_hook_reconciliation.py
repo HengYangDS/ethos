@@ -126,9 +126,8 @@ def test_new_submit_push_reconciles_dev_and_main_identity_baselines(
                 submit_branch="submit/four-ref-reconciliation",
                 source_head=pushed_head,
                 origin_head=heads["origin_dev"],
-                origin_main_head=heads["origin_main"],
                 github_head=heads["github_dev"],
-                github_main_head=heads["github_main"],
+                main_heads=(heads["origin_main"], heads["github_main"]),
             )
         ),
         encoding="utf-8",
@@ -279,9 +278,8 @@ def test_reconciliation_receipt_command_records_exact_tracking_observation(
         submit_branch="submit/dual-remote-reconciliation",
         source_head=origin_head,
         origin_head=origin_head,
-        origin_main_head=origin_head,
         github_head=github_head,
-        github_main_head=github_head,
+        main_heads=(origin_head, github_head),
     )
     assert json.loads(receipt_path.read_text(encoding="utf-8")) == payload["data"]["receipt"]
 

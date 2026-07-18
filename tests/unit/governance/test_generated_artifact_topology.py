@@ -7,8 +7,12 @@ from pathlib import Path
 from ethos.repository.policy import artifacts as artifacts_mod
 from ethos.repository.policy.artifacts import generated_artifact_entrypoint_audit
 from ethos.repository.policy.artifacts import generated_artifact_topology_report
+from ethos_core._resources import resolve_declaration_path
+from ethos_core.contracts.artifacts import topology
 from ethos_core.contracts.artifacts.topology import generated_artifact_contract
-from ethos_core.contracts.artifacts.topology import load_generated_artifact_topology_declaration
+from ethos_core.contracts.artifacts.topology import (
+    load_generated_artifact_topology_declaration,
+)
 from ethos_core.contracts.artifacts.topology import path_policy_for
 from ethos_core.contracts.artifacts.topology import path_policy_from_declaration
 from tests.support.contract_helpers import git as _git
@@ -875,4 +879,80 @@ def test_generated_artifact_entrypoint_audit_blocks_unbound_python_execution(
     assert (
         "generated_artifact_entrypoint_python_runtime_unbound:"
         "tools/ci/scripts/run-bad-python.sh" in audit["required_gaps"]
+    )
+
+
+def test_topology_coverage_edges(tmp_path: Path, monkeypatch) -> None:
+    assert "adopter_specific_product_root" in str(
+        topology.path_policy_for("adopters/acme/config.yaml")["required_gap"]
+    )
+
+    for name in (
+        "allow.txt",
+        "review_gap.txt",
+        "review_none.txt",
+        "deny_gap.txt",
+        "deny_none.txt",
+        "ignore.txt",
+    ):
+        (tmp_path / name).write_text("x", encoding="utf-8")
+
+    policies = {
+        "allow.txt": {"decision": "allow"},
+        "review_gap.txt": {"decision": "review", "required_gap": "review_gap_here"},
+        "review_none.txt": {"decision": "review", "required_gap": ""},
+        "deny_gap.txt": {"decision": "deny", "required_gap": "deny_gap_here"},
+        "deny_none.txt": {"decision": "deny", "required_gap": ""},
+    }
+
+    monkeypatch.setattr(
+        artifacts_mod,
+        "path_policy_from_declaration",
+        lambda rel, _declaration: policies.get(rel, {"decision": "ignore"}),
+    )
+    monkeypatch.setattr(
+        artifacts_mod,
+        "_candidate_paths",
+        lambda _root, _declaration: [
+            tmp_path / name
+            for name in (
+                "allow.txt",
+                "review_gap.txt",
+                "review_none.txt",
+                "deny_gap.txt",
+                "deny_none.txt",
+                "ignore.txt",
+            )
+        ],
+    )
+    report = generated_artifact_topology_report(tmp_path)
+
+    assert report["review_gaps"] == ["review_gap_here"]
+    assert report["required_gaps"] == ["deny_gap_here"]
+    assert "allow.txt" in report["allowed_paths"]
+
+    declaration = topology.load_generated_artifact_topology_declaration().model_copy(
+        update={
+            "denied_root_cache_prefix": (topology.TopologyPrefix(prefix=""),),
+            "denied_legacy_generated_prefix": (topology.TopologyPrefix(prefix="dist"),),
+        }
+    )
+    assert artifacts_mod._explicit_denied_roots(declaration) == ["dist"]
+
+    monkeypatch.chdir(tmp_path)
+    assert (
+        resolve_declaration_path(
+            None, canonical=topology.DECLARATION_PATH, module_file=topology.__file__
+        ).name
+        == "generated-artifact-topology.toml"
+    )
+    monkeypatch.setattr(topology.Path, "exists", lambda _self: False)
+    assert (
+        resolve_declaration_path(
+            None, canonical=topology.DECLARATION_PATH, module_file=topology.__file__
+        )
+        == topology.DECLARATION_PATH
+    )
+    assert 'id = "generated-artifact-topology"' in topology._declaration_text(
+        tmp_path / "missing-generated-artifact-topology.toml"
     )

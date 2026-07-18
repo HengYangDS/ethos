@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping
 from typing import Any
+from typing import cast
 
 _DEFAULTS = {"gitlab": "origin", "github": "github"}
 _PEERS = {
@@ -162,7 +163,7 @@ def _peer(key: str, remote: str) -> dict[str, object]:
 
 def _mapping(value: object) -> Mapping[str, object]:
     """Return a mapping only when the external payload has mapping shape."""
-    return value if isinstance(value, Mapping) else {}
+    return cast("Mapping[str, object]", value) if isinstance(value, Mapping) else {}
 
 
 def _strings(value: object) -> list[str]:

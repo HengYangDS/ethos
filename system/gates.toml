@@ -53,7 +53,6 @@ product_full = [
   "schema-contracts",
   "proof-policy",
   "python-size",
-  "source-budget",
   "npm-pack",
 ]
 adopter_default = [

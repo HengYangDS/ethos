@@ -692,6 +692,12 @@ from the successor HEAD.
 - **AND** `ethos prove --full` and global compression closeout SHALL still
   require a clean source-budget report before claiming program completion.
 
+Source-budget measurement is repository-wide compression governance. It SHALL
+remain independently invocable and visible, but SHALL NOT be embedded in the
+default proof floor or used as a correctness proxy for an unrelated,
+fine-grained OpenSpec Change. A source-budget breach requires its own
+compression-program carrier and cannot be silently waived by a feature Change.
+
 #### Scenario: A migration reports global source deltas
 
 - **WHEN** `ethos quality source-budget --json` evaluates a governed repository
@@ -703,6 +709,16 @@ from the successor HEAD.
 - **AND** each active debt record names the added surface, owner, replacement,
   expiry, deletion wave, and expected net deletion
 - **AND** a stale, missing, expired, or over-budget debt record is a required gap.
+
+#### Scenario: A fine-grained Change retains its semantic proof boundary
+
+- **WHEN** a Change modifies a bounded product capability unrelated to the
+  repository-wide compression program
+- **THEN** its default `ethos prove` gate set SHALL omit `source-budget`
+- **AND** `ethos quality source-budget --json` SHALL remain independently
+  available and report any repository-wide compression debt or breach
+- **AND** the Change SHALL NOT label source-budget output as code correctness,
+  lifecycle validity, or a substitute for its own semantic regressions.
 
 #### Scenario: Archived OpenSpec metadata remains historical evidence
 

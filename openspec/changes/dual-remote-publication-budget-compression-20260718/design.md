@@ -1,16 +1,20 @@
 ## Context
 
-The current equal GitLab/GitHub topology adds behavior after most shared budget
-slack was consumed. The preserved behavior must fit the existing hard floor.
+Equal GitLab/GitHub topology is a release-governance concern. Source-budget debt
+measures whole-repository compression and does not establish the semantic
+correctness of one topology Change.
 
 ## Decision
 
-Use a compact `remotes = ["origin", "github"]` declaration, shared peer
-projection, and small reducers. Retain the verbose `[[publication.remote]]`
-input for adopters that already use it. Do not relax admission, lifecycle, or
-no-push evidence boundaries.
+Use a compact `remotes = ["origin", "github"]` declaration and shared peer
+projection. Retain the verbose `[[publication.remote]]` input for adopters that
+already use it. The proof floor retains correctness, lifecycle, and no-push
+admission gates; source-budget stays a separately invocable, repository-wide
+compression report.
 
 ## Consequences
 
 Malformed, duplicate, unnamed, candidate, work, and unknown remote targets
-continue to fail. Local and provider observations remain separate.
+continue to fail. Local and provider observations remain separate. A source
+budget breach remains visible through `ethos quality source-budget`, but does
+not impersonate a topology correctness failure.

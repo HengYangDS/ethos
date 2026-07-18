@@ -14,9 +14,11 @@ developer opens implementation code.
 
 Required product release surfaces are `README.md`, `LICENSE`,
 `CONTRIBUTING.md`, `CHANGELOG.md`, and `.ethos/release.toml`. Hosted forge and
-CI files are host-profile surfaces declared under `.ethos/release.toml`; the
-current product repository uses a GitLab host profile, but GitLab is not a
-product release-file requirement.
+CI files are profile surfaces declared under `.ethos/release.toml`. The
+publication topology has three layers: local verification/install, GitLab
+organization collaboration, and GitHub public distribution. GitLab and GitHub
+have equal repository, CI/CD, and publication capabilities; their roles do not
+establish authority precedence or failover.
 
 Release readiness is proven with:
 
@@ -40,3 +42,12 @@ Status: see front matter.
 Purpose: explain the repository truth represented by this ETHOS document.
 
 See also: [Documentation Index](../index.md), [Command Plane](../reference/command-plane.md), and [Glossary](../reference/glossary.md).
+
+## Publication Boundary
+
+`candidate/dev` and every `work/*` branch are local-only integration state and
+MUST NOT be pushed to either declared remote. Remote admission is explicit by
+remote name and permits only `dev`, `main`, and `submit/*`. `ethos publish`
+observes each configured remote independently and never pushes or claims hosted
+CI success; local proof, candidate landing, accepted closeout, and each remote
+publication remain separate evidence states.

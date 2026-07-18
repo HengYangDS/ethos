@@ -4,7 +4,6 @@ from pathlib import Path
 
 from ethos.domain.land.publication import local_ci_owner_scripts
 from ethos.domain.land.publication import publication_readiness
-from ethos.domain.land.publication import publication_with_remote_matrix
 from ethos_core.contracts.branch.roles import load_branch_role_policy
 from tests.support.contract_helpers import adopt_and_commit
 from tests.support.contract_helpers import git
@@ -64,56 +63,31 @@ def test_publish_reports_local_readiness_without_remote_push() -> None:
     assert payload["next_actions"]
 
 
-def test_publish_reports_remote_tracking_sync_state(monkeypatch) -> None:
-    import ethos.surface.cli.root.lifecycle as lifecycle_cli  # noqa: PLC0415, RUF100 - local import isolates import-time state for this test
+def test_publish_observes_gitlab_and_github_independently_without_push(
+    tmp_path: Path,
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    adopt_and_commit(repo)
+    head = git(repo, "rev-parse", "HEAD")
+    seed_executed_proof(repo, head)
+    gitlab = tmp_path / "gitlab.git"
+    github = tmp_path / "github.git"
+    for remote in (gitlab, github):
+        git(tmp_path, "init", "--bare", remote.as_posix())
+    git(repo, "remote", "add", "origin", gitlab.as_posix())
+    git(repo, "remote", "add", "github", github.as_posix())
+    git(repo, "push", "--set-upstream", "origin", "dev")
+    git(repo, "push", "--set-upstream", "github", "dev")
 
-    local_head = "a" * 40
-    remote_head = "b" * 40
+    payload = run_ethos("publish", "--probe-remote", "--json", cwd=repo)
 
-    monkeypatch.setattr(lifecycle_cli.git, "current_head", lambda _repo: local_head)
-    monkeypatch.setattr(
-        lifecycle_cli.git,
-        "remote_availability",
-        lambda _repo: {
-            "kind": "git_remote_availability",
-            "remote": "origin",
-            "state": "available",
-            "available": True,
-            "blocking": False,
-            "required_gaps": [],
-            "advisory_gaps": [],
-        },
-    )
-    monkeypatch.setattr(
-        lifecycle_cli.git,
-        "remote_tracking_sync",
-        lambda _repo, branch, remote="origin": {
-            "kind": "git_remote_tracking_sync",
-            "remote": remote,
-            "branch": branch,
-            "remote_ref": f"{remote}/{branch}",
-            "state": "local_ahead",
-            "local_head": local_head,
-            "remote_head": remote_head,
-            "ahead": 2,
-            "behind": 0,
-            "available": True,
-            "blocking": False,
-            "required_gaps": [],
-            "advisory_gaps": [f"remote_tracking_local_ahead:{remote}/{branch}:2"],
-        },
-    )
-    payload = run_ethos("publish", "--probe-remote", "--json")
-
-    assert payload["summary"]["remote_sync_state"] == "local_ahead"
-    sync = payload["data"]["remote_sync"]
-    assert sync == payload["data"]["publication"]["remote_sync"]
-    assert sync["local_head"] == local_head
-    assert sync["remote_head"] == remote_head
-    assert "remote_tracking_local_ahead" in sync["advisory_gaps"][0]
-    assert publication_with_remote_matrix(
-        {"next_actions": []}, {"state": "reconciliation_required"}, remote_available=True
-    )["next_actions"]
+    assert payload["summary"]["remote_push"] == "not_performed"
+    assert payload["summary"]["hosted_ci_status_claimed"] is False
+    observations = payload["data"]["remote_observations"]
+    assert set(observations) == {"gitlab", "github"}
+    assert observations["gitlab"]["availability"]["remote"] == "origin"
+    assert observations["github"]["availability"]["remote"] == "github"
+    assert payload["data"]["publication"]["remote_observations"] == observations
 
 
 def test_publish_reports_synchronized_tracking_without_claiming_a_push(
@@ -146,8 +120,10 @@ def test_publish_reports_synchronized_tracking_without_claiming_a_push(
         "remote_state": "synchronized",
     }
     assert (
-        payload["next_actions"][0] == "remote tracking ref is synchronized; no push was performed"
+        payload["data"]["publication"]["remote_observations"]["gitlab"]["sync"]["state"]
+        == "synchronized"
     )
+    assert payload["data"]["publication"]["remote_push"] == "not_performed"
     assert payload["data"]["mutation"]["decision"]["verdict"] == "defer"
 
 
@@ -164,33 +140,6 @@ def test_publication_readiness_uses_local_fallback_when_fallback_omits_evidence_
         assert publication["next_actions"] == [
             "run tools/ci/scripts/run-local-ci.sh as local fallback evidence"
         ]
-
-
-def test_publish_does_not_probe_remote_without_explicit_flag(monkeypatch) -> None:
-    import ethos.surface.cli.root.lifecycle as lifecycle_cli  # noqa: PLC0415, RUF100 - local import isolates command dependencies
-
-    def unexpected_probe(_repo: Path) -> dict[str, object]:
-        message = "publish must not probe a remote without --probe-remote"
-        raise AssertionError(message)
-
-    monkeypatch.setattr(lifecycle_cli.git, "remote_availability", unexpected_probe)
-    monkeypatch.setattr(
-        lifecycle_cli.git,
-        "remote_availability_not_probed",
-        lambda _repo: {
-            "kind": "git_remote_availability",
-            "remote": "origin",
-            "state": "not_probed",
-            "available": False,
-            "blocking": False,
-            "required_gaps": [],
-            "advisory_gaps": [],
-        },
-    )
-
-    payload = run_ethos("publish", "--json")
-
-    assert payload["data"]["remote_availability"]["state"] == "not_probed"
 
 
 def test_publish_uses_configured_submit_branch_role_policy(tmp_path: Path) -> None:

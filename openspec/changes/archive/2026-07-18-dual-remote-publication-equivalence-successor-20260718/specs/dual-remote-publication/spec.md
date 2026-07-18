@@ -3,11 +3,10 @@
 ### Requirement: Equal dual-remote publication topology
 
 ETHOS SHALL model publication as one local verification/install layer and two
-independent remote targets: GitLab with the
-`organization_collaboration` role and GitHub with the
-`public_distribution` role. Each remote SHALL declare exactly the same
-capabilities: `repository`, `ci_cd`, and `publication`; neither role SHALL
-imply governance precedence, failover, or replacement of the other.
+independent remote targets: GitLab with the `organization_collaboration` role
+and GitHub with the `public_distribution` role. Each remote SHALL declare the
+same `repository`, `ci_cd`, and `publication` capabilities; neither role SHALL
+imply governance precedence, failover, or replacement.
 
 #### Scenario: complete topology is declared
 
@@ -28,22 +27,22 @@ imply governance precedence, failover, or replacement of the other.
 
 ETHOS SHALL admit a remote push only when the named remote is declared and the
 destination branch is `dev`, `main`, or matches `submit/*`. `candidate/dev`,
-every `work/*` branch, arbitrary branches, and undeclared remote names SHALL
-be rejected before ordinary proof admission can authorize the push.
+every `work/*` branch, arbitrary branches, and undeclared remote names SHALL be
+rejected before ordinary proof admission can authorize the push.
 
 #### Scenario: local candidate cannot be pushed
 
-- **WHEN** the pre-push admission receives `candidate/dev` as its destination
+- **WHEN** pre-push admission receives `candidate/dev` as its destination
 - **THEN** it SHALL return
   `publication_candidate_branch_remote_forbidden:candidate/dev`
 - **AND** it SHALL retain candidate as a local integration role.
 
 #### Scenario: declared remote receives an accepted branch
 
-- **WHEN** the pre-push admission receives `dev`, `main`, or `submit/*` and a
+- **WHEN** pre-push admission receives `dev`, `main`, or `submit/*` and a
   declared GitLab or GitHub remote name
-- **THEN** remote-target admission SHALL succeed subject to the existing proof
-  and ref-topology gates.
+- **THEN** remote-target admission SHALL succeed subject to existing proof and
+  ref-topology gates.
 
 #### Scenario: undeclared remote is rejected
 

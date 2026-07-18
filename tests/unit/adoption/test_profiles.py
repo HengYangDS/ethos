@@ -61,7 +61,9 @@ def test_adoption_plan_blocks_profile_mismatch_from_apply(tmp_path: Path) -> Non
     assert not (tmp_path / ".ethos" / "project.toml").exists()
 
 
-def test_adoption_plan_reports_profile_match_when_observed_files_fit(tmp_path: Path) -> None:
+def test_adoption_plan_reports_profile_match_when_observed_files_fit(
+    tmp_path: Path,
+) -> None:
     (tmp_path / "pyproject.toml").write_text("[project]\nname = 'sample'\n", encoding="utf-8")
 
     result = adoption_plan(tmp_path, profile="python", apply=False)
@@ -72,7 +74,9 @@ def test_adoption_plan_reports_profile_match_when_observed_files_fit(tmp_path: P
     assert result["next_action"] == "review dry-run write plan"
 
 
-def test_adoption_plan_blocks_conflicting_existing_files_from_apply(tmp_path: Path) -> None:
+def test_adoption_plan_blocks_conflicting_existing_files_from_apply(
+    tmp_path: Path,
+) -> None:
     (tmp_path / "AGENTS.md").write_text("# local instructions\n", encoding="utf-8")
 
     result = adoption_plan(tmp_path, profile="generic", apply=True)
@@ -105,6 +109,12 @@ def test_gitlab_profile_adds_ci_projection(tmp_path: Path) -> None:
     assert "tools/ci/scripts/run-python" not in ci
     assert "uv run --group dev pytest" not in ci
     assert "uv run --group dev ruff" not in ci
+    assert "[publication.local]" in release
+    assert "[[publication.remote]]" in release
+    assert 'id = "gitlab"' in release
+    assert 'id = "github"' in release
+    assert "candidate/dev" not in ci
+    assert r"submit\/.+$" in ci
 
 
 def test_monorepo_profile_projects_workspace_packages(tmp_path: Path) -> None:

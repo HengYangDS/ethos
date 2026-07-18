@@ -4,6 +4,7 @@ import tomllib
 from typing import TYPE_CHECKING
 from typing import Any
 
+from ethos.repository.release.publication import publication_topology
 from ethos_core.contracts.branch.roles import load_branch_role_policy
 
 if TYPE_CHECKING:
@@ -74,6 +75,7 @@ def release_policy_report(root: Path) -> dict[str, Any]:
     branch_policy = load_branch_role_policy(root)
     expected_protected_branches = list(branch_policy.protected_branches)
     host_profile = _host_profile(config)
+    publication = publication_topology(config)
     attestation = config.get("attestation", {})
     gaps: list[str] = []
     gaps.extend(f"release_file_missing:{path}" for path in missing_files)
@@ -89,6 +91,9 @@ def release_policy_report(root: Path) -> dict[str, Any]:
             gaps.append(f"host_surface_missing:{provider}:{key}:{path}")
     if set(attestation.get("formats", [])) < {"in-toto", "slsa", "spdx-lite"}:
         gaps.append("attestation_formats_incomplete")
+    publication_gaps = publication.get("required_gaps", [])
+    if isinstance(publication_gaps, list):
+        gaps.extend(str(gap) for gap in publication_gaps)
     return {
         "ok": not gaps,
         "required_gaps": gaps,
@@ -99,6 +104,7 @@ def release_policy_report(root: Path) -> dict[str, Any]:
             "tags": list(protected_refs.get("tags", [])),
         },
         "host_profile": host_profile,
+        "publication_topology": publication,
         "attestation": {
             "formats": list(attestation.get("formats", [])),
             "signing": attestation.get("signing", ""),

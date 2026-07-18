@@ -7,6 +7,7 @@
 # lines on stdin.
 set -e
 
+remote_name="$1"
 repo_root="$(git rev-parse --show-toplevel)"
 runtime_runner="${repo_root}/tools/ci/scripts/with-python-runtime.sh"
 runtime_python="${ETHOS_PYTHON:-${PYTHON:-${repo_root}/build/runtime/venv/bin/python}}"
@@ -23,19 +24,20 @@ if [ -n "$receipt_path" ]; then
     github_main_head="$(git ls-remote --exit-code github refs/heads/main 2>/dev/null | awk 'NR == 1 { print $1 }')"
 fi
 
-while read -r local_ref local_sha remote_ref remote_sha; do
+while read -r _local_ref local_sha remote_ref remote_sha; do
     [ -z "$remote_ref" ] && continue
     case "$local_sha" in
         0000000000000000000000000000000000000000) continue ;;  # branch deletion
     esac
     if ! PYTHONPATH="$ethos_pythonpath${PYTHONPATH:+:$PYTHONPATH}" \
         "${runtime_runner}" -- "${runtime_python}" -m ethos.cli hook pre-push "$remote_ref" "$local_sha" \
-        --remote-head "$remote_sha" --reconciliation-receipt "$receipt_path" \
+        --remote-head "$remote_sha" --remote "$remote_name" \
+        --reconciliation-receipt "$receipt_path" \
         --observed-origin-head "$origin_head" --observed-origin-main-head "$origin_main_head" \
         --observed-github-head "$github_head" --observed-github-main-head "$github_main_head" \
         --root "$repo_root" --json >/dev/null 2>&1; then
         echo "ethos: push to $remote_ref blocked by pre-push admission at $local_sha" >&2
-        echo "ethos: run 'ethos hook pre-push $remote_ref $local_sha --remote-head $remote_sha --json' for details" >&2
+        echo "ethos: run 'ethos hook pre-push $remote_ref $local_sha --remote-head $remote_sha --remote $remote_name --json' for details" >&2
         exit 1
     fi
 done

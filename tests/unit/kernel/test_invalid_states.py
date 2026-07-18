@@ -25,6 +25,7 @@ ROOT = Path(__file__).resolve().parents[3]
 # gap strings (they carry gaps, they are not gaps).
 _NON_GAP_TOKENS = {
     "required_gaps",
+    "enforcement_gaps",
     "advisory_gaps",
     "observation_gaps",
     "observation_gap_count",

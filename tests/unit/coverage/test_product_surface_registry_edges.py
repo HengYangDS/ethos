@@ -4,7 +4,6 @@
 
 from __future__ import annotations
 
-import subprocess
 from pathlib import Path
 
 import pytest
@@ -38,10 +37,7 @@ from ethos.surface.cli import _base
 from ethos.surface.cli import _gate_runner
 from ethos_core.action_graph.core import ActionNode
 from ethos_core.result import EthosResult
-
-
-def cp(stdout: str = "", stderr: str = "", returncode: int = 0) -> subprocess.CompletedProcess[str]:
-    return subprocess.CompletedProcess(["cmd"], returncode, stdout, stderr)
+from tests.support.subprocesses import completed as cp
 
 
 def test_openspec_base_json_selection_and_governance_edges(

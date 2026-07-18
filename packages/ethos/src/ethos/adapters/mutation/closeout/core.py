@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class CloseoutDependencies:
     """Injected closeout collaborators; production uses the canonical adapters."""
 
@@ -38,7 +38,7 @@ class CloseoutDependencies:
 _DEFAULT_DEPENDENCIES = CloseoutDependencies()
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class CloseoutRequest:
     """Immutable promotion inputs shared by validation and execution."""
 

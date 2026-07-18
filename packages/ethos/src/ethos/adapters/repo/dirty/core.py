@@ -5,6 +5,7 @@ from itertools import islice
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import Literal
 from typing import cast
 
 from ethos.adapters.repo.git import git_stdout_checked
@@ -18,8 +19,13 @@ _TEMPORARY_PROBE_PATH_LIMIT = 16
 _TEMPORARY_PROBE_MARKER = "TEMP PROBE"
 
 
-def changed_paths(root: Path) -> tuple[str, ...]:
-    entries = cast("list[dict[str, str]]", dirty_provenance(root)["entries"])
+def changed_paths(
+    root: Path, *, untracked_files: Literal["all", "normal"] = "all"
+) -> tuple[str, ...]:
+    entries = cast(
+        "list[dict[str, str]]",
+        dirty_provenance(root, untracked_files=untracked_files)["entries"],
+    )
     return tuple(item["path"] for item in entries)
 
 
@@ -58,7 +64,9 @@ def change_scope_paths_from_status(root: Path, status_payload: dict[str, Any]) -
     return change_scope_paths(root, base_ref=base_ref)
 
 
-def dirty_provenance(root: Path) -> dict[str, object]:
+def dirty_provenance(
+    root: Path, *, untracked_files: Literal["all", "normal"] = "all"
+) -> dict[str, object]:
     """Structured local dirty-state provenance from Git porcelain v1.
 
     The old status payload only exposed path strings. Closeout repair needs the
@@ -67,7 +75,9 @@ def dirty_provenance(root: Path) -> dict[str, object]:
     hooks, and failed-mutation diagnostics without a second state store.
     """
     try:
-        output = git_stdout_checked(root, "status", "--porcelain", "--untracked-files=all")
+        output = git_stdout_checked(
+            root, "status", "--porcelain", f"--untracked-files={untracked_files}"
+        )
     except (OSError, subprocess.CalledProcessError) as exc:
         return _unavailable_dirty_provenance(exc)
     entries = [_dirty_entry(line) for line in output.splitlines() if line]

@@ -20,6 +20,7 @@ from ethos.repository.policy.rules.exceptions import _is_product_root
 from ethos.repository.policy.rules.exceptions import policy_exceptions_report
 from ethos.repository.policy.rules.exceptions import ttl_days_or_none
 from ethos.repository.policy.rules.migration import migrate_legacy_rules
+from tests.support import write_text as _write
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -30,11 +31,6 @@ if TYPE_CHECKING:
 def _write_rules(root: Path, toml: str) -> None:
     (root / ".ethos").mkdir(parents=True, exist_ok=True)
     (root / ".ethos" / "rules.toml").write_text(toml, encoding="utf-8")
-
-
-def _write(path: Path, text: str) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(text, encoding="utf-8")
 
 
 # ---------------------------------------------------------------------------

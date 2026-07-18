@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import argparse
 import hashlib
 import json
 import subprocess
@@ -14,6 +13,8 @@ from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
 from pathlib import Path
+
+from cyclopts import App
 
 GIT, SSH_KEYGEN = "/usr/bin/git", "/usr/bin/ssh-keygen"
 SHA256_SIZE, REF_UPDATE_FIELDS = 64, 3
@@ -185,12 +186,14 @@ def enforce(config_path: Path, lines: list[str]) -> None:
         _receipt(config, new, _tree(config, new))
 
 
-def main(argv: list[str] | None = None) -> int:
+app = App(name="ethos-generic-pre-receive")
+
+
+@app.default
+def main(*, config: Path) -> int:
     """Run the provider-installed hook with standard pre-receive input."""
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--config", type=Path, required=True)
     try:
-        enforce(parser.parse_args(argv).config, sys.stdin.read().splitlines())
+        enforce(config, sys.stdin.read().splitlines())
     except RefusalError as exc:
         sys.stderr.write(f"ethos-generic-pre-receive:{exc}\n")
         return 1
@@ -198,4 +201,4 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    app(sys.argv[1:])

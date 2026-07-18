@@ -44,12 +44,7 @@ from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 from ethos_core.contracts.registry.declarations import load_coupling_declaration
 from ethos_core.result import EthosResult
-
-# fmt: off
-
-
-def cp(stdout: str = "", stderr: str = "", returncode: int = 0) -> subprocess.CompletedProcess[str]:
-    return subprocess.CompletedProcess(["cmd"], returncode, stdout, stderr)
+from tests.support.subprocesses import completed as cp
 
 
 def test_hook_admit_next_actions_prefer_admission_report_actions() -> None:
@@ -392,7 +387,11 @@ def test_cli_wrappers_emit_expected_results(
     monkeypatch.setattr(
         lifecycle_cli,
         "candidate_base_report",
-        lambda root, status=None: {"ok": False, "required_gaps": ["candidate_base_stale"], "state": "blocked"},
+        lambda root, status=None: {
+            "ok": False,
+            "required_gaps": ["candidate_base_stale"],
+            "state": "blocked",
+        },
     )
     monkeypatch.setattr(lifecycle_cli.git, "current_head", lambda repo: "h1")
     monkeypatch.setattr(
@@ -677,5 +676,6 @@ def test_remaining_helper_edges(monkeypatch: pytest.MonkeyPatch, tmp_path: Path)
     )
     monkeypatch.setattr(retrieval_sources, "tracked_files", lambda root: [])
     assert retrieval_sources.allowed_sources(tmp_path) == []
+
 
 # fmt: on

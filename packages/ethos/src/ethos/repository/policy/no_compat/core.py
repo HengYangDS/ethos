@@ -38,7 +38,7 @@ ALLOWED_PATH_PART_SEQUENCES = {
 }
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class NoCompatFinding:
     """A compatibility-residue finding in production source."""
 

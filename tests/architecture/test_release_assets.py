@@ -57,8 +57,7 @@ def test_contributing_declares_commit_and_signature_policy() -> None:
 def test_gitlab_ci_uses_ethos_public_command_plane() -> None:
     text = (ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8")
 
-    assert "ethos audit" in text
-    assert "ethos report" in text
+    assert "tools/ci/scripts/run-head-bound-proof.sh" in text
     # The npm jobs run on the layer-cached python:3.12 image and install Node
     # from nodejs.org (install-node.sh), because the node:24 Docker image is
     # unreachable through the runner's registry egress. See install-node.sh.
@@ -104,7 +103,7 @@ def test_configuration_layout_is_separated_by_concern() -> None:
     assert "[lint.per-file-ignores]" in ruff
     assert "[pytest]" in pytest
     assert "pythonpath" in pytest
-    assert "error::ResourceWarning" in pytest
+    assert "error" in pytest
     assert "Separation of concerns" in config_readme
     assert "system/tools.toml" in config_readme
     assert (
@@ -425,7 +424,7 @@ def test_python_test_gate_enforces_coverage_floor() -> None:
     assert "coverage_hard_floor=" in runner
     assert "--cov-fail-under=${coverage_hard_floor}" in runner
     assert "--cov-fail-under=100" not in runner
-    assert "-W error::ResourceWarning" not in runner
+    assert "-W error" in runner
     assert 'COVERAGE_FILE="${coverage_evidence_dir}/.coverage"' in runner
     assert "rm -f .coverage .coverage.*" in runner
     assert 'rm -f "${COVERAGE_FILE}" "${COVERAGE_FILE}".*' in runner

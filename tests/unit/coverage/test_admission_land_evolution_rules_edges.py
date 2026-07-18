@@ -22,10 +22,7 @@ from ethos.repository.policy.rules.migration import toml_table_key
 from ethos.repository.policy.rules.migration import toml_value
 from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
-
-
-def cp(stdout: str = "", stderr: str = "", returncode: int = 0) -> subprocess.CompletedProcess[str]:
-    return subprocess.CompletedProcess(["git"], returncode, stdout, stderr)
+from tests.support.subprocesses import completed as cp
 
 
 def status(

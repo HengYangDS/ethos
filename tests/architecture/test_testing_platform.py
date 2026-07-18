@@ -39,6 +39,7 @@ def test_python_test_platform_is_parallel_timeout_bound_and_owner_scripted() -> 
     assert "--junitxml" in script
     assert "--durations" in script
     assert "COVERAGE_FILE" in script
+    assert "RUFF_CACHE_DIR" in script
     assert "cleanup_root_coverage_artifacts" in script
     assert "cleanup_denied_runtime_residue" in script
     assert "rm -rf .pytest_cache .ruff_cache build/runtime/gitlab-ci-local" in script

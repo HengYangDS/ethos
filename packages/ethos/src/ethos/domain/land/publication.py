@@ -277,3 +277,18 @@ def publication_readiness(
         "required_gaps": [] if local_ok else ["local_publish_readiness_blocked"],
         "next_actions": next_actions,
     }
+
+
+def publication_with_remote_matrix(
+    publication: dict[str, object],
+    matrix: dict[str, object],
+    *,
+    remote_available: bool,
+) -> dict[str, object]:
+    """Refine the publication next action without changing its compatibility shape."""
+    if not remote_available or matrix.get("state") != "reconciliation_required":
+        return publication
+    return {
+        **publication,
+        "next_actions": ["reconcile diverged remotes before creating a submit branch"],
+    }

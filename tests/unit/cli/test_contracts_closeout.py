@@ -3,11 +3,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from tests.support.contract_helpers import adopt_and_commit
+from tests.support.contract_helpers import commit_fixture_file
 from tests.support.contract_helpers import git
 from tests.support.contract_helpers import init_git_repo
 from tests.support.contract_helpers import seed_executed_proof
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
+from tests.support.lane_helpers import add_candidate_worktree
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -18,20 +20,8 @@ def test_land_closeout_apply_fast_forwards_accepted_root_from_candidate(
 ) -> None:
     repo = init_git_repo(tmp_path / "repo")
     adopt_and_commit(repo)
-    candidate = tmp_path / "repo-candidate-dev"
-    git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
-    (candidate / "README.md").write_text("# candidate change\n", encoding="utf-8")
-    git(candidate, "add", "README.md")
-    git(
-        candidate,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "candidate change",
-    )
+    candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    commit_fixture_file(candidate, "README.md", "# candidate change\n", "candidate change")
     accepted_head = git(repo, "rev-parse", "HEAD")
     candidate_head = git(candidate, "rev-parse", "HEAD")
     seed_executed_proof(candidate, candidate_head)
@@ -133,20 +123,8 @@ def test_land_closeout_audits_candidate_content_before_fast_forward(
 
     repo = init_git_repo(tmp_path / "repo")
     adopt_and_commit(repo)
-    candidate = tmp_path / "repo-candidate-dev"
-    git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
-    (candidate / "README.md").write_text("# candidate change\n", encoding="utf-8")
-    git(candidate, "add", "README.md")
-    git(
-        candidate,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "candidate change",
-    )
+    candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    commit_fixture_file(candidate, "README.md", "# candidate change\n", "candidate change")
     accepted_head = git(repo, "rev-parse", "HEAD")
     candidate_head = git(candidate, "rev-parse", "HEAD")
     seed_executed_proof(candidate, candidate_head)
@@ -211,20 +189,8 @@ def test_land_closeout_dry_run_reports_expect_head_mismatch(
 ) -> None:
     repo = init_git_repo(tmp_path / "repo")
     adopt_and_commit(repo)
-    candidate = tmp_path / "repo-candidate-dev"
-    git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
-    (candidate / "README.md").write_text("# candidate change\n", encoding="utf-8")
-    git(candidate, "add", "README.md")
-    git(
-        candidate,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "candidate change",
-    )
+    candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    commit_fixture_file(candidate, "README.md", "# candidate change\n", "candidate change")
     candidate_head = git(candidate, "rev-parse", "HEAD")
 
     payload = run_ethos(
@@ -340,20 +306,8 @@ def test_land_closeout_exposes_bootstrap_package_for_current_runner(
 ) -> None:
     repo = init_git_repo(tmp_path / "repo")
     adopt_and_commit(repo)
-    candidate = tmp_path / "repo-candidate-dev"
-    git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
-    (candidate / "README.md").write_text("# candidate change\n", encoding="utf-8")
-    git(candidate, "add", "README.md")
-    git(
-        candidate,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "candidate change",
-    )
+    candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    commit_fixture_file(candidate, "README.md", "# candidate change\n", "candidate change")
     accepted_head = git(repo, "rev-parse", "HEAD")
     candidate_head = git(candidate, "rev-parse", "HEAD")
 
@@ -393,20 +347,8 @@ def test_land_closeout_bootstrap_proof_target_stays_candidate_when_blocked(
 ) -> None:
     repo = init_git_repo(tmp_path / "repo")
     adopt_and_commit(repo)
-    candidate = tmp_path / "repo-candidate-dev"
-    git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
-    (candidate / "README.md").write_text("# candidate change\n", encoding="utf-8")
-    git(candidate, "add", "README.md")
-    git(
-        candidate,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "candidate change",
-    )
+    candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    commit_fixture_file(candidate, "README.md", "# candidate change\n", "candidate change")
     accepted_head = git(repo, "rev-parse", "HEAD")
     candidate_head = git(candidate, "rev-parse", "HEAD")
 
@@ -442,20 +384,8 @@ def test_land_closeout_blocks_candidate_with_completed_active_openspec_change(
 
     repo = init_git_repo(tmp_path / "repo")
     adopt_and_commit(repo)
-    candidate = tmp_path / "repo-candidate-dev"
-    git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
-    (candidate / "README.md").write_text("# candidate change\n", encoding="utf-8")
-    git(candidate, "add", "README.md")
-    git(
-        candidate,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "candidate change",
-    )
+    candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    commit_fixture_file(candidate, "README.md", "# candidate change\n", "candidate change")
 
     def fake_audit(root: Path, *, openspec_mode: str = "shape") -> dict[str, object]:  # noqa: ARG001, RUF100 - test double preserves the patched callable signature
         return {"ok": True, "required_gaps": [], "root": root.as_posix()}

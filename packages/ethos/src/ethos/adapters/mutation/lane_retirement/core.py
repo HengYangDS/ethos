@@ -26,7 +26,7 @@ from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 from ethos_core.contracts.branch.roles import load_branch_role_policy
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class SupersededLaneRetirementRequest:
     """Inputs for retiring a linked Work Lane superseded by accepted truth."""
 
@@ -38,7 +38,7 @@ class SupersededLaneRetirementRequest:
     authorized: bool = False
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class SupersededRetirementRuntime:
     """Explicit dependencies used to retire superseded Work Lanes."""
 

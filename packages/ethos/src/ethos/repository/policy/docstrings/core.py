@@ -17,7 +17,7 @@ _DEFAULT_PATHS = ("packages/ethos/src", "packages/ethos-core/src")
 _DEFAULT_FAIL_UNDER = 95.0
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class PublicSurfaceSymbol:
     """A Python symbol whose docstring forms part of the public product surface."""
 

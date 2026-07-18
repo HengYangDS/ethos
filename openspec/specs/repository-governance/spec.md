@@ -2222,3 +2222,67 @@ An active claim that attests universal adopter OpenSpec lifecycle SHALL declare 
 - **WHEN** a declared lifecycle command implementation or behavioral regression target changes
 - **THEN** the lifecycle claim reader emits `evidence.semantic_scope_stale`
 - **AND** ETHOS requires a governed evidence refresh before the claim is clean
+
+### Requirement: Refresh-base replay is signing-bound and compare-and-swap safe
+
+When a Work Lane refresh requires SSH commit signing through a configured
+file-backed key, ETHOS SHALL establish signing transport before the replay can
+start. It SHALL revalidate the admitted Work Lane and candidate SHA snapshots,
+replay the admitted Work Lane SHA against the admitted candidate SHA in
+detached state, and compare-and-swap the Work Lane ref from its admitted old
+SHA before attaching it again.
+
+#### Scenario: unavailable signing transport blocks before replay
+
+- **GIVEN** `commit.gpgsign` is truthy, `gpg.format` is `ssh`, and
+  `user.signingkey` resolves to a file-backed key with no usable agent transport
+- **WHEN** `lane refresh-base --apply` runs
+- **THEN** it reports `refresh_signing_transport_unavailable`
+- **AND** it does not start a rebase or advance the Work Lane ref.
+
+#### Scenario: admitted snapshots move during preflight
+
+- **GIVEN** a refresh has captured Work Lane and candidate SHA values
+- **WHEN** either value changes before replay begins
+- **THEN** it reports the corresponding `refresh_base_snapshot_stale` gap
+- **AND** it does not start a rebase or advance the Work Lane ref.
+
+#### Scenario: Work Lane moves before replay compare-and-swap
+
+- **GIVEN** detached replay has produced a candidate-descended refreshed SHA
+- **WHEN** the Work Lane ref no longer equals its admitted old SHA
+- **THEN** ETHOS reports `refresh_base_snapshot_stale:work_lane`
+- **AND** it reattaches to the newer branch state without overwriting that ref.
+
+### Requirement: Committed Adopter Profile Policy At Closeout
+
+ETHOS SHALL resolve adopter proof policy from the promoted committed tree when
+accepted-root closeout evaluates an exact candidate advance before the accepted
+worktree has reset to that candidate commit.  The implementation of this policy
+SHALL remain subject to the active proof floor; a proof failure SHALL be
+remediated in a separately active Change without weakening closeout policy,
+source-budget limits, evidence binding, or the raw-reference-move guard.
+
+#### Scenario: candidate proof policy is evaluated during accepted-root closeout
+
+- **GIVEN** a candidate commit changes a valid non-product repository profile
+  that defines its native proof gates
+- **WHEN** a reference-transaction hook evaluates the proposed accepted-root
+  advance before the accepted worktree resets to that candidate commit
+- **THEN** ETHOS SHALL resolve the profile, required proof floor, gate
+  descriptors, policy digest, and run conformance from the promoted committed
+  tree
+- **AND** a profile absent from that resolvable candidate tree SHALL be treated
+  as absent rather than inherited from the accepted-old working tree
+- **AND** raw accepted-root moves without a matching one-shot closeout intent
+  SHALL remain blocked.
+
+#### Scenario: closeout-policy remediation does not lower the acceptance bar
+
+- **GIVEN** a Change introduces committed-profile closeout policy resolution
+- **WHEN** it is prepared for candidate landing
+- **THEN** it SHALL preserve candidate-tree policy resolution and the
+  raw-reference-move guard
+- **AND** it SHALL pass the existing proof floor without adding source-budget
+  debt, allowance, or an exclusion for the remediation
+- **AND** regenerated evidence and later proof SHALL bind the corrective HEAD.

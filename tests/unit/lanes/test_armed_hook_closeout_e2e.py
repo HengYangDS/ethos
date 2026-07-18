@@ -25,8 +25,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from ethos.adapters.mutation.core import apply_candidate_to_accepted
-from ethos.adapters.mutation.core import apply_land_to_candidate
+from ethos.adapters.mutation.core import apply_candidate_to_accepted, apply_land_to_candidate
 from ethos.adapters.mutation.lane_lifecycle.refresh import (
     refresh_candidate_from_accepted,
 )

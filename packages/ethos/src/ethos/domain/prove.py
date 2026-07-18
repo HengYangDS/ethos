@@ -10,10 +10,16 @@ adapters.git, the metric by the kernel measure.
 from __future__ import annotations
 
 import fnmatch
+import hashlib
+import json
+from datetime import UTC
+from datetime import date
+from datetime import datetime
 from typing import TYPE_CHECKING
 from typing import cast
 
 import ethos.adapters.repo.git as git_adapter
+import ethos.adapters.repo.source_budget.core as source_budget_adapter
 from ethos.adapters.config import code_size_policy
 from ethos.adapters.config import source_budget_policy
 from ethos.repository.policy.schema import validate_schema_instance
@@ -21,6 +27,8 @@ from ethos_core.measure import effective_code_lines
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+    from ethos_core.contracts.source_budget.core import SourceBudgetPolicy
 
 
 def _role_for(relative: str, surface_globs: tuple[str, ...]) -> str:
@@ -98,7 +106,7 @@ _SOURCE_BUDGET_CATEGORIES = (
 
 
 def _source_budget_category(relative: str) -> str | None:
-    """Classify one tracked executable carrier without inventing a source role."""
+    """Classify one present executable carrier without inventing a source role."""
     path = relative.lower()
     if path.startswith("openspec/changes/archive/") and path.endswith("/.openspec.yaml"):
         return None
@@ -142,42 +150,18 @@ def _carrier_effective_lines(path: Path, category: str) -> int:
     return count
 
 
-def _budget_ints(value: object) -> dict[str, int]:
-    """Retain only non-negative integer budget values from declaration input."""
-    if not isinstance(value, dict):
-        return {}
-    return {
-        str(key): item
-        for key, item in value.items()
-        if isinstance(item, int) and not isinstance(item, bool) and item >= 0
-    }
-
-
 def _source_budget_allowance(
-    policy: dict[str, object],
+    policy: SourceBudgetPolicy,
 ) -> tuple[int, dict[str, int], list[str]]:
-    """Compile declared temporary growth allowance without a second ledger model."""
-    debt = policy.get("debt")
-    if not isinstance(debt, dict):
-        return 0, {}, []
-    records = debt.get("records")
-    if not isinstance(records, list):
-        return 0, {}, []
+    """Compile validated temporary growth allowance without a second ledger model."""
     total = 0
     categories: dict[str, int] = {}
     ids: list[str] = []
-    for record in records:
-        if not isinstance(record, dict):
-            continue
-        allowance = record.get("allowance")
-        if isinstance(allowance, int) and not isinstance(allowance, bool) and allowance >= 0:
-            total += allowance
-        allowance_by_category = _budget_ints(record.get("allowance_by_category"))
-        for category, value in allowance_by_category.items():
+    for record in policy.debt.records:
+        total += record.allowance
+        for category, value in record.allowance_by_category.items():
             categories[category] = categories.get(category, 0) + value
-        identifier = record.get("id")
-        if isinstance(identifier, str) and identifier:
-            ids.append(identifier)
+        ids.append(record.id)
     return total, categories, ids
 
 
@@ -198,15 +182,20 @@ def _source_budget_allowance_for(category: str, *, total: int, by_category: dict
     return by_category.get(category, 0)
 
 
-def _source_budget_metrics(root: Path) -> dict[str, int]:
-    """Measure each maintained executable carrier in one tracked checkout."""
+def _source_budget_metrics(root: Path) -> tuple[dict[str, int], dict[str, object]]:
+    """Measure every present declared source carrier and return its identity."""
     metrics = dict.fromkeys(_SOURCE_BUDGET_CATEGORIES, 0)
-    for relative in git_adapter.git_files(root):
+    records: list[dict[str, object]] = []
+    category_counts: dict[str, int] = {}
+    for relative in source_budget_adapter.present_worktree_paths(root):
         category = _source_budget_category(relative)
         path = root / relative
-        if category is None or not path.exists():
+        if category is None:
             continue
-        metrics[category] += _carrier_effective_lines(path, category)
+        effective_lines = _carrier_effective_lines(path, category)
+        metrics[category] += effective_lines
+        category_counts[category] = category_counts.get(category, 0) + 1
+        records.append({"path": relative, "category": category, "effective_lines": effective_lines})
     metrics["python_total"] = sum(
         metrics[category]
         for category in (
@@ -217,18 +206,24 @@ def _source_budget_metrics(root: Path) -> dict[str, int]:
         )
     )
     metrics["global_total"] = sum(metrics[category] for category in _SOURCE_BUDGET_CATEGORIES)
-    return metrics
+    digest = hashlib.sha256(
+        json.dumps(records, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    return metrics, {
+        "digest": digest,
+        "file_count": len(records),
+        "category_counts": dict(sorted(category_counts.items())),
+    }
 
 
 def _source_budget_verdict(
-    metrics: dict[str, int], policy: dict[str, object]
+    metrics: dict[str, int], policy: SourceBudgetPolicy
 ) -> tuple[dict[str, int], dict[str, int], int, list[str], int, bool, list[str]]:
     """Compile baseline, debt, and terminal verdicts from measured carriers."""
-    baseline = _budget_ints(policy.get("baseline"))
-    terminal = _budget_ints(policy.get("terminal"))
+    baseline = {str(key): value for key, value in policy.baseline.items()}
+    terminal = {str(key): value for key, value in policy.terminal.items()}
     debt_total, debt_by_category, debt_ids = _source_budget_allowance(policy)
-    debt = policy.get("debt")
-    maximum_debt = _budget_ints(debt).get("maximum_total", 0)
+    maximum_debt = policy.debt.maximum_total
     gaps: list[str] = []
     if debt_total > maximum_debt:
         gaps.append(f"source_budget_debt_exceeded:{debt_total}>{maximum_debt}")
@@ -244,42 +239,115 @@ def _source_budget_verdict(
     terminal_target_met = all(
         metrics.get(category, 0) <= target for category, target in terminal.items()
     )
-    if policy.get("enforcement") == "terminal" and not terminal_target_met:
+    if policy.enforcement == "terminal" and not terminal_target_met:
         for category, target in terminal.items():
             current = metrics.get(category, 0)
             if current > target:
                 gaps.append(f"source_budget_terminal_exceeded:{category}:{current}>{target}")
-    return baseline, terminal, debt_total, debt_ids, maximum_debt, terminal_target_met, gaps
+    return (
+        baseline,
+        terminal,
+        debt_total,
+        debt_ids,
+        maximum_debt,
+        terminal_target_met,
+        gaps,
+    )
+
+
+def _source_budget_today() -> date:
+    """Return the UTC calendar date used by debt-expiry evaluation."""
+    return datetime.now(UTC).date()
+
+
+def _source_budget_lifecycle(
+    policy: SourceBudgetPolicy,
+) -> tuple[list[dict[str, object]], list[str]]:
+    """Project every declared debt record and fail closed on stale lifecycle state."""
+    today = _source_budget_today()
+    waves = {wave.id: wave for wave in policy.debt.waves}
+    records: list[dict[str, object]] = []
+    gaps: list[str] = []
+    for record in policy.debt.records:
+        record_gaps: list[str] = []
+        if date.fromisoformat(record.expiry) < today:
+            record_gaps.append(f"source_budget_debt_expired:{record.id}")
+        if waves[record.deletion_wave].state == "settled":
+            record_gaps.append(f"source_budget_debt_stale:{record.id}")
+        status = "expired" if record_gaps and "expired" in record_gaps[0] else "stale"
+        if not record_gaps:
+            status = "active"
+        records.append(
+            {
+                "id": record.id,
+                "wave": record.deletion_wave,
+                "wave_due_on": waves[record.deletion_wave].due_on,
+                "wave_state": waves[record.deletion_wave].state,
+                "owner": record.owner,
+                "replacement": record.replacement,
+                "expiry": record.expiry,
+                "allowance": record.allowance,
+                "expected_net_deletion": record.expected_net_deletion,
+                "status": status,
+                "required_gaps": record_gaps,
+            }
+        )
+        gaps.extend(record_gaps)
+    return records, gaps
 
 
 def source_budget_report(root: Path) -> dict[str, object]:
     """Measure global executable source and reject growth beyond declared debt."""
-    policy = source_budget_policy(root)
-    if not policy:
+    loaded = source_budget_policy(root)
+    if loaded.policy is None:
+        metrics, inventory = _source_budget_metrics(root)
         return {
             "ok": False,
             "state": "blocked",
-            "metrics": {},
-            "required_gaps": ["source_budget_policy_missing"],
+            "metrics": metrics,
+            "inventory": inventory,
+            "terminal_target_met": False,
+            "required_gaps": list(loaded.required_gaps),
         }
-    metrics = _source_budget_metrics(root)
-    baseline, terminal, debt_total, debt_ids, maximum_debt, terminal_target_met, gaps = (
-        _source_budget_verdict(metrics, policy)
+    policy = loaded.policy
+    metrics, inventory = _source_budget_metrics(root)
+    (
+        baseline,
+        terminal,
+        debt_total,
+        debt_ids,
+        maximum_debt,
+        terminal_target_met,
+        gaps,
+    ) = _source_budget_verdict(metrics, policy)
+    lifecycle, lifecycle_gaps = _source_budget_lifecycle(policy)
+    baseline_resolved = bool(
+        git_adapter.git_stdout(root, "rev-parse", "--verify", f"{policy.baseline_head}^{{commit}}")
     )
+    required_gaps = (
+        []
+        if baseline_resolved
+        else [f"source_budget_baseline_head_unresolved:{policy.baseline_head}"]
+    )
+    required_gaps.extend(lifecycle_gaps)
+    required_gaps.extend(gaps)
     return {
-        "ok": not gaps,
-        "state": "clean" if not gaps else "blocked",
-        "enforcement": policy.get("enforcement", "transition"),
+        "ok": not required_gaps,
+        "state": "clean" if not required_gaps else "blocked",
+        "enforcement": policy.enforcement,
         "baseline": baseline,
+        "baseline_head": {"value": policy.baseline_head, "resolved": baseline_resolved},
         "terminal": terminal,
         "metrics": metrics,
+        "inventory": inventory,
         "active_debt": {
             "allowance": debt_total,
             "ids": debt_ids,
             "maximum": maximum_debt,
         },
+        "debt_lifecycle": lifecycle,
         "terminal_target_met": terminal_target_met,
-        "required_gaps": gaps,
+        "required_gaps": required_gaps,
     }
 
 

@@ -34,7 +34,7 @@
       "properties": {
         "id": {"type": "string", "minLength": 1},
         "title": {"type": "string", "minLength": 1},
-        "state": {"enum": ["planned", "active", "in_progress", "landed", "closed", "retired"]},
+        "state": {"enum": ["planned", "active", "in_progress", "landed", "archive_ready", "closed", "retired"]},
         "ordinal": {"type": "integer", "minimum": 1},
         "depends_on": {
           "type": "array",

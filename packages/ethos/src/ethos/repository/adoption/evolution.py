@@ -28,7 +28,12 @@ def evolution_ledger(root: Path) -> dict[str, Any]:
     try:
         payload = tomllib.loads(path.read_text(encoding="utf-8"))
     except tomllib.TOMLDecodeError as exc:
-        return {"hypotheses": [], "entries": [], "path": path.as_posix(), "parse_error": str(exc)}
+        return {
+            "hypotheses": [],
+            "entries": [],
+            "path": path.as_posix(),
+            "parse_error": str(exc),
+        }
     return {
         "hypotheses": payload.get("hypothesis", []),
         "entries": payload.get("entry", []),
@@ -275,7 +280,9 @@ def _lane_topology(steps: list[dict[str, Any]]) -> dict[str, Any]:
         for dependency in step["depends_on"]
     ]
     active_steps = [
-        step["id"] for step in steps if step["state"] in {"active", "in_progress", "landed"}
+        step["id"]
+        for step in steps
+        if step["state"] in {"active", "in_progress", "landed", "archive_ready"}
     ]
     next_planned_step = next((step["id"] for step in steps if step["state"] == "planned"), "")
     return {
@@ -295,6 +302,7 @@ def _step_summary(steps: list[dict[str, Any]]) -> dict[str, int]:
         "total": len(steps),
         "planned": sum(1 for item in steps if item["state"] == "planned"),
         "active": sum(1 for item in steps if item["state"] in {"active", "in_progress"}),
+        "archive_ready": sum(1 for item in steps if item["state"] == "archive_ready"),
         "closed": sum(
             1
             for item in steps
@@ -367,14 +375,21 @@ def _campaign_required_gaps(root: Path, campaign: dict[str, Any]) -> list[str]:
         change = step["openspec_change"]
         carrier_state = _openspec_carrier_state(root, change)
         execution_step = step["state"] in {"active", "in_progress", "landed"}
+        archive_ready_step = step["state"] == "archive_ready"
         terminal_step = step["state"] in {"closed", "retired"}
         terminal_closeout = step["closeout"]["state"] in {"closed", "retired"}
         if execution_step and terminal_closeout:
             gaps.append(f"campaign_step_execution_closeout_terminal:{campaign['id']}:{step_id}")
+        if archive_ready_step and terminal_closeout:
+            gaps.append(f"campaign_step_archive_ready_closeout_terminal:{campaign['id']}:{step_id}")
         if terminal_closeout and not terminal_step:
             gaps.append(f"campaign_step_terminal_closeout_nonterminal:{campaign['id']}:{step_id}")
         if carrier_state == "ambiguous":
             gaps.append(f"campaign_step_openspec_ambiguous:{campaign['id']}:{step_id}")
+        elif archive_ready_step and carrier_state != "archived":
+            gaps.append(
+                f"campaign_step_archive_ready_openspec_not_archived:{campaign['id']}:{step_id}"
+            )
         elif execution_step and carrier_state == "archived":
             gaps.append(f"campaign_step_active_openspec_archived:{campaign['id']}:{step_id}")
         elif terminal_step and carrier_state != "archived":

@@ -30,7 +30,9 @@ class ReconciliationObservation:
     submit_branch: str = ""
     receipt_path: str = ""
     origin_head: str = ""
+    origin_main_head: str = ""
     github_head: str = ""
+    github_main_head: str = ""
 
 
 _NO_RECONCILIATION = ReconciliationObservation()
@@ -110,9 +112,15 @@ def _identity_range_base(
 
 
 def reconciliation_receipt_payload(
-    *, submit_branch: str, source_head: str, origin_head: str, github_head: str
+    *,
+    submit_branch: str,
+    source_head: str,
+    origin_head: str,
+    github_head: str,
+    main_heads: tuple[str, str] = ("", ""),
 ) -> dict[str, object]:
     """Build the deterministic, non-authorizing dual-remote observation payload."""
+    origin_main_head, github_main_head = main_heads
     payload: dict[str, object] = {
         "schema_version": 1,
         "kind": "submit-reconciliation",
@@ -120,8 +128,12 @@ def reconciliation_receipt_payload(
         "source_head": source_head,
         "origin_ref": "origin/dev",
         "origin_head": origin_head,
+        "origin_main_ref": "origin/main",
+        "origin_main_head": origin_main_head,
         "github_ref": "github/dev",
         "github_head": github_head,
+        "github_main_ref": "github/main",
+        "github_main_head": github_main_head,
         "mints_authority": False,
     }
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
@@ -148,9 +160,10 @@ def _reconciliation_baselines(
     """Read one exact receipt; it scopes history but never grants mutation authority."""
     if not observation.submit_branch or not _commit_exists(root, pushed_head):
         return (), []
-    if _commit_exists(root, primary_baseline) and commit_contained_in(
+    primary_suffices = _commit_exists(root, primary_baseline) and commit_contained_in(
         root, primary_baseline, pushed_head
-    ):
+    )
+    if not observation.receipt_path and primary_suffices:
         return (), []
     if not observation.receipt_path:
         return (), ["push_identity_reconciliation_receipt_required"]
@@ -162,21 +175,32 @@ def _reconciliation_baselines(
         source_head=pushed_head,
         origin_head=str(receipt.get("origin_head") or ""),
         github_head=str(receipt.get("github_head") or ""),
+        main_heads=(
+            str(receipt.get("origin_main_head") or ""),
+            str(receipt.get("github_main_head") or ""),
+        ),
     )
     gaps: list[str] = []
     for field, expected_value in expected.items():
         if receipt.get(field) != expected_value:
             gaps.append(f"push_identity_reconciliation_receipt_{field}_mismatch")
-    origin_head = str(receipt.get("origin_head") or "")
-    github_head = str(receipt.get("github_head") or "")
-    if observation.origin_head != origin_head:
-        gaps.append("push_identity_reconciliation_origin_head_stale")
-    if observation.github_head != github_head:
-        gaps.append("push_identity_reconciliation_github_head_stale")
-    missing = [head for head in (origin_head, github_head) if not _commit_exists(root, head)]
+    baseline_fields = (
+        ("origin_head", "push_identity_reconciliation_origin_head_stale"),
+        ("origin_main_head", "push_identity_reconciliation_origin_main_head_stale"),
+        ("github_head", "push_identity_reconciliation_github_head_stale"),
+        ("github_main_head", "push_identity_reconciliation_github_main_head_stale"),
+    )
+    observed_heads: list[str] = []
+    for field, stale_gap in baseline_fields:
+        head = str(receipt.get(field) or "")
+        observed_heads.append(head)
+        if getattr(observation, field) != head:
+            gaps.append(stale_gap)
+    baselines = tuple(head for head in observed_heads if head)
+    missing = [head for head in baselines if not _commit_exists(root, head)]
     if missing:
         gaps.extend(f"push_identity_reconciliation_baseline_missing:{head}" for head in missing)
-    return (origin_head, github_head) if not gaps else (), gaps
+    return baselines if not gaps else (), gaps
 
 
 def push_identity_policy_report(

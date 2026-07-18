@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-07-18
+goal: Complete local closeout, protected remote synchronization, independent
+  hosted observations, and carrier retirement without reopening historical r3.

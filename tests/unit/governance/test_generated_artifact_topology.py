@@ -7,6 +7,8 @@ from pathlib import Path
 from ethos.repository.policy import artifacts as artifacts_mod
 from ethos.repository.policy.artifacts import generated_artifact_entrypoint_audit
 from ethos.repository.policy.artifacts import generated_artifact_topology_report
+from ethos_core._resources import resolve_declaration_path
+from ethos_core.contracts.artifacts import topology
 from ethos_core.contracts.artifacts.topology import generated_artifact_contract
 from ethos_core.contracts.artifacts.topology import load_generated_artifact_topology_declaration
 from ethos_core.contracts.artifacts.topology import path_policy_for
@@ -62,15 +64,9 @@ def test_contract_is_generic_and_declares_artifact_homes() -> None:
     contract = generated_artifact_contract()
 
     assert {item["prefix"] for item in contract["declarative_prefixes"]} == {".config/ethos"}
-    assert {item["prefix"] for item in contract["allowed_prefixes"]} >= {
-        ".cache/local-state",
-        ".ethos/state",
-        "build/runtime/tool-cache",
-        "build/runtime/work",
-        "build/ethos",
-        "build/evidence",
-        "build/artifacts",
-    }
+    allowed = {item["prefix"] for item in contract["allowed_prefixes"]}
+    assert {".cache/local-state", ".ethos/state", "build/runtime/tool-cache"} <= allowed
+    assert {"build/runtime/work", "build/ethos", "build/evidence", "build/artifacts"} <= allowed
     assert {item["prefix"] for item in contract["review_prefixes"]} >= {
         "docs/evidence",
         "evidence/chronicle",
@@ -103,9 +99,9 @@ def test_contract_is_generic_and_declares_artifact_homes() -> None:
         "curated_evidence",
     }
     assert ".ethos/state" in lifecycle["runtime_cache"]["homes"]
-    assert lifecycle["runtime_cache"]["tracked"] is False
-    assert lifecycle["machine_evidence"]["promotion_allowed"] is True
-    assert lifecycle["curated_evidence"]["tracked"] is True
+    assert not lifecycle["runtime_cache"]["tracked"]
+    assert lifecycle["machine_evidence"]["promotion_allowed"]
+    assert lifecycle["curated_evidence"]["tracked"]
     assert contract["adopter_specific_product_dirs_allowed"] is False
     assert "adopters" in contract["product_adopter_root_prefixes"]
 
@@ -875,4 +871,59 @@ def test_generated_artifact_entrypoint_audit_blocks_unbound_python_execution(
     assert (
         "generated_artifact_entrypoint_python_runtime_unbound:"
         "tools/ci/scripts/run-bad-python.sh" in audit["required_gaps"]
+    )
+
+
+def test_topology_coverage_edges(tmp_path: Path, monkeypatch) -> None:
+    assert "adopter_specific_product_root" in str(
+        topology.path_policy_for("adopters/acme/config.yaml")["required_gap"]
+    )
+    names = ["allow", "review_gap", "review_none", "deny_gap", "deny_none", "ignore"]
+    for name in names:
+        (tmp_path / f"{name}.txt").write_text("x", encoding="utf-8")
+    policies = {
+        "allow": {"decision": "allow"},
+        "review_gap": {"decision": "review", "required_gap": "review_gap_here"},
+        "review_none": {"decision": "review", "required_gap": ""},
+        "deny_gap": {"decision": "deny", "required_gap": "deny_gap_here"},
+        "deny_none": {"decision": "deny", "required_gap": ""},
+    }
+    monkeypatch.setattr(
+        artifacts_mod,
+        "path_policy_from_declaration",
+        lambda rel, _declaration: policies.get(rel.removesuffix(".txt"), {"decision": "ignore"}),
+    )
+    monkeypatch.setattr(
+        artifacts_mod,
+        "_candidate_paths",
+        lambda _root, _declaration: [tmp_path / f"{name}.txt" for name in names],
+    )
+    report = generated_artifact_topology_report(tmp_path)
+    assert report["review_gaps"] == ["review_gap_here"]
+    assert report["required_gaps"] == ["deny_gap_here"]
+    assert "allow.txt" in report["allowed_paths"]
+
+    declaration = topology.load_generated_artifact_topology_declaration().model_copy(
+        update={
+            "denied_root_cache_prefix": (topology.TopologyPrefix(prefix=""),),
+            "denied_legacy_generated_prefix": (topology.TopologyPrefix(prefix="dist"),),
+        }
+    )
+    assert artifacts_mod._explicit_denied_roots(declaration) == ["dist"]
+    monkeypatch.chdir(tmp_path)
+    assert (
+        resolve_declaration_path(
+            None, canonical=topology.DECLARATION_PATH, module_file=topology.__file__
+        ).name
+        == "generated-artifact-topology.toml"
+    )
+    monkeypatch.setattr(topology.Path, "exists", lambda _self: False)
+    assert (
+        resolve_declaration_path(
+            None, canonical=topology.DECLARATION_PATH, module_file=topology.__file__
+        )
+        == topology.DECLARATION_PATH
+    )
+    assert 'id = "generated-artifact-topology"' in topology._declaration_text(
+        tmp_path / "missing-generated-artifact-topology.toml"
     )

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import ethos.repository.release.core as release_core
 from ethos.repository.release.attestation import release_attestation
 from ethos.repository.release.attestation import sbom_projection
 from ethos.repository.release.core import release_policy_report
@@ -65,6 +66,21 @@ def test_release_policy_reports_equal_gitlab_and_github_publication_topology() -
     assert topology["gitlab"]["capabilities"] == ["repository", "ci_cd", "publication"]
     assert topology["github"]["capabilities"] == ["repository", "ci_cd", "publication"]
     assert topology["gitlab"]["git_remote"] != topology["github"]["git_remote"]
+
+
+def test_release_policy_ignores_malformed_publication_gap_collection(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        release_core,
+        "publication_topology",
+        lambda _config: {"required_gaps": "malformed"},
+    )
+
+    report = release_policy_report(Path.cwd())
+
+    assert report["ok"] is True
+    assert report["required_gaps"] == []
 
 
 def test_release_policy_rejects_unequal_remote_capability_declaration() -> None:

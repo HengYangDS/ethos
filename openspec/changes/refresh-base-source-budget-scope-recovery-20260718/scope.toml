@@ -5,7 +5,7 @@ paths = [
   "packages/ethos/src/ethos/domain/prove.py",
   "system/gates.toml",
   "openspec/specs/quality/spec.md",
-  "tests/unit/coverage/test_lanes_final_edges.py",
+  "tests/unit/lanes/test_projection_rebase_source_budget.py",
   "tests/unit/domain/test_prove.py",
   "openspec/changes/refresh-base-source-budget-scope-recovery-20260718/**",
   "evidence/claims/refresh-base-source-budget-scope-recovery-20260718.toml",

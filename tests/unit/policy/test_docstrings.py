@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import ast
 from typing import TYPE_CHECKING
 
 import ethos.repository.policy.docstrings.core as docstrings_core
@@ -25,8 +24,6 @@ exclude_roots = ["packages/sample/src/sample/generated"]
         tmp_path / "packages/sample/src/sample/cli.py",
         '''
 from __future__ import annotations
-
-import ast
 
 @app.command
 def documented():
@@ -81,6 +78,14 @@ def _helper():
     pass
 """,
     )
+    _write(
+        tmp_path / "packages/ethos/src/ethos/decorated.py",
+        """
+@1
+def ignored():
+    pass
+""",
+    )
 
     report = docstring_coverage_report(tmp_path)
 
@@ -95,7 +100,6 @@ def test_docstring_helpers_parse_module_names_and_decorators() -> None:
         "ethos.repository"
     )
     assert docstrings_core._module_name("packages/ethos/src/ethos/cli.py") == "ethos.cli"
-    assert docstrings_core._decorator_is_command(ast.Constant(value=1)) is False
 
 
 def test_docstring_coverage_handles_file_paths_and_missing_roots(tmp_path: Path) -> None:

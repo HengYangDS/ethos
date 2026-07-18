@@ -17,8 +17,9 @@
 
 - [x] 3.1 Re-observe and record a compact exact disposition matrix for every
   current foreign and unbound Work Lane.
-- [ ] 3.2 Complete strict OpenSpec, required parity, report, and HEAD-bound
+- [x] 3.2 Complete strict OpenSpec, required parity, report, and HEAD-bound
   proof for the stable owned Work Lane.
-- [ ] 3.3 Land only the proven owned Work Lane, run sanctioned accepted-root
-  closeout, and separately report unresolved foreign-owner, remote, or hosted
-  evidence boundaries.
+- [ ] 3.3 Archive the proven Change carrier through official OpenSpec semantics
+  to enter candidate admission. Record candidate land, sanctioned accepted-root
+  closeout, and unresolved foreign-owner, remote, or hosted evidence boundaries
+  in the succeeding post-archive lifecycle evidence.

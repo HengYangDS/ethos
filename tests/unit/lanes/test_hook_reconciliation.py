@@ -3,14 +3,16 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING
 
+import pytest
+
 if TYPE_CHECKING:
     from pathlib import Path
-
-    import pytest
 
 from ethos.adapters.admission.core import push_admission_report
 from ethos.adapters.admission.identity import ReconciliationObservation
 from ethos.adapters.admission.identity import reconciliation_receipt_payload
+from ethos.surface.cli.hook.core import reconciliation_receipt_command
+from tests.support.ethos_cli_runner import run_ethos
 from tests.support.lane_helpers import git
 from tests.support.lane_helpers import init_repo
 
@@ -171,3 +173,50 @@ def test_new_submit_push_blocks_reconciliation_receipt_when_remote_observation_i
         "push_identity_reconciliation_origin_head_stale"
         in report["identity_policy"]["required_gaps"]
     )
+
+
+def test_reconciliation_receipt_command_records_exact_tracking_observation(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    origin_head = git(repo, "rev-parse", "HEAD")
+    github_head = git(repo, "rev-parse", "HEAD")
+    git(repo, "update-ref", "refs/remotes/origin/dev", origin_head)
+    git(repo, "update-ref", "refs/remotes/github/dev", github_head)
+    receipt_path = tmp_path / "dual-remote-reconciliation.json"
+
+    payload = run_ethos(
+        "hook",
+        "reconciliation-receipt",
+        "submit/dual-remote-reconciliation",
+        origin_head,
+        "--write-receipt",
+        receipt_path.as_posix(),
+        "--root",
+        repo.as_posix(),
+        "--json",
+        cwd=repo,
+    )
+
+    assert payload["ok"] is True
+    assert payload["state"] == "observed"
+    assert payload["data"]["receipt"] == reconciliation_receipt_payload(
+        submit_branch="submit/dual-remote-reconciliation",
+        source_head=origin_head,
+        origin_head=origin_head,
+        github_head=github_head,
+    )
+    assert json.loads(receipt_path.read_text(encoding="utf-8")) == payload["data"]["receipt"]
+
+
+def test_reconciliation_receipt_command_rejects_repository_local_output(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path / "repo")
+    receipt_path = repo / "submit-reconciliation.json"
+
+    with pytest.raises(ValueError, match="outside the repository root"):
+        reconciliation_receipt_command(
+            "submit/dual-remote-reconciliation",
+            git(repo, "rev-parse", "HEAD"),
+            write_receipt=receipt_path,
+            root=repo,
+        )

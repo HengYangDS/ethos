@@ -11,6 +11,7 @@ from pydantic import ConfigDict
 
 from ethos_core._resources import declaration_text
 from ethos_core._resources import resolve_declaration_path
+from ethos_core.contracts.cel import evaluate_cel_predicate
 
 DECLARATION_PATH = Path("system/policies/evidence-layout.toml")
 _DECLARATION_RESOURCE = "data/evidence_layout.toml"
@@ -67,6 +68,7 @@ class EvidenceLayoutDeclaration(BaseModel):
     root_missing_gap: str
     kernel: KernelEvidenceLayout
     curated_profile: CuratedProfileEvidenceLayout
+    freshness_expression: str
 
     def layout_payload(self, root: str, *, curated_profile: bool = False) -> dict[str, Any]:
         """Return the stable public layout payload for an evidence root."""
@@ -90,6 +92,15 @@ class EvidenceLayoutDeclaration(BaseModel):
             "parity_root": f"{root}/parity",
             "source_refs": list(self.source_refs),
         }
+
+    def freshness_ok(self, components: tuple[dict[str, object], ...]) -> bool:
+        """Reduce declared evidence facts through the restricted CEL predicate."""
+        return evaluate_cel_predicate(
+            self.freshness_expression,
+            facts={"components": list(components)},
+            policy={},
+            rule={},
+        )
 
 
 def _declaration_text(path: Path) -> str:

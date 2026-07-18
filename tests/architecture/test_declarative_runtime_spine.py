@@ -109,8 +109,6 @@ def test_declaration_backed_runtime_policies_are_first_class() -> None:
     for token in (
         "GeneratedArtifactTopologyDeclaration",
         "TopologyCelRule",
-        "evaluate_cel_predicate",
-        "celpy.Environment",
         "system/policies/generated-artifact-topology.toml",
         "data/generated_artifact_topology.toml",
     ):
@@ -123,16 +121,23 @@ def test_declaration_backed_runtime_policies_are_first_class() -> None:
         "_generated_denial_policy",
     ):
         assert token not in source
+    cel = _read("packages/ethos-core/src/ethos_core/contracts/cel.py")
+    assert "evaluate_cel_predicate" in cel
+    assert "celpy.Environment" in cel
     declaration = ROOT / "system/policies/evidence-layout.toml"
     source = _read("packages/ethos-core/src/ethos_core/contracts/evidence/layout.py")
     runtime = _read("packages/ethos/src/ethos/repository/evidence/topology.py")
 
     assert declaration.exists()
     assert "EvidenceLayoutDeclaration" in source
+    assert "freshness_expression" in source
     assert "system/policies/evidence-layout.toml" in source
     assert "data/evidence_layout.toml" in source
     assert "_ALLOWED_ROOT_DIRS" not in runtime
     assert "_CURATED_PROFILE_ALLOWED_ROOT_FILES" not in runtime
+    freshness = _read("packages/ethos/src/ethos/repository/evidence/freshness.py")
+    assert "freshness_ok" in freshness
+    assert "and bool(" not in freshness
     assert 'allowed_root_dirs = ["claims", "chronicle", "parity"]' in declaration.read_text(
         encoding="utf-8"
     )

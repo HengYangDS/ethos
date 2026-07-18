@@ -6,8 +6,11 @@ import signal
 import subprocess
 import sys
 import tomllib
-from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import Any
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 ROOT_OPTION_COMMANDS = {
     ("status",),
@@ -35,10 +38,11 @@ def run_external(
     timeout_seconds: int,
 ) -> dict[str, Any]:
     python = external_python(target)
+    target = target.resolve()
     if command not in ROOT_OPTION_COMMANDS:
         return run_json_command(
             [python, "-m", "ethos.cli", *command, "--json"],
-            cwd=target.resolve(),
+            cwd=target,
             timeout_seconds=timeout_seconds,
         )
     return run_json_command(
@@ -51,7 +55,7 @@ def run_external(
             target.as_posix(),
             "--json",
         ],
-        cwd=Path.cwd(),
+        cwd=target,
         timeout_seconds=timeout_seconds,
     )
 

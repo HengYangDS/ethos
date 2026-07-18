@@ -112,8 +112,15 @@ jobs:
         run: tools/ci/scripts/with-python-runtime.sh -- uv run --package ethos ethos audit --json
       - name: ETHOS report
         run: tools/ci/scripts/with-python-runtime.sh -- uv run --package ethos ethos report --json
-      - name: HEAD-bound proof
-        run: tools/ci/scripts/with-python-runtime.sh -- uv run --package ethos ethos prove --execute --expect-head "$(git rev-parse HEAD)" --json
+      - name: HEAD-bound proof receipt
+        run: tools/ci/scripts/run-head-bound-proof.sh
+      - name: Upload proof receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ethos-proof-receipt
+          path: build/evidence/quality/proof/
+          if-no-files-found: warn
 
   package:
     name: package artifacts

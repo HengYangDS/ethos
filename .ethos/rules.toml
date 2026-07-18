@@ -85,7 +85,7 @@ python_total = 58722
 global_total = 73739
 
 [quality.source_budget.debt]
-maximum_total = 8004
+maximum_total = 8163
 waves = [
   { id = "T5", due_on = "2026-07-18", state = "active" },
   { id = "T8", due_on = "2026-07-18", state = "active" },
@@ -205,10 +205,12 @@ owner = "remote-reconciliation-admission-20260718"
 replacement = "fold dual-remote reconciliation receipt validation into the shared external-evidence contract after provider-neutral receipt verification is available"
 deletion_wave = "dual-remote-reconciliation-compression"
 expiry = "dual-remote-reconciliation-compression"
-allowance = 177
+allowance = 336
 
 [quality.source_budget.debt.records.allowance_by_category]
-python_product = 177
+python_product = 170
+python_tests = 157
+toml = 9
 
 [gates.local-state-audit]
 command = "tools/ci/scripts/run-local-state-audit.sh"

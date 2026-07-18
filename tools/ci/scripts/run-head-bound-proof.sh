@@ -19,7 +19,17 @@ uv run --package ethos ethos prove --execute --expect-head "${head}" --json >"${
 proof_status=$?
 set -e
 set +e
-python3 tools/ci/emit_readiness_receipt.py "${audit}" "${report}" "${receipt}"
+python3 - "${audit}" "${report}" "${receipt}" <<'PY'
+import hashlib,json,sys
+from pathlib import Path
+paths=tuple(map(Path,sys.argv[1:4]))
+try: audit,report,proof=(json.loads(path.read_text()) for path in paths)
+except (OSError,json.JSONDecodeError) as error: raise SystemExit(f"invalid readiness receipt: {error}") from error
+data=proof.get("data",{}); head=data.get("expected_head",{}) if isinstance(data,dict) else {}; summary=proof.get("summary",{})
+ok=all(item.get("ok") is True for item in (audit,report,proof))
+print(json.dumps({"kind":"ethos_hosted_readiness_receipt","ok":ok,"audit_state":audit.get("state","") ,"report_state":report.get("state","") ,"proof_state":proof.get("state","") ,"head":head.get("current","") ,"head_matches_expected":head.get("ok",False),"proof_gate_count":summary.get("gate_count",0),"proof_evidence_digest":summary.get("evidence_digest","") ,"reports":{path.name:hashlib.sha256(path.read_bytes()).hexdigest() for path in paths}},sort_keys=True))
+raise SystemExit(not ok)
+PY
 receipt_status=$?
 set -e
 if [[ ${proof_status} -ne 0 || ${receipt_status} -ne 0 ]]; then

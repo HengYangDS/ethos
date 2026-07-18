@@ -168,7 +168,6 @@ def test_provider_python_producers_are_runtime_bound() -> None:
 
 def test_hosted_proof_receipt_is_owner_scripted_and_retained() -> None:
     runner = "tools/ci/scripts/run-head-bound-proof.sh"
-    emitter = "tools/ci/emit_readiness_receipt.py"
     github = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
     gitlab = yaml.safe_load((ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8"))
     script = (ROOT / runner).read_text(encoding="utf-8")
@@ -188,12 +187,9 @@ def test_hosted_proof_receipt_is_owner_scripted_and_retained() -> None:
     assert "ethos report --json" in script
     assert "ethos prove --execute --expect-head" in script
     assert "executed-proof.json" in script
-    assert "emit_readiness_receipt.py" in script
+    assert "ethos_hosted_readiness_receipt" in script
     assert (ROOT / runner).stat().st_mode & stat.S_IXUSR
-    assert emitter in _template_config()["projection"][0]["required_owner_scripts"]
-    emitter_text = (ROOT / emitter).read_text(encoding="utf-8")
-    assert "ethos_hosted_readiness_receipt" in emitter_text
-    assert "proof_evidence_digest" in emitter_text
+    assert "proof_evidence_digest" in script
 
 
 def test_local_ci_fails_on_python_warnings() -> None:

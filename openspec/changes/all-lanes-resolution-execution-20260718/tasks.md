@@ -5,29 +5,21 @@
 - [x] 1.2 Classify exact rows as clean absorbed, dirty absorbed, residual,
   holder-bound, unbound, or post-freeze and bind the proposed dispositions in a
   topic-scoped Chronicle and claim.
-- [ ] 1.3 Validate the active carrier and archive preflight before any resolver
+- [x] 1.3 Validate the active carrier and archive preflight before any resolver
   effect.
 
 ## 2. Accepted policy promotion
 
-- [ ] 2.1 Refresh parity where required, run HEAD-bound proof, land to
-  `candidate/dev`, and close accepted root through the sanctioned path.
-- [ ] 2.2 Re-observe the matrix after accepted policy promotion and reject any
-  stale row rather than reusing its earlier observation.
+- [x] 2.1 Refresh the owned lane onto the current candidate and bind the matrix
+  to accepted HEAD `97e256e43794272f2a3a2a0c16734be9e3e577be`.
+- [ ] 2.2 Refresh parity and run the final HEAD-bound executed proof for this
+  policy carrier.
+- [ ] 2.3 Mark the proof complete and archive the carrier through the official
+  OpenSpec path before candidate land.
 
-## 3. Exact local resolution
+## Post-Accepted Program Boundary
 
-- [ ] 3.1 Run native two-phase `retire` decisions only for clean absorbed or
-  recorded patch-equivalent rows, with break-glass and irreversible confirmation.
-- [ ] 3.2 Run native two-phase `preserve-retire` for absorbed dirty rows and
-  verify every preservation manifest and receipt.
-- [ ] 3.3 Record native non-destructive `block` outcomes for residual,
-  holder-bound, unbound, and post-freeze rows; do not claim their intent is
-  integrated.
-
-## 4. Final local evidence
-
-- [ ] 4.1 Re-audit refs, worktrees, leases, resolution inventory, OpenSpec,
-  claims, parity, executed proof, report, and local publish readiness.
-- [ ] 4.2 Record remaining remote/hosted and semantic-integration limits without
-  flattening them into completion.
+The seven native preservation effects, the unbound-ref bundle, all exact block
+decisions, later semantic replay, final re-audit, and local publish refresh are
+successor operations governed by the accepted Chronicle. They are deliberately
+not claimed complete by this pre-acceptance carrier.

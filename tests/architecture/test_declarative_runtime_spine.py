@@ -121,7 +121,7 @@ def test_declaration_backed_runtime_policies_are_first_class() -> None:
         "_generated_denial_policy",
     ):
         assert token not in source
-    cel = _read("packages/ethos-core/src/ethos_core/contracts/cel.py")
+    cel = _read("packages/ethos-core/src/ethos_core/contracts/policy/cel.py")
     assert "evaluate_cel_predicate" in cel
     assert "celpy.Environment" in cel
     declaration = ROOT / "system/policies/evidence-layout.toml"

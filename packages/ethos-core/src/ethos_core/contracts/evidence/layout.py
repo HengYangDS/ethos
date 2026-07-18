@@ -11,7 +11,7 @@ from pydantic import ConfigDict
 
 from ethos_core._resources import declaration_text
 from ethos_core._resources import resolve_declaration_path
-from ethos_core.contracts.cel import evaluate_cel_predicate
+from ethos_core.contracts.policy.cel import evaluate_cel_predicate
 
 DECLARATION_PATH = Path("system/policies/evidence-layout.toml")
 _DECLARATION_RESOURCE = "data/evidence_layout.toml"

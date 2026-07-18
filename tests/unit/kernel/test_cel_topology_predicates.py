@@ -10,7 +10,7 @@ import ethos_core.contracts.artifacts.topology as topology_contract
 from ethos_core.contracts.artifacts.topology import GeneratedArtifactTopologyDeclaration
 from ethos_core.contracts.artifacts.topology import load_generated_artifact_topology_declaration
 from ethos_core.contracts.artifacts.topology import path_policy_from_declaration
-from ethos_core.contracts.cel import evaluate_cel_predicate
+from ethos_core.contracts.policy.cel import evaluate_cel_predicate
 
 _PREFIX_RULE = 'facts.path == rule.prefix || facts.path.startsWith(rule.prefix + "/")'
 

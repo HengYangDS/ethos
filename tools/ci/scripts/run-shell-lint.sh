@@ -34,5 +34,8 @@ if ! command -v shellcheck >/dev/null 2>&1; then
   fi
 fi
 
-shellcheck --rcfile=.config/checks/shell/.shellcheckrc "${shell_files[@]}"
+# ShellCheck discovers only conventional per-directory rc files; its GitHub-hosted
+# package does not support a custom configuration-file argument. Keep the tracked policy
+# as the canonical owner and project its two portable settings explicitly.
+shellcheck --shell=bash --severity=style "${shell_files[@]}"
 python tools/ci/structural_whitespace.py "${shell_files[@]}"

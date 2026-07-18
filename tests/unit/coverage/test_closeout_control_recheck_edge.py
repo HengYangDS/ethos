@@ -37,7 +37,7 @@ def test_closeout_rechecks_control_receipt_before_effect(tmp_path: Path, monkeyp
     monkeypatch.setattr(
         root_lifecycle,
         "workspace_status",
-        lambda _root: {"candidate": {"head": "b" * 40}},
+        lambda _root, **_kwargs: {"candidate": {"head": "b" * 40}},
     )
     monkeypatch.setattr(
         root_lifecycle, "control_replacement_report", lambda **kwargs: next(reports)

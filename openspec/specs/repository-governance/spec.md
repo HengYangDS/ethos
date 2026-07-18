@@ -674,6 +674,22 @@ repository truth surfaces.
 - **AND** ETHOS does not report the Work Lane as ready to land until fresh proof
   admits the regenerated evidence
 
+#### Scenario: refresh-base merges independent source-budget debt additions
+
+- **GIVEN** a clean Work Lane is stale behind the configured candidate branch
+- **AND** replay conflicts only on `.ethos/rules.toml`
+- **AND** both sides retain every base source-budget debt record byte-for-byte,
+  preserve all content outside that debt section, and add only distinct valid
+  debt record identifiers with non-negative allowances
+- **WHEN** `ethos lane refresh-base --apply --authorize --expect-head <head>
+  --json` runs
+- **THEN** ETHOS writes the candidate-side record order followed by the Work Lane
+  additions, recomputes `maximum_total`, and returns `state = "base_refreshed"`
+- **AND** it reports `semantic_ledger_merged:source_budget_debt` without marking
+  parity projection refresh as required
+- **AND** duplicate additions, malformed records, changed base records, changed
+  adjacent content, or any additional conflict path remain fail-closed
+
 #### Scenario: refresh-base keeps semantic conflicts blocked
 
 - **GIVEN** a clean Work Lane is stale behind the configured candidate branch
@@ -880,6 +896,33 @@ non-authoritative action preview rather than a reusable permission.
 - **AND** actual mutation re-evaluates the exact current request
 - **AND** legacy actor-capability fields cannot be replayed as authority and are
   retired after client migration.
+
+#### Scenario: bounded readers defer foreign path scopes
+
+- **WHEN** a bounded status, planning, proof, landing, publication, or scorecard
+  reader needs local state and aggregate lane signals but not a coordination
+  inventory
+- **THEN** ETHOS MAY defer foreign Work Lane path scopes instead of running one
+  history diff per visible foreign lane
+- **AND** each deferred lane remains explicitly marked `scope_state=deferred`
+  while retaining its non-authoritative observe-only coordination state
+- **AND** the reader preserves observable lane count and lease signals without
+  inferring path overlap, branch relation, dirty foreign contents, or retirement
+  readiness
+- **AND** full `lane status` and mutation admission retain exact foreign path
+  scope computation before making any coordination decision.
+
+#### Scenario: bounded-reader regression debt is explicit and temporary
+
+- **WHEN** the bounded status read model introduces a focused regression carrier
+  before its full and bounded fixtures can share a smaller harness
+- **THEN** any source-budget allowance names that exact carrier, owner,
+  replacement, and deletion wave
+- **AND** its allowance is limited to the measured temporary carrier cost
+- **AND** the ledger's aggregate maximum equals the sum of its append-only
+  records
+- **AND** later fixture consolidation removes the allowance rather than making
+  it permanent.
 
 #### Scenario: normalized lease has one concrete current holder
 

@@ -21,50 +21,17 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
 
-def _repo_root_adapter(root: Path) -> Path:
-    return repo_root(root)
-
-
-def _candidate_path_adapter(repo: Path, branch: str) -> Path:
-    return default_candidate_path(repo, branch)
-
-
-def _branch_role_policy_adapter(root: Path) -> Any:
-    return load_branch_role_policy(root)
-
-
-def _workspace_status_adapter(root: Path) -> dict[str, object]:
-    return workspace_status(root)
-
-
-def _changed_paths_adapter(root: Path) -> list[str]:
-    return list(changed_paths(root))
-
-
-def _is_ancestor_adapter(root: Path, ancestor: str, descendant: str) -> bool:
-    return is_ancestor(root, ancestor, descendant)
-
-
-def _run_git_adapter(
-    root: Path,
-    *args: str,
-    check: bool = True,
-    env: dict[str, str] | None = None,
-) -> Any:
-    return run_git(root, *args, check=check, env=env)
-
-
 @dataclass(frozen=True)
 class LaneRefreshRuntime:
     """Explicit dependencies used for candidate and Work Lane base refresh."""
 
-    repo_root: Callable[[Path], Path] = _repo_root_adapter
-    default_candidate_path: Callable[[Path, str], Path] = _candidate_path_adapter
-    load_branch_role_policy: Callable[[Path], Any] = _branch_role_policy_adapter
-    workspace_status: Callable[[Path], dict[str, object]] = _workspace_status_adapter
-    changed_paths: Callable[[Path], list[str]] = _changed_paths_adapter
-    is_ancestor: Callable[[Path, str, str], bool] = _is_ancestor_adapter
-    run_git: Callable[..., Any] = _run_git_adapter
+    repo_root: Callable[..., Any] = repo_root
+    default_candidate_path: Callable[..., Any] = default_candidate_path
+    load_branch_role_policy: Callable[..., Any] = load_branch_role_policy
+    workspace_status: Callable[..., Any] = workspace_status
+    changed_paths: Callable[..., Any] = changed_paths
+    is_ancestor: Callable[..., Any] = is_ancestor
+    run_git: Callable[..., Any] = run_git
 
 
 def bootstrap_candidate(
@@ -83,88 +50,61 @@ def bootstrap_candidate(
     target = (
         path or active_runtime.default_candidate_path(repo, policy.candidate_branch)
     ).resolve()
-    gaps: list[str] = []
-    if status["role"] != ROLE_ACCEPTED_ROOT or status["dirty"]:
-        gaps.append("candidate_bootstrap_requires_clean_accepted_root")
-    if expect_head is not None and expect_head != current_head:
-        gaps.append("expect_head_mismatch")
+
+    def report(*, ok: bool, state: str, gaps: list[str], **details: object) -> dict[str, object]:
+        return _refresh_report(
+            ok=ok,
+            state=state,
+            branch=policy.candidate_branch,
+            head=current_head,
+            gaps=gaps,
+            **details,
+        )
+
+    details = {"path": target.as_posix()}
+    gaps = [
+        gap
+        for gap, present in (
+            (
+                "candidate_bootstrap_requires_clean_accepted_root",
+                status["role"] != ROLE_ACCEPTED_ROOT or status["dirty"],
+            ),
+            ("expect_head_mismatch", expect_head is not None and expect_head != current_head),
+        )
+        if present
+    ]
     if gaps:
-        return {
-            "ok": False,
-            "state": "blocked",
-            "branch": policy.candidate_branch,
-            "head": current_head,
-            "path": target.as_posix(),
-            "required_gaps": gaps,
-        }
+        return report(ok=False, state="blocked", gaps=gaps, **details)
     candidate = cast("dict[str, object]", status["candidate"])
     if candidate["exists"] and candidate["worktree_exists"]:
-        return {
-            "ok": True,
-            "state": "present",
-            "branch": policy.candidate_branch,
-            "head": candidate["head"],
-            "path": candidate["worktree_path"],
-            "required_gaps": [],
-        }
+        return report(ok=True, state="present", gaps=[], path=str(candidate["worktree_path"]))
     if not apply:
-        return {
-            "ok": True,
-            "state": "planned",
-            "branch": policy.candidate_branch,
-            "head": current_head,
-            "path": target.as_posix(),
-            "required_gaps": [],
-        }
+        return report(ok=True, state="planned", gaps=[], **details)
     if target.exists():
-        return {
-            "ok": False,
-            "state": "blocked",
-            "branch": policy.candidate_branch,
-            "head": current_head,
-            "path": target.as_posix(),
-            "required_gaps": ["candidate_worktree_path_exists"],
-        }
+        return report(ok=False, state="blocked", gaps=["candidate_worktree_path_exists"], **details)
     if not candidate["exists"]:
         completed = active_runtime.run_git(
             repo, "branch", policy.candidate_branch, current_head, check=False
         )
         if completed.returncode != 0:
-            return {
-                "ok": False,
-                "state": "blocked",
-                "branch": policy.candidate_branch,
-                "head": current_head,
-                "path": target.as_posix(),
-                "required_gaps": ["candidate_bootstrap_failed"],
-                "stderr": completed.stderr.strip(),
-            }
+            return report(
+                ok=False,
+                state="blocked",
+                gaps=["candidate_bootstrap_failed"],
+                stderr=completed.stderr.strip(),
+                **details,
+            )
     completed = active_runtime.run_git(
-        repo,
-        "worktree",
-        "add",
-        target.as_posix(),
-        policy.candidate_branch,
-        check=False,
+        repo, "worktree", "add", target.as_posix(), policy.candidate_branch, check=False
     )
-    if completed.returncode != 0:
-        return {
-            "ok": False,
-            "state": "blocked",
-            "branch": policy.candidate_branch,
-            "head": current_head,
-            "path": target.as_posix(),
-            "required_gaps": ["candidate_worktree_add_failed"],
-            "stderr": completed.stderr.strip(),
-        }
-    return {
-        "ok": True,
-        "state": "bootstrapped",
-        "branch": policy.candidate_branch,
-        "head": current_head,
-        "path": target.as_posix(),
-        "required_gaps": [],
-    }
+    failed = completed.returncode != 0
+    return report(
+        ok=not failed,
+        state="blocked" if failed else "bootstrapped",
+        gaps=["candidate_worktree_add_failed"] if failed else [],
+        stderr=completed.stderr.strip() if failed else "",
+        **details,
+    )
 
 
 def _apply_gaps(
@@ -191,51 +131,32 @@ def _candidate_worktree_gaps(
         return ["candidate_branch_missing"]
     if not candidate["worktree_exists"]:
         return ["candidate_worktree_missing"]
-    if active_runtime.changed_paths(Path(candidate_path)):
-        return ["candidate_worktree_dirty"]
-    return []
+    return (
+        ["candidate_worktree_dirty"] if active_runtime.changed_paths(Path(candidate_path)) else []
+    )
 
 
-def _candidate_report(context: dict[str, object], *, stderr: str = "") -> dict[str, object]:
-    report = {
-        "ok": context["ok"],
-        "state": context["state"],
-        "branch": context["branch"],
-        "head": context["head"],
-        "previous_head": context["previous_head"],
-        "path": context["path"],
-        "required_gaps": context["required_gaps"],
+def _refresh_report(
+    *,
+    ok: bool,
+    state: str,
+    branch: str,
+    head: str,
+    gaps: list[str],
+    **details: object,
+) -> dict[str, object]:
+    return {
+        key: value
+        for key, value in {
+            "ok": ok,
+            "state": state,
+            "branch": branch,
+            "head": head,
+            "required_gaps": gaps,
+            **details,
+        }.items()
+        if value not in ("", None)
     }
-    if stderr:
-        report["stderr"] = stderr
-    return report
-
-
-def _work_base_report(context: dict[str, object], *, stderr: str = "") -> dict[str, object]:
-    report = {
-        "ok": context["ok"],
-        "state": context["state"],
-        "branch": context["branch"],
-        "head": context["head"],
-        "candidate_branch": context["candidate_branch"],
-        "candidate_head": context["candidate_head"],
-        "candidate_path": context["candidate_path"],
-        "required_gaps": context["required_gaps"],
-    }
-    previous_head = str(context.get("previous_head") or "")
-    if previous_head:
-        report["previous_head"] = previous_head
-    for key in (
-        "projection_refresh_required",
-        "projection_refresh_gaps",
-        "stale_projection_paths",
-        "next_actions",
-    ):
-        if key in context:
-            report[key] = context[key]
-    if stderr:
-        report["stderr"] = stderr
-    return report
 
 
 def refresh_candidate_from_accepted(
@@ -246,7 +167,7 @@ def refresh_candidate_from_accepted(
     expect_head: str | None = None,
     runtime: LaneRefreshRuntime | None = None,
 ) -> dict[str, object]:
-    active_runtime = runtime or LaneRefreshRuntime()
+    active_runtime = runtime or LaneRefreshRuntime(run_git=run_git)
     repo = active_runtime.repo_root(root)
     policy = active_runtime.load_branch_role_policy(repo)
     status = active_runtime.workspace_status(repo)
@@ -269,40 +190,34 @@ def refresh_candidate_from_accepted(
         )
     )
     if gaps:
-        return _candidate_report(
-            {
-                "ok": False,
-                "state": "blocked",
-                "branch": policy.candidate_branch,
-                "head": current_head,
-                "previous_head": candidate_head,
-                "path": candidate_path,
-                "required_gaps": gaps,
-            }
+        return _refresh_report(
+            ok=False,
+            state="blocked",
+            branch=policy.candidate_branch,
+            head=current_head,
+            gaps=gaps,
+            previous_head=candidate_head,
+            path=candidate_path,
         )
     if candidate_head == current_head:
-        return _candidate_report(
-            {
-                "ok": True,
-                "state": "base_current",
-                "branch": policy.candidate_branch,
-                "head": current_head,
-                "previous_head": candidate_head,
-                "path": candidate_path,
-                "required_gaps": [],
-            }
+        return _refresh_report(
+            ok=True,
+            state="base_current",
+            branch=policy.candidate_branch,
+            head=current_head,
+            gaps=[],
+            previous_head=candidate_head,
+            path=candidate_path,
         )
     if not apply:
-        return _candidate_report(
-            {
-                "ok": True,
-                "state": "ready_to_refresh_from_accepted",
-                "branch": policy.candidate_branch,
-                "head": current_head,
-                "previous_head": candidate_head,
-                "path": candidate_path,
-                "required_gaps": [],
-            }
+        return _refresh_report(
+            ok=True,
+            state="ready_to_refresh_from_accepted",
+            branch=policy.candidate_branch,
+            head=current_head,
+            gaps=[],
+            previous_head=candidate_head,
+            path=candidate_path,
         )
     # Rewind candidate/dev onto the accepted head. This target is already contained in the
     # accepted branch, so the reference-transaction hook's candidate admission admits it
@@ -316,28 +231,24 @@ def refresh_candidate_from_accepted(
         check=False,
     )
     if completed.returncode != 0:
-        return _candidate_report(
-            {
-                "ok": False,
-                "state": "blocked",
-                "branch": policy.candidate_branch,
-                "head": current_head,
-                "previous_head": candidate_head,
-                "path": candidate_path,
-                "required_gaps": ["candidate_refresh_from_accepted_failed"],
-            },
+        return _refresh_report(
+            ok=False,
+            state="blocked",
+            branch=policy.candidate_branch,
+            head=current_head,
+            gaps=["candidate_refresh_from_accepted_failed"],
+            previous_head=candidate_head,
+            path=candidate_path,
             stderr=completed.stderr.strip(),
         )
-    return _candidate_report(
-        {
-            "ok": True,
-            "state": "refreshed_from_accepted",
-            "branch": policy.candidate_branch,
-            "head": current_head,
-            "previous_head": candidate_head,
-            "path": candidate_path,
-            "required_gaps": [],
-        }
+    return _refresh_report(
+        ok=True,
+        state="refreshed_from_accepted",
+        branch=policy.candidate_branch,
+        head=current_head,
+        gaps=[],
+        previous_head=candidate_head,
+        path=candidate_path,
     )
 
 
@@ -372,43 +283,37 @@ def refresh_work_lane_base(
         )
     )
     if gaps:
-        return _work_base_report(
-            {
-                "ok": False,
-                "state": "blocked",
-                "branch": branch,
-                "head": current_head,
-                "candidate_branch": policy.candidate_branch,
-                "candidate_head": candidate_head,
-                "candidate_path": candidate_path,
-                "required_gaps": gaps,
-            }
+        return _refresh_report(
+            ok=False,
+            state="blocked",
+            branch=branch,
+            head=current_head,
+            gaps=gaps,
+            candidate_branch=policy.candidate_branch,
+            candidate_head=candidate_head,
+            candidate_path=candidate_path,
         )
     if active_runtime.is_ancestor(root, candidate_head, current_head):
-        return _work_base_report(
-            {
-                "ok": True,
-                "state": "base_current",
-                "branch": branch,
-                "head": current_head,
-                "candidate_branch": policy.candidate_branch,
-                "candidate_head": candidate_head,
-                "candidate_path": candidate_path,
-                "required_gaps": [],
-            }
+        return _refresh_report(
+            ok=True,
+            state="base_current",
+            branch=branch,
+            head=current_head,
+            gaps=[],
+            candidate_branch=policy.candidate_branch,
+            candidate_head=candidate_head,
+            candidate_path=candidate_path,
         )
     if not apply:
-        return _work_base_report(
-            {
-                "ok": True,
-                "state": "ready_to_refresh_base",
-                "branch": branch,
-                "head": current_head,
-                "candidate_branch": policy.candidate_branch,
-                "candidate_head": candidate_head,
-                "candidate_path": candidate_path,
-                "required_gaps": [],
-            }
+        return _refresh_report(
+            ok=True,
+            state="ready_to_refresh_base",
+            branch=branch,
+            head=current_head,
+            gaps=[],
+            candidate_branch=policy.candidate_branch,
+            candidate_head=candidate_head,
+            candidate_path=candidate_path,
         )
     completed = active_runtime.run_git(
         root,
@@ -422,59 +327,56 @@ def refresh_work_lane_base(
     projection_recovered = completed.returncode != 0 and projection_resolution["ok"]
     if completed.returncode != 0 and not projection_recovered:
         active_runtime.run_git(root, "rebase", "--abort", check=False)
-        return _work_base_report(
-            {
-                "ok": False,
-                "state": "blocked",
-                "branch": branch,
-                "head": current_head,
-                "candidate_branch": policy.candidate_branch,
-                "candidate_head": candidate_head,
-                "candidate_path": candidate_path,
-                "required_gaps": ["refresh_base_failed"],
-            },
+        return _refresh_report(
+            ok=False,
+            state="blocked",
+            branch=branch,
+            head=current_head,
+            gaps=["refresh_base_failed"],
+            candidate_branch=policy.candidate_branch,
+            candidate_head=candidate_head,
+            candidate_path=candidate_path,
             stderr=completed.stderr.strip(),
         )
     refreshed_head = active_runtime.run_git(root, "rev-parse", "HEAD").stdout.strip()
     if not active_runtime.is_ancestor(root, candidate_head, refreshed_head):
-        return _work_base_report(
-            {
-                "ok": False,
-                "state": "blocked",
-                "branch": branch,
-                "previous_head": current_head,
-                "head": refreshed_head,
-                "candidate_branch": policy.candidate_branch,
-                "candidate_head": candidate_head,
-                "candidate_path": candidate_path,
-                "required_gaps": ["refresh_base_postcondition_failed"],
-                "next_actions": [
-                    "inspect current Git ancestry and runner, signing, or hook diagnostics",
-                    "repair the replay environment and rerun ethos lane refresh-base",
-                ],
-            },
+        return _refresh_report(
+            ok=False,
+            state="blocked",
+            branch=branch,
+            head=refreshed_head,
+            gaps=["refresh_base_postcondition_failed"],
+            previous_head=current_head,
+            candidate_branch=policy.candidate_branch,
+            candidate_head=candidate_head,
+            candidate_path=candidate_path,
+            next_actions=[
+                "inspect current Git ancestry and runner, signing, or hook diagnostics",
+                "repair the replay environment and rerun ethos lane refresh-base",
+            ],
             stderr="candidate head is not an ancestor of refreshed work-lane head",
         )
-    report = {
-        "ok": True,
-        "state": "base_refreshed",
-        "branch": branch,
-        "previous_head": current_head,
-        "head": refreshed_head,
-        "candidate_branch": policy.candidate_branch,
-        "candidate_head": candidate_head,
-        "candidate_path": candidate_path,
-        "required_gaps": [],
-    }
+    report = _refresh_report(
+        ok=True,
+        state="base_refreshed",
+        branch=branch,
+        head=refreshed_head,
+        gaps=[],
+        previous_head=current_head,
+        candidate_branch=policy.candidate_branch,
+        candidate_head=candidate_head,
+        candidate_path=candidate_path,
+    )
     if projection_recovered:
+        semantic = "semantic_ledger_merged:source_budget_debt" in projection_resolution["gaps"]
         report.update(
             {
-                "state": "base_refreshed_projection_stale",
-                "projection_refresh_required": True,
+                "state": "base_refreshed" if semantic else "base_refreshed_projection_stale",
+                "projection_refresh_required": not semantic,
                 "projection_refresh_gaps": projection_resolution["gaps"],
                 "stale_projection_paths": projection_resolution["paths"],
                 "next_actions": projection_resolution["next_actions"]
                 + ["ethos prove --execute --expect-head $(git rev-parse HEAD) --json"],
             }
         )
-    return _work_base_report(report)
+    return report

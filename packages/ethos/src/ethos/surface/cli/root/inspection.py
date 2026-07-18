@@ -37,7 +37,7 @@ if TYPE_CHECKING:
 def _orient_report(repo: pathlib.Path) -> dict[str, object]:
     """Supply orient's facts without assembling its CLI envelope."""
     packet = orient_domain.orientation_packet(
-        status_payload=workspace_status(repo),
+        status_payload=workspace_status(repo, include_foreign_path_scope=False),
         report_payload=scorecard_report(repo),
         command_prefix=_checkout_command_prefix(repo),
     )
@@ -52,7 +52,7 @@ def _orient_report(repo: pathlib.Path) -> dict[str, object]:
 
 def _status_report(repo: pathlib.Path) -> dict[str, object]:
     """Supply validated status facts without assembling its CLI envelope."""
-    status_payload = workspace_status(repo)
+    status_payload = workspace_status(repo, include_foreign_path_scope=False)
     validation = workspace_status_validation(repo, status_payload)
     orientation = orient_domain.orientation_packet(
         status_payload=status_payload,

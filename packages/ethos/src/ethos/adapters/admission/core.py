@@ -77,7 +77,9 @@ def hook_admission_report(  # noqa: PLR0913, RUF100 - exact request envelope pre
 ) -> dict[str, object]:
     normalized_layer = _normalize_layer(layer)
     repo = root.resolve()
-    status = workspace_status(repo)
+    # Hook admission needs current-checkout truth, not a full foreign-lane
+    # history inventory. Keep the pre-commit path bounded under heavy concurrency.
+    status = workspace_status(repo, include_foreign_path_scope=False)
     target_paths = _target_paths(repo, paths or [])
     base = {
         "ok": True,

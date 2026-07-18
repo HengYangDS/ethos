@@ -35,7 +35,7 @@ if TYPE_CHECKING:
 
 def scorecard_report(repo: Path, *, product_root: Path | None = None) -> dict[str, object]:
     """Build the read-only report payload without emitting CLI output."""
-    status_payload = workspace_status(repo)
+    status_payload = workspace_status(repo, include_foreign_path_scope=False)
     audit = status_domain.audit_for_root(repo, openspec_mode="shape")
     docs_report = docs_health_report(repo)
     current_head = git_adapter.current_tracked_head(repo)

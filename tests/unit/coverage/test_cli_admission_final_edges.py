@@ -147,7 +147,7 @@ def test_admission_prewrite_and_hook_success_edges(
     monkeypatch.setattr(
         admission,
         "workspace_status",
-        lambda root: {
+        lambda root, **_kwargs: {
             "role": ROLE_ACCEPTED_ROOT,
             "branch": "dev",
             "dirty": False,
@@ -183,7 +183,7 @@ def test_admission_prewrite_and_hook_success_edges(
     monkeypatch.setattr(
         admission,
         "workspace_status",
-        lambda root: {
+        lambda root, **_kwargs: {
             "role": ROLE_WORK_LANE,
             "branch": "work/x",
             "dirty": False,
@@ -329,7 +329,7 @@ def test_cli_wrappers_emit_expected_results(
     monkeypatch.setattr(
         inspection_cli,
         "workspace_status",
-        lambda repo: {
+        lambda repo, **_kwargs: {
             "dirty": False,
             "branch": "dev",
             "changed_paths": [],
@@ -340,7 +340,7 @@ def test_cli_wrappers_emit_expected_results(
     monkeypatch.setattr(
         lifecycle_cli,
         "workspace_status",
-        lambda repo: {
+        lambda repo, **_kwargs: {
             "role": "work_lane",
             "branch": "dev",
             "dirty": False,

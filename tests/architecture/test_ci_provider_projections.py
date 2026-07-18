@@ -79,6 +79,18 @@ def test_hosted_provider_templates_are_projection_sources() -> None:
     assert 'GIT_DEPTH: "0"' in (ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8")
 
 
+def test_remote_provider_ci_excludes_local_candidate_and_includes_submit() -> None:
+    github = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    gitlab = (ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8")
+
+    assert "candidate/dev" not in github
+    assert "submit/**" in github
+    assert "workflow:" in gitlab
+    assert 'CI_COMMIT_BRANCH == "dev"' in gitlab
+    assert 'CI_COMMIT_BRANCH == "main"' in gitlab
+    assert "submit\\/.+$" in gitlab
+
+
 def test_provider_yaml_invokes_owner_scripts_not_inline_policy() -> None:
     required_scripts = {
         "tools/ci/scripts/bootstrap-python.sh",

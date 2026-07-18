@@ -3,8 +3,8 @@
 # matching patched runtime functions; unused parameters document those contracts.
 
 from __future__ import annotations
-# fmt: off
 
+# fmt: off
 import subprocess
 from pathlib import Path
 from types import SimpleNamespace

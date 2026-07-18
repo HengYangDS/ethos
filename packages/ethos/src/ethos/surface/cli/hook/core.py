@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path  # noqa: TC003 - cyclopts needs runtime types in signatures
 from typing import Annotated
 from typing import cast
@@ -13,6 +14,8 @@ from ethos.adapters.admission.core import hook_admission_report
 from ethos.adapters.admission.core import push_admission_report
 from ethos.adapters.admission.core import ref_move_admission_report
 from ethos.adapters.admission.core import work_lane_ref_transition_report
+from ethos.adapters.admission.identity import ReconciliationObservation
+from ethos.adapters.admission.identity import reconciliation_receipt_payload
 from ethos.adapters.admission.prewrite import has_invalid_path_token_character
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
@@ -87,6 +90,9 @@ def pre_push(
     pushed_head: str,
     *,
     remote_head: Annotated[str, Parameter(name="--remote-head")] = "",
+    reconciliation_receipt_path: Annotated[str, Parameter(name="--reconciliation-receipt")] = "",
+    observed_origin_head: Annotated[str, Parameter(name="--observed-origin-head")] = "",
+    observed_github_head: Annotated[str, Parameter(name="--observed-github-head")] = "",
     root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
@@ -102,6 +108,11 @@ def pre_push(
         target_ref=target_ref,
         pushed_head=pushed_head,
         remote_head=remote_head,
+        reconciliation=ReconciliationObservation(
+            receipt_path=reconciliation_receipt_path,
+            origin_head=observed_origin_head,
+            github_head=observed_github_head,
+        ),
     )
     decision = report.get("decision", {})
     decision_action = decision.get("action", "") if isinstance(decision, dict) else ""
@@ -117,6 +128,52 @@ def pre_push(
         required_gaps=tuple(string_sequence(report.get("required_gaps"))),
         next_actions=(("ethos prove --execute --expect-head <head>",) if not report["ok"] else ()),
         data=report,
+    )
+    emit(result, json_output=json_output, enforce=True)
+
+
+@hook_app.command(name="reconciliation-receipt")
+def reconciliation_receipt_command(
+    submit_branch: str,
+    source_head: str,
+    write_receipt: Annotated[Path, Parameter(name="--write-receipt")],
+    *,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Record exact local observations before a one-shot dual-remote submit push."""
+    repo = resolve_root(root)
+    target = write_receipt.expanduser().resolve()
+    if target.is_relative_to(repo):
+        error = "reconciliation receipt must be outside the repository root"
+        raise ValueError(error)
+    origin_head = git_adapter.git_stdout(repo, "rev-parse", "--verify", "origin/dev")
+    github_head = git_adapter.git_stdout(repo, "rev-parse", "--verify", "github/dev")
+    gaps = tuple(
+        gap
+        for gap, head in (
+            ("reconciliation_origin_tracking_missing", origin_head),
+            ("reconciliation_github_tracking_missing", github_head),
+        )
+        if not head
+    )
+    receipt = reconciliation_receipt_payload(
+        submit_branch=submit_branch,
+        source_head=source_head,
+        origin_head=origin_head,
+        github_head=github_head,
+    )
+    if not gaps:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    result = EthosResult(
+        command="hook reconciliation-receipt",
+        ok=not gaps,
+        state="observed" if not gaps else "blocked",
+        summary={"submit_branch": submit_branch, "source_head": source_head},
+        required_gaps=gaps,
+        next_actions=(),
+        data={"receipt": receipt, "path": str(target)},
     )
     emit(result, json_output=json_output, enforce=True)
 

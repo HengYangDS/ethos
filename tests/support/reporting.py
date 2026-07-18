@@ -65,3 +65,4 @@ def patch_scorecard_dependencies(
         _value({"std": {"boundary": "b", "fallback": "f", "exit_strategy": "e"}}),
     )
     monkeypatch.setattr(reporting_scoring, "hard_quality_floor_report", _value(CLEAN))
+    monkeypatch.setattr(reporting_scoring, "global_compression_report", _value(CLEAN))

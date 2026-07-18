@@ -1,0 +1,15 @@
+schema_version = 1
+paths = [
+  "evidence/claims/fine-grained-source-budget-scope-20260718.toml",
+  "evidence/chronicle/fine-grained-source-budget-scope-20260718/**",
+  "system/gates.toml",
+  "packages/ethos/src/ethos/domain/reporting/scoring.py",
+  "packages/ethos/src/ethos/domain/report.py",
+  "packages/ethos/src/ethos/domain/reporting/gaps.py",
+  "tests/unit/governance/validation/test_gates.py",
+  "tests/unit/domain/test_report.py",
+  "docs/plans/direct-absorption-wave1-20260718.md",
+  "docs/plans/global-declarative-compression-program.md",
+  "openspec/specs/quality/spec.md",
+  "openspec/changes/fine-grained-source-budget-scope-20260718/**",
+]

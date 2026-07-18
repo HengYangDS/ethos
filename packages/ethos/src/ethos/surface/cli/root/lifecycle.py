@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path  # noqa: TC003 - cyclopts needs runtime types in signatures
+from typing import TYPE_CHECKING
 from typing import Annotated
 from typing import Any
+from typing import cast
 
 from cyclopts import Parameter
 
@@ -41,6 +42,9 @@ from ethos_core.contracts.lifecycle.core import MutationRequest
 from ethos_core.normalization.core import string_mapping
 from ethos_core.normalization.core import string_sequence
 from ethos_core.result import EthosResult
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 # fmt: off
 
@@ -199,6 +203,10 @@ def _closeout_expected_state(payload: _CloseoutPayload) -> dict[str, object]:
     }
 
 
+def _object_mapping(value: object) -> dict[str, object]:
+    """Return a JSON object mapping or a safe empty projection."""
+    return cast("dict[str, object]", value) if isinstance(value, dict) else {}
+
 
 def _publish_expected_state(
     *,
@@ -209,23 +217,21 @@ def _publish_expected_state(
     remote_observations: Mapping[str, object],
     branch_admission: Mapping[str, object],
 ) -> dict[str, object]:
-    submit_branch = str(publication.get("submit_branch") or "")
-    target_branch = submit_branch or branch
-    observations = {
-        key: value if isinstance(value, Mapping) else {}
-        for key, value in remote_observations.items()
-    }
+    target_branch = str(publication.get("submit_branch") or branch)
+    observations = {key: _object_mapping(value) for key, value in remote_observations.items()}
     primary = observations.get("gitlab", {})
-    availability = primary.get("availability", {})
-    sync = primary.get("sync", {})
+    availability = _object_mapping(primary.get("availability"))
+    sync = _object_mapping(primary.get("sync"))
     targets = [
         {
             "id": key,
-            "remote": str(data.get("availability", {}).get("remote") or ""),
-            "availability_state": str(data.get("availability", {}).get("state") or "not_probed"),
-            "sync_state": str(data.get("sync", {}).get("state") or "not_checked"),
-            "observed_remote_ref": str(data.get("sync", {}).get("remote_ref") or ""),
-            "observed_remote_head": str(data.get("sync", {}).get("remote_head") or ""),
+            "remote": str(_object_mapping(data.get("availability")).get("remote") or ""),
+            "availability_state": str(
+                _object_mapping(data.get("availability")).get("state") or "not_probed"
+            ),
+            "sync_state": str(_object_mapping(data.get("sync")).get("state") or "not_checked"),
+            "observed_remote_ref": str(_object_mapping(data.get("sync")).get("remote_ref") or ""),
+            "observed_remote_head": str(_object_mapping(data.get("sync")).get("remote_head") or ""),
         }
         for key, data in observations.items()
     ]
@@ -234,7 +240,6 @@ def _publish_expected_state(
         "source_ref": f"refs/heads/{branch}",
         "source_head": current_head,
         "target_ref": f"refs/heads/{target_branch}",
-        # Preserve the legacy primary-target envelope while exposing the full pair.
         "remote": str(availability.get("remote") or "origin"),
         "observed_remote_ref": str(sync.get("remote_ref") or ""),
         "observed_remote_head": str(sync.get("remote_head") or ""),
@@ -525,8 +530,8 @@ def publish(
         probe_remote=options.probe_remote,
     )
     gitlab_observation = remote_observations["gitlab"]
-    remote_availability = gitlab_observation["availability"]
-    remote_sync = gitlab_observation["sync"]
+    remote_availability = _object_mapping(gitlab_observation.get("availability"))
+    remote_sync = _object_mapping(gitlab_observation.get("sync"))
     remote_matrix = git.publication_remote_syncs(repo, str(branch))
     local_ci_fallback = land_publication.local_ci_fallback_package(
         remote_availability=remote_availability,
@@ -560,7 +565,8 @@ def publish(
         "remote_reconciliation_state": str(remote_matrix.get("state") or "pending"),
         "gitlab_remote_state": str(remote_availability.get("state") or "not_probed"),
         "github_remote_state": str(
-            remote_observations["github"]["availability"].get("state") or "not_probed"
+            _object_mapping(remote_observations["github"].get("availability")).get("state")
+            or "not_probed"
         ),
         "remote_mutation_allowed": bool(branch_admission.get("remote_mutation_allowed")),
         "remote_ahead": _int_value(remote_sync.get("ahead")),

@@ -6,13 +6,14 @@ import json
 import re
 from pathlib import Path
 from typing import TYPE_CHECKING
+from typing import cast
 
 if TYPE_CHECKING:
     from ethos_core.contracts.branch.roles import BranchRolePolicy
 
 LOCAL_CI_FALLBACK_EVIDENCE_PATH = Path("build/evidence/local-ci/fallback.json")
 _FALLBACK = "run tools/ci/scripts/run-local-ci.sh as local fallback evidence"
-_NOT_PROBED = {"state": "not_probed", "available": False}
+_NOT_PROBED: dict[str, object] = {"state": "not_probed", "available": False}
 _REMOTE_PAIR = 2
 
 
@@ -140,34 +141,35 @@ def publication_readiness(
     local_ci_fallback = options.get("local_ci_fallback")
     topology = options.get("topology")
     remote_observations = options.get("remote_observations")
-    availability = remote_availability if isinstance(remote_availability, dict) else _NOT_PROBED
+    availability = _object(remote_availability, _NOT_PROBED)
     sync = (
-        availability.get("tracking_sync")
+        _object(availability.get("tracking_sync"))
         if isinstance(availability.get("tracking_sync"), dict)
         else {"state": "not_checked", "available": False}
     )
-    observations = (
-        remote_observations
-        if isinstance(remote_observations, dict)
-        else {"gitlab": {"availability": availability, "sync": sync}}
-    )
+    observations = {
+        key: _object(value)
+        for key, value in _object(
+            remote_observations,
+            {"gitlab": {"availability": availability, "sync": sync}},
+        ).items()
+    }
     primary = observations.get("gitlab", {})
     availability, sync = (
-        primary.get("availability", availability),
-        primary.get("sync", sync),
+        _object(primary.get("availability"), availability),
+        _object(primary.get("sync"), sync),
     )
-    fallback = (
-        local_ci_fallback
-        if isinstance(local_ci_fallback, dict)
-        else local_ci_fallback_package(remote_availability=availability)
+    fallback = _object(
+        local_ci_fallback,
+        local_ci_fallback_package(remote_availability=availability),
     )
     available = [
         item
         for item in observations.values()
-        if item.get("availability", {}).get("available") is True
+        if _object(item.get("availability")).get("available") is True
     ]
     synchronized = any(
-        item.get("sync", {}).get("state") == "synchronized" for item in observations.values()
+        _object(item.get("sync")).get("state") == "synchronized" for item in observations.values()
     )
     state = (
         "synchronized"
@@ -238,9 +240,14 @@ def local_submit_package(
     local_ci_fallback: dict[str, object] | None = None,
 ) -> dict[str, object]:
     """Return the public compatibility projection of the local submit plan."""
-    availability = remote_availability or _NOT_PROBED
+    availability = remote_availability or dict(_NOT_PROBED)
     fallback = local_ci_fallback or local_ci_fallback_package(remote_availability=availability)
     return _submit_package(branch, submit_branch, availability, fallback)
+
+
+def _object(value: object, fallback: dict[str, object] | None = None) -> dict[str, object]:
+    """Return a JSON-object mapping or the supplied safe fallback."""
+    return cast("dict[str, object]", value) if isinstance(value, dict) else (fallback or {})
 
 
 def publication_with_remote_matrix(

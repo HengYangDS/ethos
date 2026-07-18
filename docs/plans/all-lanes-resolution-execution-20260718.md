@@ -1,7 +1,7 @@
 ---
 subject: ethos:all-work-lanes-resolution-execution-20260718
 role: plan
-state: active
+state: archived
 relations:
   implements: all-lanes-resolution-execution-20260718
   consumes: evidence/chronicle/all-work-lanes-convergence-20260716/2026-07-16.md
@@ -9,7 +9,8 @@ relations:
 
 # All Work Lanes Resolution Execution — 2026-07-18
 
-Status: active owned Work Lane.
+Status: archived after HEAD-bound proof; candidate and accepted-root closeout
+remain pending.
 
 Purpose: turn the fresh exact Work Lane inventory into portable, accepted,
 preservation-first resolution decisions without inventing authority over foreign
@@ -17,7 +18,8 @@ holders or deleting unresolved work.
 
 See also: [Mutation Rules](../../rules/mutation.md),
 [Evidence Rules](../../rules/evidence.md), and
-[All Work Lanes Resolution Chronicle](../../evidence/chronicle/all-lanes-resolution-execution-20260718/2026-07-18.md).
+[All Work Lanes Resolution Chronicle](../../evidence/chronicle/all-lanes-resolution-execution-20260718/2026-07-18.md),
+plus the [archived OpenSpec Change](../../openspec/changes/archive/2026-07-18-all-lanes-resolution-execution-20260718/).
 
 ## Objective
 

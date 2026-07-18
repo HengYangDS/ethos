@@ -2422,6 +2422,16 @@ ancestry, execute local proof and governed local closeout before a protected
 update, and delete a submit ref only after its tip is an ancestor of accepted
 truth and its own normal deletion dry-run is accepted.
 
+#### Scenario: Inputs move after a historical carrier archive
+
+- **WHEN** a historical carrier has been archived but the candidate or a
+  configured submit ref advances before its unresolved lifecycle stages run
+- **THEN** ETHOS SHALL preserve that archive as historical evidence
+- **AND** bind an active continuation to the same episode claim before a new
+  merge, proof, closeout, remote update, or submit deletion is attempted
+- **AND** the continuation SHALL re-observe the current inputs and retain its
+  newly observed submit tip through ordinary merge ancestry.
+
 #### Scenario: Divergent submit patch is reconciled
 
 - **WHEN** a configured remote submit ref is not an ancestor of the current

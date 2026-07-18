@@ -1,0 +1,5 @@
+profile_id = "external-optional"
+profile_version = 1
+
+[independent_verification.actions.publish]
+mode = "optional"

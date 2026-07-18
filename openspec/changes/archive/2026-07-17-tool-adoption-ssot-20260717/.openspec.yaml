@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-07-17
+goal: Replace duplicated static quality tool adapter profiles with a
+  schema-validated catalog-derived projection.

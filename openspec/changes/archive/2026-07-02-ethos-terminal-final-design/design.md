@@ -6,15 +6,15 @@ and strict spec validation. ETHOS owns product duties around Work Lane admission
 proposal routing, claim binding, evidence sufficiency, archive closeout, and
 adopter scaffolding.
 
-`di-effect` contributes useful mechanism patterns: capability registries,
+`alternate mechanism corpus` contributes useful mechanism patterns: capability registries,
 dynamic facets, direct routing, and explicit official-vs-local authority.
-`alphasim-dmgr-fix-b3` contributes useful repository governance patterns: Agent
+`reference adopter workspace` contributes useful repository governance patterns: Agent
 Invocation Envelope admission, Claim Kernel projection boundaries, topic-scoped
 closeout evidence, and worktree-first coordination. ETHOS absorbs those as
 product mechanisms while preserving its own kernel chain:
 
 ```text
-JudgmentSource -> Subject -> Commitment -> Change -> Evidence -> Claim -> Chronicle
+Authority -> Subject -> Commitment -> Change -> Evidence -> Claim -> Chronicle
 ```
 
 Claim binds evidence and carriers; Change owns lifecycle. OpenSpec remains a
@@ -48,9 +48,9 @@ summaries under `docs/evidence/` until the evidence-root migration lands.
 
 - Reusing archived OpenSpec productization changes would hide new semantics in
   historical records, so this lane creates a new active change.
-- Copying `di-effect` registries directly would import non-ETHOS vocabulary, so
+- Copying `alternate mechanism corpus` registries directly would import non-ETHOS vocabulary, so
   ETHOS keeps a smaller family/facet contract tailored to repository governance.
-- Adopting alphasim Claim Kernel ownership literally would conflict with ETHOS'
+- Adopting reference-adopter Claim Kernel ownership literally would conflict with ETHOS'
   product design contract where Change owns lifecycle and Claim binds evidence;
   ETHOS instead absorbs explicit projection and evidence-boundary mechanics.
 

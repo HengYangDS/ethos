@@ -1,8 +1,8 @@
 # Design: ETHOS Productization Convergence
 
-## Judgment Source And Kernel
+## Authority And Kernel
 
-The product model now starts with `JudgmentSource`. A North Star remains useful
+The product model now starts with `Authority`. A North Star remains useful
 as a reader-facing explanation, but it is derived from authority, user intent,
 repository truth, accepted decisions, and proof. The lifecycle owner is
 `Change`; `Claim` binds evidence to that lifecycle and is verifier-scoped.

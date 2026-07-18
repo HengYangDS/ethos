@@ -1,0 +1,51 @@
+[claim]
+id = "report-coordination-required-risk-20260709"
+subject = "ethos:report-coordination-required-risk"
+state = "active"
+change_id = "2026-07-09-report-coordination-required-risk"
+summary = "ETHOS report mirrors status-required Work Lane coordination blockers across product and adopter profiles while keeping advisory coordination signals non-blocking and non-authorizing."
+
+[evidence]
+dated = "evidence/chronicle/report-coordination-required-risk-20260709/2026-07-09.md"
+sha256 = "2ea3182ebb1582ab14c98ef90a6c438ea3357ed3f2080201e0532c1091a13a3d"
+evidence_ids = ["evidence:report-coordination-required-risk-20260709"]
+binding = "Report coordination risk required/advisory split evidence binding"
+verifier = "digest_only"
+tests = [
+  "uv run --group dev pytest -q tests/unit/domain/test_report.py tests/unit/domain/reporting/test_coordination.py tests/unit/cli/test_contracts.py::test_report_scorecard_is_derived_from_governance_checks tests/unit/audit/test_modes.py::test_report_uses_shallow_repository_audit",
+  "uv run --group dev ruff check packages/ethos/src/ethos/domain/report.py packages/ethos/src/ethos/domain/reporting/gaps.py packages/ethos/src/ethos/domain/reporting/scoring.py tests/unit/domain/test_report.py tests/unit/domain/reporting/test_coordination.py tests/unit/cli/test_contracts.py",
+  "uv run --group dev ruff format --check packages/ethos/src/ethos/domain/report.py packages/ethos/src/ethos/domain/reporting/gaps.py packages/ethos/src/ethos/domain/reporting/scoring.py tests/unit/domain/test_report.py tests/unit/domain/reporting/test_coordination.py tests/unit/cli/test_contracts.py",
+  "ETHOS_ACTOR=codex uv run --package ethos ethos openspec --lifecycle --json",
+  "ETHOS_ACTOR=codex uv run --package ethos ethos quality claims --json",
+  "ETHOS_ACTOR=codex uv run --package ethos ethos report --json",
+  "ETHOS_ACTOR=codex uv run --package ethos ethos parity shadow --adopter generic --target . --execute --timeout-seconds 45 --write-evidence --json",
+  "ETHOS_ACTOR=codex uv run --package ethos ethos parity gaps --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+[boundary]
+owner = "ethos-reporting"
+scope = "Report scorecard coordination risk read model across product and adopter profiles; status remains coordination truth owner and foreign Work Lane cleanup remains owner/handoff governed"
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-09-report-coordination-required-risk"
+
+fallback = "Use ethos status --json and ethos lane status --json as the coordination truth owner when report surfaces coordination risk."
+kill_signal = "Advisory coordination gaps become report required_gaps or report output is treated as cleanup authority."
+
+[promotion]
+targets = [
+  "packages/ethos/src/ethos/domain/report.py",
+  "packages/ethos/src/ethos/domain/reporting/gaps.py",
+  "packages/ethos/src/ethos/domain/reporting/scoring.py",
+  "tests/unit/domain/test_report.py",
+  "tests/unit/domain/reporting/test_coordination.py",
+  "docs/reference/command-plane.md",
+  "openspec/specs/repository-governance/spec.md",
+  "openspec/specs/quality/spec.md",
+  "openspec/changes/archive/2026-07-09-report-coordination-required-risk",
+  "evidence/chronicle/report-coordination-required-risk-20260709/2026-07-09.md",
+  "evidence/claims/report-coordination-required-risk-20260709.toml",
+  "evidence/parity/generic-shadow.json",
+]

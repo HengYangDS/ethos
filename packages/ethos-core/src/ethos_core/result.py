@@ -1,26 +1,30 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
-from dataclasses import field
 from typing import Any
+
+from pydantic import BaseModel
+from pydantic import ConfigDict
+from pydantic import Field
 
 SCHEMA_VERSION = 1
 
 
-@dataclass(frozen=True)
-class EthosResult:
+class EthosResult(BaseModel):
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
+
     command: str
     ok: bool
     state: str
-    summary: dict[str, Any] = field(default_factory=dict)
+    summary: dict[str, Any] = Field(default_factory=dict)
     diagnostics: tuple[dict[str, Any], ...] = ()
     required_gaps: tuple[str, ...] = ()
     next_actions: tuple[str, ...] = ()
-    data: dict[str, Any] = field(default_factory=dict)
+    governance_context: dict[str, Any] | None = None
+    data: dict[str, Any] = Field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        payload = {
             "schema_version": SCHEMA_VERSION,
             "command": self.command,
             "ok": self.ok,
@@ -31,6 +35,9 @@ class EthosResult:
             "next_actions": list(self.next_actions),
             "data": dict(self.data),
         }
+        if self.governance_context is not None:
+            payload["governance_context"] = dict(self.governance_context)
+        return payload
 
     def to_json(self) -> str:
         return json.dumps(self.to_dict(), indent=2, sort_keys=False)

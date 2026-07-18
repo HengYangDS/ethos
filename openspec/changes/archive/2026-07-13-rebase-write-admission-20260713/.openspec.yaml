@@ -1,0 +1,5 @@
+schema: spec-driven
+created: 2026-07-13
+goal: Bind a sanctioned Work Lane rebase lease to its named branch ref while
+  retaining detached HEAD as diagnostic evidence.
+status: active

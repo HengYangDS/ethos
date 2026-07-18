@@ -1,0 +1,50 @@
+[claim]
+id = "report-coordination-advisory"
+subject = "ethos:report-coordination-advisory"
+state = "active"
+summary = "ETHOS report surfaces Work Lane coordination advisory signals without making them transition-blocking required gaps."
+
+[evidence]
+dated = "evidence/chronicle/report-coordination-advisory/2026-07-09.md"
+sha256 = "6b8b7d8eb1cf950d523050481b8fa41ade29843151ab0d0027b8a774a1384e6e"
+evidence_ids = ["evidence:report-coordination-advisory"]
+binding = "report advisory read model, Work Lane coordination visibility, and OpenSpec repository-governance scenario"
+verifier = "digest_only"
+tests = [
+  "uv run --all-packages --group dev ruff check packages/ethos/src/ethos/domain/report.py tests/unit/domain/test_report.py",
+  "uv run --all-packages --group dev pytest tests/unit/domain/test_report.py -q",
+  "uv run --package ethos ethos report --json",
+  "openspec validate report-coordination-advisory --strict --json",
+  "openspec archive report-coordination-advisory --yes --json",
+  "uv run --package ethos ethos openspec --lifecycle --json",
+  "openspec validate --all --strict --json",
+  "ETHOS_ACTOR=codex uv run --package ethos ethos parity shadow --adopter generic --target . --execute --write-evidence --timeout-seconds 60 --json",
+  "uv run --package ethos ethos parity gaps --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+[boundary]
+owner = "ethos-repository"
+scope = "Report reader-view visibility for Work Lane coordination advisory signals"
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-08-report-coordination-advisory"
+
+fallback = "Use ethos orient --json and ethos lane status --json directly for Work Lane coordination visibility."
+kill_signal = "ethos report --json shows zero advisory signals while workspace status contains Work Lane coordination advisory gaps, or report turns those advisory gaps into required gaps."
+
+[promotion]
+targets = [
+  "packages/ethos/src/ethos/domain/report.py",
+  "tests/unit/domain/test_report.py",
+  "openspec/specs/repository-governance/spec.md",
+  "openspec/changes/archive/2026-07-08-report-coordination-advisory/.openspec.yaml",
+  "openspec/changes/archive/2026-07-08-report-coordination-advisory/proposal.md",
+  "openspec/changes/archive/2026-07-08-report-coordination-advisory/design.md",
+  "openspec/changes/archive/2026-07-08-report-coordination-advisory/tasks.md",
+  "openspec/changes/archive/2026-07-08-report-coordination-advisory/specs/repository-governance/spec.md",
+  "evidence/chronicle/report-coordination-advisory/2026-07-09.md",
+  "evidence/claims/report-coordination-advisory.toml",
+  "evidence/parity/generic-shadow.json",
+]

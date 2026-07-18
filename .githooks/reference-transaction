@@ -8,6 +8,12 @@
 # move (git merge --ff-only work/x dev, git branch -f, git reset, direct git commit on
 # the accepted checkout) unreachable.
 #
+# There is NO escape hatch: official `ethos land --closeout` earns admission through this
+# same reducer (it carries the executed proof to the target root and writes a one-shot
+# closeout-intent marker BEFORE its ref move, so the accepted advance verifies as a
+# legitimate admit). An earlier ETHOS_ALLOW_REF_MOVE=1 env bypass short-circuited this
+# hook and was itself a hole — any process could set it — so it was removed.
+#
 # Posture is asymmetric by ref:
 #   * The ACCEPTED branch fails CLOSED — it advances ONLY on an explicit ETHOS admit
 #     (state=admitted). A missing/old/erroring `ethos` binary, empty output, or a block
@@ -16,9 +22,11 @@
 #   * Every OTHER branch fails OPEN — a governance gate must not brick ordinary work-lane
 #     commits when the binary is momentarily unavailable; the always-run audit flags an
 #     unarmed moat separately.
-state="$1"
-[ "$state" = "prepared" ] || exit 0
-[ "${ETHOS_ALLOW_REF_MOVE:-}" = "1" ] && exit 0
+phase="$1"
+case "$phase" in
+    prepared|committed) ;;
+    *) exit 0 ;;
+esac
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
 
 # The accepted branch — the one the candidate train promotes into. ETHOS records it at
@@ -26,11 +34,49 @@ repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
 accepted="$(git config --get ethos.acceptedBranch 2>/dev/null)"
 [ -n "$accepted" ] || accepted="dev"
 
-if command -v ethos >/dev/null 2>&1; then
-    runner="ethos"
-else
-    runner="python -m ethos.cli"
-fi
+runtime_runner="${repo_root}/tools/ci/scripts/with-python-runtime.sh"
+runtime_python="${ETHOS_PYTHON:-${PYTHON:-${repo_root}/build/runtime/venv/bin/python}}"
+ethos_pythonpath="$repo_root/packages/ethos/src:$repo_root/packages/ethos-core/src"
+
+# The accepted checkout owns this shell/CAS boundary.  On its prepared advance,
+# however, semantic admission must run from the exact clean candidate checkout being
+# promoted: incumbent imports are necessarily one tree behind the proposed ref.
+resolve_candidate_runner() {
+    candidate_branch="$1"
+    candidate_head="$2"
+    candidate_record="$(git worktree list --porcelain 2>/dev/null | awk -v want="refs/heads/${candidate_branch}" '
+        /^worktree / { path = substr($0, 10); head = ""; branch = ""; next }
+        /^HEAD / { head = substr($0, 6); next }
+        /^branch / { branch = substr($0, 8); next }
+        /^$/ {
+            if (branch == want) { print path "\t" head; found = 1; exit }
+            path = ""; head = ""; branch = ""
+        }
+        END {
+            if (!found && branch == want) { print path "\t" head }
+        }
+    ')"
+    candidate_root="$(printf '%s' "$candidate_record" | cut -f1)"
+    candidate_worktree_head="$(printf '%s' "$candidate_record" | cut -f2)"
+    [ -n "$candidate_root" ] || return 1
+    [ "$candidate_worktree_head" = "$candidate_head" ] || return 1
+    [ -d "$candidate_root" ] || return 1
+    # Ignored runtime/cache state is permitted, but tracked or ordinary untracked source
+    # makes the candidate checkout non-reproducible and therefore non-admissible.
+    [ -z "$(git -C "$candidate_root" status --porcelain 2>/dev/null)" ] || return 1
+    candidate_runtime_runner="$candidate_root/tools/ci/scripts/with-python-runtime.sh"
+    candidate_runtime_python="$candidate_root/build/runtime/venv/bin/python"
+    candidate_ethos_source="$(cd "$candidate_root/packages/ethos/src" 2>/dev/null && pwd -P)" || return 1
+    candidate_core_source="$(cd "$candidate_root/packages/ethos-core/src" 2>/dev/null && pwd -P)" || return 1
+    case "$candidate_ethos_source:$candidate_core_source" in
+        "$candidate_root"/*:"$candidate_root"/*) ;;
+        *) return 1 ;;
+    esac
+    candidate_pythonpath="$candidate_ethos_source:$candidate_core_source"
+    [ -x "$candidate_runtime_runner" ] || return 1
+    printf '%s\n%s\n%s\n%s\n' \
+        "$candidate_root" "$candidate_runtime_runner" "$candidate_runtime_python" "$candidate_pythonpath"
+}
 
 while read -r old_value new_value ref_name; do
     case "$ref_name" in
@@ -38,10 +84,70 @@ while read -r old_value new_value ref_name; do
         *) continue ;;
     esac
     branch="${ref_name#refs/heads/}"
-    verdict="$($runner hook ref-transaction "$ref_name" "$old_value" "$new_value" \
-        --root "$repo_root" --json 2>/dev/null | tr -d ' \n')"
+    # `git worktree add -b work/<name>` creates then reasserts its fresh Work
+    # Lane ref before `ethos lane start` can create a lease.  A fresh checkout
+    # also lacks its checkout-local interpreter.  Do not bootstrap a full
+    # runtime for that work-lane setup event: it has no lease transition to
+    # repair and must not require network access merely to create the lane that
+    # will own subsequent work.  Changed existing Work Lane refs still use the
+    # normal hook path so their committed phase repairs the lease head.
+    case "$old_value" in
+        *[!0]*) old_is_zero="false" ;;
+        *) old_is_zero="true" ;;
+    esac
+    case "$branch" in
+        work/*)
+            if [ ! -x "$runtime_python" ] && \
+                { [ "$old_value" = "$new_value" ] || [ "$old_is_zero" = "true" ]; }; then
+                continue
+            fi
+            ;;
+    esac
+    if [ "$phase" = "prepared" ] && [ "$branch" = "$accepted" ]; then
+        candidate_branch="$(awk '
+            /^\[branch_roles\][[:space:]]*$/ { in_roles = 1; next }
+            /^\[/ { in_roles = 0 }
+            in_roles && /^[[:space:]]*candidate_branch[[:space:]]*=/ {
+                value = $0
+                sub(/^[^=]*=[[:space:]]*"/, "", value)
+                sub(/".*$/, "", value)
+                print value
+                exit
+            }
+        ' "$repo_root/.ethos/workspace.toml" 2>/dev/null)"
+        [ -n "$candidate_branch" ] || candidate_branch="$(git -C "$repo_root" config --get ethos.candidateBranch 2>/dev/null)"
+        [ -n "$candidate_branch" ] || candidate_branch="$(git -C "$repo_root" config --get ethos.candidate_branch 2>/dev/null)"
+        [ -n "$candidate_branch" ] || candidate_branch="candidate/dev"
+        candidate_runner="$(resolve_candidate_runner "$candidate_branch" "$new_value")" || {
+            echo "ethos: blocked ref move on $ref_name — candidate semantic runner is unavailable." >&2
+            exit 1
+        }
+        candidate_root="$(printf '%s\n' "$candidate_runner" | sed -n '1p')"
+        candidate_runtime_runner="$(printf '%s\n' "$candidate_runner" | sed -n '2p')"
+        candidate_runtime_python="$(printf '%s\n' "$candidate_runner" | sed -n '3p')"
+        candidate_pythonpath="$(printf '%s\n' "$candidate_runner" | sed -n '4p')"
+        verdict="$(
+            cd "$candidate_root" || exit 1
+            PYTHONPATH="$candidate_pythonpath${PYTHONPATH:+:$PYTHONPATH}" \
+                "${candidate_runtime_runner}" -- "${candidate_runtime_python}" -m ethos.cli hook ref-transaction \
+                "$ref_name" "$old_value" "$new_value" --phase "$phase" \
+                --root "$repo_root" --json 2>/dev/null | tr -d ' \n'
+        )"
+    else
+        verdict="$(PYTHONPATH="$ethos_pythonpath${PYTHONPATH:+:$PYTHONPATH}" \
+            "${runtime_runner}" -- "${runtime_python}" -m ethos.cli hook ref-transaction \
+            "$ref_name" "$old_value" "$new_value" --phase "$phase" \
+            --root "$repo_root" --json 2>/dev/null | tr -d ' \n')"
+    fi
 
-    if [ "$branch" = "$accepted" ]; then
+    if [ "$phase" = "committed" ]; then
+        case "$verdict" in
+            *'"state":"lease_head_advanced"'* | *'"state":"admitted"'*) : ;;
+            *)
+                echo "ethos: lease repair required after ref move on $ref_name." >&2
+                ;;
+        esac
+    elif [ "$branch" = "$accepted" ]; then
         # Accepted branch: fail CLOSED. Proceed only on an explicit admitted verdict;
         # a missing/erroring binary (empty verdict) or a block both abort.
         case "$verdict" in

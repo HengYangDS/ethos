@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ethos.assistants.context import context_bundle
+from ethos.assistants.context.bundle import context_bundle
 from ethos.assistants.server import mcp_server_descriptor
 
 

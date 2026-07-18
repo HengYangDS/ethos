@@ -34,18 +34,20 @@ def read(relative: str) -> str:
     return (ROOT / relative).read_text(encoding="utf-8")
 
 
+def prose(relative: str) -> str:
+    return " ".join(read(relative).split())
+
+
 def test_product_design_contract_canonizes_kernel_first_principles() -> None:
     text = read("docs/governance/product-design-contract.md")
 
     assert "Evidence-grounded Trust for Human-Agent Operational Stewardship" in text
-    kernel_chain = (
-        "JudgmentSource -> Subject -> Commitment -> Change -> Evidence -> Claim -> Chronicle"
-    )
+    kernel_chain = "Authority -> Subject -> Commitment -> Change -> Evidence -> Claim -> Chronicle"
     assert kernel_chain in text
-    assert "North Star is a derived reader view, not the judgment source" in text
+    assert "North Star is a derived reader view, not the authority" in text
     assert "Claim binds evidence; it does not own the Change lifecycle" in text
     for principle in (
-        "Judgment-source first",
+        "Authority first",
         "Contracts before providers",
         "Git-native repository substrate",
         "Capability before surface",
@@ -53,16 +55,17 @@ def test_product_design_contract_canonizes_kernel_first_principles() -> None:
         "Proof separation",
     ):
         assert principle in text
-    assert "PyPI/TestPyPI publish" in text
-    assert "not current scope" in text
+    assert "PyPI/TestPyPI" in text
+    assert "not active scope" in text
 
 
-def test_tao_and_kernel_model_carry_root_philosophy_as_generating_constraint() -> None:
-    tao = read("system/tao.md")
+def test_axioms_and_kernel_keep_root_text_subordinate_and_restrained() -> None:
+    contract = read("docs/governance/product-design-contract.md")
+    axioms = read("system/axioms.md")
     kernel = read("docs/concepts/kernel-model.md")
     spec = read("openspec/specs/kernel/spec.md")
 
-    for phrase in (
+    root_phrases = (
         "道隐无名",
         "几动于微",
         "法乎自然",
@@ -75,46 +78,46 @@ def test_tao_and_kernel_model_carry_root_philosophy_as_generating_constraint() -
         "物遂其性",
         "化育无穷",
         "玄德",
-    ):
-        assert phrase in tao
-        assert phrase in kernel
+    )
+    for phrase in root_phrases:
+        assert phrase in contract
+        assert phrase not in axioms
 
     for anchor in (
-        "root generative constraint",
-        "hidden authority",
-        "one kernel",
-        "domain-fit measure",
-        "boundary-preserving growth",
-        "future frameworks enter by contract",
+        "machine-adjacent engineering reading",
+        "canonical root text lives only in the Product Design Contract",
+        "does not restate the verse",
+        "does not create a second truth center",
+        "Authority before surface",
+        "Evidence before claim",
+        "Parsimony before expansion",
     ):
-        assert anchor in tao
+        assert anchor in axioms
 
     for anchor in (
-        "Root Philosophy Derivation",
-        "deeper than any named vendor",
-        "truth and projection",
-        "product semantics and adapter boundary",
-        "local models",
-        "future frameworks",
+        "Root Interpretation Boundary",
+        "not a translation of that text",
+        "not a philosophical subsystem",
+        "engineering compression",
         "which kernel object it projects",
+        "does not own the root text",
     ):
         assert anchor in kernel
 
     for anchor in (
-        "compact root philosophy as a generative constraint",
-        "Root philosophy constrains future projections",
-        "local model",
-        "tool framework",
+        "root text as a judgment constraint",
+        "subsystem, feature map, or low-level implementation label",
+        "Root text remains canonical and restrained",
+        "concrete engineering invariants rather than philosophical labels",
         "new truth center",
-        "authority, subject, boundary, evidence, and projection role",
     ):
         assert anchor in spec
 
 
-def test_product_design_contract_operationalizes_root_philosophy() -> None:
+def test_product_design_contract_operationalizes_root_constraint() -> None:
     text = read("docs/governance/product-design-contract.md")
 
-    assert "## Root Philosophy" in text
+    assert "## Root Constraint" in text
     for phrase in (
         "道隐无名",
         "几动于微",
@@ -132,15 +135,16 @@ def test_product_design_contract_operationalizes_root_philosophy() -> None:
         assert phrase in text
 
     for operational_anchor in (
+        "ETHOS 为名" + chr(0xFF0C) + "问道为根",
         "not an external slogan",
-        "JudgmentSource",
-        "single kernel",
-        "truth boundary",
-        "profile or adapter boundary",
-        "binding taxonomy",
-        "command JSON",
-        "evidence",
-        "adapters remain adapters",
+        "line-by-line",
+        "module map",
+        "one kernel keeps the",
+        "center",
+        "truth and projection remain separate",
+        "evidence limits claims",
+        "adapters stay adapters",
+        "system/axioms.md` is only a machine-adjacent derivation",
     ):
         assert operational_anchor in text
 
@@ -237,6 +241,9 @@ def test_product_design_contract_defines_governed_repository() -> None:
         assert "adopter_repository" not in text
         assert "dual-posture" not in text
 
+    assert "organization-native, not author-native" in product
+    assert "Git author, Git committer" in product
+    assert "single built-in personal name" in product
     assert "do not create separate command planes" in product
     assert "`transition_commands`" in product
     assert "`reader_view_commands`" in product
@@ -253,6 +260,22 @@ def test_product_design_contract_defines_governed_repository() -> None:
     assert "shared governance context contract" in contracts_spec
 
 
+def test_first_glance_docs_make_isomorphic_governance_discoverable() -> None:
+    readme = prose("README.md")
+    product = prose("docs/governance/product-design-contract.md")
+    glossary = prose("docs/reference/glossary.md")
+
+    for text in (readme, product, glossary):
+        assert "Isomorphic Governance" in text
+        assert "same kernel" in text
+        assert "profiles and adapters" in text
+        assert "not product cloning" in text
+
+    assert "governs the ETHOS product repository and adopted repositories" in readme
+    assert "profile-specific checks, adapters, and proof depth" in product
+    assert "Different profiles change admission, checks, adapters, and proof depth" in glossary
+
+
 def test_canonical_product_docs_are_provider_neutral() -> None:
     for doc in PROVIDER_NEUTRAL_CANONICAL_DOCS:
         text = read(doc)
@@ -260,8 +283,8 @@ def test_canonical_product_docs_are_provider_neutral() -> None:
             assert term not in text, (doc, term)
 
 
-def test_current_product_docs_do_not_expose_legacy_compatibility_language() -> None:
-    current_docs = (
+def test_canonical_product_docs_do_not_expose_predecessor_compatibility_language() -> None:
+    canonical_doc_dirs = (
         "docs/governance",
         "docs/architecture",
         "docs/reference",
@@ -276,7 +299,7 @@ def test_current_product_docs_do_not_expose_legacy_compatibility_language() -> N
         "adopter legacy",
     )
 
-    for directory in current_docs:
+    for directory in canonical_doc_dirs:
         for path in sorted((ROOT / directory).glob("*.md")):
             text = path.read_text(encoding="utf-8").lower()
             assert "legacy" not in text, path.relative_to(ROOT)
@@ -327,7 +350,7 @@ def test_glossary_uses_canonical_kernel_terms() -> None:
     glossary = read("docs/reference/glossary.md")
 
     for term in (
-        "JudgmentSource",
+        "Authority",
         "Subject",
         "Commitment",
         "Change",
@@ -341,6 +364,19 @@ def test_glossary_uses_canonical_kernel_terms() -> None:
         assert f"## {retired_term}" not in glossary
 
 
+def test_repository_profile_contract_requires_backend_control_manifest() -> None:
+    text = read("docs/governance/repository-profile-contract.md")
+
+    for phrase in (
+        "external_backend.control",
+        "ExternalEthosBackendSwitch",
+        "default_backend",
+        "rollback_mode",
+        "configuration only",
+    ):
+        assert phrase in text
+
+
 def test_boundary_convergence_requires_parity_freeze_and_retirement_decision() -> None:
     text = read("docs/governance/product-boundary-convergence.md")
 
@@ -351,10 +387,15 @@ def test_boundary_convergence_requires_parity_freeze_and_retirement_decision() -
         "Rollback Window",
         "Retirement Decision",
         "must not be deleted automatically",
+        "ethos quality generated-artifacts --root <repo> --json",
+        "profile-declared backend control manifest",
     ):
         assert phrase in text
-    assert "ALPHASIMDMGR_ETHOS_BACKEND=external" in text
-    assert "ALPHASIMDMGR_ETHOS_BACKEND=embedded" in text
+    assert "ETHOS_BACKEND=external <adopter-runner> ethos status" in text
+    assert "ETHOS_BACKEND=embedded <adopter-runner> ethos status" in text
+    assert "<adopter-runner>" in text
+    assert "reference adopter" in text
+    assert "identity and path" in text
 
 
 def test_capability_parity_ledger_classifies_required_capabilities() -> None:
@@ -371,7 +412,7 @@ def test_capability_parity_ledger_classifies_required_capabilities() -> None:
         "OpenSpec",
         "Backlog / intake",
         "campaign / mission",
-        "dmgr raw/cache/conf/alphasim rules",
+        "domain data-contract rules",
         "MCP / ACP / Superpowers",
     )
     for capability in required_capabilities:
@@ -395,6 +436,7 @@ def test_capability_parity_ledger_classifies_required_capabilities() -> None:
     ):
         assert field in text
     assert "accepted_summary" in text
+    assert "shadow-parity.schema.json" in text
     assert "shadow-parity.schema.json" in text
 
 
@@ -428,7 +470,7 @@ def test_product_design_contract_is_repository_audited_with_target_ontology() ->
 
 
 def test_repository_audit_uses_canonical_package_ontology_contract() -> None:
-    from ethos_core.contracts.package_ontology import package_ontology_report
+    from ethos_core.contracts.package.ontology import package_ontology_report
 
     contract = package_ontology_report()
     audit = repository_audit(ROOT, openspec_mode="shape")
@@ -456,3 +498,37 @@ def test_product_package_and_migration_host_sets_are_disjoint() -> None:
     assert "ethos" in target_packages
     assert "ethos" not in migration_hosts
     assert ontology["migration_host_lifecycle"] == {}
+
+
+def test_low_level_active_surfaces_do_not_use_philosophy_labels() -> None:
+    scanned_roots = (
+        ROOT / "packages",
+        ROOT / "system",
+        ROOT / ".config",
+        ROOT / ".githooks",
+    )
+    allowed = {ROOT / "system" / "axioms.md"}
+    forbidden = (
+        "system/" + "tao",
+        "tao " + "First",
+        "tao " + "FP",
+        "ETHOS " + "Ta" + "o",
+        "道" + ":",
+    )
+    offenders: list[str] = []
+    for base in scanned_roots:
+        for path in base.rglob("*"):
+            if not path.is_file() or path in allowed:
+                continue
+            if any(part in {"__pycache__", ".pytest_cache", ".ruff_cache"} for part in path.parts):
+                continue
+            if path.suffix in {".pyc", ".coverage"}:
+                continue
+            try:
+                text = path.read_text(encoding="utf-8")
+            except UnicodeDecodeError:
+                continue
+            if any(term in text for term in forbidden):
+                offenders.append(path.relative_to(ROOT).as_posix())
+
+    assert offenders == []

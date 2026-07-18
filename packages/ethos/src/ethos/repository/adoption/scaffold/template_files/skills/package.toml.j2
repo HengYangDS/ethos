@@ -1,0 +1,22 @@
+schema_version = 2
+id = {{ skill.id | json }}
+entrypoint = "SKILL.md"
+boundary = "workflow-package-projection"
+truth = "repository-source-and-contracts"
+digest_algorithm = "sha256"
+include = ["SKILL.md"]
+exclude = [".DS_Store"]
+expected_digest = {{ package_digest | json }}
+required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
+
+[quality]
+official_codex_loadable = true
+placeholder_allowed = false
+
+{% for capability in skill.capabilities %}[[capability]]
+id = {{ capability.id | json }}
+kind = {{ capability.kind | json }}
+command = {{ capability.command | json }}{% if capability.guard %}
+guard = {{ capability.guard | json }}{% endif %}
+
+{% endfor %}

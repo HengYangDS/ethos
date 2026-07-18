@@ -1,0 +1,44 @@
+[claim]
+id = "module-layout-semantic-guard"
+subject = "ethos:module-layout-semantic-guard"
+state = "active"
+change_id = "module-layout-semantic-guard-20260708"
+summary = "ETHOS module-layout gate blocks new-directory flat buckets and dynamic compatibility export facades."
+
+[evidence]
+dated = "evidence/chronicle/module-layout-semantic-guard/2026-07-08.md"
+sha256 = "c8b8bdf14add8c8362e29dab568ea39cf1d7a850f51e5b0495988aedadd5424b"
+evidence_ids = ["evidence:module-layout-semantic-guard"]
+binding = "Module layout rule, quality gate implementation, OpenSpec carrier, and focused regression tests."
+verifier = "digest_only"
+tests = [
+  "uv run pytest tests/unit/policy/test_module_layout.py -q",
+  "uv run ruff check packages/ethos/src/ethos/repository/policy/layout/core.py packages/ethos/src/ethos/repository/policy/layout/facade/core.py packages/ethos/src/ethos/repository/policy/layout/growth/core.py tests/unit/policy/test_module_layout.py",
+  "uv run ruff format --check packages/ethos/src/ethos/repository/policy/layout/core.py packages/ethos/src/ethos/repository/policy/layout/facade/core.py packages/ethos/src/ethos/repository/policy/layout/growth/core.py tests/unit/policy/test_module_layout.py",
+  "uv run --package ethos ethos quality module-layout --json",
+  "uv run --package ethos ethos openspec --lifecycle --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+[boundary]
+owner = "ethos"
+scope = "Module-layout growth and facade findings for semantic subpackage discipline."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-08-module-layout-semantic-guard"
+fallback = "Remove the new finding families and rely on flat-directory and import-only facade checks only."
+kill_signal = "Normal changes can add new flat module buckets or dynamic compatibility export shells without module-layout required gaps."
+
+[promotion]
+targets = [
+  "rules/module_layout.md",
+  "packages/ethos/src/ethos/repository/policy/layout/core.py",
+  "packages/ethos/src/ethos/repository/policy/layout/facade/core.py",
+  "packages/ethos/src/ethos/repository/policy/layout/growth/core.py",
+  "tests/unit/policy/test_module_layout.py",
+  "openspec/specs/quality/spec.md",
+  "openspec/changes/archive/2026-07-08-module-layout-semantic-guard",
+  "evidence/chronicle/module-layout-semantic-guard/2026-07-08.md",
+  "evidence/claims/module-layout-semantic-guard.toml",
+]

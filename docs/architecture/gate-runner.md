@@ -1,6 +1,6 @@
 ---
 subject: ethos:gate-runner
-role: reference
+role: explanation
 state: canonical
 relations:
   canonical_for: proof execution

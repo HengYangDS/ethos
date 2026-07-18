@@ -1,0 +1,29 @@
+[claim]
+id = "roadmap-quality-portability-20260717"
+subject = "ethos:quality-portability-and-scope-spec-consolidation"
+state = "accepted"
+change_id = "roadmap-quality-portability-20260717"
+summary = "Configuration lint no longer depends on a bare python alias, and one accepted OpenSpec requirement owns adopter material-change scope binding."
+
+[evidence]
+dated = "evidence/chronicle/roadmap-quality-portability-20260717/2026-07-17.md"
+sha256 = "249b1f54f64aac150d3400afd7826ba046663752a217d15119a2e7b3b9f068e1"
+evidence_ids = ["evidence:roadmap-quality-portability-20260717"]
+binding = "Active OpenSpec carrier, RED-to-GREEN portability regression, canonical scope-spec regression, isolated full-test execution, and dated Chronicle."
+verifier = "digest_only"
+tests = ["pytest -q tests/architecture/test_dependency_prose_schema_gates.py::test_config_lint_targeted_toml_invocation_handles_empty_json_set tests/architecture/test_dependency_prose_schema_gates.py::test_scope_binding_requirement_has_one_accepted_authority tests/unit/governance/test_quality_regime.py::test_blank_line_owners_use_native_or_shared_policy_without_duplication tests/unit/lanes/test_lanes_openspec_scope.py tests/unit/cli/test_adopter_openspec_lifecycle.py", "tools/ci/scripts/run-config-lint.sh", "ETHOS_TEST_SHARDS=8 ETHOS_TEST_EVIDENCE_DIR=<isolated> ETHOS_TEST_BASETEMP=<isolated> tools/ci/scripts/run-python-tests.sh", "openspec validate --all --strict --json", "ethos openspec --change roadmap-quality-portability-20260717 --lifecycle --json", "ethos prove --execute --expect-head <committed-head> --json"]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-quality-gate-governance"
+scope = "Configuration-lint interpreter portability, deterministic isolated test evidence verification, and authoritative scope-spec consolidation."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-17-roadmap-quality-portability-20260717"
+fallback = "Revert the interpreter chain and canonical specification edit together if the standalone runner or archive preflight regresses."
+kill_signal = "A bare python alias becomes required again, a targeted TOML-only runner loses validation, scope authority is duplicated, or isolated shards weaken the declared floor."
+
+[promotion]
+targets = ["tools/ci/scripts/run-config-lint.sh", "tests/architecture", "tests/unit/governance", "openspec/specs", "openspec/changes/archive/2026-07-17-roadmap-quality-portability-20260717", "evidence/claims/roadmap-quality-portability-20260717.toml", "evidence/chronicle/roadmap-quality-portability-20260717"]

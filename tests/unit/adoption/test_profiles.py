@@ -6,6 +6,7 @@ import pytest
 
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.repository.adoption.planner import available_profiles
+from ethos_core.contracts.docs.topology import required_docs_topology_paths
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -89,6 +90,7 @@ def test_gitlab_profile_adds_ci_projection(tmp_path: Path) -> None:
 
     result = adoption_plan(tmp_path, profile="gitlab", apply=True)
     release = (tmp_path / ".ethos" / "release.toml").read_text(encoding="utf-8")
+    ci = (tmp_path / ".gitlab-ci.yml").read_text(encoding="utf-8")
 
     assert result["profile"] == "gitlab"
     assert ".gitlab-ci.yml" in result["planned_files"]
@@ -97,6 +99,12 @@ def test_gitlab_profile_adds_ci_projection(tmp_path: Path) -> None:
     assert 'provider = "gitlab"' in release
     assert "[host_profile.surfaces]" in release
     assert 'ci = ".gitlab-ci.yml"' in release
+    assert "ethos status --json" in ci
+    assert "ethos report --json" in ci
+    assert "ethos prove --json" in ci
+    assert "tools/ci/scripts/run-python" not in ci
+    assert "uv run --group dev pytest" not in ci
+    assert "uv run --group dev ruff" not in ci
 
 
 def test_monorepo_profile_projects_workspace_packages(tmp_path: Path) -> None:
@@ -110,3 +118,18 @@ def test_monorepo_profile_projects_workspace_packages(tmp_path: Path) -> None:
     assert result["profile"] == "monorepo"
     assert 'name = "alpha"' in workspace
     assert 'name = "beta"' in workspace
+
+
+def test_adoption_profiles_share_docs_topology_kernel(tmp_path: Path) -> None:
+    required_docs = set(required_docs_topology_paths())
+
+    generic = adoption_plan(tmp_path / "generic", profile="generic", apply=False)
+    monorepo_root = tmp_path / "monorepo"
+    (monorepo_root / "packages").mkdir(parents=True)
+    monorepo = adoption_plan(monorepo_root, profile="monorepo", apply=False)
+
+    assert required_docs <= set(generic["planned_files"])
+    assert required_docs <= set(monorepo["planned_files"])
+    assert {path for path in generic["planned_files"] if path.startswith("docs/")} == {
+        path for path in monorepo["planned_files"] if path.startswith("docs/")
+    }

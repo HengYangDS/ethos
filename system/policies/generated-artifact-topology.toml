@@ -1,0 +1,250 @@
+schema_version = 1
+id = "generated-artifact-topology"
+source_refs = ["system/policies/generated-artifact-topology.toml"]
+adopter_specific_product_dirs_allowed = false
+cache_flat_root_prefix = ".cache"
+cache_allowed_prefixes = [".cache/local-state"]
+runtime_flat_root_prefix = "build/runtime"
+runtime_allowed_prefixes = ["build/runtime/tool-cache", "build/runtime/venv", "build/runtime/work"]
+ignore_boundary = "not a generated artifact topology subject"
+source_schema_suffix = ".schema.json"
+
+generated_suffixes = [".coverage", ".html", ".json", ".jsonl", ".log", ".sqlite", ".xml"]
+generated_filenames = [".coverage", "coverage.xml", "junit.xml", "proof.json", "report.json"]
+generated_filename_prefixes = [".coverage."]
+source_metadata_filenames = ["package-lock.json", "package.json", "pyproject.toml", "uv.lock"]
+product_adopter_root_prefixes = ["adopters", "profiles", "tests/fixtures/adopters"]
+
+[[cel_rule]]
+id = "generated"
+expression = "!(policy.source_metadata_filenames.contains(facts.name) || facts.name.endsWith(policy.source_schema_suffix)) && (policy.generated_filenames.contains(facts.name) || policy.generated_suffixes.contains(facts.suffix) || policy.generated_filename_prefixes.exists(prefix, facts.name.startsWith(prefix)))"
+decision = "classify"
+
+[[cel_rule]]
+id = "product-adopter-root"
+expression = "policy.product_adopter_root_prefixes.exists(prefix, facts.path == prefix || facts.path.startsWith(prefix + \"/\"))"
+decision = "deny"
+boundary = "ETHOS product repositories may not own adopter-specific roots"
+required_gap_prefix = "generated_artifact_adopter_specific_product_root"
+
+[[cel_rule]]
+id = "denied-prefix"
+expression = "policy[rule.prefix_group].exists(item, facts.path == item.prefix || facts.path.startsWith(item.prefix + \"/\"))"
+decision = "deny"
+prefix_group = "denied_prefix"
+
+[[cel_rule]]
+id = "denied-root-cache"
+expression = "policy[rule.prefix_group].exists(item, facts.path == item.prefix || facts.path.startsWith(item.prefix + \"/\"))"
+decision = "deny"
+prefix_group = "denied_root_cache_prefix"
+
+[[cel_rule]]
+id = "cache-flat"
+expression = "(facts.path == policy.cache_flat_root_prefix || facts.path.startsWith(policy.cache_flat_root_prefix + \"/\")) && !policy.cache_allowed_prefixes.exists(prefix, facts.path == prefix || facts.path.startsWith(prefix + \"/\"))"
+decision = "deny"
+boundary = ".cache is reserved for semantic local-state, not flat cache buckets"
+required_gap_prefix = "generated_artifact_cache_flat_drift"
+
+[[cel_rule]]
+id = "denied-legacy-generated"
+expression = "policy[rule.prefix_group].exists(item, facts.path == item.prefix || facts.path.startsWith(item.prefix + \"/\"))"
+decision = "deny"
+prefix_group = "denied_legacy_generated_prefix"
+
+[[cel_rule]]
+id = "runtime-flat"
+expression = "facts.path != policy.runtime_flat_root_prefix && facts.path.startsWith(policy.runtime_flat_root_prefix + \"/\") && !policy.runtime_allowed_prefixes.exists(prefix, facts.path == prefix || facts.path.startsWith(prefix + \"/\"))"
+decision = "deny"
+boundary = "build/runtime must be organized by semantic runtime subroot: tool-cache, venv, or work"
+required_gap_prefix = "generated_artifact_runtime_flat_drift"
+
+[[cel_rule]]
+id = "declarative"
+expression = "!facts.generated && policy[rule.prefix_group].exists(item, facts.path == item.prefix || facts.path.startsWith(item.prefix + \"/\"))"
+decision = "review"
+prefix_group = "declarative_prefix"
+
+[[cel_rule]]
+id = "allowed"
+expression = "policy[rule.prefix_group].exists(item, facts.path == item.prefix || facts.path.startsWith(item.prefix + \"/\"))"
+decision = "allow"
+prefix_group = "allowed_prefix"
+
+[[cel_rule]]
+id = "review"
+expression = "policy[rule.prefix_group].exists(item, facts.path == item.prefix || facts.path.startsWith(item.prefix + \"/\"))"
+decision = "review"
+prefix_group = "review_prefix"
+
+[[cel_rule]]
+id = "denied-generated"
+expression = "facts.generated && policy[rule.prefix_group].exists(item, facts.path == item.prefix || facts.path.startsWith(item.prefix + \"/\"))"
+decision = "deny"
+boundary = "generated output may not live in config, semantic docs truth, or source"
+prefix_group = "denied_generated_prefix"
+
+[[cel_rule]]
+id = "repo-root-generated"
+expression = "facts.generated && !facts.path.contains(\"/\")"
+decision = "deny"
+boundary = "repo root is not a generated artifact owner"
+required_gap_prefix = "generated_artifact_repo_root_drift"
+
+[[declarative_prefix]]
+prefix = ".config/ethos"
+boundary = "declarative config, policy, and adopter interface only"
+
+[[allowed_prefix]]
+prefix = ".cache/local-state"
+boundary = "host-local runtime state, leases, locks, executions, sessions"
+
+[[allowed_prefix]]
+prefix = ".ethos/state"
+boundary = "native ETHOS local runtime state, leases, locks, executions, sessions"
+
+[[allowed_prefix]]
+prefix = "build/runtime/tool-cache"
+boundary = "ignored tool runtime caches keyed by tool name"
+
+[[allowed_prefix]]
+prefix = "build/runtime/venv"
+boundary = "ignored source-bound virtual environments for Work Lane runners"
+
+[[allowed_prefix]]
+prefix = "build/runtime/work"
+boundary = "ignored provider emulator and scratch working state"
+
+[[allowed_prefix]]
+prefix = "build/ethos"
+boundary = "machine generated ETHOS proof, logs, reports, artifacts, projections"
+
+[[allowed_prefix]]
+prefix = "build/evidence"
+boundary = "machine generated quality and proof evidence artifacts"
+
+[[allowed_prefix]]
+prefix = "build/artifacts"
+boundary = "ignored local build and package artifacts"
+
+[[review_prefix]]
+prefix = "docs/evidence"
+boundary = "curated dated reviewable evidence"
+
+[[review_prefix]]
+prefix = "evidence/chronicle"
+boundary = "curated judged history evidence"
+
+[[review_prefix]]
+prefix = "evidence/parity"
+boundary = "tracked parity evidence promoted by explicit command"
+
+[[review_prefix]]
+prefix = "tools/ci/scripts"
+boundary = "repository-owned reusable runner scripts"
+
+[[denied_prefix]]
+prefix = ".config/ci/scripts"
+boundary = "runner scripts belong under tools/ci/scripts"
+required_gap_prefix = "retired_config_script_home"
+
+[[denied_root_cache_prefix]]
+prefix = ".import_linter_cache"
+boundary = "import-linter cache belongs under build/runtime/tool-cache/import-linter"
+required_gap_prefix = "generated_artifact_root_cache_drift"
+
+[[denied_root_cache_prefix]]
+prefix = ".import-linter-cache"
+boundary = "import-linter cache belongs under build/runtime/tool-cache/import-linter"
+required_gap_prefix = "generated_artifact_root_cache_drift"
+
+[[denied_root_cache_prefix]]
+prefix = ".pytest_cache"
+boundary = "pytest cache belongs under build/runtime/tool-cache/pytest"
+required_gap_prefix = "generated_artifact_root_cache_drift"
+
+[[denied_root_cache_prefix]]
+prefix = ".ruff_cache"
+boundary = "Ruff cache belongs under build/runtime/tool-cache/ruff"
+required_gap_prefix = "generated_artifact_root_cache_drift"
+
+[[denied_root_cache_prefix]]
+prefix = ".mypy_cache"
+boundary = "mypy cache belongs under build/runtime/tool-cache/mypy"
+required_gap_prefix = "generated_artifact_root_cache_drift"
+
+[[denied_root_cache_prefix]]
+prefix = ".tox"
+boundary = "tox runtime state belongs under build/runtime/tool-cache/tox"
+required_gap_prefix = "generated_artifact_root_cache_drift"
+
+[[denied_root_cache_prefix]]
+prefix = ".nox"
+boundary = "nox runtime state belongs under build/runtime/tool-cache/nox"
+required_gap_prefix = "generated_artifact_root_cache_drift"
+
+[[denied_root_cache_prefix]]
+prefix = ".uv-cache"
+boundary = "uv cache belongs under build/runtime/tool-cache/uv"
+required_gap_prefix = "generated_artifact_root_cache_drift"
+
+[[denied_legacy_generated_prefix]]
+prefix = "build/cache"
+boundary = "legacy cache bucket is not semantic; use build/runtime/tool-cache/<tool>"
+required_gap_prefix = "generated_artifact_legacy_generated_home"
+
+[[denied_legacy_generated_prefix]]
+prefix = "build/runtime/gitlab-ci-local"
+boundary = "provider work state belongs under build/runtime/work/gitlab-ci-local"
+required_gap_prefix = "generated_artifact_legacy_generated_home"
+
+[[denied_legacy_generated_prefix]]
+prefix = "dist"
+boundary = "package artifacts belong under build/artifacts/python"
+required_gap_prefix = "generated_artifact_legacy_generated_home"
+
+[[denied_generated_prefix]]
+prefix = ".config"
+required_gap_prefix = "generated_artifact_config_drift"
+
+[[denied_generated_prefix]]
+prefix = "docs"
+required_gap_prefix = "generated_artifact_governed_docs_drift"
+
+[[denied_generated_prefix]]
+prefix = "packages"
+required_gap_prefix = "generated_artifact_source_drift"
+
+[[lifecycle_class]]
+id = "runtime_cache"
+homes = [
+  ".cache/local-state",
+  ".ethos/state",
+  "build/runtime/tool-cache",
+  "build/runtime/venv",
+  "build/runtime/work",
+]
+tracked = false
+promotion_allowed = false
+cleanup = "disposable host-local state; delete or recreate from source commands"
+
+[[lifecycle_class]]
+id = "machine_evidence"
+homes = ["build/evidence", "build/ethos"]
+tracked = false
+promotion_allowed = true
+cleanup = "regenerate from a HEAD-bound command; promote only by review or command"
+
+[[lifecycle_class]]
+id = "local_artifact"
+homes = ["build/artifacts"]
+tracked = false
+promotion_allowed = false
+cleanup = "rebuild from package metadata or release commands"
+
+[[lifecycle_class]]
+id = "curated_evidence"
+homes = ["docs/evidence", "evidence/chronicle", "evidence/parity"]
+tracked = true
+promotion_allowed = false
+cleanup = "retire or supersede by tracked review, not by cache cleanup"

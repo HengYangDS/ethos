@@ -1,0 +1,23 @@
+[meta]
+version = 1
+owner = "adopter"
+
+[semantic_axes]
+required = ["subject", "role", "state", "relations"]
+
+[states]
+allowed = [{% for state in states %}{{ state | json }}{% if not loop.last %}, {% endif %}{% endfor %}]
+
+# Document roles name a document's function; kernel roles are inherited
+# from ETHOS and always valid. Add repo-specific roles here as needed.
+[roles]
+allowed = [
+{% for role in roles %}  {{ role | json }},
+{% endfor %}]
+
+# Map each product/adopter docs root to the roles it may hold. Kernel
+# roots (decisions/, evidence/, history/, reference/) are bound by the
+# ETHOS contract; declare your own extension roots below.
+[extension_roots]
+"docs/governance" = ["policy", "explanation", "ledger", "index"]
+"docs/start" = ["how-to", "index"]

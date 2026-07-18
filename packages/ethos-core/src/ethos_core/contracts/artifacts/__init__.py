@@ -1,0 +1,1 @@
+"""Artifact contract semantic package."""

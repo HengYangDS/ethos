@@ -1,9 +1,9 @@
 # Coverage policy truth boundary.
 # The hard gate must reflect executed repository evidence, not aspiration.
-current_hard_floor = 95
-aspirational_floor = 95
+current_hard_floor = 100
+aspirational_floor = 100
 branch_coverage_required = true
 owner = "product-toolchain"
-source = ".config/checks/coverage/coverage.ini and .config/ci/scripts/run-python-tests.sh"
+source = ".config/checks/coverage/coverage.ini and tools/ci/scripts/run-python-tests.sh"
 latest_artifact = "build/evidence/quality/tests/coverage/coverage.xml"
 runtime_data = "build/evidence/quality/tests/coverage/.coverage"

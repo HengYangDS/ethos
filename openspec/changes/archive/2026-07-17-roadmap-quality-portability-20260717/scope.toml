@@ -1,0 +1,2 @@
+schema_version = 1
+paths = ["tools/ci/scripts/run-config-lint.sh", "tests/architecture/test_dependency_prose_schema_gates.py", "openspec/specs/quality/spec.md", "openspec/specs/repository-governance/spec.md", "openspec/changes/roadmap-quality-portability-20260717/**", "evidence/claims/roadmap-quality-portability-20260717.toml", "evidence/chronicle/roadmap-quality-portability-20260717/**"]

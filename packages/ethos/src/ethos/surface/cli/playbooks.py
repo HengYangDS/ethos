@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from ethos.adapters.repo.status import workspace_status
+from ethos.adapters.repo.dirty.core import change_scope_paths_from_status
+from ethos.adapters.repo.status.core import workspace_status
 from ethos.assistants.playbooks import playbooks_report
 from ethos.assistants.playbooks import route_playbook
 from ethos.surface.cli._base import JsonFlag
@@ -10,6 +11,7 @@ from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import playbooks_app
 from ethos.surface.cli._base import resolve_root
+from ethos_core.normalization.core import string_sequence
 from ethos_core.result import EthosResult
 
 
@@ -27,11 +29,11 @@ def playbooks_check(
         command="playbooks check",
         ok=bool(report["ok"]),
         state="ready" if report["ok"] else "gapped",
-        required_gaps=tuple(report["required_gaps"]),
+        required_gaps=tuple(string_sequence(report.get("required_gaps"))),
         next_actions=("ethos playbooks route",),
         data=report,
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @playbooks_app.command(name="route")
@@ -46,7 +48,8 @@ def playbooks_route(
     """Route a subject to repo-local ETHOS playbooks."""
     repo = resolve_root(root)
     route_subject = "changed-scope" if changed else subject
-    changed_paths = tuple(workspace_status(repo)["changed_paths"]) if changed else ()
+    status_payload = workspace_status(repo, include_foreign_path_scope=False)
+    changed_paths = change_scope_paths_from_status(repo, status_payload) if changed else ()
     report = route_playbook(
         repo,
         route_subject,
@@ -58,7 +61,7 @@ def playbooks_route(
         command="playbooks route",
         ok=bool(report["ok"]),
         state="routed" if report["ok"] else "gapped",
-        required_gaps=tuple(report["required_gaps"]),
+        required_gaps=tuple(string_sequence(report.get("required_gaps"))),
         data=report,
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)

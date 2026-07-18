@@ -1,18 +1,27 @@
-# ruff: noqa: ARG005, FBT002, FBT003, FLY002
+# ruff: noqa: ARG005, FBT003, FLY002
 from __future__ import annotations
 
 import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 
+import ethos.domain.land.core as land_core
+import ethos.domain.land.publication as land_publication
+import ethos.domain.land.trust.core as land_trust
 from ethos.adapters.admission import core as admission
 from ethos.adapters.repo import git as gitio
-from ethos.domain import land
-from ethos.domain import land_support
+from ethos.domain.land.intake.core import intake_mine_report
+from ethos.domain.land.intake.core import intake_projection_report
 from ethos.repository.adoption import evolution
-from ethos.repository.policy import rules as policy_rules
-from ethos_core.contracts.branch_roles import ROLE_ACCEPTED_ROOT
-from ethos_core.contracts.branch_roles import ROLE_WORK_LANE
+from ethos.repository.policy.rules.check import rules_check_report
+from ethos.repository.policy.rules.evaluation import scope_matches_path
+from ethos.repository.policy.rules.exceptions import date_or_none
+from ethos.repository.policy.rules.exceptions import policy_exceptions_report
+from ethos.repository.policy.rules.exceptions import ttl_days_or_none
+from ethos.repository.policy.rules.migration import toml_table_key
+from ethos.repository.policy.rules.migration import toml_value
+from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
+from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 
 
 def cp(stdout: str = "", stderr: str = "", returncode: int = 0) -> subprocess.CompletedProcess[str]:
@@ -20,7 +29,7 @@ def cp(stdout: str = "", stderr: str = "", returncode: int = 0) -> subprocess.Co
 
 
 def status(
-    role: str = ROLE_WORK_LANE, dirty: bool = False, changed: list[str] | None = None
+    role: str = ROLE_WORK_LANE, *, dirty: bool = False, changed: list[str] | None = None
 ) -> dict[str, object]:
     return {
         "role": role,
@@ -30,15 +39,19 @@ def status(
         "candidate": {
             "exists": True,
             "worktree_exists": True,
-            "worktree_path": "/tmp/candidate",
+            "worktree_path": "/workspace/candidate",
             "head": "c1",
         },
-        "closeout_support": {"supported": True, "claim_binding": "missing", "claim_id": ""},
+        "closeout_support": {
+            "supported": True,
+            "claim_binding": "missing",
+            "claim_id": "",
+        },
     }
 
 
 def test_admission_hook_layers_and_postwrite_fuse(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(admission, "workspace_status", lambda repo: status())
+    monkeypatch.setattr(admission, "workspace_status", lambda repo, **_kwargs: status())
     assert admission.hook_admission_report(root=tmp_path, layer="unknown")["state"] == "admitted"
     assert (
         admission.hook_admission_report(root=tmp_path, layer="context", expected_root=tmp_path)[
@@ -59,7 +72,7 @@ def test_admission_hook_layers_and_postwrite_fuse(monkeypatch, tmp_path: Path) -
     monkeypatch.setattr(
         admission,
         "workspace_status",
-        lambda repo: status(ROLE_ACCEPTED_ROOT, changed=["README.md"]),
+        lambda repo, **_kwargs: status(ROLE_ACCEPTED_ROOT, changed=["README.md"]),
     )
     protected = admission.hook_admission_report(
         root=tmp_path, layer="post-write", paths=[Path("README.md")]
@@ -70,7 +83,7 @@ def test_admission_hook_layers_and_postwrite_fuse(monkeypatch, tmp_path: Path) -
     monkeypatch.setattr(
         admission,
         "workspace_status",
-        lambda repo: status(ROLE_WORK_LANE, changed=["unexpected.md"]),
+        lambda repo, **_kwargs: status(ROLE_WORK_LANE, changed=["unexpected.md"]),
     )
     unexpected = admission.hook_admission_report(
         root=tmp_path, layer="post-write", paths=[Path("README.md")]
@@ -85,15 +98,20 @@ def test_push_and_ref_move_admission(monkeypatch, tmp_path: Path) -> None:
         candidate_branch="candidate/dev",
     )
     monkeypatch.setattr(
-        "ethos_core.contracts.branch_roles.load_branch_role_policy", lambda root: policy
+        "ethos_core.contracts.branch.roles.load_branch_role_policy", lambda root: policy
     )
     monkeypatch.setattr(
-        "ethos.adapters.mutation.core._proof_gaps", lambda root, head: ["proof_not_proven"]
+        "ethos.adapters.mutation.core.proof_gaps",
+        lambda root, head: ["proof_not_proven"],
     )
     blocked = admission.push_admission_report(
         root=tmp_path, target_ref="refs/heads/dev", pushed_head="h1"
     )
-    assert blocked["required_gaps"] == ["proof_not_proven"]
+    # The accepted-branch push now enforces the candidate-train topology (shared with the
+    # ref-move reducer via accepted_advance_gaps), so a proven-but-off-train push blocks
+    # on BOTH proof and topology. On this empty tmp repo the containment check fails.
+    assert "proof_not_proven" in blocked["required_gaps"]
+    assert "accepted_advance_not_candidate_validated" in blocked["required_gaps"]
     allowed = admission.push_admission_report(
         root=tmp_path, target_ref="refs/heads/work/x", pushed_head="h1"
     )
@@ -161,35 +179,35 @@ def test_evolution_ledger_campaign_and_candidate_edges(tmp_path: Path) -> None:
 
 
 def test_land_readiness_projection_edges(monkeypatch, tmp_path: Path) -> None:
-    assert land.command_is_executed_proof("ethos prove --execute --json") is True
-    assert land.remote_publication_deferred()["state"] == "deferred"
-    assert land.land_next_actions(ok=False, gaps=("candidate_base_stale",), current_head="h1")[
+    assert land_trust.command_is_executed_proof("ethos prove --execute --json") is True
+    assert land_publication.remote_publication_deferred()["state"] == "deferred"
+    assert land_core.land_next_actions(ok=False, gaps=("candidate_base_stale",), current_head="h1")[
         0
     ].startswith("ethos lane refresh-base")
-    assert land.closeout_next_actions(
+    assert land_core.closeout_next_actions(
         ok=False, gaps=("candidate_diverged_from_accepted",), current_head="h1"
     )[0].startswith("ethos lane candidate")
 
     decision = SimpleNamespace(ok=False)
-    assert land.closeout_audit_root(tmp_path, decision) == tmp_path
+    assert land_core.closeout_audit_root(tmp_path, decision) == tmp_path
     decision = SimpleNamespace(ok=True)
     monkeypatch.setattr(
-        land,
+        land_core,
         "workspace_status",
-        lambda repo: {"candidate": {"worktree_path": str(tmp_path / "candidate")}},
+        lambda repo, **_kwargs: {"candidate": {"worktree_path": str(tmp_path / "candidate")}},
     )
-    assert land.closeout_audit_root(tmp_path, decision) == tmp_path / "candidate"
-    skipped = land.repository_audit_after_admission(tmp_path, SimpleNamespace(ok=False))
+    assert land_core.closeout_audit_root(tmp_path, decision) == tmp_path / "candidate"
+    skipped = land_core.repository_audit_after_admission(tmp_path, SimpleNamespace(ok=False))
     assert skipped["state"] == "skipped"
 
-    assert land.intake_projection_report(tmp_path)["state"] == "unconfigured"
+    assert intake_projection_report(tmp_path)["state"] == "unconfigured"
     (tmp_path / ".ethos").mkdir()
     (tmp_path / ".ethos" / "intake.toml").write_text("provider = ''\n", encoding="utf-8")
-    assert land.intake_projection_report(tmp_path)["required_gaps"] == [
+    assert intake_projection_report(tmp_path)["required_gaps"] == [
         "intake_provider_missing:.ethos/intake.toml"
     ]
     (tmp_path / ".ethos" / "intake.toml").write_text("bad = [\n", encoding="utf-8")
-    assert land.intake_projection_report(tmp_path)["provider"] == "invalid"
+    assert intake_projection_report(tmp_path)["provider"] == "invalid"
 
     claims = {"ok": True, "claims": {}}
     workspace = {
@@ -197,7 +215,7 @@ def test_land_readiness_projection_edges(monkeypatch, tmp_path: Path) -> None:
         "branch": "work/x",
         "closeout_support": {"supported": True, "claim_binding": "missing"},
     }
-    gaps = land.trust_closeout_package(workspace=workspace, claims=claims)["required_gaps"]
+    gaps = land_trust.trust_closeout_package(workspace=workspace, claims=claims)["required_gaps"]
     assert "trust_claim_missing" in gaps
     assert "work_lane_claim_binding_missing:work/x" in gaps
     envelope = {
@@ -205,7 +223,7 @@ def test_land_readiness_projection_edges(monkeypatch, tmp_path: Path) -> None:
         "evidence": {"commands": ["ethos prove --execute --json"]},
         "required_gaps": [],
     }
-    ready = land.trust_closeout_package(
+    ready = land_trust.trust_closeout_package(
         workspace={
             "role": "work_lane",
             "branch": "work/x",
@@ -216,23 +234,126 @@ def test_land_readiness_projection_edges(monkeypatch, tmp_path: Path) -> None:
     assert ready["blocking"] is False
 
 
-def test_land_support_additional_boundary_edges(monkeypatch, tmp_path: Path) -> None:
+def test_intake_mine_report_keeps_signals_as_non_authoritative_candidates(
+    tmp_path: Path,
+) -> None:
+    claim_dir = tmp_path / "evidence" / "claims"
+    claim_dir.mkdir(parents=True)
+    (claim_dir / "alpha.toml").write_text(
+        'id = "alpha"\n[evidence]\nhead = "1111111111111111111111111111111111111111"\n',
+        encoding="utf-8",
+    )
+
+    report = intake_mine_report(tmp_path)
+
+    assert report["state"] == "mined"
+    assert report["repository_truth"] is False
+    assert report["writes"] == []
+    assert report["summary"] == {
+        "signal_count": 1,
+        "candidate_count": 1,
+        "auto_raise_allowed": False,
+        "auto_dispatch_allowed": False,
+    }
+    candidate = report["issue_candidates"][0]
+    assert candidate["invalid_state"] == "evidence.head_stale"
+    assert candidate["auto_raise_allowed"] is False
+    assert candidate["auto_dispatch_allowed"] is False
+
+
+def test_intake_mine_report_ignores_invalid_unbound_and_current_claims(
+    tmp_path: Path, monkeypatch
+) -> None:
+    claims = tmp_path / "evidence" / "claims"
+    claims.mkdir(parents=True)
+    (claims / "bad.toml").write_text("bad = [\n", encoding="utf-8")
+    (claims / "missing-evidence.toml").write_text('id = "missing-evidence"\n', encoding="utf-8")
+    (claims / "blank-head.toml").write_text(
+        'id = "blank-head"\n[evidence]\nhead = ""\n', encoding="utf-8"
+    )
+    (claims / "current-head.toml").write_text(
+        'id = "current-head"\n[evidence]\nhead = "abc123"\n', encoding="utf-8"
+    )
+    monkeypatch.setattr(
+        "ethos.domain.land.intake.core._git_head",
+        lambda _repo: "abc123",
+    )
+
+    report = intake_mine_report(tmp_path)
+
+    assert report["state"] == "clean"
+    assert report["intake_envelopes"] == []
+    assert report["issue_candidates"] == []
+
+
+def test_intake_mine_report_uses_current_git_head_and_handles_nonzero_git(
+    tmp_path: Path, monkeypatch
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True)
+    (repo / "README.md").write_text("repo\n", encoding="utf-8")
+    subprocess.run(["git", "add", "README.md"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-m", "init"], cwd=repo, check=True)
+    head = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=repo,
+        text=True,
+        capture_output=True,
+        check=True,
+    ).stdout.strip()
+    claims = repo / "evidence" / "claims"
+    claims.mkdir(parents=True)
+    (claims / "current.toml").write_text(
+        f'id = "current"\n[evidence]\nhead = "{head}"\n', encoding="utf-8"
+    )
+
+    assert intake_mine_report(repo)["state"] == "clean"
+
+    class Completed:
+        returncode = 1
+        stdout = ""
+
+    monkeypatch.setattr("subprocess.run", lambda *_args, **_kwargs: Completed())
+
+    assert intake_mine_report(repo)["state"] == "mined"
+
+
+def test_intake_mine_report_tolerates_git_head_lookup_failures(tmp_path: Path, monkeypatch) -> None:
+    claims = tmp_path / "evidence" / "claims"
+    claims.mkdir(parents=True)
+    (claims / "fallback.toml").write_text(
+        'id = "fallback"\n[evidence]\nhead = "abc123"\n', encoding="utf-8"
+    )
+
+    def raise_os_error(*_args, **_kwargs):
+        raise OSError
+
+    monkeypatch.setattr("subprocess.run", raise_os_error)
+
+    report = intake_mine_report(tmp_path)
+
+    assert report["state"] == "mined"
+    assert report["issue_candidates"][0]["candidate_id"] == "claim-fallback-head-fallback"
+
+
+def test_land_publication_additional_boundary_edges(monkeypatch, tmp_path: Path) -> None:
     decision = SimpleNamespace(ok=True)
     monkeypatch.setattr(
-        land_support,
+        land_core,
         "workspace_status",
-        lambda _repo: {"candidate": "not-a-dict"},
+        lambda _repo, **_kwargs: {"candidate": "not-a-dict"},
     )
-    assert land_support.closeout_audit_root(tmp_path, decision) == tmp_path
+    assert land_core.closeout_audit_root(tmp_path, decision) == tmp_path
 
     (tmp_path / ".ethos").mkdir(exist_ok=True)
     (tmp_path / ".ethos" / "intake.toml").write_text('provider = "gitlab"\n', encoding="utf-8")
-    configured = land_support.intake_projection_report(tmp_path)
+    configured = intake_projection_report(tmp_path)
     assert configured["state"] == "configured"
     assert configured["provider"] == "gitlab"
     assert configured["required_gaps"] == []
 
-    blocked = land_support.trust_closeout_package(
+    blocked = land_trust.trust_closeout_package(
         workspace={"role": "accepted_root", "branch": "dev"},
         claims={"ok": False, "required_gaps": ["claim_schema_invalid"], "claims": {}},
     )
@@ -241,24 +362,24 @@ def test_land_support_additional_boundary_edges(monkeypatch, tmp_path: Path) -> 
 
 
 def test_rules_policy_edge_helpers_and_reports(tmp_path: Path) -> None:
-    assert policy_rules._scope_matches_path("repository", "a/b") is True
-    assert policy_rules._scope_matches_path("path:docs", "docs/a.md") is True
-    assert policy_rules._scope_matches_path("path:", "docs/a.md") is False
-    assert policy_rules._toml_value(True) == "true"
-    assert policy_rules._toml_value(["a", "b"]) == '["a", "b"]'
-    assert policy_rules._toml_table_key("with space") == '"with space"'
-    assert policy_rules._ttl_days_or_none("7d") == 7
-    assert policy_rules._ttl_days_or_none("bad") is None
-    assert policy_rules._date_or_none("not-date") is None
+    assert scope_matches_path("repository", "a/b") is True
+    assert scope_matches_path("path:docs", "docs/a.md") is True
+    assert scope_matches_path("path:", "docs/a.md") is False
+    assert toml_value(True) == "true"
+    assert toml_value(["a", "b"]) == '["a", "b"]'
+    assert toml_table_key("with space") == '"with space"'
+    assert ttl_days_or_none("7d") == 7
+    assert ttl_days_or_none("bad") is None
+    assert date_or_none("not-date") is None
 
     rules_dir = tmp_path / "rules" / "ethos"
     rules_dir.mkdir(parents=True)
     (rules_dir / "policy-exceptions.toml").write_text("[[exception]\n", encoding="utf-8")
-    assert str(policy_rules.policy_exceptions_report(tmp_path)["required_gaps"][0]).startswith(
+    assert str(policy_exceptions_report(tmp_path)["required_gaps"][0]).startswith(
         "policy_exception_parse_error:"
     )
     (rules_dir / "policy-exceptions.toml").write_text("exception = 'bad'\n", encoding="utf-8")
-    assert policy_rules.policy_exceptions_report(tmp_path)["exceptions"] == []
+    assert policy_exceptions_report(tmp_path)["exceptions"] == []
 
     config = tmp_path / ".ethos"
     config.mkdir()
@@ -289,7 +410,7 @@ def test_rules_policy_edge_helpers_and_reports(tmp_path: Path) -> None:
         ),
         encoding="utf-8",
     )
-    gaps = policy_rules.rules_check_report(tmp_path)["required_gaps"]
+    gaps = rules_check_report(tmp_path)["required_gaps"]
     assert "duplicate_rule_id:r1" in gaps
     assert "unknown_rule_gate:r1:missing-gate" in gaps
 
@@ -315,12 +436,12 @@ def test_remote_availability_and_local_ci_fallback_edges(monkeypatch, tmp_path: 
     assert availability["advisory_gaps"] == ["remote_unavailable:origin"]
     assert ("git", "ls-remote", "--exit-code", "origin") in calls
 
-    deferred = land.remote_publication_deferred(availability)
+    deferred = land_publication.remote_publication_deferred(availability)
     assert deferred["state"] == "deferred"
     assert deferred["fallback"]["kind"] == "local_ci_fallback"
     assert deferred["fallback"]["hosted_ci_status_claimed"] is False
 
-    package = land.publication_readiness(
+    package = land_publication.publication_readiness(
         branch="work/x",
         local_ok=True,
         policy=SimpleNamespace(submit_branch_for_source=lambda branch: f"submit/{branch}"),
@@ -328,10 +449,11 @@ def test_remote_availability_and_local_ci_fallback_edges(monkeypatch, tmp_path: 
     )
     assert package["remote_state"] == "deferred"
     assert package["fallback_evidence"]["evidence_class"] == "local_fallback"
-    assert package["fallback_evidence"]["command"] == ".config/ci/scripts/run-local-ci.sh"
+    assert package["fallback_evidence"]["command"] == "tools/ci/scripts/run-local-ci.sh"
+    assert "tools/ci/scripts/run-module-layout.sh" in package["fallback_evidence"]["owner_scripts"]
     assert package["required_gaps"] == []
     assert package["next_actions"] == [
-        "run .config/ci/scripts/run-local-ci.sh as local fallback evidence"
+        "run tools/ci/scripts/run-local-ci.sh as local fallback evidence"
     ]
 
 
@@ -350,13 +472,14 @@ def test_remote_availability_reports_configured_remote_available(
 
     assert availability["state"] == "available"
     assert availability["available"] is True
-    package = land.publication_readiness(
+    package = land_publication.publication_readiness(
         branch="work/x",
         local_ok=True,
         policy=SimpleNamespace(submit_branch_for_source=lambda branch: f"submit/{branch}"),
         remote_availability=availability,
     )
-    assert package["remote_state"] == "available"
+    assert package["remote_state"] == "deferred"
+    assert package["remote_availability"]["state"] == "available"
     assert package["next_actions"] == [
         "create configured submit branch when remote publication is available"
     ]

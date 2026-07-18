@@ -6,7 +6,7 @@ summary = "Records digest-bound evidence for product migration state reporting, 
 
 [evidence]
 dated = "evidence/chronicle/product-truth-closure/2026-07-01.md"
-sha256 = "0f1d7b3b04232e4a915051486a907d6913ed7cd03fed039460499302f32b20fd"
+sha256 = "4c2249c6750579a5b21a9b57f0e1e6ef4fe786651d29824109806958e6be9b67"
 evidence_ids = ["evidence:ethos-product-truth-closure"]
 binding = "digest-bound product truth evidence binding"
 verifier = "digest_only"
@@ -17,25 +17,8 @@ tests = [
   "uv run --package ethos ethos quality command-examples --json",
 ]
 
-[scope]
-packages = [
-  "ethos",
-  "ethos-core",
-  "ethos-contracts",
-  "ethos-repository",
-  "ethos-assistants",
-  "ethos-adapters",
-  "ethos-test",
-]
-distributions = [
-  "distributions/npm",
-]
-docs = [
-  "docs/architecture/product-ontology.md",
-  "docs/architecture/package-ontology.md",
-  "docs/reference/command-plane.md",
-]
-
+[evidence.freshness]
+mode = "historical"
 [boundary]
 owner = "ethos-repository"
 scope = "Product truth reporting, scaffold diagnostics, command examples, and package ontology"

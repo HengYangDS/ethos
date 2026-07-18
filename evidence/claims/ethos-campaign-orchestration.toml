@@ -6,36 +6,24 @@ summary = "ETHOS campaigns are manifest-backed orchestration records for sequent
 
 [evidence]
 dated = "evidence/chronicle/campaign-orchestration/2026-07-02.md"
-sha256 = "2382224a2b3d61d99ad8f26c82a8c2a3e66657a8248e03abad8eff5ac0041cd0"
+sha256 = "2f3e6247a6304f9b46697cbc84c0551b63a806828f2d7746e65efaaa5e849202"
 evidence_ids = ["evidence:ethos-campaign-orchestration"]
 binding = "digest-bound campaign orchestration evidence"
 verifier = "digest_only"
 tests = [
-  "uv run --group dev pytest -q tests/unit/governance/test_evolution_ledger.py::test_campaign_report_exposes_manifest_steps_and_closeout_progress tests/unit/cli/test_contracts.py::test_campaign_status_reports_manifest_steps tests/unit/cli/test_contracts.py::test_campaign_closeout_reports_local_campaign_packages tests/unit/governance/test_validation_gates.py::test_campaign_schema_accepts_lane_closeout_steps",
+  "uv run --group dev pytest -q tests/unit/governance/test_evolution_ledger.py::test_campaign_report_exposes_manifest_steps_and_closeout_progress tests/unit/cli/test_contracts.py::test_campaign_status_reports_manifest_steps tests/unit/cli/test_contracts.py::test_campaign_closeout_reports_local_campaign_packages tests/unit/governance/validation/test_schemas.py::test_campaign_schema_accepts_lane_closeout_steps",
   "uv run --package ethos ethos quality schemas --json",
   "uv run openspec validate --all --strict --json",
   "uv run --package ethos ethos campaign status --json",
   "uv run --package ethos ethos campaign closeout --json",
-  "uv run --package ethos ethos parity shadow --adopter generic --target /Users/yheng/projects/ethos-work-campaign-orchestration --execute --write-evidence --json",
-  "uv run --package ethos ethos parity shadow --adopter alphasim-dmgr --target /Users/yheng/projects/alphasim-dmgr-fix-b3 --execute --write-evidence --json",
+  "uv run --package ethos ethos parity shadow --adopter generic --target <workspace>/ethos-work-campaign-orchestration --execute --write-evidence --json",
+  "uv run --package ethos ethos parity shadow --adopter reference-adopter --target <adopter-repo> --execute --write-evidence --json",
   "uv run --package ethos ethos parity gaps --json",
-  "uv run --package ethos ethos parity gaps --adopter alphasim-dmgr --json",
+  "uv run --package ethos ethos parity gaps --adopter reference-adopter --json",
 ]
 
-[scope]
-packages = [
-  "ethos",
-  "ethos-repository",
-]
-schemas = [
-  "system/schemas/kernel/campaign.schema.json",
-  "system/schemas/kernel/campaign-closeout.schema.json",
-]
-docs = [
-  "docs/governance/evolution-campaign.md",
-  "docs/architecture/terminal-governance-product-design.md",
-]
-
+[evidence.freshness]
+mode = "historical"
 [boundary]
 owner = "ethos-repository"
 scope = "Campaign manifest read model, campaign closeout package wiring, schema contract, and terminal productization campaign manifest"
@@ -50,9 +38,8 @@ targets = [
   "evidence/claims/ethos-campaign-orchestration.toml",
   "evidence/chronicle/campaign-orchestration/2026-07-02.md",
   "evidence/parity/generic-shadow.json",
-  "evidence/parity/alphasim-dmgr-shadow.json",
   "docs/governance/evolution-campaign.md",
-  "docs/architecture/terminal-governance-product-design.md",
+  "docs/plans/terminal-governance-product-design.md",
   "evolution/campaigns/terminal-openspec-productization/campaign.toml",
   "openspec/changes/archive/2026-07-01-ethos-campaign-orchestration/proposal.md",
   "openspec/changes/archive/2026-07-01-ethos-campaign-orchestration/design.md",
@@ -65,5 +52,5 @@ targets = [
   "system/schemas/kernel/campaign-closeout.schema.json",
   "tests/unit/cli/test_contracts.py",
   "tests/unit/governance/test_evolution_ledger.py",
-  "tests/unit/governance/test_validation_gates.py",
+  "tests/unit/governance/validation",
 ]

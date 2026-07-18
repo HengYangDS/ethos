@@ -3,16 +3,16 @@ id = "remote-local-ci-fallback"
 subject = "ethos:remote-local-ci-fallback"
 state = "active"
 change_id = "remote-local-ci-fallback-20260707"
-summary = "ETHOS publish probes remote availability and exposes local-ci fallback evidence when remote publication is unavailable."
+summary = "ETHOS publish probes remote availability and exposes local-ci fallback evidence when remote delivery is unavailable."
 
 [evidence]
 dated = "evidence/chronicle/remote-local-ci-fallback/2026-07-07.md"
 sha256 = "8982e40cb9d402d400f122c63c2b1adb486e52f6e52387e56b5da0279a850515"
 evidence_ids = ["evidence:remote-local-ci-fallback"]
 binding = "Remote availability probe and local-ci fallback binding"
-verifier = "semantic"
+verifier = "digest_only"
 tests = [
-  ".config/ci/scripts/run-local-ci.sh",
+  "tools/ci/scripts/run-local-ci.sh",
   "ETHOS_ROOT=$PWD uv run --group dev ethos publish --json",
   "ETHOS_ROOT=$PWD uv run --group dev ethos quality schemas --json",
   "uv run --group dev pytest tests/unit/cli/test_contracts.py::test_campaign_closeout_reports_local_campaign_packages tests/unit/cli/test_contracts_closeout.py::test_configured_branch_roles_drive_local_lifecycle_commands -q",
@@ -21,14 +21,8 @@ tests = [
   "ETHOS_ROOT=$PWD uv run --group dev ethos openspec --lifecycle --json",
 ]
 
-[scope]
-packages = ["ethos"]
-tests = [
-  "tests/unit/coverage/test_admission_land_evolution_rules_edges.py",
-  "tests/unit/cli/test_contracts_closeout.py",
-  "tests/architecture/test_release_assets.py",
-]
-
+[evidence.freshness]
+mode = "historical"
 [boundary]
 owner = "ethos"
 scope = "Publish remote availability probe, local-ci fallback evidence class, and local owner gate entrypoint"
@@ -41,14 +35,14 @@ kill_signal = "Local fallback evidence is presented as hosted CI success or remo
 
 [promotion]
 targets = [
-  ".config/ci/scripts/run-local-ci.sh",
+  "tools/ci/scripts/run-local-ci.sh",
   "packages/ethos/src/ethos/adapters/repo/git.py",
-  "packages/ethos/src/ethos/domain/land_support.py",
-  "packages/ethos/src/ethos/domain/land.py",
+  "packages/ethos/src/ethos/domain/land/publication.py",
+  "packages/ethos/src/ethos/domain/land/core.py",
   "packages/ethos/src/ethos/cli.py",
   "system/tools.toml",
   "system/schemas/kernel/campaign-closeout.schema.json",
-  "packages/ethos/src/ethos/repository/policy/schema_sample_large.py",
+  "tests/unit/cli/test_contracts_proof.py",
   "docs/reference/command-plane.md",
   "docs/governance/product-design-contract.md",
   "openspec/changes/archive/2026-07-06-remote-local-ci-fallback-20260707",

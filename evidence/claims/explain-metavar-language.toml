@@ -1,22 +1,32 @@
-schema_version = 1
+[claim]
 id = "explain-metavar-language"
-summary = "Generated explain help uses gap-or-signal positional language."
-state = "active"
 subject = "command-plane:explain-metavar-language"
-evidence = "evidence/chronicle/explain-metavar-language/2026-07-07.md"
+state = "active"
+summary = "Generated explain help uses gap-or-signal positional language."
 
-[bindings]
-head = "79b394b324732b5d84008adff384faf957f2841c"
+[evidence]
+dated = "evidence/chronicle/explain-metavar-language/2026-07-07.md"
+sha256 = "4d4b29377ba22e08132f93b532e397a70ddd703611f86ccc64f1efa1d1e9fff1"
+evidence_ids = [
+  "test:tests/unit/cli/test_invalid_state_projection.py::test_explain_help_uses_gap_or_signal_language",
+]
+binding = "Historical dated evidence binds the declared claim to its focused verification references and promotion targets without asserting current repository state."
+verifier = "digest_only"
+tests = [
+  "tests/unit/cli/test_invalid_state_projection.py::test_explain_help_uses_gap_or_signal_language",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-command-plane"
+scope = "Generated explain help uses gap-or-signal positional language."
 
 [carriers]
 openspec = "openspec/changes/archive/2026-07-07-explain-metavar-language"
+fallback = "Preserve the accepted behavior and surface a required claim-evidence gap if its dated evidence or declared carriers no longer validate."
+kill_signal = "A top-level alternate claim format or a second claim parser is accepted."
 
-[[claim_bindings]]
-kind = "test"
-ref = "tests/unit/cli/test_invalid_state_projection.py::test_explain_help_uses_gap_or_signal_language"
-
-[[promotion_targets]]
-path = "packages/ethos/src/ethos/cli.py"
-
-[[promotion_targets]]
-path = "tests/unit/cli/test_invalid_state_projection.py"
+[promotion]
+targets = ["packages/ethos/src/ethos/cli.py", "tests/unit/cli/test_invalid_state_projection.py"]

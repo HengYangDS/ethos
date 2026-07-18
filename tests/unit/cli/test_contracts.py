@@ -1,96 +1,22 @@
 from __future__ import annotations
 
+import builtins
 import json
 import re
-import subprocess
-import tomllib
 from pathlib import Path
 
-from ethos.assistants.skill_packages import compute_skill_package_digest
-from ethos.domain.report import _advisory_next_actions
-from ethos.domain.report import _gap_layers
+import ethos.adapters.openspec.cli as openspec_cli
+import ethos.adapters.repo.status.core as status_core
+import ethos.surface.cli.root.planning as planning_cli
 from ethos.repository.adoption.planner import adoption_plan
-from ethos.repository.policy.schema import validate_schema_instance
-from ethos_core.contracts.branch_roles import load_branch_role_policy
-from ethos_core.contracts.package_ontology import package_ontology_report
+from ethos.surface.cli._base import emit
+from ethos_core.contracts.package.ontology import package_ontology_report
+from ethos_core.result import EthosResult
+from tests.support.contract_helpers import git
+from tests.support.contract_helpers import init_git_repo
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.ethos_cli_runner import run_ethos_raw
-
-
-def git(root: Path, *args: str) -> str:
-    completed = subprocess.run(
-        ["git", *args],
-        cwd=root,
-        check=True,
-        text=True,
-        capture_output=True,
-    )
-    return completed.stdout.strip()
-
-
-def init_git_repo(path: Path) -> Path:
-    path.mkdir(parents=True)
-    git(path, "init", "-b", "dev")
-    (path / ".gitignore").write_text(".ethos/state/*\n!.ethos/state/.gitignore\n", encoding="utf-8")
-    (path / "README.md").write_text("# sample\n", encoding="utf-8")
-    (path / ".ethos" / "state").mkdir(parents=True)
-    (path / ".ethos" / "state" / ".gitignore").write_text("*\n!.gitignore\n", encoding="utf-8")
-    git(path, "add", ".")
-    git(
-        path,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "init",
-    )
-    return path
-
-
-def adopt_and_commit(repo: Path) -> None:
-    plan = adoption_plan(repo, profile="generic", apply=True)
-    assert plan["applied"] is True
-    git(repo, "add", ".")
-    git(
-        repo,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "adopt ethos governance",
-    )
-
-
-def seed_executed_proof(repo: Path, head: str) -> None:
-    """Record an executed-proof at HEAD, as `ethos prove --execute` would.
-
-    Land/publish now require a HEAD-keyed proof record before the merge, so tests
-    exercising land mechanics seed the proof the same way the prove command does. The
-    record is self-authenticating (digest recomputed on read), so this seeds a REAL
-    evidence body — a proof cannot be faked, in tests or production.
-    """
-    from ethos.adapters.mutation.proof import record_executed_proof
-    from ethos.repository.evidence.core import EvidenceSet
-    from ethos.repository.evidence.core import ProofRun
-
-    run = ProofRun(
-        action_id="python-tests",
-        command=("pytest",),
-        exit_code=0,
-        stdout="",
-        stderr="",
-        state="proven",
-        evidence_class="test",
-        verdict="passed",
-        trust_bearing=True,
-        diagnostics=(),
-    )
-    record_executed_proof(repo, EvidenceSet.from_runs(id="proof", head=head, runs=(run,)).to_dict())
 
 
 def test_status_json_contract() -> None:
@@ -102,214 +28,100 @@ def test_status_json_contract() -> None:
     assert payload["next_actions"]
 
 
-def test_full_proof_requires_executed_evidence() -> None:
-    payload = run_ethos("prove", "--full", "--json")
+def test_status_compact_json_is_bounded_without_foreign_lane_inventory() -> None:
+    payload = run_ethos("status", "--json", "--compact")
 
-    assert payload["ok"] is False
-    assert payload["state"] == "gapped"
-    assert "full_proof_requires_execute" in payload["required_gaps"]
-
-
-def test_prove_gapped_audit_points_to_real_audit_command(tmp_path: Path) -> None:
-    (tmp_path / "docs").mkdir()
-    (tmp_path / "docs" / "bad.md").write_text(
-        """---
-subject: sample:bad
-role: reference
-state: active
-relations:
-  see_also: []
----
-
-# Bad
-
-Status: active.
-
-Purpose: trigger a docs gap.
-
-See also: none.
-
-```bash
-proof legacy objective
-```
-""",
-        encoding="utf-8",
-    )
-
-    payload = run_ethos("prove", "--root", tmp_path.as_posix(), "--json")
-
-    assert payload["ok"] is False
-    assert payload["state"] == "gapped"
-    assert payload["next_actions"] == ["ethos audit --mode deep"]
+    assert payload["summary"]["compact"] is True
+    assert set(payload["data"]) == {
+        "compact",
+        "root",
+        "branch",
+        "head",
+        "role",
+        "dirty",
+        "changed_path_count",
+        "landing_readiness",
+        "candidate",
+        "coordination",
+        "stage_gates",
+    }
+    assert payload["data"]["compact"] is True
+    assert isinstance(payload["data"]["changed_path_count"], int)
+    assert isinstance(payload["data"]["coordination"]["foreign_work_lane_count"], int)
+    assert isinstance(payload["data"]["coordination"]["advisory_count"], int)
+    assert "foreign_work_lanes" not in payload["data"]
+    assert "branch_bindings" not in payload["data"]
 
 
-def test_prove_missing_gate_dependency_reports_concrete_rerun(tmp_path: Path) -> None:
+PRIMARY_COMMANDS_WITH_GOVERNANCE_CONTEXT = (
+    ("status", "--json"),
+    ("plan", "--changed", "--json"),
+    ("prove", "--json"),
+    ("land", "--json"),
+    ("publish", "--json"),
+    ("orient", "--json"),
+    ("report", "--json"),
+)
+
+
+def _assert_governed_repository_context(context: dict[str, object], *, profile: str) -> None:
+    assert context["contract"] == "governed_repository"
+    assert context["profile"] == profile
+    assert context["single_kernel"] is True
+    assert context["kernel_chain"] == [
+        "Authority",
+        "Subject",
+        "Commitment",
+        "Change",
+        "Evidence",
+        "Claim",
+        "Chronicle",
+    ]
+    assert context["shared_commands"] == [
+        "ethos status",
+        "ethos plan",
+        "ethos prove",
+        "ethos land",
+        "ethos publish",
+    ]
+    assert context["transition_commands"] == context["shared_commands"]
+    assert context["reader_view_commands"] == ["ethos orient"]
+    assert context["scorecard_commands"] == ["ethos report"]
+    assert context["truth_boundary"] == "repository"
+    assert context["profile_boundary"] == "profile_or_adapter"
+    assert context["subject"]["kind"] == "repository"
+    assert "posture" not in context
+
+
+def test_primary_commands_expose_top_level_governance_context(monkeypatch) -> None:
+    monkeypatch.setattr(status_core, "_foreign_work_lanes", lambda *_args, **_kwargs: [])
+
+    for command in PRIMARY_COMMANDS_WITH_GOVERNANCE_CONTEXT:
+        payload = run_ethos(*command)
+
+        assert "governance_context" in payload, command
+        _assert_governed_repository_context(payload["governance_context"], profile="product")
+
+    status_payload = run_ethos("status", "--json")
+    assert "governance_context" not in status_payload["data"]
+
+
+def test_primary_commands_use_same_context_for_adopted_repository(
+    tmp_path: Path,
+) -> None:
     repo = init_git_repo(tmp_path / "repo")
-    head = git(repo, "rev-parse", "HEAD")
+    adoption_plan(repo, profile="generic", apply=True)
 
-    payload = run_ethos(
-        "prove",
-        "--root",
-        repo.as_posix(),
-        "--gate",
-        "openspec",
-        "--json",
-    )
+    for command in PRIMARY_COMMANDS_WITH_GOVERNANCE_CONTEXT:
+        runner = run_ethos_blocked if command[0] == "prove" else run_ethos
+        payload = runner(*command[:-1], "--root", repo.as_posix(), command[-1])
 
-    assert payload["ok"] is False
-    assert "missing_dependency:openspec->schemas" in payload["required_gaps"]
-    assert payload["next_actions"] == [
-        f"ethos prove --execute --gate schemas --gate openspec --expect-head {head} --json"
-    ]
+        context = payload["governance_context"]
+        _assert_governed_repository_context(context, profile="generic")
+        assert context["subject"]["id"] == str(repo.resolve())
 
-
-def test_executed_proof_blocks_ethos_json_gate_failures(tmp_path: Path) -> None:
-    docs = tmp_path / "docs"
-    docs.mkdir()
-    (docs / "guide.md").write_text(
-        "---\nsubject: sample:guide\nrole: guide\nstate: active\nrelations: {}\n---\n\n# Guide\n\nBody without required visible sections.",
-        encoding="utf-8",
-    )
-
-    payload = run_ethos(
-        "prove",
-        "--execute",
-        "--gate",
-        "docs-registry",
-        "--root",
-        tmp_path.as_posix(),
-        "--json",
-    )
-
-    assert payload["ok"] is False
-    assert payload["state"] == "gapped"
-    run = payload["data"]["evidence"]["runs"][0]
-    assert run["action_id"] == "docs-registry"
-    assert run["state"] == "blocked"
-    assert run["verdict"] == "failed"
-    assert run["diagnostics"][0]["required_gaps"] == [
-        "missing_visible_section:docs/guide.md:status",
-        "missing_visible_section:docs/guide.md:purpose",
-        "missing_visible_section:docs/guide.md:see also",
-    ]
-
-
-def test_default_proof_reports_readiness_not_proven() -> None:
-    payload = run_ethos("prove", "--json")
-
-    assert payload["ok"] is True
-    assert payload["state"] == "ready"
-    assert payload["data"]["executed"] is False
-    assert {run["state"] for run in payload["data"]["evidence"]["runs"]} == {"planned"}
-    assert all(run["trust_bearing"] is False for run in payload["data"]["evidence"]["runs"])
-
-
-def test_prove_accepts_matching_expected_head() -> None:
-    head = git(Path.cwd(), "rev-parse", "HEAD")
-
-    payload = run_ethos("prove", "--expect-head", head, "--json")
-
-    assert payload["ok"] is True
-    assert payload["state"] == "ready"
-    assert payload["required_gaps"] == []
-    assert payload["data"]["expected_head"] == {
-        "expected": head,
-        "current": head,
-        "ok": True,
-    }
-
-
-def test_prove_rejects_mismatched_expected_head() -> None:
-    payload = run_ethos("prove", "--expect-head", "not-the-current-head", "--json")
-
-    assert payload["ok"] is False
-    assert payload["state"] == "gapped"
-    assert "expected_head_mismatch" in payload["required_gaps"]
-    assert payload["data"]["expected_head"]["expected"] == "not-the-current-head"
-    assert payload["data"]["expected_head"]["ok"] is False
-
-
-def test_init_apply_rejects_untracked_expected_head(tmp_path: Path) -> None:
-    target = tmp_path / "sample"
-    target.mkdir()
-
-    payload = run_ethos_blocked(
-        "init",
-        "--root",
-        target.as_posix(),
-        "--apply",
-        "--authorize",
-        "--expect-head",
-        "untracked",
-        "--json",
-    )
-
-    assert payload["ok"] is False
-    assert payload["state"] == "blocked"
-    assert "git_repository_missing" in payload["required_gaps"]
-    assert not (target / ".ethos" / "project.toml").exists()
-
-    assert payload["data"]["mutation"] == {
-        "apply": True,
-        "authorized": True,
-        "expect_head": "untracked",
-        "current_head": "untracked",
-    }
-
-
-def test_adopt_apply_rejects_untracked_expected_head(tmp_path: Path) -> None:
-    target = tmp_path / "sample"
-    target.mkdir()
-
-    payload = run_ethos_blocked(
-        "adopt",
-        "--root",
-        target.as_posix(),
-        "--apply",
-        "--authorize",
-        "--expect-head",
-        "untracked",
-        "--json",
-    )
-
-    assert payload["ok"] is False
-    assert payload["state"] == "blocked"
-    assert "git_repository_missing" in payload["required_gaps"]
-    assert not (target / ".ethos" / "project.toml").exists()
-
-
-def test_init_apply_flag_applies_scaffold_in_git_repo(tmp_path: Path) -> None:
-    target = init_git_repo(tmp_path / "sample")
-    head = git(target, "rev-parse", "HEAD")
-
-    payload = run_ethos(
-        "init",
-        "--root",
-        target.as_posix(),
-        "--apply",
-        "--authorize",
-        "--expect-head",
-        head,
-        "--json",
-    )
-
-    assert payload["ok"] is True
-    assert payload["state"] == "applied"
-    assert (target / ".ethos" / "project.toml").exists()
-
-    status = run_ethos("status", "--root", target.as_posix(), "--json")
-    docs = run_ethos("quality", "docs-registry", "--root", target.as_posix(), "--json")
-    examples = run_ethos(
-        "quality",
-        "command-examples",
-        "--root",
-        target.as_posix(),
-        "--json",
-    )
-
-    assert status["ok"] is True
-    assert docs["ok"] is True
-    assert examples["ok"] is True
+    status_payload = run_ethos("status", "--root", repo.as_posix(), "--json")
+    assert "governance_context" not in status_payload["data"]
 
 
 def test_quality_package_ontology_reports_migration_state() -> None:
@@ -333,7 +145,12 @@ def test_quality_asset_policy_command_reports_mechanical_quality_assets() -> Non
     assert payload["state"] == "clean"
     assert payload["summary"]["asset_class_count"] >= 9
     asset_classes = {asset["class"] for asset in payload["data"]["asset_classes"]}
-    assert {"python-code", "markdown-docs", "shell-scripts", "toml-config"} <= asset_classes
+    assert {
+        "python-code",
+        "markdown-docs",
+        "shell-scripts",
+        "toml-config",
+    } <= asset_classes
 
 
 def test_quality_docs_command_reports_docs_profile_dimensions() -> None:
@@ -372,18 +189,19 @@ def test_quality_tool_profiles_command_reports_adapter_boundaries() -> None:
     assert payload["ok"] is True
     assert payload["command"] == "quality tool-profiles"
     adapters = {adapter["id"]: adapter for adapter in payload["data"]["tool_adapters"]}
-    assert adapters["ruff"]["asset_classes"] == ["python-code"]
-    assert adapters["lychee"]["asset_classes"] == ["markdown-docs"]
-    assert adapters["shellcheck"]["asset_classes"] == ["shell-scripts"]
-    assert adapters["taplo"]["asset_classes"] == ["toml-config"]
-    assert adapters["ethos-docstrings-google"]["asset_classes"] == ["python-code"]
+    assert adapters["python_format_lint"]["standard"] == "ruff"
+    assert adapters["links"]["standard"] == "lychee"
+    assert adapters["shell"]["standard"] == "shellcheck"
+    assert adapters["toml"]["standard"] == "taplo"
+    assert adapters["python_docstrings"]["standard"] == "ethos-docstrings-google"
+    assert adapters["python_module_layout"]["standard"] == "ethos-module-layout"
 
 
 def test_quality_docs_registry_surfaces_all_required_gaps(tmp_path: Path) -> None:
     docs = tmp_path / "docs"
     docs.mkdir()
     (docs / "guide.md").write_text(
-        "---\nsubject: sample:guide\nrole: guide\nstate: active\nrelations: {}\n---\n\n# Guide\n\nBody without required visible sections.",
+        "---\nsubject: sample:guide\nrole: how-to\nstate: active\nrelations: {}\n---\n\n# Guide\n\nBody without required visible sections.",
         encoding="utf-8",
     )
 
@@ -405,17 +223,21 @@ def test_quality_docs_registry_surfaces_all_required_gaps(tmp_path: Path) -> Non
 
 
 def test_emit_handles_closed_pipes(monkeypatch) -> None:
-    import builtins
-
-    from ethos.surface.cli._base import emit
-    from ethos_core.result import EthosResult
-
     def closed_pipe(*args, **kwargs) -> None:
         raise BrokenPipeError
 
     monkeypatch.setattr(builtins, "print", closed_pipe)
 
     emit(EthosResult(command="status", ok=True, state="ready"), json_output=True)
+
+
+def test_emit_handles_nonblocking_closed_pipes(monkeypatch) -> None:
+    def closed_nonblocking_pipe(*args, **kwargs) -> None:
+        raise BlockingIOError
+
+    monkeypatch.setattr(builtins, "print", closed_nonblocking_pipe)
+
+    emit(EthosResult(command="publish", ok=True, state="ready"), json_output=True)
 
 
 def test_quality_package_ontology_rejects_retired_workspace_config(
@@ -470,6 +292,61 @@ def test_plan_changed_returns_action_graph() -> None:
     assert payload["ok"] is True
     assert payload["command"] == "plan"
     assert "action_graph" in payload["data"]
+    assert payload["data"]["workflow_runtime"]["kind"] == "workflow_runtime_read_model"
+    assert payload["data"]["workflow_runtime"]["truth_boundary"] == "derived_repository_projection"
+
+
+def test_plan_changed_surfaces_active_archive_preflight_gap(monkeypatch) -> None:
+    lifecycle = {
+        "ok": False,
+        "required_gaps": [
+            "openspec_archive_preflight_failed:sample-change:archive_spec_update_failed"
+        ],
+    }
+    monkeypatch.setattr(
+        planning_cli,
+        "openspec_governance_report",
+        lambda _root, **_kwargs: lifecycle,
+        raising=False,
+    )
+
+    payload = run_ethos("plan", "--changed", "--json")
+
+    assert payload["ok"] is False
+    assert payload["state"] == "gapped"
+    assert payload["required_gaps"] == lifecycle["required_gaps"]
+    assert payload["data"]["openspec_lifecycle"] == lifecycle
+
+
+def test_plan_adopter_surfaces_openspec_lifecycle_gap(monkeypatch, tmp_path: Path) -> None:
+    """An adopter plan cannot omit the shared Change lifecycle."""
+    repo = init_git_repo(tmp_path / "adopter")
+    adoption_plan(repo, profile="generic", apply=True)
+    git(repo, "add", ".")
+    git(repo, "commit", "-m", "adopt generic profile")
+    lifecycle_payload = {
+        "ok": False,
+        "required_gaps": ["openspec_claim_binding_missing:material-change"],
+    }
+    calls: list[tuple[Path, bool, tuple[str, ...]]] = []
+
+    def report(
+        root: Path, *, lifecycle: bool = False, changed_paths: tuple[str, ...] = ()
+    ) -> dict[str, object]:
+        calls.append((root, lifecycle, changed_paths))
+        return lifecycle_payload
+
+    monkeypatch.setattr(planning_cli, "openspec_governance_report", report)
+
+    payload = run_ethos("plan", "--changed", "--root", repo.as_posix(), "--json")
+
+    assert calls == [(repo, True, ())]
+    assert payload["ok"] is False
+    assert payload["state"] == "gapped"
+    assert payload["required_gaps"] == lifecycle_payload["required_gaps"]
+    assert (
+        payload["data"]["openspec_lifecycle"]["required_gaps"] == lifecycle_payload["required_gaps"]
+    )
 
 
 def test_plan_changed_maps_repository_rules_to_required_gates(tmp_path: Path) -> None:
@@ -521,6 +398,74 @@ evidence = ["unit-test"]
     ]
 
 
+def test_plan_changed_reports_adopter_contract_profile_matches(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    rules = repo / ".ethos" / "rules.toml"
+    rules.write_text(
+        """
+[gates.raw_changed]
+command = "nox -s raw_changed"
+blocking = true
+
+[[contract_profile]]
+id = "reference"
+policy = "rules/reference/contracts.toml"
+
+[[rule]]
+id = "reference-cache"
+risk = "raw-cache-contract"
+paths = ["packages/reference-cache/**"]
+requires = ["raw_changed"]
+evidence = ["cache-tree"]
+""".lstrip(),
+        encoding="utf-8",
+    )
+    contracts = repo / "rules" / "reference" / "contracts.toml"
+    contracts.parent.mkdir(parents=True)
+    contracts.write_text(
+        """
+[[contract]]
+id = "cache-shape-metadata-sidecars-checkpoint"
+surface = "cache"
+paths = ["packages/reference-cache/**"]
+protects = ["NIO cache shape"]
+required_evidence = ["cache-tree"]
+""".lstrip(),
+        encoding="utf-8",
+    )
+    source = repo / "packages" / "reference-cache" / "src" / "reference_cache" / "__init__.py"
+    source.parent.mkdir(parents=True)
+    source.write_text('"""Cache package."""\n', encoding="utf-8")
+    git(repo, "add", ".")
+    git(
+        repo,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "--no-gpg-sign",
+        "--no-verify",
+        "-m",
+        "add adopter profile",
+    )
+    source.write_text('"""Cache package."""\nVALUE = 1\n', encoding="utf-8")
+
+    payload = run_ethos("plan", "--root", repo.as_posix(), "--changed", "--json", cwd=repo)
+
+    assert payload["data"]["matched_rules"][0]["id"] == "reference-cache"
+    assert payload["data"]["domain_contracts"] == [
+        {
+            "profile": "reference",
+            "contract": "cache-shape-metadata-sidecars-checkpoint",
+            "surface": "cache",
+            "matched_paths": ["packages/reference-cache/src/reference_cache/__init__.py"],
+            "protects": ["NIO cache shape"],
+            "required_evidence": ["cache-tree"],
+        }
+    ]
+
+
 def test_assistants_doctor_accepts_root_for_shadow_parity(tmp_path: Path) -> None:
     payload = run_ethos("assistants", "doctor", "--root", tmp_path.as_posix(), "--json")
 
@@ -538,7 +483,7 @@ def test_repository_audit_reports_governed_repository_shape() -> None:
     assert context["profile"] == "product"
     assert context["single_kernel"] is True
     assert context["kernel_chain"] == [
-        "JudgmentSource",
+        "Authority",
         "Subject",
         "Commitment",
         "Change",
@@ -547,9 +492,9 @@ def test_repository_audit_reports_governed_repository_shape() -> None:
         "Chronicle",
     ]
     # The head-of-chain nodes are real kernel models, not an inline dict — the
-    # JudgmentSource carries the authority order and the Subject is the governed repo.
-    assert context["judgment_source"]["authority"] == "system/authority.toml"
-    assert context["judgment_source"]["policy_refs"][0] == "user_instruction"
+    # Authority carries the authority order and the Subject is the governed repo.
+    assert context["authority"]["order_ref"] == "system/authority.toml"
+    assert context["authority"]["policy_refs"][0] == "user_instruction"
     assert context["subject"]["kind"] == "repository"
     assert context["subject"]["id"] == str(Path.cwd())
     assert context["shared_commands"] == [
@@ -579,56 +524,6 @@ def test_repository_audit_rejects_invalid_mode_as_json_gap() -> None:
     assert payload["ok"] is False
     assert payload["state"] == "invalid"
     assert payload["required_gaps"] == ["invalid_audit_mode:fastish"]
-
-
-def test_adopt_dry_run_does_not_write_project(tmp_path: Path) -> None:
-    (tmp_path / "README.md").write_text("# Sample\n", encoding="utf-8")
-
-    payload = run_ethos("adopt", "--root", str(tmp_path), "--dry-run", "--json")
-
-    assert payload["ok"] is True
-    assert payload["command"] == "adopt"
-    assert ".ethos/project.toml" in payload["data"]["planned_files"]
-    assert not (tmp_path / ".ethos").exists()
-
-
-def test_adopt_apply_requires_authorization_and_expected_head(tmp_path: Path) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-
-    payload = run_ethos_blocked("adopt", "--root", str(repo), "--apply", "--json", cwd=repo)
-
-    assert payload["ok"] is False
-    assert payload["state"] == "blocked"
-    assert "authorization_required" in payload["required_gaps"]
-    assert "expect_head_required" in payload["required_gaps"]
-    assert not (repo / ".ethos/project.toml").exists()
-
-
-def test_adopt_apply_accepts_authorized_matching_head(tmp_path: Path) -> None:
-    repo = init_git_repo(tmp_path / "repo")
-    head = git(repo, "rev-parse", "HEAD")
-
-    payload = run_ethos(
-        "adopt",
-        "--root",
-        str(repo),
-        "--apply",
-        "--authorize",
-        "--expect-head",
-        head,
-        "--json",
-        cwd=repo,
-    )
-
-    assert payload["ok"] is True
-    assert payload["state"] == "applied"
-    assert payload["data"]["mutation"] == {
-        "apply": True,
-        "authorized": True,
-        "expect_head": head,
-        "current_head": head,
-    }
-    assert (repo / ".ethos/project.toml").exists()
 
 
 def test_quality_command_registry_rejects_retired_public_roots() -> None:
@@ -695,6 +590,8 @@ def test_quality_schema_gate_and_commit_commands_are_available() -> None:
     for command in (
         ("quality", "schemas", "--json"),
         ("quality", "gates", "--json"),
+        ("quality", "generated-artifacts", "--json"),
+        ("quality", "docs-topology", "--json"),
         ("quality", "commits", "--json"),
         ("quality", "release", "--json"),
     ):
@@ -712,21 +609,31 @@ def test_quality_help_lists_canonical_commands() -> None:
         "asset-policy",
         "claims",
         "code-size",
+        "source-budget",
         "command-examples",
         "command-registry",
         "command-surface",
         "commits",
         "coupling-audit",
         "coverage",
+        "contributor-policy",
         "docs",
         "docs-registry",
+        "docs-topology",
         "docstrings",
+        "enterprise-readiness",
         "evidence-freshness",
         "format-policy",
+        "generated-artifacts",
         "gates",
+        "governance-kernel",
         "markdown-links",
+        "module-layout",
+        "no-compat",
         "npm",
         "package-ontology",
+        "performance",
+        "product-boundary",
         "projection-drift",
         "proof-policy",
         "provenance",
@@ -745,8 +652,6 @@ def test_quality_help_lists_canonical_commands() -> None:
 
 
 def test_openspec_uses_official_native_cli(monkeypatch) -> None:
-    from ethos.adapters import openspec
-
     def fake_base_command() -> tuple[str, ...]:
         return ("openspec",)
 
@@ -764,7 +669,8 @@ def test_openspec_uses_official_native_cli(monkeypatch) -> None:
         elif args == ("validate", "--all", "--strict", "--json"):
             payload = {"items": [], "summary": {"totals": {"failed": 0}}}
         else:
-            raise AssertionError(f"unexpected OpenSpec command: {args}")
+            message = f"unexpected OpenSpec command: {args}"
+            raise AssertionError(message)
         return {
             "command": ["openspec", *args],
             "exit_code": 0,
@@ -774,14 +680,14 @@ def test_openspec_uses_official_native_cli(monkeypatch) -> None:
             "parse_error": "",
         }
 
-    monkeypatch.setattr(openspec, "_openspec_base_command", fake_base_command)
-    monkeypatch.setattr(openspec, "_run_json", fake_run_json)
+    monkeypatch.setattr(openspec_cli, "openspec_base_command", fake_base_command)
+    monkeypatch.setattr(openspec_cli, "run_json", fake_run_json)
 
     payload = run_ethos("openspec", "--change", "ethos-release-hardening", "--json")
 
     assert payload["ok"] is True
     assert payload["command"] == "openspec"
-    assert payload["data"]["official_cli"]["package"] == "@fission-ai/openspec"
+    assert payload["data"]["official_cli"]["package"] == "@fission-ai/openspec@1.6.0"
     assert payload["data"]["schema_name"] == "spec-driven"
     assert payload["data"]["commands"]["validate"]["json"]["summary"]["totals"]["failed"] == 0
 
@@ -791,7 +697,7 @@ def test_openspec_lifecycle_flag_reports_lifecycle_summary(monkeypatch) -> None:
         return {
             "ok": True,
             "official_cli": {
-                "package": "@fission-ai/openspec",
+                "package": "@fission-ai/openspec@1.6.0",
                 "available": True,
                 "base_command": ["openspec"],
             },
@@ -803,1477 +709,13 @@ def test_openspec_lifecycle_flag_reports_lifecycle_summary(monkeypatch) -> None:
             "lifecycle": {"enabled": lifecycle, "changes": []},
         }
 
-    monkeypatch.setattr("ethos.cli.openspec_governance_report", fake_report)
+    monkeypatch.setattr("ethos.surface.cli.root.reference.openspec_governance_report", fake_report)
 
     payload = run_ethos("openspec", "--change", "ethos-release-hardening", "--lifecycle", "--json")
 
     assert payload["ok"] is True
     assert payload["summary"]["lifecycle"] is True
     assert payload["data"]["lifecycle"] == {"enabled": True, "changes": []}
-
-
-def test_full_gate_registry_includes_official_openspec_validation() -> None:
-    payload = run_ethos("quality", "gates", "--json")
-
-    assert payload["ok"] is True
-    assert "self-audit" not in payload["data"]["gates"]
-    assert payload["data"]["gates"]["repository-audit"]["command"][1:] == [
-        "-m",
-        "ethos.cli",
-        "audit",
-        "--mode",
-        "shape",
-        "--json",
-    ]
-    assert payload["data"]["gates"]["openspec"]["command"] == [
-        "openspec",
-        "validate",
-        "--all",
-        "--strict",
-        "--json",
-    ]
-    assert payload["data"]["gates"]["python-types"]["command"] == [
-        "ethos",
-        "quality",
-        "types",
-        "--json",
-    ]
-
-
-def test_prove_default_floor_includes_config_and_script_quality_gates() -> None:
-    payload = run_ethos("prove", "--json")
-
-    assert payload["ok"] is True
-    assert payload["summary"]["gate_count"] == 13
-    node_ids = [node["id"] for node in payload["data"]["action_graph"]["nodes"]]
-    assert {"ruff", "toml-config", "yaml-config", "shell-lint", "format-policy"} <= set(node_ids)
-
-
-def test_prove_uses_adopter_profile_default_floor(tmp_path: Path) -> None:
-    repo = init_git_repo(tmp_path / "adopter")
-    profile = repo / ".ethos" / "profile.toml"
-    profile.parent.mkdir(exist_ok=True)
-    profile.write_text(
-        """schema_version = 1
-profile_id = \"sample-adopter\"
-profile_version = \"1\"
-ethos_contract_version = \"1\"
-
-[repository]
-kind = \"software\"
-root_subject = \"sample\"
-""",
-        encoding="utf-8",
-    )
-
-    payload = run_ethos("prove", "--root", str(repo), "--json")
-
-    assert payload["summary"]["gate_count"] == 8
-    node_ids = [node["id"] for node in payload["data"]["action_graph"]["nodes"]]
-    assert set(node_ids) == {
-        "repository-audit",
-        "claims",
-        "schemas",
-        "playbooks-v2",
-        "format-policy",
-        "asset-determinism",
-        "schema-contracts",
-        "proof-policy",
-    }
-    assert "ruff" not in node_ids
-    assert "unit-architecture" not in node_ids
-    assert "docstrings" not in node_ids
-
-
-def test_prove_execute_can_select_real_gates() -> None:
-    payload = run_ethos(
-        "prove",
-        "--execute",
-        "--gate",
-        "repository-audit",
-        "--gate",
-        "claims",
-        "--json",
-    )
-
-    assert payload["ok"] is True
-    assert payload["state"] == "proven"
-    assert payload["data"]["executed"] is True
-    assert payload["summary"]["gate_count"] == 2
-    assert {run["state"] for run in payload["data"]["evidence"]["runs"]} == {"proven"}
-    assert {run["verdict"] for run in payload["data"]["evidence"]["runs"]} == {"passed"}
-    assert all(run["trust_bearing"] is True for run in payload["data"]["evidence"]["runs"])
-
-
-def test_prove_execute_preserves_non_trust_bearing_gate_classification(monkeypatch) -> None:
-    import ethos.cli as ethos_cli
-    from ethos.adapters.gates.runner import ActionRunResult
-    from ethos.repository.policy.gates import Gate
-    from ethos_core.action_graph import ActionGraph
-
-    diagnostic_gate = Gate(
-        id="diagnostic-only",
-        kind="lint",
-        command=("diagnostic", "--check"),
-        evidence_class="diagnostic",
-        trust_bearing=False,
-    )
-    monkeypatch.setattr(ethos_cli, "gate_registry", lambda: {"diagnostic-only": diagnostic_gate})
-    monkeypatch.setattr(
-        ethos_cli,
-        "gate_graph",
-        lambda gate=(), full=False, root=None: ActionGraph(nodes=(diagnostic_gate.to_node(),)),  # noqa: ARG005
-    )
-
-    class PassingDiagnosticRunner:
-        def __init__(self, *args, **kwargs) -> None:
-            pass
-
-        def run(self, node, *, root):
-            return ActionRunResult(
-                action_id=node.id,
-                command=node.command,
-                state="passed",
-                exit_code=0,
-                stdout="",
-                stderr="",
-            )
-
-    monkeypatch.setattr(ethos_cli, "LocalSubprocessRunner", PassingDiagnosticRunner)
-
-    payload = run_ethos(
-        "prove",
-        "--execute",
-        "--gate",
-        "diagnostic-only",
-        "--json",
-    )
-
-    assert payload["ok"] is False
-    assert payload["state"] == "gapped"
-    assert "trust_bearing_proof_missing" in payload["required_gaps"]
-    assert payload["summary"]["gate_count"] == 1
-    run = payload["data"]["evidence"]["runs"][0]
-    assert run["action_id"] == "diagnostic-only"
-    assert run["state"] == "executed"
-    assert run["verdict"] == "passed"
-    assert run["evidence_class"] == "diagnostic"
-    assert run["trust_bearing"] is False
-
-
-def test_adopt_gitlab_profile_is_available(tmp_path: Path) -> None:
-    payload = run_ethos(
-        "adopt",
-        "--root",
-        str(tmp_path),
-        "--profile",
-        "gitlab",
-        "--dry-run",
-        "--json",
-    )
-
-    assert payload["ok"] is True
-    assert payload["data"]["profile"] == "gitlab"
-    assert ".gitlab-ci.yml" in payload["data"]["planned_files"]
-
-
-def test_assistant_mcp_server_command_is_available() -> None:
-    payload = run_ethos("assistants", "mcp-server", "--json")
-
-    assert payload["ok"] is True
-    assert payload["data"]["server"]["protocol"] == "mcp"
-
-
-def test_playbooks_commands_expose_repo_local_skills() -> None:
-    check = run_ethos("playbooks", "check", "--json")
-    route = run_ethos("playbooks", "route", "--subject", "repository-governance", "--json")
-
-    assert check["ok"] is True
-    assert check["data"]["skills_root"] == ".agents/skills"
-    assert {
-        "ethos-repository-governance",
-        "ethos-change-lifecycle",
-        "ethos-skill-portfolio-governance",
-        "ethos-quality-gate-governance",
-        "ethos-adoption-profile-governance",
-    } <= set(check["data"]["skills"])
-    assert check["data"]["coverage"]["record_count"] == 5
-    assert "skill-portfolio" in check["data"]["coverage"]["subjects"]
-    assert check["data"]["portfolio_coverage"]["ok"] is True
-    assert check["data"]["portfolio_coverage"]["contract"]["required_primary_subjects"] == [
-        "repository-governance",
-        "change-lifecycle",
-        "skill-portfolio",
-        "quality-gates",
-        "adoption-profile",
-    ]
-    assert check["data"]["portfolio_coverage"]["owners"]["skill-portfolio"] == [
-        "ethos-skill-portfolio-governance"
-    ]
-    assert route["ok"] is True
-    assert route["data"]["selected"][0]["id"] == "ethos-repository-governance"
-
-
-OFFICIAL_PLAYBOOK_SKILL = """---
-name: sample-skill
-description: Use when governing sample repositories with ETHOS.
----
-
-# Sample Skill
-
-## When to Use
-
-Use this skill for sample governance work.
-
-## Workflow
-
-1. Read the repository guidance.
-2. Run the focused ETHOS check.
-3. Record evidence before making a claim.
-
-## Evidence
-
-Run `ethos report --json` and keep the output with the delivery note.
-
-## Trust Boundary
-
-Repository source, tests, schemas, docs, claims, evidence, and command JSON are truth.
-"""
-
-
-def write_v2_playbook_package(skills_root: Path, skill_id: str) -> str:
-    package_dir = skills_root / skill_id
-    package_dir.mkdir(parents=True)
-    (package_dir / "SKILL.md").write_text(
-        OFFICIAL_PLAYBOOK_SKILL.replace("name: sample-skill", f"name: {skill_id}"), encoding="utf-8"
-    )
-    digest = compute_skill_package_digest(package_dir, ["SKILL.md"])
-    package_manifest = package_dir / "package.toml"
-    package_manifest.write_text(
-        f"""
-schema_version = 2
-id = "{skill_id}"
-entrypoint = "SKILL.md"
-digest_algorithm = "sha256"
-include = ["SKILL.md"]
-expected_digest = "{digest}"
-required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
-
-[quality]
-placeholder_allowed = false
-
-[[capability]]
-id = "ethos.status"
-kind = "command_readonly"
-command = ["ethos", "status", "--json"]
-""".lstrip(),
-        encoding="utf-8",
-    )
-    return package_manifest.as_posix()
-
-
-def test_playbooks_portfolio_coverage_ignores_invalid_subject_list_type(
-    tmp_path: Path,
-) -> None:
-    root = tmp_path / "repo"
-    skills_root = root / ".agents" / "skills"
-    skills_root.mkdir(parents=True)
-    (skills_root / "README.md").write_text("# Skills\n", encoding="utf-8")
-    package_manifest = Path(write_v2_playbook_package(skills_root, "repository-governance"))
-    (skills_root / "activation.toml").write_text(
-        f"""
-[meta]
-version = 2
-
-[coverage]
-required_primary_subjects = "repository-governance"
-single_owner_subjects = "repository-governance"
-
-[[skill]]
-id = "repository-governance"
-package_manifest = "{package_manifest.relative_to(root).as_posix()}"
-subject = "repository-governance"
-operation = "govern"
-authority = "primary"
-lifecycle = "active"
-path_globs = ["docs/**"]
-pre_reads = ["README.md"]
-post_checks = ["ethos report --json"]
-commands = ["ethos status"]
-boundary = "workflow-package-projection"
-""".lstrip(),
-        encoding="utf-8",
-    )
-
-    payload = run_ethos(
-        "playbooks",
-        "check",
-        "--mode",
-        "v2-strict",
-        "--root",
-        str(root),
-        "--json",
-    )
-
-    assert payload["ok"] is True
-    assert payload["required_gaps"] == []
-    assert payload["data"]["portfolio_coverage"]["contract"] == {
-        "required_primary_subjects": [],
-        "single_owner_subjects": [],
-    }
-
-
-def test_playbooks_strict_mode_requires_portfolio_primary_subjects(
-    tmp_path: Path,
-) -> None:
-    root = tmp_path / "repo"
-    skills_root = root / ".agents" / "skills"
-    skills_root.mkdir(parents=True)
-    (skills_root / "README.md").write_text("# Skills\n", encoding="utf-8")
-    package_manifest = Path(write_v2_playbook_package(skills_root, "repository-governance"))
-    (skills_root / "activation.toml").write_text(
-        f"""
-[meta]
-version = 2
-
-[coverage]
-required_primary_subjects = ["repository-governance", "quality-gates"]
-single_owner_subjects = ["repository-governance", "quality-gates"]
-
-[[skill]]
-id = "repository-governance"
-package_manifest = "{package_manifest.relative_to(root).as_posix()}"
-subject = "repository-governance"
-operation = "govern"
-authority = "primary"
-lifecycle = "active"
-path_globs = ["docs/**"]
-pre_reads = ["README.md"]
-post_checks = ["ethos report --json"]
-commands = ["ethos status"]
-boundary = "workflow-package-projection"
-""".lstrip(),
-        encoding="utf-8",
-    )
-
-    payload = run_ethos(
-        "playbooks",
-        "check",
-        "--mode",
-        "v2-strict",
-        "--root",
-        str(root),
-        "--json",
-    )
-
-    assert payload["ok"] is False
-    assert "skill_portfolio_subject_missing:quality-gates" in payload["required_gaps"]
-    assert payload["data"]["portfolio_coverage"]["ok"] is False
-    assert payload["data"]["portfolio_coverage"]["owners"] == {
-        "repository-governance": ["repository-governance"]
-    }
-
-
-def test_playbooks_strict_mode_rejects_duplicate_primary_subject_owner(
-    tmp_path: Path,
-) -> None:
-    root = tmp_path / "repo"
-    skills_root = root / ".agents" / "skills"
-    skills_root.mkdir(parents=True)
-    (skills_root / "README.md").write_text("# Skills\n", encoding="utf-8")
-    first_manifest = Path(write_v2_playbook_package(skills_root, "repository-governance"))
-    second_manifest = Path(write_v2_playbook_package(skills_root, "repository-governance-helper"))
-    (skills_root / "activation.toml").write_text(
-        f"""
-[meta]
-version = 2
-
-[coverage]
-required_primary_subjects = ["repository-governance"]
-single_owner_subjects = ["repository-governance"]
-
-[[skill]]
-id = "repository-governance"
-package_manifest = "{first_manifest.relative_to(root).as_posix()}"
-subject = "repository-governance"
-operation = "govern"
-authority = "primary"
-lifecycle = "active"
-path_globs = ["docs/**"]
-pre_reads = ["README.md"]
-post_checks = ["ethos report --json"]
-commands = ["ethos status"]
-boundary = "workflow-package-projection"
-
-[[skill]]
-id = "repository-governance-helper"
-package_manifest = "{second_manifest.relative_to(root).as_posix()}"
-subject = "repository-governance"
-operation = "govern"
-authority = "primary"
-lifecycle = "active"
-path_globs = ["rules/**"]
-pre_reads = ["README.md"]
-post_checks = ["ethos report --json"]
-commands = ["ethos status"]
-boundary = "workflow-package-projection"
-""".lstrip(),
-        encoding="utf-8",
-    )
-
-    payload = run_ethos(
-        "playbooks",
-        "check",
-        "--mode",
-        "v2-strict",
-        "--root",
-        str(root),
-        "--json",
-    )
-
-    assert payload["ok"] is False
-    assert (
-        "skill_portfolio_subject_duplicate:repository-governance:"
-        "repository-governance,repository-governance-helper"
-    ) in payload["required_gaps"]
-    assert payload["data"]["portfolio_coverage"]["owners"]["repository-governance"] == [
-        "repository-governance",
-        "repository-governance-helper",
-    ]
-
-
-def test_playbooks_accept_repo_local_activation_schema_with_path_globs(tmp_path: Path) -> None:
-    root = init_git_repo(tmp_path / "repo")
-    skills_root = root / ".agents" / "skills"
-    package_manifest = Path(write_v2_playbook_package(skills_root, "code-change"))
-    (skills_root / "README.md").write_text("# Skills\n", encoding="utf-8")
-    (skills_root / "activation.toml").write_text(
-        f"""
-[meta]
-version = 2
-
-[[skill]]
-id = "code-change"
-package_manifest = "{package_manifest.relative_to(root).as_posix()}"
-subject = "implementation"
-operation = "implement"
-authority = "primary"
-lifecycle = "active"
-path_globs = ["src/**"]
-intent_tokens = ["implement"]
-pre_reads = ["README.md"]
-post_checks = ["ethos prove"]
-commands = ["ethos status"]
-boundary = "workflow-package-projection"
-""".lstrip(),
-        encoding="utf-8",
-    )
-    git(root, "add", ".agents")
-    git(
-        root,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "add playbook routing",
-    )
-    (root / "src").mkdir()
-    (root / "src" / "code.py").write_text("VALUE = 1\n", encoding="utf-8")
-
-    check = run_ethos("playbooks", "check", "--root", root.as_posix(), "--json")
-    route = run_ethos("playbooks", "route", "--changed", "--root", root.as_posix(), "--json")
-
-    assert check["ok"] is True
-    assert check["data"]["records"][0]["id"] == "code-change"
-    assert check["data"]["records"][0]["path_globs"] == ["src/**"]
-    assert "changed-scope" in check["data"]["records"][0]["subjects"]
-    assert route["ok"] is True
-    assert route["data"]["selected"][0]["id"] == "code-change"
-    assert "changed-scope" in route["data"]["selected"][0]["subjects"]
-    assert route["data"]["selected"][0]["pre_reads"] == ["README.md"]
-    assert route["data"]["selected"][0]["post_checks"] == ["ethos prove"]
-    assert route["data"]["selected"][0]["matched_paths"] == ["src/code.py"]
-
-
-def test_playbooks_changed_scope_without_changed_paths_selects_nothing(
-    tmp_path: Path,
-) -> None:
-    root = init_git_repo(tmp_path / "repo")
-    skills_root = root / ".agents" / "skills"
-    package_manifest = Path(write_v2_playbook_package(skills_root, "docs-governance"))
-    (skills_root / "README.md").write_text("# Skills\n", encoding="utf-8")
-    (skills_root / "activation.toml").write_text(
-        f"""
-[meta]
-version = 2
-
-[[skill]]
-id = "docs-governance"
-package_manifest = "{package_manifest.relative_to(root).as_posix()}"
-subject = "changed-scope"
-operation = "govern"
-authority = "primary"
-lifecycle = "active"
-path_globs = ["docs/**"]
-pre_reads = ["README.md"]
-post_checks = ["ethos report --json"]
-commands = ["ethos status"]
-boundary = "workflow-package-projection"
-""".lstrip(),
-        encoding="utf-8",
-    )
-    git(root, "add", ".agents")
-    git(
-        root,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "add playbook routing",
-    )
-
-    payload = run_ethos("playbooks", "route", "--changed", "--root", str(root), "--json")
-
-    assert payload["ok"] is True
-    assert payload["required_gaps"] == []
-    assert payload["data"]["changed_paths"] == []
-    assert payload["data"]["selected"] == []
-    assert payload["data"]["unmatched_paths"] == []
-
-
-def test_playbooks_changed_scope_reports_matched_changed_path_evidence(
-    tmp_path: Path,
-) -> None:
-    root = init_git_repo(tmp_path / "repo")
-    skills_root = root / ".agents" / "skills"
-    package_manifest = Path(write_v2_playbook_package(skills_root, "docs-governance"))
-    (skills_root / "README.md").write_text("# Skills\n", encoding="utf-8")
-    (skills_root / "activation.toml").write_text(
-        f"""
-[meta]
-version = 2
-
-[[skill]]
-id = "docs-governance"
-package_manifest = "{package_manifest.relative_to(root).as_posix()}"
-subject = "changed-scope"
-operation = "govern"
-authority = "primary"
-lifecycle = "active"
-path_globs = ["docs/**"]
-pre_reads = ["README.md"]
-post_checks = ["ethos report --json"]
-commands = ["ethos status"]
-boundary = "workflow-package-projection"
-""".lstrip(),
-        encoding="utf-8",
-    )
-    git(root, "add", ".agents")
-    git(
-        root,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "add playbook routing",
-    )
-    (root / "docs").mkdir()
-    (root / "docs" / "guide.md").write_text("# guide\n", encoding="utf-8")
-
-    payload = run_ethos("playbooks", "route", "--changed", "--root", str(root), "--json")
-
-    assert payload["ok"] is True
-    assert payload["data"]["changed_paths"] == ["docs/guide.md"]
-    selected = payload["data"]["selected"][0]
-    assert selected["id"] == "docs-governance"
-    assert selected["matched_paths"] == ["docs/guide.md"]
-    assert payload["data"]["unmatched_paths"] == []
-
-
-def test_playbooks_changed_scope_reports_unmatched_changed_paths(
-    tmp_path: Path,
-) -> None:
-    root = init_git_repo(tmp_path / "repo")
-    skills_root = root / ".agents" / "skills"
-    package_manifest = Path(write_v2_playbook_package(skills_root, "docs-governance"))
-    (skills_root / "README.md").write_text("# Skills\n", encoding="utf-8")
-    (skills_root / "activation.toml").write_text(
-        f"""
-[meta]
-version = 2
-
-[[skill]]
-id = "docs-governance"
-package_manifest = "{package_manifest.relative_to(root).as_posix()}"
-subject = "changed-scope"
-operation = "govern"
-authority = "primary"
-lifecycle = "active"
-path_globs = ["docs/**"]
-pre_reads = ["README.md"]
-post_checks = ["ethos report --json"]
-commands = ["ethos status"]
-boundary = "workflow-package-projection"
-""".lstrip(),
-        encoding="utf-8",
-    )
-    git(root, "add", ".agents")
-    git(
-        root,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "add playbook routing",
-    )
-    (root / "src").mkdir()
-    (root / "src" / "app.py").write_text("print('hello')\n", encoding="utf-8")
-
-    payload = run_ethos("playbooks", "route", "--changed", "--root", str(root), "--json")
-
-    assert payload["ok"] is False
-    assert payload["data"]["selected"] == []
-    assert "src/app.py" in payload["data"]["unmatched_paths"]
-    assert "playbook_changed_path_unmatched:src/app.py" in payload["required_gaps"]
-
-
-def test_fleet_inspect_reports_external_adopter_shape(tmp_path: Path) -> None:
-    (tmp_path / ".gitlab").mkdir()
-    adoption_plan(tmp_path, profile="gitlab", apply=True)
-
-    payload = run_ethos("fleet", "inspect", "--target", str(tmp_path), "--json")
-
-    assert payload["ok"] is True
-    assert payload["command"] == "fleet inspect"
-    assert payload["data"]["adopter"]["root"] == str(tmp_path.resolve())
-    assert payload["data"]["adopter"]["governance"]["ethos_config"] is True
-    assert payload["data"]["adopter"]["governance"]["openspec"] is True
-    assert payload["data"]["adopter"]["governance"]["skills"] is True
-
-
-def test_fleet_inspect_accepts_current_docs_layout(tmp_path: Path) -> None:
-    adoption_plan(tmp_path, profile="generic", apply=True)
-    (tmp_path / "docs" / "index.md").unlink()
-    (tmp_path / "docs" / "current").mkdir(parents=True, exist_ok=True)
-    (tmp_path / "docs" / "current" / "README.md").write_text(
-        "---\nsubject: docs:current\nrole: reference\nstate: current\nrelations: test\n---\n"
-        "# Current Docs\n",
-        encoding="utf-8",
-    )
-
-    payload = run_ethos("fleet", "inspect", "--target", str(tmp_path), "--json")
-
-    assert payload["ok"] is True
-    assert payload["data"]["adopter"]["governance"]["docs"] is True
-
-
-def test_quality_determinism_commands_are_available() -> None:
-    for command in (
-        ("quality", "command-surface", "--json"),
-        ("quality", "format-policy", "--json"),
-        ("quality", "projection-drift", "--json"),
-        ("quality", "evidence-freshness", "--json"),
-        ("quality", "command-examples", "--json"),
-        ("quality", "coupling-audit", "--json"),
-        ("quality", "docs-registry", "--json"),
-        ("quality", "provenance", "--json"),
-        ("quality", "claims", "--json"),
-    ):
-        payload = run_ethos(*command)
-        assert payload["ok"] is True
-        assert payload["required_gaps"] == []
-
-
-def test_quality_coupling_audit_reports_git_native_boundary() -> None:
-    payload = run_ethos("quality", "coupling-audit", "--json")
-
-    assert payload["ok"] is True
-    assert payload["command"] == "quality coupling-audit"
-    assert payload["required_gaps"] == []
-    assert payload["data"]["git_native"]["strongly_bound"] is True
-    assert payload["data"]["git_native"]["layer"] == "product_semantic_hard_binding"
-    assert payload["data"]["openspec_governance"]["layer"] == ("mandatory_governance_dependency")
-    assert payload["data"]["openspec_governance"]["not_a_second_command_plane"] is True
-    assert payload["data"]["native_protocols"]["layer"] == "native_protocol_binding"
-    assert payload["data"]["native_protocols"]["provider_optional"] is False
-    assert payload["data"]["release_host_profile"]["provider"] == "gitlab"
-    assert payload["data"]["product_toolchain"]["profile"] == "product-toolchain"
-    assert payload["data"]["product_toolchain"]["layer"] == ("product_toolchain_binding")
-    assert {
-        "kind": "schema_validation",
-        "target": "data",
-        "schema": "coupling-audit.schema.json",
-        "ok": True,
-        "required_gaps": [],
-    } in payload["diagnostics"]
-    assert "schema_validation" not in payload["data"]
-
-
-def test_prove_returns_evidence_and_provenance() -> None:
-    payload = run_ethos("prove", "--objective", "cli contract", "--json")
-
-    assert payload["ok"] is True
-    assert payload["data"]["evidence"]["digest"]
-    assert (
-        payload["data"]["provenance"]["subject"][0]["digest"]["sha256"]
-        == (payload["data"]["evidence"]["digest"])
-    )
-
-
-def test_prove_uses_repository_audit_for_non_product_repo(tmp_path: Path) -> None:
-    adoption_plan(tmp_path, profile="generic", apply=True)
-
-    payload = run_ethos("prove", "--root", tmp_path.as_posix(), "--json")
-
-    assert payload["ok"] is True
-    assert "self_audit" not in payload["data"]
-    assert payload["data"]["repository_audit"]["mode"] == "repository"
-    assert payload["data"]["repository_audit"]["governance_context"]["contract"] == (
-        "governed_repository"
-    )
-    assert "posture" not in payload["data"]["repository_audit"]["governance_context"]
-    assert payload["data"]["repository_audit"]["governance_context"]["profile"] == "generic"
-    assert (
-        payload["data"]["repository_audit"]["governance_context"]["subject"]["kind"] == "repository"
-    )
-    assert payload["data"]["repository_audit"]["governance_context"]["subject"]["id"] == str(
-        tmp_path.resolve()
-    )
-    assert payload["data"]["repository_audit"]["governance_context"]["shared_commands"] == [
-        "ethos status",
-        "ethos plan",
-        "ethos prove",
-        "ethos land",
-        "ethos publish",
-    ]
-    assert payload["data"]["repository_audit"]["governance_context"]["transition_commands"] == [
-        "ethos status",
-        "ethos plan",
-        "ethos prove",
-        "ethos land",
-        "ethos publish",
-    ]
-    assert payload["data"]["repository_audit"]["governance_context"]["reader_view_commands"] == [
-        "ethos orient"
-    ]
-    assert payload["data"]["repository_audit"]["governance_context"]["scorecard_commands"] == [
-        "ethos report",
-    ]
-
-
-def test_report_uses_adopter_scorecard_for_non_product_repo(tmp_path: Path) -> None:
-    adoption_plan(tmp_path, profile="generic", apply=True)
-
-    payload = run_ethos("report", "--root", tmp_path.as_posix(), "--json")
-
-    assert payload["ok"] is True
-    assert "self_audit" not in payload["data"]
-    assert payload["data"]["repository_audit"]["mode"] == "repository"
-    assert (
-        payload["data"]["governance_context"]
-        == payload["data"]["repository_audit"]["governance_context"]
-    )
-    assert "posture" not in payload["data"]["governance_context"]
-    assert payload["summary"]["governance_gap_count"] == 0
-    assert payload["data"]["scores"]["adopter_governance"] == 1
-    assert payload["data"]["first_hour"] == {
-        "proof_status": "ready",
-        "evidence_gap_count": 0,
-        "land_readiness": "local_readiness",
-        "publish_readiness": "local_readiness",
-        "hosted_ci_truth": "external-evidence",
-        "next_action": "ethos prove",
-    }
-
-
-def test_assistant_projection_commands_are_available() -> None:
-    manifest = run_ethos("assistants", "mcp-manifest", "--json")
-    projections = run_ethos("assistants", "check-projections", "--json")
-    doctor = run_ethos("assistants", "doctor", "--json")
-
-    assert manifest["ok"] is True
-    assert "ethos.status" in manifest["data"]["manifest"]["tools"]
-    assert projections["ok"] is True
-    assert projections["data"]["contract"]["truth"] == "repository-source-and-contracts"
-    assert doctor["ok"] is True
-
-
-def test_playbooks_route_accepts_changed_scope_alias_without_changed_paths(
-    tmp_path: Path,
-) -> None:
-    root = init_git_repo(tmp_path / "repo")
-    skills_root = root / ".agents" / "skills"
-    skills_root.mkdir(parents=True)
-    (skills_root / "README.md").write_text("# Skills\n", encoding="utf-8")
-    package_manifest = Path(write_v2_playbook_package(skills_root, "repository-governance"))
-    (skills_root / "activation.toml").write_text(
-        f"""
-[meta]
-version = 2
-
-[[skill]]
-id = "repository-governance"
-package_manifest = "{package_manifest.relative_to(root).as_posix()}"
-subject = "repository-governance"
-operation = "govern"
-authority = "primary"
-lifecycle = "active"
-path_globs = ["docs/**"]
-pre_reads = ["README.md"]
-post_checks = ["ethos report --json"]
-commands = ["ethos status"]
-boundary = "workflow-package-projection"
-""".lstrip(),
-        encoding="utf-8",
-    )
-    git(root, "add", ".agents")
-    git(
-        root,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "add playbook routing",
-    )
-
-    payload = run_ethos("playbooks", "route", "--changed", "--root", str(root), "--json")
-
-    assert payload["ok"] is True
-    assert payload["command"] == "playbooks route"
-    assert payload["data"]["subject"] == "changed-scope"
-    assert payload["data"]["changed"] is True
-    assert payload["data"]["changed_paths"] == []
-    assert payload["data"]["selected"] == []
-    assert payload["data"]["unmatched_paths"] == []
-
-
-def test_product_playbook_activation_routes_evolution_campaigns() -> None:
-    activation = tomllib.loads(Path(".agents/skills/activation.toml").read_text(encoding="utf-8"))
-    record = next(
-        item for item in activation["skill"] if item["id"] == "ethos-repository-governance"
-    )
-
-    skill_record = next(
-        item for item in activation["skill"] if item["id"] == "ethos-skill-portfolio-governance"
-    )
-
-    assert "evolution/**" in record["path_globs"]
-    assert ".agents/skills/**" not in record["path_globs"]
-    assert ".agents/skills/**" in skill_record["path_globs"]
-
-
-def test_playbooks_changed_scope_route_requires_explicit_subject(tmp_path: Path) -> None:
-    root = tmp_path / "repo"
-    skills_root = root / ".agents" / "skills"
-    skills_root.mkdir(parents=True)
-    (skills_root / "README.md").write_text("# Skills\n", encoding="utf-8")
-    package_manifest = Path(write_v2_playbook_package(skills_root, "ethos-repository-governance"))
-    (skills_root / "activation.toml").write_text(
-        f"""
-[meta]
-version = 2
-
-[[skill]]
-id = "ethos-repository-governance"
-package_manifest = "{package_manifest.relative_to(root).as_posix()}"
-subject = "repository-governance"
-operation = "govern"
-authority = "primary"
-lifecycle = "active"
-path_globs = ["docs/**"]
-pre_reads = ["README.md"]
-post_checks = ["ethos report --json"]
-commands = ["ethos status"]
-boundary = "workflow-package-projection"
-""".lstrip(),
-        encoding="utf-8",
-    )
-
-    payload = run_ethos("playbooks", "route", "--changed", "--root", str(root), "--json")
-
-    assert payload["ok"] is True
-    assert payload["required_gaps"] == []
-    assert payload["data"]["selected"] == []
-    assert payload["data"]["changed_paths"] == []
-
-
-def test_playbooks_changed_scope_route_ignores_id_and_subject_substrings(
-    tmp_path: Path,
-) -> None:
-    root = tmp_path / "repo"
-    skills_root = root / ".agents" / "skills"
-    skills_root.mkdir(parents=True)
-    (skills_root / "README.md").write_text("# Skills\n", encoding="utf-8")
-    package_manifest = Path(write_v2_playbook_package(skills_root, "changed-scope-helper"))
-    (skills_root / "activation.toml").write_text(
-        f"""
-[meta]
-version = 2
-
-[[skill]]
-id = "changed-scope-helper"
-package_manifest = "{package_manifest.relative_to(root).as_posix()}"
-subject = "changed-scope-shadow"
-operation = "inspect"
-authority = "primary"
-lifecycle = "active"
-path_globs = ["docs/**"]
-pre_reads = ["README.md"]
-post_checks = ["ethos report --json"]
-commands = ["ethos status"]
-boundary = "workflow-package-projection"
-""".lstrip(),
-        encoding="utf-8",
-    )
-
-    payload = run_ethos("playbooks", "route", "--changed", "--root", str(root), "--json")
-
-    assert payload["ok"] is True
-    assert payload["required_gaps"] == []
-    assert payload["data"]["selected"] == []
-    assert payload["data"]["changed_paths"] == []
-
-
-def test_playbooks_route_rejects_name_only_activation_entries(tmp_path: Path) -> None:
-    root = init_git_repo(tmp_path / "repo")
-    skills_root = root / ".agents" / "skills"
-    skills_root.mkdir(parents=True)
-    (skills_root / "README.md").write_text("# Skills\n", encoding="utf-8")
-    skill_path = skills_root / "changed-scope-router" / "SKILL.md"
-    skill_path.parent.mkdir()
-    skill_path.write_text("# Changed Scope Router\n", encoding="utf-8")
-    (skills_root / "activation.toml").write_text(
-        """
-[[skill]]
-name = "changed-scope-router"
-path = ".agents/skills/changed-scope-router/SKILL.md"
-subjects = ["changed-scope"]
-path_globs = ["src/**"]
-commands = ["ethos playbooks route --changed"]
-boundary = "thin-playbook-projection"
-""".lstrip(),
-        encoding="utf-8",
-    )
-    git(root, "add", ".agents")
-    git(
-        root,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "add unsupported route",
-    )
-    (root / "src").mkdir()
-    (root / "src" / "app.py").write_text("print('hello')\n", encoding="utf-8")
-
-    payload = run_ethos("playbooks", "route", "--changed", "--root", str(root), "--json")
-
-    assert payload["ok"] is False
-    assert "skill_missing_id" in payload["required_gaps"]
-    assert "playbook_activation_unsupported_version:1" in payload["required_gaps"]
-
-
-def test_playbooks_strict_mode_rejects_activation_path_escape(tmp_path: Path) -> None:
-    root = tmp_path / "repo"
-    skills_root = root / ".agents" / "skills"
-    skills_root.mkdir(parents=True)
-    (skills_root / "README.md").write_text("# Skills\n", encoding="utf-8")
-    package_manifest = Path(write_v2_playbook_package(skills_root, "escape-skill"))
-    (skills_root / "activation.toml").write_text(
-        f"""
-[meta]
-version = 2
-
-[[skill]]
-id = "escape-skill"
-path = "../outside/SKILL.md"
-package_manifest = "{package_manifest.relative_to(root).as_posix()}"
-subject = "repository-governance"
-operation = "govern"
-authority = "primary"
-lifecycle = "active"
-path_globs = ["docs/**"]
-pre_reads = ["README.md"]
-post_checks = ["ethos report --json"]
-commands = ["ethos status"]
-boundary = "workflow-package-projection"
-""".lstrip(),
-        encoding="utf-8",
-    )
-
-    payload = run_ethos(
-        "playbooks",
-        "check",
-        "--mode",
-        "v2-strict",
-        "--root",
-        str(root),
-        "--json",
-    )
-
-    assert payload["ok"] is False
-    assert "playbook_skill_path_escape:escape-skill" in payload["required_gaps"]
-
-
-def test_playbooks_strict_mode_requires_activation_path_to_match_package_entrypoint(
-    tmp_path: Path,
-) -> None:
-    root = tmp_path / "repo"
-    skills_root = root / ".agents" / "skills"
-    skills_root.mkdir(parents=True)
-    (skills_root / "README.md").write_text("# Skills\n", encoding="utf-8")
-    package_manifest = Path(write_v2_playbook_package(skills_root, "entrypoint-skill"))
-    alternate = skills_root / "entrypoint-skill" / "ALT.md"
-    alternate.write_text(OFFICIAL_PLAYBOOK_SKILL, encoding="utf-8")
-    (skills_root / "activation.toml").write_text(
-        f"""
-[meta]
-version = 2
-
-[[skill]]
-id = "entrypoint-skill"
-path = ".agents/skills/entrypoint-skill/ALT.md"
-package_manifest = "{package_manifest.relative_to(root).as_posix()}"
-subject = "repository-governance"
-operation = "govern"
-authority = "primary"
-lifecycle = "active"
-path_globs = ["docs/**"]
-pre_reads = ["README.md"]
-post_checks = ["ethos report --json"]
-commands = ["ethos status"]
-boundary = "workflow-package-projection"
-""".lstrip(),
-        encoding="utf-8",
-    )
-
-    payload = run_ethos(
-        "playbooks",
-        "check",
-        "--mode",
-        "v2-strict",
-        "--root",
-        str(root),
-        "--json",
-    )
-
-    assert payload["ok"] is False
-    assert "skill_package_entrypoint_mismatch:entrypoint-skill" in payload["required_gaps"]
-
-
-def test_playbooks_report_rejects_name_only_skill_activation(tmp_path: Path) -> None:
-    root = tmp_path / "repo"
-    skills_root = root / ".agents" / "skills"
-    skills_root.mkdir(parents=True)
-    (skills_root / "README.md").write_text("# Skills\n", encoding="utf-8")
-    skill_path = skills_root / "unsupported-router" / "SKILL.md"
-    skill_path.parent.mkdir()
-    skill_path.write_text("# Unsupported Router\n", encoding="utf-8")
-    (skills_root / "activation.toml").write_text(
-        """
-[[skill]]
-name = "unsupported-router"
-subjects = ["repository-governance"]
-commands = ["ethos status"]
-boundary = "thin-playbook-projection"
-""".lstrip(),
-        encoding="utf-8",
-    )
-
-    payload = run_ethos("playbooks", "check", "--root", str(root), "--json")
-
-    assert payload["ok"] is False
-    assert "skill_missing_id" in payload["required_gaps"]
-    assert "playbook_activation_unsupported_version:1" in payload["required_gaps"]
-
-
-def test_playbooks_strict_mode_rejects_placeholder_v1_skill(tmp_path: Path) -> None:
-    root = tmp_path / "repo"
-    skills_root = root / ".agents" / "skills"
-    skills_root.mkdir(parents=True)
-    (skills_root / "README.md").write_text("# Skills\n", encoding="utf-8")
-    skill_path = skills_root / "placeholder" / "SKILL.md"
-    skill_path.parent.mkdir()
-    skill_path.write_text("# Placeholder\n\nThin routing note.\n", encoding="utf-8")
-    (skills_root / "activation.toml").write_text(
-        """
-[meta]
-version = 1
-
-[[skill]]
-id = "placeholder"
-path = ".agents/skills/placeholder/SKILL.md"
-subjects = ["changed-scope"]
-path_globs = ["src/**"]
-commands = ["ethos status"]
-boundary = "thin-playbook-projection"
-""".lstrip(),
-        encoding="utf-8",
-    )
-
-    payload = run_ethos(
-        "playbooks",
-        "check",
-        "--mode",
-        "v2-strict",
-        "--root",
-        str(root),
-        "--json",
-    )
-
-    assert payload["ok"] is False
-    assert payload["data"]["mode"] == "v2-strict"
-    assert "playbook_activation_unsupported_version:1" in payload["required_gaps"]
-    assert "skill_package_manifest_missing:placeholder" in payload["required_gaps"]
-    assert "skill_quality_missing_frontmatter:placeholder" in payload["required_gaps"]
-
-
-def test_playbooks_removed_compatibility_mode_is_not_available(tmp_path: Path) -> None:
-    root = init_git_repo(tmp_path / "repo")
-
-    completed = run_ethos_raw(
-        "playbooks",
-        "route",
-        "--changed",
-        "--mode",
-        "compat",
-        "--root",
-        str(root),
-        "--json",
-    )
-
-    assert completed.returncode != 0
-    assert "unsupported playbook mode: compat" in completed.stderr
-
-
-def test_report_uses_strict_playbooks_for_external_adopter_root(
-    tmp_path: Path,
-) -> None:
-    root = tmp_path / "repo"
-    skills_root = root / ".agents" / "skills"
-    skill_path = skills_root / "unsupported-router" / "SKILL.md"
-    skill_path.parent.mkdir(parents=True)
-    skill_path.write_text("# Unsupported Router\n", encoding="utf-8")
-    (skills_root / "README.md").write_text("# Skills\n", encoding="utf-8")
-    (skills_root / "activation.toml").write_text(
-        """
-[meta]
-version = 1
-
-[[skill]]
-name = "unsupported-router"
-path = ".agents/skills/unsupported-router/SKILL.md"
-subjects = ["changed-scope"]
-path_globs = ["src/**"]
-commands = ["ethos playbooks route --changed"]
-boundary = "thin-playbook-projection"
-""".lstrip(),
-        encoding="utf-8",
-    )
-
-    payload = run_ethos("report", "--root", str(root), "--json")
-
-    assert payload["data"]["repository_audit"]["mode"] == "repository"
-    assert payload["data"]["playbooks"]["mode"] == "v2-strict"
-    assert "skill_missing_id" in payload["data"]["playbooks"]["required_gaps"]
-    assert (
-        "playbook_activation_unsupported_version:1" in payload["data"]["playbooks"]["required_gaps"]
-    )
-
-
-def test_product_playbooks_strict_mode_passes_after_v2_migration() -> None:
-    payload = run_ethos("playbooks", "check", "--mode", "v2-strict", "--json")
-
-    assert payload["ok"] is True
-    assert payload["required_gaps"] == []
-    assert payload["data"]["registry"]["digest"].startswith("sha256:")
-    assert payload["data"]["package_quality"]["ok"] is True
-
-
-def test_projection_drift_reports_registry_and_generator_digest_state() -> None:
-    payload = run_ethos("quality", "projection-drift", "--json")
-
-    assert payload["ok"] is True
-    assert payload["data"]["registry"]["digest"].startswith("sha256:")
-    assert payload["data"]["registry"]["expected_digest"].startswith("sha256:")
-    assert payload["data"]["registry"]["ok"] is True
-    assert payload["data"]["generator"]["digest"].startswith("sha256:")
-    assert payload["data"]["generator"]["expected_digest"].startswith("sha256:")
-    assert payload["data"]["generator"]["ok"] is True
-    assert payload["data"]["inputs"][0]["path"] == ".agents/skills/activation.toml"
-    assert payload["data"]["inputs"][0]["digest"].startswith("sha256:")
-
-
-def test_playbooks_v2_gate_can_execute() -> None:
-    payload = run_ethos("prove", "--execute", "--gate", "playbooks-v2", "--json")
-
-    assert payload["ok"] is True
-    assert payload["data"]["executed"] is True
-    assert payload["data"]["evidence"]["runs"][0]["action_id"] == "playbooks-v2"
-    assert payload["data"]["evidence"]["runs"][0]["state"] == "proven"
-
-
-def test_campaign_hypotheses_are_visible() -> None:
-    payload = run_ethos("campaign", "hypotheses", "--json")
-
-    assert payload["ok"] is True
-    assert payload["data"]["hypotheses"]
-
-
-def test_campaign_status_reports_manifest_steps() -> None:
-    payload = run_ethos("campaign", "status", "--json")
-
-    assert payload["ok"] is True
-    assert payload["command"] == "campaign status"
-    assert payload["summary"]["active_campaign_count"] >= 1
-    assert payload["data"]["campaigns"]
-    campaign = next(
-        item
-        for item in payload["data"]["campaigns"]
-        if item["id"] == "terminal-openspec-productization"
-    )
-    assert campaign["step_summary"]["total"] >= 8
-    assert {"planned", "active", "closed"} <= set(campaign["step_summary"])
-    assert campaign["lane_topology"]["mode"] == "strict_serial"
-    assert campaign["lane_topology"]["active_step"] == "hooked-write-admission"
-    assert campaign["lane_topology"]["next_planned_step"] == "adopter-openspec-scaffold"
-    assert {
-        "ordinal",
-        "depends_on",
-        "openspec_change",
-        "work_lane",
-        "claim_id",
-        "closeout",
-    } <= set(campaign["steps"][0])
-
-
-def test_campaign_closeout_reports_local_campaign_packages() -> None:
-    branch = git(Path.cwd(), "branch", "--show-current") or "detached"
-    expected_submit = load_branch_role_policy(Path.cwd()).submit_branch_for_source(branch)
-    evidence = json.loads(
-        Path("evidence/parity/alphasim-dmgr-shadow.json").read_text(encoding="utf-8")
-    )
-    target = Path(str(evidence["target"]))
-
-    payload = run_ethos(
-        "campaign",
-        "closeout",
-        "--adopter",
-        "alphasim-dmgr",
-        "--target",
-        target.as_posix(),
-        "--json",
-    )
-
-    assert payload["command"] == "campaign closeout"
-    assert payload["state"] in {"local_ready", "gapped"}
-    assert payload["summary"]["remote_state"] == "deferred"
-    assert payload["summary"]["parity_pending_count"] == len(
-        payload["data"]["parity"]["pending_packages"]
-    )
-    remote_publication = payload["data"]["remote_publication"]
-    assert remote_publication["remote_push"] == "not_performed"
-    assert remote_publication["state"] == "deferred"
-    assert remote_publication["reason"] in {
-        "remote publication adapter unavailable",
-        "remote unavailable; use local-ci fallback evidence",
-    }
-    assert remote_publication["availability"]["blocking"] is False
-    assert remote_publication["fallback"]["kind"] == "local_ci_fallback"
-    assert remote_publication["fallback"]["hosted_ci_status_claimed"] is False
-
-    packages = payload["data"]["packages"]
-    assert set(packages) == {
-        "local_closeout",
-        "trust_closeout",
-        "campaign",
-        "intake_projection",
-        "publication",
-        "release",
-        "parity",
-        "shadow_parity",
-    }
-    assert packages["local_closeout"]["target_branch"] == "candidate/dev"
-    assert packages["campaign"]["kind"] == "campaign_closeout"
-    assert packages["campaign"]["active_count"] >= 1
-    assert packages["campaign"]["campaigns"]
-    assert (
-        packages["local_closeout"]["required_gaps"]
-        == payload["data"]["workspace"]["closeout_support"]["required_gaps"]
-    )
-    assert packages["publication"]["remote_push"] == "not_performed"
-    assert packages["publication"]["local_submit_package"]["source_branch"] == branch
-    assert packages["publication"]["local_submit_package"]["submit_branch"] == expected_submit
-    assert packages["release"]["ok"] is True
-    assert packages["parity"]["pending_count"] == len(payload["data"]["parity"]["pending_packages"])
-    assert packages["parity"]["pending_count"] == payload["summary"]["parity_pending_count"]
-    assert packages["parity"]["blocking"] is False
-    assert packages["parity"]["required_gaps"] == payload["data"]["parity"]["required_gaps"]
-    if payload["data"]["parity"]["required_gaps"]:
-        assert "parity_evidence_invalid:alphasim-dmgr" in payload["data"]["parity"]["required_gaps"]
-    if payload["state"] == "gapped" and not payload["data"]["parity"]["required_gaps"]:
-        assert any(
-            package.get("required_gaps")
-            for package in packages.values()
-            if isinstance(package, dict)
-        )
-    assert packages["shadow_parity"] == payload["data"]["shadow_parity"]["execution_packages"][0]
-    assert packages["shadow_parity"]["state"] in {"matched", "invalid", "not_run"}
-    assert packages["shadow_parity"]["evidence_path"] == (
-        "evidence/parity/alphasim-dmgr-shadow.json"
-    )
-    assert packages["shadow_parity"]["blocking"] == bool(packages["shadow_parity"]["required_gaps"])
-    assert packages["intake_projection"]["kind"] == "intake_projection"
-    assert packages["intake_projection"]["truth_boundary"] == "projection-evidence"
-    assert packages["trust_closeout"]["kind"] == "trust_closeout"
-    assert packages["trust_closeout"]["claim_report_ok"] is True
-    assert packages["trust_closeout"]["promotion_ready"] is True
-    assert packages["trust_closeout"]["executed_proof_evidence"] is True
-    assert packages["shadow_parity"]["provenance"]["mode"] == "tracked_evidence"
-    assert (
-        payload["data"]["provenance"]["shadow_parity"] == (packages["shadow_parity"]["provenance"])
-    )
-    assert payload["data"]["provenance"]["closeout"] == {
-        "mode": "local_only",
-        "remote_state": "deferred",
-    }
-    validation = validate_schema_instance("campaign-closeout.schema.json", payload["data"])
-    assert validation["ok"] is True
-
-
-def test_intake_status_is_public_read_only_surface() -> None:
-    payload = run_ethos("intake", "status", "--json")
-
-    assert payload["ok"] is True
-    assert payload["command"] == "intake status"
-    assert payload["data"]["truth_boundary"] == "adopter-ledger"
-    assert payload["data"]["projection"]["truth_boundary"] == "projection-evidence"
-    assert payload["data"]["projection"]["repository_truth"] is False
-    assert payload["data"]["provider"] == "unconfigured"
-
-
-def test_intake_status_rejects_empty_configuration(tmp_path: Path) -> None:
-    root = tmp_path / "repo"
-    (root / ".ethos").mkdir(parents=True)
-    (root / ".ethos" / "intake.toml").write_text("", encoding="utf-8")
-
-    payload = run_ethos("intake", "status", "--root", str(root), "--json")
-
-    assert payload["ok"] is False
-    assert payload["state"] == "invalid"
-    assert payload["data"]["configured"] is False
-    assert payload["data"]["provider"] == "invalid"
-    assert "intake_provider_missing:.ethos/intake.toml" in payload["required_gaps"]
-
-
-def test_docs_command_uses_registry_for_discovery() -> None:
-    payload = run_ethos("docs", "agent-projections", "--json")
-
-    assert payload["ok"] is True
-    assert payload["data"]["path"] == "docs/architecture/agent-projections.md"
-
-
-def test_report_advisory_layer_classifies_protected_openspec_residue() -> None:
-    protected_residue_gap = (
-        "openspec_protected_branch_active_change_unarchived:"
-        "main:release_root:ethos-release-hardening"
-    )
-    next_actions = _advisory_next_actions((protected_residue_gap,))
-    layers = _gap_layers(
-        result_required_gaps=(),
-        parity_gaps={"ok": True, "required_gaps": []},
-        playbooks={"ok": True, "required_gaps": [], "advisory_gaps": []},
-        advisory_gaps=(protected_residue_gap,),
-        advisory_next_actions=next_actions,
-    )
-
-    advisory_layer = layers["advisory_signals"]
-    assert advisory_layer["blocking"] is False
-    assert advisory_layer["invalid_states"] == {
-        "categories": {"carrier_invalid": [protected_residue_gap]},
-        "category_count": 1,
-        "gap_count": 1,
-    }
-    assert advisory_layer["next_actions"] == [
-        "git ls-tree -r --name-only main -- openspec/changes/ethos-release-hardening",
-        "ethos explain openspec_protected_branch_active_change_unarchived:main:release_root:ethos-release-hardening --json",
-    ]
-
-
-def test_report_scorecard_is_derived_from_governance_checks() -> None:
-    payload = run_ethos("report", "--json")
-
-    assert payload["ok"] is True
-    assert payload["data"]["scores"]["distribution_adapter"] == 1
-    assert payload["data"]["scores"]["claims"] == 1
-    assert payload["data"]["scores"]["docs"] == 1
-    assert payload["data"]["scores"]["assistant_projection"] == 1
-    assert payload["data"]["scores"]["openspec"] == 1
-    assert payload["data"]["scores"]["playbooks"] == 1
-    assert payload["data"]["scores"]["adoption_scaffold"] == 1
-    assert payload["data"]["scores"]["parity_ledger"] == 1
-    scorecards = {item["id"]: item for item in payload["data"]["scorecards"]}
-    assert scorecards["skills-v2"]["ok"] is True
-    assert scorecards["skills-v2"]["mode"] == "v2-strict"
-    assert scorecards["skills-v2"]["score"] == scorecards["skills-v2"]["max_score"]
-    assert payload["data"]["parity"]["ledger"]["summary"]["unclassified_count"] == 0
-    assert payload["data"]["parity"]["gaps"]["ok"] is True
-    assert payload["data"]["parity"]["gaps"]["required_gaps"] == []
-    assert payload["summary"]["parity_pending_count"] == len(
-        payload["data"]["parity"]["gaps"]["required_gaps"]
-    )
-    assert payload["summary"]["parity_pending_count"] == 0
-    assert payload["data"]["parity"]["gaps"]["pending_packages"] == []
-    assert payload["summary"]["governance_gap_count"] == 0
-    advisory_layer = payload["data"]["gap_layers"]["advisory_signals"]
-    assert advisory_layer["blocking"] is False
-    assert advisory_layer["gap_count"] == payload["summary"]["advisory_gap_count"]
-    assert advisory_layer["advisory_gaps"] == payload["data"]["advisory_signals"]["advisory_gaps"]
-    assert advisory_layer["next_actions"] == payload["data"]["advisory_signals"]["next_actions"]
-    assert "self_audit" not in payload["data"]
-    assert (
-        payload["data"]["governance_context"]
-        == payload["data"]["repository_audit"]["governance_context"]
-    )
-    assert "posture" not in payload["data"]["governance_context"]
-    assert payload["data"]["gap_layers"]["governance_audit"] == {
-        "scope": "governance_audit",
-        "blocking": True,
-        "ok": True,
-        "required_gaps": [],
-        "gap_count": 0,
-        "invalid_states": {"categories": {}, "category_count": 0, "gap_count": 0},
-    }
-    assert payload["data"]["gap_layers"]["capability_parity"] == {
-        "scope": "capability_parity",
-        "blocking": False,
-        "ok": True,
-        "required_gaps": payload["data"]["parity"]["gaps"]["required_gaps"],
-        "gap_count": payload["summary"]["parity_pending_count"],
-        "invalid_states": {"categories": {}, "category_count": 0, "gap_count": 0},
-    }
-    assert payload["data"]["invalid_states"] == {
-        "categories": {},
-        "category_count": 0,
-        "gap_count": 0,
-    }
-    parity_note = payload["data"]["parity"]["scope"]["note"].lower()
-    assert "raw/cache" not in parity_note
-    assert "backend retirement" not in parity_note
-    assert "domain profile parity" in parity_note
-    assert payload["next_actions"] == ["ethos prove --full"]
 
 
 def test_shadow_parity_evidence_page_records_accepted_classification() -> None:
@@ -2305,33 +747,3 @@ def test_retired_self_command_group_is_not_available() -> None:
 
     assert completed.returncode != 0
     assert 'Unknown command "self"' in (completed.stderr or completed.stdout)
-
-
-def test_init_command_is_adoption_alias_without_writing(tmp_path: Path) -> None:
-    payload = run_ethos("init", "--root", str(tmp_path), "--dry-run", "--json")
-
-    assert payload["ok"] is True
-    assert payload["command"] == "init"
-    assert "openspec/config.yaml" in payload["data"]["planned_files"]
-    assert ".agents/skills/activation.toml" in payload["data"]["planned_files"]
-    assert not (tmp_path / ".ethos").exists()
-
-
-def test_quality_types_enforces_ty_policy_tiers() -> None:
-    import json as _json
-
-    completed = run_ethos_raw("quality", "types", "--json")
-    payload = _json.loads(completed.stdout)
-
-    assert payload["command"] == "quality types"
-    packages = payload["data"]["packages"]
-    # Zero-tolerance tier packages must report a zero limit; ratchet tiers a baseline.
-    # ethos-core absorbs the former ethos-contracts and ethos-quality zero-tolerance
-    # packages; ethos remains the ratchet-tier runtime.
-    assert packages["packages/ethos-core"]["limit"] == 0
-    assert packages["packages/ethos-core"]["tier"] == "zero_tolerance"
-    assert packages["packages/ethos"]["tier"] == "ratchet"
-    assert packages["packages/ethos"]["limit"] == 75
-    assert packages["packages/ethos"]["count"] <= packages["packages/ethos"]["limit"]
-    # The gate binds its verdict to exit status (fail-closed): a breach exits non-zero.
-    assert completed.returncode == (0 if payload["ok"] else 1)

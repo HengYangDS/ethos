@@ -1,0 +1,68 @@
+# ETHOS repository binding manifest — the adopter entrypoint.
+#
+# This minimal profile makes the repository a recognized ETHOS adopter, so `ethos
+# prove` uses the adopter proof floor instead of the product-core floor. Extend it
+# for your stack; see docs/governance/repository-profile-contract.md.
+schema_version = 1
+profile_id = {{ project_name | json }}
+profile_version = "1"
+ethos_contract_version = "1"
+
+[repository]
+kind = "software"
+root_subject = {{ project_name | json }}
+
+# Repository surface roots. These match the ETHOS defaults; override only the ones
+# your repository places elsewhere.
+[roots]
+rules = "rules"
+docs = "docs"
+durable_evidence = "evidence"
+openspec = "openspec"
+claims = "evidence/claims"
+agent_skills = ".agents/skills"
+local_state = ".ethos/state"
+
+# Material governance admission is independent from code correctness. Declare every
+# path family whose edits require an active OpenSpec Change scope companion. This
+# ETHOS-owned profile contract is required for adopters; `scope.toml` remains a
+# companion beside official OpenSpec artifacts, not official OpenSpec schema.
+[openspec]
+material_paths = [
+    ".ethos/profile.toml",
+    "openspec/**",
+    "docs/governance/**",
+    "rules/**",
+]
+
+# Declare your native code-correctness proof so an adopter proof carries a real
+# test / type / lint dimension. Map each required axis (behavior, static-analysis)
+# to one of your own trust-bearing gates, or waive it with a reason. Uncomment and
+# adapt to your toolchain:
+#
+# [proof]
+# code_correctness_gates = ["my-tests", "my-static"]
+#
+# [proof.code_correctness_map]
+# behavior = "my-tests"
+# static-analysis = "my-static"
+#
+# [[proof.gates]]
+# id = "my-tests"
+# kind = "test"
+# command = ["your", "test", "runner"]
+# dimensions = ["test", "coverage"]
+# execution_mode = "subprocess"
+# evidence_class = "proof"
+# trust_bearing = true
+# tool_adapter = "repository-native"
+#
+# [[proof.gates]]
+# id = "my-static"
+# kind = "typing"
+# command = ["your", "type-or-lint", "checker"]
+# dimensions = ["static-analysis"]
+# execution_mode = "subprocess"
+# evidence_class = "contract"
+# trust_bearing = true
+# tool_adapter = "repository-native"

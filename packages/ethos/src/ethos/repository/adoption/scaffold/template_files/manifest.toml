@@ -1,0 +1,378 @@
+version = 1
+
+[[artifact]]
+path = ".gitignore"
+template = "core/gitignore.j2"
+required = true
+
+[[artifact]]
+path = ".config/ethos/generated-artifacts.toml"
+template = "core/generated-artifacts.toml.j2"
+required = true
+
+[[artifact]]
+path = ".ethos/project.toml"
+template = "core/project.toml.j2"
+required = true
+
+[[artifact]]
+path = ".ethos/profile.toml"
+template = "core/profile.toml.j2"
+required = true
+
+[[artifact]]
+path = ".ethos/workspace.toml"
+template = "core/workspace.toml.j2"
+required = true
+
+[[artifact]]
+path = ".ethos/rules.toml"
+template = "core/rules.toml.j2"
+required = true
+
+[[artifact]]
+path = ".ethos/assistants.toml"
+template = "core/assistants.toml.j2"
+required = true
+
+[[artifact]]
+path = ".ethos/release.toml"
+template = "core/release.toml.j2"
+required = true
+
+[[artifact]]
+path = ".ethos/state/.gitignore"
+template = "core/state-gitignore.j2"
+required = true
+
+[[artifact]]
+path = "AGENTS.md"
+template = "documents/agents.md.j2"
+required = true
+
+[[artifact]]
+path = "CONTRIBUTING.md"
+template = "documents/contributing.md.j2"
+required = true
+
+[[artifact]]
+path = "CHANGELOG.md"
+template = "documents/changelog.md.j2"
+required = true
+
+[[artifact]]
+path = ".agents/skills/README.md"
+template = "skills/readme.md.j2"
+required = true
+
+[[artifact]]
+path = ".agents/skills/activation.toml"
+template = "skills/activation.toml.j2"
+renderer = "activation"
+required = true
+
+[[artifact]]
+path = ".agents/skills/ethos-repository-governance/SKILL.md"
+template = "skills/repository-governance.md.j2"
+required = true
+
+[[artifact]]
+path = ".agents/skills/ethos-repository-governance/package.toml"
+template = "skills/package.toml.j2"
+renderer = "skill-package"
+required = true
+subject = "ethos-repository-governance"
+
+[[artifact]]
+path = ".agents/skills/ethos-skill-portfolio-governance/SKILL.md"
+template = "skills/portfolio-governance.md.j2"
+required = true
+
+[[artifact]]
+path = ".agents/skills/ethos-skill-portfolio-governance/package.toml"
+template = "skills/package.toml.j2"
+renderer = "skill-package"
+required = true
+subject = "ethos-skill-portfolio-governance"
+
+[[artifact]]
+path = ".agents/skills/ethos-adoption-profile-governance/SKILL.md"
+template = "skills/adoption-profile.md.j2"
+required = true
+
+[[artifact]]
+path = ".agents/skills/ethos-adoption-profile-governance/package.toml"
+template = "skills/package.toml.j2"
+renderer = "skill-package"
+required = true
+subject = "ethos-adoption-profile-governance"
+
+[[artifact]]
+path = "openspec/config.yaml"
+template = "openspec/config.yaml.j2"
+required = true
+
+[[artifact]]
+path = "openspec/README.md"
+template = "openspec/readme.md.j2"
+required = true
+
+[[artifact]]
+path = "openspec/specs/README.md"
+template = "openspec/specs-readme.md.j2"
+required = true
+
+[[artifact]]
+path = "openspec/specs/families.toml"
+template = "openspec/families.toml.j2"
+required = true
+
+[[artifact]]
+path = "openspec/specs/capability.template.toml"
+template = "openspec/capability-template.toml.j2"
+required = true
+
+[[artifact]]
+path = "openspec/changes/README.md"
+template = "openspec/changes-readme.md.j2"
+required = true
+
+[[artifact]]
+path = "openspec/changes/template.md"
+template = "openspec/change-template.md.j2"
+required = true
+
+[[artifact]]
+path = "openspec/changes/.gitkeep"
+template = "core/empty.j2"
+required = true
+
+[[artifact]]
+path = "openspec/changes/archive/.gitkeep"
+template = "core/empty.j2"
+required = true
+
+[[artifact]]
+path = "docs/README.md"
+template = "documents/readme.md.j2"
+required = true
+
+[[artifact]]
+path = "docs/index.md"
+template = "documents/index.md.j2"
+required = true
+
+[[artifact]]
+path = "docs/_meta/taxonomy.toml"
+template = "documents/taxonomy.toml.j2"
+
+[[artifact]]
+path = "docs/decisions/README.md"
+template = "decisions/readme.md.j2"
+required = true
+
+[[artifact]]
+path = "docs/decisions/decision-index.md"
+template = "decisions/index.md.j2"
+required = true
+
+[[artifact]]
+path = "docs/decisions/decision-dependency-map.md"
+template = "decisions/dependency-map.md.j2"
+required = true
+
+[[artifact]]
+path = "docs/decisions/decision-code-links.md"
+template = "decisions/code-links.md.j2"
+required = true
+
+[[artifact]]
+path = "docs/decisions/accepted/README.md"
+template = "decisions/accepted.md.j2"
+required = true
+
+[[artifact]]
+path = "docs/decisions/superseded/README.md"
+template = "decisions/superseded.md.j2"
+required = true
+
+[[artifact]]
+path = "docs/decisions/templates/README.md"
+template = "decisions/templates-readme.md.j2"
+required = true
+
+[[artifact]]
+path = "docs/decisions/templates/decision-record.md"
+template = "decisions/record-template.md.j2"
+required = true
+
+[[artifact]]
+path = "docs/evidence/README.md"
+template = "documents/evidence.md.j2"
+required = true
+
+[[artifact]]
+path = "docs/history/README.md"
+template = "documents/history.md.j2"
+required = true
+
+[[artifact]]
+path = "docs/reference/README.md"
+template = "documents/reference.md.j2"
+required = true
+
+[[artifact]]
+path = "docs/start/quickstart.md"
+template = "documents/quickstart.md.j2"
+required = true
+
+[[artifact]]
+path = "docs/governance/ethos.md"
+template = "documents/governance.md.j2"
+required = true
+
+[[artifact]]
+path = "evidence/.gitkeep"
+template = "core/empty.j2"
+required = true
+
+[[artifact]]
+path = "evidence/claims/.gitkeep"
+template = "core/empty.j2"
+required = true
+
+[[artifact]]
+path = "system/schemas/kernel/.gitkeep"
+template = "core/empty.j2"
+required = true
+
+[[artifact]]
+path = ".github/workflows/ethos.yml"
+template = "ci/github.yml.j2"
+profiles = ["github"]
+
+[[artifact]]
+path = ".gitlab-ci.yml"
+template = "ci/gitlab.yml.j2"
+profiles = ["gitlab"]
+
+[[family]]
+id = "kernel"
+title = "Pure Kernel"
+scope = "pure kernel result and action graph semantics"
+profile_family = "kernel"
+owner = "ethos-core"
+
+[[family]]
+id = "contracts"
+title = "Provider-neutral Contracts"
+scope = "provider-neutral repository contracts"
+profile_family = "contracts"
+owner = "ethos-core"
+
+[[family]]
+id = "repository-governance"
+title = "Repository Lifecycle Governance"
+scope = "repository lifecycle governance"
+profile_family = "repository-governance"
+owner = "ethos"
+
+[[family]]
+id = "adapters"
+title = "Provider Adapters"
+scope = "provider and projection adapters"
+profile_family = "adapters"
+owner = "ethos"
+
+[[family]]
+id = "command-plane"
+title = "Public Command Plane"
+scope = "public ETHOS command plane"
+profile_family = "surfaces"
+owner = "ethos"
+
+[[family]]
+id = "assistant-projections"
+title = "Assistant And Context Boundaries"
+scope = "assistant and context projection boundaries"
+profile_family = "surfaces"
+owner = "ethos"
+
+[[family]]
+id = "distribution"
+title = "Distribution Adapters"
+scope = "distribution and host package surfaces"
+profile_family = "surfaces"
+owner = "ethos"
+
+[[family]]
+id = "quality"
+title = "Quality And Determinism"
+scope = "quality, determinism, docs profile, and proof policy"
+profile_family = "quality"
+owner = "ethos-core"
+
+[[family]]
+id = "proof-hosts"
+title = "Conformance And Parity Proof"
+scope = "conformance, fixture, and parity proof hosts"
+profile_family = "proof"
+owner = "ethos"
+
+[[skill]]
+id = "ethos-repository-governance"
+[[skill.capabilities]]
+id = "ethos.status"
+kind = "command_readonly"
+command = ["ethos", "status", "--json"]
+[[skill.capabilities]]
+id = "ethos.plan"
+kind = "command_readonly"
+command = ["ethos", "plan", "--changed", "--json"]
+[[skill.capabilities]]
+id = "ethos.report"
+kind = "command_readonly"
+command = ["ethos", "report", "--json"]
+[[skill.capabilities]]
+id = "ethos.prove"
+kind = "command_proof"
+command = ["ethos", "prove", "--json"]
+
+[[skill]]
+id = "ethos-skill-portfolio-governance"
+[[skill.capabilities]]
+id = "ethos.playbooks.check"
+kind = "command_readonly"
+command = ["ethos", "playbooks", "check", "--mode", "v2-strict", "--json"]
+[[skill.capabilities]]
+id = "ethos.playbooks.route"
+kind = "command_readonly"
+command = ["ethos", "playbooks", "route", "--changed", "--json"]
+[[skill.capabilities]]
+id = "ethos.report"
+kind = "command_readonly"
+command = ["ethos", "report", "--json"]
+
+[[skill]]
+id = "ethos-adoption-profile-governance"
+[[skill.capabilities]]
+id = "ethos.adopt"
+kind = "command_mutation_guarded"
+command = ["ethos", "adopt", "--json"]
+guard = "read-only unless --apply and --authorize are present; apply requires explicit head-bound authorization"
+[[skill.capabilities]]
+id = "ethos.status"
+kind = "command_readonly"
+command = ["ethos", "status", "--json"]
+[[skill.capabilities]]
+id = "ethos.playbooks.check"
+kind = "command_readonly"
+command = ["ethos", "playbooks", "check", "--mode", "v2-strict", "--json"]
+[[skill.capabilities]]
+id = "ethos.report"
+kind = "command_readonly"
+command = ["ethos", "report", "--json"]
+[[skill.capabilities]]
+id = "ethos.prove"
+kind = "command_proof"
+command = ["ethos", "prove", "--json"]

@@ -1,6 +1,6 @@
 ---
 subject: ethos:conversation-ledger
-role: governance-ledger
+role: ledger
 state: active
 relations:
   canonical_for: conversation-derived product gaps
@@ -34,8 +34,8 @@ areas must remain visible until implemented, tested, documented, and proven.
 
 - ETHOS product behavior belongs in packages named ethos-*.
 - Adopter-specific semantics belong in profiles or adopter repositories.
-- alphasimdmgr and dmgr contracts are reference-adopter concerns, not core
-  product assumptions.
+- Domain adopter contracts are reference-adopter concerns, not core product
+  assumptions.
 - Superpowers is an external method pack and execution aid, not repository
   truth.
 - OpenSpec must be an official-native governance workspace under openspec.
@@ -85,8 +85,8 @@ not normal user workflow vocabulary.
 | CL-010 | Build real evolution, including opportunities, hypotheses, exhaustion challenge, closeout, and retirement. | Evolution can become a static document. | Evolution ledger state machine and CLI/report tests. |
 | CL-011 | Build a real gate runner that plans, executes, records, and explains gates. | Proof can remain a summary wrapper. | Gate schema, action graph execution tests, evidence output. |
 | CL-012 | Enforce format, artifact, and evidence governance. | Generated state and durable truth can blur. | Format policy, artifact policy, and location checks. |
-| CL-013 | Keep dmgr as a reference adopter, the dmgr reference adopter, with its own profile and evidence. | Core can accidentally hardcode dmgr or alphasim. | Reference adoption fixture and boundary tests. |
-| CL-014 | Express dmgr contracts through generic contract-profile mechanisms. | Raw/cache/alphasim rules can become product-private code. | Contract profile schema and adopter proof mapping. |
+| CL-013 | Keep reference adopters as profile-bound fixtures with their own evidence. | Core can accidentally hardcode one adopter or domain. | Reference adoption fixture and boundary tests. |
+| CL-014 | Express domain contracts through generic contract-profile mechanisms. | Domain rules can become product-private code. | Contract profile schema and adopter proof mapping. |
 | CL-015 | Complete release and publish governance, including hosted parity and break-glass semantics. | Local checks can be mistaken for release readiness. | Release policy tests, host-profile checks, provenance evidence. |
 | CL-016 | Verify hosted-provider commit signature status as a release signal. | Local GPG or SSH signature can still be untrusted by the configured host. | Hosted signature check in release report. |
 | CL-017 | Prevent .mailmap return. | Identity cleanup can reintroduce repo-level rewriting artifacts. | Architecture test asserting no .mailmap. |
@@ -94,7 +94,7 @@ not normal user workflow vocabulary.
 | CL-019 | Redesign docs information architecture for clarity, fidelity, and elegance. | Docs can be complete but hard to navigate. | Docs registry, taxonomy, stable paths, and UX review. |
 | CL-020 | Make init scaffolding create the full governance skeleton. | New projects can start with incomplete ETHOS structure. | Scaffold tests covering docs, schemas, OpenSpec, skills, rules, state ignore. |
 | CL-021 | Harden npm distribution adapter and registry publication path. | Node wrapper can exist but break in real use. | Package smoke, bin smoke, and publication checklist. |
-| CL-022 | Preserve one public command plane. | Retired public vocabulary can leak back into current docs. | Command registry scan and docs command-example tests. |
+| CL-022 | Preserve one public command plane. | Retired public vocabulary can leak back into canonical docs. | Command registry scan and docs command-example tests. |
 | CL-023 | Feed hosted CI parity back into evidence, not a separate truth store. | Hosted checks can diverge from local proof semantics. | CI adapter report and evidence envelope. |
 | CL-024 | Make standards adoption executable and lifecycle-managed. | Standards can stay aspirational. | Standards registry, adapters, and exit strategies. |
 | CL-025 | Keep conversation-derived requirements auditable. | The agent can forget or narrow scope again. | This ledger linked from docs index and repository-audit. |
@@ -110,8 +110,8 @@ implemented only after source changes, tests, docs, and evidence agree.
 When in doubt, productize the abstract mechanism and keep adopter vocabulary in
 profiles. The core should speak in subjects, contracts, transitions,
 inscriptions, chronicles, evolution, evidence, gates, policies, projections,
-and releases. Adopters then bind those abstractions to dmgr, alphasim,
-raw/cache parity, hosted-provider profiles, or local assistant surfaces.
+and releases. Adopters then bind those abstractions to domain contracts,
+domain-gate parity, hosted-provider profiles, or local assistant surfaces.
 
 Status: see front matter.
 

@@ -10,6 +10,7 @@ surface acyclic.
 from __future__ import annotations
 
 import hashlib
+import importlib
 import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -17,6 +18,8 @@ from typing import Annotated
 
 from cyclopts import App
 from cyclopts import Parameter
+
+from ethos.surface.cli.quality.registry import register_declared_group
 
 if TYPE_CHECKING:
     from ethos_core.result import EthosResult
@@ -30,6 +33,14 @@ assistants_app = App(name="assistants", help="Assistant and protocol projections
 playbooks_app = App(name="playbooks", help="Repo-local skills and playbook routing.", show=False)
 fleet_app = App(name="fleet", help="External adopter and fleet inspection.", show=False)
 lane_app = App(name="lane", help="Work Lane lifecycle and write admission.", show=False)
+lane_lease_app = App(name="lease", help="Generation-bound local Lane Lease lifecycle.")
+lane_handoff_app = App(name="handoff", help="Local and cross-host Work Lane handoff.")
+lane_resolution_app = App(name="resolution", help="Exceptional Work Lane judgment and repair.")
+lane_retire_app = App(name="retire", help="Bounded Work Lane retirement lifecycle.")
+lane_app.command(lane_lease_app)
+lane_app.command(lane_handoff_app)
+lane_app.command(lane_resolution_app)
+lane_app.command(lane_retire_app)
 hook_app = App(name="hook", help="Hook admission and guard reports.", show=False)
 parity_app = App(name="parity", help="Capability parity and adopter shadow checks.", show=False)
 rules_app = App(name="rules", help="Rules Product Kernel operations.", show=False)
@@ -83,14 +94,14 @@ def sha256_file(path: Path) -> str:
     return f"sha256:{digest.hexdigest()}"
 
 
-def emit(result: EthosResult, json_output: bool, *, enforce: bool = True) -> None:
+def emit(result: EthosResult, *, json_output: bool, enforce: bool = True) -> None:
     """Print an EthosResult as JSON or a short human line, then enforce the verdict.
 
     Fail-CLOSED by default: a blocked verdict (result.ok is False) exits the process
     with a non-zero status AFTER printing — so every verdict is consumable by any
     caller (git hook, CI, MCP host, `&& deploy` chains) via exit status, not just
     readable as JSON. This is the edge that turns "reports a verdict" into "a process
-    that refuses" (tao First Principle #2: failure-blocking moves upstream).
+    that refuses" (failure-blocking moves upstream).
 
     Read-only / report commands that legitimately return a non-ok scorecard WITHOUT
     refusing (status, plan, report, rules listing) must pass enforce=False EXPLICITLY
@@ -105,45 +116,45 @@ def emit(result: EthosResult, json_output: bool, *, enforce: bool = True) -> Non
             print(f"{result.command}: {result.state}")
             for action in result.next_actions:
                 print(f"next: {action}")
-    except BrokenPipeError:
+    except (BrokenPipeError, BlockingIOError):
         return
     if enforce and not result.ok:
         raise SystemExit(1)
 
 
 def load_command_groups(argv: list[str]) -> None:
-    """Import only the command-group module the invocation needs (lazy startup).
+    """Load only the command-group registration needed by this invocation.
 
-    Each group registers its commands onto the shared *_app objects at import time;
-    importing a group pulls that group's heavy deps. The common root commands
-    (status/plan/prove/land/publish/report/...) live in this module and need no
-    group, so a bare `ethos status` never loads the quality/repository graph. When a
-    group sub-command is invoked (`ethos quality ...`, `ethos lane ...`), only that
-    group is imported. With no recognizable group token (e.g. `--help`), all groups
-    load so the full command surface is shown.
+    Quality commands compile to Cyclopts lazy import paths from their declaration,
+    so neither help nor registration imports handler modules. Other groups retain
+    bounded decorator registration until their declarations are migrated.
     """
-    import importlib
-
-    groups = (
-        "fleet",
-        "intake",
-        "quality",
-        "rules",
-        "lane",
-        "assistants",
-        "campaign",
-        "parity",
-        "playbooks",
-        "hook",
-    )
+    groups = {
+        "fleet": "ethos.surface.cli.fleet",
+        "intake": "ethos.surface.cli.intake",
+        "rules": "ethos.surface.cli.rules",
+        "lane": "ethos.surface.cli.lane.core",
+        "assistants": "ethos.surface.cli.assistants",
+        "campaign": "ethos.surface.cli.campaign",
+        "parity": "ethos.surface.cli.parity.core",
+        "playbooks": "ethos.surface.cli.playbooks",
+        "hook": "ethos.surface.cli.hook.core",
+    }
     token = next((arg for arg in argv if not arg.startswith("-")), "")
-    if token in groups:
+    if token == "quality":
+        register_declared_group(quality_app, "quality")
+        selected: list[str] = []
+    elif token in groups:
         selected = [token]
     elif token:
         # A recognized root command (status/plan/prove/land/...) needs no group.
         selected = []
     else:
         # No command token (bare `ethos` / `ethos --help`): show the full surface.
+        register_declared_group(quality_app, "quality")
         selected = list(groups)
     for name in selected:
-        importlib.import_module(f"ethos.surface.cli.{name}")
+        importlib.import_module(groups[name])
+        if name == "lane":
+            importlib.import_module("ethos.surface.cli.lane.lease")
+            importlib.import_module("ethos.surface.cli.lane.resolution")

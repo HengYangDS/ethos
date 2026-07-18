@@ -5,7 +5,7 @@ protocol, archive closeout, hooked write admission, scaffolds, projection
 digests, declarative gates, runtime topology, and release/evolution. A single
 Work Lane would make this unreviewable and would blur proof boundaries.
 
-The useful pattern from `alphasim-dmgr-fix-b3` is not its domain vocabulary. The
+The useful pattern from `reference adopter workspace` is not its domain vocabulary. The
 portable lesson is that long-running objectives need a read-only adapter that
 reports the current registry, the affected carriers, closeout state, and
 evidence boundaries. ETHOS should express that through `campaign`, `OpenSpec`,

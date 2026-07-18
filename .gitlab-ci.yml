@@ -5,113 +5,265 @@ stages:
 
 variables:
   UV_LINK_MODE: copy
-  UV_CACHE_DIR: .uv-cache
+  UV_CACHE_DIR: build/runtime/tool-cache/uv
+  LYCHEE_CACHE_DIR: build/runtime/tool-cache/lychee
+  ETHOS_CI_TOOL_CACHE_DIR: build/runtime/tool-cache/ci-tools
+
+cache:
+  key: ${CI_PROJECT_PATH_SLUG}
+  paths:
+    - build/runtime/tool-cache/uv/
+    - build/runtime/tool-cache/lychee/
+    - build/runtime/tool-cache/ci-tools/
+
+# Auto-retry every job on infrastructure failures only (image-pull timeouts to
+# Docker Hub, runner crashes, API hiccups) — the runner's egress to external
+# registries is intermittently flaky, and a governance gate that goes red on a
+# transient pull is noise, not a real breach. Never retries script_failure, so a
+# genuine gate breach still fails the pipeline.
+default:
+  retry:
+    max: 2
+    when:
+      - runner_system_failure
+      - stuck_or_timeout_failure
+      - api_failure
+      - scheduler_failure
 
 # The quality stage runs every registered gate so a red gate fails CI — not just a
 # subset. Gates: ruff (broad rule families + format), ty (types), import-linter
-# (architecture), docstrings, bandit (security), config (TOML/YAML format+lint),
-# shell lint, lychee (doc links), code-size (role-based LOC).
-# 道: a gate that does not run in CI is not a gate.
+# (architecture), docstrings, product-boundary/contributor policy, bandit
+# (security + Python vulnerability audit), gitleaks (secrets), config (TOML/YAML format+lint), shell lint,
+# markdown lint, lychee (doc links), provider projection drift, local emulator
+# boundaries, format selection, architecture projection, runbook/MCP smoke,
+# closeout evidence, local-state, and release supply-chain checks.
+# A gate that does not run in CI is not a gate.
 .python_setup: &python_setup
   image: python:3.12
   before_script:
-    - .config/ci/scripts/bootstrap-python.sh
+    - tools/ci/scripts/bootstrap-python.sh
 
 ethos:lint:
   <<: *python_setup
   stage: quality
   script:
-    - .config/ci/scripts/run-python-lint.sh
+    - tools/ci/scripts/run-python-lint.sh
 
 ethos:types:
   <<: *python_setup
   stage: quality
   script:
-    # `ethos quality types` enforces EVERY ty policy tier (.config/checks/ty/
-    # policy.toml): zero-tolerance packages must be 0 diagnostics, ratchet packages
-    # must stay within their baseline (which may only shrink). Fail-closed via the
-    # verdict->exit binding, so a breach fails the pipeline.
-    - uv run --all-packages --group dev ethos quality types --json
+    # `ethos quality types` requires zero diagnostics for every declared package.
+    # Unavailable or indeterminate ty execution also blocks through verdict-to-exit
+    # binding, so the pipeline cannot pass on an unverified type result.
+    - tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev ethos quality types --json
 
 ethos:architecture:
   <<: *python_setup
   stage: quality
   script:
-    - .config/ci/scripts/run-import-linter.sh
+    - tools/ci/scripts/run-import-linter.sh
+
+ethos:dependency-hygiene:
+  <<: *python_setup
+  stage: quality
+  script:
+    - tools/ci/scripts/run-dependency-hygiene.sh
 
 ethos:config:
   <<: *python_setup
   stage: quality
   script:
-    - .config/ci/scripts/run-config-lint.sh
+    - tools/ci/scripts/run-config-lint.sh
+    - tools/ci/scripts/run-json-schema-check.sh
 
 ethos:hygiene:
   <<: *python_setup
   stage: quality
   script:
-    - .config/ci/scripts/run-repository-hygiene.sh
+    - tools/ci/scripts/run-repository-hygiene.sh
+
+ethos:product-boundary:
+  <<: *python_setup
+  stage: quality
+  script:
+    - tools/ci/scripts/run-product-boundary.sh
 
 ethos:shell:
   <<: *python_setup
   stage: quality
   script:
-    - .config/ci/scripts/run-shell-lint.sh
+    - tools/ci/scripts/run-shell-lint.sh
 
 ethos:docstrings:
   <<: *python_setup
   stage: quality
   script:
-    - .config/ci/scripts/run-docstring-coverage.sh
+    - tools/ci/scripts/run-docstring-coverage.sh
+
+ethos:module-layout:
+  <<: *python_setup
+  stage: quality
+  script:
+    - tools/ci/scripts/run-module-layout.sh
 
 ethos:security:
   <<: *python_setup
   stage: quality
   script:
-    - uv run --no-project --with bandit bandit -r packages -c .config/checks/bandit/bandit.yaml --severity-level medium -q
+    - tools/ci/scripts/run-bandit.sh
+    - tools/ci/scripts/run-python-vulnerability-audit.sh
+  artifacts:
+    when: always
+    paths:
+      - build/evidence/quality/security/
+
+ethos:secrets:
+  <<: *python_setup
+  stage: quality
+  script:
+    # Secret scanning via gitleaks (prebuilt binary installed by the runner).
+    # Policy: root .gitleaks.toml. A tracked secret fails the pipeline.
+    - tools/ci/scripts/run-secrets-scan.sh
+  artifacts:
+    when: always
+    paths:
+      - build/evidence/quality/secrets/
 
 ethos:docs-links:
   <<: *python_setup
   stage: quality
   script:
-    - .config/ci/scripts/install-lychee.sh
-    - uv run --package ethos ethos quality markdown-links --json
+    - tools/ci/scripts/install-lychee.sh
+    - tools/ci/scripts/with-python-runtime.sh -- uv run --package ethos ethos quality markdown-links --json
+
+ethos:markdown:
+  <<: *python_setup
+  stage: quality
+  script:
+    # Markdown lint via markdownlint-cli2 (Node CLI installed by the runner on
+    # the layer-cached python:3.12 image). Policy: .config/checks/markdown/.
+    - tools/ci/scripts/run-markdown-lint.sh
+
+ethos:prose:
+  <<: *python_setup
+  stage: quality
+  script:
+    - tools/ci/scripts/run-prose-check.sh
+
+ethos:ci-projections:
+  <<: *python_setup
+  stage: quality
+  script:
+    - tools/ci/scripts/run-ci-template-check.sh
+
+ethos:github-workflow-syntax:
+  <<: *python_setup
+  stage: quality
+  script:
+    - tools/ci/scripts/run-actionlint.sh
+
+ethos:format-selection:
+  <<: *python_setup
+  stage: quality
+  script:
+    - tools/ci/scripts/run-format-selection.sh
+
+ethos:architecture-projection:
+  <<: *python_setup
+  stage: quality
+  script:
+    - tools/ci/scripts/run-architecture-projection-drift.sh
+
+ethos:runbook-registry:
+  <<: *python_setup
+  stage: quality
+  script:
+    - tools/ci/scripts/run-runbook-registry-check.sh
+
+ethos:mcp-smoke:
+  <<: *python_setup
+  stage: quality
+  script:
+    - tools/ci/scripts/run-mcp-smoke.sh
+
+ethos:closeout-evidence-manifest:
+  <<: *python_setup
+  stage: quality
+  script:
+    - tools/ci/scripts/run-closeout-evidence-manifest.sh
+
+ethos:local-state-audit:
+  <<: *python_setup
+  stage: quality
+  script:
+    - tools/ci/scripts/run-local-state-audit.sh
+
+ethos:release-supply-chain:
+  <<: *python_setup
+  stage: quality
+  script:
+    - tools/ci/scripts/run-release-supply-chain.sh
+
+ethos:hosted-provider-observation:
+  <<: *python_setup
+  stage: quality
+  script:
+    - tools/ci/scripts/run-hosted-provider-observation.sh
 
 ethos:verify:
   <<: *python_setup
   stage: verify
+  variables:
+    # The arm64 hosted runner can terminate xdist workers under the full
+    # coverage suite. Keep the reusable owner script and its default parallel
+    # capability intact; this hosted projection deliberately runs one worker.
+    ETHOS_TEST_WORKERS: "1"
   script:
+    # Make the runner checkout a real governed ETHOS working copy: wire the git
+    # identity and signing from .ethos/workspace.toml [commit_policy] and arm
+    # write-admission, so the dogfood signature/audit/prove gates and tests see the
+    # same setup a developer's checkout has.
+    - tools/ci/scripts/configure-git-checkout.sh
+    - tools/ci/scripts/with-python-runtime.sh -- uv run --package ethos ethos hook install --json
     - openspec --version
-    - .config/ci/scripts/run-python-tests.sh
+    - tools/ci/scripts/run-python-tests.sh
     - openspec validate --all --strict --json
-    - uv run --package ethos ethos audit --json
-    - uv run --package ethos ethos report --json
-    - uv run --package ethos ethos prove --execute --expect-head "$(git rev-parse HEAD)" --json
+    - tools/ci/scripts/with-python-runtime.sh -- uv run --package ethos ethos audit --json
+    - tools/ci/scripts/with-python-runtime.sh -- uv run --package ethos ethos report --json
+    - tools/ci/scripts/with-python-runtime.sh -- uv run --package ethos ethos prove --execute --expect-head "$(git rev-parse HEAD)" --json
 
 ethos:npm:
   stage: verify
-  image: node:24
+  parallel:
+    matrix:
+      - NODE_VERSION:
+          - "24.18.0"
+          - "26.5.0"
+  # Runs on python:3.12 (kept layer-cached on the runner) with exact Node
+  # releases installed from nodejs.org; see the runtime policy and installer.
+  image: python:3.12
   script:
-    - node --version
-    - npm --version
-    - npm config set engine-strict true
-    - npm ci --ignore-scripts
-    - npm run ethos -- --version
-    - npm run test:npm
+    - tools/ci/scripts/install-node.sh
+    - tools/ci/scripts/run-node-compatibility.sh
 
 ethos:package:
   <<: *python_setup
   stage: package
   script:
-    - uv build --all-packages
+    - tools/ci/scripts/with-python-runtime.sh -- uv build --all-packages --out-dir build/artifacts/python --clear --no-create-gitignore
   artifacts:
     when: always
     paths:
-      - dist/
+      - build/artifacts/python/
 
 ethos:npm-package:
   stage: package
-  image: node:24
+  # See ethos:npm — python:3.12 + install-node.sh avoids the unreachable
+  # node:24 image.
+  image: python:3.12
   script:
+    - tools/ci/scripts/install-node.sh
     - npm config set engine-strict true
     - npm ci --ignore-scripts
     - npm run test:npm

@@ -1,0 +1,1 @@
+"""Domain-level readiness aggregators."""

@@ -1,0 +1,40 @@
+[claim]
+id = "authorization-admission-boundary-20260710"
+subject = "ethos:authorization-admission-boundary"
+state = "active"
+summary = "ETHOS separates truth precedence, action-specific admission, local coordination, transition enforcement, and exceptional judgment without an internal identity registry."
+
+[evidence]
+dated = "evidence/chronicle/authorization-admission-boundary-20260710/2026-07-10.md"
+sha256 = "5d21884dfe2d603bebca85cc4ca7d1ffa01dcba688bebc0bb979b2c67af9e963"
+evidence_ids = ["evidence:authorization-admission-boundary-20260710"]
+binding = "Declared attestation and executed local evidence for normalized Lane coordination, exact admission decisions, protected control replacement, cross-host handoff, and exceptional resolution; excludes provider enforcement and remote delivery."
+verifier = "digest_only"
+tests = [
+  "npx --yes @fission-ai/openspec validate --all --strict --json",
+  "uv run --package ethos ethos openspec --lifecycle --json",
+  "uv run --package ethos ethos quality claims --json",
+  "git diff --check",
+]
+
+[evidence.freshness]
+mode = "historical"
+[boundary]
+owner = "ethos-repository"
+scope = "Implemented authorization, admission, local Work Lane coordination, transition enforcement, external evidence adapters, and exceptional lane resolution."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-10-authorization-admission-boundary-20260710"
+fallback = "Preserve the current fail-closed lease and mutation controls while the migration is incomplete; do not interpret holder labels or confirmation flags as reusable authority."
+kill_signal = "ETHOS introduces an internal identity or capability registry, treats a local lease as distributed enforcement, lets candidate controls approve themselves, or claims runtime completion from planning evidence."
+
+[promotion]
+targets = [
+  "openspec/changes/archive/2026-07-10-authorization-admission-boundary-20260710/.openspec.yaml",
+  "openspec/changes/archive/2026-07-10-authorization-admission-boundary-20260710/proposal.md",
+  "openspec/changes/archive/2026-07-10-authorization-admission-boundary-20260710/design.md",
+  "openspec/changes/archive/2026-07-10-authorization-admission-boundary-20260710/tasks.md",
+  "openspec/changes/archive/2026-07-10-authorization-admission-boundary-20260710/specs/repository-governance/spec.md",
+  "evidence/chronicle/authorization-admission-boundary-20260710/2026-07-10.md",
+  "evidence/claims/authorization-admission-boundary-20260710.toml",
+]

@@ -46,7 +46,7 @@ ETHOS adaptation:
 - Treat stale lease as `handoff_required`, not as permission to delete.
 - Do not introduce Kubernetes or an API server.
 
-Primary source: https://kubernetes.io/docs/concepts/architecture/leases/
+Primary source: <https://kubernetes.io/docs/concepts/architecture/leases/>
 
 ### etcd lease / concurrency
 
@@ -63,7 +63,7 @@ ETHOS adaptation:
 - Do not introduce etcd for local repository coordination unless multi-host
   distributed execution becomes a real requirement.
 
-Primary source: https://etcd.io/docs/
+Primary source: <https://etcd.io/docs/>
 
 ### ZooKeeper ephemeral sequential locks
 
@@ -80,7 +80,7 @@ ETHOS adaptation:
 - Do not introduce ZooKeeper or a central lock service for a local Git common-dir
   problem.
 
-Primary source: https://zookeeper.apache.org/doc/current/recipes.html
+Primary source: <https://zookeeper.apache.org/doc/current/recipes.html>
 
 ### Redis Redlock and distributed lock cautions
 
@@ -97,7 +97,7 @@ ETHOS adaptation:
 - Prefer Git common-dir local leases plus reference-transaction hooks over a
   Redis runtime.
 
-Primary source: https://redis.io/docs/latest/develop/clients/patterns/distributed-locks/
+Primary source: <https://redis.io/docs/latest/develop/clients/patterns/distributed-locks/>
 
 ### Git reference-transaction hook
 
@@ -114,7 +114,7 @@ ETHOS adaptation:
 - Keep this as the final guardrail; user-facing UX should fail earlier via
   status, prewrite, and closeout gates.
 
-Primary source: https://git-scm.com/docs/githooks
+Primary source: <https://git-scm.com/docs/githooks>
 
 ### GitHub / GitLab / Gerrit ownership and submit gates
 
@@ -134,10 +134,10 @@ ETHOS adaptation:
 
 Primary sources:
 
-- https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
-- https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/managing-a-merge-queue
-- https://docs.gitlab.com/user/project/codeowners/
-- https://gerrit-review.googlesource.com/Documentation/config-submit-requirements.html
+- <https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners>
+- <https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/managing-a-merge-queue>
+- <https://docs.gitlab.com/user/project/codeowners/>
+- <https://gerrit-review.googlesource.com/Documentation/config-submit-requirements.html>
 
 ### OpenTelemetry
 
@@ -153,7 +153,7 @@ ETHOS adaptation:
 - Do not introduce a collector before `ethos status --json` and lane logs are
   correct.
 
-Primary source: https://opentelemetry.io/docs/concepts/signals/
+Primary source: <https://opentelemetry.io/docs/concepts/signals/>
 
 ### CloudEvents and CDEvents
 
@@ -172,8 +172,8 @@ ETHOS adaptation:
 
 Primary sources:
 
-- https://cloudevents.io/
-- https://cdevents.dev/
+- <https://cloudevents.io/>
+- <https://cdevents.dev/>
 
 ### SLSA, in-toto, Sigstore, and OpenSSF Scorecard
 
@@ -193,10 +193,10 @@ ETHOS adaptation:
 
 Primary sources:
 
-- https://slsa.dev/spec/v1.1/about
-- https://in-toto.io/
-- https://docs.sigstore.dev/
-- https://scorecard.dev/
+- <https://slsa.dev/spec/v1.1/about>
+- <https://in-toto.io/>
+- <https://docs.sigstore.dev/>
+- <https://scorecard.dev/>
 
 ### OpenFeature and feature-flag discipline
 
@@ -211,7 +211,7 @@ ETHOS adaptation:
 - Do not add a feature-flag SDK until runtime behavior genuinely needs it.
 - Capture flag or shadow-mode evidence in the destructive-change record.
 
-Primary source: https://openfeature.dev/specification/
+Primary source: <https://openfeature.dev/specification/>
 
 ### ADR, RFC, SRE error budgets, DORA, and chaos engineering
 
@@ -233,11 +233,11 @@ ETHOS adaptation:
 
 Primary sources:
 
-- https://adr.github.io/
-- https://rust-lang.github.io/rfcs/
-- https://sre.google/workbook/error-budget-policy/
-- https://dora.dev/guides/dora-metrics/
-- https://principlesofchaos.org/
+- <https://adr.github.io/>
+- <https://rust-lang.github.io/rfcs/>
+- <https://sre.google/workbook/error-budget-policy/>
+- <https://dora.dev/guides/dora-metrics/>
+- <https://principlesofchaos.org/>
 
 ### Agent and tool protocols: MCP, A2A, OpenAI Agents SDK, Claude Code
 
@@ -255,10 +255,10 @@ ETHOS adaptation:
 
 Primary sources:
 
-- https://modelcontextprotocol.io/
-- https://developers.googleblog.com/en/a2a-a-new-era-of-agent-interoperability/
-- https://openai.github.io/openai-agents-python/
-- https://docs.anthropic.com/en/docs/claude-code
+- <https://modelcontextprotocol.io/>
+- <https://developers.googleblog.com/en/a2a-a-new-era-of-agent-interoperability/>
+- <https://openai.github.io/openai-agents-python/>
+- <https://docs.anthropic.com/en/docs/claude-code>
 
 ## Accepted design implications
 

@@ -31,9 +31,11 @@ claim = "Every public JSON command can be validated against tracked ETHOS schema
 challenge = "A command without schema validation remains a product risk."
 transition = "shape -> canonize"
 proof_refs = ["ethos quality schemas --json"]
-review_refs = ["tests/unit/governance/test_validation_gates.py"]
+review_refs = ["tests/unit/governance/validation/test_schemas.py"]
 decision_refs = ["docs/governance/evolution-campaign.md"]
-retirement_conditions = ["all public JSON commands declare schema-bound output contracts"]
+retirement_conditions = [
+  "all public JSON commands declare schema-bound output contracts",
+]
 
 [[hypothesis]]
 id = "real-gate-runner"
@@ -59,4 +61,252 @@ transition = "shape -> canonize"
 proof_refs = ["ethos quality release-policy --json"]
 review_refs = ["tests/unit/release/test_policy_attestation.py"]
 decision_refs = ["docs/governance/release-governance.md"]
-retirement_conditions = ["release readiness is backed by local build smoke and attestation checks"]
+retirement_conditions = [
+  "release readiness is backed by local build smoke and attestation checks",
+]
+
+[[practice_claim]]
+id = "workflow-runtime-trustworthy-practice-claim"
+state = "evaluated"
+owner = "ethos-maintainers"
+subject = "ethos:workflow-runtime-practice-evolution"
+question = "How should ETHOS govern reusable workflow and self-evolution practices after studying Comet 0.4, OpenSpec, Spec Kit, Task Master, BMAD, Superpowers, Agent OS, OpenSPDD, Shotgun, fspec, and adjacent systems?"
+claim = "ETHOS should govern commitment effects through bounded practice claims: a practice is tested through evidence, promoted only as a repository commitment effect, and released when redundant, false, unsafe, or overreaching. Tools and frameworks are carriers, adapters, projections, or method packs rather than authority."
+boundary = "The root model is the governed passage from question to repository law, bounded refusal, archive, or retirement. A governed commitment is the auditable handle for that passage; it is not a workflow phase, task store, framework, skill pack, practice claim, or mechanism. The practice claim is the evolution carrier that explains how a practice was tested and what commitment effect it proposes."
+incumbent_relation = "There was no single incumbent for the upper practice-evolution boundary. OpenSpec remains the incumbent spec/change/archive carrier and is composed, not superseded. Comet and adjacent systems were references, not ETHOS authority."
+falsifiers = [
+  "A selected tool or runtime can mark lifecycle truth without ETHOS evidence, claim, and chronicle binding.",
+  "The design cannot distinguish introduction from real supersession and retirement.",
+  "Research, experiment, evaluation, and decision records cannot bind to repository paths and command proof.",
+]
+candidate_set = "workflow-runtime-framework-selection"
+experiment_protocol = "workflow-runtime-framework-study-20260709"
+evaluation_record = "workflow-runtime-framework-selection-20260709"
+commitment_effect = "create_commitment"
+practice_changes = ["introduce-ethos-native-trustworthy-practice-runtime"]
+commitment_targets = [
+  "docs/architecture/workflow-runtime.md",
+  "docs/governance/evolution-campaign.md",
+  "system/workflows.toml",
+  "evolution/ledger.toml",
+  "openspec/changes/archive/2026-07-09-adopt-ethos-native-workflow-runtime-20260709/design.md",
+]
+evidence_refs = [
+  "docs/research/workflow-runtime-frameworks-20260709.md",
+  "docs/architecture/workflow-runtime.md",
+]
+decision_refs = [
+  "openspec/changes/archive/2026-07-09-adopt-ethos-native-workflow-runtime-20260709/design.md",
+]
+
+[[candidate_set]]
+id = "workflow-runtime-framework-selection"
+question = "Which trustworthy practice should ETHOS canonize for spec carrying, workflow runtime, skill/eval harnessing, task/scenario projection, and self-evolution after studying Comet 0.4, OpenSpec, Spec Kit, Task Master, BMAD, Superpowers, Agent OS, OpenSPDD, Shotgun, fspec, and adjacent SDD/agent systems?"
+state = "evaluated"
+owner = "ethos-maintainers"
+selection_policy = "evidence_weighted_candidate_comparison"
+comparison_axes = [
+  "authority_fit",
+  "runtime_richness",
+  "extensibility",
+  "proof_binding",
+  "research_support",
+  "projection_boundary",
+  "migration_risk",
+  "retirement_clarity",
+]
+decision_refs = [
+  "docs/architecture/workflow-runtime.md",
+  "docs/research/workflow-runtime-frameworks-20260709.md",
+]
+retirement_policy = "Rejected candidates are archived as bounded learning; absorbed practices remain subordinate to ETHOS claims, evidence, and Chronicle."
+
+[[candidate_set.candidates]]
+id = "openspec-alone"
+kind = "spec_carrier"
+summary = "Use OpenSpec as the entire lifecycle/workflow mechanism."
+hypothesis_ref = "schema-validated-command-plane"
+evidence_refs = ["docs/research/workflow-runtime-frameworks-20260709.md"]
+risk = "Insufficient runtime, handoff, eval, and experiment control for ETHOS self-evolution."
+authority_fit = "Strong as carrier, weak as governing kernel."
+
+[[candidate_set.candidates]]
+id = "comet-direct"
+kind = "external_runtime"
+summary = "Adopt Comet 0.4 lifecycle and .comet state directly."
+hypothesis_ref = "real-gate-runner"
+evidence_refs = ["docs/research/workflow-runtime-frameworks-20260709.md"]
+risk = "Creates a second lifecycle truth store and competing command center."
+authority_fit = "Strong runtime mechanism, unacceptable authority fit."
+
+[[candidate_set.candidates]]
+id = "ethos-native-runtime"
+kind = "governing_kernel_runtime"
+summary = "Keep OpenSpec as carrier, absorb Comet-style guards/run-state/handoff/eval under ETHOS-native runtime and evolution governance."
+hypothesis_ref = "real-gate-runner"
+evidence_refs = [
+  "docs/architecture/workflow-runtime.md",
+  "docs/research/workflow-runtime-frameworks-20260709.md",
+]
+risk = "Requires ETHOS-owned contracts and proof integration."
+authority_fit = "Best fit: ETHOS remains the kernel while external frameworks become mechanisms or adapters."
+
+[[candidate_set.candidates]]
+id = "spec-kit-grammar"
+kind = "workflow_grammar"
+summary = "Adopt Spec Kit style specify-plan-tasks workflow grammar and extension/preset taxonomy."
+hypothesis_ref = "schema-validated-command-plane"
+evidence_refs = ["docs/research/workflow-runtime-frameworks-20260709.md"]
+risk = "Useful grammar and extension taxonomy, but advisory workflow requirements are not ETHOS proof boundaries."
+authority_fit = "Good as adapter grammar or projection, not as lifecycle authority."
+
+[[candidate_set.candidates]]
+id = "task-master-graph"
+kind = "task_graph_projection"
+summary = "Adopt Task Master style task graph, dependencies, tags, and next-task selection."
+hypothesis_ref = "real-gate-runner"
+evidence_refs = ["docs/research/workflow-runtime-frameworks-20260709.md"]
+risk = "A separate task store conflicts with Backlog/intake and Work Lane truth if promoted directly."
+authority_fit = "Useful as dependency selector projection, not as truth store."
+
+[[candidate_set.candidates]]
+id = "fspec-scenario-coverage"
+kind = "scenario_coverage_projection"
+summary = "Adopt fspec style Gherkin/ACDD scenario coverage, checkpoints, and traceability."
+hypothesis_ref = "schema-validated-command-plane"
+evidence_refs = ["docs/research/workflow-runtime-frameworks-20260709.md"]
+risk = "A parallel spec system would duplicate OpenSpec, Claim, Evidence, and Backlog."
+authority_fit = "Useful as coverage/evidence adapter, not as spec authority."
+
+[[candidate_set.candidates]]
+id = "method-pack-composition"
+kind = "skill_pack_composition"
+summary = "Use BMAD, Superpowers, Agent OS, OpenSPDD, and similar systems as replaceable method packs or design templates."
+hypothesis_ref = "real-gate-runner"
+evidence_refs = ["docs/research/workflow-runtime-frameworks-20260709.md"]
+risk = "Method prose can become process theater unless wrapped by ETHOS guards, proof, and evidence."
+authority_fit = "Good as invoked practice packs under ETHOS runtime nodes and proof gates."
+
+[[experiment_protocol]]
+id = "workflow-runtime-framework-study-20260709"
+candidate_set = "workflow-runtime-framework-selection"
+state = "completed"
+owner = "ethos-maintainers"
+hypothesis_refs = ["schema-validated-command-plane", "real-gate-runner"]
+variables = [
+  "external runtime authority",
+  "carrier role",
+  "guard enforcement",
+  "handoff freshness",
+  "skill eval metadata",
+  "task graph projection",
+  "scenario coverage projection",
+  "method pack composition",
+  "evolution bridge",
+]
+controls = [
+  "public lifecycle remains status-plan-prove-land-publish",
+  "OpenSpec remains carrier",
+  "Work Lane remains mutation boundary",
+  "claims/evidence/chronicle remain trust boundary",
+]
+metrics = [
+  "authority_fit",
+  "runtime_richness",
+  "extensibility",
+  "proof_binding",
+  "migration_risk",
+  "retirement_clarity",
+]
+stop_conditions = [
+  "selected practice can be represented by ETHOS contracts, evolution records, and OpenSpec deltas",
+  "rejected or absorbed candidates have explicit adapter, learning, rejection, or retirement boundary",
+]
+failure_conditions = [
+  "new mechanism introduces a second lifecycle command plane",
+  "runtime state replaces claims or Chronicle",
+  "research conclusions cannot bind to evidence and decision refs",
+]
+evidence_refs = [
+  "docs/research/workflow-runtime-frameworks-20260709.md",
+  "docs/architecture/workflow-runtime.md",
+]
+
+[[evaluation_record]]
+id = "workflow-runtime-framework-selection-20260709"
+candidate_set = "workflow-runtime-framework-selection"
+experiment_protocol = "workflow-runtime-framework-study-20260709"
+state = "selected"
+selected_candidate = "ethos-native-runtime"
+rejected_candidates = [
+  "openspec-alone",
+  "comet-direct",
+  "spec-kit-grammar",
+  "task-master-graph",
+  "fspec-scenario-coverage",
+  "method-pack-composition",
+]
+rationale = "OpenSpec alone is too narrow for runtime/eval/self-evolution, Comet direct adoption is rich but violates ETHOS authority boundaries, and adjacent frameworks are best absorbed as grammars, projections, coverage adapters, or method packs. ETHOS-native runtime plus evolution governance canonizes the higher practice while keeping OpenSpec as carrier."
+evidence_refs = [
+  "docs/research/workflow-runtime-frameworks-20260709.md",
+  "docs/architecture/workflow-runtime.md",
+]
+decision_refs = [
+  "openspec/changes/archive/2026-07-09-adopt-ethos-native-workflow-runtime-20260709/design.md",
+]
+
+[[evaluation_record.metric_results]]
+candidate = "openspec-alone"
+metric = "runtime_richness"
+result = "low: good carrier but insufficient run-state, handoff, eval, and guarded transition support"
+
+[[evaluation_record.metric_results]]
+candidate = "comet-direct"
+metric = "authority_fit"
+result = "low: .comet state and phase vocabulary would compete with ETHOS lifecycle truth"
+
+[[evaluation_record.metric_results]]
+candidate = "ethos-native-runtime"
+metric = "authority_fit"
+result = "high: preserves ETHOS command plane, Work Lane, claims, evidence, Chronicle, and OpenSpec carrier boundaries"
+
+[[evaluation_record.metric_results]]
+candidate = "spec-kit-grammar"
+metric = "projection_boundary"
+result = "medium: useful workflow grammar and extension taxonomy, but advisory requirements must be backed by ETHOS proof gates"
+
+[[evaluation_record.metric_results]]
+candidate = "task-master-graph"
+metric = "projection_boundary"
+result = "medium: useful dependency and next-task projection, but task JSON cannot become lifecycle truth"
+
+[[evaluation_record.metric_results]]
+candidate = "fspec-scenario-coverage"
+metric = "proof_binding"
+result = "medium: useful scenario coverage and checkpoints when subordinated to Claim/Evidence/OpenSpec"
+
+[[evaluation_record.metric_results]]
+candidate = "method-pack-composition"
+metric = "authority_fit"
+result = "medium-high: useful as replaceable practice packs when wrapped by ETHOS nodes, guards, and evidence"
+
+[[practice_change]]
+id = "introduce-ethos-native-trustworthy-practice-runtime"
+state = "active"
+change_kind = "introduce"
+commitment_effect = "create_commitment"
+practice = "ETHOS-native trustworthy-practice runtime and evolution read model"
+carrier_kind = "workflow"
+summary = "Introduce a derived runtime/evolution projection for trustworthy practices: spec carrying, guarded workflow, handoff freshness, skill eval, task/scenario projection, method-pack invocation, and evidence-backed canonization."
+boundary = "This is a new ETHOS-owned practice-governance layer; it does not supersede OpenSpec, because OpenSpec remains the spec/change/archive carrier, and it does not supersede Comet or adjacent frameworks, because they were never ETHOS authority. It absorbs selected practices as subordinate carriers, adapters, or method packs."
+reason = "ETHOS lacked a first-class way to evaluate and canonize competing practices across framework families without collapsing into tool adoption or parallel lifecycle stores."
+migration_path = "Map useful external practices into system/workflows.toml, evolution ledger records, workflow-run and handoff schemas, skill eval metadata, plan/report projections, and evidence/chronicle promotion."
+fallback = "Disable runtime projection and continue through existing status-plan-prove-land-publish with OpenSpec carriers and claims/evidence."
+kill_signal = "Any tool, framework, runtime store, method pack, or projection marks a change landable, proven, published, canonized, superseded, or retired without ETHOS claim/evidence/chronicle binding."
+evidence_refs = [
+  "docs/architecture/workflow-runtime.md",
+  "docs/research/workflow-runtime-frameworks-20260709.md",
+]
+decision_refs = [
+  "openspec/changes/archive/2026-07-09-adopt-ethos-native-workflow-runtime-20260709/design.md",
+]

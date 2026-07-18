@@ -10,18 +10,19 @@ vendor-specific assistant root canonical.
 - Contribution workflow: [CONTRIBUTING](CONTRIBUTING.md)
 - Product design contract: [Product Design Contract](docs/governance/product-design-contract.md)
 - Terminal target design:
-  [Terminal Governance Product Design](docs/architecture/terminal-governance-product-design.md)
+  [Terminal Governance Product Design](docs/plans/terminal-governance-product-design.md)
 - Rule system: [Rules System](rules/README.md)
 - Agent rules: [Agent Rules](rules/agents.md)
 - Mutation and Work Lane rules: [Mutation Rules](rules/mutation.md)
 - Hook and guard rules: [Hook Rules](rules/hooks.md)
 - Evidence rules: [Evidence Rules](rules/evidence.md)
 - Release rules: [Release Rules](rules/release.md)
+- Declarative runtime rules: [Declarative Runtime Rules](rules/declarative_runtime.md)
 - Skill rules: [Skill Rules](rules/skills.md)
 - Repo-local skills: [Skills](.agents/skills/README.md)
 - Skill activation policy: [Skill Activation](.agents/skills/activation.toml)
 - OpenSpec workspace: [OpenSpec](openspec/)
-- Current docs index: [Documentation Index](docs/index.md)
+- Documentation index: [Documentation Index](docs/index.md)
 
 ## Authority Order
 

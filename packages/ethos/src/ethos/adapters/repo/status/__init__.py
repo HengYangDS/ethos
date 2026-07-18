@@ -1,0 +1,1 @@
+"""Repository status semantic package."""

@@ -4,10 +4,26 @@ import subprocess
 import tomllib
 from pathlib import Path
 
-from ethos.adapters import openspec
+import ethos.adapters.openspec.cli as openspec_cli
+import ethos.adapters.openspec.core as openspec_core
 from ethos.repository.policy.schema import validate_schema_instance
 
 ROOT = Path(__file__).resolve().parents[3]
+
+
+OFFICIAL_OPENSPEC_CONFIG = (
+    "schema: spec-driven\n"
+    "context: sample\n"
+    "rules:\n"
+    "  proposal:\n"
+    "    - explain\n"
+    "  specs:\n"
+    "    - scenario\n"
+    "  tasks:\n"
+    "    - checklist\n"
+    "  design:\n"
+    "    - tradeoffs\n"
+)
 
 
 def test_openspec_product_substrate_files_exist() -> None:
@@ -66,10 +82,7 @@ def test_lifecycle_reviews_all_active_changes_when_unspecified(tmp_path: Path, m
             ),
             encoding="utf-8",
         )
-    (root / "openspec" / "config.yaml").write_text(
-        "project: sample\nversion: 1\n",
-        encoding="utf-8",
-    )
+    (root / "openspec" / "config.yaml").write_text(OFFICIAL_OPENSPEC_CONFIG, encoding="utf-8")
     for change, capability in (
         ("change-one", "repository-governance"),
         ("change-two", "contracts"),
@@ -125,26 +138,35 @@ def test_lifecycle_reviews_all_active_changes_when_unspecified(tmp_path: Path, m
     def fake_base_command() -> tuple[str, ...]:
         return ("openspec",)
 
+    archive_changes: list[tuple[str, Path]] = []
+    command_payloads: dict[tuple[str, ...], dict[str, object]] = {
+        ("doctor", "--json"): {"root": {"healthy": True}},
+        ("list", "--json"): {
+            "changes": [
+                {"name": "change-one", "status": "in-progress"},
+                {"name": "change-two", "status": "in-progress"},
+            ]
+        },
+        ("status", "--change", "change-one", "--json"): {
+            "isComplete": True,
+            "schemaName": "spec-driven",
+        },
+        ("validate", "--all", "--strict", "--json"): {
+            "items": [],
+            "summary": {"totals": {"failed": 0}},
+        },
+    }
+
     def fake_run_json(
         _root: Path,
         _base: tuple[str, ...],
         args: tuple[str, ...],
     ) -> dict[str, object]:
-        if args == ("doctor", "--json"):
-            payload: dict[str, object] = {"root": {"healthy": True}}
-        elif args == ("list", "--json"):
-            payload = {
-                "changes": [
-                    {"name": "change-one", "status": "in-progress"},
-                    {"name": "change-two", "status": "in-progress"},
-                ]
-            }
-        elif args[:3] == ("status", "--change", "change-one"):
-            payload = {"isComplete": True, "schemaName": "spec-driven"}
-        elif args == ("validate", "--all", "--strict", "--json"):
-            payload = {"items": [], "summary": {"totals": {"failed": 0}}}
+        if args[:1] == ("archive",):
+            archive_changes.append((args[1], _root))
+            payload = {"archive": {"change": args[1]}}
         else:
-            payload = {}
+            payload = command_payloads.get(args, {})
         return {
             "command": ["openspec", *args],
             "exit_code": 0,
@@ -154,16 +176,18 @@ def test_lifecycle_reviews_all_active_changes_when_unspecified(tmp_path: Path, m
             "parse_error": "",
         }
 
-    monkeypatch.setattr(openspec, "_openspec_base_command", fake_base_command)
-    monkeypatch.setattr(openspec, "_run_json", fake_run_json)
+    monkeypatch.setattr(openspec_cli, "openspec_base_command", fake_base_command)
+    monkeypatch.setattr(openspec_cli, "run_json", fake_run_json)
 
-    report = openspec.openspec_governance_report(root, lifecycle=True)
+    report = openspec_core.openspec_governance_report(root, lifecycle=True)
 
     assert report["ok"] is True
     assert [item["name"] for item in report["lifecycle"]["changes"]] == [
         "change-one",
         "change-two",
     ]
+    assert [change for change, _root in archive_changes] == ["change-one", "change-two"]
+    assert all(command_root != root for _change, command_root in archive_changes)
 
 
 def test_lifecycle_surfaces_protected_branch_active_carrier_as_advisory(
@@ -173,7 +197,7 @@ def test_lifecycle_surfaces_protected_branch_active_carrier_as_advisory(
     root = tmp_path / "repo"
     (root / "openspec" / "specs").mkdir(parents=True)
     (root / "openspec" / "changes").mkdir(parents=True)
-    (root / "openspec" / "config.yaml").write_text("project: sample\n", encoding="utf-8")
+    (root / "openspec" / "config.yaml").write_text(OFFICIAL_OPENSPEC_CONFIG, encoding="utf-8")
     subprocess.run(["git", "init", "-b", "dev"], cwd=root, check=True, capture_output=True)
     subprocess.run(["git", "config", "user.email", "ethos@example.test"], cwd=root, check=True)
     subprocess.run(["git", "config", "user.name", "ETHOS Test"], cwd=root, check=True)
@@ -186,7 +210,10 @@ def test_lifecycle_surfaces_protected_branch_active_carrier_as_advisory(
     (leaked / "proposal.md").write_text("# leak\n", encoding="utf-8")
     subprocess.run(["git", "add", "."], cwd=root, check=True)
     subprocess.run(
-        ["git", "commit", "-m", "release leak"], cwd=root, check=True, capture_output=True
+        ["git", "commit", "-m", "release leak"],
+        cwd=root,
+        check=True,
+        capture_output=True,
     )
     subprocess.run(["git", "checkout", "dev"], cwd=root, check=True, capture_output=True)
 
@@ -215,10 +242,10 @@ def test_lifecycle_surfaces_protected_branch_active_carrier_as_advisory(
             "parse_error": "",
         }
 
-    monkeypatch.setattr(openspec, "_openspec_base_command", fake_base_command)
-    monkeypatch.setattr(openspec, "_run_json", fake_run_json)
+    monkeypatch.setattr(openspec_cli, "openspec_base_command", fake_base_command)
+    monkeypatch.setattr(openspec_cli, "run_json", fake_run_json)
 
-    report = openspec.openspec_governance_report(root, lifecycle=True)
+    report = openspec_core.openspec_governance_report(root, lifecycle=True)
 
     gap = "openspec_protected_branch_active_change_unarchived:main:release_root:release-leak"
     assert report["ok"] is True

@@ -3,7 +3,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ethos.assistants import skill_packages as sp
+import ethos.assistants.skills.capabilities as cap
+import ethos.assistants.skills.packages as sp
+from ethos_core.normalization.core import string_list
 
 SKILL_MD = """---
 name: sample
@@ -121,7 +123,7 @@ def test_skill_package_manifest_and_markdown_rejections(tmp_path: Path) -> None:
 
 
 def test_capability_semantics_and_helpers(tmp_path: Path) -> None:
-    gaps, records = sp._capability_records(
+    gaps, records = cap.capability_records(
         "sample",
         [
             {"id": "bad-kind", "kind": "unknown"},
@@ -146,10 +148,10 @@ def test_capability_semantics_and_helpers(tmp_path: Path) -> None:
         assert expected in gaps
     package = tmp_path / "pkg"
     package.mkdir()
-    assert sp._contained_package_path(package, "SKILL.md") is True
-    assert sp._contained_package_path(package, "/tmp/outside") is False
-    assert sp._contained_package_path(package, "../outside") is False
+    assert cap.contained_package_path(package, "SKILL.md") is True
+    assert cap.contained_package_path(package, "/workspace/outside") is False
+    assert cap.contained_package_path(package, "../outside") is False
     assert sp._frontmatter_ok("---\nname: x\ndescription: y\n---\n") is True
     assert sp._section_body("## A\nbody\n## B\nnext", "A") == "body"
     assert sp._is_placeholder_body(" Coming soon. ") is True
-    assert sp._string_list(["a", 2, ""]) == ["a", "2"]
+    assert string_list(["a", 2, ""], drop_empty=True) == ["a", "2"]

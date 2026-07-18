@@ -1,0 +1,57 @@
+[claim]
+id = "repository-text-layout-completion-20260715"
+change_id = "repository-text-layout-completion-20260715"
+subject = "quality:repository-text-layout"
+state = "archived"
+summary = "One structural blank-line separator is checked on governed text carriers while each language-native formatter remains the authority for its language."
+
+[evidence]
+dated = "evidence/chronicle/repository-text-layout-completion-20260715/2026-07-15.md"
+sha256 = "33c26cd50c8221ad44ed3e3534482f2bccaa33a12a1b7512d47545577ffb9fe3"
+evidence_ids = ["evidence:repository-text-layout-completion-20260715"]
+binding = "The archived official OpenSpec carrier, native owner scripts, shared structural reader, focused regressions, and dated Chronicle bind this bounded text-layout change."
+verifier = "digest_only"
+tests = [
+  "uv run --all-packages --group dev python -m pytest -q tests/unit/governance/test_structural_whitespace.py tests/unit/governance/test_quality_regime.py tests/architecture/test_format_architecture_runbook_mcp.py",
+  "tools/ci/scripts/run-config-lint.sh",
+  "tools/ci/scripts/run-markdown-lint.sh",
+  "tools/ci/scripts/run-shell-lint.sh",
+  "tools/ci/scripts/run-format-selection.sh",
+  "tools/ci/scripts/run-repository-hygiene.sh",
+  "openspec validate --all --strict --json",
+  "ethos openspec --lifecycle --json",
+  "ethos parity gaps --json",
+  "ethos prove --execute --expect-head <committed-head> --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-quality-gate-governance"
+scope = "Repository text blank-line structure, native formatter ownership, shared non-native carrier diagnostics, and provider-template parity."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-15-repository-text-layout-completion-20260715"
+fallback = "Use the language-native owner scripts and repair the governed carrier; do not add a formatter bypass or a private style authority."
+kill_signal = "A governed text carrier can retain repeated blank lines, the shared reader overrides a native formatter, or a provider projection drifts from its template."
+
+[promotion]
+targets = [
+  ".config/checks/whitespace/policy.toml",
+  ".config/checks/markdown/.markdownlint-cli2.yaml",
+  ".config/checks/yaml/yamllint.yaml",
+  ".config/ci/templates/hosted/gitlab-ci.yml",
+  ".gitlab-ci.yml",
+  ".ethos/rules.toml",
+  "tools/ci/structural_whitespace.py",
+  "tools/ci/scripts/run-config-lint.sh",
+  "tools/ci/scripts/run-shell-lint.sh",
+  "docs/governance/repository-text-layout.md",
+  "openspec/specs/quality/spec.md",
+  "openspec/specs/assistant-projections/spec.md",
+  "tests/unit/governance/test_structural_whitespace.py",
+  "openspec/changes/archive/2026-07-15-repository-text-layout-completion-20260715",
+  "evidence/chronicle/repository-text-layout-completion-20260715/2026-07-15.md",
+  "evidence/claims/repository-text-layout-completion-20260715.toml",
+]

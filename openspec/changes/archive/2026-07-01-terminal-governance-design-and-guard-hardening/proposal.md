@@ -30,10 +30,10 @@ planning.
 - Require adopter scaffolds to create inspectable OpenSpec workspaces with
   config, README files, change templates, capability templates, families, and
   profile-appropriate first capabilities instead of empty directories.
-- Keep useful `di-effect` patterns where they fit ETHOS: capability-local
+- Keep useful `alternate mechanism corpus` patterns where they fit ETHOS: capability-local
   profiles, families, direct routing, reuse stance, dynamic facets, live-spec
   diff guards, and archive normalization.
-- Keep useful `alphasim-dmgr` patterns where they fit ETHOS: a single command
+- Keep useful `reference-adopter` patterns where they fit ETHOS: a single command
   plane, Work Lane aware lifecycle state, claim/proof binding, topic-scoped
   closeout evidence, and explicit no-hosted-claim boundaries.
 - Keep this lane scoped to design, planning, and guard-hardening mechanism

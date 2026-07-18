@@ -4,9 +4,9 @@ import sqlite3
 from contextlib import closing
 from typing import TYPE_CHECKING
 
-from ethos.adapters.store.retrieval import default_retrieval_db_path
-from ethos.adapters.store.retrieval import initialize_context_index
-from ethos.adapters.store.retrieval import purge_context_index
+from ethos.adapters.store.retrieval.common import default_retrieval_db_path
+from ethos.adapters.store.retrieval.indexing import purge_context_index
+from ethos.adapters.store.retrieval.schema import initialize_context_index
 
 if TYPE_CHECKING:
     from pathlib import Path

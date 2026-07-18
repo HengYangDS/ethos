@@ -4,44 +4,21 @@ import fnmatch
 import tomllib
 from typing import TYPE_CHECKING
 
+from ethos_core.contracts.commands import load_command_registry_declaration
+from ethos_core.normalization.core import string_list
+
 if TYPE_CHECKING:
     from pathlib import Path
 
-PUBLIC_WORKFLOW_COMMANDS = (
-    "ethos status",
-    "ethos plan",
-    "ethos prove",
-    "ethos land",
-    "ethos publish",
-)
-READER_VIEW_COMMANDS = ("ethos orient",)
-SCORECARD_COMMANDS = ("ethos report",)
-SETUP_COMMANDS = (
-    "ethos init",
-    "ethos adopt",
-    "ethos doctor",
-)
-MAINTAINER_REFERENCE_COMMANDS = (
-    "ethos audit",
-    "ethos openspec",
-    "ethos campaign",
-    "ethos intake",
-    "ethos quality",
-    "ethos assistants",
-    "ethos playbooks",
-    "ethos fleet",
-    "ethos fleet retirement-readiness",
-    "ethos lane",
-    "ethos hook",
-    "ethos parity",
-    "ethos explain",
-    "ethos docs",
-)
-GOVERNANCE_GATE_COMMANDS = ("openspec validate --all --strict --json",)
-LOCAL_CLOSEOUT_COMMANDS = ("ethos land --closeout --apply --authorize --expect-head <HEAD>",)
-EVIDENCE_REFRESH_COMMANDS = (
-    "ethos parity shadow --adopter <adopter-id> --target <repo> --execute --write-evidence",
-)
+_DECLARATION = load_command_registry_declaration()
+PUBLIC_WORKFLOW_COMMANDS = _DECLARATION.sets.public_workflow
+READER_VIEW_COMMANDS = _DECLARATION.sets.reader_view
+SCORECARD_COMMANDS = _DECLARATION.sets.scorecard
+SETUP_COMMANDS = _DECLARATION.sets.setup
+MAINTAINER_REFERENCE_COMMANDS = _DECLARATION.sets.maintainer_reference
+GOVERNANCE_GATE_COMMANDS = _DECLARATION.sets.governance_gate
+LOCAL_CLOSEOUT_COMMANDS = _DECLARATION.sets.local_closeout
+EVIDENCE_REFRESH_COMMANDS = _DECLARATION.sets.evidence_refresh
 PUBLIC_COMMANDS = (*PUBLIC_WORKFLOW_COMMANDS,)
 KNOWN_COMMANDS = (
     *PUBLIC_WORKFLOW_COMMANDS,
@@ -51,22 +28,9 @@ KNOWN_COMMANDS = (
     *MAINTAINER_REFERENCE_COMMANDS,
 )
 
-RETIRED_PUBLIC_ROOTS = (
-    "wt",
-    "proof",
-    "mission",
-    "skill-evolution",
-    "agent-surface-contract",
-)
-RETIRED_PUBLIC_COMMAND_PREFIXES = (
-    "ethos kernel",
-    "ethos governance",
-    "ethos workspace",
-    "ethos agent",
-    "ethos project",
-    "ethos node",
-)
-DEFAULT_HISTORICAL_EXEMPT_ROOTS = ("evidence", "docs/archive")
+RETIRED_PUBLIC_ROOTS = _DECLARATION.sets.retired_public_roots
+RETIRED_PUBLIC_COMMAND_PREFIXES = _DECLARATION.sets.retired_public_command_prefixes
+DEFAULT_HISTORICAL_EXEMPT_ROOTS = _DECLARATION.sets.historical_exempt_roots
 
 
 def public_commands() -> tuple[str, ...]:
@@ -89,12 +53,6 @@ def _command_surface_policy(root: Path) -> dict[str, object]:
     return policy if isinstance(policy, dict) else {}
 
 
-def _string_list(value: object) -> list[str]:
-    if not isinstance(value, list):
-        return []
-    return [str(item) for item in value]
-
-
 def _all_doc_paths(root: Path) -> tuple[Path, ...]:
     paths = [root / "README.md", root / "CONTRIBUTING.md", root / "CHANGELOG.md"]
     docs = root / "docs"
@@ -106,20 +64,20 @@ def _all_doc_paths(root: Path) -> tuple[Path, ...]:
 def _policy_doc_paths(root: Path) -> tuple[Path, ...]:
     policy = _command_surface_policy(root)
     paths = list(_all_doc_paths(root))
-    current_docs = _string_list(policy.get("current_docs"))
-    current_globs = _string_list(policy.get("current_doc_globs"))
-    retired_reference_docs = set(_string_list(policy.get("retired_reference_docs")))
+    governed_docs = string_list(policy.get("governed_docs"))
+    governed_globs = string_list(policy.get("governed_doc_globs"))
+    retired_reference_docs = set(string_list(policy.get("retired_reference_docs")))
     historical_roots = tuple(
-        _string_list(policy.get("historical_exempt_roots")) or DEFAULT_HISTORICAL_EXEMPT_ROOTS
+        string_list(policy.get("historical_exempt_roots")) or DEFAULT_HISTORICAL_EXEMPT_ROOTS
     )
-    if current_docs or current_globs:
+    if governed_docs or governed_globs:
         selected: list[Path] = []
         for path in paths:
             relative = path.relative_to(root).as_posix()
             if relative in retired_reference_docs:
                 continue
-            if relative in current_docs or any(
-                fnmatch.fnmatchcase(relative, pattern) for pattern in current_globs
+            if relative in governed_docs or any(
+                fnmatch.fnmatchcase(relative, pattern) for pattern in governed_globs
             ):
                 selected.append(path)
         return tuple(selected)

@@ -9,13 +9,34 @@ from pathlib import Path
 
 import pytest
 
-from ethos.adapters import openspec
+import ethos.adapters.openspec.archive.core as archive_mod
+import ethos.adapters.openspec.cli as openspec_cli
+import ethos.adapters.openspec.core as openspec_core
+import ethos.adapters.openspec.lifecycle.core as openspec_lifecycle
+import ethos.adapters.openspec.metadata.core as openspec_metadata_adapter
+import ethos.adapters.openspec.protocol.core as proposal_mod
+import ethos.repository.openspec.metadata as openspec_metadata
+import ethos.surface.cli.hook.core as hook_cli
 from ethos.repository.policy import schema as policy_schema
-from ethos.repository.registry import docs as docs_registry
+from ethos.repository.registry.docs.commands import best_ethos_command_key
+from ethos.repository.registry.docs.commands import command_examples_report
+from ethos.repository.registry.docs.commands import command_root
+from ethos.repository.registry.docs.commands import ethos_command_key
+from ethos.repository.registry.docs.commands import ethos_invocation_tokens
+from ethos.repository.registry.docs.commands import has_command_example
+from ethos.repository.registry.docs.commands import known_ethos_command
+from ethos.repository.registry.docs.commands import known_non_ethos_command
+from ethos.repository.registry.docs.commands import requires_product_examples
+from ethos.repository.registry.docs.commands import tokens
+from ethos.repository.registry.docs.health import docs_health_report
+from ethos.repository.registry.docs.links import glossary_report
+from ethos.repository.registry.docs.links import link_integrity_report
+from ethos.repository.registry.docs.links import markdown_anchors
+from ethos.repository.registry.docs.links import slugify_heading
+from ethos.repository.registry.docs.links import stable_paths_report
 from ethos.surface.cli import _base
 from ethos.surface.cli import _gate_runner
-from ethos.surface.cli import hook as hook_cli
-from ethos_core.action_graph import ActionNode
+from ethos_core.action_graph.core import ActionNode
 from ethos_core.result import EthosResult
 
 
@@ -26,47 +47,58 @@ def cp(stdout: str = "", stderr: str = "", returncode: int = 0) -> subprocess.Co
 def test_openspec_base_json_selection_and_governance_edges(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
+    monkeypatch.setenv("ETHOS_OPENSPEC_BIN", "/opt/openspec")
+    assert openspec_cli.openspec_base_command() == ("/opt/openspec",)
+    monkeypatch.delenv("ETHOS_OPENSPEC_BIN")
+    monkeypatch.setenv("ETHOS_NPX_CACHE_DIR", (tmp_path / "empty-npx-cache").as_posix())
     monkeypatch.setattr(
-        openspec.shutil, "which", lambda name: "/bin/openspec" if name == "openspec" else None
+        openspec_cli.shutil, "which", lambda name: "/bin/openspec" if name == "openspec" else None
     )
-    assert openspec._openspec_base_command() == ("openspec",)
+    assert openspec_cli.openspec_base_command() == ("openspec",)
     monkeypatch.setattr(
-        openspec.shutil, "which", lambda name: "/bin/npx" if name == "npx" else None
+        openspec_cli.shutil, "which", lambda name: "/bin/npx" if name == "npx" else None
     )
-    assert openspec._openspec_base_command() == ("npx", "--yes", openspec.OFFICIAL_NPX_PACKAGE)
-    monkeypatch.setattr(openspec.shutil, "which", lambda name: None)
-    assert openspec._openspec_base_command() is None
+    assert openspec_cli.openspec_base_command() == (
+        "npx",
+        "--yes",
+        openspec_cli.OFFICIAL_NPX_PACKAGE,
+    )
+    monkeypatch.setattr(openspec_cli.shutil, "which", lambda name: None)
+    assert openspec_cli.openspec_base_command() is None
 
-    assert openspec._selected_change({"changes": "bad"}, None) is None
+    assert openspec_lifecycle.selected_change({"changes": "bad"}, None) is None
     assert (
-        openspec._selected_change({"changes": [{"name": "a", "status": "in-progress"}]}, None)
+        openspec_lifecycle.selected_change(
+            {"changes": [{"name": "a", "status": "in-progress"}]}, None
+        )
         == "a"
     )
     assert (
-        openspec._selected_change(
+        openspec_lifecycle.selected_change(
             {"changes": [{"name": "a", "lastModified": "1"}, {"name": "b", "lastModified": "2"}]},
             None,
         )
         == "b"
     )
-    assert openspec._validation_failures({"items": "bad"}) == ["openspec_validation_unreadable"]
-    assert openspec._validation_failures(
+    assert openspec_lifecycle.validation_failures({"items": "bad"}) == [
+        "openspec_validation_unreadable"
+    ]
+    assert openspec_lifecycle.validation_failures(
         {"items": [{"valid": False, "type": "spec", "id": "x"}, "bad"]}
     ) == ["openspec_validation_failed:spec:x"]
 
     monkeypatch.setattr(
-        openspec.subprocess, "run", lambda *args, **kwargs: cp(stdout="[]", returncode=0)
+        openspec_cli.subprocess, "run", lambda *args, **kwargs: cp(stdout="[]", returncode=0)
     )
-    result = openspec._run_json(tmp_path, ("openspec",), ("list", "--json"))
+    result = openspec_cli.run_json(tmp_path, ("openspec",), ("list", "--json"))
     assert result["parse_error"] == "openspec_json_not_object"
     monkeypatch.setattr(
-        openspec.subprocess, "run", lambda *args, **kwargs: cp(stdout="{bad", returncode=0)
+        openspec_cli.subprocess, "run", lambda *args, **kwargs: cp(stdout="{bad", returncode=0)
     )
-    assert openspec._run_json(tmp_path, ("openspec",), ("list", "--json"))["parse_error"]
+    assert openspec_cli.run_json(tmp_path, ("openspec",), ("list", "--json"))["parse_error"]
 
-    report = openspec._openspec_governance_report(
-        tmp_path, change="c1", lifecycle=True, base_command=None
-    )
+    monkeypatch.setattr(openspec_cli, "openspec_base_command", lambda: None)
+    report = openspec_core.openspec_governance_report(tmp_path, change="c1", lifecycle=True)
     assert set(report["required_gaps"]) >= {
         "openspec_directory_missing",
         "openspec_official_cli_missing",
@@ -116,10 +148,9 @@ def test_openspec_base_json_selection_and_governance_edges(
             "command": [],
         }
 
-    monkeypatch.setattr(openspec, "_run_json", fake_run_json)
-    governed = openspec._openspec_governance_report(
-        tmp_path, change=None, lifecycle=True, base_command=("openspec",)
-    )
+    monkeypatch.setattr(openspec_cli, "run_json", fake_run_json)
+    monkeypatch.setattr(openspec_cli, "openspec_base_command", lambda: ("openspec",))
+    governed = openspec_core.openspec_governance_report(tmp_path, lifecycle=True)
     assert "openspec_doctor_unhealthy" in governed["required_gaps"]
     assert "openspec_list_failed" in governed["required_gaps"]
     assert "openspec_status_incomplete:c1" in governed["required_gaps"]
@@ -130,8 +161,52 @@ def test_openspec_base_json_selection_and_governance_edges(
     assert any(call[:1] == ("status",) for call in calls)
 
 
+def test_openspec_cached_cli_entry_skips_invalid_cache_candidates(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    cache = tmp_path / "_npx"
+    bad_json = cache / "bad-json" / "node_modules" / "@fission-ai" / "openspec"
+    missing_bin = cache / "missing-bin" / "node_modules" / "@fission-ai" / "openspec"
+    string_bin = cache / "string-bin" / "node_modules" / "@fission-ai" / "openspec"
+    no_entry = cache / "no-entry" / "node_modules" / "@fission-ai" / "openspec"
+    numeric_bin = cache / "numeric-bin" / "node_modules" / "@fission-ai" / "openspec"
+    for package_root in (bad_json, missing_bin, string_bin, no_entry, numeric_bin):
+        package_root.mkdir(parents=True)
+    (bad_json / "package.json").write_text("{bad", encoding="utf-8")
+    (missing_bin / "package.json").write_text(
+        '{"version":"1.0.0","bin":{"openspec":"missing.js"}}',
+        encoding="utf-8",
+    )
+    (string_bin / "package.json").write_text(
+        '{"version":"2.0.0","bin":"bin/openspec.js"}',
+        encoding="utf-8",
+    )
+    (string_bin / "bin").mkdir()
+    (string_bin / "bin" / "openspec.js").write_text("#!/usr/bin/env node\n", encoding="utf-8")
+    (no_entry / "package.json").write_text(
+        '{"version":"3.0.0","bin":{"other":"bin/other.js"}}',
+        encoding="utf-8",
+    )
+    (numeric_bin / "package.json").write_text(
+        '{"version":"4.0.0","bin":123}',
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("ETHOS_NPX_CACHE_DIR", cache.as_posix())
+    monkeypatch.setattr(openspec_cli.shutil, "which", lambda name: "/usr/bin/node")
+
+    assert openspec_cli.cached_official_cli_entry() == (
+        "/usr/bin/node",
+        (string_bin / "bin" / "openspec.js").resolve().as_posix(),
+    )
+
+    (string_bin / "bin" / "openspec.js").unlink()
+    assert openspec_cli.cached_official_cli_entry() is None
+
+
 def test_openspec_archive_and_lifecycle_protocol_edges(tmp_path: Path) -> None:
-    assert openspec.completed_active_changes_report(tmp_path)["ok"] is True
+    assert openspec_metadata_adapter.completed_active_changes_report(tmp_path)["ok"] is True
     archive = tmp_path / "openspec" / "changes" / "archive" / "bad_name"
     (archive / "specs" / "cap").mkdir(parents=True)
     (archive / "proposal.md").write_text("proposal", encoding="utf-8")
@@ -141,7 +216,7 @@ def test_openspec_archive_and_lifecycle_protocol_edges(tmp_path: Path) -> None:
         "schema: other\ncreated: 9999-99-99\n", encoding="utf-8"
     )
     (archive / "specs" / "cap" / "spec.md").write_text("No delta\n", encoding="utf-8")
-    report = openspec.openspec_archive_closeout_report(tmp_path)
+    report = archive_mod.openspec_archive_closeout_report(tmp_path)
     gaps = set(report["required_gaps"])
     assert "openspec_archive_name_invalid:bad_name" in gaps
     assert "openspec_archive_metadata_schema_invalid:bad_name" in gaps
@@ -151,18 +226,18 @@ def test_openspec_archive_and_lifecycle_protocol_edges(tmp_path: Path) -> None:
     assert "openspec_archive_delta_requirement_missing:bad_name" in gaps
     assert "openspec_archive_delta_scenario_missing:bad_name" in gaps
     assert (
-        openspec._archive_delta_issues(tmp_path / "missing-specs", archive_name="a", root=tmp_path)[
-            0
-        ]["gap"]
+        archive_mod.archive_delta_issues(
+            tmp_path / "missing-specs", archive_name="a", root=tmp_path
+        )[0]["gap"]
         == "openspec_archive_delta_specs_missing:a"
     )
 
-    assert openspec._completed_active_change_names(
+    assert openspec_metadata_adapter.completed_active_change_names(
         {"changes": [{"name": "done", "status": "complete"}, {"id": "x", "state": "done"}, "bad"]}
     ) == ["done", "x"]
-    assert openspec._read_openspec_metadata(archive / ".openspec.yaml")["schema"] == "other"
-    assert openspec._is_relative_to(tmp_path / "x", tmp_path) is True
-    assert openspec._is_relative_to(tmp_path.parent, tmp_path) is False
+    assert openspec_metadata.read_openspec_metadata(archive / ".openspec.yaml")["schema"] == "other"
+    assert openspec_metadata.is_relative_to(tmp_path / "x", tmp_path) is True
+    assert openspec_metadata.is_relative_to(tmp_path.parent, tmp_path) is False
 
     change_root = tmp_path / "openspec" / "changes" / "c1"
     (change_root / "specs").mkdir(parents=True)
@@ -170,8 +245,10 @@ def test_openspec_archive_and_lifecycle_protocol_edges(tmp_path: Path) -> None:
         "# Proposal\n\n- `cap`: reuse=wrong; change=sideways; subject=; facet:lifecycle=; facet:surface=; facet:authority=\n",
         encoding="utf-8",
     )
-    lifecycle = openspec._lifecycle_report(
-        tmp_path, selected_change="c1", list_payload={}, enabled=True
+    lifecycle = openspec_lifecycle.lifecycle_report(
+        tmp_path,
+        request=openspec_lifecycle.OpenSpecRequest(change="c1", lifecycle=True),
+        list_payload={},
     )
     assert "openspec_design_missing:c1" in lifecycle["required_gaps"]
     assert "openspec_tasks_missing:c1" in lifecycle["required_gaps"]
@@ -187,7 +264,7 @@ def test_openspec_archive_and_lifecycle_protocol_edges(tmp_path: Path) -> None:
     spec.mkdir(parents=True)
     (spec / "spec.md").write_text("spec", encoding="utf-8")
     (spec / "capability.toml").write_text("[bad\n", encoding="utf-8")
-    assert openspec._capability_profile_gaps(tmp_path, "c1", "cap") == [
+    assert proposal_mod.capability_profile_gaps(tmp_path, "c1", "cap") == [
         "openspec_capability_profile_invalid:c1:cap"
     ]
 
@@ -206,34 +283,30 @@ def test_docs_registry_links_commands_and_taxonomy_edges(tmp_path: Path) -> None
     meta = docs / "_meta"
     meta.mkdir()
     (meta / "taxonomy.toml").write_text("[states]\nallowed=['active']\n", encoding="utf-8")
-    health = docs_registry.docs_health_report(tmp_path)
+    health = docs_health_report(tmp_path)
     assert any(gap.startswith("duplicate_subject:same") for gap in health["required_gaps"])
     assert "missing_visible_section:docs/a.md:status" in health["required_gaps"]
 
-    links = docs_registry._link_integrity_report(tmp_path)
+    links = link_integrity_report(tmp_path)
     assert "broken_link:docs/a.md:8:missing.md" in links["required_gaps"]
     assert "broken_anchor:docs/a.md:9:#nope" in links["required_gaps"]
-    assert docs_registry._markdown_anchors(docs / "b.md") == {"known-anchor"}
-    assert docs_registry._slugify_heading("`Hello_World`!") == "hello-world"
+    assert markdown_anchors(docs / "b.md") == {"known-anchor"}
+    assert slugify_heading("`Hello_World`!") == "hello-world"
 
-    assert docs_registry._tokens("unterminated 'quote") == ["unterminated", "'quote"]
-    assert (
-        docs_registry._command_root("env FOO=1 uv run --package ethos ethos prove --json")
-        == "ethos"
-    )
-    assert docs_registry._ethos_invocation_tokens(["python", "-m", "ethos.cli", "status"]) == [
+    assert tokens("unterminated 'quote") == ["unterminated", "'quote"]
+    assert command_root("env FOO=1 uv run --package ethos ethos prove --json") == "ethos"
+    assert known_non_ethos_command("tools/ci/scripts/run-python-lint.sh") is True
+    assert known_non_ethos_command("tools/ci/run-python-lint.sh") is False
+    assert ethos_invocation_tokens(["python", "-m", "ethos.cli", "status"]) == [
         "ethos",
         "status",
     ]
-    assert docs_registry._ethos_command_key("ethos") == "ethos"
-    assert (
-        docs_registry._best_ethos_command_key("ethos playbooks missing")
-        == "ethos playbooks missing"
-    )
-    assert docs_registry._known_ethos_command("ethos playbooks route --changed") is True
-    assert docs_registry._known_ethos_command("ethos playbooks missing") is False
+    assert ethos_command_key("ethos") == "ethos"
+    assert best_ethos_command_key("ethos playbooks missing") == "ethos playbooks missing"
+    assert known_ethos_command("ethos playbooks route --changed") is True
+    assert known_ethos_command("ethos playbooks missing") is False
 
-    examples = docs_registry.command_examples_report(tmp_path)
+    examples = command_examples_report(tmp_path)
     assert any(
         gap.startswith("unknown_command_example:docs/a.md") for gap in examples["required_gaps"]
     )
@@ -242,16 +315,11 @@ def test_docs_registry_links_commands_and_taxonomy_edges(tmp_path: Path) -> None
         for gap in examples["required_gaps"]
     )
     assert (
-        docs_registry._has_command_example(
-            [{"scope": "archive", "command": "ethos prove"}], "ethos prove"
-        )
+        has_command_example([{"scope": "archive", "command": "ethos prove"}], "ethos prove")
         is False
     )
     assert (
-        docs_registry._requires_product_examples(
-            [{"scope": "current", "command": "ethos prove --json"}]
-        )
-        is True
+        requires_product_examples([{"scope": "product", "command": "ethos prove --json"}]) is True
     )
 
     glossary = docs / "reference"
@@ -259,19 +327,17 @@ def test_docs_registry_links_commands_and_taxonomy_edges(tmp_path: Path) -> None
     (glossary / "glossary.md").write_text("## Command Plane\n", encoding="utf-8")
     assert any(
         gap.startswith("glossary_term_missing:")
-        for gap in docs_registry._glossary_report(tmp_path)["required_gaps"]
+        for gap in glossary_report(tmp_path)["required_gaps"]
     )
     (meta / "stable_paths.toml").write_text(
         "[[stable_path]]\npath='docs/missing.md'\n", encoding="utf-8"
     )
     assert (
         "stable_path_target_missing:docs/missing.md"
-        in docs_registry._stable_paths_report(tmp_path)["required_gaps"]
+        in stable_paths_report(tmp_path)["required_gaps"]
     )
     (meta / "stable_paths.toml").write_text("[[stable_path]\n", encoding="utf-8")
-    assert docs_registry._stable_paths_report(tmp_path)["required_gaps"] == [
-        "stable_paths_invalid_toml"
-    ]
+    assert stable_paths_report(tmp_path)["required_gaps"] == ["stable_paths_invalid_toml"]
 
 
 def test_schema_live_skill_invalid_and_adopter_profile_edges(
@@ -312,6 +378,10 @@ def test_schema_live_skill_invalid_and_adopter_profile_edges(
 def test_cli_emit_load_gate_and_hook_install_edges(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
+    digest_file = tmp_path / "digest.txt"
+    digest_file.write_text("ethos\n", encoding="utf-8")
+    assert _base.sha256_file(digest_file).startswith("sha256:")
+
     ok_result = EthosResult(command="demo", ok=True, state="ready", next_actions=("next action",))
     _base.emit(ok_result, json_output=False)
     captured = capsys.readouterr().out
@@ -324,10 +394,14 @@ def test_cli_emit_load_gate_and_hook_install_edges(
     imported: list[str] = []
     monkeypatch.setattr("importlib.import_module", lambda name: imported.append(name))
     _base.load_command_groups(["quality", "docs"])
-    assert imported == ["ethos.surface.cli.quality"]
+    assert imported == []
     imported.clear()
     _base.load_command_groups([])
-    assert "ethos.surface.cli.hook" in imported
+    assert (
+        "ethos.surface.cli.hook.core" in imported
+        and "ethos.surface.cli.quality.core" not in imported
+        and "ethos.surface.cli.boundary.product" not in imported
+    )
     imported.clear()
     _base.load_command_groups(["status"])
     assert imported == []
@@ -335,7 +409,7 @@ def test_cli_emit_load_gate_and_hook_install_edges(
     node = ActionNode(
         id="a", kind="command", command=("python", "-m", "ethos.cli", "status", "--json")
     )
-    monkeypatch.setattr(_gate_runner, "_load_command_groups", lambda argv: None)
+    monkeypatch.setattr(_gate_runner, "load_command_groups", lambda argv: None)
     monkeypatch.setattr(
         _gate_runner,
         "app",
@@ -374,12 +448,9 @@ def test_cli_emit_load_gate_and_hook_install_edges(
     hooks.mkdir()
     for name in ("pre-commit", "pre-push", "reference-transaction"):
         (hooks / name).write_text("#!/bin/sh\n", encoding="utf-8")
-    monkeypatch.setattr(hook_cli._gitio, "set_hooks_path", lambda repo, value: False)
+    monkeypatch.setattr(hook_cli.git_adapter, "set_hooks_path", lambda repo, value: False)
     hook_cli.install(json_output=True)
     assert emitted[-1].required_gaps == ("hooks_path_wire_failed",)
-    monkeypatch.setattr(hook_cli._gitio, "set_hooks_path", lambda repo, value: True)
-    hook_cli.install(json_output=True)
-    assert emitted[-1].ok is True
 
     monkeypatch.setattr(
         hook_cli,
@@ -408,3 +479,29 @@ def test_cli_emit_load_gate_and_hook_install_edges(
     )
     hook_cli.ref_transaction("refs/heads/dev", "a", "b", json_output=True)
     assert emitted[-1].command == "hook ref-transaction"
+
+
+def test_hook_install_persists_accepted_branch_and_disables_pack_refs(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(hook_cli, "resolve_root", lambda root: tmp_path)
+    emitted: list[EthosResult] = []
+    monkeypatch.setattr(
+        hook_cli, "emit", lambda result, json_output, enforce=True: emitted.append(result)
+    )
+    hooks = tmp_path / ".githooks"
+    hooks.mkdir()
+    for name in ("pre-commit", "pre-push", "reference-transaction"):
+        (hooks / name).write_text("#!/bin/sh\n", encoding="utf-8")
+    monkeypatch.setattr(hook_cli.git_adapter, "set_hooks_path", lambda repo, value: True)
+    monkeypatch.setattr(hook_cli.git_adapter, "set_config", lambda repo, key, value: False)
+
+    hook_cli.install(json_output=True)
+
+    assert emitted[-1].required_gaps == (
+        "hook_config_write_failed:ethos.acceptedBranch",
+        "hook_config_write_failed:gc.packRefs",
+    )
+    monkeypatch.setattr(hook_cli.git_adapter, "set_config", lambda repo, key, value: True)
+    hook_cli.install(json_output=True)
+    assert emitted[-1].ok is True

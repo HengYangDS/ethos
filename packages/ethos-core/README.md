@@ -9,7 +9,7 @@ Relations: owns kernel primitives
 
 Subject: ETHOS kernel algebra.
 
-Role: own JudgmentSource, Subject, Commitment, Change, Evidence, Claim,
+Role: own Authority, Subject, Commitment, Change, Evidence, Claim,
 Chronicle, action graph primitives, result envelopes, schema contracts, rule
 contracts, quality semantics, and proof-policy semantics without provider
 execution.

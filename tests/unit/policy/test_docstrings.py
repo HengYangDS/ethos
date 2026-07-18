@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ethos.repository.policy import docstrings
-from ethos.repository.policy.docstrings import docstring_coverage_report
+import ethos.repository.policy.docstrings.core as docstrings_core
+from ethos.repository.policy.docstrings.core import docstring_coverage_report
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -94,10 +94,10 @@ def helper():
 
 
 def test_docstring_helpers_parse_module_names_and_decorators() -> None:
-    assert docstrings._module_name("packages/ethos/src/ethos/repository/__init__.py") == (
+    assert docstrings_core._module_name("packages/ethos/src/ethos/repository/__init__.py") == (
         "ethos.repository"
     )
-    assert docstrings._module_name("packages/ethos/src/ethos/cli.py") == "ethos.cli"
+    assert docstrings_core._module_name("packages/ethos/src/ethos/cli.py") == "ethos.cli"
 
 
 def test_docstring_coverage_handles_file_paths_and_missing_roots(tmp_path: Path) -> None:

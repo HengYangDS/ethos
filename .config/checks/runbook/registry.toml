@@ -1,0 +1,88 @@
+schema = "ethos-runbook-registry-v1"
+owner = "ethos-quality-gate-governance"
+registry = "docs/reference/runbook-registry.md"
+runner = "tools/ci/scripts/run-runbook-registry-check.sh"
+
+[[entry]]
+id = "RUN-CI-TEMPLATES"
+command = "tools/ci/scripts/run-ci-template-check.sh"
+category = "provider-projection"
+evidence = "JSON stdout"
+
+[[entry]]
+id = "RUN-GITHUB-EMULATOR"
+command = "ETHOS_LOCAL_EMULATOR_DRY_RUN=1 tools/ci/scripts/run-github-local-emulator.sh doctor"
+category = "provider-emulator"
+evidence = "build/evidence/local-ci/github/doctor.json"
+
+[[entry]]
+id = "RUN-GITLAB-EMULATOR"
+command = "ETHOS_LOCAL_EMULATOR_DRY_RUN=1 tools/ci/scripts/run-gitlab-local-emulator.sh doctor"
+category = "provider-emulator"
+evidence = "build/evidence/local-ci/gitlab/doctor.json"
+
+[[entry]]
+id = "RUN-FORMAT-SELECTION"
+command = "tools/ci/scripts/run-format-selection.sh"
+category = "format-boundary"
+evidence = "JSON stdout"
+
+[[entry]]
+id = "RUN-ARCHITECTURE-PROJECTION"
+command = "tools/ci/scripts/run-architecture-projection-drift.sh"
+category = "architecture-projection"
+evidence = "JSON stdout"
+
+[[entry]]
+id = "RUN-MCP-SMOKE"
+command = "tools/ci/scripts/run-mcp-smoke.sh"
+category = "agent-projection"
+evidence = "build/evidence/agent/mcp/smoke.json"
+
+[[entry]]
+id = "RUN-CLOSEOUT-MANIFEST"
+command = "tools/ci/scripts/run-closeout-evidence-manifest.sh"
+category = "evidence-operation"
+evidence = "build/evidence/workflow/closeout/manifest.json"
+
+[[entry]]
+id = "RUN-LOCAL-STATE-AUDIT"
+command = "tools/ci/scripts/run-local-state-audit.sh"
+category = "local-state"
+evidence = "build/evidence/local-state/audit.json"
+
+[[entry]]
+id = "RUN-RELEASE-SUPPLY-CHAIN"
+command = "tools/ci/scripts/run-release-supply-chain.sh"
+category = "release-supply-chain"
+evidence = "build/evidence/release/supply-chain.json"
+
+[[entry]]
+id = "RUN-DEPENDENCY-HYGIENE"
+command = "tools/ci/scripts/run-dependency-hygiene.sh"
+category = "dependency-hygiene"
+evidence = "build/evidence/quality/dependency/summary.json"
+
+[[entry]]
+id = "RUN-JSON-SCHEMA"
+command = "tools/ci/scripts/run-json-schema-check.sh"
+category = "schema-hygiene"
+evidence = "JSON stdout"
+
+[[entry]]
+id = "RUN-PROSE-CHECK"
+command = "tools/ci/scripts/run-prose-check.sh"
+category = "prose"
+evidence = "exit code + codespell count"
+
+[[entry]]
+id = "RUN-HOSTED-PROVIDER-OBSERVATION"
+command = "tools/ci/scripts/run-hosted-provider-observation.sh"
+category = "hosted-provider-observation"
+evidence = "build/evidence/hosted-ci/observation.json"
+
+[[entry]]
+id = "RUN-PYTHON-VULNERABILITY-AUDIT"
+command = "tools/ci/scripts/run-python-vulnerability-audit.sh"
+category = "security-vulnerability"
+evidence = "build/evidence/quality/security/python-vulnerability-audit.json"

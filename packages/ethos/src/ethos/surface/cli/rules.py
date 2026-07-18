@@ -9,15 +9,15 @@ from __future__ import annotations
 
 from typing import cast
 
-from ethos.adapters.repo import git as _gitio
-from ethos.adapters.repo.status import workspace_status
-from ethos.domain import plan as _plan
-from ethos.repository.policy.rules import compile_rules
-from ethos.repository.policy.rules import coverage_report
-from ethos.repository.policy.rules import explain_rules_target
-from ethos.repository.policy.rules import policy_exceptions_report
-from ethos.repository.policy.rules import rules_check_report
-from ethos.repository.policy.rules import rules_evaluation_report
+import ethos.adapters.repo.git as git_adapter
+import ethos.domain.plan as plan_domain
+from ethos.adapters.repo.status.core import workspace_status
+from ethos.repository.policy.rules.check import rules_check_report
+from ethos.repository.policy.rules.compile import compile_rules
+from ethos.repository.policy.rules.coverage import coverage_report
+from ethos.repository.policy.rules.evaluation import rules_evaluation_report
+from ethos.repository.policy.rules.exceptions import policy_exceptions_report
+from ethos.repository.policy.rules.explain import explain_rules_target
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import emit
@@ -47,7 +47,7 @@ def rules_check(
         next_actions=tuple(cast("list[str]", report["next_action_contract"])),
         data=report,
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @rules_app.command(name="eval")
@@ -64,7 +64,7 @@ def rules_eval(
 ) -> None:
     """Evaluate repository rules for a phase."""
     repo = resolve_root(root)
-    current_head = _gitio.current_head(repo)
+    current_head = git_adapter.current_head(repo)
     report = rules_evaluation_report(
         repo,
         phase=phase,
@@ -74,7 +74,7 @@ def rules_eval(
         actor=actor,
         scope=scope,
         head=current_head,
-        fact_snapshot=_plan.rule_fact_snapshot(
+        fact_snapshot=plan_domain.rule_fact_snapshot(
             repo,
             phase=phase,
             changed_paths=tuple(changed_path),
@@ -85,7 +85,7 @@ def rules_eval(
             head=current_head,
         ),
     )
-    attestation = _plan.rule_attestation_for_evaluation(report, actor=actor, scope=scope)
+    attestation = plan_domain.rule_attestation_for_evaluation(report, actor=actor, scope=scope)
     result = EthosResult(
         command="rules eval",
         ok=not report["required_gaps"],
@@ -99,7 +99,7 @@ def rules_eval(
         next_actions=tuple(cast("list[str]", report["next_action_contract"])),
         data=report,
     )
-    emit(result, json_output)
+    emit(result, json_output=json_output)
 
 
 @rules_app.command(name="coverage")
@@ -130,7 +130,7 @@ def rules_coverage(
         next_actions=tuple(cast("list[str]", report["next_action_contract"])),
         data=report,
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @rules_app.command(name="compile")
@@ -149,7 +149,7 @@ def rules_compile(
         summary={"rule_count": len(cast("list[object]", report["rules"]))},
         data=report,
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @rules_app.command(name="explain")
@@ -170,7 +170,7 @@ def rules_explain(
         next_actions=tuple(cast("list[str]", report["next_action_contract"])),
         data=report,
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)
 
 
 @rules_app.command(name="exceptions")
@@ -188,4 +188,4 @@ def rules_exceptions(
         required_gaps=tuple(cast("list[str]", report["required_gaps"])),
         data=report,
     )
-    emit(result, json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False)

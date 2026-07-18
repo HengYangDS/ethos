@@ -1,0 +1,40 @@
+[claim]
+id = "retire-landed-selected-summary-20260709"
+subject = "ethos:retire-landed-selected-summary"
+state = "active"
+change_id = "retire-landed-selected-summary-20260709"
+summary = "ETHOS retire-landed JSON now reports selected-lane readiness and selected blockers to avoid confusing global landed-lane counts with selected-branch readiness."
+
+[evidence]
+dated = "evidence/chronicle/retire-landed-selected-summary-20260709/2026-07-09.md"
+sha256 = "7fc78423d73bb3746ffc59793e2948f603e179cbb91e48cff6c18fb028b79808"
+evidence_ids = ["evidence:retire-landed-selected-summary-20260709"]
+binding = "TDD regression for selected unmerged lane, selected summary fields, focused lifecycle tests, lint, and code-size gate."
+verifier = "digest_only"
+tests = [
+  "uv run --group dev pytest -q tests/unit/cli/test_contracts_lane.py::test_lane_retire_landed_summary_marks_selected_unmerged_lane_not_ready",
+  "uv run --group dev pytest -q tests/unit/cli/test_contracts_lane.py::test_lane_retire_landed_summary_marks_selected_unmerged_lane_not_ready tests/unit/cli/test_contracts_lane.py::test_lane_retire_landed_dry_run_blocks_foreign_lane_without_authority tests/unit/cli/test_contracts_lane.py::test_lane_retire_landed_apply_requires_explicit_branch tests/unit/cli/test_contracts_lane.py::test_lane_retire_landed_apply_requires_expected_head tests/unit/cli/test_contracts_lane.py::test_lane_retire_landed_apply_removes_selected_branch tests/unit/cli/test_contracts_land.py::test_configured_branch_roles_drive_local_lifecycle_commands",
+  "tools/ci/scripts/run-python-lint.sh",
+  "uv run --package ethos ethos quality code-size --json",
+  "uv run --package ethos ethos quality types --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+[boundary]
+owner = "ethos"
+scope = "lane retire-landed JSON summary clarity only."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-07-retire-owner-boundary"
+fallback = "Remove selected_retire_ready and selected_blockers from the retire-landed summary and revert the corresponding tests if the JSON contract must shrink."
+kill_signal = "retire-landed selected branch summaries omit selected readiness or report selected readiness inconsistent with data.lanes."
+
+[promotion]
+targets = [
+  "packages/ethos/src/ethos/surface/cli/lane/core.py",
+  "tests/unit/cli/test_contracts_lane.py",
+  "tests/unit/cli/test_contracts_land.py",
+  "evidence/chronicle/retire-landed-selected-summary-20260709/2026-07-09.md",
+  "evidence/claims/retire-landed-selected-summary-20260709.toml",
+]

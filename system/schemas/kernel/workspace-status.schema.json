@@ -140,6 +140,12 @@
         "submit_branch_prefix": {
           "type": "string"
         },
+        "release_mirror": {
+          "enum": [
+            "independent",
+            "accepted_ff"
+          ]
+        },
         "semantic_order": {
           "type": "array",
           "items": {
@@ -187,6 +193,7 @@
       "enum": [
         "current",
         "linked",
+        "missing",
         "unbound",
         "absent"
       ]
@@ -212,6 +219,7 @@
         "state": {
           "enum": [
             "bound_to_audit_root",
+            "external_declared_runner",
             "external_current_runner"
           ]
         },
@@ -322,7 +330,13 @@
           "type": "string"
         },
         "worktree_binding": {
-          "$ref": "#/$defs/worktreeBinding"
+          "enum": [
+            "current",
+            "linked",
+            "missing",
+            "unbound",
+            "absent"
+          ]
         },
         "behind_accepted": {
           "type": "integer",
@@ -357,7 +371,8 @@
         "worktree_binding": {
           "enum": [
             "current",
-            "linked"
+            "linked",
+            "missing"
           ]
         }
       },
@@ -411,21 +426,21 @@
         "branch",
         "role",
         "worktree_binding",
-        "lease_owner",
         "lease_state",
         "claim_id",
         "claim_binding",
+        "relation_to_accepted",
+        "closeout_disposition",
+        "residue_state",
+        "next_action",
         "dirty",
         "dirty_paths",
         "path_scope",
         "scope_state",
         "coordination_state",
-        "current_actor_capability",
-        "allowed_actions",
-        "forbidden_actions",
-        "write_policy",
-        "retire_policy",
-        "handoff_required"
+        "handoff_required",
+        "lease",
+        "action_preview"
       ],
       "properties": {
         "path": {
@@ -441,13 +456,7 @@
           "const": "work_lane"
         },
         "worktree_binding": {
-          "enum": [
-            "current",
-            "linked"
-          ]
-        },
-        "lease_owner": {
-          "type": "string"
+          "$ref": "#/$defs/worktreeBinding"
         },
         "lease_state": {
           "enum": [
@@ -462,6 +471,14 @@
           "enum": [
             "bound",
             "missing"
+          ]
+        },
+        "relation_to_accepted": {
+          "enum": [
+            "ancestor_of_accepted",
+            "descendant_of_accepted",
+            "diverged_from_accepted",
+            "unknown"
           ]
         },
         "dirty": {
@@ -483,46 +500,46 @@
           "enum": [
             "bounded",
             "empty",
+            "deferred",
             "unknown"
           ]
         },
         "coordination_state": {
           "enum": [
             "advisory",
+            "deferred",
             "disjoint",
             "overlap",
             "unknown"
           ]
         },
-        "current_actor_capability": {
-          "const": "observe"
-        },
-        "allowed_actions": {
-          "type": "array",
-          "items": {
-            "enum": [
-              "observe"
-            ]
-          }
-        },
-        "forbidden_actions": {
-          "type": "array",
-          "items": {
-            "enum": [
-              "write",
-              "land",
-              "retire"
-            ]
-          }
-        },
-        "write_policy": {
-          "const": "owner_only"
-        },
-        "retire_policy": {
-          "const": "owner_handoff_or_maintainer_break_glass"
-        },
         "handoff_required": {
           "type": "boolean"
+        },
+        "closeout_disposition": {
+          "enum": [
+            "none",
+            "retire_ready",
+            "landed_dirty",
+            "unlanded",
+            "diverged",
+            "unknown"
+          ]
+        },
+        "residue_state": {
+          "enum": [
+            "clean_or_none",
+            "unpreserved_worktree_delta"
+          ]
+        },
+        "next_action": {
+          "type": "string"
+        },
+        "lease": {
+          "$ref": "#/$defs/leaseSummary"
+        },
+        "action_preview": {
+          "$ref": "#/$defs/actionPreview"
         }
       },
       "additionalProperties": false
@@ -535,10 +552,12 @@
         "target_branch",
         "target_path",
         "operation",
-        "owner",
         "claim_id",
         "claim_binding",
-        "required_gaps"
+        "required_gaps",
+        "holder_ref",
+        "lease_id",
+        "lease_epoch"
       ],
       "properties": {
         "supported": {
@@ -559,9 +578,6 @@
             ""
           ]
         },
-        "owner": {
-          "type": "string"
-        },
         "claim_id": {
           "type": "string"
         },
@@ -577,6 +593,16 @@
           "items": {
             "type": "string"
           }
+        },
+        "holder_ref": {
+          "type": "string"
+        },
+        "lease_id": {
+          "type": "string"
+        },
+        "lease_epoch": {
+          "type": "integer",
+          "minimum": 0
         }
       },
       "additionalProperties": false
@@ -595,6 +621,9 @@
         "missing_lease_count",
         "overlap_count",
         "unknown_scope_count",
+        "closeout_residue_count",
+        "dirty_closeout_residue_count",
+        "closeout_residue_lanes",
         "next_action",
         "migration_recommendations"
       ],
@@ -654,6 +683,20 @@
           "type": "array",
           "items": {
             "$ref": "#/$defs/migrationRecommendation"
+          }
+        },
+        "closeout_residue_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "dirty_closeout_residue_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "closeout_residue_lanes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/closeoutResidueLane"
           }
         }
       },
@@ -736,7 +779,8 @@
         "dirty",
         "state",
         "entries",
-        "summary"
+        "summary",
+        "temporary_probes"
       ],
       "properties": {
         "dirty": {
@@ -762,8 +806,36 @@
             "type": "integer"
           }
         },
+        "temporary_probes": {
+          "$ref": "#/$defs/temporaryProbeSummary"
+        },
         "error": {
           "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "temporaryProbeSummary": {
+      "type": "object",
+      "required": [
+        "count",
+        "paths",
+        "truncated"
+      ],
+      "properties": {
+        "count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "paths": {
+          "type": "array",
+          "maxItems": 16,
+          "items": {
+            "type": "string"
+          }
+        },
+        "truncated": {
+          "type": "boolean"
         }
       },
       "additionalProperties": false
@@ -773,18 +845,15 @@
       "required": [
         "kind",
         "overlapping_branch",
-        "owner",
         "recommendation",
-        "next_actions"
+        "next_actions",
+        "holder_ref"
       ],
       "properties": {
         "kind": {
           "const": "overlap_resolution"
         },
         "overlapping_branch": {
-          "type": "string"
-        },
-        "owner": {
           "type": "string"
         },
         "recommendation": {
@@ -795,6 +864,9 @@
           "items": {
             "type": "string"
           }
+        },
+        "holder_ref": {
+          "type": "string"
         }
       },
       "additionalProperties": false
@@ -839,6 +911,108 @@
           "items": {
             "type": "string"
           }
+        }
+      },
+      "additionalProperties": false
+    },
+    "closeoutResidueLane": {
+      "type": "object",
+      "required": [
+        "branch",
+        "closeout_disposition",
+        "residue_state",
+        "dirty"
+      ],
+      "properties": {
+        "branch": {
+          "type": "string"
+        },
+        "closeout_disposition": {
+          "type": "string"
+        },
+        "residue_state": {
+          "type": "string"
+        },
+        "dirty": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "leaseSummary": {
+      "type": "object",
+      "required": [
+        "lane_incarnation_id",
+        "lease_id",
+        "holder_ref",
+        "epoch",
+        "expected_head",
+        "expires_at",
+        "normalization_state",
+        "mints_authority"
+      ],
+      "properties": {
+        "lane_incarnation_id": {
+          "type": "string"
+        },
+        "lease_id": {
+          "type": "string"
+        },
+        "holder_ref": {
+          "type": "string"
+        },
+        "epoch": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "expected_head": {
+          "type": "string"
+        },
+        "expires_at": {
+          "type": "string"
+        },
+        "normalization_state": {
+          "type": "string"
+        },
+        "mints_authority": {
+          "const": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "actionPreview": {
+      "type": "object",
+      "required": [
+        "candidate_actions",
+        "blocked_actions",
+        "why",
+        "mints_authority",
+        "recheck_required"
+      ],
+      "properties": {
+        "candidate_actions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "blocked_actions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "why": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "mints_authority": {
+          "const": false
+        },
+        "recheck_required": {
+          "const": true
         }
       },
       "additionalProperties": false

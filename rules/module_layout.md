@@ -6,8 +6,8 @@ organization is a correctness property, not a matter of taste: a reader or a too
 must be able to tell, from name and place alone, what a symbol is for and whether
 it may be depended upon.
 
-Derived from `system/tao.md` (Writing Standard: Elegant — no excess surface) and
-the di-effect module-layout study (`.ethos/quality-regime-decision.md` §3).
+Derived from the parsimony axiom in `system/axioms.md` and the
+general module-layout boundary study and `system/axioms.md`.
 
 ---
 
@@ -19,12 +19,22 @@ the di-effect module-layout study (`.ethos/quality-regime-decision.md` §3).
   group them into sub-packages by MEANING, not by a shared name suffix.
 - **Flat-directory limit**: no more than **8** governed `*.py` modules at one
   directory level (excluding `__init__.py`). Beyond that, introduce semantic
-  sub-packages. (Borrowed from di-effect's flat_directories trigger.)
+  sub-packages. (A generic flat-directory trigger: a wide directory is usually hiding a missing sub-package.)
+- **Flat-growth limit**: an already-populated directory is not a dumping ground.
+  Adding a governed module to a directory that already has **5** direct modules
+  is blocked; adding more than **2** direct modules to the same existing
+  directory in one change is blocked. Creating a brand-new directory with more
+  than **2** direct governed modules is also blocked; a new directory must not
+  be used as a one-shot flat bucket. Create or extend semantic sub-packages
+  instead.
 - **Anti-pattern — suffix-flat**: `foo_report.py`, `foo_native.py`, `foo_index.py`
   side by side is forbidden as steady state. Prefer `foo/report.py`,
   `foo/native.py`, `foo/index.py` — a `foo/` sub-package with a semantic interior.
 - The canonical entry module of a sub-package is `<pkg>/core.py` (or the concept
   name); siblings are named by their role slice (`normalize.py`, `report.py`).
+- **Ratchet baseline is debt, not permission**: baseline entries in
+  `.config/checks/module-layout/policy.toml` may shrink only. Adding a new
+  `allowed_*` entry or raising `baseline_gap_limit` is a gate failure.
 
 ## 2. Logical organization — public vs private
 
@@ -53,7 +63,12 @@ the di-effect module-layout study (`.ethos/quality-regime-decision.md` §3).
   `from ethos.domain.plan import graph_for_paths`, not a re-export shell.
 - Package-root `__init__.py` files stay declaration-only (a docstring). No
   re-export barrels, no `__all__` piled with forwarded names, no alias shims
-  (`from x import y as main`). Compatibility residue is a cost center (tao FP#8).
+  (`from x import y as main`). Compatibility residue is a cost center.
+- Ordinary modules must not become compatibility facades either. A module that
+  only imports/re-exports names and optionally declares `__all__` is stale
+  surface; a module-level `__getattr__` that dynamically forwards exports is the
+  same violation in lazy form. Move callers to the concrete defining module and
+  delete the shell.
 - One import per line (ruff isort `force-single-line`); absolute imports only
   (ruff `TID`). Runtime-only type imports go under `if TYPE_CHECKING:` — EXCEPT
   cyclopts command signatures, whose annotation types must stay runtime imports.
@@ -87,6 +102,9 @@ architecture; these rules make the claim honest and checkable.
    need, so a group's heavy dependencies load only when that group is imported —
    keeping common commands fast. This is why command bodies live in group modules,
    not one monolith.
+8. **No import-only compatibility modules:** do not preserve old import paths by
+   turning `core.py`, `foo.py`, or any ordinary module into a re-export shell.
+   Concrete defining modules are the migration target.
 
 ### 2.5.1 `import` vs `from ... import`, and when to use `as`
 
@@ -96,12 +114,16 @@ architecture; these rules make the claim honest and checkable.
   module namespace at the call site — usually to disambiguate several same-named
   functions, or when the module name itself carries meaning (`ethos.adapters.git`
   called as `git.current_head(...)`). Prefer the shortest honest name.
+- **Do NOT bind submodules through a package root** (`from package import module`).
+  If the call site genuinely needs a module namespace, import the concrete
+  module (`import package.module as module_name`); otherwise import the concrete
+  symbol from the defining module.
 - **`as` is for necessity, not cosmetics.** Use `as` ONLY when:
   1. two imported names genuinely collide, or
   2. a module is bound as a namespace and its dotted path is too long to repeat
      (`import ethos_repository.repository_audit as repository_audit_module`).
 - **Do NOT use `as` to add a `_` prefix** (`emit as _emit`, `resolve_root as
-  _root`). That is compatibility residue (tao FP#8) — it exists only to preserve old
+  _root`). That is compatibility residue — it exists only to preserve old
   call sites. Use the real public name (`emit`, `resolve_root`) and update callers.
   A leading `_` marks a definition private in ITS OWN module; it is not an import
   decoration.

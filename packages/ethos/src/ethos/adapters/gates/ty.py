@@ -1,12 +1,4 @@
-"""Type-check gate adapter — enforces the ty policy tiers.
-
-The ty ratchet (.config/checks/ty/policy.toml) declared enforcement via an
-`ethos quality types` command that did not exist, so the baselines drifted uncaught
-(packages/ethos grew past its pin with nothing blocking). This adapter is the
-runner that binds the policy to a real gate: it runs ty per package and fails when a
-zero-tolerance package has ANY diagnostic or a ratchet package exceeds its baseline
-(tao First Principle #2: failure-blocking moves upstream; the ratchet may only shrink).
-"""
+"""Type-check gate adapter that fails closed for unavailable or invalid results."""
 
 from __future__ import annotations
 
@@ -19,25 +11,70 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 _COUNT_RE = re.compile(r"Found (\d+) diagnostic")
+_DIAGNOSTIC_EXCERPT_LIMIT = 12
 
 
-def _diagnostic_count(root: Path, package_src: str) -> int:
-    completed = subprocess.run(
-        ["ty", "check", package_src],
-        cwd=root,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    output = completed.stdout + completed.stderr
-    if "All checks passed" in output:
-        return 0
+def _diagnostic_report(root: Path, package_src: str) -> dict[str, object]:
+    """Run ty and retain whether its diagnostic count is determinate."""
+    command = f"ty check {package_src}"
+    venv = root / "build/runtime/venv"
+    try:
+        completed = subprocess.run(
+            [
+                str(venv / "bin/python"),
+                "-m",
+                "ty",
+                "check",
+                "--python",
+                str(venv),
+                "--extra-search-path",
+                str(root / "packages" / "ethos-core" / "src"),
+                "--extra-search-path",
+                str(root / "packages" / "ethos" / "src"),
+                package_src,
+            ],
+            cwd=root,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        output = completed.stdout + completed.stderr
+    except OSError as error:
+        completed = None
+        output = f"{type(error).__name__}: {error}"
+    count = _diagnostic_count_from_output(output) if completed is not None else None
+    returncode = completed.returncode if completed is not None else None
+    if count is None or (count == 0 and returncode):
+        state = "tool_error"
+    else:
+        state = "diagnostics" if count else "clean"
+    return {
+        "count": count,
+        "returncode": returncode,
+        "state": state,
+        "command": command,
+        "diagnostic_excerpt": _diagnostic_excerpt(output),
+    }
+
+
+def _diagnostic_count_from_output(output: str) -> int | None:
+    """Return a count only for a terminal ty result; unknown output is an error."""
     match = _COUNT_RE.search(output)
-    return int(match.group(1)) if match else 0
+    return 0 if "All checks passed" in output else int(match.group(1)) if match else None
+
+
+def _diagnostic_excerpt(output: str) -> list[str]:
+    return [line.strip() for line in output.splitlines() if line.strip()][
+        :_DIAGNOSTIC_EXCERPT_LIMIT
+    ]
+
+
+def _package_result(root: Path, package: str) -> dict[str, object]:
+    return _diagnostic_report(root, f"{package}/src") | {"limit": 0, "tier": "zero_tolerance"}
 
 
 def ty_gate_report(root: Path) -> dict[str, object]:
-    """Run ty per package and enforce the policy tiers (zero-tolerance + ratchet)."""
+    """Run ty per governed package and enforce zero diagnostic tolerance."""
     policy_path = root / ".config" / "checks" / "ty" / "policy.toml"
     if not policy_path.exists():
         return {
@@ -48,19 +85,18 @@ def ty_gate_report(root: Path) -> dict[str, object]:
         }
     policy = tomllib.loads(policy_path.read_text(encoding="utf-8"))
     zero_tolerance = [str(p) for p in policy.get("zero_tolerance", {}).get("packages", [])]
-    ratchet = {str(k): int(v) for k, v in policy.get("ratchet", {}).items()}
     results: dict[str, dict[str, object]] = {}
     gaps: list[str] = []
     for package in zero_tolerance:
-        count = _diagnostic_count(root, f"{package}/src")
-        results[package] = {"count": count, "limit": 0, "tier": "zero_tolerance"}
-        if count > 0:
+        package_result = _package_result(root, package)
+        results[package] = package_result
+        count = package_result["count"]
+        if package_result["state"] == "tool_error":
+            failure = package_result["returncode"]
+            failure_kind = str(failure) if isinstance(failure, int) else "launch"
+            gaps.append(f"ty_execution_failed:{package}:{failure_kind}")
+        elif isinstance(count, int) and count > 0:
             gaps.append(f"ty_zero_tolerance_violation:{package}:{count}")
-    for package, baseline in ratchet.items():
-        count = _diagnostic_count(root, f"{package}/src")
-        results[package] = {"count": count, "limit": baseline, "tier": "ratchet"}
-        if count > baseline:
-            gaps.append(f"ty_ratchet_exceeded:{package}:{count}>{baseline}")
     return {
         "ok": not gaps,
         "state": "clean" if not gaps else "blocked",

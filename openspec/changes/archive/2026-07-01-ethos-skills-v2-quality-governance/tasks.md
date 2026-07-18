@@ -18,7 +18,7 @@
 
 ## 3. Playbook Validation And Routing
 
-- [x] 3.1 Normalize ETHOS v1, dmgr v1, and di-effect style activation records
+- [x] 3.1 Normalize ETHOS v1, reference-adopter v1, and alternate activation style activation records
       into the V2 IR.
 - [x] 3.2 Add `v2-strict` playbook check mode.
 - [x] 3.3 Route changed-scope requests through changed-path evidence and V2

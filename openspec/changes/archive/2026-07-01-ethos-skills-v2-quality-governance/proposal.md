@@ -11,7 +11,7 @@ with provider-native skill metadata.
 
 - Add a Skills V2 contract that separates ETHOS activation semantics from
   official skill packages.
-- Normalize historical ETHOS, dmgr-style, and di-effect-style activation
+- Normalize historical ETHOS, reference-adopter-style, and alternate-activation-style activation
   fixtures into one provider-neutral skill activation IR.
 - Add strict playbook validation mode for current product proof.
 - Require official-quality skill package manifests for loadable `.agents/skills`

@@ -1,23 +1,22 @@
-schema_version = 1
+[claim]
 id = "closeout-postcondition-clean"
-summary = "Accepted-root closeout requires a clean checkout and mutation admission rejects unarchived OpenSpec carriers."
-state = "accepted"
 subject = "repository-governance:closeout-postcondition-clean"
-evidence = "evidence/chronicle/closeout-postcondition-clean/2026-07-07.md"
+state = "accepted"
+summary = "Accepted-root closeout requires a clean checkout and mutation admission rejects unarchived OpenSpec carriers."
 
-[bindings]
-head = "184365556fac10d0d30f510dd0ef0d9e3bf69a08"
+[evidence]
+dated = "evidence/chronicle/closeout-postcondition-clean/2026-07-07.md"
+sha256 = "2b760954925d19555c9b0ce789d075ee337a1620de1adcba843bdfda2fcc2988"
+tests = [
+  "tests/unit/coverage/test_core_state_claims_edges.py::test_closeout_blocks_dirty_accepted_worktree_after_sync",
+  "tests/unit/coverage/test_core_state_claims_edges.py::test_mutation_admission_blocks_unarchived_openspec_carriers",
+]
+
+[evidence.freshness]
+mode = "historical"
 
 [carriers]
 openspec = "openspec/changes/archive/2026-07-07-closeout-postcondition-clean"
 
-[[claim_bindings]]
-kind = "test"
-ref = "tests/unit/coverage/test_core_state_claims_edges.py::test_closeout_blocks_dirty_accepted_worktree_after_sync"
-
-[[claim_bindings]]
-kind = "test"
-ref = "tests/unit/coverage/test_core_state_claims_edges.py::test_mutation_admission_blocks_unarchived_openspec_carriers"
-
-[[promotion_targets]]
-path = "packages/ethos/src/ethos/adapters/mutation/core.py"
+[promotion]
+targets = ["packages/ethos/src/ethos/adapters/mutation/core.py"]

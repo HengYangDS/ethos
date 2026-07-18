@@ -1,0 +1,1 @@
+"""Pure lifecycle transition contracts."""

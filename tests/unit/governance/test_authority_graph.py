@@ -9,20 +9,20 @@ def authority_graph_report(root: Path) -> dict[str, object]:
     return module.authority_graph_report(root)
 
 
-def test_authority_graph_declares_judgment_source_and_derived_views() -> None:
+def test_authority_graph_declares_authority_and_derived_views() -> None:
     report = authority_graph_report(Path.cwd())
 
     assert report["ok"] is True
     assert report["required_gaps"] == []
     entries = {entry["id"]: entry for entry in report["entries"]}
 
-    judgment = entries["ethos:judgment-source"]
+    judgment = entries["ethos:authority"]
     assert judgment["owner"] == "ethos-maintainers"
     assert judgment["canonical_for"] == ["product judgment"]
-    assert judgment["stable_path"] == "docs/governance/judgment-source.md"
+    assert judgment["stable_path"] == "docs/governance/authority.md"
 
     north_star = entries["ethos:north-star"]
-    assert north_star["derived_from"] == ["ethos:judgment-source"]
+    assert north_star["derived_from"] == ["ethos:authority"]
     assert north_star["owner"] == "reader-view"
 
 
@@ -42,7 +42,7 @@ def test_authority_graph_projects_supersession_without_owning_truth() -> None:
 def test_authority_graph_rejects_non_evidence_refs(tmp_path: Path) -> None:
     (tmp_path / "docs" / "_meta").mkdir(parents=True)
     (tmp_path / "docs" / "governance").mkdir(parents=True)
-    (tmp_path / "docs" / "governance" / "judgment-source.md").write_text(
+    (tmp_path / "docs" / "governance" / "authority.md").write_text(
         "# Judgment\n",
         encoding="utf-8",
     )
@@ -52,15 +52,15 @@ def test_authority_graph_rejects_non_evidence_refs(tmp_path: Path) -> None:
 version = 1
 
 [[node]]
-id = "ethos:judgment-source"
+id = "ethos:authority"
 owner = "ethos-maintainers"
 relation_type = "authority"
 canonical_for = ["product judgment"]
 derived_from = []
 supersedes = []
-doc_refs = ["docs/governance/judgment-source.md"]
-evidence_refs = ["docs/governance/judgment-source.md"]
-stable_path = "docs/governance/judgment-source.md"
+doc_refs = ["docs/governance/authority.md"]
+evidence_refs = ["docs/governance/authority.md"]
+stable_path = "docs/governance/authority.md"
 """.lstrip(),
         encoding="utf-8",
     )
@@ -69,7 +69,7 @@ stable_path = "docs/governance/judgment-source.md"
 
     assert report["ok"] is False
     assert report["required_gaps"] == [
-        "ethos:judgment-source:evidence_ref_not_evidence:docs/governance/judgment-source.md"
+        "ethos:authority:evidence_ref_not_evidence:docs/governance/authority.md"
     ]
 
 

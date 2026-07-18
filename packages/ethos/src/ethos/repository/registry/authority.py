@@ -3,30 +3,44 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 from typing import Any
+from typing import TypedDict
+
+from ethos_core.normalization.core import object_sequence
+from ethos_core.normalization.core import string_list
+from ethos_core.normalization.core import string_mapping
 
 RELATION_TYPES = {"authority", "derived_view", "decision", "superseded_vocabulary"}
+
+
+class AuthorityEntry(TypedDict):
+    """Normalized authority-graph record consumed by validation."""
+
+    id: str
+    owner: str
+    canonical_for: list[str]
+    derived_from: list[str]
+    supersedes: list[str]
+    superseded_by: list[str]
+    doc_refs: list[str]
+    evidence_refs: list[str]
+    stable_path: str
+    relation_type: str
 
 
 def _graph_path(root: Path) -> Path:
     return root / "docs" / "_meta" / "authority_graph.toml"
 
 
-def _string_list(value: object) -> list[str]:
-    if not isinstance(value, list):
-        return []
-    return [str(item) for item in value]
-
-
-def _node_to_entry(node: dict[str, Any]) -> dict[str, object]:
+def _node_to_entry(node: dict[str, object]) -> AuthorityEntry:
     return {
         "id": str(node.get("id", "")),
         "owner": str(node.get("owner", "")),
-        "canonical_for": _string_list(node.get("canonical_for")),
-        "derived_from": _string_list(node.get("derived_from")),
-        "supersedes": _string_list(node.get("supersedes")),
+        "canonical_for": string_list(node.get("canonical_for")),
+        "derived_from": string_list(node.get("derived_from")),
+        "supersedes": string_list(node.get("supersedes")),
         "superseded_by": [],
-        "doc_refs": _string_list(node.get("doc_refs")),
-        "evidence_refs": _string_list(node.get("evidence_refs")),
+        "doc_refs": string_list(node.get("doc_refs")),
+        "evidence_refs": string_list(node.get("evidence_refs")),
         "stable_path": str(node.get("stable_path", "")),
         "relation_type": str(node.get("relation_type", "")),
     }
@@ -64,7 +78,7 @@ def authority_graph_report(root: Path | None = None) -> dict[str, object]:
             "required_gaps": [f"authority_graph_invalid_toml:{exc}"],
         }
 
-    raw_nodes = payload.get("node", [])
+    raw_nodes = [string_mapping(node) for node in object_sequence(payload.get("node"))]
     entries = [_node_to_entry(node) for node in raw_nodes]
     by_id = {str(entry["id"]): entry for entry in entries}
     gaps: list[str] = []
@@ -101,8 +115,7 @@ def authority_graph_report(root: Path | None = None) -> dict[str, object]:
                 gaps.append(f"{entry_id}:supersedes_missing:{superseded}")
                 continue
             superseded_by = by_id[superseded]["superseded_by"]
-            if isinstance(superseded_by, list):
-                superseded_by.append(entry_id)
+            superseded_by.append(entry_id)
         if entry["relation_type"] == "derived_view":
             derived_from = {str(source) for source in entry["derived_from"]}
             authority_sources = {
@@ -115,8 +128,7 @@ def authority_graph_report(root: Path | None = None) -> dict[str, object]:
 
     for entry in entries:
         superseded_by = entry["superseded_by"]
-        if isinstance(superseded_by, list):
-            superseded_by.sort()
+        superseded_by.sort()
 
     return {
         "ok": not gaps,

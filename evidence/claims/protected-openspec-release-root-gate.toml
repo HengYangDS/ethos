@@ -8,20 +8,15 @@ summary = "ETHOS publish readiness blocks release-root active OpenSpec carriers 
 dated = "evidence/chronicle/protected-openspec-release-root-gate/2026-07-07.md"
 sha256 = "cb7b3995ed90686914102eaa26bd460dd1ace09a7f3efabc928f5ecb8813af81"
 evidence_ids = ["evidence:protected-openspec-release-root-gate"]
-binding = "semantic release-root OpenSpec carrier readiness gate"
-verifier = "semantic"
+binding = "declared release-root OpenSpec carrier readiness gate"
+verifier = "digest_only"
 tests = [
   "uv run --group dev pytest tests/unit/audit/test_modes.py::test_release_readiness_blocks_active_change_on_non_current_release_root tests/unit/cli/test_contracts_closeout.py::test_publish_dry_run_blocks_release_root_active_openspec_residue -q",
-  "ETHOS_ROOT=/Users/yheng/projects/ethos-worktrees/protected-openspec-release-root-gate uv run --group dev ethos publish --json",
+  "ETHOS_ROOT=<workspace>/ethos-worktrees/protected-openspec-release-root-gate uv run --group dev ethos publish --json",
 ]
 
-[scope]
-packages = ["ethos"]
-tests = [
-  "tests/unit/audit/test_modes.py",
-  "tests/unit/cli/test_contracts_closeout.py",
-]
-
+[evidence.freshness]
+mode = "historical"
 [boundary]
 owner = "ethos-repository"
 scope = "Release-root OpenSpec carrier publish-readiness gate"
@@ -29,7 +24,7 @@ scope = "Release-root OpenSpec carrier publish-readiness gate"
 [carriers]
 openspec = "openspec/changes/archive/2026-07-07-protected-openspec-release-root-gate"
 fallback = "Keep protected branch residue visible as advisory until publish readiness can block it."
-kill_signal = "ethos publish can report ready_to_publish while the release root contains active OpenSpec carriers."
+kill_signal = "ethos publish can report local readiness while the release root contains active OpenSpec carriers."
 
 [promotion]
 targets = [
@@ -39,7 +34,7 @@ targets = [
   "openspec/changes/archive/2026-07-07-protected-openspec-release-root-gate/design.md",
   "openspec/changes/archive/2026-07-07-protected-openspec-release-root-gate/tasks.md",
   "openspec/changes/archive/2026-07-07-protected-openspec-release-root-gate/specs/repository-governance/spec.md",
-  "packages/ethos/src/ethos/repository/audit_openspec.py",
+  "packages/ethos/src/ethos/repository/openspec/audit.py",
   "packages/ethos/src/ethos/cli.py",
   "tests/unit/audit/test_modes.py",
   "tests/unit/cli/test_contracts_closeout.py",

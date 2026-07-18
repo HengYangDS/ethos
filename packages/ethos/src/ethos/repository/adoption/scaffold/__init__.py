@@ -1,0 +1,1 @@
+"""Adoption scaffold semantic package."""

@@ -1,0 +1,41 @@
+[claim]
+id = "rebase-write-admission-20260713"
+subject = "ethos:work-lane-rebase-write-admission"
+state = "active"
+summary = "ETHOS binds a sanctioned Work Lane rebase lease to its named branch ref while retaining detached HEAD as diagnostic evidence."
+
+[evidence]
+dated = "evidence/chronicle/rebase-write-admission-20260713/2026-07-13.md"
+sha256 = "89cd22a6bb37125471f25161a43f5b2fada4f2facc20b346945cf50be30cfb9f"
+evidence_ids = ["evidence:rebase-write-admission-20260713"]
+binding = "Digest-bound sanctioned-rebase lease-binding correction, detached-HEAD diagnostic evidence, focused regression contract, executed head-bound proof, and archived OpenSpec carrier."
+verifier = "digest_only"
+tests = [
+  "tools/ci/scripts/run-ethos-lane.sh lane prewrite --paths packages/ethos/src/ethos/adapters/admission/prewrite.py --paths tests/unit/lanes/test_hook_admission.py --editor-root $(pwd) --require-editor-root --json",
+  "uv run --all-packages --group dev pytest -q tests/unit/lanes/test_hook_admission.py",
+  "tools/ci/scripts/run-python-lint.sh",
+  "uv run --package ethos ethos openspec --lifecycle --json",
+  "uv run --package ethos ethos quality claims --json",
+  "tools/ci/scripts/run-ethos-lane.sh prove --execute --expect-head <lane-head> --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "Lease-head comparison during a sanctioned owned Work Lane rebase."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-13-rebase-write-admission-20260713"
+fallback = "Reject the replay and retain the pre-rebase Work Lane ref when rebase context or its named lease binding cannot be proven."
+kill_signal = "Admission accepts an arbitrary detached branch, changes a lease holder or epoch during replay, or compares an unresolved/mismatched named Work Lane ref as if it were current lease state."
+
+[promotion]
+targets = [
+  "packages/ethos/src/ethos/adapters/admission/prewrite.py",
+  "tests/unit/lanes/test_hook_admission.py",
+  "openspec/changes/archive/2026-07-13-rebase-write-admission-20260713",
+  "evidence/chronicle/rebase-write-admission-20260713/2026-07-13.md",
+  "evidence/claims/rebase-write-admission-20260713.toml",
+]

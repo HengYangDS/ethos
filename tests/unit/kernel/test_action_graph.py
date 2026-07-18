@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from ethos_core.action_graph import ActionGraph
-from ethos_core.action_graph import ActionNode
+from ethos_core.action_graph.core import ActionGraph
+from ethos_core.action_graph.core import ActionNode
 
 
 def test_action_graph_orders_dependencies_before_dependents() -> None:

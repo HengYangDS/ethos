@@ -68,7 +68,7 @@ rules.py→core/method;schema_validation→core/contract;parity/shadow/coupling�
 5. 每步:AST eff-LOC 达标 + pytest 零回归 + ruff 净 才提交
 
 ## 关键纪律
-- 每步 stash-diff 证明零回归才提交;精确字符串 Edit(非 fuzzy);退休/大改前 tag 备份。
+- 每步用可见 diff/patch evidence 证明零回归才提交;精确字符串 Edit(非 fuzzy);退休/大改前用受控 tag 或 Work Lane 证据备份。
 - pytest 用 lane pythonpath(测 lane 代码);不用 ethos CLI 二进制验证(指向主仓库)。
 - parity treadmill 的 4-6 红是 pre-existing(evidence 绑会话初 HEAD 25b5be2),非回归。
 

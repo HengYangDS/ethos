@@ -2,33 +2,28 @@
 id = "parity-semantic-freshness"
 subject = "ethos:parity-semantic-freshness"
 state = "active"
-summary = "Tracked shadow parity evidence remains fresh across its own evidence commit by binding the parity-relevant semantic Git tree as well as commit heads."
+summary = "Tracked shadow parity evidence remains fresh across its own evidence commit by binding the parity-relevant declared Git tree as well as commit heads."
 
 [evidence]
 dated = "evidence/chronicle/parity-semantic-freshness/2026-07-06.md"
 sha256 = "6a1aa0bc4beeb043234f61f3c968014227f6947ed116b7f29742876e35d637d8"
 evidence_ids = ["evidence:parity-semantic-freshness"]
-binding = "semantic parity freshness evidence binding"
-verifier = "semantic"
+binding = "declared parity freshness evidence binding"
+verifier = "digest_only"
 tests = [
-  "uv run --group dev pytest tests/unit/product/test_parity.py tests/unit/product/test_parity_generic.py -q",
-  ".config/ci/scripts/run-python-tests.sh",
-  ".config/ci/scripts/run-python-lint.sh",
-  ".config/ci/scripts/run-config-lint.sh",
-  ".config/ci/scripts/run-shell-lint.sh",
+  "uv run --group dev pytest tests/unit/product/parity -q",
+  "tools/ci/scripts/run-python-tests.sh",
+  "tools/ci/scripts/run-python-lint.sh",
+  "tools/ci/scripts/run-config-lint.sh",
+  "tools/ci/scripts/run-shell-lint.sh",
   "ETHOS_ROOT=$PWD uv run --group dev ethos quality schemas --json",
   "ETHOS_ROOT=$PWD uv run --group dev ethos openspec --lifecycle --json",
   "ETHOS_ROOT=$PWD uv run --group dev ethos report --json",
   "ETHOS_ROOT=$PWD uv run --group dev ethos parity shadow --adopter generic --target . --execute --write-evidence --json",
 ]
 
-[scope]
-packages = ["ethos"]
-tests = [
-  "tests/unit/product/test_parity.py",
-  "tests/unit/product/test_parity_generic.py",
-]
-
+[evidence.freshness]
+mode = "historical"
 [boundary]
 owner = "ethos-repository"
 scope = "Tracked shadow parity evidence freshness over commit heads and parity-relevant semantic Git tree"
@@ -49,9 +44,9 @@ targets = [
   "openspec/changes/archive/2026-07-06-parity-semantic-freshness/tasks.md",
   "openspec/changes/archive/2026-07-06-parity-semantic-freshness/specs/ethos-repository/spec.md",
   "docs/governance/product-design-contract.md",
-  "packages/ethos/src/ethos/domain/land_support.py",
+  "packages/ethos/src/ethos/domain/land/publication.py",
   "packages/ethos/src/ethos/domain/report.py",
-  "packages/ethos/src/ethos/repository/evidence/parity.py",
-  "packages/ethos/src/ethos/repository/evidence/parity_validation.py",
-  "tests/unit/product/test_parity.py",
+  "packages/ethos/src/ethos/repository/evidence/parity/core.py",
+  "packages/ethos/src/ethos/repository/evidence/parity/validation.py",
+  "tests/unit/product/parity",
 ]

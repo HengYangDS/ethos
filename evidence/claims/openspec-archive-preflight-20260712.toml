@@ -1,0 +1,53 @@
+[claim]
+id = "openspec-archive-preflight-20260712"
+subject = "ethos:openspec-archive-preflight"
+state = "active"
+summary = "ETHOS preflights each active OpenSpec archive through the configured official CLI in a disposable workspace before lifecycle transitions admit the change."
+
+[evidence]
+dated = "evidence/chronicle/openspec-archive-preflight-20260712/2026-07-12.md"
+sha256 = "586109f31a04483e6badceafefa5e8938f2959ab33df72f1932e923df6737c17"
+evidence_ids = ["evidence:openspec-archive-preflight-20260712"]
+binding = "The archived carrier, archive-task grammar, official archive receipt, lifecycle adapter, transition projections, focused regressions, and digest-bound preserve-retire recovery record bind isolated archive preflight behavior."
+verifier = "digest_only"
+tests = [
+  "tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev pytest -q tests/unit/product/test_openspec_cache.py tests/unit/product/test_openspec_edges.py tests/unit/product/test_openspec_preflight.py tests/unit/product/test_openspec_substrate.py",
+  "tools/ci/scripts/run-python-lint.sh",
+  "tools/ci/scripts/run-ethos-lane.sh openspec --lifecycle --json",
+  "tools/ci/scripts/run-ethos-lane.sh plan --changed --json",
+  "tools/ci/scripts/run-ethos-lane.sh prove --json",
+  "tools/ci/scripts/run-ethos-lane.sh land --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-adapters"
+scope = "Official isolated OpenSpec archive preflight, source-safety projection, and lifecycle transition admission."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-12-openspec-archive-preflight-20260712"
+fallback = "Keep official archive as the closeout authority and block the affected lifecycle transition when preflight cannot establish archiveability."
+kill_signal = "An active change can pass lifecycle admission while the same official archive command deterministically rejects its delta against the current canonical specs."
+
+[promotion]
+targets = [
+  ".ethos/rules.toml",
+  "packages/ethos/src/ethos/adapters/openspec/preflight",
+  "packages/ethos/src/ethos/adapters/openspec/lifecycle/core.py",
+  "packages/ethos/src/ethos/adapters/openspec/metadata/core.py",
+  "packages/ethos/src/ethos/surface/cli/root/planning.py",
+  "packages/ethos/src/ethos/surface/cli/root/proof.py",
+  "tests/unit/product/test_openspec_cache.py",
+  "tests/unit/product/test_openspec_preflight.py",
+  "tests/unit/product/test_openspec_substrate.py",
+  "tests/unit/cli/test_contracts.py",
+  "tests/unit/cli/test_contracts_proof.py",
+  "docs/governance/openspec-governance.md",
+  "docs/reference/command-plane.md",
+  "openspec/changes/README.md",
+  "openspec/changes/archive/2026-07-12-openspec-archive-preflight-20260712",
+  "evidence/chronicle/openspec-archive-preflight-20260712/2026-07-12.md",
+  "evidence/claims/openspec-archive-preflight-20260712.toml",
+]

@@ -1,6 +1,6 @@
 ---
 subject: ethos:capability-parity-ledger
-role: governance-ledger
+role: ledger
 state: active
 relations:
   canonical_for: product migration parity and adopter switch readiness
@@ -11,8 +11,8 @@ relations:
 This ledger classifies capabilities across:
 
 ```text
-alphasim-dmgr embedded ETHOS
-~/projects/ethos product ETHOS
+reference-adopter embedded governance
+ETHOS product governance
 ```
 
 The executable product view is available through:
@@ -27,10 +27,14 @@ Each row must include source location, target home, migration disposition,
 required tests, parity criterion, and rollback impact.
 
 `ethos parity gaps` is evidence-driven. A migration or split row remains a
-required gap until tracked parity evidence under `evidence/parity/` names
-that capability in `verified_capabilities` and the adopter shadow report has
-`shadow.ok=true` with no required gaps. Changing the ledger disposition alone
-does not close a parity gap.
+required gap until tracked parity evidence names that capability in
+`verified_capabilities` and the adopter shadow report has `shadow.ok=true` with
+no required gaps. Product self-parity reads the product profile's durable evidence root
+(default `evidence/parity/`). A distinct adopter Git repository owns its own
+tracked shadow evidence under that adopter profile's durable evidence root
+(for example `docs/evidence/parity/` when `[roots].durable_evidence` is
+`docs/evidence`) so product core does not accumulate adopter-specific shadow
+files. Changing the ledger disposition alone does not close a parity gap.
 
 `ethos parity gaps --json` projects unresolved rows into
 `data.pending_packages`. Each package keeps the stable gap code and carries the
@@ -39,16 +43,19 @@ criterion, and rollback impact together. Adopter shadow checks add a
 `shadow_parity_pending:<adopter>` package until tracked shadow evidence closes
 the adopter-specific gap.
 
-The current alphasim-dmgr adopter parity evidence is:
+Reference-adopter parity evidence uses repository-local identifiers and
+paths supplied by the adopter profile:
 
 ```bash
-ethos parity gaps --adopter alphasim-dmgr --json
-ethos parity shadow --adopter alphasim-dmgr --target /Users/yheng/projects/alphasim-dmgr-fix-b3 --execute --timeout-seconds 30 --json
-ethos parity shadow --adopter alphasim-dmgr --target /Users/yheng/projects/alphasim-dmgr-fix-b3 --execute --write-evidence --timeout-seconds 30 --json
+ethos parity gaps --adopter <adopter-id> --root <product-root> --target <adopter-repo> --json
+ethos parity shadow --adopter <adopter-id> --root <product-root> --target <adopter-repo> --execute --timeout-seconds 30 --json
+ethos parity shadow --adopter <adopter-id> --root <product-root> --target <adopter-repo> --execute --write-evidence --timeout-seconds 30 --json
 ```
 
-The tracked evidence file is
-`evidence/parity/alphasim-dmgr-shadow.json`.
+The tracked evidence file is `<durable-evidence-root>/parity/<adopter-id>-shadow.json`.
+For distinct adopter Git roots, `<durable-evidence-root>` is resolved from the
+adopter profile. For generic/self parity or non-Git fixtures, it is resolved from
+the product profile.
 
 Reference adopters are evidence and profile fixtures, not product ontology.
 Adopter-private terms may appear in parity evidence, profile fixtures, and this
@@ -124,7 +131,9 @@ must not miss an embedded blocking gap or move it into advisory-only state.
 If any of the identity fields are missing, stale, target-mismatched, or produced
 by an old command shape, ETHOS reports a blocking `parity_evidence_refresh`
 package. The package names the adopter, product root, explicit target when
-supplied, required gaps, and the exact refresh command:
+supplied, required gaps, and the exact refresh command. Cross-repository refresh
+commands include `--root <product-root>` so product identity and adopter evidence
+storage do not collapse into a self-comparison:
 
 When the commit that last changed a tracked evidence file is the current product
 or same-repository target commit, the commit parent is also an acceptable
@@ -133,7 +142,7 @@ stale adopter targets: cross-repository adopters still require exact target HEAD
 matching.
 
 ```bash
-ethos parity shadow --adopter <adopter-id> --target <repo> --execute --write-evidence --json
+ethos parity shadow --adopter <adopter-id> --root <product-root> --target <adopter-repo> --execute --write-evidence --json
 ```
 
 When no target is supplied, ETHOS leaves the target as `<repo>` rather than
@@ -143,11 +152,11 @@ reusing a stale path from old evidence.
 
 - already-in-product: the product repository already owns the generic
   capability.
-- migrate-to-product: a generic mechanism exists in alphasim-dmgr and must move
+- migrate-to-product: a generic mechanism exists in reference-adopter and must move
   to ETHOS product truth.
 - adopter-profile-only: the capability is generic profile glue and remains in
   adopter configuration or thin profile code.
-- adopter-domain-only: the capability is dmgr-specific domain governance and
+- adopter-domain-only: the capability is domain-specific governance and
   must not enter product core.
 - obsolete: the capability should be retired.
 - split: part of the capability migrates and part remains adopter-specific.
@@ -163,6 +172,7 @@ reusing a stale path from old evidence.
 | prove | embedded proof package and product gate runner | `ethos-repository` + `ethos-test` | migrate-to-product | proof-run fixtures and evidence digest checks | same required gaps, HEAD binding, gate verdict, and evidence refs | embedded proof remains rollback |
 | land | Git/lane transition paths | `ethos-repository` Git-native semantics + execution adapter | split | dry-run and apply-admission tests | same authorization, expect-head, lane, and candidate transition decision | embedded land disabled unless selected |
 | publish | release and remote publication paths | `ethos-repository` Git-native semantics + hosted-provider adapters | split | readiness and no-push tests | same review export, protected mirror, break-glass, tag, and hosted CI requirements | embedded publish remains fallback |
+| independent proof re-execution | provider-local receipt and verifier boundary | adopter profile plus provider-local adapter | adopter-profile-only | policy fixtures, exact-receipt tests, and external-adopter shadow | same action-bound local-readiness or independently-reexecuted projection; generic self-shadow is insufficient | disabling the action policy restores local-first publish readiness |
 | report | product report and embedded scorecards | `ethos-repository` | migrate-to-product | scorecard golden output | same governance, evidence, command-surface, and projection health verdicts | embedded report used for diff |
 | SQLite state | product local state and embedded host/runtime state | `ethos-adapters` SQLite + repository logical model | split | migration and ignored-state tests | same leases, events, gate runs, sessions, and ignored truth boundary | state stays host-local |
 | OpenSpec | product `openspec/` and embedded spec adapter | `ethos-adapters` official OpenSpec + `ethos-contracts` | split | official CLI validation and lifecycle fixtures | official CLI validates specs and changes; no ad hoc replacement | embedded adapter remains reference |
@@ -173,9 +183,9 @@ reusing a stale path from old evidence.
 | assistant boundaries | product assistant package and embedded agent/host packages | `ethos-assistants` | split | projection contract fixtures | same truth/projection/context classification | embedded host checks remain reference |
 | MCP / ACP / Superpowers | product agent projection and embedded host package | `ethos-assistants` + adapters | split | method-pack and protocol manifest tests | same external method pack, host-local context, and protocol projection boundaries | embedded host remains oracle |
 | quality determinism | product governance checks and embedded quality package | `ethos-repository` + adapters | migrate-to-product | format, artifact, command, and evidence policy fixtures | same required gates and deterministic policies | embedded quality remains reference |
-| Hatchling local build | embedded Hatchling package metadata and product metadata | all Python packages | already-in-product | `uv build --all-packages` | all Python packages build wheel and sdist locally | no remote release needed |
+| Hatchling local build | embedded Hatchling package metadata and product metadata | all Python packages | already-in-product | `uv build --all-packages --out-dir build/artifacts/python --clear --no-create-gitignore` | all Python packages build wheel and sdist locally | no remote release needed |
 | npm launcher design | npm launcher distribution adapter | `distributions/npm` | migrate-to-product | launcher smoke and no-second-implementation tests | npm only launches Python command plane | launcher can be disabled |
-| dmgr raw/cache/conf/alphasim rules | alphasim-dmgr `rules/dmgr` and profile adapters | adopter profile only | adopter-domain-only | dmgr adapter fixture and gate mapping tests | generic ETHOS plans dmgr gates without hardcoding domain details | embedded dmgr gates remain fallback |
+| domain data-contract rules | reference-adopter `rules/domain` and profile adapters | adopter profile only | adopter-domain-only | domain adapter fixture and gate mapping tests | generic ETHOS plans domain gates without hardcoding domain details | embedded domain gates remain fallback |
 
 ## Use
 

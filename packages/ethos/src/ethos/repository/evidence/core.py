@@ -2,10 +2,15 @@ from __future__ import annotations
 
 import hashlib
 import json
+import subprocess
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 from typing import Any
 
-from ethos_core.quality.proof_policy import run_state_for_adapter_state
+from ethos_core.quality.proof.policy import run_state_for_adapter_state
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 PROOF_RUN_STATES = {
     "planned",
@@ -20,6 +25,22 @@ PROOF_RUN_STATES = {
 
 def _stable_json(payload: dict[str, Any]) -> str:
     return json.dumps(payload, sort_keys=True, separators=(",", ":"))
+
+
+def semantic_tree_digest(root: Path, *, head: str, relevant_paths: tuple[str, ...]) -> str:
+    """Digest tracked tree entries for a declared semantic scope at one revision."""
+    if not head or not relevant_paths:
+        return ""
+    completed = subprocess.run(
+        ["git", "ls-tree", "-r", "--full-tree", head, "--", *relevant_paths],
+        cwd=root,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if completed.returncode != 0:
+        return ""
+    return hashlib.sha256(completed.stdout.encode("utf-8")).hexdigest()
 
 
 def trim_output(text: str, *, limit: int = 4000) -> str:

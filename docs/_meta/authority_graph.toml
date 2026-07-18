@@ -4,25 +4,25 @@ owner = "ethos-maintainers"
 kind = "read-model"
 
 [[node]]
-id = "ethos:judgment-source"
+id = "ethos:authority"
 owner = "ethos-maintainers"
 relation_type = "authority"
 canonical_for = ["product judgment"]
 derived_from = []
 supersedes = []
-doc_refs = ["docs/governance/judgment-source.md"]
+doc_refs = ["docs/governance/authority.md"]
 evidence_refs = [
   "evidence/chronicle/product-design-contract/2026-07-01.md",
   "evidence/chronicle/productization-convergence/2026-07-01.md",
 ]
-stable_path = "docs/governance/judgment-source.md"
+stable_path = "docs/governance/authority.md"
 
 [[node]]
 id = "ethos:north-star"
 owner = "reader-view"
 relation_type = "derived_view"
 canonical_for = ["reader entry"]
-derived_from = ["ethos:judgment-source"]
+derived_from = ["ethos:authority"]
 supersedes = []
 doc_refs = ["README.md"]
 evidence_refs = [
@@ -47,7 +47,7 @@ id = "ethos:product-design-contract"
 owner = "ethos-maintainers"
 relation_type = "decision"
 canonical_for = ["product truth", "kernel vocabulary", "public command surface"]
-derived_from = ["ethos:judgment-source"]
+derived_from = ["ethos:authority"]
 supersedes = ["ethos:legacy-nine-term-chain"]
 doc_refs = ["docs/governance/product-design-contract.md"]
 evidence_refs = [

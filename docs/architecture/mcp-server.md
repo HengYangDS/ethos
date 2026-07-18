@@ -1,12 +1,18 @@
 ---
 subject: ethos:mcp-server
-role: reference
+role: explanation
 state: canonical
 relations:
   canonical_for: MCP adapter
 ---
 
 # MCP Server
+
+`ethos assistants mcp-server --serve` is a newline-delimited JSON-RPC stdio
+server. It exposes only the fixed read-only `status`, `plan`, `explain`, and
+context tools plus declared resources and prompts. It does not expose prove,
+publish, land, or any generic command execution path; repository mutation and
+proof remain on the admission-bound command plane.
 
 The MCP surface is an adapter over repository truth.
 

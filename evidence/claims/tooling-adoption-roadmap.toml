@@ -1,0 +1,88 @@
+[claim]
+id = "tooling-adoption-roadmap"
+subject = "ethos:tooling-adoption-roadmap"
+state = "active"
+change_id = "tooling-adoption-roadmap"
+summary = "ETHOS records the completed tooling adoption baseline and future adapter sequencing, including provider mirror support, local CI emulation, OpenSpec-compatible profile checks, quality and architecture gates, and replaceable tool boundaries."
+
+[evidence]
+dated = "evidence/chronicle/tooling-adoption-roadmap/2026-07-09.md"
+sha256 = "5773afac15c472f58f3764001d413110ec358f6228299b56f2cc93aa9491884e"
+evidence_ids = ["evidence:tooling-adoption-roadmap"]
+binding = "Completed roadmap baseline, mechanism comparison audit, closeout carrier, active owner gates, and explicit future adapter sequencing evidence binding"
+verifier = "digest_only"
+tests = [
+  "tools/ci/scripts/run-dependency-hygiene.sh",
+  "tools/ci/scripts/run-json-schema-check.sh",
+  "tools/ci/scripts/run-prose-check.sh",
+  "tools/ci/scripts/run-hosted-provider-observation.sh",
+  "tools/ci/scripts/run-python-vulnerability-audit.sh",
+  "uv run --package ethos pytest tests/architecture/test_dependency_prose_schema_gates.py tests/architecture/test_hosted_provider_observation.py tests/architecture/test_ci_provider_projections.py tests/architecture/test_format_architecture_runbook_mcp.py tests/unit/cli/test_contracts.py::test_quality_tool_profiles_command_reports_adapter_boundaries -q",
+  "uv run --package ethos ethos openspec --lifecycle --json",
+  "tools/ci/scripts/run-config-lint.sh",
+  "tools/ci/scripts/run-markdown-lint.sh",
+  "uv run --package ethos ethos quality schemas --json",
+  "uv run --package ethos ethos prove --execute --expect-head <head> --json",
+  "tools/ci/scripts/run-closeout-evidence-manifest.sh",
+]
+
+[evidence.freshness]
+mode = "historical"
+[boundary]
+external_signing_image_scan_osv_adapters = "deferred_follow_up_work_lanes"
+local_dependency_prose_schema_observation_pip_audit_gates = "active_owner_surfaces"
+owner = "ethos-governance"
+scope = "Planning, comparison, and selected gate surfaces for GitHub/GitLab provider parity, local CI emulators, quality and architecture tooling, OpenSpec schema customization, Superpowers boundary, optional tool adapters, and remaining OSV, image-scan, signing, and release adapters"
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-09-complete-planning-closeout"
+fallback = "Keep current active owner gates and adapter boundaries; defer only separately scoped future adapters such as OSV, image scanning, external signing, and richer runner matrices."
+kill_signal = "A planned adapter is reported as an active ETHOS gate, or GitHub/GitLab/Superpowers/Nox/Pixi/Pants/Backlog becomes product ontology instead of a bounded adapter."
+
+[promotion]
+targets = [
+  "docs/governance/forge-provider-contract.md",
+  "docs/plans/tooling-adoption-roadmap.md",
+  "docs/reference/mechanism-comparison-audit.md",
+  "openspec/changes/archive/2026-07-08-tooling-adoption-roadmap/proposal.md",
+  "openspec/changes/archive/2026-07-08-tooling-adoption-roadmap/design.md",
+  "openspec/changes/archive/2026-07-08-tooling-adoption-roadmap/tasks.md",
+  "openspec/changes/archive/2026-07-08-tooling-adoption-roadmap/specs/repository-governance/spec.md",
+  "system/tools.toml",
+  ".config/checks/ci/templates.toml",
+  ".config/checks/format/selection.toml",
+  ".config/checks/architecture/projection.toml",
+  ".config/checks/runbook/registry.toml",
+  ".config/checks/mcp/smoke.toml",
+  ".config/checks/evidence/closeout.toml",
+  ".config/checks/local-state/audit.toml",
+  ".config/release/supply-chain.toml",
+  "evidence/claims/tooling-adoption-roadmap.toml",
+  "evidence/chronicle/tooling-adoption-roadmap/2026-07-09.md",
+  "openspec/changes/archive/2026-07-09-tooling-plan-execution/proposal.md",
+  "openspec/changes/archive/2026-07-09-tooling-plan-execution/design.md",
+  "openspec/changes/archive/2026-07-09-tooling-plan-execution/tasks.md",
+  "openspec/changes/archive/2026-07-09-tooling-plan-execution/specs/quality/spec.md",
+  "openspec/changes/archive/2026-07-09-tooling-plan-execution/specs/proof-hosts/spec.md",
+  "openspec/changes/archive/2026-07-09-tooling-plan-execution/specs/adapters/spec.md",
+
+  "openspec/changes/archive/2026-07-09-complete-planning-closeout/.openspec.yaml",
+  "openspec/changes/archive/2026-07-09-complete-planning-closeout/proposal.md",
+  "openspec/changes/archive/2026-07-09-complete-planning-closeout/design.md",
+  "openspec/changes/archive/2026-07-09-complete-planning-closeout/tasks.md",
+  "openspec/changes/archive/2026-07-09-complete-planning-closeout/specs/quality/spec.md",
+  "openspec/changes/archive/2026-07-09-complete-planning-closeout/specs/repository-governance/spec.md",
+  "openspec/specs/quality/spec.md",
+  "openspec/specs/proof-hosts/spec.md",
+  "openspec/specs/adapters/spec.md",
+  ".config/checks/deptry/policy.toml",
+  ".config/checks/prose/codespell.toml",
+  ".config/checks/schema/jsonschema.toml",
+  ".config/checks/security/audit.toml",
+  ".config/checks/ci/hosted-observation.toml",
+  "tools/ci/scripts/run-dependency-hygiene.sh",
+  "tools/ci/scripts/run-prose-check.sh",
+  "tools/ci/scripts/run-json-schema-check.sh",
+  "tools/ci/scripts/run-hosted-provider-observation.sh",
+  "tools/ci/scripts/run-python-vulnerability-audit.sh",
+]

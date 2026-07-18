@@ -29,4 +29,4 @@ missing roots are omitted instead of becoming universal layout requirements.
 
 This change creates the identity carrier. Later retirement-readiness work should
 turn identity mismatches into explicit blocking false-negative tests for
-alphasim-dmgr and add rollback-window evidence gates.
+reference-adopter and add rollback-window evidence gates.

@@ -22,7 +22,7 @@ external product is weaker and the adopter cannot retire the embedded fallback.
 
 ## Out of Scope
 
-- No alphasim-dmgr adopter-specific profile migration is performed.
+- No reference adopter-specific profile migration is performed.
 - No embedded fallback deletion or retirement decision is claimed complete.
 - No rollback-window evidence is claimed complete by this change.
 

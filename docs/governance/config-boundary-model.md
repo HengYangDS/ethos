@@ -18,7 +18,7 @@ and machine contracts. No single directory owns every governance fact.
 | `.ethos/` | ETHOS binding layer | profile entrypoint, backend selection, ignored ETHOS local state | tool-native config, domain truth, durable evidence |
 | `.config/` | execution/config layer | tool configuration, reusable gate policy, CI scripts, boundary configs, worktree configs | ETHOS ontology, evidence truth, user decisions |
 | `rules/` | governance rule layer | human and agent rules, domain contracts, projection policies | tool implementation details, generated state |
-| `docs/` | truth/evidence/explanation layer | current docs, decisions, dated evidence, reference material | local runtime state |
+| `docs/` | truth/evidence/explanation layer | canonical docs, decisions, dated evidence, reference material | local runtime state |
 | `system/` | optional machine-contract layer | machine-readable product or system contracts | adopter-only domain truth when absent |
 | `openspec/` | specification projection | official OpenSpec changes and specs | promoted runtime truth by itself |
 | `claims/` | claim lifecycle layer | semantic claim records and evidence bindings | local execution state |
@@ -69,4 +69,4 @@ repositories with different shapes and toolchains.
 
 See also: [Repository Profile Contract](repository-profile-contract.md),
 [Product Design Contract](product-design-contract.md), and
-[Terminal Governance Product Design](../architecture/terminal-governance-product-design.md).
+[Terminal Governance Product Design](../plans/terminal-governance-product-design.md).

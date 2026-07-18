@@ -6,16 +6,16 @@ from pathlib import Path
 import pytest
 
 from ethos_core import models
-from ethos_core.action_graph import ActionGraph
-from ethos_core.action_graph import ActionNode
-from ethos_core.contracts.system_contracts import load_system_contract
-from ethos_core.contracts.system_contracts import system_contracts_report
+from ethos_core.action_graph.core import ActionGraph
+from ethos_core.action_graph.core import ActionNode
+from ethos_core.contracts.system.contracts import load_system_contract
+from ethos_core.contracts.system.contracts import system_contracts_report
 from ethos_core.result import EthosResult
 
 
-def test_semantic_claims_require_semantic_verifier() -> None:
+def test_digest_only_claims_reject_semantic_conclusions() -> None:
     assert hasattr(models, "EvidenceClaim")
-    with pytest.raises(ValueError, match="semantic claims require semantic verifier"):
+    with pytest.raises(ValueError, match="digest_only does not permit semantic"):
         models.EvidenceClaim(
             id="claim:overreach",
             change_id="change:example",
@@ -28,7 +28,7 @@ def test_semantic_claims_require_semantic_verifier() -> None:
 def test_core_claim_model_does_not_embed_profile_or_host_policy_terms() -> None:
     policy_terms = "\n".join(getattr(models, "CLAIM_OVERCLAIM_PHRASES", ())).lower()
 
-    assert "raw/cache" not in policy_terms
+    assert "adopter-domain storage" not in policy_terms
     assert "hosted ci" not in policy_terms
     assert "remote publication" not in policy_terms
     assert "backend retirement" not in policy_terms
@@ -39,15 +39,15 @@ def test_core_claim_model_allows_policy_specific_digest_phrasing() -> None:
         id="claim:policy-specific",
         change_id="change:example",
         evidence_ids=("evidence:example",),
-        binding="hosted CI verified and adopter raw/cache parity passed",
+        binding="hosted CI result and adopter-domain storage parity observation",
         verifier="digest_only",
     )
 
-    assert claim.binding == "hosted CI verified and adopter raw/cache parity passed"
+    assert claim.binding == "hosted CI result and adopter-domain storage parity observation"
 
 
 def test_digest_only_claims_reject_generic_semantic_overclaim() -> None:
-    with pytest.raises(ValueError, match="semantic claims require semantic verifier"):
+    with pytest.raises(ValueError, match="digest_only does not permit semantic"):
         models.EvidenceClaim(
             id="claim:overreach",
             change_id="change:example",
@@ -144,14 +144,17 @@ def test_json_schemas_are_declared_for_kernel_protocols() -> None:
         "evidence-set.schema.json",
         "provenance.schema.json",
         "chronicle.schema.json",
+        "semantic-attestation-receipt.schema.json",
+        "control-replacement-verifier-receipt.schema.json",
         "evolution.schema.json",
         "docs-registry.schema.json",
         "evolution-ledger.schema.json",
         "gate.schema.json",
         "assistant-projection.schema.json",
+        "lane-lease.schema.json",
         "mutation-decision.schema.json",
         "workspace-status.schema.json",
-        "judgment-source.schema.json",
+        "authority.schema.json",
         "authority-graph.schema.json",
     }
 
@@ -172,7 +175,7 @@ def test_system_contracts_all_load() -> None:
     contracts = report["contracts"]
     assert isinstance(contracts, dict)
     # Every declared system-tier contract is present and parseable — system/ is
-    # load-bearing, not inert prose (tao First Principle #5: derive don't store).
+    # load-bearing, not inert prose (the parsimony invariant: derive rather than store twice).
     assert all(contracts.values())
     assert set(contracts) >= {"authority", "evidence_boundaries", "workflows"}
 
@@ -193,7 +196,7 @@ def test_evidence_boundary_contract_exposes_decision_and_boundaries() -> None:
 
 
 def test_system_contracts_have_real_validating_schemas() -> None:
-    from ethos_core.contracts.system_contracts import system_contracts_report
+    from ethos_core.contracts.system.contracts import system_contracts_report
 
     report = system_contracts_report(Path())
 
@@ -205,7 +208,7 @@ def test_system_contracts_have_real_validating_schemas() -> None:
 
 
 def test_system_contract_schema_violation_blocks() -> None:
-    from ethos_core.contracts.system_contracts import _schema_validation_gaps
+    from ethos_core.contracts.system.contracts import _schema_validation_gaps
 
     schema_path = Path("system/schemas/contracts/authority.schema.json")
     # An authority contract missing its required `order` violates the schema.
@@ -214,15 +217,15 @@ def test_system_contract_schema_violation_blocks() -> None:
     assert any("schema_violation" in g for g in gaps)
 
 
-def test_judgment_source_does_not_own_downstream_node_duties() -> None:
-    """JudgmentSource is the authority anchor — it must NOT own lifecycle, evidence,
+def test_authority_does_not_own_downstream_node_duties() -> None:
+    """Authority is the authority-order anchor — it must NOT own lifecycle, evidence,
     or history (those belong to Change / Claim / Chronicle). Pins the head-of-chain
     boundary so it cannot silently absorb a sibling node's duty."""
     from dataclasses import fields
 
-    from ethos_core.models import JudgmentSource
+    from ethos_core.models import Authority
 
-    field_names = {f.name for f in fields(JudgmentSource)}
+    field_names = {f.name for f in fields(Authority)}
     forbidden = {
         "state",
         "lifecycle",
@@ -234,11 +237,65 @@ def test_judgment_source_does_not_own_downstream_node_duties() -> None:
         "events",
     }
     leaked = field_names & forbidden
-    assert not leaked, f"JudgmentSource must not own downstream duties: {leaked}"
+    assert not leaked, f"Authority must not own downstream duties: {leaked}"
 
 
-def test_governance_context_head_is_a_real_judgment_source_with_authority() -> None:
-    """The governed-repository context must anchor on a real JudgmentSource carrying
+def test_governance_context_uses_authority_as_only_kernel_head() -> None:
+    """The current governance truth uses Authority only.
+
+    No superseded head model, payload key, schema, or chain term remains as a
+    compatibility surface.
+    """
+    from ethos.repository.context import governance_context
+    from ethos_core import models
+    from ethos_core.kernel import KERNEL_CHAIN
+
+    context = governance_context(Path.cwd(), profile="product")
+
+    assert KERNEL_CHAIN[0] == "Authority"
+    assert context["kernel_chain"][0] == "Authority"
+    assert "authority" in context
+    assert context["authority"]["order_ref"] == "system/authority.toml"
+    assert "user_instruction" in context["authority"]["policy_refs"]
+    old_prefix = "Judgment"
+    assert not hasattr(models, f"{old_prefix}Source")
+
+
+def test_superseded_authority_head_name_has_no_current_truth_surface() -> None:
+    """The former head-node vocabulary must not re-enter current truth surfaces.
+
+    This is a drift guard, not a compatibility layer: old vocabulary can be
+    reconstructed only inside the test expression, and repository files must not
+    carry it as code, schema, payload key, filename, heading, or prose phrase.
+    """
+    import re
+
+    old_entity_pattern = re.compile(r"judg(?:e)?ment[ _-]*source", re.IGNORECASE)
+    scanned_roots = (
+        Path("packages"),
+        Path("system"),
+        Path("docs"),
+        Path("openspec/specs"),
+        Path("README.md"),
+    )
+    offenders: list[str] = []
+    for root in scanned_roots:
+        paths = root.rglob("*") if root.is_dir() else (root,)
+        for path in paths:
+            if not path.is_file():
+                continue
+            try:
+                text = path.read_text(encoding="utf-8")
+            except UnicodeDecodeError:
+                continue
+            if old_entity_pattern.search(path.as_posix()) or old_entity_pattern.search(text):
+                offenders.append(path.as_posix())
+
+    assert offenders == []
+
+
+def test_governance_context_head_is_a_real_authority_with_authority() -> None:
+    """The governed-repository context must anchor on a real Authority carrying
     the authority order (not an inline dict) — the chain's production constructor."""
     from ethos.repository.context import governance_context
     from ethos.repository.registry.commands import PUBLIC_WORKFLOW_COMMANDS
@@ -246,10 +303,10 @@ def test_governance_context_head_is_a_real_judgment_source_with_authority() -> N
     from ethos.repository.registry.commands import SCORECARD_COMMANDS
 
     context = governance_context(Path.cwd(), profile="product")
-    assert context["kernel_chain"][0] == "JudgmentSource"
-    assert context["judgment_source"]["authority"] == "system/authority.toml"
+    assert context["kernel_chain"][0] == "Authority"
+    assert context["authority"]["order_ref"] == "system/authority.toml"
     # The authority order is surfaced (head-of-chain hole filled).
-    assert "user_instruction" in context["judgment_source"]["policy_refs"]
+    assert "user_instruction" in context["authority"]["policy_refs"]
     assert context["subject"]["kind"] == "repository"
     assert context["shared_commands"] == list(PUBLIC_WORKFLOW_COMMANDS)
     assert context["transition_commands"] == list(PUBLIC_WORKFLOW_COMMANDS)
@@ -268,8 +325,8 @@ def test_kernel_nodes_do_not_own_forbidden_downstream_duties() -> None:
     from ethos_core import models
 
     forbidden_per_node = {
-        # JudgmentSource: authority anchor only — no downstream lifecycle/evidence.
-        "JudgmentSource": {"state", "lifecycle", "transition", "evidence_ids", "verifier"},
+        # Authority: authority anchor only — no downstream lifecycle/evidence.
+        "Authority": {"state", "lifecycle", "transition", "evidence_ids", "verifier"},
         # Subject: identity+scope only — no state/obligation/authority.
         "Subject": {"state", "lifecycle", "transition", "authority", "evidence_ids"},
         # Claim: verifier-capped binding — does NOT own lifecycle state or a verdict.
@@ -283,7 +340,7 @@ def test_kernel_nodes_do_not_own_forbidden_downstream_duties() -> None:
 
 
 def test_workflow_transitions_bind_to_invalid_state_taxonomy() -> None:
-    from ethos_core.invalid_states import NODE_ORDER
+    from ethos_core.state.invalid import NODE_ORDER
 
     contract = load_system_contract(Path(), "workflows")
     states = set(contract["lifecycle"]["states"])
@@ -310,3 +367,17 @@ def test_workflow_transitions_bind_to_invalid_state_taxonomy() -> None:
         "chronicle_missing",
         "substrate_untrusted",
     }
+
+
+def test_load_system_contract_uses_product_resource_for_workflows_when_root_lacks_contract(
+    tmp_path,
+):
+    contract = load_system_contract(tmp_path, "workflows")
+
+    assert contract["runtime"]["truth_boundary"] == "derived_repository_projection"
+    assert contract["node"]
+
+
+def test_load_system_contract_keeps_non_resource_contracts_fail_closed(tmp_path):
+    with pytest.raises(FileNotFoundError):
+        load_system_contract(tmp_path, "authority")

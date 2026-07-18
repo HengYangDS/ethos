@@ -2,30 +2,48 @@
 
 ## Purpose
 
-ETHOS SHALL model repository operation through JudgmentSource, Subject,
+ETHOS SHALL model repository operation through Authority, Subject,
 Commitment, Change, Evidence, Claim, and Chronicle.
 ## Requirements
 ### Requirement: Kernel Chain
 ETHOS SHALL model repository operation through the kernel chain
-JudgmentSource, Subject, Commitment, Change, Evidence, Claim, and Chronicle.
-The chain SHALL preserve the compact root philosophy as a generative constraint:
-hidden authority and small drift detection, one kernel with discriminated
-boundaries, visible and domain-fit measures, and boundary-preserving growth.
+Authority, Subject, Commitment, Change, Evidence, Claim, and Chronicle.
+The chain SHALL preserve the root text as a judgment constraint without turning
+that text into a subsystem, feature map, or low-level implementation label.
+Commitment SHALL remain the governed promise that can become repository law;
+practice claims and workflow runtime facts SHALL remain carriers or projections
+that propose, test, or inspect effects on commitments.
 
 #### Scenario: Repository operation is represented
 - **WHEN** ETHOS records a repository operation
-- **THEN** the operation is expressible through kernel objects without
-  depending on repository, assistant, adapter, adopter, or hosted-runner
-  packages
+- **THEN** the operation is expressible through kernel objects without depending
+  on repository, assistant, adapter, adopter, or hosted-runner packages
 - **AND** Claim binds evidence rather than owning lifecycle state
-- **AND** semantic claims require a semantic verifier
+- **AND** semantic claims require a current, candidate-external semantic attestation receipt
 
-#### Scenario: Root philosophy constrains future projections
-- **WHEN** ETHOS adds a command surface, assistant projection, local model,
-  adapter, profile, tool framework, or proof host
-- **THEN** the new surface is derived from the existing kernel chain rather than
-  becoming a new truth center
-- **AND** the surface declares its authority, subject, boundary, evidence, and projection role before promotion
+#### Scenario: semantic attestation remains optional and bounded
+
+- **WHEN** a claim declares `semantic_attested`
+- **THEN** it SHALL bind a candidate-external receipt to its claim id, dated-evidence digest, semantic scope digest, and exact HEAD
+- **AND** the receipt SHALL name an independent reviewer role, basis, allow verdict, validity interval, and `mints_authority = false`
+- **AND** missing, malformed, stale, repository-local, or mismatched receipts SHALL block the claim
+- **AND** `digest_only` claims SHALL require no receipt directory, account, daemon, credential, network, or dedicated local account
+
+#### Scenario: Root text remains canonical and restrained
+- **WHEN** ETHOS adds or changes an active code, config, hook, system contract, or
+  provider projection surface
+- **THEN** that surface cites concrete engineering invariants rather than philosophical labels
+  or numbered philosophy references
+- **AND** the canonical root text remains in the Product Design Contract rather
+  than being duplicated into machine-adjacent derived files
+- **AND** derived axiom files remain subordinate to product docs and do not create
+  a new truth center
+
+#### Scenario: Workflow runtime stays below the kernel
+- **WHEN** ETHOS evaluates workflow runtime state, handoff state, or skill eval metadata
+- **THEN** the runtime facts are expressible through the kernel chain
+- **AND** lifecycle truth is still derived from authority, subject, commitment, change, evidence, claim, and chronicle facts
+- **AND** generated runtime state does not outrank source, tests, schemas, docs, OpenSpec records, claims, evidence, or command JSON
 
 ### Requirement: Kernel Result Contract
 ETHOS SHALL emit stable JSON result envelopes with `ok`, `summary`,
@@ -61,3 +79,29 @@ for explicit parity contract records.
 #### Scenario: Product code is scanned
 - **WHEN** architecture tests scan package source files
 - **THEN** adopter names are absent from semantic product implementation code
+
+### Requirement: Semantic attestation is receipt-bound and non-authorizing
+
+ETHOS SHALL admit `semantic_attested` only when a typed candidate-external
+receipt binds the exact claim, dated evidence digest, semantic promotion scope,
+and current HEAD. The receipt SHALL record an independent reviewer role, basis,
+allow verdict, validity interval, canonical payload digest, and
+`mints_authority = false`.
+
+#### Scenario: Attestation is absent or mismatched
+
+- **WHEN** the claim-side declaration or external receipt is missing,
+  malformed, stale, repository-local, or does not match a bound fact
+- **THEN** ETHOS SHALL fail the claim closed with a machine-readable gap
+
+#### Scenario: Digest-only claim remains portable
+
+- **WHEN** a claim declares `digest_only`
+- **THEN** ETHOS SHALL not require or inspect a semantic receipt directory,
+  account, daemon, credential, network operation, or dedicated local account
+
+#### Scenario: Semantic attestation has a current semantic scope
+
+- **WHEN** a claim declares `semantic_attested`
+- **THEN** its evidence freshness mode SHALL be `semantic_scope`
+- **AND** its receipt scope and HEAD bindings SHALL match that current scope

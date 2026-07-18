@@ -19,7 +19,7 @@
   current foreign and unbound Work Lane.
 - [x] 3.2 Complete strict OpenSpec, required parity, report, and HEAD-bound
   proof for the stable owned Work Lane.
-- [ ] 3.3 Archive the proven Change carrier through official OpenSpec semantics
+- [x] 3.3 Archive the proven Change carrier through official OpenSpec semantics
   to enter candidate admission. Record candidate land, sanctioned accepted-root
   closeout, and unresolved foreign-owner, remote, or hosted evidence boundaries
   in the succeeding post-archive lifecycle evidence.

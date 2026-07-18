@@ -20,9 +20,7 @@ else
     shell_files+=("${target}")
   done < <(git ls-files '*.sh')
 fi
-if ((${#shell_files[@]} == 0)); then
-  exit 0
-fi
+(( ${#shell_files[@]} )) || exit 0
 
 if ! command -v shellcheck >/dev/null 2>&1; then
   if command -v apt-get >/dev/null 2>&1; then
@@ -34,6 +32,5 @@ if ! command -v shellcheck >/dev/null 2>&1; then
   fi
 fi
 
-# GitHub ShellCheck lacks a custom rcfile flag; use portable policy arguments.
 shellcheck --shell=bash --severity=style "${shell_files[@]}"
 python tools/ci/structural_whitespace.py "${shell_files[@]}"

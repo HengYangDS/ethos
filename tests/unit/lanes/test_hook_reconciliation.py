@@ -130,23 +130,31 @@ def test_new_submit_push_reconciles_dev_and_main_identity_baselines(
         encoding="utf-8",
     )
 
+    observation = ReconciliationObservation(
+        receipt_path=receipt_path.as_posix(),
+        origin_head=heads["origin_dev"],
+        origin_main_head=heads["origin_main"],
+        github_head=heads["github_dev"],
+        github_main_head=heads["github_main"],
+    )
     report = push_admission_report(
         root=repo,
         target_ref="refs/heads/submit/four-ref-reconciliation",
         pushed_head=pushed_head,
         remote_head="0" * 40,
-        reconciliation=ReconciliationObservation(
-            receipt_path=receipt_path.as_posix(),
-            origin_head=heads["origin_dev"],
-            origin_main_head=heads["origin_main"],
-            github_head=heads["github_dev"],
-            github_main_head=heads["github_main"],
-        ),
+        reconciliation=observation,
     )
 
-    identity = report["identity_policy"]
-    assert identity["ok"] is True
-    assert identity["violations"] == []
+    assert report["identity_policy"]["ok"] is True
+    assert report["identity_policy"]["violations"] == []
+    protected = push_admission_report(
+        root=repo,
+        target_ref="refs/heads/dev",
+        pushed_head=pushed_head,
+        remote_head=heads["origin_dev"],
+        reconciliation=observation,
+    )
+    assert protected["identity_policy"]["ok"] is True
 
 
 def test_new_submit_push_blocks_divergence_without_an_exact_receipt(

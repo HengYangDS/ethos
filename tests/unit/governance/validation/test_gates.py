@@ -130,7 +130,6 @@ def test_default_gate_graph_includes_ci_owner_quality_floor() -> None:
         "module-layout",
         "no-compat",
         "python-size",
-        "source-budget",
         "toml-config",
         "yaml-config",
         "shell-lint",
@@ -155,7 +154,7 @@ def test_default_gate_graph_includes_ci_owner_quality_floor() -> None:
         "code-size",
         "--json",
     ]
-    assert nodes["source-budget"].to_dict()["command"] == [
+    assert gate_registry()["source-budget"].to_dict()["command"] == [
         "ethos",
         "quality",
         "source-budget",
@@ -163,6 +162,8 @@ def test_default_gate_graph_includes_ci_owner_quality_floor() -> None:
     ]
     assert nodes["toml-config"].to_dict()["command"] == ["tools/ci/scripts/run-config-lint.sh"]
     assert nodes["shell-lint"].to_dict()["command"] == ["tools/ci/scripts/run-shell-lint.sh"]
+    assert "source-budget" not in node_ids
+    assert "source-budget" in [node.id for node in gate_graph(full=True).nodes]
 
 
 def test_default_gate_graph_runs_generated_artifact_seal_after_runtime_producers() -> None:

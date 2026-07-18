@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-07-18
+goal: Move source-budget enforcement from the default per-change promotion floor
+  to the full global compression closeout, with advisory scorecard visibility.

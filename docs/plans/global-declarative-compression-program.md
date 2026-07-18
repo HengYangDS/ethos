@@ -254,11 +254,11 @@ not complete.
 
 | Tier | Required scope |
 | --- | --- |
-| Fast changed-scope | formatting, lint/type, declaration semantics, source budget, redundancy, focused unit/property proof |
+| Fast changed-scope | formatting, lint/type, declaration semantics, redundancy, focused unit/property proof; source-budget remains a separately reported global-compression obligation |
 | Local provider | actual selected `act` and `gitlab-ci-local` jobs for changed provider paths |
 | Nightly | full property corpus, bounded mutation tests for pure reducers/CEL, benchmarks, full Semgrep and SBOM scan |
 | Release | locks, clean install, package artifacts, two-build hash, SBOM/Grype, full provider subset |
-| Closeout | HEAD-bound proof plus proof that old implementation and its dedicated tests/tools/declarations were deleted |
+| Closeout | HEAD-bound full proof including source-budget, plus proof that old implementation and its dedicated tests/tools/declarations were deleted |
 
 ## Completion Definition
 

@@ -12,6 +12,7 @@ from __future__ import annotations
 import hashlib
 import json
 import subprocess
+from dataclasses import dataclass
 from pathlib import Path
 
 _COMMIT_IDENTITY_FIELDS = (
@@ -20,6 +21,19 @@ _COMMIT_IDENTITY_FIELDS = (
     "committer_name",
     "committer_email",
 )
+
+
+@dataclass(frozen=True)
+class ReconciliationObservation:
+    """One-shot observed bounds for a new dual-remote submit carrier."""
+
+    submit_branch: str = ""
+    receipt_path: str = ""
+    origin_head: str = ""
+    github_head: str = ""
+
+
+_NO_RECONCILIATION = ReconciliationObservation()
 
 
 def _git(root: Path, *args: str, text: bool = False) -> subprocess.CompletedProcess[str]:
@@ -128,26 +142,23 @@ def _reconciliation_baselines(
     root: Path,
     *,
     pushed_head: str,
-    submit_branch: str,
     primary_baseline: str,
-    reconciliation_receipt_path: str,
-    observed_origin_head: str,
-    observed_github_head: str,
+    observation: ReconciliationObservation,
 ) -> tuple[tuple[str, ...], list[str]]:
     """Read one exact receipt; it scopes history but never grants mutation authority."""
-    if not submit_branch or not _commit_exists(root, pushed_head):
+    if not observation.submit_branch or not _commit_exists(root, pushed_head):
         return (), []
     if _commit_exists(root, primary_baseline) and commit_contained_in(
         root, primary_baseline, pushed_head
     ):
         return (), []
-    if not reconciliation_receipt_path:
+    if not observation.receipt_path:
         return (), ["push_identity_reconciliation_receipt_required"]
-    receipt = _read_reconciliation_receipt(reconciliation_receipt_path)
+    receipt = _read_reconciliation_receipt(observation.receipt_path)
     if receipt is None:
         return (), ["push_identity_reconciliation_receipt_invalid"]
     expected = reconciliation_receipt_payload(
-        submit_branch=submit_branch,
+        submit_branch=observation.submit_branch,
         source_head=pushed_head,
         origin_head=str(receipt.get("origin_head") or ""),
         github_head=str(receipt.get("github_head") or ""),
@@ -158,9 +169,9 @@ def _reconciliation_baselines(
             gaps.append(f"push_identity_reconciliation_receipt_{field}_mismatch")
     origin_head = str(receipt.get("origin_head") or "")
     github_head = str(receipt.get("github_head") or "")
-    if observed_origin_head != origin_head:
+    if observation.origin_head != origin_head:
         gaps.append("push_identity_reconciliation_origin_head_stale")
-    if observed_github_head != github_head:
+    if observation.github_head != github_head:
         gaps.append("push_identity_reconciliation_github_head_stale")
     missing = [head for head in (origin_head, github_head) if not _commit_exists(root, head)]
     if missing:
@@ -173,10 +184,7 @@ def push_identity_policy_report(
     pushed_head: str,
     remote_head: str = "",
     trusted_baseline: str = "",
-    reconciliation_submit_branch: str = "",
-    reconciliation_receipt_path: str = "",
-    observed_origin_head: str = "",
-    observed_github_head: str = "",
+    reconciliation: ReconciliationObservation = _NO_RECONCILIATION,
 ) -> dict[str, object]:
     """Report optional push-range Git identity admission.
 
@@ -212,11 +220,8 @@ def push_identity_policy_report(
     trusted_reconciliation_baselines, reconciliation_gaps = _reconciliation_baselines(
         root,
         pushed_head=pushed_head,
-        submit_branch=reconciliation_submit_branch,
         primary_baseline=trusted_baseline,
-        reconciliation_receipt_path=reconciliation_receipt_path,
-        observed_origin_head=observed_origin_head,
-        observed_github_head=observed_github_head,
+        observation=reconciliation,
     )
     range_base, range_is_trusted, baseline_gaps = _identity_range_base(
         root,

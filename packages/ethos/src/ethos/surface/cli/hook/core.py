@@ -14,6 +14,7 @@ from ethos.adapters.admission.core import hook_admission_report
 from ethos.adapters.admission.core import push_admission_report
 from ethos.adapters.admission.core import ref_move_admission_report
 from ethos.adapters.admission.core import work_lane_ref_transition_report
+from ethos.adapters.admission.identity import ReconciliationObservation
 from ethos.adapters.admission.identity import reconciliation_receipt_payload
 from ethos.adapters.admission.prewrite import has_invalid_path_token_character
 from ethos.surface.cli._base import JsonFlag
@@ -107,9 +108,11 @@ def pre_push(
         target_ref=target_ref,
         pushed_head=pushed_head,
         remote_head=remote_head,
-        reconciliation_receipt_path=reconciliation_receipt_path,
-        observed_origin_head=observed_origin_head,
-        observed_github_head=observed_github_head,
+        reconciliation=ReconciliationObservation(
+            receipt_path=reconciliation_receipt_path,
+            origin_head=observed_origin_head,
+            github_head=observed_github_head,
+        ),
     )
     decision = report.get("decision", {})
     decision_action = decision.get("action", "") if isinstance(decision, dict) else ""

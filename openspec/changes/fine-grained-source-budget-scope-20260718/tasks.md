@@ -10,5 +10,5 @@
 
 - [x] 2.1 Update the quality requirement and direct-absorption plan.
 - [x] 2.2 Add focused gate and scorecard regressions.
-- [ ] 2.3 Run focused checks, strict OpenSpec validation, parity, and default
+- [x] 2.3 Run focused checks, strict OpenSpec validation, parity, and default
   HEAD-bound proof; record global source-budget as unresolved program work.

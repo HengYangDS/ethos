@@ -245,6 +245,21 @@ def test_campaign_required_gaps_rejects_archive_ready_step_with_active_carrier(
     assert "campaign_step_archive_ready_openspec_not_archived:cid:s1" in gaps
 
 
+def test_campaign_required_gaps_rejects_archive_ready_terminal_closeout(tmp_path: Path) -> None:
+    """Archive readiness does not itself grant terminal closeout state."""
+    change = "archived-change"
+    (tmp_path / "openspec" / "changes" / "archive" / f"2026-07-11-{change}").mkdir(parents=True)
+    gaps = _campaign_report_gaps(
+        tmp_path,
+        change=change,
+        step_state="archive_ready",
+        closeout_state="retired",
+    )
+
+    assert "campaign_step_archive_ready_closeout_terminal:cid:s1" in gaps
+    assert "campaign_step_terminal_closeout_nonterminal:cid:s1" in gaps
+
+
 def test_campaign_required_gaps_rejects_terminal_step_with_active_carrier(tmp_path: Path) -> None:
     """A terminal campaign step must have an archived, not active, carrier."""
     change = "active-change"

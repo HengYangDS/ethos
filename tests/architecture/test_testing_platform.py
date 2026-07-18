@@ -7,6 +7,8 @@ import tokenize
 import tomllib
 from pathlib import Path
 
+from tests.support.ethos_cli_runner import _without_test_git_config_overlay
+
 # fmt: off
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -45,8 +47,49 @@ def test_python_test_platform_is_parallel_timeout_bound_and_owner_scripted() -> 
     assert "rm -rf .pytest_cache .ruff_cache build/runtime/gitlab-ci-local" in script
     assert 'rm -f "${COVERAGE_FILE}" "${COVERAGE_FILE}".*' in script
     assert 'rm -f "${coverage_evidence_dir}/coverage.xml"' in script
+    assert "GIT_CONFIG_COUNT must be a non-negative integer" in script
+    assert 'export GIT_CONFIG_KEY_"${git_config_fsmonitor_index}"=core.fsmonitor' in script
+    assert 'export GIT_CONFIG_VALUE_"${git_config_fsmonitor_index}"=false' in script
+    assert 'export GIT_CONFIG_COUNT="$((git_config_count + 1))"' in script
     assert ".coverage.*" in (ROOT / ".gitignore").read_text(encoding="utf-8")
     assert "junit.xml" in (ROOT / ".gitignore").read_text(encoding="utf-8")
+
+
+def test_test_harness_disables_a_local_fsmonitor_configuration(tmp_path: Path) -> None:
+    repository = tmp_path / "repository"
+    repository.mkdir()
+    subprocess.run(("git", "init", "-b", "main"), cwd=repository, check=True, capture_output=True)
+    subprocess.run(("git", "config", "core.fsmonitor", "true"), cwd=repository, check=True)
+
+    completed = subprocess.run(
+        ("git", "config", "--get", "core.fsmonitor"),
+        cwd=repository,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.stdout.strip() == "false"
+
+
+def test_cli_subprocess_helper_keeps_fsmonitor_isolation() -> None:
+    environment = {
+        "GIT_CONFIG_COUNT": "3",
+        "GIT_CONFIG_KEY_0": "commit.gpgsign",
+        "GIT_CONFIG_VALUE_0": "false",
+        "GIT_CONFIG_KEY_1": "init.templateDir",
+        "GIT_CONFIG_VALUE_1": "/tmp/template",
+        "GIT_CONFIG_KEY_2": "core.fsmonitor",
+        "GIT_CONFIG_VALUE_2": "false",
+    }
+
+    sanitized = _without_test_git_config_overlay(environment)
+
+    assert sanitized == {
+        "GIT_CONFIG_COUNT": "1",
+        "GIT_CONFIG_KEY_0": "core.fsmonitor",
+        "GIT_CONFIG_VALUE_0": "false",
+    }
 
 
 def test_python_test_gate_serializes_shared_coverage_evidence_writes() -> None:

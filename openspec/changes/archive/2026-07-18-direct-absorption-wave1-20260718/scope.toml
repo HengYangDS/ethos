@@ -1,0 +1,14 @@
+schema_version = 1
+paths = [
+  "docs/plans/direct-absorption-wave1-20260718.md",
+  "evidence/claims/direct-absorption-wave1-20260718.toml",
+  "evidence/chronicle/direct-absorption-wave1-20260718/**",
+  "openspec/changes/direct-absorption-wave1-20260718/**",
+  "openspec/specs/repository-governance/spec.md",
+  "tests/architecture/test_ci_provider_projections.py",
+  "tests/architecture/test_testing_platform.py",
+  "tests/conftest.py",
+  "tests/support/ethos_cli_runner.py",
+  "tools/ci/scripts/bootstrap-python.sh",
+  "tools/ci/scripts/run-python-tests.sh",
+]

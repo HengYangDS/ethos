@@ -61,8 +61,8 @@ candidate baseline, and records why any remaining target is blocked.
 
 ## Out Of Scope
 
-- Raw branch/worktree deletion, `git stash`, wildcard cleanup, or foreign-lane
-  mutation merely because it appears in status.
+- Never use raw branch/worktree deletion, `git stash`, wildcard cleanup, or
+  foreign-lane mutation merely because it appears in status.
 - Remote probing, reconciliation, force-push, ordinary push, release
   publication, or hosted-CI success claims.
 - Treating a digest, old receipt, or historical lane matrix as proof that a

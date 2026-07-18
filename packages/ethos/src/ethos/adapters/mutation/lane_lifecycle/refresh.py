@@ -1,12 +1,12 @@
 from __future__ import annotations
-# fmt: off
 
-import base64
-import binascii
+# fmt: off
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING
+from typing import Any
+from typing import cast
 
 from ethos.adapters.mutation.lane_lifecycle.core import default_candidate_path
 from ethos.adapters.mutation.lane_lifecycle.core import is_ancestor
@@ -42,12 +42,8 @@ SSH_SIGNING_TRANSPORT_TIMEOUT_SECONDS = 5.0
 def _ssh_agent_has_signing_key(key: str, *, env: dict[str, str] | None = None) -> bool:
     try:
         completed = subprocess.run(
-            ["ssh-add", "-T", key],
-            check=False,
-            text=True,
-            capture_output=True,
-            timeout=SSH_SIGNING_TRANSPORT_TIMEOUT_SECONDS,
-            env=env,
+            ["ssh-add", "-T", key], check=False, text=True, capture_output=True,
+            timeout=SSH_SIGNING_TRANSPORT_TIMEOUT_SECONDS, env=env,
         )
     except (OSError, subprocess.TimeoutExpired):
         return False
@@ -60,10 +56,7 @@ def ssh_signing_transport_ready(key: str) -> bool:
         return True
     try:
         completed = subprocess.run(
-            ["launchctl", "getenv", "SSH_AUTH_SOCK"],
-            check=False,
-            text=True,
-            capture_output=True,
+            ["launchctl", "getenv", "SSH_AUTH_SOCK"], check=False, text=True, capture_output=True,
             timeout=SSH_SIGNING_TRANSPORT_TIMEOUT_SECONDS,
         )
     except (OSError, subprocess.TimeoutExpired):
@@ -76,21 +69,12 @@ def _signing_preflight_gaps(root: Path, *, runtime: LaneRefreshRuntime) -> list[
     def config(key: str) -> str:
         return str(runtime.run_git(root, "config", "--get", key, check=False).stdout).strip()
 
-    if config("commit.gpgsign").casefold() not in {"true", "yes", "on", "1"}:
+    if (config("commit.gpgsign").casefold() not in {"true", "yes", "on", "1"}
+            or config("gpg.format").casefold() != "ssh"):
         return []
-    if config("gpg.format").casefold() != "ssh":
-        return []
-    signing_key = config("user.signingkey")
-    parts = signing_key.split(maxsplit=2)
-    try:
-        inline = len(parts) >= 2 and parts[0].startswith(("ssh-", "ecdsa-", "sk-")) and bool(
-            base64.b64decode(parts[1], validate=True)
-        )
-    except (ValueError, binascii.Error):
-        inline = False
-    key_path = Path(signing_key).expanduser()
+    key_path = Path(config("user.signingkey")).expanduser()
     key_path = key_path if key_path.is_absolute() else root / key_path
-    if not signing_key or inline or not key_path.is_file():
+    if not key_path.is_file():
         return []
     public_key = key_path if key_path.suffix.casefold() == ".pub" else key_path.with_name(
         f"{key_path.name}.pub"
@@ -118,32 +102,19 @@ def bootstrap_candidate(
     policy = active_runtime.load_branch_role_policy(repo)
     status = active_runtime.workspace_status(repo)
     current_head = active_runtime.run_git(repo, "rev-parse", "HEAD").stdout.strip()
-    target = (
-        path or active_runtime.default_candidate_path(repo, policy.candidate_branch)
-    ).resolve()
+    target = (path or active_runtime.default_candidate_path(repo, policy.candidate_branch)
+              ).resolve()
 
     def report(*, ok: bool, state: str, gaps: list[str], **details: object) -> dict[str, object]:
-        return _refresh_report(
-            ok=ok,
-            state=state,
-            branch=policy.candidate_branch,
-            head=current_head,
-            gaps=gaps,
-            **details,
-        )
+        return _refresh_report(ok=ok, state=state, branch=policy.candidate_branch,
+                               head=current_head, gaps=gaps, **details)
 
     details = {"path": target.as_posix()}
-    gaps = [
-        gap
-        for gap, present in (
-            (
-                "candidate_bootstrap_requires_clean_accepted_root",
-                status["role"] != ROLE_ACCEPTED_ROOT or status["dirty"],
-            ),
-            ("expect_head_mismatch", expect_head is not None and expect_head != current_head),
-        )
-        if present
-    ]
+    gaps = [gap for gap, present in (
+        ("candidate_bootstrap_requires_clean_accepted_root",
+         status["role"] != ROLE_ACCEPTED_ROOT or status["dirty"]),
+        ("expect_head_mismatch", expect_head is not None and expect_head != current_head),
+    ) if present]
     if gaps:
         return report(ok=False, state="blocked", gaps=gaps, **details)
     candidate = cast("dict[str, object]", status["candidate"])
@@ -154,28 +125,17 @@ def bootstrap_candidate(
     if target.exists():
         return report(ok=False, state="blocked", gaps=["candidate_worktree_path_exists"], **details)
     if not candidate["exists"]:
-        completed = active_runtime.run_git(
-            repo, "branch", policy.candidate_branch, current_head, check=False
-        )
+        completed = active_runtime.run_git(repo, "branch", policy.candidate_branch, current_head,
+                                           check=False)
         if completed.returncode != 0:
-            return report(
-                ok=False,
-                state="blocked",
-                gaps=["candidate_bootstrap_failed"],
-                stderr=completed.stderr.strip(),
-                **details,
-            )
-    completed = active_runtime.run_git(
-        repo, "worktree", "add", target.as_posix(), policy.candidate_branch, check=False
-    )
+            return report(ok=False, state="blocked", gaps=["candidate_bootstrap_failed"],
+                          stderr=completed.stderr.strip(), **details)
+    completed = active_runtime.run_git(repo, "worktree", "add", target.as_posix(),
+                                       policy.candidate_branch, check=False)
     failed = completed.returncode != 0
-    return report(
-        ok=not failed,
-        state="blocked" if failed else "bootstrapped",
-        gaps=["candidate_worktree_add_failed"] if failed else [],
-        stderr=completed.stderr.strip() if failed else "",
-        **details,
-    )
+    return report(ok=not failed, state="blocked" if failed else "bootstrapped",
+                  gaps=["candidate_worktree_add_failed"] if failed else [],
+                  stderr=completed.stderr.strip() if failed else "", **details)
 
 
 def _apply_gaps(
@@ -248,16 +208,9 @@ def refresh_candidate_from_accepted(
     candidate_path = str(candidate.get("worktree_path") or "")
 
     def report(*, ok: bool, state: str, gaps: list[str], **more: object) -> dict[str, object]:
-        return _refresh_report(
-            ok=ok,
-            state=state,
-            branch=policy.candidate_branch,
-            head=current_head,
-            gaps=gaps,
-            previous_head=candidate_head,
-            path=candidate_path,
-            **more,
-        )
+        return _refresh_report(ok=ok, state=state, branch=policy.candidate_branch,
+                               head=current_head, gaps=gaps, previous_head=candidate_head,
+                               path=candidate_path, **more)
 
     gaps: list[str] = []
     if status["role"] != ROLE_ACCEPTED_ROOT:
@@ -265,14 +218,8 @@ def refresh_candidate_from_accepted(
     elif status["dirty"]:
         gaps.append("accepted_root_dirty")
     gaps.extend(_candidate_worktree_gaps(candidate, candidate_path, runtime=active_runtime))
-    gaps.extend(
-        _apply_gaps(
-            apply=apply,
-            authorized=authorized,
-            expect_head=expect_head,
-            current_head=current_head,
-        )
-    )
+    gaps.extend(_apply_gaps(apply=apply, authorized=authorized, expect_head=expect_head,
+                            current_head=current_head))
     if gaps:
         return report(ok=False, state="blocked", gaps=gaps)
     if candidate_head == current_head:
@@ -283,20 +230,11 @@ def refresh_candidate_from_accepted(
     # accepted branch, so the reference-transaction hook's candidate admission admits it
     # without a fresh proof (see _contained_in_accepted); no ref-move escape is needed now
     # that the ETHOS_ALLOW_REF_MOVE bypass has been removed from the candidate train.
-    completed = active_runtime.run_git(
-        Path(candidate_path),
-        "reset",
-        "--hard",
-        current_head,
-        check=False,
-    )
+    completed = active_runtime.run_git(Path(candidate_path), "reset", "--hard", current_head,
+                                       check=False)
     if completed.returncode != 0:
-        return report(
-            ok=False,
-            state="blocked",
-            gaps=["candidate_refresh_from_accepted_failed"],
-            stderr=completed.stderr.strip(),
-        )
+        return report(ok=False, state="blocked", gaps=["candidate_refresh_from_accepted_failed"],
+                      stderr=completed.stderr.strip())
     return report(ok=True, state="refreshed_from_accepted", gaps=[])
 
 
@@ -317,18 +255,13 @@ def refresh_work_lane_base(
     candidate_head = str(candidate.get("head") or "")
     candidate_path = str(candidate.get("worktree_path") or "")
 
-    def report(*, ok: bool, state: str, head: str, gaps: list[str], **more: object) -> dict[str, object]:
-        return _refresh_report(
-            ok=ok,
-            state=state,
-            branch=branch,
-            head=head,
-            gaps=gaps,
-            candidate_branch=policy.candidate_branch,
-            candidate_head=candidate_head,
-            candidate_path=candidate_path,
-            **more,
-        )
+    def report(
+        *, ok: bool, state: str, head: str, gaps: list[str], **more: object
+    ) -> dict[str, object]:
+        return _refresh_report(ok=ok, state=state, branch=branch, head=head, gaps=gaps,
+                               candidate_branch=policy.candidate_branch,
+                               candidate_head=candidate_head,
+                               candidate_path=candidate_path, **more)
 
     gaps: list[str] = []
     if status["role"] != ROLE_WORK_LANE:
@@ -336,14 +269,8 @@ def refresh_work_lane_base(
     elif status["dirty"]:
         gaps.append("work_lane_dirty")
     gaps.extend(_candidate_worktree_gaps(candidate, candidate_path, runtime=active_runtime))
-    gaps.extend(
-        _apply_gaps(
-            apply=apply,
-            authorized=authorized,
-            expect_head=expect_head,
-            current_head=current_head,
-        )
-    )
+    gaps.extend(_apply_gaps(apply=apply, authorized=authorized, expect_head=expect_head,
+                            current_head=current_head))
     if gaps:
         return report(ok=False, state="blocked", head=current_head, gaps=gaps)
     if active_runtime.is_ancestor(root, candidate_head, current_head):
@@ -353,114 +280,114 @@ def refresh_work_lane_base(
     signing_gaps = _signing_preflight_gaps(root, runtime=active_runtime)
     if signing_gaps:
         return report(ok=False, state="blocked", head=current_head, gaps=signing_gaps)
-    snapshot_gaps = [
-        f"refresh_base_snapshot_stale:{name}"
-        for name, ref, admitted in (
+    return _replay_work_lane(
+        root=root, snapshot=(branch, policy.candidate_branch, candidate_head, current_head),
+        runtime=active_runtime, report=report,
+    )
+
+
+def _replay_work_lane(
+    *, root: Path, snapshot: tuple[str, str, str, str],
+    runtime: LaneRefreshRuntime, report: Callable[..., dict[str, object]],
+) -> dict[str, object]:
+    branch, candidate_branch, candidate_head, current_head = snapshot
+    snapshot_gaps: list[str] = [
+        f"refresh_base_snapshot_stale:{name}" for name, ref, admitted in (
             ("work_lane", "HEAD", current_head),
-            ("candidate", policy.candidate_branch, candidate_head),
-        )
-        if _ref_head(root, ref, runtime=active_runtime) != admitted
+            ("candidate", candidate_branch, candidate_head),
+        ) if _ref_head(root, ref, runtime=runtime) != admitted
     ]
     if snapshot_gaps:
         return report(ok=False, state="blocked", head=current_head, gaps=snapshot_gaps)
-    completed = active_runtime.run_git(
-        root,
-        "-c",
-        "rebase.updateRefs=false",
-        "rebase",
-        candidate_head,
-        current_head,
-        check=False,
-    )
-    projection_resolution = resolve_projection_rebase(root, completed, runtime=active_runtime)
+    completed = runtime.run_git(root, "-c", "rebase.updateRefs=false", "rebase", candidate_head,
+                                current_head, check=False)
+    projection_resolution = resolve_projection_rebase(root, completed, runtime=runtime)
     projection_recovered = completed.returncode != 0 and projection_resolution["ok"]
     if completed.returncode != 0 and not projection_recovered:
-        active_runtime.run_git(root, "rebase", "--abort", check=False)
-        restored = active_runtime.run_git(root, "switch", branch, check=False)
+        runtime.run_git(root, "rebase", "--abort", check=False)
+        restored = runtime.run_git(root, "switch", branch, check=False)
         return report(
             ok=False,
             state="blocked",
-            head=_ref_head(root, "HEAD", runtime=active_runtime),
+            head=_ref_head(root, "HEAD", runtime=runtime),
             gaps=[
                 "refresh_base_failed",
                 *([] if restored.returncode == 0 else ["refresh_base_worktree_restore_failed"]),
             ],
             stderr=str(projection_resolution["stderr"] or completed.stderr).strip(),
         )
-    rebased_head = _ref_head(root, "HEAD", runtime=active_runtime)
-    if not active_runtime.is_ancestor(root, candidate_head, rebased_head):
-        active_runtime.run_git(root, "switch", branch, check=False)
-        return report(
-            ok=False,
-            state="blocked",
-            head=_ref_head(root, "HEAD", runtime=active_runtime),
-            gaps=["refresh_base_postcondition_failed"],
-            previous_head=current_head,
-            next_actions=[
-                "inspect current Git ancestry and runner, signing, or hook diagnostics",
-                "repair the replay environment and rerun ethos lane refresh-base",
-            ],
-            stderr="candidate head is not an ancestor of refreshed work-lane head",
+
+    def finish(rebased_head: str) -> dict[str, object]:
+        if not runtime.is_ancestor(root, candidate_head, rebased_head):
+            runtime.run_git(root, "switch", branch, check=False)
+            return report(
+                ok=False,
+                state="blocked",
+                head=_ref_head(root, "HEAD", runtime=runtime),
+                gaps=["refresh_base_postcondition_failed"],
+                previous_head=current_head,
+                next_actions=[
+                    "inspect current Git ancestry and runner, signing, or hook diagnostics",
+                    "repair the replay environment and rerun ethos lane refresh-base",
+                ],
+                stderr="candidate head is not an ancestor of refreshed work-lane head",
+            )
+        updated = runtime.run_git(
+            root,
+            "update-ref",
+            f"refs/heads/{branch}",
+            rebased_head,
+            current_head,
+            check=False,
         )
-    updated = active_runtime.run_git(
-        root,
-        "update-ref",
-        f"refs/heads/{branch}",
-        rebased_head,
-        current_head,
-        check=False,
-    )
-    if updated.returncode != 0:
-        restored = active_runtime.run_git(root, "switch", branch, check=False)
-        return report(
-            ok=False,
-            state="blocked",
-            head=_ref_head(root, "HEAD", runtime=active_runtime),
-            gaps=[
-                "refresh_base_snapshot_stale:work_lane",
-                *([] if restored.returncode == 0 else ["refresh_base_worktree_restore_failed"]),
-            ],
-            previous_head=current_head,
-            stderr=updated.stderr.strip(),
-        )
-    attached = active_runtime.run_git(root, "switch", branch, check=False)
-    if attached.returncode != 0:
-        return report(
-            ok=False,
-            state="blocked",
-            head=rebased_head,
-            gaps=["refresh_base_worktree_attach_failed"],
-            previous_head=current_head,
-            stderr=attached.stderr.strip(),
-        )
-    refreshed_head = _ref_head(root, "HEAD", runtime=active_runtime)
-    if refreshed_head != rebased_head:
-        return report(
-            ok=False,
-            state="blocked",
-            head=refreshed_head,
-            gaps=["refresh_base_snapshot_stale:work_lane"],
-            previous_head=current_head,
-            stderr="work-lane branch advanced after refresh compare-and-swap",
-        )
-    result = report(
-        ok=True,
-        state="base_refreshed",
-        head=refreshed_head,
-        gaps=[],
-        previous_head=current_head,
-    )
-    if projection_recovered:
-        semantic = "semantic_ledger_merged:source_budget_debt" in projection_resolution["gaps"]
-        result.update(
-            {
-                "state": "base_refreshed" if semantic else "base_refreshed_projection_stale",
-                "projection_refresh_required": not semantic,
-                "projection_refresh_gaps": projection_resolution["gaps"],
-                "stale_projection_paths": projection_resolution["paths"],
-                "next_actions": projection_resolution["next_actions"]
-                + ["ethos prove --execute --expect-head $(git rev-parse HEAD) --json"],
-            }
-        )
-    return result
+        if updated.returncode != 0:
+            restored = runtime.run_git(root, "switch", branch, check=False)
+            return report(
+                ok=False,
+                state="blocked",
+                head=_ref_head(root, "HEAD", runtime=runtime),
+                gaps=[
+                    "refresh_base_snapshot_stale:work_lane",
+                    *([] if restored.returncode == 0 else ["refresh_base_worktree_restore_failed"]),
+                ],
+                previous_head=current_head,
+                stderr=updated.stderr.strip(),
+            )
+        attached = runtime.run_git(root, "switch", branch, check=False)
+        if attached.returncode != 0:
+            return report(
+                ok=False,
+                state="blocked",
+                head=rebased_head,
+                gaps=["refresh_base_worktree_attach_failed"],
+                previous_head=current_head,
+                stderr=attached.stderr.strip(),
+            )
+        refreshed_head = _ref_head(root, "HEAD", runtime=runtime)
+        if refreshed_head != rebased_head:
+            return report(
+                ok=False,
+                state="blocked",
+                head=refreshed_head,
+                gaps=["refresh_base_snapshot_stale:work_lane"],
+                previous_head=current_head,
+                stderr="work-lane branch advanced after refresh compare-and-swap",
+            )
+        result = report(ok=True, state="base_refreshed", head=refreshed_head, gaps=[],
+                        previous_head=current_head)
+        if projection_recovered:
+            semantic = "semantic_ledger_merged:source_budget_debt" in projection_resolution["gaps"]
+            result.update(
+                {
+                    "state": "base_refreshed" if semantic else "base_refreshed_projection_stale",
+                    "projection_refresh_required": not semantic,
+                    "projection_refresh_gaps": projection_resolution["gaps"],
+                    "stale_projection_paths": projection_resolution["paths"],
+                    "next_actions": projection_resolution["next_actions"]
+                    + ["ethos prove --execute --expect-head $(git rev-parse HEAD) --json"],
+                }
+            )
+        return result
+
+    return finish(_ref_head(root, "HEAD", runtime=runtime))
 # fmt: on

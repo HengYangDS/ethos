@@ -1,7 +1,8 @@
 from __future__ import annotations
-# fmt: off
 
+# fmt: off
 import subprocess
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
 import pytest
@@ -124,7 +125,8 @@ def test_existing_work_lane_claim_binding_can_be_applied_without_restarting_lane
         "supported", "branch", "target_branch", "operation", "holder_ref", "lease_epoch",
         "claim_id", "claim_binding", "required_gaps",
     )) == (True, "work/feature", "candidate/dev", "land_to_candidate", "agent:test:case:agent-test", 1, "sample-trust", "bound", [])
-    assert closeout["target_path"] == candidate.as_posix() and closeout["lease_id"]
+    assert closeout["target_path"] == candidate.as_posix()
+    assert closeout["lease_id"]
 
 
 def test_prewrite_rejects_tracked_path_from_accepted_root(tmp_path: Path) -> None:
@@ -567,35 +569,22 @@ def test_refresh_work_lane_base_blocks_unavailable_file_backed_ssh_before_rebase
     previous_head = git(worktree, "rev-parse", "HEAD")
     original_run_git = lane_mutation.run_git
     rebase_calls: list[tuple[str, ...]] = []
+    values = {"commit.gpgsign": "true", "gpg.format": "ssh", "user.signingkey": "keys/signing-key"}
 
-    def record_rebase(root: Path, *args: str, **kwargs: object) -> subprocess.CompletedProcess[str]:
+    def signing_git(root: Path, *args: str, **kwargs: object) -> subprocess.CompletedProcess[str]:
+        if args[:2] == ("config", "--get"):
+            return subprocess.CompletedProcess(["git", *args], 0, values.get(args[-1], ""), "")
         if "rebase" in args:
             rebase_calls.append(args)
             return subprocess.CompletedProcess(["git", *args], 0, "", "")
         return original_run_git(root, *args, **kwargs)
 
-    monkeypatch.setattr(lane_mutation, "run_git", record_rebase)
     monkeypatch.setattr(
         lane_refresh, "ssh_signing_transport_ready", lambda _key: False, raising=False
     )
-
-    values = {"commit.gpgsign": "true", "gpg.format": "ssh", "user.signingkey": "keys/signing-key"}
-
-    def signing_config(_root: Path, *args: str, **_kwargs: object) -> subprocess.CompletedProcess[str]:
-        return subprocess.CompletedProcess(["git", *args], 0, values.get(args[-1], ""), "")
-
-    assert lane_refresh._signing_preflight_gaps(
-        worktree, runtime=lane_refresh.LaneRefreshRuntime(run_git=signing_config)
-    ) == ["refresh_signing_transport_unavailable"]
-    monkeypatch.setattr(
-        lane_refresh,
-        "_signing_preflight_gaps",
-        lambda *_args, **_kwargs: ["refresh_signing_transport_unavailable"],
-        raising=False,
-    )
-
-    report = refresh_work_lane_base(
-        root=worktree, apply=True, authorized=True, expect_head=previous_head
+    report = lane_refresh.refresh_work_lane_base(
+        root=worktree, apply=True, authorized=True, expect_head=previous_head,
+        runtime=lane_refresh.LaneRefreshRuntime(run_git=signing_git),
     )
 
     assert report["required_gaps"] == ["refresh_signing_transport_unavailable"]
@@ -620,6 +609,30 @@ def test_refresh_work_lane_base_blocks_snapshot_moved_during_preflight(
 
     assert report["required_gaps"] == ["refresh_base_snapshot_stale:candidate"]
     assert git(worktree, "rev-parse", "HEAD") == previous_head
+
+
+def test_refresh_work_lane_base_rechecks_configured_candidate_ref(tmp_path: Path) -> None:
+    calls: list[tuple[str, ...]] = []
+
+    def run_git(_root: Path, *args: str, **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        calls.append(args)
+        stdout = "moved\n" if args == ("rev-parse", "stage/dev") else "h1\n" if args == ("rev-parse", "HEAD") else ""
+        return subprocess.CompletedProcess(["git", *args], 0, stdout, "")
+
+    runtime = lane_refresh.LaneRefreshRuntime(
+        load_branch_role_policy=lambda _root: SimpleNamespace(candidate_branch="stage/dev"),
+        workspace_status=lambda _root: {
+            "role": "work_lane", "dirty": False, "branch": "work/feature",
+            "candidate": {"exists": True, "worktree_exists": True, "worktree_path": "/tmp/c", "head": "c1"},
+        },
+        changed_paths=lambda _path: [], is_ancestor=lambda *_args: False, run_git=run_git,
+    )
+    report = lane_refresh.refresh_work_lane_base(
+        root=tmp_path, apply=True, authorized=True, expect_head="h1", runtime=runtime,
+    )
+
+    assert report["required_gaps"] == ["refresh_base_snapshot_stale:candidate"]
+    assert ("rev-parse", "stage/dev") in calls
 
 
 def test_refresh_work_lane_base_does_not_overwrite_branch_moved_before_cas(

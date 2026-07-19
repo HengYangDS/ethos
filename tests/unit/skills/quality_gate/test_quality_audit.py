@@ -18,6 +18,13 @@ def _load_quality_audit() -> object:
     return module
 
 
+def test_active_concerns_use_current_json_format_owner() -> None:
+    audit = _load_quality_audit()
+
+    assert audit.ACTIVE_CONCERNS["json_format"] == "tools/ci/scripts/run-config-lint.sh"
+    assert "json_syntax" not in audit.ACTIVE_CONCERNS
+
+
 def test_pyproject_policy_gaps_allow_bootstrap_cache_routing(tmp_path: Path) -> None:
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text(

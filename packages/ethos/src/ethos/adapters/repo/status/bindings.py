@@ -43,19 +43,23 @@ def branch_bindings(
     for branch, role in configured:
         if branch in seen:
             continue
-        bindings.append(_configured_branch_binding(
+        bindings.append(_branch_binding(
             root, branch=branch, role=role, worktree=by_branch.get(branch),
             candidate=candidate if branch == policy.candidate_branch else None,
             lease=lease_by_branch.get(branch, {}),
         ))
         seen.add(branch)
     remaining = [
-        _worktree_branch_binding(item, lease=lease_by_branch.get(item["branch"], {}))
+        _branch_binding(
+            root, branch=item["branch"], role=item["role"], worktree=item,
+            lease=lease_by_branch.get(item["branch"], {}),
+        )
         for item in worktrees if item["branch"] != "detached" and item["branch"] not in seen
     ]
     remaining.extend(
-        _unbound_work_lane_binding(
-            root, branch=branch, head=head, lease=lease_by_branch.get(branch, {})
+        _branch_binding(
+            root, branch=branch, role=ROLE_WORK_LANE, head=head,
+            lease=lease_by_branch.get(branch, {}),
         )
         for branch, head in _work_lane_refs(root, policy=policy)
         if branch not in seen and branch not in by_branch
@@ -129,7 +133,7 @@ def is_ancestor(root: Path, ancestor: str, descendant: str) -> bool:
     return _git(root, "merge-base", "--is-ancestor", ancestor, descendant).returncode == 0
 
 
-def _binding(  # noqa: PLR0913, RUF100 - exact branch binding dimensions
+def _binding(
     branch: str, role: str, head: str, path: str, worktree: str, claim_id: str,
     claim_binding: str,
 ) -> dict[str, str]:
@@ -139,39 +143,27 @@ def _binding(  # noqa: PLR0913, RUF100 - exact branch binding dimensions
     }
 
 
-def _unbound_work_lane_binding(
-    root: Path, *, branch: str, head: str, lease: dict[str, object]
-) -> dict[str, str]:
-    claim_id = lease_claim_id(lease)
-    return _binding(
-        branch, ROLE_WORK_LANE, head or ref_head(root, branch), "", "unbound", claim_id,
-        "bound" if claim_id else "missing",
-    )
-
-
-def _configured_branch_binding(  # noqa: PLR0913, RUF100 - exact bound-state dimensions
-    root: Path, *, branch: str, role: str, worktree: dict[str, str] | None,
-    candidate: dict[str, object] | None, lease: dict[str, object],
+def _branch_binding(
+    root: Path, *, branch: str, role: str, lease: dict[str, object],
+    worktree: dict[str, str] | None = None, candidate: dict[str, object] | None = None,
+    head: str = "",
 ) -> dict[str, str]:
     if worktree is not None:
-        return _worktree_branch_binding(worktree, lease=lease)
-    if candidate is not None:
-        return _binding(
-            branch, role, str(candidate["head"]), str(candidate["worktree_path"]),
-            str(candidate["worktree_binding"]), "", "unbound",
+        branch, role, head, path, binding = (
+            worktree["branch"], worktree["role"], worktree["head"], worktree["path"],
+            worktree["worktree_binding"],
         )
-    head = ref_head(root, branch)
-    return _binding(branch, role, head, "", "unbound" if head else "absent", "", "unbound")
-
-
-def _worktree_branch_binding(
-    worktree: dict[str, str], *, lease: dict[str, object]
-) -> dict[str, str]:
-    claim_id = lease_claim_id(lease)
-    return _binding(
-        worktree["branch"], worktree["role"], worktree["head"], worktree["path"],
-        worktree["worktree_binding"], claim_id, "bound" if claim_id else "missing",
-    )
+    elif candidate is not None:
+        head, path, binding = (
+            str(candidate["head"]), str(candidate["worktree_path"]),
+            str(candidate["worktree_binding"]),
+        )
+    else:
+        head, path = head or ref_head(root, branch), ""
+        binding = "unbound" if head else "absent"
+    claim_id = lease_claim_id(lease) if role == ROLE_WORK_LANE else ""
+    claim_binding = "bound" if claim_id else "missing" if role == ROLE_WORK_LANE else "unbound"
+    return _binding(branch, role, head, path, binding, claim_id, claim_binding)
 
 
 def worktree_binding(path: str, *, current_path: Path) -> str:
@@ -214,36 +206,29 @@ def _json_projection_leases(control_root: Path) -> list[dict[str, object]]:
     rows = payload.get("leases") if isinstance(payload, dict) else []
     if not isinstance(rows, list):
         return []
-    now = datetime.now(UTC)
-    return [lease for row in rows if (lease := _json_projection_lease(row, now=now))]
-
-
-def _json_projection_lease(row: object, *, now: datetime) -> dict[str, object]:
-    if not isinstance(row, dict):
-        return {}
-    branch = str(row.get("branch") or row.get("subject") or "")
-    owner, expires_at = str(row.get("owner") or ""), str(row.get("expires_at") or "")
-    if not branch or not owner or not _lease_expires_after(expires_at, now=now):
-        return {}
-    return {
-        "id": str(row.get("id") or f"json:{branch}"), "subject": branch,
-        "owner": owner, "expires_at": expires_at,
-        "payload": {
-            "branch": branch, "claim_id": str(row.get("claim_id") or ""),
-            "path": str(row.get("worktree_path") or row.get("path") or ""),
-            "session_id": str(row.get("session_id") or ""),
-        },
-    }
-
-
-def _lease_expires_after(value: str, *, now: datetime) -> bool:
-    try:
-        expires_at = datetime.fromisoformat(value)
-    except ValueError:
-        return False
-    if expires_at.tzinfo is None:
-        expires_at = expires_at.replace(tzinfo=UTC)
-    return expires_at > now
+    leases, now = [], datetime.now(UTC)
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        branch = str(row.get("branch") or row.get("subject") or "")
+        owner, expires_at = str(row.get("owner") or ""), str(row.get("expires_at") or "")
+        try:
+            expiry = datetime.fromisoformat(expires_at)
+        except ValueError:
+            continue
+        expiry = expiry if expiry.tzinfo else expiry.replace(tzinfo=UTC)
+        if not branch or not owner or expiry <= now:
+            continue
+        leases.append({
+            "id": str(row.get("id") or f"json:{branch}"), "subject": branch,
+            "owner": owner, "expires_at": expires_at,
+            "payload": {
+                "branch": branch, "claim_id": str(row.get("claim_id") or ""),
+                "path": str(row.get("worktree_path") or row.get("path") or ""),
+                "session_id": str(row.get("session_id") or ""),
+            },
+        })
+    return leases
 
 
 def lease_claim_id(lease: dict[str, object]) -> str:

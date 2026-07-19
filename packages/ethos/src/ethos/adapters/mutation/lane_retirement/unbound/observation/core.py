@@ -1,7 +1,5 @@
 """Fresh repository observations for exceptional unbound Work Lane retirement."""
 
-from __future__ import annotations
-
 import hashlib
 import json
 import os
@@ -9,9 +7,11 @@ import stat
 import subprocess
 import tomllib
 from pathlib import Path
+from typing import Any
 from typing import cast
 
 from ethos.adapters.repo.status.bindings import leases_by_branch
+from ethos.adapters.repo.status.bindings import ref_head
 from ethos.adapters.repo.status.core import workspace_status
 from ethos_core.contracts.branch.roles import load_branch_role_policy
 
@@ -22,116 +22,135 @@ HAS_LOCAL_CLAIM = "has_local_claim"
 HAS_ACCEPTED_CLAIM = "has_accepted_claim"
 
 
+def _keys(value: str) -> tuple[str, ...]:
+    return tuple(value.split())
+
+
+def _data(**values: Any) -> dict[str, Any]:
+    return values
+
+
+_CHRONICLE_TEXT = _keys(
+    "sha256 accepted_sha256 event target_branch target_head target_claim "
+    "claim_sha256 claim_accepted_sha256"
+)
+_CHRONICLE_FLAGS = (
+    HAS_LOCAL_CHRONICLE,
+    HAS_ACCEPTED_CHRONICLE,
+    "byte_identical_to_accepted",
+    HAS_LOCAL_CLAIM,
+    HAS_ACCEPTED_CLAIM,
+    "claim_byte_identical_to_accepted",
+    "claim_id_matches_target",
+    "claim_active",
+)
+_PUBLIC_KEYS = _keys(
+    "branch head accepted_head protected_refs status_unbound worktree_binding "
+    "relation_to_accepted claim_id claim_binding active_lease has_active_lease "
+    "chronicle observation_sha256"
+)
+_BINDING_KEYS = _keys(
+    "head accepted_head protected_refs status_unbound worktree_binding "
+    "relation_to_accepted claim_id claim_binding has_active_lease chronicle"
+)
+_CHRONICLE_BINDING_KEYS = _keys(
+    "ref sha256 accepted_sha256 event target_branch target_head target_claim "
+    "claim_sha256 claim_accepted_sha256 byte_identical_to_accepted "
+    "claim_byte_identical_to_accepted has_accepted_chronicle has_accepted_claim"
+)
+
+
 def observe(repo: Path, *, branch: str, chronicle_ref: str) -> dict[str, object]:
     """Observe the exact target, policy, lease, and protected-ref state."""
-    status = workspace_status(repo)
-    policy = load_branch_role_policy(repo)
-    current = unbound_work_lane_ref(status, branch)
-    binding = branch_binding(status, branch)
+    status, branch_policy = workspace_status(repo), load_branch_role_policy(repo)
+    current, binding = unbound_work_lane_ref(status, branch), branch_binding(status, branch)
     worktrees = status.get("worktrees")
-    typed_worktrees = cast("list[dict[str, str]]", worktrees) if isinstance(worktrees, list) else []
-    active_lease = leases_by_branch(typed_worktrees, current_path=repo).get(branch, {})
-    payload: dict[str, object] = {
-        "branch": branch,
-        "head": ref_head(repo, branch),
-        "accepted_head": ref_head(repo, policy.accepted_branch),
-        "protected_refs": {
-            ref: ref_head(repo, ref)
-            for ref in protected_refs(
-                policy.release_branch, policy.accepted_branch, policy.candidate_branch
-            )
-        },
-        "status_unbound": current is not None,
-        "worktree_binding": str((binding or {}).get("worktree_binding") or ""),
-        "relation_to_accepted": str((current or {}).get("relation_to_accepted") or ""),
-        "claim_id": str((current or {}).get("claim_id") or ""),
-        "claim_binding": str((current or {}).get("claim_binding") or ""),
-        "active_lease": public_lease(active_lease),
-        HAS_ACTIVE_LEASE: bool(active_lease),
-        "chronicle": chronicle_observation(
-            repo,
-            accepted_branch=policy.accepted_branch,
-            chronicle_ref=chronicle_ref,
+    typed = cast("list[dict[str, str]]", worktrees) if isinstance(worktrees, list) else []
+    active_lease = leases_by_branch(typed, current_path=repo).get(branch, {})
+    refs = protected_refs(
+        branch_policy.release_branch, branch_policy.accepted_branch, branch_policy.candidate_branch
+    )
+    payload = _data(branch=branch, head=ref_head(repo, branch))
+    payload |= _data(accepted_head=ref_head(repo, branch_policy.accepted_branch))
+    payload |= _data(protected_refs={ref: ref_head(repo, ref) for ref in refs})
+    payload |= _data(status_unbound=current is not None)
+    payload |= _data(worktree_binding=str((binding or {}).get("worktree_binding") or ""))
+    payload |= _data(relation_to_accepted=str((current or {}).get("relation_to_accepted") or ""))
+    payload |= _data(claim_id=str((current or {}).get("claim_id") or ""))
+    payload |= _data(claim_binding=str((current or {}).get("claim_binding") or ""))
+    payload |= _data(active_lease=public_lease(active_lease), has_active_lease=bool(active_lease))
+    payload |= _data(
+        chronicle=chronicle_observation(
+            repo, accepted_branch=branch_policy.accepted_branch, chronicle_ref=chronicle_ref
         ),
-        "status": status,
-    }
+        status=status,
+    )
     payload["observation_sha256"] = sha256(public_observation(payload))
     return payload
 
 
 def protected_refs(release: str, accepted: str, candidate: str) -> tuple[str, ...]:
-    """Return the distinct protected refs whose stability the effect requires."""
+    """Return distinct protected refs required to remain stable."""
     return tuple(dict.fromkeys((release, accepted, candidate)))
 
 
-def chronicle_observation(
-    repo: Path,
-    *,
-    accepted_branch: str,
-    chronicle_ref: str,
-) -> dict[str, object]:
-    """Read a local Chronicle and compare it with the accepted policy bytes."""
-    path = chronicle_path(repo, chronicle_ref)
-    observation: dict[str, object] = {
-        "ref": chronicle_ref,
-        "path_valid": path is not None,
-        HAS_LOCAL_CHRONICLE: False,
-        HAS_ACCEPTED_CHRONICLE: False,
-        "byte_identical_to_accepted": False,
-        "sha256": "",
-        "accepted_sha256": "",
-        "event": "",
-        "target_branch": "",
-        "target_head": "",
-        "target_claim": "",
-        HAS_LOCAL_CLAIM: False,
-        HAS_ACCEPTED_CLAIM: False,
-        "claim_byte_identical_to_accepted": False,
-        "claim_sha256": "",
-        "claim_accepted_sha256": "",
-        "claim_id_matches_target": False,
-        "claim_active": False,
-    }
-    if path is None:
-        return observation
+def _chronicle(ref: str, *, valid: bool) -> dict[str, Any]:
+    return (
+        _data(ref=ref, path_valid=valid)
+        | dict.fromkeys(_CHRONICLE_FLAGS, False)
+        | dict.fromkeys(_CHRONICLE_TEXT, "")
+    )
+
+
+def _regular_bytes(path: Path) -> bytes | None:
     try:
-        if not stat.S_ISREG(os.lstat(path).st_mode):
-            return observation
-        local = path.read_bytes()
+        return path.read_bytes() if stat.S_ISREG(os.lstat(path).st_mode) else None
     except OSError:
-        return observation
-    observation[HAS_LOCAL_CHRONICLE] = True
-    observation["sha256"] = hashlib.sha256(local).hexdigest()
-    observation.update(chronicle_fields(local))
+        return None
+
+
+def chronicle_observation(
+    repo: Path, *, accepted_branch: str, chronicle_ref: str
+) -> dict[str, object]:
+    """Read a local Chronicle and compare it with accepted policy bytes."""
+    path = chronicle_path(repo, chronicle_ref)
+    result = _chronicle(chronicle_ref, valid=path is not None)
+    local = _regular_bytes(path) if path else None
+    if local is None:
+        return result
+    result.update(_data(has_local_chronicle=True, sha256=hashlib.sha256(local).hexdigest()))
+    result.update(chronicle_fields(local))
     accepted = git_show_bytes(repo, f"{accepted_branch}:{chronicle_ref}")
     if accepted is None:
-        return observation
-    observation[HAS_ACCEPTED_CHRONICLE] = True
-    observation["accepted_sha256"] = hashlib.sha256(accepted).hexdigest()
-    observation["byte_identical_to_accepted"] = accepted == local
-    observation.update(
-        claim_observation(
-            repo,
-            accepted_branch=accepted_branch,
-            claim_id=str(observation["target_claim"]),
+        return result
+    result.update(
+        _data(
+            has_accepted_chronicle=True,
+            accepted_sha256=hashlib.sha256(accepted).hexdigest(),
+            byte_identical_to_accepted=accepted == local,
         )
     )
-    return observation
+    result.update(
+        claim_observation(
+            repo, accepted_branch=accepted_branch, claim_id=str(result["target_claim"])
+        )
+    )
+    return result
 
 
 def chronicle_path(repo: Path, chronicle_ref: str) -> Path | None:
     """Accept only a regular Chronicle path under the local evidence root."""
-    if not chronicle_ref:
-        return None
     candidate = Path(chronicle_ref)
     if (
-        candidate.is_absolute()
-        or any(part in {"", ".", ".."} for part in candidate.parts)
+        not chronicle_ref
+        or candidate.is_absolute()
         or not chronicle_ref.startswith("evidence/chronicle/")
     ):
         return None
-    path = repo / candidate
+    if any(part in {"", ".", ".."} for part in candidate.parts):
+        return None
     try:
+        path = repo / candidate
         return path if path.resolve().is_relative_to(repo.resolve()) else None
     except OSError:
         return None
@@ -140,58 +159,61 @@ def chronicle_path(repo: Path, chronicle_ref: str) -> Path | None:
 def chronicle_fields(payload: bytes) -> dict[str, str]:
     """Extract the narrow target binding fields from a Chronicle."""
     try:
-        text = payload.decode("utf-8")
+        lines = payload.decode("utf-8").splitlines()
     except UnicodeDecodeError:
         return {}
-    fields: dict[str, str] = {}
-    for line in text.splitlines():
-        key, separator, value = line.partition(":")
-        if separator and key in {"event", "target_branch", "target_head", "target_claim"}:
-            fields[key] = value.strip()
-    return fields
-
-
-def claim_observation(
-    repo: Path,
-    *,
-    accepted_branch: str,
-    claim_id: str,
-) -> dict[str, object]:
-    """Compare the named active Claim with its accepted branch bytes."""
-    relative = claim_ref(claim_id)
-    observation: dict[str, object] = {
-        HAS_LOCAL_CLAIM: False,
-        HAS_ACCEPTED_CLAIM: False,
-        "claim_byte_identical_to_accepted": False,
-        "claim_sha256": "",
-        "claim_accepted_sha256": "",
-        "claim_id_matches_target": False,
-        "claim_active": False,
+    fields = (line.partition(":") for line in lines)
+    return {
+        key: value.strip()
+        for key, separator, value in fields
+        if separator and key in {"event", "target_branch", "target_head", "target_claim"}
     }
-    if relative is None:
-        return observation
-    path = repo / relative
-    try:
-        if not stat.S_ISREG(os.lstat(path).st_mode):
-            return observation
-        local = path.read_bytes()
-        payload = tomllib.loads(local.decode("utf-8"))
-    except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError):
-        return observation
-    claim = payload.get("claim") if isinstance(payload, dict) else {}
-    observation[HAS_LOCAL_CLAIM] = True
-    observation["claim_sha256"] = hashlib.sha256(local).hexdigest()
-    observation["claim_id_matches_target"] = (
-        isinstance(claim, dict) and str(claim.get("id") or "") == claim_id
+
+
+def _claim() -> dict[str, object]:
+    flags = _keys(
+        "has_local_claim has_accepted_claim claim_byte_identical_to_accepted "
+        "claim_id_matches_target claim_active"
     )
-    observation["claim_active"] = isinstance(claim, dict) and claim.get("state") == "active"
+    return cast(
+        "dict[str, object]",
+        dict.fromkeys(flags, False)
+        | dict.fromkeys(_keys("claim_sha256 claim_accepted_sha256"), ""),
+    )
+
+
+def claim_observation(repo: Path, *, accepted_branch: str, claim_id: str) -> dict[str, object]:
+    """Compare the named active Claim with its accepted branch bytes."""
+    result, relative = _claim(), claim_ref(claim_id)
+    local = _regular_bytes(repo / relative) if relative else None
+    if local is None:
+        return result
+    try:
+        payload = tomllib.loads(local.decode("utf-8"))
+    except (UnicodeDecodeError, tomllib.TOMLDecodeError):
+        return result
+    if not isinstance(payload, dict):
+        return result
+    claim = payload.get("claim")
+    result.update(
+        _data(
+            has_local_claim=True,
+            claim_sha256=hashlib.sha256(local).hexdigest(),
+            claim_id_matches_target=isinstance(claim, dict)
+            and str(claim.get("id") or "") == claim_id,
+            claim_active=isinstance(claim, dict) and claim.get("state") == "active",
+        )
+    )
     accepted = git_show_bytes(repo, f"{accepted_branch}:{relative}")
-    if accepted is None:
-        return observation
-    observation[HAS_ACCEPTED_CLAIM] = True
-    observation["claim_accepted_sha256"] = hashlib.sha256(accepted).hexdigest()
-    observation["claim_byte_identical_to_accepted"] = accepted == local
-    return observation
+    if accepted is not None:
+        result.update(
+            _data(
+                has_accepted_claim=True,
+                claim_accepted_sha256=hashlib.sha256(accepted).hexdigest(),
+                claim_byte_identical_to_accepted=accepted == local,
+            )
+        )
+    return result
 
 
 def claim_ref(claim_id: str) -> str | None:
@@ -201,114 +223,62 @@ def claim_ref(claim_id: str) -> str | None:
 
 
 def git_show_bytes(repo: Path, ref: str) -> bytes | None:
-    """Return exact Git object bytes without turning a read failure into authority."""
+    """Return exact Git object bytes without turning read failure into authority."""
     completed = subprocess.run(["git", "show", ref], cwd=repo, check=False, capture_output=True)
     return completed.stdout if completed.returncode == 0 else None
 
 
-def public_observation(observation: dict[str, object]) -> dict[str, object]:
-    """Project only the facts bound into an exceptional operation."""
+def _project(
+    source: dict[str, Any], keys: tuple[str, ...], *, present: bool = False
+) -> dict[str, object]:
     return {
-        key: observation[key]
-        for key in (
-            "branch",
-            "head",
-            "accepted_head",
-            "protected_refs",
-            "status_unbound",
-            "worktree_binding",
-            "relation_to_accepted",
-            "claim_id",
-            "claim_binding",
-            "active_lease",
-            HAS_ACTIVE_LEASE,
-            "chronicle",
-            "observation_sha256",
-        )
-        if key in observation
+        key: source[key] if present else source.get(key, "")
+        for key in keys
+        if not present or key in source
     }
 
 
-def operation_bindings(observation: dict[str, object]) -> dict[str, object]:
+def public_observation(value: dict[str, object]) -> dict[str, object]:
+    """Project only facts bound into an exceptional operation."""
+    return _project(value, _PUBLIC_KEYS, present=True)
+
+
+def operation_bindings(value: dict[str, object]) -> dict[str, object]:
     """Return every fact whose drift invalidates the admitted operation."""
-    return {
-        key: observation[key]
-        for key in (
-            "head",
-            "accepted_head",
-            "protected_refs",
-            "status_unbound",
-            "worktree_binding",
-            "relation_to_accepted",
-            "claim_id",
-            "claim_binding",
-            HAS_ACTIVE_LEASE,
-            "chronicle",
-        )
-    }
+    return _project(value, _BINDING_KEYS, present=True)
 
 
 def chronicle_binding(source: dict[str, object]) -> dict[str, object]:
-    """Project accepted Chronicle and Claim facts for operation identity checks."""
+    """Project accepted Chronicle and Claim facts for identity checks."""
     chronicle = source.get("chronicle") if "chronicle" in source else source
-    record = cast("dict[str, object]", chronicle) if isinstance(chronicle, dict) else {}
-    return {
-        key: record.get(key, "")
-        for key in (
-            "ref",
-            "sha256",
-            "accepted_sha256",
-            "event",
-            "target_branch",
-            "target_head",
-            "target_claim",
-            "claim_sha256",
-            "claim_accepted_sha256",
-            "byte_identical_to_accepted",
-            "claim_byte_identical_to_accepted",
-            HAS_ACCEPTED_CHRONICLE,
-            HAS_ACCEPTED_CLAIM,
-        )
-    }
+    record = cast("dict[str, Any]", chronicle) if isinstance(chronicle, dict) else {}
+    return _project(record, _CHRONICLE_BINDING_KEYS)
 
 
 def public_lease(lease: dict[str, object]) -> dict[str, object]:
-    """Project lease facts without exposing storage implementation details."""
-    return {
-        key: lease.get(key, "")
-        for key in ("lease_id", "holder_ref", "epoch", "expected_head", "expires_at")
-    }
+    """Project lease facts without exposing storage details."""
+    return _project(lease, _keys("lease_id holder_ref epoch expected_head expires_at"))
 
 
-def ref_head(repo: Path, ref: str) -> str:
-    """Return a ref head or an empty string when it is absent or unreadable."""
-    completed = subprocess.run(
-        ["git", "rev-parse", "--verify", ref], cwd=repo, check=False, capture_output=True, text=True
+def _entry(items: object, branch: str) -> dict[str, object] | None:
+    if not isinstance(items, list):
+        return None
+    match = next(
+        (item for item in items if isinstance(item, dict) and item.get("branch") == branch), None
     )
-    return completed.stdout.strip() if completed.returncode == 0 else ""
+    return cast("dict[str, object]", match) if match is not None else None
 
 
 def unbound_work_lane_ref(status: dict[str, object], branch: str) -> dict[str, object] | None:
-    """Find one unbound Work Lane reader entry without trusting malformed status."""
+    """Find one unbound Work Lane reader entry."""
     coordination = status.get("coordination")
     refs = coordination.get("unbound_work_lane_refs") if isinstance(coordination, dict) else None
-    if not isinstance(refs, list):
-        return None
-    for ref in refs:
-        if isinstance(ref, dict) and ref.get("branch") == branch:
-            return cast("dict[str, object]", ref)
-    return None
+    return _entry(refs, branch)
 
 
 def branch_binding(status: dict[str, object], branch: str) -> dict[str, object] | None:
     """Find one branch binding without trusting malformed status."""
-    bindings = status.get("branch_bindings")
-    if not isinstance(bindings, list):
-        return None
-    for binding in bindings:
-        if isinstance(binding, dict) and binding.get("branch") == branch:
-            return cast("dict[str, object]", binding)
-    return None
+    return _entry(status.get("branch_bindings"), branch)
 
 
 def sha256(value: object) -> str:

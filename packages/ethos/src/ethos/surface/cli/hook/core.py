@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path  # noqa: TC003 - cyclopts needs runtime types in signatures
+import pathlib  # noqa: TC003 - Cyclopts resolves these runtime annotations.
+from functools import partial
 from typing import Annotated
 from typing import cast
 
@@ -32,14 +33,36 @@ from ethos_core.result import EthosResult
 _ACTIONS = load_command_registry_declaration().actions
 
 
+def _report_result(
+    command: str,
+    report: dict[str, object],
+    summary: dict[str, object],
+    next_actions: tuple[str, ...],
+) -> EthosResult:
+    return EthosResult(
+        command=command,
+        ok=bool(report["ok"]),
+        state=str(report["state"]),
+        summary=summary,
+        required_gaps=tuple(string_sequence(report.get("required_gaps"))),
+        next_actions=next_actions,
+        data=report,
+    )
+
+
+def _decision_action(report: dict[str, object]) -> str:
+    decision = report.get("decision")
+    return str(decision.get("action") or "") if isinstance(decision, dict) else ""
+
+
 @hook_app.command
 def admit(
     layer: str,
-    paths: Annotated[tuple[Path, ...], Parameter(consume_multiple=True)] = (),
+    paths: Annotated[tuple[pathlib.Path, ...], Parameter(consume_multiple=True)] = (),
     *,
     command: Annotated[str, Parameter(name="--command")] = "",
-    editor_root: Annotated[Path | None, Parameter(name="--editor-root")] = None,
-    expected_root: Annotated[Path | None, Parameter(name="--expected-root")] = None,
+    editor_root: Annotated[pathlib.Path | None, Parameter(name="--editor-root")] = None,
+    expected_root: Annotated[pathlib.Path | None, Parameter(name="--expected-root")] = None,
     require_editor_root: bool = False,
     root: RootOption | None = None,
     json_output: JsonFlag = False,
@@ -64,22 +87,15 @@ def admit(
             command=command,
         )
     )
-    decision = report.get("decision", {})
-    decision_action = ""
-    if isinstance(decision, dict):
-        decision_action = str(decision.get("action", ""))
-    result = EthosResult(
-        command="hook admit",
-        ok=bool(report["ok"]),
-        state=str(report["state"]),
-        summary={
+    result = _report_result(
+        "hook admit",
+        report,
+        {
             "layer": report["layer"],
             "role": report["role"],
-            "decision": decision_action,
+            "decision": _decision_action(report),
         },
-        required_gaps=tuple(string_sequence(report.get("required_gaps"))),
-        next_actions=_hook_admit_next_actions(report),
-        data=report,
+        _hook_admit_next_actions(report),
     )
     emit(result, json_output=json_output, enforce=True)
 
@@ -122,7 +138,8 @@ def pre_push(
         github_head=observed_github_head,
         github_main_head=observed_github_main_head,
     )
-    report = push_admission_report(
+    admission = partial(
+        push_admission_report,
         root=repo,
         target_ref=target_ref,
         pushed_head=pushed_head,
@@ -130,36 +147,24 @@ def pre_push(
         remote_name=remote,
         reconciliation=reconciliation,
     )
+    report = admission()
     campaign_publication: dict[str, object] = {}
     if report["ok"]:
         campaign_publication = campaign_publication_report(repo)
-        report = push_admission_report(
-            root=repo,
-            target_ref=target_ref,
-            pushed_head=pushed_head,
-            remote_head=remote_head,
-            remote_name=remote,
-            reconciliation=reconciliation,
-            campaign_publication=campaign_publication,
-        )
-    decision = report.get("decision", {})
-    decision_action = decision.get("action", "") if isinstance(decision, dict) else ""
-    result = EthosResult(
-        command="hook pre-push",
-        ok=bool(report["ok"]),
-        state=str(report["state"]),
-        summary={
+        report = admission(campaign_publication=campaign_publication)
+    result = _report_result(
+        "hook pre-push",
+        report,
+        {
             "target_branch": report["target_branch"],
             "role": report["role"],
             "remote": str(report.get("remote_name", remote)),
-            "decision": decision_action,
+            "decision": _decision_action(report),
             "campaign_publication": campaign_publication.get(
                 "remote_publication_admission", "not_evaluated"
             ),
         },
-        required_gaps=tuple(string_sequence(report.get("required_gaps"))),
-        next_actions=_ACTIONS["head_bound_proof"] if not report["ok"] else (),
-        data=report,
+        _ACTIONS["head_bound_proof"] if not report["ok"] else (),
     )
     emit(result, json_output=json_output, enforce=True)
 
@@ -168,7 +173,7 @@ def pre_push(
 def reconciliation_receipt_command(
     submit_branch: str,
     source_head: str,
-    write_receipt: Annotated[Path, Parameter(name="--write-receipt")],
+    write_receipt: Annotated[pathlib.Path, Parameter(name="--write-receipt")],
     *,
     root: RootOption | None = None,
     json_output: JsonFlag = False,
@@ -179,26 +184,26 @@ def reconciliation_receipt_command(
     if target.is_relative_to(repo):
         error = "reconciliation receipt must be outside the repository root"
         raise ValueError(error)
-    origin_head = git_adapter.git_stdout(repo, "rev-parse", "--verify", "origin/dev")
-    origin_main_head = git_adapter.git_stdout(repo, "rev-parse", "--verify", "origin/main")
-    github_head = git_adapter.git_stdout(repo, "rev-parse", "--verify", "github/dev")
-    github_main_head = git_adapter.git_stdout(repo, "rev-parse", "--verify", "github/main")
+    refs = {
+        remote: git_adapter.git_stdout(repo, "rev-parse", "--verify", remote)
+        for remote in ("origin/dev", "origin/main", "github/dev", "github/main")
+    }
     gaps = tuple(
         gap
-        for gap, head in (
-            ("reconciliation_origin_tracking_missing", origin_head),
-            ("reconciliation_origin_main_tracking_missing", origin_main_head),
-            ("reconciliation_github_tracking_missing", github_head),
-            ("reconciliation_github_main_tracking_missing", github_main_head),
+        for remote, gap in (
+            ("origin/dev", "reconciliation_origin_tracking_missing"),
+            ("origin/main", "reconciliation_origin_main_tracking_missing"),
+            ("github/dev", "reconciliation_github_tracking_missing"),
+            ("github/main", "reconciliation_github_main_tracking_missing"),
         )
-        if not head
+        if not refs[remote]
     )
     receipt = reconciliation_receipt_payload(
         submit_branch=submit_branch,
         source_head=source_head,
-        origin_head=origin_head,
-        github_head=github_head,
-        main_heads=(origin_main_head, github_main_head),
+        origin_head=refs["origin/dev"],
+        github_head=refs["github/dev"],
+        main_heads=(refs["origin/main"], refs["github/main"]),
     )
     if not gaps:
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -261,16 +266,11 @@ def ref_transaction(
             root=repo, ref_name=ref_name, old_value=old_value, new_value=new_value
         )
     )
-    decision = report.get("decision", {})
-    decision_action = decision.get("action", "") if isinstance(decision, dict) else ""
-    result = EthosResult(
-        command="hook ref-transaction",
-        ok=bool(report["ok"]),
-        state=str(report["state"]),
-        summary={"branch": report["branch"], "decision": decision_action},
-        required_gaps=tuple(string_sequence(report.get("required_gaps"))),
-        next_actions=(("ethos land --closeout",) if not report["ok"] else ()),
-        data=report,
+    result = _report_result(
+        "hook ref-transaction",
+        report,
+        {"branch": report["branch"], "decision": _decision_action(report)},
+        ("ethos land --closeout",) if not report["ok"] else (),
     )
     emit(result, json_output=json_output, enforce=True)
 
@@ -283,35 +283,27 @@ def install(
 ) -> None:
     """Install the write-admission git hooks by wiring core.hooksPath to .githooks."""
     repo = resolve_root(root)
-    hook_path = repo / ".githooks" / "pre-commit"
-    push_hook_path = repo / ".githooks" / "pre-push"
-    ref_hook_path = repo / ".githooks" / "reference-transaction"
-    gaps: list[str] = []
-    if not hook_path.exists():
-        gaps.append("hook_script_missing:.githooks/pre-commit")
-    if not push_hook_path.exists():
-        gaps.append("hook_script_missing:.githooks/pre-push")
-    if not ref_hook_path.exists():
-        gaps.append("hook_script_missing:.githooks/reference-transaction")
+    scripts = (
+        ".githooks/pre-commit",
+        ".githooks/pre-push",
+        ".githooks/reference-transaction",
+    )
+    gaps: list[str] = [
+        f"hook_script_missing:{path}" for path in scripts if not (repo / path).exists()
+    ]
     wired = git_adapter.set_hooks_path(repo, ".githooks") if not gaps else False
-    accepted_branch_recorded = False
-    pack_refs_disabled = False
     if not gaps and not wired:
         gaps.append("hooks_path_wire_failed")
-    if wired:
-        # Record the accepted branch so the reference-transaction hook knows which ref
-        # to fail-closed on (the hook runs as a plain shell script with no ETHOS import).
-        accepted = load_branch_role_policy(repo).accepted_branch
-        accepted_branch_recorded = git_adapter.set_config(repo, "ethos.acceptedBranch", accepted)
-        # Git's files ref backend represents `pack-refs` as raw create/delete
-        # transactions that a fail-closed accepted-ref hook cannot safely distinguish
-        # from semantic mutations. Keep automatic maintenance away from that ambiguous
-        # path instead of adding an environment or representation-based bypass.
-        pack_refs_disabled = git_adapter.set_config(repo, "gc.packRefs", "false")
-        if not accepted_branch_recorded:
-            gaps.append("hook_config_write_failed:ethos.acceptedBranch")
-        if not pack_refs_disabled:
-            gaps.append("hook_config_write_failed:gc.packRefs")
+    configured = {
+        "ethos.acceptedBranch": wired
+        and git_adapter.set_config(
+            repo, "ethos.acceptedBranch", load_branch_role_policy(repo).accepted_branch
+        ),
+        "gc.packRefs": wired and git_adapter.set_config(repo, "gc.packRefs", "false"),
+    }
+    for key, ok in configured.items():
+        if wired and not ok:
+            gaps.append(f"hook_config_write_failed:{key}")
     result = EthosResult(
         command="hook install",
         ok=not gaps,
@@ -319,7 +311,7 @@ def install(
         summary={
             "hooks_path": ".githooks",
             "wired": wired,
-            "pack_refs_disabled": pack_refs_disabled,
+            "pack_refs_disabled": configured["gc.packRefs"],
         },
         required_gaps=tuple(gaps),
         next_actions=(
@@ -329,10 +321,10 @@ def install(
         ),
         data={
             "hooks_path": ".githooks",
-            "hook_scripts": [".githooks/pre-commit", ".githooks/pre-push"],
+            "hook_scripts": list(scripts[:2]),
             "wired": wired,
-            "accepted_branch_recorded": accepted_branch_recorded,
-            "pack_refs_disabled": pack_refs_disabled,
+            "accepted_branch_recorded": configured["ethos.acceptedBranch"],
+            "pack_refs_disabled": configured["gc.packRefs"],
         },
     )
     emit(result, json_output=json_output, enforce=True)

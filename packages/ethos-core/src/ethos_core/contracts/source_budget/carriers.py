@@ -11,10 +11,11 @@ from dataclasses import dataclass
 from functools import cache
 from itertools import combinations
 from itertools import pairwise
+from typing import TYPE_CHECKING
 
 import pydantic as p
 
-if t.TYPE_CHECKING:
+if TYPE_CHECKING:
     from collections.abc import Iterable
 NonEmptyStr = t.Annotated[str, p.Field(min_length=1)]
 PositiveInt = t.Annotated[int, p.Field(strict=True, gt=0)]
@@ -233,7 +234,11 @@ class CarrierManifestLoad:
     def __post_init__(self) -> None:
         """Require exactly one of a validated manifest or non-empty gaps."""
         _load_envelope(
-            self.manifest, CarrierManifest, self.required_gaps, _L, "requires a typed manifest"
+            self.manifest,
+            CarrierManifest,
+            self.required_gaps,
+            _L,
+            "requires a typed manifest",
         )
 
 
@@ -311,7 +316,9 @@ def _gaps(matches: tuple[CarrierMatch, ...]) -> tuple[str, ...]:
 
 
 def _payload(
-    manifest_digest: str, matches: tuple[CarrierMatch, ...], required_gaps: tuple[str, ...]
+    manifest_digest: str,
+    matches: tuple[CarrierMatch, ...],
+    required_gaps: tuple[str, ...],
 ) -> dict[str, object]:
     return {
         "manifest_digest": manifest_digest,

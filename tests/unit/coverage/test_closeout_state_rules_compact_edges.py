@@ -1,0 +1,97 @@
+from __future__ import annotations
+
+import sqlite3
+from contextlib import closing
+from typing import TYPE_CHECKING
+
+import pytest
+
+import ethos.adapters.store.state.lease.lifecycle.core as lease
+import ethos.adapters.store.state.lease.lifecycle.effects as effects
+import ethos.adapters.store.state.lease.projection as projection
+import ethos.adapters.store.state.schema as state_schema
+import ethos.repository.policy.rules.config as rules_config
+import ethos.repository.policy.rules.evaluation as rules_evaluation
+import ethos.repository.policy.rules.exceptions as rules_exceptions
+import ethos.repository.policy.rules.migration as rules_migration
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+
+def _rejects(pattern: str, call) -> None:
+    with pytest.raises((RuntimeError, ValueError), match=pattern):
+        call()
+
+
+def _legacy(path: Path, cache: str | None = None) -> None:
+    script = "create table leases(id text primary key,owner text,resource text,expires_at text,created_at text);create table cache_entries(value text);insert into leases values('blank','owner','','expiry','created');insert into leases values('kept','owner','work/x','expiry','created');"
+    if cache is not None:
+        script += f"insert into cache_entries values('{cache}');"
+    with closing(sqlite3.connect(path)) as db:
+        db.executescript(script)
+        db.commit()
+
+
+def test_state_and_lease_fail_closed_matrix(tmp_path: Path) -> None:
+    migrated = tmp_path / "migrated.sqlite"
+    _legacy(migrated)
+    state_schema.initialize_state(migrated)
+    with closing(sqlite3.connect(migrated)) as db:
+        rows = db.execute("select id,subject,payload_json from leases").fetchall()
+        cache_table = db.execute(
+            "select name from sqlite_master where name='cache_entries'"
+        ).fetchone()
+    assert rows == [("kept", "work/x", "{}")]
+    assert cache_table is None
+    blocked = tmp_path / "blocked.sqlite"
+    _legacy(blocked, "live")
+    _rejects("cache_entries_not_empty", lambda: state_schema.initialize_state(blocked))
+    db_path = tmp_path / "leases.sqlite"
+    current = lease.acquire_lease(
+        db_path,
+        subject="work/x",
+        holder_ref="agent:test:case:owner",
+        payload={"expected_head": "a" * 40},
+    )
+    request = {
+        "subject": "work/x",
+        "holder_ref": current["holder_ref"],
+        "expected_lease_id": current["lease_id"],
+        "expected_epoch": current["epoch"],
+        "expected_head": "a" * 40,
+    }
+    _rejects("blocked_by_decision", lambda: lease.resume_lease(db_path, **request, contrary_decision=True))  # fmt: skip
+    with closing(sqlite3.connect(db_path)) as db:
+        _rejects("not_expired", lambda: lease.expected_current_lease(db, **request, require_expired=True))  # fmt: skip
+        db.execute("insert into leases values(?,?,?,?,?)", ("lease:second", "work/x", current["holder_ref"], current["expires_at"], "{}"))  # fmt: skip
+        db.commit()
+        _rejects("lane_lease_ambiguous", lambda: lease._row(db, "work/x"))
+    assert effects.update_lease_payload(db_path, subject="missing", payload={}) == {}
+    assert effects.delete_lease(tmp_path / "missing.sqlite", subject="work/x") == 0
+    _rejects("candidate_drift", lambda: effects.delete_exact_leases(db_path, [{"id": "missing"}]))  # fmt: skip
+    assert projection.integer_value(value=True) == 0
+
+
+def test_rules_config_and_serialization_matrix(tmp_path: Path) -> None:
+    rules = tmp_path / ".ethos/rules.toml"
+    rules.parent.mkdir()
+    rules.write_text('rule = ["bad"]\n[gates]\ninvalid = "x"\n', encoding="utf-8")
+    assert rules_config.configured_rules(tmp_path) == [{"id": "", "_invalid": "rule_not_table"}]
+    assert rules_config.configured_gate_tables(tmp_path) == {}
+    assert rules_config.normalize_rule_item({"id": "x", "non_waivable": 1})["non_waivable"] is True  # fmt: skip
+    assert [rules_evaluation.scope_matches_path(scope, "x") for scope in ("repository", "path:")] == [True, False]  # fmt: skip
+    exceptions = tmp_path / "rules/ethos/policy-exceptions.toml"
+    exceptions.parent.mkdir(parents=True)
+    exceptions.write_text("[", encoding="utf-8")
+    assert rules_exceptions.policy_exceptions_report(tmp_path)["ok"] is False
+    exceptions.write_text("[exception]\nid='x'\n", encoding="utf-8")
+    assert rules_exceptions.policy_exceptions_report(tmp_path)["exceptions"] == []
+    text = rules_migration.rules_toml_text(
+        [
+            {"id": ""},
+            {"id": "x", "version": 2, "path_globs": ["a"], "non_waivable": True},
+        ]
+    )
+    selected = tuple(line for line in text.splitlines() if line.startswith(("version", "path_globs", "non_waivable")))  # fmt: skip
+    assert selected == ("version = 2", 'path_globs = ["a"]', "non_waivable = true")

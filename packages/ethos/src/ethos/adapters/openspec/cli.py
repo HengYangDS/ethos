@@ -22,23 +22,18 @@ def current_branch(root: Path) -> str:
         capture_output=True,
         check=False,
     )
-    if completed.returncode != 0:
-        return ""
-    return completed.stdout.strip()
+    return "" if completed.returncode else completed.stdout.strip()
 
 
 def openspec_base_command() -> tuple[str, ...] | None:
     explicit = os.environ.get("ETHOS_OPENSPEC_BIN", "").strip()
     if explicit:
         return (explicit,)
-    cached = cached_official_cli_entry()
-    if cached is not None:
-        return cached
-    if shutil.which("openspec"):
-        return ("openspec",)
-    if shutil.which("npx"):
-        return ("npx", "--yes", OFFICIAL_NPX_PACKAGE)
-    return None
+    return (
+        cached_official_cli_entry()
+        or (("openspec",) if shutil.which("openspec") else None)
+        or (("npx", "--yes", OFFICIAL_NPX_PACKAGE) if shutil.which("npx") else None)
+    )
 
 
 def cached_official_cli_entry() -> tuple[str, str] | None:
@@ -53,11 +48,13 @@ def cached_official_cli_entry() -> tuple[str, str] | None:
         except (OSError, json.JSONDecodeError):
             continue
         bin_value = payload.get("bin")
-        entry = ""
-        if isinstance(bin_value, dict):
-            entry = str(bin_value.get("openspec") or "")
-        elif isinstance(bin_value, str):
-            entry = bin_value
+        entry = (
+            str(bin_value.get("openspec") or "")
+            if isinstance(bin_value, dict)
+            else bin_value
+            if isinstance(bin_value, str)
+            else ""
+        )
         if not entry:
             continue
         entry_path = (package_json.parent / entry).resolve()
@@ -72,11 +69,10 @@ def cached_official_cli_entry() -> tuple[str, str] | None:
 
 
 def version_key(value: str) -> tuple[int, ...]:
-    parts: list[int] = []
-    for part in value.split("."):
-        digits = "".join(ch for ch in part if ch.isdigit())
-        parts.append(int(digits or 0))
-    return tuple(parts)
+    return tuple(
+        int("".join(character for character in part if character.isdigit()) or 0)
+        for part in value.split(".")
+    )
 
 
 def run_json(

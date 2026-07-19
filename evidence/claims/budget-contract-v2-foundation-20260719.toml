@@ -6,9 +6,9 @@ summary = "Define and govern Budget Contract v2 while preserving every visible v
 
 [evidence]
 dated = "evidence/chronicle/budget-contract-v2-foundation-20260719/2026-07-19.md"
-sha256 = "55698b9a6427725924be58e9de76187f97138f6ca62cf96ea300df20f78cf277"
+sha256 = "ada62b940651bf544b866dd35b09aeea32d88b0e94deefb85cc93e88014add2b"
 evidence_ids = ["evidence:budget-contract-v2-foundation-20260719"]
-binding = "DR-0008, the active OpenSpec carrier, predecessor/successor recovery, TDD RED/GREEN evidence, focused verification, and the Chronicle bind the metric-domain foundation and behavior-preserving current-v1 ownership extraction only."
+binding = "DR-0008, the active OpenSpec carrier, predecessor/successor recovery, TDD RED/GREEN evidence, focused verification, successor parity, HEAD-bound executed proof, and the Chronicle bind the metric-domain foundation and behavior-preserving current-v1 ownership extraction only."
 verifier = "digest_only"
 tests = [
   ".venv/bin/python -m pytest -q tests/unit/kernel/test_source_budget_contract.py tests/unit/adapters/repo/test_source_budget.py tests/unit/adapters/test_config.py tests/unit/domain/test_prove.py tests/unit/domain/source_budget/test_core.py tests/unit/domain/reporting/test_advisories.py tests/unit/domain/test_report.py tests/unit/governance/test_evolution_ledger.py tests/unit/kernel/test_command_declaration.py tests/unit/audit/test_modes.py tests/unit/cli/test_report_surface.py tests/unit/lanes/test_projection_rebase_source_budget.py tests/unit/governance/test_docs_registry.py",

@@ -28,12 +28,7 @@ local_state = ".ethos/state"
 # ETHOS-owned profile contract is required for adopters; `scope.toml` remains a
 # companion beside official OpenSpec artifacts, not official OpenSpec schema.
 [openspec]
-material_paths = [
-    ".ethos/profile.toml",
-    "openspec/**",
-    "docs/governance/**",
-    "rules/**",
-]
+material_paths = [".ethos/profile.toml", "openspec/**", "docs/governance/**", "rules/**"]
 
 # Declare your native code-correctness proof so an adopter proof carries a real
 # test / type / lint dimension. Map each required axis (behavior, static-analysis)

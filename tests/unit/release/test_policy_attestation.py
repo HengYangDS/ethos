@@ -25,8 +25,10 @@ def test_version_manifest_keeps_workspace_packages_aligned() -> None:
 
 def test_release_policy_reports_host_profile_separately_from_product_files() -> None:
     report = release_policy_report(Path.cwd())
+    config = release_core.release_config(Path.cwd())
 
     assert report["ok"] is True
+    assert "release" not in config
     assert report["required_gaps"] == []
     assert report["version"]["tag"] == "v0.1.0a1"
     assert report["required_files"] == [

@@ -6,7 +6,7 @@ summary = "Define and govern Budget Contract v2 while preserving every visible v
 
 [evidence]
 dated = "evidence/chronicle/budget-contract-v2-foundation-20260719/2026-07-19.md"
-sha256 = "50f04090e82125721a45c053db00286a3b584ab152fe226d6084f9422767f1d0"
+sha256 = "ba9c022e9a8f3494d3829bd86a8965666beb72d7b01760722978763b85b4d580"
 evidence_ids = ["evidence:budget-contract-v2-foundation-20260719"]
 binding = "DR-0008, the active OpenSpec carrier, TDD RED/GREEN evidence, focused verification, and the Chronicle bind the metric-domain foundation and behavior-preserving v1 ownership extraction only."
 verifier = "digest_only"

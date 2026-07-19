@@ -18,7 +18,7 @@
 
 ## 3. Verification and closeout
 
-- [ ] 3.1 Run focused tests, Python/config/schema checks, claims, strict OpenSpec
+- [x] 3.1 Run focused tests, Python/config/schema checks, claims, strict OpenSpec
   lifecycle, parity, and HEAD-bound executed proof.
 - [ ] 3.2 Archive through the official OpenSpec CLI, refresh archive-bound claim
   evidence, and rerun proof on the archive HEAD.

@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from subprocess import CompletedProcess
 
-import ethos.adapters.mutation.worktree_housekeeping as worktree_housekeeping
+import ethos.adapters.mutation.worktree.core as worktree_housekeeping
 from tests.support.contract_helpers import git
 from tests.support.contract_helpers import init_repo_with_candidate
 
@@ -125,11 +125,33 @@ def test_housekeeping_preserves_candidate_that_changes_before_removal(
     assert changing.exists()
 
 
-def test_housekeeping_default_roots_cover_system_and_session_temp() -> None:
-    roots = worktree_housekeeping._temporary_roots(None)
+def test_housekeeping_default_roots_cover_system_and_session_temp(tmp_path: Path) -> None:
+    repo, _candidate = init_repo_with_candidate(tmp_path)
+    report = worktree_housekeeping.housekeeping_worktrees(root=repo)
 
-    assert Path("/tmp").resolve() in roots
-    assert Path(worktree_housekeeping.tempfile.gettempdir()).resolve() in roots
+    assert Path("/tmp").resolve().as_posix() in report["temporary_roots"]
+    assert (
+        Path(worktree_housekeeping.tempfile.gettempdir()).resolve().as_posix()
+        in report["temporary_roots"]
+    )
+
+
+def test_housekeeping_includes_explicitly_configured_roots(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    repo, _candidate = init_repo_with_candidate(tmp_path)
+    first = tmp_path / "configured-first"
+    second = tmp_path / "configured-second"
+    monkeypatch.setenv(
+        "ETHOS_HOUSEKEEPING_ROOTS",
+        f"{first}{worktree_housekeeping.os.pathsep}{second}",
+    )
+
+    report = worktree_housekeeping.housekeeping_worktrees(root=repo)
+
+    assert first.resolve().as_posix() in report["temporary_roots"]
+    assert second.resolve().as_posix() in report["temporary_roots"]
 
 
 def test_housekeeping_protects_worktree_when_status_is_unavailable(

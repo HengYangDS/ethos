@@ -158,11 +158,15 @@ def _entry_from_record(
 def _temporary_roots(explicit: tuple[Path, ...] | None) -> tuple[Path, ...]:
     if explicit is not None:
         return tuple(path.resolve() for path in explicit)
-    codex_home = Path(os.environ.get("CODEX_HOME", Path.home() / ".codex"))
+    configured = tuple(
+        Path(value).expanduser().resolve()
+        for value in os.environ.get("ETHOS_HOUSEKEEPING_ROOTS", "").split(os.pathsep)
+        if value.strip()
+    )
     candidates = (
         Path(tempfile.gettempdir()).resolve(),
         Path("/tmp").resolve(),
-        (codex_home / "worktrees").resolve(),
+        *configured,
     )
     return tuple(dict.fromkeys(candidates))
 

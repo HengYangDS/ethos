@@ -1138,6 +1138,23 @@ resolution database.
 - **AND** dirty or owner-unknown lanes are preserved or blocked rather than
   automatically deleted.
 
+#### Scenario: clean ownerless diverged source retires after semantic absorption
+
+- **GIVEN** one clean ownerless source Work Lane has diverged because its
+  historical evidence and carrier bytes differ from an independently accepted
+  current-baseline implementation of its useful behavior
+- **AND** a target-specific accepted Claim and Chronicle bind its exact ref,
+  exact source head, semantic basis, recovery plan, and `lane_resolution/retire`
+  policy
+- **WHEN** the native resolver records and applies a fresh decision for that
+  exact linked source with break-glass and irreversible confirmation
+- **THEN** it SHALL re-observe the source before effect and emit a receipt after
+  the exact retirement
+- **AND** tree inequality, a missing lease, a preservation package, or an
+  inventory entry alone SHALL NOT authorize retirement
+- **AND** the authority SHALL NOT extend to another lane, a valid lease, remote
+  mutation, or a hosted-provider claim.
+
 ### Requirement: Evolution Ledger Single Source Of Truth
 
 ETHOS SHALL keep reviewed evolution records and active hypotheses in one
@@ -1478,6 +1495,23 @@ resolution database.
   `break_glass` together with exact target and recovery evidence
 - **AND** dirty or owner-unknown lanes are preserved or blocked rather than
   automatically deleted.
+
+#### Scenario: clean ownerless diverged source retires after semantic absorption
+
+- **GIVEN** one clean ownerless source Work Lane has diverged because its
+  historical evidence and carrier bytes differ from an independently accepted
+  current-baseline implementation of its useful behavior
+- **AND** a target-specific accepted Claim and Chronicle bind its exact ref,
+  exact source head, semantic basis, recovery plan, and `lane_resolution/retire`
+  policy
+- **WHEN** the native resolver records and applies a fresh decision for that
+  exact linked source with break-glass and irreversible confirmation
+- **THEN** it SHALL re-observe the source before effect and emit a receipt after
+  the exact retirement
+- **AND** tree inequality, a missing lease, a preservation package, or an
+  inventory entry alone SHALL NOT authorize retirement
+- **AND** the authority SHALL NOT extend to another lane, a valid lease, remote
+  mutation, or a hosted-provider claim.
 
 ### Requirement: Preservation-bound exceptional Work Lane retirement
 

@@ -21,6 +21,7 @@ from ethos.adapters.mutation.lanes import retire_landed_work_lanes
 from ethos.adapters.mutation.lanes import retire_superseded_work_lane
 from ethos.adapters.mutation.lanes import retire_unbound_work_lane_ref
 from ethos.adapters.mutation.lanes import start_work_lane
+from ethos.adapters.mutation.worktree_housekeeping import housekeeping_worktrees
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
@@ -70,6 +71,31 @@ def lane_status(
         data=status_payload,
     )
     emit(result, json_output=json_output, enforce=False)
+
+
+@lane_app.command
+def housekeeping(
+    *,
+    authorize: bool = False,
+    apply: bool = False,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Remove only clean detached worktrees below controlled temporary roots."""
+    repo = resolve_root(root)
+    report = housekeeping_worktrees(root=repo, authorized=authorize, apply=apply)
+    result = EthosResult(
+        command="lane housekeeping",
+        ok=bool(report["ok"]),
+        state=str(report["state"]),
+        summary=cast("dict[str, object]", report["summary"]),
+        required_gaps=tuple(string_sequence(report.get("required_gaps"))),
+        next_actions=("ethos lane housekeeping --authorize --apply --json",)
+        if not apply and cast("dict[str, object]", report["summary"])["removable_count"]
+        else (),
+        data=report,
+    )
+    emit(result, json_output=json_output, enforce=apply)
 
 
 def _lane_status_summary(status_payload: dict[str, object]) -> dict[str, object]:

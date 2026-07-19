@@ -1,0 +1,15 @@
+schema_version = 1
+paths = [
+  "docs/plans/detached-worktree-housekeeping-20260719.md",
+  "docs/reference/command-plane.md",
+  "evidence/claims/detached-worktree-housekeeping-20260719.toml",
+  "evidence/chronicle/detached-worktree-housekeeping-20260719/**",
+  "openspec/changes/detached-worktree-housekeeping-20260719/**",
+  "openspec/specs/repository-governance/spec.md",
+  "packages/ethos/src/ethos/adapters/mutation/worktree_housekeeping.py",
+  "packages/ethos/src/ethos/repository/registry/docs/commands.py",
+  "packages/ethos/src/ethos/surface/cli/lane/core.py",
+  "system/commands.toml",
+  "tests/unit/cli/test_contracts_lane_housekeeping.py",
+  "tests/unit/lanes/test_worktree_housekeeping.py",
+]

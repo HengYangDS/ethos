@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 _LIFECYCLE_FIELDS = {"owner", "replacement", "expiry", "allowance", "expected_net_deletion"}
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True)
 class _DebtEnvelope:
     total: int = 0
     by_category: dict[str, int] = field(default_factory=dict)
@@ -103,9 +103,8 @@ def _source_budget_metrics(
 
 
 def _source_budget_debt(policy: SourceBudgetPolicy) -> _DebtEnvelope:
-    debt = _DebtEnvelope()
+    debt = _DebtEnvelope(sum(record.allowance for record in policy.debt.records))
     for record in policy.debt.records:
-        debt.total += record.allowance
         debt.ids.append(record.id)
         for category, value in record.allowance_by_category.items():
             debt.by_category[category] = debt.by_category.get(category, 0) + value

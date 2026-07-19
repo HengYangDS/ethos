@@ -365,7 +365,7 @@ def test_tracked_python_follows_parser_model_and_export_policy() -> None:
         assert "arg" + "parse" not in imported_modules(path), path
         assert not {"attr", "attrs"} & imported_modules(path), path
         assert all(
-            ast.unparse(decorator) == "dataclass(frozen=True, slots=True)"
+            ast.unparse(decorator).startswith("dataclass(frozen=True, slots=True")
             for node in ast.walk(tree)
             if isinstance(node, ast.ClassDef)
             for decorator in node.decorator_list

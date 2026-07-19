@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import asdict
 from inspect import signature
 from typing import TYPE_CHECKING
 
@@ -24,7 +25,7 @@ HOLDER_B = "agent:test:case:holder-b"
 def test_lane_lease_renew_preserves_keyword_callable_contract(monkeypatch) -> None:
     captured: dict[str, object] = {}
     monkeypatch.setattr(
-        lease_cli, "_invoke", lambda _command, _operation, options: captured.update(vars(options))
+        lease_cli, "_invoke", lambda _command, _operation, options: captured.update(asdict(options))
     )
 
     signature(lease_cli.lane_lease_renew).bind(

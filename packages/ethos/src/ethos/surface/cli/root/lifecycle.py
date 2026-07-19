@@ -152,7 +152,7 @@ def land(*, apply: bool=False, authorize: bool=False, expect_head: str | None=No
         status_payload = workspace_status(repo, include_foreign_path_scope=False)
         candidate = string_mapping(status_payload.get('candidate'))
         candidate_root = Path(str(candidate.get('worktree_path') or audit_root))
-        control_replacement = control_replacement_report(accepted_root=repo, candidate_root=candidate_root, accepted_head=current_head, candidate_head=str(candidate.get('head') or current_head), external_receipt=control_verifier_receipt)
+        control_replacement = control_replacement_report(accepted_root=repo, candidate_root=candidate_root, accepted_head=current_head, candidate_head=str(candidate.get('head') or current_head), external_receipt=control_verifier_receipt) if decision.ok else {}
         control_gaps = tuple(string_sequence(control_replacement.get('required_gaps')))
         gaps = tuple(string_sequence(audit.get('required_gaps'))) + decision.gaps + tuple(string_sequence(lifecycle.get('required_gaps'))) + control_gaps
         ok = bool(audit['ok']) and decision.ok and bool(lifecycle['ok']) and (not control_gaps)

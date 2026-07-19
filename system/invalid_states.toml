@@ -66,6 +66,7 @@ match_prefixes = [
   "target_holder_ref_invalid",
   "publication_remote_target_unknown",
   "publication_remote_name_missing",
+  "maintenance_archive_root_required",
 ]
 
 [[category]]
@@ -190,6 +191,8 @@ match_prefixes = [
   "recheck_required",
   "reconciliation_required",
   "repair_required",
+  "lane_lease_ambiguous",
+  "maintenance_irreversible_confirmation_required",
 ]
 
 [[category]]
@@ -279,6 +282,9 @@ match_prefixes = [
   "identity_assertion_",
   "independent_verification_",
   "incumbent_or_bootstrap_verifier_required",
+  "maintenance_existing_receipt_invalid",
+  "maintenance_inventory_digest_mismatch",
+  "maintenance_observed_at_",
 ]
 
 [[category]]
@@ -359,4 +365,5 @@ match_prefixes = [
   "command_not_found",
   "command_timeout",
   "command_no_output",
+  "maintenance_recovery_snapshot_drift",
 ]

@@ -21,7 +21,7 @@ owner = "ethos-repository"
 scope = "Universal adopter lifecycle in plan and prove."
 
 [carriers]
-openspec = "openspec/changes/adopter-openspec-lifecycle-continuity-20260719"
+openspec = "openspec/changes/archive/2026-07-19-adopter-openspec-lifecycle-continuity-20260719"
 fallback = "Block lifecycle gaps; preserve the predecessor archive and do not substitute code correctness, historical proof, or method packages."
 kill_signal = "A valid adopter bypasses official lifecycle in plan or proof."
 

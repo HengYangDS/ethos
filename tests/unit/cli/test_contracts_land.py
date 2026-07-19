@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+import ethos.surface.cli.root.lifecycle as lifecycle_cli
 from tests.support.contract_helpers import adopt_and_commit
 from tests.support.contract_helpers import commit_fixture_file
 from tests.support.contract_helpers import git
@@ -338,8 +339,6 @@ def test_product_publish_blocks_current_hard_quality_gap(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    import ethos.surface.cli.root.lifecycle as lifecycle_cli
-
     repo = init_git_repo(tmp_path / "repo")
     adopt_and_commit(repo)
     head = git(repo, "rev-parse", "HEAD")

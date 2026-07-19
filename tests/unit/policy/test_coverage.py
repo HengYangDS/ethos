@@ -211,11 +211,15 @@ def test_coverage_quality_report_keeps_live_writer_in_progress_but_blocking(
     ]
 
 
-def test_process_start_returns_empty_when_ps_fails(monkeypatch) -> None:
+def test_coverage_writer_is_dead_when_ps_fails(tmp_path: Path, monkeypatch) -> None:
+    write_coverage_policy(tmp_path)
+    _write_coverage_lock_owner(tmp_path, "123\trecorded-start\n")
     completed = type("Completed", (), {"returncode": 1, "stdout": ""})()
     monkeypatch.setattr(coverage_module.subprocess, "run", lambda *_args, **_kwargs: completed)
 
-    assert coverage_module._process_start(123) == ""
+    report = coverage_quality_report(tmp_path)
+
+    assert report["latest_artifact"]["writer_reason"] == "coverage_artifact_writer_process_missing"
 
 
 def test_coverage_quality_report_reports_missing_policy_and_config(

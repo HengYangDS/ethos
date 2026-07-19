@@ -19,6 +19,7 @@ ARTIFACT_PATH = COVERAGE_EVIDENCE_DIR / "coverage.xml"
 WRITE_LOCK_PATH = COVERAGE_EVIDENCE_DIR / ".write.lock"
 WRITE_LOCK_OWNER_PATH = WRITE_LOCK_PATH / "owner.pid"
 OWNER_SCRIPT = "tools/ci/scripts/run-python-tests.sh"
+OWNER_FIELD_COUNT = 2
 
 
 def coverage_quality_report(root: Path) -> dict[str, object]:
@@ -150,7 +151,12 @@ def _writer_state(root: Path) -> dict[str, object]:
             "writer_reason": "coverage_artifact_writer_owner_missing",
         }
     parts = owner_text.split("\t")
-    if len(parts) != 2 or not parts[0].isdigit() or int(parts[0]) <= 0 or not parts[1]:
+    if (
+        len(parts) != OWNER_FIELD_COUNT
+        or not parts[0].isdigit()
+        or int(parts[0]) <= 0
+        or not parts[1]
+    ):
         return {
             "writer_state": "invalid",
             "writer_reason": "coverage_artifact_writer_owner_malformed",

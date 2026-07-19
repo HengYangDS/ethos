@@ -40,13 +40,7 @@ coverage_lock_owner_is_dead() {
   if ! kill -0 "${owner_pid}" 2>/dev/null; then return 0; fi
   current_started_at="$(coverage_lock_process_start "${owner_pid}")"; [[ -n "${current_started_at}" && "${current_started_at}" != "${owner_started_at}" ]]
 }
-coverage_lock_owner_is_invalid() {
-  local owner_pid="" owner_started_at="" owner_extra=""
-  [[ -f "${coverage_lock_owner_path}" ]] || return 0
-  IFS=$'\t' read -r owner_pid owner_started_at owner_extra < "${coverage_lock_owner_path}" || return 0
-  [[ -z "${owner_extra}" && "${owner_pid}" =~ ^[1-9][0-9]*$ && -n "${owner_started_at}" ]] || return 0
-  return 1
-}
+coverage_lock_owner_is_invalid() { local owner_pid="" owner_started_at="" owner_extra=""; [[ -f "${coverage_lock_owner_path}" ]] || return 0; IFS=$'\t' read -r owner_pid owner_started_at owner_extra < "${coverage_lock_owner_path}" || return 0; [[ -z "${owner_extra}" && "${owner_pid}" =~ ^[1-9][0-9]*$ && -n "${owner_started_at}" ]] || return 0; return 1; }
 reclaim_stale_coverage_lock() {
   coverage_lock_owner_is_dead || return 1
   rm -f "${coverage_lock_owner_path}"
@@ -57,10 +51,7 @@ coverage_lock_wait_started="${SECONDS}"
 while ! mkdir "${coverage_lock_dir}" 2>/dev/null; do
   if reclaim_stale_coverage_lock; then continue; fi
   if (( SECONDS - coverage_lock_wait_started >= coverage_lock_wait_seconds )); then
-    if [[ "${coverage_lock_invalid_reclaim_attempted}" == "false" ]] && coverage_lock_owner_is_invalid; then
-      coverage_lock_invalid_reclaim_attempted="true"; rm -f "${coverage_lock_owner_path}"
-      if rmdir "${coverage_lock_dir}" 2>/dev/null; then echo "reclaimed invalid coverage evidence lock: ${coverage_lock_dir}" >&2; coverage_lock_wait_started="${SECONDS}"; continue; fi
-    fi
+    if [[ "${coverage_lock_invalid_reclaim_attempted}" == "false" ]] && coverage_lock_owner_is_invalid; then coverage_lock_invalid_reclaim_attempted="true"; rm -f "${coverage_lock_owner_path}"; if rmdir "${coverage_lock_dir}" 2>/dev/null; then echo "reclaimed invalid coverage evidence lock: ${coverage_lock_dir}" >&2; coverage_lock_wait_started="${SECONDS}"; continue; fi; fi
     owner_metadata="unknown"; if [[ -f "${coverage_lock_owner_path}" ]]; then IFS= read -r owner_metadata < "${coverage_lock_owner_path}" || owner_metadata="unreadable"; fi
     echo "coverage evidence lock remained unavailable after ${coverage_lock_wait_seconds}s: ${coverage_lock_dir} (owner=${owner_metadata})" >&2; exit 1
   fi

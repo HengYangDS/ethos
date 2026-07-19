@@ -72,13 +72,10 @@ def orientation_packet(
         "advisory_items:l:advisory_gaps required_items:l:required_gaps next_action:s",
     )
     coordination_view.update({
-        "detail_state": coordination_detail_state,
-        "dirty_foreign_work_lane_count": dirty_foreign,
-        "overlap_count": _coordination_count(coordination, "overlap_count"),
-        "closeout_residue_count": _coordination_count(coordination, "closeout_residue_count"),
-        "dirty_closeout_residue_count": _coordination_count(
-            coordination, "dirty_closeout_residue_count"
-        ),
+        "detail_state": coordination_detail_state, "dirty_foreign_work_lane_count": dirty_foreign,
+        **{key: _coordination_count(coordination, key) for key in (
+            "overlap_count", "closeout_residue_count", "dirty_closeout_residue_count"
+        )},
         "closeout_residue_lanes": _summaries(
             coordination.get("closeout_residue_lanes"), _RESIDUE_SPEC
         ),
@@ -211,8 +208,7 @@ def _coordination_count(
 ) -> int | None:
     if str(coordination.get("detail_state") or "exact") == "deferred":
         return None
-    value = coordination.get(key)
-    return fallback if value is None else int(cast("int | str", value))
+    return fallback if (value := coordination.get(key)) is None else int(cast("int | str", value))
 
 
 def _report_values(report_payload: Mapping[str, Any] | None, key: str) -> list[str]:
@@ -337,10 +333,8 @@ def _bound_actions(actions: list[str], *, command_prefix: str) -> list[str]:
 
 
 def _lane_detail(values: Mapping[str, Any], *, deferred_label: str = "detail deferred") -> str:
-    detail_state = str(
-        values.get("detail_state") or values.get("coordination_detail_state") or "exact"
-    )
-    if detail_state == "deferred":
+    detail_state = values.get("detail_state") or values.get("coordination_detail_state") or "exact"
+    if str(detail_state) == "deferred":
         return f" ({deferred_label})"
     details = [
         f"{values.get(key)} {label}"

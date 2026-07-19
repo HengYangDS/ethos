@@ -437,8 +437,9 @@ def test_remove_linked_lane_reobservation_fails_closed_for_missing_or_unavailabl
     }
 
 
+@pytest.mark.parametrize("stderr", ["", "cannot lock ref"])
 def test_remove_linked_lane_preserves_newer_ref_after_worktree_removal(
-    tmp_path: Path,
+    tmp_path: Path, stderr: str
 ) -> None:
     repo = init_repo(tmp_path / "repo")
     lane_path = tmp_path / "repo-work-stuck"
@@ -466,7 +467,7 @@ def test_remove_linked_lane_preserves_newer_ref_after_worktree_removal(
         if _repo == lane_path and args[:2] == ("worktree", "remove"):
             return subprocess.CompletedProcess(args, 0, stdout="", stderr="")
         if _repo == repo and args[:3] == ("update-ref", "-d", "refs/heads/work/stuck"):
-            return subprocess.CompletedProcess(args, 1, stdout="", stderr="cannot lock ref")
+            return subprocess.CompletedProcess(args, 1, stdout="", stderr=stderr)
         raise AssertionError(args)
 
     report = retirement_shared.remove_linked_lane(
@@ -480,7 +481,7 @@ def test_remove_linked_lane_preserves_newer_ref_after_worktree_removal(
         "ok": False,
         "state": "blocked",
         "required_gaps": ["branch_delete_failed_after_worktree_removed"],
-        "stderr": "cannot lock ref",
+        "stderr": stderr,
     }
     assert ("worktree", "remove", lane["path"]) in calls
     assert ("update-ref", "-d", "refs/heads/work/stuck", "a" * 40) in calls

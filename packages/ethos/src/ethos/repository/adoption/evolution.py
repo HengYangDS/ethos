@@ -24,9 +24,6 @@ if TYPE_CHECKING:
 
 _LEDGER_TABLES = (("hypotheses", "hypothesis"), ("entries", "entry"), ("practice_claims", "practice_claim"), ("candidate_sets", "candidate_set"), ("experiment_protocols", "experiment_protocol"), ("evaluation_records", "evaluation_record"), ("practice_changes", "practice_change"), ("types", "types"))
 _HYPOTHESIS_FIELDS = ("id", "campaign", "state", "owner", "claim", "challenge", "transition", "proof_refs", "review_refs", "decision_refs", "retirement_conditions")
-_CAMPAIGN_FIELDS = ("id", "state", "owner", "objective", "claim_id")
-_STEP_FIELDS = ("id", "title", "openspec_change", "work_lane", "claim_id")
-_CLOSED_STATES, _EXECUTION_STATES = {"closed", "retired"}, {"active", "in_progress", "landed"}
 
 
 def _ledger_path(root: Path) -> Path:
@@ -123,8 +120,8 @@ def campaign_report(root: Path, *, campaign_id: str | None = None) -> dict[str, 
     return {"ok": not gaps, "campaign_count": len(campaigns), "active_count": len(active), "required_gaps": gaps, "campaigns": campaigns}
 
 
-def _campaign_manifests(root: Path, *, campaign_id: str | None, policy: CampaignWorkflowDeclaration | None = None) -> tuple[list[dict[str, Any]], list[str]]:
-    runtime, campaigns_root = policy or campaign_policy(root), _campaigns_root(root)
+def _campaign_manifests(root: Path, *, campaign_id: str | None, policy: CampaignWorkflowDeclaration) -> tuple[list[dict[str, Any]], list[str]]:
+    campaigns_root = _campaigns_root(root)
     if not campaigns_root.exists():
         return [], []
     campaigns: list[dict[str, Any]] = []
@@ -145,7 +142,7 @@ def _campaign_manifests(root: Path, *, campaign_id: str | None, policy: Campaign
         if validation.get("ok") is not True:
             gaps.extend(campaign_gaps)
             continue
-        campaign = _campaign_payload(root, path, payload, policy=runtime)
+        campaign = _campaign_payload(root, path, payload, policy=policy)
         campaign_gaps.extend(_campaign_required_gaps(root, campaign))
         campaign["required_gaps"] = campaign_gaps
         gaps.extend(campaign_gaps)
@@ -155,34 +152,30 @@ def _campaign_manifests(root: Path, *, campaign_id: str | None, policy: Campaign
     return campaigns, gaps
 
 
-def _campaign_payload(root: Path, path: Path, payload: dict[str, Any], *, policy: CampaignWorkflowDeclaration | None = None) -> dict[str, Any]:
-    runtime = policy or campaign_policy(root)
+def _campaign_payload(root: Path, path: Path, payload: dict[str, Any], *, policy: CampaignWorkflowDeclaration) -> dict[str, Any]:
     steps = [_step_payload(item) for item in _list_items(payload.get("step"))]
     publication = payload.get("publication")
-    return {"id": str(payload["id"]), "state": str(payload["state"]), "owner": str(payload["owner"]), "objective": str(payload["objective"]), "claim_id": str(payload["claim_id"]), "publication": {"mode": str(publication.get("mode") or "") if isinstance(publication, dict) else ""}, "path": path.relative_to(root).as_posix(), "steps": steps, "step_summary": _step_summary(steps, policy=runtime), "lane_topology": _lane_topology(steps, policy=runtime)}
+    return {"id": str(payload["id"]), "state": str(payload["state"]), "owner": str(payload["owner"]), "objective": str(payload["objective"]), "claim_id": str(payload["claim_id"]), "publication": {"mode": str(publication.get("mode") or "") if isinstance(publication, dict) else ""}, "path": path.relative_to(root).as_posix(), "steps": steps, "step_summary": _step_summary(steps, policy=policy), "lane_topology": _lane_topology(steps, policy=policy)}
 
 
-def _step_payload(item: dict[str, Any], *, default_ordinal: int | None = None) -> dict[str, Any]:
-    """Project a schema-admitted step while retaining the legacy helper fallback."""
+def _step_payload(item: dict[str, Any]) -> dict[str, Any]:
+    """Project one schema-admitted campaign step."""
     closeout = dict(item.get("closeout") or {})
-    try:
-        ordinal = int(cast("int | str", item.get("ordinal", default_ordinal or 0)))
-    except (TypeError, ValueError):
-        ordinal = 0
+    ordinal = int(cast("int | str", item["ordinal"]))
     return {**{field: str(item.get(field) or default) for field, default in (("id", ""), ("title", ""), ("state", "planned"))}, "ordinal": ordinal, "depends_on": [str(value) for value in item.get("depends_on", [])], **{field: str(item.get(field) or "") for field in ("openspec_change", "work_lane", "claim_id")}, "closeout": {**{field: str(closeout.get(field) or default) for field, default in (("state", "planned"), ("accepted_head", ""), ("candidate_head", ""))}, "evidence": [str(value) for value in closeout.get("evidence", [])]}}
 
 
-def _lane_topology(steps: list[dict[str, Any]], *, policy: CampaignWorkflowDeclaration | None = None) -> dict[str, Any]:
-    active_states = set(policy.step_execution_states) | set(policy.step_archived_states) if policy else _EXECUTION_STATES | {"archive_ready"}
-    planned_states = set(policy.step_planned_states) if policy else {"planned"}
+def _lane_topology(steps: list[dict[str, Any]], *, policy: CampaignWorkflowDeclaration) -> dict[str, Any]:
+    active_states = set(policy.step_execution_states) | set(policy.step_archived_states)
+    planned_states = set(policy.step_planned_states)
     active = [step["id"] for step in steps if step["state"] in active_states]
-    return {"kind": policy.topology_kind if policy else "openspec_lane_sequence", "mode": policy.topology_mode if policy else "strict_serial", "step_count": len(steps), "active_step": active[0] if len(active) == 1 else "", "active_steps": active, "next_planned_step": next((step["id"] for step in steps if step["state"] in planned_states), ""), "edges": [{"from": dependency, "to": step["id"], "rule": policy.dependency_rule if policy else "closeout_retired_before_activation"} for step in steps for dependency in step["depends_on"]]}
+    return {"kind": policy.topology_kind, "mode": policy.topology_mode, "step_count": len(steps), "active_step": active[0] if len(active) == 1 else "", "active_steps": active, "next_planned_step": next((step["id"] for step in steps if step["state"] in planned_states), ""), "edges": [{"from": dependency, "to": step["id"], "rule": policy.dependency_rule} for step in steps for dependency in step["depends_on"]]}
 
 
-def _step_summary(steps: list[dict[str, Any]], *, policy: CampaignWorkflowDeclaration | None = None) -> dict[str, int]:
-    planned = set(policy.step_planned_states) if policy else {"planned"}
-    active = set(policy.step_execution_states) | set(policy.step_archived_states) if policy else {"active", "in_progress"}
-    terminal, closeout_terminal = (set(policy.step_terminal_states), set(policy.closeout_terminal_states)) if policy else (_CLOSED_STATES, _CLOSED_STATES)
+def _step_summary(steps: list[dict[str, Any]], *, policy: CampaignWorkflowDeclaration) -> dict[str, int]:
+    planned = set(policy.step_planned_states)
+    active = set(policy.step_execution_states) | set(policy.step_archived_states)
+    terminal, closeout_terminal = set(policy.step_terminal_states), set(policy.closeout_terminal_states)
     return {"total": len(steps), "planned": sum(item["state"] in planned for item in steps), "active": sum(item["state"] in active for item in steps), "archive_ready": sum(item["state"] == "archive_ready" for item in steps), "closed": sum(item["state"] in terminal or item["closeout"]["state"] in closeout_terminal for item in steps)}
 
 
@@ -212,40 +205,6 @@ def _campaign_required_gaps(root: Path, campaign: dict[str, Any]) -> list[str]:
     return gaps
 
 
-def _campaign_step_gaps(root: Path, campaign_id: str, steps: list[dict[str, Any]], step_by_id: dict[str, dict[str, Any]], index: int, step: dict[str, Any]) -> list[str]:  # noqa: PLR0912, PLR0913, RUF100 - retained helper compatibility
-    step_id = step["id"] or "unnamed"
-    gaps = [f"campaign_step_{field}_missing:{campaign_id}:{step_id}" for field in _STEP_FIELDS if not step[field]]
-    if step["ordinal"] != index:
-        gaps.append(f"campaign_step_ordinal_invalid:{campaign_id}:{step_id}")
-    if step["depends_on"] != ([] if index == 1 else [steps[index - 2]["id"]]):
-        gaps.append(f"campaign_step_dependency_not_serial:{campaign_id}:{step_id}")
-    for dependency in step["depends_on"]:
-        dependency_step = step_by_id.get(dependency)
-        if dependency_step is None:
-            gaps.append(f"campaign_step_dependency_missing:{campaign_id}:{step_id}:{dependency}")
-        elif step["state"] != "planned" and dependency_step["closeout"]["state"] != "retired":
-            gaps.append(f"campaign_step_dependency_not_retired:{campaign_id}:{step_id}:{dependency}")
-    closeout = step["closeout"]
-    terminal_step, terminal_closeout = step["state"] in _CLOSED_STATES, closeout["state"] in _CLOSED_STATES
-    if terminal_step and not terminal_closeout:
-        gaps.append(f"campaign_step_closeout_state_incomplete:{campaign_id}:{step_id}")
-    if terminal_closeout:
-        if not closeout["accepted_head"] or not closeout["candidate_head"]:
-            gaps.append(f"campaign_step_closeout_head_missing:{campaign_id}:{step_id}")
-        if not closeout["evidence"]:
-            gaps.append(f"campaign_step_closeout_evidence_missing:{campaign_id}:{step_id}")
-    for condition, gap in ((step["state"] in _EXECUTION_STATES and terminal_closeout, "execution_closeout_terminal"), (step["state"] == "archive_ready" and terminal_closeout, "archive_ready_closeout_terminal"), (terminal_closeout and not terminal_step, "terminal_closeout_nonterminal")):
-        if condition:
-            gaps.append(f"campaign_step_{gap}:{campaign_id}:{step_id}")
-    carrier = _openspec_carrier_state(root, step["openspec_change"])
-    carrier_gap = "openspec_ambiguous" if carrier == "ambiguous" else "archive_ready_openspec_not_archived" if step["state"] == "archive_ready" and carrier != "archived" else "active_openspec_archived" if step["state"] in _EXECUTION_STATES and carrier == "archived" else "terminal_openspec_not_archived" if terminal_step and carrier != "archived" else ""
-    if carrier_gap:
-        gaps.append(f"campaign_step_{carrier_gap}:{campaign_id}:{step_id}")
-    if (step["state"] != "planned" or closeout["state"] != "planned") and step["openspec_change"] and carrier == "missing":
-        gaps.append(f"campaign_step_openspec_missing:{campaign_id}:{step_id}")
-    return gaps
-
-
 def evolution_candidates(root: Path) -> dict[str, object]:
     """Return candidate mechanisms from the evolution ledger plus audit-signal fallbacks."""
     ledger = evolution_ledger(root)
@@ -272,5 +231,6 @@ def _list_items(value: Any) -> list[dict[str, Any]]:
 def campaign_policy(root: Path) -> CampaignWorkflowDeclaration:
     policy = load_workflow_contract_declaration(root).campaign
     if policy is None:
-        raise ValueError("campaign workflow policy missing")
+        message = "campaign workflow policy missing"
+        raise ValueError(message)
     return policy

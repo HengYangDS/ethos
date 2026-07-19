@@ -69,10 +69,9 @@ def _active_identifier_rejected_report(
     required_gaps: list[str],
 ) -> dict[str, Any]:
     """Return an active-selector category error without invoking official status."""
-    official_config = official_config_report(root)
     return {
         "ok": False,
-        "official_config": official_config,
+        "official_config": official_config_report(root),
         "official_cli": {
             "package": openspec_cli.OFFICIAL_NPX_PACKAGE,
             "available": False,

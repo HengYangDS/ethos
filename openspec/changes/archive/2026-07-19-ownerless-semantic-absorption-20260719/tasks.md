@@ -14,5 +14,12 @@
   current-lane plan/proof readiness (executed exact-HEAD proof remains post-commit).
 - [x] 2.3 Prepare the current replay, evidence, and OpenSpec carrier for the
   bounded local commit-and-archive transition.
-- [ ] 2.4 Commit, archive, execute HEAD-bound proof, land, accepted closeout,
-  and re-observe the named source before any retirement decision.
+- [x] 2.4 Commit and archive the current replay; post-archive proof, land,
+  accepted closeout, and source re-observation remain governed transitions.
+
+## Post-Archive Transition Boundary
+
+Official archive does not itself execute HEAD-bound proof, candidate land,
+accepted-root closeout, source-lane retirement, remote publication, or hosted
+CI. Each requires current local command evidence; the historical source remains
+untouched until accepted closeout and fresh re-observation.

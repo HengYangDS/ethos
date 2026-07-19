@@ -245,9 +245,9 @@ def test_campaign_schema_rejects_unknown_publication_mode() -> None:
     assert validation["required_gaps"] == ["'campaign_terminal' was expected"]
 
 
-def test_campaign_schema_accepts_archived_preland_step() -> None:
+def test_campaign_schema_accepts_archive_ready_preland_step() -> None:
     payload = deepcopy(_CAMPAIGN_SCHEMA_PAYLOAD)
-    payload["step"][0]["state"] = "archived"
+    payload["step"][0]["state"] = "archive_ready"
 
     assert validate_schema_instance("campaign.schema.json", payload)["ok"] is True
 

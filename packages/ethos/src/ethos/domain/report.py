@@ -153,13 +153,20 @@ def scorecard_report(repo: Path, *, product_root: Path | None = None) -> dict[st
     effective_score = max(0, nominal_score - hard_quality_penalty - coordination_risk_penalty)
     coordination_risk_count = len(coordination_required_gaps) + len(coordination_advisory_gaps)
     quality_gates = cast("dict[str, dict[str, object]]", hard_quality_floor.get("gates") or {})
-    advisory_gap_items = reporting_gaps.advisory_gaps(
-        cast("dict[str, object]", audit.get("openspec") or {}),
-        cast("dict[str, object]", status_payload.get("coordination") or {}),
-        claim_report,
-        playbooks,
-        hosted_observation,
-        *quality_gates.values(),
+    advisory_gap_items = tuple(
+        dict.fromkeys(
+            (
+                *reporting_gaps.advisory_gaps(
+                    cast("dict[str, object]", audit.get("openspec") or {}),
+                    cast("dict[str, object]", status_payload.get("coordination") or {}),
+                    claim_report,
+                    playbooks,
+                    hosted_observation,
+                    *quality_gates.values(),
+                ),
+                *cast("list[str]", global_compression["required_gaps"]),
+            )
+        )
     )
     advisory_action_items = reporting_gaps.advisory_next_actions(advisory_gap_items)
     local_publication = reporting_gaps.local_publication_projection(

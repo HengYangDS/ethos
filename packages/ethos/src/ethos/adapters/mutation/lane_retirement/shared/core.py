@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import Protocol
 
 from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.mutation.lane_lifecycle.core import run_git
@@ -14,9 +14,7 @@ from ethos_core.contracts.lifecycle.core import MutationRequest
 if TYPE_CHECKING:
     from pathlib import Path
 
-
-class GitRunner(Protocol):
-    def __call__(self, root: Path, *args: str, check: bool = True) -> Any: ...
+GitRunner = Callable[..., Any]
 
 
 def _run_git_adapter(root: Path, *args: str, check: bool = True) -> Any:
@@ -36,51 +34,31 @@ def remove_linked_lane(
     *,
     expect_head: str | None,
     runtime: RetirementRuntime | None = None,
+    runner: GitRunner | None = None,
 ) -> dict[str, object]:
     """Delete a lane ref head-bound, then remove its previously clean worktree."""
-    active_runtime = runtime or RetirementRuntime()
+    git = runner or (runtime or RetirementRuntime()).run_git
     ref = f"refs/heads/{lane['branch']}"
-    delete = active_runtime.run_git(
-        repo,
-        "update-ref",
-        "-d",
-        ref,
-        str(expect_head),
-        check=False,
-    )
-    if delete.returncode != 0:
+    result = git(repo, "update-ref", "-d", ref, str(expect_head), check=False)
+    if result.returncode:
         return {
             "ok": False,
             "state": "blocked",
             "required_gaps": ["branch_delete_failed"],
-            "stderr": delete.stderr.strip(),
+            "stderr": result.stderr.strip(),
         }
-    remove = active_runtime.run_git(
-        repo,
-        "worktree",
-        "remove",
-        "--force",
-        str(lane["path"]),
-        check=False,
-    )
-    if remove.returncode == 0:
+    result = git(repo, "worktree", "remove", "--force", str(lane["path"]), check=False)
+    if not result.returncode:
         return {}
-    restore = active_runtime.run_git(
-        repo,
-        "update-ref",
-        ref,
-        str(expect_head),
-        "0" * 40,
-        check=False,
-    )
-    gaps = ["worktree_remove_failed"]
-    if restore.returncode != 0:
-        gaps.append("branch_restore_failed")
+    restore = git(repo, "update-ref", ref, str(expect_head), "0" * 40, check=False)
     return {
         "ok": False,
         "state": "blocked",
-        "required_gaps": gaps,
-        "stderr": remove.stderr.strip(),
+        "required_gaps": [
+            "worktree_remove_failed",
+            *(["branch_restore_failed"] if restore.returncode else []),
+        ],
+        "stderr": result.stderr.strip(),
         "rollback_stderr": restore.stderr.strip(),
     }
 
@@ -99,16 +77,13 @@ def delete_json_projection_lease(repo: Path, *, subject: str) -> int:
     rows = payload.get("leases")
     if not isinstance(rows, list):
         return 0
-    kept: list[object] = []
-    removed = 0
-    for row in rows:
-        branch = ""
-        if isinstance(row, dict):
-            branch = str(row.get("branch") or row.get("subject") or "")
-        if branch == subject:
-            removed += 1
-        else:
-            kept.append(row)
+    kept = [
+        row
+        for row in rows
+        if not isinstance(row, dict)
+        or str(row.get("branch") or row.get("subject") or "") != subject
+    ]
+    removed = len(rows) - len(kept)
     if not removed:
         return 0
     payload = dict(payload)
@@ -161,29 +136,51 @@ def has_changed_paths(root: Path, *, runner: GitRunner) -> bool:
     return completed.returncode != 0 or bool(completed.stdout.strip())
 
 
-def retire_mutation_binding(
+def expected_head_gaps(head: str, expect_head: str | None) -> list[str]:
+    """Require a caller-supplied compare-and-swap head."""
+    expected = (expect_head or "").strip()
+    if not expected:
+        return ["expect_head_required"]
+    return ["expect_head_mismatch"] if head and expected != head else []
+
+
+def retirement_report(  # noqa: PLR0913, RUF100 - shared exact result dimensions
     *,
+    command: str,
+    action: str,
     branch: str | None,
     expect_head: str | None,
+    apply: bool,
+    confirmed: bool,
+    state: str,
+    gaps: list[str],
     holder_ref: str = "",
     required_holder_ref: str = "",
-) -> dict[str, str]:
-    """Build the common mutation binding envelope for lane retirement commands."""
-    holder_ref = holder_ref.strip()
-    mutation = {
-        "invocation_holder_ref": holder_ref,
-        "expect_head": (expect_head or "").strip(),
-        "ref": f"refs/heads/{branch}" if branch else "",
+    extra_state: dict[str, object] | None = None,
+    fields: dict[str, object] | None = None,
+) -> dict[str, object]:
+    """Build one retirement result and its canonical mutation envelope."""
+    required = sorted(set(gaps))
+    return {
+        "ok": not required,
+        "state": state,
+        "branch": branch or "",
+        **(fields or {}),
+        "mutation": retire_mutation_envelope(
+            command=command,
+            action=action,
+            branch=branch,
+            expect_head=expect_head,
+            apply=apply,
+            confirmed=confirmed,
+            required_gaps=required,
+            holder_ref=holder_ref,
+            required_holder_ref=required_holder_ref,
+            extra_state=extra_state,
+        ),
+        "required_gaps": required,
+        **retire_authority_guidance(required),
     }
-    if required_holder_ref:
-        mutation.update(
-            {
-                "holder_bound": str(bool(holder_ref)).lower(),
-                "invocation_source": "ETHOS_ACTOR",
-                "required_holder_ref": required_holder_ref,
-            }
-        )
-    return mutation
 
 
 def retire_mutation_envelope(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
@@ -200,12 +197,21 @@ def retire_mutation_envelope(  # noqa: PLR0913, RUF100 - exact request envelope 
     extra_state: dict[str, object] | None = None,
 ) -> dict[str, object]:
     """Build the canonical retirement request/decision while retaining migration hints."""
-    legacy_binding = retire_mutation_binding(
-        branch=branch,
-        expect_head=expect_head,
-        holder_ref=holder_ref,
-        required_holder_ref=required_holder_ref,
-    )
+    invocation = holder_ref.strip()
+    legacy_binding = {
+        "invocation_holder_ref": invocation,
+        "expect_head": (expect_head or "").strip(),
+        "ref": f"refs/heads/{branch}" if branch else "",
+        **(
+            {
+                "holder_bound": str(bool(invocation)).lower(),
+                "invocation_source": "ETHOS_ACTOR",
+                "required_holder_ref": required_holder_ref,
+            }
+            if required_holder_ref
+            else {}
+        ),
+    }
     expected_state: dict[str, object] = {
         "ref": str(legacy_binding["ref"]),
         "head": str(legacy_binding["expect_head"]),
@@ -213,22 +219,25 @@ def retire_mutation_envelope(  # noqa: PLR0913, RUF100 - exact request envelope 
         "required_holder_ref": required_holder_ref,
         **(extra_state or {}),
     }
-    canonical = mutation_envelope(
-        MutationRequest(
-            command=command,
-            apply=apply,
-            authorized=confirmed,
-            expect_head=expect_head,
+    return {
+        **legacy_binding,
+        **mutation_envelope(
+            MutationRequest(
+                command=command,
+                apply=apply,
+                authorized=confirmed,
+                expect_head=expect_head,
+            ),
+            action=action,
+            resource=str(legacy_binding["ref"] or branch or "work-lane"),
+            expected_state=expected_state,
+            verdict="allow" if not required_gaps else "block",
+            required_gaps=tuple(sorted(set(required_gaps))),
+            state="ready" if not required_gaps else "blocked",
+            identity_basis="holder_ref_equality" if required_holder_ref else "not_evaluated",
+            evidence_boundary="current_git_lane_and_lease_observation",
+            enforcement_boundary="git_ref_and_worktree_transition",
+            verifier_provenance="current_runner",
         ),
-        action=action,
-        resource=str(legacy_binding["ref"] or branch or "work-lane"),
-        expected_state=expected_state,
-        verdict="allow" if not required_gaps else "block",
-        required_gaps=tuple(sorted(set(required_gaps))),
-        state="ready" if not required_gaps else "blocked",
-        identity_basis="holder_ref_equality" if required_holder_ref else "not_evaluated",
-        evidence_boundary="current_git_lane_and_lease_observation",
-        enforcement_boundary="git_ref_and_worktree_transition",
-        verifier_provenance="current_runner",
-    )
-    return {**legacy_binding, **canonical, "legacy_binding_authoritative": False}
+        "legacy_binding_authoritative": False,
+    }

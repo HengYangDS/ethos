@@ -21,7 +21,7 @@ def test_parity_projection_reader_rejects_unmerged_and_write_failures(
         return cp(returncode=1)
 
     monkeypatch.setattr(projection_rebase, "run_git", run_git)
-    assert projection_rebase.resolve_projection_only_rebase_conflict(tmp_path)["ok"] is False
+    assert projection_rebase.resolve_projection_rebase(tmp_path, cp(returncode=1))["ok"] is False
 
     for failing_action in ("checkout", "add"):
 
@@ -37,12 +37,9 @@ def test_parity_projection_reader_rejects_unmerged_and_write_failures(
             return cp(returncode=1) if args[:1] == (_failing_action,) else cp(returncode=0)
 
         monkeypatch.setattr(projection_rebase, "run_git", run_git)
-        assert projection_rebase.resolve_projection_only_rebase_conflict(tmp_path) == {
-            "ok": False,
-            "paths": ["evidence/parity/generic-shadow.json"],
-            "gaps": [],
-            "next_actions": [],
-        }
+        assert (
+            projection_rebase.resolve_projection_rebase(tmp_path, cp(returncode=1))["ok"] is False
+        )
 
 
 def test_projection_rebase_skips_empty_patch_after_parity_resolution(

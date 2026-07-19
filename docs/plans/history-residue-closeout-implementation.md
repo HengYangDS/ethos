@@ -1,4 +1,21 @@
+---
+subject: ethos:history-residue-closeout-implementation-20260719
+role: plan
+state: active
+relations:
+  implements: history-residue-closeout-20260719
+  derives_from: docs/plans/history-residue-closeout-design.md
+---
+
 # History Residue Closeout Implementation Plan
+
+Status: active.
+
+Purpose: execute the tracked, local-state, recovery, and source-budget cleanup
+defined by the history-residue closeout design.
+
+See also: [OpenSpec change](../../openspec/changes/history-residue-closeout-20260719/)
+and the [design](history-residue-closeout-design.md).
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -22,6 +39,7 @@
 ### Task 1: Tracked projection and scaffold retirement
 
 **Files:**
+
 - Delete: `.ethos/ENGINEERING-NOTES.md`
 - Delete: `.ethos/terminal-landing-plan.md`
 - Delete: `.ethos/assistants.toml`
@@ -47,6 +65,7 @@
 ### Task 2: Lossless Rules V2 migration and command
 
 **Files:**
+
 - Modify: `packages/ethos/src/ethos/repository/policy/rules/migration.py`
 - Modify: `packages/ethos/src/ethos/domain/plan.py`
 - Modify: `packages/ethos/src/ethos/surface/cli/rules.py`
@@ -69,6 +88,7 @@
 ### Task 3: SQLite v2 and conservative maintenance
 
 **Files:**
+
 - Modify: `packages/ethos/src/ethos/adapters/store/state/events.py`
 - Modify: `packages/ethos/src/ethos/adapters/store/state/lease/projection.py`
 - Modify: `packages/ethos/src/ethos/adapters/store/state/lease/lifecycle/effects.py`
@@ -92,6 +112,7 @@
 ### Task 4: Recovery archive and ignored-state cleanup
 
 **Files:**
+
 - Modify: `evidence/chronicle/history-residue-closeout-20260719/2026-07-19.md`
 - Modify: `evidence/claims/history-residue-closeout-20260719.toml`
 - Local source: `/Users/yheng/projects/ethos/.ethos/state/residue-snapshots/`
@@ -108,6 +129,7 @@
 ### Task 5: Retire bundled provider executables and compress tests
 
 **Files:**
+
 - Delete: `extensions/independent-verification/adapters/independent_identity/reference_verifier.py`
 - Delete: `extensions/independent-verification/adapters/generic_git/pre_receive.py`
 - Delete or reduce: `extensions/independent-verification/tests/`
@@ -129,6 +151,7 @@
 ### Task 6: Settle Python product and test debt
 
 **Files:**
+
 - Refactor: `packages/ethos/src/ethos/adapters/openspec/lifecycle/`
 - Refactor: `packages/ethos/src/ethos/adapters/mutation/lane_lifecycle/projection_rebase/`
 - Refactor: `packages/ethos/src/ethos/adapters/admission/`
@@ -148,6 +171,7 @@
 ### Task 7: Settle tools, shell, TOML, Jinja, and debt ledger
 
 **Files:**
+
 - Delete/merge: `tools/ci/structural_whitespace.py`
 - Reduce: `tools/ci/ci_templates.py`
 - Delete/merge: `tools/ci/ethos_core_build_hook.py`
@@ -169,6 +193,7 @@
 ### Task 8: Closeout evidence and lifecycle
 
 **Files:**
+
 - Modify: `openspec/changes/history-residue-closeout-20260719/tasks.md`
 - Modify: `evidence/chronicle/history-residue-closeout-20260719/2026-07-19.md`
 - Modify: `evidence/claims/history-residue-closeout-20260719.toml`

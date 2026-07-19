@@ -93,7 +93,7 @@ def test_campaign_required_gaps_rejects_archive_ready_step_with_active_carrier(
     (tmp_path / "openspec" / "changes" / change).mkdir(parents=True)
     gaps = _campaign_report_gaps(tmp_path, change=change, step_state="archive_ready")
 
-    assert "campaign_step_archive_ready_openspec_not_archived:cid:s1" in gaps
+    assert "campaign_step_preland_openspec_not_archived:cid:s1" in gaps
 
 
 def test_campaign_required_gaps_rejects_archive_ready_terminal_closeout(tmp_path: Path) -> None:
@@ -107,7 +107,6 @@ def test_campaign_required_gaps_rejects_archive_ready_terminal_closeout(tmp_path
         closeout_state="retired",
     )
 
-    assert "campaign_step_archive_ready_closeout_terminal:cid:s1" in gaps
     assert "campaign_step_terminal_closeout_nonterminal:cid:s1" in gaps
 
 

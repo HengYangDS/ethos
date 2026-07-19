@@ -146,7 +146,7 @@ def test_scorecard_blocks_hard_quality_floor(monkeypatch, tmp_path) -> None:
 
 def test_scorecard_surfaces_global_compression_separately(monkeypatch, tmp_path) -> None:
     patch_scorecard_dependencies(monkeypatch)
-    gap = "source_budget_exceeded:toml:12531>12516"
+    gap = "source_budget_campaign_growth_overage:toml:12531>12516"
     monkeypatch.setattr(
         reporting_scoring,
         "global_compression_report",

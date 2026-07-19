@@ -50,16 +50,18 @@ def test_inventory_rejects_invalid_boundaries_and_git_failures(
 
 
 def test_tree_inventory_rejects_links_and_special_entries(tmp_path: Path) -> None:
-    source = tmp_path / "tree"
-    source.mkdir()
-    link = source / "link"
+    repo = maintenance_repo(tmp_path)
+    archive_root = tmp_path / "archive"
+    snapshots = repo / ".ethos" / "state" / "residue-snapshots"
+    snapshots.mkdir(parents=True)
+    link = snapshots / "link"
     link.symlink_to(tmp_path / "target")
     with pytest.raises(ValueError, match="maintenance_archive_symlink_unsupported:link"):
-        maintenance._tree_entries(source)
+        local_state_maintenance_inventory(repo, archive_root, OBSERVED_AT)
     link.unlink()
-    os.mkfifo(source / "pipe")
+    os.mkfifo(snapshots / "pipe")
     with pytest.raises(ValueError, match="maintenance_archive_entry_unsupported:pipe"):
-        maintenance._tree_entries(source)
+        local_state_maintenance_inventory(repo, archive_root, OBSERVED_AT)
 
 
 def test_inventory_reports_an_unreadable_state_database(tmp_path: Path) -> None:
@@ -199,12 +201,45 @@ def test_inventory_prunes_only_expired_unobservable_current_contract_leases(
 
 
 def test_inventory_lease_deletion_fails_closed_on_missing_database_and_drift(
+    monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    with pytest.raises(ValueError, match="lease_maintenance_database_missing"):
-        maintenance._delete_inventory_leases(None, [{"id": "lease:missing"}])
+    missing_repo = maintenance_repo(tmp_path / "missing")
+    missing_archive = tmp_path / "missing-archive"
+    insert_lease(
+        missing_repo,
+        lease_id="lease:missing",
+        subject="work/missing",
+        expires_at="2026-07-18T00:00:00+00:00",
+        payload=current_lease_payload(path=(tmp_path / "gone").as_posix()),
+    )
+    missing_inventory = local_state_maintenance_inventory(
+        missing_repo,
+        missing_archive,
+        OBSERVED_AT,
+    )
+    missing_db = missing_repo / ".ethos" / "state" / "state.sqlite"
 
-    repo = maintenance_repo(tmp_path)
+    def inventory_after_database_removal(*_args: object, **_kwargs: object) -> dict[str, object]:
+        missing_db.unlink()
+        return missing_inventory
+
+    monkeypatch.setattr(
+        maintenance,
+        "local_state_maintenance_inventory",
+        inventory_after_database_removal,
+    )
+    with pytest.raises(ValueError, match="lease_maintenance_database_missing"):
+        apply_local_state_maintenance(
+            missing_repo,
+            missing_archive,
+            OBSERVED_AT,
+            expect_inventory_digest=missing_inventory["inventory_digest"],
+            confirm_irreversible=True,
+        )
+
+    repo = maintenance_repo(tmp_path / "drift")
+    archive_root = tmp_path / "drift-archive"
     for suffix in ("a", "b"):
         insert_lease(
             repo,
@@ -213,17 +248,31 @@ def test_inventory_lease_deletion_fails_closed_on_missing_database_and_drift(
             expires_at="2026-07-18T00:00:00+00:00",
             payload=current_lease_payload(path=(tmp_path / "gone").as_posix()),
         )
-    candidates = local_state_maintenance_inventory(repo, tmp_path / "archive", OBSERVED_AT)[
-        "leases"
-    ]["delete_candidates"]
-    forged = [candidates[0], {**candidates[1], "owner": "agent:test:case:forged"}]
+    inventory = local_state_maintenance_inventory(repo, archive_root, OBSERVED_AT)
     db_path = repo / ".ethos" / "state" / "state.sqlite"
 
-    with closing(sqlite3.connect(db_path)) as connection:
-        connection.execute("begin immediate")
-        with pytest.raises(ValueError, match="lease_maintenance_candidate_drift:lease:b"):
-            maintenance._delete_inventory_leases(connection, forged)
-        connection.rollback()
+    def inventory_after_owner_drift(*_args: object, **_kwargs: object) -> dict[str, object]:
+        with closing(sqlite3.connect(db_path)) as connection:
+            connection.execute(
+                "update leases set owner = 'agent:test:case:forged' where id = 'lease:b'"
+            )
+            connection.commit()
+        return inventory
+
+    monkeypatch.setattr(
+        maintenance,
+        "local_state_maintenance_inventory",
+        inventory_after_owner_drift,
+    )
+    with pytest.raises(ValueError, match="lease_maintenance_candidate_drift:lease:b"):
+        apply_local_state_maintenance(
+            repo,
+            archive_root,
+            OBSERVED_AT,
+            expect_inventory_digest=inventory["inventory_digest"],
+            confirm_irreversible=True,
+        )
+
     with closing(sqlite3.connect(db_path)) as connection:
         assert connection.execute("select id from leases order by id").fetchall() == [
             ("lease:a",),
@@ -232,6 +281,7 @@ def test_inventory_lease_deletion_fails_closed_on_missing_database_and_drift(
 
 
 def test_inventory_protects_current_ref_worktree_and_live_lease_proofs(
+    monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
     repo = maintenance_repo(tmp_path)
@@ -265,12 +315,8 @@ def test_inventory_protects_current_ref_worktree_and_live_lease_proofs(
     )
     monkeypatch_heads = {current, worktree_head}
 
-    original = maintenance._git_worktree_heads
-    maintenance._git_worktree_heads = lambda _root: monkeypatch_heads
-    try:
-        inventory = local_state_maintenance_inventory(repo, archive_root, OBSERVED_AT)
-    finally:
-        maintenance._git_worktree_heads = original
+    monkeypatch.setattr(maintenance, "_git_worktree_heads", lambda _root: monkeypatch_heads)
+    inventory = local_state_maintenance_inventory(repo, archive_root, OBSERVED_AT)
 
     assert [item["head"] for item in inventory["proofs"]["delete_candidates"]] == [unreachable]
     assert {item["head"] for item in inventory["proofs"]["retained"]} == {
@@ -282,6 +328,7 @@ def test_inventory_protects_current_ref_worktree_and_live_lease_proofs(
 
 
 def test_inventory_is_read_only_and_digest_changes_when_source_changes(
+    monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
     repo = maintenance_repo(tmp_path)
@@ -298,8 +345,15 @@ def test_inventory_is_read_only_and_digest_changes_when_source_changes(
     second = local_state_maintenance_inventory(repo, archive_root, OBSERVED_AT)
 
     assert first["inventory_digest"] != second["inventory_digest"]
+    monkeypatch.setattr(maintenance, "local_state_maintenance_inventory", lambda *_args: first)
     with pytest.raises(ValueError, match="maintenance_recovery_snapshot_drift"):
-        maintenance._delete_recovery_snapshot(repo, first["recovery"])
+        apply_local_state_maintenance(
+            repo,
+            archive_root,
+            OBSERVED_AT,
+            expect_inventory_digest=first["inventory_digest"],
+            confirm_irreversible=True,
+        )
 
 
 def test_inventory_reads_wal_through_read_only_uris_without_new_sidecars(
@@ -587,9 +641,16 @@ def test_maintenance_lock_is_scoped_to_repository_not_archive_root(
     repo = maintenance_repo(tmp_path)
     archive_root = tmp_path / "archive"
 
-    with maintenance._maintenance_lock(repo):
-        assert (repo / ".ethos" / "state" / "local-state-maintenance.lock").is_file()
+    with pytest.raises(ValueError, match="maintenance_inventory_digest_mismatch"):
+        apply_local_state_maintenance(
+            repo,
+            archive_root,
+            OBSERVED_AT,
+            expect_inventory_digest="not-the-current-inventory",
+            confirm_irreversible=True,
+        )
 
+    assert (repo / ".ethos" / "state" / "local-state-maintenance.lock").is_file()
     assert not (archive_root / ".ethos-local-state-maintenance.lock").exists()
 
 
@@ -605,10 +666,12 @@ def test_apply_reobserves_proof_protection_immediately_before_deletion(
     proof = write_proof(repo, candidate_head)
     inventory = local_state_maintenance_inventory(repo, archive_root, OBSERVED_AT)
     assert [item["head"] for item in inventory["proofs"]["delete_candidates"]] == [candidate_head]
-    original_verify = maintenance._verify_archive_extraction
 
-    def verify_then_protect(*args: object, **kwargs: object) -> dict[str, object]:
-        result = original_verify(*args, **kwargs)
+    def verify_then_protect(
+        _archive: Path,
+        manifest: dict[str, list[object]],
+        **_kwargs: object,
+    ) -> dict[str, object]:
         if late_protection == "ref":
             git(repo, "branch", "work/late-protected", candidate_head)
         elif late_protection == "worktree":
@@ -628,9 +691,9 @@ def test_apply_reobserves_proof_protection_immediately_before_deletion(
                 expires_at="2026-07-20T00:00:00+00:00",
                 payload=current_lease_payload(expected_head=candidate_head),
             )
-        return result
+        return {"entry_count": len(manifest["entries"]), "bundle_verifications": []}
 
-    monkeypatch.setattr(maintenance, "_verify_archive_extraction", verify_then_protect)
+    monkeypatch.setattr(maintenance, "verify_archive_extraction", verify_then_protect)
 
     with pytest.raises(ValueError, match="maintenance_proof_candidate_became_protected"):
         apply_local_state_maintenance(
@@ -708,7 +771,7 @@ def test_apply_keeps_sources_when_archive_extraction_verification_fails(
         message = "maintenance_archive_extraction_failed"
         raise RuntimeError(message)
 
-    monkeypatch.setattr(maintenance, "_verify_archive_extraction", fail_extraction)
+    monkeypatch.setattr(maintenance, "verify_archive_extraction", fail_extraction)
 
     with pytest.raises(RuntimeError, match="maintenance_archive_extraction_failed"):
         apply_local_state_maintenance(
@@ -741,15 +804,16 @@ def test_apply_restores_sources_when_receipt_write_fails(
     )
     proof = write_proof(repo, "e" * 40)
     inventory = local_state_maintenance_inventory(repo, archive_root, OBSERVED_AT)
-    original_write = maintenance._write_json_atomic
+    path_type = type(repo)
+    original_replace = path_type.replace
 
-    def fail_receipt(path: Path, payload: dict[str, object]) -> None:
-        if path.name.endswith(".receipt.json"):
+    def fail_receipt(source: Path, target: Path) -> Path:
+        if target.name.endswith(".receipt.json"):
             msg = "receipt write failed"
             raise OSError(msg)
-        original_write(path, payload)
+        return original_replace(source, target)
 
-    monkeypatch.setattr(maintenance, "_write_json_atomic", fail_receipt)
+    monkeypatch.setattr(path_type, "replace", fail_receipt)
 
     with pytest.raises(OSError, match="receipt write failed"):
         apply_local_state_maintenance(
@@ -784,24 +848,27 @@ def test_failed_apply_preserves_database_writes_committed_after_staging(
         connection.execute("create table concurrent_state (value text not null)")
         connection.commit()
     inventory = local_state_maintenance_inventory(repo, archive_root, OBSERVED_AT)
-    original_verify = maintenance._verify_archive_extraction
-    original_write = maintenance._write_json_atomic
+    path_type = type(repo)
+    original_replace = path_type.replace
 
-    def verify_then_write(*args: object, **kwargs: object) -> dict[str, object]:
-        result = original_verify(*args, **kwargs)
+    def verify_then_write(
+        _archive: Path,
+        manifest: dict[str, list[object]],
+        **_kwargs: object,
+    ) -> dict[str, object]:
         with closing(sqlite3.connect(db_path)) as connection:
             connection.execute("insert into concurrent_state(value) values ('committed')")
             connection.commit()
-        return result
+        return {"entry_count": len(manifest["entries"]), "bundle_verifications": []}
 
-    def fail_receipt(path: Path, payload: dict[str, object]) -> None:
-        if path.name.endswith(".receipt.json"):
+    def fail_receipt(source: Path, target: Path) -> Path:
+        if target.name.endswith(".receipt.json"):
             msg = "receipt write failed"
             raise OSError(msg)
-        original_write(path, payload)
+        return original_replace(source, target)
 
-    monkeypatch.setattr(maintenance, "_verify_archive_extraction", verify_then_write)
-    monkeypatch.setattr(maintenance, "_write_json_atomic", fail_receipt)
+    monkeypatch.setattr(maintenance, "verify_archive_extraction", verify_then_write)
+    monkeypatch.setattr(path_type, "replace", fail_receipt)
 
     with pytest.raises(OSError, match="receipt write failed"):
         apply_local_state_maintenance(

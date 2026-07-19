@@ -126,7 +126,7 @@ def _apply_local_state_maintenance_locked(
         manifest["bundle_verifications"] = bundle_verifications
         manifest_path = _manifest_path(external_archive, expect_inventory_digest)
         _write_json_atomic(manifest_path, manifest)
-        extraction = _verify_archive_extraction(archive, manifest, repository_root=repo)
+        extraction = verify_archive_extraction(archive, manifest, repository_root=repo)
         deleted: dict[str, Any] = {
             "lease_ids": [],
             "proof_paths": [],
@@ -382,12 +382,13 @@ def _create_archive(archive_root: Path, digest: str, staging: Path) -> Path:
     return target
 
 
-def _verify_archive_extraction(
+def verify_archive_extraction(
     archive: Path,
     manifest: dict[str, Any],
     *,
     repository_root: Path,
 ) -> dict[str, Any]:
+    """Extract an archive and verify its manifest entries and recovery bundles."""
     with tempfile.TemporaryDirectory(prefix="ethos-archive-verify-") as temp:
         destination = Path(temp)
         try:
@@ -493,7 +494,7 @@ def _verified_existing_receipt(
     ):
         msg = "maintenance_existing_receipt_invalid"
         raise ValueError(msg)
-    _verify_archive_extraction(archive, manifest, repository_root=repository_root)
+    verify_archive_extraction(archive, manifest, repository_root=repository_root)
     return receipt
 
 

@@ -226,6 +226,7 @@ match_prefixes = [
   "evidence.semantic_sha256_",
   "evidence.semantic_scope_",
   "coverage_artifact_missing",
+  "coverage_artifact_writer_",
   "hosted_provider_observation_",
   "provider_configuration_",
   "provider_not_configured",

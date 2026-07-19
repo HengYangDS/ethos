@@ -482,7 +482,10 @@
           ]
         },
         "dirty": {
-          "type": "boolean"
+          "type": [
+            "boolean",
+            "null"
+          ]
         },
         "dirty_paths": {
           "type": "array",
@@ -611,6 +614,7 @@
       "type": "object",
       "required": [
         "kind",
+        "detail_state",
         "blocking",
         "required_gaps",
         "advisory_gaps",
@@ -621,6 +625,7 @@
         "missing_lease_count",
         "overlap_count",
         "unknown_scope_count",
+        "dirty_foreign_work_lane_count",
         "closeout_residue_count",
         "dirty_closeout_residue_count",
         "closeout_residue_lanes",
@@ -630,6 +635,12 @@
       "properties": {
         "kind": {
           "const": "work_lane_coordination"
+        },
+        "detail_state": {
+          "enum": [
+            "exact",
+            "deferred"
+          ]
         },
         "blocking": {
           "type": "boolean"
@@ -668,11 +679,24 @@
           "minimum": 0
         },
         "overlap_count": {
-          "type": "integer",
+          "type": [
+            "integer",
+            "null"
+          ],
           "minimum": 0
         },
         "unknown_scope_count": {
-          "type": "integer",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "dirty_foreign_work_lane_count": {
+          "type": [
+            "integer",
+            "null"
+          ],
           "minimum": 0
         },
         "next_action": {
@@ -686,11 +710,17 @@
           }
         },
         "closeout_residue_count": {
-          "type": "integer",
+          "type": [
+            "integer",
+            "null"
+          ],
           "minimum": 0
         },
         "dirty_closeout_residue_count": {
-          "type": "integer",
+          "type": [
+            "integer",
+            "null"
+          ],
           "minimum": 0
         },
         "closeout_residue_lanes": {

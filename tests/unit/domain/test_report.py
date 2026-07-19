@@ -18,7 +18,7 @@ from tests.support.reporting import patch_scorecard_dependencies
 
 
 def _quality(monkeypatch, **reports: dict[str, object]) -> None:
-    names = "code_size coverage_quality ty_gate docstring_coverage module_layout product_boundary contributor_policy".split()  # noqa: SIM905
+    names = "code_size coverage_quality ty_gate docstring_coverage module_layout generated_artifact_topology product_boundary contributor_policy".split()  # noqa: SIM905
     for name in names:
         report = reports.get(f"{name}_report", {"required_gaps": []})
         monkeypatch.setattr(reporting_scoring, f"{name}_report", lambda _repo, value=report: value)
@@ -29,6 +29,9 @@ def test_scorecard_next_actions() -> None:
         ("module_layout_flat_growth:x",): ("ethos quality module-layout --json",),
         ("unknown",): ("ethos quality --json",),
         ("identity_mode_missing:x",): ("ethos quality contributor-policy --json",),
+        ("generated_artifact_root_cache_drift:.ruff_cache",): (
+            "ethos quality generated-artifacts --json",
+        ),
         (): ("ethos prove --full",),
         (
             "coverage_latest_below_floor:x",
@@ -198,13 +201,16 @@ def test_hard_quality_floor_boundaries(monkeypatch, tmp_path) -> None:
         coverage_quality_report={"required_gaps": ["coverage_artifact_missing:x"]},
         ty_gate_report={"required_gaps": ["ty_zero_tolerance_violation:x"]},
         docstring_coverage_report={"required_gaps": ["public_docstring_missing:x"]},
+        generated_artifact_topology_report={
+            "required_gaps": ["generated_artifact_root_cache_drift:.ruff_cache"]
+        },
     )
     floor = reporting_scoring.hard_quality_floor_report(tmp_path)
     expected = (  # noqa: SIM905
-        "python-size coverage types docstrings module-layout product-boundary contributor-policy"
+        "python-size coverage types docstrings module-layout generated-artifacts product-boundary contributor-policy"
     ).split()
     assert floor["gate_ids"] == expected
-    assert len(floor["required_gaps"]) == 3
+    assert len(floor["required_gaps"]) == 4
 
 
 def _generic_parity(**kwargs: object) -> dict[str, object]:

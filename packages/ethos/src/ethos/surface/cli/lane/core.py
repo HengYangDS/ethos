@@ -79,6 +79,7 @@ def _lane_status_summary(status_payload: dict[str, object]) -> dict[str, object]
     return {
         "branch": status_payload["branch"],
         "role": status_payload["role"],
+        "coordination_detail_state": str(coordination.get("detail_state") or "exact"),
         "foreign_work_lane_count": _int_value(
             coordination.get("foreign_work_lane_count"),
             default=len(foreign_lanes),
@@ -89,7 +90,10 @@ def _lane_status_summary(status_payload: dict[str, object]) -> dict[str, object]
         "dirty_closeout_residue_count": _int_value(
             coordination.get("dirty_closeout_residue_count")
         ),
-        "dirty_foreign_work_lane_count": sum(1 for lane in foreign_lanes if lane.get("dirty")),
+        "dirty_foreign_work_lane_count": _int_value(
+            coordination.get("dirty_foreign_work_lane_count"),
+            default=sum(1 for lane in foreign_lanes if lane.get("dirty") is True),
+        ),
         "coordination_advisory_count": len(advisory_items),
         "coordination_blocking": bool(coordination.get("blocking")),
         "coordination_next_action": str(coordination.get("next_action") or ""),

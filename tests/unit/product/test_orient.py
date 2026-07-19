@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from ethos.domain.orient import _bound_actions
+from ethos.domain.orient import _human_summary
 from ethos.domain.orient import human_orientation_lines
 from ethos.domain.orient import orientation_packet
 from ethos.surface.cli.quality.reporting import build_declarative_report_result
@@ -66,6 +67,7 @@ def test_orient_json_is_projection_not_truth_store() -> None:
         payload["summary"]["dirty_foreign_work_lane_count"]
         == orientation["coordination"]["dirty_foreign_work_lane_count"]
     )
+    assert payload["summary"]["coordination_detail_state"] == "deferred"
     assert payload["summary"]["coordination_advisory_count"] == len(
         orientation["coordination"]["advisory_items"]
     )
@@ -128,9 +130,9 @@ def test_status_json_keeps_workspace_status_pure() -> None:
     assert summary["foreign_work_lane_count"] == coordination["foreign_work_lane_count"]
     assert summary["unbound_work_lane_count"] == coordination["unbound_work_lane_count"]
     assert summary["missing_lease_count"] == coordination["missing_lease_count"]
-    assert summary["dirty_foreign_work_lane_count"] == sum(
-        1 for lane in data["foreign_work_lanes"] if lane["dirty"]
-    )
+    assert coordination["detail_state"] == "deferred"
+    assert summary["coordination_detail_state"] == "deferred"
+    assert summary["dirty_foreign_work_lane_count"] is None
     assert summary["coordination_advisory_count"] == len(coordination["advisory_gaps"])
     assert summary["coordination_blocking"] == coordination["blocking"]
 
@@ -258,13 +260,20 @@ def test_orient_makes_foreign_lane_observe_only_capability_discoverable(
     coordination = payload["data"]["orientation"]["coordination"]
     assert coordination["foreign_work_lane_count"] == 1
     assert payload["summary"]["missing_lease_count"] == 0
-    assert payload["summary"]["dirty_foreign_work_lane_count"] == 0
+    assert payload["summary"]["coordination_detail_state"] == "deferred"
+    assert payload["summary"]["dirty_foreign_work_lane_count"] is None
+    assert coordination["detail_state"] == "deferred"
+    assert coordination["dirty_foreign_work_lane_count"] is None
+    assert any(
+        "detail deferred" in line
+        for line in human_orientation_lines(payload["data"]["orientation"])
+    )
     lane = coordination["foreign_work_lanes"][0]
     assert lane["branch"] == "work/feature"
     assert lane["lease"]["holder_ref"] == "agent:test:case:agent-test"
     assert lane["lease_state"] == "leased"
     assert lane["claim_binding"] == "missing"
-    assert lane["dirty"] is False
+    assert lane["dirty"] is None
     assert lane["action_preview"] == {
         "candidate_actions": ["observe"],
         "blocked_actions": ["write", "land", "retire"],
@@ -273,6 +282,28 @@ def test_orient_makes_foreign_lane_observe_only_capability_discoverable(
         "recheck_required": True,
     }
     assert payload["data"]["orientation"]["agent_hints"]["foreign_lanes_observe_only"] is True
+
+
+def test_human_summary_reports_exact_dirty_foreign_lane_count() -> None:
+    context = {
+        "dirty": False,
+        "gaps": [],
+        "capability": {"candidate_action": "observe"},
+        "next_actions": [],
+        "foreign_count": 1,
+        "unbound_count": 0,
+        "missing_lease_count": 0,
+        "coordination_detail_state": "exact",
+        "dirty_foreign_count": 2,
+        "closeout_residue_count": 0,
+        "advisory_count": 0,
+        "role": "accepted_root",
+        "changed_count": 0,
+    }
+
+    assert "1 foreign lane(s) visible (2 dirty)" in _human_summary(context)
+    context["dirty_foreign_count"] = 0
+    assert "foreign lane(s) visible (" not in _human_summary(context)
 
 
 def test_orient_makesunbound_work_lane_refs_discoverable_without_authority(

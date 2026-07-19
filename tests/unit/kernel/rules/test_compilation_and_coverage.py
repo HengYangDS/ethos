@@ -58,6 +58,19 @@ stop_condition = "bad_rule"
     assert any(gap.startswith("rule_schema_invalid:bad:") for gap in invalid["required_gaps"])
 
 
+def test_compile_rules_reports_invalid_profiles_active(tmp_path: Path) -> None:
+    (tmp_path / ".ethos").mkdir()
+    (tmp_path / ".ethos" / "rules.toml").write_text(
+        '[profiles]\nactive = "python"\n',
+        encoding="utf-8",
+    )
+
+    compiled = compile_rules(tmp_path)
+
+    assert compiled["profile_stack"] == ["generic"]
+    assert compiled["compile_gaps"] == ["rules_profile_invalid:active_must_be_string_array"]
+
+
 def test_legacy_v1_rules_normalize_to_canonical_rule_ir(tmp_path: Path) -> None:
     (tmp_path / ".ethos").mkdir()
     (tmp_path / ".ethos" / "rules.toml").write_text(

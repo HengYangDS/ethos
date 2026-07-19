@@ -43,13 +43,13 @@ def test_config_quality_has_dedicated_policy_not_pyproject_dumping_ground() -> N
     assert "select =" not in pyproject_text
     assert ".config/checks/taplo/taplo.toml" in config_readme
     assert ".config/checks/yaml/yamllint.yaml" in config_readme
-    assert ".config/checks/whitespace/policy.toml" in config_readme
+    assert ".config/checks/whitespace/policy.toml" not in config_readme
     assert ".config/checks/shell/.shellcheckrc" in config_readme
     assert "cache routing" in config_readme
     assert "pyproject.toml` is not a pytest policy" in config_readme
 
 
-def test_blank_line_owners_use_native_or_shared_policy_without_duplication() -> None:
+def test_blank_line_owners_use_native_policies_without_custom_reader() -> None:
     markdown = (ROOT / ".config/checks/markdown/.markdownlint-cli2.yaml").read_text(
         encoding="utf-8"
     )
@@ -63,8 +63,11 @@ def test_blank_line_owners_use_native_or_shared_policy_without_duplication() -> 
     assert "max-end: 0" in yaml
     markdown_runner = (ROOT / "tools/ci/scripts/run-markdown-lint.sh").read_text(encoding="utf-8")
     assert "ethos_python" in config_runner
-    assert 'python tools/ci/structural_whitespace.py "${shell_files[@]}"' in shell_runner
-    assert "python tools/ci/structural_whitespace.py" in markdown_runner
+    assert "structural_whitespace.py" not in config_runner
+    assert "structural_whitespace.py" not in shell_runner
+    assert "structural_whitespace.py" not in markdown_runner
+    assert not (ROOT / "tools/ci/structural_whitespace.py").exists()
+    assert not (ROOT / ".config/checks/whitespace/policy.toml").exists()
 
 
 def test_toml_files_have_exactly_one_final_newline_and_no_trailing_space() -> None:

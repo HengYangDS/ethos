@@ -22,6 +22,7 @@ from ethos.assistants.projections import projection_contract
 from ethos.domain.status import audit_for_root
 from ethos.domain.status import status_worktree_gaps
 from ethos.repository.evidence.claims import claims_report
+from ethos.repository.policy.rules.config import resolve_profile_stack
 from ethos.repository.registry.commands import command_registry_report
 from ethos_core.contracts.context.projection import ASSISTANT_TRUTH_BOUNDARY
 from ethos_core.contracts.rules import RuleAttestation
@@ -46,25 +47,35 @@ def path_matches(path: str, pattern: str) -> bool:
 def matching_rule_gates(
     root: Path,
     paths: tuple[str, ...],
-) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
-    """Match changed paths against [[rule]] entries → (matched_rules, required_gates)."""
+) -> tuple[list[dict[str, object]], list[dict[str, object]], list[str]]:
+    """Match paths to rules and gates, returning profile validation gaps."""
     config = rules_config(root)
+    profile_stack, profile_gaps = resolve_profile_stack(config)
+    if profile_gaps:
+        return [], [], profile_gaps
     gates = config.get("gates") if isinstance(config.get("gates"), dict) else {}
     matched_rules: list[dict[str, object]] = []
     required_gates: list[dict[str, object]] = []
+    active_profiles = set(profile_stack)
     rules = config.get("rule") if isinstance(config.get("rule"), list) else []
     for raw_rule in cast("list[object]", rules):
         if not isinstance(raw_rule, dict):
             continue
+        profile_layers = string_list(raw_rule.get("profile_layers"))
+        if profile_layers and active_profiles.isdisjoint(profile_layers):
+            continue
         matched_paths = [
             path
             for path in paths
-            if any(path_matches(path, pattern) for pattern in string_list(raw_rule.get("paths")))
+            if any(
+                path_matches(path, pattern)
+                for pattern in string_list(raw_rule.get("path_globs", raw_rule.get("paths")))
+            )
         ]
         if not matched_paths:
             continue
         rule_gates: list[dict[str, object]] = []
-        for gate_id in string_list(raw_rule.get("requires")):
+        for gate_id in string_list(raw_rule.get("required_gates", raw_rule.get("requires"))):
             gate_config = gates.get(gate_id, {}) if isinstance(gates, dict) else {}
             gate: dict[str, object] = {
                 "id": gate_id,
@@ -80,13 +91,20 @@ def matching_rule_gates(
         matched_rules.append(
             {
                 "id": str(raw_rule.get("id", "")),
-                "risk": str(raw_rule.get("risk", "")),
+                "risk": str(
+                    raw_rule.get("risk")
+                    or raw_rule.get("subject")
+                    or raw_rule.get("stop_condition")
+                    or ""
+                ),
                 "matched_paths": matched_paths,
                 "required_gates": rule_gates,
-                "evidence": string_list(raw_rule.get("evidence")),
+                "evidence": string_list(
+                    raw_rule.get("evidence_requirements", raw_rule.get("evidence"))
+                ),
             }
         )
-    return matched_rules, required_gates
+    return matched_rules, required_gates, []
 
 
 def contract_profile_matches(root: Path, paths: tuple[str, ...]) -> list[dict[str, object]]:

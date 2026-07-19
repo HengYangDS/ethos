@@ -642,7 +642,6 @@ def test_quality_help_lists_canonical_commands() -> None:
         "no-compat",
         "npm",
         "package-ontology",
-        "performance",
         "product-boundary",
         "projection-drift",
         "proof-policy",

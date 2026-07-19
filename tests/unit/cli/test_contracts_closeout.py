@@ -129,8 +129,12 @@ def test_land_closeout_audits_candidate_content_before_fast_forward(
     candidate_head = git(candidate, "rev-parse", "HEAD")
     seed_executed_proof(candidate, candidate_head)
 
-    def fake_audit(root: Path, *, openspec_mode: str = "shape") -> dict[str, object]:  # noqa: ARG001, RUF100 - test double preserves the patched callable signature
+    def fake_audit(
+        root: Path, *, openspec_mode: str = "shape", current_head: str = ""
+    ) -> dict[str, object]:  # noqa: ARG001, RUF100 - test double preserves the patched callable signature
+        assert openspec_mode == "shape"
         if root.resolve() == candidate.resolve():
+            assert current_head == candidate_head
             return {"ok": True, "required_gaps": [], "root": root.as_posix()}
         return {
             "ok": False,
@@ -387,7 +391,11 @@ def test_land_closeout_blocks_candidate_with_completed_active_openspec_change(
     candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     commit_fixture_file(candidate, "README.md", "# candidate change\n", "candidate change")
 
-    def fake_audit(root: Path, *, openspec_mode: str = "shape") -> dict[str, object]:  # noqa: ARG001, RUF100 - test double preserves the patched callable signature
+    def fake_audit(
+        root: Path, *, openspec_mode: str = "shape", current_head: str = ""
+    ) -> dict[str, object]:  # noqa: ARG001, RUF100 - test double preserves the patched callable signature
+        assert openspec_mode == "shape"
+        assert current_head == git(candidate, "rev-parse", "HEAD")
         return {"ok": True, "required_gaps": [], "root": root.as_posix()}
 
     def fake_openspec_lifecycle(root: Path) -> dict[str, object]:

@@ -374,26 +374,32 @@ def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
     assert merge_envs == [None]
 
     prepare_accepted_closeout(monkeypatch)
+    assert mutation_core.apply_candidate_to_accepted(
+        root=tmp_path,
+        authorized=True,
+        expect_head="h1",
+        candidate_head="stale",
+    )["required_gaps"] == ["candidate_head_changed_after_control_replacement_check"]
     monkeypatch.setattr(mutation_core, "is_ancestor", lambda root, ancestor, descendant: False)
     assert mutation_core.apply_candidate_to_accepted(
         root=tmp_path, authorized=True, expect_head="h1"
     )["required_gaps"] == ["candidate_diverged_from_accepted"]
     monkeypatch.setattr(mutation_core, "is_ancestor", lambda root, ancestor, descendant: True)
-    monkeypatch.setattr(
-        mutation_core,
-        "run_git",
-        lambda root, *args, check=True, **kwargs: cp(
-            stdout="h1\n",
-            stderr="cannot lock ref",
-            returncode=1 if args[:1] == ("update-ref",) else 0,
-        ),
+    rejected_results = iter(
+        (
+            cp("h1\n"),
+            cp("h1\n"),
+            cp(stderr="cannot lock ref", returncode=1),
+            cp("h1\n"),
+            cp("c2\n"),
+        )
     )
+    monkeypatch.setattr(mutation_core, "run_git", lambda *_args, **_kwargs: next(rejected_results))
     assert mutation_core.apply_candidate_to_accepted(
         root=tmp_path, authorized=True, expect_head="h1"
-    )["required_gaps"] == ["accepted_advanced_concurrently"]
+    )["required_gaps"] == ["accepted_atomic_update_rejected"]
 
     def fake_git_sync_failed(_root, *args, check=True, **_kwargs):
-        _ = check
         reset_attempts = fake_git_sync_failed.reset_attempts
         if args[:1] == ("update-ref",):
             return cp(stdout="", returncode=0)
@@ -413,7 +419,6 @@ def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
     assert fake_git_sync_failed.reset_attempts == 1
 
     def fake_git_clean_after_sync(_root, *args, check=True, **_kwargs):
-        _ = check
         if args[:1] == ("update-ref",):
             return cp(stdout="", returncode=0)
         if args[:2] == ("reset", "--hard"):
@@ -491,6 +496,7 @@ def test_changed_hook_bootstrap_reports_incomplete_release_mirror(monkeypatch, t
         candidate_path=tmp_path,
         worktrees=[],
     )
+    update_programs = []
 
     def fake_git(_root, *args, **_kwargs):
         if args[:2] == ("rev-parse", "main"):
@@ -500,6 +506,7 @@ def test_changed_hook_bootstrap_reports_incomplete_release_mirror(monkeypatch, t
         if args[:2] == ("rev-parse", "new:.githooks/reference-transaction"):
             return cp("new-hook\n")
         if args[:1] == ("update-ref",):
+            update_programs.append(_kwargs["stdin"])
             fake_git.update_count += 1
             return (
                 cp() if fake_git.update_count == 1 else cp(stderr="release rejected", returncode=1)
@@ -522,6 +529,7 @@ def test_changed_hook_bootstrap_reports_incomplete_release_mirror(monkeypatch, t
     )
 
     assert result["required_gaps"] == ["release_mirror_bootstrap_incomplete"]
+    assert "update refs/heads/candidate/dev new new" in update_programs[0]
     assert result["accepted_advanced"] is True
     assert result["release_mirror"]["bootstrap"] == "incomplete"
 
@@ -533,7 +541,6 @@ def test_closeout_retries_transient_accepted_worktree_sync_failure(
     reset_attempts = {"count": 0}
 
     def fake_git_sync_retry(_root, *args, check=True, **_kwargs):
-        _ = check
         if args[:1] == ("update-ref",):
             return cp(stdout="", returncode=0)
         if args[:2] == ("reset", "--hard"):
@@ -561,7 +568,6 @@ def test_closeout_blocks_dirty_accepted_worktree_after_sync(
     prepare_accepted_closeout(monkeypatch)
 
     def fake_git_dirty_after_sync(_root, *args, check=True, **_kwargs):
-        _ = check
         if args[:1] == ("update-ref",):
             return cp(stdout="", returncode=0)
         if args[:2] == ("reset", "--hard"):

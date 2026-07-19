@@ -24,12 +24,57 @@ created speculatively. Durable Chronicle truth remains repository evidence,
 not an ignored SQLite event stream. Local state can be deleted and rebuilt
 without changing repository history.
 
+The state owner currently records schema version 2. Initialization performs
+ordered migrations in one SQLite transaction. Version 2 removes the retired
+`cache_entries` table only when that table is empty; a non-empty table fails
+closed and leaves the prior schema version recorded. Reopening a version-2
+database is idempotent and does not rewrite active coordination rows.
+
 Work Lane leases are local coordination facts recorded by lane-start flows. They
 support ownership, handoff, and closeout ordering checks, but they do not replace
 Git history, OpenSpec records, claims, evidence, or Chronicle judgments.
 Productized leases identify the concrete acting holder, not merely a provider
 class. Current prewrite and apply-mode admission are enforced by checkout role,
 editor-root binding, HEAD checks, and active lease holder binding.
+
+## Explicit Maintenance
+
+`ethos doctor` remains read-only by default. An operator can request a
+maintenance inventory with an absolute archive root outside the repository and
+an explicit observation time:
+
+```bash
+ethos doctor --maintenance \
+  --archive-root /absolute/operator/archive \
+  --observed-at 2026-07-19T00:00:00+00:00 --json
+```
+
+The inventory lists the SQLite migration state, lease and proof deletion
+candidates, retained identities and reasons, and recovery-snapshot entries. It
+also emits an `inventory_digest`. Applying the plan requires that exact digest
+and an irreversible-action confirmation:
+
+```bash
+ethos doctor --apply-maintenance \
+  --archive-root /absolute/operator/archive \
+  --observed-at 2026-07-19T00:00:00+00:00 \
+  --expect-inventory-digest <sha256> \
+  --confirm-irreversible --json
+```
+
+Apply re-observes the inventory and rejects drift. Before deletion it archives
+the database, proof records, and complete recovery snapshot tree; binds entry,
+manifest, and archive digests; extract-tests the archive; and verifies every Git
+bundle against the repository. A replay of a verified receipt is idempotent.
+
+Lease pruning is conservative: a row must match the current lease contract, be
+expired, absent from branch refs and linked worktrees, and have no existing
+recorded path. Malformed,
+ambiguous, active, or observable leases remain. Proof pruning retains current
+HEAD, every ref-reachable commit, every linked-worktree HEAD, and every live
+lease expected HEAD; malformed proof records are reported rather than deleted.
+Maintenance output is ignored operator evidence and does not mint repository
+authority.
 
 ## Adopted Repository Control Roots
 

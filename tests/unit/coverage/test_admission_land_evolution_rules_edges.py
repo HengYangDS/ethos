@@ -1,4 +1,4 @@
-# ruff: noqa: ARG005, FBT003, FLY002
+# ruff: noqa: ARG005, FLY002
 from __future__ import annotations
 
 import subprocess
@@ -18,8 +18,6 @@ from ethos.repository.policy.rules.evaluation import scope_matches_path
 from ethos.repository.policy.rules.exceptions import date_or_none
 from ethos.repository.policy.rules.exceptions import policy_exceptions_report
 from ethos.repository.policy.rules.exceptions import ttl_days_or_none
-from ethos.repository.policy.rules.migration import toml_table_key
-from ethos.repository.policy.rules.migration import toml_value
 from ethos_core.contracts.admission import HookAdmissionRequest
 from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
@@ -359,9 +357,6 @@ def test_rules_policy_edge_helpers_and_reports(tmp_path: Path) -> None:
     assert scope_matches_path("repository", "a/b") is True
     assert scope_matches_path("path:docs", "docs/a.md") is True
     assert scope_matches_path("path:", "docs/a.md") is False
-    assert toml_value(True) == "true"
-    assert toml_value(["a", "b"]) == '["a", "b"]'
-    assert toml_table_key("with space") == '"with space"'
     assert ttl_days_or_none("7d") == 7
     assert ttl_days_or_none("bad") is None
     assert date_or_none("not-date") is None

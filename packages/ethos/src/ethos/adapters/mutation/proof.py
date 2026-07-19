@@ -24,9 +24,10 @@ WHAT THIS DEFENDS AND WHAT IT DOES NOT (read before trusting a proof):
 Therefore a valid local record means only LOCAL READINESS ("this process asserts the
 gates passed"), never a prevention/enforcement guarantee. The genuine trust root against
 a same-UID adversary is RE-EXECUTION under an independent identity the agent cannot write
-(a local independent-identity verifier, or a hosted forge) — see the EnforcementReceipt
-path in adapters/admission/evidence/external.py. Consumers of this record MUST NOT surface
-it as "enforced"/"prevented"; the honest claim is `local_readiness`.
+(a local independent-identity verifier, or a hosted forge) — see the signed
+IndependentVerificationReceipt path in adapters/admission/evidence/external.py. Consumers
+of this record MUST NOT surface it as "enforced"/"prevented"; the honest claim is
+`local_readiness`.
 """
 
 from __future__ import annotations
@@ -410,3 +411,104 @@ def discard_executed_proof(root: Path, head: str) -> bool:
         return False
     path.unlink(missing_ok=True)
     return True
+
+
+def proof_retention_inventory(
+    root: Path,
+    *,
+    reachable_heads: set[str],
+    protected_heads: set[str],
+) -> dict[str, Any]:
+    """Classify HEAD-keyed proof records for conservative retention."""
+    proof_dir = proof_state_dir(root)
+    retained: list[dict[str, Any]] = []
+    candidates: list[dict[str, Any]] = []
+    invalid: list[dict[str, Any]] = []
+    if not proof_dir.is_dir():
+        return {
+            "delete_candidates": candidates,
+            "retained": retained,
+            "invalid": invalid,
+        }
+    for path in sorted(item for item in proof_dir.iterdir() if item.is_file()):
+        item = _proof_retention_item(root, path)
+        if "invalid_reason" in item:
+            invalid.append(item)
+            continue
+        head = str(item["head"])
+        reasons: list[str] = []
+        if head in protected_heads:
+            reasons.append("protected_head")
+        if head in reachable_heads:
+            reasons.append("ref_reachable")
+        if reasons:
+            retained.append({**item, "reasons": reasons})
+        else:
+            candidates.append(item)
+    return {
+        "delete_candidates": candidates,
+        "retained": retained,
+        "invalid": invalid,
+    }
+
+
+def apply_proof_retention(root: Path, candidates: list[dict[str, Any]]) -> list[str]:
+    """Delete exact proof candidates after verifying their content digests."""
+    proof_dir = proof_state_dir(root).resolve()
+    verified: list[tuple[Path, str]] = []
+    for candidate in candidates:
+        display_path = str(candidate.get("path") or "")
+        path = Path(display_path)
+        if not path.is_absolute():
+            path = root / path
+        resolved = path.resolve()
+        if resolved.parent != proof_dir or resolved.name != f"{candidate.get('head', '')}.json":
+            raise ValueError(f"proof_retention_candidate_outside_store:{display_path}")
+        if not resolved.is_file() or _file_sha256(resolved) != str(candidate.get("sha256") or ""):
+            raise ValueError(f"proof_retention_candidate_drift:{display_path}")
+        verified.append((resolved, display_path))
+    for path, _display_path in verified:
+        path.unlink()
+    return [display_path for _path, display_path in verified]
+
+
+def _proof_retention_item(root: Path, path: Path) -> dict[str, Any]:
+    display_path = _display_proof_path(root, path)
+    base = {
+        "path": display_path,
+        "sha256": _file_sha256(path),
+        "size": path.stat().st_size,
+    }
+    head = path.stem
+    if (
+        path.suffix != ".json"
+        or len(head) not in {40, 64}
+        or any(character not in "0123456789abcdef" for character in head)
+    ):
+        return {**base, "invalid_reason": "proof_filename_invalid"}
+    try:
+        record = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError, UnicodeError):
+        return {**base, "invalid_reason": "proof_json_invalid"}
+    if (
+        not isinstance(record, dict)
+        or record.get("head") != head
+        or not isinstance(record.get("schema_version"), int)
+    ):
+        return {**base, "invalid_reason": "proof_record_invalid"}
+    return {**base, "head": head, "schema_version": int(record["schema_version"])}
+
+
+def _display_proof_path(root: Path, path: Path) -> str:
+    try:
+        return path.resolve().relative_to(root.resolve()).as_posix()
+    except ValueError:
+        return path.resolve().as_posix()
+
+
+def _file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()

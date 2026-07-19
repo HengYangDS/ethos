@@ -279,6 +279,31 @@ def _validate_legacy_publish_hook_args(args: tuple[str, ...]) -> None:
     raise SystemExit(2)
 
 
+def _observed_candidate_head(repo: Path, current_head: str) -> str:
+    status = workspace_status(repo, include_foreign_path_scope=False)
+    return str(string_mapping(status.get("candidate")).get("head") or current_head)
+
+
+def _stable_control_replacement(
+    *,
+    repo: Path,
+    audit_root: Path,
+    accepted_head: str,
+    candidate_head: str,
+    external_receipt: Path | None,
+) -> tuple[dict[str, object], tuple[str, ...]]:
+    if _observed_candidate_head(repo, accepted_head) != candidate_head:
+        gaps = ("candidate_head_changed_after_closeout_audit",)
+        return {"verdict": "defer", "required_gaps": list(gaps)}, gaps
+    report = control_replacement_report(
+        candidate_root=audit_root,
+        accepted_head=accepted_head,
+        candidate_head=candidate_head,
+        external_receipt=external_receipt,
+    )
+    return report, tuple(string_sequence(report.get("required_gaps")))
+
+
 def land(
     *,
     apply: bool = False,
@@ -307,18 +332,18 @@ def land(
             current_head=current_head,
         )
         audit_root = land_core.closeout_audit_root(repo, decision)
-        audit = land_core.repository_audit_after_admission(audit_root, decision)
+        audited_candidate_head = _observed_candidate_head(repo, current_head)
+        audit = land_core.repository_audit_after_admission(
+            audit_root, decision, current_head=audited_candidate_head
+        )
         lifecycle = completed_active_changes_report(audit_root)
-        status_payload = workspace_status(repo, include_foreign_path_scope=False)
-        candidate = string_mapping(status_payload.get("candidate"))
-        control_replacement = control_replacement_report(
-            accepted_root=repo,
-            candidate_root=audit_root,
+        control_replacement, control_gaps = _stable_control_replacement(
+            repo=repo,
+            audit_root=audit_root,
             accepted_head=current_head,
-            candidate_head=str(candidate.get("head") or current_head),
+            candidate_head=audited_candidate_head,
             external_receipt=control_verifier_receipt,
         )
-        control_gaps = tuple(string_sequence(control_replacement.get("required_gaps")))
         gaps = (
             tuple(string_sequence(audit.get("required_gaps")))
             + decision.gaps
@@ -328,24 +353,21 @@ def land(
         ok = bool(audit["ok"]) and decision.ok and bool(lifecycle["ok"]) and not control_gaps
         update: dict[str, object] = {}
         if ok and apply:
-            fresh_status = workspace_status(repo, include_foreign_path_scope=False)
-            fresh_candidate = string_mapping(fresh_status.get("candidate"))
-            control_replacement = control_replacement_report(
-                accepted_root=repo,
-                candidate_root=audit_root,
+            control_replacement, fresh_control_gaps = _stable_control_replacement(
+                repo=repo,
+                audit_root=audit_root,
                 accepted_head=current_head,
-                candidate_head=str(fresh_candidate.get("head") or current_head),
+                candidate_head=audited_candidate_head,
                 external_receipt=control_verifier_receipt,
             )
-            fresh_control_gaps = tuple(string_sequence(control_replacement.get("required_gaps")))
-            if fresh_control_gaps:
-                gaps = gaps + fresh_control_gaps
-                ok = False
+            gaps = (*gaps, *fresh_control_gaps)
+            ok = not fresh_control_gaps
         if ok and apply:
             update = apply_candidate_to_accepted(
                 root=repo,
                 authorized=authorize,
                 expect_head=expect_head,
+                candidate_head=audited_candidate_head,
             )
             gaps = gaps + tuple(string_sequence(update.get("required_gaps")))
             ok = bool(update["ok"])

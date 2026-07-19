@@ -37,7 +37,7 @@ def test_matching_rule_gates_filters_invalid_rules_and_projects_gate_metadata(
         },
     )
 
-    matched, gates = plan.matching_rule_gates(tmp_path, ("src/app.py",))
+    matched, gates, gaps = plan.matching_rule_gates(tmp_path, ("src/app.py",))
 
     assert [rule["id"] for rule in matched] == ["python"]
     assert matched[0]["matched_paths"] == ["src/app.py"]
@@ -46,6 +46,129 @@ def test_matching_rule_gates_filters_invalid_rules_and_projects_gate_metadata(
         {"id": "tests", "command": "pytest", "blocking": True},
         {"id": "lint", "command": "ruff", "blocking": False},
     ]
+    assert gaps == []
+
+
+def test_matching_rule_gates_consumes_v2_rule_keys(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        plan,
+        "rules_config",
+        lambda _root: {
+            "gates": {"tests": {"command": "pytest", "blocking": True}},
+            "rule": [
+                {
+                    "id": "python-v2",
+                    "subject": "source",
+                    "stop_condition": "source_regression",
+                    "path_globs": ["src/**"],
+                    "required_gates": ["tests"],
+                    "evidence_requirements": ["pytest evidence"],
+                }
+            ],
+        },
+    )
+
+    matched, gates, gaps = plan.matching_rule_gates(tmp_path, ("src/app.py",))
+
+    assert matched == [
+        {
+            "id": "python-v2",
+            "risk": "source",
+            "matched_paths": ["src/app.py"],
+            "required_gates": [{"id": "tests", "command": "pytest", "blocking": True}],
+            "evidence": ["pytest evidence"],
+        }
+    ]
+    assert gates == [{"id": "tests", "command": "pytest", "blocking": True}]
+    assert gaps == []
+
+
+def test_matching_rule_gates_filters_v2_rules_by_active_profiles(tmp_path):
+    rules_path = tmp_path / ".ethos" / "rules.toml"
+    rules_path.parent.mkdir()
+    rules_path.write_text(
+        """
+[profiles]
+active = ["python"]
+
+[gates.tests]
+command = "pytest"
+blocking = true
+
+[[rule]]
+id = "python-active"
+owner = "repo-local"
+profile_layers = ["python"]
+authority_ref = ".ethos/rules.toml"
+contract_ref = ".ethos/rules.toml"
+path_globs = ["src/**"]
+severity = "blocking"
+required_gates = ["tests"]
+stop_condition = "python_regression"
+
+[[rule]]
+id = "javascript-inactive"
+owner = "repo-local"
+profile_layers = ["javascript"]
+authority_ref = ".ethos/rules.toml"
+contract_ref = ".ethos/rules.toml"
+subject = "javascript"
+path_globs = ["src/**"]
+severity = "blocking"
+required_gates = ["tests"]
+stop_condition = "javascript_regression"
+""".lstrip(),
+        encoding="utf-8",
+    )
+
+    matched, gates, gaps = plan.matching_rule_gates(tmp_path, ("src/app.py",))
+
+    assert [rule["id"] for rule in matched] == ["python-active"]
+    assert matched[0]["risk"] == "python_regression"
+    assert gates == [{"id": "tests", "command": "pytest", "blocking": True}]
+    assert gaps == []
+
+
+def test_matching_rule_gates_uses_profiles_from_same_parsed_config(
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        plan,
+        "rules_config",
+        lambda _root: {
+            "profiles": {"active": ["python"]},
+            "rule": [
+                {
+                    "id": "python",
+                    "profile_layers": ["python"],
+                    "path_globs": ["src/**"],
+                    "required_gates": [],
+                    "stop_condition": "python_regression",
+                }
+            ],
+        },
+    )
+
+    matched, gates, gaps = plan.matching_rule_gates(tmp_path, ("src/app.py",))
+
+    assert [rule["id"] for rule in matched] == ["python"]
+    assert gates == []
+    assert gaps == []
+
+
+def test_matching_rule_gates_reports_invalid_profiles(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        plan,
+        "rules_config",
+        lambda _root: {"profiles": {"active": "python"}, "rule": []},
+    )
+
+    matched, gates, gaps = plan.matching_rule_gates(tmp_path, ())
+
+    assert matched == []
+    assert gates == []
+    assert gaps == ["rules_profile_invalid:active_must_be_string_array"]
 
 
 def test_contract_profile_matches_filters_invalid_profiles_and_contracts(tmp_path, monkeypatch):
@@ -141,7 +264,11 @@ def test_rule_fact_snapshot_uses_supplied_payloads_and_prewrite_report(tmp_path,
     monkeypatch.setattr(
         plan,
         "command_registry_report",
-        lambda _repo: {"ok": True, "required_gaps": [], "public_commands": ["ethos status"]},
+        lambda _repo: {
+            "ok": True,
+            "required_gaps": [],
+            "public_commands": ["ethos status"],
+        },
     )
     monkeypatch.setattr(
         plan, "projection_contract", lambda: {"truth": plan.ASSISTANT_TRUTH_BOUNDARY}
@@ -188,10 +315,14 @@ def test_rule_fact_snapshot_uses_supplied_payloads_and_prewrite_report(tmp_path,
 
 def test_rule_fact_snapshot_marks_missing_prewrite_guard_unavailable(tmp_path, monkeypatch):
     monkeypatch.setattr(
-        plan, "workspace_status", lambda _repo: {"branch": "dev", "role": "accepted_root"}
+        plan,
+        "workspace_status",
+        lambda _repo: {"branch": "dev", "role": "accepted_root"},
     )
     monkeypatch.setattr(
-        plan, "audit_for_root", lambda _repo: {"mode": "product", "ok": True, "required_gaps": []}
+        plan,
+        "audit_for_root",
+        lambda _repo: {"mode": "product", "ok": True, "required_gaps": []},
     )
     monkeypatch.setattr(
         plan,

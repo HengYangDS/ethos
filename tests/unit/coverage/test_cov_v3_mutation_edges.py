@@ -11,7 +11,7 @@ from types import SimpleNamespace
 import pytest
 
 import ethos.adapters.mutation.lane_lifecycle.refresh as lanes_refresh
-import ethos.adapters.mutation.lane_retirement.unbound.core as unbound_retirement
+import ethos.adapters.mutation.lane_retirement.unbound.observation.core as unbound_observation
 import ethos_core.contracts.lifecycle.core as lifecycle_contract
 from ethos.adapters.mutation import core
 from ethos.adapters.mutation import lanes
@@ -173,7 +173,7 @@ def test_refresh_work_lane_base_protected_root(tmp_path: Path) -> None:
 
 def test_unbound_work_lane_ref_skips_non_matching_entries() -> None:
     assert (
-        unbound_retirement._unbound_work_lane_ref(
+        unbound_observation.unbound_work_lane_ref(
             {"coordination": {"unbound_work_lane_refs": ["junk", {"branch": "work/other"}]}},
             "work/target",
         )

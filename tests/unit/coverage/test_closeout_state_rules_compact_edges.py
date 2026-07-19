@@ -62,7 +62,10 @@ def test_state_and_lease_fail_closed_matrix(tmp_path: Path) -> None:
         _rejects("not_expired", lambda: lease.expected_current_lease(db, **request, require_expired=True))  # fmt: skip
         db.execute("insert into leases values(?,?,?,?,?)", ("lease:second", "work/x", current["holder_ref"], current["expires_at"], "{}"))  # fmt: skip
         db.commit()
-        _rejects("lane_lease_ambiguous", lambda: lease._sole_subject_row(db, "work/x"))
+        _rejects(
+            "lane_lease_ambiguous",
+            lambda: lease.expected_current_lease(db, **request, require_expired=False),
+        )
     assert effects.update_lease_payload(db_path, subject="missing", payload={}) == {}
     assert effects.delete_lease(tmp_path / "missing.sqlite", subject="work/x") == 0
     _rejects("candidate_drift", lambda: effects.delete_exact_leases(db_path, [{"id": "missing"}]))  # fmt: skip

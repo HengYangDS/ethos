@@ -1,0 +1,14 @@
+schema_version = 1
+paths = [
+  ".agents/skills/ethos-quality-gate-governance/package.toml",
+  ".agents/skills/ethos-quality-gate-governance/scripts/quality_audit.py",
+  ".config/README.md",
+  "evidence/claims/root-pytest-discovery-adapter-20260720.toml",
+  "evidence/chronicle/root-pytest-discovery-adapter-20260720/**",
+  "openspec/changes/archive/2026-07-19-root-pytest-discovery-adapter-20260720/**",
+  "openspec/specs/quality/spec.md",
+  "pyproject.toml",
+  "tests/architecture/test_release_assets.py",
+  "tests/unit/skills/quality_gate/test_quality_audit.py",
+  "tests/unit/governance/test_quality_regime.py",
+]

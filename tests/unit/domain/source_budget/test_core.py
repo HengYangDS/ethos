@@ -1,0 +1,471 @@
+from __future__ import annotations
+
+import tomllib
+from datetime import date
+from pathlib import Path
+
+import ethos.domain.source_budget.core as source_budget
+from ethos_core.contracts.source_budget.core import SourceBudgetPolicyLoad
+from ethos_core.contracts.source_budget.core import validate_source_budget_policy
+from ethos_core.contracts.source_budget.core import validate_source_budget_taxonomy
+
+_FORMAT_SELECTION = tomllib.loads(Path(".config/checks/format/selection.toml").read_text())
+_TAXONOMY = validate_source_budget_taxonomy(
+    {
+        "carrier": [
+            {"extensions": item["extensions"], **budget}
+            for item in _FORMAT_SELECTION["format"]
+            for budget in item.get("budget", [])
+        ],
+        "aggregates": _FORMAT_SELECTION["source_budget"]["aggregates"],
+    }
+)
+
+
+def _source_budget_load(policy: dict[str, object]) -> SourceBudgetPolicyLoad:
+    return SourceBudgetPolicyLoad(
+        policy=validate_source_budget_policy({"baseline_head": "a" * 40, **policy}),
+        required_gaps=(),
+    )
+
+
+def _use_taxonomy(monkeypatch) -> None:
+    monkeypatch.setattr(source_budget, "source_budget_taxonomy", lambda _root: _TAXONOMY)
+
+
+def test_source_budget_reports_all_executable_carriers_and_blocks_unfunded_growth(
+    tmp_path, monkeypatch
+):
+    _use_taxonomy(monkeypatch)
+    files = {
+        "packages/ethos/src/ethos/domain/current.py": "value = 1\n",
+        "packages/ethos/src/ethos/domain/current.pyi": "value: int\n",
+        "tests/unit/test_current.py": "assert True\n",
+        "tools/check.sh": "echo ok\n",
+        "system/current.toml": "value = 1\n",
+        "schemas/current.json": '{"type": "object"}\n',
+        "templates/current.j2": "{# generated comment #}\n{{ value }}\n",
+    }
+    for relative, content in files.items():
+        path = tmp_path / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8")
+
+    monkeypatch.setattr(
+        source_budget,
+        "source_budget_policy",
+        lambda _root: _source_budget_load(
+            {
+                "baseline": {
+                    "global_total": 7,
+                    "python_total": 3,
+                    "python_product": 2,
+                    "python_tests": 1,
+                    "python_tools": 0,
+                    "toml": 1,
+                    "json": 1,
+                    "jinja": 1,
+                },
+                "terminal": {"global_total": 3, "python_total": 3},
+                "debt": {"maximum_total": 0, "waves": [], "records": []},
+                "enforcement": "transition",
+            }
+        ),
+        raising=False,
+    )
+    monkeypatch.setattr(source_budget.git_adapter, "git_stdout", lambda *_args: "a" * 40)
+    monkeypatch.setattr(
+        source_budget.source_budget_adapter,
+        "present_worktree_paths",
+        lambda _root: tuple(files),
+    )
+
+    report = source_budget.source_budget_report(tmp_path)
+
+    assert report["metrics"] == {
+        "python_product": 2,
+        "python_tests": 1,
+        "python_tools": 0,
+        "python_other": 0,
+        "shell": 1,
+        "js": 0,
+        "toml": 1,
+        "yaml": 0,
+        "json": 1,
+        "jinja": 1,
+        "ini": 0,
+        "diagram": 0,
+        "python_total": 3,
+        "global_total": 7,
+    }
+    assert report["terminal_target_met"] is False
+    assert report["ok"] is True
+
+    (tmp_path / "tools" / "growth.sh").write_text("echo growth\n", encoding="utf-8")
+    monkeypatch.setattr(
+        source_budget.source_budget_adapter,
+        "present_worktree_paths",
+        lambda _root, *_patterns: (*files, "tools/growth.sh"),
+    )
+
+    grown = source_budget.source_budget_report(tmp_path)
+
+    assert grown["ok"] is False
+    assert grown["required_gaps"] == ["source_budget_exceeded:global_total:8>7"]
+
+
+def test_source_budget_classifies_non_product_python_and_non_code_carriers(
+    tmp_path,
+) -> None:
+    archived = "openspec/changes/archive/2026-07-18-closed/.openspec.yaml"
+    files = {
+        "scripts/tool.py": "value = 1\n",
+        "notes.txt": "ignored\n",
+        "config/current.ini": "; comment\nvalue = 1\n",
+        "diagram/current.mmd": "%% comment\nflowchart TD\n",
+        archived: "schema: spec-driven\n",
+    }
+    for relative, content in files.items():
+        path = tmp_path / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8")
+
+    assert source_budget.source_budget_carrier_report(
+        tmp_path / "scripts/tool.py", "scripts/tool.py"
+    ) == {
+        "category": "python_other",
+        "effective_lines": 1,
+    }
+    assert source_budget.source_budget_carrier_report(tmp_path / "notes.txt", "notes.txt") == {
+        "category": None,
+        "effective_lines": 0,
+    }
+    assert source_budget.source_budget_carrier_report(tmp_path / archived, archived) == {
+        "category": None,
+        "effective_lines": 0,
+    }
+    assert source_budget.source_budget_carrier_report(
+        tmp_path / "config/current.ini", "config/current.ini"
+    ) == {
+        "category": "ini",
+        "effective_lines": 1,
+    }
+    assert source_budget.source_budget_carrier_report(
+        tmp_path / "diagram/current.mmd", "diagram/current.mmd"
+    ) == {"category": "diagram", "effective_lines": 1}
+
+
+def test_source_budget_derives_python_total_allowance_from_python_categories(tmp_path, monkeypatch):
+    _use_taxonomy(monkeypatch)
+    relative = "packages/ethos/src/ethos/domain/current.py"
+    path = tmp_path / relative
+    path.parent.mkdir(parents=True)
+    path.write_text("value = 1\n", encoding="utf-8")
+    monkeypatch.setattr(
+        source_budget,
+        "source_budget_policy",
+        lambda _root: _source_budget_load(
+            {
+                "baseline": {"python_product": 0, "python_total": 0, "global_total": 0},
+                "terminal": {"python_total": 0, "global_total": 0},
+                "debt": {
+                    "maximum_total": 1,
+                    "waves": [{"id": "wave", "due_on": "2026-12-01", "state": "active"}],
+                    "records": [
+                        {
+                            "id": "typed-foundation",
+                            "owner": "owner",
+                            "replacement": "replacement",
+                            "deletion_wave": "wave",
+                            "expiry": "2026-12-01",
+                            "allowance": 1,
+                            "expected_net_deletion": 1,
+                            "allowance_by_category": {"python_product": 1},
+                        }
+                    ],
+                },
+                "enforcement": "transition",
+            }
+        ),
+        raising=False,
+    )
+    monkeypatch.setattr(source_budget.git_adapter, "git_stdout", lambda *_args: "a" * 40)
+    monkeypatch.setattr(
+        source_budget.source_budget_adapter,
+        "present_worktree_paths",
+        lambda _root: (relative,),
+    )
+
+    report = source_budget.source_budget_report(tmp_path)
+
+    assert report["ok"] is True
+
+
+def test_campaign_terminal_source_growth_is_advisory(tmp_path, monkeypatch):
+    _use_taxonomy(monkeypatch)
+    monkeypatch.setattr(
+        source_budget,
+        "source_budget_policy",
+        lambda _root: _source_budget_load(
+            {
+                "baseline": {"python_total": 0, "global_total": 0},
+                "terminal": {"python_total": 0, "global_total": 0},
+                "debt": {"maximum_total": 0, "waves": [], "records": []},
+                "enforcement": "campaign_terminal",
+                "campaign_id": "compression",
+            }
+        ),
+    )
+    monkeypatch.setattr(
+        source_budget,
+        "_source_budget_metrics",
+        lambda _root, _policy: (
+            {"python_total": 1, "global_total": 1},
+            {"file_count": 1},
+        ),
+    )
+    monkeypatch.setattr(source_budget.git_adapter, "git_stdout", lambda *_args: "a" * 40)
+
+    report = source_budget.source_budget_report(tmp_path)
+
+    assert report["ok"] is True
+    assert report["required_gaps"] == []
+    assert report["advisory_gaps"] == [
+        "source_budget_campaign_growth_overage:global_total:1>0",
+        "source_budget_campaign_growth_overage:python_total:1>0",
+    ]
+
+
+def test_source_budget_report_skips_absent_declared_metric_category(tmp_path, monkeypatch):
+    _use_taxonomy(monkeypatch)
+    monkeypatch.setattr(
+        source_budget,
+        "source_budget_policy",
+        lambda _root: _source_budget_load(
+            {
+                "baseline": {"global_total": 0, "python_total": 0, "shell": 0},
+                "terminal": {"global_total": 0, "python_total": 0, "shell": 0},
+                "debt": {"maximum_total": 0, "waves": [], "records": []},
+                "enforcement": "transition",
+            }
+        ),
+    )
+    monkeypatch.setattr(
+        source_budget,
+        "_source_budget_metrics",
+        lambda _root, _policy: (
+            {"global_total": 0, "python_total": 0},
+            {"file_count": 0},
+        ),
+    )
+    monkeypatch.setattr(source_budget.git_adapter, "git_stdout", lambda *_args: "a" * 40)
+
+    assert source_budget.source_budget_report(tmp_path)["ok"] is True
+
+
+def test_source_budget_excludes_archived_openspec_metadata_only(tmp_path, monkeypatch):
+    _use_taxonomy(monkeypatch)
+    files = {
+        "openspec/changes/archive/2026-07-12-closed/.openspec.yaml": (
+            "schema: spec-driven\ncreated: 2026-07-12\nstatus: archived\n"
+        ),
+        "openspec/changes/current/.openspec.yaml": "schema: spec-driven\n",
+        "config/current.yaml": "value: true\n",
+    }
+    for relative, content in files.items():
+        path = tmp_path / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8")
+    monkeypatch.setattr(
+        source_budget,
+        "source_budget_policy",
+        lambda _root: _source_budget_load(
+            {
+                "baseline": {"yaml": 2, "python_total": 0, "global_total": 2},
+                "terminal": {"python_total": 0, "global_total": 2},
+                "debt": {"maximum_total": 0, "waves": [], "records": []},
+                "enforcement": "transition",
+            }
+        ),
+    )
+    monkeypatch.setattr(source_budget.git_adapter, "git_stdout", lambda *_args: "a" * 40)
+    monkeypatch.setattr(
+        source_budget.source_budget_adapter,
+        "present_worktree_paths",
+        lambda _root: tuple(files),
+    )
+
+    metrics = source_budget.source_budget_report(tmp_path)["metrics"]
+
+    assert metrics["yaml"] == 2
+    assert metrics["global_total"] == 2
+
+
+def test_source_budget_reports_missing_policy_and_terminal_debt_gaps(tmp_path, monkeypatch):
+    _use_taxonomy(monkeypatch)
+    monkeypatch.setattr(
+        source_budget,
+        "source_budget_policy",
+        lambda _root: SourceBudgetPolicyLoad(None, ("source_budget_policy_missing",)),
+    )
+    assert source_budget.source_budget_report(tmp_path)["required_gaps"] == [
+        "source_budget_policy_missing"
+    ]
+
+    path = tmp_path / "tools" / "current.sh"
+    path.parent.mkdir()
+    path.write_text("echo current\n", encoding="utf-8")
+    monkeypatch.setattr(
+        source_budget,
+        "source_budget_policy",
+        lambda _root: _source_budget_load(
+            {
+                "baseline": {"python_total": 0, "global_total": 0},
+                "terminal": {"python_total": 0, "global_total": 0, "shell": 2},
+                "debt": {
+                    "maximum_total": 0,
+                    "waves": [{"id": "wave", "due_on": "2026-12-01", "state": "active"}],
+                    "records": [
+                        {
+                            "id": "growth",
+                            "owner": "owner",
+                            "replacement": "replacement",
+                            "deletion_wave": "wave",
+                            "expiry": "2026-12-01",
+                            "allowance": 1,
+                            "expected_net_deletion": 1,
+                            "allowance_by_category": {"shell": 1},
+                        }
+                    ],
+                },
+                "enforcement": "terminal",
+            }
+        ),
+    )
+    monkeypatch.setattr(source_budget.git_adapter, "git_stdout", lambda *_args: "a" * 40)
+    monkeypatch.setattr(
+        source_budget.source_budget_adapter,
+        "present_worktree_paths",
+        lambda _root: ("tools/current.sh",),
+    )
+
+    report = source_budget.source_budget_report(tmp_path)
+
+    assert report["required_gaps"] == [
+        "source_budget_debt_exceeded:1>0",
+        "source_budget_terminal_exceeded:global_total:1>0",
+    ]
+
+
+def test_source_budget_reports_config_validation_gap(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        source_budget,
+        "source_budget_policy",
+        lambda _root: SourceBudgetPolicyLoad(
+            policy=None,
+            required_gaps=("source_budget_policy_invalid:debt.records.0.expiry",),
+        ),
+    )
+
+    report = source_budget.source_budget_report(tmp_path)
+
+    assert report["ok"] is False
+    assert report["state"] == "blocked"
+    assert report["metrics"] == {}
+    assert report["inventory"]["file_count"] == 0
+    assert report["required_gaps"] == ["source_budget_policy_invalid:debt.records.0.expiry"]
+
+
+def test_source_budget_reports_lifecycle_and_present_inventory(tmp_path, monkeypatch):
+    _use_taxonomy(monkeypatch)
+    relative = "packages/ethos/src/ethos/domain/current.py"
+    path = tmp_path / relative
+    path.parent.mkdir(parents=True)
+    path.write_text("value = 1\n", encoding="utf-8")
+    monkeypatch.setattr(
+        source_budget,
+        "source_budget_policy",
+        lambda _root: _source_budget_load(
+            {
+                "baseline": {"python_product": 1, "python_total": 1, "global_total": 1},
+                "terminal": {"python_total": 1, "global_total": 1},
+                "debt": {
+                    "maximum_total": 0,
+                    "waves": [
+                        {"id": "active", "due_on": "2026-12-01", "state": "active"},
+                        {"id": "settled", "due_on": "2026-07-01", "state": "settled"},
+                    ],
+                    "records": [
+                        {
+                            "id": "expired",
+                            "owner": "owner",
+                            "replacement": "replacement",
+                            "deletion_wave": "active",
+                            "expiry": "2026-07-16",
+                            "allowance": 0,
+                            "expected_net_deletion": 1,
+                            "allowance_by_category": {},
+                        },
+                        {
+                            "id": "stale",
+                            "owner": "owner",
+                            "replacement": "replacement",
+                            "deletion_wave": "settled",
+                            "expiry": "2026-12-01",
+                            "allowance": 0,
+                            "expected_net_deletion": 1,
+                            "allowance_by_category": {},
+                        },
+                    ],
+                },
+                "enforcement": "transition",
+            }
+        ),
+    )
+    monkeypatch.setattr(source_budget.git_adapter, "git_stdout", lambda *_args: "")
+    monkeypatch.setattr(
+        source_budget.source_budget_adapter,
+        "present_worktree_paths",
+        lambda _root: (relative,),
+    )
+    monkeypatch.setattr(source_budget, "_source_budget_today", lambda: date(2026, 7, 17))
+
+    report = source_budget.source_budget_report(tmp_path)
+
+    assert report["required_gaps"] == [
+        "source_budget_baseline_head_unresolved:" + "a" * 40,
+        "source_budget_debt_expired:expired",
+        "source_budget_debt_stale:stale",
+    ]
+    assert report["baseline_head"] == {"value": "a" * 40, "resolved": False}
+    assert report["inventory"]["file_count"] == 1
+    assert report["inventory"]["category_counts"] == {"python_product": 1}
+    assert len(report["inventory"]["digest"]) == 64
+    assert report["debt_lifecycle"] == [
+        {
+            "id": "expired",
+            "wave": "active",
+            "wave_due_on": "2026-12-01",
+            "wave_state": "active",
+            "owner": "owner",
+            "replacement": "replacement",
+            "expiry": "2026-07-16",
+            "allowance": 0,
+            "expected_net_deletion": 1,
+            "status": "expired",
+            "required_gaps": ["source_budget_debt_expired:expired"],
+        },
+        {
+            "id": "stale",
+            "wave": "settled",
+            "wave_due_on": "2026-07-01",
+            "wave_state": "settled",
+            "owner": "owner",
+            "replacement": "replacement",
+            "expiry": "2026-12-01",
+            "allowance": 0,
+            "expected_net_deletion": 1,
+            "status": "stale",
+            "required_gaps": ["source_budget_debt_stale:stale"],
+        },
+    ]

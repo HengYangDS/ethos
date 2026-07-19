@@ -123,8 +123,13 @@ campaign's readiness. The command remains a read-only aggregation of Work Lane
 closeout support, publication readiness,
 release policy, campaign manifests, unresolved parity packages, and shadow
 parity execution plans. Remote publication remains deferred until an adapter is
-available; local campaign closeout still proceeds through the configured
-candidate branch and a local fast-forward of the accepted root.
+available for the selected forge plane; local campaign closeout still proceeds
+through the configured candidate branch and a local fast-forward of the
+accepted root. Campaign terminal progress, source-budget settlement, and active
+debt remain explicit advisory state for ordinary protected publication. They
+remain required for full proof and the terminal compression claim; they do not
+replace the proof, closeout, branch-admission, identity, or fast-forward checks
+on a selected remote.
 
 Status: see front matter.
 

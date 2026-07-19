@@ -217,9 +217,10 @@ class CampaignGapGroup(_WorkflowModel):
 
 
 class CampaignPublicationDeclaration(_WorkflowModel):
-    """Declaration-owned publication gap aggregation."""
+    """Declaration-owned structural and terminal-progress gap aggregation."""
 
     gap_groups: tuple[CampaignGapGroup, ...]
+    advisory_gap_groups: tuple[CampaignGapGroup, ...]
 
 
 class CampaignWorkflowDeclaration(_WorkflowModel):

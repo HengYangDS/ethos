@@ -383,36 +383,29 @@ def test_pre_push_evaluates_campaign_after_base_admission(
         hook_cli,
         "push_admission_report",
         lambda **kwargs: {
-            "ok": kwargs.get("campaign_publication") is None,
-            "state": "admitted" if kwargs.get("campaign_publication") is None else "blocked",
+            "ok": True,
+            "state": "admitted",
             "target_branch": "dev",
             "role": "accepted_root",
             "decision": {
-                "action": "allow" if kwargs.get("campaign_publication") is None else "block",
-                "reason": (
-                    "push_admitted"
-                    if kwargs.get("campaign_publication") is None
-                    else "campaign_publication_not_terminal"
-                ),
+                "action": "allow",
+                "reason": "push_admitted",
             },
-            "required_gaps": (
-                []
-                if kwargs.get("campaign_publication") is None
-                else ["campaign_publication_campaign_active:compression"]
-            ),
+            "required_gaps": [],
         },
     )
     monkeypatch.setattr(
         hook_cli,
         "campaign_publication_report",
         lambda _repo: {
-            "remote_publication_admission": "blocked",
+            "remote_publication_admission": "admitted",
             "next_action_id": "campaign_status",
-            "required_gaps": ["campaign_publication_campaign_active:compression"],
+            "required_gaps": [],
+            "advisory_gaps": ["campaign_publication_campaign_active:compression"],
         },
     )
     hook_cli.pre_push("refs/heads/dev", "h1", json_output=True)
-    assert emitted[-1].summary["campaign_publication"] == "blocked"
+    assert emitted[-1].summary["campaign_publication"] == "admitted"
     assert emitted[-1].command == "hook pre-push"
 
 

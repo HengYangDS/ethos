@@ -215,15 +215,7 @@ def push_admission_report(
         if branch == policy.accepted_branch
         else []
     )
-    campaign_gaps = (
-        list(cast("list[str]", campaign_publication.get("required_gaps", [])))
-        if proof_required
-        and campaign_publication
-        and campaign_publication.get("remote_publication_admission") == "blocked"
-        else []
-    )
     gaps = [
-        *campaign_gaps,
         *branch_admission_gaps,
         *identity_gaps,
         *proof_required_gaps,
@@ -231,9 +223,7 @@ def push_admission_report(
     ]
     if gaps:
         reason = (
-            "campaign_publication_not_terminal"
-            if campaign_gaps
-            else "publication_candidate_branch_remote_forbidden"
+            "publication_candidate_branch_remote_forbidden"
             if branch == policy.candidate_branch and branch_admission_gaps
             else "publication_remote_branch_forbidden"
             if any(

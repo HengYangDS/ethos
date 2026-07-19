@@ -1,5 +1,5 @@
 schema: spec-driven
 created: 2026-07-19
-goal: Authorize a later one-time exact preserve-retire decision for the fully
-  absorbed GitHub hosted-CI historical Work Lane without performing the effect
-  or claiming remote or hosted completion.
+goal: Record the exact stale-lane audit and fail closed without authorizing any
+  resolution decision or effect until a separate accepted native-safety repair
+  satisfies every binding, completion, replay, recovery, and lease invariant.

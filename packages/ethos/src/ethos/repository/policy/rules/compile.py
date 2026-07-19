@@ -6,13 +6,10 @@ from typing import TYPE_CHECKING
 from typing import cast
 
 from ethos.repository.policy.gates import gate_registry
-from ethos.repository.policy.rules.config import (
-    _is_legacy_rule_item,  # noqa: F401 (re-used in config but imported for callers via compile)
-)
-from ethos.repository.policy.rules.config import _load_rules_config
-from ethos.repository.policy.rules.config import _profile_stack
-from ethos.repository.policy.rules.config import _rules_path
 from ethos.repository.policy.rules.config import configured_rules
+from ethos.repository.policy.rules.config import load_rules_config
+from ethos.repository.policy.rules.config import profile_stack
+from ethos.repository.policy.rules.config import rules_path
 from ethos.repository.policy.schema import validate_schema_instance
 from ethos_core.contracts.rules import Rule
 from ethos_core.contracts.rules import RuleSet
@@ -139,7 +136,7 @@ def gate_definitions(root: Path) -> dict[str, dict[str, object]]:
         }
         for gate_id, gate in gate_registry().items()
     }
-    config = _load_rules_config(root)
+    config = load_rules_config(root)
     configured = cast(
         "dict[str, object]",
         config.get("gates") if isinstance(config.get("gates"), dict) else {},
@@ -199,27 +196,27 @@ def _rules_as_contracts(root: Path, profile_stack: list[str]) -> tuple[list[Rule
 
 def compile_rules(root: Path) -> dict[str, object]:
     """Compile the deterministic rule set for a repository root."""
-    profile_stack = _profile_stack(root)
-    rules, compile_gaps = _rules_as_contracts(root, profile_stack)
+    active_profiles = profile_stack(root)
+    rules, compile_gaps = _rules_as_contracts(root, active_profiles)
     rule_set = RuleSet(
         id="ethos-rules",
-        profile_layers=tuple(profile_stack),
+        profile_layers=tuple(active_profiles),
         rules=tuple(sorted(rules, key=lambda rule: rule.id)),
     )
     rule_set_payload = rule_set.to_dict()
     rule_set_digest = rule_set.digest
     source_refs = ["product:starter-rules"]
-    if _rules_path(root).exists():
+    if rules_path(root).exists():
         source_refs.append(".ethos/rules.toml")
     compiled_policy = {
         "rule_set_digest": rule_set_digest,
-        "profiles": profile_stack,
+        "profiles": active_profiles,
         "source_refs": source_refs,
     }
     return {
         "schema_version": 1,
-        "profile_stack": profile_stack,
-        "coverage_tier": "strict" if STRICT_PROFILE in profile_stack else "starter",
+        "profile_stack": active_profiles,
+        "coverage_tier": "strict" if STRICT_PROFILE in active_profiles else "starter",
         "rules": rule_set_payload["rules"],
         "rule_set_digest": rule_set_digest,
         "compiled_policy_digest": stable_digest(compiled_policy),

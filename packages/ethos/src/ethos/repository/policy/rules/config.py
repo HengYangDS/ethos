@@ -11,12 +11,14 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-def _rules_path(root: Path) -> Path:
+def rules_path(root: Path) -> Path:
+    """Return the repository rules configuration path."""
     return root / ".ethos" / "rules.toml"
 
 
-def _load_rules_config(root: Path) -> dict[str, Any]:
-    path = _rules_path(root)
+def load_rules_config(root: Path) -> dict[str, Any]:
+    """Load repository rules configuration or return a parse-error marker."""
+    path = rules_path(root)
     if not path.exists():
         return {}
     try:
@@ -31,8 +33,9 @@ def _normalize_profile(profile: str) -> str:
     return profile
 
 
-def _profile_stack(root: Path) -> list[str]:
-    config = _load_rules_config(root)
+def profile_stack(root: Path) -> list[str]:
+    """Return active profile layers in deterministic precedence order."""
+    config = load_rules_config(root)
     profiles = config.get("profiles")
     if isinstance(profiles, dict) and isinstance(profiles.get("active"), list):
         normalized = [_normalize_profile(str(item)) for item in profiles["active"]]
@@ -46,13 +49,14 @@ def _profile_stack(root: Path) -> list[str]:
     return ["generic"]
 
 
-def _is_legacy_rule_item(item: dict[str, Any]) -> bool:
+def is_legacy_rule_item(item: dict[str, Any]) -> bool:
+    """Return whether a rule item uses the legacy field shape."""
     return bool({"risk", "paths", "requires", "evidence"}.intersection(item))
 
 
 def configured_rules(root: Path) -> list[dict[str, Any]]:
     """Return normalized rule dicts from .ethos/rules.toml, including legacy rule normalization."""
-    config = _load_rules_config(root)
+    config = load_rules_config(root)
     rules = config.get("rule")
     if not isinstance(rules, list):
         return []
@@ -61,12 +65,13 @@ def configured_rules(root: Path) -> list[dict[str, Any]]:
         if not isinstance(item, dict):
             normalized.append({"id": "", "_invalid": "rule_not_table"})
             continue
-        normalized.append(_normalize_rule_item(item))
+        normalized.append(normalize_rule_item(item))
     return normalized
 
 
-def _normalize_rule_item(item: dict[str, Any]) -> dict[str, Any]:
-    legacy_rule = _is_legacy_rule_item(item)
+def normalize_rule_item(item: dict[str, Any]) -> dict[str, Any]:
+    """Normalize one current or legacy rule item to the Rules V2 shape."""
+    legacy_rule = is_legacy_rule_item(item)
     path_globs = item.get("path_globs", item.get("paths"))
     required_gates = item.get("required_gates", item.get("requires"))
     evidence_requirements = item.get("evidence_requirements", item.get("evidence", []))
@@ -116,7 +121,7 @@ def _apply_legacy_rule_defaults(payload: dict[str, Any], item: dict[str, Any]) -
 
 def configured_gate_tables(root: Path) -> dict[str, dict[str, object]]:
     """Return gate table entries from .ethos/rules.toml [gates] section."""
-    config = _load_rules_config(root)
+    config = load_rules_config(root)
     configured = cast(
         "dict[str, object]",
         config.get("gates") if isinstance(config.get("gates"), dict) else {},
@@ -136,14 +141,15 @@ def configured_gate_tables(root: Path) -> dict[str, dict[str, object]]:
     return gates
 
 
-def _legacy_state(root: Path) -> dict[str, object]:
-    config = _load_rules_config(root)
+def legacy_state(root: Path) -> dict[str, object]:
+    """Report whether repository rules still use a legacy shape."""
+    config = load_rules_config(root)
     if not config:
         return {"legacy_detected": False}
     legacy_keys = {"formats", "artifacts", "determinism", "standards", "gates"}
     rules = config.get("rule")
     legacy_rule_items = isinstance(rules, list) and any(
-        isinstance(item, dict) and _is_legacy_rule_item(item) for item in rules
+        isinstance(item, dict) and is_legacy_rule_item(item) for item in rules
     )
     has_v2_rules = isinstance(config.get("profiles"), dict) or (
         isinstance(rules, list) and not legacy_rule_items

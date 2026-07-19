@@ -4,7 +4,6 @@
 
 line-length = 100
 target-version = "py312"
-cache-dir = "build/runtime/tool-cache/ruff"
 
 # Format IS a quality/determinism gate (user: format 也是质量的一种; 代码确定性很重要).
 # ruff format is enforced in CI (ruff format --check) so every file has one canonical

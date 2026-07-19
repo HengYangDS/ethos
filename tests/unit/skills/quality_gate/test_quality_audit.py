@@ -25,6 +25,39 @@ def test_active_concerns_use_current_json_format_owner() -> None:
     assert "json_syntax" not in audit.ACTIVE_CONCERNS
 
 
+def test_owner_gaps_require_the_ruff_discovery_adapter(tmp_path: Path) -> None:
+    """Product quality rejects a missing direct-Ruff discovery boundary."""
+    required = [
+        "tools/ci/scripts/run-python-lint.sh",
+        "tools/ci/scripts/run-python-tests.sh",
+        "tools/ci/scripts/run-config-lint.sh",
+        "tools/ci/scripts/run-shell-lint.sh",
+        "tools/ci/scripts/run-docstring-coverage.sh",
+        "tools/ci/scripts/run-module-layout.sh",
+        "tools/ci/scripts/run-repository-hygiene.sh",
+        ".config/checks/coverage/coverage.ini",
+        ".config/checks/coverage/policy.toml",
+        ".config/checks/docstrings/policy.toml",
+        ".config/checks/module-layout/policy.toml",
+        ".config/checks/ty/policy.toml",
+        ".config/checks/ruff/ruff.toml",
+        ".config/checks/pytest/pytest.ini",
+        ".config/checks/taplo/taplo.toml",
+        ".config/checks/yaml/yamllint.yaml",
+        ".config/checks/shell/.shellcheckrc",
+        "system/tools.toml",
+    ]
+    for relative in required:
+        path = tmp_path / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("\n", encoding="utf-8")
+    audit = _load_quality_audit()
+
+    gaps = audit._required_file_gaps(tmp_path)
+
+    assert gaps == ["quality_owner_missing:ruff.toml"]
+
+
 def test_pyproject_policy_gaps_allow_bootstrap_cache_routing(tmp_path: Path) -> None:
     pyproject = tmp_path / "pyproject.toml"
     pyproject.write_text(

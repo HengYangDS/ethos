@@ -105,6 +105,18 @@ def test_projection_rebase_reports_failed_continue_for_caller_abort(
     assert ("-c", "core.editor=true", "rebase", "--continue") in calls
 
 
+def test_projection_rebase_bounded_recovery_fails_closed(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(projection_rebase, "MAX_PROJECTION_REBASE_STEPS", 0)
+
+    assert projection_rebase.resolve_projection_rebase(tmp_path, cp(returncode=1)) == {
+        "ok": False,
+        "paths": [],
+        "gaps": [],
+        "next_actions": [],
+        "stderr": "projection rebase recovery exceeded bounded step limit",
+    }
+
+
 def test_projection_rebase_preserves_valid_staged_parity_then_replaces_wrong_adopter(
     monkeypatch, tmp_path: Path
 ) -> None:

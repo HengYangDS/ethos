@@ -169,6 +169,10 @@ def test_lanes_helpers_claim_binding_bootstrap_and_refresh(monkeypatch, tmp_path
         lanes.bind_work_lane_claim(root=tmp_path, claim_id="claim-1", apply=True)["state"]
         == "bound"
     )
+    assert (
+        lanes.bind_work_lane_claim(root=tmp_path, claim_id="claim-1", apply=False)["state"]
+        == "planned"
+    )
 
 
 def valid_shadow_evidence(tmp_path: Path, adopter: str = "generic") -> dict[str, object]:

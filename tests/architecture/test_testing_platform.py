@@ -78,7 +78,7 @@ def test_cli_subprocess_helper_keeps_fsmonitor_isolation() -> None:
         "GIT_CONFIG_KEY_0": "commit.gpgsign",
         "GIT_CONFIG_VALUE_0": "false",
         "GIT_CONFIG_KEY_1": "init.templateDir",
-        "GIT_CONFIG_VALUE_1": "/tmp/template",
+        "GIT_CONFIG_VALUE_1": "template-dir",
         "GIT_CONFIG_KEY_2": "core.fsmonitor",
         "GIT_CONFIG_VALUE_2": "false",
     }

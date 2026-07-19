@@ -3,11 +3,15 @@ from __future__ import annotations
 import tomllib
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import cast
 
 from ethos.repository.adoption.practice.selection import selection_ref_gaps
 from ethos.repository.adoption.practice.selection import selection_summary
+from ethos.repository.policy.schema import validate_schema_instance
 from ethos.repository.registry.docs.commands import KNOWN_ETHOS_COMMANDS
 from ethos.repository.registry.docs.commands import best_ethos_command_key
+from ethos_core.contracts.workflow import CampaignWorkflowDeclaration
+from ethos_core.contracts.workflow import load_workflow_contract_declaration
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -169,8 +173,9 @@ def _path_ref_exists(root: Path, ref: str) -> bool:
 
 
 def campaign_report(root: Path, *, campaign_id: str | None = None) -> dict[str, object]:
-    campaigns, gaps = _campaign_manifests(root, campaign_id=campaign_id)
-    active = [item for item in campaigns if item["state"] in {"active", "experimenting"}]
+    policy = campaign_policy(root)
+    campaigns, gaps = _campaign_manifests(root, campaign_id=campaign_id, policy=policy)
+    active = [item for item in campaigns if item["state"] in policy.campaign_active_states]
     return {
         "ok": not gaps,
         "campaign_count": len(campaigns),
@@ -184,7 +189,9 @@ def _campaign_manifests(
     root: Path,
     *,
     campaign_id: str | None,
+    policy: CampaignWorkflowDeclaration | None = None,
 ) -> tuple[list[dict[str, Any]], list[str]]:
+    runtime = policy or campaign_policy(root)
     campaigns_root = _campaigns_root(root)
     if not campaigns_root.exists():
         return [], []
@@ -194,26 +201,23 @@ def _campaign_manifests(
     for path in manifests:
         try:
             payload = tomllib.loads(path.read_text(encoding="utf-8"))
-        except tomllib.TOMLDecodeError as exc:
+        except tomllib.TOMLDecodeError:
             gaps.append(f"campaign_manifest_invalid_toml:{path.parent.name}")
-            campaigns.append(
-                {
-                    "id": path.parent.name,
-                    "state": "invalid",
-                    "owner": "",
-                    "objective": "",
-                    "claim_id": "",
-                    "path": path.relative_to(root).as_posix(),
-                    "steps": [],
-                    "step_summary": _step_summary([]),
-                    "required_gaps": [str(exc)],
-                }
-            )
             continue
-        campaign = _campaign_payload(root, path, payload)
-        if campaign_id and campaign["id"] != campaign_id:
+        manifest_id = str(payload.get("id") or path.parent.name)
+        if campaign_id and manifest_id != campaign_id:
             continue
-        campaign_gaps = _campaign_required_gaps(root, campaign)
+        validation = validate_schema_instance("campaign.schema.json", payload, root=root)
+        validation_gaps = validation.get("required_gaps")
+        schema_gaps = validation_gaps if isinstance(validation_gaps, list) else []
+        campaign_gaps = [
+            f"campaign_manifest_schema_invalid:{manifest_id}:{gap}" for gap in schema_gaps
+        ]
+        if validation.get("ok") is not True:
+            gaps.extend(campaign_gaps)
+            continue
+        campaign = _campaign_payload(root, path, payload, policy=runtime)
+        campaign_gaps.extend(_campaign_required_gaps(root, campaign))
         campaign["required_gaps"] = campaign_gaps
         gaps.extend(campaign_gaps)
         campaigns.append(campaign)
@@ -226,55 +230,56 @@ def _campaign_payload(
     root: Path,
     path: Path,
     payload: dict[str, Any],
+    *,
+    policy: CampaignWorkflowDeclaration | None = None,
 ) -> dict[str, Any]:
-    steps = [
-        _step_payload(item, default_ordinal=index)
-        for index, item in enumerate(payload.get("step", []), start=1)
-    ]
+    runtime = policy or campaign_policy(root)
+    steps = [_step_payload(item) for item in _list_items(payload.get("step"))]
+    publication = payload.get("publication")
     return {
-        "id": str(payload.get("id") or path.parent.name),
-        "state": str(payload.get("state") or "active"),
-        "owner": str(payload.get("owner") or ""),
-        "objective": str(payload.get("objective") or ""),
-        "claim_id": str(payload.get("claim_id") or ""),
+        "id": str(payload["id"]),
+        "state": str(payload["state"]),
+        "owner": str(payload["owner"]),
+        "objective": str(payload["objective"]),
+        "claim_id": str(payload["claim_id"]),
+        "publication": {
+            "mode": str(publication.get("mode") or "") if isinstance(publication, dict) else ""
+        },
         "path": path.relative_to(root).as_posix(),
         "steps": steps,
-        "step_summary": _step_summary(steps),
-        "lane_topology": _lane_topology(steps),
+        "step_summary": _step_summary(steps, policy=runtime),
+        "lane_topology": _lane_topology(steps, policy=runtime),
     }
 
 
-def _step_payload(item: dict[str, Any], *, default_ordinal: int) -> dict[str, Any]:
-    closeout = dict(item.get("closeout") or {})
-    raw_ordinal = item.get("ordinal", default_ordinal)
-    try:
-        ordinal = int(raw_ordinal)
-    except (TypeError, ValueError):
-        ordinal = 0
+def _step_payload(item: dict[str, Any]) -> dict[str, Any]:
+    closeout = cast("dict[str, Any]", item["closeout"])
     return {
-        "id": str(item.get("id") or ""),
-        "title": str(item.get("title") or ""),
-        "state": str(item.get("state") or "planned"),
-        "ordinal": ordinal,
-        "depends_on": [str(value) for value in item.get("depends_on", [])],
-        "openspec_change": str(item.get("openspec_change") or ""),
-        "work_lane": str(item.get("work_lane") or ""),
-        "claim_id": str(item.get("claim_id") or ""),
+        "id": str(item["id"]),
+        "title": str(item["title"]),
+        "state": str(item["state"]),
+        "ordinal": int(cast("int", item["ordinal"])),
+        "depends_on": [str(value) for value in cast("list[object]", item["depends_on"])],
+        "openspec_change": str(item["openspec_change"]),
+        "work_lane": str(item["work_lane"]),
+        "claim_id": str(item["claim_id"]),
         "closeout": {
-            "state": str(closeout.get("state") or "planned"),
-            "accepted_head": str(closeout.get("accepted_head") or ""),
-            "candidate_head": str(closeout.get("candidate_head") or ""),
-            "evidence": [str(value) for value in closeout.get("evidence", [])],
+            "state": str(closeout["state"]),
+            "accepted_head": str(closeout["accepted_head"]),
+            "candidate_head": str(closeout["candidate_head"]),
+            "evidence": [str(value) for value in cast("list[object]", closeout["evidence"])],
         },
     }
 
 
-def _lane_topology(steps: list[dict[str, Any]]) -> dict[str, Any]:
+def _lane_topology(
+    steps: list[dict[str, Any]], *, policy: CampaignWorkflowDeclaration
+) -> dict[str, Any]:
     edges = [
         {
             "from": dependency,
             "to": step["id"],
-            "rule": "closeout_retired_before_activation",
+            "rule": policy.dependency_rule,
         }
         for step in steps
         for dependency in step["depends_on"]
@@ -282,12 +287,15 @@ def _lane_topology(steps: list[dict[str, Any]]) -> dict[str, Any]:
     active_steps = [
         step["id"]
         for step in steps
-        if step["state"] in {"active", "in_progress", "landed", "archive_ready"}
+        if step["state"] in (*policy.step_execution_states, *policy.step_archived_states)
     ]
-    next_planned_step = next((step["id"] for step in steps if step["state"] == "planned"), "")
+    next_planned_step = next(
+        (step["id"] for step in steps if step["state"] in policy.step_planned_states),
+        "",
+    )
     return {
-        "kind": "openspec_lane_sequence",
-        "mode": "strict_serial",
+        "kind": policy.topology_kind,
+        "mode": policy.topology_mode,
         "step_count": len(steps),
         "active_step": active_steps[0] if len(active_steps) == 1 else "",
         "active_steps": active_steps,
@@ -296,17 +304,22 @@ def _lane_topology(steps: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def _step_summary(steps: list[dict[str, Any]]) -> dict[str, int]:
-    closed_states = {"closed", "retired"}
+def _step_summary(
+    steps: list[dict[str, Any]], *, policy: CampaignWorkflowDeclaration
+) -> dict[str, int]:
     return {
         "total": len(steps),
-        "planned": sum(1 for item in steps if item["state"] == "planned"),
-        "active": sum(1 for item in steps if item["state"] in {"active", "in_progress"}),
-        "archive_ready": sum(1 for item in steps if item["state"] == "archive_ready"),
+        "planned": sum(1 for item in steps if item["state"] in policy.step_planned_states),
+        "active": sum(
+            1
+            for item in steps
+            if item["state"] in (*policy.step_execution_states, *policy.step_archived_states)
+        ),
         "closed": sum(
             1
             for item in steps
-            if item["state"] in closed_states or item["closeout"]["state"] in closed_states
+            if item["state"] in policy.step_terminal_states
+            or item["closeout"]["state"] in policy.closeout_terminal_states
         ),
     }
 
@@ -328,203 +341,55 @@ def _openspec_carrier_state(root: Path, change: str) -> str:
 
 
 def _campaign_required_gaps(root: Path, campaign: dict[str, Any]) -> list[str]:
+    policy = campaign_policy(root)
+    gaps: list[str] = []
     steps = campaign["steps"]
-    gaps = _campaign_metadata_gaps(campaign, steps)
     step_by_id = {step["id"]: step for step in steps if step["id"]}
+    gaps.extend(
+        policy.evaluate(
+            scope="campaign",
+            facts={"campaign": campaign},
+        )
+    )
     for index, step in enumerate(steps, start=1):
-        gaps.extend(_campaign_step_gaps(root, campaign, step_by_id, index, step))
-    return gaps
-
-
-def _campaign_metadata_gaps(campaign: dict[str, Any], steps: list[dict[str, Any]]) -> list[str]:
-    gaps = [
-        f"campaign_{field}_missing:{campaign['id']}"
-        for field in ("id", "state", "owner", "objective", "claim_id")
-        if not campaign[field]
-    ]
-    step_by_id = {step["id"]: step for step in steps if step["id"]}
-    if len(step_by_id) != len([step for step in steps if step["id"]]):
-        gaps.append(f"campaign_step_id_duplicate:{campaign['id']}")
-    if len(campaign["lane_topology"]["active_steps"]) > 1:
-        gaps.append(f"campaign_active_step_not_serial:{campaign['id']}")
-    return gaps
-
-
-def _campaign_step_gaps(
-    root: Path,
-    campaign: dict[str, Any],
-    step_by_id: dict[str, dict[str, Any]],
-    index: int,
-    step: dict[str, Any],
-) -> list[str]:
-    campaign_id = campaign["id"]
-    steps = campaign["steps"]
-    step_id = step["id"] or "unnamed"
-    gaps = _campaign_step_shape_gaps(campaign_id, steps, index, step, step_id)
-    gaps.extend(_campaign_step_dependency_gaps(campaign_id, step, step_id, step_by_id))
-    gaps.extend(_campaign_step_closeout_gaps(campaign_id, step, step_id))
-    gaps.extend(_campaign_step_carrier_gaps(root, campaign_id, step, step_id))
-    return gaps
-
-
-def _campaign_step_shape_gaps(
-    campaign_id: str,
-    steps: list[dict[str, Any]],
-    index: int,
-    step: dict[str, Any],
-    step_id: str,
-) -> list[str]:
-    gaps = [
-        f"campaign_step_{field}_missing:{campaign_id}:{step_id}"
-        for field in ("id", "title", "openspec_change", "work_lane", "claim_id")
-        if not step[field]
-    ]
-    if step["ordinal"] != index:
-        gaps.append(f"campaign_step_ordinal_invalid:{campaign_id}:{step_id}")
-    expected_dependency = [] if index == 1 else [steps[index - 2]["id"]]
-    if step["depends_on"] != expected_dependency:
-        gaps.append(f"campaign_step_dependency_not_serial:{campaign_id}:{step_id}")
-    return gaps
-
-
-def _campaign_step_dependency_gaps(
-    campaign_id: str,
-    step: dict[str, Any],
-    step_id: str,
-    step_by_id: dict[str, dict[str, Any]],
-) -> list[str]:
-    gaps: list[str] = []
-    for dependency in step["depends_on"]:
-        dependency_step = step_by_id.get(dependency)
-        if dependency_step is None:
-            gaps.append(f"campaign_step_dependency_missing:{campaign_id}:{step_id}:{dependency}")
-        elif step["state"] != "planned" and dependency_step["closeout"]["state"] != "retired":
-            gaps.append(
-                f"campaign_step_dependency_not_retired:{campaign_id}:{step_id}:{dependency}"
+        expected_dependency = [] if index == 1 else [steps[index - 2]["id"]]
+        carrier_state = _openspec_carrier_state(root, step["openspec_change"])
+        gaps.extend(
+            policy.evaluate(
+                scope="step",
+                facts={
+                    "campaign": campaign,
+                    "step": step,
+                    "position": index,
+                    "expected_dependency": expected_dependency,
+                    "carrier": {"state": carrier_state},
+                },
+            )
+        )
+        for dependency in step["depends_on"]:
+            gaps.extend(
+                policy.evaluate(
+                    scope="dependency",
+                    facts={
+                        "campaign": campaign,
+                        "step": step,
+                        "dependency_id": dependency,
+                        "dependency": step_by_id.get(dependency),
+                    },
+                )
             )
     return gaps
-
-
-def _campaign_step_closeout_gaps(
-    campaign_id: str,
-    step: dict[str, Any],
-    step_id: str,
-) -> list[str]:
-    terminal_step = step["state"] in {"closed", "retired"}
-    terminal_closeout = step["closeout"]["state"] in {"closed", "retired"}
-    gaps: list[str] = []
-    if terminal_step and not terminal_closeout:
-        gaps.append(f"campaign_step_closeout_state_incomplete:{campaign_id}:{step_id}")
-    if terminal_closeout:
-        closeout = step["closeout"]
-        if not closeout["accepted_head"] or not closeout["candidate_head"]:
-            gaps.append(f"campaign_step_closeout_head_missing:{campaign_id}:{step_id}")
-        if not closeout["evidence"]:
-            gaps.append(f"campaign_step_closeout_evidence_missing:{campaign_id}:{step_id}")
-    if step["state"] in {"active", "in_progress", "landed"} and terminal_closeout:
-        gaps.append(f"campaign_step_execution_closeout_terminal:{campaign_id}:{step_id}")
-    if step["state"] == "archive_ready" and terminal_closeout:
-        gaps.append(f"campaign_step_archive_ready_closeout_terminal:{campaign_id}:{step_id}")
-    if terminal_closeout and not terminal_step:
-        gaps.append(f"campaign_step_terminal_closeout_nonterminal:{campaign_id}:{step_id}")
-    return gaps
-
-
-def _campaign_step_carrier_gaps(
-    root: Path,
-    campaign_id: str,
-    step: dict[str, Any],
-    step_id: str,
-) -> list[str]:
-    change = step["openspec_change"]
-    carrier_state = _openspec_carrier_state(root, change)
-    execution_step = step["state"] in {"active", "in_progress", "landed"}
-    archive_ready_step = step["state"] == "archive_ready"
-    terminal_step = step["state"] in {"closed", "retired"}
-    gaps: list[str] = []
-    if carrier_state == "ambiguous":
-        gaps.append(f"campaign_step_openspec_ambiguous:{campaign_id}:{step_id}")
-    elif archive_ready_step and carrier_state != "archived":
-        gaps.append(f"campaign_step_archive_ready_openspec_not_archived:{campaign_id}:{step_id}")
-    elif execution_step and carrier_state == "archived":
-        gaps.append(f"campaign_step_active_openspec_archived:{campaign_id}:{step_id}")
-    elif terminal_step and carrier_state != "archived":
-        gaps.append(f"campaign_step_terminal_openspec_not_archived:{campaign_id}:{step_id}")
-    if (
-        (step["state"] != "planned" or step["closeout"]["state"] != "planned")
-        and change
-        and carrier_state == "missing"
-    ):
-        gaps.append(f"campaign_step_openspec_missing:{campaign_id}:{step_id}")
-    return gaps
-
-
-def evolution_candidates(root: Path) -> dict[str, object]:
-    """Return candidate mechanisms from the evolution ledger plus audit-signal fallbacks."""
-    ledger = evolution_ledger(root)
-    ledger_candidates: list[dict[str, Any]] = []
-    for candidate_set in _list_items(ledger.get("candidate_sets")):
-        for candidate in _list_items(candidate_set.get("candidates")):
-            ledger_candidates.append(
-                {
-                    "id": str(candidate.get("id") or ""),
-                    "candidate_set": str(candidate_set.get("id") or ""),
-                    "campaign": str(candidate_set.get("question") or ""),
-                    "state": str(candidate_set.get("state") or ""),
-                    "owner": str(candidate_set.get("owner") or ""),
-                    "claim": str(candidate.get("summary") or ""),
-                    "challenge": str(candidate.get("risk") or ""),
-                    "transition": str(candidate.get("authority_fit") or ""),
-                    "proof_refs": [str(value) for value in candidate.get("evidence_refs", [])],
-                    "review_refs": [],
-                    "decision_refs": [
-                        str(value) for value in candidate_set.get("decision_refs", [])
-                    ],
-                    "retirement_conditions": [str(candidate_set.get("retirement_policy") or "")],
-                }
-            )
-    candidates = ledger_candidates + _audit_signal_candidates()
-    return {
-        "ok": True,
-        "candidate_set_count": len(_list_items(ledger.get("candidate_sets"))),
-        "candidates": candidates,
-    }
-
-
-def _audit_signal_candidates() -> list[dict[str, Any]]:
-    return [
-        {
-            "id": "release-readiness-ratchet",
-            "campaign": "ethos-release-hardening",
-            "state": "ready",
-            "owner": "ethos-maintainers",
-            "claim": "Release readiness should keep gaining deterministic checks.",
-            "challenge": "A clean report can still hide unmodeled ecosystem drift.",
-            "transition": "observe -> shape",
-            "proof_refs": ["ethos quality release-policy --json"],
-            "review_refs": ["tests/unit/test_release_policy_and_attestation.py"],
-            "decision_refs": ["docs/governance/release-governance.md"],
-            "retirement_conditions": ["release policy emits no advisory gaps"],
-        },
-        {
-            "id": "asset-quality-kernel",
-            "campaign": "ethos-asset-quality-kernel",
-            "state": "ready",
-            "owner": "ethos-maintainers",
-            "claim": "Quality and determinism require a first-class product package.",
-            "challenge": "CLI quality commands without a semantic home create low-cohesion design.",
-            "transition": "shape -> canonize",
-            "proof_refs": ["ethos quality asset-policy --json"],
-            "review_refs": ["tests/unit/test_quality_kernel.py"],
-            "decision_refs": ["docs/architecture/package-ontology.md"],
-            "retirement_conditions": [
-                "ethos-quality owns quality semantics and repository consumes them"
-            ],
-        },
-    ]
 
 
 def _list_items(value: Any) -> list[dict[str, Any]]:
     if not isinstance(value, list):
         return []
     return [item for item in value if isinstance(item, dict)]
+
+
+def campaign_policy(root: Path) -> CampaignWorkflowDeclaration:
+    policy = load_workflow_contract_declaration(root).campaign
+    if policy is None:
+        msg = "campaign workflow policy missing"
+        raise ValueError(msg)
+    return policy

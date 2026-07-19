@@ -8,11 +8,7 @@ from ethos_core.state.invalid import invalid_state_projection
 
 
 def advisory_gaps(
-    audit: dict[str, object],
-    claim_report: dict[str, object],
-    playbooks: dict[str, object],
-    status_payload: dict[str, object] | None = None,
-    hosted_observation: dict[str, object] | None = None,
+    *reports: dict[str, object],
 ) -> tuple[str, ...]:
     """Collect non-blocking small signals that should stay visible in report.
 
@@ -22,14 +18,10 @@ def advisory_gaps(
     not recursively reinterpret arbitrary nested provider payloads as product
     truth.
     """
-    openspec = cast("dict[str, object]", audit.get("openspec") or {})
-    coordination = cast("dict[str, object]", (status_payload or {}).get("coordination") or {})
     values = [
-        *string_sequence(coordination.get("advisory_gaps"), drop_empty=True),
-        *string_sequence(openspec.get("advisory_gaps"), drop_empty=True),
-        *string_sequence(claim_report.get("advisory_gaps"), drop_empty=True),
-        *string_sequence(playbooks.get("advisory_gaps"), drop_empty=True),
-        *string_sequence((hosted_observation or {}).get("advisory_gaps"), drop_empty=True),
+        gap
+        for report in reports
+        for gap in string_sequence(report.get("advisory_gaps"), drop_empty=True)
     ]
     return tuple(dict.fromkeys(values))
 

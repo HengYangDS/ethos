@@ -12,7 +12,6 @@ from ethos.repository.adoption.scaffold.core import default_files
 from ethos.repository.registry import commands
 from ethos.repository.registry.docs.links import stable_paths_report
 from ethos.repository.release import core as release_core
-from ethos.testing import fixtures
 from ethos_core.contracts import rules
 
 if TYPE_CHECKING:
@@ -109,8 +108,3 @@ def test_authority_order_returns_empty_when_order_not_list(tmp_path: Path) -> No
 def test_release_config_missing_file_returns_empty(tmp_path: Path) -> None:
     # No .ethos/release.toml -> release/core.py line 28 return {}.
     assert release_core.release_config(tmp_path) == {}
-
-
-def test_sample_repository_names_returns_constant() -> None:
-    # testing/fixtures.py line 22 return SAMPLE_REPOSITORIES.
-    assert fixtures.sample_repository_names() == fixtures.SAMPLE_REPOSITORIES

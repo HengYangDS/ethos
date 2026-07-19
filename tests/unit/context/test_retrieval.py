@@ -11,7 +11,7 @@ from ethos.adapters.store.retrieval.indexing import rebuild_context_index
 from ethos.adapters.store.retrieval.query import context_eval_report
 from ethos.adapters.store.retrieval.query import search_context_index
 from ethos.repository.policy.schema import validate_schema_instance
-from ethos.testing.fixtures import context_retrieval_smoke_queries
+from ethos_core.contracts.context.projection import context_retrieval_smoke_queries
 from tests.support.contract_helpers import git
 
 if TYPE_CHECKING:
@@ -55,7 +55,9 @@ def init_repo(path: Path) -> Path:
     return path
 
 
-def test_context_index_rebuild_and_search_returns_verified_source_refs(tmp_path: Path) -> None:
+def test_context_index_rebuild_and_search_returns_verified_source_refs(
+    tmp_path: Path,
+) -> None:
     repo = init_repo(tmp_path / "repo")
 
     rebuild = rebuild_context_index(repo, apply=True, authorized=True)
@@ -117,7 +119,9 @@ def test_context_search_suppresses_stale_index_hits(tmp_path: Path) -> None:
     )
 
 
-def test_context_search_rejects_tampered_index_paths_outside_repo(tmp_path: Path) -> None:
+def test_context_search_rejects_tampered_index_paths_outside_repo(
+    tmp_path: Path,
+) -> None:
     repo = init_repo(tmp_path / "repo")
     outside = tmp_path / "outside_secret.txt"
     outside.write_text("outside tamper proof\n", encoding="utf-8")
@@ -265,7 +269,9 @@ def test_context_search_is_read_only_by_default(tmp_path: Path) -> None:
     assert after == before
 
 
-def test_context_search_requires_index_head_to_match_current_head(tmp_path: Path) -> None:
+def test_context_search_requires_index_head_to_match_current_head(
+    tmp_path: Path,
+) -> None:
     repo = init_repo(tmp_path / "repo")
     rebuild_context_index(repo, apply=True, authorized=True)
     (repo / "docs").mkdir()
@@ -327,7 +333,9 @@ def test_context_index_quarantines_secret_like_tracked_content(tmp_path: Path) -
     assert ("secret_like_content",) in tombstones
 
 
-def test_context_index_quarantines_common_provider_secret_formats(tmp_path: Path) -> None:
+def test_context_index_quarantines_common_provider_secret_formats(
+    tmp_path: Path,
+) -> None:
     repo = init_repo(tmp_path / "repo")
     secret_doc = repo / "docs" / "provider-secrets.md"
     secret_doc.parent.mkdir()
@@ -402,7 +410,9 @@ def test_context_index_apply_blocks_renamed_allowed_sources(tmp_path: Path) -> N
     assert "README.md" in result["data"]["dirty_sources"]
 
 
-def test_context_index_does_not_follow_tracked_symlinks_outside_repo(tmp_path: Path) -> None:
+def test_context_index_does_not_follow_tracked_symlinks_outside_repo(
+    tmp_path: Path,
+) -> None:
     repo = init_repo(tmp_path / "repo")
     outside = tmp_path / "outside.md"
     outside.write_text("outside_unique_probe_token from outside repo\n", encoding="utf-8")

@@ -714,6 +714,8 @@ def test_campaign_status_reports_manifest_steps() -> None:
     assert campaign["lane_topology"]["active_step"] == ""
     assert campaign["lane_topology"]["active_steps"] == []
     assert campaign["lane_topology"]["next_planned_step"] == "adopter-openspec-scaffold"
+    assert payload["data"]["publication"]["kind"] == "campaign_publication"
+    assert payload["data"]["publication"]["scope"] == "repository"
     assert {
         "ordinal",
         "depends_on",

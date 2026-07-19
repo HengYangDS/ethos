@@ -145,24 +145,13 @@ def test_evolution_ledger_campaign_and_candidate_edges(tmp_path: Path) -> None:
     invalid = evolution.campaign_report(tmp_path)
     assert "campaign_manifest_invalid_toml:c1" in invalid["required_gaps"]
     (campaign_dir / "campaign.toml").write_text(
-        "\n".join(
-            [
-                'id = "c1"',
-                'state = "active"',
-                'owner = "me"',
-                'objective = "ship"',
-                'claim_id = "claim"',
-                "[[step]]",
-                'id = "s1"',
-                'title = "one"',
-                'state = "active"',
-                'ordinal = "bad"',
-                'depends_on = ["missing"]',
-                'openspec_change = "change-x"',
-                'work_lane = "work/x"',
-                'claim_id = "claim-s"',
-            ]
-        ),
+        Path("tests/fixtures/campaign/minimal.toml")
+        .read_text(encoding="utf-8")
+        .replace('id = "compression"', 'id = "c1"', 1)
+        .replace('id = "foundation"', 'id = "s1"', 1)
+        .replace("ordinal = 1", "ordinal = 2")
+        .replace("depends_on = []", 'depends_on = ["missing"]')
+        .replace('openspec_change = "compression-foundation"', 'openspec_change = "change-x"'),
         encoding="utf-8",
     )
     gaps = evolution.campaign_report(tmp_path)["required_gaps"]

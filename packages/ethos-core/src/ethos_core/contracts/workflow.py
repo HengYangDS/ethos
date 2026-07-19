@@ -17,6 +17,8 @@ from pydantic import field_validator
 
 from ethos_core.action_graph.core import ActionGraph
 from ethos_core.action_graph.core import ActionNode
+from ethos_core.contracts.policy.cel import evaluate_cel_rules
+from ethos_core.contracts.policy.cel import validate_cel_expression
 from ethos_core.contracts.system.contracts import load_system_contract
 from ethos_core.graph.core import GraphKernel
 from ethos_core.graph.core import GraphNode
@@ -190,6 +192,86 @@ class WorkflowEvolutionDeclaration(_WorkflowModel):
     truth_boundary: str = ""
 
 
+class CampaignRule(_WorkflowModel):
+    """One declaration-owned CEL rule over Campaign facts."""
+
+    expression: str
+    gap: str
+
+    @field_validator("expression", "gap")
+    @classmethod
+    def validate_cel(cls, value: str) -> str:
+        return validate_cel_expression(value)
+
+
+class CampaignGapGroup(_WorkflowModel):
+    """One declaration-owned list expression and gap prefix expression."""
+
+    values: str
+    prefix: str
+
+    @field_validator("values", "prefix")
+    @classmethod
+    def validate_cel(cls, value: str) -> str:
+        return validate_cel_expression(value)
+
+
+class CampaignPublicationDeclaration(_WorkflowModel):
+    """Declaration-owned publication gap aggregation."""
+
+    gap_groups: tuple[CampaignGapGroup, ...]
+
+
+class CampaignWorkflowDeclaration(_WorkflowModel):
+    """Campaign lifecycle and publication policy compiled from workflows TOML."""
+
+    topology_kind: str
+    topology_mode: str
+    dependency_rule: str
+    publication_kind: str
+    publication_scope: str
+    publication_terminal_mode: str
+    admitted_state: str
+    blocked_state: str
+    continuation_action_id: str
+    publication_action_id: str
+    campaign_active_states: tuple[str, ...]
+    campaign_terminal_states: tuple[str, ...]
+    step_planned_states: tuple[str, ...]
+    step_execution_states: tuple[str, ...]
+    step_archived_states: tuple[str, ...]
+    step_terminal_states: tuple[str, ...]
+    step_retired_states: tuple[str, ...]
+    closeout_planned_states: tuple[str, ...]
+    closeout_terminal_states: tuple[str, ...]
+    closeout_retired_states: tuple[str, ...]
+    rules: dict[str, tuple[CampaignRule, ...]] = Field(min_length=1)
+    publication: CampaignPublicationDeclaration
+    publication_projection: str
+
+    @field_validator("publication_projection")
+    @classmethod
+    def validate_cel_projection(cls, value: str) -> str:
+        """Reject invalid declaration-owned CEL projections at contract load."""
+        return validate_cel_expression(value)
+
+    def evaluate(
+        self,
+        scope: str,
+        *,
+        facts: dict[str, object],
+    ) -> list[str]:
+        """Evaluate one declared CEL rule group over immutable facts."""
+        return evaluate_cel_rules(
+            self.rules.get(scope, ()),
+            facts=facts,
+            policy=self.model_dump(
+                mode="json",
+                exclude={"rules", "publication", "publication_projection"},
+            ),
+        )
+
+
 class WorkflowContract(_WorkflowModel):
     """Validated source declaration for the ETHOS workflow runtime projection."""
 
@@ -202,6 +284,7 @@ class WorkflowContract(_WorkflowModel):
     event: tuple[WorkflowEvent, ...] = ()
     eval: WorkflowEvalDeclaration = Field(default_factory=WorkflowEvalDeclaration)
     evolution: WorkflowEvolutionDeclaration = Field(default_factory=WorkflowEvolutionDeclaration)
+    campaign: CampaignWorkflowDeclaration | None = None
 
     @field_validator("guards", mode="before")
     @classmethod

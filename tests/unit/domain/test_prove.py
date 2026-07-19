@@ -1,17 +1,36 @@
 from __future__ import annotations
 
+import tomllib
 from datetime import date
+from pathlib import Path
 
 from ethos.domain import prove
-from ethos_core.contracts.source_budget.core import SourceBudgetPolicy
 from ethos_core.contracts.source_budget.core import SourceBudgetPolicyLoad
+from ethos_core.contracts.source_budget.core import validate_source_budget_policy
+from ethos_core.contracts.source_budget.core import validate_source_budget_taxonomy
+
+_FORMAT_SELECTION = tomllib.loads(Path(".config/checks/format/selection.toml").read_text())
+_TAXONOMY = validate_source_budget_taxonomy(
+    {
+        "carrier": [
+            {"extensions": item["extensions"], **budget}
+            for item in _FORMAT_SELECTION["format"]
+            for budget in item.get("budget", [])
+        ],
+        "aggregates": _FORMAT_SELECTION["source_budget"]["aggregates"],
+    }
+)
 
 
 def _source_budget_load(policy: dict[str, object]) -> SourceBudgetPolicyLoad:
     return SourceBudgetPolicyLoad(
-        policy=SourceBudgetPolicy.model_validate({"baseline_head": "a" * 40, **policy}),
+        policy=validate_source_budget_policy({"baseline_head": "a" * 40, **policy}),
         required_gaps=(),
     )
+
+
+def _use_taxonomy(monkeypatch) -> None:
+    monkeypatch.setattr(prove, "source_budget_taxonomy", lambda _root: _TAXONOMY)
 
 
 def test_role_for_classifies_tests_surface_and_logic():
@@ -97,8 +116,10 @@ def test_code_size_report_skips_deleted_tracked_paths(tmp_path, monkeypatch):
 def test_source_budget_reports_all_executable_carriers_and_blocks_unfunded_growth(
     tmp_path, monkeypatch
 ):
+    _use_taxonomy(monkeypatch)
     files = {
         "packages/ethos/src/ethos/domain/current.py": "value = 1\n",
+        "packages/ethos/src/ethos/domain/current.pyi": "value: int\n",
         "tests/unit/test_current.py": "assert True\n",
         "tools/check.sh": "echo ok\n",
         "system/current.toml": "value = 1\n",
@@ -116,16 +137,16 @@ def test_source_budget_reports_all_executable_carriers_and_blocks_unfunded_growt
         lambda _root: _source_budget_load(
             {
                 "baseline": {
-                    "global_total": 6,
-                    "python_total": 2,
-                    "python_product": 1,
+                    "global_total": 7,
+                    "python_total": 3,
+                    "python_product": 2,
                     "python_tests": 1,
                     "python_tools": 0,
                     "toml": 1,
                     "json": 1,
                     "jinja": 1,
                 },
-                "terminal": {"global_total": 3, "python_total": 2},
+                "terminal": {"global_total": 3, "python_total": 3},
                 "debt": {"maximum_total": 0, "waves": [], "records": []},
                 "enforcement": "transition",
             }
@@ -142,7 +163,7 @@ def test_source_budget_reports_all_executable_carriers_and_blocks_unfunded_growt
     report = prove.source_budget_report(tmp_path)
 
     assert report["metrics"] == {
-        "python_product": 1,
+        "python_product": 2,
         "python_tests": 1,
         "python_tools": 0,
         "python_other": 0,
@@ -154,8 +175,8 @@ def test_source_budget_reports_all_executable_carriers_and_blocks_unfunded_growt
         "jinja": 1,
         "ini": 0,
         "diagram": 0,
-        "python_total": 2,
-        "global_total": 6,
+        "python_total": 3,
+        "global_total": 7,
     }
     assert report["terminal_target_met"] is False
     assert report["ok"] is True
@@ -170,7 +191,7 @@ def test_source_budget_reports_all_executable_carriers_and_blocks_unfunded_growt
     grown = prove.source_budget_report(tmp_path)
 
     assert grown["ok"] is False
-    assert grown["required_gaps"] == ["source_budget_exceeded:global_total:7>6"]
+    assert grown["required_gaps"] == ["source_budget_exceeded:global_total:8>7"]
 
 
 def test_source_budget_classifies_non_product_python_and_non_code_carriers(tmp_path) -> None:
@@ -211,6 +232,7 @@ def test_source_budget_classifies_non_product_python_and_non_code_carriers(tmp_p
 
 
 def test_source_budget_derives_python_total_allowance_from_python_categories(tmp_path, monkeypatch):
+    _use_taxonomy(monkeypatch)
     relative = "packages/ethos/src/ethos/domain/current.py"
     path = tmp_path / relative
     path.parent.mkdir(parents=True)
@@ -253,7 +275,40 @@ def test_source_budget_derives_python_total_allowance_from_python_categories(tmp
     assert report["ok"] is True
 
 
+def test_campaign_terminal_source_growth_is_advisory(tmp_path, monkeypatch):
+    _use_taxonomy(monkeypatch)
+    monkeypatch.setattr(
+        prove,
+        "source_budget_policy",
+        lambda _root: _source_budget_load(
+            {
+                "baseline": {"python_total": 0, "global_total": 0},
+                "terminal": {"python_total": 0, "global_total": 0},
+                "debt": {"maximum_total": 0, "waves": [], "records": []},
+                "enforcement": "campaign_terminal",
+                "campaign_id": "compression",
+            }
+        ),
+    )
+    monkeypatch.setattr(
+        prove,
+        "_source_budget_metrics",
+        lambda _root, _policy: ({"python_total": 1, "global_total": 1}, {"file_count": 1}),
+    )
+    monkeypatch.setattr(prove.git_adapter, "git_stdout", lambda *_args: "a" * 40)
+
+    report = prove.source_budget_report(tmp_path)
+
+    assert report["ok"] is True
+    assert report["required_gaps"] == []
+    assert report["advisory_gaps"] == [
+        "source_budget_campaign_growth_overage:global_total:1>0",
+        "source_budget_campaign_growth_overage:python_total:1>0",
+    ]
+
+
 def test_source_budget_report_skips_absent_declared_metric_category(tmp_path, monkeypatch):
+    _use_taxonomy(monkeypatch)
     monkeypatch.setattr(
         prove,
         "source_budget_policy",
@@ -269,7 +324,7 @@ def test_source_budget_report_skips_absent_declared_metric_category(tmp_path, mo
     monkeypatch.setattr(
         prove,
         "_source_budget_metrics",
-        lambda _root: ({"global_total": 0, "python_total": 0}, {"file_count": 0}),
+        lambda _root, _policy: ({"global_total": 0, "python_total": 0}, {"file_count": 0}),
     )
     monkeypatch.setattr(prove.git_adapter, "git_stdout", lambda *_args: "a" * 40)
 
@@ -277,6 +332,7 @@ def test_source_budget_report_skips_absent_declared_metric_category(tmp_path, mo
 
 
 def test_source_budget_excludes_archived_openspec_metadata_only(tmp_path, monkeypatch):
+    _use_taxonomy(monkeypatch)
     files = {
         "openspec/changes/archive/2026-07-12-closed/.openspec.yaml": (
             "schema: spec-driven\ncreated: 2026-07-12\nstatus: archived\n"
@@ -314,6 +370,7 @@ def test_source_budget_excludes_archived_openspec_metadata_only(tmp_path, monkey
 
 
 def test_source_budget_reports_missing_policy_and_terminal_debt_gaps(tmp_path, monkeypatch):
+    _use_taxonomy(monkeypatch)
     monkeypatch.setattr(
         prove,
         "source_budget_policy",
@@ -343,7 +400,7 @@ def test_source_budget_reports_missing_policy_and_terminal_debt_gaps(tmp_path, m
                             "expiry": "2026-12-01",
                             "allowance": 1,
                             "expected_net_deletion": 1,
-                            "allowance_by_category": {"global_total": 1},
+                            "allowance_by_category": {"shell": 1},
                         }
                     ],
                 },
@@ -380,12 +437,13 @@ def test_source_budget_reports_config_validation_gap(tmp_path, monkeypatch):
 
     assert report["ok"] is False
     assert report["state"] == "blocked"
-    assert report["metrics"]["global_total"] == 0
+    assert report["metrics"] == {}
     assert report["inventory"]["file_count"] == 0
     assert report["required_gaps"] == ["source_budget_policy_invalid:debt.records.0.expiry"]
 
 
 def test_source_budget_reports_lifecycle_and_present_inventory(tmp_path, monkeypatch):
+    _use_taxonomy(monkeypatch)
     relative = "packages/ethos/src/ethos/domain/current.py"
     path = tmp_path / relative
     path.parent.mkdir(parents=True)

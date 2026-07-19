@@ -72,12 +72,17 @@ and drift detector; it is not combined with the Python AST-aware metric.
 
 Temporary additions require a tracked compression-debt record with an owner,
 replacement, exact deletion wave, expiry, and expected net deletion. Aggregate
-active debt may not exceed 5% of the baseline (5,267 effective lines). A baseline
+active debt may not exceed the declared append-only cap. The current integrated
+candidate train originally set that cap to 8,163 effective lines; the current
+ledger has retired expired records and retains only 165 effective lines of
+live, independently dated debt. Changing it requires a
+separate governed reconciliation, never an implicit baseline reset. A baseline
 cannot be reset, a debt cannot be silently extended, and splitting a file or
 moving logic to a declaration does not satisfy this program.
 
-The active debt remains globally capped at 5,267 effective lines. It is not a
-baseline reset and it never changes either terminal budget. `program-foundation`
+The active debt is now globally capped at the declared 165 effective lines.
+It is not a baseline reset and it never changes either terminal budget.
+`program-foundation`
 is the bounded measurement, compiler, and archival-evidence record. Its 14
 effective TOML lines for the accepted claim/archive binder, two effective JSON
 lines for refreshed generic parity evidence, and two product-Python effective
@@ -93,11 +98,20 @@ copies; it is not permission to retain duplicate behavior.
 The reconciliation record is exact rather than aspirational. The current
 candidate-train reconciliation snapshot bounds 1,344 product-Python, 1,970
 test-Python, 347 other-Python, 368 shell, 4 YAML, 102 JSON, and 15
-Jinja effective lines. Together with the foundation record its aggregate allowance
-is 4,665, below the immutable 5,267 maximum. The recorded snapshot remains
-**36,268 global** and **29,696 Python** effective lines above the terminal maxima;
-T8 and T9
-cannot close while any of that gap or either active debt record remains.
+Jinja effective lines. Those original records were later joined by independently
+governed candidate-train debt records. The live policy, not this historical
+subtotal, was the historical allowance SSOT. Expired records were deleted rather
+than extended; current measurement remains visible as Campaign growth advisory.
+The recorded snapshot remains **36,268 global** and **29,696
+Python** effective lines above the terminal maxima; T8 and T9 cannot close while
+any of that gap or active debt remains.
+
+During this program the source-budget policy uses `campaign_terminal`
+enforcement: Change-local source growth is measured but does not mechanically
+block iteration while the Campaign remains active. Configuration errors,
+debt-cap overflow, expired debt, and stale debt remain local blockers. Terminal
+targets and zero active debt remain mandatory at Campaign closeout and before
+the single dual-remote publication.
 
 ## Final Technical Choices
 
@@ -127,12 +141,12 @@ runtime-cache home, supply-chain owner, and a named gate.
 | --- | --- |
 | Python | Ruff format/lint, `ty`, architecture and redundancy checks, pytest and Hypothesis, focused Semgrep |
 | TOML | Taplo format/lint, Pydantic parse, reference and compiler validation |
-| YAML | Prettier, yamllint, actionlint/zizmor or GitLab execution as applicable |
-| JSON and JSON Schema | Prettier `--check`, `check-jsonschema`, schema fixtures and Pydantic round trips |
+| YAML | yamllint, actionlint/zizmor or GitLab execution as applicable |
+| JSON and JSON Schema | jq canonical formatting, check-jsonschema, schema fixtures and Pydantic round trips |
 | Shell | shfmt, ShellCheck, explicit exit-code contract smoke |
-| JS/MJS | Prettier, ESLint, `node --check`, npm clean-install smoke |
+| JS/MJS | ESLint, `node --check`, npm clean-install smoke |
 | Jinja | AST parse, typed context, `StrictUndefined`, deterministic render; then target-carrier formatter/linter |
-| Markdown | Prettier, markdownlint-cli2, lychee, codespell |
+| Markdown | markdownlint-cli2, lychee, codespell |
 | Mermaid/C4 | deterministic `mmdc` render/syntax validation |
 | INI | no new files; migrate the remaining files to TOML during cleanup |
 

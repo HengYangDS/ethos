@@ -62,7 +62,8 @@ test_effective_max_lines = 800
 # The parent of the global-declarative-compression Work Lane. This baseline is
 # never reset by a migration; every tracked executable carrier remains visible.
 baseline_head = "2dab77f169eceb2d45f917358c2a7487e7ac8db6"
-enforcement = "transition"
+enforcement = "campaign_terminal"
+campaign_id = "global-declarative-compression-program"
 
 [quality.source_budget.baseline]
 python_product = 35675
@@ -85,81 +86,10 @@ python_total = 58722
 global_total = 73739
 
 [quality.source_budget.debt]
-maximum_total = 8376
+maximum_total = 165
 waves = [
-  { id = "T5", due_on = "2026-07-18", state = "active" },
-  { id = "T8", due_on = "2026-07-18", state = "active" },
-  { id = "archive-closeout", due_on = "2026-07-18", state = "active" },
-  { id = "semantic-attestation-compression", due_on = "2026-07-18", state = "active" },
-  { id = "adopter-material-scope-compression", due_on = "2026-07-18", state = "active" },
-  { id = "repository-text-layout-compression", due_on = "2026-07-18", state = "active" },
-  { id = "node-runtime-compatibility-compression", due_on = "2026-07-18", state = "active" },
-  { id = "hosted-ci-remediation-closeout", due_on = "2026-07-18", state = "active" },
-  { id = "adopter-lifecycle-claim-freshness-compression", due_on = "2026-07-18", state = "active" },
-  { id = "bounded-status-compression", due_on = "2026-07-18", state = "active" },
-  { id = "dual-remote-reconciliation-compression", due_on = "2026-07-18", state = "active" },
-  { id = "repo-first-worktree-governance", due_on = "2026-07-25", state = "active" },
+  { id = "node-runtime-compatibility-compression", due_on = "2026-10-28", state = "active" },
 ]
-
-[[quality.source_budget.debt.records]]
-id = "program-foundation"
-owner = "global-declarative-compression-program-20260711"
-replacement = "source budget, carrier admission, and declaration compiler foundation"
-deletion_wave = "T5"
-expiry = "2026-07-18"
-allowance = 1428
-expected_net_deletion = 1428
-allowance_by_category = { python_product = 352, python_tests = 400, python_tools = 250, toml = 714, json = 16 }
-
-[[quality.source_budget.debt.records]]
-id = "candidate-train-reconciliation"
-owner = "global-declarative-compression-program-20260711"
-replacement = "candidate-train semantic integrations pending T8 scenario, runner, template, and provider-copy consolidation"
-deletion_wave = "T8"
-expiry = "2026-07-18"
-allowance = 3237
-expected_net_deletion = 3237
-allowance_by_category = { python_product = 1096, python_tests = 2057, python_other = 508, shell = 368, yaml = 4, json = 102, jinja = 15 }
-
-[[quality.source_budget.debt.records]]
-id = "openspec-archive-preflight-20260712"
-owner = "openspec-archive-preflight-20260712"
-replacement = "collapse isolated archive preflight after the official lifecycle API exposes a source-safe dry-run receipt"
-deletion_wave = "archive-closeout"
-expiry = "2026-07-18"
-allowance = 602
-expected_net_deletion = 602
-allowance_by_category = { python_product = 253, python_tests = 267, yaml = 2, toml = 80 }
-
-[[quality.source_budget.debt.records]]
-id = "semantic-attestation-receipts-20260714"
-owner = "semantic-attestation-receipts-20260714"
-replacement = "compress the external semantic receipt verifier after receipt validation is shared with the evidence contract"
-deletion_wave = "semantic-attestation-compression"
-expiry = "2026-07-18"
-allowance = 84
-expected_net_deletion = 84
-allowance_by_category = { python_product = 84 }
-
-[[quality.source_budget.debt.records]]
-id = "adopter-material-scope-binding-completion-20260714"
-owner = "adopter-material-scope-binding-completion-20260714"
-replacement = "compress scope-binding fixtures and duplicate lifecycle wiring after the shared companion read model is consolidated"
-deletion_wave = "adopter-material-scope-compression"
-expiry = "2026-07-18"
-allowance = 1118
-expected_net_deletion = 1118
-allowance_by_category = { python_product = 428, python_tests = 824, jinja = 7 }
-
-[[quality.source_budget.debt.records]]
-id = "repository-text-layout-completion-20260715"
-owner = "repository-text-layout-completion-20260715"
-replacement = "consolidate shared text-layout diagnostics into native owner integrations after the active-carrier boundary is proven"
-deletion_wave = "repository-text-layout-compression"
-expiry = "2026-07-18"
-allowance = 190
-expected_net_deletion = 190
-allowance_by_category = { python_tools = 66, python_tests = 113, shell = 11 }
 
 [[quality.source_budget.debt.records]]
 id = "node-runtime-compatibility-20260716"
@@ -170,57 +100,6 @@ expiry = "2026-10-28"
 allowance = 165
 expected_net_deletion = 165
 allowance_by_category = { python_tests = 135, shell = 107 }
-
-[[quality.source_budget.debt.records]]
-id = "adopter-lifecycle-claim-freshness-20260718"
-owner = "adopter-lifecycle-claim-freshness-20260718"
-replacement = "fold behavioral semantic-scope regressions into the existing lifecycle claim suite and remove the temporary claim-scope carrier after durable lifecycle evidence is refreshed."
-deletion_wave = "adopter-lifecycle-claim-freshness-compression"
-expiry = "2026-07-18"
-allowance = 125
-expected_net_deletion = 125
-allowance_by_category = { python_tests = 89, toml = 24 }
-
-[[quality.source_budget.debt.records]]
-id = "hosted-ci-remediation-20260717"
-owner = "hosted-ci-remediation-20260717"
-replacement = "archive the active carrier; retain only the existing owner script and focused regressions"
-deletion_wave = "hosted-ci-remediation-closeout"
-expiry = "2026-07-18"
-allowance = 102
-expected_net_deletion = 102
-allowance_by_category = { python_tests = 40, shell = 12, toml = 46, yaml = 4 }
-
-[[quality.source_budget.debt.records]]
-id = "bounded-status-read-model-20260718"
-owner = "refresh-base-ledger-merge-20260717"
-replacement = "consolidate bounded foreign-lane status fixtures and semantic rebase-recovery harnesses after coordination readers and ledger fixtures share one contract carrier"
-deletion_wave = "bounded-status-compression"
-expiry = "2026-07-18"
-allowance = 776
-expected_net_deletion = 776
-allowance_by_category = { python_product = 180, python_tests = 528, toml = 10, json = 20 }
-
-[[quality.source_budget.debt.records]]
-id = "dual-remote-reconciliation-admission-20260718"
-owner = "remote-reconciliation-admission-20260718"
-replacement = "fold dual-remote reconciliation receipt validation into the shared external-evidence contract after provider-neutral receipt verification is available"
-deletion_wave = "dual-remote-reconciliation-compression"
-expiry = "2026-07-18"
-allowance = 336
-expected_net_deletion = 336
-
-allowance_by_category = { python_product = 170, python_tests = 157, toml = 9 }
-
-[[quality.source_budget.debt.records]]
-id = "repo-first-worktree-governance-bootstrap-20260718"
-owner = "repo-first-worktree-governance-campaign-20260718"
-replacement = "complete the campaign bootstrap local closeout and retire its owned Work Lane; the archived carrier is retained as historical evidence, and later campaign slices must use their own evidence-bound growth decisions"
-deletion_wave = "repo-first-worktree-governance"
-expiry = "2026-07-25"
-allowance = 213
-expected_net_deletion = 213
-allowance_by_category = { toml = 213 }
 
 [gates.local-state-audit]
 command = "tools/ci/scripts/run-local-state-audit.sh"

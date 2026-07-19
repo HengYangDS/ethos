@@ -115,6 +115,15 @@ def test_commit_policy_defaults_on_malformed_workspace_toml(tmp_path: Path) -> N
     (ethos_dir / "workspace.toml").write_text("[commit_policy\n", encoding="utf-8")
     policy = load_commit_policy(tmp_path)
     assert policy["expected_name"] == ""
+
+
+def test_commit_policy_defaults_when_commit_policy_is_not_a_table(tmp_path: Path) -> None:
+    ethos_dir = tmp_path / ".ethos"
+    ethos_dir.mkdir()
+    (ethos_dir / "workspace.toml").write_text('commit_policy = "not-a-table"\n', encoding="utf-8")
+
+    policy = load_commit_policy(tmp_path)
+    assert policy["identity_mode"] == "presence"
     assert policy["signing_required"] is False
 
 

@@ -147,7 +147,6 @@ def _normalized_semantic_projections(
             )
         report_gaps = _report_parity_evidence_refresh_bootstrap_gaps(
             external,
-            embedded,
             external_projection,
             embedded_projection,
         )
@@ -442,7 +441,7 @@ _PRODUCT_REPOSITORY_AUDIT_GAP_PREFIXES = (
     "schemas/",
     "packages/",
     "distribution_adapter_missing:",
-    "adoption_scaffold_missing:",
+    "playbook_projection_missing:",
     "openspec_family_missing:",
     "claims_",
     "claim_",
@@ -496,7 +495,6 @@ def _is_changed_route_noop(
 
 def _report_parity_evidence_refresh_bootstrap_gaps(
     external: dict[str, Any],
-    embedded: dict[str, Any],
     external_projection: dict[str, Any],
     embedded_projection: dict[str, Any],
 ) -> list[str]:

@@ -229,28 +229,6 @@ def test_collect_playbook_records_flags_missing_file(tmp_path: Path) -> None:
     assert "skill_missing_file:ghost-skill" in report["required_gaps"]
 
 
-def test_transition_registry_skips_non_dict_skill(tmp_path: Path) -> None:
-    # profile present + activation meta version < 2 -> transition adopter path, and a
-    # non-dict `skill` entry hits the `continue` at line 190.
-    skills_root = tmp_path / ".agents" / "skills"
-    skills_root.mkdir(parents=True)
-    (skills_root / "README.md").write_text("# Skills\n", encoding="utf-8")
-    profile = tmp_path / ".ethos" / "profile.toml"
-    profile.parent.mkdir()
-    profile.write_text(
-        'schema_version = 1\n[roots]\nagent_skills = ".agents/skills"\n',
-        encoding="utf-8",
-    )
-    (skills_root / "activation.toml").write_text(
-        'skill = ["not-a-dict"]\n\n[meta]\nversion = 1\n',
-        encoding="utf-8",
-    )
-
-    report = playbooks.playbooks_report(tmp_path)
-
-    assert report["skills"] == []
-
-
 def test_strict_record_gaps_flags_lifecycle_path_globs_commands() -> None:
     # Empty lifecycle / path_globs / commands drive lines 332, 334, 342; the other
     # fields are populated so only those three gaps are raised.

@@ -27,15 +27,10 @@ def test_command_registry_separates_public_workflow_from_maintainer_reference() 
     ]
     assert report["reader_view_commands"] == ["ethos orient"]
     assert report["scorecard_commands"] == ["ethos report"]
-    assert report["setup_commands"] == [
-        "ethos init",
-        "ethos adopt",
-        "ethos doctor",
-    ]
+    assert report["setup_commands"] == ["ethos adopt", "ethos doctor"]
     assert "ethos orient" not in report["public_workflow_commands"]
     assert "ethos report" not in report["public_workflow_commands"]
     assert "ethos adopt" not in report["maintainer_reference_commands"]
-    assert "ethos init" not in report["maintainer_reference_commands"]
     assert "ethos doctor" not in report["maintainer_reference_commands"]
     assert "ethos quality" in report["maintainer_reference_commands"]
     assert "ethos quality" in report["known_commands"]
@@ -46,7 +41,7 @@ def test_command_registry_separates_public_workflow_from_maintainer_reference() 
     assert report["public_workflow_count"] == 5
     assert report["reader_view_count"] == 1
     assert report["scorecard_count"] == 1
-    assert report["setup_count"] == 3
+    assert report["setup_count"] == 2
 
 
 def test_command_registry_classifications_compile_from_the_declaration() -> None:

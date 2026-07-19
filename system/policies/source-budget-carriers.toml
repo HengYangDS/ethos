@@ -101,17 +101,6 @@ exclude = []
 owner = "ethos-quality"
 
 [[carriers]]
-carrier_id = "jinja-templates"
-role = "template_source"
-scope_id = "product.templates.jinja"
-disposition = "measure"
-metric_profile = "template-jinja-v2"
-extensions = [".j2", ".jinja", ".jinja2"]
-include = ["packages/**"]
-exclude = []
-owner = "ethos-adoption"
-
-[[carriers]]
 carrier_id = "python-source"
 role = "authored_behavioral_source"
 scope_id = "product.python"

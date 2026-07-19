@@ -19,12 +19,8 @@ ROOT = Path(__file__).resolve().parents[2]
 TEMPLATE_CONFIG = ROOT / ".config/checks/ci/templates.toml"
 
 
-def _template_config() -> dict[str, object]:
-    return tomllib.loads(TEMPLATE_CONFIG.read_text(encoding="utf-8"))
-
-
 def _projection_entries() -> list[dict[str, object]]:
-    entries = _template_config()["projection"]
+    entries = tomllib.loads(TEMPLATE_CONFIG.read_text(encoding="utf-8"))["projection"]
     assert isinstance(entries, list)
     return entries
 
@@ -71,8 +67,6 @@ def test_hosted_provider_templates_are_projection_sources() -> None:
         assert "local_emulator" not in entry
         for field, value in expected_emulation[provider].items():
             assert entry[field] == value
-        assert entry["emulator_supported_inputs"] == []
-        assert entry["emulator_hosted_only_reason"] == ""
         assert entry.get("emulator_state_dir", "") == ""
         assert "PYTHONWARNINGS: error" in projection.read_text(encoding="utf-8")
 
@@ -103,7 +97,6 @@ def test_provider_yaml_invokes_owner_scripts_not_inline_policy() -> None:
         "tools/ci/scripts/run-dependency-hygiene.sh",
         "tools/ci/scripts/run-docstring-coverage.sh",
         "tools/ci/scripts/run-module-layout.sh",
-        "tools/ci/scripts/run-bandit.sh",
         "tools/ci/scripts/run-python-vulnerability-audit.sh",
         "tools/ci/scripts/run-repository-hygiene.sh",
         "tools/ci/scripts/run-product-boundary.sh",
@@ -212,13 +205,26 @@ def test_local_ci_fails_on_python_warnings() -> None:
 
 def test_openspec_ci_supply_is_pinned_to_the_supported_release() -> None:
     bootstrap = (ROOT / "tools/ci/scripts/bootstrap-python.sh").read_text(encoding="utf-8")
-    adopter_gitlab_template = (
-        ROOT
-        / "packages/ethos/src/ethos/repository/adoption/scaffold/template_files/ci/gitlab.yml.j2"
-    ).read_text(encoding="utf-8")
+    gitlab_projection = (ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8")
 
     assert 'npx --yes @fission-ai/openspec@1.6.0 "$@"' in bootstrap
-    assert "npm install -g @fission-ai/openspec@1.6.0" in adopter_gitlab_template
+    assert "openspec --version" in gitlab_projection
+
+
+def test_hosted_python_bootstrap_avoids_ambient_root_pip() -> None:
+    bootstrap = (ROOT / "tools/ci/scripts/bootstrap-python.sh").read_text(encoding="utf-8")
+
+    assert "python -m venv" in bootstrap
+    assert "python -m pip install" not in bootstrap
+    assert "pip install uv" not in bootstrap
+
+
+def test_github_ci_uses_current_action_majors() -> None:
+    workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+
+    assert "actions/checkout@v7" in workflow
+    assert "actions/setup-python@v6" in workflow
+    assert "actions/upload-artifact@v7" in workflow
 
 
 def test_hosted_python_bootstrap_materializes_the_source_bound_runtime() -> None:
@@ -408,6 +414,110 @@ def test_local_emulator_run_executes_a_selected_formal_provider_job(monkeypatch,
     ]
 
 
+def test_local_emulator_run_fails_when_provider_logs_contain_warnings(
+    monkeypatch, tmp_path: Path
+) -> None:
+    ci_templates = _load_ci_templates_module()
+    entry = {
+        "provider": "github",
+        "projection": ".github/workflows/ci.yml",
+        "template": ".config/ci/templates/hosted/github-actions.yml",
+        "emulator_tool": "act",
+        "emulator_event": "workflow_dispatch",
+        "emulator_job": "quality",
+        "emulator_image": "catthehacker/ubuntu:act-latest",
+        "forbidden_log_patterns": ["(?:^|[ >])DeprecationWarning:"],
+    }
+    monkeypatch.setattr(ci_templates, "_provider_entry", lambda _provider: entry)
+    monkeypatch.setattr(ci_templates.shutil, "which", lambda _tool: "/usr/local/bin/act")
+    monkeypatch.setattr(ci_templates, "_tool_version", lambda _tool: "act 1.0")
+    monkeypatch.setattr(
+        ci_templates,
+        "materialize_emulator_source",
+        lambda **kwargs: {"source_dir": str(kwargs["state_dir"] / "source")},
+    )
+    monkeypatch.setattr(
+        ci_templates,
+        "_run_command",
+        lambda _command, **_kwargs: {
+            "returncode": 0,
+            "ok": True,
+            "stdout": "(node:1) DeprecationWarning: stale action runtime",
+            "stderr": "",
+        },
+    )
+
+    output = tmp_path / "github-run.json"
+    assert (
+        ci_templates.emulator_evidence(
+            "github",
+            mode="run",
+            dry_run=False,
+            allow_untracked=True,
+            output=output,
+        )
+        == 1
+    )
+    payload = json.loads(output.read_text(encoding="utf-8"))
+    assert payload["ok"] is False
+    assert payload["log_warnings"] == ["(?:^|[ >])DeprecationWarning:"]
+
+
+def test_local_emulator_run_ignores_declarative_warning_pattern_text(
+    monkeypatch, tmp_path: Path
+) -> None:
+    ci_templates = _load_ci_templates_module()
+    entry = {
+        "provider": "github",
+        "projection": ".github/workflows/ci.yml",
+        "template": ".config/ci/templates/hosted/github-actions.yml",
+        "emulator_tool": "act",
+        "emulator_event": "workflow_dispatch",
+        "emulator_job": "quality",
+        "emulator_image": "catthehacker/ubuntu:act-latest",
+        "forbidden_log_patterns": [
+            "(?:^|[ >])DeprecationWarning:",
+            "(?:^|[ >])WARNING:",
+        ],
+    }
+    monkeypatch.setattr(ci_templates, "_provider_entry", lambda _provider: entry)
+    monkeypatch.setattr(ci_templates.shutil, "which", lambda _tool: "/usr/local/bin/act")
+    monkeypatch.setattr(ci_templates, "_tool_version", lambda _tool: "act 1.0")
+    monkeypatch.setattr(
+        ci_templates,
+        "materialize_emulator_source",
+        lambda **kwargs: {"source_dir": str(kwargs["state_dir"] / "source")},
+    )
+    monkeypatch.setattr(
+        ci_templates,
+        "_run_command",
+        lambda _command, **_kwargs: {
+            "returncode": 0,
+            "ok": True,
+            "stdout": (
+                '"forbidden_log_patterns": '
+                '["(?:^|[ >])DeprecationWarning:", "(?:^|[ >])WARNING:"]'
+            ),
+            "stderr": "",
+        },
+    )
+
+    output = tmp_path / "github-run.json"
+    assert (
+        ci_templates.emulator_evidence(
+            "github",
+            mode="run",
+            dry_run=False,
+            allow_untracked=True,
+            output=output,
+        )
+        == 0
+    )
+    payload = json.loads(output.read_text(encoding="utf-8"))
+    assert payload["ok"] is True
+    assert payload["log_warnings"] == []
+
+
 def test_act_emulator_uses_docker_context_when_no_endpoint_is_explicit(
     monkeypatch, tmp_path: Path
 ) -> None:
@@ -459,8 +569,6 @@ def test_github_emulator_run_materializes_an_independent_git_source(
         "emulator_job": "quality",
         "emulator_image": "catthehacker/ubuntu:act-latest",
         "emulator_state_dir": "build/runtime/work/github-act",
-        "emulator_supported_inputs": [],
-        "emulator_hosted_only_reason": "",
     }
     summary = {
         "branch": "work/example",
@@ -657,7 +765,12 @@ def test_gitlab_materialization_creates_an_independent_git_snapshot(
     )
     tracked = repository / "tracked.txt"
     tracked.write_text("base\n", encoding="utf-8")
-    subprocess.run(["git", "-C", str(repository), "add", "tracked.txt"], check=True)
+    deleted = repository / "deleted.txt"
+    deleted.write_text("delete me\n", encoding="utf-8")
+    subprocess.run(
+        ["git", "-C", str(repository), "add", "tracked.txt", "deleted.txt"],
+        check=True,
+    )
     subprocess.run(
         ["git", "-C", str(repository), "commit", "--quiet", "-m", "base"],
         check=True,
@@ -675,6 +788,9 @@ def test_gitlab_materialization_creates_an_independent_git_snapshot(
         check=True,
     )
     (linked_worktree / "tracked.txt").write_text("changed\n", encoding="utf-8")
+    (linked_worktree / "deleted.txt").unlink()
+    (linked_worktree / "added.txt").write_text("added\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(linked_worktree), "add", "-A"], check=True)
     expected_head = subprocess.run(
         ["git", "-C", str(linked_worktree), "rev-parse", "HEAD"],
         capture_output=True,
@@ -692,6 +808,17 @@ def test_gitlab_materialization_creates_an_independent_git_snapshot(
     assert (linked_worktree / ".git").is_file()
     assert (snapshot / ".git").is_dir()
     assert (snapshot / "tracked.txt").read_text(encoding="utf-8") == "changed\n"
+    assert not (snapshot / "deleted.txt").exists()
+    assert (snapshot / "added.txt").read_text(encoding="utf-8") == "added\n"
+    assert (
+        subprocess.run(
+            ["git", "-C", str(snapshot), "ls-files"],
+            capture_output=True,
+            check=True,
+            text=True,
+        ).stdout
+        == "added.txt\ntracked.txt\n"
+    )
     assert materialization["kind"] == "independent_git_checkout"
     assert materialization["source_head"] == expected_head
     assert materialization["source_head_matches_expected"] is True
@@ -703,7 +830,7 @@ def test_gitlab_materialization_creates_an_independent_git_snapshot(
             check=True,
             text=True,
         ).stdout
-        == " M tracked.txt\n"
+        == "A  added.txt\nD  deleted.txt\nM  tracked.txt\n"
     )
 
 

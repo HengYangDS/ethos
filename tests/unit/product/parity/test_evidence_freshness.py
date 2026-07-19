@@ -3,9 +3,22 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import ethos.repository.evidence.freshness as freshness
+from ethos.repository.profile import load_repository_profile
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+
+def strict_profile(root: Path) -> object:
+    profile_path = root / ".ethos" / "profile.toml"
+    profile_path.parent.mkdir()
+    profile_path.write_text(
+        'profile_id = "freshness-test"\n\n[openspec]\nmaterial_paths = [".ethos/profile.toml"]\n',
+        encoding="utf-8",
+    )
+    profile = load_repository_profile(root)
+    assert profile.state == "valid"
+    return profile
 
 
 def test_evidence_freshness_surfaces_configured_generic_parity_gap(
@@ -26,7 +39,8 @@ def test_evidence_freshness_surfaces_configured_generic_parity_gap(
         "evidence_topology_report",
         lambda _root: {"ok": True, "required_gaps": []},
     )
-    monkeypatch.setattr(freshness, "profile_relative_root", lambda *_args: "evidence")
+    profile = strict_profile(tmp_path)
+    monkeypatch.setattr(freshness, "load_repository_profile", lambda _root: profile)
     evidence = tmp_path / "evidence" / "parity" / "generic-shadow.json"
     evidence.parent.mkdir(parents=True)
     evidence.write_text("{}\n", encoding="utf-8")
@@ -69,7 +83,8 @@ def test_evidence_freshness_skips_unconfigured_generic_parity(monkeypatch, tmp_p
         "evidence_topology_report",
         lambda _root: {"ok": True, "required_gaps": []},
     )
-    monkeypatch.setattr(freshness, "profile_relative_root", lambda *_args: "evidence")
+    profile = strict_profile(tmp_path)
+    monkeypatch.setattr(freshness, "load_repository_profile", lambda _root: profile)
 
     report = freshness.evidence_freshness_report(tmp_path, current_head="head-1")
 

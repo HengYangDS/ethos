@@ -1,7 +1,7 @@
 [claim]
 id = "foreign-worktree-missing-readmodel"
 subject = "ethos:foreign-worktree-missing-readmodel"
-state = "active"
+state = "archived"
 summary = "ETHOS status reports missing foreign and candidate worktree bindings as schema-valid observe-only reader state instead of crashing."
 
 [evidence]

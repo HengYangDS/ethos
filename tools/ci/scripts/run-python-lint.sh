@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Run Python lint, format, and Ruff ignored-rule ratchet as one proof gate.
+# Run Python lint, format, security analysis, and Ruff ignored-rule ratchet as
+# one proof gate.
 #
 # This is the owner script for the Python lint proof surface. CI and `ethos prove`
 # call this script instead of duplicating the command set.

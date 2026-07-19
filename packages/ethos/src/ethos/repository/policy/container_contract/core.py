@@ -13,6 +13,9 @@ from typing import Any
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError
 
+from ethos.repository.profile import ContainerContractPolicy
+from ethos.repository.profile import load_repository_profile
+
 _DECLARATION_PATH = ".ethos/container-contract.toml"
 _PLATFORMS = ("linux/amd64", "linux/arm64")
 _VENDOR_TOKENS = (
@@ -92,16 +95,6 @@ def _contained_file(repo: Path, candidate: Path, *, label: str) -> tuple[Path | 
     except (OSError, RuntimeError):
         return None, f"{label}_unreadable"
     return resolved, None
-
-
-def _read_file(repo: Path, candidate: Path, *, label: str) -> tuple[str | None, str | None]:
-    path, gap = _contained_file(repo, candidate, label=label)
-    if path is None:
-        return None, gap
-    try:
-        return path.read_text(encoding="utf-8"), None
-    except (OSError, UnicodeDecodeError):
-        return None, f"{label}_unreadable"
 
 
 def _evidence_refs(value: object) -> list[dict[str, Any]]:
@@ -227,15 +220,8 @@ def _duplicate_asset_gaps(assets: list[dict[str, Any]]) -> list[str]:
     ]
 
 
-def _manifest_report(repo: Path, declaration: dict[str, Any]) -> dict[str, Any]:
-    declaration_gaps = _schema_gaps(
-        "container-contract-declaration.schema.json",
-        declaration,
-        prefix="container_contract_declaration_schema",
-    )
-    manifest = str(declaration.get("manifest") or "")
-    if declaration_gaps:
-        return _report(declared=True, manifest=manifest, gaps=declaration_gaps)
+def _manifest_report(repo: Path, declaration: ContainerContractPolicy) -> dict[str, Any]:
+    manifest = declaration.manifest
     path, gap = _contained_file(repo, repo / manifest, label="container_contract_manifest")
     if gap:
         return _report(declared=True, manifest=manifest, gaps=[gap])
@@ -259,29 +245,16 @@ def _manifest_report(repo: Path, declaration: dict[str, Any]) -> dict[str, Any]:
 def container_contract_report(root: Path) -> dict[str, Any]:
     """Validate an opt-in product-schema-bound Container Contract."""
     repo = root.resolve()
-    profile_text, profile_gap = _read_file(
-        repo, repo / ".ethos/profile.toml", label="container_contract_profile"
-    )
-    if profile_gap == "container_contract_profile_missing":
+    profile = load_repository_profile(repo)
+    if not profile.exists:
         return _not_declared()
-    if profile_gap:
-        return _report(declared=False, manifest="", gaps=[profile_gap])
-    assert profile_text is not None
-    try:
-        profile = tomllib.loads(profile_text)
-    except tomllib.TOMLDecodeError as exc:
+    if profile.declaration is None:
         return _report(
             declared=False,
             manifest="",
-            gaps=[f"container_contract_profile_invalid_toml:{exc}"],
+            gaps=["container_contract_profile_invalid"],
         )
-    declaration = profile.get("container_contract")
+    declaration = profile.declaration.container_contract
     if declaration is None:
         return _not_declared()
-    if not isinstance(declaration, dict):
-        return _report(
-            declared=True,
-            manifest="",
-            gaps=["container_contract_declaration_not_table"],
-        )
-    return _manifest_report(repo, {str(key): value for key, value in declaration.items()})
+    return _manifest_report(repo, declaration)

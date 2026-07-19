@@ -30,7 +30,6 @@ targets = [
   "packages/ethos/src/ethos/adapters/gates/ty.py",
   "tools/ci/scripts/run-python-lint.sh",
   "tools/ci/scripts/run-ruff-ratchet.sh",
-  "tools/ci/scripts/run-bandit.sh",
   "tools/ci/scripts/run-python-tests.sh",
   "tests/unit/governance/validation/test_gates.py",
   "tests/unit/governance/test_quality_regime.py",

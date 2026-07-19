@@ -9,7 +9,8 @@ from ethos.repository.evidence.claims import claims_report
 from ethos.repository.evidence.parity.core import parity_gaps_report
 from ethos.repository.evidence.shadow.routing import parity_evidence_path
 from ethos.repository.evidence.topology import evidence_topology_report
-from ethos.repository.profile import profile_relative_root
+from ethos.repository.profile import load_repository_profile
+from ethos.repository.profile import profile_required_gaps
 from ethos_core.contracts.evidence.layout import load_evidence_layout_declaration
 
 if TYPE_CHECKING:
@@ -34,16 +35,22 @@ def evidence_freshness_report(root: Path, *, current_head: str) -> dict[str, Any
         "topology": evidence_topology_report(root),
         "parity": _generic_parity_freshness(root=root, current_head=head),
     }
-    evidence_root = profile_relative_root(root, "durable_evidence")
+    profile = load_repository_profile(root)
+    evidence_root = (
+        profile.declaration.roots.durable_evidence if profile.declaration else "evidence"
+    )
     components = tuple(
         cast("dict[str, object]", {"ok": bool(report["ok"])}) for report in reports.values()
     )
-    required_gaps = tuple(
-        gap for report in reports.values() for gap in cast("list[str]", report["required_gaps"])
+    required_gaps = (
+        *profile_required_gaps(profile),
+        *tuple(
+            gap for report in reports.values() for gap in cast("list[str]", report["required_gaps"])
+        ),
     )
     parity_gaps = cast("list[str]", reports["parity"]["required_gaps"])
     return {
-        "ok": declaration.freshness_ok(components),
+        "ok": declaration.freshness_ok(components) and not required_gaps,
         "summary": {
             "evidence_roots": [evidence_root],
             "current_head": head,

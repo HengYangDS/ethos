@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 from pathlib import PurePosixPath
+from typing import Annotated
 from typing import Literal
 
 from pydantic import BaseModel
+from pydantic import BeforeValidator
 from pydantic import ConfigDict
 from pydantic import Field
 from pydantic import field_validator
@@ -41,9 +43,12 @@ class ChangeScopeDeclaration(_OpenSpecScopeModel):
 class AdopterOpenSpecPolicy(BaseModel):
     """The profile-owned material-path declaration for one adopted repository."""
 
-    model_config = ConfigDict(frozen=True, extra="ignore")
+    model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
 
-    material_paths: tuple[str, ...] = Field(min_length=1)
+    material_paths: Annotated[
+        tuple[str, ...],
+        BeforeValidator(lambda value: tuple(value) if isinstance(value, list) else value),
+    ] = Field(min_length=1)
 
     @field_validator("material_paths")
     @classmethod

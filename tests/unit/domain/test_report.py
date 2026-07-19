@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from typing import cast
 
+import pytest
+
 import ethos.domain.report as report_domain
 import ethos.domain.reporting.gaps as reporting_gaps
 import ethos.domain.reporting.parity.core as reporting_parity
@@ -101,19 +103,10 @@ def test_terminal_and_absent_workflow_runtime_read_models() -> None:
     assert reporting_scoring._workflow_runtime_score(None) is True
 
 
-def test_adopter_product_root_resolution(monkeypatch, tmp_path) -> None:
-    repo, product, configured = (tmp_path / name for name in ("adopter", "product", "configured"))
-    for path in (repo, product, configured):
+def test_adopter_product_root_resolution(tmp_path) -> None:
+    repo, product = (tmp_path / name for name in ("adopter", "product"))
+    for path in (repo, product):
         path.mkdir()
-    monkeypatch.setattr(
-        reporting_parity,
-        "load_repository_profile",
-        lambda _repo: type(
-            "Profile",
-            (),
-            {"tables": {"external_backend": {"product_root": "../configured"}}},
-        )(),
-    )
     assert (
         reporting_parity.adopter_product_root(
             repo, {"runtime_binding": {"runner_source_root": str(product)}}, None
@@ -124,8 +117,17 @@ def test_adopter_product_root_resolution(monkeypatch, tmp_path) -> None:
         {"runtime_binding": {"runner_source_root": str(repo)}},
         {"runtime_binding": {"runner_source_root": ""}},
     ):
-        assert reporting_parity.adopter_product_root(repo, payload, None) == configured
+        assert reporting_parity.adopter_product_root(repo, payload, None) == repo
     assert reporting_parity.adopter_product_root(repo, {}, product) == product
+
+
+def test_profile_identity_rejects_invalid_profile(tmp_path) -> None:
+    profile = tmp_path / ".ethos" / "profile.toml"
+    profile.parent.mkdir()
+    profile.write_text("[", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="adopter_profile_invalid"):
+        reporting_parity.profile_identity(tmp_path)
 
 
 def test_scorecard_blocks_hard_quality_floor(monkeypatch, tmp_path) -> None:
@@ -289,7 +291,7 @@ def test_workflow_runtime_score_and_gap(monkeypatch, tmp_path) -> None:
         },
         *([OK] * 3),
         {"truth": ASSISTANT_TRUTH_BOUNDARY},
-        *([OK] * 6),
+        *([OK] * 5),
         1,
         OK,
     )

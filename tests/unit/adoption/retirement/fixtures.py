@@ -224,19 +224,18 @@ def write_profile(
             "]\n"
         )
     (root / ".ethos/profile.toml").write_text(
-        f'''schema_version = 1
-profile_id = "sample"
-profile_version = "1"
-ethos_contract_version = "1"
+        f'''profile_id = "sample"
 
 [roots]
-tool_config = ".config"
 rules = "rules"
 docs = "docs"
 durable_evidence = "docs/evidence"
 openspec = "openspec"
 claims = "claims"
 agent_skills = ".agents/skills"
+
+[openspec]
+material_paths = [".ethos/profile.toml"]
 
 [embedded_backend]
 state = "{embedded_state}"

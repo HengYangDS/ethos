@@ -1,7 +1,7 @@
 [claim]
 id = "native-docs-topology"
 subject = "ethos:native-docs-topology"
-state = "active"
+state = "archived"
 summary = "ETHOS documentation topology uses a minimal declared governed docs kernel instead of `current`/`future` truth lanes."
 
 [evidence]

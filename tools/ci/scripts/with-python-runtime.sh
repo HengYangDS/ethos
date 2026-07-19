@@ -16,6 +16,10 @@ fi
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "${repo_root}"
 inherited_runtime_root="${ETHOS_RUNTIME_ROOT:-}"
+bootstrap_bin="${repo_root}/build/runtime/bootstrap/bin"
+if [[ -x "${bootstrap_bin}/uv" ]]; then
+  export PATH="${bootstrap_bin}:${PATH}"
+fi
 
 # The project environment is deliberately not overrideable: a per-checkout
 # environment is the boundary that prevents a Work Lane from running another

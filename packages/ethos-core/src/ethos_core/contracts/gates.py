@@ -20,6 +20,7 @@ DECLARATION_PATH = Path("system/gates.toml")
 _DECLARATION_RESOURCE = "data/gates.toml"
 RegistryName = Literal["runtime", "quality"]
 _DUPLICATE_GATE_ID = "duplicate gate id"
+_DUPLICATE_GATE_COMMAND = "duplicate gate command"
 _UNAVAILABLE_GATE_DEPENDENCY = "unavailable gate dependency"
 _PRODUCT_FULL_MISSING_DEFAULT = "product full missing default"
 _UNKNOWN_PROOF_GATE = "unknown proof gate"
@@ -118,6 +119,12 @@ class GateRegistryDeclaration(BaseModel):
     @model_validator(mode="after")
     def validate_references(self) -> GateRegistryDeclaration:
         """Reject dangling or incomplete registry and proof declarations."""
+        gate_ids = [gate.id for gate in self.gates]
+        if len(gate_ids) != len(set(gate_ids)):
+            raise ValueError(_DUPLICATE_GATE_ID)
+        commands = [gate.command for gate in self.gates]
+        if len(commands) != len(set(commands)):
+            raise ValueError(_DUPLICATE_GATE_COMMAND)
         runtime_ids = _validate_registry("runtime", self.gates)
         _validate_registry("quality", self.gates)
         _validate_proof_sets(self.proof_sets, runtime_ids)
@@ -142,8 +149,6 @@ def _validate_registry(name: RegistryName, gates: tuple[GateEntry, ...]) -> set[
     """Return emitted ids after validating one registry projection."""
     emitted: set[str] = set()
     for gate in _registry_entries(name, gates):
-        if gate.id in emitted:
-            raise ValueError(_DUPLICATE_GATE_ID)
         _validate_dependencies(gate, emitted)
         emitted.add(gate.id)
     return emitted

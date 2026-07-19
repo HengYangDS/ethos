@@ -9,15 +9,12 @@ from typing import cast
 from ethos.assistants.skills.packages import DEFAULT_REQUIRED_SECTIONS
 from ethos.assistants.skills.packages import validate_skill_markdown
 from ethos.assistants.skills.packages import validate_skill_package_manifest
-from ethos.assistants.skills.portfolio import empty_portfolio_coverage
-from ethos.assistants.skills.portfolio import empty_portfolio_design
 from ethos.assistants.skills.portfolio import portfolio_coverage
 from ethos.assistants.skills.portfolio import portfolio_design
 from ethos.assistants.skills.routing import command_capability_gaps
+from ethos.repository.profile import DEFAULT_ROOTS
 from ethos.repository.profile import load_repository_profile
-from ethos.repository.profile import profile_relative_root
-from ethos.repository.profile import profile_root
-from ethos.repository.profile import table_version
+from ethos.repository.profile import profile_required_gaps
 from ethos_core.contracts.skill.activation import normalize_skill_activation
 from ethos_core.contracts.skill.activation import skill_registry_digest
 
@@ -25,16 +22,7 @@ PLAYBOOK_MODES = ("v2-strict",)
 PLAYBOOK_ACTIVATION_VERSION = 2
 
 
-def _skills_root(root: Path) -> Path:
-    return profile_root(root, "agent_skills")
-
-
-def _activation_path(root: Path) -> Path:
-    return _skills_root(root) / "activation.toml"
-
-
-def _load_activation(root: Path) -> tuple[dict[str, Any], list[str]]:
-    path = _activation_path(root)
+def _load_activation(path: Path) -> tuple[dict[str, Any], list[str]]:
     if not path.exists():
         return {}, [".agents/skills/activation.toml"]
     try:
@@ -46,41 +34,32 @@ def _load_activation(root: Path) -> tuple[dict[str, Any], list[str]]:
 
 def playbooks_report(root: Path, *, mode: str = "v2-strict") -> dict[str, object]:
     selected_mode = _mode(mode)
-    skills_root = _skills_root(root)
-    payload, missing = _load_activation(root)
-    transition_adopter = _transition_adopter_activation(root, payload)
+    profile = load_repository_profile(root)
+    skills_root_relative = (
+        profile.declaration.roots.agent_skills
+        if profile.declaration
+        else DEFAULT_ROOTS["agent_skills"]
+    )
+    skills_root = profile.root / skills_root_relative
+    payload, missing = _load_activation(skills_root / "activation.toml")
     registry = normalize_skill_activation(payload, source=".agents/skills/activation.toml")
-    if transition_adopter:
-        registry = _transition_registry(
-            payload,
-            skills_root=profile_relative_root(root, "agent_skills"),
-        )
     registry["digest"] = skill_registry_digest(registry)
-    required_gaps = list(missing)
+    required_gaps = [*profile_required_gaps(profile), *missing]
     advisory_gaps: list[str] = []
     activation_version = int(registry.get("meta", {}).get("version") or 1)
     collected = _collect_playbook_records(
         root,
         registry=registry,
-        transition_adopter=transition_adopter,
     )
     records = collected["records"]
     package_reports = collected["package_reports"]
     package_capabilities = collected["package_capabilities"]
     required_gaps.extend(collected["required_gaps"])
     v2_gaps = list(collected["v2_gaps"])
-    if activation_version < PLAYBOOK_ACTIVATION_VERSION and not transition_adopter:
+    if activation_version < PLAYBOOK_ACTIVATION_VERSION:
         v2_gaps.append(f"playbook_activation_unsupported_version:{activation_version}")
-    portfolio_coverage_report = (
-        empty_portfolio_coverage()
-        if transition_adopter
-        else portfolio_coverage(registry.get("coverage", {}), records)
-    )
-    portfolio_design_report = (
-        empty_portfolio_design()
-        if transition_adopter
-        else portfolio_design(records, package_reports)
-    )
+    portfolio_coverage_report = portfolio_coverage(registry.get("coverage", {}), records)
+    portfolio_design_report = portfolio_design(records, package_reports)
     v2_gaps.extend(
         str(gap) for gap in cast("list[object]", portfolio_coverage_report["required_gaps"])
     )
@@ -91,16 +70,14 @@ def playbooks_report(root: Path, *, mode: str = "v2-strict") -> dict[str, object
         required_gaps.append(".agents/skills/README.md")
     if not skills_root.exists():
         required_gaps.append(".agents/skills")
-    required_gaps.extend(_dedupe(v2_gaps))
-    score = max(0, 5 - min(5, len(_dedupe(required_gaps))))
+    required_gaps.extend(dict.fromkeys(v2_gaps))
+    score = max(0, 5 - min(5, len(dict.fromkeys(required_gaps))))
     return {
         "ok": not required_gaps,
         "schema_version": 2,
         "mode": selected_mode,
-        "skills_root": profile_relative_root(root, "agent_skills"),
-        "activation_path": (
-            Path(profile_relative_root(root, "agent_skills")) / "activation.toml"
-        ).as_posix(),
+        "skills_root": skills_root_relative,
+        "activation_path": (Path(skills_root_relative) / "activation.toml").as_posix(),
         "skills": [skill["id"] for skill in records],
         "records": records,
         "registry": registry,
@@ -116,10 +93,10 @@ def playbooks_report(root: Path, *, mode: str = "v2-strict") -> dict[str, object
             "ok": not v2_gaps,
             "score": score,
             "max_score": 5,
-            "required_gaps": _dedupe(v2_gaps),
+            "required_gaps": list(dict.fromkeys(v2_gaps)),
         },
-        "advisory_gaps": _dedupe(advisory_gaps),
-        "required_gaps": _dedupe(required_gaps),
+        "advisory_gaps": list(dict.fromkeys(advisory_gaps)),
+        "required_gaps": list(dict.fromkeys(required_gaps)),
     }
 
 
@@ -127,7 +104,6 @@ def _collect_playbook_records(
     root: Path,
     *,
     registry: dict[str, Any],
-    transition_adopter: bool,
 ) -> dict[str, Any]:
     records = []
     required_gaps: list[str] = []
@@ -146,9 +122,8 @@ def _collect_playbook_records(
             v2_gaps.extend(path_gaps)
         elif not (root / str(playbook_record["path"])).exists():
             required_gaps.append(f"skill_missing_file:{skill_id}")
-        if not transition_adopter:
-            v2_gaps.extend(_strict_record_gaps(record))
-        if not path_gaps and not transition_adopter:
+        v2_gaps.extend(_strict_record_gaps(record))
+        if not path_gaps:
             quality = validate_skill_markdown(
                 root,
                 str(playbook_record["path"]),
@@ -157,11 +132,7 @@ def _collect_playbook_records(
             )
             v2_gaps.extend(str(gap) for gap in quality["required_gaps"])
         manifest_path = _manifest_path(record)
-        package_report = (
-            _transition_package_report(str(skill_id), manifest_path)
-            if transition_adopter
-            else validate_skill_package_manifest(root, manifest_path)
-        )
+        package_report = validate_skill_package_manifest(root, manifest_path)
         package_reports.append(package_report)
         package_capabilities.extend(package_report["capabilities"])
         v2_gaps.extend(str(gap) for gap in package_report["required_gaps"])
@@ -173,69 +144,13 @@ def _collect_playbook_records(
                 package_report,
             )
         )
-        if not transition_adopter:
-            v2_gaps.extend(command_capability_gaps(record, package_report))
+        v2_gaps.extend(command_capability_gaps(record, package_report))
     return {
         "records": records,
         "required_gaps": required_gaps,
         "v2_gaps": v2_gaps,
         "package_reports": package_reports,
         "package_capabilities": package_capabilities,
-    }
-
-
-def _transition_adopter_activation(root: Path, payload: dict[str, Any]) -> bool:
-    profile = load_repository_profile(root)
-    return profile.exists and table_version(payload) < PLAYBOOK_ACTIVATION_VERSION
-
-
-def _transition_registry(payload: dict[str, Any], *, skills_root: str) -> dict[str, Any]:
-    records = []
-    for item in payload.get("skill", []):
-        if not isinstance(item, dict):
-            continue
-        skill_id = str(item.get("id") or item.get("name") or "")
-        path = str(item.get("path") or (Path(skills_root) / skill_id / "SKILL.md").as_posix())
-        subjects = [str(item) for item in item.get("subjects", []) if str(item)]
-        if not subjects:
-            subjects = ["changed-scope", skill_id]
-        records.append(
-            {
-                "id": skill_id,
-                "path": path,
-                "route_subjects": subjects,
-                "activation": {"path_globs": list(item.get("path_globs", []))},
-                "routing": {"intent_tokens": list(item.get("intent_tokens", []))},
-                "obligations": {
-                    "pre_reads": list(item.get("pre_reads", [])),
-                    "post_checks": list(item.get("post_checks", [])),
-                },
-                "relations": {"may_coactivate": list(item.get("may_coactivate", []))},
-                "commands": list(item.get("commands", [])),
-                "boundary": "adopter-transition-projection",
-                "primary_subject": subjects[0],
-                "operation": "route",
-                "authority": "adopter",
-                "lifecycle": "active",
-                "package_manifest": "",
-            }
-        )
-    return {
-        "meta": dict(payload.get("meta", {})),
-        "records": records,
-        "coverage": {},
-    }
-
-
-def _transition_package_report(skill_id: str, manifest_path: str) -> dict[str, Any]:
-    return {
-        "ok": True,
-        "id": skill_id,
-        "manifest": manifest_path,
-        "entrypoint": "",
-        "files": [],
-        "capabilities": [],
-        "required_gaps": [],
     }
 
 
@@ -279,7 +194,7 @@ def route_playbook(
         "selected": selected,
         "unmatched_paths": unmatched_paths,
         "route_hints": {"registry_digest": cast("dict[str, object]", report["registry"])["digest"]},
-        "required_gaps": _dedupe(gaps),
+        "required_gaps": list(dict.fromkeys(gaps)),
         "advisory_gaps": list(cast("list[str]", report["advisory_gaps"])),
         "skills_root": report["skills_root"],
     }
@@ -429,11 +344,3 @@ def _mode(mode: str) -> str:
         msg = f"unsupported playbook mode: {mode}"
         raise ValueError(msg)
     return mode
-
-
-def _dedupe(items: list[str]) -> list[str]:
-    result: list[str] = []
-    for item in items:
-        if item not in result:
-            result.append(item)
-    return result

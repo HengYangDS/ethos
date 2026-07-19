@@ -38,7 +38,6 @@ INVALID_PATH_DIGEST_LENGTH = 64
 CarrierRole = Literal[
     "authored_behavioral_source",
     "authored_declarative_source",
-    "template_source",
     "test_source",
     "derived_projection",
     "evidence_instance",

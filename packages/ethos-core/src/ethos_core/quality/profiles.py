@@ -26,7 +26,7 @@ ASSET_CLASSES = (
             "pytest",
             "ty",
             "deptry",
-            "pip-audit",
+            "uv-audit",
             "ethos-docstrings-google",
             "ethos-module-layout",
         ),

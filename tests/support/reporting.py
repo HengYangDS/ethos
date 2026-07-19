@@ -27,7 +27,7 @@ def patch_scorecard_dependencies(
     audit["package_ontology" if profile == "product" else "adopter"] = (
         {"ok": True, "adapter_missing": []}
         if profile == "product"
-        else {"adopter": {"governance": {"claims": True, "evidence": True, "docs": True}}}
+        else {"adopter": {"capabilities": {"claims": True, "evidence": True, "docs": True}}}
     )
     reports = {
         "workspace_status": status or {},
@@ -39,7 +39,6 @@ def patch_scorecard_dependencies(
             advisory_gaps=[],
             v2_compliance={"score": 1, "max_score": 1},
         ),
-        "adoption_scaffold_report": OK,
         "parity_ledger_report": _clean(summary={"unclassified_count": 0}),
         "proof_readiness_report": _clean(
             blocking=False, state="proven", evidence_class="local_readiness"
@@ -51,7 +50,6 @@ def patch_scorecard_dependencies(
             "can_close_required_gaps": False,
             "can_satisfy_proof": False,
         },
-        "available_profiles": (),
     }
     monkeypatch.setattr(report_domain.status_domain, "audit_for_root", _value(audit))
     monkeypatch.setattr(report_domain.git_adapter, "current_tracked_head", _value("head"))

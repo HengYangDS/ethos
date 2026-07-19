@@ -4,7 +4,6 @@ import re
 from typing import TYPE_CHECKING
 
 from ethos.assistants.playbooks import playbooks_report
-from ethos.assistants.playbooks import route_playbook
 from ethos.assistants.skills.packages import compute_skill_package_digest
 from ethos.assistants.skills.routing import command_capability_gaps
 
@@ -136,49 +135,6 @@ def test_playbooks_report_accepts_disjoint_portfolio_routes(tmp_path: Path) -> N
 
     assert report["ok"] is True
     assert report["portfolio_design"]["required_gaps"] == []
-
-
-def test_legacy_adopter_activation_routes_without_product_v2_strict_gaps(
-    tmp_path: Path,
-) -> None:
-    skills_root = tmp_path / ".agents" / "skills"
-    skill_root = skills_root / "example-skill"
-    profile = tmp_path / ".ethos" / "profile.toml"
-    skill_root.mkdir(parents=True)
-    profile.parent.mkdir()
-    (skills_root / "README.md").write_text("# Skills\n", encoding="utf-8")
-    (skill_root / "SKILL.md").write_text(SKILL.format(skill_id="example-skill", subject="docs"))
-    profile.write_text(
-        'schema_version = 1\n[roots]\nagent_skills = ".agents/skills"\n',
-        encoding="utf-8",
-    )
-    (skills_root / "activation.toml").write_text(
-        """
-[meta]
-version = 1
-
-[[skill]]
-name = "example-skill"
-path_globs = ["docs/**"]
-intent_tokens = ["docs"]
-pre_reads = ["AGENTS.md"]
-post_checks = ["ethos report --json"]
-""".lstrip(),
-        encoding="utf-8",
-    )
-
-    report = playbooks_report(tmp_path)
-    route = route_playbook(
-        tmp_path,
-        "changed-scope",
-        require_explicit_subject=True,
-        changed_paths=("docs/index.md",),
-    )
-
-    assert report["ok"] is True
-    assert report["skills"] == ["example-skill"]
-    assert route["ok"] is True
-    assert [record["id"] for record in route["selected"]] == ["example-skill"]
 
 
 def test_playbook_command_split_falls_back_for_unclosed_quote() -> None:

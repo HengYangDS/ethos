@@ -2161,20 +2161,12 @@ and hosted CI as separate evidence classes.
 
 ### Requirement: Authoritative Adopter Material Change Scope Binding
 
-ETHOS SHALL require each adopter profile to declare a non-empty
-`[openspec].material_paths` pattern list. For every changed material path,
-`ethos lane prewrite`, `ethos plan --changed`, and `ethos prove` SHALL use the
-same ETHOS-owned `scope.toml` companion read model over the official OpenSpec
-active or archiving Change selection. `scope.toml` remains a companion beside a
-Change, not an OpenSpec workflow-schema extension. A legacy adopter MAY
-bootstrap only its already-tracked `.ethos/profile.toml` declaration against
-exactly one official active Change; that fallback applies only to this one
-profile-only write and SHALL NOT make that Change cover any other material
-path. A completed archive MAY participate only when the archive itself
-contributes to the current Work Lane change scope; it remains excluded for all
-unrelated future changes. A selected tracked malformed Change-local
-`scope.toml` MAY be admitted only to repair that exact companion; it SHALL NOT
-provide coverage until its repaired declaration is valid.
+ETHOS SHALL require every valid adopter declaration to carry a non-empty
+`[openspec].material_paths` list. For changed paths matching that declaration,
+prewrite, changed planning, and proof SHALL use the same selected-Change companion model.
+Adoption SHALL emit the complete declaration; no historical profile-write exception remains.
+Completed archive companions MAY participate only when their archive is in
+current Work Lane scope.
 
 #### Scenario: covered material path is admitted across all surfaces
 
@@ -2210,29 +2202,6 @@ provide coverage until its repaired declaration is valid.
   `scope.toml` path
 - **AND THEN** the completed companion SHALL be syntactically valid, cover
   itself, and cover later material writes.
-
-#### Scenario: tracked invalid companion repairs only itself
-
-- **GIVEN** exactly one selected active Change has a Git-tracked malformed
-  `scope.toml`
-- **AND** prewrite evaluates exactly that companion path
-- **WHEN** the shared scope reader evaluates the request
-- **THEN** it MAY report `tracked_scope_repair_admitted` with the exact Change
-  and companion path
-- **AND** it SHALL NOT mark the malformed companion as coverage
-- **AND** an unselected or widened material-path request SHALL remain uncovered.
-
-#### Scenario: existing adopter bootstraps a missing profile declaration
-
-- **GIVEN** a valid tracked adopter profile has no `material_paths` declaration
-- **AND** exactly one official active Change is selected
-- **WHEN** prewrite evaluates only `.ethos/profile.toml`
-- **THEN** ETHOS MAY admit that write with
-  `profile_material_paths_bootstrap` provenance
-- **AND THEN** an explicit empty or malformed declaration, or a request that
-  includes another path, SHALL remain blocked
-- **AND THEN** later material writes SHALL require ordinary Change-local scope
-  coverage.
 
 #### Scenario: final archive reconciliation remains covered
 

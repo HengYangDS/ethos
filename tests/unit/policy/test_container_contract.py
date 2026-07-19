@@ -13,7 +13,6 @@ from ethos.repository.policy.container_contract import core as container_contrac
 from ethos.repository.policy.container_contract.core import _contained_file
 from ethos.repository.policy.container_contract.core import _evidence_gaps
 from ethos.repository.policy.container_contract.core import _output_schema_gaps
-from ethos.repository.policy.container_contract.core import _read_file
 from ethos.repository.policy.container_contract.core import _schema_gaps
 from ethos.repository.policy.container_contract.core import container_contract_report
 from ethos.repository.policy.schema import schema_validation_report
@@ -25,6 +24,14 @@ _CASES = json.loads((_FIXTURE / "cases.json").read_text(encoding="utf-8"))
 def _write(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
+
+
+def _profile(extra: str = "") -> str:
+    return (
+        'profile_id = "container-contract-test"\n\n'
+        '[openspec]\nmaterial_paths = [".ethos/profile.toml"]\n'
+        f"{extra}"
+    )
 
 
 def _manifest(digest: str) -> str:
@@ -76,7 +83,9 @@ def test_declared_container_contract_requires_tracked_digest_matched_evidence(
     digest = hashlib.sha256(evidence.read_bytes()).hexdigest()
     _write(
         tmp_path / ".ethos/profile.toml",
-        '[container_contract]\nschema_version = 1\nmanifest = ".ethos/container-contract.toml"\n',
+        _profile(
+            '\n[container_contract]\nschema_version = 1\nmanifest = ".ethos/container-contract.toml"\n'
+        ),
     )
     _write(tmp_path / ".ethos/container-contract.toml", _manifest(digest))
     subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
@@ -110,7 +119,7 @@ def _fixture_report(root: Path, case: dict[str, object]) -> dict[str, object]:
         subprocess.run(["git", "-C", str(root), "add", "evidence"], check=True)
         manifest = root / ".ethos/container-contract.toml"
         if operation == "profile":
-            _write(root / ".ethos/profile.toml", str(case["value"]))
+            _write(root / ".ethos/profile.toml", _profile(str(case["value"])))
         elif operation == "relaxed_schema":
             schemas = root / "system/schemas/kernel"
             shutil.copytree(Path(__file__).parents[3] / "system/schemas/kernel", schemas)
@@ -148,7 +157,9 @@ def test_container_contract_fixture_matrix(tmp_path: Path, case: dict[str, objec
 def test_schema_report_surfaces_declared_contract_failure(tmp_path: Path) -> None:
     _write(
         tmp_path / ".ethos/profile.toml",
-        '[container_contract]\nschema_version = 1\nmanifest = ".ethos/container-contract.toml"\n',
+        _profile(
+            '\n[container_contract]\nschema_version = 1\nmanifest = ".ethos/container-contract.toml"\n'
+        ),
     )
 
     report = schema_validation_report(tmp_path)
@@ -209,13 +220,12 @@ def test_container_contract_file_and_payload_edges_fail_closed(tmp_path: Path) -
         label="container_contract_test",
     ) == (None, "container_contract_test_unreadable")
 
-    unreadable = tmp_path / "unreadable.toml"
-    unreadable.write_bytes(b"\xff")
-    assert _read_file(
-        tmp_path,
-        unreadable,
-        label="container_contract_test",
-    ) == (None, "container_contract_test_unreadable")
+    outside = tmp_path.parent / "outside-container-contract.toml"
+    outside.write_text("sample\n", encoding="utf-8")
+    assert _contained_file(tmp_path, outside, label="container_contract_test") == (
+        None,
+        "container_contract_test_path_escapes_root",
+    )
 
     assert (
         _evidence_gaps(

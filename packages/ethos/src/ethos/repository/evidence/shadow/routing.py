@@ -3,7 +3,8 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
-from ethos.repository.profile import profile_relative_root
+from ethos.repository.profile import load_repository_profile
+from ethos.repository.profile import profile_required_gaps
 
 REPOSITORY_TARGET = "<repo>"
 PRODUCT_REPOSITORY_TARGET = "<product-repo>"
@@ -32,12 +33,13 @@ def parity_evidence_repository_root(*, root: Path, target: Path | None) -> Path:
 def parity_evidence_path(*, root: Path, adopter: str) -> Path:
     """Return profile-aware tracked shadow parity evidence path."""
     repo = root.resolve()
-    return (
-        repo
-        / profile_relative_root(repo, "durable_evidence")
-        / "parity"
-        / (f"{adopter}-shadow.json")
+    profile = load_repository_profile(repo)
+    if gaps := profile_required_gaps(profile):
+        raise ValueError(gaps[0])
+    evidence_root = (
+        profile.declaration.roots.durable_evidence if profile.declaration else "evidence"
     )
+    return repo / evidence_root / "parity" / (f"{adopter}-shadow.json")
 
 
 def requires_product_root_argument(*, root: Path | None, target: Path | None) -> bool:

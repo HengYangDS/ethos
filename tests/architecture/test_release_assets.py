@@ -74,8 +74,8 @@ def test_gitlab_ci_uses_ethos_public_command_plane() -> None:
     assert "tools/ci/scripts/install-lychee.sh" in text
     assert "LYCHEE_CACHE_DIR: build/runtime/tool-cache/lychee" in text
     assert "ETHOS_CI_TOOL_CACHE_DIR: build/runtime/tool-cache/ci-tools" in text
-    assert "build/runtime/tool-cache/lychee/" in text
-    assert "build/runtime/tool-cache/ci-tools/" in text
+    assert "    - build/runtime/tool-cache/lychee/" not in text
+    assert "    - build/runtime/tool-cache/ci-tools/" not in text
     assert "tools/ci/scripts/run-import-linter.sh" in text
     assert "tools/ci/scripts/run-docstring-coverage.sh" in text
     assert (

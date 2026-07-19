@@ -15,7 +15,7 @@ relations:
 
 **Architecture:** A typed carrier inventory feeds versioned native metric adapters and produces immutable metric vectors. Pure policy reducers apply non-compensating repository and changed-scope rules; v1 and v2 run through shadow and dual-control states before v2 cutover. Evidence, derived projections, tests, repository source, and agent runtime budgets remain separate domains.
 
-**Tech Stack:** Python 3.14, Pydantic/frozen dataclasses, Git plumbing, stdlib `tokenize`/`ast`/`tomllib`/`configparser`, PyYAML, Jinja2, repository-owned parser adapters, TOML policy, JSON Schema, pytest, Ruff, OpenSpec 1.6, ETHOS Work Lane lifecycle.
+**Tech Stack:** Python 3.14, Pydantic/frozen dataclasses, Git plumbing, stdlib `tokenize`/`ast`/`tomllib`/`configparser`, PyYAML, repository-owned parser adapters, TOML policy, JSON Schema, pytest, Ruff, OpenSpec 1.6, ETHOS Work Lane lifecycle.
 
 ## Global Constraints
 
@@ -251,7 +251,7 @@ subsequent separately evidenced transitions.
 
 - [ ] **Step 1: Add adversarial tests for Python statement packing, JSON pretty/minified equivalence, identifier shortening, giant literals/heredocs, parser failure, invalid UTF-8, and domain movement.**
 - [ ] **Step 2: Run the adapter tests and verify missing-provider failures.**
-- [ ] **Step 3: Implement native adapters using stdlib/PyYAML/Jinja owners and fail closed on unavailable or invalid parsers.**
+- [ ] **Step 3: Implement native adapters using stdlib and PyYAML owners and fail closed on unavailable or invalid parsers.**
 - [ ] **Step 4: Run the corpus twice with reversed file order and verify identical vectors and digests.**
 - [ ] **Step 5: Commit with `feat(quality): measure source budget vectors`.**
 

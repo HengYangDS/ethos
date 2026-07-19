@@ -26,7 +26,11 @@
   committed HEAD.
 - [x] 3.3 Execute default and full HEAD-bound proof, then archive this Change
   through the official OpenSpec CLI.
-- [ ] 3.4 Re-run post-archive parity and both proof graphs on the final lane HEAD.
+## Post-Archive Verification Boundary
+
+Post-archive parity and both proof graphs must be re-run on the final stable Work
+Lane HEAD before candidate landing. They are lifecycle-transition evidence, not
+pre-archive checklist assertions.
 
 Candidate landing, accepted-root closeout, local publication readiness, remote
 publication, hosted CI, and Work Lane retirement are separate post-archive

@@ -75,7 +75,8 @@ def delete_exact_leases(db_path: Path, candidates: list[dict[str, Any]]) -> list
     if not candidates:
         return []
     if not db_path.exists():
-        raise ValueError("lease_maintenance_database_missing")
+        message = "lease_maintenance_database_missing"
+        raise ValueError(message)
     deleted: list[str] = []
     with closing(sqlite3.connect(db_path)) as connection:
         connection.execute("pragma foreign_keys = on")
@@ -104,7 +105,8 @@ def _expect_lease_candidate(connection: sqlite3.Connection, candidate: dict[str,
         (lease_id,),
     ).fetchone()
     if row is None or not _lease_candidate_matches(row, candidate):
-        raise ValueError(f"lease_maintenance_candidate_drift:{lease_id}")
+        message = f"lease_maintenance_candidate_drift:{lease_id}"
+        raise ValueError(message)
 
 
 def _lease_candidate_matches(row: sqlite3.Row | tuple[Any, ...], candidate: dict[str, Any]) -> bool:

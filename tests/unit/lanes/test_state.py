@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from ethos.adapters.store.state.events import SCHEMA_VERSION
+import ethos.adapters.store.state.lease.lifecycle.core as lease_core
 from ethos.adapters.store.state.events import append_chronicle_event
 from ethos.adapters.store.state.events import append_event
 from ethos.adapters.store.state.events import initialize_state
@@ -23,6 +23,7 @@ from ethos.adapters.store.state.lease.lifecycle.core import renew_lease
 from ethos.adapters.store.state.lease.lifecycle.core import resume_lease
 from ethos.adapters.store.state.lease.lifecycle.effects import revoke_lease
 from ethos.adapters.store.state.lease.projection import active_leases
+from ethos.adapters.store.state.schema import SCHEMA_VERSION
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -274,322 +275,156 @@ def test_active_leases_rejects_retired_lease_rows_with_resource_column(
     assert active_leases(db_path) == []
 
 
-def test_acquire_lease_migrates_retired_resource_column_schema(tmp_path: Path) -> None:
-    from ethos.adapters.store.state.lease.lifecycle.core import acquire_lease
+# fmt: off
 
+def test_acquire_lease_migrates_retired_resource_column_schema(tmp_path: Path) -> None:
     db_path = tmp_path / ".ethos" / "state" / "state.sqlite"
     db_path.parent.mkdir(parents=True)
     with closing(sqlite3.connect(db_path)) as connection:
-        connection.execute(
-            """
-            create table schema_migrations (
-                version integer primary key,
-                applied_at text not null
-            )
-            """
-        )
-        connection.execute(
-            """
-            create table leases (
-                id text primary key,
-                owner text not null default '',
-                resource text not null default '',
-                expires_at text not null default '',
-                created_at text not null
-            )
-            """
-        )
-        connection.execute(
-            """
-            insert into leases(id, owner, resource, expires_at, created_at)
-            values ('lease:old', 'agent-old', 'work/old',
-                    '2099-07-01T00:00:00+00:00',
-                    '2026-07-01T00:00:00+00:00')
-            """
-        )
+        connection.execute("create table schema_migrations (version integer primary key, applied_at text not null)")
+        connection.execute("create table leases (id text primary key, owner text not null default '', resource text not null default '', expires_at text not null default '', created_at text not null)")
+        connection.execute("insert into leases(id, owner, resource, expires_at, created_at) values ('lease:old', 'agent-old', 'work/old', '2099-07-01T00:00:00+00:00', '2026-07-01T00:00:00+00:00')")
         connection.commit()
-
-    lease = acquire_lease(
-        db_path,
-        subject="work/new",
-        holder_ref="agent:test:case:agent-new",
-        ttl_seconds=60,
-        payload={"path": "lane"},
-    )
-
+    lease = acquire_lease(db_path, subject="work/new", holder_ref="agent:test:case:agent-new",
+        ttl_seconds=60, payload={"path": "lane"})
     leases = active_leases(db_path)
     assert lease["subject"] == "work/new"
     assert {item["subject"] for item in leases} == {"work/old", "work/new"}
     legacy = next(item for item in leases if item["subject"] == "work/old")
-    assert legacy["holder_ref"] == ""
-    assert legacy["normalization_state"] == "legacy_ambiguous"
+    assert (legacy["holder_ref"], legacy["normalization_state"]) == ("", "legacy_ambiguous")
 
 
 def test_acquire_lease_leaves_current_lease_schema_unchanged(tmp_path: Path) -> None:
-    from ethos.adapters.store.state.lease.lifecycle.core import acquire_lease
-
     db_path = tmp_path / "state.sqlite"
     first = acquire_lease(db_path, subject="work/current", holder_ref="agent:test:case:agent-a")
-
     second = acquire_lease(db_path, subject="work/next", holder_ref="agent:test:case:agent-b")
-
-    leases = active_leases(db_path)
-    assert {item["subject"] for item in leases} == {"work/current", "work/next"}
-    assert first["subject"] == "work/current"
-    assert second["subject"] == "work/next"
+    assert {item["subject"] for item in active_leases(db_path)} == {"work/current", "work/next"}
+    assert (first["subject"], second["subject"]) == ("work/current", "work/next")
 
 
-def test_acquire_lease_rejects_duplicate_current_lane_incarnation(
-    tmp_path: Path,
-) -> None:
-    from ethos.adapters.store.state.lease.lifecycle.core import acquire_lease
-
+def test_acquire_lease_rejects_duplicate_current_lane_incarnation(tmp_path: Path) -> None:
     db_path = tmp_path / "state.sqlite"
-    first = acquire_lease(
-        db_path,
-        subject="work/current",
-        holder_ref="agent:codex:thread:first",
-        payload={
-            "lane_incarnation_id": "lane-incarnation:one",
-            "expected_head": "a" * 40,
-        },
-    )
-
+    first = acquire_lease(db_path, subject="work/current", holder_ref="agent:codex:thread:first",
+        payload={"lane_incarnation_id": "lane-incarnation:one", "expected_head": "a" * 40})
     with pytest.raises(ValueError, match="lane_lease_conflict"):
-        acquire_lease(
-            db_path,
-            subject="work/current",
-            holder_ref="agent:claude:session:second",
-            payload={
-                "lane_incarnation_id": first["payload"]["lane_incarnation_id"],
-                "expected_head": "a" * 40,
-            },
-        )
+        acquire_lease(db_path, subject="work/current", holder_ref="agent:claude:session:second",
+            payload={"lane_incarnation_id": first["payload"]["lane_incarnation_id"], "expected_head": "a" * 40})
 
 
-def test_acquire_lease_normalizes_holder_generation_and_timestamps(
-    tmp_path: Path,
-) -> None:
-    from ethos.adapters.store.state.lease.lifecycle.core import acquire_lease
-
-    lease = acquire_lease(
-        tmp_path / "state.sqlite",
-        subject="work/current",
-        holder_ref="agent:codex:thread:first",
-        payload={"expected_head": "a" * 40, "claim_id": "claim-current"},
-    )
-
+def test_acquire_lease_normalizes_holder_generation_and_timestamps(tmp_path: Path) -> None:
+    lease = acquire_lease(tmp_path / "state.sqlite", subject="work/current",
+        holder_ref="agent:codex:thread:first", payload={"expected_head": "a" * 40, "claim_id": "claim-current"})
     assert lease["lane_incarnation_id"].startswith("lane-incarnation:")
-    assert lease["lease_id"] == lease["id"]
-    assert lease["lane_ref"] == "work/current"
-    assert lease["holder_ref"] == "agent:codex:thread:first"
-    assert lease["epoch"] == 1
-    assert lease["issued_at"]
-    assert lease["renewed_at"] == lease["issued_at"]
-    assert lease["expected_head"] == "a" * 40
-    assert lease["claim_id"] == "claim-current"
+    assert tuple(lease[key] for key in ("lease_id", "lane_ref", "holder_ref", "epoch", "expected_head", "claim_id")) == (
+        lease["id"], "work/current", "agent:codex:thread:first", 1, "a" * 40, "claim-current")
+    assert (bool(lease["issued_at"]), lease["renewed_at"] == lease["issued_at"]) == (True, True)
 
 
-def test_normalize_lease_migrates_freeform_legacy_owner_and_guards_by_lease_id(
-    tmp_path: Path,
-) -> None:
-    """A legacy lease with a free-form short owner (the real case) normalizes to a
-    canonical 4-segment holder_ref. Migration does NOT require the new holder_ref to
-    equal the legacy owner (impossible across schemas — the bug this fixes); safety comes
-    from the exact lease_id (proof the caller observed this exact lease)."""
+def test_normalize_lease_migrates_freeform_legacy_owner_and_guards_by_lease_id(tmp_path: Path) -> None:
     db_path = tmp_path / "state.sqlite"
-    legacy = _insert_legacy_lease(
-        db_path,
-        subject="work/current",
-        owner="codex",  # real legacy shape: not a 4-segment HolderRef
-    )
-
-    normalized = normalize_lease(
-        db_path,
-        subject="work/current",
-        holder_ref="agent:codex:thread:first",
-        expected_lease_id=legacy,
-        expected_head="a" * 40,
-    )
-
-    assert normalized["normalization_state"] == "normalized"
-    assert normalized["holder_ref"] == "agent:codex:thread:first"
-    assert normalized["epoch"] == 1
-    assert normalized["expected_head"] == "a" * 40
-
-    # Anti-hijack guard is the lease_id, not a holder string: a wrong lease_id is rejected.
+    legacy = _insert_legacy_lease(db_path, subject="work/current", owner="codex")
+    normalized = normalize_lease(db_path, subject="work/current", holder_ref="agent:codex:thread:first",
+        expected_lease_id=legacy, expected_head="a" * 40)
+    assert tuple(normalized[key] for key in ("normalization_state", "holder_ref", "epoch", "expected_head")) == (
+        "normalized", "agent:codex:thread:first", 1, "a" * 40)
     with pytest.raises(ValueError, match="lease_id_stale"):
-        normalize_lease(
-            db_path,
-            subject="work/current",
-            holder_ref="agent:claude:session:other",
-            expected_lease_id="lease:not-the-one",
-            expected_head="a" * 40,
-        )
+        normalize_lease(db_path, subject="work/current", holder_ref="agent:claude:session:other",
+            expected_lease_id="lease:not-the-one", expected_head="a" * 40)
 
 
-def test_renew_and_resume_require_current_generation_and_same_holder(
-    tmp_path: Path,
-) -> None:
+def test_renew_and_resume_require_current_generation_and_same_holder(tmp_path: Path) -> None:
     db_path = tmp_path / "state.sqlite"
-    lease = acquire_lease(
-        db_path,
-        subject="work/current",
-        holder_ref="agent:codex:thread:first",
-        ttl_seconds=60,
-        payload={"expected_head": "a" * 40},
-    )
-
-    renewed = renew_lease(
-        db_path,
-        subject="work/current",
-        holder_ref=lease["holder_ref"],
-        expected_lease_id=lease["lease_id"],
-        expected_epoch=lease["epoch"],
-        expected_head="a" * 40,
-        ttl_seconds=120,
-    )
-
-    assert renewed["lease_id"] == lease["lease_id"]
-    assert renewed["epoch"] == lease["epoch"]
+    lease = acquire_lease(db_path, subject="work/current", holder_ref="agent:codex:thread:first",
+        ttl_seconds=60, payload={"expected_head": "a" * 40})
+    renewed = renew_lease(db_path, subject="work/current", holder_ref=lease["holder_ref"],
+        expected_lease_id=lease["lease_id"], expected_epoch=lease["epoch"],
+        expected_head="a" * 40, ttl_seconds=120)
+    assert (renewed["lease_id"], renewed["epoch"]) == (lease["lease_id"], lease["epoch"])
     assert renewed["renewed_at"] != lease["renewed_at"]
-
     with pytest.raises(ValueError, match="lease_epoch_stale"):
-        renew_lease(
-            db_path,
-            subject="work/current",
-            holder_ref=lease["holder_ref"],
-            expected_lease_id=lease["lease_id"],
-            expected_epoch=99,
-            expected_head="a" * 40,
-        )
-
+        renew_lease(db_path, subject="work/current", holder_ref=lease["holder_ref"],
+            expected_lease_id=lease["lease_id"], expected_epoch=99, expected_head="a" * 40)
     expired_db = tmp_path / "expired.sqlite"
-    expired = acquire_lease(
-        expired_db,
-        subject="work/expired",
-        holder_ref="agent:codex:thread:first",
-        ttl_seconds=-1,
-        payload={"expected_head": "b" * 40},
-    )
-    resumed = resume_lease(
-        expired_db,
-        subject="work/expired",
-        holder_ref=expired["holder_ref"],
-        expected_lease_id=expired["lease_id"],
-        expected_epoch=expired["epoch"],
-        expected_head="b" * 40,
-    )
-    assert resumed["lease_id"] == expired["lease_id"]
-    assert resumed["epoch"] == expired["epoch"]
+    expired = acquire_lease(expired_db, subject="work/expired", holder_ref="agent:codex:thread:first",
+        ttl_seconds=-1, payload={"expected_head": "b" * 40})
+    resumed = resume_lease(expired_db, subject="work/expired", holder_ref=expired["holder_ref"],
+        expected_lease_id=expired["lease_id"], expected_epoch=expired["epoch"], expected_head="b" * 40)
+    assert (resumed["lease_id"], resumed["epoch"]) == (expired["lease_id"], expired["epoch"])
 
 
-def test_handoff_offer_accept_changes_holder_and_increments_epoch(
-    tmp_path: Path,
-) -> None:
+def test_handoff_offer_accept_changes_holder_and_increments_epoch(tmp_path: Path) -> None:
     db_path = tmp_path / "state.sqlite"
-    lease = acquire_lease(
-        db_path,
-        subject="work/current",
-        holder_ref="agent:codex:thread:first",
-        payload={"expected_head": "a" * 40},
-    )
-    offer = offer_lease_handoff(
-        db_path,
-        subject="work/current",
-        holder_ref=lease["holder_ref"],
-        expected_lease_id=lease["lease_id"],
-        expected_epoch=lease["epoch"],
-        target_holder_ref="agent:claude:session:second",
-        expected_head="a" * 40,
-    )
-
-    accepted = accept_lease_handoff(
-        db_path,
-        subject="work/current",
-        target_holder_ref="agent:claude:session:second",
-        offer_id=offer["offer_id"],
-        expected_lease_id=lease["lease_id"],
-        expected_epoch=lease["epoch"],
-        expected_head="a" * 40,
-        holder_quiesced=True,
-    )
-
-    assert accepted["holder_ref"] == "agent:claude:session:second"
-    assert accepted["epoch"] == lease["epoch"] + 1
-    assert accepted["lease_id"] == lease["lease_id"]
+    lease = acquire_lease(db_path, subject="work/current", holder_ref="agent:codex:thread:first",
+        payload={"expected_head": "a" * 40})
+    offer = offer_lease_handoff(db_path, subject="work/current", holder_ref=lease["holder_ref"],
+        expected_lease_id=lease["lease_id"], expected_epoch=lease["epoch"],
+        target_holder_ref="agent:claude:session:second", expected_head="a" * 40)
+    accepted = accept_lease_handoff(db_path, subject="work/current", target_holder_ref="agent:claude:session:second",
+        offer_id=offer["offer_id"], expected_lease_id=lease["lease_id"], expected_epoch=lease["epoch"],
+        expected_head="a" * 40, holder_quiesced=True)
+    assert tuple(accepted[key] for key in ("holder_ref", "epoch", "lease_id")) == (
+        "agent:claude:session:second", lease["epoch"] + 1, lease["lease_id"])
     assert accepted["payload"]["handoff_state"] == "accepted"
 
 
 def test_revoke_lease_is_generation_and_head_bound(tmp_path: Path) -> None:
     db_path = tmp_path / "state.sqlite"
-    lease = acquire_lease(
-        db_path,
-        subject="work/example",
-        holder_ref="agent:test:case:source",
-        payload={"expected_head": "a" * 40},
-    )
-
-    removed = revoke_lease(
-        db_path,
-        subject="work/example",
-        holder_ref="agent:test:case:source",
-        expected_lease_id=str(lease["lease_id"]),
-        expected_epoch=int(lease["epoch"]),
-        expected_head="a" * 40,
-    )
-
-    assert removed["revoked"] is True
-    assert active_leases(db_path) == []
+    lease = acquire_lease(db_path, subject="work/example", holder_ref="agent:test:case:source",
+        payload={"expected_head": "a" * 40})
+    removed = revoke_lease(db_path, subject="work/example", holder_ref="agent:test:case:source",
+        expected_lease_id=str(lease["lease_id"]), expected_epoch=int(lease["epoch"]), expected_head="a" * 40)
+    assert (removed["revoked"], active_leases(db_path)) == (True, [])
 
 
-def test_advance_lease_head_is_generation_bound_compare_and_swap(
-    tmp_path: Path,
-) -> None:
+def test_advance_lease_head_is_generation_bound_compare_and_swap(tmp_path: Path) -> None:
     db_path = tmp_path / "state.sqlite"
-    lease = acquire_lease(
-        db_path,
-        subject="work/current",
-        holder_ref="agent:codex:thread:first",
-        payload={"expected_head": "a" * 40},
-    )
-
-    advanced = advance_lease_head(
-        db_path,
-        subject="work/current",
-        holder_ref=lease["holder_ref"],
-        expected_lease_id=lease["lease_id"],
-        expected_epoch=lease["epoch"],
-        old_head="a" * 40,
-        new_head="b" * 40,
-    )
+    lease = acquire_lease(db_path, subject="work/current", holder_ref="agent:codex:thread:first",
+        payload={"expected_head": "a" * 40})
+    advanced = advance_lease_head(db_path, subject="work/current", holder_ref=lease["holder_ref"],
+        expected_lease_id=lease["lease_id"], expected_epoch=lease["epoch"],
+        old_head="a" * 40, new_head="b" * 40)
     assert advanced["expected_head"] == "b" * 40
-
     with pytest.raises(ValueError, match="lease_head_stale"):
-        advance_lease_head(
-            db_path,
-            subject="work/current",
-            holder_ref=lease["holder_ref"],
-            expected_lease_id=lease["lease_id"],
-            expected_epoch=lease["epoch"],
-            old_head="a" * 40,
-            new_head="c" * 40,
-        )
+        advance_lease_head(db_path, subject="work/current", holder_ref=lease["holder_ref"],
+            expected_lease_id=lease["lease_id"], expected_epoch=lease["epoch"],
+            old_head="a" * 40, new_head="c" * 40)
 
 
 def _insert_legacy_lease(db_path: Path, *, subject: str, owner: str) -> str:
     initialize_state(db_path)
     lease_id = "lease:legacy"
     with closing(sqlite3.connect(db_path)) as connection:
-        connection.execute(
-            """
-            insert into leases(id, subject, owner, expires_at, payload_json)
-            values (?, ?, ?, ?, ?)
-            """,
-            (lease_id, subject, owner, "2099-07-01T00:00:00+00:00", "{}"),
-        )
+        connection.execute("insert into leases(id, subject, owner, expires_at, payload_json) values (?, ?, ?, ?, ?)",
+            (lease_id, subject, owner, "2099-07-01T00:00:00+00:00", "{}"))
         connection.commit()
     return lease_id
+
+
+def test_lease_lifecycle_preserves_fail_closed_negative_edges(tmp_path: Path) -> None:
+    db_path, head = tmp_path / "state.sqlite", "a" * 40
+    lease = acquire_lease(db_path, subject="work/current", holder_ref="agent:test:case:owner", payload={"expected_head": head})
+    common = {"db_path": db_path, "subject": "work/current", "holder_ref": lease["holder_ref"],
+        "expected_lease_id": lease["lease_id"], "expected_epoch": lease["epoch"], "expected_head": head}
+    with pytest.raises(ValueError, match="lease_resume_blocked_by_decision"):
+        resume_lease(**common, contrary_decision=True)
+    with pytest.raises(ValueError, match="lease_not_expired"):
+        resume_lease(**common)
+    with pytest.raises(ValueError, match="lease_handoff_holder_not_quiesced"):
+        accept_lease_handoff(db_path, subject="work/current", target_holder_ref="agent:test:case:next",
+            offer_id="offer", expected_lease_id=lease["lease_id"], expected_epoch=lease["epoch"], expected_head=head, holder_quiesced=False)
+    expired = acquire_lease(tmp_path / "expired.sqlite", subject="work/expired", holder_ref="agent:test:case:owner", ttl_seconds=-1, payload={"expected_head": head})
+    with pytest.raises(ValueError, match="lease_expired"):
+        renew_lease(tmp_path / "expired.sqlite", subject="work/expired", holder_ref=expired["holder_ref"],
+            expected_lease_id=expired["lease_id"], expected_epoch=expired["epoch"], expected_head=head)
+    with closing(sqlite3.connect(db_path)) as connection:
+        with pytest.raises(ValueError, match="work_lane_missing_lease"):
+            lease_core._sole_subject_row(connection, "work/missing")
+        connection.execute("insert into leases values (?, ?, ?, ?, ?)", ("lease:duplicate", "work/current", lease["holder_ref"], "2099-01-01T00:00:00+00:00", "{}"))
+        with pytest.raises(ValueError, match="lane_lease_ambiguous"):
+            lease_core._sole_subject_row(connection, "work/current")
+    with pytest.raises(ValueError, match="lane_lease_legacy_ambiguous"):
+        lease_core._expect_normalized({}, "work/current")
+    assert (lease_core._is_expired("invalid"), lease_core._is_expired("2000-01-01T00:00:00")) == (True, True)
 
 
 def test_acquire_lease_skips_empty_retired_resource_rows(tmp_path: Path) -> None:

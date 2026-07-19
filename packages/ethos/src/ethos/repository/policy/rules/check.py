@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING
 from typing import cast
 
 from ethos.repository.policy.rules.compile import compile_rules
-from ethos.repository.policy.rules.config import _legacy_state
-from ethos.repository.policy.rules.config import _load_rules_config
+from ethos.repository.policy.rules.config import legacy_state
+from ethos.repository.policy.rules.config import load_rules_config
 from ethos.repository.policy.rules.exceptions import policy_exceptions_report
 from ethos.repository.policy.rules.exceptions import rules_docs_manifest_report
 
@@ -17,9 +17,9 @@ if TYPE_CHECKING:
 
 def rules_check_report(root: Path) -> dict[str, object]:
     """Report rule-set integrity: parse errors, duplicate ids, unknown gates, owners."""
-    config = _load_rules_config(root)
+    config = load_rules_config(root)
     compiled = compile_rules(root)
-    legacy = _legacy_state(root)
+    legacy = legacy_state(root)
     required_gaps: list[str] = []
     if "_parse_error" in config:
         required_gaps.append(f"rules_config_parse_error:{config['_parse_error']}")

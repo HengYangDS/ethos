@@ -10,7 +10,7 @@ import tempfile
 from pathlib import Path
 from typing import cast
 
-import ethos.adapters.mutation.lane_retirement.unbound.observation.core as observation
+import ethos.adapters.mutation.lane_retirement.unbound.observation.core as unbound_observation
 
 ATTEMPT_KIND = "exceptional_unbound_retirement_attempt"
 RECEIPT_KIND = "exceptional_unbound_retirement_receipt"
@@ -77,6 +77,7 @@ def attempt_payload(
         "chronicle_sha256": chronicle["sha256"],
         "chronicle_claim_id": chronicle["target_claim"],
         "chronicle_claim_sha256": chronicle["claim_sha256"],
+        "lease_relinquish_binding": unbound_observation.lease_relinquish_binding(observation),
         "reason": reason,
         "before_observation_sha256": observation["observation_sha256"],
         "effect": "git_update_ref_compare_and_delete",
@@ -95,6 +96,7 @@ def receipt_payload(  # noqa: PLR0913, RUF100 - exact receipt preserves bound st
     after: dict[str, object],
     effect: dict[str, object],
     chronicle_unchanged: bool,
+    lease_relinquished: dict[str, object],
 ) -> dict[str, object]:
     """Build the postcondition-bound receipt for a verified ref retirement."""
     chronicle = cast("dict[str, object]", before["chronicle"])
@@ -112,6 +114,8 @@ def receipt_payload(  # noqa: PLR0913, RUF100 - exact receipt preserves bound st
         "chronicle_sha256": chronicle["sha256"],
         "chronicle_claim_id": chronicle["target_claim"],
         "chronicle_claim_sha256": chronicle["claim_sha256"],
+        "lease_relinquish_binding": unbound_observation.lease_relinquish_binding(before),
+        "lease_relinquished": lease_relinquished,
         "reason": reason,
         "before_observation_sha256": before["observation_sha256"],
         "after_observation_sha256": after["observation_sha256"],
@@ -119,7 +123,7 @@ def receipt_payload(  # noqa: PLR0913, RUF100 - exact receipt preserves bound st
         "postconditions": {
             "ref_absent": not bool(after["head"]),
             "unbound_absent": not bool(after["status_unbound"]),
-            "active_lease_absent": not bool(after[observation.HAS_ACTIVE_LEASE]),
+            "active_lease_absent": not bool(after[unbound_observation.HAS_ACTIVE_LEASE]),
             "protected_refs_unchanged": before["protected_refs"] == after["protected_refs"],
             "chronicle_unchanged": chronicle_unchanged,
         },
@@ -220,6 +224,7 @@ def validate_record(payload: dict[str, object], *, kind: str) -> None:
         "chronicle_sha256",
         "chronicle_claim_id",
         "chronicle_claim_sha256",
+        "lease_relinquish_binding",
         "reason",
         "before_observation_sha256",
         "effect",
@@ -232,6 +237,7 @@ def validate_record(payload: dict[str, object], *, kind: str) -> None:
             "protected_refs_before",
             "protected_refs_after",
             "after_observation_sha256",
+            "lease_relinquished",
             "postconditions",
         }
     if (
@@ -245,8 +251,14 @@ def validate_record(payload: dict[str, object], *, kind: str) -> None:
     if not str(payload.get("branch") or "").startswith("work/"):
         raise ValueError(_RECORD_INVALID)
     if not sha256_text_fields(
-        payload, "expected_head", "accepted_head", "chronicle_sha256", "chronicle_claim_sha256"
+        payload,
+        "expected_head",
+        "accepted_head",
+        "chronicle_sha256",
+        "chronicle_claim_sha256",
     ):
+        raise ValueError(_RECORD_INVALID)
+    if not valid_lease_relinquish_binding(payload.get("lease_relinquish_binding")):
         raise ValueError(_RECORD_INVALID)
     if payload.get("mints_authority") is not False or payload.get("recheck_required") is not True:
         raise ValueError(_RECORD_INVALID)
@@ -270,6 +282,12 @@ def validate_record(payload: dict[str, object], *, kind: str) -> None:
             or not all(value is True for value in postconditions.values())
         ):
             raise ValueError(_RECORD_INVALID)
+        if not valid_lease_relinquishment(
+            payload["lease_relinquish_binding"],
+            payload.get("lease_relinquished"),
+            subject=str(payload["branch"]),
+        ):
+            raise ValueError(_RECORD_INVALID)
 
 
 def sha256_text_fields(payload: dict[str, object], *keys: str) -> bool:
@@ -277,6 +295,50 @@ def sha256_text_fields(payload: dict[str, object], *keys: str) -> bool:
     return all(
         isinstance(payload.get(key), str) and len(str(payload[key])) in {40, 64} for key in keys
     )
+
+
+def valid_lease_relinquish_binding(value: object) -> bool:
+    """Accept a durable exact lease binding, or the explicit no-lease shape."""
+    if not isinstance(value, dict) or set(value) != {
+        "active",
+        "lease_id",
+        "holder_ref",
+        "epoch",
+        "expected_head",
+    }:
+        return False
+    active = value.get("active")
+    if not isinstance(active, bool):
+        return False
+    fields = ("lease_id", "holder_ref", "expected_head")
+    if not active:
+        return value.get("epoch") == 0 and all(value.get(field) == "" for field in fields)
+    return (
+        isinstance(value.get("lease_id"), str)
+        and bool(value["lease_id"])
+        and isinstance(value.get("holder_ref"), str)
+        and bool(value["holder_ref"])
+        and isinstance(value.get("epoch"), int)
+        and int(value["epoch"]) > 0
+        and isinstance(value.get("expected_head"), str)
+        and len(str(value["expected_head"])) == 40
+    )
+
+
+def valid_lease_relinquishment(binding: object, relinquished: object, *, subject: str) -> bool:
+    """Require a successful receipt to retain the exact native CAS result."""
+    if not isinstance(binding, dict):
+        return False
+    if binding["active"] is False:
+        return relinquished == {}
+    return relinquished == {
+        "revoked": True,
+        "subject": subject,
+        "lease_id": binding["lease_id"],
+        "holder_ref": binding["holder_ref"],
+        "epoch": binding["epoch"],
+        "expected_head": binding["expected_head"],
+    }
 
 
 def effect_summary(completed: object) -> dict[str, object]:

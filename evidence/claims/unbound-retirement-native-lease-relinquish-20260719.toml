@@ -1,0 +1,47 @@
+[claim]
+id = "unbound-retirement-native-lease-relinquish-20260719"
+subject = "ethos:work-lane:unbound-retirement-native-lease-relinquish"
+state = "active"
+change_id = "unbound-retirement-native-lease-relinquish-20260719"
+summary = "One owned carrier narrows exceptional unbound Work Lane retirement so the exact current holder may relinquish its exact lease generation by native CAS before the separate ref compare-and-delete."
+
+[evidence]
+dated = "evidence/chronicle/unbound-retirement-native-lease-relinquish-20260719/2026-07-20.md"
+sha256 = "14351cb001434313cb01080938b38db8f62634ff73c3fb850e733978d02a0ad5"
+evidence_ids = ["evidence:unbound-retirement-native-lease-relinquish-20260719"]
+binding = "This active carrier binds only the native lease-relinquish repair and its later local lifecycle proof. It does not retire the named historical source, claim accepted closeout before it occurs, or establish remote or hosted execution."
+verifier = "digest_only"
+tests = [
+  "openspec validate unbound-retirement-native-lease-relinquish-20260719 --strict --json",
+  "uv run --all-packages --group dev pytest -q tests/unit/lanes/retirement/test_unbound_and_helpers.py tests/unit/lanes/retirement/test_unbound_exceptional_coverage.py",
+  "ethos prove --execute --expect-head <committed-head> --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "Exact holder-and-generation native lease relinquishment inside exceptional unbound Work Lane retirement; no foreign takeover, raw deletion, remote mutation, or hosted claim."
+
+[carriers]
+openspec = "openspec/changes/unbound-retirement-native-lease-relinquish-20260719"
+fallback = "Keep the source ref and lease intact whenever exact holder, generation, target head, control-store, or re-observation binding cannot be proved."
+kill_signal = "The repair revokes a foreign or mismatched lease, deletes a ref after drift, uses raw state or ref deletion, or treats local carrier acceptance as source retirement or remote publication."
+
+[promotion]
+targets = [
+  "docs/architecture/runner-and-mutation.md",
+  "docs/plans/unbound-retirement-native-lease-relinquish-20260719.md",
+  "docs/reference/command-plane.md",
+  "evidence/claims/unbound-retirement-native-lease-relinquish-20260719.toml",
+  "evidence/chronicle/unbound-retirement-native-lease-relinquish-20260719/2026-07-20.md",
+  "openspec/changes/unbound-retirement-native-lease-relinquish-20260719",
+  "openspec/specs/repository-governance/spec.md",
+  "packages/ethos/src/ethos/adapters/mutation/lane_retirement/unbound/core.py",
+  "packages/ethos/src/ethos/adapters/mutation/lane_retirement/unbound/observation/core.py",
+  "packages/ethos/src/ethos/adapters/mutation/lane_retirement/unbound/policy/core.py",
+  "packages/ethos/src/ethos/adapters/mutation/lane_retirement/unbound/records/core.py",
+  "tests/unit/lanes/retirement/test_unbound_and_helpers.py",
+  "tests/unit/lanes/retirement/test_unbound_exceptional_coverage.py",
+]

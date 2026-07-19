@@ -394,16 +394,22 @@ superseded linked-lane residue state.
 `ethos lane retire unbound` remains fail-closed for every ordinary local
 unbound Work Lane ref. Its sole exceptional route requires an exact
 `--expect-head`, non-empty `--reason`, repository-local `--chronicle-ref`, an
-unbound `work/*` ref that is an accepted ancestor with a bound Claim and no
-live lease, and a Chronicle whose current bytes are identical to the accepted
-branch version and name the same event, branch, and head. Apply additionally
-requires `--authorize`, `--break-glass`, and `--confirm-irreversible`. Before
-the only effect, `git update-ref -d refs/heads/<branch> <expected-head>`, ETHOS
-writes a no-clobber local attempt record and reobserves target, Chronicle,
-lease, and protected refs; it then requires postconditions and writes a receipt
-outside the accepted checkout. It does not replace `ethos land` or `ethos lane
-retire landed`, remove a worktree by force, delete a lease, mutate a remote, or
-infer authority from a provider, agent session, or host path.
+unbound `work/*` ref that is an accepted ancestor with a bound Claim, and a
+Chronicle whose current bytes are identical to the accepted branch version and
+name the same event, branch, and head. The ordinary path requires no live
+lease. A narrow native continuation may instead consume one active lease only
+when its holder is the current `ETHOS_ACTOR` and its lease ID, epoch, and
+expected head exactly match the target; it revokes that generation by the native
+CAS and reobserves the remaining retirement bindings and absence of any active
+lease before deletion. Any foreign, malformed, stale, replaced, or
+head-mismatched lease remains blocked.
+Apply additionally requires `--authorize`, `--break-glass`, and
+`--confirm-irreversible`. Before the compare-and-delete ref effect, ETHOS writes
+a no-clobber local attempt record; attempt and successful receipt retain the
+exact relinquished lease binding and result. It then requires postconditions and
+writes a receipt outside the accepted checkout. It does not replace `ethos land`
+or `ethos lane retire landed`, remove a worktree by force, mutate a remote, or
+fall back to raw ref or lease deletion.
 The standard local lifecycle is product state even when a host provides its own
 presentation: create the Work Lane through `ethos lane start`, attach claim
 evidence with `ethos lane bind-claim` when needed, refresh the lane base only

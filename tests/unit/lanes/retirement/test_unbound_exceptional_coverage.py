@@ -9,7 +9,9 @@ import pytest
 import ethos.adapters.mutation.lane_retirement.unbound.observation.core as unbound_observation
 import ethos.adapters.mutation.lane_retirement.unbound.policy.core as unbound_policy
 import ethos.adapters.mutation.lane_retirement.unbound.records.core as unbound_records
-from ethos.adapters.mutation.lane_retirement.unbound.core import retire_unbound_work_lane_ref
+from ethos.adapters.mutation.lane_retirement.unbound.core import (
+    retire_unbound_work_lane_ref,
+)
 from tests.support.lane_helpers import git
 from tests.unit.lanes.retirement.test_unbound_and_helpers import _exceptional_fixture
 
@@ -174,7 +176,8 @@ def test_exceptional_retirement_policy_helpers_cover_every_fail_closed_outcome(
     assert gap == ""
     assert (
         unbound_policy.accepted_control_root(
-            {"worktrees": [{"role": "work_lane", "path": repo.as_posix()}]}, accepted_head=head
+            {"worktrees": [{"role": "work_lane", "path": repo.as_posix()}]},
+            accepted_head=head,
         )[1]
         == "unbound_retire_accepted_control_root_unavailable"
     )
@@ -276,6 +279,14 @@ def test_exceptional_retirement_records_cover_idempotence_races_and_invalid_payl
         {**payload, "expected_head": "short"},
         {**payload, "mints_authority": True},
         {**payload, "protected_refs": {}},
+        {
+            **payload,
+            "lease_relinquish_binding": {
+                **payload["lease_relinquish_binding"],
+                "active": True,
+                "lease_id": "",
+            },
+        },
     )
     for invalid in invalid_cases:
         with pytest.raises(ValueError, match="unbound_retire_record_invalid"):
@@ -287,6 +298,7 @@ def test_exceptional_retirement_records_cover_idempotence_races_and_invalid_payl
         "protected_refs_before": payload["protected_refs"],
         "protected_refs_after": before["protected_refs"],
         "after_observation_sha256": "a" * 64,
+        "lease_relinquished": {},
         "postconditions": {
             "ref_absent": True,
             "unbound_absent": True,
@@ -304,6 +316,21 @@ def test_exceptional_retirement_records_cover_idempotence_races_and_invalid_payl
     with pytest.raises(ValueError, match="unbound_retire_record_invalid"):
         unbound_records.validate_record(
             {**receipt, "protected_refs_after": {"main": "changed"}},
+            kind=unbound_records.RECEIPT_KIND,
+        )
+    with pytest.raises(ValueError, match="unbound_retire_record_invalid"):
+        unbound_records.validate_record(
+            {
+                **receipt,
+                "lease_relinquished": {
+                    "revoked": True,
+                    "subject": branch,
+                    "lease_id": "unexpected",
+                    "holder_ref": "agent:test:other",
+                    "epoch": 1,
+                    "expected_head": head,
+                },
+            },
             kind=unbound_records.RECEIPT_KIND,
         )
 
@@ -326,7 +353,10 @@ def test_exceptional_retirement_covers_control_root_and_receipt_write_failures(
     monkeypatch.setattr(
         unbound_policy,
         "accepted_control_root",
-        lambda *_args, **_kwargs: (None, "unbound_retire_accepted_control_root_unavailable"),
+        lambda *_args, **_kwargs: (
+            None,
+            "unbound_retire_accepted_control_root_unavailable",
+        ),
     )
     blocked = retire_unbound_work_lane_ref(**controls)
     assert blocked["required_gaps"] == ["unbound_retire_accepted_control_root_unavailable"]

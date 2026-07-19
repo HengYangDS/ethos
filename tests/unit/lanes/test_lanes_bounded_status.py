@@ -67,6 +67,7 @@ def test_workspace_status_empty_inventory_preserves_explicit_detail_mode(
     assert full_coordination["unknown_scope_count"] == 0
     assert full_coordination["closeout_residue_count"] == 0
     assert full_coordination["dirty_closeout_residue_count"] == 0
+    assert validate_schema_instance("workspace-status.schema.json", full)["ok"] is True
 
     bounded = workspace_status(repo, include_foreign_path_scope=False)
     bounded_coordination = bounded["coordination"]
@@ -74,6 +75,7 @@ def test_workspace_status_empty_inventory_preserves_explicit_detail_mode(
     assert bounded["foreign_work_lanes"] == []
     assert bounded_coordination["foreign_work_lane_count"] == 0
     assert bounded_coordination["missing_lease_count"] == 0
+    assert validate_schema_instance("workspace-status.schema.json", bounded)["ok"] is True
     assert bounded_coordination["detail_state"] == "deferred"
     assert bounded_coordination["dirty_foreign_work_lane_count"] is None
     assert bounded_coordination["overlap_count"] is None

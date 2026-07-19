@@ -1,4 +1,21 @@
+---
+subject: ethos:history-residue-closeout-design-20260719
+role: plan
+state: active
+relations:
+  implements: history-residue-closeout-20260719
+  canonical_for: history residue closeout topology and deletion budgets
+---
+
 # History Residue Closeout Design
+
+Status: active.
+
+Purpose: define the implementation topology, safety boundaries, and measured
+deletion limits for the July 19, 2026 history-residue closeout.
+
+See also: [OpenSpec change](../../openspec/changes/history-residue-closeout-20260719/)
+and the [implementation plan](history-residue-closeout-implementation.md).
 
 Date: 2026-07-19
 

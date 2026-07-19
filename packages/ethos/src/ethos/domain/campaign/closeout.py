@@ -46,8 +46,10 @@ def campaign_closeout_report(
     intake_projection = intake_projection_report(repo)
     branch = str(status_payload["branch"])
     evolution = evolution_report(repo)
-    campaign = campaign_report(repo)
-    campaign_publication = campaign_publication_report(repo, campaigns=campaign)
+    campaign = campaign_report(repo, campaign_id=campaign_id)
+    repository_campaign = campaign_report(repo)
+    campaign_publication = campaign_publication_report(repo, campaigns=repository_campaign)
+    campaign["publication"] = campaign_publication
     release = release_policy_report(repo)
     current_target_head = git_adapter.current_tracked_head(target)
     current_product_head = git_adapter.current_tracked_head(repo)
@@ -119,6 +121,7 @@ def campaign_closeout_report(
         "shadow_parity": cast("list[object]", shadow["execution_packages"])[0],
         "campaign": {
             "kind": "campaign_closeout",
+            "requested_campaign": campaign_id or "",
             "ok": bool(campaign["ok"]),
             "active_count": int(cast("int", campaign["active_count"])),
             "campaign_count": int(cast("int", campaign["campaign_count"])),
@@ -135,6 +138,7 @@ def campaign_closeout_report(
         "claims": claim_report,
         "intake_projection": intake_projection,
         "evolution": evolution,
+        "campaigns": campaign,
         "release": release,
         "parity": parity,
         "shadow_parity": shadow,
@@ -142,6 +146,7 @@ def campaign_closeout_report(
         "remote_publication": remote_publication,
         "provenance": provenance,
         "packages": packages,
+        "requested_campaign": campaign_id or "",
     }
 
 

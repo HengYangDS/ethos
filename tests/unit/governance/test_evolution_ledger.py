@@ -3,12 +3,44 @@
 
 from __future__ import annotations
 from pathlib import Path
+import pytest
+import ethos.domain.campaign.closeout as campaign_closeout
 from ethos.repository.adoption import evolution as evolution_module
+from ethos.domain.campaign.closeout import campaign_publication_report
 from ethos.repository.adoption.evolution import campaign_report
 from ethos.repository.adoption.evolution import evolution_candidates
 from ethos.repository.adoption.evolution import evolution_ledger
 from ethos.repository.adoption.evolution import evolution_report
 from ethos.repository.adoption.practice.selection import selection_ref_gaps
+
+_CAMPAIGN_MANIFEST = Path('tests/fixtures/campaign/minimal.toml').read_text(encoding='utf-8')
+
+def _write_campaign(root: Path, manifest: str = _CAMPAIGN_MANIFEST) -> None:
+    (root / 'openspec/changes/compression-foundation').mkdir(parents=True)
+    path = root / 'evolution/campaigns/compression/campaign.toml'; path.parent.mkdir(parents=True); path.write_text(manifest, encoding='utf-8')
+
+def _campaign_gaps(root: Path, *, step_state: str, closeout_state: str = 'planned', carrier: str = 'active') -> list[str]:
+    terminal = closeout_state in {'closed', 'retired'}
+    manifest = _CAMPAIGN_MANIFEST.replace('title = "Foundation"\nstate = "active"', f'title = "Foundation"\nstate = "{step_state}"', 1).replace('state = "planned"', f'state = "{closeout_state}"', 1).replace('accepted_head = ""', f'accepted_head = "{"a" * 40 if terminal else ""}"').replace('candidate_head = ""', f'candidate_head = "{"b" * 40 if terminal else ""}"').replace('evidence = []', 'evidence = ["evidence/chronicle/campaign/2026-07-19.md"]' if terminal else 'evidence = []')
+    carrier_path = root / 'openspec/changes/compression-foundation' if carrier == 'active' else root / 'openspec/changes/archive/2026-07-19-compression-foundation'
+    carrier_path.mkdir(parents=True)
+    path = root / 'evolution/campaigns/compression/campaign.toml'; path.parent.mkdir(parents=True); path.write_text(manifest, encoding='utf-8')
+    return campaign_report(root)['required_gaps']
+
+def test_campaign_helpers_fail_closed_for_missing_declarations(monkeypatch, tmp_path: Path) -> None:
+    assert evolution_module._openspec_carrier_state(tmp_path, '') == 'missing'
+    assert evolution_module._list_items('not-a-list') == []
+    monkeypatch.setattr(evolution_module, 'load_workflow_contract_declaration', lambda _root: type('D', (), {'campaign': None})())
+    with pytest.raises(ValueError, match='campaign workflow policy missing'):
+        evolution_module.campaign_policy(tmp_path)
+
+def test_campaign_public_policy_preserves_candidate_carrier_and_closeout_gaps(tmp_path: Path) -> None:
+    assert 'campaign_step_active_openspec_archived:compression:foundation' in _campaign_gaps(tmp_path / 'active-archived', step_state='active', carrier='archived')
+    assert 'campaign_step_preland_openspec_not_archived:compression:foundation' in _campaign_gaps(tmp_path / 'preland-active', step_state='archive_ready')
+    terminal = _campaign_gaps(tmp_path / 'preland-terminal', step_state='archive_ready', closeout_state='retired', carrier='archived')
+    assert 'campaign_step_terminal_closeout_nonterminal:compression:foundation' in terminal
+    assert all('archive_ready_closeout_terminal' not in gap for gap in terminal)
+    assert 'campaign_step_terminal_openspec_not_archived:compression:foundation' in _campaign_gaps(tmp_path / 'terminal-active', step_state='closed', closeout_state='retired')
 
 def test_evolution_ledger_exposes_active_hypotheses() -> None:
     ledger = evolution_ledger(Path.cwd())
@@ -119,16 +151,43 @@ def test_campaign_report_exposes_manifest_steps_and_closeout_progress() -> None:
     assert hooked_step['state'] == 'closed'
     assert hooked_step['closeout'] == {'state': 'retired', 'accepted_head': 'c17b8939f8d55082d226b3090c03a1c37cd48b37', 'candidate_head': 'd735b62add0a0d5dc7ebdf8cb0e7e1d8deadec30', 'evidence': ['evidence/chronicle/hooked-write-admission/2026-07-02.md']}
 
-def test_campaign_report_exposes_archive_ready_bootstrap_without_closeout() -> None:
-    report = campaign_report(Path.cwd(), campaign_id='repo-first-worktree-governance-v2')
-    assert report['ok'] is True
-    campaign = report['campaigns'][0]
-    bootstrap = campaign['steps'][0]
-    assert bootstrap['state'] == 'archive_ready'
-    assert bootstrap['closeout']['state'] == 'planned'
-    assert campaign['step_summary']['archive_ready'] == 1
-    assert campaign['step_summary']['closed'] == 0
-    assert campaign['lane_topology']['active_steps'] == ['campaign-bootstrap']
+def test_campaign_report_surfaces_terminal_budget_progress_as_advisory(monkeypatch, tmp_path: Path) -> None:
+    _write_campaign(tmp_path)
+    monkeypatch.setattr(campaign_closeout, 'source_budget_report', lambda _root: {'campaign_id': 'compression', 'terminal_target_met': False, 'active_debt': {'ids': ['temporary-compiler']}})
+    report = campaign_publication_report(tmp_path)
+    assert report['required_gaps'] == []
+    assert report['advisory_gaps'] == ['campaign_publication_campaign_active:compression', 'campaign_publication_step_not_retired:compression', 'campaign_publication_terminal_budget_unmet:compression', 'campaign_publication_active_debt:compression:temporary-compiler']
+    assert report['remote_publication_admission'] == 'admitted'
+    assert report['terminal_ready'] is False
+
+def test_invalid_campaign_manifest_blocks_repository_publication(monkeypatch, tmp_path: Path) -> None:
+    _write_campaign(tmp_path, _CAMPAIGN_MANIFEST.replace('campaign_terminal', 'unknown'))
+    monkeypatch.setattr(campaign_closeout, 'source_budget_report', lambda _root: {'campaign_id': '', 'required_gaps': [], 'active_debt': {'ids': []}})
+    publication = campaign_publication_report(tmp_path)
+    assert publication['mode'] == 'invalid'
+    assert publication['remote_publication_admission'] == 'blocked'
+    assert publication['advisory_gaps'] == []
+
+def test_campaign_publication_requires_the_budget_bound_campaign(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(campaign_closeout, 'source_budget_report', lambda _root: {'campaign_id': 'declared-compression', 'terminal_target_met': False, 'active_debt': {'ids': []}, 'required_gaps': []})
+    report = campaign_publication_report(tmp_path, campaigns={'campaigns': [], 'required_gaps': [], 'ok': True})
+    assert report['remote_publication_admission'] == 'blocked'
+    assert report['required_gaps'] == ['campaign_publication_bound_campaign_missing:declared-compression']
+
+def test_campaign_publication_payload_is_declared_in_workflow_policy() -> None:
+    source = Path('system/workflows.toml').read_text(encoding='utf-8')
+    assert "publication_projection = '''" in source
+    assert 'def publication(' not in Path('packages/ethos-core/src/ethos_core/contracts/workflow.py').read_text(encoding='utf-8')
+
+def test_filtered_campaign_status_keeps_repository_publication_scope(monkeypatch, tmp_path: Path) -> None:
+    _write_campaign(tmp_path)
+    monkeypatch.setattr(campaign_closeout, 'source_budget_report', lambda _root: {'campaign_id': 'compression', 'terminal_target_met': False, 'active_debt': {'ids': []}, 'required_gaps': []})
+    filtered = campaign_report(tmp_path, campaign_id='compression')
+    publication = campaign_publication_report(tmp_path)
+    assert [item['id'] for item in filtered['campaigns']] == ['compression']
+    assert publication['scope'] == 'repository'
+    assert publication['remote_publication_admission'] == 'admitted'
+    assert publication['advisory_gaps'] == ['campaign_publication_campaign_active:compression', 'campaign_publication_step_not_retired:compression', 'campaign_publication_terminal_budget_unmet:compression']
 
 def test_evolution_report_exposes_practice_selection_and_fate() -> None:
     report = evolution_report(Path.cwd())
@@ -222,7 +281,7 @@ def test_evolution_campaign_defensive_coverage_edges(tmp_path: Path) -> None:
     assert "evolution_ledger_invalid_toml" in evolution_module.evolution_report(tmp_path)["required_gaps"]
     empty = tmp_path / "empty"; empty.mkdir(); assert evolution_module.campaign_report(empty)["campaigns"] == []
     bad = tmp_path / "evolution/campaigns/bad"; bad.mkdir(parents=True); (bad / "campaign.toml").write_text("[", encoding="utf-8")
-    assert evolution_module.campaign_report(tmp_path)["campaigns"][0]["state"] == "invalid"
+    invalid = evolution_module.campaign_report(tmp_path); assert invalid["campaigns"] == []; assert "campaign_manifest_invalid_toml:bad" in invalid["required_gaps"]
     missing_root = tmp_path / "missing-root"; (missing_root / "evolution/campaigns").mkdir(parents=True)
     assert "campaign_missing:missing" in evolution_module.campaign_report(missing_root, campaign_id="missing")["required_gaps"]
     assert evolution_module._step_payload({"ordinal": "bad"}, default_ordinal=1)["ordinal"] == 0

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ethos_core.measure as measure
 from ethos_core.measure import effective_code_lines
 
 
@@ -38,3 +39,21 @@ def test_effective_code_lines_syntax_error_falls_back_to_nonblank_noncomment_cou
     )
 
     assert effective_code_lines(path) == 2
+
+
+def test_effective_code_lines_reuses_immutable_source_measurement(tmp_path, monkeypatch):
+    path = tmp_path / "sample.py"
+    path.write_text(f"value = 1  # {tmp_path.name}\n", encoding="utf-8")
+    calls = 0
+    original = measure.ast.parse
+
+    def counted(source: str, *args, **kwargs):
+        nonlocal calls
+        calls += 1
+        return original(source, *args, **kwargs)
+
+    monkeypatch.setattr(measure.ast, "parse", counted)
+
+    assert effective_code_lines(path) == 1
+    assert effective_code_lines(path) == 1
+    assert calls == 1

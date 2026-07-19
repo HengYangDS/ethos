@@ -10,6 +10,7 @@ from typing import cast
 from cyclopts import Parameter
 
 from ethos.domain.campaign.closeout import campaign_closeout_report
+from ethos.domain.campaign.closeout import campaign_publication_report
 from ethos.repository.adoption.evolution import campaign_report
 from ethos.repository.adoption.evolution import evolution_ledger
 from ethos.surface.cli._base import JsonFlag
@@ -30,6 +31,7 @@ def campaign_status(
     """Report canonical campaign model."""
     repo = resolve_root(root)
     report = campaign_report(repo, campaign_id=campaign)
+    report["publication"] = campaign_publication_report(repo)
     required_gap_values = cast("tuple[object, ...]", report.get("required_gaps", ()))
     required_gaps = tuple(str(gap) for gap in required_gap_values)
     result = EthosResult(

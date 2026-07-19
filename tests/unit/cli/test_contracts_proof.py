@@ -215,7 +215,7 @@ def test_prove_default_floor_includes_config_and_script_quality_gates() -> None:
     assert payload['ok'] is True
     node_ids = [node['id'] for node in payload['data']['action_graph']['nodes']]
     assert payload['summary']['gate_count'] == len(node_ids)
-    assert {'evidence-freshness', 'ruff', 'toml-config', 'yaml-config', 'shell-lint', 'format-policy', 'generated-artifacts', 'docs-topology', 'python-size'} <= set(node_ids)
+    assert {'evidence-freshness', 'ruff', 'config-quality', 'shell-lint', 'format-policy', 'generated-artifacts', 'docs-topology', 'python-size'} <= set(node_ids)
 
 def test_prove_uses_adopter_profile_default_floor(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / 'adopter')
@@ -363,6 +363,8 @@ def test_campaign_status_reports_manifest_steps() -> None:
     assert campaign['lane_topology']['active_step'] == ''
     assert campaign['lane_topology']['active_steps'] == []
     assert campaign['lane_topology']['next_planned_step'] == 'adopter-openspec-scaffold'
+    assert payload['data']['publication']['kind'] == 'campaign_publication'
+    assert payload['data']['publication']['scope'] == 'repository'
     assert {'ordinal', 'depends_on', 'openspec_change', 'work_lane', 'claim_id', 'closeout'} <= set(campaign['steps'][0])
 
 def test_campaign_closeout_scopes_to_selected_campaign() -> None:
@@ -374,16 +376,19 @@ def test_campaign_closeout_scopes_to_selected_campaign() -> None:
     assert package['requested_campaign'] == 'terminal-openspec-productization'
     assert [item['id'] for item in package['campaigns']] == ['terminal-openspec-productization']
 
-def test_campaign_status_exposes_archive_ready_bootstrap_without_terminal_claim() -> None:
+def test_campaign_status_exposes_archive_ready_retirement_without_terminal_claim() -> None:
     payload = run_ethos('campaign', 'status', '--campaign', 'repo-first-worktree-governance-v2', '--json')
     assert payload['ok'] is True
     campaign = payload['data']['campaigns'][0]
     bootstrap = campaign['steps'][0]
-    assert bootstrap['state'] == 'archive_ready'
-    assert bootstrap['closeout']['state'] == 'planned'
+    retirement = campaign['steps'][1]
+    assert bootstrap['state'] == 'retired'
+    assert bootstrap['closeout']['state'] == 'retired'
+    assert retirement['state'] == 'archive_ready'
+    assert retirement['closeout']['state'] == 'planned'
     assert campaign['step_summary']['archive_ready'] == 1
-    assert campaign['step_summary']['closed'] == 0
-    assert campaign['lane_topology']['active_steps'] == ['campaign-bootstrap']
+    assert campaign['step_summary']['closed'] == 1
+    assert campaign['lane_topology']['active_steps'] == ['retirement-fail-closed']
 
 def test_campaign_closeout_unknown_selector_reports_gap() -> None:
     payload = run_ethos('campaign', 'closeout', '--campaign', 'absent-campaign', '--json')

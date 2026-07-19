@@ -12,6 +12,8 @@ from ethos.domain.land.publication import local_ci_fallback_package
 from ethos.domain.land.publication import publication_readiness
 from ethos.domain.land.publication import remote_publication_deferred
 from ethos.domain.land.trust.core import trust_closeout_package
+from ethos.domain.source_budget.core import source_budget_report
+from ethos.repository.adoption.evolution import campaign_policy
 from ethos.repository.adoption.evolution import campaign_report
 from ethos.repository.adoption.evolution import evolution_report
 from ethos.repository.context import is_product_root
@@ -20,6 +22,8 @@ from ethos.repository.evidence.parity.core import parity_gaps_report
 from ethos.repository.evidence.parity.core import shadow_parity_report
 from ethos.repository.release.core import release_policy_report
 from ethos_core.contracts.branch.roles import load_branch_role_policy
+from ethos_core.contracts.policy.cel import evaluate_cel_gap_groups
+from ethos_core.contracts.policy.cel import evaluate_cel_value
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -43,6 +47,9 @@ def campaign_closeout_report(
     branch = str(status_payload["branch"])
     evolution = evolution_report(repo)
     campaign = campaign_report(repo, campaign_id=campaign_id)
+    repository_campaign = campaign_report(repo)
+    campaign_publication = campaign_publication_report(repo, campaigns=repository_campaign)
+    campaign["publication"] = campaign_publication
     release = release_policy_report(repo)
     current_target_head = git_adapter.current_tracked_head(target)
     current_product_head = git_adapter.current_tracked_head(repo)
@@ -114,12 +121,13 @@ def campaign_closeout_report(
         "shadow_parity": cast("list[object]", shadow["execution_packages"])[0],
         "campaign": {
             "kind": "campaign_closeout",
+            "requested_campaign": campaign_id or "",
             "ok": bool(campaign["ok"]),
             "active_count": int(cast("int", campaign["active_count"])),
             "campaign_count": int(cast("int", campaign["campaign_count"])),
             "required_gaps": list(cast("list[object]", campaign["required_gaps"])),
             "campaigns": campaign["campaigns"],
-            "requested_campaign": campaign_id or "",
+            "publication": campaign_publication,
         },
     }
     ok = local_ready and bool(campaign["ok"]) and not trust_closeout["required_gaps"]
@@ -131,7 +139,6 @@ def campaign_closeout_report(
         "intake_projection": intake_projection,
         "evolution": evolution,
         "campaigns": campaign,
-        "requested_campaign": campaign_id or "",
         "release": release,
         "parity": parity,
         "shadow_parity": shadow,
@@ -139,4 +146,58 @@ def campaign_closeout_report(
         "remote_publication": remote_publication,
         "provenance": provenance,
         "packages": packages,
+        "requested_campaign": campaign_id or "",
     }
+
+
+def campaign_publication_report(
+    repo: Path,
+    *,
+    campaigns: dict[str, object] | None = None,
+) -> dict[str, object]:
+    """Project whether declared campaigns permit the terminal remote publication."""
+    report = campaigns or campaign_report(repo)
+    policy = campaign_policy(repo)
+    campaign_items = cast("list[dict[str, object]]", report["campaigns"])
+    terminal_campaigns = [
+        item
+        for item in campaign_items
+        if cast("dict[str, object]", item["publication"])["mode"]
+        == policy.publication_terminal_mode
+    ]
+
+    budget = source_budget_report(repo)
+    policy_facts = policy.model_dump(
+        mode="json",
+        exclude={"rules", "publication", "publication_projection"},
+    )
+    facts: dict[str, object] = {
+        "report": report,
+        "campaigns": terminal_campaigns,
+        "budget": budget,
+    }
+    facts["required_gaps"] = [
+        *policy.evaluate("publication", facts=facts),
+        *evaluate_cel_gap_groups(
+            policy.publication.gap_groups,
+            facts=facts,
+            policy=policy_facts,
+        ),
+    ]
+    facts["advisory_gaps"] = [
+        *policy.evaluate("publication_advisory", facts=facts),
+        *evaluate_cel_gap_groups(
+            policy.publication.advisory_gap_groups,
+            facts=facts,
+            policy=policy_facts,
+        ),
+    ]
+    return cast(
+        "dict[str, object]",
+        evaluate_cel_value(
+            policy.publication_projection,
+            facts=facts,
+            policy=policy_facts,
+            rule={},
+        ),
+    )

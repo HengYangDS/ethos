@@ -1,16 +1,1 @@
-{
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://ethos.local/schemas/evidence.schema.json",
-  "title": "ETHOS Evidence",
-  "type": "object",
-  "required": ["id", "change_id", "kind", "refs"],
-  "properties": {
-    "id": {"type": "string"},
-    "change_id": {"type": "string"},
-    "kind": {"type": "string"},
-    "refs": {"type": "array", "items": {"type": "string"}},
-    "head": {"type": ["string", "null"]},
-    "digest": {"type": ["string", "null"]}
-  },
-  "additionalProperties": false
-}
+{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://ethos.local/schemas/evidence.schema.json","title":"ETHOS Evidence","type":"object","required":["id","change_id","kind","refs"],"properties":{"id":{"type":"string"},"change_id":{"type":"string"},"kind":{"type":"string"},"refs":{"type":"array","items":{"type":"string"}},"head":{"type":["string","null"]},"digest":{"type":["string","null"]}},"additionalProperties":false}

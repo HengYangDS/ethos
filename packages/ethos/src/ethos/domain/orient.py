@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 _FOREIGN_SPEC = (
     "branch:s path:s head:s lease:d lease_state:s claim_id:s claim_binding:s "
     "closeout_disposition:s residue_state:s next_action:s coordination_state:s "
-    "action_preview:d path_scope:l dirty:b"
+    "action_preview:d path_scope:l dirty:o"
 )
 _UNBOUND_SPEC = "branch:s head:s claim_id:s claim_binding:s relation_to_accepted:s next_action:s"
 _RESIDUE_SPEC = "branch:s closeout_disposition:s residue_state:s dirty:b"
@@ -31,6 +31,7 @@ def orientation_packet(
     closeout, coordination = _dict(status_payload.get("closeout_support")), _dict(
         status_payload.get("coordination")
     )
+    coordination_detail_state = str(coordination.get("detail_state") or "exact")
     candidate, runtime = _dict(status_payload.get("candidate")), _dict(
         status_payload.get("runtime_binding")
     )
@@ -60,16 +61,24 @@ def orientation_packet(
         }),
         command_prefix=command_prefix,
     )
-    dirty_foreign = sum(bool(lane.get("dirty")) for lane in foreign_lanes)
+    dirty_foreign = _coordination_count(
+        coordination, "dirty_foreign_work_lane_count",
+        fallback=sum(lane.get("dirty") is True for lane in foreign_lanes),
+    )
     advisory_count = int(report_summary.get("advisory_gap_count") or len(report_advisory))
     coordination_view = _project(
         coordination,
         "blocking:b foreign_work_lane_count:i unbound_work_lane_count:i missing_lease_count:i "
-        "overlap_count:i closeout_residue_count:i dirty_closeout_residue_count:i "
         "advisory_items:l:advisory_gaps required_items:l:required_gaps next_action:s",
     )
     coordination_view.update({
+        "detail_state": coordination_detail_state,
         "dirty_foreign_work_lane_count": dirty_foreign,
+        "overlap_count": _coordination_count(coordination, "overlap_count"),
+        "closeout_residue_count": _coordination_count(coordination, "closeout_residue_count"),
+        "dirty_closeout_residue_count": _coordination_count(
+            coordination, "dirty_closeout_residue_count"
+        ),
         "closeout_residue_lanes": _summaries(
             coordination.get("closeout_residue_lanes"), _RESIDUE_SPEC
         ),
@@ -88,6 +97,7 @@ def orientation_packet(
         "capability": capability, "foreign_count": len(foreign_lanes),
         "unbound_count": len(unbound_refs),
         "missing_lease_count": coordination_view["missing_lease_count"],
+        "coordination_detail_state": coordination_detail_state,
         "dirty_foreign_count": dirty_foreign,
         "closeout_residue_count": coordination_view["closeout_residue_count"],
         "gaps": gaps, "advisory_count": advisory_count, "next_actions": next_actions,
@@ -163,10 +173,10 @@ def _coordination_line(coordination: Mapping[str, Any]) -> str:
         int(coordination.get(name) or 0)
         for name in ("foreign_work_lane_count", "unbound_work_lane_count")
     )
-    parts = (
-        [f"{foreign_count} foreign lane(s){_lane_detail(coordination)}"]
-        if foreign_count else []
+    detail = _lane_detail(
+        coordination, deferred_label="detail deferred; run ethos lane status --json"
     )
+    parts = [f"{foreign_count} foreign lane(s){detail}"] if foreign_count else []
     if unbound_count:
         parts.append(f"{unbound_count} unbound ref(s)")
     if bool(coordination.get("blocking")) or string_sequence(coordination.get("required_items")):
@@ -180,6 +190,7 @@ def _project(value: object, spec: str) -> dict[str, Any]:
     converters: dict[str, Callable[[object], Any]] = {
         "s": lambda item: str(item or ""), "b": bool,
         "i": lambda item: int(cast("int | str", item or 0)),
+        "o": lambda item: item if isinstance(item, bool) else None,
         "l": string_sequence, "d": _dict,
     }
     for token in spec.split():
@@ -193,6 +204,15 @@ def _summaries(value: object, spec: str) -> list[dict[str, Any]]:
         _project(item, spec)
         for item in cast("list[object]", value or []) if isinstance(item, dict)
     ]
+
+
+def _coordination_count(
+    coordination: Mapping[str, Any], key: str, *, fallback: int = 0,
+) -> int | None:
+    if str(coordination.get("detail_state") or "exact") == "deferred":
+        return None
+    value = coordination.get(key)
+    return fallback if value is None else int(cast("int | str", value))
 
 
 def _report_values(report_payload: Mapping[str, Any] | None, key: str) -> list[str]:
@@ -316,7 +336,12 @@ def _bound_actions(actions: list[str], *, command_prefix: str) -> list[str]:
     ]
 
 
-def _lane_detail(values: Mapping[str, Any]) -> str:
+def _lane_detail(values: Mapping[str, Any], *, deferred_label: str = "detail deferred") -> str:
+    detail_state = str(
+        values.get("detail_state") or values.get("coordination_detail_state") or "exact"
+    )
+    if detail_state == "deferred":
+        return f" ({deferred_label})"
     details = [
         f"{values.get(key)} {label}"
         for key, label in (
@@ -336,6 +361,7 @@ def _human_summary(context: Mapping[str, Any]) -> str:
     foreign_count, unbound_count = int(context["foreign_count"]), int(context["unbound_count"])
     state = "dirty" if dirty else "gapped" if gaps else "ready"
     lane_detail = {
+        "coordination_detail_state": context.get("coordination_detail_state"),
         "missing_lease_count": context.get("missing_lease_count"),
         "dirty_foreign_work_lane_count": context.get("dirty_foreign_count"),
         "closeout_residue_count": context.get("closeout_residue_count"),

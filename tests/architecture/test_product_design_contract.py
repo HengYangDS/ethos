@@ -260,6 +260,23 @@ def test_product_design_contract_defines_governed_repository() -> None:
     assert "shared governance context contract" in contracts_spec
 
 
+def test_repository_governance_defines_loss_bounded_successor_continuity() -> None:
+    repository_spec = read("openspec/specs/repository-governance/spec.md")
+
+    assert (
+        "### Requirement: Remote reconciliation continuation preserves historical carrier boundaries"
+        in repository_spec
+    )
+    for phrase in (
+        "original host worktree",
+        "same episode claim",
+        "re-execute current proof",
+        "no-reconstruction boundary",
+        "historical proof, temporary runtime\n  state, hosted CI, and remote publication",
+    ):
+        assert phrase in repository_spec
+
+
 def test_first_glance_docs_make_isomorphic_governance_discoverable() -> None:
     readme = prose("README.md")
     product = prose("docs/governance/product-design-contract.md")

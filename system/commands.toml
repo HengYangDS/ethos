@@ -6,6 +6,13 @@ source_refs = [
   "openspec/specs/command-plane/spec.md",
 ]
 
+[actions]
+campaign_continuation = ["ethos campaign status --json"]
+campaign_hypotheses = ["ethos audit --mode shape"]
+head_bound_proof = ["ethos prove --execute --expect-head <head>"]
+lane_prewrite = ["ethos lane prewrite <path>"]
+protected_publication = ["ethos publish --json"]
+
 [sets]
 public_workflow = [
   "ethos status",
@@ -30,6 +37,7 @@ maintainer_reference = [
   "ethos fleet",
   "ethos fleet retirement-readiness",
   "ethos lane",
+  "ethos lane housekeeping",
   "ethos lane lease",
   "ethos lane handoff",
   "ethos lane resolution",
@@ -102,7 +110,12 @@ report_handler = { provider = "ethos.surface.cli.root.inspection:_orient_report"
     "orientation",
     "coordination",
     "dirty_foreign_work_lane_count",
-  ], default = 0 },
+  ] },
+  { name = "coordination_detail_state", path = [
+    "orientation",
+    "coordination",
+    "detail_state",
+  ], default = "exact" },
   { name = "coordination_advisory_count", path = [
     "orientation",
     "coordination",
@@ -184,7 +197,12 @@ report_handler = { provider = "ethos.surface.cli.root.inspection:_status_report"
     "orientation",
     "coordination",
     "dirty_foreign_work_lane_count",
-  ], default = 0 },
+  ] },
+  { name = "coordination_detail_state", path = [
+    "orientation",
+    "coordination",
+    "detail_state",
+  ], default = "exact" },
   { name = "coordination_advisory_count", path = [
     "status",
     "coordination",
@@ -391,7 +409,7 @@ group = "quality"
 import_path = "ethos.surface.cli.quality.core:toml_quality"
 help = "Run TOML syntax and format checks through Taplo."
 show = true
-tool_handler = { gate_id = "toml-config", tool = "bash", command = ["bash", "tools/ci/scripts/run-config-lint.sh"], file_globs = ["*.toml"] }
+tool_handler = { gate_id = "config-quality", tool = "bash", command = ["bash", "tools/ci/scripts/run-config-lint.sh"], file_globs = ["*.toml"] }
 
 [[commands]]
 name = "yaml"
@@ -399,7 +417,7 @@ group = "quality"
 import_path = "ethos.surface.cli.quality.core:yaml_quality"
 help = "Run YAML projection checks through yamllint."
 show = true
-tool_handler = { gate_id = "yaml-config", tool = "bash", command = ["bash", "tools/ci/scripts/run-config-lint.sh"], file_globs = ["*.yml", "*.yaml"] }
+tool_handler = { gate_id = "config-quality", tool = "bash", command = ["bash", "tools/ci/scripts/run-config-lint.sh"], file_globs = ["*.yml", "*.yaml"] }
 
 [[commands]]
 name = "coverage"
@@ -461,7 +479,7 @@ group = "quality"
 import_path = "ethos.surface.cli.quality.core:source_budget"
 help = "Report global executable-source budget and compression debt."
 show = true
-report_handler = { provider = "ethos.domain.prove:source_budget_report", enforce = true, bind_root = true }
+report_handler = { provider = "ethos.domain.source_budget.core:source_budget_report", state_mode = "advisory_gaps", enforce = true, bind_root = true }
 
 [[commands]]
 name = "module-layout"

@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-07-19
+goal: Restore fail-closed truth convergence across coverage, bounded
+  coordination readers, scorecards, proof, and local publication readiness

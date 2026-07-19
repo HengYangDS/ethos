@@ -107,7 +107,12 @@ def hook_admission_report(  # noqa: PLR0911, PLR0913, RUF100 - fail-closed exits
 
 
 def push_admission_report(
-    *, root: Path, target_ref: str, pushed_head: str, **options: object
+    *,
+    root: Path,
+    target_ref: str,
+    pushed_head: str,
+    campaign_publication: dict[str, object] | None = None,
+    **options: object,
 ) -> dict[str, object]:
     """Admit a push only when its branch, identity, proof, and topology agree."""
     remote_head = str(options.get("remote_head") or "")
@@ -154,7 +159,11 @@ def push_admission_report(
     base: dict[str, object] = {"ok": True, "state": "admitted", "hook": "pre-push"}
     base.update(target_ref=target_ref, target_branch=branch, role=role, remote_name=remote_name)
     base.update(pushed_head=pushed_head, remote_head=remote_head)
-    base.update(publication_branch_admission=branch_admission, identity_policy=identity)
+    base.update(
+        publication_branch_admission=branch_admission,
+        identity_policy=identity,
+        campaign_publication=campaign_publication or {},
+    )
     base.update(decision={"action": "allow", "reason": "push_admitted"}, required_gaps=[])
     proof_gaps = (
         mutation_core.proof_gaps(repo, pushed_head)

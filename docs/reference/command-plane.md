@@ -203,6 +203,8 @@ Work Lane admission:
 
 ```bash
 ethos lane status
+ethos lane housekeeping --json
+ethos lane housekeeping --authorize --apply --json
 ethos lane candidate --path <candidate-worktree-path> --apply --expect-head <git-head>
 ethos lane candidate --refresh-from-accepted --apply --authorize --expect-head <git-head>
 ethos lane start <name> --path <worktree-path> --holder-ref <holder-ref> --claim-id <claim> --apply
@@ -217,8 +219,16 @@ ethos lane resolution inventory --json
 ethos lane resolution clear --decision-id <decision-id> --expect-manifest-sha256 <sha256> --chronicle-ref <accepted-chronicle> --reason <why> --break-glass --confirm-irreversible --apply
 ethos lane retire landed --branch <work-lane-branch> --expect-head <work-lane-head> --apply
 ethos lane retire superseded --branch <work-lane-branch> --expect-head <work-lane-head> --absorbed-by <accepted-head> --reason <why> --authorize --apply
-ethos lane retire unbound --branch <work-lane-branch> --expect-head <git-head> --reason <why> --authorize --apply
+ethos lane retire unbound --branch <work-lane-branch> --expect-head <git-head> --reason <why>
 ```
+
+`ethos lane housekeeping` is a separate detached-worktree cleanup surface, not
+a Work Lane retirement shortcut. Dry-run is the default. Authorized apply can
+remove only a clean, detached, unlocked checkout below the active session temp
+root, the system `/tmp` real path, or an explicit
+`$ETHOS_HOUSEKEEPING_ROOTS` entry. It rechecks the candidate and uses
+non-forced `git worktree remove`; dirty, branch-bound, locked, current,
+non-temporary, unreadable, or changed entries remain protected.
 
 When `--root` is omitted, CLI commands resolve the current Git worktree root
 from `cwd`. A Work Lane subdirectory therefore binds to that Work Lane, not to
@@ -372,26 +382,31 @@ linked Work Lanes whose semantic truth has already been absorbed into the curren
 accepted root but whose stale branch content must not be landed. It is dry-run by
 default; apply mode requires `--authorize`, `--expect-head`, `--absorbed-by` equal
 to the current accepted head, a non-empty `--reason`, compatible holder binding,
-and accepted-root tree content that matches the lane's changed paths, then
-deletes `refs/heads/<branch>` with a head-bound ref transaction and removes the
-previously verified-clean linked worktree. If the worktree removal fails after
-ref deletion,
-ETHOS attempts to restore the ref before reporting the blocked cleanup. It does
-not replace `ethos land` or `ethos lane retire landed`; it closes a distinct superseded
-linked-lane residue state.
-`ethos lane retire unbound` is the maintainer cleanup path for local unbound
+and accepted-root tree content that matches the lane's changed paths. Immediately
+before any effect, ETHOS reobserves the registered path, branch ref, checkout
+HEAD, and tracked/untracked status. It then removes the verified-clean linked
+worktree without `--force` before deleting only the exact observed ref with a
+head-bound transaction. A worktree-removal failure leaves the ref and lease
+intact; a ref comparison failure after worktree removal leaves the newer or
+unobservable ref and lease intact as an explicit partial-transition residue. It
+does not replace `ethos land` or `ethos lane retire landed`; it closes a distinct
+superseded linked-lane residue state.
+`ethos lane retire unbound` is a fail-closed inspection path for local unbound
 Work Lane refs that already appear in `data.coordination.unbound_work_lane_refs`.
-It is dry-run by default; apply mode requires `--authorize`, `--expect-head`,
-and a non-empty `--reason`, then deletes `refs/heads/<branch>` with a
-head-bound Git ref transaction. It does not replace `ethos land` or
-`ethos lane retire landed`, and it does not remove linked worktrees.
+It requires an exact `--expect-head` and a non-empty `--reason` to bind the
+inspection request; apply mode additionally requires `--authorize`, but the
+ordinary command has no destructive success branch. It preserves the ref and
+reports that a separately governed, evidence-bound exceptional deletion
+admission is required. It does not replace `ethos land` or `ethos lane retire
+landed`, and it does not remove linked worktrees, revoke leases, or infer safety
+from a missing registration.
 The standard local lifecycle is product state even when a host provides its own
 presentation: create the Work Lane through `ethos lane start`, attach claim
 evidence with `ethos lane bind-claim` when needed, refresh the lane base only
 through `ethos lane refresh-base`, land only through `ethos land`, retire
 landed lanes through `ethos lane retire landed`, retire absorbed linked-lane
-residue through `ethos lane retire superseded`, and retire unbound residue refs
-through `ethos lane retire unbound`. Raw Git
+residue through `ethos lane retire superseded`, and inspect unbound residue refs
+through `ethos lane retire unbound` before a separately admitted exceptional deletion path. Raw Git
 worktree creation is an observable repository fact, but it is not admitted as
 the standard ETHOS workflow state because it has no ETHOS lease or claim
 boundary. `ethos orient --json` provides a derived reader view for human/agent discoverability;
@@ -473,7 +488,11 @@ OpenSpec-backed Work Lanes. Each `data.campaigns[].steps[]` item carries
 `ordinal`, `depends_on`, `openspec_change`, `work_lane`, `claim_id`, and
 `closeout`; `data.campaigns[].lane_topology` reports the serial edges, current
 active step, and next planned step. A campaign coordinates many lane closeouts;
-it is not itself the executable lane.
+it is not itself the executable lane. `active`/`in_progress` steps require an
+active OpenSpec carrier, `archived`/`landed` steps require an archived carrier
+with non-terminal closeout, and `closed`/`retired` steps require archived,
+terminal closeout evidence. `data.publication.scope = "repository"` remains
+repository-wide even when the command filters the displayed Campaign.
 `data.remote_publication.state = "deferred"` is expected while the remote
 publication adapter is unavailable.
 Parity refresh is likewise command-bound. When tracked shadow evidence is
@@ -542,6 +561,14 @@ an application-time delta conflict is reported as
 `openspec_archive_preflight_failed:<change>:<official-code>` before plan, proof,
 land, or accepted-root closeout. The source workspace is never archived or
 rewritten by this projection.
+
+`ethos openspec --change <logical-id> --json` is only for active OpenSpec
+Changes. A dated archive directory name is rejected rather than forwarded as an
+active identifier. To read historical archive identity, use
+`ethos openspec --archive-id <logical-id> --json`: it resolves exactly one
+`YYYY-MM-DD-<logical-id>` carrier and fails closed on invalid, missing, or
+ambiguous identifiers. This reader neither selects by date nor rewrites an
+archived carrier.
 
 Proof states are execution-depth states. `ethos prove --json` is readiness and
 reports `state=ready` with `executed=false` when planning and static admission

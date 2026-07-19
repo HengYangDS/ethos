@@ -1095,3 +1095,180 @@ HEAD-stability check as its unsharded execution.
 - **THEN** it combines all completed shard coverage before enforcing the
   declared coverage floor
 - **AND** it leaves no trust-bearing claim that a hosted provider ran.
+
+### Requirement: Campaign-terminal source-budget enforcement
+
+ETHOS SHALL permit a campaign to defer terminal source-budget settlement across
+multiple locally closed Changes while retaining explicit measurement and debt
+lifecycle truth. Source-budget terminal progress and active debt SHALL remain
+advisory for ordinary protected remote publication after local closeout; full
+proof and global compression closeout SHALL still require terminal settlement.
+
+#### Scenario: Campaign binding is exact
+
+- **GIVEN** source-budget enforcement is `campaign_terminal`
+- **WHEN** the policy is validated through the typed contract or published JSON
+  Schema
+- **THEN** exactly one non-empty external `campaign_id` SHALL be required
+- **AND** `transition` and `terminal` policies SHALL reject `campaign_id`.
+
+#### Scenario: Campaign-local growth remains explicit
+
+- **GIVEN** source-budget enforcement is `campaign_terminal`
+- **WHEN** the current maintained executable surface is measured
+- **THEN** growth above baseline plus declared allowance SHALL appear as a
+  `source_budget_campaign_growth_overage` advisory
+- **AND** current-size and terminal-target non-attainment SHALL NOT by themselves
+  block a Campaign-local Change
+- **AND** invalid policy, aggregate declared-debt overflow, expired debt, and
+  stale debt SHALL remain local blocking gaps
+- **AND** terminal-target non-attainment and active debt SHALL be reported as
+  campaign publication advisories rather than ordinary protected-push blockers.
+
+#### Scenario: Full proof retains terminal compression settlement
+
+- **GIVEN** a campaign has unresolved terminal source-budget or active-debt
+  progress
+- **WHEN** ETHOS executes full proof or global compression closeout
+- **THEN** source-budget settlement SHALL remain required for the terminal
+  program claim
+- **AND** ordinary local-closeout publication SHALL not claim that terminal
+  program completion.
+
+### Requirement: Coverage writer evidence is fail-closed
+
+ETHOS SHALL report Python coverage policy, configuration, current artifact, and
+writer ownership without allowing an unverified lock to satisfy or defer the
+hard coverage floor.
+
+#### Scenario: Active writer remains blocking until evidence exists
+
+- **WHEN** `ethos quality coverage --json` observes a missing coverage artifact
+  and a writer lock with a parseable owner PID and matching live process-start
+  fingerprint
+- **THEN** it SHALL report `state=in_progress`
+- **AND** it SHALL report a blocking `coverage_artifact_write_in_progress` gap
+- **AND** report, prove, enterprise readiness, and local publication SHALL NOT
+  treat the coverage gate as clean until the artifact exists.
+
+#### Scenario: Invalid or stale writer does not hide missing evidence
+
+- **WHEN** the coverage writer lock lacks owner metadata, contains malformed
+  metadata, names a dead PID, or names a reused PID with a different process
+  start
+- **THEN** ETHOS SHALL retain `coverage_artifact_missing`
+- **AND** it SHALL expose the observed lock state without claiming an active
+  writer.
+
+#### Scenario: Test owner script recovers invalid stale locks safely
+
+- **WHEN** the Python test owner script encounters a proven-dead writer
+- **THEN** it SHALL reclaim the lock and continue
+- **AND** when owner metadata remains missing or malformed for the complete
+  bounded wait, it MAY reclaim that persistently invalid lock once and retry
+- **AND** it SHALL never preempt a valid live owner.
+
+### Requirement: Product hard-quality floor covers current generated state
+
+ETHOS SHALL include generated-artifact topology in the product hard-quality
+floor consumed by scorecard and local publication readiness.
+
+#### Scenario: Current generated-artifact drift blocks green readiness
+
+- **WHEN** `ethos quality generated-artifacts --json` reports required gaps
+- **THEN** `ethos report --json` SHALL include those gaps in the hard-quality
+  layer
+- **AND** product `ethos publish --json` SHALL report local readiness blocked
+- **AND** an earlier HEAD-bound proof SHALL NOT override the current local-state
+  blocker.
+
+### Requirement: Locale-Stable External CLI Assertions
+
+ETHOS local quality tests SHALL bind human-readable external CLI assertions to
+a deterministic message locale when the asserted semantics are represented
+only by localized text.
+
+#### Scenario: Git bundle complete-history verification
+
+- **GIVEN** a cross-host handoff bundle created by the ETHOS test fixture
+- **WHEN** the test invokes `git bundle verify`
+- **THEN** the command SHALL execute successfully
+- **AND** the complete-history text assertion SHALL use the C message locale
+- **AND** the surrounding test process and shared Git helpers SHALL remain
+  unchanged.
+
+### Requirement: Commit-time staged secret admission fails closed under the repository-owned tool contract
+
+The tracked ETHOS pre-commit hook MUST run the repository-owned staged-secret
+runner against the Git index before Ruff formatting or ordinary ETHOS write
+admission. The runner MUST use the repository-selected gitleaks version and
+policy, MUST fully redact matched values, and MUST NOT install tools, access the
+network, scan history, or write quality evidence.
+
+#### Scenario: Staged secret stops downstream admission
+
+- **WHEN** a non-empty staged index matches the active `.gitleaks.toml` policy
+- **THEN** the staged-secret runner MUST return a blocking result
+- **AND** the hook MUST stop before Ruff and `ethos.cli hook admit pre-tool`
+- **AND** stdout and stderr MUST NOT contain the matched value.
+
+#### Scenario: Clean staged content preserves the existing hook path
+
+- **WHEN** the staged-secret runner accepts the non-empty staged index
+- **THEN** the hook MUST continue to the existing staged-Python Ruff check
+- **AND** it MUST continue to repository-root-bound ETHOS write admission.
+
+#### Scenario: Missing or incompatible scanner fails closed without host mutation
+
+- **WHEN** the selected gitleaks executable is missing or reports an incompatible version
+- **THEN** the runner MUST fail with a stable non-secret diagnostic naming the expected version
+- **AND** the hook MUST NOT install a binary, invoke a package manager, access the network, or continue downstream.
+
+#### Scenario: Full secret proof remains a separate owner path
+
+- **WHEN** local or hosted quality proof scans the tracked tree and Git history
+- **THEN** it MUST continue through the existing full secret gate and evidence path
+- **AND** the commit-time runner MUST NOT claim that full-tree or history proof occurred.
+
+### Requirement: Budget Contract v2 Migration Integrity
+
+ETHOS SHALL preserve the versioned v1 source-budget baseline, thresholds, debt
+lifecycle, inventory rules, and historical/current required or advisory
+observations at their named HEADs while migrating to Budget Contract v2. The
+migration SHALL introduce a typed carrier inventory and versioned,
+non-compensating native metric vector before v2 can become authoritative. ELOC
+SHALL remain the individual-file readability ceiling; repository-wide LOC
+retirement requires a later accepted calibration and supersession decision.
+
+#### Scenario: Foundation extraction preserves v1 behavior
+
+- **GIVEN** the v1 source-budget command is evaluated at a stable HEAD, whether
+  its policy projects blocking required gaps or campaign-terminal advisories
+- **WHEN** its domain implementation moves from `ethos.domain.prove` to
+  `ethos.domain.source_budget.core`
+- **THEN** controlled inputs SHALL preserve taxonomy, policy facts, command
+  state and exit status, baseline identity, metric classification, debt
+  lifecycle, campaign binding, and required/advisory-gap semantics
+- **AND** the command registry and scorecard SHALL use the new owner directly
+- **AND** `ethos.domain.prove` SHALL not retain a compatibility forwarder.
+
+#### Scenario: Migration cannot launder existing debt
+
+- **WHEN** v2 shadow, dual control, or cutover evaluates an existing v1
+  obligation
+- **THEN** the v1 baseline SHALL remain
+  `2dab77f169eceb2d45f917358c2a7487e7ac8db6`
+- **AND** expired debt SHALL remain expired
+- **AND** no average LOC-to-token conversion, allowance increase, expiry
+  extension, or current-HEAD baseline reset SHALL be accepted
+- **AND** a v1 required gap SHALL disappear only after settlement evidence or an
+  equal-or-stronger named v2 successor obligation exists.
+
+#### Scenario: Migration and compression completion remain distinct
+
+- **WHEN** v2 becomes authoritative and repository-wide v1 LOC is retired
+- **THEN** ETHOS MAY report Budget Contract v2 migration complete while terminal
+  compression remains blocked
+- **AND** compression completion SHALL additionally require every terminal
+  vector to pass and active, expired, unmapped, and unclassified debt counts to
+  be zero.

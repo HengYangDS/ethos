@@ -1,0 +1,5 @@
+schema: spec-driven
+created: 2026-07-19
+goal: Record the exact stale-lane audit and fail closed without authorizing any
+  resolution decision or effect until a separate accepted native-safety repair
+  satisfies every binding, completion, replay, recovery, and lease invariant.

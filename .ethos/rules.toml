@@ -65,7 +65,8 @@ test_effective_max_lines = 800
 # The parent of the global-declarative-compression Work Lane. This baseline is
 # never reset by a migration; every tracked executable carrier remains visible.
 baseline_head = "2dab77f169eceb2d45f917358c2a7487e7ac8db6"
-enforcement = "transition"
+enforcement = "campaign_terminal"
+campaign_id = "global-declarative-compression-program"
 
 [quality.source_budget.baseline]
 python_product = 35675
@@ -88,10 +89,9 @@ python_total = 58722
 global_total = 73739
 
 [quality.source_budget.debt]
-maximum_total = 8376
+maximum_total = 165
 waves = [
-  { id = "node-runtime-compatibility-compression", due_on = "2026-07-18", state = "active" },
-  { id = "repo-first-worktree-governance", due_on = "2026-07-25", state = "active" },
+  { id = "node-runtime-compatibility-compression", due_on = "2026-10-28", state = "active" },
 ]
 
 [[quality.source_budget.debt.records]]
@@ -103,16 +103,6 @@ expiry = "2026-10-28"
 allowance = 165
 expected_net_deletion = 165
 allowance_by_category = { python_tests = 135, shell = 107 }
-
-[[quality.source_budget.debt.records]]
-id = "repo-first-worktree-governance-bootstrap-20260718"
-owner = "repo-first-worktree-governance-campaign-20260718"
-replacement = "complete the campaign bootstrap local closeout and retire its owned Work Lane; the archived carrier is retained as historical evidence, and later campaign slices must use their own evidence-bound growth decisions"
-deletion_wave = "repo-first-worktree-governance"
-expiry = "2026-07-25"
-allowance = 213
-expected_net_deletion = 213
-allowance_by_category = { toml = 213 }
 
 [gates.local-state-audit]
 command = "tools/ci/scripts/run-local-state-audit.sh"

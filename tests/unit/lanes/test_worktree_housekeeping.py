@@ -127,6 +127,45 @@ def test_housekeeping_preserves_candidate_that_changes_before_removal(
     assert changing.exists()
 
 
+def test_housekeeping_preserves_clean_candidate_whose_head_changes_on_recheck(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    repo, _candidate = init_repo_with_candidate(tmp_path)
+    changing = tmp_path / "head-changing-detached"
+    _add_detached(repo, changing)
+    original_run_git = worktree_housekeeping.run_git
+    inventory_calls = 0
+
+    def change_rechecked_head(root: Path, *args: str, check: bool = True):
+        nonlocal inventory_calls
+        completed = original_run_git(root, *args, check=check)
+        if args == ("worktree", "list", "--porcelain"):
+            inventory_calls += 1
+            if inventory_calls == 2:
+                blocks = completed.stdout.split("\n\n")
+                completed.stdout = "\n\n".join(
+                    block.replace("HEAD ", f"HEAD {'f' * 40}\noriginal ", 1)
+                    if f"worktree {changing.resolve().as_posix()}" in block
+                    else block
+                    for block in blocks
+                )
+        return completed
+
+    monkeypatch.setattr(worktree_housekeeping, "run_git", change_rechecked_head)
+    report = worktree_housekeeping.housekeeping_worktrees(
+        root=repo,
+        temporary_roots=(tmp_path,),
+        authorized=True,
+        apply=True,
+    )
+
+    assert report["required_gaps"] == [
+        f"housekeeping_candidate_stale:{changing.resolve().as_posix()}"
+    ]
+    assert changing.exists()
+
+
 def test_housekeeping_default_roots_cover_system_and_session_temp(tmp_path: Path) -> None:
     repo, _candidate = init_repo_with_candidate(tmp_path)
     report = worktree_housekeeping.housekeeping_worktrees(root=repo)

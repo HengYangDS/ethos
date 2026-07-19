@@ -110,48 +110,45 @@ def openspec(
     """Audit official OpenSpec governance state."""
     repo = resolve_root(root)
     if change and archive_id:
-        result = EthosResult(
-            command="openspec",
-            ok=False,
-            state="invalid",
-            summary={
-                "change": change,
-                "archive_id": archive_id,
+        ok, state, summary, gaps, actions, data = (
+            False,
+            "invalid",
+            {"change": change, "archive_id": archive_id, "lifecycle": lifecycle},
+            ("openspec_change_archive_selector_conflict",),
+            ("use either --change or --archive-id",),
+            {},
+        )
+    elif archive_id:
+        archive = archive_query_report(repo, logical_id=archive_id)
+        ok, state, summary = (
+            bool(archive["ok"]),
+            str(archive["state"]),
+            {"archive_id": archive_id, "lifecycle": False},
+        )
+        gaps, data = tuple(str(gap) for gap in archive["required_gaps"]), {"archive_query": archive}
+        actions = ("use a logical Change ID, not a dated archive directory",) if not ok else ()
+    else:
+        report = openspec_governance_report(repo, change=change, lifecycle=lifecycle)
+        ok, state, summary = (
+            bool(report["ok"]),
+            "clean" if report["ok"] else "gapped",
+            {
+                "change": report["change"],
+                "schema_name": report["schema_name"],
                 "lifecycle": lifecycle,
             },
-            required_gaps=("openspec_change_archive_selector_conflict",),
-            next_actions=("use either --change or --archive-id",),
-            data={},
         )
-        emit(result, json_output=json_output, enforce=False)
-        return
-    if archive_id:
-        archive = archive_query_report(repo, logical_id=archive_id)
-        result = EthosResult(
+        gaps, actions, data = tuple(report["required_gaps"]), ("ethos audit",), report
+    emit(
+        EthosResult(
             command="openspec",
-            ok=bool(archive["ok"]),
-            state=str(archive["state"]),
-            summary={"archive_id": archive_id, "lifecycle": False},
-            required_gaps=tuple(str(gap) for gap in archive["required_gaps"]),
-            next_actions=("use a logical Change ID, not a dated archive directory",)
-            if not archive["ok"]
-            else (),
-            data={"archive_query": archive},
-        )
-        emit(result, json_output=json_output, enforce=False)
-        return
-    report = openspec_governance_report(repo, change=change, lifecycle=lifecycle)
-    result = EthosResult(
-        command="openspec",
-        ok=bool(report["ok"]),
-        state="clean" if report["ok"] else "gapped",
-        summary={
-            "change": report["change"],
-            "schema_name": report["schema_name"],
-            "lifecycle": lifecycle,
-        },
-        required_gaps=tuple(report["required_gaps"]),
-        next_actions=("ethos audit",),
-        data=report,
+            ok=ok,
+            state=state,
+            summary=summary,
+            required_gaps=gaps,
+            next_actions=actions,
+            data=data,
+        ),
+        json_output=json_output,
+        enforce=False,
     )
-    emit(result, json_output=json_output, enforce=False)

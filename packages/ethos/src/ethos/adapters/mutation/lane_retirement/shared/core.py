@@ -53,11 +53,7 @@ def remove_linked_lane(
         runtime=active_runtime,
     )
     if gaps:
-        return {
-            "ok": False,
-            "state": "blocked",
-            "required_gaps": gaps,
-        }
+        return _blocked(gaps)
     remove = active_runtime.run_git(
         lane_path,
         "worktree",
@@ -66,12 +62,7 @@ def remove_linked_lane(
         check=False,
     )
     if remove.returncode != 0:
-        return {
-            "ok": False,
-            "state": "blocked",
-            "required_gaps": ["worktree_remove_failed"],
-            "stderr": remove.stderr.strip(),
-        }
+        return _blocked(["worktree_remove_failed"], stderr=remove.stderr.strip())
     ref = f"refs/heads/{branch}"
     delete = active_runtime.run_git(
         repo,
@@ -83,11 +74,15 @@ def remove_linked_lane(
     )
     if delete.returncode == 0:
         return {}
+    return _blocked(["branch_delete_failed_after_worktree_removed"], stderr=delete.stderr.strip())
+
+
+def _blocked(gaps: list[str], *, stderr: str | None = None) -> dict[str, object]:
     return {
         "ok": False,
         "state": "blocked",
-        "required_gaps": ["branch_delete_failed_after_worktree_removed"],
-        "stderr": delete.stderr.strip(),
+        "required_gaps": gaps,
+        **({"stderr": stderr} if stderr is not None else {}),
     }
 
 
@@ -115,17 +110,19 @@ def _linked_lane_reobservation_gaps(
     if not path or not lane_path.exists() or not lane_path.is_dir():
         gaps.append("retirement_worktree_path_unavailable")
         return gaps
-    ref = f"refs/heads/{branch}"
-    ref_check = runtime.run_git(lane_path, "rev-parse", ref, check=False)
-    if ref_check.returncode != 0:
-        gaps.append("retirement_ref_unavailable")
-    elif expect_head and ref_check.stdout.strip() != expect_head:
-        gaps.append("retirement_ref_stale")
-    head_check = runtime.run_git(lane_path, "rev-parse", "HEAD", check=False)
-    if head_check.returncode != 0:
-        gaps.append("retirement_worktree_head_unavailable")
-    elif expect_head and head_check.stdout.strip() != expect_head:
-        gaps.append("retirement_worktree_head_stale")
+    for target, unavailable, stale in (
+        (f"refs/heads/{branch}", "retirement_ref_unavailable", "retirement_ref_stale"),
+        (
+            "HEAD",
+            "retirement_worktree_head_unavailable",
+            "retirement_worktree_head_stale",
+        ),
+    ):
+        observed = runtime.run_git(lane_path, "rev-parse", target, check=False)
+        if observed.returncode != 0:
+            gaps.append(unavailable)
+        elif expect_head and observed.stdout.strip() != expect_head:
+            gaps.append(stale)
     status = runtime.run_git(
         lane_path,
         "status",

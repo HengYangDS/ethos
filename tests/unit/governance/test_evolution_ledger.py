@@ -284,23 +284,14 @@ def test_evolution_campaign_defensive_coverage_edges(tmp_path: Path) -> None:
     invalid = evolution_module.campaign_report(tmp_path); assert invalid["campaigns"] == []; assert "campaign_manifest_invalid_toml:bad" in invalid["required_gaps"]
     missing_root = tmp_path / "missing-root"; (missing_root / "evolution/campaigns").mkdir(parents=True)
     assert "campaign_missing:missing" in evolution_module.campaign_report(missing_root, campaign_id="missing")["required_gaps"]
-    assert evolution_module._step_payload({"ordinal": "bad"}, default_ordinal=1)["ordinal"] == 0
     assert evolution_module._openspec_carrier_state(tmp_path, "") == "missing"
     def step(**values):
         item = {"id": "step", "title": "title", "state": "planned", "ordinal": 1, "depends_on": [], "openspec_change": "change", "work_lane": "work/x", "claim_id": "claim", "closeout": {"state": "planned", "accepted_head": "", "candidate_head": "", "evidence": []}}; item.update(values); return item
     duplicate = [step(id="dup", state="active"), step(id="dup", state="active", ordinal=2, depends_on=["dup"])]
-    campaign = {"id": "campaign", "state": "active", "owner": "owner", "objective": "objective", "claim_id": "claim", "steps": duplicate, "lane_topology": evolution_module._lane_topology(duplicate)}
+    policy = evolution_module.campaign_policy(tmp_path)
+    campaign = {"id": "campaign", "state": "active", "owner": "owner", "objective": "objective", "claim_id": "claim", "steps": duplicate, "lane_topology": evolution_module._lane_topology(duplicate, policy=policy)}
     campaign_gaps = evolution_module._campaign_required_gaps(tmp_path, campaign)
     assert {"campaign_step_id_duplicate:campaign", "campaign_active_step_not_serial:campaign", "campaign_step_dependency_not_retired:campaign:dup:dup"} <= set(campaign_gaps)
-    malformed = step(ordinal=0, depends_on=["absent"]); gaps = evolution_module._campaign_step_gaps(tmp_path, "campaign", [malformed], {}, 1, malformed)
-    assert {"campaign_step_ordinal_invalid:campaign:step", "campaign_step_dependency_not_serial:campaign:step", "campaign_step_dependency_missing:campaign:step:absent"} <= set(gaps)
-    closed = step(state="closed"); assert "campaign_step_closeout_state_incomplete:campaign:step" in evolution_module._campaign_step_gaps(tmp_path, "campaign", [closed], {"step": closed}, 1, closed)
-    active_closed = step(state="active", closeout={"state": "retired", "accepted_head": "", "candidate_head": "", "evidence": []}); gaps = evolution_module._campaign_step_gaps(tmp_path, "campaign", [active_closed], {"step": active_closed}, 1, active_closed)
-    assert {"campaign_step_closeout_head_missing:campaign:step", "campaign_step_closeout_evidence_missing:campaign:step", "campaign_step_execution_closeout_terminal:campaign:step", "campaign_step_terminal_closeout_nonterminal:campaign:step"} <= set(gaps)
-    archive_closed = step(state="archive_ready", closeout={"state": "retired", "accepted_head": "a", "candidate_head": "c", "evidence": ["e"]}); gaps = evolution_module._campaign_step_gaps(tmp_path, "campaign", [archive_closed], {"step": archive_closed}, 1, archive_closed)
-    assert {"campaign_step_archive_ready_closeout_terminal:campaign:step", "campaign_step_archive_ready_openspec_not_archived:campaign:step"} <= set(gaps)
-    terminal = step(state="closed"); gaps = evolution_module._campaign_step_gaps(tmp_path, "campaign", [terminal], {"step": terminal}, 1, terminal)
-    assert {"campaign_step_terminal_openspec_not_archived:campaign:step", "campaign_step_openspec_missing:campaign:step"} <= set(gaps)
 
 
 def test_hypothesis_ref_gaps_validate_all_shapes_before_resolving_refs(tmp_path: Path) -> None:

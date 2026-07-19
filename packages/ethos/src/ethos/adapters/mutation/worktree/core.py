@@ -1,5 +1,7 @@
 """Safe inventory and cleanup for detached temporary Git worktrees."""
 
+# ruff: noqa: E501 - source-budget closeout keeps equivalent reason/result tables compact.
+
 from __future__ import annotations
 
 import os
@@ -9,101 +11,51 @@ from pathlib import Path
 from ethos.adapters.mutation.lane_lifecycle.core import repo_root
 from ethos.adapters.mutation.lane_lifecycle.core import run_git
 
+# fmt: off
 
-def housekeeping_worktrees(
-    *,
-    root: Path,
-    temporary_roots: tuple[Path, ...] | None = None,
-    authorized: bool = False,
-    apply: bool = False,
-) -> dict[str, object]:
+def housekeeping_worktrees(*, root: Path, temporary_roots: tuple[Path, ...] | None = None, authorized: bool = False, apply: bool = False) -> dict[str, object]:
     """Inventory worktrees and remove only clean detached temporary entries."""
-    repo = repo_root(root)
-    roots = _temporary_roots(temporary_roots)
+    repo, roots = repo_root(root), _temporary_roots(temporary_roots)
     entries = _inventory(repo, roots)
     if entries is None:
-        return {
-            "ok": False,
-            "state": "blocked",
-            "summary": {
-                "worktree_count": 0,
-                "detached_count": 0,
-                "removable_count": 0,
-                "protected_count": 0,
-                "removed_count": 0,
-            },
-            "entries": [],
-            "temporary_roots": [path.as_posix() for path in roots],
-            "removed_paths": [],
-            "required_gaps": ["housekeeping_inventory_failed"],
-        }
+        return _report([], roots, [], ["housekeeping_inventory_failed"], apply=apply)
     gaps = ["authorization_required"] if apply and not authorized else []
     removed: list[str] = []
-    if apply and not gaps:
-        for entry in entries:
-            if entry["removable"] is not True:
-                continue
-            current = _entry(repo, Path(str(entry["path"])), roots)
-            if current is None or current["removable"] is not True:
-                gaps.append(f"housekeeping_candidate_stale:{entry['path']}")
-                continue
-            completed = run_git(
-                repo,
-                "worktree",
-                "remove",
-                str(entry["path"]),
-                check=False,
-            )
-            if completed.returncode:
-                gaps.append(f"housekeeping_remove_failed:{entry['path']}")
-            else:
-                removed.append(str(entry["path"]))
+    for planned in entries if apply and not gaps else ():
+        if planned["removable"] is not True:
+            continue
+        path, current = Path(str(planned["path"])), _entry(repo, Path(str(planned["path"])), roots)
+        if current is None or current["removable"] is not True or current["head"] != planned["head"]:
+            gaps.append(f"housekeeping_candidate_stale:{path}")
+        elif run_git(repo, "worktree", "remove", str(path), check=False).returncode:
+            gaps.append(f"housekeeping_remove_failed:{path}")
+        else:
+            removed.append(str(path))
+    return _report(entries, roots, removed, gaps, apply=apply)
+
+
+def _report(entries: list[dict[str, object]], roots: tuple[Path, ...], removed: list[str], gaps: list[str], *, apply: bool) -> dict[str, object]:
     summary = {
-        "worktree_count": len(entries),
-        "detached_count": sum(entry["detached"] is True for entry in entries),
+        "worktree_count": len(entries), "detached_count": sum(entry["detached"] is True for entry in entries),
         "removable_count": sum(entry["removable"] is True for entry in entries),
-        "protected_count": sum(entry["removable"] is not True for entry in entries),
-        "removed_count": len(removed),
+        "protected_count": sum(entry["removable"] is not True for entry in entries), "removed_count": len(removed),
     }
+    state = "blocked" if gaps else "cleaned" if removed else "ready" if apply else "planned"
     return {
-        "ok": not gaps,
-        "state": "blocked"
-        if gaps
-        else "cleaned"
-        if apply and removed
-        else "ready"
-        if apply
-        else "planned",
-        "summary": summary,
-        "entries": entries,
-        "temporary_roots": [path.as_posix() for path in roots],
-        "removed_paths": removed,
+        "ok": not gaps, "state": state, "summary": summary, "entries": entries,
+        "temporary_roots": [path.as_posix() for path in roots], "removed_paths": removed,
         "required_gaps": sorted(set(gaps)),
     }
 
 
-def _inventory(
-    repo: Path,
-    roots: tuple[Path, ...],
-) -> list[dict[str, object]] | None:
+def _inventory(repo: Path, roots: tuple[Path, ...]) -> list[dict[str, object]] | None:
     listed = run_git(repo, "worktree", "list", "--porcelain", check=False)
     if listed.returncode:
         return None
-    output = listed.stdout
-    records: list[dict[str, str]] = []
-    current: dict[str, str] = {}
-    for line in [*output.splitlines(), ""]:
-        if not line:
-            if current:
-                records.append(current)
-                current = {}
-            continue
-        key, _, value = line.partition(" ")
-        current[key] = value
+    records = (dict(line.partition(" ")[::2] for line in block.splitlines() if line) for block in listed.stdout.split("\n\n") if block.strip())
     entries: list[dict[str, object]] = []
     for record in records:
-        entry = _entry_from_record(repo, record, roots)
-        if entry is None:
+        if (entry := _entry_from_record(repo, record, roots)) is None:
             return None
         entries.append(entry)
     return entries
@@ -111,73 +63,34 @@ def _inventory(
 
 def _entry(repo: Path, path: Path, roots: tuple[Path, ...]) -> dict[str, object] | None:
     entries = _inventory(repo, roots)
-    if entries is None:
-        return None
-    return next(
-        (entry for entry in entries if entry["path"] == path.resolve().as_posix()),
-        None,
-    )
+    return None if entries is None else next((entry for entry in entries if entry["path"] == path.resolve().as_posix()), None)
 
 
-def _entry_from_record(
-    repo: Path,
-    record: dict[str, str],
-    roots: tuple[Path, ...],
-) -> dict[str, object] | None:
-    raw_path = record.get("worktree", "")
-    if not raw_path:
+def _entry_from_record(repo: Path, record: dict[str, str], roots: tuple[Path, ...]) -> dict[str, object] | None:
+    if not (raw_path := record.get("worktree", "")):
         return None
-    path = Path(raw_path).resolve()
-    branch = record.get("branch", "").removeprefix("refs/heads/")
+    path, branch = Path(raw_path).resolve(), record.get("branch", "").removeprefix("refs/heads/")
     detached = "detached" in record and not branch
-    reasons: list[str] = []
-    if branch:
-        reasons.append("worktree_branch_bound")
-    elif "locked" in record:
-        reasons.append("worktree_locked")
-    elif path == repo.resolve():
-        reasons.append("worktree_is_audit_root")
-    elif not path.exists():
-        reasons.append("worktree_missing")
-    else:
-        status = run_git(path, "status", "--porcelain", check=False)
-        if status.returncode:
-            reasons.append("worktree_status_unavailable")
-        elif status.stdout.strip():
-            reasons.append("worktree_dirty")
-        elif not any(_below(path, candidate) for candidate in roots):
-            reasons.append("worktree_outside_temporary_roots")
+    reasons = _protection_reasons(repo, path, branch, record, roots)
     return {
-        "path": path.as_posix(),
-        "head": record.get("HEAD", ""),
-        "branch": branch or "detached",
-        "detached": detached,
-        "removable": detached and not reasons,
-        "reasons": reasons,
+        "path": path.as_posix(), "head": record.get("HEAD", ""), "branch": branch or "detached",
+        "detached": detached, "removable": detached and not reasons, "reasons": reasons,
     }
+
+
+def _protection_reasons(repo: Path, path: Path, branch: str, record: dict[str, str], roots: tuple[Path, ...]) -> list[str]:
+    structural = ((bool(branch), "worktree_branch_bound"), ("locked" in record, "worktree_locked"), (path == repo.resolve(), "worktree_is_audit_root"), (not path.exists(), "worktree_missing"))
+    if reason := next((code for blocked, code in structural if blocked), ""):
+        return [reason]
+    status = run_git(path, "status", "--porcelain", check=False)
+    dynamic = ((bool(status.returncode), "worktree_status_unavailable"), (bool(status.stdout.strip()), "worktree_dirty"), (not any(path != root and path.is_relative_to(root) for root in roots), "worktree_outside_temporary_roots"))
+    reason = next((code for blocked, code in dynamic if blocked), "")
+    return [reason] if reason else []
 
 
 def _temporary_roots(explicit: tuple[Path, ...] | None) -> tuple[Path, ...]:
     if explicit is not None:
         return tuple(path.resolve() for path in explicit)
-    configured = tuple(
-        Path(value).expanduser().resolve()
-        for value in os.environ.get("ETHOS_HOUSEKEEPING_ROOTS", "").split(os.pathsep)
-        if value.strip()
-    )
-    candidates = (
-        Path(tempfile.gettempdir()).resolve(),
-        _system_temporary_root(),
-        *configured,
-    )
-    return tuple(dict.fromkeys(candidates))
-
-
-def _system_temporary_root() -> Path:
-    """Return the platform's filesystem-root temporary directory."""
+    configured = (Path(value).expanduser().resolve() for value in os.environ.get("ETHOS_HOUSEKEEPING_ROOTS", "").split(os.pathsep) if value.strip())
     temporary = Path(tempfile.gettempdir()).resolve()
-    return (Path(temporary.anchor) / "tmp").resolve()
-
-
-def _below(path: Path, parent: Path) -> bool:
-    return path != parent and path.is_relative_to(parent)
+    return tuple(dict.fromkeys((temporary, (Path(temporary.anchor) / "tmp").resolve(), *configured)))

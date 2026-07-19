@@ -33,12 +33,10 @@ def coverage_quality_report(root: Path) -> dict[str, object]:
     advisory_gaps: list[str] = []
 
     if writer["writer_state"] != "absent":
-        artifact.update(writer)
-        artifact["writer_lock"] = WRITE_LOCK_PATH.as_posix()
+        artifact.update(writer | {"writer_lock": WRITE_LOCK_PATH.as_posix()})
     if writer_active:
         missing_gap = f"coverage_artifact_missing:{ARTIFACT_PATH.as_posix()}"
-        if missing_gap in gaps:
-            gaps.remove(missing_gap)
+        gaps = [gap for gap in gaps if gap != missing_gap]
         gaps.append(f"coverage_artifact_write_in_progress:{WRITE_LOCK_PATH.as_posix()}")
         advisory_gaps.append(f"coverage_artifact_writer_active:{WRITE_LOCK_PATH.as_posix()}")
         artifact["writer_active"] = True
@@ -142,9 +140,8 @@ def _writer_state(root: Path) -> dict[str, object]:
     lock = root / WRITE_LOCK_PATH
     if not lock.exists():
         return {"writer_state": "absent"}
-    owner = root / WRITE_LOCK_OWNER_PATH
     try:
-        owner_text = owner.read_text(encoding="utf-8").rstrip("\n")
+        owner_text = (root / WRITE_LOCK_OWNER_PATH).read_text(encoding="utf-8").rstrip("\n")
     except FileNotFoundError:
         return {
             "writer_state": "invalid",
@@ -161,28 +158,17 @@ def _writer_state(root: Path) -> dict[str, object]:
             "writer_state": "invalid",
             "writer_reason": "coverage_artifact_writer_owner_malformed",
         }
-    pid = int(parts[0])
-    recorded_start = parts[1]
+    pid, recorded_start = int(parts[0]), parts[1]
     current_start = _process_start(pid)
-    if not current_start:
-        return {
-            "writer_state": "dead",
-            "writer_reason": "coverage_artifact_writer_process_missing",
-            "writer_pid": pid,
-            "writer_started_at": recorded_start,
-        }
+    details = {"writer_pid": pid, "writer_started_at": recorded_start}
     if current_start != recorded_start:
+        reason = "process_missing" if not current_start else "process_reused"
         return {
             "writer_state": "dead",
-            "writer_reason": "coverage_artifact_writer_process_reused",
-            "writer_pid": pid,
-            "writer_started_at": recorded_start,
+            "writer_reason": f"coverage_artifact_writer_{reason}",
+            **details,
         }
-    return {
-        "writer_state": "active",
-        "writer_pid": pid,
-        "writer_started_at": recorded_start,
-    }
+    return {"writer_state": "active", **details}
 
 
 def _process_start(pid: int) -> str:
@@ -192,9 +178,7 @@ def _process_start(pid: int) -> str:
         text=True,
         capture_output=True,
     )
-    if completed.returncode != 0:
-        return ""
-    return " ".join(completed.stdout.split())
+    return " ".join(completed.stdout.split()) if completed.returncode == 0 else ""
 
 
 def _multiline_option(parser: configparser.ConfigParser, section: str, option: str) -> list[str]:

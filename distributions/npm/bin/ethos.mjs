@@ -4,8 +4,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 
-const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
-const ARGS = process.argv.slice(2);
+const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url)), ARGS = process.argv.slice(2);
 
 function parentOf(path) {
   const parent = dirname(path);

@@ -194,8 +194,10 @@ def _proof_digest(root, head):
 def proof_required_gaps(proof: object) -> list[str]:
     if not isinstance(proof, dict):
         return ["proof_invalid"]
-    raw = proof.get("required_gaps", [])
-    return [str(gap) for gap in raw] if isinstance(raw, list) else ["proof_invalid"]
+    raw = proof.get("required_gaps")
+    if not isinstance(raw, list) or not raw or not all(isinstance(gap, str) for gap in raw):
+        return ["proof_invalid"]
+    return [gap for gap in raw if isinstance(gap, str)]
 
 
 def proof_carry_failure(request: CloseoutRequest, proof: object) -> dict[str, object] | None:

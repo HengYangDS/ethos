@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import sqlite3
 import subprocess
+from contextlib import closing
 from typing import TYPE_CHECKING
 
 import pytest
@@ -22,6 +23,7 @@ if TYPE_CHECKING:
 _CLAIM_ID = "exceptional-unbound-test-claim"
 _CHRONICLE_REF = "evidence/chronicle/exceptional-unbound-test/2026-07-19.md"
 _OBSERVE = "_" + "observe"
+_STALE_OBSERVATION_GAP = "unbound_retire_pre_effect_observation_stale"
 
 
 def _write(path: Path, text: str) -> None:
@@ -157,7 +159,7 @@ def _insert_racing_lease(database: Path, *, branch: str, head: str, holder: str)
         },
         sort_keys=True,
     )
-    with sqlite3.connect(database, timeout=0) as connection:
+    with closing(sqlite3.connect(database, timeout=0)) as connection:
         connection.execute("begin immediate")
         connection.execute(
             "insert into leases(id, subject, owner, expires_at, payload_json) "
@@ -310,14 +312,18 @@ def test_commit_failure_compensation(monkeypatch, tmp_path: Path, rc: int) -> No
 
 
 @pytest.mark.parametrize(
-    ("mode", "gap"),
+    ("mode", "gaps"),
     [
-        ("lease", "unbound_retire_active_lease"),
-        ("claim", "unbound_retire_pre_effect_observation_stale"),
+        ("lease", ("unbound_retire_active_lease", _STALE_OBSERVATION_GAP)),
+        ("claim", (_STALE_OBSERVATION_GAP,)),
     ],
 )
-def test_predelete_recheck_blocks_drift(monkeypatch, tmp_path: Path, mode: str, gap: str) -> None:
-    repo, branch, head, chronicle, holder, _lease = _leased_case(tmp_path, monkeypatch)
+def test_predelete_recheck_blocks_drift(
+    monkeypatch, tmp_path: Path, mode: str, gaps: tuple[str, ...]
+) -> None:
+    repo, branch, head, chronicle, _holder, lease = _leased_case(tmp_path, monkeypatch)
+    active = observation.public_lease(lease)
+    active["holder_ref"] = "agent:test:racing"
     real_observe = getattr(retirement, _OBSERVE)
     count = 0
 
@@ -328,16 +334,10 @@ def test_predelete_recheck_blocks_drift(monkeypatch, tmp_path: Path, mode: str, 
         if count != 3:
             return observed
         if mode == "lease":
-            state.acquire_lease(
-                repo_root / ".ethos/state/state.sqlite",
-                subject=branch,
-                holder_ref=holder,
-                payload={"branch": branch, "expected_head": head},
-            )
-            return real_observe(repo_root, branch=branch, chronicle_ref=chronicle_ref)
+            return {**observed, observation.HAS_ACTIVE_LEASE: True, "active_lease": active}
         return {**observed, "claim_id": "drifted-claim"}
 
     monkeypatch.setattr(retirement, _OBSERVE, changed)
     report = _apply(repo, branch, head, chronicle)
-    assert report["required_gaps"] == [gap]
+    assert report["required_gaps"] == list(gaps)
     assert git(repo, "rev-parse", "--verify", branch) == head

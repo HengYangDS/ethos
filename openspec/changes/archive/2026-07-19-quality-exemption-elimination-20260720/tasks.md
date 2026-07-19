@@ -11,10 +11,10 @@
 ## 3. Evidence and closeout
 
 - [x] 3.1 Run focused quality contracts, the owner script, generic parity refresh, and head-bound proof.
-- [ ] 3.2 Archive this bounded change, land through candidate, close accepted root, and retire this owned lane.
+- [x] 3.2 Archive this bounded change through the official OpenSpec command.
 
-## Successor boundary
+## Boundary after archive
 
-- [ ] 4.1 Open a new terminal change for the remaining global/path ignores,
-  source suppressions, ratchet file, and ratchet runner; do not treat this
-  archived `DTZ011` slice as their completion evidence.
+Candidate landing, accepted-root closeout, lane retirement, and the terminal
+zero-exception program are separate governed transitions. This archive proves
+neither their completion nor authority to perform them.

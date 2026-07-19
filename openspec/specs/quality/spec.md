@@ -33,7 +33,9 @@ state, configuration, and optional gate boundary.
 ### Requirement: Python Lint and Format Ratchet
 
 ETHOS SHALL enforce Python lint and format through Ruff and SHALL keep explicitly
-frozen ignored-rule debt visible and non-increasing.
+frozen ignored-rule debt visible and non-increasing. A rule whose finding count
+reaches zero SHALL leave both the ignore set and ratchet, returning to direct
+enforcement.
 
 #### Scenario: Ruff gate blocks current hard rules and ignored-rule growth
 
@@ -53,6 +55,13 @@ frozen ignored-rule debt visible and non-increasing.
   ratchet and returns to the hard Ruff rule set
 - **AND** a rule baseline may be lowered when findings are removed, but may not
   increase without an explicit quality debt decision
+
+#### Scenario: A zero-finding temporal rule returns to direct enforcement
+
+- **WHEN** the policy-exception clock uses an explicit UTC calendar boundary
+- **THEN** the whole tracked Python corpus reports zero `DTZ011` findings
+- **AND** `DTZ011` is absent from the Ruff ignore list and ratchet baseline
+- **AND** any future `DTZ011` finding blocks the ordinary Ruff owner script
 
 ### Requirement: Gate Descriptor Model
 
@@ -835,6 +844,15 @@ exception once a package is governed by this requirement.
 - **THEN** the type policy contains no ratchet table or equivalent exception
 - **AND** a future diagnostic blocks immediately rather than establishing a
   new tolerated count
+
+#### Scenario: Type checks use a checkout-bound runtime without ambient venv noise
+
+- **WHEN** `ethos quality types --json` checks a governed package from a Work Lane
+- **THEN** the type adapter invokes the checkout-local runtime wrapper before
+  `uv run --locked --all-packages --group dev python -m ty`
+- **AND** the wrapper binds the runtime to `build/runtime/venv` for that checkout
+- **AND** an inherited `VIRTUAL_ENV` neither redirects resolution nor emits a
+  false active-environment mismatch warning
 
 ### Requirement: Declarative Product-Parity Test Partitions
 

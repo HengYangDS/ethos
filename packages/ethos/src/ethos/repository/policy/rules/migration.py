@@ -400,11 +400,11 @@ def _profiles_block(lines: list[str], active_profiles: list[str]) -> list[str]:
 
 
 def _profiles_active_assignment_end(lines: list[str], start: int) -> int:
-    return next(
-        end
-        for end in range(start + 1, len(lines) + 1)
-        if _profiles_active_assignment_is_complete(lines, start, end)
-    )
+    for end in range(start + 1, len(lines) + 1):
+        if _profiles_active_assignment_is_complete(lines, start, end):
+            return end
+    msg = "profiles.active assignment could not be isolated"
+    raise ValueError(msg)
 
 
 def _profiles_active_assignment_is_complete(lines: list[str], start: int, end: int) -> bool:

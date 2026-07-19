@@ -7,7 +7,9 @@ from pathlib import Path
 
 import ethos.adapters.openspec.cli as openspec_cli
 import ethos.adapters.repo.status.core as status_core
+import ethos.surface.cli.root.inspection as inspection_cli
 import ethos.surface.cli.root.planning as planning_cli
+from ethos.repository.context import context_for_root
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.surface.cli._base import emit
 from ethos_core.contracts.package.ontology import package_ontology_report
@@ -95,6 +97,19 @@ def _assert_governed_repository_context(context: dict[str, object], *, profile: 
 
 def test_primary_commands_expose_top_level_governance_context(monkeypatch) -> None:
     monkeypatch.setattr(status_core, "_foreign_work_lanes", lambda *_args, **_kwargs: [])
+
+    def scorecard_context_only(repo: Path, **_kwargs) -> dict[str, object]:
+        """Keep this command-envelope contract independent of scorecard cost."""
+        return {
+            "ok": True,
+            "state": "ready",
+            "summary": {},
+            "required_gaps": (),
+            "next_actions": (),
+            "data": {"governance_context": context_for_root(repo)},
+        }
+
+    monkeypatch.setattr(inspection_cli, "scorecard_report", scorecard_context_only)
 
     for command in PRIMARY_COMMANDS_WITH_GOVERNANCE_CONTEXT:
         payload = run_ethos(*command)

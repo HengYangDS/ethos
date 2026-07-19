@@ -14,6 +14,7 @@ Effective LOC = physical lines, minus:
 from __future__ import annotations
 
 import ast
+from functools import lru_cache
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -37,9 +38,9 @@ def _string_expr_line_spans(tree: ast.AST) -> set[int]:
     return spans
 
 
-def effective_code_lines(path: Path) -> int:
-    """Count effective code lines in a Python file (see module docstring)."""
-    source = path.read_text(encoding="utf-8")
+@lru_cache(maxsize=4_096)
+def _effective_code_lines_for_source(source: str) -> int:
+    """Measure immutable Python source once for repeated read-only reports."""
     try:
         tree: ast.AST | None = ast.parse(source)
     except SyntaxError:
@@ -56,3 +57,8 @@ def effective_code_lines(path: Path) -> int:
             continue
         count += 1
     return count
+
+
+def effective_code_lines(path: Path) -> int:
+    """Count effective code lines in a Python file (see module docstring)."""
+    return _effective_code_lines_for_source(path.read_text(encoding="utf-8"))

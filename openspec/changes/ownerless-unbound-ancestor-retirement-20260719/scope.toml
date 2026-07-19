@@ -2,9 +2,9 @@ schema_version = 1
 paths = [
   "docs/plans/ownerless-unbound-ancestor-retirement-20260719.md",
   "evidence/claims/ownerless-unbound-ancestor-retirement-20260719.toml",
-  "evidence/claims/worktree-retirement-fail-closed-unbound-retirement-20260720.toml",
+  "evidence/claims/worktree-retirement-fail-closed-unbound-retirement-20260719.toml",
   "evidence/chronicle/ownerless-unbound-ancestor-retirement-20260719/**",
-  "evidence/chronicle/worktree-retirement-fail-closed-unbound-retirement-20260720/**",
+  "evidence/chronicle/worktree-retirement-fail-closed-unbound-retirement-20260719/**",
   "openspec/changes/ownerless-unbound-ancestor-retirement-20260719/**",
   "openspec/specs/repository-governance/spec.md",
 ]

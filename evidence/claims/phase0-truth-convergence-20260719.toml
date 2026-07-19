@@ -2,13 +2,13 @@
 id = "phase0-truth-convergence-20260719"
 subject = "ethos:phase0-truth-convergence"
 state = "active"
-summary = "Implemented local-only carrier with recorded pre-archive checks for fail-closed coverage, bounded reader, scorecard, and publish truth convergence."
+summary = "Implemented local-only truth convergence with recorded pre-archive checks and exact HEAD-bound proof; archive and local landing transitions remain separate."
 
 [evidence]
 dated = "evidence/chronicle/phase0-truth-convergence-20260719/2026-07-19.md"
-sha256 = "5017da2aebd9046f36e848c1b141b704d33b400cc6e16a4cd826989964646982"
+sha256 = "38b6da6dd2c2823acdcecd7824d76397469d8fc1c96d18fb6200c9a90d77f945"
 evidence_ids = ["evidence:phase0-truth-convergence-20260719"]
-binding = "The dated Chronicle binds reproduced failures, implementation boundaries, focused and full owner test observations, current hard-quality observations, local publish readiness, and the explicit no-remote boundary; HEAD-bound proof and archive remain separate."
+binding = "The dated Chronicle binds reproduced failures, implementation boundaries, focused and full owner test observations, current hard-quality observations, local publish readiness, the exact pre-archive HEAD-bound proof observation, and the explicit no-remote boundary; archive and final post-archive proof remain separate."
 verifier = "digest_only"
 tests = [
   "tools/ci/scripts/run-python-tests.sh",

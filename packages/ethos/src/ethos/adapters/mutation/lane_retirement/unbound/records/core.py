@@ -15,9 +15,12 @@ import ethos.adapters.mutation.lane_retirement.unbound.observation.core as obser
 ATTEMPT_KIND = "exceptional_unbound_retirement_attempt"
 RECEIPT_KIND = "exceptional_unbound_retirement_receipt"
 MAX_STABLE_ERROR_LENGTH = 240
+_RECORD_COLLISION = "unbound_retire_record_collision"
+_RECORD_UNSAFE = "unbound_retire_record_unsafe"
+_RECORD_INVALID = "unbound_retire_record_invalid"
 
 
-def operation_id(
+def operation_id(  # noqa: PLR0913, RUF100 - exact record identity preserves bound state dimensions
     *,
     branch: str,
     expect_head: str,
@@ -82,7 +85,7 @@ def attempt_payload(
     }
 
 
-def receipt_payload(
+def receipt_payload(  # noqa: PLR0913, RUF100 - exact receipt preserves bound state dimensions
     *,
     operation_id: str,
     branch: str,
@@ -116,7 +119,7 @@ def receipt_payload(
         "postconditions": {
             "ref_absent": not bool(after["head"]),
             "unbound_absent": not bool(after["status_unbound"]),
-            "active_lease_absent": not bool(after[observation.ACTIVE_LEASE_PRESENT]),
+            "active_lease_absent": not bool(after[observation.HAS_ACTIVE_LEASE]),
             "protected_refs_unchanged": before["protected_refs"] == after["protected_refs"],
             "chronicle_unchanged": chronicle_unchanged,
         },
@@ -158,7 +161,7 @@ def write_record(path: Path, payload: dict[str, object], *, kind: str) -> str:
     existing = read_record(path, kind=kind)
     if existing:
         if existing != payload:
-            raise ValueError("unbound_retire_record_collision")
+            raise ValueError(_RECORD_COLLISION)
         return path.as_posix()
     path.parent.mkdir(parents=True, exist_ok=True)
     descriptor, temporary_name = tempfile.mkstemp(
@@ -174,7 +177,7 @@ def write_record(path: Path, payload: dict[str, object], *, kind: str) -> str:
             os.link(temporary, path)
         except FileExistsError as exc:
             if read_record(path, kind=kind) != payload:
-                raise ValueError("unbound_retire_record_collision") from exc
+                raise ValueError(_RECORD_COLLISION) from exc
     finally:
         temporary.unlink(missing_ok=True)
     descriptor = os.open(path.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC)
@@ -192,13 +195,13 @@ def read_record(path: Path, *, kind: str) -> dict[str, object]:
     except FileNotFoundError:
         return {}
     if not stat.S_ISREG(mode):
-        raise ValueError("unbound_retire_record_unsafe")
+        raise ValueError(_RECORD_UNSAFE)
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
-        raise ValueError("unbound_retire_record_invalid") from exc
+        raise ValueError(_RECORD_INVALID) from exc
     if not isinstance(payload, dict):
-        raise TypeError("unbound_retire_record_invalid")
+        raise TypeError(_RECORD_INVALID)
     validate_record(payload, kind=kind)
     return payload
 
@@ -236,21 +239,21 @@ def validate_record(payload: dict[str, object], *, kind: str) -> None:
         or payload.get("kind") != kind
         or payload.get("schema_version") != 1
     ):
-        raise ValueError("unbound_retire_record_invalid")
+        raise ValueError(_RECORD_INVALID)
     if not str(payload.get("operation_id") or "").startswith("exceptional-unbound-retirement:"):
-        raise ValueError("unbound_retire_record_invalid")
+        raise ValueError(_RECORD_INVALID)
     if not str(payload.get("branch") or "").startswith("work/"):
-        raise ValueError("unbound_retire_record_invalid")
+        raise ValueError(_RECORD_INVALID)
     if not sha256_text_fields(
         payload, "expected_head", "accepted_head", "chronicle_sha256", "chronicle_claim_sha256"
     ):
-        raise ValueError("unbound_retire_record_invalid")
+        raise ValueError(_RECORD_INVALID)
     if payload.get("mints_authority") is not False or payload.get("recheck_required") is not True:
-        raise ValueError("unbound_retire_record_invalid")
+        raise ValueError(_RECORD_INVALID)
     protected_key = "protected_refs" if kind == ATTEMPT_KIND else "protected_refs_before"
     protected = payload.get(protected_key)
     if not isinstance(protected, dict) or not protected or not all(protected.values()):
-        raise ValueError("unbound_retire_record_invalid")
+        raise ValueError(_RECORD_INVALID)
     if kind == RECEIPT_KIND:
         expected = {
             "ref_absent",
@@ -266,7 +269,7 @@ def validate_record(payload: dict[str, object], *, kind: str) -> None:
             or set(postconditions) != expected
             or not all(value is True for value in postconditions.values())
         ):
-            raise ValueError("unbound_retire_record_invalid")
+            raise ValueError(_RECORD_INVALID)
 
 
 def sha256_text_fields(payload: dict[str, object], *keys: str) -> bool:

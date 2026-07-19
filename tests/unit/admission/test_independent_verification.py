@@ -5,6 +5,7 @@ import subprocess
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
+from pathlib import Path
 
 import pytest
 
@@ -56,8 +57,9 @@ def test_disabled_policy_is_local_first_without_a_provider(tmp_path) -> None:
     assert report["evidence_class"] == "local_readiness"
 
 
+@pytest.mark.parametrize("carrier", ["missing", "malformed", "array", "mapping"])
 def test_optional_policy_accepts_absence_but_marks_supplied_invalid_receipt(
-    tmp_path,
+    tmp_path, carrier: str
 ) -> None:
     absent = independent_verification_report(
         root=tmp_path,
@@ -66,7 +68,11 @@ def test_optional_policy_accepts_absence_but_marks_supplied_invalid_receipt(
         receipt_path=None,
     )
     invalid = tmp_path / "receipt.json"
-    invalid.write_text("{}", encoding="utf-8")
+    if carrier != "missing":
+        invalid.write_text(
+            {"malformed": "{", "array": "[]", "mapping": "{}"}[carrier],
+            encoding="utf-8",
+        )
     supplied = independent_verification_report(
         root=tmp_path,
         policy=IndependentVerificationPolicy(mode="optional"),
@@ -114,6 +120,53 @@ def test_required_policy_fails_closed_and_accepts_only_exact_valid_receipt(
     assert accepted["evidence_class"] == "independently_reexecuted"
 
 
+def test_receipt_binding_survives_bundled_executable_retirement(tmp_path: Path) -> None:
+    """Keep exact provider-neutral admission after deleting shipped executables."""
+    base_payload = _receipt_payload()
+    assert str(base_payload["issued_at"]).endswith("Z")
+    request = {
+        key: base_payload[key]
+        for key in (
+            "remote",
+            "commit",
+            "tree",
+            "action",
+            "proof_floor_id",
+            "proof_floor_digest",
+            "policy_digest",
+            "implementation_digest",
+        )
+    }
+    replacements = {
+        "remote": "https://wrong.example/repo.git",
+        "commit": "f" * 40,
+        "tree": "f" * 40,
+        "action": "land",
+        "proof_floor_id": "proof-floor:wrong",
+        "proof_floor_digest": "f" * 64,
+        "policy_digest": "f" * 64,
+        "implementation_digest": "f" * 64,
+    }
+    receipt_path = tmp_path / "receipt.json"
+    for field, replacement in replacements.items():
+        payload = {**base_payload, field: replacement, "payload_digest": ""}
+        receipt = IndependentVerificationReceipt.model_validate(payload)
+        payload["payload_digest"] = receipt.canonical_payload_digest()
+        receipt_path.write_text(json.dumps(payload), encoding="utf-8")
+        report = independent_verification_report(
+            root=tmp_path,
+            policy=IndependentVerificationPolicy(mode="required"),
+            request=request,
+            receipt_path=receipt_path,
+            signature_verifier=lambda _receipt: True,
+        )
+        assert report["required_gaps"] == ["independent_verification_receipt_binding_mismatch"]
+
+    root = Path(__file__).resolve().parents[3]
+    assert not (root / "extensions/independent-verification").exists()
+    assert not (root / "packages/ethos/src/ethos/adapters/admission/control/verifier.py").exists()
+
+
 def test_profile_defaults_disabled_but_required_publish_is_action_scoped(
     tmp_path,
 ) -> None:
@@ -147,8 +200,6 @@ def test_profile_defaults_disabled_but_required_publish_is_action_scoped(
 def test_request_builder_binds_publish_to_exact_git_revision_and_gate_policy(
     monkeypatch, tmp_path
 ) -> None:
-    import ethos.adapters.admission.evidence.external as external  # noqa: PLC0415, RUF100 - patched boundary facts isolate this request contract
-
     monkeypatch.setattr(external.git, "git_stdout", lambda *_args: "origin-url")
     monkeypatch.setattr(external.git, "current_head", lambda _root: "a" * 40)
     monkeypatch.setattr(

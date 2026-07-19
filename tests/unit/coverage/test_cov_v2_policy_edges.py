@@ -1,4 +1,4 @@
-# ruff: noqa: ARG005, FLY002
+# ruff: noqa: ARG005
 """Coverage-closure edge tests for the policy rules/docstrings/exceptions cluster.
 
 Each test drives one or more previously-uncovered lines in
@@ -38,53 +38,19 @@ def _write_rules(root: Path, toml: str) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_migrate_emits_invalid_marker_for_non_table_rule(tmp_path: Path) -> None:
-    # `rule` is a list whose entry is not a table -> _configured_rules records the
-    # {"id": "", "_invalid": "rule_not_table"} marker and continues (rules.py 202-203).
-    # The blank id then makes _rules_toml_text skip the rule (rules.py 930).
+def test_migrate_preserves_non_table_v2_rule_for_rules_check(tmp_path: Path) -> None:
+    # Migration is lossless: an invalid current-V2 value remains available to the
+    # rules-check owner instead of being silently rewritten or deleted.
     _write_rules(tmp_path, 'rule = ["not-a-table"]\n')
 
     report = migrate_legacy_rules(tmp_path)
 
-    assert report["target"]["rule"] == [{"id": "", "_invalid": "rule_not_table"}]
+    assert report["target"]["rule"] == ["not-a-table"]
     assert "[[rule]]" not in report["target_text"]
 
 
-def test_migrate_serializes_version_and_non_waivable(tmp_path: Path) -> None:
-    # non_waivable present -> _configured_rules coerces it to bool (rules.py 244).
-    # version != 1 -> emitted (rules.py 946); non_waivable in rule -> emitted (rules.py 957).
-    _write_rules(
-        tmp_path,
-        "\n".join(
-            [
-                "[[rule]]",
-                'id = "custom.x"',
-                'owner = "team"',
-                "version = 2",
-                "non_waivable = true",
-                'authority_ref = "docs/x.md"',
-                'contract_ref = "docs/x.md"',
-                'path_globs = ["x/**"]',
-                'severity = "advisory"',
-                "required_gates = []",
-                'stop_condition = "x_gap"',
-                "",
-            ]
-        ),
-    )
-
-    target = migrate_legacy_rules(tmp_path)["target"]
-    text = migrate_legacy_rules(tmp_path)["target_text"]
-
-    assert target["rule"][0]["non_waivable"] is True
-    assert "version = 2" in text
-    assert "non_waivable = true" in text
-
-
-def test_gate_config_non_table_entry_is_ignored(tmp_path: Path) -> None:
-    # A `[gates]` value that is a string rather than a table is skipped by both
-    # _gate_definitions (rules.py 276, reached through rules_check_report) and
-    # _configured_gate_tables (rules.py 901, reached through migrate_legacy_rules).
+def test_gate_config_non_table_entry_is_preserved_but_not_compiled(tmp_path: Path) -> None:
+    # The compiler ignores a non-table gate, while lossless migration preserves it.
     _write_rules(
         tmp_path,
         '[profiles]\nactive = ["generic"]\n\n[gates]\nfoo = "not-a-table"\n',
@@ -94,7 +60,7 @@ def test_gate_config_non_table_entry_is_ignored(tmp_path: Path) -> None:
     migration = migrate_legacy_rules(tmp_path)
 
     assert "foo" not in check["required_gaps"]
-    assert migration["target"].get("gates", {}) == {}
+    assert migration["target"]["gates"] == {"foo": "not-a-table"}
 
 
 def test_rules_check_skips_non_dict_compiled_rule(

@@ -125,6 +125,19 @@ HEAD bindings at `data.evidence.head` and
 not a proof record. This keeps the bootstrap adapter bound to the product proof
 contract without adding a profile, provider, or adopter-specific branch.
 
+ETHOS does not ship the executable that makes this operator decision. The
+operator places the verifier executable, native proof JSON, bootstrap Chronicle
+decision, and resulting receipt outside the candidate worktree. The executable
+checks the proposed control change and emits a receipt conforming to
+`system/schemas/kernel/control-replacement-verifier-receipt.schema.json`; the
+receipt is then supplied explicitly through `--control-verifier-receipt`. Product
+admission rechecks the exact accepted and candidate HEADs, changed control paths,
+both control-tree digests, verifier digest, proof digest and native proof envelope,
+and bootstrap decision bindings before allowing closeout. The receipt is one-shot,
+mints no authority, and does not claim cryptographic independence from the local
+OS identity boundary described in DR-0006; stronger trust anchors remain an
+operator deployment choice.
+
 If the accepted root and candidate branch already resolve to the same HEAD,
 closeout is current rather than ready-to-mutate. `ethos land --closeout --json`
 reports `state = "accepted_current"`, `closeout_bootstrap.state = "current"`,

@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import json
 import os
 import sys
@@ -7,24 +5,18 @@ import tomllib
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 from ethos.adapters.repo.git import current_tracked_head
 
 ROOT = Path(__file__).resolve().parents[2]
 CONFIG_PATH = ROOT / ".config/checks/mcp/smoke.toml"
 OUTPUT_PATH = ROOT / "build/evidence/agent/mcp/smoke.json"
-RUNS_DIR = ROOT / "build/evidence/agent/mcp/runs"
-
-
-def _load_config() -> dict[str, Any]:
-    return tomllib.loads(CONFIG_PATH.read_text(encoding="utf-8"))
 
 
 def main() -> int:
-    config = _load_config()
+    config = tomllib.loads(CONFIG_PATH.read_text(encoding="utf-8"))
     failures: list[dict[str, str]] = []
-    checks: list[dict[str, Any]] = []
+    checks: list[dict[str, object]] = []
     for check in config.get("check", []):
         path = ROOT / str(check["path"])
         required_text = str(check["required_text"])
@@ -33,20 +25,20 @@ def main() -> int:
         if not present:
             failures.append({"id": str(check["id"]), "reason": f"missing {required_text}"})
     generated_at = datetime.now(UTC).isoformat()
-    head = current_tracked_head(ROOT)
     run_id = f"{generated_at.replace(':', '').replace('+', 'Z')}-{os.getpid()}"
-    run_output_path = RUNS_DIR / f"{run_id}.json"
+    run_output_path = ROOT / "build/evidence/agent/mcp/runs" / f"{run_id}.json"
+    boundary = config.get("boundary", {})
     payload = {
         "schema_version": 1,
         "kind": "ethos_mcp_projection_smoke",
         "ok": not failures,
-        "head": head,
+        "head": current_tracked_head(ROOT),
         "config": str(CONFIG_PATH.relative_to(ROOT)),
         "generated_at": generated_at,
         "evidence_path": str(run_output_path.relative_to(ROOT)),
         "latest_projection_path": str(OUTPUT_PATH.relative_to(ROOT)),
-        "claim_boundary": config.get("boundary", {}).get("claim", ""),
-        "not_claimed": config.get("boundary", {}).get("not_claimed", []),
+        "claim_boundary": boundary.get("claim", ""),
+        "not_claimed": boundary.get("not_claimed", []),
         "checks": checks,
         "failures": failures,
     }

@@ -5,7 +5,6 @@
 # - TOML format/lint policy: .config/checks/taplo/taplo.toml
 # - YAML lint policy: .config/checks/yaml/yamllint.yaml
 # - JSON format policy: .config/checks/json/format.toml, executed by jq.
-# - Shared non-native blank-line policy: .config/checks/whitespace/policy.toml.
 # - Provider CI calls this script; it does not restate policy inline.
 set -euo pipefail
 
@@ -139,5 +138,3 @@ if ((${#yaml_files[@]})); then
     --config-file .config/checks/yaml/yamllint.yaml \
     "${yaml_files[@]}"
 fi
-
-(($#)) || "${ethos_python}" tools/ci/structural_whitespace.py

@@ -22,7 +22,7 @@ def _fact(owner="test", value=None, *, fresh=True, available=True):
     }
 
 
-def test_rules_compile_normalizes_legacy_rules_profiles_and_gates(tmp_path):
+def test_rules_compile_fails_closed_on_ambiguous_profiles_and_keeps_gates(tmp_path):
     ethos_dir = tmp_path / ".ethos"
     ethos_dir.mkdir()
     (ethos_dir / "rules.toml").write_text(
@@ -46,9 +46,9 @@ evidence = ["unit"]
 
     compiled = compile_rules(tmp_path)
     legacy = next(rule for rule in compiled["rules"] if rule["id"] == "legacy.python")
-
-    assert compiled["profile_stack"] == ["generic", "python", "strict"]
-    assert compiled["coverage_tier"] == "strict"
+    assert compiled["profile_stack"] == ["generic"]
+    assert compiled["compile_gaps"] == ["rules_profile_ambiguous:active_contains_duplicates"]
+    assert compiled["coverage_tier"] == "starter"
     assert compiled["gate_definitions"]["custom"] == {
         "id": "custom",
         "command": "echo ok",

@@ -71,7 +71,11 @@ def test_land_blocks_completed_active_openspec_change_before_candidate_landing(
         cwd=repo,
     )
 
-    def fake_audit(root: Path, *, openspec_mode: str = "shape") -> dict[str, object]:  # noqa: ARG001, RUF100 - test double preserves the patched callable signature
+    def fake_audit(
+        root: Path, *, openspec_mode: str = "shape", current_head: str = ""
+    ) -> dict[str, object]:
+        assert openspec_mode == "shape"
+        assert current_head == ""
         return {"ok": True, "required_gaps": [], "root": root.as_posix()}
 
     def fake_openspec_lifecycle(root: Path) -> dict[str, object]:

@@ -210,18 +210,17 @@ def _advance_and_sync_accepted(
 ):
     intents = _write_intents(request.root, transitions, evidence_digest, policy_digest)
     try:
-        update = _ref_transaction(request.root, transitions, dependencies.run_git)
+        update = _ref_transaction(
+            request.root,
+            transitions,
+            dependencies.run_git,
+            ref_checks=((f"refs/heads/{request.policy.candidate_branch}", request.candidate_head),),
+        )
     finally:
         _clear_intents(request.root, intents)
     if update.returncode:
         dependencies.discard_proof(request.root, request.candidate_head)
-        return _blocked(
-            request.policy,
-            request.current_head,
-            ["accepted_advanced_concurrently"],
-            remediation=remediation.remediation_for_gaps(["accepted_advanced_concurrently"]),
-            stderr=update.stderr.strip(),
-        )
+        return _ref_transaction_failure(request, transitions[0], update, dependencies.run_git)
     synced, attempts = _sync(request.root, request.candidate_head, dependencies.run_git)
     if synced.returncode:
         return _blocked(
@@ -243,6 +242,45 @@ def _advance_and_sync_accepted(
             status=checked.stdout.strip(),
         )
     return attempts
+
+
+def _ref_transaction_failure(request, accepted, update, run_git):
+    """Classify atomic closeout failure from both observed source and target refs."""
+    accepted_now = run_git(
+        request.root, "rev-parse", "--verify", accepted.ref_name, check=False
+    ).stdout.strip()
+    candidate_ref = f"refs/heads/{request.policy.candidate_branch}"
+    candidate_now = run_git(
+        request.root, "rev-parse", "--verify", candidate_ref, check=False
+    ).stdout.strip()
+    observed = {
+        "stderr": update.stderr.strip(),
+        "observed_accepted_head": accepted_now,
+        "observed_candidate_head": candidate_now,
+    }
+    if accepted_now != accepted.old_value:
+        gaps = ["accepted_advanced_concurrently"]
+        return _blocked(
+            request.policy,
+            request.current_head,
+            gaps,
+            remediation=remediation.remediation_for_gaps(gaps),
+            **observed,
+        )
+    if candidate_now != request.candidate_head:
+        return _blocked(
+            request.policy,
+            request.current_head,
+            ["candidate_head_changed_after_control_replacement_check"],
+            verified_candidate_head=request.candidate_head,
+            **observed,
+        )
+    return _blocked(
+        request.policy,
+        request.current_head,
+        ["accepted_atomic_update_rejected"],
+        **observed,
+    )
 
 
 def _hook_bootstrap_required(request, release, dependencies):
@@ -285,10 +323,11 @@ def _clear_intents(root, intents):
         clear_closeout_intent(root, str(intent["nonce"]))
 
 
-def _ref_transaction(root, transitions, run_git):
+def _ref_transaction(root, transitions, run_git, *, ref_checks=()):
     program = "\n".join(
         [
             "start",
+            *(f"update {ref} {head} {head}" for ref, head in ref_checks),
             *(f"update {item.ref_name} {item.new_value} {item.old_value}" for item in transitions),
             "prepare",
             "commit",

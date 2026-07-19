@@ -198,7 +198,9 @@ def closeout_next_actions(
     return ("ethos prove --json",)
 
 
-def repository_audit_after_admission(repo: Path, decision: object) -> dict[str, object]:
+def repository_audit_after_admission(
+    repo: Path, decision: object, *, current_head: str = ""
+) -> dict[str, object]:
     """Run the shape audit after admission, or skip when mutation was blocked."""
     from ethos.domain.status import audit_for_root
 
@@ -210,4 +212,4 @@ def repository_audit_after_admission(repo: Path, decision: object) -> dict[str, 
             "required_gaps": [],
             "root": repo.as_posix(),
         }
-    return audit_for_root(repo, openspec_mode="shape")
+    return audit_for_root(repo, openspec_mode="shape", current_head=current_head)

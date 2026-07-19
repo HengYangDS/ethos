@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import sqlite3
 from contextlib import closing
@@ -9,8 +10,8 @@ from typing import TYPE_CHECKING
 from typing import Any
 
 from ethos.adapters.store.state.lease.lifecycle.core import expected_current_lease
-from ethos.adapters.store.state.lease.lifecycle.core import initialize_lease_state
 from ethos.adapters.store.state.lease.projection import active_leases
+from ethos.adapters.store.state.schema import initialize_state
 from ethos_core.contracts.coordination import HolderRef
 
 if TYPE_CHECKING:
@@ -23,7 +24,7 @@ def update_lease_payload(
     subject: str,
     payload: dict[str, Any],
 ) -> dict[str, Any]:
-    initialize_lease_state(db_path)
+    initialize_state(db_path)
     matching = [lease for lease in active_leases(db_path) if lease["subject"] == subject]
     if len(matching) != 1:
         return {}
@@ -65,6 +66,46 @@ def delete_lease(db_path: Path, *, subject: str) -> int:
         return cursor.rowcount
 
 
+def delete_exact_leases_from_connection(
+    connection: sqlite3.Connection,
+    candidates: list[dict[str, Any]],
+) -> list[str]:
+    """Delete exact candidates inside the caller's active transaction."""
+    deleted: list[str] = []
+    for candidate in candidates:
+        lease_id = str(candidate.get("id") or "")
+        _expect_lease_candidate(connection, candidate)
+        connection.execute("delete from leases where id = ?", (lease_id,))
+        deleted.append(lease_id)
+    return deleted
+
+
+def _expect_lease_candidate(connection: sqlite3.Connection, candidate: dict[str, Any]) -> None:
+    lease_id = str(candidate.get("id") or "")
+    row = connection.execute(
+        """
+        select id, subject, owner, expires_at, payload_json
+        from leases
+        where id = ?
+        """,
+        (lease_id,),
+    ).fetchone()
+    if row is None or not _lease_candidate_matches(row, candidate):
+        message = f"lease_maintenance_candidate_drift:{lease_id}"
+        raise ValueError(message)
+
+
+def _lease_candidate_matches(row: sqlite3.Row | tuple[Any, ...], candidate: dict[str, Any]) -> bool:
+    payload_digest = hashlib.sha256(str(row[4]).encode()).hexdigest()
+    return (
+        str(row[0]) == str(candidate.get("id") or "")
+        and str(row[1]) == str(candidate.get("subject") or "")
+        and str(row[2]) == str(candidate.get("owner") or "")
+        and str(row[3]) == str(candidate.get("expires_at") or "")
+        and payload_digest == str(candidate.get("payload_sha256") or "")
+    )
+
+
 def revoke_lease(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
     db_path: Path,
     *,
@@ -76,7 +117,7 @@ def revoke_lease(  # noqa: PLR0913, RUF100 - exact request envelope preserves bo
 ) -> dict[str, Any]:
     """Delete one exact local lease generation after a completed handoff saga."""
     HolderRef.parse(holder_ref)
-    initialize_lease_state(db_path)
+    initialize_state(db_path)
     with closing(sqlite3.connect(db_path)) as connection:
         connection.execute("pragma foreign_keys = on")
         connection.execute("begin immediate")

@@ -57,8 +57,9 @@ def test_disabled_policy_is_local_first_without_a_provider(tmp_path) -> None:
     assert report["evidence_class"] == "local_readiness"
 
 
+@pytest.mark.parametrize("carrier", ["missing", "malformed", "array", "mapping"])
 def test_optional_policy_accepts_absence_but_marks_supplied_invalid_receipt(
-    tmp_path,
+    tmp_path, carrier: str
 ) -> None:
     absent = independent_verification_report(
         root=tmp_path,
@@ -67,7 +68,11 @@ def test_optional_policy_accepts_absence_but_marks_supplied_invalid_receipt(
         receipt_path=None,
     )
     invalid = tmp_path / "receipt.json"
-    invalid.write_text("{}", encoding="utf-8")
+    if carrier != "missing":
+        invalid.write_text(
+            {"malformed": "{", "array": "[]", "mapping": "{}"}[carrier],
+            encoding="utf-8",
+        )
     supplied = independent_verification_report(
         root=tmp_path,
         policy=IndependentVerificationPolicy(mode="optional"),
@@ -159,6 +164,7 @@ def test_receipt_binding_survives_bundled_executable_retirement(tmp_path: Path) 
 
     root = Path(__file__).resolve().parents[3]
     assert not (root / "extensions/independent-verification").exists()
+    assert not (root / "packages/ethos/src/ethos/adapters/admission/control/verifier.py").exists()
 
 
 def test_profile_defaults_disabled_but_required_publish_is_action_scoped(
@@ -194,8 +200,6 @@ def test_profile_defaults_disabled_but_required_publish_is_action_scoped(
 def test_request_builder_binds_publish_to_exact_git_revision_and_gate_policy(
     monkeypatch, tmp_path
 ) -> None:
-    import ethos.adapters.admission.evidence.external as external  # noqa: PLC0415, RUF100 - patched boundary facts isolate this request contract
-
     monkeypatch.setattr(external.git, "git_stdout", lambda *_args: "origin-url")
     monkeypatch.setattr(external.git, "current_head", lambda _root: "a" * 40)
     monkeypatch.setattr(
@@ -424,13 +428,16 @@ def test_provider_configuration_helpers_fail_closed_on_invalid_inputs(
         None,
         ["independent_verification_provider_config_missing"],
     )
-    assert external._protected(missing) is False  # noqa: RUF100, SLF001 - coverage exercises provider-boundary refusal
+    assert external._is_protected_from_current_identity(missing) is False  # noqa: RUF100, SLF001 - coverage exercises provider-boundary refusal
+    assert external._absolute_path("relative/provider.toml") is None  # noqa: RUF100, SLF001 - coverage exercises provider-boundary refusal
+    assert external._absolute_path(None) is None  # noqa: RUF100, SLF001 - coverage exercises provider-boundary refusal
+    assert external._sha256("not-a-digest") == ""  # noqa: RUF100, SLF001 - coverage exercises provider-boundary refusal
     with pytest.raises(ValueError, match="mode is invalid"):
         IndependentVerificationPolicy(mode="always")
 
     malformed = tmp_path / "provider.toml"
     malformed.write_text("[receipt_store\n", encoding="utf-8")
-    monkeypatch.setattr(external, "_protected", lambda _path: True)
+    monkeypatch.setattr(external, "_is_protected_from_current_identity", lambda _path: True)
     assert load_independent_verification_provider(malformed) == (
         None,
         ["independent_verification_provider_config_invalid"],
@@ -506,14 +513,14 @@ def test_receipt_negative_paths_remain_local_readiness(tmp_path, monkeypatch) ->
         implementation_digest="e" * 64,
     )
     monkeypatch.setattr(external, "_SSH_KEYGEN", tmp_path / "missing-keygen")
-    assert external._verify_signature(receipt, provider) is False  # noqa: RUF100, SLF001 - coverage exercises fail-closed verifier availability
+    assert external._verify_independent_receipt_signature(receipt, provider) is False  # noqa: RUF100, SLF001 - coverage exercises fail-closed verifier availability
     monkeypatch.setattr(external, "_SSH_KEYGEN", external.Path("/usr/bin/true"))
 
     def raise_os_error(*_args, **_kwargs):
         raise OSError
 
     monkeypatch.setattr(external.subprocess, "run", raise_os_error)
-    assert external._verify_signature(receipt, provider) is False  # noqa: RUF100, SLF001 - coverage exercises fail-closed verifier errors
+    assert external._verify_independent_receipt_signature(receipt, provider) is False  # noqa: RUF100, SLF001 - coverage exercises fail-closed verifier errors
 
 
 def test_request_without_head_and_missing_provider_config_are_fail_closed(

@@ -9,21 +9,22 @@ import pytest
 from ethos.adapters.store.state.lease.lifecycle.core import accept_lease_handoff
 from ethos.adapters.store.state.lease.lifecycle.core import acquire_lease
 from ethos.adapters.store.state.lease.lifecycle.core import advance_lease_head
-from ethos.adapters.store.state.lease.lifecycle.core import initialize_lease_state
 from ethos.adapters.store.state.lease.lifecycle.core import offer_lease_handoff
 from ethos.adapters.store.state.lease.lifecycle.core import renew_lease
 from ethos.adapters.store.state.lease.lifecycle.core import resume_lease
 from ethos.adapters.store.state.lease.lifecycle.effects import revoke_lease
 from ethos.adapters.store.state.lease.projection import active_leases
+from ethos.adapters.store.state.schema import SCHEMA_VERSION
+from ethos.adapters.store.state.schema import initialize_state
 
 if TYPE_CHECKING:
     from pathlib import Path
 
 
-def test_state_initialization_creates_only_consumed_tables(tmp_path: Path) -> None:
+def test_lease_initialization_uses_the_versioned_state_owner(tmp_path: Path) -> None:
     db_path = tmp_path / ".ethos" / "state" / "state.sqlite"
 
-    initialize_lease_state(db_path)
+    acquire_lease(db_path, subject="work/current", holder_ref="agent:test:case:owner")
 
     with closing(sqlite3.connect(db_path)) as connection:
         tables = {
@@ -32,7 +33,166 @@ def test_state_initialization_creates_only_consumed_tables(tmp_path: Path) -> No
                 "select name from sqlite_master where type = 'table' and name not like 'sqlite_%'"
             )
         }
-    assert tables == {"leases"}
+        versions = connection.execute(
+            "select version from schema_migrations order by version"
+        ).fetchall()
+    assert tables == {"leases", "schema_migrations"}
+    assert versions == [(SCHEMA_VERSION,)]
+
+
+def test_explicit_state_initialization_creates_only_owned_tables(tmp_path: Path) -> None:
+    db_path = tmp_path / ".ethos" / "state" / "state.sqlite"
+
+    initialize_state(db_path)
+
+    with closing(sqlite3.connect(db_path)) as connection:
+        tables = {
+            row[0]
+            for row in connection.execute(
+                "select name from sqlite_master where type = 'table' and name not like 'sqlite_%'"
+            )
+        }
+    assert tables == {"leases", "schema_migrations"}
+    assert SCHEMA_VERSION == 2
+
+
+def _create_v1_state(db_path: Path, *, cache_rows: int = 0) -> None:
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    with closing(sqlite3.connect(db_path)) as connection:
+        connection.executescript(
+            """
+            create table schema_migrations (
+              version integer primary key,
+              applied_at text not null
+            );
+            insert into schema_migrations(version, applied_at)
+            values (1, '2026-07-18T00:00:00+00:00');
+            create table cache_entries (
+              cache_key text primary key,
+              payload_json text not null
+            );
+            create table leases (
+              id text primary key,
+              subject text not null,
+              owner text not null,
+              expires_at text not null,
+              payload_json text not null
+            );
+            insert into leases(id, subject, owner, expires_at, payload_json)
+            values ('lease:current', 'work/current', 'agent:test:case:owner',
+                    '2099-07-01T00:00:00+00:00', '{}');
+            create table unrelated_state (
+              id integer primary key,
+              payload_json text not null
+            );
+            insert into unrelated_state(id, payload_json) values (1, '{}');
+            """
+        )
+        for index in range(cache_rows):
+            connection.execute(
+                "insert into cache_entries(cache_key, payload_json) values (?, '{}')",
+                (f"cache:{index}",),
+            )
+        connection.commit()
+
+
+def test_initialize_state_migrates_empty_cache_without_deleting_existing_state(
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / ".ethos" / "state" / "state.sqlite"
+    _create_v1_state(db_path)
+
+    initialize_state(db_path)
+
+    with closing(sqlite3.connect(db_path)) as connection:
+        tables = {
+            row[0]
+            for row in connection.execute("select name from sqlite_master where type = 'table'")
+        }
+        versions = connection.execute(
+            "select version from schema_migrations order by version"
+        ).fetchall()
+        leases = connection.execute("select id, subject from leases").fetchall()
+        unrelated_state = connection.execute(
+            "select id, payload_json from unrelated_state"
+        ).fetchall()
+    assert "cache_entries" not in tables
+    assert versions == [(1,), (2,)]
+    assert leases == [("lease:current", "work/current")]
+    assert unrelated_state == [(1, "{}")]
+
+
+def test_initialize_state_fails_closed_when_retired_cache_is_not_empty(
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / ".ethos" / "state" / "state.sqlite"
+    _create_v1_state(db_path, cache_rows=1)
+
+    with pytest.raises(RuntimeError, match="state_schema_v2_cache_entries_not_empty"):
+        initialize_state(db_path)
+
+    with closing(sqlite3.connect(db_path)) as connection:
+        assert connection.execute("select count(*) from cache_entries").fetchone() == (1,)
+        assert connection.execute(
+            "select version from schema_migrations order by version"
+        ).fetchall() == [(1,)]
+
+
+def test_initialize_state_rolls_back_schema_and_preserves_journal_mode(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / ".ethos" / "state" / "state.sqlite"
+    _create_v1_state(db_path)
+    with closing(sqlite3.connect(db_path)) as connection:
+        previous_mode = str(connection.execute("pragma journal_mode").fetchone()[0])
+
+    def fail_timestamp() -> str:
+        msg = "clock unavailable"
+        raise RuntimeError(msg)
+
+    monkeypatch.setattr("ethos.adapters.store.state.schema.now", fail_timestamp)
+
+    with pytest.raises(RuntimeError, match="clock unavailable"):
+        initialize_state(db_path)
+
+    with closing(sqlite3.connect(db_path)) as connection:
+        tables = {
+            row[0]
+            for row in connection.execute("select name from sqlite_master where type = 'table'")
+        }
+        versions = connection.execute(
+            "select version from schema_migrations order by version"
+        ).fetchall()
+        current_mode = str(connection.execute("pragma journal_mode").fetchone()[0])
+    assert "cache_entries" in tables
+    assert versions == [(1,)]
+    assert current_mode == previous_mode == "delete"
+
+
+def test_initialize_state_v2_is_idempotent_and_preserves_leases(tmp_path: Path) -> None:
+    db_path = tmp_path / ".ethos" / "state" / "state.sqlite"
+    initialize_state(db_path)
+    with closing(sqlite3.connect(db_path)) as connection:
+        connection.execute(
+            """
+            insert into leases(id, subject, owner, expires_at, payload_json)
+            values ('lease:current', 'work/current', 'agent:test:case:owner',
+                    '2099-07-01T00:00:00+00:00', '{}')
+            """
+        )
+        connection.commit()
+
+    initialize_state(db_path)
+    initialize_state(db_path)
+
+    with closing(sqlite3.connect(db_path)) as connection:
+        assert connection.execute(
+            "select version from schema_migrations order by version"
+        ).fetchall() == [(2,)]
+        assert connection.execute("select id, subject from leases").fetchall() == [
+            ("lease:current", "work/current")
+        ]
 
 
 def test_acquire_lease_leaves_current_lease_schema_unchanged(tmp_path: Path) -> None:
@@ -288,14 +448,10 @@ def test_delete_lease_removes_lease_so_recreated_subject_cannot_inherit(
     assert delete_lease(db_path, subject="work/feature") == 0
 
 
-def test_active_leases_uses_read_only_fallback_when_default_connect_cannot_open(
+def test_active_leases_reads_through_the_read_only_state_uri(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    from datetime import UTC
-    from datetime import datetime
-    from datetime import timedelta
-
     import ethos.adapters.store.state.lease.lifecycle.core as state
     import ethos.adapters.store.state.lease.projection as state_read
 
@@ -304,22 +460,20 @@ def test_active_leases_uses_read_only_fallback_when_default_connect_cannot_open(
         db_path, subject="work/feature", holder_ref="agent:test:case:agent-test"
     )
     real_connect = sqlite3.connect
+    connections: list[tuple[str, bool]] = []
 
-    def flaky_connect(target, *args, **kwargs):
-        if target == db_path:
-            message = "unable to open database file"
-            raise sqlite3.OperationalError(message)
+    def recording_connect(target, *args, **kwargs):
+        connections.append((str(target), kwargs.get("uri") is True))
         return real_connect(target, *args, **kwargs)
 
-    monkeypatch.setattr(state_read.sqlite3, "connect", flaky_connect)
+    monkeypatch.setattr(state_read.sqlite3, "connect", recording_connect)
 
     leases = state_read.active_leases(db_path)
 
     assert [item["id"] for item in leases] == [lease["id"]]
     assert leases[0]["subject"] == "work/feature"
-    assert datetime.fromisoformat(leases[0]["expires_at"]) > datetime.now(UTC) - timedelta(
-        seconds=1
-    )
+    assert connections
+    assert all(is_uri and "mode=ro" in target for target, is_uri in connections)
 
 
 def test_active_leases_returns_empty_when_all_sqlite_reads_fail(

@@ -1,4 +1,3 @@
-# ruff: noqa: FLY002
 """Coverage-closure v3: policy reachable branches (100% no-exemption)."""
 
 from __future__ import annotations
@@ -12,9 +11,7 @@ import ethos.repository.policy.docstrings.core as docstrings_mod
 import ethos.repository.policy.docstrings.style as docstring_style
 import ethos.repository.policy.gates as gates_mod
 from ethos.repository.policy.rules.check import rules_layer_report
-from ethos.repository.policy.rules.config import configured_gate_tables
 from ethos.repository.policy.rules.config import configured_rules
-from ethos.repository.policy.rules.migration import rules_toml_text
 from ethos.repository.profile import load_repository_profile
 from ethos_core.contracts.gates import GateDescriptor
 from ethos_core.contracts.registry.declarations import load_coupling_declaration
@@ -189,45 +186,6 @@ def test_rules_layer_report_strict_with_full_subject_depth(tmp_path: Path) -> No
 
     assert report["strict"] is True
     assert "rules_strict_subject_coverage_missing" not in report["required_gaps"]
-
-
-def test_configured_gate_tables_command_blocking_and_empty(tmp_path: Path) -> None:
-    # only_blocking has no "command" (904->906); only_command has no "blocking"
-    # (906->908); empty_gate yields an empty payload so `if payload` is False and the
-    # entry is dropped (908->899).
-    _write_rules(
-        tmp_path,
-        "\n".join(
-            [
-                "[gates.only_blocking]",
-                "blocking = true",
-                "",
-                "[gates.only_command]",
-                'command = "run x"',
-                "",
-                "[gates.empty_gate]",
-                'note = "z"',
-                "",
-            ]
-        ),
-    )
-
-    gates = configured_gate_tables(tmp_path)
-
-    assert gates == {
-        "only_blocking": {"blocking": True},
-        "only_command": {"command": "run x"},
-    }
-
-
-def test_rules_toml_text_gate_missing_one_key() -> None:
-    # A gate dict with only "command" makes the `if key in gate` at rules.py 925 False
-    # for "blocking", looping back to 924 (925->924); the command line is still emitted.
-    text = rules_toml_text([], gates={"g": {"command": "run x"}})
-
-    assert "[gates.g]" in text
-    assert "command = " in text
-    assert "blocking = " not in text
 
 
 # ---------------------------------------------------------------------------

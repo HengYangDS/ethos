@@ -123,7 +123,7 @@ convention = "google"
 # a literal expected value is the correct test idiom), E501 (unbreakable assertion
 # payloads/fixtures; logic still wraps). No refactor removes the need for these.
 # SLF001 is NOT here — private-member access IS reducible debt, so it is a shrinking
-# whole-repo ratchet (.config/checks/ruff/ratchet.toml SLF001=220), not a blanket ignore.
+# whole-repo ratchet owned by .config/checks/ruff/ratchet.toml, not a blanket ignore.
 "tests/**" = ["E501", "INP001", "PLR2004", "S101"]
 "extensions/**/tests/**" = ["E501", "INP001", "PLR2004", "S101"]
 # `id` on a widely-called classmethod — rename deferred to the package-split migration.

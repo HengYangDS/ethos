@@ -19,7 +19,7 @@ def rules_check_report(root: Path) -> dict[str, object]:
     """Report rule-set integrity: parse errors, duplicate ids, unknown gates, owners."""
     config = load_rules_config(root)
     compiled = compile_rules(root)
-    legacy = legacy_state(root)
+    legacy = legacy_state(root, config=config)
     required_gaps: list[str] = []
     if "_parse_error" in config:
         required_gaps.append(f"rules_config_parse_error:{config['_parse_error']}")

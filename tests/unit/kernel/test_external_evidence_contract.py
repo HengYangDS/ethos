@@ -4,6 +4,8 @@ from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
 
+import pytest
+
 from ethos_core.contracts.evidence.external import EnforcementReceipt
 from ethos_core.contracts.evidence.external import IdentityAssertion
 
@@ -24,6 +26,16 @@ def test_identity_assertion_is_bounded_evidence_not_authority() -> None:
     assert payload["mints_authority"] is False
     assert payload["stores_credentials"] is False
     assert payload["evidence_boundary"] == "verified_external_identity_assertion"
+    with pytest.raises(ValueError, match="valid_until must be later"):
+        IdentityAssertion(
+            identity_ref="identity",
+            issuer="issuer",
+            audience="audience",
+            verification_method="method",
+            valid_from=now,
+            valid_until=now,
+            attestation_digest="a" * 64,
+        )
 
 
 def test_enforcement_receipt_binds_exact_transition_and_coverage() -> None:

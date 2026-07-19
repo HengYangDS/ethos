@@ -8,7 +8,7 @@ from typing import cast
 from ethos.repository.policy.gates import gate_registry
 from ethos.repository.policy.rules.config import configured_rules
 from ethos.repository.policy.rules.config import load_rules_config
-from ethos.repository.policy.rules.config import profile_stack
+from ethos.repository.policy.rules.config import resolve_profile_stack
 from ethos.repository.policy.rules.config import rules_path
 from ethos.repository.policy.schema import validate_schema_instance
 from ethos_core.contracts.rules import Rule
@@ -126,7 +126,11 @@ def _rule_schema_gaps(rule: dict[str, Any]) -> list[str]:
     return [str(gap) for gap in cast("list[object]", validation["required_gaps"])]
 
 
-def gate_definitions(root: Path) -> dict[str, dict[str, object]]:
+def gate_definitions(
+    root: Path,
+    *,
+    config: dict[str, Any] | None = None,
+) -> dict[str, dict[str, object]]:
     """Return gate definitions merging the built-in registry with configured overrides."""
     definitions: dict[str, dict[str, object]] = {
         gate_id: {
@@ -136,10 +140,10 @@ def gate_definitions(root: Path) -> dict[str, dict[str, object]]:
         }
         for gate_id, gate in gate_registry().items()
     }
-    config = load_rules_config(root)
+    parsed = config if config is not None else load_rules_config(root)
     configured = cast(
         "dict[str, object]",
-        config.get("gates") if isinstance(config.get("gates"), dict) else {},
+        parsed.get("gates") if isinstance(parsed.get("gates"), dict) else {},
     )
     for gate_id, gate in configured.items():
         if not isinstance(gate, dict):
@@ -159,12 +163,16 @@ def _rule_active_for_profiles(rule: Rule, profile_stack: list[str]) -> bool:
     return bool(active.intersection(rule.profile_layers))
 
 
-def _rules_as_contracts(root: Path, profile_stack: list[str]) -> tuple[list[Rule], list[str]]:
+def _rules_as_contracts(
+    root: Path,
+    config: dict[str, Any],
+    profile_stack: list[str],
+) -> tuple[list[Rule], list[str]]:
     gaps: list[str] = []
     rules: list[Rule] = [
         rule for rule in STARTER_RULES if _rule_active_for_profiles(rule, profile_stack)
     ]
-    for raw_rule in configured_rules(root):
+    for raw_rule in configured_rules(root, config=config):
         rule_id = str(raw_rule.get("id", ""))
         schema_gaps = _rule_schema_gaps(raw_rule)
         if schema_gaps:
@@ -196,11 +204,13 @@ def _rules_as_contracts(root: Path, profile_stack: list[str]) -> tuple[list[Rule
 
 def compile_rules(root: Path) -> dict[str, object]:
     """Compile the deterministic rule set for a repository root."""
-    active_profiles = profile_stack(root)
-    rules, compile_gaps = _rules_as_contracts(root, active_profiles)
+    config = load_rules_config(root)
+    profile_stack, profile_gaps = resolve_profile_stack(config)
+    rules, rule_gaps = _rules_as_contracts(root, config, profile_stack)
+    compile_gaps = [*profile_gaps, *rule_gaps]
     rule_set = RuleSet(
         id="ethos-rules",
-        profile_layers=tuple(active_profiles),
+        profile_layers=tuple(profile_stack),
         rules=tuple(sorted(rules, key=lambda rule: rule.id)),
     )
     rule_set_payload = rule_set.to_dict()
@@ -210,17 +220,17 @@ def compile_rules(root: Path) -> dict[str, object]:
         source_refs.append(".ethos/rules.toml")
     compiled_policy = {
         "rule_set_digest": rule_set_digest,
-        "profiles": active_profiles,
+        "profiles": profile_stack,
         "source_refs": source_refs,
     }
     return {
         "schema_version": 1,
-        "profile_stack": active_profiles,
-        "coverage_tier": "strict" if STRICT_PROFILE in active_profiles else "starter",
+        "profile_stack": profile_stack,
+        "coverage_tier": "strict" if STRICT_PROFILE in profile_stack else "starter",
         "rules": rule_set_payload["rules"],
         "rule_set_digest": rule_set_digest,
         "compiled_policy_digest": stable_digest(compiled_policy),
         "source_refs": source_refs,
         "compile_gaps": compile_gaps,
-        "gate_definitions": gate_definitions(root),
+        "gate_definitions": gate_definitions(root, config=config),
     }

@@ -1,18 +1,18 @@
 [claim]
 id = "assurance-program-20260712"
 subject = "ethos:optional-independent-reexecution-assurance"
-state = "archived"
-summary = "Historical record for optional, action-bound independent proof re-execution; the bundled provider example is retired while the provider-neutral admission contract remains."
+state = "active"
+summary = "Active provider-neutral contract for optional action-bound independent proof re-execution and exact receipt admission; ETHOS ships no verifier executable."
 
 [evidence]
 dated = "evidence/chronicle/assurance-program-20260712/2026-07-12.md"
 sha256 = "5c581619c99199706d41eef5b0695a52f5033aa4601c7cd99c313d760056c6f3"
 evidence_ids = ["evidence:assurance-program-20260712"]
-binding = "archived OpenSpec carrier and bounded implementation evidence"
+binding = "Historical implementation evidence plus the current provider-neutral receipt and admission contract."
 verifier = "digest_only"
 tests = [
-  "pytest -q tests/unit/admission/test_independent_verification.py tests/unit/cli/test_independent_verification_publish.py tests/unit/mutation/test_independent_verification_readiness.py tests/unit/adoption/test_independent_verification_fixtures.py",
-  "ethos prove --execute --expect-head <final-head> --json",
+  "tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev pytest -q tests/unit/admission/test_independent_verification.py tests/unit/cli/test_independent_verification_publish.py tests/unit/mutation/test_independent_verification_readiness.py tests/unit/adoption/test_independent_verification_fixtures.py tests/unit/kernel/test_independent_verification_contract.py",
+  "tools/ci/scripts/run-ethos-lane.sh prove --execute --expect-head <final-head> --json",
 ]
 
 [evidence.freshness]
@@ -20,7 +20,7 @@ mode = "historical"
 
 [boundary]
 owner = "ethos-repository"
-scope = "Historical optional independent re-execution receipt admission and retired provider example boundary."
+scope = "Optional independent re-execution receipt admission and provider-neutral exact-binding semantics; verifier executables remain operator-supplied outside the product tree."
 
 [carriers]
 openspec = "openspec/changes/archive/2026-07-12-assurance-program-20260712"
@@ -34,9 +34,14 @@ targets = [
   "openspec/changes/archive/2026-07-12-assurance-program-20260712",
   "docs/governance/independent-verification-adoption.md",
   "docs/plans/assurance-program-20260712.md",
+  "packages/ethos-core/src/ethos_core/contracts/evidence/external.py",
   "packages/ethos/src/ethos/adapters/admission/evidence/external.py",
   "packages/ethos/src/ethos/adapters/mutation/core.py",
   "packages/ethos/src/ethos/domain/report.py",
   "packages/ethos/src/ethos/surface/cli/root/lifecycle.py",
   "tests/unit/admission/test_independent_verification.py",
+  "tests/unit/cli/test_independent_verification_publish.py",
+  "tests/unit/mutation/test_independent_verification_readiness.py",
+  "tests/unit/adoption/test_independent_verification_fixtures.py",
+  "tests/unit/kernel/test_independent_verification_contract.py",
 ]

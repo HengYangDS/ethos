@@ -69,7 +69,8 @@ either a separate local OS identity, or a hosted forge — that **re-executes** 
    threat model it is security theatre and enlarges blast radius. Rejected deliberately.
 
 3. **The genuine anti-forgery trust root is re-execution under an independent identity**,
-   expressed through the existing `EnforcementReceipt` / `external_evidence_report` path.
+   expressed through the signed `IndependentVerificationReceipt` /
+   `independent_verification_admission_report` path.
    Two interchangeable *plugs* implement one interface:
    - **Hosted plug** (networked): a forge `pre-receive` re-executes the required floor and
      mints a signed receipt. Requires network; used only at publication/share.
@@ -100,11 +101,11 @@ either a separate local OS identity, or a hosted forge — that **re-executes** 
   provider executable. It remains default-off: implementation, installation,
   provider-local trust anchors, key ownership, and any daemon, hook, or hosted
   service remain operator choices rather than product defaults.
-- `receipt_digest` in `EnforcementReceipt` is currently regex-validated only (never
-  cryptographically verified) and `external_evidence_report` has no `src/` callers. Making
-  either load-bearing REQUIRES real signature verification + a pinned out-of-tree issuer +
-  an out-of-band floor allowlist + out-of-band trust anchors, and must not be flipped on
-  before those exist (else it either DoSes sanctioned promotion or admits forgeries).
+- Legacy `IdentityAssertion` and `EnforcementReceipt` remain provider-neutral contract
+  types, but no product admission path treats their former file-report wrapper as a trust
+  root. The active optional path verifies signed `IndependentVerificationReceipt` values
+  against protected provider-local configuration, an exact proof floor, and exact Git
+  bindings before projecting `independently_reexecuted`.
 - Same-UID multi-agent forgery remains possible in the default (verifier-off) posture. This
   is disclosed, not hidden; it is an OS-level fact, not an ETHOS defect. Operators who need
   the stronger guarantee opt into the lightweight local verifier.

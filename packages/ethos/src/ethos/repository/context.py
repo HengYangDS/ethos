@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ethos.repository.adoption.planner import detect_repo_profile
+from ethos.repository.profile import load_repository_profile
 from ethos.repository.registry.commands import PUBLIC_WORKFLOW_COMMANDS
 from ethos.repository.registry.commands import READER_VIEW_COMMANDS
 from ethos.repository.registry.commands import SCORECARD_COMMANDS
@@ -45,7 +45,9 @@ def is_product_root(root: Path) -> bool:
 
 def governance_profile(root: Path) -> str:
     """Return the profile for a governed repository without changing command semantics."""
-    return "product" if is_product_root(root) else detect_repo_profile(root)
+    if is_product_root(root):
+        return "product"
+    return "adopter" if load_repository_profile(root).state == "valid" else "unbound"
 
 
 def context_for_root(root: Path) -> dict[str, object]:

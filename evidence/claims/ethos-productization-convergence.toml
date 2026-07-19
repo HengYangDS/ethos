@@ -1,7 +1,7 @@
 [claim]
 id = "ethos-productization-convergence"
 subject = "ethos:productization-convergence"
-state = "active"
+state = "archived"
 summary = "Records the ETHOS productization convergence batch across authority kernel, first-hour workflow, adoption planner safety, authority graph read model, and bounded command shadow results."
 
 [evidence]

@@ -69,27 +69,11 @@ candidate_head = "d735b62add0a0d5dc7ebdf8cb0e7e1d8deadec30"
 evidence = ["evidence/chronicle/hooked-write-admission/2026-07-02.md"]
 
 [[step]]
-id = "adopter-openspec-scaffold"
-title = "Adopter OpenSpec scaffold"
-state = "planned"
-ordinal = 5
-depends_on = ["hooked-write-admission"]
-openspec_change = "ethos-adopter-openspec-scaffold"
-work_lane = "work/adopter-openspec-scaffold"
-claim_id = "ethos-adopter-openspec-scaffold"
-
-[step.closeout]
-state = "planned"
-accepted_head = ""
-candidate_head = ""
-evidence = []
-
-[[step]]
 id = "projection-digest-governance"
 title = "Projection digest governance"
 state = "planned"
-ordinal = 6
-depends_on = ["adopter-openspec-scaffold"]
+ordinal = 5
+depends_on = ["hooked-write-admission"]
 openspec_change = "ethos-projection-digest-governance"
 work_lane = "work/projection-digest-governance"
 claim_id = "ethos-projection-digest-governance"
@@ -104,7 +88,7 @@ evidence = []
 id = "declarative-core-gates"
 title = "Declarative core gates"
 state = "planned"
-ordinal = 7
+ordinal = 6
 depends_on = ["projection-digest-governance"]
 openspec_change = "ethos-declarative-core-gates"
 work_lane = "work/declarative-core-gates"
@@ -120,7 +104,7 @@ evidence = []
 id = "runtime-topology-collapse"
 title = "Runtime topology collapse"
 state = "planned"
-ordinal = 8
+ordinal = 7
 depends_on = ["declarative-core-gates"]
 openspec_change = "ethos-runtime-topology-collapse"
 work_lane = "work/runtime-topology-collapse"
@@ -136,7 +120,7 @@ evidence = []
 id = "release-distribution-evolution"
 title = "Release distribution evolution"
 state = "planned"
-ordinal = 9
+ordinal = 8
 depends_on = ["runtime-topology-collapse"]
 openspec_change = "ethos-release-distribution-evolution"
 work_lane = "work/release-distribution-evolution"

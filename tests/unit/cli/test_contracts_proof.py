@@ -83,7 +83,7 @@ def test_adopter_id_only_gate_declaration_fails_closed_without_traceback(
     repo = init_git_repo(tmp_path / "repo")
     (repo / ".ethos").mkdir(exist_ok=True)
     (repo / ".ethos/profile.toml").write_text(
-        'profile_id = "acme"\n[proof]\ncode_correctness_gates = ["acme-tests"]\n',
+        'profile_id = "acme"\n[openspec]\nmaterial_paths = [".ethos/profile.toml"]\n\n[proof]\ncode_correctness_gates = ["acme-tests"]\n',
         encoding="utf-8",
     )
 
@@ -159,7 +159,7 @@ def test_prove_surfaces_active_archive_preflight_gap(monkeypatch) -> None:
 def test_adopter_proof_surfaces_openspec_lifecycle_gap(monkeypatch, tmp_path: Path) -> None:
     """An adopter proof cannot substitute a clean placeholder for lifecycle truth."""
     repo = init_git_repo(tmp_path / "adopter")
-    adoption_plan(repo, profile="generic", apply=True)
+    adoption_plan(repo, apply=True)
     git(repo, "add", ".")
     git(repo, "commit", "-m", "adopt generic profile")
     lifecycle_payload = {
@@ -169,7 +169,11 @@ def test_adopter_proof_surfaces_openspec_lifecycle_gap(monkeypatch, tmp_path: Pa
     calls: list[tuple[Path, bool, tuple[str, ...]]] = []
 
     def report(
-        root: Path, *, lifecycle: bool = False, changed_paths: tuple[str, ...] = ()
+        root: Path,
+        *,
+        lifecycle: bool = False,
+        changed_paths: tuple[str, ...] = (),
+        **_kwargs: object,
     ) -> dict[str, object]:
         calls.append((root, lifecycle, changed_paths))
         return lifecycle_payload
@@ -180,7 +184,10 @@ def test_adopter_proof_surfaces_openspec_lifecycle_gap(monkeypatch, tmp_path: Pa
 
     assert calls == [(repo, True, ())]
     assert payload["state"] == "gapped"
-    assert payload["required_gaps"] == lifecycle_payload["required_gaps"]
+    assert payload["required_gaps"] == [
+        *lifecycle_payload["required_gaps"],
+        "adopter_profile_missing_code_correctness_gates",
+    ]
     assert (
         payload["data"]["openspec_lifecycle"]["required_gaps"] == lifecycle_payload["required_gaps"]
     )
@@ -250,34 +257,6 @@ def test_prove_rejects_mismatched_expected_head() -> None:
     assert payload["data"]["expected_head"]["ok"] is False
 
 
-def test_init_apply_rejects_untracked_expected_head(tmp_path: Path) -> None:
-    target = tmp_path / "sample"
-    target.mkdir()
-
-    payload = run_ethos_blocked(
-        "init",
-        "--root",
-        target.as_posix(),
-        "--apply",
-        "--authorize",
-        "--expect-head",
-        "untracked",
-        "--json",
-    )
-
-    assert payload["ok"] is False
-    assert payload["state"] == "blocked"
-    assert "git_repository_missing" in payload["required_gaps"]
-    assert not (target / ".ethos" / "project.toml").exists()
-
-    assert payload["data"]["mutation"] == {
-        "apply": True,
-        "authorized": True,
-        "expect_head": "untracked",
-        "current_head": "untracked",
-    }
-
-
 def test_adopt_apply_rejects_untracked_expected_head(tmp_path: Path) -> None:
     target = tmp_path / "sample"
     target.mkdir()
@@ -296,15 +275,15 @@ def test_adopt_apply_rejects_untracked_expected_head(tmp_path: Path) -> None:
     assert payload["ok"] is False
     assert payload["state"] == "blocked"
     assert "git_repository_missing" in payload["required_gaps"]
-    assert not (target / ".ethos" / "project.toml").exists()
+    assert not (target / ".ethos" / "profile.toml").exists()
 
 
-def test_init_apply_flag_applies_scaffold_in_git_repo(tmp_path: Path) -> None:
+def test_adopt_apply_writes_minimal_binding_in_git_repo(tmp_path: Path) -> None:
     target = init_git_repo(tmp_path / "sample")
     head = git(target, "rev-parse", "HEAD")
 
     payload = run_ethos(
-        "init",
+        "adopt",
         "--root",
         target.as_posix(),
         "--apply",
@@ -316,18 +295,9 @@ def test_init_apply_flag_applies_scaffold_in_git_repo(tmp_path: Path) -> None:
 
     assert payload["ok"] is True
     assert payload["state"] == "applied"
-    assert (target / ".ethos" / "project.toml").exists()
+    assert (target / ".ethos" / "profile.toml").exists()
 
     status = run_ethos("status", "--root", target.as_posix(), "--json")
-    docs = run_ethos("quality", "docs-registry", "--root", target.as_posix(), "--json")
-    examples = run_ethos(
-        "quality",
-        "command-examples",
-        "--root",
-        target.as_posix(),
-        "--json",
-    )
-
     assert status["ok"] is True
     assert [
         gap
@@ -335,18 +305,16 @@ def test_init_apply_flag_applies_scaffold_in_git_repo(tmp_path: Path) -> None:
         if diagnostic["kind"] == "schema_validation"
         for gap in diagnostic["required_gaps"]
     ] == []
-    assert docs["ok"] is True
-    assert examples["ok"] is True
 
 
 def test_adopt_dry_run_does_not_write_project(tmp_path: Path) -> None:
     (tmp_path / "README.md").write_text("# Sample\n", encoding="utf-8")
 
-    payload = run_ethos("adopt", "--root", str(tmp_path), "--dry-run", "--json")
+    payload = run_ethos("adopt", "--root", str(tmp_path), "--json")
 
     assert payload["ok"] is True
     assert payload["command"] == "adopt"
-    assert ".ethos/project.toml" in payload["data"]["planned_files"]
+    assert payload["data"]["planned_files"] == [".ethos/profile.toml"]
     assert not (tmp_path / ".ethos").exists()
 
 
@@ -359,11 +327,12 @@ def test_adopt_apply_requires_authorization_and_expected_head(tmp_path: Path) ->
     assert payload["state"] == "blocked"
     assert "authorization_required" in payload["required_gaps"]
     assert "expect_head_required" in payload["required_gaps"]
-    assert not (repo / ".ethos/project.toml").exists()
+    assert not (repo / ".ethos/profile.toml").exists()
 
 
 def test_adopt_apply_accepts_authorized_matching_head(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
+    git(repo, "config", "core.hooksPath", "existing-hooks")
     head = git(repo, "rev-parse", "HEAD")
 
     payload = run_ethos(
@@ -386,10 +355,12 @@ def test_adopt_apply_accepts_authorized_matching_head(tmp_path: Path) -> None:
         "expect_head": head,
         "current_head": head,
     }
-    assert (repo / ".ethos/project.toml").exists()
+    assert payload["summary"] == {"planned_file_count": 1}
+    assert git(repo, "config", "--local", "--get", "core.hooksPath") == "existing-hooks"
+    assert (repo / ".ethos/profile.toml").exists()
 
 
-def test_adopt_overlay_apply_preserves_existing_adopter_entrypoint(
+def test_adopt_ignores_unrelated_existing_adopter_entrypoint(
     tmp_path: Path,
 ) -> None:
     repo = init_git_repo(tmp_path / "repo")
@@ -397,11 +368,10 @@ def test_adopt_overlay_apply_preserves_existing_adopter_entrypoint(
     agent_entrypoint = repo / "AGENTS.md"
     agent_entrypoint.write_text("# Existing adopter guide\n", encoding="utf-8")
 
-    command = ("adopt", "--root", str(repo), "--overlay", "--apply", "--authorize")
+    command = ("adopt", "--root", str(repo), "--apply", "--authorize")
     payload = run_ethos(*command, "--expect-head", head, "--json", cwd=repo)
     assert payload["ok"] is True
-    assert payload["data"]["mode"] == "overlay"
-    assert payload["data"]["preserved_files"][0]["path"] == "AGENTS.md"
+    assert payload["data"]["planned_files"] == [".ethos/profile.toml"]
     assert agent_entrypoint.read_text(encoding="utf-8") == "# Existing adopter guide\n"
 
 
@@ -428,38 +398,19 @@ def test_prove_uses_adopter_profile_default_floor(tmp_path: Path) -> None:
     profile = repo / ".ethos" / "profile.toml"
     profile.parent.mkdir(exist_ok=True)
     profile.write_text(
-        """schema_version = 1
-profile_id = \"sample-adopter\"
-profile_version = \"1\"
-ethos_contract_version = \"1\"
+        """profile_id = \"sample-adopter\"
 
-[repository]
-kind = \"software\"
-root_subject = \"sample\"
+[openspec]
+material_paths = [\".ethos/profile.toml\"]
 """,
         encoding="utf-8",
     )
 
     payload = run_ethos_blocked("prove", "--root", str(repo), "--json")
 
-    assert payload["summary"]["gate_count"] == 11
+    assert payload["summary"]["gate_count"] == 0
     node_ids = [node["id"] for node in payload["data"]["action_graph"]["nodes"]]
-    assert set(node_ids) == {
-        "repository-audit",
-        "claims",
-        "evidence-freshness",
-        "docs-topology",
-        "schemas",
-        "playbooks-v2",
-        "generated-artifacts",
-        "format-policy",
-        "asset-determinism",
-        "schema-contracts",
-        "proof-policy",
-    }
-    assert "ruff" not in node_ids
-    assert "unit-architecture" not in node_ids
-    assert "docstrings" not in node_ids
+    assert node_ids == []
 
 
 def test_prove_execute_can_select_real_gates(monkeypatch, tmp_path: Path) -> None:
@@ -593,22 +544,6 @@ def test_prove_execute_preserves_non_trust_bearing_gate_classification(
     assert run["trust_bearing"] is False
 
 
-def test_adopt_gitlab_profile_is_available(tmp_path: Path) -> None:
-    payload = run_ethos(
-        "adopt",
-        "--root",
-        str(tmp_path),
-        "--profile",
-        "gitlab",
-        "--dry-run",
-        "--json",
-    )
-
-    assert payload["ok"] is True
-    assert payload["data"]["profile"] == "gitlab"
-    assert ".gitlab-ci.yml" in payload["data"]["planned_files"]
-
-
 def test_prove_returns_evidence_and_provenance() -> None:
     payload = run_ethos("prove", "--objective", "cli contract", "--json")
 
@@ -626,11 +561,12 @@ def test_prove_returns_evidence_and_provenance() -> None:
 
 
 def test_prove_uses_repository_audit_for_non_product_repo(tmp_path: Path) -> None:
-    adoption_plan(tmp_path, profile="generic", apply=True)
+    adoption_plan(tmp_path, apply=True)
 
-    payload = run_ethos("prove", "--root", tmp_path.as_posix(), "--json")
+    payload = run_ethos_blocked("prove", "--root", tmp_path.as_posix(), "--json")
 
-    assert payload["ok"] is True
+    assert payload["ok"] is False
+    assert payload["required_gaps"] == ["adopter_profile_missing_code_correctness_gates"]
     assert "self_audit" not in payload["data"]
     assert payload["data"]["repository_audit"]["mode"] == "repository"
     assert (
@@ -643,7 +579,7 @@ def test_prove_uses_repository_audit_for_non_product_repo(tmp_path: Path) -> Non
     )
     assert "posture" not in payload["data"]["governance_context"]
     assert "posture" not in payload["data"]["repository_audit"]["governance_context"]
-    assert payload["data"]["repository_audit"]["governance_context"]["profile"] == "generic"
+    assert payload["data"]["repository_audit"]["governance_context"]["profile"] == "adopter"
     assert (
         payload["data"]["repository_audit"]["governance_context"]["subject"]["kind"] == "repository"
     )
@@ -706,13 +642,13 @@ def test_campaign_status_reports_manifest_steps() -> None:
         if item["id"] == "terminal-openspec-productization"
     )
     assert campaign["step_summary"]["total"] >= 8
-    assert campaign["step_summary"]["planned"] >= 5
+    assert campaign["step_summary"]["planned"] >= 4
     assert campaign["step_summary"]["active"] == 0
     assert campaign["step_summary"]["closed"] >= 4
     assert campaign["lane_topology"]["mode"] == "strict_serial"
     assert campaign["lane_topology"]["active_step"] == ""
     assert campaign["lane_topology"]["active_steps"] == []
-    assert campaign["lane_topology"]["next_planned_step"] == "adopter-openspec-scaffold"
+    assert campaign["lane_topology"]["next_planned_step"] == "projection-digest-governance"
     assert payload["data"]["publication"]["kind"] == "campaign_publication"
     assert payload["data"]["publication"]["scope"] == "repository"
     assert {
@@ -867,13 +803,3 @@ def test_campaign_closeout_reports_local_campaign_packages() -> None:
     }
     validation = validate_schema_instance("campaign-closeout.schema.json", payload["data"])
     assert validation["ok"] is True, validation["required_gaps"]
-
-
-def test_init_command_is_adoption_alias_without_writing(tmp_path: Path) -> None:
-    payload = run_ethos("init", "--root", str(tmp_path), "--dry-run", "--json")
-
-    assert payload["ok"] is True
-    assert payload["command"] == "init"
-    assert "openspec/config.yaml" in payload["data"]["planned_files"]
-    assert ".agents/skills/activation.toml" in payload["data"]["planned_files"]
-    assert not (tmp_path / ".ethos").exists()

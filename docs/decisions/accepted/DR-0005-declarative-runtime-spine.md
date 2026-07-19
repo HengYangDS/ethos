@@ -35,11 +35,11 @@ and [Declarative Runtime Spine Modernization](../../plans/declarative-runtime-sp
 | Record Review Date | 2026-10-10 |
 | Supersedes | None |
 | Superseded By | None |
-| Scope | Contract models, policy evaluation, graph planning, CLI projection, scaffold generation, evidence projection, and anti-regression gates. |
+| Scope | Contract models, policy evaluation, graph planning, CLI projection, binding serialization, evidence projection, and anti-regression gates. |
 | Boundary | ETHOS owns repository truth and lifecycle semantics; external frameworks provide replaceable mechanisms only. |
-| Context | ETHOS has grown effective Python code around imperative policy checks, dict payload normalization, hand-written command glue, scaffold builders, and repeated graph concepts. The repository already states that `system/workflows.toml` should declare lifecycle states and that mature libraries are acceptable where they reduce total code. |
-| Decision | Adopt a declarative runtime spine: Pydantic v2 as the primary contract model layer, CEL as the first policy expression DSL, an ETHOS GraphKernel backed by Python `graphlib`, Cyclopts command registry generation, Jinja2 templates for scaffolds/projections, immutable facts by default, and JSON Schema/reference validation as external contract support. |
-| Consequences | New public payloads, rules, commands, scaffolds, gates, and graph plans must be declaration-first unless an explicit exception proves that a Python adapter is necessary. Heavy workflow runtimes remain adapters only. |
+| Context | ETHOS has grown effective Python code around imperative policy checks, dict payload normalization, hand-written command glue, binding generation, and repeated graph concepts. The repository already states that `system/workflows.toml` should declare lifecycle states and that mature libraries are acceptable where they reduce total code. |
+| Decision | Adopt a declarative runtime spine: Pydantic v2 as the primary contract model layer, CEL as the first policy expression DSL, an ETHOS GraphKernel backed by Python `graphlib`, Cyclopts command registry generation, native serializers for unavoidable external leaves, immutable facts by default, and JSON Schema/reference validation as external contract support. |
+| Consequences | New public payloads, rules, commands, bindings, gates, and graph plans must be declaration-first unless an explicit exception proves that a Python adapter is necessary. Heavy workflow runtimes remain adapters only. |
 | Proof or Evidence | Architecture and modernization plan in this work lane; subsequent lanes must prove equivalence with focused command JSON, unit tests, `ethos report --json`, and HEAD-bound `ethos prove`. |
 | Revisit Trigger | Revisit if declaration-first surfaces increase code volume, obscure authority, break command JSON compatibility, or require a long-lived external runtime to mint lifecycle truth. |
 
@@ -53,8 +53,8 @@ are still encoded as imperative Python repetition:
 - graph concepts appear as action graphs, gate graphs, workflow transitions,
   evidence dependencies, and projection order without a shared graph kernel;
 - CLI commands repeat argument, envelope, help, JSON, and docs glue;
-- adoption scaffolds and projections are built with Python control flow where
-  typed templates would be smaller and easier to audit.
+- adoption and projections contain generation paths where runtime interpretation
+  or one typed serializer leaf would be smaller and easier to audit.
 
 The modernization question is not whether ETHOS should become Pydantic, CEL,
 OPA, Dagster, Temporal, Pants, or any other framework. ETHOS is a repository
@@ -76,8 +76,8 @@ ETHOS adopts the following primary spine:
    validation, cycle detection, topological planning, and relation filtering.
 4. **Cyclopts registry generation** so command declarations generate CLI
    surfaces, JSON envelopes, help metadata, docs tables, and smoke tests.
-5. **Jinja2 tracked templates with typed contexts** for adopter scaffolds,
-   evidence skeletons, docs projections, and host projection files.
+5. **Interpret-first, generate-last projection discipline**: native serializers
+   write only externally required leaves; adoption writes one TOML binding.
 6. **Immutable fact discipline**: tuples, frozensets, frozen models, and a
    persistent map abstraction for shared fact and metadata maps.
 7. **JSON Schema plus reference validation** as the external contract boundary,
@@ -108,7 +108,7 @@ New work must prefer declaration-first forms:
 | Rule/guard | CEL-backed rule declaration | Collect typed facts and evaluate. |
 | Gate/workflow order | Graph declaration | Compile to GraphKernel and sort. |
 | CLI command | Command registry entry | Generate Cyclopts binding and envelope. |
-| Scaffold/projection | Jinja2 template plus typed context | Render plan and apply only when authorized. |
+| Binding/projection | Typed declaration plus native serializer | Emit only unavoidable external leaves after authorization. |
 | Report/read model | Projection declaration | Evaluate over fact/event models. |
 
 A Python adapter remains valid when it isolates IO, subprocess, Git, OpenSpec,
@@ -125,7 +125,7 @@ implementation lanes must add stronger evidence:
 - CEL policy parity fixtures against incumbent Python checkers;
 - graph digest and ordering stability tests;
 - command registry generated docs/tests checks;
-- scaffold dry-run and apply parity tests;
+- binding plan and apply tests;
 - `ethos report --json` and HEAD-bound `ethos prove` at each lane head.
 
 ## Revisit Trigger

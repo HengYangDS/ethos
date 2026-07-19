@@ -13,6 +13,7 @@ from ethos.adapters.admission.prewrite import prewrite_guard
 from ethos.adapters.mutation.lane_lifecycle.refresh import refresh_work_lane_base
 from ethos.adapters.mutation.lanes import bind_work_lane_claim
 from ethos.adapters.mutation.lanes import start_work_lane
+from ethos.adapters.repo.runtime.core import _declares_external_ethos_runner
 from ethos.adapters.repo.runtime.core import runtime_binding
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.adapters.store.state.lease.projection import active_leases
@@ -864,4 +865,11 @@ def test_runtime_binding_lives_in_semantic_subpackage(tmp_path: Path) -> None:
     binding = runtime_binding(repo)
 
     assert binding["kind"] == "workspace_status_runtime_binding"
-    assert binding["audit_root"] == repo.resolve().as_posix()
+
+
+def test_runtime_binding_rejects_non_table_command_plane(tmp_path: Path) -> None:
+    project = tmp_path / ".ethos" / "project.toml"
+    project.parent.mkdir()
+    project.write_text('command_plane = "ethos"\n', encoding="utf-8")
+
+    assert _declares_external_ethos_runner(tmp_path) is False

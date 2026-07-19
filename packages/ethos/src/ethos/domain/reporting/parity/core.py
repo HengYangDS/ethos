@@ -3,12 +3,15 @@ from __future__ import annotations
 from pathlib import Path
 
 from ethos.repository.profile import load_repository_profile
+from ethos.repository.profile import profile_required_gaps
 
 
 def profile_identity(repo: Path) -> str:
     """Return the repository profile id used for adopter-specific parity, if any."""
     profile = load_repository_profile(repo)
-    return profile.identity.get("profile_id", "")
+    if gaps := profile_required_gaps(profile):
+        raise ValueError(gaps[0])
+    return profile.declaration.profile_id if profile.declaration else ""
 
 
 def adopter_product_root(
@@ -24,11 +27,6 @@ def adopter_product_root(
             runner_root = Path(runner_source_root).resolve()
             if runner_root != repo.resolve():
                 return runner_root
-    profile = load_repository_profile(repo)
-    external_backend = profile.tables.get("external_backend", {})
-    configured = external_backend.get("product_root")
-    if isinstance(configured, str) and configured:
-        return (repo / configured).resolve()
     return repo.resolve()
 
 

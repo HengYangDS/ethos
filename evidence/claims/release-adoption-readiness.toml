@@ -1,7 +1,7 @@
 [claim]
 id = "release-adoption-evidence"
 subject = "ethos:release-adoption-readiness"
-state = "active"
+state = "archived"
 change_id = "2026-07-08-release-adoption-readiness"
 summary = "ETHOS records 2026-07-09 release smoke, external adoption pilot diagnostics, local publish readiness, and local-versus-remote delivery boundary evidence without asserting forge-run checks or registry delivery."
 

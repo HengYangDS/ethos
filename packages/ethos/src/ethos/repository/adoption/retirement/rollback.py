@@ -3,14 +3,14 @@ from __future__ import annotations
 import subprocess
 import tomllib
 from typing import TYPE_CHECKING
-from typing import Any
 from typing import cast
 
-from ethos_core.normalization.core import string_list
 from ethos_core.normalization.core import string_mapping
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+    from ethos.repository.profile import RollbackWindowPolicy
 
 STANDARD_ROLLBACK_SCENARIOS = (
     "proof_report",
@@ -23,7 +23,7 @@ STANDARD_ROLLBACK_SCENARIOS = (
 def rollback_window_checks(
     repo: Path,
     product: Path,
-    rollback_window: dict[str, Any],
+    rollback_window: RollbackWindowPolicy | None,
     *,
     context: dict[str, object],
 ) -> dict[str, object]:
@@ -37,14 +37,14 @@ def rollback_window_checks(
         and external_state in external_default_states
         and embedded_state in embedded_frozen_states
     )
-    configured_required = string_list(rollback_window.get("required_scenarios"), drop_empty=True)
+    configured_required = list(rollback_window.required_scenarios) if rollback_window else []
     required_scenarios = list(dict.fromkeys((*STANDARD_ROLLBACK_SCENARIOS, *configured_required)))
-    completed_scenarios = string_list(rollback_window.get("completed_scenarios"), drop_empty=True)
-    evidence_manifest = str(rollback_window.get("evidence_manifest") or "")
-    state = str(rollback_window.get("state") or "")
+    completed_scenarios = list(rollback_window.completed_scenarios) if rollback_window else []
+    evidence_manifest = rollback_window.evidence_manifest if rollback_window else ""
+    state = rollback_window.state if rollback_window else ""
     gaps = []
     if applicable:
-        if not rollback_window:
+        if rollback_window is None:
             gaps.append("retirement_rollback_window_missing")
         if state != "complete":
             gaps.append(f"retirement_rollback_window_not_complete:{state or 'missing'}")

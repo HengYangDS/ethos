@@ -6,10 +6,13 @@ import re
 import subprocess
 import sys
 import tomllib
+from collections.abc import Mapping
 from dataclasses import replace
 from pathlib import Path
 from typing import cast
 
+from ethos.repository.context import is_product_root
+from ethos.repository.profile import RepositoryProfileDeclaration
 from ethos.repository.profile import load_repository_profile
 from ethos_core.action_graph.core import ActionGraph
 from ethos_core.action_graph.core import ActionNode
@@ -40,20 +43,13 @@ def _adopter_gate_overlay(
     """Compile repository-native gate descriptors from an adopter profile."""
     if not _adopter_profile_active(root, tree_ref=tree_ref):
         return {}, ()
-    profile = load_repository_profile(cast("Path", root), tree_ref=tree_ref)
-    proof_table = profile.tables.get("proof", {})
-    raw_gates = proof_table.get("gates", []) if isinstance(proof_table, dict) else []
-    if not isinstance(raw_gates, list):
-        return {}, ("adopter_gate_descriptors_invalid",)
-
+    assert root is not None
+    declaration = load_repository_profile(root, tree_ref=tree_ref).declaration
+    assert declaration is not None
+    proof = declaration.proof
     overlay: dict[str, GateDescriptor] = {}
     gaps: list[str] = []
-    for index, raw_gate in enumerate(raw_gates):
-        gate, gap = _adopter_gate(raw_gate, index=index)
-        if gap:
-            gaps.append(gap)
-            continue
-        assert gate is not None
+    for gate in proof.gates:
         if gate.id in product_registry:
             gaps.append(f"adopter_gate_descriptor_conflict:{gate.id}")
             continue
@@ -64,29 +60,10 @@ def _adopter_gate_overlay(
 
     gaps.extend(
         f"adopter_gate_descriptor_missing:{gate_id}"
-        for gate_id in _adopter_native_code_correctness_gates(profile)
+        for gate_id in proof.code_correctness_gates
         if gate_id not in product_registry and gate_id not in overlay
     )
     return overlay, tuple(dict.fromkeys(gaps))
-
-
-def _adopter_gate(raw_gate: object, *, index: int) -> tuple[GateDescriptor | None, str]:
-    """Validate one repository-native gate descriptor from profile data."""
-    if not isinstance(raw_gate, dict):
-        return None, f"adopter_gate_descriptor_invalid:{index}"
-    payload = dict(raw_gate)
-    payload.setdefault("profile", "adopter")
-    payload.setdefault("toolchain", "repository-native")
-    payload.setdefault("execution_mode", "subprocess")
-    payload.setdefault("tool_adapter", "repository-native")
-    try:
-        gate = GateDescriptor.model_validate(payload)
-    except ValueError:
-        identifier = str(payload.get("id") or index)
-        return None, f"adopter_gate_descriptor_invalid:{identifier}"
-    if gate.profile != "adopter":
-        return None, f"adopter_gate_descriptor_profile_invalid:{gate.id}"
-    return gate, ""
 
 
 def gate_registry(
@@ -102,39 +79,12 @@ def adopter_gate_descriptor_gaps(
     root: Path | None, *, tree_ref: str | None = None
 ) -> tuple[str, ...]:
     """Return fail-closed gaps for incomplete or invalid adopter gate descriptors."""
+    profile = load_repository_profile(root, tree_ref=tree_ref) if root else None
+    if profile is not None and profile.state == "invalid":
+        return ("adopter_profile_invalid:.ethos/profile.toml",)
     registry = _product_gate_registry()
     _, gaps = _adopter_gate_overlay(root, registry, tree_ref=tree_ref)
     return gaps
-
-
-def _is_product_root(root: Path) -> bool:
-    """Return True when ``root`` is the ETHOS product repository itself.
-
-    Mirrors ethos.repository.context.is_product_root by the same two anchor files, but
-    inlined to keep gates.py off context.py's heavier import chain. The product repo
-    must never be treated as an adopter (which would drop its own code-correctness
-    floor), even if it grew a `.ethos/profile.toml`.
-    """
-    return (root / "packages" / "ethos" / "README.md").exists() and (
-        root / "system" / "schemas" / "kernel"
-    ).exists()
-
-
-def _adopter_native_code_correctness_gates(profile: object) -> tuple[str, ...]:
-    """Gate ids an adopter's profile declares as its native code-correctness proof.
-
-    An adopter drops the product's code-correctness gates (they run product-owned
-    `tools/ci/scripts/*`), so it MUST declare equivalents under
-    `[proof] code_correctness_gates = [...]`. Promotion completeness then requires
-    those gate ids to have run — an adopter proof with no code-correctness dimension is
-    NOT complete (a contentless proof must not promote).
-    """
-    tables = getattr(profile, "tables", {})
-    proof_table = tables.get("proof", {}) if isinstance(tables, dict) else {}
-    declared = proof_table.get("code_correctness_gates") if isinstance(proof_table, dict) else None
-    if not isinstance(declared, list):
-        return ()
-    return tuple(str(gate_id) for gate_id in declared if str(gate_id))
 
 
 def _adopter_profile_active(root: Path | None, *, tree_ref: str | None = None) -> bool:
@@ -147,10 +97,10 @@ def _adopter_profile_active(root: Path | None, *, tree_ref: str | None = None) -
     """
     if root is None:
         return False
-    if _is_product_root(root):
+    if is_product_root(root):
         return False
     profile = load_repository_profile(root, tree_ref=tree_ref)
-    return profile.exists and profile.valid
+    return profile.state == "valid"
 
 
 ADOPTER_MISSING_CODE_CORRECTNESS_GATE = "adopter_profile_missing_code_correctness_gates"
@@ -208,13 +158,11 @@ def _code_correctness_axis_vocab(profile: object) -> dict[str, frozenset[str]]:
     redefine an axis after a proof is stamped.
     """
     vocab = {axis: set(tokens) for axis, tokens in _SEED_AXIS_TOKENS.items()}
-    tables = getattr(profile, "tables", {})
-    proof_table = tables.get("proof", {}) if isinstance(tables, dict) else {}
-    extension = proof_table.get("code_correctness_axes") if isinstance(proof_table, dict) else None
-    if isinstance(extension, dict):
-        for axis, tokens in extension.items():
-            if axis in vocab and isinstance(tokens, list):
-                vocab[axis].update(str(token) for token in tokens if str(token))
+    declaration = getattr(profile, "declaration", None)
+    extension = declaration.proof.code_correctness_axes if declaration else {}
+    for axis, tokens in extension.items():
+        if axis in vocab:
+            vocab[axis].update(tokens)
     return {axis: frozenset(tokens) for axis, tokens in vocab.items()}
 
 
@@ -246,16 +194,15 @@ def _qualifies_for_axis(gate: GateDescriptor, axis: str, vocab: dict[str, frozen
 
 def _code_correctness_map(profile: object) -> dict[str, dict[str, str]]:
     """Parse [proof.code_correctness_map] into {axis: {"gate": id} | {"waived": reason}}."""
-    tables = getattr(profile, "tables", {})
-    proof_table = tables.get("proof", {}) if isinstance(tables, dict) else {}
-    raw = proof_table.get("code_correctness_map") if isinstance(proof_table, dict) else None
+    declaration = getattr(profile, "declaration", None)
+    raw = declaration.proof.code_correctness_map if declaration else None
     parsed: dict[str, dict[str, str]] = {}
-    if not isinstance(raw, dict):
+    if not isinstance(raw, Mapping):
         return parsed
     for axis, entry in raw.items():
         if isinstance(entry, str):
             parsed[str(axis)] = {"gate": entry}
-        elif isinstance(entry, dict):
+        elif isinstance(entry, Mapping):
             if isinstance(entry.get("gate"), str):
                 parsed[str(axis)] = {"gate": str(entry["gate"])}
             elif isinstance(entry.get("waived"), str) and str(entry["waived"]).strip():
@@ -282,8 +229,10 @@ def adopter_code_correctness_gaps(
     """
     if not _adopter_profile_active(root, tree_ref=tree_ref):
         return ()
-    profile = load_repository_profile(cast("Path", root), tree_ref=tree_ref)
-    if not _adopter_native_code_correctness_gates(profile):
+    assert root is not None
+    profile = load_repository_profile(root, tree_ref=tree_ref)
+    proof = cast("RepositoryProfileDeclaration", profile.declaration).proof
+    if not proof.code_correctness_gates:
         return (ADOPTER_MISSING_CODE_CORRECTNESS_GATE,)
     overlay, _ = _adopter_gate_overlay(root, _product_gate_registry(), tree_ref=tree_ref)
     vocab = _code_correctness_axis_vocab(profile)
@@ -324,8 +273,11 @@ def default_gate_ids(
         # axis-coverage/equivalence checks, are enforced by adopter_code_correctness_gaps
         # (completeness gaps), NOT by a non-executable sentinel here — this set must stay
         # registry-executable for gate_graph.
-        profile = load_repository_profile(cast("Path", root), tree_ref=tree_ref)
-        native = _adopter_native_code_correctness_gates(profile)
+        assert root is not None
+        profile = load_repository_profile(root, tree_ref=tree_ref)
+        native = cast(
+            "RepositoryProfileDeclaration", profile.declaration
+        ).proof.code_correctness_gates
         return (*ADOPTER_DEFAULT_GATE_IDS, *native)
     if full:
         return PRODUCT_FULL_GATE_IDS
@@ -333,18 +285,6 @@ def default_gate_ids(
     # types) alongside governance self-checks. "proven" must mean the ETHOS product
     # code actually passes; adopter roots get the profile floor above instead.
     return PRODUCT_DEFAULT_GATE_IDS
-
-
-def promotion_required_gate_ids(
-    root: Path | None = None, *, tree_ref: str | None = None
-) -> tuple[str, ...]:
-    """The gate ids a promotion proof must fully cover for this root (the LAND floor).
-
-    Public alias of `default_gate_ids(full=False, root=root)` — the single definition
-    the completeness check, the policy digest, and the executable graph all resolve, so
-    they never drift.
-    """
-    return default_gate_ids(full=False, root=root, tree_ref=tree_ref)
 
 
 _PYTHON_INTERPRETER_RE = re.compile(r"^python(3(\.\d+)?)?$")
@@ -444,13 +384,13 @@ def _policy_registry_and_required(
     root (whose floor depends on the working-tree profile) or an unresolvable declaration
     falls back to the live registry + this root's floor.
     """
-    if tree_ref is not None and _is_product_root(root):
+    if tree_ref is not None and is_product_root(root):
         committed = _committed_registry_and_floor(root, tree_ref)
         if committed is not None:
             return committed
     return (
         gate_registry(root, tree_ref=tree_ref),
-        promotion_required_gate_ids(root, tree_ref=tree_ref),
+        default_gate_ids(full=False, root=root, tree_ref=tree_ref),
     )
 
 
@@ -523,7 +463,7 @@ def gate_policy_digest(root: Path, *, tree_ref: str | None = None) -> str:
     """
     registry, required = _policy_registry_and_required(root, tree_ref)
     selected_ids = set(required)
-    product = _is_product_root(root)
+    product = is_product_root(root)
     fields = [
         {
             **gate_policy_fields(registry[gate_id], root, tree_ref=tree_ref),
@@ -605,7 +545,7 @@ def gate_graph(
     registry = gate_registry(root)
     selected = gate_ids or default_gate_ids(full=full, root=root)
     selected_ids = set(selected)
-    product = root is None or _is_product_root(root)
+    product = root is None or is_product_root(root)
     declaration_gaps = list(adopter_gate_descriptor_gaps(root))
     nodes: list[ActionNode] = []
     for gate_id in selected:

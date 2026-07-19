@@ -193,7 +193,7 @@ def test_rules_layer_report_strict_with_full_subject_depth(tmp_path: Path) -> No
 # ---------------------------------------------------------------------------
 
 
-def test_load_profile_skips_non_string_root_and_non_list_evidence(
+def test_load_profile_rejects_invalid_root_and_evidence_types(
     tmp_path: Path,
 ) -> None:
     # An empty-string root value fails the guard at profile.py 80 (80->79) so the
@@ -205,7 +205,4 @@ def test_load_profile_skips_non_string_root_and_non_list_evidence(
         encoding="utf-8",
     )
 
-    profile = load_repository_profile(tmp_path)
-
-    assert profile.roots["docs"] == "docs"
-    assert "durable_roots" not in profile.evidence
+    assert load_repository_profile(tmp_path).state == "invalid"

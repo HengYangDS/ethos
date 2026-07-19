@@ -27,24 +27,14 @@ def test_command_declaration_compiles_command_sets_and_quality_handlers() -> Non
     )
     assert declaration.sets.reader_view == ("ethos orient",)
     assert declaration.sets.scorecard == ("ethos report",)
-    assert declaration.sets.setup == ("ethos init", "ethos adopt", "ethos doctor")
+    assert declaration.sets.setup == ("ethos adopt", "ethos doctor")
 
     quality = declaration.group("quality")
     assert quality[0].name == "asset-policy"
     assert quality[-1].name == "governance-kernel"
     assert "source-budget" in {command.name for command in quality}
-    assert "performance" not in {command.name for command in quality}
     assert all(command.import_path.startswith("ethos.") for command in quality)
     assert all(command.help for command in quality)
-
-
-def test_command_declaration_includes_rules_migrate() -> None:
-    declaration = load_command_registry_declaration(ROOT / "system/commands.toml")
-
-    assert "ethos rules migrate" in declaration.sets.maintainer_reference
-    assert [(command.name, command.import_path) for command in declaration.group("rules")] == [
-        ("migrate", "ethos.surface.cli.rules:rules_migrate")
-    ]
 
 
 def test_command_declaration_marks_compiled_quality_report_handlers() -> None:
@@ -71,7 +61,6 @@ def test_command_declaration_marks_compiled_quality_report_handlers() -> None:
     assert report_handlers["source-budget"].enforce is True
     assert report_handlers["source-budget"].bind_root is True
     assert report_handlers["source-budget"].state_mode == "advisory_gaps"
-    assert "performance" not in report_handlers
     assert (
         report_handlers["no-compat"].provider
         == "ethos.repository.policy.no_compat.core:no_compat_report"
@@ -109,7 +98,7 @@ def test_command_declaration_registers_native_cyclopts_lazy_specs() -> None:
     assert register_declared_group(app, "quality") == 0
 
     root = App(name="ethos")
-    assert register_declared_group(root, "root") == 14
+    assert register_declared_group(root, "root") == len(declaration.group("root"))
     assert {command.name for command in declaration.group("root")} <= set(root)
 
 

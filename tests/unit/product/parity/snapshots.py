@@ -10,6 +10,10 @@ from typing import Any
 
 from ethos.adapters.store.state.lease.lifecycle.core import acquire_lease
 from ethos.repository.evidence.parity.validation import SHADOW_PARITY_COMMANDS
+from ethos.repository.profile import RepositoryProfileDeclaration
+from ethos.repository.profile import RepositoryRoots
+from ethos.repository.profile import render_repository_profile
+from ethos_core.contracts.openspec.models import AdopterOpenSpecPolicy
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -150,11 +154,21 @@ def git_head(path: Path) -> str:
     ).stdout.strip()
 
 
-def set_durable_evidence_root(repo: Path, value: str) -> None:
+def set_durable_evidence_root(
+    repo: Path,
+    value: str,
+    *,
+    material_paths: tuple[str, ...] = (".ethos/profile.toml",),
+) -> None:
     """Configure and commit the fixture's durable evidence root."""
     profile = repo / ".ethos" / "profile.toml"
     profile.parent.mkdir(parents=True, exist_ok=True)
-    profile.write_text(f'[roots]\ndurable_evidence = "{value}"\n', encoding="utf-8")
+    declaration = RepositoryProfileDeclaration(
+        profile_id=repo.name,
+        openspec=AdopterOpenSpecPolicy(material_paths=material_paths),
+        roots=RepositoryRoots(durable_evidence=value),
+    )
+    profile.write_text(render_repository_profile(declaration), encoding="utf-8")
     subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
     subprocess.run(
         [

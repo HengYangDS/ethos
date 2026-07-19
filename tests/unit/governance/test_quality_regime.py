@@ -266,7 +266,6 @@ def test_python_lint_owner_supports_macos_bash(tmp_path: Path) -> None:
     for owner in (
         ROOT / "tools/ci/scripts/run-python-lint.sh",
         ROOT / "tools/ci/scripts/run-ruff-ratchet.sh",
-        ROOT / "tools/ci/scripts/run-bandit.sh",
     ):
         owner_text = owner.read_text(encoding="utf-8")
         assert "mapfile" not in owner_text

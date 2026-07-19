@@ -48,7 +48,6 @@ behind a green scorecard.
 Setup and onboarding commands are outside the transition loop:
 
 ```bash
-ethos init
 ethos adopt
 ethos doctor
 ```

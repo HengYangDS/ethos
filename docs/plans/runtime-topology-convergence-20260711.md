@@ -61,7 +61,6 @@ unknown writer.
 | `packages/ethos/src/ethos/repository/policy/artifacts.py` | Executable-path audit. |
 | `.config/checks/local-state/audit.toml`, `tools/ci/local_state_audit.py` | Migration-residue observation. |
 | `packages/ethos/src/ethos/adapters/mutation/lanes.py` | Work Lane bootstrap contract. |
-| `packages/ethos/src/ethos/repository/adoption/scaffold/template_files/` | Neutral adopter projection. |
 | tests, docs, OpenSpec | Contract proof and explainability. |
 
 ## 1. Runtime bootstrap contract

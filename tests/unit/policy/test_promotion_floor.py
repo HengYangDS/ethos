@@ -17,7 +17,6 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from ethos.adapters.mutation.proof import _promotion_required_gate_ids
 from ethos.adapters.mutation.proof import promotion_completeness_gaps
 from ethos.adapters.mutation.proof import record_executed_proof
 from ethos.repository.evidence.core import EvidenceSet
@@ -25,14 +24,17 @@ from ethos.repository.evidence.core import ProofRun
 from ethos.repository.policy.gates import ADOPTER_DEFAULT_GATE_IDS
 from ethos.repository.policy.gates import ADOPTER_MISSING_CODE_CORRECTNESS_GATE
 from ethos.repository.policy.gates import PRODUCT_DEFAULT_GATE_IDS
+from ethos.repository.policy.gates import _adopter_gate_overlay
 from ethos.repository.policy.gates import _code_correctness_axis_vocab
 from ethos.repository.policy.gates import _code_correctness_map
 from ethos.repository.policy.gates import _command_is_degenerate
+from ethos.repository.policy.gates import _product_gate_registry
 from ethos.repository.policy.gates import adopter_code_correctness_gaps
 from ethos.repository.policy.gates import adopter_gate_descriptor_gaps
 from ethos.repository.policy.gates import default_gate_ids
 from ethos.repository.policy.gates import gate_graph
 from ethos.repository.policy.gates import gate_registry
+from ethos_core.contracts.gates import GateDescriptor
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -42,6 +44,8 @@ _CODE_CORRECTNESS = ("unit-architecture", "ruff", "python-types", "module-layout
 
 def _write_profile(root: Path, body: str) -> None:
     (root / ".ethos").mkdir(parents=True, exist_ok=True)
+    if "[openspec]" not in body:
+        body += '\n[openspec]\nmaterial_paths = [".ethos/profile.toml"]\n'
     (root / ".ethos" / "profile.toml").write_text(body, encoding="utf-8")
 
 
@@ -78,8 +82,8 @@ def test_adopter_without_code_correctness_declaration_gets_completeness_gap(
     tmp_path: Path,
 ) -> None:
     """A valid adopter profile that declares no native code-correctness gates cannot
-    produce a complete proof — the executable floor stays the 11 adopter gates (so
-    gate_graph does not KeyError), but adopter_code_correctness_gap surfaces the block."""
+    produce a complete proof — the executable floor stays empty until native gates are
+    declared, while adopter_code_correctness_gap surfaces the block."""
     _write_profile(tmp_path, 'profile_id = "acme"\n')
 
     gates = default_gate_ids(root=tmp_path)
@@ -162,7 +166,7 @@ tool_adapter = "repository-native"
     assert ordered.index("acme-tests") < ordered.index("acme-lint")
 
 
-def test_adopter_gate_descriptor_requires_executable_command(tmp_path: Path) -> None:
+def test_invalid_gate_descriptor_invalidates_profile(tmp_path: Path) -> None:
     _write_profile(
         tmp_path,
         """profile_id = "acme"
@@ -175,10 +179,8 @@ kind = "quality"
     )
 
     assert adopter_gate_descriptor_gaps(tmp_path) == (
-        "adopter_gate_descriptor_invalid:acme-tests",
-        "adopter_gate_descriptor_missing:acme-tests",
+        "adopter_profile_invalid:.ethos/profile.toml",
     )
-    assert gate_graph(root=tmp_path).validate().gaps == adopter_gate_descriptor_gaps(tmp_path)
 
 
 def test_adopter_gate_descriptor_cannot_override_product_gate(tmp_path: Path) -> None:
@@ -198,7 +200,36 @@ command = ["/bin/true"]
     assert gate_registry(root=tmp_path)["claims"].command != ("/bin/true",)
 
 
-def test_adopter_gate_descriptor_rejects_non_adopter_profile_and_duplicates(
+def test_adopter_gate_overlay_rejects_duplicate_typed_descriptors(tmp_path: Path) -> None:
+
+    first = GateDescriptor(
+        id="duplicate",
+        kind="quality",
+        command=("first",),
+        profile="adopter",
+    )
+    second = first.model_copy(update={"command": ("second",)})
+    profile = SimpleNamespace(
+        declaration=SimpleNamespace(
+            proof=SimpleNamespace(gates=(first, second), code_correctness_gates=())
+        )
+    )
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(
+        "ethos.repository.policy.gates._adopter_profile_active", lambda *_args, **_kwargs: True
+    )
+    monkeypatch.setattr(
+        "ethos.repository.policy.gates.load_repository_profile", lambda *_args, **_kwargs: profile
+    )
+    try:
+        _, gaps = _adopter_gate_overlay(tmp_path, _product_gate_registry())
+    finally:
+        monkeypatch.undo()
+
+    assert gaps == ("adopter_gate_descriptor_duplicate:duplicate",)
+
+
+def test_profile_contract_rejects_non_adopter_gate_and_duplicates(
     tmp_path: Path,
 ) -> None:
     _write_profile(
@@ -223,13 +254,11 @@ command = ["second"]
     )
 
     assert adopter_gate_descriptor_gaps(tmp_path) == (
-        "adopter_gate_descriptor_profile_invalid:acme-tests",
-        "adopter_gate_descriptor_duplicate:duplicate",
-        "adopter_gate_descriptor_missing:acme-tests",
+        "adopter_profile_invalid:.ethos/profile.toml",
     )
 
 
-def test_adopter_gate_descriptors_table_must_be_a_list(tmp_path: Path) -> None:
+def test_adopter_gate_descriptors_must_be_an_array(tmp_path: Path) -> None:
     _write_profile(
         tmp_path,
         """profile_id = "acme"
@@ -239,10 +268,12 @@ gates = "not-a-list"
 """,
     )
 
-    assert adopter_gate_descriptor_gaps(tmp_path) == ("adopter_gate_descriptors_invalid",)
+    assert adopter_gate_descriptor_gaps(tmp_path) == (
+        "adopter_profile_invalid:.ethos/profile.toml",
+    )
 
 
-def test_adopter_gate_descriptor_entry_must_be_a_table(tmp_path: Path) -> None:
+def test_adopter_gate_descriptor_entries_must_be_tables(tmp_path: Path) -> None:
     _write_profile(
         tmp_path,
         """profile_id = "acme"
@@ -253,8 +284,7 @@ gates = ["not-a-table"]
     )
 
     assert adopter_gate_descriptor_gaps(tmp_path) == (
-        "adopter_gate_descriptor_invalid:0",
-        "adopter_gate_descriptor_missing:acme-tests",
+        "adopter_profile_invalid:.ethos/profile.toml",
     )
 
 
@@ -265,15 +295,16 @@ def test_explicit_unknown_gate_becomes_graph_validation_gap() -> None:
     assert graph.validate().gaps == ("unknown_gate:not-registered",)
 
 
-def test_adopter_declaration_ignores_non_list_and_empty_entries(tmp_path: Path) -> None:
-    """A malformed `code_correctness_gates` (not a list) is treated as no declaration."""
+def test_adopter_declaration_rejects_non_array_gate_ids(tmp_path: Path) -> None:
     _write_profile(
         tmp_path,
         'profile_id = "acme"\n[proof]\ncode_correctness_gates = "acme-tests"\n',
     )
 
-    assert default_gate_ids(root=tmp_path) == ADOPTER_DEFAULT_GATE_IDS
-    assert adopter_code_correctness_gaps(tmp_path) == (ADOPTER_MISSING_CODE_CORRECTNESS_GATE,)
+    assert default_gate_ids(root=tmp_path) == PRODUCT_DEFAULT_GATE_IDS
+    assert adopter_gate_descriptor_gaps(tmp_path) == (
+        "adopter_profile_invalid:.ethos/profile.toml",
+    )
 
 
 def test_no_root_is_product_floor_and_no_adopter_gap() -> None:
@@ -290,9 +321,9 @@ def test_completeness_gate_blocks_adopter_without_code_correctness(
     subprocess.run(["git", "-C", str(tmp_path), "init", "-q"], check=True)
     _write_profile(tmp_path, 'profile_id = "acme"\n')  # valid adopter, NO code-correctness
     head = "d" * 40
-    runs = tuple(
+    runs = (
         ProofRun(
-            action_id=gate_id,
+            action_id="native-check",
             command=("x",),
             exit_code=0,
             stdout="",
@@ -302,8 +333,7 @@ def test_completeness_gate_blocks_adopter_without_code_correctness(
             verdict="passed",
             trust_bearing=True,
             diagnostics=(),
-        )
-        for gate_id in _promotion_required_gate_ids(tmp_path)
+        ),
     )
     record_executed_proof(
         tmp_path, EvidenceSet.from_runs(id="proof", head=head, runs=runs).to_dict()
@@ -546,36 +576,30 @@ def test_command_is_degenerate_edge_cases() -> None:
     assert _command_is_degenerate(("cargo", "test")) is False
 
 
-def test_axis_vocab_ignores_malformed_extension_entries() -> None:
-    # unknown axis name and non-list tokens are ignored (242->241 branch); known axis with
-    # a list extends.
+def test_axis_vocab_extends_known_axes() -> None:
     profile = SimpleNamespace(
-        tables={
-            "proof": {
-                "code_correctness_axes": {
-                    "behavior": ["fuzz"],
-                    "not-an-axis": ["x"],
-                    "static-analysis": "not-a-list",
-                }
-            }
-        }
+        declaration=SimpleNamespace(
+            proof=SimpleNamespace(
+                code_correctness_axes={"behavior": ("fuzz",), "not-an-axis": ("x",)}
+            )
+        )
     )
     vocab = _code_correctness_axis_vocab(profile)
     assert "fuzz" in vocab["behavior"]
     assert "not-an-axis" not in vocab
 
 
-def test_code_correctness_map_ignores_malformed_entries() -> None:
-    # a non-str/non-dict entry (284->281) and a dict with neither gate nor valid waived
-    # (287->281) are both dropped, so the axis reads as unmapped.
+def test_code_correctness_map_ignores_unusable_entries() -> None:
     profile = SimpleNamespace(
-        tables={
-            "proof": {
-                "code_correctness_map": {
+        declaration=SimpleNamespace(
+            proof=SimpleNamespace(
+                code_correctness_map={
                     "behavior": 123,
                     "static-analysis": {"waived": "   "},
                 }
-            }
-        }
+            )
+        )
     )
     assert _code_correctness_map(profile) == {}
+
+    assert _code_correctness_map(SimpleNamespace(declaration=None)) == {}

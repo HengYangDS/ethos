@@ -63,11 +63,11 @@ gate = "tools/ci/scripts/run-import-linter.sh"
 
 [[tool]]
 concern = "python_sast"
-tool = "bandit"
-config = ".config/checks/bandit/"
+tool = "ruff"
+config = ".config/checks/ruff/ruff.toml"
 profile = "product"
 adoption = "active"
-gate = "tools/ci/scripts/run-bandit.sh"
+gate = "tools/ci/scripts/run-python-lint.sh"
 
 [[tool]]
 concern = "links"
@@ -261,19 +261,12 @@ gate = "tools/ci/scripts/run-secrets-scan.sh"
 
 [[tool]]
 concern = "python_vuln"
-tool = "pip-audit"
+tool = "uv audit"
 config = ".config/checks/security/audit.toml"
 artifacts = "build/evidence/quality/security/"
 gate = "tools/ci/scripts/run-python-vulnerability-audit.sh"
 profile = "security"
 adoption = "active"
-
-[[tool]]
-concern = "osv_vuln"
-tool = "osv-scanner"
-config = ".config/checks/security/audit.toml"
-profile = "security"
-adoption = "candidate"
 
 [[tool]]
 concern = "sbom"

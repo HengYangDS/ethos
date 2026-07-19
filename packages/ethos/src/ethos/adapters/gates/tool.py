@@ -44,8 +44,7 @@ def quality_tool_report(
             "command": command,
             "required_gaps": [f"quality_tool_missing:{tool}"],
         }
-    # Fixed gate command (list form, no shell, no external input); bandit B603 is
-    # skipped for the adapter layer in .config/checks/bandit/bandit.yaml.
+    # Fixed gate command (list form, no shell, no external input).
     completed = subprocess.run(
         command,
         cwd=root,

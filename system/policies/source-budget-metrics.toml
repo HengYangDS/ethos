@@ -37,11 +37,6 @@ carrier_role = "test_source"
 required_metric_ids = ["semantic_nodes", "normalized_scalar_bytes"]
 
 [[profiles]]
-profile_id = "template-jinja-v2"
-carrier_role = "template_source"
-required_metric_ids = ["template_dynamic_units", "template_static_bytes"]
-
-[[profiles]]
 profile_id = "python-source-v2"
 carrier_role = "authored_behavioral_source"
 required_metric_ids = ["lexical_tokens", "normalized_bytes"]
@@ -227,36 +222,6 @@ parser_id = "json-stdlib"
 parser_version = "stdlib-3.14"
 grammar_digest = "450a9bea46f6b3aa845328a112d9d24db07fb69a4b19a6eafb1d8f8a431c63c1"
 normalization_id = "structured-scalars"
-normalization_version = "1"
-aggregation = "sum"
-non_compensable = true
-
-[[contracts]]
-contract_id = "template-jinja-v2:template_dynamic_units"
-contract_version = 2
-metric_id = "template_dynamic_units"
-unit = "template_dynamic_unit"
-carrier_role = "template_source"
-metric_profile = "template-jinja-v2"
-parser_id = "jinja2"
-parser_version = "3.x-contract"
-grammar_digest = "fb83064c9a73c407e4a48596e668a257b8217d212e6de29fc08fe4b0208ed5c7"
-normalization_id = "jinja-dynamic-static"
-normalization_version = "1"
-aggregation = "sum"
-non_compensable = true
-
-[[contracts]]
-contract_id = "template-jinja-v2:template_static_bytes"
-contract_version = 2
-metric_id = "template_static_bytes"
-unit = "template_static_byte"
-carrier_role = "template_source"
-metric_profile = "template-jinja-v2"
-parser_id = "jinja2"
-parser_version = "3.x-contract"
-grammar_digest = "fb83064c9a73c407e4a48596e668a257b8217d212e6de29fc08fe4b0208ed5c7"
-normalization_id = "jinja-dynamic-static"
 normalization_version = "1"
 aggregation = "sum"
 non_compensable = true

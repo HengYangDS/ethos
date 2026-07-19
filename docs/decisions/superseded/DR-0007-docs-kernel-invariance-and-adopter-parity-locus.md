@@ -1,30 +1,30 @@
 ---
 subject: ethos:decision:docs-kernel-invariance-and-adopter-parity-locus
 role: decision
-state: canonical
+state: superseded
 relations:
   depends_on: DR-0004
-  informs: docs topology gate, external adopter parity evidence locus
+  superseded_by: DR-0004 v2 and the existing parity authority documents
 ---
 
 # DR-0007: Docs Kernel Form-Invariance and Adopter-Parity Evidence Locus
 
-Status: accepted.
+Status: superseded.
 
-Purpose: record two investigated non-problems as durable rulings so they are not
-re-opened — (1) the documentation required-path kernel is deliberately repository-form
-invariant and must not become lifecycle-conditional, and (2) real external-adopter
-parity evidence lives in the adopter repository, never in the ETHOS product core; the
-product's only tracked parity artifact is the generic self-shadow.
+Purpose: preserve the historical combined ruling. DR-0004 v2 now owns docs
+topology; the Product Design Contract and Capability Parity Ledger own the
+external-adopter parity evidence locus.
 
 See also: [Decision Records](../README.md), [Decision Index](../decision-index.md),
-and [Accepted Decisions](README.md).
+[DR-0004 v2](../accepted/DR-0004-native-documentation-topology-contract.md),
+[Product Design Contract](../../governance/product-design-contract.md), and
+[Capability Parity Ledger](../../governance/capability-parity-ledger.md).
 
 ## Record
 
 | Field | Value |
 | --- | --- |
-| Status | accepted |
+| Status | superseded |
 | Class | architecture / documentation |
 | Scope | Docs required-path kernel invariance; locus and cost profile of adopter parity evidence. |
 | Supersedes | none |

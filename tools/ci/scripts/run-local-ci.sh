@@ -39,7 +39,6 @@ tools/ci/scripts/run-module-layout.sh
 tools/ci/scripts/run-no-compat.sh
 tools/ci/scripts/run-product-boundary.sh
 tools/ci/scripts/run-governance-kernel.sh
-tools/ci/scripts/run-bandit.sh
 tools/ci/scripts/run-python-vulnerability-audit.sh
 tools/ci/scripts/run-repository-hygiene.sh
 tools/ci/scripts/run-secrets-scan.sh

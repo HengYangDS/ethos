@@ -480,7 +480,7 @@ def test_shadow_report_refresh_bootstrap_rejects_non_matching_shapes() -> None:
         )
         assert (
             shadow_semantics._report_parity_evidence_refresh_bootstrap_gaps(
-                external, embedded, projection, embedded_projection
+                external, projection, embedded_projection
             )
             == []
         )

@@ -230,11 +230,11 @@ def test_report_help_exposes_compact_flag_for_discoverability() -> None:
 
 
 def test_report_uses_adopter_scorecard_for_non_product_repo(tmp_path: Path) -> None:
-    adoption_plan(tmp_path, profile="generic", apply=True)
+    adoption_plan(tmp_path, apply=True)
 
     payload = run_ethos("report", "--root", tmp_path.as_posix(), "--json")
 
-    assert payload["ok"] is True
+    assert payload["ok"] is False
     assert "self_audit" not in payload["data"]
     assert payload["data"]["repository_audit"]["mode"] == "repository"
     assert (
@@ -243,6 +243,7 @@ def test_report_uses_adopter_scorecard_for_non_product_repo(tmp_path: Path) -> N
     )
     assert "posture" not in payload["data"]["governance_context"]
     assert payload["summary"]["governance_gap_count"] == 0
+    assert payload["summary"]["parity_pending_count"] > 0
     assert payload["data"]["scores"]["adopter_governance"] == 1
     assert payload["data"]["first_hour"] == {
         "proof_status": "ready",
@@ -311,7 +312,7 @@ def test_report_scorecard_is_derived_from_governance_checks(monkeypatch) -> None
     assert payload["data"]["scores"]["assistant_projection"] == 1
     assert payload["data"]["scores"]["openspec"] == 1
     assert payload["data"]["scores"]["playbooks"] == 1
-    assert payload["data"]["scores"]["adoption_scaffold"] == 1
+    assert "adoption_scaffold" not in payload["data"]["scores"]
     assert payload["data"]["scores"]["parity_ledger"] == 1
     scorecards = {item["id"]: item for item in payload["data"]["scorecards"]}
     assert scorecards["skills-v2"]["ok"] is True

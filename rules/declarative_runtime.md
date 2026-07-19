@@ -6,8 +6,8 @@ mechanisms instead of accumulating hand-written procedural governance code.
 | Field | Rule |
 | --- | --- |
 | Authority | [DR-0005](../docs/decisions/accepted/DR-0005-declarative-runtime-spine.md), [Declarative Governance Compiler](../docs/architecture/declarative-governance-compiler.md), [Declarative Runtime Spine Modernization](../docs/plans/declarative-runtime-spine-modernization.md) |
-| Trigger | Adding or changing public payloads, policy checks, gates, workflows, CLI commands, scaffolds, projections, read models, or graph planning logic. |
-| Action | Prefer a typed contract, declaration, template, graph, or policy expression before adding imperative Python. |
+| Trigger | Adding or changing public payloads, policy checks, gates, workflows, CLI commands, bindings, projections, read models, or graph planning logic. |
+| Action | Prefer a typed contract, declaration, graph, native serializer, or policy expression before adding imperative Python. |
 | Evidence | Model/schema tests, declaration validation, parity fixture, generated surface check, focused command JSON, and HEAD-bound proof for the touched surface. |
 | Stop | New hand-written Python duplicates a declaration-capable surface without an exception record and focused evidence. |
 
@@ -23,9 +23,9 @@ mechanisms instead of accumulating hand-written procedural governance code.
 - New command surfaces must be registry-first. A manual command handler may only
   bind a declared command to an adapter or preserve compatibility during a bounded
   migration.
-- New scaffolds and host projections must be template-first with typed render
-  context. Do not build multi-file scaffolds through ad hoc Python string
-  assembly when a tracked template can express the artifact.
+- New bindings and host projections must be declaration-first. Interpret facts
+  at runtime; generate only externally required leaves through the carrier's
+  native serializer. Multi-file scaffolds require proof of net deletion.
 - New graph ordering, dependency, gate, workflow, claim, evidence, or projection
   logic must use the shared graph kernel once available. Do not add another
   bespoke topological sorter, cycle detector, or dependency walker.

@@ -45,7 +45,9 @@ def test_gate_registry_has_real_default_gates() -> None:
         "product-boundary",
     } <= set(registry)
     assert registry["ruff"].command == ("tools/ci/scripts/run-python-lint.sh",)
-    assert registry["ruff"].dimensions == ("lint", "format", "ratchet")
+    assert registry["ruff"].dimensions == ("lint", "format", "ratchet", "security", "sast")
+    assert registry["ruff"].evidence_class == "proof"
+    assert registry["ruff"].trust_bearing is True
     assert registry["python-types"].command == ("ethos", "quality", "types", "--json")
     assert registry["docstrings"].command == ("tools/ci/scripts/run-docstring-coverage.sh",)
     assert registry["module-layout"].command == ("tools/ci/scripts/run-module-layout.sh",)
@@ -54,9 +56,6 @@ def test_gate_registry_has_real_default_gates() -> None:
     assert registry["no-compat"].execution_mode == "adapter"
     assert registry["product-boundary"].command == ("tools/ci/scripts/run-product-boundary.sh",)
     assert registry["product-boundary"].execution_mode == "adapter"
-    assert registry["python-security"].command == ("tools/ci/scripts/run-bandit.sh",)
-    assert "-r" not in registry["python-security"].command
-    assert "packages" not in registry["python-security"].command
     assert registry["python-types"].execution_mode == "inprocess"
 
 
@@ -196,14 +195,10 @@ def test_adopter_profile_gate_graph_uses_profile_safe_default_floor(
     profile = tmp_path / ".ethos" / "profile.toml"
     profile.parent.mkdir(parents=True)
     profile.write_text(
-        """schema_version = 1
-profile_id = \"sample-adopter\"
-profile_version = \"1\"
-ethos_contract_version = \"1\"
+        """profile_id = \"sample-adopter\"
 
-[repository]
-kind = \"software\"
-root_subject = \"sample\"
+[openspec]
+material_paths = [\".ethos/profile.toml\"]
 """,
         encoding="utf-8",
     )
@@ -211,19 +206,7 @@ root_subject = \"sample\"
     graph = gate_graph(root=tmp_path)
     node_ids = [node.id for node in graph.nodes]
 
-    assert node_ids == [
-        "repository-audit",
-        "claims",
-        "evidence-freshness",
-        "docs-topology",
-        "schemas",
-        "playbooks-v2",
-        "generated-artifacts",
-        "format-policy",
-        "asset-determinism",
-        "schema-contracts",
-        "proof-policy",
-    ]
+    assert node_ids == []
     commands = [node.to_dict()["command"] for node in graph.nodes]
     assert ["tools/ci/scripts/run-python-lint.sh"] not in commands
     assert ["tools/ci/scripts/run-python-tests.sh"] not in commands
@@ -249,7 +232,7 @@ def test_full_gate_graph_includes_build_after_tests_and_lint() -> None:
         "--no-create-gitignore",
     ]
     assert {"markdown-structure", "format-policy", "asset-determinism"} <= nodes.keys()
-    assert {"schema-contracts", "proof-policy"} <= nodes.keys()
+    assert {"schemas", "proof-policy"} <= nodes.keys()
     assert nodes["python-types"].to_dict()["command"] == [
         "ethos",
         "quality",

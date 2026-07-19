@@ -9,32 +9,26 @@ relations:
 # Fleet And Adopters
 
 ETHOS is the product; governed repositories are adopters. A fleet is a set of
-external repository roots plus their tracked governance surfaces.
+external repository roots and their independently tracked facts.
 
-`ethos fleet inspect --target <repo> --json` reads an adopter in place and
-reports whether `.ethos/profile.toml`, referenced configuration, OpenSpec
-records, repo-local skills, docs, claims, and evidence are present. The
-inspection is data-driven: adopter names, domain contracts, branch roles,
-assistant surfaces, and hosted providers belong in the adopter repository or
-profile.
+`ethos fleet inspect --target <repo> --json` reads an adopter in place. It
+separates the required `.ethos/profile.toml` binding from optional capabilities
+such as OpenSpec, skills, docs, claims, evidence, and provider projections.
+Missing optional capabilities do not invalidate the binding.
 
-For an existing repository, fleet onboarding begins with a strict dry-run. If
-the plan finds differing adopter-owned governance files, the owner can choose
-`ethos adopt --overlay` explicitly. Overlay is not a force mode: it preserves
-the adopter-owned files, exposes their digests in command JSON, and still
-rejects conflicting ETHOS-owned binding surfaces. A fleet record becomes
-adoption evidence only after the adopter's own tracked profile and
-profile-appropriate proof exist.
+Fleet onboarding starts with `ethos adopt --root <repo> --json`, which plans only
+the binding manifest. Existing repository files remain untouched. A differing
+nonempty binding fails closed; ETHOS provides no overlay or force mode. Apply
+requires explicit authorization and a matching Git HEAD.
 
-When an adopter uses non-default branch names, its tracked
-`.ethos/workspace.toml` must map the existing release, accepted, candidate,
-work, and submit roles. The mapping preserves ETHOS transition semantics while
-leaving branch names and branch-provider policy under adopter authority.
+Repository-specific branch roles, domain contracts, assistant surfaces,
+tool-native configuration, and hosted providers stay under adopter authority.
+Later capability commands may project those surfaces explicitly, but the
+adoption bootstrap does not reserve directories or generate provider files.
 
-This keeps ETHOS core reusable. A domain-specific repository can declare its
-own data contracts, assistant projections, intake adapters, and OpenSpec
-changes in its tracked profile and configuration without adding that domain's
-terms to product packages.
+This keeps the kernel reusable: every adopter receives the same lifecycle
+semantics while supplying its own facts and gates through the one typed profile
+contract.
 
 Status: see front matter.
 

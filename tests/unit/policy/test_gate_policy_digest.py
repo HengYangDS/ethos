@@ -27,11 +27,11 @@ from ethos.repository.policy.gates import _committed_blob
 from ethos.repository.policy.gates import _committed_registry_and_floor
 from ethos.repository.policy.gates import canonical_gate_command
 from ethos.repository.policy.gates import committed_product_default_gate_ids
+from ethos.repository.policy.gates import default_gate_ids
 from ethos.repository.policy.gates import gate_policy_conformance_gaps
 from ethos.repository.policy.gates import gate_policy_digest
 from ethos.repository.policy.gates import gate_policy_fields
 from ethos.repository.policy.gates import gate_registry
-from ethos.repository.policy.gates import promotion_required_gate_ids
 from ethos_core.contracts.gates import GateDescriptor
 from tests.support.contract_helpers import conformant_proof_run
 
@@ -39,7 +39,7 @@ from tests.support.contract_helpers import conformant_proof_run
 def _conformant_runs(root: Path) -> list[dict[str, object]]:
     registry = gate_registry(root)
     runs: list[dict[str, object]] = []
-    for gate_id in promotion_required_gate_ids(root):
+    for gate_id in default_gate_ids(root=root):
         gate = registry.get(gate_id)
         if gate is None:
             continue
@@ -142,10 +142,10 @@ def test_conformance_skips_required_gate_absent_from_registry(tmp_path: Path) ->
     # the product registry (gate is None); conformance can only judge registry gates.
     (tmp_path / ".ethos").mkdir()
     (tmp_path / ".ethos" / "profile.toml").write_text(
-        'profile_id = "acme"\n[proof]\ncode_correctness_gates = ["acme-tests"]\n',
+        'profile_id = "acme"\n[openspec]\nmaterial_paths = [".ethos/profile.toml"]\n[proof]\ncode_correctness_gates = ["acme-tests"]\n',
         encoding="utf-8",
     )
-    assert "acme-tests" in promotion_required_gate_ids(tmp_path)
+    assert "acme-tests" in default_gate_ids(root=tmp_path)
     assert "acme-tests" not in gate_registry()
     # No runs at all: every gate is either absent-from-registry (547) or run-absent (550).
     assert gate_policy_conformance_gaps([], tmp_path) == []
@@ -157,6 +157,8 @@ def test_adopter_gate_descriptor_participates_in_policy_conformance(
     (tmp_path / ".ethos").mkdir()
     (tmp_path / ".ethos/profile.toml").write_text(
         """profile_id = "acme"
+[openspec]
+material_paths = [".ethos/profile.toml"]
 [proof]
 code_correctness_gates = ["acme-tests"]
 [[proof.gates]]
@@ -188,7 +190,7 @@ def test_gate_policy_gaps_flags_stale_digest(tmp_path: Path) -> None:
     # the live one is stale (a gate's policy changed since the proof was recorded).
     subprocess.run(["git", "-C", str(tmp_path), "init", "-q"], check=True)
     head = "a" * 40
-    runs = tuple(conformant_proof_run(g, tmp_path) for g in promotion_required_gate_ids(tmp_path))
+    runs = tuple(conformant_proof_run(g, tmp_path) for g in default_gate_ids(root=tmp_path))
     record_executed_proof(
         tmp_path, EvidenceSet.from_runs(id="proof", head=head, runs=runs).to_dict()
     )

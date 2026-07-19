@@ -20,7 +20,9 @@
 - [x] 3.1 Run focused tests and quality checks; update the task state only after
   current evidence exists. The focused retirement and CLI suite passes (`44
   passed`) and the owner Python lint gate passes at the current ratchet floor.
-- [ ] 3.2 Refresh parity and run strict OpenSpec, head-bound proof, archive,
-  candidate land, accepted closeout, and separate native retirement receipts.
+- [x] 3.2 Refresh parity, run strict OpenSpec and head-bound proof, archive,
+  and repair the archived-claim carrier binding. Candidate land, accepted
+  closeout, and separate native retirement receipts remain governed lifecycle
+  transitions after this carrier archive.
   Correct only an observed shared quality-audit catalog drift when it blocks this
   lane's required quality-audit gate; preserve the tool catalog as the SSOT.

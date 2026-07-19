@@ -1,0 +1,10 @@
+schema_version = 1
+paths = [
+  "docs/plans/ownerless-semantic-absorption-20260719.md",
+  "evidence/claims/ownerless-semantic-absorption-20260719.toml",
+  "evidence/chronicle/ownerless-semantic-absorption-20260719/**",
+  "openspec/changes/ownerless-semantic-absorption-20260719/**",
+  "openspec/specs/repository-governance/spec.md",
+  "packages/ethos/src/ethos/adapters/openspec/lifecycle/scope.py",
+  "tests/unit/lanes/test_lanes_openspec_scope_recovery.py",
+]

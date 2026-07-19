@@ -33,6 +33,7 @@ class MaterialScopeBinding(NamedTuple):
     advisory_gaps: tuple[str, ...]
     bootstrap: dict[str, str] | None
     profile_bootstrap: dict[str, str] | None
+    recovery: dict[str, str] | None
 
 
 def material_change_scope_report(
@@ -65,6 +66,7 @@ def material_change_scope_report(
         advisory_gaps=(),
         bootstrap=None,
         profile_bootstrap=None,
+        recovery=None,
     )
     if not profile.exists:
         binding = binding._replace(state="not_applicable")
@@ -159,6 +161,17 @@ def _material_scope_binding_for_material_paths(
             state="bootstrap_scope_creation",
             advisory_gaps=(),
             bootstrap=bootstrap,
+        )
+    recovery = _tracked_invalid_scope_recovery(
+        root=root,
+        material_paths=material_paths,
+        changes=changes,
+    )
+    if recovery is not None:
+        return binding._replace(
+            state="tracked_scope_repair_admitted",
+            advisory_gaps=(),
+            recovery=recovery,
         )
     covered, uncovered = _scope_coverage(material_paths, changes)
     required_gaps = tuple(f"openspec_material_path_uncovered:{path}" for path in uncovered)
@@ -260,6 +273,33 @@ def _is_untracked_scope_path(root: Path, path: str) -> bool:
         check=False,
     )
     return completed.returncode == 1
+
+
+def _tracked_invalid_scope_recovery(
+    *,
+    root: Path,
+    material_paths: tuple[str, ...],
+    changes: tuple[dict[str, object], ...],
+) -> dict[str, str] | None:
+    """Admit repair of one selected tracked malformed scope companion only.
+
+    A malformed companion cannot declare coverage, but it is the exact tracked
+    artifact needed to restore that coverage.  This narrow recovery never
+    admits a neighboring material path or makes the malformed declaration
+    authoritative before it is repaired.
+    """
+    if len(material_paths) != 1:
+        return None
+    requested = material_paths[0]
+    matches = [
+        change
+        for change in changes
+        if change["state"] == "invalid" and str(change["scope_path"]) == requested
+    ]
+    if len(matches) != 1 or not _is_tracked_path(root, requested):
+        return None
+    change = matches[0]
+    return {"change": str(change["name"]), "scope_path": requested}
 
 
 def _is_tracked_path(root: Path, path: str) -> bool:
@@ -376,4 +416,5 @@ def _material_scope_payload(binding: MaterialScopeBinding) -> dict[str, Any]:
         "advisory_gaps": list(binding.advisory_gaps),
         "bootstrap": binding.bootstrap or {},
         "profile_bootstrap": binding.profile_bootstrap or {},
+        "recovery": binding.recovery or {},
     }

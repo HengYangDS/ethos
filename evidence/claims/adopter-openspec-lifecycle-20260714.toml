@@ -5,10 +5,10 @@ state = "active"
 summary = "Plan and proof evaluate official OpenSpec lifecycle for valid adopters."
 
 [evidence]
-dated = "evidence/chronicle/adopter-openspec-lifecycle-20260714/2026-07-14.md"
-sha256 = "e56654f44066e6b59eb348cf740522acf1e6c1abb18c845eb7015def7dc4ca4d"
+dated = "evidence/chronicle/adopter-openspec-lifecycle-continuity-20260719/2026-07-19.md"
+sha256 = "412dc57dbc304d3eaf3ee4f153f998f9011ca27b5fd00b928000f0bc6e4a9fe3"
 evidence_ids = ["evidence:adopter-openspec-lifecycle-20260714"]
-binding = "Universal adopter lifecycle evidence binding."
+binding = "Universal adopter lifecycle evidence binding, continued through a loss-bounded successor that re-observes current inputs and never treats historical runtime state as current proof."
 verifier = "digest_only"
 
 [evidence.freshness]
@@ -21,8 +21,8 @@ owner = "ethos-repository"
 scope = "Universal adopter lifecycle in plan and prove."
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-14-adopter-openspec-lifecycle-20260714"
-fallback = "Block lifecycle gaps; do not substitute code correctness or method packages."
+openspec = "openspec/changes/adopter-openspec-lifecycle-continuity-20260719"
+fallback = "Block lifecycle gaps; preserve the predecessor archive and do not substitute code correctness, historical proof, or method packages."
 kill_signal = "A valid adopter bypasses official lifecycle in plan or proof."
 
 [promotion]

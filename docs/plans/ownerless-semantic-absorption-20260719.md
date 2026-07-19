@@ -1,15 +1,15 @@
 ---
 subject: ethos:ownerless-semantic-absorption-20260719
 role: plan
-state: active
+state: archived
 relations:
-  implements: ownerless-semantic-absorption-20260719
+  carrier: openspec/changes/archive/2026-07-19-ownerless-semantic-absorption-20260719
   derives_from: all-work-lanes-convergence-program-20260716
 ---
 
 # Ownerless Semantic Absorption — 2026-07-19
 
-Status: active, current-baseline replay of one named missing behavior.
+Status: archived carrier; candidate land, accepted closeout, and source-lane re-observation remain separate local transitions.
 
 ## Exact Source Boundary
 

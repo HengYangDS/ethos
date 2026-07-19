@@ -1,18 +1,18 @@
 [claim]
 id = "ownerless-semantic-absorption-20260719"
 subject = "ethos:ownerless-semantic-absorption"
-state = "active"
-summary = "Current-baseline replay of one exact tracked-invalid OpenSpec scope repair from an ownerless historical Work Lane; source retirement remains separately blocked pending current HEAD-bound lifecycle transitions."
+state = "archived"
+summary = "Archived current-baseline replay of one exact tracked-invalid OpenSpec scope repair from an ownerless historical Work Lane; source retirement remains separately blocked pending current HEAD-bound lifecycle transitions."
 
 [evidence]
 dated = "evidence/chronicle/ownerless-semantic-absorption-20260719/2026-07-19.md"
-sha256 = "d31741693a8c627843dfecdb1201af9e054cac56988ec2eff58c4a3885f8bb09"
+sha256 = "8814f38328ce0a51f0ca5b8dbfd0a2758f624a7d454787b2d71acf933fee6f58"
 evidence_ids = ["evidence:ownerless-semantic-absorption-20260719"]
-binding = "The named source head, current candidate-derived Work Lane, active OpenSpec carrier, focused regression, and post-commit exact-HEAD evidence delimit this narrow replay."
+binding = "The named source head, current candidate-derived Work Lane, archived OpenSpec carrier, focused regression, current-head parity, and post-archive exact-HEAD evidence delimit this narrow replay."
 verifier = "digest_only"
 tests = [
   "tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev pytest -q tests/unit/lanes/test_lanes_openspec_scope_recovery.py",
-  "tools/ci/scripts/run-ethos-lane.sh openspec --change ownerless-semantic-absorption-20260719 --lifecycle --json",
+  "tools/ci/scripts/run-ethos-lane.sh openspec --archive-id ownerless-semantic-absorption-20260719 --json",
   "tools/ci/scripts/run-ethos-lane.sh prove --execute --expect-head <committed-head> --json",
 ]
 
@@ -24,7 +24,7 @@ owner = "ethos-repository"
 scope = "One current-baseline tracked-invalid scope-companion recovery and its focused regression; source-lane retirement, all other ownerless lanes, remote publication, and hosted evidence are excluded."
 
 [carriers]
-openspec = "openspec/changes/ownerless-semantic-absorption-20260719"
+openspec = "openspec/changes/archive/2026-07-19-ownerless-semantic-absorption-20260719"
 fallback = "Keep the historical lane and its preservation/block receipt intact until this current replay is proven, accepted, and freshly re-observed."
 kill_signal = "A malformed scope provides coverage, a widened path is admitted, historical topology is merged, or preservation is described as source absorption."
 
@@ -33,7 +33,7 @@ targets = [
   "docs/plans/ownerless-semantic-absorption-20260719.md",
   "evidence/claims/ownerless-semantic-absorption-20260719.toml",
   "evidence/chronicle/ownerless-semantic-absorption-20260719",
-  "openspec/changes/ownerless-semantic-absorption-20260719",
+  "openspec/changes/archive/2026-07-19-ownerless-semantic-absorption-20260719",
   "openspec/specs/repository-governance/spec.md",
   "packages/ethos/src/ethos/adapters/openspec/lifecycle/scope.py",
   "tests/unit/lanes/test_lanes_openspec_scope_recovery.py",

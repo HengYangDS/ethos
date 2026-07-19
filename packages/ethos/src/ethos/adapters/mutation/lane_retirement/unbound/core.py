@@ -5,12 +5,14 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from typing import cast
 
+import ethos.adapters.mutation.lane_retirement.shared.core as lane_retirement_shared
 import ethos.adapters.mutation.lane_retirement.unbound.observation.core as observation
 import ethos.adapters.mutation.lane_retirement.unbound.policy.core as policy
 import ethos.adapters.mutation.lane_retirement.unbound.records.core as records
 import ethos.adapters.mutation.lane_retirement.unbound.reporting.core as reporting
 from ethos.adapters.mutation.lane_lifecycle.core import repo_root
 from ethos.adapters.mutation.lane_lifecycle.core import run_git
+from ethos.adapters.store.state.lease.lifecycle.effects import revoke_lease
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -48,6 +50,12 @@ def retire_unbound_work_lane_ref(  # noqa: PLR0911, PLR0913, RUF100 - exact reti
         confirm_irreversible=confirm_irreversible,
         observed=before,
     )
+    lease_gap = policy.lease_relinquish_gap(
+        before,
+        holder_ref=lane_retirement_shared.current_holder_ref(),
+    )
+    if lease_gap:
+        gaps.append(lease_gap)
     result = reporting.report(
         branch=branch,
         expect_head=expected,
@@ -64,7 +72,8 @@ def retire_unbound_work_lane_ref(  # noqa: PLR0911, PLR0913, RUF100 - exact reti
         return result
 
     control_root, control_gap = policy.accepted_control_root(
-        cast("dict[str, object]", before["status"]), accepted_head=str(before["accepted_head"])
+        cast("dict[str, object]", before["status"]),
+        accepted_head=str(before["accepted_head"]),
     )
     if control_root is None:
         return reporting.blocked(result, [control_gap])
@@ -88,7 +97,9 @@ def retire_unbound_work_lane_ref(  # noqa: PLR0911, PLR0913, RUF100 - exact reti
     )
     try:
         attempt_path = records.write_record(
-            records.attempt_path(records_root, operation_id), attempt, kind=records.ATTEMPT_KIND
+            records.attempt_path(records_root, operation_id),
+            attempt,
+            kind=records.ATTEMPT_KIND,
         )
     except (OSError, TypeError, ValueError) as exc:
         return reporting.blocked(result, [records.stable_gap(exc)])
@@ -118,6 +129,51 @@ def retire_unbound_work_lane_ref(  # noqa: PLR0911, PLR0913, RUF100 - exact reti
             pre_effect_gaps,
         )
 
+    lease_relinquished = _relinquish_owned_lease(
+        control_root,
+        observed=pre_effect,
+        holder_ref=lane_retirement_shared.current_holder_ref(),
+    )
+    if lease_relinquished is None:
+        return reporting.blocked(
+            {
+                **result,
+                "attempt_path": attempt_path,
+                "operation_id": operation_id,
+                "observation": observation.public_observation(pre_effect),
+            },
+            ["unbound_retire_active_lease"],
+        )
+
+    before_delete = _observe(repo, branch=branch, chronicle_ref=chronicle_ref)
+    delete_gaps = policy.admission_gaps(
+        repo,
+        branch=branch,
+        expect_head=expected,
+        reason=reason,
+        apply=True,
+        authorized=authorized,
+        break_glass=break_glass,
+        confirm_irreversible=confirm_irreversible,
+        observed=before_delete,
+    )
+    delete_gaps.extend(policy.active_lease_gaps(before_delete))
+    if observation.retirement_bindings(pre_effect) != observation.retirement_bindings(
+        before_delete
+    ):
+        delete_gaps.append("unbound_retire_pre_effect_observation_stale")
+    if delete_gaps:
+        return reporting.blocked(
+            {
+                **result,
+                "attempt_path": attempt_path,
+                "operation_id": operation_id,
+                "lease_relinquished": lease_relinquished,
+                "observation": observation.public_observation(before_delete),
+            },
+            delete_gaps,
+        )
+
     deleted = run_git(repo, "update-ref", "-d", f"refs/heads/{branch}", expected, check=False)
     after = _observe(repo, branch=branch, chronicle_ref=chronicle_ref)
     effect = records.effect_summary(deleted)
@@ -129,6 +185,7 @@ def retire_unbound_work_lane_ref(  # noqa: PLR0911, PLR0913, RUF100 - exact reti
                 "attempt_path": attempt_path,
                 "operation_id": operation_id,
                 "effect": effect,
+                "lease_relinquished": lease_relinquished,
                 "observation": observation.public_observation(after),
             },
             post_gaps,
@@ -143,10 +200,13 @@ def retire_unbound_work_lane_ref(  # noqa: PLR0911, PLR0913, RUF100 - exact reti
         effect=effect,
         chronicle_unchanged=observation.chronicle_binding(before)
         == observation.chronicle_binding(after),
+        lease_relinquished=lease_relinquished,
     )
     try:
         receipt_path = records.write_record(
-            records.receipt_path(records_root, operation_id), receipt, kind=records.RECEIPT_KIND
+            records.receipt_path(records_root, operation_id),
+            receipt,
+            kind=records.RECEIPT_KIND,
         )
     except (OSError, TypeError, ValueError) as exc:
         return reporting.blocked(
@@ -168,6 +228,7 @@ def retire_unbound_work_lane_ref(  # noqa: PLR0911, PLR0913, RUF100 - exact reti
         "receipt_path": receipt_path,
         "receipt": receipt,
         "effect": effect,
+        "lease_relinquished": lease_relinquished,
         "observation": observation.public_observation(after),
         "required_gaps": [],
         "mutation": reporting.mutation(
@@ -188,3 +249,28 @@ def retire_unbound_work_lane_ref(  # noqa: PLR0911, PLR0913, RUF100 - exact reti
 def _observe(repo: Path, *, branch: str, chronicle_ref: str) -> dict[str, object]:
     """Keep the local seam for observation-drift contract tests."""
     return observation.observe(repo, branch=branch, chronicle_ref=chronicle_ref)
+
+
+def _relinquish_owned_lease(
+    control_root: Path,
+    *,
+    observed: dict[str, object],
+    holder_ref: str,
+) -> dict[str, object] | None:
+    """Revoke only this actor's exact lease generation within the native transition."""
+    if not bool(observed[observation.HAS_ACTIVE_LEASE]):
+        return {}
+    lease = cast("dict[str, object]", observed["active_lease"])
+    if str(lease.get("holder_ref") or "") != holder_ref:
+        return None
+    try:
+        return revoke_lease(
+            control_root / ".ethos" / "state" / "state.sqlite",
+            subject=str(observed["branch"]),
+            holder_ref=holder_ref,
+            expected_lease_id=str(lease["lease_id"]),
+            expected_epoch=int(lease["epoch"]),
+            expected_head=str(lease["expected_head"]),
+        )
+    except (KeyError, TypeError, ValueError):
+        return None

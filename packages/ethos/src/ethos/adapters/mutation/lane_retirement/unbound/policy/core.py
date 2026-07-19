@@ -55,24 +55,49 @@ def admission_gaps(  # noqa: PLR0913, RUF100 - exact admission preserves bound s
 
 
 def branch_admission_gap(repo: Path, *, branch: str, observed: dict[str, object]) -> str:
-    """Return the first target/ref/lifecycle mismatch for this transition."""
+    """Return the first target/ref mismatch before native lease relinquishment."""
     policy = load_branch_role_policy(repo)
     checks = (
         (not branch, "unbound_retire_branch_required"),
-        (policy.role_for_branch(branch) != ROLE_WORK_LANE, "unbound_retire_not_work_lane"),
+        (
+            policy.role_for_branch(branch) != ROLE_WORK_LANE,
+            "unbound_retire_not_work_lane",
+        ),
         (not str(observed["head"]), "unbound_retire_branch_not_found"),
         (not bool(observed["status_unbound"]), "unbound_retire_ref_not_unbound"),
-        (observed["worktree_binding"] != "unbound", "unbound_retire_worktree_binding_drift"),
+        (
+            observed["worktree_binding"] != "unbound",
+            "unbound_retire_worktree_binding_drift",
+        ),
         (
             observed["relation_to_accepted"] != "ancestor_of_accepted",
             "unbound_retire_not_accepted_ancestor",
         ),
-        (
-            bool(observed[observation.HAS_ACTIVE_LEASE]),
-            "unbound_retire_active_lease",
-        ),
     )
     return next((gap for failed, gap in checks if failed), "")
+
+
+def lease_relinquish_gap(
+    observed: dict[str, object],
+    *,
+    holder_ref: str,
+) -> str:
+    """Require any active source lease to belong to this exact invocation."""
+    if not bool(observed[observation.HAS_ACTIVE_LEASE]):
+        return ""
+    lease = cast("dict[str, object]", observed["active_lease"])
+    if not holder_ref or str(lease.get("holder_ref") or "") != holder_ref:
+        return "unbound_retire_active_lease"
+    if not str(lease.get("lease_id") or ""):
+        return "unbound_retire_active_lease"
+    if str(lease.get("expected_head") or "") != str(observed.get("head") or ""):
+        return "unbound_retire_active_lease"
+    return ""
+
+
+def active_lease_gaps(observed: dict[str, object]) -> list[str]:
+    """Require no active lease after native relinquishment and before ref deletion."""
+    return ["unbound_retire_active_lease"] if bool(observed[observation.HAS_ACTIVE_LEASE]) else []
 
 
 def chronicle_gaps(chronicle: dict[str, object], *, branch: str, head: str) -> list[str]:
@@ -89,7 +114,10 @@ def reference_gaps(chronicle: dict[str, object]) -> list[str]:
     checks = (
         (not chronicle["ref"], "unbound_retire_chronicle_ref_required"),
         (not chronicle["path_valid"], "unbound_retire_chronicle_ref_invalid"),
-        (not chronicle[observation.HAS_LOCAL_CHRONICLE], "unbound_retire_chronicle_missing"),
+        (
+            not chronicle[observation.HAS_LOCAL_CHRONICLE],
+            "unbound_retire_chronicle_missing",
+        ),
         (
             not chronicle[observation.HAS_ACCEPTED_CHRONICLE],
             "unbound_retire_chronicle_not_accepted",

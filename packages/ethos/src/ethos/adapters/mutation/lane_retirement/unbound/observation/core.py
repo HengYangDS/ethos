@@ -146,7 +146,12 @@ def chronicle_fields(payload: bytes) -> dict[str, str]:
     fields: dict[str, str] = {}
     for line in text.splitlines():
         key, separator, value = line.partition(":")
-        if separator and key in {"event", "target_branch", "target_head", "target_claim"}:
+        if separator and key in {
+            "event",
+            "target_branch",
+            "target_head",
+            "target_claim",
+        }:
             fields[key] = value.strip()
     return fields
 
@@ -220,7 +225,6 @@ def public_observation(observation: dict[str, object]) -> dict[str, object]:
             "relation_to_accepted",
             "claim_id",
             "claim_binding",
-            "active_lease",
             HAS_ACTIVE_LEASE,
             "chronicle",
             "observation_sha256",
@@ -242,9 +246,41 @@ def operation_bindings(observation: dict[str, object]) -> dict[str, object]:
             "relation_to_accepted",
             "claim_id",
             "claim_binding",
+            "active_lease",
             HAS_ACTIVE_LEASE,
             "chronicle",
         )
+    }
+
+
+def retirement_bindings(observation: dict[str, object]) -> dict[str, object]:
+    """Return bindings that must survive lease relinquishment before ref deletion."""
+    return {
+        key: observation[key]
+        for key in (
+            "head",
+            "accepted_head",
+            "protected_refs",
+            "status_unbound",
+            "worktree_binding",
+            "relation_to_accepted",
+            "claim_id",
+            "claim_binding",
+            "chronicle",
+        )
+    }
+
+
+def lease_relinquish_binding(observation: dict[str, object]) -> dict[str, object]:
+    """Return the exact active lease generation authorized for native relinquishment."""
+    lease = cast("dict[str, object]", observation["active_lease"])
+    active = bool(observation[HAS_ACTIVE_LEASE])
+    return {
+        "active": active,
+        "lease_id": str(lease.get("lease_id") or "") if active else "",
+        "holder_ref": str(lease.get("holder_ref") or "") if active else "",
+        "epoch": int(lease.get("epoch") or 0) if active else 0,
+        "expected_head": str(lease.get("expected_head") or "") if active else "",
     }
 
 
@@ -283,7 +319,11 @@ def public_lease(lease: dict[str, object]) -> dict[str, object]:
 def ref_head(repo: Path, ref: str) -> str:
     """Return a ref head or an empty string when it is absent or unreadable."""
     completed = subprocess.run(
-        ["git", "rev-parse", "--verify", ref], cwd=repo, check=False, capture_output=True, text=True
+        ["git", "rev-parse", "--verify", ref],
+        cwd=repo,
+        check=False,
+        capture_output=True,
+        text=True,
     )
     return completed.stdout.strip() if completed.returncode == 0 else ""
 

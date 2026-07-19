@@ -7,6 +7,7 @@ import pytest
 from ethos.adapters.admission.core import hook_admission_report
 from ethos.adapters.admission.prewrite import has_control_character
 from ethos.adapters.admission.prewrite import has_path_whitespace
+from ethos_core.contracts.admission import HookAdmissionRequest
 from tests.support.ethos_cli_runner import run_ethos_blocked
 from tests.support.lane_helpers import init_repo
 from tests.support.lane_helpers import leased_worktree
@@ -46,11 +47,13 @@ def test_pre_tool_hook_rejects_invalid_path_tokens(
     kind: str,
 ) -> None:
     report = hook_admission_report(
-        root=worktree,
-        layer="pre-tool",
-        paths=[Path(token)],
-        editor_root=worktree,
-        require_editor_root=True,
+        HookAdmissionRequest(
+            root=worktree,
+            layer="pre-tool",
+            paths=[Path(token)],
+            editor_root=worktree,
+            require_editor_root=True,
+        )
     )
 
     assert report["ok"] is False

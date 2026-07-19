@@ -40,6 +40,7 @@ from ethos.repository.openspec.audit import completed_unarchived_changes
 from ethos.repository.openspec.audit import openspec_provider_missing_report
 from ethos.surface.cli import _gate_runner
 from ethos_core.action_graph.core import ActionNode
+from ethos_core.contracts.admission import HookAdmissionRequest
 from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 from ethos_core.contracts.registry.declarations import load_coupling_declaration
@@ -151,9 +152,9 @@ def test_admission_prewrite_and_hook_success_edges(
             "changed_paths": [],
         },
     )
-    assert admission.hook_admission_report(root=tmp_path, layer="pre-tool")["required_gaps"] == [
-        "protected_root_pretool_paths_required"
-    ]
+    assert admission.hook_admission_report(HookAdmissionRequest(root=tmp_path, layer="pre-tool"))[
+        "required_gaps"
+    ] == ["protected_root_pretool_paths_required"]
     monkeypatch.setattr(
         admission,
         "prewrite_guard",
@@ -161,20 +162,22 @@ def test_admission_prewrite_and_hook_success_edges(
     )
     assert (
         admission.hook_admission_report(
-            root=tmp_path, layer="pre-run", paths=[tmp_path / "a"], command="rm a"
+            HookAdmissionRequest(
+                root=tmp_path, layer="pre-run", paths=[tmp_path / "a"], command="rm a"
+            )
         )["decision"]["reason"]
         == "prewrite_admitted"
     )
     assert admission.hook_admission_report(
-        root=tmp_path, layer="pre-run", command="git stash push -u"
+        HookAdmissionRequest(root=tmp_path, layer="pre-run", command="git stash push -u")
     )["required_gaps"] == ["git_stash_forbidden"]
     assert admission.hook_admission_report(
-        root=tmp_path, layer="pre-run", command="git -C /repo stash pop"
+        HookAdmissionRequest(root=tmp_path, layer="pre-run", command="git -C /repo stash pop")
     )["required_gaps"] == ["git_stash_forbidden"]
     assert (
-        admission.hook_admission_report(root=tmp_path, layer="pre-run", command="git stash list")[
-            "decision"
-        ]["reason"]
+        admission.hook_admission_report(
+            HookAdmissionRequest(root=tmp_path, layer="pre-run", command="git stash list")
+        )["decision"]["reason"]
         == "command_observe_only"
     )
     monkeypatch.setattr(
@@ -188,10 +191,13 @@ def test_admission_prewrite_and_hook_success_edges(
         },
     )
     post = admission.hook_admission_report(
-        root=tmp_path, layer="post-write", paths=[tmp_path / "a.md"]
+        HookAdmissionRequest(root=tmp_path, layer="post-write", paths=[tmp_path / "a.md"])
     )
     assert post["state"] == "admitted"
-    assert admission.hook_admission_report(root=tmp_path, layer="git")["state"] == "fallback"
+    assert (
+        admission.hook_admission_report(HookAdmissionRequest(root=tmp_path, layer="git"))["state"]
+        == "fallback"
+    )
     assert admission._relative(tmp_path, tmp_path.parent / "outside.md").endswith("outside.md")  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
 
     for command, forbidden, operation, reason in (

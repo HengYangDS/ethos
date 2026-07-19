@@ -12,10 +12,10 @@ from datetime import timedelta
 from typing import TYPE_CHECKING
 from typing import Any
 
-from ethos.adapters.store.state.events import initialize_state
-from ethos.adapters.store.state.events import now
 from ethos.adapters.store.state.lease.projection import json_object
 from ethos.adapters.store.state.lease.projection import lease_contract_fields
+from ethos.adapters.store.state.schema import initialize_state
+from ethos.adapters.store.state.schema import now
 from ethos_core.contracts.coordination import HolderRef
 from ethos_core.normalization.core import string_sequence
 

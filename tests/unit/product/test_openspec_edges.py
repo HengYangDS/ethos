@@ -255,6 +255,16 @@ def test_archive_query_resolves_only_logical_change_identifier(tmp_path: Path) -
     ]
 
 
+def test_archive_query_handles_missing_archive_root(tmp_path: Path) -> None:
+    report = archive_query.archive_query_report(tmp_path / "repo", logical_id="missing-change")
+
+    assert report["ok"] is False
+    assert report["state"] == "missing"
+    assert report["required_gaps"] == [
+        "openspec_archive_logical_identifier_not_found:missing-change"
+    ]
+
+
 def test_archive_directory_name_is_rejected_as_active_change_identifier(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -277,6 +287,8 @@ def test_archive_directory_name_is_rejected_as_active_change_identifier(
     assert report["required_gaps"] == [
         f"openspec_active_change_identifier_is_archive_directory:{archive.name}"
     ]
+
+    assert archive_query.active_change_identifier_gaps(root, "active-change") == []
 
 
 def test_openspec_cli_archive_query_avoids_active_status(tmp_path: Path, monkeypatch) -> None:

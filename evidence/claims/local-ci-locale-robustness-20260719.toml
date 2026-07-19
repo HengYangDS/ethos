@@ -2,11 +2,11 @@
 id = "local-ci-locale-robustness-20260719"
 subject = "quality:local-ci-git-bundle-locale-robustness"
 state = "active"
-summary = "The locale-stable bundle verification passed complete local CI on its recorded stable HEAD; proof, archive, and closeout remain unclaimed."
+summary = "The locale-stable bundle verification passed complete local CI and executed proof on recorded stable HEADs; archive and closeout remain unclaimed."
 
 [evidence]
 dated = "evidence/chronicle/local-ci-locale-robustness-20260719/2026-07-19.md"
-sha256 = "442e09ca3a32b5bad72b7297de60309cc356779f8aaca3e84d6ea5b121b95c01"
+sha256 = "40aa9e01138a67a56fe79c45b97427698c291e08aeada9991889ad11768802c0"
 evidence_ids = ["evidence:local-ci-locale-robustness-20260719"]
 binding = "The dated Chronicle binds the exact localized RED observation, selected test-only locale boundary, focused green observation, and explicit no-remote scope."
 verifier = "digest_only"

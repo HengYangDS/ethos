@@ -102,34 +102,19 @@ if ((${#json_files[@]})); then
   "${ethos_python}" - .config/checks/json/format.toml "${json_files[@]}" <<'PY'
 from __future__ import annotations
 
-import fnmatch
-import subprocess
-import sys
-import tomllib
+import fnmatch, subprocess, sys, tomllib
 from pathlib import Path
 
-policy = tomllib.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
-rules = policy.get("rule", [])
-failed = False
+policy = tomllib.loads(Path(sys.argv[1]).read_text(encoding="utf-8")); rules = policy.get("rule", []); failed = False
 for raw in sys.argv[2:]:
-    path = Path(raw)
-    relative = path.as_posix()
-    mode = str(policy["default_mode"])
-    for rule in rules:
-        if any(fnmatch.fnmatchcase(relative, glob) for glob in rule["globs"]):
-            mode = str(rule["mode"])
+    path = Path(raw); relative = path.as_posix()
+    mode = next((str(rule["mode"]) for rule in reversed(rules) if any(fnmatch.fnmatchcase(relative, glob) for glob in rule["globs"])), str(policy["default_mode"]))
     command = ["jq", "-c"] if mode == "compact" else ["jq", "--indent", str(policy["indent"])]
-    rendered = subprocess.run(
-        [*command, ".", relative],
-        capture_output=True,
-        check=False,
-    )
+    rendered = subprocess.run([*command, ".", relative], capture_output=True, check=False)
     if rendered.returncode:
-        sys.stderr.buffer.write(rendered.stderr)
-        failed = True
+        sys.stderr.buffer.write(rendered.stderr); failed = True
     elif path.read_bytes() != rendered.stdout:
-        print(f"{relative}: JSON format drift ({mode})", file=sys.stderr)
-        failed = True
+        print(f"{relative}: JSON format drift ({mode})", file=sys.stderr); failed = True
 raise SystemExit(1 if failed else 0)
 PY
 fi

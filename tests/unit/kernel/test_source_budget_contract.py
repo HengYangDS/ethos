@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
+from ethos_core.contracts.source_budget import core as source_budget_contract
 from ethos_core.contracts.source_budget.core import SourceBudgetWave
 from ethos_core.contracts.source_budget.core import source_budget_json_schema
 from ethos_core.contracts.source_budget.core import validate_source_budget_policy
@@ -35,6 +36,18 @@ def _policy_payload() -> dict[str, object]:
             ],
         },
     }
+
+
+def test_source_budget_contract_preserves_public_api_names() -> None:
+    assert source_budget_contract.JSON_SCHEMA_DRAFT_2020_12.endswith("2020-12/schema")
+    assert source_budget_contract.ISO_DATE_LENGTH == 10
+    assert source_budget_contract.ISO_DATE_ERROR == "must be an ISO-8601 calendar date"
+    assert (
+        source_budget_contract.SourceBudgetDebtRecord.validate_expiry("2026-12-01") == "2026-12-01"
+    )
+    assert callable(source_budget_contract.SourceBudgetTaxonomy.validate_taxonomy)
+    assert callable(source_budget_contract.SourceBudgetDebt.validate_lifecycle_bindings)
+    assert callable(source_budget_contract.SourceBudgetPolicyBase.validate_taxonomy)
 
 
 def test_source_budget_contract_preserves_lifecycle_fields():

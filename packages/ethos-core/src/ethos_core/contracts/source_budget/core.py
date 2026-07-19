@@ -18,31 +18,39 @@ NonNegativeInt = Annotated[int, Field(strict=True, ge=0)]
 PositiveInt = Annotated[int, Field(strict=True, gt=0)]
 NonEmptyStr = Annotated[str, Field(min_length=1)]
 IsoDate = Annotated[str, Field(pattern=r"^\d{4}-\d{2}-\d{2}$")]
-JSON_SCHEMA_DRAFT_2020_12 = "https://json-schema.org/draft/2020-12/schema"
-ISO_DATE_LENGTH = 10
-ISO_DATE_ERROR = "must be an ISO-8601 calendar date"
+JSON_SCHEMA_DRAFT_2020_12 = _SCHEMA_DRAFT = "https://json-schema.org/draft/2020-12/schema"
+_SCHEMA_TITLE = "ETHOS Source Budget Policy"
+_REQUIRED_AGGREGATES = {"python_total", "global_total"}
+ISO_DATE_LENGTH = _ISO_DATE_LENGTH = len("YYYY-MM-DD")
+ISO_DATE_ERROR = _ISO_DATE_ERROR = "must be an ISO-8601 calendar date"
 
 
-class SourceBudgetWave(BaseModel):
-    """One registered deletion wave for active temporary source debt."""
-
+class _SourceBudgetModel(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
+
+    @field_validator("due_on", "expiry", check_fields=False)
+    @classmethod
+    def validate_due_on(cls, value: str) -> str:
+        """Require a machine-readable ISO calendar date."""
+        if len(value) != _ISO_DATE_LENGTH:
+            raise ValueError(_ISO_DATE_ERROR)
+        try:
+            date.fromisoformat(value)
+        except ValueError as exc:
+            raise ValueError(_ISO_DATE_ERROR) from exc
+        return value
+
+
+class SourceBudgetWave(_SourceBudgetModel):
+    """One registered deletion wave for active temporary source debt."""
 
     id: NonEmptyStr
     due_on: IsoDate
     state: Literal["active", "settled"]
 
-    @field_validator("due_on")
-    @classmethod
-    def validate_due_on(cls, value: str) -> str:
-        """Require a machine-readable ISO calendar date."""
-        return _iso_date(value)
 
-
-class SourceBudgetCarrier(BaseModel):
+class SourceBudgetCarrier(_SourceBudgetModel):
     """One declaration-owned source carrier classifier and line metric."""
-
-    model_config = ConfigDict(frozen=True, extra="forbid")
 
     category: NonEmptyStr
     extensions: tuple[NonEmptyStr, ...] = Field(min_length=1)
@@ -52,32 +60,23 @@ class SourceBudgetCarrier(BaseModel):
     comment_wrappers: tuple[tuple[str, str], ...] = ()
 
 
-class SourceBudgetTaxonomy(BaseModel):
+class SourceBudgetTaxonomy(_SourceBudgetModel):
     """One format-registry-owned executable carrier taxonomy."""
-
-    model_config = ConfigDict(frozen=True, extra="forbid")
 
     carrier: tuple[SourceBudgetCarrier, ...] = Field(min_length=1)
     aggregates: dict[str, tuple[NonEmptyStr, ...]]
 
     @model_validator(mode="after")
     def validate_taxonomy(self) -> SourceBudgetTaxonomy:
-        categories = tuple(item.category for item in self.carrier)
-        if unknown := {
-            member
-            for members in self.aggregates.values()
-            for member in members
-            if member not in categories
-        }:
+        unknown = set().union(*self.aggregates.values()) - {item.category for item in self.carrier}
+        if unknown:
             message = f"source-budget aggregate member unknown: {min(unknown)}"
             raise ValueError(message)
         return self
 
 
-class SourceBudgetDebtRecord(BaseModel):
+class SourceBudgetDebtRecord(_SourceBudgetModel):
     """One auditable temporary allowance and its required deletion outcome."""
-
-    model_config = ConfigDict(frozen=True, extra="forbid")
 
     id: NonEmptyStr
     owner: NonEmptyStr
@@ -88,17 +87,14 @@ class SourceBudgetDebtRecord(BaseModel):
     expected_net_deletion: PositiveInt
     allowance_by_category: dict[str, NonNegativeInt]
 
-    @field_validator("expiry")
     @classmethod
     def validate_expiry(cls, value: str) -> str:
-        """Require a machine-readable ISO calendar date."""
-        return _iso_date(value)
+        """Validate expiry through the shared ISO calendar-date contract."""
+        return cls.validate_due_on(value)
 
 
-class SourceBudgetDebt(BaseModel):
+class SourceBudgetDebt(_SourceBudgetModel):
     """The complete temporary-debt ledger used by transition enforcement."""
-
-    model_config = ConfigDict(frozen=True, extra="forbid")
 
     maximum_total: NonNegativeInt
     waves: tuple[SourceBudgetWave, ...]
@@ -106,25 +102,22 @@ class SourceBudgetDebt(BaseModel):
 
     @model_validator(mode="after")
     def validate_lifecycle_bindings(self) -> SourceBudgetDebt:
-        """Reject duplicate waves, duplicate records, and dangling wave references."""
         wave_ids = tuple(wave.id for wave in self.waves)
         record_ids = tuple(record.id for record in self.records)
-        if len(wave_ids) != len(set(wave_ids)):
-            message = "source-budget deletion waves must be unique"
-            raise ValueError(message)
-        if len(record_ids) != len(set(record_ids)):
-            message = "source-budget debt records must be unique"
-            raise ValueError(message)
-        if unknown := sorted({record.deletion_wave for record in self.records} - set(wave_ids)):
-            message = f"source-budget debt references unknown deletion wave: {unknown[0]}"
+        pairs = ((wave_ids, "deletion waves"), (record_ids, "debt records"))
+        for values, label in pairs:
+            if len(values) != len(set(values)):
+                message = f"source-budget {label} must be unique"
+                raise ValueError(message)
+        unknown = {record.deletion_wave for record in self.records} - set(wave_ids)
+        if unknown:
+            message = f"source-budget debt references unknown deletion wave: {min(unknown)}"
             raise ValueError(message)
         return self
 
 
-class SourceBudgetPolicyBase(BaseModel):
+class SourceBudgetPolicyBase(_SourceBudgetModel):
     """Validated source-budget policy loaded from the repository rules table."""
-
-    model_config = ConfigDict(frozen=True, extra="forbid")
 
     baseline_head: str = Field(pattern=r"^[a-f0-9]{40,64}$")
     baseline: dict[str, NonNegativeInt]
@@ -133,13 +126,10 @@ class SourceBudgetPolicyBase(BaseModel):
 
     @model_validator(mode="after")
     def validate_taxonomy(self) -> SourceBudgetPolicyBase:
-        """Bind limits and temporary allowances to the declared carrier taxonomy."""
-        if not {"python_total", "global_total"} <= set(self.baseline):
-            message = "source-budget baseline must include required aggregates"
-            raise ValueError(message)
-        if not {"python_total", "global_total"} <= set(self.terminal):
-            message = "source-budget terminal must include required aggregates"
-            raise ValueError(message)
+        for name in ("baseline", "terminal"):
+            if not getattr(self, name).keys() >= _REQUIRED_AGGREGATES:
+                message = f"source-budget {name} must include required aggregates"
+                raise ValueError(message)
         return self
 
 
@@ -156,16 +146,15 @@ type SourceBudgetPolicy = Annotated[
     SourceBudgetCampaignPolicy | SourceBudgetStandalonePolicy,
     Field(discriminator="enforcement"),
 ]
-SourceBudgetPolicyAdapter = TypeAdapter(SourceBudgetPolicy)
+SourceBudgetPolicyAdapter = _POLICY_ADAPTER = TypeAdapter(SourceBudgetPolicy)
 
 
 def source_budget_json_schema() -> dict[str, object]:
     """Generate the published source-budget JSON Schema contract."""
-    schema = SourceBudgetPolicyAdapter.json_schema()
     return {
-        "$schema": JSON_SCHEMA_DRAFT_2020_12,
-        **schema,
-        "title": "ETHOS Source Budget Policy",
+        "$schema": _SCHEMA_DRAFT,
+        **_POLICY_ADAPTER.json_schema(),
+        "title": _SCHEMA_TITLE,
     }
 
 
@@ -179,20 +168,9 @@ class SourceBudgetPolicyLoad:
 
 def validate_source_budget_policy(payload: object) -> SourceBudgetPolicy:
     """Validate a source-budget policy through its typed contract."""
-    return SourceBudgetPolicyAdapter.validate_python(payload)
+    return _POLICY_ADAPTER.validate_python(payload)
 
 
 def validate_source_budget_taxonomy(payload: object) -> SourceBudgetTaxonomy:
     """Validate the carrier taxonomy compiled from format selection."""
     return SourceBudgetTaxonomy.model_validate(payload)
-
-
-def _iso_date(value: str) -> str:
-    """Return an exact ISO-8601 calendar date or raise a validation error."""
-    if len(value) != ISO_DATE_LENGTH:
-        raise ValueError(ISO_DATE_ERROR)
-    try:
-        date.fromisoformat(value)
-    except ValueError as exc:
-        raise ValueError(ISO_DATE_ERROR) from exc
-    return value

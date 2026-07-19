@@ -119,23 +119,15 @@ def product_scores(
 
 def hard_quality_floor_report(repo: Path) -> dict[str, object]:
     """Return product hard quality gates that the scorecard must not hide."""
-    code_size = code_size_report(repo)
-    coverage = coverage_quality_report(repo)
-    types = ty_gate_report(repo)
-    docstrings = docstring_coverage_report(repo)
-    module_layout = module_layout_report(repo)
-    generated_artifacts = generated_artifact_topology_report(repo)
-    product_boundary = product_boundary_report(repo)
-    contributor_policy = contributor_policy_report(repo)
     gate_reports = {
-        "python-size": code_size,
-        "coverage": coverage,
-        "types": types,
-        "docstrings": docstrings,
-        "module-layout": module_layout,
-        "generated-artifacts": generated_artifacts,
-        "product-boundary": product_boundary,
-        "contributor-policy": contributor_policy,
+        "python-size": code_size_report(repo),
+        "coverage": coverage_quality_report(repo),
+        "types": ty_gate_report(repo),
+        "docstrings": docstring_coverage_report(repo),
+        "module-layout": module_layout_report(repo),
+        "generated-artifacts": generated_artifact_topology_report(repo),
+        "product-boundary": product_boundary_report(repo),
+        "contributor-policy": contributor_policy_report(repo),
     }
     required_gaps: list[str] = []
     for report in gate_reports.values():

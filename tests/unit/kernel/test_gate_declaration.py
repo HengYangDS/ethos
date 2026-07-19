@@ -38,6 +38,10 @@ def test_gate_declaration_compiles_runtime_quality_and_proof_sets() -> None:
     assert runtime["module-layout"].depends_on == ()
     assert declaration.proof_sets.product_default[0] == "repository-audit"
     assert declaration.proof_sets.product_full[-1] == "npm-pack"
+    assert declaration.proof_sets.product_full.count("local-install-smoke") == 1
+    assert declaration.proof_sets.product_full.index("build") < (
+        declaration.proof_sets.product_full.index("local-install-smoke")
+    )
     assert set(declaration.proof_sets.product_default) <= set(declaration.proof_sets.product_full)
 
 

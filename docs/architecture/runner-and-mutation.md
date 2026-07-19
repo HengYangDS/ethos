@@ -81,10 +81,14 @@ candidate branch, `ethos land` advances the configured candidate branch, and
 `ethos lane retire landed` removes only an explicitly named clean landed Work Lane at
 the expected Work Lane HEAD.
 `ethos lane retire unbound` inspects only an explicitly named unbound Work Lane
-ref that status already exposed, and only when `--expect-head`, `--reason`, and
-`--authorize` prove the maintainer intended that exact ref deletion. Raw Git
-worktree creation can exist as a repository fact, but it is not standard ETHOS
-workflow state.
+ref that status already exposed. Its exceptional path stays exact-head,
+Chronicle, Claim, and explicit-control bound. A live lease blocks by default;
+the only native exception is a current `ETHOS_ACTOR` holder relinquishing its
+same observed lease ID, epoch, and target head through the local CAS before the
+separate compare-and-delete effect. The command records that exact lease
+binding, requires no active lease in its final pre-delete observation, and
+leaves the ref intact on any drift or failed CAS. Raw Git worktree creation can
+exist as a repository fact, but it is not standard ETHOS workflow state.
 
 Status output also carries `closeout_support`. Only the current clean
 Work Lane checkout can advertise `operation = "land_to_candidate"`. Release

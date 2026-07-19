@@ -7,12 +7,14 @@ import stat
 import tempfile
 from pathlib import Path
 from typing import Any
+from typing import cast
 
 import ethos.adapters.mutation.lane_retirement.unbound.observation.core as observation
 
 ATTEMPT_KIND = "exceptional_unbound_retirement_attempt"
 RECEIPT_KIND = "exceptional_unbound_retirement_receipt"
 MAX_STABLE_ERROR_LENGTH = 240
+_GIT_SHA_LENGTH = 40
 _RECORD_COLLISION = "unbound_retire_record_collision"
 _RECORD_UNSAFE = "unbound_retire_record_unsafe"
 _RECORD_INVALID = "unbound_retire_record_invalid"
@@ -29,7 +31,7 @@ def _data(**values: Any) -> dict[str, Any]:
 _COMMON_KEYS = _keys(
     "schema_version kind operation_id branch expected_head accepted_head claim_id chronicle_ref "
     "chronicle_sha256 chronicle_claim_id chronicle_claim_sha256 reason before_observation_sha256 "
-    "effect mints_authority recheck_required"
+    "lease_relinquish_binding effect mints_authority recheck_required"
 )
 _POSTCONDITIONS = _keys(
     "ref_absent unbound_absent active_lease_absent protected_refs_unchanged chronicle_unchanged"
@@ -43,7 +45,7 @@ def sha256(value: object) -> str:
     ).hexdigest()
 
 
-def operation_id(
+def operation_id(  # noqa: PLR0913, RUF100 - exact record identity preserves bound state dimensions
     *,
     branch: str,
     expect_head: str,
@@ -78,6 +80,7 @@ def _payload(
     )
     result |= _data(chronicle_claim_sha256=chronicle["claim_sha256"], reason=reason)
     result |= _data(before_observation_sha256=observed["observation_sha256"])
+    result |= _data(lease_relinquish_binding=observation.lease_relinquish_binding(observed))
     result |= _data(mints_authority=False, recheck_required=True)
     return result
 
@@ -96,7 +99,7 @@ def attempt_payload(
     )
 
 
-def receipt_payload(
+def receipt_payload(  # noqa: PLR0913, RUF100 - exact receipt preserves bound state dimensions
     *,
     operation_id: str,
     branch: str,
@@ -106,12 +109,14 @@ def receipt_payload(
     after: dict[str, object],
     effect: dict[str, object],
     chronicle_unchanged: bool,
+    lease_relinquished: dict[str, object],
 ) -> dict[str, object]:
     """Build the postcondition-bound retirement receipt."""
     protected = before["protected_refs"]
     result = _payload(RECEIPT_KIND, operation_id, branch, expect_head, reason, before)
     result |= _data(protected_refs_before=protected, protected_refs_after=after["protected_refs"])
     result |= _data(after_observation_sha256=after["observation_sha256"], effect=effect)
+    result["lease_relinquished"] = lease_relinquished
     result["postconditions"] = _data(
         ref_absent=not bool(after["head"]),
         unbound_absent=not bool(after["status_unbound"]),
@@ -198,7 +203,8 @@ def validate_record(payload: dict[str, object], *, kind: str) -> None:
     """Reject malformed durable records before they can guide a retry."""
     receipt = kind == RECEIPT_KIND
     receipt_keys = _keys(
-        "protected_refs_before protected_refs_after after_observation_sha256 postconditions"
+        "protected_refs_before protected_refs_after after_observation_sha256 "
+        "lease_relinquished postconditions"
     )
     required = _COMMON_KEYS | (receipt_keys if receipt else {"protected_refs"})
     protected = payload.get("protected_refs_before" if receipt else "protected_refs")
@@ -217,6 +223,7 @@ def validate_record(payload: dict[str, object], *, kind: str) -> None:
         )
         or payload.get("mints_authority") is not False
         or payload.get("recheck_required") is not True
+        or not valid_lease_relinquish_binding(payload.get("lease_relinquish_binding"))
         or not isinstance(protected, dict)
         or not protected
         or not all(protected.values())
@@ -227,9 +234,54 @@ def validate_record(payload: dict[str, object], *, kind: str) -> None:
         or not isinstance(postconditions, dict)
         or set(postconditions) != _POSTCONDITIONS
         or not all(value is True for value in postconditions.values())
+        or not valid_lease_relinquishment(
+            payload.get("lease_relinquish_binding"),
+            payload.get("lease_relinquished"),
+            subject=str(payload.get("branch") or ""),
+        )
     )
     if invalid:
         raise ValueError(_RECORD_INVALID)
+
+
+def valid_lease_relinquish_binding(value: object) -> bool:
+    """Accept an exact lease binding or the explicit no-lease shape."""
+    fields = {"active", "lease_id", "holder_ref", "epoch", "expected_head"}
+    if not isinstance(value, dict) or set(value) != fields:
+        return False
+    binding = cast("dict[str, object]", value)
+    active, epoch = binding.get("active"), binding.get("epoch")
+    if not isinstance(active, bool):
+        return False
+    texts = tuple(binding.get(key) for key in ("lease_id", "holder_ref", "expected_head"))
+    if not active:
+        return epoch == 0 and texts == ("", "", "")
+    return (
+        all(isinstance(item, str) and item for item in texts)
+        and isinstance(epoch, int)
+        and not isinstance(epoch, bool)
+        and epoch > 0
+        and len(cast("str", texts[2])) == _GIT_SHA_LENGTH
+    )
+
+
+def valid_lease_relinquishment(binding: object, relinquished: object, *, subject: str) -> bool:
+    """Require a receipt to retain the exact native lease CAS result."""
+    if not isinstance(binding, dict):
+        return False
+    lease = cast("dict[str, object]", binding)
+    if lease.get("active") is False:
+        return relinquished == {}
+    if lease.get("active") is not True:
+        return False
+    return relinquished == {
+        "revoked": True,
+        "subject": subject,
+        "lease_id": lease.get("lease_id"),
+        "holder_ref": lease.get("holder_ref"),
+        "epoch": lease.get("epoch"),
+        "expected_head": lease.get("expected_head"),
+    }
 
 
 def sha256_text_fields(payload: dict[str, object], *keys: str) -> bool:
@@ -240,7 +292,8 @@ def sha256_text_fields(payload: dict[str, object], *keys: str) -> bool:
 def effect_summary(completed: object) -> dict[str, object]:
     """Project the sole Git effect without carrying raw output into evidence."""
     return {
-        "command": "git update-ref -d",
+        "command": "git update-ref --stdin",
+        "transaction": "verify_protected_refs_delete_target",
         "returncode": int(getattr(completed, "returncode", 1)),
         "stderr_sha256": hashlib.sha256(str(getattr(completed, "stderr", "")).encode()).hexdigest(),
     }

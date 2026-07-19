@@ -44,6 +44,9 @@ local hygiene problem and an active governance failure.
 - `distribution`: subject=retired-release-configuration-fields; reuse=extend;
   change=remove; facet:lifecycle=authoring,validation,release;
   facet:surface=scaffold,package,test,openspec; facet:authority=source,test,openspec.
+- `adapters`: subject=operator-supplied-independent-verification-executables;
+  reuse=extend; change=modify; facet:lifecycle=validation,runtime,release;
+  facet:surface=package,test,docs,openspec; facet:authority=source,test,openspec,evidence.
 
 ## Out Of Scope
 

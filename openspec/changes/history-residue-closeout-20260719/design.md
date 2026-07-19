@@ -127,6 +127,20 @@ terminal targets, unexpired records, and inventory categories remain unchanged.
 Alternative considered: one new umbrella debt record. Rejected because it would
 roll expired debt forward without delivering the promised compression.
 
+### 7. Provider contracts remain; bundled reference executables retire
+
+The provider-neutral external receipt and independent-verification contracts
+remain product behavior. The two default-off Python reference executables under
+`extensions/independent-verification/adapters/` will be removed from the product
+repository and distribution surface because they are operator implementations,
+not ETHOS ontology or required runtime. Documentation will retain the protocol,
+installation boundary, and replacement guidance; focused contract tests move to
+the canonical receipt/admission owners.
+
+Alternative considered: move the same executables into `packages/`. Rejected
+because that only reclassifies 504 lines and would incorrectly promote an
+optional provider implementation into the product runtime.
+
 ## Risks / Trade-offs
 
 - **[Risk] A rules rewrite truncates quality policy** -> migration tests compare
@@ -154,15 +168,17 @@ roll expired debt forward without delivering the promised compression.
 3. Make Rules V2 migration lossless, expose its guarded CLI, and migrate the
    product rules file without changing active quality, format, determinism, or
    artifact semantics.
-4. Introduce SQLite schema version 2 and run it against a copied database before
+4. Retire bundled independent-verification executables while preserving the
+   provider-neutral receipt contract and its canonical admission tests.
+5. Introduce SQLite schema version 2 and run it against a copied database before
    upgrading the Work Lane's ignored state in place.
-5. Add and prove explicit local-state maintenance, then prune only eligible
+6. Add and prove explicit local-state maintenance, then prune only eligible
    leases and proof records.
-6. Create, hash, extract-test, and bundle-verify the recovery archive; write the
+7. Create, hash, extract-test, and bundle-verify the recovery archive; write the
    Chronicle receipt; then remove the disposable source snapshots.
-7. Complete measured carrier consolidation and remove only debt records whose
+8. Complete measured carrier consolidation and remove only debt records whose
    allowance has been eliminated.
-8. Run focused gates, full tests, parity, HEAD-bound executed proof, land, and
+9. Run focused gates, full tests, parity, HEAD-bound executed proof, land, and
    local publication readiness. Remote push remains deferred.
 
 Rollback uses Git revert for tracked changes. Before local-state mutation, copy

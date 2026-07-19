@@ -16,8 +16,9 @@
 - [ ] 3.1 Make Rules V2 migration preserve the complete parsed `[quality]` tree and all active non-legacy policy while normalizing legacy rules.
 - [ ] 3.2 Expose dry-run and guarded apply through `ethos rules migrate`, with authorization, expected-HEAD, and tracked-write admission checks.
 - [ ] 3.3 Migrate the product `.ethos/rules.toml` to V2, preserve active standards/format/determinism/artifact policy, correct durable-evidence roots, and leave baseline, terminal targets, and unexpired debt unchanged.
-- [ ] 3.4 Consolidate expired-debt carriers until live metrics are at or below `python_product=35675`, `python_tests=46865`, `python_tools=1038`, `python_other=446`, `shell=1552`, `toml=11846`, and `jinja=671`.
-- [ ] 3.5 Remove the ten expired debt records and their now-unused waves only after the measured category limits pass.
+- [ ] 3.4 Retire the two bundled independent-verification reference executables, preserve their provider-neutral receipt contracts, and move indispensable assertions to canonical admission tests.
+- [ ] 3.5 Consolidate expired-debt carriers until live metrics are at or below `python_product=35675`, `python_tests=46865`, `python_tools=1038`, `python_other=446`, `shell=1552`, `toml=11846`, and `jinja=671`.
+- [ ] 3.6 Remove the ten expired debt records and their now-unused waves only after the measured category limits pass.
 
 ## 4. Versioned Local-State Maintenance
 

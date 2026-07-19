@@ -9,6 +9,7 @@ from pydantic import ValidationError
 from ethos_core.contracts.source_budget.carriers import CarrierIdentity
 from ethos_core.contracts.source_budget.metrics import MetricContract
 from ethos_core.contracts.source_budget.metrics import MetricContractSet
+from ethos_core.contracts.source_budget.metrics import MetricContractSetLoad
 from ethos_core.contracts.source_budget.metrics import MetricProfile
 from ethos_core.contracts.source_budget.metrics import metric_contracts_digest
 from ethos_core.contracts.source_budget.metrics import metric_contracts_json_schema
@@ -89,6 +90,7 @@ def test_metric_models_are_frozen_and_forbid_unknown_fields() -> None:
         ("grammar_digest", "short"),
         ("aggregation", "average"),
         ("non_compensable", False),
+        ("non_compensable", 1),
         ("unit", "bpe_token"),
         ("unit", "model_token"),
     ],
@@ -119,6 +121,31 @@ def test_metric_contract_set_rejects_duplicate_ids_and_coordinates() -> None:
         _contract_set(contracts=(first, duplicate_coordinate))
 
 
+def test_metric_contract_set_requires_public_schema_alias() -> None:
+    payload = _contract_set().model_dump(mode="json", by_alias=True)
+    payload["schema_id"] = payload.pop("schema")
+
+    with pytest.raises(ValidationError, match="schema"):
+        MetricContractSet.model_validate(payload)
+
+
+def test_metric_contract_load_rejects_impossible_envelope_states() -> None:
+    with pytest.raises(ValueError, match="required gaps"):
+        MetricContractSetLoad(None, ())
+
+    with pytest.raises(ValueError, match="required gaps"):
+        MetricContractSetLoad(_contract_set(), ("unexpected_gap",))
+
+    with pytest.raises(ValueError, match="typed contracts"):
+        MetricContractSetLoad(object(), ())  # type: ignore[arg-type]
+
+    with pytest.raises(ValueError, match="tuple"):
+        MetricContractSetLoad(None, ["gap"])  # type: ignore[arg-type]
+
+    with pytest.raises(ValueError, match="non-empty strings"):
+        MetricContractSetLoad(None, ("",))
+
+
 def test_metric_contract_set_rejects_dangling_or_role_mismatched_profiles() -> None:
     with pytest.raises(ValidationError, match="required metric"):
         _contract_set(
@@ -138,9 +165,25 @@ def test_metric_contract_set_rejects_dangling_or_role_mismatched_profiles() -> N
         )
 
 
-def test_metric_profile_resolution_is_complete_and_stably_ordered() -> None:
-    contracts = _contract_set(
+def test_metric_contract_set_rejects_mixed_contract_versions() -> None:
+    with pytest.raises(ValidationError, match="contract version"):
+        MetricContractSet(
+            schema="ethos-source-budget-metrics-v2",
+            contract_version=3,
+            profiles=(_profile(),),
+            contracts=(
+                _contract("lexical_tokens", "lexical_token"),
+                _contract("normalized_bytes", "normalized_byte"),
+            ),
+        )
+
+
+def test_metric_profile_resolution_is_declaration_order_independent() -> None:
+    first = _contract_set(
         profiles=(_profile(required_metric_ids=("normalized_bytes", "lexical_tokens")),),
+    )
+    second = _contract_set(
+        profiles=(_profile(required_metric_ids=("lexical_tokens", "normalized_bytes")),),
     )
     identity = CarrierIdentity.model_validate(
         {
@@ -157,11 +200,18 @@ def test_metric_profile_resolution_is_complete_and_stably_ordered() -> None:
         }
     )
 
-    resolved = resolve_metric_contracts(identity, contracts)
+    assert metric_contracts_digest(first) == metric_contracts_digest(second)
 
-    assert tuple(item.metric_id for item in resolved) == (
-        "normalized_bytes",
-        "lexical_tokens",
+    first_ids = tuple(item.metric_id for item in resolve_metric_contracts(identity, first))
+    second_ids = tuple(item.metric_id for item in resolve_metric_contracts(identity, second))
+
+    assert (
+        first_ids
+        == second_ids
+        == (
+            "lexical_tokens",
+            "normalized_bytes",
+        )
     )
 
 

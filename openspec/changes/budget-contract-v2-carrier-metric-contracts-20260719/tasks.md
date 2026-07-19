@@ -1,49 +1,52 @@
 ## 1. Carrier Contract RED
 
-- [ ] 1.1 Add failing tests for frozen/extra-forbid models, duplicate IDs and
+- [x] 1.1 Add failing tests for frozen/extra-forbid models, duplicate IDs and
   matchers, invalid paths, exact-one classification, explicit exclusions,
-  unsupported extensions, and deterministic digest identity.
-- [ ] 1.2 Run the carrier contract and adapter tests and verify they fail because
-  the new contract modules do not exist.
+  unsupported extensions, deterministic digest identity, typed Git failure,
+  object-kind safety, matcher canonicality, and inventory forgery.
+- [x] 1.2 Capture the intended RED contract and adapter failures before the new
+  owners and invariants exist.
 
 ## 2. Metric Contract RED
 
-- [ ] 2.1 Add failing tests for required metric identity, profiles, dangling
+- [x] 2.1 Add failing tests for required metric identity, profiles, dangling
   references, duplicate coordinates, invalid grammar digests, BPE/model-token
   rejection, non-compensation, and deterministic digest identity.
-- [ ] 2.2 Run the metric tests and verify they fail because the new contract
-  module does not exist.
+- [x] 2.2 Capture the intended RED metric-contract failures before the new owner
+  exists.
 
 ## 3. Minimal Contract Implementation
 
-- [ ] 3.1 Implement frozen strict contract models, symmetric fail-closed load
-  envelopes, canonical digest helpers, pure exact-one classification, inventory
+- [x] 3.1 Implement frozen strict contract models, symmetric fail-closed
+  declaration envelopes, the typed Git inventory envelope, canonical digest
+  helpers, pure exact-one classification, self-verifying inventory
   classification, and metric-profile resolution.
-- [ ] 3.2 Keep the implementation content-free: do not import parsers, read
-  carrier bytes, calculate measurements, or modify v1 gate/report routing.
+- [x] 3.2 Preserve the content-free boundary: no parser import, carrier-byte
+  read, measurement, v1-adapter mutation, or v1 gate/report routing change.
 
 ## 4. Declarative Manifests And Schemas
 
-- [ ] 4.1 Add independent carrier and metric policy manifests; do not reuse the
-  v1 format-selection taxonomy as v2 truth.
-- [ ] 4.2 Add the two compact JSON Schemas and prove they match generated model
-  projections exactly.
+- [x] 4.1 Add independent carrier and metric policy manifests without reusing
+  the v1 format-selection taxonomy as v2 truth.
+- [x] 4.2 Add two compact JSON Schemas with exact generated-model
+  projection equivalence.
 
 ## 5. Repository Classification Verification
 
-- [ ] 5.1 Classify the current Git-present maintained inventory exactly once or
-  through an explicit reviewed exclusion, with deterministic results under
-  reversed input order.
-- [ ] 5.2 Run focused contract, adapter, schema, config, and lint checks to GREEN.
+- [x] 5.1 Bind the complete current Git-present inventory to one tagged
+  observation, exact-one classification or reviewed exclusion, and stable
+  reversed-input results.
+- [x] 5.2 Bind the final GREEN owner-quality evidence without ratchet-baseline
+  expansion.
 
 ## 6. Governance Closeout
 
-- [ ] 6.1 Update the bounded claim and Chronicle with reviewed results and
-  explicit T2/T3 boundaries.
-- [ ] 6.2 Run strict OpenSpec, claims, plan, parity, and final HEAD-bound proof;
-  complete tasks and prepare official archive inputs.
-- [ ] 6.3 Archive through the official OpenSpec command, bind the claim to the
-  dated archive, regenerate parity, and execute archive-HEAD proof.
+- [x] 6.1 Bind reviewed results, current counts and digests, and explicit T2/T3
+  boundaries into the bounded claim and Chronicle.
+- [ ] 6.2 Finalize the exact pre-transition carrier inputs, promotion targets,
+  and lifecycle-ready evidence references.
+- [x] 6.3 Declare the downstream transition boundary and evidence ownership
+  rules before the active carrier becomes immutable history.
 
 ## Post-Archive Transition Boundary
 

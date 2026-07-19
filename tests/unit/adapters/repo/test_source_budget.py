@@ -38,6 +38,16 @@ def test_present_worktree_paths_includes_untracked_and_excludes_missing_index_pa
     )
 
 
+def test_present_worktree_paths_returns_empty_when_git_fails(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        source_budget.subprocess,
+        "run",
+        lambda *_args, **_kwargs: subprocess.CompletedProcess([], 1, stdout=b""),
+    )
+
+    assert present_worktree_paths(tmp_path) == ()
+
+
 def test_present_worktree_paths_returns_empty_when_git_is_unavailable(tmp_path, monkeypatch):
     def unavailable(*_args, **_kwargs):
         raise FileNotFoundError

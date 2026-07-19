@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 import ethos.domain.campaign.closeout as campaign_closeout
+import ethos.repository.adoption.evolution as evolution
 from ethos.domain.campaign.closeout import campaign_publication_report
 from ethos.repository.adoption.evolution import campaign_report
 from ethos.repository.adoption.evolution import evolution_ledger
@@ -17,6 +20,19 @@ def _write_campaign(root: Path, manifest: str = _CAMPAIGN_MANIFEST) -> None:
     path = root / "evolution/campaigns/compression/campaign.toml"
     path.parent.mkdir(parents=True)
     path.write_text(manifest, encoding="utf-8")
+
+
+def test_campaign_helpers_fail_closed_for_missing_declarations(monkeypatch, tmp_path: Path) -> None:
+    assert evolution._openspec_carrier_state(tmp_path, "") == "missing"
+    assert evolution._list_items("not-a-list") == []
+    monkeypatch.setattr(
+        evolution,
+        "load_workflow_contract_declaration",
+        lambda _root: type("D", (), {"campaign": None})(),
+    )
+
+    with pytest.raises(ValueError, match="campaign workflow policy missing"):
+        evolution.campaign_policy(tmp_path)
 
 
 def test_evolution_ledger_exposes_active_hypotheses() -> None:

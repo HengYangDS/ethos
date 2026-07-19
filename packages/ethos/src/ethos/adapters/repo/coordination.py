@@ -282,14 +282,11 @@ def coordination_package(
     *,
     required_gaps: list[str],
     advisory_gaps: list[str],
+    defer_details: bool = False,
     unbound_work_lane_refs: list[dict[str, object]] | None = None,
     unbound_work_lane_count: int = 0,
 ) -> dict[str, object]:
-    detail_state = (
-        "deferred"
-        if any(lane.get("scope_state") == "deferred" for lane in foreign_work_lanes)
-        else "exact"
-    )
+    detail_state = "deferred" if defer_details else "exact"
     overlap_lanes = [
         lane for lane in foreign_work_lanes if lane.get("coordination_state") == "overlap"
     ]

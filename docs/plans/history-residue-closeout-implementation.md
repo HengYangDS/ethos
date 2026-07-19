@@ -15,6 +15,10 @@ Purpose: execute the bounded tracked cleanup defined by the
 [OpenSpec change](../../openspec/changes/history-residue-closeout-20260719/) and
 [design](history-residue-closeout-design.md).
 
+See also: the
+[OpenSpec change](../../openspec/changes/history-residue-closeout-20260719/) and
+[design](history-residue-closeout-design.md).
+
 ## Global Constraints
 
 - Work only in the owned successor-v2 Work Lane with

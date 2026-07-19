@@ -5,6 +5,7 @@ import subprocess
 from datetime import UTC
 from datetime import datetime
 from datetime import timedelta
+from pathlib import Path
 
 import pytest
 
@@ -112,6 +113,52 @@ def test_required_policy_fails_closed_and_accepts_only_exact_valid_receipt(
     assert "independent_verification_receipt_required" in missing["required_gaps"]
     assert accepted["ok"] is True
     assert accepted["evidence_class"] == "independently_reexecuted"
+
+
+def test_receipt_binding_survives_bundled_executable_retirement(tmp_path: Path) -> None:
+    """Keep exact provider-neutral admission after deleting shipped executables."""
+    base_payload = _receipt_payload()
+    assert str(base_payload["issued_at"]).endswith("Z")
+    request = {
+        key: base_payload[key]
+        for key in (
+            "remote",
+            "commit",
+            "tree",
+            "action",
+            "proof_floor_id",
+            "proof_floor_digest",
+            "policy_digest",
+            "implementation_digest",
+        )
+    }
+    replacements = {
+        "remote": "https://wrong.example/repo.git",
+        "commit": "f" * 40,
+        "tree": "f" * 40,
+        "action": "land",
+        "proof_floor_id": "proof-floor:wrong",
+        "proof_floor_digest": "f" * 64,
+        "policy_digest": "f" * 64,
+        "implementation_digest": "f" * 64,
+    }
+    receipt_path = tmp_path / "receipt.json"
+    for field, replacement in replacements.items():
+        payload = {**base_payload, field: replacement, "payload_digest": ""}
+        receipt = IndependentVerificationReceipt.model_validate(payload)
+        payload["payload_digest"] = receipt.canonical_payload_digest()
+        receipt_path.write_text(json.dumps(payload), encoding="utf-8")
+        report = independent_verification_report(
+            root=tmp_path,
+            policy=IndependentVerificationPolicy(mode="required"),
+            request=request,
+            receipt_path=receipt_path,
+            signature_verifier=lambda _receipt: True,
+        )
+        assert report["required_gaps"] == ["independent_verification_receipt_binding_mismatch"]
+
+    root = Path(__file__).resolve().parents[3]
+    assert not (root / "extensions/independent-verification").exists()
 
 
 def test_profile_defaults_disabled_but_required_publish_is_action_scoped(

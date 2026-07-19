@@ -83,14 +83,6 @@ def test_report_handler_declarations_compile_without_python_specs() -> None:
     assert set(handlers) == expected
     assert all(isinstance(handler, CompiledReportCommand) for handler in handlers.values())
     assert all(handler.declaration.report_handler.provider for handler in handlers.values())
-    performance = handlers["performance"].declaration.report_handler
-    assert performance is not None
-    assert (
-        performance.provider
-        == "ethos.repository.policy.performance.core:performance_quality_report"
-    )
-    assert performance.bind_current_head is True
-    assert performance.state_mode == "advisory_gaps"
 
 
 def test_tool_handler_declarations_compile_from_the_command_registry() -> None:

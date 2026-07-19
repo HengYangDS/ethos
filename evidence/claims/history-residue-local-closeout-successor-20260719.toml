@@ -1,0 +1,42 @@
+[claim]
+id = "history-residue-local-closeout-successor-20260719"
+change_id = "history-residue-local-closeout-successor-20260719"
+subject = "repository-governance:history-residue-local-closeout-successor"
+state = "active"
+summary = "The active July 19 successor binds historical local-state maintenance evidence, required hard source-budget settlement, and local-only lifecycle boundaries without remote or foreign-lane mutation."
+
+[evidence]
+dated = "evidence/chronicle/history-residue-local-closeout-successor-20260719/2026-07-19.md"
+sha256 = "e08d2294d69c88be920f05a5318ad77bce2fcd989501458f5bad4ccf492a0d1e"
+evidence_ids = ["evidence:history-residue-local-closeout-successor-20260719"]
+binding = "Raw-byte Chronicle digest binding for the historical operator receipt, live budget settlement, and local lifecycle boundary; final HEAD-bound proof remains separate."
+verifier = "digest_only"
+tests = [
+  "ethos quality source-budget --json",
+  "ethos quality claims --json",
+  "npx --yes @fission-ai/openspec@1.6.0 validate --all --strict --json",
+  "pytest -q tests/unit/lanes/test_state.py tests/unit/lanes/test_local_state_maintenance.py tests/unit/lanes/test_local_state_maintenance_contracts.py",
+  "ethos parity gaps --adopter generic --target . --json",
+  "ethos prove --full --execute --expect-head <final-head> --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "repository-governance"
+scope = "Verified local operator receipt, hard category settlement, local proof/land/maintainer break-glass closeout, local ref alignment, and owned-lane retirement only; remote, hosted, r7, foreign, unbound, and global terminal-completion claims are excluded."
+
+[carriers]
+openspec = "openspec/changes/history-residue-local-closeout-successor-20260719"
+fallback = "Preserve the official predecessor archive and external operator artifacts; revert only successor tracked changes and leave all remote and foreign state untouched."
+kill_signal = "The predecessor archive changes, receipt digests fail, any active campaign overage remains at archive, control replacement lacks an external receipt, or remote/foreign mutation is attempted."
+
+[promotion]
+targets = [
+  "openspec/changes/history-residue-local-closeout-successor-20260719",
+  "evidence/claims/history-residue-local-closeout-successor-20260719.toml",
+  "evidence/chronicle/history-residue-local-closeout-successor-20260719/2026-07-19.md",
+  "openspec/specs/repository-governance/spec.md",
+  "openspec/specs/quality/spec.md",
+]

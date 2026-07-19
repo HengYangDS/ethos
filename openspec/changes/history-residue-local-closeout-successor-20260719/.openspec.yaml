@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-07-19
+goal: Bind verified real local-state maintenance, hard source-budget settlement,
+  and local-only lifecycle closeout without remote or foreign-lane mutation.

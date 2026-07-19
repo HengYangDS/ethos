@@ -13,7 +13,7 @@ from ethos_core.contracts.branch.roles import load_branch_role_policy
 EVENT = "lane_retire/unbound_exceptional"
 
 
-def admission_gaps(
+def admission_gaps(  # noqa: PLR0913, RUF100 - exact admission preserves bound state dimensions
     repo: Path,
     *,
     branch: str,
@@ -68,7 +68,7 @@ def branch_admission_gap(repo: Path, *, branch: str, observed: dict[str, object]
             "unbound_retire_not_accepted_ancestor",
         ),
         (
-            bool(observed[observation.ACTIVE_LEASE_PRESENT]),
+            bool(observed[observation.HAS_ACTIVE_LEASE]),
             "unbound_retire_active_lease",
         ),
     )
@@ -89,9 +89,9 @@ def reference_gaps(chronicle: dict[str, object]) -> list[str]:
     checks = (
         (not chronicle["ref"], "unbound_retire_chronicle_ref_required"),
         (not chronicle["path_valid"], "unbound_retire_chronicle_ref_invalid"),
-        (not chronicle[observation.LOCAL_PRESENT], "unbound_retire_chronicle_missing"),
+        (not chronicle[observation.HAS_LOCAL_CHRONICLE], "unbound_retire_chronicle_missing"),
         (
-            not chronicle[observation.ACCEPTED_PRESENT],
+            not chronicle[observation.HAS_ACCEPTED_CHRONICLE],
             "unbound_retire_chronicle_not_accepted",
         ),
         (
@@ -116,8 +116,8 @@ def claim_gaps(chronicle: dict[str, object]) -> list[str]:
     checks = (
         (not chronicle["target_claim"], "unbound_retire_chronicle_claim_missing"),
         (
-            not chronicle[observation.CLAIM_LOCAL_PRESENT]
-            or not chronicle[observation.CLAIM_ACCEPTED_PRESENT],
+            not chronicle[observation.HAS_LOCAL_CLAIM]
+            or not chronicle[observation.HAS_ACCEPTED_CLAIM],
             "unbound_retire_claim_missing",
         ),
         (
@@ -175,6 +175,6 @@ def post_effect_gaps(
         gaps.append("unbound_retire_ref_remove_not_observed")
     if after["status_unbound"] or after["worktree_binding"] == "unbound":
         gaps.append("unbound_retire_status_postcondition_not_observed")
-    if after[observation.ACTIVE_LEASE_PRESENT]:
+    if after[observation.HAS_ACTIVE_LEASE]:
         gaps.append("unbound_retire_active_lease")
     return sorted(set(gaps))

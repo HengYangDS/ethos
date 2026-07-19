@@ -5,8 +5,11 @@ paths = [
   "docs/reference/command-plane.md",
   "openspec/changes/worktree-retirement-exceptional-unbound-v2-20260719/**",
   "openspec/specs/repository-governance/spec.md",
+  ".agents/skills/ethos-quality-gate-governance/scripts/quality_audit.py",
+  ".agents/skills/ethos-quality-gate-governance/package.toml",
   "packages/ethos/src/ethos/adapters/mutation/lane_retirement/unbound/core.py",
   "packages/ethos/src/ethos/surface/cli/lane/core.py",
   "tests/unit/cli/test_contracts_lane.py",
   "tests/unit/lanes/retirement/test_unbound_and_helpers.py",
+  "tests/unit/skills/quality_gate/test_quality_audit.py",
 ]

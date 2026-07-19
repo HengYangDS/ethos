@@ -22,3 +22,5 @@
   passed`) and the owner Python lint gate passes at the current ratchet floor.
 - [ ] 3.2 Refresh parity and run strict OpenSpec, head-bound proof, archive,
   candidate land, accepted closeout, and separate native retirement receipts.
+  Correct only an observed shared quality-audit catalog drift when it blocks this
+  lane's required quality-audit gate; preserve the tool catalog as the SSOT.

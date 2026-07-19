@@ -92,7 +92,7 @@ def test_pytest_runtime_cache_stays_out_of_config_plane() -> None:
     pyproject_text = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
 
     assert not (ROOT / "pytest.ini").exists()
-    assert not (ROOT / "ruff.toml").exists()
+    assert (ROOT / "ruff.toml").is_file()
     assert "cache_dir = build/runtime/tool-cache/pytest" in pytest_ini
     assert "[tool.pytest" not in pyproject_text
     assert "cache_dir = .config/checks/pytest" not in pytest_ini
@@ -121,14 +121,16 @@ def test_ruff_runtime_cache_stays_under_build_runtime() -> None:
     ruff_config = (ROOT / ".config/checks/ruff/ruff.toml").read_text(encoding="utf-8")
     pyproject_text = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
 
-    # The root discovery adapter owns only cache routing; it delegates every
-    # lint policy decision to the single configuration authority under `.config`.
+    # The root discovery adapter owns checkout-relative cache routing and extends
+    # the canonical policy; it carries no lint or format rule set of its own.
     assert "build/runtime/tool-cache/ruff" in runner
     assert "--cache-dir" in runner
     assert ".ruff_cache" not in runner
     assert 'cache-dir = "build/runtime/tool-cache/ruff"' in ruff_config
-    assert (ROOT / "ruff.toml").is_symlink()
-    assert (ROOT / "ruff.toml").readlink().as_posix() == ".config/checks/ruff/ruff.toml"
+    assert tomllib.loads((ROOT / "ruff.toml").read_text(encoding="utf-8")) == {
+        "cache-dir": "build/runtime/tool-cache/ruff",
+        "extend": ".config/checks/ruff/ruff.toml",
+    }
     settings = subprocess.run(
         [
             "uv",

@@ -46,10 +46,7 @@ rm -rf "${scratch_root}"
 rm -f "${evidence_path}"
 mkdir -p "${artifact_dir}" "${check_dir}" "$(dirname "${evidence_path}")"
 
-env UV_CACHE_DIR="${local_install_uv_cache}" uv build --offline --all-packages --wheel \
-  --out-dir "${artifact_dir}" \
-  --clear \
-  --no-create-gitignore >&2
+env UV_CACHE_DIR="${local_install_uv_cache}" uv build --offline --all-packages --wheel --out-dir build/artifacts/python --clear --no-create-gitignore >&2
 
 shopt -s nullglob
 ethos_wheels=("${artifact_dir}"/ethos-*.whl)

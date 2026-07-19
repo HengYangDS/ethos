@@ -129,6 +129,27 @@ def test_release_policy_rejects_non_executable_local_install_owner(
     )
 
 
+def test_release_policy_rejects_non_regular_local_install_owner(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    root = _minimal_release_root(tmp_path)
+    (root / "owner").mkdir()
+    monkeypatch.setattr(
+        release_core,
+        "publication_topology",
+        lambda _config: {
+            "local": {"installation_command": "owner"},
+            "required_gaps": [],
+        },
+    )
+
+    report = release_policy_report(root)
+
+    assert report["ok"] is False
+    assert "release_local_command_not_regular:installation_command:owner" in report["required_gaps"]
+
+
 def test_release_policy_rejects_local_install_owner_path_escape(
     tmp_path: Path,
     monkeypatch,

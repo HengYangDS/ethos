@@ -807,25 +807,27 @@ def test_workspace_status_reports_runtime_binding_for_audited_checkout(
 
 
 @pytest.mark.parametrize(
-    ("project_text", "state", "gap", "next_action"),
+    ("project_text", "expected"),
     [
         (
             None,
-            "external_current_runner",
-            "workspace_status_runner_source_differs_from_audit_root",
-            "package-bound runner",
+            (
+                "external_current_runner",
+                "workspace_status_runner_source_differs_from_audit_root",
+                "package-bound runner",
+            ),
         ),
         (
             "command_plane = 'ethos'\n",
-            "external_current_runner",
-            "workspace_status_runner_source_differs_from_audit_root",
-            "package-bound runner",
+            (
+                "external_current_runner",
+                "workspace_status_runner_source_differs_from_audit_root",
+                "package-bound runner",
+            ),
         ),
         (
             "[command_plane]\npublic = 'pixi run ethos'\n",
-            "external_declared_runner",
-            None,
-            "declared external runner",
+            ("external_declared_runner", None, "declared external runner"),
         ),
     ],
 )
@@ -833,9 +835,7 @@ def test_runtime_binding_classifies_external_runner_declarations(
     tmp_path: Path,
     monkeypatch,
     project_text: str | None,
-    state: str,
-    gap: str | None,
-    next_action: str,
+    expected: tuple[str, str | None, str],
 ) -> None:
     repo = init_repo(tmp_path / "repo")
     if project_text is not None:
@@ -851,6 +851,7 @@ def test_runtime_binding_classifies_external_runner_declarations(
 
     binding = runtime_binding(repo)
 
+    state, gap, next_action = expected
     assert binding["state"] == state
     assert binding["runner_matches_audit_root"] is False
     assert (gap in binding["advisory_gaps"]) if gap else binding["advisory_gaps"] == []

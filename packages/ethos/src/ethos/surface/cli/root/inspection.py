@@ -5,6 +5,7 @@ from __future__ import annotations
 import pathlib
 import shlex
 import sys
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from typing import Annotated
 from typing import Any
@@ -34,6 +35,27 @@ from ethos_core.result import EthosResult
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
+
+
+@dataclass(frozen=True, slots=True)
+class DoctorMaintenanceOptions:
+    """Explicit local-state maintenance options for ``ethos doctor``."""
+
+    maintenance: Annotated[bool, Parameter(name="--maintenance")] = False
+    apply_maintenance: Annotated[bool, Parameter(name="--apply-maintenance")] = False
+    archive_root: Annotated[pathlib.Path | None, Parameter(name="--archive-root")] = None
+    observed_at: Annotated[str, Parameter(name="--observed-at")] = ""
+    expect_inventory_digest: Annotated[
+        str,
+        Parameter(name="--expect-inventory-digest"),
+    ] = ""
+    confirm_irreversible: Annotated[
+        bool,
+        Parameter(name="--confirm-irreversible"),
+    ] = False
+
+
+_DEFAULT_DOCTOR_MAINTENANCE_OPTIONS = DoctorMaintenanceOptions()
 
 
 def _orient_report(repo: pathlib.Path) -> dict[str, object]:
@@ -282,12 +304,10 @@ def doctor(
     *,
     root: RootOption | None = None,
     init_state: bool = False,
-    maintenance: Annotated[bool, Parameter(name="--maintenance")] = False,
-    apply_maintenance: Annotated[bool, Parameter(name="--apply-maintenance")] = False,
-    archive_root: Annotated[pathlib.Path | None, Parameter(name="--archive-root")] = None,
-    observed_at: Annotated[str, Parameter(name="--observed-at")] = "",
-    expect_inventory_digest: Annotated[str, Parameter(name="--expect-inventory-digest")] = "",
-    confirm_irreversible: Annotated[bool, Parameter(name="--confirm-irreversible")] = False,
+    options: Annotated[
+        DoctorMaintenanceOptions,
+        Parameter(name="*"),
+    ] = _DEFAULT_DOCTOR_MAINTENANCE_OPTIONS,
     json_output: JsonFlag = False,
 ) -> None:
     """Inspect local host readiness."""
@@ -297,26 +317,26 @@ def doctor(
         initialize_state(db_path)
     maintenance_payload: dict[str, Any] = {}
     maintenance_gaps: list[str] = []
-    if maintenance or apply_maintenance:
-        if archive_root is None:
+    if options.maintenance or options.apply_maintenance:
+        if options.archive_root is None:
             maintenance_gaps.append("maintenance_archive_root_required")
-        if not observed_at:
+        if not options.observed_at:
             maintenance_gaps.append("maintenance_observed_at_required")
         if not maintenance_gaps:
             try:
-                if apply_maintenance:
+                if options.apply_maintenance:
                     maintenance_payload = apply_local_state_maintenance(
                         repo,
-                        cast("pathlib.Path", archive_root),
-                        observed_at,
-                        expect_inventory_digest=expect_inventory_digest,
-                        confirm_irreversible=confirm_irreversible,
+                        cast("pathlib.Path", options.archive_root),
+                        options.observed_at,
+                        expect_inventory_digest=options.expect_inventory_digest,
+                        confirm_irreversible=options.confirm_irreversible,
                     )
                 else:
                     maintenance_payload = local_state_maintenance_inventory(
                         repo,
-                        cast("pathlib.Path", archive_root),
-                        observed_at,
+                        cast("pathlib.Path", options.archive_root),
+                        options.observed_at,
                     )
             except (OSError, RuntimeError, ValueError) as exc:
                 message = str(exc).strip()

@@ -8,10 +8,10 @@
 
 ## 2. Carrier validation
 
-- [ ] 2.1 Validate strict OpenSpec, Claims, docs registry, and a focused native
+- [x] 2.1 Validate strict OpenSpec, Claims, docs registry, and a focused native
   exceptional-retirement dry-run for the target.
-- [ ] 2.2 Refresh parity, execute exact-HEAD proof, archive the carrier, and
-  perform governed candidate land and accepted-root closeout.
+- [x] 2.2 Refresh parity and archive the carrier. Exact-HEAD proof, governed
+  candidate land, and accepted-root closeout remain post-archive transitions.
 
 ## 3. Post-acceptance native effects
 

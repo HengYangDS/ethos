@@ -57,9 +57,6 @@ def lease_rows(db_path: Path) -> list[sqlite3.Row | tuple[Any, ...]]:
 def _selectlease_rows(
     connection: sqlite3.Connection,
 ) -> list[sqlite3.Row | tuple[Any, ...]]:
-    columns = table_columns(connection, "leases")
-    if not {"id", "subject", "owner", "expires_at", "payload_json"}.issubset(columns):
-        return []
     return connection.execute(
         """
         select id, subject, owner, expires_at, payload_json
@@ -67,14 +64,6 @@ def _selectlease_rows(
         order by subject, id
         """,
     ).fetchall()
-
-
-def table_columns(connection: sqlite3.Connection, table: str) -> set[str]:
-    if table != "leases":
-        msg = f"unknown state table: {table!r}"
-        raise ValueError(msg)
-    rows = connection.execute("pragma table_info(leases)").fetchall()
-    return {str(row[1]) for row in rows}
 
 
 def json_object(value: str) -> dict[str, Any]:

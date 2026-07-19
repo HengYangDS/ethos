@@ -5,7 +5,9 @@ from __future__ import annotations
 import os
 import subprocess
 from pathlib import Path
-from typing import TYPE_CHECKING
+from types import SimpleNamespace
+
+import pytest
 
 import ethos.adapters.mutation.lane_lifecycle.refresh as lanes_refresh
 import ethos.adapters.mutation.lane_retirement.unbound.core as unbound_retirement
@@ -17,9 +19,6 @@ from ethos.adapters.store.state.lease.lifecycle.core import acquire_lease
 from ethos.repository.evidence.core import EvidenceSet
 from ethos.repository.policy.gates import promotion_required_gate_ids
 from tests.support.contract_helpers import conformant_proof_run
-
-if TYPE_CHECKING:
-    import pytest
 
 
 def _run_git(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
@@ -278,3 +277,191 @@ def test_discard_executed_proof_idempotent(tmp_path: Path) -> None:
     )
     assert mutation_proof.discard_executed_proof(tmp_path, head) is True
     assert mutation_proof.discard_executed_proof(tmp_path, head) is False
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        (
+            {"role": "other", "dirty": False, "candidate": {}},
+            False,
+            False,
+            "blocked",
+            "candidate_bootstrap_requires_clean_accepted_root",
+        ),
+        (
+            {
+                "role": "accepted_root",
+                "dirty": False,
+                "candidate": {
+                    "exists": True,
+                    "worktree_exists": True,
+                    "worktree_path": "/candidate",
+                },
+            },
+            False,
+            False,
+            "present",
+            "",
+        ),
+        (
+            {
+                "role": "accepted_root",
+                "dirty": False,
+                "candidate": {"exists": False, "worktree_exists": False},
+            },
+            False,
+            False,
+            "planned",
+            "",
+        ),
+        (
+            {
+                "role": "accepted_root",
+                "dirty": False,
+                "candidate": {"exists": False, "worktree_exists": False},
+            },
+            True,
+            True,
+            "blocked",
+            "candidate_worktree_path_exists",
+        ),
+        (
+            {
+                "role": "accepted_root",
+                "dirty": False,
+                "candidate": {"exists": False, "worktree_exists": False},
+            },
+            True,
+            False,
+            "blocked",
+            "candidate_bootstrap_failed",
+        ),
+    ],
+)
+def test_candidate_bootstrap_decision_matrix(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    case: tuple[dict[str, object], bool, bool, str, str],
+) -> None:
+    status, apply, path_exists, state, gap = case
+    target = tmp_path / "candidate"
+    if path_exists:
+        target.mkdir()
+    monkeypatch.setattr(lanes_refresh, "repo_root", lambda root: root)
+    monkeypatch.setattr(
+        lanes_refresh,
+        "load_branch_role_policy",
+        lambda _root: SimpleNamespace(candidate_branch="candidate/dev"),
+    )
+    monkeypatch.setattr(lanes_refresh, "workspace_status", lambda _root: status)
+    monkeypatch.setattr(
+        lanes_refresh,
+        "run_git",
+        lambda _root, *args, **_kwargs: subprocess.CompletedProcess(
+            ["git", *args],
+            1 if args[:1] == ("branch",) else 0,
+            "h1\n" if args == ("rev-parse", "HEAD") else "",
+            "branch failed" if args[:1] == ("branch",) else "",
+        ),
+    )
+
+    report = lanes_refresh.bootstrap_candidate(root=tmp_path, path=target, apply=apply)
+
+    assert report["state"] == state
+    assert report["required_gaps"] == ([gap] if gap else [])
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        ("work_lane", False, "c1", "blocked", "accepted_root_required"),
+        ("accepted_root", True, "c1", "blocked", "accepted_root_dirty"),
+        ("accepted_root", False, "h1", "base_current", ""),
+        ("accepted_root", False, "c1", "ready_to_refresh_from_accepted", ""),
+    ],
+)
+def test_candidate_refresh_decision_matrix(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    case: tuple[str, bool, str, str, str],
+) -> None:
+    role, dirty, candidate_head, state, gap = case
+    monkeypatch.setattr(lanes_refresh, "repo_root", lambda root: root)
+    monkeypatch.setattr(
+        lanes_refresh,
+        "load_branch_role_policy",
+        lambda _root: SimpleNamespace(candidate_branch="candidate/dev"),
+    )
+    monkeypatch.setattr(
+        lanes_refresh,
+        "workspace_status",
+        lambda _root: {
+            "role": role,
+            "dirty": dirty,
+            "candidate": {
+                "exists": True,
+                "worktree_exists": True,
+                "worktree_path": tmp_path.as_posix(),
+                "head": candidate_head,
+            },
+        },
+    )
+    monkeypatch.setattr(lanes_refresh, "changed_paths", lambda _path: [])
+    monkeypatch.setattr(
+        lanes_refresh,
+        "run_git",
+        lambda _root, *args, **_kwargs: subprocess.CompletedProcess(["git", *args], 0, "h1\n", ""),
+    )
+
+    report = lanes_refresh.refresh_candidate_from_accepted(root=tmp_path)
+
+    assert report["state"] == state
+    assert report["required_gaps"] == ([gap] if gap else [])
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        (True, False, "blocked", "work_lane_dirty"),
+        (False, True, "base_current", ""),
+    ],
+)
+def test_work_lanes_refresh_current_state_matrix(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    case: tuple[bool, bool, str, str],
+) -> None:
+    dirty, ancestor, state, gap = case
+    monkeypatch.setattr(
+        lanes_refresh,
+        "load_branch_role_policy",
+        lambda _root: SimpleNamespace(candidate_branch="candidate/dev"),
+    )
+    monkeypatch.setattr(
+        lanes_refresh,
+        "workspace_status",
+        lambda _root: {
+            "role": "work_lane",
+            "dirty": dirty,
+            "branch": "work/feature",
+            "candidate": {
+                "exists": True,
+                "worktree_exists": True,
+                "worktree_path": tmp_path.as_posix(),
+                "head": "c1",
+            },
+        },
+    )
+    monkeypatch.setattr(lanes_refresh, "changed_paths", lambda _path: [])
+    monkeypatch.setattr(lanes_refresh, "is_ancestor", lambda *_args: ancestor)
+    monkeypatch.setattr(
+        lanes_refresh,
+        "run_git",
+        lambda _root, *args, **_kwargs: subprocess.CompletedProcess(["git", *args], 0, "h1\n", ""),
+    )
+
+    report = lanes_refresh.refresh_work_lane_base(root=tmp_path)
+
+    assert report["state"] == state
+    assert report["required_gaps"] == ([gap] if gap else [])

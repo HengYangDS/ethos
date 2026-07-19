@@ -13,7 +13,6 @@ import ethos.adapters.store.state.lease.lifecycle.core as state
 import ethos.adapters.store.state.lease.projection as state_read
 from ethos.adapters.mutation.lane_lifecycle import core as lane_lifecycle_core
 from ethos.adapters.mutation.lane_retirement.core import SupersededLaneRetirementRequest
-from ethos.adapters.mutation.lane_retirement.shared.core import RetirementRuntime
 from tests.support.lane_helpers import add_candidate_worktree
 from tests.support.lane_helpers import git
 from tests.support.lane_helpers import init_repo
@@ -47,7 +46,6 @@ def _retire_superseded(
     accepted: str,
     *,
     apply: bool = False,
-    runtime: lane_retirement_core.SupersededRetirementRuntime | None = None,
 ) -> dict[str, object]:
     with _actor_env(_ACTOR):
         return lane_retirement_core.retire_superseded_work_lane(
@@ -60,11 +58,10 @@ def _retire_superseded(
                 apply=apply,
                 authorized=apply,
             ),
-            runtime=runtime,
         )
 
 
-def _failure_runtime(command: str, stderr: str) -> lane_retirement_core.SupersededRetirementRuntime:
+def _fail_command(monkeypatch, command: str, stderr: str) -> None:
     def fail_command(
         root: Path,
         *args: str,
@@ -75,10 +72,7 @@ def _failure_runtime(command: str, stderr: str) -> lane_retirement_core.Supersed
             return subprocess.CompletedProcess(args, 128, stdout="", stderr=stderr)
         return lane_lifecycle_core.run_git(root, *args, check=check)
 
-    return lane_retirement_core.SupersededRetirementRuntime(
-        run_git=fail_command,
-        shared=RetirementRuntime(run_git=fail_command),
-    )
+    monkeypatch.setattr(lane_retirement_core, "run_git", fail_command)
 
 
 def test_retire_superseded_work_lane_reports_branch_shape_gaps(tmp_path: Path) -> None:
@@ -122,6 +116,7 @@ def test_retire_superseded_work_lane_reports_branch_shape_gaps(tmp_path: Path) -
 
 def test_retire_superseded_work_lane_reports_unlinked_and_unavailable_heads(
     tmp_path: Path,
+    monkeypatch,
 ) -> None:
     repo = init_repo(tmp_path / "repo")
     git(repo, "branch", "work/unlinked", "dev")
@@ -137,10 +132,7 @@ def test_retire_superseded_work_lane_reports_unlinked_and_unavailable_heads(
             return subprocess.CompletedProcess(args, 128, stdout="", stderr="missing")
         return lane_lifecycle_core.run_git(root, *args, check=check)
 
-    runtime = lane_retirement_core.SupersededRetirementRuntime(
-        run_git=fail_accepted_head,
-        shared=RetirementRuntime(run_git=fail_accepted_head),
-    )
+    monkeypatch.setattr(lane_retirement_core, "run_git", fail_accepted_head)
 
     report = lane_retirement_core.retire_superseded_work_lane(
         root=repo,
@@ -150,7 +142,6 @@ def test_retire_superseded_work_lane_reports_unlinked_and_unavailable_heads(
             absorbed_by="",
             reason="not linked",
         ),
-        runtime=runtime,
     )
 
     assert report["accepted_head"] == ""
@@ -164,6 +155,7 @@ def test_retire_superseded_work_lane_reports_unlinked_and_unavailable_heads(
 
 def test_retire_superseded_work_lane_reports_apply_remove_failure(
     tmp_path: Path,
+    monkeypatch,
 ) -> None:
     repo, _lane, head, accepted, _database = superseded_work_lane(tmp_path)
 
@@ -177,41 +169,13 @@ def test_retire_superseded_work_lane_reports_apply_remove_failure(
             return subprocess.CompletedProcess(args, 128, stdout="", stderr="locked")
         return lane_lifecycle_core.run_git(root, *args, check=check)
 
-    runtime = lane_retirement_core.SupersededRetirementRuntime(
-        shared=RetirementRuntime(run_git=fail_worktree_remove),
-    )
-
-    report = _retire_superseded(repo, head, accepted, apply=True, runtime=runtime)
+    monkeypatch.setattr(lane_retirement_shared, "run_git", fail_worktree_remove)
+    report = _retire_superseded(repo, head, accepted, apply=True)
 
     assert report["ok"] is False
     assert report["state"] == "blocked"
     assert report["required_gaps"] == ["worktree_remove_failed"]
     assert report["stderr"] == "locked"
-
-
-def test_retire_superseded_private_helpers_cover_unavailable_status(
-    tmp_path: Path,
-) -> None:
-    repo = init_repo(tmp_path / "repo")
-    assert lane_retirement_core._branch_head(repo, "") == ""
-    assert lane_retirement_core._linked_work_lane({"worktrees": "bad"}, "work/x") is None
-
-    def fail_status(
-        _root: Path,
-        *args: str,
-        check: bool = False,
-    ) -> subprocess.CompletedProcess[str]:
-        assert check is False
-        return subprocess.CompletedProcess(args, 128, stdout="", stderr="fatal")
-
-    runtime = lane_retirement_core.SupersededRetirementRuntime(
-        run_git=fail_status,
-        shared=RetirementRuntime(run_git=fail_status),
-    )
-
-    assert lane_retirement_core._branch_exists(repo, "work/x", runtime=runtime) is False
-    assert lane_retirement_core._branch_head(repo, "work/x", runtime=runtime) == ""
-    assert lane_retirement_shared.has_changed_paths(repo, runner=runtime.run_git) is True
 
 
 def test_retire_superseded_work_lane_dry_run_requires_absorbed_accepted_head(
@@ -241,6 +205,7 @@ def test_retire_superseded_work_lane_dry_run_requires_absorbed_accepted_head(
 )
 def test_retire_superseded_work_lane_fails_closed_without_absorption_proof(
     tmp_path: Path,
+    monkeypatch,
     case: str,
     failure_command: str,
     stderr: str,
@@ -248,8 +213,9 @@ def test_retire_superseded_work_lane_fails_closed_without_absorption_proof(
     repo, lane, head, accepted, _database = superseded_work_lane(
         tmp_path, absorbed=case == "absorbed"
     )
-    runtime = _failure_runtime(failure_command, stderr) if failure_command else None
-    report = _retire_superseded(repo, head, accepted, apply=True, runtime=runtime)
+    if failure_command:
+        _fail_command(monkeypatch, failure_command, stderr)
+    report = _retire_superseded(repo, head, accepted, apply=True)
 
     assert report["ok"] is False
     assert report["required_gaps"] == ["superseded_lane_not_absorbed_by_accepted"]
@@ -353,11 +319,3 @@ def test_retire_superseded_work_lane_requires_owner_head_reason_absorption_and_a
     ]
     assert report["next_action"] == "set ETHOS_ACTOR to the current holder_ref or obtain handoff"
     assert lane.exists()
-
-
-def test_superseded_helper_edges_cover_head_mismatch_and_empty_actor_selection() -> None:
-    assert lane_retirement_core._superseded_expected_head_gaps(
-        head="actual",
-        expect_head="expected",
-    ) == ["expect_head_mismatch"]
-    assert lane_retirement_shared.holder_authority_gaps([]) == []

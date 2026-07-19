@@ -6,10 +6,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
-if TYPE_CHECKING:
-    from collections.abc import Callable
-
-
 import ethos.adapters.mutation.lane_retirement.shared.core as lane_retirement_shared
 from ethos.adapters.mutation.lane_lifecycle.core import is_ancestor
 from ethos.adapters.mutation.lane_lifecycle.core import repo_root
@@ -18,7 +14,9 @@ from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.adapters.store.state.lease.lifecycle.effects import delete_lease
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
-from ethos_core.normalization.core import string_sequence
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,125 +49,81 @@ def retire_landed_work_lanes(
     leases = active_runtime.leases_by_branch(
         cast("list[dict[str, str]]", worktrees), current_path=repo
     )
-    candidate_lanes = [
+    candidates = [
         lane
         for lane in worktrees
         if lane["role"] == ROLE_WORK_LANE and (branch is None or lane["branch"] == branch)
     ]
     lanes = [
-        _retirement_lane(repo, lane, leases=leases, runtime=active_runtime)
-        for lane in candidate_lanes
+        _retirement_lane(repo, lane, leases=leases, runtime=active_runtime) for lane in candidates
     ]
-    selected = lanes
     gaps: list[str] = []
-    if branch is not None and not selected:
+    if branch is not None and not lanes:
         gaps.append("retire_branch_not_found")
     if apply and not branch:
         gaps.append("retire_branch_required")
     if branch:
-        for lane in selected:
+        for lane in lanes:
             gaps.extend(str(gap) for gap in cast("list[object]", lane["required_gaps"]))
-        gaps.extend(lane_retirement_shared.holder_authority_gaps(selected))
-        gaps.extend(_landed_expect_head_gaps(selected, expect_head=expect_head, apply=apply))
+        gaps.extend(lane_retirement_shared.holder_authority_gaps(lanes))
+        if apply:
+            gaps.extend(
+                lane_retirement_shared.expected_head_gaps(
+                    str(lanes[0]["head"]) if lanes else "", expect_head
+                )
+            )
     if gaps:
-        return {
-            "ok": False,
-            "state": "blocked",
-            "branch": branch or "",
-            "lanes": lanes,
-            "mutation": lane_retirement_shared.retire_mutation_envelope(
-                command="lane-retire-landed",
-                action="lane.retire.landed",
-                branch=branch,
-                expect_head=expect_head,
-                apply=apply,
-                confirmed=False,
-                required_gaps=gaps,
-                holder_ref=lane_retirement_shared.current_holder_ref(),
-                required_holder_ref=lane_retirement_shared.selected_holder_ref(selected),
-            ),
-            "required_gaps": sorted(set(gaps)),
-            **lane_retirement_shared.retire_authority_guidance(gaps),
-        }
+        return _report(branch, expect_head, apply, lanes, "blocked", gaps)
     if not apply:
-        return {
-            "ok": True,
-            "state": "planned",
-            "branch": branch or "",
-            "lanes": lanes,
-            "mutation": lane_retirement_shared.retire_mutation_envelope(
-                command="lane-retire-landed",
-                action="lane.retire.landed",
-                branch=branch,
-                expect_head=expect_head,
-                apply=apply,
-                confirmed=False,
-                required_gaps=[],
-                holder_ref=lane_retirement_shared.current_holder_ref(),
-                required_holder_ref=lane_retirement_shared.selected_holder_ref(selected),
-            ),
-            "required_gaps": [],
-        }
-    lane = selected[0]
+        return _report(branch, expect_head, apply, lanes, "planned", [])
+    lane = lanes[0]
     removed = lane_retirement_shared.remove_linked_lane(
         repo, lane, expect_head=expect_head, runtime=active_runtime.shared
     )
     if removed:
-        return {
-            "branch": branch or "",
-            "lanes": lanes,
-            "mutation": lane_retirement_shared.retire_mutation_envelope(
-                command="lane-retire-landed",
-                action="lane.retire.landed",
-                branch=branch,
-                expect_head=expect_head,
-                apply=apply,
-                confirmed=False,
-                required_gaps=string_sequence(removed.get("required_gaps")),
-                holder_ref=lane_retirement_shared.current_holder_ref(),
-                required_holder_ref=lane_retirement_shared.selected_holder_ref(selected),
-            ),
-            **removed,
-        }
+        failure_gaps = [str(gap) for gap in cast("list[object]", removed["required_gaps"])]
+        return _report(
+            branch,
+            expect_head,
+            apply,
+            lanes,
+            str(removed["state"]),
+            failure_gaps,
+            **{
+                key: value
+                for key, value in removed.items()
+                if key not in {"ok", "state", "required_gaps"}
+            },
+        )
     active_runtime.delete_lease(
         repo / ".ethos" / "state" / "state.sqlite", subject=str(lane["branch"])
     )
     lane_retirement_shared.delete_json_projection_lease(repo, subject=str(lane["branch"]))
-    return {
-        "ok": True,
-        "state": "retired",
-        "branch": branch or "",
-        "retired": lane,
-        "lanes": lanes,
-        "mutation": lane_retirement_shared.retire_mutation_envelope(
-            command="lane-retire-landed",
-            action="lane.retire.landed",
-            branch=branch,
-            expect_head=expect_head,
-            apply=apply,
-            confirmed=False,
-            required_gaps=[],
-            holder_ref=lane_retirement_shared.current_holder_ref(),
-            required_holder_ref=lane_retirement_shared.selected_holder_ref(selected),
-        ),
-        "required_gaps": [],
-    }
+    return _report(branch, expect_head, apply, lanes, "retired", [], retired=lane)
 
 
-def _landed_expect_head_gaps(
-    selected: list[dict[str, object]],
-    *,
+def _report(  # noqa: PLR0913, RUF100 - exact retirement result dimensions
+    branch: str | None,
     expect_head: str | None,
-    apply: bool,
-) -> list[str]:
-    if not apply:
-        return []
-    expected = (expect_head or "").strip()
-    if not expected:
-        return ["expect_head_required"]
-    if selected and expected != str(selected[0]["head"]):
-        return ["expect_head_mismatch"]
-    return []
+    apply: bool,  # noqa: FBT001 - internal positional compression helper
+    lanes: list[dict[str, object]],
+    state: str,
+    gaps: list[str],
+    **extra: object,
+) -> dict[str, object]:
+    return lane_retirement_shared.retirement_report(
+        command="lane-retire-landed",
+        action="lane.retire.landed",
+        branch=branch,
+        expect_head=expect_head,
+        apply=apply,
+        confirmed=False,
+        state=state,
+        gaps=gaps,
+        holder_ref=lane_retirement_shared.current_holder_ref(),
+        required_holder_ref=lane_retirement_shared.selected_holder_ref(lanes),
+        fields={"lanes": lanes, **extra},
+    )
 
 
 def _retirement_lane(

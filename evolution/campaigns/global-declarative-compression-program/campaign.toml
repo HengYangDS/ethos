@@ -10,7 +10,7 @@ mode = "campaign_terminal"
 [[step]]
 id = "campaign-publication-boundary"
 title = "Campaign publication boundary"
-state = "archived"
+state = "archive_ready"
 ordinal = 1
 depends_on = []
 openspec_change = "global-declarative-compression-campaign-gate-20260718"

@@ -87,7 +87,7 @@ remains authoritative and is not replaced by this local gate.
 ETHOS SHALL derive a campaign execution step's lifecycle legality from its
 declared state, OpenSpec carrier home, and closeout record. An `active` or
 `in_progress` step SHALL reference an active carrier under
-`openspec/changes/<id>` and SHALL NOT report terminal closeout. An `archived` or
+`openspec/changes/<id>` and SHALL NOT report terminal closeout. An `archive_ready` or
 `landed` step SHALL reference an archived carrier while closeout remains
 non-terminal. A `closed` or `retired` step SHALL reference an archived carrier
 and SHALL carry terminal closeout state, accepted and candidate heads, and dated
@@ -107,7 +107,7 @@ than fabricate an active lane.
 
 - **GIVEN** the official OpenSpec archive operation has moved the current Change
   under `openspec/changes/archive`
-- **WHEN** its Campaign step declares `state = "archived"` with non-terminal
+- **WHEN** its Campaign step declares `state = "archive_ready"` with non-terminal
   closeout
 - **THEN** Campaign validation SHALL accept the truthful archive-before-land
   intermediate state
@@ -116,7 +116,7 @@ than fabricate an active lane.
 
 #### Scenario: pre-land state still references an active carrier
 
-- **WHEN** an `archived` or `landed` step still resolves only under
+- **WHEN** an `archive_ready` or `landed` step still resolves only under
   `openspec/changes/<id>`
 - **THEN** Campaign validation SHALL report
   `campaign_step_preland_openspec_not_archived:<campaign>:<step>`.

@@ -52,7 +52,7 @@ def test_quality_tool_report_passes_and_trims_output(tmp_path, monkeypatch):
 
     report = quality_tool.quality_tool_report(
         root=tmp_path,
-        gate_id="toml-config",
+        gate_id="config-quality",
         tool="taplo",
         command=["taplo", "check", "a.toml"],
         files=["a.toml"],
@@ -75,7 +75,7 @@ def test_quality_tool_report_fails_with_gate_gap(tmp_path, monkeypatch):
 
     report = quality_tool.quality_tool_report(
         root=tmp_path,
-        gate_id="yaml-config",
+        gate_id="config-quality",
         tool="yamllint",
         command=["yamllint", "bad.yml"],
         files=["bad.yml"],
@@ -85,4 +85,4 @@ def test_quality_tool_report_fails_with_gate_gap(tmp_path, monkeypatch):
     assert report["state"] == "failed"
     assert report["exit_code"] == 7
     assert report["stderr"] == "bad"
-    assert report["required_gaps"] == ["quality_gate_failed:yaml-config"]
+    assert report["required_gaps"] == ["quality_gate_failed:config-quality"]

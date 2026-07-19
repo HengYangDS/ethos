@@ -414,8 +414,7 @@ def test_prove_default_floor_includes_config_and_script_quality_gates() -> None:
     assert {
         "evidence-freshness",
         "ruff",
-        "toml-config",
-        "yaml-config",
+        "config-quality",
         "shell-lint",
         "format-policy",
         "generated-artifacts",

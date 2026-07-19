@@ -10,6 +10,7 @@ from ethos.adapters.repo.coordination import lease_summary
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.adapters.store.state.lease.lifecycle.effects import delete_lease
+from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 from ethos_core.normalization.core import string_sequence
 
@@ -25,6 +26,7 @@ def retire_landed_work_lanes(
     repo = repo_root(root)
     status = workspace_status(repo)
     worktrees = cast("list[dict[str, object]]", status["worktrees"])
+    control_root = _retirement_control_root(worktrees)
     leases = leases_by_branch(cast("list[dict[str, str]]", worktrees), current_path=repo)
     candidate_lanes = [
         lane
@@ -38,6 +40,8 @@ def retire_landed_work_lanes(
         gaps.append("retire_branch_not_found")
     if apply and not branch:
         gaps.append("retire_branch_required")
+    if apply and control_root is None:
+        gaps.append("retirement_control_root_unavailable")
     if branch:
         for lane in selected:
             gaps.extend(str(gap) for gap in cast("list[object]", lane["required_gaps"]))
@@ -83,7 +87,8 @@ def retire_landed_work_lanes(
             "required_gaps": [],
         }
     lane = selected[0]
-    removed = lane_retirement_shared.remove_linked_lane(repo, lane, expect_head=expect_head)
+    assert control_root is not None
+    removed = lane_retirement_shared.remove_linked_lane(control_root, lane, expect_head=expect_head)
     if removed:
         return {
             "branch": branch or "",
@@ -101,8 +106,8 @@ def retire_landed_work_lanes(
             ),
             **removed,
         }
-    delete_lease(repo / ".ethos" / "state" / "state.sqlite", subject=str(lane["branch"]))
-    lane_retirement_shared.delete_json_projection_lease(repo, subject=str(lane["branch"]))
+    delete_lease(control_root / ".ethos" / "state" / "state.sqlite", subject=str(lane["branch"]))
+    lane_retirement_shared.delete_json_projection_lease(control_root, subject=str(lane["branch"]))
     return {
         "ok": True,
         "state": "retired",
@@ -138,6 +143,15 @@ def _landed_expect_head_gaps(
     if selected and expected != str(selected[0]["head"]):
         return ["expect_head_mismatch"]
     return []
+
+
+def _retirement_control_root(worktrees: list[dict[str, object]]) -> Path | None:
+    """Return the accepted checkout that survives removal of any Work Lane."""
+    for worktree in worktrees:
+        path = Path(str(worktree["path"]))
+        if worktree["role"] == ROLE_ACCEPTED_ROOT and path.is_dir():
+            return path
+    return None
 
 
 def _retirement_lane(

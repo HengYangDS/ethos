@@ -217,7 +217,7 @@ Run the focused carrier, metric, adapter, and schema tests; Python
 lint/format/ratchet; config lint; JSON Schema checks; module-layout; and the v1
 source-budget advisory. Do not expand any ratchet baseline.
 
-- [ ] **Step 5: Complete the bounded claim, Chronicle, independent review,
+- [x] **Step 5: Complete the bounded claim, Chronicle, independent review,
 strict lifecycle proof, and official archive inputs; commit the final T2
 carrier.**
 

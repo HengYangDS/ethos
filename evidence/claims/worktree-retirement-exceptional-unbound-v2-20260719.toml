@@ -26,7 +26,7 @@ owner = "ethos-repository"
 scope = "Vendor-neutral native exceptional retirement policy for exactly one accepted-ancestor unbound Work Lane ref; no host recovery, generic deletion, lease deletion, remote mutation, or hosted claim."
 
 [carriers]
-openspec = "openspec/changes/worktree-retirement-exceptional-unbound-v2-20260719"
+openspec = "openspec/changes/archive/2026-07-19-worktree-retirement-exceptional-unbound-v2-20260719"
 fallback = "Preserve every unbound ref and keep ordinary retirement fail-closed until a target-specific accepted policy and current effect-time admission exist."
 kill_signal = "The route treats absence as deletion authority, trusts a provider or host identity, permits generic or raw-Git deletion, force-removes a worktree, deletes a lease, or changes a protected ref."
 
@@ -37,7 +37,7 @@ targets = [
   { kind = "tests", path = "tests/unit/lanes/retirement/test_unbound_and_helpers.py" },
   { kind = "tests", path = "tests/unit/cli/test_contracts_lane.py" },
   { kind = "docs", path = "docs/reference/command-plane.md" },
-  { kind = "openspec", path = "openspec/changes/worktree-retirement-exceptional-unbound-v2-20260719" },
+  { kind = "openspec", path = "openspec/changes/archive/2026-07-19-worktree-retirement-exceptional-unbound-v2-20260719" },
   { kind = "openspec", path = "openspec/specs/repository-governance/spec.md" },
   { kind = "evidence", path = "evidence/claims/worktree-retirement-exceptional-unbound-v2-20260719.toml" },
   { kind = "evidence", path = "evidence/chronicle/worktree-retirement-exceptional-unbound-v2-20260719/2026-07-19.md" },

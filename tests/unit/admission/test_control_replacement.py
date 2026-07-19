@@ -278,19 +278,25 @@ def test_control_path_rename_preserves_source_path_admission(tmp_path: Path) -> 
 
 def test_control_digest_binds_git_mode(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
-    path = repo / "system" / "gate.sh"
-    path.parent.mkdir(parents=True)
-    path.write_text("exit 0\n", encoding="utf-8")
+    control = repo / "system" / "gates.toml"
+    control.parent.mkdir(parents=True)
+    control.write_text("version = 1\n", encoding="utf-8")
     git(repo, "add", ".")
     git(repo, "commit", "-m", "control")
     accepted_head = git(repo, "rev-parse", "HEAD")
-    path.chmod(0o755)
+    control.chmod(0o755)
     git(repo, "add", ".")
     git(repo, "commit", "-m", "mode")
+    candidate_head = git(repo, "rev-parse", "HEAD")
+    receipt, _proof, _decision, receipt_payload, _decision_payload = _operator_receipt(
+        tmp_path,
+        candidate_root=repo,
+        accepted_head=accepted_head,
+        candidate_head=candidate_head,
+    )
 
-    assert replacement._control_digest(  # noqa: RUF100, SLF001 - exact digest contract
-        repo, accepted_head, ("system/gate.sh",)
-    ) != replacement._control_digest(repo, "HEAD", ("system/gate.sh",))
+    assert receipt_payload["accepted_control_digest"] != receipt_payload["candidate_control_digest"]
+    assert _report(repo, accepted_head, candidate_head, receipt)["verdict"] == "allow"
 
 
 def test_native_proof_parser_rejects_handwritten_head_state_envelope() -> None:

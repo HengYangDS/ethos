@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import json
 import tarfile
 from datetime import UTC
 from datetime import datetime
-from typing import TYPE_CHECKING
+from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -13,14 +15,32 @@ from tests.support.contract_helpers import init_git_repo
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_raw
 
-if TYPE_CHECKING:
-    from pathlib import Path
-
 OBSERVED_AT = datetime(2026, 7, 19, 0, 0, tzinfo=UTC)
 
 
 def _repo(tmp_path: Path) -> Path:
     return init_git_repo(tmp_path / "repo")
+
+
+def _applied_recovery_fixture(
+    tmp_path: Path,
+) -> tuple[Path, Path, dict[str, Any], Path, Path]:
+    repo = _repo(tmp_path)
+    archive_root = tmp_path / "archive"
+    snapshots = repo / ".ethos" / "state" / "residue-snapshots"
+    snapshots.mkdir(parents=True)
+    (snapshots / "dirty.patch").write_text("patch\n", encoding="utf-8")
+    inventory = maintenance.local_state_maintenance_inventory(repo, archive_root, OBSERVED_AT)
+    applied = maintenance.apply_local_state_maintenance(
+        repo,
+        archive_root,
+        OBSERVED_AT,
+        expect_inventory_digest=inventory["inventory_digest"],
+        confirm_irreversible=True,
+    )
+    manifest_path = Path(applied["archive"]["manifest_path"])
+    receipt_path = next(archive_root.glob("*.receipt.json"))
+    return repo, archive_root, applied, manifest_path, receipt_path
 
 
 def test_doctor_cli_keeps_maintenance_flags_flat(tmp_path: Path) -> None:
@@ -68,7 +88,7 @@ def test_archive_extraction_rejects_invalid_and_mismatched_payloads(tmp_path: Pa
     invalid = tmp_path / "invalid.tar"
     invalid.write_text("not a tar\n", encoding="utf-8")
     with pytest.raises(RuntimeError, match="maintenance_archive_extraction_failed"):
-        maintenance._verify_archive_extraction(
+        maintenance.verify_archive_extraction(
             invalid,
             {"entries": []},
             repository_root=tmp_path,
@@ -81,7 +101,7 @@ def test_archive_extraction_rejects_invalid_and_mismatched_payloads(tmp_path: Pa
     with tarfile.open(archive, "w") as stream:
         stream.add(payload, arcname="local-state")
     with pytest.raises(RuntimeError, match="maintenance_archive_entry_verification_failed"):
-        maintenance._verify_archive_extraction(
+        maintenance.verify_archive_extraction(
             archive,
             {"entries": []},
             repository_root=tmp_path,
@@ -89,27 +109,59 @@ def test_archive_extraction_rejects_invalid_and_mismatched_payloads(tmp_path: Pa
 
 
 def test_replay_validation_rejects_drift_and_malformed_receipts(tmp_path: Path) -> None:
-    repo = _repo(tmp_path)
-    archive_root = tmp_path / "archive"
-    archive_root.mkdir()
-    digest = "0" * 64
-    maintenance._receipt_path(archive_root, digest).write_text("{", encoding="utf-8")
-    with pytest.raises(ValueError, match="maintenance_existing_receipt_invalid"):
-        maintenance._verified_existing_receipt(archive_root, digest, repo)
+    repo, archive_root, applied, manifest_path, receipt_path = _applied_recovery_fixture(tmp_path)
+    digest = applied["inventory_digest"]
+    receipt_text = receipt_path.read_text(encoding="utf-8")
+    manifest_text = manifest_path.read_text(encoding="utf-8")
 
-    maintenance._receipt_path(archive_root, digest).write_text("{}", encoding="utf-8")
-    maintenance._manifest_path(archive_root, digest).write_text("{}", encoding="utf-8")
+    receipt_path.write_text("{", encoding="utf-8")
     with pytest.raises(ValueError, match="maintenance_existing_receipt_invalid"):
-        maintenance._verified_existing_receipt(archive_root, digest, repo)
-
-    for receipt in ({"deleted": []}, {"deleted": {"proof_paths": ["../escape"]}}):
-        with pytest.raises(ValueError, match="maintenance_existing_receipt_invalid"):
-            maintenance._verify_receipt_postconditions(repo, receipt)
-    (repo / ".ethos" / "state" / "residue-snapshots").mkdir(parents=True)
-    with pytest.raises(ValueError, match="maintenance_existing_receipt_postcondition_failed"):
-        maintenance._verify_receipt_postconditions(
+        maintenance.apply_local_state_maintenance(
             repo,
-            {"deleted": {"proof_paths": [], "recovery_snapshot": True}},
+            archive_root,
+            OBSERVED_AT,
+            expect_inventory_digest=digest,
+            confirm_irreversible=True,
+        )
+
+    receipt_path.write_text(receipt_text, encoding="utf-8")
+    manifest_path.write_text("{}", encoding="utf-8")
+    with pytest.raises(ValueError, match="maintenance_existing_receipt_invalid"):
+        maintenance.apply_local_state_maintenance(
+            repo,
+            archive_root,
+            OBSERVED_AT,
+            expect_inventory_digest=digest,
+            confirm_irreversible=True,
+        )
+
+    manifest_path.write_text(manifest_text, encoding="utf-8")
+    receipt = json.loads(receipt_text)
+    for deleted in ([], {"proof_paths": ["../escape"]}):
+        receipt_path.write_text(
+            json.dumps({**receipt, "deleted": deleted}),
+            encoding="utf-8",
+        )
+        with pytest.raises(ValueError, match="maintenance_existing_receipt_invalid"):
+            maintenance.apply_local_state_maintenance(
+                repo,
+                archive_root,
+                OBSERVED_AT,
+                expect_inventory_digest=digest,
+                confirm_irreversible=True,
+            )
+
+    receipt_path.write_text(receipt_text, encoding="utf-8")
+    snapshots = repo / ".ethos" / "state" / "residue-snapshots"
+    snapshots.mkdir(parents=True)
+    (snapshots / "dirty.patch").write_text("reappeared\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="maintenance_existing_receipt_postcondition_failed"):
+        maintenance.apply_local_state_maintenance(
+            repo,
+            archive_root,
+            OBSERVED_AT,
+            expect_inventory_digest=digest,
+            confirm_irreversible=True,
         )
 
 

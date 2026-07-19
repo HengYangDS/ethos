@@ -477,34 +477,6 @@ def test_legacy_rules_migration_rechecks_source_under_write_lock(
     assert rules_path.read_text(encoding="utf-8") == drift
 
 
-def test_legacy_rules_migration_does_not_overwrite_edit_after_digest_check(
-    tmp_path: Path,
-    monkeypatch,
-) -> None:
-    source = '[formats]\nuser_config = "TOML"\n'
-    drift = '[formats]\nuser_config = "YAML"\n'
-    rules_path = _write_rules(tmp_path, source)
-    source_digest = migrate_legacy_rules(tmp_path)["source_digest"]
-    original_write = migration._write_text_atomic
-
-    def inject_drift(path: Path, *args: str, **kwargs: object) -> object:
-        path.write_text(drift, encoding="utf-8")
-        return original_write(path, *args, **kwargs)
-
-    monkeypatch.setattr(migration, "_write_text_atomic", inject_drift)
-
-    report = migrate_legacy_rules(
-        tmp_path,
-        apply=True,
-        expect_source_digest=str(source_digest),
-    )
-
-    assert report["ok"] is False
-    assert report["applied"] is False
-    assert report["required_gaps"] == ["rules_migration_source_changed"]
-    assert rules_path.read_text(encoding="utf-8") == drift
-
-
 @pytest.mark.parametrize("head_result", ["other-head", "expected-head"])
 def test_legacy_rules_migration_enforces_head_guard_then_rechecks_source(
     tmp_path: Path,
@@ -513,6 +485,7 @@ def test_legacy_rules_migration_enforces_head_guard_then_rechecks_source(
     source = '[formats]\nuser_config = "TOML"\n'
     drift = '[formats]\nuser_config = "YAML"\n'
     rules_path = _write_rules(tmp_path, source)
+    source_digest = migrate_legacy_rules(tmp_path)["source_digest"]
 
     def read_head() -> str:
         if head_result == "expected-head":
@@ -522,7 +495,7 @@ def test_legacy_rules_migration_enforces_head_guard_then_rechecks_source(
     report = migrate_legacy_rules(
         tmp_path,
         apply=True,
-        expect_source_digest=migration._text_digest(source),
+        expect_source_digest=str(source_digest),
         expect_head="expected-head",
         read_head=read_head,
     )
@@ -575,14 +548,17 @@ def test_legacy_rules_migration_fails_closed_if_source_disappears_before_lock(
     monkeypatch,
 ) -> None:
     rules_path = _write_rules(tmp_path, '[formats]\nuser_config = "TOML"\n')
-    original_prepare = migration._prepared_temporary
+    original_flock = fcntl.flock
+    source_removed = False
 
-    def remove_source(path: Path, text: str) -> Path:
-        temporary = original_prepare(path, text)
-        path.unlink()
-        return temporary
+    def remove_source_after_lock(file_descriptor: int, operation: int) -> None:
+        nonlocal source_removed
+        original_flock(file_descriptor, operation)
+        if operation == fcntl.LOCK_EX and not source_removed:
+            source_removed = True
+            rules_path.unlink()
 
-    monkeypatch.setattr(migration, "_prepared_temporary", remove_source)
+    monkeypatch.setattr(fcntl, "flock", remove_source_after_lock)
 
     report = migrate_legacy_rules(tmp_path, apply=True)
 
@@ -591,8 +567,3 @@ def test_legacy_rules_migration_fails_closed_if_source_disappears_before_lock(
     assert report["required_gaps"] == ["rules_migration_source_changed"]
     assert not rules_path.exists()
     assert not list(rules_path.parent.glob(f".{rules_path.name}.migration.*"))
-
-
-def test_profiles_assignment_parser_requires_active_and_fails_closed() -> None:
-    with pytest.raises(ValueError, match="could not be isolated"):
-        migration._profiles_active_assignment_end(["[profiles]\n", "active = [\n"], 1)

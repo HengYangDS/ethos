@@ -220,6 +220,41 @@ def test_retire_landed_work_lane_apply_requires_branch(tmp_path: Path) -> None:
     assert landed.exists()
 
 
+def test_retire_landed_work_lane_reports_missing_selected_branch(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+
+    report = retire_landed_work_lanes(root=repo, branch="work/missing")
+
+    assert report["required_gaps"] == ["retire_branch_not_found"]
+
+
+def test_retire_landed_work_lane_projects_removal_failure(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    repo, landed, _database = _landed_lane(tmp_path, lease_holder=_LEASE_HOLDER)
+    head = git(landed, "rev-parse", "HEAD")
+    monkeypatch.setenv("ETHOS_ACTOR", _LEASE_HOLDER)
+    monkeypatch.setattr(
+        retirement_shared,
+        "remove_linked_lane",
+        lambda *_args, **_kwargs: {
+            "ok": False,
+            "state": "blocked",
+            "required_gaps": ["worktree_remove_failed"],
+        },
+    )
+
+    report = retire_landed_work_lanes(
+        root=repo,
+        branch=_LANDED_BRANCH,
+        expect_head=head,
+        apply=True,
+    )
+
+    assert report["required_gaps"] == ["worktree_remove_failed"]
+
+
 @pytest.mark.parametrize(
     ("expect_head", "required_gap"),
     [(None, "expect_head_required"), ("not-the-lane-head", "expect_head_mismatch")],

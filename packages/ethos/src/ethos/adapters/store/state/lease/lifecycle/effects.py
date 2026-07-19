@@ -11,7 +11,6 @@ from typing import Any
 from ethos.adapters.store.state.lease.lifecycle.core import expected_current_lease
 from ethos.adapters.store.state.lease.lifecycle.core import initialize_lease_state
 from ethos.adapters.store.state.lease.projection import active_leases
-from ethos.adapters.store.state.lease.projection import table_columns
 from ethos_core.contracts.coordination import HolderRef
 
 if TYPE_CHECKING:
@@ -58,9 +57,6 @@ def delete_lease(db_path: Path, *, subject: str) -> int:
         return 0
     with closing(sqlite3.connect(db_path)) as connection:
         connection.execute("pragma foreign_keys = on")
-        columns = table_columns(connection, "leases")
-        if "subject" not in columns:
-            return 0
         cursor = connection.execute(
             "delete from leases where subject = ?",
             (subject,),

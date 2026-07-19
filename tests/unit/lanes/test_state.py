@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import importlib
+import importlib.util
 import sqlite3
 from contextlib import closing
 from typing import TYPE_CHECKING
 
 import pytest
 
+from ethos.adapters.store.state.events import SCHEMA_VERSION
 from ethos.adapters.store.state.events import append_chronicle_event
 from ethos.adapters.store.state.events import append_event
 from ethos.adapters.store.state.events import initialize_state
@@ -45,6 +48,147 @@ def test_state_initialization_creates_expected_tables(tmp_path: Path) -> None:
         "action_runs",
         "evidence_index",
     } <= tables
+    assert "cache_entries" not in tables
+    assert SCHEMA_VERSION == 2
+
+
+def test_state_initializers_share_one_schema_owner() -> None:
+    module_name = "ethos.adapters.store.state.schema"
+
+    assert importlib.util.find_spec(module_name) is not None
+    state_schema = importlib.import_module(module_name)
+    state_events = importlib.import_module("ethos.adapters.store.state.events")
+    lease_core = importlib.import_module("ethos.adapters.store.state.lease.lifecycle.core")
+
+    assert state_events.initialize_state is state_schema.initialize_state
+    assert lease_core.initialize_state is state_schema.initialize_state
+
+
+def _create_v1_state(db_path: Path, *, cache_rows: int = 0) -> None:
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    with closing(sqlite3.connect(db_path)) as connection:
+        connection.executescript(
+            """
+            create table schema_migrations (
+              version integer primary key,
+              applied_at text not null
+            );
+            insert into schema_migrations(version, applied_at)
+            values (1, '2026-07-18T00:00:00+00:00');
+            create table cache_entries (
+              cache_key text primary key,
+              payload_json text not null
+            );
+            create table events (
+              id integer primary key autoincrement,
+              created_at text not null,
+              event_type text not null,
+              subject text not null,
+              payload_json text not null
+            );
+            insert into events(created_at, event_type, subject, payload_json)
+            values ('2026-07-18T00:00:00+00:00', 'seed', 'repo:test', '{}');
+            """
+        )
+        for index in range(cache_rows):
+            connection.execute(
+                "insert into cache_entries(cache_key, payload_json) values (?, '{}')",
+                (f"cache:{index}",),
+            )
+        connection.commit()
+
+
+def test_initialize_state_migrates_empty_v1_cache_table_without_data_loss(
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / ".ethos" / "state" / "state.sqlite"
+    _create_v1_state(db_path)
+
+    initialize_state(db_path)
+
+    with closing(sqlite3.connect(db_path)) as connection:
+        tables = {
+            row[0]
+            for row in connection.execute("select name from sqlite_master where type = 'table'")
+        }
+        versions = connection.execute(
+            "select version from schema_migrations order by version"
+        ).fetchall()
+        events = connection.execute("select event_type, subject from events").fetchall()
+    assert "cache_entries" not in tables
+    assert versions == [(1,), (2,)]
+    assert events == [("seed", "repo:test")]
+
+
+def test_initialize_state_fails_closed_when_retired_cache_table_is_not_empty(
+    tmp_path: Path,
+) -> None:
+    db_path = tmp_path / ".ethos" / "state" / "state.sqlite"
+    _create_v1_state(db_path, cache_rows=1)
+
+    with pytest.raises(RuntimeError, match="state_schema_v2_cache_entries_not_empty"):
+        initialize_state(db_path)
+
+    with closing(sqlite3.connect(db_path)) as connection:
+        assert connection.execute("select count(*) from cache_entries").fetchone() == (1,)
+        assert connection.execute(
+            "select version from schema_migrations order by version"
+        ).fetchall() == [(1,)]
+
+
+def test_initialize_state_rolls_back_v2_migration_when_version_record_fails(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    import ethos.adapters.store.state.schema as state_schema
+
+    db_path = tmp_path / ".ethos" / "state" / "state.sqlite"
+    _create_v1_state(db_path)
+
+    def fail_timestamp() -> str:
+        message = "clock unavailable"
+        raise RuntimeError(message)
+
+    monkeypatch.setattr(state_schema, "now", fail_timestamp)
+
+    with pytest.raises(RuntimeError, match="clock unavailable"):
+        initialize_state(db_path)
+
+    with closing(sqlite3.connect(db_path)) as connection:
+        tables = {
+            row[0]
+            for row in connection.execute("select name from sqlite_master where type = 'table'")
+        }
+        versions = connection.execute(
+            "select version from schema_migrations order by version"
+        ).fetchall()
+    assert "cache_entries" in tables
+    assert versions == [(1,)]
+
+
+def test_initialize_state_v2_is_idempotent_and_preserves_leases(tmp_path: Path) -> None:
+    db_path = tmp_path / ".ethos" / "state" / "state.sqlite"
+    initialize_state(db_path)
+    with closing(sqlite3.connect(db_path)) as connection:
+        connection.execute(
+            """
+            insert into leases(id, subject, owner, expires_at, payload_json)
+            values ('lease:current', 'work/current', 'agent:test:case:owner',
+                    '2099-07-01T00:00:00+00:00', '{}')
+            """
+        )
+        connection.commit()
+
+    initialize_state(db_path)
+    initialize_state(db_path)
+
+    with closing(sqlite3.connect(db_path)) as connection:
+        assert connection.execute(
+            "select version from schema_migrations order by version"
+        ).fetchall() == [(2,)]
+        assert connection.execute("select id, subject from leases").fetchall() == [
+            ("lease:current", "work/current")
+        ]
 
 
 def test_chronicle_append_is_transactional(tmp_path: Path) -> None:

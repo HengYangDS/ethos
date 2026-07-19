@@ -7,12 +7,6 @@ EXPECTED_MODES = {
     "in_toto": "attestation-envelope",
     "sigstore": "first-class-adapter",
     "spdx": "artifact-metadata-adapter",
-    "cdevents": "event-interchange-adapter",
-    "opentelemetry": "native-standard",
-    "dagger": "runner-adapter",
-    "cue": "advanced-compiler",
-    "opa": "policy-adapter",
-    "temporal": "service-runtime-adapter",
     "mcp": "agent-projection",
 }
 

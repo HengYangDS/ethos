@@ -2,29 +2,11 @@ from __future__ import annotations
 
 import json
 import os
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
-from typing import Protocol
 
 from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.mutation.lane_lifecycle.core import run_git
 from ethos_core.contracts.lifecycle.core import MutationRequest
-
-
-class GitRunner(Protocol):
-    def __call__(self, root: Path, *args: str, check: bool = True) -> Any: ...
-
-
-def _run_git_adapter(root: Path, *args: str, check: bool = True) -> Any:
-    return run_git(root, *args, check=check)
-
-
-@dataclass(frozen=True, slots=True)
-class RetirementRuntime:
-    """Explicit adapter binding for Work Lane retirement operations."""
-
-    run_git: GitRunner = _run_git_adapter
 
 
 def remove_linked_lane(
@@ -32,7 +14,6 @@ def remove_linked_lane(
     lane: dict[str, object],
     *,
     expect_head: str | None,
-    runtime: RetirementRuntime | None = None,
 ) -> dict[str, object]:
     """Retire one clean linked lane without forcing a destructive removal.
 
@@ -42,7 +23,6 @@ def remove_linked_lane(
     ref.  A concurrent ref advance therefore leaves an unbound ref behind for
     later inspection instead of deleting a newer target.
     """
-    active_runtime = runtime or RetirementRuntime()
     branch = str(lane.get("branch") or "")
     path = str(lane.get("path") or "")
     lane_path = Path(path) if path else Path()
@@ -51,7 +31,6 @@ def remove_linked_lane(
         branch=branch,
         path=path,
         expect_head=expected,
-        runtime=active_runtime,
     )
     if gaps:
         return {
@@ -59,7 +38,7 @@ def remove_linked_lane(
             "state": "blocked",
             "required_gaps": gaps,
         }
-    remove = active_runtime.run_git(
+    remove = run_git(
         lane_path,
         "worktree",
         "remove",
@@ -74,7 +53,7 @@ def remove_linked_lane(
             "stderr": remove.stderr.strip(),
         }
     ref = f"refs/heads/{branch}"
-    delete = active_runtime.run_git(
+    delete = run_git(
         repo,
         "update-ref",
         "-d",
@@ -97,7 +76,6 @@ def _linked_lane_reobservation_gaps(
     branch: str,
     path: str,
     expect_head: str,
-    runtime: RetirementRuntime,
 ) -> list[str]:
     """Reobserve the exact linked lane immediately before any effect.
 
@@ -117,17 +95,17 @@ def _linked_lane_reobservation_gaps(
         gaps.append("retirement_worktree_path_unavailable")
         return gaps
     ref = f"refs/heads/{branch}"
-    ref_check = runtime.run_git(lane_path, "rev-parse", ref, check=False)
+    ref_check = run_git(lane_path, "rev-parse", ref, check=False)
     if ref_check.returncode != 0:
         gaps.append("retirement_ref_unavailable")
     elif expect_head and ref_check.stdout.strip() != expect_head:
         gaps.append("retirement_ref_stale")
-    head_check = runtime.run_git(lane_path, "rev-parse", "HEAD", check=False)
+    head_check = run_git(lane_path, "rev-parse", "HEAD", check=False)
     if head_check.returncode != 0:
         gaps.append("retirement_worktree_head_unavailable")
     elif expect_head and head_check.stdout.strip() != expect_head:
         gaps.append("retirement_worktree_head_stale")
-    status = runtime.run_git(
+    status = run_git(
         lane_path,
         "status",
         "--porcelain",
@@ -208,10 +186,10 @@ def holder_authority_gaps(selected: list[dict[str, object]]) -> list[str]:
     )
 
 
-def has_changed_paths(root: Path, *, runner: GitRunner) -> bool:
+def has_changed_paths(root: Path) -> bool:
     """Fail closed when Git cannot prove the linked Work Lane is clean."""
     try:
-        completed = runner(root, "status", "--porcelain", "--untracked-files=all", check=False)
+        completed = run_git(root, "status", "--porcelain", "--untracked-files=all", check=False)
     except OSError:
         return True
     return completed.returncode != 0 or bool(completed.stdout.strip())

@@ -10,7 +10,7 @@ import pytest
 import ethos.adapters.mutation.lane_retirement.shared.core as retirement_shared
 import ethos.adapters.repo.dirty.core as repo_dirty
 import ethos.adapters.store.state.lease.lifecycle.core as state
-from ethos.adapters.mutation.lanes import retire_landed_work_lanes
+from ethos.adapters.mutation.lane_retirement.landed.core import retire_landed_work_lanes
 from ethos.adapters.mutation.lanes import start_work_lane
 from ethos.adapters.repo import coordination as repo_coordination
 from ethos.adapters.repo.dirty.core import committed_change_paths
@@ -269,6 +269,7 @@ def test_retire_landed_work_lane_apply_removes_selected_clean_merged_lane(
 
 def test_remove_linked_lane_removes_clean_worktree_before_deleting_exact_ref(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo = init_repo(tmp_path / "repo")
     lane_path = tmp_path / "repo-work-stuck"
@@ -304,9 +305,9 @@ def test_remove_linked_lane_removes_clean_worktree_before_deleting_exact_ref(
             return subprocess.CompletedProcess(args, 0, stdout="", stderr="")
         raise AssertionError(args)
 
-    runtime = retirement_shared.RetirementRuntime(run_git=fake_run_git)
+    monkeypatch.setattr(retirement_shared, "run_git", fake_run_git)
 
-    report = retirement_shared.remove_linked_lane(repo, lane, expect_head="a" * 40, runtime=runtime)
+    report = retirement_shared.remove_linked_lane(repo, lane, expect_head="a" * 40)
 
     assert report == {}
     assert calls == [
@@ -320,6 +321,7 @@ def test_remove_linked_lane_removes_clean_worktree_before_deleting_exact_ref(
 
 def test_remove_linked_lane_blocks_before_effect_when_reobservation_is_stale_or_dirty(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo = init_repo(tmp_path / "repo")
     lane_path = tmp_path / "repo-work-stuck"
@@ -347,9 +349,9 @@ def test_remove_linked_lane_blocks_before_effect_when_reobservation_is_stale_or_
             return subprocess.CompletedProcess(args, 0, stdout="?? uncommitted.txt\n", stderr="")
         raise AssertionError(args)
 
-    runtime = retirement_shared.RetirementRuntime(run_git=fake_run_git)
+    monkeypatch.setattr(retirement_shared, "run_git", fake_run_git)
 
-    report = retirement_shared.remove_linked_lane(repo, lane, expect_head="a" * 40, runtime=runtime)
+    report = retirement_shared.remove_linked_lane(repo, lane, expect_head="a" * 40)
 
     assert report == {
         "ok": False,
@@ -407,6 +409,7 @@ def test_remove_linked_lane_reobservation_fails_closed_for_missing_or_unavailabl
     expect_head: str | None,
     responses: dict[tuple[str, ...], tuple[int, str, str]],
     required_gaps: list[str],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo = init_repo(tmp_path / "repo")
     lane_path = tmp_path / "repo-work-stuck"
@@ -423,12 +426,8 @@ def test_remove_linked_lane_reobservation_fails_closed_for_missing_or_unavailabl
         returncode, stdout, stderr = responses[args]
         return subprocess.CompletedProcess(args, returncode, stdout=stdout, stderr=stderr)
 
-    report = retirement_shared.remove_linked_lane(
-        repo,
-        lane,
-        expect_head=expect_head,
-        runtime=retirement_shared.RetirementRuntime(run_git=fake_run_git),
-    )
+    monkeypatch.setattr(retirement_shared, "run_git", fake_run_git)
+    report = retirement_shared.remove_linked_lane(repo, lane, expect_head=expect_head)
 
     assert report == {
         "ok": False,
@@ -439,6 +438,7 @@ def test_remove_linked_lane_reobservation_fails_closed_for_missing_or_unavailabl
 
 def test_remove_linked_lane_preserves_newer_ref_after_worktree_removal(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo = init_repo(tmp_path / "repo")
     lane_path = tmp_path / "repo-work-stuck"
@@ -469,12 +469,8 @@ def test_remove_linked_lane_preserves_newer_ref_after_worktree_removal(
             return subprocess.CompletedProcess(args, 1, stdout="", stderr="cannot lock ref")
         raise AssertionError(args)
 
-    report = retirement_shared.remove_linked_lane(
-        repo,
-        lane,
-        expect_head="a" * 40,
-        runtime=retirement_shared.RetirementRuntime(run_git=fake_run_git),
-    )
+    monkeypatch.setattr(retirement_shared, "run_git", fake_run_git)
+    report = retirement_shared.remove_linked_lane(repo, lane, expect_head="a" * 40)
 
     assert report == {
         "ok": False,

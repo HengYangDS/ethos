@@ -20,6 +20,12 @@ only streams and unused local event logs SHALL be absent.
 - **THEN** it SHALL create only tables consumed by current product behavior
 - **AND** unused generic event and chronicle-event tables and CRUD APIs SHALL be absent.
 
+#### Scenario: ignored local state uses the current contract
+
+- **WHEN** ETHOS initializes its disposable coordination database
+- **THEN** it SHALL create only the current lease table
+- **AND** it SHALL NOT preserve schema migration ledgers or retired local formats.
+
 #### Scenario: Chronicle remains authoritative evidence
 
 - **WHEN** a governance decision becomes durable

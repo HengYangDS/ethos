@@ -1,14 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from dataclasses import field
 from pathlib import Path
-from typing import TYPE_CHECKING
 from typing import cast
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
-
 
 import ethos.adapters.mutation.lane_retirement.shared.core as lane_retirement_shared
 from ethos.adapters.mutation.lane_lifecycle.core import is_ancestor
@@ -21,45 +14,24 @@ from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 from ethos_core.normalization.core import string_sequence
 
 
-@dataclass(frozen=True, slots=True)
-class LandedRetirementRuntime:
-    """Explicit dependencies used to retire landed Work Lanes."""
-
-    repo_root: Callable[[Path], Path] = repo_root
-    workspace_status: Callable[[Path], dict[str, object]] = workspace_status
-    leases_by_branch: Callable[..., dict[str, dict[str, object]]] = leases_by_branch
-    is_ancestor: Callable[[Path, str, str], bool] = is_ancestor
-    delete_lease: Callable[..., int] = delete_lease
-    shared: lane_retirement_shared.RetirementRuntime = field(
-        default_factory=lane_retirement_shared.RetirementRuntime
-    )
-
-
 def retire_landed_work_lanes(
     *,
     root: Path,
     branch: str | None = None,
     expect_head: str | None = None,
     apply: bool = False,
-    runtime: LandedRetirementRuntime | None = None,
 ) -> dict[str, object]:
     """Retire clean linked Work Lanes already merged into accepted truth."""
-    active_runtime = runtime or LandedRetirementRuntime()
-    repo = active_runtime.repo_root(root)
-    status = active_runtime.workspace_status(repo)
+    repo = repo_root(root)
+    status = workspace_status(repo)
     worktrees = cast("list[dict[str, object]]", status["worktrees"])
-    leases = active_runtime.leases_by_branch(
-        cast("list[dict[str, str]]", worktrees), current_path=repo
-    )
+    leases = leases_by_branch(cast("list[dict[str, str]]", worktrees), current_path=repo)
     candidate_lanes = [
         lane
         for lane in worktrees
         if lane["role"] == ROLE_WORK_LANE and (branch is None or lane["branch"] == branch)
     ]
-    lanes = [
-        _retirement_lane(repo, lane, leases=leases, runtime=active_runtime)
-        for lane in candidate_lanes
-    ]
+    lanes = [_retirement_lane(repo, lane, leases=leases) for lane in candidate_lanes]
     selected = lanes
     gaps: list[str] = []
     if branch is not None and not selected:
@@ -111,9 +83,7 @@ def retire_landed_work_lanes(
             "required_gaps": [],
         }
     lane = selected[0]
-    removed = lane_retirement_shared.remove_linked_lane(
-        repo, lane, expect_head=expect_head, runtime=active_runtime.shared
-    )
+    removed = lane_retirement_shared.remove_linked_lane(repo, lane, expect_head=expect_head)
     if removed:
         return {
             "branch": branch or "",
@@ -131,9 +101,7 @@ def retire_landed_work_lanes(
             ),
             **removed,
         }
-    active_runtime.delete_lease(
-        repo / ".ethos" / "state" / "state.sqlite", subject=str(lane["branch"])
-    )
+    delete_lease(repo / ".ethos" / "state" / "state.sqlite", subject=str(lane["branch"]))
     lane_retirement_shared.delete_json_projection_lease(repo, subject=str(lane["branch"]))
     return {
         "ok": True,
@@ -177,17 +145,15 @@ def _retirement_lane(
     lane: dict[str, object],
     *,
     leases: dict[str, dict[str, object]] | None = None,
-    runtime: LandedRetirementRuntime | None = None,
 ) -> dict[str, object]:
-    active_runtime = runtime or LandedRetirementRuntime()
     gaps: list[str] = []
     branch = str(lane["branch"])
     path = Path(str(lane["path"]))
     lease = (leases or {}).get(branch, {})
     holder_ref = str(lease.get("holder_ref") or "")
-    if not active_runtime.is_ancestor(repo, branch, "HEAD"):
+    if not is_ancestor(repo, branch, "HEAD"):
         gaps.append("work_lane_not_merged")
-    if lane_retirement_shared.has_changed_paths(path, runner=active_runtime.shared.run_git):
+    if lane_retirement_shared.has_changed_paths(path):
         gaps.append("work_lane_dirty")
     return {
         "branch": branch,

@@ -1,4 +1,4 @@
-# ruff: noqa: ARG005, TC003, FBT003, PT011, PT018
+# ruff: noqa: ARG005, TC002, TC003, FBT003, PT018
 # Monkeypatch-heavy coverage edge tests intentionally preserve callable signatures
 # matching patched runtime functions; unused parameters document those contracts.
 
@@ -13,11 +13,8 @@ from types import SimpleNamespace
 
 import pytest
 
-import ethos.adapters.store.state.events as state_events
-import ethos.adapters.store.state.events as state_schema
 import ethos.adapters.store.state.lease.lifecycle.core as state
 import ethos.adapters.store.state.lease.lifecycle.effects as state_effects
-import ethos.adapters.store.state.lease.projection as state_projection
 import ethos.adapters.store.state.lease.projection as state_read
 import ethos_core.contracts.lifecycle.core as lifecycle_contract
 from ethos.adapters.mutation import core as mutation_core
@@ -464,7 +461,11 @@ def test_release_mirror_closeout_edge_paths(monkeypatch, tmp_path):
         == "synced"
     )
     failed = closeout_core.sync_release_mirror(
-        transition, worktrees, "new", "old", lambda *_a, **_k: cp(stderr="sync", returncode=1)
+        transition,
+        worktrees,
+        "new",
+        "old",
+        lambda *_a, **_k: cp(stderr="sync", returncode=1),
     )
     monkeypatch.setattr(closeout_core, "sync_release_mirror", lambda *_a: failed)
     assert closeout_core.promote_candidate_to_accepted(
@@ -647,21 +648,8 @@ def test_mutation_admission_blocks_active_openspec_carriers_on_closeout(
     assert "openspec_active_change_unarchived:wip:candidate" in closeout_decision.gaps
 
 
-def test_store_state_lease_events_and_malformed_rows(tmp_path: Path) -> None:
+def test_store_state_lease_and_malformed_rows(tmp_path: Path) -> None:
     db = tmp_path / ".ethos" / "state" / "state.sqlite"
-    state_schema.initialize_state(db)
-    assert state_events.safe_table("events") == "events"
-    with pytest.raises(ValueError):
-        state_events.safe_table("bad")
-    assert "insert into events" in state_events.insert_event_sql("events")
-    assert "from chronicle_events" in state_events.select_event_sql("chronicle_events")
-    with closing(sqlite3.connect(db)) as connection, pytest.raises(ValueError):
-        state_projection.table_columns(connection, "events")
-    state_events.append_event(db, event_type="e", subject="s", payload={"x": 1})
-    state_events.append_chronicle_event(db, event_type="c", subject="s", payload={"y": 2})
-    assert state_events.list_events(db)[0]["payload"] == {"x": 1}
-    assert state_events.list_chronicle_events(db)[0]["payload"] == {"y": 2}
-
     assert (
         state_effects.update_lease_payload(db, subject="missing", payload={"claim_id": "c"}) == {}
     )
@@ -698,7 +686,6 @@ def test_store_state_lease_events_and_malformed_rows(tmp_path: Path) -> None:
     assert leases[0]["normalization_state"] == "legacy_ambiguous"
     assert leases[0]["payload"] == {}
     assert state_effects.delete_lease(tmp_path / "missing.sqlite", subject="x") == 0
-    assert state_events.list_events(tmp_path / "missing.sqlite") == []
 
 
 def test_git_and_coordination_edges(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

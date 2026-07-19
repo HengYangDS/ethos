@@ -27,6 +27,13 @@ def current_branch(root: Path) -> str:
     return completed.stdout.strip()
 
 
+def official_run_json(
+    root: Path, base_command: tuple[str, ...], args: tuple[str, ...]
+) -> dict[str, object]:
+    """Delegate through the patchable official CLI boundary."""
+    return run_json(root, base_command, args)
+
+
 def openspec_base_command() -> tuple[str, ...] | None:
     explicit = os.environ.get("ETHOS_OPENSPEC_BIN", "").strip()
     if explicit:

@@ -13,6 +13,12 @@ reconstruct an equivalent Runtime graph in a forwarding facade.
 - **AND** no compatibility forwarding function, re-export, alias, service locator,
   or Runtime-composition factory SHALL remain.
 
+#### Scenario: adapter behavior needs a test seam
+
+- **WHEN** a test replaces one effectful dependency
+- **THEN** it SHALL patch the semantic owner module directly
+- **AND** production APIs SHALL NOT carry a Runtime object or runtime parameter.
+
 #### Scenario: retirement reads lease state
 
 - **WHEN** retirement evaluates current leases

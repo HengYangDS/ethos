@@ -23,7 +23,11 @@ if TYPE_CHECKING:
 
 
 def _run_git(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
-    env = {**os.environ, "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_SYSTEM": "/dev/null"}
+    env = {
+        **os.environ,
+        "GIT_CONFIG_GLOBAL": "/dev/null",
+        "GIT_CONFIG_SYSTEM": "/dev/null",
+    }
     return subprocess.run(
         ["git", "-c", "user.name=Cov", "-c", "user.email=cov@example.test", *args],
         cwd=root,
@@ -73,7 +77,9 @@ def test_closeout_candidate_gaps_dirty_worktree(tmp_path: Path) -> None:
     assert gaps == ["candidate_worktree_dirty"]
 
 
-def test_evaluate_closeout_mutation_requires_authorization_and_head(tmp_path: Path) -> None:
+def test_evaluate_closeout_mutation_requires_authorization_and_head(
+    tmp_path: Path,
+) -> None:
     # apply without authorization/expect_head appends both gaps (lines 203, 206).
     request = lifecycle_contract.MutationRequest(
         command="closeout", apply=True, authorized=False, expect_head=None
@@ -132,7 +138,9 @@ def test_active_lease_skips_non_matching_subject(tmp_path: Path) -> None:
 # --- mutation/lane_lifecycle/refresh.py -------------------------------------
 
 
-def test_bootstrap_candidate_skips_branch_create_when_branch_exists(tmp_path: Path) -> None:
+def test_bootstrap_candidate_skips_branch_create_when_branch_exists(
+    tmp_path: Path,
+) -> None:
     # Candidate branch present (no worktree) skips branch creation (branch 71->83)
     # and adds the worktree directly.
     repo = _init_repo(tmp_path / "acc")
@@ -141,20 +149,6 @@ def test_bootstrap_candidate_skips_branch_create_when_branch_exists(tmp_path: Pa
     result = lanes_refresh.bootstrap_candidate(root=repo, path=target, apply=True)
     assert result["ok"] is True
     assert result["state"] == "bootstrapped"
-
-
-def test_lane_refresh_runtime_default_adapters_cover_candidate_path_and_ancestor(
-    tmp_path: Path,
-) -> None:
-    repo = _init_repo(tmp_path / "acc")
-    _run_git(repo, "branch", "candidate/dev")
-
-    runtime = lanes_refresh.LaneRefreshRuntime()
-
-    assert runtime.default_candidate_path(repo, "candidate/dev") == repo.with_name(
-        "acc-candidate-dev"
-    )
-    assert runtime.is_ancestor(repo, _head(repo), _head(repo)) is True
 
 
 def test_refresh_candidate_from_accepted_reset_failure(
@@ -225,7 +219,11 @@ def test_land_blocks_when_proof_carry_to_candidate_fails(
     monkeypatch.setattr(
         core,
         "candidate_base_report",
-        lambda root: {"ok": True, "path": str(tmp_path / "candidate"), "required_gaps": []},  # noqa: ARG005
+        lambda **_kwargs: {
+            "ok": True,
+            "path": str(tmp_path / "candidate"),
+            "required_gaps": [],
+        },
     )
     monkeypatch.setattr(
         core,

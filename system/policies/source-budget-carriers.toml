@@ -90,6 +90,17 @@ exclude = []
 owner = "ethos-quality"
 
 [[carriers]]
+carrier_id = "test-json"
+role = "test_source"
+scope_id = "tests.json"
+disposition = "measure"
+metric_profile = "test-json-v2"
+extensions = [".json"]
+include = ["tests/**", "extensions/**/tests/**"]
+exclude = []
+owner = "ethos-quality"
+
+[[carriers]]
 carrier_id = "jinja-templates"
 role = "template_source"
 scope_id = "product.templates.jinja"

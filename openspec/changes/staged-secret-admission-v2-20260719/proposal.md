@@ -3,9 +3,12 @@
 ETHOS scans the tracked tree and Git history during full local/hosted quality
 proof, but the tracked pre-commit hook does not inspect the staged index before
 creating local history. The historical staged-secret lane attempted to close
-that gap with `gitleaks protect --staged`; gitleaks 8.30.1 no longer provides
-the `protect` command, so replaying that branch would install an obsolete and
-untested commit boundary.
+that gap by inlining `gitleaks protect --staged`. In gitleaks 8.30.1, `protect`
+remains callable as an unadvertised compatibility command even though the
+advertised command surface lists `git`, whose help explicitly documents
+`--staged`. Replaying the historical branch would therefore preserve a legacy,
+inline, version-unbounded, and behaviorally under-tested commit boundary instead
+of following the current public interface.
 
 ## What Changes
 
@@ -31,7 +34,6 @@ untested commit boundary.
 
 - `.githooks/pre-commit`
 - `tools/ci/scripts/run-staged-secrets-scan.sh`
-- `.config/checks/secrets/README.md`
 - focused hook tests, OpenSpec delta, claim, and Chronicle
 
 ## Out Of Scope
@@ -42,3 +44,6 @@ untested commit boundary.
   mutation, or workstation-only credential tooling.
 - Changes to `.gitleaks.toml`, the release secret gate, provider workflows,
   remote publication, or the historical source Work Lane.
+- Mutation of `.config/checks/secrets/README.md` while that path has a dirty
+  foreign Work Lane; the staged/full-scan split remains explicit in this Change
+  and the repository-owned runner.

@@ -12,6 +12,14 @@ those ordinary checks. The full secret owner remains
 tracked tree, writes quality evidence, and scans history; that behavior is too
 large and stateful for commit-time admission.
 
+Gitleaks 8.30.1 does still accept the unadvertised compatibility command
+`protect --staged`, despite omitting it from the advertised top-level command
+list. Its current public `git` command explicitly documents `--staged`. A
+scratch repository probe confirmed that both interfaces rejected the same
+synthetic staged finding with full redaction. This Change selects
+`git --staged` because it is the advertised current interface, not because the
+legacy command is absent.
+
 ## Design
 
 ### Repository-owned staged runner
@@ -41,10 +49,13 @@ repository-root-bound admission path unchanged.
 
 Gitleaks owns detection and redaction; the wrapper does not parse or re-emit a
 finding. Focused tests use a fake executable to prove version admission,
-argument ordering, exit-code propagation, and downstream short-circuiting.
-One local compatibility probe already established that gitleaks 8.30.1
-`git --staged` rejects a synthetic secret while `--redact=100` keeps its value
-out of stdout/stderr. That probe is diagnostic context, not final proof.
+argument ordering, and exit-code propagation. Hook-level behavioral tests run
+the tracked hook against fake scanner and downstream commands to prove that a
+scanner failure prevents Ruff/admission and a clean result preserves the
+existing continuation path. One local compatibility probe established that
+gitleaks 8.30.1 `git --staged` and unadvertised `protect --staged` both reject a
+synthetic secret while `--redact=100` keeps its value out of stdout/stderr.
+That probe is diagnostic context, not final proof.
 
 ## Alternatives
 
@@ -55,17 +66,21 @@ out of stdout/stderr. That probe is diagnostic context, not final proof.
   boundary.
 - Use a hook framework or auto-install gitleaks: rejected because it adds a
   second hook authority and hidden network/host mutation.
-- Replay `gitleaks protect --staged`: rejected because the command is absent
-  from the pinned current CLI.
+- Replay inline `gitleaks protect --staged`: rejected because it is an
+  unadvertised compatibility command, while `git --staged` is the advertised
+  current interface; replay would also retain inline policy and weak behavioral
+  proof.
 
 ## Proof Strategy
 
 1. Add failing tests for the runner contract and hook ordering before writing
    the runner or hook integration.
-2. Implement the smallest runner and hook call that make those tests pass.
-3. Run the focused hook tests, shell lint, config/docs checks, claim validation,
-   strict OpenSpec lifecycle, and changed-path planning.
-4. Commit the stable implementation, archive through official OpenSpec
+2. Include executable hook failure and clean-continuation tests, not only static
+   ordering assertions.
+3. Implement the smallest runner and hook call that make those tests pass.
+4. Run the focused hook tests, shell lint, claim validation, strict OpenSpec
+   lifecycle, and changed-path planning.
+5. Commit the stable implementation, archive through official OpenSpec
    semantics, refresh parity if required, and obtain HEAD-bound executed proof
    before land and accepted-root closeout.
 

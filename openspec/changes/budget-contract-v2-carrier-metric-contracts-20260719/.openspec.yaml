@@ -1,0 +1,5 @@
+schema: spec-driven
+created: 2026-07-19
+goal: Define strict typed carrier and metric contracts with exact-one
+  classification and deterministic digests, without activating v2 measurement or
+  enforcement.

@@ -32,25 +32,32 @@ def _normalize_profile(profile: str) -> str:
     return profile
 
 
+def _validated_active_profiles(active: object) -> tuple[list[str], str]:
+    if not isinstance(active, list) or any(not isinstance(item, str) for item in active):
+        return [], "rules_profile_invalid:active_must_be_string_array"
+    if not active:
+        return [], "rules_profile_invalid:active_must_not_be_empty"
+    if any(not item.strip() for item in active):
+        return [], "rules_profile_invalid:active_must_not_contain_empty_values"
+    return active, ""
+
+
 def resolve_profile_stack(config: dict[str, Any]) -> tuple[list[str], list[str]]:
     """Resolve active profiles from one parsed config and report invalid shapes."""
     if "_parse_error" in config:
         return ["generic"], [f"rules_config_parse_error:{config['_parse_error']}"]
     profiles = config.get("profiles")
     if profiles is None:
-        return ["generic"], []
+        profiles = {}
     if not isinstance(profiles, dict):
         return ["generic"], ["rules_profile_invalid:must_be_table"]
     active = profiles.get("active")
     if active is None:
-        return ["generic"], []
-    if not isinstance(active, list) or any(not isinstance(item, str) for item in active):
-        return ["generic"], ["rules_profile_invalid:active_must_be_string_array"]
-    if not active:
-        return ["generic"], ["rules_profile_invalid:active_must_not_be_empty"]
-    if any(not item.strip() for item in active):
-        return ["generic"], ["rules_profile_invalid:active_must_not_contain_empty_values"]
-    normalized = [_normalize_profile(item) for item in active]
+        active = ["generic"]
+    active_profiles, active_gap = _validated_active_profiles(active)
+    if active_gap:
+        return ["generic"], [active_gap]
+    normalized = [_normalize_profile(item) for item in active_profiles]
     if len(normalized) != len(set(normalized)):
         return ["generic"], ["rules_profile_ambiguous:active_contains_duplicates"]
     stack = list(normalized)

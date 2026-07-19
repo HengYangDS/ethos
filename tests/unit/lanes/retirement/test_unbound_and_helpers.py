@@ -6,6 +6,8 @@ from pathlib import Path
 
 import ethos.adapters.mutation.lane_retirement.shared.core as retirement_shared
 import ethos.adapters.mutation.lane_retirement.unbound.core as unbound_retirement
+import ethos.adapters.mutation.lane_retirement.unbound.observation.core as unbound_observation
+import ethos.adapters.mutation.lane_retirement.unbound.records.core as unbound_records
 from ethos.adapters.mutation.lane_lifecycle import core as lane_lifecycle_core
 from ethos.adapters.mutation.lane_retirement.unbound.core import retire_unbound_work_lane_ref
 from ethos.adapters.repo.dirty.core import dirty_provenance
@@ -17,13 +19,6 @@ from tests.support.lane_helpers import init_repo
 _CLAIM_ID = "exceptional-unbound-test-claim"
 _CHRONICLE_REF = "evidence/chronicle/exceptional-unbound-test/2026-07-19.md"
 _OBSERVE = "_" + "observe"
-_OPERATION_ID = "_" + "operation_id"
-_ATTEMPT_PAYLOAD = "_" + "attempt_payload"
-_WRITE_RECORD = "_" + "write_record"
-_ATTEMPT_PATH = "_" + "attempt_path"
-_ATTEMPT_KIND = "_" + "ATTEMPT_KIND"
-_UNBOUND_WORK_LANE_REF = "_" + "unbound_work_lane_ref"
-_BRANCH_BINDING = "_" + "branch_binding"
 
 
 def _commit(repo: Path, message: str) -> None:
@@ -460,23 +455,18 @@ def test_retire_unbound_work_lane_ref_blocks_collision_before_effect(
 ) -> None:
     repo, branch, head, chronicle = _exceptional_fixture(tmp_path)
     observe = getattr(unbound_retirement, _OBSERVE)
-    operation_id_for = getattr(unbound_retirement, _OPERATION_ID)
-    attempt_payload_for = getattr(unbound_retirement, _ATTEMPT_PAYLOAD)
-    write_record = getattr(unbound_retirement, _WRITE_RECORD)
-    attempt_path_for = getattr(unbound_retirement, _ATTEMPT_PATH)
-    attempt_kind = getattr(unbound_retirement, _ATTEMPT_KIND)
     before = observe(repo, branch=branch, chronicle_ref=chronicle)
-    operation_id = operation_id_for(
+    operation_id = unbound_records.operation_id(
         branch=branch,
         expect_head=head,
         accepted_head=str(before["accepted_head"]),
         protected_refs=before["protected_refs"],
         claim_id=str(before["claim_id"]),
-        chronicle=before["chronicle"],
+        chronicle=unbound_observation.chronicle_binding(before),
         reason="must reject a pre-existing mismatched attempt",
         observation_sha256=str(before["observation_sha256"]),
     )
-    payload = attempt_payload_for(
+    payload = unbound_records.attempt_payload(
         operation_id=operation_id,
         branch=branch,
         expect_head=head,
@@ -484,10 +474,10 @@ def test_retire_unbound_work_lane_ref_blocks_collision_before_effect(
         observation=before,
     )
     records_root = repo.parent / f"{repo.name}-records"
-    write_record(
-        attempt_path_for(records_root, operation_id),
+    unbound_records.write_record(
+        unbound_records.attempt_path(records_root, operation_id),
         payload,
-        kind=attempt_kind,
+        kind=unbound_records.ATTEMPT_KIND,
     )
 
     report = retire_unbound_work_lane_ref(
@@ -508,13 +498,15 @@ def test_retire_unbound_work_lane_ref_blocks_collision_before_effect(
 
 
 def test_lane_retirement_handles_malformed_status_fragments() -> None:
-    unbound_ref = getattr(unbound_retirement, _UNBOUND_WORK_LANE_REF)
-    branch_binding = getattr(unbound_retirement, _BRANCH_BINDING)
-
-    assert unbound_ref({}, "work/x") is None
-    assert unbound_ref({"coordination": {"unbound_work_lane_refs": {}}}, "work/x") is None
-    assert branch_binding({}, "work/x") is None
-    assert branch_binding({"branch_bindings": {}}, "work/x") is None
+    assert unbound_observation.unbound_work_lane_ref({}, "work/x") is None
+    assert (
+        unbound_observation.unbound_work_lane_ref(
+            {"coordination": {"unbound_work_lane_refs": {}}}, "work/x"
+        )
+        is None
+    )
+    assert unbound_observation.branch_binding({}, "work/x") is None
+    assert unbound_observation.branch_binding({"branch_bindings": {}}, "work/x") is None
 
 
 def test_dirty_provenance_lives_in_semantic_subpackage(tmp_path: Path) -> None:

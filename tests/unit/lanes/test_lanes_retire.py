@@ -94,6 +94,7 @@ def _sequence_runner(
 
     def run_git(_root: Path, *args: str, check: bool = False) -> GitResult:
         assert check is False
+        assert args[:2] != ("worktree", "remove") or _root == _root.with_name("repo")
         calls.append(args)
         index, stdout = next(responses)
         failed = index in failures
@@ -111,9 +112,7 @@ def test_retire_plans_only_merged_lanes(tmp_path: Path) -> None:
     git(repo, "worktree", "add", "-b", "work/active", active.as_posix(), "dev")
     commit_fixture_file(active, "README.md", "# active\n", "active work")
     report = retire_landed_work_lanes(root=repo)
-    assert report["ok"] is True
-    assert report["state"] == "planned"
-    assert report["required_gaps"] == []
+    assert (report["ok"], report["state"], report["required_gaps"]) == (True, "planned", [])
     lanes = {lane["branch"]: lane for lane in report["lanes"]}
     assert lanes["work/landed"]["retire_ready"] is True
     assert lanes["work/landed"]["required_gaps"] == []
@@ -126,8 +125,7 @@ def test_retire_rejects_legacy_owner_projection(monkeypatch, tmp_path: Path) -> 
     _legacy_leases(repo, landed, (_LANDED_BRANCH, "agent-json"))
     monkeypatch.setenv("ETHOS_ACTOR", "agent-json")
     report = retire_landed_work_lanes(root=repo, branch=_LANDED_BRANCH)
-    assert report["ok"] is False
-    assert report["state"] == "blocked"
+    assert (report["ok"], report["state"]) == (False, "blocked")
     assert report["required_gaps"] == ["foreign_work_lane_retire_authority_required"]
     selected = next(lane for lane in report["lanes"] if lane["branch"] == _LANDED_BRANCH)
     assert selected["lease"]["holder_ref"] == ""
@@ -147,8 +145,7 @@ def test_retire_preserves_unverified_json_projection(monkeypatch, tmp_path: Path
     report = retire_landed_work_lanes(
         root=repo, branch=_LANDED_BRANCH, expect_head=head, apply=True
     )
-    assert report["ok"] is False
-    assert report["state"] == "blocked"
+    assert (report["ok"], report["state"]) == (False, "blocked")
     assert report["required_gaps"] == ["foreign_work_lane_retire_authority_required"]
     assert landed.exists()
     assert git(repo, "branch", "--list", _LANDED_BRANCH) != ""
@@ -192,22 +189,18 @@ def test_retire_requires_matching_owner(monkeypatch, tmp_path: Path) -> None:
     repo, landed, _database = _landed_lane(tmp_path, lease_holder=_LEASE_HOLDER)
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-b")
     blocked = retire_landed_work_lanes(root=repo, branch="work/landed")
-    assert blocked["ok"] is False
-    assert blocked["state"] == "blocked"
+    assert (blocked["ok"], blocked["state"]) == (False, "blocked")
     assert blocked["required_gaps"] == ["foreign_work_lane_retire_authority_required"]
     assert landed.exists()
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
     allowed = retire_landed_work_lanes(root=repo, branch=_LANDED_BRANCH)
-    assert allowed["ok"] is True
-    assert allowed["state"] == "planned"
-    assert allowed["required_gaps"] == []
+    assert (allowed["ok"], allowed["state"], allowed["required_gaps"]) == (True, "planned", [])
 
 
 def test_retire_apply_requires_branch(tmp_path: Path) -> None:
     repo, landed, _database = _landed_lane(tmp_path)
     report = retire_landed_work_lanes(root=repo, apply=True)
-    assert report["ok"] is False
-    assert report["required_gaps"] == ["retire_branch_required"]
+    assert (report["ok"], report["required_gaps"]) == (False, ["retire_branch_required"])
     assert landed.exists()
 
 
@@ -239,6 +232,15 @@ def test_retire_projects_removal_failure(monkeypatch: MonkeyPatch, tmp_path: Pat
     assert report["required_gaps"] == ["worktree_remove_failed"]
 
 
+def test_retire_blocks_without_stable_control_root(monkeypatch, tmp_path: Path) -> None:
+    repo, landed, _database = _landed_lane(tmp_path, lease_holder=_LEASE_HOLDER)
+    head, retire = git(landed, "rev-parse", "HEAD"), retire_landed_work_lanes
+    monkeypatch.setenv("ETHOS_ACTOR", _LEASE_HOLDER)
+    monkeypatch.setitem(retire.__globals__, "_retirement_control_root", lambda _: None)
+    report = retire(root=repo, branch=_LANDED_BRANCH, expect_head=head, apply=True)
+    assert report["required_gaps"] == ["retirement_control_root_unavailable"]
+
+
 @pytest.mark.parametrize(
     ("expect_head", "required_gap"),
     [(None, "expect_head_required"), ("not-the-lane-head", "expect_head_mismatch")],
@@ -258,15 +260,14 @@ def test_retire_apply_requires_expected_head(
     assert git(repo, "branch", "--list", _LANDED_BRANCH) != ""
 
 
-def test_retire_removes_clean_merged_lane(monkeypatch, tmp_path: Path) -> None:
+def test_retire_removes_own_clean_merged_lane(monkeypatch, tmp_path: Path) -> None:
     repo, landed, _database = _landed_lane(tmp_path, lease_holder=_LEASE_HOLDER)
     landed_head = git(landed, "rev-parse", "HEAD")
     monkeypatch.setenv("ETHOS_ACTOR", _LEASE_HOLDER)
     report = retire_landed_work_lanes(
-        root=repo, branch=_LANDED_BRANCH, expect_head=landed_head, apply=True
+        root=landed, branch=_LANDED_BRANCH, expect_head=landed_head, apply=True
     )
-    assert report["ok"] is True
-    assert report["state"] == "retired"
+    assert (report["ok"], report["state"]) == (True, "retired")
     assert report["mutation"]["expect_head"] == landed_head
     assert not landed.exists()
     assert git(repo, "branch", "--list", _LANDED_BRANCH) == ""

@@ -14,7 +14,8 @@ Status: active successor-v2 design.
 Purpose: define the tracked cleanup, evidence, and safety boundaries for the
 July 19, 2026 history-residue closeout.
 
-See the normative [OpenSpec change](../../openspec/changes/history-residue-closeout-20260719/)
+See also: the normative
+[OpenSpec change](../../openspec/changes/history-residue-closeout-20260719/)
 and the [implementation plan](history-residue-closeout-implementation.md).
 
 ## Decision

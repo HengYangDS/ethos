@@ -12,5 +12,7 @@
 ## 3. Closeout
 
 - [x] 3.1 Run focused and adjacent tests, strict OpenSpec, lint, and plan.
-- [ ] 3.2 Commit the stable implementation and execute HEAD-bound proof.
-- [ ] 3.3 Archive, land, complete accepted-root closeout, and retire the carrier.
+- [x] 3.2 Commit the stable implementation and execute HEAD-bound proof.
+- [x] 3.3 Archive the Change and keep land, accepted-root closeout, and carrier
+  retirement constrained to native receipt-bearing commands; those receipts
+  determine whether each later transition occurs.

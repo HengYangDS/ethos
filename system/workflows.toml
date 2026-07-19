@@ -218,11 +218,12 @@ publication_projection = '''{
     size(facts.campaigns) == 0 && facts.budget.campaign_id == "" ? "unconfigured" :
     policy.publication_terminal_mode,
   "campaign_count": size(facts.campaigns),
-  "terminal_ready": size(facts.required_gaps) == 0,
+  "terminal_ready": size(facts.required_gaps) == 0 && size(facts.advisory_gaps) == 0,
   "local_change_closeout": size(facts.report.required_gaps) == 0 ? policy.admitted_state : policy.blocked_state,
   "remote_publication_admission": size(facts.required_gaps) == 0 ? policy.admitted_state : policy.blocked_state,
   "required_gaps": facts.required_gaps,
-  "next_action_id": size(facts.required_gaps) == 0 ? policy.publication_action_id : policy.continuation_action_id
+  "advisory_gaps": facts.advisory_gaps,
+  "next_action_id": size(facts.required_gaps) == 0 && size(facts.advisory_gaps) == 0 ? policy.publication_action_id : policy.continuation_action_id
 }'''
 
 [campaign.rules]
@@ -250,6 +251,8 @@ dependency = [
 ]
 publication = [
   { expression = "facts.budget.campaign_id == '' || facts.campaigns.exists(campaign, campaign.id == facts.budget.campaign_id)", gap = '''"campaign_publication_bound_campaign_missing:" + facts.budget.campaign_id''' },
+]
+publication_advisory = [
   { expression = "!facts.campaigns.exists(campaign, !(campaign.state in policy.campaign_terminal_states))", gap = '''"campaign_publication_campaign_active:" + facts.budget.campaign_id''' },
   { expression = "!facts.campaigns.exists(campaign, campaign.steps.exists(step, !(step.state in policy.step_retired_states && step.closeout.state in policy.closeout_retired_states)))", gap = '''"campaign_publication_step_not_retired:" + facts.budget.campaign_id''' },
   { expression = "!facts.campaigns.exists(campaign, campaign.id == facts.budget.campaign_id) || facts.budget.terminal_target_met", gap = '''"campaign_publication_terminal_budget_unmet:" + facts.budget.campaign_id''' },
@@ -258,6 +261,8 @@ publication = [
 gap_groups = [
   { values = "facts.report.required_gaps", prefix = "''" },
   { values = "facts.campaigns.map(campaign, campaign.id).filter(id, id != facts.budget.campaign_id)", prefix = '''"campaign_publication_unbound_terminal_campaign:"''' },
+]
+advisory_gap_groups = [
   { values = "facts.budget.campaign_id == '' ? [] : facts.budget.active_debt.ids", prefix = '''"campaign_publication_active_debt:" + facts.budget.campaign_id + ":"''' },
   { values = "facts.budget.campaign_id == '' ? [] : (has(facts.budget.required_gaps) ? facts.budget.required_gaps : [])", prefix = '''"campaign_publication_source_budget_gap:" + facts.budget.campaign_id + ":"''' },
 ]

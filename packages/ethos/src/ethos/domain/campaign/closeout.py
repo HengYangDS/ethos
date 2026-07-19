@@ -184,6 +184,14 @@ def campaign_publication_report(
             policy=policy_facts,
         ),
     ]
+    facts["advisory_gaps"] = [
+        *policy.evaluate("publication_advisory", facts=facts),
+        *evaluate_cel_gap_groups(
+            policy.publication.advisory_gap_groups,
+            facts=facts,
+            policy=policy_facts,
+        ),
+    ]
     return cast(
         "dict[str, object]",
         evaluate_cel_value(

@@ -122,6 +122,7 @@ def pre_push(
         target_ref=target_ref,
         pushed_head=pushed_head,
         remote_head=remote_head,
+        remote_name=remote,
         reconciliation=reconciliation,
     )
     campaign_publication: dict[str, object] = {}
@@ -132,12 +133,12 @@ def pre_push(
             target_ref=target_ref,
             pushed_head=pushed_head,
             remote_head=remote_head,
+            remote_name=remote,
             reconciliation=reconciliation,
             campaign_publication=campaign_publication,
         )
     decision = report.get("decision", {})
     decision_action = decision.get("action", "") if isinstance(decision, dict) else ""
-    decision_reason = decision.get("reason", "") if isinstance(decision, dict) else ""
     result = EthosResult(
         command="hook pre-push",
         ok=bool(report["ok"]),
@@ -152,11 +153,7 @@ def pre_push(
             ),
         },
         required_gaps=tuple(string_sequence(report.get("required_gaps"))),
-        next_actions=(
-            _ACTIONS.get(str(campaign_publication.get("next_action_id", "")), ())
-            if not report["ok"] and decision_reason == "campaign_publication_not_terminal"
-            else (_ACTIONS["head_bound_proof"] if not report["ok"] else ())
-        ),
+        next_actions=_ACTIONS["head_bound_proof"] if not report["ok"] else (),
         data=report,
     )
     emit(result, json_output=json_output, enforce=True)

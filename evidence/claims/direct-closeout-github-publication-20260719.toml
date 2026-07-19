@@ -1,0 +1,49 @@
+[claim]
+id = "direct-closeout-github-publication-20260719"
+change_id = "direct-closeout-github-publication-20260719"
+subject = "ethos:publication:direct-closeout-github"
+state = "active"
+summary = "This owned Work Lane separates structural protected-publication blockers from campaign terminal-progress advice and carries the exact named-remote hook correction."
+
+[evidence]
+dated = "evidence/chronicle/direct-closeout-github-publication-20260719/2026-07-19.md"
+sha256 = "f7733da56617b520e5cf64a9bc29216c8959819846371e0b47c99674650c0d87"
+evidence_ids = ["evidence:direct-closeout-github-publication-20260719"]
+binding = "This initiation record binds the observed policy conflict, narrow contract boundary, and no-forge-execution scope. It is not executed proof, accepted closeout, GitLab availability, or provider-run evidence."
+verifier = "digest_only"
+tests = [
+  "openspec validate direct-closeout-github-publication-20260719 --strict --json",
+  "ethos lane prewrite <changed-path> --editor-root <work-lane> --require-editor-root --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository-governance"
+scope = "Campaign publication projection, protected push admission, named-remote propagation, local closeout, and GitHub-only publication boundary; GitLab execution, hosted CI, remote deletion, and foreign Work Lane mutation excluded."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-19-direct-closeout-github-publication-20260719"
+fallback = "Block only structural protected-publication defects and retain all existing proof, identity, topology, branch, reconciliation, and fast-forward gates; do not use campaign terminal-progress as a hook bypass."
+kill_signal = "A campaign manifest defect becomes advisory, an ordinary protected push bypasses proof or accepted closeout, the hook reports the wrong named remote, a force update is required, or local evidence is called hosted CI."
+
+[promotion]
+targets = [
+  "docs/governance/evolution-campaign.md",
+  "docs/governance/release-governance.md",
+  "evidence/claims/direct-closeout-github-publication-20260719.toml",
+  "evidence/chronicle/direct-closeout-github-publication-20260719/2026-07-19.md",
+  "openspec/changes/archive/2026-07-19-direct-closeout-github-publication-20260719",
+  "openspec/specs/quality/spec.md",
+  "openspec/specs/repository-governance/spec.md",
+  "packages/ethos-core/src/ethos_core/contracts/workflow.py",
+  "packages/ethos/src/ethos/adapters/admission/core.py",
+  "packages/ethos/src/ethos/domain/campaign/closeout.py",
+  "packages/ethos/src/ethos/surface/cli/hook/core.py",
+  "system/schemas/contracts/workflows.schema.json",
+  "system/schemas/kernel/campaign-closeout.schema.json",
+  "system/workflows.toml",
+  "tests/unit/governance/test_evolution_ledger.py",
+  "tests/unit/lanes/test_hook_admission.py",
+]

@@ -36,6 +36,7 @@ targets = [
   "docs/reference/command-plane.md",
   "evidence/claims/detached-worktree-housekeeping-20260719.toml",
   "evidence/chronicle/detached-worktree-housekeeping-20260719/2026-07-19.md",
+  "evidence/parity/generic-shadow.json",
   "openspec/changes/detached-worktree-housekeeping-20260719",
   "openspec/specs/repository-governance/spec.md",
   "packages/ethos/src/ethos/adapters/mutation/worktree_housekeeping.py",

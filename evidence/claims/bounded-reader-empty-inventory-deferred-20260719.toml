@@ -1,0 +1,46 @@
+[claim]
+id = "bounded-reader-empty-inventory-deferred-20260719"
+change_id = "bounded-reader-empty-inventory-deferred-20260719"
+subject = "ethos:bounded-reader-empty-inventory-deferred"
+state = "active"
+summary = "Active repair carrier for preserving deferred coordination behavior when a bounded reader observes no foreign Work Lanes."
+
+[evidence]
+dated = "evidence/chronicle/bounded-reader-empty-inventory-deferred-20260719/2026-07-19.md"
+sha256 = "5303610c8480d11309a0f8f1391b1843af45fe659465e4281b1240fcbbf9c870"
+evidence_ids = ["evidence:bounded-reader-empty-inventory-deferred-20260719"]
+binding = "The dated Chronicle digest binds the failure observation, explicit reader-mode design, exact material scope, and focused zero-inventory RED contract without claiming implementation or remote success."
+verifier = "digest_only"
+tests = [
+  "pytest -q -p no:cacheprovider tests/unit/lanes/test_lanes_bounded_status.py",
+  "openspec validate bounded-reader-empty-inventory-deferred-20260719 --strict --json",
+  "ethos openspec --lifecycle --json",
+  "ethos quality claims --json",
+  "tools/ci/scripts/run-config-lint.sh",
+  "ethos parity gaps --json",
+  "ethos prove --execute --expect-head <final-head> --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository-governance"
+scope = "Explicit bounded-versus-full coordination aggregate semantics for an empty foreign Work Lane inventory; schemas, commands, providers, orientation tests, remote publication, and hosted success remain excluded."
+
+[carriers]
+openspec = "openspec/changes/bounded-reader-empty-inventory-deferred-20260719"
+fallback = "Keep bounded coordination detail deferred and block integration if the empty-inventory mode cannot be proven without weakening tests."
+kill_signal = "A bounded empty inventory reports exact detail, any of the five detail-dependent aggregates reports zero, or the repair changes schemas, commands, providers, or orient test expectations."
+
+[promotion]
+targets = [
+  "evidence/claims/bounded-reader-empty-inventory-deferred-20260719.toml",
+  "evidence/chronicle/bounded-reader-empty-inventory-deferred-20260719/2026-07-19.md",
+  "evidence/parity/generic-shadow.json",
+  "openspec/changes/bounded-reader-empty-inventory-deferred-20260719",
+  "openspec/specs/repository-governance/spec.md",
+  "packages/ethos/src/ethos/adapters/repo/coordination.py",
+  "packages/ethos/src/ethos/adapters/repo/status/core.py",
+  "tests/unit/lanes/test_lanes_bounded_status.py",
+]

@@ -339,6 +339,37 @@ requires = []
     assert tomllib.loads(rules_path.read_text(encoding="utf-8")) == report["target"]
 
 
+def test_legacy_rules_migration_fails_closed_when_profiles_assignment_cannot_be_isolated(
+    tmp_path: Path,
+) -> None:
+    source = '''
+[profiles]
+active = [
+  """custom
+[fake]
+""",
+]
+
+[[rule]]
+id = "legacy.custom"
+risk = "custom_regression"
+paths = ["src/**"]
+requires = []
+'''.lstrip()
+    rules_path = _write_rules(tmp_path, source)
+
+    report = migrate_legacy_rules(tmp_path, apply=True)
+
+    assert report["ok"] is False
+    assert report["legacy_detected"] is True
+    assert report["applied"] is False
+    assert report["required_gaps"] == [
+        "rules_migration_target_parse_error:profiles.active assignment could not be isolated"
+    ]
+    assert report["target_text"] == source
+    assert rules_path.read_text(encoding="utf-8") == source
+
+
 def test_legacy_rules_migration_reports_target_parse_error_without_writing(
     tmp_path: Path,
     monkeypatch,

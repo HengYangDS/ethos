@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import asdict
 from dataclasses import dataclass
 from functools import wraps
 from inspect import signature
@@ -21,46 +22,46 @@ ContraryFlag = Annotated[bool, Parameter(name="--contrary-decision-present")]
 
 
 @Parameter(name="*")
-@dataclass(kw_only=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class _CommandOptions:
     apply: bool = False
     root: cli.RootOption | None = None
     json_output: cli.JsonFlag = False
 
 
-@dataclass(kw_only=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class _GenerationOptions(_CommandOptions):
     lease_id: str
     epoch: int
     expect_head: str
 
 
-@dataclass(kw_only=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class _LaneOptions(_GenerationOptions):
     branch: str
 
 
-@dataclass(kw_only=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class _HolderLaneOptions(_LaneOptions):
     holder_ref: str
 
 
-@dataclass(kw_only=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class _RenewOptions(_HolderLaneOptions):
     ttl_seconds: int = 86_400
 
 
-@dataclass(kw_only=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class _ResumeOptions(_RenewOptions):
     contrary_decision: ContraryFlag = False
 
 
-@dataclass(kw_only=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class _OfferOptions(_HolderLaneOptions):
     target_holder_ref: str
 
 
-@dataclass(kw_only=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class _AcceptOptions(_LaneOptions):
     target_holder_ref: str
     offer_id: str
@@ -68,7 +69,7 @@ class _AcceptOptions(_LaneOptions):
     confirm_holder_quiesced: bool = False
 
 
-@dataclass(kw_only=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class _ExportOptions(_OfferOptions):
     context_text: str = ""
     context_file: Path | None = None
@@ -76,13 +77,13 @@ class _ExportOptions(_OfferOptions):
     dirty_disposition: str | None = None
 
 
-@dataclass(kw_only=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class _ImportOptions(_CommandOptions):
     package: Path
     target_holder_ref: str
 
 
-@dataclass(kw_only=True)
+@dataclass(frozen=True, slots=True, kw_only=True)
 class _RevokeOptions(_GenerationOptions):
     package: Path
     acknowledgement: Path
@@ -111,7 +112,7 @@ def _emit_lease_result(command: str, report: dict[str, object], *, json_output: 
 
 
 def _invoke(command: str, operation: Any, options: _CommandOptions) -> None:
-    payload = vars(options).copy()
+    payload = asdict(options)
     json_output = bool(payload.pop("json_output"))
     payload["root"] = cli.resolve_root(payload["root"])
     if "confirm_holder_quiesced" in payload:

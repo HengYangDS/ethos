@@ -13,7 +13,6 @@ from typing import cast
 from pydantic import ValidationError
 
 from ethos.adapters.mutation.decision import mutation_envelope
-from ethos.adapters.mutation.lane_retirement.shared.core import remove_linked_lane
 from ethos.adapters.mutation.resolution._shared import sha256_digest
 from ethos.adapters.mutation.resolution.receipts import verify_preservation_package
 from ethos.adapters.mutation.resolution.receipts import write_resolution_receipt
@@ -358,19 +357,15 @@ def _preserve(
 
 
 def _retire(*, root: Path, observation: LaneObservation) -> None:
-    def runner(path: Path, *args: str, check: bool = True):
-        return subprocess.run(["git", *args], cwd=path, check=False, capture_output=True, text=True)
+    ref = f"refs/heads/{observation.lane_ref}"
 
-    failure = remove_linked_lane(
-        root,
-        {"branch": observation.lane_ref, "path": observation.path},
-        expect_head=observation.head,
-        runner=runner,
-    )
-    gaps = failure.get("required_gaps")
-    if gaps == ["branch_delete_failed"]:
+    def run(*args: str):
+        return subprocess.run(["git", *args], cwd=root, check=False, capture_output=True, text=True)
+
+    if run("update-ref", "-d", ref, observation.head).returncode:
         raise ValueError("lane_resolution_branch_delete_failed")  # noqa: EM101, RUF100
-    if gaps:
+    if run("worktree", "remove", "--force", observation.path).returncode:
+        run("update-ref", ref, observation.head, "0" * 40)
         raise ValueError("lane_resolution_worktree_remove_failed")  # noqa: EM101, RUF100
 
 

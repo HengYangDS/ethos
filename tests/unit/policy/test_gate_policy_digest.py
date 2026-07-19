@@ -261,16 +261,17 @@ def test_committed_product_floor_is_pure_function_of_candidate_tree(tmp_path: Pa
     repo = _product_like_repo_with_scripts(tmp_path)
     incumbent = _rev(repo, "HEAD")
     gates = repo / "system" / "gates.toml"
-    removed = "config-quality"
+    incumbent_floor = committed_product_default_gate_ids(repo, incumbent)
+    removed = incumbent_floor[0]
     gates.write_text(
-        gates.read_text(encoding="utf-8").replace(f'  "{removed}",\n', "", 1),
+        gates.read_text(encoding="utf-8").replace(f'"{removed}", ', "", 1),
         encoding="utf-8",
     )
     subprocess.run(["git", "-C", str(repo), "add", "system/gates.toml"], check=True)
     subprocess.run(["git", "-C", str(repo), "commit", "-q", "-m", "candidate floor"], check=True)
     candidate = _rev(repo, "HEAD")
 
-    assert removed in committed_product_default_gate_ids(repo, incumbent)
+    assert committed_product_default_gate_ids(repo, incumbent) == incumbent_floor
     assert removed not in committed_product_default_gate_ids(repo, candidate)
 
     candidate_floor = committed_product_default_gate_ids(repo, candidate)

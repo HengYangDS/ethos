@@ -23,9 +23,6 @@ from ethos_core.contracts.commands import load_command_registry_declaration
 from ethos_core.result import EthosResult
 
 ReportPayload = Mapping[str, object]
-ReportProvider = Callable[..., object]
-ReportHandler = Callable[..., None]
-ReportHandlerRegistry = Mapping[str, "CompiledReportCommand"]
 
 
 class CompiledReportCommand(BaseModel):
@@ -36,7 +33,7 @@ class CompiledReportCommand(BaseModel):
     function_name: str
     declaration: CommandDeclaration
 
-    def make_handler(self) -> ReportHandler:
+    def make_handler(self) -> Callable[..., None]:
         """Bind the pure projection compiler to the CLI adapter."""
         handler = _report_handler(self.declaration)
 
@@ -62,7 +59,7 @@ class CompiledReportCommand(BaseModel):
         command.__name__ = self.function_name
         command.__qualname__ = self.function_name
         command.__module__ = self.declaration.import_path.rsplit(":", maxsplit=1)[0]
-        return cast("ReportHandler", command)
+        return cast("Callable[..., None]", command)
 
 
 def build_declarative_report_result(
@@ -91,7 +88,7 @@ def compile_report_handlers(
     *,
     declarations: Sequence[CommandDeclaration],
     import_path_prefix: str | None = None,
-) -> ReportHandlerRegistry:
+) -> Mapping[str, CompiledReportCommand]:
     """Compile all declared report command bindings in one command group."""
     return {
         _function_name(command): CompiledReportCommand(
@@ -109,15 +106,11 @@ def declared_report_handler(
     module_name: str,
     function_name: str,
     group: str = "quality",
-) -> ReportHandler:
+) -> Callable[..., None]:
     """Compile one lazy-module command handler from the canonical registry."""
-    declaration = _declared_command(
-        module_name=module_name,
-        function_name=function_name,
-        group=group,
-    )
     return CompiledReportCommand(
-        function_name=function_name, declaration=declaration
+        function_name=function_name,
+        declaration=_declared_command(module_name, function_name, group),
     ).make_handler()
 
 
@@ -130,11 +123,7 @@ def declared_report_result(
     provider_kwargs: Mapping[str, object] | None = None,
 ) -> tuple[ReportHandlerDeclaration, ReportPayload, EthosResult]:
     """Project one declared reader command while preserving its supplied facts."""
-    declaration = _declared_command(
-        module_name=module_name,
-        function_name=function_name,
-        group=group,
-    )
+    declaration = _declared_command(module_name, function_name, group)
     handler = _report_handler(declaration)
     report = _load_provider_report(handler, target, provider_kwargs=provider_kwargs)
     result = build_declarative_report_result(
@@ -166,7 +155,7 @@ def _load_provider_report(
     return cast("ReportPayload", value)
 
 
-def _provider(reference: str) -> ReportProvider:
+def _provider(reference: str) -> Callable[..., object]:
     module_name, separator, attribute = reference.partition(":")
     if not separator or not module_name.startswith("ethos."):
         msg = f"invalid report provider: {reference}"
@@ -176,19 +165,15 @@ def _provider(reference: str) -> ReportProvider:
     if not callable(candidate):
         msg = f"report provider is not callable: {reference}"
         raise TypeError(msg)
-    return cast("ReportProvider", candidate)
+    return cast("Callable[..., object]", candidate)
 
 
 def _state(handler: ReportHandlerDeclaration, report: ReportPayload, *, is_ok: bool) -> str:
+    state = handler.clean_state if is_ok else handler.blocked_state
     if handler.state_mode == "advisory_gaps":
-        return (
-            "advisory"
-            if is_ok and _sequence(_value_at(report, handler.advisory_gaps_path))
-            else handler.clean_state
-            if is_ok
-            else handler.blocked_state
-        )
-    return str(report.get("state") or (handler.clean_state if is_ok else handler.blocked_state))
+        advisory = is_ok and _sequence(_value_at(report, handler.advisory_gaps_path))
+        return "advisory" if advisory else state
+    return str(report.get("state") or state)
 
 
 def _summary(fields: tuple[ReportSummaryField, ...], report: ReportPayload) -> dict[str, object]:
@@ -244,13 +229,9 @@ def _next_actions(
 
 
 def _reduce(value: object, reducer: str) -> object:
-    if reducer == "count":
-        return (
-            len(value)
-            if isinstance(value, Sequence | Mapping) and not isinstance(value, str)
-            else 0
-        )
-    return value
+    if reducer != "count":
+        return value
+    return len(value) if isinstance(value, Sequence | Mapping) and not isinstance(value, str) else 0
 
 
 def _value_at(report: ReportPayload, path: tuple[str, ...], default: object = None) -> object:
@@ -269,25 +250,13 @@ def _report_handler(declaration: CommandDeclaration) -> ReportHandlerDeclaration
     return declaration.report_handler
 
 
-def _declared_command(
-    *,
-    module_name: str,
-    function_name: str,
-    group: str,
-) -> CommandDeclaration:
+def _declared_command(module_name: str, function_name: str, group: str) -> CommandDeclaration:
     import_path = f"{module_name}:{function_name}"
-    declaration = next(
-        (
-            item
-            for item in load_command_registry_declaration().group(group)
-            if item.import_path == import_path
-        ),
-        None,
-    )
-    if declaration is None:
-        msg = f"command declaration missing: {import_path}"
-        raise KeyError(msg)
-    return declaration
+    for declaration in load_command_registry_declaration().group(group):
+        if declaration.import_path == import_path:
+            return declaration
+    msg = f"command declaration missing: {import_path}"
+    raise KeyError(msg)
 
 
 def _function_name(command: CommandDeclaration) -> str:

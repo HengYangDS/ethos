@@ -3,6 +3,7 @@ from __future__ import annotations
 import stat
 import subprocess
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -498,45 +499,85 @@ def test_tracked_inventory_object_kinds_fail_closed(
     assert load.required_gaps == (expected_gap,)
 
 
-@pytest.mark.parametrize(
-    ("mode", "expected"),
-    [
-        ("missing", "missing"),
-        (stat.S_IFREG, "non_directory_ancestor"),
-    ],
-)
-def test_ancestor_object_kind_covers_non_directory_edges(
+def test_untracked_inventory_reports_ancestor_object_kinds(
+    tmp_path: Path,
     monkeypatch,
-    mode: int | str,
-    expected: str,
 ) -> None:
-    monkeypatch.setattr(carrier_adapter, "_lstat_mode", lambda _path: mode)
+    monkeypatch.setattr(
+        carrier_adapter.subprocess,
+        "run",
+        lambda args, **_kwargs: subprocess.CompletedProcess(args, 0, stdout=b"? missing/x.py\0"),
+    )
 
-    assert carrier_adapter._ancestor_object_kind(Path("unused")) == expected
+    missing = carrier_adapter.load_present_worktree_paths(tmp_path)
+
+    assert missing.paths is None
+    assert missing.required_gaps == ("source_budget_inventory_empty",)
+
+    (tmp_path / "parent").write_text("not a directory\n", encoding="utf-8")
+    monkeypatch.setattr(
+        carrier_adapter.subprocess,
+        "run",
+        lambda args, **_kwargs: subprocess.CompletedProcess(args, 0, stdout=b"? parent/x.py\0"),
+    )
+
+    non_directory = carrier_adapter.load_present_worktree_paths(tmp_path)
+
+    assert non_directory.paths is None
+    assert non_directory.required_gaps == (
+        "source_budget_inventory_object_unsupported:untracked_non_directory_ancestor:parent/x.py",
+    )
 
 
 @pytest.mark.parametrize(
-    ("mode", "expected"),
+    ("mode", "expected_gap"),
     [
-        (stat.S_IFLNK, "symlink"),
-        (stat.S_IFDIR, "directory"),
-        (stat.S_IFIFO, "other"),
+        (stat.S_IFLNK, "source_budget_inventory_object_unsupported:untracked_symlink:x.py"),
+        (
+            stat.S_IFDIR,
+            "source_budget_inventory_object_unsupported:untracked_directory:x.py",
+        ),
+        (stat.S_IFIFO, "source_budget_inventory_object_unsupported:untracked_other:x.py"),
     ],
 )
-def test_final_object_kind_covers_non_regular_edges(
+def test_untracked_inventory_reports_final_object_modes(
+    tmp_path: Path,
     monkeypatch,
     mode: int,
-    expected: str,
+    expected_gap: str,
 ) -> None:
-    monkeypatch.setattr(carrier_adapter, "_lstat_mode", lambda _path: mode)
+    monkeypatch.setattr(
+        carrier_adapter.subprocess,
+        "run",
+        lambda args, **_kwargs: subprocess.CompletedProcess(args, 0, stdout=b"? x.py\0"),
+    )
+    monkeypatch.setattr(
+        Path,
+        "lstat",
+        lambda _path: SimpleNamespace(st_mode=mode),
+    )
 
-    assert carrier_adapter._final_object_kind(Path("unused")) == expected
+    load = carrier_adapter.load_present_worktree_paths(tmp_path)
+
+    assert load.paths is None
+    assert load.required_gaps == (expected_gap,)
 
 
-def test_lstat_mode_reports_generic_os_error(tmp_path: Path, monkeypatch) -> None:
+def test_inventory_loader_reports_generic_lstat_os_error(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
     def fail(_path: Path):
         raise OSError
 
+    monkeypatch.setattr(
+        carrier_adapter.subprocess,
+        "run",
+        lambda args, **_kwargs: subprocess.CompletedProcess(args, 0, stdout=b"? x.py\0"),
+    )
     monkeypatch.setattr(Path, "lstat", fail)
 
-    assert carrier_adapter._lstat_mode(tmp_path / "unreadable") == "unreadable"
+    load = carrier_adapter.load_present_worktree_paths(tmp_path)
+
+    assert load.paths is None
+    assert load.required_gaps == ("source_budget_inventory_object_unreadable:x.py",)

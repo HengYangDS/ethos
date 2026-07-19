@@ -26,7 +26,9 @@ def _init_git_repo(path: Path) -> Path:
     """Init a throwaway git repo with a deterministic identity and one commit."""
     subprocess.run(["git", "init", "-b", "main", str(path)], check=True, capture_output=True)
     subprocess.run(
-        ["git", "-C", str(path), "config", "user.name", "cov"], check=True, capture_output=True
+        ["git", "-C", str(path), "config", "user.name", "cov"],
+        check=True,
+        capture_output=True,
     )
     subprocess.run(
         ["git", "-C", str(path), "config", "user.email", "cov@example.test"],
@@ -216,7 +218,7 @@ def test_hook_admit_handles_non_dict_decision(
     monkeypatch.setattr(
         hook,
         "hook_admission_report",
-        lambda **kwargs: {
+        lambda *_args, **_kwargs: {
             "ok": True,
             "state": "admitted",
             "layer": "pre-commit",

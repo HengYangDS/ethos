@@ -1,6 +1,7 @@
 # ruff: noqa: E501 - source-budget closeout keeps equivalent semantic projections compact.
 from __future__ import annotations
 
+from collections import Counter
 from typing import TYPE_CHECKING
 from typing import Any
 
@@ -28,8 +29,6 @@ _EXTERNAL_STRICTER_ONLY_GAPS = {("land",): {"candidate_base_stale", "protected_r
 _EXTERNAL_STRICTER_ONLY_GAP_PREFIXES = {("quality", "command-surface"): ("retired_public_command_prefix_mention:", "retired_public_root_mention:"), ("playbooks", "route", "--changed"): ("playbook_changed_path_unmatched:.ethos/",)}
 _PRODUCT_REPOSITORY_AUDIT_GAP_PREFIXES = ("docs/", "schemas/", "packages/", "distribution_adapter_missing:", "adoption_scaffold_missing:", "openspec_family_missing:", "claims_", "claim_", "schema_", "openspec_", "command_")
 _CHANGED_ROUTE_NOOP_GAPS = {"skill_missing_id", "playbook_route_missing:changed-scope"}
-_COMMAND_SEMANTIC_ARG_COUNT = 3
-_LEGACY_SEMANTIC_ARG_COUNT = 2
 _SEMANTIC_ARGS_ERROR = "semantic_diff expects external/embedded or command/external/embedded"
 
 
@@ -51,18 +50,14 @@ def accepted_semantic_differences(*args: Any) -> list[dict[str, Any]]:
 
 def accepted_summary(differences: Iterable[object]) -> dict[str, Any]:
     items = differences if isinstance(differences, list) else list(differences)
-    counts: dict[str, int] = {}
-    for item in items:
-        kind = str(item.get("kind") or "") if isinstance(item, dict) else ""
-        if kind:
-            counts[kind] = counts.get(kind, 0) + 1
+    counts = Counter(str(item.get("kind") or "") for item in items if isinstance(item, dict) and item.get("kind"))
     return {"total_count": sum(counts.values()), "kind_counts": dict(sorted(counts.items()))}
 
 
 def _semantic_args(args: tuple[Any, ...]) -> tuple[tuple[str, ...], dict[str, Any], dict[str, Any]]:
-    if len(args) == _COMMAND_SEMANTIC_ARG_COUNT:
+    if len(args) == 3:
         return tuple(str(item) for item in args[0]), args[1], args[2]
-    if len(args) == _LEGACY_SEMANTIC_ARG_COUNT:
+    if len(args) == 2:
         return tuple(str(args[0].get("command") or args[1].get("command") or "").split()), args[0], args[1]
     raise TypeError(_SEMANTIC_ARGS_ERROR)
 
@@ -95,7 +90,8 @@ def _normalized_semantic_projections(command: tuple[str, ...], external: dict[st
         _record_accepted(accepted, "external_stricter_required_gap", external_projection, removed)
     external_projection["required_gaps"] = sorted(external_gaps)
     if accepted and not external_gaps and not embedded_gaps:
-        external_projection.update(ok=True, state=_ready_state_for_command(external_projection.get("command")))
+        command_name = external_projection.get("command")
+        external_projection.update(ok=True, state=_ready_state_for_command(command_name))
         _mark_projection_ready(external_projection)
     return external_projection, embedded_projection, accepted
 
@@ -143,8 +139,7 @@ def _semantic_projection(command: tuple[str, ...], payload: dict[str, Any]) -> d
 
 
 def _mark_projection_ready(projection: dict[str, Any]) -> None:
-    mark = _READY_MARKS.get(projection.get("command"))
-    if mark:
+    if mark := _READY_MARKS.get(projection.get("command")):
         projection[mark[0]] = mark[1]
 
 
@@ -175,17 +170,13 @@ def _partition(gaps: list[str], predicate: Any) -> tuple[list[str], list[str]]:
 
 
 def _without_product_repository_audit_gaps(payload: dict[str, Any], gaps: list[str]) -> tuple[list[str], list[str]]:
-    audit_gaps = {gap for gap in string_list(_dict(_dict(payload.get("data")).get("repository_audit")).get("required_gaps")) if _is_product_repository_audit_gap(gap)}
+    audit_gaps = {gap for gap in string_list(_dict(_dict(payload.get("data")).get("repository_audit")).get("required_gaps")) if gap.startswith(_PRODUCT_REPOSITORY_AUDIT_GAP_PREFIXES)}
     return _partition(gaps, audit_gaps.__contains__) if audit_gaps else (gaps, [])
 
 
 def _without_external_stricter_only_gaps(command: tuple[str, ...], gaps: list[str]) -> tuple[list[str], list[str]]:
     allowed, prefixes = _EXTERNAL_STRICTER_ONLY_GAPS.get(command, set()), _EXTERNAL_STRICTER_ONLY_GAP_PREFIXES.get(command, ())
     return _partition(gaps, lambda gap: gap in allowed or gap.startswith(prefixes)) if allowed or prefixes else (gaps, [])
-
-
-def _is_product_repository_audit_gap(gap: str) -> bool:
-    return gap.startswith(_PRODUCT_REPOSITORY_AUDIT_GAP_PREFIXES)
 
 
 def _without_changed_route_noop_gaps(external: dict[str, Any], embedded: dict[str, Any], gaps: list[str]) -> tuple[list[str], list[str]]:

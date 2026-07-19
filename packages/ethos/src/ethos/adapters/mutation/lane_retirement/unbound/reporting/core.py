@@ -1,14 +1,12 @@
 """Result envelopes for exceptional unbound Work Lane retirement."""
 
-from __future__ import annotations
-
 from typing import cast
 
 import ethos.adapters.mutation.lane_retirement.shared.core as lane_retirement_shared
 import ethos.adapters.mutation.lane_retirement.unbound.observation.core as observation
 
 
-def report(  # noqa: PLR0913, RUF100 - exact reporting preserves bound state dimensions
+def report(
     *,
     branch: str,
     expect_head: str,
@@ -50,7 +48,7 @@ def report(  # noqa: PLR0913, RUF100 - exact reporting preserves bound state dim
     }
 
 
-def mutation(  # noqa: PLR0913, RUF100 - exact mutation envelope preserves bound state dimensions
+def mutation(
     *,
     branch: str,
     expect_head: str,

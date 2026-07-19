@@ -13,8 +13,7 @@ import ethos.surface.cli.quality.core as quality
 
 # ruff: noqa: ARG005, TC002
 from ethos.assistants import projections
-from ethos.domain.orient import _current_head
-from ethos.domain.orient import _next_actions
+from ethos.domain.orient import orientation_packet
 from ethos_core.result import EthosResult
 
 
@@ -37,53 +36,44 @@ def test_runner_source_root_fallback_without_source_tree(tmp_path: Path) -> None
     assert land_core.runner_source_root(module_path) == tmp_path / "runner"
 
 
+def _orientation(role: str, **overrides: object) -> dict[str, object]:
+    return orientation_packet(
+        status_payload={
+            "root": "/repo",
+            "branch": "work/demo",
+            "role": role,
+            "dirty": False,
+            "changed_paths": [],
+            "closeout_support": {"supported": False},
+            "coordination": {},
+            "foreign_work_lanes": [],
+            **overrides,
+        }
+    )
+
+
 def test_current_head_falls_back_to_matching_branch_binding_when_top_level_head_absent() -> None:
-    # Empty top-level head forces the branch_bindings scan (lines 258-263). A non-dict
-    # entry is skipped via `continue` (259-260); a non-matching dict falls through the
-    # branch check (261 False); the matching branch binding returns its head (261-262).
-    status_payload = {
-        "head": "",
-        "branch_bindings": [
+    packet = _orientation(
+        "work_lane",
+        head="",
+        branch_bindings=[
             "not-a-dict-entry",
             {"branch": "other/lane", "head": "wronghead000000"},
             {"branch": "work/demo", "head": "deadbeefcafe12"},
         ],
-    }
+    )
 
-    assert _current_head(status_payload, branch="work/demo") == "deadbeefcafe12"
+    assert packet["where"]["head"] == "deadbeefcafe12"
 
 
 def test_next_actions_work_lane_withoutcloseout_support_binds_claim() -> None:
-    # Clean work_lane, no gaps, closeout NOT supported: the closeout-supported elif
-    # (line 333) is skipped and the bare work_lane branch (line 339-340) fires.
-    actions = _next_actions(
-        {
-            "role": "work_lane",
-            "dirty": False,
-            "gaps": [],
-            "closeout": {"supported": False},
-            "report_payload": None,
-            "advisory_next_actions": [],
-        }
-    )
-
-    assert actions == ["ethos lane bind-claim --claim-id <claim> --apply --json"]
+    assert _orientation("work_lane")["next_actions"] == [
+        "ethos lane bind-claim --claim-id <claim> --apply --json"
+    ]
 
 
 def test_next_actions_candidate_role_lands_with_closeout() -> None:
-    # Clean candidate with no gaps reaches the candidate branch (line 343-344).
-    actions = _next_actions(
-        {
-            "role": "candidate",
-            "dirty": False,
-            "gaps": [],
-            "closeout": {},
-            "report_payload": None,
-            "advisory_next_actions": [],
-        }
-    )
-
-    assert actions == ["ethos land --closeout --json"]
+    assert _orientation("candidate")["next_actions"] == ["ethos land --closeout --json"]
 
 
 def test_format_policy_reports_gap_when_rules_toml_absent(

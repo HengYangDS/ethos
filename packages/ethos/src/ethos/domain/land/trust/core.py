@@ -17,26 +17,22 @@ def trust_closeout_package(
     claims: dict[str, object],
 ) -> dict[str, object]:
     """Assess trust-claim closeout readiness (promotion + executed-proof evidence)."""
-    closeout_support = workspace.get("closeout_support")
-    closeout = closeout_support if isinstance(closeout_support, dict) else {}
-    trust_claims = [
-        claim
-        for claim in cast("dict[str, object]", claims.get("claims", {})).values()
-        if isinstance(claim, dict) and claim.get("trust_envelope")
-    ]
+    support = workspace.get("closeout_support")
+    closeout = support if isinstance(support, dict) else {}
     envelopes = cast(
         "list[dict[str, object]]",
         [
-            cast("dict[str, object]", claim)["trust_envelope"]
-            for claim in trust_claims
-            if isinstance(claim.get("trust_envelope"), dict)
+            envelope
+            for claim in cast("dict[str, object]", claims.get("claims", {})).values()
+            if isinstance(claim, dict)
+            for envelope in (claim.get("trust_envelope"),)
+            if isinstance(envelope, dict) and envelope
         ],
     )
     envelope_gaps = [
         gap
         for envelope in envelopes
         for gap in cast("list[object]", envelope.get("required_gaps", []))
-        if isinstance(envelope, dict)
     ]
     promotion_ready = (
         bool(envelopes)
@@ -56,15 +52,16 @@ def trust_closeout_package(
             cast("dict[str, object]", envelope["evidence"]).get("commands", []),
         )
     )
-    gaps: list[str] = []
-    if not claims.get("ok"):
-        gaps.extend(str(gap) for gap in cast("list[object]", claims.get("required_gaps", [])))
-    if not envelopes:
-        gaps.append("trust_claim_missing")
-    if not promotion_ready:
-        gaps.append("promotion_readiness_missing")
-    if not executed_proof_evidence:
-        gaps.append("executed_proof_missing")
+    gaps = [
+        *(
+            (str(gap) for gap in cast("list[object]", claims.get("required_gaps", [])))
+            if not claims.get("ok")
+            else ()
+        ),
+        *([] if envelopes else ["trust_claim_missing"]),
+        *([] if promotion_ready else ["promotion_readiness_missing"]),
+        *([] if executed_proof_evidence else ["executed_proof_missing"]),
+    ]
     if (
         workspace.get("role") == "work_lane"
         and closeout.get("supported") is True

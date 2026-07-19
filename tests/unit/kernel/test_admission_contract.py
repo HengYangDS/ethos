@@ -63,6 +63,8 @@ def test_action_preview_is_explicitly_non_authoritative() -> None:
         "mints_authority": False,
         "recheck_required": True,
     }
+    with pytest.raises(ValueError, match="action preview requires"):
+        AdmissionDecision.action_preview(action="", resource="x", blocked_actions=(), why=())
 
 
 def test_hook_admission_request_normalizes_pathlike_inputs() -> None:

@@ -124,14 +124,11 @@ def bootstrap_candidate(
 def _apply_gaps(
     *, apply: bool, authorized: bool, expect_head: str | None, current_head: str
 ) -> list[str]:
-    gaps: list[str] = []
-    if apply and not authorized:
-        gaps.append("authorization_required")
-    if apply and expect_head is None:
-        gaps.append("expect_head_required")
-    elif apply and expect_head != current_head:
-        gaps.append("expect_head_mismatch")
-    return gaps
+    return [gap for gap, present in (
+        ("authorization_required", apply and not authorized),
+        ("expect_head_required", apply and expect_head is None),
+        ("expect_head_mismatch", apply and expect_head is not None and expect_head != current_head),
+    ) if present]
 
 
 def _candidate_worktree_gaps(
@@ -190,11 +187,10 @@ def refresh_candidate_from_accepted(
                                head=current_head, gaps=gaps, previous_head=candidate_head,
                                path=candidate_path, **more)
 
-    gaps: list[str] = []
-    if status["role"] != ROLE_ACCEPTED_ROOT:
-        gaps.append("accepted_root_required")
-    elif status["dirty"]:
-        gaps.append("accepted_root_dirty")
+    gaps = [gap for gap, present in (
+        ("accepted_root_required", status["role"] != ROLE_ACCEPTED_ROOT),
+        ("accepted_root_dirty", status["role"] == ROLE_ACCEPTED_ROOT and status["dirty"]),
+    ) if present]
     gaps.extend(_candidate_worktree_gaps(candidate, candidate_path))
     gaps.extend(_apply_gaps(apply=apply, authorized=authorized, expect_head=expect_head,
                             current_head=current_head))
@@ -239,11 +235,10 @@ def refresh_work_lane_base(
                                candidate_head=candidate_head,
                                candidate_path=candidate_path, **more)
 
-    gaps: list[str] = []
-    if status["role"] != ROLE_WORK_LANE:
-        gaps.append("protected_root_mutation")
-    elif status["dirty"]:
-        gaps.append("work_lane_dirty")
+    gaps = [gap for gap, present in (
+        ("protected_root_mutation", status["role"] != ROLE_WORK_LANE),
+        ("work_lane_dirty", status["role"] == ROLE_WORK_LANE and status["dirty"]),
+    ) if present]
     gaps.extend(_candidate_worktree_gaps(candidate, candidate_path))
     gaps.extend(_apply_gaps(apply=apply, authorized=authorized, expect_head=expect_head,
                             current_head=current_head))
@@ -296,14 +291,14 @@ def _replay_work_lane(
         )
 
     def finish(rebased_head: str) -> dict[str, object]:
+        def blocked(gaps: list[str], *, head: str, **more: object) -> dict[str, object]:
+            return report(ok=False, state="blocked", head=head, gaps=gaps,
+                          previous_head=current_head, **more)
+
         if not is_ancestor(root, candidate_head, rebased_head):
             run_git(root, "switch", branch, check=False)
-            return report(
-                ok=False,
-                state="blocked",
-                head=_ref_head(root, "HEAD"),
-                gaps=["refresh_base_postcondition_failed"],
-                previous_head=current_head,
+            return blocked(
+                ["refresh_base_postcondition_failed"], head=_ref_head(root, "HEAD"),
                 next_actions=[
                     "inspect current Git ancestry and runner, signing, or hook diagnostics",
                     "repair the replay environment and rerun ethos lane refresh-base",
@@ -320,24 +315,18 @@ def _replay_work_lane(
         )
         if updated.returncode != 0:
             restored = run_git(root, "switch", branch, check=False)
-            return report(
-                ok=False, state="blocked", head=_ref_head(root, "HEAD"),
-                gaps=[
+            return blocked([
                     "refresh_base_snapshot_stale:work_lane",
                     *([] if restored.returncode == 0 else ["refresh_base_worktree_restore_failed"]),
-                ],
-                previous_head=current_head, stderr=updated.stderr.strip())
+                ], head=_ref_head(root, "HEAD"), stderr=updated.stderr.strip())
         attached = run_git(root, "switch", branch, check=False)
         if attached.returncode != 0:
-            return report(ok=False, state="blocked", head=rebased_head,
-                          gaps=["refresh_base_worktree_attach_failed"],
-                          previous_head=current_head, stderr=attached.stderr.strip())
+            return blocked(["refresh_base_worktree_attach_failed"], head=rebased_head,
+                           stderr=attached.stderr.strip())
         refreshed_head = _ref_head(root, "HEAD")
         if refreshed_head != rebased_head:
-            return report(ok=False, state="blocked", head=refreshed_head,
-                          gaps=["refresh_base_snapshot_stale:work_lane"],
-                          previous_head=current_head,
-                          stderr="work-lane branch advanced after refresh compare-and-swap")
+            return blocked(["refresh_base_snapshot_stale:work_lane"], head=refreshed_head,
+                           stderr="work-lane branch advanced after refresh compare-and-swap")
         result = report(ok=True, state="base_refreshed", head=refreshed_head, gaps=[],
                         previous_head=current_head)
         if projection_recovered:

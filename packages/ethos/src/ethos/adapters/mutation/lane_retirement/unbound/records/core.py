@@ -1,6 +1,4 @@
-"""Durable local record mechanics for exceptional unbound Work Lane retirement."""
-
-from __future__ import annotations
+"""Durable local records for exceptional unbound Work Lane retirement."""
 
 import hashlib
 import json
@@ -8,7 +6,7 @@ import os
 import stat
 import tempfile
 from pathlib import Path
-from typing import cast
+from typing import Any
 
 import ethos.adapters.mutation.lane_retirement.unbound.observation.core as observation
 
@@ -20,7 +18,32 @@ _RECORD_UNSAFE = "unbound_retire_record_unsafe"
 _RECORD_INVALID = "unbound_retire_record_invalid"
 
 
-def operation_id(  # noqa: PLR0913, RUF100 - exact record identity preserves bound state dimensions
+def _keys(value: str) -> set[str]:
+    return set(value.split())
+
+
+def _data(**values: Any) -> dict[str, Any]:
+    return values
+
+
+_COMMON_KEYS = _keys(
+    "schema_version kind operation_id branch expected_head accepted_head claim_id chronicle_ref "
+    "chronicle_sha256 chronicle_claim_id chronicle_claim_sha256 reason before_observation_sha256 "
+    "effect mints_authority recheck_required"
+)
+_POSTCONDITIONS = _keys(
+    "ref_absent unbound_absent active_lease_absent protected_refs_unchanged chronicle_unchanged"
+)
+
+
+def sha256(value: object) -> str:
+    """Return a stable digest for a structured record payload."""
+    return hashlib.sha256(
+        json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+
+
+def operation_id(
     *,
     branch: str,
     expect_head: str,
@@ -32,26 +55,31 @@ def operation_id(  # noqa: PLR0913, RUF100 - exact record identity preserves bou
     observation_sha256: str,
 ) -> str:
     """Bind a deterministic identity to one irreversible ref transition."""
-    digest = sha256(
-        {
-            "branch": branch,
-            "expect_head": expect_head,
-            "accepted_head": accepted_head,
-            "protected_refs": protected_refs,
-            "claim_id": claim_id,
-            "chronicle": chronicle,
-            "reason": reason,
-            "before_observation_sha256": observation_sha256,
-        }
+    payload = _data(branch=branch, expect_head=expect_head, accepted_head=accepted_head)
+    payload |= _data(protected_refs=protected_refs, claim_id=claim_id, chronicle=chronicle)
+    payload |= _data(reason=reason, before_observation_sha256=observation_sha256)
+    return f"exceptional-unbound-retirement:{sha256(payload)}"
+
+
+def _payload(
+    kind: str,
+    operation_id: str,
+    branch: str,
+    expect_head: str,
+    reason: str,
+    observed: dict[str, Any],
+) -> dict[str, object]:
+    chronicle = observed["chronicle"]
+    result = _data(schema_version=1, kind=kind, operation_id=operation_id, branch=branch)
+    result |= _data(expected_head=expect_head, accepted_head=observed["accepted_head"])
+    result |= _data(claim_id=observed["claim_id"], chronicle_ref=chronicle["ref"])
+    result |= _data(
+        chronicle_sha256=chronicle["sha256"], chronicle_claim_id=chronicle["target_claim"]
     )
-    return f"exceptional-unbound-retirement:{digest}"
-
-
-def sha256(value: object) -> str:
-    """Return a stable digest for a structured record payload."""
-    return hashlib.sha256(
-        json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
-    ).hexdigest()
+    result |= _data(chronicle_claim_sha256=chronicle["claim_sha256"], reason=reason)
+    result |= _data(before_observation_sha256=observed["observation_sha256"])
+    result |= _data(mints_authority=False, recheck_required=True)
+    return result
 
 
 def attempt_payload(
@@ -62,30 +90,13 @@ def attempt_payload(
     reason: str,
     observation: dict[str, object],
 ) -> dict[str, object]:
-    """Build the no-clobber pre-effect record for an admitted operation."""
-    chronicle = cast("dict[str, object]", observation["chronicle"])
-    return {
-        "schema_version": 1,
-        "kind": ATTEMPT_KIND,
-        "operation_id": operation_id,
-        "branch": branch,
-        "expected_head": expect_head,
-        "accepted_head": observation["accepted_head"],
-        "protected_refs": observation["protected_refs"],
-        "claim_id": observation["claim_id"],
-        "chronicle_ref": chronicle["ref"],
-        "chronicle_sha256": chronicle["sha256"],
-        "chronicle_claim_id": chronicle["target_claim"],
-        "chronicle_claim_sha256": chronicle["claim_sha256"],
-        "reason": reason,
-        "before_observation_sha256": observation["observation_sha256"],
-        "effect": "git_update_ref_compare_and_delete",
-        "mints_authority": False,
-        "recheck_required": True,
-    }
+    """Build the no-clobber pre-effect record."""
+    return _payload(ATTEMPT_KIND, operation_id, branch, expect_head, reason, observation) | _data(
+        protected_refs=observation["protected_refs"], effect="git_update_ref_compare_and_delete"
+    )
 
 
-def receipt_payload(  # noqa: PLR0913, RUF100 - exact receipt preserves bound state dimensions
+def receipt_payload(
     *,
     operation_id: str,
     branch: str,
@@ -96,58 +107,33 @@ def receipt_payload(  # noqa: PLR0913, RUF100 - exact receipt preserves bound st
     effect: dict[str, object],
     chronicle_unchanged: bool,
 ) -> dict[str, object]:
-    """Build the postcondition-bound receipt for a verified ref retirement."""
-    chronicle = cast("dict[str, object]", before["chronicle"])
-    return {
-        "schema_version": 1,
-        "kind": RECEIPT_KIND,
-        "operation_id": operation_id,
-        "branch": branch,
-        "expected_head": expect_head,
-        "accepted_head": before["accepted_head"],
-        "protected_refs_before": before["protected_refs"],
-        "protected_refs_after": after["protected_refs"],
-        "claim_id": before["claim_id"],
-        "chronicle_ref": chronicle["ref"],
-        "chronicle_sha256": chronicle["sha256"],
-        "chronicle_claim_id": chronicle["target_claim"],
-        "chronicle_claim_sha256": chronicle["claim_sha256"],
-        "reason": reason,
-        "before_observation_sha256": before["observation_sha256"],
-        "after_observation_sha256": after["observation_sha256"],
-        "effect": effect,
-        "postconditions": {
-            "ref_absent": not bool(after["head"]),
-            "unbound_absent": not bool(after["status_unbound"]),
-            "active_lease_absent": not bool(after[observation.HAS_ACTIVE_LEASE]),
-            "protected_refs_unchanged": before["protected_refs"] == after["protected_refs"],
-            "chronicle_unchanged": chronicle_unchanged,
-        },
-        "mints_authority": False,
-        "recheck_required": True,
-    }
+    """Build the postcondition-bound retirement receipt."""
+    protected = before["protected_refs"]
+    result = _payload(RECEIPT_KIND, operation_id, branch, expect_head, reason, before)
+    result |= _data(protected_refs_before=protected, protected_refs_after=after["protected_refs"])
+    result |= _data(after_observation_sha256=after["observation_sha256"], effect=effect)
+    result["postconditions"] = _data(
+        ref_absent=not bool(after["head"]),
+        unbound_absent=not bool(after["status_unbound"]),
+        active_lease_absent=not bool(after[observation.HAS_ACTIVE_LEASE]),
+        protected_refs_unchanged=protected == after["protected_refs"],
+        chronicle_unchanged=chronicle_unchanged,
+    )
+    return result
+
+
+def _record_path(records_root: Path, operation_id: str, category: str) -> Path:
+    return records_root / "recovery/unbound-retirement" / category / f"{suffix(operation_id)}.json"
 
 
 def attempt_path(records_root: Path, operation_id: str) -> Path:
     """Return the durable attempt path for one operation identity."""
-    return (
-        records_root
-        / "recovery"
-        / "unbound-retirement"
-        / "attempts"
-        / f"{suffix(operation_id)}.json"
-    )
+    return _record_path(records_root, operation_id, "attempts")
 
 
 def receipt_path(records_root: Path, operation_id: str) -> Path:
     """Return the durable receipt path for one operation identity."""
-    return (
-        records_root
-        / "recovery"
-        / "unbound-retirement"
-        / "receipts"
-        / f"{suffix(operation_id)}.json"
-    )
+    return _record_path(records_root, operation_id, "receipts")
 
 
 def suffix(operation_id: str) -> str:
@@ -164,10 +150,8 @@ def write_record(path: Path, payload: dict[str, object], *, kind: str) -> str:
             raise ValueError(_RECORD_COLLISION)
         return path.as_posix()
     path.parent.mkdir(parents=True, exist_ok=True)
-    descriptor, temporary_name = tempfile.mkstemp(
-        dir=path.parent, prefix=f".{path.name}.", suffix=".tmp"
-    )
-    temporary = Path(temporary_name)
+    descriptor, name = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.", suffix=".tmp")
+    temporary = Path(name)
     try:
         with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
             handle.write(json.dumps(payload, indent=2, sort_keys=True) + "\n")
@@ -206,81 +190,55 @@ def read_record(path: Path, *, kind: str) -> dict[str, object]:
     return payload
 
 
+def _valid_digest(value: object) -> bool:
+    return isinstance(value, str) and len(value) in {40, 64}
+
+
 def validate_record(payload: dict[str, object], *, kind: str) -> None:
     """Reject malformed durable records before they can guide a retry."""
-    common = {
-        "schema_version",
-        "kind",
-        "operation_id",
-        "branch",
-        "expected_head",
-        "accepted_head",
-        "claim_id",
-        "chronicle_ref",
-        "chronicle_sha256",
-        "chronicle_claim_id",
-        "chronicle_claim_sha256",
-        "reason",
-        "before_observation_sha256",
-        "effect",
-        "mints_authority",
-        "recheck_required",
-    }
-    required = common | {"protected_refs"}
-    if kind == RECEIPT_KIND:
-        required = common | {
-            "protected_refs_before",
-            "protected_refs_after",
-            "after_observation_sha256",
-            "postconditions",
-        }
-    if (
+    receipt = kind == RECEIPT_KIND
+    receipt_keys = _keys(
+        "protected_refs_before protected_refs_after after_observation_sha256 postconditions"
+    )
+    required = _COMMON_KEYS | (receipt_keys if receipt else {"protected_refs"})
+    protected = payload.get("protected_refs_before" if receipt else "protected_refs")
+    invalid = (
         set(payload) != required
         or payload.get("kind") != kind
         or payload.get("schema_version") != 1
-    ):
+        or not str(payload.get("operation_id") or "").startswith("exceptional-unbound-retirement:")
+        or not str(payload.get("branch") or "").startswith("work/")
+        or not sha256_text_fields(
+            payload,
+            "expected_head",
+            "accepted_head",
+            "chronicle_sha256",
+            "chronicle_claim_sha256",
+        )
+        or payload.get("mints_authority") is not False
+        or payload.get("recheck_required") is not True
+        or not isinstance(protected, dict)
+        or not protected
+        or not all(protected.values())
+    )
+    postconditions = payload.get("postconditions")
+    invalid |= receipt and (
+        payload.get("protected_refs_after") != protected
+        or not isinstance(postconditions, dict)
+        or set(postconditions) != _POSTCONDITIONS
+        or not all(value is True for value in postconditions.values())
+    )
+    if invalid:
         raise ValueError(_RECORD_INVALID)
-    if not str(payload.get("operation_id") or "").startswith("exceptional-unbound-retirement:"):
-        raise ValueError(_RECORD_INVALID)
-    if not str(payload.get("branch") or "").startswith("work/"):
-        raise ValueError(_RECORD_INVALID)
-    if not sha256_text_fields(
-        payload, "expected_head", "accepted_head", "chronicle_sha256", "chronicle_claim_sha256"
-    ):
-        raise ValueError(_RECORD_INVALID)
-    if payload.get("mints_authority") is not False or payload.get("recheck_required") is not True:
-        raise ValueError(_RECORD_INVALID)
-    protected_key = "protected_refs" if kind == ATTEMPT_KIND else "protected_refs_before"
-    protected = payload.get(protected_key)
-    if not isinstance(protected, dict) or not protected or not all(protected.values()):
-        raise ValueError(_RECORD_INVALID)
-    if kind == RECEIPT_KIND:
-        expected = {
-            "ref_absent",
-            "unbound_absent",
-            "active_lease_absent",
-            "protected_refs_unchanged",
-            "chronicle_unchanged",
-        }
-        postconditions = payload.get("postconditions")
-        if (
-            payload.get("protected_refs_after") != protected
-            or not isinstance(postconditions, dict)
-            or set(postconditions) != expected
-            or not all(value is True for value in postconditions.values())
-        ):
-            raise ValueError(_RECORD_INVALID)
 
 
 def sha256_text_fields(payload: dict[str, object], *keys: str) -> bool:
     """Accept only SHA-1/SHA-256 textual record fields."""
-    return all(
-        isinstance(payload.get(key), str) and len(str(payload[key])) in {40, 64} for key in keys
-    )
+    return all(_valid_digest(payload.get(key)) for key in keys)
 
 
 def effect_summary(completed: object) -> dict[str, object]:
-    """Project the sole Git effect without carrying its raw output into evidence."""
+    """Project the sole Git effect without carrying raw output into evidence."""
     return {
         "command": "git update-ref -d",
         "returncode": int(getattr(completed, "returncode", 1)),

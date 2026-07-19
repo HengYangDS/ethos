@@ -3,13 +3,13 @@ id = "ownerless-adopter-material-bootstrap-retirement-20260720"
 subject = "ethos:work-lane:ownerless-adopter-material-bootstrap-retirement"
 state = "active"
 change_id = "ownerless-adopter-material-bootstrap-retirement-20260720"
-summary = "One target-specific local authority carrier records accepted semantic absorption for the clean ownerless diverged adopter material-bootstrap ref; its native retirement remains a separate current transition."
+summary = "One target-specific local authority carrier records a bounded historical observation for the clean ownerless diverged adopter material-bootstrap ref; its native transition remains separate."
 
 [evidence]
 dated = "evidence/chronicle/ownerless-adopter-material-bootstrap-retirement-20260720/2026-07-20.md"
-sha256 = "1cfb366bffa0bdfdff8f366323ab4f81b58e12d8211a729cb1de33d67fcdd5e5"
+sha256 = "2d37c53d43546869b4fbc920c11fcfe9218fd2da9090812c39233a8070cb3be8"
 evidence_ids = ["evidence:ownerless-adopter-material-bootstrap-retirement-20260720"]
-binding = "This active Claim binds only work/adopter-material-scope-bootstrap-20260715 at 7b94836b75e691607eda42ed62c7357da4445c33 to its independently accepted legacy-profile material-scope behavior and to a later native local retirement decision. It does not claim tree identity, source-lane merge, retirement, remote publication, or hosted CI."
+binding = "The active carrier and dated Chronicle bind one exact source observation and a later native local decision boundary only; they do not claim tree identity, source-lane merge, outcome, external publication, or provider-run result."
 verifier = "digest_only"
 tests = [
   "openspec validate ownerless-adopter-material-bootstrap-retirement-20260720 --strict --json",
@@ -26,7 +26,7 @@ owner = "ethos-repository"
 scope = "One clean ownerless diverged historical adopter material-bootstrap ref; one later native local resolver decision only after fresh observation and local lifecycle closure."
 
 [carriers]
-openspec = "openspec/changes/ownerless-adopter-material-bootstrap-retirement-20260720"
+openspec = "openspec/changes/archive/2026-07-19-ownerless-adopter-material-bootstrap-retirement-20260720"
 fallback = "Keep the exact source ref intact whenever source facts, accepted semantic basis, Chronicle bytes, or native decision bindings drift."
 kill_signal = "A missing lease, historical tree inequality, preservation package, or inventory record is treated as absorption or as authority to delete another lane."
 
@@ -35,6 +35,6 @@ targets = [
   "docs/plans/ownerless-adopter-material-bootstrap-retirement-20260720.md",
   "evidence/claims/ownerless-adopter-material-bootstrap-retirement-20260720.toml",
   "evidence/chronicle/ownerless-adopter-material-bootstrap-retirement-20260720/2026-07-20.md",
-  "openspec/changes/ownerless-adopter-material-bootstrap-retirement-20260720",
+  "openspec/changes/archive/2026-07-19-ownerless-adopter-material-bootstrap-retirement-20260720",
   "openspec/specs/repository-governance/spec.md",
 ]

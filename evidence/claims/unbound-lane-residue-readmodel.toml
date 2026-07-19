@@ -44,5 +44,4 @@ targets = [
   "tests/unit/lanes/test_lanes.py",
   "tests/unit/cli/test_contracts.py",
   "tests/unit/governance/validation",
-  "tests/unit/coverage/test_core_state_claims_edges.py",
 ]

@@ -1,6 +1,5 @@
 schema_version = 1
 paths = [
-  ".config/checks/secrets/README.md",
   ".githooks/pre-commit",
   "evidence/claims/staged-secret-admission-v2-20260719.toml",
   "evidence/chronicle/staged-secret-admission-v2-20260719/**",

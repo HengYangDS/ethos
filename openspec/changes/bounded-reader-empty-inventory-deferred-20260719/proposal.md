@@ -14,6 +14,7 @@ five exact zero aggregates even though the caller selected the deferred mode.
 - Keep a zero-foreign-lane full read at `detail_state=exact` with those five
   aggregates set to zero.
 - Add a focused zero-inventory regression before changing production code.
+- Restore the concurrently weakened status/orient assertions and archive the superseded active claim without rewriting its historical OpenSpec archive.
 
 ## Capabilities
 
@@ -24,13 +25,14 @@ five exact zero aggregates even though the caller selected the deferred mode.
 ## Impact
 
 - Coordination aggregation and its `workspace_status` caller.
-- One focused lane-status regression, the repository-governance specification,
-  active claim, dated Chronicle, and generic parity evidence.
+- Focused lane-status and status/orient regressions, the repository-governance
+  specification, active correction claim, superseded claim/Chronicle, and
+  generic parity evidence.
 
 ## Out Of Scope
 
-- No change to `tests/unit/product/test_orient.py` and no acceptance of
-  `detail_state=exact` for a bounded empty-inventory read.
+- Do not weaken status/orient expectations; restore the concurrently accepted
+  exact-empty assertions to the preceding bounded `deferred` contract.
 - No schema, command, provider, orientation, or public JSON shape expansion.
 - No remote publication, hosted-CI success, candidate landing, accepted-root
   closeout, or foreign Work Lane mutation claim.

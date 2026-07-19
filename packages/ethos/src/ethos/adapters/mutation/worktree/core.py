@@ -100,11 +100,13 @@ def _inventory(
             continue
         key, _, value = line.partition(" ")
         current[key] = value
-    return [
-        entry
-        for record in records
-        if (entry := _entry_from_record(repo, record, roots)) is not None
-    ]
+    entries: list[dict[str, object]] = []
+    for record in records:
+        entry = _entry_from_record(repo, record, roots)
+        if entry is None:
+            return None
+        entries.append(entry)
+    return entries
 
 
 def _entry(repo: Path, path: Path, roots: tuple[Path, ...]) -> dict[str, object] | None:

@@ -7,5 +7,5 @@
 - [x] Reobserve retirement bindings after relinquishment before ref deletion.
 - [x] Add matching-holder success and delete-failure regressions.
 - [x] Add dated claim, Chronicle, canonical delta, and command documentation.
-- [ ] Run strict lifecycle, quality, exact-HEAD proof, candidate land, and
+- [x] Run strict lifecycle, quality, exact-HEAD proof, candidate land, and
   accepted-root closeout.

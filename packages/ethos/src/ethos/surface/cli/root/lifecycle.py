@@ -26,6 +26,8 @@ from ethos.adapters.mutation.core import proof_readiness_report
 from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.openspec.metadata.core import completed_active_changes_report
 from ethos.adapters.repo.status.core import workspace_status
+from ethos.domain.reporting.scoring import adopter_quality_floor_report
+from ethos.domain.reporting.scoring import hard_quality_floor_report
 from ethos.repository.context import context_for_root
 from ethos.repository.openspec.audit import protected_branch_active_change_required_gaps
 from ethos.repository.release.core import release_config
@@ -479,6 +481,11 @@ def publish(
         current_head=current_head,
     )
     audit = land_core.repository_audit_after_admission(repo, decision)
+    hard_quality_floor = (
+        hard_quality_floor_report(repo)
+        if governance.get("profile") == "product"
+        else adopter_quality_floor_report()
+    )
     independent_verification = independent_verification_admission_report(
         root=repo,
         action="publish",
@@ -491,12 +498,14 @@ def publish(
     gaps = (
         tuple(string_sequence(audit.get("required_gaps")))
         + decision.gaps
+        + tuple(string_sequence(hard_quality_floor.get("required_gaps")))
         + release_carrier_gaps
         + tuple(string_sequence(independent_verification.get("required_gaps")))
     )
     ok = (
         bool(audit["ok"])
         and decision.ok
+        and bool(hard_quality_floor.get("ok"))
         and not release_carrier_gaps
         and bool(independent_verification.get("ok"))
     )
@@ -609,6 +618,7 @@ def publish(
         governance_context=governance,
         data={
             "repository_audit": audit,
+            "hard_quality_floor": hard_quality_floor,
             "release_root_open_spec": {
                 "required_gaps": list(release_carrier_gaps),
                 "blocking": bool(release_carrier_gaps),

@@ -334,6 +334,40 @@ def test_publish_dry_run_remains_available_on_accepted_root_after_land_boundary(
     assert mutation["decision"]["decision_basis"]["identity_basis"] == "not_evaluated"
 
 
+def test_product_publish_blocks_current_hard_quality_gap(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    import ethos.surface.cli.root.lifecycle as lifecycle_cli
+
+    repo = init_git_repo(tmp_path / "repo")
+    adopt_and_commit(repo)
+    head = git(repo, "rev-parse", "HEAD")
+    seed_executed_proof(repo, head)
+    gap = "generated_artifact_root_cache_drift:.ruff_cache"
+    floor = {
+        "ok": False,
+        "state": "blocked",
+        "gate_ids": ["generated-artifacts"],
+        "required_gaps": [gap],
+        "gates": {},
+    }
+    monkeypatch.setattr(
+        lifecycle_cli,
+        "context_for_root",
+        lambda _repo: {"profile": "product"},
+    )
+    monkeypatch.setattr(lifecycle_cli, "hard_quality_floor_report", lambda _repo: floor)
+
+    payload = run_ethos("publish", "--json", cwd=repo)
+
+    assert payload["ok"] is False
+    assert payload["state"] == "blocked"
+    assert payload["required_gaps"] == [gap]
+    assert payload["summary"]["local_readiness"] is False
+    assert payload["data"]["hard_quality_floor"] == floor
+
+
 def test_publish_apply_defers_when_remote_transition_is_not_performed(
     tmp_path: Path,
 ) -> None:

@@ -128,6 +128,11 @@ def test_report_uses_shallow_repository_audit(monkeypatch) -> None:
         "source_budget_report",
         lambda _repo: {"ok": True, "state": "clean", "required_gaps": []},
     )
+    monkeypatch.setattr(
+        reporting_scoring,
+        "generated_artifact_topology_report",
+        lambda _repo: {"ok": True, "state": "clean", "required_gaps": []},
+    )
 
     payload = ethos_cli_runner.run_ethos("report", "--json")
 
@@ -327,7 +332,9 @@ def test_release_readiness_blocks_active_change_on_non_current_release_root(
     ]
 
 
-def test_openspec_shape_blocks_active_change_on_current_release_root(tmp_path: Path) -> None:
+def test_openspec_shape_blocks_active_change_on_current_release_root(
+    tmp_path: Path,
+) -> None:
     """The current release root cannot retain active OpenSpec carriers."""
     repo = tmp_path / "repo"
     _seed_repo_with_active_openspec_change(repo)

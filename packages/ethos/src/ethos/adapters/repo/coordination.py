@@ -201,7 +201,7 @@ def foreign_work_lane_deferred(
             branch=branch,
             head=str(worktree["head"]),
         ),
-        "dirty": bool(dirty_paths),
+        "dirty": None,
         "dirty_paths": list(dirty_paths),
         "path_scope": [],
         "scope_state": "deferred",
@@ -286,6 +286,11 @@ def coordination_package(
     unbound_work_lane_refs: list[dict[str, object]] | None = None,
     unbound_work_lane_count: int = 0,
 ) -> dict[str, object]:
+    detail_state = (
+        "deferred"
+        if any(lane.get("scope_state") == "deferred" for lane in foreign_work_lanes)
+        else "exact"
+    )
     overlap_lanes = [
         lane for lane in foreign_work_lanes if lane.get("coordination_state") == "overlap"
     ]
@@ -294,12 +299,14 @@ def coordination_package(
         1 for lane in foreign_work_lanes if lane.get("coordination_state") == "unknown"
     )
     missing_lease_count = sum(1 for lane in foreign_work_lanes if lane["lease_state"] == "missing")
+    dirty_foreign_work_lane_count = sum(1 for lane in foreign_work_lanes if lane.get("dirty"))
     dirty_closeout_residue_count = sum(1 for lane in closeout_residue_lanes if lane.get("dirty"))
     unbound_refs = list(unbound_work_lane_refs or ())
     if not unbound_refs and unbound_work_lane_count:
         unbound_refs = [_unknown_unbound_ref() for _ in range(unbound_work_lane_count)]
     return {
         "kind": "work_lane_coordination",
+        "detail_state": detail_state,
         "blocking": bool(required_gaps),
         "required_gaps": list(required_gaps),
         "advisory_gaps": list(advisory_gaps),
@@ -308,10 +315,17 @@ def coordination_package(
         "unbound_work_lane_count": len(unbound_refs),
         "unbound_work_lane_refs": unbound_refs,
         "missing_lease_count": missing_lease_count,
-        "overlap_count": len(overlap_lanes),
-        "unknown_scope_count": unknown_scope_count,
-        "closeout_residue_count": len(closeout_residue_lanes),
-        "dirty_closeout_residue_count": dirty_closeout_residue_count,
+        "overlap_count": None if detail_state == "deferred" else len(overlap_lanes),
+        "unknown_scope_count": None if detail_state == "deferred" else unknown_scope_count,
+        "dirty_foreign_work_lane_count": (
+            None if detail_state == "deferred" else dirty_foreign_work_lane_count
+        ),
+        "closeout_residue_count": (
+            None if detail_state == "deferred" else len(closeout_residue_lanes)
+        ),
+        "dirty_closeout_residue_count": (
+            None if detail_state == "deferred" else dirty_closeout_residue_count
+        ),
         "closeout_residue_lanes": [
             _closeout_residue_summary(lane) for lane in closeout_residue_lanes
         ],

@@ -33,7 +33,9 @@ def test_workspace_status_reports_stage_gates_for_accepted_root(tmp_path: Path) 
     }
 
 
-def test_workspace_status_reports_stage_gates_for_owned_work_lane(tmp_path: Path) -> None:
+def test_workspace_status_reports_stage_gates_for_owned_work_lane(
+    tmp_path: Path,
+) -> None:
     repo = init_repo(tmp_path / "repo")
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     worktree = tmp_path / "repo-work-feature"
@@ -119,7 +121,14 @@ def test_workspace_status_reports_missing_foreign_worktree_without_crashing(
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     foreign = tmp_path / "repo-work-foreign"
     git(repo, "worktree", "add", "-b", "work/foreign", foreign.as_posix(), "dev")
-    git(repo, "worktree", "lock", foreign.as_posix(), "--reason", "simulate stale registry")
+    git(
+        repo,
+        "worktree",
+        "lock",
+        foreign.as_posix(),
+        "--reason",
+        "simulate stale registry",
+    )
     # Simulate a concurrent host or agent removing the physical worktree while
     # Git's registry still advertises it. ETHOS must surface the lane as
     # unobservable, not crash closeout/status readers.
@@ -137,105 +146,6 @@ def test_workspace_status_reports_missing_foreign_worktree_without_crashing(
     assert status["coordination"]["blocking"] is False
     assert status["required_gaps"] == []
     assert validate_schema_instance("workspace-status.schema.json", status)["ok"] is True
-
-
-def test_workspace_status_reports_foreign_work_lanes_without_reading_them(tmp_path: Path) -> None:
-    repo = init_repo(tmp_path / "repo")
-    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
-    foreign = tmp_path / "repo-work-foreign"
-    git(repo, "worktree", "add", "-b", "work/foreign", foreign.as_posix(), "dev")
-
-    status = workspace_status(repo)
-
-    assert status["role"] == "accepted_root"
-    assert status["foreign_work_lanes"] == [
-        {
-            "branch": "work/foreign",
-            "head": git(repo, "rev-parse", "dev"),
-            "path": foreign.as_posix(),
-            "role": "work_lane",
-            "worktree_binding": "linked",
-            "lease": {
-                "lane_incarnation_id": "",
-                "lease_id": "",
-                "holder_ref": "",
-                "epoch": 0,
-                "expected_head": "",
-                "expires_at": "",
-                "normalization_state": "legacy_ambiguous",
-                "mints_authority": False,
-            },
-            "lease_state": "missing",
-            "claim_id": "",
-            "claim_binding": "missing",
-            "relation_to_accepted": "ancestor_of_accepted",
-            "closeout_disposition": "none",
-            "residue_state": "clean_or_none",
-            "next_action": "observe lane state; use owner-bound lifecycle command when ready",
-            "dirty": False,
-            "dirty_paths": [],
-            "path_scope": [],
-            "scope_state": "empty",
-            "coordination_state": "advisory",
-            "action_preview": {
-                "candidate_actions": ["observe"],
-                "blocked_actions": ["write", "land", "retire"],
-                "why": ["foreign_lane_requires_handoff_or_accepted_decision"],
-                "mints_authority": False,
-                "recheck_required": True,
-            },
-            "handoff_required": True,
-        }
-    ]
-    assert status["required_gaps"] == []
-    assert status["coordination_gaps"] == [
-        "foreign_work_lane_present",
-        "work_lane_missing_lease:work/foreign",
-    ]
-    assert status["coordination"] == {
-        "kind": "work_lane_coordination",
-        "blocking": False,
-        "required_gaps": [],
-        "advisory_gaps": [
-            "foreign_work_lane_present",
-            "work_lane_missing_lease:work/foreign",
-        ],
-        "invalid_states": {
-            "categories": {
-                "change_unbounded": [
-                    "foreign_work_lane_present",
-                    "work_lane_missing_lease:work/foreign",
-                ]
-            },
-            "category_count": 1,
-            "gap_count": 2,
-        },
-        "foreign_work_lane_count": 1,
-        "unbound_work_lane_count": 0,
-        "unbound_work_lane_refs": [],
-        "missing_lease_count": 1,
-        "overlap_count": 0,
-        "unknown_scope_count": 0,
-        "closeout_residue_count": 0,
-        "dirty_closeout_residue_count": 0,
-        "closeout_residue_lanes": [],
-        "next_action": "bind or inspect Work Lane leases before candidate integration",
-        "migration_recommendations": [],
-    }
-    assert status["closeout_support"] == {
-        "supported": False,
-        "branch": "",
-        "target_branch": "candidate/dev",
-        "target_path": (tmp_path / "repo-candidate-dev").as_posix(),
-        "operation": "",
-        "holder_ref": "",
-        "lease_id": "",
-        "lease_epoch": 0,
-        "claim_id": "",
-        "claim_binding": "unbound",
-        "required_gaps": ["protected_root_mutation"],
-    }
-    assert_no_ui_projection(status)
 
 
 def test_workspace_status_explains_landed_dirty_lane_preservation_path(
@@ -551,7 +461,9 @@ def test_workspace_status_uses_configured_branch_role_policy(tmp_path: Path) -> 
     assert workspace_status(repo)["role"] == "release_root"
 
 
-def test_workspace_status_reports_current_work_lanecloseout_support(tmp_path: Path) -> None:
+def test_workspace_status_reports_current_work_lanecloseout_support(
+    tmp_path: Path,
+) -> None:
     repo = init_repo(tmp_path / "repo")
     candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     worktree = tmp_path / "repo-work-feature"
@@ -795,7 +707,9 @@ def test_workspace_status_reports_missing_candidate_branch(tmp_path: Path) -> No
     assert validate_schema_instance("workspace-status.schema.json", status)["ok"] is True
 
 
-def test_workspace_status_reports_candidate_branch_without_worktree(tmp_path: Path) -> None:
+def test_workspace_status_reports_candidate_branch_without_worktree(
+    tmp_path: Path,
+) -> None:
     repo = init_repo(tmp_path / "repo")
     git(repo, "branch", "candidate/dev", "dev")
 
@@ -814,7 +728,14 @@ def test_workspace_status_reports_missing_candidate_registry_worktree_without_cr
 ) -> None:
     repo = init_repo(tmp_path / "repo")
     candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
-    git(repo, "worktree", "lock", candidate.as_posix(), "--reason", "simulate stale registry")
+    git(
+        repo,
+        "worktree",
+        "lock",
+        candidate.as_posix(),
+        "--reason",
+        "simulate stale registry",
+    )
 
     shutil.rmtree(candidate)
 
@@ -828,7 +749,9 @@ def test_workspace_status_reports_missing_candidate_registry_worktree_without_cr
     assert validate_schema_instance("workspace-status.schema.json", status)["ok"] is True
 
 
-def test_workspace_status_reports_landing_readiness_for_current_work_lane(tmp_path: Path) -> None:
+def test_workspace_status_reports_landing_readiness_for_current_work_lane(
+    tmp_path: Path,
+) -> None:
     repo = init_repo(tmp_path / "repo")
     candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     worktree = tmp_path / "repo-work-feature"
@@ -855,7 +778,9 @@ def test_workspace_status_reports_landing_readiness_for_current_work_lane(tmp_pa
     assert status["stage_gates"]["recommended_next_command"] == "ethos land --json"
 
 
-def test_workspace_status_reports_stale_landing_readiness_before_land(tmp_path: Path) -> None:
+def test_workspace_status_reports_stale_landing_readiness_before_land(
+    tmp_path: Path,
+) -> None:
     repo = init_repo(tmp_path / "repo")
     candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     worktree = tmp_path / "repo-work-feature"

@@ -1,0 +1,53 @@
+[claim]
+id = "phase0-truth-convergence-20260719"
+subject = "ethos:phase0-truth-convergence"
+state = "active"
+summary = "Active local-only carrier for fail-closed coverage, bounded reader, scorecard, and publish truth convergence."
+
+[evidence]
+dated = "evidence/chronicle/phase0-truth-convergence-20260719/2026-07-19.md"
+sha256 = "3152f6688069c8d48afd247ab2678b8eee8b8d95a7cfa64ccd82b861e33f8ac1"
+evidence_ids = ["evidence:phase0-truth-convergence-20260719"]
+binding = "Initial reproduced-fact and execution-plan record; no implementation or closeout claim."
+verifier = "digest_only"
+tests = ["ethos openspec --lifecycle --json"]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-quality-gate-governance"
+scope = "Local Phase 0 truth convergence through proof, archive, candidate landing, and accepted-root closeout; remote publication excluded."
+
+[carriers]
+openspec = "openspec/changes/phase0-truth-convergence-20260719"
+fallback = "Keep report and publish conclusions blocked when current local evidence is unknown, invalid, or missing."
+kill_signal = "A missing or unverified observation is projected as clean, zero, proven, or locally publish-ready."
+
+[promotion]
+targets = [
+  "evidence/claims/phase0-truth-convergence-20260719.toml",
+  "evidence/chronicle/phase0-truth-convergence-20260719/2026-07-19.md",
+  "openspec/changes/phase0-truth-convergence-20260719",
+  "openspec/specs/quality/spec.md",
+  "openspec/specs/repository-governance/spec.md",
+  "packages/ethos/src/ethos/adapters/repo/coordination.py",
+  "packages/ethos/src/ethos/domain/orient.py",
+  "packages/ethos/src/ethos/domain/reporting/scoring.py",
+  "packages/ethos/src/ethos/repository/policy/coverage.py",
+  "packages/ethos/src/ethos/surface/cli/root/lifecycle.py",
+  "system/commands.toml",
+  "system/invalid_states.toml",
+  "system/schemas/kernel/workspace-status.schema.json",
+  "tests/architecture/test_testing_platform.py",
+  "tests/unit/audit/test_modes.py",
+  "tests/unit/cli/test_contracts_land.py",
+  "tests/unit/cli/test_report_surface.py",
+  "tests/unit/domain/test_report.py",
+  "tests/unit/governance/validation/test_schemas.py",
+  "tests/unit/lanes/test_lanes_bounded_status.py",
+  "tests/unit/lanes/test_lanes.py",
+  "tests/unit/policy/test_coverage.py",
+  "tests/unit/product/test_orient.py",
+  "tools/ci/scripts/run-python-tests.sh",
+]

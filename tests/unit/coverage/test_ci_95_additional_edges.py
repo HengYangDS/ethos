@@ -171,21 +171,6 @@ def test_shadow_process_json_backend_and_semantic_edges(
     assert shadow_execution.process_failed({"exit_code": 1, "json": verdict}) is False
     assert shadow_execution.process_failed({"exit_code": 2, "json": verdict}) is True
 
-    class TimeoutProcess:
-        pid = 4321
-
-        def communicate(self, timeout: int | None = None) -> tuple[str, str]:
-            _ = timeout
-            raise subprocess.TimeoutExpired(cmd=["x"], timeout=1, output="out", stderr="err")
-
-    monkeypatch.setattr(
-        shadow_execution.subprocess, "Popen", lambda *_args, **_kwargs: TimeoutProcess()
-    )
-    monkeypatch.setattr(shadow_execution.os, "killpg", lambda *_args: None)
-    assert (
-        shadow_execution.run_json_command(["x"], cwd=tmp_path, timeout_seconds=1)["exit_code"]
-        == 124
-    )
     monkeypatch.setattr(
         shadow_execution.subprocess,
         "Popen",

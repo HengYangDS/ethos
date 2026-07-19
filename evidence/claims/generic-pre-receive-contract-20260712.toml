@@ -1,0 +1,38 @@
+[claim]
+id = "generic-pre-receive-contract-20260712"
+subject = "ethos:optional-generic-git-pre-receive-receipt-adapter"
+state = "archived"
+summary = "Historical record for the retired bundled generic Git pre-receive adapter; the provider-neutral exact-receipt contract remains canonical."
+
+[evidence]
+dated = "evidence/chronicle/generic-pre-receive-contract-20260712/2026-07-13.md"
+sha256 = "8875d81520e8951936e20dfef3741a120812d544356e4c8923aea0e72f50116c"
+evidence_ids = ["evidence:generic-pre-receive-contract-20260712"]
+binding = "Historical extension source, tests, OpenSpec carrier, and dated evidence retained after the bundled executable retired."
+verifier = "digest_only"
+tests = [
+  "uv run --locked --group dev pytest -q extensions/independent-verification/tests/test_generic_git_pre_receive.py",
+  "uv run --locked --group dev ruff check extensions/independent-verification",
+  "tools/ci/scripts/run-config-lint.sh",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-adapters"
+scope = "Historical bundled generic Git adapter only; current providers supply any executable outside ETHOS and consume the canonical receipt contract."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-13-generic-pre-receive-contract-20260712"
+fallback = "Keep provider-local enforcement disabled unless an operator supplies and governs a conforming adapter."
+kill_signal = "A bundled adapter reappears as product authority or ordinary adopter prerequisite."
+
+[promotion]
+targets = [
+  { kind = "openspec", path = "openspec/changes/archive/2026-07-13-generic-pre-receive-contract-20260712" },
+  { kind = "evidence", path = "evidence/chronicle/generic-pre-receive-contract-20260712/2026-07-13.md" },
+  { kind = "evidence", path = "evidence/claims/generic-pre-receive-contract-20260712.toml" },
+  { kind = "docs", path = "docs/governance/independent-verification-adoption.md" },
+  { kind = "source", path = "packages/ethos-core/src/ethos_core/contracts/evidence/external.py" },
+]

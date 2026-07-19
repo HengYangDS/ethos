@@ -1,0 +1,35 @@
+[claim]
+id = "release-publication-gap-collection-guard-20260718"
+change_id = "release-publication-gap-collection-guard-20260718"
+subject = "ethos:release-publication-gap-collection"
+state = "archived"
+summary = "Release policy consumes only declared list-valued publication-topology gaps."
+
+[evidence]
+dated = "evidence/chronicle/release-publication-gap-collection-guard-20260718/2026-07-18.md"
+sha256 = "6ea2c9c4ceda587b91a447852e855a449fd165554a039626f2cf241a5b4ee4f9"
+evidence_ids = ["evidence:release-publication-gap-collection-guard-20260718"]
+binding = "The release-policy read-model boundary, focused regression, official OpenSpec carrier, and dated evidence bind typed publication-gap consumption."
+verifier = "digest_only"
+tests = ["pytest -q tests/unit/release/test_policy_attestation.py", "ruff check packages/ethos/src/ethos/repository/release/core.py tests/unit/release/test_policy_attestation.py", "openspec validate --all --strict --json", "ethos openspec --lifecycle --json"]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "Typed release-policy consumption of publication-topology gap collections."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-18-release-publication-gap-collection-guard-20260718"
+fallback = "Reject malformed topology values at their producer; do not infer release gaps from an undeclared shape."
+kill_signal = "A malformed non-list value is iterated or a declared list value is dropped."
+
+[promotion]
+targets = [
+  "packages/ethos/src/ethos/repository/release/core.py",
+  "tests/unit/release/test_policy_attestation.py",
+  "openspec/changes/archive/2026-07-18-release-publication-gap-collection-guard-20260718",
+  "evidence/claims/release-publication-gap-collection-guard-20260718.toml",
+  "evidence/chronicle/release-publication-gap-collection-guard-20260718/2026-07-18.md",
+]

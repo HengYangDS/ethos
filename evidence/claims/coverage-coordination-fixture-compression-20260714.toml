@@ -1,0 +1,46 @@
+[claim]
+id = "coverage-coordination-fixture-compression-20260714"
+change_id = "coverage-coordination-fixture-compression-20260714"
+subject = "quality:cross-host-handoff-fixture-compression"
+state = "accepted"
+summary = "Equivalent cross-host handoff export tests share one bounded typed command envelope while preserving case-specific inputs and outcomes."
+
+[evidence]
+dated = "evidence/chronicle/coverage-coordination-fixture-compression-20260714/2026-07-14.md"
+sha256 = "d01b800b720e5207e3233f857afe657592cf37826a8e43db0ad2abe7957e309f"
+evidence_ids = ["evidence:coverage-coordination-fixture-compression-20260714"]
+binding = "The OpenSpec carrier, formatter-clean test deletion, focused handoff proof, source-budget delta, and final promotion targets bind this bounded compression slice."
+verifier = "semantic"
+tests = [
+  "uv run --group dev pytest -q tests/unit/cli/lane/test_cross_host_handoff.py",
+  "uv run --package ethos ruff format --check tests/unit/cli/lane/test_cross_host_handoff.py",
+  "uv run --package ethos ruff check --config .config/checks/ruff/ruff.toml tests/unit/cli/lane/test_cross_host_handoff.py",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[scope]
+tests = ["tests/unit/cli/lane/test_cross_host_handoff.py"]
+openspec = ["openspec/changes/archive/2026-07-13-coverage-coordination-fixture-compression-20260714"]
+evidence = [
+  "evidence/claims/coverage-coordination-fixture-compression-20260714.toml",
+  "evidence/chronicle/coverage-coordination-fixture-compression-20260714/2026-07-14.md",
+]
+
+[boundary]
+owner = "quality"
+scope = "Cross-host handoff test command representation only; product handoff and CLI semantics remain unchanged."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-13-coverage-coordination-fixture-compression-20260714"
+fallback = "Restore the explicit export invocations if the shared command envelope loses behavior parity or net deletion."
+kill_signal = "A command-specific context, disposition, root binding, or blocking behavior regresses, or scoped effective test source does not decline."
+
+[promotion]
+targets = [
+  { kind = "tests", path = "tests/unit/cli/lane/test_cross_host_handoff.py" },
+  { kind = "openspec", path = "openspec/changes/archive/2026-07-13-coverage-coordination-fixture-compression-20260714" },
+  { kind = "evidence", path = "evidence/claims/coverage-coordination-fixture-compression-20260714.toml" },
+  { kind = "evidence", path = "evidence/chronicle/coverage-coordination-fixture-compression-20260714/2026-07-14.md" },
+]

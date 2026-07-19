@@ -11,6 +11,7 @@ from typing import Self
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
+from pydantic import field_validator
 from pydantic import model_validator
 
 from ethos_core.contracts.source_budget.carriers import CarrierIdentity
@@ -72,11 +73,35 @@ class MetricContract(BaseModel):
     aggregation: Literal["sum"]
     non_compensable: Literal[True]
 
+    @field_validator("non_compensable", mode="before")
+    @classmethod
+    def validate_non_compensable(cls, value: object) -> object:
+        """Reject truthy coercions; only the boolean singleton is admissible."""
+        if value is not True:
+            _raise_contract_error("metric contract must be non-compensable")
+        return value
+
+
+def _validate_contract_versions(
+    registry_version: int,
+    contracts: tuple[MetricContract, ...],
+) -> None:
+    mismatched = sorted(
+        item.contract_id for item in contracts if item.contract_version != registry_version
+    )
+    if mismatched:
+        _raise_contract_error(f"metric contract version mismatches registry:{mismatched[0]}")
+
 
 class MetricContractSet(BaseModel):
     """Complete immutable profile and metric registry."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid", populate_by_name=True)
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        validate_by_alias=True,
+        validate_by_name=False,
+    )
 
     schema_id: Literal["ethos-source-budget-metrics-v2"] = Field(alias="schema")
     contract_version: PositiveInt
@@ -86,6 +111,7 @@ class MetricContractSet(BaseModel):
     @model_validator(mode="after")
     def validate_registry(self) -> Self:
         """Reject duplicate, dangling, incomplete, or role-mismatched contracts."""
+        _validate_contract_versions(self.contract_version, self.contracts)
         profile_ids = tuple(item.profile_id for item in self.profiles)
         if len(profile_ids) != len(set(profile_ids)):
             _raise_contract_error("metric profile ids must be unique")
@@ -131,6 +157,23 @@ class MetricContractSetLoad:
 
     contracts: MetricContractSet | None
     required_gaps: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        """Require exactly one of validated contracts or non-empty gaps."""
+        if self.contracts is not None and not isinstance(self.contracts, MetricContractSet):
+            _raise_contract_error("metric contract load requires typed contracts")
+        if not isinstance(self.required_gaps, tuple):
+            _raise_contract_error("metric contract load required gaps must be a tuple")
+        if any(not isinstance(gap, str) or not gap for gap in self.required_gaps):
+            _raise_contract_error("metric contract load required gaps must be non-empty strings")
+        if self.required_gaps != tuple(sorted(set(self.required_gaps))):
+            _raise_contract_error(
+                "metric contract load required gaps must be unique and stably ordered"
+            )
+        if self.contracts is None and not self.required_gaps:
+            _raise_contract_error("metric contract load requires non-empty required gaps")
+        if self.contracts is not None and self.required_gaps:
+            _raise_contract_error("metric contract load with data forbids required gaps")
 
 
 def validate_metric_contracts(payload: object) -> MetricContractSet:
@@ -189,4 +232,4 @@ def resolve_metric_contracts(
         for item in contracts.contracts
         if item.metric_profile == profile.profile_id and item.carrier_role == profile.carrier_role
     }
-    return tuple(by_metric[metric_id] for metric_id in profile.required_metric_ids)
+    return tuple(by_metric[metric_id] for metric_id in sorted(profile.required_metric_ids))

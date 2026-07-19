@@ -1,21 +1,23 @@
 [claim]
 id = "budget-contract-v2-carrier-metric-contracts-20260719"
-change_id = "budget-contract-v2-carrier-metric-contracts-20260719"
 subject = "quality:budget-contract-v2:carrier-metric-contracts"
 state = "active"
-summary = "Define the bounded Task 2 claim for strict typed carrier and metric contracts, exact-one classification, deterministic digests, and current manifest coverage without claiming measurement or v2 enforcement."
+summary = "Implement and independently review the bounded Task 2 carrier and metric contracts, fail-closed Git inventory, exact-one classification, and canonical full-identity digests without claiming measurement or v2 enforcement."
 
 [evidence]
 dated = "evidence/chronicle/budget-contract-v2-carrier-metric-contracts-20260719/2026-07-19.md"
-sha256 = "b33a0957da7ca29be592bdd26dd2f7788fc7ef1f2180594f06f663691fc30a1e"
+sha256 = "7ce2a550ffe51c02d81252d12b447a6284f10872cf135e585d16e642308793da"
 evidence_ids = ["evidence:budget-contract-v2-carrier-metric-contracts-20260719"]
-binding = "DR-0008, the approved Budget Contract v2 design, the active Task 2 OpenSpec Change, strict contract and adapter tests, declarative manifests, schema projections, current inventory classification, reviewed Chronicle facts, parity, and HEAD-bound proof bind this contract-only slice as those transitions execute."
+binding = "DR-0008, the accepted Foundation, the active Task 2 OpenSpec Change, strict typed contracts and loaders, the complete 2,597-path exact-one observation, reviewed counts and canonical digests, 108 focused tests, 28 v1 regressions, owner quality gates, and independent review bind this contract-only slice; parity, HEAD-bound proof, archive, and downstream closeout remain separate transitions."
 verifier = "digest_only"
 tests = [
   "tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev pytest -q tests/unit/kernel/test_source_budget_carriers_contract.py tests/unit/kernel/test_source_budget_metrics_contract.py tests/unit/adapters/repo/source_budget/test_carriers.py tests/unit/governance/validation/test_schemas.py",
+  "tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev pytest -q tests/unit/kernel/test_source_budget_contract.py tests/unit/adapters/repo/test_source_budget.py tests/unit/domain/source_budget/test_core.py",
   "tools/ci/scripts/run-python-lint.sh",
   "tools/ci/scripts/run-config-lint.sh",
   "tools/ci/scripts/run-json-schema-check.sh",
+  "tools/ci/scripts/run-ethos-lane.sh quality module-layout --json",
+  "tools/ci/scripts/run-ethos-lane.sh quality source-budget --json",
   "openspec validate budget-contract-v2-carrier-metric-contracts-20260719 --strict --json",
   "tools/ci/scripts/run-ethos-lane.sh quality claims --json",
   "tools/ci/scripts/run-ethos-lane.sh plan --changed --json",
@@ -28,16 +30,26 @@ mode = "historical"
 
 [boundary]
 owner = "quality"
-scope = "Budget Contract v2 Task 2 typed carrier and metric declarations, strict loading, exact-one classification, deterministic digests, and current manifest coverage only; no measurement, policy, enforcement, cutover, remote, or hosted claim."
+scope = "Budget Contract v2 Task 2 typed carrier and metric declarations, strict fail-closed Git inventory, exact-one classification, canonical full-identity digests, and current manifest coverage only; no content measurement, policy enforcement, cutover, v1 global LOC retirement, remote, or hosted claim."
 
 [carriers]
 openspec = "openspec/changes/budget-contract-v2-carrier-metric-contracts-20260719"
-fallback = "Keep v1 source-budget fully authoritative and reject Task 3 or later work when a carrier or metric contract is missing, invalid, ambiguous, unsupported, compensating, or model-token based."
-kill_signal = "A maintained path can disappear through zero or first-match classification, invalid input returns an empty clean contract, a hard coordinate compensates another, or BPE/model tokens enter repository-source truth."
+fallback = "Keep v1 source-budget fully authoritative and reject Task 3 or later work when a carrier or metric contract is missing, invalid, ambiguous, unsupported, compensating, model-token based, or cannot be observed without a partial inventory."
+kill_signal = "A maintained path disappears through zero or first-match classification, invalid input returns a clean empty or partial contract, inventory identity can be forged, a hard coordinate compensates another, carrier bytes escape the repository boundary, or BPE/model tokens enter repository-source truth."
 
 [promotion]
 targets = [
   "docs/plans/budget-contract-v2-implementation.md",
+  "packages/ethos-core/src/ethos_core/contracts/source_budget/carriers.py",
+  "packages/ethos-core/src/ethos_core/contracts/source_budget/metrics.py",
+  "packages/ethos/src/ethos/adapters/repo/source_budget/carriers.py",
+  "system/policies/source-budget-carriers.toml",
+  "system/policies/source-budget-metrics.toml",
+  "system/schemas/kernel/source-budget-carriers.schema.json",
+  "system/schemas/kernel/source-budget-metrics.schema.json",
+  "tests/unit/kernel/test_source_budget_carriers_contract.py",
+  "tests/unit/kernel/test_source_budget_metrics_contract.py",
+  "tests/unit/adapters/repo/source_budget/test_carriers.py",
   "tests/unit/governance/validation/test_schemas.py",
   "openspec/changes/budget-contract-v2-carrier-metric-contracts-20260719",
   "openspec/specs/contracts/spec.md",

@@ -263,7 +263,7 @@ def repository_audit(
         + docs_without_front_matter
         + schemas_missing
         + release_files_missing
-        + [f"adoption_scaffold_missing:{path}" for path in playbooks_missing]
+        + [f"playbook_projection_missing:{path}" for path in playbooks_missing]
         + [f"openspec_capability_missing:{path}" for path in openspec_capability_missing]
         + claim_gaps
         + schema_gaps

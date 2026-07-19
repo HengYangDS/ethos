@@ -17,7 +17,7 @@ from ethos.adapters.mutation import lanes
 from ethos.adapters.mutation import proof as mutation_proof
 from ethos.adapters.store.state.lease.lifecycle.core import acquire_lease
 from ethos.repository.evidence.core import EvidenceSet
-from ethos.repository.policy.gates import promotion_required_gate_ids
+from ethos.repository.policy.gates import default_gate_ids
 from tests.support.contract_helpers import conformant_proof_run
 
 
@@ -271,7 +271,7 @@ def test_discard_executed_proof_idempotent(tmp_path: Path) -> None:
     # absent (idempotent).
     _init_repo(tmp_path)
     head = "b" * 40
-    runs = tuple(conformant_proof_run(g, tmp_path) for g in promotion_required_gate_ids(tmp_path))
+    runs = tuple(conformant_proof_run(g, tmp_path) for g in default_gate_ids(root=tmp_path))
     mutation_proof.record_executed_proof(
         tmp_path, EvidenceSet.from_runs(id="proof", head=head, runs=runs).to_dict()
     )

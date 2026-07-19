@@ -36,13 +36,13 @@ adapter / IO
     -> strict typed facts
     -> pure reducer, compiler, and graph kernel
     -> immutable typed projection
-    -> CLI, template, provider, or evidence adapter
+    -> CLI, serializer, provider, or evidence adapter
 ```
 
 Python owns IO boundaries, compilation, pure reduction, and adapters. TOML owns
 durable declarations. CEL owns bounded predicates over typed facts. `graphlib`
-owns graph ordering and cycle detection. Jinja owns projection rendering with a
-typed context. A projection never becomes truth merely because it was rendered.
+owns graph ordering and cycle detection. Native serializers own unavoidable
+external leaves. A projection never becomes truth merely because it was emitted.
 
 ## Baseline And Non-Evasion Rule
 
@@ -55,7 +55,7 @@ all tracked Python effective source: 83,889
 ```
 
 `global_effective` counts tracked, maintained executable carriers: product and
-test Python, tools, shell, JavaScript, TOML, YAML, JSON/JSON Schema, INI, Jinja,
+test Python, tools, shell, JavaScript, TOML, YAML, JSON/JSON Schema, INI,
 and diagrams. It excludes prose, evidence, caches, binaries, and lockfiles. A
 tracked generated projection remains counted unless it is separately reported as
 reproducible derived output; it never makes its source disappear from the metric.
@@ -121,13 +121,13 @@ the single dual-remote publication.
 | Graphs | Python `graphlib` | No bespoke topological sorter or cycle walker. |
 | Predicates | `cel-python`, restricted CEL subset | Pure typed facts only; no IO, mutation, dynamic imports, reflection, or unbounded user functions. |
 | CLI | Cyclopts plus declaration-first command registry | Manual handlers only bind an adapter or carry a bounded migration. |
-| Templates | Jinja2 plus typed context and `StrictUndefined` | Rendered output is checked by the target carrier tool. |
+| Serialization | Carrier-native serializer over a strict typed declaration | Generated leaves must be externally required and checked by the target carrier tool. |
 | Functional form | Pure reducers and explicit typed results | No DI/effect framework, `returns`, persistent-map abstraction, or second result hierarchy. |
 | Property testing | Hypothesis | Used where it replaces scenario enumeration; its database is runtime state. |
 | Duplication control | AST-native redundancy, forwarder, re-export, and semantic-owner checks | No perpetual jscpd/vulture allowlist. |
 
 NetworkX, OPA/Rego, Temporal, Dagster, Airflow, CUE, Jsonnet, Dhall, Nickel,
-Copier, Cookiecutter, `returns`, Pyrsistent, immutables, Nox, Pixi, Allure, and
+Jinja2, Copier, Cookiecutter, `returns`, Pyrsistent, immutables, Nox, Pixi, Allure, and
 Testcontainers are intentionally outside the product. They add a runtime,
 parallel authority, or framework surface without a demonstrated net deletion.
 
@@ -145,23 +145,22 @@ runtime-cache home, supply-chain owner, and a named gate.
 | JSON and JSON Schema | jq canonical formatting, check-jsonschema, schema fixtures and Pydantic round trips |
 | Shell | shfmt, ShellCheck, explicit exit-code contract smoke |
 | JS/MJS | ESLint, `node --check`, npm clean-install smoke |
-| Jinja | AST parse, typed context, `StrictUndefined`, deterministic render; then target-carrier formatter/linter |
 | Markdown | markdownlint-cli2, lychee, codespell |
 | Mermaid/C4 | deterministic `mmdc` render/syntax validation |
 | INI | no new files; migrate the remaining files to TOML during cleanup |
 
-Jinja and Mermaid do not receive a source formatter merely to satisfy a checklist:
-`djLint` is unsuitable for ETHOS's non-HTML templates, and Mermaid has no stable
-general formatter. Their output or renderer is the canonical form. This is an
-explicit exception, not an unowned format.
+Mermaid does not receive a source formatter merely to satisfy a checklist; its
+deterministic renderer is the canonical check. This is an explicit exception,
+not an unowned format.
 
 All Python and Node tools are locked repository dependencies, not global-machine
 assumptions. Dependency admission records the replacement, import and lock impact,
 cold-start cost, version, checksum where relevant, vulnerability surface, deletion
 plan, and rollback. Supply-chain proof uses `uv lock --locked`, `npm ci
---ignore-scripts`, deptry, pip-audit, npm audit, Syft SPDX SBOM, Grype, gitleaks,
-Semgrep, package checks, and reproducible-build hashes. OSV scanning and Trivy do
-not join the default floor because this set already covers locks and artifacts.
+--ignore-scripts`, deptry, uv audit, npm audit, Syft SPDX SBOM, Grype, gitleaks,
+Semgrep, package checks, and reproducible-build hashes. Separate OSV and Trivy
+clients do not join the default floor because native uv audit already covers the
+Python lock and this set already covers artifacts.
 
 ## CI Provider Parity
 

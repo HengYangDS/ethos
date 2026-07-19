@@ -1,7 +1,7 @@
 [claim]
 id = "ethos-terminal-final-design"
 subject = "ethos:terminal-final-design"
-state = "active"
+state = "archived"
 summary = "ETHOS terminal final design productizes OpenSpec substrate, capability routing, invocation admission, and evidence closeout guidance."
 
 [evidence]

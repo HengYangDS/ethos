@@ -10,13 +10,6 @@
     "operation": "replace",
     "value": "[[asset_inventory.assets]]\nid = \"ledger\"\nkind = \"service\"\nowner = \"platform\"\ndata_class = \"internal\"\nlifecycle = \"persistent\"\nobservability = \"required\"\nbackup_restore = \"not_applicable\"\nexit_evidence = \"docker-desktop apple-container rancher_desktop\"\nnetwork = \"loopback\"\nmount_boundary = \"trusted\"\nimage_reference = \"registry.example/ledger:v1\"\nports = []\n[asset_inventory.assets.evidence]\npath = \"evidence/container/asset.json\"\nsha256 = \"ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356\"\n"
   },
-  "declaration_schema": {
-    "expected": [
-      "container_contract_declaration_schema"
-    ],
-    "operation": "profile",
-    "value": "[container_contract]\nschema_version = 1\nmanifest = \"evidence/container.json\""
-  },
   "directory_manifest": {
     "expected": [
       "container_contract_manifest_not_regular_file"
@@ -57,7 +50,7 @@
   },
   "invalid_profile": {
     "expected": [
-      "container_contract_profile_invalid_toml"
+      "container_contract_profile_invalid"
     ],
     "operation": "profile",
     "value": "container_contract = ["
@@ -76,37 +69,18 @@
     "operation": "replace",
     "value": "path = \"missing.json\""
   },
-  "non_table": {
-    "expected": [
-      "container_contract_declaration_not_table"
-    ],
-    "operation": "profile",
-    "value": "container_contract = \"declared\""
-  },
   "not_declared": {
     "advisory": "container_contract_not_declared",
     "operation": "profile",
     "state": "not_declared",
-    "value": "profile_id = \"example\""
+    "value": ""
   },
   "path_escape": {
     "expected": [
-      "container_contract_declaration"
+      "container_contract_profile_invalid"
     ],
     "operation": "profile",
     "value": "[container_contract]\nschema_version = 1\nmanifest = \"../container-contract.toml\"\n"
-  },
-  "profile_directory": {
-    "expected": [
-      "container_contract_profile_not_regular_file"
-    ],
-    "operation": "profile_directory"
-  },
-  "profile_symlink": {
-    "expected": [
-      "container_contract_profile_path_escapes_root"
-    ],
-    "operation": "profile_symlink"
   },
   "relaxed_adopter_schema": {
     "expected": [

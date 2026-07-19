@@ -308,14 +308,14 @@ def test_campaign_report_exposes_manifest_steps_and_closeout_progress() -> None:
     assert campaign["objective"]
     assert campaign["state"] == "active"
     assert campaign["step_summary"]["total"] >= 8
-    assert campaign["step_summary"]["planned"] >= 5
+    assert campaign["step_summary"]["planned"] >= 4
     assert campaign["step_summary"]["active"] == 0
     assert campaign["step_summary"]["closed"] >= 4
     assert campaign["lane_topology"]["kind"] == "openspec_lane_sequence"
     assert campaign["lane_topology"]["mode"] == "strict_serial"
     assert campaign["lane_topology"]["active_step"] == ""
     assert campaign["lane_topology"]["active_steps"] == []
-    assert campaign["lane_topology"]["next_planned_step"] == "adopter-openspec-scaffold"
+    assert campaign["lane_topology"]["next_planned_step"] == "projection-digest-governance"
     assert campaign["lane_topology"]["edges"][0] == {
         "from": "campaign-orchestration",
         "to": "openspec-product-protocol",

@@ -32,8 +32,6 @@ class MaterialScopeBinding(NamedTuple):
     required_gaps: tuple[str, ...]
     advisory_gaps: tuple[str, ...]
     bootstrap: dict[str, str] | None
-    profile_bootstrap: dict[str, str] | None
-    recovery: dict[str, str] | None
 
 
 def material_change_scope_report(
@@ -65,18 +63,17 @@ def material_change_scope_report(
         required_gaps=(),
         advisory_gaps=(),
         bootstrap=None,
-        profile_bootstrap=None,
-        recovery=None,
     )
     if not profile.exists:
         binding = binding._replace(state="not_applicable")
-    elif not profile.valid:
+    elif profile.state == "invalid":
         binding = binding._replace(required_gaps=("openspec_material_paths_profile_invalid",))
     else:
+        assert profile.declaration is not None
         binding = _material_scope_binding_for_profile(
             root,
             binding=binding,
-            policy_payload=profile.tables.get("openspec"),
+            policy=profile.declaration.openspec,
             active_change_names=active_change_names,
         )
     return _material_scope_payload(binding)
@@ -86,30 +83,10 @@ def _material_scope_binding_for_profile(
     root: Path,
     *,
     binding: MaterialScopeBinding,
-    policy_payload: object,
+    policy: AdopterOpenSpecPolicy,
     active_change_names: tuple[str, ...] | None,
 ) -> MaterialScopeBinding:
     """Project scope coverage after confirming an adopter profile exists and parses."""
-    profile_bootstrap = _profile_material_paths_bootstrap(
-        root=root,
-        changed_paths=binding.changed_paths,
-        policy_payload=policy_payload,
-        active_change_names=active_change_names,
-    )
-    if profile_bootstrap is not None:
-        return binding._replace(
-            state="profile_material_paths_bootstrap",
-            profile_bootstrap=profile_bootstrap,
-        )
-    if _material_paths_missing(policy_payload):
-        return binding._replace(
-            state="material_paths_missing",
-            required_gaps=("openspec_material_paths_missing",),
-        )
-    try:
-        policy = AdopterOpenSpecPolicy.model_validate(policy_payload)
-    except ValidationError:
-        return binding._replace(required_gaps=("openspec_material_paths_invalid",))
     material_patterns = policy.material_paths
     material_paths = tuple(
         path
@@ -122,22 +99,6 @@ def _material_scope_binding_for_profile(
     )
     if not material_paths:
         return binding._replace(state="no_material_paths")
-    return _material_scope_binding_for_material_paths(
-        root=root,
-        binding=binding,
-        material_paths=material_paths,
-        active_change_names=active_change_names,
-    )
-
-
-def _material_scope_binding_for_material_paths(
-    *,
-    root: Path,
-    binding: MaterialScopeBinding,
-    material_paths: tuple[str, ...],
-    active_change_names: tuple[str, ...] | None,
-) -> MaterialScopeBinding:
-    """Project coverage after profile policy selected material paths."""
     changes = _change_scope_declarations(root, active_change_names=active_change_names)
     changes = (
         *changes,
@@ -161,17 +122,6 @@ def _material_scope_binding_for_material_paths(
             state="bootstrap_scope_creation",
             advisory_gaps=(),
             bootstrap=bootstrap,
-        )
-    recovery = _tracked_invalid_scope_recovery(
-        root=root,
-        material_paths=material_paths,
-        changes=changes,
-    )
-    if recovery is not None:
-        return binding._replace(
-            state="tracked_scope_repair_admitted",
-            advisory_gaps=(),
-            recovery=recovery,
         )
     covered, uncovered = _scope_coverage(material_paths, changes)
     required_gaps = tuple(f"openspec_material_path_uncovered:{path}" for path in uncovered)
@@ -233,36 +183,6 @@ def _bootstrap_scope_creation(
     return {"change": str(change["name"]), "scope_path": requested}
 
 
-def _profile_material_paths_bootstrap(
-    *,
-    root: Path,
-    changed_paths: tuple[str, ...],
-    policy_payload: object,
-    active_change_names: tuple[str, ...] | None,
-) -> dict[str, str] | None:
-    """Admit only the one tracked profile write that adds a missing declaration.
-
-    Existing adopters predate the material-scope contract.  They need one
-    recoverable first write: add ``[openspec].material_paths`` to their
-    already-tracked profile, then use the normal exact ``scope.toml`` bootstrap.
-    The exception never treats an empty or malformed declaration as valid and
-    never admits an adjacent material path.
-    """
-    profile_path = ".ethos/profile.toml"
-    if not _material_declaration_absent(policy_payload):
-        return None
-    if changed_paths != (profile_path,) or not _is_tracked_path(root, profile_path):
-        return None
-    names = tuple(active_change_names or ())
-    if len(names) != 1:
-        return None
-    change_name = names[0]
-    change_root = root / "openspec" / "changes" / change_name
-    if not change_root.is_dir():
-        return None
-    return {"change": change_name, "profile_path": profile_path}
-
-
 def _is_untracked_scope_path(root: Path, path: str) -> bool:
     """Return whether the exact bootstrap companion has never entered Git's index."""
     completed = subprocess.run(
@@ -273,58 +193,6 @@ def _is_untracked_scope_path(root: Path, path: str) -> bool:
         check=False,
     )
     return completed.returncode == 1
-
-
-def _tracked_invalid_scope_recovery(
-    *,
-    root: Path,
-    material_paths: tuple[str, ...],
-    changes: tuple[dict[str, object], ...],
-) -> dict[str, str] | None:
-    """Admit repair of one selected tracked malformed scope companion only.
-
-    A malformed companion cannot declare coverage, but it is the exact tracked
-    artifact needed to restore that coverage.  This narrow recovery never
-    admits a neighboring material path or makes the malformed declaration
-    authoritative before it is repaired.
-    """
-    if len(material_paths) != 1:
-        return None
-    requested = material_paths[0]
-    matches = [
-        change
-        for change in changes
-        if change["state"] == "invalid" and str(change["scope_path"]) == requested
-    ]
-    if len(matches) != 1 or not _is_tracked_path(root, requested):
-        return None
-    change = matches[0]
-    return {"change": str(change["name"]), "scope_path": requested}
-
-
-def _is_tracked_path(root: Path, path: str) -> bool:
-    """Return whether a path is already tracked by Git."""
-    completed = subprocess.run(
-        ["git", "ls-files", "--error-unmatch", "--", path],
-        cwd=root,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    return completed.returncode == 0
-
-
-def _material_paths_missing(policy_payload: object) -> bool:
-    """Return whether an adopter has not made the required material declaration."""
-    if not isinstance(policy_payload, dict) or "material_paths" not in policy_payload:
-        return True
-    paths = policy_payload.get("material_paths")
-    return isinstance(paths, list) and not paths
-
-
-def _material_declaration_absent(policy_payload: object) -> bool:
-    """Return true only when a legacy profile has no declaration at all."""
-    return not isinstance(policy_payload, dict) or "material_paths" not in policy_payload
 
 
 def _change_scope_declarations(
@@ -415,6 +283,4 @@ def _material_scope_payload(binding: MaterialScopeBinding) -> dict[str, Any]:
         "required_gaps": list(binding.required_gaps),
         "advisory_gaps": list(binding.advisory_gaps),
         "bootstrap": binding.bootstrap or {},
-        "profile_bootstrap": binding.profile_bootstrap or {},
-        "recovery": binding.recovery or {},
     }

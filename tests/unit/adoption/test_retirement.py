@@ -3,8 +3,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from ethos.repository.adoption.retirement.core import retirement_readiness_report
+from ethos.repository.adoption.retirement.rollback import rollback_manifest_gaps
 from ethos.repository.profile import load_repository_profile
-from ethos.repository.profile import profile_table
 from tests.support.ethos_cli_runner import run_ethos
 from tests.unit.adoption.retirement.fixtures import STANDARD_ROLLBACK_SCENARIOS
 from tests.unit.adoption.retirement.fixtures import git_add_all
@@ -29,14 +29,16 @@ def _adopter_product(tmp_path: Path) -> tuple[Path, Path]:
     return adopter, product
 
 
-def test_repository_profile_exposes_generic_tables(tmp_path: Path) -> None:
+def test_repository_profile_exposes_typed_declaration(tmp_path: Path) -> None:
     write_profile(tmp_path, external_state="adoption_preview", embedded_state="active")
 
     profile = load_repository_profile(tmp_path)
 
-    assert profile.identity["profile_id"] == "sample"
-    assert profile_table(tmp_path, "external_backend")["minimum_version"] == "external>=embedded"
-    assert profile_table(tmp_path, "adoption_boundary")["execution_config_root"] == ".config"
+    assert profile.declaration is not None
+    assert profile.declaration.profile_id == "sample"
+    assert profile.declaration.external_backend is not None
+    assert profile.declaration.external_backend.minimum_version == "external>=embedded"
+    assert profile.declaration.adoption_boundary.execution_config_root == ".config"
 
 
 def test_retirement_readiness_blocks_until_external_default_and_embedded_frozen(
@@ -198,11 +200,7 @@ def test_retirement_readiness_rejects_backend_control_path_and_parse_gaps(
     )
     outside_report = retirement_readiness_report(target=outside, product_root=product)
 
-    assert (
-        "retirement_backend_control_path_outside_repo:../external-ethos-backend.toml"
-        in outside_report["required_gaps"]
-    )
-    assert outside_report["state"] == "backend_control_open"
+    assert "retirement_profile_invalid:.ethos/profile.toml" in outside_report["required_gaps"]
 
     invalid = tmp_path / "invalid-control"
     invalid.mkdir()
@@ -433,9 +431,16 @@ def test_retirement_readiness_rejects_rollback_manifest_outside_repo(
     report = terminal_report(adopter, product)
 
     assert report["ok"] is False
-    assert (
-        "retirement_rollback_window_evidence_manifest_path_outside_repo:../rollback-window.toml"
-    ) in report["required_gaps"]
+    assert "retirement_profile_invalid:.ethos/profile.toml" in report["required_gaps"]
+
+
+def test_rollback_manifest_gaps_rejects_outside_repo_path(tmp_path: Path) -> None:
+    assert rollback_manifest_gaps(
+        repo=tmp_path,
+        product=tmp_path,
+        evidence_manifest="../rollback-window.toml",
+        required_scenarios=[],
+    ) == ["retirement_rollback_window_evidence_manifest_path_outside_repo:../rollback-window.toml"]
 
 
 def test_retirement_readiness_rejects_missing_rollback_manifest(

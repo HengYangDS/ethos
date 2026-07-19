@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import tomllib
 from typing import TYPE_CHECKING
-from typing import Any
 from typing import cast
 
 if TYPE_CHECKING:
@@ -11,6 +10,8 @@ if TYPE_CHECKING:
 from ethos.repository.adoption.retirement.rollback import rollback_window_checks
 from ethos.repository.policy.artifacts import generated_artifact_topology_report
 from ethos.repository.policy.docs.topology import docs_topology_report
+from ethos.repository.profile import AdoptionBoundaryPolicy
+from ethos.repository.profile import BackendPolicy
 from ethos.repository.profile import load_repository_profile
 from ethos_core.normalization.core import string_list
 from ethos_core.normalization.core import string_mapping
@@ -39,25 +40,26 @@ def retirement_readiness_report(
     profile = load_repository_profile(repo)
     required_gaps: list[str] = []
 
-    if not profile.exists:
+    if profile.state == "missing":
         required_gaps.append("retirement_profile_missing:.ethos/profile.toml")
-    if not profile.valid:
+    if profile.state != "valid":
         required_gaps.append("retirement_profile_invalid:.ethos/profile.toml")
 
-    adoption_boundary = profile.tables.get("adoption_boundary", {})
-    external_backend = profile.tables.get("external_backend", {})
-    embedded_backend = profile.tables.get("embedded_backend", {})
-    rollback_window = profile.tables.get("rollback_window", {})
+    declaration = profile.declaration
+    adoption_boundary = declaration.adoption_boundary if declaration else None
+    external_backend = declaration.external_backend if declaration else None
+    embedded_backend = declaration.embedded_backend if declaration else None
+    rollback_window = declaration.rollback_window if declaration else None
 
-    external_state = str(external_backend.get("state") or "")
-    embedded_state = str(embedded_backend.get("state") or "")
+    external_state = external_backend.state if external_backend else ""
+    embedded_state = embedded_backend.state if embedded_backend else ""
     parity_ok = bool(parity_gaps and parity_gaps.get("ok") is True)
     shadow_ok = bool(shadow and shadow.get("ok") is True)
 
-    adopter = profile.identity.get("profile_id") or repo.name
+    adopter = declaration.profile_id if declaration else repo.name
     checks = {
         "profile": _profile_checks(
-            repo, profile_exists=profile.exists, profile_valid=profile.valid
+            repo, profile_exists=profile.exists, profile_valid=profile.state == "valid"
         ),
         "binding": _binding_checks(repo, adoption_boundary),
         "external_backend": _external_backend_checks(external_backend),
@@ -122,9 +124,15 @@ def _profile_checks(repo: Path, *, profile_exists: bool, profile_valid: bool) ->
     }
 
 
-def _binding_checks(repo: Path, adoption_boundary: dict[str, Any]) -> dict[str, object]:
-    binding_manifest = str(adoption_boundary.get("binding_manifest") or ".ethos/profile.toml")
-    execution_config_root = str(adoption_boundary.get("execution_config_root") or ".config")
+def _binding_checks(
+    repo: Path, adoption_boundary: AdoptionBoundaryPolicy | None
+) -> dict[str, object]:
+    binding_manifest = (
+        adoption_boundary.binding_manifest if adoption_boundary else ".ethos/profile.toml"
+    )
+    execution_config_root = (
+        adoption_boundary.execution_config_root if adoption_boundary else ".config"
+    )
     gaps = []
     if binding_manifest != ".ethos/profile.toml":
         gaps.append(f"retirement_binding_manifest_not_generic:{binding_manifest}")
@@ -142,12 +150,12 @@ def _binding_checks(repo: Path, adoption_boundary: dict[str, Any]) -> dict[str, 
     }
 
 
-def _external_backend_checks(external_backend: dict[str, Any]) -> dict[str, object]:
-    state = str(external_backend.get("state") or "")
-    minimum_version = str(external_backend.get("minimum_version") or "")
-    shadow_required = external_backend.get("shadow_required") is True
+def _external_backend_checks(external_backend: BackendPolicy | None) -> dict[str, object]:
+    state = external_backend.state if external_backend else ""
+    minimum_version = external_backend.minimum_version if external_backend else ""
+    shadow_required = external_backend.shadow_required if external_backend else False
     gaps = []
-    if not external_backend:
+    if external_backend is None:
         gaps.append("retirement_external_backend_missing")
     if minimum_version != "external>=embedded":
         gaps.append("retirement_external_minimum_version_not_ge_embedded")
@@ -166,15 +174,13 @@ def _external_backend_checks(external_backend: dict[str, Any]) -> dict[str, obje
     }
 
 
-def _backend_control_checks(repo: Path, external_backend: dict[str, Any]) -> dict[str, object]:
-    control = str(external_backend.get("control") or "")
-    expected_external_state = str(external_backend.get("state") or "")
+def _backend_control_checks(
+    repo: Path, external_backend: BackendPolicy | None
+) -> dict[str, object]:
+    control = external_backend.control if external_backend else ""
+    expected_external_state = external_backend.state if external_backend else ""
     if not control:
         return {"ok": True, "path": "", "required_gaps": []}
-
-    path_gap = _backend_control_path_gap(control)
-    if path_gap:
-        return {"ok": False, "path": control, "required_gaps": [path_gap]}
 
     path = repo / control
     if not path.exists():
@@ -206,12 +212,6 @@ def _backend_control_checks(repo: Path, external_backend: dict[str, Any]) -> dic
         "rollback_mode": str(current.get("rollback_mode") or ""),
         "required_gaps": gaps,
     }
-
-
-def _backend_control_path_gap(control: str) -> str:
-    if control.startswith("/") or ".." in control.split("/"):
-        return f"retirement_backend_control_path_outside_repo:{control}"
-    return ""
 
 
 def _read_backend_control(path: Path, control: str) -> tuple[dict[str, object], str]:
@@ -301,11 +301,13 @@ def _backend_control_rollback_gaps(
     return []
 
 
-def _embedded_backend_checks(repo: Path, embedded_backend: dict[str, object]) -> dict[str, object]:
-    state = str(embedded_backend.get("state") or "")
-    policy = str(embedded_backend.get("retirement_policy") or "")
+def _embedded_backend_checks(
+    repo: Path, embedded_backend: BackendPolicy | None
+) -> dict[str, object]:
+    state = embedded_backend.state if embedded_backend else ""
+    policy = embedded_backend.retirement_policy if embedded_backend else ""
     gaps = []
-    if not embedded_backend:
+    if embedded_backend is None:
         gaps.append("retirement_embedded_backend_missing")
     if state not in EMBEDDED_FROZEN_STATES:
         gaps.append(f"retirement_embedded_backend_not_frozen:{state or 'missing'}")
@@ -322,10 +324,10 @@ def _embedded_backend_checks(repo: Path, embedded_backend: dict[str, object]) ->
 
 
 def _product_boundary_checks(
-    product_root: Path, adoption_boundary: dict[str, object]
+    product_root: Path, adoption_boundary: AdoptionBoundaryPolicy | None
 ) -> dict[str, object]:
-    forbidden = string_list(
-        adoption_boundary.get("forbidden_external_product_roots"), drop_empty=True
+    forbidden = (
+        list(adoption_boundary.forbidden_external_product_roots) if adoption_boundary else []
     )
     present = [path for path in forbidden if (product_root / path).exists()]
     gaps = [f"forbidden_external_product_root_present:{path}" for path in present]
@@ -349,8 +351,6 @@ def _docs_topology_checks(repo: Path) -> dict[str, object]:
         "state": report.get("state", ""),
         "missing_paths": string_list(report.get("missing_paths"), drop_empty=True),
         "forbidden_roots": string_list(report.get("forbidden_roots"), drop_empty=True),
-        "time_state_roots": string_list(report.get("time_state_roots"), drop_empty=True),
-        "profile_policy": report.get("profile_policy", {}),
         "required_gaps": gaps,
         "summary": {
             "required_path_count": summary.get("required_path_count", 0),

@@ -8,7 +8,7 @@ summary = "An opt-in provider-neutral adopter container contract is product-sche
 dated = "evidence/chronicle/container-contract-current-replay-20260719/2026-07-19.md"
 sha256 = "6a8d038312c57f7accd1abdb312e30ef93d4791bf1bf3af52f13461c68aa63ef"
 evidence_ids = ["evidence:container-contract-current-replay-20260719"]
-binding = "Archived OpenSpec carrier, product schemas, thin validator, fixture matrix, and current owner-bound lane lease."
+binding = "Archived OpenSpec carrier, the typed repository-profile declaration, product manifest schema, thin validator, fixture matrix, and current owner-bound lane lease."
 verifier = "digest_only"
 tests = [
   "tools/ci/scripts/with-python-runtime.sh -- uv run --group dev pytest -q tests/unit/policy/test_container_contract.py",
@@ -42,7 +42,7 @@ targets = [
   "packages/ethos/src/ethos/repository/policy/container_contract/core.py",
   "packages/ethos/src/ethos/repository/policy/schema.py",
   "system/invalid_states.toml",
-  "system/schemas/kernel/container-contract-declaration.schema.json",
+  "packages/ethos/src/ethos/repository/profile.py",
   "system/schemas/kernel/container-contract.schema.json",
   "tests/fixtures/container-contract",
   "tests/unit/policy/test_container_contract.py",

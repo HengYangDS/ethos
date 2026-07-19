@@ -155,8 +155,8 @@ same owner scripts SHALL participate in the default ETHOS proof floor.
 - **AND** root `pyproject.toml` carries only the pytest discovery cache route to
   `build/runtime/tool-cache/pytest`
 - **AND** the repository root does not contain `ruff.toml` or `pytest.ini`
-- **AND** adopter CI scaffolds do not assume the product repository's Ruff,
-  pytest, or owner-script surfaces
+- **AND** adopter-native gates and provider projections do not assume the product
+  repository's Ruff, pytest, or owner-script surfaces
 
 #### Scenario: Bare pytest discovery preserves the semantic cache boundary
 

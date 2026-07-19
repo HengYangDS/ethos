@@ -1,7 +1,7 @@
 [claim]
 id = "openspec-semantic-capability-layout"
 subject = "ethos:openspec-semantic-capability-layout"
-state = "active"
+state = "archived"
 change_id = "openspec-semantic-capability-layout-20260706"
 summary = "ETHOS binds the active OpenSpec declared capability layout change to local quality gates and executed proof while remote GitLab publication remains deferred."
 

@@ -158,7 +158,7 @@ match_prefixes = [
   "prewrite_guard_not_supplied",
   "protected_root_pretool_paths_required",
   "expect_head_required",
-  "adoption_scaffold_missing",
+  "playbook_projection_missing",
   "adopter_missing",
   "accepted_advance_not_candidate_validated",
   "accepted_ref_move_not_candidate_head",

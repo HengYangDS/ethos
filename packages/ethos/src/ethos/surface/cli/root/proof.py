@@ -18,6 +18,7 @@ from ethos.repository.evidence.core import EvidenceSet
 from ethos.repository.evidence.core import ProofRun
 from ethos.repository.evidence.core import provenance_envelope
 from ethos.repository.evidence.core import trim_output
+from ethos.repository.policy.gates import adopter_code_correctness_gaps
 from ethos.repository.policy.gates import gate_graph
 from ethos.repository.policy.gates import gate_registry
 from ethos.surface.cli._base import JsonFlag
@@ -145,10 +146,12 @@ def prove(
         repo,
         lifecycle=True,
         changed_paths=changed_paths,
+        require_workspace=False,
     )
     lifecycle_gaps = tuple(str(gap) for gap in openspec_lifecycle.get("required_gaps", []))
     graph = gate_graph(gate, full=full, root=repo)
     graph_validation = graph.validate()
+    correctness_gaps = adopter_code_correctness_gaps(repo)
     gates_by_id = gate_registry(repo)
     runner = (
         LocalSubprocessRunner(inprocess_handler=run_inprocess_cli_gate)
@@ -209,6 +212,7 @@ def prove(
         and bool(openspec_lifecycle.get("ok"))
         and runs_ok
         and graph_validation.ok
+        and not correctness_gaps
         and not failed_gate_gaps
         and not proof_gaps
         and not trust_gaps
@@ -244,6 +248,7 @@ def prove(
             tuple(string_sequence(audit.get("required_gaps")))
             + lifecycle_gaps
             + tuple(graph_validation.gaps)
+            + correctness_gaps
             + failed_gate_gaps
             + proof_gaps
             + trust_gaps

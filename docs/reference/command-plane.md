@@ -78,9 +78,8 @@ are not compatibility surfaces.
 Setup/onboarding commands:
 
 ```bash
-ethos adopt --profile python --dry-run --json
-ethos adopt --profile python --apply --authorize --expect-head <git-head> --json
-ethos init --profile gitlab --dry-run --json
+ethos adopt --root <repo> --json
+ethos adopt --root <repo> --apply --authorize --expect-head <git-head> --json
 ethos doctor
 ```
 
@@ -155,7 +154,7 @@ own authority.
 `ethos quality governance-kernel --json` is the independent guard for
 Isomorphic Governance. It checks the live `governance_context`, the
 product/adopter governance profile isomorphism, the product docs that make the
-contract discoverable, and the generic adoption scaffold. A clean verdict means
+contract discoverable, and the minimal adoption binding. A clean verdict means
 product and adopted repositories share the same kernel and same transition
 command semantics; only profile and adapter bindings may vary.
 

@@ -78,7 +78,7 @@ def test_evidence_and_release_gates_have_active_owner_surfaces() -> None:
         assert script.is_file()
         assert script.stat().st_mode & stat.S_IXUSR
 
-    expected_adoption = {"osv_vuln": "candidate", "image_package_scan": "deferred", "signing": "candidate"}
+    expected_adoption = {"image_package_scan": "deferred", "signing": "candidate"}
     for concern, adoption in expected_adoption.items():
         assert f'adoption = "{adoption}"' in tool_block(ROOT, concern)
 

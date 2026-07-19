@@ -8,6 +8,7 @@ import pytest
 import ethos.adapters.shadow.execution as shadow_execution
 import ethos.adapters.shadow.identity as shadow_identity
 import ethos.adapters.shadow.semantics as shadow_semantics
+from ethos.repository.evidence.shadow.routing import parity_evidence_path
 from tests.unit.product.parity.snapshots import init_git_repo
 
 if TYPE_CHECKING:
@@ -19,7 +20,11 @@ def test_shadow_identity_evidence_roots_follow_generic_profile(tmp_path: Path) -
     repo.mkdir()
     (repo / ".ethos").mkdir()
     (repo / ".ethos" / "profile.toml").write_text(
-        """schema_version = 1
+        """profile_id = "sample"
+
+[openspec]
+material_paths = [".ethos/profile.toml"]
+
 [roots]
 rules = "policy/rules"
 claims = "records/claims"
@@ -62,17 +67,18 @@ host_local_roots = [".ethos/state"]
     } <= paths
 
 
-def test_shadow_identity_evidence_roots_ignore_invalid_profile(tmp_path: Path) -> None:
+def test_shadow_identity_evidence_roots_reject_invalid_profile(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()
     (repo / ".ethos").mkdir()
     (repo / ".ethos" / "profile.toml").write_text("[", encoding="utf-8")
     (repo / "rules").mkdir()
 
-    paths = {item["path"] for item in shadow_identity.evidence_inputs(repo)}
+    with pytest.raises(ValueError, match="adopter_profile_invalid"):
+        shadow_identity.evidence_inputs(repo)
 
-    assert ".ethos/profile.toml" in paths
-    assert "rules" in paths
+    with pytest.raises(ValueError, match="adopter_profile_invalid"):
+        parity_evidence_path(root=repo, adopter="generic")
 
 
 def test_shadow_identity_changed_paths_handles_rename_and_untracked(tmp_path: Path) -> None:
@@ -108,7 +114,7 @@ def test_shadow_identity_embedded_labels_fallback_to_backend_probe(
     repo = tmp_path / "repo"
     repo.mkdir()
 
-    def fake_backend(target: Path, command: tuple[str, ...]) -> dict[str, object]:
+    def fake_backend(_target: Path, command: tuple[str, ...]) -> dict[str, object]:
         return {"command": "backend " + " ".join(command)}
 
     monkeypatch.setattr(shadow_identity, "embedded_backend", fake_backend)

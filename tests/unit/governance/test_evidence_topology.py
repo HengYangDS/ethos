@@ -6,6 +6,8 @@ from pathlib import Path
 import pytest
 
 from ethos.repository.evidence.topology import evidence_topology_report
+from ethos.repository.profile import RepositoryProfileDeclaration
+from ethos.repository.profile import render_repository_profile
 from ethos_core import _resources
 from ethos_core.contracts.evidence import layout as layout_contract
 from ethos_core.contracts.evidence.layout import load_evidence_layout_declaration
@@ -18,9 +20,13 @@ def _write(path: Path, text: str) -> None:
 
 
 def _profile(root: Path, *, durable_evidence: str, claims: str = "") -> None:
-    roots = f'claims = "{claims}"\n' if claims else ""
+    payload = RepositoryProfileDeclaration.bootstrap(root.name).model_dump(mode="python")
+    payload["roots"]["durable_evidence"] = durable_evidence
+    if claims:
+        payload["roots"]["claims"] = claims
     _write(
-        root / ".ethos/profile.toml", f'[roots]\n{roots}durable_evidence = "{durable_evidence}"\n'
+        root / ".ethos/profile.toml",
+        render_repository_profile(RepositoryProfileDeclaration.model_validate(payload)),
     )
 
 
@@ -85,6 +91,17 @@ def test_evidence_topology_reports_missing_root(tmp_path: Path) -> None:
         "chronicle_records": 0,
         "parity_artifacts": 0,
     }
+
+
+def test_evidence_topology_rejects_invalid_profile(tmp_path: Path) -> None:
+    profile = tmp_path / ".ethos" / "profile.toml"
+    profile.parent.mkdir()
+    profile.write_text("[", encoding="utf-8")
+
+    report = evidence_topology_report(tmp_path)
+
+    assert report["ok"] is False
+    assert report["required_gaps"] == ["adopter_profile_invalid:.ethos/profile.toml"]
 
 
 def test_evidence_topology_blocks_unknown_root_directory(tmp_path: Path) -> None:
@@ -184,15 +201,7 @@ def test_quality_evidence_freshness_uses_profile_durable_evidence_root(
 def test_evidence_topology_keeps_custom_non_docs_root_in_kernel_mode(
     tmp_path: Path,
 ) -> None:
-    profile = tmp_path / ".ethos" / "profile.toml"
-    profile.parent.mkdir(parents=True)
-    profile.write_text(
-        """
-[roots]
-durable_evidence = "records/evidence"
-""".strip(),
-        encoding="utf-8",
-    )
+    _profile(tmp_path, durable_evidence="records/evidence")
     evidence = tmp_path / "records" / "evidence"
     (evidence / "claims").mkdir(parents=True)
     (evidence / "chronicle" / "topic").mkdir(parents=True)
@@ -212,15 +221,7 @@ durable_evidence = "records/evidence"
 def test_evidence_topology_reports_missing_profile_docs_evidence_root(
     tmp_path: Path,
 ) -> None:
-    profile = tmp_path / ".ethos" / "profile.toml"
-    profile.parent.mkdir(parents=True)
-    profile.write_text(
-        """
-[roots]
-durable_evidence = "docs/evidence"
-""".strip(),
-        encoding="utf-8",
-    )
+    _profile(tmp_path, durable_evidence="docs/evidence")
 
     report = evidence_topology_report(tmp_path)
 
@@ -233,15 +234,7 @@ durable_evidence = "docs/evidence"
 def test_evidence_topology_blocks_profile_docs_evidence_root_file_clutter(
     tmp_path: Path,
 ) -> None:
-    profile = tmp_path / ".ethos" / "profile.toml"
-    profile.parent.mkdir(parents=True)
-    profile.write_text(
-        """
-[roots]
-durable_evidence = "docs/evidence"
-""".strip(),
-        encoding="utf-8",
-    )
+    _profile(tmp_path, durable_evidence="docs/evidence")
     evidence = tmp_path / "docs" / "evidence"
     evidence.mkdir(parents=True)
     (evidence / "README.md").write_text("# Evidence\n", encoding="utf-8")

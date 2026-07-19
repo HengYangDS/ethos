@@ -31,7 +31,9 @@ def _fake_raw(path: Path, stdout: str) -> None:
     path.chmod(0o755)
 
 
-def _execute(tmp_path: Path, env: dict[str, str]) -> dict[str, object]:
+def _execute(
+    tmp_path: Path, env: dict[str, str], *, expected_returncode: int = 0
+) -> dict[str, object]:
     output = tmp_path / "observation.json"
     command = [
         sys.executable,
@@ -40,7 +42,10 @@ def _execute(tmp_path: Path, env: dict[str, str]) -> dict[str, object]:
         "--output",
         output.as_posix(),
     ]
-    subprocess.run(command, cwd=ROOT, env=env, check=True, capture_output=True, text=True)
+    completed = subprocess.run(
+        command, cwd=ROOT, env=env, check=False, capture_output=True, text=True
+    )
+    assert completed.returncode == expected_returncode
     return json.loads(output.read_text(encoding="utf-8"))
 
 
@@ -107,7 +112,7 @@ def test_execute_mode_uses_explicit_targets_and_normalizes_facts(
     assert observations["gitlab"]["provider_facts"]["latest_ref"] == "dev"
     for stdout in ("not-json", '{"status": "success"}'):
         _fake_raw(bin_dir / "gh", stdout)
-        failed = _execute(tmp_path, env)
+        failed = _execute(tmp_path, env, expected_returncode=1)
         github = next(item for item in failed["observations"] if item["provider"] == "github")
         assert github["observation_state"] == "observation_failed"
         assert failed["observation_gaps"] == ["provider_output_invalid:github"]
@@ -123,7 +128,7 @@ def test_execute_mode_does_not_run_unconfigured_providers(tmp_path: Path) -> Non
     env.pop("ETHOS_HOSTED_GITHUB_REPO", None)
     env.pop("ETHOS_HOSTED_GITLAB_REPO", None)
 
-    payload = _execute(tmp_path, env)
+    payload = _execute(tmp_path, env, expected_returncode=1)
 
     assert (payload["state"], payload["ok"]) == ("not_configured", False)
     assert payload["observation_gaps"] == [

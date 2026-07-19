@@ -135,3 +135,10 @@ python = ".venv"
         "quality_policy_in_pyproject:[tool.ruff].select",
         "quality_policy_in_pyproject:[tool.ty",
     ]
+
+
+def test_json_format_is_the_single_catalog_concern() -> None:
+    audit = _load_quality_audit()
+
+    assert audit.ACTIVE_CONCERNS["json_format"] == "tools/ci/scripts/run-config-lint.sh"
+    assert "json_syntax" not in audit.ACTIVE_CONCERNS

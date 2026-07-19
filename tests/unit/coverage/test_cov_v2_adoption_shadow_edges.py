@@ -20,6 +20,7 @@ import ethos.adapters.shadow.semantics as shadow_semantics
 import ethos.repository.adoption.retirement.core as retirement_core
 import ethos.repository.adoption.retirement.rollback as retirement_rollback
 from ethos.repository.adoption import evolution
+from ethos.repository.profile import AdoptionBoundaryPolicy
 
 # --- repository/adoption/evolution.py ---------------------------------------
 
@@ -139,7 +140,9 @@ def test_campaign_required_gaps_rejects_ambiguous_carrier_home(tmp_path: Path) -
 
 def test_binding_checks_flags_non_generic_manifest(tmp_path: Path) -> None:
     # A binding manifest other than .ethos/profile.toml is not generic (lines 126-127).
-    checks = retirement_core._binding_checks(tmp_path, {"binding_manifest": "custom.toml"})
+    checks = retirement_core._binding_checks(
+        tmp_path, AdoptionBoundaryPolicy(binding_manifest="custom.toml")
+    )
     assert "retirement_binding_manifest_not_generic:custom.toml" in checks["required_gaps"]
 
 

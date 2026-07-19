@@ -96,13 +96,12 @@ and explicit booleans such as `hosted_github_status_claimed=false` or
 local evidence with `tool_available=false`; materializing run modes remain
 fail-closed when the required emulator binary is unavailable.
 
-## Activation Profiles
+## Activation
 
-`ethos adopt --profile github` and `ethos adopt --profile gitlab` may scaffold
-provider-specific templates and variables. A dual-provider repository uses both
-profiles over one governed repository subject. The profile changes projection
-surfaces and required provider checks; it does not create a second repository
-kind.
+Provider projections are explicit operations over one governed repository
+subject. Adoption never creates GitHub or GitLab files. A dual-provider
+repository declares and verifies both provider surfaces independently; neither
+provider state creates a second repository kind or mints repository truth.
 
 Dual-provider activation requires:
 

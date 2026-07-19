@@ -55,7 +55,7 @@ decisions, graph compilation, and projection models.
 | Policies | `system/policies/*.toml` with CEL predicates | CEL evaluator | decisions and gap records |
 | Graphs | graph/gate/workflow declarations | ETHOS GraphKernel + `graphlib` | deterministic plans |
 | Commands | `system/commands.toml` | Cyclopts registry compiler | CLI, JSON envelope, docs, smoke tests |
-| Templates | packaged Jinja2 resources plus a tracked manifest | frozen Pydantic v2 contexts and `StrictUndefined` compilation | scaffold/projection plans |
+| Serialization | strict typed declarations | native serializers at unavoidable external leaves | tracked binding and projection leaves |
 | Read models | projection declarations | pure projection reducers | status, orient, report, evidence freshness |
 
 ## Functional Core Contract
@@ -83,18 +83,13 @@ system/gates.toml
 system/workflows.toml
 system/policies/*.toml
 system/projections/*.toml
-packages/ethos/src/ethos/repository/adoption/scaffold/template_files/**
-templates/docs/**
-templates/evidence/**
 ```
 
-The adoption scaffold is the first completed template vertical slice. Its
-manifest declares output paths, profile filters, render modes, OpenSpec
-families, and skill capabilities. Jinja2 owns artifact text; Pydantic v2 owns
-immutable render contexts and manifest validation; `importlib.resources` keeps
-the templates available from built wheels. Python compiles the declaration,
-computes bounded digests, and returns the file plan. It does not duplicate
-template payloads or retain compatibility generator modules.
+Adoption is the first minimal serialization slice. One frozen Pydantic v2
+declaration owns validation and `tomli-w` owns the unavoidable TOML leaf. There
+is no template manifest, renderer taxonomy, profile family, or compatibility
+generator. Other carriers are interpreted at runtime or created explicitly by
+the capability that owns them.
 
 A declaration must name its authority, expected inputs, emitted output model,
 and proof surface. A declaration that changes lifecycle behavior must be backed
@@ -107,7 +102,6 @@ Python remains appropriate when the logic is:
 - IO or mutation;
 - a boundary adapter for Git, OpenSpec, subprocesses, or host providers;
 - an algorithmic primitive not safely expressible in the DSL;
-- a compatibility bridge during migration;
 - an explicitly accepted escape hatch with tests and an owner.
 
 The exception must be narrower than the declaration it replaces. It must not
@@ -132,6 +126,6 @@ External engine state = ETHOS lifecycle truth
 
 ## Completion Shape
 
-The architecture is realized when new rules, commands, gates, scaffolds,
+The architecture is realized when new rules, commands, gates, bindings,
 read-model fields, and graph plans are added by declaration first; Python code
 only compiles, validates, evaluates, executes adapters, and projects results.

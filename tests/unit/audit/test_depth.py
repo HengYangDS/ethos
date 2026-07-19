@@ -102,7 +102,7 @@ def test_repository_audit_requires_skills_and_mece_specs(tmp_path: Path) -> None
     assert report["ok"] is False
     assert ".agents/skills/activation.toml" in report["playbooks"]["missing"]
     assert "openspec/specs/contracts/spec.md" in report["openspec_capabilities"]["missing"]
-    assert "adoption_scaffold_missing:.agents/skills/activation.toml" in report["required_gaps"]
+    assert "playbook_projection_missing:.agents/skills/activation.toml" in report["required_gaps"]
 
 
 def test_repository_audit_includes_authority_graph() -> None:

@@ -1,7 +1,7 @@
 [claim]
 id = "ethos-product-truth-closure"
 subject = "ethos:product-truth-closure"
-state = "active"
+state = "archived"
 summary = "Records digest-bound evidence for product migration state reporting, diagnosable adopter scaffold, command example checks, and package ontology command exposure."
 
 [evidence]

@@ -83,6 +83,11 @@ ignore = [
   # product code should stay SLF001-clean while tests dissolve private reach-throughs.
   "PLR0402", # "from package import submodule" conflicts with ETHOS concrete-submodule
   # import discipline; module-layout owns that gate.
+  "S101", # runtime assertions are visible security debt; ratchet owns the exact count
+  "S105", # token literals used as sentinels are visible security debt
+  "S603", # subprocess list-form invocations are visible security debt
+  "S606", # one execvpe bootstrap is visible security debt
+  "S607", # PATH-resolved tool invocations are visible security debt
 ]
 
 [lint.mccabe]
@@ -122,9 +127,9 @@ convention = "google"
 # a literal expected value is the correct test idiom), E501 (unbreakable assertion
 # payloads/fixtures; logic still wraps). No refactor removes the need for these.
 # SLF001 is NOT here — private-member access IS reducible debt, so it is a shrinking
-# whole-repo ratchet owned by .config/checks/ruff/ratchet.toml, not a blanket ignore.
-"tests/**" = ["E501", "INP001", "PLR2004", "S101"]
-"extensions/**/tests/**" = ["E501", "INP001", "PLR2004", "S101"]
+# whole-repo ratchet (.config/checks/ruff/ratchet.toml SLF001=220), not a blanket ignore.
+"tests/**" = ["E501", "INP001", "PLR2004", "S101", "S105", "S106", "S603", "S606", "S607"]
+"extensions/**/tests/**" = ["E501", "INP001", "PLR2004", "S101", "S105", "S106", "S603", "S606", "S607"]
 # `id` on a widely-called classmethod — rename deferred to the package-split migration.
 # C901 cyclomatic-complexity ratchet: pre-existing tangled functions are frozen
 # and decompose during the package/surface split. New code: cap 10.

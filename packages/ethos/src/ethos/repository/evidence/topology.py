@@ -3,7 +3,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from typing import Any
 
-from ethos.repository.profile import profile_relative_root
+from ethos.repository.profile import load_repository_profile
+from ethos.repository.profile import profile_required_gaps
 from ethos_core.contracts.evidence.layout import EvidenceLayoutDeclaration
 from ethos_core.contracts.evidence.layout import load_evidence_layout_declaration
 
@@ -28,7 +29,17 @@ def evidence_topology_report(root: Path) -> dict[str, Any]:
     """
     repo = root.resolve()
     declaration = load_evidence_layout_declaration()
-    evidence_root_relative = profile_relative_root(repo, "durable_evidence")
+    profile = load_repository_profile(repo)
+    if gaps := profile_required_gaps(profile):
+        return {
+            "ok": False,
+            "required_gaps": list(gaps),
+            "layout": declaration.layout_payload("evidence"),
+            "counts": _empty_counts(),
+        }
+    evidence_root_relative = (
+        profile.declaration.roots.durable_evidence if profile.declaration else "evidence"
+    )
     evidence_root = repo / evidence_root_relative
     if evidence_root_relative == declaration.profile_curated_root:
         return _curated_profile_evidence_report(

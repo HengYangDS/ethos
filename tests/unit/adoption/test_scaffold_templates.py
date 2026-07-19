@@ -31,17 +31,17 @@ def _files_digest(files: dict[str, str]) -> str:
         (
             "generic",
             66,
-            "b43c96e1eaac48f2bd2daf9ae99571c5b8d42fe01998c6785c3cfb51563f58",
+            "b43c96e1eaac48f2bd2daf9ae9957107140e22902e46e5b3381c3cfb51563f58",
         ),
         (
             "github",
             67,
-            "c9e8ef430bb333a1341fe46839feccd76f4a81e296c8453d8b9da57c9657a59",
+            "c9e8ef430bb333a1341fe46839feccdb59fc70d75872a0230d69da57c9657a59",
         ),
         (
             "gitlab",
             67,
-            "628ce05d633a1619343c7ba072e65684aac9ae8e26677f14226c6cb603168e4b",
+            "628ce05d633a1619343c7ba072e65684430fe0b7c7eee0bffa0c6cb603168e4b",
         ),
     ],
 )

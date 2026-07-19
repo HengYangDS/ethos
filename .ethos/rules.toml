@@ -3,12 +3,6 @@ json_schema = true
 slsa_attestation = "adapter"
 in_toto = "attestation-envelope"
 spdx = "artifact-metadata-adapter"
-cdevents = "event-interchange-adapter"
-opentelemetry_semantics = "adapter"
-cue = "advanced-compiler"
-opa = "policy-adapter"
-dagger = "runner-adapter"
-temporal = "service-runtime-adapter"
 mcp = "agent-projection"
 
 [determinism]
@@ -20,9 +14,7 @@ sqlite_state = "local-only"
 [formats]
 user_config = "TOML"
 machine_output = "JSON"
-append_only_events = "JSONL"
 local_state = "SQLite"
-advanced_compiler = "CUE adapter"
 
 [artifacts]
 state_path = ".ethos/state/state.sqlite"

@@ -104,7 +104,6 @@ KNOWN_ETHOS_COMMANDS = {
     "ethos lane refresh-base",
     "ethos lane bind-claim",
     "ethos lane hydrate",
-    "ethos lane lease normalize",
     "ethos lane lease renew",
     "ethos lane lease resume",
     "ethos lane handoff offer",

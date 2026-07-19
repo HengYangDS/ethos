@@ -156,7 +156,6 @@ def lease_summary(lease: dict[str, object]) -> dict[str, object]:
         "epoch": integer_value(lease.get("epoch")),
         "expected_head": str(lease.get("expected_head") or ""),
         "expires_at": str(lease.get("expires_at") or ""),
-        "normalization_state": str(lease.get("normalization_state") or "legacy_ambiguous"),
         "mints_authority": False,
     }
 

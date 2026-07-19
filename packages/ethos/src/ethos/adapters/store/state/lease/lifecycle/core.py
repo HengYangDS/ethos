@@ -49,13 +49,7 @@ def acquire_lease(
     ttl_seconds: int = 86_400,
     payload: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Create one normalized local lease for a concrete execution instance.
-
-    The physical ``leases.owner`` column remains only as a storage-compatibility
-    carrier for legacy rows. New callers must provide a four-segment
-    ``holder_ref``; accepting an unstructured owner here would manufacture new
-    ambiguous state that readers are intentionally required to reject.
-    """
+    """Create one local lease for a concrete execution instance."""
     normalized_holder_ref = HolderRef.parse(holder_ref).serialize()
     initialize_lease_state(db_path)
     lease_id = f"lease:{uuid.uuid4()}"
@@ -82,7 +76,6 @@ def acquire_lease(
         "filesystem_fence": False,
         "distributed_lock": False,
     }
-    normalized_payload["normalization_state"] = "normalized"
     payload_json = json.dumps(normalized_payload, sort_keys=True)
     with closing(sqlite3.connect(db_path)) as connection:
         connection.execute("pragma foreign_keys = on")
@@ -110,62 +103,6 @@ def acquire_lease(
         **lease_contract_fields(normalized_payload),
         "payload": normalized_payload,
     }
-
-
-def normalize_lease(
-    db_path: Path,
-    *,
-    subject: str,
-    holder_ref: str,
-    expected_lease_id: str,
-    expected_head: str,
-) -> dict[str, Any]:
-    """Normalize one unambiguous legacy lease to a canonical holder ref.
-
-    Legacy leases carry a free-form ``owner`` string (``codex``, ``agent:codex``,
-    ``local-agent:codex:<lane>``, …) and no structured ``holder_ref``. Normalization
-    rewrites both to a canonical four-segment ``HolderRef``. It deliberately does NOT
-    require the new ``holder_ref`` to string-equal the legacy ``owner``: those are
-    different schemas (a 4-segment ref can never equal a 1-to-3 segment legacy name), so
-    such a check made migration impossible (the exact bug this closes). Anti-hijack
-    safety comes from proof of OBSERVATION, established by the caller pipeline before we
-    are reached: the request is admitted only from the lane's own worktree at its exact
-    ``expect_head`` (``_lease_request_gaps``), and here the ``expected_lease_id`` must
-    match the row's UUID. Knowing a lane's exact lease UUID and holding its checkout is
-    the "same holder" evidence; a bystander cannot normalize another lane's lease.
-    """
-    HolderRef.parse(holder_ref)
-    initialize_lease_state(db_path)
-    now = datetime.now(UTC)
-    with closing(sqlite3.connect(db_path)) as connection:
-        connection.execute("pragma foreign_keys = on")
-        connection.execute("begin immediate")
-        row = _sole_subject_row(connection, subject)
-        payload = json_object(row[4])
-        _expect_equal("lease_id", expected_lease_id, str(row[0]))
-        normalized = _normalized_lease_payload(
-            payload=payload,
-            subject=subject,
-            holder_ref=holder_ref,
-            lease_id=str(row[0]),
-            expected_head=expected_head,
-            now=now,
-        )
-        _update_lease_row(
-            connection,
-            lease_id=str(row[0]),
-            owner=holder_ref,
-            expires_at=str(row[3]),
-            payload=normalized,
-        )
-        connection.commit()
-    return _lease_record(
-        lease_id=str(row[0]),
-        subject=subject,
-        owner=holder_ref,
-        expires_at=str(row[3]),
-        payload=normalized,
-    )
 
 
 def renew_lease(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
@@ -294,7 +231,6 @@ def accept_lease_handoff(  # noqa: PLR0913, RUF100 - exact request envelope pres
         connection.execute("begin immediate")
         row = _sole_subject_row(connection, subject)
         payload = json_object(row[4])
-        _expect_normalized(payload, subject)
         _expect_equal("lease_id", expected_lease_id, str(row[0]))
         _expect_epoch(payload, expected_epoch)
         _expect_equal("head", expected_head, str(payload.get("expected_head") or ""))
@@ -431,9 +367,8 @@ def expected_current_lease(  # noqa: PLR0913, RUF100 - exact request envelope pr
 ) -> tuple[sqlite3.Row | tuple[Any, ...], dict[str, Any]]:
     row = _sole_subject_row(connection, subject)
     payload = json_object(row[4])
-    _expect_normalized(payload, subject)
     _expect_equal("lease_id", expected_lease_id, str(row[0]))
-    _expect_equal("holder", holder_ref, str(payload.get("holder_ref") or row[2]))
+    _expect_equal("holder", holder_ref, str(payload.get("holder_ref") or ""))
     _expect_epoch(payload, expected_epoch)
     _expect_equal("head", expected_head, str(payload.get("expected_head") or ""))
     expired = _is_expired(str(row[3]))
@@ -442,37 +377,6 @@ def expected_current_lease(  # noqa: PLR0913, RUF100 - exact request envelope pr
     if not require_expired and expired:
         raise ValueError(f"lease_expired:{subject}")  # noqa: EM102, RUF100 - machine-readable gap token is the exception contract
     return row, payload
-
-
-def _normalized_lease_payload(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
-    *,
-    payload: dict[str, Any],
-    subject: str,
-    holder_ref: str,
-    lease_id: str,
-    expected_head: str,
-    now: datetime,
-) -> dict[str, Any]:
-    return {
-        **payload,
-        "lane_incarnation_id": str(
-            payload.get("lane_incarnation_id") or f"lane-incarnation:{uuid.uuid4()}"
-        ),
-        "lease_id": lease_id,
-        "lane_ref": subject,
-        "holder_ref": holder_ref,
-        "epoch": int(payload.get("epoch") or 1),
-        "issued_at": str(payload.get("issued_at") or now.isoformat()),
-        "renewed_at": now.isoformat(),
-        "expected_head": expected_head,
-        "claim_id": str(payload.get("claim_id") or ""),
-        "path_scope": string_sequence(payload.get("path_scope"), drop_empty=True),
-        "coordination_scope": "git_common_directory",
-        "mints_authority": False,
-        "filesystem_fence": False,
-        "distributed_lock": False,
-        "normalization_state": "normalized",
-    }
 
 
 def _subject_rows(
@@ -552,11 +456,6 @@ def _expect_epoch(payload: dict[str, Any], expected_epoch: int) -> None:
     actual = int(payload.get("epoch") or 0)
     if actual != expected_epoch:
         raise ValueError(f"lease_epoch_stale:{expected_epoch}!={actual}")  # noqa: EM102, RUF100 - machine-readable gap token is the exception contract
-
-
-def _expect_normalized(payload: dict[str, Any], subject: str) -> None:
-    if payload.get("normalization_state") != "normalized":
-        raise ValueError(f"lane_lease_legacy_ambiguous:{subject}")  # noqa: EM102, RUF100 - machine-readable gap token is the exception contract
 
 
 def _is_expired(value: str) -> bool:

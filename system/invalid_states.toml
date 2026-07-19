@@ -187,7 +187,6 @@ match_prefixes = [
   "lane_branch_mismatch",
   "lane_resolution_",
   "lease_",
-  "legacy_ambiguous",
   "recheck_required",
   "reconciliation_required",
   "repair_required",

@@ -28,11 +28,8 @@ Work Lane leases are local coordination facts recorded by lane-start flows. They
 support ownership, handoff, and closeout ordering checks, but they do not replace
 Git history, OpenSpec records, claims, evidence, or Chronicle judgments.
 Productized leases identify the concrete acting holder, not merely a provider
-class; older owner strings remain compatibility fields until the runtime schema
-fully exposes `holder_ref`, epoch, heartbeat, and Authority-policy capability.
-Current prewrite and apply-mode admission are enforced by checkout role,
-editor-root binding, HEAD checks, and active lease holder binding where the
-command surface supports it.
+class. Current prewrite and apply-mode admission are enforced by checkout role,
+editor-root binding, HEAD checks, and active lease holder binding.
 
 ## Adopted Repository Control Roots
 

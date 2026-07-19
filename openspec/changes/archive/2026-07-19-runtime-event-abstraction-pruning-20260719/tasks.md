@@ -17,4 +17,4 @@
 
 - [x] 3.1 Run focused Ruff, type, architecture, state, workflow, and lane lifecycle tests.
 - [x] 3.2 Run Ponytail and broad code review; resolve all warnings and findings.
-- [ ] 3.3 Refresh parity/claims if required, run HEAD-bound proof, land, accepted closeout, and retire the lane without remote push.
+- [x] 3.3 Refresh parity/claims if required, run HEAD-bound proof, land, accepted closeout, and retire the lane without remote push.

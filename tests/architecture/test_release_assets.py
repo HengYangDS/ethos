@@ -98,11 +98,8 @@ def test_configuration_layout_is_separated_by_concern() -> None:
 
     assert "[project]" in pyproject
     assert "[tool.uv.workspace]" in pyproject
-    assert (
-        (ROOT / "ruff.toml")
-        .read_text(encoding="utf-8")
-        .endswith('extend = ".config/checks/ruff/ruff.toml"\n')
-    )
+    assert (ROOT / "ruff.toml").is_symlink()
+    assert (ROOT / "ruff.toml").readlink().as_posix() == ".config/checks/ruff/ruff.toml"
     assert not (ROOT / "pytest.ini").exists()
     assert "[lint.per-file-ignores]" in ruff
     assert "[pytest]" in pytest

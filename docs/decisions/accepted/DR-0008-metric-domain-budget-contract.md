@@ -112,7 +112,7 @@ either away.
 
 ## Proof Or Evidence
 
-- `openspec/changes/budget-contract-v2-foundation-20260719/`
+- `openspec/changes/archive/2026-07-19-budget-contract-v2-foundation-20260719/`
 - `docs/plans/budget-contract-v2-design.md`
 - `docs/plans/budget-contract-v2-implementation.md`
 - `evidence/chronicle/budget-contract-v2-foundation-20260719/`

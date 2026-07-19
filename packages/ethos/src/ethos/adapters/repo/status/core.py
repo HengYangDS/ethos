@@ -127,7 +127,7 @@ def workspace_status(root: Path, *, include_foreign_path_scope: bool = True) -> 
     try:
         repo = Path(git_stdout_checked(root, "rev-parse", "--show-toplevel")).resolve()
     except subprocess.CalledProcessError:
-        return _non_git_status(root)
+        return _non_git_status(root, defer_details=not include_foreign_path_scope)
     current_path = repo
     provenance = dirty_provenance(root)
     entries = cast("list[dict[str, str]]", provenance["entries"])
@@ -275,7 +275,7 @@ def _stage_gates(
     }
 
 
-def _non_git_status(root: Path) -> dict[str, object]:
+def _non_git_status(root: Path, *, defer_details: bool) -> dict[str, object]:
     policy = load_branch_role_policy(root)
     candidate: dict[str, object] = {
         "branch": policy.candidate_branch,
@@ -321,7 +321,12 @@ def _non_git_status(root: Path) -> dict[str, object]:
         ),
         "foreign_work_lanes": [],
         "coordination_gaps": [],
-        "coordination": coordination_package([], required_gaps=[], advisory_gaps=[]),
+        "coordination": coordination_package(
+            [],
+            required_gaps=[],
+            advisory_gaps=[],
+            defer_details=defer_details,
+        ),
         "closeout_support": {
             "supported": False,
             "branch": "",

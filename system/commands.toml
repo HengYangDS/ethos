@@ -102,7 +102,12 @@ report_handler = { provider = "ethos.surface.cli.root.inspection:_orient_report"
     "orientation",
     "coordination",
     "dirty_foreign_work_lane_count",
-  ], default = 0 },
+  ] },
+  { name = "coordination_detail_state", path = [
+    "orientation",
+    "coordination",
+    "detail_state",
+  ], default = "exact" },
   { name = "coordination_advisory_count", path = [
     "orientation",
     "coordination",
@@ -184,7 +189,12 @@ report_handler = { provider = "ethos.surface.cli.root.inspection:_status_report"
     "orientation",
     "coordination",
     "dirty_foreign_work_lane_count",
-  ], default = 0 },
+  ] },
+  { name = "coordination_detail_state", path = [
+    "orientation",
+    "coordination",
+    "detail_state",
+  ], default = "exact" },
   { name = "coordination_advisory_count", path = [
     "status",
     "coordination",

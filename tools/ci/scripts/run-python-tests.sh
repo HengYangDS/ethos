@@ -49,6 +49,7 @@ mkdir -p "${coverage_evidence_dir}" "${pytest_evidence_dir}" "${pytest_tmp_dir}"
 export COVERAGE_FILE="${coverage_evidence_dir}/.coverage"
 export RUFF_CACHE_DIR="${RUFF_CACHE_DIR:-${repo_root}/build/runtime/tool-cache/ruff}"
 coverage_lock_acquired="false"
+coverage_lock_invalid_reclaim_attempted="false"
 sharded_mode="false"
 if [[ "${shards}" != "1" && "${shards}" != "serial" ]]; then
   sharded_mode="true"
@@ -120,6 +121,16 @@ coverage_lock_owner_is_dead() {
   [[ -n "${current_started_at}" && "${current_started_at}" != "${owner_started_at}" ]]
 }
 
+coverage_lock_owner_is_invalid() {
+  local owner_pid=""
+  local owner_started_at=""
+  local owner_extra=""
+  [[ -f "${coverage_lock_owner_path}" ]] || return 0
+  IFS=$'\t' read -r owner_pid owner_started_at owner_extra < "${coverage_lock_owner_path}" || return 0
+  [[ -z "${owner_extra}" && "${owner_pid}" =~ ^[1-9][0-9]*$ && -n "${owner_started_at}" ]] || return 0
+  return 1
+}
+
 reclaim_stale_coverage_lock() {
   coverage_lock_owner_is_dead || return 1
   rm -f "${coverage_lock_owner_path}"
@@ -136,6 +147,15 @@ while ! mkdir "${coverage_lock_dir}" 2>/dev/null; do
     continue
   fi
   if (( SECONDS - coverage_lock_wait_started >= coverage_lock_wait_seconds )); then
+    if [[ "${coverage_lock_invalid_reclaim_attempted}" == "false" ]] && coverage_lock_owner_is_invalid; then
+      coverage_lock_invalid_reclaim_attempted="true"
+      rm -f "${coverage_lock_owner_path}"
+      if rmdir "${coverage_lock_dir}" 2>/dev/null; then
+        echo "reclaimed invalid coverage evidence lock: ${coverage_lock_dir}" >&2
+        coverage_lock_wait_started="${SECONDS}"
+        continue
+      fi
+    fi
     owner_metadata="unknown"
     if [[ -f "${coverage_lock_owner_path}" ]]; then
       IFS= read -r owner_metadata < "${coverage_lock_owner_path}" || owner_metadata="unreadable"

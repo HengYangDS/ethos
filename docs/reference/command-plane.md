@@ -219,7 +219,7 @@ ethos lane resolution inventory --json
 ethos lane resolution clear --decision-id <decision-id> --expect-manifest-sha256 <sha256> --chronicle-ref <accepted-chronicle> --reason <why> --break-glass --confirm-irreversible --apply
 ethos lane retire landed --branch <work-lane-branch> --expect-head <work-lane-head> --apply
 ethos lane retire superseded --branch <work-lane-branch> --expect-head <work-lane-head> --absorbed-by <accepted-head> --reason <why> --authorize --apply
-ethos lane retire unbound --branch <work-lane-branch> --expect-head <git-head> --reason <why>
+ethos lane retire unbound --branch <work-lane-branch> --expect-head <git-head> --reason <why> --chronicle-ref evidence/chronicle/<change>/<date>.md [--authorize --break-glass --confirm-irreversible --apply]
 ```
 
 `ethos lane housekeeping` is a separate detached-worktree cleanup surface, not
@@ -391,22 +391,27 @@ intact; a ref comparison failure after worktree removal leaves the newer or
 unobservable ref and lease intact as an explicit partial-transition residue. It
 does not replace `ethos land` or `ethos lane retire landed`; it closes a distinct
 superseded linked-lane residue state.
-`ethos lane retire unbound` is a fail-closed inspection path for local unbound
-Work Lane refs that already appear in `data.coordination.unbound_work_lane_refs`.
-It requires an exact `--expect-head` and a non-empty `--reason` to bind the
-inspection request; apply mode additionally requires `--authorize`, but the
-ordinary command has no destructive success branch. It preserves the ref and
-reports that a separately governed, evidence-bound exceptional deletion
-admission is required. It does not replace `ethos land` or `ethos lane retire
-landed`, and it does not remove linked worktrees, revoke leases, or infer safety
-from a missing registration.
+`ethos lane retire unbound` remains fail-closed for every ordinary local
+unbound Work Lane ref. Its sole exceptional route requires an exact
+`--expect-head`, non-empty `--reason`, repository-local `--chronicle-ref`, an
+unbound `work/*` ref that is an accepted ancestor with a bound Claim and no
+live lease, and a Chronicle whose current bytes are identical to the accepted
+branch version and name the same event, branch, and head. Apply additionally
+requires `--authorize`, `--break-glass`, and `--confirm-irreversible`. Before
+the only effect, `git update-ref -d refs/heads/<branch> <expected-head>`, ETHOS
+writes a no-clobber local attempt record and reobserves target, Chronicle,
+lease, and protected refs; it then requires postconditions and writes a receipt
+outside the accepted checkout. It does not replace `ethos land` or `ethos lane
+retire landed`, remove a worktree by force, delete a lease, mutate a remote, or
+infer authority from a provider, agent session, or host path.
 The standard local lifecycle is product state even when a host provides its own
 presentation: create the Work Lane through `ethos lane start`, attach claim
 evidence with `ethos lane bind-claim` when needed, refresh the lane base only
 through `ethos lane refresh-base`, land only through `ethos land`, retire
 landed lanes through `ethos lane retire landed`, retire absorbed linked-lane
-residue through `ethos lane retire superseded`, and inspect unbound residue refs
-through `ethos lane retire unbound` before a separately admitted exceptional deletion path. Raw Git
+residue through `ethos lane retire superseded`, and exceptionally retire only a
+status-exposed, accepted-policy-bound unbound residue through the fully
+confirmed `ethos lane retire unbound` route. Raw Git
 worktree creation is an observable repository fact, but it is not admitted as
 the standard ETHOS workflow state because it has no ETHOS lease or claim
 boundary. `ethos orient --json` provides a derived reader view for human/agent discoverability;

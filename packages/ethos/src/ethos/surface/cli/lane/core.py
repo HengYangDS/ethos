@@ -359,20 +359,26 @@ def lane_retire_unbound(
     branch: Annotated[str, Parameter(name="--branch")],
     expect_head: Annotated[str | None, Parameter(name="--expect-head")] = None,
     reason: Annotated[str, Parameter(name="--reason")] = "",
+    chronicle_ref: Annotated[str, Parameter(name="--chronicle-ref")] = "",
     authorize: bool = False,
+    break_glass: Annotated[bool, Parameter(name="--break-glass")] = False,
+    confirm_irreversible: Annotated[bool, Parameter(name="--confirm-irreversible")] = False,
     apply: bool = False,
     root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
-    """Retire an unbound local Work Lane ref with head-bound authorization."""
+    """Exceptionally retire one accepted-policy-bound unbound Work Lane ref."""
     repo = resolve_root(root)
     report = retire_unbound_work_lane_ref(
         root=repo,
         branch=branch,
         expect_head=expect_head,
         reason=reason,
+        chronicle_ref=chronicle_ref,
         apply=apply,
         authorized=authorize,
+        break_glass=break_glass,
+        confirm_irreversible=confirm_irreversible,
     )
     result = EthosResult(
         command="lane retire unbound",

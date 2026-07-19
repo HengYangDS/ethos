@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+import ethos.adapters.mutation.lane_retirement.landed.core as landed_retirement
 import ethos.adapters.mutation.lane_retirement.shared.core as retirement_shared
 import ethos.adapters.repo.dirty.core as repo_dirty
 import ethos.adapters.store.state.lease.lifecycle.core as state
@@ -299,6 +300,38 @@ def test_retire_landed_work_lane_apply_removes_selected_clean_merged_lane(
     assert report["mutation"]["expect_head"] == landed_head
     assert not landed.exists()
     assert git(repo, "branch", "--list", _LANDED_BRANCH) == ""
+
+
+def test_retire_landed_work_lane_blocks_without_a_stable_control_root(
+    monkeypatch, tmp_path: Path
+) -> None:
+    repo, landed, _database = _landed_lane(tmp_path, lease_holder=_LEASE_HOLDER)
+    landed_head = git(landed, "rev-parse", "HEAD")
+    status = workspace_status(repo)
+    missing_accepted = tmp_path / "missing-accepted"
+    status["worktrees"] = [
+        worktree for worktree in status["worktrees"] if worktree["role"] != "accepted_root"
+    ] + [{"role": "accepted_root", "path": missing_accepted.as_posix()}]
+    monkeypatch.setenv("ETHOS_ACTOR", _LEASE_HOLDER)
+    monkeypatch.setattr(landed_retirement, "workspace_status", lambda _root: status)
+    monkeypatch.setattr(
+        landed_retirement,
+        "leases_by_branch",
+        lambda _worktrees, **_kwargs: {_LANDED_BRANCH: {"holder_ref": _LEASE_HOLDER}},
+    )
+
+    report = retire_landed_work_lanes(
+        root=repo,
+        branch=_LANDED_BRANCH,
+        expect_head=landed_head,
+        apply=True,
+    )
+
+    assert report["ok"] is False
+    assert report["state"] == "blocked"
+    assert report["required_gaps"] == ["retirement_control_root_unavailable"]
+    assert landed.exists()
+    assert git(repo, "branch", "--list", _LANDED_BRANCH) != ""
 
 
 def test_retire_landed_work_lane_removes_its_own_worktree_from_stable_repo_cwd(

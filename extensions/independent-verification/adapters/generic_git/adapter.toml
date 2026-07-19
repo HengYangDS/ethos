@@ -1,6 +1,0 @@
-[adapter]
-id = "generic-git-pre-receive"
-kind = "provider-local-hook"
-status = "optional"
-default_enabled = false
-entrypoint = "pre_receive.py"

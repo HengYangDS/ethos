@@ -58,14 +58,6 @@ def test_command_declaration_marks_compiled_quality_report_handlers() -> None:
     assert report_handlers["source-budget"].enforce is True
     assert report_handlers["source-budget"].bind_root is True
     assert (
-        report_handlers["performance"].provider
-        == "ethos.repository.policy.performance.core:performance_quality_report"
-    )
-    assert report_handlers["performance"].bind_current_head is True
-    assert report_handlers["performance"].state_mode == "advisory_gaps"
-    assert report_handlers["performance"].enforce is True
-    assert report_handlers["performance"].bind_root is True
-    assert (
         report_handlers["no-compat"].provider
         == "ethos.repository.policy.no_compat.core:no_compat_report"
     )

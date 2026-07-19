@@ -3,70 +3,9 @@ id = "gate-registry"
 source_refs = ["system/gates.toml"]
 
 [proof_sets]
-product_default = [
-  "repository-audit",
-  "claims",
-  "evidence-freshness",
-  "docs-registry",
-  "docs-topology",
-  "schemas",
-  "playbooks-v2",
-  "generated-artifacts",
-  "product-boundary",
-  "unit-architecture",
-  "ruff",
-  "python-types",
-  "docstrings",
-  "module-layout",
-  "no-compat",
-  "python-size",
-  "config-quality",
-  "shell-lint",
-  "format-policy",
-]
-product_full = [
-  "repository-audit",
-  "claims",
-  "evidence-freshness",
-  "docs-registry",
-  "docs-topology",
-  "schemas",
-  "playbooks-v2",
-  "generated-artifacts",
-  "product-boundary",
-  "openspec",
-  "unit-architecture",
-  "ruff",
-  "python-types",
-  "docstrings",
-  "module-layout",
-  "no-compat",
-  "build",
-  "markdown-links",
-  "shell-lint",
-  "config-quality",
-  "markdown-structure",
-  "format-policy",
-  "asset-determinism",
-  "schema-contracts",
-  "proof-policy",
-  "python-size",
-  "source-budget",
-  "npm-pack",
-]
-adopter_default = [
-  "repository-audit",
-  "claims",
-  "evidence-freshness",
-  "docs-topology",
-  "schemas",
-  "playbooks-v2",
-  "generated-artifacts",
-  "format-policy",
-  "asset-determinism",
-  "schema-contracts",
-  "proof-policy",
-]
+product_default = ["repository-audit", "claims", "evidence-freshness", "docs-registry", "docs-topology", "schemas", "playbooks-v2", "generated-artifacts", "product-boundary", "unit-architecture", "ruff", "python-types", "docstrings", "module-layout", "no-compat", "python-size", "config-quality", "shell-lint", "format-policy"]
+product_full = ["repository-audit", "claims", "evidence-freshness", "docs-registry", "docs-topology", "schemas", "playbooks-v2", "generated-artifacts", "product-boundary", "openspec", "unit-architecture", "ruff", "python-types", "docstrings", "module-layout", "no-compat", "build", "markdown-links", "shell-lint", "config-quality", "markdown-structure", "format-policy", "asset-determinism", "schema-contracts", "proof-policy", "python-size", "source-budget", "npm-pack"]
+adopter_default = ["repository-audit", "claims", "evidence-freshness", "docs-topology", "schemas", "playbooks-v2", "generated-artifacts", "format-policy", "asset-determinism", "schema-contracts", "proof-policy"]
 
 [[gates]]
 id = "repository-audit"
@@ -255,15 +194,7 @@ tool_adapter = "ethos-no-compat"
 id = "build"
 registries = ["runtime"]
 kind = "package"
-command = [
-  "uv",
-  "build",
-  "--all-packages",
-  "--out-dir",
-  "build/artifacts/python",
-  "--clear",
-  "--no-create-gitignore",
-]
+command = ["uv", "build", "--all-packages", "--out-dir", "build/artifacts/python", "--clear", "--no-create-gitignore"]
 profile = "product-toolchain"
 toolchain = "uv-python"
 depends_on = ["unit-architecture", "ruff"]
@@ -280,17 +211,7 @@ version_source = "locked-toolchain"
 id = "python-lint"
 registries = ["quality", "runtime"]
 kind = "lint"
-command = [
-  "ruff",
-  "check",
-  ".",
-  "+",
-  "ruff",
-  "format",
-  "--check",
-  "+",
-  "tools/ci/scripts/run-ruff-ratchet.sh",
-]
+command = ["ruff", "check", ".", "+", "ruff", "format", "--check", "+", "tools/ci/scripts/run-ruff-ratchet.sh"]
 asset_classes = ["python-code"]
 dimensions = ["lint", "format", "ratchet"]
 execution_mode = "adapter"

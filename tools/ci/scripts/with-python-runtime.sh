@@ -8,12 +8,13 @@ export UV_PROJECT_ENVIRONMENT="${repo_root}/build/runtime/venv"
 if [[ -n "${ETHOS_UV_CACHE_DIR:-}" ]]; then export UV_CACHE_DIR="${ETHOS_UV_CACHE_DIR}"; elif [[ -n "${UV_CACHE_DIR:-}" ]]; then export UV_CACHE_DIR; else export UV_CACHE_DIR="${XDG_CACHE_HOME:-${HOME}/.cache}/ethos/uv"; fi
 mkdir -p "${UV_CACHE_DIR}"; export ETHOS_RUNTIME_ROOT="${repo_root}"
 # Bootstrap only the default checkout interpreter; explicit Python overrides remain caller-owned.
-semantic_python="${UV_PROJECT_ENVIRONMENT}/bin/python"
-if [[ "$1" == "${semantic_python}" && ! -x "${semantic_python}" ]]; then
+semantic_python="${UV_PROJECT_ENVIRONMENT}/bin/python"; if [[ "$1" == "${semantic_python}" ]]; then
+  if [[ -x "${semantic_python}" ]] && { [[ ! -f "${repo_root}/pyproject.toml" || ! -f "${repo_root}/uv.lock" ]] || uv sync --locked --all-packages --group dev --check >/dev/null 2>&1; }; then exec "$@"; fi
   bootstrap_cache_dir="${UV_CACHE_DIR}"
   if [[ -n "${inherited_runtime_root}" && "${inherited_runtime_root}" != "${repo_root}" ]]; then nested_cache_key="$(printf '%s' "${repo_root}" | cksum | awk '{print $1}')"; bootstrap_cache_dir="${UV_CACHE_DIR}/nested-bootstrap/${nested_cache_key}"; mkdir -p "${bootstrap_cache_dir}"; fi
-  exec env UV_CACHE_DIR="${bootstrap_cache_dir}" uv run --group dev python "${@:2}"
+  exec env UV_CACHE_DIR="${bootstrap_cache_dir}" uv run --locked --all-packages --group dev python "${@:2}"
 fi
+
 # Prevent an owner-script handoff from recursively waiting on its outer uv sync lock.
 runtime_command=("$@")
 if [[ "${runtime_command[0]}" == "uv" && "${runtime_command[1]:-}" == "run" ]]; then

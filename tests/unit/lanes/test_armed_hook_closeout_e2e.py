@@ -274,11 +274,47 @@ def test_committed_profile_closeout_blocks_raw_move(tmp_path: Path) -> None:
     assert _g(repo, "rev-parse", "main").stdout.strip() == candidate_head
 
 
-def _hook_from_ref(root: Path, ref: str) -> str:
-    """Read a tracked hook revision so the fixture models a real shell transition."""
-    completed = _g(root, "show", f"{ref}:.githooks/reference-transaction")
-    assert completed.returncode == 0, completed.stderr
-    return completed.stdout
+def _legacy_accepted_only_hook(candidate_hook: str) -> str:
+    """Derive the incumbent routing from the candidate fixture, not repository history.
+
+    The transition under test is semantic: the incumbent admits only the accepted
+    branch through the candidate runner, whereas the promoted hook also protects
+    the ``accepted_ff`` release mirror.  Reading a fixed historical SHA made that
+    invariant depend on an arbitrary object being present in every CI checkout.
+    Keep the fixture self-contained by removing precisely the mirror-routing
+    section from the candidate hook and assert the resulting legacy contract.
+    """
+    prepared_phase = '    if [ "$phase" = "prepared" ]; then\n'
+    accepted_only_phase = '    if [ "$phase" = "prepared" ] && [ "$branch" = "$accepted" ]; then\n'
+    mirror_condition = (
+        '        if [ "$branch" = "$accepted" ] || \\\n'
+        '            { [ "$release_mirror" = "accepted_ff" ] && [ "$branch" = "$release_branch" ]; }; then\n'
+    )
+    candidate_runner_start = "            candidate_branch=\"$(awk '\n"
+    incumbent_runner = '        else\n            verdict="$(PYTHONPATH="$ethos_pythonpath'
+    outer_else = '    else\n        verdict="$(PYTHONPATH="$ethos_pythonpath'
+    phase_end = '\n\n    if [ "$phase" = "committed" ]; then\n'
+    assert candidate_hook.count(prepared_phase) == 1
+    assert candidate_hook.count(mirror_condition) == 1
+    phase_start = candidate_hook.index(prepared_phase)
+    candidate_start = candidate_hook.index(candidate_runner_start, phase_start)
+    inner_else = candidate_hook.index(incumbent_runner, candidate_start)
+    outer_else_start = candidate_hook.index(outer_else, inner_else + len(incumbent_runner))
+    phase_end_start = candidate_hook.index(phase_end, outer_else_start)
+
+    legacy_hook = "".join(
+        (
+            candidate_hook[:phase_start],
+            accepted_only_phase,
+            candidate_hook[candidate_start:inner_else],
+            candidate_hook[outer_else_start:phase_end_start],
+            candidate_hook[phase_end_start:],
+        )
+    )
+
+    assert "release_mirror" not in legacy_hook
+    assert accepted_only_phase in legacy_hook
+    return legacy_hook
 
 
 def _assert_candidate_runner_closeout(
@@ -353,14 +389,14 @@ def test_mirrored_closeout_bootstraps_changed_shell_hook(tmp_path: Path) -> None
     if not _HOOK_SRC.exists():
         return
     os.environ["ETHOS_ACTOR"] = "agent:test:case:agent-test"
-    source_root = Path(__file__).resolve().parents[3]
+    candidate_hook_source = _HOOK_SRC.read_text(encoding="utf-8")
     repo = _armed_repo(
         tmp_path,
         mirror=True,
-        incumbent_hook=_hook_from_ref(source_root, "ac153735^"),
+        incumbent_hook=_legacy_accepted_only_hook(candidate_hook_source),
     )
     candidate = tmp_path / "cand"
-    candidate_head = _land_proven_hook_revision(repo, tmp_path, _hook_from_ref(source_root, "HEAD"))
+    candidate_head = _land_proven_hook_revision(repo, tmp_path, candidate_hook_source)
     candidate_hook = candidate / ".githooks" / "reference-transaction"
 
     accepted_before = (repo / ".githooks" / "reference-transaction").read_text(encoding="utf-8")

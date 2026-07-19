@@ -2115,7 +2115,9 @@ exactly one official active Change; that fallback applies only to this one
 profile-only write and SHALL NOT make that Change cover any other material
 path. A completed archive MAY participate only when the archive itself
 contributes to the current Work Lane change scope; it remains excluded for all
-unrelated future changes.
+unrelated future changes. A selected tracked malformed Change-local
+`scope.toml` MAY be admitted only to repair that exact companion; it SHALL NOT
+provide coverage until its repaired declaration is valid.
 
 #### Scenario: covered material path is admitted across all surfaces
 
@@ -2151,6 +2153,17 @@ unrelated future changes.
   `scope.toml` path
 - **AND THEN** the completed companion SHALL be syntactically valid, cover
   itself, and cover later material writes.
+
+#### Scenario: tracked invalid companion repairs only itself
+
+- **GIVEN** exactly one selected active Change has a Git-tracked malformed
+  `scope.toml`
+- **AND** prewrite evaluates exactly that companion path
+- **WHEN** the shared scope reader evaluates the request
+- **THEN** it MAY report `tracked_scope_repair_admitted` with the exact Change
+  and companion path
+- **AND** it SHALL NOT mark the malformed companion as coverage
+- **AND** an unselected or widened material-path request SHALL remain uncovered.
 
 #### Scenario: existing adopter bootstraps a missing profile declaration
 

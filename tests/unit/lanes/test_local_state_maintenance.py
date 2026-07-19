@@ -252,8 +252,9 @@ def test_maintenance_helpers_preserve_fail_closed_edges(monkeypatch: pytest.Monk
         with pytest.raises(RuntimeError, match="maintenance_git_observation_failed"):
             maintenance._git_lines(repo, "bad")
     with monkeypatch.context() as scoped:
-        scoped.setattr(maintenance, "_git_lines", lambda *_args: ["", "worktree /tmp/lane", "HEAD abc", "branch refs/heads/work/x", "locked reason"])
-        assert maintenance._git_worktrees(repo) == [{"worktree": "/tmp/lane", "head": "abc", "branch": "work/x"}]
+        worktree = repo.as_posix()
+        scoped.setattr(maintenance, "_git_lines", lambda *_args: ["", f"worktree {worktree}", "HEAD abc", "branch refs/heads/work/x", "locked reason"])
+        assert maintenance._git_worktrees(repo) == [{"worktree": worktree, "head": "abc", "branch": "work/x"}]
     bad_db = tmp_path / "bad.sqlite"
     bad_db.touch()
     with monkeypatch.context() as scoped:

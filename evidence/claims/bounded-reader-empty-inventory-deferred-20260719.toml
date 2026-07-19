@@ -3,11 +3,11 @@ id = "bounded-reader-empty-inventory-deferred-20260719"
 change_id = "bounded-reader-empty-inventory-deferred-20260719"
 subject = "ethos:bounded-reader-empty-inventory-deferred"
 state = "active"
-summary = "Active repair carrier for preserving deferred coordination behavior when a bounded reader observes no foreign Work Lanes."
+summary = "Active repair preserving deferred empty bounded coordination and correcting the concurrently accepted exact-empty test and claim drift."
 
 [evidence]
 dated = "evidence/chronicle/bounded-reader-empty-inventory-deferred-20260719/2026-07-19.md"
-sha256 = "e7048cf0f26081c2f95f91fc5e367e0da5cae576416dfa583aa37d750b9e22b4"
+sha256 = "c9b376f1ac7159d5f901e7bda78761ff09e76c56c63b3160f14e495b9dd92557"
 evidence_ids = ["evidence:bounded-reader-empty-inventory-deferred-20260719"]
 binding = "The dated Chronicle digest binds the root-cause observation, explicit reader-mode design, exact material scope, minimal production repair, and local Task 2 GREEN results; it does not establish later lifecycle or external outcomes."
 verifier = "digest_only"
@@ -26,7 +26,7 @@ mode = "historical"
 
 [boundary]
 owner = "ethos-repository-governance"
-scope = "Explicit bounded-versus-full coordination aggregate semantics for an empty foreign Work Lane inventory; schemas, commands, providers, orientation tests, remote publication, and hosted success remain excluded."
+scope = "Explicit bounded-versus-full empty-inventory coordination semantics plus restoration of weakened status/orient assertions and supersession of the conflicting claim; schemas, commands, providers, remote publication, and hosted success remain excluded."
 
 [carriers]
 openspec = "openspec/changes/bounded-reader-empty-inventory-deferred-20260719"
@@ -43,4 +43,7 @@ targets = [
   "packages/ethos/src/ethos/adapters/repo/coordination.py",
   "packages/ethos/src/ethos/adapters/repo/status/core.py",
   "tests/unit/lanes/test_lanes_bounded_status.py",
+  "tests/unit/product/test_orient.py",
+  "evidence/claims/hosted-coordination-detail-contract-20260719.toml",
+  "evidence/chronicle/hosted-coordination-detail-contract-20260719/2026-07-19.md",
 ]

@@ -14,25 +14,38 @@ _COUNT_RE = re.compile(r"Found (\d+) diagnostic")
 _DIAGNOSTIC_EXCERPT_LIMIT = 12
 
 
+def _runtime_command(root: Path, package_src: str) -> list[str]:
+    """Build the source-bound command for one checkout-local type check."""
+    venv = root / "build/runtime/venv"
+    return [
+        str(root / "tools/ci/scripts/with-python-runtime.sh"),
+        "--",
+        "uv",
+        "run",
+        "--locked",
+        "--all-packages",
+        "--group",
+        "dev",
+        "python",
+        "-m",
+        "ty",
+        "check",
+        "--python",
+        str(venv),
+        "--extra-search-path",
+        str(root / "packages/ethos-core/src"),
+        "--extra-search-path",
+        str(root / "packages/ethos/src"),
+        package_src,
+    ]
+
+
 def _diagnostic_report(root: Path, package_src: str) -> dict[str, object]:
     """Run ty and retain whether its diagnostic count is determinate."""
     command = f"ty check {package_src}"
-    venv = root / "build/runtime/venv"
     try:
         completed = subprocess.run(
-            [
-                str(venv / "bin/python"),
-                "-m",
-                "ty",
-                "check",
-                "--python",
-                str(venv),
-                "--extra-search-path",
-                str(root / "packages" / "ethos-core" / "src"),
-                "--extra-search-path",
-                str(root / "packages" / "ethos" / "src"),
-                package_src,
-            ],
+            _runtime_command(root, package_src),
             cwd=root,
             text=True,
             capture_output=True,

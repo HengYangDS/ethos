@@ -52,18 +52,24 @@ def _env(uv: Path, **values: str) -> dict[str, str]:
 
 
 def _run(repo: Path, env: dict[str, str], *command: str, script: Path = BOOTSTRAP) -> list[str]:
-    return subprocess.run(
+    completed = subprocess.run(
         [script, *(command if script == RUNNER else ("--", *command))],
         cwd=repo,
         env=env,
         check=True,
         text=True,
         capture_output=True,
-    ).stdout.splitlines()
+    )
+    assert "VIRTUAL_ENV" not in completed.stderr
+    return completed.stdout.splitlines()
 
 
 def test_lane_runner_uses_checkout_runtime_and_host_cache(repo: Path, tmp_path: Path) -> None:
-    env = _env(_uv(tmp_path, UV_CONTEXT), XDG_CACHE_HOME=str(tmp_path / "host-cache"))
+    env = _env(
+        _uv(tmp_path, UV_CONTEXT),
+        XDG_CACHE_HOME=str(tmp_path / "host-cache"),
+        VIRTUAL_ENV=str(tmp_path / "foreign/.venv"),
+    )
 
     assert _run(repo, env, "status", "--json", script=RUNNER) == [
         f"{repo}/build/runtime/venv",
@@ -139,9 +145,7 @@ def test_missing_checkout_python_uses_locked_fallback(
     assert not python.exists()
 
 
-def test_checkout_python_requires_project_metadata_before_sync_repair(
-    repo: Path, tmp_path: Path
-) -> None:
+def test_checkout_python_requires_successful_locked_check(repo: Path, tmp_path: Path) -> None:
     capture = tmp_path / "uv-calls.txt"
     uv = _uv(
         tmp_path,
@@ -152,9 +156,6 @@ def test_checkout_python_requires_project_metadata_before_sync_repair(
     )
     env = _env(uv, XDG_CACHE_HOME=str(tmp_path / "host-cache"), UV_CAPTURE=str(capture))
 
-    assert _run(repo, env, str(python)) == ["stale-runtime"]
-    for name in ("pyproject.toml", "uv.lock"):
-        (repo / name).touch()
     actual = _run(repo, env, str(python), "-m", "ethos.cli", "status", "--json")
 
     assert actual[0] == f"{repo}/build/runtime/venv"

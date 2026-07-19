@@ -70,13 +70,125 @@ def test_release_policy_reports_equal_gitlab_and_github_publication_topology() -
     assert topology["gitlab"]["git_remote"] != topology["github"]["git_remote"]
 
 
+def _minimal_release_root(tmp_path: Path) -> Path:
+    root = tmp_path / "repo"
+    root.mkdir()
+    (root / "pyproject.toml").write_text(
+        '[project]\nname = "sample"\nversion = "1.0.0"\n',
+        encoding="utf-8",
+    )
+    return root
+
+
+def test_release_policy_rejects_missing_local_install_owner(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    root = _minimal_release_root(tmp_path)
+    monkeypatch.setattr(
+        release_core,
+        "publication_topology",
+        lambda _config: {
+            "local": {"installation_command": "tools/ci/scripts/missing.sh"},
+            "required_gaps": [],
+        },
+    )
+
+    report = release_policy_report(root)
+
+    assert report["ok"] is False
+    assert (
+        "release_local_command_missing:installation_command:tools/ci/scripts/missing.sh"
+        in report["required_gaps"]
+    )
+
+
+def test_release_policy_rejects_non_executable_local_install_owner(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    root = _minimal_release_root(tmp_path)
+    owner = root / "owner.sh"
+    owner.write_text("#!/bin/sh\n", encoding="utf-8")
+    owner.chmod(0o644)
+    monkeypatch.setattr(
+        release_core,
+        "publication_topology",
+        lambda _config: {
+            "local": {"installation_command": "owner.sh"},
+            "required_gaps": [],
+        },
+    )
+
+    report = release_policy_report(root)
+
+    assert report["ok"] is False
+    assert (
+        "release_local_command_not_executable:installation_command:owner.sh"
+        in report["required_gaps"]
+    )
+
+
+def test_release_policy_rejects_non_regular_local_install_owner(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    root = _minimal_release_root(tmp_path)
+    (root / "owner").mkdir()
+    monkeypatch.setattr(
+        release_core,
+        "publication_topology",
+        lambda _config: {
+            "local": {"installation_command": "owner"},
+            "required_gaps": [],
+        },
+    )
+
+    report = release_policy_report(root)
+
+    assert report["ok"] is False
+    assert "release_local_command_not_regular:installation_command:owner" in report["required_gaps"]
+
+
+def test_release_policy_rejects_local_install_owner_path_escape(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    root = _minimal_release_root(tmp_path)
+    outside = tmp_path / "outside.sh"
+    outside.write_text("#!/bin/sh\n", encoding="utf-8")
+    outside.chmod(0o755)
+    monkeypatch.setattr(
+        release_core,
+        "publication_topology",
+        lambda _config: {
+            "local": {"installation_command": "../outside.sh"},
+            "required_gaps": [],
+        },
+    )
+
+    report = release_policy_report(root)
+
+    assert report["ok"] is False
+    assert (
+        "release_local_command_path_escape:installation_command:../outside.sh"
+        in report["required_gaps"]
+    )
+
+
 def test_release_policy_ignores_malformed_publication_gap_collection(
     monkeypatch,
 ) -> None:
     monkeypatch.setattr(
         release_core,
         "publication_topology",
-        lambda _config: {"required_gaps": "malformed"},
+        lambda _config: {
+            "local": {
+                "verification_command": "tools/ci/scripts/run-local-ci.sh",
+                "installation_command": "tools/ci/scripts/run-local-install-smoke.sh",
+            },
+            "required_gaps": "malformed",
+        },
     )
 
     report = release_policy_report(Path.cwd())

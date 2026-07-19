@@ -4,12 +4,12 @@ set -euo pipefail
 [[ "${1:-}" != "--" ]] || shift
 if [[ "$#" -eq 0 ]]; then echo "usage: with-python-runtime.sh -- <command> [args...]" >&2; exit 2; fi
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"; cd "${repo_root}"; inherited_runtime_root="${ETHOS_RUNTIME_ROOT:-}"
-export UV_PROJECT_ENVIRONMENT="${repo_root}/build/runtime/venv"
+export UV_PROJECT_ENVIRONMENT="${repo_root}/build/runtime/venv"; unset VIRTUAL_ENV
 if [[ -n "${ETHOS_UV_CACHE_DIR:-}" ]]; then export UV_CACHE_DIR="${ETHOS_UV_CACHE_DIR}"; elif [[ -n "${UV_CACHE_DIR:-}" ]]; then export UV_CACHE_DIR; else export UV_CACHE_DIR="${XDG_CACHE_HOME:-${HOME}/.cache}/ethos/uv"; fi
 mkdir -p "${UV_CACHE_DIR}"; export ETHOS_RUNTIME_ROOT="${repo_root}"
 # Bootstrap only the default checkout interpreter; explicit Python overrides remain caller-owned.
 semantic_python="${UV_PROJECT_ENVIRONMENT}/bin/python"; if [[ "$1" == "${semantic_python}" ]]; then
-  if [[ -x "${semantic_python}" ]] && { [[ ! -f "${repo_root}/pyproject.toml" || ! -f "${repo_root}/uv.lock" ]] || uv sync --locked --all-packages --group dev --check >/dev/null 2>&1; }; then exec "$@"; fi
+  if [[ -x "${semantic_python}" ]] && uv sync --locked --all-packages --group dev --check >/dev/null 2>&1; then exec "$@"; fi
   bootstrap_cache_dir="${UV_CACHE_DIR}"
   if [[ -n "${inherited_runtime_root}" && "${inherited_runtime_root}" != "${repo_root}" ]]; then nested_cache_key="$(printf '%s' "${repo_root}" | cksum | awk '{print $1}')"; bootstrap_cache_dir="${UV_CACHE_DIR}/nested-bootstrap/${nested_cache_key}"; mkdir -p "${bootstrap_cache_dir}"; fi
   exec env UV_CACHE_DIR="${bootstrap_cache_dir}" uv run --locked --all-packages --group dev python "${@:2}"

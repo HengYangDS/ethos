@@ -46,12 +46,15 @@ _CHRONICLE_FLAGS = (
 )
 _PUBLIC_KEYS = _keys(
     "branch head accepted_head protected_refs status_unbound worktree_binding "
-    "relation_to_accepted claim_id claim_binding active_lease has_active_lease "
+    "relation_to_accepted claim_id claim_binding has_active_lease "
     "chronicle observation_sha256"
 )
 _BINDING_KEYS = _keys(
     "head accepted_head protected_refs status_unbound worktree_binding "
-    "relation_to_accepted claim_id claim_binding has_active_lease chronicle"
+    "relation_to_accepted claim_id claim_binding active_lease has_active_lease chronicle"
+)
+_RETIREMENT_KEYS = tuple(
+    key for key in _BINDING_KEYS if key not in {"active_lease", HAS_ACTIVE_LEASE}
 )
 _CHRONICLE_BINDING_KEYS = _keys(
     "ref sha256 accepted_sha256 event target_branch target_head target_claim "
@@ -246,6 +249,24 @@ def public_observation(value: dict[str, object]) -> dict[str, object]:
 def operation_bindings(value: dict[str, object]) -> dict[str, object]:
     """Return every fact whose drift invalidates the admitted operation."""
     return _project(value, _BINDING_KEYS, present=True)
+
+
+def retirement_bindings(value: dict[str, object]) -> dict[str, object]:
+    """Return non-lease facts that must survive native relinquishment."""
+    return _project(value, _RETIREMENT_KEYS, present=True)
+
+
+def lease_relinquish_binding(value: dict[str, object]) -> dict[str, object]:
+    """Return the exact active lease generation authorized for relinquishment."""
+    lease = cast("dict[str, object]", value["active_lease"])
+    active, epoch = bool(value[HAS_ACTIVE_LEASE]), lease.get("epoch")
+    return _data(
+        active=active,
+        lease_id=str(lease.get("lease_id") or "") if active else "",
+        holder_ref=str(lease.get("holder_ref") or "") if active else "",
+        epoch=epoch if active and isinstance(epoch, int) and not isinstance(epoch, bool) else 0,
+        expected_head=str(lease.get("expected_head") or "") if active else "",
+    )
 
 
 def chronicle_binding(source: dict[str, object]) -> dict[str, object]:

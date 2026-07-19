@@ -20,48 +20,7 @@ docstring-code-format = true
 # Broad rule set: raise the quality
 # floor and make low-quality code unrepresentable. Correctness + determinism + elegance +
 # security + exception hygiene + boolean-trap + private-access + logging.
-select = [
-  "E",
-  "W",
-  "F",
-  "I",
-  "UP",
-  "B",
-  "SIM",
-  "C4",
-  "RET",
-  "PTH",
-  "PT",
-  "N",
-  "A",
-  "ISC",
-  "FLY",
-  "PERF",
-  "TC",
-  "TID",
-  "PIE",
-  "RUF",
-  "C90",
-  "PL",
-  "TRY",
-  "FBT",
-  "SLF",
-  "ARG",
-  "PGH",
-  "FURB",
-  "G",
-  "DTZ",
-  "EM",
-  "LOG",
-  "BLE",
-  "RSE",
-  "SLOT",
-  "PIE",
-  "INP",
-  "T20",
-  "YTT",
-  "ASYNC",
-]
+select = ["E", "W", "F", "I", "UP", "B", "SIM", "C4", "RET", "PTH", "PT", "N", "A", "ISC", "FLY", "PERF", "TC", "TID", "PIE", "RUF", "C90", "PL", "TRY", "FBT", "SLF", "ARG", "PGH", "FURB", "G", "DTZ", "EM", "LOG", "BLE", "RSE", "SLOT", "PIE", "INP", "T20", "YTT", "ASYNC"]
 # Ratchet: correctness rules are enforced everywhere. A bounded set of
 # pre-existing style/idiom debt is frozen here and must shrink as focused refactors
 # dissolve legacy report reducers and wide command handlers. New code gets the full set.
@@ -79,7 +38,6 @@ ignore = [
   "BLE001",  # blind-except: temporary defensive adapter debt; reduce case-by-case
   "ARG001",  # unused-function-argument: cyclopts/adapter signatures need the arg
   "ARG002",  # unused-method-argument: same (protocol conformance)
-  "DTZ011",  # date.today(): a calendar date (not a timestamp) needs no tz
   "SLF001",  # private-member-access remains visible whole-repo ratchet debt;
   # product code should stay SLF001-clean while tests dissolve private reach-throughs.
   "PLR0402", # "from package import submodule" conflicts with ETHOS concrete-submodule
@@ -96,16 +54,7 @@ max-complexity = 10
 # (TID enforces the ban on relative). All current and historical ethos package names
 # are treated as first-party so archived evidence and migration fixtures stay stable.
 force-single-line = true
-known-first-party = [
-  "ethos",
-  "ethos_adapters",
-  "ethos_assistants",
-  "ethos_contracts",
-  "ethos_core",
-  "ethos_quality",
-  "ethos_repository",
-  "ethos_test",
-]
+known-first-party = ["ethos", "ethos_adapters", "ethos_assistants", "ethos_contracts", "ethos_core", "ethos_quality", "ethos_repository", "ethos_test"]
 
 [lint.pydocstyle]
 # Google style is the admitted structured-docstring convention. The dedicated

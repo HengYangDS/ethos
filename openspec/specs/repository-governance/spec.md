@@ -376,13 +376,35 @@ shadow, and lifecycle checks rather than product-core adopter directories.
   `tests/fixtures/adopters/<name>` inside the ETHOS product repository.
 
 ### Requirement: Release Policy
-ETHOS SHALL expose a release policy report covering version alignment, GitLab
-surfaces, protected branch/tag expectations, and attestation formats.
+
+ETHOS SHALL expose a release policy report covering version alignment, hosted
+profile surfaces, protected branch/tag expectations, attestation formats,
+publication topology, and the executable local verification/install owners
+declared by that topology.
 
 #### Scenario: Release policy is complete
+
 - **WHEN** `ethos quality release-policy --json` runs in the ETHOS repository
-- **THEN** the result reports no required gaps for release files, GitLab
-  templates, protected refs, version alignment, and attestation formats
+- **THEN** the result reports no required gaps for release files, hosted profile
+  templates, protected refs, version alignment, attestation formats,
+  publication topology, and local command owners
+- **AND** each declared local verification or installation command resolves to
+  an executable regular file inside the governed repository.
+
+#### Scenario: Phantom local owner blocks release readiness
+
+- **WHEN** a declared local verification or installation command is absent,
+  names a missing or non-regular file, or lacks an executable bit
+- **THEN** release policy SHALL report a stable required gap for that field and
+  path
+- **AND** `ok` SHALL be false.
+
+#### Scenario: Local owner cannot escape the repository
+
+- **WHEN** a declared local command is absolute, contains a traversal that
+  resolves outside the repository, or follows a link outside the repository
+- **THEN** release policy SHALL report a path-escape required gap
+- **AND** it SHALL NOT inspect or execute the outside target as a release owner.
 
 ### Requirement: Release Attestation
 ETHOS SHALL emit deterministic release attestation and SBOM projections without
@@ -893,7 +915,11 @@ ETHOS SHALL treat a Lane Lease as ignored, one-writer coordination within one Gi
 common directory. The lease SHALL identify a concrete holder and generation but
 SHALL NOT be an identity assertion, capability grant, filesystem fence,
 cross-host lock, or repository truth. Reader output SHALL be a
-non-authoritative action preview rather than a reusable permission.
+non-authoritative action preview rather than a reusable permission. Bounded and
+full coordination readers SHALL expose their observed `detail_state`; consumers
+SHALL treat `deferred` as a bounded-observation state and `exact` as a complete
+local observation state, rather than treating either value as a universal
+repository invariant.
 
 #### Scenario: foreign lane preview remains observe-only
 
@@ -919,6 +945,16 @@ non-authoritative action preview rather than a reusable permission.
   readiness
 - **AND** full `lane status` and mutation admission retain exact foreign path
   scope computation before making any coordination decision.
+
+#### Scenario: projection preserves observed coordination detail state
+
+- **WHEN** status or orientation projects a coordination observation
+- **THEN** its summary and orientation coordination payload expose the same
+  observed `detail_state`
+- **AND** `deferred` leaves counts requiring foreign-path inspection unset
+- **AND** `exact` exposes those counts as local integer observations
+- **AND** either observed state remains non-authoritative and does not grant
+  foreign Work Lane mutation authority.
 
 #### Scenario: bounded-reader regression debt is explicit and temporary
 
@@ -2839,8 +2875,11 @@ regenerate every projection and proof whose validity depends on the new HEAD.
 
 ETHOS SHALL expose a native exceptional route through `ethos lane retire
 unbound` for one unbound `work/*` ref only when the current ref is an ancestor
-of the accepted branch, has no linked worktree or active lease, carries an
+of the accepted branch, has no linked worktree, carries an
 accepted-Chronicle-bound active Claim, and matches the supplied expected head.
+The target SHALL have either no active lease or exactly one active lease whose
+holder, ID, epoch, and expected head remain bound to the current invocation for
+native relinquishment.
 The route SHALL require an
 accepted, repository-local Chronicle that contains
 `lane_retire/unbound_exceptional`, `target_branch: <branch>`,
@@ -2854,7 +2893,7 @@ host-specific path.
 #### Scenario: Exact accepted-ancestor residue is inspected
 
 - **WHEN** an operator supplies an unbound `work/*` ref that is an accepted
-  ancestor, has no linked worktree or active lease, and supplies a matching
+  ancestor, has no linked worktree and no active lease, and supplies a matching
   accepted Chronicle and Claim, expected head, and reason
 - **THEN** dry-run reports `ready_to_retire_unbound_exceptional`
 - **AND** it reports the exact observation without deleting the ref
@@ -2862,7 +2901,8 @@ host-specific path.
 
 #### Scenario: A non-exact or non-accepted target is refused
 
-- **WHEN** the target is linked, leased, not an accepted ancestor, lacks a
+- **WHEN** the target is linked, has a foreign, ambiguous, stale, or
+  head-mismatched lease, is not an accepted ancestor, lacks a
   Chronicle-bound active Claim, has a mismatched expected head, or its Chronicle
   or Claim is missing, unaccepted, generic, stale, or names another target
 - **THEN** ETHOS SHALL block the request before any ref mutation
@@ -2882,8 +2922,27 @@ before effect. It SHALL create a no-clobber local attempt record before calling
 `git update-ref -d refs/heads/<branch> <expected-head>`. It SHALL reobserve the
 target and protected refs afterwards, require the target ref and unbound reader
 entry to be absent and protected refs unchanged, then create a no-clobber local
-receipt. It SHALL NOT force-remove a worktree, delete a lease, mutate a remote,
-or fall back to unconstrained branch deletion.
+receipt. It SHALL NOT force-remove a worktree, mutate a remote, or fall back to
+unconstrained branch deletion.
+
+#### Scenario: Current holder relinquishes one exact lease generation
+
+- **WHEN** all ordinary exceptional controls have passed and the target has an
+  active lease whose holder equals the current `ETHOS_ACTOR`, whose ID and epoch
+  are present, and whose expected head equals the target head
+- **THEN** ETHOS MAY revoke only that exact generation through the native lease
+  CAS after publishing its attempt record
+- **AND** the attempt and successful receipt bind the exact lease generation and
+  CAS result
+- **AND** ETHOS SHALL reobserve all non-lease retirement bindings and require
+  no active lease before the compare-and-delete ref effect.
+
+#### Scenario: Lease relinquishment remains fail-closed
+
+- **WHEN** a target lease is absent, foreign, malformed, stale, head-mismatched,
+  replaced, or cannot be revoked by the exact CAS
+- **THEN** ETHOS SHALL leave the source ref intact and report the observed gap
+- **AND** it SHALL not claim retirement or use raw lease or ref deletion.
 
 #### Scenario: Apply deletes only the observed ref
 

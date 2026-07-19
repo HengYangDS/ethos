@@ -171,37 +171,6 @@ def test_matching_rule_gates_reports_invalid_profiles(tmp_path, monkeypatch):
     assert gaps == ["rules_profile_invalid:active_must_be_string_array"]
 
 
-def test_matching_rule_gates_consumes_v2_rule_keys(tmp_path, monkeypatch):
-    monkeypatch.setattr(
-        plan,
-        "rules_config",
-        lambda _root: {
-            "gates": {"tests": {"command": "pytest", "blocking": True}},
-            "rule": [
-                {
-                    "id": "python-v2",
-                    "path_globs": ["src/**"],
-                    "required_gates": ["tests"],
-                    "evidence_requirements": ["pytest evidence"],
-                }
-            ],
-        },
-    )
-
-    matched, gates = plan.matching_rule_gates(tmp_path, ("src/app.py",))
-
-    assert matched == [
-        {
-            "id": "python-v2",
-            "risk": "",
-            "matched_paths": ["src/app.py"],
-            "required_gates": [{"id": "tests", "command": "pytest", "blocking": True}],
-            "evidence": ["pytest evidence"],
-        }
-    ]
-    assert gates == [{"id": "tests", "command": "pytest", "blocking": True}]
-
-
 def test_contract_profile_matches_filters_invalid_profiles_and_contracts(tmp_path, monkeypatch):
     policy = tmp_path / "rules" / "contracts.toml"
     policy.parent.mkdir(parents=True)

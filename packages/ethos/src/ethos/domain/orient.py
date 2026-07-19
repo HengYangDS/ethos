@@ -43,9 +43,11 @@ def orientation_packet(
     probe_summary = _dict(_dict(status_payload.get("dirty_provenance")).get("temporary_probes"))
     temporary_probes = {"count": _nonnegative_int(probe_summary.get("count")), "paths": string_sequence(probe_summary.get("paths")), "truncated": bool(probe_summary.get("truncated")), "automated_cleanup": False}
     capability = _capability(role=role, dirty=dirty, closeout=closeout, temporary_probe_count=int(temporary_probes["count"]))
-    next_actions = _next_actions(role=role, dirty=dirty, gaps=gaps, closeout=closeout,
-                                 report_payload=report_payload, advisory_next_actions=advisory_actions,
-                                 temporary_probe_count=temporary_probes["count"], command_prefix=command_prefix)
+    next_actions = _next_actions({
+        "role": role, "dirty": dirty, "gaps": gaps, "closeout": closeout,
+        "report_payload": report_payload, "advisory_next_actions": advisory_actions,
+        "temporary_probe_count": temporary_probes["count"], "command_prefix": command_prefix,
+    })
     dirty_foreign = _coordination_count(coordination, "dirty_foreign_work_lane_count", fallback=sum(lane.get("dirty") is True for lane in foreign_lanes))
     advisory_count = int(report_summary.get("advisory_gap_count") or len(report_advisory))
     coordination_view = _project(coordination, "blocking:b foreign_work_lane_count:i unbound_work_lane_count:i "
@@ -187,13 +189,13 @@ def _capability(*, role: str, dirty: bool, closeout: Mapping[str, Any], temporar
             "can_land": bool(closeout.get("supported")) if action == "write_lane" else False, "reason": reason}
 
 
-def _next_actions(
-    *, role: str, dirty: bool, gaps: list[str], closeout: Mapping[str, Any],
-    report_payload: object, advisory_next_actions: list[str], temporary_probe_count: object,
-    command_prefix: str,
-) -> list[str]:
+def _next_actions(context: Mapping[str, Any]) -> list[str]:
+    role, dirty = str(context["role"]), context.get("dirty") is True
+    gaps, closeout = string_sequence(context.get("gaps")), _dict(context.get("closeout"))
+    report_payload, command_prefix = context.get("report_payload"), str(context.get("command_prefix") or "")
+    advisory_next_actions = string_sequence(context.get("advisory_next_actions"))
     actions = ["ethos status --json"]
-    temporary_probe = _nonnegative_int(temporary_probe_count)
+    temporary_probe = _nonnegative_int(context.get("temporary_probe_count"))
     if temporary_probe and role in {"accepted_root", "candidate"}:
         actions = ["remove the temporary probe or migrate it into an owned Work Lane; no automatic cleanup", "inspect dirty_provenance.temporary_probes in ethos status --json"]
     elif dirty:

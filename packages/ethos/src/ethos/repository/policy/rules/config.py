@@ -33,9 +33,7 @@ def _normalize_profile(profile: str) -> str:
 
 
 def _validated_active_profiles(active: object) -> tuple[list[str], str]:
-    if not isinstance(active, list):
-        return [], "rules_profile_invalid:active_must_be_string_array"
-    if any(not isinstance(item, str) for item in active):
+    if not isinstance(active, list) or any(not isinstance(item, str) for item in active):
         return [], "rules_profile_invalid:active_must_be_string_array"
     active_profiles = [item for item in active if isinstance(item, str)]
     if not active_profiles:

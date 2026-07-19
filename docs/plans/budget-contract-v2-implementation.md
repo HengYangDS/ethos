@@ -62,7 +62,7 @@ relations:
 - Consumes: current `ethos.domain.prove.source_budget_report` behavior and v1 policy.
 - Produces: `ethos.domain.source_budget.core.source_budget_report(root: Path) -> dict[str, object]` with byte-for-byte equivalent JSON semantics; accepted DR-0008; reviewed v1 fact summary with an ignored raw-evidence digest.
 
-- [ ] **Step 1: Move existing source-budget tests to the new module path before production code exists.**
+- [x] **Step 1: Move existing source-budget tests to the new module path before production code exists.**
 
 Keep code-size and workspace validation tests in `tests/unit/domain/test_prove.py`. Move source-budget cases into `tests/unit/domain/source_budget/test_core.py`, importing:
 
@@ -73,7 +73,7 @@ from ethos.domain.source_budget.core import (
 )
 ```
 
-- [ ] **Step 2: Run RED.**
+- [x] **Step 2: Run RED.**
 
 Run:
 
@@ -85,7 +85,7 @@ tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev pyt
 
 Expected: failure because `ethos.domain.source_budget.core` and the declared provider do not yet exist.
 
-- [ ] **Step 3: Extract the v1 implementation without a compatibility forwarder.**
+- [x] **Step 3: Extract the v1 implementation without a compatibility forwarder.**
 
 Move `_SOURCE_BUDGET_CATEGORIES`, `source_budget_carrier_report`,
 `source_budget_report`, and their source-budget-only helpers from
@@ -98,7 +98,7 @@ report_handler = { provider = "ethos.domain.source_budget.core:source_budget_rep
 
 Do not leave a re-export in `prove.py`.
 
-- [ ] **Step 4: Run GREEN and behavior-equivalence checks.**
+- [x] **Step 4: Run GREEN and behavior-equivalence checks.**
 
 Run:
 
@@ -119,7 +119,7 @@ tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev pyt
 Expected: all selected tests pass; `quality source-budget` retains the same 17
 pre-existing obligation classes when evaluated at the same HEAD.
 
-- [ ] **Step 5: Complete DR-0008, OpenSpec deltas, snapshot, claim, Chronicle, and commit.**
+- [x] **Step 5: Complete DR-0008, OpenSpec deltas, snapshot, claim, Chronicle, and commit.**
 
 Run strict OpenSpec validation, claim validation, config lint, Python lint, and
 commit with:

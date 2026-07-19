@@ -111,5 +111,4 @@ def lease_contract_fields(payload: dict[str, Any]) -> dict[str, Any]:
         "expected_head": str(payload.get("expected_head") or ""),
         "claim_id": str(payload.get("claim_id") or ""),
         "path_scope": string_sequence(payload.get("path_scope"), drop_empty=True),
-        "normalization_state": str(payload.get("normalization_state") or "legacy_ambiguous"),
     }

@@ -125,7 +125,6 @@ def test_admission_prewrite_and_hook_success_edges(
                 "lease_id": "lease:test",
                 "epoch": 1,
                 "expected_head": "a" * 40,
-                "normalization_state": "normalized",
             }
         },
     )
@@ -135,7 +134,10 @@ def test_admission_prewrite_and_hook_success_edges(
     )
     assert missing_editor["error"] == "editor_root_missing"
     mismatch = admission_prewrite.prewrite_guard(
-        root=tmp_path, paths=[], editor_root=tmp_path / "other", require_editor_root=True
+        root=tmp_path,
+        paths=[],
+        editor_root=tmp_path / "other",
+        require_editor_root=True,
     )
     assert mismatch["error"] == "editor_root_mismatch"
 
@@ -215,7 +217,12 @@ def test_admission_prewrite_and_hook_success_edges(
         ("git --bare", ROLE_WORK_LANE, False, "observe_only_command"),
         ("git branch --list", ROLE_WORK_LANE, False, "observe_only_command"),
         ("git worktree list", ROLE_WORK_LANE, False, "observe_only_command"),
-        ("git branch -D old", ROLE_WORK_LANE, True, "command_text_matches_mutation_pattern"),
+        (
+            "git branch -D old",
+            ROLE_WORK_LANE,
+            True,
+            "command_text_matches_mutation_pattern",
+        ),
         ("cat README.md", ROLE_ACCEPTED_ROOT, False, "observe_only_command"),
         ("git status", ROLE_ACCEPTED_ROOT, False, "observe_only_command"),
         ("git branch --list", ROLE_ACCEPTED_ROOT, False, "observe_only_command"),
@@ -308,7 +315,12 @@ def test_admission_prewrite_and_hook_success_edges(
 def test_lifecycle_json_helpers_tolerate_malformed_payloads() -> None:
     assert lifecycle_cli._gap_tuple({"required_gaps": "not-a-list"}) == ()  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
     assert lifecycle_cli._first_string(()) == ""  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch
-    for value, default, expected in ((3, 0, 3), ("4", 0, 4), ("bad", 7, 7), (object(), 0, 0)):
+    for value, default, expected in (
+        (3, 0, 3),
+        ("4", 0, 4),
+        ("bad", 7, 7),
+        (object(), 0, 0),
+    ):
         assert lifecycle_cli._int_value(value, default=default) == expected  # noqa: RUF100, SLF001 - exact private branch coverage
 
 
@@ -318,7 +330,9 @@ def test_cli_wrappers_emit_expected_results(
     emitted: list[EthosResult] = []
     for module in (inspection_cli, lifecycle_cli, reference_cli):
         monkeypatch.setattr(
-            module, "emit", lambda result, json_output, enforce=True: emitted.append(result)
+            module,
+            "emit",
+            lambda result, json_output, enforce=True: emitted.append(result),
         )
         monkeypatch.setattr(module, "resolve_root", lambda root: tmp_path)
     monkeypatch.setattr(
@@ -412,7 +426,11 @@ def test_cli_wrappers_emit_expected_results(
     monkeypatch.setattr(
         lifecycle_cli,
         "candidate_base_report",
-        lambda root, status=None: {"ok": True, "required_gaps": [], "state": "base_current"},
+        lambda root, status=None: {
+            "ok": True,
+            "required_gaps": [],
+            "state": "base_current",
+        },
     )
     lifecycle_cli.land(json_output=True)
     assert emitted[-1].state == "ready_to_land"
@@ -420,7 +438,11 @@ def test_cli_wrappers_emit_expected_results(
     monkeypatch.setattr(
         lifecycle_cli,
         "apply_land_to_candidate",
-        lambda **kwargs: {"ok": True, "required_gaps": [], "state": "candidate_validated"},
+        lambda **kwargs: {
+            "ok": True,
+            "required_gaps": [],
+            "state": "candidate_validated",
+        },
     )
     lifecycle_cli.land(apply=True, authorize=True, expect_head="h1", json_output=True)
     assert emitted[-1].state == "candidate_validated"
@@ -500,7 +522,8 @@ def test_audit_coupling_config_and_misc_edges(
     doc.write_text("no frontmatter", encoding="utf-8")
     assert front_matter_ok(doc) is False
     doc.write_text(
-        "---\nsubject: s\nrole: r\nstate: active\nrelations: []\n---\n", encoding="utf-8"
+        "---\nsubject: s\nrole: r\nstate: active\nrelations: []\n---\n",
+        encoding="utf-8",
     )
     assert front_matter_ok(doc) is True
     changes = tmp_path / "openspec" / "changes" / "done"
@@ -547,13 +570,19 @@ def test_audit_coupling_config_and_misc_edges(
         "not_product_substrate": False,
     }
     gaps = coupling_registry.binding_taxonomy_gaps(
-        "openspec_workspace", corrupted, load_coupling_declaration().binding("openspec_workspace")
+        "openspec_workspace",
+        corrupted,
+        load_coupling_declaration().binding("openspec_workspace"),
     )
     assert "binding_registry_layer:openspec_workspace:wrong" in gaps
     assert "binding_registry_product_semantics:openspec_workspace" in gaps
     assert "binding_registry_product_substrate:openspec_workspace" in gaps
     registry_gaps = coupling_registry.binding_registry_gaps(
-        [{**corrupted, "id": ""}, {**corrupted, "label": "bad"}, {**corrupted, "label": "bad"}]
+        [
+            {**corrupted, "id": ""},
+            {**corrupted, "label": "bad"},
+            {**corrupted, "label": "bad"},
+        ]
     )
     assert "binding_registry_missing_id" in registry_gaps
     assert "binding_registry_duplicate:openspec_workspace" in registry_gaps
@@ -565,13 +594,15 @@ def test_remaining_helper_edges(monkeypatch: pytest.MonkeyPatch, tmp_path: Path)
     # gate runner non-ethos JSON command returns None via line 36.
     assert (
         _gate_runner.run_inprocess_cli_gate(
-            ActionNode(id="x", kind="command", command=("python", "script.py", "--json")), tmp_path
+            ActionNode(id="x", kind="command", command=("python", "script.py", "--json")),
+            tmp_path,
         )
         is None
     )
     assert (
         _gate_runner.run_inprocess_cli_gate(
-            ActionNode(id="no-json", kind="command", command=("ethos", "status")), tmp_path
+            ActionNode(id="no-json", kind="command", command=("ethos", "status")),
+            tmp_path,
         )
         is None
     )
@@ -582,7 +613,8 @@ def test_remaining_helper_edges(monkeypatch: pytest.MonkeyPatch, tmp_path: Path)
         lambda argv, exit_on_error=False: (_ for _ in ()).throw(SystemExit("bad")),
     )
     result = _gate_runner.run_inprocess_cli_gate(
-        ActionNode(id="x", kind="command", command=("ethos", "status", "--json")), tmp_path
+        ActionNode(id="x", kind="command", command=("ethos", "status", "--json")),
+        tmp_path,
     )
     assert result is not None and result.exit_code == 1
     module_result = _gate_runner.run_inprocess_cli_gate(
@@ -646,13 +678,17 @@ def test_remaining_helper_edges(monkeypatch: pytest.MonkeyPatch, tmp_path: Path)
 
     assert (
         parity_validation.command_matches_identity(
-            "ethos parity shadow --adopter a --target /t --execute --json", adopter="a", target="/t"
+            "ethos parity shadow --adopter a --target /t --execute --json",
+            adopter="a",
+            target="/t",
         )
         is True
     )
     assert (
         parity_validation.command_matches_identity(
-            "ethos parity shadow --adopter b --target /t --execute --json", adopter="a", target="/t"
+            "ethos parity shadow --adopter b --target /t --execute --json",
+            adopter="a",
+            target="/t",
         )
         is False
     )

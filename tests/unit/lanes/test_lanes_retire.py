@@ -109,7 +109,6 @@ def test_retire_landed_work_lane_rejects_legacy_json_owner_projection(
     assert report["required_gaps"] == ["foreign_work_lane_retire_authority_required"]
     selected = next(lane for lane in report["lanes"] if lane["branch"] == _LANDED_BRANCH)
     assert selected["lease"]["holder_ref"] == ""
-    assert selected["lease"]["normalization_state"] == "legacy_ambiguous"
     assert selected["lease_state"] == "missing"
 
 
@@ -361,7 +360,7 @@ def test_remove_linked_lane_blocks_before_effect_when_reobservation_is_stale_or_
 
 
 @pytest.mark.parametrize(
-    ("lane", "expect_head", "responses", "required_gaps"),
+    "case",
     [
         (
             {"branch": "", "path": ""},
@@ -405,12 +404,15 @@ def test_remove_linked_lane_blocks_before_effect_when_reobservation_is_stale_or_
 )
 def test_remove_linked_lane_reobservation_fails_closed_for_missing_or_unavailable_state(
     tmp_path: Path,
-    lane: dict[str, str],
-    expect_head: str | None,
-    responses: dict[tuple[str, ...], tuple[int, str, str]],
-    required_gaps: list[str],
     monkeypatch: pytest.MonkeyPatch,
+    case: tuple[
+        dict[str, str],
+        str | None,
+        dict[tuple[str, ...], tuple[int, str, str]],
+        list[str],
+    ],
 ) -> None:
+    lane, expect_head, responses, required_gaps = case
     repo = init_repo(tmp_path / "repo")
     lane_path = tmp_path / "repo-work-stuck"
     if lane["path"]:

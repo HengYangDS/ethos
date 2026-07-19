@@ -1,0 +1,13 @@
+schema_version = 1
+paths = [
+  "packages/ethos/src/ethos/adapters/openspec/archive/**",
+  "packages/ethos/src/ethos/adapters/openspec/core.py",
+  "packages/ethos/src/ethos/surface/cli/root/reference.py",
+  "tests/unit/product/test_openspec_edges.py",
+  "tests/unit/cli/test_contracts.py",
+  "docs/reference/command-plane.md",
+  "openspec/specs/command-plane/spec.md",
+  "evidence/claims/openspec-archive-logical-identifier-20260719.toml",
+  "evidence/chronicle/openspec-archive-logical-identifier-20260719/**",
+  "openspec/changes/openspec-archive-logical-identifier-20260719/**",
+]

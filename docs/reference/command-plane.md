@@ -562,6 +562,14 @@ an application-time delta conflict is reported as
 land, or accepted-root closeout. The source workspace is never archived or
 rewritten by this projection.
 
+`ethos openspec --change <logical-id> --json` is only for active OpenSpec
+Changes. A dated archive directory name is rejected rather than forwarded as an
+active identifier. To read historical archive identity, use
+`ethos openspec --archive-id <logical-id> --json`: it resolves exactly one
+`YYYY-MM-DD-<logical-id>` carrier and fails closed on invalid, missing, or
+ambiguous identifiers. This reader neither selects by date nor rewrites an
+archived carrier.
+
 Proof states are execution-depth states. `ethos prove --json` is readiness and
 reports `state=ready` with `executed=false` when planning and static admission
 pass. `ethos prove --execute --json` can report `state=proven` because every

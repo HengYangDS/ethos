@@ -6,9 +6,9 @@ summary = "Implement and independently review the bounded Task 2 carrier and met
 
 [evidence]
 dated = "evidence/chronicle/budget-contract-v2-carrier-metric-contracts-20260719/2026-07-19.md"
-sha256 = "e39b29bc75cd007dcc3ab98371e11845e838fe31c630533065208957f3cbcca9"
+sha256 = "e36ef5c58ba574c0d65f12a919ae61e82cfb782adc187da163c8a96a020f77f3"
 evidence_ids = ["evidence:budget-contract-v2-carrier-metric-contracts-20260719"]
-binding = "DR-0008, the accepted Foundation, the active Task 2 OpenSpec Change, strict typed contracts and loaders, the post-refresh 2,616-path exact-one observation, reviewed counts and canonical digests, 108 focused tests, 28 v1 regressions, owner quality gates, independent review, and eight clean generic parity comparisons bind this contract-only slice; the first exact-HEAD proof digest is retained as failed evidence pending a prose-only neutrality repair and independent coverage recheck, while archive and downstream closeout remain separate transitions."
+binding = "DR-0008, the accepted Foundation, the active Task 2 OpenSpec Change, strict typed contracts and loaders, the post-refresh 2,616-path exact-one observation, reviewed counts and canonical digests, 140 focused tests, 28 v1 regressions, 100 percent statement and branch coverage for the three T2 modules, owner quality gates, independent review, and eight previously clean generic parity comparisons bind this contract-only slice; the first exact-HEAD proof and first post-coverage full-suite run are retained as failed intermediate evidence pending committed parity refresh and a new exact-HEAD proof, while archive and downstream closeout remain separate transitions."
 verifier = "digest_only"
 tests = [
   "tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev pytest -q tests/unit/kernel/test_source_budget_carriers_contract.py tests/unit/kernel/test_source_budget_metrics_contract.py tests/unit/adapters/repo/source_budget/test_carriers.py tests/unit/governance/validation/test_schemas.py",

@@ -1,0 +1,38 @@
+[claim]
+id = "ownerless-scope-retirement-authority-20260720"
+subject = "ethos:ownerless-scope-retirement-authority"
+state = "archived"
+summary = "Archived authority carrier for one later native retirement of the clean ownerless OpenSpec scope-recovery lane after independently replayed behavior is proven and locally closed out."
+
+[evidence]
+dated = "evidence/chronicle/ownerless-scope-retirement-authority-20260720/2026-07-19.md"
+sha256 = "eda90d89a2992664c2beea595e2a63c762064bc965e020dec953f4ea65030bcc"
+evidence_ids = ["evidence:ownerless-scope-retirement-authority-20260720"]
+binding = "One named source ref, current semantic replay, exact local proof and closeout transitions, and a fresh native decision delimit this exceptional authority."
+verifier = "digest_only"
+tests = [
+  "tools/ci/scripts/run-ethos-lane.sh prove --execute --expect-head <committed-head> --json",
+  "tools/ci/scripts/run-ethos-lane.sh land --apply --authorize --expect-head <committed-head> --json",
+  "tools/ci/scripts/run-ethos-lane.sh land --closeout --apply --authorize --expect-head <accepted-head> --root <accepted-root> --json",
+  "ethos lane resolution decide --branch work/openspec-scope-recovery-admission-20260715 --disposition retire --break-glass --apply --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "One clean ownerless scope-recovery source lane; native local retirement only after fresh decision and re-observation."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-19-ownerless-scope-retirement-authority-20260720"
+fallback = "Keep the source lane intact if its head, linked binding, clean state, or semantic basis changes before native apply."
+kill_signal = "A historical tree-diff mismatch is described as lack of semantic absorption, a preservation package substitutes for acceptance, or the authority is applied to another lane."
+
+[promotion]
+targets = [
+  "docs/plans/ownerless-scope-retirement-authority-20260720.md",
+  "evidence/claims/ownerless-scope-retirement-authority-20260720.toml",
+  "evidence/chronicle/ownerless-scope-retirement-authority-20260720",
+  "openspec/changes/archive/2026-07-19-ownerless-scope-retirement-authority-20260720",
+]

@@ -20,7 +20,7 @@ owner = "ethos-repository"
 scope = "One exact unbound accepted-ancestor ref only; no batch authority, lease takeover, raw deletion, remote mutation, or hosted claim."
 
 [carriers]
-openspec = "openspec/changes/ownerless-unbound-ancestor-retirement-20260719"
+openspec = "openspec/changes/archive/2026-07-19-ownerless-unbound-ancestor-retirement-20260719"
 fallback = "Preserve the exact source ref if fresh native observation or accepted binding fails."
 kill_signal = "A command deletes a different ref, acts without current exact-head admission, or claims retirement before the native receipt exists."
 
@@ -28,5 +28,5 @@ kill_signal = "A command deletes a different ref, acts without current exact-hea
 targets = [
   "evidence/claims/worktree-retirement-fail-closed-unbound-retirement-20260719.toml",
   "evidence/chronicle/worktree-retirement-fail-closed-unbound-retirement-20260719/2026-07-19.md",
-  "openspec/changes/ownerless-unbound-ancestor-retirement-20260719",
+  "openspec/changes/archive/2026-07-19-ownerless-unbound-ancestor-retirement-20260719",
 ]

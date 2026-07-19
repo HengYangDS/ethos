@@ -160,7 +160,8 @@ def test_default_gate_graph_includes_ci_owner_quality_floor() -> None:
         "--json",
     ]
     assert nodes["config-quality"].to_dict()["command"] == ["tools/ci/scripts/run-config-lint.sh"]
-    assert "toml-config" not in nodes and "yaml-config" not in nodes
+    assert "toml-config" not in nodes
+    assert "yaml-config" not in nodes
     assert nodes["shell-lint"].to_dict()["command"] == ["tools/ci/scripts/run-shell-lint.sh"]
     assert "source-budget" not in node_ids
     assert "source-budget" in [node.id for node in gate_graph(full=True).nodes]

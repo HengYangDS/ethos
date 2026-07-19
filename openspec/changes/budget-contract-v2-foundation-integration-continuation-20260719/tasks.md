@@ -11,7 +11,7 @@
 
 - [x] 2.1 Commit the staged no-fast-forward merge with exact first parent
   `b90c4099` and second parent `21b4ac47`, then record its full SHA.
-- [ ] 2.2 Start a further successor from the latest candidate if candidate has
+- [x] 2.2 Start a further successor from the latest candidate if candidate has
   advanced, bind the same claim, and no-fast-forward absorb the completed
   continuation head without linearizing its merge topology.
 - [ ] 2.3 Retain candidate-authoritative parity/config/gate semantics, regenerate

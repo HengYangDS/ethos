@@ -1,0 +1,11 @@
+schema_version = 1
+paths = [
+  "docs/superpowers/plans/2026-07-19-local-ci-git-bundle-locale-robustness.md",
+  "docs/superpowers/specs/2026-07-19-local-ci-git-bundle-locale-robustness-design.md",
+  "evidence/claims/local-ci-locale-robustness-20260719.toml",
+  "evidence/chronicle/local-ci-locale-robustness-20260719/**",
+  "evidence/parity/generic-shadow.json",
+  "openspec/changes/local-ci-locale-robustness-20260719/**",
+  "openspec/specs/quality/spec.md",
+  "tests/unit/cli/lane/test_cross_host_handoff.py",
+]

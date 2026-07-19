@@ -1,0 +1,42 @@
+[claim]
+id = "local-ci-locale-robustness-20260719"
+subject = "quality:local-ci-git-bundle-locale-robustness"
+state = "active"
+summary = "Opened a test-only repair for locale-dependent Git bundle verification; passing local CI and closeout remain unclaimed."
+
+[evidence]
+dated = "evidence/chronicle/local-ci-locale-robustness-20260719/2026-07-19.md"
+sha256 = "c9428b0df90208a4f630cd92088ac6ce842ddc7c1e684e7f9ab5db0156df4142"
+evidence_ids = ["evidence:local-ci-locale-robustness-20260719"]
+binding = "The dated Chronicle binds the exact localized RED observation, selected test-only locale boundary, and explicit no-remote scope."
+verifier = "digest_only"
+tests = [
+  "pytest -q tests/unit/cli/lane/test_cross_host_handoff.py::test_cross_host_export_is_content_addressed_and_excludes_sqlite_lease",
+  "tools/ci/scripts/run-python-lint.sh",
+  "tools/ci/scripts/run-local-ci.sh",
+  "ethos parity shadow --adopter generic --target . --execute --write-evidence --json",
+  "ethos prove --execute --expect-head <committed-head> --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-quality-gate-governance"
+scope = "One test-only deterministic message-locale boundary for Git bundle complete-history verification; remote publication excluded."
+
+[carriers]
+openspec = "openspec/changes/local-ci-locale-robustness-20260719"
+fallback = "Keep the local CI fallback blocked rather than accepting locale-dependent or weakened bundle verification."
+kill_signal = "The test changes product behavior, shared Git helper behavior, or accepts a bundle without successful complete-history verification."
+
+[promotion]
+targets = [
+  "docs/superpowers/specs/2026-07-19-local-ci-git-bundle-locale-robustness-design.md",
+  "docs/superpowers/plans/2026-07-19-local-ci-git-bundle-locale-robustness.md",
+  "evidence/claims/local-ci-locale-robustness-20260719.toml",
+  "evidence/chronicle/local-ci-locale-robustness-20260719/2026-07-19.md",
+  "openspec/changes/local-ci-locale-robustness-20260719",
+  "openspec/specs/quality/spec.md",
+  "tests/unit/cli/lane/test_cross_host_handoff.py",
+]

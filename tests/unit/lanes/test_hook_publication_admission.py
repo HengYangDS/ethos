@@ -1,13 +1,16 @@
 from __future__ import annotations
 
-from pathlib import Path
-
-import pytest
+from typing import TYPE_CHECKING
 
 from ethos.adapters.admission.core import push_admission_report
 from ethos.surface.cli.hook import core as hook_cli
 from tests.support.lane_helpers import git
 from tests.support.lane_helpers import init_repo
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    import pytest
 
 
 def test_push_admission_keeps_campaign_progress_out_of_required_gaps(

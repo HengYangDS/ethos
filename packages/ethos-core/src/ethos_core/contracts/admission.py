@@ -10,6 +10,7 @@ import os
 from typing import Annotated
 from typing import Any
 from typing import Literal
+from typing import cast
 
 from pydantic import BaseModel
 from pydantic import BeforeValidator
@@ -22,10 +23,11 @@ _PATH_REQUIRED = "path-bound admission request fields require a filesystem path"
 
 def _path_text(value: object) -> str:
     """Normalize one filesystem path-like value into the portable request form."""
-    try:
-        return os.fspath(value)
-    except TypeError as error:
-        raise ValueError(_PATH_REQUIRED) from error
+    if isinstance(value, str):
+        return value
+    if isinstance(value, os.PathLike):
+        return os.fspath(cast("os.PathLike[str]", value))
+    raise ValueError(_PATH_REQUIRED)
 
 
 FilesystemPath = Annotated[str, BeforeValidator(_path_text)]

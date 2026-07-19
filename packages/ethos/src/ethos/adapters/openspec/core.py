@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from typing import cast
 
 import ethos.adapters.openspec.cli as openspec_cli
+from ethos.adapters.openspec.archive.query import active_change_identifier_gaps
 from ethos.adapters.openspec.lifecycle.core import OpenSpecLifecycleRuntime
 from ethos.adapters.openspec.lifecycle.core import OpenSpecReportContext
 from ethos.adapters.openspec.lifecycle.core import OpenSpecRequest
@@ -33,6 +34,14 @@ def openspec_governance_report(
     changed_paths: tuple[str, ...] = (),
 ) -> dict[str, Any]:
     """Return the ETHOS OpenSpec governance report for one repository root."""
+    active_identifier_gaps = active_change_identifier_gaps(root, change)
+    if active_identifier_gaps:
+        return _active_identifier_rejected_report(
+            root,
+            change=change,
+            lifecycle=lifecycle,
+            required_gaps=active_identifier_gaps,
+        )
     request = OpenSpecRequest(change, lifecycle, changed_paths)
     base_command = openspec_cli.openspec_base_command()
     if base_command is None:
@@ -50,6 +59,38 @@ def openspec_governance_report(
             signature,
         )
     )
+
+
+def _active_identifier_rejected_report(
+    root: Path,
+    *,
+    change: str | None,
+    lifecycle: bool,
+    required_gaps: list[str],
+) -> dict[str, Any]:
+    """Return an active-selector category error without invoking official status."""
+    official_config = official_config_report(root)
+    return {
+        "ok": False,
+        "official_config": official_config,
+        "official_cli": {
+            "package": openspec_cli.OFFICIAL_NPX_PACKAGE,
+            "available": False,
+            "base_command": [],
+        },
+        "change": change,
+        "schema_name": "",
+        "summary": {"change_count": 0, "validation": {}},
+        "required_gaps": required_gaps,
+        "advisory_gaps": [],
+        "lifecycle": {
+            "enabled": lifecycle,
+            "changes": [],
+            "scope_binding": {},
+            "protected_branch_residue": {},
+        },
+        "commands": {"doctor": {}, "list": {}, "status": {}, "validate": {}},
+    }
 
 
 @lru_cache(maxsize=32)

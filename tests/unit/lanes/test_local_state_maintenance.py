@@ -8,102 +8,27 @@ import sys
 import tarfile
 import textwrap
 from contextlib import closing
-from datetime import UTC
-from datetime import datetime
 from pathlib import Path
 
 import pytest
 
 import ethos.adapters.store.state.maintenance as maintenance
-from ethos.adapters.mutation.proof import proof_state_dir
 from ethos.adapters.store.state.maintenance import apply_local_state_maintenance
 from ethos.adapters.store.state.maintenance import local_state_maintenance_inventory
-from ethos.adapters.store.state.schema import initialize_state
 from tests.support.contract_helpers import git
-from tests.support.contract_helpers import init_git_repo
-
-OBSERVED_AT = datetime(2026, 7, 19, 0, 0, tzinfo=UTC)
-
-
-def _repo(tmp_path: Path) -> Path:
-    return init_git_repo(tmp_path / "repo")
-
-
-def _insert_lease(
-    repo: Path,
-    *,
-    lease_id: str,
-    subject: str,
-    expires_at: str,
-    payload: dict[str, object] | str,
-) -> None:
-    db_path = repo / ".ethos" / "state" / "state.sqlite"
-    initialize_state(db_path)
-    if isinstance(payload, dict):
-        payload = dict(payload)
-        if payload.get("lease_id") == "lease:fixture":
-            payload["lease_id"] = lease_id
-        if payload.get("lane_ref") == "work/fixture":
-            payload["lane_ref"] = subject
-    payload_json = payload if isinstance(payload, str) else json.dumps(payload, sort_keys=True)
-    with closing(sqlite3.connect(db_path)) as connection:
-        connection.execute(
-            """
-            insert into leases(id, subject, owner, expires_at, payload_json)
-            values (?, ?, 'agent:test:case:owner', ?, ?)
-            """,
-            (lease_id, subject, expires_at, payload_json),
-        )
-        connection.commit()
-
-
-def _current_lease_payload(*, path: str = "", expected_head: str = "") -> dict[str, object]:
-    return {
-        "lease_id": "lease:fixture",
-        "lane_incarnation_id": "lane-incarnation:fixture",
-        "lane_ref": "work/fixture",
-        "holder_ref": "agent:test:case:owner",
-        "epoch": 1,
-        "issued_at": "2026-07-01T00:00:00+00:00",
-        "renewed_at": "2026-07-01T00:00:00+00:00",
-        "expected_head": expected_head,
-        "claim_id": "",
-        "path_scope": [],
-        "coordination_scope": "git_common_directory",
-        "mints_authority": False,
-        "filesystem_fence": False,
-        "distributed_lock": False,
-        "path": path,
-    }
-
-
-def _write_proof(repo: Path, head: str) -> Path:
-    path = proof_state_dir(repo) / f"{head}.json"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps({"schema_version": 3, "head": head, "state": "proven"}))
-    return path
-
-
-def _unreachable_commit(repo: Path) -> str:
-    tree = git(repo, "write-tree")
-    return git(
-        repo,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit-tree",
-        tree,
-        "-m",
-        "unreachable maintenance proof",
-    )
+from tests.support.local_state_maintenance import OBSERVED_AT
+from tests.support.local_state_maintenance import current_lease_payload
+from tests.support.local_state_maintenance import insert_lease
+from tests.support.local_state_maintenance import maintenance_repo
+from tests.support.local_state_maintenance import unreachable_commit
+from tests.support.local_state_maintenance import write_proof
 
 
 def test_inventory_rejects_invalid_boundaries_and_git_failures(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    repo = _repo(tmp_path)
+    repo = maintenance_repo(tmp_path)
 
     with pytest.raises(ValueError, match="maintenance_archive_root_must_be_absolute"):
         local_state_maintenance_inventory(repo, Path("relative"), OBSERVED_AT)
@@ -138,7 +63,7 @@ def test_tree_inventory_rejects_links_and_special_entries(tmp_path: Path) -> Non
 
 
 def test_inventory_reports_an_unreadable_state_database(tmp_path: Path) -> None:
-    repo = _repo(tmp_path)
+    repo = maintenance_repo(tmp_path)
     db_path = repo / ".ethos" / "state" / "state.sqlite"
     db_path.parent.mkdir(parents=True, exist_ok=True)
     db_path.write_bytes(b"not sqlite")
@@ -152,7 +77,7 @@ def test_inventory_reports_an_unreadable_state_database(tmp_path: Path) -> None:
 def test_inventory_prunes_only_expired_unobservable_current_contract_leases(
     tmp_path: Path,
 ) -> None:
-    repo = _repo(tmp_path)
+    repo = maintenance_repo(tmp_path)
     archive_root = tmp_path / "archive"
     missing_path = tmp_path / "missing-worktree"
     existing_path = tmp_path / "recorded-worktree"
@@ -161,7 +86,15 @@ def test_inventory_prunes_only_expired_unobservable_current_contract_leases(
     linked_path = tmp_path / "linked-worktree"
     git(repo, "worktree", "add", "-b", "work/linked", linked_path.as_posix(), "HEAD")
     linked_other = tmp_path / "linked-worktree-other"
-    git(repo, "worktree", "add", "-b", "work/linked-other", linked_other.as_posix(), "HEAD")
+    git(
+        repo,
+        "worktree",
+        "add",
+        "-b",
+        "work/linked-other",
+        linked_other.as_posix(),
+        "HEAD",
+    )
     expired = "2026-07-18T00:00:00+00:00"
     active = "2026-07-20T00:00:00+00:00"
     fixtures = (
@@ -169,44 +102,44 @@ def test_inventory_prunes_only_expired_unobservable_current_contract_leases(
             "lease:orphan",
             "work/orphan",
             expired,
-            _current_lease_payload(path=missing_path.as_posix()),
+            current_lease_payload(path=missing_path.as_posix()),
         ),
         (
             "lease:active",
             "work/active",
             active,
-            _current_lease_payload(path=missing_path.as_posix()),
+            current_lease_payload(path=missing_path.as_posix()),
         ),
         (
             "lease:ref",
             "work/ref-present",
             expired,
-            _current_lease_payload(path=missing_path.as_posix()),
+            current_lease_payload(path=missing_path.as_posix()),
         ),
         (
             "lease:linked",
             "work/linked",
             expired,
-            _current_lease_payload(path=missing_path.as_posix()),
+            current_lease_payload(path=missing_path.as_posix()),
         ),
         (
             "lease:linked-other",
             "work/linked-other",
             expired,
-            _current_lease_payload(path=missing_path.as_posix()),
+            current_lease_payload(path=missing_path.as_posix()),
         ),
         (
             "lease:path",
             "work/path",
             expired,
-            _current_lease_payload(path=existing_path.as_posix()),
+            current_lease_payload(path=existing_path.as_posix()),
         ),
-        ("lease:bad-expiry", "work/bad-expiry", "not-a-time", _current_lease_payload()),
+        ("lease:bad-expiry", "work/bad-expiry", "not-a-time", current_lease_payload()),
         (
             "lease:naive-expiry",
             "work/naive-expiry",
             "2026-07-18T00:00:00",
-            _current_lease_payload(),
+            current_lease_payload(),
         ),
         ("lease:bad-payload", "work/bad-payload", expired, "[not-an-object]"),
         ("lease:legacy", "work/legacy", expired, {}),
@@ -214,30 +147,30 @@ def test_inventory_prunes_only_expired_unobservable_current_contract_leases(
             "lease:bad-path",
             "work/bad-path",
             expired,
-            {**_current_lease_payload(), "path": []},
+            {**current_lease_payload(), "path": []},
         ),
         (
             "lease:mismatched",
             "work/mismatched",
             expired,
-            {**_current_lease_payload(), "lease_id": "lease:different"},
+            {**current_lease_payload(), "lease_id": "lease:different"},
         ),
         (
             "lease:bad-holder",
             "work/bad-holder",
             expired,
-            {**_current_lease_payload(), "holder_ref": "not-canonical"},
+            {**current_lease_payload(), "holder_ref": "not-canonical"},
         ),
         (
             "lease:bad-subject",
             "work/bad..subject",
             expired,
-            _current_lease_payload(),
+            current_lease_payload(),
         ),
-        ("lease:empty-subject", "", expired, _current_lease_payload()),
+        ("lease:empty-subject", "", expired, current_lease_payload()),
     )
     for lease_id, subject, expires_at, payload in fixtures:
-        _insert_lease(
+        insert_lease(
             repo,
             lease_id=lease_id,
             subject=subject,
@@ -271,14 +204,14 @@ def test_inventory_lease_deletion_fails_closed_on_missing_database_and_drift(
     with pytest.raises(ValueError, match="lease_maintenance_database_missing"):
         maintenance._delete_inventory_leases(None, [{"id": "lease:missing"}])
 
-    repo = _repo(tmp_path)
+    repo = maintenance_repo(tmp_path)
     for suffix in ("a", "b"):
-        _insert_lease(
+        insert_lease(
             repo,
             lease_id=f"lease:{suffix}",
             subject=f"work/{suffix}",
             expires_at="2026-07-18T00:00:00+00:00",
-            payload=_current_lease_payload(path=(tmp_path / "gone").as_posix()),
+            payload=current_lease_payload(path=(tmp_path / "gone").as_posix()),
         )
     candidates = local_state_maintenance_inventory(repo, tmp_path / "archive", OBSERVED_AT)[
         "leases"
@@ -301,7 +234,7 @@ def test_inventory_lease_deletion_fails_closed_on_missing_database_and_drift(
 def test_inventory_protects_current_ref_worktree_and_live_lease_proofs(
     tmp_path: Path,
 ) -> None:
-    repo = _repo(tmp_path)
+    repo = maintenance_repo(tmp_path)
     archive_root = tmp_path / "archive"
     current = git(repo, "rev-parse", "HEAD")
     (repo / "next.txt").write_text("next\n", encoding="utf-8")
@@ -322,13 +255,13 @@ def test_inventory_protects_current_ref_worktree_and_live_lease_proofs(
     live_lease_head = "d" * 40
     unreachable = "e" * 40
     for head in (current, ref_reachable, worktree_head, live_lease_head, unreachable):
-        _write_proof(repo, head)
-    _insert_lease(
+        write_proof(repo, head)
+    insert_lease(
         repo,
         lease_id="lease:live",
         subject="work/live",
         expires_at="2026-07-20T00:00:00+00:00",
-        payload=_current_lease_payload(expected_head=live_lease_head),
+        payload=current_lease_payload(expected_head=live_lease_head),
     )
     monkeypatch_heads = {current, worktree_head}
 
@@ -351,7 +284,7 @@ def test_inventory_protects_current_ref_worktree_and_live_lease_proofs(
 def test_inventory_is_read_only_and_digest_changes_when_source_changes(
     tmp_path: Path,
 ) -> None:
-    repo = _repo(tmp_path)
+    repo = maintenance_repo(tmp_path)
     archive_root = tmp_path / "archive"
     snapshots = repo / ".ethos" / "state" / "residue-snapshots"
     snapshots.mkdir(parents=True)
@@ -373,14 +306,14 @@ def test_inventory_reads_wal_through_read_only_uris_without_new_sidecars(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    repo = _repo(tmp_path)
+    repo = maintenance_repo(tmp_path)
     archive_root = tmp_path / "archive"
-    _insert_lease(
+    insert_lease(
         repo,
         lease_id="lease:orphan",
         subject="work/orphan",
         expires_at="2026-07-18T00:00:00+00:00",
-        payload=_current_lease_payload(path=(tmp_path / "gone").as_posix()),
+        payload=current_lease_payload(path=(tmp_path / "gone").as_posix()),
     )
     db_path = repo / ".ethos" / "state" / "state.sqlite"
     writer = sqlite3.connect(db_path)
@@ -392,7 +325,7 @@ def test_inventory_reads_wal_through_read_only_uris_without_new_sidecars(
             "work/wal",
             "agent:test:case:owner",
             "2026-07-20T00:00:00+00:00",
-            json.dumps(_current_lease_payload(expected_head="a" * 40)),
+            json.dumps(current_lease_payload(expected_head="a" * 40)),
         ),
     )
     writer.commit()
@@ -425,7 +358,7 @@ def test_inventory_reads_wal_through_read_only_uris_without_new_sidecars(
 
 
 def test_apply_requires_confirmation_and_exact_inventory_digest(tmp_path: Path) -> None:
-    repo = _repo(tmp_path)
+    repo = maintenance_repo(tmp_path)
     archive_root = tmp_path / "archive"
     inventory = local_state_maintenance_inventory(repo, archive_root, OBSERVED_AT)
 
@@ -450,28 +383,28 @@ def test_apply_requires_confirmation_and_exact_inventory_digest(tmp_path: Path) 
 def test_apply_archives_verifies_and_prunes_exact_inventory_idempotently(
     tmp_path: Path,
 ) -> None:
-    repo = _repo(tmp_path)
+    repo = maintenance_repo(tmp_path)
     archive_root = tmp_path / "archive"
     snapshots = repo / ".ethos" / "state" / "residue-snapshots"
     (snapshots / "nested").mkdir(parents=True)
     (snapshots / "dirty.patch").write_text("patch\n", encoding="utf-8")
     (snapshots / "nested" / "untracked.txt").write_text("recover\n", encoding="utf-8")
-    _insert_lease(
+    insert_lease(
         repo,
         lease_id="lease:orphan",
         subject="work/orphan",
         expires_at="2026-07-18T00:00:00+00:00",
-        payload=_current_lease_payload(path=(tmp_path / "gone").as_posix()),
+        payload=current_lease_payload(path=(tmp_path / "gone").as_posix()),
     )
-    _insert_lease(
+    insert_lease(
         repo,
         lease_id="lease:active",
         subject="work/active",
         expires_at="2026-07-20T00:00:00+00:00",
-        payload=_current_lease_payload(),
+        payload=current_lease_payload(),
     )
     unreachable = "e" * 40
-    proof = _write_proof(repo, unreachable)
+    proof = write_proof(repo, unreachable)
     inventory = local_state_maintenance_inventory(repo, archive_root, OBSERVED_AT)
     retained = {item["id"]: item["reasons"] for item in inventory["leases"]["retained"]}
     assert "unexpired" in retained["lease:active"]
@@ -518,9 +451,9 @@ def test_apply_archives_verifies_and_prunes_exact_inventory_idempotently(
 
 
 def test_receipt_replay_reobserves_deleted_postconditions(tmp_path: Path) -> None:
-    repo = _repo(tmp_path)
+    repo = maintenance_repo(tmp_path)
     archive_root = tmp_path / "archive"
-    proof = _write_proof(repo, "e" * 40)
+    proof = write_proof(repo, "e" * 40)
     inventory = local_state_maintenance_inventory(repo, archive_root, OBSERVED_AT)
     apply_local_state_maintenance(
         repo,
@@ -545,19 +478,19 @@ def test_receipt_replay_reobserves_deleted_postconditions(tmp_path: Path) -> Non
 
 
 def test_same_digest_concurrent_applies_serialize_and_replay(tmp_path: Path) -> None:
-    repo = _repo(tmp_path)
+    repo = maintenance_repo(tmp_path)
     archive_root = tmp_path / "archive"
     snapshots = repo / ".ethos" / "state" / "residue-snapshots"
     snapshots.mkdir(parents=True)
     (snapshots / "dirty.patch").write_text("patch\n", encoding="utf-8")
-    _insert_lease(
+    insert_lease(
         repo,
         lease_id="lease:orphan",
         subject="work/orphan",
         expires_at="2026-07-18T00:00:00+00:00",
-        payload=_current_lease_payload(path=(tmp_path / "gone").as_posix()),
+        payload=current_lease_payload(path=(tmp_path / "gone").as_posix()),
     )
-    proof = _write_proof(repo, "e" * 40)
+    proof = write_proof(repo, "e" * 40)
     inventory = local_state_maintenance_inventory(repo, archive_root, OBSERVED_AT)
     project_root = Path(__file__).resolve().parents[3]
     gate = tmp_path / "apply-gate"
@@ -648,8 +581,10 @@ def test_same_digest_concurrent_applies_serialize_and_replay(tmp_path: Path) -> 
     assert not proof.exists()
 
 
-def test_maintenance_lock_is_scoped_to_repository_not_archive_root(tmp_path: Path) -> None:
-    repo = _repo(tmp_path)
+def test_maintenance_lock_is_scoped_to_repository_not_archive_root(
+    tmp_path: Path,
+) -> None:
+    repo = maintenance_repo(tmp_path)
     archive_root = tmp_path / "archive"
 
     with maintenance._maintenance_lock(repo):
@@ -664,10 +599,10 @@ def test_apply_reobserves_proof_protection_immediately_before_deletion(
     tmp_path: Path,
     late_protection: str,
 ) -> None:
-    repo = _repo(tmp_path)
+    repo = maintenance_repo(tmp_path)
     archive_root = tmp_path / "archive"
-    candidate_head = _unreachable_commit(repo)
-    proof = _write_proof(repo, candidate_head)
+    candidate_head = unreachable_commit(repo)
+    proof = write_proof(repo, candidate_head)
     inventory = local_state_maintenance_inventory(repo, archive_root, OBSERVED_AT)
     assert [item["head"] for item in inventory["proofs"]["delete_candidates"]] == [candidate_head]
     original_verify = maintenance._verify_archive_extraction
@@ -686,12 +621,12 @@ def test_apply_reobserves_proof_protection_immediately_before_deletion(
                 candidate_head,
             )
         else:
-            _insert_lease(
+            insert_lease(
                 repo,
                 lease_id="lease:late-protected",
                 subject="work/late-protected",
                 expires_at="2026-07-20T00:00:00+00:00",
-                payload=_current_lease_payload(expected_head=candidate_head),
+                payload=current_lease_payload(expected_head=candidate_head),
             )
         return result
 
@@ -710,7 +645,7 @@ def test_apply_reobserves_proof_protection_immediately_before_deletion(
 
 
 def test_apply_keeps_sources_when_bundle_verification_fails(tmp_path: Path) -> None:
-    repo = _repo(tmp_path)
+    repo = maintenance_repo(tmp_path)
     archive_root = tmp_path / "archive"
     snapshots = repo / ".ethos" / "state" / "residue-snapshots"
     snapshots.mkdir(parents=True)
@@ -733,7 +668,7 @@ def test_apply_keeps_sources_when_bundle_verification_fails(tmp_path: Path) -> N
 def test_apply_verifies_extracted_valid_git_bundle_against_repository(
     tmp_path: Path,
 ) -> None:
-    repo = _repo(tmp_path)
+    repo = maintenance_repo(tmp_path)
     archive_root = tmp_path / "archive"
     snapshots = repo / ".ethos" / "state" / "residue-snapshots"
     snapshots.mkdir(parents=True)
@@ -761,7 +696,7 @@ def test_apply_keeps_sources_when_archive_extraction_verification_fails(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    repo = _repo(tmp_path)
+    repo = maintenance_repo(tmp_path)
     archive_root = tmp_path / "archive"
     snapshots = repo / ".ethos" / "state" / "residue-snapshots"
     snapshots.mkdir(parents=True)
@@ -791,20 +726,20 @@ def test_apply_restores_sources_when_receipt_write_fails(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    repo = _repo(tmp_path)
+    repo = maintenance_repo(tmp_path)
     archive_root = tmp_path / "archive"
     snapshots = repo / ".ethos" / "state" / "residue-snapshots"
     snapshots.mkdir(parents=True)
     source = snapshots / "dirty.patch"
     source.write_text("patch\n", encoding="utf-8")
-    _insert_lease(
+    insert_lease(
         repo,
         lease_id="lease:orphan",
         subject="work/orphan",
         expires_at="2026-07-18T00:00:00+00:00",
-        payload=_current_lease_payload(path=(tmp_path / "gone").as_posix()),
+        payload=current_lease_payload(path=(tmp_path / "gone").as_posix()),
     )
-    proof = _write_proof(repo, "e" * 40)
+    proof = write_proof(repo, "e" * 40)
     inventory = local_state_maintenance_inventory(repo, archive_root, OBSERVED_AT)
     original_write = maintenance._write_json_atomic
 
@@ -834,14 +769,14 @@ def test_failed_apply_preserves_database_writes_committed_after_staging(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    repo = _repo(tmp_path)
+    repo = maintenance_repo(tmp_path)
     archive_root = tmp_path / "archive"
-    _insert_lease(
+    insert_lease(
         repo,
         lease_id="lease:orphan",
         subject="work/orphan",
         expires_at="2026-07-18T00:00:00+00:00",
-        payload=_current_lease_payload(path=(tmp_path / "gone").as_posix()),
+        payload=current_lease_payload(path=(tmp_path / "gone").as_posix()),
     )
     db_path = repo / ".ethos" / "state" / "state.sqlite"
     with closing(sqlite3.connect(db_path)) as connection:
@@ -886,7 +821,7 @@ def test_failed_apply_restores_only_missing_recovery_paths(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    repo = _repo(tmp_path)
+    repo = maintenance_repo(tmp_path)
     archive_root = tmp_path / "archive"
     snapshots = repo / ".ethos" / "state" / "residue-snapshots"
     (snapshots / "nested").mkdir(parents=True)

@@ -10,8 +10,8 @@ from typing import TYPE_CHECKING
 from typing import Any
 
 from ethos.adapters.store.state.lease.lifecycle.core import expected_current_lease
-from ethos.adapters.store.state.lease.lifecycle.core import initialize_lease_state
 from ethos.adapters.store.state.lease.projection import active_leases
+from ethos.adapters.store.state.schema import initialize_state
 from ethos_core.contracts.coordination import HolderRef
 
 if TYPE_CHECKING:
@@ -24,7 +24,7 @@ def update_lease_payload(
     subject: str,
     payload: dict[str, Any],
 ) -> dict[str, Any]:
-    initialize_lease_state(db_path)
+    initialize_state(db_path)
     matching = [lease for lease in active_leases(db_path) if lease["subject"] == subject]
     if len(matching) != 1:
         return {}
@@ -73,20 +73,29 @@ def delete_exact_leases(db_path: Path, candidates: list[dict[str, Any]]) -> list
     if not db_path.exists():
         message = "lease_maintenance_database_missing"
         raise ValueError(message)
-    deleted: list[str] = []
     with closing(sqlite3.connect(db_path)) as connection:
         connection.execute("pragma foreign_keys = on")
         connection.execute("begin immediate")
         try:
-            for candidate in candidates:
-                lease_id = str(candidate.get("id") or "")
-                _expect_lease_candidate(connection, candidate)
-                connection.execute("delete from leases where id = ?", (lease_id,))
-                deleted.append(lease_id)
+            deleted = delete_exact_leases_from_connection(connection, candidates)
             connection.commit()
         except Exception:
             connection.rollback()
             raise
+    return deleted
+
+
+def delete_exact_leases_from_connection(
+    connection: sqlite3.Connection,
+    candidates: list[dict[str, Any]],
+) -> list[str]:
+    """Delete exact candidates inside the caller's active transaction."""
+    deleted: list[str] = []
+    for candidate in candidates:
+        lease_id = str(candidate.get("id") or "")
+        _expect_lease_candidate(connection, candidate)
+        connection.execute("delete from leases where id = ?", (lease_id,))
+        deleted.append(lease_id)
     return deleted
 
 
@@ -106,7 +115,7 @@ def _expect_lease_candidate(connection: sqlite3.Connection, candidate: dict[str,
 
 
 def _lease_candidate_matches(row: sqlite3.Row | tuple[Any, ...], candidate: dict[str, Any]) -> bool:
-    payload_digest = hashlib.sha256(str(row[4]).encode("utf-8")).hexdigest()
+    payload_digest = hashlib.sha256(str(row[4]).encode()).hexdigest()
     return (
         str(row[0]) == str(candidate.get("id") or "")
         and str(row[1]) == str(candidate.get("subject") or "")
@@ -127,7 +136,7 @@ def revoke_lease(  # noqa: PLR0913, RUF100 - exact request envelope preserves bo
 ) -> dict[str, Any]:
     """Delete one exact local lease generation after a completed handoff saga."""
     HolderRef.parse(holder_ref)
-    initialize_lease_state(db_path)
+    initialize_state(db_path)
     with closing(sqlite3.connect(db_path)) as connection:
         connection.execute("pragma foreign_keys = on")
         connection.execute("begin immediate")

@@ -35,6 +35,7 @@ REQUIRED_FILES = (
     ".config/checks/module-layout/policy.toml",
     ".config/checks/ty/policy.toml",
     ".config/checks/ruff/ruff.toml",
+    "ruff.toml",
     ".config/checks/pytest/pytest.ini",
     ".config/checks/taplo/taplo.toml",
     ".config/checks/yaml/yamllint.yaml",
@@ -100,7 +101,7 @@ def tool_records(root: Path) -> tuple[list[dict[str, Any]], list[str]]:
 
 def owner_gaps(root: Path) -> list[str]:
     gaps: list[str] = []
-    gaps.extend(_required_file_gaps(root))
+    gaps.extend(required_file_gaps(root))
     gaps.extend(_active_tool_gaps(root))
     gaps.extend(pyproject_policy_gaps(root))
     gaps.extend(_coverage_policy_gaps(root))
@@ -109,7 +110,8 @@ def owner_gaps(root: Path) -> list[str]:
     return gaps
 
 
-def _required_file_gaps(root: Path) -> list[str]:
+def required_file_gaps(root: Path) -> list[str]:
+    """Return missing quality-owner carriers for a repository root."""
     return [
         f"quality_owner_missing:{relative}"
         for relative in REQUIRED_FILES

@@ -159,6 +159,11 @@ def now() -> str:
     return datetime.now(UTC).isoformat()
 
 
+def read_only_state_uri(db_path: Path) -> str:
+    """Return a SQLite URI that cannot create or mutate state sidecars."""
+    return f"{db_path.resolve().as_uri()}?mode=ro"
+
+
 def initialize_state(db_path: Path) -> None:
     db_path.parent.mkdir(parents=True, exist_ok=True)
     with closing(sqlite3.connect(db_path)) as connection, connection:

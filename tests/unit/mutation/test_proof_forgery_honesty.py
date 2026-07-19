@@ -11,7 +11,7 @@ pins the honest truth:
       design — this documents current, correct-for-its-scope behavior, not a bug to hide);
   (b) the module docstring no longer claims "forgery by file-authoring fails";
   (c) the genuine anti-forgery guarantee is deferred to independent-identity re-execution
-      (EnforcementReceipt), never to this local digest.
+      (IndependentVerificationReceipt), never to this local digest.
 
 If a future change makes the local record claim to be a prevention/enforcement guarantee
 (e.g. an on-host MAC marketed as tamper-proof), (a) will change shape and this test should

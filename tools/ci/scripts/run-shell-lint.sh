@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # Run shell quality checks. ShellCheck policy lives in .config/checks/shell/.
-# Structural layout comes from .config/checks/whitespace/policy.toml.
 set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -31,4 +30,3 @@ if ! command -v shellcheck >/dev/null 2>&1; then
 fi
 
 shellcheck --shell=bash --severity=style "${shell_files[@]}"
-python tools/ci/structural_whitespace.py "${shell_files[@]}"

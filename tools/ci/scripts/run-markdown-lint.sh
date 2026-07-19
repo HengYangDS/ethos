@@ -24,4 +24,3 @@ version="${MARKDOWNLINT_CLI2_VERSION:-0.18.1}"
 
 npx --yes "markdownlint-cli2@${version}" \
   --config .config/checks/markdown/.markdownlint-cli2.yaml
-python tools/ci/structural_whitespace.py

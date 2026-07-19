@@ -67,8 +67,9 @@ the database, proof records, and complete recovery snapshot tree; binds entry,
 manifest, and archive digests; extract-tests the archive; and verifies every Git
 bundle against the repository. A replay of a verified receipt is idempotent.
 
-Lease pruning is conservative: a row must be expired, normalized, absent from
-branch refs and linked worktrees, and have no existing recorded path. Malformed,
+Lease pruning is conservative: a row must match the current lease contract, be
+expired, absent from branch refs and linked worktrees, and have no existing
+recorded path. Malformed,
 ambiguous, active, or observable leases remain. Proof pruning retains current
 HEAD, every ref-reachable commit, every linked-worktree HEAD, and every live
 lease expected HEAD; malformed proof records are reported rather than deleted.

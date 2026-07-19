@@ -94,6 +94,8 @@ def rules_migrate(
                     repo,
                     apply=True,
                     expect_source_digest=str(report["source_digest"]),
+                    expect_head=expect_head,
+                    read_head=lambda: git_adapter.current_head(repo),
                 )
                 required_gaps.extend(
                     str(gap) for gap in cast("list[object]", report["required_gaps"])
@@ -128,16 +130,18 @@ def rules_migrate(
             "source_digest": report["source_digest"],
         },
         required_gaps=tuple(required_gaps),
-        next_actions=("ethos status --json",)
-        if applied
-        else tuple(cast("list[str]", report["next_actions"])),
+        next_actions=(
+            ("ethos status --json",)
+            if applied
+            else tuple(cast("list[str]", report["next_actions"]))
+        ),
         data=data,
     )
     emit(result, json_output=json_output)
 
 
 @rules_app.command(name="eval")
-def rules_eval(  # noqa: PLR0913, RUF100 - stable CLI contract preserves public options
+def rules_eval(
     *,
     root: RootOption | None = None,
     phase: str = "plan",

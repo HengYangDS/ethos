@@ -83,6 +83,7 @@ def test_report_handler_declarations_compile_without_python_specs() -> None:
     assert set(handlers) == expected
     assert all(isinstance(handler, CompiledReportCommand) for handler in handlers.values())
     assert all(handler.declaration.report_handler.provider for handler in handlers.values())
+    assert "performance" not in handlers
 
 
 def test_tool_handler_declarations_compile_from_the_command_registry() -> None:

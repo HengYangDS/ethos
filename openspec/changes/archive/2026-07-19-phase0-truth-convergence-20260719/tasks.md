@@ -21,7 +21,7 @@
 - [x] 3.1 Run focused tests, schemas, config, shell, coverage, generated-artifact,
   enterprise-readiness, report, and publish-readiness checks.
 - [x] 3.2 Refresh the claim/Chronicle and generic parity evidence on a stable HEAD.
-- [ ] 3.3 Execute full HEAD-bound proof and archive this Change. Candidate landing,
+- [x] 3.3 Execute full HEAD-bound proof and archive this Change. Candidate landing,
   accepted-root closeout, and Work Lane retirement are separate post-archive
   transitions and are not pre-asserted by this checklist.
 - [x] 3.4 Preserve the remote boundary: do not push, tag, or claim hosted CI.

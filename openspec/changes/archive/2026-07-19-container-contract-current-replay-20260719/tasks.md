@@ -17,6 +17,7 @@
 - [x] 3.1 Update canonical profile documentation and bounded claim/Chronicle.
 - [x] 3.2 Run focused tests, strict OpenSpec, lint, plan, parity, and executed
   exact-HEAD proof.
-- [ ] 3.3 Archive, land, close accepted truth, and use one fresh native
-  resolution decision per recovered source lane; no source lane retires merely
-  because this checklist is complete.
+- [x] 3.3 Archive the proven change. Candidate land, accepted-root closeout,
+  and one fresh native resolution decision per recovered source lane remain
+  separately governed follow-ups; neither this archive nor this checklist
+  asserts that any source lane has retired.

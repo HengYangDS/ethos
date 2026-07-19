@@ -37,7 +37,6 @@ targets = [
   { kind = "docs", path = "docs/reference/command-plane.md" },
   { kind = "openspec", path = "openspec/specs/repository-governance/spec.md" },
   { kind = "tests", path = "tests/unit/cli/test_contracts_lane_refresh_base_projection.py" },
-  { kind = "tests", path = "tests/unit/coverage/test_lanes_final_edges.py" },
   { kind = "evidence", path = "evidence/chronicle/refresh-base-projection-regeneration/2026-07-09.md" },
   { kind = "openspec", path = "openspec/changes/archive/2026-07-09-refresh-base-projection-regeneration-20260709" },
   { kind = "evidence", path = "evidence/claims/refresh-base-projection-regeneration.toml" },

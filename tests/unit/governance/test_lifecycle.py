@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from ethos.repository.policy.schema import validate_schema_instance
-from ethos.testing.fixtures import complete_governance_lifecycle
-from ethos.testing.fixtures import malformed_governance_lifecycle
-from ethos.testing.fixtures import reference_adopter_profile_fixture
+from tests.support.ethos_fixtures import complete_governance_lifecycle
+from tests.support.ethos_fixtures import malformed_governance_lifecycle
+from tests.support.ethos_fixtures import reference_adopter_profile_fixture
 
 
 def test_complete_governance_lifecycle_fixture_validates_contracts() -> None:
@@ -44,5 +44,8 @@ def test_reference_adopter_profile_fixture_keeps_terms_outside_product_core() ->
     fixture = reference_adopter_profile_fixture()
 
     assert fixture["boundary"] == "adopter-profile-only"
-    assert fixture["profile_terms"] == ["adopter-domain storage parity", "domain cache contract"]
+    assert fixture["profile_terms"] == [
+        "adopter-domain storage parity",
+        "domain cache contract",
+    ]
     assert fixture["core_product_terms"] == []

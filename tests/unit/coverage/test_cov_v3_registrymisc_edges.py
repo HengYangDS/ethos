@@ -12,8 +12,8 @@ from ethos.repository.adoption.scaffold.core import default_files
 from ethos.repository.registry import commands
 from ethos.repository.registry.docs.links import stable_paths_report
 from ethos.repository.release import core as release_core
-from ethos.testing import fixtures
 from ethos_core.contracts import rules
+from tests.support import ethos_fixtures as fixtures
 
 if TYPE_CHECKING:
     from pathlib import Path

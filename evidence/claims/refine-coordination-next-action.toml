@@ -39,5 +39,4 @@ targets = [
   "packages/ethos/src/ethos/adapters/repo/coordination.py",
   "tests/unit/lanes/test_lanes.py",
   "tests/unit/cli/test_contracts.py",
-  "tests/unit/coverage/test_core_state_claims_edges.py",
 ]

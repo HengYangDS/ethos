@@ -42,7 +42,6 @@ targets = [
   "packages/ethos/src/ethos/surface/cli/root/lifecycle.py",
   "tests/architecture/test_release_assets.py",
   "tests/unit/audit/test_modes.py",
-  "tests/unit/coverage/test_cli_admission_final_edges.py",
   "tests/unit/coverage/test_cov_v3_openspec_edges.py",
   "tests/unit/coverage/test_free_surface_quality_edges.py",
   "evidence/chronicle/audit-semantic-subpackages-20260709/2026-07-09.md",

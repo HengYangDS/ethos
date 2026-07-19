@@ -1,3 +1,5 @@
+"""Test-only fixture payloads for ETHOS contract coverage."""
+
 from __future__ import annotations
 
 import ethos_core.contracts.context.projection as context_projection_contract
@@ -241,6 +243,7 @@ stop_condition = "python_source_gap"
         "files": {".ethos/rules.toml": _rules_toml("generic", "strict")},
     },
 }
+
 
 RULE_SHADOW_REPORT_FIXTURES = {
     "ethos": {

@@ -77,76 +77,58 @@ def remote_tracking_sync(root: Path, branch: str, remote: str = "origin") -> dic
     branch_name = branch.strip()
     remote_name = remote.strip() or "origin"
     remote_ref = f"{remote_name}/{branch_name}" if branch_name else remote_name
-    local_head = current_tracked_head(root)
+    result: dict[str, object] = {
+        "kind": "git_remote_tracking_sync",
+        "remote": remote_name,
+        "branch": branch_name,
+        "remote_ref": remote_ref,
+        "local_head": current_tracked_head(root),
+        "remote_head": "",
+        "ahead": 0,
+        "behind": 0,
+        "available": False,
+        "blocking": False,
+        "required_gaps": [],
+    }
     if not branch_name:
         return {
-            "kind": "git_remote_tracking_sync",
-            "remote": remote_name,
-            "branch": branch_name,
-            "remote_ref": remote_ref,
+            **result,
             "state": "branch_unknown",
-            "local_head": local_head,
-            "remote_head": "",
-            "ahead": 0,
-            "behind": 0,
-            "available": False,
-            "blocking": False,
-            "required_gaps": [],
             "advisory_gaps": ["remote_tracking_branch_unknown"],
         }
     remote_head = git_stdout(root, "rev-parse", "--verify", remote_ref)
     if not remote_head:
         return {
-            "kind": "git_remote_tracking_sync",
-            "remote": remote_name,
-            "branch": branch_name,
-            "remote_ref": remote_ref,
+            **result,
             "state": "remote_tracking_missing",
-            "local_head": local_head,
-            "remote_head": "",
-            "ahead": 0,
-            "behind": 0,
-            "available": False,
-            "blocking": False,
-            "required_gaps": [],
             "advisory_gaps": [f"remote_tracking_missing:{remote_ref}"],
         }
     counts = git_stdout(root, "rev-list", "--left-right", "--count", f"{remote_ref}...HEAD")
     try:
         behind_text, ahead_text = counts.split()[:2]
-        behind = int(behind_text)
-        ahead = int(ahead_text)
+        behind, ahead = int(behind_text), int(ahead_text)
     except (IndexError, ValueError):
-        behind = 0
-        ahead = 0
-    if ahead and behind:
-        state = "diverged"
-    elif ahead:
-        state = "local_ahead"
-    elif behind:
-        state = "local_behind"
-    else:
-        state = "synchronized"
-    advisory = (
-        []
-        if state == "synchronized"
-        else [f"remote_tracking_{state}:{remote_ref}:{ahead}:{behind}"]
+        behind = ahead = 0
+    state = (
+        "diverged"
+        if ahead and behind
+        else "local_ahead"
+        if ahead
+        else "local_behind"
+        if behind
+        else "synchronized"
     )
-    return {
-        "kind": "git_remote_tracking_sync",
-        "remote": remote_name,
-        "branch": branch_name,
-        "remote_ref": remote_ref,
-        "state": state,
-        "local_head": local_head,
-        "remote_head": remote_head,
-        "ahead": ahead,
-        "behind": behind,
-        "available": True,
-        "blocking": False,
-        "required_gaps": [],
-        "advisory_gaps": advisory,
-    }
+    result.update(
+        state=state,
+        remote_head=remote_head,
+        ahead=ahead,
+        behind=behind,
+        available=True,
+        advisory_gaps=[]
+        if state == "synchronized"
+        else [f"remote_tracking_{state}:{remote_ref}:{ahead}:{behind}"],
+    )
+    return result
 
 
 def publication_remote_syncs(root: Path, branch: str) -> dict[str, object]:
@@ -163,17 +145,12 @@ def publication_remote_syncs(root: Path, branch: str) -> dict[str, object]:
         state in {"diverged", "local_behind", "remote_tracking_missing"} for state in states
     )
     return {
-        "kind": "git_remote_tracking_matrix",
-        "branch": branch,
         "remotes": records,
-        "configured_remote_count": len(records),
         "state": "synchronized"
         if synchronized
         else "reconciliation_required"
         if reconciliation_required
         else "pending",
-        "blocking": False,
-        "required_gaps": [],
         "advisory_gaps": [
             f"remote_reconciliation_required:{name}:{record.get('state')}"
             for name, record in records.items()

@@ -5,6 +5,6 @@ paths = [
   "evidence/claims/worktree-retirement-fail-closed-unbound-retirement-20260719.toml",
   "evidence/chronicle/ownerless-unbound-ancestor-retirement-20260719/**",
   "evidence/chronicle/worktree-retirement-fail-closed-unbound-retirement-20260719/**",
-  "openspec/changes/ownerless-unbound-ancestor-retirement-20260719/**",
+  "openspec/changes/archive/2026-07-19-ownerless-unbound-ancestor-retirement-20260719/**",
   "openspec/specs/repository-governance/spec.md",
 ]

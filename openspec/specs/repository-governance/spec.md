@@ -2879,15 +2879,14 @@ of the accepted branch, has no linked worktree, carries an
 accepted-Chronicle-bound active Claim, and matches the supplied expected head.
 The target SHALL have either no active lease or exactly one active lease whose
 holder, ID, epoch, and expected head remain bound to the current invocation for
-native relinquishment.
-The route SHALL require an
-accepted, repository-local Chronicle that contains
-`lane_retire/unbound_exceptional`, `target_branch: <branch>`,
-`target_head: <head>`, and `target_claim: <claim-id>` for the same exact target.
-The named local Claim SHALL be byte-identical to its accepted branch version.
-Apply SHALL additionally
-require explicit authorization, break-glass, and irreversible confirmation.
-The route SHALL NOT infer authority from an agent vendor, session, account, or
+native relinquishment. The route SHALL require an accepted, repository-local
+Chronicle that contains `lane_retire/unbound_exceptional`, `target_branch:
+<branch>`, `target_head: <head>`, and `target_claim: <claim-id>` for the same
+exact target. The named local Claim SHALL be byte-identical to its accepted
+branch version. One accepted evidence carrier SHALL bind one target; it SHALL
+NOT permit a batch effect or apply to another inventory item. Apply SHALL additionally
+require explicit authorization, break-glass, and irreversible confirmation. The
+route SHALL NOT infer authority from an agent vendor, session, account, or
 host-specific path.
 
 #### Scenario: Exact accepted-ancestor residue is inspected
@@ -2898,6 +2897,13 @@ host-specific path.
 - **THEN** dry-run reports `ready_to_retire_unbound_exceptional`
 - **AND** it reports the exact observation without deleting the ref
 - **AND** it reports that its output does not mint reusable authority.
+
+#### Scenario: One carrier does not authorize another target
+
+- **WHEN** an operator supplies a Chronicle or Claim for a different unbound ref
+- **THEN** the command SHALL block the mismatched target before mutation
+- **AND** the target SHALL require its own expected head, Claim, Chronicle,
+  current observation, and receipt.
 
 #### Scenario: A non-exact or non-accepted target is refused
 

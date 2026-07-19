@@ -18,4 +18,5 @@ paths = [
   "tests/unit/lanes/retirement/test_unbound_and_helpers.py",
   "tests/unit/cli/test_contracts_lane.py",
   "tests/unit/coverage/test_ci_95_additional_edges.py",
+  "tests/unit/coverage/test_lanes_final_edges.py",
 ]

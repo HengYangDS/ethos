@@ -8,7 +8,7 @@ import ethos.adapters.mutation.lane_retirement.shared.core as lane_retirement_sh
 import ethos.adapters.mutation.lane_retirement.unbound.observation.core as observation
 
 
-def report(
+def report(  # noqa: PLR0913, RUF100 - exact reporting preserves bound state dimensions
     *,
     branch: str,
     expect_head: str,
@@ -50,7 +50,7 @@ def report(
     }
 
 
-def mutation(
+def mutation(  # noqa: PLR0913, RUF100 - exact mutation envelope preserves bound state dimensions
     *,
     branch: str,
     expect_head: str,

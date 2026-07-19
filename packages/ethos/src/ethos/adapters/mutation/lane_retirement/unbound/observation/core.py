@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import stat
 import subprocess
@@ -14,42 +15,11 @@ from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.core import workspace_status
 from ethos_core.contracts.branch.roles import load_branch_role_policy
 
-ACTIVE_LEASE_PRESENT = bytes(
-    (97, 99, 116, 105, 118, 101, 95, 108, 101, 97, 115, 101, 95, 112, 114, 101, 115, 101, 110, 116)
-).decode()
-LOCAL_PRESENT = bytes((108, 111, 99, 97, 108, 95, 112, 114, 101, 115, 101, 110, 116)).decode()
-ACCEPTED_PRESENT = bytes(
-    (97, 99, 99, 101, 112, 116, 101, 100, 95, 112, 114, 101, 115, 101, 110, 116)
-).decode()
-CLAIM_LOCAL_PRESENT = bytes(
-    (99, 108, 97, 105, 109, 95, 108, 111, 99, 97, 108, 95, 112, 114, 101, 115, 101, 110, 116)
-).decode()
-CLAIM_ACCEPTED_PRESENT = bytes(
-    (
-        99,
-        108,
-        97,
-        105,
-        109,
-        95,
-        97,
-        99,
-        99,
-        101,
-        112,
-        116,
-        101,
-        100,
-        95,
-        112,
-        114,
-        101,
-        115,
-        101,
-        110,
-        116,
-    )
-).decode()
+HAS_ACTIVE_LEASE = "has_active_lease"
+HAS_LOCAL_CHRONICLE = "has_local_chronicle"
+HAS_ACCEPTED_CHRONICLE = "has_accepted_chronicle"
+HAS_LOCAL_CLAIM = "has_local_claim"
+HAS_ACCEPTED_CLAIM = "has_accepted_claim"
 
 
 def observe(repo: Path, *, branch: str, chronicle_ref: str) -> dict[str, object]:
@@ -77,7 +47,7 @@ def observe(repo: Path, *, branch: str, chronicle_ref: str) -> dict[str, object]
         "claim_id": str((current or {}).get("claim_id") or ""),
         "claim_binding": str((current or {}).get("claim_binding") or ""),
         "active_lease": public_lease(active_lease),
-        ACTIVE_LEASE_PRESENT: bool(active_lease),
+        HAS_ACTIVE_LEASE: bool(active_lease),
         "chronicle": chronicle_observation(
             repo,
             accepted_branch=policy.accepted_branch,
@@ -105,8 +75,8 @@ def chronicle_observation(
     observation: dict[str, object] = {
         "ref": chronicle_ref,
         "path_valid": path is not None,
-        LOCAL_PRESENT: False,
-        ACCEPTED_PRESENT: False,
+        HAS_LOCAL_CHRONICLE: False,
+        HAS_ACCEPTED_CHRONICLE: False,
         "byte_identical_to_accepted": False,
         "sha256": "",
         "accepted_sha256": "",
@@ -114,8 +84,8 @@ def chronicle_observation(
         "target_branch": "",
         "target_head": "",
         "target_claim": "",
-        CLAIM_LOCAL_PRESENT: False,
-        CLAIM_ACCEPTED_PRESENT: False,
+        HAS_LOCAL_CLAIM: False,
+        HAS_ACCEPTED_CLAIM: False,
         "claim_byte_identical_to_accepted": False,
         "claim_sha256": "",
         "claim_accepted_sha256": "",
@@ -130,13 +100,13 @@ def chronicle_observation(
         local = path.read_bytes()
     except OSError:
         return observation
-    observation[LOCAL_PRESENT] = True
+    observation[HAS_LOCAL_CHRONICLE] = True
     observation["sha256"] = hashlib.sha256(local).hexdigest()
     observation.update(chronicle_fields(local))
     accepted = git_show_bytes(repo, f"{accepted_branch}:{chronicle_ref}")
     if accepted is None:
         return observation
-    observation[ACCEPTED_PRESENT] = True
+    observation[HAS_ACCEPTED_CHRONICLE] = True
     observation["accepted_sha256"] = hashlib.sha256(accepted).hexdigest()
     observation["byte_identical_to_accepted"] = accepted == local
     observation.update(
@@ -190,8 +160,8 @@ def claim_observation(
     """Compare the named active Claim with its accepted branch bytes."""
     relative = claim_ref(claim_id)
     observation: dict[str, object] = {
-        CLAIM_LOCAL_PRESENT: False,
-        CLAIM_ACCEPTED_PRESENT: False,
+        HAS_LOCAL_CLAIM: False,
+        HAS_ACCEPTED_CLAIM: False,
         "claim_byte_identical_to_accepted": False,
         "claim_sha256": "",
         "claim_accepted_sha256": "",
@@ -209,7 +179,7 @@ def claim_observation(
     except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError):
         return observation
     claim = payload.get("claim") if isinstance(payload, dict) else {}
-    observation[CLAIM_LOCAL_PRESENT] = True
+    observation[HAS_LOCAL_CLAIM] = True
     observation["claim_sha256"] = hashlib.sha256(local).hexdigest()
     observation["claim_id_matches_target"] = (
         isinstance(claim, dict) and str(claim.get("id") or "") == claim_id
@@ -218,7 +188,7 @@ def claim_observation(
     accepted = git_show_bytes(repo, f"{accepted_branch}:{relative}")
     if accepted is None:
         return observation
-    observation[CLAIM_ACCEPTED_PRESENT] = True
+    observation[HAS_ACCEPTED_CLAIM] = True
     observation["claim_accepted_sha256"] = hashlib.sha256(accepted).hexdigest()
     observation["claim_byte_identical_to_accepted"] = accepted == local
     return observation
@@ -251,7 +221,7 @@ def public_observation(observation: dict[str, object]) -> dict[str, object]:
             "claim_id",
             "claim_binding",
             "active_lease",
-            ACTIVE_LEASE_PRESENT,
+            HAS_ACTIVE_LEASE,
             "chronicle",
             "observation_sha256",
         )
@@ -272,7 +242,7 @@ def operation_bindings(observation: dict[str, object]) -> dict[str, object]:
             "relation_to_accepted",
             "claim_id",
             "claim_binding",
-            ACTIVE_LEASE_PRESENT,
+            HAS_ACTIVE_LEASE,
             "chronicle",
         )
     }
@@ -296,8 +266,8 @@ def chronicle_binding(source: dict[str, object]) -> dict[str, object]:
             "claim_accepted_sha256",
             "byte_identical_to_accepted",
             "claim_byte_identical_to_accepted",
-            ACCEPTED_PRESENT,
-            CLAIM_ACCEPTED_PRESENT,
+            HAS_ACCEPTED_CHRONICLE,
+            HAS_ACCEPTED_CLAIM,
         )
     }
 
@@ -343,8 +313,6 @@ def branch_binding(status: dict[str, object], branch: str) -> dict[str, object] 
 
 def sha256(value: object) -> str:
     """Return a deterministic JSON digest for an operation observation."""
-    import json
-
     return hashlib.sha256(
         json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
     ).hexdigest()

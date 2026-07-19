@@ -1,0 +1,44 @@
+[claim]
+id = "runtime-event-abstraction-pruning-20260719"
+change_id = "runtime-event-abstraction-pruning-20260719"
+subject = "ethos:runtime-event-abstraction-pruning"
+state = "active"
+summary = "ETHOS converges lane lifecycle routing on semantic owners and removes event entities without executable producer-consumer flow."
+
+[evidence]
+dated = "evidence/chronicle/runtime-event-abstraction-pruning-20260719/2026-07-19.md"
+sha256 = "183ebb7c78ba32a3c35e0e7718bcb8a8379a74ce604115f51ff09c231d02d61e"
+evidence_ids = ["evidence:runtime-event-abstraction-pruning-20260719"]
+binding = "The active OpenSpec carrier, explicit deletion boundary, focused regressions, and final HEAD-bound proof bind this abstraction-pruning claim."
+verifier = "semantic"
+tests = [
+  "npx --yes @fission-ai/openspec@1.6.0 validate runtime-event-abstraction-pruning-20260719 --strict --json",
+  "ethos quality claims --json",
+  "ethos parity gaps --json",
+  "ethos prove --execute --expect-head <final-head> --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "Direct lifecycle-owner routing and deletion of event abstractions without executable runtime flow."
+
+[carriers]
+openspec = "openspec/changes/runtime-event-abstraction-pruning-20260719"
+fallback = "Revert the bounded change if direct owner routing loses lifecycle safety or a proven production event consumer is discovered."
+kill_signal = "A compatibility facade, DI container, event bus, plugin manager, second event truth store, or mutation-safety regression appears."
+
+[promotion]
+targets = [
+  { kind = "source", path = "packages/ethos/src/ethos/adapters/mutation" },
+  { kind = "source", path = "packages/ethos/src/ethos/adapters/store/state" },
+  { kind = "source", path = "packages/ethos-core/src/ethos_core/contracts/workflow.py" },
+  { kind = "schema", path = "system/workflows.toml" },
+  { kind = "tests", path = "tests/unit/lanes" },
+  { kind = "tests", path = "tests/unit/kernel/test_workflow_contract.py" },
+  { kind = "openspec", path = "openspec/changes/runtime-event-abstraction-pruning-20260719" },
+  { kind = "evidence", path = "evidence/chronicle/runtime-event-abstraction-pruning-20260719/2026-07-19.md" },
+  { kind = "evidence", path = "evidence/claims/runtime-event-abstraction-pruning-20260719.toml" },
+]

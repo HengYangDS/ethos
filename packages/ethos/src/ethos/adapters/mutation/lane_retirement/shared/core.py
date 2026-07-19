@@ -25,7 +25,6 @@ def remove_linked_lane(
     """
     branch = str(lane.get("branch") or "")
     path = str(lane.get("path") or "")
-    lane_path = Path(path) if path else Path()
     expected = (expect_head or "").strip()
     gaps = _linked_lane_reobservation_gaps(
         branch=branch,
@@ -39,7 +38,7 @@ def remove_linked_lane(
             "required_gaps": gaps,
         }
     remove = run_git(
-        lane_path,
+        repo,
         "worktree",
         "remove",
         path,

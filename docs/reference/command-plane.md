@@ -203,6 +203,8 @@ Work Lane admission:
 
 ```bash
 ethos lane status
+ethos lane housekeeping --json
+ethos lane housekeeping --authorize --apply --json
 ethos lane candidate --path <candidate-worktree-path> --apply --expect-head <git-head>
 ethos lane candidate --refresh-from-accepted --apply --authorize --expect-head <git-head>
 ethos lane start <name> --path <worktree-path> --holder-ref <holder-ref> --claim-id <claim> --apply
@@ -219,6 +221,13 @@ ethos lane retire landed --branch <work-lane-branch> --expect-head <work-lane-he
 ethos lane retire superseded --branch <work-lane-branch> --expect-head <work-lane-head> --absorbed-by <accepted-head> --reason <why> --authorize --apply
 ethos lane retire unbound --branch <work-lane-branch> --expect-head <git-head> --reason <why>
 ```
+
+`ethos lane housekeeping` is a separate detached-worktree cleanup surface, not
+a Work Lane retirement shortcut. Dry-run is the default. Authorized apply can
+remove only a clean, detached, unlocked checkout below the active session temp
+root, the system `/tmp` real path, or the current Codex home `worktrees` root. It rechecks the
+candidate and uses non-forced `git worktree remove`; dirty, branch-bound,
+locked, current, non-temporary, or changed entries remain protected.
 
 When `--root` is omitted, CLI commands resolve the current Git worktree root
 from `cwd`. A Work Lane subdirectory therefore binds to that Work Lane, not to

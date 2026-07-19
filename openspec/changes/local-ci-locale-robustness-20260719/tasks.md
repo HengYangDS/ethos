@@ -6,9 +6,9 @@
 
 ## 2. Test-First Repair
 
-- [ ] 2.1 Preserve the observed RED failure under the workstation locale.
-- [ ] 2.2 Apply the minimal test-only environment override.
-- [ ] 2.3 Run the focused regression and Python lint.
+- [x] 2.1 Preserve the observed RED failure under the workstation locale.
+- [x] 2.2 Apply the minimal test-only environment override.
+- [x] 2.3 Run the focused regression and Python lint.
 
 ## 3. Governed Local Closeout
 

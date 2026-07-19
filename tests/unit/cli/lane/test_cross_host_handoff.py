@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from pathlib import Path
 
@@ -107,9 +108,15 @@ def test_cross_host_export_is_content_addressed_and_excludes_sqlite_lease(
     assert isinstance(lease, dict)
     assert manifest["source_lease_binding"]["lease_id"] == lease["lease_id"]
     assert not any("sqlite" in path.name for path in package_dir.rglob("*"))
-    assert "complete history" in git(
-        worktree, "bundle", "verify", (package_dir / "repository.bundle").as_posix()
+    verification = subprocess.run(
+        ["git", "bundle", "verify", (package_dir / "repository.bundle").as_posix()],
+        cwd=worktree,
+        check=True,
+        capture_output=True,
+        text=True,
+        env={**os.environ, "LANG": "C", "LC_ALL": "C"},
     )
+    assert "complete history" in verification.stdout
 
 
 def test_cross_host_export_blocks_dirty_lane_without_explicit_preservation(

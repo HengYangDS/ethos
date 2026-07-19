@@ -6,9 +6,9 @@ summary = "Implement and independently review the bounded Task 2 carrier and met
 
 [evidence]
 dated = "evidence/chronicle/budget-contract-v2-carrier-metric-contracts-20260719/2026-07-19.md"
-sha256 = "a8ccfe1c8425ebf9912a7cbf2662562214dbc31ed4b0c37f0c03c4fe306ea7a8"
+sha256 = "0431ada6e733a0b4601be4c00faa94973eb525cd022c3b2daeae12931a9479bc"
 evidence_ids = ["evidence:budget-contract-v2-carrier-metric-contracts-20260719"]
-binding = "DR-0008, the accepted Foundation, the active Task 2 OpenSpec Change, strict typed contracts and loaders, the post-refresh 2,616-path exact-one observation, reviewed counts and canonical digests, 139 focused tests, 28 v1 regressions, 100 percent statement and branch coverage for the three T2 modules, owner quality gates, independent review, and eight previously clean generic parity comparisons bind this contract-only slice; the first exact-HEAD proof and first post-coverage full-suite run are retained as failed intermediate evidence pending committed parity refresh and a new exact-HEAD proof, while archive and downstream closeout remain separate transitions."
+binding = "DR-0008, the accepted Foundation, the active Task 2 OpenSpec Change, strict typed contracts and loaders, the post-refresh 2,616-path exact-one observation, reviewed counts and canonical digests, 139 focused tests, 28 v1 regressions, 100 percent statement and branch coverage for the three T2 modules, owner quality gates, independent review, eight clean generic parity comparisons, and the successful 19-gate exact-HEAD proof at 320a301ecddd840a8a0f48913ea81f077fa7a260 with evidence digest 7cb32e1932637d6022e4d9cfe51d41b06368c686df9baecdceb773d409b1566b and receipt SHA-256 794cf0f6f64ef4514d73c6f9669c4c22f71ee89848fe918120ef71f972836896 bind this contract-only slice; earlier failed proof and owner runs remain retained intermediate evidence, while official archive and downstream closeout remain separate transitions."
 verifier = "digest_only"
 tests = [
   "tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev pytest -q tests/unit/kernel/test_source_budget_carriers_contract.py tests/unit/kernel/test_source_budget_metrics_contract.py tests/unit/adapters/repo/source_budget/test_carriers.py tests/unit/governance/validation/test_schemas.py",
@@ -22,7 +22,7 @@ tests = [
   "tools/ci/scripts/run-ethos-lane.sh quality claims --json",
   "tools/ci/scripts/run-ethos-lane.sh plan --changed --json",
   "tools/ci/scripts/run-ethos-lane.sh parity gaps --json",
-  "tools/ci/scripts/run-ethos-lane.sh prove --execute --expect-head <committed-head> --json",
+  "tools/ci/scripts/run-ethos-lane.sh prove --execute --expect-head 320a301ecddd840a8a0f48913ea81f077fa7a260 --json",
 ]
 
 [evidence.freshness]

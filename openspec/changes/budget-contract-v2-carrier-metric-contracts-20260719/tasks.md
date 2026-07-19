@@ -43,7 +43,7 @@
 
 - [x] 6.1 Bind reviewed results, current counts and digests, and explicit T2/T3
   boundaries into the bounded claim and Chronicle.
-- [ ] 6.2 Finalize the exact pre-transition carrier inputs, promotion targets,
+- [x] 6.2 Finalize the exact pre-transition carrier inputs, promotion targets,
   and lifecycle-ready evidence references.
 - [x] 6.3 Declare the downstream transition boundary and evidence ownership
   rules before the active carrier becomes immutable history.

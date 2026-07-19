@@ -400,14 +400,20 @@ def _profiles_block(lines: list[str], active_profiles: list[str]) -> list[str]:
 
 
 def _profiles_active_assignment_end(lines: list[str], start: int) -> int:
-    for end in range(start + 1, len(lines) + 1):
-        candidate = "[profiles]\n" + "".join(lines[start:end])
-        try:
-            tomllib.loads(candidate)
-        except tomllib.TOMLDecodeError:
-            continue
-        return end
-    return len(lines)
+    return next(
+        end
+        for end in range(start + 1, len(lines) + 1)
+        if _profiles_active_assignment_is_complete(lines, start, end)
+    )
+
+
+def _profiles_active_assignment_is_complete(lines: list[str], start: int, end: int) -> bool:
+    candidate = "[profiles]\n" + "".join(lines[start:end])
+    try:
+        tomllib.loads(candidate)
+    except tomllib.TOMLDecodeError:
+        return False
+    return True
 
 
 def _rule_toml_lines(rule: dict[str, Any]) -> list[str]:

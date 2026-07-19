@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 import tarfile
+from contextlib import closing
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
@@ -14,6 +16,8 @@ from ethos.surface.cli.root import inspection as inspection_cli
 from tests.support.contract_helpers import init_git_repo
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_raw
+from tests.support.local_state_maintenance import current_lease_payload
+from tests.support.local_state_maintenance import insert_lease
 
 OBSERVED_AT = datetime(2026, 7, 19, 0, 0, tzinfo=UTC)
 
@@ -41,6 +45,87 @@ def _applied_recovery_fixture(
     manifest_path = Path(applied["archive"]["manifest_path"])
     receipt_path = next(archive_root.glob("*.receipt.json"))
     return repo, archive_root, applied, manifest_path, receipt_path
+
+
+def test_inventory_lease_deletion_fails_closed_on_missing_database_and_drift(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    inventory_reader = maintenance.local_state_maintenance_inventory
+    missing_repo = _repo(tmp_path / "missing")
+    missing_archive = tmp_path / "missing-archive"
+    insert_lease(
+        missing_repo,
+        lease_id="lease:missing",
+        subject="work/missing",
+        expires_at="2026-07-18T00:00:00+00:00",
+        payload=current_lease_payload(path=(tmp_path / "gone").as_posix()),
+    )
+    missing_inventory = inventory_reader(
+        missing_repo,
+        missing_archive,
+        OBSERVED_AT,
+    )
+    missing_db = missing_repo / ".ethos" / "state" / "state.sqlite"
+
+    def inventory_after_database_removal(*_args: object, **_kwargs: object) -> dict[str, object]:
+        missing_db.unlink()
+        return missing_inventory
+
+    monkeypatch.setattr(
+        maintenance,
+        "local_state_maintenance_inventory",
+        inventory_after_database_removal,
+    )
+    with pytest.raises(ValueError, match="lease_maintenance_database_missing"):
+        maintenance.apply_local_state_maintenance(
+            missing_repo,
+            missing_archive,
+            OBSERVED_AT,
+            expect_inventory_digest=missing_inventory["inventory_digest"],
+            confirm_irreversible=True,
+        )
+
+    repo = _repo(tmp_path / "drift")
+    archive_root = tmp_path / "drift-archive"
+    for suffix in ("a", "b"):
+        insert_lease(
+            repo,
+            lease_id=f"lease:{suffix}",
+            subject=f"work/{suffix}",
+            expires_at="2026-07-18T00:00:00+00:00",
+            payload=current_lease_payload(path=(tmp_path / "gone").as_posix()),
+        )
+    inventory = inventory_reader(repo, archive_root, OBSERVED_AT)
+    db_path = repo / ".ethos" / "state" / "state.sqlite"
+
+    def inventory_after_owner_drift(*_args: object, **_kwargs: object) -> dict[str, object]:
+        with closing(sqlite3.connect(db_path)) as connection:
+            connection.execute(
+                "update leases set owner = 'agent:test:case:forged' where id = 'lease:b'"
+            )
+            connection.commit()
+        return inventory
+
+    monkeypatch.setattr(
+        maintenance,
+        "local_state_maintenance_inventory",
+        inventory_after_owner_drift,
+    )
+    with pytest.raises(ValueError, match="lease_maintenance_candidate_drift:lease:b"):
+        maintenance.apply_local_state_maintenance(
+            repo,
+            archive_root,
+            OBSERVED_AT,
+            expect_inventory_digest=inventory["inventory_digest"],
+            confirm_irreversible=True,
+        )
+
+    with closing(sqlite3.connect(db_path)) as connection:
+        assert connection.execute("select id from leases order by id").fetchall() == [
+            ("lease:a",),
+            ("lease:b",),
+        ]
 
 
 def test_doctor_cli_keeps_maintenance_flags_flat(tmp_path: Path) -> None:

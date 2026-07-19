@@ -91,9 +91,4 @@ def test_candidate_worktree_gaps_dirty(tmp_path: Path) -> None:
 def test_has_changed_paths_true_outside_repo(tmp_path: Path) -> None:
     # `git status` fails outside a repo, so the helper conservatively returns True
     # (lines 278-279).
-    assert (
-        lane_retirement_shared.has_changed_paths(
-            tmp_path, runner=lane_retirement_shared.RetirementRuntime().run_git
-        )
-        is True
-    )
+    assert lane_retirement_shared.has_changed_paths(tmp_path) is True

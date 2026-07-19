@@ -16,7 +16,7 @@ import ethos.domain.orient as orient_domain
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.adapters.store.state.maintenance import apply_local_state_maintenance
 from ethos.adapters.store.state.maintenance import local_state_maintenance_inventory
-from ethos.adapters.store.state.schema import initialize_state
+from ethos.adapters.store.state.lease.lifecycle.core import initialize_lease_state
 from ethos.domain.prove import workspace_status_validation
 from ethos.domain.prove import workspace_status_validation_gaps
 from ethos.domain.report import scorecard_report
@@ -294,7 +294,7 @@ def doctor(
     repo = resolve_root(root)
     db_path = repo / ".ethos" / "state" / "state.sqlite"
     if init_state:
-        initialize_state(db_path)
+        initialize_lease_state(db_path)
     maintenance_payload: dict[str, Any] = {}
     maintenance_gaps: list[str] = []
     if maintenance or apply_maintenance:

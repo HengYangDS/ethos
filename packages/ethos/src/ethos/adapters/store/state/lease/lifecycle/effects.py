@@ -10,9 +10,8 @@ from typing import TYPE_CHECKING
 from typing import Any
 
 from ethos.adapters.store.state.lease.lifecycle.core import expected_current_lease
+from ethos.adapters.store.state.lease.lifecycle.core import initialize_lease_state
 from ethos.adapters.store.state.lease.projection import active_leases
-from ethos.adapters.store.state.lease.projection import table_columns
-from ethos.adapters.store.state.schema import initialize_state
 from ethos_core.contracts.coordination import HolderRef
 
 if TYPE_CHECKING:
@@ -25,7 +24,7 @@ def update_lease_payload(
     subject: str,
     payload: dict[str, Any],
 ) -> dict[str, Any]:
-    initialize_state(db_path)
+    initialize_lease_state(db_path)
     matching = [lease for lease in active_leases(db_path) if lease["subject"] == subject]
     if len(matching) != 1:
         return {}
@@ -59,9 +58,6 @@ def delete_lease(db_path: Path, *, subject: str) -> int:
         return 0
     with closing(sqlite3.connect(db_path)) as connection:
         connection.execute("pragma foreign_keys = on")
-        columns = table_columns(connection, "leases")
-        if "subject" not in columns:
-            return 0
         cursor = connection.execute(
             "delete from leases where subject = ?",
             (subject,),
@@ -131,7 +127,7 @@ def revoke_lease(  # noqa: PLR0913, RUF100 - exact request envelope preserves bo
 ) -> dict[str, Any]:
     """Delete one exact local lease generation after a completed handoff saga."""
     HolderRef.parse(holder_ref)
-    initialize_state(db_path)
+    initialize_lease_state(db_path)
     with closing(sqlite3.connect(db_path)) as connection:
         connection.execute("pragma foreign_keys = on")
         connection.execute("begin immediate")

@@ -192,23 +192,42 @@ def test_shadow_json_runner_escalates_when_term_grace_expires(
     command = ["ethos", "status", "--json"]
     killed: list[tuple[int, int]] = []
 
+    class Stream:
+        closed = False
+
+        def close(self) -> None:
+            self.closed = True
+
     class TimedOutProcess:
         pid = 4321
         calls = 0
+        reaped = False
+        killed = False
+        stdout = Stream()
+        stderr = Stream()
 
         def communicate(self, timeout: int | None = None):
             self.calls += 1
-            if self.calls <= 2:
-                raise subprocess.TimeoutExpired(command, timeout=timeout or 1)
-            return "", ""
+            raise subprocess.TimeoutExpired(command, timeout=timeout or 1)
 
-    monkeypatch.setattr(subprocess, "Popen", lambda *_args, **_kwargs: TimedOutProcess())
+        def kill(self) -> None:
+            self.killed = True
+
+        def wait(self) -> None:
+            self.reaped = True
+
+    process = TimedOutProcess()
+    monkeypatch.setattr(subprocess, "Popen", lambda *_args, **_kwargs: process)
     monkeypatch.setattr(os, "killpg", lambda pid, signal: killed.append((pid, signal)))
 
     result = shadow_execution.run_json_command(command, cwd=tmp_path, timeout_seconds=1)
 
     assert result["exit_code"] == 124
     assert killed == [(4321, signal.SIGTERM), (4321, signal.SIGKILL)]
+    assert process.killed is True
+    assert process.reaped is True
+    assert process.stdout.closed is True
+    assert process.stderr.closed is True
 
 
 @pytest.mark.parametrize(

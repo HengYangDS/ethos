@@ -17,17 +17,12 @@ SQLite records coordination and replay aids. It does not pre-create
 speculative cache stores; action cache keys stay in action-graph contracts
 until a concrete runtime cache earns its own owner and lifecycle.
 
-- `schema_migrations`
-- `events`
-- `sessions`
 - `leases`
-- `gate_runs`
-- `action_runs`
-- `evidence_index`
 
-Chronicle events may also be stored locally for fast inspection. Durable truth
-remains repository files, schemas, claims, and evidence records. Local state can
-be deleted and rebuilt without changing repository history.
+No generic event, session, gate-run, action-run, or evidence-index table is
+created speculatively. Durable Chronicle truth remains repository evidence,
+not an ignored SQLite event stream. Local state can be deleted and rebuilt
+without changing repository history.
 
 The state owner currently records schema version 2. Initialization performs
 ordered migrations in one SQLite transaction. Version 2 removes the retired
@@ -39,11 +34,8 @@ Work Lane leases are local coordination facts recorded by lane-start flows. They
 support ownership, handoff, and closeout ordering checks, but they do not replace
 Git history, OpenSpec records, claims, evidence, or Chronicle judgments.
 Productized leases identify the concrete acting holder, not merely a provider
-class; older owner strings remain compatibility fields until the runtime schema
-fully exposes `holder_ref`, epoch, heartbeat, and Authority-policy capability.
-Current prewrite and apply-mode admission are enforced by checkout role,
-editor-root binding, HEAD checks, and active lease holder binding where the
-command surface supports it.
+class. Current prewrite and apply-mode admission are enforced by checkout role,
+editor-root binding, HEAD checks, and active lease holder binding.
 
 ## Explicit Maintenance
 

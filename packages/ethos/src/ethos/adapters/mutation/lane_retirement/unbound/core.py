@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from dataclasses import field
 from typing import TYPE_CHECKING
 from typing import cast
 
@@ -12,22 +10,10 @@ from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 from ethos_core.contracts.branch.roles import load_branch_role_policy
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
     from pathlib import Path
 
 
-@dataclass(frozen=True, slots=True)
-class UnboundRetirementRuntime:
-    """Explicit dependencies used to retire unbound Work Lane refs."""
-
-    repo_root: Callable[[Path], Path] = repo_root
-    workspace_status: Callable[[Path], dict[str, object]] = workspace_status
-    shared: lane_retirement_shared.RetirementRuntime = field(
-        default_factory=lane_retirement_shared.RetirementRuntime
-    )
-
-
-def retire_unbound_work_lane_ref(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
+def retire_unbound_work_lane_ref(  # noqa: PLR0913, RUF100 - exact head-bound request
     *,
     root: Path,
     branch: str,
@@ -35,7 +21,6 @@ def retire_unbound_work_lane_ref(  # noqa: PLR0913, RUF100 - exact request envel
     reason: str = "",
     apply: bool = False,
     authorized: bool = False,
-    runtime: UnboundRetirementRuntime | None = None,
 ) -> dict[str, object]:
     """Inspect an unbound Work Lane ref without treating absence as safety.
 
@@ -44,19 +29,62 @@ def retire_unbound_work_lane_ref(  # noqa: PLR0913, RUF100 - exact request envel
     it merely because its registered worktree is absent.  An evidence-bound
     exceptional deletion admission is required instead.
     """
-    active_runtime = runtime or UnboundRetirementRuntime()
-    repo = active_runtime.repo_root(root)
-    status = active_runtime.workspace_status(repo)
+    repo = repo_root(root)
+    status = workspace_status(repo)
     branch = branch.strip()
     reason = reason.strip()
     current = _unbound_work_lane_ref(status, branch)
     binding = _branch_binding(status, branch)
     head = str((current or binding or {}).get("head") or "")
+    gaps = _unbound_retire_gaps(
+        {
+            "repo": repo,
+            "branch": branch,
+            "current": current,
+            "head": head,
+            "reason": reason,
+            "expect_head": expect_head,
+            "apply": apply,
+            "authorized": authorized,
+        }
+    )
+    return {
+        "ok": not gaps,
+        "state": "ready_to_retire_unbound" if not gaps else "blocked",
+        "branch": branch,
+        "head": head,
+        "relation_to_accepted": str((current or {}).get("relation_to_accepted") or ""),
+        "claim_id": str((current or {}).get("claim_id") or ""),
+        "claim_binding": str((current or {}).get("claim_binding") or ""),
+        "reason": reason,
+        "mutation": lane_retirement_shared.retire_mutation_envelope(
+            command="lane-retire-unbound",
+            action="lane.retire.unbound",
+            branch=branch,
+            expect_head=expect_head,
+            apply=apply,
+            confirmed=authorized,
+            required_gaps=gaps,
+            extra_state={"reason": reason},
+        ),
+        "required_gaps": sorted(set(gaps)),
+    }
+
+
+def _unbound_retire_gaps(context: dict[str, object]) -> list[str]:
+    repo = cast("Path", context["repo"])
+    branch = str(context["branch"])
+    current = cast("dict[str, object] | None", context["current"])
+    head = str(context["head"])
+    reason = str(context["reason"])
+    expect_head = cast("str | None", context["expect_head"])
+    apply = bool(context["apply"])
+    authorized = bool(context["authorized"])
     policy = load_branch_role_policy(repo)
     gaps: list[str] = []
     if not branch:
         gaps.append("unbound_retire_branch_required")
-    elif not _branch_exists(repo, branch, runtime=active_runtime):
+    elif not _branch_exists(repo, branch):
         gaps.append("unbound_retire_branch_not_found")
     elif policy.role_for_branch(branch) != ROLE_WORK_LANE:
         gaps.append("unbound_retire_not_work_lane")
@@ -66,62 +94,47 @@ def retire_unbound_work_lane_ref(  # noqa: PLR0913, RUF100 - exact request envel
         gaps.append("unbound_retire_requires_exceptional_deletion_admission")
     if not reason:
         gaps.append("retire_reason_required")
-    gaps.extend(lane_retirement_shared.expected_head_gaps(head, expect_head))
+    if expect_head is None or not str(expect_head).strip():
+        gaps.append("expect_head_required")
+    elif head and expect_head != head:
+        gaps.append("expect_head_mismatch")
     if apply and not authorized:
         gaps.append("authorization_required")
-    return lane_retirement_shared.retirement_report(
-        command="lane-retire-unbound",
-        action="lane.retire.unbound",
-        branch=branch,
-        expect_head=expect_head,
-        apply=apply,
-        confirmed=authorized,
-        state="ready_to_retire_unbound" if not gaps else "blocked",
-        gaps=gaps,
-        extra_state={"reason": reason},
-        fields={
-            "head": head,
-            "relation_to_accepted": str((current or {}).get("relation_to_accepted") or ""),
-            "claim_id": str((current or {}).get("claim_id") or ""),
-            "claim_binding": str((current or {}).get("claim_binding") or ""),
-            "reason": reason,
-        },
-    )
+    return gaps
 
 
 def _branch_exists(
     root: Path,
     branch: str,
-    *,
-    runtime: UnboundRetirementRuntime | None = None,
 ) -> bool:
-    active_runtime = runtime or UnboundRetirementRuntime()
-    return (
-        active_runtime.shared.run_git(root, "rev-parse", "--verify", branch, check=False).returncode
-        == 0
-    )
+    completed = lane_retirement_shared.run_git(root, "rev-parse", "--verify", branch, check=False)
+    return completed.returncode == 0
 
 
-def _unbound_work_lane_ref(status: dict[str, object], branch: str) -> dict[str, object] | None:
+def _unbound_work_lane_ref(
+    status: dict[str, object],
+    branch: str,
+) -> dict[str, object] | None:
     coordination = status.get("coordination")
-    return _find(
-        coordination.get("unbound_work_lane_refs") if isinstance(coordination, dict) else None,
-        branch,
-    )
-
-
-def _branch_binding(status: dict[str, object], branch: str) -> dict[str, object] | None:
-    return _find(status.get("branch_bindings"), branch)
-
-
-def _find(rows: object, branch: str) -> dict[str, object] | None:
-    if not isinstance(rows, list):
+    if not isinstance(coordination, dict):
         return None
-    return next(
-        (
-            cast("dict[str, object]", row)
-            for row in rows
-            if isinstance(row, dict) and row.get("branch") == branch
-        ),
-        None,
-    )
+    refs = coordination.get("unbound_work_lane_refs")
+    if not isinstance(refs, list):
+        return None
+    for ref in refs:
+        if isinstance(ref, dict) and ref.get("branch") == branch:
+            return cast("dict[str, object]", ref)
+    return None
+
+
+def _branch_binding(
+    status: dict[str, object],
+    branch: str,
+) -> dict[str, object] | None:
+    bindings = status.get("branch_bindings")
+    if not isinstance(bindings, list):
+        return None
+    for binding in bindings:
+        if isinstance(binding, dict) and binding.get("branch") == branch:
+            return cast("dict[str, object]", binding)
+    return None

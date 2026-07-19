@@ -7,6 +7,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
 
+import ethos.adapters.openspec.cli
+
 RunJson = Callable[[Path, tuple[str, ...], tuple[str, ...]], dict[str, object]]
 
 
@@ -15,9 +17,11 @@ def openspec_archive_preflight_report(
     change_name: str,
     *,
     base_command: tuple[str, ...],
-    run_json: RunJson,
+    run_json: RunJson | None = None,
 ) -> dict[str, Any]:
     """Run official archive against a disposable OpenSpec workspace copy."""
+    run_json = run_json or ethos.adapters.openspec.cli.run_json
+
     source = root / "openspec"
     command = ("archive", change_name, "--yes", "--json")
     if not source.is_dir():

@@ -142,33 +142,89 @@ git commit -m "refactor(quality): establish budget contract v2 foundation"
 - Create: `packages/ethos-core/src/ethos_core/contracts/source_budget/carriers.py`
 - Create: `packages/ethos-core/src/ethos_core/contracts/source_budget/metrics.py`
 - Create: `packages/ethos/src/ethos/adapters/repo/source_budget/carriers.py`
+- Create: `system/policies/source-budget-carriers.toml`
 - Create: `system/policies/source-budget-metrics.toml`
 - Create: `system/schemas/kernel/source-budget-carriers.schema.json`
 - Create: `system/schemas/kernel/source-budget-metrics.schema.json`
 - Create: `tests/unit/kernel/test_source_budget_carriers_contract.py`
 - Create: `tests/unit/kernel/test_source_budget_metrics_contract.py`
 - Create: `tests/unit/adapters/repo/source_budget/test_carriers.py`
-- Modify: `packages/ethos-core/src/ethos_core/contracts/source_budget/__init__.py`
-- Modify: `packages/ethos/src/ethos/adapters/repo/source_budget/__init__.py`
+- Modify: `tests/unit/governance/validation/test_schemas.py`
+- Preserve unchanged: `packages/ethos-core/src/ethos_core/contracts/source_budget/__init__.py`
+- Preserve unchanged: `packages/ethos/src/ethos/adapters/repo/source_budget/__init__.py`
+- Preserve unchanged: `packages/ethos/src/ethos/adapters/repo/source_budget/core.py`
 
 **Interfaces:**
-- Consumes: Git-present paths and metric-domain decision from Task 1.
-- Produces: `CarrierManifest`, `CarrierIdentity`, `CarrierMatch`, `MetricContract`, and deterministic manifest/contract digests.
+- Consumes: one Git-present tagged path observation and the metric-domain
+  decision from Task 1.
+- Produces: `PresentWorktreePathsLoad`, `CarrierManifest`, `CarrierIdentity`,
+  `CarrierMatch`, `CarrierInventory`, `MetricContractSet`, and canonical
+  manifest/inventory/metric-contract-set digests.
+- Boundary: this task classifies paths and contract identity but does not open
+  carrier bytes, invoke parsers, count metrics, or change v1 authority.
 
-- [ ] **Step 1: Write contract tests for exact-one classification, unknown fields, duplicate rules, unsupported extensions, and digest determinism.**
-- [ ] **Step 2: Run the new tests and verify failures are caused by missing contract modules.**
-- [ ] **Step 3: Implement frozen contract models and strict TOML/schema loaders.**
+- [x] **Step 1: Write adversarial contract tests.**
+
+Cover exact-one classification, unknown fields, duplicate rules, unsupported
+extensions, the enumerated canonical segment matcher dialect, surrogate and
+non-canonical paths, synthetic-label collision, declaration-order determinism,
+Git failure, strict NUL framing, tag/stage consistency, empty inventory,
+symlink/gitlink modes, symlink ancestors, stable inventory order, exact
+path/id/gap tokens, full-identity digest binding, and digest forgery.
+
+- [x] **Step 2: Run RED and verify the intended missing API/invariant failures.**
+
+The original RED established absent contract modules. Post-review RED runs then
+proved the missing typed inventory API and the exact matcher/inventory
+invariants before remediation.
+
+- [x] **Step 3: Implement strict contracts and typed repository loaders.**
 
 Required API:
 
 ```python
 def load_carrier_manifest(root: Path) -> CarrierManifestLoad: ...
+def load_present_worktree_paths(root: Path) -> PresentWorktreePathsLoad: ...
 def classify_carrier(relative: str, manifest: CarrierManifest) -> CarrierMatch: ...
-def load_metric_contracts(root: Path) -> MetricContractSet: ...
+def classify_carriers(
+    paths: Iterable[str],
+    manifest: CarrierManifest,
+) -> CarrierInventory: ...
+def load_metric_contracts(root: Path) -> MetricContractSetLoad: ...
+def resolve_metric_contracts(
+    identity: CarrierIdentity,
+    contracts: MetricContractSet,
+) -> tuple[MetricContract, ...]: ...
 ```
 
-- [ ] **Step 4: Run contract, schema, and adapter tests to GREEN.**
-- [ ] **Step 5: Commit with `feat(quality): add typed source budget contracts`.**
+The three loaders return explicit fail-closed envelopes. Git-present inventory
+uses one strictly NUL-framed tagged `git ls-files` observation, validates
+tag/stage consistency, rejects unsupported tracked modes before worktree
+materialization, checks every path ancestor with `lstat`, and never exposes a
+clean partial path set. The matcher dialect rejects the enumerated
+non-canonical syntax and redundancy set without claiming arbitrary glob
+equivalence. `CarrierMatch` carries explicit `path_state` instead of
+inferring synthetic status from pathname text and validates path/ID/gap
+invariants; `CarrierInventory` orders unique `(relative_path, path_state)` keys,
+binds full identity, and recomputes its digest during validation. The carrier
+manifest remains independently owned
+by `system/policies/source-budget-carriers.toml`; Task 2 does not reuse the v1
+format-selection taxonomy and does not modify the v1 adapter.
+
+- [x] **Step 4: Run focused and owner quality gates to GREEN.**
+
+Run the focused carrier, metric, adapter, and schema tests; Python
+lint/format/ratchet; config lint; JSON Schema checks; module-layout; and the v1
+source-budget advisory. Do not expand any ratchet baseline.
+
+- [x] **Step 5: Complete the bounded claim, Chronicle, independent review,
+strict lifecycle proof, and official archive inputs; commit the final T2
+carrier.**
+
+Use a HEAD-bound pre-archive proof only after tracked governance and parity
+evidence are committed. Archive, archive parity/proof, candidate land,
+accepted-root closeout, local publication, and owned-Lane retirement are
+subsequent separately evidenced transitions.
 
 ### Task 3: Native Measurement Adapters And Adversarial Corpus
 

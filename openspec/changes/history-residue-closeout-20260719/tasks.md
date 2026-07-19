@@ -1,43 +1,45 @@
-## 1. Contract And Attribution
+## 1. Contract And Scope
 
-- [ ] 1.1 Validate the proposal, design, and five capability deltas with strict OpenSpec validation.
-- [ ] 1.2 Record a carrier-attribution table for every debt record expired on July 18, 2026, including measured source categories and replacement owners.
-- [ ] 1.3 Add focused failing tests for tracked projection retirement, lossless Rules V2 migration, SQLite v2 migration, conservative lease pruning, and proof retention.
+- [x] 1.1 Validate the proposal, design, tasks, and five capability deltas with strict OpenSpec validation.
+- [x] 1.2 Reconcile the successor scope so source-budget is an advisory observation and real local-state effects are excluded.
+- [x] 1.3 Add focused regression tests for projection retirement, lossless Rules V2 migration, SQLite v2, conservative maintenance, proof retention, and closeout controls.
 
 ## 2. Tracked Residue And Scaffold Parity
 
-- [ ] 2.1 Remove `.ethos/ENGINEERING-NOTES.md` and `.ethos/terminal-landing-plan.md`, then update the historical claim that referenced the latter.
-- [ ] 2.2 Remove `.ethos/assistants.toml`, its adopter template, and its required manifest entry while preserving canonical assistant projection behavior.
-- [ ] 2.3 Reduce `.ethos/project.toml` to active metadata plus the external `[command_plane].public = "ethos"` marker and align the adopter template.
-- [ ] 2.4 Remove dead release fields from product and scaffold configuration while retaining protected-ref, host, publication, and attestation policy.
+- [x] 2.1 Remove `.ethos/ENGINEERING-NOTES.md` and `.ethos/terminal-landing-plan.md` without treating either as repository truth.
+- [x] 2.2 Remove `.ethos/assistants.toml`, its adopter template, and manifest requirement while preserving canonical assistant projections.
+- [x] 2.3 Reduce project configuration to active metadata plus `[command_plane].public = "ethos"` and align the adopter template.
+- [x] 2.4 Remove dead release fields from product and scaffold configuration while retaining active release policy.
 
-## 3. Rules V2 And Source-Budget Settlement
+## 3. Rules, Adapters, And Quality Residue
 
-- [ ] 3.1 Make Rules V2 migration preserve the complete parsed `[quality]` tree and all active non-legacy policy while normalizing legacy rules.
-- [ ] 3.2 Expose dry-run and guarded apply through `ethos rules migrate`, with authorization, expected-HEAD, and tracked-write admission checks.
-- [ ] 3.3 Migrate the product `.ethos/rules.toml` to V2, preserve active standards/format/determinism/artifact policy, correct durable-evidence roots, and leave baseline, terminal targets, and unexpired debt unchanged.
-- [ ] 3.4 Retire the two independent-verification references and the bundled control-replacement verifier, preserve their provider-neutral receipt contracts, and move indispensable assertions to canonical admission tests.
-- [ ] 3.5 Consolidate expired-debt carriers until live metrics are at or below `python_product=35675`, `python_tests=46865`, `python_tools=1038`, `python_other=446`, `shell=1552`, `toml=11846`, and `jinja=671`.
-- [ ] 3.6 Remove the ten expired debt records and their now-unused waves only after the measured category limits pass.
+- [x] 3.1 Preserve all active non-legacy policy while normalizing legacy Rules V2 keys.
+- [x] 3.2 Expose dry-run and guarded apply through `ethos rules migrate` with admission, authorization, expected-HEAD, and compare-and-swap checks.
+- [x] 3.3 Migrate product and scaffold rules without changing the source-budget baseline, terminal targets, campaign binding, or unexpired debt.
+- [x] 3.4 Retire bundled independent-verification and control-replacement executables while preserving provider-neutral receipt contracts and canonical tests.
+- [x] 3.5 Retire the custom structural blank-line policy and its duplicate fallback implementation without weakening text-integrity owners.
+- [x] 3.6 Retire the non-authoritative same-machine performance policy, owner module, runner, command/tool registration, and dedicated tests.
+- [x] 3.7 Record the current source-budget JSON as campaign-terminal advisory evidence without claiming terminal settlement.
 
-## 4. Versioned Local-State Maintenance
+## 4. Local-State Safety Capabilities
 
-- [ ] 4.1 Introduce transactional SQLite schema version 2, share the schema owner across state initializers, and remove only the retired `cache_entries` table.
-- [ ] 4.2 Add default read-only candidate reporting plus explicit maintenance for leases that are expired and absent from refs, worktrees, and recorded paths.
-- [ ] 4.3 Add proof retention that preserves current HEAD and every ref-reachable proof while pruning only ref-unreachable records in explicit maintenance mode.
-- [ ] 4.4 Run schema migration and maintenance against copied state, verify retained active coordination, then apply the same deterministic operation to the Work Lane local state.
+- [x] 4.1 Introduce transactional SQLite schema version 2 and a shared schema owner.
+- [x] 4.2 Add default read-only inventory and explicit conservative lease maintenance.
+- [x] 4.3 Add ref-, worktree-, lease-, and current-HEAD-bound proof retention.
+- [x] 4.4 Exercise migration, archive, maintenance, rollback, and replay only in fixtures, temporary repositories, or copied state.
+- [x] 4.5 Record that this continuation performed no real local-state apply, archive creation, lease/proof pruning, or recovery-source deletion.
 
-## 5. Recovery Preservation And Cleanup
+## 5. Claim And Chronicle Integrity
 
-- [ ] 5.1 Archive the complete July 9 recovery snapshot set outside `.ethos/state/` with an entry manifest and archive SHA-256.
-- [ ] 5.2 Verify archive extraction and every contained Git bundle, then record a HEAD-bound Chronicle preservation receipt.
-- [ ] 5.3 Remove the disposable `.ethos/state/residue-snapshots/` copy only after the preservation receipt verifies.
-- [ ] 5.4 Prune eligible obsolete proof files and orphan leases while preserving current HEAD proof and all active leases.
+- [x] 5.1 Restore the 29 historical claim files whose deletion lacked per-claim retirement evidence.
+- [x] 5.2 Keep `assurance-program-20260712` active and archive the retired generic-pre-receive and physical-topology claims with valid current promotion targets.
+- [x] 5.3 Rewrite the successor Chronicle, recompute its raw-byte SHA-256, and update the active historical claim.
 
 ## 6. Evidence And Lifecycle Closeout
 
-- [ ] 6.1 Run focused rules, scaffold, SQLite, lease, proof, local-state, release, assistant, and source-budget tests and gates.
-- [ ] 6.2 Run the complete test suite with the configured 100% coverage floor and all quality owner scripts.
-- [ ] 6.3 Commit parity-relevant changes, regenerate stale parity evidence in the admitted Work Lane, and commit the result.
-- [ ] 6.4 Produce Chronicle and claim evidence that binds the cleanup predicates, preservation digest, source-budget metrics, and final Git HEAD.
-- [ ] 6.5 Validate archive readiness and record the post-archive order: commit the archived carrier, rerun HEAD-bound proof, land to candidate, close out accepted root, and verify local publish readiness without remote push.
+- [ ] 6.1 Run focused owner tests and quality checks for every modified boundary.
+- [ ] 6.2 Run the complete test suite with the configured coverage floor and all required owner gates.
+- [ ] 6.3 Refresh the Work Lane through official `lane refresh-base` against the latest candidate HEAD.
+- [ ] 6.4 Regenerate and commit generic parity at the refreshed final HEAD.
+- [ ] 6.5 Validate claims and strict OpenSpec, archive the carrier, and inspect canonical-spec fusion for obligation loss.
+- [ ] 6.6 Run fresh HEAD-bound executed proof, land to candidate, close out accepted root, and verify local publication readiness without conflating remote or hosted state.

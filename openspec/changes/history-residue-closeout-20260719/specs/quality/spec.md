@@ -20,29 +20,29 @@ plane and SHALL preserve active non-legacy policy, including the complete
   absent, or expected HEAD does not match
 - **THEN** migration fails closed without rewriting the file.
 
-### Requirement: Expired source-budget debt stays visible until measured deletion
+### Requirement: Non-authoritative same-machine performance evidence is not a product gate
 
-ETHOS SHALL expose expired source-budget allowances as advisory debt until they
-are eliminated through measured carrier deletion or consolidation and SHALL NOT
-treat a baseline reset, silent expiry rollover, or replacement umbrella debt as
-settlement.
+ETHOS SHALL NOT ship a same-machine timing and token-budget evidence stack as a
+product quality gate when it has no trust-bearing consumer, reproducibility
+contract, or provider-neutral admission boundary.
 
-#### Scenario: A debt record has expired
+#### Scenario: The retired performance evidence stack is inspected
 
-- **WHEN** global source-budget closeout evaluates a record whose expiry is in
-  the past
-- **THEN** the report surfaces advisory gaps until live inventory no longer
-  requires the record's category allowances
-- **AND** baseline metrics, terminal targets, inventory categories, and
-  unexpired records remain unchanged.
+- **WHEN** command, tool, policy, package, test, and runner surfaces are audited
+- **THEN** `ethos quality performance` is not registered
+- **AND** its former policy file, Python owner, shell runner, tool declaration,
+  and dedicated tests are absent
+- **AND** the default proof floor still retains the declared lint, type,
+  coverage, module-layout, docstring, configuration, shell, format, hygiene, and
+  other hard quality owners.
 
-#### Scenario: All expired allowances are eliminated
+#### Scenario: Performance evidence is proposed again
 
-- **WHEN** measured net deletion brings every category within the baseline plus
-  still-active unexpired allowances
-- **THEN** the expired records and their unused waves can be removed
-- **AND** `ethos quality source-budget --json` reports no expired-debt or
-  exceeded-budget advisory gap.
+- **WHEN** a later change needs executable performance evidence
+- **THEN** it requires a new declared tool contract, reproducible measurement
+  boundary, typed report, consumer, and proof policy
+- **AND** it does not restore the retired command through a compatibility shim,
+  alias, or copied historical implementation.
 
 ## MODIFIED Requirements
 

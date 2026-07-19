@@ -1,199 +1,157 @@
 ## Context
 
-The product Work Lane inherits two different kinds of residue. Tracked residue
-includes non-authoritative work notes, legacy rule syntax, dead assistant and
-release projections, and source-budget debt whose recorded expiry was July 18,
-2026. Ignored local residue includes a version-1 SQLite database, leases that
-outlived their Work Lanes, obsolete proof records, and July 9 recovery snapshots
-that still contain Git objects unavailable from current refs.
+This continuation separates tracked repository residue from ignored workstation
+state. Tracked residue can be reviewed, tested, reverted, and landed through the
+normal Work Lane lifecycle. Ignored `.ethos/state` data, recovery snapshots,
+leases, and proofs require a separately authorized operator effect and cannot be
+inferred from code, tests, OpenSpec archival, or Git movement.
 
-The cleanup must respect three boundaries. First, `.ethos/state/` is local state,
-not repository truth, so its maintenance cannot mint authority or silently alter
-tracked claims. Second, tracked configuration and adopter scaffolds must change
-together or new repositories will recreate the residue. Third, source-budget
-debt is settled only by measured deletion or consolidation; changing the
-baseline or administratively extending an expired record would hide rather than
-close the debt.
+The predecessor design also treated source-budget terminal settlement as part of
+this change. Current policy uses `campaign_terminal`: campaign growth and an
+unmet terminal target remain explicit advisories for a bounded Change, while an
+invalid policy, debt-cap overflow, expired debt, or stale debt remains blocking.
+This change observes that policy but does not own global compression completion.
 
 ## Goals / Non-Goals
 
 **Goals:**
 
-- remove tracked non-truth and dead projections without breaking the external
-  runner marker or active release policy;
-- make Rules V2 migration lossless for active quality policy and expose the
-  already-advertised governed migration command;
-- migrate existing SQLite state to schema version 2 without replacing the
-  database or deleting active leases;
-- provide explicit, deterministic maintenance for expired orphan leases and
-  ref-unreachable proof records;
-- move the complete recovery snapshot set into a digest-bound operator archive
-  before deleting its disposable local-state copy;
-- settle every debt record expired on July 18, 2026 through measured net
-  deletion while preserving the immutable baseline and all unexpired debt;
-- prove product/scaffold parity, focused behavior, full quality, and lifecycle
-  readiness at the resulting Git HEAD.
+- remove tracked non-truth and dead projections while preserving active external
+  runner and release policy;
+- make Rules V2 migration lossless, guarded, and fail closed through the public
+  command plane;
+- implement and test versioned SQLite, conservative maintenance, archive
+  verification, and proof-retention capabilities without applying them to real
+  local state;
+- retire bundled provider executables while preserving exact receipt semantics;
+- retire non-authoritative performance evidence and cosmetic blank-line policy
+  without weakening the hard quality floor;
+- preserve historical claims unless this change records a bounded retirement;
+- strengthen accepted-root closeout around exact candidate and control facts;
+- complete strict validation, fresh parity, executed proof, candidate land, and
+  accepted-root closeout on one final successor HEAD.
 
 **Non-Goals:**
 
-- resetting source-budget baselines or terminal targets;
-- extending an expiry only to make a gate pass;
-- deleting the entire local-state database, current-HEAD proof, unexpired
-  leases, or recovery material before preservation is verified;
-- treating local maintenance output as hosted evidence or repository authority;
-- adding a second governance command plane or making cleanup run implicitly from
-  `status`, `orient`, `prove`, or normal lease reads.
+- mutating the real state database, leases, proofs, recovery snapshots, refs, or
+  worktrees through maintenance code;
+- creating an operator recovery archive or deleting its source material;
+- claiming source-budget terminal settlement or changing budget policy;
+- restoring compatibility wrappers, forwarding modules, aliases, or retired
+  executable examples;
+- treating local tests or local publication readiness as hosted or remote proof.
 
 ## Decisions
 
-### 1. Tracked cleanup is source/scaffold parity work
+### 1. Tracked cleanup and adopter scaffolds change together
 
-The product `.ethos` configuration and the adopter scaffold manifest/templates
-will be updated in one change. `.ethos/assistants.toml` and its template/manifest
-entry will be removed because assistant truth is already carried by repository
-source, activation registries, schemas, and generated host projections. The
-product project file will retain the externally consumed
-`[command_plane].public = "ethos"` marker while removing duplicate state and
-retired-command declarations. Release configuration will retain only fields
-consumed by release policy; canonical artifact homes remain owned by generated
-artifact topology rather than a dead `dist/*` glob.
+Product `.ethos` configuration and adopter templates remain one parity surface.
+The root assistant file and dead release fields are removed from both sides. The
+product keeps `[command_plane].public = "ethos"`, protected-ref policy,
+publication remotes, and attestation policy.
 
-Alternative considered: clean only the product checkout. Rejected because the
-scaffold would immediately reproduce the same residue for adopters.
+### 2. Rules migration preserves policy and fails closed
 
-### 2. Rules migration is lossless and compare-and-swap guarded
+Migration normalizes legacy rule keys while retaining every active non-rule
+policy table. Dry-run is the default. Apply requires write admission,
+authorization, expected HEAD, and compare-and-swap source binding. If a profile
+assignment cannot be isolated safely, the public report returns a migration gap
+and leaves the file byte-for-byte unchanged.
 
-Rules migration will normalize legacy `paths`, `requires`, and `evidence` keys
-to V2 keys while preserving `[quality]`, `[standards]`, `[determinism]`,
-`[formats]`, `[artifacts]`, and any other active non-rule policy. The stale
-durable-evidence roots will be corrected to `evidence` and `evidence/claims`.
-Adding V2 profiles and rule fields, rather than deleting still-consumed policy,
-ends compatibility-only rule evaluation.
-The public `ethos rules migrate` command will expose dry-run by default and use
-the existing mutation admission, authorization, and expected-HEAD conventions
-before apply. Ambiguous or unparsable input fails without rewriting the file.
+### 3. Local-state work is capability work, not a live effect
 
-Alternative considered: manually rewrite this repository and leave the
-migration helper unreachable. Rejected because its existing next action would
-continue directing adopters to a nonexistent and lossy command.
+SQLite v2, lease inventory, proof retention, archive creation, extraction
+verification, and replay behavior are tested with temporary repositories,
+fixtures, and copied databases. No command in this continuation applies those
+capabilities to the real accepted root or Work Lane state. OpenSpec archive,
+land, and closeout receipts cannot substitute for an explicit maintenance apply
+receipt.
 
-### 3. SQLite changes are versioned and data preserving
+### 4. Recovery material remains untouched
 
-Schema version 2 will remove the retired empty `cache_entries` table through the
-normal initializer. The migration will preserve event, chronicle, retrieval,
-and lease tables and record version 2 only after the transaction succeeds. Both
-state initialization paths will share one schema owner so a new database and an
-upgraded database cannot diverge.
+The code defines a preservation gate that requires entry hashes, archive digest,
+extraction verification, and Git bundle verification before deletion. This
+change does not create the real operator archive and therefore does not delete
+any real recovery source.
 
-Alternative considered: delete and recreate `state.sqlite`. Rejected because
-the database contains active Work Lane coordination that must survive cleanup.
+### 5. Source-budget is observed, not settled here
 
-### 4. Local-state maintenance is explicit, conservative, and deterministic
+The immutable baseline, terminal targets, category inventory, campaign binding,
+and one unexpired debt record remain unchanged. At the recorded successor HEAD,
+`quality source-budget` has no required gaps and reports campaign growth plus
+terminal non-attainment as advisory. That result does not establish terminal
+compression settlement. Existing blocking semantics for invalid, stale,
+expired, or over-cap debt remain unchanged.
 
-The existing local-state owner will gain an explicit maintenance mode; its
-default audit mode remains read-only. Lease pruning removes only rows that are
-expired and whose recorded branch, Git ref, linked worktree, and recorded path
-are all absent. Unexpired, current, ambiguous, or still-observable leases remain.
-Proof pruning removes records whose HEAD is unreachable from every current Git
-ref while always retaining current HEAD; invalid records are reported rather
-than silently discarded. The report lists every retained and removed identity
-and is written under generated evidence, not tracked truth.
+### 6. Provider contracts remain while bundled executables retire
 
-Alternative considered: automatic pruning during status or state reads.
-Rejected because observation must not hide or mutate coordination history.
+Signed independent-verification, hosted-enforcement, external identity, and
+control-replacement receipt contracts remain product behavior. Operator
+executables do not. The active assurance claim is narrowed to the provider-
+neutral contract. The generic pre-receive and physical-topology claims become
+historical archived records because their bundled extension assets are retired.
 
-### 5. Recovery snapshots cross a preservation gate before deletion
+### 7. Non-authoritative quality residue is deleted, not promoted
 
-The complete July 9 snapshot directory will be packed into an operator-selected
-archive outside `.ethos/state/`. A manifest will bind every archived entry, the
-archive SHA-256, byte size, bundle verification result, and operator archive
-location. A tracked Chronicle receipt will bind the manifest digest and Git
-HEAD. Only after archive extraction and bundle verification succeed may the
-source snapshot directory be removed.
+The same-machine performance evidence command, policy, Python owner, runner,
+tool registration, and dedicated tests had no trust-bearing consumer and are
+removed together. The custom structural blank-line reader is also retired.
+Python lint, type, coverage, module layout, docstrings, configuration, shell,
+format, repository hygiene, and other declared hard gates remain.
 
-Alternative considered: retain only the three Git bundles. Rejected because
-dirty patches and untracked-file snapshots can contain recovery material not
-represented by bundle objects.
+### 8. Historical claims require explicit disposition
 
-### 6. Expired source-budget debt closes by real net deletion
+The predecessor patch deleted 29 claim files without per-claim replacement or
+retirement evidence. This successor restores them. Only the three independent-
+verification claims receive explicit state or scope changes described above.
 
-Each expired record will be mapped to its named replacement and measured
-carrier categories. Redundant feature-local helpers, duplicated fixtures,
-temporary adapters, and duplicated declarative wiring will be consolidated into
-existing semantic owners. The record and wave are removed only after the live
-inventory demonstrates that their allowance is no longer needed. The baseline,
-terminal targets, unexpired records, and inventory categories remain unchanged.
+### 9. Closeout binds one exact candidate state
 
-Alternative considered: one new umbrella debt record. Rejected because it would
-roll expired debt forward without delivering the promised compression.
-
-### 7. Provider contracts remain; bundled verifier executables retire
-
-The provider-neutral external receipt and independent-verification contracts
-remain product behavior. The two default-off Python reference executables under
-`extensions/independent-verification/adapters/` and the bundled control
-replacement executable under `adapters/admission/control/` will be removed from
-the product repository and distribution surface because they are operator
-implementations, not ETHOS ontology or required runtime. The product retains only
-provider-neutral schemas and admission checks in the existing semantic owner.
-Documentation retains the protocol, candidate-external installation boundary,
-one-shot decision and proof bindings, and replacement guidance; focused contract
-tests move to the canonical receipt/admission owners.
-
-Alternative considered: move the same executables into `packages/`. Rejected
-because that only relocates operator code and would incorrectly promote an
-optional provider implementation into the product runtime.
+Control diff collection, external receipt admission, candidate proof, and
+accepted-root mutation bind one observed candidate HEAD. An unavailable diff,
+control deletion or rename, candidate drift, or candidate-local bootstrap
+artifact blocks or defers closeout rather than being treated as success.
 
 ## Risks / Trade-offs
 
-- **[Risk] A rules rewrite truncates quality policy** -> migration tests compare
-  parsed `[quality]` before and after and apply only after a dry-run target passes.
-- **[Risk] Lease pruning removes recoverable coordination** -> require expiry and
-  simultaneous absence of branch ref, worktree, and recorded path; report exact
-  deleted lease IDs.
-- **[Risk] Proof retention removes promotion evidence still in use** -> preserve
-  current HEAD and every ref-reachable proof; land and publish consume current
-  HEAD evidence only.
-- **[Risk] Recovery archive is corrupt or workstation-specific** -> bind entry
-  and archive digests, verify extraction, and run `git bundle verify` before
-  deleting the source copy.
-- **[Risk] Compression deletes semantic coverage** -> use red/green regression
-  slices, preserve scenario matrices declaratively, and run the complete suite
-  with 100% coverage before closing debt records.
-- **[Trade-off] Conservative proof retention keeps reachable ancestor records**
-  -> this avoids speculative loss now; later size caps require a separate policy
-  change with explicit retention guarantees.
+- **Rules text parsing may misidentify a table inside a multiline value.** The
+  migration now converts that condition into a fail-closed public report and
+  preserves the source file.
+- **Provider retirement may erase active contracts.** Canonical receipt tests,
+  docs, specs, and the active assurance claim remain; only executable examples
+  and their current-product claims retire.
+- **Historical claim deletion may look like cleanup.** Claims remain until a
+  claim-specific transition proves otherwise.
+- **Local-state code may be mistaken for an applied cleanup.** The Chronicle and
+  claim state explicitly exclude real apply and deletion effects.
+- **Source-budget advisories may be mistaken for completion.** Final evidence
+  records exact metrics and `terminal_target_met=false` without attributing
+  global settlement to this change.
 
 ## Migration Plan
 
-1. Commit the OpenSpec contract and focused failing tests.
-2. Remove dead tracked projections and update adopter scaffold parity.
-3. Make Rules V2 migration lossless, expose its guarded CLI, and migrate the
-   product rules file without changing active quality, format, determinism, or
-   artifact semantics.
-4. Retire all three bundled verifier executables while preserving the
-   provider-neutral receipt contracts, candidate-external operator boundary, and
-   canonical admission tests.
-5. Introduce SQLite schema version 2 and run it against a copied database before
-   upgrading the Work Lane's ignored state in place.
-6. Add and prove explicit local-state maintenance, then prune only eligible
-   leases and proof records.
-7. Create, hash, extract-test, and bundle-verify the recovery archive; write the
-   Chronicle receipt; then remove the disposable source snapshots.
-8. Complete measured carrier consolidation and remove only debt records whose
-   allowance has been eliminated.
-9. Run focused gates, full tests, parity, and HEAD-bound executed proof; complete
-   and archive this carrier, then commit the archived change.
-10. On the archived HEAD, rerun the required proof, land to candidate, perform
-    accepted-root closeout, and verify local publication readiness. Remote push
-    remains deferred.
+1. Replay the predecessor semantic commits onto the current successor lane while
+   preserving candidate-owned APIs and deleting stale parity evidence.
+2. Restore unproven claim deletions and correct the three provider-related claim
+   dispositions.
+3. Reconcile proposal, design, tasks, deltas, canonical plans, Chronicle, and
+   claim boundaries.
+4. Validate focused owner suites, strict OpenSpec, claim digests, and the exact
+   source-budget observation.
+5. Use the official `lane refresh-base` command against the latest candidate;
+   never hand-rebase or merge the Work Lane.
+6. Regenerate generic parity only at the refreshed final HEAD and commit it.
+7. Run the complete quality/test floor and HEAD-bound executed proof.
+8. Archive the OpenSpec carrier, verify canonical-spec fusion, rerun proof on the
+   archived HEAD, land to candidate, and perform accepted-root closeout.
+9. Treat local publication readiness, remote publication, and hosted observation
+   as distinct evidence classes.
 
-Rollback uses Git revert for tracked changes. Before local-state mutation, copy
-the SQLite database and proof/snapshot manifests into the operator archive. A
-failed migration restores the copy; a failed preservation check leaves the
-source snapshots untouched.
+Rollback for this change is Git revert of tracked changes. Real local-state
+mutation has no rollback section here because no such effect is authorized or
+performed by this change.
 
 ## Open Questions
 
-None. The cleanup predicates, preservation boundary, and source-budget
-constraints are fixed by the approved change.
+None. Any later real maintenance apply or recovery archive is a separate,
+explicitly authorized change.

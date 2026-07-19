@@ -2,18 +2,19 @@
 id = "history-residue-closeout-20260719"
 subject = "ethos:history-residue-closeout"
 state = "active"
-summary = "The active claim binds the OpenSpec carrier and dated Chronicle as a historical authoring record only."
+summary = "The active claim binds the successor-v2 OpenSpec carrier and dated Chronicle as a historical tracked-work record only."
 
 [evidence]
 dated = "evidence/chronicle/history-residue-closeout-20260719/2026-07-19.md"
-sha256 = "a85088c1639090640cba420209eed8fe21ceaab0045120614c4dff8736b6ab48"
+sha256 = "b849b0e0ca192cdccd10b13b82dd41923fd7b17784c2565ce789e9074c798c06"
 evidence_ids = ["evidence:history-residue-closeout-20260719"]
-binding = "Digest-bound historical association between the active OpenSpec carrier and the dated Chronicle; this is an authoring record only."
+binding = "Raw-byte digest association between the active OpenSpec carrier and the dated historical Chronicle; no local-state effect or terminal campaign completion is asserted."
 verifier = "digest_only"
 tests = [
-  "tools/ci/scripts/run-python-tests.sh (latest retained observation: 2468 passed, 2 generic-parity freshness failures, 100.00% coverage)",
+  "tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev pytest -q tests/unit/kernel/rules/test_migration.py tests/unit/cli/test_rules_migration.py tests/unit/domain/test_plan.py",
+  "tools/ci/scripts/run-ethos-lane.sh quality source-budget --json",
+  "tools/ci/scripts/run-ethos-lane.sh quality claims --json",
   "tools/ci/scripts/run-ethos-lane.sh openspec --change history-residue-closeout-20260719 --lifecycle --json",
-  "tools/ci/scripts/run-ethos-lane.sh quality source-budget --json (state=advisory; required_gaps=[]; terminal target incomplete)",
 ]
 
 [evidence.freshness]
@@ -21,12 +22,12 @@ mode = "historical"
 
 [boundary]
 owner = "repository-governance"
-scope = "Active OpenSpec carrier and dated Chronicle as a historical authoring record; excludes local-state mutation and lifecycle-completion assertions."
+scope = "Tracked successor-v2 cleanup, tests, OpenSpec, claims, and Chronicle only; excludes real local-state mutation, recovery deletion, terminal source-budget settlement, and remote or hosted completion."
 
 [carriers]
 openspec = "openspec/changes/history-residue-closeout-20260719"
-fallback = "Revert tracked authoring changes; leave ignored local state, leases, proof records, and recovery material untouched unless separately authorized."
-kill_signal = "The active carrier or Chronicle is missing, their digest association breaks, or the record expands into current operational completion claims."
+fallback = "Revert tracked authoring changes; leave ignored local state, leases, proofs, recovery material, and remote refs untouched unless separately authorized."
+kill_signal = "The carrier or Chronicle is missing, the raw-byte digest breaks, a historical claim is deleted without disposition, or the record expands into unobserved local, remote, hosted, or terminal-completion claims."
 
 [promotion]
 targets = [

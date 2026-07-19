@@ -1,0 +1,40 @@
+[claim]
+id = "refresh-base-source-budget-scope-recovery-20260718"
+change_id = "refresh-base-source-budget-scope-recovery-20260718"
+subject = "ethos:work-lane-refresh-source-budget-scope"
+state = "archived"
+summary = "Refresh-base preserves candidate content only for an archived, evidence-bound source-budget scope correction."
+
+[evidence]
+dated = "evidence/chronicle/refresh-base-source-budget-scope-recovery-20260718/2026-07-18.md"
+sha256 = "2aff305c35d00c6c85b457d76d61cb6423aaa9f4f0aa00b11e8355b1e09c82d8"
+evidence_ids = ["evidence:refresh-base-source-budget-scope-recovery-20260718"]
+binding = "The archived source-budget scope claim/carrier reader, exact candidate-index invariant checks, focused regressions, result classification, full-proof retention, and governed replay bind this recovery without weakening source-conflict admission."
+verifier = "digest_only"
+tests = ["pytest -q tests/unit/lanes/test_projection_rebase_source_budget.py tests/unit/domain/test_prove.py tests/unit/kernel/test_invalid_states.py tests/unit/governance/validation/test_gates.py tests/unit/lanes/test_lanes_lifecycle.py tests/unit/cli/test_contracts_lane_refresh_base_projection.py tests/unit/lanes/test_projection_rebase_ledger.py", "openspec validate --all --strict --json", "ethos openspec --lifecycle --json", "ethos lane refresh-base --apply --authorize --expect-head <lane-head> --json"]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "Exact candidate-authoritative source-budget proof-scope recovery during an owned Work Lane replay."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-18-refresh-base-source-budget-scope-recovery-20260718"
+fallback = "Leave the replay conflict blocked unless archived carrier evidence and all candidate invariants are present."
+kill_signal = "A path outside the exact scope, an unarchived or undeclared carrier, or incomplete candidate semantics is auto-resolved."
+
+[promotion]
+targets = [
+  "packages/ethos/src/ethos/adapters/mutation/lane_lifecycle/projection_rebase/core.py",
+  "packages/ethos/src/ethos/adapters/mutation/lane_lifecycle/refresh.py",
+  "packages/ethos/src/ethos/domain/prove.py",
+  "system/gates.toml",
+  "openspec/specs/quality/spec.md",
+  "tests/unit/lanes/test_projection_rebase_source_budget.py",
+  "tests/unit/domain/test_prove.py",
+  "openspec/changes/archive/2026-07-18-refresh-base-source-budget-scope-recovery-20260718",
+  "evidence/claims/refresh-base-source-budget-scope-recovery-20260718.toml",
+  "evidence/chronicle/refresh-base-source-budget-scope-recovery-20260718/2026-07-18.md",
+]

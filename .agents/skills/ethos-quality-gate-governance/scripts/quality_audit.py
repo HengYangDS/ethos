@@ -35,6 +35,7 @@ REQUIRED_FILES = (
     ".config/checks/module-layout/policy.toml",
     ".config/checks/ty/policy.toml",
     ".config/checks/ruff/ruff.toml",
+    "ruff.toml",
     ".config/checks/pytest/pytest.ini",
     ".config/checks/taplo/taplo.toml",
     ".config/checks/yaml/yamllint.yaml",

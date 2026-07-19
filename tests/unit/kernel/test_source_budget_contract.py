@@ -9,6 +9,7 @@ from pydantic import ValidationError
 from ethos_core.contracts.source_budget.core import SourceBudgetWave
 from ethos_core.contracts.source_budget.core import source_budget_json_schema
 from ethos_core.contracts.source_budget.core import validate_source_budget_policy
+from ethos_core.contracts.source_budget.core import validate_source_budget_taxonomy
 
 
 def _policy_payload() -> dict[str, object]:
@@ -97,6 +98,24 @@ def test_source_budget_contract_rejects_invalid_debt_lifecycle(case):
         payload["baseline"].pop("python_total")
 
     with pytest.raises(ValidationError):
+        validate_source_budget_policy(payload)
+
+
+def test_source_budget_taxonomy_rejects_unknown_aggregate_member() -> None:
+    with pytest.raises(ValidationError, match="aggregate member unknown"):
+        validate_source_budget_taxonomy(
+            {
+                "carrier": [{"category": "python", "extensions": [".py"]}],
+                "aggregates": {"total": ["missing"]},
+            }
+        )
+
+
+def test_source_budget_contract_requires_terminal_aggregates() -> None:
+    payload = _policy_payload()
+    payload["terminal"].pop("global_total")
+
+    with pytest.raises(ValidationError, match="terminal must include required aggregates"):
         validate_source_budget_policy(payload)
 
 

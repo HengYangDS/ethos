@@ -372,19 +372,24 @@ linked Work Lanes whose semantic truth has already been absorbed into the curren
 accepted root but whose stale branch content must not be landed. It is dry-run by
 default; apply mode requires `--authorize`, `--expect-head`, `--absorbed-by` equal
 to the current accepted head, a non-empty `--reason`, compatible holder binding,
-and accepted-root tree content that matches the lane's changed paths, then
-deletes `refs/heads/<branch>` with a head-bound ref transaction and removes the
-previously verified-clean linked worktree. If the worktree removal fails after
-ref deletion,
-ETHOS attempts to restore the ref before reporting the blocked cleanup. It does
-not replace `ethos land` or `ethos lane retire landed`; it closes a distinct superseded
-linked-lane residue state.
+and accepted-root tree content that matches the lane's changed paths. Immediately
+before any effect, ETHOS reobserves the registered path, branch ref, checkout
+HEAD, and tracked/untracked status. It then removes the verified-clean linked
+worktree without `--force` before deleting only the exact observed ref with a
+head-bound transaction. A worktree-removal failure leaves the ref and lease
+intact; a ref comparison failure after worktree removal leaves the newer or
+unobservable ref and lease intact as an explicit partial-transition residue. It
+does not replace `ethos land` or `ethos lane retire landed`; it closes a distinct
+superseded linked-lane residue state.
 `ethos lane retire unbound` is a fail-closed inspection path for local unbound
 Work Lane refs that already appear in `data.coordination.unbound_work_lane_refs`.
-It is dry-run by default; apply mode requires `--authorize`, `--expect-head`,
-and a non-empty `--reason`, then deletes `refs/heads/<branch>` with a
-head-bound Git ref transaction. It does not replace `ethos land` or
-`ethos lane retire landed`, and it does not remove linked worktrees. It preserves the ref and reports that exceptional deletion admission is required.
+It requires an exact `--expect-head` and a non-empty `--reason` to bind the
+inspection request; apply mode additionally requires `--authorize`, but the
+ordinary command has no destructive success branch. It preserves the ref and
+reports that a separately governed, evidence-bound exceptional deletion
+admission is required. It does not replace `ethos land` or `ethos lane retire
+landed`, and it does not remove linked worktrees, revoke leases, or infer safety
+from a missing registration.
 The standard local lifecycle is product state even when a host provides its own
 presentation: create the Work Lane through `ethos lane start`, attach claim
 evidence with `ethos lane bind-claim` when needed, refresh the lane base only

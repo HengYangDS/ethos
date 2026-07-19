@@ -54,7 +54,7 @@ def test_housekeeping_requires_authorization_and_removes_only_rechecked_candidat
         authorized=False,
         apply=True,
     )
-    assert blocked["required_gaps"] == ["housekeeping_authorization_required"]
+    assert blocked["required_gaps"] == ["authorization_required"]
     assert clean.exists()
 
     applied = worktree_housekeeping.housekeeping_worktrees(

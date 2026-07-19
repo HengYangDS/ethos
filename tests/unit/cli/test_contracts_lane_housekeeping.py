@@ -36,7 +36,7 @@ def test_lane_housekeeping_exposes_dry_run_and_authorized_apply(tmp_path: Path) 
         "--json",
         cwd=repo,
     )
-    assert blocked["required_gaps"] == ["housekeeping_authorization_required"]
+    assert blocked["required_gaps"] == ["authorization_required"]
     assert detached.exists()
 
     applied = run_ethos(

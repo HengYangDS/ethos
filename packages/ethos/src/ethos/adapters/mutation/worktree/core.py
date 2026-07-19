@@ -37,7 +37,7 @@ def housekeeping_worktrees(
             "removed_paths": [],
             "required_gaps": ["housekeeping_inventory_failed"],
         }
-    gaps = ["housekeeping_authorization_required"] if apply and not authorized else []
+    gaps = ["authorization_required"] if apply and not authorized else []
     removed: list[str] = []
     if apply and not gaps:
         for entry in entries:

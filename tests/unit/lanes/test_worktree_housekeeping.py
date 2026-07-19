@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 from subprocess import CompletedProcess
 
@@ -204,3 +205,101 @@ def test_housekeeping_blocks_when_git_inventory_is_unavailable(
     assert report["ok"] is False
     assert report["state"] == "blocked"
     assert report["required_gaps"] == ["housekeeping_inventory_failed"]
+
+
+def test_housekeeping_blocks_when_git_inventory_is_malformed(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    repo, _candidate = init_repo_with_candidate(tmp_path)
+
+    def malformed_inventory(_root: Path, *args: str, check: bool = True):
+        del check
+        assert args == ("worktree", "list", "--porcelain")
+        return CompletedProcess(args, 0, stdout="HEAD invalid\n\n", stderr="")
+
+    monkeypatch.setattr(worktree_housekeeping, "run_git", malformed_inventory)
+    report = worktree_housekeeping.housekeeping_worktrees(root=repo)
+
+    assert report["ok"] is False
+    assert report["required_gaps"] == ["housekeeping_inventory_failed"]
+
+
+def test_housekeeping_blocks_when_recheck_inventory_becomes_unavailable(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    repo, _candidate = init_repo_with_candidate(tmp_path)
+    detached = tmp_path / "recheck-detached"
+    _add_detached(repo, detached)
+    original_run_git = worktree_housekeeping.run_git
+    inventory_calls = 0
+
+    def fail_second_inventory(root: Path, *args: str, check: bool = True):
+        nonlocal inventory_calls
+        if args == ("worktree", "list", "--porcelain"):
+            inventory_calls += 1
+            if inventory_calls == 2:
+                return CompletedProcess(args, 1, stdout="", stderr="unavailable")
+        return original_run_git(root, *args, check=check)
+
+    monkeypatch.setattr(worktree_housekeeping, "run_git", fail_second_inventory)
+    report = worktree_housekeeping.housekeeping_worktrees(
+        root=repo,
+        temporary_roots=(tmp_path,),
+        authorized=True,
+        apply=True,
+    )
+
+    assert report["required_gaps"] == [
+        f"housekeeping_candidate_stale:{detached.resolve().as_posix()}"
+    ]
+    assert detached.exists()
+
+
+def test_housekeeping_reports_nonforced_removal_failure(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    repo, _candidate = init_repo_with_candidate(tmp_path)
+    detached = tmp_path / "remove-failure-detached"
+    _add_detached(repo, detached)
+    original_run_git = worktree_housekeeping.run_git
+
+    def fail_remove(root: Path, *args: str, check: bool = True):
+        if args[:2] == ("worktree", "remove"):
+            return CompletedProcess(args, 1, stdout="", stderr="refused")
+        return original_run_git(root, *args, check=check)
+
+    monkeypatch.setattr(worktree_housekeeping, "run_git", fail_remove)
+    report = worktree_housekeeping.housekeeping_worktrees(
+        root=repo,
+        temporary_roots=(tmp_path,),
+        authorized=True,
+        apply=True,
+    )
+
+    assert report["required_gaps"] == [
+        f"housekeeping_remove_failed:{detached.resolve().as_posix()}"
+    ]
+    assert detached.exists()
+
+
+def test_housekeeping_protects_detached_audit_root_and_missing_worktree(
+    tmp_path: Path,
+) -> None:
+    repo, _candidate = init_repo_with_candidate(tmp_path)
+    audit_root = tmp_path / "detached-audit-root"
+    missing = tmp_path / "missing-detached"
+    _add_detached(repo, audit_root)
+    _add_detached(repo, missing)
+    shutil.rmtree(missing)
+
+    report = worktree_housekeeping.housekeeping_worktrees(
+        root=audit_root,
+        temporary_roots=(tmp_path,),
+    )
+
+    entries = {entry["path"]: entry for entry in report["entries"]}
+    assert entries[audit_root.resolve().as_posix()]["reasons"] == ["worktree_is_audit_root"]
+    assert entries[missing.resolve().as_posix()]["reasons"] == ["worktree_missing"]

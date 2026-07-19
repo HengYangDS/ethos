@@ -22,7 +22,7 @@
 
 - [x] 3.1 Run focused tests, real install smoke, shell/config/release checks, and
   the quality audit.
-- [ ] 3.2 Refresh the claim, Chronicle, and generic parity evidence on a stable
+- [x] 3.2 Refresh the claim, Chronicle, and generic parity evidence on a stable
   committed HEAD.
 - [ ] 3.3 Execute default and full HEAD-bound proof, then archive this Change
   through the official OpenSpec CLI.

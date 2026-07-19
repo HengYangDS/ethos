@@ -144,7 +144,7 @@ def test_python_test_gate_fails_closed_when_head_changes_during_run() -> None:
     assert "cleanup_denied_runtime_residue" in exit_cleanup
 
 
-def test_performance_and_report_mechanisms_have_declared_boundaries() -> None:
+def test_test_and_report_mechanisms_have_declared_boundaries() -> None:
     tools = tomllib.loads((ROOT / "system/tools.toml").read_text(encoding="utf-8"))["tool"]
     by_concern = {tool["concern"]: tool for tool in tools}
 
@@ -154,26 +154,23 @@ def test_performance_and_report_mechanisms_have_declared_boundaries() -> None:
         == ".config/checks/pytest/pytest.ini + .config/checks/pytest/policy.toml"
     )
     assert by_concern["tests"]["artifacts"] == "build/evidence/quality/tests/"
-    assert by_concern["test_performance"]["gate"] == "ethos quality performance --json"
-    assert by_concern["test_performance"]["config"] == ".config/checks/performance/policy.toml"
-    assert by_concern["test_performance"]["artifacts"] == "build/evidence/quality/performance/"
     assert by_concern["test_reporting"]["adoption"] == "candidate"
 
 
-def test_performance_evidence_is_head_bound_and_local_only() -> None:
-    policy = tomllib.loads(
-        (ROOT / ".config/checks/performance/policy.toml").read_text(encoding="utf-8")
-    )
-    script = (ROOT / "tools/ci/scripts/run-performance-evidence.sh").read_text(encoding="utf-8")
+def test_bespoke_performance_evidence_bundle_is_absent() -> None:
+    tools = tomllib.loads((ROOT / "system/tools.toml").read_text(encoding="utf-8"))["tool"]
+    commands = tomllib.loads((ROOT / "system/commands.toml").read_text(encoding="utf-8"))[
+        "commands"
+    ]
 
-    assert policy["samples"] == 5
-    assert policy["latest_path"] == "build/evidence/quality/performance/latest.json"
-    assert policy["baseline_path"] == "build/evidence/quality/performance/baseline.json"
-    assert "require-stable-head.sh capture" in script
-    assert "require-stable-head.sh verify" in script
-    assert "cold_subprocess_and_hot_inprocess_samples" in script
-    assert "--accept-baseline" in script
-    assert "token_estimate" in script
+    assert "test_performance" not in {tool["concern"] for tool in tools}
+    assert not any(
+        command["group"] == "quality" and command["name"] == "performance"
+        for command in commands
+    )
+    assert not (ROOT / ".config/checks/performance/policy.toml").exists()
+    assert not (ROOT / "tools/ci/scripts/run-performance-evidence.sh").exists()
+    assert not (ROOT / "packages/ethos/src/ethos/repository/policy/performance").exists()
 
 
 def test_runtime_artifacts_do_not_live_under_config_check_owners() -> None:

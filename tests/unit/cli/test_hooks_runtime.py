@@ -198,6 +198,7 @@ def test_git_hooks_use_repo_bound_python_runtime() -> None:
 def test_pre_commit_blocks_staged_python_format_drift() -> None:
     script = Path(".githooks/pre-commit").read_text(encoding="utf-8")
 
+    assert "git diff --cached --name-only --diff-filter=ACMRTD" in script
     assert "git diff --cached --name-only --diff-filter=ACMR -- '*.py'" in script
     assert 'ruff_config_path=".config/checks/ruff/ruff.toml"' in script
     assert "build/runtime/tool-cache/ruff" in script

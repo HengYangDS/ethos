@@ -1,17 +1,7 @@
-[claim]
-id = "declarative-registry-compression-recovery-20260712"
-change_id = "declarative-registry-compression-recovery-20260712"
-subject = "ethos:declarative-registry-compression"
-state = "active"
-summary = "Coupling and standards registries compile from frozen TOML contracts and pure projections while former static builders are deleted."
-
-[evidence]
-dated = "evidence/chronicle/declarative-registry-compression-recovery-20260712/2026-07-12.md"
-sha256 = "dbd74c05d866be3a8f5222a0ffc8e0b0601d63be56e405f75c9283668245d9ab"
-evidence_ids = ["evidence:declarative-registry-compression-recovery-20260712"]
-binding = "TOML declarations, frozen Pydantic contracts, static projection matrices, deleted former builders, and the bounded OpenSpec carrier bind this compression slice."
-verifier = "digest_only"
-tests = [
+claim = { id = "declarative-registry-compression-recovery-20260712", change_id = "declarative-registry-compression-recovery-20260712", subject = "ethos:declarative-registry-compression", state = "active", summary = "Coupling and standards registries compile from frozen TOML contracts and pure projections while former static builders are deleted." }
+evidence = { dated = "evidence/chronicle/declarative-registry-compression-recovery-20260712/2026-07-12.md", sha256 = "dbd74c05d866be3a8f5222a0ffc8e0b0601d63be56e405f75c9283668245d9ab", evidence_ids = [
+  "evidence:declarative-registry-compression-recovery-20260712",
+], binding = "TOML declarations, frozen Pydantic contracts, static projection matrices, deleted former builders, and the bounded OpenSpec carrier bind this compression slice.", verifier = "digest_only", tests = [
   "uv run --all-packages --group dev pytest tests/unit/audit/test_coupling.py tests/unit/kernel/test_coupling_declaration.py tests/unit/kernel/test_standards_declaration.py tests/unit/release/test_standards.py tests/unit/coverage/test_cli_admission_final_edges.py -q",
   "tools/ci/scripts/run-python-lint.sh",
   "tools/ci/scripts/run-config-lint.sh",
@@ -19,22 +9,10 @@ tests = [
   "ethos quality types --json",
   "ethos quality source-budget --json",
   "ethos prove --execute --expect-head <final-head> --json",
-]
-
-[evidence.freshness]
-mode = "historical"
-
-[boundary]
-owner = "ethos-repository"
-scope = "Declarative coupling and standards registry projection with thin live overlays"
-
-[carriers]
-openspec = "openspec/changes/archive/2026-07-12-declarative-registry-compression-recovery-20260712"
-fallback = "Revert to the last validated registry projection if declaration loading or installed package resources fail."
-kill_signal = "A static registry builder or unvalidated declaration becomes a second authority path, or a runtime overlay changes a declared static field."
-
-[promotion]
-targets = [
+], freshness = { mode = "historical" } }
+boundary = { owner = "ethos-repository", scope = "Declarative coupling and standards registry projection with thin live overlays" }
+carriers = { openspec = "openspec/changes/archive/2026-07-12-declarative-registry-compression-recovery-20260712", fallback = "Revert to the last validated registry projection if declaration loading or installed package resources fail.", kill_signal = "A static registry builder or unvalidated declaration becomes a second authority path, or a runtime overlay changes a declared static field." }
+promotion = { targets = [
   { kind = "source", path = "packages/ethos-core/src/ethos_core/contracts" },
   { kind = "source", path = "packages/ethos/src/ethos/repository/policy/coupling" },
   { kind = "source", path = "packages/ethos/src/ethos/repository/registry/standards.py" },
@@ -46,4 +24,4 @@ targets = [
   { kind = "openspec", path = "openspec/changes/archive/2026-07-12-declarative-registry-compression-recovery-20260712" },
   { kind = "evidence", path = "evidence/chronicle/declarative-registry-compression-recovery-20260712/2026-07-12.md" },
   { kind = "evidence", path = "evidence/claims/declarative-registry-compression-recovery-20260712.toml" },
-]
+] }

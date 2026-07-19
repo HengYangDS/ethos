@@ -1,37 +1,16 @@
-[claim]
-id = "tool-adoption-ssot-20260717"
-subject = "ethos:tool-adoption-catalog-ssot"
-state = "active"
-summary = "The quality tool profile projection is derived from the schema-validated tracked catalog and records explicit adoption state."
-
-[evidence]
-dated = "evidence/chronicle/tool-adoption-ssot-20260717/2026-07-17.md"
-sha256 = "9ea9b5a38667ffbc50d92e8b74ac23d93aae6b586d84cb10828ad7635b5ade5f"
-evidence_ids = ["evidence:tool-adoption-ssot-20260717"]
-binding = "Active OpenSpec carrier, catalog-projection regression, schema validation, and dated Chronicle."
-verifier = "digest_only"
-tests = [
+claim = { id = "tool-adoption-ssot-20260717", subject = "ethos:tool-adoption-catalog-ssot", state = "active", summary = "The quality tool profile projection is derived from the schema-validated tracked catalog and records explicit adoption state." }
+evidence = { dated = "evidence/chronicle/tool-adoption-ssot-20260717/2026-07-17.md", sha256 = "9ea9b5a38667ffbc50d92e8b74ac23d93aae6b586d84cb10828ad7635b5ade5f", evidence_ids = [
+  "evidence:tool-adoption-ssot-20260717",
+], binding = "Active OpenSpec carrier, catalog-projection regression, schema validation, and dated Chronicle.", verifier = "digest_only", tests = [
   "uv run --locked --all-groups --package ethos pytest -q tests/unit/cli/test_tool_profile_boundaries.py tests/unit/cli/test_contracts.py::test_quality_tool_profiles_command_reports_adapter_boundaries tests/unit/kernel/test_quality.py tests/unit/governance/validation/test_schemas.py",
   "tools/ci/scripts/run-config-lint.sh",
   ".agents/skills/ethos-quality-gate-governance/scripts/quality_audit.py .",
   "ethos quality source-budget --json",
   "openspec validate tool-adoption-ssot-20260717 --strict --json",
-]
-
-[evidence.freshness]
-mode = "historical"
-
-[boundary]
-owner = "ethos-quality-gate-governance"
-scope = "Tool adoption state declaration, catalog-derived quality projection, and schema validation."
-
-[carriers]
-openspec = "openspec/changes/archive/2026-07-17-tool-adoption-ssot-20260717"
-fallback = "Restore the preceding static adapter projection only by reverting catalog, schema, source, and tests together."
-kill_signal = "A tool profile differs from the catalog, accepts an undeclared state, or treats a non-active entry as an active gate."
-
-[promotion]
-targets = [
+], freshness = { mode = "historical" } }
+boundary = { owner = "ethos-quality-gate-governance", scope = "Tool adoption state declaration, catalog-derived quality projection, and schema validation." }
+carriers = { openspec = "openspec/changes/archive/2026-07-17-tool-adoption-ssot-20260717", fallback = "Restore the preceding static adapter projection only by reverting catalog, schema, source, and tests together.", kill_signal = "A tool profile differs from the catalog, accepts an undeclared state, or treats a non-active entry as an active gate." }
+promotion = { targets = [
   "evidence/claims/tool-adoption-ssot-20260717.toml",
   "evidence/chronicle/tool-adoption-ssot-20260717/2026-07-17.md",
   "evidence/parity/generic-shadow.json",
@@ -51,4 +30,4 @@ targets = [
   "tests/unit/governance/validation/test_schemas.py",
   "tests/unit/kernel/test_quality.py",
   "tools/ci/scripts/run-repository-hygiene.sh",
-]
+] }

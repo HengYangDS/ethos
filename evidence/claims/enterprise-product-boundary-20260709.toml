@@ -1,16 +1,7 @@
-[claim]
-id = "enterprise-product-boundary-20260709"
-subject = "ethos:enterprise-product-boundary"
-state = "active"
-summary = "ETHOS product-boundary governance covers enterprise-neutral distribution scope, active planning surfaces, and external role-based contributor identity."
-
-[evidence]
-dated = "evidence/chronicle/enterprise-product-boundary-20260709/2026-07-09.md"
-sha256 = "97dcdb4068375b44094ffc7f5628bc062b0909026446906e842e906eda379008"
-evidence_ids = ["evidence:enterprise-product-boundary-20260709"]
-binding = "enterprise product boundary, active private-reference boundary, distribution manifest scope, and contributor identity policy"
-verifier = "digest_only"
-tests = [
+claim = { id = "enterprise-product-boundary-20260709", subject = "ethos:enterprise-product-boundary", state = "active", summary = "ETHOS product-boundary governance covers enterprise-neutral distribution scope, active planning surfaces, and external role-based contributor identity." }
+evidence = { dated = "evidence/chronicle/enterprise-product-boundary-20260709/2026-07-09.md", sha256 = "97dcdb4068375b44094ffc7f5628bc062b0909026446906e842e906eda379008", evidence_ids = [
+  "evidence:enterprise-product-boundary-20260709",
+], binding = "enterprise product boundary, active private-reference boundary, distribution manifest scope, and contributor identity policy", verifier = "digest_only", tests = [
   "uv run --all-packages --group dev pytest tests/unit/policy/test_product_boundary.py tests/unit/cli/test_quality_boundary.py tests/unit/governance/validation/test_gates.py tests/architecture/test_product_boundaries.py tests/unit/kernel/test_skill_activation.py -q",
   "uv run --all-packages --group dev pytest tests/unit/policy/test_product_boundary.py --cov-config=.config/checks/coverage/coverage.ini --cov=ethos.repository.policy.boundary.product --cov-report=term-missing --cov-fail-under=100 -q",
   "tools/ci/scripts/run-product-boundary.sh",
@@ -18,22 +9,10 @@ tests = [
   "uv run --package ethos ethos plan --changed --root <worktree> --json",
   "uv run --package ethos ethos quality product-boundary --root <worktree> --json",
   "uv run --package ethos ethos quality contributor-policy --root <worktree> --json",
-]
-
-[evidence.freshness]
-mode = "historical"
-[boundary]
-owner = "ethos-quality"
-scope = "Enterprise-neutral active product surfaces, planning surfaces, contributor policy, release metadata, and distribution manifests"
-
-[carriers]
-openspec = "openspec/specs/quality/spec.md"
-
-fallback = "Block product-boundary closeout when active product, planning, rule, configuration, or distribution surfaces require a personal author, workstation path, named private reference repository, personal work history, or adopter-private default."
-kill_signal = "A published package or active product surface ships person attribution, private paths, named private reference repositories, personal work history, adopter-private records, tests, historical evidence, or local state as product defaults."
-
-[promotion]
-targets = [
+], freshness = { mode = "historical" } }
+boundary = { owner = "ethos-quality", scope = "Enterprise-neutral active product surfaces, planning surfaces, contributor policy, release metadata, and distribution manifests" }
+carriers = { openspec = "openspec/specs/quality/spec.md", fallback = "Block product-boundary closeout when active product, planning, rule, configuration, or distribution surfaces require a personal author, workstation path, named private reference repository, personal work history, or adopter-private default.", kill_signal = "A published package or active product surface ships person attribution, private paths, named private reference repositories, personal work history, adopter-private records, tests, historical evidence, or local state as product defaults." }
+promotion = { targets = [
   "packages/ethos/src/ethos/repository/policy/boundary/product.py",
   "packages/ethos/src/ethos/repository/policy/gates.py",
   "tests/unit/policy/test_product_boundary.py",
@@ -54,4 +33,4 @@ targets = [
   "evidence/parity/generic-shadow.json",
   "docs/reference/README.md",
   "docs/reference/mechanism-comparison-audit.md",
-]
+] }

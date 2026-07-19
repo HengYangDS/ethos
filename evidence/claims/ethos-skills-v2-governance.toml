@@ -1,16 +1,7 @@
-[claim]
-id = "ethos-skills-v2-governance"
-subject = "ethos:skills-v2-governance"
-state = "active"
-summary = "ETHOS Skills V2 separates activation behavior from provider-visible skill packages, applies strict product-root package quality checks, keeps historical adopter migration evidence readable, and binds routing to changed-path evidence."
-
-[evidence]
-dated = "evidence/chronicle/skills-v2-governance/2026-07-01.md"
-sha256 = "3a81f4fb63ba4042f086b6d00067ac1eb14c97aa03e23af8055e8217a4c89fd4"
-evidence_ids = ["evidence:ethos-skills-v2-governance"]
-binding = "declared skills-v2 governance evidence binding"
-verifier = "digest_only"
-tests = [
+claim = { id = "ethos-skills-v2-governance", subject = "ethos:skills-v2-governance", state = "active", summary = "ETHOS Skills V2 separates activation behavior from provider-visible skill packages, applies strict product-root package quality checks, keeps historical adopter migration evidence readable, and binds routing to changed-path evidence." }
+evidence = { dated = "evidence/chronicle/skills-v2-governance/2026-07-01.md", sha256 = "3a81f4fb63ba4042f086b6d00067ac1eb14c97aa03e23af8055e8217a4c89fd4", evidence_ids = [
+  "evidence:ethos-skills-v2-governance",
+], binding = "declared skills-v2 governance evidence binding", verifier = "digest_only", tests = [
   "uv run --group dev pytest -q tests/unit/kernel/test_skill_activation.py tests/unit/assistants/test_skill_packages.py tests/unit/assistants/test_projection.py tests/unit/governance/validation",
   "uv run --group dev pytest -q tests/unit/cli/test_contracts.py::test_playbooks_changed_scope_reports_matched_changed_path_evidence tests/unit/cli/test_contracts.py::test_playbooks_changed_scope_reports_unmatched_changed_paths tests/unit/cli/test_contracts.py::test_report_uses_strict_playbooks_for_external_adopter_root tests/unit/cli/test_contracts.py::test_projection_drift_reports_registry_and_generator_digest_state tests/unit/cli/test_contracts.py::test_playbooks_v2_gate_can_execute tests/architecture/test_product_boundaries.py::test_active_openspec_change_deltas_use_target_product_families",
   "uv run --group dev pytest -q tests/unit tests/architecture",
@@ -29,22 +20,10 @@ tests = [
   "uv run --package ethos ethos report --root <adopter-repo> --json",
   "uv run --package ethos ethos parity gaps --adopter reference-adopter --json",
   "uv run --package ethos ethos parity shadow --target <adopter-repo> --execute --timeout-seconds 30 --json",
-]
-
-[evidence.freshness]
-mode = "historical"
-[boundary]
-owner = "ethos-assistants"
-scope = "Skills V2 activation normalization, package projections, changed-scope routing, and strict proof gates"
-
-[carriers]
-openspec = "openspec/changes/archive/2026-07-01-ethos-skills-v2-quality-governance"
-
-fallback = "Keep external adopter migration evidence as historical replay fixtures and block product strict proof on Skills V2 package or registry gaps."
-kill_signal = "Provider-visible skill package metadata can diverge from activation routing or product proof can pass without strict Skills V2 validation."
-
-[promotion]
-targets = [
+], freshness = { mode = "historical" } }
+boundary = { owner = "ethos-assistants", scope = "Skills V2 activation normalization, package projections, changed-scope routing, and strict proof gates" }
+carriers = { openspec = "openspec/changes/archive/2026-07-01-ethos-skills-v2-quality-governance", fallback = "Keep external adopter migration evidence as historical replay fixtures and block product strict proof on Skills V2 package or registry gaps.", kill_signal = "Provider-visible skill package metadata can diverge from activation routing or product proof can pass without strict Skills V2 validation." }
+promotion = { targets = [
   "evidence/chronicle/skills-v2-governance/2026-07-01.md",
   "docs/governance/playbooks-and-skills.md",
   "docs/architecture/agent-projections.md",
@@ -60,4 +39,4 @@ targets = [
   "system/schemas/kernel/skill-package-manifest.schema.json",
   ".agents/skills/activation.toml",
   ".agents/skills/ethos-repository-governance/package.toml",
-]
+] }

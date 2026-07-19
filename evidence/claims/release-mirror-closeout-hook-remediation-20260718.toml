@@ -1,41 +1,19 @@
-[claim]
-id = "release-mirror-closeout-hook-remediation-20260718"
-subject = "ethos:accepted-ff-release-mirror-candidate-runner"
-state = "active"
-change_id = "release-mirror-closeout-hook-remediation-20260718"
-summary = "The local accepted_ff closeout route routes both atomic protected refs through the exact clean candidate runner, while raw protected-ref moves remain blocked."
-
-[evidence]
-dated = "evidence/chronicle/release-mirror-closeout-hook-remediation-20260718/2026-07-18.md"
-sha256 = "de81056c7dae2f7f602c28492ea4c4037c73d46195e013ab2593c7b75051bbbc"
-evidence_ids = ["evidence:release-mirror-closeout-hook-remediation-20260718"]
-binding = "The active OpenSpec carrier, real armed-hook regression, focused admission tests, and later head-bound proof bind candidate-runner selection for atomic accepted_ff local closeout."
-verifier = "digest_only"
-tests = [
+claim = { id = "release-mirror-closeout-hook-remediation-20260718", subject = "ethos:accepted-ff-release-mirror-candidate-runner", state = "active", change_id = "release-mirror-closeout-hook-remediation-20260718", summary = "The local accepted_ff closeout route routes both atomic protected refs through the exact clean candidate runner, while raw protected-ref moves remain blocked." }
+evidence = { dated = "evidence/chronicle/release-mirror-closeout-hook-remediation-20260718/2026-07-18.md", sha256 = "de81056c7dae2f7f602c28492ea4c4037c73d46195e013ab2593c7b75051bbbc", evidence_ids = [
+  "evidence:release-mirror-closeout-hook-remediation-20260718",
+], binding = "The active OpenSpec carrier, real armed-hook regression, focused admission tests, and later head-bound proof bind candidate-runner selection for atomic accepted_ff local closeout.", verifier = "digest_only", tests = [
   "pytest -q tests/unit/lanes/test_armed_hook_closeout_e2e.py tests/unit/lanes/test_ref_move_admission.py tests/unit/cli/test_hooks_runtime.py tests/unit/cli/test_contracts_closeout.py",
   "openspec validate release-mirror-closeout-hook-remediation-20260718 --strict --json",
   "ethos openspec --change release-mirror-closeout-hook-remediation-20260718 --lifecycle --json",
   "ethos prove --execute --expect-head <committed-head> --json",
-]
-
-[evidence.freshness]
-mode = "historical"
-
-[boundary]
-owner = "ethos-repository"
-scope = "Local reference-transaction candidate-runner selection for an accepted_ff closeout's accepted and release-mirror refs."
-
-[carriers]
-openspec = "openspec/changes/archive/2026-07-18-release-mirror-closeout-hook-remediation-20260718"
-fallback = "Block protected local ref movement when the exact clean candidate semantic runner cannot be resolved; leave GitHub and GitLab publication outside this local closeout change."
-kill_signal = "A release-mirror move in an accepted_ff closeout is evaluated by accepted-old source, or a raw dev/main move reaches a protected ref without exact closeout intent and substantive proof checks."
-
-[promotion]
-targets = [
+], freshness = { mode = "historical" } }
+boundary = { owner = "ethos-repository", scope = "Local reference-transaction candidate-runner selection for an accepted_ff closeout's accepted and release-mirror refs." }
+carriers = { openspec = "openspec/changes/archive/2026-07-18-release-mirror-closeout-hook-remediation-20260718", fallback = "Block protected local ref movement when the exact clean candidate semantic runner cannot be resolved; leave GitHub and GitLab publication outside this local closeout change.", kill_signal = "A release-mirror move in an accepted_ff closeout is evaluated by accepted-old source, or a raw dev/main move reaches a protected ref without exact closeout intent and substantive proof checks." }
+promotion = { targets = [
   ".githooks/reference-transaction",
   "tests/unit/lanes/test_armed_hook_closeout_e2e.py",
   "openspec/specs/repository-governance/spec.md",
   "openspec/changes/archive/2026-07-18-release-mirror-closeout-hook-remediation-20260718",
   "evidence/claims/release-mirror-closeout-hook-remediation-20260718.toml",
   "evidence/chronicle/release-mirror-closeout-hook-remediation-20260718/2026-07-18.md",
-]
+] }

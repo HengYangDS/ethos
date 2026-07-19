@@ -7,13 +7,14 @@ findings on every governed asset.
 
 ## What Changes
 
-- **BREAKING**: make the selected Ruff rule set an unconditional repository-wide
-  quality law; delete global ignores, per-file ignores, the ignored-rule
-  ratchet, and its runner.
-- Reject retained Python source suppressions and removed ratchet carriers through
-  product contracts and regression tests.
-- Keep one Ruff policy and one owner script; CLI, hooks, CI, proof, and profiles
-  remain projections of those owners.
+- Remove the first independently provable Ruff exception slice: replace the
+  implicit local calendar with UTC and delete the `DTZ011` ignore and ratchet
+  record.
+- Route type checks through the checkout-local runtime bootstrap so an
+  unmaterialized lane neither resolves another environment nor emits ambient
+  virtual-environment noise.
+- Record the terminal zero-exception architecture as the successor target; it
+  remains unimplemented until its full finding inventory is refactored.
 
 ## Capabilities
 
@@ -30,14 +31,14 @@ findings on every governed asset.
 
 ## Impact
 
-The change affects Ruff policy and runner surfaces, quality gate/tool
-registries, quality documentation, OpenSpec, and regression tests. It does not
-introduce another quality command plane, a compatibility layer, or changes to
-foreign Work Lanes.
+The change affects the UTC/DTZ011 policy slice, checkout-bound type runtime,
+quality evidence, OpenSpec, and regression tests. It does not remove the
+remaining exception carriers, introduce another quality command plane, or
+change foreign Work Lanes.
 
 ## Out of Scope
 
-- Treating this initial DTZ011 deletion as evidence that all remaining Ruff
-  exception carriers have been eliminated.
+- Removing remaining global/path Ruff ignores, source suppressions, the ratchet
+  file, or its runner. Those require independently verified refactor waves.
 - Changing source-budget, remote-publication, hosted-CI, or foreign Work Lane
   state.

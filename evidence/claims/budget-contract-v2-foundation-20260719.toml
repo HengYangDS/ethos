@@ -1,0 +1,55 @@
+[claim]
+id = "budget-contract-v2-foundation-20260719"
+subject = "quality:budget-contract-v2:metric-domain-foundation"
+state = "active"
+summary = "Continue the archived Budget Contract v2 Foundation through candidate-first ancestry preservation, current evidence regeneration, and reviewed fact correction without changing v1 policy or claiming later migration completion."
+
+[evidence]
+dated = "evidence/chronicle/budget-contract-v2-foundation-integration-continuation-20260719/2026-07-19.md"
+sha256 = "b51a481ee2af63a8afdc61a2954c353bb96acce8b405aa22da834e92e6ddb82a"
+evidence_ids = ["evidence:budget-contract-v2-foundation-20260719"]
+binding = "DR-0008, the immutable Foundation archive and historical proof, the active continuation Change, exact successor ancestry, the independently reproduced baseline correction, completed focused verification, and the continuation Chronicle bind this metric-domain Foundation integration episode; fresh parity and current HEAD-bound proof become binding only when their receipts are recorded."
+verifier = "digest_only"
+tests = [
+  ".venv/bin/python -m pytest -q tests/unit/kernel/test_source_budget_contract.py tests/unit/adapters/repo/test_source_budget.py tests/unit/adapters/test_config.py tests/unit/domain/test_prove.py tests/unit/domain/source_budget/test_core.py tests/unit/domain/reporting/test_advisories.py tests/unit/domain/test_report.py tests/unit/governance/test_evolution_ledger.py tests/unit/kernel/test_command_declaration.py tests/unit/audit/test_modes.py tests/unit/cli/test_report_surface.py tests/unit/lanes/test_projection_rebase_source_budget.py tests/unit/governance/test_docs_registry.py",
+  ".venv/bin/python -m ruff check packages/ethos/src/ethos/domain/prove.py packages/ethos/src/ethos/domain/source_budget packages/ethos/src/ethos/domain/reporting/scoring.py tests/unit/domain/test_prove.py tests/unit/domain/source_budget/test_core.py tests/unit/kernel/test_command_declaration.py",
+  "tools/ci/scripts/run-config-lint.sh",
+  "tools/ci/scripts/run-json-schema-check.sh",
+  "tools/ci/scripts/run-ethos-lane.sh quality module-layout --json",
+  "tools/ci/scripts/run-ethos-lane.sh quality code-size --json",
+  "tools/ci/scripts/run-ethos-lane.sh quality source-budget --json",
+  ".venv/bin/python -m pytest -q tests/unit/cli/test_contracts_land.py tests/unit/cli/test_contracts_lane_refresh_base_projection.py tests/unit/cli/test_contracts_proof.py tests/unit/lanes/test_apply.py tests/unit/lanes/test_lanes_lifecycle.py tests/unit/lanes/test_ref_move_admission.py tests/unit/kernel/test_gate_declaration.py tests/unit/governance/validation/test_gates.py",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "quality"
+scope = "Candidate-drift continuation of the metric-domain Foundation, exact ancestry preservation, current proof regeneration, and superseding replay/extraction-plan corrections; no v2 enforcement, later-task completion, remote, or hosted claim."
+
+[carriers]
+openspec = "openspec/changes/budget-contract-v2-foundation-integration-continuation-20260719"
+fallback = "Keep v1 source-budget authoritative and blocked; reject any v2 transition that hides, converts, resets, or silently extends a v1 obligation."
+kill_signal = "A v1 required gap disappears without settlement or an equal-or-stronger named successor obligation, or a metric crosses domains through weighted conversion."
+
+[promotion]
+targets = [
+  "docs/decisions/accepted/DR-0008-metric-domain-budget-contract.md",
+  "docs/plans/budget-contract-v2-design.md",
+  "docs/plans/budget-contract-v2-implementation.md",
+  "packages/ethos/src/ethos/domain/source_budget/core.py",
+  "packages/ethos/src/ethos/domain/campaign/closeout.py",
+  "packages/ethos/src/ethos/domain/prove.py",
+  "packages/ethos/src/ethos/domain/reporting/scoring.py",
+  "system/commands.toml",
+  "tests/unit/domain/source_budget/test_core.py",
+  "openspec/changes/archive/2026-07-19-budget-contract-v2-foundation-20260719",
+  "openspec/specs/contracts/spec.md",
+  "openspec/specs/quality/spec.md",
+  "openspec/specs/repository-governance/spec.md",
+  "openspec/changes/budget-contract-v2-foundation-integration-continuation-20260719",
+  "evidence/claims/budget-contract-v2-foundation-20260719.toml",
+  "evidence/chronicle/budget-contract-v2-foundation-20260719",
+  "evidence/chronicle/budget-contract-v2-foundation-integration-continuation-20260719",
+]

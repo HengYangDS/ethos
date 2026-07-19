@@ -3098,3 +3098,11 @@ Lane rows.
 - **AND** `dirty_foreign_work_lane_count`, `overlap_count`,
   `unknown_scope_count`, `closeout_residue_count`, and
   `dirty_closeout_residue_count` SHALL all be zero.
+
+#### Scenario: Target-specific evidence remains vendor-neutral
+
+- **WHEN** a target-specific accepted Claim and Chronicle authorize a later
+  exceptional unbound Work Lane retirement
+- **THEN** their authority SHALL remain limited to their exact branch and head
+- **AND** ETHOS SHALL NOT infer deletion authority from an agent vendor,
+  account, session, host path, or another target's evidence carrier.

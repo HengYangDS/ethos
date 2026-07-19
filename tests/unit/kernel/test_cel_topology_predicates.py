@@ -10,8 +10,10 @@ import ethos_core.contracts.artifacts.topology as topology_contract
 from ethos_core.contracts.artifacts.topology import GeneratedArtifactTopologyDeclaration
 from ethos_core.contracts.artifacts.topology import load_generated_artifact_topology_declaration
 from ethos_core.contracts.artifacts.topology import path_policy_from_declaration
+from ethos_core.contracts.policy.cel import evaluate_cel_gap_groups
 from ethos_core.contracts.policy.cel import evaluate_cel_predicate
 from ethos_core.contracts.policy.cel import evaluate_cel_value
+from ethos_core.contracts.workflow import CampaignGapGroup
 
 _PREFIX_RULE = 'facts.path == rule.prefix || facts.path.startsWith(rule.prefix + "/")'
 
@@ -53,6 +55,13 @@ def test_cel_value_projects_native_json_shapes() -> None:
         policy={},
         rule={},
     ) == {"ready": False, "gaps": ["repair"]}
+
+
+def test_cel_gap_group_rejects_non_list_value() -> None:
+    group = CampaignGapGroup(prefix='"gap:"', values='"not-a-list"')
+
+    with pytest.raises(TypeError, match="must return a list"):
+        evaluate_cel_gap_groups((group,), facts={}, policy={})
 
 
 def test_cel_declaration_fails_closed_for_incomplete_or_invalid_rule_decisions() -> None:

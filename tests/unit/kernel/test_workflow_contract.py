@@ -61,6 +61,16 @@ def test_workflow_contract_loader_returns_typed_declaration() -> None:
     assert action_graph_from_workflow_contract(declaration).validate().ok is True
 
 
+def test_workflow_contract_rejects_invalid_campaign_cel_projection() -> None:
+    payload = load_system_contract(Path(), "workflows")
+    campaign = dict(payload["campaign"])
+    campaign["publication_projection"] = "{"
+    payload["campaign"] = campaign
+
+    with pytest.raises(ValidationError):
+        WorkflowContract.model_validate(payload)
+
+
 def test_workflow_contract_declares_runtime_nodes_and_evolution_bridge() -> None:
     contract = load_system_contract(Path(), "workflows")
 

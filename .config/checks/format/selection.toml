@@ -3,12 +3,21 @@ owner = "ethos-quality-gate-governance"
 summary = "Fail-closed executable-carrier admission audit."
 runner = "tools/ci/scripts/run-format-selection.sh"
 
+[source_budget]
+aggregates = { python_total = ["python_product", "python_tests", "python_tools", "python_other"], global_total = ["python_product", "python_tests", "python_tools", "python_other", "shell", "js", "toml", "yaml", "json", "ini", "jinja", "diagram"] }
+
 [[format]]
 extensions = [".py", ".pyi"]
 carrier = "Python source"
 owner = ".config/checks/ruff/ruff.toml"
 execution = "tools/ci/scripts/run-python-lint.sh"
 truth_boundary = "source"
+budget = [
+  { category = "python_product", paths = ["packages/*/src/*"], measure = "python_ast", comment_prefixes = ["#"] },
+  { category = "python_tests", paths = ["tests/*", "*/tests/*"], measure = "python_ast", comment_prefixes = ["#"] },
+  { category = "python_tools", paths = ["tools/*"], measure = "python_ast", comment_prefixes = ["#"] },
+  { category = "python_other", measure = "python_ast", comment_prefixes = ["#"] },
+]
 
 [[format]]
 extensions = [".md"]
@@ -23,6 +32,7 @@ carrier = "TOML"
 owner = ".config/checks/taplo/taplo.toml"
 execution = "tools/ci/scripts/run-config-lint.sh"
 truth_boundary = "hand-authored config"
+budget = [{ category = "toml", comment_prefixes = ["#"] }]
 
 [[format]]
 extensions = [".yml", ".yaml"]
@@ -30,13 +40,15 @@ carrier = "YAML"
 owner = ".config/checks/yaml/yamllint.yaml"
 execution = "tools/ci/scripts/run-config-lint.sh"
 truth_boundary = "ecosystem-native projections only"
+budget = [{ category = "yaml", comment_prefixes = ["#"] }]
 
 [[format]]
 extensions = [".json"]
 carrier = "JSON"
-owner = "system/schemas/ + tools/ci/scripts/run-config-lint.sh"
+owner = ".config/checks/json/format.toml"
 execution = "tools/ci/scripts/run-config-lint.sh"
 truth_boundary = "machine output, schemas, and external standards"
+budget = [{ category = "json" }]
 
 [[format]]
 extensions = [".jsonl"]
@@ -46,18 +58,20 @@ execution = "report-only"
 truth_boundary = "generated append-only streams, not tracked source of truth"
 
 [[format]]
-extensions = [".sh"]
+extensions = [".sh", ".bash", ".zsh"]
 carrier = "Shell"
 owner = ".config/checks/shell/.shellcheckrc"
 execution = "tools/ci/scripts/run-shell-lint.sh"
 truth_boundary = "runner adapter scripts"
+budget = [{ category = "shell", comment_prefixes = ["#"] }]
 
 [[format]]
-extensions = [".ini"]
+extensions = [".ini", ".cfg"]
 carrier = "INI"
 owner = "tool-native config owner"
 execution = "tools/ci/scripts/run-config-lint.sh or tool-specific gate"
 truth_boundary = "tool-native config"
+budget = [{ category = "ini", comment_prefixes = ["#", ";"] }]
 
 [[format]]
 extensions = [".lock"]
@@ -67,11 +81,12 @@ execution = "package-manager-specific verification"
 truth_boundary = "dependency resolution evidence"
 
 [[format]]
-extensions = [".mjs"]
+extensions = [".js", ".mjs", ".cjs"]
 carrier = "JavaScript module"
 owner = "npm distribution surface"
 execution = "npm run test:npm"
 truth_boundary = "distribution adapter"
+budget = [{ category = "js", comment_prefixes = ["//"] }]
 
 [[format]]
 extensions = [".c4"]
@@ -79,6 +94,7 @@ carrier = "LikeC4 model"
 owner = ".config/checks/architecture/projection.toml"
 execution = "tools/ci/scripts/run-architecture-projection-drift.sh"
 truth_boundary = "architecture source projection input"
+budget = [{ category = "diagram", comment_prefixes = ["#", "//", "%%"] }]
 
 [[format]]
 extensions = [".mmd"]
@@ -86,13 +102,15 @@ carrier = "Mermaid diagram"
 owner = ".config/checks/architecture/projection.toml"
 execution = "tools/ci/scripts/run-architecture-projection-drift.sh"
 truth_boundary = "generated architecture projection output"
+budget = [{ category = "diagram", comment_prefixes = ["#", "//", "%%"] }]
 
 [[format]]
-extensions = [".j2"]
+extensions = [".j2", ".jinja", ".jinja2"]
 carrier = "Jinja2 template"
 owner = "packages/ethos/src/ethos/repository/adoption/scaffold/templates.py + template_files/manifest.toml"
 execution = "tools/ci/scripts/run-python-tests.sh"
 truth_boundary = "tracked scaffold declarations compiled through strict typed contexts"
+budget = [{ category = "jinja", comment_prefixes = ["#"], comment_wrappers = [["{#", "#}"]] }]
 
 [policy]
 forbid_tracked_extensions = [".pickle", ".pkl", ".joblib"]

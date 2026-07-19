@@ -2,12 +2,24 @@
 
 from __future__ import annotations
 
+import json
 from functools import lru_cache
 from typing import Any
+from typing import Protocol
 from typing import cast
 
 import celpy
 from celpy.celtypes import BoolType
+
+
+class CelRule(Protocol):
+    expression: str
+    gap: str
+
+
+class CelGapGroup(Protocol):
+    values: str
+    prefix: str
 
 
 def evaluate_cel_predicate(
@@ -25,6 +37,62 @@ def evaluate_cel_predicate(
         msg = "CEL predicate must return a boolean"
         raise TypeError(msg)
     return bool(result)
+
+
+def evaluate_cel_value(
+    expression: str,
+    *,
+    facts: dict[str, object],
+    policy: dict[str, object],
+    rule: dict[str, object],
+) -> object:
+    """Evaluate one declaration-owned CEL projection to native JSON values."""
+    result = _cel_program(expression).evaluate(
+        cast("Any", celpy.json_to_cel({"facts": facts, "policy": policy, "rule": rule}))
+    )
+    return json.loads(celpy.CELJSONEncoder().encode(result))
+
+
+def evaluate_cel_rules(
+    rules: tuple[CelRule, ...],
+    *,
+    facts: dict[str, object],
+    policy: dict[str, object],
+) -> list[str]:
+    """Evaluate declaration-owned predicate and gap expressions."""
+    return [
+        str(evaluate_cel_value(rule.gap, facts=facts, policy=policy, rule={}))
+        for rule in rules
+        if not evaluate_cel_predicate(rule.expression, facts=facts, policy=policy, rule={})
+    ]
+
+
+def evaluate_cel_gap_groups(
+    groups: tuple[CelGapGroup, ...],
+    *,
+    facts: dict[str, object],
+    policy: dict[str, object],
+) -> list[str]:
+    """Prefix declaration-selected value groups without Python path policy."""
+    gaps: list[str] = []
+    for group in groups:
+        prefix = str(evaluate_cel_value(group.prefix, facts=facts, policy=policy, rule={}))
+        values = evaluate_cel_value(group.values, facts=facts, policy=policy, rule={})
+        if not isinstance(values, list):
+            message = "CEL gap group must return a list"
+            raise TypeError(message)
+        gaps.extend(f"{prefix}{value}" for value in values)
+    return gaps
+
+
+def validate_cel_expression(expression: str) -> str:
+    """Compile one declaration-owned CEL expression and return it unchanged."""
+    try:
+        _cel_program(expression)
+    except Exception as exc:
+        message = "invalid CEL expression"
+        raise ValueError(message) from exc
+    return expression
 
 
 @lru_cache

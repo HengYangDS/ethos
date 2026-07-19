@@ -10,6 +10,7 @@ from typing import cast
 from cyclopts import Parameter
 
 from ethos.domain.campaign.closeout import campaign_closeout_report
+from ethos.domain.campaign.closeout import campaign_publication_report
 from ethos.repository.adoption.evolution import campaign_report
 from ethos.repository.adoption.evolution import evolution_ledger
 from ethos.surface.cli._base import JsonFlag
@@ -17,7 +18,10 @@ from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import campaign_app
 from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import resolve_root
+from ethos_core.contracts.commands import load_command_registry_declaration
 from ethos_core.result import EthosResult
+
+_ACTIONS = load_command_registry_declaration().actions
 
 
 @campaign_app.command(name="status")
@@ -30,6 +34,8 @@ def campaign_status(
     """Report canonical campaign model."""
     repo = resolve_root(root)
     report = campaign_report(repo, campaign_id=campaign)
+    publication = campaign_publication_report(repo)
+    report["publication"] = publication
     required_gap_values = cast("tuple[object, ...]", report.get("required_gaps", ()))
     required_gaps = tuple(str(gap) for gap in required_gap_values)
     result = EthosResult(
@@ -39,9 +45,10 @@ def campaign_status(
         summary={
             "active_campaign_count": report["active_count"],
             "campaign_count": report["campaign_count"],
+            "remote_publication_admission": publication["remote_publication_admission"],
         },
         required_gaps=required_gaps,
-        next_actions=("ethos campaign closeout --json",),
+        next_actions=_ACTIONS.get(str(publication["next_action_id"]), ()),
         data=report,
     )
     emit(result, json_output=json_output, enforce=False)
@@ -61,7 +68,7 @@ def hypotheses(
         ok=True,
         state="active",
         summary={"campaign": "ethos-product-maturation"},
-        next_actions=("ethos audit --mode shape",),
+        next_actions=_ACTIONS["campaign_hypotheses"],
         data=ledger,
     )
     emit(result, json_output=json_output, enforce=False)
@@ -85,6 +92,9 @@ def campaign_closeout(
         campaign_id=campaign,
     )
     remote_publication = cast("dict[str, Any]", report.get("remote_publication", {}))
+    packages = cast("dict[str, Any]", report["packages"])
+    campaign_package = cast("dict[str, Any]", packages["campaign"])
+    campaign_publication = cast("dict[str, Any]", campaign_package["publication"])
     parity = cast("dict[str, Any]", report.get("parity", {}))
     release = cast("dict[str, Any]", report.get("release", {}))
     evolution = cast("dict[str, Any]", report.get("evolution", {}))
@@ -106,9 +116,10 @@ def campaign_closeout(
             "remote_state": remote_publication.get("state", ""),
             "parity_pending_count": len(parity_pending),
             "release_ok": release.get("ok", False),
+            "campaign_publication": campaign_publication["remote_publication_admission"],
         },
-        required_gaps=evolution_gaps + release_gaps + campaign_gaps,
-        next_actions=("ethos land --apply --authorize --expect-head <git-head>",),
+        required_gaps=evolution_gaps + release_gaps,
+        next_actions=_ACTIONS.get(str(campaign_publication["next_action_id"]), ()),
         data=report,
     )
     emit(result, json_output=json_output, enforce=False)

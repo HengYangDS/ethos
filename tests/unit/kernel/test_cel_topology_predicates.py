@@ -11,6 +11,7 @@ from ethos_core.contracts.artifacts.topology import GeneratedArtifactTopologyDec
 from ethos_core.contracts.artifacts.topology import load_generated_artifact_topology_declaration
 from ethos_core.contracts.artifacts.topology import path_policy_from_declaration
 from ethos_core.contracts.policy.cel import evaluate_cel_predicate
+from ethos_core.contracts.policy.cel import evaluate_cel_value
 
 _PREFIX_RULE = 'facts.path == rule.prefix || facts.path.startsWith(rule.prefix + "/")'
 
@@ -43,6 +44,15 @@ def test_cel_predicate_rejects_non_boolean_forms() -> None:
             policy={},
             rule={},
         )
+
+
+def test_cel_value_projects_native_json_shapes() -> None:
+    assert evaluate_cel_value(
+        '{"ready": size(facts.gaps) == 0, "gaps": facts.gaps}',
+        facts={"gaps": ["repair"]},
+        policy={},
+        rule={},
+    ) == {"ready": False, "gaps": ["repair"]}
 
 
 def test_cel_declaration_fails_closed_for_incomplete_or_invalid_rule_decisions() -> None:

@@ -22,13 +22,16 @@ import ethos.adapters.repo.git as git_adapter
 import ethos.adapters.repo.source_budget.core as source_budget_adapter
 from ethos.adapters.config import code_size_policy
 from ethos.adapters.config import source_budget_policy
+from ethos.adapters.config import source_budget_taxonomy
 from ethos.repository.policy.schema import validate_schema_instance
 from ethos_core.measure import effective_code_lines
 
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from ethos_core.contracts.source_budget.core import SourceBudgetCarrier
     from ethos_core.contracts.source_budget.core import SourceBudgetPolicy
+    from ethos_core.contracts.source_budget.core import SourceBudgetTaxonomy
 
 
 def _role_for(relative: str, surface_globs: tuple[str, ...]) -> str:
@@ -89,62 +92,40 @@ def code_size_report(root: Path) -> dict[str, object]:
     }
 
 
-_SOURCE_BUDGET_CATEGORIES = (
-    "python_product",
-    "python_tests",
-    "python_tools",
-    "python_other",
-    "shell",
-    "js",
-    "toml",
-    "yaml",
-    "json",
-    "ini",
-    "jinja",
-    "diagram",
-)
-
-
-def _source_budget_category(relative: str) -> str | None:
+def _source_budget_carrier(
+    relative: str, taxonomy: SourceBudgetTaxonomy
+) -> SourceBudgetCarrier | None:
     """Classify one present executable carrier without inventing a source role."""
     path = relative.lower()
     if path.startswith("openspec/changes/archive/") and path.endswith("/.openspec.yaml"):
         return None
-    if path.endswith(".py"):
-        if path.startswith("packages/") and "/src/" in path:
-            return "python_product"
-        if path.startswith("tests/") or "/tests/" in path:
-            return "python_tests"
-        return "python_tools" if path.startswith("tools/") else "python_other"
-    suffix_groups = {
-        "shell": (".sh", ".bash", ".zsh"),
-        "js": (".js", ".mjs", ".cjs"),
-        "toml": (".toml",),
-        "yaml": (".yaml", ".yml"),
-        "json": (".json",),
-        "ini": (".ini", ".cfg"),
-        "jinja": (".j2", ".jinja", ".jinja2"),
-        "diagram": (".c4", ".mmd"),
-    }
     return next(
-        (name for name, suffixes in suffix_groups.items() if path.endswith(suffixes)),
+        (
+            carrier
+            for carrier in taxonomy.carrier
+            if path.endswith(carrier.extensions)
+            and (
+                not carrier.paths
+                or any(fnmatch.fnmatchcase(path, pattern) for pattern in carrier.paths)
+            )
+        ),
         None,
     )
 
 
-def _carrier_effective_lines(path: Path, category: str) -> int:
+def _carrier_effective_lines(path: Path, carrier: SourceBudgetCarrier) -> int:
     """Count non-Python carriers with the same blank/comment rule as the budget."""
-    if path.suffix == ".py":
+    if carrier.measure == "python_ast":
         return effective_code_lines(path)
-    prefixes = ("#", "//") if category != "ini" else ("#", ";")
-    if category == "diagram":
-        prefixes = (*prefixes, "%%")
     count = 0
     for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
         stripped = line.strip()
-        if not stripped or stripped.startswith(prefixes):
+        if not stripped or stripped.startswith(carrier.comment_prefixes):
             continue
-        if category == "jinja" and stripped.startswith("{#") and stripped.endswith("#}"):
+        if any(
+            stripped.startswith(start) and stripped.endswith(end)
+            for start, end in carrier.comment_wrappers
+        ):
             continue
         count += 1
     return count
@@ -174,47 +155,42 @@ def _source_budget_allowance(
     return total, categories, ids
 
 
-def _source_budget_allowance_for(category: str, *, total: int, by_category: dict[str, int]) -> int:
+def _source_budget_allowance_for(
+    category: str,
+    *,
+    aggregates: dict[str, tuple[str, ...]],
+    by_category: dict[str, int],
+) -> int:
     """Derive aggregate allowance only from declared carrier allowances."""
-    if category == "global_total":
-        return total
-    if category == "python_total":
-        return sum(
-            by_category.get(name, 0)
-            for name in (
-                "python_product",
-                "python_tests",
-                "python_tools",
-                "python_other",
-            )
-        )
+    if members := aggregates.get(category):
+        return sum(by_category.get(member, 0) for member in members)
     return by_category.get(category, 0)
 
 
-def _source_budget_metrics(root: Path) -> tuple[dict[str, int], dict[str, object]]:
+def _source_budget_metrics(
+    root: Path, taxonomy: SourceBudgetTaxonomy
+) -> tuple[dict[str, int], dict[str, object]]:
     """Measure every present declared source carrier and return its identity."""
-    metrics = dict.fromkeys(_SOURCE_BUDGET_CATEGORIES, 0)
+    categories = tuple(carrier.category for carrier in taxonomy.carrier)
+    metrics = dict.fromkeys(categories, 0)
     records: list[dict[str, object]] = []
     category_counts: dict[str, int] = {}
     for relative in source_budget_adapter.present_worktree_paths(root):
-        category = _source_budget_category(relative)
+        carrier = _source_budget_carrier(relative, taxonomy)
         path = root / relative
-        if category is None:
+        if carrier is None:
             continue
-        effective_lines = _carrier_effective_lines(path, category)
+        category = carrier.category
+        effective_lines = _carrier_effective_lines(path, carrier)
         metrics[category] += effective_lines
         category_counts[category] = category_counts.get(category, 0) + 1
         records.append({"path": relative, "category": category, "effective_lines": effective_lines})
-    metrics["python_total"] = sum(
-        metrics[category]
-        for category in (
-            "python_product",
-            "python_tests",
-            "python_tools",
-            "python_other",
-        )
+    metrics.update(
+        {
+            name: sum(metrics[category] for category in members)
+            for name, members in taxonomy.aggregates.items()
+        }
     )
-    metrics["global_total"] = sum(metrics[category] for category in _SOURCE_BUDGET_CATEGORIES)
     digest = hashlib.sha256(
         json.dumps(records, sort_keys=True, separators=(",", ":")).encode("utf-8")
     ).hexdigest()
@@ -226,8 +202,10 @@ def _source_budget_metrics(root: Path) -> tuple[dict[str, int], dict[str, object
 
 
 def _source_budget_verdict(
-    metrics: dict[str, int], policy: SourceBudgetPolicy
-) -> tuple[dict[str, int], dict[str, int], int, list[str], int, bool, list[str]]:
+    metrics: dict[str, int],
+    policy: SourceBudgetPolicy,
+    taxonomy: SourceBudgetTaxonomy,
+) -> tuple[dict[str, int], dict[str, int], int, list[str], int, bool, list[str], list[str]]:
     """Compile baseline, debt, and terminal verdicts from measured carriers."""
     baseline = {str(key): value for key, value in policy.baseline.items()}
     terminal = {str(key): value for key, value in policy.terminal.items()}
@@ -236,23 +214,34 @@ def _source_budget_verdict(
     gaps: list[str] = []
     if debt_total > maximum_debt:
         gaps.append(f"source_budget_debt_exceeded:{debt_total}>{maximum_debt}")
-    for category, baseline_value in baseline.items():
-        current = metrics.get(category)
-        if current is None:
-            continue
-        allowed = baseline_value + _source_budget_allowance_for(
-            category, total=debt_total, by_category=debt_by_category
+    baseline_overages = _source_budget_overages(
+        metrics,
+        baseline,
+        aggregates=taxonomy.aggregates,
+        by_category=debt_by_category,
+    )
+    if policy.enforcement == "transition":
+        gaps.extend(
+            f"source_budget_exceeded:{category}:{current}>{allowed}"
+            for category, current, allowed in baseline_overages
         )
-        if current > allowed:
-            gaps.append(f"source_budget_exceeded:{category}:{current}>{allowed}")
     terminal_target_met = all(
         metrics.get(category, 0) <= target for category, target in terminal.items()
     )
     if policy.enforcement == "terminal" and not terminal_target_met:
-        for category, target in terminal.items():
-            current = metrics.get(category, 0)
-            if current > target:
-                gaps.append(f"source_budget_terminal_exceeded:{category}:{current}>{target}")
+        gaps.extend(
+            f"source_budget_terminal_exceeded:{category}:{metrics.get(category, 0)}>{target}"
+            for category, target in terminal.items()
+            if metrics.get(category, 0) > target
+        )
+    advisories = (
+        [
+            f"source_budget_campaign_growth_overage:{category}:{current}>{allowed}"
+            for category, current, allowed in baseline_overages
+        ]
+        if policy.enforcement == "campaign_terminal"
+        else []
+    )
     return (
         baseline,
         terminal,
@@ -261,7 +250,31 @@ def _source_budget_verdict(
         maximum_debt,
         terminal_target_met,
         gaps,
+        advisories,
     )
+
+
+def _source_budget_overages(
+    metrics: dict[str, int],
+    baseline: dict[str, int],
+    *,
+    aggregates: dict[str, tuple[str, ...]],
+    by_category: dict[str, int],
+) -> list[tuple[str, int, int]]:
+    """Return measured categories above baseline plus declared allowance."""
+    overages: list[tuple[str, int, int]] = []
+    for category, baseline_value in sorted(baseline.items()):
+        current = metrics.get(category)
+        if current is None:
+            continue
+        allowed = baseline_value + _source_budget_allowance_for(
+            category,
+            aggregates=aggregates,
+            by_category=by_category,
+        )
+        if current > allowed:
+            overages.append((category, current, allowed))
+    return overages
 
 
 def _source_budget_today() -> date:
@@ -309,17 +322,17 @@ def source_budget_report(root: Path) -> dict[str, object]:
     """Measure global executable source and reject growth beyond declared debt."""
     loaded = source_budget_policy(root)
     if loaded.policy is None:
-        metrics, inventory = _source_budget_metrics(root)
         return {
             "ok": False,
             "state": "blocked",
-            "metrics": metrics,
-            "inventory": inventory,
+            "metrics": {},
+            "inventory": {"file_count": 0},
             "terminal_target_met": False,
             "required_gaps": list(loaded.required_gaps),
         }
     policy = loaded.policy
-    metrics, inventory = _source_budget_metrics(root)
+    taxonomy = source_budget_taxonomy(root)
+    metrics, inventory = _source_budget_metrics(root, taxonomy)
     (
         baseline,
         terminal,
@@ -328,7 +341,8 @@ def source_budget_report(root: Path) -> dict[str, object]:
         maximum_debt,
         terminal_target_met,
         gaps,
-    ) = _source_budget_verdict(metrics, policy)
+        advisory_gaps,
+    ) = _source_budget_verdict(metrics, policy, taxonomy)
     lifecycle, lifecycle_gaps = _source_budget_lifecycle(policy)
     baseline_resolved = bool(
         git_adapter.git_stdout(root, "rev-parse", "--verify", f"{policy.baseline_head}^{{commit}}")
@@ -344,6 +358,7 @@ def source_budget_report(root: Path) -> dict[str, object]:
         "ok": not required_gaps,
         "state": "clean" if not required_gaps else "blocked",
         "enforcement": policy.enforcement,
+        "campaign_id": getattr(policy, "campaign_id", ""),
         "baseline": baseline,
         "baseline_head": {"value": policy.baseline_head, "resolved": baseline_resolved},
         "terminal": terminal,
@@ -356,6 +371,7 @@ def source_budget_report(root: Path) -> dict[str, object]:
         },
         "debt_lifecycle": lifecycle,
         "terminal_target_met": terminal_target_met,
+        "advisory_gaps": advisory_gaps,
         "required_gaps": required_gaps,
     }
 

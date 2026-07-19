@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 from ethos.repository.policy.schema import validate_schema_instance
-from ethos.testing.fixtures import normalized_rule_shadow_fixtures
-from ethos.testing.fixtures import rules_conformance_profiles
 from ethos_core.contracts.rules import PolicyException
 from ethos_core.contracts.rules import Rule
 from ethos_core.contracts.rules import RuleAttestation
@@ -124,47 +122,6 @@ def test_rule_contract_schema_rejects_missing_owner() -> None:
 
     assert validation["ok"] is False
     assert validation["required_gaps"]
-
-
-def test_conformance_profiles_include_starter_and_strict_shapes() -> None:
-    profiles = rules_conformance_profiles()
-
-    assert {
-        "generic",
-        "python",
-        "monorepo",
-        "github",
-        "gitlab",
-        "legacy-v1",
-        "custom",
-        "strict",
-        "reference-strict",
-    } <= set(profiles)
-    for profile_name in ("generic", "python", "monorepo", "custom"):
-        profile = profiles[profile_name]
-        assert profile["strict"] is False
-        assert profile["requires_openspec"] is False
-        assert profile["requires_hosted_ci"] is False
-        assert profile["requires_backlog"] is False
-        assert profile["requires_product_openspec_family"] is False
-    assert profiles["strict"]["strict"] is True
-    assert profiles["python"]["files"][".ethos/rules.toml"].startswith("[profiles]")
-
-
-def test_normalized_rule_shadow_fixtures_cover_reference_repositories() -> None:
-    fixtures = normalized_rule_shadow_fixtures()
-
-    assert {"ethos", "reference-legacy", "sample-effect"} == set(fixtures)
-    for fixture in fixtures.values():
-        report = fixture["report"]
-        stages = fixture["stages"]
-        assert {"ok", "profile_stack", "coverage_tier", "required_gap_kinds"} <= set(report)
-        assert {
-            "contracts-evaluator",
-            "pep-no-side-effect",
-            "strict-coverage",
-        } <= set(stages)
-    assert fixtures["reference-legacy"]["report"]["required_gap_kinds"] == ["rule_schema_invalid"]
 
 
 def test_contract_dataclasses_serialize_to_schema_payloads() -> None:

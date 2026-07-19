@@ -1,16 +1,1 @@
-{
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://ethos.local/schemas/quality-gate-plan.schema.json",
-  "title": "ETHOS Quality Gate Plan",
-  "type": "object",
-  "required": ["schema_version", "gates"],
-  "properties": {
-    "schema_version": {"type": "integer"},
-    "gates": {
-      "type": "array",
-      "items": {"$ref": "gate.schema.json"},
-      "minItems": 1
-    }
-  },
-  "additionalProperties": false
-}
+{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://ethos.local/schemas/quality-gate-plan.schema.json","title":"ETHOS Quality Gate Plan","type":"object","required":["schema_version","gates"],"properties":{"schema_version":{"type":"integer"},"gates":{"type":"array","items":{"$ref":"gate.schema.json"},"minItems":1}},"additionalProperties":false}

@@ -61,9 +61,9 @@ Reference adopters are evidence and profile fixtures, not product ontology.
 Adopter-private terms may appear in parity evidence, profile fixtures, and this
 ledger row when they identify the reference boundary. Product packages and
 canonical contracts stay in the generic vocabulary of subjects, claims,
-capabilities, gates, evidence, promotion, and providers. The
-`reference_adopter_profile_fixture` in `ethos-test` keeps adopter terms inside a
-fixture boundary and leaves `core_product_terms` empty.
+capabilities, gates, evidence, promotion, and providers. Reference-adopter terms
+remain in parity profiles and evidence rather than product contracts or runtime
+code.
 
 Tracked shadow parity evidence must carry shadow parity evidence freshness
 fields before it can close an adopter gap. The freshness identity records the

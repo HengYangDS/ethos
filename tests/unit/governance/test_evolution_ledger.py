@@ -2,11 +2,21 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import ethos.domain.campaign.closeout as campaign_closeout
+from ethos.domain.campaign.closeout import campaign_publication_report
 from ethos.repository.adoption.evolution import campaign_report
-from ethos.repository.adoption.evolution import evolution_candidates
 from ethos.repository.adoption.evolution import evolution_ledger
 from ethos.repository.adoption.evolution import evolution_report
 from ethos.repository.adoption.practice.selection import selection_ref_gaps
+
+_CAMPAIGN_MANIFEST = Path("tests/fixtures/campaign/minimal.toml").read_text(encoding="utf-8")
+
+
+def _write_campaign(root: Path, manifest: str = _CAMPAIGN_MANIFEST) -> None:
+    (root / "openspec/changes/compression-foundation").mkdir(parents=True)
+    path = root / "evolution/campaigns/compression/campaign.toml"
+    path.parent.mkdir(parents=True)
+    path.write_text(manifest, encoding="utf-8")
 
 
 def test_evolution_ledger_exposes_active_hypotheses() -> None:
@@ -270,18 +280,6 @@ retirement_conditions = ["all refs resolve"]
     ]
 
 
-def test_evolution_candidates_are_derived_from_audit_signals() -> None:
-    candidates = evolution_candidates(Path.cwd())
-
-    assert candidates["ok"] is True
-    candidate_ids = {item["id"] for item in candidates["candidates"]}
-    assert {
-        "release-readiness-ratchet",
-        "asset-quality-kernel",
-    } <= candidate_ids
-    assert all(item["challenge"] for item in candidates["candidates"])
-
-
 def test_campaign_report_exposes_manifest_steps_and_closeout_progress() -> None:
     report = campaign_report(Path.cwd(), campaign_id="terminal-openspec-productization")
 
@@ -322,20 +320,107 @@ def test_campaign_report_exposes_manifest_steps_and_closeout_progress() -> None:
     }
 
 
-def test_campaign_report_exposes_archive_ready_retirement_without_closeout() -> None:
-    report = campaign_report(Path.cwd(), campaign_id="repo-first-worktree-governance-v2")
+def test_campaign_report_defers_remote_publication_until_terminal_budget_settlement(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    _write_campaign(tmp_path)
+    monkeypatch.setattr(
+        campaign_closeout,
+        "source_budget_report",
+        lambda _root: {
+            "campaign_id": "compression",
+            "terminal_target_met": False,
+            "active_debt": {"ids": ["temporary-compiler"]},
+        },
+    )
 
-    assert report["ok"] is True
-    campaign = report["campaigns"][0]
-    bootstrap = campaign["steps"][0]
-    retirement = campaign["steps"][1]
-    assert bootstrap["state"] == "retired"
-    assert bootstrap["closeout"]["state"] == "retired"
-    assert retirement["state"] == "archive_ready"
-    assert retirement["closeout"]["state"] == "planned"
-    assert campaign["step_summary"]["archive_ready"] == 1
-    assert campaign["step_summary"]["closed"] == 1
-    assert campaign["lane_topology"]["active_steps"] == ["retirement-fail-closed"]
+    report = campaign_publication_report(tmp_path)
+
+    assert report["required_gaps"] == [
+        "campaign_publication_campaign_active:compression",
+        "campaign_publication_step_not_retired:compression",
+        "campaign_publication_terminal_budget_unmet:compression",
+        "campaign_publication_active_debt:compression:temporary-compiler",
+    ]
+
+
+def test_invalid_campaign_manifest_blocks_repository_publication(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    _write_campaign(tmp_path, _CAMPAIGN_MANIFEST.replace("campaign_terminal", "unknown"))
+    monkeypatch.setattr(
+        campaign_closeout,
+        "source_budget_report",
+        lambda _root: {
+            "campaign_id": "",
+            "required_gaps": [],
+            "active_debt": {"ids": []},
+        },
+    )
+
+    publication = campaign_publication_report(tmp_path)
+
+    assert publication["mode"] == "invalid"
+    assert publication["remote_publication_admission"] == "blocked"
+
+
+def test_campaign_publication_requires_the_budget_bound_campaign(
+    monkeypatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(
+        campaign_closeout,
+        "source_budget_report",
+        lambda _root: {
+            "campaign_id": "declared-compression",
+            "terminal_target_met": False,
+            "active_debt": {"ids": []},
+            "required_gaps": [],
+        },
+    )
+
+    report = campaign_publication_report(
+        tmp_path,
+        campaigns={"campaigns": [], "required_gaps": [], "ok": True},
+    )
+
+    assert report["remote_publication_admission"] == "blocked"
+    assert report["required_gaps"] == [
+        "campaign_publication_bound_campaign_missing:declared-compression"
+    ]
+
+
+def test_campaign_publication_payload_is_declared_in_workflow_policy() -> None:
+    source = Path("system/workflows.toml").read_text(encoding="utf-8")
+
+    assert "publication_projection = '''" in source
+    assert "def publication(" not in Path(
+        "packages/ethos-core/src/ethos_core/contracts/workflow.py"
+    ).read_text(encoding="utf-8")
+
+
+def test_filtered_campaign_status_keeps_repository_publication_scope(
+    monkeypatch, tmp_path: Path
+) -> None:
+    _write_campaign(tmp_path)
+    monkeypatch.setattr(
+        campaign_closeout,
+        "source_budget_report",
+        lambda _root: {
+            "campaign_id": "compression",
+            "terminal_target_met": False,
+            "active_debt": {"ids": []},
+            "required_gaps": [],
+        },
+    )
+
+    filtered = campaign_report(tmp_path, campaign_id="compression")
+    publication = campaign_publication_report(tmp_path)
+
+    assert [item["id"] for item in filtered["campaigns"]] == ["compression"]
+    assert publication["scope"] == "repository"
+    assert publication["remote_publication_admission"] == "blocked"
 
 
 def test_evolution_report_exposes_practice_selection_and_fate() -> None:
@@ -382,7 +467,9 @@ def test_evolution_report_exposes_practice_selection_and_fate() -> None:
     } <= candidate_ids
 
 
-def test_evolution_report_distinguishes_introduction_from_supersession(tmp_path: Path) -> None:
+def test_evolution_report_distinguishes_introduction_from_supersession(
+    tmp_path: Path,
+) -> None:
     (tmp_path / "docs").mkdir()
     (tmp_path / "docs" / "research.md").write_text("# Research\n", encoding="utf-8")
     (tmp_path / "docs" / "decision.md").write_text("# Decision\n", encoding="utf-8")
@@ -758,19 +845,3 @@ def test_selection_ref_gaps_reject_absolute_and_url_path_refs(tmp_path: Path) ->
         "practice_claim_evidence_ref_missing:external-refs:https://example.test/evidence.md",
         "practice_claim_decision_ref_missing:external-refs:",
     } <= set(gaps)
-
-
-def test_evolution_candidates_ignore_non_list_candidate_sets(tmp_path: Path) -> None:
-    (tmp_path / "evolution").mkdir()
-    (tmp_path / "evolution" / "ledger.toml").write_text(
-        """
-schema = "system/schemas/kernel/evolution-ledger.schema.json"
-candidate_set = "not-a-list"
-""".strip(),
-        encoding="utf-8",
-    )
-
-    candidates = evolution_candidates(tmp_path)
-
-    assert candidates["ok"] is True
-    assert candidates["candidate_set_count"] == 0

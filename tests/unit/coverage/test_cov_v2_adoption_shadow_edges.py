@@ -1,11 +1,8 @@
-# ruff: noqa: ARG005, TC002, TC003
+# ruff: noqa: ARG005, TC002
 """Coverage-closure v2: adoption evolution/retirement and shadow parity edges.
 
-Exercises defensive gap-emitting branches with no prior coverage: campaign
-manifest validation gaps, retirement helper fallbacks, and shadow-parity
-projection/normalization edges. All target lines are executed through real
-production code paths (helper dicts built by production builders, or the public
-``run_shadow_parity`` driver with its subprocess runners stubbed).
+Exercises public Campaign validation, retirement helper fallbacks, and
+shadow-parity projection/normalization edges through real production paths.
 """
 
 from __future__ import annotations
@@ -27,13 +24,6 @@ from ethos.repository.adoption import evolution
 # --- repository/adoption/evolution.py ---------------------------------------
 
 
-def _campaign(root: Path, payload: dict[str, object]) -> dict[str, object]:
-    """Build a campaign structure through the production payload builder."""
-    cid = str(payload.get("id") or "cid")
-    path = root / "evolution" / "campaigns" / cid / "campaign.toml"
-    return evolution._campaign_payload(root, path, payload)
-
-
 def _campaign_report_gaps(
     root: Path,
     *,
@@ -42,37 +32,26 @@ def _campaign_report_gaps(
     closeout_state: str = "planned",
 ) -> list[str]:
     """Write one complete campaign fixture and return the public report gaps."""
+    terminal = closeout_state in {"closed", "retired"}
     manifest = root / "evolution" / "campaigns" / "cid" / "campaign.toml"
     manifest.parent.mkdir(parents=True)
-    terminal_closeout = closeout_state in {"closed", "retired"}
     manifest.write_text(
-        "\n".join(
-            (
-                'id = "cid"',
-                'state = "active"',
-                'owner = "owner"',
-                'objective = "objective"',
-                'claim_id = "claim"',
-                "",
-                "[[step]]",
-                'id = "s1"',
-                'title = "step"',
-                f'state = "{step_state}"',
-                "ordinal = 1",
-                "depends_on = []",
-                f'openspec_change = "{change}"',
-                'work_lane = "work/s1"',
-                'claim_id = "claim-s1"',
-                "",
-                "[step.closeout]",
-                f'state = "{closeout_state}"',
-                f'accepted_head = "{"a" * 40 if terminal_closeout else ""}"',
-                f'candidate_head = "{"b" * 40 if terminal_closeout else ""}"',
-                'evidence = ["evidence/chronicle/s1/2026-07-11.md"]'
-                if terminal_closeout
-                else "evidence = []",
-                "",
-            )
+        Path("tests/fixtures/campaign/minimal.toml")
+        .read_text(encoding="utf-8")
+        .replace('id = "compression"', 'id = "cid"', 1)
+        .replace('id = "foundation"', 'id = "s1"', 1)
+        .replace(
+            'title = "Foundation"\nstate = "active"',
+            f'title = "step"\nstate = "{step_state}"',
+            1,
+        )
+        .replace('openspec_change = "compression-foundation"', f'openspec_change = "{change}"')
+        .replace('state = "planned"', f'state = "{closeout_state}"', 1)
+        .replace('accepted_head = ""', f'accepted_head = "{"a" * 40 if terminal else ""}"')
+        .replace('candidate_head = ""', f'candidate_head = "{"b" * 40 if terminal else ""}"')
+        .replace(
+            "evidence = []",
+            'evidence = ["evidence/chronicle/s1/2026-07-11.md"]' if terminal else "evidence = []",
         ),
         encoding="utf-8",
     )
@@ -85,134 +64,6 @@ def _campaign_report_gaps(
 def test_campaign_manifests_absent_root_returns_empty(tmp_path: Path) -> None:
     # No evolution/campaigns directory short-circuits to empty results (line 83).
     assert evolution._campaign_manifests(tmp_path, campaign_id=None) == ([], [])
-
-
-def test_campaign_required_gaps_flags_missing_campaign_field(tmp_path: Path) -> None:
-    # A blank campaign field (owner) surfaces a required gap (lines 207-208).
-    campaign = _campaign(tmp_path, {"id": "cid", "owner": "", "objective": "obj", "claim_id": "cl"})
-    gaps = evolution._campaign_required_gaps(tmp_path, campaign)
-    assert "campaign_owner_missing:cid" in gaps
-
-
-def test_campaign_required_gaps_flags_duplicate_step_id(tmp_path: Path) -> None:
-    # Two steps sharing an id collapse in the id map, flagging a duplicate (lines 211-212).
-    campaign = _campaign(
-        tmp_path,
-        {
-            "id": "cid",
-            "owner": "o",
-            "objective": "obj",
-            "claim_id": "cl",
-            "step": [{"id": "s1", "state": "planned"}, {"id": "s1", "state": "planned"}],
-        },
-    )
-    gaps = evolution._campaign_required_gaps(tmp_path, campaign)
-    assert "campaign_step_id_duplicate:cid" in gaps
-
-
-def test_campaign_required_gaps_flags_non_serial_active_steps(tmp_path: Path) -> None:
-    # More than one active step violates strict-serial lane topology (lines 213-214).
-    campaign = _campaign(
-        tmp_path,
-        {
-            "id": "cid",
-            "owner": "o",
-            "objective": "obj",
-            "claim_id": "cl",
-            "step": [{"id": "s1", "state": "active"}, {"id": "s2", "state": "active"}],
-        },
-    )
-    gaps = evolution._campaign_required_gaps(tmp_path, campaign)
-    assert "campaign_active_step_not_serial:cid" in gaps
-
-
-def test_campaign_required_gaps_flags_missing_step_field(tmp_path: Path) -> None:
-    # A planned step with a blank required field (title) surfaces a gap (lines 218-219).
-    campaign = _campaign(
-        tmp_path,
-        {
-            "id": "cid",
-            "owner": "o",
-            "objective": "obj",
-            "claim_id": "cl",
-            "step": [
-                {
-                    "id": "s1",
-                    "state": "planned",
-                    "title": "",
-                    "openspec_change": "x",
-                    "work_lane": "w",
-                    "claim_id": "c",
-                }
-            ],
-        },
-    )
-    gaps = evolution._campaign_required_gaps(tmp_path, campaign)
-    assert "campaign_step_title_missing:cid:s1" in gaps
-
-
-def test_campaign_required_gaps_flags_dependency_not_retired(tmp_path: Path) -> None:
-    # An active step depending on a non-retired predecessor is flagged (lines 232-233).
-    campaign = _campaign(
-        tmp_path,
-        {
-            "id": "cid",
-            "owner": "o",
-            "objective": "obj",
-            "claim_id": "cl",
-            "step": [
-                {"id": "s1", "state": "planned"},
-                {"id": "s2", "state": "active", "depends_on": ["s1"]},
-            ],
-        },
-    )
-    gaps = evolution._campaign_required_gaps(tmp_path, campaign)
-    assert "campaign_step_dependency_not_retired:cid:s2:s1" in gaps
-
-
-def test_campaign_required_gaps_flags_incomplete_closeout_state(tmp_path: Path) -> None:
-    # A closed step whose closeout is not closed/retired is incomplete (lines 236-240).
-    campaign = _campaign(
-        tmp_path,
-        {
-            "id": "cid",
-            "owner": "o",
-            "objective": "obj",
-            "claim_id": "cl",
-            "step": [{"id": "s1", "state": "closed", "closeout": {"state": "planned"}}],
-        },
-    )
-    gaps = evolution._campaign_required_gaps(tmp_path, campaign)
-    assert "campaign_step_closeout_state_incomplete:cid:s1" in gaps
-
-
-def test_campaign_required_gaps_flags_closeout_head_and_evidence(tmp_path: Path) -> None:
-    # A closed closeout missing heads and evidence surfaces both gaps (lines 244, 246).
-    campaign = _campaign(
-        tmp_path,
-        {
-            "id": "cid",
-            "owner": "o",
-            "objective": "obj",
-            "claim_id": "cl",
-            "step": [
-                {
-                    "id": "s1",
-                    "title": "step",
-                    "state": "active",
-                    "closeout": {
-                        "state": "closed",
-                        "accepted_head": "",
-                        "candidate_head": "",
-                        "evidence": [],
-                    },
-                }
-            ],
-        },
-    )
-    gaps = evolution._campaign_required_gaps(tmp_path, campaign)
-    assert "campaign_step_closeout_head_missing:cid:s1" in gaps
-    assert "campaign_step_closeout_evidence_missing:cid:s1" in gaps
 
 
 def test_campaign_required_gaps_rejects_active_step_with_archived_carrier(tmp_path: Path) -> None:

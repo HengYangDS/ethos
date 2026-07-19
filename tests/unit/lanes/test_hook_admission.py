@@ -486,6 +486,36 @@ def test_push_admission_blocks_unproven_push_to_protected_role(tmp_path) -> None
     assert lane["state"] == "admitted"
 
 
+def test_push_admission_defers_protected_push_until_campaign_terminal(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    head = git(repo, "rev-parse", "HEAD")
+    campaign_publication = {
+        "remote_publication_admission": "blocked",
+        "required_gaps": ["campaign_publication_campaign_active:compression"],
+    }
+    protected = push_admission_report(
+        root=repo,
+        target_ref="refs/heads/dev",
+        pushed_head=head,
+        campaign_publication=campaign_publication,
+    )
+    lane = push_admission_report(
+        root=repo,
+        target_ref="refs/heads/work/compression",
+        pushed_head=head,
+    )
+
+    assert protected["ok"] is False
+    assert protected["decision"] == {
+        "action": "block",
+        "reason": "campaign_publication_not_terminal",
+    }
+    assert protected["required_gaps"][0] == "campaign_publication_campaign_active:compression"
+    assert lane["ok"] is True
+
+
 def test_push_identity_policy_blocks_new_commits_outside_configured_user(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

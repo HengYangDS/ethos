@@ -1,1 +1,5 @@
-.config/checks/ruff/ruff.toml
+# Ruff configuration owner. This root file is the native discovery surface for
+# IDEs, agents, and direct invocation; policy is extended from the canonical
+# check configuration while checkout-relative runtime cache routing stays here.
+cache-dir = "build/runtime/tool-cache/ruff"
+extend = ".config/checks/ruff/ruff.toml"

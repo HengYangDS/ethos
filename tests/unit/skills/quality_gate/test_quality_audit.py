@@ -53,7 +53,7 @@ def test_owner_gaps_require_the_ruff_discovery_adapter(tmp_path: Path) -> None:
         path.write_text("\n", encoding="utf-8")
     audit = _load_quality_audit()
 
-    gaps = audit._required_file_gaps(tmp_path)
+    gaps = audit.required_file_gaps(tmp_path)
 
     assert gaps == ["quality_owner_missing:ruff.toml"]
 

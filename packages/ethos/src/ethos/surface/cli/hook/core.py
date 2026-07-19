@@ -110,22 +110,31 @@ def pre_push(
     a raw `git push` cannot move a protected ref unproven. Called by .githooks/pre-push.
     """
     repo = resolve_root(root)
-    campaign_publication = campaign_publication_report(repo)
+    reconciliation = ReconciliationObservation(
+        receipt_path=reconciliation_receipt_path,
+        origin_head=observed_origin_head,
+        origin_main_head=observed_origin_main_head,
+        github_head=observed_github_head,
+        github_main_head=observed_github_main_head,
+    )
     report = push_admission_report(
         root=repo,
         target_ref=target_ref,
         pushed_head=pushed_head,
         remote_head=remote_head,
-        remote_name=remote,
-        reconciliation=ReconciliationObservation(
-            receipt_path=reconciliation_receipt_path,
-            origin_head=observed_origin_head,
-            origin_main_head=observed_origin_main_head,
-            github_head=observed_github_head,
-            github_main_head=observed_github_main_head,
-        ),
-        campaign_publication=campaign_publication,
+        reconciliation=reconciliation,
     )
+    campaign_publication: dict[str, object] = {}
+    if report["ok"]:
+        campaign_publication = campaign_publication_report(repo)
+        report = push_admission_report(
+            root=repo,
+            target_ref=target_ref,
+            pushed_head=pushed_head,
+            remote_head=remote_head,
+            reconciliation=reconciliation,
+            campaign_publication=campaign_publication,
+        )
     decision = report.get("decision", {})
     decision_action = decision.get("action", "") if isinstance(decision, dict) else ""
     decision_reason = decision.get("reason", "") if isinstance(decision, dict) else ""
@@ -138,11 +147,13 @@ def pre_push(
             "role": report["role"],
             "remote": str(report.get("remote_name", remote)),
             "decision": decision_action,
-            "campaign_publication": campaign_publication["remote_publication_admission"],
+            "campaign_publication": campaign_publication.get(
+                "remote_publication_admission", "not_evaluated"
+            ),
         },
         required_gaps=tuple(string_sequence(report.get("required_gaps"))),
         next_actions=(
-            _ACTIONS.get(str(campaign_publication["next_action_id"]), ())
+            _ACTIONS.get(str(campaign_publication.get("next_action_id", "")), ())
             if not report["ok"] and decision_reason == "campaign_publication_not_terminal"
             else (_ACTIONS["head_bound_proof"] if not report["ok"] else ())
         ),

@@ -2,13 +2,13 @@
 id = "quality-exemption-elimination-20260720"
 subject = "ethos:quality-terminal-exception-contract"
 state = "active"
-summary = "The active quality-exception elimination Change has removed the UTC-clock DTZ011 exception slice and bound type checks to a warning-free checkout runtime; all remaining exception carriers are explicitly unclaimed and pending."
+summary = "The bounded quality correction has removed the UTC-clock DTZ011 exception slice and bound type checks to a warning-free checkout runtime; remaining exception carriers are outside this archived slice."
 
 [evidence]
 dated = "evidence/chronicle/quality-exemption-elimination-20260720/2026-07-20.md"
-sha256 = "b7a65c360e1bbf052756610e5cc8fb63db1380558cb1568eb8a6708890b54280"
+sha256 = "2b1f50c3ba0c8411c57bb216ea033afb1bd3834d0d93c4afc77bc09be3287289"
 evidence_ids = ["evidence:quality-exemption-elimination-20260720:utc-dtz011", "evidence:quality-exemption-elimination-20260720:checkout-type-runtime"]
-binding = "The active OpenSpec carrier, UTC-clock source change, checkout-bound type runtime, focused regressions, direct whole-corpus DTZ011 probe, formatter check, and dated Chronicle bind only the first DTZ011 and type-runtime slice."
+binding = "The active OpenSpec carrier, UTC-clock source change, checkout-bound type runtime, focused regressions, direct whole-corpus DTZ011 probe, formatter check, and dated Chronicle bind only the DTZ011 and type-runtime slice."
 verifier = "digest_only"
 tests = [
   "uv run --all-packages --group dev pytest -q tests/unit/kernel/rules/test_exceptions.py",

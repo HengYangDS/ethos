@@ -394,7 +394,6 @@ def _unbound_retirement_runtime() -> unbound_retirement.UnboundRetirementRuntime
     return unbound_retirement.UnboundRetirementRuntime(
         repo_root=repo_root,
         workspace_status=workspace_status,
-        delete_lease=delete_lease,
         shared=_retirement_shared_runtime(),
     )
 

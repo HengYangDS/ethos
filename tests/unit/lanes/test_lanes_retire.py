@@ -358,6 +358,85 @@ def test_remove_linked_lane_blocks_before_effect_when_reobservation_is_stale_or_
     }
 
 
+@pytest.mark.parametrize(
+    ("lane", "expect_head", "responses", "required_gaps"),
+    [
+        (
+            {"branch": "", "path": ""},
+            None,
+            {},
+            [
+                "retirement_branch_missing",
+                "expect_head_required",
+                "retirement_worktree_path_unavailable",
+            ],
+        ),
+        (
+            {"branch": "work/stuck", "path": "<lane>"},
+            "a" * 40,
+            {
+                ("rev-parse", "refs/heads/work/stuck"): (1, "", "missing ref"),
+                ("rev-parse", "HEAD"): (1, "", "missing head"),
+                ("status", "--porcelain", "--untracked-files=all"): (
+                    1,
+                    "",
+                    "status unavailable",
+                ),
+            },
+            [
+                "retirement_ref_unavailable",
+                "retirement_worktree_head_unavailable",
+                "retirement_worktree_status_unavailable",
+            ],
+        ),
+        (
+            {"branch": "work/stuck", "path": "<lane>"},
+            "a" * 40,
+            {
+                ("rev-parse", "refs/heads/work/stuck"): (0, "a" * 40 + "\n", ""),
+                ("rev-parse", "HEAD"): (0, "b" * 40 + "\n", ""),
+                ("status", "--porcelain", "--untracked-files=all"): (0, "", ""),
+            },
+            ["retirement_worktree_head_stale"],
+        ),
+    ],
+)
+def test_remove_linked_lane_reobservation_fails_closed_for_missing_or_unavailable_state(
+    tmp_path: Path,
+    lane: dict[str, str],
+    expect_head: str | None,
+    responses: dict[tuple[str, ...], tuple[int, str, str]],
+    required_gaps: list[str],
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    lane_path = tmp_path / "repo-work-stuck"
+    if lane["path"]:
+        lane_path.mkdir()
+        lane = {**lane, "path": lane_path.as_posix()}
+
+    def fake_run_git(
+        _repo: Path,
+        *args: str,
+        check: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        assert check is False
+        returncode, stdout, stderr = responses[args]
+        return subprocess.CompletedProcess(args, returncode, stdout=stdout, stderr=stderr)
+
+    report = retirement_shared.remove_linked_lane(
+        repo,
+        lane,
+        expect_head=expect_head,
+        runtime=retirement_shared.RetirementRuntime(run_git=fake_run_git),
+    )
+
+    assert report == {
+        "ok": False,
+        "state": "blocked",
+        "required_gaps": required_gaps,
+    }
+
+
 def test_remove_linked_lane_preserves_newer_ref_after_worktree_removal(
     tmp_path: Path,
 ) -> None:

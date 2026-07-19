@@ -12,7 +12,6 @@ if TYPE_CHECKING:
 import ethos.adapters.mutation.lane_retirement.shared.core as lane_retirement_shared
 from ethos.adapters.mutation.lane_lifecycle.core import repo_root
 from ethos.adapters.repo.status.core import workspace_status
-from ethos.adapters.store.state.lease.lifecycle.effects import delete_lease
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 from ethos_core.contracts.branch.roles import load_branch_role_policy
 
@@ -26,7 +25,6 @@ class UnboundRetirementRuntime:
 
     repo_root: Callable[[Path], Path] = repo_root
     workspace_status: Callable[[Path], dict[str, object]] = workspace_status
-    delete_lease: Callable[..., int] = delete_lease
     shared: lane_retirement_shared.RetirementRuntime = field(
         default_factory=lane_retirement_shared.RetirementRuntime
     )
@@ -70,7 +68,7 @@ def retire_unbound_work_lane_ref(  # noqa: PLR0913, RUF100 - exact request envel
             "runtime": active_runtime,
         }
     )
-    report = {
+    return {
         "ok": not gaps,
         "state": "ready_to_retire_unbound" if not gaps else "blocked",
         "branch": branch,
@@ -91,28 +89,6 @@ def retire_unbound_work_lane_ref(  # noqa: PLR0913, RUF100 - exact request envel
         ),
         "required_gaps": sorted(set(gaps)),
     }
-    if gaps:
-        return report
-    if not apply:
-        return report
-    deleted = active_runtime.shared.run_git(
-        repo,
-        "update-ref",
-        "-d",
-        f"refs/heads/{branch}",
-        str(expect_head),
-        check=False,
-    )
-    if deleted.returncode != 0:
-        report["ok"] = False
-        report["state"] = "blocked"
-        report["required_gaps"] = ["unbound_ref_delete_failed"]
-        report["stderr"] = deleted.stderr.strip()
-        return report
-    active_runtime.delete_lease(repo / ".ethos" / "state" / "state.sqlite", subject=branch)
-    report["state"] = "retired_unbound"
-    report["retired_ref"] = f"refs/heads/{branch}"
-    return report
 
 
 def _unbound_retire_gaps(context: dict[str, object]) -> list[str]:

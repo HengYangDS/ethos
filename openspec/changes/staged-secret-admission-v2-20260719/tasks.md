@@ -9,14 +9,14 @@
 
 ## 2. Red/Green Implementation
 
-- [ ] 2.1 Add failing runner tests for missing tool, version mismatch, exact
+- [x] 2.1 Add failing runner tests for missing tool, version mismatch, exact
   staged command arguments, redacted failure propagation, and clean success.
-- [ ] 2.2 Add failing static-order and executable hook tests proving staged
+- [x] 2.2 Add failing static-order and executable hook tests proving staged
   secret admission runs before Ruff and `ethos.cli hook admit pre-tool`, blocks
   both downstream paths on failure, and preserves them after a clean scan.
-- [ ] 2.3 Implement the repository-owned staged runner and the minimal hook
+- [x] 2.3 Implement the repository-owned staged runner and the minimal hook
   integration without network, installation, report, or history behavior.
-- [ ] 2.4 Keep the staged/full-scan ownership split explicit in the Change and
+- [x] 2.4 Keep the staged/full-scan ownership split explicit in the Change and
   runner comments, leave the dirty foreign-owned secrets README untouched, and
   run focused tests plus shell lint.
 

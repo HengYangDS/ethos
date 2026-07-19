@@ -56,6 +56,11 @@ a new observation and decision are recorded.
 - **AND** no product behavior remains missing from accepted truth
 - **THEN** ETHOS prohibits merge, rebase, cherry-pick, refresh, and land of the
   historical Work Lane
-- **AND** only a fresh post-acceptance exact decision may select
+- **AND** after carrier acceptance ETHOS records the then-current accepted HEAD,
+  recomputes the target relation, and reconfirms the matrix and zero-residual
+  result before preparing an exact decision
+- **AND** only that fresh decision may select
   `lane_resolution/preserve-retire` with verified recovery material,
-  break-glass, and explicit irreversible confirmation.
+  break-glass, and explicit irreversible confirmation
+- **AND** a later change to either the target facts or the bound accepted
+  HEAD/relation blocks apply until a new observation and decision exist.

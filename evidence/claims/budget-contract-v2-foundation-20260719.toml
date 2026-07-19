@@ -1,0 +1,48 @@
+[claim]
+id = "budget-contract-v2-foundation-20260719"
+subject = "quality:budget-contract-v2:metric-domain-foundation"
+state = "active"
+summary = "Define and govern Budget Contract v2 while preserving every visible v1 source-budget gap until explicit migration and settlement evidence exists."
+
+[evidence]
+dated = "evidence/chronicle/budget-contract-v2-foundation-20260719/2026-07-19.md"
+sha256 = "9cc5176e7466ec40c529c98b48ca9aaf2142a59e6d99b980ce6fa45db9ebecbe"
+evidence_ids = ["evidence:budget-contract-v2-foundation-20260719"]
+binding = "DR-0008, the active OpenSpec carrier, TDD RED/GREEN evidence, focused verification, and the Chronicle bind the metric-domain foundation and behavior-preserving v1 ownership extraction only."
+verifier = "digest_only"
+tests = [
+  ".venv/bin/python -m pytest -q tests/unit/kernel/test_source_budget_contract.py tests/unit/adapters/repo/test_source_budget.py tests/unit/adapters/test_config.py tests/unit/domain/test_prove.py tests/unit/domain/source_budget/test_core.py tests/unit/domain/test_report.py tests/unit/kernel/test_command_declaration.py tests/unit/audit/test_modes.py tests/unit/cli/test_report_surface.py tests/unit/lanes/test_projection_rebase_source_budget.py tests/unit/governance/test_docs_registry.py",
+  ".venv/bin/python -m ruff check packages/ethos/src/ethos/domain/prove.py packages/ethos/src/ethos/domain/source_budget packages/ethos/src/ethos/domain/reporting/scoring.py tests/unit/domain/test_prove.py tests/unit/domain/source_budget/test_core.py tests/unit/kernel/test_command_declaration.py",
+  "tools/ci/scripts/run-config-lint.sh",
+  "tools/ci/scripts/run-json-schema-check.sh",
+  "tools/ci/scripts/run-ethos-lane.sh quality module-layout --json",
+  "tools/ci/scripts/run-ethos-lane.sh quality code-size --json",
+  "tools/ci/scripts/run-ethos-lane.sh quality source-budget --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "quality"
+scope = "Metric-domain architecture, v1 fact freeze, and the governed migration plan; no enforcement or completion claim."
+
+[carriers]
+openspec = "openspec/changes/budget-contract-v2-foundation-20260719"
+fallback = "Keep v1 source-budget authoritative and blocked; reject any v2 transition that hides, converts, resets, or silently extends a v1 obligation."
+kill_signal = "A v1 required gap disappears without settlement or an equal-or-stronger named successor obligation, or a metric crosses domains through weighted conversion."
+
+[promotion]
+targets = [
+  "docs/decisions/accepted/DR-0008-metric-domain-budget-contract.md",
+  "docs/plans/budget-contract-v2-design.md",
+  "docs/plans/budget-contract-v2-implementation.md",
+  "packages/ethos/src/ethos/domain/source_budget/core.py",
+  "packages/ethos/src/ethos/domain/prove.py",
+  "packages/ethos/src/ethos/domain/reporting/scoring.py",
+  "system/commands.toml",
+  "tests/unit/domain/source_budget/test_core.py",
+  "openspec/changes/budget-contract-v2-foundation-20260719",
+  "evidence/claims/budget-contract-v2-foundation-20260719.toml",
+  "evidence/chronicle/budget-contract-v2-foundation-20260719",
+]

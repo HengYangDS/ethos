@@ -8,12 +8,13 @@ relations:
 
 # GitHub Hosted CI Stale Work Lane Closeout — 2026-07-19
 
-Status: active decision carrier; no lane-resolution effect has been performed.
+Status: active fact-and-prerequisite carrier; no lane-resolution effect is
+authorized or has been performed.
 
-Purpose: record the smallest accepted-governance foundation for a later,
-one-time, exact `lane_resolution/preserve-retire` decision over one stale
-historical Work Lane. This carrier does not mint authority over that lane and
-makes no remote, push, or hosted-CI claim.
+Purpose: record the exact historical audit and the fail-closed prerequisites for
+a later, separately governed `lane_resolution/preserve-retire` closeout. This
+carrier does not authorize a native decision or apply, mint authority over the
+target lane, or make a remote, push, or hosted-CI claim.
 
 See the [active OpenSpec Change](../../openspec/changes/github-hosted-ci-stale-lane-closeout-20260719/).
 
@@ -50,31 +51,35 @@ See the [active OpenSpec Change](../../openspec/changes/github-hosted-ci-stale-l
 The residual product-behavior count is **0**. Therefore this historical lane
 must never be merged, rebased, cherry-picked, refreshed, or landed.
 
-## Post-Acceptance Decision Boundary
+## Post-Acceptance Resolution Prerequisite
 
-Only after this carrier and its Chronicle are accepted may a separately
-admitted operator prepare one exact `lane_resolution/preserve-retire` decision.
-The accepted HEAD above is the audit baseline, not a future immutable binding;
-carrier acceptance advancing accepted truth does not self-invalidate this
-record. The operator must record the then-current accepted HEAD, recompute the
-target relation, and reconfirm all 10 dispositions and the zero-residual result
-against that accepted truth before preparing the native decision.
+Acceptance of this carrier permits a fresh audit only; it does not authorize a
+native decision or effect. The accepted HEAD above is the audit baseline, not a
+future immutable binding, so carrier acceptance advancing accepted truth does
+not self-invalidate this record.
 
-The decision must bind that post-acceptance accepted HEAD and relation together
-with the exact target HEAD, clean/dirty state, holder, lease ID, epoch, and lane
-incarnation. Any target fact or accepted HEAD/relation change between decision
-preparation and apply invalidates the decision and requires a new observation
-and decision. An unavailable target also blocks the effect.
+The current native v1 decision records target HEAD, lane incarnation, holder,
+path, dirty/foreign/orphan/ambiguous state, and tracked/untracked digests. It
+does not encode accepted HEAD, relation to accepted truth, lease ID, or lease
+epoch, and apply recomputes only the target observation digest. It therefore
+cannot enforce the complete drift boundary required by the accepted
+repository-governance contract. Current apply also lacks a strict reconciled
+completion-state check, atomic package installation, pre-destructive receipt
+collision handling, and lease reconciliation.
 
-The later decision remains one-time and non-replayable. It must carry the
-accepted Chronicle digest, exact evidence references, a break-glass assertion,
-and the irreversible confirmation required by the native apply command. The
-carrier itself runs neither decision apply nor retirement and does not transfer
-or invent ownership.
+`lane_resolution/preserve-retire` remains blocked until a separate accepted
+product change implements and tests those contracts, reconciles the existing
+contradictory completion record for this target, and proves safe replay. Only
+then may a separately admitted operator record the then-current accepted HEAD,
+recompute the target relation, reconfirm all 10 dispositions and the
+zero-residual result, and prepare one fresh, one-time decision that binds every
+required accepted, target, and lease fact. Any drift or unavailable target
+blocks the effect and requires a new observation and decision.
 
 ## Preservation and Recovery Contract
 
-Before the later irreversible effect, create and verify a content-addressed
+After the product prerequisite is accepted and before any irreversible effect,
+create and verify a content-addressed
 preservation package containing the exact target bundle, a tracked patch, an
 explicitly empty untracked inventory and absent-or-empty untracked archive, a
 manifest digest, and an immutable receipt. Verify every component before
@@ -85,10 +90,14 @@ exact recoverable package.
 ## Operational Follow-up, Not Product Repair
 
 On 2026-07-19 a duplicate resolution apply rewrote a preservation package
-before immutable-receipt collision detection stopped completion. That
-mismatched package is not declared valid here. A separate valid package protects
-the dirty all-lanes delta. Product-code idempotency repair belongs to a separate
-change and is not implemented or claimed by this carrier.
+before immutable-receipt collision detection stopped completion. Inventory can
+still report that mismatched package as retained, and a historical completion
+receipt for this target conflicts with its currently live ref, worktree, and
+lease incarnation. Those records are not declared valid here. A separate valid
+package protects the dirty all-lanes delta. Decision binding, strict completion
+verification, atomic installation, safe replay, and lease reconciliation belong
+to a separate product change and are not implemented or claimed by this
+carrier.
 
 ## Local-Only Closeout
 

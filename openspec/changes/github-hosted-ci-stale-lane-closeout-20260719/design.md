@@ -3,8 +3,8 @@
 The target historical lane is clean and lease-bound at one exact HEAD, but its
 10 patch-inequivalent commits do not represent 10 missing behaviors. Seven are
 already absorbed and three are obsolete; the residual behavior count is zero.
-The safe outcome is not integration but a later preservation-first exceptional
-closeout after this decision becomes accepted truth.
+The safe outcome is not integration or immediate retirement but a fail-closed
+prerequisite record before a later preservation-first exceptional closeout.
 
 ## Goals / Non-Goals
 
@@ -12,9 +12,10 @@ closeout after this decision becomes accepted truth.
 
 - Bind the exact target, accepted baseline, clean state, lease tuple, and
   ten-commit semantic matrix.
-- Establish the accepted Chronicle prerequisite for one later exact
-  `preserve-retire` decision.
-- Preserve recoverability and invalidate the decision on target drift.
+- Establish the accepted Chronicle and native-product prerequisites for one
+  later exact `preserve-retire` decision.
+- Preserve recoverability and block the effect while required bindings,
+  completion integrity, replay, atomicity, or lease reconciliation are absent.
 
 **Non-Goals:**
 
@@ -27,33 +28,36 @@ closeout after this decision becomes accepted truth.
 1. **Semantic absorption is authoritative for integration intent.** Seven
    commits are absorbed, three are obsolete, and no behavior is missing; the
    lane must not be merged, rebased, cherry-picked, refreshed, or landed.
-2. **Acceptance precedes exceptional resolution.** The active carrier only
-   records a decision foundation. A later operator must use the accepted
-   Chronicle and freshly recompute the exact target before deciding or applying
-   `lane_resolution/preserve-retire`.
-3. **Audit baseline and effect binding are distinct.** The carrier's accepted
-   HEAD is the audit baseline. After acceptance, the decision preparer records
-   the then-current accepted HEAD, recomputes target relation, and reconfirms
-   the complete disposition table and zero-residual result. The native decision
-   binds that accepted HEAD/relation together with target HEAD, dirty state,
-   holder, lease ID, epoch, and lane incarnation. Any of those facts changing
-   before apply blocks the effect and requires re-observation and a new
-   decision.
-4. **Preservation is verified before retirement.** The later package verifies
+2. **Acceptance precedes product repair and exceptional resolution.** The active
+   carrier records facts and prerequisites only. It authorizes neither a native
+   decision nor apply.
+3. **Current native v1 is insufficient.** Its decision cannot encode accepted
+   HEAD/relation or lease ID/epoch; apply rechecks only the target observation,
+   writes the final package before receipt collision handling, can retire before
+   receipt completion, omits lease reconciliation, and inventory does not prove
+   manifest/receipt integrity. A contradictory completion receipt already
+   exists for the still-live target. The effect therefore fails closed.
+4. **A separate product change owns the repair.** It must bind and revalidate
+   accepted HEAD/relation plus lease ID/epoch, share strict completion-state
+   verification across decide/apply/inventory/clear, install packages atomically,
+   return `already_applied` without effects for a valid replay, reject conflicting
+   state, validate receipts before destructive effects, reconcile the lease, and
+   repair the contradictory live completion state.
+5. **Preservation is verified before retirement.** The later package verifies
    the bundle, tracked patch, empty untracked inventory/archive, manifest
    digest, and immutable receipt. Recovery fetches or clones the bundle and
    applies the tracked patch.
-5. **Duplicate apply remains a separate defect.** The July 19 package rewrite
+6. **Duplicate apply remains a separate defect.** The July 19 package rewrite
    before receipt collision is recorded without fixing code or validating the
    mismatched package; a separate valid package protects the dirty all-lanes
    delta.
-6. **Evidence planes remain separate.** Local carrier validation is not remote
+7. **Evidence planes remain separate.** Local carrier validation is not remote
    availability, push, hosted execution, or hosted-CI success.
 
 ## Risks / Trade-offs
 
-- **Target changes after acceptance** -> invalidate the carrier authorization
-  and re-observe before preparing a new decision.
+- **Carrier acceptance is mistaken for apply authority** -> state explicitly
+  that only the separately accepted product repair can unblock a later audit.
 - **Patch inequivalence is mistaken for missing behavior** -> retain the full
   explicit semantic matrix and zero-residual conclusion.
 - **Preservation package is ambiguous** -> require component verification,
@@ -64,11 +68,14 @@ closeout after this decision becomes accepted truth.
 ## Migration Plan
 
 1. Validate and commit this active carrier without applying resolution.
-2. After acceptance, record the current accepted HEAD, recompute target
-   relation, reconfirm the complete disposition table and zero-residual result,
-   and freshly observe the target HEAD, status, holder, lease ID, epoch, and
-   incarnation.
-3. Create and verify the preservation package and recovery materials.
-4. Prepare one native break-glass decision and apply it only with explicit
-   irreversible confirmation and an immutable receipt.
-5. Re-observe the repository and retain the preservation package for recovery.
+2. Accept a separate OpenSpec-governed product change implementing every native
+   binding, completion, replay, atomicity, inventory, and lease requirement.
+3. Reconcile the contradictory completion receipt and live target state without
+   repeating an irreversible effect.
+4. Record the current accepted HEAD, recompute target relation, reconfirm the
+   complete disposition table and zero-residual result, and freshly observe all
+   target and lease facts.
+5. Prepare one native break-glass decision, create and verify the preservation
+   package, and apply only with explicit irreversible confirmation.
+6. Verify receipt, manifest, ref, worktree, and lease postconditions and retain
+   the preservation package for recovery.

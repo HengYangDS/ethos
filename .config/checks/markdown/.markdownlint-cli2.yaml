@@ -14,8 +14,8 @@ ignores:
   - "node_modules/**"
   # Governance artifacts under version/digest control — not prose to lint.
   - "evidence/**"
-  # OpenSpec owns the schema and wider Markdown shape of its specs and changes.
-  # The shared structural reader still checks the universal blank-line boundary.
+  # OpenSpec owns the schema and Markdown shape of its specs and changes; no
+  # repository-specific structural reader duplicates that authority.
   - "openspec/**"
   # Generated projections (SSOT lives in skills/ source; .agents/skills is a build).
   - ".agents/skills/**"

@@ -185,6 +185,39 @@ def test_rules_migrate_apply_rechecks_head_after_prewrite(
     assert path.read_text(encoding="utf-8") == LEGACY_RULES
 
 
+def test_rules_migrate_apply_rechecks_head_inside_serialized_migration(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    lane = start_adopted_work_lane(tmp_path)
+    path = _write_legacy_rules(lane.worktree)
+    head = git(lane.worktree, "rev-parse", "HEAD")
+    observed_heads = iter((head, head, "f" * 40))
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    monkeypatch.setattr(
+        rules_surface.git_adapter,
+        "current_head",
+        lambda _root: next(observed_heads),
+    )
+
+    payload = run_ethos_blocked(
+        "rules",
+        "migrate",
+        "--root",
+        lane.worktree.as_posix(),
+        "--apply",
+        "--authorize",
+        "--expect-head",
+        head,
+        "--json",
+        cwd=lane.worktree,
+    )
+
+    assert payload["required_gaps"] == ["expect_head_mismatch"]
+    assert payload["data"]["applied"] is False
+    assert path.read_text(encoding="utf-8") == LEGACY_RULES
+
+
 def test_rules_migrate_dry_run_reports_current_v2_file(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
     path = repo / ".ethos" / "rules.toml"
@@ -198,3 +231,18 @@ def test_rules_migrate_dry_run_reports_current_v2_file(tmp_path: Path) -> None:
     assert payload["state"] == "current"
     assert payload["data"]["legacy_detected"] is False
     assert path.read_text(encoding="utf-8") == source
+
+
+def test_plan_reports_invalid_rules_profiles_as_top_level_gap(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    path = repo / ".ethos" / "rules.toml"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text('[profiles]\nactive = "python"\n', encoding="utf-8")
+
+    payload = run_ethos("plan", "--root", repo.as_posix(), "--json", cwd=repo)
+
+    assert payload["ok"] is False
+    assert "rules_profile_invalid:active_must_be_string_array" in payload["required_gaps"]
+    assert payload["data"]["rule_validation_gaps"] == [
+        "rules_profile_invalid:active_must_be_string_array"
+    ]

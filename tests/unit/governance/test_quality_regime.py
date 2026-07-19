@@ -43,13 +43,13 @@ def test_config_quality_has_dedicated_policy_not_pyproject_dumping_ground() -> N
     assert "select =" not in pyproject_text
     assert ".config/checks/taplo/taplo.toml" in config_readme
     assert ".config/checks/yaml/yamllint.yaml" in config_readme
-    assert ".config/checks/whitespace/policy.toml" in config_readme
+    assert ".config/checks/whitespace/policy.toml" not in config_readme
     assert ".config/checks/shell/.shellcheckrc" in config_readme
     assert "cache routing" in config_readme
     assert "pyproject.toml` is not a pytest policy" in config_readme
 
 
-def test_blank_line_owners_use_native_or_shared_policy_without_duplication() -> None:
+def test_blank_line_owners_use_native_policies_without_custom_reader() -> None:
     markdown = (ROOT / ".config/checks/markdown/.markdownlint-cli2.yaml").read_text(
         encoding="utf-8"
     )
@@ -63,8 +63,11 @@ def test_blank_line_owners_use_native_or_shared_policy_without_duplication() -> 
     assert "max-end: 0" in yaml
     markdown_runner = (ROOT / "tools/ci/scripts/run-markdown-lint.sh").read_text(encoding="utf-8")
     assert "ethos_python" in config_runner
-    assert 'python tools/ci/structural_whitespace.py "${shell_files[@]}"' in shell_runner
-    assert "python tools/ci/structural_whitespace.py" in markdown_runner
+    assert "structural_whitespace.py" not in config_runner
+    assert "structural_whitespace.py" not in shell_runner
+    assert "structural_whitespace.py" not in markdown_runner
+    assert not (ROOT / "tools/ci/structural_whitespace.py").exists()
+    assert not (ROOT / ".config/checks/whitespace/policy.toml").exists()
 
 
 def test_toml_files_have_exactly_one_final_newline_and_no_trailing_space() -> None:
@@ -89,7 +92,7 @@ def test_pytest_runtime_cache_stays_out_of_config_plane() -> None:
     pyproject_text = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
 
     assert not (ROOT / "pytest.ini").exists()
-    assert not (ROOT / "ruff.toml").exists()
+    assert (ROOT / "ruff.toml").is_file()
     assert "cache_dir = build/runtime/tool-cache/pytest" in pytest_ini
     assert "[tool.pytest" not in pyproject_text
     assert "cache_dir = .config/checks/pytest" not in pytest_ini
@@ -118,12 +121,53 @@ def test_ruff_runtime_cache_stays_under_build_runtime() -> None:
     ruff_config = (ROOT / ".config/checks/ruff/ruff.toml").read_text(encoding="utf-8")
     pyproject_text = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
 
-    # The root `pyproject.toml` must not become a second Ruff rule-policy surface;
-    # owner scripts and `.config/checks/ruff/ruff.toml` route cache state away from root.
+    # The root discovery adapter owns checkout-relative cache routing and extends
+    # the canonical policy; it carries no lint or format rule set of its own.
     assert "build/runtime/tool-cache/ruff" in runner
     assert "--cache-dir" in runner
     assert ".ruff_cache" not in runner
     assert 'cache-dir = "build/runtime/tool-cache/ruff"' in ruff_config
+    assert tomllib.loads((ROOT / "ruff.toml").read_text(encoding="utf-8")) == {
+        "cache-dir": "build/runtime/tool-cache/ruff",
+        "extend": ".config/checks/ruff/ruff.toml",
+    }
+    settings = subprocess.run(
+        [
+            "uv",
+            "run",
+            "--group",
+            "dev",
+            "ruff",
+            "check",
+            "--show-settings",
+            "packages/ethos/src/ethos/__init__.py",
+        ],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=True,
+    ).stdout
+    expected_cache_dir = ROOT / "build/runtime/tool-cache/ruff"
+    assert f'cache_dir = "{expected_cache_dir}"' in settings
+    explicit_settings = subprocess.run(
+        [
+            "uv",
+            "run",
+            "--group",
+            "dev",
+            "ruff",
+            "check",
+            "--config",
+            ".config/checks/ruff/ruff.toml",
+            "--show-settings",
+            "packages/ethos/src/ethos/__init__.py",
+        ],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=True,
+    ).stdout
+    assert f'cache_dir = "{expected_cache_dir}"' in explicit_settings
     assert "[tool.ruff" not in pyproject_text
 
 

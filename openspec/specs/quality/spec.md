@@ -164,26 +164,6 @@ same owner scripts SHALL participate in the default ETHOS proof floor.
 - **AND** YAML files are linted with the configured Yamllint policy
 - **AND** `.gitlab-ci.yml` does not duplicate Taplo or Yamllint policy inline
 
-### Requirement: Structural Blank-Line Contract
-
-ETHOS SHALL use one blank line as the only separator between adjacent semantic
-blocks in active governed text carriers. It SHALL reject leading, trailing, and
-repeated blank-line runs through the carrier's native formatter where one owns
-the language, or through the shared structural reader otherwise. Python SHALL
-remain governed only by Ruff's language-native formatting contract.
-
-#### Scenario: Active configuration has repeated blank lines
-
-- **WHEN** an active governed configuration or provider projection contains two
-  or more consecutive blank lines
-- **THEN** its owning quality command fails with a line-addressed diagnostic
-
-#### Scenario: Shell embeds another language
-
-- **WHEN** a Shell carrier contains a heredoc body
-- **THEN** the structural reader checks the outer Shell layout without applying
-  the Shell blank-line contract inside the embedded body
-
 #### Scenario: Shell quality executes through the owner script
 
 - **WHEN** hosted CI or `ethos quality shell --json` runs
@@ -252,6 +232,17 @@ Git, global ignores, provider projections, or hook-local behavior.
   it into repository truth
 - **AND** CI providers, pre-commit hooks, and local CI call the owner script
   instead of duplicating the policy body.
+
+#### Scenario: Historical carriers are not active stash guidance
+
+- **WHEN** repository hygiene scans Chronicle records under `evidence/chronicle/`
+  or archived OpenSpec carriers under `openspec/changes/archive/`
+- **THEN** final-newline, line-ending, conflict-marker, large-file, and structured
+  carrier checks continue to apply
+- **AND** the stash-guidance check does not reinterpret historical records as
+  current operating instructions
+- **AND** positive stash guidance in active docs, rules, plans, or OpenSpec
+  carriers remains blocked.
 
 ### Requirement: Generated Artifact Topology Gate
 
@@ -1014,33 +1005,6 @@ exercise schema shape.
 - **THEN** validation SHALL fail with required gaps
 - **AND THEN** the validation SHALL remain owned by that producer boundary.
 
-### Requirement: Structural blank-line contract
-
-ETHOS SHALL use one blank line as the only separator between adjacent semantic
-blocks in active governed text carriers. It SHALL reject leading, trailing, and
-repeated blank-line runs through the carrier's native formatter where one owns
-the language, or through the shared structural reader otherwise. Python SHALL
-remain governed only by Ruff's language-native formatting contract.
-
-#### Scenario: active configuration has repeated blank lines
-
-- **WHEN** an active governed configuration or provider projection contains two
-  or more consecutive blank lines
-- **THEN** its owning quality command fails with a line-addressed diagnostic
-
-#### Scenario: Shell embeds another language
-
-- **WHEN** a Shell carrier contains a heredoc body
-- **THEN** the structural reader checks the outer Shell layout without applying
-  the Shell blank-line contract inside the embedded body
-
-#### Scenario: Active OpenSpec carrier contains repeated blank lines
-
-- **WHEN** an active OpenSpec spec or Change Markdown carrier contains two or
-  more consecutive blank lines
-- **THEN** the shared reader reports the repeated blank run without replacing
-  official OpenSpec schema validation
-
 ### Requirement: Curated JSON Evidence Carrier Admission
 
 ETHOS SHALL keep tracked JSON placement fail-closed and SHALL admit a curated
@@ -1272,3 +1236,47 @@ retirement requires a later accepted calibration and supersession decision.
 - **AND** compression completion SHALL additionally require every terminal
   vector to pass and active, expired, unmapped, and unclassified debt counts to
   be zero.
+
+### Requirement: Rules V2 migration is lossless for active policy
+
+ETHOS SHALL expose the advertised Rules V2 migration through the public command
+plane and SHALL preserve active non-legacy policy, including the complete
+`[quality]` tree, while normalizing legacy rule keys.
+
+#### Scenario: A mixed-generation rules file is migrated
+
+- **WHEN** `ethos rules migrate` evaluates a file containing legacy rules and
+  active quality, source-budget, and gate policy
+- **THEN** dry-run reports the complete target without modifying the file
+- **AND** authorized apply with the expected current HEAD preserves the parsed
+  active policy and converts `paths`, `requires`, and `evidence` to V2 keys.
+
+#### Scenario: Migration input is ambiguous or stale
+
+- **WHEN** the rules file is unparsable, write admission fails, authorization is
+  absent, or expected HEAD does not match
+- **THEN** migration fails closed without rewriting the file.
+
+### Requirement: Non-authoritative same-machine performance evidence is not a product gate
+
+ETHOS SHALL NOT ship a same-machine timing and token-budget evidence stack as a
+product quality gate when it has no trust-bearing consumer, reproducibility
+contract, or provider-neutral admission boundary.
+
+#### Scenario: The retired performance evidence stack is inspected
+
+- **WHEN** command, tool, policy, package, test, and runner surfaces are audited
+- **THEN** `ethos quality performance` is not registered
+- **AND** its former policy file, Python owner, shell runner, tool declaration,
+  and dedicated tests are absent
+- **AND** the default proof floor still retains the declared lint, type,
+  coverage, module-layout, docstring, configuration, shell, format, hygiene, and
+  other hard quality owners.
+
+#### Scenario: Performance evidence is proposed again
+
+- **WHEN** a later change needs executable performance evidence
+- **THEN** it requires a new declared tool contract, reproducible measurement
+  boundary, typed report, consumer, and proof policy
+- **AND** it does not restore the retired command through a compatibility shim,
+  alias, or copied historical implementation.

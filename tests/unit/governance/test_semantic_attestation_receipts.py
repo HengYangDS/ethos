@@ -41,6 +41,9 @@ def _semantic_claim_fixture(
     target = root / "subject.py"
     target.write_text("VALUE = 1\n", encoding="utf-8")
     head = "a" * 40
+    monkeypatch.setattr(
+        "ethos.repository.evidence.claims.semantic_tree_digest", lambda *_a, **_k: "b" * 64
+    )
 
     evidence = root / "evidence" / "chronicle" / "sample" / "2026-07-14.md"
     evidence.parent.mkdir(parents=True)
@@ -169,10 +172,6 @@ def test_semantic_attestation_receipt_fails_closed(
 ) -> None:
     """A semantic claim must reject every incomplete or mismatched receipt state."""
     root, head = _semantic_claim_fixture(tmp_path, monkeypatch, variant=variant)
-    monkeypatch.setattr(
-        "ethos.repository.evidence.claims.semantic_tree_digest",
-        lambda *_a, **_k: "b" * 64,
-    )
     report = claims_report(root, current_head=head)
 
     assert f"sample-claim:{expected_gap}" in report["required_gaps"]
@@ -183,10 +182,6 @@ def test_semantic_attestation_receipt_binds_claim_evidence_and_scope(
 ) -> None:
     """A valid candidate-external receipt admits only its exact claim scope."""
     root, head = _semantic_claim_fixture(tmp_path, monkeypatch)
-    monkeypatch.setattr(
-        "ethos.repository.evidence.claims.semantic_tree_digest",
-        lambda *_a, **_k: "b" * 64,
-    )
     report = claims_report(root, current_head=head)
 
     assert report["ok"] is True
@@ -233,36 +228,28 @@ def test_semantic_attestation_receipt_model_rejects_tampered_payload_digest() ->
         SemanticAttestationReceipt.model_validate([])
 
 
-def test_semantic_attestation_receipt_rejects_nonabsolute_receipt_root(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize(
+    ("receipt_root", "expected_gap"),
+    [
+        ("relative-receipts", "semantic_attestation_receipt_invalid"),
+        (None, "semantic_attestation_receipt_required"),
+    ],
+)
+def test_semantic_attestation_requires_absolute_provider_configuration(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    receipt_root: str | None,
+    expected_gap: str,
 ) -> None:
-    """A relative receipt root is invalid rather than an implicit local fallback."""
     root, head = _semantic_claim_fixture(tmp_path, monkeypatch)
-    monkeypatch.setenv("ETHOS_SEMANTIC_ATTESTATION_RECEIPT_DIR", "relative-receipts")
-    monkeypatch.setattr(
-        "ethos.repository.evidence.claims.semantic_tree_digest",
-        lambda *_a, **_k: "b" * 64,
-    )
+    if receipt_root is None:
+        monkeypatch.delenv("ETHOS_SEMANTIC_ATTESTATION_RECEIPT_DIR")
+    else:
+        monkeypatch.setenv("ETHOS_SEMANTIC_ATTESTATION_RECEIPT_DIR", receipt_root)
 
     report = claims_report(root, current_head=head)
 
-    assert "sample-claim:semantic_attestation_receipt_invalid" in report["required_gaps"]
-
-
-def test_semantic_attestation_receipt_requires_provider_configuration(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """A semantic verifier does not silently fall back when no receipt root is configured."""
-    root, head = _semantic_claim_fixture(tmp_path, monkeypatch)
-    monkeypatch.delenv("ETHOS_SEMANTIC_ATTESTATION_RECEIPT_DIR")
-    monkeypatch.setattr(
-        "ethos.repository.evidence.claims.semantic_tree_digest",
-        lambda *_a, **_k: "b" * 64,
-    )
-
-    report = claims_report(root, current_head=head)
-
-    assert "sample-claim:semantic_attestation_receipt_required" in report["required_gaps"]
+    assert f"sample-claim:{expected_gap}" in report["required_gaps"]
 
 
 def test_digest_only_claim_does_not_require_semantic_attestation(
@@ -271,10 +258,6 @@ def test_digest_only_claim_does_not_require_semantic_attestation(
     """Historical digest-only claims remain portable without any receipt provider."""
     root, head = _semantic_claim_fixture(tmp_path, monkeypatch, verifier="digest_only")
     monkeypatch.delenv("ETHOS_SEMANTIC_ATTESTATION_RECEIPT_DIR")
-    monkeypatch.setattr(
-        "ethos.repository.evidence.claims.semantic_tree_digest",
-        lambda *_a, **_k: "b" * 64,
-    )
     report = claims_report(root, current_head=head)
 
     assert report["ok"] is True

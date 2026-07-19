@@ -1036,11 +1036,7 @@ truth horizon and enforcement coverage actually proved.
 ETHOS SHALL keep routine mechanically determined lane lifecycle local and SHALL
 record only exceptional interpretive judgments as evidence-bound Chronicle
 `decision` events. Chronicle SHALL NOT become lease telemetry or a separate lane
-resolution database. A clean Work Lane with missing, stale, ambiguous, or legacy
-holder evidence MAY retire only through a separate accepted governance carrier
-that binds one exact source ref, semantic-absorption or supersession basis,
-recovery plan, and current local closeout; a fresh native two-phase decision
-must re-observe that same lane before effect.
+resolution database.
 
 #### Scenario: routine lifecycle remains local
 
@@ -1061,24 +1057,6 @@ must re-observe that same lane before effect.
 - **AND** any mismatch blocks cleanup and requires a new decision
 - **AND** the decision authorizes an effect while postconditions alone prove what
   was actually removed.
-
-#### Scenario: clean ownerless lane retires only after semantic absorption
-
-- **GIVEN** a linked Work Lane is clean but has missing, stale, ambiguous, or
-  legacy holder evidence
-- **AND** its useful behavior has been independently replayed or superseded on
-  a current owned baseline with exact-HEAD proof, candidate land, and accepted-root
-  closeout
-- **WHEN** a separate accepted governance carrier selects
-  `lane_resolution/retire` for that exact branch and head
-- **THEN** native decision and apply re-observe the same target, bind its
-  Chronicle digest and target-observation digest, require break-glass and explicit
-  irreversible confirmation, and emit a local receipt
-- **AND** tree inequality, a missing lease, a historical archive, or a
-  preservation package alone SHALL NOT establish semantic absorption or authorize
-  retirement
-- **AND** the decision SHALL NOT authorize any other lane, remote mutation,
-  hosted-provider claim, or valid-lease takeover.
 
 #### Scenario: dirty or unknown work is preserved by default
 
@@ -1849,18 +1827,6 @@ without a receipt provider.
   migrated
 - **THEN** it SHALL be represented as `digest_only`
 - **AND** its summary and binding SHALL not claim semantic verification
-
-### Requirement: Reference adapter stays provider-local and constrained
-
-The reference independent-identity adapter SHALL be one-shot and SHALL reject
-foreign remotes, commits, arbitrary proof commands, unavailable sandboxing, and
-receipt publication failure.
-
-#### Scenario: Proof child process is created
-
-- **WHEN** the adapter starts its independent proof command
-- **THEN** it SHALL provide a minimal key-free environment
-- **AND** SHALL use an out-of-tree runtime and checkout.
 
 ### Requirement: Fresh Work Lane bootstrap avoids unnecessary runtime admission
 
@@ -2936,3 +2902,107 @@ or fall back to unconstrained branch deletion.
 - **THEN** ETHOS SHALL report a blocked local residue with exact gaps
 - **AND** it SHALL not delete a newer ref, remove an active lease, or claim the
   retirement completed.
+
+### Requirement: Versioned local-state schema evolution
+
+ETHOS SHALL evolve ignored SQLite local state through ordered, transactional
+schema migrations that preserve active coordination and record the applied
+schema version only after successful completion.
+
+#### Scenario: A version-1 state database is opened
+
+- **WHEN** ETHOS initializes a version-1 database that still contains the retired
+  empty `cache_entries` table
+- **THEN** it removes that table and records schema version 2 in one successful
+  migration
+- **AND** existing leases, events, chronicle events, and retrieval data remain
+  available.
+
+#### Scenario: A current database is initialized again
+
+- **WHEN** ETHOS initializes a database that already records schema version 2
+- **THEN** the migration is idempotent
+- **AND** no active coordination row is rewritten or deleted.
+
+### Requirement: Explicit conservative local-state maintenance
+
+ETHOS SHALL keep local-state audit read-only by default and SHALL require an
+explicit maintenance action before pruning disposable state.
+
+#### Scenario: Audit runs without maintenance authorization
+
+- **WHEN** the local-state owner runs in its default audit mode
+- **THEN** it reports migration residue, lease candidates, proof candidates, and
+  ignored-state inventory
+- **AND** it does not mutate SQLite, proofs, refs, worktrees, or snapshots.
+
+#### Scenario: Expired orphan leases are maintained
+
+- **WHEN** explicit maintenance evaluates an expired lease whose branch ref,
+  linked worktree, and recorded path are all absent
+- **THEN** ETHOS deletes that exact lease row and reports its identity
+- **AND** it retains every unexpired, current, ambiguous, or still-observable
+  lease.
+
+### Requirement: Ref-bound proof retention
+
+ETHOS SHALL treat HEAD-keyed local proof as disposable readiness state while
+preserving the current HEAD record and every proof whose commit remains reachable
+from a current Git ref.
+
+#### Scenario: A proof HEAD is unreachable from all refs
+
+- **WHEN** explicit maintenance finds a well-formed proof record whose named Git
+  HEAD is not reachable from any current ref and is not current HEAD
+- **THEN** it removes that proof record and reports its path and HEAD
+- **AND** current or ref-reachable proof records remain unchanged.
+
+### Requirement: Recovery material is preservation-bound before cleanup
+
+ETHOS SHALL NOT delete a recovery snapshot set until a complete operator archive
+and a digest-bound Chronicle receipt have been verified.
+
+#### Scenario: Recovery snapshots contain unique Git and dirty-worktree material
+
+- **WHEN** an operator closes a recovery snapshot set
+- **THEN** the archive manifest binds every entry, archive digest, byte size,
+  bundle verification result, archive location, and repository HEAD
+- **AND** extraction and bundle verification succeed before the source snapshot
+  directory is removed.
+
+### Requirement: Accepted-root closeout is bound to one audited candidate HEAD
+
+ETHOS SHALL bind candidate audit, control-replacement admission, executed proof,
+and accepted-root mutation to one observed candidate HEAD.
+
+#### Scenario: Candidate HEAD changes during or after closeout audit
+
+- **WHEN** accepted-root closeout observes the candidate HEAD before audit
+- **THEN** the audit receives that HEAD as its claim binding
+- **AND** closeout re-observes the candidate after audit and immediately before
+  mutation
+- **AND** any mismatch blocks control admission and accepted-root movement.
+
+### Requirement: Tracked lifecycle does not imply local-state maintenance effects
+
+ETHOS SHALL require an explicit, authorized, digest-bound maintenance apply and
+its own receipt before reporting that ignored local state changed. Tracked
+OpenSpec, Git, land, closeout, or publish transitions SHALL NOT mint such an
+effect.
+
+#### Scenario: A tracked Change archives and lands without maintenance apply
+
+- **WHEN** an OpenSpec carrier validates, archives, lands to candidate, or closes
+  out accepted root without an explicit local-state maintenance apply
+- **THEN** ETHOS does not infer that a live SQLite database migrated
+- **AND** it does not infer lease or proof pruning, operator archive creation, or
+  recovery-source deletion.
+
+#### Scenario: A maintenance effect is claimed
+
+- **WHEN** evidence states that local leases, proofs, databases, or recovery
+  material changed
+- **THEN** the evidence names the authorized apply command, exact inventory
+  digest, affected local root, result receipt, and postcondition verification
+- **AND** fixture, copied-state, dry-run, OpenSpec, land, closeout, and publish
+  receipts are insufficient substitutes.

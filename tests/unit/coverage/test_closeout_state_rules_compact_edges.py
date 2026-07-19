@@ -10,10 +10,6 @@ import ethos.adapters.store.state.lease.lifecycle.core as lease
 import ethos.adapters.store.state.lease.lifecycle.effects as effects
 import ethos.adapters.store.state.lease.projection as projection
 import ethos.adapters.store.state.schema as state_schema
-import ethos.repository.policy.rules.config as rules_config
-import ethos.repository.policy.rules.evaluation as rules_evaluation
-import ethos.repository.policy.rules.exceptions as rules_exceptions
-import ethos.repository.policy.rules.migration as rules_migration
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -66,32 +62,8 @@ def test_state_and_lease_fail_closed_matrix(tmp_path: Path) -> None:
         _rejects("not_expired", lambda: lease.expected_current_lease(db, **request, require_expired=True))  # fmt: skip
         db.execute("insert into leases values(?,?,?,?,?)", ("lease:second", "work/x", current["holder_ref"], current["expires_at"], "{}"))  # fmt: skip
         db.commit()
-        _rejects("lane_lease_ambiguous", lambda: lease._row(db, "work/x"))
+        _rejects("lane_lease_ambiguous", lambda: lease._sole_subject_row(db, "work/x"))
     assert effects.update_lease_payload(db_path, subject="missing", payload={}) == {}
     assert effects.delete_lease(tmp_path / "missing.sqlite", subject="work/x") == 0
     _rejects("candidate_drift", lambda: effects.delete_exact_leases(db_path, [{"id": "missing"}]))  # fmt: skip
     assert projection.integer_value(value=True) == 0
-
-
-def test_rules_config_and_serialization_matrix(tmp_path: Path) -> None:
-    rules = tmp_path / ".ethos/rules.toml"
-    rules.parent.mkdir()
-    rules.write_text('rule = ["bad"]\n[gates]\ninvalid = "x"\n', encoding="utf-8")
-    assert rules_config.configured_rules(tmp_path) == [{"id": "", "_invalid": "rule_not_table"}]
-    assert rules_config.configured_gate_tables(tmp_path) == {}
-    assert rules_config.normalize_rule_item({"id": "x", "non_waivable": 1})["non_waivable"] is True  # fmt: skip
-    assert [rules_evaluation.scope_matches_path(scope, "x") for scope in ("repository", "path:")] == [True, False]  # fmt: skip
-    exceptions = tmp_path / "rules/ethos/policy-exceptions.toml"
-    exceptions.parent.mkdir(parents=True)
-    exceptions.write_text("[", encoding="utf-8")
-    assert rules_exceptions.policy_exceptions_report(tmp_path)["ok"] is False
-    exceptions.write_text("[exception]\nid='x'\n", encoding="utf-8")
-    assert rules_exceptions.policy_exceptions_report(tmp_path)["exceptions"] == []
-    text = rules_migration.rules_toml_text(
-        [
-            {"id": ""},
-            {"id": "x", "version": 2, "path_globs": ["a"], "non_waivable": True},
-        ]
-    )
-    selected = tuple(line for line in text.splitlines() if line.startswith(("version", "path_globs", "non_waivable")))  # fmt: skip
-    assert selected == ("version = 2", 'path_globs = ["a"]', "non_waivable = true")

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import json
 from typing import TYPE_CHECKING
 
@@ -72,8 +71,45 @@ def test_proof_retention_reports_malformed_records_without_deleting_them(
     }
 
 
+@pytest.mark.parametrize("store_kind", ["local", "external"])
 def test_apply_proof_retention_deletes_only_exact_digest_matches(
+    monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
+    store_kind: str,
+) -> None:
+    root = tmp_path / "repo" if store_kind == "external" else tmp_path
+    if store_kind == "external":
+        monkeypatch.setenv(
+            "ETHOS_TEST_PROOF_STATE_DIR",
+            (tmp_path / "external-proof").as_posix(),
+        )
+    path = _proof(root, "e" * 40)
+    inventory = proof_retention_inventory(
+        root,
+        reachable_heads=set(),
+        protected_heads=set(),
+    )
+
+    deleted = apply_proof_retention(root, inventory["delete_candidates"])
+
+    expected = (
+        path.resolve().as_posix() if store_kind == "external" else path.relative_to(root).as_posix()
+    )
+    assert deleted == [expected]
+    assert not path.exists()
+
+
+@pytest.mark.parametrize(
+    ("mode", "message"),
+    [
+        ("content", "proof_retention_candidate_drift"),
+        ("outside", "proof_retention_candidate_outside_store"),
+    ],
+)
+def test_apply_proof_retention_fails_closed_on_invalid_candidate(
+    tmp_path: Path,
+    mode: str,
+    message: str,
 ) -> None:
     head = "e" * 40
     path = _proof(tmp_path, head)
@@ -82,27 +118,13 @@ def test_apply_proof_retention_deletes_only_exact_digest_matches(
         reachable_heads=set(),
         protected_heads=set(),
     )
+    candidates = inventory["delete_candidates"]
+    if mode == "content":
+        path.write_text('{"head":"changed"}', encoding="utf-8")
+    else:
+        candidates = [{**candidates[0], "path": f"outside/{head}.json"}]
 
-    deleted = apply_proof_retention(tmp_path, inventory["delete_candidates"])
-
-    assert deleted == [path.relative_to(tmp_path).as_posix()]
-    assert not path.exists()
-
-
-def test_apply_proof_retention_fails_closed_on_content_drift(tmp_path: Path) -> None:
-    head = "e" * 40
-    path = _proof(tmp_path, head)
-    inventory = proof_retention_inventory(
-        tmp_path,
-        reachable_heads=set(),
-        protected_heads=set(),
-    )
-    path.write_text('{"head":"changed"}', encoding="utf-8")
-
-    with pytest.raises(ValueError, match="proof_retention_candidate_drift"):
-        apply_proof_retention(tmp_path, inventory["delete_candidates"])
+    with pytest.raises(ValueError, match=message):
+        apply_proof_retention(tmp_path, candidates)
 
     assert path.exists()
-    assert (
-        inventory["delete_candidates"][0]["sha256"] != hashlib.sha256(path.read_bytes()).hexdigest()
-    )

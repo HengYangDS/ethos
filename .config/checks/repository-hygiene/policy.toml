@@ -53,3 +53,7 @@ stash_policy_allowlist = [
   "not_git_stash",
   "hidden change carrier",
 ]
+stash_guidance_excluded_prefixes = [
+  "evidence/chronicle/",
+  "openspec/changes/archive/",
+]

@@ -1,20 +1,64 @@
 id = "ethos-command-registry"
 schema_version = 1
-source_refs = ["docs/governance/product-design-contract.md", "docs/architecture/declarative-governance-compiler.md", "openspec/specs/command-plane/spec.md"]
+source_refs = [
+  "docs/governance/product-design-contract.md",
+  "docs/architecture/declarative-governance-compiler.md",
+  "openspec/specs/command-plane/spec.md",
+]
 
-actions = { campaign_continuation = ["ethos campaign status --json"], campaign_hypotheses = ["ethos audit --mode shape"], head_bound_proof = ["ethos prove --execute --expect-head <head>"], lane_prewrite = ["ethos lane prewrite <path>"], protected_publication = ["ethos publish --json"] }
+[actions]
+campaign_continuation = ["ethos campaign status --json"]
+campaign_hypotheses = ["ethos audit --mode shape"]
+head_bound_proof = ["ethos prove --execute --expect-head <head>"]
+lane_prewrite = ["ethos lane prewrite <path>"]
+protected_publication = ["ethos publish --json"]
 
 [sets]
 public_workflow = ["ethos status", "ethos plan", "ethos prove", "ethos land", "ethos publish"]
 reader_view = ["ethos orient"]
 scorecard = ["ethos report"]
 setup = ["ethos init", "ethos adopt", "ethos doctor"]
-maintainer_reference = ["ethos audit", "ethos openspec", "ethos campaign", "ethos intake", "ethos intake status", "ethos intake mine", "ethos quality", "ethos assistants", "ethos playbooks", "ethos fleet", "ethos fleet retirement-readiness", "ethos lane", "ethos lane housekeeping", "ethos lane lease", "ethos lane handoff", "ethos lane resolution", "ethos lane retire", "ethos lane retire landed", "ethos lane retire superseded", "ethos lane retire unbound", "ethos hook", "ethos parity", "ethos explain", "ethos docs"]
+maintainer_reference = [
+  "ethos audit",
+  "ethos openspec",
+  "ethos campaign",
+  "ethos intake",
+  "ethos intake status",
+  "ethos intake mine",
+  "ethos quality",
+  "ethos assistants",
+  "ethos playbooks",
+  "ethos fleet",
+  "ethos fleet retirement-readiness",
+  "ethos lane",
+  "ethos lane housekeeping",
+  "ethos lane lease",
+  "ethos lane handoff",
+  "ethos lane resolution",
+  "ethos lane retire",
+  "ethos lane retire landed",
+  "ethos lane retire superseded",
+  "ethos lane retire unbound",
+  "ethos hook",
+  "ethos parity",
+  "ethos rules migrate",
+  "ethos explain",
+  "ethos docs",
+]
 governance_gate = ["openspec validate --all --strict --json"]
 local_closeout = ["ethos land --closeout --apply --authorize --expect-head <HEAD>"]
-evidence_refresh = ["ethos parity shadow --adopter <adopter-id> --target <repo> --execute --write-evidence"]
+evidence_refresh = [
+  "ethos parity shadow --adopter <adopter-id> --target <repo> --execute --write-evidence",
+]
 retired_public_roots = ["wt", "proof", "mission", "skill-evolution", "agent-surface-contract"]
-retired_public_command_prefixes = ["ethos kernel", "ethos governance", "ethos workspace", "ethos agent", "ethos project", "ethos node"]
+retired_public_command_prefixes = [
+  "ethos kernel",
+  "ethos governance",
+  "ethos workspace",
+  "ethos agent",
+  "ethos project",
+  "ethos node",
+]
 historical_exempt_roots = ["evidence", "docs/archive"]
 
 [[commands]]
@@ -22,21 +66,115 @@ name = "orient"
 group = "root"
 import_path = "ethos.surface.cli.root.inspection:orient"
 help = "Orient a human or agent without minting repository truth."
-report_handler = { provider = "ethos.surface.cli.root.inspection:_orient_report", summary = [{ name = "role", path = ["orientation", "where", "role"] }, { name = "candidate_action", path = ["orientation", "capability", "candidate_action"] }, { name = "foreign_work_lane_count", path = ["orientation", "coordination", "foreign_work_lane_count"] }, { name = "unbound_work_lane_count", path = ["orientation", "coordination", "unbound_work_lane_count"] }, { name = "missing_lease_count", path = ["orientation", "coordination", "missing_lease_count"], default = 0 }, { name = "dirty_foreign_work_lane_count", path = ["orientation", "coordination", "dirty_foreign_work_lane_count"] }, { name = "coordination_detail_state", path = ["orientation", "coordination", "detail_state"], default = "exact" }, { name = "coordination_advisory_count", path = ["orientation", "coordination", "advisory_items"], reducer = "count" }, { name = "coordination_blocking", path = ["orientation", "coordination", "blocking"], default = false }, { name = "governance_gap_count", path = ["orientation", "readiness", "governance_gap_count"] }, { name = "parity_pending_count", path = ["orientation", "readiness", "parity_pending_count"] }, { name = "advisory_gap_count", path = ["orientation", "readiness", "advisory_gap_count"] }], data_fields = [{ name = "orientation", path = ["orientation"] }], governance_context_path = ["governance_context"], next_actions_path = ["next_actions"], enforce = false, bind_root = true }
+report_handler = { provider = "ethos.surface.cli.root.inspection:_orient_report", summary = [
+  { name = "role", path = ["orientation", "where", "role"] },
+  { name = "candidate_action", path = ["orientation", "capability", "candidate_action"] },
+  { name = "foreign_work_lane_count", path = [
+    "orientation",
+    "coordination",
+    "foreign_work_lane_count",
+  ] },
+  { name = "unbound_work_lane_count", path = [
+    "orientation",
+    "coordination",
+    "unbound_work_lane_count",
+  ] },
+  { name = "missing_lease_count", path = [
+    "orientation",
+    "coordination",
+    "missing_lease_count",
+  ], default = 0 },
+  { name = "dirty_foreign_work_lane_count", path = [
+    "orientation",
+    "coordination",
+    "dirty_foreign_work_lane_count",
+  ] },
+  { name = "coordination_detail_state", path = [
+    "orientation",
+    "coordination",
+    "detail_state",
+  ], default = "exact" },
+  { name = "coordination_advisory_count", path = [
+    "orientation",
+    "coordination",
+    "advisory_items",
+  ], reducer = "count" },
+  { name = "coordination_blocking", path = [
+    "orientation",
+    "coordination",
+    "blocking",
+  ], default = false },
+  { name = "governance_gap_count", path = ["orientation", "readiness", "governance_gap_count"] },
+  { name = "parity_pending_count", path = ["orientation", "readiness", "parity_pending_count"] },
+  { name = "advisory_gap_count", path = ["orientation", "readiness", "advisory_gap_count"] },
+], data_fields = [
+  { name = "orientation", path = ["orientation"] },
+], governance_context_path = ["governance_context"], next_actions_path = [
+  "next_actions",
+] }
 
 [[commands]]
 name = "status"
 group = "root"
 import_path = "ethos.surface.cli.root.inspection:status"
 help = "Inspect repository state."
-report_handler = { provider = "ethos.surface.cli.root.inspection:_status_report", summary = [{ name = "root", path = ["status", "root"] }, { name = "branch", path = ["status", "branch"] }, { name = "role", path = ["status", "role"], default = "" }, { name = "dirty", path = ["status", "dirty"] }, { name = "changed_path_count", path = ["status", "changed_paths"], reducer = "count" }, { name = "foreign_work_lane_count", path = ["status", "coordination", "foreign_work_lane_count"], default = 0 }, { name = "unbound_work_lane_count", path = ["status", "coordination", "unbound_work_lane_count"], default = 0 }, { name = "missing_lease_count", path = ["status", "coordination", "missing_lease_count"], default = 0 }, { name = "dirty_foreign_work_lane_count", path = ["orientation", "coordination", "dirty_foreign_work_lane_count"] }, { name = "coordination_detail_state", path = ["orientation", "coordination", "detail_state"], default = "exact" }, { name = "coordination_advisory_count", path = ["status", "coordination", "advisory_gaps"], reducer = "count" }, { name = "coordination_blocking", path = ["status", "coordination", "blocking"], default = false }], diagnostics_path = ["diagnostics"], data_path = ["status"], governance_context_path = ["governance_context"], next_actions_path = ["next_actions"], enforce = false, bind_root = true }
+report_handler = { provider = "ethos.surface.cli.root.inspection:_status_report", summary = [
+  { name = "root", path = ["status", "root"] },
+  { name = "branch", path = ["status", "branch"] },
+  { name = "role", path = ["status", "role"], default = "" },
+  { name = "dirty", path = ["status", "dirty"] },
+  { name = "changed_path_count", path = ["status", "changed_paths"], reducer = "count" },
+  { name = "foreign_work_lane_count", path = [
+    "status",
+    "coordination",
+    "foreign_work_lane_count",
+  ], default = 0 },
+  { name = "unbound_work_lane_count", path = [
+    "status",
+    "coordination",
+    "unbound_work_lane_count",
+  ], default = 0 },
+  { name = "missing_lease_count", path = [
+    "status",
+    "coordination",
+    "missing_lease_count",
+  ], default = 0 },
+  { name = "dirty_foreign_work_lane_count", path = [
+    "orientation",
+    "coordination",
+    "dirty_foreign_work_lane_count",
+  ] },
+  { name = "coordination_detail_state", path = [
+    "orientation",
+    "coordination",
+    "detail_state",
+  ], default = "exact" },
+  { name = "coordination_advisory_count", path = [
+    "status",
+    "coordination",
+    "advisory_gaps",
+  ], reducer = "count" },
+  { name = "coordination_blocking", path = [
+    "status",
+    "coordination",
+    "blocking",
+  ], default = false },
+], diagnostics_path = ["diagnostics"], data_path = [
+  "status",
+], governance_context_path = ["governance_context"], next_actions_path = [
+  "next_actions",
+] }
 
 [[commands]]
 name = "report"
 group = "root"
 import_path = "ethos.surface.cli.root.inspection:report"
 help = "Emit a concise scorecard."
-report_handler = { provider = "ethos.surface.cli.root.inspection:_scorecard_reader_report", data_path = ["data"], governance_context_path = ["data", "governance_context"], next_actions_path = ["next_actions"], enforce = false, bind_root = true }
+report_handler = { provider = "ethos.surface.cli.root.inspection:_scorecard_reader_report", data_path = [
+  "data",
+], governance_context_path = ["data", "governance_context"], next_actions_path = [
+  "next_actions",
+] }
 
 [[commands]]
 name = "doctor"
@@ -110,18 +248,28 @@ help = "Audit official OpenSpec governance state."
 show = false
 
 [[commands]]
+name = "migrate"
+group = "rules"
+import_path = "ethos.surface.cli.rules:rules_migrate"
+help = "Plan or apply a lossless Rules V2 migration."
+
+[[commands]]
 name = "asset-policy"
 group = "quality"
 import_path = "ethos.surface.cli.quality.core:asset_policy"
 help = "Report repository asset quality policy."
-report_handler = { provider = "ethos.surface.cli.quality.core:_product_quality_profile", provider_mode = "payload", summary = [{ name = "asset_class_count", path = ["payload", "asset_classes"], reducer = "count" }], data_path = ["payload"], enforce = false, bind_root = false }
+report_handler = { provider = "ethos.surface.cli.quality.core:_product_quality_profile", provider_mode = "payload", summary = [
+  { name = "asset_class_count", path = ["payload", "asset_classes"], reducer = "count" },
+], data_path = ["payload"], bind_root = false }
 
 [[commands]]
 name = "types"
 group = "quality"
 import_path = "ethos.surface.cli.quality.core:quality_types"
 help = "Enforce zero diagnostics for every package governed by the ty type policy."
-report_handler = { provider = "ethos.adapters.gates.ty:ty_gate_report", summary = [{ name = "package_count", path = ["packages"], reducer = "count" }], enforce = true, bind_root = true }
+report_handler = { provider = "ethos.adapters.gates.ty:ty_gate_report", summary = [
+  { name = "package_count", path = ["packages"], reducer = "count" },
+], enforce = true }
 
 [[commands]]
 name = "docs"
@@ -134,21 +282,25 @@ name = "docs-topology"
 group = "quality"
 import_path = "ethos.surface.cli.quality.core:docs_topology"
 help = "Audit the minimal semantic documentation topology contract."
-report_handler = { provider = "ethos.repository.policy.docs.topology:docs_topology_report", when_blocked = "restore minimal semantic docs kernel: README, decisions, evidence, history, and reference", when_clean = "ethos prove --execute --gate docs-topology --expect-head $(git rev-parse HEAD) --json", enforce = true, bind_root = true }
+report_handler = { provider = "ethos.repository.policy.docs.topology:docs_topology_report", when_blocked = "restore minimal semantic docs kernel: README, decisions, evidence, history, and reference", when_clean = "ethos prove --execute --gate docs-topology --expect-head $(git rev-parse HEAD) --json", enforce = true }
 
 [[commands]]
 name = "proof-policy"
 group = "quality"
 import_path = "ethos.surface.cli.quality.core:proof_policy"
 help = "Report proof-state lattice and trust-bearing rules."
-report_handler = { provider = "ethos.surface.cli.quality.core:_proof_lattice", provider_mode = "payload", summary = [{ name = "state_count", path = ["payload", "states"], reducer = "count" }], data_path = ["payload"], enforce = false, bind_root = false }
+report_handler = { provider = "ethos.surface.cli.quality.core:_proof_lattice", provider_mode = "payload", summary = [
+  { name = "state_count", path = ["payload", "states"], reducer = "count" },
+], data_path = ["payload"], bind_root = false }
 
 [[commands]]
 name = "tool-profiles"
 group = "quality"
 import_path = "ethos.surface.cli.quality.core:tool_profiles_command"
 help = "Report quality tool adapter profiles."
-report_handler = { provider = "ethos.surface.cli.quality.core:_tool_profiles", provider_mode = "payload", summary = [{ name = "tool_adapter_count", path = ["payload", "tool_adapters"], reducer = "count" }], data_path = ["payload"], enforce = false, bind_root = false }
+report_handler = { provider = "ethos.surface.cli.quality.core:_tool_profiles", provider_mode = "payload", summary = [
+  { name = "tool_adapter_count", path = ["payload", "tool_adapters"], reducer = "count" },
+], data_path = ["payload"], bind_root = false }
 
 [[commands]]
 name = "markdown-links"
@@ -183,35 +335,48 @@ name = "coverage"
 group = "quality"
 import_path = "ethos.surface.cli.quality.core:coverage"
 help = "Report Python coverage policy and latest artifact state."
-report_handler = { provider = "ethos.repository.policy.coverage:coverage_quality_report", summary = [{ name = "current_hard_floor", path = ["policy", "current_hard_floor"] }, { name = "latest_line_percent", path = ["latest_artifact", "line_percent"] }, { name = "writer_active", path = ["latest_artifact", "writer_active"], default = false }], enforce = true, bind_root = true }
+report_handler = { provider = "ethos.repository.policy.coverage:coverage_quality_report", summary = [
+  { name = "current_hard_floor", path = ["policy", "current_hard_floor"] },
+  { name = "latest_line_percent", path = ["latest_artifact", "line_percent"] },
+  { name = "writer_active", path = ["latest_artifact", "writer_active"], default = false },
+], enforce = true }
 
 [[commands]]
 name = "docstrings"
 group = "quality"
 import_path = "ethos.surface.cli.quality.core:docstrings"
 help = "Report public product-surface docstring coverage."
-report_handler = { provider = "ethos.repository.policy.docstrings.core:docstring_coverage_report", summary = [{ name = "coverage_percent", path = ["coverage_percent"] }, { name = "documented_count", path = ["documented_count"] }, { name = "public_count", path = ["public_count"] }, { name = "style_issue_count", path = ["style_issue_count"], default = 0 }, { name = "advisory_missing_count", path = ["advisory_public_definition_inventory", "missing_count"], default = 0 }], enforce = true, bind_root = true }
+report_handler = { provider = "ethos.repository.policy.docstrings.core:docstring_coverage_report", summary = [
+  { name = "coverage_percent", path = ["coverage_percent"] },
+  { name = "documented_count", path = ["documented_count"] },
+  { name = "public_count", path = ["public_count"] },
+  { name = "style_issue_count", path = ["style_issue_count"], default = 0 },
+  { name = "advisory_missing_count", path = [
+    "advisory_public_definition_inventory",
+    "missing_count",
+  ], default = 0 },
+], enforce = true }
 
 [[commands]]
 name = "code-size"
 group = "quality"
 import_path = "ethos.surface.cli.quality.core:code_size"
 help = "Check effective source-file size against ratchet limits."
-report_handler = { provider = "ethos.domain.prove:code_size_report", enforce = false, bind_root = true }
+report_handler = { provider = "ethos.domain.prove:code_size_report" }
 
 [[commands]]
 name = "source-budget"
 group = "quality"
 import_path = "ethos.surface.cli.quality.core:source_budget"
 help = "Report global executable-source budget and compression debt."
-report_handler = { provider = "ethos.domain.source_budget.core:source_budget_report", state_mode = "advisory_gaps", enforce = true, bind_root = true }
+report_handler = { provider = "ethos.domain.source_budget.core:source_budget_report", state_mode = "advisory_gaps", enforce = true }
 
 [[commands]]
 name = "module-layout"
 group = "quality"
 import_path = "ethos.surface.cli.quality.core:module_layout"
 help = "Check semantic subpackage and import-layout discipline."
-report_handler = { provider = "ethos.repository.policy.layout.core:module_layout_report", enforce = true, bind_root = true }
+report_handler = { provider = "ethos.repository.policy.layout.core:module_layout_report", enforce = true }
 
 [[commands]]
 name = "npm"
@@ -225,14 +390,14 @@ name = "generated-artifacts"
 group = "quality"
 import_path = "ethos.surface.cli.quality.core:generated_artifacts"
 help = "Audit generated-artifact topology and path routing drift."
-report_handler = { provider = "ethos.repository.policy.artifacts:generated_artifact_topology_report", when_blocked = "move generated outputs under build/ethos or build/evidence; promote curated summaries into docs/evidence", when_clean = "ethos prove --execute --expect-head $(git rev-parse HEAD) --json", enforce = true, bind_root = true }
+report_handler = { provider = "ethos.repository.policy.artifacts:generated_artifact_topology_report", when_blocked = "move generated outputs under build/ethos or build/evidence; promote curated summaries into docs/evidence", when_clean = "ethos prove --execute --expect-head $(git rev-parse HEAD) --json", enforce = true }
 
 [[commands]]
 name = "command-surface"
 group = "quality"
 import_path = "ethos.surface.cli.quality.core:command_surface"
 help = "Validate public command surface vocabulary."
-report_handler = { provider = "ethos.repository.registry.commands:command_registry_report", enforce = false, bind_root = true }
+report_handler = { provider = "ethos.repository.registry.commands:command_registry_report" }
 
 [[commands]]
 name = "format-policy"
@@ -245,14 +410,16 @@ name = "projection-drift"
 group = "quality"
 import_path = "ethos.surface.cli.quality.core:projection_drift"
 help = "Report projection drift readiness."
-report_handler = { provider = "ethos.assistants.projections:projection_drift_report", enforce = false, bind_root = true }
+report_handler = { provider = "ethos.assistants.projections:projection_drift_report" }
 
 [[commands]]
 name = "standards"
 group = "quality"
 import_path = "ethos.surface.cli.quality.core:standards"
 help = "Report standards and framework adapter registry."
-report_handler = { provider = "ethos.surface.cli.quality.core:_standards_report", provider_mode = "payload", data_path = ["payload"], enforce = false, bind_root = false }
+report_handler = { provider = "ethos.surface.cli.quality.core:_standards_report", provider_mode = "payload", data_path = [
+  "payload",
+], bind_root = false }
 
 [[commands]]
 name = "package-ontology"
@@ -265,14 +432,16 @@ name = "schemas"
 group = "quality"
 import_path = "ethos.surface.cli.quality.core:schemas"
 help = "Validate ETHOS JSON Schemas."
-report_handler = { provider = "ethos.repository.policy.schema:schema_validation_report", enforce = false, bind_root = true }
+report_handler = { provider = "ethos.repository.policy.schema:schema_validation_report" }
 
 [[commands]]
 name = "gates"
 group = "quality"
 import_path = "ethos.surface.cli.quality.core:gates"
 help = "Report executable proof gate registry."
-report_handler = { provider = "ethos.surface.cli.quality.core:_gate_registry_report", provider_mode = "payload", clean_state = "ready", summary = [{ name = "gate_count", path = ["payload", "gates"], reducer = "count" }], data_path = ["payload"], enforce = false, bind_root = true }
+report_handler = { provider = "ethos.surface.cli.quality.core:_gate_registry_report", provider_mode = "payload", clean_state = "ready", summary = [
+  { name = "gate_count", path = ["payload", "gates"], reducer = "count" },
+], data_path = ["payload"] }
 
 [[commands]]
 name = "coupling-audit"
@@ -291,21 +460,30 @@ name = "release"
 group = "quality"
 import_path = "ethos.surface.cli.quality.core:release"
 help = "Report product release surface and host-profile readiness."
-report_handler = { provider = "ethos.surface.cli.quality.core:_release_file_report", data_fields = [{ name = "release_files", path = ["release_files"] }, { name = "host_profile", path = ["host_profile"] }], next_actions = ["uv build --all-packages --out-dir build/artifacts/python --clear --no-create-gitignore"], enforce = false, bind_root = true }
+report_handler = { provider = "ethos.surface.cli.quality.core:_release_file_report", data_fields = [
+  { name = "release_files", path = ["release_files"] },
+  { name = "host_profile", path = ["host_profile"] },
+], next_actions = [
+  "uv build --all-packages --out-dir build/artifacts/python --clear --no-create-gitignore",
+] }
 
 [[commands]]
 name = "release-policy"
 group = "quality"
 import_path = "ethos.surface.cli.quality.core:release_policy"
 help = "Validate release version, host profile, protection, and attestation policy."
-report_handler = { provider = "ethos.repository.release.core:release_policy_report", clean_state = "ready", next_actions = ["ethos quality release-attestation"], enforce = false, bind_root = true }
+report_handler = { provider = "ethos.repository.release.core:release_policy_report", clean_state = "ready", next_actions = [
+  "ethos quality release-attestation",
+] }
 
 [[commands]]
 name = "sbom"
 group = "quality"
 import_path = "ethos.surface.cli.quality.core:sbom"
 help = "Emit an SPDX-lite SBOM projection from workspace metadata."
-report_handler = { provider = "ethos.surface.cli.quality.core:_sbom_report", provider_mode = "payload", clean_state = "ready", summary = [{ name = "package_count", path = ["payload", "sbom", "packages"], reducer = "count" }], data_path = ["payload"], enforce = false, bind_root = true }
+report_handler = { provider = "ethos.surface.cli.quality.core:_sbom_report", provider_mode = "payload", clean_state = "ready", summary = [
+  { name = "package_count", path = ["payload", "sbom", "packages"], reducer = "count" },
+], data_path = ["payload"] }
 
 [[commands]]
 name = "release-attestation"
@@ -318,35 +496,44 @@ name = "command-registry"
 group = "quality"
 import_path = "ethos.surface.cli.quality.core:command_registry"
 help = "Validate public command registry."
-report_handler = { provider = "ethos.repository.registry.commands:command_registry_report", next_actions = ["ethos repository audit"], enforce = false, bind_root = true }
+report_handler = { provider = "ethos.repository.registry.commands:command_registry_report", next_actions = [
+  "ethos repository audit",
+] }
 
 [[commands]]
 name = "evidence-freshness"
 group = "quality"
 import_path = "ethos.surface.cli.quality.core:evidence_freshness"
 help = "Check declared evidence roots and claim digests."
-report_handler = { provider = "ethos.repository.evidence.freshness:evidence_freshness_report", bind_current_head = true, data_path = ["data"], next_actions = ["ethos prove --json"], enforce = false, bind_root = true }
+report_handler = { provider = "ethos.repository.evidence.freshness:evidence_freshness_report", bind_current_head = true, data_path = [
+  "data",
+], next_actions = ["ethos prove --json"] }
 
 [[commands]]
 name = "claims"
 group = "quality"
 import_path = "ethos.surface.cli.quality.core:claims"
 help = "Validate claim evidence digests."
-report_handler = { provider = "ethos.repository.evidence.claims:claims_report", bind_current_head = true, summary = [{ name = "claim_count", path = ["claims"], reducer = "count" }, { name = "advisory_gap_count", path = ["advisory_gaps"], reducer = "count" }], state_mode = "advisory_gaps", next_actions = ["ethos prove --json"], enforce = false, bind_root = true }
+report_handler = { provider = "ethos.repository.evidence.claims:claims_report", bind_current_head = true, summary = [
+  { name = "claim_count", path = ["claims"], reducer = "count" },
+  { name = "advisory_gap_count", path = ["advisory_gaps"], reducer = "count" },
+], state_mode = "advisory_gaps", next_actions = ["ethos prove --json"] }
 
 [[commands]]
 name = "docs-registry"
 group = "quality"
 import_path = "ethos.surface.cli.quality.core:docs_registry"
 help = "Validate documentation metadata registry."
-report_handler = { provider = "ethos.repository.registry.docs.health:docs_health_report", next_actions = ["ethos docs"], enforce = false, bind_root = true }
+report_handler = { provider = "ethos.repository.registry.docs.health:docs_health_report", next_actions = [
+  "ethos docs",
+] }
 
 [[commands]]
 name = "command-examples"
 group = "quality"
 import_path = "ethos.surface.cli.quality.core:command_examples"
 help = "Validate documented command examples."
-report_handler = { provider = "ethos.repository.registry.docs.commands:command_examples_report", enforce = false, bind_root = true }
+report_handler = { provider = "ethos.repository.registry.docs.commands:command_examples_report" }
 
 [[commands]]
 name = "provenance"
@@ -359,32 +546,36 @@ name = "no-compat"
 group = "quality"
 import_path = "ethos.surface.cli.quality.cutover.core:no_compat"
 help = "Check production source for compatibility residue."
-report_handler = { provider = "ethos.repository.policy.no_compat.core:no_compat_report", enforce = true, bind_root = true }
+report_handler = { provider = "ethos.repository.policy.no_compat.core:no_compat_report", enforce = true }
 
 [[commands]]
 name = "product-boundary"
 group = "quality"
 import_path = "ethos.surface.cli.boundary.product:product_boundary"
 help = "Audit product and release-visible historical surfaces for boundary leaks."
-report_handler = { provider = "ethos.repository.policy.boundary.product:product_boundary_report", next_actions = ["neutralize product and release-visible historical surfaces; keep private provenance in adopter repositories or ignored local state"], enforce = true, bind_root = true }
+report_handler = { provider = "ethos.repository.policy.boundary.product:product_boundary_report", next_actions = [
+  "neutralize product and release-visible historical surfaces; keep private provenance in adopter repositories or ignored local state",
+], enforce = true }
 
 [[commands]]
 name = "contributor-policy"
 group = "quality"
 import_path = "ethos.surface.cli.boundary.product:contributor_policy"
 help = "Audit organization-native contributor, role, and automation identity policy."
-report_handler = { provider = "ethos.repository.policy.boundary.product:contributor_policy_report", next_actions = ["declare role-based humans, teams, and automation identities"], enforce = true, bind_root = true }
+report_handler = { provider = "ethos.repository.policy.boundary.product:contributor_policy_report", next_actions = [
+  "declare role-based humans, teams, and automation identities",
+], enforce = true }
 
 [[commands]]
 name = "enterprise-readiness"
 group = "quality"
 import_path = "ethos.surface.cli.boundary.readiness:enterprise_readiness"
 help = "Audit enterprise-neutral readiness across product boundary, docs, identity, and release."
-report_handler = { provider = "ethos.domain.readiness.enterprise:enterprise_readiness_report", when_blocked = "resolve enterprise-readiness required gaps, then rerun ethos quality enterprise-readiness --json", when_clean = "ethos prove --execute --expect-head $(git rev-parse HEAD) --json", enforce = true, bind_root = true }
+report_handler = { provider = "ethos.domain.readiness.enterprise:enterprise_readiness_report", when_blocked = "resolve enterprise-readiness required gaps, then rerun ethos quality enterprise-readiness --json", when_clean = "ethos prove --execute --expect-head $(git rev-parse HEAD) --json", enforce = true }
 
 [[commands]]
 name = "governance-kernel"
 group = "quality"
 import_path = "ethos.surface.cli.boundary.readiness:governance_kernel"
 help = "Audit the single kernel shared by product and adopted repositories."
-report_handler = { provider = "ethos.repository.policy.governance.kernel:governance_kernel_report", when_blocked = "repair governance kernel, profile/adoption scaffold, and command-plane docs", when_clean = "ethos quality enterprise-readiness --json", enforce = true, bind_root = true }
+report_handler = { provider = "ethos.repository.policy.governance.kernel:governance_kernel_report", when_blocked = "repair governance kernel, profile/adoption scaffold, and command-plane docs", when_clean = "ethos quality enterprise-readiness --json", enforce = true }

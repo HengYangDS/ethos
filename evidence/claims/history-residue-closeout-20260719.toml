@@ -1,21 +1,22 @@
 [claim]
 id = "history-residue-closeout-20260719"
-change_id = "history-residue-closeout-20260719"
 subject = "ethos:history-residue-closeout"
 state = "active"
-summary = "The approved Work Lane is bounded to lossless tracked cleanup, conservative local-state maintenance, recovery preservation, and measured source-budget settlement."
+summary = "The active claim binds the dated successor-v3 OpenSpec archive and Chronicle as a historical tracked-work record only."
 
 [evidence]
 dated = "evidence/chronicle/history-residue-closeout-20260719/2026-07-19.md"
-sha256 = "466e6a2265d6b43d576170f11d64f48038f7cd31317600c1da43fd3e226bb0ff"
+sha256 = "d39e6c5d1faa5eb0e3719aca646e58e10458c0c68b5ea7d62232c9252c50e6de"
 evidence_ids = ["evidence:history-residue-closeout-20260719"]
-binding = "The active OpenSpec carrier, approved Work Lane, baseline suite, strict validation receipt, digest-bound recovery archive, and applied local-state maintenance receipt bind authoring scope without asserting proof, landing, or closeout completion."
+binding = "Raw-byte digest association between the dated OpenSpec archive and the historical Chronicle; no local-state effect or terminal campaign completion is asserted."
 verifier = "digest_only"
 tests = [
-  "tools/ci/scripts/run-python-tests.sh (baseline: 2209 passed, 100% coverage)",
-  "openspec validate history-residue-closeout-20260719 --strict --json",
-  "operator archive extraction, 356-entry digest comparison, and git bundle verify for all three bundles",
-  "ethos doctor --maintenance read-only inventory and digest-bound apply receipt",
+  "tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev pytest -q tests/unit/kernel/rules/test_migration.py tests/unit/cli/test_rules_migration.py tests/unit/domain/test_plan.py",
+  "tools/ci/scripts/run-ethos-lane.sh quality source-budget --json",
+  "tools/ci/scripts/run-ethos-lane.sh quality claims --json",
+  "tools/ci/scripts/run-ethos-lane.sh openspec --archive-id history-residue-closeout-20260719 --json",
+  "tools/ci/scripts/run-ethos-lane.sh parity gaps --adopter generic --target . --json",
+  "tools/ci/scripts/run-ethos-lane.sh prove --full --execute --expect-head <git-head> --json",
 ]
 
 [evidence.freshness]
@@ -23,16 +24,16 @@ mode = "historical"
 
 [boundary]
 owner = "repository-governance"
-scope = "Tracked history residue, lossless Rules V2 migration, conservative ignored local-state maintenance, recovery preservation, and expired source-budget settlement in one owned Work Lane."
+scope = "Tracked successor-v3 cleanup, tests, OpenSpec, claims, and Chronicle only; excludes real local-state mutation, recovery deletion, terminal source-budget settlement, and remote or hosted completion."
 
 [carriers]
-openspec = "openspec/changes/history-residue-closeout-20260719"
-fallback = "Revert tracked changes and restore local state from the verified operator archive; leave any unverified recovery source untouched."
-kill_signal = "Active coordination, current proof, unique recovery material, quality policy, or source-budget baseline is lost or an expiry is rolled forward without measured deletion."
+openspec = "openspec/changes/archive/2026-07-19-history-residue-closeout-20260719"
+fallback = "Revert tracked authoring changes; leave ignored local state, leases, proofs, recovery material, and remote refs untouched unless separately authorized."
+kill_signal = "The carrier or Chronicle is missing, the raw-byte digest breaks, a historical claim is deleted without disposition, or the record expands into unobserved local, remote, hosted, or terminal-completion claims."
 
 [promotion]
 targets = [
-  "openspec/changes/history-residue-closeout-20260719",
+  "openspec/changes/archive/2026-07-19-history-residue-closeout-20260719",
   "evidence/claims/history-residue-closeout-20260719.toml",
   "evidence/chronicle/history-residue-closeout-20260719/2026-07-19.md",
 ]

@@ -5,15 +5,19 @@ from __future__ import annotations
 import pathlib
 import shlex
 import sys
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
 from typing import Annotated
+from typing import Any
+from typing import cast
 
 from cyclopts import Parameter
 
 import ethos.domain.orient as orient_domain
 from ethos.adapters.repo.status.core import workspace_status
-from ethos.adapters.store.state.lease.lifecycle.core import initialize_lease_state
 from ethos.adapters.store.state.maintenance import apply_local_state_maintenance
 from ethos.adapters.store.state.maintenance import local_state_maintenance_inventory
+from ethos.adapters.store.state.schema import initialize_state
 from ethos.domain.prove import workspace_status_validation
 from ethos.domain.prove import workspace_status_validation_gaps
 from ethos.domain.report import scorecard_report
@@ -22,11 +26,36 @@ from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import resolve_root
+from ethos.surface.cli.quality.reporting import build_declarative_report_result
 from ethos.surface.cli.quality.reporting import declared_report_result
 from ethos_core.normalization.core import integer
 from ethos_core.normalization.core import string_mapping
 from ethos_core.normalization.core import string_sequence
 from ethos_core.result import EthosResult
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+
+@dataclass(frozen=True, slots=True)
+class DoctorMaintenanceOptions:
+    """Explicit local-state maintenance options for ``ethos doctor``."""
+
+    maintenance: Annotated[bool, Parameter(name="--maintenance")] = False
+    apply_maintenance: Annotated[bool, Parameter(name="--apply-maintenance")] = False
+    archive_root: Annotated[pathlib.Path | None, Parameter(name="--archive-root")] = None
+    observed_at: Annotated[str, Parameter(name="--observed-at")] = ""
+    expect_inventory_digest: Annotated[
+        str,
+        Parameter(name="--expect-inventory-digest"),
+    ] = ""
+    confirm_irreversible: Annotated[
+        bool,
+        Parameter(name="--confirm-irreversible"),
+    ] = False
+
+
+_DEFAULT_DOCTOR_MAINTENANCE_OPTIONS = DoctorMaintenanceOptions()
 
 
 def _orient_report(repo: pathlib.Path) -> dict[str, object]:
@@ -74,7 +103,9 @@ def _checkout_command_prefix(repo: pathlib.Path) -> str:
 
 
 def _scorecard_reader_report(
-    repo: pathlib.Path, *, product_root: pathlib.Path | None = None
+    repo: pathlib.Path,
+    *,
+    product_root: pathlib.Path | None = None,
 ) -> dict[str, object]:
     """Supply scorecard facts for the report reader projection."""
     return scorecard_report(repo, product_root=product_root)
@@ -87,125 +118,159 @@ def status(
     compact: Annotated[bool, Parameter(name="--compact")] = False,
 ) -> None:
     """Inspect repository state."""
-    _reader("status", root, json_output=json_output, compact=compact)
+    repo = resolve_root(root)
+    handler, report_payload, result = declared_report_result(
+        module_name=__name__,
+        function_name="status",
+        target=repo,
+        group="root",
+    )
+    if compact:
+        result = _compact_status_result(result)
+    if json_output:
+        emit(result, json_output=json_output, enforce=handler.enforce)
+        return
+    orientation = cast("dict[str, object]", report_payload["orientation"])
+    for line in orient_domain.human_orientation_lines(orientation):
+        sys.stdout.write(f"{line}\n")
 
 
 def _compact_status_result(result: EthosResult) -> EthosResult:
     """Project status into bounded decision facts for agent and CI callers."""
     data = result.data
+    coordination = cast("dict[str, object]", data.get("coordination") or {})
+    landing = cast("dict[str, object]", data.get("landing_readiness") or {})
+    candidate = cast("dict[str, object]", data.get("candidate") or {})
     compact_data = {
-        **_project(
-            data, "root:v branch:v head:v role:v dirty:b changed_path_count:n:changed_paths"
-        ),
-        "landing_readiness": _project(
-            data.get("landing_readiness"), "state:v required_gaps:l next_action:v"
-        ),
-        "candidate": _project(data.get("candidate"), "branch:v head:v exists:b worktree_exists:b"),
-        "coordination": _project(
-            data.get("coordination"),
-            "blocking:b foreign_work_lane_count:i unbound_work_lane_count:i "
-            "missing_lease_count:i advisory_count:n:advisory_gaps required_count:n:required_gaps",
-        ),
-        **_project(data, "stage_gates:d"),
+        "compact": True,
+        "root": data.get("root", ""),
+        "branch": data.get("branch", ""),
+        "head": data.get("head", ""),
+        "role": data.get("role", ""),
+        "dirty": bool(data.get("dirty")),
+        "changed_path_count": _count_sequence(data.get("changed_paths")),
+        "landing_readiness": {
+            "state": landing.get("state", ""),
+            "required_gaps": string_sequence(landing.get("required_gaps")),
+            "next_action": landing.get("next_action", ""),
+        },
+        "candidate": {
+            "branch": candidate.get("branch", ""),
+            "head": candidate.get("head", ""),
+            "exists": bool(candidate.get("exists")),
+            "worktree_exists": bool(candidate.get("worktree_exists")),
+        },
+        "coordination": {
+            "blocking": bool(coordination.get("blocking")),
+            "foreign_work_lane_count": integer(coordination.get("foreign_work_lane_count")),
+            "unbound_work_lane_count": integer(coordination.get("unbound_work_lane_count")),
+            "missing_lease_count": integer(coordination.get("missing_lease_count")),
+            "advisory_count": _count_sequence(coordination.get("advisory_gaps")),
+            "required_count": _count_sequence(coordination.get("required_gaps")),
+        },
+        "stage_gates": cast("dict[str, object]", data.get("stage_gates") or {}),
     }
-    return _compact_result(result, compact_data)
+    return EthosResult(
+        command=result.command,
+        ok=result.ok,
+        state=result.state,
+        summary={**result.summary, "compact": True},
+        diagnostics=result.diagnostics,
+        required_gaps=result.required_gaps,
+        next_actions=result.next_actions,
+        governance_context=result.governance_context,
+        data=compact_data,
+    )
 
 
-def orient(*, root: RootOption | None = None, json_output: JsonFlag = False) -> None:
+def orient(
+    *,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
     """Orient a human or agent without minting repository truth."""
-    _reader("orient", root, json_output=json_output)
+    repo = resolve_root(root)
+    handler, report_payload, result = declared_report_result(
+        module_name=__name__,
+        function_name="orient",
+        target=repo,
+        group="root",
+    )
+    if json_output:
+        emit(result, json_output=json_output, enforce=handler.enforce)
+        return
+    packet = cast("dict[str, object]", report_payload["orientation"])
+    for line in orient_domain.human_orientation_lines(packet):
+        sys.stdout.write(f"{line}\n")
 
 
-def _project_value(source: dict[str, object], key: str, kind: str) -> object:
-    value = source.get(key)
+def _count_sequence(value: object) -> int:
+    if isinstance(value, list | tuple):
+        return len(value)
+    return 0
+
+
+def _compact_invalid_states(value: object) -> dict[str, object]:
+    if not isinstance(value, dict):
+        return {"category_count": 0, "gap_count": 0}
     return {
-        "b": bool(value),
-        "i": integer(value),
-        "l": string_sequence(value),
-        "n": len(string_sequence(value)),
-        "d": source.get(key, {}),
-    }.get(kind, source.get(key, ""))
-
-
-def _project(value: object, fields: str) -> dict[str, object]:
-    source = string_mapping(value)
-    return {
-        output: _project_value(source, names[0] if names else output, kind)
-        for field in fields.split()
-        for output, kind, *names in (field.split(":"),)
+        "category_count": integer(value.get("category_count")),
+        "gap_count": integer(value.get("gap_count")),
     }
 
 
 def _compact_gap_layers(value: object) -> dict[str, dict[str, object]]:
-    return {
-        str(name): {
-            **_project(
-                layer,
-                "blocking:b ok:b required_count:n:required_gaps "
-                "advisory_count:n:advisory_gaps gap_count:i",
-            ),
-            "invalid_states": _project(layer.get("invalid_states"), "category_count:i gap_count:i"),
+    if not isinstance(value, dict):
+        return {}
+    compact_layers: dict[str, dict[str, object]] = {}
+    for name, raw_layer in value.items():
+        if not isinstance(raw_layer, dict):
+            continue
+        compact_layers[str(name)] = {
+            "blocking": bool(raw_layer.get("blocking")),
+            "ok": bool(raw_layer.get("ok")),
+            "required_count": _count_sequence(raw_layer.get("required_gaps")),
+            "advisory_count": _count_sequence(raw_layer.get("advisory_gaps")),
+            "gap_count": integer(raw_layer.get("gap_count")),
+            "invalid_states": _compact_invalid_states(raw_layer.get("invalid_states")),
         }
-        for name, layer in string_mapping(value).items()
-        if isinstance(layer, dict)
-    }
+    return compact_layers
 
 
-def _compact_report_result(result: EthosResult) -> EthosResult:
-    data, parity = result.data, string_mapping(result.data.get("parity"))
-    compact_data = {
-        **_project(data, "scores:d score_model:d first_hour:d"),
+def _compact_report_data(data: dict[str, Any]) -> dict[str, object]:
+    advisory_signals = cast("dict[str, object]", data.get("advisory_signals") or {})
+    parity = cast("dict[str, object]", data.get("parity") or {})
+    parity_gaps = cast("dict[str, object]", parity.get("gaps") or {})
+    adopter_gaps = cast("dict[str, object]", parity.get("adopter_gaps") or {})
+    return {
+        "compact": True,
+        "scores": data.get("scores", {}),
+        "score_model": data.get("score_model", {}),
+        "first_hour": data.get("first_hour", {}),
         "gap_layers": _compact_gap_layers(data.get("gap_layers")),
-        "invalid_states": _project(data.get("invalid_states"), "category_count:i gap_count:i"),
-        "advisory_signals": _project(
-            data.get("advisory_signals"),
-            "blocking:b gap_count:i next_action_count:n:next_actions",
-        ),
+        "invalid_states": _compact_invalid_states(data.get("invalid_states")),
+        "advisory_signals": {
+            "blocking": bool(advisory_signals.get("blocking")),
+            "gap_count": integer(advisory_signals.get("gap_count")),
+            "next_action_count": _count_sequence(advisory_signals.get("next_actions")),
+        },
         "parity": {
-            **_project(parity, "scope:d"),
-            **_project(
-                parity.get("gaps"),
-                "generic_gap_count:n:required_gaps pending_package_count:n:pending_packages",
-            ),
-            **_project(parity.get("adopter_gaps"), "adopter_gap_count:n:required_gaps"),
+            "scope": parity.get("scope", {}),
+            "generic_gap_count": _count_sequence(parity_gaps.get("required_gaps")),
+            "adopter_gap_count": _count_sequence(adopter_gaps.get("required_gaps")),
+            "pending_package_count": _count_sequence(parity_gaps.get("pending_packages")),
         },
     }
-    return _compact_result(result, compact_data)
 
 
-def _compact_result(result: EthosResult, data: dict[str, object]) -> EthosResult:
-    return result.model_copy(
-        update={"summary": {**result.summary, "compact": True}, "data": {"compact": True, **data}}
-    )
-
-
-def _reader(
-    name: str,
-    root: pathlib.Path | None,
-    *,
-    json_output: bool,
-    compact: bool = False,
-    product_root: pathlib.Path | None = None,
-) -> None:
-    repo = resolve_root(root)
-    handler, payload, result = declared_report_result(
-        module_name=__name__,
-        function_name=name,
-        target=repo,
-        group="root",
-        provider_kwargs={"product_root": resolve_root(product_root) if product_root else None}
-        if name == "report"
-        else None,
-    )
-    if compact:
-        result = (
-            _compact_status_result(result) if name == "status" else _compact_report_result(result)
-        )
-    if json_output or name == "report":
-        emit(result, json_output=json_output, enforce=handler.enforce)
-        return
-    packet = string_mapping(payload.get("orientation"))
-    sys.stdout.writelines(f"{line}\n" for line in orient_domain.human_orientation_lines(packet))
+def _compact_report_payload(payload: Mapping[str, object]) -> dict[str, object]:
+    data = cast("dict[str, Any]", string_mapping(payload.get("data")))
+    return {
+        **payload,
+        "governance_context": data.get("governance_context", {}),
+        "summary": {**string_mapping(payload.get("summary")), "compact": True},
+        "data": _compact_report_data(data),
+    }
 
 
 def report(
@@ -216,81 +281,70 @@ def report(
     compact: Annotated[bool, Parameter(name="--compact")] = False,
 ) -> None:
     """Emit a concise scorecard."""
-    _reader(
-        "report",
-        root,
-        json_output=json_output,
-        compact=compact,
-        product_root=product_root,
+    handler, payload, result = declared_report_result(
+        module_name=__name__,
+        function_name="report",
+        target=resolve_root(root),
+        group="root",
+        provider_kwargs={
+            "product_root": resolve_root(product_root) if product_root is not None else None
+        },
     )
-
-
-def _maintenance(
-    repo: pathlib.Path,
-    archive_root: pathlib.Path | None,
-    observed_at: str,
-    *,
-    apply: bool,
-    expect_digest: str,
-    confirm: bool,
-) -> tuple[dict[str, object], list[str]]:
-    gaps = [
-        gap
-        for missing, gap in (
-            (archive_root is None, "maintenance_archive_root_required"),
-            (not observed_at, "maintenance_observed_at_required"),
+    if compact:
+        payload = _compact_report_payload(payload)
+        result = build_declarative_report_result(
+            command="report",
+            handler=handler,
+            report=payload,
         )
-        if missing
-    ]
-    if gaps:
-        return {}, gaps
-    assert archive_root is not None
-    try:
-        if apply:
-            return (
-                apply_local_state_maintenance(
-                    repo,
-                    archive_root,
-                    observed_at,
-                    expect_inventory_digest=expect_digest,
-                    confirm_irreversible=confirm,
-                ),
-                [],
-            )
-        return local_state_maintenance_inventory(repo, archive_root, observed_at), []
-    except (OSError, RuntimeError, ValueError) as exc:
-        return {}, [str(exc) or exc.__class__.__name__]
+    emit(result, json_output=json_output, enforce=handler.enforce)
 
 
 def doctor(
     *,
     root: RootOption | None = None,
     init_state: bool = False,
-    maintenance: Annotated[bool, Parameter(name="--maintenance")] = False,
-    apply_maintenance: Annotated[bool, Parameter(name="--apply-maintenance")] = False,
-    archive_root: Annotated[pathlib.Path | None, Parameter(name="--archive-root")] = None,
-    observed_at: Annotated[str, Parameter(name="--observed-at")] = "",
-    expect_inventory_digest: Annotated[str, Parameter(name="--expect-inventory-digest")] = "",
-    confirm_irreversible: Annotated[bool, Parameter(name="--confirm-irreversible")] = False,
+    options: Annotated[
+        DoctorMaintenanceOptions,
+        Parameter(name="*"),
+    ] = _DEFAULT_DOCTOR_MAINTENANCE_OPTIONS,
     json_output: JsonFlag = False,
 ) -> None:
     """Inspect local host readiness."""
     repo = resolve_root(root)
     db_path = repo / ".ethos" / "state" / "state.sqlite"
     if init_state:
-        initialize_lease_state(db_path)
-    maintenance_payload, maintenance_gaps = (
-        _maintenance(
-            repo,
-            archive_root,
-            observed_at,
-            apply=apply_maintenance,
-            expect_digest=expect_inventory_digest,
-            confirm=confirm_irreversible,
-        )
-        if maintenance or apply_maintenance
-        else ({}, [])
-    )
+        initialize_state(db_path)
+    maintenance_payload: dict[str, Any] = {}
+    maintenance_gaps: list[str] = []
+    if options.maintenance or options.apply_maintenance:
+        if options.archive_root is None:
+            maintenance_gaps.append("maintenance_archive_root_required")
+        if not options.observed_at:
+            maintenance_gaps.append("maintenance_observed_at_required")
+        if not maintenance_gaps:
+            try:
+                if options.apply_maintenance:
+                    maintenance_payload = apply_local_state_maintenance(
+                        repo,
+                        cast("pathlib.Path", options.archive_root),
+                        options.observed_at,
+                        expect_inventory_digest=options.expect_inventory_digest,
+                        confirm_irreversible=options.confirm_irreversible,
+                    )
+                else:
+                    maintenance_payload = local_state_maintenance_inventory(
+                        repo,
+                        cast("pathlib.Path", options.archive_root),
+                        options.observed_at,
+                    )
+            except (OSError, RuntimeError, ValueError) as exc:
+                message = str(exc).strip()
+                maintenance_gaps.append(
+                    message
+                    if message.startswith("maintenance_")
+                    else "maintenance_operation_failed"
+                )
     status_payload = workspace_status(repo)
     runtime = status_payload.get("runtime_binding", {})
     ok = not maintenance_gaps

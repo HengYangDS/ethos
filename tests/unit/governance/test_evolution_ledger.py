@@ -338,7 +338,7 @@ def test_campaign_report_exposes_manifest_steps_and_closeout_progress() -> None:
     }
 
 
-def test_campaign_report_defers_remote_publication_until_terminal_budget_settlement(
+def test_campaign_report_surfaces_terminal_budget_progress_as_advisory(
     monkeypatch,
     tmp_path: Path,
 ) -> None:
@@ -355,12 +355,15 @@ def test_campaign_report_defers_remote_publication_until_terminal_budget_settlem
 
     report = campaign_publication_report(tmp_path)
 
-    assert report["required_gaps"] == [
+    assert report["required_gaps"] == []
+    assert report["advisory_gaps"] == [
         "campaign_publication_campaign_active:compression",
         "campaign_publication_step_not_retired:compression",
         "campaign_publication_terminal_budget_unmet:compression",
         "campaign_publication_active_debt:compression:temporary-compiler",
     ]
+    assert report["remote_publication_admission"] == "admitted"
+    assert report["terminal_ready"] is False
 
 
 def test_invalid_campaign_manifest_blocks_repository_publication(
@@ -382,6 +385,7 @@ def test_invalid_campaign_manifest_blocks_repository_publication(
 
     assert publication["mode"] == "invalid"
     assert publication["remote_publication_admission"] == "blocked"
+    assert publication["advisory_gaps"] == []
 
 
 def test_campaign_publication_requires_the_budget_bound_campaign(
@@ -438,7 +442,12 @@ def test_filtered_campaign_status_keeps_repository_publication_scope(
 
     assert [item["id"] for item in filtered["campaigns"]] == ["compression"]
     assert publication["scope"] == "repository"
-    assert publication["remote_publication_admission"] == "blocked"
+    assert publication["remote_publication_admission"] == "admitted"
+    assert publication["advisory_gaps"] == [
+        "campaign_publication_campaign_active:compression",
+        "campaign_publication_step_not_retired:compression",
+        "campaign_publication_terminal_budget_unmet:compression",
+    ]
 
 
 def test_evolution_report_exposes_practice_selection_and_fate() -> None:

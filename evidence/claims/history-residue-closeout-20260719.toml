@@ -6,7 +6,7 @@ summary = "The active claim binds the successor-v2 OpenSpec carrier and dated Ch
 
 [evidence]
 dated = "evidence/chronicle/history-residue-closeout-20260719/2026-07-19.md"
-sha256 = "2f66f9e6e2360d79af3f0994ccc2ab7b422cb63845e05c813a236d91475bb0a9"
+sha256 = "eeb629a342a9ad94145c67b027034d1bffe7285e8338fb1806d5b76d609a8f4e"
 evidence_ids = ["evidence:history-residue-closeout-20260719"]
 binding = "Raw-byte digest association between the active OpenSpec carrier and the dated historical Chronicle; no local-state effect or terminal campaign completion is asserted."
 verifier = "digest_only"

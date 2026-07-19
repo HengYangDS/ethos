@@ -41,5 +41,5 @@
 - [x] 6.2 Run the complete test suite with the configured coverage floor and all required owner gates.
 - [x] 6.3 Refresh the Work Lane through official `lane refresh-base` whenever the candidate advances; the final replay is based on the current candidate HEAD.
 - [x] 6.4 Regenerate and commit generic parity at the refreshed authoring HEAD.
-- [ ] 6.5 Run a full executed pre-archive proof after the final Chronicle, claim, and parity updates; confirm claims, strict OpenSpec, isolated archive preflight, and the canonical-fusion inspection contract.
-- [ ] 6.6 Record archive-HEAD proof, candidate land, accepted-root closeout, publish readiness, remote or hosted observation, and Work Lane retirement as separate post-archive transitions rather than as completed work in this archived checklist.
+- [x] 6.5 Run a full executed pre-archive proof after the final Chronicle, claim, and parity updates; confirm claims, strict OpenSpec, isolated archive preflight, and the canonical-fusion inspection contract.
+- [x] 6.6 Record archive-HEAD proof, candidate land, accepted-root closeout, publish readiness, remote or hosted observation, and Work Lane retirement as separate post-archive transitions rather than as completed work in this archived checklist.

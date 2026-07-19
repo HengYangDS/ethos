@@ -4,7 +4,6 @@ import json
 import tomllib
 from pathlib import Path
 from typing import Any
-from typing import Protocol
 from typing import TypedDict
 
 from ethos.adapters.mutation.lane_lifecycle.core import run_git
@@ -24,13 +23,6 @@ SOURCE_BUDGET_SCOPE_PATHS = (
 SOURCE_BUDGET_REPORT_PATH = "packages/ethos/src/ethos/domain/report.py"
 SOURCE_BUDGET_GATES_PATH = "system/gates.toml"
 MAX_PROJECTION_REBASE_STEPS = 64
-
-
-class ProjectionRebaseRuntime(Protocol):
-    """Runtime dependency boundary for bounded projection rebase recovery."""
-
-    def run_git(self, root: Path, *args: str, check: bool = True) -> Any:
-        """Run a git command in the target repository."""
 
 
 class ProjectionResolution(TypedDict):
@@ -88,21 +80,18 @@ def append_unique(target: list[str], values: list[str]) -> None:
 
 def resolve_projection_only_rebase_conflict(
     root: Path,
-    *,
-    runtime: ProjectionRebaseRuntime | None = None,
 ) -> ProjectionResolution:
-    git = runtime.run_git if runtime is not None else run_git
-    paths = unmerged_paths(root, runtime=runtime)
-    if paths and all(staged_parity_projection(root, path, git=git) for path in paths):
+    paths = unmerged_paths(root)
+    if paths and all(staged_parity_projection(root, path, git=run_git) for path in paths):
         return parity_projection_resolution(paths)
     adopters = [parity_adopter(path) for path in paths]
     result = projection_resolution(ok=False)
     if paths and all(adopters):
-        checkout = git(root, "checkout", "--ours", "--", *paths, check=False)
+        checkout = run_git(root, "checkout", "--ours", "--", *paths, check=False)
         if checkout.returncode != 0:
             result = projection_resolution(ok=False, paths=paths)
         else:
-            added = git(root, "add", *paths, check=False)
+            added = run_git(root, "add", *paths, check=False)
             if added.returncode != 0:
                 result = projection_resolution(ok=False, paths=paths)
             else:
@@ -112,11 +101,8 @@ def resolve_projection_only_rebase_conflict(
 
 def unmerged_paths(
     root: Path,
-    *,
-    runtime: ProjectionRebaseRuntime | None = None,
 ) -> list[str]:
-    git = runtime.run_git if runtime is not None else run_git
-    completed = git(root, "diff", "--name-only", "--diff-filter=U", check=False)
+    completed = run_git(root, "diff", "--name-only", "--diff-filter=U", check=False)
     if completed.returncode != 0:
         return []
     return [line.strip() for line in completed.stdout.splitlines() if line.strip()]
@@ -146,10 +132,8 @@ def resolve_projection_rebase(
     root: Path,
     initial: object,
     *,
-    runtime: ProjectionRebaseRuntime | None = None,
     candidate_head: str = "",
 ) -> ProjectionRebaseResolution:
-    git = runtime.run_git if runtime is not None else run_git
     paths: list[str] = []
     gaps: list[str] = []
     next_actions: list[str] = []
@@ -163,15 +147,14 @@ def resolve_projection_rebase(
                 next_actions=next_actions,
                 stderr="",
             )
-        projection_result = resolve_projection_only_rebase_conflict(root, runtime=runtime)
+        projection_result = resolve_projection_only_rebase_conflict(root)
         if not projection_result["ok"]:
             projection_result = resolve_archived_source_budget_scope_conflict(
-                root, runtime=runtime, candidate_head=candidate_head
+                root, candidate_head=candidate_head
             )
         if not projection_result["ok"]:
             projection_result = resolve_source_budget_ledger_rebase_conflict(
                 root,
-                runtime=runtime,
                 resolution=projection_resolution,
                 unmerged_paths=unmerged_paths,
             )
@@ -179,10 +162,10 @@ def resolve_projection_rebase(
             append_unique(paths, projection_result["paths"])
             append_unique(gaps, projection_result["gaps"])
             append_unique(next_actions, projection_result["next_actions"])
-            completed = git(root, "-c", "core.editor=true", "rebase", "--continue", check=False)
+            completed = run_git(root, "-c", "core.editor=true", "rebase", "--continue", check=False)
             continue
         if paths and empty_projection_patch(str(getattr(completed, "stderr", ""))):
-            completed = git(root, "rebase", "--skip", check=False)
+            completed = run_git(root, "rebase", "--skip", check=False)
             continue
         return projection_rebase_resolution(
             ok=False,
@@ -233,22 +216,22 @@ def staged_parity_projection(root: Path, path: str, *, git: Any) -> bool:
 def resolve_archived_source_budget_scope_conflict(
     root: Path,
     *,
-    runtime: ProjectionRebaseRuntime | None = None,
     candidate_head: str = "",
 ) -> ProjectionResolution:
     """Preserve a previously archived candidate scope correction, or fail closed."""
-    git = runtime.run_git if runtime is not None else run_git
-    paths = unmerged_paths(root, runtime=runtime)
+    paths = unmerged_paths(root)
     if not archived_source_budget_scope_bound(root, paths):
         return projection_resolution(ok=False, paths=paths)
-    if not all(candidate_source_budget_scope_invariant(root, path, git=git) for path in paths):
+    if not all(candidate_source_budget_scope_invariant(root, path, git=run_git) for path in paths):
         return projection_resolution(ok=False, paths=paths)
-    if candidate_head and not candidate_source_budget_scope_context(root, candidate_head, git=git):
+    if candidate_head and not candidate_source_budget_scope_context(
+        root, candidate_head, git=run_git
+    ):
         return projection_resolution(ok=False, paths=paths)
-    checkout = git(root, "checkout", "--ours", "--", *paths, check=False)
+    checkout = run_git(root, "checkout", "--ours", "--", *paths, check=False)
     if checkout.returncode != 0:
         return projection_resolution(ok=False, paths=paths)
-    added = git(root, "add", *paths, check=False)
+    added = run_git(root, "add", *paths, check=False)
     if added.returncode != 0:
         return projection_resolution(ok=False, paths=paths)
     return projection_resolution(

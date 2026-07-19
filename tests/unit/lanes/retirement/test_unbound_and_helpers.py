@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 import ethos.adapters.mutation.lane_retirement.shared.core as retirement_shared
 import ethos.adapters.mutation.lane_retirement.unbound.core as unbound_retirement
 from ethos.adapters.mutation.lane_lifecycle import core as lane_lifecycle_core
-from ethos.adapters.mutation.lanes import retire_unbound_work_lane_ref
+from ethos.adapters.mutation.lane_retirement.unbound.core import retire_unbound_work_lane_ref
 from ethos.adapters.repo.dirty.core import dirty_provenance
 from tests.support.lane_helpers import add_candidate_worktree
 from tests.support.lane_helpers import git

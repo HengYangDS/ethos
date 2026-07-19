@@ -12,7 +12,7 @@ remove the parallel facade and the event surfaces that have no runtime dataflow.
 - Reduce executable and test code while preserving lifecycle behavior.
 - Make direct semantic ownership visible in imports and calls.
 - Remove event entities with no producer, consumer, reducer, or durable authority.
-- Leave a smaller base for subsequent Runtime-record elimination.
+- Eliminate Runtime records and runtime parameters completely.
 
 **Non-Goals:**
 
@@ -31,7 +31,12 @@ remove the parallel facade and the event surfaces that have no runtime dataflow.
    lease owner rather than a second SQLite-only projection.
 4. **Events require real flow.** Chronicle evidence remains a repository fact,
    but unused SQLite event logs and declaration-only workflow events are removed.
-5. **No replacement abstraction.** Deletion is the replacement; a future event
+5. **No ignored-state compatibility runtime.** Local SQLite coordination state
+   follows the current schema and may be recreated; historical shapes are not
+   migrated in perpetuity.
+6. **No speculative adapter registry.** A standard becomes active only with a
+   production projection and consumer.
+7. **No replacement abstraction.** Deletion is the replacement; a future event
    or plugin mechanism requires concrete independent producers/consumers and a
    separate admitted design.
 
@@ -47,8 +52,10 @@ remove the parallel facade and the event surfaces that have no runtime dataflow.
 ## Migration Plan
 
 1. Add this OpenSpec carrier and implementation plan.
-2. Delete lane facade forwarding and migrate tests/imports.
-3. Delete unused state/workflow event surfaces and their self-referential tests.
+2. Delete lane facade forwarding and all Runtime dependency containers; migrate
+   tests to semantic-owner patching.
+3. Delete unused state/workflow event surfaces, ignored-state compatibility
+   migration, speculative adapter declarations, and self-referential tests.
 4. Run focused quality/tests, strict OpenSpec validation, Ponytail review,
    parity/claim refresh when required, HEAD-bound proof, and local closeout.
 

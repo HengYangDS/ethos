@@ -1,13 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from dataclasses import field
 from typing import TYPE_CHECKING
 from typing import cast
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
-
 
 import ethos.adapters.mutation.lane_retirement.shared.core as lane_retirement_shared
 from ethos.adapters.mutation.lane_lifecycle.core import repo_root
@@ -19,18 +13,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-@dataclass(frozen=True, slots=True)
-class UnboundRetirementRuntime:
-    """Explicit dependencies used to retire unbound Work Lane refs."""
-
-    repo_root: Callable[[Path], Path] = repo_root
-    workspace_status: Callable[[Path], dict[str, object]] = workspace_status
-    shared: lane_retirement_shared.RetirementRuntime = field(
-        default_factory=lane_retirement_shared.RetirementRuntime
-    )
-
-
-def retire_unbound_work_lane_ref(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
+def retire_unbound_work_lane_ref(  # noqa: PLR0913, RUF100 - exact head-bound request
     *,
     root: Path,
     branch: str,
@@ -38,7 +21,6 @@ def retire_unbound_work_lane_ref(  # noqa: PLR0913, RUF100 - exact request envel
     reason: str = "",
     apply: bool = False,
     authorized: bool = False,
-    runtime: UnboundRetirementRuntime | None = None,
 ) -> dict[str, object]:
     """Inspect an unbound Work Lane ref without treating absence as safety.
 
@@ -47,9 +29,8 @@ def retire_unbound_work_lane_ref(  # noqa: PLR0913, RUF100 - exact request envel
     it merely because its registered worktree is absent.  An evidence-bound
     exceptional deletion admission is required instead.
     """
-    active_runtime = runtime or UnboundRetirementRuntime()
-    repo = active_runtime.repo_root(root)
-    status = active_runtime.workspace_status(repo)
+    repo = repo_root(root)
+    status = workspace_status(repo)
     branch = branch.strip()
     reason = reason.strip()
     current = _unbound_work_lane_ref(status, branch)
@@ -65,7 +46,6 @@ def retire_unbound_work_lane_ref(  # noqa: PLR0913, RUF100 - exact request envel
             "expect_head": expect_head,
             "apply": apply,
             "authorized": authorized,
-            "runtime": active_runtime,
         }
     )
     return {
@@ -100,12 +80,11 @@ def _unbound_retire_gaps(context: dict[str, object]) -> list[str]:
     expect_head = cast("str | None", context["expect_head"])
     apply = bool(context["apply"])
     authorized = bool(context["authorized"])
-    runtime = cast("UnboundRetirementRuntime", context["runtime"])
     policy = load_branch_role_policy(repo)
     gaps: list[str] = []
     if not branch:
         gaps.append("unbound_retire_branch_required")
-    elif not _branch_exists(repo, branch, runtime=runtime):
+    elif not _branch_exists(repo, branch):
         gaps.append("unbound_retire_branch_not_found")
     elif policy.role_for_branch(branch) != ROLE_WORK_LANE:
         gaps.append("unbound_retire_not_work_lane")
@@ -127,11 +106,8 @@ def _unbound_retire_gaps(context: dict[str, object]) -> list[str]:
 def _branch_exists(
     root: Path,
     branch: str,
-    *,
-    runtime: UnboundRetirementRuntime | None = None,
 ) -> bool:
-    active_runtime = runtime or UnboundRetirementRuntime()
-    completed = active_runtime.shared.run_git(root, "rev-parse", "--verify", branch, check=False)
+    completed = lane_retirement_shared.run_git(root, "rev-parse", "--verify", branch, check=False)
     return completed.returncode == 0
 
 

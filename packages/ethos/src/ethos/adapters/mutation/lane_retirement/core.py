@@ -1,20 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from dataclasses import field
 from pathlib import Path
-from typing import TYPE_CHECKING
 from typing import cast
-
-if TYPE_CHECKING:
-    import subprocess
-    from collections.abc import Callable
-
 
 import ethos.adapters.mutation.lane_retirement.shared.core as lane_retirement_shared
 from ethos.adapters.mutation.lane_lifecycle.core import is_ancestor
 from ethos.adapters.mutation.lane_lifecycle.core import repo_root
-from ethos.adapters.mutation.lane_lifecycle.core import run_git as default_run_git
+from ethos.adapters.mutation.lane_lifecycle.core import run_git
 from ethos.adapters.mutation.lane_retirement.shared.core import remove_linked_lane
 from ethos.adapters.mutation.lane_retirement.shared.core import retire_authority_guidance
 from ethos.adapters.mutation.lane_retirement.shared.core import retire_mutation_envelope
@@ -38,31 +31,14 @@ class SupersededLaneRetirementRequest:
     authorized: bool = False
 
 
-@dataclass(frozen=True, slots=True)
-class SupersededRetirementRuntime:
-    """Explicit dependencies used to retire superseded Work Lanes."""
-
-    repo_root: Callable[[Path], Path] = repo_root
-    workspace_status: Callable[[Path], dict[str, object]] = workspace_status
-    leases_by_branch: Callable[..., dict[str, dict[str, object]]] = leases_by_branch
-    is_ancestor: Callable[[Path, str, str], bool] = is_ancestor
-    run_git: Callable[..., subprocess.CompletedProcess[str]] = default_run_git
-    delete_lease: Callable[..., int] = delete_lease
-    shared: lane_retirement_shared.RetirementRuntime = field(
-        default_factory=lane_retirement_shared.RetirementRuntime
-    )
-
-
 def retire_superseded_work_lane(
     *,
     root: Path,
     request: SupersededLaneRetirementRequest,
-    runtime: SupersededRetirementRuntime | None = None,
 ) -> dict[str, object]:
     """Retire a clean linked Work Lane already absorbed by accepted truth."""
-    active_runtime = runtime or SupersededRetirementRuntime()
-    repo = active_runtime.repo_root(root)
-    status = active_runtime.workspace_status(repo)
+    repo = repo_root(root)
+    status = workspace_status(repo)
     branch = request.branch.strip()
     reason = request.reason.strip()
     absorbed_by = request.absorbed_by.strip()
@@ -71,17 +47,16 @@ def retire_superseded_work_lane(
         _superseded_retirement_lane(
             repo,
             selected,
-            leases=active_runtime.leases_by_branch(
+            leases=leases_by_branch(
                 cast("list[dict[str, str]]", status["worktrees"]),
                 current_path=repo,
             ),
-            runtime=active_runtime,
         )
         if selected
         else {}
     )
-    accepted_head = _accepted_head(repo, runtime=active_runtime)
-    head = str(lane.get("head") or _branch_head(repo, branch, runtime=active_runtime))
+    accepted_head = _accepted_head(repo)
+    head = str(lane.get("head") or _branch_head(repo, branch))
     gaps = _superseded_retire_gaps(
         {
             "repo": repo,
@@ -95,7 +70,6 @@ def retire_superseded_work_lane(
             "accepted_head": accepted_head,
             "apply": request.apply,
             "authorized": request.authorized,
-            "runtime": active_runtime,
         }
     )
     report = {
@@ -126,15 +100,11 @@ def retire_superseded_work_lane(
         return {**report, **retire_authority_guidance(gaps)}
     if not request.apply:
         return report
-    removed = remove_linked_lane(
-        repo, lane, expect_head=request.expect_head, runtime=active_runtime.shared
-    )
+    removed = remove_linked_lane(repo, lane, expect_head=request.expect_head)
     if removed:
         report.update(removed)
         return report
-    active_runtime.delete_lease(
-        repo / ".ethos" / "state" / "state.sqlite", subject=str(lane["branch"])
-    )
+    delete_lease(repo / ".ethos" / "state" / "state.sqlite", subject=str(lane["branch"]))
     lane_retirement_shared.delete_json_projection_lease(repo, subject=str(lane["branch"]))
     report["state"] = "retired_superseded"
     report["retired"] = lane
@@ -146,12 +116,10 @@ def _superseded_retire_gaps(context: dict[str, object]) -> list[str]:
     repo = cast("Path", context["repo"])
     branch = str(context["branch"])
     lane = cast("dict[str, object]", context["lane"])
-    runtime = cast("SupersededRetirementRuntime", context["runtime"])
     gaps = _superseded_branch_gaps(
         repo,
         branch=branch,
         selected=cast("dict[str, object] | None", context["selected"]),
-        runtime=runtime,
     )
     if lane:
         gaps.extend(str(gap) for gap in cast("list[object]", lane["required_gaps"]))
@@ -180,13 +148,11 @@ def _superseded_branch_gaps(
     *,
     branch: str,
     selected: dict[str, object] | None,
-    runtime: SupersededRetirementRuntime | None = None,
 ) -> list[str]:
-    active_runtime = runtime or SupersededRetirementRuntime()
     policy = load_branch_role_policy(repo)
     if not branch:
         return ["superseded_retire_branch_required"]
-    if not _branch_exists(repo, branch, runtime=active_runtime):
+    if not _branch_exists(repo, branch):
         return ["superseded_retire_branch_not_found"]
     if policy.role_for_branch(branch) != ROLE_WORK_LANE:
         return ["superseded_retire_not_work_lane"]
@@ -221,7 +187,6 @@ def _superseded_structural_absorption_gaps(context: dict[str, object]) -> list[s
     accepted_head = str(context["accepted_head"])
     absorbed_by = str(context["absorbed_by"])
     selected = cast("dict[str, object] | None", context["selected"])
-    runtime = cast("SupersededRetirementRuntime", context["runtime"])
     if (
         selected is None
         or not branch
@@ -235,7 +200,6 @@ def _superseded_structural_absorption_gaps(context: dict[str, object]) -> list[s
         branch=branch,
         head=head,
         accepted_head=accepted_head,
-        runtime=runtime,
     ):
         return ["superseded_lane_not_absorbed_by_accepted"]
     return []
@@ -247,18 +211,15 @@ def _lane_delta_absorbed_by_accepted(
     branch: str,
     head: str,
     accepted_head: str,
-    runtime: SupersededRetirementRuntime,
 ) -> bool:
-    base = _merge_base(repo, accepted_head, branch, runtime=runtime)
+    base = _merge_base(repo, accepted_head, branch)
     if not base:
         return False
-    changed_paths = _changed_paths_between(repo, base, head, runtime=runtime)
+    changed_paths = _changed_paths_between(repo, base, head)
     if changed_paths is None:
         return False
     for path in changed_paths:
-        if _tree_object(repo, head, path, runtime=runtime) != _tree_object(
-            repo, accepted_head, path, runtime=runtime
-        ):
+        if _tree_object(repo, head, path) != _tree_object(repo, accepted_head, path):
             return False
     return True
 
@@ -267,11 +228,8 @@ def _merge_base(
     root: Path,
     left: str,
     right: str,
-    *,
-    runtime: SupersededRetirementRuntime | None = None,
 ) -> str:
-    active_runtime = runtime or SupersededRetirementRuntime()
-    completed = active_runtime.run_git(root, "merge-base", left, right, check=False)
+    completed = run_git(root, "merge-base", left, right, check=False)
     if completed.returncode != 0:
         return ""
     return completed.stdout.strip()
@@ -281,13 +239,8 @@ def _changed_paths_between(
     root: Path,
     base: str,
     head: str,
-    *,
-    runtime: SupersededRetirementRuntime | None = None,
 ) -> tuple[str, ...] | None:
-    active_runtime = runtime or SupersededRetirementRuntime()
-    completed = active_runtime.run_git(
-        root, "diff", "--name-only", "--no-renames", "-z", base, head, check=False
-    )
+    completed = run_git(root, "diff", "--name-only", "--no-renames", "-z", base, head, check=False)
     if completed.returncode != 0:
         return None
     return tuple(path for path in completed.stdout.split("\0") if path)
@@ -297,11 +250,8 @@ def _tree_object(
     root: Path,
     revision: str,
     path: str,
-    *,
-    runtime: SupersededRetirementRuntime | None = None,
 ) -> str:
-    active_runtime = runtime or SupersededRetirementRuntime()
-    completed = active_runtime.run_git(root, "rev-parse", f"{revision}:{path}", check=False)
+    completed = run_git(root, "rev-parse", f"{revision}:{path}", check=False)
     if completed.returncode != 0:
         return ""
     return completed.stdout.strip()
@@ -323,22 +273,16 @@ def _superseded_expected_head_gaps(
 def _branch_exists(
     root: Path,
     branch: str,
-    *,
-    runtime: SupersededRetirementRuntime | None = None,
 ) -> bool:
-    active_runtime = runtime or SupersededRetirementRuntime()
-    completed = active_runtime.run_git(root, "rev-parse", "--verify", branch, check=False)
+    completed = run_git(root, "rev-parse", "--verify", branch, check=False)
     return completed.returncode == 0
 
 
 def _accepted_head(
     root: Path,
-    *,
-    runtime: SupersededRetirementRuntime | None = None,
 ) -> str:
-    active_runtime = runtime or SupersededRetirementRuntime()
     policy = load_branch_role_policy(root)
-    completed = active_runtime.run_git(root, "rev-parse", policy.accepted_branch, check=False)
+    completed = run_git(root, "rev-parse", policy.accepted_branch, check=False)
     if completed.returncode != 0:
         return ""
     return completed.stdout.strip()
@@ -347,13 +291,10 @@ def _accepted_head(
 def _branch_head(
     root: Path,
     branch: str,
-    *,
-    runtime: SupersededRetirementRuntime | None = None,
 ) -> str:
     if not branch:
         return ""
-    active_runtime = runtime or SupersededRetirementRuntime()
-    completed = active_runtime.run_git(root, "rev-parse", branch, check=False)
+    completed = run_git(root, "rev-parse", branch, check=False)
     if completed.returncode != 0:
         return ""
     return completed.stdout.strip()
@@ -381,17 +322,15 @@ def _superseded_retirement_lane(
     lane: dict[str, object],
     *,
     leases: dict[str, dict[str, object]] | None = None,
-    runtime: SupersededRetirementRuntime | None = None,
 ) -> dict[str, object]:
-    active_runtime = runtime or SupersededRetirementRuntime()
     gaps: list[str] = []
     branch = str(lane["branch"])
     path = Path(str(lane["path"]))
     lease = (leases or {}).get(branch, {})
     holder_ref = str(lease.get("holder_ref") or "")
-    if active_runtime.is_ancestor(repo, branch, "HEAD"):
+    if is_ancestor(repo, branch, "HEAD"):
         gaps.append("work_lane_already_merged_use_retire_landed")
-    if lane_retirement_shared.has_changed_paths(path, runner=active_runtime.run_git):
+    if lane_retirement_shared.has_changed_paths(path):
         gaps.append("work_lane_dirty")
     return {
         "branch": branch,

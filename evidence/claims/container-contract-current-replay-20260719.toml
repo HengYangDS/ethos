@@ -1,0 +1,49 @@
+[claim]
+id = "container-contract-current-replay-20260719"
+subject = "ethos:container-contract-current-replay"
+state = "active"
+summary = "An opt-in provider-neutral adopter container contract is product-schema-bound, evidence-checked, and promotion-relevant when declared."
+
+[evidence]
+dated = "evidence/chronicle/container-contract-current-replay-20260719/2026-07-19.md"
+sha256 = "6a8d038312c57f7accd1abdb312e30ef93d4791bf1bf3af52f13461c68aa63ef"
+evidence_ids = ["evidence:container-contract-current-replay-20260719"]
+binding = "Archived OpenSpec carrier, product schemas, thin validator, fixture matrix, and current owner-bound lane lease."
+verifier = "digest_only"
+tests = [
+  "tools/ci/scripts/with-python-runtime.sh -- uv run --group dev pytest -q tests/unit/policy/test_container_contract.py",
+  "tools/ci/scripts/with-python-runtime.sh -- uv run --group dev ruff check packages/ethos/src/ethos/repository/policy/container_contract packages/ethos/src/ethos/repository/policy/schema.py tests/unit/policy/test_container_contract.py",
+  "tools/ci/scripts/run-ethos-lane.sh openspec --change container-contract-current-replay-20260719 --lifecycle --json",
+  "tools/ci/scripts/run-ethos-lane.sh prove --execute --expect-head <committed-head> --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "Optional adopter container declarations and their local contract evidence only."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-19-container-contract-current-replay-20260719"
+fallback = "Leave every source Work Lane intact and retain the undeclared-adopter path when contract evidence is incomplete."
+kill_signal = "A container declaration becomes valid through a relaxed local schema, an escaped or untracked file, stale evidence, or an implicit runtime-provider claim."
+
+[promotion]
+targets = [
+  "docs/governance/repository-profile-contract.md",
+  "docs/plans/container-contract-current-replay-20260719.md",
+  "evidence/chronicle/container-contract-current-replay-20260719/2026-07-19.md",
+  "evidence/claims/container-contract-current-replay-20260719.toml",
+  "evidence/parity/generic-shadow.json",
+  "openspec/changes/archive/2026-07-19-container-contract-current-replay-20260719",
+  "openspec/specs/contracts/spec.md",
+  "packages/ethos/src/ethos/repository/policy/container_contract/__init__.py",
+  "packages/ethos/src/ethos/repository/policy/container_contract/core.py",
+  "packages/ethos/src/ethos/repository/policy/schema.py",
+  "system/invalid_states.toml",
+  "system/schemas/kernel/container-contract-declaration.schema.json",
+  "system/schemas/kernel/container-contract.schema.json",
+  "tests/fixtures/container-contract",
+  "tests/unit/policy/test_container_contract.py",
+]

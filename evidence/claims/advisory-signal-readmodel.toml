@@ -1,0 +1,22 @@
+[claim]
+id = "advisory-signal-readmodel"
+subject = "repository-governance:advisory-signal-readmodel"
+state = "accepted"
+summary = "Report and orient expose non-blocking advisory governance signals without promoting them to required gaps."
+
+[evidence]
+dated = "evidence/chronicle/advisory-signal-readmodel/2026-07-07.md"
+sha256 = "d902b3f9804a219c8e0c3e1c4b01821cc6f783444e1b8fc3c1a5e660f748fdc2"
+tests = [
+  "tests/unit/cli/test_contracts.py::test_report_scorecard_is_derived_from_governance_checks",
+  "tests/unit/product/test_orient.py::test_orient_json_is_projection_not_truth_store",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-07-advisory-signal-readmodel"
+
+[promotion]
+targets = ["packages/ethos/src/ethos/domain/report.py", "packages/ethos/src/ethos/domain/orient.py"]

@@ -1,0 +1,22 @@
+[claim]
+id = "advisory-next-action"
+subject = "repository-governance:advisory-next-action"
+state = "accepted"
+summary = "Report and orient carry bounded next actions for advisory governance signals."
+
+[evidence]
+dated = "evidence/chronicle/advisory-next-action/2026-07-07.md"
+sha256 = "35f4ed20f7faa023495d4b55b8de536e5ed330edf185d75e5456fcf4b4c682af"
+tests = [
+  "tests/unit/cli/test_contracts.py::test_report_scorecard_is_derived_from_governance_checks",
+  "tests/unit/product/test_orient.py::test_orient_json_is_projection_not_truth_store",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-07-advisory-next-action"
+
+[promotion]
+targets = ["packages/ethos/src/ethos/domain/report.py", "packages/ethos/src/ethos/domain/orient.py"]

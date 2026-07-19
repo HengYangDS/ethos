@@ -2,12 +2,13 @@
 
 ### Requirement: Bounded External Evidence Adapters
 
-ETHOS SHALL verify signed independent-verification receipts and
-control-replacement verifier receipts only when the applicable Commitment
-requires them. Adapters SHALL store no credentials and SHALL NOT mint authority.
-Provider-local verifier and Git-hook executables SHALL be supplied and governed
-by the operator outside the ETHOS product source and distribution surface while
-conforming to the provider-neutral receipt contract.
+ETHOS SHALL verify external identity assertions, signed independent-verification
+or hosted-enforcement receipts, and control-replacement verifier receipts only
+when the applicable Commitment requires them. Adapters SHALL store no
+credentials and SHALL NOT mint authority. Provider-local verifier and Git-hook
+executables SHALL be supplied and governed by the operator outside the ETHOS
+product source and distribution surface while conforming to the provider-neutral
+receipt contract.
 
 #### Scenario: control replacement uses protected bootstrap evidence
 

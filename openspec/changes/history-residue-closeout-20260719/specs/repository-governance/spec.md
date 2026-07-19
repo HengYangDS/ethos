@@ -80,6 +80,30 @@ and accepted-root mutation to one observed candidate HEAD.
   mutation
 - **AND** any mismatch blocks control admission and accepted-root movement.
 
+### Requirement: Tracked lifecycle does not imply local-state maintenance effects
+
+ETHOS SHALL require an explicit, authorized, digest-bound maintenance apply and
+its own receipt before reporting that ignored local state changed. Tracked
+OpenSpec, Git, land, closeout, or publish transitions SHALL NOT mint such an
+effect.
+
+#### Scenario: A tracked Change archives and lands without maintenance apply
+
+- **WHEN** an OpenSpec carrier validates, archives, lands to candidate, or closes
+  out accepted root without an explicit local-state maintenance apply
+- **THEN** ETHOS does not infer that a live SQLite database migrated
+- **AND** it does not infer lease or proof pruning, operator archive creation, or
+  recovery-source deletion.
+
+#### Scenario: A maintenance effect is claimed
+
+- **WHEN** evidence states that local leases, proofs, databases, or recovery
+  material changed
+- **THEN** the evidence names the authorized apply command, exact inventory
+  digest, affected local root, result receipt, and postcondition verification
+- **AND** fixture, copied-state, dry-run, OpenSpec, land, closeout, and publish
+  receipts are insufficient substitutes.
+
 ## REMOVED Requirements
 
 ### Requirement: Reference adapter stays provider-local and constrained

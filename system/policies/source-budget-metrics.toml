@@ -32,6 +32,11 @@ carrier_role = "test_source"
 required_metric_ids = ["semantic_nodes", "normalized_scalar_bytes"]
 
 [[profiles]]
+profile_id = "test-json-v2"
+carrier_role = "test_source"
+required_metric_ids = ["semantic_nodes", "normalized_scalar_bytes"]
+
+[[profiles]]
 profile_id = "template-jinja-v2"
 carrier_role = "template_source"
 required_metric_ids = ["template_dynamic_units", "template_static_bytes"]
@@ -191,6 +196,36 @@ metric_profile = "test-toml-v2"
 parser_id = "tomllib"
 parser_version = "stdlib-3.14"
 grammar_digest = "fb2c215fdd506dbc57d3738e85c49465e3f094657353a64dc5ba1be522bade0b"
+normalization_id = "structured-scalars"
+normalization_version = "1"
+aggregation = "sum"
+non_compensable = true
+
+[[contracts]]
+contract_id = "test-json-v2:semantic_nodes"
+contract_version = 2
+metric_id = "semantic_nodes"
+unit = "semantic_node"
+carrier_role = "test_source"
+metric_profile = "test-json-v2"
+parser_id = "json-stdlib"
+parser_version = "stdlib-3.14"
+grammar_digest = "450a9bea46f6b3aa845328a112d9d24db07fb69a4b19a6eafb1d8f8a431c63c1"
+normalization_id = "structured-scalars"
+normalization_version = "1"
+aggregation = "sum"
+non_compensable = true
+
+[[contracts]]
+contract_id = "test-json-v2:normalized_scalar_bytes"
+contract_version = 2
+metric_id = "normalized_scalar_bytes"
+unit = "normalized_scalar_byte"
+carrier_role = "test_source"
+metric_profile = "test-json-v2"
+parser_id = "json-stdlib"
+parser_version = "stdlib-3.14"
+grammar_digest = "450a9bea46f6b3aa845328a112d9d24db07fb69a4b19a6eafb1d8f8a431c63c1"
 normalization_id = "structured-scalars"
 normalization_version = "1"
 aggregation = "sum"

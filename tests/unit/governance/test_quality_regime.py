@@ -119,7 +119,6 @@ def test_tool_catalog_marks_config_gates_active_with_owner_scripts() -> None:
 def test_ruff_runtime_cache_stays_under_build_runtime() -> None:
     runner = (ROOT / "tools/ci/scripts/run-python-lint.sh").read_text(encoding="utf-8")
     ruff_config = (ROOT / ".config/checks/ruff/ruff.toml").read_text(encoding="utf-8")
-    discovery_config = (ROOT / "ruff.toml").read_text(encoding="utf-8")
     pyproject_text = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
 
     # The root discovery adapter owns only cache routing; it delegates every
@@ -127,11 +126,9 @@ def test_ruff_runtime_cache_stays_under_build_runtime() -> None:
     assert "build/runtime/tool-cache/ruff" in runner
     assert "--cache-dir" in runner
     assert ".ruff_cache" not in runner
-    assert "cache-dir" not in ruff_config
-    assert tomllib.loads(discovery_config) == {
-        "cache-dir": "build/runtime/tool-cache/ruff",
-        "extend": ".config/checks/ruff/ruff.toml",
-    }
+    assert 'cache-dir = "build/runtime/tool-cache/ruff"' in ruff_config
+    assert (ROOT / "ruff.toml").is_symlink()
+    assert (ROOT / "ruff.toml").readlink().as_posix() == ".config/checks/ruff/ruff.toml"
     settings = subprocess.run(
         [
             "uv",
@@ -150,8 +147,25 @@ def test_ruff_runtime_cache_stays_under_build_runtime() -> None:
     ).stdout
     expected_cache_dir = ROOT / "build/runtime/tool-cache/ruff"
     assert f'cache_dir = "{expected_cache_dir}"' in settings
-    assert "[lint]" not in discovery_config
-    assert "[format]" not in discovery_config
+    explicit_settings = subprocess.run(
+        [
+            "uv",
+            "run",
+            "--group",
+            "dev",
+            "ruff",
+            "check",
+            "--config",
+            ".config/checks/ruff/ruff.toml",
+            "--show-settings",
+            "packages/ethos/src/ethos/__init__.py",
+        ],
+        cwd=ROOT,
+        text=True,
+        capture_output=True,
+        check=True,
+    ).stdout
+    assert f'cache_dir = "{expected_cache_dir}"' in explicit_settings
     assert "[tool.ruff" not in pyproject_text
 
 

@@ -31,12 +31,12 @@ assertion. The test copies the process environment, overrides `LC_ALL` and
 - Produces: a C-locale `git bundle verify` observation for the existing
   complete-history assertion.
 
-- [ ] **Step 1: Confirm RED**
+- [x] **Step 1: Confirm RED**
 
 Run the existing focused test with `LC_ALL=zh_CN.UTF-8` and confirm it fails
 because the output is localized rather than because the bundle is invalid.
 
-- [ ] **Step 2: Add the minimal locale boundary**
+- [x] **Step 2: Add the minimal locale boundary**
 
 Add `import os`, then replace the helper assertion with:
 
@@ -52,7 +52,7 @@ verification = subprocess.run(
 assert "complete history" in verification.stdout
 ```
 
-- [ ] **Step 3: Verify GREEN**
+- [x] **Step 3: Verify GREEN**
 
 Run the focused test under the workstation locale and expect one passing test.
 

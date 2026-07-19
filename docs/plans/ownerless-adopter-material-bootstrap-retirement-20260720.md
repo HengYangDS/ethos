@@ -1,15 +1,15 @@
 ---
 subject: ethos:ownerless-adopter-material-bootstrap-retirement-20260720
 role: plan
-state: active
+state: archived
 relations:
-  carrier: openspec/changes/ownerless-adopter-material-bootstrap-retirement-20260720
+  carrier: openspec/changes/archive/2026-07-19-ownerless-adopter-material-bootstrap-retirement-20260720
   source_lane: work/adopter-material-scope-bootstrap-20260715
 ---
 
 # Ownerless Adopter Material-Bootstrap Retirement Authority
 
-Status: active, local-only authority carrier.
+Status: archived, local-only authority carrier.
 
 Purpose: record why the accepted product already absorbs the one useful
 behavior from one exact ownerless, diverged Work Lane, and delimit its later

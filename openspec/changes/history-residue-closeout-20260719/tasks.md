@@ -37,9 +37,9 @@
 
 ## 6. Evidence And Lifecycle Closeout
 
-- [ ] 6.1 Run focused owner tests and quality checks for every modified boundary.
-- [ ] 6.2 Run the complete test suite with the configured coverage floor and all required owner gates.
-- [ ] 6.3 Refresh the Work Lane through official `lane refresh-base` against the latest candidate HEAD.
-- [ ] 6.4 Regenerate and commit generic parity at the refreshed final HEAD.
-- [ ] 6.5 Validate claims and strict OpenSpec, archive the carrier, and inspect canonical-spec fusion for obligation loss.
-- [ ] 6.6 Run fresh HEAD-bound executed proof, land to candidate, close out accepted root, and verify local publication readiness without conflating remote or hosted state.
+- [x] 6.1 Run focused owner tests and quality checks for every modified boundary.
+- [x] 6.2 Run the complete test suite with the configured coverage floor and all required owner gates.
+- [x] 6.3 Refresh the Work Lane through official `lane refresh-base` whenever the candidate advances; the final replay is based on the current candidate HEAD.
+- [x] 6.4 Regenerate and commit generic parity at the refreshed authoring HEAD.
+- [ ] 6.5 Run a full executed pre-archive proof after the final Chronicle, claim, and parity updates; confirm claims, strict OpenSpec, isolated archive preflight, and the canonical-fusion inspection contract.
+- [ ] 6.6 Record archive-HEAD proof, candidate land, accepted-root closeout, publish readiness, remote or hosted observation, and Work Lane retirement as separate post-archive transitions rather than as completed work in this archived checklist.

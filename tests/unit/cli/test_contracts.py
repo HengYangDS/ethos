@@ -9,8 +9,8 @@ import ethos.adapters.openspec.cli as openspec_cli
 import ethos.adapters.repo.status.core as status_core
 import ethos.surface.cli.root.inspection as inspection_cli
 import ethos.surface.cli.root.planning as planning_cli
-from ethos.repository.context import context_for_root
 from ethos.repository.adoption.planner import adoption_plan
+from ethos.repository.context import context_for_root
 from ethos.surface.cli._base import emit
 from ethos_core.contracts.package.ontology import package_ontology_report
 from ethos_core.result import EthosResult

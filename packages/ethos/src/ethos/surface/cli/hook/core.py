@@ -47,17 +47,19 @@ def admit(
     """Evaluate hook-time write admission before a host mutates tracked files."""
     repo = resolve_root(root)
     report = hook_admission_report(
-        HookAdmissionRequest(
-            root=repo,
+        request=HookAdmissionRequest(
+            root=repo.as_posix(),
             layer=layer,
             paths=tuple(
-                path
-                if path.is_absolute() or has_invalid_path_token_character(path.as_posix())
-                else repo / path
+                (
+                    path
+                    if path.is_absolute() or has_invalid_path_token_character(path.as_posix())
+                    else repo / path
+                ).as_posix()
                 for path in paths
             ),
-            editor_root=editor_root,
-            expected_root=expected_root,
+            editor_root=editor_root.as_posix() if editor_root else None,
+            expected_root=expected_root.as_posix() if expected_root else None,
             require_editor_root=require_editor_root,
             command=command,
         )

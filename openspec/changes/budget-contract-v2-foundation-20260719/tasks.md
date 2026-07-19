@@ -21,7 +21,7 @@
 
 ## 3. Verification
 
-- [ ] 3.1 Run successor focused tests, Python/config/schema checks, claims,
+- [x] 3.1 Run successor focused tests, Python/config/schema checks, claims,
   strict OpenSpec lifecycle, parity, and HEAD-bound executed proof.
 
 ## Post-Archive Transition Boundary

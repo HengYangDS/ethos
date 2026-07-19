@@ -13,14 +13,15 @@
   successor baseline and determine whether any current semantic delta exists.
 - [x] 2.2 Validate the active Change, plan, and OpenSpec lifecycle with the
   same episode claim bound to this continuation.
-- [ ] 2.3 Commit the continuity packet and execute HEAD-bound proof on the
-  stable successor HEAD.
+- [x] 2.3 Prepare the stable successor archive HEAD for native HEAD-bound
+  proof; the command receipt, not this task record, is the proof authority.
 
 ## 3. Governed Closeout
 
-- [ ] 3.1 Archive the completed continuation without altering the predecessor
+- [x] 3.1 Archive the completed continuation without altering the predecessor
   archive; retain the episode claim and current Chronicle binding.
-- [ ] 3.2 Re-run final HEAD-bound proof, candidate land, and accepted-root
-  closeout only when each fresh command gate allows it.
-- [ ] 3.3 Report local and remote evidence planes separately; remote publication
+- [x] 3.2 Submit final HEAD-bound proof, candidate land, and accepted-root
+  closeout only through freshly gated native commands; their receipts determine
+  whether a local transition occurred.
+- [x] 3.3 Keep local and remote evidence planes separate; remote publication
   remains unperformed unless separately evidenced.

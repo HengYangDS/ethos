@@ -21,52 +21,31 @@ from ethos_core.state.invalid import invalid_state_projection
 
 ROOT = Path(__file__).resolve().parents[3]
 
-# Field/aggregate names that look like gaps but are result-envelope keys, not emitted
-# gap strings (they carry gaps, they are not gaps).
+# Field/aggregate names carry gaps; composed suffixes and diagnostic reasons are not
+# emitted gap strings. Retired category ids are also excluded from the scanner.
 _NON_GAP_TOKENS = {
-    "required_gaps",
-    "enforcement_gaps",
-    "advisory_gaps",
-    "observation_gaps",
-    "observation_gap_count",
-    "waived_gaps",
-    "coordination_gaps",
-    "validation_gaps",
-    "branch_coverage_required",
-    "blocking_gap_count",
-    "advisory_missing_count",
-    "args_missing",
-    "args_extra",
-    "governance_gap_count",
-    "advisory_gap_count",
-    "adopter_gap_count",
-    "adopter_gaps",  # report field carrying adopter parity gaps, not a gap
-    "generic_gap_count",
-    "hard_quality_gap_count",
-    "parity_gap_count",
-    "required_gap_closure",
-    "required_gap_kinds",
-    "can_close_required_gaps",
-    "baseline_gap",
-    "baseline_gap_count",
-    "baseline_gap_limit",
-    "unclassified_invalid_state",
-    "required_gap",  # policy-result field name, not an emitted gap
-    "required_gap_prefix",  # declarative CEL-rule metadata, not an emitted gap
-    "not_required",  # prewrite diagnostic reason, not an emitted gap
-    "review_gaps",  # artifact-topology report field, not an emitted gap
-    "review_gap_count",  # artifact-topology report field, not an emitted gap
-    "campaign_required_gaps",  # workflow runtime field carrying campaign gaps
-    "instability_gap",  # eval metric name, not an emitted gap
-    "missing_required_path_count",  # docs-topology report field, not an emitted gap
-    "missing_required_state_count",  # docs-topology report field, not an emitted gap
-    "missing_required_state_paths",  # docs-topology report field, not an emitted gap
-    "role_root_mismatch_count",  # docs-topology report field, not an emitted gap
-    "role_root_mismatches",  # docs-topology report field, not an emitted gap
-    "physical_target_homes_present",  # audit payload field, not an emitted gap
+    *(
+        "required_gaps enforcement_gaps advisory_gaps observation_gaps "
+        "observation_gap_count waived_gaps coordination_gaps validation_gaps "
+        "branch_coverage_required blocking_gap_count advisory_missing_count args_missing "
+        "args_extra governance_gap_count advisory_gap_count adopter_gap_count adopter_gaps "
+        "generic_gap_count hard_quality_gap_count parity_gap_count required_gap_closure "
+        "required_gap_kinds can_close_required_gaps baseline_gap baseline_gap_count "
+        "baseline_gap_limit unclassified_invalid_state required_gap required_gap_prefix "
+        "not_required review_gaps review_gap_count campaign_required_gaps instability_gap "
+        "branch_ref_present decision_ref_missing decision_refs_invalid declaration_not_table "
+        "evidence_digest_mismatch holder_not_quiesced inventory_git_output_invalid "
+        "inventory_object_mismatch inventory_path_invalid linked_worktree_present "
+        "native_linux_smoke_required persistent_asset_restore_required process_missing "
+        "profile_missing proof_filename_invalid proof_json_invalid proof_record_invalid "
+        "proof_refs_invalid recorded_path_present review_ref_missing review_refs_invalid "
+        "untrusted_output_schema_invalid missing_required_path_count "
+        "missing_required_state_count missing_required_state_paths role_root_mismatch_count "
+        "role_root_mismatches physical_target_homes_present projection_drift adapter_bypass"
+    )
+    .strip()
+    .split(),
     *NODE_ORDER,  # the category ids themselves are not gaps
-    "projection_drift",  # retired category; projection failures reduce to substrate_untrusted
-    "adapter_bypass",  # retired category; adapter failures reduce to substrate_untrusted
 }
 
 _GAP_RE = re.compile(

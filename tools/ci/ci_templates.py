@@ -229,8 +229,8 @@ def _docker_context_endpoint() -> str:
 
 
 def _state_dir(provider: str, emulation: dict[str, Any]) -> str:
-    suffix = "github-act" if provider == "github" else "gitlab-ci-local"
-    return str(emulation["emulator_state_dir"]) or f"build/runtime/work/{suffix}"
+    defaults = ("build/runtime/work/github-act", "build/runtime/work/gitlab-ci-local")
+    return str(emulation["emulator_state_dir"]) or defaults[provider != "github"]
 
 
 def _command(

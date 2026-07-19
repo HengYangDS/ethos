@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import cast
 
 from ethos.adapters.openspec.core import openspec_governance_report
+from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.git import git_stdout_checked
 from ethos.adapters.repo.runtime.core import runtime_binding
 from ethos.adapters.repo.status.bindings import leases_by_branch
@@ -22,15 +23,26 @@ from ethos_core.contracts.branch.roles import load_branch_role_policy
 
 _CONTROL_CHARACTER_UPPER_BOUND = 32
 _DELETE_CONTROL_CODE_POINT = 127
+_STATE_BINDINGS = ("root", "role", "branch", "paths", "lease_id", "epoch", "head")
+_SCOPE_LIST_FIELDS = (
+    "changed_paths",
+    "material_patterns",
+    "material_paths",
+    "changes",
+    "covered_paths",
+    "uncovered_paths",
+    "required_gaps",
+    "advisory_gaps",
+)
 
 
 def has_path_whitespace(text: str) -> bool:
-    """Return whether a path token contains whitespace and is therefore ambiguous."""
+    """Return whether a path token contains ambiguous whitespace."""
     return any(character.isspace() for character in text)
 
 
 def has_invalid_path_token_character(text: str) -> bool:
-    """Return whether a path token is unsafe to join or admit as a single subject."""
+    """Return whether a path token is unsafe as one mutation subject."""
     return has_control_character(text) or has_path_whitespace(text)
 
 
@@ -46,67 +58,44 @@ def prewrite_guard(
     effective = _effective_write_context(root=root, role=status_role, branch=status_branch)
     role = effective["role"]
     runtime_check = _runtime_binding_check(status)
-    checked_paths = [_check_path(root=root, path=path, role=role) for path in paths]
-    tracked_write_requested = any(path["tracked_candidate"] for path in checked_paths)
-    requested_paths = tuple(
+    checked = [_check_path(root=root, path=path, role=role) for path in paths]
+    tracked = any(path["tracked_candidate"] for path in checked)
+    requested = tuple(
         str(path["relative_path"])
-        for path in checked_paths
+        for path in checked
         if path["tracked_candidate"] is True and path["relative_path"]
     )
-    openspec_lifecycle = openspec_governance_report(
-        root, lifecycle=True, changed_paths=requested_paths
+    lifecycle = openspec_governance_report(root, lifecycle=True, changed_paths=requested)
+    scope = _material_scope_from_lifecycle(lifecycle)
+    lease = _work_lane_lease_check(
+        root=root, status=status, effective=effective, tracked_write_requested=tracked
     )
-    material_scope = _material_scope_from_lifecycle(openspec_lifecycle)
-    lease_check = _work_lane_lease_check(
-        root=root,
-        status=status,
-        effective=effective,
-        tracked_write_requested=tracked_write_requested,
-    )
-    editor_check = _editor_root_check(
+    editor = _editor_root_check(
         root=root,
         editor_root=editor_root,
-        require_editor_root=require_editor_root or tracked_write_requested,
+        require_editor_root=require_editor_root or tracked,
     )
-    blocked_paths = [path for path in checked_paths if path["allowed"] is False]
-    error = _error(
-        runtime_check=runtime_check,
-        lease_check=lease_check,
-        editor_check=editor_check,
-        material_scope=material_scope,
-        blocked_paths=blocked_paths,
-    )
+    blocked = [path for path in checked if path["allowed"] is False]
+    error = _error(runtime_check, lease, editor, scope, blocked)
     decision = _prewrite_decision(
         root=root,
         branch=effective["branch"],
         role=role,
-        checked_paths=checked_paths,
-        lease_check=lease_check,
+        checked_paths=checked,
+        lease_check=lease,
         error=error,
     )
-    return {
-        "ok": error == "",
-        "error": error,
-        "role": role,
-        "branch": effective["branch"],
-        "status_role": status_role,
-        "status_branch": status_branch,
-        "effective_context": effective,
-        "runtime_binding": runtime_check,
-        "work_lane_lease": lease_check,
-        "editor_root": editor_check,
-        "openspec_lifecycle": openspec_lifecycle,
-        "material_scope": material_scope,
-        "paths": checked_paths,
-        "blocked_paths": blocked_paths,
-        "request_binding": decision.subject.model_dump(mode="json"),
-        "decision": decision.to_payload(),
-        "required_gaps": [error] if error else [],
-    }
+    report: dict[str, object] = {"ok": not error, "error": error, "role": role}
+    report.update(branch=effective["branch"], status_role=status_role, status_branch=status_branch)
+    report.update(effective_context=effective, runtime_binding=runtime_check, work_lane_lease=lease)
+    report.update(editor_root=editor, openspec_lifecycle=lifecycle, material_scope=scope)
+    report.update(paths=checked, blocked_paths=blocked)
+    report.update(request_binding=decision.subject.model_dump(mode="json"))
+    report.update(decision=decision.to_payload(), required_gaps=[error] if error else [])
+    return report
 
 
 def _prewrite_status(root: Path) -> dict[str, object]:
-    """Read only the branch, runtime, and lease context needed for write admission."""
     try:
         repo = Path(git_stdout_checked(root, "rev-parse", "--show-toplevel")).resolve()
     except (OSError, subprocess.CalledProcessError):
@@ -118,9 +107,10 @@ def _prewrite_status(root: Path) -> dict[str, object]:
             "worktrees": [],
         }
     policy = load_branch_role_policy(repo)
+    branch = current_branch(repo)
     return {
         "root": str(root),
-        "branch": (branch := current_branch(repo)),
+        "branch": branch,
         "role": policy.role_for_branch(branch),
         "runtime_binding": runtime_binding(repo),
         "worktrees": worktree_records(repo, current_path=repo, policy=policy),
@@ -128,36 +118,15 @@ def _prewrite_status(root: Path) -> dict[str, object]:
 
 
 def _effective_write_context(*, root: Path, role: str, branch: str) -> dict[str, str]:
-    """Return the write-admission context for hook-time Git lifecycle states.
-
-    A sanctioned ``git rebase`` temporarily detaches HEAD while replaying commits from
-    the original branch. The repository's truth is still the same Work Lane when
-    Git's rebase metadata says ``head-name = refs/heads/work/...``. Treat that narrow
-    lifecycle state as the original Work Lane so the pre-commit fallback hook keeps
-    checking paths instead of blocking ETHOS' own ``lane refresh-base`` transition.
-    Other detached states remain protected and fail closed.
-    """
-    if role != ROLE_DETACHED:
-        return {
-            "role": role,
-            "branch": branch,
-            "source": "prewrite_context",
-            "rebase_head_name": "",
-        }
-    rebase_branch = _rebase_head_branch(root)
-    policy = load_branch_role_policy(root)
-    rebase_role = policy.role_for_branch(rebase_branch)
-    if rebase_role != ROLE_WORK_LANE:
-        return {
-            "role": role,
-            "branch": branch,
-            "source": "prewrite_context",
-            "rebase_head_name": rebase_branch,
-        }
+    rebase_branch = _rebase_head_branch(root) if role == ROLE_DETACHED else ""
+    rebase_role = (
+        load_branch_role_policy(root).role_for_branch(rebase_branch) if rebase_branch else ""
+    )
+    is_work_rebase = role == ROLE_DETACHED and rebase_role == ROLE_WORK_LANE
     return {
-        "role": ROLE_WORK_LANE,
-        "branch": rebase_branch,
-        "source": "git_rebase_head_name",
+        "role": ROLE_WORK_LANE if is_work_rebase else role,
+        "branch": rebase_branch if is_work_rebase else branch,
+        "source": "git_rebase_head_name" if is_work_rebase else "prewrite_context",
         "rebase_head_name": rebase_branch,
     }
 
@@ -166,10 +135,8 @@ def _rebase_head_branch(root: Path) -> str:
     git_dir = _git_path(root)
     for state_dir in ("rebase-merge", "rebase-apply"):
         head_name = git_dir / state_dir / "head-name"
-        if not head_name.exists():
-            continue
-        value = head_name.read_text(encoding="utf-8").strip()
-        return value.removeprefix("refs/heads/")
+        if head_name.exists():
+            return head_name.read_text(encoding="utf-8").strip().removeprefix("refs/heads/")
     return ""
 
 
@@ -194,128 +161,93 @@ def _work_lane_lease_check(
     effective: dict[str, str],
     tracked_write_requested: bool,
 ) -> dict[str, object]:
-    """Evaluate the current Work Lane lease against its lifecycle binding."""
-    role = effective["role"]
-    branch = effective["branch"]
-    head_source = effective["source"]
-    if role != ROLE_WORK_LANE or not tracked_write_requested:
-        return {
-            "ok": True,
-            "required": False,
-            "branch": branch,
-            "holder_ref": "",
-            "invocation_holder_ref": os.environ.get("ETHOS_ACTOR", "").strip(),
-            "lease_id": "",
-            "epoch": 0,
-            "expected_head": "",
-            "reason": "not_required",
-        }
-    lease = _work_lane_lease(root=root, status=status, branch=branch)
-    holder_ref = str(lease.get("holder_ref") or "")
+    role, branch, source = effective["role"], effective["branch"], effective["source"]
     actor = os.environ.get("ETHOS_ACTOR", "").strip()
-    if not holder_ref:
-        return {
-            "ok": False,
-            "required": True,
-            "branch": branch,
-            "holder_ref": "",
-            "invocation_holder_ref": actor,
-            "lease_id": str(lease.get("lease_id") or ""),
-            "epoch": integer_value(lease.get("epoch")),
-            "expected_head": str(lease.get("expected_head") or ""),
-            "reason": f"work_lane_missing_lease:{branch}",
-        }
-    current_head = _current_head(root)
-    binding_head, binding_head_source = _binding_head(
-        root=root,
-        branch=branch,
-        head_source=head_source,
-        current_head=current_head,
+    if role != ROLE_WORK_LANE or not tracked_write_requested:
+        return _lease_report(branch, actor, {}, ok=True, required=False, reason="not_required")
+    lease = _work_lane_lease(root=root, status=status, branch=branch)
+    holder = str(lease.get("holder_ref") or "")
+    if not holder:
+        return _lease_report(
+            branch,
+            actor,
+            lease,
+            ok=False,
+            required=True,
+            reason=f"work_lane_missing_lease:{branch}",
+        )
+    current = _current_head(root)
+    binding, binding_source = _binding_head(
+        root=root, branch=branch, head_source=source, current_head=current
     )
-    reason = _lease_binding_reason(
-        branch=branch,
-        lease=lease,
-        actor=actor,
-        current_head=binding_head,
+    reason = _lease_binding_reason(branch=branch, lease=lease, actor=actor, current_head=binding)
+    return _lease_report(
+        branch,
+        actor,
+        lease,
+        ok=not reason,
+        required=True,
+        reason=reason or "matched",
+        observed=(current, binding, binding_source),
     )
-    if reason:
-        return {
-            "ok": False,
-            "required": True,
-            "branch": branch,
-            "holder_ref": holder_ref,
-            "invocation_holder_ref": actor,
-            "lease_id": str(lease.get("lease_id") or ""),
-            "epoch": integer_value(lease.get("epoch")),
-            "expected_head": str(lease.get("expected_head") or ""),
-            "current_head": current_head,
-            "binding_head": binding_head,
-            "head_source": binding_head_source,
-            "reason": reason,
-        }
-    return {
-        "ok": True,
-        "required": True,
-        "branch": branch,
-        "holder_ref": holder_ref,
-        "invocation_holder_ref": actor,
-        "lease_id": str(lease.get("lease_id") or ""),
-        "epoch": integer_value(lease.get("epoch")),
-        "expected_head": str(lease.get("expected_head") or ""),
-        "current_head": current_head,
-        "binding_head": binding_head,
-        "head_source": binding_head_source,
-        "reason": "matched",
-    }
+
+
+def _lease_report(  # noqa: PLR0913, RUF100 - exact lease binding dimensions
+    branch: str,
+    actor: str,
+    lease: dict[str, object],
+    *,
+    ok: bool,
+    required: bool,
+    reason: str,
+    observed: tuple[str, str, str] | None = None,
+) -> dict[str, object]:
+    report: dict[str, object] = {"ok": ok, "required": required, "branch": branch}
+    report.update(holder_ref=str(lease.get("holder_ref") or ""), invocation_holder_ref=actor)
+    report.update(
+        lease_id=str(lease.get("lease_id") or ""), epoch=integer_value(lease.get("epoch"))
+    )
+    report["expected_head"] = str(lease.get("expected_head") or "")
+    if observed:
+        report.update(current_head=observed[0], binding_head=observed[1], head_source=observed[2])
+    report["reason"] = reason
+    return report
 
 
 def _work_lane_lease(*, root: Path, status: dict[str, object], branch: str) -> dict[str, object]:
     current_path = Path(str(status.get("root") or root)).resolve()
     worktrees = cast("list[dict[str, str]]", status["worktrees"])
-    leases = leases_by_branch(worktrees, current_path=current_path)
-    return leases.get(branch, {})
+    return leases_by_branch(worktrees, current_path=current_path).get(branch, {})
 
 
 def _lease_binding_reason(
     *, branch: str, lease: dict[str, object], actor: str, current_head: str
 ) -> str:
-    if str(lease.get("normalization_state") or "") != "normalized":
-        return f"lane_lease_legacy_ambiguous:{branch}"
-    if actor != str(lease.get("holder_ref") or ""):
-        return f"lease_holder_mismatch:{branch}"
-    if not str(lease.get("lease_id") or "") or integer_value(lease.get("epoch")) < 1:
-        return f"lease_generation_missing:{branch}"
-    if str(lease.get("expected_head") or "") != current_head:
-        return f"lease_head_stale:{branch}"
-    return ""
+    checks = (
+        (
+            str(lease.get("normalization_state") or "") != "normalized",
+            f"lane_lease_legacy_ambiguous:{branch}",
+        ),
+        (actor != str(lease.get("holder_ref") or ""), f"lease_holder_mismatch:{branch}"),
+        (
+            not str(lease.get("lease_id") or "") or integer_value(lease.get("epoch")) < 1,
+            f"lease_generation_missing:{branch}",
+        ),
+        (str(lease.get("expected_head") or "") != current_head, f"lease_head_stale:{branch}"),
+    )
+    return next((reason for failed, reason in checks if failed), "")
 
 
 def _current_head(root: Path) -> str:
-    completed = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
-        cwd=root,
-        check=False,
-        text=True,
-        capture_output=True,
-    )
-    return completed.stdout.strip() if completed.returncode == 0 else ""
+    return git_stdout(root, "rev-parse", "HEAD")
 
 
 def _binding_head(
     *, root: Path, branch: str, head_source: str, current_head: str
 ) -> tuple[str, str]:
-    """Return the ref head that a lease must bind for this write transition."""
     if head_source != "git_rebase_head_name":
         return current_head, "head"
-    completed = subprocess.run(
-        ["git", "rev-parse", "--verify", f"refs/heads/{branch}"],
-        cwd=root,
-        check=False,
-        text=True,
-        capture_output=True,
-    )
-    binding_head = completed.stdout.strip() if completed.returncode == 0 else ""
-    return binding_head, "rebase_branch_ref"
+    return git_stdout(root, "rev-parse", "--verify", f"refs/heads/{branch}"), "rebase_branch_ref"
 
 
 def _prewrite_decision(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
@@ -330,42 +262,34 @@ def _prewrite_decision(  # noqa: PLR0913, RUF100 - exact request envelope preser
     paths = tuple(
         str(item.get("relative_path") or item.get("path") or "") for item in checked_paths
     )
-    expected_state = {
+    state = {
         "root": root.resolve().as_posix(),
         "role": role,
         "branch": branch,
         "paths": list(paths),
-        "holder_ref": str(lease_check.get("holder_ref") or ""),
-        "lease_id": str(lease_check.get("lease_id") or ""),
-        "epoch": integer_value(lease_check.get("epoch")),
-        "head": str(lease_check.get("expected_head") or ""),
     }
+    state.update(holder_ref=str(lease_check.get("holder_ref") or ""))
+    state.update(
+        lease_id=str(lease_check.get("lease_id") or ""),
+        epoch=integer_value(lease_check.get("epoch")),
+    )
+    state["head"] = str(lease_check.get("expected_head") or "")
     return AdmissionDecision(
         verdict="block" if error else "allow",
         subject=MutationSubject(
-            action="lane.prewrite",
-            resource=f"{branch}:{','.join(paths)}",
-            expected_state=expected_state,
+            action="lane.prewrite", resource=f"{branch}:{','.join(paths)}", expected_state=state
         ),
         policy_refs=("commitment:tracked-write-admission",),
         evidence_refs=("evidence:current-worktree-and-lease-observation",),
         basis=DecisionBasis(
             enforcement_boundary="local_process_guard",
             identity_basis="holder_ref_equality" if lease_check.get("required") else "not_required",
-            state_bindings=(
-                "root",
-                "role",
-                "branch",
-                "paths",
-                "lease_id",
-                "epoch",
-                "head",
-            ),
+            state_bindings=_STATE_BINDINGS,
             evidence_boundary="current_local_observation",
             verifier_provenance="current_worktree_runner",
             time_basis="evaluation_time",
         ),
-        why=((error,) if error else ("request_matches_current_local_state",)),
+        why=(error or "request_matches_current_local_state",),
         next=(("repair_required_gap",) if error else ()),
         required_gaps=((error,) if error else ()),
     )
@@ -382,102 +306,87 @@ def _runtime_binding_check(status: dict[str, object]) -> dict[str, object]:
             "schema_source_root": "",
             "product_audit_root": False,
         }
-    audit_root = str(binding.get("audit_root") or "")
-    runner_source_root = str(binding.get("runner_source_root") or "")
-    schema_source_root = str(binding.get("schema_source_root") or "")
-    product_audit_root = (
-        bool(audit_root)
-        and (Path(audit_root) / "packages" / "ethos" / "src" / "ethos" / "__init__.py").exists()
-    )
+    audit = str(binding.get("audit_root") or "")
+    runner = str(binding.get("runner_source_root") or "")
+    schema = str(binding.get("schema_source_root") or "")
+    product = bool(audit) and (Path(audit) / "packages/ethos/src/ethos/__init__.py").exists()
     runner_matches = binding.get("runner_matches_audit_root") is True
     schema_matches = binding.get("schema_matches_audit_root") is True
-    ok = (not product_audit_root) or (runner_matches and schema_matches)
-    reason = "matched" if ok else "root_binding_mismatch"
-    return {
-        "ok": ok,
-        "reason": reason,
-        "audit_root": audit_root,
-        "runner_source_root": runner_source_root,
-        "schema_source_root": schema_source_root,
-        "product_audit_root": product_audit_root,
-        "runner_matches_audit_root": runner_matches,
-        "schema_matches_audit_root": schema_matches,
-    }
+    ok = not product or (runner_matches and schema_matches)
+    report: dict[str, object] = {"ok": ok, "reason": "matched" if ok else "root_binding_mismatch"}
+    report.update(audit_root=audit, runner_source_root=runner, schema_source_root=schema)
+    report.update(product_audit_root=product, runner_matches_audit_root=runner_matches)
+    report["schema_matches_audit_root"] = schema_matches
+    return report
 
 
 def _editor_root_check(
-    *,
-    root: Path,
-    editor_root: Path | None,
-    require_editor_root: bool,
+    *, root: Path, editor_root: Path | None, require_editor_root: bool
 ) -> dict[str, object]:
     expected = root.resolve()
-    if editor_root is None:
-        return {
-            "ok": not require_editor_root,
-            "required": require_editor_root,
-            "expected": expected.as_posix(),
-            "actual": "",
-            "reason": "editor_root_missing" if require_editor_root else "not_checked",
-        }
-    actual = editor_root.resolve()
+    actual = editor_root.resolve() if editor_root else None
+    ok = actual == expected if actual else not require_editor_root
     return {
-        "ok": actual == expected,
+        "ok": ok,
         "required": require_editor_root,
         "expected": expected.as_posix(),
-        "actual": actual.as_posix(),
-        "reason": "matched" if actual == expected else "editor_root_mismatch",
+        "actual": actual.as_posix() if actual else "",
+        "reason": "matched"
+        if actual == expected
+        else "editor_root_missing"
+        if require_editor_root and not actual
+        else "editor_root_mismatch"
+        if actual
+        else "not_checked",
     }
 
 
 def _check_path(*, root: Path, path: Path, role: str) -> dict[str, object]:
-    path_text = path.as_posix()
-    if has_control_character(path_text):
-        return {
-            "path": path_text,
-            "relative_path": "",
-            "ignored": False,
-            "tracked_candidate": False,
-            "allowed": False,
-            "reason": "path_invalid_control_character",
-        }
-    if has_path_whitespace(path_text):
-        return {
-            "path": path_text,
-            "relative_path": "",
-            "ignored": False,
-            "tracked_candidate": False,
-            "allowed": False,
-            "reason": "path_invalid_whitespace",
-        }
+    text = path.as_posix()
+    if has_control_character(text):
+        return _path_report(text, reason="path_invalid_control_character")
+    if has_path_whitespace(text):
+        return _path_report(text, reason="path_invalid_whitespace")
     root_path = root.resolve()
     resolved = (path if path.is_absolute() else root_path / path).resolve()
     try:
-        relative_path = resolved.relative_to(root_path).as_posix()
+        relative = resolved.relative_to(root_path).as_posix()
     except ValueError:
-        return {
-            "path": resolved.as_posix(),
-            "relative_path": "",
-            "ignored": False,
-            "tracked_candidate": False,
-            "allowed": False,
-            "reason": "path_outside_worktree",
-        }
-    ignored = _is_ignored(root_path, relative_path)
-    tracked_candidate = not ignored
-    protected = role in PROTECTED_WRITE_ROLES and tracked_candidate
+        return _path_report(resolved.as_posix(), reason="path_outside_worktree")
+    ignored = _is_ignored(root_path, relative)
+    tracked = not ignored
+    protected = role in PROTECTED_WRITE_ROLES and tracked
+    return _path_report(
+        resolved.as_posix(),
+        relative=relative,
+        ignored=ignored,
+        tracked=tracked,
+        allowed=not protected,
+        reason="protected_lane_tracked_write" if protected else "allowed",
+    )
+
+
+def _path_report(  # noqa: PLR0913, RUF100 - exact path admission dimensions
+    path: str,
+    *,
+    reason: str,
+    relative: str = "",
+    ignored: bool = False,
+    tracked: bool = False,
+    allowed: bool = False,
+) -> dict[str, object]:
     return {
-        "path": resolved.as_posix(),
-        "relative_path": relative_path,
+        "path": path,
+        "relative_path": relative,
         "ignored": ignored,
-        "tracked_candidate": tracked_candidate,
-        "allowed": not protected,
-        "reason": "protected_lane_tracked_write" if protected else "allowed",
+        "tracked_candidate": tracked,
+        "allowed": allowed,
+        "reason": reason,
     }
 
 
 def has_control_character(text: str) -> bool:
-    """Return whether a path token contains shell/log unsafe control bytes."""
+    """Return whether a path token contains unsafe control bytes."""
     return any(
         ord(character) < _CONTROL_CHARACTER_UPPER_BOUND
         or ord(character) == _DELETE_CONTROL_CODE_POINT
@@ -486,66 +395,50 @@ def has_control_character(text: str) -> bool:
 
 
 def _is_ignored(root: Path, relative_path: str) -> bool:
-    completed = subprocess.run(
-        ["git", "check-ignore", "-q", "--", relative_path],
-        cwd=root,
-        check=False,
+    return (
+        subprocess.run(
+            ["git", "check-ignore", "-q", "--", relative_path], cwd=root, check=False
+        ).returncode
+        == 0
     )
-    return completed.returncode == 0
 
 
 def _error(
-    *,
     runtime_check: dict[str, object],
     lease_check: dict[str, object],
     editor_check: dict[str, object],
     material_scope: dict[str, object],
     blocked_paths: list[dict[str, object]],
 ) -> str:
-    error = ""
-    if runtime_check["ok"] is not True:
-        error = str(runtime_check["reason"])
-    else:
-        error = _blocked_path_error(blocked_paths)
-    if not error and lease_check["ok"] is not True:
-        error = str(lease_check["reason"])
-    if not error and editor_check["ok"] is not True:
-        error = str(editor_check["reason"])
     scope_gaps = material_scope.get("required_gaps")
-    if not error and isinstance(scope_gaps, list) and scope_gaps:
-        error = str(scope_gaps[0])
-    return error
+    checks = (
+        str(runtime_check["reason"]) if runtime_check["ok"] is not True else "",
+        _blocked_path_error(blocked_paths),
+        str(lease_check["reason"]) if lease_check["ok"] is not True else "",
+        str(editor_check["reason"]) if editor_check["ok"] is not True else "",
+        str(scope_gaps[0]) if isinstance(scope_gaps, list) and scope_gaps else "",
+    )
+    return next((error for error in checks if error), "")
 
 
 def _blocked_path_error(blocked_paths: list[dict[str, object]]) -> str:
     reasons = {str(path["reason"]) for path in blocked_paths}
-    if "path_invalid_control_character" in reasons:
-        return "prewrite_path_invalid_control_character"
-    if "path_invalid_whitespace" in reasons:
-        return "prewrite_path_invalid_whitespace"
-    if "path_outside_worktree" in reasons:
-        return "prewrite_path_outside_worktree"
-    if blocked_paths:
-        return "protected_lane_prewrite_blocked"
-    return ""
+    priority = (
+        ("path_invalid_control_character", "prewrite_path_invalid_control_character"),
+        ("path_invalid_whitespace", "prewrite_path_invalid_whitespace"),
+        ("path_outside_worktree", "prewrite_path_outside_worktree"),
+    )
+    return next(
+        (gap for reason, gap in priority if reason in reasons),
+        "protected_lane_prewrite_blocked" if blocked_paths else "",
+    )
 
 
 def _material_scope_from_lifecycle(report: dict[str, object]) -> dict[str, object]:
     """Return the canonical scope read model projected by OpenSpec lifecycle."""
     lifecycle = report.get("lifecycle")
-    if isinstance(lifecycle, dict):
-        scope_binding = lifecycle.get("scope_binding")
-        if isinstance(scope_binding, dict):
-            return cast("dict[str, object]", scope_binding)
-    return {
-        "ok": True,
-        "state": "not_available",
-        "changed_paths": [],
-        "material_patterns": [],
-        "material_paths": [],
-        "changes": [],
-        "covered_paths": [],
-        "uncovered_paths": [],
-        "required_gaps": [],
-        "advisory_gaps": [],
-    }
+    scope = lifecycle.get("scope_binding") if isinstance(lifecycle, dict) else None
+    if isinstance(scope, dict):
+        return cast("dict[str, object]", scope)
+    empty = {key: [] for key in _SCOPE_LIST_FIELDS}
+    return {"ok": True, "state": "not_available", **empty}

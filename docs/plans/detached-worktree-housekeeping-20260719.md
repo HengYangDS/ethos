@@ -2,9 +2,21 @@
 subject: ethos:detached-worktree-housekeeping-20260719
 role: plan
 state: active
+relations:
+  implements: detached-worktree-housekeeping-20260719
+  see_also: docs/reference/command-plane.md, openspec/specs/repository-governance/spec.md
 ---
 
 # Detached Worktree Housekeeping — 2026-07-19
+
+Status: active implementation; local lifecycle closeout is in progress.
+
+Purpose: define the fail-closed inventory and cleanup boundary for detached
+temporary Git worktrees without discarding dirty or semantically valuable state.
+
+See also: [Command Plane](../reference/command-plane.md),
+[Product Design Contract](../governance/product-design-contract.md), and
+[Repository Governance Specification](../../openspec/specs/repository-governance/spec.md).
 
 ## Goal
 
@@ -20,7 +32,7 @@ worktrees and marks a worktree removable only when all of these are true:
 - it is detached from every branch;
 - `git status --porcelain` is empty;
 - its path is below a controlled temporary root (`$TMPDIR`, the system `/tmp`
-  real path, or the current Codex home `worktrees` directory);
+  real path, or an explicit `$ETHOS_HOUSEKEEPING_ROOTS` entry);
 - it is not the current audited worktree.
 
 Mutation requires both `--authorize` and `--apply`. The command uses ordinary

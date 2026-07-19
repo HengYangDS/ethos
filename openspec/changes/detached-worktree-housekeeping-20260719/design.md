@@ -18,11 +18,12 @@ registered worktree. Classification is deliberately ordered and fail-closed:
 5. a detached clean entry outside controlled temporary roots is protected;
 6. only the remaining detached clean temporary entry is removable.
 
-The default controlled roots are the active session temporary directory, the
-system `/tmp` real path, and the current Codex home `worktrees` directory. The
-explicit system root matters on macOS, where `$TMPDIR` and `/private/tmp` are
-different trees. Tests inject a temporary root so classification is
-deterministic. Apply mode requires `--authorize`,
+The default controlled roots are the active session temporary directory and the
+system `/tmp` real path. Additional host-managed roots are explicit path-list
+entries in `$ETHOS_HOUSEKEEPING_ROOTS`; no IDE or agent vendor becomes product
+ontology. The explicit system root matters on macOS, where `$TMPDIR` and
+`/private/tmp` are different trees. Tests inject a temporary root so
+classification is deterministic. Apply mode requires `--authorize`,
 re-inventories each selected path, and invokes ordinary `git worktree remove`
 without force. A changed candidate or failed removal produces a blocking gap.
 A failed Git inventory blocks the command rather than projecting an empty clean

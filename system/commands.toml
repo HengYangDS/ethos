@@ -408,7 +408,7 @@ group = "quality"
 import_path = "ethos.surface.cli.quality.core:toml_quality"
 help = "Run TOML syntax and format checks through Taplo."
 show = true
-tool_handler = { gate_id = "toml-config", tool = "bash", command = ["bash", "tools/ci/scripts/run-config-lint.sh"], file_globs = ["*.toml"] }
+tool_handler = { gate_id = "config-quality", tool = "bash", command = ["bash", "tools/ci/scripts/run-config-lint.sh"], file_globs = ["*.toml"] }
 
 [[commands]]
 name = "yaml"
@@ -416,7 +416,7 @@ group = "quality"
 import_path = "ethos.surface.cli.quality.core:yaml_quality"
 help = "Run YAML projection checks through yamllint."
 show = true
-tool_handler = { gate_id = "yaml-config", tool = "bash", command = ["bash", "tools/ci/scripts/run-config-lint.sh"], file_globs = ["*.yml", "*.yaml"] }
+tool_handler = { gate_id = "config-quality", tool = "bash", command = ["bash", "tools/ci/scripts/run-config-lint.sh"], file_globs = ["*.yml", "*.yaml"] }
 
 [[commands]]
 name = "coverage"

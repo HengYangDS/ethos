@@ -20,8 +20,7 @@ product_default = [
   "module-layout",
   "no-compat",
   "python-size",
-  "toml-config",
-  "yaml-config",
+  "config-quality",
   "shell-lint",
   "format-policy",
 ]
@@ -45,8 +44,7 @@ product_full = [
   "build",
   "markdown-links",
   "shell-lint",
-  "toml-config",
-  "yaml-config",
+  "config-quality",
   "markdown-structure",
   "format-policy",
   "asset-determinism",
@@ -509,19 +507,19 @@ network_policy = "offline"
 version_source = "adopter-toolchain"
 
 [[gates]]
-id = "toml-config"
+id = "config-quality"
 registries = ["quality", "runtime"]
 kind = "config"
 command = ["tools/ci/scripts/run-config-lint.sh"]
 policy = "required"
 profile = "product"
 toolchain = "quality-adapter"
-asset_classes = ["toml-config"]
-dimensions = ["format", "lint", "syntax"]
+asset_classes = ["toml-config", "json-contracts", "yaml-config"]
+dimensions = ["format", "lint", "syntax", "projection-boundary"]
 execution_mode = "inprocess"
 evidence_class = "diagnostic"
 trust_bearing = true
-tool_adapter = "taplo"
+tool_adapter = "repository-config-toolchain"
 writes_files = false
 network_policy = "offline"
 version_source = "adopter-toolchain"
@@ -543,24 +541,6 @@ tool_adapter = "jsonschema"
 writes_files = false
 network_policy = "offline"
 version_source = "product"
-
-[[gates]]
-id = "yaml-config"
-registries = ["quality", "runtime"]
-kind = "config"
-command = ["tools/ci/scripts/run-config-lint.sh"]
-policy = "required"
-profile = "product"
-toolchain = "quality-adapter"
-asset_classes = ["yaml-config"]
-dimensions = ["format", "lint", "projection-boundary"]
-execution_mode = "inprocess"
-evidence_class = "diagnostic"
-trust_bearing = true
-tool_adapter = "yamllint"
-writes_files = false
-network_policy = "offline"
-version_source = "adopter-toolchain"
 
 [[gates]]
 id = "format-policy"

@@ -185,10 +185,10 @@ def run_json_command(
             except subprocess.TimeoutExpired:
                 stdout, stderr = _text(exc.stdout), _text(exc.stderr)
                 process.kill()
-                if process.stdout is not None:
-                    process.stdout.close()
-                if process.stderr is not None:
-                    process.stderr.close()
+                assert process.stdout is not None
+                assert process.stderr is not None
+                process.stdout.close()
+                process.stderr.close()
                 process.wait()
         return {
             "exit_code": 124,

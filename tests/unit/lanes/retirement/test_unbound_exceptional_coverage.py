@@ -9,9 +9,7 @@ import pytest
 import ethos.adapters.mutation.lane_retirement.unbound.observation.core as unbound_observation
 import ethos.adapters.mutation.lane_retirement.unbound.policy.core as unbound_policy
 import ethos.adapters.mutation.lane_retirement.unbound.records.core as unbound_records
-from ethos.adapters.mutation.lane_retirement.unbound.core import (
-    retire_unbound_work_lane_ref,
-)
+from ethos.adapters.mutation.lane_retirement.unbound.core import retire_unbound_work_lane_ref
 from tests.support.lane_helpers import git
 from tests.unit.lanes.retirement.test_unbound_and_helpers import _exceptional_fixture
 
@@ -133,6 +131,36 @@ def test_exceptional_retirement_policy_helpers_cover_every_fail_closed_outcome(
         branch=branch,
         head=head,
     ) == ["unbound_retire_chronicle_target_mismatch"]
+    assert (
+        unbound_policy.lease_relinquish_gap(
+            {
+                unbound_observation.HAS_ACTIVE_LEASE: True,
+                "active_lease": {
+                    "holder_ref": "agent:test:holder",
+                    "lease_id": "",
+                    "expected_head": head,
+                },
+                "head": head,
+            },
+            holder_ref="agent:test:holder",
+        )
+        == "unbound_retire_active_lease"
+    )
+    assert (
+        unbound_policy.lease_relinquish_gap(
+            {
+                unbound_observation.HAS_ACTIVE_LEASE: True,
+                "active_lease": {
+                    "holder_ref": "agent:test:holder",
+                    "lease_id": "lease:test",
+                    "expected_head": "other",
+                },
+                "head": head,
+            },
+            holder_ref="agent:test:holder",
+        )
+        == "unbound_retire_active_lease"
+    )
 
     assert unbound_policy.accepted_control_root({}, accepted_head=head)[1] == (
         "unbound_retire_accepted_control_root_unavailable"
@@ -313,6 +341,30 @@ def test_exceptional_retirement_records_cover_idempotence_races_and_invalid_payl
             {**receipt, "postconditions": {"ref_absent": False}},
             kind=unbound_records.RECEIPT_KIND,
         )
+    assert unbound_records.sha256_text_fields({"one": "a" * 40, "two": "b" * 64}, "one", "two")
+    assert not unbound_records.sha256_text_fields({"one": "short"}, "one")
+    assert not unbound_records.valid_lease_relinquish_binding(
+        {
+            "active": "invalid",
+            "lease_id": "lease:test",
+            "holder_ref": "agent:test",
+            "epoch": 1,
+            "expected_head": head,
+        }
+    )
+    assert not unbound_records.valid_lease_relinquish_binding([])
+    assert not unbound_records.valid_lease_relinquishment("invalid", {}, subject=branch)
+    assert not unbound_records.valid_lease_relinquishment(
+        {
+            "active": "invalid",
+            "lease_id": "lease:test",
+            "holder_ref": "agent:test",
+            "epoch": 1,
+            "expected_head": head,
+        },
+        {},
+        subject=branch,
+    )
     with pytest.raises(ValueError, match="unbound_retire_record_invalid"):
         unbound_records.validate_record(
             {**receipt, "protected_refs_after": {"main": "changed"}},

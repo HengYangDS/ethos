@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import shutil
+import tempfile
 from pathlib import Path
 from subprocess import CompletedProcess
 
@@ -130,7 +131,8 @@ def test_housekeeping_default_roots_cover_system_and_session_temp(tmp_path: Path
     repo, _candidate = init_repo_with_candidate(tmp_path)
     report = worktree_housekeeping.housekeeping_worktrees(root=repo)
 
-    assert Path("/tmp").resolve().as_posix() in report["temporary_roots"]
+    system_temporary_root = Path(tempfile.gettempdir()).anchor
+    assert (Path(system_temporary_root) / "tmp").resolve().as_posix() in report["temporary_roots"]
     assert (
         Path(worktree_housekeeping.tempfile.gettempdir()).resolve().as_posix()
         in report["temporary_roots"]

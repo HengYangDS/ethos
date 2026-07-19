@@ -1,0 +1,5 @@
+schema: spec-driven
+created: 2026-07-19
+goal: Add a repository-owned, fail-closed staged-secret admission boundary using
+  the current pinned gitleaks CLI before Ruff formatting and ETHOS write
+  admission, without network access, installation, or secret disclosure.

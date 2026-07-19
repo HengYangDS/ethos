@@ -7,7 +7,7 @@ claim_id = "worktree-governance-campaign-20260718"
 [[step]]
 id = "campaign-bootstrap"
 title = "Campaign bootstrap and scoped closeout"
-state = "archive_ready"
+state = "retired"
 ordinal = 1
 depends_on = []
 openspec_change = "repo-first-worktree-governance-campaign-20260718"
@@ -15,19 +15,21 @@ work_lane = "work/20260718-worktree-governance-campaign"
 claim_id = "worktree-governance-campaign-20260718"
 
 [step.closeout]
-state = "planned"
-accepted_head = ""
-candidate_head = ""
-evidence = []
+state = "retired"
+accepted_head = "8f5964aeca7340af0757e9395b64d0b2e2abce7c"
+candidate_head = "8f5964aeca7340af0757e9395b64d0b2e2abce7c"
+evidence = [
+  "evidence/chronicle/worktree-governance-campaign-20260718/2026-07-18.md",
+]
 
 [[step]]
 id = "retirement-fail-closed"
 title = "Retirement fail-closed"
-state = "planned"
+state = "archive_ready"
 ordinal = 2
 depends_on = ["campaign-bootstrap"]
 openspec_change = "worktree-retirement-fail-closed-20260718"
-work_lane = "work/worktree-retirement-fail-closed-20260718"
+work_lane = "work/20260719-worktree-retirement-fail-closed"
 claim_id = "worktree-retirement-fail-closed-20260718"
 
 [step.closeout]

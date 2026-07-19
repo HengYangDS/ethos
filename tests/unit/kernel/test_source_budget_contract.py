@@ -6,9 +6,10 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from ethos_core.contracts.source_budget.core import SourceBudgetPolicy
 from ethos_core.contracts.source_budget.core import SourceBudgetWave
 from ethos_core.contracts.source_budget.core import source_budget_json_schema
+from ethos_core.contracts.source_budget.core import validate_source_budget_policy
+from ethos_core.contracts.source_budget.core import validate_source_budget_taxonomy
 
 
 def _policy_payload() -> dict[str, object]:
@@ -37,11 +38,33 @@ def _policy_payload() -> dict[str, object]:
 
 
 def test_source_budget_contract_preserves_lifecycle_fields():
-    policy = SourceBudgetPolicy.model_validate(_policy_payload())
+    policy = validate_source_budget_policy(_policy_payload())
 
     assert policy.debt.records[0].deletion_wave == "w1"
     assert policy.debt.records[0].expiry == "2026-12-01"
     assert policy.debt.records[0].expected_net_deletion == 1
+
+
+@pytest.mark.parametrize(
+    ("enforcement", "campaign_id"),
+    [
+        ("campaign_terminal", None),
+        ("campaign_terminal", "compression"),
+        ("transition", "compression"),
+        ("transition", None),
+    ],
+)
+def test_source_budget_contract_validates_campaign_binding(enforcement, campaign_id):
+    payload = _policy_payload()
+    payload["enforcement"] = enforcement
+    if campaign_id is not None or (enforcement, campaign_id) == ("transition", None):
+        payload["campaign_id"] = campaign_id
+
+    if enforcement == "campaign_terminal" and campaign_id:
+        assert validate_source_budget_policy(payload).campaign_id == campaign_id
+    else:
+        with pytest.raises(ValidationError):
+            validate_source_budget_policy(payload)
 
 
 @pytest.mark.parametrize(
@@ -75,7 +98,25 @@ def test_source_budget_contract_rejects_invalid_debt_lifecycle(case):
         payload["baseline"].pop("python_total")
 
     with pytest.raises(ValidationError):
-        SourceBudgetPolicy.model_validate(payload)
+        validate_source_budget_policy(payload)
+
+
+def test_source_budget_taxonomy_rejects_unknown_aggregate_member() -> None:
+    with pytest.raises(ValidationError, match="aggregate member unknown"):
+        validate_source_budget_taxonomy(
+            {
+                "carrier": [{"category": "python", "extensions": [".py"]}],
+                "aggregates": {"total": ["missing"]},
+            }
+        )
+
+
+def test_source_budget_contract_requires_terminal_aggregates() -> None:
+    payload = _policy_payload()
+    payload["terminal"].pop("global_total")
+
+    with pytest.raises(ValidationError, match="terminal must include required aggregates"):
+        validate_source_budget_policy(payload)
 
 
 def test_source_budget_date_validator_rejects_non_calendar_values():

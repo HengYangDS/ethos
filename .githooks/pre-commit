@@ -29,6 +29,8 @@ if [ "${#staged[@]}" -eq 0 ]; then
   exit 0
 fi
 
+"${repo_root}/tools/ci/scripts/run-staged-secrets-scan.sh" "${repo_root}"
+
 staged_python=()
 while IFS= read -r path; do
   staged_python+=("$path")

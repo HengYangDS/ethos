@@ -1,14 +1,1 @@
-{
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://ethos.local/schemas/host-capability.schema.json",
-  "title": "ETHOS Host Capability",
-  "type": "object",
-  "required": ["id", "kind", "truth_boundary", "repository_truth"],
-  "properties": {
-    "id": {"type": "string", "minLength": 1},
-    "kind": {"type": "string", "minLength": 1},
-    "truth_boundary": {"type": "string", "minLength": 1},
-    "repository_truth": {"type": "boolean"}
-  },
-  "additionalProperties": false
-}
+{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://ethos.local/schemas/host-capability.schema.json","title":"ETHOS Host Capability","type":"object","required":["id","kind","truth_boundary","repository_truth"],"properties":{"id":{"type":"string","minLength":1},"kind":{"type":"string","minLength":1},"truth_boundary":{"type":"string","minLength":1},"repository_truth":{"type":"boolean"}},"additionalProperties":false}

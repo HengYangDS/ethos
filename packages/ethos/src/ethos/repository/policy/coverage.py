@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import configparser
+import subprocess
 import tomllib
 from pathlib import Path
 from typing import Any
@@ -16,7 +17,9 @@ POLICY_PATH = COVERAGE_CONFIG_DIR / "policy.toml"
 CONFIG_PATH = COVERAGE_CONFIG_DIR / "coverage.ini"
 ARTIFACT_PATH = COVERAGE_EVIDENCE_DIR / "coverage.xml"
 WRITE_LOCK_PATH = COVERAGE_EVIDENCE_DIR / ".write.lock"
+WRITE_LOCK_OWNER_PATH = WRITE_LOCK_PATH / "owner.pid"
 OWNER_SCRIPT = "tools/ci/scripts/run-python-tests.sh"
+OWNER_FIELD_COUNT = 2
 
 
 def coverage_quality_report(root: Path) -> dict[str, object]:
@@ -24,15 +27,21 @@ def coverage_quality_report(root: Path) -> dict[str, object]:
     policy, policy_gaps = _load_policy(root / POLICY_PATH)
     config, config_gaps = _load_config(root / CONFIG_PATH)
     artifact, artifact_gaps = _load_artifact(root / ARTIFACT_PATH)
-    writer_active = (root / WRITE_LOCK_PATH).exists()
+    writer = _writer_state(root)
+    writer_active = writer["writer_state"] == "active"
     gaps = [*policy_gaps, *config_gaps, *artifact_gaps]
     advisory_gaps: list[str] = []
 
-    if writer_active and f"coverage_artifact_missing:{ARTIFACT_PATH.as_posix()}" in gaps:
-        gaps.remove(f"coverage_artifact_missing:{ARTIFACT_PATH.as_posix()}")
+    if writer["writer_state"] != "absent":
+        artifact.update(writer)
+        artifact["writer_lock"] = WRITE_LOCK_PATH.as_posix()
+    if writer_active:
+        missing_gap = f"coverage_artifact_missing:{ARTIFACT_PATH.as_posix()}"
+        if missing_gap in gaps:
+            gaps.remove(missing_gap)
+        gaps.append(f"coverage_artifact_write_in_progress:{WRITE_LOCK_PATH.as_posix()}")
         advisory_gaps.append(f"coverage_artifact_writer_active:{WRITE_LOCK_PATH.as_posix()}")
         artifact["writer_active"] = True
-        artifact["writer_lock"] = WRITE_LOCK_PATH.as_posix()
 
     hard_floor = _number(policy.get("current_hard_floor"))
     branch_required = bool(policy.get("branch_coverage_required", False))
@@ -47,7 +56,7 @@ def coverage_quality_report(root: Path) -> dict[str, object]:
     if hard_floor is not None and latest_percent is not None and latest_percent < hard_floor:
         gaps.append(f"coverage_latest_below_floor:{latest_percent:.2f}<{hard_floor:.2f}")
 
-    state = "blocked" if gaps else "in_progress" if advisory_gaps else "clean"
+    state = "in_progress" if writer_active else "blocked" if gaps else "clean"
     return {
         "ok": not gaps,
         "state": state,
@@ -127,6 +136,65 @@ def _load_artifact(path: Path) -> tuple[dict[str, Any], list[str]]:
         "lines_valid": lines_valid,
         "lines_covered": lines_covered,
     }, []
+
+
+def _writer_state(root: Path) -> dict[str, object]:
+    lock = root / WRITE_LOCK_PATH
+    if not lock.exists():
+        return {"writer_state": "absent"}
+    owner = root / WRITE_LOCK_OWNER_PATH
+    try:
+        owner_text = owner.read_text(encoding="utf-8").rstrip("\n")
+    except FileNotFoundError:
+        return {
+            "writer_state": "invalid",
+            "writer_reason": "coverage_artifact_writer_owner_missing",
+        }
+    parts = owner_text.split("\t")
+    if (
+        len(parts) != OWNER_FIELD_COUNT
+        or not parts[0].isdigit()
+        or int(parts[0]) <= 0
+        or not parts[1]
+    ):
+        return {
+            "writer_state": "invalid",
+            "writer_reason": "coverage_artifact_writer_owner_malformed",
+        }
+    pid = int(parts[0])
+    recorded_start = parts[1]
+    current_start = _process_start(pid)
+    if not current_start:
+        return {
+            "writer_state": "dead",
+            "writer_reason": "coverage_artifact_writer_process_missing",
+            "writer_pid": pid,
+            "writer_started_at": recorded_start,
+        }
+    if current_start != recorded_start:
+        return {
+            "writer_state": "dead",
+            "writer_reason": "coverage_artifact_writer_process_reused",
+            "writer_pid": pid,
+            "writer_started_at": recorded_start,
+        }
+    return {
+        "writer_state": "active",
+        "writer_pid": pid,
+        "writer_started_at": recorded_start,
+    }
+
+
+def _process_start(pid: int) -> str:
+    completed = subprocess.run(
+        ["ps", "-o", "lstart=", "-p", str(pid)],
+        check=False,
+        text=True,
+        capture_output=True,
+    )
+    if completed.returncode != 0:
+        return ""
+    return " ".join(completed.stdout.split())
 
 
 def _multiline_option(parser: configparser.ConfigParser, section: str, option: str) -> list[str]:

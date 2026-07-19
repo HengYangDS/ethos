@@ -11,8 +11,8 @@ from ethos.adapters.store.retrieval.indexing import rebuild_context_index
 from ethos.adapters.store.retrieval.query import context_eval_report
 from ethos.adapters.store.retrieval.query import search_context_index
 from ethos.repository.policy.schema import validate_schema_instance
+from ethos_core.contracts.context.projection import context_retrieval_smoke_queries
 from tests.support.contract_helpers import git
-from tests.support.ethos_fixtures import context_retrieval_smoke_queries
 
 if TYPE_CHECKING:
     from pathlib import Path

@@ -102,7 +102,7 @@ def test_python_test_gate_serializes_shared_coverage_evidence_writes() -> None:
     assert "coverage evidence writes are serialized" in script
 
 
-def test_python_test_gate_recovers_only_dead_coverage_lock_owners() -> None:
+def test_python_test_gate_recovers_dead_and_persistently_invalid_coverage_locks() -> None:
     script = (ROOT / "tools/ci/scripts/run-python-tests.sh").read_text(encoding="utf-8")
 
     assert "coverage_lock_owner_path" in script
@@ -110,6 +110,9 @@ def test_python_test_gate_recovers_only_dead_coverage_lock_owners() -> None:
     assert "coverage_lock_process_start" in script
     assert "ps -o lstart=" in script
     assert "reclaimed stale coverage evidence lock" in script
+    assert "coverage_lock_owner_is_invalid" in script
+    assert "reclaimed invalid coverage evidence lock" in script
+    assert "coverage_lock_invalid_reclaim_attempted" in script
     assert "ETHOS_COVERAGE_LOCK_WAIT_SECONDS" in script
     assert "coverage evidence lock remained unavailable" in script
 

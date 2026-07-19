@@ -1,0 +1,9 @@
+schema = "ethos-json-format-v1"
+owner = "ethos-quality-gate-governance"
+formatter = "jq"
+default_mode = "pretty"
+indent = 2
+
+[[rule]]
+globs = ["system/schemas/**/*.json", "evidence/**/*.json"]
+mode = "compact"

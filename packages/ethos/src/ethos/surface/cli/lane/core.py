@@ -21,6 +21,7 @@ from ethos.adapters.mutation.lane_retirement.landed.core import retire_landed_wo
 from ethos.adapters.mutation.lane_retirement.unbound.core import retire_unbound_work_lane_ref
 from ethos.adapters.mutation.lanes import bind_work_lane_claim
 from ethos.adapters.mutation.lanes import start_work_lane
+from ethos.adapters.mutation.worktree.core import housekeeping_worktrees
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
@@ -72,6 +73,31 @@ def lane_status(
     emit(result, json_output=json_output, enforce=False)
 
 
+@lane_app.command
+def housekeeping(
+    *,
+    authorize: bool = False,
+    apply: bool = False,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Remove only clean detached worktrees below controlled temporary roots."""
+    repo = resolve_root(root)
+    report = housekeeping_worktrees(root=repo, authorized=authorize, apply=apply)
+    result = EthosResult(
+        command="lane housekeeping",
+        ok=bool(report["ok"]),
+        state=str(report["state"]),
+        summary=cast("dict[str, object]", report["summary"]),
+        required_gaps=tuple(string_sequence(report.get("required_gaps"))),
+        next_actions=("ethos lane housekeeping --authorize --apply --json",)
+        if not apply and cast("dict[str, object]", report["summary"])["removable_count"]
+        else (),
+        data=report,
+    )
+    emit(result, json_output=json_output, enforce=apply)
+
+
 def _lane_status_summary(status_payload: dict[str, object]) -> dict[str, object]:
     coordination = cast("dict[str, object]", status_payload.get("coordination", {}))
     foreign_lanes = cast("list[dict[str, object]]", status_payload.get("foreign_work_lanes", []))
@@ -79,6 +105,7 @@ def _lane_status_summary(status_payload: dict[str, object]) -> dict[str, object]
     return {
         "branch": status_payload["branch"],
         "role": status_payload["role"],
+        "coordination_detail_state": str(coordination.get("detail_state") or "exact"),
         "foreign_work_lane_count": _int_value(
             coordination.get("foreign_work_lane_count"),
             default=len(foreign_lanes),
@@ -89,7 +116,10 @@ def _lane_status_summary(status_payload: dict[str, object]) -> dict[str, object]
         "dirty_closeout_residue_count": _int_value(
             coordination.get("dirty_closeout_residue_count")
         ),
-        "dirty_foreign_work_lane_count": sum(1 for lane in foreign_lanes if lane.get("dirty")),
+        "dirty_foreign_work_lane_count": _int_value(
+            coordination.get("dirty_foreign_work_lane_count"),
+            default=sum(1 for lane in foreign_lanes if lane.get("dirty") is True),
+        ),
         "coordination_advisory_count": len(advisory_items),
         "coordination_blocking": bool(coordination.get("blocking")),
         "coordination_next_action": str(coordination.get("next_action") or ""),

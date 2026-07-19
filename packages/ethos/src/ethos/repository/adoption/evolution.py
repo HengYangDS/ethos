@@ -7,11 +7,15 @@ from __future__ import annotations
 import tomllib
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import cast
 
 from ethos.repository.adoption.practice.selection import selection_ref_gaps
 from ethos.repository.adoption.practice.selection import selection_summary
+from ethos.repository.policy.schema import validate_schema_instance
 from ethos.repository.registry.docs.commands import KNOWN_ETHOS_COMMANDS
 from ethos.repository.registry.docs.commands import best_ethos_command_key
+from ethos_core.contracts.workflow import CampaignWorkflowDeclaration
+from ethos_core.contracts.workflow import load_workflow_contract_declaration
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -113,13 +117,14 @@ def _path_ref_exists(root: Path, ref: str) -> bool:
 
 
 def campaign_report(root: Path, *, campaign_id: str | None = None) -> dict[str, object]:
-    campaigns, gaps = _campaign_manifests(root, campaign_id=campaign_id)
-    active = [item for item in campaigns if item["state"] in {"active", "experimenting"}]
+    policy = campaign_policy(root)
+    campaigns, gaps = _campaign_manifests(root, campaign_id=campaign_id, policy=policy)
+    active = [item for item in campaigns if item["state"] in policy.campaign_active_states]
     return {"ok": not gaps, "campaign_count": len(campaigns), "active_count": len(active), "required_gaps": gaps, "campaigns": campaigns}
 
 
-def _campaign_manifests(root: Path, *, campaign_id: str | None) -> tuple[list[dict[str, Any]], list[str]]:
-    campaigns_root = _campaigns_root(root)
+def _campaign_manifests(root: Path, *, campaign_id: str | None, policy: CampaignWorkflowDeclaration | None = None) -> tuple[list[dict[str, Any]], list[str]]:
+    runtime, campaigns_root = policy or campaign_policy(root), _campaigns_root(root)
     if not campaigns_root.exists():
         return [], []
     campaigns: list[dict[str, Any]] = []
@@ -127,14 +132,21 @@ def _campaign_manifests(root: Path, *, campaign_id: str | None) -> tuple[list[di
     for path in sorted(campaigns_root.glob("*/campaign.toml")):
         try:
             payload = tomllib.loads(path.read_text(encoding="utf-8"))
-        except tomllib.TOMLDecodeError as exc:
+        except tomllib.TOMLDecodeError:
             gaps.append(f"campaign_manifest_invalid_toml:{path.parent.name}")
-            campaigns.append(_invalid_campaign(root, path, str(exc)))
             continue
-        campaign = _campaign_payload(root, path, payload)
-        if campaign_id and campaign["id"] != campaign_id:
+        manifest_id = str(payload.get("id") or path.parent.name)
+        if campaign_id and manifest_id != campaign_id:
             continue
-        campaign_gaps = _campaign_required_gaps(root, campaign)
+        validation = validate_schema_instance("campaign.schema.json", payload, root=root)
+        raw_schema_gaps = validation.get("required_gaps")
+        schema_gaps = raw_schema_gaps if isinstance(raw_schema_gaps, list) else []
+        campaign_gaps = [f"campaign_manifest_schema_invalid:{manifest_id}:{gap}" for gap in schema_gaps]
+        if validation.get("ok") is not True:
+            gaps.extend(campaign_gaps)
+            continue
+        campaign = _campaign_payload(root, path, payload, policy=runtime)
+        campaign_gaps.extend(_campaign_required_gaps(root, campaign))
         campaign["required_gaps"] = campaign_gaps
         gaps.extend(campaign_gaps)
         campaigns.append(campaign)
@@ -143,31 +155,35 @@ def _campaign_manifests(root: Path, *, campaign_id: str | None) -> tuple[list[di
     return campaigns, gaps
 
 
-def _invalid_campaign(root: Path, path: Path, error: str) -> dict[str, Any]:
-    return {"id": path.parent.name, "state": "invalid", "owner": "", "objective": "", "claim_id": "", "path": path.relative_to(root).as_posix(), "steps": [], "step_summary": _step_summary([]), "required_gaps": [error]}
+def _campaign_payload(root: Path, path: Path, payload: dict[str, Any], *, policy: CampaignWorkflowDeclaration | None = None) -> dict[str, Any]:
+    runtime = policy or campaign_policy(root)
+    steps = [_step_payload(item) for item in _list_items(payload.get("step"))]
+    publication = payload.get("publication")
+    return {"id": str(payload["id"]), "state": str(payload["state"]), "owner": str(payload["owner"]), "objective": str(payload["objective"]), "claim_id": str(payload["claim_id"]), "publication": {"mode": str(publication.get("mode") or "") if isinstance(publication, dict) else ""}, "path": path.relative_to(root).as_posix(), "steps": steps, "step_summary": _step_summary(steps, policy=runtime), "lane_topology": _lane_topology(steps, policy=runtime)}
 
 
-def _campaign_payload(root: Path, path: Path, payload: dict[str, Any]) -> dict[str, Any]:
-    steps = [_step_payload(item, default_ordinal=index) for index, item in enumerate(payload.get("step", []), start=1)]
-    return {"id": str(payload.get("id") or path.parent.name), **{field: str(payload.get(field) or default) for field, default in (("state", "active"), ("owner", ""), ("objective", ""), ("claim_id", ""))}, "path": path.relative_to(root).as_posix(), "steps": steps, "step_summary": _step_summary(steps), "lane_topology": _lane_topology(steps)}
-
-
-def _step_payload(item: dict[str, Any], *, default_ordinal: int) -> dict[str, Any]:
+def _step_payload(item: dict[str, Any], *, default_ordinal: int | None = None) -> dict[str, Any]:
+    """Project a schema-admitted step while retaining the legacy helper fallback."""
     closeout = dict(item.get("closeout") or {})
     try:
-        ordinal = int(item.get("ordinal", default_ordinal))
+        ordinal = int(cast("int | str", item.get("ordinal", default_ordinal or 0)))
     except (TypeError, ValueError):
         ordinal = 0
     return {**{field: str(item.get(field) or default) for field, default in (("id", ""), ("title", ""), ("state", "planned"))}, "ordinal": ordinal, "depends_on": [str(value) for value in item.get("depends_on", [])], **{field: str(item.get(field) or "") for field in ("openspec_change", "work_lane", "claim_id")}, "closeout": {**{field: str(closeout.get(field) or default) for field, default in (("state", "planned"), ("accepted_head", ""), ("candidate_head", ""))}, "evidence": [str(value) for value in closeout.get("evidence", [])]}}
 
 
-def _lane_topology(steps: list[dict[str, Any]]) -> dict[str, Any]:
-    active = [step["id"] for step in steps if step["state"] in _EXECUTION_STATES | {"archive_ready"}]
-    return {"kind": "openspec_lane_sequence", "mode": "strict_serial", "step_count": len(steps), "active_step": active[0] if len(active) == 1 else "", "active_steps": active, "next_planned_step": next((step["id"] for step in steps if step["state"] == "planned"), ""), "edges": [{"from": dependency, "to": step["id"], "rule": "closeout_retired_before_activation"} for step in steps for dependency in step["depends_on"]]}
+def _lane_topology(steps: list[dict[str, Any]], *, policy: CampaignWorkflowDeclaration | None = None) -> dict[str, Any]:
+    active_states = set(policy.step_execution_states) | set(policy.step_archived_states) if policy else _EXECUTION_STATES | {"archive_ready"}
+    planned_states = set(policy.step_planned_states) if policy else {"planned"}
+    active = [step["id"] for step in steps if step["state"] in active_states]
+    return {"kind": policy.topology_kind if policy else "openspec_lane_sequence", "mode": policy.topology_mode if policy else "strict_serial", "step_count": len(steps), "active_step": active[0] if len(active) == 1 else "", "active_steps": active, "next_planned_step": next((step["id"] for step in steps if step["state"] in planned_states), ""), "edges": [{"from": dependency, "to": step["id"], "rule": policy.dependency_rule if policy else "closeout_retired_before_activation"} for step in steps for dependency in step["depends_on"]]}
 
 
-def _step_summary(steps: list[dict[str, Any]]) -> dict[str, int]:
-    return {"total": len(steps), "planned": sum(item["state"] == "planned" for item in steps), "active": sum(item["state"] in {"active", "in_progress"} for item in steps), "archive_ready": sum(item["state"] == "archive_ready" for item in steps), "closed": sum(item["state"] in _CLOSED_STATES or item["closeout"]["state"] in _CLOSED_STATES for item in steps)}
+def _step_summary(steps: list[dict[str, Any]], *, policy: CampaignWorkflowDeclaration | None = None) -> dict[str, int]:
+    planned = set(policy.step_planned_states) if policy else {"planned"}
+    active = set(policy.step_execution_states) | set(policy.step_archived_states) if policy else {"active", "in_progress"}
+    terminal, closeout_terminal = (set(policy.step_terminal_states), set(policy.closeout_terminal_states)) if policy else (_CLOSED_STATES, _CLOSED_STATES)
+    return {"total": len(steps), "planned": sum(item["state"] in planned for item in steps), "active": sum(item["state"] in active for item in steps), "archive_ready": sum(item["state"] == "archive_ready" for item in steps), "closed": sum(item["state"] in terminal or item["closeout"]["state"] in closeout_terminal for item in steps)}
 
 
 def _openspec_carrier_state(root: Path, change: str) -> str:
@@ -181,19 +197,22 @@ def _openspec_carrier_state(root: Path, change: str) -> str:
 
 
 def _campaign_required_gaps(root: Path, campaign: dict[str, Any]) -> list[str]:
-    steps = campaign["steps"]
-    gaps = [f"campaign_{field}_missing:{campaign['id']}" for field in _CAMPAIGN_FIELDS if not campaign[field]]
+    policy, steps = campaign_policy(root), campaign["steps"]
+    gaps = policy.evaluate("campaign", facts={"campaign": campaign})
     step_by_id = {step["id"]: step for step in steps if step["id"]}
-    if len(step_by_id) != sum(bool(step["id"]) for step in steps):
-        gaps.append(f"campaign_step_id_duplicate:{campaign['id']}")
-    if len(campaign["lane_topology"]["active_steps"]) > 1:
-        gaps.append(f"campaign_active_step_not_serial:{campaign['id']}")
+    shape_prefixes = ("campaign_step_ordinal_invalid:", "campaign_step_dependency_not_serial:")
     for index, step in enumerate(steps, start=1):
-        gaps.extend(_campaign_step_gaps(root, campaign["id"], steps, step_by_id, index, step))
+        expected = [] if index == 1 else [steps[index - 2]["id"]]
+        facts = {"campaign": campaign, "step": step, "position": index, "expected_dependency": expected, "carrier": {"state": _openspec_carrier_state(root, step["openspec_change"])}}
+        step_gaps = policy.evaluate("step", facts=facts)
+        gaps.extend(gap for gap in step_gaps if gap.startswith(shape_prefixes))
+        for dependency in step["depends_on"]:
+            gaps.extend(policy.evaluate("dependency", facts={"campaign": campaign, "step": step, "dependency_id": dependency, "dependency": step_by_id.get(dependency)}))
+        gaps.extend(gap for gap in step_gaps if not gap.startswith(shape_prefixes))
     return gaps
 
 
-def _campaign_step_gaps(root: Path, campaign_id: str, steps: list[dict[str, Any]], step_by_id: dict[str, dict[str, Any]], index: int, step: dict[str, Any]) -> list[str]:  # noqa: PLR0912, PLR0913, RUF100 - serial campaign validation keeps exact dimensions
+def _campaign_step_gaps(root: Path, campaign_id: str, steps: list[dict[str, Any]], step_by_id: dict[str, dict[str, Any]], index: int, step: dict[str, Any]) -> list[str]:  # noqa: PLR0912, PLR0913, RUF100 - retained helper compatibility
     step_id = step["id"] or "unnamed"
     gaps = [f"campaign_step_{field}_missing:{campaign_id}:{step_id}" for field in _STEP_FIELDS if not step[field]]
     if step["ordinal"] != index:
@@ -207,8 +226,7 @@ def _campaign_step_gaps(root: Path, campaign_id: str, steps: list[dict[str, Any]
         elif step["state"] != "planned" and dependency_step["closeout"]["state"] != "retired":
             gaps.append(f"campaign_step_dependency_not_retired:{campaign_id}:{step_id}:{dependency}")
     closeout = step["closeout"]
-    terminal_step = step["state"] in _CLOSED_STATES
-    terminal_closeout = closeout["state"] in _CLOSED_STATES
+    terminal_step, terminal_closeout = step["state"] in _CLOSED_STATES, closeout["state"] in _CLOSED_STATES
     if terminal_step and not terminal_closeout:
         gaps.append(f"campaign_step_closeout_state_incomplete:{campaign_id}:{step_id}")
     if terminal_closeout:
@@ -249,3 +267,10 @@ def _audit_signal_candidates() -> list[dict[str, Any]]:
 
 def _list_items(value: Any) -> list[dict[str, Any]]:
     return [item for item in value if isinstance(item, dict)] if isinstance(value, list) else []
+
+
+def campaign_policy(root: Path) -> CampaignWorkflowDeclaration:
+    policy = load_workflow_contract_declaration(root).campaign
+    if policy is None:
+        raise ValueError("campaign workflow policy missing")
+    return policy

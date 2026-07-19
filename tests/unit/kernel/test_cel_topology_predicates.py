@@ -10,7 +10,10 @@ import ethos_core.contracts.artifacts.topology as topology_contract
 from ethos_core.contracts.artifacts.topology import GeneratedArtifactTopologyDeclaration
 from ethos_core.contracts.artifacts.topology import load_generated_artifact_topology_declaration
 from ethos_core.contracts.artifacts.topology import path_policy_from_declaration
+from ethos_core.contracts.policy.cel import evaluate_cel_gap_groups
 from ethos_core.contracts.policy.cel import evaluate_cel_predicate
+from ethos_core.contracts.policy.cel import evaluate_cel_value
+from ethos_core.contracts.workflow import CampaignGapGroup
 
 _PREFIX_RULE = 'facts.path == rule.prefix || facts.path.startsWith(rule.prefix + "/")'
 
@@ -45,6 +48,22 @@ def test_cel_predicate_rejects_non_boolean_forms() -> None:
         )
 
 
+def test_cel_value_projects_native_json_shapes() -> None:
+    assert evaluate_cel_value(
+        '{"ready": size(facts.gaps) == 0, "gaps": facts.gaps}',
+        facts={"gaps": ["repair"]},
+        policy={},
+        rule={},
+    ) == {"ready": False, "gaps": ["repair"]}
+
+
+def test_cel_gap_group_rejects_non_list_value() -> None:
+    group = CampaignGapGroup(prefix='"gap:"', values='"not-a-list"')
+
+    with pytest.raises(TypeError, match="must return a list"):
+        evaluate_cel_gap_groups((group,), facts={}, policy={})
+
+
 def test_cel_declaration_fails_closed_for_incomplete_or_invalid_rule_decisions() -> None:
     payload = load_generated_artifact_topology_declaration().model_dump(mode="json")
     payload["cel_rule"] = payload["cel_rule"][:-1]
@@ -68,6 +87,27 @@ def test_cel_declaration_fails_closed_for_incomplete_or_invalid_rule_decisions()
 def test_named_cel_helpers_fail_closed_for_missing_rule() -> None:
     with pytest.raises(ValueError, match="missing topology CEL rule"):
         topology_contract._cel_rule(load_generated_artifact_topology_declaration(), "missing")
+
+
+def test_topology_path_policy_reuses_immutable_declaration_decision(monkeypatch) -> None:
+    declaration = load_generated_artifact_topology_declaration()
+    calls = 0
+    original = topology_contract.evaluate_cel_predicate
+
+    def counted(*args, **kwargs) -> bool:
+        nonlocal calls
+        calls += 1
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(topology_contract, "evaluate_cel_predicate", counted)
+    first = path_policy_from_declaration("docs/evidence/cache-regression.md", declaration)
+    first_calls = calls
+    first["decision"] = "mutated-by-caller"
+    second = path_policy_from_declaration("docs/evidence/cache-regression.md", declaration)
+
+    assert first_calls > 0
+    assert calls == first_calls
+    assert second["decision"] == "review"
 
 
 @given(

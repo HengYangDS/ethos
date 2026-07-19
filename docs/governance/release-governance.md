@@ -17,8 +17,9 @@ Required product release surfaces are `README.md`, `LICENSE`,
 CI files are profile surfaces declared under `.ethos/release.toml`. The
 publication topology has three layers: local verification/install, GitLab
 organization collaboration, and GitHub public distribution. GitLab and GitHub
-have equal repository, CI/CD, and publication capabilities; their roles do not
-establish authority precedence or failover.
+are independent forge authority planes. A maintainer may select one configured
+remote for a bounded publication when the other is unavailable, but that choice
+does not assert synchronization, hosted CI success, or authority precedence.
 
 Release readiness is proven with:
 
@@ -51,3 +52,10 @@ remote name and permits only `dev`, `main`, and `submit/*`. `ethos publish`
 observes each configured remote independently and never pushes or claims hosted
 CI success; local proof, candidate landing, accepted closeout, and each remote
 publication remain separate evidence states.
+
+When local closeout is complete and GitLab is unavailable, a non-force push of
+the accepted `dev` and release `main` heads to configured GitHub is permitted
+after GitHub's own ordinary dry-run and hook admission. Campaign terminal
+source-budget progress remains visible as advisory state; it is still required
+for full proof and global compression closeout, not a substitute for the
+per-head proof and accepted-closeout gates.

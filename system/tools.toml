@@ -176,9 +176,9 @@ adoption = "active"
 gate = "tools/ci/scripts/run-config-lint.sh"
 
 [[tool]]
-concern = "json_syntax"
-tool = "python json"
-config = "tools/ci/scripts/run-config-lint.sh"
+concern = "json_format"
+tool = "jq"
+config = ".config/checks/json/format.toml"
 profile = "minimal"
 adoption = "active"
 gate = "tools/ci/scripts/run-config-lint.sh"

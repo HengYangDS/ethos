@@ -4,15 +4,12 @@ import json
 import os
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from pathlib import Path
 from typing import Any
 
 from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.mutation.lane_lifecycle.core import run_git
 from ethos_core.contracts.lifecycle.core import MutationRequest
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 GitRunner = Callable[..., Any]
 
@@ -36,31 +33,111 @@ def remove_linked_lane(
     runtime: RetirementRuntime | None = None,
     runner: GitRunner | None = None,
 ) -> dict[str, object]:
-    """Delete a lane ref head-bound, then remove its previously clean worktree."""
-    git = runner or (runtime or RetirementRuntime()).run_git
-    ref = f"refs/heads/{lane['branch']}"
-    result = git(repo, "update-ref", "-d", ref, str(expect_head), check=False)
-    if result.returncode:
+    """Retire one clean linked lane without forcing a destructive removal.
+
+    The worktree is removed before its branch ref.  Git will refuse that normal
+    removal if the worktree became dirty after the caller's plan observation.
+    Only after the checkout is gone do we delete the exact previously observed
+    ref.  A concurrent ref advance therefore leaves an unbound ref behind for
+    later inspection instead of deleting a newer target.
+    """
+    active_runtime = RetirementRuntime(run_git=runner) if runner else runtime or RetirementRuntime()
+    branch = str(lane.get("branch") or "")
+    path = str(lane.get("path") or "")
+    lane_path = Path(path) if path else Path()
+    expected = (expect_head or "").strip()
+    gaps = _linked_lane_reobservation_gaps(
+        branch=branch,
+        path=path,
+        expect_head=expected,
+        runtime=active_runtime,
+    )
+    if gaps:
         return {
             "ok": False,
             "state": "blocked",
-            "required_gaps": ["branch_delete_failed"],
-            "stderr": result.stderr.strip(),
+            "required_gaps": gaps,
         }
-    result = git(repo, "worktree", "remove", "--force", str(lane["path"]), check=False)
-    if not result.returncode:
+    remove = active_runtime.run_git(
+        lane_path,
+        "worktree",
+        "remove",
+        path,
+        check=False,
+    )
+    if remove.returncode != 0:
+        return {
+            "ok": False,
+            "state": "blocked",
+            "required_gaps": ["worktree_remove_failed"],
+            "stderr": remove.stderr.strip(),
+        }
+    ref = f"refs/heads/{branch}"
+    delete = active_runtime.run_git(
+        repo,
+        "update-ref",
+        "-d",
+        ref,
+        expected,
+        check=False,
+    )
+    if delete.returncode == 0:
         return {}
-    restore = git(repo, "update-ref", ref, str(expect_head), "0" * 40, check=False)
     return {
         "ok": False,
         "state": "blocked",
-        "required_gaps": [
-            "worktree_remove_failed",
-            *(["branch_restore_failed"] if restore.returncode else []),
-        ],
-        "stderr": result.stderr.strip(),
-        "rollback_stderr": restore.stderr.strip(),
+        "required_gaps": ["branch_delete_failed_after_worktree_removed"],
+        "stderr": delete.stderr.strip(),
     }
+
+
+def _linked_lane_reobservation_gaps(
+    *,
+    branch: str,
+    path: str,
+    expect_head: str,
+    runtime: RetirementRuntime,
+) -> list[str]:
+    """Reobserve the exact linked lane immediately before any effect.
+
+    This is deliberately duplicated beneath the public planning checks.  A
+    plan is only an observation; the destructive transition must independently
+    reject a missing path, a moved worktree/ref, or any tracked or untracked
+    residue.  The subsequent non-forced ``git worktree remove`` supplies a
+    final Git-native cleanliness fence against a race after this read.
+    """
+    gaps: list[str] = []
+    lane_path = Path(path) if path else Path()
+    if not branch:
+        gaps.append("retirement_branch_missing")
+    if not expect_head:
+        gaps.append("expect_head_required")
+    if not path or not lane_path.exists() or not lane_path.is_dir():
+        gaps.append("retirement_worktree_path_unavailable")
+        return gaps
+    ref = f"refs/heads/{branch}"
+    ref_check = runtime.run_git(lane_path, "rev-parse", ref, check=False)
+    if ref_check.returncode != 0:
+        gaps.append("retirement_ref_unavailable")
+    elif expect_head and ref_check.stdout.strip() != expect_head:
+        gaps.append("retirement_ref_stale")
+    head_check = runtime.run_git(lane_path, "rev-parse", "HEAD", check=False)
+    if head_check.returncode != 0:
+        gaps.append("retirement_worktree_head_unavailable")
+    elif expect_head and head_check.stdout.strip() != expect_head:
+        gaps.append("retirement_worktree_head_stale")
+    status = runtime.run_git(
+        lane_path,
+        "status",
+        "--porcelain",
+        "--untracked-files=all",
+        check=False,
+    )
+    if status.returncode != 0:
+        gaps.append("retirement_worktree_status_unavailable")
+    elif status.stdout.strip():
+        gaps.append("work_lane_dirty")
+    return sorted(set(gaps))
 
 
 def delete_json_projection_lease(repo: Path, *, subject: str) -> int:

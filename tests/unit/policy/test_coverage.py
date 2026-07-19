@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import ethos.repository.policy.coverage as coverage_module
 from ethos.repository.policy.coverage import coverage_quality_report
 
 if TYPE_CHECKING:
@@ -51,7 +52,9 @@ def write_coverage_xml(root: Path, *, line_rate: float = 0.96, branch_rate: floa
     )
 
 
-def test_coverage_quality_report_reads_policy_config_and_latest_artifact(tmp_path: Path) -> None:
+def test_coverage_quality_report_reads_policy_config_and_latest_artifact(
+    tmp_path: Path,
+) -> None:
     write_coverage_policy(tmp_path)
     write_coverage_xml(tmp_path)
 
@@ -71,7 +74,9 @@ def test_coverage_quality_report_reads_policy_config_and_latest_artifact(tmp_pat
     assert report["owner_script"] == "tools/ci/scripts/run-python-tests.sh"
 
 
-def test_coverage_quality_report_blocks_stale_or_mismatched_floor(tmp_path: Path) -> None:
+def test_coverage_quality_report_blocks_stale_or_mismatched_floor(
+    tmp_path: Path,
+) -> None:
     write_coverage_policy(tmp_path, fail_under=90, branch=False)
     write_coverage_xml(tmp_path, line_rate=0.94)
 
@@ -85,7 +90,9 @@ def test_coverage_quality_report_blocks_stale_or_mismatched_floor(tmp_path: Path
     ]
 
 
-def test_coverage_quality_report_reports_missing_latest_artifact(tmp_path: Path) -> None:
+def test_coverage_quality_report_reports_missing_latest_artifact(
+    tmp_path: Path,
+) -> None:
     write_coverage_policy(tmp_path)
 
     report = coverage_quality_report(tmp_path)
@@ -101,7 +108,13 @@ def test_coverage_quality_report_reports_missing_latest_artifact(tmp_path: Path)
     assert report["advisory_gaps"] == []
 
 
-def test_coverage_quality_report_treats_active_writer_lock_as_in_progress(
+def _write_coverage_lock_owner(root: Path, body: str) -> None:
+    lock = root / "build" / "evidence" / "quality" / "tests" / "coverage" / ".write.lock"
+    lock.mkdir(parents=True)
+    (lock / "owner.pid").write_text(body, encoding="utf-8")
+
+
+def test_coverage_quality_report_does_not_treat_empty_lock_as_active(
     tmp_path: Path,
 ) -> None:
     write_coverage_policy(tmp_path)
@@ -110,9 +123,74 @@ def test_coverage_quality_report_treats_active_writer_lock_as_in_progress(
 
     report = coverage_quality_report(tmp_path)
 
-    assert report["ok"] is True
+    assert report["ok"] is False
+    assert report["state"] == "blocked"
+    assert report["required_gaps"] == [
+        "coverage_artifact_missing:build/evidence/quality/tests/coverage/coverage.xml"
+    ]
+    assert report["latest_artifact"] == {
+        "path": "build/evidence/quality/tests/coverage/coverage.xml",
+        "present": False,
+        "writer_state": "invalid",
+        "writer_lock": "build/evidence/quality/tests/coverage/.write.lock",
+        "writer_reason": "coverage_artifact_writer_owner_missing",
+    }
+
+
+def test_coverage_quality_report_does_not_treat_malformed_owner_as_active(
+    tmp_path: Path,
+) -> None:
+    write_coverage_policy(tmp_path)
+    _write_coverage_lock_owner(tmp_path, "not-a-valid-owner\n")
+
+    report = coverage_quality_report(tmp_path)
+
+    assert report["ok"] is False
+    assert report["latest_artifact"]["writer_state"] == "invalid"
+    assert report["latest_artifact"]["writer_reason"] == "coverage_artifact_writer_owner_malformed"
+    assert report["required_gaps"] == [
+        "coverage_artifact_missing:build/evidence/quality/tests/coverage/coverage.xml"
+    ]
+
+
+def test_coverage_quality_report_does_not_treat_dead_or_reused_owner_as_active(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    write_coverage_policy(tmp_path)
+    _write_coverage_lock_owner(tmp_path, "123\trecorded-start\n")
+
+    monkeypatch.setattr(coverage_module, "_process_start", lambda _pid: "")
+    dead = coverage_quality_report(tmp_path)
+    monkeypatch.setattr(coverage_module, "_process_start", lambda _pid: "different-start")
+    reused = coverage_quality_report(tmp_path)
+
+    assert dead["latest_artifact"]["writer_state"] == "dead"
+    assert dead["latest_artifact"]["writer_reason"] == "coverage_artifact_writer_process_missing"
+    assert reused["latest_artifact"]["writer_state"] == "dead"
+    assert reused["latest_artifact"]["writer_reason"] == "coverage_artifact_writer_process_reused"
+    assert (
+        dead["required_gaps"]
+        == reused["required_gaps"]
+        == ["coverage_artifact_missing:build/evidence/quality/tests/coverage/coverage.xml"]
+    )
+
+
+def test_coverage_quality_report_keeps_live_writer_in_progress_but_blocking(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    write_coverage_policy(tmp_path)
+    _write_coverage_lock_owner(tmp_path, "123\trecorded-start\n")
+    monkeypatch.setattr(coverage_module, "_process_start", lambda _pid: "recorded-start")
+
+    report = coverage_quality_report(tmp_path)
+
+    assert report["ok"] is False
     assert report["state"] == "in_progress"
-    assert report["required_gaps"] == []
+    assert report["required_gaps"] == [
+        "coverage_artifact_write_in_progress:build/evidence/quality/tests/coverage/.write.lock"
+    ]
     assert report["advisory_gaps"] == [
         "coverage_artifact_writer_active:build/evidence/quality/tests/coverage/.write.lock"
     ]
@@ -120,11 +198,33 @@ def test_coverage_quality_report_treats_active_writer_lock_as_in_progress(
         "path": "build/evidence/quality/tests/coverage/coverage.xml",
         "present": False,
         "writer_active": True,
+        "writer_state": "active",
         "writer_lock": "build/evidence/quality/tests/coverage/.write.lock",
+        "writer_pid": 123,
+        "writer_started_at": "recorded-start",
     }
 
+    write_coverage_xml(tmp_path)
+    artifact_present = coverage_quality_report(tmp_path)
+    assert artifact_present["required_gaps"] == [
+        "coverage_artifact_write_in_progress:build/evidence/quality/tests/coverage/.write.lock"
+    ]
 
-def test_coverage_quality_report_reports_missing_policy_and_config(tmp_path: Path) -> None:
+
+def test_coverage_writer_is_dead_when_ps_fails(tmp_path: Path, monkeypatch) -> None:
+    write_coverage_policy(tmp_path)
+    _write_coverage_lock_owner(tmp_path, "123\trecorded-start\n")
+    completed = type("Completed", (), {"returncode": 1, "stdout": ""})()
+    monkeypatch.setattr(coverage_module.subprocess, "run", lambda *_args, **_kwargs: completed)
+
+    report = coverage_quality_report(tmp_path)
+
+    assert report["latest_artifact"]["writer_reason"] == "coverage_artifact_writer_process_missing"
+
+
+def test_coverage_quality_report_reports_missing_policy_and_config(
+    tmp_path: Path,
+) -> None:
     write_coverage_xml(tmp_path)
 
     report = coverage_quality_report(tmp_path)
@@ -178,7 +278,9 @@ def test_coverage_quality_report_reports_invalid_policy_config_and_artifact(
     ]
 
 
-def test_coverage_quality_report_accepts_unparseable_numbers_as_unknown(tmp_path: Path) -> None:
+def test_coverage_quality_report_accepts_unparseable_numbers_as_unknown(
+    tmp_path: Path,
+) -> None:
     coverage_dir = tmp_path / ".config" / "checks" / "coverage"
     coverage_dir.mkdir(parents=True)
     (coverage_dir / "policy.toml").write_text(

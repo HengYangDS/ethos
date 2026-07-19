@@ -5,8 +5,9 @@ from typing import cast
 
 from ethos.adapters.gates.ty import ty_gate_report
 from ethos.domain.prove import code_size_report
-from ethos.domain.prove import source_budget_report
+from ethos.domain.source_budget.core import source_budget_report
 from ethos.repository.evidence.parity.core import parity_ledger_report
+from ethos.repository.policy.artifacts import generated_artifact_topology_report
 from ethos.repository.policy.boundary.product import contributor_policy_report
 from ethos.repository.policy.boundary.product import product_boundary_report
 from ethos.repository.policy.coverage import coverage_quality_report
@@ -23,9 +24,18 @@ _HARD_QUALITY_COMMANDS = (
     (True, ("code_size_",), "ethos quality code-size --json"),
     (True, ("coverage_",), "ethos quality coverage --json"),
     (True, ("ty_",), "ethos quality types --json"),
-    (True, ("docstring_", "public_docstring_missing:"), "ethos quality docstrings --json"),
+    (
+        True,
+        ("docstring_", "public_docstring_missing:"),
+        "ethos quality docstrings --json",
+    ),
     (True, ("module_layout_",), "ethos quality module-layout --json"),
-    (False, ("product-boundary", "product_boundary"), "ethos quality product-boundary --json"),
+    (True, ("generated_artifact_",), "ethos quality generated-artifacts --json"),
+    (
+        False,
+        ("product-boundary", "product_boundary"),
+        "ethos quality product-boundary --json",
+    ),
     (False, ("contributor", "identity"), "ethos quality contributor-policy --json"),
 )
 
@@ -114,6 +124,7 @@ def hard_quality_floor_report(repo: Path) -> dict[str, object]:
     types = ty_gate_report(repo)
     docstrings = docstring_coverage_report(repo)
     module_layout = module_layout_report(repo)
+    generated_artifacts = generated_artifact_topology_report(repo)
     product_boundary = product_boundary_report(repo)
     contributor_policy = contributor_policy_report(repo)
     gate_reports = {
@@ -122,6 +133,7 @@ def hard_quality_floor_report(repo: Path) -> dict[str, object]:
         "types": types,
         "docstrings": docstrings,
         "module-layout": module_layout,
+        "generated-artifacts": generated_artifacts,
         "product-boundary": product_boundary,
         "contributor-policy": contributor_policy,
     }

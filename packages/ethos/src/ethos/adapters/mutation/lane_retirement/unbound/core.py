@@ -8,7 +8,6 @@ from typing import cast
 import ethos.adapters.mutation.lane_retirement.shared.core as lane_retirement_shared
 from ethos.adapters.mutation.lane_lifecycle.core import repo_root
 from ethos.adapters.repo.status.core import workspace_status
-from ethos.adapters.store.state.lease.lifecycle.effects import delete_lease
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 from ethos_core.contracts.branch.roles import load_branch_role_policy
 
@@ -23,7 +22,6 @@ class UnboundRetirementRuntime:
 
     repo_root: Callable[[Path], Path] = repo_root
     workspace_status: Callable[[Path], dict[str, object]] = workspace_status
-    delete_lease: Callable[..., int] = delete_lease
     shared: lane_retirement_shared.RetirementRuntime = field(
         default_factory=lane_retirement_shared.RetirementRuntime
     )
@@ -39,7 +37,13 @@ def retire_unbound_work_lane_ref(  # noqa: PLR0913, RUF100 - exact request envel
     authorized: bool = False,
     runtime: UnboundRetirementRuntime | None = None,
 ) -> dict[str, object]:
-    """Retire a work-lane ref that is not linked to a local worktree."""
+    """Inspect an unbound Work Lane ref without treating absence as safety.
+
+    An unbound ref has no locally observable checkout, lease holder, or
+    uncommitted-file inventory.  Ordinary retirement must therefore not delete
+    it merely because its registered worktree is absent.  An evidence-bound
+    exceptional deletion admission is required instead.
+    """
     active_runtime = runtime or UnboundRetirementRuntime()
     repo = active_runtime.repo_root(root)
     status = active_runtime.workspace_status(repo)
@@ -58,12 +62,14 @@ def retire_unbound_work_lane_ref(  # noqa: PLR0913, RUF100 - exact request envel
         gaps.append("unbound_retire_not_work_lane")
     elif current is None:
         gaps.append("unbound_retire_ref_not_unbound")
+    else:
+        gaps.append("unbound_retire_requires_exceptional_deletion_admission")
     if not reason:
         gaps.append("retire_reason_required")
     gaps.extend(lane_retirement_shared.expected_head_gaps(head, expect_head))
     if apply and not authorized:
         gaps.append("authorization_required")
-    report = lane_retirement_shared.retirement_report(
+    return lane_retirement_shared.retirement_report(
         command="lane-retire-unbound",
         action="lane.retire.unbound",
         branch=branch,
@@ -81,28 +87,6 @@ def retire_unbound_work_lane_ref(  # noqa: PLR0913, RUF100 - exact request envel
             "reason": reason,
         },
     )
-    if gaps or not apply:
-        return report
-    deleted = active_runtime.shared.run_git(
-        repo,
-        "update-ref",
-        "-d",
-        f"refs/heads/{branch}",
-        str(expect_head),
-        check=False,
-    )
-    if deleted.returncode:
-        report.update(
-            ok=False,
-            state="blocked",
-            required_gaps=["unbound_ref_delete_failed"],
-            stderr=deleted.stderr.strip(),
-        )
-        return report
-    active_runtime.delete_lease(repo / ".ethos" / "state" / "state.sqlite", subject=branch)
-    report["state"] = "retired_unbound"
-    report["retired_ref"] = f"refs/heads/{branch}"
-    return report
 
 
 def _branch_exists(

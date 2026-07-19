@@ -81,6 +81,7 @@ def test_lane_status_summary_lifts_coordination_signals_from_status_payload() ->
         "branch": "dev",
         "foreign_work_lanes": [{"branch": "work/foreign"}],
         "coordination": {
+            "detail_state": "exact",
             "foreign_work_lane_count": 1,
             "unbound_work_lane_count": 2,
             "missing_lease_count": 1,
@@ -98,6 +99,7 @@ def test_lane_status_summary_lifts_coordination_signals_from_status_payload() ->
     assert _lane_status_summary(payload) == {
         "branch": "dev",
         "role": "accepted_root",
+        "coordination_detail_state": "exact",
         "foreign_work_lane_count": 1,
         "unbound_work_lane_count": 2,
         "missing_lease_count": 1,
@@ -125,6 +127,7 @@ def test_lane_status_cli_summary_exposes_coordination_reader_signals(
 
     assert summary["branch"] == "dev"
     assert summary["role"] == "accepted_root"
+    assert summary["coordination_detail_state"] == coordination["detail_state"] == "exact"
     assert summary["foreign_work_lane_count"] == coordination["foreign_work_lane_count"] == 1
     assert summary["unbound_work_lane_count"] == coordination["unbound_work_lane_count"] == 0
     assert summary["missing_lease_count"] == coordination["missing_lease_count"] == 1

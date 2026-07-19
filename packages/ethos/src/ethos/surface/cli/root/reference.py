@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import ethos.domain.status as status_domain
+from ethos.adapters.openspec.archive.query import archive_query_report
 from ethos.adapters.openspec.core import openspec_governance_report
 from ethos.repository.registry.docs.registry import build_docs_registry
 from ethos.surface.cli._base import JsonFlag
@@ -101,12 +102,44 @@ def audit(
 def openspec(
     *,
     change: str | None = None,
+    archive_id: str | None = None,
     lifecycle: bool = False,
     root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
     """Audit official OpenSpec governance state."""
     repo = resolve_root(root)
+    if change and archive_id:
+        result = EthosResult(
+            command="openspec",
+            ok=False,
+            state="invalid",
+            summary={
+                "change": change,
+                "archive_id": archive_id,
+                "lifecycle": lifecycle,
+            },
+            required_gaps=("openspec_change_archive_selector_conflict",),
+            next_actions=("use either --change or --archive-id",),
+            data={},
+        )
+        emit(result, json_output=json_output, enforce=False)
+        return
+    if archive_id:
+        archive = archive_query_report(repo, logical_id=archive_id)
+        result = EthosResult(
+            command="openspec",
+            ok=bool(archive["ok"]),
+            state=str(archive["state"]),
+            summary={"archive_id": archive_id, "lifecycle": False},
+            required_gaps=tuple(str(gap) for gap in archive["required_gaps"]),
+            next_actions=("use a logical Change ID, not a dated archive directory",)
+            if not archive["ok"]
+            else (),
+            data={"archive_query": archive},
+        )
+        emit(result, json_output=json_output, enforce=False)
+        return
     report = openspec_governance_report(repo, change=change, lifecycle=lifecycle)
     result = EthosResult(
         command="openspec",

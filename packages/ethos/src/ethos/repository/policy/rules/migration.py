@@ -407,7 +407,8 @@ def _profiles_active_assignment_end(lines: list[str], start: int) -> int:
         except tomllib.TOMLDecodeError:
             continue
         return end
-    raise ValueError("profiles.active assignment could not be isolated")
+    msg = "profiles.active assignment could not be isolated"
+    raise ValueError(msg)
 
 
 def _rule_toml_lines(rule: dict[str, Any]) -> list[str]:

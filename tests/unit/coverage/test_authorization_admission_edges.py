@@ -284,7 +284,8 @@ def test_replacement_read_failures_and_invalid_decision_fail_closed(
 
     def read_bytes(path):
         if path == blocked:
-            raise OSError("blocked")
+            msg = "blocked"
+            raise OSError(msg)
         return original_read_bytes(path)
 
     monkeypatch.setattr(path_type, "read_bytes", read_bytes)

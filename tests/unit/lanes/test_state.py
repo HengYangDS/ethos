@@ -148,7 +148,8 @@ def test_initialize_state_rolls_back_schema_and_preserves_journal_mode(
         previous_mode = str(connection.execute("pragma journal_mode").fetchone()[0])
 
     def fail_timestamp() -> str:
-        raise RuntimeError("clock unavailable")
+        msg = "clock unavailable"
+        raise RuntimeError(msg)
 
     monkeypatch.setattr("ethos.adapters.store.state.schema.now", fail_timestamp)
 

@@ -400,6 +400,7 @@ def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
     )["required_gaps"] == ["accepted_atomic_update_rejected"]
 
     def fake_git_sync_failed(_root, *args, check=True, **_kwargs):
+        _ = check
         reset_attempts = fake_git_sync_failed.reset_attempts
         if args[:1] == ("update-ref",):
             return cp(stdout="", returncode=0)
@@ -419,6 +420,7 @@ def test_mutation_core_apply_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Pa
     assert fake_git_sync_failed.reset_attempts == 1
 
     def fake_git_clean_after_sync(_root, *args, check=True, **_kwargs):
+        _ = check
         if args[:1] == ("update-ref",):
             return cp(stdout="", returncode=0)
         if args[:2] == ("reset", "--hard"):
@@ -541,6 +543,7 @@ def test_closeout_retries_transient_accepted_worktree_sync_failure(
     reset_attempts = {"count": 0}
 
     def fake_git_sync_retry(_root, *args, check=True, **_kwargs):
+        _ = check
         if args[:1] == ("update-ref",):
             return cp(stdout="", returncode=0)
         if args[:2] == ("reset", "--hard"):
@@ -568,6 +571,7 @@ def test_closeout_blocks_dirty_accepted_worktree_after_sync(
     prepare_accepted_closeout(monkeypatch)
 
     def fake_git_dirty_after_sync(_root, *args, check=True, **_kwargs):
+        _ = check
         if args[:1] == ("update-ref",):
             return cp(stdout="", returncode=0)
         if args[:2] == ("reset", "--hard"):

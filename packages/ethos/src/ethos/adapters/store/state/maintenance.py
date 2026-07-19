@@ -78,7 +78,8 @@ def apply_local_state_maintenance(
 ) -> dict[str, Any]:
     """Archive, verify, then apply one exact local-state inventory through CAS."""
     if not confirm_irreversible:
-        raise ValueError("maintenance_irreversible_confirmation_required")
+        msg = "maintenance_irreversible_confirmation_required"
+        raise ValueError(msg)
     repo, external_archive = _validated_roots(root, archive_root)
     observed = _normalized_observed_at(observed_at)
     external_archive.mkdir(parents=True, exist_ok=True)
@@ -104,7 +105,8 @@ def _apply_local_state_maintenance_locked(
         return {**existing, "state": "already_applied"}
     inventory = local_state_maintenance_inventory(repo, external_archive, observed)
     if inventory["inventory_digest"] != expect_inventory_digest:
-        raise ValueError("maintenance_inventory_digest_mismatch")
+        msg = "maintenance_inventory_digest_mismatch"
+        raise ValueError(msg)
     with tempfile.TemporaryDirectory(prefix=".ethos-maintenance-", dir=external_archive) as temp:
         staging = Path(temp) / "local-state"
         _stage_local_state(repo, staging)
@@ -204,11 +206,13 @@ def _maintenance_lock(root: Path) -> Any:
 
 def _validated_roots(root: Path, archive_root: Path) -> tuple[Path, Path]:
     if not archive_root.is_absolute():
-        raise ValueError("maintenance_archive_root_must_be_absolute")
+        msg = "maintenance_archive_root_must_be_absolute"
+        raise ValueError(msg)
     repo = root.resolve()
     archive = archive_root.resolve()
     if archive == repo or archive.is_relative_to(repo):
-        raise ValueError("maintenance_archive_root_must_be_external")
+        msg = "maintenance_archive_root_must_be_external"
+        raise ValueError(msg)
     return repo, archive
 
 
@@ -216,9 +220,11 @@ def _normalized_observed_at(value: datetime | str) -> datetime:
     try:
         observed = datetime.fromisoformat(value) if isinstance(value, str) else value
     except ValueError as exc:
-        raise ValueError("maintenance_observed_at_invalid") from exc
+        msg = "maintenance_observed_at_invalid"
+        raise ValueError(msg) from exc
     if observed.tzinfo is None:
-        raise ValueError("maintenance_observed_at_timezone_required")
+        msg = "maintenance_observed_at_timezone_required"
+        raise ValueError(msg)
     return observed.astimezone(UTC)
 
 
@@ -231,7 +237,8 @@ def _git_lines(root: Path, *args: str) -> list[str]:
         text=True,
     )
     if completed.returncode != 0:
-        raise RuntimeError(f"maintenance_git_observation_failed:{args[0]}")
+        msg = f"maintenance_git_observation_failed:{args[0]}"
+        raise RuntimeError(msg)
     return completed.stdout.splitlines()
 
 
@@ -270,7 +277,8 @@ def _tree_entries(root: Path) -> list[dict[str, Any]]:
     for path in sorted(root.rglob("*")):
         relative = path.relative_to(root).as_posix()
         if path.is_symlink():
-            raise ValueError(f"maintenance_archive_symlink_unsupported:{relative}")
+            msg = f"maintenance_archive_symlink_unsupported:{relative}"
+            raise ValueError(msg)
         if path.is_dir():
             entries.append({"path": relative, "kind": "directory"})
         elif path.is_file():
@@ -283,7 +291,8 @@ def _tree_entries(root: Path) -> list[dict[str, Any]]:
                 }
             )
         else:
-            raise ValueError(f"maintenance_archive_entry_unsupported:{relative}")
+            msg = f"maintenance_archive_entry_unsupported:{relative}"
+            raise ValueError(msg)
     return entries
 
 
@@ -325,7 +334,8 @@ def _assert_proof_candidates_still_unprotected(
         if str(candidate.get("head") or "") in protected
     )
     if newly_protected:
-        raise ValueError(f"maintenance_proof_candidate_became_protected:{newly_protected[0]}")
+        msg = f"maintenance_proof_candidate_became_protected:{newly_protected[0]}"
+        raise ValueError(msg)
 
 
 def _delete_inventory_leases(
@@ -334,7 +344,8 @@ def _delete_inventory_leases(
 ) -> list[str]:
     if connection is None:
         if candidates:
-            raise ValueError("lease_maintenance_database_missing")
+            msg = "lease_maintenance_database_missing"
+            raise ValueError(msg)
         return []
     return delete_exact_leases_from_connection(connection, candidates)
 
@@ -383,10 +394,12 @@ def _verify_archive_extraction(
             with tarfile.open(archive, "r") as payload:
                 payload.extractall(destination, filter="data")
         except (OSError, tarfile.TarError) as exc:
-            raise RuntimeError("maintenance_archive_extraction_failed") from exc
+            msg = "maintenance_archive_extraction_failed"
+            raise RuntimeError(msg) from exc
         extracted = destination / "local-state"
         if _tree_entries(extracted) != manifest["entries"]:
-            raise RuntimeError("maintenance_archive_entry_verification_failed")
+            msg = "maintenance_archive_entry_verification_failed"
+            raise RuntimeError(msg)
         bundles = _verify_bundles(
             extracted / ".ethos" / "state" / "residue-snapshots",
             cwd=repository_root,
@@ -408,7 +421,8 @@ def _verify_bundles(root: Path, *, cwd: Path) -> list[dict[str, Any]]:
         )
         relative = bundle.relative_to(root).as_posix()
         if completed.returncode != 0:
-            raise RuntimeError(f"maintenance_bundle_verify_failed:{relative}")
+            msg = f"maintenance_bundle_verify_failed:{relative}"
+            raise RuntimeError(msg)
         verified.append({"path": relative, "verified": True})
     return verified
 
@@ -418,7 +432,8 @@ def _delete_recovery_snapshot(root: Path, recovery: dict[str, Any]) -> bool:
     if not recovery["source_exists"]:
         return False
     if not source.is_dir() or _tree_entries(source) != recovery["entries"]:
-        raise ValueError("maintenance_recovery_snapshot_drift")
+        msg = "maintenance_recovery_snapshot_drift"
+        raise ValueError(msg)
     shutil.rmtree(source)
     return True
 
@@ -464,7 +479,8 @@ def _verified_existing_receipt(
         manifest_path = _manifest_path(archive_root, digest)
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError) as exc:
-        raise ValueError("maintenance_existing_receipt_invalid") from exc
+        msg = "maintenance_existing_receipt_invalid"
+        raise ValueError(msg) from exc
     archive = _archive_path(archive_root, digest)
     expected = receipt.get("archive") if isinstance(receipt, dict) else None
     if (
@@ -475,7 +491,8 @@ def _verified_existing_receipt(
         or expected.get("size") != archive.stat().st_size
         or expected.get("entry_manifest_digest") != _payload_digest(manifest)
     ):
-        raise ValueError("maintenance_existing_receipt_invalid")
+        msg = "maintenance_existing_receipt_invalid"
+        raise ValueError(msg)
     _verify_archive_extraction(archive, manifest, repository_root=repository_root)
     return receipt
 
@@ -483,8 +500,9 @@ def _verified_existing_receipt(
 def _verify_receipt_postconditions(root: Path, receipt: dict[str, Any]) -> None:
     deleted = receipt.get("deleted")
     if not isinstance(deleted, dict):
+        msg = "maintenance_existing_receipt_invalid"
         raise ValueError(  # noqa: TRY004 - stable maintenance validation contract
-            "maintenance_existing_receipt_invalid"
+            msg
         )
     gaps: list[str] = []
     deleted_lease_ids = {str(value) for value in deleted.get("lease_ids", [])}
@@ -498,14 +516,16 @@ def _verify_receipt_postconditions(root: Path, receipt: dict[str, Any]) -> None:
     for value in deleted.get("proof_paths", []):
         relative = Path(str(value))
         if relative.is_absolute() or ".." in relative.parts:
-            raise ValueError("maintenance_existing_receipt_invalid")
+            msg = "maintenance_existing_receipt_invalid"
+            raise ValueError(msg)
         if (root / relative).exists():
             gaps.append(f"proof_present:{relative.as_posix()}")
     recovery = root / ".ethos" / "state" / "residue-snapshots"
     if deleted.get("recovery_snapshot") is True and recovery.exists():
         gaps.append("recovery_snapshot_present")
     if gaps:
-        raise ValueError(f"maintenance_existing_receipt_postcondition_failed:{gaps[0]}")
+        msg = f"maintenance_existing_receipt_postcondition_failed:{gaps[0]}"
+        raise ValueError(msg)
 
 
 def _archive_path(root: Path, digest: str) -> Path:

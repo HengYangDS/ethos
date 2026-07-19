@@ -7,5 +7,5 @@
 ## 2. Verification and Closeout
 
 - [x] 2.1 Run focused product tests and static quality checks.
-- [x] 2.2 Run strict OpenSpec validation, lane proof, parity, and accepted closeout.
-- [x] 2.3 Verify current accepted-root local and GitHub hosted evidence after publication.
+- [x] 2.2 Run strict OpenSpec validation, lane proof, and parity; leave accepted closeout as the subsequent governed transition.
+- [x] 2.3 Define the mandatory current accepted-root and GitHub-hosted verification gate; make no pass claim before publication.

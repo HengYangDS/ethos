@@ -6,7 +6,7 @@ summary = "Define and govern Budget Contract v2 while preserving every visible v
 
 [evidence]
 dated = "evidence/chronicle/budget-contract-v2-foundation-20260719/2026-07-19.md"
-sha256 = "ba9c022e9a8f3494d3829bd86a8965666beb72d7b01760722978763b85b4d580"
+sha256 = "d08cd00b207b757142ab51eb49dec034359c6183faf660b118f5d0308080e542"
 evidence_ids = ["evidence:budget-contract-v2-foundation-20260719"]
 binding = "DR-0008, the active OpenSpec carrier, TDD RED/GREEN evidence, focused verification, and the Chronicle bind the metric-domain foundation and behavior-preserving v1 ownership extraction only."
 verifier = "digest_only"
@@ -25,7 +25,7 @@ mode = "historical"
 
 [boundary]
 owner = "quality"
-scope = "Metric-domain architecture, v1 fact freeze, and the governed migration plan; no enforcement or completion claim."
+scope = "Metric-domain architecture, v1 fact freeze, governed migration plan, and behavior-preserving v1 ownership extraction; no v2 enforcement or completion claim."
 
 [carriers]
 openspec = "openspec/changes/budget-contract-v2-foundation-20260719"

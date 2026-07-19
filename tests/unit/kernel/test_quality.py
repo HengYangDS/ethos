@@ -66,9 +66,14 @@ def test_gate_plan_uses_quality_descriptors_not_commands_only() -> None:
     gates = {gate["id"]: gate for gate in plan["gates"]}
 
     assert gates["markdown-links"]["asset_classes"] == ["markdown-docs"]
-    assert gates["toml-config"]["tool_adapter"] == "taplo"
-    assert gates["toml-config"]["command"] == ["tools/ci/scripts/run-config-lint.sh"]
-    assert gates["yaml-config"]["command"] == ["tools/ci/scripts/run-config-lint.sh"]
+    assert gates["config-quality"]["tool_adapter"] == "repository-config-toolchain"
+    assert gates["config-quality"]["asset_classes"] == [
+        "toml-config",
+        "json-contracts",
+        "yaml-config",
+    ]
+    assert gates["config-quality"]["command"] == ["tools/ci/scripts/run-config-lint.sh"]
+    assert "toml-config" not in gates and "yaml-config" not in gates
     assert gates["shell-lint"]["tool_adapter"] == "shellcheck"
     assert gates["shell-lint"]["command"] == ["tools/ci/scripts/run-shell-lint.sh"]
     assert gates["python-lint"]["tool_adapter"] == "ruff"

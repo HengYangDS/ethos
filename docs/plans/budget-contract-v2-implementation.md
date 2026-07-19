@@ -142,12 +142,14 @@ git commit -m "refactor(quality): establish budget contract v2 foundation"
 - Create: `packages/ethos-core/src/ethos_core/contracts/source_budget/carriers.py`
 - Create: `packages/ethos-core/src/ethos_core/contracts/source_budget/metrics.py`
 - Create: `packages/ethos/src/ethos/adapters/repo/source_budget/carriers.py`
+- Create: `system/policies/source-budget-carriers.toml`
 - Create: `system/policies/source-budget-metrics.toml`
 - Create: `system/schemas/kernel/source-budget-carriers.schema.json`
 - Create: `system/schemas/kernel/source-budget-metrics.schema.json`
 - Create: `tests/unit/kernel/test_source_budget_carriers_contract.py`
 - Create: `tests/unit/kernel/test_source_budget_metrics_contract.py`
 - Create: `tests/unit/adapters/repo/source_budget/test_carriers.py`
+- Modify: `tests/unit/governance/validation/test_schemas.py`
 - Modify: `packages/ethos-core/src/ethos_core/contracts/source_budget/__init__.py`
 - Modify: `packages/ethos/src/ethos/adapters/repo/source_budget/__init__.py`
 
@@ -164,8 +166,13 @@ Required API:
 ```python
 def load_carrier_manifest(root: Path) -> CarrierManifestLoad: ...
 def classify_carrier(relative: str, manifest: CarrierManifest) -> CarrierMatch: ...
-def load_metric_contracts(root: Path) -> MetricContractSet: ...
+def load_metric_contracts(root: Path) -> MetricContractSetLoad: ...
 ```
+
+Both loaders return explicit fail-closed envelopes; missing or invalid TOML must
+never appear as an empty clean contract. The carrier manifest is independently
+owned by `system/policies/source-budget-carriers.toml`; Task 2 must not reuse the
+v1 format-selection taxonomy as v2 truth.
 
 - [ ] **Step 4: Run contract, schema, and adapter tests to GREEN.**
 - [ ] **Step 5: Commit with `feat(quality): add typed source budget contracts`.**

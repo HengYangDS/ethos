@@ -1,0 +1,47 @@
+[claim]
+id = "budget-contract-v2-carrier-metric-contracts-20260719"
+change_id = "budget-contract-v2-carrier-metric-contracts-20260719"
+subject = "quality:budget-contract-v2:carrier-metric-contracts"
+state = "active"
+summary = "Define the bounded Task 2 claim for strict typed carrier and metric contracts, exact-one classification, deterministic digests, and current manifest coverage without claiming measurement or v2 enforcement."
+
+[evidence]
+dated = "evidence/chronicle/budget-contract-v2-carrier-metric-contracts-20260719/2026-07-19.md"
+sha256 = "b33a0957da7ca29be592bdd26dd2f7788fc7ef1f2180594f06f663691fc30a1e"
+evidence_ids = ["evidence:budget-contract-v2-carrier-metric-contracts-20260719"]
+binding = "DR-0008, the approved Budget Contract v2 design, the active Task 2 OpenSpec Change, strict contract and adapter tests, declarative manifests, schema projections, current inventory classification, reviewed Chronicle facts, parity, and HEAD-bound proof bind this contract-only slice as those transitions execute."
+verifier = "digest_only"
+tests = [
+  "tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev pytest -q tests/unit/kernel/test_source_budget_carriers_contract.py tests/unit/kernel/test_source_budget_metrics_contract.py tests/unit/adapters/repo/source_budget/test_carriers.py tests/unit/governance/validation/test_schemas.py",
+  "tools/ci/scripts/run-python-lint.sh",
+  "tools/ci/scripts/run-config-lint.sh",
+  "tools/ci/scripts/run-json-schema-check.sh",
+  "openspec validate budget-contract-v2-carrier-metric-contracts-20260719 --strict --json",
+  "tools/ci/scripts/run-ethos-lane.sh quality claims --json",
+  "tools/ci/scripts/run-ethos-lane.sh plan --changed --json",
+  "tools/ci/scripts/run-ethos-lane.sh parity gaps --json",
+  "tools/ci/scripts/run-ethos-lane.sh prove --execute --expect-head <committed-head> --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "quality"
+scope = "Budget Contract v2 Task 2 typed carrier and metric declarations, strict loading, exact-one classification, deterministic digests, and current manifest coverage only; no measurement, policy, enforcement, cutover, remote, or hosted claim."
+
+[carriers]
+openspec = "openspec/changes/budget-contract-v2-carrier-metric-contracts-20260719"
+fallback = "Keep v1 source-budget fully authoritative and reject Task 3 or later work when a carrier or metric contract is missing, invalid, ambiguous, unsupported, compensating, or model-token based."
+kill_signal = "A maintained path can disappear through zero or first-match classification, invalid input returns an empty clean contract, a hard coordinate compensates another, or BPE/model tokens enter repository-source truth."
+
+[promotion]
+targets = [
+  "docs/plans/budget-contract-v2-implementation.md",
+  "tests/unit/governance/validation/test_schemas.py",
+  "openspec/changes/budget-contract-v2-carrier-metric-contracts-20260719",
+  "openspec/specs/contracts/spec.md",
+  "evidence/claims/budget-contract-v2-carrier-metric-contracts-20260719.toml",
+  "evidence/chronicle/budget-contract-v2-carrier-metric-contracts-20260719",
+  "evidence/parity/generic-shadow.json",
+]

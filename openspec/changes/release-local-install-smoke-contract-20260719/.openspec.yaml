@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-07-19
+goal: Make local installation a real fail-closed release owner and trust-bearing
+  full-proof gate

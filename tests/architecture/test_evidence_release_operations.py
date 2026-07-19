@@ -68,6 +68,7 @@ def test_evidence_and_release_gates_have_active_owner_surfaces() -> None:
         "closeout_evidence_manifest": "tools/ci/scripts/run-closeout-evidence-manifest.sh",
         "sbom": "tools/ci/scripts/run-release-supply-chain.sh",
         "attestation": "tools/ci/scripts/run-release-supply-chain.sh",
+        "local_install_smoke": "tools/ci/scripts/run-local-install-smoke.sh",
     }
     for concern, gate in active.items():
         block = tool_block(ROOT, concern)

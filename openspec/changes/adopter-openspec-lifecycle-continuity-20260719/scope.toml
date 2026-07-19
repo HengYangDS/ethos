@@ -1,0 +1,8 @@
+schema_version = 1
+paths = [
+  "evidence/claims/adopter-openspec-lifecycle-20260714.toml",
+  "evidence/chronicle/adopter-openspec-lifecycle-continuity-20260719/**",
+  "openspec/changes/adopter-openspec-lifecycle-continuity-20260719/**",
+  "openspec/specs/repository-governance/spec.md",
+  "tests/architecture/test_product_design_contract.py",
+]

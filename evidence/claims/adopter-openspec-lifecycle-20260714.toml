@@ -1,7 +1,7 @@
 claim = { id = "adopter-openspec-lifecycle-20260714", subject = "ethos:adopter-openspec-lifecycle", state = "active", summary = "Plan and proof evaluate official OpenSpec lifecycle for valid adopters." }
 evidence = { dated = "evidence/chronicle/adopter-openspec-lifecycle-continuity-20260719/2026-07-19.md", sha256 = "3c77cad74b3268b2f94bdf829af0e3bc09972ef0c8e7e7e4f4d88d6125c1c1fe", evidence_ids = [
   "evidence:adopter-openspec-lifecycle-20260714",
-], binding = "Universal adopter lifecycle evidence binding, continued through a loss-bounded successor that re-observes current inputs and never treats historical runtime state as current proof.", verifier = "digest_only", freshness = { mode = "semantic_scope", head = "c8261b437d6a7c008a16f193da75e3d0a1b2ba7f", semantic_sha256 = "dc3dff2852ca501f05e1270722f564aa20ef197491013240a70c14f8360c7cb2" } }
+], binding = "Universal adopter lifecycle evidence binding, continued through a loss-bounded successor that re-observes current inputs and never treats historical runtime state as current proof.", verifier = "digest_only", freshness = { mode = "semantic_scope", head = "94d37419210188261cc39979a40da8b8fe124da3", semantic_sha256 = "f063b42e9f5becfdb90526aa3b21243822b66af28b490835c427e08d6acf2686" } }
 boundary = { owner = "ethos-repository", scope = "Universal adopter lifecycle in plan and prove." }
 carriers = { openspec = "openspec/changes/archive/2026-07-19-adopter-openspec-lifecycle-continuity-20260719", fallback = "Block lifecycle gaps; preserve the predecessor archive and do not substitute code correctness, historical proof, or method packages.", kill_signal = "A valid adopter bypasses official lifecycle in plan or proof." }
 promotion = { targets = [

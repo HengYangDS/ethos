@@ -6,9 +6,9 @@ summary = "Continue the archived Budget Contract v2 Foundation through candidate
 
 [evidence]
 dated = "evidence/chronicle/budget-contract-v2-foundation-integration-continuation-20260719/2026-07-19.md"
-sha256 = "79e21218ee4206131e8cddc3f085d4b218fc710a16542a6caf4161187ef8644c"
+sha256 = "8e8b42e5c8776d45df6770aa9d98f4ead58186b86a849ea11d514e2fa4cfe2fe"
 evidence_ids = ["evidence:budget-contract-v2-foundation-20260719"]
-binding = "DR-0008, the immutable Foundation archive and historical proof, the active continuation Change, exact successor ancestry, the independently reproduced baseline correction, completed focused verification, and the continuation Chronicle bind this metric-domain Foundation integration episode; fresh parity and current HEAD-bound proof become binding only when their receipts are recorded."
+binding = "DR-0008, the immutable Foundation archive and historical proof, the active continuation Change, exact nested successor ancestry, the independently reproduced baseline correction, completed focused verification, regenerated R2 parity, the recorded pre-archive HEAD-bound proof, and the continuation Chronicle bind this metric-domain Foundation integration episode; archive-HEAD proof and downstream closeout remain separate pending transitions."
 verifier = "digest_only"
 tests = [
   ".venv/bin/python -m pytest -q tests/unit/kernel/test_source_budget_contract.py tests/unit/adapters/repo/test_source_budget.py tests/unit/adapters/test_config.py tests/unit/domain/test_prove.py tests/unit/domain/source_budget/test_core.py tests/unit/domain/reporting/test_advisories.py tests/unit/domain/test_report.py tests/unit/governance/test_evolution_ledger.py tests/unit/kernel/test_command_declaration.py tests/unit/audit/test_modes.py tests/unit/cli/test_report_surface.py tests/unit/lanes/test_projection_rebase_source_budget.py tests/unit/governance/test_docs_registry.py",

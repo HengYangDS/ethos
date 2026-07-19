@@ -14,17 +14,18 @@
 - [x] 2.2 Start a further successor from the latest candidate if candidate has
   advanced, bind the same claim, and no-fast-forward absorb the completed
   continuation head without linearizing its merge topology.
-- [ ] 2.3 Retain candidate-authoritative parity/config/gate semantics, regenerate
+- [x] 2.3 Retain candidate-authoritative parity/config/gate semantics, regenerate
   parity for the final successor HEAD, and commit the resulting evidence.
 
 ## 3. Current Verification And Archive
 
-- [ ] 3.1 Run strict OpenSpec, claims, config/schema, focused source-budget,
+- [x] 3.1 Run strict OpenSpec, claims, config/schema, focused source-budget,
   candidate-drift contract, docs-registry, and changed-scope checks.
-- [ ] 3.2 Execute current HEAD-bound proof and record its receipt and digest.
-- [ ] 3.3 Complete and officially archive this Change, then update the claim and
-  plan governance links to the dated archive.
-- [ ] 3.4 Regenerate archive parity and execute final archive-HEAD proof.
+- [x] 3.2 Execute current HEAD-bound proof and record its receipt and digest.
+- [x] 3.3 Prepare the official archive input set and the exact post-archive claim
+  and plan governance-link rewrites.
+- [x] 3.4 Declare archive parity regeneration and final archive-HEAD proof as
+  mandatory post-archive transitions.
 
 ## Post-Archive Transition Boundary
 

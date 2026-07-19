@@ -22,7 +22,7 @@ See the [active OpenSpec Change](../../openspec/changes/github-hosted-ci-stale-l
 | Fact | Bound value |
 | --- | --- |
 | Carrier branch | `work/github-hosted-ci-stale-lane-closeout-20260719` |
-| Accepted/base HEAD | `4ddd805872ac5645617a5b290381cfd25c68464f` |
+| Audit-baseline accepted/candidate HEAD | `4ddd805872ac5645617a5b290381cfd25c68464f` |
 | Target branch | `work/github-hosted-ci-reconciliation-20260717` |
 | Target HEAD and lease expected HEAD | `6d090e9c1fb0f0e6834d6f3818248923946800d4` |
 | Target worktree state | clean, with empty tracked and untracked status |
@@ -54,10 +54,17 @@ must never be merged, rebased, cherry-picked, refreshed, or landed.
 
 Only after this carrier and its Chronicle are accepted may a separately
 admitted operator prepare one exact `lane_resolution/preserve-retire` decision.
-The operator must first perform a fresh full lane and direct Git observation.
-Any change to target HEAD, clean/dirty state, holder, lease ID, or epoch
-invalidates this authorization and requires a new accepted decision carrier.
-A changed lane incarnation or unavailable target also blocks the effect.
+The accepted HEAD above is the audit baseline, not a future immutable binding;
+carrier acceptance advancing accepted truth does not self-invalidate this
+record. The operator must record the then-current accepted HEAD, recompute the
+target relation, and reconfirm all 10 dispositions and the zero-residual result
+against that accepted truth before preparing the native decision.
+
+The decision must bind that post-acceptance accepted HEAD and relation together
+with the exact target HEAD, clean/dirty state, holder, lease ID, epoch, and lane
+incarnation. Any target fact or accepted HEAD/relation change between decision
+preparation and apply invalidates the decision and requires a new observation
+and decision. An unavailable target also blocks the effect.
 
 The later decision remains one-time and non-replayable. It must carry the
 accepted Chronicle digest, exact evidence references, a break-glass assertion,

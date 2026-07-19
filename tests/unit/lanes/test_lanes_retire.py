@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import shutil
 import subprocess
+from functools import partial
 from typing import TYPE_CHECKING
 
 import pytest
@@ -18,16 +19,28 @@ from ethos.adapters.repo.dirty.core import dirty_provenance
 from ethos.adapters.repo.status.bindings import has_changed_paths
 from ethos.adapters.repo.status.bindings import worktree_binding
 from ethos.adapters.repo.status.core import workspace_status
+from tests.support.contract_helpers import commit_fixture_file
 from tests.support.lane_helpers import add_candidate_worktree
 from tests.support.lane_helpers import git
 from tests.support.lane_helpers import init_repo
+from tests.support.subprocesses import completed
+
+type MonkeyPatch = pytest.MonkeyPatch
+type GitResult = subprocess.CompletedProcess[str]
+
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-
+    from typing import Any
 _LANDED_BRANCH = "work/landed"
 _LEASE_HOLDER = "agent:test:case:agent-a"
+_UNAVAILABLE_SUMMARY = dict.fromkeys(("tracked", "untracked", "deleted", "conflicted"), 0) | {
+    "unavailable": 1
+}
+_NO_TEMPORARY_PROBES = {"count": 0, "paths": [], "truncated": False}
+_UNKNOWN_FOREIGN_LANES = [
+    {"branch": "work/unknown", "lease_state": "leased", "coordination_state": "unknown"}
+]
 
 
 def _landed_lane(tmp_path: Path, *, lease_holder: str = "") -> tuple[Path, Path, Path]:
@@ -38,36 +51,66 @@ def _landed_lane(tmp_path: Path, *, lease_holder: str = "") -> tuple[Path, Path,
     database = repo / ".ethos" / "state" / "state.sqlite"
     if lease_holder:
         state.acquire_lease(
-            database,
-            subject=_LANDED_BRANCH,
-            holder_ref=lease_holder,
-            ttl_seconds=3600,
+            database, subject=_LANDED_BRANCH, holder_ref=lease_holder, ttl_seconds=3600
         )
-    return repo, landed, database
+    return (repo, landed, database)
 
 
-def test_retire_landed_work_lane_plans_only_merged_lanes(tmp_path: Path) -> None:
+def _legacy_leases(repo: Path, landed: Path, *branches: tuple[str, str]) -> Path:
+    path = repo / ".cache/local-state/worktree/leases.json"
+    path.parent.mkdir(parents=True)
+    leases = [
+        {"branch": branch, "owner": owner, "expires_at": "2999-01-01T00:00:00Z"}
+        for branch, owner in branches
+    ]
+    leases[0]["worktree_path"] = landed.as_posix()
+    path.write_text(json.dumps({"schema_version": 1, "leases": leases}), encoding="utf-8")
+    return path
+
+
+def _assert_unavailable(report: dict[str, Any], error: str) -> None:
+    assert (report["dirty"], report["state"], report["entries"], report["summary"]) == (
+        True,
+        "unavailable",
+        [],
+        _UNAVAILABLE_SUMMARY,
+    )
+    assert error in str(report["error"])
+
+
+def _linked_lane(tmp_path: Path, *, branch: str = "work/stuck") -> tuple[Path, dict[str, str]]:
+    repo = init_repo(tmp_path / "repo")
+    path = tmp_path / "repo-work-stuck"
+    if branch:
+        path.mkdir()
+    return repo, {"branch": branch, "path": path.as_posix() if branch else ""}
+
+
+def _sequence_runner(
+    *outputs: str, failures: tuple[int, ...] = (), error: str = "failure"
+) -> tuple[object, list[tuple[str, ...]]]:
+    calls: list[tuple[str, ...]] = []
+    responses = iter(enumerate(outputs))
+
+    def run_git(_root: Path, *args: str, check: bool = False) -> GitResult:
+        assert check is False
+        calls.append(args)
+        index, stdout = next(responses)
+        failed = index in failures
+        return completed(stdout, error if failed else "", int(failed))
+
+    return run_git, calls
+
+
+def test_retire_plans_only_merged_lanes(tmp_path: Path) -> None:
     repo = init_repo(tmp_path / "repo")
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     landed = tmp_path / "repo-work-landed"
     active = tmp_path / "repo-work-active"
     git(repo, "worktree", "add", "-b", "work/landed", landed.as_posix(), "dev")
     git(repo, "worktree", "add", "-b", "work/active", active.as_posix(), "dev")
-    (active / "README.md").write_text("# active\n", encoding="utf-8")
-    git(active, "add", "README.md")
-    git(
-        active,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "active work",
-    )
-
+    commit_fixture_file(active, "README.md", "# active\n", "active work")
     report = retire_landed_work_lanes(root=repo)
-
     assert report["ok"] is True
     assert report["state"] == "planned"
     assert report["required_gaps"] == []
@@ -78,32 +121,11 @@ def test_retire_landed_work_lane_plans_only_merged_lanes(tmp_path: Path) -> None
     assert lanes["work/active"]["required_gaps"] == ["work_lane_not_merged"]
 
 
-def test_retire_landed_work_lane_rejects_legacy_json_owner_projection(
-    monkeypatch, tmp_path: Path
-) -> None:
+def test_retire_rejects_legacy_owner_projection(monkeypatch, tmp_path: Path) -> None:
     repo, landed, _database = _landed_lane(tmp_path)
-    lease_path = repo / ".cache" / "local-state" / "worktree" / "leases.json"
-    lease_path.parent.mkdir(parents=True)
-    lease_path.write_text(
-        json.dumps(
-            {
-                "schema_version": 1,
-                "leases": [
-                    {
-                        "branch": _LANDED_BRANCH,
-                        "owner": "agent-json",
-                        "expires_at": "2999-01-01T00:00:00Z",
-                        "worktree_path": landed.as_posix(),
-                    }
-                ],
-            }
-        ),
-        encoding="utf-8",
-    )
-
+    _legacy_leases(repo, landed, (_LANDED_BRANCH, "agent-json"))
     monkeypatch.setenv("ETHOS_ACTOR", "agent-json")
     report = retire_landed_work_lanes(root=repo, branch=_LANDED_BRANCH)
-
     assert report["ok"] is False
     assert report["state"] == "blocked"
     assert report["required_gaps"] == ["foreign_work_lane_retire_authority_required"]
@@ -112,40 +134,19 @@ def test_retire_landed_work_lane_rejects_legacy_json_owner_projection(
     assert selected["lease_state"] == "missing"
 
 
-def test_retire_landed_work_lane_apply_preserves_unverified_json_projection(
-    monkeypatch, tmp_path: Path
-) -> None:
+def test_retire_preserves_unverified_json_projection(monkeypatch, tmp_path: Path) -> None:
     repo, landed, _database = _landed_lane(tmp_path)
     head = git(repo, "rev-parse", _LANDED_BRANCH)
-    lease_path = repo / ".cache" / "local-state" / "worktree" / "leases.json"
-    lease_path.parent.mkdir(parents=True)
-    lease_path.write_text(
-        json.dumps(
-            {
-                "schema_version": 1,
-                "leases": [
-                    {
-                        "branch": _LANDED_BRANCH,
-                        "owner": "agent-json",
-                        "expires_at": "2999-01-01T00:00:00Z",
-                        "worktree_path": landed.as_posix(),
-                    },
-                    {
-                        "branch": "work/other",
-                        "owner": "agent-other",
-                        "expires_at": "2999-01-01T00:00:00Z",
-                    },
-                ],
-            }
-        ),
-        encoding="utf-8",
+    lease_path = _legacy_leases(
+        repo,
+        landed,
+        (_LANDED_BRANCH, "agent-json"),
+        ("work/other", "agent-other"),
     )
-
     monkeypatch.setenv("ETHOS_ACTOR", "agent-json")
     report = retire_landed_work_lanes(
         root=repo, branch=_LANDED_BRANCH, expect_head=head, apply=True
     )
-
     assert report["ok"] is False
     assert report["state"] == "blocked"
     assert report["required_gaps"] == ["foreign_work_lane_retire_authority_required"]
@@ -155,83 +156,71 @@ def test_retire_landed_work_lane_apply_preserves_unverified_json_projection(
     assert [lease["branch"] for lease in leases] == [_LANDED_BRANCH, "work/other"]
 
 
-def test_retire_landed_work_lane_block_explains_required_actor(monkeypatch, tmp_path: Path) -> None:
+def test_retire_block_explains_required_actor(monkeypatch, tmp_path: Path) -> None:
     repo, landed, _database = _landed_lane(tmp_path, lease_holder=_LEASE_HOLDER)
-
     landed_head = git(landed, "rev-parse", "HEAD")
     monkeypatch.delenv("ETHOS_ACTOR", raising=False)
     blocked = retire_landed_work_lanes(
         root=repo, branch=_LANDED_BRANCH, expect_head=landed_head, apply=True
     )
-
-    assert blocked["ok"] is False
-    assert blocked["required_gaps"] == ["foreign_work_lane_retire_authority_required"]
-    assert {
-        key: blocked["mutation"][key]
-        for key in (
-            "invocation_holder_ref",
-            "holder_bound",
-            "invocation_source",
-            "expect_head",
-            "ref",
-            "required_holder_ref",
-        )
-    } == {
-        "invocation_holder_ref": "",
-        "holder_bound": "false",
-        "invocation_source": "ETHOS_ACTOR",
-        "expect_head": landed_head,
-        "ref": f"refs/heads/{_LANDED_BRANCH}",
-        "required_holder_ref": _LEASE_HOLDER,
-    }
-    assert blocked["mutation"]["decision"]["verdict"] == "block"
-    assert blocked["mutation"]["legacy_binding_authoritative"] is False
+    assert (blocked["ok"], blocked["required_gaps"]) == (
+        False,
+        ["foreign_work_lane_retire_authority_required"],
+    )
+    mutation = blocked["mutation"]
+    assert (
+        mutation["invocation_holder_ref"],
+        mutation["holder_bound"],
+        mutation["invocation_source"],
+        mutation["expect_head"],
+        mutation["ref"],
+        mutation["required_holder_ref"],
+    ) == (
+        "",
+        "false",
+        "ETHOS_ACTOR",
+        landed_head,
+        f"refs/heads/{_LANDED_BRANCH}",
+        _LEASE_HOLDER,
+    )
+    assert mutation["decision"]["verdict"] == "block"
+    assert mutation["legacy_binding_authoritative"] is False
     assert blocked["next_action"] == "set ETHOS_ACTOR to the current holder_ref or obtain handoff"
 
 
-def test_retire_landed_work_lane_requires_matching_owner_for_leased_lane(
-    monkeypatch, tmp_path: Path
-) -> None:
+def test_retire_requires_matching_owner(monkeypatch, tmp_path: Path) -> None:
     repo, landed, _database = _landed_lane(tmp_path, lease_holder=_LEASE_HOLDER)
-
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-b")
     blocked = retire_landed_work_lanes(root=repo, branch="work/landed")
-
     assert blocked["ok"] is False
     assert blocked["state"] == "blocked"
     assert blocked["required_gaps"] == ["foreign_work_lane_retire_authority_required"]
     assert landed.exists()
-
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
     allowed = retire_landed_work_lanes(root=repo, branch=_LANDED_BRANCH)
-
     assert allowed["ok"] is True
     assert allowed["state"] == "planned"
     assert allowed["required_gaps"] == []
 
 
-def test_retire_landed_work_lane_apply_requires_branch(tmp_path: Path) -> None:
+def test_retire_apply_requires_branch(tmp_path: Path) -> None:
     repo, landed, _database = _landed_lane(tmp_path)
-
     report = retire_landed_work_lanes(root=repo, apply=True)
-
     assert report["ok"] is False
     assert report["required_gaps"] == ["retire_branch_required"]
     assert landed.exists()
 
 
-def test_retire_landed_work_lane_reports_missing_selected_branch(tmp_path: Path) -> None:
+def test_retire_reports_missing_branch(
+    tmp_path: Path,
+) -> None:
     repo = init_repo(tmp_path / "repo")
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
-
     report = retire_landed_work_lanes(root=repo, branch="work/missing")
-
     assert report["required_gaps"] == ["retire_branch_not_found"]
 
 
-def test_retire_landed_work_lane_projects_removal_failure(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_retire_projects_removal_failure(monkeypatch: MonkeyPatch, tmp_path: Path) -> None:
     repo, landed, _database = _landed_lane(tmp_path, lease_holder=_LEASE_HOLDER)
     head = git(landed, "rev-parse", "HEAD")
     monkeypatch.setenv("ETHOS_ACTOR", _LEASE_HOLDER)
@@ -244,14 +233,9 @@ def test_retire_landed_work_lane_projects_removal_failure(
             "required_gaps": ["worktree_remove_failed"],
         },
     )
-
     report = retire_landed_work_lanes(
-        root=repo,
-        branch=_LANDED_BRANCH,
-        expect_head=head,
-        apply=True,
+        root=repo, branch=_LANDED_BRANCH, expect_head=head, apply=True
     )
-
     assert report["required_gaps"] == ["worktree_remove_failed"]
 
 
@@ -260,40 +244,27 @@ def test_retire_landed_work_lane_projects_removal_failure(
     [(None, "expect_head_required"), ("not-the-lane-head", "expect_head_mismatch")],
     ids=("missing", "mismatched"),
 )
-def test_retire_landed_work_lane_apply_requires_matching_expected_head(
-    monkeypatch,
-    tmp_path: Path,
-    expect_head: str | None,
-    required_gap: str,
+def test_retire_apply_requires_expected_head(
+    monkeypatch, tmp_path: Path, expect_head: str | None, required_gap: str
 ) -> None:
     repo, landed, _database = _landed_lane(tmp_path, lease_holder=_LEASE_HOLDER)
     monkeypatch.setenv("ETHOS_ACTOR", _LEASE_HOLDER)
     report = retire_landed_work_lanes(
-        root=repo,
-        branch=_LANDED_BRANCH,
-        expect_head=expect_head,
-        apply=True,
+        root=repo, branch=_LANDED_BRANCH, expect_head=expect_head, apply=True
     )
-
     assert report["ok"] is False
     assert report["required_gaps"] == [required_gap]
     assert landed.exists()
     assert git(repo, "branch", "--list", _LANDED_BRANCH) != ""
 
 
-def test_retire_landed_work_lane_apply_removes_selected_clean_merged_lane(
-    monkeypatch, tmp_path: Path
-) -> None:
+def test_retire_removes_clean_merged_lane(monkeypatch, tmp_path: Path) -> None:
     repo, landed, _database = _landed_lane(tmp_path, lease_holder=_LEASE_HOLDER)
     landed_head = git(landed, "rev-parse", "HEAD")
     monkeypatch.setenv("ETHOS_ACTOR", _LEASE_HOLDER)
     report = retire_landed_work_lanes(
-        root=repo,
-        branch=_LANDED_BRANCH,
-        expect_head=landed_head,
-        apply=True,
+        root=repo, branch=_LANDED_BRANCH, expect_head=landed_head, apply=True
     )
-
     assert report["ok"] is True
     assert report["state"] == "retired"
     assert report["mutation"]["expect_head"] == landed_head
@@ -301,48 +272,11 @@ def test_retire_landed_work_lane_apply_removes_selected_clean_merged_lane(
     assert git(repo, "branch", "--list", _LANDED_BRANCH) == ""
 
 
-def test_remove_linked_lane_removes_clean_worktree_before_deleting_exact_ref(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    repo = init_repo(tmp_path / "repo")
-    lane_path = tmp_path / "repo-work-stuck"
-    lane_path.mkdir()
-    lane = {
-        "branch": "work/stuck",
-        "path": lane_path.as_posix(),
-    }
-    calls: list[tuple[str, ...]] = []
-
-    def fake_run_git(
-        _repo: Path,
-        *args: str,
-        check: bool = False,
-    ) -> subprocess.CompletedProcess[str]:
-        assert check is False
-        calls.append(args)
-        if _repo == repo and args[:1] == ("rev-parse",):
-            return subprocess.CompletedProcess(args, 0, stdout="a" * 40 + "\n", stderr="")
-        if _repo == lane_path and args == ("rev-parse", "refs/heads/work/stuck"):
-            return subprocess.CompletedProcess(args, 0, stdout="a" * 40 + "\n", stderr="")
-        if _repo == lane_path and args == ("rev-parse", "HEAD"):
-            return subprocess.CompletedProcess(args, 0, stdout="a" * 40 + "\n", stderr="")
-        if _repo == lane_path and args == (
-            "status",
-            "--porcelain",
-            "--untracked-files=all",
-        ):
-            return subprocess.CompletedProcess(args, 0, stdout="", stderr="")
-        if _repo == lane_path and args[:2] == ("worktree", "remove"):
-            return subprocess.CompletedProcess(args, 0, stdout="", stderr="")
-        if _repo == repo and args[:3] == ("update-ref", "-d", "refs/heads/work/stuck"):
-            return subprocess.CompletedProcess(args, 0, stdout="", stderr="")
-        raise AssertionError(args)
-
-    monkeypatch.setattr(retirement_shared, "run_git", fake_run_git)
-
+def test_remove_lane_deletes_worktree_before_ref(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
+    repo, lane = _linked_lane(tmp_path)
+    runner, calls = _sequence_runner("a" * 40, "a" * 40, "", "", "")
+    monkeypatch.setattr(retirement_shared, "run_git", runner)
     report = retirement_shared.remove_linked_lane(repo, lane, expect_head="a" * 40)
-
     assert report == {}
     assert calls == [
         ("rev-parse", "refs/heads/work/stuck"),
@@ -353,40 +287,11 @@ def test_remove_linked_lane_removes_clean_worktree_before_deleting_exact_ref(
     ]
 
 
-def test_remove_linked_lane_blocks_before_effect_when_reobservation_is_stale_or_dirty(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    repo = init_repo(tmp_path / "repo")
-    lane_path = tmp_path / "repo-work-stuck"
-    lane_path.mkdir()
-    lane = {
-        "branch": "work/stuck",
-        "path": lane_path.as_posix(),
-    }
-
-    def fake_run_git(
-        _repo: Path,
-        *args: str,
-        check: bool = False,
-    ) -> subprocess.CompletedProcess[str]:
-        assert check is False
-        if _repo == lane_path and args == ("rev-parse", "refs/heads/work/stuck"):
-            return subprocess.CompletedProcess(args, 0, stdout="b" * 40 + "\n", stderr="")
-        if _repo == lane_path and args == ("rev-parse", "HEAD"):
-            return subprocess.CompletedProcess(args, 0, stdout="a" * 40 + "\n", stderr="")
-        if _repo == lane_path and args == (
-            "status",
-            "--porcelain",
-            "--untracked-files=all",
-        ):
-            return subprocess.CompletedProcess(args, 0, stdout="?? uncommitted.txt\n", stderr="")
-        raise AssertionError(args)
-
-    monkeypatch.setattr(retirement_shared, "run_git", fake_run_git)
-
+def test_remove_lane_blocks_stale_or_dirty_state(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
+    repo, lane = _linked_lane(tmp_path)
+    runner, _calls = _sequence_runner("b" * 40, "a" * 40, "?? uncommitted.txt")
+    monkeypatch.setattr(retirement_shared, "run_git", runner)
     report = retirement_shared.remove_linked_lane(repo, lane, expect_head="a" * 40)
-
     assert report == {
         "ok": False,
         "state": "blocked",
@@ -395,120 +300,71 @@ def test_remove_linked_lane_blocks_before_effect_when_reobservation_is_stale_or_
 
 
 @pytest.mark.parametrize(
-    "case",
+    ("branch", "expect_head", "outputs", "failures", "required_gaps"),
     [
-        (
-            {"branch": "", "path": ""},
+        pytest.param(
+            "",
             None,
-            {},
+            (),
+            (),
             [
                 "retirement_branch_missing",
                 "expect_head_required",
                 "retirement_worktree_path_unavailable",
             ],
+            id="missing-metadata",
         ),
-        (
-            {"branch": "work/stuck", "path": "<lane>"},
+        pytest.param(
+            "work/stuck",
             "a" * 40,
-            {
-                ("rev-parse", "refs/heads/work/stuck"): (1, "", "missing ref"),
-                ("rev-parse", "HEAD"): (1, "", "missing head"),
-                ("status", "--porcelain", "--untracked-files=all"): (
-                    1,
-                    "",
-                    "status unavailable",
-                ),
-            },
+            ("", "", ""),
+            (0, 1, 2),
             [
                 "retirement_ref_unavailable",
                 "retirement_worktree_head_unavailable",
                 "retirement_worktree_status_unavailable",
             ],
+            id="unavailable-observations",
         ),
-        (
-            {"branch": "work/stuck", "path": "<lane>"},
+        pytest.param(
+            "work/stuck",
             "a" * 40,
-            {
-                ("rev-parse", "refs/heads/work/stuck"): (0, "a" * 40 + "\n", ""),
-                ("rev-parse", "HEAD"): (0, "b" * 40 + "\n", ""),
-                ("status", "--porcelain", "--untracked-files=all"): (0, "", ""),
-            },
+            ("a" * 40, "b" * 40, ""),
+            (),
             ["retirement_worktree_head_stale"],
+            id="stale-worktree-head",
         ),
     ],
 )
-def test_remove_linked_lane_reobservation_fails_closed_for_missing_or_unavailable_state(
+def test_remove_lane_fails_closed_for_unavailable_state(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    case: tuple[
-        dict[str, str],
-        str | None,
-        dict[tuple[str, ...], tuple[int, str, str]],
-        list[str],
-    ],
+    monkeypatch: MonkeyPatch,
+    branch: str,
+    expect_head: str | None,
+    outputs: tuple[str, ...],
+    failures: tuple[int, ...],
+    required_gaps: list[str],
 ) -> None:
-    lane, expect_head, responses, required_gaps = case
-    repo = init_repo(tmp_path / "repo")
-    lane_path = tmp_path / "repo-work-stuck"
-    if lane["path"]:
-        lane_path.mkdir()
-        lane = {**lane, "path": lane_path.as_posix()}
-
-    def fake_run_git(
-        _repo: Path,
-        *args: str,
-        check: bool = False,
-    ) -> subprocess.CompletedProcess[str]:
-        assert check is False
-        returncode, stdout, stderr = responses[args]
-        return subprocess.CompletedProcess(args, returncode, stdout=stdout, stderr=stderr)
-
-    monkeypatch.setattr(retirement_shared, "run_git", fake_run_git)
+    repo, lane = _linked_lane(tmp_path, branch=branch)
+    runner, _calls = _sequence_runner(*outputs, failures=failures)
+    monkeypatch.setattr(retirement_shared, "run_git", runner)
     report = retirement_shared.remove_linked_lane(repo, lane, expect_head=expect_head)
-
-    assert report == {
-        "ok": False,
-        "state": "blocked",
-        "required_gaps": required_gaps,
-    }
+    assert report == {"ok": False, "state": "blocked", "required_gaps": required_gaps}
 
 
-def test_remove_linked_lane_preserves_newer_ref_after_worktree_removal(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    repo = init_repo(tmp_path / "repo")
-    lane_path = tmp_path / "repo-work-stuck"
-    lane_path.mkdir()
-    lane = {"branch": "work/stuck", "path": lane_path.as_posix()}
-    calls: list[tuple[str, ...]] = []
-
-    def fake_run_git(
-        _repo: Path,
-        *args: str,
-        check: bool = False,
-    ) -> subprocess.CompletedProcess[str]:
-        assert check is False
-        calls.append(args)
-        if _repo == lane_path and args == ("rev-parse", "refs/heads/work/stuck"):
-            return subprocess.CompletedProcess(args, 0, stdout="a" * 40 + "\n", stderr="")
-        if _repo == lane_path and args == ("rev-parse", "HEAD"):
-            return subprocess.CompletedProcess(args, 0, stdout="a" * 40 + "\n", stderr="")
-        if _repo == lane_path and args == (
-            "status",
-            "--porcelain",
-            "--untracked-files=all",
-        ):
-            return subprocess.CompletedProcess(args, 0, stdout="", stderr="")
-        if _repo == lane_path and args[:2] == ("worktree", "remove"):
-            return subprocess.CompletedProcess(args, 0, stdout="", stderr="")
-        if _repo == repo and args[:3] == ("update-ref", "-d", "refs/heads/work/stuck"):
-            return subprocess.CompletedProcess(args, 1, stdout="", stderr="cannot lock ref")
-        raise AssertionError(args)
-
-    monkeypatch.setattr(retirement_shared, "run_git", fake_run_git)
+def test_remove_lane_preserves_newer_ref(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
+    repo, lane = _linked_lane(tmp_path)
+    runner, calls = _sequence_runner(
+        "a" * 40,
+        "a" * 40,
+        "",
+        "",
+        "",
+        failures=(4,),
+        error="cannot lock ref",
+    )
+    monkeypatch.setattr(retirement_shared, "run_git", runner)
     report = retirement_shared.remove_linked_lane(repo, lane, expect_head="a" * 40)
-
     assert report == {
         "ok": False,
         "state": "blocked",
@@ -519,41 +375,26 @@ def test_remove_linked_lane_preserves_newer_ref_after_worktree_removal(
     assert ("update-ref", "-d", "refs/heads/work/stuck", "a" * 40) in calls
 
 
-def test_candidate_status_reports_commits_behind_accepted(tmp_path: Path) -> None:
+def test_status_reports_candidate_behind_accepted(tmp_path: Path) -> None:
     """Candidate-train integrity: status surfaces how far candidate/dev is behind the
     accepted root (dev), so promotions that bypassed the lane->candidate->accepted
     train (e.g. a raw merge straight to accepted) are visible, not silent drift."""
     repo = init_repo(tmp_path / "repo")
     git(repo, "branch", "candidate/dev")
     for name in ("b.txt", "c.txt"):
-        (repo / name).write_text("x\n", encoding="utf-8")
-        git(repo, "add", name)
-        git(
-            repo,
-            "-c",
-            "user.name=Test User",
-            "-c",
-            "user.email=test@example.com",
-            "commit",
-            "-m",
-            f"add {name}",
-        )
-
+        commit_fixture_file(repo, name, "x\n", f"add {name}")
     status = workspace_status(repo)
-
     assert status["candidate"]["behind_accepted"] == 2
 
 
-def test_workspace_status_reports_dirty_provenance(tmp_path: Path) -> None:
+def test_status_reports_dirty_provenance(tmp_path: Path) -> None:
     repo = init_repo(tmp_path / "repo")
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     worktree = tmp_path / "repo-work-feature"
     git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "dev")
     (worktree / "README.md").write_text("# edited\n", encoding="utf-8")
     (worktree / "new.txt").write_text("new\n", encoding="utf-8")
-
     status = workspace_status(worktree)
-
     provenance = status["dirty_provenance"]
     assert provenance["dirty"] is True
     assert provenance["summary"]["tracked"] == 1
@@ -563,7 +404,7 @@ def test_workspace_status_reports_dirty_provenance(tmp_path: Path) -> None:
     assert entries["new.txt"]["kind"] == "untracked"
 
 
-def test_dirty_provenance_classifies_bounded_temporary_test_probes(
+def test_dirty_provenance_classifies_temp_probes(
     tmp_path: Path,
 ) -> None:
     repo = init_repo(tmp_path / "repo")
@@ -571,9 +412,7 @@ def test_dirty_provenance_classifies_bounded_temporary_test_probes(
     probe_dir.mkdir(parents=True)
     for index in range(17):
         (probe_dir / f"test_probe_{index:02d}.py").write_text("# TEMP PROBE\n", encoding="utf-8")
-
     provenance = dirty_provenance(repo)
-
     assert provenance["temporary_probes"] == {
         "count": 17,
         "paths": [f"tests/unit/kernel/test_probe_{index:02d}.py" for index in range(16)],
@@ -581,7 +420,7 @@ def test_dirty_provenance_classifies_bounded_temporary_test_probes(
     }
 
 
-def test_dirty_provenance_does_not_misclassify_ordinary_untracked_files(
+def test_dirty_provenance_ignores_ordinary_untracked(
     tmp_path: Path,
 ) -> None:
     repo = init_repo(tmp_path / "repo")
@@ -592,80 +431,32 @@ def test_dirty_provenance_does_not_misclassify_ordinary_untracked_files(
     tracked = probe_dir / "test_tracked.py"
     tracked.write_text("# TEMP PROBE\n", encoding="utf-8")
     git(repo, "add", tracked.relative_to(repo).as_posix())
-
     provenance = dirty_provenance(repo)
-
-    assert provenance["temporary_probes"] == {
-        "count": 0,
-        "paths": [],
-        "truncated": False,
-    }
+    assert provenance["temporary_probes"] == _NO_TEMPORARY_PROBES
 
 
-def test_temporary_probe_classification_ignores_unreadable_file(tmp_path: Path) -> None:
+def test_temp_probe_ignores_unreadable_file(tmp_path: Path) -> None:
     repo = init_repo(tmp_path / "repo")
     probe = repo / "tests" / "unit" / "test_missing_probe.py"
     probe.parent.mkdir(parents=True)
     probe.symlink_to("missing-probe-target.py")
-
     provenance = dirty_provenance(repo)
-
-    assert provenance["temporary_probes"] == {
-        "count": 0,
-        "paths": [],
-        "truncated": False,
-    }
+    assert provenance["temporary_probes"] == _NO_TEMPORARY_PROBES
 
 
-def test_workspace_status_recommends_legitimate_lane_migration_on_overlap(
+def test_status_recommends_lane_migration(
     tmp_path: Path,
 ) -> None:
     repo = init_repo(tmp_path / "repo")
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     first = tmp_path / "repo-work-first"
     second = tmp_path / "repo-work-second"
-    start_work_lane(
-        root=repo,
-        name="first",
-        path=first,
-        holder_ref="agent:test:case:agent-first",
-        apply=True,
-    )
-    start_work_lane(
-        root=repo,
-        name="second",
-        path=second,
-        holder_ref="agent:test:case:agent-second",
-        apply=True,
-    )
-
-    (first / "README.md").write_text("# first\n", encoding="utf-8")
-    git(first, "add", "README.md")
-    git(
-        first,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "first",
-    )
-    (second / "README.md").write_text("# second\n", encoding="utf-8")
-    git(second, "add", "README.md")
-    git(
-        second,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "second",
-    )
-
+    start = partial(start_work_lane, root=repo, apply=True)
+    start(name="first", path=first, holder_ref="agent:test:case:agent-first")
+    start(name="second", path=second, holder_ref="agent:test:case:agent-second")
+    commit_fixture_file(first, "README.md", "# first\n", "first")
+    commit_fixture_file(second, "README.md", "# second\n", "second")
     status = workspace_status(second)
-
     recommendations = status["coordination"]["migration_recommendations"]
     assert recommendations == [
         {
@@ -682,82 +473,50 @@ def test_workspace_status_recommends_legitimate_lane_migration_on_overlap(
     ]
 
 
-def test_committed_change_paths_returns_empty_when_diff_fails(tmp_path: Path) -> None:
-    repo = init_repo(tmp_path / "repo")
-
-    paths = committed_change_paths(repo, "missing-candidate-ref")
-
-    assert paths == ()
+def test_committed_paths_empty_when_diff_fails(tmp_path: Path) -> None:
+    assert committed_change_paths(init_repo(tmp_path / "repo"), "missing-candidate-ref") == ()
 
 
-def test_dirty_provenance_reports_unavailable_git_status(monkeypatch, tmp_path: Path) -> None:
+def test_dirty_provenance_reports_git_unavailable(monkeypatch, tmp_path: Path) -> None:
+
     def fail_git(_root: Path, *args: str) -> str:
         assert args == ("status", "--porcelain", "--untracked-files=all")
         raise subprocess.CalledProcessError(128, ["git", *args], stderr="fatal: not a git repo")
 
     monkeypatch.setattr(repo_dirty, "git_stdout_checked", fail_git)
-
     report = dirty_provenance(tmp_path)
-
-    assert report["dirty"] is True
-    assert report["state"] == "unavailable"
-    assert report["entries"] == []
-    assert report["summary"] == {
-        "tracked": 0,
-        "untracked": 0,
-        "deleted": 0,
-        "conflicted": 0,
-        "unavailable": 1,
-    }
-    assert "fatal: not a git repo" in str(report["error"])
+    _assert_unavailable(report, "fatal: not a git repo")
 
 
-def test_dirty_provenance_can_coarsen_untracked_residue(monkeypatch, tmp_path: Path) -> None:
+def test_dirty_provenance_coarsens_untracked(monkeypatch, tmp_path: Path) -> None:
+
     def summarized_git(_root: Path, *args: str) -> str:
         assert args == ("status", "--porcelain", "--untracked-files=normal")
         return "?? build/\n"
 
     monkeypatch.setattr(repo_dirty, "git_stdout_checked", summarized_git)
-
     report = dirty_provenance(tmp_path, untracked_files="normal")
-
     assert report["entries"] == [
         {"path": "build/", "index": "?", "worktree": "?", "kind": "untracked"}
     ]
     assert report["summary"]["untracked"] == 1
 
 
-def test_dirty_provenance_reports_missing_cwd_as_unavailable(tmp_path: Path) -> None:
-    missing = tmp_path / "missing-worktree"
-
-    report = dirty_provenance(missing)
-
-    assert report["dirty"] is True
-    assert report["state"] == "unavailable"
-    assert report["entries"] == []
-    assert report["summary"] == {
-        "tracked": 0,
-        "untracked": 0,
-        "deleted": 0,
-        "conflicted": 0,
-        "unavailable": 1,
-    }
-    assert "missing-worktree" in str(report["error"])
+def test_dirty_provenance_reports_missing_cwd(tmp_path: Path) -> None:
+    _assert_unavailable(dirty_provenance(tmp_path / "missing-worktree"), "missing-worktree")
 
 
-def test_has_changed_paths_fails_closed_when_worktree_path_disappears(
+def test_changed_paths_fails_closed_for_missing_path(
     tmp_path: Path,
 ) -> None:
-    missing = tmp_path / "missing-candidate"
-
-    assert has_changed_paths(missing) is True
+    assert has_changed_paths(tmp_path / "missing-candidate") is True
 
 
-def test_worktree_binding_reports_absent_path(tmp_path: Path) -> None:
+def test_worktree_binding_reports_absent(tmp_path: Path) -> None:
     assert worktree_binding("", current_path=tmp_path.resolve()) == "absent"
 
 
-def test_coordination_state_reports_unknown_for_unbounded_scope() -> None:
+def test_coordination_reports_unknown_scope() -> None:
     assert (
         repo_coordination.coordination_state(
             current_role="work_lane",
@@ -768,19 +527,11 @@ def test_coordination_state_reports_unknown_for_unbounded_scope() -> None:
         )
         == "unknown"
     )
-
     required, advisory = repo_coordination.coordination_gaps(
-        [
-            {
-                "branch": "work/unknown",
-                "lease_state": "leased",
-                "coordination_state": "unknown",
-            }
-        ],
+        _UNKNOWN_FOREIGN_LANES,
         current_role="work_lane",
         current_scope_state="unknown",
     )
-
     assert required == ["coordination_gap:current_scope_unknown"]
     assert advisory == [
         "foreign_work_lane_present",
@@ -788,83 +539,42 @@ def test_coordination_state_reports_unknown_for_unbounded_scope() -> None:
     ]
 
 
-def test_foreign_unknown_scope_is_advisory_when_current_scope_is_bounded() -> None:
+def test_foreign_unknown_scope_is_advisory() -> None:
     required, advisory = repo_coordination.coordination_gaps(
-        [
-            {
-                "branch": "work/unknown",
-                "lease_state": "leased",
-                "coordination_state": "unknown",
-            }
-        ],
+        _UNKNOWN_FOREIGN_LANES,
         current_role="work_lane",
         current_scope_state="bounded",
     )
-
     assert required == []
     assert "coordination_gap:foreign_scope_unknown:work/unknown" in advisory
 
 
-def test_retire_landed_selected_lane_ignores_unavailable_foreign_worktree(
-    monkeypatch, tmp_path: Path
-) -> None:
-    repo = init_repo(tmp_path / "repo")
-    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
-    owned = tmp_path / "repo-work-owned"
-    missing_foreign = tmp_path / "repo-work-missing-foreign"
-    git(repo, "worktree", "add", "-b", "work/owned", owned.as_posix(), "dev")
-    git(repo, "worktree", "add", "-b", "work/foreign", missing_foreign.as_posix(), "dev")
+def test_retire_selected_ignores_missing_foreign(monkeypatch, tmp_path: Path) -> None:
+    repo, owned, _database = _landed_lane(tmp_path, lease_holder="agent:test:case:owner")
     owned_head = git(owned, "rev-parse", "HEAD")
-    shutil.rmtree(missing_foreign)
-
-    state.acquire_lease(
-        repo / ".ethos" / "state" / "state.sqlite",
-        subject="work/owned",
-        holder_ref="agent:test:case:owner",
-        ttl_seconds=3600,
-    )
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:owner")
-
+    missing_foreign = tmp_path / "repo-work-missing-foreign"
+    git(repo, "worktree", "add", "-b", "work/foreign", missing_foreign.as_posix(), "dev")
+    shutil.rmtree(missing_foreign)
     report = retire_landed_work_lanes(
-        root=repo,
-        branch="work/owned",
-        expect_head=owned_head,
-        apply=True,
+        root=repo, branch=_LANDED_BRANCH, expect_head=owned_head, apply=True
     )
-
     assert report["ok"] is True
     assert report["state"] == "retired"
     assert not owned.exists()
-    assert git(repo, "branch", "--list", "work/owned") == ""
+    assert git(repo, "branch", "--list", _LANDED_BRANCH) == ""
     assert git(repo, "branch", "--list", "work/foreign") != ""
 
 
-def test_retire_landed_selected_unavailable_worktree_fails_closed(
-    monkeypatch, tmp_path: Path
-) -> None:
-    repo = init_repo(tmp_path / "repo")
-    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
-    missing = tmp_path / "repo-work-missing"
-    git(repo, "worktree", "add", "-b", "work/missing", missing.as_posix(), "dev")
+def test_retire_selected_missing_worktree_blocks(monkeypatch, tmp_path: Path) -> None:
+    repo, missing, _database = _landed_lane(tmp_path, lease_holder="agent:test:case:owner")
     missing_head = git(missing, "rev-parse", "HEAD")
     shutil.rmtree(missing)
-
-    state.acquire_lease(
-        repo / ".ethos" / "state" / "state.sqlite",
-        subject="work/missing",
-        holder_ref="agent:test:case:owner",
-        ttl_seconds=3600,
-    )
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:owner")
-
     report = retire_landed_work_lanes(
-        root=repo,
-        branch="work/missing",
-        expect_head=missing_head,
-        apply=True,
+        root=repo, branch=_LANDED_BRANCH, expect_head=missing_head, apply=True
     )
-
     assert report["ok"] is False
     assert report["state"] == "blocked"
     assert report["required_gaps"] == ["work_lane_dirty"]
-    assert git(repo, "branch", "--list", "work/missing") != ""
+    assert git(repo, "branch", "--list", _LANDED_BRANCH) != ""

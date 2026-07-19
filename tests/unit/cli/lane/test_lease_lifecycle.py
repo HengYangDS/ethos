@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from inspect import signature
 from typing import TYPE_CHECKING
 
+import ethos.surface.cli.lane.lease as lease_cli
 from ethos.adapters.mutation.lanes import start_work_lane
 from ethos.adapters.store.state.lease.lifecycle.core import acquire_lease
 from ethos.adapters.store.state.lease.projection import active_leases
@@ -17,6 +19,30 @@ if TYPE_CHECKING:
 
 HOLDER_A = "agent:test:case:holder-a"
 HOLDER_B = "agent:test:case:holder-b"
+
+
+def test_lane_lease_renew_preserves_keyword_callable_contract(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+    monkeypatch.setattr(
+        lease_cli, "_invoke", lambda _command, _operation, options: captured.update(vars(options))
+    )
+
+    signature(lease_cli.lane_lease_renew).bind(
+        branch="work/feature",
+        holder_ref=HOLDER_A,
+        lease_id="lease:one",
+        epoch=1,
+        expect_head="a" * 40,
+    )
+    lease_cli.lane_lease_renew(
+        branch="work/feature",
+        holder_ref=HOLDER_A,
+        lease_id="lease:one",
+        epoch=1,
+        expect_head="a" * 40,
+    )
+
+    assert captured["branch"] == "work/feature"
 
 
 def _started_lane(tmp_path: Path) -> tuple[Path, Path, dict[str, object]]:

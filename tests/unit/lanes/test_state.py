@@ -193,6 +193,27 @@ def test_handoff_offer_accept_changes_holder_and_increments_epoch(
     assert accepted["payload"]["handoff_state"] == "accepted"
 
 
+def test_handoff_offer_rejects_empty_current_holder(tmp_path: Path) -> None:
+    db_path = tmp_path / "state.sqlite"
+    lease = acquire_lease(
+        db_path,
+        subject="work/current",
+        holder_ref="agent:codex:thread:first",
+        payload={"expected_head": "a" * 40},
+    )
+
+    with pytest.raises(ValueError, match="lease_holder_mismatch"):
+        offer_lease_handoff(
+            db_path,
+            subject="work/current",
+            holder_ref="",
+            expected_lease_id=lease["lease_id"],
+            expected_epoch=lease["epoch"],
+            target_holder_ref="agent:claude:session:second",
+            expected_head="a" * 40,
+        )
+
+
 def test_revoke_lease_is_generation_and_head_bound(tmp_path: Path) -> None:
     db_path = tmp_path / "state.sqlite"
     lease = acquire_lease(

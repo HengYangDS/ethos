@@ -1,11 +1,5 @@
 from __future__ import annotations
 
-import json
-import sqlite3
-from contextlib import closing
-from datetime import UTC
-from datetime import datetime
-from datetime import timedelta
 from typing import TYPE_CHECKING
 
 from ethos.adapters.mutation.lanes import start_work_lane
@@ -115,7 +109,10 @@ def test_lane_lease_resume_only_revives_expired_same_generation(tmp_path: Path) 
         subject="work/feature",
         holder_ref=HOLDER_A,
         ttl_seconds=-1,
-        payload={"path": worktree.as_posix(), "expected_head": git(worktree, "rev-parse", "HEAD")},
+        payload={
+            "path": worktree.as_posix(),
+            "expected_head": git(worktree, "rev-parse", "HEAD"),
+        },
     )
 
     payload = run_ethos(
@@ -145,7 +142,9 @@ def test_lane_lease_resume_only_revives_expired_same_generation(tmp_path: Path) 
     assert payload["data"]["lease"]["epoch"] == lease["epoch"]
 
 
-def test_lane_handoff_requires_offer_target_and_quiescence_confirmation(tmp_path: Path) -> None:
+def test_lane_handoff_requires_offer_target_and_quiescence_confirmation(
+    tmp_path: Path,
+) -> None:
     repo, worktree, started = _started_lane(tmp_path)
     common_args = _lease_args(started, worktree)
 
@@ -218,54 +217,3 @@ def test_lane_handoff_requires_offer_target_and_quiescence_confirmation(tmp_path
     assert accepted["data"]["mutation"]["request"]["confirmation_present"] is True
     leases = active_leases(repo / ".ethos" / "state" / "state.sqlite")
     assert [(row["holder_ref"], row["epoch"]) for row in leases] == [(HOLDER_B, 2)]
-
-
-def test_lane_lease_normalize_migrates_freeform_legacy_owner(tmp_path: Path) -> None:
-    repo = init_repo(tmp_path / "repo")
-    worktree = tmp_path / "repo-work-feature"
-    git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "dev")
-    db_path = repo / ".ethos" / "state" / "state.sqlite"
-    acquire_lease(
-        db_path,
-        subject="seed",
-        holder_ref=HOLDER_A,
-        payload={"expected_head": git(repo, "rev-parse", "HEAD")},
-    )
-    legacy_id = "legacy-lease"
-    expires_at = (datetime.now(UTC) + timedelta(hours=1)).isoformat()
-    with closing(sqlite3.connect(db_path)) as connection, connection:
-        connection.execute("delete from leases where subject = 'seed'")
-        connection.execute(
-            "insert into leases(id, subject, owner, expires_at, payload_json) values (?, ?, ?, ?, ?)",
-            (
-                legacy_id,
-                "work/feature",
-                "codex",  # real free-form legacy owner (not a 4-segment HolderRef)
-                expires_at,
-                json.dumps({"path": worktree.as_posix()}),
-            ),
-        )
-
-    payload = run_ethos(
-        "lane",
-        "lease",
-        "normalize",
-        "--branch",
-        "work/feature",
-        "--holder-ref",
-        HOLDER_A,
-        "--lease-id",
-        legacy_id,
-        "--expect-head",
-        git(worktree, "rev-parse", "HEAD"),
-        "--apply",
-        "--root",
-        worktree.as_posix(),
-        "--json",
-        cwd=worktree,
-    )
-
-    assert payload["state"] == "normalized"
-    assert payload["data"]["lease"]["normalization_state"] == "normalized"
-    assert payload["data"]["lease"]["holder_ref"] == HOLDER_A
-    assert payload["data"]["lease"]["expected_head"] == git(worktree, "rev-parse", "HEAD")

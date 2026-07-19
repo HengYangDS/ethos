@@ -15,7 +15,6 @@ from ethos.adapters.mutation.lane_lifecycle.core import repo_root
 from ethos.adapters.mutation.lane_lifecycle.core import run_git
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.adapters.store.state.lease.lifecycle.core import accept_lease_handoff
-from ethos.adapters.store.state.lease.lifecycle.core import normalize_lease
 from ethos.adapters.store.state.lease.lifecycle.core import offer_lease_handoff
 from ethos.adapters.store.state.lease.lifecycle.core import renew_lease
 from ethos.adapters.store.state.lease.lifecycle.core import resume_lease
@@ -28,7 +27,6 @@ from ethos_core.contracts.lifecycle.core import lease_transition
 from ethos_core.contracts.lifecycle.core import reduce_lease_request
 
 _LEASE_EFFECTS = {
-    "normalize": (normalize_lease, ("holder_ref",)),
     "renew": (renew_lease, ("holder_ref", "expected_epoch", "ttl_seconds")),
     "resume": (resume_lease, ("holder_ref", "expected_epoch", "ttl_seconds")),
     "handoff_offer": (
@@ -37,31 +35,15 @@ _LEASE_EFFECTS = {
     ),
     "handoff_accept": (
         accept_lease_handoff,
-        ("target_holder_ref", "offer_id", "expected_epoch", "holder_quiesced", "ttl_seconds"),
+        (
+            "target_holder_ref",
+            "offer_id",
+            "expected_epoch",
+            "holder_quiesced",
+            "ttl_seconds",
+        ),
     ),
 }
-
-
-def normalize_work_lane_lease(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
-    *,
-    root: Path,
-    branch: str,
-    holder_ref: str,
-    lease_id: str,
-    expect_head: str,
-    apply: bool,
-) -> dict[str, object]:
-    """Normalize one exact legacy lease observation without adopting unknown state."""
-    return _lease_lifecycle_operation(
-        root=root,
-        operation="normalize",
-        branch=branch,
-        holder_ref=holder_ref,
-        lease_id=lease_id,
-        epoch=None,
-        expect_head=expect_head,
-        apply=apply,
-    )
 
 
 def renew_work_lane_lease(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions

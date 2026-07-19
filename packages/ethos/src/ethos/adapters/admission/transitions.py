@@ -147,8 +147,6 @@ def _work_lane_lease_transition_gaps(
     gaps: list[str] = []
     if not lease:
         return [f"work_lane_missing_lease:{branch}"]
-    if str(lease.get("normalization_state") or "") != "normalized":
-        gaps.append(f"lane_lease_legacy_ambiguous:{branch}")
     holder = str(lease.get("holder_ref") or "")
     if not holder or holder != actor:
         gaps.append(f"lease_holder_mismatch:{branch}")

@@ -664,7 +664,6 @@ def test_store_state_lease_and_malformed_rows(tmp_path: Path) -> None:
     assert updated["payload"]["a"] == 1
     assert updated["payload"]["claim_id"] == "c"
     assert updated["payload"]["holder_ref"] == "agent:test:case:me"
-    assert updated["payload"]["normalization_state"] == "normalized"
     assert state_read.active_leases(db)[0]["id"] == lease["id"]
     assert state_effects.delete_lease(db, subject="work/x") == 1
     assert state_read.active_leases(db) == []
@@ -683,7 +682,6 @@ def test_store_state_lease_and_malformed_rows(tmp_path: Path) -> None:
     assert leases[0]["subject"] == "s"
     assert leases[0]["expires_at"] == "2999-01-01T00:00:00+00:00"
     assert leases[0]["holder_ref"] == ""
-    assert leases[0]["normalization_state"] == "legacy_ambiguous"
     assert leases[0]["payload"] == {}
     assert state_effects.delete_lease(tmp_path / "missing.sqlite", subject="x") == 0
 

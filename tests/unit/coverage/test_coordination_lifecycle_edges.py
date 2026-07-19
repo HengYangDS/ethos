@@ -33,7 +33,6 @@ LEASE_ID = "lease:one"
 
 def _lease_payload() -> dict[str, object]:
     return {
-        "normalization_state": "normalized",
         "holder_ref": HOLDER,
         "lease_id": LEASE_ID,
         "epoch": 1,
@@ -683,8 +682,6 @@ def test_lease_core_ambiguous_missing_and_time_edges(tmp_path: Path) -> None:
         with pytest.raises(ValueError, match="lane_lease_ambiguous"):
             lease_state._sole_subject_row(connection, "work/one")
 
-    with pytest.raises(ValueError, match="lane_lease_legacy_ambiguous"):
-        lease_state._expect_normalized({}, "work/one")
     assert lease_state._is_expired("invalid") is True
     assert lease_state._is_expired("2099-01-01T00:00:00") is False
     for value, expected in ((True, 0), ("2", 2), ("bad", 0), (object(), 0)):
@@ -707,11 +704,10 @@ def test_admission_and_prewrite_normalization_edges(tmp_path: Path, monkeypatch)
     ) == ["work_lane_missing_lease:work/example"]
     assert transitions._work_lane_lease_transition_gaps(
         branch="work/example",
-        lease={"normalization_state": "bad", "holder_ref": "", "expected_head": "b"},
+        lease={"holder_ref": "", "expected_head": "b"},
         actor="agent",
         old_value="a",
     ) == [
-        "lane_lease_legacy_ambiguous:work/example",
         "lease_holder_mismatch:work/example",
         "lease_generation_missing:work/example",
         "lease_head_stale:b!=a",
@@ -748,22 +744,21 @@ def test_admission_and_prewrite_normalization_edges(tmp_path: Path, monkeypatch)
     assert failed["state"] == "repair_required"
 
     for lease, actor, current_head, expected_reason in (
-        ({}, "", "", "lane_lease_legacy_ambiguous:work/example"),
+        ({}, "", "", "lease_generation_missing:work/example"),
         (
-            {"normalization_state": "normalized", "holder_ref": "other"},
+            {"holder_ref": "other"},
             "actor",
             "",
             "lease_holder_mismatch:work/example",
         ),
         (
-            {"normalization_state": "normalized", "holder_ref": "actor"},
+            {"holder_ref": "actor"},
             "actor",
             "",
             "lease_generation_missing:work/example",
         ),
         (
             {
-                "normalization_state": "normalized",
                 "holder_ref": "actor",
                 "lease_id": "lease",
                 "epoch": 1,

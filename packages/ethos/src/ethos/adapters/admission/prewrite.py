@@ -279,8 +279,6 @@ def _work_lane_lease(*, root: Path, status: dict[str, object], branch: str) -> d
 def _lease_binding_reason(
     *, branch: str, lease: dict[str, object], actor: str, current_head: str
 ) -> str:
-    if str(lease.get("normalization_state") or "") != "normalized":
-        return f"lane_lease_legacy_ambiguous:{branch}"
     if actor != str(lease.get("holder_ref") or ""):
         return f"lease_holder_mismatch:{branch}"
     if not str(lease.get("lease_id") or "") or integer_value(lease.get("epoch")) < 1:

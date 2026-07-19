@@ -10,7 +10,6 @@ from ethos.adapters.store.state.lease.lifecycle.core import accept_lease_handoff
 from ethos.adapters.store.state.lease.lifecycle.core import acquire_lease
 from ethos.adapters.store.state.lease.lifecycle.core import advance_lease_head
 from ethos.adapters.store.state.lease.lifecycle.core import initialize_lease_state
-from ethos.adapters.store.state.lease.lifecycle.core import normalize_lease
 from ethos.adapters.store.state.lease.lifecycle.core import offer_lease_handoff
 from ethos.adapters.store.state.lease.lifecycle.core import renew_lease
 from ethos.adapters.store.state.lease.lifecycle.core import resume_lease
@@ -99,44 +98,6 @@ def test_acquire_lease_normalizes_holder_generation_and_timestamps(
     assert lease["renewed_at"] == lease["issued_at"]
     assert lease["expected_head"] == "a" * 40
     assert lease["claim_id"] == "claim-current"
-
-
-def test_normalize_lease_migrates_freeform_legacy_owner_and_guards_by_lease_id(
-    tmp_path: Path,
-) -> None:
-    """A legacy lease with a free-form short owner (the real case) normalizes to a
-    canonical 4-segment holder_ref. Migration does NOT require the new holder_ref to
-    equal the legacy owner (impossible across schemas — the bug this fixes); safety comes
-    from the exact lease_id (proof the caller observed this exact lease)."""
-    db_path = tmp_path / "state.sqlite"
-    legacy = _insert_legacy_lease(
-        db_path,
-        subject="work/current",
-        owner="codex",  # real legacy shape: not a 4-segment HolderRef
-    )
-
-    normalized = normalize_lease(
-        db_path,
-        subject="work/current",
-        holder_ref="agent:codex:thread:first",
-        expected_lease_id=legacy,
-        expected_head="a" * 40,
-    )
-
-    assert normalized["normalization_state"] == "normalized"
-    assert normalized["holder_ref"] == "agent:codex:thread:first"
-    assert normalized["epoch"] == 1
-    assert normalized["expected_head"] == "a" * 40
-
-    # Anti-hijack guard is the lease_id, not a holder string: a wrong lease_id is rejected.
-    with pytest.raises(ValueError, match="lease_id_stale"):
-        normalize_lease(
-            db_path,
-            subject="work/current",
-            holder_ref="agent:claude:session:other",
-            expected_lease_id="lease:not-the-one",
-            expected_head="a" * 40,
-        )
 
 
 def test_renew_and_resume_require_current_generation_and_same_holder(
@@ -286,21 +247,6 @@ def test_advance_lease_head_is_generation_bound_compare_and_swap(
             old_head="a" * 40,
             new_head="c" * 40,
         )
-
-
-def _insert_legacy_lease(db_path: Path, *, subject: str, owner: str) -> str:
-    initialize_lease_state(db_path)
-    lease_id = "lease:legacy"
-    with closing(sqlite3.connect(db_path)) as connection:
-        connection.execute(
-            """
-            insert into leases(id, subject, owner, expires_at, payload_json)
-            values (?, ?, ?, ?, ?)
-            """,
-            (lease_id, subject, owner, "2099-07-01T00:00:00+00:00", "{}"),
-        )
-        connection.commit()
-    return lease_id
 
 
 def test_delete_lease_removes_lease_so_recreated_subject_cannot_inherit(

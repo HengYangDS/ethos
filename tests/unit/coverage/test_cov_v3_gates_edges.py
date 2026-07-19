@@ -87,7 +87,15 @@ def test_ty_gate_report_invokes_ty_through_checkout_runtime(
     assert report["ok"] is True
     assert calls == [
         [
-            str(tmp_path / "build" / "runtime" / "venv" / "bin" / "python"),
+            str(tmp_path / "tools" / "ci" / "scripts" / "with-python-runtime.sh"),
+            "--",
+            "uv",
+            "run",
+            "--locked",
+            "--all-packages",
+            "--group",
+            "dev",
+            "python",
             "-m",
             "ty",
             "check",

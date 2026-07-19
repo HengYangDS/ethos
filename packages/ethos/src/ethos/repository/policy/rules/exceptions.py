@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import tomllib
+from datetime import UTC
 from datetime import date
+from datetime import datetime
 from typing import TYPE_CHECKING
 from typing import cast
 
@@ -41,6 +43,11 @@ def ttl_days_or_none(value: str) -> int | None:
     if not raw.isdigit():
         return None
     return int(raw)
+
+
+def utc_calendar_day() -> str:
+    """Return the current calendar day from the explicit UTC clock."""
+    return datetime.now(UTC).date().isoformat()
 
 
 def minimal_rule_skeleton(path: str) -> dict[str, object]:
@@ -88,7 +95,7 @@ def policy_exceptions_report(root: Path, *, today: str | None = None) -> dict[st
         },
     )
     known_rule_ids = set(known_rules)
-    today_date = date_or_none(today or date.today().isoformat())
+    today_date = date_or_none(today or utc_calendar_day())
     normalized: list[dict[str, object]] = []
     gaps: list[str] = []
     for item in exceptions:

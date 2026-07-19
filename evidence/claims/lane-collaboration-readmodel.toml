@@ -53,5 +53,4 @@ targets = [
   "system/invalid_states.toml",
   "tests/unit/lanes/test_lanes.py",
   "tests/unit/cli/test_contracts_lane.py",
-  "tests/unit/coverage/test_core_state_claims_edges.py",
 ]

@@ -35,7 +35,6 @@ kill_signal = "A campaign reader projects an archived or terminal lane as active
 targets = [
   "packages/ethos/src/ethos/repository/adoption/evolution.py",
   "tests/unit/governance/test_evolution_ledger.py",
-  "tests/unit/coverage/test_cov_v2_adoption_shadow_edges.py",
   "evolution/campaigns/terminal-openspec-productization/campaign.toml",
   "docs/governance/evolution-campaign.md",
   "openspec/changes/archive/2026-07-11-campaign-lifecycle-truth-20260711",

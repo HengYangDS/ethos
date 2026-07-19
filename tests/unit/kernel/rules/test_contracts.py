@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from ethos.repository.policy.schema import validate_schema_instance
-from ethos.testing.fixtures import normalized_rule_shadow_fixtures
-from ethos.testing.fixtures import rules_conformance_profiles
 from ethos_core.contracts.rules import PolicyException
 from ethos_core.contracts.rules import Rule
 from ethos_core.contracts.rules import RuleAttestation
 from ethos_core.contracts.rules import RuleEvalRequest
 from ethos_core.contracts.rules import RuleSet
+from tests.support.ethos_fixtures import normalized_rule_shadow_fixtures
+from tests.support.ethos_fixtures import rules_conformance_profiles
 
 
 def test_rule_contract_schemas_validate_minimal_payloads() -> None:

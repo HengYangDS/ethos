@@ -43,7 +43,6 @@ targets = [
   "packages/ethos/src/ethos/repository/registry/docs/commands.py",
   "docs/reference/command-plane.md",
   "tests/unit/cli/test_intake_mine.py",
-  "tests/unit/coverage/test_admission_land_evolution_rules_edges.py",
   "evidence/chronicle/intake-mine-readmodel/2026-07-09.md",
   "evidence/claims/intake-mine-readmodel.toml",
 ]

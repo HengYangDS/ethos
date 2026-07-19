@@ -10,9 +10,8 @@ import pytest
 import ethos.adapters.admission.prewrite as prewrite
 import ethos.adapters.mutation.lane_lifecycle.refresh as lane_refresh
 from ethos.adapters.admission.prewrite import prewrite_guard
-from ethos.adapters.mutation import lanes as lane_mutation
+from ethos.adapters.mutation.lane_lifecycle.refresh import refresh_work_lane_base
 from ethos.adapters.mutation.lanes import bind_work_lane_claim
-from ethos.adapters.mutation.lanes import refresh_work_lane_base
 from ethos.adapters.mutation.lanes import start_work_lane
 from ethos.adapters.repo.runtime.core import runtime_binding
 from ethos.adapters.repo.status.core import workspace_status
@@ -572,7 +571,7 @@ def test_refresh_work_lane_base_blocks_unavailable_file_backed_ssh_before_rebase
     git(worktree, "add", "keys")
     git(worktree, "-c", "user.name=Test User", "-c", "user.email=test@example.com", "commit", "-m", "add signing key fixture")
     previous_head = git(worktree, "rev-parse", "HEAD")
-    original_run_git = lane_mutation.run_git
+    original_run_git = lane_refresh.run_git
     rebase_calls: list[tuple[str, ...]] = []
     values = {"commit.gpgsign": "true", "gpg.format": "ssh", "user.signingkey": "keys/signing-key"}
 
@@ -641,10 +640,10 @@ def test_refresh_work_lane_base_rechecks_configured_candidate_ref(tmp_path: Path
 
 
 def test_refresh_work_lane_base_does_not_overwrite_branch_moved_before_cas(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path,
 ) -> None:
     repo, _, worktree, previous_head, candidate_head = _stale_work_lane(tmp_path)
-    original_run_git = lane_mutation.run_git
+    original_run_git = lane_refresh.run_git
 
     def move_branch_before_cas(
         root: Path, *args: str, **kwargs: object
@@ -653,10 +652,9 @@ def test_refresh_work_lane_base_does_not_overwrite_branch_moved_before_cas(
             git(repo, "update-ref", "refs/heads/work/feature", candidate_head, previous_head)
         return original_run_git(root, *args, **kwargs)
 
-    monkeypatch.setattr(lane_mutation, "run_git", move_branch_before_cas)
-
     report = refresh_work_lane_base(
-        root=worktree, apply=True, authorized=True, expect_head=previous_head
+        root=worktree, apply=True, authorized=True, expect_head=previous_head,
+        runtime=lane_refresh.LaneRefreshRuntime(run_git=move_branch_before_cas),
     )
 
     assert report["required_gaps"] == ["refresh_base_snapshot_stale:work_lane"]
@@ -673,9 +671,9 @@ def test_refresh_work_lane_base_rejects_attach_and_post_cas_races(tmp_path: Path
     assert report["required_gaps"] == [gap]
 
 
-def test_refresh_work_lane_base_rejects_noop_rebase_success(tmp_path: Path, monkeypatch) -> None:
+def test_refresh_work_lane_base_rejects_noop_rebase_success(tmp_path: Path) -> None:
     _, _, worktree, previous_head, candidate_head = _stale_work_lane(tmp_path)
-    original_run_git = lane_mutation.run_git
+    original_run_git = lane_refresh.run_git
 
     def successful_noop_rebase(
         root: Path, *args: str, **kwargs: object
@@ -690,13 +688,12 @@ def test_refresh_work_lane_base_rejects_noop_rebase_success(tmp_path: Path, monk
             return subprocess.CompletedProcess(["git", *args], 0, "", "")
         return original_run_git(root, *args, **kwargs)
 
-    monkeypatch.setattr(lane_mutation, "run_git", successful_noop_rebase)
-
     report = refresh_work_lane_base(
         root=worktree,
         apply=True,
         authorized=True,
         expect_head=previous_head,
+        runtime=lane_refresh.LaneRefreshRuntime(run_git=successful_noop_rebase),
     )
 
     assert report["ok"] is False

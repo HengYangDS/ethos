@@ -10,7 +10,7 @@ import pytest
 import ethos.adapters.mutation.lane_retirement.shared.core as retirement_shared
 import ethos.adapters.repo.dirty.core as repo_dirty
 import ethos.adapters.store.state.lease.lifecycle.core as state
-from ethos.adapters.mutation.lanes import retire_landed_work_lanes
+from ethos.adapters.mutation.lane_retirement.landed.core import retire_landed_work_lanes
 from ethos.adapters.mutation.lanes import start_work_lane
 from ethos.adapters.repo import coordination as repo_coordination
 from ethos.adapters.repo.dirty.core import committed_change_paths

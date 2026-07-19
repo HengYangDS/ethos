@@ -57,7 +57,6 @@ targets = [
   "tests/architecture/test_testing_platform.py",
   "tests/unit/lanes/test_ref_move_admission.py",
   "tests/unit/cli/test_contracts_lane.py",
-  "tests/unit/coverage/test_product_surface_registry_edges.py",
   "tests/unit/cli/test_hooks_runtime.py",
   "tests/unit/governance/test_generated_artifact_topology.py",
   "tests/unit/lanes/test_lane_runner_bootstrap.py",

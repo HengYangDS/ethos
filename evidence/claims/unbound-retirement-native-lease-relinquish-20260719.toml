@@ -25,7 +25,7 @@ owner = "ethos-repository"
 scope = "Exact holder-and-generation native lease relinquishment inside exceptional unbound Work Lane retirement; no foreign takeover, raw deletion, remote mutation, or hosted claim."
 
 [carriers]
-openspec = "openspec/changes/unbound-retirement-native-lease-relinquish-20260719"
+openspec = "openspec/changes/archive/2026-07-19-unbound-retirement-native-lease-relinquish-20260719"
 fallback = "Keep the source ref and lease intact whenever exact holder, generation, target head, control-store, or re-observation binding cannot be proved."
 kill_signal = "The repair revokes a foreign or mismatched lease, deletes a ref after drift, uses raw state or ref deletion, or treats local carrier acceptance as source retirement or remote publication."
 
@@ -36,7 +36,7 @@ targets = [
   "docs/reference/command-plane.md",
   "evidence/claims/unbound-retirement-native-lease-relinquish-20260719.toml",
   "evidence/chronicle/unbound-retirement-native-lease-relinquish-20260719/2026-07-20.md",
-  "openspec/changes/unbound-retirement-native-lease-relinquish-20260719",
+  "openspec/changes/archive/2026-07-19-unbound-retirement-native-lease-relinquish-20260719",
   "openspec/specs/repository-governance/spec.md",
   "packages/ethos/src/ethos/adapters/mutation/lane_retirement/unbound/core.py",
   "packages/ethos/src/ethos/adapters/mutation/lane_retirement/unbound/observation/core.py",

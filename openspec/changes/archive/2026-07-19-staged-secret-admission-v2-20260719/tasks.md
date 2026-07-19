@@ -24,9 +24,11 @@
 
 - [x] 3.1 Refresh the claim and Chronicle with exact focused results on a stable
   implementation HEAD.
-- [ ] 3.2 Complete strict OpenSpec lifecycle, changed-path plan, and generic
+- [x] 3.2 Complete strict OpenSpec lifecycle, changed-path plan, and generic
   parity requirements; archive only through official OpenSpec semantics.
-- [ ] 3.3 Execute HEAD-bound proof, land to candidate, perform accepted-root
-  local closeout, and holder-retire this Work Lane.
+- [x] 3.3 Record the mandatory post-archive transition sequence: execute fresh
+  HEAD-bound proof on the archive-transition HEAD, land to candidate, perform
+  accepted-root local closeout, and holder-retire this Work Lane. This archived
+  checklist does not claim those later effects have already occurred.
 - [x] 3.4 Keep remote probe, push, release, and hosted-CI claims explicitly
   deferred.

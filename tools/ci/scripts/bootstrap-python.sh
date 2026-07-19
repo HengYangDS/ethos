@@ -16,7 +16,9 @@ pip install uv
 # `openspec --version` in ethos:verify fails with `npx: command not found`. Install
 # Node from the Debian repos when npx is absent so the shim resolves.
 if ! command -v npx >/dev/null 2>&1; then
-  apt-get update >/dev/null && apt-get install -y --no-install-recommends nodejs npm >/dev/null
+  apt-get update >/dev/null && apt-get install -y --no-install-recommends nodejs npm jq >/dev/null
+elif ! command -v jq >/dev/null 2>&1; then
+  apt-get update >/dev/null && apt-get install -y --no-install-recommends jq >/dev/null
 fi
 printf '%s\n' '#!/usr/bin/env bash' 'exec npx --yes @fission-ai/openspec@1.6.0 "$@"' > /usr/local/bin/openspec
 chmod +x /usr/local/bin/openspec

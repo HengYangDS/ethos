@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import tomllib
+from copy import deepcopy
 from pathlib import Path
 
 from ethos.repository.policy.coupling.core import coupling_audit_report
@@ -49,6 +51,10 @@ ROLE_POLICY_SAMPLE = {
         },
     ],
 }
+
+_CAMPAIGN_SCHEMA_PAYLOAD = tomllib.loads(
+    Path("tests/fixtures/campaign/minimal.toml").read_text(encoding="utf-8")
+)
 
 
 def test_schema_validation_report_covers_all_ethos_schemas() -> None:
@@ -226,35 +232,24 @@ def test_gate_schema_accepts_quality_descriptor_fields() -> None:
 
 
 def test_campaign_schema_accepts_lane_closeout_steps() -> None:
-    payload = {
-        "id": "terminal-openspec-productization",
-        "state": "active",
-        "owner": "ethos-maintainers",
-        "objective": "Complete terminal OpenSpec productization through closeout-ready lanes.",
-        "claim_id": "ethos-terminal-openspec-productization",
-        "steps": [
-            {
-                "id": "campaign-orchestration",
-                "title": "Campaign orchestration",
-                "state": "closed",
-                "ordinal": 1,
-                "depends_on": [],
-                "openspec_change": "ethos-campaign-orchestration",
-                "work_lane": "work/campaign-orchestration",
-                "claim_id": "ethos-campaign-orchestration",
-                "closeout": {
-                    "state": "retired",
-                    "accepted_head": "a" * 40,
-                    "candidate_head": "a" * 40,
-                    "evidence": ["evidence/chronicle/campaign-orchestration/2026-07-02.md"],
-                },
-            }
-        ],
-    }
+    assert validate_schema_instance("campaign.schema.json", _CAMPAIGN_SCHEMA_PAYLOAD)["ok"]
+
+
+def test_campaign_schema_rejects_unknown_publication_mode() -> None:
+    payload = deepcopy(_CAMPAIGN_SCHEMA_PAYLOAD)
+    payload["publication"] = {"mode": "per_change"}
 
     validation = validate_schema_instance("campaign.schema.json", payload)
 
-    assert validation["ok"] is True
+    assert validation["ok"] is False
+    assert validation["required_gaps"] == ["'campaign_terminal' was expected"]
+
+
+def test_campaign_schema_accepts_archived_preland_step() -> None:
+    payload = deepcopy(_CAMPAIGN_SCHEMA_PAYLOAD)
+    payload["step"][0]["state"] = "archived"
+
+    assert validate_schema_instance("campaign.schema.json", payload)["ok"] is True
 
 
 def test_evolution_ledger_schema_requires_structural_entry_refs() -> None:

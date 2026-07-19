@@ -478,7 +478,11 @@ OpenSpec-backed Work Lanes. Each `data.campaigns[].steps[]` item carries
 `ordinal`, `depends_on`, `openspec_change`, `work_lane`, `claim_id`, and
 `closeout`; `data.campaigns[].lane_topology` reports the serial edges, current
 active step, and next planned step. A campaign coordinates many lane closeouts;
-it is not itself the executable lane.
+it is not itself the executable lane. `active`/`in_progress` steps require an
+active OpenSpec carrier, `archived`/`landed` steps require an archived carrier
+with non-terminal closeout, and `closed`/`retired` steps require archived,
+terminal closeout evidence. `data.publication.scope = "repository"` remains
+repository-wide even when the command filters the displayed Campaign.
 `data.remote_publication.state = "deferred"` is expected while the remote
 publication adapter is unavailable.
 Parity refresh is likewise command-bound. When tracked shadow evidence is

@@ -17,14 +17,18 @@ from ethos.adapters.admission.identity import ReconciliationObservation
 from ethos.adapters.admission.identity import reconciliation_receipt_payload
 from ethos.adapters.admission.prewrite import has_invalid_path_token_character
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
+from ethos.domain.campaign.closeout import campaign_publication_report
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import hook_app
 from ethos.surface.cli._base import resolve_root
 from ethos_core.contracts.branch.roles import load_branch_role_policy
+from ethos_core.contracts.commands import load_command_registry_declaration
 from ethos_core.normalization.core import string_sequence
 from ethos_core.result import EthosResult
+
+_ACTIONS = load_command_registry_declaration().actions
 
 
 @hook_app.command
@@ -81,7 +85,7 @@ def _hook_admit_next_actions(report: dict[str, object]) -> tuple[str, ...]:
     actions = report.get("next_actions")
     if isinstance(actions, list):
         return tuple(str(action) for action in cast("list[object]", actions))
-    return ("ethos lane prewrite <path>",)
+    return _ACTIONS["lane_prewrite"]
 
 
 @hook_app.command
@@ -106,6 +110,7 @@ def pre_push(
     a raw `git push` cannot move a protected ref unproven. Called by .githooks/pre-push.
     """
     repo = resolve_root(root)
+    campaign_publication = campaign_publication_report(repo)
     report = push_admission_report(
         root=repo,
         target_ref=target_ref,
@@ -119,9 +124,11 @@ def pre_push(
             github_head=observed_github_head,
             github_main_head=observed_github_main_head,
         ),
+        campaign_publication=campaign_publication,
     )
     decision = report.get("decision", {})
     decision_action = decision.get("action", "") if isinstance(decision, dict) else ""
+    decision_reason = decision.get("reason", "") if isinstance(decision, dict) else ""
     result = EthosResult(
         command="hook pre-push",
         ok=bool(report["ok"]),
@@ -131,9 +138,14 @@ def pre_push(
             "role": report["role"],
             "remote": str(report.get("remote_name", remote)),
             "decision": decision_action,
+            "campaign_publication": campaign_publication["remote_publication_admission"],
         },
         required_gaps=tuple(string_sequence(report.get("required_gaps"))),
-        next_actions=(("ethos prove --execute --expect-head <head>",) if not report["ok"] else ()),
+        next_actions=(
+            _ACTIONS.get(str(campaign_publication["next_action_id"]), ())
+            if not report["ok"] and decision_reason == "campaign_publication_not_terminal"
+            else (_ACTIONS["head_bound_proof"] if not report["ok"] else ())
+        ),
         data=report,
     )
     emit(result, json_output=json_output, enforce=True)

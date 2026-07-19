@@ -4,7 +4,7 @@
 # Ownership boundaries:
 # - TOML format/lint policy: .config/checks/taplo/taplo.toml
 # - YAML lint policy: .config/checks/yaml/yamllint.yaml
-# - JSON syntax hygiene: Python stdlib parser, no formatting policy restated here.
+# - JSON format policy: .config/checks/json/format.toml, executed by jq.
 # - Shared non-native blank-line policy: .config/checks/whitespace/policy.toml.
 # - Provider CI calls this script; it does not restate policy inline.
 set -euo pipefail
@@ -80,30 +80,6 @@ raise SystemExit(1 if failed else 0)
 PY
 fi
 
-if ((${#json_files[@]})); then
-  "${ethos_python}" - "${json_files[@]}" <<'PY'
-from __future__ import annotations
-
-import json
-import sys
-from pathlib import Path
-
-failed = False
-for raw in sys.argv[1:]:
-    path = Path(raw)
-    data = path.read_bytes()
-    if data and not data.endswith(b"\n"):
-        print(f"{path}: missing final newline", file=sys.stderr)
-        failed = True
-    try:
-        json.loads(data.decode("utf-8"))
-    except Exception as exc:  # noqa: BLE001 - style gate reports parser detail.
-        print(f"{path}: JSON parse failed: {exc}", file=sys.stderr)
-        failed = True
-raise SystemExit(1 if failed else 0)
-PY
-fi
-
 if ((${#toml_files[@]})); then
   # taplo publishes no linux-aarch64 wheel, so `uv run --with taplo` builds a broken
   # Rust sdist on the ARM runner. install-taplo.sh provides a prebuilt binary (or the
@@ -116,6 +92,46 @@ if ((${#toml_files[@]})); then
     --config .config/checks/taplo/taplo.toml \
     --no-schema \
     "${toml_files[@]}"
+fi
+
+if ((${#json_files[@]})); then
+  if ! command -v jq >/dev/null 2>&1; then
+    echo "jq is required by .config/checks/json/format.toml" >&2
+    exit 1
+  fi
+  "${ethos_python}" - .config/checks/json/format.toml "${json_files[@]}" <<'PY'
+from __future__ import annotations
+
+import fnmatch
+import subprocess
+import sys
+import tomllib
+from pathlib import Path
+
+policy = tomllib.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+rules = policy.get("rule", [])
+failed = False
+for raw in sys.argv[2:]:
+    path = Path(raw)
+    relative = path.as_posix()
+    mode = str(policy["default_mode"])
+    for rule in rules:
+        if any(fnmatch.fnmatchcase(relative, glob) for glob in rule["globs"]):
+            mode = str(rule["mode"])
+    command = ["jq", "-c"] if mode == "compact" else ["jq", "--indent", str(policy["indent"])]
+    rendered = subprocess.run(
+        [*command, ".", relative],
+        capture_output=True,
+        check=False,
+    )
+    if rendered.returncode:
+        sys.stderr.buffer.write(rendered.stderr)
+        failed = True
+    elif path.read_bytes() != rendered.stdout:
+        print(f"{relative}: JSON format drift ({mode})", file=sys.stderr)
+        failed = True
+raise SystemExit(1 if failed else 0)
+PY
 fi
 
 if ((${#yaml_files[@]})); then

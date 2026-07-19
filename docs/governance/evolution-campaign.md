@@ -102,22 +102,19 @@ store detached from claims, chronicle, and repository truth.
 work as an ordered campaign manifest. A campaign is not a giant Work Lane. It
 is an orchestration record whose steps name the OpenSpec change, Work Lane
 branch, claim, evidence refs, and closeout state that must be completed before
-later steps depend on them. Each step lands through normal Work Lane semantics:
-prove, land to candidate, closeout-apply to the accepted root, then retire the
-lane.
+later steps depend on them. Each step follows normal Work Lane semantics:
+complete and archive the OpenSpec carrier, prove the archived HEAD, land to
+candidate, closeout-apply to the accepted root, then retire the lane.
 
 `ethos campaign status --json` exposes those manifests as the canonical campaign
 read model. Planned future steps may name their intended OpenSpec changes before
-the carriers exist. An active, in-progress, or landed step must resolve to its
-active carrier under `openspec/changes/`. `archive_ready` records the truthful
-intermediate state after an official archive has preserved the completed carrier
-but before candidate land, accepted-root closeout, and Work Lane retirement have
-all occurred; it must resolve to the archived carrier and retain a non-terminal
-closeout record. A closed or retired step must resolve to its archived carrier
-and terminal closeout record. A campaign may await its next planned step with no
-active lane; the reader exposes that successor rather than inventing an active
-lane. Any state/carrier disagreement is a required campaign gap, not an
-advisory display detail.
+the carriers exist. An active or in-progress step resolves to an active carrier;
+an archived or landed step resolves to an archived carrier with non-terminal
+closeout; a closed or retired step resolves to an archived carrier and terminal
+closeout record. A campaign may await its next planned step with no active lane;
+the reader exposes that successor rather than inventing an active lane. Any
+state/carrier disagreement is a required campaign gap, not an advisory display
+detail.
 
 `ethos campaign closeout --json` exposes the local campaign closeout package. An
 explicit `--campaign <id>` evaluates only the named campaign and exposes the

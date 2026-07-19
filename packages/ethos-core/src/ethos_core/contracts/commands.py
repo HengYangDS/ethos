@@ -117,6 +117,7 @@ class CommandRegistryDeclaration(BaseModel):
     id: str = Field(min_length=1)
     schema_version: int = 1
     source_refs: tuple[str, ...] = ()
+    actions: dict[str, tuple[str, ...]]
     sets: CommandSets
     commands: tuple[CommandDeclaration, ...]
 

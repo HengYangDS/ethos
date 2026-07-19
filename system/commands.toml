@@ -6,6 +6,13 @@ source_refs = [
   "openspec/specs/command-plane/spec.md",
 ]
 
+[actions]
+campaign_continuation = ["ethos campaign status --json"]
+campaign_hypotheses = ["ethos audit --mode shape"]
+head_bound_proof = ["ethos prove --execute --expect-head <head>"]
+lane_prewrite = ["ethos lane prewrite <path>"]
+protected_publication = ["ethos publish --json"]
+
 [sets]
 public_workflow = [
   "ethos status",
@@ -479,7 +486,7 @@ group = "quality"
 import_path = "ethos.surface.cli.quality.core:source_budget"
 help = "Report global executable-source budget and compression debt."
 show = true
-report_handler = { provider = "ethos.domain.prove:source_budget_report", enforce = true, bind_root = true }
+report_handler = { provider = "ethos.domain.prove:source_budget_report", state_mode = "advisory_gaps", enforce = true, bind_root = true }
 
 [[commands]]
 name = "module-layout"

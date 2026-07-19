@@ -12,8 +12,10 @@ from typing import cast
 
 from pydantic import ValidationError
 
-from ethos_core.contracts.source_budget.core import SourceBudgetPolicy
 from ethos_core.contracts.source_budget.core import SourceBudgetPolicyLoad
+from ethos_core.contracts.source_budget.core import SourceBudgetTaxonomy
+from ethos_core.contracts.source_budget.core import validate_source_budget_policy
+from ethos_core.contracts.source_budget.core import validate_source_budget_taxonomy
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -47,11 +49,26 @@ def source_budget_policy(root: Path) -> SourceBudgetPolicyLoad:
     if not isinstance(budget, dict):
         return SourceBudgetPolicyLoad(policy=None, required_gaps=("source_budget_policy_missing",))
     try:
-        policy = SourceBudgetPolicy.model_validate(budget)
+        policy = validate_source_budget_policy(budget)
     except ValidationError as exc:
         gaps = tuple(
-            f"source_budget_policy_invalid:{'.'.join(map(str, error['loc']))}"
+            "source_budget_policy_invalid:"
+            + ".".join(map(str, error["loc"][1:] if len(error["loc"]) > 1 else error["loc"]))
             for error in exc.errors()
         )
         return SourceBudgetPolicyLoad(policy=None, required_gaps=gaps)
     return SourceBudgetPolicyLoad(policy=policy, required_gaps=())
+
+
+def source_budget_taxonomy(root: Path) -> SourceBudgetTaxonomy:
+    """Load the source carrier taxonomy from the format-selection SSOT."""
+    path = root / ".config" / "checks" / "format" / "selection.toml"
+    payload = tomllib.loads(path.read_text(encoding="utf-8"))
+    carrier = [
+        {"extensions": item["extensions"], **budget}
+        for item in payload["format"]
+        for budget in item.get("budget", [])
+    ]
+    return validate_source_budget_taxonomy(
+        {"carrier": carrier, "aggregates": payload["source_budget"]["aggregates"]}
+    )

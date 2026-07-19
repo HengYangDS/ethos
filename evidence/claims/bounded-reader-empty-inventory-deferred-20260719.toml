@@ -7,7 +7,7 @@ summary = "Active repair preserving deferred empty bounded coordination and corr
 
 [evidence]
 dated = "evidence/chronicle/bounded-reader-empty-inventory-deferred-20260719/2026-07-19.md"
-sha256 = "c9b376f1ac7159d5f901e7bda78761ff09e76c56c63b3160f14e495b9dd92557"
+sha256 = "01691372731a817538b6f6be3a9cdcc46ac60c883c29d926f623d4aa8e5eceed"
 evidence_ids = ["evidence:bounded-reader-empty-inventory-deferred-20260719"]
 binding = "The dated Chronicle digest binds the root-cause observation, explicit reader-mode design, exact material scope, minimal production repair, and local Task 2 GREEN results; it does not establish later lifecycle or external outcomes."
 verifier = "digest_only"

@@ -6,7 +6,7 @@ summary = "Implemented and focused-tested a locale-stable Git bundle verificatio
 
 [evidence]
 dated = "evidence/chronicle/local-ci-locale-robustness-20260719/2026-07-19.md"
-sha256 = "8a172cf9ed9bce599e9b9c9f55329cef049b242e996ec047d7741a7a21e168dc"
+sha256 = "e97c39eb0c8a20016daa595087b86f691218887647e67ad6f0b882d664544466"
 evidence_ids = ["evidence:local-ci-locale-robustness-20260719"]
 binding = "The dated Chronicle binds the exact localized RED observation, selected test-only locale boundary, focused green observation, and explicit no-remote scope."
 verifier = "digest_only"
@@ -32,8 +32,6 @@ kill_signal = "The test changes product behavior, shared Git helper behavior, or
 
 [promotion]
 targets = [
-  "docs/superpowers/specs/2026-07-19-local-ci-git-bundle-locale-robustness-design.md",
-  "docs/superpowers/plans/2026-07-19-local-ci-git-bundle-locale-robustness.md",
   "evidence/claims/local-ci-locale-robustness-20260719.toml",
   "evidence/chronicle/local-ci-locale-robustness-20260719/2026-07-19.md",
   "openspec/changes/local-ci-locale-robustness-20260719",

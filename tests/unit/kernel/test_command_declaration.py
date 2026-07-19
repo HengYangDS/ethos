@@ -54,7 +54,10 @@ def test_command_declaration_marks_compiled_quality_report_handlers() -> None:
     assert report_handlers["types"].provider == "ethos.adapters.gates.ty:ty_gate_report"
     assert report_handlers["types"].enforce is True
     assert report_handlers["types"].bind_root is True
-    assert report_handlers["source-budget"].provider == "ethos.domain.prove:source_budget_report"
+    assert (
+        report_handlers["source-budget"].provider
+        == "ethos.domain.source_budget.core:source_budget_report"
+    )
     assert report_handlers["source-budget"].enforce is True
     assert report_handlers["source-budget"].bind_root is True
     assert (

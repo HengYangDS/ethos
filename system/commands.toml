@@ -487,7 +487,7 @@ group = "quality"
 import_path = "ethos.surface.cli.quality.core:source_budget"
 help = "Report global executable-source budget and compression debt."
 show = true
-report_handler = { provider = "ethos.domain.prove:source_budget_report", state_mode = "advisory_gaps", enforce = true, bind_root = true }
+report_handler = { provider = "ethos.domain.source_budget.core:source_budget_report", state_mode = "advisory_gaps", enforce = true, bind_root = true }
 
 [[commands]]
 name = "module-layout"

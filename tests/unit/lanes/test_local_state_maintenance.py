@@ -745,7 +745,8 @@ def test_apply_restores_sources_when_receipt_write_fails(
 
     def fail_receipt(path: Path, payload: dict[str, object]) -> None:
         if path.name.endswith(".receipt.json"):
-            raise OSError("receipt write failed")
+            msg = "receipt write failed"
+            raise OSError(msg)
         original_write(path, payload)
 
     monkeypatch.setattr(maintenance, "_write_json_atomic", fail_receipt)
@@ -795,7 +796,8 @@ def test_failed_apply_preserves_database_writes_committed_after_staging(
 
     def fail_receipt(path: Path, payload: dict[str, object]) -> None:
         if path.name.endswith(".receipt.json"):
-            raise OSError("receipt write failed")
+            msg = "receipt write failed"
+            raise OSError(msg)
         original_write(path, payload)
 
     monkeypatch.setattr(maintenance, "_verify_archive_extraction", verify_then_write)
@@ -838,7 +840,8 @@ def test_failed_apply_restores_only_missing_recovery_paths(
         missing.parent.rmdir()
         replaced.unlink()
         replaced.write_text("concurrent\n", encoding="utf-8")
-        raise OSError("partial recovery deletion failed")
+        msg = "partial recovery deletion failed"
+        raise OSError(msg)
 
     monkeypatch.setattr(maintenance, "_delete_recovery_snapshot", partially_delete)
 

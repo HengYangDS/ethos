@@ -9,6 +9,7 @@ paths = [
   "openspec/specs/quality/spec.md",
   "pyproject.toml",
   "tests/architecture/test_release_assets.py",
+  "tests/architecture/test_testing_platform.py",
   "tests/unit/skills/quality_gate/test_quality_audit.py",
   "tests/unit/governance/test_quality_regime.py",
 ]

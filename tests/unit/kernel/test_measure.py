@@ -52,8 +52,12 @@ def test_effective_code_lines_reuses_immutable_source_measurement(tmp_path, monk
         calls += 1
         return original(source, *args, **kwargs)
 
+    cache = measure._effective_code_lines_for_source
+    cache.cache_clear()
     monkeypatch.setattr(measure.ast, "parse", counted)
-
-    assert effective_code_lines(path) == 1
-    assert effective_code_lines(path) == 1
-    assert calls == 1
+    try:
+        assert effective_code_lines(path) == 1
+        assert effective_code_lines(path) == 1
+        assert calls == 1
+    finally:
+        cache.cache_clear()

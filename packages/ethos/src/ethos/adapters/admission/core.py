@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
@@ -29,8 +30,7 @@ from ethos_core.contracts.branch.roles import load_branch_role_policy
 from ethos_core.normalization.core import string_sequence
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
+    from ethos_core.contracts.admission import HookAdmissionRequest
     from ethos_core.contracts.branch.roles import BranchRolePolicy
 
 HOOK_LAYERS = {
@@ -48,20 +48,20 @@ _NO_RECONCILIATION = ReconciliationObservation()
 _ZERO_OID = "0" * 40
 
 
-def hook_admission_report(  # noqa: PLR0911, PLR0913, RUF100 - fail-closed exits preserve precise gap tokens
-    *,
-    root: Path,
-    layer: str,
-    paths: list[Path] | None = None,
-    editor_root: Path | None = None,
-    require_editor_root: bool = False,
-    command: str = "",
-    expected_root: Path | None = None,
-) -> dict[str, object]:
-    normalized = _normalize_layer(layer)
-    repo = root.resolve()
+def hook_admission_report(request: HookAdmissionRequest) -> dict[str, object]:
+    """Evaluate a hook-layer request against the current checkout state."""
+    normalized = request.layer.strip().lower().replace("_", "-")
+    normalized = normalized if normalized in HOOK_LAYERS else "pre-tool"
+    repo = Path(request.root).resolve()
     status = workspace_status(repo, include_foreign_path_scope=False)
-    targets = _target_paths(repo, paths or [])
+    targets = [
+        path
+        if path.is_absolute() or has_invalid_path_token_character(path.as_posix())
+        else repo / path
+        for path in map(Path, request.paths)
+    ]
+    expected_root = Path(request.expected_root) if request.expected_root else None
+    editor_root = Path(request.editor_root) if request.editor_root else None
     base: dict[str, object] = {"ok": True, "state": "admitted", "layer": normalized}
     base.update(hook=HOOK_LAYERS[normalized], target_root=repo.as_posix())
     base.update(expected_root=(expected_root or repo).resolve().as_posix())
@@ -69,41 +69,44 @@ def hook_admission_report(  # noqa: PLR0911, PLR0913, RUF100 - fail-closed exits
     base.update(editor_root=editor_root.resolve().as_posix() if editor_root else "")
     base.update(target_paths=[path.as_posix() for path in targets])
     base.update(decision={"action": "allow", "reason": "hook_admitted"}, required_gaps=[])
+    report: dict[str, object] | None = None
     if normalized == "context":
-        if expected_root is not None and expected_root.resolve() != repo:
-            return _verdict(base, "blocked", "block", "hook_context_root_mismatch")
-        return _verdict(base, "refreshed", "allow", "context_refreshed", ())
-    if normalized == "pre-tool":
-        if status["role"] in PROTECTED_WRITE_ROLES and not targets:
-            return _verdict(base, "blocked", "block", "protected_root_pretool_paths_required")
-        return _prewrite_report(
+        mismatch = expected_root is not None and expected_root.resolve() != repo
+        report = _verdict(
             base,
-            repo=repo,
-            paths=targets,
-            editor_root=editor_root,
-            require_editor_root=require_editor_root,
+            "blocked" if mismatch else "refreshed",
+            "block" if mismatch else "allow",
+            "hook_context_root_mismatch" if mismatch else "context_refreshed",
+            None if mismatch else (),
         )
-    if normalized == "pre-run":
+    elif normalized == "pre-tool":
+        if status["role"] in PROTECTED_WRITE_ROLES and not targets:
+            report = _verdict(base, "blocked", "block", "protected_root_pretool_paths_required")
+    elif normalized == "pre-run":
+        command = request.command
         stash_policy = git_stash_policy(command)
         risk = command_risk(command, role=str(base["role"]))
         base.update(command=command, command_risk=risk, git_stash_policy=stash_policy)
         if stash_policy["forbidden"] is True:
-            return _verdict(base, "blocked", "block", "git_stash_forbidden")
-        if risk["tracked_mutation_risk"] is not True:
-            return _verdict(base, "admitted", "allow", "command_observe_only", ())
-        if not targets:
-            return _verdict(base, "blocked", "block", "hook_prerun_paths_required")
-        return _prewrite_report(
+            report = _verdict(base, "blocked", "block", "git_stash_forbidden")
+        elif risk["tracked_mutation_risk"] is not True:
+            report = _verdict(base, "admitted", "allow", "command_observe_only", ())
+        elif not targets:
+            report = _verdict(base, "blocked", "block", "hook_prerun_paths_required")
+    elif normalized == "post-write":
+        report = _post_write_report(base, repo, targets)
+    else:
+        base["fallback"] = True
+        report = _verdict(base, "fallback", "allow", "fallback_hook_layer", ())
+    if report is None:
+        report = _prewrite_report(
             base,
             repo=repo,
             paths=targets,
             editor_root=editor_root,
-            require_editor_root=require_editor_root,
+            require_editor_root=request.require_editor_root,
         )
-    if normalized == "post-write":
-        return _post_write_report(base, repo, targets)
-    base["fallback"] = True
-    return _verdict(base, "fallback", "allow", "fallback_hook_layer", ())
+    return report
 
 
 def push_admission_report(
@@ -178,36 +181,20 @@ def push_admission_report(
     gaps = [*branch_gaps, *identity_gaps, *proof_gaps, *topology_gaps]
     if not gaps:
         return base
-    reason = _push_block_reason(branch, policy, branch_gaps, proof_gaps, topology_gaps)
+    reason = (
+        "publication_candidate_branch_remote_forbidden"
+        if branch == policy.candidate_branch and branch_gaps
+        else "publication_remote_branch_forbidden"
+        if any(gap.startswith("publication_remote_branch_forbidden:") for gap in branch_gaps)
+        else "publication_remote_name_missing"
+        if "publication_remote_name_missing" in branch_gaps
+        else "publication_remote_target_unknown"
+        if any(gap.startswith("publication_remote_target_unknown:") for gap in branch_gaps)
+        else "push_to_protected_role_not_proven"
+        if proof_gaps or topology_gaps
+        else "pushed_commit_identity_not_allowed"
+    )
     return _verdict(base, "blocked", "block", reason, gaps)
-
-
-def _push_block_reason(
-    branch: str,
-    policy: BranchRolePolicy,
-    branch_gaps: list[str],
-    proof_gaps: list[str],
-    topology_gaps: list[str],
-) -> str:
-    reasons = (
-        (
-            branch == policy.candidate_branch and bool(branch_gaps),
-            "publication_candidate_branch_remote_forbidden",
-        ),
-        (
-            any(gap.startswith("publication_remote_branch_forbidden:") for gap in branch_gaps),
-            "publication_remote_branch_forbidden",
-        ),
-        ("publication_remote_name_missing" in branch_gaps, "publication_remote_name_missing"),
-        (
-            any(gap.startswith("publication_remote_target_unknown:") for gap in branch_gaps),
-            "publication_remote_target_unknown",
-        ),
-        (bool(proof_gaps or topology_gaps), "push_to_protected_role_not_proven"),
-    )
-    return next(
-        (reason for applies, reason in reasons if applies), "pushed_commit_identity_not_allowed"
-    )
 
 
 def _proof_evidence_digest(root: Path, head: str) -> str:
@@ -298,20 +285,6 @@ def ref_move_admission_report(
     else:
         return base
     return _verdict(base, "blocked", "block", reason, gaps) if gaps else base
-
-
-def _normalize_layer(layer: str) -> str:
-    normalized = layer.strip().lower().replace("_", "-")
-    return normalized if normalized in HOOK_LAYERS else "pre-tool"
-
-
-def _target_paths(root: Path, paths: list[Path]) -> list[Path]:
-    return [
-        path
-        if path.is_absolute() or has_invalid_path_token_character(path.as_posix())
-        else root / path
-        for path in paths
-    ]
 
 
 def _prewrite_report(

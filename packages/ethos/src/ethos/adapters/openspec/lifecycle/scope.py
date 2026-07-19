@@ -35,10 +35,11 @@ class MaterialScopeBinding(NamedTuple):
     advisory_gaps: tuple[str, ...]
     bootstrap: dict[str, str] | None
     profile_bootstrap: dict[str, str] | None
+    recovery: dict[str, str] | None
 
 
 def _base_report(paths: tuple[str, ...]) -> dict[str, Any]:
-    return {"ok": True, "state": "invalid", "changed_paths": list(paths), "material_patterns": [], "material_paths": [], "changes": [], "covered_paths": [], "uncovered_paths": [], "required_gaps": [], "advisory_gaps": [], "bootstrap": {}, "profile_bootstrap": {}}
+    return {"ok": True, "state": "invalid", "changed_paths": list(paths), "material_patterns": [], "material_paths": [], "changes": [], "covered_paths": [], "uncovered_paths": [], "required_gaps": [], "advisory_gaps": [], "bootstrap": {}, "profile_bootstrap": {}, "recovery": {}}
 
 
 def material_change_scope_report(root: Path, *, changed_paths: tuple[str, ...] = (), active_change_names: tuple[str, ...] | None = None) -> dict[str, Any]:
@@ -49,18 +50,14 @@ def material_change_scope_report(root: Path, *, changed_paths: tuple[str, ...] =
     if not profile.exists:
         report["state"] = "not_applicable"
         return report
-    if not profile.valid:
-        return _blocked(report, "openspec_material_paths_profile_invalid")
-    return _material_scope_report(
-        root, paths, active_change_names, profile.tables.get("openspec"), report
-    )
+    return _blocked(report, "openspec_material_paths_profile_invalid") if not profile.valid else _material_scope_report(root, paths, active_change_names, profile.tables.get("openspec"), report)
 
 
 def _material_scope_report(root: Path, paths: tuple[str, ...], active_change_names: tuple[str, ...] | None, policy: object, report: dict[str, Any]) -> dict[str, Any]:
     if bootstrap := _profile_bootstrap(root, paths, policy, active_change_names):
         report.update(state="profile_material_paths_bootstrap", profile_bootstrap=bootstrap)
         return report
-    if _material_paths_missing(policy):
+    if not isinstance(policy, dict) or "material_paths" not in policy or (isinstance(policy.get("material_paths"), list) and not policy.get("material_paths")):
         report["state"] = "material_paths_missing"
         return _blocked(report, "openspec_material_paths_missing")
     try:
@@ -72,11 +69,11 @@ def _material_scope_report(root: Path, paths: tuple[str, ...], active_change_nam
     if not material:
         report["state"] = "no_material_paths"
         return report
-    changes = _declarations(root, active_change_names, paths)
+    changes = tuple(_declaration(root, path, state, archive) for path, state, archive in _change_roots(root, active_change_names, paths))
     report["changes"] = list(changes)
     report["advisory_gaps"] = [str(gap) for change in changes for gaps in (change.get("required_gaps"),) if isinstance(gaps, (list, tuple)) for gap in gaps]
-    if bootstrap := _scope_bootstrap(root, material, changes):
-        report.update(state="bootstrap_scope_creation", advisory_gaps=[], bootstrap=bootstrap)
+    if exception := _scope_exception(root, material, changes):
+        report.update(exception)
         return report
     covered = [{"path": path, "changes": [str(change["name"]) for change in changes for globs in (change.get("paths"),) if change["ok"] is True and isinstance(globs, (list, tuple)) and any(_matches(path, str(glob)) for glob in globs)]} for path in material]
     uncovered = [item["path"] for item in covered if not item["changes"]]
@@ -85,55 +82,38 @@ def _material_scope_report(root: Path, paths: tuple[str, ...], active_change_nam
 
 
 def _blocked(report: dict[str, Any], gap: str) -> dict[str, Any]:
-    report.update(ok=False, required_gaps=[gap])
-    return report
+    return report | {"ok": False, "required_gaps": [gap]}
 
 
 def _profile_bootstrap(root: Path, paths: tuple[str, ...], policy: object, names: tuple[str, ...] | None) -> dict[str, str] | None:
     profile_path, selected = ".ethos/profile.toml", tuple(names or ())
-    return {"change": selected[0], "profile_path": profile_path} if _material_declaration_absent(policy) and paths == (profile_path,) and _tracked(root, profile_path) and len(selected) == 1 and (root / "openspec" / "changes" / selected[0]).is_dir() else None
+    return {"change": selected[0], "profile_path": profile_path} if (not isinstance(policy, dict) or "material_paths" not in policy) and paths == (profile_path,) and _tracked(root, profile_path) and len(selected) == 1 and (root / "openspec" / "changes" / selected[0]).is_dir() else None
 
 
-def _scope_bootstrap(root: Path, paths: tuple[str, ...], changes: tuple[dict[str, object], ...]) -> dict[str, str] | None:
+def _scope_exception(root: Path, paths: tuple[str, ...], changes: tuple[dict[str, object], ...]) -> dict[str, object] | None:
     if len(paths) != 1:
         return None
     requested = paths[0]
-    matches = [change for change in changes if change["state"] == "missing" and change["scope_path"] == requested]
-    if len(matches) != 1:
-        return None
-    change = matches[0]
-    change_root = root / "openspec" / "changes" / str(change["name"])
-    return {"change": str(change["name"]), "scope_path": requested} if change_root.is_dir() and not (change_root / "scope.toml").exists() and _tracked(root, requested, expected=1) else None
+    matches = [change for change in changes if change["state"] == "missing" and str(change["scope_path"]) == requested]
+    if len(matches) == 1:
+        change = matches[0]
+        change_root = root / "openspec" / "changes" / str(change["name"])
+        if change_root.is_dir() and not (change_root / "scope.toml").exists() and _tracked(root, requested, expected=1):
+            return {"state": "bootstrap_scope_creation", "advisory_gaps": [], "bootstrap": {"change": str(change["name"]), "scope_path": requested}}
+    matches = [change for change in changes if change["state"] == "invalid" and str(change["scope_path"]) == requested]
+    if len(matches) == 1 and _tracked(root, requested):
+        return {"state": "tracked_scope_repair_admitted", "advisory_gaps": [], "recovery": {"change": str(matches[0]["name"]), "scope_path": requested}}
+    return None
 
 
 def _tracked(root: Path, path: str, *, expected: int = 0) -> bool:
     return subprocess.run(["git", "ls-files", "--error-unmatch", "--", path], cwd=root, text=True, capture_output=True, check=False).returncode == expected
 
 
-def _material_paths_missing(policy: object) -> bool:
-    return not isinstance(policy, dict) or "material_paths" not in policy or (isinstance(policy.get("material_paths"), list) and not policy.get("material_paths"))
-
-
-def _material_declaration_absent(policy: object) -> bool:
-    return not isinstance(policy, dict) or "material_paths" not in policy
-
-
-def _archive_changed(root: Path, path: Path, changed_paths: tuple[str, ...]) -> bool:
-    relative = path.relative_to(root).as_posix()
-    return any(changed == relative or changed.startswith(f"{relative}/") for changed in changed_paths)
-
-
 def _change_roots(root: Path, names: tuple[str, ...] | None, changed_paths: tuple[str, ...]) -> tuple[tuple[Path, str, bool], ...]:
     changes_root, selected = root / "openspec" / "changes", set(names) if names is not None else None
-    scans = (
-        (changes_root, "active_or_archiving", False, lambda path: path.name != "archive" and (selected is None or path.name in selected)),
-        (changes_root / "archive", "current_archive", True, lambda path: _archive_changed(root, path, changed_paths)),
-    )
+    scans = ((changes_root, "active_or_archiving", False, lambda path: path.name != "archive" and (selected is None or path.name in selected)), (changes_root / "archive", "current_archive", True, lambda path: any(changed == relative or changed.startswith(f"{relative}/") for relative in (path.relative_to(root).as_posix(),) for changed in changed_paths)))
     return tuple((path, state, archive) for parent, state, archive, include in scans if parent.is_dir() for path in sorted(parent.iterdir()) if path.is_dir() and include(path))
-
-
-def _declarations(root: Path, names: tuple[str, ...] | None, changed_paths: tuple[str, ...]) -> tuple[dict[str, object], ...]:
-    return tuple(_declaration(root, path, state, archive) for path, state, archive in _change_roots(root, names, changed_paths))
 
 
 def _declaration(root: Path, change_root: Path, state: str, archive: bool) -> dict[str, object]:  # noqa: FBT001
@@ -149,5 +129,4 @@ def _declaration(root: Path, change_root: Path, state: str, archive: bool) -> di
 
 
 def _matches(path: str, pattern: str) -> bool:
-    prefix = pattern[:-3] if pattern.endswith("/**") else None
-    return path == prefix or path.startswith(f"{prefix}/") if prefix is not None else fnmatch.fnmatchcase(path, pattern)
+    return path == pattern[:-3] or path.startswith(f"{pattern[:-3]}/") if pattern.endswith("/**") else fnmatch.fnmatchcase(path, pattern)

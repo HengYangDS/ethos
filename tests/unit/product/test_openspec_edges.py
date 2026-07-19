@@ -4,12 +4,14 @@ import subprocess
 from pathlib import Path  # noqa: TC003
 
 import ethos.adapters.openspec.archive.core as archive_mod
+import ethos.adapters.openspec.archive.query as archive_query
 import ethos.adapters.openspec.cli as openspec_cli
 import ethos.adapters.openspec.core as openspec_core
 import ethos.adapters.openspec.lifecycle.core as openspec_lifecycle
 import ethos.adapters.openspec.metadata.core as openspec_metadata_adapter
 import ethos.adapters.openspec.protocol.core as proposal_mod
 import ethos.repository.openspec.metadata as openspec_metadata
+import ethos.surface.cli.root.reference as reference_cli
 
 
 def test_run_json_records_parse_errors_and_non_object_payloads(tmp_path: Path, monkeypatch) -> None:
@@ -207,6 +209,112 @@ def test_archive_closeout_reports_all_edge_gaps(tmp_path: Path) -> None:
     assert "openspec_archive_design_empty:bad_name" in gaps
     assert "openspec_archive_tasks_no_checkboxes:bad_name" in gaps
     assert "openspec_archive_delta_specs_missing:bad_name" in gaps
+
+
+def test_archive_query_resolves_only_logical_change_identifier(tmp_path: Path) -> None:
+    root = tmp_path / "repo"
+    archive_root = root / "openspec" / "changes" / "archive"
+    archive = archive_root / "2026-07-19-adopter-openspec-lifecycle-continuity-20260719"
+    archive.mkdir(parents=True)
+
+    resolved = archive_query.archive_query_report(
+        root, logical_id="adopter-openspec-lifecycle-continuity-20260719"
+    )
+
+    assert resolved["ok"] is True
+    assert resolved["state"] == "resolved"
+    assert resolved["archive_name"] == archive.name
+    assert resolved["archive_path"] == archive.relative_to(root).as_posix()
+
+    directory_identifier = archive_query.archive_query_report(root, logical_id=archive.name)
+    assert directory_identifier["ok"] is False
+    assert directory_identifier["required_gaps"] == [
+        f"openspec_archive_directory_identifier_not_logical:{archive.name}"
+    ]
+
+    invalid = archive_query.archive_query_report(root, logical_id="not/a-change-id")
+    assert invalid["ok"] is False
+    assert invalid["required_gaps"] == [
+        "openspec_archive_logical_identifier_invalid:not/a-change-id"
+    ]
+
+    missing = archive_query.archive_query_report(root, logical_id="missing-change")
+    assert missing["ok"] is False
+    assert missing["required_gaps"] == [
+        "openspec_archive_logical_identifier_not_found:missing-change"
+    ]
+
+    (archive_root / "2026-07-18-adopter-openspec-lifecycle-continuity-20260719").mkdir()
+    ambiguous = archive_query.archive_query_report(
+        root, logical_id="adopter-openspec-lifecycle-continuity-20260719"
+    )
+    assert ambiguous["ok"] is False
+    assert ambiguous["required_gaps"] == [
+        "openspec_archive_logical_identifier_ambiguous:"
+        "adopter-openspec-lifecycle-continuity-20260719"
+    ]
+
+
+def test_archive_directory_name_is_rejected_as_active_change_identifier(
+    tmp_path: Path, monkeypatch
+) -> None:
+    root = tmp_path / "repo"
+    archive = root / "openspec" / "changes" / "archive" / "2026-07-19-done-change"
+    archive.mkdir(parents=True)
+
+    assert archive_query.active_change_identifier_gaps(root, archive.name) == [
+        f"openspec_active_change_identifier_is_archive_directory:{archive.name}"
+    ]
+
+    monkeypatch.setattr(
+        openspec_cli,
+        "openspec_base_command",
+        lambda: (_ for _ in ()).throw(AssertionError("active CLI must not run")),
+    )
+    report = openspec_core.openspec_governance_report(root, change=archive.name)
+
+    assert report["ok"] is False
+    assert report["required_gaps"] == [
+        f"openspec_active_change_identifier_is_archive_directory:{archive.name}"
+    ]
+
+
+def test_openspec_cli_archive_query_avoids_active_status(tmp_path: Path, monkeypatch) -> None:
+    root = tmp_path / "repo"
+    archive = root / "openspec" / "changes" / "archive" / "2026-07-19-done-change"
+    archive.mkdir(parents=True)
+    emitted = []
+
+    monkeypatch.setattr(reference_cli, "resolve_root", lambda _root: root)
+    monkeypatch.setattr(reference_cli, "emit", lambda result, **_kwargs: emitted.append(result))
+    monkeypatch.setattr(
+        reference_cli,
+        "openspec_governance_report",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(
+            AssertionError("active status must not run")
+        ),
+    )
+
+    reference_cli.openspec(archive_id="done-change", json_output=True)
+
+    assert emitted[-1].ok is True
+    assert emitted[-1].state == "resolved"
+    assert emitted[-1].data["archive_query"]["archive_path"] == archive.relative_to(root).as_posix()
+
+
+def test_openspec_cli_rejects_conflicting_active_and_archive_selectors(
+    tmp_path: Path, monkeypatch
+) -> None:
+    emitted = []
+
+    monkeypatch.setattr(reference_cli, "resolve_root", lambda _root: tmp_path)
+    monkeypatch.setattr(reference_cli, "emit", lambda result, **_kwargs: emitted.append(result))
+
+    reference_cli.openspec(change="active-change", archive_id="archived-change", json_output=True)
+
+    assert emitted[-1].ok is False
+    assert emitted[-1].state == "invalid"
+    assert emitted[-1].required_gaps == ("openspec_change_archive_selector_conflict",)
 
 
 def test_openspec_metadata_compatibility_checks_active_and_archived_changes(

@@ -33,13 +33,12 @@ kill_signal = "A tracked rule, skill, or workflow tells agents to use git stash 
 [promotion]
 targets = [
   "packages/ethos/src/ethos/adapters/admission/core.py",
-  "tests/unit/coverage/test_cli_admission_final_edges.py",
+  "tests/unit/lanes/test_hook_admission.py",
   "tools/ci/scripts/run-repository-hygiene.sh",
   "rules/mutation.md",
   "rules/hooks.md",
   "system/invalid_states.toml",
   ".agents/skills/ethos-change-lifecycle/references/verdicts-and-gaps.md",
-  ".ethos/terminal-landing-plan.md",
   "openspec/changes/archive/2026-07-07-stashless-residue-closeout-20260707/proposal.md",
   "openspec/changes/archive/2026-07-07-stashless-residue-closeout-20260707/design.md",
   "openspec/changes/archive/2026-07-07-stashless-residue-closeout-20260707/tasks.md",

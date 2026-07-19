@@ -59,12 +59,15 @@ def matching_rule_gates(
         matched_paths = [
             path
             for path in paths
-            if any(path_matches(path, pattern) for pattern in string_list(raw_rule.get("paths")))
+            if any(
+                path_matches(path, pattern)
+                for pattern in string_list(raw_rule.get("path_globs", raw_rule.get("paths")))
+            )
         ]
         if not matched_paths:
             continue
         rule_gates: list[dict[str, object]] = []
-        for gate_id in string_list(raw_rule.get("requires")):
+        for gate_id in string_list(raw_rule.get("required_gates", raw_rule.get("requires"))):
             gate_config = gates.get(gate_id, {}) if isinstance(gates, dict) else {}
             gate: dict[str, object] = {
                 "id": gate_id,
@@ -83,7 +86,9 @@ def matching_rule_gates(
                 "risk": str(raw_rule.get("risk", "")),
                 "matched_paths": matched_paths,
                 "required_gates": rule_gates,
-                "evidence": string_list(raw_rule.get("evidence")),
+                "evidence": string_list(
+                    raw_rule.get("evidence_requirements", raw_rule.get("evidence"))
+                ),
             }
         )
     return matched_rules, required_gates

@@ -54,6 +54,32 @@ def lease_rows(db_path: Path) -> list[sqlite3.Row | tuple[Any, ...]]:
             return _selectlease_rows(connection)
 
 
+def lease_inventory_rows(db_path: Path) -> list[dict[str, Any]]:
+    """Return all lease rows with raw-payload validity retained for maintenance."""
+    if not db_path.exists():
+        return []
+    rows = lease_rows(db_path)
+    inventory: list[dict[str, Any]] = []
+    for row in rows:
+        raw_payload = str(row[4])
+        try:
+            parsed = json.loads(raw_payload)
+        except json.JSONDecodeError:
+            parsed = None
+        inventory.append(
+            {
+                "id": str(row[0]),
+                "subject": str(row[1]),
+                "owner": str(row[2]),
+                "expires_at": str(row[3]),
+                "payload_json": raw_payload,
+                "payload": parsed if isinstance(parsed, dict) else {},
+                "payload_valid": isinstance(parsed, dict),
+            }
+        )
+    return inventory
+
+
 def _selectlease_rows(
     connection: sqlite3.Connection,
 ) -> list[sqlite3.Row | tuple[Any, ...]]:

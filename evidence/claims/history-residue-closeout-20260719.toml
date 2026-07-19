@@ -1,0 +1,38 @@
+[claim]
+id = "history-residue-closeout-20260719"
+change_id = "history-residue-closeout-20260719"
+subject = "ethos:history-residue-closeout"
+state = "active"
+summary = "The approved Work Lane is bounded to lossless tracked cleanup, conservative local-state maintenance, recovery preservation, and measured source-budget settlement."
+
+[evidence]
+dated = "evidence/chronicle/history-residue-closeout-20260719/2026-07-19.md"
+sha256 = "09214bc3cdd2b4ff4cb94ca0c1bbe2183acc8ee2f6043df199b4c07e513a8f24"
+evidence_ids = ["evidence:history-residue-closeout-20260719"]
+binding = "The active OpenSpec carrier, approved Work Lane, baseline suite, strict validation receipt, digest-bound recovery archive, and applied local-state maintenance receipt bind authoring scope without asserting proof, landing, or closeout completion."
+verifier = "digest_only"
+tests = [
+  "tools/ci/scripts/run-python-tests.sh (baseline: 2209 passed, 100% coverage)",
+  "openspec validate history-residue-closeout-20260719 --strict --json",
+  "operator archive extraction, 356-entry digest comparison, and git bundle verify for all three bundles",
+  "ethos doctor --maintenance read-only inventory and digest-bound apply receipt",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "repository-governance"
+scope = "Tracked history residue, lossless Rules V2 migration, conservative ignored local-state maintenance, recovery preservation, and expired source-budget settlement in one owned Work Lane."
+
+[carriers]
+openspec = "openspec/changes/history-residue-closeout-20260719"
+fallback = "Revert tracked changes and restore local state from the verified operator archive; leave any unverified recovery source untouched."
+kill_signal = "Active coordination, current proof, unique recovery material, quality policy, or source-budget baseline is lost or an expiry is rolled forward without measured deletion."
+
+[promotion]
+targets = [
+  "openspec/changes/history-residue-closeout-20260719",
+  "evidence/claims/history-residue-closeout-20260719.toml",
+  "evidence/chronicle/history-residue-closeout-20260719/2026-07-19.md",
+]

@@ -1,8 +1,3 @@
-[release]
-version_source = "pyproject.toml"
-tag_pattern = "v{version}"
-artifact_glob = "dist/*"
-
 [protected_refs]
 branches = ["main", "dev"]
 tags = ["v*"]

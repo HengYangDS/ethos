@@ -1,0 +1,12 @@
+schema_version = 1
+paths = [
+  "evidence/claims/worktree-retirement-exceptional-unbound-v2-20260719.toml",
+  "evidence/chronicle/worktree-retirement-exceptional-unbound-v2-20260719/**",
+  "docs/reference/command-plane.md",
+  "openspec/changes/worktree-retirement-exceptional-unbound-v2-20260719/**",
+  "openspec/specs/repository-governance/spec.md",
+  "packages/ethos/src/ethos/adapters/mutation/lane_retirement/unbound/core.py",
+  "packages/ethos/src/ethos/surface/cli/lane/core.py",
+  "tests/unit/cli/test_contracts_lane.py",
+  "tests/unit/lanes/retirement/test_unbound_and_helpers.py",
+]

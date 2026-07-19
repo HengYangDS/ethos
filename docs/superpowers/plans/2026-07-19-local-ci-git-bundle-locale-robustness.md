@@ -24,9 +24,11 @@ assertion. The test copies the process environment, overrides `LC_ALL` and
 ### Task 1: Deterministic Bundle Verification
 
 **Files:**
+
 - Modify: `tests/unit/cli/lane/test_cross_host_handoff.py`
 
 **Interfaces:**
+
 - Consumes: the bundle produced by `_export`.
 - Produces: a C-locale `git bundle verify` observation for the existing
   complete-history assertion.

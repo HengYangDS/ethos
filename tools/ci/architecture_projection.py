@@ -10,6 +10,8 @@ from ethos.adapters.repo.git import current_tracked_head
 ROOT = Path(__file__).resolve().parents[2]
 CONFIG_PATH = ROOT / ".config/checks/architecture/projection.toml"
 HEADER = "%% Generated from {source}. Do not edit by hand."
+MIN_QUOTED_PARTS = 2
+DESCRIPTION_QUOTED_PARTS = 4
 
 
 def _parse_model(source: Path) -> tuple[dict[str, str], list[tuple[str, str, str]]]:
@@ -20,14 +22,14 @@ def _parse_model(source: Path) -> tuple[dict[str, str], list[tuple[str, str, str
         if not line or line.startswith("#"):
             continue
         parts = line.split('"')
-        if line.startswith(("system ", "container ")) and len(parts) >= 2:
+        if line.startswith(("system ", "container ")) and len(parts) >= MIN_QUOTED_PARTS:
             head = parts[0].split()
             ident = head[1]
             label_parts = [parts[1]]
-            if len(parts) >= 4 and parts[3].strip():
+            if len(parts) >= DESCRIPTION_QUOTED_PARTS and parts[3].strip():
                 label_parts.append(parts[3])
             nodes[ident] = " ".join(label_parts).strip()
-        elif line.startswith("rel ") and len(parts) >= 2:
+        elif line.startswith("rel ") and len(parts) >= MIN_QUOTED_PARTS:
             left = line.split('"', 1)[0].split()
             rels.append((left[1], left[2], parts[1]))
     return nodes, rels

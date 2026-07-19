@@ -46,9 +46,8 @@ def _git(root: Path, *args: str, input_bytes: bytes | None = None) -> bytes:
     )
     if result.returncode:
         detail = result.stderr.decode(errors="replace").strip()
-        raise RuntimeError(
-            f"Local emulator source materialization failed: git {' '.join(args)}: {detail}"
-        )
+        msg = f"Local emulator source materialization failed: git {' '.join(args)}: {detail}"
+        raise RuntimeError(msg)
     return result.stdout
 
 
@@ -127,14 +126,16 @@ def _git_summary() -> dict[str, Any]:
 def _projection_entries() -> list[dict[str, Any]]:
     entries = tomllib.loads(CONFIG_PATH.read_text(encoding="utf-8")).get("projection", [])
     if not isinstance(entries, list):
-        raise SystemExit(f"{CONFIG_RELATIVE_PATH} projection must be a list")
+        msg = f"{CONFIG_RELATIVE_PATH} projection must be a list"
+        raise SystemExit(msg)
     return entries
 
 
 def _provider_entry(provider: str) -> dict[str, Any]:
     entries = [item for item in _projection_entries() if item.get("provider") == provider]
     if len(entries) != 1:
-        raise SystemExit(f"expected exactly one CI projection for provider: {provider}")
+        msg = f"expected exactly one CI projection for provider: {provider}"
+        raise SystemExit(msg)
     return entries[0]
 
 
@@ -142,7 +143,8 @@ def _emulator_declaration(entry: dict[str, Any]) -> dict[str, Any]:
     missing = [field for field in EMULATOR_REQUIRED_FIELDS if field not in entry]
     if missing:
         provider = entry.get("provider", "unknown")
-        raise SystemExit(f"CI emulator declaration missing for {provider}: {', '.join(missing)}")
+        msg = f"CI emulator declaration missing for {provider}: {', '.join(missing)}"
+        raise SystemExit(msg)
     return {field: entry[field] for field in EMULATOR_REQUIRED_FIELDS} | {
         "emulator_state_dir": entry.get("emulator_state_dir", "")
     }

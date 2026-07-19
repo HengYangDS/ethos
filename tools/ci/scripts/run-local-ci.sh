@@ -52,6 +52,7 @@ tools/ci/scripts/run-closeout-evidence-manifest.sh
 tools/ci/scripts/run-python-tests.sh
 tools/ci/scripts/run-local-state-audit.sh
 tools/ci/scripts/run-release-supply-chain.sh
+tools/ci/scripts/run-local-install-smoke.sh
 tools/ci/scripts/run-hosted-provider-observation.sh
 
 mkdir -p build/evidence/local-ci

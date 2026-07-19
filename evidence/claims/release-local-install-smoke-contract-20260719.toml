@@ -1,0 +1,55 @@
+[claim]
+id = "release-local-install-smoke-contract-20260719"
+change_id = "release-local-install-smoke-contract-20260719"
+subject = "ethos:release-local-install-smoke-contract"
+state = "active"
+summary = "ETHOS is replacing a phantom local installation owner with one fail-closed, offline, HEAD-bound release gate."
+
+[evidence]
+dated = "evidence/chronicle/release-local-install-smoke-contract-20260719/2026-07-19.md"
+sha256 = "8067782c2bade360a49cc3dafc7acba8e40413e1a057536f1f9116dd9e0def84"
+evidence_ids = ["evidence:release-local-install-smoke-contract-20260719"]
+binding = "The official active Change, focused red-green tests, executable owner, gate declarations, real smoke receipt, and dated Chronicle bind the local installation contract without remote or hosted claims."
+verifier = "digest_only"
+tests = [
+  "pytest -q tests/unit/release/test_policy_attestation.py tests/architecture/test_local_install_smoke.py tests/architecture/test_ci_head_stability.py tests/architecture/test_evidence_release_operations.py tests/unit/kernel/test_gate_declaration.py",
+  "tools/ci/scripts/run-local-install-smoke.sh",
+  "tools/ci/scripts/run-shell-lint.sh",
+  "ethos quality release-policy --json",
+  "ethos openspec --lifecycle --json",
+  "ethos parity shadow --adopter generic --target . --execute --write-evidence --json",
+  "ethos prove --execute --expect-head <final-head> --json",
+  "ethos prove --full --execute --expect-head <final-head> --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-quality-gate-governance"
+scope = "Local release-policy owner admission and fresh offline installation proof; remote publication, hosted CI, registry delivery, and public distribution remain separate."
+
+[carriers]
+openspec = "openspec/changes/release-local-install-smoke-contract-20260719"
+fallback = "Block release readiness and use the build artifacts only for diagnosis until the tracked local-install owner and its proof gate are restored."
+kill_signal = "Release policy reports ready for a missing, escaping, non-regular, or non-executable local owner, or install smoke can import the source checkout or claim a remote/hosted result."
+
+[promotion]
+targets = [
+  "docs/governance/release-governance.md",
+  "evidence/claims/release-local-install-smoke-contract-20260719.toml",
+  "evidence/chronicle/release-local-install-smoke-contract-20260719/2026-07-19.md",
+  "openspec/changes/release-local-install-smoke-contract-20260719",
+  "openspec/specs/quality/spec.md",
+  "openspec/specs/repository-governance/spec.md",
+  "packages/ethos/src/ethos/repository/release/core.py",
+  "system/gates.toml",
+  "system/tools.toml",
+  "tests/architecture/test_ci_head_stability.py",
+  "tests/architecture/test_evidence_release_operations.py",
+  "tests/architecture/test_local_install_smoke.py",
+  "tests/unit/kernel/test_gate_declaration.py",
+  "tests/unit/release/test_policy_attestation.py",
+  "tools/ci/scripts/run-local-ci.sh",
+  "tools/ci/scripts/run-local-install-smoke.sh",
+]

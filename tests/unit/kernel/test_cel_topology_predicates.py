@@ -89,6 +89,29 @@ def test_named_cel_helpers_fail_closed_for_missing_rule() -> None:
         topology_contract._cel_rule(load_generated_artifact_topology_declaration(), "missing")
 
 
+def test_topology_path_policy_reuses_immutable_declaration_decision(monkeypatch) -> None:
+    declaration = load_generated_artifact_topology_declaration()
+    topology_contract._cached_path_policy.cache_clear()
+    calls = 0
+    original = topology_contract.evaluate_cel_predicate
+
+    def counted(*args, **kwargs) -> bool:
+        nonlocal calls
+        calls += 1
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(topology_contract, "evaluate_cel_predicate", counted)
+    first = path_policy_from_declaration("docs/evidence/2026-07-07.md", declaration)
+    first_calls = calls
+    first["decision"] = "mutated-by-caller"
+    second = path_policy_from_declaration("docs/evidence/2026-07-07.md", declaration)
+
+    assert first_calls > 0
+    assert calls == first_calls
+    assert second["decision"] == "review"
+    topology_contract._cached_path_policy.cache_clear()
+
+
 @given(
     path=st.from_regex(r"[a-z][a-z0-9-]{0,8}(?:/[a-z][a-z0-9-]{0,8}){0,3}", fullmatch=True),
     prefix=st.from_regex(r"[a-z][a-z0-9-]{0,8}(?:/[a-z][a-z0-9-]{0,8}){0,2}", fullmatch=True),

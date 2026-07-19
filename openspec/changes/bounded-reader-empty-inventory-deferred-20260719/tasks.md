@@ -22,9 +22,9 @@
 
 ## 3. Governed Local Closeout
 
-- [ ] 3.1 Run applicable lint, broader tests, claim/lifecycle checks, and generic
+- [x] 3.1 Run applicable lint, broader tests, claim/lifecycle checks, and generic
   parity on stable committed heads.
-- [ ] 3.2 Execute required HEAD-bound default/full proof and verify official
+- [x] 3.2 Execute required HEAD-bound default/full proof and verify official
   archiveability.
 
 Candidate landing, accepted-root closeout, remote publication, exact-SHA hosted

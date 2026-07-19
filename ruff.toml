@@ -1,0 +1,5 @@
+# Discovery adapter for IDEs, agents, and direct Ruff invocations.
+# It owns only checkout-relative cache routing; lint policy remains solely in
+# .config/checks/ruff/ruff.toml.
+cache-dir = "build/runtime/tool-cache/ruff"
+extend = ".config/checks/ruff/ruff.toml"

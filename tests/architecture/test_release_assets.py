@@ -98,7 +98,11 @@ def test_configuration_layout_is_separated_by_concern() -> None:
 
     assert "[project]" in pyproject
     assert "[tool.uv.workspace]" in pyproject
-    assert not (ROOT / "ruff.toml").exists()
+    assert (
+        (ROOT / "ruff.toml")
+        .read_text(encoding="utf-8")
+        .endswith('extend = ".config/checks/ruff/ruff.toml"\n')
+    )
     assert not (ROOT / "pytest.ini").exists()
     assert "[lint.per-file-ignores]" in ruff
     assert "[pytest]" in pytest
@@ -453,15 +457,15 @@ def test_quality_audit_uses_policy_derived_coverage_floor() -> None:
     assert "quality_python_tests_missing:--cov-fail-under=100" not in audit
 
 
-def test_quality_audit_requires_config_check_owners_not_root_tool_files() -> None:
+def test_quality_audit_requires_the_ruff_discovery_adapter() -> None:
     audit = (
         ROOT / ".agents/skills/ethos-quality-gate-governance/scripts/quality_audit.py"
     ).read_text(encoding="utf-8")
     required_files = audit.split("REQUIRED_FILES = (", 1)[1].split(")", 1)[0]
 
     assert '".config/checks/ruff/ruff.toml"' in required_files
+    assert '"ruff.toml"' in required_files
     assert '".config/checks/pytest/pytest.ini"' in required_files
-    assert '"ruff.toml"' not in required_files
     assert '"pytest.ini"' not in required_files
 
 

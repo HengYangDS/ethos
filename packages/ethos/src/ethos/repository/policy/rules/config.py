@@ -33,13 +33,16 @@ def _normalize_profile(profile: str) -> str:
 
 
 def _validated_active_profiles(active: object) -> tuple[list[str], str]:
-    if not isinstance(active, list) or any(not isinstance(item, str) for item in active):
+    if not isinstance(active, list):
         return [], "rules_profile_invalid:active_must_be_string_array"
-    if not active:
+    if any(not isinstance(item, str) for item in active):
+        return [], "rules_profile_invalid:active_must_be_string_array"
+    active_profiles = [item for item in active if isinstance(item, str)]
+    if not active_profiles:
         return [], "rules_profile_invalid:active_must_not_be_empty"
-    if any(not item.strip() for item in active):
+    if any(not item.strip() for item in active_profiles):
         return [], "rules_profile_invalid:active_must_not_contain_empty_values"
-    return active, ""
+    return active_profiles, ""
 
 
 def resolve_profile_stack(config: dict[str, Any]) -> tuple[list[str], list[str]]:

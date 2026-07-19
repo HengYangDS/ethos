@@ -37,6 +37,7 @@ maintainer_reference = [
   "ethos fleet",
   "ethos fleet retirement-readiness",
   "ethos lane",
+  "ethos lane housekeeping",
   "ethos lane lease",
   "ethos lane handoff",
   "ethos lane resolution",

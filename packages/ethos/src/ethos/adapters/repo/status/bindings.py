@@ -14,9 +14,11 @@ from ethos_core.contracts.branch.roles import ROLE_CANDIDATE
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 from ethos_core.contracts.branch.roles import BranchRolePolicy
 
+# fmt: off
+
 
 def has_changed_paths(root: Path) -> bool:
-    """Return whether the target worktree has tracked, untracked, or unreadable state."""
+    """Return whether tracked, untracked, or unreadable state is present."""
     try:
         return bool(git_stdout_checked(root, "status", "--porcelain", "--untracked-files=all"))
     except (OSError, subprocess.CalledProcessError):
@@ -24,112 +26,77 @@ def has_changed_paths(root: Path) -> bool:
 
 
 def branch_bindings(
-    root: Path,
-    worktrees: list[dict[str, str]],
-    candidate: dict[str, object],
-    *,
-    policy: BranchRolePolicy,
-    lease_by_branch: dict[str, dict[str, object]],
+    root: Path, worktrees: list[dict[str, str]], candidate: dict[str, object], *,
+    policy: BranchRolePolicy, lease_by_branch: dict[str, dict[str, object]],
 ) -> list[dict[str, str]]:
-    """Return protected, candidate, linked, and unbound branch bindings."""
+    """Return configured, linked, and unbound branch bindings."""
+    by_branch = {
+        item["branch"]: item for item in worktrees if item["branch"] != "detached"
+    }
     bindings: list[dict[str, str]] = []
     seen: set[str] = set()
-
-    worktree_by_branch = {
-        str(worktree["branch"]): worktree
-        for worktree in worktrees
-        if str(worktree["branch"]) != "detached"
-    }
-
-    for branch, role in (
+    configured = (
         (policy.release_branch, policy.role_for_branch(policy.release_branch)),
         (policy.accepted_branch, policy.role_for_branch(policy.accepted_branch)),
         (policy.candidate_branch, ROLE_CANDIDATE),
-    ):
+    )
+    for branch, role in configured:
         if branch in seen:
             continue
-        binding = _configured_branch_binding(
-            root,
-            branch=branch,
-            role=role,
-            worktree=worktree_by_branch.get(branch),
+        bindings.append(_configured_branch_binding(
+            root, branch=branch, role=role, worktree=by_branch.get(branch),
             candidate=candidate if branch == policy.candidate_branch else None,
             lease=lease_by_branch.get(branch, {}),
-        )
-        bindings.append(binding)
+        ))
         seen.add(branch)
-
-    role_order = {
-        str(record["role"]): index for index, record in enumerate(policy.semantic_order())
-    }
-    remaining: list[dict[str, str]] = [
-        _worktree_branch_binding(worktree, lease=lease_by_branch.get(str(worktree["branch"]), {}))
-        for worktree in worktrees
-        if str(worktree["branch"]) != "detached" and str(worktree["branch"]) not in seen
+    remaining = [
+        _worktree_branch_binding(item, lease=lease_by_branch.get(item["branch"], {}))
+        for item in worktrees if item["branch"] != "detached" and item["branch"] not in seen
     ]
     remaining.extend(
         _unbound_work_lane_binding(
             root, branch=branch, head=head, lease=lease_by_branch.get(branch, {})
         )
         for branch, head in _work_lane_refs(root, policy=policy)
-        if branch not in seen and branch not in worktree_by_branch
+        if branch not in seen and branch not in by_branch
     )
+    order = {record["role"]: index for index, record in enumerate(policy.semantic_order())}
     for binding in sorted(
-        remaining,
-        key=lambda item: (
-            role_order.get(str(item["role"]), len(role_order)),
-            str(item["branch"]),
-        ),
+        remaining, key=lambda item: (order.get(item["role"], len(order)), item["branch"])
     ):
-        branch = str(binding["branch"])
-        if branch in seen:
-            continue
-        bindings.append(binding)
-        seen.add(branch)
+        if binding["branch"] not in seen:
+            bindings.append(binding)
+            seen.add(binding["branch"])
     return bindings
 
 
 def _work_lane_refs(root: Path, *, policy: BranchRolePolicy) -> list[tuple[str, str]]:
     try:
         output = git_stdout_checked(
-            root,
-            "for-each-ref",
-            "--format=%(refname:short) %(objectname)",
-            "refs/heads",
+            root, "for-each-ref", "--format=%(refname:short) %(objectname)", "refs/heads"
         )
     except subprocess.CalledProcessError:
         return []
-    refs: list[tuple[str, str]] = []
-    for line in output.splitlines():
-        branch, _, head = line.partition(" ")
-        if policy.role_for_branch(branch) == ROLE_WORK_LANE:
-            refs.append((branch, head))
-    return refs
+    refs = (line.partition(" ") for line in output.splitlines())
+    return [
+        (branch, head)
+        for branch, _, head in refs if policy.role_for_branch(branch) == ROLE_WORK_LANE
+    ]
 
 
 def unbound_work_lane_refs(
-    root: Path,
-    branch_bindings: list[dict[str, str]],
-    *,
-    policy: BranchRolePolicy,
+    root: Path, branch_bindings: list[dict[str, str]], *, policy: BranchRolePolicy
 ) -> list[dict[str, object]]:
     """Return unbound Work Lane refs derived from branch bindings."""
-    refs: list[dict[str, object]] = []
-    for binding in branch_bindings:
-        if binding["role"] != ROLE_WORK_LANE or binding["worktree_binding"] != "unbound":
-            continue
-        branch = str(binding["branch"])
-        refs.append(
-            {
-                "branch": branch,
-                "head": str(binding["head"]),
-                "claim_id": str(binding["claim_id"]),
-                "claim_binding": str(binding["claim_binding"]),
-                "relation_to_accepted": ref_relation(root, branch, policy.accepted_branch),
-                "next_action": unbound_ref_next_action(root, branch, policy.accepted_branch),
-            }
-        )
-    return refs
+    return [
+        {
+            **{name: binding[name] for name in ("branch", "head", "claim_id", "claim_binding")},
+            "relation_to_accepted": ref_relation(root, binding["branch"], policy.accepted_branch),
+            "next_action": unbound_ref_next_action(root, binding["branch"], policy.accepted_branch),
+        }
+        for binding in branch_bindings
+        if binding["role"] == ROLE_WORK_LANE and binding["worktree_binding"] == "unbound"
+    ]
 
 
 def ref_relation(root: Path, branch: str, accepted_branch: str) -> str:
@@ -138,132 +105,101 @@ def ref_relation(root: Path, branch: str, accepted_branch: str) -> str:
         return "unknown"
     if is_ancestor(root, branch, accepted_branch):
         return "ancestor_of_accepted"
-    if is_ancestor(root, accepted_branch, branch):
-        return "descendant_of_accepted"
-    return "diverged_from_accepted"
+    return (
+        "descendant_of_accepted"
+        if is_ancestor(root, accepted_branch, branch) else "diverged_from_accepted"
+    )
 
 
 def unbound_ref_next_action(root: Path, branch: str, accepted_branch: str) -> str:
     """Return the safe next action for an unbound Work Lane ref."""
-    relation = ref_relation(root, branch, accepted_branch)
-    if relation == "ancestor_of_accepted":
-        return "retire unbound Work Lane ref after confirming no external owner depends on it"
-    if relation == "descendant_of_accepted":
-        return "bind a lease or land the unbound Work Lane ref before cleanup"
-    return "inspect diverged unbound Work Lane ref before merge, supersede, or deletion"
+    return {
+        "ancestor_of_accepted": (
+            "retire unbound Work Lane ref after confirming no external owner depends on it"
+        ),
+        "descendant_of_accepted": "bind a lease or land the unbound Work Lane ref before cleanup",
+    }.get(
+        ref_relation(root, branch, accepted_branch),
+        "inspect diverged unbound Work Lane ref before merge, supersede, or deletion",
+    )
 
 
 def is_ancestor(root: Path, ancestor: str, descendant: str) -> bool:
     """Return whether one ref is an ancestor of another ref."""
-    completed = subprocess.run(
-        ["git", "merge-base", "--is-ancestor", ancestor, descendant],
-        cwd=root,
-        check=False,
-        text=True,
-        capture_output=True,
-    )
-    return completed.returncode == 0
+    return _git(root, "merge-base", "--is-ancestor", ancestor, descendant).returncode == 0
 
 
-def _unbound_work_lane_binding(
-    root: Path,
-    *,
-    branch: str,
-    head: str,
-    lease: dict[str, object],
+def _binding(  # noqa: PLR0913, RUF100 - exact branch binding dimensions
+    branch: str, role: str, head: str, path: str, worktree: str, claim_id: str,
+    claim_binding: str,
 ) -> dict[str, str]:
-    claim_id = lease_claim_id(lease)
     return {
-        "branch": branch,
-        "role": ROLE_WORK_LANE,
-        "head": head or ref_head(root, branch),
-        "worktree_path": "",
-        "worktree_binding": "unbound",
-        "claim_id": claim_id,
-        "claim_binding": "bound" if claim_id else "missing",
+        "branch": branch, "role": role, "head": head, "worktree_path": path,
+        "worktree_binding": worktree, "claim_id": claim_id, "claim_binding": claim_binding,
     }
 
 
-def _configured_branch_binding(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
-    root: Path,
-    *,
-    branch: str,
-    role: str,
-    worktree: dict[str, str] | None,
-    candidate: dict[str, object] | None,
-    lease: dict[str, object],
+def _unbound_work_lane_binding(
+    root: Path, *, branch: str, head: str, lease: dict[str, object]
+) -> dict[str, str]:
+    claim_id = lease_claim_id(lease)
+    return _binding(
+        branch, ROLE_WORK_LANE, head or ref_head(root, branch), "", "unbound", claim_id,
+        "bound" if claim_id else "missing",
+    )
+
+
+def _configured_branch_binding(  # noqa: PLR0913, RUF100 - exact bound-state dimensions
+    root: Path, *, branch: str, role: str, worktree: dict[str, str] | None,
+    candidate: dict[str, object] | None, lease: dict[str, object],
 ) -> dict[str, str]:
     if worktree is not None:
         return _worktree_branch_binding(worktree, lease=lease)
     if candidate is not None:
-        return {
-            "branch": branch,
-            "role": role,
-            "head": str(candidate["head"]),
-            "worktree_path": str(candidate["worktree_path"]),
-            "worktree_binding": str(candidate["worktree_binding"]),
-            "claim_id": "",
-            "claim_binding": "unbound",
-        }
+        return _binding(
+            branch, role, str(candidate["head"]), str(candidate["worktree_path"]),
+            str(candidate["worktree_binding"]), "", "unbound",
+        )
     head = ref_head(root, branch)
-    return {
-        "branch": branch,
-        "role": role,
-        "head": head,
-        "worktree_path": "",
-        "worktree_binding": "unbound" if head else "absent",
-        "claim_id": "",
-        "claim_binding": "unbound",
-    }
+    return _binding(branch, role, head, "", "unbound" if head else "absent", "", "unbound")
 
 
 def _worktree_branch_binding(
-    worktree: dict[str, str],
-    *,
-    lease: dict[str, object],
+    worktree: dict[str, str], *, lease: dict[str, object]
 ) -> dict[str, str]:
     claim_id = lease_claim_id(lease)
-    return {
-        "branch": str(worktree["branch"]),
-        "role": str(worktree["role"]),
-        "head": str(worktree["head"]),
-        "worktree_path": str(worktree["path"]),
-        "worktree_binding": str(worktree["worktree_binding"]),
-        "claim_id": claim_id,
-        "claim_binding": "bound" if claim_id else "missing",
-    }
+    return _binding(
+        worktree["branch"], worktree["role"], worktree["head"], worktree["path"],
+        worktree["worktree_binding"], claim_id, "bound" if claim_id else "missing",
+    )
 
 
 def worktree_binding(path: str, *, current_path: Path) -> str:
-    """Classify a worktree path from Git's registry against filesystem reality."""
+    """Classify a registered worktree path against filesystem reality."""
     if not path:
         return "absent"
     resolved = Path(path).resolve()
     if resolved == current_path:
         return "current"
-    if not resolved.exists():
-        return "missing"
-    return "linked"
+    return "linked" if resolved.exists() else "missing"
 
 
 def leases_by_branch(
-    worktrees: list[dict[str, str]],
-    *,
-    current_path: Path,
+    worktrees: list[dict[str, str]], *, current_path: Path
 ) -> dict[str, dict[str, object]]:
-    """Load active leases keyed by branch, preferring the accepted-root control store."""
-    control_root = current_path
-    for worktree in worktrees:
-        if worktree["role"] == ROLE_ACCEPTED_ROOT and worktree["path"]:
-            control_root = Path(worktree["path"])
-            break
-    leases = {str(lease["subject"]): lease for lease in _json_projection_leases(control_root)}
-    leases.update(
-        {
-            str(lease["subject"]): lease
-            for lease in active_leases(control_root / ".ethos" / "state" / "state.sqlite")
-        }
+    """Load active leases, preferring the accepted-root control store."""
+    control_root = next(
+        (
+            Path(item["path"])
+            for item in worktrees if item["role"] == ROLE_ACCEPTED_ROOT and item["path"]
+        ),
+        current_path,
     )
+    leases = {str(lease["subject"]): lease for lease in _json_projection_leases(control_root)}
+    leases.update({
+        str(lease["subject"]): lease
+        for lease in active_leases(control_root / ".ethos" / "state" / "state.sqlite")
+    })
     return leases
 
 
@@ -279,30 +215,21 @@ def _json_projection_leases(control_root: Path) -> list[dict[str, object]]:
     if not isinstance(rows, list):
         return []
     now = datetime.now(UTC)
-    leases: list[dict[str, object]] = []
-    for row in rows:
-        lease = _json_projection_lease(row, now=now)
-        if lease:
-            leases.append(lease)
-    return leases
+    return [lease for row in rows if (lease := _json_projection_lease(row, now=now))]
 
 
 def _json_projection_lease(row: object, *, now: datetime) -> dict[str, object]:
     if not isinstance(row, dict):
         return {}
     branch = str(row.get("branch") or row.get("subject") or "")
-    owner = str(row.get("owner") or "")
-    expires_at = str(row.get("expires_at") or "")
+    owner, expires_at = str(row.get("owner") or ""), str(row.get("expires_at") or "")
     if not branch or not owner or not _lease_expires_after(expires_at, now=now):
         return {}
     return {
-        "id": str(row.get("id") or f"json:{branch}"),
-        "subject": branch,
-        "owner": owner,
-        "expires_at": expires_at,
+        "id": str(row.get("id") or f"json:{branch}"), "subject": branch,
+        "owner": owner, "expires_at": expires_at,
         "payload": {
-            "branch": branch,
-            "claim_id": str(row.get("claim_id") or ""),
+            "branch": branch, "claim_id": str(row.get("claim_id") or ""),
             "path": str(row.get("worktree_path") or row.get("path") or ""),
             "session_id": str(row.get("session_id") or ""),
         },
@@ -311,8 +238,7 @@ def _json_projection_lease(row: object, *, now: datetime) -> dict[str, object]:
 
 def _lease_expires_after(value: str, *, now: datetime) -> bool:
     try:
-        normalized = value.replace("Z", "+00:00")
-        expires_at = datetime.fromisoformat(normalized)
+        expires_at = datetime.fromisoformat(value)
     except ValueError:
         return False
     if expires_at.tzinfo is None:
@@ -323,66 +249,53 @@ def _lease_expires_after(value: str, *, now: datetime) -> bool:
 def lease_claim_id(lease: dict[str, object]) -> str:
     """Extract a claim id from a Work Lane lease payload."""
     payload = lease.get("payload") if isinstance(lease, dict) else {}
-    if not isinstance(payload, dict):
-        return ""
-    return str(payload.get("claim_id") or "")
+    return str(payload.get("claim_id") or "") if isinstance(payload, dict) else ""
 
 
-def closeout_support(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
-    *,
-    branch: str,
-    role: str,
-    dirty: bool,
-    candidate: dict[str, object],
-    lease_by_branch: dict[str, dict[str, object]],
-    coordination_required_gaps: list[str],
+def closeout_support(  # noqa: PLR0913, RUF100 - exact bound-state dimensions
+    *, branch: str, role: str, dirty: bool, candidate: dict[str, object],
+    lease_by_branch: dict[str, dict[str, object]], coordination_required_gaps: list[str],
 ) -> dict[str, object]:
     """Return closeout support and required gaps for a branch role."""
     gaps: list[str] = []
-    if role != ROLE_WORK_LANE:
+    is_work_lane = role == ROLE_WORK_LANE
+    lease = lease_by_branch.get(branch, {}) if is_work_lane else {}
+    if not is_work_lane:
         gaps.append("protected_root_mutation")
     elif dirty:
         gaps.append("work_lane_dirty")
-    elif not lease_by_branch.get(branch, {}).get("holder_ref"):
+    elif not lease.get("holder_ref"):
         gaps.append(f"work_lane_missing_lease:{branch}")
     if not candidate["exists"]:
         gaps.append("candidate_branch_missing")
     elif not candidate["worktree_exists"]:
         gaps.append("candidate_worktree_missing")
-    else:
-        candidate_path = Path(str(candidate["worktree_path"]))
-        if has_changed_paths(candidate_path):
-            gaps.append("candidate_worktree_dirty")
-    if role == ROLE_WORK_LANE:
+    elif has_changed_paths(Path(str(candidate["worktree_path"]))):
+        gaps.append("candidate_worktree_dirty")
+    if is_work_lane:
         gaps.extend(coordination_required_gaps)
-
-    is_work_lane = role == ROLE_WORK_LANE
-    lease = lease_by_branch.get(branch, {}) if is_work_lane else {}
     claim_id = lease_claim_id(lease)
     return {
-        "supported": not gaps,
-        "branch": branch if is_work_lane else "",
-        "target_branch": str(candidate["branch"]),
-        "target_path": str(candidate["worktree_path"]),
+        "supported": not gaps, "branch": branch if is_work_lane else "",
+        "target_branch": str(candidate["branch"]), "target_path": str(candidate["worktree_path"]),
         "operation": "land_to_candidate" if is_work_lane else "",
-        "holder_ref": str(lease.get("holder_ref") or "") if is_work_lane else "",
-        "lease_id": str(lease.get("lease_id") or "") if is_work_lane else "",
-        "lease_epoch": integer_value(lease.get("epoch")) if is_work_lane else 0,
+        "holder_ref": str(lease.get("holder_ref") or ""),
+        "lease_id": str(lease.get("lease_id") or ""),
+        "lease_epoch": integer_value(lease.get("epoch")) if lease else 0,
         "claim_id": claim_id,
-        "claim_binding": "bound" if claim_id else "missing" if is_work_lane else "unbound",
+        "claim_binding": (
+            "bound" if claim_id else "missing" if is_work_lane else "unbound"
+        ),
         "required_gaps": gaps,
     }
 
 
+def _git(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(["git", *args], cwd=root, check=False, text=True, capture_output=True)
+
+
 def ref_head(root: Path, ref: str) -> str:
     """Resolve a ref to its head, or return an empty string when absent."""
-    completed = subprocess.run(
-        ["git", "rev-parse", "--verify", ref],
-        cwd=root,
-        check=False,
-        text=True,
-        capture_output=True,
-    )
-    if completed.returncode != 0:
-        return ""
-    return completed.stdout.strip()
+    completed = _git(root, "rev-parse", "--verify", ref)
+    return completed.stdout.strip() if completed.returncode == 0 else ""
+# fmt: on

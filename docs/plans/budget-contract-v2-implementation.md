@@ -37,6 +37,7 @@ relations:
 ### Task 1: Foundation Decision And Behavior-Preserving Extraction
 
 **Files:**
+
 - Create: `docs/decisions/accepted/DR-0008-metric-domain-budget-contract.md`
 - Create ignored raw observation: `build/evidence/quality/source-budget/v1-foundation-snapshot.json`
 - Record reviewed digest and summary: `evidence/chronicle/budget-contract-v2-foundation-20260719/2026-07-19.md`
@@ -60,6 +61,7 @@ relations:
 - Modify: `evidence/chronicle/budget-contract-v2-foundation-20260719/2026-07-19.md`
 
 **Interfaces:**
+
 - Consumes: current-candidate `ethos.domain.prove.source_budget_report` behavior,
   taxonomy, campaign enforcement, and v1 policy.
 - Produces: `ethos.domain.source_budget.core.source_budget_report(root: Path) -> dict[str, object]` with byte-for-byte equivalent JSON semantics; accepted DR-0008; reviewed v1 fact summary with an ignored raw-evidence digest.
@@ -139,6 +141,7 @@ git commit -m "refactor(quality): establish budget contract v2 foundation"
 ### Task 2: Typed Carrier And Metric Contracts
 
 **Files:**
+
 - Create: `packages/ethos-core/src/ethos_core/contracts/source_budget/carriers.py`
 - Create: `packages/ethos-core/src/ethos_core/contracts/source_budget/metrics.py`
 - Create: `packages/ethos/src/ethos/adapters/repo/source_budget/carriers.py`
@@ -155,6 +158,7 @@ git commit -m "refactor(quality): establish budget contract v2 foundation"
 - Preserve unchanged: `packages/ethos/src/ethos/adapters/repo/source_budget/core.py`
 
 **Interfaces:**
+
 - Consumes: one Git-present tagged path observation and the metric-domain
   decision from Task 1.
 - Produces: `PresentWorktreePathsLoad`, `CarrierManifest`, `CarrierIdentity`,
@@ -229,6 +233,7 @@ subsequent separately evidenced transitions.
 ### Task 3: Native Measurement Adapters And Adversarial Corpus
 
 **Files:**
+
 - Create: `packages/ethos/src/ethos/adapters/repo/source_budget/measurement/__init__.py`
 - Create: `packages/ethos/src/ethos/adapters/repo/source_budget/measurement/core.py`
 - Create: `packages/ethos/src/ethos/adapters/repo/source_budget/measurement/python.py`
@@ -240,6 +245,7 @@ subsequent separately evidenced transitions.
 - Create: `tests/fixtures/source-budget-v2/**`
 
 **Interfaces:**
+
 - Consumes: Task 2 carrier and metric contracts.
 - Produces: `measure_carrier(...) -> CarrierMeasurement` and `measure_snapshot(...) -> MeasurementSnapshot`.
 
@@ -252,6 +258,7 @@ subsequent separately evidenced transitions.
 ### Task 4: Git Snapshot Replay And v2 Shadow Report
 
 **Files:**
+
 - Create: `packages/ethos/src/ethos/adapters/repo/source_budget/snapshots.py`
 - Create: `tools/ci/source_budget_replay.py`
 - Create: `tools/ci/scripts/run-source-budget-replay.sh`
@@ -262,6 +269,7 @@ subsequent separately evidenced transitions.
 - Modify: `system/tools.toml`
 
 **Interfaces:**
+
 - Consumes: Task 3 measurement snapshot.
 - Produces: `tree_snapshot(root, treeish)`, `worktree_snapshot(root)`, baseline replay evidence, and `v2_shadow` report fields.
 
@@ -274,6 +282,7 @@ subsequent separately evidenced transitions.
 ### Task 5: Vector Policy And Debt v2
 
 **Files:**
+
 - Create: `packages/ethos-core/src/ethos_core/contracts/source_budget/policy_v2.py`
 - Create: `packages/ethos/src/ethos/domain/source_budget/verdict.py`
 - Create: `tests/unit/domain/source_budget/test_verdict.py`
@@ -284,6 +293,7 @@ subsequent separately evidenced transitions.
 - Modify: `tests/unit/kernel/test_source_budget_contract.py`
 
 **Interfaces:**
+
 - Consumes: v2 observations and immutable replay evidence.
 - Produces: `compile_budget_verdict(observations, policy, today) -> SourceBudgetVerdict`.
 
@@ -296,6 +306,7 @@ subsequent separately evidenced transitions.
 ### Task 6: Changed-Scope Source Admission And Domain Separation
 
 **Files:**
+
 - Create: `packages/ethos/src/ethos/domain/source_budget/change.py`
 - Create: `tests/unit/domain/source_budget/test_change_admission.py`
 - Create: `system/schemas/kernel/change-source-budget.schema.json`
@@ -305,6 +316,7 @@ subsequent separately evidenced transitions.
 - Modify: `openspec/specs/quality/spec.md`
 
 **Interfaces:**
+
 - Consumes: candidate merge base, selected OpenSpec scope, and v2 policy.
 - Produces: `source_admission_report(root: Path) -> dict[str, object]` and the default `source-admission` gate.
 
@@ -317,6 +329,7 @@ subsequent separately evidenced transitions.
 ### Task 7: Dual Control And Calibration Decision
 
 **Files:**
+
 - Create: `docs/decisions/accepted/DR-0009-budget-v2-calibration-and-v1-supersession.md`
 - Create: `tests/unit/domain/source_budget/test_dual_control.py`
 - Modify: `docs/decisions/**`
@@ -325,6 +338,7 @@ subsequent separately evidenced transitions.
 - Modify: `openspec/specs/quality/spec.md`
 
 **Interfaces:**
+
 - Consumes: two complete stable shadow integration cycles and debt mapping.
 - Produces: accepted calibrated v2 ceilings/targets, `v1_and_v2` mode, cutover and rollback conditions.
 
@@ -337,6 +351,7 @@ subsequent separately evidenced transitions.
 ### Task 8: v2 Authority And Global v1 LOC Retirement
 
 **Files:**
+
 - Modify: `.ethos/rules.toml`
 - Modify: `packages/ethos/src/ethos/domain/source_budget/core.py`
 - Modify: `packages/ethos/src/ethos/domain/source_budget/verdict.py`
@@ -347,6 +362,7 @@ subsequent separately evidenced transitions.
 - Retain: `packages/ethos-core/src/ethos_core/measure.py` and `code_size_report`
 
 **Interfaces:**
+
 - Consumes: accepted DR-0009 and clean dual-control admission.
 - Produces: v2-authoritative repository source budget with one rollback window and no global LOC currency.
 
@@ -359,12 +375,14 @@ subsequent separately evidenced transitions.
 ### Task 9: Terminal Compression Settlement
 
 **Files:**
+
 - Modify/Delete: exact debt-owned source and test paths identified by Debt v2 mapping
 - Modify: `.ethos/rules.toml`
 - Modify: `docs/plans/global-declarative-compression-program.md`
 - Modify: tracked claim and Chronicle for each settlement Change
 
 **Interfaces:**
+
 - Consumes: authoritative v2 vectors and named expected-deletion obligations.
 - Produces: zero active, expired, unmapped, and unclassified debt with every terminal coordinate passing.
 
@@ -377,11 +395,13 @@ subsequent separately evidenced transitions.
 ### Task 10: Final Proof, Archive, Land, Closeout, Publish Readiness, And Retirement
 
 **Files:**
+
 - Modify: final active OpenSpec Change tasks/deltas
 - Modify: final claim/Chronicle and `evidence/parity/generic-shadow.json`
 - Move via official CLI: active Change to dated archive
 
 **Interfaces:**
+
 - Consumes: all prior tasks on a stable HEAD.
 - Produces: archived Change, HEAD-bound executed proof, candidate integration, accepted-root closeout, local publication-readiness result, and retired owned Lane.
 

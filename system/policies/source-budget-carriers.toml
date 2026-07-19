@@ -49,11 +49,7 @@ metric_profile = "documentation-footprint-v2"
 extensions = []
 include = [
   "docs/**",
-  "*.md",
-  "**/README.md",
-  "AGENTS.md",
-  "CHANGELOG.md",
-  "CONTRIBUTING.md",
+  "**/*.md",
   "LICENSE",
 ]
 exclude = [
@@ -237,7 +233,7 @@ scope_id = "declarations.control"
 disposition = "measure"
 metric_profile = "control-source-v2"
 extensions = []
-include = [".gitignore", "**/.gitignore", "**/.shellcheckrc"]
+include = ["**/.gitignore", "**/.shellcheckrc"]
 exclude = [".ethos/state/**"]
 owner = "ethos-repository"
 

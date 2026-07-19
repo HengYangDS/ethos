@@ -8,7 +8,7 @@ summary = "ETHOS binds protected control-replacement bootstrap verification to t
 dated = "evidence/chronicle/proof-bootstrap-canonical-envelope-20260712/2026-07-12.md"
 sha256 = "92259e75fd503aa22ee67de0df3d4101de8ba532285f345039d30c5befc6925b"
 evidence_ids = ["evidence:proof-bootstrap-canonical-envelope-20260712"]
-binding = "The external verifier source, native-shaped admission fixture, canonical contract, OpenSpec delta, and dated Chronicle bind one generic control-replacement proof-parser repair."
+binding = "The product receipt consumer, native-shaped admission fixture, canonical contract, OpenSpec delta, and dated Chronicle bind one generic control-replacement proof-parser repair while the executable remains operator-supplied."
 verifier = "digest_only"
 tests = [
   "uv run --group dev pytest -q tests/unit/admission/test_control_replacement.py",
@@ -21,16 +21,16 @@ mode = "historical"
 
 [boundary]
 owner = "ethos-adapters"
-scope = "Generic parsing of native executed proof JSON by the candidate-external control-replacement verifier."
+scope = "Generic validation of native executed proof JSON by the product control-replacement receipt consumer; the verifier executable remains operator-supplied and outside the candidate tree."
 
 [carriers]
 openspec = "openspec/changes/archive/2026-07-12-proof-bootstrap-canonical-envelope-20260712"
 fallback = "Revert the atomic native-proof parser change if the public proof contract changes; do not retain a hand-authored proof envelope as a standing compatibility format."
-kill_signal = "The verifier accepts a bare head/state record, a non-executed proof, or divergent evidence and provenance heads."
+kill_signal = "The receipt consumer accepts a bare head/state record, a non-executed proof, divergent evidence and provenance heads, or unverifiable control digests."
 
 [promotion]
 targets = [
-  "packages/ethos/src/ethos/adapters/admission/control/verifier.py",
+  "packages/ethos/src/ethos/adapters/admission/control/replacement.py",
   "tests/unit/admission/test_control_replacement.py",
   "docs/architecture/runner-and-mutation.md",
   "openspec/changes/archive/2026-07-12-proof-bootstrap-canonical-envelope-20260712",

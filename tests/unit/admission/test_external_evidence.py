@@ -119,3 +119,72 @@ def test_valid_receipts_upgrade_only_their_exact_decision_axes(tmp_path: Path) -
     assert report["identity_basis"] == "verified_external_assertion"
     assert report["enforcement_boundary"] == "protected_ref_transition"
     assert report["hosted_prevention_claimed"] is True
+
+
+def test_invalid_future_and_misbound_external_receipts_fail_closed(tmp_path: Path) -> None:
+    invalid = tmp_path / "invalid.json"
+    invalid.write_text("not-json", encoding="utf-8")
+    invalid_report = external_evidence_report(
+        root=tmp_path,
+        identity_path=invalid,
+        enforcement_path=invalid,
+        expected_action="accepted.advance",
+        expected_resource="refs/heads/dev",
+        expected_old="a" * 40,
+        expected_new="b" * 40,
+        require_identity=True,
+        require_hosted_enforcement=True,
+    )
+    assert invalid_report["required_gaps"] == [
+        "identity_assertion_invalid",
+        "hosted_enforcement_receipt_invalid",
+    ]
+
+    now = datetime.now(UTC)
+    identity = tmp_path / "future-identity.json"
+    enforcement = tmp_path / "misbound-enforcement.json"
+    identity.write_text(
+        json.dumps(
+            {
+                "identity_ref": "workload:issuer:subject:future",
+                "issuer": "https://issuer.example",
+                "audience": "ethos:accepted-closeout",
+                "verification_method": "oidc-signature",
+                "valid_from": (now + timedelta(minutes=5)).isoformat(),
+                "valid_until": (now + timedelta(minutes=10)).isoformat(),
+                "attestation_digest": "a" * 64,
+            }
+        ),
+        encoding="utf-8",
+    )
+    enforcement.write_text(
+        json.dumps(
+            {
+                "provider": "gitlab",
+                "enforcement_boundary": "protected_ref_transition",
+                "action": "accepted.advance",
+                "resource": "refs/heads/main",
+                "old_value": "a" * 40,
+                "new_value": "b" * 40,
+                "observed_at": now.isoformat(),
+                "receipt_digest": "c" * 64,
+                "prevention_coverage": "provider_mediated_ref_update",
+            }
+        ),
+        encoding="utf-8",
+    )
+    report = external_evidence_report(
+        root=tmp_path,
+        identity_path=identity,
+        enforcement_path=enforcement,
+        expected_action="accepted.advance",
+        expected_resource="refs/heads/dev",
+        expected_old="a" * 40,
+        expected_new="b" * 40,
+        require_identity=True,
+        require_hosted_enforcement=True,
+    )
+    assert report["required_gaps"] == [
+        "identity_assertion_not_yet_valid",
+        "hosted_enforcement_receipt_binding_mismatch",
+    ]

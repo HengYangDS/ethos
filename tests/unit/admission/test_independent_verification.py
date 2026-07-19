@@ -424,16 +424,13 @@ def test_provider_configuration_helpers_fail_closed_on_invalid_inputs(
         None,
         ["independent_verification_provider_config_missing"],
     )
-    assert external._is_protected_from_current_identity(missing) is False  # noqa: RUF100, SLF001 - coverage exercises provider-boundary refusal
-    assert external._absolute_path("relative/provider.toml") is None  # noqa: RUF100, SLF001 - coverage exercises provider-boundary refusal
-    assert external._absolute_path(None) is None  # noqa: RUF100, SLF001 - coverage exercises provider-boundary refusal
-    assert external._sha256("not-a-digest") == ""  # noqa: RUF100, SLF001 - coverage exercises provider-boundary refusal
+    assert external._protected(missing) is False  # noqa: RUF100, SLF001 - coverage exercises provider-boundary refusal
     with pytest.raises(ValueError, match="mode is invalid"):
         IndependentVerificationPolicy(mode="always")
 
     malformed = tmp_path / "provider.toml"
     malformed.write_text("[receipt_store\n", encoding="utf-8")
-    monkeypatch.setattr(external, "_is_protected_from_current_identity", lambda _path: True)
+    monkeypatch.setattr(external, "_protected", lambda _path: True)
     assert load_independent_verification_provider(malformed) == (
         None,
         ["independent_verification_provider_config_invalid"],
@@ -509,14 +506,14 @@ def test_receipt_negative_paths_remain_local_readiness(tmp_path, monkeypatch) ->
         implementation_digest="e" * 64,
     )
     monkeypatch.setattr(external, "_SSH_KEYGEN", tmp_path / "missing-keygen")
-    assert external._verify_independent_receipt_signature(receipt, provider) is False  # noqa: RUF100, SLF001 - coverage exercises fail-closed verifier availability
+    assert external._verify_signature(receipt, provider) is False  # noqa: RUF100, SLF001 - coverage exercises fail-closed verifier availability
     monkeypatch.setattr(external, "_SSH_KEYGEN", external.Path("/usr/bin/true"))
 
     def raise_os_error(*_args, **_kwargs):
         raise OSError
 
     monkeypatch.setattr(external.subprocess, "run", raise_os_error)
-    assert external._verify_independent_receipt_signature(receipt, provider) is False  # noqa: RUF100, SLF001 - coverage exercises fail-closed verifier errors
+    assert external._verify_signature(receipt, provider) is False  # noqa: RUF100, SLF001 - coverage exercises fail-closed verifier errors
 
 
 def test_request_without_head_and_missing_provider_config_are_fail_closed(

@@ -12,13 +12,16 @@ post-acceptance, one-time native resolution.
 
 ## What Changes
 
-- Bind the target branch and HEAD, accepted HEAD, clean state, active lease
-  tuple, missing historical claim, and all 10 semantic dispositions.
+- Bind the target branch and HEAD, audit-baseline accepted HEAD, clean state,
+  active lease tuple, missing historical claim, and all 10 semantic
+  dispositions.
 - Record zero missing behavior and prohibit merge, rebase, cherry-pick, refresh,
   or land of the historical lane.
 - Permit a later `lane_resolution/preserve-retire` decision only after carrier
-  acceptance and a fresh exact observation, with break-glass, irreversible
-  confirmation, preservation verification, and an immutable receipt.
+  acceptance, recording the then-current accepted HEAD, reconfirming the full
+  disposition table and zero-residual result, and binding a fresh exact target
+  observation, with break-glass, irreversible confirmation, preservation
+  verification, and an immutable receipt.
 - Record the duplicate-apply package rewrite as an operational follow-up only;
   no product-code fix or validity claim is included.
 - Keep the carrier local-only and separate from remote or hosted evidence.

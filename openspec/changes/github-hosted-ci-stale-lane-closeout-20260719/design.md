@@ -31,9 +31,14 @@ closeout after this decision becomes accepted truth.
    records a decision foundation. A later operator must use the accepted
    Chronicle and freshly recompute the exact target before deciding or applying
    `lane_resolution/preserve-retire`.
-3. **Target drift invalidates authorization.** A change to HEAD, dirty state,
-   holder, lease ID, epoch, lane incarnation, or target availability blocks the
-   pending effect and requires a new accepted decision.
+3. **Audit baseline and effect binding are distinct.** The carrier's accepted
+   HEAD is the audit baseline. After acceptance, the decision preparer records
+   the then-current accepted HEAD, recomputes target relation, and reconfirms
+   the complete disposition table and zero-residual result. The native decision
+   binds that accepted HEAD/relation together with target HEAD, dirty state,
+   holder, lease ID, epoch, and lane incarnation. Any of those facts changing
+   before apply blocks the effect and requires re-observation and a new
+   decision.
 4. **Preservation is verified before retirement.** The later package verifies
    the bundle, tracked patch, empty untracked inventory/archive, manifest
    digest, and immutable receipt. Recovery fetches or clones the bundle and
@@ -59,8 +64,10 @@ closeout after this decision becomes accepted truth.
 ## Migration Plan
 
 1. Validate and commit this active carrier without applying resolution.
-2. After acceptance, freshly observe the exact target and revalidate every
-   bound HEAD, status, holder, lease ID, and epoch fact.
+2. After acceptance, record the current accepted HEAD, recompute target
+   relation, reconfirm the complete disposition table and zero-residual result,
+   and freshly observe the target HEAD, status, holder, lease ID, epoch, and
+   incarnation.
 3. Create and verify the preservation package and recovery materials.
 4. Prepare one native break-glass decision and apply it only with explicit
    irreversible confirmation and an immutable receipt.

@@ -120,6 +120,22 @@ def _material_scope_binding_for_profile(
     )
     if not material_paths:
         return binding._replace(state="no_material_paths")
+    return _material_scope_binding_for_material_paths(
+        root=root,
+        binding=binding,
+        material_paths=material_paths,
+        active_change_names=active_change_names,
+    )
+
+
+def _material_scope_binding_for_material_paths(
+    *,
+    root: Path,
+    binding: MaterialScopeBinding,
+    material_paths: tuple[str, ...],
+    active_change_names: tuple[str, ...] | None,
+) -> MaterialScopeBinding:
+    """Project coverage after profile policy selected material paths."""
     changes = _change_scope_declarations(root, active_change_names=active_change_names)
     changes = (
         *changes,

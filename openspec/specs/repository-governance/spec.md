@@ -915,7 +915,11 @@ ETHOS SHALL treat a Lane Lease as ignored, one-writer coordination within one Gi
 common directory. The lease SHALL identify a concrete holder and generation but
 SHALL NOT be an identity assertion, capability grant, filesystem fence,
 cross-host lock, or repository truth. Reader output SHALL be a
-non-authoritative action preview rather than a reusable permission.
+non-authoritative action preview rather than a reusable permission. Bounded and
+full coordination readers SHALL expose their observed `detail_state`; consumers
+SHALL treat `deferred` as a bounded-observation state and `exact` as a complete
+local observation state, rather than treating either value as a universal
+repository invariant.
 
 #### Scenario: foreign lane preview remains observe-only
 
@@ -941,6 +945,16 @@ non-authoritative action preview rather than a reusable permission.
   readiness
 - **AND** full `lane status` and mutation admission retain exact foreign path
   scope computation before making any coordination decision.
+
+#### Scenario: projection preserves observed coordination detail state
+
+- **WHEN** status or orientation projects a coordination observation
+- **THEN** its summary and orientation coordination payload expose the same
+  observed `detail_state`
+- **AND** `deferred` leaves counts requiring foreign-path inspection unset
+- **AND** `exact` exposes those counts as local integer observations
+- **AND** either observed state remains non-authoritative and does not grant
+  foreign Work Lane mutation authority.
 
 #### Scenario: bounded-reader regression debt is explicit and temporary
 

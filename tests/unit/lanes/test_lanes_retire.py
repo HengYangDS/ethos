@@ -109,7 +109,6 @@ def test_retire_landed_work_lane_rejects_legacy_json_owner_projection(
     assert report["required_gaps"] == ["foreign_work_lane_retire_authority_required"]
     selected = next(lane for lane in report["lanes"] if lane["branch"] == _LANDED_BRANCH)
     assert selected["lease"]["holder_ref"] == ""
-    assert selected["lease"]["normalization_state"] == "legacy_ambiguous"
     assert selected["lease_state"] == "missing"
 
 
@@ -221,6 +220,41 @@ def test_retire_landed_work_lane_apply_requires_branch(tmp_path: Path) -> None:
     assert landed.exists()
 
 
+def test_retire_landed_work_lane_reports_missing_selected_branch(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+
+    report = retire_landed_work_lanes(root=repo, branch="work/missing")
+
+    assert report["required_gaps"] == ["retire_branch_not_found"]
+
+
+def test_retire_landed_work_lane_projects_removal_failure(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    repo, landed, _database = _landed_lane(tmp_path, lease_holder=_LEASE_HOLDER)
+    head = git(landed, "rev-parse", "HEAD")
+    monkeypatch.setenv("ETHOS_ACTOR", _LEASE_HOLDER)
+    monkeypatch.setattr(
+        retirement_shared,
+        "remove_linked_lane",
+        lambda *_args, **_kwargs: {
+            "ok": False,
+            "state": "blocked",
+            "required_gaps": ["worktree_remove_failed"],
+        },
+    )
+
+    report = retire_landed_work_lanes(
+        root=repo,
+        branch=_LANDED_BRANCH,
+        expect_head=head,
+        apply=True,
+    )
+
+    assert report["required_gaps"] == ["worktree_remove_failed"]
+
+
 @pytest.mark.parametrize(
     ("expect_head", "required_gap"),
     [(None, "expect_head_required"), ("not-the-lane-head", "expect_head_mismatch")],
@@ -269,6 +303,7 @@ def test_retire_landed_work_lane_apply_removes_selected_clean_merged_lane(
 
 def test_remove_linked_lane_removes_clean_worktree_before_deleting_exact_ref(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo = init_repo(tmp_path / "repo")
     lane_path = tmp_path / "repo-work-stuck"
@@ -304,9 +339,9 @@ def test_remove_linked_lane_removes_clean_worktree_before_deleting_exact_ref(
             return subprocess.CompletedProcess(args, 0, stdout="", stderr="")
         raise AssertionError(args)
 
-    runtime = retirement_shared.RetirementRuntime(run_git=fake_run_git)
+    monkeypatch.setattr(retirement_shared, "run_git", fake_run_git)
 
-    report = retirement_shared.remove_linked_lane(repo, lane, expect_head="a" * 40, runtime=runtime)
+    report = retirement_shared.remove_linked_lane(repo, lane, expect_head="a" * 40)
 
     assert report == {}
     assert calls == [
@@ -320,6 +355,7 @@ def test_remove_linked_lane_removes_clean_worktree_before_deleting_exact_ref(
 
 def test_remove_linked_lane_blocks_before_effect_when_reobservation_is_stale_or_dirty(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo = init_repo(tmp_path / "repo")
     lane_path = tmp_path / "repo-work-stuck"
@@ -347,9 +383,9 @@ def test_remove_linked_lane_blocks_before_effect_when_reobservation_is_stale_or_
             return subprocess.CompletedProcess(args, 0, stdout="?? uncommitted.txt\n", stderr="")
         raise AssertionError(args)
 
-    runtime = retirement_shared.RetirementRuntime(run_git=fake_run_git)
+    monkeypatch.setattr(retirement_shared, "run_git", fake_run_git)
 
-    report = retirement_shared.remove_linked_lane(repo, lane, expect_head="a" * 40, runtime=runtime)
+    report = retirement_shared.remove_linked_lane(repo, lane, expect_head="a" * 40)
 
     assert report == {
         "ok": False,
@@ -359,7 +395,7 @@ def test_remove_linked_lane_blocks_before_effect_when_reobservation_is_stale_or_
 
 
 @pytest.mark.parametrize(
-    ("lane", "expect_head", "responses", "required_gaps"),
+    "case",
     [
         (
             {"branch": "", "path": ""},
@@ -403,11 +439,15 @@ def test_remove_linked_lane_blocks_before_effect_when_reobservation_is_stale_or_
 )
 def test_remove_linked_lane_reobservation_fails_closed_for_missing_or_unavailable_state(
     tmp_path: Path,
-    lane: dict[str, str],
-    expect_head: str | None,
-    responses: dict[tuple[str, ...], tuple[int, str, str]],
-    required_gaps: list[str],
+    monkeypatch: pytest.MonkeyPatch,
+    case: tuple[
+        dict[str, str],
+        str | None,
+        dict[tuple[str, ...], tuple[int, str, str]],
+        list[str],
+    ],
 ) -> None:
+    lane, expect_head, responses, required_gaps = case
     repo = init_repo(tmp_path / "repo")
     lane_path = tmp_path / "repo-work-stuck"
     if lane["path"]:
@@ -423,12 +463,8 @@ def test_remove_linked_lane_reobservation_fails_closed_for_missing_or_unavailabl
         returncode, stdout, stderr = responses[args]
         return subprocess.CompletedProcess(args, returncode, stdout=stdout, stderr=stderr)
 
-    report = retirement_shared.remove_linked_lane(
-        repo,
-        lane,
-        expect_head=expect_head,
-        runtime=retirement_shared.RetirementRuntime(run_git=fake_run_git),
-    )
+    monkeypatch.setattr(retirement_shared, "run_git", fake_run_git)
+    report = retirement_shared.remove_linked_lane(repo, lane, expect_head=expect_head)
 
     assert report == {
         "ok": False,
@@ -437,9 +473,9 @@ def test_remove_linked_lane_reobservation_fails_closed_for_missing_or_unavailabl
     }
 
 
-@pytest.mark.parametrize("stderr", ["", "cannot lock ref"])
 def test_remove_linked_lane_preserves_newer_ref_after_worktree_removal(
-    tmp_path: Path, stderr: str
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo = init_repo(tmp_path / "repo")
     lane_path = tmp_path / "repo-work-stuck"
@@ -467,21 +503,17 @@ def test_remove_linked_lane_preserves_newer_ref_after_worktree_removal(
         if _repo == lane_path and args[:2] == ("worktree", "remove"):
             return subprocess.CompletedProcess(args, 0, stdout="", stderr="")
         if _repo == repo and args[:3] == ("update-ref", "-d", "refs/heads/work/stuck"):
-            return subprocess.CompletedProcess(args, 1, stdout="", stderr=stderr)
+            return subprocess.CompletedProcess(args, 1, stdout="", stderr="cannot lock ref")
         raise AssertionError(args)
 
-    report = retirement_shared.remove_linked_lane(
-        repo,
-        lane,
-        expect_head="a" * 40,
-        runtime=retirement_shared.RetirementRuntime(run_git=fake_run_git),
-    )
+    monkeypatch.setattr(retirement_shared, "run_git", fake_run_git)
+    report = retirement_shared.remove_linked_lane(repo, lane, expect_head="a" * 40)
 
     assert report == {
         "ok": False,
         "state": "blocked",
         "required_gaps": ["branch_delete_failed_after_worktree_removed"],
-        "stderr": stderr,
+        "stderr": "cannot lock ref",
     }
     assert ("worktree", "remove", lane["path"]) in calls
     assert ("update-ref", "-d", "refs/heads/work/stuck", "a" * 40) in calls

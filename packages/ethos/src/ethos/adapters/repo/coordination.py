@@ -146,11 +146,7 @@ def lease_summary(lease: dict[str, object]) -> dict[str, object]:
         name: str(lease.get(name) or "")
         for name in ["lane_incarnation_id", "lease_id", "holder_ref", "expected_head", "expires_at"]
     }
-    result.update(
-        epoch=integer_value(lease.get("epoch")),
-        normalization_state=str(lease.get("normalization_state") or "legacy_ambiguous"),
-        mints_authority=False,
-    )
+    result.update(epoch=integer_value(lease.get("epoch")), mints_authority=False)
     return result
 
 

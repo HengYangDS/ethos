@@ -46,7 +46,9 @@ def _git(stages: dict[str, SimpleNamespace], calls: list[tuple[str, ...]]):
     return run
 
 
-def test_resolver_writes_and_stages_independent_append_only_records(tmp_path) -> None:
+def test_resolver_writes_and_stages_independent_append_only_records(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     stages = {
         "base": SimpleNamespace(stdout=_rules([("base", 10)]), returncode=0),
         "candidate": SimpleNamespace(
@@ -57,9 +59,9 @@ def test_resolver_writes_and_stages_independent_append_only_records(tmp_path) ->
     calls: list[tuple[str, ...]] = []
     root = tmp_path
     (root / ".ethos").mkdir()
-    result = ledger.resolve_source_budget_ledger_rebase_conflict(
-        root, runtime=SimpleNamespace(run_git=_git(stages, calls))
-    )
+    monkeypatch.setattr(ledger, "run_git", _git(stages, calls))
+
+    result = ledger.resolve_source_budget_ledger_rebase_conflict(root)
 
     assert result["ok"] is True
     assert result["gaps"] == ["semantic_ledger_merged:source_budget_debt"]
@@ -73,7 +75,7 @@ def test_resolver_writes_and_stages_independent_append_only_records(tmp_path) ->
     )
 
 
-def test_resolver_preserves_record_child_tables(tmp_path) -> None:
+def test_resolver_preserves_record_child_tables(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:
     def categorized(identifier: str, allowance: int) -> str:
         return "\n".join(
             (
@@ -110,9 +112,9 @@ def test_resolver_preserves_record_child_tables(tmp_path) -> None:
     calls: list[tuple[str, ...]] = []
     (tmp_path / ".ethos").mkdir()
 
-    result = ledger.resolve_source_budget_ledger_rebase_conflict(
-        tmp_path, runtime=SimpleNamespace(run_git=_git(stages, calls))
-    )
+    monkeypatch.setattr(ledger, "run_git", _git(stages, calls))
+
+    result = ledger.resolve_source_budget_ledger_rebase_conflict(tmp_path)
 
     assert result["ok"] is True
     merged = (tmp_path / ledger.RULES_PATH).read_text(encoding="utf-8")
@@ -126,7 +128,9 @@ def test_resolver_preserves_record_child_tables(tmp_path) -> None:
     assert parsed["records"][-1]["allowance_by_category"] == {"python_tests": 30}
 
 
-def test_resolver_merges_disjoint_updates_to_existing_records(tmp_path) -> None:
+def test_resolver_merges_disjoint_updates_to_existing_records(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     def categorized(retirement: int, status_tests: int, *, include_candidate: bool) -> str:
         records = [
             "\n".join(
@@ -171,9 +175,9 @@ def test_resolver_merges_disjoint_updates_to_existing_records(tmp_path) -> None:
     calls: list[tuple[str, ...]] = []
     (tmp_path / ".ethos").mkdir()
 
-    result = ledger.resolve_source_budget_ledger_rebase_conflict(
-        tmp_path, runtime=SimpleNamespace(run_git=_git(stages, calls))
-    )
+    monkeypatch.setattr(ledger, "run_git", _git(stages, calls))
+
+    result = ledger.resolve_source_budget_ledger_rebase_conflict(tmp_path)
 
     assert result["ok"] is True
     debt = ledger.tomllib.loads((tmp_path / ledger.RULES_PATH).read_text(encoding="utf-8"))[
@@ -189,7 +193,9 @@ def test_resolver_merges_disjoint_updates_to_existing_records(tmp_path) -> None:
     assert status["allowance_by_category"] == {"python_tests": 100}
 
 
-def test_resolver_preserves_one_sided_retirement_and_peer_append(tmp_path) -> None:
+def test_resolver_preserves_one_sided_retirement_and_peer_append(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     stages = {
         "base": SimpleNamespace(stdout=_rules([("base", 10), ("retired", 20)]), returncode=0),
         "candidate": SimpleNamespace(stdout=_rules([("base", 10)]), returncode=0),
@@ -200,9 +206,9 @@ def test_resolver_preserves_one_sided_retirement_and_peer_append(tmp_path) -> No
     calls: list[tuple[str, ...]] = []
     (tmp_path / ".ethos").mkdir()
 
-    result = ledger.resolve_source_budget_ledger_rebase_conflict(
-        tmp_path, runtime=SimpleNamespace(run_git=_git(stages, calls))
-    )
+    monkeypatch.setattr(ledger, "run_git", _git(stages, calls))
+
+    result = ledger.resolve_source_budget_ledger_rebase_conflict(tmp_path)
 
     assert result["ok"] is True
     debt = ledger.tomllib.loads((tmp_path / ledger.RULES_PATH).read_text(encoding="utf-8"))[
@@ -212,7 +218,9 @@ def test_resolver_preserves_one_sided_retirement_and_peer_append(tmp_path) -> No
     assert [record["id"] for record in debt["records"]] == ["base", "lane"]
 
 
-def test_resolver_refuses_to_claim_success_when_staging_fails(tmp_path) -> None:
+def test_resolver_refuses_to_claim_success_when_staging_fails(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     stages = {
         "base": SimpleNamespace(stdout=_rules([("base", 10)]), returncode=0),
         "candidate": SimpleNamespace(
@@ -233,9 +241,9 @@ def test_resolver_refuses_to_claim_success_when_staging_fails(tmp_path) -> None:
 
     root = tmp_path
     (root / ".ethos").mkdir()
-    result = ledger.resolve_source_budget_ledger_rebase_conflict(
-        root, runtime=SimpleNamespace(run_git=stage_failure)
-    )
+    monkeypatch.setattr(ledger, "run_git", stage_failure)
+
+    result = ledger.resolve_source_budget_ledger_rebase_conflict(root)
 
     assert result["ok"] is False
     assert ("add", ".ethos/rules.toml") in calls
@@ -265,7 +273,9 @@ def test_resolver_refuses_to_claim_success_when_staging_fails(tmp_path) -> None:
         },
     ],
 )
-def test_resolver_refuses_invalid_or_non_additive_ledgers(tmp_path, stages) -> None:
+def test_resolver_refuses_invalid_or_non_additive_ledgers(
+    tmp_path, stages, monkeypatch: pytest.MonkeyPatch
+) -> None:
     defaults = {
         "base": SimpleNamespace(stdout=_rules([("base", 10)]), returncode=0),
         "candidate": SimpleNamespace(
@@ -276,9 +286,9 @@ def test_resolver_refuses_invalid_or_non_additive_ledgers(tmp_path, stages) -> N
     defaults.update(stages)
     calls: list[tuple[str, ...]] = []
 
-    result = ledger.resolve_source_budget_ledger_rebase_conflict(
-        tmp_path, runtime=SimpleNamespace(run_git=_git(defaults, calls))
-    )
+    monkeypatch.setattr(ledger, "run_git", _git(defaults, calls))
+
+    result = ledger.resolve_source_budget_ledger_rebase_conflict(tmp_path)
 
     assert result == {
         "ok": False,
@@ -310,19 +320,18 @@ def test_parser_helpers_reject_malformed_records_and_split_tables(monkeypatch) -
     assert ledger.parse(_rules([("one", 1)])) is None
 
 
-def test_semantic_ledger_helpers_cover_merge_and_render_edges(tmp_path) -> None:
+def test_semantic_ledger_helpers_cover_merge_and_render_edges(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     base = ledger.LedgerRecord("base", "base", 10, {"id": "base", "allowance": 10})
     changed = ledger.LedgerRecord("base", "changed", 20, {"id": "base", "allowance": 20})
 
-    assert (
-        ledger.unresolved_paths(
-            tmp_path,
-            runtime=SimpleNamespace(
-                run_git=lambda *_args, **_kwargs: SimpleNamespace(stdout="", returncode=1)
-            ),
-        )
-        == []
+    monkeypatch.setattr(
+        ledger,
+        "run_git",
+        lambda *_args, **_kwargs: SimpleNamespace(stdout="", returncode=1),
     )
+    assert ledger.unresolved_paths(tmp_path) == []
     assert ledger.merge_records([base], [base], [changed]) == [changed]
     assert ledger.merge_records([base], [changed], [base]) == [changed]
     assert ledger.merge_records([base], [changed], [changed]) == [changed]

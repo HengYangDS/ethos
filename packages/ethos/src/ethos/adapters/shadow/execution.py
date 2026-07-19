@@ -184,6 +184,12 @@ def run_json_command(
                 stdout, stderr = process.communicate(timeout=_TERMINATION_GRACE_SECONDS)
             except subprocess.TimeoutExpired:
                 stdout, stderr = _text(exc.stdout), _text(exc.stderr)
+                process.kill()
+                assert process.stdout is not None
+                assert process.stderr is not None
+                process.stdout.close()
+                process.stderr.close()
+                process.wait()
         return {
             "exit_code": 124,
             "stdout": _text(stdout) or _text(exc.stdout),

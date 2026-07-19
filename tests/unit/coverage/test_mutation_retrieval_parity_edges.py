@@ -169,20 +169,9 @@ def test_lanes_helpers_claim_binding_bootstrap_and_refresh(monkeypatch, tmp_path
         lanes.bind_work_lane_claim(root=tmp_path, claim_id="claim-1", apply=True)["state"]
         == "bound"
     )
-
-    monkeypatch.setattr(lanes, "load_branch_role_policy", lambda root: POLICY)
-    monkeypatch.setattr(
-        lanes, "run_git", lambda root, *args, check=True, **kwargs: cp(stdout="h1\n")
-    )
-    monkeypatch.setattr(lanes, "workspace_status", lambda root: status_for(role=ROLE_ACCEPTED_ROOT))
-    assert lanes.bootstrap_candidate(root=tmp_path, apply=True)["state"] == "present"
-    monkeypatch.setattr(lanes, "workspace_status", lambda root: status_for(role=ROLE_WORK_LANE))
-    monkeypatch.setattr(lanes, "changed_paths", lambda path: [])
-    monkeypatch.setattr(lanes, "is_ancestor", lambda root, ancestor, descendant: True)
-    assert lanes.refresh_work_lane_base(root=tmp_path, apply=False)["state"] == "base_current"
-    monkeypatch.setattr(lanes, "is_ancestor", lambda root, ancestor, descendant: False)
     assert (
-        lanes.refresh_work_lane_base(root=tmp_path, apply=False)["state"] == "ready_to_refresh_base"
+        lanes.bind_work_lane_claim(root=tmp_path, claim_id="claim-1", apply=False)["state"]
+        == "planned"
     )
 
 

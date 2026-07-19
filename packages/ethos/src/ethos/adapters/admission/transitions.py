@@ -91,10 +91,6 @@ def _work_lane_lease_transition_gaps(
     expected = str(lease.get("expected_head") or "")
     checks = (
         (
-            str(lease.get("normalization_state") or "") != "normalized",
-            f"lane_lease_legacy_ambiguous:{branch}",
-        ),
-        (
             not (holder := str(lease.get("holder_ref") or "")) or holder != actor,
             f"lease_holder_mismatch:{branch}",
         ),

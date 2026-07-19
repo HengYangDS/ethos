@@ -580,11 +580,6 @@ def test_quality_standard_registry_declares_adapter_boundaries() -> None:
     for adapter in (
         "slsa",
         "sigstore",
-        "opentelemetry",
-        "dagger",
-        "cue",
-        "opa",
-        "temporal",
         "mcp",
     ):
         assert adapter in adapters

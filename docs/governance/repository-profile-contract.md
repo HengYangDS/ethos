@@ -254,6 +254,30 @@ accepting an unverified proof-run id, or raising an implementation exception.
 Invalid, duplicate, profile-mismatched, or product-conflicting descriptors fail
 closed through the corresponding `adopter_gate_descriptor_*` gap.
 
+## Optional Container Contract
+
+An adopter that needs a portable container-delivery assurance boundary may opt
+in through its profile rather than through a new command plane:
+
+```toml
+[container_contract]
+schema_version = 1
+manifest = ".ethos/container-contract.toml"
+```
+
+The manifest is validated against ETHOS-owned schemas. It declares evidence for
+the required Linux architectures, delivery artefacts, trusted and untrusted
+execution boundaries, lifecycle recovery, and the complete asset inventory.
+Every referenced evidence file must remain below the adopter root, be tracked,
+and match its declared SHA-256. The contract is provider-neutral: it does not
+select or certify a workstation runtime, a hosted provider, or an image
+publication.
+
+An absent declaration is advisory and does not impose container requirements.
+A declared malformed manifest, relaxed local schema copy, path escape, stale
+evidence digest, incomplete recovery policy, or invalid untrusted output schema
+is a normal schema-report required gap.
+
 ## Validation
 
 A repository profile validator must fail closed when:

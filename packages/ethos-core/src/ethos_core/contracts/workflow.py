@@ -90,7 +90,6 @@ class WorkflowRuntimeDeclaration(_WorkflowModel):
     truth_boundary: str = ""
     run_state_locality: str = ""
     run_state_schema: str = ""
-    event_stream_locality: str = ""
     handoff_package_schema: str = ""
     public_lifecycle_commands: tuple[str, ...] = ()
     evolution_bridge: bool = False
@@ -162,15 +161,6 @@ class WorkflowNode(_WorkflowModel):
                 "source": "system/workflows.toml",
             },
         )
-
-
-class WorkflowEvent(_WorkflowModel):
-    """One workflow event declaration."""
-
-    id: str = ""
-    kind: str = ""
-    locality: str = ""
-    chronicle_promotion: str = ""
 
 
 class WorkflowEvalDeclaration(_WorkflowModel):
@@ -282,7 +272,6 @@ class WorkflowContract(_WorkflowModel):
     guards: tuple[str, ...] = ()
     runtime: WorkflowRuntimeDeclaration = Field(default_factory=WorkflowRuntimeDeclaration)
     node: tuple[WorkflowNode, ...] = ()
-    event: tuple[WorkflowEvent, ...] = ()
     eval: WorkflowEvalDeclaration = Field(default_factory=WorkflowEvalDeclaration)
     evolution: WorkflowEvolutionDeclaration = Field(default_factory=WorkflowEvolutionDeclaration)
     campaign: CampaignWorkflowDeclaration | None = None
@@ -374,7 +363,6 @@ class WorkflowContract(_WorkflowModel):
         gaps.extend(_transition_gaps(states, guards, self.transition))
         gaps.extend(_node_gaps(self.node))
         gaps.extend(_runtime_gaps(self.runtime))
-        gaps.extend(_event_gaps(self.event))
         gaps.extend(_eval_gaps(self.eval))
         gaps.extend(_evolution_gaps(self.evolution))
         return {
@@ -382,7 +370,6 @@ class WorkflowContract(_WorkflowModel):
             "states": sorted(states),
             "transition_count": len(self.transition),
             "node_count": len(self.node),
-            "event_count": len(self.event),
             "guard_count": len(guards),
             "nodes": [item.to_summary() for item in self.node],
             "runtime": self.runtime.model_dump(mode="json"),
@@ -509,17 +496,6 @@ def _runtime_gaps(runtime: WorkflowRuntimeDeclaration) -> list[str]:
         )
         if not value
     )
-    return gaps
-
-
-def _event_gaps(events: tuple[WorkflowEvent, ...]) -> list[str]:
-    gaps: list[str] = []
-    for index, item in enumerate(events):
-        event_id = item.id or str(index)
-        if item.locality != "generated_until_chronicle_promotion":
-            gaps.append(f"workflow_event_locality_invalid:{event_id}")
-        if not item.chronicle_promotion:
-            gaps.append(f"workflow_event_chronicle_promotion_missing:{event_id}")
     return gaps
 
 

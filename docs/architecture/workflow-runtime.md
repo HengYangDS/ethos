@@ -44,7 +44,7 @@ question + subject + boundary + falsifiers
 
 A framework, workflow, spec format, skill pack, task graph, or scenario system
 is only a carrier of a practice. Candidate sets, experiments, evaluation
-records, practice changes, runtime nodes, event streams, and handoff packages
+records, practice changes, runtime nodes, and handoff packages
 are subordinate projections that help decide the commitment effect. This is why
 ETHOS should not argue from Comet, OpenSpec, Spec Kit, Task Master, BMAD,
 Superpowers, Agent OS, OpenSPDD, Shotgun, fspec, or any adjacent tool as an
@@ -97,7 +97,7 @@ lifecycle authority:
 | Comet transition table | Declare transitions in `system/workflows.toml`. |
 | Comet guarded transitions | Map guards to ETHOS guard names and proof/admission gates. |
 | Comet run state | Use machine-owned run snapshots under ignored/runtime or evidence boundaries only. |
-| Comet state events | Treat raw event streams as generated state until curated into Chronicle evidence. |
+| Comet state events | Reject a local event stream until a concrete producer and consumer justify one; durable Chronicle evidence remains repository-owned. |
 | Comet handoff hash | Use digest-bound handoff packages over source refs and evidence refs. |
 | Comet SkillBundle validation | Keep repo-local skills as digest-bound package projections. |
 | Comet eval metrics | Allow optional skill eval metadata, subordinate to proof and claims. |
@@ -203,7 +203,7 @@ ideas become projections, and method systems become replaceable practice packs.
 - required facts;
 - invalid-state bindings;
 - node kinds and enforcement modes;
-- runtime-state and event locality;
+- runtime-state locality;
 - handoff package locality;
 - eval metric names.
 
@@ -217,12 +217,6 @@ Runtime state is machine-owned and can support recovery or diagnosis. It may be
 stored under ignored `.ethos/` or build/runtime paths, or summarized into
 evidence. Runtime state cannot by itself prove lifecycle completion, readiness,
 landability, publication, or semantic truth.
-
-### Events and Chronicle
-
-Raw workflow events are generated runtime streams. They become trust-bearing
-history only when a human or command closeout promotes the judged result into
-`evidence/chronicle/` with bound evidence and claim refs.
 
 ### Handoff packages
 

@@ -13,7 +13,6 @@ from ethos.repository.profile import profile_root
 from . import scope
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
     from pathlib import Path
 
 # fmt: off
@@ -30,10 +29,6 @@ class OpenSpecReportContext(NamedTuple):
     required_gaps: list[str]
     advisory_gaps: list[str]
     protected_branch_residue: dict[str, object]
-
-class OpenSpecLifecycleRuntime(NamedTuple):
-    base_command: tuple[str, ...]
-    run_json: Callable[[Path, tuple[str, ...], tuple[str, ...]], dict[str, object]]
 
 material_change_scope_report = scope.material_change_scope_report
 
@@ -132,7 +127,7 @@ def _lifecycle_names(payload: object, requested: str | None) -> tuple[list[str],
     return names, no_tasks if len(no_tasks) == 1 else ()
 
 
-def _change_report(root: Path, name: str, claim_carriers: set[str], runtime: OpenSpecLifecycleRuntime | None) -> tuple[dict[str, object], list[str]]:
+def _change_report(root: Path, name: str, claim_carriers: set[str], base_command: tuple[str, ...] | None) -> tuple[dict[str, object], list[str]]:
     change_root = root / "openspec" / "changes" / name
     carriers = {
         "proposal": (change_root / "proposal.md").exists(), "design": (change_root / "design.md").exists(),
@@ -143,12 +138,12 @@ def _change_report(root: Path, name: str, claim_carriers: set[str], runtime: Ope
     gaps = [f"openspec_{artifact}_missing:{name}" for artifact, present in carriers.items() if not present]
     protocol = proposal_protocol_report(root, name)
     gaps.extend(map(str, protocol["required_gaps"]))
-    preflight = openspec_archive_preflight_report(root, name, base_command=runtime.base_command, run_json=runtime.run_json) if runtime else {"ok": True, "state": "not_run", "change": name, "isolated": True, "command": [], "diagnostics": [], "required_gaps": []}
+    preflight = openspec_archive_preflight_report(root, name, base_command=base_command) if base_command is not None else {"ok": True, "state": "not_run", "change": name, "isolated": True, "command": [], "diagnostics": [], "required_gaps": []}
     gaps.extend(map(str, preflight["required_gaps"]))
     return {"name": name, "path": change_root.relative_to(root).as_posix(), "carriers": carriers, "proposal_protocol": protocol, "archive_preflight": preflight, "required_gaps": gaps}, gaps
 
 
-def lifecycle_report(root: Path, *, request: OpenSpecRequest, list_payload: dict[str, Any], protected_branch_residue: dict[str, object] | None = None, runtime: OpenSpecLifecycleRuntime | None = None) -> dict[str, Any]:
+def lifecycle_report(root: Path, *, request: OpenSpecRequest, list_payload: dict[str, Any], protected_branch_residue: dict[str, object] | None = None, base_command: tuple[str, ...] | None = None) -> dict[str, Any]:
     residue = protected_branch_residue or {"ok": True, "records": [], "advisory_gaps": [], "summary": {"residue_count": 0}}
     if not request.lifecycle:
         lifecycle = empty_lifecycle(root, request, residue)
@@ -158,7 +153,7 @@ def lifecycle_report(root: Path, *, request: OpenSpecRequest, list_payload: dict
     claim_carriers = active_claim_openspec_carriers(root)
     changes, required_gaps = [], []
     for name in names:
-        change, gaps = _change_report(root, name, claim_carriers, runtime)
+        change, gaps = _change_report(root, name, claim_carriers, base_command)
         changes.append(change)
         required_gaps.extend(gaps)
     binding = scope.material_change_scope_report(root, changed_paths=request.changed_paths, active_change_names=bootstrap_names)

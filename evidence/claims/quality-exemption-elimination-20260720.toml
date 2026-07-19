@@ -1,0 +1,47 @@
+[claim]
+id = "quality-exemption-elimination-20260720"
+subject = "ethos:quality-terminal-exception-contract"
+state = "active"
+summary = "The active quality-exception elimination Change has removed the UTC-clock DTZ011 exception slice and bound type checks to a warning-free checkout runtime; all remaining exception carriers are explicitly unclaimed and pending."
+
+[evidence]
+dated = "evidence/chronicle/quality-exemption-elimination-20260720/2026-07-20.md"
+sha256 = "b7a65c360e1bbf052756610e5cc8fb63db1380558cb1568eb8a6708890b54280"
+evidence_ids = ["evidence:quality-exemption-elimination-20260720:utc-dtz011", "evidence:quality-exemption-elimination-20260720:checkout-type-runtime"]
+binding = "The active OpenSpec carrier, UTC-clock source change, checkout-bound type runtime, focused regressions, direct whole-corpus DTZ011 probe, formatter check, and dated Chronicle bind only the first DTZ011 and type-runtime slice."
+verifier = "digest_only"
+tests = [
+  "uv run --all-packages --group dev pytest -q tests/unit/kernel/rules/test_exceptions.py",
+  "uv run --all-packages --group dev pytest -q tests/unit/governance/test_generated_artifact_runtime.py tests/unit/coverage/test_cov_v3_gates_edges.py tests/unit/cli/test_quality_surface_more.py",
+  "uv run --all-packages --group dev ruff check --config .config/checks/ruff/ruff.toml --select DTZ011 --ignore-noqa <all-tracked-python-files>",
+  "uv run --all-packages --group dev ruff format --config .config/checks/ruff/ruff.toml --check packages/ethos/src/ethos/repository/policy/rules/exceptions.py tests/unit/kernel/rules/test_exceptions.py",
+  "uv run --all-packages --group dev ethos quality types --json",
+  "npx --yes @fission-ai/openspec@1.6.0 validate quality-exemption-elimination-20260720 --strict --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-quality-gate-governance"
+scope = "UTC calendar evaluation, removal of the DTZ011 Ruff exception record, and checkout-bound type runtime behavior; not terminal exception-free quality."
+
+[carriers]
+openspec = "openspec/changes/quality-exemption-elimination-20260720"
+fallback = "Revert the UTC-clock, DTZ011 policy, and checkout-runtime changes together if policy expiry or type-runtime behavior regresses."
+kill_signal = "The focused policy or runtime regression, zero-diagnostic type gate, whole-corpus DTZ011 probe, or native Ruff format check fails."
+
+[promotion]
+targets = [
+  "openspec/changes/quality-exemption-elimination-20260720",
+  "packages/ethos/src/ethos/repository/policy/rules/exceptions.py",
+  "packages/ethos/src/ethos/adapters/gates/ty.py",
+  ".config/checks/ruff/ruff.toml",
+  ".config/checks/ruff/ratchet.toml",
+  "tools/ci/scripts/with-python-runtime.sh",
+  "tests/unit/kernel/rules/test_exceptions.py",
+  "tests/unit/coverage/test_cov_v3_gates_edges.py",
+  "tests/unit/governance/test_generated_artifact_runtime.py",
+  "evidence/claims/quality-exemption-elimination-20260720.toml",
+  "evidence/chronicle/quality-exemption-elimination-20260720/2026-07-20.md",
+]

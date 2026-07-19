@@ -71,6 +71,7 @@ def test_source_bound_uv_runner_uses_checkout_environment_and_host_cache(
     environment.pop("UV_CACHE_DIR", None)
     environment.pop("ETHOS_UV_CACHE_DIR", None)
     environment.pop("ETHOS_RUNTIME_ROOT", None)
+    environment["VIRTUAL_ENV"] = (tmp_path / "foreign" / ".venv").as_posix()
 
     completed = subprocess.run(
         [runner.as_posix(), "status", "--json"],
@@ -86,6 +87,7 @@ def test_source_bound_uv_runner_uses_checkout_environment_and_host_cache(
         f"{tmp_path}/host-cache/ethos/uv",
         "run --all-packages --group dev ethos status --json",
     ]
+    assert "VIRTUAL_ENV" not in completed.stderr
     assert not (repo / "build/runtime/venv").exists()
     assert (tmp_path / "host-cache/ethos/uv").is_dir()
 

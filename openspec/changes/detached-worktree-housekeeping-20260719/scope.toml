@@ -12,6 +12,7 @@ paths = [
   "packages/ethos/src/ethos/repository/registry/docs/commands.py",
   "packages/ethos/src/ethos/surface/cli/lane/core.py",
   "system/commands.toml",
+  "system/invalid_states.toml",
   "tests/unit/cli/test_contracts_lane_housekeeping.py",
   "tests/unit/lanes/test_worktree_housekeeping.py",
 ]

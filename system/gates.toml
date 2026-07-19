@@ -42,6 +42,7 @@ product_full = [
   "module-layout",
   "no-compat",
   "build",
+  "local-install-smoke",
   "markdown-links",
   "shell-lint",
   "config-quality",
@@ -274,6 +275,24 @@ evidence_class = "proof"
 trust_bearing = true
 tool_adapter = "uv-build"
 writes_files = true
+version_source = "locked-toolchain"
+
+[[gates]]
+id = "local-install-smoke"
+registries = ["runtime"]
+kind = "package"
+command = ["tools/ci/scripts/run-local-install-smoke.sh"]
+profile = "product-toolchain"
+toolchain = "uv-python"
+depends_on = ["build"]
+asset_classes = ["release-artifacts"]
+dimensions = ["installability", "isolation", "provenance"]
+execution_mode = "adapter"
+evidence_class = "proof"
+trust_bearing = true
+tool_adapter = "uv-local-install-smoke"
+writes_files = true
+network_policy = "offline"
 version_source = "locked-toolchain"
 
 [[gates]]

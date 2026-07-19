@@ -25,11 +25,11 @@ and indirection while obscuring the explicit governance chain.
 
 ### Modified Capabilities
 
-- `adapters`: subject=explicit-lifecycle-owner-routing; reuse=converge;
+- `adapters`: subject=explicit-lifecycle-owner-routing; reuse=extend;
   change=modify; facet:lifecycle=lane,retirement; facet:surface=cli,adapter;
   facet:authority=source,test. Adapter operations SHALL be called through their
   semantic owner without a parallel Runtime-composition facade.
-- `kernel`: subject=event-abstraction-pruning; reuse=converge; change=modify;
+- `kernel`: subject=event-abstraction-pruning; reuse=extend; change=modify;
   facet:lifecycle=workflow,state; facet:surface=contract,schema,store;
   facet:authority=source,test,schema. Event contracts SHALL survive only when
   backed by a producer, consumer or projection contract.

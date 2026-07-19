@@ -56,11 +56,17 @@ a new observation and decision are recorded.
 - **AND** no product behavior remains missing from accepted truth
 - **THEN** ETHOS prohibits merge, rebase, cherry-pick, refresh, and land of the
   historical Work Lane
-- **AND** after carrier acceptance ETHOS records the then-current accepted HEAD,
-  recomputes the target relation, and reconfirms the matrix and zero-residual
-  result before preparing an exact decision
-- **AND** only that fresh decision may select
+- **AND** if the native decision/apply contract cannot bind and revalidate the
+  accepted HEAD/relation, lease ID/epoch, exact target observation, completion
+  state, and recovery package integrity, ETHOS treats the exceptional effect as
+  unavailable
+- **AND** the historical lane remains intact until a separately accepted product
+  change implements those guards and reconciles any contradictory completion
+  record
+- **AND** only after that repair may ETHOS record the then-current accepted HEAD,
+  recompute the target relation, reconfirm the matrix and zero-residual result,
+  and prepare a fresh decision selecting
   `lane_resolution/preserve-retire` with verified recovery material,
   break-glass, and explicit irreversible confirmation
-- **AND** a later change to either the target facts or the bound accepted
-  HEAD/relation blocks apply until a new observation and decision exist.
+- **AND** any later accepted, target, lease, or completion-state drift blocks
+  apply until a new observation and decision exist.

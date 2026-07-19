@@ -219,7 +219,14 @@ def test_lanes_remaining_branches(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(
         lanes,
         "run_git",
-        fake_git({("worktree", "remove"): cp(returncode=1, stderr="remove fail")}),
+        fake_git(
+            {
+                ("rev-parse", "refs/heads/work/x"): cp(stdout="h1\n"),
+                ("rev-parse", "HEAD"): cp(stdout="h1\n"),
+                ("status", "--porcelain", "--untracked-files=all"): cp(stdout=""),
+                ("worktree", "remove"): cp(returncode=1, stderr="remove fail"),
+            }
+        ),
     )
     monkeypatch.setenv("ETHOS_ACTOR", "agent:codex:thread:test")
     assert lanes.retire_landed_work_lanes(
@@ -232,14 +239,21 @@ def test_lanes_remaining_branches(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(
         lanes,
         "run_git",
-        fake_git({("update-ref", "-d"): cp(returncode=1, stderr="delete fail")}),
+        fake_git(
+            {
+                ("rev-parse", "refs/heads/work/x"): cp(stdout="h1\n"),
+                ("rev-parse", "HEAD"): cp(stdout="h1\n"),
+                ("status", "--porcelain", "--untracked-files=all"): cp(stdout=""),
+                ("update-ref", "-d"): cp(returncode=1, stderr="delete fail"),
+            }
+        ),
     )
     assert lanes.retire_landed_work_lanes(
         root=tmp_path,
         branch="work/x",
         expect_head="h1",
         apply=True,
-    )["required_gaps"] == ["branch_delete_failed"]
+    )["required_gaps"] == ["branch_delete_failed_after_worktree_removed"]
 
 
 def test_refresh_work_lane_base_disables_update_refs_during_rebase(

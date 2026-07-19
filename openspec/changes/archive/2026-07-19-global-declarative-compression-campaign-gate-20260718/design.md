@@ -66,7 +66,7 @@ without telling pre-push admission to defer external publication.
    zero active debt remain protected-publication requirements.
 
 8. **Archive-before-land has an honest intermediate state.** `active` and
-   `in_progress` require an active OpenSpec carrier. `archived` and `landed`
+   `in_progress` require an active OpenSpec carrier. `archive_ready` and `landed`
    require an archived carrier while closeout is still non-terminal. Only
    `closed` and `retired` require terminal closeout heads and evidence.
 

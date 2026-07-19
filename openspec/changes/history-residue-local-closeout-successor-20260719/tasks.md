@@ -12,10 +12,10 @@
 
 ## 3. Hard Source-Budget Settlement
 
-- [ ] 3.1 Reduce Python product to at most 35675 lines without changing the limit.
-- [ ] 3.2 Reduce Python tests to at most 46865 and aggregate Python to at most 84024 lines.
-- [ ] 3.3 Reduce shell to at most 1552 and TOML to at most 11633 lines.
-- [ ] 3.4 Confirm every campaign growth overage is absent while preserving active debt and terminal targets.
+- [x] 3.1 Reduce Python product to at most 35675 lines without changing the limit.
+- [x] 3.2 Reduce Python tests to at most 46865 and aggregate Python to at most 84024 lines.
+- [x] 3.3 Reduce shell to at most 1552 and TOML to at most 11633 lines.
+- [x] 3.4 Confirm every campaign growth overage is absent while preserving active debt and terminal targets.
 
 ## 4. Full Validation And Evidence
 

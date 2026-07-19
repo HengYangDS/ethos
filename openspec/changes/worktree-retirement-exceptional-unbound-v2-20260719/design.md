@@ -18,8 +18,8 @@ the caller's provider, editor, session, or host filesystem layout.
 
 - Delete only one exact accepted-ancestor `work/*` ref after a full fresh
   observation.
-- Require an accepted Chronicle that names the exact branch and exact head and
-  declares the exceptional unbound-retirement event.
+- Require an accepted Chronicle that names the exact branch, exact head, and
+  active Claim and declares the exceptional unbound-retirement event.
 - Bind the effect to a compare-and-delete Git ref update and retain no-clobber
   local attempt and receipt records.
 - Reobserve status, lease, target ref, and protected refs before and after the
@@ -40,16 +40,18 @@ the caller's provider, editor, session, or host filesystem layout.
    exposes readiness only for the narrow exceptional state.
 2. **Use an accepted Chronicle as policy input.** The Chronicle path must be
    repository-local under `evidence/chronicle/`, byte-identical to the accepted
-   branch version, and contain the event marker plus exact `target_branch` and
-   `target_head` fields. A current but unaccepted, mismatched, or generic record
-   does not authorize an effect.
+   branch version, and contain the event marker plus exact `target_branch`,
+   `target_head`, and `target_claim` fields. The named active Claim must also be
+   byte-identical to the accepted branch version. A current but unaccepted,
+   mismatched, generic, or Claim-less record does not authorize an effect.
 3. **Require all destructive controls.** Apply requires the existing explicit
    authorization plus break-glass and irreversible confirmation. A matching
    actor name never replaces those controls.
 4. **Constrain observation.** Admission requires a `work/*` ref present in the
    unbound reader view, `ancestor_of_accepted`, no linked worktree, no active
-   lease, a bound claim, and available protected refs. The exact expected head
-   and Chronicle target head must both match the observed ref.
+   lease, a Chronicle-bound active Claim, and available protected refs. The
+   exact expected head and Chronicle target head must both match the observed
+   ref.
 5. **Use compare-and-delete with postconditions.** The only ref effect is
    `git update-ref -d refs/heads/<branch> <expected-head>`. Protected refs are
    reobserved unchanged; the deleted ref, unbound reader entry, and active lease

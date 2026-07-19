@@ -10,8 +10,8 @@ remains fail-closed without depending on a particular agent host.
 
 - Extend `ethos lane retire unbound` with an exceptional apply route for one
   exact accepted-ancestor Work Lane ref.
-- Require an accepted, target-specific Chronicle; exact head; empty linked
-  worktree and lease state; `--authorize`; `--break-glass`; and
+- Require an accepted, target- and Claim-specific Chronicle; exact head; empty
+  linked worktree and lease state; `--authorize`; `--break-glass`; and
   `--confirm-irreversible` before any effect.
 - Reobserve the complete target and protected-ref bindings immediately before
   the compare-and-delete ref update, then write no-clobber local attempt and

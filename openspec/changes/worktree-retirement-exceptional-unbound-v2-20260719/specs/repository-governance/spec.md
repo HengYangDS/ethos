@@ -4,11 +4,14 @@
 
 ETHOS SHALL expose a native exceptional route through `ethos lane retire
 unbound` for one unbound `work/*` ref only when the current ref is an ancestor
-of the accepted branch, has no linked worktree or active lease, carries a bound
-Claim, and matches the supplied expected head. The route SHALL require an
+of the accepted branch, has no linked worktree or active lease, carries an
+accepted-Chronicle-bound active Claim, and matches the supplied expected head.
+The route SHALL require an
 accepted, repository-local Chronicle that contains
-`lane_retire/unbound_exceptional`, `target_branch: <branch>`, and
-`target_head: <head>` for the same exact target. Apply SHALL additionally
+`lane_retire/unbound_exceptional`, `target_branch: <branch>`,
+`target_head: <head>`, and `target_claim: <claim-id>` for the same exact target.
+The named local Claim SHALL be byte-identical to its accepted branch version.
+Apply SHALL additionally
 require explicit authorization, break-glass, and irreversible confirmation.
 The route SHALL NOT infer authority from an agent vendor, session, account, or
 host-specific path.
@@ -17,16 +20,16 @@ host-specific path.
 
 - **WHEN** an operator supplies an unbound `work/*` ref that is an accepted
   ancestor, has no linked worktree or active lease, and supplies a matching
-  accepted Chronicle, expected head, and reason
+  accepted Chronicle and Claim, expected head, and reason
 - **THEN** dry-run reports `ready_to_retire_unbound_exceptional`
 - **AND** it reports the exact observation without deleting the ref
 - **AND** it reports that its output does not mint reusable authority.
 
 #### Scenario: A non-exact or non-accepted target is refused
 
-- **WHEN** the target is linked, leased, not an accepted ancestor, lacks a bound
-  Claim, has a mismatched expected head, or its Chronicle is missing, unaccepted,
-  generic, or names another target
+- **WHEN** the target is linked, leased, not an accepted ancestor, lacks a
+  Chronicle-bound active Claim, has a mismatched expected head, or its Chronicle
+  or Claim is missing, unaccepted, generic, stale, or names another target
 - **THEN** ETHOS SHALL block the request before any ref mutation
 - **AND** it SHALL leave the target ref and any lease intact.
 

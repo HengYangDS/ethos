@@ -31,7 +31,7 @@ surface while conforming to the provider-neutral receipt contract.
   value, observation, coverage, and receipt digest
 - **AND** local hooks or provider configuration alone do not prove prevention.
 
-#### Scenario: provider-local implementation is operator supplied
+#### Scenario: provider-local reference implementation is physically bounded
 
 - **WHEN** an operator enables independent verification or generic Git
   pre-receive enforcement
@@ -69,7 +69,7 @@ surface while conforming to the provider-neutral receipt contract.
 - **AND** it does not execute a client-supplied command or infer policy from the
   proposed tree.
 
-#### Scenario: Provider implementations share one contract
+#### Scenario: The server adapter remains a thin physical extension
 
 - **WHEN** GitHub, GitLab, independent-identity, or generic Git providers project
   external enforcement

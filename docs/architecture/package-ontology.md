@@ -26,9 +26,9 @@ ontology. Distribution adapters use a separate layout:
 distributions/npm
 ```
 
-Optional ecosystem integrations and provider-local reference implementations do
-not belong to either product package or the distribution adapter layout. They
-use declared extension bundles:
+Optional ecosystem integrations do not belong to either product package or the
+distribution adapter layout. When shipped source is justified, they use declared
+extension bundles:
 
 ```text
 extensions/<extension-id>/
@@ -68,16 +68,16 @@ Python product package ontology and must not own product semantics.
 
 ### `extensions/<extension-id>`
 
-An extension bundle owns an ecosystem integration or provider-local reference
-implementation that must remain outside the two buildable product packages.
-Each bundle declares its boundary in `extension.toml` and keeps its local
-documentation, adapters, and focused tests together. Extensions do not become
-product truth centers, dynamic package imports, or adopter prerequisites by
-existing in the repository.
+An extension bundle owns an ecosystem integration that must remain outside the
+two buildable product packages. Each bundle declares its boundary in
+`extension.toml` and keeps its local documentation, adapters, and focused tests
+together. Extensions do not become product truth centers, dynamic package
+imports, or adopter prerequisites by existing in the repository.
 
-`extensions/independent-verification/` is the current example: it contains the
-default-off independent-identity reference verifier. No root-level generic
-adapter directory is part of the product topology.
+No extension bundle is currently shipped. In particular, independent
+verification keeps only its provider-neutral product contract; provider-run
+verifier and pre-receive executables are operator-owned and out of tree. No
+root-level generic adapter directory is part of the product topology.
 
 ## Retired Product Package Families
 

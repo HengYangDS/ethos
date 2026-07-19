@@ -4,7 +4,7 @@ role: decision
 state: canonical
 relations:
   depends_on: DR-0005
-  informs: hosted-enforcement receipt path, local independent-identity verifier adapter
+  informs: hosted-enforcement receipt path, independent-verification provider contract
 ---
 
 # DR-0006: Proof Trust Boundary and Optional Independent-Identity Verification
@@ -82,23 +82,24 @@ either a separate local OS identity, or a hosted forge — that **re-executes** 
    no network. Enforcement is opt-in per repository. This upholds the generic-product /
    no-hardcoded-basis rule: ETHOS ships the interface, never a mandatory verifier.
 
-5. **The local verifier reference implementation is restricted to the LIGHTWEIGHT path**
+5. **Any local verifier implementation is restricted to the LIGHTWEIGHT path**
    (operator constraint): a single dedicated OS user (e.g. `ethos-verifier`) + one launchd/
    systemd daemon + a private key at `chmod 600` unreadable by the agent user. Agents write
    a request to an inbox they can only append to; the daemon re-executes the pinned,
    out-of-tree ETHOS floor (never the requesting tree's own `ethos` package — the
    judge-is-judged hole) and writes a signed receipt to an agent-readonly path. Per-agent
    containers / per-agent OS users are **out of scope** — one independent verifier identity
-   suffices; agents may still share the operator's account.
+   suffices; agents may still share the operator's account. The product owns this receipt
+   contract, not a bundled provider executable or deployment recipe.
 
 ## Consequences
 
 - ETHOS stops over-claiming: a local land is honestly a readiness assertion. Solo and
   same-UID multi-agent users get exactly that, with no new moving parts.
-- The optional plug now has a provider-neutral exact-receipt contract and a
-  one-shot independent-identity reference adapter. It remains default-off:
-  installation, provider-local trust anchors, key ownership, and any daemon or
-  hosted implementation remain an operator choice rather than product defaults.
+- The optional plug has a provider-neutral exact-receipt contract and no bundled
+  provider executable. It remains default-off: implementation, installation,
+  provider-local trust anchors, key ownership, and any daemon, hook, or hosted
+  service remain operator choices rather than product defaults.
 - `receipt_digest` in `EnforcementReceipt` is currently regex-validated only (never
   cryptographically verified) and `external_evidence_report` has no `src/` callers. Making
   either load-bearing REQUIRES real signature verification + a pinned out-of-tree issuer +
@@ -118,13 +119,13 @@ either a separate local OS identity, or a hosted forge — that **re-executes** 
 - `packages/ethos/src/ethos/adapters/admission/evidence/external.py`,
   `packages/ethos-core/src/ethos_core/contracts/evidence/external.py` — exact receipt
   contract and provider-local admission boundary.
-- `extensions/independent-verification/adapters/independent_identity/reference_verifier.py`
-  — optional, one-shot constrained reference adapter; no daemon or scheduling
-  surface.
+- `tests/unit/admission/test_independent_verification.py` — exact request/receipt
+  binding, protected provider configuration, signature verification, and
+  default-off admission behavior without a product-distributed executable.
 
 ## Revisit Trigger
 
-Revisit when a hosted forge `pre-receive` is stood up, a provider needs a daemon rather than
-the one-shot reference flow, or the same-UID threat model changes (for example, agents gain
+Revisit when a hosted forge `pre-receive` is stood up, a provider deploys a local daemon, or
+the same-UID threat model changes (for example, agents gain
 isolable identities by default). Provider-specific trust-anchor storage, floor allowlists,
 latency budgets, and control-plane bootstrap remain local adoption decisions.

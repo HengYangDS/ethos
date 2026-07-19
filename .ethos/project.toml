@@ -6,14 +6,3 @@ description = "Reflexive agentic repository governance kernel"
 
 [command_plane]
 public = "ethos"
-retired_public_roots = [
-  "wt",
-  "proof",
-  "mission",
-  "skill-evolution",
-  "agent-surface-contract",
-]
-
-[state]
-local_path = ".ethos/state/state.sqlite"
-tracked_truth = false

@@ -11,6 +11,7 @@ from typing import cast
 
 import ethos.adapters.repo.git as git_adapter
 import ethos.domain.plan as plan_domain
+from ethos.adapters.admission.prewrite import prewrite_guard
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.repository.policy.rules.check import rules_check_report
 from ethos.repository.policy.rules.compile import compile_rules
@@ -18,6 +19,7 @@ from ethos.repository.policy.rules.coverage import coverage_report
 from ethos.repository.policy.rules.evaluation import rules_evaluation_report
 from ethos.repository.policy.rules.exceptions import policy_exceptions_report
 from ethos.repository.policy.rules.explain import explain_rules_target
+from ethos.repository.policy.rules.migration import migrate_legacy_rules
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import emit
@@ -48,6 +50,88 @@ def rules_check(
         data=report,
     )
     emit(result, json_output=json_output, enforce=False)
+
+
+@rules_app.command(name="migrate")
+def rules_migrate(
+    *,
+    root: RootOption | None = None,
+    apply: bool = False,
+    authorize: bool = False,
+    expect_head: str | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Plan or apply a lossless, Work-Lane-admitted Rules V2 migration."""
+    repo = resolve_root(root)
+    current_head = git_adapter.current_head(repo)
+    report = migrate_legacy_rules(repo)
+    required_gaps = [str(gap) for gap in cast("list[object]", report["required_gaps"])]
+    prewrite: dict[str, object] = {
+        "ok": True,
+        "required_gaps": [],
+        "not_applicable": True,
+    }
+    if apply:
+        if not authorize:
+            required_gaps.append("authorization_required")
+        if not expect_head:
+            required_gaps.append("expect_head_required")
+        elif expect_head != current_head:
+            required_gaps.append("expect_head_mismatch")
+        prewrite = prewrite_guard(
+            root=repo,
+            paths=[repo / ".ethos" / "rules.toml"],
+            editor_root=repo,
+            require_editor_root=True,
+        )
+        required_gaps.extend(str(gap) for gap in cast("list[object]", prewrite["required_gaps"]))
+        if not required_gaps:
+            latest_head = git_adapter.current_head(repo)
+            if latest_head != expect_head:
+                required_gaps.append("expect_head_mismatch")
+            else:
+                report = migrate_legacy_rules(
+                    repo,
+                    apply=True,
+                    expect_source_digest=str(report["source_digest"]),
+                )
+                required_gaps.extend(
+                    str(gap) for gap in cast("list[object]", report["required_gaps"])
+                )
+    required_gaps = list(dict.fromkeys(required_gaps))
+    applied = bool(report["applied"])
+    ok = not required_gaps
+    data = {
+        **report,
+        "prewrite": prewrite,
+        "mutation": {
+            "apply": apply,
+            "authorized": authorize,
+            "expect_head": expect_head,
+            "current_head": current_head,
+        },
+    }
+    result = EthosResult(
+        command="rules migrate",
+        ok=ok,
+        state=(
+            "blocked"
+            if required_gaps
+            else "applied"
+            if applied
+            else "planned"
+            if report["legacy_detected"]
+            else "current"
+        ),
+        summary={
+            "legacy_detected": bool(report["legacy_detected"]),
+            "source_digest": report["source_digest"],
+        },
+        required_gaps=tuple(required_gaps),
+        next_actions=("ethos status --json",) if applied else tuple(report["next_actions"]),
+        data=data,
+    )
+    emit(result, json_output=json_output)
 
 
 @rules_app.command(name="eval")

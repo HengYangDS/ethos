@@ -273,10 +273,12 @@ patterns; release_root and accepted_root are both protected roles but they are
 not interchangeable.
 Work Lane lifecycle commands are also product semantics: `ethos lane start`,
 `ethos lane bind-claim`, `ethos lane refresh-base`, `ethos land`,
-`ethos lane retire landed`, `ethos lane retire superseded`, and
-`ethos lane retire unbound` define the local ownership, evidence binding, stale
-base replay, candidate closeout, landed-lane retirement, absorbed linked-lane
-retirement, and unbound-ref residue cleanup paths.
+`ethos lane retire landed`, and `ethos lane retire superseded` define local
+ownership, evidence binding, stale-observation, base replay, candidate
+closeout, landed-lane retirement, and absorbed linked-lane retirement. The
+`ethos lane retire unbound` reader preserves unbound-ref residue for separately
+admitted exceptional deletion rather than treating absent registration as safe
+cleanup.
 Git worktree facts remain observable, but raw worktree creation is not the
 standard ETHOS lifecycle state because it bypasses ETHOS lease and claim
 boundaries.

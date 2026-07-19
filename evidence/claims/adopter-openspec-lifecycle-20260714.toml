@@ -1,9 +1,9 @@
 claim = { id = "adopter-openspec-lifecycle-20260714", subject = "ethos:adopter-openspec-lifecycle", state = "active", summary = "Plan and proof evaluate official OpenSpec lifecycle for valid adopters." }
-evidence = { dated = "evidence/chronicle/adopter-openspec-lifecycle-20260714/2026-07-14.md", sha256 = "935f6b9be6c51123b8d026b5eb2a2b17d3f5b50fe290436ffe1842e541a0756f", evidence_ids = [
+evidence = { dated = "evidence/chronicle/adopter-openspec-lifecycle-continuity-20260719/2026-07-19.md", sha256 = "3c77cad74b3268b2f94bdf829af0e3bc09972ef0c8e7e7e4f4d88d6125c1c1fe", evidence_ids = [
   "evidence:adopter-openspec-lifecycle-20260714",
-], binding = "Universal adopter lifecycle evidence binding.", verifier = "digest_only", freshness = { mode = "semantic_scope", head = "092afc5bdd045ddc2cfd62d73fd918898e5ced85", semantic_sha256 = "b1b957db2a9df8641c360341276fe48e54f31c601e51c28c269391fde9d554e5" } }
+], binding = "Universal adopter lifecycle evidence binding, continued through a loss-bounded successor that re-observes current inputs and never treats historical runtime state as current proof.", verifier = "digest_only", freshness = { mode = "semantic_scope", head = "c8261b437d6a7c008a16f193da75e3d0a1b2ba7f", semantic_sha256 = "dc3dff2852ca501f05e1270722f564aa20ef197491013240a70c14f8360c7cb2" } }
 boundary = { owner = "ethos-repository", scope = "Universal adopter lifecycle in plan and prove." }
-carriers = { openspec = "openspec/changes/archive/2026-07-14-adopter-openspec-lifecycle-20260714", fallback = "Block lifecycle gaps; do not substitute code correctness or method packages.", kill_signal = "A valid adopter bypasses official lifecycle in plan or proof." }
+carriers = { openspec = "openspec/changes/archive/2026-07-19-adopter-openspec-lifecycle-continuity-20260719", fallback = "Block lifecycle gaps; preserve the predecessor archive and do not substitute code correctness, historical proof, or method packages.", kill_signal = "A valid adopter bypasses official lifecycle in plan or proof." }
 promotion = { targets = [
   "packages/ethos/src/ethos/surface/cli/root/planning.py",
   "packages/ethos/src/ethos/surface/cli/root/proof.py",

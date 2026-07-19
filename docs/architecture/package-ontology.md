@@ -54,7 +54,8 @@ adopter-specific semantics, and provider-specific ownership.
 Public runtime and CLI package. Owns the command tree, UX composition,
 human-readable rendering, JSON output routing, repository lifecycle
 orchestration, adapters, assistant/context projections, maintainer surfaces,
-local proof execution, and product test fixtures.
+and local proof execution. Test fixtures remain under `tests/` and are not
+shipped as product runtime.
 
 The package is allowed to execute tools and adapt providers, but it must not
 become the semantic center. Product semantics still derive from `ethos-core`,

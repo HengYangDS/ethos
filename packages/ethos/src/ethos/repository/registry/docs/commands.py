@@ -97,6 +97,7 @@ KNOWN_ETHOS_COMMANDS = {
     "ethos fleet retirement-readiness",
     "ethos lane",
     "ethos lane status",
+    "ethos lane housekeeping",
     "ethos lane candidate",
     "ethos lane start",
     "ethos lane prewrite",

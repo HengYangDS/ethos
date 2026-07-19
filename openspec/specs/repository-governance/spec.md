@@ -1552,37 +1552,57 @@ while preserving explicit binary, cached official CLI, and PATH precedence.
 ### Requirement: Campaign Lifecycle Truth Is Carrier-Bound
 
 ETHOS SHALL derive a campaign execution step's lifecycle legality from its
-declared state, OpenSpec carrier home, and closeout record.  An `active`,
-`in_progress`, or `landed` step SHALL reference an active carrier under
-`openspec/changes/<id>` and SHALL NOT report a `closed` or `retired` closeout.
-A `closed` or `retired` step SHALL reference an archived carrier and SHALL
-carry terminal closeout state, accepted and candidate heads, and dated
-evidence.  A campaign MAY remain `active` with no execution step while its next
+declared state, OpenSpec carrier home, and closeout record. An `active` or
+`in_progress` step SHALL reference an active carrier under
+`openspec/changes/<id>` and SHALL NOT report terminal closeout. An `archived` or
+`landed` step SHALL reference an archived carrier while closeout remains
+non-terminal. A `closed` or `retired` step SHALL reference an archived carrier
+and SHALL carry terminal closeout state, accepted and candidate heads, and dated
+evidence. A campaign MAY remain `active` with no execution step while its next
 step remains `planned`; the reader SHALL expose that next planned step rather
 than fabricate an active lane.
 
 #### Scenario: archived carrier is presented as active
 
-- **WHEN** campaign validation reads an execution step whose only carrier is
-  under `openspec/changes/archive`
+- **WHEN** campaign validation reads an `active` or `in_progress` step whose only
+  carrier is under `openspec/changes/archive`
 - **THEN** it reports a required
   `campaign_step_active_openspec_archived:<campaign>:<step>` gap
-- **AND** it does not treat the campaign topology as a valid active lane
+- **AND** it does not treat the campaign topology as a valid active lane.
+
+#### Scenario: archived carrier awaits land
+
+- **GIVEN** the official OpenSpec archive operation has moved the current Change
+  under `openspec/changes/archive`
+- **WHEN** its Campaign step declares `state = "archived"` with non-terminal
+  closeout
+- **THEN** Campaign validation SHALL accept the truthful archive-before-land
+  intermediate state
+- **AND** the step SHALL remain non-terminal until candidate and accepted
+  closeout facts exist.
+
+#### Scenario: pre-land state still references an active carrier
+
+- **WHEN** an `archived` or `landed` step still resolves only under
+  `openspec/changes/<id>`
+- **THEN** Campaign validation SHALL report
+  `campaign_step_preland_openspec_not_archived:<campaign>:<step>`.
 
 #### Scenario: terminal step lacks archived carrier
 
 - **WHEN** campaign validation reads a `closed` or `retired` step whose carrier
   remains only under `openspec/changes/<id>`
 - **THEN** it reports a required
-  `campaign_step_terminal_openspec_not_archived:<campaign>:<step>` gap
+  `campaign_step_terminal_openspec_not_archived:<campaign>:<step>` gap.
 
 #### Scenario: campaign awaits a planned successor
 
 - **WHEN** every completed predecessor has terminal closeout and the immediate
   successor remains `planned`
-- **THEN** campaign validation accepts the absence of an active execution step
-- **AND** `lane_topology.next_planned_step` identifies that successor
-- **AND** no active Work Lane is inferred until its carrier and lane exist
+- **THEN** campaign validation SHALL accept the absence of an active execution
+  step
+- **AND** `lane_topology.next_planned_step` SHALL identify that successor
+- **AND** no active Work Lane SHALL be inferred until its carrier and lane exist.
 
 ### Requirement: Entrypoint audits distinguish declarations from producers
 
@@ -2450,7 +2470,14 @@ provider observation as distinct evidence classes.
 
 ### Requirement: Remote reconciliation continuation preserves historical carrier boundaries
 
-When a historical remote-reconciliation carrier promoted its delta but lifecycle work remains unfinished, ETHOS SHALL preserve the historical archive without false completion and bind an active continuation to the same episode claim before remaining closeout work proceeds.
+When a historical remote-reconciliation carrier promoted its delta but lifecycle
+work remains unfinished, ETHOS SHALL preserve the historical archive without
+false completion and bind an active continuation to the same episode claim
+before remaining closeout work proceeds. When the historical Work Lane cannot
+be resumed in its original host worktree, the continuation SHALL retain only
+context that can be freshly observed. It SHALL run in a distinct owned Work
+Lane on a current candidate baseline and re-execute current proof rather than
+treat historical proof or a reconstructed path as current authority.
 
 #### Scenario: remaining lifecycle work continues after historical archival
 
@@ -2458,6 +2485,27 @@ When a historical remote-reconciliation carrier promoted its delta but lifecycle
 - **THEN** an active continuation records the transfer and binds the episode claim
 - **AND** it preserves normal merge and no-force constraints
 - **AND** it distinguishes local proof, remote mutation, remote observation, and hosted-provider observation
+
+#### Scenario: Historical worktree is absent
+
+- **GIVEN** a historical Change, claim, and evidence stream remain readable
+- **AND** the original host worktree or its checkout-local temporary state is
+  absent
+- **WHEN** a successor begins continuity work
+- **THEN** it records retained source identities, irrecoverable state, current
+  Git and Work Lane anchors, and a no-reconstruction boundary
+- **AND** it leaves the historical lane and its archive observe-only
+- **AND** it binds the existing episode claim to the active successor carrier
+  before a new proof, land, closeout, or publication attempt.
+
+#### Scenario: Current proof follows retained historical meaning
+
+- **GIVEN** a successor continuity packet has preserved the historical meaning
+- **WHEN** the successor reaches a stable committed HEAD
+- **THEN** ETHOS evaluates current source and regressions through current
+  OpenSpec lifecycle and HEAD-bound proof
+- **AND** it distinguishes that proof from historical proof, temporary runtime
+  state, hosted CI, and remote publication.
 
 ### Requirement: Authorized Work Lane cohort closeout is exact and evidence-bound
 
@@ -2507,6 +2555,28 @@ a new observation and decision are recorded.
 - **THEN** the absorption record names the current proof or deferred decision
 - **AND** it keeps the source lane intact until an exact retirement or later
   product/adopter admission path is separately established.
+
+#### Scenario: Zero missing behavior selects preservation closeout, not integration
+
+- **WHEN** an exact semantic matrix classifies every patch-inequivalent source
+  change as accepted, superseded, obsolete, or intentionally deferred
+- **AND** no product behavior remains missing from accepted truth
+- **THEN** ETHOS prohibits merge, rebase, cherry-pick, refresh, and land of the
+  historical Work Lane
+- **AND** if the native decision/apply contract cannot bind and revalidate the
+  accepted HEAD/relation, lease ID/epoch, exact target observation, completion
+  state, and recovery package integrity, ETHOS treats the exceptional effect as
+  unavailable
+- **AND** the historical lane remains intact until a separately accepted product
+  change implements those guards and reconciles any contradictory completion
+  record
+- **AND** only after that repair may ETHOS record the then-current accepted HEAD,
+  recompute the target relation, reconfirm the matrix and zero-residual result,
+  and prepare a fresh decision selecting
+  `lane_resolution/preserve-retire` with verified recovery material,
+  break-glass, and explicit irreversible confirmation
+- **AND** any later accepted, target, lease, or completion-state drift blocks
+  apply until a new observation and decision exist.
 
 ### Requirement: Dirty and unbound Work Lane content is preserved before destructive closeout
 
@@ -2590,54 +2660,176 @@ truth and its own normal deletion dry-run is accepted.
 - **AND** a submit ref is deleted only after accepted ancestry and its own
   deletion dry-run are verified.
 
-### Requirement: Scoped campaign closeout selection
-ETHOS SHALL allow `ethos campaign closeout --campaign <campaign-id> --json` to evaluate one named campaign without treating another campaign’s active or planned state as an implied blocker. The command SHALL remain read-only, SHALL preserve the requested campaign selector in its report, and SHALL return a missing-campaign gap when the selector cannot resolve.
+### Requirement: Campaign-terminal protected publication admission
 
-#### Scenario: One active campaign is selected
-- **GIVEN** a repository contains two campaign manifests and one unrelated campaign remains active
-- **WHEN** an operator runs `ethos campaign closeout --campaign repo-first-worktree-governance-v2 --json`
-- **THEN** the campaign package contains only `repo-first-worktree-governance-v2`
-- **AND** its readiness does not derive a gap from the unrelated campaign
-- **AND** the report identifies `repo-first-worktree-governance-v2` as the requested selector.
+When a campaign manifest declares `publication.mode = "campaign_terminal"`,
+ETHOS SHALL report the campaign's structural publication validity separately
+from its terminal-progress advisory state. A malformed or unbound publication
+contract SHALL remain a protected-push blocker. Active campaign state,
+unretired steps, terminal source-budget non-attainment, active temporary debt,
+and source-budget progress SHALL remain explicit advisory state; they SHALL NOT
+block an ordinary non-force protected remote update after executed local proof
+and governed candidate/accepted closeout. Receiving-plane branch protection
+remains authoritative and is not replaced by this local gate.
 
-#### Scenario: A campaign selector is unknown
-- **WHEN** an operator runs `ethos campaign closeout --campaign absent-campaign --json`
-- **THEN** the command reports `campaign_missing:absent-campaign`
-- **AND** it does not claim local readiness for the absent campaign.
+#### Scenario: Non-terminal compression campaign blocks protected push
 
-### Requirement: Repo-first worktree governance campaign boundary
-ETHOS SHALL model repo-first worktree governance v2 as a dedicated strict-serial campaign. Its bootstrap SHALL record Git as authority for refs, history, and linked-worktree registration; ETHOS as authority for policy, ownership, admission, receipts, and lifecycle gates; and an optional future backup system only as an independent backup mechanism for sealed records. The bootstrap SHALL not authorize cross-repository lifecycle transfer, foreign-lane mutation, or dirty-state retirement.
+- **GIVEN** an active `campaign_terminal` campaign has planned, active, or
+  non-retired steps, unmet terminal source budget, or active temporary debt
+- **AND** the pushed `dev` or `main` head has executed local proof and governed
+  candidate/accepted closeout
+- **WHEN** pre-push admission evaluates a configured protected destination
+- **THEN** campaign progress SHALL appear in `campaign_publication.advisory_gaps`
+- **AND** it SHALL add no campaign-progress item to pre-push `required_gaps`
+- **AND** pushes to `work/*` remain governed by ordinary remote branch policy.
 
-#### Scenario: Bootstrap exposes independent future slices
-- **GIVEN** the repo-first worktree governance campaign is active or archive-ready
-- **WHEN** `ethos campaign status --campaign repo-first-worktree-governance-v2 --json` runs
-- **THEN** it exposes one active bootstrap step and ordered planned successor steps
-- **AND** every successor declares its own OpenSpec change, Work Lane, Claim, and planned closeout record
-- **AND** the campaign topology is `strict_serial`.
+#### Scenario: Terminal campaign admits ordinary protected-push checks
 
-#### Scenario: Archive-ready bootstrap remains non-terminal
-- **GIVEN** the bootstrap OpenSpec carrier was officially archived before its Work Lane is locally closed
-- **WHEN** the bootstrap step is recorded as `archive_ready`
-- **THEN** it resolves only to its archived carrier
-- **AND** its closeout record remains non-terminal
-- **AND** it does not claim candidate land, accepted-root closeout, or Work Lane retirement.
+- **GIVEN** every active `campaign_terminal` campaign is closed, every step is
+  archive-complete and retired, terminal source-budget targets are met, and no
+  temporary debt record remains active
+- **WHEN** pre-push admission evaluates a protected destination
+- **THEN** the campaign publication report SHALL add no required or advisory gap
+- **AND** identity, executed-proof, candidate-topology, reconciliation, and
+  provider-specific checks SHALL remain independently enforced.
 
-#### Scenario: Foreign lane remains outside bootstrap authority
-- **GIVEN** a visible linked Work Lane has no owned lease or owner handoff for the bootstrap holder
-- **WHEN** the bootstrap campaign is evaluated
-- **THEN** the campaign does not authorize moving, retiring, deleting, or preserving that lane
-- **AND** the lane remains an observation requiring its own holder-bound or accepted exceptional process.
+#### Scenario: Per-Change temporary debt does not block local progression
 
-### Requirement: Repo-first preservation topology contract
-ETHOS SHALL reserve repository-adjacent topology for future governed worktree and record operations as `<projects-root>/<repo>-worktrees/<yyyymmdd>-<task-slug>` and `<projects-root>/<repo>-records/{.staging,evidence,recovery}/<timestamp>-<purpose>`. Status labels such as sealed, restorable, legacy-v1, or unverified SHALL be recorded in manifests rather than introduced as top-level topology classes.
+- **GIVEN** a `campaign_terminal` campaign is active and source-budget
+  enforcement is `campaign_terminal` with declared unexpired temporary debt
+- **WHEN** a bounded Change completes its local proof and closeout lifecycle
+- **THEN** campaign reporting SHALL expose the debt as terminal-progress advice
+- **AND** it SHALL not classify the Change or an ordinary protected push as
+  blocked solely because the campaign terminal target is not yet met.
 
-#### Scenario: Bootstrap growth remains explicit and bounded
-- **WHEN** the bootstrap adds new repository-governance declarations that exceed the current source-budget allowance
-- **THEN** the active source-budget policy records only the measured category growth, an expiry, a deletion wave, and this campaign as owner
-- **AND** the record does not settle, transfer, or authorize growth in any foreign lane or unrelated campaign.
+#### Scenario: Campaign terminal budget keeps debt lifecycle local
 
-#### Scenario: Topology contract does not create a second lifecycle authority
-- **WHEN** a later campaign slice uses the topology contract to plan preservation or recovery
-- **THEN** Git remains the authority for committed refs and worktree registration
-- **AND** ETHOS remains the authority for admission, lifecycle, receipt, and retirement decisions
-- **AND** the topology alone does not authorize a filesystem deletion or restore.
+- **GIVEN** source-budget enforcement is `campaign_terminal`
+- **WHEN** a local Change increases effective source while declared debt remains
+  within its maximum and active lifecycle
+- **THEN** source-budget validation SHALL not block that local Change solely for
+  current-size or terminal-target non-attainment
+- **AND** invalid policy, debt-cap overflow, expired debt, and stale debt SHALL
+  remain local blocking gaps
+- **AND** full proof and terminal compression closeout SHALL still require
+  terminal targets and no active debt.
+
+#### Scenario: Invalid Campaign declaration fails closed
+
+- **GIVEN** a Campaign TOML file exists but violates
+  `system/schemas/kernel/campaign.schema.json`
+- **WHEN** Campaign status or protected-publication admission reads the manifest
+- **THEN** the reader SHALL expose a `campaign_manifest_schema_invalid` gap
+- **AND** protected publication SHALL be blocked instead of treating the
+  Campaign as unconfigured.
+
+#### Scenario: Campaign action commands remain external
+
+- **WHEN** Campaign publication projection selects local continuation or
+  protected publication
+- **THEN** the domain projection SHALL return a stable action identifier
+- **AND** CLI command text SHALL be resolved through `system/commands.toml`
+- **AND** Python SHALL NOT encode a Campaign name, provider topology, or parallel
+  action vocabulary.
+
+#### Scenario: Filtered Campaign status preserves repository scope
+
+- **WHEN** `ethos campaign status --campaign <id> --json` selects one Campaign
+- **THEN** `data.campaigns` SHALL contain the selected Campaign view
+- **AND** `data.publication.scope` SHALL remain `repository`
+- **AND** filtering SHALL NOT omit another Campaign or source-budget binding from
+  structural publication admission or terminal-progress advice.
+
+#### Scenario: Hook evaluates the named remote
+
+- **WHEN** the Git pre-push hook receives `github` as its remote name
+- **THEN** both its base and enriched push-admission evaluations SHALL receive
+  `remote_name = "github"`
+- **AND** emitted remote diagnostics and branch admission SHALL describe GitHub,
+  not the default `origin`.
+
+### Requirement: Detached temporary worktree housekeeping is fail-closed
+
+ETHOS SHALL inventory detached Git worktrees without treating detachment as
+cleanup authority. It SHALL remove a worktree only after explicit authorization
+when the entry is detached, clean, unlocked, below a controlled temporary root,
+not the audited checkout, and unchanged at immediate reobservation.
+
+#### Scenario: Clean detached temporary worktree is removable
+
+- **WHEN** `ethos lane housekeeping --json` observes a clean detached worktree
+  below a controlled temporary root
+- **THEN** it reports that exact path as removable without changing Git state
+- **AND** removal occurs only with `--authorize --apply`.
+
+#### Scenario: Valuable or active worktree remains protected
+
+- **WHEN** a worktree is dirty, unreadable, branch-bound, Git-locked, outside
+  controlled temporary roots, or is the audited checkout
+- **THEN** housekeeping reports a machine-readable protection reason
+- **AND** it does not remove the worktree even in authorized apply mode.
+
+#### Scenario: Candidate changes before removal
+
+- **WHEN** a planned removable worktree changes before the effect
+- **THEN** ETHOS reports a stale-candidate gap
+- **AND** it preserves the changed worktree.
+
+#### Scenario: Git inventory is unavailable
+
+- **WHEN** Git cannot return the registered worktree inventory
+- **THEN** housekeeping reports a blocking inventory gap
+- **AND** it does not project an empty removable set as successful inspection.
+
+### Requirement: Archived Work Lane candidate-drift continuation
+
+ETHOS SHALL continue useful work from an archived or historically proved Work
+Lane through an owned, claim-bound successor based on the latest candidate. It
+MUST preserve predecessor ancestry, keep historical carriers immutable, and
+regenerate every projection and proof whose validity depends on the new HEAD.
+
+#### Scenario: Semantic refresh conflict fails closed
+
+- **WHEN** the official candidate-base refresh encounters a semantic conflict
+- **THEN** ETHOS MUST abort the replay and report `refresh_base_failed`
+- **AND** it MUST restore the Work Lane branch and worktree to the expected clean
+  head
+- **AND** no manual rebase continue, skip, raw ref movement, or history
+  replacement may be used to bypass the failure.
+
+#### Scenario: Latest candidate starts a successor
+
+- **WHEN** useful predecessor work cannot land because its candidate base is
+  stale and semantic refresh failed closed
+- **THEN** an owned successor MUST start from the latest observed candidate
+- **AND** it MUST bind the same episode claim
+- **AND** the predecessor Lane, archived Change, historical Chronicle, and proof
+  receipt MUST remain observe-only.
+
+#### Scenario: Successor preserves ancestry and regenerates evidence
+
+- **WHEN** the successor absorbs the useful predecessor head
+- **THEN** it MUST use a no-fast-forward merge with the candidate base as first
+  parent and the predecessor head as second parent
+- **AND** candidate-authoritative parity, configuration, and gate projections
+  MUST be retained but treated as stale after the merge
+- **AND** parity MUST be regenerated and proof MUST execute against the resulting
+  current HEAD rather than reuse a historical receipt.
+
+#### Scenario: Candidate advances after a topology-bearing merge
+
+- **WHEN** candidate advances again after the continuation has created a
+  topology-bearing merge but before land
+- **THEN** a further owned successor MUST start from the newer candidate and
+  no-fast-forward absorb the completed continuation head
+- **AND** ETHOS MUST NOT linearize or discard the existing merge topology merely
+  to refresh the base.
+
+#### Scenario: Historical facts are corrected without archive mutation
+
+- **WHEN** independent replay or review corrects a fact recorded by the
+  historical carrier
+- **THEN** the active continuation MUST record a superseding correction with its
+  reproducible inputs and digest
+- **AND** the archived Change, historical Chronicle, and historical proof
+  receipt MUST NOT be rewritten.

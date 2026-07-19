@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-07-19
+goal: Make detached IDE and agent worktree residue visible and safely removable
+  without deleting dirty, branch-bound, locked, recovery, or semantic worktrees.

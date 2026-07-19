@@ -10,25 +10,10 @@ from typing import Literal
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
+from pydantic import TypeAdapter
 from pydantic import field_validator
 from pydantic import model_validator
 
-SourceBudgetCategory = Literal[
-    "python_product",
-    "python_tests",
-    "python_tools",
-    "python_other",
-    "shell",
-    "js",
-    "toml",
-    "yaml",
-    "json",
-    "ini",
-    "jinja",
-    "diagram",
-    "python_total",
-    "global_total",
-]
 NonNegativeInt = Annotated[int, Field(strict=True, ge=0)]
 PositiveInt = Annotated[int, Field(strict=True, gt=0)]
 NonEmptyStr = Annotated[str, Field(min_length=1)]
@@ -54,6 +39,41 @@ class SourceBudgetWave(BaseModel):
         return _iso_date(value)
 
 
+class SourceBudgetCarrier(BaseModel):
+    """One declaration-owned source carrier classifier and line metric."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    category: NonEmptyStr
+    extensions: tuple[NonEmptyStr, ...] = Field(min_length=1)
+    paths: tuple[NonEmptyStr, ...] = ()
+    measure: Literal["python_ast", "lines"] = "lines"
+    comment_prefixes: tuple[str, ...] = ()
+    comment_wrappers: tuple[tuple[str, str], ...] = ()
+
+
+class SourceBudgetTaxonomy(BaseModel):
+    """One format-registry-owned executable carrier taxonomy."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    carrier: tuple[SourceBudgetCarrier, ...] = Field(min_length=1)
+    aggregates: dict[str, tuple[NonEmptyStr, ...]]
+
+    @model_validator(mode="after")
+    def validate_taxonomy(self) -> SourceBudgetTaxonomy:
+        categories = tuple(item.category for item in self.carrier)
+        if unknown := {
+            member
+            for members in self.aggregates.values()
+            for member in members
+            if member not in categories
+        }:
+            message = f"source-budget aggregate member unknown: {min(unknown)}"
+            raise ValueError(message)
+        return self
+
+
 class SourceBudgetDebtRecord(BaseModel):
     """One auditable temporary allowance and its required deletion outcome."""
 
@@ -66,7 +86,7 @@ class SourceBudgetDebtRecord(BaseModel):
     expiry: IsoDate
     allowance: NonNegativeInt
     expected_net_deletion: PositiveInt
-    allowance_by_category: dict[SourceBudgetCategory, NonNegativeInt]
+    allowance_by_category: dict[str, NonNegativeInt]
 
     @field_validator("expiry")
     @classmethod
@@ -101,32 +121,47 @@ class SourceBudgetDebt(BaseModel):
         return self
 
 
-class SourceBudgetPolicy(BaseModel):
+class SourceBudgetPolicyBase(BaseModel):
     """Validated source-budget policy loaded from the repository rules table."""
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     baseline_head: str = Field(pattern=r"^[a-f0-9]{40,64}$")
-    enforcement: Literal["transition", "terminal"]
-    baseline: dict[SourceBudgetCategory, NonNegativeInt]
-    terminal: dict[SourceBudgetCategory, NonNegativeInt]
+    baseline: dict[str, NonNegativeInt]
+    terminal: dict[str, NonNegativeInt]
     debt: SourceBudgetDebt
 
-    @field_validator("baseline", "terminal")
-    @classmethod
-    def validate_aggregate_limits(
-        cls, value: dict[SourceBudgetCategory, NonNegativeInt]
-    ) -> dict[SourceBudgetCategory, NonNegativeInt]:
-        """Require the aggregate dimensions that make a policy enforceable."""
-        if {"python_total", "global_total"} - set(value):
-            message = "source-budget limits require python_total and global_total"
+    @model_validator(mode="after")
+    def validate_taxonomy(self) -> SourceBudgetPolicyBase:
+        """Bind limits and temporary allowances to the declared carrier taxonomy."""
+        if not {"python_total", "global_total"} <= set(self.baseline):
+            message = "source-budget baseline must include required aggregates"
             raise ValueError(message)
-        return value
+        if not {"python_total", "global_total"} <= set(self.terminal):
+            message = "source-budget terminal must include required aggregates"
+            raise ValueError(message)
+        return self
+
+
+class SourceBudgetCampaignPolicy(SourceBudgetPolicyBase):
+    enforcement: Literal["campaign_terminal"]
+    campaign_id: NonEmptyStr
+
+
+class SourceBudgetStandalonePolicy(SourceBudgetPolicyBase):
+    enforcement: Literal["transition", "terminal"]
+
+
+type SourceBudgetPolicy = Annotated[
+    SourceBudgetCampaignPolicy | SourceBudgetStandalonePolicy,
+    Field(discriminator="enforcement"),
+]
+SourceBudgetPolicyAdapter = TypeAdapter(SourceBudgetPolicy)
 
 
 def source_budget_json_schema() -> dict[str, object]:
     """Generate the published source-budget JSON Schema contract."""
-    schema = SourceBudgetPolicy.model_json_schema()
+    schema = SourceBudgetPolicyAdapter.json_schema()
     return {
         "$schema": JSON_SCHEMA_DRAFT_2020_12,
         **schema,
@@ -140,6 +175,16 @@ class SourceBudgetPolicyLoad:
 
     policy: SourceBudgetPolicy | None
     required_gaps: tuple[str, ...]
+
+
+def validate_source_budget_policy(payload: object) -> SourceBudgetPolicy:
+    """Validate a source-budget policy through its typed contract."""
+    return SourceBudgetPolicyAdapter.validate_python(payload)
+
+
+def validate_source_budget_taxonomy(payload: object) -> SourceBudgetTaxonomy:
+    """Validate the carrier taxonomy compiled from format selection."""
+    return SourceBudgetTaxonomy.model_validate(payload)
 
 
 def _iso_date(value: str) -> str:

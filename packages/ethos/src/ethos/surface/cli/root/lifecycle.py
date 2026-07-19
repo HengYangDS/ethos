@@ -28,6 +28,8 @@ from ethos.adapters.mutation.core import proof_readiness_report
 from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.openspec.metadata.core import completed_active_changes_report
 from ethos.adapters.repo.status.core import workspace_status
+from ethos.domain.reporting.scoring import adopter_quality_floor_report
+from ethos.domain.reporting.scoring import hard_quality_floor_report
 from ethos.repository.context import context_for_root
 from ethos.repository.openspec.audit import protected_branch_active_change_required_gaps
 from ethos.repository.release.core import release_config
@@ -210,11 +212,12 @@ def publish(options: Annotated[_PublishOptions, Parameter(name='*')]=_DEFAULT_PU
     current_head = git.current_head(repo)
     decision = evaluate_mutation(MutationRequest(command='publish', apply=options.apply, authorized=options.authorize, expect_head=options.expect_head), root=repo, current_head=current_head)
     audit = land_core.repository_audit_after_admission(repo, decision)
+    hard_quality_floor = hard_quality_floor_report(repo) if governance.get('profile') == 'product' else adopter_quality_floor_report()
     independent_verification = independent_verification_admission_report(root=repo, action='publish', request=independent_verification_request(root=repo, action='publish'))
     branch = workspace_status(repo, include_foreign_path_scope=False)['branch']
     release_carrier_gaps = tuple(protected_branch_active_change_required_gaps(repo, current_branch=str(branch)))
-    gaps = tuple(string_sequence(audit.get('required_gaps'))) + decision.gaps + release_carrier_gaps + tuple(string_sequence(independent_verification.get('required_gaps')))
-    ok = bool(audit['ok']) and decision.ok and (not release_carrier_gaps) and bool(independent_verification.get('ok'))
+    gaps = tuple(string_sequence(audit.get('required_gaps'))) + decision.gaps + tuple(string_sequence(hard_quality_floor.get('required_gaps'))) + release_carrier_gaps + tuple(string_sequence(independent_verification.get('required_gaps')))
+    ok = bool(audit['ok']) and decision.ok and bool(hard_quality_floor.get('ok')) and (not release_carrier_gaps) and bool(independent_verification.get('ok'))
     remote_topology = publication_topology(release_config(repo))
     raw_topology_gaps = remote_topology.get('required_gaps', [])
     topology_gaps = tuple(str(gap) for gap in raw_topology_gaps) if isinstance(raw_topology_gaps, list) else ()
@@ -241,5 +244,5 @@ def publish(options: Annotated[_PublishOptions, Parameter(name='*')]=_DEFAULT_PU
     publication_verdict = 'block' if gaps else 'defer'
     transition_ok = ok and (not options.apply or publication_verdict == 'allow')
     publish_expected_state = _publish_expected_state(repo=repo, branch=str(branch), current_head=current_head, publication=publication, remote_observations=remote_observations, branch_admission=branch_admission)
-    result = EthosResult(command='publish', ok=transition_ok, state='local_publish_ready' if ok and (not options.apply) else 'publication_deferred' if ok and publication_verdict == 'defer' else 'blocked' if gaps else decision.state, summary=publish_summary, required_gaps=gaps, next_actions=publish_next_actions, governance_context=governance, data={'repository_audit': audit, 'release_root_open_spec': {'required_gaps': list(release_carrier_gaps), 'blocking': bool(release_carrier_gaps)}, 'independent_verification': independent_verification, 'remote_push': remote_push, 'remote_availability': remote_availability, 'remote_sync': remote_sync, 'remote_matrix': remote_matrix, 'remote_topology': remote_topology, 'publication_branch_admission': branch_admission, 'remote_observations': remote_observations, 'local_ci_fallback': local_ci_fallback, 'publication': publication, 'mutation': mutation_envelope(MutationRequest(command='publish', apply=options.apply, authorized=options.authorize, expect_head=options.expect_head), action='remote.publish', resource=str(publish_expected_state['target_ref']), expected_state=publish_expected_state, verdict=publication_verdict, required_gaps=gaps, why=(str(publication.get('remote_state') or 'remote_publication_deferred'),), next_actions=publish_next_actions, state=remote_state, evidence_boundary='local_readiness_and_remote_availability', enforcement_boundary='remote_ref_transition')})
+    result = EthosResult(command='publish', ok=transition_ok, state='local_publish_ready' if ok and (not options.apply) else 'publication_deferred' if ok and publication_verdict == 'defer' else 'blocked' if gaps else decision.state, summary=publish_summary, required_gaps=gaps, next_actions=publish_next_actions, governance_context=governance, data={'repository_audit': audit, 'hard_quality_floor': hard_quality_floor, 'release_root_open_spec': {'required_gaps': list(release_carrier_gaps), 'blocking': bool(release_carrier_gaps)}, 'independent_verification': independent_verification, 'remote_push': remote_push, 'remote_availability': remote_availability, 'remote_sync': remote_sync, 'remote_matrix': remote_matrix, 'remote_topology': remote_topology, 'publication_branch_admission': branch_admission, 'remote_observations': remote_observations, 'local_ci_fallback': local_ci_fallback, 'publication': publication, 'mutation': mutation_envelope(MutationRequest(command='publish', apply=options.apply, authorized=options.authorize, expect_head=options.expect_head), action='remote.publish', resource=str(publish_expected_state['target_ref']), expected_state=publish_expected_state, verdict=publication_verdict, required_gaps=gaps, why=(str(publication.get('remote_state') or 'remote_publication_deferred'),), next_actions=publish_next_actions, state=remote_state, evidence_boundary='local_readiness_and_remote_availability', enforcement_boundary='remote_ref_transition')})
     emit(result, json_output=json_output, enforce=options.apply)

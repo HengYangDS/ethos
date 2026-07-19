@@ -261,7 +261,7 @@ def test_committed_product_floor_is_pure_function_of_candidate_tree(tmp_path: Pa
     repo = _product_like_repo_with_scripts(tmp_path)
     incumbent = _rev(repo, "HEAD")
     gates = repo / "system" / "gates.toml"
-    removed = "toml-config"
+    removed = "config-quality"
     gates.write_text(
         gates.read_text(encoding="utf-8").replace(f'  "{removed}",\n', "", 1),
         encoding="utf-8",

@@ -1,0 +1,5 @@
+schema: spec-driven
+created: 2026-07-19
+goal: Provide a vendor-neutral OpenSpec archive reader that resolves one dated
+  archive directory from a logical Change ID and rejects invalid, absent,
+  ambiguous, or archive-directory identifiers.

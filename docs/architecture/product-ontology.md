@@ -23,7 +23,8 @@ ethos
 
 `ethos-core` owns pure kernel, contract, quality, and proof-policy semantics.
 `ethos` owns the public runtime, command plane, repository orchestration,
-adapters, assistant projections, and product test fixtures.
+adapters, and assistant projections. Test fixtures remain under `tests/`,
+outside the shipped product package.
 
 Retired names such as `ethos-contracts`, `ethos-quality`, `ethos-repository`,
 `ethos-assistants`, `ethos-adapters`, and `ethos-test` now describe semantic

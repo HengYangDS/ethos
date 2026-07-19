@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-07-18
+goal: Make campaign scope the external-publication boundary while OpenSpec
+  changes close locally.

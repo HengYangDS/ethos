@@ -1,0 +1,50 @@
+[claim]
+id = "detached-worktree-housekeeping-20260719"
+subject = "ethos:detached-worktree-housekeeping"
+state = "active"
+summary = "Detached temporary worktree cleanup is explicit, rechecked, non-forced, and fail-closed."
+
+[evidence]
+dated = "evidence/chronicle/detached-worktree-housekeeping-20260719/2026-07-19.md"
+sha256 = "55b294d6f90ff463f604f66432a4e50f510c95f67112affa7926e569f21951de"
+evidence_ids = ["evidence:detached-worktree-housekeeping-20260719"]
+binding = "Command, adapter, tests, OpenSpec scenarios, and current Git worktree observations."
+verifier = "digest_only"
+tests = [
+  "build/runtime/venv/bin/pytest -q tests/unit/lanes/test_worktree_housekeeping.py tests/unit/cli/test_contracts_lane_housekeeping.py tests/unit/kernel/test_command_declaration.py",
+  "build/runtime/venv/bin/ruff check packages/ethos/src/ethos/adapters/mutation/worktree/core.py packages/ethos/src/ethos/repository/registry/docs/commands.py packages/ethos/src/ethos/surface/cli/lane/core.py tests/unit/lanes/test_worktree_housekeeping.py tests/unit/cli/test_contracts_lane_housekeeping.py",
+  "tools/ci/scripts/run-ethos-lane.sh openspec --change detached-worktree-housekeeping-20260719 --lifecycle --json",
+  "tools/ci/scripts/run-ethos-lane.sh lane housekeeping --json",
+  "tools/ci/scripts/run-ethos-lane.sh prove --execute --expect-head <committed-head> --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "Clean detached worktrees below controlled temporary roots only."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-19-detached-worktree-housekeeping-20260719"
+fallback = "Leave protected or stale worktrees intact and report the exact reason."
+kill_signal = "Housekeeping removes a dirty, branch-bound, locked, non-temporary, or changed worktree."
+
+[promotion]
+targets = [
+  "docs/plans/detached-worktree-housekeeping-20260719.md",
+  "docs/reference/command-plane.md",
+  "evidence/claims/detached-worktree-housekeeping-20260719.toml",
+  "evidence/chronicle/detached-worktree-housekeeping-20260719/2026-07-19.md",
+  "evidence/parity/generic-shadow.json",
+  "openspec/changes/archive/2026-07-19-detached-worktree-housekeeping-20260719",
+  "openspec/specs/repository-governance/spec.md",
+  "packages/ethos/src/ethos/adapters/mutation/worktree/__init__.py",
+  "packages/ethos/src/ethos/adapters/mutation/worktree/core.py",
+  "packages/ethos/src/ethos/repository/registry/docs/commands.py",
+  "packages/ethos/src/ethos/surface/cli/lane/core.py",
+  "system/commands.toml",
+  "system/invalid_states.toml",
+  "tests/unit/cli/test_contracts_lane_housekeeping.py",
+  "tests/unit/lanes/test_worktree_housekeeping.py",
+]

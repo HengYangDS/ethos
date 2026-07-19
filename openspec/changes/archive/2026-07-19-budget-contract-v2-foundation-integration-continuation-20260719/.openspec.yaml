@@ -1,0 +1,5 @@
+schema: spec-driven
+created: 2026-07-19
+goal: Continue the archived Budget Contract v2 Foundation from current candidate
+  after refresh-base failed, preserving old ancestry while regenerating current
+  parity and proof.

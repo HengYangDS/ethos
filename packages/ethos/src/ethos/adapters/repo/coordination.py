@@ -110,7 +110,8 @@ def _foreign_lane_payload(
         "relation_to_accepted": str(context["relation_to_accepted"]),
         "closeout_disposition": disposition, "residue_state": residue_state(disposition),
         "next_action": lane_next_action(disposition, branch=branch, head=head),
-        "dirty": bool(dirty_paths), "dirty_paths": list(dirty_paths),
+        "dirty": None if context["scope_state"] == "deferred" else bool(dirty_paths),
+        "dirty_paths": list(dirty_paths),
         "path_scope": list(cast("tuple[str, ...]", context["path_scope"])),
         "scope_state": str(context["scope_state"]),
         "coordination_state": str(context["coordination"]),
@@ -209,6 +210,10 @@ def coordination_package(
     unbound_work_lane_refs: list[dict[str, object]] | None = None,
     unbound_work_lane_count: int = 0,
 ) -> dict[str, object]:
+    detail_state = (
+        "deferred" if any(lane.get("scope_state") == "deferred" for lane in foreign_work_lanes)
+        else "exact"
+    )
     overlaps = [lane for lane in foreign_work_lanes if lane.get("coordination_state") == "overlap"]
     residues = list(filter(_is_closeout_residue, foreign_work_lanes))
     unbound_refs = list(unbound_work_lane_refs or ())
@@ -220,21 +225,29 @@ def coordination_package(
         "unknown_scope_count": sum(
             lane.get("coordination_state") == "unknown" for lane in foreign_work_lanes
         ),
+        "dirty_foreign_work_lane_count": sum(
+            bool(lane.get("dirty")) for lane in foreign_work_lanes
+        ),
         "closeout_residue_count": len(residues),
         "dirty_closeout_residue_count": sum(bool(lane.get("dirty")) for lane in residues),
     }
+    projected_counts = {
+        name: value if detail_state == "exact" or name == "missing_lease_count" else None
+        for name, value in counts.items()
+    }
     return {
-        "kind": "work_lane_coordination", "blocking": bool(required_gaps),
-        "required_gaps": list(required_gaps), "advisory_gaps": list(advisory_gaps),
+        "kind": "work_lane_coordination", "detail_state": detail_state,
+        "blocking": bool(required_gaps), "required_gaps": list(required_gaps),
+        "advisory_gaps": list(advisory_gaps),
         "invalid_states": invalid_state_projection([*required_gaps, *advisory_gaps]),
-        "foreign_work_lane_count": len(foreign_work_lanes), **counts,
+        "foreign_work_lane_count": len(foreign_work_lanes), **projected_counts,
         "unbound_work_lane_count": len(unbound_refs), "unbound_work_lane_refs": unbound_refs,
         "closeout_residue_lanes": [_closeout_residue_summary(lane) for lane in residues],
         "next_action": coordination_next_action(
             required_gaps=required_gaps,
             foreign_work_lane_count=len(foreign_work_lanes),
             unbound_work_lane_count=len(unbound_refs),
-            **{name: int(counts[name]) for name in (
+            **{name: counts[name] for name in (
                 "overlap_count", "unknown_scope_count", "missing_lease_count"
             )},
         ),

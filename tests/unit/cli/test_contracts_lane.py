@@ -18,7 +18,14 @@ from tests.support.ethos_cli_runner import run_ethos_blocked
 
 def _retire_landed(repo: Path, *arguments: str, blocked: bool = False) -> dict[str, object]:
     return (run_ethos_blocked if blocked else run_ethos)(
-        "lane", "retire", "landed", *arguments, "--root", repo.as_posix(), "--json", cwd=repo
+        "lane",
+        "retire",
+        "landed",
+        *arguments,
+        "--root",
+        repo.as_posix(),
+        "--json",
+        cwd=repo,
     )
 
 
@@ -618,12 +625,14 @@ def test_lane_retire_landed_apply_removes_selected_branch(monkeypatch, tmp_path:
     assert not worktree.exists()
 
 
-def test_lane_retire_unbound_apply_removes_matching_ref(tmp_path: Path) -> None:
+def test_lane_retire_unbound_apply_preserves_ref_pending_exceptional_admission(
+    tmp_path: Path,
+) -> None:
     repo, _candidate = init_repo_with_candidate(tmp_path)
     git(repo, "branch", "work/stale-ref", "dev")
     head = git(repo, "rev-parse", "work/stale-ref")
 
-    payload = run_ethos(
+    payload = run_ethos_blocked(
         "lane",
         "retire",
         "unbound",
@@ -642,16 +651,16 @@ def test_lane_retire_unbound_apply_removes_matching_ref(tmp_path: Path) -> None:
     )
 
     assert payload["command"] == "lane retire unbound"
-    assert payload["ok"] is True
-    assert payload["state"] == "retired_unbound"
-    assert payload["data"]["retired_ref"] == "refs/heads/work/stale-ref"
+    assert payload["ok"] is False
+    assert payload["state"] == "blocked"
+    assert payload["required_gaps"] == ["unbound_retire_requires_exceptional_deletion_admission"]
     assert (
         subprocess.run(
             ["git", "show-ref", "--verify", "--quiet", "refs/heads/work/stale-ref"],
             cwd=repo,
             check=False,
         ).returncode
-        == 1
+        == 0
     )
 
 
@@ -679,4 +688,7 @@ def test_lane_retire_unbound_apply_requires_authorization(tmp_path: Path) -> Non
 
     assert payload["command"] == "lane retire unbound"
     assert payload["ok"] is False
-    assert payload["required_gaps"] == ["authorization_required"]
+    assert payload["required_gaps"] == [
+        "authorization_required",
+        "unbound_retire_requires_exceptional_deletion_admission",
+    ]

@@ -167,6 +167,7 @@ def command_registry_report(root: Path | None = None) -> dict[str, object]:
         "ok": not required_gaps,
         "public_commands": list(PUBLIC_COMMANDS),
         "known_commands": list(KNOWN_COMMANDS),
+        "actions": {key: list(value) for key, value in _DECLARATION.actions.items()},
         "public_workflow_commands": list(PUBLIC_WORKFLOW_COMMANDS),
         "reader_view_commands": list(READER_VIEW_COMMANDS),
         "scorecard_commands": list(SCORECARD_COMMANDS),

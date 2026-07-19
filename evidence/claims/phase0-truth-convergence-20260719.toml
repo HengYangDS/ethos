@@ -1,0 +1,64 @@
+[claim]
+id = "phase0-truth-convergence-20260719"
+subject = "ethos:phase0-truth-convergence"
+state = "archived"
+summary = "Archived the local-only Phase 0 truth-convergence carrier after exact pre-archive proof; final post-archive proof and local landing transitions remain separate."
+
+[evidence]
+dated = "evidence/chronicle/phase0-truth-convergence-20260719/2026-07-19.md"
+sha256 = "8b47c3512fa788fc4043d52b557f7700dd2205bc47c8ceb18b643f45850caa85"
+evidence_ids = ["evidence:phase0-truth-convergence-20260719"]
+binding = "The dated Chronicle binds reproduced failures, implementation boundaries, focused and full owner test observations, current hard-quality observations, local publish readiness, the exact pre-archive HEAD-bound proof observation, the official archived carrier, and the explicit no-remote boundary; final post-archive proof and local landing remain separate."
+verifier = "digest_only"
+tests = [
+  "tools/ci/scripts/run-python-tests.sh",
+  "ethos openspec --lifecycle --json",
+  "tools/ci/scripts/run-config-lint.sh",
+  "tools/ci/scripts/run-shell-lint.sh",
+  "ethos quality coverage --json",
+  "ethos quality generated-artifacts --json",
+  "ethos quality enterprise-readiness --json",
+  "ethos report --json",
+  "ethos publish --json",
+  "ethos parity shadow --adopter generic --target . --execute --write-evidence --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-quality-gate-governance"
+scope = "Local Phase 0 truth convergence through proof, archive, candidate landing, and accepted-root closeout; remote publication excluded."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-19-phase0-truth-convergence-20260719"
+fallback = "Keep report and publish conclusions blocked when current local evidence is unknown, invalid, or missing."
+kill_signal = "A missing or unverified observation is projected as clean, zero, proven, or locally publish-ready."
+
+[promotion]
+targets = [
+  "evidence/claims/phase0-truth-convergence-20260719.toml",
+  "evidence/chronicle/phase0-truth-convergence-20260719/2026-07-19.md",
+  "openspec/changes/archive/2026-07-19-phase0-truth-convergence-20260719",
+  "openspec/specs/quality/spec.md",
+  "openspec/specs/repository-governance/spec.md",
+  "packages/ethos/src/ethos/adapters/repo/coordination.py",
+  "packages/ethos/src/ethos/domain/orient.py",
+  "packages/ethos/src/ethos/domain/reporting/scoring.py",
+  "packages/ethos/src/ethos/repository/policy/coverage.py",
+  "packages/ethos/src/ethos/surface/cli/root/lifecycle.py",
+  "system/commands.toml",
+  "system/invalid_states.toml",
+  "system/schemas/kernel/workspace-status.schema.json",
+  "tests/architecture/test_testing_platform.py",
+  "tests/unit/audit/test_modes.py",
+  "tests/unit/cli/test_contracts_land.py",
+  "tests/unit/cli/test_report_surface.py",
+  "tests/unit/domain/test_report.py",
+  "tests/unit/governance/validation/test_schemas.py",
+  "tests/unit/lanes/test_lanes_bounded_status.py",
+  "tests/unit/lanes/test_lanes.py",
+  "tests/unit/policy/test_coverage.py",
+  "tests/unit/product/test_orient.py",
+  "tools/ci/scripts/run-python-tests.sh",
+]

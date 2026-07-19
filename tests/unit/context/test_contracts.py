@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from ethos_core.contracts.context.projection import UNTRUSTED_CONTEXT_LABEL
 from ethos_core.contracts.context.projection import context_projection_contract
+from ethos_core.contracts.context.projection import context_retrieval_smoke_queries
 from ethos_core.contracts.context.projection import default_context_policy
-from tests.support.ethos_fixtures import context_retrieval_smoke_queries
 
 
 def test_context_projection_contract_is_advisory_only() -> None:
@@ -18,7 +18,7 @@ def test_context_projection_contract_is_advisory_only() -> None:
     assert policy["privacy_ceiling"] == "repo_local"
 
 
-def test_ethos_test_exposes_context_retrieval_smoke_fixtures() -> None:
+def test_context_contract_exposes_retrieval_smoke_queries() -> None:
     fixtures = context_retrieval_smoke_queries()
 
     assert fixtures

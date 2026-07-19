@@ -1,0 +1,39 @@
+[claim]
+id = "openspec-archive-logical-identifier-unbound-retirement-20260719"
+subject = "ethos:work-lane:openspec-archive-logical-identifier-unbound-retirement"
+change_id = "openspec-archive-logical-identifier-unbound-retirement-20260719"
+state = "active"
+summary = "One accepted evidence carrier binds native exceptional retirement of the exact holder-owned unbound OpenSpec archive logical-identifier Work Lane residue."
+
+[evidence]
+dated = "evidence/chronicle/openspec-archive-logical-identifier-unbound-retirement-20260719/2026-07-20.md"
+sha256 = "6dcc1bf759f7be10b3a06c30147700000676de899ef15dc4ec4982b54c135bb8"
+evidence_ids = ["evidence:openspec-archive-logical-identifier-unbound-retirement-20260719"]
+binding = "This active carrier binds only work/openspec-archive-logical-identifier-20260719 at 8cd3d3b03e6f0991bf7b5b778ed34dfe7bb61ade to a later native exceptional retirement. It does not execute retirement, create batch authority, take over any lease, or establish remote or hosted state."
+verifier = "digest_only"
+tests = [
+  "openspec validate openspec-archive-logical-identifier-unbound-retirement-20260719 --strict --json",
+  "ethos quality claims --json",
+  "ethos lane retire unbound --branch work/openspec-archive-logical-identifier-20260719 --expect-head 8cd3d3b03e6f0991bf7b5b778ed34dfe7bb61ade --reason <precise-accepted-ancestor-absorption-reason> --chronicle-ref evidence/chronicle/openspec-archive-logical-identifier-unbound-retirement-20260719/2026-07-20.md --authorize --break-glass --confirm-irreversible --json",
+  "ethos prove --execute --expect-head <committed-head> --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "One exact holder-owned unbound accepted-ancestor Work Lane ref only; no batch effect, foreign lease/ref/worktree action, raw deletion, remote mutation, hosted-CI claim, or vendor-specific authority."
+
+[carriers]
+openspec = "openspec/changes/openspec-archive-logical-identifier-unbound-retirement-20260719"
+fallback = "Keep the source ref and its lease intact whenever fresh native observation, accepted target binding, or the native postconditions cannot be proved."
+kill_signal = "The carrier is used for another target, bypasses native lease-CAS or ref compare-and-delete, takes over a foreign lease, or claims remote or hosted completion."
+
+[promotion]
+targets = [
+  "evidence/claims/openspec-archive-logical-identifier-unbound-retirement-20260719.toml",
+  "evidence/chronicle/openspec-archive-logical-identifier-unbound-retirement-20260719/2026-07-20.md",
+  "openspec/changes/openspec-archive-logical-identifier-unbound-retirement-20260719",
+  "openspec/specs/repository-governance/spec.md",
+]

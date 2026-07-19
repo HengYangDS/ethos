@@ -15,6 +15,7 @@ import json
 from datetime import UTC
 from datetime import date
 from datetime import datetime
+from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
@@ -27,8 +28,6 @@ from ethos.repository.policy.schema import validate_schema_instance
 from ethos_core.measure import effective_code_lines
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from ethos_core.contracts.source_budget.core import SourceBudgetCarrier
     from ethos_core.contracts.source_budget.core import SourceBudgetPolicy
     from ethos_core.contracts.source_budget.core import SourceBudgetTaxonomy
@@ -133,10 +132,10 @@ def _carrier_effective_lines(path: Path, carrier: SourceBudgetCarrier) -> int:
 
 def source_budget_carrier_report(path: Path, relative: str) -> dict[str, object]:
     """Return the public category and effective-line read model for one carrier."""
-    category = _source_budget_category(relative)
+    carrier = _source_budget_carrier(relative, source_budget_taxonomy(Path.cwd()))
     return {
-        "category": category,
-        "effective_lines": _carrier_effective_lines(path, category) if category else 0,
+        "category": carrier.category if carrier else None,
+        "effective_lines": _carrier_effective_lines(path, carrier) if carrier else 0,
     }
 
 

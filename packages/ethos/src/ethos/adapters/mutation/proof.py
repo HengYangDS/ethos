@@ -35,6 +35,7 @@ import hashlib
 import json
 import os
 import shutil
+from itertools import chain
 from pathlib import Path
 from typing import Any
 
@@ -92,17 +93,16 @@ def _evidence_digest(body: dict[str, Any]) -> str:
 def _runs_prove_head(runs: object) -> bool:
     if not isinstance(runs, list) or not runs:
         return False
-    trust_bearing_count = 0
-    for run in runs:
-        if not isinstance(run, dict):
-            return False
-        if run.get("verdict") != "passed":
-            return False
-        if run.get("trust_bearing") is True:
-            trust_bearing_count += 1
-            if run.get("state") != "proven":
-                return False
-    return trust_bearing_count > 0
+    typed = [run for run in runs if isinstance(run, dict)]
+    return (
+        len(typed) == len(runs)
+        and all(
+            run.get("verdict") == "passed"
+            and (run.get("trust_bearing") is not True or run.get("state") == "proven")
+            for run in typed
+        )
+        and any(run.get("trust_bearing") is True for run in typed)
+    )
 
 
 def _run_merge_key(run: dict[str, Any], fallback_index: int) -> str:
@@ -126,26 +126,16 @@ def _merge_same_head_evidence(existing: dict[str, Any], incoming: dict[str, Any]
     gate's evidence while preserving previously proven gates for the same HEAD.
     """
     head = str(incoming.get("head", ""))
-    merged_runs: list[dict[str, Any]] = []
-    positions: dict[str, int] = {}
-    for source in (existing, incoming):
-        runs = source.get("runs") if isinstance(source, dict) else None
-        if not isinstance(runs, list):
-            continue
-        for run in runs:
-            if not isinstance(run, dict):
-                continue
-            key = _run_merge_key(run, len(merged_runs))
-            if key in positions:
-                merged_runs[positions[key]] = run
-            else:
-                positions[key] = len(merged_runs)
-                merged_runs.append(run)
+    merged_runs: dict[str, dict[str, Any]] = {}
+    sources = (existing.get("runs"), incoming.get("runs"))
+    valid_runs = chain.from_iterable(runs for runs in sources if isinstance(runs, list))
+    for index, run in enumerate(item for item in valid_runs if isinstance(item, dict)):
+        merged_runs[_run_merge_key(run, index)] = run
     merged = {
         "id": str(incoming.get("id") or existing.get("id") or ""),
         "head": head,
         "durability": str(incoming.get("durability") or existing.get("durability") or "local"),
-        "runs": merged_runs,
+        "runs": list(merged_runs.values()),
     }
     merged["digest"] = _evidence_digest(merged)
     return merged
@@ -209,20 +199,6 @@ def _promotion_required_gate_ids(root: Path, *, tree_ref: str | None = None) -> 
     return default_gate_ids(full=False, root=root, tree_ref=tree_ref)
 
 
-def _runs_cover_required_set(runs: object, required: tuple[str, ...]) -> bool:
-    """Return whether the executed runs cover EVERY required gate id.
-
-    A run's `action_id` is the gate id (gate.to_node -> ActionNode(id) ->
-    ProofRun(action_id=node.id)). Promotion completeness is set-coverage of the
-    required floor, not `trust_bearing_count > 0`: a focused single-gate proof
-    (e.g. `prove --gate proof-policy`) does not cover the floor and is rejected.
-    """
-    if not isinstance(runs, list):
-        return False
-    present = {run.get("action_id") for run in runs if isinstance(run, dict)}
-    return all(gate_id in present for gate_id in required)
-
-
 def promotion_completeness_gaps(root: Path, head: str) -> list[str]:
     """Return completeness gaps for a promotion at head, or [] if the proof covers
     the required land floor.
@@ -236,23 +212,23 @@ def promotion_completeness_gaps(root: Path, head: str) -> list[str]:
     record = executed_proof_record(root, head)
     if record is None:
         return []  # integrity/existence handled by the caller's proof_not_proven path
-    gaps: list[str] = []
     # An adopter root whose profile declares NO native code-correctness gates has a
     # proof floor with no tests/lint/types dimension — a contentless proof must not be
     # promotion-worthy. This is a completeness requirement (not an executable gate), so
     # it is surfaced here rather than injected into the executable floor.
-    gaps.extend(adopter_code_correctness_gaps(root, tree_ref=head))
-    gaps.extend(adopter_gate_descriptor_gaps(root, tree_ref=head))
+    gaps = [
+        *adopter_code_correctness_gaps(root, tree_ref=head),
+        *adopter_gate_descriptor_gaps(root, tree_ref=head),
+    ]
     evidence = record.get("evidence")
     runs = evidence.get("runs") if isinstance(evidence, dict) else None
     required = _promotion_required_gate_ids(root, tree_ref=head)
-    if not _runs_cover_required_set(runs, required):
-        present = (
-            {run.get("action_id") for run in runs if isinstance(run, dict)}
-            if isinstance(runs, list)
-            else set()
-        )
-        missing = sorted(g for g in required if g not in present)
+    present = (
+        {run.get("action_id") for run in runs if isinstance(run, dict)}
+        if isinstance(runs, list)
+        else set()
+    )
+    if missing := sorted(g for g in required if g not in present):
         gaps.append(f"proof_incomplete:{','.join(missing)}")
     return gaps
 
@@ -271,8 +247,7 @@ def gate_policy_gaps(root: Path, head: str) -> list[str]:
     record = executed_proof_record(root, head)
     if record is None:
         return []
-    gaps: list[str] = []
-    gaps.extend(adopter_gate_descriptor_gaps(root, tree_ref=head))
+    gaps = list(adopter_gate_descriptor_gaps(root, tree_ref=head))
     stored_digest = str(record.get("gate_policy_digest", ""))
     # Resolve the LIVE digest against head's COMMITTED tree, not the working tree. The
     # reference-transaction hook validates an accepted-branch move while the accepted
@@ -288,6 +263,14 @@ def gate_policy_gaps(root: Path, head: str) -> list[str]:
     return gaps
 
 
+def _json_object(path: Path) -> dict[str, Any] | None:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError, UnicodeError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
 def executed_proof_record(root: Path, head: str) -> dict[str, Any] | None:
     """Return the verified executed-proof record for head, or None if none is VALID.
 
@@ -299,45 +282,39 @@ def executed_proof_record(root: Path, head: str) -> dict[str, Any] | None:
     path = _proof_path(root, head)
     if not path.exists():
         return None
-    try:
-        record = json.loads(path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        return None
-    if not isinstance(record, dict) or record.get("state") != "proven":
-        return None
-    if record.get("head") != head:
+    record = _json_object(path)
+    if record is None or record.get("state") != "proven" or record.get("head") != head:
         return None
     evidence = record.get("evidence")
-    if not isinstance(evidence, dict) or evidence.get("head") != head:
-        return None
     # (a) the digest must be reproducible from the sealed body. This is tamper-EVIDENCE
     # (a partial edit / wrong-HEAD copy / truncation fails to recompute), NOT tamper-proof:
     # a same-UID forger authoring the whole body computes this sha256 themselves. Unkeyed
     # digest ⇒ local readiness only; real anti-forgery is independent-identity re-execution.
-    sealed = str(evidence.get("digest", ""))
-    if not sealed or _evidence_digest(evidence) != sealed:
-        return None
     # (c) Mirror `ethos prove`: every run must be RECORDED as passed, and at least one
     # trust-bearing run marked proven. This mirrors what a real prove would produce, but
     # does not by itself establish the gates truly ran (see module docstring).
-    if not _runs_prove_head(evidence.get("runs")):
+    if (
+        not isinstance(evidence, dict)
+        or evidence.get("head") != head
+        or not (sealed := str(evidence.get("digest", "")))
+        or _evidence_digest(evidence) != sealed
+        or not _runs_prove_head(evidence.get("runs"))
+    ):
         return None
     return record
 
 
-def _proof_carry_package(
-    *, source_root: Path, target_root: Path, head: str, source_verified: bool
+def _carry_result(
+    base: dict[str, Any], state: str, *, reason: str = "", **extra: object
 ) -> dict[str, Any]:
-    """Common proof-carry boundary fields."""
+    gaps = [] if state == "carried" else ["proof_not_proven"]
     return {
-        "head": head,
-        "source_root": source_root.resolve().as_posix(),
-        "target_root": target_root.resolve().as_posix(),
-        "truth_boundary": "local-proof-state-projection",
-        "mints_proof": False,
-        "same_head_only": True,
-        "source_verified": source_verified,
-        "target_verified": False,
+        "ok": not gaps,
+        "state": state,
+        **({"reason": reason} if reason else {}),
+        **base,
+        **extra,
+        "required_gaps": gaps,
     }
 
 
@@ -353,48 +330,41 @@ def carry_executed_proof_record(
     source_record = executed_proof_record(source_root, head)
     source_path = _proof_path(source_root, head)
     target_path = _proof_path(target_root, head)
-    base = _proof_carry_package(
-        source_root=source_root,
-        target_root=target_root,
-        head=head,
-        source_verified=source_record is not None,
-    )
+    base = {
+        "head": head,
+        "source_root": source_root.resolve().as_posix(),
+        "target_root": target_root.resolve().as_posix(),
+        "truth_boundary": "local-proof-state-projection",
+        "mints_proof": False,
+        "same_head_only": True,
+        "source_verified": source_record is not None,
+        "target_verified": False,
+    }
+
     if source_record is None:
-        return {
-            "ok": False,
-            "state": "skipped",
-            "reason": "source-proof-missing-or-invalid",
-            **base,
-            "required_gaps": ["proof_not_proven"],
-        }
+        return _carry_result(
+            base,
+            "skipped",
+            reason="source-proof-missing-or-invalid",
+        )
     try:
         target_path.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(source_path, target_path)
     except OSError as exc:
-        return {
-            "ok": False,
-            "state": "failed",
-            "reason": exc.__class__.__name__,
-            **base,
-            "required_gaps": ["proof_not_proven"],
-        }
+        return _carry_result(base, "failed", reason=exc.__class__.__name__)
     if executed_proof_record(target_root, head) is None:
-        return {
-            "ok": False,
-            "state": "failed",
-            "reason": "target-proof-invalid-after-copy",
-            **base,
-            "required_gaps": ["proof_not_proven"],
-        }
-    return {
-        "ok": True,
-        "state": "carried",
-        **base,
-        "target_verified": True,
-        "source_path": source_path.as_posix(),
-        "target_path": target_path.as_posix(),
-        "required_gaps": [],
-    }
+        return _carry_result(
+            base,
+            "failed",
+            reason="target-proof-invalid-after-copy",
+        )
+    return _carry_result(
+        base,
+        "carried",
+        target_verified=True,
+        source_path=source_path.as_posix(),
+        target_path=target_path.as_posix(),
+    )
 
 
 def discard_executed_proof(root: Path, head: str) -> bool:
@@ -420,35 +390,30 @@ def proof_retention_inventory(
 ) -> dict[str, Any]:
     """Classify HEAD-keyed proof records for conservative retention."""
     proof_dir = proof_state_dir(root)
-    retained: list[dict[str, Any]] = []
-    candidates: list[dict[str, Any]] = []
-    invalid: list[dict[str, Any]] = []
+    groups: dict[str, list[dict[str, Any]]] = {
+        "delete_candidates": [],
+        "retained": [],
+        "invalid": [],
+    }
     if not proof_dir.is_dir():
-        return {
-            "delete_candidates": candidates,
-            "retained": retained,
-            "invalid": invalid,
-        }
+        return groups
     for path in sorted(item for item in proof_dir.iterdir() if item.is_file()):
         item = _proof_retention_item(root, path)
         if "invalid_reason" in item:
-            invalid.append(item)
+            groups["invalid"].append(item)
             continue
         head = str(item["head"])
-        reasons: list[str] = []
-        if head in protected_heads:
-            reasons.append("protected_head")
-        if head in reachable_heads:
-            reasons.append("ref_reachable")
-        if reasons:
-            retained.append({**item, "reasons": reasons})
-        else:
-            candidates.append(item)
-    return {
-        "delete_candidates": candidates,
-        "retained": retained,
-        "invalid": invalid,
-    }
+        reasons = [
+            reason
+            for present, reason in (
+                (head in protected_heads, "protected_head"),
+                (head in reachable_heads, "ref_reachable"),
+            )
+            if present
+        ]
+        group = "retained" if reasons else "delete_candidates"
+        groups[group].append({**item, "reasons": reasons} if reasons else item)
+    return groups
 
 
 def apply_proof_retention(root: Path, candidates: list[dict[str, Any]]) -> list[str]:
@@ -458,9 +423,7 @@ def apply_proof_retention(root: Path, candidates: list[dict[str, Any]]) -> list[
     for candidate in candidates:
         display_path = str(candidate.get("path") or "")
         path = Path(display_path)
-        if not path.is_absolute():
-            path = root / path
-        resolved = path.resolve()
+        resolved = (path if path.is_absolute() else root / path).resolve()
         if resolved.parent != proof_dir or resolved.name != f"{candidate.get('head', '')}.json":
             message = f"proof_retention_candidate_outside_store:{display_path}"
             raise ValueError(message)
@@ -487,15 +450,10 @@ def _proof_retention_item(root: Path, path: Path) -> dict[str, Any]:
         or any(character not in "0123456789abcdef" for character in head)
     ):
         return {**base, "invalid_reason": "proof_filename_invalid"}
-    try:
-        record = json.loads(path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError, UnicodeError):
+    record = _json_object(path)
+    if record is None:
         return {**base, "invalid_reason": "proof_json_invalid"}
-    if (
-        not isinstance(record, dict)
-        or record.get("head") != head
-        or not isinstance(record.get("schema_version"), int)
-    ):
+    if record.get("head") != head or not isinstance(record.get("schema_version"), int):
         return {**base, "invalid_reason": "proof_record_invalid"}
     return {**base, "head": head, "schema_version": int(record["schema_version"])}
 
@@ -508,8 +466,5 @@ def _display_proof_path(root: Path, path: Path) -> str:
 
 
 def _file_sha256(path: Path) -> str:
-    digest = hashlib.sha256()
     with path.open("rb") as stream:
-        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
+        return hashlib.file_digest(stream, "sha256").hexdigest()

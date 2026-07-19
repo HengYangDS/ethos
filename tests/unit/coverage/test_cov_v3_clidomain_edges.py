@@ -151,24 +151,25 @@ def test_closeout_audit_root_resolves_candidate_when_admitted(
 
 
 # --------------------------------------------------------------------------- #
-# ethos.domain.orient._next_actions report fallback (line 346)
+# ethos.domain.orient report fallback
 # --------------------------------------------------------------------------- #
 
 
 def test_next_actions_falls_back_to_report_next_actions() -> None:
-    # A non-work-lane/accepted/candidate role with no dirty state and no gaps falls to the
-    # report-payload branch at line 346, adopting the report's own next_actions.
-    actions = orient._next_actions(
-        {
+    packet = orient.orientation_packet(
+        status_payload={
+            "root": "/repo",
+            "branch": "release/next",
             "role": "release_root",
             "dirty": False,
-            "gaps": [],
-            "closeout": {},
-            "report_payload": {"next_actions": ["ethos report --json"]},
-            "advisory_next_actions": [],
-        }
+            "changed_paths": [],
+            "closeout_support": {},
+            "coordination": {},
+            "foreign_work_lanes": [],
+        },
+        report_payload={"next_actions": ["ethos report --json"]},
     )
-    assert actions == ["ethos report --json"]
+    assert packet["next_actions"] == ["ethos report --json"]
 
 
 # --------------------------------------------------------------------------- #

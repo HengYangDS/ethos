@@ -7,6 +7,7 @@ from ethos.adapters.mutation.lane_lifecycle.core import default_candidate_path
 from ethos.adapters.mutation.lane_lifecycle.core import repo_root
 from ethos.adapters.mutation.lane_lifecycle.core import run_git
 from ethos.adapters.mutation.lane_lifecycle.core import slug
+from ethos.adapters.mutation.lane_lifecycle.lease import state_root
 from ethos.adapters.repo.dirty.core import changed_paths
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.adapters.store.state.lease.lifecycle.core import acquire_lease
@@ -16,6 +17,8 @@ from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 from ethos_core.contracts.branch.roles import load_branch_role_policy
 from ethos_core.contracts.coordination import HolderRef
+
+_state_root = state_root
 
 
 def start_work_lane(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
@@ -35,6 +38,17 @@ def start_work_lane(  # noqa: PLR0913, RUF100 - exact request envelope preserves
     # (repo-<branch-slug>) so lanes stop scattering into /tmp; callers may
     # still pin an explicit path.
     target = (path or default_candidate_path(repo, branch)).resolve()
+
+    def blocked(gap: str, **extra: object) -> dict[str, object]:
+        return {
+            "ok": False,
+            "state": "blocked",
+            "branch": branch,
+            "path": target.as_posix(),
+            **extra,
+            "required_gaps": [gap],
+        }
+
     try:
         normalized_holder_ref = HolderRef.parse(holder_ref).serialize()
     except ValueError:
@@ -55,49 +69,21 @@ def start_work_lane(  # noqa: PLR0913, RUF100 - exact request envelope preserves
         }
     status = workspace_status(repo)
     if status["role"] != ROLE_ACCEPTED_ROOT or status["dirty"]:
-        return {
-            "ok": False,
-            "state": "blocked",
-            "branch": branch,
-            "path": target.as_posix(),
-            "role": status["role"],
-            "dirty": status["dirty"],
-            "required_gaps": ["lane_start_requires_clean_accepted_root"],
-        }
+        return blocked(
+            "lane_start_requires_clean_accepted_root",
+            role=status["role"],
+            dirty=status["dirty"],
+        )
     candidate = cast("dict[str, object]", status["candidate"])
     if not candidate["exists"]:
-        return {
-            "ok": False,
-            "state": "blocked",
-            "branch": branch,
-            "path": target.as_posix(),
-            "required_gaps": ["candidate_branch_missing"],
-        }
+        return blocked("candidate_branch_missing")
     if not candidate["worktree_exists"]:
-        return {
-            "ok": False,
-            "state": "blocked",
-            "branch": branch,
-            "path": target.as_posix(),
-            "required_gaps": ["candidate_worktree_missing"],
-        }
+        return blocked("candidate_worktree_missing")
     candidate_path = Path(str(candidate["worktree_path"]))
     if changed_paths(candidate_path):
-        return {
-            "ok": False,
-            "state": "blocked",
-            "branch": branch,
-            "path": target.as_posix(),
-            "required_gaps": ["candidate_worktree_dirty"],
-        }
+        return blocked("candidate_worktree_dirty")
     if _branch_exists(repo, branch):
-        return {
-            "ok": False,
-            "state": "blocked",
-            "branch": branch,
-            "path": target.as_posix(),
-            "required_gaps": ["branch_already_exists"],
-        }
+        return blocked("branch_already_exists")
     completed = run_git(
         repo,
         "worktree",
@@ -109,14 +95,7 @@ def start_work_lane(  # noqa: PLR0913, RUF100 - exact request envelope preserves
         check=False,
     )
     if completed.returncode != 0:
-        return {
-            "ok": False,
-            "state": "blocked",
-            "branch": branch,
-            "path": target.as_posix(),
-            "required_gaps": ["worktree_add_failed"],
-            "stderr": completed.stderr.strip(),
-        }
+        return blocked("worktree_add_failed", stderr=completed.stderr.strip())
     lease = acquire_lease(
         repo / ".ethos" / "state" / "state.sqlite",
         subject=branch,
@@ -160,8 +139,7 @@ def bind_work_lane_claim(
     lane = _status_work_lane(status, target_branch)
     if lane is None:
         gaps.append(f"work_lane_not_found:{target_branch}")
-    state_root = _state_root(status, repo)
-    state_db = state_root / ".ethos" / "state" / "state.sqlite"
+    state_db = state_root(status, repo) / ".ethos" / "state" / "state.sqlite"
     lease = _active_lease(state_db, target_branch)
     if lease is None:
         gaps.append(f"work_lane_missing_lease:{target_branch}")
@@ -210,20 +188,10 @@ def _status_work_lane(
     for worktree in worktrees:
         if not isinstance(worktree, dict):
             continue
-        if worktree.get("branch") == branch and worktree.get("role") == ROLE_WORK_LANE:
-            return cast("dict[str, object]", worktree)
+        payload = cast("dict[str, object]", worktree)
+        if payload.get("branch") == branch and payload.get("role") == ROLE_WORK_LANE:
+            return payload
     return None
-
-
-def _state_root(status: dict[str, object], default_root: Path) -> Path:
-    worktrees = status.get("worktrees")
-    if isinstance(worktrees, list):
-        for worktree in worktrees:
-            if not isinstance(worktree, dict):
-                continue
-            if worktree.get("role") == ROLE_ACCEPTED_ROOT and worktree.get("path"):
-                return Path(str(cast("dict[str, object]", worktree)["path"]))
-    return default_root
 
 
 def _active_lease(db_path: Path, subject: str) -> dict[str, object] | None:

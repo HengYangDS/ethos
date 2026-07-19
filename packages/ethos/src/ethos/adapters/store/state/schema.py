@@ -97,9 +97,7 @@ def _migrate_retired_lease_schema(connection: sqlite3.Connection) -> None:
     columns = {str(row[1]) for row in connection.execute("pragma table_info(leases)").fetchall()}
     current = {"id", "subject", "owner", "expires_at", "payload_json"}
     retired = {"id", "owner", "resource", "expires_at", "created_at"}
-    if current.issubset(columns):
-        return
-    if not retired.issubset(columns):
+    if current <= columns or not retired <= columns:
         return
     rows = connection.execute(
         """
@@ -120,26 +118,23 @@ def _migrate_retired_lease_schema(connection: sqlite3.Connection) -> None:
         )
         """
     )
-    for row in rows:
-        subject = str(row[1] or "")
-        if not subject:
-            continue
-        connection.execute(
-            """
-            insert or replace into leases(id, subject, owner, expires_at, payload_json)
-            values (?, ?, ?, ?, ?)
-            """,
-            (row[0], subject, row[2], row[3], "{}"),
-        )
+    connection.executemany(
+        """
+        insert or replace into leases(id, subject, owner, expires_at, payload_json)
+        values (?, ?, ?, ?, ?)
+        """,
+        ((row[0], str(row[1]), row[2], row[3], "{}") for row in rows if row[1]),
+    )
     connection.execute("drop table leases_retired_resource")
 
 
 def _table_exists(connection: sqlite3.Connection, table: str) -> bool:
-    row = connection.execute(
-        "select 1 from sqlite_master where type = 'table' and name = ?",
-        (table,),
-    ).fetchone()
-    return row is not None
+    return (
+        connection.execute(
+            "select 1 from sqlite_master where type = 'table' and name = ?", (table,)
+        ).fetchone()
+        is not None
+    )
 
 
 def _migrate_to_schema_v2(connection: sqlite3.Connection) -> None:
@@ -152,8 +147,7 @@ def _migrate_to_schema_v2(connection: sqlite3.Connection) -> None:
     if _table_exists(connection, "cache_entries"):
         row = connection.execute("select count(*) from cache_entries").fetchone()
         if row is None or int(row[0]) != 0:
-            message = "state_schema_v2_cache_entries_not_empty"
-            raise RuntimeError(message)
+            raise RuntimeError("state_schema_v2_cache_entries_not_empty")
         connection.execute("drop table cache_entries")
     connection.execute(
         "insert into schema_migrations(version, applied_at) values (?, ?)",
@@ -167,16 +161,11 @@ def now() -> str:
 
 def initialize_state(db_path: Path) -> None:
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    with closing(sqlite3.connect(db_path)) as connection:
+    with closing(sqlite3.connect(db_path)) as connection, connection:
         connection.execute("pragma journal_mode = wal")
         connection.execute("pragma foreign_keys = on")
-        try:
-            connection.execute("begin immediate")
-            _migrate_retired_lease_schema(connection)
-            for statement in SCHEMA:
-                connection.execute(statement)
-            _migrate_to_schema_v2(connection)
-            connection.commit()
-        except Exception:
-            connection.rollback()
-            raise
+        connection.execute("begin immediate")
+        _migrate_retired_lease_schema(connection)
+        for statement in SCHEMA:
+            connection.execute(statement)
+        _migrate_to_schema_v2(connection)

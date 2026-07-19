@@ -3,8 +3,6 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from ethos.domain.orient import _bound_actions
-from ethos.domain.orient import _human_summary
 from ethos.domain.orient import human_orientation_lines
 from ethos.domain.orient import orientation_packet
 from ethos.surface.cli.quality.reporting import build_declarative_report_result
@@ -282,28 +280,6 @@ def test_orient_makes_foreign_lane_observe_only_capability_discoverable(
         "recheck_required": True,
     }
     assert payload["data"]["orientation"]["agent_hints"]["foreign_lanes_observe_only"] is True
-
-
-def test_human_summary_reports_exact_dirty_foreign_lane_count() -> None:
-    context = {
-        "dirty": False,
-        "gaps": [],
-        "capability": {"candidate_action": "observe"},
-        "next_actions": [],
-        "foreign_count": 1,
-        "unbound_count": 0,
-        "missing_lease_count": 0,
-        "coordination_detail_state": "exact",
-        "dirty_foreign_count": 2,
-        "closeout_residue_count": 0,
-        "advisory_count": 0,
-        "role": "accepted_root",
-        "changed_count": 0,
-    }
-
-    assert "1 foreign lane(s) visible (2 dirty)" in _human_summary(context)
-    context["dirty_foreign_count"] = 0
-    assert "foreign lane(s) visible (" not in _human_summary(context)
 
 
 def test_orient_makesunbound_work_lane_refs_discoverable_without_authority(
@@ -705,22 +681,23 @@ def test_human_orientation_lines_marks_blocking_coordination_without_next_action
 
 
 def test_orient_binds_emitted_ethos_actions_to_its_checkout() -> None:
+    status_payload = {
+        "root": "/repo with space",
+        "branch": "work/demo",
+        "role": "work_lane",
+        "head": "abcdef1234567890",
+        "dirty": False,
+        "changed_paths": [],
+        "required_gaps": [],
+        "closeout_support": {"supported": True},
+        "coordination": {},
+        "candidate": {},
+        "runtime_binding": {},
+        "landing_readiness": {},
+        "foreign_work_lanes": [],
+    }
     packet = orientation_packet(
-        status_payload={
-            "root": "/repo with space",
-            "branch": "work/demo",
-            "role": "work_lane",
-            "head": "abcdef1234567890",
-            "dirty": False,
-            "changed_paths": [],
-            "required_gaps": [],
-            "closeout_support": {"supported": True},
-            "coordination": {},
-            "candidate": {},
-            "runtime_binding": {},
-            "landing_readiness": {},
-            "foreign_work_lanes": [],
-        },
+        status_payload=status_payload,
         command_prefix="cd '/repo with space' && tools/ci/scripts/run-ethos-lane.sh",
     )
 
@@ -729,6 +706,9 @@ def test_orient_binds_emitted_ethos_actions_to_its_checkout() -> None:
         "cd '/repo with space' && tools/ci/scripts/run-ethos-lane.sh prove --execute --expect-head $(git rev-parse HEAD) --json",
         "cd '/repo with space' && tools/ci/scripts/run-ethos-lane.sh land --json",
     ]
-    assert _bound_actions(["git status --short"], command_prefix="cd /repo && runner") == [
-        "cd /repo && git status --short"
-    ]
+    status_payload.update(dirty=True, changed_paths=["README.md"])
+    dirty_packet = orientation_packet(
+        status_payload=status_payload,
+        command_prefix="cd '/repo with space' && tools/ci/scripts/run-ethos-lane.sh",
+    )
+    assert dirty_packet["next_actions"][-1] == "cd '/repo with space' && git status --short"

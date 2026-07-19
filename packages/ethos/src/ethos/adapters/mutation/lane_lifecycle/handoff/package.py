@@ -222,15 +222,13 @@ def _restore_preserved_work(*, package: Path, manifest: dict[str, Any], worktree
 def _preserve_dirty_work(*, repo: Path, package_dir: Path) -> list[dict[str, str]]:
     patch_path = package_dir / "tracked.patch"
     with patch_path.open("wb") as stream:
-        completed = subprocess.run(
+        subprocess.run(
             ["git", "diff", "--binary", "HEAD", "--"],
             cwd=repo,
-            check=False,
+            check=True,
             stdout=stream,
             stderr=subprocess.PIPE,
         )
-    if completed.returncode != 0:
-        raise subprocess.SubprocessError(completed.stderr.decode(errors="replace"))
     artifacts: list[dict[str, str]] = []
     if patch_path.stat().st_size:
         artifacts.append(_artifact(patch_path, package_dir, "tracked_patch"))
@@ -279,11 +277,8 @@ def _artifact(path: Path, package_dir: Path, kind: str) -> dict[str, str]:
 
 
 def _sha256_file(path: Path) -> str:
-    digest = hashlib.sha256()
     with path.open("rb") as stream:
-        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
+        return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
 def _git_lines(root: Path, *args: str) -> list[str]:

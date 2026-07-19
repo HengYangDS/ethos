@@ -28,6 +28,7 @@ from ethos_core.contracts.lifecycle.core import MutationRequest
 from ethos_core.contracts.lifecycle.core import reduce_guards
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from collections.abc import Sequence
 
 
@@ -66,51 +67,51 @@ def export_cross_host_handoff(  # noqa: PLR0913, RUF100 - exact request envelope
         "epoch": epoch,
         "dirty_disposition": disposition,
     }
-    gaps = _export_gaps(
-        status=status,
-        branch=branch,
-        head=head,
-        expect_head=expect_head,
-        holder_ref=holder_ref,
-        target_holder_ref=target_holder_ref,
-        lease_id=lease_id,
-        epoch=epoch,
-        lease=lease,
-        dirty_paths=dirty_paths,
-        dirty_disposition=disposition,
-        context_gap=context_gap,
+    checks = (
+        (status.get("role") == ROLE_WORK_LANE, "work_lane_required"),
+        (status.get("branch") == branch, "lane_branch_mismatch"),
+        (bool(expect_head), "expect_head_required"),
+        (not expect_head or expect_head == head, "expect_head_mismatch"),
+        (str(lease.get("holder_ref") or "") == holder_ref, "lease_holder_mismatch"),
+        (str(lease.get("lease_id") or "") == lease_id, "lease_id_stale"),
+        (integer_value(lease.get("epoch")) == epoch, "lease_epoch_stale"),
+        (str(lease.get("expected_head") or "") == head, "lease_head_stale"),
+    )
+    gaps = list(
+        dict.fromkeys(
+            [context_gap] * bool(context_gap)
+            + _holder_ref_gaps(holder_ref, target_holder_ref)
+            + [gap for ok, gap in checks if not ok]
+            + _dirty_disposition_gaps(dirty_paths, disposition)
+        )
     )
     evaluation = reduce_guards(HANDOFF_EXPORT, apply=apply, initial_gaps=tuple(gaps))
     report = _handoff_report(branch=branch, evaluation=evaluation)
     if apply and evaluation.ok:
-        try:
-            report.update(
-                handoff_package.write_handoff_package(
-                    repo=repo,
-                    branch=branch,
-                    head=head,
-                    tree=tree,
-                    holder_ref=holder_ref,
-                    target_holder_ref=target_holder_ref,
-                    lease_id=lease_id,
-                    epoch=epoch,
-                    context=context,
-                    output_root=output_root,
-                    dirty_disposition=disposition,
-                    dirty_paths=dirty_paths,
-                )
-            )
-        except (OSError, subprocess.SubprocessError, ValueError) as exc:
-            report.update(ok=False, state="blocked", required_gaps=[f"handoff_export_failed:{exc}"])
-    report["mutation"] = _handoff_envelope(
-        command="lane-handoff-export",
-        action="lane.handoff.export",
-        resource=branch,
-        expected_state=expected_state,
-        report=report,
+        _apply_report(
+            report,
+            "handoff_export_failed",
+            lambda: handoff_package.write_handoff_package(
+                repo=repo,
+                branch=branch,
+                head=head,
+                tree=tree,
+                holder_ref=holder_ref,
+                target_holder_ref=target_holder_ref,
+                lease_id=lease_id,
+                epoch=epoch,
+                context=context,
+                output_root=output_root,
+                dirty_disposition=disposition,
+                dirty_paths=dirty_paths,
+            ),
+        )
+    return _finish_report(
+        report,
+        ("lane-handoff-export", "lane.handoff.export", branch),
+        expected_state,
         apply=apply,
     )
-    return report
 
 
 def import_cross_host_handoff(
@@ -140,41 +141,48 @@ def import_cross_host_handoff(
     if manifest and normalized_target != str(manifest.get("target_holder_ref") or ""):
         gaps.append("handoff_target_holder_mismatch")
     branch = str(manifest.get("source_lane_ref") or "")
+    checks = (
+        (
+            status.get("role") == ROLE_ACCEPTED_ROOT,
+            "handoff_import_requires_accepted_root",
+        ),
+        (
+            not bool(status.get("dirty")),
+            "handoff_import_requires_clean_destination",
+        ),
+        (
+            not branch or not _branch_exists(destination, branch),
+            "handoff_destination_branch_exists",
+        ),
+    )
     evaluation = reduce_guards(
         HANDOFF_IMPORT,
         apply=apply,
         initial_gaps=tuple(gaps),
-        checks=(
-            (status.get("role") == ROLE_ACCEPTED_ROOT, "handoff_import_requires_accepted_root"),
-            (not bool(status.get("dirty")), "handoff_import_requires_clean_destination"),
-            (
-                not branch or not _branch_exists(destination, branch),
-                "handoff_destination_branch_exists",
-            ),
-        ),
+        checks=checks,
     )
     report = _handoff_report(branch=branch, evaluation=evaluation)
     if apply and evaluation.ok:
-        try:
-            report.update(
-                handoff_package.apply_handoff_import(
-                    destination=destination,
-                    package=package,
-                    manifest=manifest,
-                    target_holder_ref=normalized_target,
-                )
-            )
-        except (OSError, subprocess.SubprocessError, ValueError) as exc:
-            report.update(ok=False, state="blocked", required_gaps=[f"handoff_import_failed:{exc}"])
-    report["mutation"] = _handoff_envelope(
-        command="lane-handoff-import",
-        action="lane.handoff.import",
-        resource=branch or package.resolve().as_posix(),
-        expected_state=expected_state,
-        report=report,
+        _apply_report(
+            report,
+            "handoff_import_failed",
+            lambda: handoff_package.apply_handoff_import(
+                destination=destination,
+                package=package,
+                manifest=manifest,
+                target_holder_ref=normalized_target,
+            ),
+        )
+    return _finish_report(
+        report,
+        (
+            "lane-handoff-import",
+            "lane.handoff.import",
+            branch or package.resolve().as_posix(),
+        ),
+        expected_state,
         apply=apply,
     )
-    return report
 
 
 def revoke_cross_host_source(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
@@ -208,10 +216,18 @@ def revoke_cross_host_source(  # noqa: PLR0913, RUF100 - exact request envelope 
         "acknowledgement_id": str(ack.get("acknowledgement_id") or ""),
     }
     comparisons = (
-        (str(binding.get("holder_ref") or ""), holder_ref, "handoff_source_holder_mismatch"),
+        (
+            str(binding.get("holder_ref") or ""),
+            holder_ref,
+            "handoff_source_holder_mismatch",
+        ),
         (str(binding.get("lease_id") or ""), lease_id, "handoff_source_lease_mismatch"),
         (integer_value(binding.get("epoch")), epoch, "handoff_source_epoch_mismatch"),
-        (str(binding.get("expected_head") or ""), expect_head, "handoff_source_head_mismatch"),
+        (
+            str(binding.get("expected_head") or ""),
+            expect_head,
+            "handoff_source_head_mismatch",
+        ),
         (
             str(ack.get("package_id") or ""),
             str(manifest.get("package_id") or ""),
@@ -223,28 +239,30 @@ def revoke_cross_host_source(  # noqa: PLR0913, RUF100 - exact request envelope 
             "handoff_acknowledgement_head_mismatch",
         ),
     )
+    checks = (
+        (
+            status.get("role") == ROLE_WORK_LANE and status.get("branch") == branch,
+            "handoff_source_lane_mismatch",
+        ),
+        (head == expect_head, "expect_head_mismatch"),
+        *((actual == expected, gap) for actual, expected, gap in comparisons),
+        (
+            ack.get("source_lease_transferred") is False,
+            "handoff_acknowledgement_lease_boundary_invalid",
+        ),
+    )
+
     evaluation = reduce_guards(
         HANDOFF_REVOKE_SOURCE,
         apply=apply,
         initial_gaps=tuple(gaps),
-        checks=(
-            (
-                status.get("role") == ROLE_WORK_LANE and status.get("branch") == branch,
-                "handoff_source_lane_mismatch",
-            ),
-            (head == expect_head, "expect_head_mismatch"),
-            *((actual == expected, gap) for actual, expected, gap in comparisons),
-            (
-                ack.get("source_lease_transferred") is False,
-                "handoff_acknowledgement_lease_boundary_invalid",
-            ),
-        ),
+        checks=checks,
     )
     report = _handoff_report(branch=branch, evaluation=evaluation)
     if apply and evaluation.ok:
         try:
             revoked = revoke_lease(
-                _state_root(status=status, repo=repo) / ".ethos" / "state" / "state.sqlite",
+                _state_root(status=status, repo=repo) / ".ethos/state/state.sqlite",
                 subject=branch,
                 holder_ref=holder_ref,
                 expected_lease_id=lease_id,
@@ -263,48 +281,12 @@ def revoke_cross_host_source(  # noqa: PLR0913, RUF100 - exact request envelope 
                     **revoked,
                 },
             )
-    report["mutation"] = _handoff_envelope(
-        command="lane-handoff-revoke-source",
-        action="lane.handoff.revoke_source",
-        resource=branch,
-        expected_state=expected_state,
-        report=report,
+    return _finish_report(
+        report,
+        ("lane-handoff-revoke-source", "lane.handoff.revoke_source", branch),
+        expected_state,
         apply=apply,
     )
-    return report
-
-
-def _export_gaps(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
-    *,
-    status: dict[str, object],
-    branch: str,
-    head: str,
-    expect_head: str,
-    holder_ref: str,
-    target_holder_ref: str,
-    lease_id: str,
-    epoch: int,
-    lease: dict[str, object],
-    dirty_paths: Sequence[str],
-    dirty_disposition: str,
-    context_gap: str,
-) -> list[str]:
-    gaps: list[str] = [context_gap] if context_gap else []
-    gaps.extend(_holder_ref_gaps(holder_ref, target_holder_ref))
-    gaps.extend(
-        _export_binding_gaps(
-            status=status,
-            branch=branch,
-            head=head,
-            expect_head=expect_head,
-            holder_ref=holder_ref,
-            lease_id=lease_id,
-            epoch=epoch,
-            lease=lease,
-        )
-    )
-    gaps.extend(_dirty_disposition_gaps(dirty_paths, dirty_disposition))
-    return list(dict.fromkeys(gaps))
 
 
 def _holder_ref_gaps(holder_ref: str, target_holder_ref: str) -> list[str]:
@@ -320,45 +302,12 @@ def _holder_ref_gaps(holder_ref: str, target_holder_ref: str) -> list[str]:
     return gaps
 
 
-def _export_binding_gaps(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
-    *,
-    status: dict[str, object],
-    branch: str,
-    head: str,
-    expect_head: str,
-    holder_ref: str,
-    lease_id: str,
-    epoch: int,
-    lease: dict[str, object],
-) -> list[str]:
-    gaps: list[str] = []
-    if status.get("role") != ROLE_WORK_LANE:
-        gaps.append("work_lane_required")
-    if status.get("branch") != branch:
-        gaps.append("lane_branch_mismatch")
-    if not expect_head:
-        gaps.append("expect_head_required")
-    elif expect_head != head:
-        gaps.append("expect_head_mismatch")
-    if str(lease.get("holder_ref") or "") != holder_ref:
-        gaps.append("lease_holder_mismatch")
-    if str(lease.get("lease_id") or "") != lease_id:
-        gaps.append("lease_id_stale")
-    if integer_value(lease.get("epoch")) != epoch:
-        gaps.append("lease_epoch_stale")
-    if str(lease.get("expected_head") or "") != head:
-        gaps.append("lease_head_stale")
-    return gaps
-
-
 def _dirty_disposition_gaps(dirty_paths: Sequence[str], dirty_disposition: str) -> list[str]:
     if dirty_paths and not dirty_disposition:
         return ["dirty_disposition_required"]
     if dirty_disposition not in {"clean", "committed", "preserved"}:
         return ["dirty_disposition_invalid"]
-    if dirty_paths and dirty_disposition in {"clean", "committed"}:
-        return ["dirty_disposition_mismatch"]
-    if not dirty_paths and dirty_disposition not in {"clean", "committed"}:
+    if bool(dirty_paths) != (dirty_disposition == "preserved"):
         return ["dirty_disposition_mismatch"]
     return []
 
@@ -376,42 +325,36 @@ def _handoff_context(*, context_text: str, context_file: Path | None) -> tuple[s
 
 
 def _current_lease(*, status: dict[str, object], repo: Path, branch: str) -> dict[str, object]:
-    state_root = repo
-    worktrees = status.get("worktrees")
-    if isinstance(worktrees, list):
-        for worktree in worktrees:
-            if not isinstance(worktree, dict):
-                continue
-            worktree_payload = cast("dict[str, object]", worktree)
-            if worktree_payload.get("role") == ROLE_ACCEPTED_ROOT and worktree_payload.get("path"):
-                state_root = Path(str(worktree_payload["path"]))
-                break
-    matches = [
+    matches = tuple(
         lease
-        for lease in active_leases(state_root / ".ethos" / "state" / "state.sqlite")
+        for lease in active_leases(
+            _state_root(status=status, repo=repo) / ".ethos/state/state.sqlite"
+        )
         if lease.get("subject") == branch
-    ]
+    )
     return cast("dict[str, object]", matches[0]) if len(matches) == 1 else {}
 
 
 def _state_root(*, status: dict[str, object], repo: Path) -> Path:
     worktrees = status.get("worktrees")
-    if isinstance(worktrees, list):
-        for worktree in worktrees:
-            if not isinstance(worktree, dict):
-                continue
-            worktree_payload = cast("dict[str, object]", worktree)
-            if worktree_payload.get("role") == ROLE_ACCEPTED_ROOT and worktree_payload.get("path"):
-                return Path(str(worktree_payload["path"]))
-    return repo
+    match = next(
+        (
+            item
+            for item in (worktrees if isinstance(worktrees, list) else [])
+            if isinstance(item, dict)
+            and item.get("role") == ROLE_ACCEPTED_ROOT
+            and item.get("path")
+        ),
+        {},
+    )
+    return Path(str(match.get("path") or repo))
 
 
 def _json_mapping(path: Path, *, gap: str, gaps: list[str]) -> dict[str, Any]:
     try:
         payload = json.loads(path.resolve().read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
-        gaps.append(gap)
-        return {}
+        payload = None
     if not isinstance(payload, dict):
         gaps.append(gap)
         return {}
@@ -423,27 +366,31 @@ def _handoff_report(*, branch: str, evaluation: Any) -> dict[str, object]:
         "ok": evaluation.ok,
         "state": evaluation.state,
         "branch": branch,
-        "package_id": "",
-        "package_path": "",
-        "manifest": {},
-        "lease": {},
-        "acknowledgement": {},
-        "receipt": {},
+        **dict.fromkeys(("package_id", "package_path"), ""),
+        **{key: {} for key in ("manifest", "lease", "acknowledgement", "receipt")},
         "required_gaps": list(evaluation.gaps),
     }
 
 
-def _handoff_envelope(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
-    *,
-    command: str,
-    action: str,
-    resource: str,
-    expected_state: dict[str, object],
+def _apply_report(
+    report: dict[str, object], gap: str, effect: Callable[[], dict[str, object]]
+) -> None:
+    try:
+        report.update(effect())
+    except (OSError, subprocess.SubprocessError, ValueError) as exc:
+        report.update(ok=False, state="blocked", required_gaps=[f"{gap}:{exc}"])
+
+
+def _finish_report(
     report: dict[str, object],
+    envelope: tuple[str, str, str],
+    expected_state: dict[str, object],
+    *,
     apply: bool,
 ) -> dict[str, object]:
+    command, action, resource = envelope
     gaps = tuple(str(gap) for gap in cast("list[object]", report["required_gaps"]))
-    return mutation_envelope(
+    report["mutation"] = mutation_envelope(
         MutationRequest(command=command, apply=apply, authorized=False, expect_head=None),
         action=action,
         resource=resource,
@@ -457,6 +404,7 @@ def _handoff_envelope(  # noqa: PLR0913, RUF100 - exact request envelope preserv
         enforcement_boundary="local_package_and_git_ref_transition",
         verifier_provenance="current_worktree_runner",
     )
+    return report
 
 
 def _branch_exists(root: Path, branch: str) -> bool:

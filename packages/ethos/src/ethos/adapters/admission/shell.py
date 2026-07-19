@@ -4,6 +4,11 @@ import shlex
 
 from ethos_core.contracts.branch.roles import PROTECTED_WRITE_ROLES
 
+
+def _words(text: str) -> frozenset[str]:
+    return frozenset(text.split())
+
+
 _MUTATION_PATTERNS = (
     " write_text(",
     ".write_text(",
@@ -16,85 +21,21 @@ _MUTATION_PATTERNS = (
     "mv ",
     "cp ",
 )
-
-_GIT_READ_SUBCOMMANDS = {
-    "blame",
-    "branch",
-    "diff",
-    "grep",
-    "log",
-    "ls-files",
-    "merge-base",
-    "rev-list",
-    "rev-parse",
-    "show",
-    "show-ref",
-    "status",
-    "tag",
-    "worktree",
-}
-_GIT_MUTATION_SUBCOMMANDS = {
-    "add",
-    "am",
-    "apply",
-    "branch",
-    "checkout",
-    "cherry-pick",
-    "clean",
-    "commit",
-    "merge",
-    "mv",
-    "pull",
-    "push",
-    "rebase",
-    "reset",
-    "restore",
-    "revert",
-    "rm",
-    "stash",
-    "switch",
-    "update-ref",
-}
-_SHELL_MUTATION_COMMANDS = {
-    "chmod",
-    "chown",
-    "cp",
-    "install",
-    "mkdir",
-    "mv",
-    "patch",
-    "rm",
-    "rmdir",
-    "rsync",
-    "sed",
-    "tee",
-    "touch",
-    "truncate",
-}
-_PROTECTED_READ_COMMANDS = {
-    "cat",
-    "find",
-    "grep",
-    "head",
-    "less",
-    "ls",
-    "pwd",
-    "rg",
-    "tail",
-    "tree",
-    "wc",
-}
-_ETHOS_READ_COMMANDS = {
-    "audit",
-    "orient",
-    "openspec",
-    "parity",
-    "plan",
-    "playbooks",
-    "quality",
-    "report",
-    "status",
-}
+_GIT_READ_SUBCOMMANDS = _words(
+    "blame branch diff grep log ls-files merge-base rev-list rev-parse show show-ref status "
+    "tag worktree"
+)
+_GIT_MUTATION_SUBCOMMANDS = _words(
+    "add am apply branch checkout cherry-pick clean commit merge mv pull push rebase reset "
+    "restore revert rm stash switch update-ref"
+)
+_SHELL_MUTATION_COMMANDS = _words(
+    "chmod chown cp install mkdir mv patch rm rmdir rsync sed tee touch truncate"
+)
+_PROTECTED_READ_COMMANDS = _words("cat find grep head less ls pwd rg tail tree wc")
+_ETHOS_READ_COMMANDS = _words("audit orient openspec parity plan playbooks quality report status")
+_BRANCH_MUTATION_FLAGS = _words("-d -D -m -M -c -C -f --delete --move --copy --force")
+_BRANCH_VALUE_FLAGS = _words("--format --color --sort --points-at")
 
 
 def command_risk(command: str, *, role: str) -> dict[str, object]:
@@ -104,19 +45,14 @@ def command_risk(command: str, *, role: str) -> dict[str, object]:
     tokens = _shell_tokens(stripped)
     explicit_mutation = _has_explicit_mutation_command(tokens)
     if pattern_risky or explicit_mutation:
-        return {
-            "tracked_mutation_risk": True,
-            "reason": "command_text_matches_mutation_pattern",
-        }
+        return _risk(risky=True, reason="command_text_matches_mutation_pattern")
     if role in PROTECTED_WRITE_ROLES and stripped and not _is_protected_read_command(tokens):
-        return {
-            "tracked_mutation_risk": True,
-            "reason": "protected_role_unknown_command_requires_paths",
-        }
-    return {
-        "tracked_mutation_risk": False,
-        "reason": "observe_only_command",
-    }
+        return _risk(risky=True, reason="protected_role_unknown_command_requires_paths")
+    return _risk(risky=False, reason="observe_only_command")
+
+
+def _risk(*, risky: bool, reason: str) -> dict[str, object]:
+    return {"tracked_mutation_risk": risky, "reason": reason}
 
 
 def _has_explicit_mutation_command(tokens: list[str]) -> bool:
@@ -176,48 +112,18 @@ def _ethos_command_is_read_only(tokens: list[str]) -> bool:
 
 
 def _git_branch_is_read_only(args: list[str]) -> bool:
-    mutating_flags = {
-        "-d",
-        "-D",
-        "-m",
-        "-M",
-        "-c",
-        "-C",
-        "-f",
-        "--delete",
-        "--move",
-        "--copy",
-        "--force",
-    }
-    read_flags = {
-        "--list",
-        "--show-current",
-        "--contains",
-        "--merged",
-        "--no-merged",
-        "-a",
-        "-r",
-        "-v",
-        "-vv",
-    }
-    read_flags_with_value = {"--format", "--color", "--sort", "--points-at"}
     index = 0
     while index < len(args):
         arg = args[index]
-        if arg == "--":
+        if (
+            arg == "--"
+            or arg in _BRANCH_MUTATION_FLAGS
+            or arg.startswith(("--set-upstream", "--unset-upstream"))
+        ):
             return False
-        if arg in mutating_flags or arg.startswith(("--set-upstream", "--unset-upstream")):
+        if not arg.startswith("-"):
             return False
-        if arg in read_flags:
-            index += 1
-            continue
-        if arg in read_flags_with_value:
-            index += 2
-            continue
-        if arg.startswith("-"):
-            index += 1
-            continue
-        return False
+        index += 2 if arg in _BRANCH_VALUE_FLAGS else 1
     return True
 
 
@@ -241,14 +147,14 @@ def git_stash_policy(command: str) -> dict[str, object]:
     tokens = _shell_tokens(command)
     operation = _git_stash_operation(tokens)
     if operation is None:
-        return {"forbidden": False, "operation": "", "reason": "not_git_stash"}
+        return _stash(forbidden=False, operation="", reason="not_git_stash")
     if operation in {"list", "show"}:
-        return {"forbidden": False, "operation": operation, "reason": "observe_only_stash_read"}
-    return {
-        "forbidden": True,
-        "operation": operation,
-        "reason": "stash_is_hidden_change_carrier",
-    }
+        return _stash(forbidden=False, operation=operation, reason="observe_only_stash_read")
+    return _stash(forbidden=True, operation=operation, reason="stash_is_hidden_change_carrier")
+
+
+def _stash(*, forbidden: bool, operation: str, reason: str) -> dict[str, object]:
+    return {"forbidden": forbidden, "operation": operation, "reason": reason}
 
 
 def _shell_tokens(command: str) -> list[str]:

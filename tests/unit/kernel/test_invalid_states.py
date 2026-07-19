@@ -41,7 +41,8 @@ _NON_GAP_TOKENS = {
         "proof_refs_invalid recorded_path_present review_ref_missing review_refs_invalid "
         "untrusted_output_schema_invalid missing_required_path_count "
         "missing_required_state_count missing_required_state_paths role_root_mismatch_count "
-        "role_root_mismatches physical_target_homes_present projection_drift adapter_bypass"
+        "role_root_mismatches physical_target_homes_present projection_drift adapter_bypass "
+        "extra_gaps"
     )
     .strip()
     .split(),

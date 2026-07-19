@@ -7,29 +7,28 @@ import json
 import re
 import subprocess
 import tomllib
+import typing as t
 from pathlib import Path
-from typing import Any
 
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError
 
-_DECLARATION_PATH = ".ethos/container-contract.toml"
 _PLATFORMS = ("linux/amd64", "linux/arm64")
-_VENDOR_TOKENS = (
-    ("orbstack", "orbstack"),
-    ("dockerdesktop", "docker desktop"),
-    ("colima", "colima"),
-    ("lima", "lima"),
-    ("rancherdesktop", "rancher desktop"),
-    ("finch", "finch"),
-    ("podman", "podman"),
-    ("applecontainer", "apple container"),
+_VENDOR_TEXT = (
+    "orbstack=orbstack|dockerdesktop=docker desktop|colima=colima|lima=lima|"
+    "rancherdesktop=rancher desktop|finch=finch|podman=podman|applecontainer=apple container"
 )
+_VENDORS = tuple(item.split("=") for item in _VENDOR_TEXT.split("|"))
+_C = "container_contract_"
+
+
+def _gap(code: str, *parts: str) -> str:
+    return ":".join((_C + code, *parts))
 
 
 def _report(
     *, declared: bool, manifest: str, gaps: list[str], state: str = "invalid"
-) -> dict[str, Any]:
+) -> dict[str, t.Any]:
     return {
         "ok": not gaps,
         "state": "valid" if not gaps else state,
@@ -40,248 +39,211 @@ def _report(
     }
 
 
-def _not_declared() -> dict[str, Any]:
+def _not_declared() -> dict[str, t.Any]:
     return {
-        "ok": True,
+        **_report(declared=False, manifest="", gaps=[]),
         "state": "not_declared",
-        "declared": False,
-        "manifest": "",
-        "required_gaps": [],
-        "advisory_gaps": ["container_contract_not_declared"],
+        "advisory_gaps": [_gap("not_declared")],
     }
 
 
-def _schema_gaps(schema_name: str, payload: dict[str, Any], *, prefix: str) -> list[str]:
-    for parent in Path(__file__).resolve().parents:
-        candidate = parent / "system" / "schemas" / "kernel" / schema_name
-        if candidate.is_file():
-            try:
-                schema = json.loads(candidate.read_text(encoding="utf-8"))
-                errors = sorted(
-                    Draft202012Validator(schema).iter_errors(payload),
-                    key=lambda item: item.json_path,
-                )
-            except (OSError, UnicodeDecodeError, json.JSONDecodeError, SchemaError):
-                return [f"{prefix}:product_schema_unavailable:{schema_name}"]
-            return [f"{prefix}:{error.message}" for error in errors]
-    return [f"{prefix}:product_schema_unavailable:{schema_name}"]
+def _schema_gaps(schema_name: str, payload: dict[str, t.Any], *, prefix: str) -> list[str]:
+    path = next(
+        (
+            parent / "system" / "schemas" / "kernel" / schema_name
+            for parent in Path(__file__).resolve().parents
+            if (parent / "system" / "schemas" / "kernel" / schema_name).is_file()
+        ),
+        None,
+    )
+    unavailable = f"{prefix}:product_schema_unavailable:{schema_name}"
+    if path is None:
+        return [unavailable]
+    try:
+        schema = json.loads(path.read_text(encoding="utf-8"))
+        errors = sorted(
+            Draft202012Validator(schema).iter_errors(payload), key=lambda x: x.json_path
+        )
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, SchemaError):
+        return [unavailable]
+    return [f"{prefix}:{error.message}" for error in errors]
 
 
 def _canonical(value: str) -> str:
-    return re.sub(r"[^a-z0-9]", "", value.lower())
+    return re.sub("[^a-z0-9]", "", value.lower())
 
 
-def _strings(value: object) -> list[str]:
-    if isinstance(value, dict):
-        return [item for child in value.values() for item in _strings(child)]
-    if isinstance(value, list):
-        return [item for child in value for item in _strings(child)]
-    return [value] if isinstance(value, str) else []
+def _walk(value: object) -> t.Iterator[object]:
+    yield value
+    children = (
+        value.values() if isinstance(value, dict) else value if isinstance(value, list) else ()
+    )
+    for child in children:
+        yield from _walk(child)
+
+
+def _at(value: object, *keys: str) -> object:
+    for key in keys:
+        value = value.get(key) if isinstance(value, dict) else None
+    return value
 
 
 def _contained_file(repo: Path, candidate: Path, *, label: str) -> tuple[Path | None, str | None]:
     try:
-        resolved = candidate.resolve(strict=True)
-        resolved.relative_to(repo)
-        if not resolved.is_file():
-            return None, f"{label}_not_regular_file"
+        path = candidate.resolve(strict=True)
+        path.relative_to(repo)
+        if not path.is_file():
+            return (None, f"{label}_not_regular_file")
     except FileNotFoundError:
-        return None, f"{label}_missing"
+        return (None, f"{label}_missing")
     except ValueError:
-        return None, f"{label}_path_escapes_root"
+        return (None, f"{label}_path_escapes_root")
     except (OSError, RuntimeError):
-        return None, f"{label}_unreadable"
-    return resolved, None
+        return (None, f"{label}_unreadable")
+    return (path, None)
 
 
 def _read_file(repo: Path, candidate: Path, *, label: str) -> tuple[str | None, str | None]:
     path, gap = _contained_file(repo, candidate, label=label)
-    if path is None:
-        return None, gap
     try:
-        return path.read_text(encoding="utf-8"), None
+        return (path.read_text(encoding="utf-8"), None) if path else (None, gap)
     except (OSError, UnicodeDecodeError):
-        return None, f"{label}_unreadable"
+        return (None, f"{label}_unreadable")
 
 
-def _evidence_refs(value: object) -> list[dict[str, Any]]:
-    if isinstance(value, dict):
-        payload = {str(key): item for key, item in value.items()}
-        return ([payload] if set(payload) == {"path", "sha256"} else []) + [
-            ref for item in payload.values() for ref in _evidence_refs(item)
-        ]
-    if isinstance(value, list):
-        return [ref for item in value for ref in _evidence_refs(item)]
-    return []
+def _evidence_refs(value: object) -> list[dict[str, t.Any]]:
+    mappings = (
+        {str(key): child for key, child in item.items()}
+        for item in _walk(value)
+        if isinstance(item, dict)
+    )
+    return [item for item in mappings if set(item) == {"path", "sha256"}]
 
 
-def _evidence_gaps(repo: Path, payload: dict[str, Any]) -> list[str]:
-    gaps: list[str] = []
-    for ref in _evidence_refs(payload):
-        relative, digest = ref.get("path"), ref.get("sha256")
-        if not isinstance(relative, str) or not isinstance(digest, str):
-            continue
-        path, gap = _contained_file(repo, repo / relative, label="container_contract_evidence")
-        if gap:
-            gaps.append(f"{gap}:{relative}")
-            continue
-        assert path is not None
-        try:
-            tracked = (
-                subprocess.run(
-                    [
-                        "git",
-                        "-C",
-                        str(repo),
-                        "ls-files",
-                        "--error-unmatch",
-                        "--",
-                        relative,
-                    ],
-                    check=False,
-                    capture_output=True,
-                    text=True,
-                ).returncode
-                == 0
-            )
-        except OSError:
-            gaps.append(f"container_contract_evidence_tracking_unavailable:{relative}")
-            continue
-        if not tracked:
-            gaps.append(f"container_contract_evidence_untracked:{relative}")
-            continue
-        try:
-            actual = hashlib.sha256(path.read_bytes()).hexdigest()
-        except OSError:
-            gaps.append(f"container_contract_evidence_unreadable:{relative}")
-        else:
-            if actual != digest.removeprefix("sha256:"):
-                gaps.append(f"container_contract_evidence_digest_mismatch:{relative}")
-    return gaps
+def _evidence_gap(repo: Path, ref: dict[str, t.Any]) -> str | None:
+    relative, digest = ref.get("path"), ref.get("sha256")
+    if not isinstance(relative, str) or not isinstance(digest, str):
+        return None
+    path, gap = _contained_file(repo, repo / relative, label=_C + "evidence")
+    if gap:
+        return f"{gap}:{relative}"
+    assert path is not None
+    try:
+        tracked = subprocess.run(
+            ["git", "-C", str(repo), "ls-files", "--error-unmatch", "--", relative],
+            check=False,
+            capture_output=True,
+            text=True,
+        ).returncode
+    except OSError:
+        return _gap("evidence_tracking_unavailable", relative)
+    if tracked:
+        return _gap("evidence_untracked", relative)
+    try:
+        actual = hashlib.sha256(path.read_bytes()).hexdigest()
+    except OSError:
+        return _gap("evidence_unreadable", relative)
+    return (
+        _gap("evidence_digest_mismatch", relative)
+        if actual != digest.removeprefix("sha256:")
+        else None
+    )
 
 
-def _output_schema_gaps(repo: Path, payload: dict[str, Any]) -> list[str]:
-    trust = payload.get("trust_profiles")
-    untrusted = trust.get("untrusted") if isinstance(trust, dict) else None
-    returned = untrusted.get("artifact_return") if isinstance(untrusted, dict) else None
-    schema = returned.get("output_schema") if isinstance(returned, dict) else None
-    relative = schema.get("path") if isinstance(schema, dict) else None
+def _evidence_gaps(repo: Path, payload: dict[str, t.Any]) -> list[str]:
+    return [gap for ref in _evidence_refs(payload) if (gap := _evidence_gap(repo, ref))]
+
+
+def _output_schema_gaps(repo: Path, payload: dict[str, t.Any]) -> list[str]:
+    relative = _at(
+        payload, "trust_profiles", "untrusted", "artifact_return", "output_schema", "path"
+    )
     if not isinstance(relative, str):
         return []
-    path, gap = _contained_file(
-        repo, repo / relative, label="container_contract_untrusted_output_schema"
-    )
+    path, gap = _contained_file(repo, repo / relative, label=_C + "untrusted_output_schema")
     if gap:
         return [f"{gap}:{relative}"]
-    assert path is not None
     try:
+        assert path is not None
         Draft202012Validator.check_schema(json.loads(path.read_text(encoding="utf-8")))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError, SchemaError):
-        return [f"container_contract_untrusted_output_schema_invalid:{relative}"]
+        return [_gap("untrusted_output_schema_invalid", relative)]
     return []
 
 
-def _semantic_gaps(repo: Path, payload: dict[str, Any]) -> list[str]:
-    delivery = payload.get("delivery")
-    smokes = delivery.get("native_linux_smokes") if isinstance(delivery, dict) else []
-    inventory = payload.get("asset_inventory")
-    assets = inventory.get("assets") if isinstance(inventory, dict) else []
-    typed_assets = [asset for asset in assets if isinstance(asset, dict)]
-    normalized = "\n".join(_canonical(value) for value in _strings(payload))
-    return sorted(
-        set(
-            [
-                f"container_contract_vendor_brand:{name}"
-                for token, name in _VENDOR_TOKENS
-                if token in normalized
-            ]
-            + [
-                f"container_contract_native_linux_smoke_required:{platform}"
-                for platform in _PLATFORMS
-                if sum(
-                    smoke.get("platform") == platform for smoke in smokes if isinstance(smoke, dict)
-                )
-                != 1
-            ]
-            + _duplicate_asset_gaps(typed_assets)
-            + [
-                f"container_contract_persistent_asset_restore_required:{asset_id}"
-                for asset in typed_assets
-                if isinstance(asset_id := asset.get("id"), str)
-                and asset.get("lifecycle") == "persistent"
-                and asset.get("backup_restore") != "required"
-            ]
-            + _evidence_gaps(repo, payload)
-            + _output_schema_gaps(repo, payload)
-        )
-    )
-
-
-def _duplicate_asset_gaps(assets: list[dict[str, Any]]) -> list[str]:
-    """Return duplicate inventory identifiers without weakening schema-first validation."""
-    asset_ids = [asset.get("id") for asset in assets if isinstance(asset.get("id"), str)]
-    return [
-        f"container_contract_duplicate_asset_id:{asset_id}"
-        for asset_id in set(asset_ids)
-        if asset_ids.count(asset_id) > 1
+def _semantic_gaps(repo: Path, payload: dict[str, t.Any]) -> list[str]:
+    raw_assets = _at(payload, "asset_inventory", "assets")
+    raw_assets = raw_assets if isinstance(raw_assets, list) else []
+    assets = [
+        {str(key): value for key, value in item.items()}
+        for item in raw_assets
+        if isinstance(item, dict)
     ]
+    ids = [value for item in assets if isinstance((value := item.get("id")), str)]
+    raw_smokes = _at(payload, "delivery", "native_linux_smokes")
+    smokes = raw_smokes if isinstance(raw_smokes, list) else []
+    text = "\n".join(_canonical(item) for item in _walk(payload) if isinstance(item, str))
+    gaps: list[str] = [
+        *(_gap("vendor_brand", name) for token, name in _VENDORS if token in text),
+        *(
+            _gap("native_linux_smoke_required", platform)
+            for platform in _PLATFORMS
+            if sum(row.get("platform") == platform for row in smokes if isinstance(row, dict)) != 1
+        ),
+        *(_gap("duplicate_asset_id", item) for item in set(ids) if ids.count(item) > 1),
+        *(
+            _gap("persistent_asset_restore_required", asset_id)
+            for item in assets
+            if isinstance((asset_id := item.get("id")), str)
+            and item.get("lifecycle") == "persistent"
+            and item.get("backup_restore") != "required"
+        ),
+        *_evidence_gaps(repo, payload),
+        *_output_schema_gaps(repo, payload),
+    ]
+    return sorted(set(gaps))
 
 
-def _manifest_report(repo: Path, declaration: dict[str, Any]) -> dict[str, Any]:
-    declaration_gaps = _schema_gaps(
+def _toml(repo: Path, path: Path, label: str) -> tuple[dict[str, t.Any] | None, str | None]:
+    text, gap = _read_file(repo, path, label=label)
+    if gap:
+        return (None, gap)
+    try:
+        assert text is not None
+        return (tomllib.loads(text), None)
+    except tomllib.TOMLDecodeError as error:
+        return (None, f"{label}_invalid_toml:{error}")
+
+
+def _manifest_report(repo: Path, declaration: dict[str, t.Any]) -> dict[str, t.Any]:
+    gaps = _schema_gaps(
         "container-contract-declaration.schema.json",
         declaration,
-        prefix="container_contract_declaration_schema",
+        prefix=_C + "declaration_schema",
     )
     manifest = str(declaration.get("manifest") or "")
-    if declaration_gaps:
-        return _report(declared=True, manifest=manifest, gaps=declaration_gaps)
-    path, gap = _contained_file(repo, repo / manifest, label="container_contract_manifest")
+    if gaps:
+        return _report(declared=True, manifest=manifest, gaps=gaps)
+    payload, gap = _toml(repo, repo / manifest, _C + "manifest")
     if gap:
         return _report(declared=True, manifest=manifest, gaps=[gap])
-    assert path is not None
-    try:
-        payload = tomllib.loads(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError) as exc:
-        return _report(
-            declared=True,
-            manifest=manifest,
-            gaps=[f"container_contract_manifest_invalid_toml:{exc}"],
-        )
-    gaps = _schema_gaps(
-        "container-contract.schema.json",
-        payload,
-        prefix="container_contract_schema_violation",
-    )
+    assert payload is not None
+    gaps = _schema_gaps("container-contract.schema.json", payload, prefix=_C + "schema_violation")
     return _report(declared=True, manifest=manifest, gaps=gaps or _semantic_gaps(repo, payload))
 
 
-def container_contract_report(root: Path) -> dict[str, Any]:
+def container_contract_report(root: Path) -> dict[str, t.Any]:
     """Validate an opt-in product-schema-bound Container Contract."""
     repo = root.resolve()
-    profile_text, profile_gap = _read_file(
-        repo, repo / ".ethos/profile.toml", label="container_contract_profile"
-    )
-    if profile_gap == "container_contract_profile_missing":
+    profile, gap = _toml(repo, repo / ".ethos/profile.toml", _C + "profile")
+    if gap == _C + "profile_missing":
         return _not_declared()
-    if profile_gap:
-        return _report(declared=False, manifest="", gaps=[profile_gap])
-    assert profile_text is not None
-    try:
-        profile = tomllib.loads(profile_text)
-    except tomllib.TOMLDecodeError as exc:
-        return _report(
-            declared=False,
-            manifest="",
-            gaps=[f"container_contract_profile_invalid_toml:{exc}"],
-        )
+    if gap:
+        return _report(declared=False, manifest="", gaps=[gap])
+    assert profile is not None
     declaration = profile.get("container_contract")
     if declaration is None:
         return _not_declared()
     if not isinstance(declaration, dict):
-        return _report(
-            declared=True,
-            manifest="",
-            gaps=["container_contract_declaration_not_table"],
-        )
+        return _report(declared=True, manifest="", gaps=[_C + "declaration_not_table"])
     return _manifest_report(repo, {str(key): value for key, value in declaration.items()})

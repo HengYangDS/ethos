@@ -5,7 +5,7 @@
 # fails until the stale baseline is shrunk.
 
 [ignored_rule_baseline]
-ARG001 = 31
+ARG001 = 30
 ARG002 = 1
 BLE001 = 7
 DTZ011 = 1
@@ -15,7 +15,7 @@ PERF401 = 33
 PLC0415 = 79
 PLR0911 = 3
 PLR0912 = 2
-PLR0913 = 29
+PLR0913 = 26
 PLR0915 = 4
 PLR2004 = 13
 SLF001 = 206

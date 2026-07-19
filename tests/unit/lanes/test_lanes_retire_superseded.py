@@ -264,6 +264,35 @@ def test_retire_superseded_work_lane_fails_closed_without_absorption_proof(
     assert git(repo, "rev-parse", "--verify", _SUPERSEDED_BRANCH) == head
 
 
+def test_retire_superseded_preserves_leading_space_paths(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    lane = tmp_path / "repo-work-superseded"
+    git(repo, "worktree", "add", "-b", _SUPERSEDED_BRANCH, lane.as_posix(), "dev")
+    for root, content, message in ((lane, "lane\n", "lane"), (repo, "accepted\n", "accepted")):
+        (root / " leading.txt").write_text(content, encoding="utf-8")
+        git(root, "add", " leading.txt")
+        git(
+            root,
+            "-c",
+            "user.name=Test User",
+            "-c",
+            "user.email=test@example.com",
+            "commit",
+            "-m",
+            message,
+        )
+    head, accepted = git(lane, "rev-parse", "HEAD"), git(repo, "rev-parse", "dev")
+    state.acquire_lease(
+        repo / ".ethos/state/state.sqlite", subject=_SUPERSEDED_BRANCH, holder_ref=_ACTOR
+    )
+
+    report = _retire_superseded(repo, head, accepted)
+
+    assert report["required_gaps"] == ["superseded_lane_not_absorbed_by_accepted"]
+    assert lane.exists()
+
+
 def test_retire_superseded_work_lane_apply_removes_clean_linked_unmerged_lane(
     tmp_path: Path,
 ) -> None:

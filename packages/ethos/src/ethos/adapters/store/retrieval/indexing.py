@@ -26,18 +26,14 @@ from ethos.adapters.store.retrieval.schema import initialize_context_index
 from ethos.adapters.store.retrieval.sources import allowed_sources
 from ethos.adapters.store.retrieval.sources import dirty_allowed_sources
 from ethos.adapters.store.retrieval.sources import source_manifest_digest
+from ethos.adapters.store.retrieval.sources import unsafe_source_reason
 from ethos_core.contracts.context.projection import looks_secret_like
 
 if TYPE_CHECKING:
     from pathlib import Path
 
 
-def rebuild_context_index(
-    root: Path,
-    *,
-    apply: bool,
-    authorized: bool,
-) -> dict[str, Any]:
+def rebuild_context_index(root: Path, *, apply: bool, authorized: bool) -> dict[str, Any]:
     """Rebuild the local SQLite context index for the given repository root.
 
     Dry-run by default (``apply=False``). Requires ``authorized=True`` to
@@ -90,12 +86,9 @@ def rebuild_context_index(
     with closing(sqlite3.connect(db_path)) as connection:
         connection.execute("pragma foreign_keys = on")
         connection.execute(
-            """
-            insert into index_manifests(
-              id, root, head, schema_version, policy_digest, created_at, payload_json
-            )
-            values (?, ?, ?, ?, ?, ?, ?)
-            """,
+            "insert into index_manifests("
+            "id, root, head, schema_version, policy_digest, created_at, payload_json"
+            ") values (?, ?, ?, ?, ?, ?, ?)",
             (
                 manifest_id,
                 repo.as_posix(),
@@ -143,12 +136,7 @@ def rebuild_context_index(
     }
 
 
-def purge_context_index(
-    root: Path,
-    *,
-    apply: bool,
-    authorized: bool,
-) -> dict[str, Any]:
+def purge_context_index(root: Path, *, apply: bool, authorized: bool) -> dict[str, Any]:
     """Remove all files that make up the local context index.
 
     Dry-run by default (``apply=False``). Requires ``authorized=True`` to
@@ -200,8 +188,6 @@ def index_source(
     file metadata, doc-chunks (with FTS), and Python AST symbols (with FTS).
     Returns per-category insertion counts.
     """
-    from ethos.adapters.store.retrieval.sources import unsafe_source_reason
-
     rel = source.relative_to(root).as_posix()
     unsafe_reason = unsafe_source_reason(root, source)
     if unsafe_reason:
@@ -232,13 +218,9 @@ def index_source(
         )
         return {"source_count": 1, "span_count": 0, "chunk_count": 0, "symbol_count": 0}
     connection.execute(
-        """
-        insert into files(
-          id, manifest_id, path, digest, size_bytes, mtime_ns, language, kind,
-          indexed_at
-        )
-        values (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """,
+        "insert into files("
+        "id, manifest_id, path, digest, size_bytes, mtime_ns, language, kind, indexed_at"
+        ") values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (
             file_id,
             manifest_id,
@@ -257,13 +239,9 @@ def index_source(
         chunk_key = f"{rel}:{ordinal}:{chunk['start_line']}"
         chunk_id = f"chunk:{sha256_text(chunk_key)[:16]}"
         connection.execute(
-            """
-            insert into doc_chunks(
-              id, manifest_id, file_id, span_id, chunk_ordinal, title, text,
-              token_estimate, payload_json
-            )
-            values (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
+            "insert into doc_chunks("
+            "id, manifest_id, file_id, span_id, chunk_ordinal, title, text, "
+            "token_estimate, payload_json) values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 chunk_id,
                 manifest_id,
@@ -288,13 +266,9 @@ def index_source(
             symbol_key = f"{rel}:{symbol['name']}:{symbol['start_line']}"
             symbol_id = f"symbol:{sha256_text(symbol_key)[:16]}"
             connection.execute(
-                """
-                insert into code_symbols(
-                  id, manifest_id, file_id, span_id, name, qualified_name,
-                  symbol_kind, language, signature, payload_json
-                )
-                values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
+                "insert into code_symbols("
+                "id, manifest_id, file_id, span_id, name, qualified_name, symbol_kind, "
+                "language, signature, payload_json) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     symbol_id,
                     manifest_id,
@@ -309,10 +283,8 @@ def index_source(
                 ),
             )
             connection.execute(
-                """
-                insert into code_symbols_fts(id, name, qualified_name, signature)
-                values (?, ?, ?, ?)
-                """,
+                "insert into code_symbols_fts(id, name, qualified_name, signature) "
+                "values (?, ?, ?, ?)",
                 (symbol_id, symbol["name"], symbol["qualified_name"], symbol["signature"]),
             )
             counts["span_count"] += 1
@@ -331,13 +303,9 @@ def _insert_span(
     span_key = f"{rel}:{item['start_line']}:{item['end_line']}:{span_text}"
     span_id = f"span:{sha256_text(span_key)[:16]}"
     connection.execute(
-        """
-        insert or ignore into source_spans(
-          id, file_id, path, start_line, end_line, start_byte, end_byte, digest,
-          payload_json
-        )
-        values (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """,
+        "insert or ignore into source_spans("
+        "id, file_id, path, start_line, end_line, start_byte, end_byte, digest, payload_json"
+        ") values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (
             span_id,
             file_id,
@@ -363,12 +331,9 @@ def _insert_tombstone(
     head: str,
 ) -> None:
     connection.execute(
-        """
-        insert into tombstones(
-          id, manifest_id, path, digest, tombstoned_at, reason, payload_json
-        )
-        values (?, ?, ?, ?, ?, ?, ?)
-        """,
+        "insert into tombstones("
+        "id, manifest_id, path, digest, tombstoned_at, reason, payload_json"
+        ") values (?, ?, ?, ?, ?, ?, ?)",
         (
             f"tombstone:{sha256_text(f'{manifest_id}:{rel}:{reason}')[:16]}",
             manifest_id,

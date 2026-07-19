@@ -1,9 +1,4 @@
-"""Fleet command group — external adopter inspection.
-
-A surface command module: binds args, calls the domain/repository report, emits.
-Registers onto the shared fleet_app from _base (import side-effect); cli.py imports
-this module so the decorator runs. Imports only what this group needs.
-"""
+"""Fleet commands for external adopter inspection and retirement readiness."""
 
 from __future__ import annotations
 
@@ -24,12 +19,22 @@ from ethos.surface.cli._base import resolve_root
 from ethos_core.result import EthosResult
 
 
+def _parity_report(reporter, adopter: str, product_root: Path, target: Path) -> dict[str, object]:
+    return reporter(
+        adopter=adopter,
+        root=product_root,
+        target=target,
+        current_target_head=git_adapter.current_tracked_head(target),
+        current_product_head=git_adapter.current_tracked_head(product_root),
+        acceptable_product_heads=land_parity.acceptable_parity_product_heads(product_root, adopter),
+        acceptable_target_heads=land_parity.acceptable_parity_target_heads(
+            product_root, target, adopter
+        ),
+    )
+
+
 @fleet_app.command(name="inspect")
-def fleet_inspect(
-    *,
-    target: Path,
-    json_output: JsonFlag = False,
-) -> None:
+def fleet_inspect(*, target: Path, json_output: JsonFlag = False) -> None:
     """Inspect an external repository as an ETHOS adopter."""
     report = inspect_adopter(target)
     required_gaps = cast("list[str]", report["required_gaps"])
@@ -67,30 +72,8 @@ def fleet_retirement_readiness(
             product_root=product_root,
         )
     else:
-        shadow = shadow_parity_report(
-            target=target,
-            root=product_root,
-            adopter=adopter,
-            current_target_head=git_adapter.current_tracked_head(target),
-            current_product_head=git_adapter.current_tracked_head(product_root),
-            acceptable_product_heads=land_parity.acceptable_parity_product_heads(
-                product_root, adopter
-            ),
-            acceptable_target_heads=land_parity.acceptable_parity_target_heads(
-                product_root, target, adopter
-            ),
-        )
-    parity = parity_gaps_report(
-        adopter=adopter,
-        root=product_root,
-        target=target,
-        current_target_head=git_adapter.current_tracked_head(target),
-        current_product_head=git_adapter.current_tracked_head(product_root),
-        acceptable_product_heads=land_parity.acceptable_parity_product_heads(product_root, adopter),
-        acceptable_target_heads=land_parity.acceptable_parity_target_heads(
-            product_root, target, adopter
-        ),
-    )
+        shadow = _parity_report(shadow_parity_report, adopter, product_root, target)
+    parity = _parity_report(parity_gaps_report, adopter, product_root, target)
     report = retirement_readiness_report(
         target=target,
         product_root=product_root,
@@ -98,7 +81,6 @@ def fleet_retirement_readiness(
         shadow=shadow,
     )
     required_gaps = cast("list[str]", report["required_gaps"])
-    next_actions = cast("list[str]", report["next_actions"])
     result = EthosResult(
         command="fleet retirement-readiness",
         ok=bool(report["ok"]),
@@ -108,7 +90,7 @@ def fleet_retirement_readiness(
             "gap_count": len(required_gaps),
         },
         required_gaps=tuple(required_gaps),
-        next_actions=tuple(next_actions),
+        next_actions=tuple(cast("list[str]", report["next_actions"])),
         data=report,
     )
     emit(result, json_output=json_output, enforce=False)

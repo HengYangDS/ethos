@@ -53,7 +53,7 @@ ACTIVE_CONCERNS = {
     "yaml": "tools/ci/scripts/run-config-lint.sh",
     "shell": "tools/ci/scripts/run-shell-lint.sh",
     "repository_hygiene": "tools/ci/scripts/run-repository-hygiene.sh",
-    "json_syntax": "tools/ci/scripts/run-config-lint.sh",
+    "json_format": "tools/ci/scripts/run-config-lint.sh",
 }
 
 

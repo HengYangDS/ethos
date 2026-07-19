@@ -1,13 +1,9 @@
 from __future__ import annotations
 
 import subprocess
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 import ethos.adapters.store.state.lease.lifecycle.core as state
-
-if TYPE_CHECKING:
-    from pathlib import Path
-
 from tests.support.contract_helpers import git
 from tests.support.contract_helpers import init_git_repo
 from tests.support.contract_helpers import init_repo_with_candidate
@@ -36,6 +32,59 @@ def _acquire_lane_lease(repo: Path, branch: str) -> None:
         holder_ref="agent:test:case:agent-a",
         ttl_seconds=3600,
     )
+
+
+def _unbound_exceptional_fixture(tmp_path: Path) -> tuple[Path, str, str, str]:
+    repo, _candidate = init_repo_with_candidate(tmp_path)
+    git(repo, "branch", "main", "dev")
+    branch = "work/stale-ref"
+    claim_id = "exceptional-unbound-cli-claim"
+    chronicle_ref = "evidence/chronicle/exceptional-unbound-cli/2026-07-19.md"
+    git(repo, "branch", branch, "dev")
+    head = git(repo, "rev-parse", branch)
+    claim = repo / "evidence" / "claims" / f"{claim_id}.toml"
+    claim.parent.mkdir(parents=True)
+    claim.write_text(
+        "\n".join(
+            (
+                "[claim]",
+                f'id = "{claim_id}"',
+                'subject = "ethos:test:exceptional-unbound-cli"',
+                'state = "active"',
+                'summary = "Test-only accepted exceptional-retirement policy claim."',
+                "",
+            )
+        ),
+        encoding="utf-8",
+    )
+    chronicle = repo / chronicle_ref
+    chronicle.parent.mkdir(parents=True)
+    chronicle.write_text(
+        "\n".join(
+            (
+                "# Exceptional unbound CLI test policy",
+                "",
+                "event: lane_retire/unbound_exceptional",
+                f"target_branch: {branch}",
+                f"target_head: {head}",
+                f"target_claim: {claim_id}",
+                "",
+            )
+        ),
+        encoding="utf-8",
+    )
+    git(repo, "add", ".")
+    git(
+        repo,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "accept exceptional unbound CLI policy",
+    )
+    return repo, branch, head, chronicle_ref
 
 
 def test_lane_status_reports_live_workspace_schema_validation() -> None:
@@ -625,23 +674,23 @@ def test_lane_retire_landed_apply_removes_selected_branch(monkeypatch, tmp_path:
     assert not worktree.exists()
 
 
-def test_lane_retire_unbound_apply_preserves_ref_pending_exceptional_admission(
+def test_lane_retire_unbound_apply_requires_exceptional_controls(
     tmp_path: Path,
 ) -> None:
-    repo, _candidate = init_repo_with_candidate(tmp_path)
-    git(repo, "branch", "work/stale-ref", "dev")
-    head = git(repo, "rev-parse", "work/stale-ref")
+    repo, branch, head, chronicle = _unbound_exceptional_fixture(tmp_path)
 
     payload = run_ethos_blocked(
         "lane",
         "retire",
         "unbound",
         "--branch",
-        "work/stale-ref",
+        branch,
         "--expect-head",
         head,
         "--reason",
-        "superseded by accepted root",
+        "accepted truth already contains the source",
+        "--chronicle-ref",
+        chronicle,
         "--authorize",
         "--apply",
         "--root",
@@ -653,10 +702,13 @@ def test_lane_retire_unbound_apply_preserves_ref_pending_exceptional_admission(
     assert payload["command"] == "lane retire unbound"
     assert payload["ok"] is False
     assert payload["state"] == "blocked"
-    assert payload["required_gaps"] == ["unbound_retire_requires_exceptional_deletion_admission"]
+    assert payload["required_gaps"] == [
+        "irreversible_confirmation_required",
+        "unbound_retire_requires_break_glass",
+    ]
     assert (
         subprocess.run(
-            ["git", "show-ref", "--verify", "--quiet", "refs/heads/work/stale-ref"],
+            ["git", "show-ref", "--verify", "--quiet", f"refs/heads/{branch}"],
             cwd=repo,
             check=False,
         ).returncode
@@ -665,20 +717,22 @@ def test_lane_retire_unbound_apply_preserves_ref_pending_exceptional_admission(
 
 
 def test_lane_retire_unbound_apply_requires_authorization(tmp_path: Path) -> None:
-    repo, _candidate = init_repo_with_candidate(tmp_path)
-    git(repo, "branch", "work/stale-ref", "dev")
-    head = git(repo, "rev-parse", "work/stale-ref")
+    repo, branch, head, chronicle = _unbound_exceptional_fixture(tmp_path)
 
     payload = run_ethos_blocked(
         "lane",
         "retire",
         "unbound",
         "--branch",
-        "work/stale-ref",
+        branch,
         "--expect-head",
         head,
         "--reason",
-        "superseded by accepted root",
+        "accepted truth already contains the source",
+        "--chronicle-ref",
+        chronicle,
+        "--break-glass",
+        "--confirm-irreversible",
         "--apply",
         "--root",
         repo.as_posix(),
@@ -690,5 +744,45 @@ def test_lane_retire_unbound_apply_requires_authorization(tmp_path: Path) -> Non
     assert payload["ok"] is False
     assert payload["required_gaps"] == [
         "authorization_required",
-        "unbound_retire_requires_exceptional_deletion_admission",
     ]
+
+
+def test_lane_retire_unbound_apply_records_native_exceptional_receipt(
+    tmp_path: Path,
+) -> None:
+    repo, branch, head, chronicle = _unbound_exceptional_fixture(tmp_path)
+
+    payload = run_ethos(
+        "lane",
+        "retire",
+        "unbound",
+        "--branch",
+        branch,
+        "--expect-head",
+        head,
+        "--reason",
+        "accepted truth already contains the exact source",
+        "--chronicle-ref",
+        chronicle,
+        "--authorize",
+        "--break-glass",
+        "--confirm-irreversible",
+        "--apply",
+        "--root",
+        repo.as_posix(),
+        "--json",
+        cwd=repo,
+    )
+
+    assert payload["command"] == "lane retire unbound"
+    assert payload["ok"] is True
+    assert payload["state"] == "retired_unbound_exceptional"
+    assert Path(str(payload["data"]["receipt_path"])).is_file()
+    assert (
+        subprocess.run(
+            ["git", "show-ref", "--verify", "--quiet", f"refs/heads/{branch}"],
+            cwd=repo,
+            check=False,
+        ).returncode
+        != 0
+    )

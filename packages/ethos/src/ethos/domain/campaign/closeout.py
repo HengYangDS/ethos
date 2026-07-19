@@ -12,7 +12,7 @@ from ethos.domain.land.publication import local_ci_fallback_package
 from ethos.domain.land.publication import publication_readiness
 from ethos.domain.land.publication import remote_publication_deferred
 from ethos.domain.land.trust.core import trust_closeout_package
-from ethos.domain.prove import source_budget_report
+from ethos.domain.source_budget.core import source_budget_report
 from ethos.repository.adoption.evolution import campaign_policy
 from ethos.repository.adoption.evolution import campaign_report
 from ethos.repository.adoption.evolution import evolution_report

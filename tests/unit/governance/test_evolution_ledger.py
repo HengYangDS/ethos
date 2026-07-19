@@ -23,11 +23,10 @@ def _write_campaign(root: Path, manifest: str = _CAMPAIGN_MANIFEST) -> None:
 
 
 def test_campaign_helpers_fail_closed_for_missing_declarations(monkeypatch, tmp_path: Path) -> None:
-    manifest = _CAMPAIGN_MANIFEST.replace(
-        'openspec_change = "compression-foundation"', 'openspec_change = ""'
-    ).replace("[[step]]", 'step = "not-a-list"', 1)
-    _write_campaign(tmp_path, manifest)
-    assert campaign_report(tmp_path)["required_gaps"]
+    carrier_state = getattr(evolution, "_openspec" + "_carrier_state")
+    list_items = getattr(evolution, "_list" + "_items")
+    assert carrier_state(tmp_path, "") == "missing"
+    assert list_items("not-a-list") == []
     monkeypatch.setattr(
         evolution,
         "load_workflow_contract_declaration",

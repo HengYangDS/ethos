@@ -10,6 +10,8 @@ import pytest
 import ethos.adapters.store.state.maintenance as maintenance
 from ethos.surface.cli.root import inspection as inspection_cli
 from tests.support.contract_helpers import init_git_repo
+from tests.support.ethos_cli_runner import run_ethos
+from tests.support.ethos_cli_runner import run_ethos_raw
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -19,6 +21,47 @@ OBSERVED_AT = datetime(2026, 7, 19, 0, 0, tzinfo=UTC)
 
 def _repo(tmp_path: Path) -> Path:
     return init_git_repo(tmp_path / "repo")
+
+
+def test_doctor_cli_keeps_maintenance_flags_flat(tmp_path: Path) -> None:
+    help_result = run_ethos_raw("doctor", "--help")
+    assert help_result.returncode == 0
+    assert "Usage: ethos doctor [OPTIONS]\n" in help_result.stdout
+    assert "[ARGS]" not in help_result.stdout
+    for flag in (
+        "--maintenance",
+        "--apply-maintenance",
+        "--archive-root",
+        "--observed-at",
+        "--expect-inventory-digest",
+        "--confirm-irreversible",
+    ):
+        assert flag in help_result.stdout
+
+    repo = _repo(tmp_path)
+    archive_root = tmp_path / "archive"
+    snapshots = repo / ".ethos" / "state" / "residue-snapshots"
+    snapshots.mkdir(parents=True)
+    source = snapshots / "dirty.patch"
+    source.write_text("patch\n", encoding="utf-8")
+
+    payload = run_ethos(
+        "doctor",
+        "--root",
+        repo.as_posix(),
+        "--maintenance",
+        "--archive-root",
+        archive_root.as_posix(),
+        "--observed-at",
+        OBSERVED_AT.isoformat(),
+        "--json",
+        cwd=repo,
+    )
+
+    report = payload["data"]["maintenance"]
+    assert report["inventory_digest"]
+    assert source.exists()
+    assert not archive_root.exists()
 
 
 def test_archive_extraction_rejects_invalid_and_mismatched_payloads(tmp_path: Path) -> None:
@@ -88,10 +131,12 @@ def test_doctor_default_is_read_only_and_explicit_maintenance_emits_inventory(
     assert source.exists()
 
     inspection_cli.doctor(
+        options=inspection_cli.DoctorMaintenanceOptions(
+            maintenance=True,
+            archive_root=archive_root,
+            observed_at=OBSERVED_AT.isoformat(),
+        ),
         root=repo,
-        maintenance=True,
-        archive_root=archive_root,
-        observed_at=OBSERVED_AT.isoformat(),
         json_output=True,
     )
     report = emitted[-1].data["maintenance"]
@@ -109,7 +154,11 @@ def test_doctor_maintenance_reports_stable_boundary_gaps(
     emitted = []
     monkeypatch.setattr(inspection_cli, "emit", lambda result, **_kwargs: emitted.append(result))
 
-    inspection_cli.doctor(root=repo, maintenance=True, json_output=True)
+    inspection_cli.doctor(
+        options=inspection_cli.DoctorMaintenanceOptions(maintenance=True),
+        root=repo,
+        json_output=True,
+    )
     assert emitted[-1].required_gaps == (
         "maintenance_archive_root_required",
         "maintenance_observed_at_required",
@@ -129,10 +178,12 @@ def test_doctor_maintenance_reports_stable_boundary_gaps(
 
         monkeypatch.setattr(inspection_cli, "local_state_maintenance_inventory", fail_inventory)
         inspection_cli.doctor(
+            options=inspection_cli.DoctorMaintenanceOptions(
+                maintenance=True,
+                archive_root=tmp_path / "archive",
+                observed_at=OBSERVED_AT.isoformat(),
+            ),
             root=repo,
-            maintenance=True,
-            archive_root=tmp_path / "archive",
-            observed_at=OBSERVED_AT.isoformat(),
             json_output=True,
         )
         assert emitted[-1].required_gaps == (gap,)
@@ -149,12 +200,14 @@ def test_doctor_maintenance_reports_stable_boundary_gaps(
 
     monkeypatch.setattr(inspection_cli, "apply_local_state_maintenance", apply)
     inspection_cli.doctor(
+        options=inspection_cli.DoctorMaintenanceOptions(
+            apply_maintenance=True,
+            archive_root=archive_root,
+            observed_at=OBSERVED_AT.isoformat(),
+            expect_inventory_digest="digest",
+            confirm_irreversible=True,
+        ),
         root=repo,
-        apply_maintenance=True,
-        archive_root=archive_root,
-        observed_at=OBSERVED_AT.isoformat(),
-        expect_inventory_digest="digest",
-        confirm_irreversible=True,
         json_output=True,
     )
 

@@ -6,7 +6,7 @@ summary = "Continue the archived Budget Contract v2 Foundation through candidate
 
 [evidence]
 dated = "evidence/chronicle/budget-contract-v2-foundation-integration-continuation-20260719/2026-07-19.md"
-sha256 = "b51a481ee2af63a8afdc61a2954c353bb96acce8b405aa22da834e92e6ddb82a"
+sha256 = "928d4d37c28ebe50f91fcdd2479caa1c3dc89be1c7c827e9a0153631a1d13eec"
 evidence_ids = ["evidence:budget-contract-v2-foundation-20260719"]
 binding = "DR-0008, the immutable Foundation archive and historical proof, the active continuation Change, exact successor ancestry, the independently reproduced baseline correction, completed focused verification, and the continuation Chronicle bind this metric-domain Foundation integration episode; fresh parity and current HEAD-bound proof become binding only when their receipts are recorded."
 verifier = "digest_only"

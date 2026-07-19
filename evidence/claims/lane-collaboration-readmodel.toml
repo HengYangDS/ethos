@@ -1,16 +1,7 @@
-[claim]
-id = "lane-collaboration-readmodel"
-subject = "ethos:lane-collaboration-readmodel"
-state = "active"
-summary = "ETHOS exposes foreign Work Lanes as observe-only current-actor subjects and admits creative or destructive change only when net gain is evidenced."
-
-[evidence]
-dated = "evidence/chronicle/lane-collaboration-readmodel/2026-07-06.md"
-sha256 = "5b1865a0927183545142d00ef6dc58c75fff154610480f7d38c0fd9d7630532d"
-evidence_ids = ["evidence:lane-collaboration-readmodel"]
-binding = "declared Work Lane collaboration read-model evidence binding"
-verifier = "digest_only"
-tests = [
+claim = { id = "lane-collaboration-readmodel", subject = "ethos:lane-collaboration-readmodel", state = "active", summary = "ETHOS exposes foreign Work Lanes as observe-only current-actor subjects and admits creative or destructive change only when net gain is evidenced." }
+evidence = { dated = "evidence/chronicle/lane-collaboration-readmodel/2026-07-06.md", sha256 = "5b1865a0927183545142d00ef6dc58c75fff154610480f7d38c0fd9d7630532d", evidence_ids = [
+  "evidence:lane-collaboration-readmodel",
+], binding = "declared Work Lane collaboration read-model evidence binding", verifier = "digest_only", tests = [
   "uv run --group dev pytest tests/unit/lanes/test_lanes.py::test_workspace_status_reports_foreign_work_lanes_without_reading_them tests/unit/lanes/test_lanes.py::test_workspace_status_blocks_current_work_lane_when_foreign_scope_overlaps tests/unit/cli/test_contracts_lane.py::test_status_reports_foreign_work_lane_as_coordination_gap tests/unit/cli/test_contracts_lane.py::test_status_marks_raw_git_worktree_without_ethos_lease tests/unit/coverage/test_core_state_claims_edges.py::test_git_and_coordination_edges -q",
   "uv run --group dev pytest tests/unit/kernel/test_invalid_states.py::test_every_emitted_gap_classifies_to_exactly_one_node tests/architecture/test_product_design_contract.py::test_current_product_docs_do_not_expose_historical_compatibility_language -q",
   "tools/ci/scripts/run-python-tests.sh",
@@ -21,22 +12,10 @@ tests = [
   "ETHOS_ROOT=$PWD uv run --group dev ethos openspec --lifecycle --json",
   "ETHOS_ROOT=$PWD uv run --group dev ethos report --json",
   "ETHOS_ROOT=$PWD uv run --group dev ethos parity shadow --adopter generic --target . --execute --write-evidence --json",
-]
-
-[evidence.freshness]
-mode = "historical"
-[boundary]
-owner = "ethos-repository"
-scope = "Foreign Work Lane collaboration read model and net-gain change admission"
-
-[carriers]
-openspec = "openspec/changes/archive/2026-07-06-lane-collaboration-readmodel"
-
-fallback = "Keep foreign Work Lanes visible as advisory status facts while mutation remains restricted to owned lanes."
-kill_signal = "An agent can write, land, or retire a foreign Work Lane merely because status made it visible."
-
-[promotion]
-targets = [
+], freshness = { mode = "historical" } }
+boundary = { owner = "ethos-repository", scope = "Foreign Work Lane collaboration read model and net-gain change admission" }
+carriers = { openspec = "openspec/changes/archive/2026-07-06-lane-collaboration-readmodel", fallback = "Keep foreign Work Lanes visible as advisory status facts while mutation remains restricted to owned lanes.", kill_signal = "An agent can write, land, or retire a foreign Work Lane merely because status made it visible." }
+promotion = { targets = [
   "evidence/claims/lane-collaboration-readmodel.toml",
   "evidence/chronicle/lane-collaboration-readmodel/2026-07-06.md",
   "evidence/parity/generic-shadow.json",
@@ -53,4 +32,4 @@ targets = [
   "system/invalid_states.toml",
   "tests/unit/lanes/test_lanes.py",
   "tests/unit/cli/test_contracts_lane.py",
-]
+] }

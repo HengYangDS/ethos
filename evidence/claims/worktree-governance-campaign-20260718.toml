@@ -1,38 +1,16 @@
-[claim]
-id = "worktree-governance-campaign-20260718"
-subject = "ethos:repo-first-worktree-governance-campaign"
-state = "active"
-change_id = "repo-first-worktree-governance-campaign-20260718"
-summary = "The dedicated repo-first worktree-governance campaign scopes serial local implementation and selected-campaign closeout without asserting recovery, migration, retirement, remote, or foreign-lane completion."
-
-[evidence]
-dated = "evidence/chronicle/worktree-governance-campaign-20260718/2026-07-18.md"
-sha256 = "ec42243aa603912f0068bce524859782608b75c1438fecaeb291d81662f4ff0c"
-evidence_ids = ["evidence:worktree-governance-campaign-20260718"]
-binding = "Dedicated campaign manifest, selector-bounded closeout report, archived OpenSpec carrier, focused regressions, and a dated local-only Chronicle bind the bootstrap boundary."
-verifier = "digest_only"
-tests = [
+claim = { id = "worktree-governance-campaign-20260718", subject = "ethos:repo-first-worktree-governance-campaign", state = "active", change_id = "repo-first-worktree-governance-campaign-20260718", summary = "The dedicated repo-first worktree-governance campaign scopes serial local implementation and selected-campaign closeout without asserting recovery, migration, retirement, remote, or foreign-lane completion." }
+evidence = { dated = "evidence/chronicle/worktree-governance-campaign-20260718/2026-07-18.md", sha256 = "ec42243aa603912f0068bce524859782608b75c1438fecaeb291d81662f4ff0c", evidence_ids = [
+  "evidence:worktree-governance-campaign-20260718",
+], binding = "Dedicated campaign manifest, selector-bounded closeout report, archived OpenSpec carrier, focused regressions, and a dated local-only Chronicle bind the bootstrap boundary.", verifier = "digest_only", tests = [
   "pytest -q tests/unit/cli/test_contracts_proof.py::test_campaign_closeout_scopes_to_selected_campaign tests/unit/cli/test_contracts_proof.py::test_campaign_closeout_unknown_selector_reports_gap",
   "openspec validate --all --strict --json",
   "ethos openspec --lifecycle --json",
   "ethos quality claims --json",
   "ethos prove --execute --expect-head <committed-head> --json",
-]
-
-[evidence.freshness]
-mode = "historical"
-
-[boundary]
-owner = "ethos-repository"
-scope = "Dedicated strict-serial repo-first worktree-governance campaign bootstrap and selected-campaign read-only local closeout."
-
-[carriers]
-openspec = "openspec/changes/archive/2026-07-18-repo-first-worktree-governance-campaign-20260718"
-fallback = "Keep all future worktree-governance transitions blocked behind their own owned OpenSpec lanes; use unscoped campaign reports only for portfolio-wide observation."
-kill_signal = "A selected campaign closeout imports another campaign’s lifecycle gaps, or the bootstrap implies authority to mutate a foreign, unknown, or App-managed Work Lane."
-
-[promotion]
-targets = [
+], freshness = { mode = "historical" } }
+boundary = { owner = "ethos-repository", scope = "Dedicated strict-serial repo-first worktree-governance campaign bootstrap and selected-campaign read-only local closeout." }
+carriers = { openspec = "openspec/changes/archive/2026-07-18-repo-first-worktree-governance-campaign-20260718", fallback = "Keep all future worktree-governance transitions blocked behind their own owned OpenSpec lanes; use unscoped campaign reports only for portfolio-wide observation.", kill_signal = "A selected campaign closeout imports another campaign’s lifecycle gaps, or the bootstrap implies authority to mutate a foreign, unknown, or App-managed Work Lane." }
+promotion = { targets = [
   ".ethos/rules.toml",
   "docs/governance/evolution-campaign.md",
   "docs/reference/command-plane.md",
@@ -47,4 +25,4 @@ targets = [
   "system/schemas/kernel/campaign.schema.json",
   "tests/unit/cli/test_contracts_proof.py",
   "tests/unit/governance/test_evolution_ledger.py",
-]
+] }

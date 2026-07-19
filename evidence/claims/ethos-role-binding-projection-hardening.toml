@@ -1,16 +1,7 @@
-[claim]
-id = "ethos-role-binding-projection-hardening"
-subject = "ethos:role-binding-projection-hardening"
-state = "active"
-summary = "ETHOS schema-governs configured branch-role provenance, standard Work Lane lifecycle command binding, and host projection vocabulary boundaries without binding the product to a host, model provider, or OpenSpec as product substrate."
-
-[evidence]
-dated = "evidence/chronicle/role-binding-projection-hardening/2026-07-01.md"
-sha256 = "29507b8673ac3d69006ab1eb49530fb931fac2d3450f32ac4cb843d49ea74224"
-evidence_ids = ["evidence:ethos-role-binding-projection-hardening"]
-binding = "declared role-binding projection hardening evidence binding"
-verifier = "digest_only"
-tests = [
+claim = { id = "ethos-role-binding-projection-hardening", subject = "ethos:role-binding-projection-hardening", state = "active", summary = "ETHOS schema-governs configured branch-role provenance, standard Work Lane lifecycle command binding, and host projection vocabulary boundaries without binding the product to a host, model provider, or OpenSpec as product substrate." }
+evidence = { dated = "evidence/chronicle/role-binding-projection-hardening/2026-07-01.md", sha256 = "29507b8673ac3d69006ab1eb49530fb931fac2d3450f32ac4cb843d49ea74224", evidence_ids = [
+  "evidence:ethos-role-binding-projection-hardening",
+], binding = "declared role-binding projection hardening evidence binding", verifier = "digest_only", tests = [
   "uv run --group dev pytest tests/unit/audit/test_coupling.py -q",
   "uv run --group dev pytest tests/unit/audit/test_coupling.py tests/unit/governance/validation/test_schemas.py::test_coupling_audit_payload_validates_binding_registry_contract tests/unit/governance/validation/test_schemas.py::test_coupling_audit_schema_rejects_ui_projection_fields -q",
   "uv run --group dev pytest tests/unit/audit/test_coupling.py tests/unit/governance/validation/test_schemas.py::test_coupling_audit_payload_validates_binding_registry_contract tests/unit/governance/validation/test_schemas.py::test_coupling_audit_schema_rejects_ui_projection_fields tests/architecture/test_product_design_contract.py::test_product_design_contract_defines_configured_role_and_binding_contracts tests/architecture/test_product_design_contract.py::test_canonical_product_docs_are_provider_neutral -q",
@@ -29,22 +20,10 @@ tests = [
   "uv run --package ethos ethos quality claims --json",
   "uv run --package ethos ethos prove --execute --gate repository-audit --gate claims --gate schemas --expect-head $(git rev-parse HEAD) --json",
   "uv run --package ethos ethos campaign closeout --adopter reference-adopter --target <adopter-repo> --json",
-]
-
-[evidence.freshness]
-mode = "historical"
-[boundary]
-owner = "ethos-repository"
-scope = "Configured branch roles, standard Work Lane lifecycle binding, coupling schema, and host projection vocabulary boundaries"
-
-[carriers]
-openspec = "openspec/specs/repository-governance/spec.md"
-
-fallback = "Keep branch-role names configurable through .ethos/workspace.toml and keep host presentation outside product truth."
-kill_signal = "ETHOS workflow state can be created by host UI labels or raw worktree creation without ETHOS lease, claim, and configured role provenance."
-
-[promotion]
-targets = [
+], freshness = { mode = "historical" } }
+boundary = { owner = "ethos-repository", scope = "Configured branch roles, standard Work Lane lifecycle binding, coupling schema, and host projection vocabulary boundaries" }
+carriers = { openspec = "openspec/specs/repository-governance/spec.md", fallback = "Keep branch-role names configurable through .ethos/workspace.toml and keep host presentation outside product truth.", kill_signal = "ETHOS workflow state can be created by host UI labels or raw worktree creation without ETHOS lease, claim, and configured role provenance." }
+promotion = { targets = [
   "evidence/chronicle/role-binding-projection-hardening/2026-07-01.md",
   "packages/ethos/src/ethos/repository/policy/coupling",
   "system/schemas/kernel/coupling-audit.schema.json",
@@ -53,4 +32,4 @@ targets = [
   "docs/reference/command-plane.md",
   "openspec/specs/repository-governance/spec.md",
   "openspec/specs/adapters/spec.md",
-]
+] }

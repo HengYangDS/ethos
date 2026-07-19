@@ -1,48 +1,22 @@
-[claim]
-id = "coordination-lifecycle-edge-compression-20260713"
-change_id = "coordination-lifecycle-edge-compression-20260713"
-subject = "quality:coordination-lifecycle-edge-compression"
-state = "accepted"
-summary = "Coordination-lifecycle edge tests use compact literal partitions while effect boundaries remain named and exact."
-
-[evidence]
-dated = "evidence/chronicle/coordination-lifecycle-edge-compression-20260713/2026-07-13.md"
-sha256 = "a962aa4184953f808d2f0f9a0f7c818f24bd3ac27fb55c2c22eb3527d11726b3"
-evidence_ids = [
+claim = { id = "coordination-lifecycle-edge-compression-20260713", change_id = "coordination-lifecycle-edge-compression-20260713", subject = "quality:coordination-lifecycle-edge-compression", state = "accepted", summary = "Coordination-lifecycle edge tests use compact literal partitions while effect boundaries remain named and exact." }
+evidence = { dated = "evidence/chronicle/coordination-lifecycle-edge-compression-20260713/2026-07-13.md", sha256 = "a962aa4184953f808d2f0f9a0f7c818f24bd3ac27fb55c2c22eb3527d11726b3", evidence_ids = [
   "evidence:coordination-lifecycle-edge-compression-20260713",
   "test:tests/unit/coverage/test_coordination_lifecycle_edges.py",
-]
-binding = "The bounded OpenSpec carrier, canonical 767-line baseline, 736-line compact test representation, focused test result, generic parity receipt, and the final HEAD-bound proof jointly bind this accepted implementation slice; candidate/accepted/publish/retire remain separate governed transitions."
-verifier = "semantic"
-tests = [
+], binding = "The bounded OpenSpec carrier, canonical 767-line baseline, 736-line compact test representation, focused test result, generic parity receipt, and the final HEAD-bound proof jointly bind this accepted implementation slice; candidate/accepted/publish/retire remain separate governed transitions.", verifier = "semantic", tests = [
   "uv run --all-packages --group dev pytest -q tests/unit/coverage/test_coordination_lifecycle_edges.py",
   "tools/ci/scripts/run-python-lint.sh",
   "tools/ci/scripts/run-python-tests.sh",
   "uv run --package ethos ethos quality source-budget --json",
   "uv run --package ethos ethos parity shadow --adopter generic --target . --execute --write-evidence --json",
   "uv run --package ethos ethos prove --execute --expect-head $(git rev-parse HEAD) --json",
-]
-
-[evidence.freshness]
-mode = "historical"
-
-[scope]
-tests = ["tests/unit/coverage/test_coordination_lifecycle_edges.py"]
-
-[boundary]
-owner = "quality"
-scope = "Coordination-lifecycle test representation only; production coordination, lifecycle, persistence, and public command contracts remain unchanged."
-
-[carriers]
-openspec = "openspec/changes/archive/2026-07-13-coordination-lifecycle-edge-compression-20260713"
-fallback = "Restore the former named test assertions if literal partitions reduce diagnostic precision, coverage, or formatter-clean ELOC does not decline."
-kill_signal = "The formatted scoped ELOC does not decline, a retained effect boundary loses coverage, or the repository quality floor fails."
-
-[promotion]
-targets = [
+], freshness = { mode = "historical" } }
+scope = { tests = ["tests/unit/coverage/test_coordination_lifecycle_edges.py"] }
+boundary = { owner = "quality", scope = "Coordination-lifecycle test representation only; production coordination, lifecycle, persistence, and public command contracts remain unchanged." }
+carriers = { openspec = "openspec/changes/archive/2026-07-13-coordination-lifecycle-edge-compression-20260713", fallback = "Restore the former named test assertions if literal partitions reduce diagnostic precision, coverage, or formatter-clean ELOC does not decline.", kill_signal = "The formatted scoped ELOC does not decline, a retained effect boundary loses coverage, or the repository quality floor fails." }
+promotion = { targets = [
   { kind = "tests", path = "tests/unit/coverage/test_coordination_lifecycle_edges.py" },
   { kind = "openspec", path = "openspec/changes/archive/2026-07-13-coordination-lifecycle-edge-compression-20260713" },
   { kind = "openspec", path = "openspec/specs/quality/spec.md" },
   { kind = "evidence", path = "evidence/chronicle/coordination-lifecycle-edge-compression-20260713/2026-07-13.md" },
   { kind = "evidence", path = "evidence/parity/generic-shadow.json" },
-]
+] }

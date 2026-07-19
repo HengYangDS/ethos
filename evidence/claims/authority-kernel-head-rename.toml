@@ -1,34 +1,14 @@
-[claim]
-id = "authority-kernel-head-rename"
-subject = "ethos:authority-kernel-head"
-state = "active"
-summary = "ETHOS current kernel truth names the authority head Authority, removes retired authority-head vocabulary across repository records, blocks protected-root projection scratch residue, and hardens lease visibility fallback."
-
-[evidence]
-dated = "evidence/chronicle/authority-kernel-head-rename/2026-07-08.md"
-sha256 = "c6622192e28b854787aee73ece78741564004a4d75fb0b276d0027264daf7156"
-evidence_ids = ["evidence:authority-kernel-head-rename"]
-binding = "declared authority-kernel-head recovery evidence binding"
-verifier = "digest_only"
-tests = [
+claim = { id = "authority-kernel-head-rename", subject = "ethos:authority-kernel-head", state = "active", summary = "ETHOS current kernel truth names the authority head Authority, removes retired authority-head vocabulary across repository records, blocks protected-root projection scratch residue, and hardens lease visibility fallback." }
+evidence = { dated = "evidence/chronicle/authority-kernel-head-rename/2026-07-08.md", sha256 = "c6622192e28b854787aee73ece78741564004a4d75fb0b276d0027264daf7156", evidence_ids = [
+  "evidence:authority-kernel-head-rename",
+], binding = "declared authority-kernel-head recovery evidence binding", verifier = "digest_only", tests = [
   "uv run --all-packages --group dev pytest tests/unit/kernel/test_contracts.py tests/unit/kernel/test_invalid_states.py tests/unit/governance/validation tests/unit/governance/test_authority_graph.py tests/unit/lanes/test_state.py tests/architecture/test_product_design_contract.py -q",
   "uv run --all-packages ethos quality claims --json",
   "uv run --all-packages ethos openspec --lifecycle --json",
-]
-
-[evidence.freshness]
-mode = "historical"
-[boundary]
-owner = "ethos-core"
-scope = "Authority kernel head rename, protected-root projection pollution guard, and lease read fallback"
-
-[carriers]
-openspec = "openspec/changes/archive/2026-07-08-authority-kernel-head-rename"
-fallback = "Keep current truth on Authority while preserving historical meaning without retaining retired authority-head tokens."
-kill_signal = "Current code, schema, docs, live OpenSpec specs, README, evidence, archive, or generated repository content reintroduces retired authority-head vocabulary, or protected-root scratch projection paths are allowed as product truth."
-
-[promotion]
-targets = [
+], freshness = { mode = "historical" } }
+boundary = { owner = "ethos-core", scope = "Authority kernel head rename, protected-root projection pollution guard, and lease read fallback" }
+carriers = { openspec = "openspec/changes/archive/2026-07-08-authority-kernel-head-rename", fallback = "Keep current truth on Authority while preserving historical meaning without retaining retired authority-head tokens.", kill_signal = "Current code, schema, docs, live OpenSpec specs, README, evidence, archive, or generated repository content reintroduces retired authority-head vocabulary, or protected-root scratch projection paths are allowed as product truth." }
+promotion = { targets = [
   "README.md",
   "docs/governance/authority.md",
   "docs/governance/product-design-contract.md",
@@ -57,4 +37,4 @@ targets = [
   "openspec/changes/archive/2026-07-08-authority-kernel-head-rename/specs/repository-governance/spec.md",
   "evidence/chronicle/authority-kernel-head-rename/2026-07-08.md",
   "evidence/claims/authority-kernel-head-rename.toml",
-]
+] }

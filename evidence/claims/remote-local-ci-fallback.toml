@@ -1,17 +1,7 @@
-[claim]
-id = "remote-local-ci-fallback"
-subject = "ethos:remote-local-ci-fallback"
-state = "active"
-change_id = "remote-local-ci-fallback-20260707"
-summary = "ETHOS publish probes remote availability and exposes local-ci fallback evidence when remote delivery is unavailable."
-
-[evidence]
-dated = "evidence/chronicle/remote-local-ci-fallback/2026-07-07.md"
-sha256 = "8982e40cb9d402d400f122c63c2b1adb486e52f6e52387e56b5da0279a850515"
-evidence_ids = ["evidence:remote-local-ci-fallback"]
-binding = "Remote availability probe and local-ci fallback binding"
-verifier = "digest_only"
-tests = [
+claim = { id = "remote-local-ci-fallback", subject = "ethos:remote-local-ci-fallback", state = "active", change_id = "remote-local-ci-fallback-20260707", summary = "ETHOS publish probes remote availability and exposes local-ci fallback evidence when remote delivery is unavailable." }
+evidence = { dated = "evidence/chronicle/remote-local-ci-fallback/2026-07-07.md", sha256 = "8982e40cb9d402d400f122c63c2b1adb486e52f6e52387e56b5da0279a850515", evidence_ids = [
+  "evidence:remote-local-ci-fallback",
+], binding = "Remote availability probe and local-ci fallback binding", verifier = "digest_only", tests = [
   "tools/ci/scripts/run-local-ci.sh",
   "ETHOS_ROOT=$PWD uv run --group dev ethos publish --json",
   "ETHOS_ROOT=$PWD uv run --group dev ethos quality schemas --json",
@@ -19,22 +9,10 @@ tests = [
   "uv run --group dev pytest tests/unit/coverage/test_admission_land_evolution_rules_edges.py::test_remote_availability_and_local_ci_fallback_edges tests/unit/coverage/test_admission_land_evolution_rules_edges.py::test_remote_availability_reports_configured_remote_available tests/unit/cli/test_contracts_closeout.py::test_publish_reports_local_readiness_without_remote_push tests/architecture/test_release_assets.py::test_configuration_layout_is_separated_by_concern -q",
   "openspec validate --all --strict --json",
   "ETHOS_ROOT=$PWD uv run --group dev ethos openspec --lifecycle --json",
-]
-
-[evidence.freshness]
-mode = "historical"
-[boundary]
-owner = "ethos"
-scope = "Publish remote availability probe, local-ci fallback evidence class, and local owner gate entrypoint"
-
-[carriers]
-openspec = "openspec/changes/archive/2026-07-06-remote-local-ci-fallback-20260707"
-
-fallback = "Keep remote publication deferred and instruct humans to run owner scripts manually."
-kill_signal = "Local fallback evidence is presented as hosted CI success or remote unavailability blocks local repository closeout."
-
-[promotion]
-targets = [
+], freshness = { mode = "historical" } }
+boundary = { owner = "ethos", scope = "Publish remote availability probe, local-ci fallback evidence class, and local owner gate entrypoint" }
+carriers = { openspec = "openspec/changes/archive/2026-07-06-remote-local-ci-fallback-20260707", fallback = "Keep remote publication deferred and instruct humans to run owner scripts manually.", kill_signal = "Local fallback evidence is presented as hosted CI success or remote unavailability blocks local repository closeout." }
+promotion = { targets = [
   "tools/ci/scripts/run-local-ci.sh",
   "packages/ethos/src/ethos/adapters/repo/git.py",
   "packages/ethos/src/ethos/domain/land/publication.py",
@@ -48,4 +26,4 @@ targets = [
   "openspec/changes/archive/2026-07-06-remote-local-ci-fallback-20260707",
   "evidence/claims/remote-local-ci-fallback.toml",
   "evidence/chronicle/remote-local-ci-fallback/2026-07-07.md",
-]
+] }

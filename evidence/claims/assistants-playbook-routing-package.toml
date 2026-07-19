@@ -1,17 +1,7 @@
-[claim]
-id = "assistants-playbook-routing-package"
-subject = "ethos:assistants-playbook-routing-package"
-state = "active"
-change_id = "assistants-playbook-routing-package-20260709"
-summary = "ETHOS moved assistant playbook routing out of a suffix-flat utility module and ratcheted module-layout debt to the current 17-gap baseline."
-
-[evidence]
-dated = "evidence/chronicle/assistants-playbook-routing-package/2026-07-09.md"
-sha256 = "d6301bd469aeb8c7ebfef4576183c15c1c8bbd91b3395d616cc11c1fc0fdc831"
-evidence_ids = ["evidence:assistants-playbook-routing-package"]
-binding = "Declared subpackage migration, module-layout ratchet shrink, projection digest refresh, focused tests, and quality audits."
-verifier = "digest_only"
-tests = [
+claim = { id = "assistants-playbook-routing-package", subject = "ethos:assistants-playbook-routing-package", state = "active", change_id = "assistants-playbook-routing-package-20260709", summary = "ETHOS moved assistant playbook routing out of a suffix-flat utility module and ratcheted module-layout debt to the current 17-gap baseline." }
+evidence = { dated = "evidence/chronicle/assistants-playbook-routing-package/2026-07-09.md", sha256 = "d6301bd469aeb8c7ebfef4576183c15c1c8bbd91b3395d616cc11c1fc0fdc831", evidence_ids = [
+  "evidence:assistants-playbook-routing-package",
+], binding = "Declared subpackage migration, module-layout ratchet shrink, projection digest refresh, focused tests, and quality audits.", verifier = "digest_only", tests = [
   "uv run --group dev ruff check packages/ethos/src/ethos/assistants/skills/routing.py packages/ethos/src/ethos/assistants/playbooks.py tests/unit/assistants/test_playbooks.py",
   "uv run --group dev ruff format --check packages/ethos/src/ethos/assistants/skills/routing.py packages/ethos/src/ethos/assistants/playbooks.py tests/unit/assistants/test_playbooks.py",
   "uv run --group dev pytest -q tests/unit/assistants/test_playbooks.py tests/unit/coverage/test_skill_package_edges.py tests/unit/cli/test_contracts_proof.py::test_projection_drift_reports_registry_and_generator_digest_state",
@@ -19,21 +9,10 @@ tests = [
   "uv run --package ethos ethos quality projection-drift --json",
   ".agents/skills/ethos-quality-gate-governance/scripts/quality_audit.py .",
   ".agents/skills/ethos-skill-portfolio-governance/scripts/portfolio_audit.py .",
-]
-
-[evidence.freshness]
-mode = "historical"
-[boundary]
-owner = "ethos"
-scope = "Assistant playbook routing module layout and projection-drift evidence."
-
-[carriers]
-openspec = "openspec/changes/archive/2026-07-08-module-layout-semantic-guard"
-fallback = "Restore playbook_utils.py and revert module-layout baseline shrink if routing semantics regress."
-kill_signal = "playbooks check, projection-drift, or module-layout gate reports required gaps after the migration."
-
-[promotion]
-targets = [
+], freshness = { mode = "historical" } }
+boundary = { owner = "ethos", scope = "Assistant playbook routing module layout and projection-drift evidence." }
+carriers = { openspec = "openspec/changes/archive/2026-07-08-module-layout-semantic-guard", fallback = "Restore playbook_utils.py and revert module-layout baseline shrink if routing semantics regress.", kill_signal = "playbooks check, projection-drift, or module-layout gate reports required gaps after the migration." }
+promotion = { targets = [
   ".agents/skills/activation.toml",
   ".config/checks/module-layout/policy.toml",
   "packages/ethos/src/ethos/assistants/skills/routing.py",
@@ -41,4 +20,4 @@ targets = [
   "tests/unit/assistants/test_playbooks.py",
   "evidence/chronicle/assistants-playbook-routing-package/2026-07-09.md",
   "evidence/claims/assistants-playbook-routing-package.toml",
-]
+] }

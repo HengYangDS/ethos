@@ -1,16 +1,7 @@
-[claim]
-id = "ethos-asset-quality-kernel"
-subject = "ethos:quality-kernel"
-state = "active"
-summary = "ETHOS quality, determinism, docs quality, and proof policy are a first-class product capability."
-
-[evidence]
-dated = "evidence/chronicle/asset-quality-kernel/2026-07-01.md"
-sha256 = "3f1fb1d71ea3e0c9d7d906585e9eadff9b12caf11607a25f5d47d5d80ab049a6"
-evidence_ids = ["evidence:ethos-asset-quality-kernel"]
-binding = "declared quality-kernel evidence binding"
-verifier = "digest_only"
-tests = [
+claim = { id = "ethos-asset-quality-kernel", subject = "ethos:quality-kernel", state = "active", summary = "ETHOS quality, determinism, docs quality, and proof policy are a first-class product capability." }
+evidence = { dated = "evidence/chronicle/asset-quality-kernel/2026-07-01.md", sha256 = "3f1fb1d71ea3e0c9d7d906585e9eadff9b12caf11607a25f5d47d5d80ab049a6", evidence_ids = [
+  "evidence:ethos-asset-quality-kernel",
+], binding = "declared quality-kernel evidence binding", verifier = "digest_only", tests = [
   "uv run --group dev pytest tests/unit/kernel/test_quality.py tests/unit/governance/test_docs_registry.py tests/unit/governance/validation tests/unit/cli/test_contracts.py tests/unit/governance/test_evolution_ledger.py tests/unit/product/parity tests/architecture/test_product_boundaries.py -q",
   "uv run --group dev pytest -q",
   "uv run --group dev ruff check .",
@@ -30,22 +21,10 @@ tests = [
   "uv run --package ethos ethos prove --full --execute --json",
   "uv build --all-packages",
   "npm run test:npm",
-]
-
-[evidence.freshness]
-mode = "historical"
-[boundary]
-owner = "ethos-quality"
-scope = "Quality assets, gate descriptors, docs profile, and proof-state lattice"
-
-[carriers]
-openspec = "openspec/changes/archive/2026-07-01-ethos-asset-quality-kernel"
-
-fallback = "Keep existing repository lifecycle commands as readiness wrappers while quality semantics remain provider-neutral."
-kill_signal = "Quality or proof trust semantics require adopter-private terms or provider execution inside product contracts."
-
-[promotion]
-targets = [
+], freshness = { mode = "historical" } }
+boundary = { owner = "ethos-quality", scope = "Quality assets, gate descriptors, docs profile, and proof-state lattice" }
+carriers = { openspec = "openspec/changes/archive/2026-07-01-ethos-asset-quality-kernel", fallback = "Keep existing repository lifecycle commands as readiness wrappers while quality semantics remain provider-neutral.", kill_signal = "Quality or proof trust semantics require adopter-private terms or provider execution inside product contracts." }
+promotion = { targets = [
   ".agents/skills/activation.toml",
   ".ethos/workspace.toml",
   "evidence/claims/ethos-asset-quality-kernel.toml",
@@ -142,4 +121,4 @@ targets = [
   "tests/unit/lanes/test_runner_evidence.py",
   "tests/unit/governance/validation",
   "tests/unit/governance/test_evolution_ledger.py",
-]
+] }

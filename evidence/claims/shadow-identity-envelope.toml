@@ -1,16 +1,7 @@
-[claim]
-id = "shadow-identity-envelope"
-subject = "ethos:shadow-parity-identity-envelope"
-state = "active"
-summary = "ETHOS shadow parity reports and tracked parity evidence bind target identity, product identity, command identities, changed paths, and evidence input digests before adopter retirement checks consume declared diff results."
-
-[evidence]
-dated = "evidence/chronicle/shadow-identity-envelope/2026-07-06.md"
-sha256 = "a89b354d840d028b8634d139e907765c4f10761511345ded6ea63183ac3cc523"
-evidence_ids = ["evidence:shadow-identity-envelope"]
-binding = "declared shadow parity identity envelope evidence binding"
-verifier = "digest_only"
-tests = [
+claim = { id = "shadow-identity-envelope", subject = "ethos:shadow-parity-identity-envelope", state = "active", summary = "ETHOS shadow parity reports and tracked parity evidence bind target identity, product identity, command identities, changed paths, and evidence input digests before adopter retirement checks consume declared diff results." }
+evidence = { dated = "evidence/chronicle/shadow-identity-envelope/2026-07-06.md", sha256 = "a89b354d840d028b8634d139e907765c4f10761511345ded6ea63183ac3cc523", evidence_ids = [
+  "evidence:shadow-identity-envelope",
+], binding = "declared shadow parity identity envelope evidence binding", verifier = "digest_only", tests = [
   "uv run --group dev pytest tests/unit/product/parity tests/unit/governance/validation tests/unit/cli/test_command_registry.py -q",
   "tools/ci/scripts/run-python-lint.sh",
   "tools/ci/scripts/run-config-lint.sh",
@@ -18,22 +9,10 @@ tests = [
   "uv run --package ethos ethos openspec --lifecycle --json",
   "uv run --package ethos ethos report --json",
   "uv run --package ethos ethos prove --execute --expect-head $(git rev-parse HEAD) --json",
-]
-
-[evidence.freshness]
-mode = "historical"
-[boundary]
-owner = "ethos-repository"
-scope = "Shadow parity identity envelope for external-vs-embedded adopter comparison evidence"
-
-[carriers]
-openspec = "openspec/changes/archive/2026-07-06-shadow-identity-envelope"
-
-fallback = "Treat shadow parity evidence without an identity envelope as stale planning input, not retirement evidence."
-kill_signal = "Adopter retirement readiness can consume semantic shadow diff results without same-root, same-head, same-changed-path, command-identity, and evidence-input binding."
-
-[promotion]
-targets = [
+], freshness = { mode = "historical" } }
+boundary = { owner = "ethos-repository", scope = "Shadow parity identity envelope for external-vs-embedded adopter comparison evidence" }
+carriers = { openspec = "openspec/changes/archive/2026-07-06-shadow-identity-envelope", fallback = "Treat shadow parity evidence without an identity envelope as stale planning input, not retirement evidence.", kill_signal = "Adopter retirement readiness can consume semantic shadow diff results without same-root, same-head, same-changed-path, command-identity, and evidence-input binding." }
+promotion = { targets = [
   "evidence/claims/shadow-identity-envelope.toml",
   "openspec/changes/archive/2026-07-06-shadow-identity-envelope/.openspec.yaml",
   "openspec/changes/archive/2026-07-06-shadow-identity-envelope/proposal.md",
@@ -50,4 +29,4 @@ targets = [
   "tests/unit/product/parity",
   "docs/governance/capability-parity-ledger.md",
   "docs/governance/adopter-boundary-and-retirement.md",
-]
+] }

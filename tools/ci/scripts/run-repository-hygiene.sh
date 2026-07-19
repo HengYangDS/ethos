@@ -83,6 +83,26 @@ def string_list(policy: dict[str, Any], key: str) -> list[str]:
         return []
     return [item for item in value if isinstance(item, str)]
 
+
+def negative_stash_guidance(*, line: str, window: str) -> bool:
+    """Recognize explicit prose that prohibits rather than recommends Git stash."""
+    stripped = line.lstrip("- ").lower()
+    if "then retry" in stripped:
+        return False
+    return (
+        any(allowed in window for allowed in stash_policy_allowlist)
+        or stripped.startswith("no ")
+        or "does not" in stripped
+        or "doesn't" in stripped
+        or "was not" in stripped
+        or "were not" in stripped
+        or "is not" in stripped
+        or "are not" in stripped
+        or "was\nmodified" in window
+        or "out of scope" in window
+    )
+
+
 policy = load_policy()
 text_suffixes = set(string_list(policy, "text_suffixes"))
 text_names = set(string_list(policy, "text_names"))
@@ -146,10 +166,10 @@ for path in paths:
         for lineno, line in enumerate(lines, start=1):
             lowered_line = line.lower()
             window = "\n".join(
-                lines[max(0, lineno - 2) : min(len(lines), lineno + 2)]
+                lines[max(0, lineno - 3) : min(len(lines), lineno + 2)]
             ).lower()
-            if any(pattern in lowered_line for pattern in forbidden_stash_patterns) and not any(
-                allowed in window for allowed in stash_policy_allowlist
+            if any(pattern in lowered_line for pattern in forbidden_stash_patterns) and not negative_stash_guidance(
+                line=line, window=window
             ):
                 failures.append(
                     f"{path}:{lineno}: stash is not an accepted backup or closeout carrier"

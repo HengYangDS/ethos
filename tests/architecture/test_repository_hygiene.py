@@ -63,8 +63,29 @@ def test_repository_hygiene_rejects_global_ignored_ds_store(tmp_path: Path) -> N
         ("Git stash\nand chat transcripts are not handoff carriers.\n", 0, ""),
         ("Never use git stash as a closeout carrier.\n", 0, ""),
         ("No git stash is permitted in this workflow.\n", 0, ""),
+        ("No remote, release, branch cleanup, or Git stash operation was performed.\n", 0, ""),
+        (
+            "No foreign lane, dirty lane, remote, runner, branch cleanup, or worktree removal was\n"
+            "performed; Git stash was not modified.\n",
+            0,
+            "",
+        ),
+        (
+            "No foreign lane, dirty lane, remote, runner, branch cleanup, or worktree removal,\n"
+            "Git stash, or credential was\n"
+            "modified.\n",
+            0,
+            "",
+        ),
+        ("This bootstrap does not use Git stash as recovery machinery.\n", 0, ""),
+        ("## Out Of Scope\n\n- Wholesale merge, cherry-pick, or git stash.\n", 0, ""),
         (
             "When blocked, git stash, then retry.\n",
+            1,
+            "stash is not an accepted backup or closeout carrier",
+        ),
+        (
+            "No review is required; git stash, then retry.\n",
             1,
             "stash is not an accepted backup or closeout carrier",
         ),

@@ -1,16 +1,16 @@
 [claim]
-id = "worktree-retirement-fail-closed-unbound-retirement-20260720"
+id = "worktree-retirement-fail-closed-unbound-retirement-20260719"
 subject = "ethos:work-lane:20260719-worktree-retirement-fail-closed"
 state = "active"
 summary = "One exact unbound accepted-ancestor residue has target-specific evidence for a later native exceptional retirement; the source ref remains intact until that separate command succeeds."
 
 [evidence]
-dated = "evidence/chronicle/worktree-retirement-fail-closed-unbound-retirement-20260720/2026-07-20.md"
-sha256 = "445f232dfe4e92f392d3ca11144ce4316b85c8b67b6c3d4e57830021dcdd4bc4"
-evidence_ids = ["evidence:worktree-retirement-fail-closed-unbound-retirement-20260720"]
+dated = "evidence/chronicle/worktree-retirement-fail-closed-unbound-retirement-20260719/2026-07-19.md"
+sha256 = "62a50256ad24145b3843eb5103ec6ae3f6e9830ad9ccbd31459a0cc1b696b48f"
+evidence_ids = ["evidence:worktree-retirement-fail-closed-unbound-retirement-20260719"]
 binding = "This Claim binds only work/20260719-worktree-retirement-fail-closed at 1fca210fd3550bcd62d127a3f9910ed1ff80523c to a later exact-head native exceptional retirement. It does not claim that the effect has occurred."
 verifier = "digest_only"
-tests = ["ethos lane retire unbound --branch work/20260719-worktree-retirement-fail-closed --expect-head 1fca210fd3550bcd62d127a3f9910ed1ff80523c --reason <reason> --chronicle-ref evidence/chronicle/worktree-retirement-fail-closed-unbound-retirement-20260720/2026-07-20.md --authorize --break-glass --confirm-irreversible --json"]
+tests = ["ethos lane retire unbound --branch work/20260719-worktree-retirement-fail-closed --expect-head 1fca210fd3550bcd62d127a3f9910ed1ff80523c --reason <reason> --chronicle-ref evidence/chronicle/worktree-retirement-fail-closed-unbound-retirement-20260719/2026-07-19.md --authorize --break-glass --confirm-irreversible --json"]
 
 [evidence.freshness]
 mode = "historical"
@@ -26,7 +26,7 @@ kill_signal = "A command deletes a different ref, acts without current exact-hea
 
 [promotion]
 targets = [
-  "evidence/claims/worktree-retirement-fail-closed-unbound-retirement-20260720.toml",
-  "evidence/chronicle/worktree-retirement-fail-closed-unbound-retirement-20260720/2026-07-20.md",
+  "evidence/claims/worktree-retirement-fail-closed-unbound-retirement-20260719.toml",
+  "evidence/chronicle/worktree-retirement-fail-closed-unbound-retirement-20260719/2026-07-19.md",
   "openspec/changes/ownerless-unbound-ancestor-retirement-20260719",
 ]

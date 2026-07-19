@@ -7,7 +7,7 @@ relations:
   extends: worktree-retirement-exceptional-unbound-v2-20260719
 ---
 
-# Ownerless Unbound Accepted-Ancestor Retirement — 2026-07-20
+# Ownerless Unbound Accepted-Ancestor Retirement — 2026-07-19
 
 Status: active, local-only retirement-evidence carrier.
 

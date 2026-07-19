@@ -36,7 +36,6 @@ targets = [
   { kind = "source", path = "packages/ethos/src/ethos/repository/evidence/claims.py" },
   { kind = "tests", path = "tests/unit/governance/test_claims.py" },
   { kind = "evidence", path = "evidence/claims/advisory-invalid-state-classification.toml" },
-  { kind = "evidence", path = "evidence/claims/retire-owner-boundary.toml" },
   { kind = "openspec", path = "openspec/changes/archive/2026-07-12-claim-envelope-unification-compression-20260712" },
   { kind = "evidence", path = "evidence/chronicle/claim-envelope-unification-compression-20260712/2026-07-12.md" },
 ]

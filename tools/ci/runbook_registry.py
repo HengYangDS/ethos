@@ -1,12 +1,9 @@
-from __future__ import annotations
-
 import json
 import sys
 import tomllib
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 from ethos.adapters.repo.git import current_tracked_head
 
@@ -14,12 +11,8 @@ ROOT = Path(__file__).resolve().parents[2]
 CONFIG_PATH = ROOT / ".config/checks/runbook/registry.toml"
 
 
-def _load_config() -> dict[str, Any]:
-    return tomllib.loads(CONFIG_PATH.read_text(encoding="utf-8"))
-
-
 def main() -> int:
-    config = _load_config()
+    config = tomllib.loads(CONFIG_PATH.read_text(encoding="utf-8"))
     registry = ROOT / str(config["registry"])
     text = registry.read_text(encoding="utf-8") if registry.is_file() else ""
     failures: list[dict[str, str]] = []
@@ -28,21 +21,14 @@ def main() -> int:
         failures.append({"id": "registry", "reason": f"missing {config['registry']}"})
     for entry in entries:
         command = str(entry["command"])
-        executable = command.split(maxsplit=1)[0]
-        if executable.startswith("ETHOS_LOCAL_EMULATOR_DRY_RUN=1"):
-            executable = command.split()[1]
+        parts = command.split()
+        executable = parts[1] if parts[0].startswith("ETHOS_LOCAL_EMULATOR_DRY_RUN=1") else parts[0]
         if executable.startswith("tools/") and not (ROOT / executable).is_file():
             failures.append({"id": str(entry["id"]), "reason": f"missing command {executable}"})
-        expected_needles = [
-            str(entry["id"]),
-            command,
-            str(entry["category"]),
-            str(entry["evidence"]),
-        ]
-        missing_needles = [needle for needle in expected_needles if needle not in text]
         failures.extend(
             {"id": str(entry["id"]), "reason": f"registry missing {needle}"}
-            for needle in missing_needles
+            for needle in (entry["id"], command, entry["category"], entry["evidence"])
+            if str(needle) not in text
         )
     payload = {
         "schema_version": 1,

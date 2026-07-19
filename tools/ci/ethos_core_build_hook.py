@@ -1,7 +1,5 @@
 """Hatch build hook for declaration-resource projections."""
 
-from __future__ import annotations
-
 import tomllib
 from contextlib import suppress
 from importlib import import_module
@@ -16,11 +14,10 @@ class CustomBuildHook(BuildHookInterface):
 
     def _sdist_resources(self) -> dict[Path, Path]:
         root = Path(self.root)
-        sdist = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))["tool"][
-            "hatch"
-        ]["build"]["targets"]["sdist"]["force-include"]
+        config = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
+        sdist = config["tool"]["hatch"]["build"]["targets"]["sdist"]["force-include"]
         return {
-            (root / target): (root / source).resolve()
+            root / target: (root / source).resolve()
             for source, target in sdist.items()
             if target.startswith("src/ethos_core/data/")
         }
@@ -37,14 +34,7 @@ class CustomBuildHook(BuildHookInterface):
         self._remove_materialized()
 
     def initialize(self, version: str, build_data: dict[str, Any]) -> None:
-        """Materialize static wheel inputs only while building from a checkout.
-
-        Hatchling merges static and hook-provided force-includes.  Therefore
-        static wheel inputs must always point at ``src/``: an sdist already
-        owns those files, while a checkout temporarily materializes them from
-        the canonical declarations.  The files are removed in ``finalize`` and
-        are never a source-tree artifact.
-        """
+        """Project canonical declarations without leaving checkout artifacts."""
         root = Path(self.root)
         resources = self._sdist_resources()
         if version == "editable":
@@ -55,16 +45,12 @@ class CustomBuildHook(BuildHookInterface):
             return
         if version != "standard":
             return
-
         self._remove_materialized()
-        materialized: list[Path] = []
         for target, source in resources.items():
-            if target.is_file():
-                continue
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_bytes(source.read_bytes())
-            materialized.append(target)
-        self._materialized = materialized
+            if not target.is_file():
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(source.read_bytes())
+                self._materialized.append(target)
 
     def finalize(self, version: str, _build_data: dict[str, Any], _artifact_path: str) -> None:
         """Restore a checkout after each standard build."""

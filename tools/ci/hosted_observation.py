@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import json
 import os
 import shutil
@@ -15,6 +13,7 @@ from cyclopts import App
 
 from ethos.adapters.repo.git import current_tracked_head
 from ethos.adapters.repo.git import git_stdout
+from ethos.repository.evidence.hosted.core import FLAGS
 from ethos.repository.evidence.hosted.core import observation_summary
 from ethos.repository.evidence.hosted.core import provider_command
 from ethos.repository.evidence.hosted.core import provider_facts
@@ -33,7 +32,7 @@ def _observe(provider: str, config: dict[str, Any], *, execute: bool) -> dict[st
     state = (
         "not_configured" if not target else "tool_unavailable" if not tool_path else "not_executed"
     )
-    record: dict[str, Any] = {
+    record = {
         "provider": provider,
         "tool": tool,
         "tool_available": bool(tool_path),
@@ -74,16 +73,13 @@ def _observe(provider: str, config: dict[str, Any], *, execute: bool) -> dict[st
     return record
 
 
-app = App(name="ethos-hosted-observation", help="Capture hosted provider observations.")
-
-
-@app.default
 def capture_observation(*, execute: bool = False, output: Path | None = None) -> int:
     """Capture provider facts without converting them into repository proof."""
     config = tomllib.loads(CONFIG.read_text(encoding="utf-8"))
-    providers = [str(item) for item in config.get("providers", [])]
+    providers = list(map(str, config.get("providers", [])))
     observations = [_observe(item, config, execute=execute) for item in providers]
     state, gaps, ok = observation_summary(observations, execute=execute)
+    boundary = config.get("boundary", {})
     payload = {
         "schema_version": 1,
         "kind": "ethos_hosted_provider_observation",
@@ -94,24 +90,22 @@ def capture_observation(*, execute: bool = False, output: Path | None = None) ->
         "config": str(CONFIG.relative_to(ROOT)),
         "generated_at": datetime.now(UTC).isoformat(),
         "execute": execute,
-        "evidence_class": config.get("boundary", {}).get(
-            "evidence_class", "hosted_provider_observation"
-        ),
-        "claim_boundary": config.get("boundary", {}).get("claim", ""),
-        "not_claimed": config.get("boundary", {}).get("not_claimed", []),
+        "evidence_class": boundary.get("evidence_class", "hosted_provider_observation"),
+        "claim_boundary": boundary.get("claim", ""),
+        "not_claimed": boundary.get("not_claimed", []),
         "observation_gaps": gaps,
         "observation_gap_count": len(gaps),
-        "hosted_github_status_claimed": False,
-        "hosted_gitlab_status_claimed": False,
-        "remote_publication_claimed": False,
         "observations": observations,
-    }
+    } | dict.fromkeys(FLAGS, False)
     path = ROOT / str(output or config["output"])
     path.parent.mkdir(parents=True, exist_ok=True)
     rendered = json.dumps(payload, indent=2, sort_keys=True) + "\n"
     path.write_text(rendered, encoding="utf-8")
     sys.stdout.write(rendered)
     return 0
+
+
+app = App(name="ethos-hosted-observation", default_command=capture_observation)
 
 
 def main(argv: list[str] | None = None) -> int:

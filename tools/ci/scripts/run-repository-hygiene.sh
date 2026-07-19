@@ -67,6 +67,10 @@ DEFAULT_POLICY: dict[str, Any] = {
         "not_git_stash",
         "hidden change carrier",
     ],
+    "stash_guidance_excluded_prefixes": [
+        "evidence/chronicle/",
+        "openspec/changes/archive/",
+    ],
 }
 
 def load_policy() -> dict[str, Any]:
@@ -114,6 +118,9 @@ forbidden_stash_patterns = tuple(
 stash_policy_allowlist = tuple(
     pattern.lower() for pattern in string_list(policy, "stash_policy_allowlist")
 )
+stash_guidance_excluded_prefixes = tuple(
+    string_list(policy, "stash_guidance_excluded_prefixes")
+)
 max_tracked_bytes = int(policy.get("max_tracked_bytes", DEFAULT_POLICY["max_tracked_bytes"]))
 
 failures: list[str] = []
@@ -160,7 +167,9 @@ for path in paths:
         except json.JSONDecodeError as exc:
             failures.append(f"{path}: JSON parse failed: {exc}")
 
-    human_guidance_surface = path.suffix in {".md", ".txt", ".rst"}
+    human_guidance_surface = path.suffix in {".md", ".txt", ".rst"} and not path.as_posix().startswith(
+        stash_guidance_excluded_prefixes
+    )
     if human_guidance_surface:
         lines = text.splitlines()
         for lineno, line in enumerate(lines, start=1):

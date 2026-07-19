@@ -806,60 +806,55 @@ def test_workspace_status_reports_runtime_binding_for_audited_checkout(
     assert all(isinstance(binding[key], bool) for key in ("runner_matches_audit_root", "schema_matches_audit_root"))
 
 
-def test_workspace_status_runtime_binding_warns_when_runner_is_external(
+@pytest.mark.parametrize(
+    ("project_text", "state", "gap", "next_action"),
+    [
+        (
+            None,
+            "external_current_runner",
+            "workspace_status_runner_source_differs_from_audit_root",
+            "package-bound runner",
+        ),
+        (
+            "command_plane = 'ethos'\n",
+            "external_current_runner",
+            "workspace_status_runner_source_differs_from_audit_root",
+            "package-bound runner",
+        ),
+        (
+            "[command_plane]\npublic = 'pixi run ethos'\n",
+            "external_declared_runner",
+            None,
+            "declared external runner",
+        ),
+    ],
+)
+def test_runtime_binding_classifies_external_runner_declarations(
     tmp_path: Path,
     monkeypatch,
+    project_text: str | None,
+    state: str,
+    gap: str | None,
+    next_action: str,
 ) -> None:
     repo = init_repo(tmp_path / "repo")
-    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
-    external_runner = tmp_path / "external" / "packages" / "ethos" / "src" / "ethos" / "__init__.py"
+    if project_text is not None:
+        project = repo / ".ethos" / "project.toml"
+        project.parent.mkdir(exist_ok=True)
+        project.write_text(project_text, encoding="utf-8")
+    external_root = tmp_path / "external"
+    external_runner = external_root / "packages" / "ethos" / "src" / "ethos" / "__init__.py"
     external_runner.parent.mkdir(parents=True)
-    (tmp_path / "external" / "pyproject.toml").write_text(
-        "[project]\nname='external'\n", encoding="utf-8"
-    )
+    (external_root / "pyproject.toml").write_text("[project]\nname='external'\n", encoding="utf-8")
     external_runner.write_text("", encoding="utf-8")
+    monkeypatch.setattr("ethos.adapters.repo.runtime.core.ethos.__file__", external_runner)
 
-    monkeypatch.setattr(
-        "ethos.adapters.repo.runtime.core.ethos.__file__", external_runner.as_posix()
-    )
+    binding = runtime_binding(repo)
 
-    status = workspace_status(repo)
-
-    binding = status["runtime_binding"]
-    assert binding["state"] == "external_current_runner"
+    assert binding["state"] == state
     assert binding["runner_matches_audit_root"] is False
-    assert "workspace_status_runner_source_differs_from_audit_root" in binding["advisory_gaps"]
-    assert "package-bound runner" in binding["next_action"]
-
-
-def test_workspace_status_marks_declared_external_adopter_runner(
-    tmp_path: Path,
-    monkeypatch,
-) -> None:
-    repo = init_repo(tmp_path / "repo")
-    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
-    project = repo / ".ethos" / "project.toml"
-    project.parent.mkdir(exist_ok=True)
-    project.write_text(
-        "[command_plane]\npublic = 'pixi run ethos'\n",
-        encoding="utf-8",
-    )
-    external_runner = tmp_path / "external" / "packages" / "ethos" / "src" / "ethos" / "__init__.py"
-    external_runner.parent.mkdir(parents=True)
-    (tmp_path / "external" / "pyproject.toml").write_text(
-        "[project]\nname='external'\n", encoding="utf-8"
-    )
-    external_runner.write_text("", encoding="utf-8")
-
-    monkeypatch.setattr(
-        "ethos.adapters.repo.runtime.core.ethos.__file__", external_runner.as_posix()
-    )
-
-    binding = workspace_status(repo)["runtime_binding"]
-
-    assert binding["state"] == "external_declared_runner"
-    assert binding["advisory_gaps"] == []
-    assert "declared external runner" in binding["next_action"]
+    assert (gap in binding["advisory_gaps"]) if gap else binding["advisory_gaps"] == []
+    assert next_action in binding["next_action"]
 
 
 def test_runtime_binding_lives_in_semantic_subpackage(tmp_path: Path) -> None:

@@ -5,18 +5,19 @@ from __future__ import annotations
 import tomllib
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import cast
 
 if TYPE_CHECKING:
     from pathlib import Path
 
 
-def _rules_path(root: Path) -> Path:
+def rules_path(root: Path) -> Path:
+    """Return the tracked rules configuration path for a repository root."""
     return root / ".ethos" / "rules.toml"
 
 
-def _load_rules_config(root: Path) -> dict[str, Any]:
-    path = _rules_path(root)
+def load_rules_config(root: Path) -> dict[str, Any]:
+    """Parse rules configuration once, preserving a structured parse error."""
+    path = rules_path(root)
     if not path.exists():
         return {}
     try:
@@ -31,29 +32,46 @@ def _normalize_profile(profile: str) -> str:
     return profile
 
 
-def _profile_stack(root: Path) -> list[str]:
-    config = _load_rules_config(root)
+def resolve_profile_stack(config: dict[str, Any]) -> tuple[list[str], list[str]]:
+    """Resolve active profiles from one parsed config and report invalid shapes."""
+    if "_parse_error" in config:
+        return ["generic"], [f"rules_config_parse_error:{config['_parse_error']}"]
     profiles = config.get("profiles")
-    if isinstance(profiles, dict) and isinstance(profiles.get("active"), list):
-        normalized = [_normalize_profile(str(item)) for item in profiles["active"]]
-        stack = list(dict.fromkeys(normalized)) or ["generic"]
-        if "generic" not in stack:
-            stack.insert(0, "generic")
-        return stack
-    workspace = root / ".ethos" / "workspace.toml"
-    if workspace.exists():
-        return ["generic"]
-    return ["generic"]
+    if profiles is None:
+        return ["generic"], []
+    if not isinstance(profiles, dict):
+        return ["generic"], ["rules_profile_invalid:must_be_table"]
+    active = profiles.get("active")
+    if active is None:
+        return ["generic"], []
+    if not isinstance(active, list) or any(not isinstance(item, str) for item in active):
+        return ["generic"], ["rules_profile_invalid:active_must_be_string_array"]
+    if not active:
+        return ["generic"], ["rules_profile_invalid:active_must_not_be_empty"]
+    if any(not item.strip() for item in active):
+        return ["generic"], ["rules_profile_invalid:active_must_not_contain_empty_values"]
+    normalized = [_normalize_profile(item) for item in active]
+    if len(normalized) != len(set(normalized)):
+        return ["generic"], ["rules_profile_ambiguous:active_contains_duplicates"]
+    stack = list(normalized)
+    if "generic" not in stack:
+        stack.insert(0, "generic")
+    return stack, []
 
 
-def _is_legacy_rule_item(item: dict[str, Any]) -> bool:
+def is_legacy_rule_item(item: dict[str, Any]) -> bool:
+    """Return whether a parsed rule still contains legacy Rule V1 keys."""
     return bool({"risk", "paths", "requires", "evidence"}.intersection(item))
 
 
-def configured_rules(root: Path) -> list[dict[str, Any]]:
+def configured_rules(
+    root: Path,
+    *,
+    config: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
     """Return normalized rule dicts from .ethos/rules.toml, including legacy rule normalization."""
-    config = _load_rules_config(root)
-    rules = config.get("rule")
+    parsed = config if config is not None else load_rules_config(root)
+    rules = parsed.get("rule")
     if not isinstance(rules, list):
         return []
     normalized: list[dict[str, Any]] = []
@@ -61,12 +79,13 @@ def configured_rules(root: Path) -> list[dict[str, Any]]:
         if not isinstance(item, dict):
             normalized.append({"id": "", "_invalid": "rule_not_table"})
             continue
-        normalized.append(_normalize_rule_item(item))
+        normalized.append(normalize_rule_item(item))
     return normalized
 
 
-def _normalize_rule_item(item: dict[str, Any]) -> dict[str, Any]:
-    legacy_rule = _is_legacy_rule_item(item)
+def normalize_rule_item(item: dict[str, Any]) -> dict[str, Any]:
+    """Normalize one parsed legacy or V2 rule into the canonical Rule V2 shape."""
+    legacy_rule = is_legacy_rule_item(item)
     path_globs = item.get("path_globs", item.get("paths"))
     required_gates = item.get("required_gates", item.get("requires"))
     evidence_requirements = item.get("evidence_requirements", item.get("evidence", []))
@@ -98,7 +117,7 @@ def _normalize_rule_item(item: dict[str, Any]) -> dict[str, Any]:
     if isinstance(evidence_requirements, list) and evidence_requirements:
         payload["evidence_requirements"] = [str(req) for req in evidence_requirements]
     if "non_waivable" in item:
-        payload["non_waivable"] = bool(item["non_waivable"])
+        payload["non_waivable"] = item["non_waivable"]
     return payload
 
 
@@ -114,43 +133,26 @@ def _apply_legacy_rule_defaults(payload: dict[str, Any], item: dict[str, Any]) -
     payload.setdefault("stop_condition", risk)
 
 
-def configured_gate_tables(root: Path) -> dict[str, dict[str, object]]:
-    """Return gate table entries from .ethos/rules.toml [gates] section."""
-    config = _load_rules_config(root)
-    configured = cast(
-        "dict[str, object]",
-        config.get("gates") if isinstance(config.get("gates"), dict) else {},
-    )
-    gates: dict[str, dict[str, object]] = {}
-    for gate_id, gate in configured.items():
-        if not isinstance(gate, dict):
-            continue
-        gate_table = cast("dict[str, object]", gate)
-        payload: dict[str, object] = {}
-        if "command" in gate_table:
-            payload["command"] = str(gate_table["command"])
-        if "blocking" in gate_table:
-            payload["blocking"] = gate_table["blocking"] is not False
-        if payload:
-            gates[str(gate_id)] = payload
-    return gates
-
-
-def _legacy_state(root: Path) -> dict[str, object]:
-    config = _load_rules_config(root)
-    if not config:
+def legacy_state(
+    root: Path,
+    *,
+    config: dict[str, Any] | None = None,
+) -> dict[str, object]:
+    """Report whether parsed repository rules still carry legacy configuration."""
+    parsed = config if config is not None else load_rules_config(root)
+    if not parsed:
         return {"legacy_detected": False}
     legacy_keys = {"formats", "artifacts", "determinism", "standards", "gates"}
-    rules = config.get("rule")
+    rules = parsed.get("rule")
     legacy_rule_items = isinstance(rules, list) and any(
-        isinstance(item, dict) and _is_legacy_rule_item(item) for item in rules
+        isinstance(item, dict) and is_legacy_rule_item(item) for item in rules
     )
-    has_v2_rules = isinstance(config.get("profiles"), dict) or (
+    has_v2_rules = isinstance(parsed.get("profiles"), dict) or (
         isinstance(rules, list) and not legacy_rule_items
     )
     return {
         "legacy_detected": (
-            legacy_rule_items or (bool(legacy_keys.intersection(config)) and not has_v2_rules)
+            legacy_rule_items or (bool(legacy_keys.intersection(parsed)) and not has_v2_rules)
         ),
         "has_v2_rules": has_v2_rules,
         "legacy_rule_items": legacy_rule_items,

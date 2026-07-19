@@ -225,7 +225,11 @@ def _blocked(policy, head, gaps, *, state="blocked", **extra):
 
 
 def apply_candidate_to_accepted(
-    *, root: Path, authorized: bool, expect_head: str | None
+    *,
+    root: Path,
+    authorized: bool,
+    expect_head: str | None,
+    candidate_head: str | None = None,
 ) -> dict[str, object]:
     policy = load_branch_role_policy(root)
     current_head = run_git(root, "rev-parse", "HEAD").stdout.strip()
@@ -249,7 +253,19 @@ def apply_candidate_to_accepted(
         }
     status = workspace_status(root)
     candidate = cast("dict[str, object]", status["candidate"])
-    candidate_head = str(candidate["head"])
+    observed_candidate_head = str(candidate["head"])
+    if candidate_head is not None and observed_candidate_head != candidate_head:
+        gaps = ["candidate_head_changed_after_control_replacement_check"]
+        return {
+            **_accepted_payload(policy, current_head),
+            "ok": False,
+            "state": "blocked",
+            "candidate_head": observed_candidate_head,
+            "verified_candidate_head": candidate_head,
+            "required_gaps": gaps,
+            "remediation": remediation.remediation_for_gaps(gaps),
+        }
+    candidate_head = candidate_head or observed_candidate_head
     policy = branch_role_policy_from_text(
         committed_file_text(root, candidate_head, ".ethos/workspace.toml")
     )

@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import importlib
 import subprocess
+import tomllib
 from pathlib import Path
 from zipfile import ZipFile
 
@@ -30,18 +31,18 @@ def _files_digest(files: dict[str, str]) -> str:
     [
         (
             "generic",
-            66,
-            "b43c96e1eaac48f2bd2daf9ae9957107140e22902e46e5b3381c3cfb51563f58",
+            65,
+            "b0fdeb7e99e7b212615d8a0e8f92f9575d3fca6ea40981d8c838d957043f78ca",
         ),
         (
             "github",
-            67,
-            "c9e8ef430bb333a1341fe46839feccdb59fc70d75872a0230d69da57c9657a59",
+            66,
+            "d18f7b3f2f9850c2219fff6bdc0eb20a9eb1ce425fd52155e124cc03a306c28a",
         ),
         (
             "gitlab",
-            67,
-            "628ce05d633a1619343c7ba072e65684430fe0b7c7eee0bffa0c6cb603168e4b",
+            66,
+            "6954990a7968877b8e36c038ee4f1d94fc0e2c74778867bc7c5b4e9829e7f4f6",
         ),
     ],
 )
@@ -60,6 +61,22 @@ def test_scaffold_template_migration_preserves_default_file_bytes(
     assert _files_digest(files) == expected_digest
 
 
+def test_scaffold_omits_retired_assistant_projection_and_keeps_active_config(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "sample-repo"
+    root.mkdir()
+
+    files = default_files(root, "generic")
+
+    assert ".ethos/assistants.toml" not in files
+    project = tomllib.loads(files[".ethos/project.toml"])
+    assert project["command_plane"] == {"public": "ethos"}
+    release = tomllib.loads(files[".ethos/release.toml"])
+    assert "release" not in release
+    assert release["protected_refs"] == {"branches": ["main", "dev"], "tags": ["v*"]}
+
+
 def test_monorepo_template_preserves_sorted_package_projection(tmp_path: Path) -> None:
     root = tmp_path / "sample-repo"
     (root / "packages/zeta").mkdir(parents=True)
@@ -68,7 +85,7 @@ def test_monorepo_template_preserves_sorted_package_projection(tmp_path: Path) -
     files = default_files(root, "monorepo")
 
     assert (
-        _files_digest(files) == "d8e6a18d10c82295cfba4d93c82bf188e2575173d38527136c007f64b6191090"
+        _files_digest(files) == "9abc73115b20a6c932e9a0ed977b205deb525cc7cd462536be4201684ccf5b68"
     )
     assert files[".ethos/workspace.toml"].index('name = "alpha"') < files[
         ".ethos/workspace.toml"
@@ -95,7 +112,8 @@ def test_scaffold_templates_use_packaged_jinja_and_strict_typed_contexts() -> No
     )
     assert context.model_config["frozen"] is True
     assert templates.render_template("core/project.toml.j2", context) == (
-        '[meta]\nname = "sample-repo"\nproduct = "ETHOS"\nversion = 1\n'
+        '[meta]\nname = "sample-repo"\nproduct = "ETHOS"\nversion = 1\n\n'
+        '[command_plane]\npublic = "ethos"\n'
     )
     with pytest.raises(ValidationError):
         templates.RepositoryTemplateContext(
@@ -131,7 +149,8 @@ def test_project_template_preserves_python_json_string_encoding() -> None:
     )
 
     assert templates.render_template("core/project.toml.j2", context) == (
-        '[meta]\nname = "sample<repo&\\""\nproduct = "ETHOS"\nversion = 1\n'
+        '[meta]\nname = "sample<repo&\\""\nproduct = "ETHOS"\nversion = 1\n\n'
+        '[command_plane]\npublic = "ethos"\n'
     )
 
 

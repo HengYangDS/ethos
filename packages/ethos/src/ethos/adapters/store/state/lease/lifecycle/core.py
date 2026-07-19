@@ -14,31 +14,12 @@ from typing import Any
 
 from ethos.adapters.store.state.lease.projection import json_object
 from ethos.adapters.store.state.lease.projection import lease_contract_fields
+from ethos.adapters.store.state.schema import initialize_state
 from ethos_core.contracts.coordination import HolderRef
 from ethos_core.normalization.core import string_sequence
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-
-_SCHEMA = """
-    create table if not exists leases (
-      id text primary key,
-      subject text not null,
-      owner text not null,
-      expires_at text not null,
-      payload_json text not null
-    )
-    """
-
-
-def initialize_lease_state(db_path: Path) -> None:
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    with closing(sqlite3.connect(db_path)) as connection:
-        connection.execute("pragma journal_mode = wal")
-        connection.execute("pragma foreign_keys = on")
-        connection.execute(_SCHEMA)
-        connection.commit()
 
 
 def acquire_lease(
@@ -51,7 +32,7 @@ def acquire_lease(
 ) -> dict[str, Any]:
     """Create one local lease for a concrete execution instance."""
     normalized_holder_ref = HolderRef.parse(holder_ref).serialize()
-    initialize_lease_state(db_path)
+    initialize_state(db_path)
     lease_id = f"lease:{uuid.uuid4()}"
     now = datetime.now(UTC)
     expires_at = now + timedelta(seconds=ttl_seconds)
@@ -278,7 +259,7 @@ def advance_lease_head(  # noqa: PLR0913, RUF100 - exact request envelope preser
 ) -> dict[str, Any]:
     """Advance the lease's observed Git head through generation-bound CAS."""
     HolderRef.parse(holder_ref)
-    initialize_lease_state(db_path)
+    initialize_state(db_path)
     with closing(sqlite3.connect(db_path)) as connection:
         connection.execute("pragma foreign_keys = on")
         connection.execute("begin immediate")
@@ -322,7 +303,7 @@ def _refresh_lease(  # noqa: PLR0913, RUF100 - exact request envelope preserves 
     require_expired: bool,
 ) -> dict[str, Any]:
     HolderRef.parse(holder_ref)
-    initialize_lease_state(db_path)
+    initialize_state(db_path)
     now = datetime.now(UTC)
     expires_at = now + timedelta(seconds=ttl_seconds)
     with closing(sqlite3.connect(db_path)) as connection:

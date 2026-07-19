@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import hashlib
 import json
 import sys
@@ -7,7 +5,6 @@ import tomllib
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 from ethos.adapters.repo.git import current_tracked_head
 
@@ -15,46 +12,30 @@ ROOT = Path(__file__).resolve().parents[2]
 CONFIG_PATH = ROOT / ".config/checks/evidence/closeout.toml"
 
 
-def _load_config() -> dict[str, Any]:
-    return tomllib.loads(CONFIG_PATH.read_text(encoding="utf-8"))
-
-
-def _sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
-
-
-def _topic_file(
-    topic: dict[str, Any],
-    key: str,
-    failures: list[dict[str, str]],
-) -> dict[str, Any] | None:
-    rel = str(topic[key])
-    path = ROOT / rel
-    if not path.is_file():
-        failures.append({"path": rel, "reason": f"missing {key}"})
-        return None
-    return {
-        "role": key,
-        "path": rel,
-        "sha256": _sha256(path),
-        "bytes": path.stat().st_size,
-    }
-
-
 def main() -> int:
-    config = _load_config()
+    config = tomllib.loads(CONFIG_PATH.read_text(encoding="utf-8"))
     failures: list[dict[str, str]] = [
         {"path": str(root), "reason": "required evidence root missing"}
         for root in config.get("required_roots", [])
         if not (ROOT / str(root)).is_dir()
     ]
-    topics: list[dict[str, Any]] = []
+    topics: list[dict[str, object]] = []
     for topic in config.get("topic", []):
-        files = [
-            file_entry
-            for key in ("claim", "chronicle", "openspec")
-            if (file_entry := _topic_file(topic, key, failures)) is not None
-        ]
+        files = []
+        for key in ("claim", "chronicle", "openspec"):
+            relative = str(topic[key])
+            path = ROOT / relative
+            if path.is_file():
+                files.append(
+                    {
+                        "role": key,
+                        "path": relative,
+                        "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                        "bytes": path.stat().st_size,
+                    }
+                )
+            else:
+                failures.append({"path": relative, "reason": f"missing {key}"})
         topics.append({"id": topic["id"], "files": files})
     payload = {
         "schema_version": 1,
@@ -68,8 +49,9 @@ def main() -> int:
     }
     output = ROOT / str(config["output"])
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    sys.stdout.write(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+    rendered = json.dumps(payload, indent=2, sort_keys=True) + "\n"
+    output.write_text(rendered, encoding="utf-8")
+    sys.stdout.write(rendered)
     return 0 if payload["ok"] else 1
 
 

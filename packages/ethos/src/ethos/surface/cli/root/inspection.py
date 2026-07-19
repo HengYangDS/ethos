@@ -14,7 +14,9 @@ from cyclopts import Parameter
 
 import ethos.domain.orient as orient_domain
 from ethos.adapters.repo.status.core import workspace_status
-from ethos.adapters.store.state.lease.lifecycle.core import initialize_lease_state
+from ethos.adapters.store.state.maintenance import apply_local_state_maintenance
+from ethos.adapters.store.state.maintenance import local_state_maintenance_inventory
+from ethos.adapters.store.state.schema import initialize_state
 from ethos.domain.prove import workspace_status_validation
 from ethos.domain.prove import workspace_status_validation_gaps
 from ethos.domain.report import scorecard_report
@@ -280,24 +282,66 @@ def doctor(
     *,
     root: RootOption | None = None,
     init_state: bool = False,
+    maintenance: Annotated[bool, Parameter(name="--maintenance")] = False,
+    apply_maintenance: Annotated[bool, Parameter(name="--apply-maintenance")] = False,
+    archive_root: Annotated[pathlib.Path | None, Parameter(name="--archive-root")] = None,
+    observed_at: Annotated[str, Parameter(name="--observed-at")] = "",
+    expect_inventory_digest: Annotated[str, Parameter(name="--expect-inventory-digest")] = "",
+    confirm_irreversible: Annotated[bool, Parameter(name="--confirm-irreversible")] = False,
     json_output: JsonFlag = False,
 ) -> None:
     """Inspect local host readiness."""
     repo = resolve_root(root)
     db_path = repo / ".ethos" / "state" / "state.sqlite"
     if init_state:
-        initialize_lease_state(db_path)
+        initialize_state(db_path)
+    maintenance_payload: dict[str, Any] = {}
+    maintenance_gaps: list[str] = []
+    if maintenance or apply_maintenance:
+        if archive_root is None:
+            maintenance_gaps.append("maintenance_archive_root_required")
+        if not observed_at:
+            maintenance_gaps.append("maintenance_observed_at_required")
+        if not maintenance_gaps:
+            try:
+                if apply_maintenance:
+                    maintenance_payload = apply_local_state_maintenance(
+                        repo,
+                        cast("pathlib.Path", archive_root),
+                        observed_at,
+                        expect_inventory_digest=expect_inventory_digest,
+                        confirm_irreversible=confirm_irreversible,
+                    )
+                else:
+                    maintenance_payload = local_state_maintenance_inventory(
+                        repo,
+                        cast("pathlib.Path", archive_root),
+                        observed_at,
+                    )
+            except (OSError, RuntimeError, ValueError) as exc:
+                message = str(exc).strip()
+                maintenance_gaps.append(
+                    message
+                    if message.startswith("maintenance_")
+                    else "maintenance_operation_failed"
+                )
     status_payload = workspace_status(repo)
     runtime = status_payload.get("runtime_binding", {})
+    ok = not maintenance_gaps
     result = EthosResult(
         command="doctor",
-        ok=True,
-        state="ready",
-        summary={"state_db_exists": db_path.exists()},
+        ok=ok,
+        state="ready" if ok else "blocked",
+        summary={
+            "state_db_exists": db_path.exists(),
+            "maintenance_state": str(maintenance_payload.get("state") or "read_only"),
+        },
+        required_gaps=tuple(maintenance_gaps),
         next_actions=("ethos status",),
         data={
             "state_db": str(db_path),
             "initialized": init_state,
+            "maintenance": maintenance_payload,
             "runtime_binding": runtime,
         },
     )

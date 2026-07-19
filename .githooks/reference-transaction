@@ -84,6 +84,18 @@ while read -r old_value new_value ref_name; do
         *) continue ;;
     esac
     branch="${ref_name#refs/heads/}"
+    case "$old_value" in
+        *[!0]*) old_is_zero="false" ;;
+        *) old_is_zero="true" ;;
+    esac
+    # Closeout uses a same-value `update <ref> <head> <head>` as an atomic source-ref
+    # CAS. Git exposes it here as old==new: it is not a ref move, needs neither
+    # semantic admission nor committed-phase lease repair, and must not be judged
+    # through the intentionally stale accepted runner. A zero==zero packed-ref event
+    # remains fail-closed because Git also uses that shape for an accepted ref deletion.
+    if [ "$old_is_zero" = "false" ] && [ "$old_value" = "$new_value" ]; then
+        continue
+    fi
     # `git worktree add -b work/<name>` creates then reasserts its fresh Work
     # Lane ref before `ethos lane start` can create a lease.  A fresh checkout
     # also lacks its checkout-local interpreter.  Do not bootstrap a full
@@ -91,10 +103,6 @@ while read -r old_value new_value ref_name; do
     # repair and must not require network access merely to create the lane that
     # will own subsequent work.  Changed existing Work Lane refs still use the
     # normal hook path so their committed phase repairs the lease head.
-    case "$old_value" in
-        *[!0]*) old_is_zero="false" ;;
-        *) old_is_zero="true" ;;
-    esac
     case "$branch" in
         work/*)
             if [ ! -x "$runtime_python" ] && \

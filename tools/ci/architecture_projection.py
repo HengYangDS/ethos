@@ -1,27 +1,15 @@
-from __future__ import annotations
-
 import json
 import sys
 import tomllib
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 from ethos.adapters.repo.git import current_tracked_head
 
 ROOT = Path(__file__).resolve().parents[2]
 CONFIG_PATH = ROOT / ".config/checks/architecture/projection.toml"
 HEADER = "%% Generated from {source}. Do not edit by hand."
-MIN_QUOTED_PARTS = 2
-DESCRIPTION_QUOTED_PARTS = 4
-IDENTIFIER_INDEX = 1
-RELATION_SOURCE_INDEX = 1
-RELATION_TARGET_INDEX = 2
-
-
-def _load_config() -> dict[str, Any]:
-    return tomllib.loads(CONFIG_PATH.read_text(encoding="utf-8"))
 
 
 def _parse_model(source: Path) -> tuple[dict[str, str], list[tuple[str, str, str]]]:
@@ -32,22 +20,21 @@ def _parse_model(source: Path) -> tuple[dict[str, str], list[tuple[str, str, str
         if not line or line.startswith("#"):
             continue
         parts = line.split('"')
-        if line.startswith(("system ", "container ")) and len(parts) >= MIN_QUOTED_PARTS:
+        if line.startswith(("system ", "container ")) and len(parts) >= 2:
             head = parts[0].split()
-            ident = head[IDENTIFIER_INDEX]
+            ident = head[1]
             label_parts = [parts[1]]
-            if len(parts) >= DESCRIPTION_QUOTED_PARTS and parts[3].strip():
+            if len(parts) >= 4 and parts[3].strip():
                 label_parts.append(parts[3])
             nodes[ident] = " ".join(label_parts).strip()
-        elif line.startswith("rel ") and len(parts) >= MIN_QUOTED_PARTS:
+        elif line.startswith("rel ") and len(parts) >= 2:
             left = line.split('"', 1)[0].split()
-            rels.append((left[RELATION_SOURCE_INDEX], left[RELATION_TARGET_INDEX], parts[1]))
+            rels.append((left[1], left[2], parts[1]))
     return nodes, rels
 
 
 def render(source_rel: str) -> str:
-    source = ROOT / source_rel
-    nodes, rels = _parse_model(source)
+    nodes, rels = _parse_model(ROOT / source_rel)
     lines = [HEADER.format(source=source_rel), "flowchart LR"]
     for ident, label in nodes.items():
         lines.append(f'  {ident}["{label}"]')
@@ -57,9 +44,9 @@ def render(source_rel: str) -> str:
 
 
 def main() -> int:
-    config = _load_config()
+    config = tomllib.loads(CONFIG_PATH.read_text(encoding="utf-8"))
     failures: list[dict[str, str]] = []
-    projections: list[dict[str, Any]] = []
+    projections: list[dict[str, object]] = []
     for entry in config.get("projection", []):
         source = str(entry["source"])
         output = str(entry["output"])

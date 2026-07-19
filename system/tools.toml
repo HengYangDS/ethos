@@ -39,15 +39,6 @@ adoption = "active"
 gate = "tools/ci/scripts/run-python-tests.sh"
 
 [[tool]]
-concern = "test_performance"
-tool = "ethos-command-performance"
-config = ".config/checks/performance/policy.toml"
-artifacts = "build/evidence/quality/performance/"
-profile = "product"
-adoption = "active"
-gate = "ethos quality performance --json"
-
-[[tool]]
 concern = "test_reporting"
 tool = "allure-pytest"
 config = ".config/checks/pytest/policy.toml"

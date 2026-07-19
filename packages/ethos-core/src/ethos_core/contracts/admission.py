@@ -6,14 +6,43 @@ identity directory, capability grant, or reusable authorization token.
 
 from __future__ import annotations
 
+import os
+from typing import Annotated
 from typing import Any
 from typing import Literal
 
 from pydantic import BaseModel
+from pydantic import BeforeValidator
 from pydantic import ConfigDict
 from pydantic import Field
 
 Verdict = Literal["allow", "block", "defer"]
+_PATH_REQUIRED = "path-bound admission request fields require a filesystem path"
+
+
+def _path_text(value: object) -> str:
+    """Normalize one filesystem path-like value into the portable request form."""
+    try:
+        return os.fspath(value)
+    except TypeError as error:
+        raise ValueError(_PATH_REQUIRED) from error
+
+
+FilesystemPath = Annotated[str, BeforeValidator(_path_text)]
+
+
+class HookAdmissionRequest(BaseModel):
+    """One hook-layer admission request bound to its exact local context."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    root: FilesystemPath
+    layer: str
+    paths: tuple[FilesystemPath, ...] = ()
+    editor_root: FilesystemPath | None = None
+    require_editor_root: bool = False
+    command: str = ""
+    expected_root: FilesystemPath | None = None
 
 
 class MutationSubject(BaseModel):

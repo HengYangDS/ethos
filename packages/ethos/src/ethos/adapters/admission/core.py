@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import subprocess
+from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
@@ -28,8 +29,7 @@ from ethos_core.contracts.branch.roles import load_branch_role_policy
 from ethos_core.normalization.core import string_sequence
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
+    from ethos_core.contracts.admission import HookAdmissionRequest
     from ethos_core.contracts.branch.roles import BranchRolePolicy
 
 HOOK_LAYERS = {
@@ -68,29 +68,23 @@ HOOK_LAYERS = {
 _NO_RECONCILIATION = ReconciliationObservation()
 
 
-def hook_admission_report(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
-    *,
-    root: Path,
-    layer: str,
-    paths: list[Path] | None = None,
-    editor_root: Path | None = None,
-    require_editor_root: bool = False,
-    command: str = "",
-    expected_root: Path | None = None,
-) -> dict[str, object]:
-    normalized_layer = _normalize_layer(layer)
-    repo = root.resolve()
+def hook_admission_report(request: HookAdmissionRequest) -> dict[str, object]:
+    """Evaluate a hook-layer request against the current checkout state."""
+    normalized_layer = _normalize_layer(request.layer)
+    repo = Path(request.root).resolve()
     # Hook admission needs current-checkout truth, not a full foreign-lane
     # history inventory. Keep the pre-commit path bounded under heavy concurrency.
     status = workspace_status(repo, include_foreign_path_scope=False)
-    target_paths = _target_paths(repo, paths or [])
+    target_paths = _target_paths(repo, [Path(path) for path in request.paths])
+    expected_root = Path(request.expected_root) if request.expected_root else None
+    editor_root = Path(request.editor_root) if request.editor_root else None
     base = {
         "ok": True,
         "state": "admitted",
         "layer": normalized_layer,
         "hook": HOOK_LAYERS[normalized_layer],
         "target_root": repo.as_posix(),
-        "expected_root": expected_root.resolve().as_posix() if expected_root else repo.as_posix(),
+        "expected_root": (expected_root.resolve().as_posix() if expected_root else repo.as_posix()),
         "role": status["role"],
         "branch": status["branch"],
         "editor_root": editor_root.resolve().as_posix() if editor_root else "",
@@ -108,16 +102,15 @@ def hook_admission_report(  # noqa: PLR0913, RUF100 - exact request envelope pre
             repo=repo,
             paths=target_paths,
             editor_root=editor_root,
-            require_editor_root=require_editor_root,
+            require_editor_root=request.require_editor_root,
         )
     if normalized_layer == "pre-run":
         return _pre_run_report(
             base,
+            request=request,
             repo=repo,
             paths=target_paths,
             editor_root=editor_root,
-            require_editor_root=require_editor_root,
-            command=command,
         )
     if normalized_layer == "post-write":
         return _post_write_report(base, repo=repo, expected_paths=target_paths)
@@ -492,15 +485,15 @@ def _prewrite_report(
     return blocked
 
 
-def _pre_run_report(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
+def _pre_run_report(
     base: dict[str, object],
     *,
+    request: HookAdmissionRequest,
     repo: Path,
     paths: list[Path],
     editor_root: Path | None,
-    require_editor_root: bool,
-    command: str,
 ) -> dict[str, object]:
+    command = request.command
     stash_policy = git_stash_policy(command)
     risk = command_risk(command, role=str(base["role"]))
     base["command"] = command
@@ -519,7 +512,7 @@ def _pre_run_report(  # noqa: PLR0913, RUF100 - exact request envelope preserves
         repo=repo,
         paths=paths,
         editor_root=editor_root,
-        require_editor_root=require_editor_root,
+        require_editor_root=request.require_editor_root,
     )
 
 

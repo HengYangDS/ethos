@@ -2970,6 +2970,14 @@ unconstrained branch deletion.
 - **AND** it SHALL not delete a newer ref, remove an active lease, or claim the
   retirement completed.
 
+#### Scenario: Target-specific evidence remains vendor-neutral
+
+- **WHEN** a target-specific accepted Claim and Chronicle authorize a later
+  exceptional unbound Work Lane retirement
+- **THEN** their authority SHALL remain limited to their exact branch and head
+- **AND** ETHOS SHALL NOT infer deletion authority from an agent vendor,
+  account, session, host path, or another target's evidence carrier.
+
 ### Requirement: Versioned local-state schema evolution
 
 ETHOS SHALL evolve ignored SQLite local state through ordered, transactional

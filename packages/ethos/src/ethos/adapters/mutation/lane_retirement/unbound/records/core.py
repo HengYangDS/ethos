@@ -15,6 +15,7 @@ import ethos.adapters.mutation.lane_retirement.unbound.observation.core as unbou
 ATTEMPT_KIND = "exceptional_unbound_retirement_attempt"
 RECEIPT_KIND = "exceptional_unbound_retirement_receipt"
 MAX_STABLE_ERROR_LENGTH = 240
+_GIT_SHA_LENGTH = 40
 _RECORD_COLLISION = "unbound_retire_record_collision"
 _RECORD_UNSAFE = "unbound_retire_record_unsafe"
 _RECORD_INVALID = "unbound_retire_record_invalid"
@@ -212,6 +213,20 @@ def read_record(path: Path, *, kind: str) -> dict[str, object]:
 
 def validate_record(payload: dict[str, object], *, kind: str) -> None:
     """Reject malformed durable records before they can guide a retry."""
+    required = _required_fields(kind)
+    if (
+        set(payload) != required
+        or payload.get("kind") != kind
+        or payload.get("schema_version") != 1
+    ):
+        raise ValueError(_RECORD_INVALID)
+    _validate_common_fields(payload, kind=kind)
+    if kind == RECEIPT_KIND:
+        _validate_receipt_fields(payload)
+
+
+def _required_fields(kind: str) -> set[str]:
+    """Return the exact durable field set for one record kind."""
     common = {
         "schema_version",
         "kind",
@@ -231,21 +246,22 @@ def validate_record(payload: dict[str, object], *, kind: str) -> None:
         "mints_authority",
         "recheck_required",
     }
-    required = common | {"protected_refs"}
-    if kind == RECEIPT_KIND:
-        required = common | {
+    return (
+        common
+        | {
             "protected_refs_before",
             "protected_refs_after",
             "after_observation_sha256",
             "lease_relinquished",
             "postconditions",
         }
-    if (
-        set(payload) != required
-        or payload.get("kind") != kind
-        or payload.get("schema_version") != 1
-    ):
-        raise ValueError(_RECORD_INVALID)
+        if kind == RECEIPT_KIND
+        else common | {"protected_refs"}
+    )
+
+
+def _validate_common_fields(payload: dict[str, object], *, kind: str) -> None:
+    """Validate fields shared by attempts and receipts."""
     if not str(payload.get("operation_id") or "").startswith("exceptional-unbound-retirement:"):
         raise ValueError(_RECORD_INVALID)
     if not str(payload.get("branch") or "").startswith("work/"):
@@ -266,28 +282,32 @@ def validate_record(payload: dict[str, object], *, kind: str) -> None:
     protected = payload.get(protected_key)
     if not isinstance(protected, dict) or not protected or not all(protected.values()):
         raise ValueError(_RECORD_INVALID)
-    if kind == RECEIPT_KIND:
-        expected = {
-            "ref_absent",
-            "unbound_absent",
-            "active_lease_absent",
-            "protected_refs_unchanged",
-            "chronicle_unchanged",
-        }
-        postconditions = payload.get("postconditions")
-        if (
-            payload.get("protected_refs_after") != protected
-            or not isinstance(postconditions, dict)
-            or set(postconditions) != expected
-            or not all(value is True for value in postconditions.values())
-        ):
-            raise ValueError(_RECORD_INVALID)
-        if not valid_lease_relinquishment(
-            payload["lease_relinquish_binding"],
-            payload.get("lease_relinquished"),
-            subject=str(payload["branch"]),
-        ):
-            raise ValueError(_RECORD_INVALID)
+
+
+def _validate_receipt_fields(payload: dict[str, object]) -> None:
+    """Validate receipt-only postconditions and lease CAS evidence."""
+    protected = payload["protected_refs_before"]
+    expected = {
+        "ref_absent",
+        "unbound_absent",
+        "active_lease_absent",
+        "protected_refs_unchanged",
+        "chronicle_unchanged",
+    }
+    postconditions = payload.get("postconditions")
+    if (
+        payload.get("protected_refs_after") != protected
+        or not isinstance(postconditions, dict)
+        or set(postconditions) != expected
+        or not all(value is True for value in postconditions.values())
+    ):
+        raise ValueError(_RECORD_INVALID)
+    if not valid_lease_relinquishment(
+        payload.get("lease_relinquish_binding"),
+        payload.get("lease_relinquished"),
+        subject=str(payload.get("branch") or ""),
+    ):
+        raise ValueError(_RECORD_INVALID)
 
 
 def sha256_text_fields(payload: dict[str, object], *keys: str) -> bool:
@@ -307,21 +327,27 @@ def valid_lease_relinquish_binding(value: object) -> bool:
         "expected_head",
     }:
         return False
-    active = value.get("active")
+    binding = cast("dict[str, object]", value)
+    active = binding.get("active")
     if not isinstance(active, bool):
         return False
     fields = ("lease_id", "holder_ref", "expected_head")
     if not active:
-        return value.get("epoch") == 0 and all(value.get(field) == "" for field in fields)
+        return binding.get("epoch") == 0 and all(binding.get(field) == "" for field in fields)
+    lease_id = binding.get("lease_id")
+    holder_ref = binding.get("holder_ref")
+    epoch = binding.get("epoch")
+    expected_head = binding.get("expected_head")
     return (
-        isinstance(value.get("lease_id"), str)
-        and bool(value["lease_id"])
-        and isinstance(value.get("holder_ref"), str)
-        and bool(value["holder_ref"])
-        and isinstance(value.get("epoch"), int)
-        and int(value["epoch"]) > 0
-        and isinstance(value.get("expected_head"), str)
-        and len(str(value["expected_head"])) == 40
+        isinstance(lease_id, str)
+        and bool(lease_id)
+        and isinstance(holder_ref, str)
+        and bool(holder_ref)
+        and isinstance(epoch, int)
+        and not isinstance(epoch, bool)
+        and epoch > 0
+        and isinstance(expected_head, str)
+        and len(expected_head) == _GIT_SHA_LENGTH
     )
 
 
@@ -329,15 +355,19 @@ def valid_lease_relinquishment(binding: object, relinquished: object, *, subject
     """Require a successful receipt to retain the exact native CAS result."""
     if not isinstance(binding, dict):
         return False
-    if binding["active"] is False:
+    lease_binding = cast("dict[str, object]", binding)
+    active = lease_binding.get("active")
+    if active is False:
         return relinquished == {}
+    if active is not True:
+        return False
     return relinquished == {
         "revoked": True,
         "subject": subject,
-        "lease_id": binding["lease_id"],
-        "holder_ref": binding["holder_ref"],
-        "epoch": binding["epoch"],
-        "expected_head": binding["expected_head"],
+        "lease_id": lease_binding.get("lease_id"),
+        "holder_ref": lease_binding.get("holder_ref"),
+        "epoch": lease_binding.get("epoch"),
+        "expected_head": lease_binding.get("expected_head"),
     }
 
 

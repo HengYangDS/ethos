@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-def retire_unbound_work_lane_ref(  # noqa: PLR0911, PLR0913, RUF100 - exact retirement protocol shape
+def retire_unbound_work_lane_ref(  # noqa: PLR0913, RUF100 - exact retirement protocol shape
     *,
     root: Path,
     branch: str,
@@ -70,6 +70,36 @@ def retire_unbound_work_lane_ref(  # noqa: PLR0911, PLR0913, RUF100 - exact reti
     )
     if gaps or not apply:
         return result
+    return _apply_retirement(
+        repo=repo,
+        branch=branch,
+        expected=expected,
+        reason=reason,
+        chronicle_ref=chronicle_ref,
+        authorized=authorized,
+        break_glass=break_glass,
+        confirm_irreversible=confirm_irreversible,
+        before=before,
+        result=result,
+        holder_ref=lane_retirement_shared.current_holder_ref(),
+    )
+
+
+def _apply_retirement(  # noqa: PLR0913, RUF100 - bound irreversible transition shape
+    *,
+    repo: Path,
+    branch: str,
+    expected: str,
+    reason: str,
+    chronicle_ref: str,
+    authorized: bool,
+    break_glass: bool,
+    confirm_irreversible: bool,
+    before: dict[str, object],
+    result: dict[str, object],
+    holder_ref: str,
+) -> dict[str, object]:
+    """Apply an already-admitted native exceptional retirement."""
 
     control_root, control_gap = policy.accepted_control_root(
         cast("dict[str, object]", before["status"]),
@@ -129,10 +159,50 @@ def retire_unbound_work_lane_ref(  # noqa: PLR0911, PLR0913, RUF100 - exact reti
             pre_effect_gaps,
         )
 
-    lease_relinquished = _relinquish_owned_lease(
+    return _relinquish_then_delete(
+        repo=repo,
+        control_root=control_root,
+        records_root=records_root,
+        branch=branch,
+        expected=expected,
+        reason=reason,
+        chronicle_ref=chronicle_ref,
+        authorized=authorized,
+        break_glass=break_glass,
+        confirm_irreversible=confirm_irreversible,
+        before=before,
+        pre_effect=pre_effect,
+        result=result,
+        attempt_path=attempt_path,
+        operation_id=operation_id,
+        holder_ref=holder_ref,
+    )
+
+
+def _relinquish_then_delete(  # noqa: PLR0913, RUF100 - bound irreversible transition shape
+    *,
+    repo: Path,
+    control_root: Path,
+    records_root: Path,
+    branch: str,
+    expected: str,
+    reason: str,
+    chronicle_ref: str,
+    authorized: bool,
+    break_glass: bool,
+    confirm_irreversible: bool,
+    before: dict[str, object],
+    pre_effect: dict[str, object],
+    result: dict[str, object],
+    attempt_path: str,
+    operation_id: str,
+    holder_ref: str,
+) -> dict[str, object]:
+    """Relinquish the observed lease, then perform one guarded ref deletion."""
+    lease_relinquished = relinquish_owned_lease(
         control_root,
         observed=pre_effect,
-        holder_ref=lane_retirement_shared.current_holder_ref(),
+        holder_ref=holder_ref,
     )
     if lease_relinquished is None:
         return reporting.blocked(
@@ -251,7 +321,7 @@ def _observe(repo: Path, *, branch: str, chronicle_ref: str) -> dict[str, object
     return observation.observe(repo, branch=branch, chronicle_ref=chronicle_ref)
 
 
-def _relinquish_owned_lease(
+def relinquish_owned_lease(
     control_root: Path,
     *,
     observed: dict[str, object],
@@ -261,7 +331,13 @@ def _relinquish_owned_lease(
     if not bool(observed[observation.HAS_ACTIVE_LEASE]):
         return {}
     lease = cast("dict[str, object]", observed["active_lease"])
-    if str(lease.get("holder_ref") or "") != holder_ref:
+    epoch = lease.get("epoch")
+    if (
+        str(lease.get("holder_ref") or "") != holder_ref
+        or not isinstance(epoch, int)
+        or isinstance(epoch, bool)
+        or epoch <= 0
+    ):
         return None
     try:
         return revoke_lease(
@@ -269,7 +345,7 @@ def _relinquish_owned_lease(
             subject=str(observed["branch"]),
             holder_ref=holder_ref,
             expected_lease_id=str(lease["lease_id"]),
-            expected_epoch=int(lease["epoch"]),
+            expected_epoch=epoch,
             expected_head=str(lease["expected_head"]),
         )
     except (KeyError, TypeError, ValueError):

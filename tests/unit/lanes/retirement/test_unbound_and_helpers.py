@@ -9,9 +9,7 @@ import ethos.adapters.mutation.lane_retirement.unbound.core as unbound_retiremen
 import ethos.adapters.mutation.lane_retirement.unbound.observation.core as unbound_observation
 import ethos.adapters.mutation.lane_retirement.unbound.records.core as unbound_records
 from ethos.adapters.mutation.lane_lifecycle import core as lane_lifecycle_core
-from ethos.adapters.mutation.lane_retirement.unbound.core import (
-    retire_unbound_work_lane_ref,
-)
+from ethos.adapters.mutation.lane_retirement.unbound.core import retire_unbound_work_lane_ref
 from ethos.adapters.repo.dirty.core import dirty_provenance
 from ethos.adapters.store.state.lease.lifecycle import core as state
 from tests.support.lane_helpers import add_candidate_worktree
@@ -387,6 +385,81 @@ def test_retire_unbound_work_lane_ref_relinquishes_matching_holder_lease(
     assert report["receipt"]["postconditions"]["active_lease_absent"] is True
 
 
+def test_retire_unbound_work_lane_ref_returns_final_native_mutation_receipt(
+    monkeypatch, tmp_path: Path
+) -> None:
+    repo, branch, head, chronicle = _exceptional_fixture(tmp_path)
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:unleased-holder")
+
+    report = retire_unbound_work_lane_ref(
+        root=repo,
+        branch=branch,
+        expect_head=head,
+        reason="record the native exceptional retirement result",
+        chronicle_ref=chronicle,
+        apply=True,
+        authorized=True,
+        break_glass=True,
+        confirm_irreversible=True,
+    )
+
+    assert report["ok"] is True
+    assert report["mutation"]["decision"]["verdict"] == "allow"
+
+
+def test_relinquish_owned_lease_rejects_malformed_epoch(tmp_path: Path) -> None:
+    repo, branch, _head, _chronicle = _exceptional_fixture(tmp_path)
+    relinquish = unbound_retirement.relinquish_owned_lease
+
+    assert (
+        relinquish(
+            repo,
+            observed={
+                unbound_observation.HAS_ACTIVE_LEASE: True,
+                "active_lease": {
+                    "holder_ref": "agent:test",
+                    "epoch": "not-an-int",
+                },
+                "branch": branch,
+            },
+            holder_ref="agent:test",
+        )
+        is None
+    )
+
+
+def test_retire_unbound_work_lane_ref_blocks_failed_owned_lease_relinquishment(
+    monkeypatch, tmp_path: Path
+) -> None:
+    repo, branch, head, chronicle = _exceptional_fixture(tmp_path)
+    holder = "agent:test:case:lease-holder"
+    state.acquire_lease(
+        repo / ".ethos" / "state" / "state.sqlite",
+        subject=branch,
+        holder_ref=holder,
+        payload={"branch": branch, "expected_head": head},
+    )
+    monkeypatch.setenv("ETHOS_ACTOR", holder)
+    monkeypatch.setattr(
+        unbound_retirement, "revoke_lease", lambda **_kwargs: (_ for _ in ()).throw(ValueError())
+    )
+
+    report = retire_unbound_work_lane_ref(
+        root=repo,
+        branch=branch,
+        expect_head=head,
+        reason="preserve the ref when native lease compare-and-swap fails",
+        chronicle_ref=chronicle,
+        apply=True,
+        authorized=True,
+        break_glass=True,
+        confirm_irreversible=True,
+    )
+
+    assert report["required_gaps"] == ["unbound_retire_active_lease"]
+    assert git(repo, "rev-parse", "--verify", branch) == head
+
+
 def test_retire_unbound_work_lane_ref_preserves_ref_when_delete_fails_after_relinquish(
     monkeypatch, tmp_path: Path
 ) -> None:
@@ -466,7 +539,7 @@ def test_retire_unbound_work_lane_ref_blocks_ref_delete_when_lease_reappears(
             return real_observe(repo_root, branch=branch, chronicle_ref=chronicle_ref)
         return observed
 
-    monkeypatch.setattr(unbound_retirement, "_observe", reappearing_lease_observe)
+    monkeypatch.setattr(unbound_retirement, _OBSERVE, reappearing_lease_observe)
     report = retire_unbound_work_lane_ref(
         root=repo,
         branch=branch,
@@ -488,6 +561,46 @@ def test_retire_unbound_work_lane_ref_blocks_ref_delete_when_lease_reappears(
         ]
         is True
     )
+
+
+def test_retire_unbound_work_lane_ref_blocks_predelete_observation_drift(
+    monkeypatch, tmp_path: Path
+) -> None:
+    repo, branch, head, chronicle = _exceptional_fixture(tmp_path)
+    holder = "agent:test:case:lease-holder"
+    state.acquire_lease(
+        repo / ".ethos" / "state" / "state.sqlite",
+        subject=branch,
+        holder_ref=holder,
+        payload={"branch": branch, "expected_head": head},
+    )
+    monkeypatch.setenv("ETHOS_ACTOR", holder)
+    real_observe = getattr(unbound_retirement, _OBSERVE)
+    count = 0
+
+    def drifting_observe(repo_root: Path, *, branch: str, chronicle_ref: str) -> dict[str, object]:
+        nonlocal count
+        count += 1
+        observed = real_observe(repo_root, branch=branch, chronicle_ref=chronicle_ref)
+        if count == 3:
+            return {**observed, "claim_id": "drifted-claim"}
+        return observed
+
+    monkeypatch.setattr(unbound_retirement, _OBSERVE, drifting_observe)
+    report = retire_unbound_work_lane_ref(
+        root=repo,
+        branch=branch,
+        expect_head=head,
+        reason="block deletion when non-lease retirement bindings drift",
+        chronicle_ref=chronicle,
+        apply=True,
+        authorized=True,
+        break_glass=True,
+        confirm_irreversible=True,
+    )
+
+    assert report["required_gaps"] == ["unbound_retire_pre_effect_observation_stale"]
+    assert git(repo, "rev-parse", "--verify", branch) == head
 
 
 def test_retire_unbound_work_lane_ref_applies_only_to_exact_accepted_policy(
@@ -652,6 +765,13 @@ def test_lane_retirement_handles_malformed_status_fragments() -> None:
     assert (
         unbound_observation.unbound_work_lane_ref(
             {"coordination": {"unbound_work_lane_refs": {}}}, "work/x"
+        )
+        is None
+    )
+    assert (
+        unbound_observation.unbound_work_lane_ref(
+            {"coordination": {"unbound_work_lane_refs": [{"branch": "work/other"}]}},
+            "work/x",
         )
         is None
     )

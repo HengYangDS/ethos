@@ -13,9 +13,7 @@ Status: active, owned implementation carrier.  The target ref remains intact
 until this carrier is accepted, locally closed out, and a fresh native command
 re-observes the target.
 
-## Purpose
-
-Close one native-lifecycle deadlock without widening exceptional retirement:
+Purpose: close one native-lifecycle deadlock without widening exceptional retirement:
 when the exact current holder still owns the exact lease for an otherwise
 accepted-ancestor unbound ref, the native command must be able to relinquish
 that generation by its existing compare-and-swap and only then perform the
@@ -50,3 +48,7 @@ executed proof, native land, and accepted-root local closeout.  Only after that
 separate acceptance may the holder invoke the one target-specific exceptional
 retirement command.  Local acceptance and the resulting local receipt do not
 constitute remote publication or hosted validation.
+
+See also: [Runner and Mutation](../architecture/runner-and-mutation.md),
+[Command Plane](../reference/command-plane.md), and the
+[Repository Governance OpenSpec](../../openspec/specs/repository-governance/spec.md).

@@ -275,11 +275,12 @@ def lease_relinquish_binding(observation: dict[str, object]) -> dict[str, object
     """Return the exact active lease generation authorized for native relinquishment."""
     lease = cast("dict[str, object]", observation["active_lease"])
     active = bool(observation[HAS_ACTIVE_LEASE])
+    epoch = lease.get("epoch")
     return {
         "active": active,
         "lease_id": str(lease.get("lease_id") or "") if active else "",
         "holder_ref": str(lease.get("holder_ref") or "") if active else "",
-        "epoch": int(lease.get("epoch") or 0) if active else 0,
+        "epoch": epoch if active and isinstance(epoch, int) and not isinstance(epoch, bool) else 0,
         "expected_head": str(lease.get("expected_head") or "") if active else "",
     }
 

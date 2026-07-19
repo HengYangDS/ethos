@@ -7,7 +7,7 @@ summary = "The approved Work Lane is bounded to lossless tracked cleanup, conser
 
 [evidence]
 dated = "evidence/chronicle/history-residue-closeout-20260719/2026-07-19.md"
-sha256 = "09214bc3cdd2b4ff4cb94ca0c1bbe2183acc8ee2f6043df199b4c07e513a8f24"
+sha256 = "466e6a2265d6b43d576170f11d64f48038f7cd31317600c1da43fd3e226bb0ff"
 evidence_ids = ["evidence:history-residue-closeout-20260719"]
 binding = "The active OpenSpec carrier, approved Work Lane, baseline suite, strict validation receipt, digest-bound recovery archive, and applied local-state maintenance receipt bind authoring scope without asserting proof, landing, or closeout completion."
 verifier = "digest_only"

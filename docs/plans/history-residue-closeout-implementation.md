@@ -27,7 +27,8 @@ and the [design](history-residue-closeout-design.md).
 
 ## Global Constraints
 
-- Work only in `/Users/yheng/projects/ethos-work-history-residue-closeout-20260719` with `ETHOS_ACTOR=agent:openai:thread:root`.
+- Work only in the owned Work Lane root resolved by Git, with
+  `ETHOS_ACTOR=agent:openai:thread:root` and `ETHOS_ROOT="$PWD"` explicitly bound.
 - Run `tools/ci/scripts/run-ethos-lane.sh lane prewrite ... --editor-root "$PWD" --require-editor-root --json` before each tracked write set.
 - No production behavior change without a failing test first.
 - Preserve source-budget baseline `2dab77f169eceb2d45f917358c2a7487e7ac8db6` and both unexpired debt records byte-for-byte.
@@ -115,12 +116,12 @@ and the [design](history-residue-closeout-design.md).
 
 - Modify: `evidence/chronicle/history-residue-closeout-20260719/2026-07-19.md`
 - Modify: `evidence/claims/history-residue-closeout-20260719.toml`
-- Local source: `/Users/yheng/projects/ethos/.ethos/state/residue-snapshots/`
-- Operator archive: `/Users/yheng/.local/share/ethos/recovery/history-residue-closeout-20260719/`
+- Local source: `<accepted-root>/.ethos/state/residue-snapshots/`
+- Operator archive: `$HOME/.local/share/ethos/recovery/history-residue-closeout-20260719/`
 
 **Interfaces:** The tracked Chronicle binds archive path, entry-manifest digest, archive digest/size, three bundle identities, verification commands, and starting/final HEAD without promoting raw local state.
 
-- [ ] Dry-run maintenance against `/Users/yheng/projects/ethos` and record the inventory digest and exact counts.
+- [ ] Dry-run maintenance against the accepted root and record the inventory digest and exact counts.
 - [ ] Copy the full snapshot set, generate entry hashes, create the archive, extract-test it, and run `git bundle verify` on all three bundles.
 - [ ] Update Chronicle and claim digest with the verified receipt.
 - [ ] Apply maintenance using the dry-run digest; reject and re-plan if any local fact changed.

@@ -65,6 +65,32 @@ two unexpired allowances, live inventory must not exceed:
 The category total is 10,021 eLOC. Moving code between categories, resetting
 the baseline, extending expiry, or issuing umbrella debt is not settlement.
 
+## Expired Debt Carrier Attribution
+
+The following deletion-time attribution preserves the ten records that expired
+on July 18, 2026 after their live allowances are removed from the active rules
+ledger. Category values are the measured carrier allowances recorded before
+deletion; replacement text identifies the semantic owner that absorbed each
+temporary carrier.
+
+| Debt record | Owner | Replacement | Measured categories | Allowance | Wave |
+| --- | --- | --- | --- | ---: | --- |
+| `program-foundation` | `global-declarative-compression-program-20260711` | source budget, carrier admission, and declaration compiler foundation | `python_product`=352, `python_tests`=400, `python_tools`=250, `toml`=714, `json`=16 | 1,428 | `T5` |
+| `candidate-train-reconciliation` | `global-declarative-compression-program-20260711` | candidate-train semantic integrations pending T8 scenario, runner, template, and provider-copy consolidation | `python_product`=1096, `python_tests`=2057, `python_other`=508, `shell`=368, `yaml`=4, `json`=102, `jinja`=15 | 3,237 | `T8` |
+| `openspec-archive-preflight-20260712` | `openspec-archive-preflight-20260712` | collapse isolated archive preflight after the official lifecycle API exposes a source-safe dry-run receipt | `python_product`=253, `python_tests`=267, `yaml`=2, `toml`=80 | 602 | `archive-closeout` |
+| `semantic-attestation-receipts-20260714` | `semantic-attestation-receipts-20260714` | compress the external semantic receipt verifier after receipt validation is shared with the evidence contract | `python_product`=84 | 84 | `semantic-attestation-compression` |
+| `adopter-material-scope-binding-completion-20260714` | `adopter-material-scope-binding-completion-20260714` | compress scope-binding fixtures and duplicate lifecycle wiring after the shared companion read model is consolidated | `python_product`=428, `python_tests`=824, `jinja`=7 | 1,118 | `adopter-material-scope-compression` |
+| `repository-text-layout-completion-20260715` | `repository-text-layout-completion-20260715` | consolidate shared text-layout diagnostics into native owner integrations after the active-carrier boundary is proven | `python_tools`=66, `python_tests`=113, `shell`=11 | 190 | `repository-text-layout-compression` |
+| `adopter-lifecycle-claim-freshness-20260718` | `adopter-lifecycle-claim-freshness-20260718` | fold behavioral semantic-scope regressions into the existing lifecycle claim suite and remove the temporary claim-scope carrier after durable lifecycle evidence is refreshed | `python_tests`=89, `toml`=24 | 125 | `adopter-lifecycle-claim-freshness-compression` |
+| `hosted-ci-remediation-20260717` | `hosted-ci-remediation-20260717` | archive the active carrier; retain only the existing owner script and focused regressions | `python_tests`=40, `shell`=12, `toml`=46, `yaml`=4 | 102 | `hosted-ci-remediation-closeout` |
+| `bounded-status-read-model-20260718` | `refresh-base-ledger-merge-20260717` | consolidate bounded foreign-lane status fixtures and semantic rebase-recovery harnesses after coordination readers and ledger fixtures share one contract carrier | `python_product`=180, `python_tests`=528, `toml`=10, `json`=20 | 776 | `bounded-status-compression` |
+| `dual-remote-reconciliation-admission-20260718` | `remote-reconciliation-admission-20260718` | fold dual-remote reconciliation receipt validation into the shared external-evidence contract after provider-neutral receipt verification is available | `python_product`=170, `python_tests`=157, `toml`=9 | 336 | `dual-remote-reconciliation-compression` |
+
+The deleted records declared 7,998 eLOC in total. The unexpired
+`node-runtime-compatibility-20260716` and
+`repo-first-worktree-governance-bootstrap-20260718` records and their waves are
+retained byte-for-byte.
+
 ## Local-State Safety
 
 - SQLite v2 drops `cache_entries` only when it is empty; otherwise migration

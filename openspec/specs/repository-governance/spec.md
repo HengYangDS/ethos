@@ -915,11 +915,10 @@ ETHOS SHALL treat a Lane Lease as ignored, one-writer coordination within one Gi
 common directory. The lease SHALL identify a concrete holder and generation but
 SHALL NOT be an identity assertion, capability grant, filesystem fence,
 cross-host lock, or repository truth. Reader output SHALL be a
-non-authoritative action preview rather than a reusable permission. Bounded and
-full coordination readers SHALL expose their observed `detail_state`; consumers
-SHALL treat `deferred` as a bounded-observation state and `exact` as a complete
-local observation state, rather than treating either value as a universal
-repository invariant.
+non-authoritative action preview rather than a reusable permission. Bounded
+readers SHALL preserve the caller-selected `deferred` state even when no foreign
+Work Lane rows are visible; full readers SHALL report `exact` only after the
+full foreign coordination inventory has been computed.
 
 #### Scenario: foreign lane preview remains observe-only
 
@@ -948,14 +947,14 @@ repository invariant.
 
 #### Scenario: projection preserves observed coordination detail state
 
-- **WHEN** status or orientation projects a coordination observation
-- **THEN** its summary and orientation coordination payload expose the same
-  observed `detail_state`
-- **AND** `deferred` leaves counts requiring foreign-path inspection unset
-- **AND** `exact` exposes those counts as local integer observations
-- **AND** either observed state remains non-authoritative and does not grant
-  foreign Work Lane mutation authority.
-
+- **WHEN** bounded status or orientation projects a coordination observation
+- **THEN** its summary and coordination payload SHALL both expose
+  `detail_state=deferred`
+- **AND** counts requiring foreign-path inspection SHALL remain `null` even when
+  no foreign Work Lane row is visible
+- **AND** a full coordination inventory MAY expose `detail_state=exact` and
+  integer detail counts only after computing that full inventory
+- **AND** neither state grants foreign Work Lane mutation authority.
 #### Scenario: bounded-reader regression debt is explicit and temporary
 
 - **WHEN** the bounded status read model introduces a focused regression carrier
@@ -3105,3 +3104,28 @@ effect.
   digest, affected local root, result receipt, and postcondition verification
 - **AND** fixture, copied-state, dry-run, OpenSpec, land, closeout, and publish
   receipts are insufficient substitutes.
+
+### Requirement: Bounded Coordination Aggregate Detail State
+
+ETHOS SHALL derive coordination aggregate detail state from the reader mode
+selected by the caller, not from the number or contents of visible foreign Work
+Lane rows.
+
+#### Scenario: Empty bounded inventory remains deferred
+
+- **GIVEN** no foreign Work Lane is visible
+- **WHEN** `workspace_status` runs with foreign path-scope expansion disabled
+- **THEN** coordination `detail_state` SHALL be `deferred`
+- **AND** `dirty_foreign_work_lane_count`, `overlap_count`,
+  `unknown_scope_count`, `closeout_residue_count`, and
+  `dirty_closeout_residue_count` SHALL be `null`
+- **AND** observable foreign-lane and lease counts SHALL remain available.
+
+#### Scenario: Empty full inventory remains exact
+
+- **GIVEN** no foreign Work Lane is visible
+- **WHEN** `workspace_status` runs in its full default mode
+- **THEN** coordination `detail_state` SHALL be `exact`
+- **AND** `dirty_foreign_work_lane_count`, `overlap_count`,
+  `unknown_scope_count`, `closeout_residue_count`, and
+  `dirty_closeout_residue_count` SHALL all be zero.

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[4]
@@ -23,6 +24,31 @@ def test_active_concerns_use_current_json_format_owner() -> None:
 
     assert audit.ACTIVE_CONCERNS["json_format"] == "tools/ci/scripts/run-config-lint.sh"
     assert "json_syntax" not in audit.ACTIVE_CONCERNS
+
+
+def test_quality_audit_uses_the_workspace_runtime_for_public_cli_commands(monkeypatch) -> None:
+    audit = _load_quality_audit()
+    observed: dict[str, object] = {}
+
+    def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        observed["command"] = command
+        observed["kwargs"] = kwargs
+        return subprocess.CompletedProcess(command, 0, '{"ok": true}', "")
+
+    monkeypatch.setattr(audit.subprocess, "run", fake_run)
+
+    assert audit.run_json(ROOT, "quality", "types", "--json") == {"ok": True}
+    assert observed["command"] == [
+        "uv",
+        "run",
+        "--all-packages",
+        "--group",
+        "dev",
+        "ethos",
+        "quality",
+        "types",
+        "--json",
+    ]
 
 
 def test_owner_gaps_require_the_ruff_discovery_adapter(tmp_path: Path) -> None:

@@ -1,0 +1,3 @@
+[container_contract]
+schema_version = 1
+manifest = ".ethos/container-contract.toml"

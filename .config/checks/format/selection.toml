@@ -131,6 +131,7 @@ yaml_allowed_roots = [
   "system/schemas/",
   "evidence/parity/",
   "distributions/npm/",
+  "tests/fixtures/container-contract/",
 ], files = [
   "package.json",
   "package-lock.json",

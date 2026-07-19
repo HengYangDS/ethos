@@ -1,0 +1,28 @@
+schema_version = 1
+[delivery]
+platforms = ["linux/amd64", "linux/arm64"]
+emulation_is_release_evidence = false
+oci_image_index = { reference = "registry.example/platform/example:v1", digest = "sha256:0000000000000000000000000000000000000000000000000000000000000000", evidence = { path = "evidence/container.json", sha256 = "fa31c2794acfdc8724ff2683b0e14983cf38a879a831b83fc050e767e20b3faf" } }
+sbom = { path = "evidence/container.json", sha256 = "fa31c2794acfdc8724ff2683b0e14983cf38a879a831b83fc050e767e20b3faf" }
+provenance = { path = "evidence/container.json", sha256 = "fa31c2794acfdc8724ff2683b0e14983cf38a879a831b83fc050e767e20b3faf" }
+signature = { path = "evidence/container.json", sha256 = "fa31c2794acfdc8724ff2683b0e14983cf38a879a831b83fc050e767e20b3faf" }
+native_linux_smokes = [{ platform = "linux/amd64", evidence = { path = "evidence/container.json", sha256 = "fa31c2794acfdc8724ff2683b0e14983cf38a879a831b83fc050e767e20b3faf" } }, { platform = "linux/arm64", evidence = { path = "evidence/container.json", sha256 = "fa31c2794acfdc8724ff2683b0e14983cf38a879a831b83fc050e767e20b3faf" } }]
+
+[development]
+compose_interface = "required"
+native_development_path = "required"
+dev_container = "optional"
+
+[trust_profiles]
+trusted = { network = "declared", credential_mounts = "declared", host_mounts = "declared", privileged = "forbidden", execution_evidence = { path = "evidence/container.json", sha256 = "fa31c2794acfdc8724ff2683b0e14983cf38a879a831b83fc050e767e20b3faf" } }
+untrusted = { network = "none", credential_mounts = "forbidden", host_secret_mounts = "forbidden", host_mounts = "forbidden", readonly_rootfs = true, capabilities = "drop_all", privileged = false, input_mount = "readonly", execution_evidence = { path = "evidence/container.json", sha256 = "fa31c2794acfdc8724ff2683b0e14983cf38a879a831b83fc050e767e20b3faf" }, artifact_return = { mode = "allowlist", allowed_paths = ["artifacts/result.json"], output_schema = { path = "evidence/container.json", sha256 = "fa31c2794acfdc8724ff2683b0e14983cf38a879a831b83fc050e767e20b3faf" } } }
+
+[data_lifecycle]
+migration = "required"
+seed = "required"
+backup = "required"
+restore = "required"
+
+[asset_inventory]
+complete = true
+assets = []

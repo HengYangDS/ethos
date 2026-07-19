@@ -77,6 +77,7 @@ match_prefixes = [
   "commitment_missing",
   "schema_contract_gap",
   "schema_",
+  "container_contract_",
   "source_budget_",
   "commit_policy_toml_invalid",
   "identity_mode_missing",

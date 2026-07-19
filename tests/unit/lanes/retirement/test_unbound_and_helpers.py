@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 import ethos.adapters.mutation.lane_retirement.shared.core as retirement_shared
 import ethos.adapters.mutation.lane_retirement.unbound.core as unbound_retirement
 from ethos.adapters.mutation.lane_lifecycle import core as lane_lifecycle_core
+from ethos.adapters.mutation.lane_retirement.unbound.core import retire_unbound_work_lane_ref
 from ethos.adapters.repo.dirty.core import dirty_provenance
 from tests.support.lane_helpers import add_candidate_worktree
 from tests.support.lane_helpers import git
@@ -24,7 +25,7 @@ def test_retire_unbound_work_lane_ref_requires_exceptional_deletion_admission(
     git(repo, "branch", "work/stale-ref", "dev")
     head = git(repo, "rev-parse", "work/stale-ref")
 
-    report = unbound_retirement.retire_unbound_work_lane_ref(
+    report = retire_unbound_work_lane_ref(
         root=repo,
         branch="work/stale-ref",
         expect_head=head,
@@ -54,7 +55,7 @@ def test_retire_unbound_work_lane_ref_apply_preserves_ref_without_exceptional_ad
     git(repo, "branch", "work/stale-ref", "dev")
     head = git(repo, "rev-parse", "work/stale-ref")
 
-    report = unbound_retirement.retire_unbound_work_lane_ref(
+    report = retire_unbound_work_lane_ref(
         root=repo,
         branch="work/stale-ref",
         expect_head=head,
@@ -81,7 +82,7 @@ def test_retire_unbound_work_lane_ref_blocks_head_mismatch(tmp_path: Path) -> No
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     git(repo, "branch", "work/stale-ref", "dev")
 
-    report = unbound_retirement.retire_unbound_work_lane_ref(
+    report = retire_unbound_work_lane_ref(
         root=repo,
         branch="work/stale-ref",
         expect_head="0" * 40,
@@ -109,7 +110,7 @@ def test_retire_unbound_work_lane_ref_blocks_linked_worktree(tmp_path: Path) -> 
     git(repo, "worktree", "add", "-b", "work/linked", worktree.as_posix(), "dev")
     head = git(repo, "rev-parse", "work/linked")
 
-    report = unbound_retirement.retire_unbound_work_lane_ref(
+    report = retire_unbound_work_lane_ref(
         root=repo,
         branch="work/linked",
         expect_head=head,
@@ -130,9 +131,7 @@ def test_retire_unbound_work_lane_ref_requires_reason_authorization_and_head(
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     git(repo, "branch", "work/stale-ref", "dev")
 
-    report = unbound_retirement.retire_unbound_work_lane_ref(
-        root=repo, branch="work/stale-ref", apply=True
-    )
+    report = retire_unbound_work_lane_ref(root=repo, branch="work/stale-ref", apply=True)
 
     assert report["ok"] is False
     assert report["required_gaps"] == [
@@ -193,7 +192,7 @@ def test_retire_unbound_work_lane_ref_classifies_branch_input_gaps(
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     git(repo, "branch", "topic", "dev")
 
-    missing_branch = unbound_retirement.retire_unbound_work_lane_ref(
+    missing_branch = retire_unbound_work_lane_ref(
         root=repo,
         branch="",
         expect_head="h",
@@ -201,7 +200,7 @@ def test_retire_unbound_work_lane_ref_classifies_branch_input_gaps(
     )
     assert "unbound_retire_branch_required" in missing_branch["required_gaps"]
 
-    not_found = unbound_retirement.retire_unbound_work_lane_ref(
+    not_found = retire_unbound_work_lane_ref(
         root=repo,
         branch="work/missing",
         expect_head="h",
@@ -209,7 +208,7 @@ def test_retire_unbound_work_lane_ref_classifies_branch_input_gaps(
     )
     assert "unbound_retire_branch_not_found" in not_found["required_gaps"]
 
-    wrong_role = unbound_retirement.retire_unbound_work_lane_ref(
+    wrong_role = retire_unbound_work_lane_ref(
         root=repo,
         branch="topic",
         expect_head=git(repo, "rev-parse", "topic"),

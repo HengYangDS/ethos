@@ -1,0 +1,60 @@
+[claim]
+id = "budget-contract-v2-carrier-metric-contracts-20260719"
+subject = "quality:budget-contract-v2:carrier-metric-contracts"
+state = "archived"
+summary = "Implement and independently review the bounded Task 2 carrier and metric contracts, fail-closed Git inventory, exact-one classification, and canonical full-identity digests without claiming measurement or v2 enforcement."
+
+[evidence]
+dated = "evidence/chronicle/budget-contract-v2-carrier-metric-contracts-20260719/2026-07-19.md"
+sha256 = "0ceeb62e14ff7a6434bd28f6e50fff1cd7868cd4da8db214cdefa022ba60d1dd"
+evidence_ids = ["evidence:budget-contract-v2-carrier-metric-contracts-20260719"]
+binding = "DR-0008, the accepted Foundation, the officially archived Task 2 OpenSpec Change, strict typed contracts and loaders, the post-refresh 2,616-path exact-one observation, reviewed counts and canonical digests, 139 focused tests, 28 v1 regressions, 100 percent statement and branch coverage for the three T2 modules, owner quality gates, independent review, eight clean generic parity comparisons, and the successful 19-gate exact-HEAD proof at 320a301ecddd840a8a0f48913ea81f077fa7a260 with evidence digest 7cb32e1932637d6022e4d9cfe51d41b06368c686df9baecdceb773d409b1566b and receipt SHA-256 794cf0f6f64ef4514d73c6f9669c4c22f71ee89848fe918120ef71f972836896 bind this contract-only slice; earlier failed proof and owner runs remain retained intermediate evidence, while fresh archive parity, archive-HEAD proof, and downstream closeout remain separate transitions."
+verifier = "digest_only"
+tests = [
+  "tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev pytest -q tests/unit/kernel/test_source_budget_carriers_contract.py tests/unit/kernel/test_source_budget_metrics_contract.py tests/unit/adapters/repo/source_budget/test_carriers.py tests/unit/governance/validation/test_schemas.py",
+  "tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev pytest -q tests/unit/kernel/test_source_budget_contract.py tests/unit/adapters/repo/test_source_budget.py tests/unit/domain/source_budget/test_core.py",
+  "tools/ci/scripts/run-python-lint.sh",
+  "tools/ci/scripts/run-config-lint.sh",
+  "tools/ci/scripts/run-json-schema-check.sh",
+  "tools/ci/scripts/run-ethos-lane.sh quality module-layout --json",
+  "tools/ci/scripts/run-ethos-lane.sh quality source-budget --json",
+  "openspec validate --all --strict --json",
+  "tools/ci/scripts/run-ethos-lane.sh openspec --archive-id budget-contract-v2-carrier-metric-contracts-20260719 --json",
+  "tools/ci/scripts/run-ethos-lane.sh quality claims --json",
+  "tools/ci/scripts/run-ethos-lane.sh plan --changed --json",
+  "tools/ci/scripts/run-ethos-lane.sh parity gaps --json",
+  "tools/ci/scripts/run-ethos-lane.sh prove --execute --expect-head 320a301ecddd840a8a0f48913ea81f077fa7a260 --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "quality"
+scope = "Budget Contract v2 Task 2 typed carrier and metric declarations, strict fail-closed Git inventory, exact-one classification, canonical full-identity digests, and current manifest coverage only; no content measurement, policy enforcement, cutover, v1 global LOC retirement, remote, or hosted claim."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-19-budget-contract-v2-carrier-metric-contracts-20260719"
+fallback = "Keep v1 source-budget fully authoritative and reject Task 3 or later work when a carrier or metric contract is missing, invalid, ambiguous, unsupported, compensating, model-token based, or cannot be observed without a partial inventory."
+kill_signal = "A maintained path disappears through zero or first-match classification, invalid input returns a clean empty or partial contract, inventory identity can be forged, a hard coordinate compensates another, carrier bytes escape the repository boundary, or BPE/model tokens enter repository-source truth."
+
+[promotion]
+targets = [
+  "docs/plans/budget-contract-v2-implementation.md",
+  "packages/ethos-core/src/ethos_core/contracts/source_budget/carriers.py",
+  "packages/ethos-core/src/ethos_core/contracts/source_budget/metrics.py",
+  "packages/ethos/src/ethos/adapters/repo/source_budget/carriers.py",
+  "system/policies/source-budget-carriers.toml",
+  "system/policies/source-budget-metrics.toml",
+  "system/schemas/kernel/source-budget-carriers.schema.json",
+  "system/schemas/kernel/source-budget-metrics.schema.json",
+  "tests/unit/kernel/test_source_budget_carriers_contract.py",
+  "tests/unit/kernel/test_source_budget_metrics_contract.py",
+  "tests/unit/adapters/repo/source_budget/test_carriers.py",
+  "tests/unit/governance/validation/test_schemas.py",
+  "openspec/changes/archive/2026-07-19-budget-contract-v2-carrier-metric-contracts-20260719",
+  "openspec/specs/contracts/spec.md",
+  "evidence/claims/budget-contract-v2-carrier-metric-contracts-20260719.toml",
+  "evidence/chronicle/budget-contract-v2-carrier-metric-contracts-20260719",
+  "evidence/parity/generic-shadow.json",
+]

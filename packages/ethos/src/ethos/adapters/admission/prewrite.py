@@ -224,10 +224,6 @@ def _lease_binding_reason(
     *, branch: str, lease: dict[str, object], actor: str, current_head: str
 ) -> str:
     checks = (
-        (
-            str(lease.get("normalization_state") or "") != "normalized",
-            f"lane_lease_legacy_ambiguous:{branch}",
-        ),
         (actor != str(lease.get("holder_ref") or ""), f"lease_holder_mismatch:{branch}"),
         (
             not str(lease.get("lease_id") or "") or integer_value(lease.get("epoch")) < 1,

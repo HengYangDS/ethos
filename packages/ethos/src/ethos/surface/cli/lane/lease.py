@@ -11,7 +11,6 @@ from ethos.adapters.mutation.lane_lifecycle.handoff.core import export_cross_hos
 from ethos.adapters.mutation.lane_lifecycle.handoff.core import import_cross_host_handoff
 from ethos.adapters.mutation.lane_lifecycle.handoff.core import revoke_cross_host_source
 from ethos.adapters.mutation.lane_lifecycle.lease import accept_work_lane_handoff
-from ethos.adapters.mutation.lane_lifecycle.lease import normalize_work_lane_lease
 from ethos.adapters.mutation.lane_lifecycle.lease import offer_work_lane_handoff
 from ethos.adapters.mutation.lane_lifecycle.lease import renew_work_lane_lease
 from ethos.adapters.mutation.lane_lifecycle.lease import resume_work_lane_lease
@@ -47,29 +46,6 @@ def _emit_lease_result(command: str, report: dict[str, object], *, json_output: 
         data=report,
     )
     emit(result, json_output=json_output)
-
-
-@lane_lease_app.command(name="normalize")
-def lane_lease_normalize(
-    *,
-    branch: Annotated[str, Parameter(name="--branch")],
-    holder_ref: Annotated[str, Parameter(name="--holder-ref")],
-    lease_id: Annotated[str, Parameter(name="--lease-id")],
-    expect_head: Annotated[str, Parameter(name="--expect-head")],
-    apply: bool = False,
-    root: RootOption | None = None,
-    json_output: JsonFlag = False,
-) -> None:
-    """Normalize one exact unambiguous legacy lease observation."""
-    report = normalize_work_lane_lease(
-        root=resolve_root(root),
-        branch=branch,
-        holder_ref=holder_ref,
-        lease_id=lease_id,
-        expect_head=expect_head,
-        apply=apply,
-    )
-    _emit_lease_result("lane lease normalize", report, json_output=json_output)
 
 
 @lane_lease_app.command(name="renew")

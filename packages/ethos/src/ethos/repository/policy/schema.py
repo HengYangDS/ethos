@@ -8,6 +8,7 @@ from typing import Any
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError
 
+from ethos.repository.policy.container_contract.core import container_contract_report
 from ethos.repository.policy.gates import gate_registry
 from ethos.repository.registry.docs.health import docs_health_report
 from ethos.repository.registry.profiles import governance_profile_report
@@ -204,6 +205,7 @@ def _instance_validation_report(root: Path, *, mode: str) -> dict[str, dict[str,
         root=root,
     )
     instances["capability-profiles"] = _capability_profiles_report(root, mode=mode)
+    instances["container-contract"] = container_contract_report(root)
     instances["coupling-audit-contract"] = validate_schema_instance(
         "coupling-audit.schema.json",
         coupling_audit_report(root),

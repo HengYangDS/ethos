@@ -14,9 +14,9 @@ import pytest
 
 import ethos.adapters.store.state.maintenance as maintenance
 from ethos.adapters.mutation.proof import proof_state_dir
-from ethos.adapters.store.state.events import initialize_state
 from ethos.adapters.store.state.maintenance import apply_local_state_maintenance
 from ethos.adapters.store.state.maintenance import local_state_maintenance_inventory
+from ethos.adapters.store.state.schema import initialize_state
 from ethos.surface.cli.root import inspection as inspection_cli
 from tests.support.contract_helpers import git
 from tests.support.contract_helpers import init_git_repo

@@ -2,27 +2,11 @@ from __future__ import annotations
 
 import json
 import os
-from collections.abc import Callable
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.mutation.lane_lifecycle.core import run_git
 from ethos_core.contracts.lifecycle.core import MutationRequest
-
-GitRunner = Callable[..., Any]
-
-
-def _run_git_adapter(root: Path, *args: str, check: bool = True) -> Any:
-    return run_git(root, *args, check=check)
-
-
-@dataclass(frozen=True, slots=True)
-class RetirementRuntime:
-    """Explicit adapter binding for Work Lane retirement operations."""
-
-    run_git: GitRunner = _run_git_adapter
 
 
 def remove_linked_lane(
@@ -30,8 +14,6 @@ def remove_linked_lane(
     lane: dict[str, object],
     *,
     expect_head: str | None,
-    runtime: RetirementRuntime | None = None,
-    runner: GitRunner | None = None,
 ) -> dict[str, object]:
     """Retire one clean linked lane without forcing a destructive removal.
 
@@ -41,7 +23,6 @@ def remove_linked_lane(
     ref.  A concurrent ref advance therefore leaves an unbound ref behind for
     later inspection instead of deleting a newer target.
     """
-    active_runtime = RetirementRuntime(run_git=runner) if runner else runtime or RetirementRuntime()
     branch = str(lane.get("branch") or "")
     path = str(lane.get("path") or "")
     lane_path = Path(path) if path else Path()
@@ -50,11 +31,14 @@ def remove_linked_lane(
         branch=branch,
         path=path,
         expect_head=expected,
-        runtime=active_runtime,
     )
     if gaps:
-        return _blocked(gaps)
-    remove = active_runtime.run_git(
+        return {
+            "ok": False,
+            "state": "blocked",
+            "required_gaps": gaps,
+        }
+    remove = run_git(
         lane_path,
         "worktree",
         "remove",
@@ -62,9 +46,14 @@ def remove_linked_lane(
         check=False,
     )
     if remove.returncode != 0:
-        return _blocked(["worktree_remove_failed"], stderr=remove.stderr.strip())
+        return {
+            "ok": False,
+            "state": "blocked",
+            "required_gaps": ["worktree_remove_failed"],
+            "stderr": remove.stderr.strip(),
+        }
     ref = f"refs/heads/{branch}"
-    delete = active_runtime.run_git(
+    delete = run_git(
         repo,
         "update-ref",
         "-d",
@@ -74,15 +63,11 @@ def remove_linked_lane(
     )
     if delete.returncode == 0:
         return {}
-    return _blocked(["branch_delete_failed_after_worktree_removed"], stderr=delete.stderr.strip())
-
-
-def _blocked(gaps: list[str], *, stderr: str | None = None) -> dict[str, object]:
     return {
         "ok": False,
         "state": "blocked",
-        "required_gaps": gaps,
-        **({"stderr": stderr} if stderr is not None else {}),
+        "required_gaps": ["branch_delete_failed_after_worktree_removed"],
+        "stderr": delete.stderr.strip(),
     }
 
 
@@ -91,7 +76,6 @@ def _linked_lane_reobservation_gaps(
     branch: str,
     path: str,
     expect_head: str,
-    runtime: RetirementRuntime,
 ) -> list[str]:
     """Reobserve the exact linked lane immediately before any effect.
 
@@ -110,20 +94,18 @@ def _linked_lane_reobservation_gaps(
     if not path or not lane_path.exists() or not lane_path.is_dir():
         gaps.append("retirement_worktree_path_unavailable")
         return gaps
-    for target, unavailable, stale in (
-        (f"refs/heads/{branch}", "retirement_ref_unavailable", "retirement_ref_stale"),
-        (
-            "HEAD",
-            "retirement_worktree_head_unavailable",
-            "retirement_worktree_head_stale",
-        ),
-    ):
-        observed = runtime.run_git(lane_path, "rev-parse", target, check=False)
-        if observed.returncode != 0:
-            gaps.append(unavailable)
-        elif expect_head and observed.stdout.strip() != expect_head:
-            gaps.append(stale)
-    status = runtime.run_git(
+    ref = f"refs/heads/{branch}"
+    ref_check = run_git(lane_path, "rev-parse", ref, check=False)
+    if ref_check.returncode != 0:
+        gaps.append("retirement_ref_unavailable")
+    elif expect_head and ref_check.stdout.strip() != expect_head:
+        gaps.append("retirement_ref_stale")
+    head_check = run_git(lane_path, "rev-parse", "HEAD", check=False)
+    if head_check.returncode != 0:
+        gaps.append("retirement_worktree_head_unavailable")
+    elif expect_head and head_check.stdout.strip() != expect_head:
+        gaps.append("retirement_worktree_head_stale")
+    status = run_git(
         lane_path,
         "status",
         "--porcelain",
@@ -151,13 +133,16 @@ def delete_json_projection_lease(repo: Path, *, subject: str) -> int:
     rows = payload.get("leases")
     if not isinstance(rows, list):
         return 0
-    kept = [
-        row
-        for row in rows
-        if not isinstance(row, dict)
-        or str(row.get("branch") or row.get("subject") or "") != subject
-    ]
-    removed = len(rows) - len(kept)
+    kept: list[object] = []
+    removed = 0
+    for row in rows:
+        branch = ""
+        if isinstance(row, dict):
+            branch = str(row.get("branch") or row.get("subject") or "")
+        if branch == subject:
+            removed += 1
+        else:
+            kept.append(row)
     if not removed:
         return 0
     payload = dict(payload)
@@ -201,60 +186,38 @@ def holder_authority_gaps(selected: list[dict[str, object]]) -> list[str]:
     )
 
 
-def has_changed_paths(root: Path, *, runner: GitRunner) -> bool:
+def has_changed_paths(root: Path) -> bool:
     """Fail closed when Git cannot prove the linked Work Lane is clean."""
     try:
-        completed = runner(root, "status", "--porcelain", "--untracked-files=all", check=False)
+        completed = run_git(root, "status", "--porcelain", "--untracked-files=all", check=False)
     except OSError:
         return True
     return completed.returncode != 0 or bool(completed.stdout.strip())
 
 
-def expected_head_gaps(head: str, expect_head: str | None) -> list[str]:
-    """Require a caller-supplied compare-and-swap head."""
-    expected = (expect_head or "").strip()
-    if not expected:
-        return ["expect_head_required"]
-    return ["expect_head_mismatch"] if head and expected != head else []
-
-
-def retirement_report(  # noqa: PLR0913, RUF100 - shared exact result dimensions
+def retire_mutation_binding(
     *,
-    command: str,
-    action: str,
     branch: str | None,
     expect_head: str | None,
-    apply: bool,
-    confirmed: bool,
-    state: str,
-    gaps: list[str],
     holder_ref: str = "",
     required_holder_ref: str = "",
-    extra_state: dict[str, object] | None = None,
-    fields: dict[str, object] | None = None,
-) -> dict[str, object]:
-    """Build one retirement result and its canonical mutation envelope."""
-    required = sorted(set(gaps))
-    return {
-        "ok": not required,
-        "state": state,
-        "branch": branch or "",
-        **(fields or {}),
-        "mutation": retire_mutation_envelope(
-            command=command,
-            action=action,
-            branch=branch,
-            expect_head=expect_head,
-            apply=apply,
-            confirmed=confirmed,
-            required_gaps=required,
-            holder_ref=holder_ref,
-            required_holder_ref=required_holder_ref,
-            extra_state=extra_state,
-        ),
-        "required_gaps": required,
-        **retire_authority_guidance(required),
+) -> dict[str, str]:
+    """Build the common mutation binding envelope for lane retirement commands."""
+    holder_ref = holder_ref.strip()
+    mutation = {
+        "invocation_holder_ref": holder_ref,
+        "expect_head": (expect_head or "").strip(),
+        "ref": f"refs/heads/{branch}" if branch else "",
     }
+    if required_holder_ref:
+        mutation.update(
+            {
+                "holder_bound": str(bool(holder_ref)).lower(),
+                "invocation_source": "ETHOS_ACTOR",
+                "required_holder_ref": required_holder_ref,
+            }
+        )
+    return mutation
 
 
 def retire_mutation_envelope(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
@@ -271,21 +234,12 @@ def retire_mutation_envelope(  # noqa: PLR0913, RUF100 - exact request envelope 
     extra_state: dict[str, object] | None = None,
 ) -> dict[str, object]:
     """Build the canonical retirement request/decision while retaining migration hints."""
-    invocation = holder_ref.strip()
-    legacy_binding = {
-        "invocation_holder_ref": invocation,
-        "expect_head": (expect_head or "").strip(),
-        "ref": f"refs/heads/{branch}" if branch else "",
-        **(
-            {
-                "holder_bound": str(bool(invocation)).lower(),
-                "invocation_source": "ETHOS_ACTOR",
-                "required_holder_ref": required_holder_ref,
-            }
-            if required_holder_ref
-            else {}
-        ),
-    }
+    legacy_binding = retire_mutation_binding(
+        branch=branch,
+        expect_head=expect_head,
+        holder_ref=holder_ref,
+        required_holder_ref=required_holder_ref,
+    )
     expected_state: dict[str, object] = {
         "ref": str(legacy_binding["ref"]),
         "head": str(legacy_binding["expect_head"]),
@@ -293,25 +247,22 @@ def retire_mutation_envelope(  # noqa: PLR0913, RUF100 - exact request envelope 
         "required_holder_ref": required_holder_ref,
         **(extra_state or {}),
     }
-    return {
-        **legacy_binding,
-        **mutation_envelope(
-            MutationRequest(
-                command=command,
-                apply=apply,
-                authorized=confirmed,
-                expect_head=expect_head,
-            ),
-            action=action,
-            resource=str(legacy_binding["ref"] or branch or "work-lane"),
-            expected_state=expected_state,
-            verdict="allow" if not required_gaps else "block",
-            required_gaps=tuple(sorted(set(required_gaps))),
-            state="ready" if not required_gaps else "blocked",
-            identity_basis="holder_ref_equality" if required_holder_ref else "not_evaluated",
-            evidence_boundary="current_git_lane_and_lease_observation",
-            enforcement_boundary="git_ref_and_worktree_transition",
-            verifier_provenance="current_runner",
+    canonical = mutation_envelope(
+        MutationRequest(
+            command=command,
+            apply=apply,
+            authorized=confirmed,
+            expect_head=expect_head,
         ),
-        "legacy_binding_authoritative": False,
-    }
+        action=action,
+        resource=str(legacy_binding["ref"] or branch or "work-lane"),
+        expected_state=expected_state,
+        verdict="allow" if not required_gaps else "block",
+        required_gaps=tuple(sorted(set(required_gaps))),
+        state="ready" if not required_gaps else "blocked",
+        identity_basis="holder_ref_equality" if required_holder_ref else "not_evaluated",
+        evidence_boundary="current_git_lane_and_lease_observation",
+        enforcement_boundary="git_ref_and_worktree_transition",
+        verifier_provenance="current_runner",
+    )
+    return {**legacy_binding, **canonical, "legacy_binding_authoritative": False}

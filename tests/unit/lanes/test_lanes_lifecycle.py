@@ -586,9 +586,9 @@ def test_refresh_work_lane_base_blocks_unavailable_file_backed_ssh_before_rebase
     monkeypatch.setattr(
         lane_refresh, "ssh_signing_transport_ready", lambda _key: False, raising=False
     )
+    monkeypatch.setattr(lane_refresh, "run_git", signing_git)
     report = lane_refresh.refresh_work_lane_base(
         root=worktree, apply=True, authorized=True, expect_head=previous_head,
-        runtime=lane_refresh.LaneRefreshRuntime(run_git=signing_git),
     )
 
     assert report["required_gaps"] == ["refresh_signing_transport_unavailable"]
@@ -615,7 +615,9 @@ def test_refresh_work_lane_base_blocks_snapshot_moved_during_preflight(
     assert git(worktree, "rev-parse", "HEAD") == previous_head
 
 
-def test_refresh_work_lane_base_rechecks_configured_candidate_ref(tmp_path: Path) -> None:
+def test_refresh_work_lane_base_rechecks_configured_candidate_ref(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     calls: list[tuple[str, ...]] = []
 
     def run_git(_root: Path, *args: str, **_kwargs: object) -> subprocess.CompletedProcess[str]:
@@ -623,16 +625,24 @@ def test_refresh_work_lane_base_rechecks_configured_candidate_ref(tmp_path: Path
         stdout = {"stage/dev": "moved\n", "HEAD": "h1\n", "commit.gpgsign": "true", "gpg.format": "ssh", "user.signingkey": "missing"}.get(args[-1], "")
         return subprocess.CompletedProcess(["git", *args], 0, stdout, "")
 
-    runtime = lane_refresh.LaneRefreshRuntime(
-        load_branch_role_policy=lambda _root: SimpleNamespace(candidate_branch="stage/dev"),
-        workspace_status=lambda _root: {
+    monkeypatch.setattr(
+        lane_refresh,
+        "load_branch_role_policy",
+        lambda _root: SimpleNamespace(candidate_branch="stage/dev"),
+    )
+    monkeypatch.setattr(
+        lane_refresh,
+        "workspace_status",
+        lambda _root: {
             "role": "work_lane", "dirty": False, "branch": "work/feature",
             "candidate": {"exists": True, "worktree_exists": True, "worktree_path": "candidate", "head": "c1"},
         },
-        changed_paths=lambda _path: [], is_ancestor=lambda *_args: False, run_git=run_git,
     )
+    monkeypatch.setattr(lane_refresh, "changed_paths", lambda _path: [])
+    monkeypatch.setattr(lane_refresh, "is_ancestor", lambda *_args: False)
+    monkeypatch.setattr(lane_refresh, "run_git", run_git)
     report = lane_refresh.refresh_work_lane_base(
-        root=tmp_path, apply=True, authorized=True, expect_head="h1", runtime=runtime,
+        root=tmp_path, apply=True, authorized=True, expect_head="h1",
     )
 
     assert report["required_gaps"] == ["refresh_base_snapshot_stale:candidate"]
@@ -640,7 +650,7 @@ def test_refresh_work_lane_base_rechecks_configured_candidate_ref(tmp_path: Path
 
 
 def test_refresh_work_lane_base_does_not_overwrite_branch_moved_before_cas(
-    tmp_path: Path,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo, _, worktree, previous_head, candidate_head = _stale_work_lane(tmp_path)
     original_run_git = lane_refresh.run_git
@@ -652,9 +662,13 @@ def test_refresh_work_lane_base_does_not_overwrite_branch_moved_before_cas(
             git(repo, "update-ref", "refs/heads/work/feature", candidate_head, previous_head)
         return original_run_git(root, *args, **kwargs)
 
-    report = refresh_work_lane_base(
-        root=worktree, apply=True, authorized=True, expect_head=previous_head,
-        runtime=lane_refresh.LaneRefreshRuntime(run_git=move_branch_before_cas),
+    monkeypatch.setattr(lane_refresh, "run_git", move_branch_before_cas)
+
+    report = lane_refresh.refresh_work_lane_base(
+        root=worktree,
+        apply=True,
+        authorized=True,
+        expect_head=previous_head,
     )
 
     assert report["required_gaps"] == ["refresh_base_snapshot_stale:work_lane"]
@@ -662,16 +676,36 @@ def test_refresh_work_lane_base_does_not_overwrite_branch_moved_before_cas(
 
 
 @pytest.mark.parametrize(("attach_code", "head", "gap"), [(1, "rebased", "refresh_base_worktree_attach_failed"), (0, "moved", "refresh_base_snapshot_stale:work_lane")])
-def test_refresh_work_lane_base_rejects_attach_and_post_cas_races(tmp_path: Path, attach_code: int, head: str, gap: str) -> None:
+def test_refresh_work_lane_base_rejects_attach_and_post_cas_races(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    attach_code: int,
+    head: str,
+    gap: str,
+) -> None:
     heads, ancestors = iter(("work", "work", "candidate", "rebased", head)), iter((False, True))
     def run(_root: Path, *args: str, **_kwargs: object) -> subprocess.CompletedProcess[str]:
         return subprocess.CompletedProcess(["git", *args], attach_code if args == ("switch", "work/feature") else 0, f"{next(heads)}\n" if args[:1] == ("rev-parse",) else "", "attach")
-    runtime = lane_refresh.LaneRefreshRuntime(load_branch_role_policy=lambda _root: SimpleNamespace(candidate_branch="candidate/dev"), workspace_status=lambda _root: {"role": "work_lane", "dirty": False, "branch": "work/feature", "candidate": {"exists": True, "worktree_exists": True, "worktree_path": "candidate", "head": "candidate"}}, changed_paths=lambda _path: [], is_ancestor=lambda *_args: next(ancestors), run_git=run)
-    report = lane_refresh.refresh_work_lane_base(root=tmp_path, apply=True, authorized=True, expect_head="work", runtime=runtime)
+    monkeypatch.setattr(
+        lane_refresh,
+        "load_branch_role_policy",
+        lambda _root: SimpleNamespace(candidate_branch="candidate/dev"),
+    )
+    monkeypatch.setattr(
+        lane_refresh,
+        "workspace_status",
+        lambda _root: {"role": "work_lane", "dirty": False, "branch": "work/feature", "candidate": {"exists": True, "worktree_exists": True, "worktree_path": "candidate", "head": "candidate"}},
+    )
+    monkeypatch.setattr(lane_refresh, "changed_paths", lambda _path: [])
+    monkeypatch.setattr(lane_refresh, "is_ancestor", lambda *_args: next(ancestors))
+    monkeypatch.setattr(lane_refresh, "run_git", run)
+    report = lane_refresh.refresh_work_lane_base(
+        root=tmp_path, apply=True, authorized=True, expect_head="work"
+    )
     assert report["required_gaps"] == [gap]
 
 
-def test_refresh_work_lane_base_rejects_noop_rebase_success(tmp_path: Path) -> None:
+def test_refresh_work_lane_base_rejects_noop_rebase_success(tmp_path: Path, monkeypatch) -> None:
     _, _, worktree, previous_head, candidate_head = _stale_work_lane(tmp_path)
     original_run_git = lane_refresh.run_git
 
@@ -688,12 +722,13 @@ def test_refresh_work_lane_base_rejects_noop_rebase_success(tmp_path: Path) -> N
             return subprocess.CompletedProcess(["git", *args], 0, "", "")
         return original_run_git(root, *args, **kwargs)
 
-    report = refresh_work_lane_base(
+    monkeypatch.setattr(lane_refresh, "run_git", successful_noop_rebase)
+
+    report = lane_refresh.refresh_work_lane_base(
         root=worktree,
         apply=True,
         authorized=True,
         expect_head=previous_head,
-        runtime=lane_refresh.LaneRefreshRuntime(run_git=successful_noop_rebase),
     )
 
     assert report["ok"] is False

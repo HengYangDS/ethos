@@ -1,0 +1,1 @@
+{"$schema":"https://json-schema.org/draft/2020-12/schema","$id":"https://ethos/system/container-contract-declaration","title":"ETHOS Container Contract Declaration","type":"object","additionalProperties":false,"required":["schema_version","manifest"],"properties":{"schema_version":{"const":1},"manifest":{"const":".ethos/container-contract.toml"}}}

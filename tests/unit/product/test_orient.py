@@ -67,7 +67,14 @@ def test_orient_json_is_projection_not_truth_store() -> None:
         payload["summary"]["dirty_foreign_work_lane_count"]
         == orientation["coordination"]["dirty_foreign_work_lane_count"]
     )
-    assert payload["summary"]["coordination_detail_state"] == "deferred"
+    assert (
+        payload["summary"]["coordination_detail_state"]
+        == orientation["coordination"]["detail_state"]
+    )
+    _assert_coordination_detail_contract(
+        orientation["coordination"],
+        summary=payload["summary"],
+    )
     assert payload["summary"]["coordination_advisory_count"] == len(
         orientation["coordination"]["advisory_items"]
     )
@@ -130,9 +137,8 @@ def test_status_json_keeps_workspace_status_pure() -> None:
     assert summary["foreign_work_lane_count"] == coordination["foreign_work_lane_count"]
     assert summary["unbound_work_lane_count"] == coordination["unbound_work_lane_count"]
     assert summary["missing_lease_count"] == coordination["missing_lease_count"]
-    assert coordination["detail_state"] == "deferred"
-    assert summary["coordination_detail_state"] == "deferred"
-    assert summary["dirty_foreign_work_lane_count"] is None
+    assert summary["coordination_detail_state"] == coordination["detail_state"]
+    _assert_coordination_detail_contract(coordination, summary=summary)
     assert summary["coordination_advisory_count"] == len(coordination["advisory_gaps"])
     assert summary["coordination_blocking"] == coordination["blocking"]
 
@@ -224,6 +230,52 @@ def test_orient_keeps_generic_dirty_guidance_without_temporary_probe() -> None:
     assert orientation["capability"]["candidate_action"] == "repair_or_commit_current_changes"
     assert orientation["temporary_probes"]["automated_cleanup"] is False
     assert not any("remove the temporary probe" in action for action in orientation["next_actions"])
+
+
+def _assert_coordination_detail_contract(
+    coordination: dict[str, object],
+    *,
+    summary: dict[str, object],
+) -> None:
+    """Assert projection nullability follows the observed coordination detail state."""
+    detail_state = coordination["detail_state"]
+    assert detail_state in {"deferred", "exact"}
+    assert summary["coordination_detail_state"] == detail_state
+    for key in (
+        "dirty_foreign_work_lane_count",
+        "overlap_count",
+        "closeout_residue_count",
+        "dirty_closeout_residue_count",
+    ):
+        value = coordination[key]
+        if detail_state == "deferred":
+            assert value is None
+        else:
+            assert isinstance(value, int)
+    assert summary["dirty_foreign_work_lane_count"] == coordination["dirty_foreign_work_lane_count"]
+
+
+def test_status_json_reports_exact_coordination_without_foreign_lanes(
+    tmp_path: Path,
+) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    git(
+        repo,
+        "worktree",
+        "add",
+        "-b",
+        "candidate/dev",
+        (tmp_path / "candidate").as_posix(),
+        "dev",
+    )
+
+    payload = run_ethos("status", "--root", repo.as_posix(), "--json", cwd=repo)
+    coordination = payload["data"]["coordination"]
+
+    assert coordination["detail_state"] == "exact"
+    assert payload["summary"]["coordination_detail_state"] == "exact"
+    assert coordination["foreign_work_lane_count"] == 0
+    _assert_coordination_detail_contract(coordination, summary=payload["summary"])
 
 
 def test_orient_makes_foreign_lane_observe_only_capability_discoverable(

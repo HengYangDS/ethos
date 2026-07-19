@@ -1,0 +1,39 @@
+[claim]
+id = "hosted-coordination-detail-contract-20260719"
+subject = "repository-governance:coordination-detail-read-model"
+state = "active"
+change_id = "hosted-coordination-detail-contract-20260719"
+summary = "Coordination detail state is an observed vendor-neutral read-model contract: bounded readers may return deferred detail and complete local readers may return exact detail without changing foreign Work Lane authority."
+
+[evidence]
+dated = "evidence/chronicle/hosted-coordination-detail-contract-20260719/2026-07-20.md"
+sha256 = "896c99d45a976a64b4bd9a06776254162438169a2b455f4129b7113182969553"
+evidence_ids = ["evidence:hosted-coordination-detail-contract-20260719"]
+binding = "The active OpenSpec carrier, focused product tests, and the later HEAD-bound proof bind this correction to coordination projections; no provider, forge, or IDE-specific behavior is asserted."
+verifier = "digest_only"
+tests = [
+  "uv run --all-packages --group dev pytest tests/unit/product/test_orient.py -q",
+  "openspec validate --all --strict --json",
+  "tools/ci/scripts/run-ethos-lane.sh openspec --change hosted-coordination-detail-contract-20260719 --lifecycle --json",
+  "tools/ci/scripts/run-ethos-lane.sh prove --execute --expect-head <committed-head> --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "repository-governance"
+scope = "Coordination detail-state projection and its vendor-neutral product regression coverage."
+
+[carriers]
+openspec = "openspec/changes/hosted-coordination-detail-contract-20260719"
+fallback = "Treat the observed detail state as unverified and retain the existing read-only coordination boundary until focused tests and HEAD-bound proof pass."
+kill_signal = "A provider-specific branch, lease-authority change, foreign Work Lane mutation grant, or hosted-success claim is added to this carrier."
+
+[promotion]
+targets = [
+  "tests/unit/product/test_orient.py",
+  "openspec/changes/hosted-coordination-detail-contract-20260719",
+  "evidence/claims/hosted-coordination-detail-contract-20260719.toml",
+  "evidence/chronicle/hosted-coordination-detail-contract-20260719/2026-07-20.md",
+]

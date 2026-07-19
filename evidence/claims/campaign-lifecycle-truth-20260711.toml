@@ -1,38 +1,16 @@
-[claim]
-id = "campaign-lifecycle-truth-20260711"
-subject = "repository-governance:campaign-lifecycle-truth"
-change_id = "campaign-lifecycle-truth-20260711"
-state = "active"
-summary = "ETHOS derives campaign step legality from the agreement of declared lifecycle state, OpenSpec carrier home, and closeout facts."
-
-[evidence]
-dated = "evidence/chronicle/campaign-lifecycle-truth-20260711/2026-07-11.md"
-sha256 = "8f1ef6883dd58bede018ad9dd2efc04fbe3ec26293925922eaf3cbc5b5ed3b91"
-evidence_ids = ["evidence:campaign-lifecycle-truth-20260711"]
-binding = "The lifecycle validator, regression tests, campaign manifest, governance document, and OpenSpec change bind the correction."
-verifier = "digest_only"
-tests = [
+claim = { id = "campaign-lifecycle-truth-20260711", subject = "repository-governance:campaign-lifecycle-truth", change_id = "campaign-lifecycle-truth-20260711", state = "active", summary = "ETHOS derives campaign step legality from the agreement of declared lifecycle state, OpenSpec carrier home, and closeout facts." }
+evidence = { dated = "evidence/chronicle/campaign-lifecycle-truth-20260711/2026-07-11.md", sha256 = "8f1ef6883dd58bede018ad9dd2efc04fbe3ec26293925922eaf3cbc5b5ed3b91", evidence_ids = [
+  "evidence:campaign-lifecycle-truth-20260711",
+], binding = "The lifecycle validator, regression tests, campaign manifest, governance document, and OpenSpec change bind the correction.", verifier = "digest_only", tests = [
   "Focused campaign lifecycle regression tests",
   "ethos campaign status --json",
   "ethos openspec --lifecycle --json",
   "ethos quality claims --json",
   "ethos prove --full --execute --expect-head <lane-head> --json",
-]
-
-[evidence.freshness]
-mode = "historical"
-
-[boundary]
-owner = "repository-governance"
-scope = "Campaign lifecycle validation, terminal OpenSpec productization reconciliation, and canonical campaign discovery."
-
-[carriers]
-openspec = "openspec/changes/archive/2026-07-11-campaign-lifecycle-truth-20260711"
-fallback = "Retain the declared planned successor until an actual OpenSpec carrier and admitted Work Lane begin execution."
-kill_signal = "A campaign reader projects an archived or terminal lane as active, accepts contradictory carrier homes, or fabricates an execution lane for a planned successor."
-
-[promotion]
-targets = [
+], freshness = { mode = "historical" } }
+boundary = { owner = "repository-governance", scope = "Campaign lifecycle validation, terminal OpenSpec productization reconciliation, and canonical campaign discovery." }
+carriers = { openspec = "openspec/changes/archive/2026-07-11-campaign-lifecycle-truth-20260711", fallback = "Retain the declared planned successor until an actual OpenSpec carrier and admitted Work Lane begin execution.", kill_signal = "A campaign reader projects an archived or terminal lane as active, accepts contradictory carrier homes, or fabricates an execution lane for a planned successor." }
+promotion = { targets = [
   "packages/ethos/src/ethos/repository/adoption/evolution.py",
   "tests/unit/governance/test_evolution_ledger.py",
   "evolution/campaigns/terminal-openspec-productization/campaign.toml",
@@ -40,4 +18,4 @@ targets = [
   "openspec/changes/archive/2026-07-11-campaign-lifecycle-truth-20260711",
   "evidence/chronicle/campaign-lifecycle-truth-20260711/2026-07-11.md",
   "evidence/claims/campaign-lifecycle-truth-20260711.toml",
-]
+] }

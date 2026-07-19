@@ -1,17 +1,7 @@
-[claim]
-id = "intake-mine-readmodel"
-subject = "ethos:intake-mine-readmodel"
-change_id = "intake-mine-readmodel"
-state = "active"
-summary = "ETHOS exposes a read-only intake mining surface that projects repository-local signals into non-authoritative intake envelopes and issue candidates without issue creation, Work Lane mutation, or agent dispatch."
-
-[evidence]
-dated = "evidence/chronicle/intake-mine-readmodel/2026-07-09.md"
-sha256 = "f66d893ea893362b1cb5c575736547fbc7b2f9ba94a4808e4d5bfcc8def47f44"
-evidence_ids = ["evidence:intake-mine-readmodel"]
-binding = "Focused tests, command-plane docs, command registry checks, type gate, code-size gate, and proof readiness cover the read-only intake mine surface and its no-auto-raise/no-auto-dispatch boundary."
-verifier = "digest_only"
-readiness_checks = [
+claim = { id = "intake-mine-readmodel", subject = "ethos:intake-mine-readmodel", change_id = "intake-mine-readmodel", state = "active", summary = "ETHOS exposes a read-only intake mining surface that projects repository-local signals into non-authoritative intake envelopes and issue candidates without issue creation, Work Lane mutation, or agent dispatch." }
+evidence = { dated = "evidence/chronicle/intake-mine-readmodel/2026-07-09.md", sha256 = "f66d893ea893362b1cb5c575736547fbc7b2f9ba94a4808e4d5bfcc8def47f44", evidence_ids = [
+  "evidence:intake-mine-readmodel",
+], binding = "Focused tests, command-plane docs, command registry checks, type gate, code-size gate, and proof readiness cover the read-only intake mine surface and its no-auto-raise/no-auto-dispatch boundary.", verifier = "digest_only", readiness_checks = [
   "ETHOS_ACTOR=codex PYTEST_ADDOPTS='-p no:cacheprovider' uv run --group dev pytest tests/unit/cli/test_intake_mine.py tests/unit/cli/test_contracts.py::test_intake_status_is_public_read_only_surface tests/unit/cli/test_contracts.py::test_intake_status_rejects_empty_configuration tests/unit/coverage/test_admission_land_evolution_rules_edges.py -k 'intake' -q",
   "ETHOS_ACTOR=codex uv run --group dev ruff check packages/ethos/src/ethos/domain/land/intake/core.py packages/ethos/src/ethos/surface/cli/intake.py packages/ethos/src/ethos/repository/registry/commands.py packages/ethos/src/ethos/repository/registry/docs/commands.py tests/unit/cli/test_intake_mine.py tests/unit/coverage/test_admission_land_evolution_rules_edges.py",
   "ETHOS_ACTOR=codex uv run --package ethos ethos quality types --root <work-lane-root> --json",
@@ -21,22 +11,10 @@ readiness_checks = [
   "ETHOS_ACTOR=codex tools/ci/scripts/run-python-tests.sh",
   "ETHOS_ACTOR=codex uv run --package ethos ethos quality coverage --root <work-lane-root> --json",
   "ETHOS_ACTOR=codex uv run --package ethos ethos prove --root <work-lane-root> --json",
-]
-
-[evidence.freshness]
-mode = "historical"
-[boundary]
-owner = "ethos-governance"
-scope = "Read-only repository-local signal mining into intake envelopes and issue candidates; no issue creation, no Work Lane mutation, no agent dispatch, no publication claim."
-
-[carriers]
-openspec = "openspec/changes/archive/2026-07-09-agentic-evolution-kernel"
-
-fallback = "Use manual issue triage and existing ethos quality/report surfaces until later Work Lanes add admitted issue raising or dispatch."
-kill_signal = "A mined signal or issue candidate creates an external issue, mutates tracked files, authorizes a Change, dispatches an agent, or is treated as repository truth without a separate ETHOS admission and proof path."
-
-[promotion]
-targets = [
+], freshness = { mode = "historical" } }
+boundary = { owner = "ethos-governance", scope = "Read-only repository-local signal mining into intake envelopes and issue candidates; no issue creation, no Work Lane mutation, no agent dispatch, no publication claim." }
+carriers = { openspec = "openspec/changes/archive/2026-07-09-agentic-evolution-kernel", fallback = "Use manual issue triage and existing ethos quality/report surfaces until later Work Lanes add admitted issue raising or dispatch.", kill_signal = "A mined signal or issue candidate creates an external issue, mutates tracked files, authorizes a Change, dispatches an agent, or is treated as repository truth without a separate ETHOS admission and proof path." }
+promotion = { targets = [
   "packages/ethos/src/ethos/domain/land/intake/core.py",
   "packages/ethos/src/ethos/surface/cli/intake.py",
   "packages/ethos/src/ethos/repository/registry/commands.py",
@@ -45,4 +23,4 @@ targets = [
   "tests/unit/cli/test_intake_mine.py",
   "evidence/chronicle/intake-mine-readmodel/2026-07-09.md",
   "evidence/claims/intake-mine-readmodel.toml",
-]
+] }

@@ -1,16 +1,7 @@
-[claim]
-id = "runtime-cache-boundary"
-subject = "ethos:runtime-cache-boundary"
-state = "active"
-summary = "ETHOS keeps pytest configuration under .config/checks, runtime cache under ignored build/runtime, and generated evidence under build/evidence."
-
-[evidence]
-dated = "evidence/chronicle/runtime-cache-boundary/2026-07-09.md"
-sha256 = "1b47ee57c2e91924e71835e90831951a1d3764923c13484c99eb3bc9b902b8d4"
-evidence_ids = ["evidence:runtime-cache-boundary"]
-binding = "configuration/runtime/evidence boundary tests, root-config boundary checks, generated-artifact topology contract, and OpenSpec carriers"
-verifier = "digest_only"
-tests = [
+claim = { id = "runtime-cache-boundary", subject = "ethos:runtime-cache-boundary", state = "active", summary = "ETHOS keeps pytest configuration under .config/checks, runtime cache under ignored build/runtime, and generated evidence under build/evidence." }
+evidence = { dated = "evidence/chronicle/runtime-cache-boundary/2026-07-09.md", sha256 = "1b47ee57c2e91924e71835e90831951a1d3764923c13484c99eb3bc9b902b8d4", evidence_ids = [
+  "evidence:runtime-cache-boundary",
+], binding = "configuration/runtime/evidence boundary tests, root-config boundary checks, generated-artifact topology contract, and OpenSpec carriers", verifier = "digest_only", tests = [
   "uv run --group dev pytest -q tests/unit/governance/test_quality_regime.py::test_pytest_runtime_cache_stays_out_of_config_plane tests/architecture/test_testing_platform.py::test_python_test_platform_is_parallel_timeout_bound_and_owner_scripted tests/architecture/test_testing_platform.py::test_runtime_artifacts_do_not_live_under_config_check_owners tests/unit/governance/test_generated_artifact_topology.py::test_contract_is_generic_and_declares_artifact_homes tests/unit/governance/test_generated_artifact_topology.py::test_path_policy_keeps_config_declarative_and_build_generated tests/unit/cli/test_generated_artifact_topology_cli.py::test_quality_generated_artifacts_command_reports_contract",
   "uv run --group dev ruff format --check tests/unit/governance/test_quality_regime.py tests/architecture/test_testing_platform.py tests/unit/governance/test_generated_artifact_topology.py tests/unit/cli/test_generated_artifact_topology_cli.py packages/ethos-core/src/ethos_core/contracts/artifacts/topology.py",
   "uv run --group dev ruff check tests/unit/governance/test_quality_regime.py tests/architecture/test_testing_platform.py tests/unit/governance/test_generated_artifact_topology.py tests/unit/cli/test_generated_artifact_topology_cli.py packages/ethos-core/src/ethos_core/contracts/artifacts/topology.py",
@@ -21,22 +12,10 @@ tests = [
   "uv run --package ethos ethos quality types --json",
   "ETHOS_ACTOR=codex uv run --package ethos ethos parity shadow --adopter generic --target . --execute --write-evidence --timeout-seconds 45 --json",
   "uv run --package ethos ethos parity gaps --json",
-]
-
-[evidence.freshness]
-mode = "historical"
-[boundary]
-owner = "ethos-quality"
-scope = "Physical separation of pytest config policy, pytest runtime cache, and generated test evidence"
-
-[carriers]
-openspec = "openspec/changes/archive/2026-07-09-runtime-cache-boundary"
-
-fallback = "Use the owner test script and generated-artifact audit while keeping pytest cache outside `.config/`."
-kill_signal = "Current config, docs, OpenSpec, or tests move pytest runtime cache or generated test evidence back under `.config/checks/**`."
-
-[promotion]
-targets = [
+], freshness = { mode = "historical" } }
+boundary = { owner = "ethos-quality", scope = "Physical separation of pytest config policy, pytest runtime cache, and generated test evidence" }
+carriers = { openspec = "openspec/changes/archive/2026-07-09-runtime-cache-boundary", fallback = "Use the owner test script and generated-artifact audit while keeping pytest cache outside `.config/`.", kill_signal = "Current config, docs, OpenSpec, or tests move pytest runtime cache or generated test evidence back under `.config/checks/**`." }
+promotion = { targets = [
   ".config/checks/pytest/pytest.ini",
   ".config/README.md",
   "docs/architecture/generated-artifact-topology.md",
@@ -62,4 +41,4 @@ targets = [
   "tests/unit/governance/test_quality_regime.py",
   "evidence/chronicle/runtime-cache-boundary/2026-07-09.md",
   "evidence/claims/runtime-cache-boundary.toml",
-]
+] }

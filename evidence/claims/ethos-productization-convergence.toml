@@ -1,16 +1,7 @@
-[claim]
-id = "ethos-productization-convergence"
-subject = "ethos:productization-convergence"
-state = "active"
-summary = "Records the ETHOS productization convergence batch across authority kernel, first-hour workflow, adoption planner safety, authority graph read model, and bounded command shadow results."
-
-[evidence]
-dated = "evidence/chronicle/productization-convergence/2026-07-01.md"
-sha256 = "515487846aa6da2b8384eb2980aa78b722fad9fdf0610c6f8d8900f98d07a2bd"
-evidence_ids = ["evidence:ethos-productization-convergence"]
-binding = "digest-bound convergence evidence binding"
-verifier = "digest_only"
-tests = [
+claim = { id = "ethos-productization-convergence", subject = "ethos:productization-convergence", state = "active", summary = "Records the ETHOS productization convergence batch across authority kernel, first-hour workflow, adoption planner safety, authority graph read model, and bounded command shadow results." }
+evidence = { dated = "evidence/chronicle/productization-convergence/2026-07-01.md", sha256 = "515487846aa6da2b8384eb2980aa78b722fad9fdf0610c6f8d8900f98d07a2bd", evidence_ids = [
+  "evidence:ethos-productization-convergence",
+], binding = "digest-bound convergence evidence binding", verifier = "digest_only", tests = [
   "uv run --group dev ruff check .",
   "uv run --group dev pytest tests/unit tests/architecture -q",
   "uv run --group dev pytest -q",
@@ -25,22 +16,10 @@ tests = [
   "uv run --package ethos ethos parity gaps --json",
   "uv run --package ethos ethos parity shadow --target <adopter-repo> --execute --timeout-seconds 60 --json",
   "uv run --package ethos ethos parity shadow --target <sample-adopter-repo> --execute --timeout-seconds 60 --json",
-]
-
-[evidence.freshness]
-mode = "historical"
-[boundary]
-owner = "ethos-repository"
-scope = "Productization convergence across authority kernel, first-hour workflow, adoption planner safety, authority graph, and bounded shadow parity evidence"
-
-[carriers]
-openspec = "openspec/changes/archive/2026-07-01-ethos-productization-convergence"
-
-fallback = "Keep ETHOS local readiness and generic command parity claims separate from hosted CI, remote publication, reference adopter-domain storage parity, domain backend retirement, and sample adopter publish readiness."
-kill_signal = "Productization convergence claims require external hosted publication, adopter domain backend retirement, or provider-specific runtime truth to be considered complete."
-
-[promotion]
-targets = [
+], freshness = { mode = "historical" } }
+boundary = { owner = "ethos-repository", scope = "Productization convergence across authority kernel, first-hour workflow, adoption planner safety, authority graph, and bounded shadow parity evidence" }
+carriers = { openspec = "openspec/changes/archive/2026-07-01-ethos-productization-convergence", fallback = "Keep ETHOS local readiness and generic command parity claims separate from hosted CI, remote publication, reference adopter-domain storage parity, domain backend retirement, and sample adopter publish readiness.", kill_signal = "Productization convergence claims require external hosted publication, adopter domain backend retirement, or provider-specific runtime truth to be considered complete." }
+promotion = { targets = [
   "evidence/chronicle/productization-convergence/2026-07-01.md",
   "evidence/claims/ethos-productization-convergence.toml",
   "README.md",
@@ -64,4 +43,4 @@ targets = [
   "tests/unit/cli/test_contracts.py",
   "tests/unit/product/parity",
   "tests/architecture/test_product_design_contract.py",
-]
+] }

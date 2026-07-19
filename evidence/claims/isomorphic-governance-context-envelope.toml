@@ -1,16 +1,7 @@
-[claim]
-id = "isomorphic-governance-context-envelope"
-subject = "ethos:isomorphic-governance-context-envelope"
-state = "active"
-summary = "Primary ETHOS command results expose the shared governed-repository context envelope while preserving native command data contracts."
-
-[evidence]
-dated = "evidence/chronicle/isomorphic-governance-context-envelope/2026-07-09.md"
-sha256 = "dce6a2750f18a6d72e2a79722139127a5c18ee897f72ffef065d22017650d92a"
-evidence_ids = ["evidence:isomorphic-governance-context-envelope"]
-binding = "Primary command envelope governance_context for product and adopted repositories; status.data remains workspace-status schema data."
-verifier = "digest_only"
-tests = [
+claim = { id = "isomorphic-governance-context-envelope", subject = "ethos:isomorphic-governance-context-envelope", state = "active", summary = "Primary ETHOS command results expose the shared governed-repository context envelope while preserving native command data contracts." }
+evidence = { dated = "evidence/chronicle/isomorphic-governance-context-envelope/2026-07-09.md", sha256 = "dce6a2750f18a6d72e2a79722139127a5c18ee897f72ffef065d22017650d92a", evidence_ids = [
+  "evidence:isomorphic-governance-context-envelope",
+], binding = "Primary command envelope governance_context for product and adopted repositories; status.data remains workspace-status schema data.", verifier = "digest_only", tests = [
   "uv run pytest tests/unit/cli/test_contracts.py::test_primary_commands_expose_top_level_governance_context tests/unit/cli/test_contracts.py::test_primary_commands_use_same_context_for_adopted_repository tests/unit/governance/validation/test_schemas.py::test_result_payload_accepts_governed_repository_context -q",
   "uv run pytest tests/unit/cli/test_contracts.py tests/unit/cli/test_contracts_proof.py tests/unit/cli/test_contracts_land.py tests/unit/governance/validation/test_schemas.py tests/architecture/test_product_design_contract.py -q",
   "tools/ci/scripts/run-python-lint.sh",
@@ -22,21 +13,10 @@ tests = [
   "uv run --package ethos ethos report --json",
   "uv run --package ethos ethos prove --execute --expect-head $(git rev-parse HEAD) --json",
   "tools/ci/scripts/run-python-tests.sh",
-]
-
-[evidence.freshness]
-mode = "historical"
-[boundary]
-owner = "ethos-repository"
-scope = "Primary command result envelope for governed-repository context visibility"
-
-[carriers]
-openspec = "openspec/changes/archive/2026-07-09-isomorphic-governance-context-20260709"
-fallback = "Consumers may read nested audit governance_context where present until the top-level envelope is available."
-kill_signal = "Any primary command result omits top-level governance_context or status.data carries envelope metadata."
-
-[promotion]
-targets = [
+], freshness = { mode = "historical" } }
+boundary = { owner = "ethos-repository", scope = "Primary command result envelope for governed-repository context visibility" }
+carriers = { openspec = "openspec/changes/archive/2026-07-09-isomorphic-governance-context-20260709", fallback = "Consumers may read nested audit governance_context where present until the top-level envelope is available.", kill_signal = "Any primary command result omits top-level governance_context or status.data carries envelope metadata." }
+promotion = { targets = [
   { kind = "source", path = "packages/ethos-core/src/ethos_core/result.py" },
   { kind = "source", path = "packages/ethos/src/ethos/repository/context.py" },
   { kind = "source", path = "packages/ethos/src/ethos/surface/cli/root/inspection.py" },
@@ -49,4 +29,4 @@ targets = [
   { kind = "docs", path = "docs/reference/command-plane.md" },
   { kind = "evidence", path = "evidence/chronicle/isomorphic-governance-context-envelope/2026-07-09.md" },
   { kind = "openspec", path = "openspec/changes/archive/2026-07-09-isomorphic-governance-context-20260709" },
-]
+] }

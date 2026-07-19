@@ -1,34 +1,12 @@
-[claim]
-id = "adopter-openspec-lifecycle-20260714"
-subject = "ethos:adopter-openspec-lifecycle"
-state = "active"
-summary = "Plan and proof evaluate official OpenSpec lifecycle for valid adopters."
-
-[evidence]
-dated = "evidence/chronicle/adopter-openspec-lifecycle-20260714/2026-07-14.md"
-sha256 = "935f6b9be6c51123b8d026b5eb2a2b17d3f5b50fe290436ffe1842e541a0756f"
-evidence_ids = ["evidence:adopter-openspec-lifecycle-20260714"]
-binding = "Universal adopter lifecycle evidence binding."
-verifier = "digest_only"
-
-[evidence.freshness]
-mode = "semantic_scope"
-head = "092afc5bdd045ddc2cfd62d73fd918898e5ced85"
-semantic_sha256 = "b1b957db2a9df8641c360341276fe48e54f31c601e51c28c269391fde9d554e5"
-
-[boundary]
-owner = "ethos-repository"
-scope = "Universal adopter lifecycle in plan and prove."
-
-[carriers]
-openspec = "openspec/changes/archive/2026-07-14-adopter-openspec-lifecycle-20260714"
-fallback = "Block lifecycle gaps; do not substitute code correctness or method packages."
-kill_signal = "A valid adopter bypasses official lifecycle in plan or proof."
-
-[promotion]
-targets = [
+claim = { id = "adopter-openspec-lifecycle-20260714", subject = "ethos:adopter-openspec-lifecycle", state = "active", summary = "Plan and proof evaluate official OpenSpec lifecycle for valid adopters." }
+evidence = { dated = "evidence/chronicle/adopter-openspec-lifecycle-20260714/2026-07-14.md", sha256 = "935f6b9be6c51123b8d026b5eb2a2b17d3f5b50fe290436ffe1842e541a0756f", evidence_ids = [
+  "evidence:adopter-openspec-lifecycle-20260714",
+], binding = "Universal adopter lifecycle evidence binding.", verifier = "digest_only", freshness = { mode = "semantic_scope", head = "092afc5bdd045ddc2cfd62d73fd918898e5ced85", semantic_sha256 = "b1b957db2a9df8641c360341276fe48e54f31c601e51c28c269391fde9d554e5" } }
+boundary = { owner = "ethos-repository", scope = "Universal adopter lifecycle in plan and prove." }
+carriers = { openspec = "openspec/changes/archive/2026-07-14-adopter-openspec-lifecycle-20260714", fallback = "Block lifecycle gaps; do not substitute code correctness or method packages.", kill_signal = "A valid adopter bypasses official lifecycle in plan or proof." }
+promotion = { targets = [
   "packages/ethos/src/ethos/surface/cli/root/planning.py",
   "packages/ethos/src/ethos/surface/cli/root/proof.py",
   "tests/unit/cli/test_adopter_openspec_lifecycle.py",
   "tests/unit/cli/test_contracts_proof.py",
-]
+] }

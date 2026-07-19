@@ -1,16 +1,7 @@
-[claim]
-id = "ethos-campaign-orchestration"
-subject = "ethos:campaign-orchestration"
-state = "active"
-summary = "ETHOS campaigns are manifest-backed orchestration records for sequential OpenSpec-backed Work Lane closeouts."
-
-[evidence]
-dated = "evidence/chronicle/campaign-orchestration/2026-07-02.md"
-sha256 = "2f3e6247a6304f9b46697cbc84c0551b63a806828f2d7746e65efaaa5e849202"
-evidence_ids = ["evidence:ethos-campaign-orchestration"]
-binding = "digest-bound campaign orchestration evidence"
-verifier = "digest_only"
-tests = [
+claim = { id = "ethos-campaign-orchestration", subject = "ethos:campaign-orchestration", state = "active", summary = "ETHOS campaigns are manifest-backed orchestration records for sequential OpenSpec-backed Work Lane closeouts." }
+evidence = { dated = "evidence/chronicle/campaign-orchestration/2026-07-02.md", sha256 = "2f3e6247a6304f9b46697cbc84c0551b63a806828f2d7746e65efaaa5e849202", evidence_ids = [
+  "evidence:ethos-campaign-orchestration",
+], binding = "digest-bound campaign orchestration evidence", verifier = "digest_only", tests = [
   "uv run --group dev pytest -q tests/unit/governance/test_evolution_ledger.py::test_campaign_report_exposes_manifest_steps_and_closeout_progress tests/unit/cli/test_contracts.py::test_campaign_status_reports_manifest_steps tests/unit/cli/test_contracts.py::test_campaign_closeout_reports_local_campaign_packages tests/unit/governance/validation/test_schemas.py::test_campaign_schema_accepts_lane_closeout_steps",
   "uv run --package ethos ethos quality schemas --json",
   "uv run openspec validate --all --strict --json",
@@ -20,21 +11,10 @@ tests = [
   "uv run --package ethos ethos parity shadow --adopter reference-adopter --target <adopter-repo> --execute --write-evidence --json",
   "uv run --package ethos ethos parity gaps --json",
   "uv run --package ethos ethos parity gaps --adopter reference-adopter --json",
-]
-
-[evidence.freshness]
-mode = "historical"
-[boundary]
-owner = "ethos-repository"
-scope = "Campaign manifest read model, campaign closeout package wiring, schema contract, and terminal productization campaign manifest"
-
-[carriers]
-openspec = "openspec/changes/archive/2026-07-01-ethos-campaign-orchestration"
-fallback = "Continue using hypothesis and generic campaign closeout reports while later terminal productization lanes remain planned."
-kill_signal = "Campaign orchestration would need redesign if campaign steps become a substitute for Work Lane proof, accepted-root closeout, or claim evidence."
-
-[promotion]
-targets = [
+], freshness = { mode = "historical" } }
+boundary = { owner = "ethos-repository", scope = "Campaign manifest read model, campaign closeout package wiring, schema contract, and terminal productization campaign manifest" }
+carriers = { openspec = "openspec/changes/archive/2026-07-01-ethos-campaign-orchestration", fallback = "Continue using hypothesis and generic campaign closeout reports while later terminal productization lanes remain planned.", kill_signal = "Campaign orchestration would need redesign if campaign steps become a substitute for Work Lane proof, accepted-root closeout, or claim evidence." }
+promotion = { targets = [
   "evidence/claims/ethos-campaign-orchestration.toml",
   "evidence/chronicle/campaign-orchestration/2026-07-02.md",
   "evidence/parity/generic-shadow.json",
@@ -53,4 +33,4 @@ targets = [
   "tests/unit/cli/test_contracts.py",
   "tests/unit/governance/test_evolution_ledger.py",
   "tests/unit/governance/validation",
-]
+] }

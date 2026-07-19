@@ -6,6 +6,7 @@ paths = [
   "evidence/chronicle/detached-worktree-housekeeping-20260719/**",
   "evidence/parity/generic-shadow.json",
   "openspec/changes/detached-worktree-housekeeping-20260719/**",
+  "openspec/changes/archive/2026-07-19-detached-worktree-housekeeping-20260719/**",
   "openspec/specs/repository-governance/spec.md",
   "packages/ethos/src/ethos/adapters/mutation/worktree/__init__.py",
   "packages/ethos/src/ethos/adapters/mutation/worktree/core.py",

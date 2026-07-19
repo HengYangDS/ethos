@@ -3,13 +3,13 @@ id = "bounded-reader-empty-inventory-deferred-20260719"
 change_id = "bounded-reader-empty-inventory-deferred-20260719"
 subject = "ethos:bounded-reader-empty-inventory-deferred"
 state = "active"
-summary = "Active repair preserving deferred empty bounded coordination and correcting the concurrently accepted exact-empty test and claim drift."
+summary = "Active repair preserving deferred empty bounded coordination, correcting the concurrently accepted exact-empty drift, and recording stable-HEAD local closeout evidence before archive."
 
 [evidence]
 dated = "evidence/chronicle/bounded-reader-empty-inventory-deferred-20260719/2026-07-19.md"
-sha256 = "01691372731a817538b6f6be3a9cdcc46ac60c883c29d926f623d4aa8e5eceed"
+sha256 = "6372725c6e09079f08d8f54d9853be43d153ba8352744091bae0cb0ec7bc24aa"
 evidence_ids = ["evidence:bounded-reader-empty-inventory-deferred-20260719"]
-binding = "The dated Chronicle digest binds the root-cause observation, explicit reader-mode design, exact material scope, minimal production repair, and local Task 2 GREEN results; it does not establish later lifecycle or external outcomes."
+binding = "The dated Chronicle digest binds the root-cause observation, explicit reader-mode design, exact material scope, minimal production repair, local Task 2 GREEN results, and stable-HEAD Task 3 pre-archive checks; it does not establish archive, landing, publication, hosted success, or retirement."
 verifier = "digest_only"
 tests = [
   "pytest -q -p no:cacheprovider tests/unit/lanes/test_lanes_bounded_status.py",
@@ -19,6 +19,7 @@ tests = [
   "tools/ci/scripts/run-config-lint.sh",
   "ethos parity gaps --json",
   "ethos prove --execute --expect-head <final-head> --json",
+  "ethos prove --full --execute --expect-head <final-head> --json",
 ]
 
 [evidence.freshness]

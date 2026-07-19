@@ -43,7 +43,7 @@ def test_effective_code_lines_syntax_error_falls_back_to_nonblank_noncomment_cou
 
 def test_effective_code_lines_reuses_immutable_source_measurement(tmp_path, monkeypatch):
     path = tmp_path / "sample.py"
-    path.write_text("value = 1\n", encoding="utf-8")
+    path.write_text(f"value = 1  # {tmp_path.name}\n", encoding="utf-8")
     calls = 0
     original = measure.ast.parse
 
@@ -52,12 +52,8 @@ def test_effective_code_lines_reuses_immutable_source_measurement(tmp_path, monk
         calls += 1
         return original(source, *args, **kwargs)
 
-    cache = measure._effective_code_lines_for_source
-    cache.cache_clear()
     monkeypatch.setattr(measure.ast, "parse", counted)
-    try:
-        assert effective_code_lines(path) == 1
-        assert effective_code_lines(path) == 1
-        assert calls == 1
-    finally:
-        cache.cache_clear()
+
+    assert effective_code_lines(path) == 1
+    assert effective_code_lines(path) == 1
+    assert calls == 1

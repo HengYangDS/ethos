@@ -167,10 +167,16 @@ def _temporary_roots(explicit: tuple[Path, ...] | None) -> tuple[Path, ...]:
     )
     candidates = (
         Path(tempfile.gettempdir()).resolve(),
-        Path("/tmp").resolve(),
+        _system_temporary_root(),
         *configured,
     )
     return tuple(dict.fromkeys(candidates))
+
+
+def _system_temporary_root() -> Path:
+    """Return the platform's filesystem-root temporary directory."""
+    temporary = Path(tempfile.gettempdir()).resolve()
+    return (Path(temporary.anchor) / "tmp").resolve()
 
 
 def _below(path: Path, parent: Path) -> bool:

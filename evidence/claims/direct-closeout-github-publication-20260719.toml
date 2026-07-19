@@ -45,5 +45,5 @@ targets = [
   "system/schemas/kernel/campaign-closeout.schema.json",
   "system/workflows.toml",
   "tests/unit/governance/test_evolution_ledger.py",
-  "tests/unit/lanes/test_hook_admission.py",
+  "tests/unit/lanes/test_hook_publication_admission.py",
 ]

@@ -174,6 +174,7 @@ def workspace_status(root: Path, *, include_foreign_path_scope: bool = True) -> 
         foreign,
         required_gaps=coordination_required_gaps,
         advisory_gaps=coordination_advisory_gaps,
+        defer_details=not include_foreign_path_scope,
         unbound_work_lane_refs=unbound_refs,
     )
     support = closeout_support(

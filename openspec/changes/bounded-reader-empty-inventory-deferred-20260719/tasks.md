@@ -9,11 +9,11 @@
 
 ## 2. Explicit Reader Mode Repair
 
-- [ ] 2.1 Add the explicit `defer_details` aggregation input without inferring
+- [x] 2.1 Add the explicit `defer_details` aggregation input without inferring
   mode from foreign-lane contents.
-- [ ] 2.2 Pass the bounded/full selection from `workspace_status` and preserve
+- [x] 2.2 Pass the bounded/full selection from `workspace_status` and preserve
   all five aggregate semantics.
-- [ ] 2.3 Run the focused lane-status regressions and schema validation green.
+- [x] 2.3 Run the focused lane-status regressions and schema validation green.
 
 ## 3. Governed Local Closeout
 

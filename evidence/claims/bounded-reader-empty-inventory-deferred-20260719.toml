@@ -7,9 +7,9 @@ summary = "Active repair carrier for preserving deferred coordination behavior w
 
 [evidence]
 dated = "evidence/chronicle/bounded-reader-empty-inventory-deferred-20260719/2026-07-19.md"
-sha256 = "5303610c8480d11309a0f8f1391b1843af45fe659465e4281b1240fcbbf9c870"
+sha256 = "e7048cf0f26081c2f95f91fc5e367e0da5cae576416dfa583aa37d750b9e22b4"
 evidence_ids = ["evidence:bounded-reader-empty-inventory-deferred-20260719"]
-binding = "The dated Chronicle digest binds the failure observation, explicit reader-mode design, exact material scope, and focused zero-inventory RED contract without claiming implementation or remote success."
+binding = "The dated Chronicle digest binds the root-cause observation, explicit reader-mode design, exact material scope, minimal production repair, and local Task 2 GREEN results; it does not establish later lifecycle or external outcomes."
 verifier = "digest_only"
 tests = [
   "pytest -q -p no:cacheprovider tests/unit/lanes/test_lanes_bounded_status.py",

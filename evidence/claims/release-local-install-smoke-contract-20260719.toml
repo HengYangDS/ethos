@@ -3,11 +3,11 @@ id = "release-local-install-smoke-contract-20260719"
 change_id = "release-local-install-smoke-contract-20260719"
 subject = "ethos:release-local-install-smoke-contract"
 state = "active"
-summary = "ETHOS is replacing a phantom local installation owner with one fail-closed, offline, HEAD-bound release gate."
+summary = "ETHOS implements one fail-closed, offline, HEAD-bound local installation owner and full-proof release gate."
 
 [evidence]
 dated = "evidence/chronicle/release-local-install-smoke-contract-20260719/2026-07-19.md"
-sha256 = "8067782c2bade360a49cc3dafc7acba8e40413e1a057536f1f9116dd9e0def84"
+sha256 = "9d9b0a99ea36c8a22a4db1ccf88c39470b827f8acf41584e40a2feea5fb53686"
 evidence_ids = ["evidence:release-local-install-smoke-contract-20260719"]
 binding = "The official active Change, focused red-green tests, executable owner, gate declarations, real smoke receipt, and dated Chronicle bind the local installation contract without remote or hosted claims."
 verifier = "digest_only"

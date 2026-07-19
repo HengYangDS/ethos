@@ -2,16 +2,17 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import sqlite3
 from contextlib import closing
 from typing import TYPE_CHECKING
 from typing import Any
 
-from ethos.adapters.store.state.events import initialize_state
 from ethos.adapters.store.state.lease.lifecycle.core import expected_current_lease
 from ethos.adapters.store.state.lease.projection import active_leases
 from ethos.adapters.store.state.lease.projection import table_columns
+from ethos.adapters.store.state.schema import initialize_state
 from ethos_core.contracts.coordination import HolderRef
 
 if TYPE_CHECKING:
@@ -67,6 +68,54 @@ def delete_lease(db_path: Path, *, subject: str) -> int:
         )
         connection.commit()
         return cursor.rowcount
+
+
+def delete_exact_leases(db_path: Path, candidates: list[dict[str, Any]]) -> list[str]:
+    """Delete exact maintenance candidates through a row-bound transaction."""
+    if not candidates:
+        return []
+    if not db_path.exists():
+        raise ValueError("lease_maintenance_database_missing")
+    deleted: list[str] = []
+    with closing(sqlite3.connect(db_path)) as connection:
+        connection.execute("pragma foreign_keys = on")
+        connection.execute("begin immediate")
+        try:
+            for candidate in candidates:
+                lease_id = str(candidate.get("id") or "")
+                _expect_lease_candidate(connection, candidate)
+                connection.execute("delete from leases where id = ?", (lease_id,))
+                deleted.append(lease_id)
+            connection.commit()
+        except Exception:
+            connection.rollback()
+            raise
+    return deleted
+
+
+def _expect_lease_candidate(connection: sqlite3.Connection, candidate: dict[str, Any]) -> None:
+    lease_id = str(candidate.get("id") or "")
+    row = connection.execute(
+        """
+        select id, subject, owner, expires_at, payload_json
+        from leases
+        where id = ?
+        """,
+        (lease_id,),
+    ).fetchone()
+    if row is None or not _lease_candidate_matches(row, candidate):
+        raise ValueError(f"lease_maintenance_candidate_drift:{lease_id}")
+
+
+def _lease_candidate_matches(row: sqlite3.Row | tuple[Any, ...], candidate: dict[str, Any]) -> bool:
+    payload_digest = hashlib.sha256(str(row[4]).encode("utf-8")).hexdigest()
+    return (
+        str(row[0]) == str(candidate.get("id") or "")
+        and str(row[1]) == str(candidate.get("subject") or "")
+        and str(row[2]) == str(candidate.get("owner") or "")
+        and str(row[3]) == str(candidate.get("expires_at") or "")
+        and payload_digest == str(candidate.get("payload_sha256") or "")
+    )
 
 
 def revoke_lease(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions

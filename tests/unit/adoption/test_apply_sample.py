@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import tomllib
 from typing import TYPE_CHECKING
 
 from ethos.repository.adoption.planner import adoption_plan
@@ -10,6 +11,7 @@ from ethos.repository.policy.gates import ADOPTER_DEFAULT_GATE_IDS
 from ethos.repository.policy.gates import PRODUCT_DEFAULT_GATE_IDS
 from ethos.repository.policy.gates import _adopter_profile_active
 from ethos.repository.policy.gates import default_gate_ids
+from ethos.repository.policy.rules.check import rules_check_report
 from ethos.repository.profile import load_repository_profile
 
 if TYPE_CHECKING:
@@ -156,6 +158,18 @@ def test_adopt_apply_writes_complete_governance_skeleton(tmp_path: Path) -> None
     _assert_generated_docs_and_openspec(tmp_path)
 
 
+def test_adopt_apply_omits_retired_projection_and_release_keys(tmp_path: Path) -> None:
+    result = adoption_plan(tmp_path, profile="generic", apply=True)
+
+    assert result["applied"] is True
+    assert ".ethos/assistants.toml" not in result["planned_files"]
+    assert not (tmp_path / ".ethos/assistants.toml").exists()
+    project = tomllib.loads((tmp_path / ".ethos/project.toml").read_text(encoding="utf-8"))
+    assert project["command_plane"] == {"public": "ethos"}
+    release = tomllib.loads((tmp_path / ".ethos/release.toml").read_text(encoding="utf-8"))
+    assert "release" not in release
+
+
 def test_adopt_apply_merges_existing_gitignore_idempotently(
     tmp_path: Path,
 ) -> None:
@@ -282,7 +296,11 @@ def test_adopt_rules_use_single_kernel_governance_entrypoints(tmp_path: Path) ->
     adoption_plan(tmp_path, profile="generic", apply=True)
 
     rules = (tmp_path / ".ethos/rules.toml").read_text(encoding="utf-8")
+    rules_data = tomllib.loads(rules)
+    report = rules_check_report(tmp_path)
 
+    assert rules_data["profiles"]["active"] == ["generic"]
+    assert report["legacy"]["legacy_detected"] is False
     assert 'governance_audit = "ethos report --json"' in rules
     assert 'proof = "ethos prove --json"' in rules
     assert 'self_audit = "ethos self audit --json"' not in rules

@@ -33,16 +33,7 @@ promotion_allowed = false
 rule = "retire or supersede by tracked review; do not clean as cache"
 
 [denied.root_cache]
-homes = [
-  ".import_linter_cache",
-  ".import-linter-cache",
-  ".pytest_cache",
-  ".ruff_cache",
-  ".mypy_cache",
-  ".tox",
-  ".nox",
-  ".uv-cache",
-]
+homes = [".import_linter_cache", ".import-linter-cache", ".pytest_cache", ".ruff_cache", ".mypy_cache", ".tox", ".nox", ".uv-cache"]
 
 [denied.legacy_flat_home]
 homes = ["build/cache", "build/runtime/gitlab-ci-local", "dist"]

@@ -31,11 +31,6 @@ template = "core/rules.toml.j2"
 required = true
 
 [[artifact]]
-path = ".ethos/assistants.toml"
-template = "core/assistants.toml.j2"
-required = true
-
-[[artifact]]
 path = ".ethos/release.toml"
 template = "core/release.toml.j2"
 required = true

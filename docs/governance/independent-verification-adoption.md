@@ -76,29 +76,23 @@ gate-policy digest, and verifier-runtime digest. It proves only that bounded
 floor was re-executed by the configured provider; it does not prove semantic
 correctness or mint authority.
 
-## Reference Adapter
+## Provider Implementation Boundary
 
-`extensions/independent-verification/adapters/independent_identity/reference_verifier.py`
-is the one-shot reference implementation in the declared
-`independent-verification` extension bundle. Install a provider-owned copy
-under a dedicated noninteractive OS identity, with an out-of-tree ETHOS runtime
-and a private signing key readable only by that identity. It has no daemon,
-schedule, host service, general shell command input, or privileged escalation
-path.
+ETHOS ships the provider-neutral request, receipt, signature-verification, and
+admission contract. It does not ship a verifier executable, daemon, scheduler,
+or Git hook. Operators that opt into independent re-execution supply and own an
+out-of-tree implementation under an identity the governed agent cannot modify.
 
-The adapter accepts one provider-owned TOML file and one generated request. It
-allows one immutable remote and commit, creates an independent checkout,
-requires `sandbox-exec`, invokes only the configured Python runtime's
-`ethos.cli prove --execute`, signs only after a passing floor, and atomically
-writes an agent-readonly receipt. Generated requests intentionally leave the
-implementation digest blank; the adapter supplies the digest from its protected
-configuration and refuses any nonempty conflicting value. Its proof children receive a minimal key-free
-environment. The local control-plane owner must provision and retain the
-receipt store; ETHOS does not create accounts, services, schedules, keys, or
-system configuration automatically.
+That implementation must use a pinned out-of-tree ETHOS runtime, re-execute the
+declared proof floor against the exact remote, commit, and tree, protect its
+signing key and receipt store, and emit the exact signed receipt consumed by the
+admission boundary. Generated requests intentionally leave the implementation
+digest blank; the protected provider configuration supplies it. ETHOS does not
+create accounts, services, schedules, keys, hooks, or system configuration.
 
-Use a local immutable mirror when offline operation is required. Hosted forges
-may implement the same receipt contract separately.
+Use a local immutable mirror when offline operation is required. A hosted forge
+or a separately managed local service may implement the same receipt contract;
+both remain provider deployments rather than product-distributed examples.
 
 ## External-Adopter Readiness
 

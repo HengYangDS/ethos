@@ -13,6 +13,7 @@ paths = [
   "openspec/specs/repository-governance/spec.md",
   "packages/ethos/src/ethos/adapters/mutation/lane_retirement/shared/core.py",
   "packages/ethos/src/ethos/adapters/mutation/lane_retirement/unbound/core.py",
+  "packages/ethos/src/ethos/adapters/mutation/lanes.py",
   "tests/unit/lanes/test_lanes_retire.py",
   "tests/unit/lanes/test_lanes_retire_superseded.py",
   "tests/unit/lanes/retirement/test_unbound_and_helpers.py",

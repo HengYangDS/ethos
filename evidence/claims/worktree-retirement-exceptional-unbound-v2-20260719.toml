@@ -7,7 +7,7 @@ summary = "A vendor-neutral candidate Change defines a narrow, accepted-policy-b
 
 [evidence]
 dated = "evidence/chronicle/worktree-retirement-exceptional-unbound-v2-20260719/2026-07-19.md"
-sha256 = "48fc93c7ced44ac33593a2e07e2d1a8f1d6df3275dad91ec4e307bd8cf357946"
+sha256 = "f65cd5ad63fd63d4ec1d57b0515ac7de5086af0c84c29b7cdd035ab9c3018d75"
 evidence_ids = ["evidence:worktree-retirement-exceptional-unbound-v2-20260719"]
 binding = "The active carrier and dated Chronicle bind authoring scope and target-specific policy candidacy only; they do not claim implementation, proof, land, closeout, remote, hosted, or completed retirement."
 verifier = "digest_only"

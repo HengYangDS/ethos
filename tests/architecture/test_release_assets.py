@@ -98,6 +98,9 @@ def test_configuration_layout_is_separated_by_concern() -> None:
 
     assert "[project]" in pyproject
     assert "[tool.uv.workspace]" in pyproject
+    assert tomllib.loads(pyproject).get("tool", {}).get("pytest") == {
+        "ini_options": {"cache_dir": "build/runtime/tool-cache/pytest"}
+    }
     assert tomllib.loads((ROOT / "ruff.toml").read_text(encoding="utf-8")) == {
         "cache-dir": "build/runtime/tool-cache/ruff",
         "extend": ".config/checks/ruff/ruff.toml",
@@ -147,7 +150,9 @@ def test_configuration_layout_is_separated_by_concern() -> None:
 def test_pyproject_does_not_carry_quality_tool_policy() -> None:
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
 
-    assert "[tool.pytest" not in pyproject
+    assert tomllib.loads(pyproject).get("tool", {}).get("pytest") == {
+        "ini_options": {"cache_dir": "build/runtime/tool-cache/pytest"}
+    }
     assert "[tool.ruff" not in pyproject
     assert "[tool.coverage" not in pyproject
     assert "[tool.ty" not in pyproject

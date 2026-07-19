@@ -36,3 +36,6 @@ members = [
 
 [tool.uv.sources]
 ethos-core = { workspace = true }
+
+[tool.pytest.ini_options]
+cache_dir = "build/runtime/tool-cache/pytest"

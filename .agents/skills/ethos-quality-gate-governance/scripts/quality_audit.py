@@ -60,7 +60,7 @@ ACTIVE_CONCERNS = {
 
 def run_json(root: Path, *args: str) -> dict[str, Any]:
     completed = subprocess.run(
-        ["uv", "run", "--group", "dev", "ethos", *args],
+        ["uv", "run", "--all-packages", "--group", "dev", "ethos", *args],
         cwd=root,
         text=True,
         capture_output=True,

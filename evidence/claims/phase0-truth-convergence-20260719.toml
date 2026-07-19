@@ -2,15 +2,26 @@
 id = "phase0-truth-convergence-20260719"
 subject = "ethos:phase0-truth-convergence"
 state = "active"
-summary = "Active local-only carrier for fail-closed coverage, bounded reader, scorecard, and publish truth convergence."
+summary = "Implemented local-only carrier with recorded pre-archive checks for fail-closed coverage, bounded reader, scorecard, and publish truth convergence."
 
 [evidence]
 dated = "evidence/chronicle/phase0-truth-convergence-20260719/2026-07-19.md"
-sha256 = "3152f6688069c8d48afd247ab2678b8eee8b8d95a7cfa64ccd82b861e33f8ac1"
+sha256 = "5017da2aebd9046f36e848c1b141b704d33b400cc6e16a4cd826989964646982"
 evidence_ids = ["evidence:phase0-truth-convergence-20260719"]
-binding = "Initial reproduced-fact and execution-plan record; no implementation or closeout claim."
+binding = "The dated Chronicle binds reproduced failures, implementation boundaries, focused and full owner test observations, current hard-quality observations, local publish readiness, and the explicit no-remote boundary; HEAD-bound proof and archive remain separate."
 verifier = "digest_only"
-tests = ["ethos openspec --lifecycle --json"]
+tests = [
+  "tools/ci/scripts/run-python-tests.sh",
+  "ethos openspec --lifecycle --json",
+  "tools/ci/scripts/run-config-lint.sh",
+  "tools/ci/scripts/run-shell-lint.sh",
+  "ethos quality coverage --json",
+  "ethos quality generated-artifacts --json",
+  "ethos quality enterprise-readiness --json",
+  "ethos report --json",
+  "ethos publish --json",
+  "ethos parity shadow --adopter generic --target . --execute --write-evidence --json",
+]
 
 [evidence.freshness]
 mode = "historical"

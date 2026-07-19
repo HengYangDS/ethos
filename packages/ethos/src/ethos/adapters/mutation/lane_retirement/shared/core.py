@@ -26,8 +26,7 @@ def remove_linked_lane(
     gaps = _linked_lane_reobservation_gaps(branch, path, expected, runner)
     if gaps:
         return _blocked(gaps)
-    lane_path = Path(path)
-    removed = runner(lane_path, "worktree", "remove", path, check=False)
+    removed = runner(repo, "worktree", "remove", path, check=False)
     if removed.returncode != 0:
         return _blocked(["worktree_remove_failed"], removed.stderr)
     deleted = runner(repo, "update-ref", "-d", f"refs/heads/{branch}", expected, check=False)

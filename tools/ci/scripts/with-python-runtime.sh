@@ -21,6 +21,10 @@ inherited_runtime_root="${ETHOS_RUNTIME_ROOT:-}"
 # environment is the boundary that prevents a Work Lane from running another
 # checkout's installed source.
 export UV_PROJECT_ENVIRONMENT="${repo_root}/build/runtime/venv"
+# `uv run` otherwise retains a parent project's active `.venv` long enough to
+# emit a misleading mismatch warning before it selects this checkout's semantic
+# environment.  The checkout-bound target above is the sole runtime authority.
+unset VIRTUAL_ENV
 
 # A CI runner may provide UV_CACHE_DIR directly. Local operators may use the
 # ETHOS-specific override; otherwise use host-local XDG state outside the repo.

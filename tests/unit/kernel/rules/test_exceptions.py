@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+from datetime import UTC
+from datetime import datetime
 from typing import TYPE_CHECKING
+
+import ethos.repository.policy.rules.exceptions as exceptions
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -10,6 +14,18 @@ from ethos.repository.policy.rules.exceptions import policy_exceptions_report
 from ethos.repository.policy.schema import validate_schema_instance
 from ethos_core.contracts.rules import PolicyException
 from tests.unit.kernel.rules.snapshots import complete_snapshot
+
+
+def test_policy_exceptions_default_to_utc_calendar_day(monkeypatch) -> None:
+    """Policy expiry uses an explicit UTC calendar boundary."""
+    fixed_now = datetime(2026, 7, 20, tzinfo=UTC)
+    monkeypatch.setattr(
+        exceptions,
+        "datetime",
+        type("FixedUtcClock", (), {"now": staticmethod(lambda _zone: fixed_now)}),
+    )
+
+    assert exceptions.utc_calendar_day() == "2026-07-20"
 
 
 def test_policy_exceptions_validate_required_owner_scope_ttl_and_digest(tmp_path: Path) -> None:

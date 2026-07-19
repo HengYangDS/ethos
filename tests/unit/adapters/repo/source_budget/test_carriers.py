@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import stat
 import subprocess
 from pathlib import Path
 
@@ -303,3 +304,239 @@ def test_typed_inventory_loader_rejects_tracked_gitlinks(tmp_path: Path) -> None
 
     assert load.paths is None
     assert load.required_gaps == ("source_budget_inventory_object_unsupported:gitlink:vendor/sub",)
+
+
+def test_policy_loaders_fail_closed_on_unreadable_or_invalid_models(
+    tmp_path: Path,
+) -> None:
+    policy_root = tmp_path / "system" / "policies"
+    policy_root.mkdir(parents=True)
+    carrier_path = policy_root / "source-budget-carriers.toml"
+    metric_path = policy_root / "source-budget-metrics.toml"
+    carrier_path.mkdir()
+    metric_path.mkdir()
+
+    assert load_carrier_manifest(tmp_path).required_gaps == (
+        "source_budget_carrier_manifest_unreadable",
+    )
+    assert load_metric_contracts(tmp_path).required_gaps == (
+        "source_budget_metric_contracts_unreadable",
+    )
+
+    carrier_path.rmdir()
+    metric_path.rmdir()
+    carrier_path.write_text(
+        'schema = "ethos-source-budget-carriers-v2"\ncontract_version = 2\ncarriers = []\n',
+        encoding="utf-8",
+    )
+    metric_path.write_text(
+        'schema = "ethos-source-budget-metrics-v2"\n'
+        "contract_version = 2\n"
+        "profiles = []\n"
+        "contracts = []\n",
+        encoding="utf-8",
+    )
+
+    assert load_carrier_manifest(tmp_path).required_gaps == (
+        "source_budget_carrier_manifest_invalid",
+    )
+    assert load_metric_contracts(tmp_path).required_gaps == (
+        "source_budget_metric_contracts_invalid",
+    )
+
+
+@pytest.mark.parametrize(
+    ("paths", "required_gaps", "message"),
+    [
+        (None, ["gap"], "required gaps must be non-empty strings"),
+        (None, ("z", "a", "z"), "required gaps must be unique and stably ordered"),
+        (None, (), "requires non-empty required gaps"),
+        (["x.py"], (), "paths must be non-empty strings"),
+        (("x.py",), ("gap",), "with data forbids required gaps"),
+        (("b.py", "a.py", "a.py"), (), "paths must be unique and stably ordered"),
+    ],
+)
+def test_typed_inventory_envelope_rejects_invalid_states(
+    paths: object,
+    required_gaps: object,
+    message: str,
+) -> None:
+    with pytest.raises(ValueError, match=message):
+        carrier_adapter.PresentWorktreePathsLoad(
+            paths,  # type: ignore[arg-type]
+            required_gaps,  # type: ignore[arg-type]
+        )
+
+
+def test_typed_inventory_loader_reports_empty_successful_observation(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        carrier_adapter.subprocess,
+        "run",
+        lambda args, **_kwargs: subprocess.CompletedProcess(args, 0, stdout=b""),
+    )
+
+    load = carrier_adapter.load_present_worktree_paths(tmp_path)
+
+    assert load.paths is None
+    assert load.required_gaps == ("source_budget_inventory_empty",)
+
+
+@pytest.mark.parametrize(
+    "output",
+    [
+        b"H\0",
+        b"H malformed\0",
+        b"H 100644 " + (b"g" * 40) + b" 0\tx.py\0",
+    ],
+)
+def test_typed_inventory_loader_rejects_malformed_records(
+    tmp_path: Path,
+    monkeypatch,
+    output: bytes,
+) -> None:
+    monkeypatch.setattr(
+        carrier_adapter.subprocess,
+        "run",
+        lambda args, **_kwargs: subprocess.CompletedProcess(args, 0, stdout=output),
+    )
+
+    load = carrier_adapter.load_present_worktree_paths(tmp_path)
+
+    assert load.paths is None
+    assert load.required_gaps == ("source_budget_inventory_git_output_invalid",)
+
+
+@pytest.mark.parametrize(
+    ("output", "expected_gap"),
+    [
+        (b"? /absolute.py\0", "source_budget_inventory_path_invalid:/absolute.py"),
+        (
+            b"H 100644 " + (b"a" * 40) + b" 0\t/absolute.py\0",
+            "source_budget_inventory_path_invalid:/absolute.py",
+        ),
+        (
+            b"H 100644 " + (b"a" * 40) + b" 0\t\xff.py\0",
+            "source_budget_inventory_path_invalid:<invalid-path>",
+        ),
+    ],
+)
+def test_typed_inventory_loader_rejects_unsafe_record_paths(
+    tmp_path: Path,
+    monkeypatch,
+    output: bytes,
+    expected_gap: str,
+) -> None:
+    monkeypatch.setattr(
+        carrier_adapter.subprocess,
+        "run",
+        lambda args, **_kwargs: subprocess.CompletedProcess(args, 0, stdout=output),
+    )
+
+    load = carrier_adapter.load_present_worktree_paths(tmp_path)
+
+    assert load.paths is None
+    assert load.required_gaps == (expected_gap,)
+
+
+@pytest.mark.parametrize(
+    ("kind", "expected_gap"),
+    [
+        ("missing", "source_budget_inventory_empty"),
+        ("unreadable", "source_budget_inventory_object_unreadable:x.py"),
+        (
+            "directory",
+            "source_budget_inventory_object_unsupported:untracked_directory:x.py",
+        ),
+    ],
+)
+def test_untracked_inventory_object_kinds_fail_closed(
+    tmp_path: Path,
+    monkeypatch,
+    kind: str,
+    expected_gap: str,
+) -> None:
+    monkeypatch.setattr(
+        carrier_adapter.subprocess,
+        "run",
+        lambda args, **_kwargs: subprocess.CompletedProcess(args, 0, stdout=b"? x.py\0"),
+    )
+    monkeypatch.setattr(carrier_adapter, "_worktree_object_kind", lambda *_args: kind)
+
+    load = carrier_adapter.load_present_worktree_paths(tmp_path)
+
+    assert load.paths is None
+    assert load.required_gaps == (expected_gap,)
+
+
+@pytest.mark.parametrize(
+    ("kind", "expected_gap"),
+    [
+        ("unreadable", "source_budget_inventory_object_unreadable:x.py"),
+        ("directory", "source_budget_inventory_object_mismatch:100644:directory:x.py"),
+    ],
+)
+def test_tracked_inventory_object_kinds_fail_closed(
+    tmp_path: Path,
+    monkeypatch,
+    kind: str,
+    expected_gap: str,
+) -> None:
+    output = b"H 100644 " + (b"a" * 40) + b" 0\tx.py\0"
+    monkeypatch.setattr(
+        carrier_adapter.subprocess,
+        "run",
+        lambda args, **_kwargs: subprocess.CompletedProcess(args, 0, stdout=output),
+    )
+    monkeypatch.setattr(carrier_adapter, "_worktree_object_kind", lambda *_args: kind)
+
+    load = carrier_adapter.load_present_worktree_paths(tmp_path)
+
+    assert load.paths is None
+    assert load.required_gaps == (expected_gap,)
+
+
+@pytest.mark.parametrize(
+    ("mode", "expected"),
+    [
+        ("missing", "missing"),
+        (stat.S_IFREG, "non_directory_ancestor"),
+    ],
+)
+def test_ancestor_object_kind_covers_non_directory_edges(
+    monkeypatch,
+    mode: int | str,
+    expected: str,
+) -> None:
+    monkeypatch.setattr(carrier_adapter, "_lstat_mode", lambda _path: mode)
+
+    assert carrier_adapter._ancestor_object_kind(Path("unused")) == expected
+
+
+@pytest.mark.parametrize(
+    ("mode", "expected"),
+    [
+        (stat.S_IFLNK, "symlink"),
+        (stat.S_IFDIR, "directory"),
+        (stat.S_IFIFO, "other"),
+    ],
+)
+def test_final_object_kind_covers_non_regular_edges(
+    monkeypatch,
+    mode: int,
+    expected: str,
+) -> None:
+    monkeypatch.setattr(carrier_adapter, "_lstat_mode", lambda _path: mode)
+
+    assert carrier_adapter._final_object_kind(Path("unused")) == expected
+
+
+def test_lstat_mode_reports_generic_os_error(tmp_path: Path, monkeypatch) -> None:
+    def fail(_path: Path):
+        raise OSError
+
+    monkeypatch.setattr(Path, "lstat", fail)
+
+    assert carrier_adapter._lstat_mode(tmp_path / "unreadable") == "unreadable"

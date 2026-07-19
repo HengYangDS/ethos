@@ -61,6 +61,8 @@ def test_carrier_identity_is_frozen_and_forbids_unknown_fields() -> None:
     ("field", "value"),
     [
         ("include", ("/absolute/**",)),
+        ("include", ("packages/**", "packages/**")),
+        ("include", ("bad\udcff/**",)),
         ("include", ("../outside/**",)),
         ("include", ("packages//**",)),
         ("include", ("packages/./**",)),
@@ -77,6 +79,7 @@ def test_carrier_identity_is_frozen_and_forbids_unknown_fields() -> None:
         ("include", ("packages/",)),
         ("include", (r"packages\\**\\*.py",)),
         ("extensions", ("py",)),
+        ("extensions", (".py", ".py")),
         ("extensions", (".PY",)),
         ("extensions", (".py", ".foo.py")),
     ],
@@ -94,6 +97,11 @@ def test_carrier_identity_rejects_non_posix_or_non_normalized_matchers(
 
     with pytest.raises(ValidationError):
         CarrierIdentity.model_validate(payload)
+
+
+def test_carrier_matcher_validator_fails_closed_on_surrogate_input() -> None:
+    with pytest.raises(ValueError, match="repository-relative POSIX paths"):
+        CarrierIdentity.validate_matchers(("bad\udcff/**",))
 
 
 @pytest.mark.parametrize(
@@ -172,6 +180,9 @@ def test_carrier_manifest_load_rejects_impossible_envelope_states() -> None:
     with pytest.raises(ValueError, match="non-empty strings"):
         CarrierManifestLoad(None, ("",))
 
+    with pytest.raises(ValueError, match="unique and stably ordered"):
+        CarrierManifestLoad(None, ("z", "a", "z"))
+
 
 def test_carrier_result_models_reject_cross_field_inconsistency() -> None:
     with pytest.raises(ValidationError, match="classification result"):
@@ -226,6 +237,109 @@ def test_carrier_match_rejects_forged_path_ids_or_gaps(
 
     with pytest.raises(ValidationError):
         CarrierMatch.model_validate(payload)
+
+
+def test_carrier_match_rejects_complete_result_envelope_forgeries() -> None:
+    identity = _identity("python", include=("packages/**",), extensions=(".py",))
+    invalid_label = f"<invalid-path:{'a' * 64}>"
+    invalid_cases = (
+        (
+            {
+                "relative_path": "README.md",
+                "path_state": "invalid",
+                "state": "unclassified",
+                "identity": None,
+                "matched_carrier_ids": (),
+                "required_gaps": ("invalid",),
+            },
+            "synthetic label",
+        ),
+        (
+            {
+                "relative_path": invalid_label,
+                "path_state": "invalid",
+                "state": "unsupported",
+                "identity": None,
+                "matched_carrier_ids": (),
+                "required_gaps": ("invalid",),
+            },
+            "must be unclassified",
+        ),
+        (
+            {
+                "relative_path": "README.md",
+                "state": "ambiguous",
+                "identity": None,
+                "matched_carrier_ids": ("z", "a", "z"),
+                "required_gaps": ("ambiguous",),
+            },
+            "matched ids must be stable",
+        ),
+        (
+            {
+                "relative_path": "packages/a.py",
+                "state": "classified",
+                "identity": identity,
+                "matched_carrier_ids": ("other",),
+                "required_gaps": (),
+            },
+            "one matched identity",
+        ),
+        (
+            {
+                "relative_path": "packages/a.py",
+                "state": "classified",
+                "identity": identity,
+                "matched_carrier_ids": ("python",),
+                "required_gaps": ("unexpected",),
+            },
+            "success forbids",
+        ),
+        (
+            {
+                "relative_path": "README.md",
+                "state": "unclassified",
+                "identity": identity,
+                "matched_carrier_ids": (),
+                "required_gaps": ("unclassified",),
+            },
+            "failure forbids identity",
+        ),
+        (
+            {
+                "relative_path": "README.md",
+                "state": "unclassified",
+                "identity": None,
+                "matched_carrier_ids": (),
+                "required_gaps": (),
+            },
+            "failure requires required gaps",
+        ),
+        (
+            {
+                "relative_path": "README.md",
+                "state": "ambiguous",
+                "identity": None,
+                "matched_carrier_ids": ("one",),
+                "required_gaps": ("ambiguous",),
+            },
+            "ambiguity requires multiple ids",
+        ),
+        (
+            {
+                "relative_path": "README.md",
+                "state": "unsupported",
+                "identity": None,
+                "matched_carrier_ids": ("one",),
+                "required_gaps": ("unsupported",),
+            },
+            "failure forbids matched ids",
+        ),
+    )
+
+    for payload, message in invalid_cases:
+        with pytest.raises(ValidationError, match=message):
+            CarrierMatch.model_validate(payload)
 
 
 def test_carrier_inventory_rejects_unstable_or_duplicate_match_order() -> None:
@@ -359,7 +473,7 @@ def test_carrier_classification_fails_closed_for_surrogate_paths() -> None:
 
 @pytest.mark.parametrize(
     "relative",
-    ["foo//bar.py", "foo/./bar.py", ".", "foo/"],
+    ["/absolute.py", "foo//bar.py", "foo/./bar.py", ".", "foo/"],
 )
 def test_carrier_classification_rejects_noncanonical_paths(relative: str) -> None:
     manifest = _manifest(

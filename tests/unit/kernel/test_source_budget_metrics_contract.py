@@ -106,7 +106,13 @@ def test_metric_contract_rejects_invalid_or_compensating_identity(
         MetricContract.model_validate(payload)
 
 
-def test_metric_contract_set_rejects_duplicate_ids_and_coordinates() -> None:
+def test_metric_contract_set_rejects_duplicate_profiles_ids_and_coordinates() -> None:
+    with pytest.raises(ValidationError, match="required metric ids"):
+        _profile(required_metric_ids=("lexical_tokens", "lexical_tokens"))
+
+    with pytest.raises(ValidationError, match="profile ids"):
+        _contract_set(profiles=(_profile(), _profile()))
+
     first = _contract("lexical_tokens", "lexical_token", contract_id="first")
     duplicate_id = _contract("normalized_bytes", "normalized_byte", contract_id="first")
     with pytest.raises(ValidationError, match="contract ids"):
@@ -145,12 +151,26 @@ def test_metric_contract_load_rejects_impossible_envelope_states() -> None:
     with pytest.raises(ValueError, match="non-empty strings"):
         MetricContractSetLoad(None, ("",))
 
+    with pytest.raises(ValueError, match="unique and stably ordered"):
+        MetricContractSetLoad(None, ("z", "a", "z"))
+
 
 def test_metric_contract_set_rejects_dangling_or_role_mismatched_profiles() -> None:
     with pytest.raises(ValidationError, match="required metric"):
         _contract_set(
             profiles=(_profile(required_metric_ids=("missing_metric",)),),
             contracts=(_contract("lexical_tokens", "lexical_token"),),
+        )
+
+    with pytest.raises(ValidationError, match="unknown profile"):
+        _contract_set(
+            contracts=(
+                _contract(
+                    "lexical_tokens",
+                    "lexical_token",
+                    metric_profile="missing-profile",
+                ),
+            ),
         )
 
     mismatched = _contract(
@@ -162,6 +182,15 @@ def test_metric_contract_set_rejects_dangling_or_role_mismatched_profiles() -> N
         _contract_set(
             profiles=(_profile(required_metric_ids=("lexical_tokens",)),),
             contracts=(mismatched,),
+        )
+
+    with pytest.raises(ValidationError, match="undeclared metric"):
+        _contract_set(
+            profiles=(_profile(required_metric_ids=("lexical_tokens",)),),
+            contracts=(
+                _contract("lexical_tokens", "lexical_token"),
+                _contract("normalized_bytes", "normalized_byte"),
+            ),
         )
 
 
@@ -213,6 +242,42 @@ def test_metric_profile_resolution_is_declaration_order_independent() -> None:
             "normalized_bytes",
         )
     )
+
+
+def test_metric_profile_resolution_handles_exclusions_and_unresolved_profiles() -> None:
+    contracts = _contract_set()
+    excluded = CarrierIdentity.model_validate(
+        {
+            "carrier_id": "vendor-lock",
+            "role": "vendor_or_lock",
+            "scope_id": "vendor.lock",
+            "disposition": "exclude",
+            "metric_profile": None,
+            "extensions": (".lock",),
+            "include": ("vendor/**",),
+            "exclude": (),
+            "owner": "ethos-quality",
+            "exclusion_reason": "Governed separately.",
+        }
+    )
+    unresolved = CarrierIdentity.model_validate(
+        {
+            "carrier_id": "unresolved",
+            "role": "authored_behavioral_source",
+            "scope_id": "product.python",
+            "disposition": "measure",
+            "metric_profile": "missing-profile",
+            "extensions": (".py",),
+            "include": ("packages/**",),
+            "exclude": (),
+            "owner": "ethos-quality",
+            "exclusion_reason": None,
+        }
+    )
+
+    assert resolve_metric_contracts(excluded, contracts) == ()
+    with pytest.raises(ValueError, match="profile unresolved"):
+        resolve_metric_contracts(unresolved, contracts)
 
 
 def test_metric_contract_digest_is_order_independent_and_semantic() -> None:

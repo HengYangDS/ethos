@@ -15,6 +15,7 @@ import ethos_core.contracts.source_budget.metrics as metric
 
 CARRIER_MANIFEST_PATH = Path("system/policies/source-budget-carriers.toml")
 METRIC_CONTRACTS_PATH = Path("system/policies/source-budget-metrics.toml")
+_INDEX_PREFIX_LENGTH = 2
 _GIT_ARGS = ["ls-files", "-z", "-t", "--stage", "--cached", "--others", "--exclude-standard"]
 _REGULAR = {"100644", "100755"}
 _W = "present worktree "
@@ -116,7 +117,7 @@ def _git_records(root: Path) -> tuple[tuple[bytes, ...] | None, str | None]:
 
 
 def _admit(root: Path, raw: bytes) -> tuple[str | None, str | None]:
-    if len(raw) <= 2 or raw[1:2] != b" ":
+    if len(raw) <= _INDEX_PREFIX_LENGTH or raw[1:2] != b" ":
         return _bad()
     tag, payload = raw[:1], raw[2:]
     if tag == b"?":

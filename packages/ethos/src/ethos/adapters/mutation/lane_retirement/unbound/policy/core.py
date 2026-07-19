@@ -2,6 +2,7 @@
 
 from pathlib import Path
 from typing import Any
+from typing import cast
 
 import ethos.adapters.mutation.lane_retirement.unbound.observation.core as observation
 from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
@@ -17,7 +18,7 @@ def _failed(*, first: bool = False, **checks: bool) -> list[str]:
     return gaps[:1] if first else gaps
 
 
-def admission_gaps(
+def admission_gaps(  # noqa: PLR0913, RUF100 - exact admission preserves bound state dimensions
     repo: Path,
     *,
     branch: str,
@@ -61,9 +62,27 @@ def branch_admission_gap(repo: Path, *, branch: str, observed: dict[str, Any]) -
         unbound_retire_worktree_binding_drift=observed["worktree_binding"] != "unbound",
         unbound_retire_not_accepted_ancestor=observed["relation_to_accepted"]
         != "ancestor_of_accepted",
-        unbound_retire_active_lease=bool(observed[observation.HAS_ACTIVE_LEASE]),
     )
     return gaps[0] if gaps else ""
+
+
+def lease_relinquish_gap(observed: dict[str, object], *, holder_ref: str) -> str:
+    """Require an active source lease to match this exact invocation."""
+    if not bool(observed[observation.HAS_ACTIVE_LEASE]):
+        return ""
+    lease = cast("dict[str, object]", observed["active_lease"])
+    invalid = (
+        not holder_ref
+        or str(lease.get("holder_ref") or "") != holder_ref
+        or not str(lease.get("lease_id") or "")
+        or str(lease.get("expected_head") or "") != str(observed.get("head") or "")
+    )
+    return "unbound_retire_active_lease" if invalid else ""
+
+
+def active_lease_gaps(observed: dict[str, object]) -> list[str]:
+    """Require no active lease after relinquishment and before ref deletion."""
+    return ["unbound_retire_active_lease"] if observed[observation.HAS_ACTIVE_LEASE] else []
 
 
 def chronicle_gaps(chronicle: dict[str, Any], *, branch: str, head: str) -> list[str]:

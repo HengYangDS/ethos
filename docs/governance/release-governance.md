@@ -26,6 +26,7 @@ Release readiness is proven with:
 ```bash
 tools/ci/scripts/run-python-tests.sh
 tools/ci/scripts/run-python-lint.sh
+tools/ci/scripts/run-local-install-smoke.sh
 uv build --all-packages --out-dir build/artifacts/python --clear --no-create-gitignore
 npm ci --ignore-scripts
 npm run ethos -- --version
@@ -37,6 +38,15 @@ ethos report
 The commands above are the current product-toolchain toolchain profile for proving
 this repository. They do not make `uv`, pytest, Ruff, npm, or a hosted runner
 product ontology anchors.
+
+The local installation owner builds the workspace wheels under
+`build/artifacts/python/`, creates a fresh environment under
+`build/runtime/work/local-install-smoke/`, installs with network access
+disabled, verifies that both `ethos` and `ethos_core` load from that
+environment, and exercises the installed CLI help and version surfaces. Its
+HEAD-bound receipt lives at `build/evidence/local-install/smoke.json`. This
+local proof does not assert registry delivery, remote publication, or hosted
+runner success.
 
 Status: see front matter.
 

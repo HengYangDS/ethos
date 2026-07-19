@@ -219,6 +219,15 @@ adoption = "active"
 gate = "tools/ci/scripts/run-local-ci.sh"
 
 [[tool]]
+concern = "local_install_smoke"
+tool = "uv offline wheel installation smoke"
+config = ".ethos/release.toml + tools/ci/scripts/run-local-install-smoke.sh"
+artifacts = "build/evidence/local-install/"
+profile = "release"
+adoption = "active"
+gate = "tools/ci/scripts/run-local-install-smoke.sh"
+
+[[tool]]
 concern = "shell"
 tool = "shellcheck"
 config = ".config/checks/shell/.shellcheckrc"

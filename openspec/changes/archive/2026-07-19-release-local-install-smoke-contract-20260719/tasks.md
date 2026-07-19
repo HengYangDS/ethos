@@ -24,7 +24,7 @@
   the quality audit.
 - [x] 3.2 Refresh the claim, Chronicle, and generic parity evidence on a stable
   committed HEAD.
-- [ ] 3.3 Execute default and full HEAD-bound proof, then archive this Change
+- [x] 3.3 Execute default and full HEAD-bound proof, then archive this Change
   through the official OpenSpec CLI.
 - [ ] 3.4 Re-run post-archive parity and both proof graphs on the final lane HEAD.
 

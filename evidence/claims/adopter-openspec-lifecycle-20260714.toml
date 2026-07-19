@@ -13,7 +13,7 @@ verifier = "digest_only"
 
 [evidence.freshness]
 mode = "semantic_scope"
-head = "541855c430e510150a6cac772aa4f707fe6947d8"
+head = "7e098b12e619836244bf123102074c3c8c7fdda7"
 semantic_sha256 = "b9b3c9587bbaf37710c2a7dc35c274dcb6e6f8d6f3d9947307336892df389306"
 
 [boundary]

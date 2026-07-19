@@ -2,13 +2,13 @@
 id = "local-ci-locale-robustness-20260719"
 subject = "quality:local-ci-git-bundle-locale-robustness"
 state = "active"
-summary = "Opened a test-only repair for locale-dependent Git bundle verification; passing local CI and closeout remain unclaimed."
+summary = "Implemented and focused-tested a locale-stable Git bundle verification assertion; complete local CI and closeout remain unclaimed."
 
 [evidence]
 dated = "evidence/chronicle/local-ci-locale-robustness-20260719/2026-07-19.md"
-sha256 = "c9428b0df90208a4f630cd92088ac6ce842ddc7c1e684e7f9ab5db0156df4142"
+sha256 = "8a172cf9ed9bce599e9b9c9f55329cef049b242e996ec047d7741a7a21e168dc"
 evidence_ids = ["evidence:local-ci-locale-robustness-20260719"]
-binding = "The dated Chronicle binds the exact localized RED observation, selected test-only locale boundary, and explicit no-remote scope."
+binding = "The dated Chronicle binds the exact localized RED observation, selected test-only locale boundary, focused green observation, and explicit no-remote scope."
 verifier = "digest_only"
 tests = [
   "pytest -q tests/unit/cli/lane/test_cross_host_handoff.py::test_cross_host_export_is_content_addressed_and_excludes_sqlite_lease",

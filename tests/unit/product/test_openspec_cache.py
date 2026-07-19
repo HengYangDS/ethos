@@ -392,7 +392,7 @@ def test_openspec_lifecycle_projects_archive_preflight(tmp_path: Path, monkeypat
         root,
         request=openspec_lifecycle.OpenSpecRequest(change=None, lifecycle=True),
         list_payload={"changes": [{"name": "sample-change"}]},
-        runtime=openspec_lifecycle.OpenSpecLifecycleRuntime(("openspec",), lambda *_args: {}),
+        base_command=("openspec",),
     )
 
     assert calls == [(root, "sample-change")]

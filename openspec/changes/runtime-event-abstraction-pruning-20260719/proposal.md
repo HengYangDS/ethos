@@ -14,6 +14,12 @@ and indirection while obscuring the explicit governance chain.
 - Delete unused SQLite event and chronicle-event tables and CRUD functions.
 - Delete workflow event declarations, models, validation, counts, schema fields,
   and tests that only self-prove an unimplemented stream.
+- Delete all Runtime dependency containers and runtime parameters; tests patch
+  the semantic owner module rather than injecting parallel object graphs.
+- Delete ignored-state schema migration machinery and retired local database
+  compatibility paths; disposable local state is recreated from current truth.
+- Delete active standards-adapter declarations without production implementations
+  or consumers.
 - Keep Chronicle evidence, pure projections, Git hooks, explicit subprocess
   boundaries, and narrow one-to-one callables.
 

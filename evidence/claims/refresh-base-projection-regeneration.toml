@@ -11,8 +11,8 @@ evidence_ids = ["evidence:refresh-base-projection-regeneration"]
 binding = "Refresh-base replay distinguishes repository truth conflicts from regenerable parity projection evidence."
 verifier = "digest_only"
 tests = [
-  "uv run --group dev ruff check packages/ethos/src/ethos/adapters/mutation/lane_lifecycle/refresh.py packages/ethos/src/ethos/surface/cli/lane/core.py tests/unit/coverage/test_lanes_final_edges.py tests/unit/cli/test_contracts_lane_refresh_base_projection.py",
-  "uv run pytest tests/unit/cli/test_contracts_lane_refresh_base_projection.py tests/unit/coverage/test_lanes_final_edges.py tests/unit/cli/test_contracts_land.py::test_lane_refresh_base_apply_rebases_stale_work_lane -q",
+  "uv run --group dev ruff check packages/ethos/src/ethos/adapters/mutation/lane_lifecycle/refresh.py packages/ethos/src/ethos/surface/cli/lane/core.py tests/unit/lanes/test_projection_rebase_parity.py tests/unit/cli/test_contracts_lane_refresh_base_projection.py",
+  "uv run pytest tests/unit/cli/test_contracts_lane_refresh_base_projection.py tests/unit/lanes/test_projection_rebase_parity.py tests/unit/cli/test_contracts_land.py::test_lane_refresh_base_apply_rebases_stale_work_lane -q",
   "openspec validate --all --strict --json",
   "uv run --package ethos ethos quality types --json",
 ]
@@ -37,7 +37,7 @@ targets = [
   { kind = "docs", path = "docs/reference/command-plane.md" },
   { kind = "openspec", path = "openspec/specs/repository-governance/spec.md" },
   { kind = "tests", path = "tests/unit/cli/test_contracts_lane_refresh_base_projection.py" },
-  { kind = "tests", path = "tests/unit/coverage/test_lanes_final_edges.py" },
+  { kind = "tests", path = "tests/unit/lanes/test_projection_rebase_parity.py" },
   { kind = "evidence", path = "evidence/chronicle/refresh-base-projection-regeneration/2026-07-09.md" },
   { kind = "openspec", path = "openspec/changes/archive/2026-07-09-refresh-base-projection-regeneration-20260709" },
   { kind = "evidence", path = "evidence/claims/refresh-base-projection-regeneration.toml" },

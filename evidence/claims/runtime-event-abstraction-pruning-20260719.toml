@@ -3,14 +3,14 @@ id = "runtime-event-abstraction-pruning-20260719"
 change_id = "runtime-event-abstraction-pruning-20260719"
 subject = "ethos:runtime-event-abstraction-pruning"
 state = "active"
-summary = "ETHOS converges lane lifecycle routing on semantic owners and removes event entities without executable producer-consumer flow."
+summary = "ETHOS routes lifecycle operations through their owning modules, eliminates Runtime dependency containers, and removes unused event, local-state compatibility, and speculative adapter entities."
 
 [evidence]
 dated = "evidence/chronicle/runtime-event-abstraction-pruning-20260719/2026-07-19.md"
-sha256 = "183ebb7c78ba32a3c35e0e7718bcb8a8379a74ce604115f51ff09c231d02d61e"
+sha256 = "d2675d9d8879a40eefebf174bb479a257f7987dbf4fbdbf1bed1099178777bf3"
 evidence_ids = ["evidence:runtime-event-abstraction-pruning-20260719"]
-binding = "The active OpenSpec carrier, explicit deletion boundary, focused regressions, and final HEAD-bound proof bind this abstraction-pruning claim."
-verifier = "semantic"
+binding = "The dated Chronicle digest binds the active OpenSpec carrier, deletion boundary, focused regressions, and required final HEAD-bound proof command."
+verifier = "digest_only"
 tests = [
   "npx --yes @fission-ai/openspec@1.6.0 validate runtime-event-abstraction-pruning-20260719 --strict --json",
   "ethos quality claims --json",
@@ -23,7 +23,7 @@ mode = "historical"
 
 [boundary]
 owner = "ethos-repository"
-scope = "Direct lifecycle-owner routing and deletion of event abstractions without executable runtime flow."
+scope = "Direct lifecycle-owner routing, zero Runtime dependency containers, current-only disposable lease state, and deletion of abstractions without executable runtime flow."
 
 [carriers]
 openspec = "openspec/changes/runtime-event-abstraction-pruning-20260719"
@@ -36,6 +36,7 @@ targets = [
   { kind = "source", path = "packages/ethos/src/ethos/adapters/store/state" },
   { kind = "source", path = "packages/ethos-core/src/ethos_core/contracts/workflow.py" },
   { kind = "schema", path = "system/workflows.toml" },
+  { kind = "schema", path = "system/standards.toml" },
   { kind = "tests", path = "tests/unit/lanes" },
   { kind = "tests", path = "tests/unit/kernel/test_workflow_contract.py" },
   { kind = "openspec", path = "openspec/changes/runtime-event-abstraction-pruning-20260719" },

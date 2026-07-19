@@ -53,7 +53,6 @@ class LedgerRecord:
 def resolve_source_budget_ledger_rebase_conflict(
     root: Path,
     *,
-    runtime: Any = None,
     resolution: Resolution | None = None,
     unmerged_paths: UnmergedPaths | None = None,
 ) -> ProjectionResolution:
@@ -65,12 +64,11 @@ def resolve_source_budget_ledger_rebase_conflict(
     """
     result = resolution or projection_resolution
     paths_reader = unmerged_paths or unresolved_paths
-    git = runtime.run_git if runtime is not None else run_git
-    paths = paths_reader(root, runtime=runtime)
-    if paths != [RULES_PATH] or (merged := merge(root, git)) is None:
+    paths = paths_reader(root)
+    if paths != [RULES_PATH] or (merged := merge(root, run_git)) is None:
         return result(ok=False, paths=paths)
     (root / RULES_PATH).write_text(merged, encoding="utf-8")
-    if git(root, "add", RULES_PATH, check=False).returncode:
+    if run_git(root, "add", RULES_PATH, check=False).returncode:
         return result(ok=False, paths=paths)
     return result(
         ok=True,
@@ -96,10 +94,9 @@ def projection_resolution(
     }
 
 
-def unresolved_paths(root: Path, *, runtime: Any = None) -> list[str]:
+def unresolved_paths(root: Path) -> list[str]:
     """Read unresolved paths without importing the projection-rebase core."""
-    git = runtime.run_git if runtime is not None else run_git
-    completed = git(root, "diff", "--name-only", "--diff-filter=U", check=False)
+    completed = run_git(root, "diff", "--name-only", "--diff-filter=U", check=False)
     if completed.returncode != 0:
         return []
     return [line.strip() for line in completed.stdout.splitlines() if line.strip()]

@@ -12,7 +12,6 @@ from ethos.repository.profile import profile_root
 from . import scope
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
     from pathlib import Path
 
 
@@ -33,13 +32,6 @@ class OpenSpecReportContext(NamedTuple):
     required_gaps: list[str]
     advisory_gaps: list[str]
     protected_branch_residue: dict[str, object]
-
-
-class OpenSpecLifecycleRuntime(NamedTuple):
-    """Configured official CLI dependency for lifecycle preflight projections."""
-
-    base_command: tuple[str, ...]
-    run_json: Callable[[Path, tuple[str, ...], tuple[str, ...]], dict[str, object]]
 
 
 material_change_scope_report = scope.material_change_scope_report
@@ -281,7 +273,7 @@ def lifecycle_report(
     request: OpenSpecRequest,
     list_payload: dict[str, Any],
     protected_branch_residue: dict[str, object] | None = None,
-    runtime: OpenSpecLifecycleRuntime | None = None,
+    base_command: tuple[str, ...] | None = None,
 ) -> dict[str, Any]:
     """Return OpenSpec change lifecycle obligations for active changes."""
     residue = protected_branch_residue or {
@@ -339,10 +331,9 @@ def lifecycle_report(
             openspec_archive_preflight_report(
                 root,
                 change_name,
-                base_command=runtime.base_command,
-                run_json=runtime.run_json,
+                base_command=base_command,
             )
-            if runtime is not None
+            if base_command is not None
             else {
                 "ok": True,
                 "state": "not_run",

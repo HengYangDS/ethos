@@ -339,9 +339,15 @@ def test_refresh_base_keeps_semantic_recovery_out_of_stale_projection_paths(
             return cp(returncode=1, stderr="source budget scope conflict")
         return cp(returncode=0)
 
-    runtime = lane_refresh.LaneRefreshRuntime(
-        load_branch_role_policy=lambda _root: SimpleNamespace(candidate_branch="candidate/dev"),
-        workspace_status=lambda _root: {
+    monkeypatch.setattr(
+        lane_refresh,
+        "load_branch_role_policy",
+        lambda _root: SimpleNamespace(candidate_branch="candidate/dev"),
+    )
+    monkeypatch.setattr(
+        lane_refresh,
+        "workspace_status",
+        lambda _root: {
             "role": ROLE_WORK_LANE,
             "dirty": False,
             "branch": "work/source-budget",
@@ -352,10 +358,10 @@ def test_refresh_base_keeps_semantic_recovery_out_of_stale_projection_paths(
                 "head": "candidate",
             },
         },
-        changed_paths=lambda _path: [],
-        is_ancestor=lambda *_args: next(ancestors),
-        run_git=run_git,
     )
+    monkeypatch.setattr(lane_refresh, "changed_paths", lambda _path: [])
+    monkeypatch.setattr(lane_refresh, "is_ancestor", lambda *_args: next(ancestors))
+    monkeypatch.setattr(lane_refresh, "run_git", run_git)
     monkeypatch.setattr(
         lane_refresh,
         "resolve_projection_rebase",
@@ -373,7 +379,6 @@ def test_refresh_base_keeps_semantic_recovery_out_of_stale_projection_paths(
         apply=True,
         authorized=True,
         expect_head="lane",
-        runtime=runtime,
     )
 
     assert report["state"] == "base_refreshed"

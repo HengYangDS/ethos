@@ -17,6 +17,9 @@ from ethos_core.contracts.workflow import workflow_contract_report
 def test_workflow_contract_is_strict_frozen_typed_declaration() -> None:
     contract = WorkflowContract.model_validate(load_system_contract(Path(), "workflows"))
 
+    assert "event" not in WorkflowContract.model_fields
+    assert "event_count" not in contract.to_report()
+    assert "event_stream_locality" not in type(contract.runtime).model_fields
     assert contract.runtime.truth_boundary == "derived_repository_projection"
     assert contract.node[0].id == "status"
     assert contract.transition[0].source == "planned"
@@ -197,7 +200,6 @@ def test_workflow_contract_reports_missing_runtime_eval_and_evolution_contracts(
             "transition": [],
             "node": [],
             "runtime": {},
-            "event": [],
             "eval": {},
             "evolution": {},
         }
@@ -216,7 +218,7 @@ def test_workflow_contract_reports_missing_runtime_eval_and_evolution_contracts(
     } <= set(report["required_gaps"])
 
 
-def test_workflow_contract_reports_invalid_transition_node_event_eval_and_evolution_edges() -> None:
+def test_workflow_contract_reports_invalid_transition_node_eval_and_evolution_edges() -> None:
     report = workflow_contract_report(
         {
             "lifecycle": {"states": ["known"]},
@@ -257,7 +259,6 @@ def test_workflow_contract_reports_invalid_transition_node_event_eval_and_evolut
                 "run_state_schema": "system/schemas/kernel/workflow-run.schema.json",
                 "handoff_package_schema": "system/schemas/kernel/handoff-package.schema.json",
             },
-            "event": [{"id": "bad-event", "locality": "durable"}],
             "eval": {
                 "metric_names": ["unknown_metric"],
                 "truth_boundary": "runtime_truth",
@@ -287,8 +288,6 @@ def test_workflow_contract_reports_invalid_transition_node_event_eval_and_evolut
         "workflow_node_enforcement_unknown:0:unknown",
         "workflow_node_handoff_enforcement_kind_mismatch:handoff-mismatch",
         "workflow_guardrail_advisory:advisory-guardrail",
-        "workflow_event_locality_invalid:bad-event",
-        "workflow_event_chronicle_promotion_missing:bad-event",
         "workflow_eval_metric_unknown:unknown_metric",
         "workflow_eval_truth_boundary_invalid",
         "workflow_evolution_selection_policy_invalid",

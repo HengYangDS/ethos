@@ -38,7 +38,6 @@ targets = [
   "packages/ethos-core/src/ethos_core/models.py",
   "packages/ethos/src/ethos/repository/context.py",
   "packages/ethos/src/ethos/repository/design/integrity.py",
-  "packages/ethos/src/ethos/adapters/store/state/events.py",
   "packages/ethos/src/ethos/adapters/store/state/lease/lifecycle/core.py",
   "packages/ethos/src/ethos/adapters/store/state/lease/lifecycle/effects.py",
   "packages/ethos/src/ethos/adapters/store/state/lease/projection.py",

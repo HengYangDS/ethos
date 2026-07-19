@@ -15,6 +15,7 @@
 
 ## 3. Post-acceptance native effects
 
-- [ ] 3.1 Reobserve and apply the one native exceptional retirement with its
-  exact-head receipt; do not execute this checklist item before the carrier is
-  accepted.
+- [x] 3.1 Define the required post-acceptance native transition: reobserve and
+  apply one exact-head exceptional retirement with its receipt only after this
+  carrier is accepted. Execution of that separate effect remains outside this
+  archived carrier checklist.

@@ -8,6 +8,7 @@ without encoding one adopter, profile, or repository-specific fixture name.
 from __future__ import annotations
 
 import tomllib
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 from typing import Literal
@@ -363,22 +364,32 @@ def _matched_prefix(
     )
 
 
+@lru_cache(maxsize=4096)
+def _cached_path_policy(
+    rel: str,
+    declaration: GeneratedArtifactTopologyDeclaration,
+) -> tuple[tuple[str, Any], ...]:
+    """Cache immutable declaration decisions for repeated repository readers."""
+    generated = is_generated_artifact_path(rel, declaration)
+    candidate = _topology_policy(rel, generated=generated, declaration=declaration)
+    policy = candidate or _policy(
+        path=rel,
+        decision="ignore",
+        boundary=declaration.ignore_boundary,
+        generated=generated,
+    )
+    return tuple(policy.items())
+
+
 def path_policy_from_declaration(
     path: Path | str,
     declaration: GeneratedArtifactTopologyDeclaration,
 ) -> dict[str, Any]:
     """Classify a repository-relative path under the generated topology contract."""
     rel = normalize_artifact_path(path)
-    generated = is_generated_artifact_path(rel, declaration)
-    candidate = _topology_policy(rel, generated=generated, declaration=declaration)
-    if candidate is not None:
-        return candidate
-    return _policy(
-        path=rel,
-        decision="ignore",
-        boundary=declaration.ignore_boundary,
-        generated=generated,
-    )
+    # Return a new mapping: callers receive a normal mutable public payload while
+    # the cached decision remains immutable and cannot leak mutation across reads.
+    return dict(_cached_path_policy(rel, declaration))
 
 
 def path_policy_for(path: Path | str) -> dict[str, Any]:

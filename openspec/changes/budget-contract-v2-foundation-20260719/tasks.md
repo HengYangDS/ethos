@@ -1,7 +1,7 @@
 ## 1. Governance foundation
 
 - [x] 1.1 Accept DR-0008 and update decision indexes, dependencies, and code links.
-- [ ] 1.2 Complete the design and implementation plans and freeze the v1 baseline,
+- [x] 1.2 Complete the design and implementation plans and freeze the v1 baseline,
   current observation, debt inventory, and replay-drift facts.
 - [x] 1.3 Keep the active claim and Chronicle digest-bound to this exact Change
   without claiming enforcement change, cutover, or compression completion.

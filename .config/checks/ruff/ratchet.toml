@@ -6,18 +6,18 @@
 # the ratchet gate fails until the stale baseline is shrunk.
 
 [ignored_rule_baseline]
-ARG001 = 45
+ARG001 = 31
 ARG002 = 1
 BLE001 = 7
 DTZ011 = 1
 EM101 = 9
 EM102 = 2
-PERF401 = 35
-PLC0415 = 82
-PLR0911 = 6
+PERF401 = 33
+PLC0415 = 80
+PLR0911 = 3
 PLR0912 = 2
-PLR0913 = 32
+PLR0913 = 29
 PLR0915 = 4
-PLR2004 = 15
-SLF001 = 215
+PLR2004 = 13
+SLF001 = 206
 TRY003 = 11

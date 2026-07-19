@@ -12,24 +12,10 @@ operation = "govern"
 authority = "primary"
 lifecycle = "active"
 subjects = ["repository-governance", "ethos", "adoption", "changed-scope"]
-path_globs = [
-  "AGENTS.md",
-  "docs/index.md",
-  "docs/start/**",
-  "evolution/**",
-  "evidence/claims/**",
-  "packages/**",
-  "schemas/**",
-  "tests/**",
-  "uv.lock",
-  "pyproject.toml",
-]
+path_globs = ["AGENTS.md", "docs/index.md", "docs/start/**", "evolution/**", "evidence/claims/**", "packages/**", "schemas/**", "tests/**", "uv.lock", "pyproject.toml"]
 intent_tokens = ["ethos", "governance", "proof", "adoption", "skills"]
 pre_reads = ["AGENTS.md", "docs/governance/ethos.md"]
-during_rules = [
-  "treat skills as projections over repository truth",
-  "use ETHOS command JSON as machine evidence",
-]
+during_rules = ["treat skills as projections over repository truth", "use ETHOS command JSON as machine evidence"]
 post_checks = ["ethos playbooks check --mode v2-strict --json", "ethos report --json"]
 commands = ["ethos status", "ethos plan", "ethos prove", "ethos report"]
 boundary = "workflow-package-projection"
@@ -46,10 +32,7 @@ subjects = ["skill-portfolio", "skills", "activation", "projection-drift", "chan
 path_globs = [".agents/skills/**"]
 intent_tokens = ["skill", "skills", "meta-skill", "playbook", "activation", "projection"]
 pre_reads = ["AGENTS.md", ".agents/skills/README.md"]
-during_rules = [
-  "add a skill only for repeated repository-specific procedure",
-  "keep SKILL.md narrow and evidence-bound",
-]
+during_rules = ["add a skill only for repeated repository-specific procedure", "keep SKILL.md narrow and evidence-bound"]
 post_checks = ["ethos playbooks check --mode v2-strict --json", "ethos report --json"]
 may_coactivate = ["ethos-repository-governance"]
 commands = ["ethos playbooks check", "ethos playbooks route", "ethos report"]

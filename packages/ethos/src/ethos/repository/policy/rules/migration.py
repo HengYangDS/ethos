@@ -2,49 +2,164 @@
 
 from __future__ import annotations
 
+import fcntl
+import hashlib
+import re
+import tomllib
 from typing import TYPE_CHECKING
 from typing import Any
 
+from ethos.repository.policy.rules.config import _is_legacy_rule_item
 from ethos.repository.policy.rules.config import _legacy_state
+from ethos.repository.policy.rules.config import _normalize_rule_item
 from ethos.repository.policy.rules.config import _profile_stack
 from ethos.repository.policy.rules.config import _rules_path
-from ethos.repository.policy.rules.config import configured_gate_tables
-from ethos.repository.policy.rules.config import configured_rules
 
 if TYPE_CHECKING:
     from pathlib import Path
 
 
-def migrate_legacy_rules(root: Path, *, apply: bool = False) -> dict[str, object]:
-    """Report (and optionally apply) migration of legacy rules.toml to the v2 shape."""
+def migrate_legacy_rules(
+    root: Path,
+    *,
+    apply: bool = False,
+    expect_source_digest: str | None = None,
+) -> dict[str, object]:
+    """Report (and optionally apply) a lossless migration to the Rules V2 shape."""
+    path = _rules_path(root)
+    source_text = path.read_text(encoding="utf-8") if path.exists() else ""
+    source_digest = _text_digest(source_text)
+    try:
+        source = tomllib.loads(source_text) if source_text else {}
+    except tomllib.TOMLDecodeError as exc:
+        return _migration_error(source_text, source_digest, f"rules_config_parse_error:{exc}")
     legacy = _legacy_state(root)
-    target_profiles: dict[str, object] = {"active": _profile_stack(root)}
-    target_gates = configured_gate_tables(root)
-    target_rules = configured_rules(root)
-    target_text = rules_toml_text(
-        target_rules,
-        profiles=target_profiles,
-        gates=target_gates,
+    legacy_detected = bool(legacy["legacy_detected"])
+    target_text = (
+        _migrated_rules_text(source_text, source, _profile_stack(root))
+        if legacy_detected
+        else source_text
     )
-    target: dict[str, object] = {"profiles": target_profiles, "rule": target_rules}
-    if target_gates:
-        target["gates"] = target_gates
-    if apply and legacy["legacy_detected"]:
-        path = _rules_path(root)
-        path.write_text(target_text, encoding="utf-8")
+    target = tomllib.loads(target_text) if target_text else source
+    required_gaps: list[str] = []
+    if expect_source_digest is not None and expect_source_digest != source_digest:
+        required_gaps.append("rules_migration_source_changed")
+    if apply and legacy_detected and not required_gaps:
+        expected_digest = expect_source_digest or source_digest
+        if not _compare_and_swap_rules(path, expected_digest, target_text):
+            required_gaps.append("rules_migration_source_changed")
+    applied = bool(apply and legacy_detected and not required_gaps)
     return {
-        "ok": True,
-        "legacy_detected": bool(legacy["legacy_detected"]),
-        "applied": bool(apply and legacy["legacy_detected"]),
+        "ok": not required_gaps,
+        "legacy_detected": legacy_detected,
+        "applied": applied,
+        "source_digest": source_digest,
         "target": target,
         "target_text": target_text,
-        "required_gaps": [],
+        "required_gaps": required_gaps,
         "next_actions": (
             ["ethos rules migrate --apply --authorize --expect-head <git-head>"]
-            if legacy["legacy_detected"] and not apply
+            if legacy_detected and not apply
             else []
         ),
     }
+
+
+_TABLE_HEADER = re.compile(r"^\s*\[{1,2}[^\]]+\]{1,2}\s*(?:#.*)?$")
+_RULE_HEADER = re.compile(r"^\s*\[\[\s*rule\s*\]\]\s*(?:#.*)?$")
+_PROFILES_HEADER = re.compile(r"^\s*\[\s*profiles\s*\]\s*(?:#.*)?$")
+_ACTIVE_ASSIGNMENT = re.compile(r"^\s*active\s*=")
+
+
+def _migration_error(source_text: str, source_digest: str, gap: str) -> dict[str, object]:
+    return {
+        "ok": False,
+        "legacy_detected": False,
+        "applied": False,
+        "source_digest": source_digest,
+        "target": {},
+        "target_text": source_text,
+        "required_gaps": [gap],
+        "next_actions": ["repair .ethos/rules.toml before migration"],
+    }
+
+
+def _text_digest(text: str) -> str:
+    return f"sha256:{hashlib.sha256(text.encode('utf-8')).hexdigest()}"
+
+
+def _compare_and_swap_rules(path: Path, expected_digest: str, target_text: str) -> bool:
+    lock_path = path.parent / "state" / "rules-migration.lock"
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    with lock_path.open("a+", encoding="utf-8") as lock:
+        fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+        current_text = path.read_text(encoding="utf-8") if path.exists() else ""
+        if _text_digest(current_text) != expected_digest:
+            return False
+        _write_text_atomic(path, target_text)
+    return True
+
+
+def _write_text_atomic(path: Path, text: str) -> None:
+    temporary = path.with_suffix(f"{path.suffix}.migration.tmp")
+    try:
+        temporary.write_text(text, encoding="utf-8")
+        temporary.chmod(path.stat().st_mode)
+        temporary.replace(path)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def _migrated_rules_text(
+    source_text: str,
+    source: dict[str, Any],
+    active_profiles: list[str],
+) -> str:
+    lines = source_text.splitlines(keepends=True)
+    raw_rules = source.get("rule") if isinstance(source.get("rule"), list) else []
+    output: list[str] = []
+    rule_index = 0
+    profiles_found = False
+    index = 0
+    while index < len(lines):
+        line = lines[index]
+        if _PROFILES_HEADER.match(line):
+            profiles_found = True
+            end = _next_table_index(lines, index + 1)
+            output.extend(_profiles_block(lines[index:end], active_profiles))
+            index = end
+            continue
+        if _RULE_HEADER.match(line):
+            end = _next_table_index(lines, index + 1)
+            raw_rule = raw_rules[rule_index]
+            rule_index += 1
+            if isinstance(raw_rule, dict) and _is_legacy_rule_item(raw_rule):
+                output.append("\n".join(_rule_toml_lines(_normalize_rule_item(raw_rule))) + "\n")
+            else:
+                output.extend(lines[index:end])
+            index = end
+            continue
+        output.append(line)
+        index += 1
+    body = "".join(output)
+    if profiles_found:
+        return body
+    return f"[profiles]\nactive = {toml_string_array(active_profiles)}\n\n{body}"
+
+
+def _next_table_index(lines: list[str], start: int) -> int:
+    for index in range(start, len(lines)):
+        if _TABLE_HEADER.match(lines[index]):
+            return index
+    return len(lines)
+
+
+def _profiles_block(lines: list[str], active_profiles: list[str]) -> list[str]:
+    replacement = f"active = {toml_string_array(active_profiles)}\n"
+    for index, line in enumerate(lines[1:], start=1):
+        if _ACTIVE_ASSIGNMENT.match(line):
+            return [*lines[:index], replacement, *lines[index + 1 :]]
+    return [lines[0], replacement, *lines[1:]]
 
 
 def rules_toml_text(

@@ -277,7 +277,7 @@ def _is_closeout_residue(lane: dict[str, object]) -> bool:
     return str(lane.get("closeout_disposition") or "") not in {"", "none"}
 
 
-def coordination_package(
+def coordination_package(  # noqa: PLR0913, RUF100 - exact read-model envelope preserves independent detail and inventory dimensions
     foreign_work_lanes: list[dict[str, object]],
     *,
     required_gaps: list[str],

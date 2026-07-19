@@ -54,3 +54,18 @@ and all five detail-dependent aggregates are zero.
 
 Revert the bounded repair if full inventory output or schema validation changes.
 Do not replace the repair by accepting fabricated exactness in bounded mode.
+## Concurrent Accepted Drift Correction
+
+While this repair was validating, candidate and accepted refs advanced through
+`1c971f605cb5f7ef895f40318664eeba4befb5eb`, which changed product tests to
+accept the observed `exact` result instead of repairing the caller-mode loss.
+That carrier also created a Chronicle dated `2026-07-20`, which is future-dated
+relative to the repository authority date of `2026-07-19`.
+
+This Change therefore also restores `tests/unit/product/test_orient.py` to the
+last preceding accepted assertions, archives the conflicting active claim, and
+replaces its Chronicle with a `2026-07-19` superseded record. The archived
+foreign OpenSpec carrier remains untouched as historical evidence of the
+rejected approach. Canonical fusion restores the preceding Work Lane
+Coordination Read Model and adds the explicit empty-inventory requirement, so
+the two canonical requirements no longer conflict.

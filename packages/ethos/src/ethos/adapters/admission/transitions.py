@@ -1,12 +1,4 @@
-"""Work Lane ref-transition admission — lease-bound local coordination.
-
-The reference-transaction hook fires on every ref update. For a WORK-lane branch this
-reducer decides, in the ``prepared`` phase, whether the move is admissible against the
-lane's current lease, and in the ``committed`` phase advances the local lease head after
-Git has won. It is a peer of `ref_move_admission_report` (which guards accepted/candidate
-promotion) split into its own module so `admission/core.py` stays within its size budget
-and each admission concern reads as one cohesive unit.
-"""
+"""Lease-bound Work Lane ref-transition admission."""
 
 from __future__ import annotations
 
@@ -23,77 +15,25 @@ _ZERO_OID = "0" * 40
 
 
 def work_lane_ref_transition_report(
-    *,
-    root: Path,
-    phase: str,
-    ref_name: str,
-    old_value: str,
-    new_value: str,
+    *, root: Path, phase: str, ref_name: str, old_value: str, new_value: str
 ) -> dict[str, object]:
-    """Check or record one Work Lane ref transition against its current lease.
-
-    ``prepared`` is the blocking admission point. ``committed`` updates ignored
-    local coordination after Git has won; failure there is repair-required rather
-    than an atomic rollback claim.
-    """
-    repo = root.resolve()
+    """Check a prepared move or advance its lease after Git commits it."""
     branch = ref_name.removeprefix("refs/heads/")
-    # A ref CREATION (old==zero) starts the lane saga; a ref DELETION (new==zero) tears it
-    # down; and a no-op does not change the ref at all. None promotes anything to a
-    # protected branch, so all are admitted without lease binding. The no-op case occurs
-    # while Git attaches a just-created branch to its new worktree, before `lane start`
-    # can record the lease. The deletion case lets a lane with a legacy/unnormalizable
-    # lease retire: its `git update-ref -d` must not block on lease admission it cannot
-    # satisfy — otherwise promotion-free cleanup is unreachable.
     if old_value == new_value:
-        return _admit(
-            phase=phase,
-            ref_name=ref_name,
-            old_value=old_value,
-            new_value=new_value,
-            reason="lane_ref_noop",
-        )
+        return _admit(phase, ref_name, old_value, new_value, "lane_ref_noop")
     if old_value in {_ZERO_OID, ""} or new_value in {_ZERO_OID, ""}:
         reason = (
             "lane_creation_saga_started"
             if old_value in {_ZERO_OID, ""}
             else "lane_teardown_ref_deletion"
         )
-        return _admit(
-            phase=phase,
-            ref_name=ref_name,
-            old_value=old_value,
-            new_value=new_value,
-            reason=reason,
-        )
-    policy = load_branch_role_policy(repo)
-    worktrees = worktree_records(repo, current_path=repo, policy=policy)
-    leases = leases_by_branch(worktrees, current_path=repo)
-    lease = leases.get(branch, {})
+        return _admit(phase, ref_name, old_value, new_value, reason)
+    repo = root.resolve()
+    worktrees = worktree_records(repo, current_path=repo, policy=load_branch_role_policy(repo))
+    lease = leases_by_branch(worktrees, current_path=repo).get(branch, {})
     actor = os.environ.get("ETHOS_ACTOR", "").strip()
-    gaps = _work_lane_lease_transition_gaps(
-        branch=branch,
-        lease=lease,
-        actor=actor,
-        old_value=old_value,
-    )
-    base: dict[str, object] = {
-        "ok": not gaps,
-        "state": "admitted" if not gaps else "blocked",
-        "phase": phase,
-        "ref": ref_name,
-        "branch": branch,
-        "old_value": old_value,
-        "new_value": new_value,
-        "lease": lease,
-        "decision": {
-            "action": "allow" if not gaps else "block",
-            "reason": "work_lane_ref_transition_admitted"
-            if not gaps
-            else "work_lane_ref_transition_stale",
-        },
-        "required_gaps": gaps,
-    }
+    gaps = _work_lane_lease_transition_gaps(branch, lease, actor, old_value)
+    base = _report(phase, ref_name, old_value, new_value, lease, gaps)
     if gaps or phase != "committed":
         return base
     try:
@@ -107,61 +47,73 @@ def work_lane_ref_transition_report(
             new_head=new_value,
         )
     except ValueError as exc:
-        gap = str(exc)
-        return {
-            **base,
-            "ok": False,
-            "state": "repair_required",
-            "decision": {"action": "block", "reason": "lease_head_update_failed"},
-            "required_gaps": [gap],
-        }
-    return {
-        **base,
-        "state": "lease_head_advanced",
-        "lease": updated,
-        "decision": {"action": "allow", "reason": "lease_head_advanced"},
-    }
+        base.update(ok=False, state="repair_required")
+        base.update(decision={"action": "block", "reason": "lease_head_update_failed"})
+        base["required_gaps"] = [str(exc)]
+        return base
+    base.update(state="lease_head_advanced", lease=updated)
+    base["decision"] = {"action": "allow", "reason": "lease_head_advanced"}
+    return base
 
 
 def _admit(
-    *, phase: str, ref_name: str, old_value: str, new_value: str, reason: str
+    phase: str, ref_name: str, old_value: str, new_value: str, reason: str
 ) -> dict[str, object]:
-    """A lease-free admit payload for lane creation/teardown ref moves."""
-    return {
-        "ok": True,
-        "state": "admitted",
-        "phase": phase,
-        "ref": ref_name,
-        "branch": ref_name.removeprefix("refs/heads/"),
-        "old_value": old_value,
-        "new_value": new_value,
-        "lease": {},
-        "decision": {"action": "allow", "reason": reason},
-        "required_gaps": [],
+    return _report(phase, ref_name, old_value, new_value, {}, [], reason)
+
+
+def _report(  # noqa: PLR0913, RUF100 - exact transition receipt dimensions
+    phase: str,
+    ref_name: str,
+    old_value: str,
+    new_value: str,
+    lease: dict[str, object],
+    gaps: list[str],
+    reason: str = "",
+) -> dict[str, object]:
+    report: dict[str, object] = {"ok": not gaps, "state": "admitted" if not gaps else "blocked"}
+    report.update(phase=phase, ref=ref_name, branch=ref_name.removeprefix("refs/heads/"))
+    report.update(old_value=old_value, new_value=new_value, lease=lease)
+    report["decision"] = {
+        "action": "allow" if not gaps else "block",
+        "reason": reason
+        or ("work_lane_ref_transition_stale" if gaps else "work_lane_ref_transition_admitted"),
     }
+    report["required_gaps"] = gaps
+    return report
 
 
 def _work_lane_lease_transition_gaps(
-    *, branch: str, lease: dict[str, object], actor: str, old_value: str
+    branch: str, lease: dict[str, object], actor: str, old_value: str
 ) -> list[str]:
-    gaps: list[str] = []
     if not lease:
         return [f"work_lane_missing_lease:{branch}"]
-    if str(lease.get("normalization_state") or "") != "normalized":
-        gaps.append(f"lane_lease_legacy_ambiguous:{branch}")
-    holder = str(lease.get("holder_ref") or "")
-    if not holder or holder != actor:
-        gaps.append(f"lease_holder_mismatch:{branch}")
-    if not str(lease.get("lease_id") or "") or integer_value(lease.get("epoch")) < 1:
-        gaps.append(f"lease_generation_missing:{branch}")
-    expected_head = str(lease.get("expected_head") or "")
-    if expected_head != old_value:
-        gaps.append(f"lease_head_stale:{expected_head}!={old_value}")
-    return gaps
+    expected = str(lease.get("expected_head") or "")
+    checks = (
+        (
+            str(lease.get("normalization_state") or "") != "normalized",
+            f"lane_lease_legacy_ambiguous:{branch}",
+        ),
+        (
+            not (holder := str(lease.get("holder_ref") or "")) or holder != actor,
+            f"lease_holder_mismatch:{branch}",
+        ),
+        (
+            not str(lease.get("lease_id") or "") or integer_value(lease.get("epoch")) < 1,
+            f"lease_generation_missing:{branch}",
+        ),
+        (expected != old_value, f"lease_head_stale:{expected}!={old_value}"),
+    )
+    return [gap for failed, gap in checks if failed]
 
 
 def _control_state_db(worktrees: list[dict[str, str]], repo: Path) -> Path:
-    for worktree in worktrees:
-        if worktree.get("role") == "accepted_root" and worktree.get("path"):
-            return Path(worktree["path"]) / ".ethos" / "state" / "state.sqlite"
-    return repo / ".ethos" / "state" / "state.sqlite"
+    accepted = next(
+        (
+            Path(item["path"])
+            for item in worktrees
+            if item.get("role") == "accepted_root" and item.get("path")
+        ),
+        repo,
+    )
+    return accepted / ".ethos/state/state.sqlite"

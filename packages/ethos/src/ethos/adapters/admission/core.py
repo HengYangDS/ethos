@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import subprocess
+from dataclasses import replace
 from typing import TYPE_CHECKING
 from typing import cast
 
@@ -16,6 +16,7 @@ from ethos.adapters.admission.shell import command_risk
 from ethos.adapters.admission.shell import git_stash_policy
 from ethos.adapters.mutation.proof import executed_proof_record
 from ethos.adapters.repo.git import committed_file_text
+from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.repository.policy.gates import gate_policy_digest
 from ethos.repository.release.core import release_config
@@ -33,42 +34,21 @@ if TYPE_CHECKING:
     from ethos_core.contracts.branch.roles import BranchRolePolicy
 
 HOOK_LAYERS = {
-    "context": {
-        "timing": "before_target_resolution",
-        "duty": "refresh_repository_truth",
-        "fallback": False,
-    },
-    "pre-tool": {
-        "timing": "before_write_capable_tool",
-        "duty": "block_unadmitted_tracked_writes",
-        "fallback": False,
-    },
-    "pre-run": {
-        "timing": "before_shell_command",
-        "duty": "classify_mutation_risk",
-        "fallback": False,
-    },
-    "post-write": {
-        "timing": "after_write",
-        "duty": "fuse_on_unexpected_mutation",
-        "fallback": False,
-    },
-    "git": {
-        "timing": "commit_or_push",
-        "duty": "deterministic_local_fallback",
-        "fallback": True,
-    },
-    "ci": {
-        "timing": "hosted_pipeline",
-        "duty": "integration_and_release_proof",
-        "fallback": True,
-    },
+    name: {"timing": timing, "duty": duty, "fallback": fallback}
+    for name, timing, duty, fallback in (
+        ("context", "before_target_resolution", "refresh_repository_truth", False),
+        ("pre-tool", "before_write_capable_tool", "block_unadmitted_tracked_writes", False),
+        ("pre-run", "before_shell_command", "classify_mutation_risk", False),
+        ("post-write", "after_write", "fuse_on_unexpected_mutation", False),
+        ("git", "commit_or_push", "deterministic_local_fallback", True),
+        ("ci", "hosted_pipeline", "integration_and_release_proof", True),
+    )
 }
-
 _NO_RECONCILIATION = ReconciliationObservation()
+_ZERO_OID = "0" * 40
 
 
-def hook_admission_report(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
+def hook_admission_report(  # noqa: PLR0911, PLR0913, RUF100 - fail-closed exits preserve precise gap tokens
     *,
     root: Path,
     layer: str,
@@ -78,70 +58,63 @@ def hook_admission_report(  # noqa: PLR0913, RUF100 - exact request envelope pre
     command: str = "",
     expected_root: Path | None = None,
 ) -> dict[str, object]:
-    normalized_layer = _normalize_layer(layer)
+    normalized = _normalize_layer(layer)
     repo = root.resolve()
-    # Hook admission needs current-checkout truth, not a full foreign-lane
-    # history inventory. Keep the pre-commit path bounded under heavy concurrency.
     status = workspace_status(repo, include_foreign_path_scope=False)
-    target_paths = _target_paths(repo, paths or [])
-    base = {
-        "ok": True,
-        "state": "admitted",
-        "layer": normalized_layer,
-        "hook": HOOK_LAYERS[normalized_layer],
-        "target_root": repo.as_posix(),
-        "expected_root": expected_root.resolve().as_posix() if expected_root else repo.as_posix(),
-        "role": status["role"],
-        "branch": status["branch"],
-        "editor_root": editor_root.resolve().as_posix() if editor_root else "",
-        "target_paths": [path.as_posix() for path in target_paths],
-        "decision": {"action": "allow", "reason": "hook_admitted"},
-        "required_gaps": [],
-    }
-    if normalized_layer == "context":
-        return _context_report(base, repo=repo, expected_root=expected_root)
-    if normalized_layer == "pre-tool":
-        if status["role"] in PROTECTED_WRITE_ROLES and not target_paths:
-            return _blocked(base, "protected_root_pretool_paths_required")
+    targets = _target_paths(repo, paths or [])
+    base: dict[str, object] = {"ok": True, "state": "admitted", "layer": normalized}
+    base.update(hook=HOOK_LAYERS[normalized], target_root=repo.as_posix())
+    base.update(expected_root=(expected_root or repo).resolve().as_posix())
+    base.update(role=status["role"], branch=status["branch"])
+    base.update(editor_root=editor_root.resolve().as_posix() if editor_root else "")
+    base.update(target_paths=[path.as_posix() for path in targets])
+    base.update(decision={"action": "allow", "reason": "hook_admitted"}, required_gaps=[])
+    if normalized == "context":
+        if expected_root is not None and expected_root.resolve() != repo:
+            return _verdict(base, "blocked", "block", "hook_context_root_mismatch")
+        return _verdict(base, "refreshed", "allow", "context_refreshed", ())
+    if normalized == "pre-tool":
+        if status["role"] in PROTECTED_WRITE_ROLES and not targets:
+            return _verdict(base, "blocked", "block", "protected_root_pretool_paths_required")
         return _prewrite_report(
             base,
             repo=repo,
-            paths=target_paths,
+            paths=targets,
             editor_root=editor_root,
             require_editor_root=require_editor_root,
         )
-    if normalized_layer == "pre-run":
-        return _pre_run_report(
+    if normalized == "pre-run":
+        stash_policy = git_stash_policy(command)
+        risk = command_risk(command, role=str(base["role"]))
+        base.update(command=command, command_risk=risk, git_stash_policy=stash_policy)
+        if stash_policy["forbidden"] is True:
+            return _verdict(base, "blocked", "block", "git_stash_forbidden")
+        if risk["tracked_mutation_risk"] is not True:
+            return _verdict(base, "admitted", "allow", "command_observe_only", ())
+        if not targets:
+            return _verdict(base, "blocked", "block", "hook_prerun_paths_required")
+        return _prewrite_report(
             base,
             repo=repo,
-            paths=target_paths,
+            paths=targets,
             editor_root=editor_root,
             require_editor_root=require_editor_root,
-            command=command,
         )
-    if normalized_layer == "post-write":
-        return _post_write_report(base, repo=repo, expected_paths=target_paths)
-    return _fallback_report(base)
+    if normalized == "post-write":
+        return _post_write_report(base, repo, targets)
+    base["fallback"] = True
+    return _verdict(base, "fallback", "allow", "fallback_hook_layer", ())
 
 
 def push_admission_report(
     *, root: Path, target_ref: str, pushed_head: str, **options: object
 ) -> dict[str, object]:
-    """Admit or block a push whose destination is a protected role.
-
-    The push tail is the last place a raw `git push` can move an accepted/candidate
-    ref without the executed-proof precondition that `land` enforces. This binds the
-    same reducer to the pre-push boundary: pushing to a protected branch requires an
-    executed proof bound to the exact pushed HEAD. Pushes to unprotected refs (work
-    lanes, feature branches) are admitted untouched.
-    """
+    """Admit a push only when its branch, identity, proof, and topology agree."""
     remote_head = str(options.get("remote_head") or "")
     remote_name = str(options.get("remote_name") or "origin")
-    reconciliation = options.get("reconciliation", _NO_RECONCILIATION)
+    supplied = options.get("reconciliation", _NO_RECONCILIATION)
     reconciliation = (
-        reconciliation
-        if isinstance(reconciliation, ReconciliationObservation)
-        else _NO_RECONCILIATION
+        supplied if isinstance(supplied, ReconciliationObservation) else _NO_RECONCILIATION
     )
     repo = root.resolve()
     policy = load_branch_role_policy(repo)
@@ -158,104 +131,79 @@ def push_admission_report(
         remote_name=remote_name,
         enforce=not bool(topology.get("legacy")),
     )
-    branch_admission_gaps = list(cast("list[str]", branch_admission["enforcement_gaps"]))
-    identity_report = push_identity_policy_report(
+    branch_gaps = list(cast("list[str]", branch_admission["enforcement_gaps"]))
+    reconcile = (
+        replace(
+            reconciliation,
+            submit_branch=branch if role == "submit_lane" else reconciliation.submit_branch,
+        )
+        if (role == "submit_lane" and remote_head == _ZERO_OID)
+        or (role in PROTECTED_WRITE_ROLES and reconciliation.receipt_path)
+        else _NO_RECONCILIATION
+    )
+    identity = push_identity_policy_report(
         repo,
         pushed_head,
         remote_head,
         f"{remote_name}/{policy.accepted_branch}"
         if role == "submit_lane" and remote_head == _ZERO_OID
         else "",
-        reconciliation=(
-            ReconciliationObservation(
-                submit_branch=branch if role == "submit_lane" else reconciliation.submit_branch,
-                receipt_path=reconciliation.receipt_path,
-                origin_head=reconciliation.origin_head,
-                origin_main_head=reconciliation.origin_main_head,
-                github_head=reconciliation.github_head,
-                github_main_head=reconciliation.github_main_head,
-            )
-            if (role == "submit_lane" and remote_head == _ZERO_OID)
-            or (role in PROTECTED_WRITE_ROLES and reconciliation.receipt_path)
-            else _NO_RECONCILIATION
-        ),
+        reconciliation=reconcile,
     )
-    identity_gaps = list(cast("list[str]", identity_report["required_gaps"]))
-    base = {
-        "ok": True,
-        "state": "admitted",
-        "hook": "pre-push",
-        "target_ref": target_ref,
-        "target_branch": branch,
-        "role": role,
-        "remote_name": remote_name,
-        "pushed_head": pushed_head,
-        "remote_head": remote_head,
-        "publication_branch_admission": branch_admission,
-        "identity_policy": identity_report,
-        "decision": {"action": "allow", "reason": "push_admitted"},
-        "required_gaps": [],
-    }
-    proof_required = role in PROTECTED_WRITE_ROLES and not branch_admission_gaps
-    proof_required_gaps = mutation_core.proof_gaps(repo, pushed_head) if proof_required else []
-    # The push plane must enforce the SAME candidate-train topology as the local ref-move
-    # reducer, or a raw `git push --force <proven-old-sha>:dev` rewinds/side-steps the
-    # accepted branch that ref_move_admission_report blocks (the pushed head is proven but
-    # not the live candidate head / not a fast-forward). remote_head is the accepted
-    # old-value, pushed_head the new. Only the accepted branch carries this invariant;
-    # the candidate branch's proof gate is already covered above.
+    identity_gaps = list(cast("list[str]", identity["required_gaps"]))
+    base: dict[str, object] = {"ok": True, "state": "admitted", "hook": "pre-push"}
+    base.update(target_ref=target_ref, target_branch=branch, role=role, remote_name=remote_name)
+    base.update(pushed_head=pushed_head, remote_head=remote_head)
+    base.update(publication_branch_admission=branch_admission, identity_policy=identity)
+    base.update(decision={"action": "allow", "reason": "push_admitted"}, required_gaps=[])
+    proof_gaps = (
+        mutation_core.proof_gaps(repo, pushed_head)
+        if role in PROTECTED_WRITE_ROLES and not branch_gaps
+        else []
+    )
     topology_gaps = (
         accepted_advance_gaps(repo, policy, old_value=remote_head, new_value=pushed_head)
         if branch == policy.accepted_branch
         else []
     )
-    gaps = [
-        *branch_admission_gaps,
-        *identity_gaps,
-        *proof_required_gaps,
-        *topology_gaps,
-    ]
-    if gaps:
-        reason = (
-            "publication_candidate_branch_remote_forbidden"
-            if branch == policy.candidate_branch and branch_admission_gaps
-            else "publication_remote_branch_forbidden"
-            if any(
-                gap.startswith("publication_remote_branch_forbidden:")
-                for gap in branch_admission_gaps
-            )
-            else "publication_remote_name_missing"
-            if "publication_remote_name_missing" in branch_admission_gaps
-            else "publication_remote_target_unknown"
-            if any(
-                gap.startswith("publication_remote_target_unknown:")
-                for gap in branch_admission_gaps
-            )
-            else "push_to_protected_role_not_proven"
-            if proof_required_gaps or topology_gaps
-            else "pushed_commit_identity_not_allowed"
-        )
-        base.update(
-            ok=False,
-            state="blocked",
-            required_gaps=gaps,
-            decision={"action": "block", "reason": reason},
-        )
-    return base
+    gaps = [*branch_gaps, *identity_gaps, *proof_gaps, *topology_gaps]
+    if not gaps:
+        return base
+    reason = _push_block_reason(branch, policy, branch_gaps, proof_gaps, topology_gaps)
+    return _verdict(base, "blocked", "block", reason, gaps)
 
 
-_ZERO_OID = "0" * 40
+def _push_block_reason(
+    branch: str,
+    policy: BranchRolePolicy,
+    branch_gaps: list[str],
+    proof_gaps: list[str],
+    topology_gaps: list[str],
+) -> str:
+    reasons = (
+        (
+            branch == policy.candidate_branch and bool(branch_gaps),
+            "publication_candidate_branch_remote_forbidden",
+        ),
+        (
+            any(gap.startswith("publication_remote_branch_forbidden:") for gap in branch_gaps),
+            "publication_remote_branch_forbidden",
+        ),
+        ("publication_remote_name_missing" in branch_gaps, "publication_remote_name_missing"),
+        (
+            any(gap.startswith("publication_remote_target_unknown:") for gap in branch_gaps),
+            "publication_remote_target_unknown",
+        ),
+        (bool(proof_gaps or topology_gaps), "push_to_protected_role_not_proven"),
+    )
+    return next(
+        (reason for applies, reason in reasons if applies), "pushed_commit_identity_not_allowed"
+    )
 
 
 def _proof_evidence_digest(root: Path, head: str) -> str:
-    """The evidence_digest of the VALID executed proof at head, or '' if none.
-
-    Lets the closeout-intent marker bind to the exact proof this transition carries: a
-    marker minted for a different proof cannot authorize this move."""
     record = executed_proof_record(root, head)
-    if not isinstance(record, dict):
-        return ""
-    return str(record.get("evidence_digest", ""))
+    return str(record.get("evidence_digest", "")) if isinstance(record, dict) else ""
 
 
 def accepted_advance_gaps(
@@ -265,46 +213,19 @@ def accepted_advance_gaps(
     old_value: str,
     new_value: str,
 ) -> list[str]:
-    """Topology gaps for an advance of the accepted branch to `new_value`.
-
-    The candidate-train invariant — the accepted branch only ever advances to the LIVE
-    candidate head, by a fast-forward — is enforced HERE so BOTH the local ref-move
-    reducer and the push reducer share one definition. Emits, distinctly:
-      * accepted_advance_not_candidate_validated: new_value is not contained in candidate
-      * accepted_ref_move_not_candidate_head: contained but != the live candidate head
-      * accepted_ref_move_not_fast_forward: old_value is not an ancestor of new_value
-    Proof and closeout-intent are NOT included — proof is added by each caller, and the
-    marker is a local-only signal a push cannot carry. old_value all-zeros (ref creation)
-    skips only the fast-forward check (==candidate_head still pins the target).
-    """
-    candidate_branch = policy.candidate_branch
-    gaps: list[str] = []
-    contained = subprocess.run(
-        ["git", "merge-base", "--is-ancestor", new_value, candidate_branch],
-        cwd=repo,
-        capture_output=True,
-        check=False,
+    """Return candidate-head and fast-forward gaps for an accepted advance."""
+    candidate = policy.candidate_branch
+    contained = commit_contained_in(repo, new_value, candidate)
+    candidate_head = git_stdout(repo, "rev-parse", "--verify", "--quiet", candidate)
+    gaps = (
+        []
+        if contained and new_value == candidate_head
+        else ["accepted_ref_move_not_candidate_head"]
+        if contained
+        else ["accepted_advance_not_candidate_validated"]
     )
-    candidate_head = subprocess.run(
-        ["git", "rev-parse", "--verify", "--quiet", candidate_branch],
-        cwd=repo,
-        capture_output=True,
-        check=False,
-        text=True,
-    ).stdout.strip()
-    if contained.returncode != 0:
-        gaps.append("accepted_advance_not_candidate_validated")
-    elif new_value != candidate_head:
-        gaps.append("accepted_ref_move_not_candidate_head")
-    if old_value not in (_ZERO_OID, ""):
-        fast_forward = subprocess.run(
-            ["git", "merge-base", "--is-ancestor", old_value, new_value],
-            cwd=repo,
-            capture_output=True,
-            check=False,
-        )
-        if fast_forward.returncode != 0:
-            gaps.append("accepted_ref_move_not_fast_forward")
+    if old_value not in (_ZERO_OID, "") and not commit_contained_in(repo, old_value, new_value):
+        gaps.append("accepted_ref_move_not_fast_forward")
     return gaps
 
 
@@ -315,45 +236,16 @@ def ref_move_admission_report(
     old_value: str,
     new_value: str,
 ) -> dict[str, object]:
-    """Admit or block a LOCAL ref update (merge / branch -f / reset / ff / commit).
-
-    The candidate train's load-bearing invariant is that the accepted branch may only
-    ever advance to a commit the candidate branch already contains — work is validated
-    on candidate BEFORE it is accepted. `ethos land`/`land --closeout` enforce that
-    two-stage path, but a raw `git merge --ff-only work/x dev` (or `git branch -f dev
-    <sha>`, `git reset --hard`) moves the accepted ref directly, skipping candidate —
-    and nothing stopped it, because the commit/push hooks guard writes and pushes, not
-    local ref moves. That reachable-but-forbidden transition is the bug: ETHOS must make
-    an unvalidated accepted-branch advance UNREACHABLE, not merely discouraged.
-
-    Bound to git's reference-transaction hook (which fires on every ref change), this
-    enforces, for a move of the accepted branch:
-      (1) candidate-first: new_value must be contained in the candidate branch, and
-      (2) proven: an executed proof must bind new_value.
-    Deletions, creations, no-ops, and moves of non-accepted refs are admitted. The
-    sanctioned `ethos land --closeout` path satisfies (1)+(2) by construction, so only
-    out-of-band ref moves are blocked.
-    """
+    """Admit a local ref move only through the protected candidate train."""
     repo = root.resolve()
     policy = load_branch_role_policy(repo)
     branch = ref_name.removeprefix("refs/heads/")
-    zero = "0" * 40
-    base = {
-        "ok": True,
-        "state": "admitted",
-        "hook": "reference-transaction",
-        "ref": ref_name,
-        "branch": branch,
-        "old_value": old_value,
-        "new_value": new_value,
-        "decision": {"action": "allow", "reason": "ref_move_admitted"},
-        "required_gaps": [],
-    }
-    if new_value in (zero, "") or new_value == old_value:
+    base: dict[str, object] = {"ok": True, "state": "admitted"}
+    base.update(hook="reference-transaction", ref=ref_name, branch=branch)
+    base.update(old_value=old_value, new_value=new_value)
+    base.update(decision={"action": "allow", "reason": "ref_move_admitted"}, required_gaps=[])
+    if new_value in (_ZERO_OID, "") or new_value == old_value:
         return base
-
-    gaps: list[str] = []
-    reason = ""
     candidate_policy = branch_role_policy_from_text(
         committed_file_text(repo, policy.candidate_branch, ".ethos/workspace.toml")
     )
@@ -362,28 +254,11 @@ def ref_move_admission_report(
         and candidate_policy.release_mirror == RELEASE_MIRROR_ACCEPTED_FF
     )
     if mirror or branch == policy.accepted_branch:
-        # Topology invariant (contained + ==candidate_head + fast-forward) is shared with
-        # the push reducer via accepted_advance_gaps, so a raw ref move and a raw push are
-        # judged identically. Proof and the closeout-intent marker are added below — proof
-        # binds both planes, but the marker is a local-only "is this my closeout?" signal.
-        gaps.extend(
-            accepted_advance_gaps(
-                repo,
-                candidate_policy if mirror else policy,
-                old_value=old_value,
-                new_value=new_value,
-            )
-        )
-        gaps.extend(mutation_core.proof_gaps(repo, new_value))
-        # Official-closeout discrimination (R12 load-bearing nail): the substantive
-        # checks above cannot tell an official `ethos land --closeout` apart from a raw
-        # `git update-ref` to the same proven candidate head — both are byte-identical.
-        # Require a one-shot closeout-intent marker written by official closeout for the
-        # EXACT transition. A raw ref move carries none -> no_closeout_intent (a marker
-        # for a different move -> mismatch; an expired one -> stale; a reused nonce -> no
-        # marker again). The marker is consumed here but does NOT admit: it only proves
-        # "this is my process's closeout"; legality is still the checks above (R19 — the
-        # marker is a local discipline layer, not a trust root; forge re-execution is).
+        move_policy = candidate_policy if mirror else policy
+        gaps = [
+            *accepted_advance_gaps(repo, move_policy, old_value=old_value, new_value=new_value),
+            *mutation_core.proof_gaps(repo, new_value),
+        ]
         intent = consume_closeout_intent(
             root=repo,
             ref_name=ref_name,
@@ -391,11 +266,6 @@ def ref_move_admission_report(
             new_value=new_value,
             expect=MarkerExpectation(
                 evidence_digest=_proof_evidence_digest(repo, new_value),
-                # Committed-tree digest of the PROMOTED head, matching how official closeout
-                # stamps the marker and how proof_gaps recomputes the proof's digest. The
-                # hook fires while this worktree still holds the pre-move tree, so a
-                # working-tree digest here would spuriously mismatch a marker bound to the
-                # tree actually being promoted.
                 gate_policy_digest=gate_policy_digest(repo, tree_ref=new_value),
             ),
         )
@@ -410,32 +280,20 @@ def ref_move_admission_report(
             else "accepted_ref_move_bypasses_candidate_train"
         )
     elif branch == policy.candidate_branch:
-        # A candidate move to a commit the ACCEPTED branch already contains promotes no
-        # new work — it is either a no-op or a refresh-from-accepted rewind (candidate reset
-        # back onto accepted truth). That target is already-accepted and needs no fresh
-        # proof in the candidate worktree; requiring one would self-block `ethos lane
-        # refresh-base` now that the ETHOS_ALLOW_REF_MOVE bypass is gone. Forward candidate
-        # advances (new work not yet on accepted) still require proof.
-        if not commit_contained_in(repo, new_value, policy.accepted_branch):
-            gaps.extend(mutation_core.proof_gaps(repo, new_value))
+        gaps = (
+            []
+            if commit_contained_in(repo, new_value, policy.accepted_branch)
+            else mutation_core.proof_gaps(repo, new_value)
+        )
         reason = "protected_ref_move_not_proven"
     else:
         return base
-    if gaps:
-        base.update(
-            ok=False,
-            state="blocked",
-            required_gaps=gaps,
-            decision={"action": "block", "reason": reason},
-        )
-    return base
+    return _verdict(base, "blocked", "block", reason, gaps) if gaps else base
 
 
 def _normalize_layer(layer: str) -> str:
     normalized = layer.strip().lower().replace("_", "-")
-    if normalized not in HOOK_LAYERS:
-        return "pre-tool"
-    return normalized
+    return normalized if normalized in HOOK_LAYERS else "pre-tool"
 
 
 def _target_paths(root: Path, paths: list[Path]) -> list[Path]:
@@ -445,19 +303,6 @@ def _target_paths(root: Path, paths: list[Path]) -> list[Path]:
         else root / path
         for path in paths
     ]
-
-
-def _context_report(
-    base: dict[str, object],
-    *,
-    repo: Path,
-    expected_root: Path | None,
-) -> dict[str, object]:
-    if expected_root is not None and expected_root.resolve() != repo:
-        return _blocked(base, "hook_context_root_mismatch")
-    base["state"] = "refreshed"
-    base["decision"] = {"action": "allow", "reason": "context_refreshed"}
-    return base
 
 
 def _prewrite_report(
@@ -474,70 +319,28 @@ def _prewrite_report(
         editor_root=editor_root,
         require_editor_root=require_editor_root,
     )
-    base["admission"] = admission
-    base["role"] = admission["role"]
-    base["branch"] = admission["branch"]
+    base.update(admission=admission, role=admission["role"], branch=admission["branch"])
     if admission["ok"] is True:
-        base["state"] = "admitted"
-        base["decision"] = {"action": "allow", "reason": "prewrite_admitted"}
-        return base
-    blocked = _blocked(base, str(admission["error"]))
+        return _verdict(base, "admitted", "allow", "prewrite_admitted", ())
+    blocked = _verdict(base, "blocked", "block", str(admission["error"]))
     blocked["next_actions"] = _prewrite_block_next_actions(admission)
     return blocked
 
 
-def _pre_run_report(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
-    base: dict[str, object],
-    *,
-    repo: Path,
-    paths: list[Path],
-    editor_root: Path | None,
-    require_editor_root: bool,
-    command: str,
-) -> dict[str, object]:
-    stash_policy = git_stash_policy(command)
-    risk = command_risk(command, role=str(base["role"]))
-    base["command"] = command
-    base["command_risk"] = risk
-    base["git_stash_policy"] = stash_policy
-    if stash_policy["forbidden"] is True:
-        return _blocked(base, "git_stash_forbidden")
-    if risk["tracked_mutation_risk"] is not True:
-        base["state"] = "admitted"
-        base["decision"] = {"action": "allow", "reason": "command_observe_only"}
-        return base
-    if not paths:
-        return _blocked(base, "hook_prerun_paths_required")
-    return _prewrite_report(
-        base,
-        repo=repo,
-        paths=paths,
-        editor_root=editor_root,
-        require_editor_root=require_editor_root,
-    )
-
-
 def _post_write_report(
-    base: dict[str, object],
-    *,
-    repo: Path,
-    expected_paths: list[Path],
+    base: dict[str, object], repo: Path, expected_paths: list[Path]
 ) -> dict[str, object]:
     status = workspace_status(repo)
-    changed_paths = string_sequence(status.get("changed_paths"))
-    base["role"] = status["role"]
-    base["branch"] = status["branch"]
-    base["changed_paths"] = changed_paths
+    changed = string_sequence(status.get("changed_paths"))
     expected = {_relative(repo, path) for path in expected_paths}
-    unexpected = [path for path in changed_paths if not expected or path not in expected]
+    unexpected = [path for path in changed if not expected or path not in expected]
+    base.update(role=status["role"], branch=status["branch"], changed_paths=changed)
     base["unexpected_paths"] = unexpected
-    if status["role"] in PROTECTED_WRITE_ROLES and changed_paths:
-        return _fused(base, "post_write_protected_root_dirty")
+    if status["role"] in PROTECTED_WRITE_ROLES and changed:
+        return _verdict(base, "fused", "fuse", "post_write_protected_root_dirty")
     if unexpected:
-        return _fused(base, "post_write_unexpected_path")
-    base["state"] = "admitted"
-    base["decision"] = {"action": "allow", "reason": "post_write_expected_paths_clean"}
-    return base
+        return _verdict(base, "fused", "fuse", "post_write_unexpected_path")
+    return _verdict(base, "admitted", "allow", "post_write_expected_paths_clean", ())
 
 
 def _relative(root: Path, path: Path) -> str:
@@ -548,43 +351,32 @@ def _relative(root: Path, path: Path) -> str:
         return resolved.as_posix()
 
 
-def _fallback_report(base: dict[str, object]) -> dict[str, object]:
-    base["state"] = "fallback"
-    base["decision"] = {"action": "allow", "reason": "fallback_hook_layer"}
-    base["fallback"] = True
-    return base
-
-
 def _prewrite_block_next_actions(admission: dict[str, object]) -> list[str]:
     lease = admission.get("work_lane_lease")
-    if isinstance(lease, dict) and str(lease.get("reason") or "").startswith(
-        "lease_holder_mismatch:"
-    ):
-        holder_ref = str(lease.get("holder_ref") or "").strip()
-        if holder_ref:
-            return [
-                f"set ETHOS_ACTOR={holder_ref} and rerun the blocked command, or obtain handoff",
+    reason = str(lease.get("reason") or "") if isinstance(lease, dict) else ""
+    if reason.startswith("lease_holder_mismatch:"):
+        holder = str(lease.get("holder_ref") or "").strip() if isinstance(lease, dict) else ""
+        return (
+            [
+                f"set ETHOS_ACTOR={holder} and rerun the blocked command, or obtain handoff",
                 "ethos lane prewrite <path>",
             ]
-        return ["set ETHOS_ACTOR to the current holder_ref or obtain handoff"]
-    if isinstance(lease, dict) and str(lease.get("reason") or "").startswith(
-        "work_lane_missing_lease:"
-    ):
+            if holder
+            else ["set ETHOS_ACTOR to the current holder_ref or obtain handoff"]
+        )
+    if reason.startswith("work_lane_missing_lease:"):
         return ["ethos lane start <name> --holder-ref <holder-ref> --apply --json"]
     return ["ethos lane prewrite <path>"]
 
 
-def _blocked(base: dict[str, object], reason: str) -> dict[str, object]:
-    base["ok"] = False
-    base["state"] = "blocked"
-    base["decision"] = {"action": "block", "reason": reason}
-    base["required_gaps"] = [reason]
-    return base
-
-
-def _fused(base: dict[str, object], reason: str) -> dict[str, object]:
-    base["ok"] = False
-    base["state"] = "fused"
-    base["decision"] = {"action": "fuse", "reason": reason}
-    base["required_gaps"] = [reason]
+def _verdict(
+    base: dict[str, object],
+    state: str,
+    action: str,
+    reason: str,
+    gaps: list[str] | tuple[()] | None = None,
+) -> dict[str, object]:
+    required = [reason] if gaps is None else list(gaps)
+    base.update(ok=not required, state=state, decision={"action": action, "reason": reason})
+    base["required_gaps"] = required
     return base

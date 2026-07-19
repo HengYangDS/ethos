@@ -81,6 +81,9 @@ def test_advisory_next_actions() -> None:
         "provider_not_configured:github": (
             f"ETHOS_HOSTED_GITHUB_REPO=<host/owner/repo> ETHOS_HOSTED_OBSERVATION_EXECUTE=1 {RUN}",
         ),
+        "source_budget_campaign_growth_overage:global_total:2>1": (
+            "ethos quality source-budget --json",
+        ),
     }
     for gap, expected in cases.items():
         assert reporting_gaps.advisory_next_actions((gap,)) == expected

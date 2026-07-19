@@ -8,14 +8,11 @@ from contextlib import closing
 from typing import TYPE_CHECKING
 from typing import Any
 
-from ethos.adapters.store.state.schema import SCHEMA_VERSION as _SCHEMA_VERSION
 from ethos.adapters.store.state.schema import initialize_state
 from ethos.adapters.store.state.schema import now
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-SCHEMA_VERSION = _SCHEMA_VERSION
 
 _EVENT_TABLES = frozenset({"chronicle_events", "events"})
 _INSERT_EVENT_SQL = {

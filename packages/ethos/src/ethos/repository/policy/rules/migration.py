@@ -9,11 +9,11 @@ import tomllib
 from typing import TYPE_CHECKING
 from typing import Any
 
-from ethos.repository.policy.rules.config import _is_legacy_rule_item
-from ethos.repository.policy.rules.config import _legacy_state
-from ethos.repository.policy.rules.config import _normalize_rule_item
-from ethos.repository.policy.rules.config import _profile_stack
-from ethos.repository.policy.rules.config import _rules_path
+from ethos.repository.policy.rules.config import is_legacy_rule_item
+from ethos.repository.policy.rules.config import legacy_state
+from ethos.repository.policy.rules.config import normalize_rule_item
+from ethos.repository.policy.rules.config import profile_stack
+from ethos.repository.policy.rules.config import rules_path
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -26,17 +26,17 @@ def migrate_legacy_rules(
     expect_source_digest: str | None = None,
 ) -> dict[str, object]:
     """Report (and optionally apply) a lossless migration to the Rules V2 shape."""
-    path = _rules_path(root)
+    path = rules_path(root)
     source_text = path.read_text(encoding="utf-8") if path.exists() else ""
     source_digest = _text_digest(source_text)
     try:
         source = tomllib.loads(source_text) if source_text else {}
     except tomllib.TOMLDecodeError as exc:
         return _migration_error(source_text, source_digest, f"rules_config_parse_error:{exc}")
-    legacy = _legacy_state(root)
+    legacy = legacy_state(root)
     legacy_detected = bool(legacy["legacy_detected"])
     target_text = (
-        _migrated_rules_text(source_text, source, _profile_stack(root))
+        _migrated_rules_text(source_text, source, profile_stack(root))
         if legacy_detected
         else source_text
     )
@@ -116,7 +116,8 @@ def _migrated_rules_text(
     active_profiles: list[str],
 ) -> str:
     lines = source_text.splitlines(keepends=True)
-    raw_rules = source.get("rule") if isinstance(source.get("rule"), list) else []
+    raw_rule_items = source.get("rule")
+    raw_rules = raw_rule_items if isinstance(raw_rule_items, list) else []
     output: list[str] = []
     rule_index = 0
     profiles_found = False
@@ -133,8 +134,8 @@ def _migrated_rules_text(
             end = _next_table_index(lines, index + 1)
             raw_rule = raw_rules[rule_index]
             rule_index += 1
-            if isinstance(raw_rule, dict) and _is_legacy_rule_item(raw_rule):
-                output.append("\n".join(_rule_toml_lines(_normalize_rule_item(raw_rule))) + "\n")
+            if isinstance(raw_rule, dict) and is_legacy_rule_item(raw_rule):
+                output.append("\n".join(_rule_toml_lines(normalize_rule_item(raw_rule))) + "\n")
             else:
                 output.extend(lines[index:end])
             index = end

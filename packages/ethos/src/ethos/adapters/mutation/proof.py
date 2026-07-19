@@ -462,9 +462,11 @@ def apply_proof_retention(root: Path, candidates: list[dict[str, Any]]) -> list[
             path = root / path
         resolved = path.resolve()
         if resolved.parent != proof_dir or resolved.name != f"{candidate.get('head', '')}.json":
-            raise ValueError(f"proof_retention_candidate_outside_store:{display_path}")
+            message = f"proof_retention_candidate_outside_store:{display_path}"
+            raise ValueError(message)
         if not resolved.is_file() or _file_sha256(resolved) != str(candidate.get("sha256") or ""):
-            raise ValueError(f"proof_retention_candidate_drift:{display_path}")
+            message = f"proof_retention_candidate_drift:{display_path}"
+            raise ValueError(message)
         verified.append((resolved, display_path))
     for path, _display_path in verified:
         path.unlink()

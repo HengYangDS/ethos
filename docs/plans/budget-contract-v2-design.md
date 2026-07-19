@@ -4,12 +4,12 @@ role: plan
 state: planned
 relations:
   decided_by: docs/decisions/accepted/DR-0008-metric-domain-budget-contract.md
-  governed_by: openspec/changes/budget-contract-v2-foundation-integration-continuation-20260719
+  governed_by: openspec/changes/archive/2026-07-19-budget-contract-v2-foundation-integration-continuation-20260719
 ---
 
 # Budget Contract v2 Design
 
-Status: approved for governed implementation on 2026-07-19; the Foundation carrier was archived and its integration continuation is active on 2026-07-19.
+Status: approved for governed implementation on 2026-07-19; the Foundation carrier and its integration continuation were archived on 2026-07-19.
 
 Purpose: replace the repository-wide use of effective lines of code as a
 cross-language budget currency with a versioned, metric-domain vector while

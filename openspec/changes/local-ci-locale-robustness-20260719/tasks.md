@@ -12,7 +12,7 @@
 
 ## 3. Governed Local Closeout
 
-- [ ] 3.1 Run the complete local CI fallback on a stable HEAD.
+- [x] 3.1 Run the complete local CI fallback on a stable HEAD.
 - [ ] 3.2 Refresh generic parity and execute HEAD-bound proof.
 - [ ] 3.3 Archive this Change, land candidate, close accepted root, and retire
   the owned Work Lane.

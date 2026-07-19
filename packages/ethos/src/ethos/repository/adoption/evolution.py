@@ -315,6 +315,7 @@ def _step_summary(
             for item in steps
             if item["state"] in (*policy.step_execution_states, *policy.step_archived_states)
         ),
+        "archive_ready": sum(1 for item in steps if item["state"] == "archive_ready"),
         "closed": sum(
             1
             for item in steps

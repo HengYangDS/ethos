@@ -124,14 +124,13 @@ def hook_admission_report(  # noqa: PLR0913, RUF100 - exact request envelope pre
     return _fallback_report(base)
 
 
-def push_admission_report(  # noqa: PLR0913, RUF100 - exact push envelope preserves independent evidence planes
+def push_admission_report(
     *,
     root: Path,
     target_ref: str,
     pushed_head: str,
-    remote_head: str = "",
-    reconciliation: ReconciliationObservation = _NO_RECONCILIATION,
     campaign_publication: dict[str, object] | None = None,
+    **options: object,
 ) -> dict[str, object]:
     """Admit or block a push whose destination is a protected role.
 
@@ -223,16 +222,34 @@ def push_admission_report(  # noqa: PLR0913, RUF100 - exact push envelope preser
         and campaign_publication.get("remote_publication_admission") == "blocked"
         else []
     )
-    gaps = [*campaign_gaps, *identity_gaps, *proof_required_gaps, *topology_gaps]
+    gaps = [
+        *campaign_gaps,
+        *branch_admission_gaps,
+        *identity_gaps,
+        *proof_required_gaps,
+        *topology_gaps,
+    ]
     if gaps:
         reason = (
             "campaign_publication_not_terminal"
             if campaign_gaps
-            else (
-                "push_to_protected_role_not_proven"
-                if proof_required_gaps or topology_gaps
-                else "pushed_commit_identity_not_allowed"
+            else "publication_candidate_branch_remote_forbidden"
+            if branch == policy.candidate_branch and branch_admission_gaps
+            else "publication_remote_branch_forbidden"
+            if any(
+                gap.startswith("publication_remote_branch_forbidden:")
+                for gap in branch_admission_gaps
             )
+            else "publication_remote_name_missing"
+            if "publication_remote_name_missing" in branch_admission_gaps
+            else "publication_remote_target_unknown"
+            if any(
+                gap.startswith("publication_remote_target_unknown:")
+                for gap in branch_admission_gaps
+            )
+            else "push_to_protected_role_not_proven"
+            if proof_required_gaps or topology_gaps
+            else "pushed_commit_identity_not_allowed"
         )
         base.update(
             ok=False,

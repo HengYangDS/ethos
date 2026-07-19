@@ -301,6 +301,41 @@ def test_retire_landed_work_lane_apply_removes_selected_clean_merged_lane(
     assert git(repo, "branch", "--list", _LANDED_BRANCH) == ""
 
 
+def test_retire_landed_work_lane_removes_its_own_worktree_from_stable_repo_cwd(
+    monkeypatch, tmp_path: Path
+) -> None:
+    repo, landed, _database = _landed_lane(tmp_path, lease_holder=_LEASE_HOLDER)
+    landed_head = git(landed, "rev-parse", "HEAD")
+    observed_worktree_removal_cwd: list[Path] = []
+    original_run_git = retirement_shared.run_git
+
+    def recording_run_git(
+        root: Path,
+        *args: str,
+        check: bool = True,
+        **kwargs: object,
+    ) -> subprocess.CompletedProcess[str]:
+        if args[:2] == ("worktree", "remove"):
+            observed_worktree_removal_cwd.append(root)
+        return original_run_git(root, *args, check=check, **kwargs)
+
+    monkeypatch.setenv("ETHOS_ACTOR", _LEASE_HOLDER)
+    monkeypatch.setattr(retirement_shared, "run_git", recording_run_git)
+
+    report = retire_landed_work_lanes(
+        root=landed,
+        branch=_LANDED_BRANCH,
+        expect_head=landed_head,
+        apply=True,
+    )
+
+    assert report["ok"] is True
+    assert report["state"] == "retired"
+    assert observed_worktree_removal_cwd == [repo]
+    assert not landed.exists()
+    assert git(repo, "branch", "--list", _LANDED_BRANCH) == ""
+
+
 def test_remove_linked_lane_removes_clean_worktree_before_deleting_exact_ref(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -333,7 +368,7 @@ def test_remove_linked_lane_removes_clean_worktree_before_deleting_exact_ref(
             "--untracked-files=all",
         ):
             return subprocess.CompletedProcess(args, 0, stdout="", stderr="")
-        if _repo == lane_path and args[:2] == ("worktree", "remove"):
+        if _repo == repo and args[:2] == ("worktree", "remove"):
             return subprocess.CompletedProcess(args, 0, stdout="", stderr="")
         if _repo == repo and args[:3] == ("update-ref", "-d", "refs/heads/work/stuck"):
             return subprocess.CompletedProcess(args, 0, stdout="", stderr="")
@@ -500,7 +535,7 @@ def test_remove_linked_lane_preserves_newer_ref_after_worktree_removal(
             "--untracked-files=all",
         ):
             return subprocess.CompletedProcess(args, 0, stdout="", stderr="")
-        if _repo == lane_path and args[:2] == ("worktree", "remove"):
+        if _repo == repo and args[:2] == ("worktree", "remove"):
             return subprocess.CompletedProcess(args, 0, stdout="", stderr="")
         if _repo == repo and args[:3] == ("update-ref", "-d", "refs/heads/work/stuck"):
             return subprocess.CompletedProcess(args, 1, stdout="", stderr="cannot lock ref")

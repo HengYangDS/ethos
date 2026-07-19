@@ -91,7 +91,6 @@ def test_named_cel_helpers_fail_closed_for_missing_rule() -> None:
 
 def test_topology_path_policy_reuses_immutable_declaration_decision(monkeypatch) -> None:
     declaration = load_generated_artifact_topology_declaration()
-    topology_contract._cached_path_policy.cache_clear()
     calls = 0
     original = topology_contract.evaluate_cel_predicate
 
@@ -101,15 +100,14 @@ def test_topology_path_policy_reuses_immutable_declaration_decision(monkeypatch)
         return original(*args, **kwargs)
 
     monkeypatch.setattr(topology_contract, "evaluate_cel_predicate", counted)
-    first = path_policy_from_declaration("docs/evidence/2026-07-07.md", declaration)
+    first = path_policy_from_declaration("docs/evidence/cache-regression.md", declaration)
     first_calls = calls
     first["decision"] = "mutated-by-caller"
-    second = path_policy_from_declaration("docs/evidence/2026-07-07.md", declaration)
+    second = path_policy_from_declaration("docs/evidence/cache-regression.md", declaration)
 
     assert first_calls > 0
     assert calls == first_calls
     assert second["decision"] == "review"
-    topology_contract._cached_path_policy.cache_clear()
 
 
 @given(

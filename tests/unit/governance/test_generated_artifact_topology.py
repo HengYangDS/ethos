@@ -578,7 +578,11 @@ url="https://nodejs.org/dist/v1/node.tar.xz"
     assert audit["required_gaps"] == []
 
 
-_UV_CONTEXT = '#!/usr/bin/env bash\nprintf \'%s\\n%s\\n%s\\n\' "$UV_PROJECT_ENVIRONMENT" "$UV_CACHE_DIR" "$*"\n'
+_UV_CONTEXT = (
+    "#!/usr/bin/env bash\n"
+    'if [[ "$1" == "sync" ]]; then exit "${UV_SYNC_EXIT:-0}"; fi\n'
+    'printf \'%s\\n%s\\n%s\\n\' "$UV_PROJECT_ENVIRONMENT" "$UV_CACHE_DIR" "$*"\n'
+)
 
 
 @pytest.mark.parametrize(
@@ -679,15 +683,17 @@ def test_semantic_runtime_bootstrap_rewrites_checkout_python(
     _init_repo(repo)
     fake_uv = _fake_uv(tmp_path, _UV_CONTEXT)
     checkout_python = repo.resolve() / "build/runtime/venv/bin/python"
+    environment = _environment(
+        fake_uv,
+        **{
+            key: (tmp_path / value).as_posix() if value is not None else None
+            for key, value in values.items()
+        },
+    )
+    environment["UV_SYNC_EXIT"] = "1"
     actual = _run_bootstrap(
         repo,
-        _environment(
-            fake_uv,
-            **{
-                key: (tmp_path / value).as_posix() if value is not None else None
-                for key, value in values.items()
-            },
-        ),
+        environment,
         checkout_python.as_posix(),
         "-m",
         "ethos.cli",
@@ -695,7 +701,7 @@ def test_semantic_runtime_bootstrap_rewrites_checkout_python(
     ).stdout.splitlines()
 
     assert actual[0] == f"{repo.resolve()}/build/runtime/venv"
-    assert actual[2] == "run --group dev python -m ethos.cli" + (
+    assert actual[2] == "run --locked --all-packages --group dev python -m ethos.cli" + (
         f" {' '.join(expected_command)}" if expected_command else ""
     )
     if expected_cache == "nested-bootstrap":
@@ -703,6 +709,44 @@ def test_semantic_runtime_bootstrap_rewrites_checkout_python(
     else:
         assert actual[1] == f"{tmp_path}/{expected_cache}"
     assert not checkout_python.exists()
+
+
+def test_semantic_runtime_bootstrap_repairs_a_stale_checkout_environment(
+    tmp_path: Path,
+) -> None:
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    capture = tmp_path / "uv-calls.txt"
+    fake_uv = _fake_uv(
+        tmp_path,
+        "#!/usr/bin/env bash\n"
+        'printf "%s\\n" "$*" >> "$UV_CAPTURE"\n'
+        'if [[ "$1" == "sync" ]]; then exit 1; fi\n'
+        'printf \'%s\\n%s\\n%s\\n\' "$UV_PROJECT_ENVIRONMENT" "$UV_CACHE_DIR" "$*"\n',
+    )
+    checkout_python = repo / "build/runtime/venv/bin/python"
+    checkout_python.parent.mkdir(parents=True)
+    checkout_python.write_text("#!/usr/bin/env bash\nprintf 'stale-runtime\\n'\n", encoding="utf-8")
+    checkout_python.chmod(0o755)
+    environment = _environment(fake_uv, XDG_CACHE_HOME="host-cache")
+    environment["UV_CAPTURE"] = capture.as_posix()
+
+    actual = _run_bootstrap(
+        repo,
+        environment,
+        checkout_python.as_posix(),
+        "-m",
+        "ethos.cli",
+        "status",
+        "--json",
+    ).stdout.splitlines()
+
+    assert actual[0] == f"{repo}/build/runtime/venv"
+    assert actual[2] == "run --locked --all-packages --group dev python -m ethos.cli status --json"
+    assert capture.read_text(encoding="utf-8").splitlines() == [
+        "sync --locked --all-packages --group dev --check",
+        "run --locked --all-packages --group dev python -m ethos.cli status --json",
+    ]
 
 
 def test_semantic_runtime_bootstrap_detaches_owner_script_from_uv_sync_lock(

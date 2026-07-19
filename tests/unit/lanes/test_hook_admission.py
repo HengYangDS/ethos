@@ -19,6 +19,7 @@ from ethos.adapters.mutation.proof import proof_state_dir
 from ethos.adapters.mutation.proof import record_executed_proof
 from ethos.repository.evidence.core import EvidenceSet
 from ethos.repository.evidence.core import ProofRun
+from ethos_core.contracts.admission import HookAdmissionRequest
 from tests.support.contract_helpers import conformant_proof_run
 from tests.support.lane_helpers import git
 from tests.support.lane_helpers import init_repo
@@ -118,9 +119,11 @@ def test_context_hook_rejects_stale_target_root(tmp_path: Path) -> None:
     other = init_repo(tmp_path / "other")
 
     report = hook_admission_report(
-        root=repo,
-        layer="context",
-        expected_root=other,
+        HookAdmissionRequest(
+            root=repo,
+            layer="context",
+            expected_root=other,
+        )
     )
 
     assert report["ok"] is False
@@ -138,11 +141,13 @@ def test_pre_tool_hook_blocks_protected_root_before_mutation(tmp_path: Path) -> 
     repo = init_repo(tmp_path / "repo")
 
     report = hook_admission_report(
-        root=repo,
-        layer="pre-tool",
-        paths=[repo / "README.md"],
-        editor_root=repo,
-        require_editor_root=True,
+        HookAdmissionRequest(
+            root=repo,
+            layer="pre-tool",
+            paths=[repo / "README.md"],
+            editor_root=repo,
+            require_editor_root=True,
+        )
     )
 
     assert report["ok"] is False
@@ -162,10 +167,12 @@ def test_pre_tool_hook_blocks_protected_root_write_tool_without_declared_paths(
     repo = init_repo(tmp_path / "repo")
 
     report = hook_admission_report(
-        root=repo,
-        layer="pre-tool",
-        editor_root=repo,
-        require_editor_root=True,
+        HookAdmissionRequest(
+            root=repo,
+            layer="pre-tool",
+            editor_root=repo,
+            require_editor_root=True,
+        )
     )
 
     assert report["ok"] is False
@@ -184,11 +191,13 @@ def test_pre_tool_hook_blocks_raw_work_lane_without_lease(tmp_path: Path) -> Non
     git(repo, "worktree", "add", "-b", "work/feature", worktree.as_posix(), "dev")
 
     report = hook_admission_report(
-        root=worktree,
-        layer="pre-tool",
-        paths=[worktree / "README.md"],
-        editor_root=worktree,
-        require_editor_root=True,
+        HookAdmissionRequest(
+            root=worktree,
+            layer="pre-tool",
+            paths=[worktree / "README.md"],
+            editor_root=worktree,
+            require_editor_root=True,
+        )
     )
 
     assert report["ok"] is False
@@ -222,11 +231,13 @@ def test_pre_tool_hook_evaluates_leased_work_lane_actor(
     expected_state, expected_action, expected_lease_reason = expected
     monkeypatch.setenv("ETHOS_ACTOR", actor)
     report = hook_admission_report(
-        root=leased_worktree,
-        layer="pre-tool",
-        paths=[leased_worktree / "README.md"],
-        editor_root=leased_worktree,
-        require_editor_root=True,
+        HookAdmissionRequest(
+            root=leased_worktree,
+            layer="pre-tool",
+            paths=[leased_worktree / "README.md"],
+            editor_root=leased_worktree,
+            require_editor_root=True,
+        )
     )
 
     assert report["ok"] is (expected_state == "admitted")
@@ -279,11 +290,13 @@ def test_pre_tool_hook_admits_detached_rebase_of_owned_work_lane(
     (rebase_dir / "head-name").write_text("refs/heads/work/feature\n", encoding="utf-8")
 
     report = hook_admission_report(
-        root=leased_worktree,
-        layer="pre-tool",
-        paths=[leased_worktree / "README.md"],
-        editor_root=leased_worktree,
-        require_editor_root=True,
+        HookAdmissionRequest(
+            root=leased_worktree,
+            layer="pre-tool",
+            paths=[leased_worktree / "README.md"],
+            editor_root=leased_worktree,
+            require_editor_root=True,
+        )
     )
 
     assert report["ok"] is True
@@ -325,11 +338,13 @@ def test_pre_tool_hook_keeps_non_work_lane_detached_rebase_protected(
     (rebase_dir / "head-name").write_text("refs/heads/dev\n", encoding="utf-8")
 
     report = hook_admission_report(
-        root=repo,
-        layer="pre-tool",
-        paths=[repo / "README.md"],
-        editor_root=repo,
-        require_editor_root=True,
+        HookAdmissionRequest(
+            root=repo,
+            layer="pre-tool",
+            paths=[repo / "README.md"],
+            editor_root=repo,
+            require_editor_root=True,
+        )
     )
 
     assert report["ok"] is False
@@ -350,11 +365,13 @@ def test_pre_run_hook_blocks_mutation_risk_without_target_paths(tmp_path: Path) 
     repo = init_repo(tmp_path / "repo")
 
     report = hook_admission_report(
-        root=repo,
-        layer="pre-run",
-        command='python -c \'from pathlib import Path; Path("README.md").write_text("x")\'',
-        editor_root=repo,
-        require_editor_root=True,
+        HookAdmissionRequest(
+            root=repo,
+            layer="pre-run",
+            command='python -c \'from pathlib import Path; Path("README.md").write_text("x")\'',
+            editor_root=repo,
+            require_editor_root=True,
+        )
     )
 
     assert report["ok"] is False
@@ -385,11 +402,13 @@ def test_pre_run_hook_blocks_unknown_or_mutating_protected_root_commands_without
     repo = init_repo(tmp_path / "repo")
 
     report = hook_admission_report(
-        root=repo,
-        layer="pre-run",
-        command=command,
-        editor_root=repo,
-        require_editor_root=True,
+        HookAdmissionRequest(
+            root=repo,
+            layer="pre-run",
+            command=command,
+            editor_root=repo,
+            require_editor_root=True,
+        )
     )
 
     assert report["ok"] is False
@@ -408,11 +427,13 @@ def test_post_write_hook_fuses_protected_root_dirty_state(tmp_path: Path) -> Non
     (repo / "README.md").write_text("# changed\n", encoding="utf-8")
 
     report = hook_admission_report(
-        root=repo,
-        layer="post-write",
-        paths=[repo / "README.md"],
-        editor_root=repo,
-        require_editor_root=True,
+        HookAdmissionRequest(
+            root=repo,
+            layer="post-write",
+            paths=[repo / "README.md"],
+            editor_root=repo,
+            require_editor_root=True,
+        )
     )
 
     assert report["ok"] is False
@@ -435,10 +456,12 @@ def test_post_write_hook_fuses_work_lane_dirty_state_without_expected_paths(
     (worktree / "README.md").write_text("# changed\n", encoding="utf-8")
 
     report = hook_admission_report(
-        root=worktree,
-        layer="post-write",
-        editor_root=worktree,
-        require_editor_root=True,
+        HookAdmissionRequest(
+            root=worktree,
+            layer="post-write",
+            editor_root=worktree,
+            require_editor_root=True,
+        )
     )
 
     assert report["ok"] is False

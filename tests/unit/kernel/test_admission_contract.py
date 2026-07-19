@@ -1,7 +1,12 @@
 from __future__ import annotations
 
+from pathlib import Path
+
+import pytest
+
 from ethos_core.contracts.admission import AdmissionDecision
 from ethos_core.contracts.admission import DecisionBasis
+from ethos_core.contracts.admission import HookAdmissionRequest
 from ethos_core.contracts.admission import MutationSubject
 
 
@@ -58,3 +63,28 @@ def test_action_preview_is_explicitly_non_authoritative() -> None:
         "mints_authority": False,
         "recheck_required": True,
     }
+
+
+def test_hook_admission_request_normalizes_pathlike_inputs() -> None:
+    request = HookAdmissionRequest(
+        root=Path("/repo"),
+        layer="pre-tool",
+        paths=(Path("README.md"),),
+        editor_root=Path("/repo"),
+        expected_root=Path("/repo"),
+    )
+
+    assert request.model_dump() == {
+        "root": "/repo",
+        "layer": "pre-tool",
+        "paths": ("README.md",),
+        "editor_root": "/repo",
+        "require_editor_root": False,
+        "command": "",
+        "expected_root": "/repo",
+    }
+
+
+def test_hook_admission_request_rejects_non_path_bound_context() -> None:
+    with pytest.raises(ValueError, match="filesystem path"):
+        HookAdmissionRequest(root=object(), layer="pre-tool")

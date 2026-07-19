@@ -23,6 +23,7 @@ from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import emit
 from ethos.surface.cli._base import hook_app
 from ethos.surface.cli._base import resolve_root
+from ethos_core.contracts.admission import HookAdmissionRequest
 from ethos_core.contracts.branch.roles import load_branch_role_policy
 from ethos_core.contracts.commands import load_command_registry_declaration
 from ethos_core.normalization.core import string_sequence
@@ -46,18 +47,20 @@ def admit(
     """Evaluate hook-time write admission before a host mutates tracked files."""
     repo = resolve_root(root)
     report = hook_admission_report(
-        root=repo,
-        layer=layer,
-        paths=[
-            path
-            if path.is_absolute() or has_invalid_path_token_character(path.as_posix())
-            else repo / path
-            for path in paths
-        ],
-        editor_root=editor_root,
-        expected_root=expected_root,
-        require_editor_root=require_editor_root,
-        command=command,
+        HookAdmissionRequest(
+            root=repo,
+            layer=layer,
+            paths=tuple(
+                path
+                if path.is_absolute() or has_invalid_path_token_character(path.as_posix())
+                else repo / path
+                for path in paths
+            ),
+            editor_root=editor_root,
+            expected_root=expected_root,
+            require_editor_root=require_editor_root,
+            command=command,
+        )
     )
     decision = report.get("decision", {})
     decision_action = ""

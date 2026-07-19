@@ -42,7 +42,19 @@ export ETHOS_RUNTIME_ROOT="${repo_root}"
 # runs the same Python argv.  Explicit ETHOS_PYTHON/PYTHON overrides do not
 # match this path and therefore retain their caller-owned semantics.
 semantic_python="${UV_PROJECT_ENVIRONMENT}/bin/python"
-if [[ "$1" == "${semantic_python}" && ! -x "${semantic_python}" ]]; then
+if [[ "$1" == "${semantic_python}" ]]; then
+  # A checkout-local interpreter is only a valid execution authority when its
+  # installed dependency graph still matches this checkout's locked workspace.
+  # Existence alone is weak evidence: an interrupted bootstrap or a changed
+  # lockfile leaves a runnable but semantically stale environment. Check before
+  # using it directly; repair through uv when the check fails.
+  runtime_needs_sync="false"
+  if [[ ! -x "${semantic_python}" ]] || ! uv sync --locked --all-packages --group dev --check >/dev/null 2>&1; then
+    runtime_needs_sync="true"
+  fi
+  if [[ "${runtime_needs_sync}" != "true" ]]; then
+    exec "$@"
+  fi
   bootstrap_cache_dir="${UV_CACHE_DIR}"
   if [[ -n "${inherited_runtime_root}" && "${inherited_runtime_root}" != "${repo_root}" ]]; then
     # An outer uv invocation holds its cache lock for the full command. A hook
@@ -53,7 +65,7 @@ if [[ "$1" == "${semantic_python}" && ! -x "${semantic_python}" ]]; then
     bootstrap_cache_dir="${UV_CACHE_DIR}/nested-bootstrap/${nested_cache_key}"
     mkdir -p "${bootstrap_cache_dir}"
   fi
-  exec env UV_CACHE_DIR="${bootstrap_cache_dir}" uv run --group dev python "${@:2}"
+  exec env UV_CACHE_DIR="${bootstrap_cache_dir}" uv run --locked --all-packages --group dev python "${@:2}"
 fi
 
 # Owner scripts enter through `uv run ... env ETHOS_RUNTIME_BOOTSTRAPPED=1`.

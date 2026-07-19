@@ -20,6 +20,7 @@ from ethos.repository.policy.rules.exceptions import policy_exceptions_report
 from ethos.repository.policy.rules.exceptions import ttl_days_or_none
 from ethos.repository.policy.rules.migration import toml_table_key
 from ethos.repository.policy.rules.migration import toml_value
+from ethos_core.contracts.admission import HookAdmissionRequest
 from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 from tests.support.subprocesses import completed as cp
@@ -49,20 +50,27 @@ def status(
 
 def test_admission_hook_layers_and_postwrite_fuse(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(admission, "workspace_status", lambda repo, **_kwargs: status())
-    assert admission.hook_admission_report(root=tmp_path, layer="unknown")["state"] == "admitted"
     assert (
-        admission.hook_admission_report(root=tmp_path, layer="context", expected_root=tmp_path)[
+        admission.hook_admission_report(HookAdmissionRequest(root=tmp_path, layer="unknown"))[
             "state"
         ]
+        == "admitted"
+    )
+    assert (
+        admission.hook_admission_report(
+            HookAdmissionRequest(root=tmp_path, layer="context", expected_root=tmp_path)
+        )["state"]
         == "refreshed"
     )
     assert admission.hook_admission_report(
-        root=tmp_path, layer="context", expected_root=tmp_path / "other"
+        HookAdmissionRequest(root=tmp_path, layer="context", expected_root=tmp_path / "other")
     )["required_gaps"] == ["hook_context_root_mismatch"]
-    observe = admission.hook_admission_report(root=tmp_path, layer="pre-run", command="git status")
+    observe = admission.hook_admission_report(
+        HookAdmissionRequest(root=tmp_path, layer="pre-run", command="git status")
+    )
     assert observe["decision"]["reason"] == "command_observe_only"
     risky = admission.hook_admission_report(
-        root=tmp_path, layer="pre-run", command="python -c 'open(1, \"w\")'"
+        HookAdmissionRequest(root=tmp_path, layer="pre-run", command="python -c 'open(1, \"w\")'")
     )
     assert risky["required_gaps"] == ["hook_prerun_paths_required"]
 
@@ -72,7 +80,7 @@ def test_admission_hook_layers_and_postwrite_fuse(monkeypatch, tmp_path: Path) -
         lambda repo, **_kwargs: status(ROLE_ACCEPTED_ROOT, changed=["README.md"]),
     )
     protected = admission.hook_admission_report(
-        root=tmp_path, layer="post-write", paths=[Path("README.md")]
+        HookAdmissionRequest(root=tmp_path, layer="post-write", paths=[Path("README.md")])
     )
     assert protected["state"] == "fused"
     assert protected["required_gaps"] == ["post_write_protected_root_dirty"]
@@ -83,7 +91,7 @@ def test_admission_hook_layers_and_postwrite_fuse(monkeypatch, tmp_path: Path) -
         lambda repo, **_kwargs: status(ROLE_WORK_LANE, changed=["unexpected.md"]),
     )
     unexpected = admission.hook_admission_report(
-        root=tmp_path, layer="post-write", paths=[Path("README.md")]
+        HookAdmissionRequest(root=tmp_path, layer="post-write", paths=[Path("README.md")])
     )
     assert unexpected["required_gaps"] == ["post_write_unexpected_path"]
 

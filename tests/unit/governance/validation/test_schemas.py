@@ -73,6 +73,8 @@ def test_schema_validation_report_covers_all_ethos_schemas() -> None:
     assert report["schemas"]["campaign-closeout.schema.json"]["ok"] is True
     assert report["schemas"]["trust-envelope.schema.json"]["ok"] is True
     assert report["schemas"]["promotion-target.schema.json"]["ok"] is True
+    assert report["schemas"]["source-budget-carriers.schema.json"]["ok"] is True
+    assert report["schemas"]["source-budget-metrics.schema.json"]["ok"] is True
     assert report["schemas"]["capability-profile.schema.json"]["ok"] is True
     assert report["schemas"]["skill-activation.schema.json"]["ok"] is True
     assert report["schemas"]["skill-registry.schema.json"]["ok"] is True

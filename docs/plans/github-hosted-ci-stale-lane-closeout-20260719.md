@@ -1,14 +1,14 @@
 ---
 subject: ethos:github-hosted-ci-stale-lane-closeout-20260719
 role: plan
-state: active
+state: archived
 relations:
   implements: github-hosted-ci-stale-lane-closeout-20260719
 ---
 
 # GitHub Hosted CI Stale Work Lane Closeout — 2026-07-19
 
-Status: active fact-and-prerequisite carrier; no lane-resolution effect is
+Status: archived fact-and-prerequisite carrier; no lane-resolution effect is
 authorized or has been performed.
 
 Purpose: record the exact historical audit and the fail-closed prerequisites for
@@ -16,7 +16,7 @@ a later, separately governed `lane_resolution/preserve-retire` closeout. This
 carrier does not authorize a native decision or apply, mint authority over the
 target lane, or make a remote, push, or hosted-CI claim.
 
-See the [active OpenSpec Change](../../openspec/changes/github-hosted-ci-stale-lane-closeout-20260719/).
+See the [archived OpenSpec Change](../../openspec/changes/archive/2026-07-19-github-hosted-ci-stale-lane-closeout-20260719/).
 
 ## Bound Observation
 

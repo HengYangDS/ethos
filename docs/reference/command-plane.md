@@ -225,9 +225,10 @@ ethos lane retire unbound --branch <work-lane-branch> --expect-head <git-head> -
 `ethos lane housekeeping` is a separate detached-worktree cleanup surface, not
 a Work Lane retirement shortcut. Dry-run is the default. Authorized apply can
 remove only a clean, detached, unlocked checkout below the active session temp
-root, the system `/tmp` real path, or the current Codex home `worktrees` root. It rechecks the
-candidate and uses non-forced `git worktree remove`; dirty, branch-bound,
-locked, current, non-temporary, or changed entries remain protected.
+root, the system `/tmp` real path, or an explicit
+`$ETHOS_HOUSEKEEPING_ROOTS` entry. It rechecks the candidate and uses
+non-forced `git worktree remove`; dirty, branch-bound, locked, current,
+non-temporary, unreadable, or changed entries remain protected.
 
 When `--root` is omitted, CLI commands resolve the current Git worktree root
 from `cwd`. A Work Lane subdirectory therefore binds to that Work Lane, not to

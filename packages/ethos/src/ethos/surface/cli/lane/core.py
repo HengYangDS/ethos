@@ -21,7 +21,7 @@ from ethos.adapters.mutation.lanes import retire_landed_work_lanes
 from ethos.adapters.mutation.lanes import retire_superseded_work_lane
 from ethos.adapters.mutation.lanes import retire_unbound_work_lane_ref
 from ethos.adapters.mutation.lanes import start_work_lane
-from ethos.adapters.mutation.worktree_housekeeping import housekeeping_worktrees
+from ethos.adapters.mutation.worktree.core import housekeeping_worktrees
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption

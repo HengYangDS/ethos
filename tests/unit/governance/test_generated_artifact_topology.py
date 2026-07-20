@@ -114,7 +114,8 @@ def test_source_bound_uv_runner_uses_semantic_runtime_homes() -> None:
         Path("system/policies/generated-artifact-topology.toml")
     )
     runner = Path("tools/ci/scripts/run-ethos-lane.sh").read_text(encoding="utf-8")
-    bootstrap = Path("tools/ci/scripts/with-python-runtime.sh").read_text(encoding="utf-8")
+    runtime_wrapper = Path("tools/ci/scripts/with-python-runtime.sh").read_text(encoding="utf-8")
+    hosted_bootstrap = Path("tools/ci/scripts/bootstrap-python.sh").read_text(encoding="utf-8")
 
     assert "build/runtime/venv" in declaration.runtime_allowed_prefixes
     assert (
@@ -125,8 +126,11 @@ def test_source_bound_uv_runner_uses_semantic_runtime_homes() -> None:
         'exec "${script_dir}/with-python-runtime.sh" -- uv run --all-packages --group dev ethos "$@"'
         in runner
     )
-    assert 'export UV_PROJECT_ENVIRONMENT="${repo_root}/build/runtime/venv"' in bootstrap
-    assert 'export UV_CACHE_DIR="${XDG_CACHE_HOME:-${HOME}/.cache}/ethos/uv"' in bootstrap
+    assert 'export UV_PROJECT_ENVIRONMENT="${repo_root}/build/runtime/venv"' in runtime_wrapper
+    assert 'export UV_CACHE_DIR="${XDG_CACHE_HOME:-${HOME}/.cache}/ethos/uv"' in runtime_wrapper
+    for script in (runtime_wrapper, hosted_bootstrap):
+        assert "build/runtime/tool-cache/uv-bootstrap" in script
+        assert "build/runtime/bootstrap" not in script
 
 
 def test_path_policy_keeps_config_declarative_and_build_generated() -> None:

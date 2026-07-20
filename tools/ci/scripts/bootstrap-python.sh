@@ -8,7 +8,7 @@ repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 # same checkout-bound environment first so they cannot fall back to a default
 # `.venv` or ambient interpreter.
 export UV_PROJECT_ENVIRONMENT="${repo_root}/build/runtime/venv"
-bootstrap_venv="${repo_root}/build/runtime/bootstrap"
+bootstrap_venv="${repo_root}/build/runtime/tool-cache/uv-bootstrap"
 python -m venv "${bootstrap_venv}"
 "${bootstrap_venv}/bin/pip" install --disable-pip-version-check --quiet uv
 export PATH="${bootstrap_venv}/bin:${PATH}"

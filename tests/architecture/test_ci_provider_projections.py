@@ -230,8 +230,11 @@ def test_github_ci_uses_current_action_majors() -> None:
 def test_hosted_python_bootstrap_materializes_the_source_bound_runtime() -> None:
     bootstrap = (ROOT / "tools/ci/scripts/bootstrap-python.sh").read_text(encoding="utf-8")
 
+    tool_runtime = 'bootstrap_venv="${repo_root}/build/runtime/tool-cache/uv-bootstrap"'
     environment = 'export UV_PROJECT_ENVIRONMENT="${repo_root}/build/runtime/venv"'
     sync = "uv sync --all-packages --group dev"
+    assert tool_runtime in bootstrap
+    assert "build/runtime/bootstrap" not in bootstrap
     assert environment in bootstrap
     assert sync in bootstrap
     assert bootstrap.index(environment) < bootstrap.index(sync)
@@ -429,7 +432,7 @@ def test_local_emulator_run_fails_when_provider_logs_contain_warnings(
         "forbidden_log_patterns": ["(?:^|[ >])DeprecationWarning:"],
     }
     monkeypatch.setattr(ci_templates, "_provider_entry", lambda _provider: entry)
-    monkeypatch.setattr(ci_templates.shutil, "which", lambda _tool: "/usr/local/bin/act")
+    monkeypatch.setattr(ci_templates.shutil, "which", {"act": "/usr/local/bin/act"}.get)
     monkeypatch.setattr(ci_templates, "_tool_version", lambda _tool: "act 1.0")
     monkeypatch.setattr(
         ci_templates,
@@ -481,7 +484,7 @@ def test_local_emulator_run_ignores_declarative_warning_pattern_text(
         ],
     }
     monkeypatch.setattr(ci_templates, "_provider_entry", lambda _provider: entry)
-    monkeypatch.setattr(ci_templates.shutil, "which", lambda _tool: "/usr/local/bin/act")
+    monkeypatch.setattr(ci_templates.shutil, "which", {"act": "/usr/local/bin/act"}.get)
     monkeypatch.setattr(ci_templates, "_tool_version", lambda _tool: "act 1.0")
     monkeypatch.setattr(
         ci_templates,

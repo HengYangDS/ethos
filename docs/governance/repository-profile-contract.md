@@ -37,9 +37,9 @@ profile in the repository's configuration layer.
 ## Responsibilities
 
 The profile may declare identity, roots for repository-owned capabilities,
-evidence-root classes, proof gate descriptors, independent-verification policy,
-docs topology, a container contract, adoption boundaries, and explicit
-backend-retirement state.
+explicit normative source files, evidence-root classes, proof gate descriptors,
+independent-verification policy, docs topology, a container contract, adoption
+boundaries, and explicit backend-retirement state.
 
 The profile must not declare:
 
@@ -70,6 +70,29 @@ material_paths = [
 `profile_id` and every material-path item are non-empty. Pydantic v2 rejects
 unknown fields and invalid types; the loaded declaration is frozen. Omitted
 sections use contract-owned defaults rather than repeated generated text.
+
+### Former Profile Envelope
+
+ETHOS accepts one explicit former envelope while adopters migrate: the complete
+`schema_version = 1`, `profile_version = "1"`,
+`ethos_contract_version = "1"`, and two-field `[repository]` metadata block.
+Those retired fields are removed before the current strict declaration is
+validated. Partial, malformed, or extended legacy data is not compatibility
+input and remains `adopter_profile_invalid:.ethos/profile.toml`.
+
+### Normative Sources
+
+`roots.rules` remains a safe repository-relative root; it is not the repository
+root and it must not be used to pretend that a single file is a directory. An
+adopter whose normative authority is a root-level file declares that fact
+separately:
+
+```toml
+normative_sources = ["guidelines.md"]
+```
+
+ETHOS includes these files in evidence-root candidates but does not copy,
+relocate, or otherwise redefine their native authority.
 
 ## Material OpenSpec Scope
 

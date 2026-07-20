@@ -7,6 +7,7 @@ from pydantic import ValidationError
 
 from ethos.repository.profile import RepositoryProfileDeclaration
 from ethos.repository.profile import load_repository_profile
+from ethos.repository.profile import profile_evidence_roots
 from ethos.repository.profile import profile_root
 from ethos.repository.profile import render_repository_profile
 
@@ -63,13 +64,34 @@ def test_profile_contract_is_strict_frozen_and_deterministic(tmp_path: Path) -> 
         "profile_id = ''\n[openspec]\nmaterial_paths = ['openspec/**']\n",
         "profile_id = 'sample'\n[openspec]\nmaterial_paths = []\n",
         "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['/absolute']\n",
-        "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\n[roots]\nclaims = '../claims'\n",
-        "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\n[roots]\ndocs = '/docs'\n",
-        "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\n[roots]\nrules = 'rules\\\\windows'\n",
-        "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\n[roots]\nlocal_state = '.'\n",
-        "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\n[evidence]\ndurable_roots = ['../outside']\n",
-        "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\n[external_backend]\nstate = 'default'\ncontrol = '../control.toml'\n",
-        "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\n[rollback_window]\nstate = 'complete'\nevidence_manifest = '../rollback.toml'\n",
+        (
+            "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\n"
+            "[roots]\nclaims = '../claims'\n"
+        ),
+        (
+            "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\n"
+            "[roots]\ndocs = '/docs'\n"
+        ),
+        (
+            "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\n"
+            "[roots]\nrules = 'rules\\\\windows'\n"
+        ),
+        (
+            "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\n"
+            "[roots]\nlocal_state = '.'\n"
+        ),
+        (
+            "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\n"
+            "[evidence]\ndurable_roots = ['../outside']\n"
+        ),
+        (
+            "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\n"
+            "[external_backend]\nstate = 'default'\ncontrol = '../control.toml'\n"
+        ),
+        (
+            "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\n"
+            "[rollback_window]\nstate = 'complete'\nevidence_manifest = '../rollback.toml'\n"
+        ),
         "profile_id = 'sample'\n[openspec]\nmaterial_paths = ['openspec/**']\nextra = true\n",
     ],
 )
@@ -90,6 +112,65 @@ def test_profile_contract_rejects_non_string_paths() -> None:
                 "roots": {"claims": 1},
             }
         )
+
+
+def test_legacy_profile_envelope_normalizes_to_current_contract(tmp_path: Path) -> None:
+    profile = tmp_path / ".ethos" / "profile.toml"
+    profile.parent.mkdir()
+    profile.write_text(
+        "schema_version = 1\n"
+        'profile_id = "sample"\n'
+        'profile_version = "1"\n'
+        'ethos_contract_version = "1"\n\n'
+        "[repository]\n"
+        'kind = "documentation"\n'
+        'root_subject = "sample"\n\n'
+        "[openspec]\n"
+        'material_paths = ["openspec/**"]\n',
+        encoding="utf-8",
+    )
+
+    loaded = load_repository_profile(tmp_path)
+
+    assert loaded.state == "valid"
+    assert loaded.declaration is not None
+    assert loaded.declaration.profile_id == "sample"
+
+
+def test_legacy_profile_envelope_requires_exact_retired_shape(tmp_path: Path) -> None:
+    profile = tmp_path / ".ethos" / "profile.toml"
+    profile.parent.mkdir()
+    profile.write_text(
+        'profile_id = "sample"\n'
+        'profile_version = "2"\n\n'
+        "[openspec]\n"
+        'material_paths = ["openspec/**"]\n',
+        encoding="utf-8",
+    )
+
+    assert load_repository_profile(tmp_path).state == "invalid"
+
+
+def test_profile_includes_declared_normative_sources_without_root_escape(tmp_path: Path) -> None:
+    profile = tmp_path / ".ethos" / "profile.toml"
+    profile.parent.mkdir()
+    profile.write_text(
+        'profile_id = "sample"\n\n'
+        'normative_sources = ["guidelines.md"]\n\n'
+        "[openspec]\n"
+        'material_paths = ["openspec/**"]\n',
+        encoding="utf-8",
+    )
+
+    assert profile_evidence_roots(tmp_path) == (
+        ".ethos/profile.toml",
+        "rules",
+        "guidelines.md",
+        "evidence/claims",
+        "openspec",
+        "evidence",
+        "docs",
+    )
 
 
 def test_profile_loader_rejects_unreadable_profile(tmp_path: Path, monkeypatch) -> None:

@@ -37,7 +37,6 @@ ignore = [
   "PLR0915", # too-many-statements: same; C90 complexity already caps the worst
   "BLE001",  # blind-except: temporary defensive adapter debt; reduce case-by-case
   "ARG001",  # unused-function-argument: cyclopts/adapter signatures need the arg
-  "ARG002",  # unused-method-argument: same (protocol conformance)
   "SLF001",  # private-member-access remains visible whole-repo ratchet debt;
   # product code should stay SLF001-clean while tests dissolve private reach-throughs.
   "PLR0402", # "from package import submodule" conflicts with ETHOS concrete-submodule

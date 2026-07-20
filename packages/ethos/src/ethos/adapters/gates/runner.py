@@ -53,6 +53,7 @@ def _ethos_result_diagnostics(stdout: str) -> tuple[dict[str, Any], ...]:
 
 class DryRunRunner:
     def run(self, node: ActionNode, *, root: Path) -> ActionRunResult:
+        root.resolve(strict=True)
         return ActionRunResult(
             action_id=node.id,
             command=node.command,

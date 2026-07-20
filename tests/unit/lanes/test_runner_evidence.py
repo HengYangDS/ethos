@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -12,15 +12,25 @@ from ethos.repository.evidence.core import provenance_envelope
 from ethos.repository.evidence.core import trim_output
 from ethos_core.action_graph.core import ActionNode
 
+if TYPE_CHECKING:
+    from pathlib import Path
 
-def test_dry_run_runner_records_action_without_execution() -> None:
+
+def test_dry_run_runner_records_action_without_execution(tmp_path: Path) -> None:
     node = ActionNode(id="status", kind="inspect", command=("ethos", "status", "--json"))
 
-    result = DryRunRunner().run(node, root=Path.cwd())
+    result = DryRunRunner().run(node, root=tmp_path)
 
     assert result.action_id == "status"
     assert result.state == "planned"
     assert result.exit_code is None
+
+
+def test_dry_run_runner_rejects_a_missing_execution_root(tmp_path: Path) -> None:
+    node = ActionNode(id="status", kind="inspect", command=("ethos", "status", "--json"))
+
+    with pytest.raises(FileNotFoundError):
+        DryRunRunner().run(node, root=tmp_path / "missing")
 
 
 def test_local_runner_executes_successful_command_after_handler_declines(tmp_path: Path) -> None:

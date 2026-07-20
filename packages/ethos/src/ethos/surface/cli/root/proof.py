@@ -90,7 +90,7 @@ def prove(*, objective: str='ethos proof', scope: str='repository', execute: boo
     gates_by_id = gate_registry(repo)
     runner = LocalSubprocessRunner(inprocess_handler=run_inprocess_cli_gate) if execute else DryRunRunner()
     proof_runs = tuple(ProofRun.from_adapter_result(AdapterProofResult(action_id=run_result.action_id, command=run_result.command, exit_code=run_result.exit_code, stdout=trim_output(run_result.stdout), stderr=trim_output(run_result.stderr), adapter_state=run_result.state, evidence_class=gates_by_id[run_result.action_id].evidence_class, trust_bearing=gates_by_id[run_result.action_id].trust_bearing, diagnostics=run_result.diagnostics)) for run_result in (runner.run(node, root=repo) for node in graph.ordered_nodes()))
-    evidence = EvidenceSet.from_runs(id=f'ethos:{objective}', head=current_head, runs=proof_runs, durability='local')
+    evidence = EvidenceSet.from_runs(evidence_id=f'ethos:{objective}', head=current_head, runs=proof_runs, durability='local')
     verdicts_ok = all(run.verdict == 'passed' for run in proof_runs)
     trust_bearing_runs = tuple(run for run in proof_runs if run.trust_bearing)
     trust_bearing_ok = bool(trust_bearing_runs) and all(run.state == 'proven' for run in trust_bearing_runs)

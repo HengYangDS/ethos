@@ -80,7 +80,6 @@ convention = "google"
 # whole-repo ratchet (.config/checks/ruff/ratchet.toml SLF001=220), not a blanket ignore.
 "tests/**" = ["E501", "INP001", "PLR2004", "S101", "S105", "S106", "S603", "S606", "S607"]
 "extensions/**/tests/**" = ["E501", "INP001", "PLR2004", "S101", "S105", "S106", "S603", "S606", "S607"]
-# `id` on a widely-called classmethod — rename deferred to the package-split migration.
 # C901 cyclomatic-complexity ratchet: pre-existing tangled functions are frozen
 # and decompose during the package/surface split. New code: cap 10.
 "packages/ethos-core/src/ethos_core/contracts/rules.py" = ["C901"]
@@ -89,7 +88,7 @@ convention = "google"
 "packages/ethos/src/ethos/adapters/mutation/core.py" = ["C901"]
 "packages/ethos/src/ethos/repository/registry/authority.py" = ["C901"]
 "packages/ethos/src/ethos/repository/evidence/claims.py" = ["C901"]
-"packages/ethos/src/ethos/repository/evidence/core.py" = ["C901", "A002"]
+"packages/ethos/src/ethos/repository/evidence/core.py" = ["C901"]
 "packages/ethos/src/ethos/repository/adoption/evolution.py" = ["C901"]
 "packages/ethos/src/ethos/repository/evidence/parity/core.py" = ["C901"]
 # The CLI surface layer is the sanctioned place that prints to stdout (emit()); T20

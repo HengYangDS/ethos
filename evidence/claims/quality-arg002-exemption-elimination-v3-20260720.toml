@@ -7,7 +7,7 @@ summary = "The bounded ARG002 quality exception is removed from source and both 
 
 [evidence]
 dated = "evidence/chronicle/quality-arg002-exemption-elimination-v3-20260720/2026-07-20.md"
-sha256 = "2cd96e987f5ae930be392f77b897f437e2e438ca2b31a2874c85ec5fcbf8527c"
+sha256 = "ec646b74556b5c2040c6f5a51030986ead208888df2b929340b0dece5b172121"
 evidence_ids = ["evidence:quality-arg002-exemption-elimination-v3-20260720"]
 binding = "The active OpenSpec carrier, execution-root regressions, whole-corpus ARG002 probe, canonical Ruff owner gate, and dated Chronicle bind only the ARG002 elimination slice."
 verifier = "digest_only"
@@ -26,7 +26,7 @@ owner = "ethos-quality-gate-governance"
 scope = "Dry-run execution-root validation and removal of the one ARG002 global-ignore and ratchet-baseline carrier; not terminal zero-exception quality."
 
 [carriers]
-openspec = "openspec/changes/quality-arg002-exemption-elimination-v3-20260720"
+openspec = "openspec/changes/archive/2026-07-20-quality-arg002-exemption-elimination-v3-20260720"
 fallback = "Restore the bounded source and both matching policy entries together only if strict root validation or direct ARG002 enforcement regresses."
 kill_signal = "The whole-corpus ARG002 probe finds a diagnostic, the rule returns to either exception carrier, or the canonical Ruff owner gate fails."
 
@@ -37,7 +37,7 @@ targets = [
   "packages/ethos/src/ethos/adapters/gates/runner.py",
   "tests/unit/governance/test_quality_regime.py",
   "tests/unit/lanes/test_runner_evidence.py",
-  "openspec/changes/quality-arg002-exemption-elimination-v3-20260720",
+  "openspec/changes/archive/2026-07-20-quality-arg002-exemption-elimination-v3-20260720",
   "evidence/claims/quality-arg002-exemption-elimination-v3-20260720.toml",
   "evidence/chronicle/quality-arg002-exemption-elimination-v3-20260720/2026-07-20.md",
 ]

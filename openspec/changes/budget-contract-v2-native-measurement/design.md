@@ -154,7 +154,7 @@ policy and runner, with an architecture test that forbids widening the exception
    symlink, non-directory ancestor, non-regular final object, short or changing
    object, path-entry replacement, or fingerprint drift returns a stable
    required gap and discards all bytes and partial metrics. Every opened
-   descriptor is closed on every exit path. `MemoryError` and equivalent local
+   descriptor is closed on every exit path. `MemoryError`, `RecursionError`, and equivalent local
    resource exhaustion map to stable non-sensitive provider or carrier gaps;
    exception text and absolute paths never cross the boundary. These
    fingerprints are ephemeral race checks only.
@@ -165,8 +165,8 @@ policy and runner, with an architecture test that forbids widening the exception
    measurement runtime returns a stable required gap. Dispatch uses the exact
    tuple of runtime contract, parser id/version, grammar digest, normalization
    id/version, metric id, and unit. Provider versions are explicit per governed
-   algorithm: the corrected shell grammar uses `ethos-shell-v3`, YAML uses
-   `ethos-yaml-v2`, Jinja uses `ethos-jinja-v2`, and unchanged native providers
+   algorithm: the corrected shell grammar uses `ethos-shell-v4`, YAML uses
+   `ethos-yaml-v2`, Jinja uses `ethos-jinja-v3`, and unchanged native providers
    retain v1. Jinja and PyYAML signatures additionally bind their admitted major
    versions; repository-owned providers bind their algorithm plus the canonical
    runtime.
@@ -232,7 +232,9 @@ policy and runner, with an architecture test that forbids widening the exception
    counted from the validated AST excluding the root and static TemplateData
    nodes. `template_dynamic_bytes` is the byte length of the canonical validated
    dynamic-AST payload, so equal node counts cannot launder larger dynamic
-   literals. Static payload bytes come from lexer data and comment payload tokens
+   literals. Non-finite numeric AST leaves are rejected before canonicalization,
+   and canonical JSON forbids NaN/Infinity defensively. Static payload bytes come
+   from lexer data and comment payload tokens
    after newline normalization, so a giant comment cannot become a zero-vector
    payload. Dynamic units, canonical dynamic bytes, and static/comment bytes are
    three non-compensating coordinates.
@@ -244,7 +246,7 @@ policy and runner, with an architecture test that forbids widening the exception
    adding an actual template carrier still requires its own current format and
    execution owner.
 
-10. **Shell and C4 semantics.** Shell v3 is a repository-owned finite lexical
+10. **Shell and C4 semantics.** Shell v4 is a repository-owned finite lexical
     grammar covering governed Bash/Zsh constructs: quoting, escapes, comments,
     operators, explicit function-header and brace lifecycle, phase-aware case
     subject/pattern/body/closure state, literal reserved spellings, literal and
@@ -252,10 +254,12 @@ policy and runner, with an architecture test that forbids widening the exception
     Zsh `${(j:,:)items}`, arithmetic shifts, assignment fragments, arrays including
     parameter-length forms, double brackets, process substitution, numeric-FD and
     repeated redirections, validated backtick substitutions inside double quotes,
-    line-continuation command state, and heredocs including quote-removed but
+    line-continuation command state, context-sensitive adjacent closers for nested
+    command, process, quoted, and arithmetic substitutions, and heredocs including quote-removed but
     non-expanded delimiter fragments and bodies nested inside command substitutions.
     Every word scanner has a no-progress guard; unterminated or incompatible states
-    fail closed rather than loop. It is not shlex, a regex proxy, or a claim of
+    fail closed rather than loop. Recursion exhaustion is classified as the stable
+    resource-exhausted gap rather than a syntax failure. It is not shlex, a regex proxy, or a claim of
     complete shell execution semantics. The C4 provider is a
     finite scanner and statement grammar for comments plus system, container, and
     rel records with quoted payloads and exact arity. Unknown statements or

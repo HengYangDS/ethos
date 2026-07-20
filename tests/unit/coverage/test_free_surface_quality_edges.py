@@ -8,6 +8,7 @@ source file reaches full line coverage without an in-source exemption.
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -68,6 +69,26 @@ def testactive_change_names_in_ref_returns_empty_on_git_failure(
 ) -> None:
     # ls-tree against a nonexistent ref in a non-repo fails -> [].
     assert openspec_audit.active_change_names_in_ref(tmp_path, "no-such-ref") == []
+
+
+def test_active_change_names_in_ref_ignores_archive(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    completed = SimpleNamespace(
+        returncode=0,
+        stdout=(
+            "openspec/changes/archive/old/tasks.md\nopenspec/changes/live-change/proposal.md\n"
+        ),
+        stderr="",
+    )
+    monkeypatch.setattr(
+        openspec_audit.subprocess,
+        "run",
+        lambda *_args, **_kwargs: completed,
+    )
+
+    assert openspec_audit.active_change_names_in_ref(tmp_path, "main") == ["live-change"]
 
 
 def test_current_branch_role_resolves_from_policy(tmp_path: Path) -> None:

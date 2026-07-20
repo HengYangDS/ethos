@@ -3,16 +3,20 @@
 from __future__ import annotations
 
 import sqlite3
-from contextlib import closing
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
+import ethos.adapters.mutation.lane_retirement.unbound.observation.core as observation
+import ethos.adapters.mutation.lane_retirement.unbound.policy.core as policy
 import ethos.adapters.mutation.lane_retirement.unbound.reconciliation.core as reconciliation
 import ethos.adapters.mutation.lane_retirement.unbound.records.core as records
 from tests.unit.lanes.retirement.test_unbound_and_helpers import (
     _partial_effect_reconciliation_fixture,
 )
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 @pytest.fixture
@@ -200,3 +204,126 @@ def test_reconciliation_blocks_receipt_write_failure(residue, monkeypatch) -> No
     report = _apply(repo, branch, chronicle)
 
     assert report["required_gaps"] == [error]
+
+
+@pytest.mark.parametrize(
+    ("recovery_actor", "expected_gap"),
+    [
+        ("", "unbound_retire_recovery_actor_required"),
+        (
+            "agent:test:session:missing-source-owner",
+            "unbound_retire_owner_unavailable_holder_not_foreign",
+        ),
+    ],
+)
+def test_reconciliation_requires_a_distinct_recovery_actor(
+    residue, recovery_actor: str, expected_gap: str
+) -> None:
+    """Lease-only recovery cannot impersonate or omit the unavailable holder."""
+    repo, branch, _head, chronicle, _lease, attempt, _source_path = residue
+    observed = observation.observe_ref_absent_reconciliation(
+        repo, branch=branch, chronicle_ref=chronicle
+    )
+
+    assert policy.partial_effect_reconciliation_gaps(
+        observed, recovery_actor=recovery_actor, source_attempt=attempt
+    ) == [expected_gap]
+
+
+@pytest.mark.parametrize(
+    ("change", "expected_gap"),
+    [
+        ("chronicle", "unbound_retire_partial_effect_chronicle_missing"),
+        ("path", "unbound_retire_owner_unavailable_source_path_present"),
+        ("attempt", "unbound_retire_partial_effect_attempt_mismatch"),
+    ],
+)
+def test_reconciliation_policy_blocks_changed_residue_contract(
+    residue, change: str, expected_gap: str
+) -> None:
+    """The policy binds the reconciliation mode, absent source path, and attempt tuple."""
+    repo, branch, _head, chronicle, _lease, attempt, source_path = residue
+    observed = observation.observe_ref_absent_reconciliation(
+        repo, branch=branch, chronicle_ref=chronicle
+    )
+    if change == "chronicle":
+        observed["chronicle"]["partial_effect_reconciliation"] = ""
+    elif change == "path":
+        source_path.mkdir()
+    else:
+        attempt = {**attempt, "effect": "wrong"}
+
+    assert policy.partial_effect_reconciliation_gaps(
+        observed,
+        recovery_actor="agent:test:case:recovery-operator",
+        source_attempt=attempt,
+    ) == [expected_gap]
+
+
+@pytest.mark.parametrize(
+    ("change", "expected_gap"),
+    [
+        ("ref", "unbound_retire_partial_effect_ref_present"),
+        ("worktree", "unbound_retire_partial_effect_worktree_present"),
+        ("lease", "unbound_retire_partial_effect_lease_missing"),
+    ],
+)
+def test_reconciliation_policy_requires_the_exact_ref_absent_residue(
+    residue, change: str, expected_gap: str
+) -> None:
+    """Ref, worktree, and exact-lease presence are mutually required residue facts."""
+    repo, branch, _head, chronicle, _lease, attempt, _source_path = residue
+    observed = observation.observe_ref_absent_reconciliation(
+        repo, branch=branch, chronicle_ref=chronicle
+    )
+    if change == "ref":
+        observed["head"] = "a" * 40
+    elif change == "worktree":
+        observed["worktree_binding"] = "linked"
+    else:
+        observed[observation.HAS_ACTIVE_LEASE] = False
+
+    assert policy.partial_effect_reconciliation_gaps(
+        observed,
+        recovery_actor="agent:test:case:recovery-operator",
+        source_attempt=attempt,
+    ) == [expected_gap]
+
+
+def test_reconciliation_observation_projects_lease_claim_and_source_attempt_bindings() -> None:
+    """Read-model helpers retain only safe lease and historical-attempt identities."""
+    assert observation.lease_claim_id({"payload": {"claim_id": "claim"}}) == "claim"
+    assert observation.lease_claim_id({"payload": "bad"}) == ""
+    source_attempt = {
+        "operation_id": "exceptional-unbound-retirement:" + "a" * 64,
+        "accepted_head": "b" * 40,
+        "claim_id": "claim",
+        "chronicle_ref": "evidence/chronicle/test/2026-07-20.md",
+        "chronicle_sha256": "c" * 64,
+        "chronicle_claim_id": "chronicle-claim",
+        "chronicle_claim_sha256": "d" * 64,
+        "ignored": "value",
+    }
+
+    assert records.source_attempt_binding(source_attempt) == {
+        key: source_attempt[key]
+        for key in (
+            "operation_id",
+            "accepted_head",
+            "claim_id",
+            "chronicle_ref",
+            "chronicle_sha256",
+            "chronicle_claim_id",
+            "chronicle_claim_sha256",
+        )
+    }
+
+
+def test_reconciliation_blocks_unavailable_accepted_control_root(residue, monkeypatch) -> None:
+    """Apply refuses when the current accepted record root cannot be revalidated."""
+    repo, branch, _head, chronicle, _lease, _attempt, _source_path = residue
+    monkeypatch.setattr(policy, "accepted_control_root", lambda *_args, **_kwargs: (None, "gone"))
+
+    report = _apply(repo, branch, chronicle)
+
+    assert report["required_gaps"] == ["gone", "unbound_retire_partial_effect_attempt_mismatch"]

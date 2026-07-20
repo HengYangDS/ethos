@@ -319,6 +319,147 @@ def test_reconciliation_observation_projects_lease_claim_and_source_attempt_bind
     }
 
 
+def test_reconciliation_policy_rejects_a_lease_binding_changed_after_attempt(
+    residue,
+) -> None:
+    """The immutable failed attempt must retain the exact foreign lease generation."""
+    repo, branch, _head, chronicle, _lease, attempt, _source_path = residue
+    observed = observation.observe_ref_absent_reconciliation(
+        repo, branch=branch, chronicle_ref=chronicle
+    )
+    attempt = {**attempt, "lease_relinquish_binding": {"active": False}}
+
+    assert policy.partial_effect_reconciliation_gaps(
+        observed,
+        recovery_actor="agent:test:case:recovery-operator",
+        source_attempt=attempt,
+    ) == ["unbound_retire_partial_effect_attempt_mismatch"]
+
+
+@pytest.mark.parametrize(
+    ("mode", "expected_gap"),
+    [
+        ("missing", "unbound_retire_partial_effect_attempt_missing"),
+        ("wrong-prefix", "unbound_retire_partial_effect_attempt_mismatch"),
+    ],
+)
+def test_reconciliation_rejects_an_unavailable_or_malformed_prior_attempt(
+    residue, monkeypatch, mode: str, expected_gap: str
+) -> None:
+    """Prior-attempt loading is fail-closed before any reconciliation intent record."""
+    repo, branch, _head, chronicle, _lease, _attempt, _source_path = residue
+    observed = observation.observe_ref_absent_reconciliation(
+        repo, branch=branch, chronicle_ref=chronicle
+    )
+    if mode == "missing":
+        monkeypatch.setattr(
+            records,
+            "read_record",
+            lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("invalid")),
+        )
+    else:
+        observed["chronicle"]["source_retirement_attempt_id"] = "wrong"
+
+    _attempt, gap = reconciliation._partial_effect_attempt(observed)
+
+    assert gap == expected_gap
+
+
+@pytest.mark.parametrize(
+    ("controls", "expected_gap"),
+    [
+        (
+            reconciliation.RefAbsentReconciliationControls(
+                reason="reason", chronicle_ref="evidence/chronicle/test/2026-07-20.md", apply=True
+            ),
+            "authorization_required",
+        ),
+        (
+            reconciliation.RefAbsentReconciliationControls(
+                reason="reason",
+                chronicle_ref="evidence/chronicle/test/2026-07-20.md",
+                apply=True,
+                authorized=True,
+            ),
+            "unbound_retire_requires_break_glass",
+        ),
+        (
+            reconciliation.RefAbsentReconciliationControls(
+                reason="reason",
+                chronicle_ref="evidence/chronicle/test/2026-07-20.md",
+                apply=True,
+                authorized=True,
+                break_glass=True,
+            ),
+            "irreversible_confirmation_required",
+        ),
+    ],
+)
+def test_reconciliation_apply_controls_are_independently_required(
+    residue, controls: reconciliation.RefAbsentReconciliationControls, expected_gap: str
+) -> None:
+    """Each irreversible apply control remains independently enforced."""
+    repo, branch, _head, chronicle, _lease, attempt, _source_path = residue
+    observed = observation.observe_ref_absent_reconciliation(
+        repo, branch=branch, chronicle_ref=chronicle
+    )
+    controls = reconciliation.RefAbsentReconciliationControls(
+        reason=controls.reason,
+        chronicle_ref=chronicle,
+        apply=controls.apply,
+        authorized=controls.authorized,
+        break_glass=controls.break_glass,
+        confirm_irreversible=controls.confirm_irreversible,
+    )
+
+    assert expected_gap in reconciliation._partial_effect_admission_gaps(
+        observed,
+        controls=controls,
+        holder_ref="agent:test:case:recovery-operator",
+        source_attempt=attempt,
+        attempt_gap="",
+    )
+
+
+def test_reconciliation_rejects_missing_protected_ref_observation(residue) -> None:
+    """Reconciliation requires every protected ref before it can enter the effect window."""
+    repo, branch, _head, chronicle, _lease, attempt, _source_path = residue
+    observed = observation.observe_ref_absent_reconciliation(
+        repo, branch=branch, chronicle_ref=chronicle
+    )
+    observed["protected_refs"] = {"dev": ""}
+
+    assert (
+        "unbound_retire_protected_ref_unavailable"
+        in reconciliation._partial_effect_admission_gaps(
+            observed,
+            controls=reconciliation.RefAbsentReconciliationControls(
+                reason="reason", chronicle_ref=chronicle
+            ),
+            holder_ref="agent:test:case:recovery-operator",
+            source_attempt=attempt,
+            attempt_gap="",
+        )
+    )
+
+
+def test_reconciliation_records_reject_invalid_nested_source_attempt(residue) -> None:
+    """No durable reconciliation record may incorporate an invalid historical attempt."""
+    repo, branch, _head, chronicle, _lease, attempt, _source_path = residue
+    observed = observation.observe_ref_absent_reconciliation(
+        repo, branch=branch, chronicle_ref=chronicle
+    )
+    payload = records.reconciliation_attempt_payload(
+        operation_id="ref-absent-owner-unavailable-lease-reconciliation:" + "a" * 64,
+        reason="reason",
+        observation=observed,
+        source_retirement_attempt={**attempt, "kind": "wrong"},
+    )
+
+    with pytest.raises(ValueError, match="unbound_retire_record_invalid"):
+        records.validate_record(payload, kind=records.RECONCILIATION_ATTEMPT_KIND)
+
+
 def test_reconciliation_blocks_unavailable_accepted_control_root(residue, monkeypatch) -> None:
     """Apply refuses when the current accepted record root cannot be revalidated."""
     repo, branch, _head, chronicle, _lease, _attempt, _source_path = residue

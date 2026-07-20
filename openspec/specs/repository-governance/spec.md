@@ -512,6 +512,7 @@ branch as ready for another closeout mutation.
 - **AND** a manual `pack-refs` is not classified as an authorized closeout.
 
 ### Requirement: OpenSpec Lifecycle Trust Review
+
 ETHOS SHALL review OpenSpec lifecycle readiness in addition to official
 OpenSpec CLI validation. An official `no-tasks` Change SHALL be treated as an
 active, non-complete lifecycle carrier: it may bootstrap only its own absent

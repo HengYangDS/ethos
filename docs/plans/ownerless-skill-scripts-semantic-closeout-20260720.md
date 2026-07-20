@@ -3,7 +3,7 @@ subject: ethos:ownerless-skill-scripts-semantic-closeout-20260720
 role: plan
 state: active
 relations:
-  carrier: openspec/changes/ownerless-skill-scripts-semantic-closeout-20260720
+  carrier: openspec/changes/archive/2026-07-20-ownerless-skill-scripts-semantic-closeout
   target_lane: work/skill-scripts-ruff-20260719
 ---
 

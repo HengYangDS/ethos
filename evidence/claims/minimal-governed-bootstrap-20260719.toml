@@ -2,7 +2,7 @@
 id = "minimal-governed-bootstrap-20260719"
 subject = "ethos:minimal-governed-bootstrap"
 state = "active"
-change_id = "minimal-governed-bootstrap-20260719"
+change_id = "minimal-governed-bootstrap"
 summary = "Digest-bound archive carrier for replacing default adoption output with one strict repository-profile binding."
 
 [evidence]
@@ -28,13 +28,13 @@ owner = "ethos-repository"
 scope = "Local replacement of default adopter generation with one strict .ethos/profile.toml binding carrier."
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-19-minimal-governed-bootstrap-20260719"
+openspec = "openspec/changes/archive/2026-07-19-minimal-governed-bootstrap"
 fallback = "Refuse adoption rather than restore a profile selector, overlay, compatibility mode, template manifest, or full scaffold."
 kill_signal = "Default adoption writes any tracked path other than .ethos/profile.toml or retains a parallel historical adoption path."
 
 [promotion]
 targets = [
-  "openspec/changes/archive/2026-07-19-minimal-governed-bootstrap-20260719",
+  "openspec/changes/archive/2026-07-19-minimal-governed-bootstrap",
   "openspec/specs/repository-governance/spec.md",
   "openspec/specs/quality/spec.md",
   ".config/checks/ruff/ruff.toml",

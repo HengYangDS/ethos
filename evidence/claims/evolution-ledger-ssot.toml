@@ -1,5 +1,5 @@
-claim = { id = "evolution-ledger-ssot", subject = "ethos:evolution-ledger-ssot", state = "active", change_id = "evolution-ledger-ssot-20260707", summary = "ETHOS uses evolution/ledger.toml as the single repository-truth evolution ledger and keeps docs explanatory." }
-evidence = { dated = "evidence/chronicle/evolution-ledger-ssot/2026-07-07.md", sha256 = "d3d710bb55125cd42dc70309f4c1f5c3580e31e5f8d07b11f93eb6edbe26bcd6", evidence_ids = [
+claim = { id = "evolution-ledger-ssot", subject = "ethos:evolution-ledger-ssot", state = "active", change_id = "evolution-ledger-ssot", summary = "ETHOS uses evolution/ledger.toml as the single repository-truth evolution ledger and keeps docs explanatory." }
+evidence = { dated = "evidence/chronicle/evolution-ledger-ssot/2026-07-07.md", sha256 = "faeef0af8ca2414178652c9b3a8fc571b9d7d4726c7a5c1a733d70a4a9b7c59d", evidence_ids = [
   "evidence:evolution-ledger-ssot",
 ], binding = "Evolution ledger SSOT binding", verifier = "digest_only", tests = [
   "ethos campaign hypotheses --json",
@@ -13,7 +13,7 @@ evidence = { dated = "evidence/chronicle/evolution-ledger-ssot/2026-07-07.md", s
   "ethos prove --execute --expect-head 978a98021b23d2843a0aff7b75313126d4f4ed55 --json",
 ], freshness = { mode = "historical" } }
 boundary = { owner = "ethos", scope = "Evolution ledger physical truth path, schema validation, campaign hypothesis reader, audit release files, assistant context resource, and config lint deletion robustness" }
-carriers = { openspec = "openspec/changes/archive/2026-07-06-evolution-ledger-ssot-20260707", fallback = "Restore docs/governance/evolution-ledger.toml as the data ledger if evolution/ledger.toml cannot validate.", kill_signal = "Two active evolution ledger data stores are required for normal operation." }
+carriers = { openspec = "openspec/changes/archive/2026-07-06-evolution-ledger-ssot", fallback = "Restore docs/governance/evolution-ledger.toml as the data ledger if evolution/ledger.toml cannot validate.", kill_signal = "Two active evolution ledger data stores are required for normal operation." }
 promotion = { targets = [
   "evolution/ledger.toml",
   "docs/governance/evolution-campaign.md",
@@ -23,7 +23,7 @@ promotion = { targets = [
   "packages/ethos/src/ethos/assistants/context/bundle.py",
   "system/schemas/kernel/evolution-ledger.schema.json",
   "tools/ci/scripts/run-config-lint.sh",
-  "openspec/changes/archive/2026-07-06-evolution-ledger-ssot-20260707",
+  "openspec/changes/archive/2026-07-06-evolution-ledger-ssot",
   "evidence/claims/evolution-ledger-ssot.toml",
   "evidence/chronicle/evolution-ledger-ssot/2026-07-07.md",
 ] }

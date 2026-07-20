@@ -1,6 +1,6 @@
 [claim]
 id = "proof-artifact-isolation-20260714"
-change_id = "proof-artifact-isolation-20260714"
+change_id = "proof-artifact-isolation"
 subject = "quality:proof-artifact-terminal-seal"
 state = "active"
 summary = "Product proof seals generated-artifact topology after its runtime producers, with type resolution bound to the checkout venv and owner scripts portable to macOS Bash 3.2."
@@ -20,7 +20,7 @@ owner = "quality"
 scope = "Product proof ordering, semantic runtime binding, and denied root runtime-cache cleanup; standalone topology, tracked-file scope, and adopter proof policy remain unchanged."
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-14-proof-artifact-isolation-20260714"
+openspec = "openspec/changes/archive/2026-07-14-proof-artifact-isolation"
 fallback = "Treat a surviving root cache as blocked topology drift and rerun the product owner gates; do not ignore, waive, or retry around the final seal."
 kill_signal = "A product proof evaluates generated-artifacts before its selected Python test or Ruff gate, an EXIT path leaves a denied root cache, types resolve against an ambient environment, an owner script requires Bash 4, or adopter proof gains a dependency on product-owned gates."
 
@@ -38,7 +38,7 @@ targets = [
   "tests/unit/coverage/test_cov_v3_gates_edges.py",
   "tests/unit/governance/test_quality_regime.py",
   "openspec/specs/quality/spec.md",
-  "openspec/changes/archive/2026-07-14-proof-artifact-isolation-20260714",
+  "openspec/changes/archive/2026-07-14-proof-artifact-isolation",
   "evidence/claims/proof-artifact-isolation-20260714.toml",
   "evidence/chronicle/proof-artifact-isolation-20260714/2026-07-14.md",
 ]

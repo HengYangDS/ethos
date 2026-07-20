@@ -3,7 +3,7 @@ subject: ethos:ownerless-arg005-unbound-retirement-20260720
 role: plan
 state: active
 relations:
-  carrier: openspec/changes/archive/2026-07-20-ownerless-arg005-unbound-retirement-20260720
+  carrier: openspec/changes/archive/2026-07-20-ownerless-arg005-unbound-retirement
   target_lane: work/arg005-coverage-edges-20260719
 ---
 

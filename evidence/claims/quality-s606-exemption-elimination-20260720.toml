@@ -1,13 +1,13 @@
 [claim]
 id = "quality-s606-exemption-elimination-20260720"
-change_id = "quality-s606-exemption-elimination-20260720"
+change_id = "quality-s606-exemption-elimination"
 subject = "quality:python-s606"
 state = "active"
 summary = "The archived S606 quality correction removes the obsolete bootstrap and both canonical Ruff policy carriers; the rule returns to direct owner-gate enforcement."
 
 [evidence]
 dated = "evidence/chronicle/quality-s606-exemption-elimination-20260720/2026-07-20.md"
-sha256 = "fce9342904d5930294bdd4f6f0daf107e9f255013928903ccea71882b30c95e1"
+sha256 = "9a3b4be6f7469162460dcb97b89e286eed51df77f4370cbba7541291b2ad68ff"
 evidence_ids = ["evidence:quality-s606-exemption-elimination-20260720"]
 binding = "The archived OpenSpec carrier, direct-bootstrap regression, whole-corpus S606 probe, canonical Ruff owner gate, and dated Chronicle bind only the S606 elimination slice."
 verifier = "digest_only"
@@ -26,7 +26,7 @@ owner = "ethos-quality-gate-governance"
 scope = "Removal of the obsolete quality-audit Python-before-3.11 bootstrap and both S606 exception carriers; not terminal zero-exception quality."
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-20-quality-s606-exemption-elimination-20260720"
+openspec = "openspec/changes/archive/2026-07-20-quality-s606-exemption-elimination"
 fallback = "Restore the bounded bootstrap and both matching policy entries together only if the declared project runtime contract or direct S606 enforcement regresses."
 kill_signal = "The whole-corpus S606 probe finds a diagnostic, the rule returns to either exception carrier, or the canonical Ruff owner gate fails."
 
@@ -39,7 +39,7 @@ targets = [
   "tests/unit/skills/quality_gate/test_quality_audit.py",
   "tests/architecture/test_testing_platform.py",
   "tests/unit/governance/test_quality_regime.py",
-  "openspec/changes/archive/2026-07-20-quality-s606-exemption-elimination-20260720",
+  "openspec/changes/archive/2026-07-20-quality-s606-exemption-elimination",
   "evidence/claims/quality-s606-exemption-elimination-20260720.toml",
   "evidence/chronicle/quality-s606-exemption-elimination-20260720/2026-07-20.md",
 ]

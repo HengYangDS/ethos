@@ -6,7 +6,7 @@ summary = "Archive the Budget Contract v2 Foundation integration continuation af
 
 [evidence]
 dated = "evidence/chronicle/budget-contract-v2-foundation-integration-continuation-20260719/2026-07-19.md"
-sha256 = "6825188caf0e2f1ef475b38be62788ebc744bd1afd51147313df0e1cae3cf2ef"
+sha256 = "ef3e066a99fefd04c82d9e7b9c4e8a9e879e3ab19a90e68991f6a57d7877ea58"
 evidence_ids = ["evidence:budget-contract-v2-foundation-20260719"]
 binding = "DR-0008, the immutable Foundation archive and historical proof, the officially archived continuation Change, exact nested successor ancestry, the independently reproduced baseline correction, completed focused verification, regenerated R2 parity, the recorded pre-archive HEAD-bound proof, and the continuation Chronicle bind this metric-domain Foundation integration episode; archive-HEAD proof and downstream closeout remain separate pending transitions."
 verifier = "digest_only"
@@ -29,7 +29,7 @@ owner = "quality"
 scope = "Candidate-drift continuation of the metric-domain Foundation, exact ancestry preservation, current proof regeneration, and superseding replay/extraction-plan corrections; no v2 enforcement, later-task completion, remote, or hosted claim."
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-19-budget-contract-v2-foundation-integration-continuation-20260719"
+openspec = "openspec/changes/archive/2026-07-19-budget-contract-v2-foundation-integration-continuation"
 fallback = "Keep v1 source-budget authoritative and blocked; reject any v2 transition that hides, converts, resets, or silently extends a v1 obligation."
 kill_signal = "A v1 required gap disappears without settlement or an equal-or-stronger named successor obligation, or a metric crosses domains through weighted conversion."
 
@@ -44,11 +44,11 @@ targets = [
   "packages/ethos/src/ethos/domain/reporting/scoring.py",
   "system/commands.toml",
   "tests/unit/domain/source_budget/test_core.py",
-  "openspec/changes/archive/2026-07-19-budget-contract-v2-foundation-20260719",
+  "openspec/changes/archive/2026-07-19-budget-contract-v2-foundation",
   "openspec/specs/contracts/spec.md",
   "openspec/specs/quality/spec.md",
   "openspec/specs/repository-governance/spec.md",
-  "openspec/changes/archive/2026-07-19-budget-contract-v2-foundation-integration-continuation-20260719",
+  "openspec/changes/archive/2026-07-19-budget-contract-v2-foundation-integration-continuation",
   "evidence/claims/budget-contract-v2-foundation-20260719.toml",
   "evidence/chronicle/budget-contract-v2-foundation-20260719",
   "evidence/chronicle/budget-contract-v2-foundation-integration-continuation-20260719",

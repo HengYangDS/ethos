@@ -1,4 +1,4 @@
-claim = { id = "retire-landed-selected-summary-20260709", subject = "ethos:retire-landed-selected-summary", state = "active", change_id = "retire-landed-selected-summary-20260709", summary = "ETHOS retire-landed JSON now reports selected-lane readiness and selected blockers to avoid confusing global landed-lane counts with selected-branch readiness." }
+claim = { id = "retire-landed-selected-summary-20260709", subject = "ethos:retire-landed-selected-summary", state = "active", change_id = "retire-landed-selected-summary", summary = "ETHOS retire-landed JSON now reports selected-lane readiness and selected blockers to avoid confusing global landed-lane counts with selected-branch readiness." }
 evidence = { dated = "evidence/chronicle/retire-landed-selected-summary-20260709/2026-07-09.md", sha256 = "7fc78423d73bb3746ffc59793e2948f603e179cbb91e48cff6c18fb028b79808", evidence_ids = [
   "evidence:retire-landed-selected-summary-20260709",
 ], binding = "TDD regression for selected unmerged lane, selected summary fields, focused lifecycle tests, lint, and code-size gate.", verifier = "digest_only", tests = [

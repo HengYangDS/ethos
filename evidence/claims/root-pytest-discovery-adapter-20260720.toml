@@ -1,6 +1,6 @@
 [claim]
 id = "root-pytest-discovery-adapter-20260720"
-change_id = "root-pytest-discovery-adapter-20260720"
+change_id = "root-pytest-discovery-adapter"
 subject = "quality:root-pytest-discovery-cache-route"
 state = "archived"
 summary = "Historical record of one root pytest cache-route and quality-audit workspace-runtime change."
@@ -21,7 +21,7 @@ owner = "quality-gates"
 scope = "Root pytest discovery cache routing only; owner-script test behavior, evidence production, and proof authority remain unchanged."
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-19-root-pytest-discovery-adapter-20260720"
+openspec = "openspec/changes/archive/2026-07-19-root-pytest-discovery-adapter"
 fallback = "Keep direct pytest invocation outside trust-bearing proof while retaining the existing explicit owner-script configuration route."
 kill_signal = "The root adapter gains behavioral pytest options, duplicates concern-owned policy, creates root cache residue, or is represented as test-proof authority."
 
@@ -31,7 +31,7 @@ targets = [
   ".config/README.md",
   "evidence/claims/root-pytest-discovery-adapter-20260720.toml",
   "evidence/chronicle/root-pytest-discovery-adapter-20260720/2026-07-20.md",
-  "openspec/changes/archive/2026-07-19-root-pytest-discovery-adapter-20260720",
+  "openspec/changes/archive/2026-07-19-root-pytest-discovery-adapter",
   "openspec/specs/quality/spec.md",
   "pyproject.toml",
   "tests/architecture/test_release_assets.py",

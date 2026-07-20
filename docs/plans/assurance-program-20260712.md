@@ -4,7 +4,7 @@ role: plan
 state: archived
 relations:
   implements: DR-0006
-  carrier: openspec/changes/archive/2026-07-12-assurance-program-20260712
+  carrier: openspec/changes/archive/2026-07-12-assurance-program
 ---
 
 # Assurance Program — 2026-07-12
@@ -17,7 +17,7 @@ proof re-execution.
 
 See also: [Independent Verification Adoption](../governance/independent-verification-adoption.md),
 [DR-0006](../decisions/accepted/DR-0006-proof-trust-boundary.md), and
-[Archived OpenSpec Carrier](../../openspec/changes/archive/2026-07-12-assurance-program-20260712/proposal.md).
+[Archived OpenSpec Carrier](../../openspec/changes/archive/2026-07-12-assurance-program/proposal.md).
 
 ## Objective
 

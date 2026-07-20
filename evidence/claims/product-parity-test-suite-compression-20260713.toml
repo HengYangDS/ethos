@@ -1,5 +1,5 @@
-claim = { id = "product-parity-test-suite-compression-20260713", change_id = "product-parity-test-suite-compression-20260713", subject = "quality:product-parity-test-compression", state = "active", summary = "Product-parity tests share inert payload/evidence setup and declarative case tables, while distinct failure, schema, and integration boundaries retain named tests." }
-evidence = { dated = "evidence/chronicle/product-parity-test-suite-compression-20260713/2026-07-13.md", sha256 = "5107692e0eb46094c197e1d59683c609ac26f145c101ee4a2ab29e834996390d", evidence_ids = [
+claim = { id = "product-parity-test-suite-compression-20260713", change_id = "product-parity-test-suite-compression", subject = "quality:product-parity-test-compression", state = "active", summary = "Product-parity tests share inert payload/evidence setup and declarative case tables, while distinct failure, schema, and integration boundaries retain named tests." }
+evidence = { dated = "evidence/chronicle/product-parity-test-suite-compression-20260713/2026-07-13.md", sha256 = "7ab7c0069fd0ea9026d447b1d94f8e326e9b47b268bf75978dfdc5565ed8dc02", evidence_ids = [
   "evidence:product-parity-test-suite-compression-20260713",
   "test:tests/unit/product/parity/test_semantics.py",
   "test:tests/unit/product/parity/test_projection_semantics.py",
@@ -11,13 +11,13 @@ evidence = { dated = "evidence/chronicle/product-parity-test-suite-compression-2
   "uv run --package ethos ethos prove --execute --expect-head $(git rev-parse HEAD) --json",
 ], freshness = { mode = "historical" } }
 boundary = { owner = "quality", scope = "Product-parity semantic test representation only; parity runtime behavior, evidence format, and public command contracts remain unchanged." }
-carriers = { openspec = "openspec/changes/archive/2026-07-13-product-parity-test-suite-compression-20260713", fallback = "Restore the former named semantic test bodies only if the case tables lose diagnostic clarity, coverage, or public-contract precision; do not retain two permanent representations.", kill_signal = "The scoped effective-line total does not decline, an accepted-difference or projection contract loses coverage, or repository coverage falls below 100 percent." }
+carriers = { openspec = "openspec/changes/archive/2026-07-13-product-parity-test-suite-compression", fallback = "Restore the former named semantic test bodies only if the case tables lose diagnostic clarity, coverage, or public-contract precision; do not retain two permanent representations.", kill_signal = "The scoped effective-line total does not decline, an accepted-difference or projection contract loses coverage, or repository coverage falls below 100 percent." }
 promotion = { targets = [
   { kind = "tests", path = "tests/unit/product/parity/snapshots.py" },
   { kind = "tests", path = "tests/unit/product/parity/test_semantics.py" },
   { kind = "tests", path = "tests/unit/product/parity/test_projection_semantics.py" },
   { kind = "tests", path = "tests/unit/product/parity/test_gaps.py" },
-  { kind = "openspec", path = "openspec/changes/archive/2026-07-13-product-parity-test-suite-compression-20260713" },
+  { kind = "openspec", path = "openspec/changes/archive/2026-07-13-product-parity-test-suite-compression" },
   { kind = "openspec", path = "openspec/specs/quality/spec.md" },
   { kind = "evidence", path = "evidence/chronicle/product-parity-test-suite-compression-20260713/2026-07-13.md" },
   { kind = "evidence", path = "evidence/parity/generic-shadow.json" },

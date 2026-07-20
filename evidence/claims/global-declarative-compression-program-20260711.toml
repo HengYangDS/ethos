@@ -6,11 +6,11 @@ summary = "Archived declarative-compression foundation; terminal global compress
 
 [evidence]
 dated = "evidence/chronicle/global-declarative-compression-program-20260711/2026-07-12.md"
-sha256 = "446d57b10a6bc5764996a0b220dd4c4990196c39ba692eb6ae1dae61326a1076"
+sha256 = "55f0b8750137c85faa3bd825b5fdb2ee02b253eb9b2495e5b325b8c601c346f8"
 evidence_ids = ["evidence:global-declarative-compression-program-20260711"]
 binding = "Archived carrier and dated Chronicle bind the completed foundation."
 verifier = "digest_only"
 tests = ["ethos prove --execute --expect-head $(git rev-parse HEAD) --json"]
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-12-global-declarative-compression-program-20260711"
+openspec = "openspec/changes/archive/2026-07-12-global-declarative-compression-program"

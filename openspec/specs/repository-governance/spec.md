@@ -769,6 +769,12 @@ claims, and evidence refs serving distinct product duties. Archive closeout
 SHALL preserve accepted scenario obligations unless an explicit removal decision
 carries the deletion.
 
+Archive closeout SHALL also reject a non-canonical archive name, a logical
+Change ID with a numeric start or terminal `YYYYMMDD` suffix, and more than one
+dated archive carrier for the same logical Change ID. Historical claims and
+Chronicles may retain their own dated evidence identifiers; those are not
+logical Change IDs.
+
 #### Scenario: Archive closeout is a product gate
 
 - **WHEN** a Work Lane depends on a previously closed OpenSpec carrier
@@ -782,6 +788,14 @@ carries the deletion.
   explicit removal decision instead of silent replacement.
 - **AND** the campaign manifest records the lane as closed and retired before
   the next campaign step becomes active.
+
+#### Scenario: Archive identity is canonical and unique
+
+- **WHEN** an archive-closeout audit observes archived carriers
+- **THEN** each carrier SHALL have the form `YYYY-MM-DD-<date-free-change-id>`
+- **AND** each logical Change ID SHALL resolve to exactly one archive carrier
+- **AND** invalid historical names or duplicate logical identities SHALL block
+  closeout rather than being silently selected by date.
 
 ### Requirement: Campaign Orchestration
 

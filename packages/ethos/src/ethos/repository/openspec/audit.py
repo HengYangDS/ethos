@@ -7,6 +7,8 @@ from typing import cast
 
 import yaml
 
+from ethos.repository.openspec.identifiers import archive_identity_gaps
+from ethos.repository.openspec.identifiers import logical_change_identifier_issue
 from ethos.repository.openspec.metadata import openspec_metadata_compatibility_report
 from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch.roles import ROLE_CANDIDATE
@@ -77,6 +79,26 @@ def active_change_names(openspec_root: Path) -> list[str]:
         for change_dir in sorted(changes_root.iterdir())
         if change_dir.is_dir() and change_dir.name != "archive"
     ]
+
+
+def active_change_identifier_violations(openspec_root: Path) -> list[str]:
+    """Return invalid active Change directory identifiers before lifecycle work."""
+    return [
+        f"openspec_active_change_identifier_invalid:{name}"
+        for name in active_change_names(openspec_root)
+        if logical_change_identifier_issue(name)
+    ]
+
+
+def archive_identity_violations(openspec_root: Path) -> list[str]:
+    """Return invalid or ambiguous archive identities without invoking OpenSpec."""
+    archive_root = openspec_root / "changes" / "archive"
+    names = (
+        (path.name for path in archive_root.iterdir() if path.is_dir())
+        if archive_root.is_dir()
+        else ()
+    )
+    return archive_identity_gaps(names)
 
 
 def protected_branch_active_change_report(root: Path, *, current_branch: str) -> dict[str, object]:
@@ -283,6 +305,8 @@ def openspec_shape_report(root: Path) -> dict[str, object]:
         root, current_branch=current_branch
     )
     required_gaps.extend(completed_unarchived_changes(openspec_root))
+    required_gaps.extend(active_change_identifier_violations(openspec_root))
+    required_gaps.extend(archive_identity_violations(openspec_root))
     metadata_compatibility = openspec_metadata_compatibility_report(root)
     required_gaps.extend(metadata_compatibility["required_gaps"])
     required_gaps.extend(_changed_openspec_spec_obligation_removal_gaps(root))

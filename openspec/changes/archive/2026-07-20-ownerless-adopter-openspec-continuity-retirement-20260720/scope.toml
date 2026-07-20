@@ -1,0 +1,8 @@
+schema_version = 1
+paths = [
+  "docs/plans/ownerless-adopter-openspec-continuity-retirement-20260720.md",
+  "evidence/claims/ownerless-adopter-openspec-continuity-retirement-20260720.toml",
+  "evidence/chronicle/ownerless-adopter-openspec-continuity-retirement-20260720/**",
+  "openspec/changes/ownerless-adopter-openspec-continuity-retirement-20260720/**",
+  "openspec/specs/repository-governance/spec.md",
+]

@@ -1,0 +1,40 @@
+[claim]
+id = "ownerless-adopter-openspec-continuity-retirement-20260720"
+subject = "ethos:work-lane:work/adopter-openspec-lifecycle-continuity-20260719"
+state = "active"
+change_id = "ownerless-adopter-openspec-continuity-retirement-20260720"
+summary = "One accepted authority carrier records graph-backed absorption of the clean lease-free adopter OpenSpec continuity residual before one native local retirement."
+
+[evidence]
+dated = "evidence/chronicle/ownerless-adopter-openspec-continuity-retirement-20260720/2026-07-20.md"
+sha256 = "661d7ece17f832ce9ef6da5b1f6cdcdf461bd03796fea630715ca4452e069cb8"
+evidence_ids = ["evidence:ownerless-adopter-openspec-continuity-retirement-20260720"]
+binding = "This Claim binds only work/adopter-openspec-lifecycle-continuity-20260719 at c5ad10361106b3062820a293cd1948c439f1ebf6, accepted dev at 0f3bdf3264a582082b99a212f7252bc2b051c374, and one later native lane_resolution/retire decision. It does not treat an inventory, missing lease, generic preservation package, or historical local proof as authority for another lane."
+verifier = "digest_only"
+tests = [
+  "git merge-base --is-ancestor c5ad10361106b3062820a293cd1948c439f1ebf6 dev",
+  "git -C <linked-source-worktree> status --porcelain --untracked-files=all",
+  "openspec validate ownerless-adopter-openspec-continuity-retirement-20260720 --strict --json",
+  "ethos prove --execute --expect-head <committed-head> --json",
+  "ethos lane resolution decide --branch work/adopter-openspec-lifecycle-continuity-20260719 --disposition retire --chronicle-ref evidence/chronicle/ownerless-adopter-openspec-continuity-retirement-20260720/2026-07-20.md --break-glass --apply --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "One exact clean, linked, lease-free accepted-ancestor adopter OpenSpec continuity Work Lane residual and one later native local retirement."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-20-ownerless-adopter-openspec-continuity-retirement-20260720"
+fallback = "Keep the exact source branch and linked worktree intact if any source, Chronicle, accepted-head, or control-plane fact drifts before native apply."
+kill_signal = "An inventory is interpreted as batch authority, a foreign or active lease is taken over, a native effect deletes an unlisted lane, or historical evidence is called current remote proof."
+
+[promotion]
+targets = [
+  "docs/plans/ownerless-adopter-openspec-continuity-retirement-20260720.md",
+  "evidence/claims/ownerless-adopter-openspec-continuity-retirement-20260720.toml",
+  "evidence/chronicle/ownerless-adopter-openspec-continuity-retirement-20260720/2026-07-20.md",
+  "openspec/changes/archive/2026-07-20-ownerless-adopter-openspec-continuity-retirement-20260720",
+]

@@ -29,6 +29,10 @@ READONLY_STEPS: tuple[tuple[str, tuple[str, ...]], ...] = (
 )
 
 
+def _write_stdout(line: str) -> None:
+    sys.stdout.write(f"{line}\n")
+
+
 def _run(args: tuple[str, ...], root: str) -> dict[str, object]:
     completed = subprocess.run(
         ["ethos", *args, "--root", root] if "--root" not in args else ["ethos", *args],
@@ -55,15 +59,15 @@ def main(*, root: str = ".") -> int:
         state = payload.get("state", "?")
         gaps = list(payload.get("required_gaps", []))
         marker = "ok" if ok else "GAP"
-        print(f"[{marker}] {name}: {state}")
+        _write_stdout(f"[{marker}] {name}: {state}")
         if not ok:
             all_ok = False
             for gap in gaps[:5]:
-                print(f"      - {gap}")
+                _write_stdout(f"      - {gap}")
             next_actions = payload.get("next_actions") or ()
             for action in next_actions[:1]:
-                print(f"      next: {action}")
-    print("READY" if all_ok else "NOT READY — resolve the gaps above before land/publish")
+                _write_stdout(f"      next: {action}")
+    _write_stdout("READY" if all_ok else "NOT READY — resolve the gaps above before land/publish")
     return 0 if all_ok else 1
 
 
@@ -71,5 +75,5 @@ if __name__ == "__main__":
     try:
         app(sys.argv[1:])
     except FileNotFoundError:
-        print("error: `ethos` command not found on PATH", file=sys.stderr)
+        sys.stderr.write("error: `ethos` command not found on PATH\n")
         raise SystemExit(2) from None

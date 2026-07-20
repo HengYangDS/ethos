@@ -273,7 +273,7 @@ def main() -> int:
         },
         "required_gaps": unique_gaps,
     }
-    print(json.dumps(payload, indent=2, sort_keys=True))
+    sys.stdout.write(f"{json.dumps(payload, indent=2, sort_keys=True)}\n")
     return 0 if payload["ok"] else 1
 
 

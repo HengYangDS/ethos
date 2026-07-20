@@ -235,16 +235,16 @@ subsequent separately evidenced transitions.
 **Files:**
 
 - Create: packages/ethos-core/src/ethos_core/contracts/source_budget/measurements.py
-- Create: packages/ethos-core/src/ethos_core/contracts/source_budget/measurement/__init__.py
+- Create: `packages/ethos-core/src/ethos_core/contracts/source_budget/measurement/__init__.py`
 - Create: packages/ethos-core/src/ethos_core/contracts/source_budget/measurement/admission.py
 - Create: packages/ethos-core/src/ethos_core/contracts/source_budget/measurement/canonical.py
 - Modify: packages/ethos-core/src/ethos_core/contracts/source_budget/metrics.py
-- Create: packages/ethos/src/ethos/adapters/repo/source_budget/measurement/__init__.py
+- Create: `packages/ethos/src/ethos/adapters/repo/source_budget/measurement/__init__.py`
 - Create: packages/ethos/src/ethos/adapters/repo/source_budget/measurement/core.py
-- Create: packages/ethos/src/ethos/adapters/repo/source_budget/measurement/native/__init__.py
+- Create: `packages/ethos/src/ethos/adapters/repo/source_budget/measurement/native/__init__.py`
 - Create: packages/ethos/src/ethos/adapters/repo/source_budget/measurement/native/core.py
 - Create: packages/ethos/src/ethos/adapters/repo/source_budget/measurement/native/_structured.py
-- Create: packages/ethos/src/ethos/adapters/repo/source_budget/measurement/native/shell/__init__.py
+- Create: `packages/ethos/src/ethos/adapters/repo/source_budget/measurement/native/shell/__init__.py`
 - Create: packages/ethos/src/ethos/adapters/repo/source_budget/measurement/native/shell/core.py
 - Create: packages/ethos/src/ethos/adapters/repo/source_budget/measurement/native/shell/grammar.py
 - Create: tests/unit/kernel/source_budget_measurement_support.py
@@ -300,7 +300,7 @@ subsequent separately evidenced transitions.
   only source_budget_native_parse_failed:yaml:.config/ci/templates/hosted/gitlab-ci.yml,
   so snapshot/vector payloads and their digests remained absent as required.
 
-- [ ] **Step 5: Complete the pre-transition closeout as a distinct state: current-head focused/integration/regression and owner gates, the one-binding observation, exact promotion targets, independent review, claim/Chronicle, generic parity, the final active-carrier recording commit, and then default and full exact-HEAD proof of that commit.**
+- [x] **Step 5: Complete the pre-transition closeout as a distinct state: current-head focused/integration/regression and owner gates, the one-binding observation, exact promotion targets, independent review, claim/Chronicle, generic parity, the final active-carrier recording commit, and then default and full exact-HEAD proof of that commit.**
 - [ ] **Step 6: Complete official OpenSpec archive and canonical contracts/quality/repository-governance spec fusion as a separate committed state; do not treat archive as archive-HEAD proof or integration.**
 - [ ] **Step 7: Complete post-archive parity, default and full archive-HEAD proof, candidate land, accepted-root closeout, local publication-readiness evaluation, and owned successor-Lane retirement as separately evidenced transitions; do not claim remote publication or hosted CI.**
 

@@ -13,7 +13,7 @@
 
 ## 3. Validation and lifecycle
 
-- [ ] 3.1 Run strict OpenSpec, claims, parity, and executed HEAD-bound proof.
+- [x] 3.1 Run strict OpenSpec, claims, parity, and executed HEAD-bound proof at 9f253b76242406f908f8b0d4a7a0baebb1b229f4 (19 gates; cf256557307df25f8d2d2783be402e312d238c50527faf28f53685f179e0ff7f).
 - [ ] 3.2 Archive this authority carrier, land, and complete accepted local
   closeout.
 - [ ] 3.3 Execute and verify the one native clear; retire this carrier.

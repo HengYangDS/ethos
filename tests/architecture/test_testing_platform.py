@@ -239,7 +239,8 @@ def test_python_lint_gate_discovers_every_tracked_python_source() -> None:
     assert "packages/tools/tests are required" in script
     assert "not sufficient" in script
     ratchet = tomllib.loads((ROOT / ".config/checks/ruff/ratchet.toml").read_text())
-    assert {"S101", "S105", "S603", "S606", "S607"} <= set(ratchet["ignored_rule_baseline"])
+    assert {"S101", "S105", "S603", "S607"} <= set(ratchet["ignored_rule_baseline"])
+    assert "S606" not in ratchet["ignored_rule_baseline"]
     assert (
         'ruff check --cache-dir "${ruff_cache_dir}" --config "${ruff_config_path}" "${python_quality_paths[@]}"'
         in script

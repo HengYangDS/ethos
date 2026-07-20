@@ -289,12 +289,20 @@ subsequent separately evidenced transitions.
 - [x] **Step 3: Implement canonical CPython 3.14 runtime admission, repository-owned provider descriptors, conformance self-test and exact dispatch, strict native parsers, descriptor-relative no-follow reads with cleanup even when descriptor registration exhausts memory, stable non-sensitive public resource gaps, pre/post object-state checks, classified-only measurement, exclusion-aware inventory binding, deterministic non-compensating aggregation, and fail-closed JSON adoption handling for missing or non-directory explicit roots.**
 - [x] **Step 4: Replace ambiguous or inaccurate provider versions with canonical-runtime identities, derive grammar digests and reviewed conformance fingerprints from canonical descriptors, bind Shell v4, Jinja v3, and YAML v2 atomically, bound PyYAML to the admitted major, and run the complete inventory in forward and reversed order. The two runs must bind identical manifest, inventory, contract-set, provider-coverage, and stable-gap identities; when the intentional YAML graph gap is present, snapshot/vector outputs and their digests remain absent rather than being manufactured.**
 
-  The fresh pre-commit run classified 2,742 paths with identical forward/reverse
-  manifest and inventory identities. Both directions returned only the reviewed
-  GitLab-template YAML parse gap, so snapshot/vector payloads and digests remained
-  absent as required.
+  The fresh exact-HEAD run at 003623e2cf00057f5504cc0e096caacc5bb7a266
+  classified 2,883 paths: 2,880 classified carriers and 3 reviewed exclusions.
+  Forward and reverse runs bound identical manifest
+  520edd6df6c9e5347f0385fcf8d33d0efb2cb670a28a6257b296044ccdc74971,
+  inventory e7bea9d4e967aa244c811234c511c6fc395fea29e61343cae07b3bfa9514b49c,
+  and metric-contract-set
+  95939bf450efceb8b40b7e19ee5d870fb0d858face2686ffb8fe53259d756cef
+  identities. All provider conformance checks matched. Both directions returned
+  only source_budget_native_parse_failed:yaml:.config/ci/templates/hosted/gitlab-ci.yml,
+  so snapshot/vector payloads and their digests remained absent as required.
 
-- [ ] **Step 5: Complete focused 100 percent statement/branch coverage, v1 regressions, owner gates, independent review, a fresh one-binding external-adopter observation, claim/Chronicle, parity, exact-HEAD proof, official archive, archive-HEAD proof, candidate land, accepted closeout, local publication readiness, and owned-Lane retirement; commit implementation with feat(quality): measure source budget vectors.**
+- [ ] **Step 5: Complete the pre-transition closeout as a distinct state: current-head focused/integration/regression and owner gates, the one-binding observation, exact promotion targets, independent review, claim/Chronicle, generic parity, default and full exact-HEAD proof, and the final active-carrier recording commit.**
+- [ ] **Step 6: Complete official OpenSpec archive and canonical contracts/quality/repository-governance spec fusion as a separate committed state; do not treat archive as archive-HEAD proof or integration.**
+- [ ] **Step 7: Complete post-archive parity, default and full archive-HEAD proof, candidate land, accepted-root closeout, local publication-readiness evaluation, and owned successor-Lane retirement as separately evidenced transitions; do not claim remote publication or hosted CI.**
 
 ### Task 4: Git Snapshot Replay And v2 Shadow Report
 

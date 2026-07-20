@@ -154,8 +154,31 @@ def test_metric_contract_v3_resource_boundary_is_required_and_strict() -> None:
             field,
             lambda payload=payload: m.MetricContract.model_validate(payload),
         )
-    payload = contract.model_dump() | {"path_override": {"packages/**": 1}}
-    _raises(ValidationError, "path_override", lambda: m.MetricContract.model_validate(payload))
+    for field in ("path_override", "profile_override", "carrier_override"):
+        payload = contract.model_dump() | {field: {"scope": 1}}
+        _raises(
+            ValidationError,
+            field,
+            lambda payload=payload: m.MetricContract.model_validate(payload),
+        )
+    old_unbounded = contract.model_dump()
+    old_unbounded["contract_version"] = 2
+    old_unbounded.pop("execution_mode")
+    old_unbounded.pop("max_carrier_bytes")
+    _raises(
+        ValidationError,
+        "contract version",
+        lambda: m.MetricContract.model_validate(old_unbounded),
+    )
+    all_v4 = _s().model_dump(mode="json", by_alias=True)
+    all_v4["contract_version"] = 4
+    for item in all_v4["contracts"]:
+        item["contract_version"] = 4
+    _raises(
+        ValidationError,
+        "contract version",
+        lambda: m.MetricContractSet.model_validate(all_v4),
+    )
 
 
 def test_metric_provider_resource_contract_rejects_mixed_provider_or_ceiling() -> None:

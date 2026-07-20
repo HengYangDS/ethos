@@ -24,6 +24,15 @@ _C = "metric contract "
 err, unique = carrier.err, carrier.unique
 
 
+def _require_contract_version(value: object) -> object:
+    """Require the exact bounded metric-contract wire version."""
+    (type(value) is int and value == 3) or err(_C + "version must be 3")
+    return value
+
+
+MetricContractVersion = t.Annotated[t.Literal[3], p.BeforeValidator(_require_contract_version)]
+
+
 class MetricProfile(carrier.FrozenContract):
     """Required metric vector for one carrier role and profile."""
 
@@ -40,7 +49,7 @@ class MetricContract(carrier.FrozenContract):
     """One immutable native metric identity."""
 
     contract_id: carrier.NonEmptyStr
-    contract_version: carrier.PositiveInt
+    contract_version: MetricContractVersion
     metric_id: carrier.NonEmptyStr
     unit: MetricUnit
     carrier_role: carrier.CarrierRole
@@ -52,6 +61,8 @@ class MetricContract(carrier.FrozenContract):
     normalization_version: carrier.NonEmptyStr
     aggregation: t.Literal["sum"]
     non_compensable: t.Literal[True]
+    execution_mode: t.Literal["bounded_in_process_v1"]
+    max_carrier_bytes: carrier.PositiveInt
 
     @p.field_validator("non_compensable", mode="before")
     @classmethod
@@ -64,14 +75,15 @@ class MetricContract(carrier.FrozenContract):
 class MetricContractSet(carrier._Registry):
     """Complete immutable profile and metric registry."""
 
-    schema_id: t.Literal["ethos-source-budget-metrics-v2"] = p.Field(alias="schema")
-    contract_version: carrier.PositiveInt
+    schema_id: t.Literal["ethos-source-budget-metrics-v3"] = p.Field(alias="schema")
+    contract_version: MetricContractVersion
     profiles: tuple[MetricProfile, ...] = p.Field(min_length=1)
     contracts: tuple[MetricContract, ...] = p.Field(min_length=1)
 
     def model_post_init(self, _context: t.Any) -> None:
         """Reject duplicate, dangling, incomplete, or role-mismatched contracts."""
         ps, cs = self.profiles, self.contracts
+        self.contract_version == 3 or err(_C + "version must be 3")
         mismatched = sorted(
             c.contract_id for c in cs if c.contract_version != self.contract_version
         )
@@ -82,6 +94,14 @@ class MetricContractSet(carrier._Registry):
         unique(contract_ids) or err(_C + "ids must be unique")
         coordinates = tuple((c.metric_profile, c.carrier_role, c.metric_id) for c in cs)
         unique(coordinates) or err(_C + "coordinates must be unique")
+        provider_resources: dict[tuple[str, str], tuple[str, int]] = {}
+        for contract in cs:
+            provider = contract.parser_id, contract.parser_version
+            resource = contract.execution_mode, contract.max_carrier_bytes
+            previous = provider_resources.setdefault(provider, resource)
+            previous == resource or err(
+                f"{_C}provider resource mismatch:{contract.parser_id}:{contract.parser_version}"
+            )
         available: dict[str, set[str]] = {p.profile_id: set() for p in ps}
         for contract in cs:
             profile = profiles.get(contract.metric_profile)
@@ -139,6 +159,27 @@ def metric_contracts_digest(contracts: MetricContractSet) -> str:
     return carrier._digest(payload)
 
 
+def metric_provider_resource_contract(
+    contracts: tuple[MetricContract, ...],
+) -> tuple[t.Literal["bounded_in_process_v1"], int]:
+    """Return one exact provider resource contract for resolved metric atoms."""
+    contracts or err(_C + "provider contracts must not be empty")
+    providers = {
+        (
+            item.parser_id,
+            item.parser_version,
+            item.grammar_digest,
+            item.normalization_id,
+            item.normalization_version,
+        )
+        for item in contracts
+    }
+    len(providers) == 1 or err(_C + "provider signature mismatch")
+    resources = {(item.execution_mode, item.max_carrier_bytes) for item in contracts}
+    len(resources) == 1 or err(_C + "provider resource mismatch")
+    return next(iter(resources))
+
+
 def resolve_metric_contracts(
     identity: carrier.CarrierIdentity, contracts: MetricContractSet
 ) -> tuple[MetricContract, ...]:
@@ -149,7 +190,7 @@ def resolve_metric_contracts(
     profile = next((item for item in contracts.profiles if item.profile_id == profile_id), None)
     if profile is None or profile.carrier_role != identity.role:
         err(f"carrier metric profile unresolved:{identity.carrier_id}")
-    return tuple(
+    resolved = tuple(
         next(
             item
             for item in contracts.contracts
@@ -157,3 +198,5 @@ def resolve_metric_contracts(
         )
         for metric_id in sorted(profile.required_metric_ids)
     )
+    metric_provider_resource_contract(resolved)
+    return resolved

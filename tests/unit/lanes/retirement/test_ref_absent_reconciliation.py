@@ -531,7 +531,8 @@ def test_reconciliation_record_validators_reject_missing_or_invalid_nested_attem
             "expected_head": observed["active_lease"]["expected_head"],
         },
     )
-    receipt["source_retirement_attempt"] = {**attempt, "kind": "wrong"}
+    records.validate_record(receipt, kind=records.RECONCILIATION_RECEIPT_KIND)
+    receipt["postconditions"] = {**receipt["postconditions"], "chronicle_unchanged": False}
 
     with pytest.raises(ValueError, match="unbound_retire_record_invalid"):
         records.validate_record(receipt, kind=records.RECONCILIATION_RECEIPT_KIND)

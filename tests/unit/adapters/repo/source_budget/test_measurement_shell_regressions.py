@@ -319,23 +319,31 @@ def test_shell_accepts_contextual_nested_substitution_closers(source: str) -> No
     assert load.measurement is not None
 
 
-@pytest.mark.parametrize(
-    ("depth", "expected_gap"),
-    [
-        (20, None),
-        (200, "source_budget_native_resource_exhausted"),
-    ],
-)
-def test_shell_deep_parameter_expansion_reports_resource_exhaustion(
-    depth: int,
-    expected_gap: str | None,
-) -> None:
+def test_shell_accepts_bounded_deep_parameter_expansion() -> None:
+    depth = 20
     source = "echo " + ("${x:-" * depth) + "z" + ("}" * depth) + "\n"
 
     load = native_core.measure_native(source.encode(), _contracts("shell-source-v2"))
 
-    assert load.required_gaps == (() if expected_gap is None else (expected_gap,))
-    assert (load.measurement is not None) is (expected_gap is None)
+    assert load.required_gaps == ()
+    assert load.measurement is not None
+
+
+def test_shell_recursion_exhaustion_reports_stable_resource_gap(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    contracts = _contracts("shell-source-v2")
+    assert native_core.measure_native(b"echo ready\n", contracts).measurement is not None
+
+    def exhausted(_source: str) -> tuple[str, ...]:
+        message = "SENSITIVE"
+        raise RecursionError(message)
+
+    monkeypatch.setattr(native_core, "shell_tokens", exhausted)
+    load = native_core.measure_native(b"echo unreachable\n", contracts)
+
+    assert load.required_gaps == ("source_budget_native_resource_exhausted",)
+    assert load.measurement is None
 
 
 def test_shell_rejects_unclosed_group_inside_substitution() -> None:

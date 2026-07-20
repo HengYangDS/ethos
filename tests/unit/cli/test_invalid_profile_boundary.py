@@ -41,11 +41,21 @@ def test_invalid_profile_reader_commands_emit_json_result(
     assert payload["required_gaps"] == ["adopter_profile_invalid:.ethos/profile.toml"]
 
 
-def test_invalid_profile_proof_emits_enforcing_json_result(
+@pytest.mark.parametrize(
+    "case",
+    [
+        ("prove", (), True),
+        ("land", (), False),
+        ("land", ("--apply",), True),
+    ],
+)
+def test_invalid_profile_workflow_commands_emit_structured_result_before_admission(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
+    case: tuple[str, tuple[str, ...], bool],
 ) -> None:
+    command, extra_args, enforcing = case
     profile = tmp_path / ".ethos" / "profile.toml"
     profile.parent.mkdir()
     profile.write_text(
@@ -56,15 +66,19 @@ def test_invalid_profile_proof_emits_enforcing_json_result(
         'rules = "."\n',
         encoding="utf-8",
     )
-    monkeypatch.setattr(
-        sys,
-        "argv",
-        ["ethos", "prove", "--root", tmp_path.as_posix(), "--json"],
-    )
+    command_args = ["ethos", command, *extra_args, "--root", tmp_path.as_posix(), "--json"]
+    monkeypatch.setattr(sys, "argv", command_args)
 
-    with pytest.raises(SystemExit, match="1"):
+    if enforcing:
+        with pytest.raises(SystemExit, match="1"):
+            main()
+    elif command == "land":
+        with pytest.raises(SystemExit, match="0"):
+            main()
+    else:
         main()
 
     payload = json.loads(capsys.readouterr().out)
+    assert payload["command"] == command
     assert payload["ok"] is False
     assert payload["required_gaps"] == ["adopter_profile_invalid:.ethos/profile.toml"]

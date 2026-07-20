@@ -53,10 +53,10 @@ gap.
   exact retired fields and test negative variants.
 - **A file source is treated as a directory by downstream consumers** -> keep
   `normative_sources` separate from `roots.rules` and test root candidates.
-- **A new command path leaks a traceback** -> centralize translation in the
-  public CLI boundary and cover orient, report, plan, prove, and OpenSpec
-  lifecycle surfaces. Land's protected-root admission precedes profile
-  consumers and remains a separate mutation boundary.
+- **A new command path leaks a traceback or masks the binding defect** ->
+  centralize translation in the public CLI boundary and make `land` validate
+  its target adopter before mutation admission. Cover orient, report, plan,
+  prove, OpenSpec lifecycle, and both read-only and applying land surfaces.
 
 ## Migration Plan
 

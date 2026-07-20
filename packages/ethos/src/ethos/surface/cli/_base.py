@@ -14,16 +14,13 @@ import importlib
 import subprocess
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING
 from typing import Annotated
 
 from cyclopts import App
 from cyclopts import Parameter
 
 from ethos.surface.cli.quality.registry import register_declared_group
-
-if TYPE_CHECKING:
-    from ethos_core.result import EthosResult
+from ethos_core.result import EthosResult
 
 # ---- App objects (one per command group; commands register onto these) ----
 app = App(name="ethos", help="ETHOS command plane.")
@@ -90,8 +87,6 @@ def resolve_root(root: Path | None) -> Path:
 
 def emit_invalid_adopter_profile(*, command: str, json_output: bool, enforce: bool) -> None:
     """Emit the stable fail-closed envelope for an invalid adopter binding."""
-    from ethos_core.result import EthosResult
-
     result = EthosResult(
         command=command,
         ok=False,

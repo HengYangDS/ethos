@@ -164,10 +164,10 @@ def test_intake_and_cli_remaining_edges(tmp_path: Path, monkeypatch: pytest.Monk
     assert intake._git_head(tmp_path) == "head"  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch  # fmt: skip
     called: list[object] = []
     monkeypatch.setattr(cli_entry, "load_command_groups", lambda args: called.append(args))  # noqa: PLW0108 coverage closure keeps callback and branch shapes explicit  # fmt: skip
-    monkeypatch.setattr(cli_entry, "app", lambda: called.append("app"))
+    monkeypatch.setattr(cli_entry, "app", lambda args: called.append(args))  # noqa: PLW0108 coverage closure preserves the explicit argv contract  # fmt: skip
     monkeypatch.setattr(sys, "argv", ["ethos", "status"])
     cli_entry.main()
-    assert called == [["status"], "app"]
+    assert called == [["status"], ["status"]]
 
 
 def test_doctor_initializes_state_when_requested(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:  # fmt: skip

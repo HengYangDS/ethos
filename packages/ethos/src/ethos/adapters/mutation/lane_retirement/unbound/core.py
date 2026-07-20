@@ -345,11 +345,19 @@ def _commit_or_restore(connection: sqlite3.Connection, repo: Path, controls: _Co
 
 
 def _delete_ref_transaction(repo: Path, *, observed: dict[str, object], controls: _Controls) -> Any:
+    """Compare-and-delete target while atomically retaining protected-ref CAS guards.
+
+    A same-value ``update`` is Git's atomic compare-and-swap form for a retained ref.
+    Unlike a ``verify`` clause, it is unambiguously a no-op to the
+    ``reference-transaction`` hook, so it cannot be misclassified as a protected-ref
+    deletion.  All retained-ref CAS guards and the target deletion remain one Git
+    transaction.
+    """
     protected = cast("dict[str, str]", observed["protected_refs"])
     program = "\n".join(
         [
             "start",
-            *(f"verify refs/heads/{ref} {head}" for ref, head in protected.items()),
+            *(f"update refs/heads/{ref} {head} {head}" for ref, head in protected.items()),
             f"delete refs/heads/{controls['branch']} {controls['expect_head']}",
             "prepare",
             "commit",

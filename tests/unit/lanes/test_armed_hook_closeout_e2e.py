@@ -280,6 +280,51 @@ def test_committed_profile_closeout_blocks_raw_move(tmp_path: Path) -> None:
     assert _g(repo, "rev-parse", "main").stdout.strip() == candidate_head
 
 
+def test_atomic_protected_ref_cas_then_work_lane_delete_preserves_hook_boundary(
+    tmp_path: Path,
+) -> None:
+    """A native compare-and-delete retains protected refs with atomic CAS guards.
+
+    Same-value ``update`` clauses retain their old-value compare-and-swap protection,
+    but remain genuine no-op ref transitions for the real ``reference-transaction``
+    hook. Therefore only the work-lane deletion reaches its teardown reducer; the
+    protected refs never need candidate-closeout admission.
+    """
+    if not _HOOK_SRC.exists():
+        return
+    repo = _armed_repo(tmp_path, mirror=True)
+    candidate = tmp_path / "cand"
+    protected = _g(repo, "rev-parse", "dev").stdout.strip()
+    lane = "work/atomic-verify-retire"
+    _g(repo, "branch", lane, protected)
+    program = "\n".join(
+        (
+            "start",
+            f"update refs/heads/main {protected} {protected}",
+            f"update refs/heads/dev {protected} {protected}",
+            f"update refs/heads/candidate/dev {protected} {protected}",
+            f"delete refs/heads/{lane} {protected}",
+            "prepare",
+            "commit",
+            "",
+        )
+    )
+    deleted = subprocess.run(
+        ["git", "update-ref", "--stdin"],
+        cwd=repo,
+        input=program,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert deleted.returncode == 0, deleted.stderr
+    assert _g(repo, "show-ref", "--verify", f"refs/heads/{lane}").returncode != 0
+    assert _g(repo, "rev-parse", "dev").stdout.strip() == protected
+    assert _g(repo, "rev-parse", "main").stdout.strip() == protected
+    assert _g(candidate, "rev-parse", "candidate/dev").stdout.strip() == protected
+
+
 def _legacy_accepted_only_hook(candidate_hook: str) -> str:
     """Derive the incumbent routing from the candidate fixture, not repository history.
 

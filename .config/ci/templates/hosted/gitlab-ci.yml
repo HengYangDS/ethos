@@ -33,6 +33,7 @@ cache:
 # transient pull is noise, not a real breach. Never retries script_failure, so a
 # genuine gate breach still fails the pipeline.
 default:
+  tags: ["${ETHOS_GITLAB_RUNNER_TAG}"]
   retry:
     max: 2
     when:

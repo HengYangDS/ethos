@@ -22,7 +22,7 @@ env:
 jobs:
   quality:
     name: quality gates
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, macOS, ARM64, "${{ vars.ETHOS_GITHUB_RUNNER_LABEL }}"]
     steps:
       - uses: actions/checkout@v7
         with:
@@ -85,7 +85,7 @@ jobs:
 
   verify:
     name: repository proof
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, macOS, ARM64, "${{ vars.ETHOS_GITHUB_RUNNER_LABEL }}"]
     needs: quality
     env:
       ETHOS_TEST_WORKERS: "1"
@@ -120,7 +120,7 @@ jobs:
 
   package:
     name: package artifacts
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, macOS, ARM64, "${{ vars.ETHOS_GITHUB_RUNNER_LABEL }}"]
     needs: verify
     steps:
       - uses: actions/checkout@v7

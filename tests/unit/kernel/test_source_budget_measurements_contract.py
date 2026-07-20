@@ -415,6 +415,6 @@ def test_contract_module_surface_and_effective_size_are_bounded() -> None:
     ):
         assert not hasattr(measurements_module, removed)
 
-    assert canonical.__all__ == ()
+    assert not hasattr(canonical, "__all__")
     assert measurements_module.__file__ is not None
     assert effective_code_lines(Path(measurements_module.__file__)) <= 500

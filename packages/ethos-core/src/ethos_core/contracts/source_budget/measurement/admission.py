@@ -13,8 +13,6 @@ from typing import get_origin
 
 from pydantic import BaseModel
 
-__all__: tuple[str, ...] = ()
-
 type ModelValidator = Callable[[object, type[BaseModel], str], BaseModel]
 type Replay = Callable[[BaseModel], BaseModel]
 

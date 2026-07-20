@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import uuid
 from dataclasses import dataclass
 from pathlib import Path  # noqa: TC003 - cyclopts needs runtime types in signatures
 from typing import Annotated
@@ -9,6 +11,7 @@ from typing import cast
 
 from cyclopts import Parameter
 
+from ethos.adapters.mutation.resolution._shared import records_artifact_root
 from ethos.adapters.mutation.resolution.lane import apply_lane_resolution
 from ethos.adapters.mutation.resolution.lane import plan_lane_resolution
 from ethos.adapters.mutation.resolution.receipts import LaneResolutionClearRequest
@@ -46,7 +49,9 @@ _DEFAULT_CLEAR_OPTIONS = _ClearOptions(
 def _default_decision_path(root: Path, branch: str) -> Path:
     """Return the generated-artifact home for one lane-resolution decision."""
     token = branch.strip().replace("/", "-") or "lane-resolution"
-    return root / "build" / "artifacts" / "lane-resolution" / "decisions" / f"{token}.json"
+    branch_digest = hashlib.sha256(branch.encode()).hexdigest()[:12]
+    name = f"{token}-{branch_digest}-{uuid.uuid4()}.json"
+    return records_artifact_root(root) / "decisions" / name
 
 
 def _emit(command: str, report: dict[str, object], *, json_output: bool) -> None:

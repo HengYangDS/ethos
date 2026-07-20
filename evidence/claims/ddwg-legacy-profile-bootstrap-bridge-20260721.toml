@@ -3,19 +3,20 @@ id = "ddwg-legacy-profile-bootstrap-bridge-20260721"
 subject = "ethos:adopter-profile:ddwg-legacy-profile-bootstrap-bridge"
 state = "active"
 change_id = "ddwg-legacy-profile-bootstrap-bridge"
-summary = "The product accepts only the complete former DDWG-style profile envelope with its former root-level rules workaround, normalizing it to the current typed normative-source declaration."
+summary = "The archived product change accepts only the complete former DDWG-style profile envelope with its former root-level rules workaround, normalizing it to the current typed normative-source declaration."
 
 [evidence]
 dated = "evidence/chronicle/ddwg-legacy-profile-bootstrap-bridge-20260721/2026-07-20.md"
-sha256 = "87280d61070b7ddf8792856d68b18221797879ae496ec589fa30f1cc39cd0b5c"
+sha256 = "4605807b7c80444f02a5925569664cc0656a37e7803e9c96ee855b8e952a1296"
 evidence_ids = ["evidence:ddwg-legacy-profile-bootstrap-bridge-20260721"]
-binding = "The active OpenSpec carrier, focused profile-contract regression, strict OpenSpec validation, and DDWG legacy-profile read probe bind this product-side bootstrap bridge only."
+binding = "The archived OpenSpec carrier, focused profile-contract regression, strict OpenSpec validation, exact-HEAD product proof, and DDWG legacy-profile read probe bind this product-side bootstrap bridge only."
 verifier = "digest_only"
 tests = [
   "tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev pytest -q tests/unit/adoption/test_profile_contract.py",
   "tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev ruff format --check packages/ethos/src/ethos/repository/profile.py tests/unit/adoption/test_profile_contract.py",
   "tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev ruff check packages/ethos/src/ethos/repository/profile.py tests/unit/adoption/test_profile_contract.py",
-  "openspec validate ddwg-legacy-profile-bootstrap-bridge --strict --json",
+  "openspec validate --all --strict --json",
+  "ethos prove --execute --expect-head 34eba1d6e04a8ce34d47967d2343e9dab45be41a --json",
 ]
 
 [evidence.freshness]
@@ -26,7 +27,7 @@ owner = "repository-governance"
 scope = "Exact complete legacy profile normalization for the former root-level normative-source workaround; no current-profile relaxation, adopter mutation, remote mutation, or session recovery."
 
 [carriers]
-openspec = "openspec/changes/ddwg-legacy-profile-bootstrap-bridge"
+openspec = "openspec/changes/archive/2026-07-20-ddwg-legacy-profile-bootstrap-bridge"
 fallback = "Keep the historical profile blocked and defer DDWG promotion whenever the complete former envelope, root workaround, candidate proof, or governed closeout cannot be re-verified."
 kill_signal = "A current profile accepts roots.rules = dot, a partial or extended former envelope is normalized, or this parser repair is represented as DDWG promotion or remote runner acceptance."
 
@@ -35,7 +36,7 @@ targets = [
   "docs/governance/repository-profile-contract.md",
   "evidence/claims/ddwg-legacy-profile-bootstrap-bridge-20260721.toml",
   "evidence/chronicle/ddwg-legacy-profile-bootstrap-bridge-20260721/2026-07-20.md",
-  "openspec/changes/ddwg-legacy-profile-bootstrap-bridge",
+  "openspec/changes/archive/2026-07-20-ddwg-legacy-profile-bootstrap-bridge",
   "openspec/specs/repository-governance/spec.md",
   "packages/ethos/src/ethos/repository/profile.py",
   "tests/unit/adoption/test_profile_contract.py",

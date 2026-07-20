@@ -118,6 +118,47 @@ def test_owner_unavailable_policy_requires_source_path_digest(tmp_path: Path) ->
     ) == ["unbound_retire_owner_unavailable_source_path_mismatch"]
 
 
+@pytest.mark.parametrize(
+    ("recovery_actor", "expected_gap"),
+    [
+        ("", "unbound_retire_recovery_actor_required"),
+        (
+            "agent:test:session:missing-source-owner",
+            "unbound_retire_owner_unavailable_holder_not_foreign",
+        ),
+    ],
+)
+def test_owner_unavailable_policy_requires_distinct_recovery_actor(
+    tmp_path: Path, recovery_actor: str, expected_gap: str
+) -> None:
+    repo, branch, _head, chronicle, _lease, _source_path = _owner_unavailable_fixture(tmp_path)
+    observed = observation.observe(repo, branch=branch, chronicle_ref=chronicle)
+
+    assert policy.owner_unavailable_recovery_gaps(observed, recovery_actor=recovery_actor) == [
+        expected_gap
+    ]
+
+
+def test_owner_unavailable_policy_rejects_invalid_source_path_contract(tmp_path: Path) -> None:
+    repo, branch, _head, chronicle, _lease, _source_path = _owner_unavailable_fixture(tmp_path)
+    observed = observation.observe(repo, branch=branch, chronicle_ref=chronicle)
+    observed["active_lease"]["recorded_path"] = "relative-source-worktree"
+
+    assert policy.owner_unavailable_recovery_gaps(
+        observed, recovery_actor="agent:test:recovery"
+    ) == ["unbound_retire_owner_unavailable_source_path_invalid"]
+
+
+def test_owner_unavailable_policy_requires_absent_source_path_declaration(tmp_path: Path) -> None:
+    repo, branch, _head, chronicle, _lease, _source_path = _owner_unavailable_fixture(tmp_path)
+    observed = observation.observe(repo, branch=branch, chronicle_ref=chronicle)
+    observed["chronicle"]["source_worktree_absent"] = "false"
+
+    assert policy.owner_unavailable_recovery_gaps(
+        observed, recovery_actor="agent:test:recovery"
+    ) == ["unbound_retire_owner_unavailable_chronicle_missing"]
+
+
 def test_owner_unavailable_policy_rejects_nonexact_lease_binding(tmp_path: Path) -> None:
     repo, branch, head, chronicle = _exceptional_fixture(tmp_path)
     observed = observation.observe(repo, branch=branch, chronicle_ref=chronicle)

@@ -1,0 +1,44 @@
+[claim]
+id = "adopter-profile-migration-20260720"
+subject = "ethos:adopter-profile-migration"
+state = "active"
+change_id = "adopter-profile-migration-20260720"
+summary = "Bounded former-profile normalization, explicit normative file sources, and JSON-safe invalid-profile command results."
+
+[evidence]
+dated = "evidence/chronicle/adopter-profile-migration-20260720/2026-07-20.md"
+sha256 = "c4147a4d112d819e17aa334b62bbad41fabebcc53b2ff4e0d2a1be7b382bc9df"
+evidence_ids = ["evidence:adopter-profile-migration-20260720"]
+binding = "The active OpenSpec Change, strict profile tests, JSON-boundary tests, and dated Chronicle delimit this product repair."
+verifier = "digest_only"
+tests = [
+  "uv run --all-packages --group dev pytest -q tests/unit/adoption/test_profile_contract.py tests/unit/cli/test_invalid_profile_boundary.py",
+  "uv run --all-packages --group dev ruff check packages/ethos/src/ethos/repository/profile.py packages/ethos/src/ethos/cli.py tests/unit/cli/test_invalid_profile_boundary.py",
+  "openspec validate adopter-profile-migration-20260720 --strict --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "repository-governance"
+scope = "Typed adopter-profile compatibility and public invalid-profile result behavior."
+
+[carriers]
+openspec = "openspec/changes/adopter-profile-migration-20260720"
+fallback = "Block invalid profiles; do not restore permissive parsing, synthetic rules directories, or implicit compatibility aliases."
+kill_signal = "A malformed or extended legacy profile loads, a root-level normative file is treated as a directory, or a public JSON command leaks a traceback."
+
+[promotion]
+targets = [
+  "docs/governance/repository-profile-contract.md",
+  "packages/ethos/src/ethos/cli.py",
+  "packages/ethos/src/ethos/repository/profile.py",
+  "packages/ethos/src/ethos/surface/cli/_base.py",
+  "tests/unit/adoption/test_profile_contract.py",
+  "tests/unit/cli/test_invalid_profile_boundary.py",
+  "openspec/specs/repository-governance/spec.md",
+  "openspec/changes/adopter-profile-migration-20260720",
+  "evidence/claims/adopter-profile-migration-20260720.toml",
+  "evidence/chronicle/adopter-profile-migration-20260720/2026-07-20.md",
+]

@@ -269,6 +269,34 @@ def test_prewrite_admits_only_new_official_scope_file_for_bootstrap(
     }
 
 
+def test_prewrite_admits_scope_bootstrap_for_no_tasks_official_change(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    """A newly created official Change may bootstrap only its own scope companion."""
+    _repo, worktree = _owned_adopter_scope_lane(
+        tmp_path,
+        monkeypatch,
+        ("guidelines.md", "openspec/changes/bootstrap/**"),
+    )
+    change = worktree / "openspec" / "changes" / "bootstrap"
+    change.mkdir(parents=True)
+    scope_path = change / "scope.toml"
+    _mock_official_active_change(monkeypatch, "bootstrap", status="no-tasks")
+
+    uncovered = _prewrite(worktree, worktree / "guidelines.md")
+    bootstrap = _prewrite(worktree, scope_path)
+
+    assert uncovered["ok"] is False
+    assert uncovered["error"] == "openspec_material_path_uncovered:guidelines.md"
+    assert bootstrap["ok"] is True
+    assert bootstrap["material_scope"]["state"] == "bootstrap_scope_creation"
+    assert bootstrap["material_scope"]["bootstrap"] == {
+        "change": "bootstrap",
+        "scope_path": "openspec/changes/bootstrap/scope.toml",
+    }
+
+
 def test_prewrite_bootstrap_scope_must_cover_its_own_path(
     tmp_path: Path,
     monkeypatch,
@@ -439,7 +467,8 @@ def test_current_archive_scope_is_reconciliation_only(
     profile = repo / ".ethos" / "profile.toml"
     profile.parent.mkdir(exist_ok=True)
     profile.write_text(
-        'profile_id = "sample"\n[openspec]\nmaterial_paths = [".ethos/profile.toml", "guidelines.md", "openspec/**"]\n'
+        'profile_id = "sample"\n[openspec]\n'
+        'material_paths = [".ethos/profile.toml", "guidelines.md", "openspec/**"]\n'
     )
     archive = repo / "openspec" / "changes" / "archive" / "change"
     archive.mkdir(parents=True)

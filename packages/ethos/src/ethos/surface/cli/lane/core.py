@@ -19,6 +19,12 @@ from ethos.adapters.mutation.lane_retirement.core import SupersededLaneRetiremen
 from ethos.adapters.mutation.lane_retirement.core import retire_superseded_work_lane
 from ethos.adapters.mutation.lane_retirement.landed.core import retire_landed_work_lanes
 from ethos.adapters.mutation.lane_retirement.unbound.core import retire_unbound_work_lane_ref
+from ethos.adapters.mutation.lane_retirement.unbound.reconciliation.core import (
+    RefAbsentReconciliationControls,
+)
+from ethos.adapters.mutation.lane_retirement.unbound.reconciliation.core import (
+    reconcile_ref_absent_owner_unavailable_lease,
+)
 from ethos.adapters.mutation.lanes import bind_work_lane_claim
 from ethos.adapters.mutation.lanes import start_work_lane
 from ethos.adapters.mutation.worktree.core import housekeeping_worktrees
@@ -46,6 +52,22 @@ class _RetireSupersededOptions:
 
 
 _DEFAULT_RETIRE_SUPERSEDED_OPTIONS = _RetireSupersededOptions(branch="")
+
+
+@dataclass(frozen=True, slots=True)
+class _ReconcileRefAbsentOptions:
+    """CLI options for one ref-absent owner-unavailable reconciliation."""
+
+    branch: Annotated[str, Parameter(name="--branch")]
+    reason: Annotated[str, Parameter(name="--reason")] = ""
+    chronicle_ref: Annotated[str, Parameter(name="--chronicle-ref")] = ""
+    authorize: bool = False
+    break_glass: Annotated[bool, Parameter(name="--break-glass")] = False
+    confirm_irreversible: Annotated[bool, Parameter(name="--confirm-irreversible")] = False
+    apply: bool = False
+
+
+_DEFAULT_RECONCILE_REF_ABSENT_OPTIONS = _ReconcileRefAbsentOptions(branch="")
 
 
 @lane_app.command(name="status")
@@ -398,6 +420,46 @@ def lane_retire_unbound(
         data=report,
     )
     emit(result, json_output=json_output, enforce=apply)
+
+
+@lane_retire_app.command(name="reconcile-ref-absent")
+def lane_retire_reconcile_ref_absent(
+    options: Annotated[
+        _ReconcileRefAbsentOptions,
+        Parameter(name="*"),
+    ] = _DEFAULT_RECONCILE_REF_ABSENT_OPTIONS,
+    *,
+    root: RootOption | None = None,
+    json_output: JsonFlag = False,
+) -> None:
+    """Reconcile one ref-absent owner-unavailable lease residue without recreating a ref."""
+    repo = resolve_root(root)
+    report = reconcile_ref_absent_owner_unavailable_lease(
+        root=repo,
+        branch=options.branch,
+        controls=RefAbsentReconciliationControls(
+            reason=options.reason,
+            chronicle_ref=options.chronicle_ref,
+            apply=options.apply,
+            authorized=options.authorize,
+            break_glass=options.break_glass,
+            confirm_irreversible=options.confirm_irreversible,
+        ),
+    )
+    result = EthosResult(
+        command="lane retire reconcile-ref-absent",
+        ok=bool(report["ok"]),
+        state=str(report["state"]),
+        summary={
+            "branch": report["branch"],
+            "head": report["head"],
+            "relation_to_accepted": report["relation_to_accepted"],
+        },
+        required_gaps=tuple(string_sequence(report.get("required_gaps"))),
+        next_actions=("ethos status",) if report["ok"] else ("ethos lane status",),
+        data=report,
+    )
+    emit(result, json_output=json_output, enforce=options.apply)
 
 
 @lane_retire_app.command(name="superseded")

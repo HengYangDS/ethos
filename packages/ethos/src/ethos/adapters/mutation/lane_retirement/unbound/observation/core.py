@@ -34,7 +34,12 @@ _CHRONICLE_TEXT = _keys(
     "sha256 accepted_sha256 event target_branch target_head target_claim "
     "claim_sha256 claim_accepted_sha256 lease_recovery source_lease_id "
     "source_lease_holder source_lease_epoch source_lease_expected_head "
-    "source_worktree_path_sha256 source_worktree_absent"
+    "source_worktree_path_sha256 source_worktree_absent "
+    "partial_effect_reconciliation source_retirement_attempt_id "
+    "source_retirement_attempt_accepted_head source_retirement_attempt_claim_id "
+    "source_retirement_attempt_chronicle_ref source_retirement_attempt_chronicle_sha256 "
+    "source_retirement_attempt_chronicle_claim_id "
+    "source_retirement_attempt_chronicle_claim_sha256"
 )
 _CHRONICLE_FLAGS = (
     HAS_LOCAL_CHRONICLE,
@@ -63,7 +68,12 @@ _CHRONICLE_BINDING_KEYS = _keys(
     "claim_sha256 claim_accepted_sha256 byte_identical_to_accepted "
     "claim_byte_identical_to_accepted has_accepted_chronicle has_accepted_claim "
     "lease_recovery source_lease_id source_lease_holder source_lease_epoch "
-    "source_lease_expected_head source_worktree_path_sha256 source_worktree_absent"
+    "source_lease_expected_head source_worktree_path_sha256 source_worktree_absent "
+    "partial_effect_reconciliation source_retirement_attempt_id "
+    "source_retirement_attempt_accepted_head source_retirement_attempt_claim_id "
+    "source_retirement_attempt_chronicle_ref source_retirement_attempt_chronicle_sha256 "
+    "source_retirement_attempt_chronicle_claim_id "
+    "source_retirement_attempt_chronicle_claim_sha256"
 )
 
 
@@ -90,6 +100,51 @@ def observe(repo: Path, *, branch: str, chronicle_ref: str) -> dict[str, object]
         chronicle=chronicle_observation(
             repo, accepted_branch=branch_policy.accepted_branch, chronicle_ref=chronicle_ref
         ),
+        status=status,
+    )
+    payload["observation_sha256"] = sha256(public_observation(payload))
+    return payload
+
+
+def observe_ref_absent_reconciliation(
+    repo: Path, *, branch: str, chronicle_ref: str
+) -> dict[str, object]:
+    """Observe a ref-absent, lease-retained exceptional retirement residue.
+
+    This projection deliberately does not reconstruct a deleted source ref.  It
+    binds the current protected refs, current accepted policy bytes, absence of
+    a linked source worktree, and the exact surviving lease generation that a
+    later native reconciliation may revoke.
+    """
+    status, branch_policy = workspace_status(repo), load_branch_role_policy(repo)
+    worktrees = status.get("worktrees")
+    typed = cast("list[dict[str, str]]", worktrees) if isinstance(worktrees, list) else []
+    active_lease = leases_by_branch(typed, current_path=repo).get(branch, {})
+    refs = protected_refs(
+        branch_policy.release_branch, branch_policy.accepted_branch, branch_policy.candidate_branch
+    )
+    linked = any(item.get("branch") == branch for item in typed)
+    payload = _data(branch=branch, head=ref_head(repo, branch))
+    payload |= _data(accepted_head=ref_head(repo, branch_policy.accepted_branch))
+    payload |= _data(protected_refs={ref: ref_head(repo, ref) for ref in refs})
+    chronicle = chronicle_observation(
+        repo, accepted_branch=branch_policy.accepted_branch, chronicle_ref=chronicle_ref
+    )
+    claim_id = str(chronicle.get("target_claim") or "")
+    claim_bound = bool(
+        chronicle.get(HAS_LOCAL_CLAIM)
+        and chronicle.get(HAS_ACCEPTED_CLAIM)
+        and chronicle.get("claim_byte_identical_to_accepted")
+        and chronicle.get("claim_id_matches_target")
+        and chronicle.get("claim_active")
+    )
+    payload |= _data(status_unbound=False, worktree_binding="linked" if linked else "absent")
+    payload |= _data(relation_to_accepted="absent", claim_id=claim_id)
+    payload |= _data(
+        claim_binding="bound" if claim_bound else "missing",
+        active_lease=public_lease(active_lease),
+        has_active_lease=bool(active_lease),
+        chronicle=chronicle,
         status=status,
     )
     payload["observation_sha256"] = sha256(public_observation(payload))
@@ -187,6 +242,14 @@ def chronicle_fields(payload: bytes) -> dict[str, str]:
             "source_lease_expected_head",
             "source_worktree_path_sha256",
             "source_worktree_absent",
+            "partial_effect_reconciliation",
+            "source_retirement_attempt_id",
+            "source_retirement_attempt_accepted_head",
+            "source_retirement_attempt_claim_id",
+            "source_retirement_attempt_chronicle_ref",
+            "source_retirement_attempt_chronicle_sha256",
+            "source_retirement_attempt_chronicle_claim_id",
+            "source_retirement_attempt_chronicle_claim_sha256",
         }
     }
 
@@ -301,6 +364,12 @@ def public_lease(lease: dict[str, object]) -> dict[str, object]:
     return _project(lease, _keys("lease_id holder_ref epoch expected_head expires_at")) | {
         "recorded_path": recorded_path
     }
+
+
+def lease_claim_id(lease: dict[str, object]) -> str:
+    """Return the source Claim binding from one active Work Lane lease."""
+    payload = lease.get("payload") if isinstance(lease, dict) else {}
+    return str(payload.get("claim_id") or "") if isinstance(payload, dict) else ""
 
 
 def _entry(items: object, branch: str) -> dict[str, object] | None:

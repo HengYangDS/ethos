@@ -1,0 +1,51 @@
+[claim]
+id = "owner-unavailable-unbound-partial-effect-reconciliation-20260720"
+change_id = "owner-unavailable-unbound-partial-effect-reconciliation-20260720"
+subject = "ethos:lane:owner-unavailable-unbound-partial-effect-reconciliation"
+state = "active"
+summary = "ETHOS can reconcile one exact owner-unavailable exceptional-retirement partial effect when the source ref is already absent but its exact foreign lease remains, through current accepted policy, immutable-attempt binding, and native lease CAS only."
+
+[evidence]
+dated = "evidence/chronicle/owner-unavailable-unbound-partial-effect-reconciliation-20260720/2026-07-20.md"
+sha256 = "7c352493a859f21ed2224ca856317b9c57f5a73e27f6b45973c8f862a7809ea8"
+evidence_ids = ["evidence:owner-unavailable-unbound-partial-effect-reconciliation-20260720"]
+binding = "This active Claim binds only work/quality-zero-exceptions-successor-v2-20260719 at 943a5e1e373b009f02533ff22815e8bca32b3157, the exact surviving lease:03c8fb14-e616-4fc7-9592-bcba283fcdc5 tuple and absent recorded source path, the immutable exceptional-unbound-retirement:a9c5d9786ca64b62db29270e78e9e383e323ee20bc1df2a3bebd779a533aaa7b attempt, current accepted policy, and one later native lease-only reconciliation. It does not treat the historical raw source-ref deletion as a successful native effect."
+verifier = "digest_only"
+tests = [
+  "uv run --all-packages --group dev pytest -q tests/unit/lanes/retirement/test_unbound_and_helpers.py tests/unit/cli/test_contracts_lane.py",
+  "uv run --all-packages --group dev ruff check packages/ethos/src/ethos/adapters/mutation/lane_retirement/unbound packages/ethos/src/ethos/surface/cli/lane/core.py",
+  "openspec validate owner-unavailable-unbound-partial-effect-reconciliation-20260720 --strict --json",
+  "ethos lane retire reconcile-ref-absent --branch work/quality-zero-exceptions-successor-v2-20260719 --chronicle-ref evidence/chronicle/owner-unavailable-unbound-partial-effect-reconciliation-20260720/2026-07-20.md --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository-governance"
+scope = "One ref-absent owner-unavailable Work Lane lease residue and one future native lease-only reconciliation; generic takeover, raw ref/state mutation, source-holder impersonation, remote mutation, and hosted claims are excluded."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-20-owner-unavailable-unbound-partial-effect-reconciliation-20260720"
+fallback = "Retain the absent ref, foreign lease, historical attempt, and accepted records if current policy, lease tuple, source path, protected refs, or postconditions cannot be proved exactly."
+kill_signal = "A path reappears, a ref is recreated, a lease tuple or immutable attempt mismatches, a provider/session label is accepted as authority, any raw deletion path is used, or the native receipt cannot prove all postconditions."
+
+[promotion]
+targets = [
+  "docs/reference/command-plane.md",
+  "evidence/claims/owner-unavailable-unbound-partial-effect-reconciliation-20260720.toml",
+  "evidence/chronicle/owner-unavailable-unbound-partial-effect-reconciliation-20260720/2026-07-20.md",
+  "openspec/changes/archive/2026-07-20-owner-unavailable-unbound-partial-effect-reconciliation-20260720",
+  "openspec/specs/command-plane/spec.md",
+  "openspec/specs/repository-governance/spec.md",
+  "packages/ethos/src/ethos/adapters/mutation/lane_retirement/unbound/core.py",
+  "packages/ethos/src/ethos/adapters/mutation/lane_retirement/unbound/observation/core.py",
+  "packages/ethos/src/ethos/adapters/mutation/lane_retirement/unbound/policy/core.py",
+  "packages/ethos/src/ethos/adapters/mutation/lane_retirement/unbound/records/core.py",
+  "packages/ethos/src/ethos/adapters/mutation/lane_retirement/unbound/reconciliation/core.py",
+  "packages/ethos/src/ethos/adapters/mutation/lane_retirement/unbound/reporting/core.py",
+  "packages/ethos/src/ethos/repository/registry/docs/commands.py",
+  "packages/ethos/src/ethos/surface/cli/lane/core.py",
+  "tests/unit/cli/test_contracts_lane.py",
+  "tests/unit/lanes/retirement/test_unbound_and_helpers.py",
+]

@@ -5,21 +5,20 @@ import json
 import sqlite3
 import subprocess
 from contextlib import closing
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 import pytest
 
 import ethos.adapters.mutation.lane_retirement.shared.core as retirement_shared
 import ethos.adapters.mutation.lane_retirement.unbound.core as retirement
 import ethos.adapters.mutation.lane_retirement.unbound.observation.core as observation
+import ethos.adapters.mutation.lane_retirement.unbound.reconciliation.core as reconciliation
+import ethos.adapters.mutation.lane_retirement.unbound.records.core as records
 from ethos.adapters.repo.dirty.core import dirty_provenance
 from ethos.adapters.store.state.lease.lifecycle import core as state
 from tests.support.lane_helpers import add_candidate_worktree
 from tests.support.lane_helpers import git
 from tests.support.lane_helpers import init_repo
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 _CLAIM_ID = "exceptional-unbound-test-claim"
 _CHRONICLE_REF = "evidence/chronicle/exceptional-unbound-test/2026-07-19.md"
@@ -40,11 +39,17 @@ def _exceptional_fixture(tmp_path: Path) -> tuple[Path, str, str, str]:
     head = git(repo, "rev-parse", branch)
     _write(
         repo / f"evidence/claims/{_CLAIM_ID}.toml",
-        f'[claim]\nid = "{_CLAIM_ID}"\nsubject = "ethos:test:exceptional-unbound"\nstate = "active"\n',
+        (
+            f'[claim]\nid = "{_CLAIM_ID}"\n'
+            'subject = "ethos:test:exceptional-unbound"\nstate = "active"\n'
+        ),
     )
     _write(
         repo / _CHRONICLE_REF,
-        f"event: lane_retire/unbound_exceptional\ntarget_branch: {branch}\ntarget_head: {head}\ntarget_claim: {_CLAIM_ID}\n",
+        (
+            "event: lane_retire/unbound_exceptional\n"
+            f"target_branch: {branch}\ntarget_head: {head}\ntarget_claim: {_CLAIM_ID}\n"
+        ),
     )
     git(repo, "add", ".")
     git(
@@ -127,6 +132,116 @@ def _owner_unavailable_fixture(
     return repo, branch, head, chronicle_ref, lease, source_path
 
 
+def _partial_effect_reconciliation_fixture(
+    tmp_path: Path,
+) -> tuple[Path, str, str, str, dict[str, object], dict[str, object], Path]:
+    """Create an accepted ref-absent residue plus its immutable failed-attempt record."""
+    repo, branch, head, source_chronicle, lease, source_path = _owner_unavailable_fixture(tmp_path)
+    source_observation = observation.observe(repo, branch=branch, chronicle_ref=source_chronicle)
+    operation_id = records.operation_id(
+        branch=branch,
+        expect_head=head,
+        accepted_head=str(source_observation["accepted_head"]),
+        protected_refs=source_observation["protected_refs"],
+        claim_id=str(source_observation["claim_id"]),
+        chronicle=observation.chronicle_binding(source_observation),
+        reason="native source attempt before partial effect",
+        observation_sha256=str(source_observation["observation_sha256"]),
+    )
+    source_attempt = records.attempt_payload(
+        operation_id=operation_id,
+        branch=branch,
+        expect_head=head,
+        reason="native source attempt before partial effect",
+        observation=source_observation,
+    )
+    records_root = repo.parent / f"{repo.name}-records"
+    records.write_record(
+        records.attempt_path(records_root, operation_id),
+        source_attempt,
+        kind=records.ATTEMPT_KIND,
+    )
+    git(repo, "update-ref", "-d", f"refs/heads/{branch}", head)
+
+    claim_id = "partial-effect-reconciliation-test-claim"
+    chronicle_ref = "evidence/chronicle/partial-effect-reconciliation-test/2026-07-20.md"
+    _write(
+        repo / f"evidence/claims/{claim_id}.toml",
+        "\n".join(
+            (
+                "[claim]",
+                f'id = "{claim_id}"',
+                'subject = "ethos:test:ref-absent-owner-unavailable-reconciliation"',
+                'state = "active"',
+                "",
+            )
+        ),
+    )
+    _write(
+        repo / chronicle_ref,
+        "\n".join(
+            (
+                "# Ref-absent owner-unavailable reconciliation policy",
+                "",
+                "event: lane_retire/unbound_exceptional",
+                f"target_branch: {branch}",
+                f"target_head: {head}",
+                f"target_claim: {claim_id}",
+                "lease_recovery: owner_unavailable",
+                f"source_lease_id: {lease['lease_id']}",
+                f"source_lease_holder: {lease['holder_ref']}",
+                f"source_lease_epoch: {lease['epoch']}",
+                f"source_lease_expected_head: {head}",
+                (
+                    "source_worktree_path_sha256: "
+                    f"{hashlib.sha256(source_path.as_posix().encode()).hexdigest()}"
+                ),
+                "source_worktree_absent: true",
+                "partial_effect_reconciliation: ref_absent_owner_unavailable",
+                f"source_retirement_attempt_id: {operation_id}",
+                f"source_retirement_attempt_accepted_head: {source_attempt['accepted_head']}",
+                f"source_retirement_attempt_claim_id: {source_attempt['claim_id']}",
+                f"source_retirement_attempt_chronicle_ref: {source_attempt['chronicle_ref']}",
+                f"source_retirement_attempt_chronicle_sha256: {source_attempt['chronicle_sha256']}",
+                (
+                    "source_retirement_attempt_chronicle_claim_id: "
+                    f"{source_attempt['chronicle_claim_id']}"
+                ),
+                (
+                    "source_retirement_attempt_chronicle_claim_sha256: "
+                    f"{source_attempt['chronicle_claim_sha256']}"
+                ),
+                "",
+            )
+        ),
+    )
+    git(repo, "add", "evidence")
+    git(
+        repo,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "accept ref-absent reconciliation policy",
+    )
+    return repo, branch, head, chronicle_ref, lease, source_attempt, source_path
+
+
+def _reconcile(repo: Path, branch: str, chronicle: str, **changes):
+    controls = reconciliation.RefAbsentReconciliationControls(
+        reason="accepted policy binds the exact ref-absent partial effect",
+        chronicle_ref=chronicle,
+        **changes,
+    )
+    return reconciliation.reconcile_ref_absent_owner_unavailable_lease(
+        root=repo,
+        branch=branch,
+        controls=controls,
+    )
+
+
 def test_owner_unavailable_recovery_requires_an_active_foreign_lease(
     monkeypatch, tmp_path: Path
 ) -> None:
@@ -199,6 +314,116 @@ def test_owner_unavailable_recovery_blocks_path_reappearance(monkeypatch, tmp_pa
 
     assert report["required_gaps"] == ["unbound_retire_owner_unavailable_source_path_present"]
     assert git(repo, "rev-parse", "--verify", branch) == head
+
+
+def test_ref_absent_reconciliation_revokes_only_exact_foreign_lease(
+    monkeypatch, tmp_path: Path
+) -> None:
+    repo, branch, head, chronicle, lease, source_attempt, source_path = (
+        _partial_effect_reconciliation_fixture(tmp_path)
+    )
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:recovery-operator")
+
+    report = _reconcile(
+        repo,
+        branch,
+        chronicle,
+        apply=True,
+        authorized=True,
+        break_glass=True,
+        confirm_irreversible=True,
+    )
+
+    assert source_path.exists() is False
+    assert (
+        subprocess.run(
+            ["git", "show-ref", "--verify", "--quiet", f"refs/heads/{branch}"],
+            cwd=repo,
+            check=False,
+        ).returncode
+        != 0
+    )
+    assert report["state"] == "reconciled_ref_absent_owner_unavailable_lease"
+    assert report["mutation"]["invocation_holder_ref"] == "agent:test:case:recovery-operator"
+    assert report["source_retirement_attempt"] == source_attempt
+    assert report["lease_relinquished"] == {
+        "revoked": True,
+        "subject": branch,
+        "lease_id": lease["lease_id"],
+        "holder_ref": lease["holder_ref"],
+        "epoch": lease["epoch"],
+        "expected_head": head,
+    }
+    assert Path(str(report["receipt_path"])).is_file()
+    assert report["receipt"]["postconditions"] == {
+        "ref_absent": True,
+        "worktree_absent": True,
+        "active_lease_absent": True,
+        "protected_refs_unchanged": True,
+        "chronicle_unchanged": True,
+    }
+
+
+@pytest.mark.parametrize(
+    ("mode", "expected_gap"),
+    [
+        ("ref", "unbound_retire_partial_effect_ref_present"),
+        ("worktree", "unbound_retire_partial_effect_worktree_present"),
+        ("lease", "unbound_retire_owner_unavailable_lease_mismatch"),
+        ("attempt", "unbound_retire_partial_effect_attempt_mismatch"),
+        ("chronicle", "unbound_retire_chronicle_content_drift"),
+    ],
+)
+def test_ref_absent_reconciliation_fail_closed_matrix(
+    monkeypatch, tmp_path: Path, mode: str, expected_gap: str
+) -> None:
+    repo, branch, head, chronicle, lease, _source_attempt, _source_path = (
+        _partial_effect_reconciliation_fixture(tmp_path)
+    )
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:recovery-operator")
+    if mode == "ref":
+        git(repo, "branch", branch, "dev")
+    elif mode == "worktree":
+        worktree = tmp_path / "reappeared-worktree"
+        git(repo, "worktree", "add", "--detach", worktree.as_posix(), "dev")
+        git(repo, "symbolic-ref", "HEAD", f"refs/heads/{branch}")
+    elif mode == "lease":
+        with closing(sqlite3.connect(repo / ".ethos/state/state.sqlite")) as connection:
+            connection.execute(
+                "update leases set payload_json = replace(payload_json, ?, ?) where id = ?",
+                (head, "a" * 40, lease["lease_id"]),
+            )
+            connection.commit()
+    elif mode == "attempt":
+        path = records.attempt_path(
+            repo.parent / f"{repo.name}-records",
+            "exceptional-unbound-retirement:missing",
+        )
+        _write(
+            repo / chronicle,
+            (repo / chronicle)
+            .read_text(encoding="utf-8")
+            .replace(
+                "source_retirement_attempt_id: exceptional-unbound-retirement:",
+                "source_retirement_attempt_id: exceptional-unbound-retirement:missing",
+            ),
+        )
+        assert path.exists() is False
+    else:
+        (repo / chronicle).write_text("drift\n", encoding="utf-8")
+
+    report = _reconcile(repo, branch, chronicle)
+
+    assert expected_gap in report["required_gaps"]
+    if mode != "ref":
+        assert (
+            subprocess.run(
+                ["git", "show-ref", "--verify", "--quiet", f"refs/heads/{branch}"],
+                cwd=repo,
+                check=False,
+            ).returncode
+            != 0
+        )
 
 
 def test_exceptional_retirement_contract_matrix(tmp_path: Path) -> None:
@@ -327,7 +552,7 @@ def test_owned_lease_relinquishment_receipt(monkeypatch, tmp_path: Path) -> None
         **{key: expected[key] for key in ("lease_id", "holder_ref", "epoch", "expected_head")},
     }
     assert report["receipt"]["effect"]["command"] == "git update-ref --stdin"
-    assert report["receipt"]["effect"]["transaction"] == "verify_protected_refs_delete_target"
+    assert report["receipt"]["effect"]["transaction"] == "cas_protected_refs_delete_target"
 
 
 def test_owned_lease_relinquishment_fail_closed(monkeypatch, tmp_path: Path) -> None:

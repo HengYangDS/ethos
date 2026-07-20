@@ -13,6 +13,8 @@ import ethos.adapters.mutation.lane_retirement.unbound.observation.core as obser
 
 ATTEMPT_KIND = "exceptional_unbound_retirement_attempt"
 RECEIPT_KIND = "exceptional_unbound_retirement_receipt"
+RECONCILIATION_ATTEMPT_KIND = "ref_absent_owner_unavailable_lease_reconciliation_attempt"
+RECONCILIATION_RECEIPT_KIND = "ref_absent_owner_unavailable_lease_reconciliation_receipt"
 MAX_STABLE_ERROR_LENGTH = 240
 _GIT_SHA_LENGTH = 40
 _RECORD_COLLISION = "unbound_retire_record_collision"
@@ -36,6 +38,11 @@ _COMMON_KEYS = _keys(
 _POSTCONDITIONS = _keys(
     "ref_absent unbound_absent active_lease_absent protected_refs_unchanged chronicle_unchanged"
 )
+_RECONCILIATION_POSTCONDITIONS = _keys(
+    "ref_absent worktree_absent active_lease_absent protected_refs_unchanged chronicle_unchanged"
+)
+_RETIREMENT_OPERATION_PREFIX = "exceptional-unbound-retirement:"
+_RECONCILIATION_OPERATION_PREFIX = "ref-absent-owner-unavailable-lease-reconciliation:"
 
 
 def sha256(value: object) -> str:
@@ -60,7 +67,30 @@ def operation_id(  # noqa: PLR0913, RUF100 - exact record identity preserves bou
     payload = _data(branch=branch, expect_head=expect_head, accepted_head=accepted_head)
     payload |= _data(protected_refs=protected_refs, claim_id=claim_id, chronicle=chronicle)
     payload |= _data(reason=reason, before_observation_sha256=observation_sha256)
-    return f"exceptional-unbound-retirement:{sha256(payload)}"
+    return f"{_RETIREMENT_OPERATION_PREFIX}{sha256(payload)}"
+
+
+def reconciliation_operation_id(  # noqa: PLR0913, RUF100 - exact record identity preserves bound state dimensions
+    *,
+    branch: str,
+    target_head: str,
+    accepted_head: str,
+    protected_refs: dict[str, str],
+    claim_id: str,
+    chronicle: dict[str, object],
+    source_retirement_attempt: dict[str, object],
+    reason: str,
+    observation_sha256: str,
+) -> str:
+    """Bind one lease-only reconciliation to the current accepted policy and prior attempt."""
+    payload = _data(branch=branch, target_head=target_head, accepted_head=accepted_head)
+    payload |= _data(protected_refs=protected_refs, claim_id=claim_id, chronicle=chronicle)
+    payload |= _data(
+        source_retirement_attempt=source_retirement_attempt,
+        reason=reason,
+        before_observation_sha256=observation_sha256,
+    )
+    return f"{_RECONCILIATION_OPERATION_PREFIX}{sha256(payload)}"
 
 
 def _payload(
@@ -127,6 +157,67 @@ def receipt_payload(  # noqa: PLR0913, RUF100 - exact receipt preserves bound st
     return result
 
 
+def reconciliation_attempt_payload(
+    *,
+    operation_id: str,
+    reason: str,
+    observation: dict[str, object],
+    source_retirement_attempt: dict[str, object],
+) -> dict[str, object]:
+    """Build the no-clobber intent record for a ref-absent lease-only repair."""
+    branch = str(observation["branch"])
+    target_head = str(cast("dict[str, object]", observation["chronicle"])["target_head"])
+    result = _payload(
+        RECONCILIATION_ATTEMPT_KIND,
+        operation_id,
+        branch,
+        target_head,
+        reason,
+        observation,
+    )
+    result |= _data(
+        protected_refs=observation["protected_refs"],
+        source_retirement_attempt=source_retirement_attempt,
+        effect="native_exact_source_lease_generation_cas_revoke",
+    )
+    return result
+
+
+def reconciliation_receipt_payload(  # noqa: PLR0913, RUF100 - exact receipt preserves bound state dimensions
+    *,
+    operation_id: str,
+    branch: str,
+    target_head: str,
+    reason: str,
+    before: dict[str, object],
+    after: dict[str, object],
+    source_retirement_attempt: dict[str, object],
+    chronicle_unchanged: bool,
+    lease_relinquished: dict[str, object],
+) -> dict[str, object]:
+    """Build a postcondition-bound receipt for the exact lease-only reconciliation."""
+    protected = before["protected_refs"]
+    result = _payload(
+        RECONCILIATION_RECEIPT_KIND, operation_id, branch, target_head, reason, before
+    )
+    result |= _data(
+        protected_refs_before=protected,
+        protected_refs_after=after["protected_refs"],
+        after_observation_sha256=after["observation_sha256"],
+        effect="native_exact_source_lease_generation_cas_revoke",
+        source_retirement_attempt=source_retirement_attempt,
+    )
+    result["lease_relinquished"] = lease_relinquished
+    result["postconditions"] = _data(
+        ref_absent=not bool(after["head"]),
+        worktree_absent=after["worktree_binding"] == "absent",
+        active_lease_absent=not bool(after[observation.HAS_ACTIVE_LEASE]),
+        protected_refs_unchanged=protected == after["protected_refs"],
+        chronicle_unchanged=chronicle_unchanged,
+    )
+    return result
+
+
 def _record_path(records_root: Path, operation_id: str, category: str) -> Path:
     return records_root / "recovery/unbound-retirement" / category / f"{suffix(operation_id)}.json"
 
@@ -139,6 +230,16 @@ def attempt_path(records_root: Path, operation_id: str) -> Path:
 def receipt_path(records_root: Path, operation_id: str) -> Path:
     """Return the durable receipt path for one operation identity."""
     return _record_path(records_root, operation_id, "receipts")
+
+
+def reconciliation_attempt_path(records_root: Path, operation_id: str) -> Path:
+    """Return the durable pre-effect record path for one lease-only reconciliation."""
+    return _record_path(records_root, operation_id, "reconciliation-attempts")
+
+
+def reconciliation_receipt_path(records_root: Path, operation_id: str) -> Path:
+    """Return the durable post-effect receipt path for one lease-only reconciliation."""
+    return _record_path(records_root, operation_id, "reconciliation-receipts")
 
 
 def suffix(operation_id: str) -> str:
@@ -201,6 +302,9 @@ def _valid_digest(value: object) -> bool:
 
 def validate_record(payload: dict[str, object], *, kind: str) -> None:
     """Reject malformed durable records before they can guide a retry."""
+    if kind in {RECONCILIATION_ATTEMPT_KIND, RECONCILIATION_RECEIPT_KIND}:
+        _validate_reconciliation_record(payload, kind=kind)
+        return
     receipt = kind == RECEIPT_KIND
     receipt_keys = _keys(
         "protected_refs_before protected_refs_after after_observation_sha256 "
@@ -212,7 +316,7 @@ def validate_record(payload: dict[str, object], *, kind: str) -> None:
         set(payload) != required
         or payload.get("kind") != kind
         or payload.get("schema_version") != 1
-        or not str(payload.get("operation_id") or "").startswith("exceptional-unbound-retirement:")
+        or not str(payload.get("operation_id") or "").startswith(_RETIREMENT_OPERATION_PREFIX)
         or not str(payload.get("branch") or "").startswith("work/")
         or not sha256_text_fields(
             payload,
@@ -242,6 +346,81 @@ def validate_record(payload: dict[str, object], *, kind: str) -> None:
     )
     if invalid:
         raise ValueError(_RECORD_INVALID)
+
+
+def _validate_reconciliation_record(payload: dict[str, object], *, kind: str) -> None:
+    """Validate a receipt chain that repairs only a failed prior ref-delete effect."""
+    receipt = kind == RECONCILIATION_RECEIPT_KIND
+    receipt_keys = _keys(
+        "protected_refs_before protected_refs_after after_observation_sha256 "
+        "lease_relinquished postconditions"
+    )
+    required = (
+        _COMMON_KEYS
+        | {"source_retirement_attempt"}
+        | (receipt_keys if receipt else {"protected_refs"})
+    )
+    protected = payload.get("protected_refs_before" if receipt else "protected_refs")
+    source = payload.get("source_retirement_attempt")
+    if not isinstance(source, dict):
+        raise TypeError(_RECORD_INVALID) from None
+    try:
+        source_attempt = cast("dict[str, object]", source)
+        validate_record(source_attempt, kind=ATTEMPT_KIND)
+    except (TypeError, ValueError):
+        raise ValueError(_RECORD_INVALID) from None
+    invalid = (
+        set(payload) != required
+        or payload.get("kind") != kind
+        or payload.get("schema_version") != 1
+        or not str(payload.get("operation_id") or "").startswith(_RECONCILIATION_OPERATION_PREFIX)
+        or not str(payload.get("branch") or "").startswith("work/")
+        or not sha256_text_fields(
+            payload,
+            "expected_head",
+            "accepted_head",
+            "chronicle_sha256",
+            "chronicle_claim_sha256",
+        )
+        or payload.get("mints_authority") is not False
+        or payload.get("recheck_required") is not True
+        or not valid_lease_relinquish_binding(payload.get("lease_relinquish_binding"))
+        or not isinstance(protected, dict)
+        or not protected
+        or not all(protected.values())
+        or str(source_attempt.get("branch") or "") != str(payload.get("branch") or "")
+        or str(source_attempt.get("expected_head") or "") != str(payload.get("expected_head") or "")
+    )
+    postconditions = payload.get("postconditions")
+    invalid |= receipt and (
+        payload.get("protected_refs_after") != protected
+        or not isinstance(postconditions, dict)
+        or set(postconditions) != _RECONCILIATION_POSTCONDITIONS
+        or not all(value is True for value in postconditions.values())
+        or not valid_lease_relinquishment(
+            payload.get("lease_relinquish_binding"),
+            payload.get("lease_relinquished"),
+            subject=str(payload.get("branch") or ""),
+        )
+    )
+    if invalid:
+        raise ValueError(_RECORD_INVALID)
+
+
+def source_attempt_binding(source_attempt: dict[str, object]) -> dict[str, object]:
+    """Project immutable prior-attempt identity into a later accepted Chronicle."""
+    return {
+        key: source_attempt.get(key)
+        for key in (
+            "operation_id",
+            "accepted_head",
+            "claim_id",
+            "chronicle_ref",
+            "chronicle_sha256",
+            "chronicle_claim_id",
+            "chronicle_claim_sha256",
+        )
+    }
 
 
 def valid_lease_relinquish_binding(value: object) -> bool:
@@ -293,7 +472,7 @@ def effect_summary(completed: object) -> dict[str, object]:
     """Project the sole Git effect without carrying raw output into evidence."""
     return {
         "command": "git update-ref --stdin",
-        "transaction": "verify_protected_refs_delete_target",
+        "transaction": "cas_protected_refs_delete_target",
         "returncode": int(getattr(completed, "returncode", 1)),
         "stderr_sha256": hashlib.sha256(str(getattr(completed, "stderr", "")).encode()).hexdigest(),
     }

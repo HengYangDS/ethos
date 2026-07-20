@@ -14,7 +14,7 @@ present and the target has an active lease, the accepted Chronicle must name:
 
 - `lease_recovery: owner_unavailable`;
 - the exact lease ID, holder, epoch, and expected head observed at invocation;
-- the exact absolute recorded worktree path; and
+- the SHA-256 digest of the exact absolute recorded worktree path; and
 - `source_worktree_absent: true`.
 
 The current actor must be non-empty and different from the source holder. The

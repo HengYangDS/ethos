@@ -9,7 +9,7 @@ source_lease_id: lease:03c8fb14-e616-4fc7-9592-bcba283fcdc5
 source_lease_holder: agent:codex:session:quality-zero-exceptions-successor-20260719
 source_lease_epoch: 1
 source_lease_expected_head: 943a5e1e373b009f02533ff22815e8bca32b3157
-source_worktree_path: /Users/yheng/projects/ethos-work-quality-zero-exceptions-successor-v2-20260719
+source_worktree_path_sha256: c580afbd6aea7d9f468e61d46120ec439172f555202ac6c4702378e0f9452af0
 source_worktree_absent: true
 
 ## Fact

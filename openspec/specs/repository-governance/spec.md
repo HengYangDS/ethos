@@ -2943,8 +2943,8 @@ session, account, or host-specific path.
 
 - **WHEN** a target-specific accepted Chronicle records
   `lease_recovery: owner_unavailable`, the exact active source lease ID, holder,
-  epoch, expected head, and recorded absolute source worktree path, and that
-  path is absent
+  epoch, expected head, and a SHA-256 digest of the recorded absolute source
+  worktree path, and that path is absent
 - **AND** an explicitly confirmed invocation uses
   `--owner-unavailable-recovery` from a different non-empty actor identity
 - **THEN** ETHOS MAY revoke only that exact source lease generation through the

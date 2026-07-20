@@ -117,6 +117,7 @@ KNOWN_ETHOS_COMMANDS = {
     "ethos lane retire landed",
     "ethos lane retire superseded",
     "ethos lane retire unbound",
+    "ethos lane retire reconcile-ref-absent",
     "ethos parity",
     "ethos parity ledger",
     "ethos parity gaps",

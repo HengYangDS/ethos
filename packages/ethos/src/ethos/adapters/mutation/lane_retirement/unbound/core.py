@@ -1,4 +1,8 @@
-"""Native exceptional retirement of one accepted-policy-bound unbound Work Lane ref."""
+"""Native exceptional retirement of one accepted-policy-bound unbound Work Lane ref.
+
+The ref-absent partial-effect reconciliation lives in its dedicated sibling
+module so this ordinary retirement surface stays within the source-size budget.
+"""
 
 import sqlite3
 from contextlib import closing
@@ -101,6 +105,7 @@ def retire_unbound_work_lane_ref(  # noqa: PLR0913, RUF100 - exact retirement pr
         observed=before,
         chronicle_ref=chronicle_ref,
         owner_unavailable_recovery=owner_unavailable_recovery,
+        holder_ref=holder_ref,
         gaps=gaps,
         **controls,
     )
@@ -349,7 +354,7 @@ def _delete_ref_transaction(repo: Path, *, observed: dict[str, object], controls
     program = "\n".join(
         [
             "start",
-            *(f"verify refs/heads/{ref} {head}" for ref, head in protected.items()),
+            *(f"update refs/heads/{ref} {head} {head}" for ref, head in protected.items()),
             f"delete refs/heads/{controls['branch']} {controls['expect_head']}",
             "prepare",
             "commit",

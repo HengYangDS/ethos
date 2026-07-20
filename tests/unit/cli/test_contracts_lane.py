@@ -794,3 +794,17 @@ def test_lane_retire_unbound_exposes_owner_unavailable_recovery_flag() -> None:
 
     assert completed.returncode == 0
     assert "--owner-unavailable-recovery" in completed.stdout
+
+
+def test_lane_retire_reconcile_ref_absent_exposes_explicit_controls() -> None:
+    completed = run_ethos_raw("lane", "retire", "reconcile-ref-absent", "--help")
+
+    assert completed.returncode == 0
+    for flag in (
+        "--chronicle-ref",
+        "--authorize",
+        "--break-glass",
+        "--confirm-irreversible",
+        "--apply",
+    ):
+        assert flag in completed.stdout

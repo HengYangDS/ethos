@@ -26,7 +26,7 @@ owner = "ethos-repository"
 scope = "One exact holder-owned unbound accepted-ancestor Work Lane ref only; no batch effect, foreign lease/ref/worktree action, raw deletion, remote mutation, hosted-CI claim, or vendor-specific authority."
 
 [carriers]
-openspec = "openspec/changes/openspec-archive-logical-identifier-unbound-retirement-20260719"
+openspec = "openspec/changes/archive/2026-07-19-openspec-archive-logical-identifier-unbound-retirement-20260719"
 fallback = "Keep the source ref and its lease intact whenever fresh native observation, accepted target binding, or the native postconditions cannot be proved."
 kill_signal = "The carrier is used for another target, bypasses native lease-CAS or ref compare-and-delete, takes over a foreign lease, or claims remote or hosted completion."
 
@@ -34,6 +34,6 @@ kill_signal = "The carrier is used for another target, bypasses native lease-CAS
 targets = [
   "evidence/claims/openspec-archive-logical-identifier-unbound-retirement-20260719.toml",
   "evidence/chronicle/openspec-archive-logical-identifier-unbound-retirement-20260719/2026-07-20.md",
-  "openspec/changes/openspec-archive-logical-identifier-unbound-retirement-20260719",
+  "openspec/changes/archive/2026-07-19-openspec-archive-logical-identifier-unbound-retirement-20260719",
   "openspec/specs/repository-governance/spec.md",
 ]

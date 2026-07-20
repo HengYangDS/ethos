@@ -24,17 +24,17 @@ owner = "ethos-repository"
 scope = "Implemented authorization, admission, local Work Lane coordination, transition enforcement, external evidence adapters, and exceptional lane resolution."
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-10-authorization-admission-boundary-20260710"
+openspec = "openspec/changes/archive/2026-07-10-authorization-admission-boundary"
 fallback = "Preserve the current fail-closed lease and mutation controls while the migration is incomplete; do not interpret holder labels or confirmation flags as reusable authority."
 kill_signal = "ETHOS introduces an internal identity or capability registry, treats a local lease as distributed enforcement, lets candidate controls approve themselves, or claims runtime completion from planning evidence."
 
 [promotion]
 targets = [
-  "openspec/changes/archive/2026-07-10-authorization-admission-boundary-20260710/.openspec.yaml",
-  "openspec/changes/archive/2026-07-10-authorization-admission-boundary-20260710/proposal.md",
-  "openspec/changes/archive/2026-07-10-authorization-admission-boundary-20260710/design.md",
-  "openspec/changes/archive/2026-07-10-authorization-admission-boundary-20260710/tasks.md",
-  "openspec/changes/archive/2026-07-10-authorization-admission-boundary-20260710/specs/repository-governance/spec.md",
+  "openspec/changes/archive/2026-07-10-authorization-admission-boundary/.openspec.yaml",
+  "openspec/changes/archive/2026-07-10-authorization-admission-boundary/proposal.md",
+  "openspec/changes/archive/2026-07-10-authorization-admission-boundary/design.md",
+  "openspec/changes/archive/2026-07-10-authorization-admission-boundary/tasks.md",
+  "openspec/changes/archive/2026-07-10-authorization-admission-boundary/specs/repository-governance/spec.md",
   "evidence/chronicle/authorization-admission-boundary-20260710/2026-07-10.md",
   "evidence/claims/authorization-admission-boundary-20260710.toml",
 ]

@@ -3,6 +3,8 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING
 
+from ethos.repository.openspec.identifiers import archive_identity_gaps
+from ethos.repository.openspec.identifiers import archive_name_parts
 from ethos.repository.openspec.metadata import ALLOWED_OPENSPEC_METADATA_KEYS
 from ethos.repository.openspec.metadata import is_relative_to
 from ethos.repository.openspec.metadata import read_openspec_metadata
@@ -11,7 +13,6 @@ if TYPE_CHECKING:
     from pathlib import Path
     from typing import Any
 
-ARCHIVE_NAME_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}-[a-z0-9]+(?:-[a-z0-9]+)*$")
 CHECKBOX_PATTERN = re.compile(r"^\s*-\s+\[([ xX])]")
 DELTA_HEADER_PATTERN = re.compile(r"^## (ADDED|MODIFIED|REMOVED|RENAMED) Requirements$")
 REQUIRED_ARCHIVE_FILES = ("proposal.md", "design.md", "tasks.md", ".openspec.yaml")
@@ -36,6 +37,7 @@ def openspec_archive_closeout_report(root: Path) -> dict[str, Any]:
     issues: list[dict[str, str]] = []
     for archive in archives:
         issues.extend(archive_closeout_issues(archive, root=root))
+    issues.extend(archive_logical_identifier_issues(archives, root=root))
     required_gaps = sorted({issue["gap"] for issue in issues})
     return {
         "ok": not required_gaps,
@@ -55,7 +57,7 @@ def archive_closeout_issues(archive: Path, *, root: Path) -> list[dict[str, str]
     """Return per-file closeout issues for one archived OpenSpec change."""
     name = archive.name
     issues: list[dict[str, str]] = []
-    if not ARCHIVE_NAME_PATTERN.fullmatch(name):
+    if archive_name_parts(name) is None:
         issues.append(archive_issue("openspec_archive_name_invalid", archive, name, root=root))
     for filename in REQUIRED_ARCHIVE_FILES:
         path = archive / filename
@@ -112,7 +114,7 @@ def archive_metadata_issues(
                 root=root,
             )
         )
-    elif ARCHIVE_NAME_PATTERN.fullmatch(archive_name) and created > archive_name[:10]:
+    elif (parts := archive_name_parts(archive_name)) is not None and created > parts[0]:
         issues.append(
             archive_issue(
                 "openspec_archive_metadata_created_after_archive",
@@ -121,6 +123,27 @@ def archive_metadata_issues(
                 root=root,
             )
         )
+    return issues
+
+
+def archive_logical_identifier_issues(
+    archives: tuple[Path, ...], *, root: Path
+) -> list[dict[str, str]]:
+    """Reject multiple historical carriers that claim one logical Change ID."""
+    issues: list[dict[str, str]] = []
+    for gap in archive_identity_gaps(archive.name for archive in archives):
+        if gap.startswith("openspec_archive_logical_identifier_ambiguous:"):
+            logical_id = gap.rsplit(":", 1)[1]
+            issues.append(
+                {
+                    "archive": logical_id,
+                    "code": "openspec_archive_logical_identifier_ambiguous",
+                    "gap": f"openspec_archive_logical_identifier_ambiguous:{logical_id}",
+                    "path": (root / "openspec" / "changes" / "archive")
+                    .relative_to(root)
+                    .as_posix(),
+                }
+            )
     return issues
 
 

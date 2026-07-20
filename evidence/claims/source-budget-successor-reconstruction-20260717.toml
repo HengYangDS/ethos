@@ -20,9 +20,9 @@ owner = "ethos-quality-gate-governance"
 scope = "Source-budget reconstruction before HEAD-bound proof and closeout."
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-18-source-budget-successor-reconstruction-20260717"
+openspec = "openspec/changes/archive/2026-07-18-source-budget-successor-reconstruction"
 fallback = "Keep the predecessor lifecycle unresolved; do not promote this partial record."
 kill_signal = "Malformed policy, expired debt, unmeasured carrier, or stale evidence blocks progression."
 
 [promotion]
-targets = [".ethos/rules.toml", "evidence/claims/source-budget-successor-reconstruction-20260717.toml", "evidence/chronicle/source-budget-successor-reconstruction-20260717/2026-07-17.md", "openspec/changes/archive/2026-07-18-source-budget-successor-reconstruction-20260717", "packages/ethos-core/src/ethos_core/contracts/source_budget/core.py", "packages/ethos/src/ethos/adapters/config.py", "packages/ethos/src/ethos/adapters/repo/source_budget/core.py", "packages/ethos/src/ethos/domain/prove.py", "system/schemas/kernel/source-budget.schema.json", "tests/unit/kernel/test_source_budget_contract.py", "tests/unit/adapters/repo/test_source_budget.py", "tests/unit/adapters/test_config.py", "tests/unit/domain/test_prove.py"]
+targets = [".ethos/rules.toml", "evidence/claims/source-budget-successor-reconstruction-20260717.toml", "evidence/chronicle/source-budget-successor-reconstruction-20260717/2026-07-17.md", "openspec/changes/archive/2026-07-18-source-budget-successor-reconstruction", "packages/ethos-core/src/ethos_core/contracts/source_budget/core.py", "packages/ethos/src/ethos/adapters/config.py", "packages/ethos/src/ethos/adapters/repo/source_budget/core.py", "packages/ethos/src/ethos/domain/prove.py", "system/schemas/kernel/source-budget.schema.json", "tests/unit/kernel/test_source_budget_contract.py", "tests/unit/adapters/repo/test_source_budget.py", "tests/unit/adapters/test_config.py", "tests/unit/domain/test_prove.py"]

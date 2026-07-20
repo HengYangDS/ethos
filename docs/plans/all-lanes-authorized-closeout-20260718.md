@@ -16,7 +16,7 @@ evidence-bound local outcome without claiming foreign ownership, remote
 publication, or hosted verification.
 
 See also: [Product Design Contract](../governance/product-design-contract.md)
-and the [archived OpenSpec Change](../../openspec/changes/archive/2026-07-18-all-lanes-authorized-closeout-20260718/).
+and the [archived OpenSpec Change](../../openspec/changes/archive/2026-07-18-all-lanes-authorized-closeout/).
 
 This is a two-level program.  The current Work Lane promotes the governance
 decision first.  Only after its accepted-root closeout may separately admitted

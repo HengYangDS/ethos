@@ -1,6 +1,6 @@
 [claim]
 id = "direct-closeout-github-publication-20260719"
-change_id = "direct-closeout-github-publication-20260719"
+change_id = "direct-closeout-github-publication"
 subject = "ethos:publication:direct-closeout-github"
 state = "active"
 summary = "This owned Work Lane separates structural protected-publication blockers from campaign terminal-progress advice and carries the exact named-remote hook correction."
@@ -24,7 +24,7 @@ owner = "ethos-repository-governance"
 scope = "Campaign publication projection, protected push admission, named-remote propagation, local closeout, and GitHub-only publication boundary; GitLab execution, hosted CI, remote deletion, and foreign Work Lane mutation excluded."
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-19-direct-closeout-github-publication-20260719"
+openspec = "openspec/changes/archive/2026-07-19-direct-closeout-github-publication"
 fallback = "Block only structural protected-publication defects and retain all existing proof, identity, topology, branch, reconciliation, and fast-forward gates; do not use campaign terminal-progress as a hook bypass."
 kill_signal = "A campaign manifest defect becomes advisory, an ordinary protected push bypasses proof or accepted closeout, the hook reports the wrong named remote, a force update is required, or local evidence is called hosted CI."
 
@@ -34,7 +34,7 @@ targets = [
   "docs/governance/release-governance.md",
   "evidence/claims/direct-closeout-github-publication-20260719.toml",
   "evidence/chronicle/direct-closeout-github-publication-20260719/2026-07-19.md",
-  "openspec/changes/archive/2026-07-19-direct-closeout-github-publication-20260719",
+  "openspec/changes/archive/2026-07-19-direct-closeout-github-publication",
   "openspec/specs/quality/spec.md",
   "openspec/specs/repository-governance/spec.md",
   "packages/ethos-core/src/ethos_core/contracts/workflow.py",

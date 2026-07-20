@@ -1,4 +1,4 @@
-claim = { id = "ci-verify-local-emulator-recovery-20260709", subject = "ethos:ci-verify-local-emulator", change_id = "ci-verify-local-emulator-recovery-20260709", state = "active", summary = "Local provider emulator observation modes degrade missing optional tools into bounded local evidence while materializing run modes stay fail-closed." }
+claim = { id = "ci-verify-local-emulator-recovery-20260709", subject = "ethos:ci-verify-local-emulator", change_id = "ci-verify-local-emulator-recovery", state = "active", summary = "Local provider emulator observation modes degrade missing optional tools into bounded local evidence while materializing run modes stay fail-closed." }
 evidence = { dated = "evidence/chronicle/ci-verify-local-emulator-recovery-20260709/2026-07-09.md", sha256 = "ec557253eea051cb1cd8f0c1a0d4ad654afe15bb223d5e61ce40132cc29b753e", evidence_ids = [
   "evidence:ci-verify-local-emulator-recovery-20260709",
 ], binding = "CI verify local emulator optional-tool boundary evidence binding", verifier = "digest_only", tests = [
@@ -12,12 +12,12 @@ evidence = { dated = "evidence/chronicle/ci-verify-local-emulator-recovery-20260
   "uv run --package ethos ethos prove --execute --expect-head <lane-head> --json",
 ], freshness = { mode = "historical" } }
 boundary = { owner = "product-toolchain", scope = "Local provider emulator observation and materialization tool availability semantics." }
-carriers = { openspec = "openspec/changes/archive/2026-07-09-ci-verify-local-emulator-recovery-20260709", fallback = "Set ETHOS_LOCAL_EMULATOR_DRY_RUN=1 for optional local emulator observation until the provider tool is installed.", kill_signal = "Hosted CI verify fails because an optional local emulator adapter binary is absent, or materializing emulator runs succeed without the required provider tool." }
+carriers = { openspec = "openspec/changes/archive/2026-07-09-ci-verify-local-emulator-recovery", fallback = "Set ETHOS_LOCAL_EMULATOR_DRY_RUN=1 for optional local emulator observation until the provider tool is installed.", kill_signal = "Hosted CI verify fails because an optional local emulator adapter binary is absent, or materializing emulator runs succeed without the required provider tool." }
 promotion = { targets = [
   "tools/ci/ci_templates.py",
   "tests/architecture/test_ci_provider_projections.py",
   "openspec/specs/repository-governance/spec.md",
-  "openspec/changes/archive/2026-07-09-ci-verify-local-emulator-recovery-20260709",
+  "openspec/changes/archive/2026-07-09-ci-verify-local-emulator-recovery",
   "docs/governance/forge-provider-contract.md",
   "evidence/chronicle/ci-verify-local-emulator-recovery-20260709/2026-07-09.md",
   "evidence/claims/ci-verify-local-emulator-recovery-20260709.toml",

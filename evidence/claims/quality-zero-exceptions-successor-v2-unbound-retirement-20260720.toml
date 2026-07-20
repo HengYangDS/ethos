@@ -20,7 +20,7 @@ owner = "ethos-repository-governance"
 scope = "One exact unbound quality-zero-exceptions successor ref and its observed unavailable-holder lease generation; no batch cleanup, generic takeover, raw deletion, remote mutation, or hosted claim."
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-20-owner-unavailable-unbound-retirement-recovery-20260720"
+openspec = "openspec/changes/archive/2026-07-20-owner-unavailable-unbound-retirement-recovery"
 fallback = "Preserve the ref and lease if current target, Claim, Chronicle, source path, lease tuple, protected refs, CAS, or postconditions drift."
 kill_signal = "The target is no longer an accepted ancestor/unbound residue, the source path reappears, the lease tuple changes, or native postconditions cannot prove exact retirement."
 
@@ -28,5 +28,5 @@ kill_signal = "The target is no longer an accepted ancestor/unbound residue, the
 targets = [
   "evidence/claims/quality-zero-exceptions-successor-v2-unbound-retirement-20260720.toml",
   "evidence/chronicle/owner-unavailable-unbound-retirement-recovery-20260720/quality-zero-exceptions-successor-v2-2026-07-20.md",
-  "openspec/changes/archive/2026-07-20-owner-unavailable-unbound-retirement-recovery-20260720",
+  "openspec/changes/archive/2026-07-20-owner-unavailable-unbound-retirement-recovery",
 ]

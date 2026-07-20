@@ -1,6 +1,8 @@
 # OpenSpec Changes
 
-Active change folders are ETHOS case carriers. They record intended change and
+Active Change folders are ETHOS case carriers. Their `<change-id>` is a
+date-free lower-kebab identifier beginning with a letter; a terminal
+`YYYYMMDD` suffix is not part of the logical identity. They record intended change and
 review state; they do not supersede source, tests, schemas, governed docs,
 accepted specs, claims, or evidence until closeout promotes those surfaces.
 
@@ -37,7 +39,8 @@ Use `template.md` as the authoring scaffold and validate with:
 ethos openspec --lifecycle --json
 ```
 
-Lifecycle validates archiveability through the configured official archive CLI
+The official archive creates exactly one dated history path:
+`openspec/changes/archive/YYYY-MM-DD-<change-id>/`. Lifecycle validates archiveability through the configured official archive CLI
 in a disposable workspace copy. It never archives or rewrites this source
 change; an application-time conflict must be repaired before plan, proof, or
 land can proceed.

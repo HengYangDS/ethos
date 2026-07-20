@@ -1,13 +1,13 @@
 [claim]
 id = "refresh-base-source-budget-scope-recovery-20260718"
-change_id = "refresh-base-source-budget-scope-recovery-20260718"
+change_id = "refresh-base-source-budget-scope-recovery"
 subject = "ethos:work-lane-refresh-source-budget-scope"
 state = "archived"
 summary = "Refresh-base preserves candidate content only for an archived, evidence-bound source-budget scope correction."
 
 [evidence]
 dated = "evidence/chronicle/refresh-base-source-budget-scope-recovery-20260718/2026-07-18.md"
-sha256 = "2aff305c35d00c6c85b457d76d61cb6423aaa9f4f0aa00b11e8355b1e09c82d8"
+sha256 = "003b5f4a20203514ba7c5a087e7ca075484ff695a4a558fc5bdebb81bd0953af"
 evidence_ids = ["evidence:refresh-base-source-budget-scope-recovery-20260718"]
 binding = "The archived source-budget scope claim/carrier reader, exact candidate-index invariant checks, focused regressions, result classification, full-proof retention, and governed replay bind this recovery without weakening source-conflict admission."
 verifier = "digest_only"
@@ -21,7 +21,7 @@ owner = "ethos-repository"
 scope = "Exact candidate-authoritative source-budget proof-scope recovery during an owned Work Lane replay."
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-18-refresh-base-source-budget-scope-recovery-20260718"
+openspec = "openspec/changes/archive/2026-07-18-refresh-base-source-budget-scope-recovery"
 fallback = "Leave the replay conflict blocked unless archived carrier evidence and all candidate invariants are present."
 kill_signal = "A path outside the exact scope, an unarchived or undeclared carrier, or incomplete candidate semantics is auto-resolved."
 
@@ -34,7 +34,7 @@ targets = [
   "openspec/specs/quality/spec.md",
   "tests/unit/lanes/test_projection_rebase_source_budget.py",
   "tests/unit/domain/test_prove.py",
-  "openspec/changes/archive/2026-07-18-refresh-base-source-budget-scope-recovery-20260718",
+  "openspec/changes/archive/2026-07-18-refresh-base-source-budget-scope-recovery",
   "evidence/claims/refresh-base-source-budget-scope-recovery-20260718.toml",
   "evidence/chronicle/refresh-base-source-budget-scope-recovery-20260718/2026-07-18.md",
 ]

@@ -222,11 +222,11 @@ def test_archive_closeout_reports_all_edge_gaps(tmp_path: Path) -> None:
 def test_archive_query_resolves_only_logical_change_identifier(tmp_path: Path) -> None:
     root = tmp_path / "repo"
     archive_root = root / "openspec" / "changes" / "archive"
-    archive = archive_root / "2026-07-19-adopter-openspec-lifecycle-continuity-20260719"
+    archive = archive_root / "2026-07-19-adopter-openspec-lifecycle-continuity"
     archive.mkdir(parents=True)
 
     resolved = archive_query.archive_query_report(
-        root, logical_id="adopter-openspec-lifecycle-continuity-20260719"
+        root, logical_id="adopter-openspec-lifecycle-continuity"
     )
 
     assert resolved["ok"] is True
@@ -252,15 +252,20 @@ def test_archive_query_resolves_only_logical_change_identifier(tmp_path: Path) -
         "openspec_archive_logical_identifier_not_found:missing-change"
     ]
 
-    (archive_root / "2026-07-18-adopter-openspec-lifecycle-continuity-20260719").mkdir()
+    (archive_root / "2026-07-18-adopter-openspec-lifecycle-continuity").mkdir()
     ambiguous = archive_query.archive_query_report(
-        root, logical_id="adopter-openspec-lifecycle-continuity-20260719"
+        root, logical_id="adopter-openspec-lifecycle-continuity"
     )
     assert ambiguous["ok"] is False
     assert ambiguous["required_gaps"] == [
-        "openspec_archive_logical_identifier_ambiguous:"
-        "adopter-openspec-lifecycle-continuity-20260719"
+        "openspec_archive_logical_identifier_ambiguous:adopter-openspec-lifecycle-continuity"
     ]
+
+    for invalid_id in ("20260720-change", "change-20260720"):
+        invalid = archive_query.archive_query_report(root, logical_id=invalid_id)
+        assert invalid["required_gaps"] == [
+            f"openspec_archive_logical_identifier_invalid:{invalid_id}"
+        ]
 
 
 def test_archive_query_handles_missing_archive_root(tmp_path: Path) -> None:
@@ -297,6 +302,43 @@ def test_archive_directory_name_is_rejected_as_active_change_identifier(
     ]
 
     assert archive_query.active_change_identifier_gaps(root, "active-change") == []
+    assert archive_query.active_change_identifier_gaps(root, "20260720-change") == [
+        "openspec_active_change_identifier_invalid:20260720-change"
+    ]
+    assert archive_query.active_change_identifier_gaps(root, "active-change-20260720") == [
+        "openspec_active_change_identifier_invalid:active-change-20260720"
+    ]
+
+
+def test_archive_closeout_rejects_temporal_or_ambiguous_logical_identifiers(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "repo"
+    archive_root = root / "openspec" / "changes" / "archive"
+
+    def complete_archive(name: str) -> None:
+        archive = archive_root / name
+        spec = archive / "specs" / "capability" / "spec.md"
+        spec.parent.mkdir(parents=True)
+        (archive / ".openspec.yaml").write_text(
+            "schema: spec-driven\ncreated: 2026-07-20\n", encoding="utf-8"
+        )
+        (archive / "proposal.md").write_text("# Proposal\n", encoding="utf-8")
+        (archive / "design.md").write_text("# Design\n", encoding="utf-8")
+        (archive / "tasks.md").write_text("- [x] done\n", encoding="utf-8")
+        spec.write_text(
+            "## ADDED Requirements\n\n### Requirement: Test\n\n#### Scenario: Test\n",
+            encoding="utf-8",
+        )
+
+    complete_archive("2026-07-20-logical-change-20260720")
+    complete_archive("2026-07-19-current-head-observation")
+    complete_archive("2026-07-20-current-head-observation")
+
+    gaps = set(archive_mod.openspec_archive_closeout_report(root)["required_gaps"])
+
+    assert "openspec_archive_name_invalid:2026-07-20-logical-change-20260720" in gaps
+    assert "openspec_archive_logical_identifier_ambiguous:current-head-observation" in gaps
 
 
 def test_openspec_cli_archive_query_avoids_active_status(tmp_path: Path, monkeypatch) -> None:
@@ -488,7 +530,19 @@ def test_openspec_governance_report_surfaces_command_parse_and_status_failures(
     root = tmp_path / "repo"
     (root / "openspec" / "specs").mkdir(parents=True)
     (root / "openspec" / "config.yaml").write_text(
-        "schema: spec-driven\ncontext: sample\nrules:\n  proposal:\n    - explain\n  specs:\n    - scenario\n  tasks:\n    - checklist\n  design:\n    - tradeoffs\n",
+        (
+            "schema: spec-driven\n"
+            "context: sample\n"
+            "rules:\n"
+            "  proposal:\n"
+            "    - explain\n"
+            "  specs:\n"
+            "    - scenario\n"
+            "  tasks:\n"
+            "    - checklist\n"
+            "  design:\n"
+            "    - tradeoffs\n"
+        ),
         encoding="utf-8",
     )
 

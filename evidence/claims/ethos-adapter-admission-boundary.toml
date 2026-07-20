@@ -6,7 +6,7 @@ summary = "ETHOS requires profile and adapter bindings to expose admission autho
 
 [evidence]
 dated = "evidence/chronicle/adapter-admission-boundary/2026-07-05.md"
-sha256 = "db526df6f3812d91b8e0a0c70245a7d7c9e4ba1641b4ea1c2793ff5cf60d35ac"
+sha256 = "52bd9aa9501c66ba909592d901245071939c2511e21f9de83dc76aaedf39159b"
 evidence_ids = ["evidence:ethos-adapter-admission-boundary"]
 binding = "declared adapter admission boundary evidence binding"
 verifier = "digest_only"
@@ -32,7 +32,7 @@ owner = "ethos-repository"
 scope = "Adapter/profile admission metadata for coupling registry participation"
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-05-ethos-adapter-admission-boundary-20260705"
+openspec = "openspec/changes/archive/2026-07-05-ethos-adapter-admission-boundary"
 
 fallback = "Keep undeclared providers outside the registry until an explicit adapter/profile admission decision exists."
 kill_signal = "A provider, model host, editor host, memory surface, or distribution adapter participates in repository governance without admission authority and profile_or_adapter truth boundary."
@@ -44,5 +44,5 @@ targets = [
   "system/schemas/kernel/coupling-audit.schema.json",
   "tests/unit/audit/test_coupling.py",
   "docs/governance/product-design-contract.md",
-  "openspec/changes/archive/2026-07-05-ethos-adapter-admission-boundary-20260705/specs/ethos-repository/spec.md",
+  "openspec/changes/archive/2026-07-05-ethos-adapter-admission-boundary/specs/ethos-repository/spec.md",
 ]

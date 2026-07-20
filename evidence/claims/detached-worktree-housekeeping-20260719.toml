@@ -26,7 +26,7 @@ owner = "ethos-repository"
 scope = "Clean detached worktrees below controlled temporary roots only."
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-19-detached-worktree-housekeeping-20260719"
+openspec = "openspec/changes/archive/2026-07-19-detached-worktree-housekeeping"
 fallback = "Leave protected or stale worktrees intact and report the exact reason."
 kill_signal = "Housekeeping removes a dirty, branch-bound, locked, non-temporary, or changed worktree."
 
@@ -37,7 +37,7 @@ targets = [
   "evidence/claims/detached-worktree-housekeeping-20260719.toml",
   "evidence/chronicle/detached-worktree-housekeeping-20260719/2026-07-19.md",
   "evidence/parity/generic-shadow.json",
-  "openspec/changes/archive/2026-07-19-detached-worktree-housekeeping-20260719",
+  "openspec/changes/archive/2026-07-19-detached-worktree-housekeeping",
   "openspec/specs/repository-governance/spec.md",
   "packages/ethos/src/ethos/adapters/mutation/worktree/__init__.py",
   "packages/ethos/src/ethos/adapters/mutation/worktree/core.py",

@@ -1,4 +1,4 @@
-claim = { id = "assistants-playbook-routing-package", subject = "ethos:assistants-playbook-routing-package", state = "active", change_id = "assistants-playbook-routing-package-20260709", summary = "ETHOS moved assistant playbook routing out of a suffix-flat utility module and ratcheted module-layout debt to the current 17-gap baseline." }
+claim = { id = "assistants-playbook-routing-package", subject = "ethos:assistants-playbook-routing-package", state = "active", change_id = "assistants-playbook-routing-package", summary = "ETHOS moved assistant playbook routing out of a suffix-flat utility module and ratcheted module-layout debt to the current 17-gap baseline." }
 evidence = { dated = "evidence/chronicle/assistants-playbook-routing-package/2026-07-09.md", sha256 = "d6301bd469aeb8c7ebfef4576183c15c1c8bbd91b3395d616cc11c1fc0fdc831", evidence_ids = [
   "evidence:assistants-playbook-routing-package",
 ], binding = "Declared subpackage migration, module-layout ratchet shrink, projection digest refresh, focused tests, and quality audits.", verifier = "digest_only", tests = [

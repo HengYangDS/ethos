@@ -6,7 +6,7 @@ summary = "The locale-stable bundle verification passed complete local CI and ex
 
 [evidence]
 dated = "evidence/chronicle/local-ci-locale-robustness-20260719/2026-07-19.md"
-sha256 = "2e417fe00c4311a04b146d7f288cedbc868aa6e1ee26e1bc6e11db71a75d1479"
+sha256 = "549373984bb11d9c6ba38894b2b51df628a3f86110e1113cde63af0ab34ca4b7"
 evidence_ids = ["evidence:local-ci-locale-robustness-20260719"]
 binding = "The dated Chronicle binds the exact localized RED observation, selected test-only locale boundary, focused green observation, and explicit no-remote scope."
 verifier = "digest_only"
@@ -26,7 +26,7 @@ owner = "ethos-quality-gate-governance"
 scope = "One test-only deterministic message-locale boundary for Git bundle complete-history verification; remote publication excluded."
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-19-local-ci-locale-robustness-20260719"
+openspec = "openspec/changes/archive/2026-07-19-local-ci-locale-robustness"
 fallback = "Keep the local CI fallback blocked rather than accepting locale-dependent or weakened bundle verification."
 kill_signal = "The test changes product behavior, shared Git helper behavior, or accepts a bundle without successful complete-history verification."
 
@@ -34,7 +34,7 @@ kill_signal = "The test changes product behavior, shared Git helper behavior, or
 targets = [
   "evidence/claims/local-ci-locale-robustness-20260719.toml",
   "evidence/chronicle/local-ci-locale-robustness-20260719/2026-07-19.md",
-  "openspec/changes/archive/2026-07-19-local-ci-locale-robustness-20260719",
+  "openspec/changes/archive/2026-07-19-local-ci-locale-robustness",
   "openspec/specs/quality/spec.md",
   "tests/unit/cli/lane/test_cross_host_handoff.py",
 ]

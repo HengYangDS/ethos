@@ -6,7 +6,7 @@ summary = "Archived the local-only Phase 0 truth-convergence carrier after exact
 
 [evidence]
 dated = "evidence/chronicle/phase0-truth-convergence-20260719/2026-07-19.md"
-sha256 = "8b47c3512fa788fc4043d52b557f7700dd2205bc47c8ceb18b643f45850caa85"
+sha256 = "aab85f742bc96eb781e0deaa10814d68b347106db2fd20d337ae7b6c39c8f905"
 evidence_ids = ["evidence:phase0-truth-convergence-20260719"]
 binding = "The dated Chronicle binds reproduced failures, implementation boundaries, focused and full owner test observations, current hard-quality observations, local publish readiness, the exact pre-archive HEAD-bound proof observation, the official archived carrier, and the explicit no-remote boundary; final post-archive proof and local landing remain separate."
 verifier = "digest_only"
@@ -31,7 +31,7 @@ owner = "ethos-quality-gate-governance"
 scope = "Local Phase 0 truth convergence through proof, archive, candidate landing, and accepted-root closeout; remote publication excluded."
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-19-phase0-truth-convergence-20260719"
+openspec = "openspec/changes/archive/2026-07-19-phase0-truth-convergence"
 fallback = "Keep report and publish conclusions blocked when current local evidence is unknown, invalid, or missing."
 kill_signal = "A missing or unverified observation is projected as clean, zero, proven, or locally publish-ready."
 
@@ -39,7 +39,7 @@ kill_signal = "A missing or unverified observation is projected as clean, zero, 
 targets = [
   "evidence/claims/phase0-truth-convergence-20260719.toml",
   "evidence/chronicle/phase0-truth-convergence-20260719/2026-07-19.md",
-  "openspec/changes/archive/2026-07-19-phase0-truth-convergence-20260719",
+  "openspec/changes/archive/2026-07-19-phase0-truth-convergence",
   "openspec/specs/quality/spec.md",
   "openspec/specs/repository-governance/spec.md",
   "packages/ethos/src/ethos/adapters/repo/coordination.py",

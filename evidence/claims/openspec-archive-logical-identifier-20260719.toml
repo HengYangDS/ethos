@@ -2,12 +2,12 @@
 id = "openspec-archive-logical-identifier-20260719"
 subject = "ethos:openspec-archive-logical-identifier"
 state = "active"
-change_id = "openspec-archive-logical-identifier-20260719"
+change_id = "openspec-archive-logical-identifier"
 summary = "ETHOS distinguishes active logical Change IDs from dated OpenSpec archive directory names and resolves historical archives only through an explicit fail-closed reader."
 
 [evidence]
 dated = "evidence/chronicle/openspec-archive-logical-identifier-20260719/2026-07-19.md"
-sha256 = "b33be1783ba72d2c0534856b23ec7ef501056eea93f35247eb68d39f6a9e46ed"
+sha256 = "7fe234c0e2d1da438ac7638b16f943325e501fb263f4e8eeeb73c1e1b9179719"
 evidence_ids = ["evidence:openspec-archive-logical-identifier-20260719"]
 binding = "Archived OpenSpec carrier, focused archive-reader regression, and dated Chronicle bind the logical identifier boundary without mutating historical archives."
 verifier = "digest_only"
@@ -20,7 +20,7 @@ owner = "ethos-repository"
 scope = "OpenSpec archive lookup and active-selector boundary only; vendor runtime, task/worktree recovery, remote publication, and archive mutation are excluded."
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-19-openspec-archive-logical-identifier-20260719"
+openspec = "openspec/changes/archive/2026-07-19-openspec-archive-logical-identifier"
 fallback = "Reject archive directory names as active IDs and report unresolved archive queries rather than inferring history."
 kill_signal = "A dated archived directory is accepted as an active Change ID, an archive lookup guesses among multiple dated carriers, or the reader mutates historical archives."
 

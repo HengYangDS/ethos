@@ -16,7 +16,7 @@ a later, separately governed `lane_resolution/preserve-retire` closeout. This
 carrier does not authorize a native decision or apply, mint authority over the
 target lane, or make a remote, push, or hosted-CI claim.
 
-See the [archived OpenSpec Change](../../openspec/changes/archive/2026-07-19-github-hosted-ci-stale-lane-closeout-20260719/).
+See the [archived OpenSpec Change](../../openspec/changes/archive/2026-07-19-github-hosted-ci-stale-lane-closeout/).
 
 ## Bound Observation
 

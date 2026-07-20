@@ -1,0 +1,40 @@
+[claim]
+id = "artifact-topology-hotpath-absorption-20260720"
+subject = "ethos:work-lane:work/artifact-topology-hotpath-repair-20260714"
+state = "active"
+change_id = "artifact-topology-hotpath-absorption-20260720"
+summary = "One current-baseline carrier records the bounded comparison between accepted generated-artifact topology contracts and the useful behavior of work/artifact-topology-hotpath-repair-20260714 before one native preserve-retire transition."
+
+[evidence]
+dated = "evidence/chronicle/artifact-topology-hotpath-absorption-20260720/2026-07-20.md"
+sha256 = "d4796f401a58e06983b5dbc4299d2af28e3798d13e26b9258dde44a33126a5f8"
+evidence_ids = ["evidence:artifact-topology-hotpath-absorption-20260720"]
+binding = "This active Claim binds only work/artifact-topology-hotpath-repair-20260714 at 194b2ec91891631f178ef7c71d73da35e77c6b13, its observed staged parity delta, the listed accepted current contracts, and a later native preserve-retire decision. It does not treat preservation, path overlap, historical tree equality, or a prior receipt as sufficient evidence."
+verifier = "digest_only"
+tests = [
+  "pytest -q tests/unit/governance/test_generated_artifact_topology.py tests/unit/kernel/test_cel_topology_predicates.py",
+  "ethos quality claims --json",
+  "openspec validate artifact-topology-hotpath-absorption-20260720 --strict --json",
+  "ethos prove --execute --expect-head <committed-head> --json",
+  "ethos lane resolution decide --branch work/artifact-topology-hotpath-repair-20260714 --disposition preserve-retire --chronicle-ref evidence/chronicle/artifact-topology-hotpath-absorption-20260720/2026-07-20.md --break-glass --apply --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "One dirty missing-lease artifact-topology source lane, one exact source head, its staged parity delta, current accepted semantic contracts, and one later native local preservation-retirement only."
+
+[carriers]
+openspec = "openspec/changes/artifact-topology-hotpath-absorption-20260720"
+fallback = "Keep the source branch, linked worktree, staged delta, and existing retained packages intact whenever focused behavior, source observation, Chronicle, manifest, or current accepted basis cannot be proved."
+kill_signal = "Preservation is called absorption; a source tree is merged without current replay evidence; a foreign lane, valid lease, raw ref/store deletion, remote, or unrelated package is touched."
+
+[promotion]
+targets = [
+  "docs/plans/artifact-topology-hotpath-absorption-20260720.md",
+  "evidence/claims/artifact-topology-hotpath-absorption-20260720.toml",
+  "evidence/chronicle/artifact-topology-hotpath-absorption-20260720/2026-07-20.md",
+  "openspec/changes/artifact-topology-hotpath-absorption-20260720",
+]

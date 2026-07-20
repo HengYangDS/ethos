@@ -92,6 +92,26 @@ def test_selection_and_validation_helper_edge_cases() -> None:
         openspec_lifecycle.selected_change(
             {
                 "changes": [
+                    {
+                        "name": "newly-created",
+                        "status": "no-tasks",
+                        "lastModified": "2026-07-20T12:00:00Z",
+                    },
+                    {
+                        "name": "completed-newer",
+                        "status": "complete",
+                        "lastModified": "2026-07-20T13:00:00Z",
+                    },
+                ]
+            },
+            None,
+        )
+        == "newly-created"
+    )
+    assert (
+        openspec_lifecycle.selected_change(
+            {
+                "changes": [
                     {"name": "older", "lastModified": "2026-01-01"},
                     {"name": "newer", "lastModified": "2026-02-01"},
                 ]

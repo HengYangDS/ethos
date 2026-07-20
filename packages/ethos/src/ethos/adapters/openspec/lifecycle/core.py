@@ -40,7 +40,7 @@ def selected_change(list_payload: dict[str, Any], requested: str | None) -> str 
     changes = list_payload.get("changes", [])
     if requested is not None or not isinstance(changes, list):
         return requested
-    for statuses in ({"in-progress"}, {"archiving"}, {"", "complete"}):
+    for statuses in ({"in-progress"}, {"no-tasks"}, {"archiving"}, {"", "complete"}):
         candidates = [item for item in changes if isinstance(item, dict) and item.get("name") and str(item.get("status") or "") in statuses]
         if candidates:
             return str(max(candidates, key=lambda item: (str(item.get("lastModified") or ""), str(item.get("name") or "")))["name"])
@@ -122,7 +122,7 @@ def claim_binds_change(carriers: set[str], change_name: str) -> bool:
 def _lifecycle_names(payload: object, requested: str | None) -> tuple[list[str], tuple[str, ...]]:
     if requested:
         return [requested], (requested,)
-    names = [str(item.get("name")) for item in payload if isinstance(item, dict) and item.get("name") and str(item.get("status") or "") in {"", "in-progress", "archiving", "complete"}] if isinstance(payload, list) else []
+    names = [str(item.get("name")) for item in payload if isinstance(item, dict) and item.get("name") and str(item.get("status") or "") in {"", "in-progress", "no-tasks", "archiving", "complete"}] if isinstance(payload, list) else []
     return names, tuple(names)
 
 

@@ -1,0 +1,43 @@
+[claim]
+id = "openspec-no-tasks-bootstrap-20260721"
+change_id = "openspec-no-tasks-bootstrap"
+subject = "repository-governance:openspec-no-tasks-scope-bootstrap"
+state = "active"
+summary = "ETHOS treats the official no-tasks Change state as active only for existing fail-closed lifecycle selection and exact Change-local scope bootstrap."
+
+[evidence]
+dated = "evidence/chronicle/openspec-no-tasks-bootstrap-20260721/2026-07-21.md"
+sha256 = "a0fbde8ab07ade74f69d2750e7750f3517ba6b0f992223f1d18f8815ef63807c"
+evidence_ids = ["evidence:openspec-no-tasks-bootstrap-20260721"]
+binding = "The official no-tasks observation, focused RED/GREEN regression, active OpenSpec carrier, and final exact-HEAD lifecycle and proof gates bind this narrow scope-bootstrap behavior."
+verifier = "digest_only"
+tests = [
+  "ETHOS_TEST_WORKERS=1 uv run --all-packages --group dev pytest -c .config/checks/pytest/pytest.ini tests/unit/product/test_openspec_edges.py tests/unit/lanes/test_lanes_openspec_scope.py -q",
+  "openspec validate --all --strict --json",
+  "tools/ci/scripts/run-ethos-lane.sh openspec --lifecycle --json",
+  "tools/ci/scripts/run-ethos-lane.sh quality claims --json",
+  "tools/ci/scripts/run-ethos-lane.sh prove --full --execute --expect-head <committed-head> --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "repository-governance"
+scope = "Official OpenSpec no-tasks lifecycle selection and the already bounded exact Change-local scope.toml bootstrap only."
+
+[carriers]
+openspec = "openspec/changes/openspec-no-tasks-bootstrap"
+fallback = "Retain fail-closed scope admission and repair official lifecycle selection before attempting a new Change scope bootstrap."
+kill_signal = "A no-tasks Change covers an ordinary material path before a valid companion exists, outranks an in-progress Change, or admits a tracked, malformed, unrelated, or multiple scope companion."
+
+[promotion]
+targets = [
+  "packages/ethos/src/ethos/adapters/openspec/lifecycle/core.py",
+  "tests/unit/product/test_openspec_edges.py",
+  "tests/unit/lanes/test_lanes_openspec_scope.py",
+  "openspec/specs/repository-governance/spec.md",
+  "openspec/changes/openspec-no-tasks-bootstrap",
+  "evidence/chronicle/openspec-no-tasks-bootstrap-20260721/2026-07-21.md",
+  "evidence/claims/openspec-no-tasks-bootstrap-20260721.toml",
+]

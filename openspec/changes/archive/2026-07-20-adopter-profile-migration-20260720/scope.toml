@@ -20,6 +20,7 @@ paths = [
   "packages/ethos/src/ethos/surface/cli/root/reference.py",
   "tests/unit/adoption/test_profile_contract.py",
   "tests/unit/cli/test_invalid_profile_boundary.py",
+  "tests/unit/coverage/test_cov_v3_clidomain_edges.py",
   "tests/unit/cli/test_contracts_proof.py",
   "tests/unit/domain/test_report.py",
 ]

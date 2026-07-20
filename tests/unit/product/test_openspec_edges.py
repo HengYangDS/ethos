@@ -310,6 +310,18 @@ def test_archive_directory_name_is_rejected_as_active_change_identifier(
     ]
 
 
+def test_lifecycle_reports_invalid_active_change_identifier(tmp_path: Path) -> None:
+    root = tmp_path / "repo"
+    change_name = "active-change-20260720"
+    change = root / "openspec" / "changes" / change_name
+    change.mkdir(parents=True)
+
+    report, gaps = openspec_lifecycle._change_report(root, change_name, set(), base_command=None)
+
+    assert f"openspec_active_change_identifier_invalid:{change_name}" in gaps
+    assert f"openspec_active_change_identifier_invalid:{change_name}" in report["required_gaps"]
+
+
 def test_archive_closeout_rejects_temporal_or_ambiguous_logical_identifiers(
     tmp_path: Path,
 ) -> None:

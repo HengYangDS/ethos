@@ -12,7 +12,14 @@ from pathlib import Path
 from typing import NamedTuple
 
 from ethos.adapters.mutation.proof import _promotion_required_gate_ids
+from ethos.adapters.mutation.proof import record_executed_proof
 from ethos.repository.adoption.planner import adoption_plan
+from ethos.repository.evidence.core import EvidenceSet
+from ethos.repository.evidence.core import ProofRun
+from ethos.repository.policy.gates import canonical_gate_command
+from ethos.repository.policy.gates import gate_registry
+from ethos.repository.profile import RepositoryProfileDeclaration
+from ethos.repository.profile import render_repository_profile
 from tests.support.ethos_cli_runner import run_ethos
 
 
@@ -101,6 +108,19 @@ def git(root: Path, *args: str) -> str:
     return completed.stdout.strip()
 
 
+def write_test_profile(root: Path, **updates: object) -> Path:
+    """Write one strict profile fixture through the production declaration."""
+    payload = RepositoryProfileDeclaration.bootstrap(root.resolve().name).model_dump(mode="python")
+    payload.update(updates)
+    profile = root / ".ethos" / "profile.toml"
+    profile.parent.mkdir(parents=True, exist_ok=True)
+    profile.write_text(
+        render_repository_profile(RepositoryProfileDeclaration.model_validate(payload)),
+        encoding="utf-8",
+    )
+    return profile
+
+
 def init_git_repo(path: Path) -> Path:
     path.mkdir(parents=True)
     git(path, "init", "-b", "dev")
@@ -170,7 +190,7 @@ def write_role_policy(
 
 
 def adopt_and_commit(repo: Path) -> None:
-    plan = adoption_plan(repo, profile="generic", apply=True)
+    plan = adoption_plan(repo, apply=True)
     assert plan["applied"] is True
     _declare_minimal_code_correctness(repo)
     git(repo, "add", ".")
@@ -235,9 +255,6 @@ def seed_executed_proof(repo: Path, head: str) -> None:
     record is self-authenticating (digest recomputed on read), so this seeds a REAL
     evidence body — a proof cannot be faked, in tests or production.
     """
-    from ethos.adapters.mutation.proof import record_executed_proof
-    from ethos.repository.evidence.core import EvidenceSet
-
     # Seed a COMPLETE, POLICY-CONFORMANT promotion proof (one passing run per required
     # gate id, carrying that gate's canonical command / trust_bearing / evidence_class):
     # land/publish require the proof to cover the required floor AND each run to conform
@@ -256,10 +273,6 @@ def conformant_proof_run(gate_id: str, root: Path) -> object:
     Gate ids absent from the product registry (e.g. an adopter's declared native gates)
     fall back to a trust-bearing test run — conformance only checks registry gates.
     """
-    from ethos.repository.evidence.core import ProofRun
-    from ethos.repository.policy.gates import canonical_gate_command
-    from ethos.repository.policy.gates import gate_registry
-
     gate = gate_registry(root).get(gate_id)
     if gate is None:
         command: tuple[str, ...] = ("pytest",)

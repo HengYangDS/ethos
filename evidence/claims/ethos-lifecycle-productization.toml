@@ -1,7 +1,7 @@
 [claim]
 id = "ethos-lifecycle-productization"
 subject = "ethos:lifecycle-productization"
-state = "active"
+state = "archived"
 summary = "ETHOS governance productization binds claim envelopes, OpenSpec lifecycle, proof execution, Work Lane and intake projections, schemas, scaffold, and adopter parity boundaries into one product trust lifecycle."
 
 [evidence]

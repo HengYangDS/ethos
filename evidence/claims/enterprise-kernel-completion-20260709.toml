@@ -1,4 +1,4 @@
-claim = { id = "enterprise-kernel-completion-20260709", subject = "ethos:enterprise-kernel-completion-20260709", state = "active", summary = "ETHOS product and governed repositories share one executable governance-kernel gate and transition command plane." }
+claim = { id = "enterprise-kernel-completion-20260709", subject = "ethos:enterprise-kernel-completion-20260709", state = "archived", summary = "ETHOS product and governed repositories share one executable governance-kernel gate and transition command plane." }
 evidence = { dated = "evidence/chronicle/enterprise-kernel-completion-20260709/2026-07-09.md", sha256 = "d0b4d7a20571c4ee219de8223077b38dfd3208ad0f3fa67c6728aee1c401e1ab", evidence_ids = [
   "evidence:enterprise-kernel-completion-20260709",
 ], binding = "governance-kernel gate, enterprise-readiness L4, generic adoption scaffold, command-plane docs, OpenSpec quality spec, owner script, and focused tests", verifier = "digest_only", tests = [

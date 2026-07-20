@@ -197,10 +197,9 @@ Deliverables:
 1. Keep dependency hygiene active through `deptry` package-local owner gates.
 1. Keep prose spelling active through `codespell` report-first checks.
 1. Keep JSON Schema metaschema hygiene active through `check-jsonschema`.
-1. Keep the `pip-audit` vulnerability gate active through a frozen `uv export`
-   resolved requirements input, while preserving the boundary that `pip-audit`
-   does not read `uv.lock` directly.
-1. Activate OSV, image/package scanning, or external signing only after pinned
+1. Keep the native `uv audit --frozen` vulnerability gate active against
+   `uv.lock` through its repository-owned script and OSV evidence boundary.
+1. Activate image/package scanning or external signing only after pinned
    tool supply, owner configs, runner scripts, CI projections, and proof coverage
    exist.
 1. Keep fail-closed file-format admission for Python, Markdown, TOML, YAML,

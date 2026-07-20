@@ -1,4 +1,4 @@
-claim = { id = "openspec-semantic-capability-layout", subject = "ethos:openspec-semantic-capability-layout", state = "active", change_id = "openspec-semantic-capability-layout-20260706", summary = "ETHOS binds the active OpenSpec declared capability layout change to local quality gates and executed proof while remote GitLab publication remains deferred." }
+claim = { id = "openspec-semantic-capability-layout", subject = "ethos:openspec-semantic-capability-layout", state = "archived", change_id = "openspec-semantic-capability-layout-20260706", summary = "ETHOS binds the active OpenSpec declared capability layout change to local quality gates and executed proof while remote GitLab publication remains deferred." }
 evidence = { dated = "evidence/chronicle/openspec-semantic-capability-layout/2026-07-06.md", sha256 = "8a51c1414f75cf1c25210bf6b8ed31534114492a9aa9e6703b0aaa814a415a93", evidence_ids = [
   "evidence:openspec-semantic-capability-layout",
 ], binding = "active OpenSpec change carrier binding for declared capability layout", verifier = "digest_only", tests = [

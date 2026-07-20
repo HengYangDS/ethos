@@ -1,23 +1,16 @@
 schema = "ethos-security-audit-policy-v1"
 owner = "ethos-quality-gate-governance"
-summary = "Security dependency scanners stay profile-owned and explicit about network, input, and claim boundaries."
+summary = "Python dependency vulnerabilities are audited directly from the frozen uv lock."
 runner = "tools/ci/scripts/run-python-vulnerability-audit.sh"
 
-[pip_audit]
+[uv_audit]
 state = "active_owner_gate"
-tool = "pip-audit"
-input = "uv export --format requirements-txt --all-groups --frozen --no-emit-project --no-emit-workspace --no-hashes"
+tool = "uv audit"
+input = "uv.lock"
 output = "build/evidence/quality/security/python-vulnerability-audit.json"
 evidence_class = "local_owner_gate"
-claim = "pip-audit scanned the uv-exported resolved requirements input"
+claim = "uv audit scanned the frozen workspace lock through OSV"
 forbidden_claims = [
-  "pip-audit reads uv.lock directly",
-  "OSV scan passed",
   "image/package scan passed",
   "hosted CI passed",
 ]
-
-[osv_scanner]
-state = "planned_profile_gate"
-reason = "OSV scanner activation needs pinned tool supply and an owner script before it can be trust-bearing CI evidence."
-forbidden_claim = "OSV hosted or lockfile vulnerability status passed"

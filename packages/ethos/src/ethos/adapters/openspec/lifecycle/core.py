@@ -21,6 +21,7 @@ class OpenSpecRequest(NamedTuple):
     change: str | None
     lifecycle: bool
     changed_paths: tuple[str, ...] = ()
+    require_workspace: bool = True
 
 class OpenSpecReportContext(NamedTuple):
     request: OpenSpecRequest
@@ -121,10 +122,7 @@ def _lifecycle_names(payload: object, requested: str | None) -> tuple[list[str],
     if requested:
         return [requested], (requested,)
     names = [str(item.get("name")) for item in payload if isinstance(item, dict) and item.get("name") and str(item.get("status") or "") in {"", "in-progress", "archiving", "complete"}] if isinstance(payload, list) else []
-    if names or not isinstance(payload, list):
-        return names, tuple(names)
-    no_tasks = tuple(str(item.get("name")) for item in payload if isinstance(item, dict) and item.get("name") and str(item.get("status") or "") == "no-tasks")
-    return names, no_tasks if len(no_tasks) == 1 else ()
+    return names, tuple(names)
 
 
 def _change_report(root: Path, name: str, claim_carriers: set[str], base_command: tuple[str, ...] | None) -> tuple[dict[str, object], list[str]]:
@@ -149,13 +147,13 @@ def lifecycle_report(root: Path, *, request: OpenSpecRequest, list_payload: dict
         lifecycle = empty_lifecycle(root, request, residue)
         lifecycle.pop("enabled")
         return {"required_gaps": [], **lifecycle}
-    names, bootstrap_names = _lifecycle_names(list_payload.get("changes", []), request.change)
+    names, active_names = _lifecycle_names(list_payload.get("changes", []), request.change)
     claim_carriers = active_claim_openspec_carriers(root)
     changes, required_gaps = [], []
     for name in names:
         change, gaps = _change_report(root, name, claim_carriers, base_command)
         changes.append(change)
         required_gaps.extend(gaps)
-    binding = scope.material_change_scope_report(root, changed_paths=request.changed_paths, active_change_names=bootstrap_names)
+    binding = scope.material_change_scope_report(root, changed_paths=request.changed_paths, active_change_names=active_names)
     required_gaps.extend(map(str, binding["required_gaps"]))
     return {"required_gaps": required_gaps, "changes": changes, "scope_binding": binding, "protected_branch_residue": residue}

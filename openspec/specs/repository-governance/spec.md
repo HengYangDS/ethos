@@ -915,11 +915,10 @@ ETHOS SHALL treat a Lane Lease as ignored, one-writer coordination within one Gi
 common directory. The lease SHALL identify a concrete holder and generation but
 SHALL NOT be an identity assertion, capability grant, filesystem fence,
 cross-host lock, or repository truth. Reader output SHALL be a
-non-authoritative action preview rather than a reusable permission. Bounded and
-full coordination readers SHALL expose their observed `detail_state`; consumers
-SHALL treat `deferred` as a bounded-observation state and `exact` as a complete
-local observation state, rather than treating either value as a universal
-repository invariant.
+non-authoritative action preview rather than a reusable permission. Bounded
+readers SHALL preserve the caller-selected `deferred` state even when no foreign
+Work Lane rows are visible; full readers SHALL report `exact` only after the
+full foreign coordination inventory has been computed.
 
 #### Scenario: foreign lane preview remains observe-only
 
@@ -948,14 +947,14 @@ repository invariant.
 
 #### Scenario: projection preserves observed coordination detail state
 
-- **WHEN** status or orientation projects a coordination observation
-- **THEN** its summary and orientation coordination payload expose the same
-  observed `detail_state`
-- **AND** `deferred` leaves counts requiring foreign-path inspection unset
-- **AND** `exact` exposes those counts as local integer observations
-- **AND** either observed state remains non-authoritative and does not grant
-  foreign Work Lane mutation authority.
-
+- **WHEN** bounded status or orientation projects a coordination observation
+- **THEN** its summary and coordination payload SHALL both expose
+  `detail_state=deferred`
+- **AND** counts requiring foreign-path inspection SHALL remain `null` even when
+  no foreign Work Lane row is visible
+- **AND** a full coordination inventory MAY expose `detail_state=exact` and
+  integer detail counts only after computing that full inventory
+- **AND** neither state grants foreign Work Lane mutation authority.
 #### Scenario: bounded-reader regression debt is explicit and temporary
 
 - **WHEN** the bounded status read model introduces a focused regression carrier
@@ -2162,20 +2161,12 @@ and hosted CI as separate evidence classes.
 
 ### Requirement: Authoritative Adopter Material Change Scope Binding
 
-ETHOS SHALL require each adopter profile to declare a non-empty
-`[openspec].material_paths` pattern list. For every changed material path,
-`ethos lane prewrite`, `ethos plan --changed`, and `ethos prove` SHALL use the
-same ETHOS-owned `scope.toml` companion read model over the official OpenSpec
-active or archiving Change selection. `scope.toml` remains a companion beside a
-Change, not an OpenSpec workflow-schema extension. A legacy adopter MAY
-bootstrap only its already-tracked `.ethos/profile.toml` declaration against
-exactly one official active Change; that fallback applies only to this one
-profile-only write and SHALL NOT make that Change cover any other material
-path. A completed archive MAY participate only when the archive itself
-contributes to the current Work Lane change scope; it remains excluded for all
-unrelated future changes. A selected tracked malformed Change-local
-`scope.toml` MAY be admitted only to repair that exact companion; it SHALL NOT
-provide coverage until its repaired declaration is valid.
+ETHOS SHALL require every valid adopter declaration to carry a non-empty
+`[openspec].material_paths` list. For changed paths matching that declaration,
+prewrite, changed planning, and proof SHALL use the same selected-Change companion model.
+Adoption SHALL emit the complete declaration; no historical profile-write exception remains.
+Completed archive companions MAY participate only when their archive is in
+current Work Lane scope.
 
 #### Scenario: covered material path is admitted across all surfaces
 
@@ -2211,29 +2202,6 @@ provide coverage until its repaired declaration is valid.
   `scope.toml` path
 - **AND THEN** the completed companion SHALL be syntactically valid, cover
   itself, and cover later material writes.
-
-#### Scenario: tracked invalid companion repairs only itself
-
-- **GIVEN** exactly one selected active Change has a Git-tracked malformed
-  `scope.toml`
-- **AND** prewrite evaluates exactly that companion path
-- **WHEN** the shared scope reader evaluates the request
-- **THEN** it MAY report `tracked_scope_repair_admitted` with the exact Change
-  and companion path
-- **AND** it SHALL NOT mark the malformed companion as coverage
-- **AND** an unselected or widened material-path request SHALL remain uncovered.
-
-#### Scenario: existing adopter bootstraps a missing profile declaration
-
-- **GIVEN** a valid tracked adopter profile has no `material_paths` declaration
-- **AND** exactly one official active Change is selected
-- **WHEN** prewrite evaluates only `.ethos/profile.toml`
-- **THEN** ETHOS MAY admit that write with
-  `profile_material_paths_bootstrap` provenance
-- **AND THEN** an explicit empty or malformed declaration, or a request that
-  includes another path, SHALL remain blocked
-- **AND THEN** later material writes SHALL require ordinary Change-local scope
-  coverage.
 
 #### Scenario: final archive reconciliation remains covered
 
@@ -3105,3 +3073,28 @@ effect.
   digest, affected local root, result receipt, and postcondition verification
 - **AND** fixture, copied-state, dry-run, OpenSpec, land, closeout, and publish
   receipts are insufficient substitutes.
+
+### Requirement: Bounded Coordination Aggregate Detail State
+
+ETHOS SHALL derive coordination aggregate detail state from the reader mode
+selected by the caller, not from the number or contents of visible foreign Work
+Lane rows.
+
+#### Scenario: Empty bounded inventory remains deferred
+
+- **GIVEN** no foreign Work Lane is visible
+- **WHEN** `workspace_status` runs with foreign path-scope expansion disabled
+- **THEN** coordination `detail_state` SHALL be `deferred`
+- **AND** `dirty_foreign_work_lane_count`, `overlap_count`,
+  `unknown_scope_count`, `closeout_residue_count`, and
+  `dirty_closeout_residue_count` SHALL be `null`
+- **AND** observable foreign-lane and lease counts SHALL remain available.
+
+#### Scenario: Empty full inventory remains exact
+
+- **GIVEN** no foreign Work Lane is visible
+- **WHEN** `workspace_status` runs in its full default mode
+- **THEN** coordination `detail_state` SHALL be `exact`
+- **AND** `dirty_foreign_work_lane_count`, `overlap_count`,
+  `unknown_scope_count`, `closeout_residue_count`, and
+  `dirty_closeout_residue_count` SHALL all be zero.

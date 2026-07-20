@@ -8,7 +8,6 @@ from ethos.repository.registry.commands import PUBLIC_WORKFLOW_COMMANDS
 from ethos.repository.registry.commands import READER_VIEW_COMMANDS
 from ethos.repository.registry.commands import SCORECARD_COMMANDS
 from ethos.repository.registry.profiles import governance_profile_report
-from ethos_core.contracts.docs.topology import required_docs_topology_paths
 from ethos_core.kernel import KERNEL_CHAIN
 from ethos_core.normalization.core import string_mapping
 from ethos_core.normalization.core import string_sequence
@@ -97,13 +96,13 @@ def governance_kernel_report(root: Path) -> dict[str, object]:
     """Audit the single governed-repository kernel across product and adoption paths."""
     context = context_for_root(root)
     profiles = governance_profile_report()
-    generic_plan = adoption_plan(root / "__ethos_generic_probe__", profile="generic", apply=False)
+    adoption_plan_result = adoption_plan(root / "__ethos_adoption_probe__", apply=False)
 
     checks = {
         "runtime-governance-context": _runtime_context_check(context),
         "profile-isomorphism": _profile_isomorphism_check(profiles),
         "product-docs": _product_docs_check(root),
-        "generic-adoption-scaffold": _generic_adoption_scaffold_check(generic_plan),
+        "minimal-adoption-binding": _minimal_adoption_binding_check(adoption_plan_result),
     }
     required_gaps = _dedupe(
         gap for check in checks.values() for gap in string_sequence(check.get("required_gaps"))
@@ -322,35 +321,23 @@ def _product_docs_check(root: Path) -> dict[str, object]:
     }
 
 
-def _generic_adoption_scaffold_check(plan: Mapping[str, object]) -> dict[str, object]:
+def _minimal_adoption_binding_check(plan: Mapping[str, object]) -> dict[str, object]:
     required_gaps = string_sequence(plan.get("required_gaps"))
     planned_files = set(string_sequence(plan.get("planned_files")))
-    docs_kernel = set(required_docs_topology_paths())
-    missing_docs = sorted(docs_kernel - planned_files)
-    required_gaps.extend(
-        f"governance_kernel_generic_docs_path_missing:{path}" for path in missing_docs
-    )
-    if plan.get("profile") != "generic":
-        required_gaps.append("governance_kernel_generic_profile_mismatch")
     if plan.get("applied") is not False:
-        required_gaps.append("governance_kernel_generic_probe_mutated")
-    for path in (
-        "AGENTS.md",
-        ".ethos/workspace.toml",
-        "openspec/specs/kernel/spec.md",
-        "openspec/specs/repository-governance/spec.md",
-        "docs/governance/ethos.md",
-    ):
-        if path not in planned_files:
-            required_gaps.append(f"governance_kernel_generic_scaffold_missing:{path}")
+        required_gaps.append("governance_kernel_adoption_probe_mutated")
+    if ".ethos/profile.toml" not in planned_files:
+        required_gaps.append("governance_kernel_adoption_binding_missing:.ethos/profile.toml")
+    required_gaps.extend(
+        f"governance_kernel_adoption_surface_unexpected:{path}"
+        for path in sorted(planned_files - {".ethos/profile.toml"})
+    )
     return {
         "ok": not required_gaps,
         "state": "clean" if not required_gaps else "blocked",
         "required_gaps": _dedupe(required_gaps),
         "summary": {
-            "profile": plan.get("profile"),
             "planned_file_count": len(planned_files),
-            "docs_kernel_path_count": len(docs_kernel),
         },
     }
 

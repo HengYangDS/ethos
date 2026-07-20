@@ -1,7 +1,7 @@
 [claim]
 id = "external-adopter-overlay-resume-20260712"
 subject = "ethos:external-adopter-overlay"
-state = "active"
+state = "archived"
 summary = "Explicit overlay adoption preserves declared external governance surfaces while installing only missing ETHOS-owned bindings."
 
 [evidence]

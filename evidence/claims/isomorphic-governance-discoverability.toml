@@ -1,7 +1,7 @@
 [claim]
 id = "isomorphic-governance-discoverability"
 subject = "ethos:isomorphic-governance-discoverability"
-state = "active"
+state = "archived"
 summary = "ETHOS makes one-kernel governance of itself and adopted repositories discoverable without product cloning."
 
 [evidence]

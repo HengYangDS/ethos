@@ -73,7 +73,9 @@ def test_profile_claims_root_accepts_recursive_canonical_claims(tmp_path: Path) 
     evidence_file = evidence / "sample.md"
     evidence_file.write_text("sample\n", encoding="utf-8")
     profile.write_text(
-        'schema_version = 1\n[roots]\nclaims = "claims"\ndurable_evidence = "docs/evidence"',
+        'profile_id = "claims-test"\n\n'
+        '[openspec]\nmaterial_paths = [".ethos/profile.toml"]\n\n'
+        '[roots]\nclaims = "claims"\ndurable_evidence = "docs/evidence"\n',
         encoding="utf-8",
     )
     (claims / "sample.toml").write_text(
@@ -107,7 +109,12 @@ def test_top_level_claim_shape_is_rejected_without_compatibility_parser(
     profile = tmp_path / ".ethos" / "profile.toml"
     claims.mkdir(parents=True)
     profile.parent.mkdir()
-    profile.write_text('schema_version = 1\n[roots]\nclaims = "claims"\n', encoding="utf-8")
+    profile.write_text(
+        'profile_id = "claims-test"\n\n'
+        '[openspec]\nmaterial_paths = [".ethos/profile.toml"]\n\n'
+        '[roots]\nclaims = "claims"\n',
+        encoding="utf-8",
+    )
     (claims / "active.toml").write_text(
         'id = "active-change"\n',
         encoding="utf-8",

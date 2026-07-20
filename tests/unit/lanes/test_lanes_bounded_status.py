@@ -51,6 +51,70 @@ def test_workspace_status_reports_exact_foreign_work_lane_aggregates(
     assert_no_ui_projection(status)
 
 
+def test_workspace_status_empty_inventory_preserves_explicit_detail_mode(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+
+    full = workspace_status(repo)
+    full_coordination = full["coordination"]
+
+    assert full["foreign_work_lanes"] == []
+    assert full_coordination["detail_state"] == "exact"
+    assert full_coordination["dirty_foreign_work_lane_count"] == 0
+    assert full_coordination["overlap_count"] == 0
+    assert full_coordination["unknown_scope_count"] == 0
+    assert full_coordination["closeout_residue_count"] == 0
+    assert full_coordination["dirty_closeout_residue_count"] == 0
+    assert validate_schema_instance("workspace-status.schema.json", full)["ok"] is True
+
+    bounded = workspace_status(repo, include_foreign_path_scope=False)
+    bounded_coordination = bounded["coordination"]
+
+    assert bounded["foreign_work_lanes"] == []
+    assert bounded_coordination["foreign_work_lane_count"] == 0
+    assert bounded_coordination["missing_lease_count"] == 0
+    assert validate_schema_instance("workspace-status.schema.json", bounded)["ok"] is True
+    assert bounded_coordination["detail_state"] == "deferred"
+    assert bounded_coordination["dirty_foreign_work_lane_count"] is None
+    assert bounded_coordination["overlap_count"] is None
+    assert bounded_coordination["unknown_scope_count"] is None
+    assert bounded_coordination["closeout_residue_count"] is None
+    assert bounded_coordination["dirty_closeout_residue_count"] is None
+
+
+def test_workspace_status_non_git_empty_inventory_preserves_explicit_detail_mode(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "non-git"
+    root.mkdir()
+
+    full = workspace_status(root)
+    full_coordination = full["coordination"]
+
+    assert full["foreign_work_lanes"] == []
+    assert full_coordination["detail_state"] == "exact"
+    assert full_coordination["dirty_foreign_work_lane_count"] == 0
+    assert full_coordination["overlap_count"] == 0
+    assert full_coordination["unknown_scope_count"] == 0
+    assert full_coordination["closeout_residue_count"] == 0
+    assert full_coordination["dirty_closeout_residue_count"] == 0
+    assert validate_schema_instance("workspace-status.schema.json", full)["ok"] is True
+
+    bounded = workspace_status(root, include_foreign_path_scope=False)
+    bounded_coordination = bounded["coordination"]
+
+    assert bounded["foreign_work_lanes"] == []
+    assert bounded_coordination["detail_state"] == "deferred"
+    assert bounded_coordination["dirty_foreign_work_lane_count"] is None
+    assert bounded_coordination["overlap_count"] is None
+    assert bounded_coordination["unknown_scope_count"] is None
+    assert bounded_coordination["closeout_residue_count"] is None
+    assert bounded_coordination["dirty_closeout_residue_count"] is None
+    assert validate_schema_instance("workspace-status.schema.json", bounded)["ok"] is True
+
+
 def test_workspace_status_bounded_reader_defers_foreign_path_scopes(
     tmp_path: Path,
     monkeypatch,

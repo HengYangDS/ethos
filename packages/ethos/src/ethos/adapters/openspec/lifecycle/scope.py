@@ -34,12 +34,11 @@ class MaterialScopeBinding(NamedTuple):
     required_gaps: tuple[str, ...]
     advisory_gaps: tuple[str, ...]
     bootstrap: dict[str, str] | None
-    profile_bootstrap: dict[str, str] | None
     recovery: dict[str, str] | None
 
 
 def _base_report(paths: tuple[str, ...]) -> dict[str, Any]:
-    return {"ok": True, "state": "invalid", "changed_paths": list(paths), "material_patterns": [], "material_paths": [], "changes": [], "covered_paths": [], "uncovered_paths": [], "required_gaps": [], "advisory_gaps": [], "bootstrap": {}, "profile_bootstrap": {}, "recovery": {}}
+    return {"ok": True, "state": "invalid", "changed_paths": list(paths), "material_patterns": [], "material_paths": [], "changes": [], "covered_paths": [], "uncovered_paths": [], "required_gaps": [], "advisory_gaps": [], "bootstrap": {}, "recovery": {}}
 
 
 def material_change_scope_report(root: Path, *, changed_paths: tuple[str, ...] = (), active_change_names: tuple[str, ...] | None = None) -> dict[str, Any]:
@@ -50,20 +49,14 @@ def material_change_scope_report(root: Path, *, changed_paths: tuple[str, ...] =
     if not profile.exists:
         report["state"] = "not_applicable"
         return report
-    return _blocked(report, "openspec_material_paths_profile_invalid") if not profile.valid else _material_scope_report(root, paths, active_change_names, profile.tables.get("openspec"), report)
+    if profile.state == "invalid":
+        return _blocked(report, "openspec_material_paths_profile_invalid")
+    assert profile.declaration is not None
+    return _material_scope_report(root, paths, active_change_names, profile.declaration.openspec, report)
 
 
-def _material_scope_report(root: Path, paths: tuple[str, ...], active_change_names: tuple[str, ...] | None, policy: object, report: dict[str, Any]) -> dict[str, Any]:
-    if bootstrap := _profile_bootstrap(root, paths, policy, active_change_names):
-        report.update(state="profile_material_paths_bootstrap", profile_bootstrap=bootstrap)
-        return report
-    if not isinstance(policy, dict) or "material_paths" not in policy or (isinstance(policy.get("material_paths"), list) and not policy.get("material_paths")):
-        report["state"] = "material_paths_missing"
-        return _blocked(report, "openspec_material_paths_missing")
-    try:
-        patterns = AdopterOpenSpecPolicy.model_validate(policy).material_paths
-    except ValidationError:
-        return _blocked(report, "openspec_material_paths_invalid")
+def _material_scope_report(root: Path, paths: tuple[str, ...], active_change_names: tuple[str, ...] | None, policy: AdopterOpenSpecPolicy, report: dict[str, Any]) -> dict[str, Any]:
+    patterns = policy.material_paths
     material = tuple(path for path in paths if any(_matches(path, glob) for glob in patterns))
     report.update(material_patterns=list(patterns), material_paths=list(material))
     if not material:
@@ -72,8 +65,11 @@ def _material_scope_report(root: Path, paths: tuple[str, ...], active_change_nam
     changes = tuple(_declaration(root, path, state, archive) for path, state, archive in _change_roots(root, active_change_names, paths))
     report["changes"] = list(changes)
     report["advisory_gaps"] = [str(gap) for change in changes for gaps in (change.get("required_gaps"),) if isinstance(gaps, (list, tuple)) for gap in gaps]
-    if exception := _scope_exception(root, material, changes):
-        report.update(exception)
+    if bootstrap := _bootstrap_scope_creation(root, material, changes):
+        report.update(state="bootstrap_scope_creation", advisory_gaps=[], bootstrap=bootstrap)
+        return report
+    if recovery := _tracked_scope_repair(root, material, changes):
+        report.update(state="tracked_scope_repair_admitted", advisory_gaps=[], recovery=recovery)
         return report
     covered = [{"path": path, "changes": [str(change["name"]) for change in changes for globs in (change.get("paths"),) if change["ok"] is True and isinstance(globs, (list, tuple)) and any(_matches(path, str(glob)) for glob in globs)]} for path in material]
     uncovered = [item["path"] for item in covered if not item["changes"]]
@@ -85,29 +81,36 @@ def _blocked(report: dict[str, Any], gap: str) -> dict[str, Any]:
     return report | {"ok": False, "required_gaps": [gap]}
 
 
-def _profile_bootstrap(root: Path, paths: tuple[str, ...], policy: object, names: tuple[str, ...] | None) -> dict[str, str] | None:
-    profile_path, selected = ".ethos/profile.toml", tuple(names or ())
-    return {"change": selected[0], "profile_path": profile_path} if (not isinstance(policy, dict) or "material_paths" not in policy) and paths == (profile_path,) and _tracked(root, profile_path) and len(selected) == 1 and (root / "openspec" / "changes" / selected[0]).is_dir() else None
-
-
-def _scope_exception(root: Path, paths: tuple[str, ...], changes: tuple[dict[str, object], ...]) -> dict[str, object] | None:
+def _bootstrap_scope_creation(root: Path, paths: tuple[str, ...], changes: tuple[dict[str, object], ...]) -> dict[str, str] | None:
     if len(paths) != 1:
         return None
     requested = paths[0]
     matches = [change for change in changes if change["state"] == "missing" and str(change["scope_path"]) == requested]
-    if len(matches) == 1:
-        change = matches[0]
-        change_root = root / "openspec" / "changes" / str(change["name"])
-        if change_root.is_dir() and not (change_root / "scope.toml").exists() and _tracked(root, requested, expected=1):
-            return {"state": "bootstrap_scope_creation", "advisory_gaps": [], "bootstrap": {"change": str(change["name"]), "scope_path": requested}}
+    if len(matches) != 1:
+        return None
+    change = matches[0]
+    change_root = root / "openspec" / "changes" / str(change["name"])
+    return {"change": str(change["name"]), "scope_path": requested} if change_root.is_dir() and not (change_root / "scope.toml").exists() and _untracked(root, requested) else None
+
+
+def _tracked_scope_repair(root: Path, paths: tuple[str, ...], changes: tuple[dict[str, object], ...]) -> dict[str, str] | None:
+    if len(paths) != 1:
+        return None
+    requested = paths[0]
     matches = [change for change in changes if change["state"] == "invalid" and str(change["scope_path"]) == requested]
-    if len(matches) == 1 and _tracked(root, requested):
-        return {"state": "tracked_scope_repair_admitted", "advisory_gaps": [], "recovery": {"change": str(matches[0]["name"]), "scope_path": requested}}
-    return None
+    return {"change": str(matches[0]["name"]), "scope_path": requested} if len(matches) == 1 and _tracked(root, requested) else None
 
 
-def _tracked(root: Path, path: str, *, expected: int = 0) -> bool:
-    return subprocess.run(["git", "ls-files", "--error-unmatch", "--", path], cwd=root, text=True, capture_output=True, check=False).returncode == expected
+def _git_tracked_state(root: Path, path: str) -> int:
+    return subprocess.run(["git", "ls-files", "--error-unmatch", "--", path], cwd=root, text=True, capture_output=True, check=False).returncode
+
+
+def _untracked(root: Path, path: str) -> bool:
+    return _git_tracked_state(root, path) == 1
+
+
+def _tracked(root: Path, path: str) -> bool:
+    return _git_tracked_state(root, path) == 0
 
 
 def _change_roots(root: Path, names: tuple[str, ...] | None, changed_paths: tuple[str, ...]) -> tuple[tuple[Path, str, bool], ...]:
@@ -120,7 +123,7 @@ def _declaration(root: Path, change_root: Path, state: str, archive: bool) -> di
     scope_path = change_root / "scope.toml"
     try:
         paths, issue = list(ChangeScopeDeclaration.model_validate(tomllib.loads(scope_path.read_text(encoding="utf-8"))).paths), ""
-    except (OSError, tomllib.TOMLDecodeError, ValidationError):
+    except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError, ValidationError):
         paths, issue = [], "missing" if not scope_path.exists() else "invalid"
     if archive and not issue:
         paths.append(f"{change_root.relative_to(root).as_posix()}/**")

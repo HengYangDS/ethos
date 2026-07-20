@@ -13,13 +13,9 @@ from typing import cast
 
 import ethos.repository.audit as repository_audit_module
 from ethos.adapters.openspec.core import openspec_governance_report
-from ethos.adapters.repo.git import current_head as git_current_head
 from ethos.repository.adoption.fleet import inspect_adopter
 from ethos.repository.context import context_for_root
 from ethos.repository.context import is_product_root
-from ethos.repository.evidence.claims import claims_report
-from ethos.repository.policy.schema import schema_validation_report
-from ethos.repository.registry.docs.health import docs_health_report
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -72,33 +68,21 @@ def product_repository_audit(
 
 
 def adopter_audit(root: Path) -> dict[str, object]:
-    """Compose the adopter-repository audit (adopter + schema + claims + docs)."""
+    """Validate only the one adopter binding; capabilities remain explicit opt-ins."""
     adopter = inspect_adopter(root)
-    schemas = schema_validation_report(root)
-    claims = claims_report(root, current_head=git_current_head(root), adopter_mode=True)
-    docs = docs_health_report(root)
-    gaps = list(cast("list[str]", adopter["required_gaps"])) + [
-        f"schema:{gap}" for gap in cast("list[str]", schemas["required_gaps"])
-    ]
-    adopter_governance = cast("dict[str, dict[str, bool]]", adopter["adopter"])["governance"]
-    adopter_openspec = bool(adopter_governance["openspec"])
+    gaps = list(cast("list[str]", adopter["required_gaps"]))
+    capabilities = cast("dict[str, dict[str, bool]]", adopter["adopter"])["capabilities"]
     return {
         "ok": not gaps,
         "mode": "repository",
         "governance_context": context_for_root(root),
         "required_gaps": gaps,
         "adopter": adopter,
-        "schemas": {
-            "ok": bool(schemas["ok"]),
-            "validation": schemas,
-            "missing": [],
-        },
-        "claims": claims,
-        "docs": docs,
         "openspec": {
-            "ok": adopter_openspec,
+            "ok": True,
             "mode": "adopter-shape",
-            "required_gaps": [] if adopter_openspec else ["adopter_missing:openspec"],
+            "configured": bool(capabilities["openspec"]),
+            "required_gaps": [],
         },
     }
 

@@ -1,4 +1,4 @@
-claim = { id = "ethos-productization-convergence", subject = "ethos:productization-convergence", state = "active", summary = "Records the ETHOS productization convergence batch across authority kernel, first-hour workflow, adoption planner safety, authority graph read model, and bounded command shadow results." }
+claim = { id = "ethos-productization-convergence", subject = "ethos:productization-convergence", state = "archived", summary = "Records the ETHOS productization convergence batch across authority kernel, first-hour workflow, adoption planner safety, authority graph read model, and bounded command shadow results." }
 evidence = { dated = "evidence/chronicle/productization-convergence/2026-07-01.md", sha256 = "515487846aa6da2b8384eb2980aa78b722fad9fdf0610c6f8d8900f98d07a2bd", evidence_ids = [
   "evidence:ethos-productization-convergence",
 ], binding = "digest-bound convergence evidence binding", verifier = "digest_only", tests = [

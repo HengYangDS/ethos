@@ -1,251 +1,105 @@
 from __future__ import annotations
 
 import hashlib
+import os
+import stat
+import tempfile
+from contextlib import suppress
 from pathlib import Path
 
-from ethos.repository.adoption.scaffold.core import BASE_ADOPTION_FILES
-from ethos.repository.adoption.scaffold.core import OPENSPEC_CAPABILITIES
-from ethos.repository.adoption.scaffold.core import default_files
+from ethos.repository.profile import RepositoryProfileDeclaration
+from ethos.repository.profile import render_repository_profile
 
-PROFILES = ("generic", "python", "monorepo", "github", "gitlab")
-PROFILE_READ_FILES = {
-    "generic": (".git", ".gitignore", "README.md"),
-    "python": (
-        "pyproject.toml",
-        "uv.lock",
-        "noxfile.py",
-        ".config/checks/pytest/pytest.ini",
-        ".config/checks/ruff/ruff.toml",
-    ),
-    "monorepo": ("packages", "pyproject.toml", "package.json"),
-    "github": (".github/workflows", ".git/config"),
-    "gitlab": (".gitlab-ci.yml", ".gitlab", ".git/config"),
-}
-PROFILE_MATCH_REQUIRED = {
-    "generic": (),
-    "python": ("pyproject.toml",),
-    "monorepo": ("packages",),
-    "github": (".github",),
-    "gitlab": (".gitlab-ci.yml", ".gitlab"),
-}
+PROFILE_PATH = ".ethos/profile.toml"
 APPLY_CRITERIA = (
-    "profile matches the repository shape",
-    "planned_files contains only expected ETHOS governance files",
-    "hosted CI and remote publication remain projections until externally proven",
+    "planned_files contains only the adopter binding manifest",
+    "existing nonempty binding content is not replaced",
     "rollback path is understood before apply",
 )
 
-_OVERLAY_ROOT_FILES = frozenset({"AGENTS.md", "CHANGELOG.md", "CONTRIBUTING.md"})
-_OVERLAY_PREFIXES = ("docs/", "openspec/")
 
-
-def available_profiles() -> tuple[str, ...]:
-    return PROFILES
-
-
-def detect_repo_profile(root: Path) -> str:
-    if (root / ".gitlab-ci.yml").exists():
-        return "gitlab"
-    if (root / ".github").exists():
-        return "github"
-    if (root / "packages").exists():
-        return "monorepo"
-    if (root / "pyproject.toml").exists():
-        return "python"
-    return "generic"
-
-
-def _sha256_text(value: str) -> str:
-    return hashlib.sha256(value.encode("utf-8")).hexdigest()
-
-
-def _missing_gitignore_lines(existing: str, desired: str) -> tuple[str, ...]:
-    existing_lines = set(existing.splitlines())
-    return tuple(line for line in desired.splitlines() if line not in existing_lines)
-
-
-def _append_gitignore_lines(existing: str, missing_lines: tuple[str, ...]) -> str:
-    separator = "" if existing.endswith("\n") else "\n"
-    return f"{existing}{separator}\n" + "\n".join(missing_lines) + "\n"
-
-
-def _profile_match(root: Path, profile: str, detected_profile: str) -> dict[str, object]:
-    required = PROFILE_MATCH_REQUIRED[profile]
-    if profile in ("generic", detected_profile) or any(
-        (root / relative).exists() for relative in required
-    ):
-        return {"ok": True, "reasons": [f"matched:{profile}"]}
-    return {
-        "ok": False,
-        "reasons": [f"detected:{detected_profile}", *(f"missing:{item}" for item in required)],
-    }
-
-
-def _overlay_action(root: Path, relative: str, profile: str, *, existed: bool) -> str:
-    """Return the non-destructive overlay action for an adopter-owned surface."""
-    provider = (profile == "gitlab" and relative == ".gitlab-ci.yml") or (
-        profile == "github" and relative.startswith(".github/")
+def adoption_plan(root: Path, *, apply: bool = False) -> dict[str, object]:
+    content = render_repository_profile(RepositoryProfileDeclaration.bootstrap(root.resolve().name))
+    target = root / PROFILE_PATH
+    current, exists, safe = _current_binding(root, target)
+    conflict = not safe or current not in {None, "", content}
+    action = (
+        "skip_existing_nonempty"
+        if conflict
+        else "keep_existing"
+        if current == content
+        else "write_empty"
+        if current == ""
+        else "create"
     )
-    preserved = (
-        provider or relative in _OVERLAY_ROOT_FILES or relative.startswith(_OVERLAY_PREFIXES)
-    )
-    missing_root = (relative.startswith("docs/") and (root / "docs").exists()) or (
-        relative.startswith("openspec/") and (root / "openspec").exists()
-    )
-    if existed and preserved:
-        return "preserve_existing"
-    return "preserve_adopter_root" if provider or missing_root else ""
-
-
-def _write_plan(
-    root: Path,
-    files: dict[str, str],
-    *,
-    profile: str = "generic",
-    overlay: bool = False,
-) -> list[dict[str, object]]:
-    plan: list[dict[str, object]] = []
-    for relative in sorted(files):
-        content = files[relative]
-        target = root / relative
-        existed = target.exists()
-        overlay_action = (
-            _overlay_action(root, relative, profile, existed=existed) if overlay else ""
-        )
-        if not existed:
-            action, conflict = overlay_action or "create", False
-        else:
-            existing = target.read_text(encoding="utf-8")
-            if existing == content:
-                action, conflict = "keep_existing", False
-            elif existing == "":
-                action, conflict = "write_empty", False
-            elif relative == ".gitignore":
-                missing_lines = _missing_gitignore_lines(existing, content)
-                action, conflict = (
-                    "keep_existing" if not missing_lines else "merge_gitignore",
-                    False,
-                )
-            else:
-                action, conflict = (
-                    overlay_action or "skip_existing_nonempty",
-                    not bool(overlay_action),
-                )
-        entry: dict[str, object] = {
-            "path": relative,
-            "action": action,
-            "conflict": conflict,
-            "existed": existed,
-            "content_sha256": _sha256_text(content),
-            "preview": content.splitlines()[0] if content.splitlines() else "",
-        }
-        if overlay:
-            entry["existing_sha256"] = _sha256_text(existing) if existed else ""
-        plan.append(entry)
-    return plan
-
-
-def adoption_plan(
-    root: Path,
-    *,
-    profile: str | None = None,
-    overlay: bool = False,
-    apply: bool = False,
-) -> dict[str, object]:
-    requested_profile = profile or detect_repo_profile(root)
-    selected_profile = requested_profile
-    if selected_profile not in PROFILES:
-        msg = f"unknown ETHOS adoption profile: {selected_profile}"
-        raise ValueError(msg)
-    detected_profile = detect_repo_profile(root)
-    observed = {
-        relative: (root / relative).exists() for relative in PROFILE_READ_FILES[selected_profile]
-    }
-    profile_match = _profile_match(root, selected_profile, detected_profile)
-    files = default_files(root, selected_profile)
-    planned = sorted(files)
-    existing = sorted(relative for relative in files if (root / relative).exists())
-    write_plan = _write_plan(root, files, profile=selected_profile, overlay=overlay)
-    conflict_gaps = [f"adoption_conflict:{item['path']}" for item in write_plan if item["conflict"]]
-    profile_ok = bool(profile_match["ok"])
-    required_gaps = list(conflict_gaps)
-    if apply and not profile_ok:
-        required_gaps.append(f"profile_mismatch:{selected_profile}")
-    generated_files = sorted(
-        str(item["path"]) for item in write_plan if item["action"] in {"create", "write_empty"}
-    )
-    applied = bool(apply and not required_gaps)
-    if applied:
-        for relative, content in files.items():
-            item = next(entry for entry in write_plan if entry["path"] == relative)
-            if item["action"] in {
-                "keep_existing",
-                "preserve_existing",
-                "preserve_adopter_root",
-            }:
-                continue
-            target = root / relative
-            target.parent.mkdir(parents=True, exist_ok=True)
-            if item["action"] == "merge_gitignore":
-                existing = target.read_text(encoding="utf-8")
-                missing_lines = _missing_gitignore_lines(existing, content)
-                target.write_text(
-                    _append_gitignore_lines(existing, missing_lines), encoding="utf-8"
-                )
-            else:
-                target.write_text(content, encoding="utf-8")
-    if conflict_gaps:
-        next_action = "resolve adoption conflicts before apply"
-    elif not profile_ok:
-        next_action = "review profile mismatch before apply"
-    elif applied:
-        next_action = "ethos status"
-    else:
-        next_action = "review dry-run write plan"
+    required_gaps = [f"adoption_conflict:{PROFILE_PATH}"] if conflict else []
+    applied = apply and not conflict
+    if applied and action != "keep_existing":
+        target.parent.mkdir(parents=True, exist_ok=True)
+        _write_atomic(target, content)
+    generated = [PROFILE_PATH] if action in {"create", "write_empty"} else []
     return {
         "root": str(root),
-        "planned_files": planned,
-        "read_files": list(PROFILE_READ_FILES[selected_profile]),
-        "observed_files": observed,
+        "planned_files": [PROFILE_PATH],
+        "read_files": [PROFILE_PATH],
         "applied": applied,
-        "profile": selected_profile,
-        "mode": "overlay" if overlay else "strict",
-        "detected_profile": detected_profile,
-        "profile_match": profile_match,
-        "requested_profile": requested_profile,
-        "profile_aliases": [],
-        "available_profiles": list(PROFILES),
-        "existing_files": existing,
-        "write_plan": write_plan,
-        "preserved_files": [
-            {"path": item["path"], "sha256": item["existing_sha256"]}
-            for item in write_plan
-            if item["action"] == "preserve_existing"
-        ],
-        "skipped_files": [
-            str(item["path"]) for item in write_plan if item["action"] == "preserve_adopter_root"
+        "existing_files": [PROFILE_PATH] if exists else [],
+        "write_plan": [
+            {
+                "path": PROFILE_PATH,
+                "action": action,
+                "conflict": conflict,
+                "existed": exists,
+                "content_sha256": hashlib.sha256(content.encode()).hexdigest(),
+                "preview": content.partition("\n")[0],
+            }
         ],
         "apply_criteria": list(APPLY_CRITERIA),
         "required_gaps": required_gaps,
-        "next_action": next_action,
+        "next_action": (
+            "resolve adoption conflicts before apply"
+            if conflict
+            else "ethos status"
+            if applied
+            else "review read-only write plan"
+        ),
         "rollback": {
-            "mode": "remove_generated_files_or_restore_git_state",
-            "planned_files": planned,
-            "generated_files": generated_files,
+            "mode": "remove_generated_binding_or_restore_git_state",
+            "planned_files": [PROFILE_PATH],
+            "generated_files": generated,
         },
     }
 
 
-def adoption_scaffold_report() -> dict[str, object]:
-    required = set(BASE_ADOPTION_FILES)
-    required.update(f"openspec/specs/{family}/spec.md" for family in OPENSPEC_CAPABILITIES)
-    required.update(f"openspec/specs/{family}/capability.toml" for family in OPENSPEC_CAPABILITIES)
-    planned = set(default_files(Path("sample"), "gitlab"))
-    missing = sorted(required - planned)
-    return {
-        "ok": not missing,
-        "required_files": sorted(required),
-        "missing": missing,
-        "profiles": list(PROFILES),
-        "openspec_capabilities": list(OPENSPEC_CAPABILITIES),
-    }
+def _current_binding(root: Path, target: Path) -> tuple[str | None, bool, bool]:
+    """Read the binding only when every path component is repository-contained and native."""
+    repo = root.resolve()
+    parent = target.parent
+    if parent.is_symlink():
+        return None, True, False
+    try:
+        parent.resolve(strict=False).relative_to(repo)
+    except (OSError, RuntimeError, ValueError):
+        return None, parent.exists() or parent.is_symlink(), False
+    try:
+        mode = target.lstat().st_mode
+        if stat.S_ISREG(mode):
+            return target.read_text(encoding="utf-8"), True, True
+    except FileNotFoundError:
+        return None, False, True
+    except (OSError, UnicodeDecodeError):
+        pass
+    return None, True, False
+
+
+def _write_atomic(target: Path, content: str) -> None:
+    descriptor, temporary_name = tempfile.mkstemp(prefix=".profile-", dir=target.parent)
+    temporary_path = Path(temporary_name)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as temporary:
+            temporary.write(content)
+        temporary_path.replace(target)
+    except BaseException:
+        with suppress(FileNotFoundError):
+            temporary_path.unlink()
+        raise

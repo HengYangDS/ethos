@@ -13,49 +13,20 @@ if TYPE_CHECKING:
 def test_docstring_coverage_reports_public_surface_gaps(tmp_path: Path) -> None:
     _write(
         tmp_path / ".config/checks/docstrings/policy.toml",
-        """
-paths = ["packages/sample/src"]
-fail_under = 75
-exclude_roots = ["packages/sample/src/sample/generated"]
-""".strip(),
+        '\npaths = ["packages/sample/src"]\nfail_under = 75\nexclude_roots = ["packages/sample/src/sample/generated"]\n'.strip(),
     )
     _write(tmp_path / "packages/sample/src/sample/__init__.py", "")
     _write(
         tmp_path / "packages/sample/src/sample/cli.py",
-        '''
-from __future__ import annotations
-
-@app.command
-def documented():
-    """Explain the command."""
-
-@app.command(name="missing")
-def missing():
-    pass
-''',
+        '\nfrom __future__ import annotations\n\n@app.command\ndef documented():\n    """Explain the command."""\n\n@app.command(name="missing")\ndef missing():\n    pass\n',
     )
     _write(
         tmp_path / "packages/sample/src/sample/api.py",
-        '''
-class Exported:
-    """Documented export."""
-
-
-def exported():
-    pass
-
-
-def internal():
-    pass
-''',
+        '\nclass Exported:\n    """Documented export."""\n\n\ndef exported():\n    pass\n\n\ndef internal():\n    pass\n',
     )
     _write(
         tmp_path / "packages/sample/src/sample/generated/cli.py",
-        """
-@app.command
-def ignored():
-    pass
-""",
+        "\n@app.command\ndef ignored():\n    pass\n",
     )
 
     report = docstring_coverage_report(tmp_path)
@@ -73,18 +44,11 @@ def ignored():
 def test_docstring_coverage_defaults_to_clean_when_no_public_surface(tmp_path: Path) -> None:
     _write(
         tmp_path / "packages/ethos/src/ethos/internal.py",
-        """
-def _helper():
-    pass
-""",
+        "\ndef _helper():\n    pass\n",
     )
     _write(
         tmp_path / "packages/ethos/src/ethos/decorated.py",
-        """
-@1
-def ignored():
-    pass
-""",
+        "\n@1\ndef ignored():\n    pass\n",
     )
 
     report = docstring_coverage_report(tmp_path)
@@ -105,18 +69,11 @@ def test_docstring_helpers_parse_module_names_and_decorators() -> None:
 def test_docstring_coverage_handles_file_paths_and_missing_roots(tmp_path: Path) -> None:
     _write(
         tmp_path / ".config/checks/docstrings/policy.toml",
-        """
-paths = ["packages/sample/src/sample/api.py", "packages/sample/src/missing"]
-fail_under = 100
-exclude_roots = []
-""".strip(),
+        '\npaths = ["packages/sample/src/sample/api.py", "packages/sample/src/missing"]\nfail_under = 100\nexclude_roots = []\n'.strip(),
     )
     _write(
         tmp_path / "packages/sample/src/sample/api.py",
-        '''
-def exported():
-    """Documented export."""
-''',
+        '\ndef exported():\n    """Documented export."""\n',
     )
 
     report = docstring_coverage_report(tmp_path)
@@ -135,39 +92,12 @@ def test_docstring_gate_rejects_legacy_and_mismatched_structured_docstrings(
 ) -> None:
     _write(
         tmp_path / ".config/checks/docstrings/policy.toml",
-        """
-paths = ["packages/sample/src"]
-fail_under = 100
-style = "google"
-check_structured_signature = true
-exclude_roots = []
-""".strip(),
+        '\npaths = ["packages/sample/src"]\nfail_under = 100\nstyle = "google"\ncheck_structured_signature = true\nexclude_roots = []\n'.strip(),
     )
     _write(tmp_path / "packages/sample/src/sample/__init__.py", '"""Sample package."""\n')
     _write(
         tmp_path / "packages/sample/src/sample/api.py",
-        '''
-
-def bad(value, *, mode):
-    """Do something structured.
-
-    Args:
-        value: Input value.
-        extra: Unknown argument.
-    """
-    return value
-
-
-def legacy(value):
-    """Legacy function.
-
-    Parameters
-    ----------
-    value
-        Input value.
-    """
-    return value
-''',
+        '\n\ndef bad(value, *, mode):\n    """Do something structured.\n\n    Args:\n        value: Input value.\n        extra: Unknown argument.\n    """\n    return value\n\n\ndef legacy(value):\n    """Legacy function.\n\n    Parameters\n    ----------\n    value\n        Input value.\n    """\n    return value\n',
     )
 
     report = docstring_coverage_report(tmp_path)
@@ -185,23 +115,12 @@ def test_docstring_gate_accepts_short_google_summary_without_structured_sections
 ) -> None:
     _write(
         tmp_path / ".config/checks/docstrings/policy.toml",
-        """
-paths = ["packages/sample/src"]
-fail_under = 100
-style = "google"
-check_structured_signature = true
-exclude_roots = []
-""".strip(),
+        '\npaths = ["packages/sample/src"]\nfail_under = 100\nstyle = "google"\ncheck_structured_signature = true\nexclude_roots = []\n'.strip(),
     )
     _write(tmp_path / "packages/sample/src/sample/__init__.py", '"""Sample package."""\n')
     _write(
         tmp_path / "packages/sample/src/sample/api.py",
-        '''
-
-def concise(value):
-    """Return the governed value."""
-    return value
-''',
+        '\n\ndef concise(value):\n    """Return the governed value."""\n    return value\n',
     )
 
     report = docstring_coverage_report(tmp_path)

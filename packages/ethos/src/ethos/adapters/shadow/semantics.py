@@ -27,7 +27,7 @@ _READY_MARKS = {"prove": ("proof_ready", True), "report": ("blocking_gap_count",
 _COMMAND_NAMES = {("assistants", "doctor"): "assistants doctor", ("playbooks", "route"): "playbooks route", ("quality", "command-surface"): "quality command-surface"}
 _EXTERNAL_STRICTER_ONLY_GAPS = {("land",): {"candidate_base_stale", "protected_root_mutation", "work_lane_dirty"}, ("publish",): {"protected_root_mutation"}}
 _EXTERNAL_STRICTER_ONLY_GAP_PREFIXES = {("quality", "command-surface"): ("retired_public_command_prefix_mention:", "retired_public_root_mention:"), ("playbooks", "route", "--changed"): ("playbook_changed_path_unmatched:.ethos/",)}
-_PRODUCT_REPOSITORY_AUDIT_GAP_PREFIXES = ("docs/", "schemas/", "packages/", "distribution_adapter_missing:", "adoption_scaffold_missing:", "openspec_family_missing:", "claims_", "claim_", "schema_", "openspec_", "command_")
+_PRODUCT_REPOSITORY_AUDIT_GAP_PREFIXES = ("docs/", "schemas/", "packages/", "distribution_adapter_missing:", "playbook_projection_missing:", "openspec_family_missing:", "claims_", "claim_", "schema_", "openspec_", "command_")
 _CHANGED_ROUTE_NOOP_GAPS = {"skill_missing_id", "playbook_route_missing:changed-scope"}
 _SEMANTIC_ARGS_ERROR = "semantic_diff expects external/embedded or command/external/embedded"
 
@@ -81,7 +81,7 @@ def _normalized_semantic_projections(command: tuple[str, ...], external: dict[st
         _record_accepted(accepted, "external_product_repository_audit_gap", external_projection, removed)
         external_gaps, removed = _without_changed_route_noop_gaps(external, embedded, external_gaps)
         _record_accepted(accepted, "changed_route_noop", external_projection, removed)
-        _record_accepted(accepted, "report_parity_evidence_refresh_bootstrap", external_projection, _report_parity_evidence_refresh_bootstrap_gaps(external, embedded, external_projection, embedded_projection))
+        _record_accepted(accepted, "report_parity_evidence_refresh_bootstrap", external_projection, _report_parity_evidence_refresh_bootstrap_gaps(external, external_projection, embedded_projection))
         plan_gaps = shadow_planning.external_stricter_gaps(command, external_projection, embedded_projection)
         _record_accepted(accepted, "external_stricter_plan_scope", external_projection, plan_gaps)
         if plan_gaps:
@@ -192,7 +192,7 @@ def _is_changed_route_noop(external: dict[str, Any], embedded: dict[str, Any], g
     return (external.get("command") or external_data.get("command")) == "playbooks route" and external_data.get("subject") == "changed-scope" and embedded_summary.get("changed_requested") is True and embedded_summary.get("changed_path_count") == 0 and bool(gaps) and all(map(_is_changed_route_noop_gap, gaps))
 
 
-def _report_parity_evidence_refresh_bootstrap_gaps(external: dict[str, Any], embedded: dict[str, Any], external_projection: dict[str, Any], embedded_projection: dict[str, Any]) -> list[str]:
+def _report_parity_evidence_refresh_bootstrap_gaps(external: dict[str, Any], external_projection: dict[str, Any], embedded_projection: dict[str, Any]) -> list[str]:
     summary = _dict(external.get("summary"))
     pending, governance = summary.get("parity_pending_count"), summary.get("governance_gap_count")
     matches = isinstance(pending, int) and pending > 0 and governance in (None, 0) and external_projection.get("command") == embedded_projection.get("command") == "report" and not external_projection.get("required_gaps") and not embedded_projection.get("required_gaps") and external_projection.get("ok") is False and embedded_projection.get("ok") is True and external_projection.get("state") == "gapped" and embedded_projection.get("state") == "ready"

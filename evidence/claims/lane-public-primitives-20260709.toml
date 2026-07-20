@@ -12,7 +12,7 @@ evidence_ids = ["evidence:lane-public-primitives-20260709"]
 binding = "Focused lifecycle tests, module-layout regression tests, status parser regression tests, lint/format, module-layout, code-size, types, OpenSpec lifecycle, claims, evidence freshness, and HEAD-bound proof."
 verifier = "digest_only"
 tests = [
-  "uv run --group dev pytest -q tests/unit/policy/test_module_layout.py tests/unit/policy/layout/test_import_discipline.py tests/unit/lanes/test_lanes_retire.py tests/unit/lanes/test_lanes_lifecycle.py tests/unit/lanes/test_projection_rebase_parity.py tests/unit/coverage/test_cov_v3_mutation_edges.py tests/unit/coverage/test_cov_v2_config_refresh_edges.py tests/unit/coverage/test_mutation_retrieval_parity_edges.py",
+  "uv run --group dev pytest -q tests/unit/policy/test_module_layout.py tests/unit/policy/layout/test_import_discipline.py tests/unit/lanes/test_lanes_retire.py tests/unit/lanes/test_lanes_lifecycle.py tests/unit/lanes/test_projection_rebase_parity.py tests/unit/coverage/test_cov_v3_mutation_edges.py tests/unit/coverage/test_cov_v2_config_refresh_edges.py",
   "tools/ci/scripts/run-python-lint.sh",
   "uv run --package ethos ethos quality module-layout --json",
   "uv run --package ethos ethos quality code-size --json",
@@ -50,7 +50,6 @@ targets = [
   "tests/unit/policy/layout/test_import_discipline.py",
   "tests/unit/coverage/test_cov_v3_mutation_edges.py",
   "tests/unit/lanes/test_projection_rebase_parity.py",
-  "tests/unit/coverage/test_mutation_retrieval_parity_edges.py",
   "tests/unit/lanes/test_lanes_retire.py",
   "evidence/chronicle/lane-public-primitives-20260709/2026-07-09.md",
   "evidence/claims/lane-public-primitives-20260709.toml",

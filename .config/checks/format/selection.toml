@@ -4,7 +4,7 @@ summary = "Fail-closed executable-carrier admission audit."
 runner = "tools/ci/scripts/run-format-selection.sh"
 
 [source_budget]
-aggregates = { python_total = ["python_product", "python_tests", "python_tools", "python_other"], global_total = ["python_product", "python_tests", "python_tools", "python_other", "shell", "js", "toml", "yaml", "json", "ini", "jinja", "diagram"] }
+aggregates = { python_total = ["python_product", "python_tests", "python_tools", "python_other"], global_total = ["python_product", "python_tests", "python_tools", "python_other", "shell", "js", "toml", "yaml", "json", "ini", "diagram"] }
 
 [[format]]
 extensions = [".py", ".pyi"]
@@ -104,14 +104,6 @@ execution = "tools/ci/scripts/run-architecture-projection-drift.sh"
 truth_boundary = "generated architecture projection output"
 budget = [{ category = "diagram", comment_prefixes = ["#", "//", "%%"] }]
 
-[[format]]
-extensions = [".j2", ".jinja", ".jinja2"]
-carrier = "Jinja2 template"
-owner = "packages/ethos/src/ethos/repository/adoption/scaffold/templates.py + template_files/manifest.toml"
-execution = "tools/ci/scripts/run-python-tests.sh"
-truth_boundary = "tracked scaffold declarations compiled through strict typed contexts"
-budget = [{ category = "jinja", comment_prefixes = ["#"], comment_wrappers = [["{#", "#}"]] }]
-
 [policy]
 forbid_tracked_extensions = [".pickle", ".pkl", ".joblib"]
 unregistered_extension = "block"
@@ -141,7 +133,6 @@ yaml_allowed_roots = [
   "evidence/chronicle/all-lanes-authorized-closeout-20260718/current-lane-matrix.json",
   "evidence/chronicle/all-lanes-resolution-execution-20260718/lane-resolution-matrix.json",
 ] }
-".j2" = { roots = ["packages/"] }
 ".mjs" = { roots = ["distributions/npm/"] }
 ".c4" = { roots = [".config/checks/architecture/models/"] }
 ".mmd" = { roots = ["docs/architecture/_generated/"] }

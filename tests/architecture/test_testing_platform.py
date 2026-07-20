@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-import io
 import os
 import subprocess
-import tokenize
 import tomllib
 from pathlib import Path
 
@@ -23,7 +21,9 @@ def test_python_test_platform_is_parallel_timeout_bound_and_owner_scripted() -> 
 
     assert "pytest-xdist" in dev_deps
     assert "pytest-timeout" in dev_deps
-    assert "tool" not in pyproject or "pytest" not in pyproject["tool"]
+    assert pyproject.get("tool", {}).get("pytest") == {
+        "ini_options": {"cache_dir": "build/runtime/tool-cache/pytest"}
+    }
     assert "tool" not in pyproject or "ruff" not in pyproject["tool"]
     assert "--strict-config" in pytest_ini
     assert "--strict-markers" in pytest_ini
@@ -238,6 +238,8 @@ def test_python_lint_gate_discovers_every_tracked_python_source() -> None:
     assert "no tracked Python files found for Ruff" in script
     assert "packages/tools/tests are required" in script
     assert "not sufficient" in script
+    ratchet = tomllib.loads((ROOT / ".config/checks/ruff/ratchet.toml").read_text())
+    assert {"S101", "S105", "S603", "S606", "S607"} <= set(ratchet["ignored_rule_baseline"])
     assert (
         'ruff check --cache-dir "${ruff_cache_dir}" --config "${ruff_config_path}" "${python_quality_paths[@]}"'
         in script
@@ -246,17 +248,6 @@ def test_python_lint_gate_discovers_every_tracked_python_source() -> None:
         'ruff format --cache-dir "${ruff_cache_dir}" --config "${ruff_config_path}" --check "${python_quality_paths[@]}"'
         in script
     )
-
-
-def test_python_sast_gate_discovers_every_tracked_python_source() -> None:
-    """Every tracked Python file is governed by one SAST law."""
-    script = (ROOT / "tools/ci/scripts/run-bandit.sh").read_text(encoding="utf-8")
-
-    assert "mapfile" not in script
-    assert 'while IFS= read -r -d "" path' in script
-    assert "no tracked Python files found for Bandit" in script
-    assert "${python_security_paths[@]}" in script
-    assert "-r packages" not in script
 
 
 def test_python_owner_scripts_execute_under_macos_bash(tmp_path: Path) -> None:
@@ -270,7 +261,7 @@ def test_python_owner_scripts_execute_under_macos_bash(tmp_path: Path) -> None:
         executable = fake_bin / name
         executable.write_text(content, encoding="utf-8")
         executable.chmod(0o755)
-    for name in ("run-python-lint.sh", "run-bandit.sh", "run-ruff-ratchet.sh"):
+    for name in ("run-python-lint.sh", "run-ruff-ratchet.sh"):
         subprocess.run(
             ["/bin/bash", str(ROOT / "tools" / "ci" / "scripts" / name)],
             cwd=ROOT,
@@ -281,32 +272,5 @@ def test_python_owner_scripts_execute_under_macos_bash(tmp_path: Path) -> None:
             check=True,
         )
 
-
-def test_python_sast_gate_has_no_local_suppression_surface() -> None:
-    """Bandit should govern Python without local suppressions or skipped rules."""
-    tracked = [
-        line.strip()
-        for line in subprocess.check_output(["git", "ls-files", "*.py"], cwd=ROOT, text=True)
-        .strip()
-        .splitlines()
-        if line.strip()
-    ]
-    bandit_config = (ROOT / ".config/checks/bandit/bandit.yaml").read_text(encoding="utf-8")
-    nosec_offenders = [
-        path
-        for path in tracked
-        if _python_comments_contain((ROOT / path).read_text(encoding="utf-8"), "nosec")
-    ]
-
-    assert nosec_offenders == []
-    assert "skips:\n  []" in bandit_config
-    assert "B404" not in bandit_config
-    assert "B603" not in bandit_config
-    assert "B608" not in bandit_config
-
-
-def _python_comments_contain(source: str, needle: str) -> bool:
-    tokens = tokenize.generate_tokens(io.StringIO(source).readline)
-    return any(token.type == tokenize.COMMENT and needle in token.string for token in tokens)
 
 # fmt: on

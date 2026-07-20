@@ -255,31 +255,7 @@ carrier and scope domains rather than as one convertible cross-language scalar.
 
 ### Requirement: Typed Source Budget Carrier Manifest
 
-The repository SHALL own a versioned Budget Contract v2 carrier manifest whose
-strict immutable models classify every maintained Git-present path as exactly
-one measured carrier identity or one explicit reviewed exclusion. The loader
-SHALL reject unknown fields, duplicate identities or matcher identities, empty
-or invalid repository-relative POSIX matchers, the declared non-canonical
-matcher syntax and redundancy set, and invalid measure/exclusion combinations.
-Classification SHALL evaluate every rule without priority or first-match
-semantics and SHALL report zero matches, multiple matches, or unsupported
-governed extensions as required gaps.
-
-The repository adapter SHALL enumerate present tracked and non-ignored untracked
-paths through one tagged Git observation. A successful inventory SHALL contain
-non-empty, unique, stably ordered regular paths. Git command failure, `OSError`,
-malformed output, an empty inventory, unsupported tracked modes, symlinks,
-gitlinks, symlinked ancestors, unreadable objects, or object-mode mismatch SHALL
-produce required gaps and SHALL NOT expose a clean partial inventory. The
-manifest and inventory digests SHALL be deterministic under declaration order,
-path enumeration order, locale, timezone, and absolute checkout location.
-`CarrierMatch` SHALL carry an explicit `path_state`, reject non-canonical
-valid paths, reject malformed safe labels for invalid paths, and reject empty or
-unstable matched IDs and gap tokens. Synthetic status SHALL NOT be inferred from
-pathname text. `CarrierInventory` SHALL preserve distinct valid and invalid
-matches that share the same display label, require unique stable
-`(relative_path, path_state)` keys, and reject incorrect gap aggregation,
-identity-field tampering, or a digest that does not match canonical content.
+The repository SHALL own a strict versioned Budget Contract v2 carrier manifest. It SHALL classify every Git-present path as one measured identity or reviewed exclusion, evaluate all rules without priority, and fail closed on invalid, duplicate, or noncanonical declarations; missing, ambiguous, or unsupported matches; unsafe Git state; partial inventory; or forged identity or digest. Inventory and digests SHALL be stable across ordering, locale, timezone, and checkout location.
 
 #### Scenario: A path has exactly one measured carrier
 
@@ -368,16 +344,7 @@ identity-field tampering, or a digest that does not match canonical content.
 
 ### Requirement: Versioned Non-Compensating Metric Contract Registry
 
-The repository SHALL own a separate versioned Budget Contract v2 metric
-registry. Each strict immutable contract SHALL bind `contract_id`,
-`contract_version`, `metric_id`, `unit`, `carrier_role`, `metric_profile`,
-parser identity and version, grammar digest, normalization identity and version,
-aggregation, and `non_compensable`. Profiles SHALL resolve every measured
-carrier identity to a complete set of contracts for the same role. The loader
-SHALL reject unknown fields, duplicate IDs or coordinates, dangling profiles,
-invalid digests, non-sum aggregation, compensating coordinates, and
-repository-source BPE/model/tokenizer metrics. The registry digest SHALL be
-canonical and independent of declaration order.
+The repository SHALL own a separate versioned strict Budget Contract v2 metric registry. Each measured carrier SHALL resolve to a complete same-role, stable set of non-compensating native metric contracts. The loader SHALL reject unknown fields, duplicate IDs or coordinates, dangling or cross-role profiles, invalid digests, non-sum aggregation, compensation, and repository-source BPE, model, or tokenizer metrics. The registry digest SHALL be canonical and declaration-order independent.
 
 #### Scenario: A measured carrier resolves its profile
 

@@ -209,16 +209,16 @@ tools/ci/scripts/run-architecture-projection-drift.sh
 ethos prove --gate repository-audit --json
 ```
 
-### P6 — Adopter parity profiles
+### P6 — Adopter binding parity
 
-Goal: verify ETHOS adoption profiles on real repositories.
+Goal: verify the one repository binding contract on real repositories.
 
 Tasks:
 
 - Treat heavy-tooling mechanisms such as nox, pixi, Pants, Docker/local CI, and
-  rich quality gates as profile evidence until productized.
+  rich quality gates as adopter evidence until productized.
 - Treat tooling-control-plane mechanisms such as pixi, GitLab/local CI, MCP
-  catalogs, runtime catalogs, and repo config contracts as profile evidence
+  catalogs, runtime catalogs, and repo config contracts as adopter evidence
   until productized.
 - Use parity shadow evidence to decide which mechanisms become ETHOS adapters.
 

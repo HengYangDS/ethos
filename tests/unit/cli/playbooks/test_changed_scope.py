@@ -2,38 +2,39 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import tomli_w
+
 from tests.support.contract_helpers import git
 from tests.support.contract_helpers import init_git_repo
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.playbooks import write_v2_playbook_package
 
 
-def test_playbooks_changed_scope_in_work_lane_includes_committed_delta(
-    tmp_path: Path,
-) -> None:
-    root = init_git_repo(tmp_path / "repo")
-    skills_root = root / ".agents" / "skills"
-    package_manifest = Path(write_v2_playbook_package(skills_root, "docs-governance"))
+def _playbook_repo(
+    path: Path,
+    *,
+    identifier: str = "docs-governance",
+    subject: str = "changed-scope",
+) -> Path:
+    root = init_git_repo(path)
+    skills_root = root / ".agents/skills"
+    manifest = Path(write_v2_playbook_package(skills_root, identifier))
     (skills_root / "README.md").write_text("# Skills\n", encoding="utf-8")
+    record = {
+        "id": identifier,
+        "package_manifest": manifest.relative_to(root).as_posix(),
+        "subject": subject,
+        "operation": "govern",
+        "authority": "primary",
+        "lifecycle": "active",
+        "path_globs": ["docs/**"],
+        "pre_reads": ["README.md"],
+        "post_checks": ["ethos report --json"],
+        "commands": ["ethos status"],
+        "boundary": "workflow-package-projection",
+    }
     (skills_root / "activation.toml").write_text(
-        f"""
-[meta]
-version = 2
-
-[[skill]]
-id = "docs-governance"
-package_manifest = "{package_manifest.relative_to(root).as_posix()}"
-subject = "changed-scope"
-operation = "govern"
-authority = "primary"
-lifecycle = "active"
-path_globs = ["docs/**"]
-pre_reads = ["README.md"]
-post_checks = ["ethos report --json"]
-commands = ["ethos status"]
-boundary = "workflow-package-projection"
-""".lstrip(),
-        encoding="utf-8",
+        tomli_w.dumps({"meta": {"version": 2}, "skill": [record]}), encoding="utf-8"
     )
     git(root, "add", ".agents")
     git(
@@ -46,10 +47,17 @@ boundary = "workflow-package-projection"
         "-m",
         "add playbook routing",
     )
+    return root
+
+
+def test_playbooks_changed_scope_in_work_lane_includes_committed_delta(
+    tmp_path: Path,
+) -> None:
+    root = _playbook_repo(tmp_path / "repo")
     git(root, "branch", "candidate/dev")
     git(root, "checkout", "-b", "work/docs", "candidate/dev")
     (root / "docs").mkdir()
-    (root / "docs" / "guide.md").write_text("# guide\n", encoding="utf-8")
+    (root / "docs/guide.md").write_text("# guide\n", encoding="utf-8")
     git(root, "add", "docs/guide.md")
     git(
         root,
@@ -76,41 +84,7 @@ boundary = "workflow-package-projection"
 def test_playbooks_changed_scope_without_changed_paths_selects_nothing(
     tmp_path: Path,
 ) -> None:
-    root = init_git_repo(tmp_path / "repo")
-    skills_root = root / ".agents" / "skills"
-    package_manifest = Path(write_v2_playbook_package(skills_root, "docs-governance"))
-    (skills_root / "README.md").write_text("# Skills\n", encoding="utf-8")
-    (skills_root / "activation.toml").write_text(
-        f"""
-[meta]
-version = 2
-
-[[skill]]
-id = "docs-governance"
-package_manifest = "{package_manifest.relative_to(root).as_posix()}"
-subject = "changed-scope"
-operation = "govern"
-authority = "primary"
-lifecycle = "active"
-path_globs = ["docs/**"]
-pre_reads = ["README.md"]
-post_checks = ["ethos report --json"]
-commands = ["ethos status"]
-boundary = "workflow-package-projection"
-""".lstrip(),
-        encoding="utf-8",
-    )
-    git(root, "add", ".agents")
-    git(
-        root,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "add playbook routing",
-    )
+    root = _playbook_repo(tmp_path / "repo")
 
     payload = run_ethos("playbooks", "route", "--changed", "--root", str(root), "--json")
 
@@ -124,43 +98,9 @@ boundary = "workflow-package-projection"
 def test_playbooks_changed_scope_reports_matched_changed_path_evidence(
     tmp_path: Path,
 ) -> None:
-    root = init_git_repo(tmp_path / "repo")
-    skills_root = root / ".agents" / "skills"
-    package_manifest = Path(write_v2_playbook_package(skills_root, "docs-governance"))
-    (skills_root / "README.md").write_text("# Skills\n", encoding="utf-8")
-    (skills_root / "activation.toml").write_text(
-        f"""
-[meta]
-version = 2
-
-[[skill]]
-id = "docs-governance"
-package_manifest = "{package_manifest.relative_to(root).as_posix()}"
-subject = "changed-scope"
-operation = "govern"
-authority = "primary"
-lifecycle = "active"
-path_globs = ["docs/**"]
-pre_reads = ["README.md"]
-post_checks = ["ethos report --json"]
-commands = ["ethos status"]
-boundary = "workflow-package-projection"
-""".lstrip(),
-        encoding="utf-8",
-    )
-    git(root, "add", ".agents")
-    git(
-        root,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "add playbook routing",
-    )
+    root = _playbook_repo(tmp_path / "repo")
     (root / "docs").mkdir()
-    (root / "docs" / "guide.md").write_text("# guide\n", encoding="utf-8")
+    (root / "docs/guide.md").write_text("# guide\n", encoding="utf-8")
 
     payload = run_ethos("playbooks", "route", "--changed", "--root", str(root), "--json")
 
@@ -175,43 +115,9 @@ boundary = "workflow-package-projection"
 def test_playbooks_changed_scope_reports_unmatched_changed_paths(
     tmp_path: Path,
 ) -> None:
-    root = init_git_repo(tmp_path / "repo")
-    skills_root = root / ".agents" / "skills"
-    package_manifest = Path(write_v2_playbook_package(skills_root, "docs-governance"))
-    (skills_root / "README.md").write_text("# Skills\n", encoding="utf-8")
-    (skills_root / "activation.toml").write_text(
-        f"""
-[meta]
-version = 2
-
-[[skill]]
-id = "docs-governance"
-package_manifest = "{package_manifest.relative_to(root).as_posix()}"
-subject = "changed-scope"
-operation = "govern"
-authority = "primary"
-lifecycle = "active"
-path_globs = ["docs/**"]
-pre_reads = ["README.md"]
-post_checks = ["ethos report --json"]
-commands = ["ethos status"]
-boundary = "workflow-package-projection"
-""".lstrip(),
-        encoding="utf-8",
-    )
-    git(root, "add", ".agents")
-    git(
-        root,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "add playbook routing",
-    )
+    root = _playbook_repo(tmp_path / "repo")
     (root / "src").mkdir()
-    (root / "src" / "app.py").write_text("print('hello')\n", encoding="utf-8")
+    (root / "src/app.py").write_text("print('hello')\n", encoding="utf-8")
 
     payload = run_ethos("playbooks", "route", "--changed", "--root", str(root), "--json")
 
@@ -224,41 +130,8 @@ boundary = "workflow-package-projection"
 def test_playbooks_route_accepts_changed_scope_alias_without_changed_paths(
     tmp_path: Path,
 ) -> None:
-    root = init_git_repo(tmp_path / "repo")
-    skills_root = root / ".agents" / "skills"
-    skills_root.mkdir(parents=True)
-    (skills_root / "README.md").write_text("# Skills\n", encoding="utf-8")
-    package_manifest = Path(write_v2_playbook_package(skills_root, "repository-governance"))
-    (skills_root / "activation.toml").write_text(
-        f"""
-[meta]
-version = 2
-
-[[skill]]
-id = "repository-governance"
-package_manifest = "{package_manifest.relative_to(root).as_posix()}"
-subject = "repository-governance"
-operation = "govern"
-authority = "primary"
-lifecycle = "active"
-path_globs = ["docs/**"]
-pre_reads = ["README.md"]
-post_checks = ["ethos report --json"]
-commands = ["ethos status"]
-boundary = "workflow-package-projection"
-""".lstrip(),
-        encoding="utf-8",
-    )
-    git(root, "add", ".agents")
-    git(
-        root,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "add playbook routing",
+    root = _playbook_repo(
+        tmp_path / "repo", identifier="repository-governance", subject="repository-governance"
     )
 
     payload = run_ethos("playbooks", "route", "--changed", "--root", str(root), "--json")

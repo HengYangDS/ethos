@@ -8,9 +8,11 @@ repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 # same checkout-bound environment first so they cannot fall back to a default
 # `.venv` or ambient interpreter.
 export UV_PROJECT_ENVIRONMENT="${repo_root}/build/runtime/venv"
+bootstrap_venv="${repo_root}/build/runtime/bootstrap"
+python -m venv "${bootstrap_venv}"
+"${bootstrap_venv}/bin/pip" install --disable-pip-version-check --quiet uv
+export PATH="${bootstrap_venv}/bin:${PATH}"
 
-python -m pip install --upgrade pip >/dev/null
-pip install uv
 # The openspec shim execs `npx`, so Node.js must exist in the python:3.12 image the
 # quality/verify jobs run in (only the ethos:npm jobs use a node image). Without this,
 # `openspec --version` in ethos:verify fails with `npx: command not found`. Install

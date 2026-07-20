@@ -12,7 +12,11 @@ def test_tracked_invalid_scope_companion_repairs_only_itself(tmp_path) -> None:
     repo = init_repo(tmp_path / "repo")
     profile = repo / ".ethos" / "profile.toml"
     profile.parent.mkdir(exist_ok=True)
-    profile.write_text('[openspec]\nmaterial_paths = ["openspec/changes/**"]\n', encoding="utf-8")
+    profile.write_text(
+        'profile_id = "scope-recovery-test"\n\n'
+        '[openspec]\nmaterial_paths = ["openspec/changes/**"]\n',
+        encoding="utf-8",
+    )
     scope = repo / "openspec" / "changes" / "selected" / "scope.toml"
     scope.parent.mkdir(parents=True)
     scope.write_text("[scope]\npaths = []\n", encoding="utf-8")

@@ -1,7 +1,7 @@
 [claim]
 id = "ethos-repository-platform"
 subject = "ethos:repository-platform"
-state = "active"
+state = "archived"
 summary = "ETHOS now has complete project scaffold, playbooks, fleet inspection, MECE OpenSpec families, npm distribution policy, deeper repository-audit, schema instance validation, and stronger standards adapters."
 
 [evidence]

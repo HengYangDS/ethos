@@ -102,7 +102,7 @@ def capture_observation(*, execute: bool = False, output: Path | None = None) ->
     rendered = json.dumps(payload, indent=2, sort_keys=True) + "\n"
     path.write_text(rendered, encoding="utf-8")
     sys.stdout.write(rendered)
-    return 0
+    return 0 if ok else 1
 
 
 app = App(name="ethos-hosted-observation", default_command=capture_observation)

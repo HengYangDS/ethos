@@ -16,8 +16,8 @@ from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
 import pytest
+import tomli_w
 
-from ethos.adapters.mutation.proof import _promotion_required_gate_ids
 from ethos.adapters.mutation.proof import promotion_completeness_gaps
 from ethos.adapters.mutation.proof import record_executed_proof
 from ethos.repository.evidence.core import EvidenceSet
@@ -25,14 +25,17 @@ from ethos.repository.evidence.core import ProofRun
 from ethos.repository.policy.gates import ADOPTER_DEFAULT_GATE_IDS
 from ethos.repository.policy.gates import ADOPTER_MISSING_CODE_CORRECTNESS_GATE
 from ethos.repository.policy.gates import PRODUCT_DEFAULT_GATE_IDS
+from ethos.repository.policy.gates import _adopter_gate_overlay
 from ethos.repository.policy.gates import _code_correctness_axis_vocab
 from ethos.repository.policy.gates import _code_correctness_map
 from ethos.repository.policy.gates import _command_is_degenerate
+from ethos.repository.policy.gates import _product_gate_registry
 from ethos.repository.policy.gates import adopter_code_correctness_gaps
 from ethos.repository.policy.gates import adopter_gate_descriptor_gaps
 from ethos.repository.policy.gates import default_gate_ids
 from ethos.repository.policy.gates import gate_graph
 from ethos.repository.policy.gates import gate_registry
+from ethos_core.contracts.gates import GateDescriptor
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -40,9 +43,59 @@ if TYPE_CHECKING:
 _CODE_CORRECTNESS = ("unit-architecture", "ruff", "python-types", "module-layout")
 
 
-def _write_profile(root: Path, body: str) -> None:
+def _write_profile(root: Path, body: str | dict[str, object]) -> None:
     (root / ".ethos").mkdir(parents=True, exist_ok=True)
+    if isinstance(body, dict):
+        body = tomli_w.dumps(body | {"openspec": {"material_paths": [".ethos/profile.toml"]}})
+    if "[openspec]" not in body:
+        body += '\n[openspec]\nmaterial_paths = [".ethos/profile.toml"]\n'
     (root / ".ethos" / "profile.toml").write_text(body, encoding="utf-8")
+
+
+def _gate(
+    identifier: str,
+    *,
+    kind: str = "quality",
+    command: tuple[str, ...] = ("uv", "run", "pytest"),
+    dimensions: tuple[str, ...] = (),
+    **overrides: object,
+) -> dict[str, object]:
+    gate: dict[str, object] = {"id": identifier, "kind": kind, "command": list(command)}
+    if dimensions:
+        gate["dimensions"] = list(dimensions)
+    gate.update(overrides)
+    return gate
+
+
+def _trusted_gate(
+    identifier: str,
+    *,
+    dimensions: tuple[str, ...] = (),
+    **overrides: object,
+) -> dict[str, object]:
+    return _gate(
+        identifier,
+        dimensions=dimensions,
+        execution_mode="subprocess",
+        evidence_class=overrides.pop("evidence_class", "proof"),
+        trust_bearing=overrides.pop("trust_bearing", True),
+        tool_adapter="repository-native",
+        **overrides,
+    )
+
+
+def _profile(
+    *gates: dict[str, object],
+    gate_ids: tuple[str, ...] = (),
+    mapping: dict[str, object] | None = None,
+    axes: dict[str, object] | None = None,
+) -> dict[str, object]:
+    proof: dict[str, object] = {"code_correctness_gates": list(gate_ids), "gates": list(gates)}
+    if mapping is not None:
+        proof["code_correctness_map"] = mapping
+    if axes is not None:
+        proof["code_correctness_axes"] = axes
+    return {"profile_id": "acme", "proof": proof}
 
 
 def test_no_profile_uses_full_product_code_correctness_floor(tmp_path: Path) -> None:
@@ -78,8 +131,8 @@ def test_adopter_without_code_correctness_declaration_gets_completeness_gap(
     tmp_path: Path,
 ) -> None:
     """A valid adopter profile that declares no native code-correctness gates cannot
-    produce a complete proof — the executable floor stays the 11 adopter gates (so
-    gate_graph does not KeyError), but adopter_code_correctness_gap surfaces the block."""
+    produce a complete proof — the executable floor stays empty until native gates are
+    declared, while adopter_code_correctness_gap surfaces the block."""
     _write_profile(tmp_path, 'profile_id = "acme"\n')
 
     gates = default_gate_ids(root=tmp_path)
@@ -123,30 +176,16 @@ def test_adopter_gate_descriptors_extend_runtime_registry_and_graph(
 ) -> None:
     _write_profile(
         tmp_path,
-        """profile_id = "acme"
-
-[proof]
-code_correctness_gates = ["acme-tests", "acme-lint"]
-
-[[proof.gates]]
-id = "acme-tests"
-kind = "quality"
-command = ["uv", "run", "pytest"]
-execution_mode = "subprocess"
-evidence_class = "proof"
-trust_bearing = true
-tool_adapter = "repository-native"
-
-[[proof.gates]]
-id = "acme-lint"
-kind = "quality"
-command = ["uv", "run", "ruff", "check", "."]
-depends_on = ["acme-tests"]
-execution_mode = "subprocess"
-evidence_class = "proof"
-trust_bearing = true
-tool_adapter = "repository-native"
-""",
+        _profile(
+            _trusted_gate("acme-tests", kind="quality", command=("uv", "run", "pytest")),
+            _trusted_gate(
+                "acme-lint",
+                kind="quality",
+                command=("uv", "run", "ruff", "check", "."),
+                depends_on=["acme-tests"],
+            ),
+            gate_ids=("acme-tests", "acme-lint"),
+        ),
     )
 
     registry = gate_registry(root=tmp_path)
@@ -162,99 +201,99 @@ tool_adapter = "repository-native"
     assert ordered.index("acme-tests") < ordered.index("acme-lint")
 
 
-def test_adopter_gate_descriptor_requires_executable_command(tmp_path: Path) -> None:
+def test_invalid_gate_descriptor_invalidates_profile(tmp_path: Path) -> None:
     _write_profile(
         tmp_path,
-        """profile_id = "acme"
-[proof]
-code_correctness_gates = ["acme-tests"]
-[[proof.gates]]
-id = "acme-tests"
-kind = "quality"
-""",
+        _profile({"id": "acme-tests", "kind": "quality"}, gate_ids=("acme-tests",)),
     )
 
     assert adopter_gate_descriptor_gaps(tmp_path) == (
-        "adopter_gate_descriptor_invalid:acme-tests",
-        "adopter_gate_descriptor_missing:acme-tests",
+        "adopter_profile_invalid:.ethos/profile.toml",
     )
-    assert gate_graph(root=tmp_path).validate().gaps == adopter_gate_descriptor_gaps(tmp_path)
 
 
 def test_adopter_gate_descriptor_cannot_override_product_gate(tmp_path: Path) -> None:
     _write_profile(
         tmp_path,
-        """profile_id = "acme"
-[proof]
-code_correctness_gates = ["claims"]
-[[proof.gates]]
-id = "claims"
-kind = "quality"
-command = ["/bin/true"]
-""",
+        _profile(_gate("claims", command=("/bin/true",)), gate_ids=("claims",)),
     )
 
     assert adopter_gate_descriptor_gaps(tmp_path) == ("adopter_gate_descriptor_conflict:claims",)
     assert gate_registry(root=tmp_path)["claims"].command != ("/bin/true",)
 
 
-def test_adopter_gate_descriptor_rejects_non_adopter_profile_and_duplicates(
+def test_adopter_gate_overlay_rejects_duplicate_typed_descriptors(tmp_path: Path) -> None:
+
+    first = GateDescriptor(
+        id="duplicate",
+        kind="quality",
+        command=("first",),
+        profile="adopter",
+    )
+    second = first.model_copy(update={"command": ("second",)})
+    profile = SimpleNamespace(
+        declaration=SimpleNamespace(
+            proof=SimpleNamespace(gates=(first, second), code_correctness_gates=())
+        )
+    )
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(
+        "ethos.repository.policy.gates._adopter_profile_active", lambda *_args, **_kwargs: True
+    )
+    monkeypatch.setattr(
+        "ethos.repository.policy.gates.load_repository_profile", lambda *_args, **_kwargs: profile
+    )
+    try:
+        _, gaps = _adopter_gate_overlay(tmp_path, _product_gate_registry())
+    finally:
+        monkeypatch.undo()
+
+    assert gaps == ("adopter_gate_descriptor_duplicate:duplicate",)
+
+
+def test_profile_contract_rejects_non_adopter_gate_and_duplicates(
     tmp_path: Path,
 ) -> None:
     _write_profile(
         tmp_path,
-        """profile_id = "acme"
-[proof]
-code_correctness_gates = ["acme-tests"]
-[[proof.gates]]
-id = "acme-tests"
-kind = "quality"
-command = ["uv", "run", "pytest"]
-profile = "product"
-[[proof.gates]]
-id = "duplicate"
-kind = "quality"
-command = ["first"]
-[[proof.gates]]
-id = "duplicate"
-kind = "quality"
-command = ["second"]
-""",
+        _profile(
+            _gate("acme-tests", profile="product"),
+            _gate("duplicate", command=("first",)),
+            _gate("duplicate", command=("second",)),
+            gate_ids=("acme-tests",),
+        ),
     )
 
     assert adopter_gate_descriptor_gaps(tmp_path) == (
-        "adopter_gate_descriptor_profile_invalid:acme-tests",
-        "adopter_gate_descriptor_duplicate:duplicate",
-        "adopter_gate_descriptor_missing:acme-tests",
+        "adopter_profile_invalid:.ethos/profile.toml",
     )
 
 
-def test_adopter_gate_descriptors_table_must_be_a_list(tmp_path: Path) -> None:
+def test_adopter_gate_descriptors_must_be_an_array(tmp_path: Path) -> None:
     _write_profile(
         tmp_path,
-        """profile_id = "acme"
-[proof]
-code_correctness_gates = ["acme-tests"]
-gates = "not-a-list"
-""",
-    )
-
-    assert adopter_gate_descriptor_gaps(tmp_path) == ("adopter_gate_descriptors_invalid",)
-
-
-def test_adopter_gate_descriptor_entry_must_be_a_table(tmp_path: Path) -> None:
-    _write_profile(
-        tmp_path,
-        """profile_id = "acme"
-[proof]
-code_correctness_gates = ["acme-tests"]
-gates = ["not-a-table"]
-""",
+        {
+            "profile_id": "acme",
+            "proof": {"code_correctness_gates": ["acme-tests"], "gates": "not-a-list"},
+        },
     )
 
     assert adopter_gate_descriptor_gaps(tmp_path) == (
-        "adopter_gate_descriptor_invalid:0",
-        "adopter_gate_descriptor_missing:acme-tests",
+        "adopter_profile_invalid:.ethos/profile.toml",
+    )
+
+
+def test_adopter_gate_descriptor_entries_must_be_tables(tmp_path: Path) -> None:
+    _write_profile(
+        tmp_path,
+        {
+            "profile_id": "acme",
+            "proof": {"code_correctness_gates": ["acme-tests"], "gates": ["not-a-table"]},
+        },
+    )
+
+    assert adopter_gate_descriptor_gaps(tmp_path) == (
+        "adopter_profile_invalid:.ethos/profile.toml",
     )
 
 
@@ -265,15 +304,16 @@ def test_explicit_unknown_gate_becomes_graph_validation_gap() -> None:
     assert graph.validate().gaps == ("unknown_gate:not-registered",)
 
 
-def test_adopter_declaration_ignores_non_list_and_empty_entries(tmp_path: Path) -> None:
-    """A malformed `code_correctness_gates` (not a list) is treated as no declaration."""
+def test_adopter_declaration_rejects_non_array_gate_ids(tmp_path: Path) -> None:
     _write_profile(
         tmp_path,
         'profile_id = "acme"\n[proof]\ncode_correctness_gates = "acme-tests"\n',
     )
 
-    assert default_gate_ids(root=tmp_path) == ADOPTER_DEFAULT_GATE_IDS
-    assert adopter_code_correctness_gaps(tmp_path) == (ADOPTER_MISSING_CODE_CORRECTNESS_GATE,)
+    assert default_gate_ids(root=tmp_path) == PRODUCT_DEFAULT_GATE_IDS
+    assert adopter_gate_descriptor_gaps(tmp_path) == (
+        "adopter_profile_invalid:.ethos/profile.toml",
+    )
 
 
 def test_no_root_is_product_floor_and_no_adopter_gap() -> None:
@@ -290,9 +330,9 @@ def test_completeness_gate_blocks_adopter_without_code_correctness(
     subprocess.run(["git", "-C", str(tmp_path), "init", "-q"], check=True)
     _write_profile(tmp_path, 'profile_id = "acme"\n')  # valid adopter, NO code-correctness
     head = "d" * 40
-    runs = tuple(
+    runs = (
         ProofRun(
-            action_id=gate_id,
+            action_id="native-check",
             command=("x",),
             exit_code=0,
             stdout="",
@@ -302,8 +342,7 @@ def test_completeness_gate_blocks_adopter_without_code_correctness(
             verdict="passed",
             trust_bearing=True,
             diagnostics=(),
-        )
-        for gate_id in _promotion_required_gate_ids(tmp_path)
+        ),
     )
     record_executed_proof(
         tmp_path, EvidenceSet.from_runs(id="proof", head=head, runs=runs).to_dict()
@@ -316,35 +355,23 @@ def test_completeness_gate_blocks_adopter_without_code_correctness(
 
 # ── Tier 1.2: code-correctness EQUIVALENCE (map + per-axis trust/evidence floor) ──
 
-_LEGIT_ADOPTER_PROFILE = """profile_id = "acme"
-
-[proof]
-code_correctness_gates = ["acme-behavior", "acme-static"]
-
-[proof.code_correctness_map]
-behavior = "acme-behavior"
-static-analysis = { gate = "acme-static" }
-
-[[proof.gates]]
-id = "acme-behavior"
-kind = "test"
-command = ["cargo", "test", "--all"]
-dimensions = ["test", "coverage"]
-execution_mode = "subprocess"
-evidence_class = "proof"
-trust_bearing = true
-tool_adapter = "repository-native"
-
-[[proof.gates]]
-id = "acme-static"
-kind = "typing"
-command = ["cargo", "clippy", "--", "-Dwarnings"]
-dimensions = ["static-analysis", "lint"]
-execution_mode = "subprocess"
-evidence_class = "contract"
-trust_bearing = true
-tool_adapter = "repository-native"
-"""
+_LEGIT_ADOPTER_PROFILE = _profile(
+    _trusted_gate(
+        "acme-behavior",
+        kind="test",
+        command=("cargo", "test", "--all"),
+        dimensions=("test", "coverage"),
+    ),
+    _trusted_gate(
+        "acme-static",
+        kind="typing",
+        command=("cargo", "clippy", "--", "-Dwarnings"),
+        dimensions=("static-analysis", "lint"),
+        evidence_class="contract",
+    ),
+    gate_ids=("acme-behavior", "acme-static"),
+    mapping={"behavior": "acme-behavior", "static-analysis": {"gate": "acme-static"}},
+)
 
 
 def test_adopter_with_mapped_equivalent_gates_passes_different_toolchain(tmp_path: Path) -> None:
@@ -357,184 +384,130 @@ def test_adopter_with_mapped_equivalent_gates_passes_different_toolchain(tmp_pat
 
 
 def test_adopter_monolithic_stack_may_waive_static_with_reason(tmp_path: Path) -> None:
-    """A monolithic-correctness stack (types enforced by the compiler inside the behavior
-    gate) WAIVES static-analysis with an explicit reason — no false-reject."""
     _write_profile(
         tmp_path,
-        """profile_id = "acme"
-
-[proof]
-code_correctness_gates = ["acme-behavior"]
-
-[proof.code_correctness_map]
-behavior = "acme-behavior"
-static-analysis = { waived = "types enforced by the compiler inside cargo test" }
-
-[[proof.gates]]
-id = "acme-behavior"
-kind = "test"
-command = ["cargo", "test", "--all"]
-dimensions = ["test", "coverage"]
-execution_mode = "subprocess"
-evidence_class = "proof"
-trust_bearing = true
-tool_adapter = "repository-native"
-""",
+        _profile(
+            _trusted_gate(
+                "acme-behavior",
+                kind="test",
+                command=("cargo", "test", "--all"),
+                dimensions=("test", "coverage"),
+            ),
+            gate_ids=("acme-behavior",),
+            mapping={
+                "behavior": "acme-behavior",
+                "static-analysis": {"waived": "types enforced by the compiler inside cargo test"},
+            },
+        ),
     )
 
     assert adopter_code_correctness_gaps(tmp_path) == ()
 
 
 def test_adopter_extensible_axis_vocabulary_recognizes_native_tokens(tmp_path: Path) -> None:
-    """An adopter extends an axis's recognized dimension tokens under
-    [proof.code_correctness_axes]; a gate declaring only that token then attributes."""
     _write_profile(
         tmp_path,
-        """profile_id = "acme"
-
-[proof]
-code_correctness_gates = ["acme-fuzz", "acme-static"]
-
-[proof.code_correctness_map]
-behavior = "acme-fuzz"
-static-analysis = "acme-static"
-
-[proof.code_correctness_axes]
-behavior = ["fuzz"]
-
-[[proof.gates]]
-id = "acme-fuzz"
-kind = "quality"
-command = ["cargo", "fuzz", "run", "target"]
-dimensions = ["fuzz"]
-execution_mode = "subprocess"
-evidence_class = "proof"
-trust_bearing = true
-tool_adapter = "repository-native"
-
-[[proof.gates]]
-id = "acme-static"
-kind = "typing"
-command = ["cargo", "clippy"]
-dimensions = ["static-analysis"]
-execution_mode = "subprocess"
-evidence_class = "contract"
-trust_bearing = true
-tool_adapter = "repository-native"
-""",
+        _profile(
+            _trusted_gate(
+                "acme-fuzz",
+                kind="quality",
+                command=("cargo", "fuzz", "run", "target"),
+                dimensions=("fuzz",),
+            ),
+            _trusted_gate(
+                "acme-static",
+                kind="typing",
+                command=("cargo", "clippy"),
+                dimensions=("static-analysis",),
+                evidence_class="contract",
+            ),
+            gate_ids=("acme-fuzz", "acme-static"),
+            mapping={"behavior": "acme-fuzz", "static-analysis": "acme-static"},
+            axes={"behavior": ["fuzz"]},
+        ),
     )
 
     assert adopter_code_correctness_gaps(tmp_path) == ()
 
 
-def _wash_profile(behavior_gate: str) -> str:
-    """A base profile whose static axis is legit; the behavior gate is the wash variable."""
-    return f"""profile_id = "acme"
-
-[proof]
-code_correctness_gates = ["acme-behavior", "acme-static"]
-
-[proof.code_correctness_map]
-behavior = "acme-behavior"
-static-analysis = "acme-static"
-
-[[proof.gates]]
-{behavior_gate}
-
-[[proof.gates]]
-id = "acme-static"
-kind = "typing"
-command = ["cargo", "clippy"]
-dimensions = ["static-analysis"]
-execution_mode = "subprocess"
-evidence_class = "contract"
-trust_bearing = true
-tool_adapter = "repository-native"
-"""
+def _wash_profile(behavior_gate: dict[str, object]) -> dict[str, object]:
+    return _profile(
+        behavior_gate,
+        _trusted_gate(
+            "acme-static",
+            kind="typing",
+            command=("cargo", "clippy"),
+            dimensions=("static-analysis",),
+            evidence_class="contract",
+        ),
+        gate_ids=("acme-behavior", "acme-static"),
+        mapping={"behavior": "acme-behavior", "static-analysis": "acme-static"},
+    )
 
 
 @pytest.mark.parametrize(
     "behavior_gate",
     [
-        'id = "acme-behavior"\nkind = "test"\ncommand = ["echo", "ok"]\n'
-        'dimensions = ["test"]\nexecution_mode = "subprocess"\n'
-        'evidence_class = "proof"\ntrust_bearing = true\ntool_adapter = "repository-native"',
-        'id = "acme-behavior"\nkind = "test"\ncommand = ["cargo", "test"]\n'
-        'dimensions = ["test"]\nexecution_mode = "subprocess"\n'
-        'evidence_class = "proof"\ntrust_bearing = false\ntool_adapter = "repository-native"',
-        'id = "acme-behavior"\nkind = "test"\ncommand = ["cargo", "test"]\n'
-        'dimensions = ["test"]\nexecution_mode = "subprocess"\n'
-        'evidence_class = "diagnostic"\ntrust_bearing = true\ntool_adapter = "repository-native"',
-        'id = "acme-behavior"\nkind = "lint"\ncommand = ["cargo", "clippy"]\n'
-        'dimensions = ["lint"]\nexecution_mode = "subprocess"\n'
-        'evidence_class = "proof"\ntrust_bearing = true\ntool_adapter = "repository-native"',
+        _trusted_gate("acme-behavior", kind="test", command=("echo", "ok"), dimensions=("test",)),
+        _trusted_gate(
+            "acme-behavior",
+            kind="test",
+            command=("cargo", "test"),
+            dimensions=("test",),
+            trust_bearing=False,
+        ),
+        _trusted_gate(
+            "acme-behavior",
+            kind="test",
+            command=("cargo", "test"),
+            dimensions=("test",),
+            evidence_class="diagnostic",
+        ),
+        _trusted_gate(
+            "acme-behavior", kind="lint", command=("cargo", "clippy"), dimensions=("lint",)
+        ),
     ],
     ids=["noop-command", "non-trust-bearing", "diagnostic-evidence", "wrong-axis-attribution"],
 )
-def test_wash_behavior_gate_is_rejected(tmp_path: Path, behavior_gate: str) -> None:
-    """Behavior gates must be executable, trust-bearing proof for the behavior axis."""
-    _write_profile(
-        tmp_path,
-        _wash_profile(behavior_gate),
-    )
+def test_wash_behavior_gate_is_rejected(tmp_path: Path, behavior_gate: dict[str, object]) -> None:
+    _write_profile(tmp_path, _wash_profile(behavior_gate))
     assert "adopter_code_correctness_axis_unbacked:behavior:acme-behavior" in (
         adopter_code_correctness_gaps(tmp_path)
     )
 
 
 def test_wash_single_gate_reused_across_axes_is_rejected(tmp_path: Path) -> None:
-    """One gate claiming both axes (dimensions=[test,static-analysis]) is rejected: axes
-    must be backed by DISTINCT gates."""
     _write_profile(
         tmp_path,
-        """profile_id = "acme"
-
-[proof]
-code_correctness_gates = ["acme-all"]
-
-[proof.code_correctness_map]
-behavior = "acme-all"
-static-analysis = "acme-all"
-
-[[proof.gates]]
-id = "acme-all"
-kind = "test"
-command = ["make", "verify"]
-dimensions = ["test", "static-analysis"]
-execution_mode = "subprocess"
-evidence_class = "proof"
-trust_bearing = true
-tool_adapter = "repository-native"
-""",
+        _profile(
+            _trusted_gate(
+                "acme-all",
+                kind="test",
+                command=("make", "verify"),
+                dimensions=("test", "static-analysis"),
+            ),
+            gate_ids=("acme-all",),
+            mapping={"behavior": "acme-all", "static-analysis": "acme-all"},
+        ),
     )
     gaps = adopter_code_correctness_gaps(tmp_path)
     assert "adopter_code_correctness_axis_gate_reused:static-analysis:acme-all" in gaps
 
 
 def test_wash_borrowed_product_gate_is_rejected(tmp_path: Path) -> None:
-    """Mapping an axis to a PRODUCT gate id (not adopter-authored) does not satisfy it —
-    the adopter must author its own gate."""
     _write_profile(
         tmp_path,
-        """profile_id = "acme"
-
-[proof]
-code_correctness_gates = ["acme-static"]
-
-[proof.code_correctness_map]
-behavior = "unit-architecture"
-static-analysis = "acme-static"
-
-[[proof.gates]]
-id = "acme-static"
-kind = "typing"
-command = ["cargo", "clippy"]
-dimensions = ["static-analysis"]
-execution_mode = "subprocess"
-evidence_class = "contract"
-trust_bearing = true
-tool_adapter = "repository-native"
-""",
+        _profile(
+            _trusted_gate(
+                "acme-static",
+                kind="typing",
+                command=("cargo", "clippy"),
+                dimensions=("static-analysis",),
+                evidence_class="contract",
+            ),
+            gate_ids=("acme-static",),
+            mapping={"behavior": "unit-architecture", "static-analysis": "acme-static"},
+        ),
     )
     gaps = adopter_code_correctness_gaps(tmp_path)
     assert "adopter_code_correctness_axis_gate_missing:behavior:unit-architecture" in gaps
@@ -546,36 +519,30 @@ def test_command_is_degenerate_edge_cases() -> None:
     assert _command_is_degenerate(("cargo", "test")) is False
 
 
-def test_axis_vocab_ignores_malformed_extension_entries() -> None:
-    # unknown axis name and non-list tokens are ignored (242->241 branch); known axis with
-    # a list extends.
+def test_axis_vocab_extends_known_axes() -> None:
     profile = SimpleNamespace(
-        tables={
-            "proof": {
-                "code_correctness_axes": {
-                    "behavior": ["fuzz"],
-                    "not-an-axis": ["x"],
-                    "static-analysis": "not-a-list",
-                }
-            }
-        }
+        declaration=SimpleNamespace(
+            proof=SimpleNamespace(
+                code_correctness_axes={"behavior": ("fuzz",), "not-an-axis": ("x",)}
+            )
+        )
     )
     vocab = _code_correctness_axis_vocab(profile)
     assert "fuzz" in vocab["behavior"]
     assert "not-an-axis" not in vocab
 
 
-def test_code_correctness_map_ignores_malformed_entries() -> None:
-    # a non-str/non-dict entry (284->281) and a dict with neither gate nor valid waived
-    # (287->281) are both dropped, so the axis reads as unmapped.
+def test_code_correctness_map_ignores_unusable_entries() -> None:
     profile = SimpleNamespace(
-        tables={
-            "proof": {
-                "code_correctness_map": {
+        declaration=SimpleNamespace(
+            proof=SimpleNamespace(
+                code_correctness_map={
                     "behavior": 123,
                     "static-analysis": {"waived": "   "},
                 }
-            }
-        }
+            )
+        )
     )
     assert _code_correctness_map(profile) == {}
+
+    assert _code_correctness_map(SimpleNamespace(declaration=None)) == {}

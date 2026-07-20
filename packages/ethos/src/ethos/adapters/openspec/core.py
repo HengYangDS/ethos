@@ -12,6 +12,7 @@ from ethos.adapters.openspec.lifecycle.core import OpenSpecReportContext
 from ethos.adapters.openspec.lifecycle.core import OpenSpecRequest
 from ethos.adapters.openspec.lifecycle.core import lifecycle_report
 from ethos.adapters.openspec.lifecycle.core import openspec_command_gaps
+from ethos.adapters.openspec.lifecycle.core import openspec_official_cli
 from ethos.adapters.openspec.lifecycle.core import openspec_root_gaps
 from ethos.adapters.openspec.lifecycle.core import openspec_status_result
 from ethos.adapters.openspec.lifecycle.core import openspec_timeout_report
@@ -31,6 +32,7 @@ def openspec_governance_report(
     change: str | None = None,
     lifecycle: bool = False,
     changed_paths: tuple[str, ...] = (),
+    require_workspace: bool = True,
 ) -> dict[str, Any]:
     """Return the ETHOS OpenSpec governance report for one repository root."""
     active_identifier_gaps = active_change_identifier_gaps(root, change)
@@ -41,7 +43,7 @@ def openspec_governance_report(
             lifecycle=lifecycle,
             required_gaps=active_identifier_gaps,
         )
-    request = OpenSpecRequest(change, lifecycle, changed_paths)
+    request = OpenSpecRequest(change, lifecycle, changed_paths, require_workspace)
     base_command = openspec_cli.openspec_base_command()
     if base_command is None:
         return _openspec_governance_report(
@@ -121,6 +123,39 @@ def _openspec_governance_report(
     advisory_gaps = [
         str(gap) for gap in cast("list[object]", protected_branch_residue["advisory_gaps"])
     ]
+    scope_binding = lifecycle_report(
+        root,
+        request=request._replace(lifecycle=False),
+        list_payload={},
+        protected_branch_residue=protected_branch_residue,
+    )["scope_binding"]
+    if (
+        not request.require_workspace
+        and request.change is None
+        and not openspec_root.exists()
+        and scope_binding["state"] == "no_material_paths"
+    ):
+        return {
+            "ok": True,
+            "state": "not_applicable",
+            "official_config": official_config,
+            "official_cli": openspec_official_cli(
+                package=openspec_cli.OFFICIAL_NPX_PACKAGE,
+                base_command=base_command,
+            ),
+            "change": None,
+            "schema_name": "",
+            "summary": {"change_count": 0, "validation": {}},
+            "required_gaps": [],
+            "advisory_gaps": advisory_gaps,
+            "lifecycle": {
+                "enabled": request.lifecycle,
+                "changes": [],
+                "scope_binding": scope_binding,
+                "protected_branch_residue": protected_branch_residue,
+            },
+            "commands": {},
+        }
     required_gaps = openspec_root_gaps(openspec_root, official_config)
     context = OpenSpecReportContext(
         request=request,
@@ -174,11 +209,10 @@ def _openspec_governance_report(
     return {
         "ok": not required_gaps,
         "official_config": official_config,
-        "official_cli": {
-            "package": openspec_cli.OFFICIAL_NPX_PACKAGE,
-            "available": True,
-            "base_command": list(base_command),
-        },
+        "official_cli": openspec_official_cli(
+            package=openspec_cli.OFFICIAL_NPX_PACKAGE,
+            base_command=base_command,
+        ),
         "change": selected,
         "schema_name": status.get("json", {}).get("schemaName") if status else "",
         "summary": {

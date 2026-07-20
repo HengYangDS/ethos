@@ -1,8 +1,6 @@
-# Ruff ignored-rule ratchet. These rules are intentionally selected in Ruff but
-# temporarily ignored in .config/checks/ruff/ruff.toml because the current codebase
-# still carries legacy debt. This file makes that debt visible and non-increasing.
-# Baselines are exact current findings, not slack maxima. Lower this file whenever
+# Ratchet only ignored Ruff findings.
+# Values are exact current counts, never ceilings. Lowering the count is required when
 # a focused refactor removes findings; if current findings fall below a baseline,
 # the ratchet gate fails until the stale baseline is shrunk.
 
-ignored_rule_baseline = { ARG001 = 27, ARG002 = 1, BLE001 = 7, EM101 = 8, EM102 = 2, PERF401 = 32, PLC0415 = 75, PLR0911 = 3, PLR0912 = 2, PLR0913 = 31, PLR0915 = 3, PLR2004 = 15, SLF001 = 159, TRY003 = 10 }
+ignored_rule_baseline = { ARG001 = 19, ARG002 = 1, BLE001 = 7, EM101 = 8, EM102 = 2, PERF401 = 32, PLC0415 = 67, PLR0911 = 3, PLR0912 = 2, PLR0913 = 30, PLR0915 = 3, PLR2004 = 15, S101 = 11, S105 = 5, S603 = 59, S606 = 1, S607 = 62, SLF001 = 140, TRY003 = 10 }

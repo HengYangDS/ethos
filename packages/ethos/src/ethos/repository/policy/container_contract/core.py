@@ -13,6 +13,9 @@ from pathlib import Path
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError
 
+from ethos.repository.profile import ContainerContractPolicy
+from ethos.repository.profile import load_repository_profile
+
 _PLATFORMS = ("linux/amd64", "linux/arm64")
 _VENDOR_TEXT = (
     "orbstack=orbstack|dockerdesktop=docker desktop|colima=colima|lima=lima|"
@@ -101,14 +104,6 @@ def _contained_file(repo: Path, candidate: Path, *, label: str) -> tuple[Path | 
     except (OSError, RuntimeError):
         return (None, f"{label}_unreadable")
     return (path, None)
-
-
-def _read_file(repo: Path, candidate: Path, *, label: str) -> tuple[str | None, str | None]:
-    path, gap = _contained_file(repo, candidate, label=label)
-    try:
-        return (path.read_text(encoding="utf-8"), None) if path else (None, gap)
-    except (OSError, UnicodeDecodeError):
-        return (None, f"{label}_unreadable")
 
 
 def _evidence_refs(value: object) -> list[dict[str, t.Any]]:
@@ -204,30 +199,20 @@ def _semantic_gaps(repo: Path, payload: dict[str, t.Any]) -> list[str]:
     return sorted(set(gaps))
 
 
-def _toml(repo: Path, path: Path, label: str) -> tuple[dict[str, t.Any] | None, str | None]:
-    text, gap = _read_file(repo, path, label=label)
-    if gap:
-        return (None, gap)
-    try:
-        assert text is not None
-        return (tomllib.loads(text), None)
-    except tomllib.TOMLDecodeError as error:
-        return (None, f"{label}_invalid_toml:{error}")
-
-
-def _manifest_report(repo: Path, declaration: dict[str, t.Any]) -> dict[str, t.Any]:
-    gaps = _schema_gaps(
-        "container-contract-declaration.schema.json",
-        declaration,
-        prefix=_C + "declaration_schema",
-    )
-    manifest = str(declaration.get("manifest") or "")
-    if gaps:
-        return _report(declared=True, manifest=manifest, gaps=gaps)
-    payload, gap = _toml(repo, repo / manifest, _C + "manifest")
+def _manifest_report(repo: Path, declaration: ContainerContractPolicy) -> dict[str, t.Any]:
+    manifest = declaration.manifest
+    path, gap = _contained_file(repo, repo / manifest, label=_C + "manifest")
     if gap:
         return _report(declared=True, manifest=manifest, gaps=[gap])
-    assert payload is not None
+    assert path is not None
+    try:
+        payload = tomllib.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError) as error:
+        return _report(
+            declared=True,
+            manifest=manifest,
+            gaps=[f"{_C}manifest_invalid_toml:{error}"],
+        )
     gaps = _schema_gaps("container-contract.schema.json", payload, prefix=_C + "schema_violation")
     return _report(declared=True, manifest=manifest, gaps=gaps or _semantic_gaps(repo, payload))
 
@@ -235,15 +220,10 @@ def _manifest_report(repo: Path, declaration: dict[str, t.Any]) -> dict[str, t.A
 def container_contract_report(root: Path) -> dict[str, t.Any]:
     """Validate an opt-in product-schema-bound Container Contract."""
     repo = root.resolve()
-    profile, gap = _toml(repo, repo / ".ethos/profile.toml", _C + "profile")
-    if gap == _C + "profile_missing":
+    profile = load_repository_profile(repo)
+    if not profile.exists:
         return _not_declared()
-    if gap:
-        return _report(declared=False, manifest="", gaps=[gap])
-    assert profile is not None
-    declaration = profile.get("container_contract")
-    if declaration is None:
-        return _not_declared()
-    if not isinstance(declaration, dict):
-        return _report(declared=True, manifest="", gaps=[_C + "declaration_not_table"])
-    return _manifest_report(repo, {str(key): value for key, value in declaration.items()})
+    if profile.declaration is None:
+        return _report(declared=False, manifest="", gaps=[_C + "profile_invalid"])
+    declaration = profile.declaration.container_contract
+    return _not_declared() if declaration is None else _manifest_report(repo, declaration)

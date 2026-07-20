@@ -1,20 +1,20 @@
 ---
 name: ethos-adoption-profile-governance
-description: Use when applying ETHOS to another repository, changing adoption profiles, scaffolds, capability profiles, adapter boundaries, or cross-repository governance parity.
+description: Use when applying ETHOS to another repository, changing its binding, capability projections, adapter boundaries, or cross-repository governance parity.
 ---
 
-# ETHOS Adoption Profile Governance
+# ETHOS Adoption Binding Governance
 
 ## When to Use
 
 Use this skill when ETHOS governs an external or adopted repository, changes
-adoption scaffolds, updates profiles, compares product and adopter behavior, or
-checks whether repository governance remains isomorphic across profiles.
+the repository binding or explicit capability projections, compares product and
+adopter behavior, or checks whether repository governance remains isomorphic.
 
 ## Workflow
 
-1. Treat the governed subject as a Git repository; profile changes proof depth,
-   adapters, and required checks, not the command semantics.
+1. Treat the governed subject as a Git repository; one typed profile binds its
+   facts and gates without changing command semantics.
 2. Run `ethos status --json`, then `ethos adopt --root <repo> --json` or
    `ethos report --root <repo> --json` to expose the current boundary.
 3. Keep adopter skills, OpenSpec carriers, docs, evidence, and CI as thin
@@ -22,7 +22,7 @@ checks whether repository governance remains isomorphic across profiles.
 4. Preserve adapter boundaries: provider state belongs to the provider; durable
    truth must be promoted into source, tests, schemas, docs, OpenSpec, claims,
    or evidence.
-5. Validate the adopted repository with strict playbooks and profile-appropriate
+5. Validate the adopted repository with strict playbooks and repository-appropriate
    proof before claiming governance readiness.
 
 ## Evidence

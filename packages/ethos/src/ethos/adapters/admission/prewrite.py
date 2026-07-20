@@ -64,7 +64,12 @@ def prewrite_guard(
         for path in checked
         if path["tracked_candidate"] is True and path["relative_path"]
     )
-    lifecycle = openspec_governance_report(root, lifecycle=True, changed_paths=requested)
+    lifecycle = openspec_governance_report(
+        root,
+        lifecycle=True,
+        changed_paths=requested,
+        require_workspace=False,
+    )
     scope = _material_scope_from_lifecycle(lifecycle)
     lease = _work_lane_lease_check(
         root=root, status=status, effective=effective, tracked_write_requested=tracked

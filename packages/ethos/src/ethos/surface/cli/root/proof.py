@@ -20,6 +20,7 @@ from ethos.repository.evidence.core import EvidenceSet
 from ethos.repository.evidence.core import ProofRun
 from ethos.repository.evidence.core import provenance_envelope
 from ethos.repository.evidence.core import trim_output
+from ethos.repository.policy.gates import adopter_code_correctness_gaps
 from ethos.repository.policy.gates import gate_graph
 from ethos.repository.policy.gates import gate_registry
 from ethos.surface.cli._base import JsonFlag
@@ -81,10 +82,11 @@ def prove(*, objective: str='ethos proof', scope: str='repository', execute: boo
     current_head = git.current_head(repo)
     audit = status_domain.audit_for_root(repo, openspec_mode='deep' if full else 'shape', current_head=current_head)
     changed_paths = change_scope_paths_from_status(repo, workspace_status(repo, include_foreign_path_scope=False))
-    openspec_lifecycle = openspec_governance_report(repo, lifecycle=True, changed_paths=changed_paths)
+    openspec_lifecycle = openspec_governance_report(repo, lifecycle=True, changed_paths=changed_paths, require_workspace=False)
     lifecycle_gaps = tuple(str(gap) for gap in openspec_lifecycle.get('required_gaps', []))
     graph = gate_graph(gate, full=full, root=repo)
     graph_validation = graph.validate()
+    correctness_gaps = adopter_code_correctness_gaps(repo)
     gates_by_id = gate_registry(repo)
     runner = LocalSubprocessRunner(inprocess_handler=run_inprocess_cli_gate) if execute else DryRunRunner()
     proof_runs = tuple(ProofRun.from_adapter_result(AdapterProofResult(action_id=run_result.action_id, command=run_result.command, exit_code=run_result.exit_code, stdout=trim_output(run_result.stdout), stderr=trim_output(run_result.stderr), adapter_state=run_result.state, evidence_class=gates_by_id[run_result.action_id].evidence_class, trust_bearing=gates_by_id[run_result.action_id].trust_bearing, diagnostics=run_result.diagnostics)) for run_result in (runner.run(node, root=repo) for node in graph.ordered_nodes()))
@@ -100,11 +102,11 @@ def prove(*, objective: str='ethos proof', scope: str='repository', execute: boo
     scope_binding = proof_scope_binding(scope)
     scope_gaps = tuple(cast('list[str]', scope_binding['required_gaps']))
     host_probe = host_probe_boundary(host=host, probe=probe)
-    ok = bool(audit['ok']) and bool(openspec_lifecycle.get('ok')) and runs_ok and graph_validation.ok and (not failed_gate_gaps) and (not proof_gaps) and (not trust_gaps) and (not head_gaps) and (not scope_gaps)
+    ok = bool(audit['ok']) and bool(openspec_lifecycle.get('ok')) and runs_ok and graph_validation.ok and (not correctness_gaps) and (not failed_gate_gaps) and (not proof_gaps) and (not trust_gaps) and (not head_gaps) and (not scope_gaps)
     result_state = 'proven' if ok and execute else 'ready' if ok else 'gapped'
     if result_state == 'proven':
         record_executed_proof(repo, evidence.to_dict())
     dependency_next_actions = missing_gate_dependency_next_actions(selected_gate_ids=gate, validation_gaps=graph_validation.gaps, current_head=current_head, root=repo)
     next_actions = dependency_next_actions or (('ethos land',) if result_state == 'proven' else ('ethos prove --execute',) if result_state == 'ready' else ('ethos audit --mode deep',))
-    result = EthosResult(command='prove', ok=ok, state=result_state, summary={'objective': objective, 'evidence_digest': evidence.digest, 'gate_count': len(proof_runs)}, required_gaps=tuple(string_sequence(audit.get('required_gaps'))) + lifecycle_gaps + tuple(graph_validation.gaps) + failed_gate_gaps + proof_gaps + trust_gaps + head_gaps + scope_gaps, next_actions=next_actions, governance_context=cast('dict[str, object]', audit['governance_context']), data={'governance_context': audit['governance_context'], 'repository_audit': audit, 'openspec_lifecycle': openspec_lifecycle, 'changed_paths': list(changed_paths), 'executed': execute, 'scope': scope_binding['scope'], 'scope_binding': scope_binding, 'host_probe': host_probe, 'action_graph': graph.to_dict(), 'evidence': evidence.to_dict(), 'provenance': provenance_envelope(evidence), 'expected_head': {'expected': expect_head or '', 'current': current_head, 'ok': expect_head is None or expect_head == current_head}})
+    result = EthosResult(command='prove', ok=ok, state=result_state, summary={'objective': objective, 'evidence_digest': evidence.digest, 'gate_count': len(proof_runs)}, required_gaps=tuple(string_sequence(audit.get('required_gaps'))) + lifecycle_gaps + tuple(graph_validation.gaps) + correctness_gaps + failed_gate_gaps + proof_gaps + trust_gaps + head_gaps + scope_gaps, next_actions=next_actions, governance_context=cast('dict[str, object]', audit['governance_context']), data={'governance_context': audit['governance_context'], 'repository_audit': audit, 'openspec_lifecycle': openspec_lifecycle, 'changed_paths': list(changed_paths), 'executed': execute, 'scope': scope_binding['scope'], 'scope_binding': scope_binding, 'host_probe': host_probe, 'action_graph': graph.to_dict(), 'evidence': evidence.to_dict(), 'provenance': provenance_envelope(evidence), 'expected_head': {'expected': expect_head or '', 'current': current_head, 'ok': expect_head is None or expect_head == current_head}})
     emit(result, json_output=json_output)

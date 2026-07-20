@@ -152,9 +152,21 @@ same owner scripts SHALL participate in the default ETHOS proof floor.
 - **THEN** ETHOS invokes the reusable owner scripts under `tools/ci/scripts/`
 - **AND** Ruff policy is read from `.config/checks/ruff/ruff.toml`
 - **AND** pytest configuration is read from `.config/checks/pytest/pytest.ini`
+- **AND** root `pyproject.toml` carries only the pytest discovery cache route to
+  `build/runtime/tool-cache/pytest`
 - **AND** the repository root does not contain `ruff.toml` or `pytest.ini`
-- **AND** adopter CI scaffolds do not assume the product repository's Ruff, pytest,
-  or owner-script surfaces
+- **AND** adopter-native gates and provider projections do not assume the product
+  repository's Ruff, pytest, or owner-script surfaces
+
+#### Scenario: Bare pytest discovery preserves the semantic cache boundary
+
+- **WHEN** a human or IDE invokes pytest from the repository root without the
+  repository owner script
+- **THEN** pytest discovers only the root cache route and writes cache under
+  `build/runtime/tool-cache/pytest`
+- **AND** the invocation does not gain owner-script test selection, strictness,
+  coverage, JUnit, or proof semantics
+- **AND** the invocation does not create root `.pytest_cache`
 
 #### Scenario: Product docs may reference bounded owner scripts
 

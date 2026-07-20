@@ -98,7 +98,8 @@ def _owned_adopter_scope_lane(
     (repo / ".ethos").mkdir(exist_ok=True)
     paths = ", ".join(f'"{path}"' for path in material_paths)
     (repo / ".ethos" / "profile.toml").write_text(
-        f"[openspec]\nmaterial_paths = [{paths}]\n", encoding="utf-8"
+        f'profile_id = "sample"\n[openspec]\nmaterial_paths = [{paths}]\n',
+        encoding="utf-8",
     )
     if seed_guidelines:
         (repo / "guidelines.md").write_text("# Guidelines\n", encoding="utf-8")
@@ -134,7 +135,8 @@ def test_prewrite_uses_same_official_scope_candidates_as_plan_and_prove(
     repo = init_repo(tmp_path / "repo")
     (repo / ".ethos").mkdir(exist_ok=True)
     (repo / ".ethos" / "profile.toml").write_text(
-        '[openspec]\nmaterial_paths = ["guidelines.md"]\n', encoding="utf-8"
+        'profile_id = "sample"\n[openspec]\nmaterial_paths = ["guidelines.md"]\n',
+        encoding="utf-8",
     )
     (repo / "guidelines.md").write_text("# Guidelines\n", encoding="utf-8")
     matching = repo / "openspec" / "changes" / "matching"
@@ -318,7 +320,7 @@ def test_plan_and_prove_receive_the_same_dirty_scope_paths(
 ) -> None:
     """Plan and proof pass dirty repository paths to the lifecycle read model."""
     repo = init_repo(tmp_path / "repo")
-    adoption_plan(repo, profile="generic", apply=True)
+    adoption_plan(repo, apply=True)
     (repo / "README.md").write_text("base\n", encoding="utf-8")
     git(repo, "add", ".")
     git(repo, "commit", "-m", "adopt and add readme")
@@ -330,6 +332,7 @@ def test_plan_and_prove_receive_the_same_dirty_scope_paths(
         *,
         lifecycle: bool = False,
         changed_paths: tuple[str, ...] = (),
+        **_kwargs: object,
     ) -> dict[str, object]:
         calls.append(("lifecycle" if lifecycle else "plain", changed_paths))
         return {"ok": True, "required_gaps": []}
@@ -339,10 +342,10 @@ def test_plan_and_prove_receive_the_same_dirty_scope_paths(
     (repo / "README.md").write_text("changed\n", encoding="utf-8")
 
     plan = run_ethos("plan", "--changed", "--root", repo.as_posix(), "--json")
-    prove = run_ethos("prove", "--root", repo.as_posix(), "--json")
+    prove = run_ethos_blocked("prove", "--root", repo.as_posix(), "--json")
 
     assert plan["ok"] is True
-    assert prove["ok"] is True
+    assert prove["required_gaps"] == ["adopter_profile_missing_code_correctness_gates"]
     assert calls == [("lifecycle", expected), ("lifecycle", expected)]
 
 
@@ -354,7 +357,8 @@ def test_archiving_scope_covers_path_despite_unrelated_incomplete_change(
     repo = init_repo(tmp_path / "repo")
     (repo / ".ethos").mkdir(exist_ok=True)
     (repo / ".ethos" / "profile.toml").write_text(
-        '[openspec]\nmaterial_paths = ["guidelines.md"]\n', encoding="utf-8"
+        'profile_id = "sample"\n[openspec]\nmaterial_paths = ["guidelines.md"]\n',
+        encoding="utf-8",
     )
     matching = repo / "openspec" / "changes" / "matching"
     matching.mkdir(parents=True)
@@ -416,17 +420,26 @@ def test_archiving_scope_covers_path_despite_unrelated_incomplete_change(
         ('schema_version = 1\npaths = ["guidelines.md"]\n', "covered", "", None),
         (None, "uncovered", "openspec_archive_scope_missing:change", None),
         ("paths = [\n", "uncovered", "openspec_archive_scope_invalid:change", None),
-        ('schema_version = 1\npaths = ["guidelines.md"]\n', "uncovered", "", ".ethos/profile.toml"),
+        (
+            'schema_version = 1\npaths = ["guidelines.md"]\n',
+            "uncovered",
+            "",
+            ".ethos/profile.toml",
+        ),
     ],
 )
 def test_current_archive_scope_is_reconciliation_only(
-    tmp_path: Path, scope_body: str | None, state: str, diagnostic: str, extra_path: str | None
+    tmp_path: Path,
+    scope_body: str | None,
+    state: str,
+    diagnostic: str,
+    extra_path: str | None,
 ) -> None:
     repo = init_repo(tmp_path / "repo")
     profile = repo / ".ethos" / "profile.toml"
     profile.parent.mkdir(exist_ok=True)
     profile.write_text(
-        '[openspec]\nmaterial_paths = [".ethos/profile.toml", "guidelines.md", "openspec/**"]\n'
+        'profile_id = "sample"\n[openspec]\nmaterial_paths = [".ethos/profile.toml", "guidelines.md", "openspec/**"]\n'
     )
     archive = repo / "openspec" / "changes" / "archive" / "change"
     archive.mkdir(parents=True)
@@ -461,7 +474,7 @@ def test_prewrite_plan_and_prove_share_official_scope_coverage_verdict(
 ) -> None:
     """All entry points use the official list-selected Change companions."""
     repo = init_repo(tmp_path / "repo")
-    adoption_plan(repo, profile="generic", apply=True)
+    adoption_plan(repo, apply=True)
     matching = repo / "openspec" / "changes" / "matching"
     (matching / "specs" / "repository-governance").mkdir(parents=True)
     (matching / "proposal.md").write_text("# Matching\n", encoding="utf-8")
@@ -474,6 +487,7 @@ def test_prewrite_plan_and_prove_share_official_scope_coverage_verdict(
         'schema_version = 1\npaths = ["docs/governance/**"]\n', encoding="utf-8"
     )
     claim = repo / "evidence" / "claims" / "matching.toml"
+    claim.parent.mkdir(parents=True)
     claim.write_text(
         '[claim]\nstate = "active"\n\n[carriers]\nopenspec = "openspec/changes/matching"\n',
         encoding="utf-8",
@@ -495,17 +509,16 @@ def test_prewrite_plan_and_prove_share_official_scope_coverage_verdict(
         lambda _root, _change: {"ok": True, "required_gaps": []},
     )
     governed_path = worktree / "docs" / "governance" / "ethos.md"
+    governed_path.parent.mkdir(parents=True)
     governed_path.write_text("# Changed\n", encoding="utf-8")
 
     prewrite = _prewrite(worktree, governed_path)
     plan = run_ethos("plan", "--changed", "--root", worktree.as_posix(), "--json")
-    prove = run_ethos("prove", "--root", worktree.as_posix(), "--json")
+    prove = run_ethos_blocked("prove", "--root", worktree.as_posix(), "--json")
     plan_scope = plan["data"]["openspec_lifecycle"]["lifecycle"]["scope_binding"]
     prove_scope = prove["data"]["openspec_lifecycle"]["lifecycle"]["scope_binding"]
 
     assert prewrite["ok"] is True
-    assert plan["ok"] is True
-    assert prove["ok"] is True
     assert prewrite["material_scope"] == plan_scope == prove_scope
     assert plan_scope["covered_paths"] == [
         {"path": "docs/governance/ethos.md", "changes": ["matching"]}
@@ -520,7 +533,7 @@ def test_prewrite_does_not_rebootstrap_a_tracked_scope_companion(
     repo = init_repo(tmp_path / "repo")
     (repo / ".ethos").mkdir(exist_ok=True)
     (repo / ".ethos" / "profile.toml").write_text(
-        '[openspec]\nmaterial_paths = ["openspec/changes/bootstrap/**"]\n',
+        'profile_id = "sample"\n[openspec]\nmaterial_paths = ["openspec/changes/bootstrap/**"]\n',
         encoding="utf-8",
     )
     scope_path = repo / "openspec" / "changes" / "bootstrap" / "scope.toml"
@@ -548,11 +561,11 @@ def test_prewrite_does_not_rebootstrap_a_tracked_scope_companion(
 @pytest.mark.parametrize(
     "profile_body",
     [
-        'schema_version = 1\nprofile_id = "sample"\n',
-        "[openspec]\nmaterial_paths = []\n",
+        'profile_id = "sample"\n',
+        'profile_id = "sample"\n[openspec]\nmaterial_paths = []\n',
     ],
 )
-def test_scope_reader_fails_closed_when_adopter_omits_material_paths(
+def test_scope_reader_rejects_incomplete_profile_contract(
     tmp_path: Path,
     profile_body: str,
 ) -> None:
@@ -567,8 +580,8 @@ def test_scope_reader_fails_closed_when_adopter_omits_material_paths(
         active_change_names=(),
     )
 
-    assert report["state"] == "material_paths_missing"
-    assert report["required_gaps"] == ["openspec_material_paths_missing"]
+    assert report["state"] == "invalid"
+    assert report["required_gaps"] == ["openspec_material_paths_profile_invalid"]
 
 
 def test_scope_reader_rejects_nonempty_invalid_material_paths(tmp_path: Path) -> None:
@@ -576,7 +589,7 @@ def test_scope_reader_rejects_nonempty_invalid_material_paths(tmp_path: Path) ->
     repo = init_repo(tmp_path / "repo")
     (repo / ".ethos").mkdir(exist_ok=True)
     (repo / ".ethos" / "profile.toml").write_text(
-        '[openspec]\nmaterial_paths = [""]\n', encoding="utf-8"
+        'profile_id = "sample"\n[openspec]\nmaterial_paths = [""]\n', encoding="utf-8"
     )
 
     report = openspec_scope.material_change_scope_report(
@@ -585,7 +598,7 @@ def test_scope_reader_rejects_nonempty_invalid_material_paths(tmp_path: Path) ->
         active_change_names=(),
     )
 
-    assert report["required_gaps"] == ["openspec_material_paths_invalid"]
+    assert report["required_gaps"] == ["openspec_material_paths_profile_invalid"]
 
 
 def test_scope_reader_accepts_overlap_and_ignores_nonmaterial_paths(
@@ -595,7 +608,8 @@ def test_scope_reader_accepts_overlap_and_ignores_nonmaterial_paths(
     repo = init_repo(tmp_path / "repo")
     (repo / ".ethos").mkdir(exist_ok=True)
     (repo / ".ethos" / "profile.toml").write_text(
-        '[openspec]\nmaterial_paths = ["docs/**"]\n', encoding="utf-8"
+        'profile_id = "sample"\n[openspec]\nmaterial_paths = ["docs/**"]\n',
+        encoding="utf-8",
     )
     first = repo / "openspec" / "changes" / "first"
     second = repo / "openspec" / "changes" / "second"
@@ -629,7 +643,8 @@ def test_scope_reader_handles_invalid_profile_and_product_root_compatibly(
     invalid_adopter = init_repo(tmp_path / "invalid-adopter")
     (invalid_adopter / ".ethos").mkdir(exist_ok=True)
     (invalid_adopter / ".ethos" / "profile.toml").write_text(
-        '[openspec\nmaterial_paths = ["docs/**"]\n', encoding="utf-8"
+        'profile_id = "sample"\n[openspec\nmaterial_paths = ["docs/**"]\n',
+        encoding="utf-8",
     )
     product_root = init_repo(tmp_path / "product")
 
@@ -649,11 +664,11 @@ def test_scope_reader_handles_invalid_profile_and_product_root_compatibly(
     assert product["required_gaps"] == []
 
 
-def test_prewrite_bootstraps_tracked_legacy_profile_from_fresh_official_change(
+def test_prewrite_rejects_tracked_incomplete_profile_without_compatibility_bootstrap(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    """A fresh official Change admits only the legacy profile declaration first."""
+    """An incomplete historical profile is invalid rather than a migration mode."""
     repo = init_repo(tmp_path / "repo")
     profile_path = repo / ".ethos" / "profile.toml"
     profile_path.parent.mkdir(exist_ok=True)
@@ -672,15 +687,10 @@ def test_prewrite_bootstraps_tracked_legacy_profile_from_fresh_official_change(
         worktree / "openspec" / "changes" / "matching" / "scope.toml",
     )
 
-    assert admitted["ok"] is True
-    assert admitted["openspec_lifecycle"]["lifecycle"]["changes"] == []
-    assert admitted["material_scope"]["state"] == "profile_material_paths_bootstrap"
-    assert admitted["material_scope"]["profile_bootstrap"] == {
-        "change": "matching",
-        "profile_path": ".ethos/profile.toml",
-    }
+    assert admitted["ok"] is False
+    assert admitted["error"] == "openspec_material_paths_profile_invalid"
     assert widened["ok"] is False
-    assert widened["error"] == "openspec_material_paths_missing"
+    assert widened["error"] == "openspec_material_paths_profile_invalid"
 
 
 @pytest.mark.parametrize(
@@ -692,13 +702,13 @@ def test_prewrite_bootstraps_tracked_legacy_profile_from_fresh_official_change(
         ('profile_id = "legacy-adopter"\n', "missing-change", ("matching",)),
     ],
 )
-def test_profile_material_paths_bootstrap_rejects_nonunique_or_nonlegacy_profile(
+def test_incomplete_profiles_are_invalid_without_compatibility_bootstrap(
     tmp_path: Path,
     profile_body: str,
     case: str,
     change_names: tuple[str, ...],
 ) -> None:
-    """Bootstrap requires one Change and a tracked profile with no declaration."""
+    """Profile completeness is one contract; no tracked/untracked migration exception."""
     repo = init_repo(tmp_path / "repo")
     profile = repo / ".ethos" / "profile.toml"
     profile.parent.mkdir(exist_ok=True)
@@ -717,9 +727,8 @@ def test_profile_material_paths_bootstrap_rejects_nonunique_or_nonlegacy_profile
         active_change_names=change_names,
     )
 
-    assert report["state"] == "material_paths_missing"
-    assert report["profile_bootstrap"] == {}
-    assert report["required_gaps"] == ["openspec_material_paths_missing"]
+    assert report["state"] == "invalid"
+    assert report["required_gaps"] == ["openspec_material_paths_profile_invalid"]
 
 
 def test_prewrite_rejects_material_profile_write_without_scope_companion(
@@ -730,7 +739,8 @@ def test_prewrite_rejects_material_profile_write_without_scope_companion(
     repo = init_repo(tmp_path / "repo")
     (repo / ".ethos").mkdir(exist_ok=True)
     (repo / ".ethos" / "profile.toml").write_text(
-        '[openspec]\nmaterial_paths = [".ethos/profile.toml"]\n', encoding="utf-8"
+        'profile_id = "sample"\n[openspec]\nmaterial_paths = [".ethos/profile.toml"]\n',
+        encoding="utf-8",
     )
     git(repo, "add", ".")
     git(repo, "commit", "-m", "declare profile material path")

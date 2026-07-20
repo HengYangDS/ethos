@@ -11,8 +11,8 @@
 
 ## 3. Lifecycle closeout
 
-- [ ] 3.1 Strict-validate OpenSpec, Claims, and changed planning.
-- [ ] 3.2 Commit, refresh parity if required, execute HEAD-bound proof, land,
+- [x] 3.1 Strict-validate OpenSpec, Claims, and changed planning.
+- [x] 3.2 Commit, refresh parity if required, execute HEAD-bound proof, land,
   and run accepted-root closeout.
-- [ ] 3.3 Reobserve and execute the sole native exceptional retirement; validate
+- [x] 3.3 Reobserve and execute the sole native exceptional retirement; validate
   its receipt and then retire this carrier lane natively.

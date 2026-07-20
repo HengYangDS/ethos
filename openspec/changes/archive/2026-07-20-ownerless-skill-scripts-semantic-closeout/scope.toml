@@ -11,6 +11,6 @@ paths = [
   "docs/plans/ownerless-skill-scripts-semantic-closeout-20260720.md",
   "evidence/claims/ownerless-skill-scripts-semantic-closeout-20260720.toml",
   "evidence/chronicle/ownerless-skill-scripts-semantic-closeout-20260720/**",
-  "openspec/changes/ownerless-skill-scripts-semantic-closeout-20260720/**",
+  "openspec/changes/archive/2026-07-20-ownerless-skill-scripts-semantic-closeout/**",
   "openspec/specs/repository-governance/spec.md",
 ]

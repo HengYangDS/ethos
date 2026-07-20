@@ -73,13 +73,16 @@ def resolve_root(root: Path | None) -> Path:
     governed subject. Non-Git adopters still resolve to the supplied path/cwd.
     """
     candidate = (root or Path.cwd()).resolve()
-    completed = subprocess.run(
-        ["git", "rev-parse", "--show-toplevel"],
-        cwd=candidate,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
+    try:
+        completed = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            cwd=candidate,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+    except (FileNotFoundError, NotADirectoryError):
+        return candidate
     if completed.returncode == 0 and completed.stdout.strip():
         return Path(completed.stdout.strip()).resolve()
     return candidate

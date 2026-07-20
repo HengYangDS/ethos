@@ -15,7 +15,7 @@ relations:
 
 **Architecture:** A typed carrier inventory feeds versioned native metric adapters and produces immutable metric vectors. Pure policy reducers apply non-compensating repository and changed-scope rules; v1 and v2 run through shadow and dual-control states before v2 cutover. Evidence, derived projections, tests, repository source, and agent runtime budgets remain separate domains.
 
-**Tech Stack:** Python 3.14, Pydantic/frozen dataclasses, Git plumbing, stdlib `tokenize`/`ast`/`tomllib`/`configparser`, PyYAML, repository-owned parser adapters, TOML policy, JSON Schema, pytest, Ruff, OpenSpec 1.6, ETHOS Work Lane lifecycle.
+**Tech Stack:** Python 3.14, Pydantic/frozen dataclasses, Git plumbing, stdlib `tokenize`/`ast`/`tomllib`/`configparser`, PyYAML, parse-only Jinja2 source-budget measurement with no adoption rendering, repository-owned parser adapters, TOML policy, JSON Schema, pytest, Ruff, OpenSpec 1.6, ETHOS Work Lane lifecycle.
 
 ## Global Constraints
 
@@ -234,26 +234,67 @@ subsequent separately evidenced transitions.
 
 **Files:**
 
-- Create: `packages/ethos/src/ethos/adapters/repo/source_budget/measurement/__init__.py`
-- Create: `packages/ethos/src/ethos/adapters/repo/source_budget/measurement/core.py`
-- Create: `packages/ethos/src/ethos/adapters/repo/source_budget/measurement/python.py`
-- Create: `packages/ethos/src/ethos/adapters/repo/source_budget/measurement/structured.py`
-- Create: `packages/ethos/src/ethos/adapters/repo/source_budget/measurement/template.py`
-- Create: `packages/ethos/src/ethos/adapters/repo/source_budget/measurement/languages.py`
-- Create: `tests/unit/adapters/repo/source_budget/test_measurement.py`
-- Create: `tests/fixtures/source-budget-v2/manifest.toml`
-- Create: `tests/fixtures/source-budget-v2/**`
+- Create: packages/ethos-core/src/ethos_core/contracts/source_budget/measurements.py
+- Create: packages/ethos-core/src/ethos_core/contracts/source_budget/measurement/__init__.py
+- Create: packages/ethos-core/src/ethos_core/contracts/source_budget/measurement/admission.py
+- Create: packages/ethos-core/src/ethos_core/contracts/source_budget/measurement/canonical.py
+- Modify: packages/ethos-core/src/ethos_core/contracts/source_budget/metrics.py
+- Create: packages/ethos/src/ethos/adapters/repo/source_budget/measurement/__init__.py
+- Create: packages/ethos/src/ethos/adapters/repo/source_budget/measurement/core.py
+- Create: packages/ethos/src/ethos/adapters/repo/source_budget/measurement/native/__init__.py
+- Create: packages/ethos/src/ethos/adapters/repo/source_budget/measurement/native/core.py
+- Create: packages/ethos/src/ethos/adapters/repo/source_budget/measurement/native/_structured.py
+- Create: packages/ethos/src/ethos/adapters/repo/source_budget/measurement/native/shell/__init__.py
+- Create: packages/ethos/src/ethos/adapters/repo/source_budget/measurement/native/shell/core.py
+- Create: packages/ethos/src/ethos/adapters/repo/source_budget/measurement/native/shell/grammar.py
+- Create: tests/unit/kernel/source_budget_measurement_support.py
+- Create: tests/unit/kernel/test_source_budget_measurements_contract.py
+- Create: tests/unit/kernel/test_source_budget_measurements_integrity.py
+- Create: tests/unit/adapters/repo/source_budget/test_measurement.py
+- Create: tests/unit/adapters/repo/source_budget/test_measurement_orchestration.py
+- Create: tests/unit/adapters/repo/source_budget/test_measurement_shell_regressions.py
+- Create: tests/unit/adapters/repo/source_budget/test_measurement_yaml_regressions.py
+- Create: tests/fixtures/source-budget-v2/cases.toml
+- Modify: docs/plans/budget-contract-v2-design.md
+- Modify: docs/plans/global-declarative-compression-program.md
+- Modify: .config/checks/deptry/policy.toml
+- Create: openspec/changes/budget-contract-v2-native-measurement-20260719/specs/repository-governance/spec.md
+- Create: openspec/changes/budget-contract-v2-native-measurement-20260719/specs/quality/spec.md
+- Modify via official archive: openspec/specs/quality/spec.md
+- Modify via official archive: openspec/specs/repository-governance/spec.md
+- Modify: packages/ethos-core/src/ethos_core/contracts/source_budget/carriers.py
+- Modify: system/policies/source-budget-carriers.toml
+- Modify: system/schemas/kernel/source-budget-carriers.schema.json
+- Modify: system/policies/source-budget-metrics.toml
+- Modify: system/schemas/kernel/source-budget-metrics.schema.json
+- Modify: packages/ethos/pyproject.toml
+- Modify: tests/architecture/test_dependency_prose_schema_gates.py
+- Modify: tools/ci/scripts/run-dependency-hygiene.sh
+- Modify: packages/ethos/src/ethos/surface/cli/_base.py
+- Create: tests/unit/cli/test_adoption_root_resolution.py
+- Modify: uv.lock
 
 **Interfaces:**
 
-- Consumes: Task 2 carrier and metric contracts.
-- Produces: `measure_carrier(...) -> CarrierMeasurement` and `measure_snapshot(...) -> MeasurementSnapshot`.
+- Consumes: Task 2 carrier inventory, carrier matches, metric profiles, and metric contracts.
+- Produces measure_native(content, contracts) -> NativeMeasurementLoad,
+  measure_carrier(root, match, contracts) -> CarrierMeasurementLoad, and
+  measure_snapshot(root, inventory, contracts) -> MeasurementSnapshotLoad.
+- Binds exact raw content separately from normalized/vector identity; T3 is
+  descriptor-bound per file, while immutable Git blob/HEAD identity and
+  cross-file replay remain Task 4.
 
-- [ ] **Step 1: Add adversarial tests for Python statement packing, JSON pretty/minified equivalence, identifier shortening, giant literals/heredocs, parser failure, invalid UTF-8, and domain movement.**
-- [ ] **Step 2: Run the adapter tests and verify missing-provider failures.**
-- [ ] **Step 3: Implement native adapters using stdlib and PyYAML owners and fail closed on unavailable or invalid parsers.**
-- [ ] **Step 4: Run the corpus twice with reversed file order and verify identical vectors and digests.**
-- [ ] **Step 5: Commit with `feat(quality): measure source budget vectors`.**
+- [x] **Step 1: Add contract and adapter RED tests for strict self-verifying models, XOR envelopes, canonical-runtime and provider-signature mismatch, conformance fingerprint drift, Python statement-packing non-reduction and identifier/literal changes, structured pretty/minified equivalence, duplicate/non-finite/unsafe data, Jinja dynamic units/bytes/static separation, shell-v3 heredoc/function/case/Bash-Zsh constructs, YAML tag-canonical keys, C4 grammar, invalid UTF-8, BOM/CRLF, resource exhaustion, symlink/object drift, reviewed exclusions, reversed order, domain movement, digest forgery, and whole-result rejection.**
+- [x] **Step 2: Run the focused tests and retain the intended missing-contract/provider/orchestration failures before adding production owners.**
+- [x] **Step 3: Implement canonical CPython 3.14 runtime admission, repository-owned provider descriptors, conformance self-test and exact dispatch, strict native parsers, descriptor-relative no-follow reads with cleanup even when descriptor registration exhausts memory, stable non-sensitive public resource gaps, pre/post object-state checks, classified-only measurement, exclusion-aware inventory binding, deterministic non-compensating aggregation, and fail-closed JSON adoption handling for missing or non-directory explicit roots.**
+- [x] **Step 4: Replace ambiguous or inaccurate provider versions with canonical-runtime identities, derive grammar digests and reviewed conformance fingerprints from canonical descriptors, bind Shell v3 and YAML v2 atomically, bound PyYAML to the admitted major, and run the complete inventory in forward and reversed order. The two runs must bind identical manifest, inventory, contract-set, provider-coverage, and stable-gap identities; when the intentional YAML graph gap is present, snapshot/vector outputs and their digests remain absent rather than being manufactured.**
+
+  The fresh pre-commit run classified 2,742 paths with identical forward/reverse
+  manifest and inventory identities. Both directions returned only the reviewed
+  GitLab-template YAML parse gap, so snapshot/vector payloads and digests remained
+  absent as required.
+
+- [ ] **Step 5: Complete focused 100 percent statement/branch coverage, v1 regressions, owner gates, independent review, a fresh one-binding external-adopter observation, claim/Chronicle, parity, exact-HEAD proof, official archive, archive-HEAD proof, candidate land, accepted closeout, local publication readiness, and owned-Lane retirement; commit implementation with feat(quality): measure source budget vectors.**
 
 ### Task 4: Git Snapshot Replay And v2 Shadow Report
 

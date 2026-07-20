@@ -44,6 +44,7 @@ Every hard coordinate must pass independently.
 | --- | --- | --- |
 | Authored programming source | language-native lexical tokens; normalized syntax/payload bytes | Repository source truth |
 | Authored declarations | semantic nodes; normalized scalar payload bytes | Repository source truth |
+| Templates | dynamic lexical/semantic structure; static payload bytes | Repository source truth |
 | Individual source files | effective code lines | Readability/maintainability ceiling only |
 | Tests | the same native measures, in a separate test scope | Cannot offset product source |
 | Evidence and derived projections | separate footprint contracts | Cannot offset source or tests |
@@ -62,6 +63,7 @@ manifest or is excluded by an explicit, reviewed rule. Initial roles are:
 ```text
 authored_behavioral_source
 authored_declarative_source
+template_source
 test_source
 derived_projection
 evidence_instance

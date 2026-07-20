@@ -23,7 +23,7 @@
 - [x] 4.2 Run types, lint, format, config, shell, docs, architecture, claims, local-state, and all owner gates.
 - [x] 4.3 Refresh and commit generic parity at the final authoring HEAD.
 - [x] 4.4 Update this Chronicle and claim digest with final metrics, commands, and exact HEAD.
-- [ ] 4.5 Run a full HEAD-bound executed proof with no required gaps.
+- [x] 4.5 Run a full HEAD-bound executed proof with no required gaps.
 - [ ] 4.6 Archive this successor on July 20, 2026, and verify canonical-spec fusion.
 
 Post-archive operations are separate receipts: local candidate land, external

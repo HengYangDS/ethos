@@ -202,6 +202,30 @@ def test_direct_native_oversize_rejects_before_conformance_decode_or_provider(
     assert calls == {"conformance": 0, "decode": 0, "provider": 0}
 
 
+def test_direct_native_rejects_homogeneous_forged_provider_resource_signature(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _native()
+    startup_calls = 0
+
+    def conformance() -> tuple[str, ...]:
+        nonlocal startup_calls
+        startup_calls += 1
+        return ()
+
+    limit = _python_limit()
+    forged = tuple(
+        contract.model_copy(update={"max_carrier_bytes": limit // 2})
+        for contract in _python_contracts()
+    )
+    monkeypatch.setattr(module, "_startup_conformance", conformance)
+    load = module.measure_native(b"pass\n", forged)
+
+    assert load.measurement is None
+    assert load.required_gaps == ("source_budget_native_provider_signature_mismatch",)
+    assert startup_calls == 0
+
+
 def test_snapshot_discards_valid_measurement_when_one_carrier_is_oversize(
     tmp_path: Path,
 ) -> None:

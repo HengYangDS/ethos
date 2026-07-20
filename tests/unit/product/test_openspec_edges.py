@@ -316,9 +316,13 @@ def test_lifecycle_reports_invalid_active_change_identifier(tmp_path: Path) -> N
     change = root / "openspec" / "changes" / change_name
     change.mkdir(parents=True)
 
-    report, gaps = openspec_lifecycle._change_report(root, change_name, set(), base_command=None)
+    report = openspec_lifecycle.lifecycle_report(
+        root,
+        request=openspec_lifecycle.OpenSpecRequest(change=None, lifecycle=True),
+        list_payload={"changes": [{"name": change_name, "status": "in-progress"}]},
+        base_command=None,
+    )
 
-    assert f"openspec_active_change_identifier_invalid:{change_name}" in gaps
     assert f"openspec_active_change_identifier_invalid:{change_name}" in report["required_gaps"]
 
 

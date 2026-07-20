@@ -26,6 +26,15 @@ def test_active_concerns_use_current_json_format_owner() -> None:
     assert "json_syntax" not in audit.ACTIVE_CONCERNS
 
 
+def test_quality_audit_has_no_legacy_host_bootstrap() -> None:
+    """The governed Python 3.12+ script must not retain an older-host re-exec path."""
+    source = AUDIT_PATH.read_text(encoding="utf-8")
+
+    assert "execvpe" not in source
+    assert "ETHOS_QUALITY_AUDIT_BOOTSTRAPPED" not in source
+    assert "sys.version_info" not in source
+
+
 def test_quality_audit_uses_the_workspace_runtime_for_public_cli_commands(monkeypatch) -> None:
     audit = _load_quality_audit()
     observed: dict[str, object] = {}

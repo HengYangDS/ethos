@@ -1,0 +1,45 @@
+[claim]
+id = "quality-s606-exemption-elimination-20260720"
+change_id = "quality-s606-exemption-elimination-20260720"
+subject = "quality:python-s606"
+state = "active"
+summary = "The bounded S606 quality exception is removed from the obsolete bootstrap and both canonical Ruff policy carriers; the rule returns to direct owner-gate enforcement."
+
+[evidence]
+dated = "evidence/chronicle/quality-s606-exemption-elimination-20260720/2026-07-20.md"
+sha256 = "0060e31112b90350b8c608a1f7a0742c06ef5c84dcbe2669d189c4b478f26853"
+evidence_ids = ["evidence:quality-s606-exemption-elimination-20260720"]
+binding = "The active OpenSpec carrier, direct-bootstrap regression, whole-corpus S606 probe, canonical Ruff owner gate, and dated Chronicle bind only the S606 elimination slice."
+verifier = "digest_only"
+tests = [
+  "uv run --all-packages --group dev pytest -q --no-cov tests/unit/skills/quality_gate/test_quality_audit.py tests/unit/governance/test_quality_regime.py tests/architecture/test_testing_platform.py",
+  "uv run --all-packages --group dev ruff check --isolated --select S606 <all-tracked-python-files>",
+  "tools/ci/scripts/run-python-lint.sh",
+  "openspec validate quality-s606-exemption-elimination-20260720 --strict --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-quality-gate-governance"
+scope = "Removal of the obsolete quality-audit Python-before-3.11 bootstrap and both S606 exception carriers; not terminal zero-exception quality."
+
+[carriers]
+openspec = "openspec/changes/quality-s606-exemption-elimination-20260720"
+fallback = "Restore the bounded bootstrap and both matching policy entries together only if the declared project runtime contract or direct S606 enforcement regresses."
+kill_signal = "The whole-corpus S606 probe finds a diagnostic, the rule returns to either exception carrier, or the canonical Ruff owner gate fails."
+
+[promotion]
+targets = [
+  ".agents/skills/ethos-quality-gate-governance/package.toml",
+  ".agents/skills/ethos-quality-gate-governance/scripts/quality_audit.py",
+  ".config/checks/ruff/ruff.toml",
+  ".config/checks/ruff/ratchet.toml",
+  "tests/unit/skills/quality_gate/test_quality_audit.py",
+  "tests/architecture/test_testing_platform.py",
+  "tests/unit/governance/test_quality_regime.py",
+  "openspec/changes/quality-s606-exemption-elimination-20260720",
+  "evidence/claims/quality-s606-exemption-elimination-20260720.toml",
+  "evidence/chronicle/quality-s606-exemption-elimination-20260720/2026-07-20.md",
+]

@@ -315,33 +315,6 @@ than by `current`/`future` directory names.
 - **AND** contract and evolution labels do not become mandatory replacement
   roots for the removed `current`/`future` lanes
 
-### Requirement: Adoption Scaffold
-
-ETHOS SHALL generate repository governance surfaces for `.ethos`, official
-OpenSpec records, repo-local skills, docs, claims, evidence placeholders, and
-hosted CI projections.
-
-#### Scenario: A repository is adopted
-
-- **WHEN** `ethos adopt --profile gitlab --apply` runs on an empty repository
-- **THEN** the planned and written files include V2 skill activation metadata,
-  official-quality skill package content, and package manifest records
-
-#### Scenario: Scaffold artifacts compile from typed packaged templates
-
-- **WHEN** ETHOS compiles an adoption scaffold for any supported profile
-- **THEN** a validated manifest declares output paths, profile filters, render
-  modes, OpenSpec families, and skill capabilities
-- **AND** packaged Jinja2 resources own artifact text and remain present in the
-  built Python wheel
-- **AND** Pydantic v2 render contexts are frozen, reject undeclared fields, and
-  constrain profile values
-- **AND** Jinja2 runs with strict undefined-variable handling and preserves the
-  established scaffold bytes for equivalent inputs
-- **AND** Python retains only declaration loading, typed context construction,
-  bounded digest computation, and rendering orchestration rather than a second
-  embedded multiline-payload implementation
-
 ### Requirement: Fleet Inspection
 ETHOS SHALL inspect an external repository as an adopter through repository
 surfaces rather than product-core hardcoded names.
@@ -596,14 +569,26 @@ truth relations.
 - **AND** the graph reports drift gaps without becoming a lifecycle owner
 
 ### Requirement: Adopter First-Hour Contract
-ETHOS SHALL provide a first-hour adopter path that starts read-only and
-explains profile choice before mutation.
+
+ETHOS SHALL provide one first-hour adopter path that is read-only unless apply
+is explicitly authorized and exact-HEAD-bound, and that explains the one binding
+carrier before mutation.
 
 #### Scenario: Adoption dry-run is inspected
-- **WHEN** `ethos adopt --profile python --dry-run --json` runs
-- **THEN** the result reports read files, planned files, apply criteria, and
-  rollback instructions
-- **AND** unsupported historical profile names are rejected instead of normalized
+
+- **WHEN** `ethos adopt --json` runs
+- **THEN** the result SHALL report read files, the exact one-file plan, apply
+  criteria, conflicts, and rollback instructions
+- **AND** profile selection, historical profile names, `init`, explicit
+  `--dry-run`, and overlay SHALL not remain as alternate adoption paths.
+
+#### Scenario: Adoption apply is authorized
+
+- **WHEN** adoption is requested with `--apply`
+- **THEN** mutation SHALL require `--authorize` and an exact matching
+  `--expect-head`
+- **AND** a missing repository, authorization, or HEAD match SHALL block before
+  the binding is written.
 
 ### Requirement: OpenSpec-first governance mutation
 ETHOS SHALL require a dedicated OpenSpec change, or an explicit active
@@ -1663,18 +1648,17 @@ executes its own source with uv state in semantic runtime homes.
 ### Requirement: Deterministic Official OpenSpec Tool Supply
 
 ETHOS SHALL invoke the official `@fission-ai/openspec@1.6.0` package from its
-repository-owned npx fallback, CI bootstrap, and adopter scaffold surfaces,
-while preserving explicit binary, cached official CLI, and PATH precedence.
+repository-owned npx fallback and CI bootstrap while preserving explicit binary,
+cached official CLI, and PATH precedence. Adoption SHALL NOT generate an
+OpenSpec workspace or provider CI surface.
 
 #### Scenario: ETHOS-owned fallback and CI supply are inspected
 
-- **WHEN** a maintainer inspects the OpenSpec adapter, CI bootstrap, and
-  adopter CI scaffold
-- **THEN** each repository-owned package invocation identifies
+- **WHEN** a maintainer inspects the OpenSpec adapter and CI bootstrap
+- **THEN** each repository-owned package invocation SHALL identify
   `@fission-ai/openspec@1.6.0`
-- **AND** strict official OpenSpec validation remains the governance gate
-- **AND** an explicit `ETHOS_OPENSPEC_BIN`, cached official CLI, or PATH CLI
-  retains its existing resolution precedence
+- **AND** strict official OpenSpec validation SHALL remain the governance gate
+- **AND** adoption SHALL plan no OpenSpec or CI carrier.
 
 ### Requirement: Campaign Lifecycle Truth Is Carrier-Bound
 
@@ -2011,43 +1995,6 @@ HEAD.
 - **AND** it blocks with `refresh_base_postcondition_failed` if that fact is
   absent.
 
-### Requirement: Explicit non-destructive adopter overlay
-
-ETHOS SHALL preserve strict adoption as the default and SHALL offer an explicit
-overlay mode for an existing repository whose governance surfaces must remain
-adopter-owned.
-
-#### Scenario: Strict adoption sees differing adopter governance
-
-- **WHEN** `ethos adopt` runs without overlay mode and a scaffolded target path
-  already has differing nonempty content
-- **THEN** the plan SHALL report `adoption_conflict:<path>`
-- **AND** apply SHALL refuse to write any scaffold file.
-
-#### Scenario: Overlay preserves declared adopter-owned surfaces
-
-- **WHEN** `ethos adopt --overlay` runs against an existing repository with a
-  differing AGENTS entrypoint, documentation, OpenSpec workspace, or selected
-  hosted-provider projection
-- **THEN** the plan SHALL classify each declared adopter-owned path as preserved
-- **AND** apply SHALL leave its bytes unchanged
-- **AND** apply SHALL create each missing ETHOS-owned binding surface.
-
-#### Scenario: Overlay records the preserved identity
-
-- **WHEN** overlay planning preserves an existing adopter-owned surface
-- **THEN** command JSON SHALL include its path and SHA-256 content digest
-- **AND** that record SHALL describe a non-mutated boundary rather than claim
-  semantic compatibility or authority.
-
-#### Scenario: Overlay does not override ETHOS-owned state
-
-- **WHEN** `ethos adopt --overlay` encounters differing nonempty content in an
-  ETHOS-owned `.ethos/**`, `.config/ethos/**`, ETHOS skill-package, or schema
-  placeholder path
-- **THEN** the plan SHALL report `adoption_conflict:<path>`
-- **AND** apply SHALL refuse to write any scaffold file.
-
 ### Requirement: Canonical Persisted Claim Envelope
 
 ETHOS SHALL load every tracked claim under the configured claims root from the
@@ -2103,62 +2050,25 @@ depend on paths outside its source distribution.
 
 ### Requirement: External-adopter profile evidence has a bounded durable record
 
-ETHOS SHALL record a completed local external-adopter profile exercise through
-an active claim and dated Chronicle that bind the observed product revision,
-adopter revision, profile outcomes, and raw-bundle digest without promoting
-host-local raw material or provider state into repository truth.
+ETHOS SHALL record a completed local external-adopter binding exercise through
+a dated Chronicle and claim that bind the observed product revision, adopter
+revision, binding outcome, and raw-bundle digest without promoting host-local
+raw material or provider state into repository truth.
 
 #### Scenario: Local profile evidence is promoted
 
-- **WHEN** an isolated external-adopter exercise completes for one or more
-  adoption profiles
-- **THEN** its claim SHALL bind a dated Chronicle and a SHA-256 identity for the
-  host-local raw bundle
-- **AND** the Chronicle SHALL record each profile's bounded outcome and
-  protected-surface preservation assertion
+- **WHEN** an isolated external-adopter binding exercise completes
+- **THEN** its claim SHALL bind a dated Chronicle and SHA-256 raw-bundle identity
+- **AND** the Chronicle SHALL record exact binding and conflict outcomes
 - **AND** it SHALL state whether remote publication was performed.
 
 #### Scenario: Digest-bound evidence is reviewed
 
-- **WHEN** a claim uses digest-only verification for external-adopter profile
-  evidence
+- **WHEN** the claim uses digest-only verification
 - **THEN** it SHALL NOT claim semantic correctness, hosted-provider execution,
   provider authority, or independent review
 - **AND** it SHALL NOT require a named local account, credential, key, daemon,
-  or network service for adopters that do not opt into one.
-
-### Requirement: Current product HEAD external-adopter observation is bounded and durable
-
-ETHOS SHALL be able to preserve a local, provider-neutral observation at a
-current product revision against an isolated clone of an existing adopter. The
-record SHALL bind product and adopter revisions, raw-bundle digest, overlay
-outcome, command-parity result, and explicit non-authority boundaries.
-
-#### Scenario: Existing adopter surfaces reject generic replacement
-
-- **WHEN** generic overlay adoption encounters pre-existing adopter-owned ETHOS
-  profile, skills, or control surfaces
-- **THEN** the observation SHALL record the fail-closed conflict outcome
-- **AND** it SHALL NOT state that the generic overlay replaced those surfaces
-- **AND** the source adopter checkout SHALL remain unchanged.
-
-#### Scenario: Native and external command surfaces are compared
-
-- **WHEN** an isolated adopter clone exposes a repository-native ETHOS command
-  surface and the current product runtime can address the clone
-- **THEN** the record SHALL bind the two revisions and the shared command count
-- **AND** it SHALL record the semantic-difference and false-negative outcomes
-- **AND** it SHALL NOT claim semantic correctness, hosted-provider execution,
-  remote publication, authority, or independent review from that comparison.
-
-#### Scenario: Current observation is promoted without private coupling
-
-- **WHEN** the local raw bundle is promoted into product evidence
-- **THEN** the tracked claim and Chronicle SHALL omit workstation paths,
-  adopter-private identity, credentials, keys, accounts, and provider-local
-  configuration
-- **AND** the claim SHALL bind a SHA-256 digest for the host-local raw bundle
-- **AND** it SHALL state that remote publication was not performed.
+  or network service.
 
 ### Requirement: Bounded landed Work Lane retirement tolerates unrelated missing paths
 
@@ -2260,6 +2170,13 @@ current Work Lane scope.
   `scope.toml` path
 - **AND THEN** the completed companion SHALL be syntactically valid, cover
   itself, and cover later material writes.
+
+#### Scenario: existing adopter cannot bootstrap a missing declaration
+
+- **WHEN** a tracked adopter profile lacks `material_paths`
+- **THEN** ETHOS SHALL block the write
+- **AND** it SHALL NOT emit `profile_material_paths_bootstrap` or admit a second
+  profile-write path.
 
 #### Scenario: final archive reconciliation remains covered
 
@@ -3298,3 +3215,93 @@ gap and SHALL not emit an uncaught traceback as its command result.
   reporting another mutation-admission gap
 - **AND** `ethos land --apply --json` SHALL exit non-zero after emitting that
   same structured result.
+
+### Requirement: Minimal Adoption Binding
+
+ETHOS SHALL bootstrap a governed repository with only the strict tracked
+binding carrier required by current runtime semantics. Optional documentation,
+decision, OpenSpec capability, skill, evidence, release, schema,
+generated-artifact, or hosted-provider surfaces SHALL be created only by the
+capability that owns them.
+
+#### Scenario: A repository is adopted
+
+- **WHEN** `ethos adopt --apply --authorize --expect-head <HEAD>` runs on an
+  eligible Git repository
+- **THEN** the planned and written file set SHALL contain only
+  `.ethos/profile.toml`
+- **AND** the profile SHALL bind a non-empty adopter identity and non-empty
+  OpenSpec material paths through the strict frozen repository-profile contract
+- **AND** the repository SHALL be recognized as an adopter
+- **AND** no `.gitkeep`, provider CI, skill package, generic documentation,
+  decision topology, capability family, compatibility state, or optional
+  governance carrier SHALL be created.
+
+#### Scenario: Default binding serializes from the typed contract
+
+- **WHEN** ETHOS compiles the default adoption binding
+- **THEN** the same strict frozen Pydantic declaration SHALL validate both the
+  in-memory binding and its serialized TOML
+- **AND** native TOML serialization SHALL produce the tracked binding
+- **AND** no adoption-scaffold packaged template, renderer manifest, profile
+  registry, family registry, skill registry, digest snapshot, or Jinja render
+  environment SHALL be required.
+
+#### Scenario: Parse-only Jinja measurement does not restore adoption rendering
+
+- **WHEN** the product package includes Jinja2 for Budget Contract v2 source
+  measurement
+- **THEN** adoption SHALL still plan only `.ethos/profile.toml`
+- **AND** no Jinja template resource, render environment, or adoption scaffold
+  authority SHALL be restored.
+
+#### Scenario: Existing bootstrap content differs
+
+- **WHEN** adoption encounters a differing nonempty, symlinked, non-regular, or
+  unreadable `.ethos/profile.toml`
+- **THEN** apply SHALL fail with `adoption_conflict:.ethos/profile.toml`
+- **AND** no compatibility merge, migration, update, alias, overlay, or parallel
+  full scaffold SHALL be offered
+- **AND** an empty binding MAY be replaced atomically and identical content MAY
+  be retained.
+
+#### Scenario: Unselected optional capabilities do not block a new adopter
+
+- **WHEN** a valid adopter has no matching material change and has not selected
+  an optional capability
+- **THEN** absent docs, claims, skills, schemas, generated artifacts, hosted
+  providers, or OpenSpec workspace carriers SHALL NOT become bootstrap gaps
+- **AND** native correctness and material-scope requirements SHALL remain
+  independently fail closed.
+
+### Requirement: Current product revision one-binding external-adopter observation is bounded and durable
+
+ETHOS SHALL preserve a provider-neutral observation of the current product
+revision against isolated adopter clones using the one binding contract.
+
+#### Scenario: Missing binding is created without unrelated writes
+
+- **WHEN** adoption addresses an isolated clean Git clone without
+  `.ethos/profile.toml`
+- **THEN** dry-run SHALL plan exactly that one binding carrier
+- **AND** authorized exact-HEAD apply SHALL write only that carrier
+- **AND** unrelated adopter-owned files and the source seed checkout SHALL remain
+  unchanged.
+
+#### Scenario: Existing adopter surfaces reject generic replacement
+
+- **WHEN** adoption encounters a differing nonempty `.ethos/profile.toml`
+- **THEN** the observation SHALL record `adoption_conflict:.ethos/profile.toml`
+- **AND** unrelated adopter-owned surfaces SHALL remain outside the write plan
+- **AND** the source adopter checkout SHALL remain unchanged.
+
+#### Scenario: Current observation is promoted without private coupling
+
+- **WHEN** the raw bundle is promoted into product evidence
+- **THEN** the tracked record SHALL omit workstation paths, adopter-private
+  identity, credentials, accounts, keys, and provider-local configuration
+- **AND** it SHALL bind the product and adopter revisions, one-binding create and
+  conflict outcomes, raw-bundle digest, and whether a push occurred
+- **AND** it SHALL NOT claim native-backend parity, semantic correctness, hosted
+  execution, authority, or independent review unless a separate verifier
+  actually establishes that claim.

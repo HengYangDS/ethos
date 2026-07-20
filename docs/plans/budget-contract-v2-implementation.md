@@ -301,7 +301,7 @@ subsequent separately evidenced transitions.
   so snapshot/vector payloads and their digests remained absent as required.
 
 - [x] **Step 5: Complete the pre-transition closeout as a distinct state: current-head focused/integration/regression and owner gates, the one-binding observation, exact promotion targets, independent review, claim/Chronicle, generic parity, the final active-carrier recording commit, and then default and full exact-HEAD proof of that commit.**
-- [ ] **Step 6: Complete official OpenSpec archive and canonical contracts/quality/repository-governance spec fusion as a separate committed state; do not treat archive as archive-HEAD proof or integration.**
+- [x] **Step 6: Complete official OpenSpec archive and canonical contracts/quality/repository-governance spec fusion as a separate committed state; do not treat archive as archive-HEAD proof or integration.**
 - [ ] **Step 7: Complete post-archive parity, default and full archive-HEAD proof, candidate land, accepted-root closeout, local publication-readiness evaluation, and owned successor-Lane retirement as separately evidenced transitions; do not claim remote publication or hosted CI.**
 
 ### Task 4: Git Snapshot Replay And v2 Shadow Report

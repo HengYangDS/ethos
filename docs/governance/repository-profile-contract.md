@@ -77,7 +77,7 @@ ETHOS accepts one explicit former envelope while adopters migrate: the complete
 `schema_version = 1`, `profile_version = "1"`,
 `ethos_contract_version = "1"`, and two-field `[repository]` metadata block.
 Those retired fields are removed before the current strict declaration is
-validated. Partial, malformed, or extended legacy data is not compatibility
+validated. Partial, malformed, or extended former-envelope data is not compatibility
 input and remains `adopter_profile_invalid:.ethos/profile.toml`.
 
 ### Normative Sources

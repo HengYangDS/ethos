@@ -51,3 +51,10 @@ gap and SHALL not emit an uncaught traceback as its command result.
 - **WHEN** `ethos prove --json` targets an invalid adopter profile
 - **THEN** it SHALL emit parseable blocked JSON and exit non-zero
 - **AND** it SHALL not start a mutation or create proof evidence.
+
+#### Scenario: Landing does not mask an invalid adopter profile
+- **WHEN** `ethos land --json` targets an invalid adopter profile
+- **THEN** it SHALL emit parseable JSON with the invalid-profile gap before
+  reporting another mutation-admission gap
+- **AND** `ethos land --apply --json` SHALL exit non-zero after emitting that
+  same structured result.

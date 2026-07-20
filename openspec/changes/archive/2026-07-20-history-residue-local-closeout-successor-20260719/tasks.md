@@ -24,7 +24,7 @@
 - [x] 4.3 Refresh and commit generic parity at the final authoring HEAD.
 - [x] 4.4 Update this Chronicle and claim digest with final metrics, commands, and exact HEAD.
 - [x] 4.5 Run a full HEAD-bound executed proof with no required gaps.
-- [ ] 4.6 Archive this successor on July 20, 2026, and verify canonical-spec fusion.
+- [x] 4.6 Archive this successor on July 20, 2026, and verify canonical-spec fusion.
 
 Post-archive operations are separate receipts: local candidate land, external
 control-replacement verification, `maintainer_break_glass_local` accepted

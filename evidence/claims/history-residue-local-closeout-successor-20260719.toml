@@ -3,11 +3,11 @@ id = "history-residue-local-closeout-successor-20260719"
 change_id = "history-residue-local-closeout-successor-20260719"
 subject = "repository-governance:history-residue-local-closeout-successor"
 state = "active"
-summary = "The active July 19 successor binds historical local-state maintenance evidence, required hard source-budget settlement, and local-only lifecycle boundaries without remote or foreign-lane mutation."
+summary = "The July 19 successor archived on July 20 binds historical local-state maintenance evidence, hard source-budget settlement, canonical-spec fusion, and local-only lifecycle boundaries without remote or foreign-lane mutation."
 
 [evidence]
 dated = "evidence/chronicle/history-residue-local-closeout-successor-20260719/2026-07-19.md"
-sha256 = "72c00b55615e66361830385acb89636523979b55dd829b0044df535847562930"
+sha256 = "d3031a443f00798968382320c6fe6757db67dfd9653000d48458a907fe22bfeb"
 evidence_ids = ["evidence:history-residue-local-closeout-successor-20260719"]
 binding = "Raw-byte Chronicle digest binding for the historical operator receipt, live budget settlement, and local lifecycle boundary; final HEAD-bound proof remains separate."
 verifier = "digest_only"
@@ -28,13 +28,13 @@ owner = "repository-governance"
 scope = "Verified local operator receipt, hard category settlement, local proof/land/maintainer break-glass closeout, local ref alignment, and owned-lane retirement only; remote, hosted, r7, foreign, unbound, and global terminal-completion claims are excluded."
 
 [carriers]
-openspec = "openspec/changes/history-residue-local-closeout-successor-20260719"
+openspec = "openspec/changes/archive/2026-07-20-history-residue-local-closeout-successor-20260719"
 fallback = "Preserve the official predecessor archive and external operator artifacts; revert only successor tracked changes and leave all remote and foreign state untouched."
 kill_signal = "The predecessor archive changes, receipt digests fail, any active campaign overage remains at archive, control replacement lacks an external receipt, or remote/foreign mutation is attempted."
 
 [promotion]
 targets = [
-  "openspec/changes/history-residue-local-closeout-successor-20260719",
+  "openspec/changes/archive/2026-07-20-history-residue-local-closeout-successor-20260719",
   "evidence/claims/history-residue-local-closeout-successor-20260719.toml",
   "evidence/chronicle/history-residue-local-closeout-successor-20260719/2026-07-19.md",
   "openspec/specs/repository-governance/spec.md",

@@ -12,6 +12,7 @@ import ethos.adapters.mutation.lane_lifecycle.refresh as refresh
 import ethos_core.contracts.lifecycle.core as lifecycle
 from ethos.adapters.mutation import core
 from ethos.adapters.mutation import lanes
+from ethos.adapters.mutation import proof as mutation_proof
 from ethos.adapters.mutation.lane_retirement.unbound import core as unbound
 from ethos.adapters.mutation.lane_retirement.unbound.observation import core as obs
 from ethos.adapters.mutation.lane_retirement.unbound.policy import core as policy
@@ -79,6 +80,37 @@ def test_land_proof_failure(tmp_path: Path, monkeypatch) -> None:
     ready = lifecycle.MutationEvaluation(ok=True, state="land_ready")
     result = core.apply_land_to_candidate(root=tmp_path, authorized=True, expect_head="h1", admitted_decision=ready)  # fmt: skip
     assert result["required_gaps"] == ["proof_not_proven"]
+
+
+def test_closeout_blocks_when_proof_carry_fails(tmp_path: Path) -> None:
+    policy = SimpleNamespace(
+        accepted_branch="dev", candidate_branch="candidate/dev", release_mirror="independent"
+    )
+    request = core.CloseoutRequest(
+        root=tmp_path,
+        policy=policy,
+        current_head="a",
+        candidate_head="b",
+        candidate_path=tmp_path,
+        worktrees=[],
+    )
+    dependencies = core.CloseoutDependencies(
+        run_git=lambda *_args, **_kwargs: subprocess.CompletedProcess([], 0, "a\n", ""),
+        is_ancestor=lambda *_args: True,
+        carry_proof=lambda **_kwargs: {"ok": False, "required_gaps": ["proof_not_proven"]},
+        discard_proof=lambda *_args: None,
+    )
+    result = core.promote_candidate_to_accepted(request, dependencies=dependencies)
+    assert result["ok"] is False
+    assert result["required_gaps"] == ["proof_not_proven"]
+
+
+def test_discard_executed_proof_is_idempotent(tmp_path: Path) -> None:
+    repo = init_git_repo(tmp_path / "proof")
+    head = "b" * 40
+    mutation_proof.record_executed_proof(repo, {"id": "proof", "head": head, "runs": []})
+    assert mutation_proof.discard_executed_proof(repo, head) is True
+    assert mutation_proof.discard_executed_proof(repo, head) is False
 
 
 @pytest.mark.parametrize("case", _REFRESH_CASES, ids=[case["id"] for case in _REFRESH_CASES])

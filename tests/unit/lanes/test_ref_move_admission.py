@@ -171,7 +171,7 @@ def _complete_proof_evidence(head: str, root: Path) -> dict[str, object]:
     runs = tuple(
         conformant_proof_run(gate_id, root) for gate_id in _promotion_required_gate_ids(root)
     )
-    return EvidenceSet.from_runs(id="proof", head=head, runs=runs).to_dict()
+    return EvidenceSet.from_runs(evidence_id="proof", head=head, runs=runs).to_dict()
 
 
 def _accepted_boundary_repo(tmp_path: Path) -> tuple[Path, str]:

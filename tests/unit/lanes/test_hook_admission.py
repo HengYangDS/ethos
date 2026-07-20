@@ -675,7 +675,7 @@ def _trust_bearing_evidence(head: str, root: Path | None = None) -> dict[str, ob
     resolved = root if root is not None else Path()
     required = _promotion_required_gate_ids(resolved)
     runs = tuple(conformant_proof_run(gate_id, resolved) for gate_id in required)
-    return EvidenceSet.from_runs(id="proof", head=head, runs=runs).to_dict()
+    return EvidenceSet.from_runs(evidence_id="proof", head=head, runs=runs).to_dict()
 
 
 def test_proof_state_dir_defaults_to_repository_local_state(
@@ -767,7 +767,7 @@ def test_executed_proof_record_rejects_forgery(
         diagnostics=(),
     )
     non_trust_evidence = EvidenceSet.from_runs(
-        id="proof", head=head, runs=(non_trust_run,)
+        evidence_id="proof", head=head, runs=(non_trust_run,)
     ).to_dict()
     record_executed_proof(tmp_path, non_trust_evidence)
     assert executed_proof_record(tmp_path, head) is None
@@ -789,7 +789,7 @@ def test_executed_proof_record_rejects_forgery(
         diagnostics=(),
     )
     evidence = EvidenceSet.from_runs(
-        id="proof", head=head, runs=(non_trust_run, trust_run)
+        evidence_id="proof", head=head, runs=(non_trust_run, trust_run)
     ).to_dict()
     record_executed_proof(tmp_path, evidence)
     assert executed_proof_record(tmp_path, head) is not None

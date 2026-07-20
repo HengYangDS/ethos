@@ -69,6 +69,16 @@ def _practice_change(identifier: str, **overrides: object) -> dict[str, object]:
     } | overrides
 
 
+def _assert_evolution_gaps(root: Path, expected: list[str]) -> None:
+    report = evolution_report(root)
+    assert report["ok"] is False
+    assert report["required_gaps"] == expected
+
+
+def _mock_source_budget(monkeypatch: pytest.MonkeyPatch, **report: object) -> None:
+    monkeypatch.setattr(campaign_closeout, "source_budget_report", lambda _root: report)
+
+
 def _campaign_gaps(
     root: Path,
     *,
@@ -156,13 +166,9 @@ def test_evolution_ledger_exposes_active_hypotheses() -> None:
     ledger = evolution_ledger(Path.cwd())
 
     assert "ethos-product-maturation" in {item["campaign"] for item in ledger["hypotheses"]}
-    assert all(item["id"] for item in ledger["hypotheses"])
-    assert all(item["owner"] for item in ledger["hypotheses"])
-    assert all(item["transition"] for item in ledger["hypotheses"])
-    assert all(item["proof_refs"] for item in ledger["hypotheses"])
-    assert all(item["review_refs"] for item in ledger["hypotheses"])
-    assert all(item["decision_refs"] for item in ledger["hypotheses"])
-    assert all(item["retirement_conditions"] for item in ledger["hypotheses"])
+    required = "id\nowner\ntransition\nproof_refs".splitlines()
+    required += "review_refs\ndecision_refs\nretirement_conditions".splitlines()
+    assert all(all(item[key] for key in required) for item in ledger["hypotheses"])
 
 
 def test_evolution_report_scores_hypothesis_states() -> None:
@@ -188,14 +194,12 @@ def test_evolution_report_requires_structural_entries_to_bind_repository_evidenc
         ],
     )
 
-    report = evolution_report(tmp_path)
-
-    assert report["ok"] is False
-    assert report["required_gaps"] == [
+    expected = [
         "evolution_hypotheses_missing",
         "entry_evidence_refs_missing:destructive-simplification",
         "entry_decision_refs_missing:destructive-simplification",
     ]
+    _assert_evolution_gaps(tmp_path, expected)
 
 
 def test_evolution_report_rejects_unresolved_hypothesis_and_entry_refs(
@@ -223,16 +227,14 @@ def test_evolution_report_rejects_unresolved_hypothesis_and_entry_refs(
         ],
     )
 
-    report = evolution_report(tmp_path)
-
-    assert report["ok"] is False
-    assert report["required_gaps"] == [
+    expected = [
         "hypothesis_proof_ref_unresolved:ref-bound-hypothesis:ethos quality missing-proof --json",
         "hypothesis_review_ref_missing:ref-bound-hypothesis:tests/unit/governance/test_missing.py",
         "hypothesis_decision_ref_missing:ref-bound-hypothesis:docs/decisions/accepted/DR-missing.md",
         "entry_evidence_ref_missing:structural-change:evidence/chronicle/missing/2026-07-08.md",
         "entry_decision_ref_missing:structural-change:docs/decisions/accepted/DR-missing.md",
     ]
+    _assert_evolution_gaps(tmp_path, expected)
 
 
 def test_evolution_report_accepts_existing_path_refs_and_known_ethos_commands(
@@ -287,14 +289,12 @@ def test_evolution_report_rejects_path_like_and_plain_unknown_proof_refs(
         ],
     )
 
-    report = evolution_report(tmp_path)
-
-    assert report["ok"] is False
-    assert report["required_gaps"] == [
+    expected = [
         "hypothesis_proof_ref_unresolved:bad-proof-refs:/workspace/proof.md",
         "hypothesis_proof_ref_unresolved:bad-proof-refs:https://example.test/proof.json",
         "hypothesis_proof_ref_unresolved:bad-proof-refs:pytest",
     ]
+    _assert_evolution_gaps(tmp_path, expected)
 
 
 def test_evolution_report_treats_non_list_entry_refs_as_unresolved(
@@ -321,15 +321,13 @@ def test_evolution_report_treats_non_list_entry_refs_as_unresolved(
         ],
     )
 
-    report = evolution_report(tmp_path)
-
-    assert report["ok"] is False
-    assert report["required_gaps"] == [
+    expected = [
         "hypothesis_review_ref_missing:valid-hypothesis:docs/decision.md",
         "hypothesis_decision_ref_missing:valid-hypothesis:docs/decision.md",
         "entry_evidence_refs_invalid:bad-entry-ref-shape",
         "entry_decision_refs_invalid:bad-entry-ref-shape",
     ]
+    _assert_evolution_gaps(tmp_path, expected)
 
 
 def test_evolution_report_rejects_non_list_hypothesis_refs(tmp_path: Path) -> None:
@@ -345,45 +343,37 @@ def test_evolution_report_rejects_non_list_hypothesis_refs(tmp_path: Path) -> No
         ],
     )
 
-    report = evolution_report(tmp_path)
-
-    assert report["ok"] is False
-    assert report["required_gaps"] == [
+    expected = [
         "hypothesis_proof_refs_invalid:bad-hypothesis-ref-shape",
         "hypothesis_review_refs_invalid:bad-hypothesis-ref-shape",
         "hypothesis_decision_refs_invalid:bad-hypothesis-ref-shape",
     ]
+    _assert_evolution_gaps(tmp_path, expected)
 
 
 def test_campaign_report_exposes_manifest_steps_and_closeout_progress() -> None:
     report = campaign_report(Path.cwd(), campaign_id="terminal-openspec-productization")
 
-    assert report["ok"] is True
-    assert report["active_count"] >= 1
+    assert (report["ok"], report["active_count"] >= 1) == (True, True)
     campaign = report["campaigns"][0]
-    assert campaign["id"] == "terminal-openspec-productization"
-    assert campaign["objective"]
-    assert campaign["state"] == "active"
-    assert campaign["step_summary"]["total"] >= 8
-    assert campaign["step_summary"]["planned"] >= 4
-    assert campaign["step_summary"]["active"] == 0
-    assert campaign["step_summary"]["closed"] >= 4
-    assert campaign["lane_topology"]["kind"] == "openspec_lane_sequence"
-    assert campaign["lane_topology"]["mode"] == "strict_serial"
-    assert campaign["lane_topology"]["active_step"] == ""
-    assert campaign["lane_topology"]["active_steps"] == []
-    assert campaign["lane_topology"]["next_planned_step"] == "projection-digest-governance"
-    assert campaign["lane_topology"]["edges"][0] == {
+    identity = campaign["id"], campaign["state"], bool(campaign["objective"])
+    assert identity == ("terminal-openspec-productization", "active", True)
+    summary = campaign["step_summary"]
+    assert (summary["total"] >= 8, summary["planned"] >= 4) == (True, True)
+    assert (summary["active"], summary["closed"] >= 4) == (0, True)
+    topology = campaign["lane_topology"]
+    assert (topology["kind"], topology["mode"]) == ("openspec_lane_sequence", "strict_serial")
+    assert (topology["active_step"], topology["active_steps"]) == ("", [])
+    assert topology["next_planned_step"] == "projection-digest-governance"
+    assert topology["edges"][0] == {
         "from": "campaign-orchestration",
         "to": "openspec-product-protocol",
         "rule": "closeout_retired_before_activation",
     }
     first_step = campaign["steps"][0]
-    assert first_step["ordinal"] == 1
-    assert first_step["depends_on"] == []
-    assert first_step["openspec_change"]
+    assert (first_step["ordinal"], first_step["depends_on"]) == (1, [])
+    assert all(first_step[key] for key in ("openspec_change", "claim_id"))
     assert first_step["work_lane"].startswith("work/")
-    assert first_step["claim_id"]
     assert first_step["closeout"]["state"] in {"planned", "landed", "closed", "retired"}
     hooked_step = next(item for item in campaign["steps"] if item["id"] == "hooked-write-admission")
     assert hooked_step["state"] == "closed"
@@ -400,14 +390,11 @@ def test_campaign_report_surfaces_terminal_budget_progress_as_advisory(
     tmp_path: Path,
 ) -> None:
     _write_campaign(tmp_path)
-    monkeypatch.setattr(
-        campaign_closeout,
-        "source_budget_report",
-        lambda _root: {
-            "campaign_id": "compression",
-            "terminal_target_met": False,
-            "active_debt": {"ids": ["temporary-compiler"]},
-        },
+    _mock_source_budget(
+        monkeypatch,
+        campaign_id="compression",
+        terminal_target_met=False,
+        active_debt={"ids": ["temporary-compiler"]},
     )
 
     report = campaign_publication_report(tmp_path)
@@ -428,14 +415,11 @@ def test_invalid_campaign_manifest_blocks_repository_publication(
     tmp_path: Path,
 ) -> None:
     _write_campaign(tmp_path, _CAMPAIGN_MANIFEST.replace("campaign_terminal", "unknown"))
-    monkeypatch.setattr(
-        campaign_closeout,
-        "source_budget_report",
-        lambda _root: {
-            "campaign_id": "",
-            "required_gaps": [],
-            "active_debt": {"ids": []},
-        },
+    _mock_source_budget(
+        monkeypatch,
+        campaign_id="",
+        required_gaps=[],
+        active_debt={"ids": []},
     )
 
     publication = campaign_publication_report(tmp_path)
@@ -448,15 +432,12 @@ def test_invalid_campaign_manifest_blocks_repository_publication(
 def test_campaign_publication_requires_the_budget_bound_campaign(
     monkeypatch, tmp_path: Path
 ) -> None:
-    monkeypatch.setattr(
-        campaign_closeout,
-        "source_budget_report",
-        lambda _root: {
-            "campaign_id": "declared-compression",
-            "terminal_target_met": False,
-            "active_debt": {"ids": []},
-            "required_gaps": [],
-        },
+    _mock_source_budget(
+        monkeypatch,
+        campaign_id="declared-compression",
+        terminal_target_met=False,
+        active_debt={"ids": []},
+        required_gaps=[],
     )
 
     report = campaign_publication_report(
@@ -483,15 +464,12 @@ def test_filtered_campaign_status_keeps_repository_publication_scope(
     monkeypatch, tmp_path: Path
 ) -> None:
     _write_campaign(tmp_path)
-    monkeypatch.setattr(
-        campaign_closeout,
-        "source_budget_report",
-        lambda _root: {
-            "campaign_id": "compression",
-            "terminal_target_met": False,
-            "active_debt": {"ids": []},
-            "required_gaps": [],
-        },
+    _mock_source_budget(
+        monkeypatch,
+        campaign_id="compression",
+        terminal_target_met=False,
+        active_debt={"ids": []},
+        required_gaps=[],
     )
 
     filtered = campaign_report(tmp_path, campaign_id="compression")
@@ -512,13 +490,11 @@ def test_evolution_report_exposes_practice_selection_and_fate() -> None:
 
     assert report["ok"] is True
     selection = report["selection"]
-    assert selection["practice_claim_count"] >= 1
-    assert {item["id"] for item in selection["practice_claims"]} >= {
-        "workflow-runtime-trustworthy-practice-claim"
-    }
-    assert selection["candidate_set_count"] >= 1
-    assert selection["experiment_protocol_count"] >= 1
-    assert selection["evaluation_record_count"] >= 1
+    counts = "practice_claim_count\ncandidate_set_count"
+    counts += "\nexperiment_protocol_count\nevaluation_record_count"
+    assert all(selection[key] >= 1 for key in counts.splitlines())
+    claims = selection["practice_claims"]
+    assert "workflow-runtime-trustworthy-practice-claim" in {item["id"] for item in claims}
     assert selection["supports_multi_candidate_selection"] is True
     assert selection["supports_practice_lifecycle"] is True
     assert "introduce" in selection["practice_change_kinds"]
@@ -526,9 +502,7 @@ def test_evolution_report_exposes_practice_selection_and_fate() -> None:
     assert {item["subject"] for item in ledger["practice_claims"]} >= {
         "ethos:workflow-runtime-practice-evolution"
     }
-    assert {item["commitment_effect"] for item in selection["practice_claims"]} >= {
-        "create_commitment"
-    }
+    assert "create_commitment" in {item["commitment_effect"] for item in claims}
     selected = {
         item["selected_candidate"]
         for item in ledger["evaluation_records"]
@@ -540,15 +514,11 @@ def test_evolution_report_exposes_practice_selection_and_fate() -> None:
         for candidate_set in ledger["candidate_sets"]
         for candidate in candidate_set["candidates"]
     }
-    assert {
-        "openspec-alone",
-        "comet-direct",
-        "spec-kit-grammar",
-        "task-master-graph",
-        "fspec-scenario-coverage",
-        "method-pack-composition",
-        "ethos-native-runtime",
-    } <= candidate_ids
+    expected = "openspec-alone\ncomet-direct\nspec-kit-grammar\ntask-master-graph".splitlines()
+    expected += (
+        "fspec-scenario-coverage\nmethod-pack-composition\nethos-native-runtime".splitlines()
+    )
+    assert set(expected) <= candidate_ids
 
 
 def test_evolution_report_distinguishes_introduction_from_supersession(
@@ -595,10 +565,7 @@ def test_evolution_report_requires_practice_claim_links(tmp_path: Path) -> None:
         ],
     )
 
-    report = evolution_report(tmp_path)
-
-    assert report["ok"] is False
-    assert report["required_gaps"] == [
+    expected = [
         "practice_claim_commitment_effect_invalid:root-practice:invalid_effect",
         "practice_claim_candidate_set_missing:root-practice:missing-candidate-set",
         "practice_claim_experiment_protocol_missing:root-practice:missing-experiment",
@@ -606,6 +573,7 @@ def test_evolution_report_requires_practice_claim_links(tmp_path: Path) -> None:
         "practice_claim_practice_change_missing:root-practice:missing-practice-change",
         "practice_claim_commitment_ref_missing:root-practice:docs/missing-contract.md",
     ]
+    _assert_evolution_gaps(tmp_path, expected)
 
 
 def test_evolution_report_rejects_introduction_with_incumbents(tmp_path: Path) -> None:
@@ -622,10 +590,7 @@ def test_evolution_report_rejects_introduction_with_incumbents(tmp_path: Path) -
         ],
     )
 
-    report = evolution_report(tmp_path)
-
-    assert report["ok"] is False
-    assert report["required_gaps"] == ["practice_change_introduce_has_incumbents:bad-introduction"]
+    _assert_evolution_gaps(tmp_path, ["practice_change_introduce_has_incumbents:bad-introduction"])
 
 
 def test_evolution_report_rejects_practice_change_commitment_effect_mismatch(
@@ -646,13 +611,11 @@ def test_evolution_report_rejects_practice_change_commitment_effect_mismatch(
         ],
     )
 
-    report = evolution_report(tmp_path)
-
-    assert report["ok"] is False
-    assert report["required_gaps"] == [
+    expected = [
         "practice_change_commitment_effect_mismatch:bad-effect:supersede:"
         "create_commitment:replace_commitment"
     ]
+    _assert_evolution_gaps(tmp_path, expected)
 
 
 def test_selection_ref_gaps_cover_missing_practice_claim_and_candidate_set_fields(

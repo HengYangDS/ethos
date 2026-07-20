@@ -162,6 +162,22 @@ every remaining v1 obligation and v2 must remain visibly blocked.
 
 ## Historical Replay
 
+Historical replay is gated by a versioned measurement execution boundary. Every
+MetricContract atom binds an execution mode and provider-wide carrier-byte
+ceiling before any worktree or Git blob content is allocated or parsed. The
+initial admitted mode is `bounded_in_process_v1`: `utf8-footprint` is capped at
+262,144 bytes, `python-tokenize` at 65,536 bytes, and every other current
+provider, including `utf8-control`, at 32,768 bytes. The ceiling is part of the
+provider and measurement identity, cannot vary by path/profile/metric, and is
+rechecked by both the descriptor reader and direct native API. A rejected
+carrier invalidates the complete snapshot.
+
+These fixed limits are not source-budget allowances and are not derived from
+current maxima. If independent security review rejects bounded in-process
+execution, replay remains blocked until a versioned one-shot isolated worker
+has memory, CPU, wall, descriptor/process, protocol, and output limits with no
+in-process fallback.
+
 Baseline and selected historical snapshots are recomputed from Git blobs rather
 than trusting declared totals. The observed v1 replay mismatch is itself a
 migration fact: the declared v1 baseline total is 105342 while the current v1

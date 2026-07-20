@@ -304,6 +304,42 @@ subsequent separately evidenced transitions.
 - [x] **Step 6: Complete official OpenSpec archive and canonical contracts/quality/repository-governance spec fusion as a separate committed state; do not treat archive as archive-HEAD proof or integration.**
 - [ ] **Step 7: Complete post-archive parity, default and full archive-HEAD proof, candidate land, accepted-root closeout, local publication-readiness evaluation, and owned successor-Lane retirement as separately evidenced transitions; do not claim remote publication or hosted CI.**
 
+### Prerequisite C1: Versioned Carrier Resource Boundary
+
+**Files:**
+
+- Modify: `packages/ethos-core/src/ethos_core/contracts/source_budget/metrics.py`
+- Modify: `packages/ethos/src/ethos/adapters/repo/source_budget/measurement/core.py`
+- Modify: `packages/ethos/src/ethos/adapters/repo/source_budget/measurement/native/core.py`
+- Modify: `system/policies/source-budget-metrics.toml`
+- Modify: `system/schemas/kernel/source-budget-metrics.schema.json`
+- Modify: `tests/fixtures/source-budget-v2/compression-cases.json`
+- Modify: `tests/unit/kernel/test_source_budget_metrics_contract.py`
+- Modify: `tests/unit/kernel/source_budget_measurement_support.py`
+- Modify: `tests/unit/kernel/test_source_budget_measurements_contract.py`
+- Modify: `tests/unit/kernel/test_source_budget_measurements_integrity.py`
+- Modify: `tests/unit/adapters/repo/source_budget/test_carriers.py`
+- Modify: `tests/unit/adapters/repo/source_budget/test_measurement.py`
+- Create: `tests/unit/adapters/repo/source_budget/test_measurement_resource_boundary.py`
+
+**Interfaces:**
+
+- Consumes: Task 3 carrier classification, exact provider signatures,
+  descriptor-bound reads, native measurement, and fail-closed Loads.
+- Produces: MetricContract wire version 3 with
+  `execution_mode = "bounded_in_process_v1"`, a strict provider-wide
+  `max_carrier_bytes`, and pre-read/direct-native rejection with no partial
+  measurement.
+- Boundary: v1 remains authoritative and v2 remains inactive. This prerequisite
+  does not implement Git replay, fix the known YAML gap, add policy/debt/gates,
+  or change v1 allowance, debt, terminal targets, or per-file ELOC.
+
+- [ ] **Step 1: Write RED tests for strict v3 resource fields, provider-wide consistency, digest propagation, exact ceilings, limit-minus-one/exact-limit success, limit-plus-one rejection before reading/parsing, growth, forged signatures, and whole-snapshot failure.**
+- [ ] **Step 2: Run the focused kernel and adapter tests and retain the intended missing-field, missing-helper, old-wire, unbounded-read, and late-native-rejection failures.**
+- [ ] **Step 3: Implement the minimal contract/provider signature changes, resolve the resource contract before content open, bound reads to `limit + 1`, and recheck direct bytes before startup conformance, decoding, AST, or provider parsing.**
+- [ ] **Step 4: Regenerate policy grammar digests and JSON Schema atomically; verify the current and immutable-baseline inventories have no oversize gap and that the existing YAML graph-safety gap is unchanged.**
+- [ ] **Step 5: Complete independent security/design review, focused 100 percent branch coverage, regressions, owner gates, exact-HEAD proof, archive, land, accepted closeout, local publish readiness, and owned-Lane retirement. If security review rejects the ceiling, keep C1 open and implement admitted isolation instead.**
+
 ### Task 4: Git Snapshot Replay And v2 Shadow Report
 
 **Files:**
@@ -319,7 +355,9 @@ subsequent separately evidenced transitions.
 
 **Interfaces:**
 
-- Consumes: Task 3 measurement snapshot.
+- Consumes: Task 3 measurement capability and fail-closed Loads plus the
+  accepted C1 resource boundary. It does not assume that the current worktree
+  already yields a successful snapshot.
 - Produces: `tree_snapshot(root, treeish)`, `worktree_snapshot(root)`, baseline replay evidence, and `v2_shadow` report fields.
 
 - [ ] **Step 1: Write failing tests that recompute the immutable baseline from Git blobs and expose the 282-ELOC v1 semantic drift (105342 -> 105060; JavaScript +1, YAML -282, diagram -1) without rewriting the declaration.**

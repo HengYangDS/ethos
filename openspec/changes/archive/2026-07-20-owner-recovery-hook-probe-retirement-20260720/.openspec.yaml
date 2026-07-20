@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-07-20
+goal: Bind one accepted, ownerless owner-recovery hook-probe unbound accepted-ancestor
+  residual to a later native exact-ref retirement after current lifecycle proof and closeout.

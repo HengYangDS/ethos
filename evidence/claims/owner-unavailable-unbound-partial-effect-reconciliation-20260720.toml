@@ -12,7 +12,7 @@ evidence_ids = ["evidence:owner-unavailable-unbound-partial-effect-reconciliatio
 binding = "This active Claim binds only work/quality-zero-exceptions-successor-v2-20260719 at 943a5e1e373b009f02533ff22815e8bca32b3157, the exact surviving lease:03c8fb14-e616-4fc7-9592-bcba283fcdc5 tuple and absent recorded source path, the immutable exceptional-unbound-retirement:a9c5d9786ca64b62db29270e78e9e383e323ee20bc1df2a3bebd779a533aaa7b attempt, current accepted policy, and one later native lease-only reconciliation. It does not treat the historical raw source-ref deletion as a successful native effect."
 verifier = "digest_only"
 tests = [
-  "uv run --all-packages --group dev pytest -q tests/unit/lanes/retirement/test_unbound_and_helpers.py tests/unit/cli/test_contracts_lane.py",
+  "uv run --all-packages --group dev pytest -q tests/unit/lanes/retirement/test_unbound_and_helpers.py tests/unit/lanes/retirement/test_ref_absent_reconciliation.py tests/unit/cli/test_contracts_lane.py tests/unit/cli/test_ref_absent_reconciliation.py",
   "uv run --all-packages --group dev ruff check packages/ethos/src/ethos/adapters/mutation/lane_retirement/unbound packages/ethos/src/ethos/surface/cli/lane/core.py",
   "openspec validate owner-unavailable-unbound-partial-effect-reconciliation-20260720 --strict --json",
   "ethos lane retire reconcile-ref-absent --branch work/quality-zero-exceptions-successor-v2-20260719 --chronicle-ref evidence/chronicle/owner-unavailable-unbound-partial-effect-reconciliation-20260720/2026-07-20.md --json",
@@ -47,5 +47,7 @@ targets = [
   "packages/ethos/src/ethos/repository/registry/docs/commands.py",
   "packages/ethos/src/ethos/surface/cli/lane/core.py",
   "tests/unit/cli/test_contracts_lane.py",
+  "tests/unit/cli/test_ref_absent_reconciliation.py",
   "tests/unit/lanes/retirement/test_unbound_and_helpers.py",
+  "tests/unit/lanes/retirement/test_ref_absent_reconciliation.py",
 ]

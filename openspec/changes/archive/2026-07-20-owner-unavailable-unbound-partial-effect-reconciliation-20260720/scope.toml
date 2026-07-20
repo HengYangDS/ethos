@@ -16,5 +16,7 @@ paths = [
   "packages/ethos/src/ethos/repository/registry/docs/commands.py",
   "packages/ethos/src/ethos/surface/cli/lane/core.py",
   "tests/unit/cli/test_contracts_lane.py",
+  "tests/unit/cli/test_ref_absent_reconciliation.py",
   "tests/unit/lanes/retirement/test_unbound_and_helpers.py",
+  "tests/unit/lanes/retirement/test_ref_absent_reconciliation.py",
 ]

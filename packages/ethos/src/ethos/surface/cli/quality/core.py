@@ -325,7 +325,7 @@ def provenance(
         state="planned",
     )
     evidence = EvidenceSet.from_runs(
-        id=f"ethos:{objective}",
+        evidence_id=f"ethos:{objective}",
         head=git_adapter.current_head(repo),
         runs=(run,),
         durability="local",

@@ -336,7 +336,7 @@ def test_completeness_gate_blocks_adopter_without_code_correctness(
         ),
     )
     record_executed_proof(
-        tmp_path, EvidenceSet.from_runs(id="proof", head=head, runs=runs).to_dict()
+        tmp_path, EvidenceSet.from_runs(evidence_id="proof", head=head, runs=runs).to_dict()
     )
 
     gaps = promotion_completeness_gaps(tmp_path, head)

@@ -273,7 +273,7 @@ def test_discard_executed_proof_idempotent(tmp_path: Path) -> None:
     head = "b" * 40
     runs = tuple(conformant_proof_run(g, tmp_path) for g in default_gate_ids(root=tmp_path))
     mutation_proof.record_executed_proof(
-        tmp_path, EvidenceSet.from_runs(id="proof", head=head, runs=runs).to_dict()
+        tmp_path, EvidenceSet.from_runs(evidence_id="proof", head=head, runs=runs).to_dict()
     )
     assert mutation_proof.discard_executed_proof(tmp_path, head) is True
     assert mutation_proof.discard_executed_proof(tmp_path, head) is False

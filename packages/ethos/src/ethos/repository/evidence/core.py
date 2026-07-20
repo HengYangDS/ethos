@@ -134,19 +134,19 @@ class EvidenceSet:
     def from_runs(
         cls,
         *,
-        id: str,
+        evidence_id: str,
         head: str,
         runs: tuple[ProofRun, ...],
         durability: str = "local",
     ) -> EvidenceSet:
         body = {
-            "id": id,
+            "id": evidence_id,
             "head": head,
             "durability": durability,
             "runs": [run.to_dict() for run in runs],
         }
         digest = hashlib.sha256(_stable_json(body).encode("utf-8")).hexdigest()
-        return cls(id=id, head=head, runs=runs, durability=durability, digest=digest)
+        return cls(id=evidence_id, head=head, runs=runs, durability=durability, digest=digest)
 
     def to_dict(self) -> dict[str, Any]:
         return {

@@ -1,0 +1,19 @@
+schema_version = 1
+paths = [
+  "docs/reference/command-plane.md",
+  "evidence/claims/owner-unavailable-unbound-retirement-recovery-20260720.toml",
+  "evidence/claims/quality-zero-exceptions-successor-v2-unbound-retirement-20260720.toml",
+  "evidence/chronicle/owner-unavailable-unbound-retirement-recovery-20260720/**",
+  "evidence/parity/generic-shadow.json",
+  "openspec/changes/owner-unavailable-unbound-retirement-recovery-20260720/**",
+  "openspec/changes/archive/2026-07-20-owner-unavailable-unbound-retirement-recovery-20260720/**",
+  "openspec/specs/repository-governance/spec.md",
+  "packages/ethos/src/ethos/adapters/mutation/lane_retirement/unbound/core.py",
+  "packages/ethos/src/ethos/adapters/mutation/lane_retirement/unbound/observation/core.py",
+  "packages/ethos/src/ethos/adapters/mutation/lane_retirement/unbound/policy/core.py",
+  "packages/ethos/src/ethos/adapters/mutation/lane_retirement/unbound/reporting/core.py",
+  "packages/ethos/src/ethos/adapters/store/state/lease/lifecycle/effects.py",
+  "packages/ethos/src/ethos/surface/cli/lane/core.py",
+  "tests/unit/cli/test_contracts_lane.py",
+  "tests/unit/lanes/retirement/test_unbound_and_helpers.py",
+]

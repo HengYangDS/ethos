@@ -218,7 +218,7 @@ ethos lane resolution inventory --json
 ethos lane resolution clear --decision-id <decision-id> --expect-manifest-sha256 <sha256> --chronicle-ref <accepted-chronicle> --reason <why> --break-glass --confirm-irreversible --apply
 ethos lane retire landed --branch <work-lane-branch> --expect-head <work-lane-head> --apply
 ethos lane retire superseded --branch <work-lane-branch> --expect-head <work-lane-head> --absorbed-by <accepted-head> --reason <why> --authorize --apply
-ethos lane retire unbound --branch <work-lane-branch> --expect-head <git-head> --reason <why> --chronicle-ref evidence/chronicle/<change>/<date>.md [--authorize --break-glass --confirm-irreversible --apply]
+ethos lane retire unbound --branch <work-lane-branch> --expect-head <git-head> --reason <why> --chronicle-ref evidence/chronicle/<change>/<date>.md [--owner-unavailable-recovery --authorize --break-glass --confirm-irreversible --apply]
 ```
 
 `ethos lane housekeeping` is a separate detached-worktree cleanup surface, not
@@ -402,6 +402,15 @@ expected head exactly match the target; it revokes that generation by the native
 CAS and reobserves the remaining retirement bindings and absence of any active
 lease before deletion. Any foreign, malformed, stale, replaced, or
 head-mismatched lease remains blocked.
+
+`--owner-unavailable-recovery` is a narrower target-specific continuation for
+one active source lease whose holder cannot offer a normal handoff. It does not
+turn a host, session, provider, missing process, or user-supplied holder string
+into authority. Its accepted Chronicle must bind `lease_recovery:
+owner_unavailable`, the exact source lease ID/holder/epoch/expected head, the
+absolute recorded source path, and `source_worktree_absent: true`; the current
+actor must be non-empty and different from the source holder, and the path must
+still be absent at effect time. Any mismatch preserves the ref and lease.
 Apply additionally requires `--authorize`, `--break-glass`, and
 `--confirm-irreversible`. Before the compare-and-delete ref effect, ETHOS writes
 a no-clobber local attempt record; attempt and successful receipt retain the

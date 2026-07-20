@@ -1,0 +1,47 @@
+[claim]
+id = "owner-unavailable-unbound-retirement-recovery-20260720"
+change_id = "owner-unavailable-unbound-retirement-recovery-20260720"
+subject = "ethos:lane:owner-unavailable-unbound-retirement-recovery"
+state = "active"
+summary = "ETHOS can recover one accepted-policy-bound unbound Work Lane whose source holder and worktree are unavailable, only through exact accepted Chronicle lease evidence and native CAS."
+
+[evidence]
+dated = "evidence/chronicle/owner-unavailable-unbound-retirement-recovery-20260720/2026-07-20.md"
+sha256 = "98939c09c6f60177b29e77b11105d6cdbfb8e756c0c2cb46b50d957466bca8ec"
+evidence_ids = ["evidence:owner-unavailable-unbound-retirement-recovery-20260720"]
+binding = "The active OpenSpec carrier, target-specific accepted policy contract, focused native-transition regressions, and dated Chronicle bind recovery mechanics only; they do not retire any external target until fresh effect-time observation succeeds."
+verifier = "digest_only"
+tests = [
+  "uv run --all-packages --group dev pytest -q tests/unit/lanes/retirement/test_unbound_and_helpers.py tests/unit/lanes/retirement/test_unbound_exceptional_coverage.py tests/unit/cli/test_contracts_lane.py",
+  "uv run --all-packages --group dev ruff check packages/ethos/src/ethos/adapters/mutation/lane_retirement/unbound packages/ethos/src/ethos/adapters/store/state/lease/lifecycle/effects.py packages/ethos/src/ethos/surface/cli/lane/core.py",
+  "openspec validate owner-unavailable-unbound-retirement-recovery-20260720 --strict --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository-governance"
+scope = "One exact unavailable-owner lease recovery inside native exceptional unbound Work Lane retirement; generic foreign takeover, raw state/ref deletion, worktree removal, remote mutation, and hosted claims are excluded."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-20-owner-unavailable-unbound-retirement-recovery-20260720"
+fallback = "Retain the ordinary foreign-lease block and remove the recovery mode if any exact Chronicle, source-path, CAS, or postcondition regression occurs."
+kill_signal = "A recovery attempt accepts a mismatched lease tuple, a present source path, a missing actor, a same-holder caller, a generic provider/session claim, or any raw deletion path."
+
+[promotion]
+targets = [
+  "docs/reference/command-plane.md",
+  "evidence/claims/owner-unavailable-unbound-retirement-recovery-20260720.toml",
+  "evidence/chronicle/owner-unavailable-unbound-retirement-recovery-20260720/2026-07-20.md",
+  "openspec/changes/archive/2026-07-20-owner-unavailable-unbound-retirement-recovery-20260720",
+  "openspec/specs/repository-governance/spec.md",
+  "packages/ethos/src/ethos/adapters/mutation/lane_retirement/unbound/core.py",
+  "packages/ethos/src/ethos/adapters/mutation/lane_retirement/unbound/observation/core.py",
+  "packages/ethos/src/ethos/adapters/mutation/lane_retirement/unbound/policy/core.py",
+  "packages/ethos/src/ethos/adapters/mutation/lane_retirement/unbound/reporting/core.py",
+  "packages/ethos/src/ethos/adapters/store/state/lease/lifecycle/effects.py",
+  "packages/ethos/src/ethos/surface/cli/lane/core.py",
+  "tests/unit/cli/test_contracts_lane.py",
+  "tests/unit/lanes/retirement/test_unbound_and_helpers.py",
+]

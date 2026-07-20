@@ -32,7 +32,9 @@ def _data(**values: Any) -> dict[str, Any]:
 
 _CHRONICLE_TEXT = _keys(
     "sha256 accepted_sha256 event target_branch target_head target_claim "
-    "claim_sha256 claim_accepted_sha256"
+    "claim_sha256 claim_accepted_sha256 lease_recovery source_lease_id "
+    "source_lease_holder source_lease_epoch source_lease_expected_head "
+    "source_worktree_path source_worktree_absent"
 )
 _CHRONICLE_FLAGS = (
     HAS_LOCAL_CHRONICLE,
@@ -59,7 +61,9 @@ _RETIREMENT_KEYS = tuple(
 _CHRONICLE_BINDING_KEYS = _keys(
     "ref sha256 accepted_sha256 event target_branch target_head target_claim "
     "claim_sha256 claim_accepted_sha256 byte_identical_to_accepted "
-    "claim_byte_identical_to_accepted has_accepted_chronicle has_accepted_claim"
+    "claim_byte_identical_to_accepted has_accepted_chronicle has_accepted_claim "
+    "lease_recovery source_lease_id source_lease_holder source_lease_epoch "
+    "source_lease_expected_head source_worktree_path source_worktree_absent"
 )
 
 
@@ -169,7 +173,21 @@ def chronicle_fields(payload: bytes) -> dict[str, str]:
     return {
         key: value.strip()
         for key, separator, value in fields
-        if separator and key in {"event", "target_branch", "target_head", "target_claim"}
+        if separator
+        and key
+        in {
+            "event",
+            "target_branch",
+            "target_head",
+            "target_claim",
+            "lease_recovery",
+            "source_lease_id",
+            "source_lease_holder",
+            "source_lease_epoch",
+            "source_lease_expected_head",
+            "source_worktree_path",
+            "source_worktree_absent",
+        }
     }
 
 
@@ -278,7 +296,11 @@ def chronicle_binding(source: dict[str, object]) -> dict[str, object]:
 
 def public_lease(lease: dict[str, object]) -> dict[str, object]:
     """Project lease facts without exposing storage details."""
-    return _project(lease, _keys("lease_id holder_ref epoch expected_head expires_at"))
+    payload = lease.get("payload")
+    recorded_path = str(payload.get("path") or "") if isinstance(payload, dict) else ""
+    return _project(lease, _keys("lease_id holder_ref epoch expected_head expires_at")) | {
+        "recorded_path": recorded_path
+    }
 
 
 def _entry(items: object, branch: str) -> dict[str, object] | None:

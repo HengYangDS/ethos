@@ -10,6 +10,7 @@ from tests.support.contract_helpers import init_repo_with_candidate
 from tests.support.contract_helpers import write_role_policy
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
+from tests.support.ethos_cli_runner import run_ethos_raw
 
 
 def _retire_landed(repo: Path, *arguments: str, blocked: bool = False) -> dict[str, object]:
@@ -786,3 +787,10 @@ def test_lane_retire_unbound_apply_records_native_exceptional_receipt(
         ).returncode
         != 0
     )
+
+
+def test_lane_retire_unbound_exposes_owner_unavailable_recovery_flag() -> None:
+    completed = run_ethos_raw("lane", "retire", "unbound", "--help")
+
+    assert completed.returncode == 0
+    assert "--owner-unavailable-recovery" in completed.stdout

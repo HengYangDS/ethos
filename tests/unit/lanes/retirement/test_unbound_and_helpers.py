@@ -27,7 +27,7 @@ _STALE_OBSERVATION_GAP = "unbound_retire_pre_effect_observation_stale"
 
 
 def _write(path: Path, text: str) -> None:
-    path.parent.mkdir(parents=True)
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
 
 
@@ -69,6 +69,132 @@ def _retire(repo: Path, branch: str, head: str, chronicle: str, **changes):
         "chronicle_ref": chronicle,
     }
     return retirement.retire_unbound_work_lane_ref(**(request | changes))
+
+
+def _owner_unavailable_fixture(
+    tmp_path: Path,
+) -> tuple[Path, str, str, str, dict[str, object], Path]:
+    """Create one accepted-policy-bound unbound ref with an absent source owner path."""
+    repo, branch, head, chronicle_ref = _exceptional_fixture(tmp_path)
+    source_path = tmp_path / "missing-source-worktree"
+    holder = "agent:test:session:missing-source-owner"
+    lease = state.acquire_lease(
+        repo / ".ethos/state/state.sqlite",
+        subject=branch,
+        holder_ref=holder,
+        payload={
+            "branch": branch,
+            "expected_head": head,
+            "path": source_path.as_posix(),
+        },
+    )
+    _write(
+        repo / chronicle_ref,
+        "\n".join(
+            (
+                "# Exceptional unbound owner-unavailable recovery policy",
+                "",
+                "event: lane_retire/unbound_exceptional",
+                f"target_branch: {branch}",
+                f"target_head: {head}",
+                f"target_claim: {_CLAIM_ID}",
+                "lease_recovery: owner_unavailable",
+                f"source_lease_id: {lease['lease_id']}",
+                f"source_lease_holder: {holder}",
+                f"source_lease_epoch: {lease['epoch']}",
+                f"source_lease_expected_head: {head}",
+                f"source_worktree_path: {source_path}",
+                "source_worktree_absent: true",
+                "",
+            )
+        ),
+    )
+    git(repo, "add", chronicle_ref)
+    git(
+        repo,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "accept owner-unavailable policy",
+    )
+    return repo, branch, head, chronicle_ref, lease, source_path
+
+
+def test_owner_unavailable_recovery_requires_an_active_foreign_lease(
+    monkeypatch, tmp_path: Path
+) -> None:
+    repo, branch, head, chronicle = _exceptional_fixture(tmp_path)
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:recovery-operator")
+
+    report = _retire(
+        repo,
+        branch,
+        head,
+        chronicle,
+        owner_unavailable_recovery=True,
+        apply=True,
+        authorized=True,
+        break_glass=True,
+        confirm_irreversible=True,
+    )
+
+    assert report["required_gaps"] == ["unbound_retire_owner_unavailable_not_required"]
+    assert git(repo, "rev-parse", "--verify", branch) == head
+
+
+def test_owner_unavailable_recovery_revokes_exact_foreign_lease(
+    monkeypatch, tmp_path: Path
+) -> None:
+    repo, branch, head, chronicle, lease, source_path = _owner_unavailable_fixture(tmp_path)
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:recovery-operator")
+
+    report = _retire(
+        repo,
+        branch,
+        head,
+        chronicle,
+        owner_unavailable_recovery=True,
+        apply=True,
+        authorized=True,
+        break_glass=True,
+        confirm_irreversible=True,
+    )
+
+    assert source_path.exists() is False
+    assert report["state"] == "retired_unbound_exceptional"
+    assert report["lease_relinquished"] == {
+        "revoked": True,
+        "subject": branch,
+        "lease_id": lease["lease_id"],
+        "holder_ref": lease["holder_ref"],
+        "epoch": lease["epoch"],
+        "expected_head": head,
+    }
+    assert report["receipt"]["postconditions"]["active_lease_absent"] is True
+
+
+def test_owner_unavailable_recovery_blocks_path_reappearance(monkeypatch, tmp_path: Path) -> None:
+    repo, branch, head, chronicle, _lease, source_path = _owner_unavailable_fixture(tmp_path)
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:recovery-operator")
+    source_path.mkdir()
+
+    report = _retire(
+        repo,
+        branch,
+        head,
+        chronicle,
+        owner_unavailable_recovery=True,
+        apply=True,
+        authorized=True,
+        break_glass=True,
+        confirm_irreversible=True,
+    )
+
+    assert report["required_gaps"] == ["unbound_retire_owner_unavailable_source_path_present"]
+    assert git(repo, "rev-parse", "--verify", branch) == head
 
 
 def test_exceptional_retirement_contract_matrix(tmp_path: Path) -> None:

@@ -4,6 +4,7 @@ import json
 import shutil
 import subprocess
 from functools import partial
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
@@ -30,7 +31,6 @@ type GitResult = subprocess.CompletedProcess[str]
 
 
 if TYPE_CHECKING:
-    from pathlib import Path
     from typing import Any
 _LANDED_BRANCH = "work/landed"
 _LEASE_HOLDER = "agent:test:case:agent-a"
@@ -298,6 +298,30 @@ def test_remove_lane_blocks_stale_or_dirty_state(tmp_path: Path, monkeypatch: Mo
         "state": "blocked",
         "required_gaps": ["retirement_ref_stale", "work_lane_dirty"],
     }
+
+
+def test_remove_lane_blocks_retained_legacy_resolution_manifest(
+    tmp_path: Path,
+    monkeypatch: MonkeyPatch,
+) -> None:
+    repo, lane = _linked_lane(tmp_path)
+    manifest = (
+        Path(lane["path"]) / "build/artifacts/lane-resolution/lane-decision-legacy/manifest.json"
+    )
+    manifest.parent.mkdir(parents=True)
+    manifest.write_text('{"decision_id":"lane-decision:legacy"}\n', encoding="utf-8")
+    runner, calls = _sequence_runner("a" * 40, "a" * 40, "")
+    monkeypatch.setattr(retirement_shared, "run_git", runner)
+
+    report = retirement_shared.remove_linked_lane(repo, lane, expect_head="a" * 40)
+
+    assert report == {
+        "ok": False,
+        "state": "blocked",
+        "required_gaps": ["lane_resolution_legacy_retention_present"],
+    }
+    assert not any(call[:2] == ("worktree", "remove") for call in calls)
+    assert not any(call[:2] == ("update-ref", "-d") for call in calls)
 
 
 @pytest.mark.parametrize(

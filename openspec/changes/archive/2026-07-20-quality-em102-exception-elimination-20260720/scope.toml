@@ -4,7 +4,7 @@ paths = [
   ".config/checks/ruff/ratchet.toml",
   "packages/ethos/src/ethos/repository/evidence/core.py",
   "tests/unit/governance/test_quality_regime.py",
-  "openspec/changes/quality-em102-exception-elimination-20260720/**",
+  "openspec/changes/archive/2026-07-20-quality-em102-exception-elimination-20260720/**",
   "evidence/claims/quality-em102-exception-elimination-20260720.toml",
   "evidence/chronicle/quality-em102-exception-elimination-20260720/**",
 ]

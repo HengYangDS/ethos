@@ -13,5 +13,6 @@
 
 - [x] 3.1 Execute focused contracts, whole-corpus probe, owner gate, strict
   OpenSpec validation, and current-HEAD proof.
-- [ ] 3.2 Archive, integrate, close out, publish if authorized, and retire via
-  native lifecycle commands.
+- [x] 3.2 Archive this bounded Change through the official OpenSpec lifecycle
+  after local validation. Candidate integration, accepted closeout, publication,
+  and lane retirement remain separately governed downstream transitions.

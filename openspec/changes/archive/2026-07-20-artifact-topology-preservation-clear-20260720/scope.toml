@@ -1,0 +1,8 @@
+schema_version = 1
+paths = [
+  "docs/plans/artifact-topology-preservation-clear-20260720.md",
+  "evidence/claims/artifact-topology-preservation-clear-20260720.toml",
+  "evidence/chronicle/artifact-topology-preservation-clear-20260720/**",
+  "openspec/changes/artifact-topology-preservation-clear-20260720/**",
+  "openspec/specs/repository-governance/spec.md",
+]

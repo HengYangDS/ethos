@@ -3,9 +3,13 @@
 from __future__ import annotations
 
 import os
+import runpy
 import subprocess
 import sys
 from typing import TYPE_CHECKING
+from unittest.mock import Mock
+
+import pytest
 
 import ethos.adapters.repo.coordination as repo_coordination
 import ethos.adapters.repo.git as repo_git
@@ -16,6 +20,7 @@ import ethos.cli as cli_entry
 import ethos.domain.land.core as land_core
 import ethos.domain.land.intake.core as intake
 import ethos.domain.reporting.gaps as reporting_gaps
+import ethos.surface.cli._base as cli_base
 import ethos.surface.cli.hook.core as hook
 import ethos.surface.cli.root.inspection as inspection_cli
 import ethos.surface.cli.root.proof as proof_cli
@@ -25,8 +30,6 @@ from ethos_core.contracts.lifecycle.core import MutationEvaluation
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-    import pytest
 
 
 def _init_git_repo(path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
@@ -168,6 +171,34 @@ def test_intake_and_cli_remaining_edges(tmp_path: Path, monkeypatch: pytest.Monk
     monkeypatch.setattr(sys, "argv", ["ethos", "status"])
     cli_entry.main()
     assert called == [["status"], ["status"]]
+
+
+def test_cli_entrypoint_preserves_unexpected_value_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(cli_entry, "load_command_groups", lambda _args: None)
+    monkeypatch.setattr(
+        cli_entry,
+        "app",
+        lambda _args: (_ for _ in ()).throw(ValueError("unexpected")),
+    )
+    monkeypatch.setattr(sys, "argv", ["ethos", "status"])
+
+    with pytest.raises(ValueError, match="unexpected"):
+        cli_entry.main()
+
+
+def test_module_entrypoint_and_broken_pipe_boundary(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(sys, "argv", ["ethos", "--help"])
+    with pytest.raises(SystemExit, match="0"):
+        runpy.run_path(str(cli_entry.__file__), run_name="__main__")
+
+    stream = Mock()
+    stream.write.side_effect = BrokenPipeError
+    monkeypatch.setattr(cli_base.sys, "stdout", stream)
+    cli_base.emit_invalid_adopter_profile(
+        command="test",
+        json_output=True,
+        enforce=False,
+    )
 
 
 def test_doctor_initializes_state_when_requested(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:  # fmt: skip

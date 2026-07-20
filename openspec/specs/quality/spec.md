@@ -79,6 +79,15 @@ returning to direct enforcement.
 - **THEN** it resolves that root without executing the action
 - **AND** it returns a planned action result
 
+#### Scenario: An eliminated exception-message rule returns to direct enforcement
+
+- **WHEN** the Python quality policy and owner lint gate run against all tracked
+  Python files
+- **THEN** the corpus reports zero `EM102` findings
+- **AND** `EM102` is absent from the Ruff global ignore list and ratchet baseline
+- **AND** any future `EM102` finding fails the canonical Ruff owner gate
+- **AND** no alternate command, baseline, or compatibility policy accepts it
+
 ### Requirement: Gate Descriptor Model
 
 ETHOS SHALL describe quality gates with asset classes, dimensions, execution

@@ -56,8 +56,18 @@ def write_resolution_receipt(
         str(payload["decision_id"]),
         artifact_root=artifact_root,
     )
-    _write_json_atomic(destination, payload)
+    record_root = artifact_root or records_artifact_root(root)
+    _write_json_atomic(destination, payload, record_root=record_root)
     return display_path(root, destination)
+
+
+def resolution_receipt_destination_safe(
+    *, root: Path, decision_id: str, artifact_root: Path | None = None
+) -> bool:
+    """Return whether one completion receipt stays in a non-symlinked owner."""
+    record_root = artifact_root or records_artifact_root(root)
+    destination = _receipt_path(root, decision_id, artifact_root=record_root)
+    return _record_destination_safe(record_root, destination)
 
 
 def verify_preservation_package(
@@ -78,7 +88,8 @@ def verify_preservation_package(
     manifest = _preservation_manifest(destination, package)
     checks = (("repository.bundle", "bundle_sha256"), ("tracked.patch", "patch_sha256"))
     invalid = any(
-        not (path := destination / name).is_file()
+        (path := destination / name).is_symlink()
+        or not path.is_file()
         or sha256_digest(path) != str(manifest.get(key) or "")
         for name, key in checks
     )
@@ -87,7 +98,12 @@ def verify_preservation_package(
         str(manifest.get("untracked_archive_sha256") or ""),
     )
     if invalid or (
-        archive_digest and (not archive.is_file() or sha256_digest(archive) != archive_digest)
+        archive_digest
+        and (
+            archive.is_symlink()
+            or not archive.is_file()
+            or sha256_digest(archive) != archive_digest
+        )
     ):
         raise ValueError(_PRESERVATION_PACKAGE_INVALID)
 
@@ -95,7 +111,7 @@ def verify_preservation_package(
 def _preservation_manifest(destination: Path, package: dict[str, object]) -> dict[str, object]:
     supplied_manifest = package.get("manifest")
     manifest_path = destination / "manifest.json"
-    if not manifest_path.is_file():
+    if manifest_path.is_symlink() or not manifest_path.is_file():
         if not isinstance(supplied_manifest, dict):
             raise TypeError(_PRESERVATION_MANIFEST_INVALID)
         raise ValueError(_PRESERVATION_PACKAGE_INVALID)
@@ -171,9 +187,13 @@ def lane_resolution_inventory(*, root: Path) -> dict[str, object]:
                 "manifest_sha256": manifest_sha256 or receipt_manifest_sha256,
             }
         )
+    unsafe_package_path = _unsafe_package_path_present(root)
+    unsafe_record_path = _unsafe_record_path_present(root)
     required_gaps = [
         *(["lane_resolution_decision_record_conflict"] if conflicts else []),
         *(["lane_resolution_manifest_receipt_mismatch"] if integrity_ids else []),
+        *(["lane_resolution_package_path_unsafe"] if unsafe_package_path else []),
+        *(["lane_resolution_record_path_unsafe"] if unsafe_record_path else []),
     ]
     return {
         "ok": not required_gaps,
@@ -195,6 +215,8 @@ def clear_lane_resolution_package(
 ) -> dict[str, object]:
     """Clear exactly one retained package after its bounded evidence review."""
     manifests, manifest_conflicts = _manifests_with_conflicts(root)
+    unsafe_package_path = _unsafe_package_path_present(root)
+    unsafe_record_path = _unsafe_record_path_present(root)
     conflicts = set(manifest_conflicts)
     receipts: dict[str, dict[str, str]] = {}
     for category, schema in (
@@ -208,11 +230,15 @@ def clear_lane_resolution_package(
         conflicts.update(category_conflicts)
     manifest = manifests.get(request.decision_id, {})
     actual = str(manifest.get("manifest_sha256") or "")
+    receipt_present = request.decision_id in receipts
     receipt_manifest = str(
         receipts.get(request.decision_id, {}).get("preservation_manifest_sha256") or ""
     )
-    ambiguous = request.decision_id not in conflicts and int(manifest.get("copy_count") or 0) > 1
-    receipt_mismatch = bool(manifest and receipt_manifest and actual != receipt_manifest)
+    copy_count = manifest.get("copy_count")
+    ambiguous = (
+        request.decision_id not in conflicts and isinstance(copy_count, int) and copy_count > 1
+    )
+    receipt_mismatch = bool(manifest and receipt_present and actual != receipt_manifest)
     chronicle, digest, chronicle_gaps = _clear_chronicle(root, request.chronicle_ref)
     gaps = [
         *(
@@ -221,6 +247,8 @@ def clear_lane_resolution_package(
             else []
         ),
         *(["lane_resolution_decision_record_conflict"] if request.decision_id in conflicts else []),
+        *(["lane_resolution_package_path_unsafe"] if unsafe_package_path else []),
+        *(["lane_resolution_record_path_unsafe"] if unsafe_record_path else []),
         *(["lane_resolution_clear_package_ambiguous"] if ambiguous else []),
         *(["lane_resolution_manifest_receipt_mismatch"] if receipt_mismatch else []),
         *(["lane_resolution_clear_package_missing"] if not manifest else []),
@@ -254,11 +282,36 @@ def clear_lane_resolution_package(
         mints_authority=False,
     ).to_payload()
     _validate_schema(root, "lane-resolution-clear-receipt.schema.json", receipt)
+    record_root = records_artifact_root(root)
     receipt_path = _clear_receipt_path(root, request.decision_id)
-    _write_json_atomic(receipt_path, receipt)
+    if not _record_destination_safe(record_root, receipt_path):
+        report.update(
+            ok=False,
+            state="blocked",
+            required_gaps=["lane_resolution_clear_receipt_path_unsafe"],
+        )
+        return report
+    _write_json_atomic(receipt_path, receipt, record_root=record_root)
     package_path = Path(str(manifest["package_path"]))
     if not package_path.is_absolute():
         package_path = root / package_path
+    if not _package_path_safe(root, package_path):
+        receipt_path.unlink(missing_ok=True)
+        report.update(
+            ok=False,
+            state="blocked",
+            required_gaps=["lane_resolution_package_path_unsafe"],
+        )
+        return report
+    manifest_path = package_path / "manifest.json"
+    if sha256_digest(manifest_path) != actual:
+        receipt_path.unlink(missing_ok=True)
+        report.update(
+            ok=False,
+            state="blocked",
+            required_gaps=["lane_resolution_clear_manifest_mismatch"],
+        )
+        return report
     try:
         shutil.rmtree(package_path)
     except OSError:
@@ -275,6 +328,40 @@ def _manifests(root: Path) -> dict[str, dict[str, object]]:
     return _manifests_with_conflicts(root)[0]
 
 
+def _unsafe_package_path_present(root: Path) -> bool:
+    for artifact_root in artifact_roots(root):
+        if artifact_root.is_symlink():
+            return True
+        if not artifact_root.exists():
+            continue
+        try:
+            entries = tuple(artifact_root.iterdir())
+        except OSError:
+            return True
+        for entry in entries:
+            if entry.name in {_DECISIONS, _RECEIPTS, _CLEARS}:
+                continue
+            if entry.is_symlink() or (entry / "manifest.json").is_symlink():
+                return True
+    return False
+
+
+def _unsafe_record_path_present(root: Path) -> bool:
+    return any(
+        (artifact_root / category).is_symlink()
+        for artifact_root in artifact_roots(root)
+        for category in (_DECISIONS, _RECEIPTS, _CLEARS)
+    )
+
+
+def _package_path_safe(root: Path, package_path: Path) -> bool:
+    return any(
+        _record_destination_safe(artifact_root, package_path)
+        and _record_destination_safe(artifact_root, package_path / "manifest.json")
+        for artifact_root in artifact_roots(root)
+    )
+
+
 def _manifests_with_conflicts(
     root: Path,
 ) -> tuple[dict[str, dict[str, object]], set[str]]:
@@ -282,6 +369,8 @@ def _manifests_with_conflicts(
     conflicts: set[str] = set()
     for artifact_root in artifact_roots(root):
         for path in sorted(artifact_root.glob("*/manifest.json")):
+            if not _package_path_safe(root, path.parent):
+                continue
             try:
                 payload = json.loads(path.read_text(encoding="utf-8"))
                 decision_id = str(payload["decision_id"])
@@ -293,23 +382,19 @@ def _manifests_with_conflicts(
             existing = records.get(decision_id)
             package_path = display_path(root, path.parent)
             if existing:
-                existing["copy_count"] = int(existing["copy_count"]) + 1
-                paths = list(existing["package_paths"])
-                paths.append(package_path)
-                existing["package_paths"] = paths
-                if existing["content_sha256"] != content_sha256:
+                copy_count = existing.get("copy_count")
+                existing["copy_count"] = copy_count + 1 if isinstance(copy_count, int) else 2
+                if existing["manifest_sha256"] != content_sha256:
                     conflicts.add(decision_id)
                 continue
             records.setdefault(
                 decision_id,
                 {
                     "package_path": package_path,
-                    "package_paths": [package_path],
                     "copy_count": 1,
                     "manifest_sha256": content_sha256,
                     "lane_ref": str(payload.get("lane_ref") or ""),
                     "head": str(payload.get("head") or ""),
-                    "content_sha256": content_sha256,
                 },
             )
     return records, conflicts
@@ -325,7 +410,10 @@ def _records_with_conflicts(
     records: dict[str, dict[str, str]] = {}
     conflicts: set[str] = set()
     for artifact_root in artifact_roots(root):
-        for path in sorted((artifact_root / category).glob("*.json")):
+        category_root = artifact_root / category
+        if category_root.is_symlink():
+            continue
+        for path in sorted(category_root.glob("*.json")):
             try:
                 payload = json.loads(path.read_text(encoding="utf-8"))
                 if not validate_schema_instance(schema, payload, root=root)["ok"]:
@@ -391,8 +479,32 @@ def _record_path(
     )
 
 
-def _write_json_atomic(destination: Path, payload: dict[str, object]) -> None:
+def _record_destination_safe(record_root: Path, destination: Path) -> bool:
+    lexical_root = record_root.absolute()
+    lexical_destination = destination.absolute()
+    if not lexical_destination.is_relative_to(lexical_root):
+        return False
+    current = lexical_root
+    if current.is_symlink():
+        return False
+    for part in lexical_destination.relative_to(lexical_root).parts:
+        current /= part
+        if current.is_symlink():
+            return False
+    return True
+
+
+def _write_json_atomic(
+    destination: Path,
+    payload: dict[str, object],
+    *,
+    record_root: Path,
+) -> None:
+    if not _record_destination_safe(record_root, destination):
+        raise OSError("lane_resolution_record_path_unsafe")
     destination.parent.mkdir(parents=True, exist_ok=True)
+    if not _record_destination_safe(record_root, destination):
+        raise OSError("lane_resolution_record_path_unsafe")
     descriptor, name = tempfile.mkstemp(
         dir=destination.parent, prefix=f".{destination.name}.", suffix=".tmp"
     )
@@ -402,6 +514,8 @@ def _write_json_atomic(destination: Path, payload: dict[str, object]) -> None:
             handle.write(json.dumps(payload, indent=2, sort_keys=True) + "\n")
             handle.flush()
             os.fsync(handle.fileno())
+        if not _record_destination_safe(record_root, destination):
+            raise OSError("lane_resolution_record_path_unsafe")
         try:
             os.link(temporary, destination)
         except FileExistsError as error:

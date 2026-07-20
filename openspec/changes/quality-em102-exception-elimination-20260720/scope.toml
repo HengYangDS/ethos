@@ -1,0 +1,10 @@
+schema_version = 1
+paths = [
+  ".config/checks/ruff/ruff.toml",
+  ".config/checks/ruff/ratchet.toml",
+  "packages/ethos/src/ethos/repository/evidence/core.py",
+  "tests/unit/governance/test_quality_regime.py",
+  "openspec/changes/quality-em102-exception-elimination-20260720/**",
+  "evidence/claims/quality-em102-exception-elimination-20260720.toml",
+  "evidence/chronicle/quality-em102-exception-elimination-20260720/**",
+]

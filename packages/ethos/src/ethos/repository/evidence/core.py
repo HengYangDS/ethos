@@ -79,13 +79,15 @@ class ProofRun:
 
     def __post_init__(self) -> None:
         if self.state not in PROOF_RUN_STATES:
-            raise ValueError(f"invalid proof run state: {self.state}")
+            message = f"invalid proof run state: {self.state}"
+            raise ValueError(message)
         if self.state == "proven" and not self.trust_bearing:
             raise ValueError("proven proof run must be trust_bearing")
         if self.trust_bearing and self.state != "proven":
             raise ValueError("trust_bearing proof run must be proven")
         if self.state in {"accepted-risk", "waived_nonblocking"} and not self.governance_ref:
-            raise ValueError(f"{self.state} proof run requires governance_ref")
+            message = f"{self.state} proof run requires governance_ref"
+            raise ValueError(message)
 
     @classmethod
     def from_adapter_result(cls, result: AdapterProofResult) -> ProofRun:

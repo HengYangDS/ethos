@@ -315,6 +315,8 @@ def test_ruff_ratchet_has_no_zero_debt_ignore_residue() -> None:
     assert "FBT001 = 0" not in (ROOT / ".config/checks/ruff/ratchet.toml").read_text(
         encoding="utf-8"
     )
+    assert '"ARG002"' not in ruff_config
+    assert "ARG002" not in ratchet
 
 
 def test_ruff_ratchet_uses_tracked_python_file_set() -> None:

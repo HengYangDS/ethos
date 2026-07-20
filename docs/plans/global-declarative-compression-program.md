@@ -127,9 +127,12 @@ the single dual-remote publication.
 | Duplication control | AST-native redundancy, forwarder, re-export, and semantic-owner checks | No perpetual jscpd/vulture allowlist. |
 
 NetworkX, OPA/Rego, Temporal, Dagster, Airflow, CUE, Jsonnet, Dhall, Nickel,
-Jinja2, Copier, Cookiecutter, `returns`, Pyrsistent, immutables, Nox, Pixi, Allure, and
-Testcontainers are intentionally outside the product. They add a runtime,
-parallel authority, or framework surface without a demonstrated net deletion.
+Jinja2 rendering or scaffold generation, Copier, Cookiecutter, `returns`,
+Pyrsistent, immutables, Nox, Pixi, Allure, and Testcontainers are intentionally
+outside the product. The only admitted Jinja2 surface is the parse-only Budget
+Contract v2 measurement provider; it never renders templates or owns adoption
+scaffolding. The excluded mechanisms add a runtime, parallel authority, or
+framework surface without a demonstrated net deletion.
 
 ## Carrier Admission And Quality Contract
 

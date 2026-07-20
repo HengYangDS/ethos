@@ -159,3 +159,23 @@ def revoke_lease(  # noqa: PLR0913, RUF100 - exact request envelope preserves bo
         "epoch": int(payload.get("epoch") or 0),
         "expected_head": str(payload.get("expected_head") or ""),
     }
+
+
+def revoke_owner_unavailable_lease(  # noqa: PLR0913, RUF100 - accepted exceptional recovery keeps exact CAS dimensions
+    db_path: Path,
+    *,
+    subject: str,
+    source_holder_ref: str,
+    expected_lease_id: str,
+    expected_epoch: int,
+    expected_head: str,
+) -> dict[str, Any]:
+    """Revoke one accepted-policy-bound unavailable-owner lease generation by exact CAS."""
+    return revoke_lease(
+        db_path,
+        subject=subject,
+        holder_ref=source_holder_ref,
+        expected_lease_id=expected_lease_id,
+        expected_epoch=expected_epoch,
+        expected_head=expected_head,
+    )

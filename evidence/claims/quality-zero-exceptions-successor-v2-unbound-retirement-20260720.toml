@@ -1,0 +1,32 @@
+[claim]
+id = "quality-zero-exceptions-successor-v2-unbound-retirement-20260720"
+subject = "ethos:lane:quality-zero-exceptions-successor-v2-unbound-retirement"
+state = "active"
+summary = "One accepted-ancestor quality-zero-exceptions successor ref is bound to a target-specific owner-unavailable exceptional retirement policy; retirement itself remains a later native transition."
+
+[evidence]
+dated = "evidence/chronicle/owner-unavailable-unbound-retirement-recovery-20260720/quality-zero-exceptions-successor-v2-2026-07-20.md"
+sha256 = "d86639443be7a43c39d8b49f4f44860670b95e9582177dcabf4bd358c4e4afa3"
+evidence_ids = ["evidence:quality-zero-exceptions-successor-v2-unbound-retirement-20260720"]
+binding = "The exact branch/head, exact active source lease tuple, absent recorded source worktree, accepted-ancestor relation, and accepted target Chronicle bind one later native exceptional retirement only."
+verifier = "digest_only"
+tests = ["ethos lane retire unbound --branch work/quality-zero-exceptions-successor-v2-20260719 --expect-head 943a5e1e373b009f02533ff22815e8bca32b3157 --owner-unavailable-recovery --json"]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository-governance"
+scope = "One exact unbound quality-zero-exceptions successor ref and its observed unavailable-holder lease generation; no batch cleanup, generic takeover, raw deletion, remote mutation, or hosted claim."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-20-owner-unavailable-unbound-retirement-recovery-20260720"
+fallback = "Preserve the ref and lease if current target, Claim, Chronicle, source path, lease tuple, protected refs, CAS, or postconditions drift."
+kill_signal = "The target is no longer an accepted ancestor/unbound residue, the source path reappears, the lease tuple changes, or native postconditions cannot prove exact retirement."
+
+[promotion]
+targets = [
+  "evidence/claims/quality-zero-exceptions-successor-v2-unbound-retirement-20260720.toml",
+  "evidence/chronicle/owner-unavailable-unbound-retirement-recovery-20260720/quality-zero-exceptions-successor-v2-2026-07-20.md",
+  "openspec/changes/archive/2026-07-20-owner-unavailable-unbound-retirement-recovery-20260720",
+]

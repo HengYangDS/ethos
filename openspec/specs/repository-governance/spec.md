@@ -2903,10 +2903,10 @@ Chronicle that contains `lane_retire/unbound_exceptional`, `target_branch:
 <branch>`, `target_head: <head>`, and `target_claim: <claim-id>` for the same
 exact target. The named local Claim SHALL be byte-identical to its accepted
 branch version. One accepted evidence carrier SHALL bind one target; it SHALL
-NOT permit a batch effect or apply to another inventory item. Apply SHALL additionally
-require explicit authorization, break-glass, and irreversible confirmation. The
-route SHALL NOT infer authority from an agent vendor, session, account, or
-host-specific path.
+NOT permit a batch effect or apply to another inventory item. Apply SHALL
+additionally require explicit authorization, break-glass, and irreversible
+confirmation. The route SHALL NOT infer authority from an agent vendor,
+session, account, or host-specific path.
 
 #### Scenario: Exact accepted-ancestor residue is inspected
 
@@ -2938,6 +2938,23 @@ host-specific path.
 - **WHEN** apply omits authorization, break-glass, or irreversible confirmation
 - **THEN** ETHOS SHALL block the request before any ref mutation
 - **AND** it SHALL report the missing machine-readable control gaps.
+
+#### Scenario: Unavailable source holder is recovered only by exact accepted policy
+
+- **WHEN** a target-specific accepted Chronicle records
+  `lease_recovery: owner_unavailable`, the exact active source lease ID, holder,
+  epoch, expected head, and recorded absolute source worktree path, and that
+  path is absent
+- **AND** an explicitly confirmed invocation uses
+  `--owner-unavailable-recovery` from a different non-empty actor identity
+- **THEN** ETHOS MAY revoke only that exact source lease generation through the
+  native lease CAS before the existing compare-and-delete transition
+- **AND** a present source path, an invalid or mismatched Chronicle lease tuple,
+  a missing recovery actor, or a same-holder invocation SHALL block without
+  deleting the ref or lease
+- **AND** this exception SHALL remain exact-target, receipt-bound, and
+  vendor-neutral; process absence, a provider/session label, or a supplied
+  holder string alone SHALL NOT authorize takeover.
 
 ### Requirement: Exceptional unbound effects are compare-and-delete and receipt-bound
 

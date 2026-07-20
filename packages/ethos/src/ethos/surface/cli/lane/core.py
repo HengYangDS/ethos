@@ -361,6 +361,9 @@ def lane_retire_unbound(
     reason: Annotated[str, Parameter(name="--reason")] = "",
     chronicle_ref: Annotated[str, Parameter(name="--chronicle-ref")] = "",
     authorize: bool = False,
+    owner_unavailable_recovery: Annotated[
+        bool, Parameter(name="--owner-unavailable-recovery")
+    ] = False,
     break_glass: Annotated[bool, Parameter(name="--break-glass")] = False,
     confirm_irreversible: Annotated[bool, Parameter(name="--confirm-irreversible")] = False,
     apply: bool = False,
@@ -379,6 +382,7 @@ def lane_retire_unbound(
         authorized=authorize,
         break_glass=break_glass,
         confirm_irreversible=confirm_irreversible,
+        owner_unavailable_recovery=owner_unavailable_recovery,
     )
     result = EthosResult(
         command="lane retire unbound",

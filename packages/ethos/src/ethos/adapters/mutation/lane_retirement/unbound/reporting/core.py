@@ -16,6 +16,7 @@ def report(  # noqa: PLR0913, RUF100 - exact reporting preserves bound state dim
     authorized: bool,
     break_glass: bool,
     confirm_irreversible: bool,
+    owner_unavailable_recovery: bool,
     observed: dict[str, object],
     gaps: list[str],
 ) -> dict[str, object]:
@@ -31,6 +32,7 @@ def report(  # noqa: PLR0913, RUF100 - exact reporting preserves bound state dim
         "claim_binding": str(observed["claim_binding"]),
         "reason": reason,
         "chronicle_ref": chronicle_ref,
+        "owner_unavailable_recovery": owner_unavailable_recovery,
         "observation": observation.public_observation(observed),
         "mutation": mutation(
             branch=branch,
@@ -42,6 +44,7 @@ def report(  # noqa: PLR0913, RUF100 - exact reporting preserves bound state dim
             observed=observed,
             break_glass=break_glass,
             confirm_irreversible=confirm_irreversible,
+            owner_unavailable_recovery=owner_unavailable_recovery,
             gaps=gaps,
         ),
         "required_gaps": sorted(set(gaps)),
@@ -59,6 +62,7 @@ def mutation(  # noqa: PLR0913, RUF100 - exact mutation envelope preserves bound
     observed: dict[str, object],
     break_glass: bool,
     confirm_irreversible: bool,
+    owner_unavailable_recovery: bool,
     gaps: list[str],
 ) -> dict[str, object]:
     """Build the admission-bound mutation envelope without minting authority."""
@@ -82,6 +86,7 @@ def mutation(  # noqa: PLR0913, RUF100 - exact mutation envelope preserves bound
             "chronicle_claim_sha256": str(chronicle["claim_sha256"]),
             "break_glass": break_glass,
             "confirm_irreversible": confirm_irreversible,
+            "owner_unavailable_recovery": owner_unavailable_recovery,
             "observation_sha256": str(observed["observation_sha256"]),
         },
     )

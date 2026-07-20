@@ -17,7 +17,7 @@ def main() -> None:
     argv = sys.argv[1:]
     load_command_groups(argv)
     try:
-        app()
+        app(argv)
     except ValueError as exc:
         if str(exc) != "adopter_profile_invalid:.ethos/profile.toml":
             raise

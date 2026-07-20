@@ -2,26 +2,38 @@
 id = "budget-contract-v2-native-measurement-20260719"
 subject = "quality:budget-contract-v2:native-measurement"
 state = "active"
-summary = "Open the bounded Task 3 governance carrier for content-bound native measurement, canonical runtime/provider identity, descriptor-safe reads, deterministic non-compensating aggregation, and adversarial RED/GREEN work without activating replay, policy, or enforcement."
+summary = "Implement and independently review Budget Contract v2 Task 3 native measurement, descriptor-safe carrier reads, deterministic fail-closed aggregation, and exact provider identities while keeping v1 authoritative and leaving replay, policy, enforcement, archive, land, closeout, publication, and retirement to separately evidenced transitions."
 
 [evidence]
 dated = "evidence/chronicle/budget-contract-v2-native-measurement-20260719/2026-07-19.md"
-sha256 = "9308fa7632bd51c11051361397ea832b52019a88ee16d4d7e83096e393f67d88"
+sha256 = "82ed018761c7054732f32c9aed60005f14779537eee6fd5f04a346b9f42e0359"
 evidence_ids = ["evidence:budget-contract-v2-native-measurement-20260719"]
-binding = "This active authoring carrier binds the corrected Task 3 topology, canonical CPython 3.14 measurement-runtime and conformance decision, descriptor-bound worktree-byte boundary, classified-only and exclusion-aware aggregation boundary, raw-versus-normalized digest separation, test-domain corpus strategy, staged promotion rule, RED/GREEN plan, and explicit T3/T4 and v1-authority boundaries. It records the superseded pre-remediation runs, six NOT APPROVED review waves, the withdrawn R7 package, the three independent R10 APPROVED decisions for the pre-ratchet exact-typed context-bound contract checkpoint, and the current no-ceiling-raise quality refactor: metaclass-enforced Load finality independent of base order, trusted field-annotation-guided recursive canonical storage admission that rejects nested model subclasses before reading their storage or serializing them, safe tuple-subclass canonicalization through built-in iteration, exact built-in field keys and scalar leaves, cycle and mutable-state rejection, centralized stable Load errors, separated validated-success/context replay, a typed-only domain-separated digest surface backed by an independent JSON-plus-SHA-256 test oracle, exact pre-change Ruff ratchet counts, 39 focused tests, 100 percent coverage across 400 statements and 106 branches, 190 source-budget regressions, and 482/99/136 ELOC across the three contract owners. The frozen R15 package (review brief a8e5bf9cf23eeba0f625d9ef609ca8e5fdafe4b5db110abad5acb2adf730ec59; manifest d2579c177d9092dbbe2d8ef41d32b10b17dac265042a5090e11aabd7ff099333) received APPROVED decisions from API-to-spec, object-model and deterministic-serialization, and spec-bound simplicity reviews with no Critical or Important mismatch, so it binds the unchanged production AST and OpenSpec Tasks 2.1 and 2.2. A later audit found the R15 code-size log blocked at 812>800 for the integrity test owner; the correction only relocates two unchanged top-level test functions into the contract test owner, preserves all 33 combined test-function ASTs and all production SHA-256 values, keeps 39 focused tests at 100 percent coverage and 190 source-budget regressions, and restores the official code-size gate at 357/775 ELOC. The frozen R16 package (review brief b5be109fddaa52a70579374dee4b763cf863847076fdd2f4e76e5fff7d56d5d1; manifest bee79ef6f15e89da165b0d8515a9d5fd834d0acdbb37a8e60c0efa104ec52443; R15-equivalence record a90b0bdecf3128c8b9e9fb8d19ff098c9d9c342333e9a08bff1ce89551d74eae) received APPROVED decisions from API-to-spec, object-model and deterministic-test, and spec-bound simplicity reviews with no Critical or Important mismatch, so this claim binds the current ratchet-clean production and test package as the independently confirmed OpenSpec Tasks 2.1 and 2.2 checkpoint; it does not bind native-provider or adapter success, complete-inventory measurement, parity, proof, archive, integration, release readiness, external runner state, or network state The current-candidate successor at revision 820e54ac6f4908e34fed4a28f988228de0d57fe1 and tree eaca6dc7766a9bde1899bba3fa1eadbe7dfb48c9 additionally binds the native providers, descriptor-safe carrier and deterministic snapshot orchestration, the fail-closed complete-inventory observation, and the digest-only one-binding adopter bundle 41f547053b92224c85c295111838e5836a3925134fcac91d87f3edf4c8adbc82. V2 remains inactive and v1 remains authoritative; proof, archive, land, accepted closeout, publication, remote state, and T4 activation remain unbound."
+binding = "This active claim binds the unlanded predecessor HEAD 9fe59b5ad008d6c38222e51ba14feceb49a89712 and successor base b1d0cd2e0a675bf67960b37bf449ce9c158d804c without authorizing predecessor retirement; the independently reviewed implementation checkpoint c3c9a674437255429f8d25d17a1613c4de2e3f62 with code/security report 0da2b3c33f4b0b0a2fed18c556e3607ccd449a75959d65490802e0355e7e1e17 and spec/governance/simplicity report 36ffbaf1764ac49cb4921f023047f22734a89e2d10c9df18eea455367fba55b6; and deterministic test-only successor 003623e2cf00057f5504cc0e096caacc5bb7a266 with zero-finding re-review 3fa44951bc234aff7a60e34679ab80e3dd02f2d1ffe414f9f9cf42046027a0f0. At 003623e2c, 247 focused tests covered 1701 statements and 628 branches at 100 percent, 258 integration tests and 286 v1 regressions passed, Batch A 170e70fdf485179524c9da6f4e873f751d6c6f750d1a82e2862b6f634aadd5d5 and Batch B d361f562152e5cb269a649bb31671d08d1e73912bcee1d75fa5f0cf1a993653f were green, and generated-artifacts 0fc82501731ccd962e481e9d793bf3592c34a0e1f5382d23ceaceac1b4ebb7ff was clean. The complete inventory observation 5f9129e40658e537375a262edf0ffbab560dbbacf2e22c5a4864817110c75c80 bound 2883 paths, 2880 classified carriers, 3 reviewed exclusions, manifest 520edd6df6c9e5347f0385fcf8d33d0efb2cb670a28a6257b296044ccdc74971, inventory e7bea9d4e967aa244c811234c511c6fc395fea29e61343cae07b3bfa9514b49c, and metric-contract set 95939bf450efceb8b40b7e19ee5d870fb0d858face2686ffb8fe53259d756cef; all provider identities matched, the sole YAML gap was stable, and snapshot/vector payloads and digests were absent. It also binds the one-binding bundle 41f547053b92224c85c295111838e5836a3925134fcac91d87f3edf4c8adbc82. V1 remains authoritative and v2 remains inactive. Parity, proof, archive, land, accepted closeout, local or network publication, hosted runner state, and both Lane retirements remain unclaimed."
 verifier = "digest_only"
 tests = [
-  "tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev pytest -q tests/unit/kernel/test_source_budget_measurements_contract.py tests/unit/kernel/test_source_budget_measurements_integrity.py",
+  "build/runtime/venv/bin/python -m pytest -c /dev/null -p no:cacheprovider --import-mode=importlib --timeout=120 -W error -q --cov=<eight-t3-owners> --cov-branch --cov-fail-under=100 tests/unit/kernel/test_source_budget_measurements_contract.py tests/unit/kernel/test_source_budget_measurements_integrity.py tests/unit/adapters/repo/source_budget/test_measurement.py tests/unit/adapters/repo/source_budget/test_measurement_orchestration.py tests/unit/adapters/repo/source_budget/test_measurement_shell_regressions.py tests/unit/adapters/repo/source_budget/test_measurement_yaml_regressions.py",
+  "build/runtime/venv/bin/python -m pytest -c /dev/null -p no:cacheprovider --import-mode=importlib --timeout=120 -W error -q tests/unit/kernel/test_source_budget_measurements_contract.py tests/unit/kernel/test_source_budget_measurements_integrity.py tests/unit/adapters/repo/source_budget/test_measurement.py tests/unit/adapters/repo/source_budget/test_measurement_orchestration.py tests/unit/adapters/repo/source_budget/test_measurement_shell_regressions.py tests/unit/adapters/repo/source_budget/test_measurement_yaml_regressions.py tests/unit/cli/test_adoption_root_resolution.py tests/architecture/test_dependency_prose_schema_gates.py",
+  "build/runtime/venv/bin/python -m pytest -c /dev/null -p no:cacheprovider --import-mode=importlib --timeout=120 -W error -q tests/unit/adapters/repo/test_source_budget.py tests/unit/adapters/repo/source_budget tests/unit/domain/source_budget tests/unit/kernel/test_source_budget_carriers_contract.py tests/unit/kernel/test_source_budget_contract.py tests/unit/kernel/test_source_budget_measurements_contract.py tests/unit/kernel/test_source_budget_measurements_integrity.py tests/unit/kernel/test_source_budget_metrics_contract.py",
   "tools/ci/scripts/run-python-lint.sh",
   "tools/ci/scripts/run-config-lint.sh",
   "tools/ci/scripts/run-json-schema-check.sh",
+  "tools/ci/scripts/run-dependency-hygiene.sh",
+  "tools/ci/scripts/run-import-linter.sh",
+  "tools/ci/scripts/run-shell-lint.sh",
+  "uv lock --check",
+  ".agents/skills/ethos-quality-gate-governance/scripts/quality_audit.py .",
+  "tools/ci/scripts/run-ethos-lane.sh quality types --json",
+  "tools/ci/scripts/run-ethos-lane.sh quality code-size --json",
   "tools/ci/scripts/run-ethos-lane.sh quality module-layout --json",
   "tools/ci/scripts/run-ethos-lane.sh quality source-budget --json",
-  "openspec validate --all --strict --json",
   "tools/ci/scripts/run-ethos-lane.sh quality claims --json",
   "tools/ci/scripts/run-ethos-lane.sh plan --changed --json",
+  "tools/ci/scripts/run-ethos-lane.sh openspec --change budget-contract-v2-native-measurement --lifecycle --json",
+  "openspec validate --all --strict --json",
   "tools/ci/scripts/run-ethos-lane.sh parity gaps --json",
+  "tools/ci/scripts/run-ethos-lane.sh quality generated-artifacts --json",
   "tools/ci/scripts/run-ethos-lane.sh prove --execute --expect-head <committed-head> --json",
+  "tools/ci/scripts/run-ethos-lane.sh prove --execute --full --expect-head <committed-head> --json",
 ]
 
 [evidence.freshness]
@@ -75,6 +87,9 @@ targets = [
   "tools/ci/scripts/run-dependency-hygiene.sh",
   "uv.lock",
   "openspec/changes/budget-contract-v2-native-measurement",
+  "openspec/specs/contracts/spec.md",
+  "openspec/specs/quality/spec.md",
+  "openspec/specs/repository-governance/spec.md",
   "evidence/claims/budget-contract-v2-native-measurement-20260719.toml",
   "evidence/chronicle/budget-contract-v2-native-measurement-20260719",
   "evidence/claims/current-head-one-binding-adopter-evidence-20260720.toml",

@@ -35,8 +35,8 @@
 
 ## 7. Quality And Governance Closeout
 
-- [ ] 7.1 Run focused 100 percent statement/branch coverage, v1 source-budget regressions, Python lint/format/ratchet, config/schema/dependency/module-layout checks, and strict OpenSpec/claims/lifecycle validation.
-- [ ] 7.2 Expand the active claim promotion targets after TDD creates every production/test/corpus owner, complete independent code/spec/security review, refresh generic parity when required, and bind final results and digests into claim and Chronicle.
+- [x] 7.1 Run focused 100 percent statement/branch coverage, v1 source-budget regressions, Python lint/format/ratchet, config/schema/dependency/module-layout checks, and strict OpenSpec/claims/lifecycle validation.
+- [x] 7.2 Expand the active claim promotion targets after TDD creates every production/test/corpus owner, complete independent code/spec/security review, refresh generic parity when required, and bind final results and digests into claim and Chronicle.
 - [ ] 7.3 Commit the final pre-transition carrier and run exact-HEAD proof; then complete official archive inputs without claiming archive, candidate land, accepted closeout, publication, or Lane retirement prematurely.
 
 ## Post-Archive Transition Boundary

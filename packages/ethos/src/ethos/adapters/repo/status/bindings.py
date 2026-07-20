@@ -180,19 +180,27 @@ def leases_by_branch(
     worktrees: list[dict[str, str]], *, current_path: Path
 ) -> dict[str, dict[str, object]]:
     """Load active leases, preferring the accepted-root control store."""
-    control_root = next(
-        (
-            Path(item["path"])
-            for item in worktrees if item["role"] == ROLE_ACCEPTED_ROOT and item["path"]
-        ),
-        current_path,
-    )
+    control_root = accepted_worktree_root(worktrees, current_path)
     leases = {str(lease["subject"]): lease for lease in _json_projection_leases(control_root)}
     leases.update({
         str(lease["subject"]): lease
         for lease in active_leases(control_root / ".ethos" / "state" / "state.sqlite")
     })
     return leases
+
+
+def accepted_worktree_root(worktrees: object, default: Path) -> Path:
+    """Return the linked accepted checkout that owns common-directory local state."""
+    return next(
+        (
+            Path(str(item.get("path")))
+            for item in (worktrees if isinstance(worktrees, list) else ())
+            if isinstance(item, dict)
+            and item.get("role") == ROLE_ACCEPTED_ROOT
+            and item.get("path")
+        ),
+        default,
+    )
 
 
 def _json_projection_leases(control_root: Path) -> list[dict[str, object]]:

@@ -7,8 +7,8 @@ from ethos.adapters.mutation.lane_lifecycle.core import default_candidate_path
 from ethos.adapters.mutation.lane_lifecycle.core import repo_root
 from ethos.adapters.mutation.lane_lifecycle.core import run_git
 from ethos.adapters.mutation.lane_lifecycle.core import slug
-from ethos.adapters.mutation.lane_lifecycle.lease import state_root
 from ethos.adapters.repo.dirty.core import changed_paths
+from ethos.adapters.repo.status.bindings import accepted_worktree_root
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.adapters.store.state.lease.lifecycle.core import acquire_lease
 from ethos.adapters.store.state.lease.lifecycle.effects import update_lease_payload
@@ -17,8 +17,6 @@ from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 from ethos_core.contracts.branch.roles import load_branch_role_policy
 from ethos_core.contracts.coordination import HolderRef
-
-_state_root = state_root
 
 
 def start_work_lane(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
@@ -139,7 +137,7 @@ def bind_work_lane_claim(
     lane = _status_work_lane(status, target_branch)
     if lane is None:
         gaps.append(f"work_lane_not_found:{target_branch}")
-    state_db = state_root(status, repo) / ".ethos" / "state" / "state.sqlite"
+    state_db = accepted_worktree_root(status.get("worktrees"), repo) / ".ethos/state/state.sqlite"
     lease = _active_lease(state_db, target_branch)
     if lease is None:
         gaps.append(f"work_lane_missing_lease:{target_branch}")

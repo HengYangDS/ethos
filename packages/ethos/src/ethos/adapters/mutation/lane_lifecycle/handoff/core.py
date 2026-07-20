@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import subprocess
-from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
@@ -14,6 +13,7 @@ from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.mutation.lane_lifecycle.core import repo_root
 from ethos.adapters.mutation.lane_lifecycle.core import run_git
 from ethos.adapters.repo.dirty.core import changed_paths
+from ethos.adapters.repo.status.bindings import accepted_worktree_root
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.adapters.store.state.lease.lifecycle.effects import revoke_lease
 from ethos.adapters.store.state.lease.projection import active_leases
@@ -30,6 +30,7 @@ from ethos_core.contracts.lifecycle.core import reduce_guards
 if TYPE_CHECKING:
     from collections.abc import Callable
     from collections.abc import Sequence
+    from pathlib import Path
 
 
 def export_cross_host_handoff(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
@@ -262,7 +263,7 @@ def revoke_cross_host_source(  # noqa: PLR0913, RUF100 - exact request envelope 
     if apply and evaluation.ok:
         try:
             revoked = revoke_lease(
-                _state_root(status=status, repo=repo) / ".ethos/state/state.sqlite",
+                accepted_worktree_root(status.get("worktrees"), repo) / ".ethos/state/state.sqlite",
                 subject=branch,
                 holder_ref=holder_ref,
                 expected_lease_id=lease_id,
@@ -328,26 +329,11 @@ def _current_lease(*, status: dict[str, object], repo: Path, branch: str) -> dic
     matches = tuple(
         lease
         for lease in active_leases(
-            _state_root(status=status, repo=repo) / ".ethos/state/state.sqlite"
+            accepted_worktree_root(status.get("worktrees"), repo) / ".ethos/state/state.sqlite"
         )
         if lease.get("subject") == branch
     )
     return cast("dict[str, object]", matches[0]) if len(matches) == 1 else {}
-
-
-def _state_root(*, status: dict[str, object], repo: Path) -> Path:
-    worktrees = status.get("worktrees")
-    match = next(
-        (
-            item
-            for item in (worktrees if isinstance(worktrees, list) else [])
-            if isinstance(item, dict)
-            and item.get("role") == ROLE_ACCEPTED_ROOT
-            and item.get("path")
-        ),
-        {},
-    )
-    return Path(str(match.get("path") or repo))
 
 
 def _json_mapping(path: Path, *, gap: str, gaps: list[str]) -> dict[str, Any]:

@@ -2,171 +2,190 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict
-from dataclasses import dataclass
-from functools import wraps
-from inspect import signature
-from pathlib import Path  # noqa: TC003 - cyclopts needs runtime types in signatures
+from pathlib import Path  # noqa: TC003 - Cyclopts needs runtime types in signatures
 from typing import Annotated
-from typing import Any
+from typing import ClassVar
 
 from cyclopts import Parameter
+from pydantic import BaseModel
+from pydantic import ConfigDict
 
-import ethos.adapters.mutation.lane_lifecycle.handoff.core as handoff
-import ethos.adapters.mutation.lane_lifecycle.lease as leases
-import ethos.surface.cli._base as cli
-import ethos_core.normalization.core as normalization
+from ethos.adapters.mutation.lane_lifecycle.handoff.core import export_cross_host_handoff
+from ethos.adapters.mutation.lane_lifecycle.handoff.core import import_cross_host_handoff
+from ethos.adapters.mutation.lane_lifecycle.handoff.core import revoke_cross_host_source
+from ethos.adapters.mutation.lane_lifecycle.lease import execute_lease_operation
+from ethos.surface.cli._base import JsonFlag
+from ethos.surface.cli._base import RootOption
+from ethos.surface.cli._base import emit
+from ethos.surface.cli._base import lane_handoff_app
+from ethos.surface.cli._base import lane_lease_app
+from ethos.surface.cli._base import resolve_root
+from ethos_core.contracts.lifecycle.core import LeaseOperationRequest
+from ethos_core.normalization.core import integer
+from ethos_core.normalization.core import string_sequence
 from ethos_core.result import EthosResult
 
-ContraryFlag = Annotated[bool, Parameter(name="--contrary-decision-present")]
 
+class _CommandOptions(BaseModel):
+    """Shared Cyclopts boundary fields compiled before strict lifecycle validation."""
 
-@Parameter(name="*")
-@dataclass(frozen=True, slots=True, kw_only=True)
-class _CommandOptions:
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
     apply: bool = False
-    root: cli.RootOption | None = None
-    json_output: cli.JsonFlag = False
+    root: RootOption | None = None
+    json_output: JsonFlag = False
 
 
-@dataclass(frozen=True, slots=True, kw_only=True)
 class _GenerationOptions(_CommandOptions):
-    lease_id: str
-    epoch: int
-    expect_head: str
+    command: ClassVar[str] = ""
+    operation: ClassVar[str] = ""
+
+    branch: Annotated[str, Parameter(name="--branch")]
+    lease_id: Annotated[str, Parameter(name="--lease-id")]
+    epoch: Annotated[int, Parameter(name="--epoch")]
+    expect_head: Annotated[str, Parameter(name="--expect-head")]
 
 
-@dataclass(frozen=True, slots=True, kw_only=True)
-class _LaneOptions(_GenerationOptions):
-    branch: str
+class _HolderOptions(_GenerationOptions):
+    holder_ref: Annotated[str, Parameter(name="--holder-ref")]
 
 
-@dataclass(frozen=True, slots=True, kw_only=True)
-class _HolderLaneOptions(_LaneOptions):
-    holder_ref: str
+class _RenewOptions(_HolderOptions):
+    command = "lane lease renew"
+    operation = "renew"
+
+    ttl_seconds: Annotated[int, Parameter(name="--ttl-seconds")] = 86_400
 
 
-@dataclass(frozen=True, slots=True, kw_only=True)
-class _RenewOptions(_HolderLaneOptions):
-    ttl_seconds: int = 86_400
-
-
-@dataclass(frozen=True, slots=True, kw_only=True)
 class _ResumeOptions(_RenewOptions):
-    contrary_decision: ContraryFlag = False
+    command = "lane lease resume"
+    operation = "resume"
+
+    contrary_decision: Annotated[bool, Parameter(name="--contrary-decision-present")] = False
 
 
-@dataclass(frozen=True, slots=True, kw_only=True)
-class _OfferOptions(_HolderLaneOptions):
-    target_holder_ref: str
+class _OfferOptions(_HolderOptions):
+    command = "lane handoff offer"
+    operation = "handoff_offer"
+
+    target_holder_ref: Annotated[str, Parameter(name="--target-holder-ref")]
 
 
-@dataclass(frozen=True, slots=True, kw_only=True)
-class _AcceptOptions(_LaneOptions):
-    target_holder_ref: str
-    offer_id: str
-    ttl_seconds: int = 86_400
-    confirm_holder_quiesced: bool = False
+class _AcceptOptions(_GenerationOptions):
+    command = "lane handoff accept"
+    operation = "handoff_accept"
+
+    target_holder_ref: Annotated[str, Parameter(name="--target-holder-ref")]
+    offer_id: Annotated[str, Parameter(name="--offer-id")]
+    ttl_seconds: Annotated[int, Parameter(name="--ttl-seconds")] = 86_400
+    holder_quiesced: Annotated[bool, Parameter(name="--confirm-holder-quiesced")] = False
 
 
-@dataclass(frozen=True, slots=True, kw_only=True)
 class _ExportOptions(_OfferOptions):
-    context_text: str = ""
-    context_file: Path | None = None
-    output_root: Path | None = None
-    dirty_disposition: str | None = None
+    command = "lane handoff export"
+
+    context_text: Annotated[str, Parameter(name="--context-text")] = ""
+    context_file: Annotated[Path | None, Parameter(name="--context-file")] = None
+    output_root: Annotated[Path | None, Parameter(name="--output-root")] = None
+    dirty_disposition: Annotated[str | None, Parameter(name="--dirty-disposition")] = None
 
 
-@dataclass(frozen=True, slots=True, kw_only=True)
 class _ImportOptions(_CommandOptions):
-    package: Path
-    target_holder_ref: str
+    command: ClassVar[str] = "lane handoff import"
+
+    package: Annotated[Path, Parameter(name="--package")]
+    target_holder_ref: Annotated[str, Parameter(name="--target-holder-ref")]
 
 
-@dataclass(frozen=True, slots=True, kw_only=True)
-class _RevokeOptions(_GenerationOptions):
-    package: Path
-    acknowledgement: Path
-    holder_ref: str
+class _RevokeOptions(_CommandOptions):
+    command: ClassVar[str] = "lane handoff revoke-source"
+
+    package: Annotated[Path, Parameter(name="--package")]
+    acknowledgement: Annotated[Path, Parameter(name="--acknowledgement")]
+    holder_ref: Annotated[str, Parameter(name="--holder-ref")]
+    lease_id: Annotated[str, Parameter(name="--lease-id")]
+    epoch: Annotated[int, Parameter(name="--epoch")]
+    expect_head: Annotated[str, Parameter(name="--expect-head")]
 
 
 def _emit_lease_result(command: str, report: dict[str, object], *, json_output: bool) -> None:
+    """Project one lease operation through the shared command result contract."""
     lease = report.get("lease")
-    source = lease if isinstance(lease, dict) and lease else report.get("handoff_offer")
-    summary = source if isinstance(source, dict) else {}
+    offer = report.get("handoff_offer")
+    summary_source = lease if isinstance(lease, dict) and lease else offer
+    summary_payload = summary_source if isinstance(summary_source, dict) else {}
     result = EthosResult(
         command=command,
         ok=bool(report["ok"]),
         state=str(report["state"]),
         summary={
             "branch": report["branch"],
-            "lease_id": str(summary.get("lease_id") or ""),
-            "epoch": normalization.integer(summary.get("epoch")),
-            "holder_ref": str(summary.get("holder_ref") or ""),
+            "lease_id": str(summary_payload.get("lease_id") or ""),
+            "epoch": integer(summary_payload.get("epoch")),
+            "holder_ref": str(summary_payload.get("holder_ref") or ""),
         },
-        required_gaps=tuple(normalization.string_sequence(report.get("required_gaps"))),
+        required_gaps=tuple(string_sequence(report.get("required_gaps"))),
         next_actions=("ethos lane status --json",) if report["ok"] else (),
         data=report,
     )
-    cli.emit(result, json_output=json_output)
+    emit(result, json_output=json_output)
 
 
-def _invoke(command: str, operation: Any, options: _CommandOptions) -> None:
-    payload = asdict(options)
-    json_output = bool(payload.pop("json_output"))
-    payload["root"] = cli.resolve_root(payload["root"])
-    if "confirm_holder_quiesced" in payload:
-        payload["holder_quiesced"] = payload.pop("confirm_holder_quiesced")
-    _emit_lease_result(command, operation(**payload), json_output=json_output)
+def _run_lease(options: _GenerationOptions) -> None:
+    """Compile one Cyclopts model into the strict declaration-owned request."""
+    values = options.model_dump(exclude={"root", "json_output"})
+    values["expected_epoch"] = values.pop("epoch")
+    values.setdefault("holder_ref", str(values.get("target_holder_ref") or ""))
+    report = execute_lease_operation(
+        root=resolve_root(options.root),
+        request=LeaseOperationRequest(operation=options.operation, **values),
+    )
+    _emit_lease_result(options.command, report, json_output=options.json_output)
 
 
-def _command(app: Any, name: str, options: Any) -> Any:
-    def decorate(handler: Any) -> Any:
-        app.command(name=name)(handler)
-        wrapped = wraps(handler)(lambda **kwargs: handler(options(**kwargs)))
-        vars(wrapped)["__signature__"] = signature(options)
-        return wrapped
-
-    return decorate
-
-
-@_command(cli.lane_lease_app, "renew", _RenewOptions)
-def lane_lease_renew(options: _RenewOptions) -> None:
+@lane_lease_app.command(name="renew")
+def lane_lease_renew(options: Annotated[_RenewOptions, Parameter(name="*")]) -> None:
     """Renew one exact unexpired local lease generation."""
-    _invoke("lane lease renew", leases.renew_work_lane_lease, options)
+    _run_lease(options)
 
 
-@_command(cli.lane_lease_app, "resume", _ResumeOptions)
-def lane_lease_resume(options: _ResumeOptions) -> None:
+@lane_lease_app.command(name="resume")
+def lane_lease_resume(options: Annotated[_ResumeOptions, Parameter(name="*")]) -> None:
     """Resume an expired lease for the same holder and generation."""
-    _invoke("lane lease resume", leases.resume_work_lane_lease, options)
+    _run_lease(options)
 
 
-@_command(cli.lane_handoff_app, "offer", _OfferOptions)
-def lane_handoff_offer(options: _OfferOptions) -> None:
+@lane_handoff_app.command(name="offer")
+def lane_handoff_offer(options: Annotated[_OfferOptions, Parameter(name="*")]) -> None:
     """Offer one same-common-directory holder handoff."""
-    _invoke("lane handoff offer", leases.offer_work_lane_handoff, options)
+    _run_lease(options)
 
 
-@_command(cli.lane_handoff_app, "accept", _AcceptOptions)
-def lane_handoff_accept(options: _AcceptOptions) -> None:
+@lane_handoff_app.command(name="accept")
+def lane_handoff_accept(options: Annotated[_AcceptOptions, Parameter(name="*")]) -> None:
     """Accept one exact handoff offer after explicit quiescence confirmation."""
-    _invoke("lane handoff accept", leases.accept_work_lane_handoff, options)
+    _run_lease(options)
 
 
-@_command(cli.lane_handoff_app, "export", _ExportOptions)
-def lane_handoff_export(options: _ExportOptions) -> None:
+@lane_handoff_app.command(name="export")
+def lane_handoff_export(options: Annotated[_ExportOptions, Parameter(name="*")]) -> None:
     """Export content-addressed Git/context state for another common directory."""
-    _invoke("lane handoff export", handoff.export_cross_host_handoff, options)
+    values = options.model_dump(exclude={"root", "json_output"})
+    report = export_cross_host_handoff(root=resolve_root(options.root), **values)
+    _emit_lease_result(options.command, report, json_output=options.json_output)
 
 
-@_command(cli.lane_handoff_app, "import", _ImportOptions)
-def lane_handoff_import(options: _ImportOptions) -> None:
+@lane_handoff_app.command(name="import")
+def lane_handoff_import(options: Annotated[_ImportOptions, Parameter(name="*")]) -> None:
     """Import a verified package and create destination-local coordination."""
-    _invoke("lane handoff import", handoff.import_cross_host_handoff, options)
+    values = options.model_dump(exclude={"root", "json_output"})
+    report = import_cross_host_handoff(root=resolve_root(options.root), **values)
+    _emit_lease_result(options.command, report, json_output=options.json_output)
 
 
-@_command(cli.lane_handoff_app, "revoke-source", _RevokeOptions)
-def lane_handoff_revoke_source(options: _RevokeOptions) -> None:
+@lane_handoff_app.command(name="revoke-source")
+def lane_handoff_revoke_source(options: Annotated[_RevokeOptions, Parameter(name="*")]) -> None:
     """Revoke the exact source lease after destination acknowledgement."""
-    _invoke("lane handoff revoke-source", handoff.revoke_cross_host_source, options)
+    values = options.model_dump(exclude={"root", "json_output"})
+    report = revoke_cross_host_source(root=resolve_root(options.root), **values)
+    _emit_lease_result(options.command, report, json_output=options.json_output)

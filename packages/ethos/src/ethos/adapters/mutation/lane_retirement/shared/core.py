@@ -165,7 +165,12 @@ def retire_mutation_envelope(  # noqa: PLR0913, RUF100 - exact request envelope 
     expected_state.update(invocation_holder_ref=holder_ref, required_holder_ref=required_holder_ref)
     expected_state.update(extra_state or {})
     canonical = mutation_envelope(
-        MutationRequest(command, apply, confirmed, expect_head),
+        MutationRequest(
+            command=command,
+            apply=apply,
+            authorized=confirmed,
+            expect_head=expect_head,
+        ),
         action=action,
         resource=binding["ref"] or branch or "work-lane",
         expected_state=expected_state,

@@ -789,10 +789,14 @@ def test_campaign_closeout_reports_local_campaign_packages() -> None:
     assert packages["shadow_parity"]["blocking"] == bool(packages["shadow_parity"]["required_gaps"])
     assert packages["intake_projection"]["kind"] == "intake_projection"
     assert packages["intake_projection"]["truth_boundary"] == "projection-evidence"
-    assert packages["trust_closeout"]["kind"] == "trust_closeout"
-    assert packages["trust_closeout"]["claim_report_ok"] is True
-    assert packages["trust_closeout"]["promotion_ready"] is True
-    assert packages["trust_closeout"]["executed_proof_evidence"] is True
+    trust_closeout = packages["trust_closeout"]
+    assert (
+        trust_closeout["kind"],
+        trust_closeout["claim_report_ok"],
+        trust_closeout["promotion_ready"],
+        trust_closeout["executed_proof_evidence"],
+        "work_lane_claim_binding_missing" not in " ".join(trust_closeout["required_gaps"]),
+    ) == ("trust_closeout", True, True, True, True)
     assert packages["shadow_parity"]["provenance"]["mode"] == "tracked_evidence"
     assert (
         payload["data"]["provenance"]["shadow_parity"] == (packages["shadow_parity"]["provenance"])

@@ -75,11 +75,9 @@ def renew_lease(  # noqa: PLR0913, RUF100 - exact request envelope preserves bou
 
 
 def resume_lease(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
-    db_path: Path, *, subject: str, holder_ref: str, expected_lease_id: str, expected_epoch: int, expected_head: str, ttl_seconds: int = 86_400, contrary_decision: bool = False
+    db_path: Path, *, subject: str, holder_ref: str, expected_lease_id: str, expected_epoch: int, expected_head: str, ttl_seconds: int = 86_400
 ) -> dict[str, Any]:
     """Resume an expired lease only for its prior holder and unchanged generation."""
-    if contrary_decision:
-        raise ValueError(f"lease_resume_blocked_by_decision:{subject}")  # noqa: EM102, RUF100 - machine-readable gap token is the exception contract
     return _refresh_lease(db_path, subject=subject, holder_ref=holder_ref, expected_lease_id=expected_lease_id, expected_epoch=expected_epoch, expected_head=expected_head, ttl_seconds=ttl_seconds, require_expired=True)
 
 

@@ -1,0 +1,40 @@
+[claim]
+id = "artifact-topology-preservation-clear-20260720"
+subject = "ethos:lane-resolution:lane-decision:48f82dc4-cc1a-4c25-8a48-f02ccce2c5fb"
+state = "active"
+change_id = "artifact-topology-preservation-clear-20260720"
+summary = "One minimum-scope carrier authorizes native clearance of one manifest-bound artifact-topology recovery package only after its retained parity patch is proved superseded by accepted local truth."
+
+[evidence]
+dated = "evidence/chronicle/artifact-topology-preservation-clear-20260720/2026-07-20.md"
+sha256 = "65133c23af8bec205c96d6faa8cca83f8bb411577f9639ff934ff5d76bc26808"
+evidence_ids = ["evidence:artifact-topology-preservation-clear-20260720"]
+binding = "This active Claim binds only decision lane-decision:48f82dc4-cc1a-4c25-8a48-f02ccce2c5fb, package build/artifacts/lane-resolution/lane-decision:48f82dc4-cc1a-4c25-8a48-f02ccce2c5fb, manifest fe52fec8149efb0e2edb2cf4f22fdc31b510b90848ac971f14348bb8ad41b757, its historic parity-patch digest 408937fa6e4993c208189856427fec823fc3d4ecf52a0e24d87d03d775ac26d6, and one later native clear-preservation transition. It does not authorize another package, receipt deletion, raw filesystem removal, or a claim that preservation itself was absorption."
+verifier = "digest_only"
+tests = [
+  "ethos lane resolution inventory --json",
+  "ethos quality claims --json",
+  "openspec validate artifact-topology-preservation-clear-20260720 --strict --json",
+  "ethos prove --execute --expect-head <committed-head> --json",
+  "ethos lane resolution clear --decision-id lane-decision:48f82dc4-cc1a-4c25-8a48-f02ccce2c5fb --expect-manifest-sha256 fe52fec8149efb0e2edb2cf4f22fdc31b510b90848ac971f14348bb8ad41b757 --chronicle-ref evidence/chronicle/artifact-topology-preservation-clear-20260720/2026-07-20.md --break-glass --confirm-irreversible --apply --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "One retained artifact-topology recovery package and one manifest-bound native clear transition only."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-20-artifact-topology-preservation-clear-20260720"
+fallback = "Keep the package, decision, receipt, and all unrelated retained packages intact if the manifest, accepted proof, current parity basis, Chronicle, or native clear check cannot be verified."
+kill_signal = "A broad retained-package sweep, raw deletion, receipt deletion, an unproven parity assertion, a foreign lane change, a remote mutation, or a hosted-CI claim."
+
+[promotion]
+targets = [
+  "docs/plans/artifact-topology-preservation-clear-20260720.md",
+  "evidence/claims/artifact-topology-preservation-clear-20260720.toml",
+  "evidence/chronicle/artifact-topology-preservation-clear-20260720/2026-07-20.md",
+  "openspec/changes/archive/2026-07-20-artifact-topology-preservation-clear-20260720",
+]

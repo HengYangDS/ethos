@@ -219,6 +219,7 @@ ethos lane resolution clear --decision-id <decision-id> --expect-manifest-sha256
 ethos lane retire landed --branch <work-lane-branch> --expect-head <work-lane-head> --apply
 ethos lane retire superseded --branch <work-lane-branch> --expect-head <work-lane-head> --absorbed-by <accepted-head> --reason <why> --authorize --apply
 ethos lane retire unbound --branch <work-lane-branch> --expect-head <git-head> --reason <why> --chronicle-ref evidence/chronicle/<change>/<date>.md [--owner-unavailable-recovery --authorize --break-glass --confirm-irreversible --apply]
+ethos lane retire reconcile-ref-absent --branch <work-lane-branch> --reason <why> --chronicle-ref evidence/chronicle/<change>/<date>.md --authorize --break-glass --confirm-irreversible --apply
 ```
 
 `ethos lane housekeeping` is a separate detached-worktree cleanup surface, not
@@ -419,6 +420,20 @@ exact relinquished lease binding and result. It then requires postconditions and
 writes a receipt outside the accepted checkout. It does not replace `ethos land`
 or `ethos lane retire landed`, remove a worktree by force, mutate a remote, or
 fall back to raw ref or lease deletion.
+
+`ethos lane retire reconcile-ref-absent` is narrower still: it handles one
+already ref-absent partial effect where the exact foreign lease remains after a
+historical native exceptional-retirement attempt. It never recreates or deletes
+a ref. Its current accepted Chronicle and Claim must match the accepted branch,
+bind the same exact source lease tuple and absent recorded worktree path, and
+bind the immutable prior attempt’s operation ID, accepted head, Claim, Chronicle
+reference, and digests. The recovery actor must be non-empty and different from
+the recorded source holder. Dry-run reports only current observation; apply
+requires `--authorize`, `--break-glass`, and `--confirm-irreversible`, writes a
+no-clobber reconciliation attempt, performs only the exact native lease CAS,
+then writes a receipt proving ref absence, worktree absence, lease absence,
+unchanged protected refs, and unchanged Chronicle binding. Any drift preserves
+the remaining lease and does not substitute raw Git or SQLite cleanup.
 The standard local lifecycle is product state even when a host provides its own
 presentation: create the Work Lane through `ethos lane start`, attach claim
 evidence with `ethos lane bind-claim` when needed, refresh the lane base only

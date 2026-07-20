@@ -14,6 +14,7 @@ from ethos_core.contracts.branch.roles import load_branch_role_policy
 EVENT = "lane_retire/unbound_exceptional"
 _CONTROL_ROOT_UNAVAILABLE = "unbound_retire_accepted_control_root_unavailable"
 OWNER_UNAVAILABLE_RECOVERY = "owner_unavailable"
+PARTIAL_EFFECT_RECONCILIATION = "ref_absent_owner_unavailable"
 
 
 def _failed(*, first: bool = False, **checks: bool) -> list[str]:
@@ -114,6 +115,98 @@ def owner_unavailable_recovery_gaps(
     if lease_gap:
         return [lease_gap]
     return _owner_unavailable_source_path_gaps(chronicle=chronicle, lease=lease)
+
+
+def partial_effect_reconciliation_gaps(
+    observed: dict[str, object],
+    *,
+    recovery_actor: str,
+    source_attempt: dict[str, object],
+) -> list[str]:
+    """Validate one ref-absent residue against accepted owner-unavailable policy."""
+    residue_gap = _partial_effect_residue_gap(observed)
+    if residue_gap:
+        return [residue_gap]
+    lease = cast("dict[str, object]", observed["active_lease"])
+    holder = str(lease.get("holder_ref") or "")
+    actor_gap = _owner_unavailable_actor_gap(holder=holder, recovery_actor=recovery_actor)
+    if actor_gap:
+        return [actor_gap]
+    chronicle = cast("dict[str, object]", observed["chronicle"])
+    policy_gap = _partial_effect_policy_gap(chronicle=chronicle, lease=lease, holder=holder)
+    if policy_gap:
+        return [policy_gap]
+    path_gaps = _owner_unavailable_source_path_gaps(chronicle=chronicle, lease=lease)
+    if path_gaps:
+        return path_gaps
+    return _partial_effect_attempt_gaps(
+        observed=observed, chronicle=chronicle, source_attempt=source_attempt
+    )
+
+
+def _partial_effect_residue_gap(observed: dict[str, object]) -> str:
+    """Return the first source-ref/worktree/lease state that forbids reconciliation."""
+    if str(observed.get("head") or ""):
+        return "unbound_retire_partial_effect_ref_present"
+    if str(observed.get("worktree_binding") or "") != "absent":
+        return "unbound_retire_partial_effect_worktree_present"
+    return (
+        ""
+        if bool(observed[observation.HAS_ACTIVE_LEASE])
+        else "unbound_retire_partial_effect_lease_missing"
+    )
+
+
+def _partial_effect_policy_gap(
+    *, chronicle: dict[str, object], lease: dict[str, object], holder: str
+) -> str:
+    """Require the current Chronicle to carry both the mode and exact lease binding."""
+    if str(chronicle.get("partial_effect_reconciliation") or "") != PARTIAL_EFFECT_RECONCILIATION:
+        return "unbound_retire_partial_effect_chronicle_missing"
+    return _owner_unavailable_lease_gap(chronicle=chronicle, lease=lease, holder=holder)
+
+
+def _partial_effect_attempt_gaps(
+    *,
+    observed: dict[str, object],
+    chronicle: dict[str, object],
+    source_attempt: dict[str, object],
+) -> list[str]:
+    """Require one exact native failed attempt binding before lease-only repair."""
+    attempt_id = str(chronicle.get("source_retirement_attempt_id") or "")
+    expected = {
+        "kind": "exceptional_unbound_retirement_attempt",
+        "operation_id": attempt_id,
+        "branch": str(observed.get("branch") or ""),
+        "expected_head": str(chronicle.get("target_head") or ""),
+        "accepted_head": str(chronicle.get("source_retirement_attempt_accepted_head") or ""),
+        "claim_id": str(chronicle.get("source_retirement_attempt_claim_id") or ""),
+        "chronicle_ref": str(chronicle.get("source_retirement_attempt_chronicle_ref") or ""),
+        "chronicle_sha256": str(chronicle.get("source_retirement_attempt_chronicle_sha256") or ""),
+        "chronicle_claim_id": str(
+            chronicle.get("source_retirement_attempt_chronicle_claim_id") or ""
+        ),
+        "chronicle_claim_sha256": str(
+            chronicle.get("source_retirement_attempt_chronicle_claim_sha256") or ""
+        ),
+        "mints_authority": False,
+        "recheck_required": True,
+    }
+    if not attempt_id or any(source_attempt.get(key) != value for key, value in expected.items()):
+        return ["unbound_retire_partial_effect_attempt_mismatch"]
+    if source_attempt.get("effect") != "git_update_ref_compare_and_delete":
+        return ["unbound_retire_partial_effect_attempt_mismatch"]
+    binding = source_attempt.get("lease_relinquish_binding")
+    lease = cast("dict[str, object]", observed["active_lease"])
+    if binding != {
+        "active": True,
+        "lease_id": str(lease.get("lease_id") or ""),
+        "holder_ref": str(lease.get("holder_ref") or ""),
+        "epoch": lease.get("epoch"),
+        "expected_head": str(lease.get("expected_head") or ""),
+    }:
+        return ["unbound_retire_partial_effect_attempt_mismatch"]
+    return []
 
 
 def _owner_unavailable_actor_gap(*, holder: str, recovery_actor: str) -> str:

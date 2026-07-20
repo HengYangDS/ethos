@@ -17,13 +17,20 @@ def report(  # noqa: PLR0913, RUF100 - exact reporting preserves bound state dim
     break_glass: bool,
     confirm_irreversible: bool,
     owner_unavailable_recovery: bool,
+    partial_effect_reconciliation: bool = False,
+    holder_ref: str = "",
     observed: dict[str, object],
     gaps: list[str],
 ) -> dict[str, object]:
     """Build the stable public dry-run or blocked transition envelope."""
+    state = (
+        "ready_to_reconcile_ref_absent_owner_unavailable_lease"
+        if partial_effect_reconciliation
+        else "ready_to_retire_unbound_exceptional"
+    )
     return {
         "ok": not gaps,
-        "state": "ready_to_retire_unbound_exceptional" if not gaps else "blocked",
+        "state": state if not gaps else "blocked",
         "branch": branch,
         "head": str(observed["head"]),
         "accepted_head": str(observed["accepted_head"]),
@@ -33,6 +40,7 @@ def report(  # noqa: PLR0913, RUF100 - exact reporting preserves bound state dim
         "reason": reason,
         "chronicle_ref": chronicle_ref,
         "owner_unavailable_recovery": owner_unavailable_recovery,
+        "partial_effect_reconciliation": partial_effect_reconciliation,
         "observation": observation.public_observation(observed),
         "mutation": mutation(
             branch=branch,
@@ -45,6 +53,8 @@ def report(  # noqa: PLR0913, RUF100 - exact reporting preserves bound state dim
             break_glass=break_glass,
             confirm_irreversible=confirm_irreversible,
             owner_unavailable_recovery=owner_unavailable_recovery,
+            partial_effect_reconciliation=partial_effect_reconciliation,
+            holder_ref=holder_ref,
             gaps=gaps,
         ),
         "required_gaps": sorted(set(gaps)),
@@ -63,18 +73,31 @@ def mutation(  # noqa: PLR0913, RUF100 - exact mutation envelope preserves bound
     break_glass: bool,
     confirm_irreversible: bool,
     owner_unavailable_recovery: bool,
+    partial_effect_reconciliation: bool = False,
+    holder_ref: str = "",
     gaps: list[str],
 ) -> dict[str, object]:
     """Build the admission-bound mutation envelope without minting authority."""
     chronicle = cast("dict[str, object]", observed["chronicle"])
+    command = (
+        "lane-retire-reconcile-ref-absent"
+        if partial_effect_reconciliation
+        else "lane-retire-unbound"
+    )
+    action = (
+        "lane.retire.unbound.ref_absent_owner_unavailable_reconciliation"
+        if partial_effect_reconciliation
+        else "lane.retire.unbound.exceptional"
+    )
     return lane_retirement_shared.retire_mutation_envelope(
-        command="lane-retire-unbound",
-        action="lane.retire.unbound.exceptional",
+        command=command,
+        action=action,
         branch=branch,
         expect_head=expect_head,
         apply=apply,
         confirmed=confirmed,
         required_gaps=gaps,
+        holder_ref=holder_ref,
         extra_state={
             "reason": reason,
             "accepted_head": str(observed["accepted_head"]),
@@ -87,6 +110,7 @@ def mutation(  # noqa: PLR0913, RUF100 - exact mutation envelope preserves bound
             "break_glass": break_glass,
             "confirm_irreversible": confirm_irreversible,
             "owner_unavailable_recovery": owner_unavailable_recovery,
+            "partial_effect_reconciliation": partial_effect_reconciliation,
             "observation_sha256": str(observed["observation_sha256"]),
         },
     )

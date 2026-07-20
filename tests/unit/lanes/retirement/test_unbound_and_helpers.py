@@ -731,3 +731,127 @@ def test_owner_unavailable_effect_wrapper_revokes_exact_generation(tmp_path: Pat
         "epoch": lease["epoch"],
         "expected_head": head,
     }
+
+
+def test_ref_absent_reconciliation_rejects_missing_reason(monkeypatch, tmp_path: Path) -> None:
+    """A dry-run must reject the empty reason before it can create an intent record."""
+    repo, branch, _head, chronicle, _lease, _attempt, _source_path = (
+        _partial_effect_reconciliation_fixture(tmp_path)
+    )
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:recovery-operator")
+
+    report = reconciliation.reconcile_ref_absent_owner_unavailable_lease(
+        root=repo,
+        branch=branch,
+        controls=reconciliation.RefAbsentReconciliationControls(chronicle_ref=chronicle),
+    )
+
+    assert report["required_gaps"] == ["retire_reason_required"]
+
+
+def test_ref_absent_reconciliation_blocks_record_write_failure(monkeypatch, tmp_path: Path) -> None:
+    """A no-clobber attempt write failure must leave the foreign lease intact."""
+    repo, branch, _head, chronicle, _lease, _attempt, _source_path = (
+        _partial_effect_reconciliation_fixture(tmp_path)
+    )
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:recovery-operator")
+    monkeypatch.setattr(
+        records, "write_record", lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("denied"))
+    )
+
+    report = _reconcile(
+        repo,
+        branch,
+        chronicle,
+        apply=True,
+        authorized=True,
+        break_glass=True,
+        confirm_irreversible=True,
+    )
+
+    assert report["state"] == "blocked"
+    assert report["required_gaps"] == ["denied"]
+
+
+def test_ref_absent_reconciliation_blocks_stale_pre_effect_observation(
+    monkeypatch, tmp_path: Path
+) -> None:
+    """A last-window observation change must prevent the lease-only CAS."""
+    repo, branch, _head, chronicle, _lease, _attempt, _source_path = (
+        _partial_effect_reconciliation_fixture(tmp_path)
+    )
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:recovery-operator")
+    real_observe = reconciliation.observation.observe_ref_absent_reconciliation
+    calls = 0
+
+    def changed(repo_root: Path, *, branch: str, chronicle_ref: str) -> dict[str, object]:
+        nonlocal calls
+        calls += 1
+        observed = real_observe(repo_root, branch=branch, chronicle_ref=chronicle_ref)
+        return observed if calls == 1 else {**observed, "claim_id": "drifted-claim"}
+
+    monkeypatch.setattr(reconciliation.observation, "observe_ref_absent_reconciliation", changed)
+    report = _reconcile(
+        repo,
+        branch,
+        chronicle,
+        apply=True,
+        authorized=True,
+        break_glass=True,
+        confirm_irreversible=True,
+    )
+
+    assert "unbound_retire_pre_effect_observation_stale" in report["required_gaps"]
+
+
+def test_ref_absent_reconciliation_blocks_lease_revoke_failure(monkeypatch, tmp_path: Path) -> None:
+    """A failed exact lease CAS must return the active-lease block without a receipt."""
+    repo, branch, _head, chronicle, _lease, _attempt, _source_path = (
+        _partial_effect_reconciliation_fixture(tmp_path)
+    )
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:recovery-operator")
+    monkeypatch.setattr(reconciliation, "relinquish_owned_lease", lambda *_args, **_kwargs: None)
+
+    report = _reconcile(
+        repo,
+        branch,
+        chronicle,
+        apply=True,
+        authorized=True,
+        break_glass=True,
+        confirm_irreversible=True,
+    )
+
+    assert report["required_gaps"] == ["unbound_retire_active_lease"]
+
+
+def test_ref_absent_reconciliation_blocks_receipt_write_failure(
+    monkeypatch, tmp_path: Path
+) -> None:
+    """Receipt persistence failure remains explicit after a successful lease CAS."""
+    repo, branch, _head, chronicle, _lease, _attempt, _source_path = (
+        _partial_effect_reconciliation_fixture(tmp_path)
+    )
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:recovery-operator")
+    real_write = records.write_record
+
+    receipt_error = "receipt denied"
+
+    def fail_receipt(path: Path, payload: dict[str, object], *, kind: str) -> str:
+        if kind == records.RECONCILIATION_RECEIPT_KIND:
+            raise OSError(receipt_error)
+        return real_write(path, payload, kind=kind)
+
+    monkeypatch.setattr(records, "write_record", fail_receipt)
+    report = _reconcile(
+        repo,
+        branch,
+        chronicle,
+        apply=True,
+        authorized=True,
+        break_glass=True,
+        confirm_irreversible=True,
+    )
+
+    assert report["state"] == "blocked"
+    assert report["required_gaps"] == ["receipt denied"]

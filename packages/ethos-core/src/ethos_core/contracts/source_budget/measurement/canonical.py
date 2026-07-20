@@ -10,8 +10,6 @@ from typing import cast
 if TYPE_CHECKING:
     from pydantic import BaseModel
 
-__all__: tuple[str, ...] = ()
-
 SCHEMA_VERSION = 1
 
 

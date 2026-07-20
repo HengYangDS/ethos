@@ -7,8 +7,6 @@ from typing import Never
 
 import ethos.adapters.repo.source_budget.measurement.native.shell.grammar as shell_grammar
 
-__all__: tuple[str, ...] = ()
-
 _SHELL_OPERATOR_TEXT = (
     ";;& &>> <<< <<- && || ;; ;& |& &> >> << <& >& <> >| [[ ]] (( )) ; & | ( ) { } < >"
 )

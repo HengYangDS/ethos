@@ -3,20 +3,7 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
 from typing import Never
-
-__all__ = (
-    "FunctionHeader",
-    "balanced_closure",
-    "consume_heredocs",
-    "finish_shell_state",
-    "heredoc_fragment",
-    "is_redirect_operator",
-    "track_case_operator",
-    "track_shell_newline",
-    "track_shell_word",
-)
 
 _CASE_SEPARATORS = {";;", ";&", ";;&"}
 _CASE_TAIL_OPERATORS = {"&&", "||", ";", "&", "|", ")", "}", "]]"}
@@ -80,12 +67,14 @@ def _is_line_continuation(fragments: tuple[tuple[str, str], ...]) -> bool:
     return fragments == (("ESCAPED", "\\\n"),)
 
 
-@dataclass(slots=True)
 class FunctionHeader:
     """Track the finite Bash/Zsh function-definition header lifecycle."""
 
-    enabled: bool = True
-    phase: str = ""
+    __slots__ = ("enabled", "phase")
+
+    def __init__(self, *, enabled: bool = True) -> None:
+        self.enabled = enabled
+        self.phase = ""
 
     @property
     def unfinished(self) -> bool:

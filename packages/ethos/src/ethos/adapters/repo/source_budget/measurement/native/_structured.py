@@ -26,8 +26,6 @@ if TYPE_CHECKING:
 
     from yaml.nodes import Node
 
-__all__ = ()
-
 Scalar = str | int | float | bool | None | date | datetime | time
 _ID = re.compile(r"[A-Za-z_][A-Za-z0-9_.-]*\Z")
 _BOOL_TAG = "tag:yaml.org,2002:bool"

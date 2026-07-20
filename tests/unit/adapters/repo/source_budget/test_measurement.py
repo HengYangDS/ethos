@@ -736,7 +736,8 @@ def guarded(name, *args, **kwargs):
     return real_import(name, *args, **kwargs)
 builtins.__import__ = guarded
 import {NATIVE_MODULE} as module
-assert module.__all__ == ('measure_native',)
+assert not hasattr(module, '__all__')
+assert callable(module.measure_native)
 """
     completed = subprocess.run(
         [sys.executable, "-c", script],
@@ -858,5 +859,8 @@ def test_jinja_trailing_newline_is_payload_while_crlf_normalizes_to_lf() -> None
     assert newline.values == crlf.values
 
 
-def test_module_export_contract_names_only_the_product_api() -> None:
-    assert _native().__all__ == ("measure_native",)
+def test_native_module_avoids_export_barrels() -> None:
+    module = _native()
+
+    assert not hasattr(module, "__all__")
+    assert callable(module.measure_native)

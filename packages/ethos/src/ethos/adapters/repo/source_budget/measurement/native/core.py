@@ -29,8 +29,6 @@ if TYPE_CHECKING:
     from typing import Literal
     from typing import Never
 
-__all__ = ("measure_native",)
-
 _CANONICAL_RUNTIME = {"implementation": "CPython", "major": 3, "minor": 14}
 _IGNORED_PYTHON_SYMBOL_NAMES = "ENCODING ENDMARKER NL NEWLINE INDENT DEDENT"
 _SKIP_PYTHON_TOKENS = {getattr(tokenize, name) for name in _IGNORED_PYTHON_SYMBOL_NAMES.split()}

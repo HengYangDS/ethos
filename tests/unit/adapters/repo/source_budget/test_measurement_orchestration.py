@@ -142,7 +142,7 @@ def test_measurement_orchestrator_measures_one_regular_inventory(
     assert snapshot.required_gaps == ()
     assert snapshot.snapshot is not None
     assert snapshot.snapshot.measurements == (carrier.measurement,)
-    assert _module().__all__ == ("measure_carrier", "measure_snapshot")
+    assert not hasattr(_module(), "__all__")
 
 
 def test_orchestrator_rejects_impossible_empty_read_result(

@@ -34,7 +34,7 @@ _CHRONICLE_TEXT = _keys(
     "sha256 accepted_sha256 event target_branch target_head target_claim "
     "claim_sha256 claim_accepted_sha256 lease_recovery source_lease_id "
     "source_lease_holder source_lease_epoch source_lease_expected_head "
-    "source_worktree_path source_worktree_absent"
+    "source_worktree_path_sha256 source_worktree_absent"
 )
 _CHRONICLE_FLAGS = (
     HAS_LOCAL_CHRONICLE,
@@ -63,7 +63,7 @@ _CHRONICLE_BINDING_KEYS = _keys(
     "claim_sha256 claim_accepted_sha256 byte_identical_to_accepted "
     "claim_byte_identical_to_accepted has_accepted_chronicle has_accepted_claim "
     "lease_recovery source_lease_id source_lease_holder source_lease_epoch "
-    "source_lease_expected_head source_worktree_path source_worktree_absent"
+    "source_lease_expected_head source_worktree_path_sha256 source_worktree_absent"
 )
 
 
@@ -185,7 +185,7 @@ def chronicle_fields(payload: bytes) -> dict[str, str]:
             "source_lease_holder",
             "source_lease_epoch",
             "source_lease_expected_head",
-            "source_worktree_path",
+            "source_worktree_path_sha256",
             "source_worktree_absent",
         }
     }

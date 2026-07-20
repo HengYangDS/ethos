@@ -11,8 +11,8 @@ relations:
 
 Status: accepted.
 
-Purpose: replace lifecycle-labeled documentation lanes with a minimal semantic
-kernel that matches ETHOS product semantics.
+Purpose: replace lifecycle-labeled documentation lanes with a strict semantic
+kernel owned by the explicit docs-topology capability.
 
 See also: [Docs Topology](../../architecture/docs-topology.md),
 [Decision Index](../decision-index.md), and
@@ -27,22 +27,22 @@ See also: [Docs Topology](../../architecture/docs-topology.md),
 | Decision Makers | Repository maintainers through accepted repository instruction; implemented by local ETHOS Work Lane. |
 | Status | accepted |
 | Decision Date | 2026-07-08 |
-| Decision Version | 1 |
-| Decision Change Date | 2026-07-08 |
+| Decision Version | 2 |
+| Decision Change Date | 2026-07-20 |
 | Record Review Date | 2026-10-08 |
 | Supersedes | DR-0002 |
 | Superseded By | None |
-| Scope | Documentation information architecture across ETHOS and governed repositories. |
-| Boundary | Owns the common docs kernel and decision-record surface; does not make lifecycle state a physical documentation root. |
-| Context | `docs/current/` and `docs/future/` encoded lifecycle state as directory structure, weaker than ETHOS' authority, evidence, decision, reference, and history boundaries. |
-| Decision | Remove `current` and `future` from the required physical docs kernel and reject them as documentation `state` values. Prove present repository truth through HEAD-bound proof and preserve unlanded intent in OpenSpec changes, plans, research, or decision revisit triggers. |
-| Consequences | `ethos adopt` scaffolds the minimal semantic kernel; `ethos quality docs-topology --json` audits it; product or adopter docs may add domain roots without turning state labels into truth lanes or making product extension roots mandatory for adopters. |
-| Proof or Evidence | `ethos quality docs-topology --json`, focused docs topology tests, scaffold tests, and HEAD-bound proof gate execution. |
-| Revisit Trigger | Reopen only if a governed repository needs a new minimal semantic root to preserve clarity without turning lifecycle state into a directory. |
+| Scope | The documentation topology checked by the explicit docs-topology capability and retirement readiness. |
+| Boundary | Owns one strict docs kernel and rejects lifecycle state as physical topology; does not make documentation a bootstrap prerequisite. |
+| Context | `docs/current/` and `docs/future/` encoded lifecycle state as directory structure, while full adoption scaffolding confused optional capability readiness with repository binding. |
+| Decision | When docs-topology is executed, require one repository-form-invariant kernel and reject `current` and `future` as roots or state values. `ethos adopt` writes only `.ethos/profile.toml` and does not activate this capability. |
+| Consequences | Product and adopter repositories may add domain roots, but no compatibility exception or alternate kernel exists. Missing docs carriers block only explicit docs-topology or retirement boundaries, not default adoption proof. |
+| Proof or Evidence | `ethos quality docs-topology --json`, focused strict-topology tests, retirement-readiness tests, and explicit HEAD-bound proof gate execution. |
+| Revisit Trigger | Reopen only if evidence proves that a new minimal semantic recovery root is universally necessary without turning lifecycle state into topology. |
 
 ## Decision
 
-The common docs kernel is:
+The strict kernel is:
 
 - `docs/README.md` for navigation;
 - `docs/decisions/` for durable rulings;
@@ -50,26 +50,18 @@ The common docs kernel is:
 - `docs/history/` for retired rationale and archival logs;
 - `docs/reference/` for stable vocabulary and references.
 
-ETHOS product extension roots include `docs/architecture/`, `docs/concepts/`,
-`docs/governance/`, `docs/plans/`, `docs/research/`, and `docs/start/`.
-Adopter repositories may add their own domain roots without weakening the
-common kernel.
+This is semantic isomorphism, not a product-layout clone. Product or adopter
+extension roots remain domain-owned and optional. ETHOS product extensions are
+`docs/architecture/`, `docs/concepts/`, `docs/governance/`, `docs/plans/`,
+`docs/research/`, and `docs/start/`; they are not part of the required kernel.
+Single repositories, monorepos, and multi-repository subjects use the same
+kernel whenever docs-topology is selected.
 
-This is a semantic-isomorphism decision, not a physical clone rule. Every
-governed repository must preserve the recovery lanes for decisions, evidence,
-reference vocabulary, and history; it need not reproduce ETHOS product
-extension roots unless its own taxonomy declares equivalent domain needs.
+`current` and `future` are forbidden documentation roots and state values.
+There is no profile compatibility policy, status mapping, migration exception,
+shim, or alternate kernel. Governed lifecycle state uses explicit metadata plus
+repository evidence.
 
-`current` and `future` are forbidden as documentation `state` values and
-forbidden as physical docs roots by default. They may appear as ordinary prose
-when describing the rejected anti-pattern. For existing adopters,
-`.ethos/profile.toml` may declare an adopter compatibility docs topology policy
-that lists exact adopter compatibility time-state roots, maps an adopter page status field to the
-ETHOS state vocabulary, and binds that compatibility policy to a tracked
-documentation-IA decision. That declaration is adopter-owned compatibility
-policy, not ETHOS product topology: it cannot remove the common kernel, cannot
-make product extension roots mandatory for adopters, cannot accept unmapped
-required statuses, and cannot turn lifecycle state back into a universal
-physical directory law. Governed lifecycle state uses the explicit state
-vocabulary (`canonical`, `active`, `planned`, `experimental`, `superseded`,
-`archived`) plus HEAD-bound evidence.
+Adoption binds a repository through `.ethos/profile.toml` only. The official
+docs-topology command or retirement readiness activates this decision's strict
+requirements; bootstrap does not create or claim them.

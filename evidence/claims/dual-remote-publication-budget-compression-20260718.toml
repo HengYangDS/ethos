@@ -2,7 +2,7 @@
 id = "dual-remote-publication-budget-compression-20260718"
 change_id = "dual-remote-publication-budget-compression-20260718"
 subject = "ethos:dual-remote-publication-topology"
-state = "active"
+state = "archived"
 summary = "Equal dual-remote parsing retains explicit topology boundaries."
 
 [evidence]

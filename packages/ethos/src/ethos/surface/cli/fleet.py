@@ -11,6 +11,8 @@ from ethos.repository.adoption.fleet import inspect_adopter
 from ethos.repository.adoption.retirement.core import retirement_readiness_report
 from ethos.repository.evidence.parity.core import parity_gaps_report
 from ethos.repository.evidence.parity.core import shadow_parity_report
+from ethos.repository.profile import load_repository_profile
+from ethos.repository.profile import profile_required_gaps
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import emit
@@ -59,10 +61,17 @@ def fleet_retirement_readiness(
 ) -> None:
     """Check whether an adopter can retire its embedded ETHOS backend."""
     product_root = resolve_root(root)
-    from ethos.repository.profile import load_repository_profile
-
     profile = load_repository_profile(target)
-    adopter = profile.identity.get("profile_id") or target.resolve().name
+    if gaps := profile_required_gaps(profile):
+        result = EthosResult(
+            command="fleet retirement-readiness",
+            ok=False,
+            state="gapped",
+            required_gaps=gaps,
+        )
+        emit(result, json_output=json_output, enforce=False)
+        return
+    adopter = profile.declaration.profile_id if profile.declaration else target.resolve().name
     if execute_shadow:
         from ethos.adapters.shadow.core import run_shadow_parity
 

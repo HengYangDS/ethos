@@ -62,12 +62,9 @@ itself. There is no blanket exemption for an OpenSpec directory, `.ethos/`, or
 a path family; missing or invalid unrelated companions remain diagnostics and
 do not override valid coverage supplied by another selected Change.
 
-For a valid tracked adopter profile created before the material-path contract,
-ETHOS also permits one migration write: exactly `.ethos/profile.toml`, while
-the declaration is absent and exactly one official active Change is selected.
-This emits `profile_material_paths_bootstrap`. It is not scope coverage, does
-not repair an empty or malformed declaration, and is followed by the normal
-exact Change-local `scope.toml` bootstrap.
+Adoption writes the complete material-path declaration. Later material writes
+use ordinary Change-local `scope.toml` coverage; no historical profile-write
+exception remains.
 
 Canonical capability profiles live beside canonical specs as
 `openspec/specs/<capability>/capability.toml`. They are validated by
@@ -108,18 +105,17 @@ archive command. After the official command runs, ETHOS must guard live-spec
 scope, archived task state, archive directory identity, retained evidence refs,
 and Markdown links from the archived path.
 
-Adopter scaffolds must create an inspectable OpenSpec workspace: config,
-README files, change templates, capability templates, `specs/families.toml`,
-and profile-appropriate first capabilities. A bare `openspec/` directory is an
-incomplete scaffold.
+Adoption does not create an OpenSpec workspace. When an adopter invokes the
+OpenSpec capability, the official OpenSpec command owns workspace creation and
+ETHOS validates the resulting tracked surface.
 
 ## Productized Workspace Substrate
 
 A complete ETHOS OpenSpec workspace is inspectable by humans and machines. It
 contains workspace guidance, change guidance, accepted capability guidance,
 `specs/families.toml`, `specs/capability.template.toml`, and
-`changes/template.md`. The scaffold is intentionally more than directory
-presence: new adopters should understand official OpenSpec duties, ETHOS
+`changes/template.md`. The workspace is intentionally more than directory
+presence: adopters should understand official OpenSpec duties, ETHOS
 repo-local lifecycle checks, direct capability names, proposal facets, claim
 binding, evidence refs, archive closeout, and rollback before writing a change.
 
@@ -142,9 +138,10 @@ See also: [Documentation Index](../index.md), [Command Plane](../reference/comma
 
 ## Adopter Lifecycle Parity
 
-`ethos plan` and `ethos prove` evaluate official OpenSpec lifecycle for every
-governed root, including valid adopters. Lifecycle gaps remain OpenSpec and
-repository-governance obligations: they are not code-correctness gates, and no
-Superpowers or other method package carries Change authority. Material-path
-scope admission remains the separately governed follow-up
+`ethos plan` and `ethos prove` evaluate official OpenSpec lifecycle when the
+repository has a workspace or a changed path matches the adopter's declared
+material scope. Otherwise a valid adopter reports OpenSpec as not applicable.
+Lifecycle gaps remain OpenSpec and repository-governance obligations: they are
+not code-correctness gates, and no Superpowers or other method package carries
+Change authority. Material-path scope admission remains fail-closed
 `adopter-material-change-scope-20260714`.

@@ -4,6 +4,7 @@ from pathlib import Path
 
 from ethos.repository.audit import REQUIRED_DOCS
 from ethos.repository.audit import repository_audit
+from ethos_core.contracts.package.ontology import package_ontology_report
 
 ROOT = Path(__file__).resolve().parents[2]
 PROVIDER_NEUTRAL_CANONICAL_DOCS = (
@@ -199,8 +200,8 @@ def test_first_hour_docs_keep_advanced_workflows_out_of_primary_path() -> None:
     ):
         assert advanced not in first_hour
     for phrase in (
-        "choose a profile",
-        "review generated files",
+        "one binding carrier",
+        "planned_files",
         "apply criteria",
         "rollback",
         "report is the payoff view",
@@ -487,8 +488,6 @@ def test_product_design_contract_is_repository_audited_with_target_ontology() ->
 
 
 def test_repository_audit_uses_canonical_package_ontology_contract() -> None:
-    from ethos_core.contracts.package.ontology import package_ontology_report
-
     contract = package_ontology_report()
     audit = repository_audit(ROOT, openspec_mode="shape")
 

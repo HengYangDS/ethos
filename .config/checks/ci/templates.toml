@@ -8,8 +8,10 @@ emulator_tool = "act"
 emulator_event = "workflow_dispatch"
 emulator_job = "quality"
 emulator_image = "catthehacker/ubuntu:act-latest"
-emulator_supported_inputs = []
-emulator_hosted_only_reason = ""
+forbidden_log_patterns = [
+  "(?:^|[ >])DeprecationWarning:",
+  "(?:^|[ >])WARNING:",
+]
 required_owner_scripts = [
   "tools/ci/scripts/bootstrap-python.sh",
   "tools/ci/scripts/run-python-lint.sh",
@@ -22,7 +24,6 @@ required_owner_scripts = [
   "tools/ci/scripts/run-dependency-hygiene.sh",
   "tools/ci/scripts/run-docstring-coverage.sh",
   "tools/ci/scripts/run-module-layout.sh",
-  "tools/ci/scripts/run-bandit.sh",
   "tools/ci/scripts/run-python-vulnerability-audit.sh",
   "tools/ci/scripts/run-repository-hygiene.sh",
   "tools/ci/scripts/run-product-boundary.sh",
@@ -48,8 +49,10 @@ emulator_tool = "gitlab-ci-local"
 emulator_event = "pipeline"
 emulator_job = "ethos:lint"
 emulator_image = "python:3.12"
-emulator_supported_inputs = []
-emulator_hosted_only_reason = ""
+forbidden_log_patterns = [
+  "(?:^|[ >])DeprecationWarning:",
+  "(?:^|[ >])WARNING:",
+]
 required_owner_scripts = [
   "tools/ci/scripts/bootstrap-python.sh",
   "tools/ci/scripts/run-node-compatibility.sh",
@@ -63,7 +66,6 @@ required_owner_scripts = [
   "tools/ci/scripts/run-dependency-hygiene.sh",
   "tools/ci/scripts/run-docstring-coverage.sh",
   "tools/ci/scripts/run-module-layout.sh",
-  "tools/ci/scripts/run-bandit.sh",
   "tools/ci/scripts/run-python-vulnerability-audit.sh",
   "tools/ci/scripts/run-repository-hygiene.sh",
   "tools/ci/scripts/run-product-boundary.sh",

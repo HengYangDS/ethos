@@ -17,8 +17,6 @@ from ethos.adapters.repo.status.core import workspace_status
 from ethos.assistants.playbooks import playbooks_report
 from ethos.assistants.projections import projection_contract
 from ethos.repository.adoption.evolution import evolution_report
-from ethos.repository.adoption.planner import adoption_scaffold_report
-from ethos.repository.adoption.planner import available_profiles
 from ethos.repository.evidence.claims import claims_report
 from ethos.repository.evidence.hosted.core import hosted_observation_report
 from ethos.repository.evidence.parity.core import parity_gaps_report
@@ -51,7 +49,6 @@ def scorecard_report(repo: Path, *, product_root: Path | None = None) -> dict[st
     signature = signature_policy_report(repo)
     workflow_runtime = workflow_runtime_report(repo)
     playbooks = playbooks_report(repo, mode="v2-strict")
-    adoption_scaffold = adoption_scaffold_report()
     parity_ledger = parity_ledger_report()
     hard_quality_floor = (
         reporting_scoring.hard_quality_floor_report(repo)
@@ -118,7 +115,6 @@ def scorecard_report(repo: Path, *, product_root: Path | None = None) -> dict[st
             evolution,
             signature,
             playbooks,
-            adoption_scaffold,
             parity_ledger,
             context_projection_score,
             workflow_runtime,
@@ -173,7 +169,11 @@ def scorecard_report(repo: Path, *, product_root: Path | None = None) -> dict[st
         result_required_gaps, proof_readiness
     )
     has_advisory_signals = bool(advisory_gap_items or coordination_advisory_gaps)
-    report_ok = all(value == 1 for value in scores.values()) and not result_required_gaps
+    report_ok = (
+        all(value == 1 for value in scores.values())
+        and not result_required_gaps
+        and parity_pending_count == 0
+    )
     report_state = "gapped" if not report_ok else "advisory" if has_advisory_signals else "ready"
     report_gap_layers = reporting_gaps.gap_layers(
         result_required_gaps,
@@ -252,7 +252,6 @@ def scorecard_report(repo: Path, *, product_root: Path | None = None) -> dict[st
             "signature_policy": signature,
             "playbooks": playbooks,
             "workflow_runtime": workflow_runtime,
-            "adoption_scaffold": adoption_scaffold,
             "hard_quality_floor": hard_quality_floor,
             "global_compression": global_compression,
             "gap_layers": report_gap_layers,
@@ -276,6 +275,5 @@ def scorecard_report(repo: Path, *, product_root: Path | None = None) -> dict[st
                 "gaps": parity_gaps,
                 "adopter_gaps": adopter_parity_gaps,
             },
-            "profiles": list(available_profiles()),
         },
     }

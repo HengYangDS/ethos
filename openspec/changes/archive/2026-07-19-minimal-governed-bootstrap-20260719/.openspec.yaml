@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-07-19
+goal: Replace the 66-file adopter skeleton with the smallest truthful governed
+  bootstrap and lazy capability creation.

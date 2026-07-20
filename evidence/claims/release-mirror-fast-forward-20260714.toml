@@ -14,7 +14,7 @@ verifier = "digest_only"
 tests = [
   "uv run --all-packages --group dev pytest -q tests/unit/lanes/test_apply.py",
   "uv run --all-packages --group dev pytest -q tests/unit/lanes/test_armed_hook_closeout_e2e.py",
-  "uv run --all-packages --group dev pytest -q tests/unit/coverage/test_core_state_claims_edges.py tests/unit/coverage/test_cov_v3_mutation_edges.py tests/unit/coverage/test_mutation_retrieval_parity_edges.py",
+  "uv run --all-packages --group dev pytest -q tests/unit/coverage/test_core_state_claims_edges.py tests/unit/coverage/test_cov_v3_mutation_edges.py",
   "tools/ci/scripts/run-ethos-lane.sh quality source-budget --root <lane> --json",
   "uv run ethos quality module-layout --json",
 ]

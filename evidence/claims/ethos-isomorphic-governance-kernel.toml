@@ -1,7 +1,7 @@
 [claim]
 id = "ethos-isomorphic-governance-kernel"
 subject = "ethos:isomorphic-governance-kernel"
-state = "active"
+state = "archived"
 summary = "Governed-repository and product-adopter are two profile forms of one ETHOS governance kernel, sharing the same kernel chain, trust lifecycle, capability graph, truth sources, run steps, and advisory projection boundaries."
 
 [evidence]

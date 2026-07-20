@@ -6,25 +6,27 @@ from __future__ import annotations
 import subprocess
 import tomllib
 from typing import TYPE_CHECKING
-from typing import Any
 from typing import cast
 
-from ethos_core.normalization.core import string_list
 from ethos_core.normalization.core import string_mapping
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+    from ethos.repository.profile import RollbackWindowPolicy
 STANDARD_ROLLBACK_SCENARIOS = ('proof_report', 'work_lane_closeout', 'domain_gate', 'assistant_playbook')
 
-def rollback_window_checks(repo: Path, product: Path, rollback_window: dict[str, Any], *, context: dict[str, object]) -> dict[str, object]:
+def rollback_window_checks(repo: Path, product: Path, rollback_window: RollbackWindowPolicy | None, *, context: dict[str, object]) -> dict[str, object]:
     external_state, embedded_state = (str(context.get('external_state') or ''), str(context.get('embedded_state') or ''))
     applicable = all((context.get('parity_ok') is True, context.get('shadow_ok') is True, external_state in set(cast('set[str]', context.get('external_default_states') or set())), embedded_state in set(cast('set[str]', context.get('embedded_frozen_states') or set()))))
-    required = list(dict.fromkeys((*STANDARD_ROLLBACK_SCENARIOS, *string_list(rollback_window.get('required_scenarios'), drop_empty=True))))
-    completed = string_list(rollback_window.get('completed_scenarios'), drop_empty=True)
-    manifest, state = (str(rollback_window.get('evidence_manifest') or ''), str(rollback_window.get('state') or ''))
+    configured = list(rollback_window.required_scenarios) if rollback_window else []
+    required = list(dict.fromkeys((*STANDARD_ROLLBACK_SCENARIOS, *configured)))
+    completed = list(rollback_window.completed_scenarios) if rollback_window else []
+    manifest = rollback_window.evidence_manifest if rollback_window else ''
+    state = rollback_window.state if rollback_window else ''
     gaps: list[str] = []
     if applicable:
-        gaps.extend((gap for invalid, gap in ((not rollback_window, 'retirement_rollback_window_missing'), (state != 'complete', f"retirement_rollback_window_not_complete:{state or 'missing'}"), (not manifest, 'retirement_rollback_window_evidence_manifest_missing')) if invalid))
+        gaps.extend((gap for invalid, gap in ((rollback_window is None, 'retirement_rollback_window_missing'), (state != 'complete', f"retirement_rollback_window_not_complete:{state or 'missing'}"), (not manifest, 'retirement_rollback_window_evidence_manifest_missing')) if invalid))
         if manifest:
             gaps.extend(rollback_manifest_gaps(repo=repo, product=product, evidence_manifest=manifest, required_scenarios=required))
         gaps.extend(f'retirement_rollback_window_scenario_missing:{scenario}' for scenario in required if scenario not in set(completed))

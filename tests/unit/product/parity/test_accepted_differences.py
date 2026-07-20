@@ -131,7 +131,7 @@ def test_shadow_parity_report_includes_identity_envelope(
     repo = init_git_repo(tmp_path / "adopter")
     (repo / ".ethos").mkdir()
     (repo / ".ethos" / "profile.toml").write_text(
-        'schema_version = 1\nprofile_id = "sample"\n[roots]\nrules = "rules"\n',
+        'profile_id = "sample"\n[openspec]\nmaterial_paths = [".ethos/profile.toml"]\n[roots]\nrules = "rules"\n',
         encoding="utf-8",
     )
     (repo / "rules").mkdir()

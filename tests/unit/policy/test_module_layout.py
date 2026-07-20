@@ -93,10 +93,7 @@ def test_module_layout_flags_private_alias_compat_imports(tmp_path: Path) -> Non
     _write(
         tmp_path / "packages" / "ethos" / "src" / "ethos" / "sample.py",
         textwrap.dedent(
-            """
-            from ethos.domain import plan as _plan
-            from ethos.surface.cli._base import emit as _emit
-            """
+            "\n            from ethos.domain import plan as _plan\n            from ethos.surface.cli._base import emit as _emit\n            "
         ),
     )
 
@@ -104,12 +101,10 @@ def test_module_layout_flags_private_alias_compat_imports(tmp_path: Path) -> Non
 
     assert report["ok"] is False
     assert (
-        "module_layout_private_import_alias:"
-        "packages/ethos/src/ethos/sample.py:ethos.domain.plan->_plan"
+        "module_layout_private_import_alias:packages/ethos/src/ethos/sample.py:ethos.domain.plan->_plan"
     ) in report["required_gaps"]
     assert (
-        "module_layout_private_import_alias:"
-        "packages/ethos/src/ethos/sample.py:ethos.surface.cli._base.emit->_emit"
+        "module_layout_private_import_alias:packages/ethos/src/ethos/sample.py:ethos.surface.cli._base.emit->_emit"
     ) in report["required_gaps"]
 
 
@@ -125,14 +120,12 @@ def test_module_layout_flags_package_root_submodule_imports(tmp_path: Path) -> N
 
     assert report["ok"] is False
     assert (
-        "module_layout_package_root_submodule_import:"
-        "packages/ethos/src/ethos/consumer.py:ethos.sample.registry"
+        "module_layout_package_root_submodule_import:packages/ethos/src/ethos/consumer.py:ethos.sample.registry"
     ) in report["required_gaps"]
     assert report["package_root_submodule_import_findings"] == [
         {
             "gap": (
-                "module_layout_package_root_submodule_import:"
-                "packages/ethos/src/ethos/consumer.py:ethos.sample.registry"
+                "module_layout_package_root_submodule_import:packages/ethos/src/ethos/consumer.py:ethos.sample.registry"
             ),
             "path": "packages/ethos/src/ethos/consumer.py",
             "module": "ethos.sample.registry",
@@ -157,12 +150,7 @@ def test_module_layout_ignores_non_submodule_package_root_import_forms(
     _write(
         tmp_path / "packages" / "ethos" / "src" / "ethos" / "consumer.py",
         textwrap.dedent(
-            """
-            from .sample import registry
-            from ethos.sample import *
-            from ethos.sample import missing
-            from ethos.sample import registry as _registry
-            """
+            "\n            from .sample import registry\n            from ethos.sample import *\n            from ethos.sample import missing\n            from ethos.sample import registry as _registry\n            "
         ),
     )
 
@@ -186,11 +174,7 @@ def test_module_layout_flags_package_init_facades(tmp_path: Path) -> None:
     _write(
         tmp_path / "packages" / "ethos" / "src" / "ethos" / "sample" / "__init__.py",
         textwrap.dedent(
-            '''
-            """Compatibility facade."""
-            from ethos.sample.core import public
-
-            '''
+            '\n            """Compatibility facade."""\n            from ethos.sample.core import public\n\n            '
         ),
     )
 
@@ -215,12 +199,7 @@ def test_module_layout_blocks_stale_baseline_entries(tmp_path: Path) -> None:
     _write(
         policy,
         textwrap.dedent(
-            """
-            paths = ["packages/ethos/src"]
-            allowed_suffix_modules = [
-              "module_layout_suffix_module:packages/ethos/src/ethos/old_report.py:old_report",
-            ]
-            """
+            '\n            paths = ["packages/ethos/src"]\n            allowed_suffix_modules = [\n              "module_layout_suffix_module:packages/ethos/src/ethos/old_report.py:old_report",\n            ]\n            '
         ),
     )
 
@@ -228,14 +207,12 @@ def test_module_layout_blocks_stale_baseline_entries(tmp_path: Path) -> None:
 
     assert report["ok"] is False
     assert (
-        "module_layout_stale_baseline:"
-        "module_layout_suffix_module:packages/ethos/src/ethos/old_report.py:old_report"
+        "module_layout_stale_baseline:module_layout_suffix_module:packages/ethos/src/ethos/old_report.py:old_report"
     ) in report["required_gaps"]
     assert report["stale_baseline_findings"] == [
         {
             "gap": (
-                "module_layout_stale_baseline:"
-                "module_layout_suffix_module:packages/ethos/src/ethos/old_report.py:old_report"
+                "module_layout_stale_baseline:module_layout_suffix_module:packages/ethos/src/ethos/old_report.py:old_report"
             ),
             "baseline_gap": (
                 "module_layout_suffix_module:packages/ethos/src/ethos/old_report.py:old_report"
@@ -290,26 +267,7 @@ def test_module_layout_clean_state_still_exposes_tracked_ratchet_debt(
     _write(
         policy,
         textwrap.dedent(
-            """
-            paths = ["packages/ethos/src"]
-            baseline_gap_limit = 3
-            enforce_baseline_kind_limits = true
-            baseline_suffix_module_limit = 1
-            baseline_suffix_flat_limit = 0
-            baseline_flat_directory_limit = 0
-            baseline_private_alias_limit = 1
-            baseline_package_init_facade_limit = 0
-            baseline_module_facade_limit = 1
-            allowed_suffix_modules = [
-              "module_layout_suffix_module:packages/ethos/src/ethos/old_report.py:old_report",
-            ]
-            allowed_private_aliases = [
-              "module_layout_private_import_alias:packages/ethos/src/ethos/consumer.py:ethos.domain.plan->_plan",
-            ]
-            allowed_module_facades = [
-              "module_layout_module_facade:packages/ethos/src/ethos/consumer.py",
-            ]
-            """
+            '\n            paths = ["packages/ethos/src"]\n            baseline_gap_limit = 3\n            enforce_baseline_kind_limits = true\n            baseline_suffix_module_limit = 1\n            baseline_suffix_flat_limit = 0\n            baseline_flat_directory_limit = 0\n            baseline_private_alias_limit = 1\n            baseline_package_init_facade_limit = 0\n            baseline_module_facade_limit = 1\n            allowed_suffix_modules = [\n              "module_layout_suffix_module:packages/ethos/src/ethos/old_report.py:old_report",\n            ]\n            allowed_private_aliases = [\n              "module_layout_private_import_alias:packages/ethos/src/ethos/consumer.py:ethos.domain.plan->_plan",\n            ]\n            allowed_module_facades = [\n              "module_layout_module_facade:packages/ethos/src/ethos/consumer.py",\n            ]\n            '
         ),
     )
 
@@ -352,8 +310,7 @@ def test_module_layout_clean_state_still_exposes_tracked_ratchet_debt(
             "module_facade": 1,
         },
         "next_action": (
-            "shrink .config/checks/module-layout/policy.toml baselines when semantic "
-            "subpackages remove debt; do not add compatibility facades or suffix-flat modules"
+            "shrink .config/checks/module-layout/policy.toml baselines when semantic subpackages remove debt; do not add compatibility facades or suffix-flat modules"
         ),
     }
 
@@ -374,23 +331,7 @@ def test_module_layout_accepts_explicit_baseline_kind_limits(tmp_path: Path) -> 
     _write(
         policy,
         textwrap.dedent(
-            """
-            paths = ["packages/ethos/src"]
-            baseline_gap_limit = 2
-            enforce_baseline_kind_limits = true
-            baseline_suffix_module_limit = 1
-            baseline_suffix_flat_limit = 0
-            baseline_flat_directory_limit = 1
-            baseline_private_alias_limit = 0
-            baseline_package_init_facade_limit = 0
-            baseline_module_facade_limit = 0
-            allowed_suffix_modules = [
-              "module_layout_suffix_module:packages/ethos/src/ethos/old_report.py:old_report",
-            ]
-            allowed_flat_directories = [
-              "module_layout_flat_directory:packages/ethos/src/ethos/wide:9>8",
-            ]
-            """
+            '\n            paths = ["packages/ethos/src"]\n            baseline_gap_limit = 2\n            enforce_baseline_kind_limits = true\n            baseline_suffix_module_limit = 1\n            baseline_suffix_flat_limit = 0\n            baseline_flat_directory_limit = 1\n            baseline_private_alias_limit = 0\n            baseline_package_init_facade_limit = 0\n            baseline_module_facade_limit = 0\n            allowed_suffix_modules = [\n              "module_layout_suffix_module:packages/ethos/src/ethos/old_report.py:old_report",\n            ]\n            allowed_flat_directories = [\n              "module_layout_flat_directory:packages/ethos/src/ethos/wide:9>8",\n            ]\n            '
         ),
     )
 
@@ -415,15 +356,7 @@ def test_module_layout_blocks_missing_baseline_kind_limit(tmp_path: Path) -> Non
     _write(
         policy,
         textwrap.dedent(
-            """
-            paths = ["packages/ethos/src"]
-            baseline_gap_limit = 1
-            enforce_baseline_kind_limits = true
-            baseline_suffix_module_limit = 1
-            allowed_suffix_modules = [
-              "module_layout_suffix_module:packages/ethos/src/ethos/old_report.py:old_report",
-            ]
-            """
+            '\n            paths = ["packages/ethos/src"]\n            baseline_gap_limit = 1\n            enforce_baseline_kind_limits = true\n            baseline_suffix_module_limit = 1\n            allowed_suffix_modules = [\n              "module_layout_suffix_module:packages/ethos/src/ethos/old_report.py:old_report",\n            ]\n            '
         ),
     )
 
@@ -440,20 +373,7 @@ def test_module_layout_blocks_stale_baseline_kind_limit(tmp_path: Path) -> None:
     _write(
         policy,
         textwrap.dedent(
-            """
-            paths = ["packages/ethos/src"]
-            baseline_gap_limit = 1
-            enforce_baseline_kind_limits = true
-            baseline_suffix_module_limit = 2
-            baseline_suffix_flat_limit = 0
-            baseline_flat_directory_limit = 0
-            baseline_private_alias_limit = 0
-            baseline_package_init_facade_limit = 0
-            baseline_module_facade_limit = 0
-            allowed_suffix_modules = [
-              "module_layout_suffix_module:packages/ethos/src/ethos/old_report.py:old_report",
-            ]
-            """
+            '\n            paths = ["packages/ethos/src"]\n            baseline_gap_limit = 1\n            enforce_baseline_kind_limits = true\n            baseline_suffix_module_limit = 2\n            baseline_suffix_flat_limit = 0\n            baseline_flat_directory_limit = 0\n            baseline_private_alias_limit = 0\n            baseline_package_init_facade_limit = 0\n            baseline_module_facade_limit = 0\n            allowed_suffix_modules = [\n              "module_layout_suffix_module:packages/ethos/src/ethos/old_report.py:old_report",\n            ]\n            '
         ),
     )
 
@@ -474,14 +394,7 @@ def test_module_layout_accepts_single_file_policy_path(tmp_path: Path) -> None:
     target = tmp_path / "packages" / "ethos" / "src" / "ethos" / "one_report.py"
     _write(target)
     policy = tmp_path / ".config" / "checks" / "module-layout" / "policy.toml"
-    _write(
-        policy,
-        textwrap.dedent(
-            f"""
-            paths = ["{target.relative_to(tmp_path).as_posix()}"]
-            """
-        ),
-    )
+    _write(policy, f'paths = ["{target.relative_to(tmp_path).as_posix()}"]\n')
 
     report = module_layout_report(tmp_path)
 
@@ -494,27 +407,18 @@ def test_module_layout_flags_import_alias_and_runtime_init_code(tmp_path: Path) 
     _write(
         tmp_path / "packages" / "ethos" / "src" / "ethos" / "sample.py",
         textwrap.dedent(
-            """
-            import ethos.domain.status
-            import ethos.domain.plan as _plan
-            """
+            "\n            import ethos.domain.status\n            import ethos.domain.plan as _plan\n            "
         ),
     )
     _write(
         tmp_path / "packages" / "ethos" / "src" / "ethos" / "runtime" / "__init__.py",
-        textwrap.dedent(
-            '''
-            """Runtime init."""
-            value = 1
-            '''
-        ),
+        textwrap.dedent('\n            """Runtime init."""\n            value = 1\n            '),
     )
 
     report = module_layout_report(tmp_path)
 
     assert (
-        "module_layout_private_import_alias:"
-        "packages/ethos/src/ethos/sample.py:ethos.domain.plan->_plan"
+        "module_layout_private_import_alias:packages/ethos/src/ethos/sample.py:ethos.domain.plan->_plan"
     ) in report["required_gaps"]
     assert report["package_init_facade_findings"] == [
         {
@@ -531,11 +435,7 @@ def test_module_layout_package_init_facade_with_duplicate_imports(
     _write(
         tmp_path / "packages" / "ethos" / "src" / "ethos" / "facade" / "__init__.py",
         textwrap.dedent(
-            '''
-            """Facade init."""
-            from ethos.sample.core import one
-            from ethos.sample.core import two
-            '''
+            '\n            """Facade init."""\n            from ethos.sample.core import one\n            from ethos.sample.core import two\n            '
         ),
     )
     _write(
@@ -558,13 +458,7 @@ def test_module_layout_flags_module_import_only_facade(tmp_path: Path) -> None:
     _write(
         tmp_path / "packages" / "ethos" / "src" / "ethos" / "sample" / "core.py",
         textwrap.dedent(
-            '''
-            """Compatibility import shell."""
-            from __future__ import annotations
-
-            from ethos.sample.report import render
-
-            '''
+            '\n            """Compatibility import shell."""\n            from __future__ import annotations\n\n            from ethos.sample.report import render\n\n            '
         ),
     )
 
@@ -588,15 +482,7 @@ def test_module_layout_allows_modules_that_define_runtime_symbols(tmp_path: Path
     _write(
         tmp_path / "packages" / "ethos" / "src" / "ethos" / "sample" / "core.py",
         textwrap.dedent(
-            '''
-            """Real module."""
-            from __future__ import annotations
-
-            from ethos.sample.report import render
-
-            def run() -> str:
-                return render()
-            '''
+            '\n            """Real module."""\n            from __future__ import annotations\n\n            from ethos.sample.report import render\n\n            def run() -> str:\n                return render()\n            '
         ),
     )
 
@@ -616,14 +502,7 @@ def test_module_layout_blocks_baseline_growth_from_head(
     _write(
         policy,
         textwrap.dedent(
-            """
-            paths = ["packages/ethos/src"]
-            baseline_gap_limit = 2
-            allowed_suffix_modules = [
-              "module_layout_suffix_module:packages/ethos/src/ethos/old_report.py:old_report",
-              "module_layout_suffix_module:packages/ethos/src/ethos/new_report.py:new_report",
-            ]
-            """
+            '\n            paths = ["packages/ethos/src"]\n            baseline_gap_limit = 2\n            allowed_suffix_modules = [\n              "module_layout_suffix_module:packages/ethos/src/ethos/old_report.py:old_report",\n              "module_layout_suffix_module:packages/ethos/src/ethos/new_report.py:new_report",\n            ]\n            '
         ),
     )
 
@@ -634,13 +513,7 @@ def test_module_layout_blocks_baseline_growth_from_head(
             return "abc\n"
         if args == ("show", "HEAD:.config/checks/module-layout/policy.toml"):
             return textwrap.dedent(
-                """
-                paths = ["packages/ethos/src"]
-                baseline_gap_limit = 1
-                allowed_suffix_modules = [
-                  "module_layout_suffix_module:packages/ethos/src/ethos/old_report.py:old_report",
-                ]
-                """
+                '\n                paths = ["packages/ethos/src"]\n                baseline_gap_limit = 1\n                allowed_suffix_modules = [\n                  "module_layout_suffix_module:packages/ethos/src/ethos/old_report.py:old_report",\n                ]\n                '
             )
         if args[:5] == ("ls-tree", "-r", "--name-only", "HEAD", "--"):
             return "packages/ethos/src/ethos/old_report.py\n"
@@ -651,8 +524,7 @@ def test_module_layout_blocks_baseline_growth_from_head(
     report = module_layout_report(tmp_path)
 
     assert (
-        "module_layout_baseline_growth:"
-        "module_layout_suffix_module:packages/ethos/src/ethos/new_report.py:new_report"
+        "module_layout_baseline_growth:module_layout_suffix_module:packages/ethos/src/ethos/new_report.py:new_report"
     ) in report["required_gaps"]
     assert "module_layout_baseline_limit_growth:2>1" in report["required_gaps"]
 
@@ -750,16 +622,7 @@ def test_module_layout_blocks_dynamic_compatibility_export_module(tmp_path: Path
     _write(
         tmp_path / "packages" / "ethos" / "src" / "ethos" / "sample" / "compat.py",
         textwrap.dedent(
-            '''
-            """Dynamic compatibility export shell."""
-            from __future__ import annotations
-
-            def __getattr__(name: str) -> object:
-                from ethos.sample.core import value
-                if name == "value":
-                    return value
-                raise AttributeError(name)
-            '''
+            '\n            """Dynamic compatibility export shell."""\n            from __future__ import annotations\n\n            def __getattr__(name: str) -> object:\n                from ethos.sample.core import value\n                if name == "value":\n                    return value\n                raise AttributeError(name)\n            '
         ),
     )
 
@@ -784,14 +647,7 @@ def test_module_layout_blocks_dynamic_export_without_lazy_import(tmp_path: Path)
     _write(
         tmp_path / "packages" / "ethos" / "src" / "ethos" / "sample" / "virtual.py",
         textwrap.dedent(
-            '''
-            """Dynamic local virtual attribute shell."""
-
-            def __getattr__(name: str) -> object:
-                if name == "value":
-                    return 1
-                raise AttributeError(name)
-            '''
+            '\n            """Dynamic local virtual attribute shell."""\n\n            def __getattr__(name: str) -> object:\n                if name == "value":\n                    return 1\n                raise AttributeError(name)\n            '
         ),
     )
 

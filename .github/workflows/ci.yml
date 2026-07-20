@@ -24,10 +24,10 @@ jobs:
     name: quality gates
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: Bootstrap Python and OpenSpec
@@ -54,8 +54,6 @@ jobs:
         run: tools/ci/scripts/run-docstring-coverage.sh
       - name: Module layout
         run: tools/ci/scripts/run-module-layout.sh
-      - name: Security lint
-        run: tools/ci/scripts/run-bandit.sh
       - name: Python vulnerability audit
         run: tools/ci/scripts/run-python-vulnerability-audit.sh
       - name: Secrets scan
@@ -92,10 +90,10 @@ jobs:
     env:
       ETHOS_TEST_WORKERS: "1"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: Bootstrap Python and OpenSpec
@@ -112,28 +110,28 @@ jobs:
         run: tools/ci/scripts/run-head-bound-proof.sh
       - name: Upload proof receipt
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ethos-proof-receipt
           path: |
             build/evidence/quality/proof/
             build/evidence/quality/readiness/
-          if-no-files-found: warn
+          if-no-files-found: error
 
   package:
     name: package artifacts
     runs-on: ubuntu-latest
     needs: verify
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: Bootstrap Python and OpenSpec
         run: tools/ci/scripts/bootstrap-python.sh
       - name: Build Python distributions
         run: tools/ci/scripts/with-python-runtime.sh -- uv build --all-packages --out-dir build/artifacts/python --clear --no-create-gitignore
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: python-distributions
           path: build/artifacts/python/

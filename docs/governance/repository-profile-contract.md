@@ -10,8 +10,7 @@ relations:
 
 ETHOS governs a repository through a repository-level profile. The profile is a
 binding manifest: it tells ETHOS which repository surfaces to read, which local
-state roots are host-local, which profile contract version is in force, and which
-backend is active during adoption or retirement.
+state roots are host-local, and which optional policies are explicitly active.
 
 The profile does not own repository truth. Source, tests, package metadata,
 machine contracts, docs, rules, evidence, OpenSpec records, claims, and
@@ -37,22 +36,10 @@ profile in the repository's configuration layer.
 
 ## Responsibilities
 
-The profile may declare:
-
-- profile identity and contract version;
-- repository kind and root subject;
-- roots for rules, docs, durable evidence, OpenSpec, claims, and repo-local
-  skills;
-- references to tool configuration and boundary configuration;
-- durable, generated, and host-local evidence roots;
-- migration backend selection, when dual backends are still active;
-- `external_backend.control`, a repository-local declarative backend control
-  manifest such as `.config/interfaces/external-ethos-backend.toml` when an
-  adopter records a reversible external backend switch;
-- adopter retirement boundaries: the generic binding manifest, the execution
-  config root, forbidden product-core adopter roots, external backend state,
-  embedded fallback state, and the tracked policy/evidence path proving the
-  rollback window.
+The profile may declare identity, roots for repository-owned capabilities,
+evidence-root classes, proof gate descriptors, independent-verification policy,
+docs topology, a container contract, adoption boundaries, and explicit
+backend-retirement state.
 
 The profile must not declare:
 
@@ -66,31 +53,10 @@ The profile must not declare:
 
 ## Minimal Shape
 
-A conforming profile has this shape:
+The bootstrap renderer writes the smallest valid declaration:
 
 ```toml
-schema_version = 1
 profile_id = "example"
-profile_version = "1"
-ethos_contract_version = "1"
-
-[repository]
-kind = "software"
-root_subject = "git-repository"
-
-[roots]
-tool_config = ".config"
-rules = "rules"
-docs = "docs"
-durable_evidence = "docs/evidence"
-openspec = "openspec"
-claims = "claims"
-agent_skills = ".agents/skills"
-local_state = ".ethos/state"
-
-[evidence]
-generated_roots = ["build/evidence"]
-host_local_roots = [".ethos/state", ".cache/local-state"]
 
 [openspec]
 material_paths = [
@@ -100,6 +66,10 @@ material_paths = [
   "rules/**",
 ]
 ```
+
+`profile_id` and every material-path item are non-empty. Pydantic v2 rejects
+unknown fields and invalid types; the loaded declaration is frozen. Omitted
+sections use contract-owned defaults rather than repeated generated text.
 
 ## Material OpenSpec Scope
 
@@ -114,10 +84,7 @@ For every changed material path, `ethos lane prewrite`, `ethos plan --changed`,
 and `ethos prove` use the same official-OpenSpec selected Change list and the
 same ETHOS-owned `openspec/changes/<id>/scope.toml` companion read model. A
 valid companion covering the path admits it; otherwise the stable diagnostic
-is `openspec_material_path_uncovered:<path>`. This companion is adjacent to,
-not part of, the official OpenSpec workflow schema. An invalid unrelated
-companion remains a Change diagnostic and cannot defeat another selected
-Change's valid coverage.
+is `openspec_material_path_uncovered:<path>`.
 
 ```toml
 # openspec/changes/<change-id>/scope.toml
@@ -129,104 +96,28 @@ paths = [
 ]
 ```
 
-Bootstrap is deliberately narrow. Create the Change with the official
-`openspec new change <id>` command, then admit only that exact Change's
-otherwise absent `scope.toml`, provided it is a declared material path and the
-official list identifies the Change as active. The finished companion must
-cover itself and all subsequent material writes. Lifecycle scope remains a
-repository-governance obligation, not an entry in
-`[proof].code_correctness_gates` and not authority for a method package.
+Create a Change through the official OpenSpec command before later material
+writes. Adoption itself writes the complete material-path declaration, so no
+historical profile bootstrap exception or second profile-write path remains.
 
-### Existing-Adopter Bootstrap
+## Optional Declarations
 
-An adopter that already has a valid, tracked `.ethos/profile.toml` but predates
-this contract has one narrow migration write. If exactly one official active
-Change is selected, `lane prewrite` may admit only that profile path while the
-`[openspec].material_paths` declaration is absent. The result is
-`profile_material_paths_bootstrap`; it does not cover another path, does not
-accept an explicit empty or malformed declaration, and does not replace the
-normal Change-local `scope.toml` bootstrap. Once the declaration is written,
-all later material writes use ordinary scope coverage.
+The same typed contract can reference existing repository roots, proof gate
+descriptors, independent-verification policy, container contracts, and explicit
+backend-retirement state. These sections are interpreted
+only when declared; adoption does not generate their carriers. Tool-native
+configuration and provider state remain outside the profile.
 
-An adopter may add references to existing repository configuration:
+An adopter that declares backend retirement may set `external_backend.control`
+to a repository-local manifest whose asset kind is
+`ExternalEthosBackendSwitch`. That manifest records `default_backend`,
+`external_backend`, and `rollback_mode`. Its truth boundary is configuration only:
+it admits or blocks a lifecycle claim but never executes ETHOS or creates
+a command wrapper.
 
-```toml
-[config]
-checks_catalog = ".config/checks/catalog.toml"
-import_boundaries = ".config/boundaries/imports.ini"
-module_boundaries = ".config/boundaries/modules.toml"
-external_interfaces = ".config/interfaces/external.toml"
-worktree_closeout = ".config/worktree/closeout.toml"
-worktree_hydration = ".config/worktree/hydration.toml"
-```
-
-An adopter in dual-backend migration may declare a backend control manifest:
-
-```toml
-[external_backend]
-state = "adoption_preview"
-minimum_version = "external>=embedded"
-shadow_required = true
-control = ".config/interfaces/external-ethos-backend.toml"
-```
-
-The control manifest is repository-local declarative configuration, not an
-execution wrapper. Its stable shape records `asset_kind =
-"ExternalEthosBackendSwitch"`, `profile_binding = ".ethos/profile.toml"`,
-`current.state`, `current.default_backend`, `current.external_backend`,
-`current.rollback_mode`, allowed transitions, and forbidden shortcuts. The
-truth boundary must remain configuration only: the manifest admits or blocks a
-backend lifecycle claim; it does not execute ETHOS, replace `.config`, or create
-an adopter-local command plane.
-
-An adopter with a pre-existing documentation IA may also declare a docs topology
-policy:
-
-```toml
-[docs_topology]
-state_root_policy = "adopter_declared_compatibility"
-time_state_roots = ["docs/current", "docs/future"]
-state_metadata_policy = "front_matter_or_status_line"
-status_field = "Status"
-compatibility_decision = "docs/reference/documentation-information-architecture.md"
-
-[docs_topology.state_value_map]
-index = "canonical"
-reference = "canonical"
-"current governance" = "canonical"
-"current implementation" = "canonical"
-"operational guidance" = "canonical"
-evidence = "canonical"
-"delivery evidence" = "canonical"
-"dated evidence" = "canonical"
-"active plan" = "active"
-"target design" = "planned"
-"historical context" = "archived"
-```
-
-This table is generic adopter policy. It does not make `docs/current/` or
-`docs/future/` valid ETHOS product roots, and it does not waive the common
-decision/evidence/reference/history kernel. It tells ETHOS that the adopter owns
-those existing roots and adopter `Status:` vocabulary through a tracked
-documentation-IA decision while it converges or proves retirement readiness.
-Missing `compatibility_decision`, unlisted time-state roots, unmapped required status
-values, missing kernel paths, invalid mapped state metadata, and role/root
-mismatches remain blocking gaps.
-
-During migration from an older ETHOS projection, previous projection files may
-be listed as transition inputs:
-
-```toml
-[previous_projection]
-project = ".ethos/project.toml"
-workspace = ".ethos/workspace.toml"
-rules = ".ethos/rules.toml"
-assistants = ".ethos/assistants.toml"
-```
-
-Previous-projection entries are not the terminal contract. They are transition
-aids until the profile-derived governance context is proven equivalent or
-stricter.
+Repository-native proof gates use the product gate descriptor vocabulary. A
+non-product gate id without a descriptor fails closed through
+`adopter_gate_descriptor_missing:<id>` rather than guessing a command.
 
 ## Adapter Command Contract
 
@@ -380,8 +271,8 @@ See also: [Product Design Contract](product-design-contract.md),
 
 ## OpenSpec Lifecycle
 
-A valid adopter uses the same official OpenSpec lifecycle in planning and proof
-as the product. Lifecycle is not a `[proof] code_correctness_gates` entry.
-Portable material-path scope admission is deferred to the explicit OpenSpec
-Change `adopter-material-change-scope-20260714`; no method package is a
-governance substitute.
+A valid adopter uses the official OpenSpec lifecycle when a workspace exists,
+OpenSpec is explicitly requested, or a changed path matches declared
+`material_paths`. Without those applicability facts, plan and proof report the
+capability as not applicable. Lifecycle is not a `[proof]
+code_correctness_gates` entry, and no method package is a governance substitute.

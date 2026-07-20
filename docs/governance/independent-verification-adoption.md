@@ -99,7 +99,7 @@ both remain provider deployments rather than product-distributed examples.
 For an actual external repository, create a clean checkout and run:
 
 ```bash
-ethos adopt --root <adopter> --profile generic --json
+ethos adopt --root <adopter> --json
 ethos status --root <adopter> --json
 ethos prove --root <adopter> --json
 ethos report --root <adopter> --json

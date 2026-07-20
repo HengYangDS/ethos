@@ -1,7 +1,7 @@
 [claim]
 id = "current-head-real-adopter-evidence-20260714"
 subject = "ethos:current-candidate-head-external-adopter-command-parity-observation"
-state = "active"
+state = "archived"
 summary = "Digest-bound historical observation of one candidate product revision's command parity and fail-closed generic-overlay preservation on an isolated existing adopter."
 
 [evidence]

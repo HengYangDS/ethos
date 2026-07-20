@@ -74,8 +74,8 @@ def test_gitlab_ci_uses_ethos_public_command_plane() -> None:
     assert "tools/ci/scripts/install-lychee.sh" in text
     assert "LYCHEE_CACHE_DIR: build/runtime/tool-cache/lychee" in text
     assert "ETHOS_CI_TOOL_CACHE_DIR: build/runtime/tool-cache/ci-tools" in text
-    assert "build/runtime/tool-cache/lychee/" in text
-    assert "build/runtime/tool-cache/ci-tools/" in text
+    assert "    - build/runtime/tool-cache/lychee/" not in text
+    assert "    - build/runtime/tool-cache/ci-tools/" not in text
     assert "tools/ci/scripts/run-import-linter.sh" in text
     assert "tools/ci/scripts/run-docstring-coverage.sh" in text
     assert (
@@ -98,6 +98,9 @@ def test_configuration_layout_is_separated_by_concern() -> None:
 
     assert "[project]" in pyproject
     assert "[tool.uv.workspace]" in pyproject
+    assert tomllib.loads(pyproject).get("tool", {}).get("pytest") == {
+        "ini_options": {"cache_dir": "build/runtime/tool-cache/pytest"}
+    }
     assert tomllib.loads((ROOT / "ruff.toml").read_text(encoding="utf-8")) == {
         "cache-dir": "build/runtime/tool-cache/ruff",
         "extend": ".config/checks/ruff/ruff.toml",
@@ -147,7 +150,9 @@ def test_configuration_layout_is_separated_by_concern() -> None:
 def test_pyproject_does_not_carry_quality_tool_policy() -> None:
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
 
-    assert "[tool.pytest" not in pyproject
+    assert tomllib.loads(pyproject).get("tool", {}).get("pytest") == {
+        "ini_options": {"cache_dir": "build/runtime/tool-cache/pytest"}
+    }
     assert "[tool.ruff" not in pyproject
     assert "[tool.coverage" not in pyproject
     assert "[tool.ty" not in pyproject

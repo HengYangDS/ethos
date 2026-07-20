@@ -13,7 +13,6 @@ from ethos.repository.policy.container_contract import core as container_contrac
 from ethos.repository.policy.container_contract.core import _contained_file
 from ethos.repository.policy.container_contract.core import _evidence_gaps
 from ethos.repository.policy.container_contract.core import _output_schema_gaps
-from ethos.repository.policy.container_contract.core import _read_file
 from ethos.repository.policy.container_contract.core import _schema_gaps
 from ethos.repository.policy.container_contract.core import container_contract_report
 from ethos.repository.policy.schema import schema_validation_report
@@ -27,18 +26,53 @@ def _write(path: Path, text: str) -> None:
     path.write_text(text, encoding="utf-8")
 
 
+def _profile(extra: str = "") -> str:
+    return (
+        'profile_id = "container-contract-test"\n\n'
+        '[openspec]\nmaterial_paths = [".ethos/profile.toml"]\n'
+        f"{extra}"
+    )
+
+
 def _manifest(digest: str) -> str:
-    return f'schema_version = 1\n[delivery]\nplatforms = ["linux/amd64", "linux/arm64"]\nemulation_is_release_evidence = false\noci_image_index = {{ reference = "registry.example/platform/example:v1", digest = "sha256:{"0" * 64}", evidence = {{ path = "evidence/container.json", sha256 = "{digest}" }} }}\nsbom = {{ path = "evidence/container.json", sha256 = "{digest}" }}\nprovenance = {{ path = "evidence/container.json", sha256 = "{digest}" }}\nsignature = {{ path = "evidence/container.json", sha256 = "{digest}" }}\nnative_linux_smokes = [{{ platform = "linux/amd64", evidence = {{ path = "evidence/container.json", sha256 = "{digest}" }} }}, {{ platform = "linux/arm64", evidence = {{ path = "evidence/container.json", sha256 = "{digest}" }} }}]\n[development]\ncompose_interface = "required"\nnative_development_path = "required"\ndev_container = "optional"\n[trust_profiles]\ntrusted = {{ network = "declared", credential_mounts = "declared", host_mounts = "declared", privileged = "forbidden", execution_evidence = {{ path = "evidence/container.json", sha256 = "{digest}" }} }}\nuntrusted = {{ network = "none", credential_mounts = "forbidden", host_secret_mounts = "forbidden", host_mounts = "forbidden", readonly_rootfs = true, capabilities = "drop_all", privileged = false, input_mount = "readonly", execution_evidence = {{ path = "evidence/container.json", sha256 = "{digest}" }}, artifact_return = {{ mode = "allowlist", allowed_paths = ["artifacts/result.json"], output_schema = {{ path = "evidence/container.json", sha256 = "{digest}" }} }} }}\n[data_lifecycle]\nmigration = "required"\nseed = "required"\nbackup = "required"\nrestore = "required"\n[asset_inventory]\ncomplete = true\nassets = []\n'
+    return f'''schema_version = 1
+[delivery]
+platforms = ["linux/amd64", "linux/arm64"]
+emulation_is_release_evidence = false
+oci_image_index = {{ reference = "registry.example/platform/example:v1", digest = "sha256:{"0" * 64}", evidence = {{ path = "evidence/container.json", sha256 = "{digest}" }} }}
+sbom = {{ path = "evidence/container.json", sha256 = "{digest}" }}
+provenance = {{ path = "evidence/container.json", sha256 = "{digest}" }}
+signature = {{ path = "evidence/container.json", sha256 = "{digest}" }}
+native_linux_smokes = [{{ platform = "linux/amd64", evidence = {{ path = "evidence/container.json", sha256 = "{digest}" }} }}, {{ platform = "linux/arm64", evidence = {{ path = "evidence/container.json", sha256 = "{digest}" }} }}]
+
+[development]
+compose_interface = "required"
+native_development_path = "required"
+dev_container = "optional"
+
+[trust_profiles]
+trusted = {{ network = "declared", credential_mounts = "declared", host_mounts = "declared", privileged = "forbidden", execution_evidence = {{ path = "evidence/container.json", sha256 = "{digest}" }} }}
+untrusted = {{ network = "none", credential_mounts = "forbidden", host_secret_mounts = "forbidden", host_mounts = "forbidden", readonly_rootfs = true, capabilities = "drop_all", privileged = false, input_mount = "readonly", execution_evidence = {{ path = "evidence/container.json", sha256 = "{digest}" }}, artifact_return = {{ mode = "allowlist", allowed_paths = ["artifacts/result.json"], output_schema = {{ path = "evidence/container.json", sha256 = "{digest}" }} }} }}
+
+[data_lifecycle]
+migration = "required"
+seed = "required"
+backup = "required"
+restore = "required"
+
+[asset_inventory]
+complete = true
+assets = []
+'''
 
 
 def test_undeclared_container_contract_is_advisory(tmp_path: Path) -> None:
     report = container_contract_report(tmp_path)
-    assert (report["ok"], report["state"], report["required_gaps"], report["advisory_gaps"]) == (
-        True,
-        "not_declared",
-        [],
-        ["container_contract_not_declared"],
-    )
+
+    assert report["ok"] is True
+    assert report["state"] == "not_declared"
+    assert report["required_gaps"] == []
+    assert report["advisory_gaps"] == ["container_contract_not_declared"]
 
 
 def test_declared_container_contract_requires_tracked_digest_matched_evidence(
@@ -49,14 +83,19 @@ def test_declared_container_contract_requires_tracked_digest_matched_evidence(
     digest = hashlib.sha256(evidence.read_bytes()).hexdigest()
     _write(
         tmp_path / ".ethos/profile.toml",
-        '[container_contract]\nschema_version = 1\nmanifest = ".ethos/container-contract.toml"\n',
+        _profile(
+            '\n[container_contract]\nschema_version = 1\nmanifest = ".ethos/container-contract.toml"\n'
+        ),
     )
     _write(tmp_path / ".ethos/container-contract.toml", _manifest(digest))
     subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
     subprocess.run(["git", "-C", str(tmp_path), "add", "evidence/container.json"], check=True)
+
     assert container_contract_report(tmp_path)["state"] == "valid"
+
     _write(evidence, '{"tampered": true}\n')
     report = container_contract_report(tmp_path)
+
     assert (
         report["ok"],
         "container_contract_evidence_digest_mismatch:evidence/container.json"
@@ -73,14 +112,14 @@ def _fixture_report(root: Path, case: dict[str, object]) -> dict[str, object]:
         _write(root / "outside.toml", "profile_id = 'outside'\n")
         profile.parent.mkdir(parents=True)
         profile.symlink_to(root / "outside.toml")
-        root /= "inside"
+        root = root / "inside"
     else:
         shutil.copytree(_FIXTURE / "repository", root, dirs_exist_ok=True)
         subprocess.run(["git", "init", "-q", str(root)], check=True)
         subprocess.run(["git", "-C", str(root), "add", "evidence"], check=True)
         manifest = root / ".ethos/container-contract.toml"
         if operation == "profile":
-            _write(root / ".ethos/profile.toml", str(case["value"]))
+            _write(root / ".ethos/profile.toml", _profile(str(case["value"])))
         elif operation == "relaxed_schema":
             schemas = root / "system/schemas/kernel"
             shutil.copytree(Path(__file__).parents[3] / "system/schemas/kernel", schemas)
@@ -88,12 +127,9 @@ def _fixture_report(root: Path, case: dict[str, object]) -> dict[str, object]:
             _write(manifest, "schema_version = 1\n")
         elif operation in {"replace", "manifest"}:
             text = str(case["value"])
-            _write(
-                manifest,
-                manifest.read_text(encoding="utf-8").replace(str(case["old"]), text)
-                if operation == "replace"
-                else text,
-            )
+            if operation == "replace":
+                text = manifest.read_text(encoding="utf-8").replace(str(case["old"]), text)
+            _write(manifest, text)
         elif operation == "evidence":
             _write(root / "evidence/container.json", str(case["value"]))
         elif operation == "missing_manifest":
@@ -108,6 +144,7 @@ def _fixture_report(root: Path, case: dict[str, object]) -> dict[str, object]:
 def test_container_contract_fixture_matrix(tmp_path: Path, case: dict[str, object]) -> None:
     report = _fixture_report(tmp_path, case)
     gaps = report["required_gaps"]
+
     assert (report.get("state"), report.get("ok")) == (
         case.get("state", report["state"]),
         case.get("ok", report["ok"]),
@@ -120,9 +157,13 @@ def test_container_contract_fixture_matrix(tmp_path: Path, case: dict[str, objec
 def test_schema_report_surfaces_declared_contract_failure(tmp_path: Path) -> None:
     _write(
         tmp_path / ".ethos/profile.toml",
-        '[container_contract]\nschema_version = 1\nmanifest = ".ethos/container-contract.toml"\n',
+        _profile(
+            '\n[container_contract]\nschema_version = 1\nmanifest = ".ethos/container-contract.toml"\n'
+        ),
     )
+
     report = schema_validation_report(tmp_path)
+
     assert (
         report["ok"],
         "instance:container-contract:container_contract_manifest_missing"
@@ -132,14 +173,16 @@ def test_schema_report_surfaces_declared_contract_failure(tmp_path: Path) -> Non
 
 @pytest.mark.parametrize("mode", ["missing", "unreadable"])
 def test_container_contract_product_schema_failures_are_fail_closed(
-    monkeypatch: pytest.MonkeyPatch, mode: str
+    monkeypatch: pytest.MonkeyPatch,
+    mode: str,
 ) -> None:
     class Candidate:
         def is_file(self) -> bool:
             return mode == "unreadable"
 
         def read_text(self, *, encoding: str) -> str:
-            raise OSError(encoding)
+            _ = encoding
+            raise OSError
 
         def __truediv__(self, _part: str) -> Candidate:
             return self
@@ -156,8 +199,11 @@ def test_container_contract_product_schema_failures_are_fail_closed(
             return Candidate()
 
     monkeypatch.setattr(container_contract, "Path", lambda _value: SchemaPath())
+
     assert _schema_gaps(
-        "container-contract.schema.json", {}, prefix="container_contract_schema_violation"
+        "container-contract.schema.json",
+        {},
+        prefix="container_contract_schema_violation",
     ) == [
         "container_contract_schema_violation:product_schema_unavailable:container-contract.schema.json"
     ]
@@ -166,24 +212,41 @@ def test_container_contract_product_schema_failures_are_fail_closed(
 def test_container_contract_file_and_payload_edges_fail_closed(tmp_path: Path) -> None:
     class BrokenPath:
         def resolve(self, *, strict: bool) -> Path:
-            raise OSError(strict)
+            _ = strict
+            raise OSError
 
-    assert _contained_file(tmp_path, BrokenPath(), label="container_contract_test") == (
+    assert _contained_file(
+        tmp_path,
+        BrokenPath(),
+        label="container_contract_test",
+    ) == (None, "container_contract_test_unreadable")
+
+    outside = tmp_path.parent / "outside-container-contract.toml"
+    outside.write_text("sample\n", encoding="utf-8")
+    assert _contained_file(tmp_path, outside, label="container_contract_test") == (
         None,
-        "container_contract_test_unreadable",
+        "container_contract_test_path_escapes_root",
     )
-    unreadable = tmp_path / "unreadable.toml"
-    unreadable.write_bytes(b"\xff")
-    assert _read_file(tmp_path, unreadable, label="container_contract_test") == (
-        None,
-        "container_contract_test_unreadable",
+
+    assert (
+        _evidence_gaps(
+            tmp_path,
+            {"evidence": {"path": "evidence.json", "sha256": 1}},
+        )
+        == []
     )
-    assert _evidence_gaps(tmp_path, {"evidence": {"path": "evidence.json", "sha256": 1}}) == []
-    assert _output_schema_gaps(tmp_path, {}) == []
+    assert (
+        _output_schema_gaps(
+            tmp_path,
+            {},
+        )
+        == []
+    )
 
 
 def test_container_contract_evidence_io_failures_are_required_gaps(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     evidence = tmp_path / "evidence.json"
     _write(evidence, "{}\n")
@@ -193,29 +256,35 @@ def test_container_contract_evidence_io_failures_are_required_gaps(
         raise OSError
 
     monkeypatch.setattr(container_contract.subprocess, "run", unavailable)
-    assert _evidence_gaps(tmp_path, payload) == [
-        "container_contract_evidence_tracking_unavailable:evidence.json"
-    ]
+    assert _evidence_gaps(
+        tmp_path,
+        payload,
+    ) == ["container_contract_evidence_tracking_unavailable:evidence.json"]
 
 
 def test_container_contract_untracked_and_unreadable_evidence_are_required_gaps(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    _write(tmp_path / "evidence.json", "{}\n")
+    evidence = tmp_path / "evidence.json"
+    _write(evidence, "{}\n")
     payload = {"evidence": {"path": "evidence.json", "sha256": "0" * 64}}
-    assert _evidence_gaps(tmp_path, payload) == [
-        "container_contract_evidence_untracked:evidence.json"
-    ]
 
-    def unreadable(_path: Path) -> bytes:
+    assert _evidence_gaps(
+        tmp_path,
+        payload,
+    ) == ["container_contract_evidence_untracked:evidence.json"]
+
+    def unreadable_read_bytes(_path: Path) -> bytes:
         raise OSError
 
-    monkeypatch.setattr(Path, "read_bytes", unreadable)
+    monkeypatch.setattr(Path, "read_bytes", unreadable_read_bytes)
     monkeypatch.setattr(
         container_contract.subprocess,
         "run",
         lambda *_args, **_kwargs: SimpleNamespace(returncode=0),
     )
-    assert _evidence_gaps(tmp_path, payload) == [
-        "container_contract_evidence_unreadable:evidence.json"
-    ]
+    assert _evidence_gaps(
+        tmp_path,
+        payload,
+    ) == ["container_contract_evidence_unreadable:evidence.json"]

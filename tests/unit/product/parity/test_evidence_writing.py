@@ -254,9 +254,7 @@ def test_parity_shadow_write_evidence_uses_adopter_profile_durable_evidence_root
     checkout_work_lane(product)
     monkeypatch.setenv("ETHOS_ACTOR", "agent:codex:thread:parity-evidence")
     target = init_git_repo(tmp_path / "sample-adopter")
-    set_durable_evidence_root(target, "docs/evidence")
-    with (target / ".ethos" / "profile.toml").open("a", encoding="utf-8") as profile:
-        profile.write('\n[openspec]\nmaterial_paths = ["src/**"]\n')
+    set_durable_evidence_root(target, "docs/evidence", material_paths=("src/**",))
     checkout_work_lane(target)
 
     def fake_shadow(

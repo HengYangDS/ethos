@@ -1,4 +1,4 @@
-claim = { id = "ethos-terminal-final-design", subject = "ethos:terminal-final-design", state = "active", summary = "ETHOS terminal final design productizes OpenSpec substrate, capability routing, invocation admission, and evidence closeout guidance." }
+claim = { id = "ethos-terminal-final-design", subject = "ethos:terminal-final-design", state = "archived", summary = "ETHOS terminal final design productizes OpenSpec substrate, capability routing, invocation admission, and evidence closeout guidance." }
 evidence = { dated = "evidence/chronicle/terminal-final-design/2026-07-02.md", sha256 = "5c3a46b9407a45d82aa678e03a599edf92504ff9a0bc648f61434fdc5e0d7bff", evidence_ids = [
   "evidence:ethos-terminal-final-design",
 ], binding = "digest-bound terminal final design evidence", verifier = "digest_only", tests = [

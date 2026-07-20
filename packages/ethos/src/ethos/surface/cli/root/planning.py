@@ -32,7 +32,12 @@ def plan(
     matched_rules, required_gates, rule_validation_gaps = matching_rule_gates(repo, paths)
     domain_contracts = contract_profile_matches(repo, paths)
     workflow_runtime = workflow_runtime_report(repo, changed_paths=paths)
-    openspec_lifecycle = openspec_governance_report(repo, lifecycle=True, changed_paths=paths)
+    openspec_lifecycle = openspec_governance_report(
+        repo,
+        lifecycle=True,
+        changed_paths=paths,
+        require_workspace=False,
+    )
     lifecycle_gaps = tuple(str(gap) for gap in openspec_lifecycle.get("required_gaps", []))
     required_gaps = tuple(dict.fromkeys((*lifecycle_gaps, *rule_validation_gaps)))
     ok = bool(openspec_lifecycle.get("ok")) and not rule_validation_gaps

@@ -92,7 +92,7 @@ not normal user workflow vocabulary.
 | CL-017 | Prevent .mailmap return. | Identity cleanup can reintroduce repo-level rewriting artifacts. | Architecture test asserting no .mailmap. |
 | CL-018 | Treat historical commit identity rewrite as an explicit migration plan only. | History rewrite can be attempted casually. | Migration design, authorization, and hosted verification. |
 | CL-019 | Redesign docs information architecture for clarity, fidelity, and elegance. | Docs can be complete but hard to navigate. | Docs registry, taxonomy, stable paths, and UX review. |
-| CL-020 | Make init scaffolding create the full governance skeleton. | New projects can start with incomplete ETHOS structure. | Scaffold tests covering docs, schemas, OpenSpec, skills, rules, state ignore. |
+| CL-020 | Superseded: bind adopters with one strict profile declaration; create optional capabilities explicitly. | Full skeleton generation multiplies truth surfaces. | Exact one-file plan, strict profile round trip, and conflict tests. |
 | CL-021 | Harden npm distribution adapter and registry publication path. | Node wrapper can exist but break in real use. | Package smoke, bin smoke, and publication checklist. |
 | CL-022 | Preserve one public command plane. | Retired public vocabulary can leak back into canonical docs. | Command registry scan and docs command-example tests. |
 | CL-023 | Feed hosted CI parity back into evidence, not a separate truth store. | Hosted checks can diverge from local proof semantics. | CI adapter report and evidence envelope. |

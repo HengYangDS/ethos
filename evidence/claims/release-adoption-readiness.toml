@@ -1,4 +1,4 @@
-claim = { id = "release-adoption-evidence", subject = "ethos:release-adoption-readiness", state = "active", change_id = "2026-07-08-release-adoption-readiness", summary = "ETHOS records 2026-07-09 release smoke, external adoption pilot diagnostics, local publish readiness, and local-versus-remote delivery boundary evidence without asserting forge-run checks or registry delivery." }
+claim = { id = "release-adoption-evidence", subject = "ethos:release-adoption-readiness", state = "archived", change_id = "2026-07-08-release-adoption-readiness", summary = "ETHOS records 2026-07-09 release smoke, external adoption pilot diagnostics, local publish readiness, and local-versus-remote delivery boundary evidence without asserting forge-run checks or registry delivery." }
 evidence = { dated = "evidence/chronicle/release-adoption-readiness/2026-07-09.md", sha256 = "3bcd6959507f6e5dd2c06a0a461714456a80490919381b08c081a4da70c7239e", evidence_ids = [
   "evidence:release-adoption-readiness",
 ], binding = "digest-bound release artifact, adoption pilot, remote-ref, and forge-run boundary evidence binding", verifier = "digest_only", tests = [

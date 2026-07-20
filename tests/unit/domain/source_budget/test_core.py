@@ -3,8 +3,10 @@ from __future__ import annotations
 import tomllib
 from datetime import date
 from pathlib import Path
+from types import SimpleNamespace
 
 import ethos.domain.source_budget.core as source_budget
+from ethos_core.contracts.source_budget.core import SourceBudgetCarrier
 from ethos_core.contracts.source_budget.core import SourceBudgetPolicyLoad
 from ethos_core.contracts.source_budget.core import validate_source_budget_policy
 from ethos_core.contracts.source_budget.core import validate_source_budget_taxonomy
@@ -44,7 +46,6 @@ def test_source_budget_reports_all_executable_carriers_and_blocks_unfunded_growt
         "tools/check.sh": "echo ok\n",
         "system/current.toml": "value = 1\n",
         "schemas/current.json": '{"type": "object"}\n',
-        "templates/current.j2": "{# generated comment #}\n{{ value }}\n",
     }
     for relative, content in files.items():
         path = tmp_path / relative
@@ -57,14 +58,13 @@ def test_source_budget_reports_all_executable_carriers_and_blocks_unfunded_growt
         lambda _root: _source_budget_load(
             {
                 "baseline": {
-                    "global_total": 7,
+                    "global_total": 6,
                     "python_total": 3,
                     "python_product": 2,
                     "python_tests": 1,
                     "python_tools": 0,
                     "toml": 1,
                     "json": 1,
-                    "jinja": 1,
                 },
                 "terminal": {"global_total": 3, "python_total": 3},
                 "debt": {"maximum_total": 0, "waves": [], "records": []},
@@ -92,11 +92,10 @@ def test_source_budget_reports_all_executable_carriers_and_blocks_unfunded_growt
         "toml": 1,
         "yaml": 0,
         "json": 1,
-        "jinja": 1,
         "ini": 0,
         "diagram": 0,
         "python_total": 3,
-        "global_total": 7,
+        "global_total": 6,
     }
     assert report["terminal_target_met"] is False
     assert report["ok"] is True
@@ -111,7 +110,7 @@ def test_source_budget_reports_all_executable_carriers_and_blocks_unfunded_growt
     grown = source_budget.source_budget_report(tmp_path)
 
     assert grown["ok"] is False
-    assert grown["required_gaps"] == ["source_budget_exceeded:global_total:8>7"]
+    assert grown["required_gaps"] == ["source_budget_exceeded:global_total:7>6"]
 
 
 def test_source_budget_classifies_non_product_python_and_non_code_carriers(
@@ -153,6 +152,26 @@ def test_source_budget_classifies_non_product_python_and_non_code_carriers(
     assert source_budget.source_budget_carrier_report(
         tmp_path / "diagram/current.mmd", "diagram/current.mmd"
     ) == {"category": "diagram", "effective_lines": 1}
+
+
+def test_source_budget_ignores_single_line_wrapped_comments(tmp_path: Path, monkeypatch) -> None:
+    path = tmp_path / "sample.html"
+    path.write_text("<!-- generated -->\n<div></div>\n", encoding="utf-8")
+    carrier = SourceBudgetCarrier(
+        category="html",
+        extensions=(".html",),
+        comment_wrappers=(("<!--", "-->"),),
+    )
+    monkeypatch.setattr(
+        source_budget,
+        "source_budget_taxonomy",
+        lambda _root: SimpleNamespace(carrier=(carrier,)),
+    )
+
+    assert source_budget.source_budget_carrier_report(path, "sample.html") == {
+        "category": "html",
+        "effective_lines": 1,
+    }
 
 
 def test_source_budget_derives_python_total_allowance_from_python_categories(tmp_path, monkeypatch):

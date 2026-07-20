@@ -5,12 +5,13 @@ from __future__ import annotations
 
 import tomllib
 from typing import TYPE_CHECKING
-from typing import Any
 from typing import cast
 
 from ethos.repository.adoption.retirement.rollback import rollback_window_checks
 from ethos.repository.policy.artifacts import generated_artifact_topology_report
 from ethos.repository.policy.docs.topology import docs_topology_report
+from ethos.repository.profile import AdoptionBoundaryPolicy
+from ethos.repository.profile import BackendPolicy
 from ethos.repository.profile import load_repository_profile
 from ethos_core.normalization.core import string_list
 from ethos_core.normalization.core import string_mapping
@@ -26,14 +27,17 @@ def retirement_readiness_report(*, target: Path, product_root: Path, parity_gaps
     """Report whether an adopter can retire its embedded ETHOS backend."""
     repo, product = (target.resolve(), product_root.resolve())
     profile = load_repository_profile(repo)
-    boundary = profile.tables.get('adoption_boundary', {})
-    external = profile.tables.get('external_backend', {})
-    embedded = profile.tables.get('embedded_backend', {})
-    external_state, embedded_state = (str(external.get('state') or ''), str(embedded.get('state') or ''))
+    declaration = profile.declaration
+    boundary = declaration.adoption_boundary if declaration else None
+    external = declaration.external_backend if declaration else None
+    embedded = declaration.embedded_backend if declaration else None
+    rollback = declaration.rollback_window if declaration else None
+    external_state = external.state if external else ''
+    embedded_state = embedded.state if embedded else ''
     parity_ok = bool(parity_gaps and parity_gaps.get('ok') is True)
     shadow_ok = bool(shadow and shadow.get('ok') is True)
-    adopter = profile.identity.get('profile_id') or repo.name
-    checks = {'profile': _profile_checks(repo, profile_exists=profile.exists, profile_valid=profile.valid), 'binding': _binding_checks(repo, boundary), 'external_backend': _external_backend_checks(external), 'backend_control': _backend_control_checks(repo, external), 'embedded_backend': _embedded_backend_checks(repo, embedded), 'rollback_window': rollback_window_checks(repo, product, profile.tables.get('rollback_window', {}), context={'external_state': external_state, 'embedded_state': embedded_state, 'parity_ok': parity_ok, 'shadow_ok': shadow_ok, 'external_default_states': EXTERNAL_DEFAULT_STATES, 'embedded_frozen_states': EMBEDDED_FROZEN_STATES}), 'product_boundary': _product_boundary_checks(product, boundary), 'docs_topology': _topology_checks(repo, docs=True), 'generated_artifacts': _topology_checks(repo, docs=False), 'parity': _parity_checks(parity_gaps), 'shadow': _shadow_checks(shadow)}
+    adopter = declaration.profile_id if declaration else repo.name
+    checks = {'profile': _profile_checks(repo, profile_exists=profile.exists, profile_valid=profile.state == 'valid'), 'binding': _binding_checks(repo, boundary), 'external_backend': _external_backend_checks(external), 'backend_control': _backend_control_checks(repo, external), 'embedded_backend': _embedded_backend_checks(repo, embedded), 'rollback_window': rollback_window_checks(repo, product, rollback, context={'external_state': external_state, 'embedded_state': embedded_state, 'parity_ok': parity_ok, 'shadow_ok': shadow_ok, 'external_default_states': EXTERNAL_DEFAULT_STATES, 'embedded_frozen_states': EMBEDDED_FROZEN_STATES}), 'product_boundary': _product_boundary_checks(product, boundary), 'docs_topology': _topology_checks(repo, docs=True), 'generated_artifacts': _topology_checks(repo, docs=False), 'parity': _parity_checks(parity_gaps), 'shadow': _shadow_checks(shadow)}
     gaps = [gap for check in checks.values() for gap in string_list(check.get('required_gaps'), drop_empty=True)]
     stage = _lifecycle_stage(external_state=external_state, embedded_state=embedded_state, parity_ok=parity_ok, shadow_ok=shadow_ok)
     if stage != 'retirement_ready':
@@ -48,26 +52,24 @@ def _profile_checks(repo: Path, *, profile_exists: bool, profile_valid: bool) ->
     gaps = [gap for missing, gap in ((not profile_exists, 'retirement_profile_missing:.ethos/profile.toml'), (not profile_valid, 'retirement_profile_invalid:.ethos/profile.toml')) if missing]
     return _check(gaps, source='.ethos/profile.toml' if profile_exists else '', path=(repo / '.ethos' / 'profile.toml').as_posix())
 
-def _binding_checks(repo: Path, boundary: dict[str, Any]) -> dict[str, object]:
-    manifest = str(boundary.get('binding_manifest') or '.ethos/profile.toml')
-    config = str(boundary.get('execution_config_root') or '.config')
+def _binding_checks(repo: Path, boundary: AdoptionBoundaryPolicy | None) -> dict[str, object]:
+    manifest = boundary.binding_manifest if boundary else '.ethos/profile.toml'
+    config = boundary.execution_config_root if boundary else '.config'
     gaps = [gap for invalid, gap in ((manifest != '.ethos/profile.toml', f'retirement_binding_manifest_not_generic:{manifest}'), (config != '.config', f'retirement_execution_config_root_not_config:{config}'), (not (repo / manifest).exists(), f'retirement_binding_manifest_missing:{manifest}'), (not (repo / config).exists(), f'retirement_execution_config_root_missing:{config}')) if invalid]
     return _check(gaps, binding_manifest=manifest, execution_config_root=config)
 
-def _external_backend_checks(external: dict[str, Any]) -> dict[str, object]:
-    state = str(external.get('state') or '')
-    version = str(external.get('minimum_version') or '')
-    shadow_required = external.get('shadow_required') is True
-    gaps = [gap for invalid, gap in ((not external, 'retirement_external_backend_missing'), (version != 'external>=embedded', 'retirement_external_minimum_version_not_ge_embedded'), (not shadow_required, 'retirement_shadow_not_required'), (state not in EXTERNAL_DEFAULT_STATES, f"retirement_external_backend_not_default:{state or 'missing'}"), (state not in RETIREMENT_READY_STATES, f"retirement_external_backend_not_retirement_ready:{state or 'missing'}")) if invalid]
+def _external_backend_checks(external: BackendPolicy | None) -> dict[str, object]:
+    state = external.state if external else ''
+    version = external.minimum_version if external else ''
+    shadow_required = external.shadow_required if external else False
+    gaps = [gap for invalid, gap in ((external is None, 'retirement_external_backend_missing'), (version != 'external>=embedded', 'retirement_external_minimum_version_not_ge_embedded'), (not shadow_required, 'retirement_shadow_not_required'), (state not in EXTERNAL_DEFAULT_STATES, f"retirement_external_backend_not_default:{state or 'missing'}"), (state not in RETIREMENT_READY_STATES, f"retirement_external_backend_not_retirement_ready:{state or 'missing'}")) if invalid]
     return _check(gaps, state=state, minimum_version=version, shadow_required=shadow_required)
 
-def _backend_control_checks(repo: Path, external: dict[str, Any]) -> dict[str, object]:
-    control, expected = (str(external.get('control') or ''), str(external.get('state') or ''))
+def _backend_control_checks(repo: Path, external: BackendPolicy | None) -> dict[str, object]:
+    control = external.control if external else ''
+    expected = external.state if external else ''
     if not control:
         return _check([], path='')
-    path_gap = _backend_control_path_gap(control)
-    if path_gap:
-        return _check([path_gap], path=control)
     path = repo / control
     if not path.exists():
         return _check([f'retirement_backend_control_missing:{control}'], path=path.as_posix())
@@ -81,8 +83,7 @@ def _backend_control_checks(repo: Path, external: dict[str, Any]) -> dict[str, o
     gaps.extend(_backend_control_rollback_gaps(_table(data, 'rollback_window'), expected))
     return _check(gaps, path=path.as_posix(), **{field: str(current.get(field) or '') for field in ('state', 'default_backend', 'external_backend', 'rollback_mode')})
 
-def _backend_control_path_gap(control: str) -> str:
-    return f'retirement_backend_control_path_outside_repo:{control}' if control.startswith('/') or '..' in control.split('/') else ''
+
 
 def _read_backend_control(path: Path, control: str) -> tuple[dict[str, object], str]:
     try:
@@ -119,13 +120,14 @@ def _backend_control_rollback_gaps(rollback: dict[str, object], expected_state: 
     invalid = expected_state in EXTERNAL_DEFAULT_STATES and expected_state != 'adoption_preview' and (state not in {'planned', 'active', 'complete'})
     return ['retirement_backend_control_rollback_window_not_declared'] if invalid else []
 
-def _embedded_backend_checks(repo: Path, embedded: dict[str, object]) -> dict[str, object]:
-    state, policy = (str(embedded.get('state') or ''), str(embedded.get('retirement_policy') or ''))
-    gaps = [gap for invalid, gap in ((not embedded, 'retirement_embedded_backend_missing'), (state not in EMBEDDED_FROZEN_STATES, f"retirement_embedded_backend_not_frozen:{state or 'missing'}"), (not policy, 'retirement_policy_missing'), (bool(policy and (not (repo / policy).exists())), f'retirement_policy_path_missing:{policy}')) if invalid]
+def _embedded_backend_checks(repo: Path, embedded: BackendPolicy | None) -> dict[str, object]:
+    state = embedded.state if embedded else ''
+    policy = embedded.retirement_policy if embedded else ''
+    gaps = [gap for invalid, gap in ((embedded is None, 'retirement_embedded_backend_missing'), (state not in EMBEDDED_FROZEN_STATES, f"retirement_embedded_backend_not_frozen:{state or 'missing'}"), (not policy, 'retirement_policy_missing'), (bool(policy and (not (repo / policy).exists())), f'retirement_policy_path_missing:{policy}')) if invalid]
     return _check(gaps, state=state, retirement_policy=policy)
 
-def _product_boundary_checks(product: Path, boundary: dict[str, object]) -> dict[str, object]:
-    forbidden = string_list(boundary.get('forbidden_external_product_roots'), drop_empty=True)
+def _product_boundary_checks(product: Path, boundary: AdoptionBoundaryPolicy | None) -> dict[str, object]:
+    forbidden = list(boundary.forbidden_external_product_roots) if boundary else []
     present = [path for path in forbidden if (product / path).exists()]
     gaps = [f'forbidden_external_product_root_present:{path}' for path in present]
     return _check(gaps, forbidden_external_product_roots=forbidden, present_forbidden_roots=present)
@@ -135,11 +137,9 @@ def _topology_checks(repo: Path, *, docs: bool) -> dict[str, object]:
     prefix = 'retirement_docs_topology' if docs else 'retirement_generated_artifacts'
     gaps = [f'{prefix}:{gap}' for gap in string_list(report.get('required_gaps'), drop_empty=True)]
     summary = string_mapping(report.get('summary'))
-    fields = ('missing_paths', 'forbidden_roots', 'time_state_roots') if docs else ('allowed_paths', 'denied_paths', 'review_paths')
+    fields = ('missing_paths', 'forbidden_roots') if docs else ('allowed_paths', 'denied_paths', 'review_paths')
     counts = ('required_path_count', 'missing_required_path_count') if docs else ('allowed_path_count', 'denied_path_count', 'review_path_count', 'review_gap_count')
     values: dict[str, object] = {'state': report.get('state', ''), **{field: string_list(report.get(field), drop_empty=True) for field in fields}}
-    if docs:
-        values['profile_policy'] = report.get('profile_policy', {})
     return _check(gaps, **values, summary={field: summary.get(field, 0) for field in counts})
 
 def _parity_checks(parity: dict[str, object] | None) -> dict[str, object]:

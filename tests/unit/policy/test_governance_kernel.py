@@ -52,7 +52,7 @@ def test_governance_kernel_blocks_second_command_plane_context() -> None:
     assert "governance_kernel_profile_boundary_mismatch" in gaps
 
 
-def test_governance_kernel_blocks_profile_field_drift(monkeypatch) -> None:
+def test_governance_kernel_blocks_profile_field_drift() -> None:
     drifted = {
         "ok": True,
         "isomorphic": True,
@@ -133,7 +133,7 @@ def test_governance_kernel_blocks_missing_profiles_allowed_differences_and_share
     assert "governance_kernel_shared_kernel_chain_mismatch" in gaps
 
 
-def test_governance_kernel_blocks_docs_and_generic_scaffold_gaps(tmp_path: Path) -> None:
+def test_governance_kernel_blocks_docs_and_minimal_binding_gaps(tmp_path: Path) -> None:
     docs_check = governance_kernel._product_docs_check(tmp_path)
     assert docs_check["ok"] is False
     assert "governance_kernel_doc_missing:README.md" in docs_check["required_gaps"]
@@ -146,9 +146,8 @@ def test_governance_kernel_blocks_docs_and_generic_scaffold_gaps(tmp_path: Path)
         for gap in phrase_check["required_gaps"]
     )
 
-    scaffold = governance_kernel._generic_adoption_scaffold_check(
+    scaffold = governance_kernel._minimal_adoption_binding_check(
         {
-            "profile": "python",
             "applied": True,
             "planned_files": ["AGENTS.md"],
             "required_gaps": ["adoption_plan_gap"],
@@ -158,10 +157,9 @@ def test_governance_kernel_blocks_docs_and_generic_scaffold_gaps(tmp_path: Path)
     gaps = set(scaffold["required_gaps"])
     assert scaffold["ok"] is False
     assert "adoption_plan_gap" in gaps
-    assert "governance_kernel_generic_profile_mismatch" in gaps
-    assert "governance_kernel_generic_probe_mutated" in gaps
-    assert "governance_kernel_generic_scaffold_missing:.ethos/workspace.toml" in gaps
-    assert any(str(gap).startswith("governance_kernel_generic_docs_path_missing:") for gap in gaps)
+    assert "governance_kernel_adoption_probe_mutated" in gaps
+    assert "governance_kernel_adoption_binding_missing:.ethos/profile.toml" in gaps
+    assert "governance_kernel_adoption_surface_unexpected:AGENTS.md" in gaps
 
 
 def test_governance_kernel_helpers_cover_non_sequence_and_dedupe_edges() -> None:

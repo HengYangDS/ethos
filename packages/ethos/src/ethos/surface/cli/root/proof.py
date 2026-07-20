@@ -175,7 +175,7 @@ def prove(
         for run_result in (runner.run(node, root=repo) for node in graph.ordered_nodes())
     )
     evidence = EvidenceSet.from_runs(
-        id=f"ethos:{objective}",
+        evidence_id=f"ethos:{objective}",
         head=current_head,
         runs=proof_runs,
         durability="local",

@@ -262,7 +262,10 @@ def seed_executed_proof(repo: Path, head: str) -> None:
     runs = tuple(
         conformant_proof_run(gate_id, repo) for gate_id in _promotion_required_gate_ids(repo)
     )
-    record_executed_proof(repo, EvidenceSet.from_runs(id="proof", head=head, runs=runs).to_dict())
+    record_executed_proof(
+        repo,
+        EvidenceSet.from_runs(evidence_id="proof", head=head, runs=runs).to_dict(),
+    )
 
 
 def conformant_proof_run(gate_id: str, root: Path) -> object:

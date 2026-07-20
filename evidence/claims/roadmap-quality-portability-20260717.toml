@@ -2,12 +2,12 @@
 id = "roadmap-quality-portability-20260717"
 subject = "ethos:quality-portability-and-scope-spec-consolidation"
 state = "accepted"
-change_id = "roadmap-quality-portability-20260717"
+change_id = "roadmap-quality-portability"
 summary = "Configuration lint no longer depends on a bare python alias, and one accepted OpenSpec requirement owns adopter material-change scope binding."
 
 [evidence]
 dated = "evidence/chronicle/roadmap-quality-portability-20260717/2026-07-17.md"
-sha256 = "249b1f54f64aac150d3400afd7826ba046663752a217d15119a2e7b3b9f068e1"
+sha256 = "ce90b78c77e65dd17e748abbee158504bad2ac9a6728b3975a60730faca5527d"
 evidence_ids = ["evidence:roadmap-quality-portability-20260717"]
 binding = "Active OpenSpec carrier, RED-to-GREEN portability regression, canonical scope-spec regression, isolated full-test execution, and dated Chronicle."
 verifier = "digest_only"
@@ -21,9 +21,9 @@ owner = "ethos-quality-gate-governance"
 scope = "Configuration-lint interpreter portability, deterministic isolated test evidence verification, and authoritative scope-spec consolidation."
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-17-roadmap-quality-portability-20260717"
+openspec = "openspec/changes/archive/2026-07-17-roadmap-quality-portability"
 fallback = "Revert the interpreter chain and canonical specification edit together if the standalone runner or archive preflight regresses."
 kill_signal = "A bare python alias becomes required again, a targeted TOML-only runner loses validation, scope authority is duplicated, or isolated shards weaken the declared floor."
 
 [promotion]
-targets = ["tools/ci/scripts/run-config-lint.sh", "tests/architecture", "tests/unit/governance", "openspec/specs", "openspec/changes/archive/2026-07-17-roadmap-quality-portability-20260717", "evidence/claims/roadmap-quality-portability-20260717.toml", "evidence/chronicle/roadmap-quality-portability-20260717"]
+targets = ["tools/ci/scripts/run-config-lint.sh", "tests/architecture", "tests/unit/governance", "openspec/specs", "openspec/changes/archive/2026-07-17-roadmap-quality-portability", "evidence/claims/roadmap-quality-portability-20260717.toml", "evidence/chronicle/roadmap-quality-portability-20260717"]

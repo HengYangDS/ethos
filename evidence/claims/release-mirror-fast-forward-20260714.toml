@@ -1,7 +1,7 @@
 [claim]
 id = "release-mirror-fast-forward-20260714"
 subject = "ethos:accepted-to-release-fast-forward-mirror"
-change_id = "release-mirror-fast-forward-20260714"
+change_id = "release-mirror-fast-forward"
 state = "active"
 summary = "ETHOS can opt into proof-bound atomic accepted-to-release fast-forward mirroring without weakening protected-ref admission."
 
@@ -31,7 +31,7 @@ owner = "ethos-repository"
 scope = "Optional release mirror declaration, protected-ref admission, atomic closeout transaction, and linked release-worktree synchronization."
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-14-release-mirror-fast-forward-20260714"
+openspec = "openspec/changes/archive/2026-07-14-release-mirror-fast-forward"
 fallback = "Keep release independent unless the candidate committed policy explicitly enables accepted_ff; block raw protected-ref moves."
 kill_signal = "A raw release move can bypass the exact closeout intent or a failed atomic/synchronization path silently reports success."
 
@@ -43,7 +43,7 @@ targets = [
   "packages/ethos/src/ethos/adapters/mutation/core.py",
   "packages/ethos/src/ethos/adapters/mutation/closeout/core.py",
   "packages/ethos/src/ethos/adapters/mutation/lane_lifecycle/core.py",
-  "openspec/changes/archive/2026-07-14-release-mirror-fast-forward-20260714",
+  "openspec/changes/archive/2026-07-14-release-mirror-fast-forward",
   "evidence/chronicle/release-mirror-fast-forward-20260714/2026-07-14.md",
   "evidence/claims/release-mirror-fast-forward-20260714.toml",
 ]

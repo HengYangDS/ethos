@@ -4,7 +4,7 @@ role: plan
 state: planned
 relations:
   decided_by: docs/decisions/accepted/DR-0008-metric-domain-budget-contract.md
-  governed_by: openspec/changes/archive/2026-07-19-budget-contract-v2-foundation-integration-continuation-20260719
+  governed_by: openspec/changes/archive/2026-07-19-budget-contract-v2-foundation-integration-continuation
 ---
 
 # Budget Contract v2 Design

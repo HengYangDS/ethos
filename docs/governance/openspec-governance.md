@@ -105,6 +105,13 @@ archive command. After the official command runs, ETHOS must guard live-spec
 scope, archived task state, archive directory identity, retained evidence refs,
 and Markdown links from the archived path.
 
+Logical Change IDs are date-free lower-kebab identifiers beginning with a
+letter. The only archive date is the leading directory component:
+`openspec/changes/archive/YYYY-MM-DD-<change-id>/`. A numeric-leading ID,
+terminal `YYYYMMDD` Change-ID suffix, or two dated carriers for one logical ID
+is invalid; the repository keeps no alias, redirect, or date-based fallback.
+Claim IDs and Chronicle paths may remain independently dated evidence labels.
+
 Adoption does not create an OpenSpec workspace. When an adopter invokes the
 OpenSpec capability, the official OpenSpec command owns workspace creation and
 ETHOS validates the resulting tracked surface.

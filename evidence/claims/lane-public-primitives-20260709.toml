@@ -2,7 +2,7 @@
 id = "lane-public-primitives-20260709"
 subject = "ethos:lane-public-primitives-20260709"
 state = "active"
-change_id = "lane-public-primitives-20260709"
+change_id = "lane-public-primitives"
 summary = "Work Lane lifecycle shared helpers moved to a declared public primitives package, and module-layout now blocks changed-file private from-import regressions."
 
 [evidence]

@@ -6,7 +6,7 @@ summary = "Historical record for the retired bundled generic Git pre-receive ada
 
 [evidence]
 dated = "evidence/chronicle/generic-pre-receive-contract-20260712/2026-07-13.md"
-sha256 = "8875d81520e8951936e20dfef3741a120812d544356e4c8923aea0e72f50116c"
+sha256 = "e91a276405c48fb4a20475ed7721859fb39c1e1f658735d3c1ab3f0a7bb00fdc"
 evidence_ids = ["evidence:generic-pre-receive-contract-20260712"]
 binding = "Historical extension source, tests, OpenSpec carrier, and dated evidence retained after the bundled executable retired."
 verifier = "digest_only"
@@ -24,13 +24,13 @@ owner = "ethos-adapters"
 scope = "Historical bundled generic Git adapter only; current providers supply any executable outside ETHOS and consume the canonical receipt contract."
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-13-generic-pre-receive-contract-20260712"
+openspec = "openspec/changes/archive/2026-07-13-generic-pre-receive-contract"
 fallback = "Keep provider-local enforcement disabled unless an operator supplies and governs a conforming adapter."
 kill_signal = "A bundled adapter reappears as product authority or ordinary adopter prerequisite."
 
 [promotion]
 targets = [
-  { kind = "openspec", path = "openspec/changes/archive/2026-07-13-generic-pre-receive-contract-20260712" },
+  { kind = "openspec", path = "openspec/changes/archive/2026-07-13-generic-pre-receive-contract" },
   { kind = "evidence", path = "evidence/chronicle/generic-pre-receive-contract-20260712/2026-07-13.md" },
   { kind = "evidence", path = "evidence/claims/generic-pre-receive-contract-20260712.toml" },
   { kind = "docs", path = "docs/governance/independent-verification-adoption.md" },

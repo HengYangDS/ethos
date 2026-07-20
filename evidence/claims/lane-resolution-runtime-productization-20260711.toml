@@ -1,13 +1,13 @@
 [claim]
 id = "lane-resolution-runtime-productization-20260711"
 subject = "repository-governance:lane-resolution-runtime-productization"
-change_id = "lane-resolution-runtime-productization-20260711"
+change_id = "lane-resolution-runtime-productization"
 state = "active"
 summary = "The active change hardens local lane-resolution receipt discovery, retention clearing, and source-bound runtime bootstrap."
 
 [evidence]
 dated = "evidence/chronicle/lane-resolution-runtime-productization/2026-07-11.md"
-sha256 = "2f97489e05f1544247377c0ce3f8f8edec15d1cc75d20f7f2407e2601158d4b7"
+sha256 = "166c1f9329ac42e3a48cb7c1f8a8607d380cde3be22058802b4094a32a2746ec"
 evidence_ids = ["evidence:lane-resolution-runtime-productization-verification"]
 binding = "archived OpenSpec carrier and user-authorized local productization scope"
 verifier = "digest_only"
@@ -21,7 +21,7 @@ owner = "repository-governance"
 scope = "Local lane-resolution receipts, retention clear, and source-bound Work Lane runner bootstrap."
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-11-lane-resolution-runtime-productization-20260711"
+openspec = "openspec/changes/archive/2026-07-11-lane-resolution-runtime-productization"
 fallback = "Keep existing recovery packages intact and invoke ETHOS through an explicit current-worktree uv runner until the bounded surfaces are proven."
 kill_signal = "Any path reintroduces root cache or root virtual-environment creation for new lanes, clears a package without manifest-bound Chronicle evidence, or makes a local artifact authoritative."
 

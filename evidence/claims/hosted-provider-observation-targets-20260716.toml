@@ -20,9 +20,9 @@ owner = "ethos-quality-gate-governance"
 scope = "Explicit provider targeting, bounded hosted observation state, generated evidence freshness, and read-only report projection."
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-17-hosted-provider-observation-targets-20260716"
+openspec = "openspec/changes/archive/2026-07-17-hosted-provider-observation-targets"
 fallback = "Restore the previous observation-only envelope and omit report projection while keeping all hosted and publication claims false."
 kill_signal = "An unconfigured provider executes, a configured command omits --repo, observation gaps become repository proof gaps, or report claims hosted or remote publication success."
 
 [promotion]
-targets = [".config/checks/ci/hosted-observation.toml", "evidence/claims/hosted-provider-observation-targets-20260716.toml", "evidence/chronicle/hosted-provider-observation-targets-20260716/2026-07-16.md", "openspec/changes/archive/2026-07-17-hosted-provider-observation-targets-20260716", "openspec/specs/proof-hosts/spec.md", "openspec/specs/repository-governance/spec.md", "packages/ethos/src/ethos/domain/report.py", "packages/ethos/src/ethos/domain/reporting/gaps.py", "packages/ethos/src/ethos/repository/evidence/hosted", "tests/architecture/test_hosted_provider_observation.py", "tests/unit/domain/test_report.py", "tools/ci/hosted_observation.py", "system/invalid_states.toml", "tests/support/reporting.py", "tests/unit/domain/reporting/test_coordination.py", "tests/unit/kernel/test_invalid_states.py"]
+targets = [".config/checks/ci/hosted-observation.toml", "evidence/claims/hosted-provider-observation-targets-20260716.toml", "evidence/chronicle/hosted-provider-observation-targets-20260716/2026-07-16.md", "openspec/changes/archive/2026-07-17-hosted-provider-observation-targets", "openspec/specs/proof-hosts/spec.md", "openspec/specs/repository-governance/spec.md", "packages/ethos/src/ethos/domain/report.py", "packages/ethos/src/ethos/domain/reporting/gaps.py", "packages/ethos/src/ethos/repository/evidence/hosted", "tests/architecture/test_hosted_provider_observation.py", "tests/unit/domain/test_report.py", "tools/ci/hosted_observation.py", "system/invalid_states.toml", "tests/support/reporting.py", "tests/unit/domain/reporting/test_coordination.py", "tests/unit/kernel/test_invalid_states.py"]

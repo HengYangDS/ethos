@@ -1,13 +1,13 @@
 [claim]
 id = "history-residue-local-closeout-successor-20260719"
-change_id = "history-residue-local-closeout-successor-20260719"
+change_id = "history-residue-local-closeout-successor"
 subject = "repository-governance:history-residue-local-closeout-successor"
 state = "active"
 summary = "The July 19 successor archived on July 20 binds historical local-state maintenance evidence, hard source-budget settlement, canonical-spec fusion, and local-only lifecycle boundaries without remote or foreign-lane mutation."
 
 [evidence]
 dated = "evidence/chronicle/history-residue-local-closeout-successor-20260719/2026-07-19.md"
-sha256 = "d3031a443f00798968382320c6fe6757db67dfd9653000d48458a907fe22bfeb"
+sha256 = "495ddbaee03663ca0bc7588a2b55f4d3fbf5fd5a9d9978a79179e03ca7583e81"
 evidence_ids = ["evidence:history-residue-local-closeout-successor-20260719"]
 binding = "Raw-byte Chronicle digest binding for the historical operator receipt, live budget settlement, and local lifecycle boundary; final HEAD-bound proof remains separate."
 verifier = "digest_only"
@@ -28,13 +28,13 @@ owner = "repository-governance"
 scope = "Verified local operator receipt, hard category settlement, local proof/land/maintainer break-glass closeout, local ref alignment, and owned-lane retirement only; remote, hosted, r7, foreign, unbound, and global terminal-completion claims are excluded."
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-20-history-residue-local-closeout-successor-20260719"
+openspec = "openspec/changes/archive/2026-07-20-history-residue-local-closeout-successor"
 fallback = "Preserve the official predecessor archive and external operator artifacts; revert only successor tracked changes and leave all remote and foreign state untouched."
 kill_signal = "The predecessor archive changes, receipt digests fail, any active campaign overage remains at archive, control replacement lacks an external receipt, or remote/foreign mutation is attempted."
 
 [promotion]
 targets = [
-  "openspec/changes/archive/2026-07-20-history-residue-local-closeout-successor-20260719",
+  "openspec/changes/archive/2026-07-20-history-residue-local-closeout-successor",
   "evidence/claims/history-residue-local-closeout-successor-20260719.toml",
   "evidence/chronicle/history-residue-local-closeout-successor-20260719/2026-07-19.md",
   "openspec/specs/repository-governance/spec.md",

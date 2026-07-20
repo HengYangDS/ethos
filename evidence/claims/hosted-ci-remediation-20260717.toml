@@ -2,7 +2,7 @@
 id = "hosted-ci-remediation-20260717"
 subject = "quality:hosted-ci-remediation"
 state = "active"
-change_id = "hosted-ci-remediation-20260717"
+change_id = "hosted-ci-remediation"
 summary = "ETHOS isolates the emulator fixture and retries one classified transient pip-audit transport failure without masking final scanner outcomes."
 
 [evidence]
@@ -21,9 +21,9 @@ owner = "quality"
 scope = "Emulator-fixture isolation and one classified transient transport retry in the Python vulnerability audit gate."
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-17-hosted-ci-remediation-20260717"
+openspec = "openspec/changes/archive/2026-07-17-hosted-ci-remediation"
 fallback = "Fail the audit with its diagnostic; do not widen retries or infer hosted success."
 kill_signal = "A vulnerability, malformed JSON, or unclassified failure is retried or reported as passing; or the fixture reaches host Docker discovery."
 
 [promotion]
-targets = ["tools/ci/scripts/run-python-vulnerability-audit.sh", "tests/architecture/test_ci_provider_projections.py", "tests/architecture/test_dependency_prose_schema_gates.py", "openspec/specs/quality/spec.md", "openspec/changes/archive/2026-07-17-hosted-ci-remediation-20260717", "evidence/chronicle/hosted-ci-remediation-20260717/2026-07-17.md", "evidence/claims/hosted-ci-remediation-20260717.toml"]
+targets = ["tools/ci/scripts/run-python-vulnerability-audit.sh", "tests/architecture/test_ci_provider_projections.py", "tests/architecture/test_dependency_prose_schema_gates.py", "openspec/specs/quality/spec.md", "openspec/changes/archive/2026-07-17-hosted-ci-remediation", "evidence/chronicle/hosted-ci-remediation-20260717/2026-07-17.md", "evidence/claims/hosted-ci-remediation-20260717.toml"]

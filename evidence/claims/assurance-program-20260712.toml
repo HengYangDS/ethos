@@ -6,7 +6,7 @@ summary = "Active provider-neutral contract for optional action-bound independen
 
 [evidence]
 dated = "evidence/chronicle/assurance-program-20260712/2026-07-12.md"
-sha256 = "5c581619c99199706d41eef5b0695a52f5033aa4601c7cd99c313d760056c6f3"
+sha256 = "b5fc465aef2a9d04f56a8e8be0f36df44f6ae1fdc266c69ae861e2632aa3c724"
 evidence_ids = ["evidence:assurance-program-20260712"]
 binding = "Historical implementation evidence plus the current provider-neutral receipt and admission contract."
 verifier = "digest_only"
@@ -23,7 +23,7 @@ owner = "ethos-repository"
 scope = "Optional independent re-execution receipt admission and provider-neutral exact-binding semantics; verifier executables remain operator-supplied outside the product tree."
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-12-assurance-program-20260712"
+openspec = "openspec/changes/archive/2026-07-12-assurance-program"
 fallback = "Disable the action policy and retain local-readiness semantics."
 kill_signal = "A receipt can be admitted without exact binding, protected provider configuration, or a passing independent proof floor."
 
@@ -31,7 +31,7 @@ kill_signal = "A receipt can be admitted without exact binding, protected provid
 targets = [
   "evidence/claims/assurance-program-20260712.toml",
   "evidence/chronicle/assurance-program-20260712/2026-07-12.md",
-  "openspec/changes/archive/2026-07-12-assurance-program-20260712",
+  "openspec/changes/archive/2026-07-12-assurance-program",
   "docs/governance/independent-verification-adoption.md",
   "docs/plans/assurance-program-20260712.md",
   "packages/ethos-core/src/ethos_core/contracts/evidence/external.py",

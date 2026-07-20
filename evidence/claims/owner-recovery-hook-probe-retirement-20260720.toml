@@ -2,7 +2,7 @@
 id = "owner-recovery-hook-probe-retirement-20260720"
 subject = "ethos:work-lane:work/owner-recovery-hook-probe-20260720"
 state = "active"
-change_id = "owner-recovery-hook-probe-retirement-20260720"
+change_id = "owner-recovery-hook-probe-retirement"
 summary = "One accepted authority carrier binds a clean lease-free owner-recovery hook probe unbound accepted-ancestor ref to a later native exceptional retirement only."
 
 [evidence]
@@ -25,7 +25,7 @@ owner = "ethos-repository"
 scope = "One exact clean lease-free unbound accepted-ancestor owner-recovery hook probe Work Lane ref and one later native retirement receipt."
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-20-owner-recovery-hook-probe-retirement-20260720"
+openspec = "openspec/changes/archive/2026-07-20-owner-recovery-hook-probe-retirement"
 fallback = "Keep the exact ref intact if target, head, accepted relation, unbound state, lease state, Claim, Chronicle, protected refs, or postconditions drift."
 kill_signal = "A ref other than the exact target is retired, a dirty or leased sibling is treated as absorbed, a raw Git or SQLite delete occurs, or historical evidence is called current remote proof."
 
@@ -34,5 +34,5 @@ targets = [
   "docs/plans/owner-recovery-hook-probe-retirement-20260720.md",
   "evidence/claims/owner-recovery-hook-probe-retirement-20260720.toml",
   "evidence/chronicle/owner-recovery-hook-probe-retirement-20260720/2026-07-20.md",
-  "openspec/changes/archive/2026-07-20-owner-recovery-hook-probe-retirement-20260720",
+  "openspec/changes/archive/2026-07-20-owner-recovery-hook-probe-retirement",
 ]

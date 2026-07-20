@@ -3,7 +3,7 @@ subject: ethos:owner-recovery-hook-probe-retirement-20260720
 role: plan
 state: active
 relations:
-  carrier: openspec/changes/archive/2026-07-20-owner-recovery-hook-probe-retirement-20260720
+  carrier: openspec/changes/archive/2026-07-20-owner-recovery-hook-probe-retirement
   target_lane: work/owner-recovery-hook-probe-20260720
 ---
 

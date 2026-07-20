@@ -19,6 +19,7 @@ from ethos.adapters.openspec.lifecycle.core import openspec_timeout_report
 from ethos.adapters.openspec.lifecycle.core import openspec_unavailable_report
 from ethos.adapters.openspec.lifecycle.core import selected_change
 from ethos.adapters.openspec.workspace.core import openspec_workspace_signature
+from ethos.repository.openspec.audit import archive_identity_violations
 from ethos.repository.openspec.audit import official_config_report
 from ethos.repository.openspec.audit import protected_branch_active_change_report
 
@@ -157,6 +158,7 @@ def _openspec_governance_report(
             "commands": {},
         }
     required_gaps = openspec_root_gaps(openspec_root, official_config)
+    required_gaps.extend(archive_identity_violations(openspec_root))
     context = OpenSpecReportContext(
         request=request,
         official_config=official_config,

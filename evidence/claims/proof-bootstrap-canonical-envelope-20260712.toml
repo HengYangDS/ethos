@@ -6,7 +6,7 @@ summary = "ETHOS control-replacement receipt admission checks the native execute
 
 [evidence]
 dated = "evidence/chronicle/proof-bootstrap-canonical-envelope-20260712/2026-07-12.md"
-sha256 = "92259e75fd503aa22ee67de0df3d4101de8ba532285f345039d30c5befc6925b"
+sha256 = "be9b5ad8bc4d1d1c9f0c6ce8bf812f4a98e67fbeba57ab2e230ca4d2ea6a96e2"
 evidence_ids = ["evidence:proof-bootstrap-canonical-envelope-20260712"]
 binding = "The receipt-admission source, native-shaped fixture, canonical contract, OpenSpec delta, and dated Chronicle bind one generic control-replacement proof-parser repair."
 verifier = "digest_only"
@@ -24,7 +24,7 @@ owner = "ethos-adapters"
 scope = "Generic revalidation of native executed proof JSON referenced by an external control-replacement receipt."
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-12-proof-bootstrap-canonical-envelope-20260712"
+openspec = "openspec/changes/archive/2026-07-12-proof-bootstrap-canonical-envelope"
 fallback = "Revert the receipt-admission native-proof parser change if the public proof contract changes; do not retain a hand-authored proof envelope as a standing compatibility format."
 kill_signal = "Receipt admission accepts a bare head/state record, a non-executed proof, or divergent evidence, provenance, and candidate heads."
 
@@ -33,7 +33,7 @@ targets = [
   "packages/ethos/src/ethos/adapters/admission/control/replacement.py",
   "tests/unit/admission/test_control_replacement.py",
   "docs/architecture/runner-and-mutation.md",
-  "openspec/changes/archive/2026-07-12-proof-bootstrap-canonical-envelope-20260712",
+  "openspec/changes/archive/2026-07-12-proof-bootstrap-canonical-envelope",
   "openspec/specs/adapters/spec.md",
   "evidence/chronicle/proof-bootstrap-canonical-envelope-20260712/2026-07-12.md",
   "evidence/claims/proof-bootstrap-canonical-envelope-20260712.toml",

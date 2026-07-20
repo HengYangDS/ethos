@@ -5,6 +5,7 @@ paths = [
   "tests/unit/lanes/test_lanes_openspec_scope.py",
   "openspec/changes/openspec-no-tasks-bootstrap/**",
   "openspec/specs/repository-governance/spec.md",
+  "evidence/parity/generic-shadow.json",
   "evidence/claims/openspec-no-tasks-bootstrap-20260721.toml",
   "evidence/chronicle/openspec-no-tasks-bootstrap-20260721/**",
 ]

@@ -106,6 +106,16 @@ def test_dependency_hygiene_declares_noncanonical_cel_import_mapping() -> None:
     assert "--package-module-name-map cel-python=celpy" in runner
 
 
+def test_dependency_hygiene_declares_parse_only_jinja_dynamic_import() -> None:
+    policy = tomllib.loads((ROOT / ".config/checks/deptry/policy.toml").read_text())
+    package = next(item for item in policy["package"] if item["id"] == "ethos")
+    runner = (ROOT / "tools/ci/scripts/run-dependency-hygiene.sh").read_text(encoding="utf-8")
+
+    assert package["per_rule_ignores"] == ["DEP002=jinja2"]
+    assert "parse-only source-budget provider" in package["justification"]
+    assert "--per-rule-ignores DEP002=jinja2" in runner
+
+
 def test_non_python_vulnerability_scanners_remain_planned() -> None:
     expected_adoption = {"image_package_scan": "deferred", "signing": "candidate"}
     for concern, adoption in expected_adoption.items():

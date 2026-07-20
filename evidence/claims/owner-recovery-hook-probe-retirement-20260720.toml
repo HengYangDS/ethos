@@ -1,0 +1,38 @@
+[claim]
+id = "owner-recovery-hook-probe-retirement-20260720"
+subject = "ethos:work-lane:work/owner-recovery-hook-probe-20260720"
+state = "active"
+change_id = "owner-recovery-hook-probe-retirement-20260720"
+summary = "One accepted authority carrier binds a clean lease-free owner-recovery hook probe unbound accepted-ancestor ref to a later native exceptional retirement only."
+
+[evidence]
+dated = "evidence/chronicle/owner-recovery-hook-probe-retirement-20260720/2026-07-20.md"
+sha256 = "a7054ba32079875766a86829dd9a22332cd10496b842d567416549ad6e685842"
+evidence_ids = ["evidence:owner-recovery-hook-probe-retirement-20260720"]
+binding = "This Claim binds only work/owner-recovery-hook-probe-20260720 at 943a5e1e373b009f02533ff22815e8bca32b3157, its accepted-ancestor and no-worktree/no-lease observation, and one later native exceptional unbound retirement. It neither grants batch authority nor covers a sibling, lease, remote, provider state, or release action."
+verifier = "digest_only"
+tests = [
+  "git merge-base --is-ancestor 943a5e1e373b009f02533ff22815e8bca32b3157 dev",
+  "ethos lane retire unbound --branch work/owner-recovery-hook-probe-20260720 --expect-head 943a5e1e373b009f02533ff22815e8bca32b3157 --chronicle-ref evidence/chronicle/owner-recovery-hook-probe-retirement-20260720/2026-07-20.md --authorize --break-glass --confirm-irreversible --json",
+  "ethos prove --execute --expect-head <committed-head> --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "One exact clean lease-free unbound accepted-ancestor owner-recovery hook probe Work Lane ref and one later native retirement receipt."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-20-owner-recovery-hook-probe-retirement-20260720"
+fallback = "Keep the exact ref intact if target, head, accepted relation, unbound state, lease state, Claim, Chronicle, protected refs, or postconditions drift."
+kill_signal = "A ref other than the exact target is retired, a dirty or leased sibling is treated as absorbed, a raw Git or SQLite delete occurs, or historical evidence is called current remote proof."
+
+[promotion]
+targets = [
+  "docs/plans/owner-recovery-hook-probe-retirement-20260720.md",
+  "evidence/claims/owner-recovery-hook-probe-retirement-20260720.toml",
+  "evidence/chronicle/owner-recovery-hook-probe-retirement-20260720/2026-07-20.md",
+  "openspec/changes/archive/2026-07-20-owner-recovery-hook-probe-retirement-20260720",
+]

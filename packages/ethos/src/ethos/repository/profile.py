@@ -172,6 +172,7 @@ class RepositoryProfileDeclaration(_ProfileModel):
 
     profile_id: NonEmpty
     openspec: AdopterOpenSpecPolicy
+    normative_sources: RepositoryPathTuple = ()
     roots: RepositoryRoots = Field(default_factory=RepositoryRoots)
     evidence: EvidenceRoots = Field(default_factory=EvidenceRoots)
     proof: ProofPolicy = Field(default_factory=ProofPolicy)
@@ -214,13 +215,42 @@ def load_repository_profile(root: Path, *, tree_ref: str | None = None) -> Repos
     declaration = None
     if exists:
         with suppress(tomllib.TOMLDecodeError, ValidationError):
-            declaration = RepositoryProfileDeclaration.model_validate(tomllib.loads(text))
+            declaration = RepositoryProfileDeclaration.model_validate(
+                _normalize_legacy_profile_payload(tomllib.loads(text))
+            )
     return RepositoryProfile(
         root=repo,
         exists=exists,
         source=".ethos/profile.toml" if exists else "",
         declaration=declaration,
     )
+
+
+def _normalize_legacy_profile_payload(payload: object) -> object:
+    """Remove the one retired profile envelope before strict current validation.
+
+    The former envelope carried version and repository-identification metadata
+    that no longer participates in the typed binding.  It is accepted only as
+    the complete historical shape; partial or malformed legacy data remains an
+    invalid profile under the normal strict validator.
+    """
+    if not isinstance(payload, dict):
+        return payload
+    retired = ("schema_version", "profile_version", "ethos_contract_version", "repository")
+    if not any(key in payload for key in retired):
+        return payload
+    repository = payload.get("repository")
+    expected = (
+        payload.get("schema_version") == 1
+        and payload.get("profile_version") == "1"
+        and payload.get("ethos_contract_version") == "1"
+        and isinstance(repository, dict)
+        and set(repository) == {"kind", "root_subject"}
+        and all(isinstance(repository[key], str) and repository[key] for key in repository)
+    )
+    if not expected:
+        return payload
+    return {key: value for key, value in payload.items() if key not in retired}
 
 
 def _git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
@@ -268,6 +298,7 @@ def profile_evidence_roots(root: Path) -> tuple[str, ...]:
     candidates = [
         ".ethos/profile.toml",
         roots.rules,
+        *declaration.normative_sources,
         roots.claims,
         roots.openspec,
         roots.durable_evidence,

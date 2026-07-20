@@ -12,6 +12,7 @@ from __future__ import annotations
 import hashlib
 import importlib
 import subprocess
+import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Annotated
@@ -87,6 +88,21 @@ def resolve_root(root: Path | None) -> Path:
     return candidate
 
 
+def emit_invalid_adopter_profile(*, command: str, json_output: bool, enforce: bool) -> None:
+    """Emit the stable fail-closed envelope for an invalid adopter binding."""
+    from ethos_core.result import EthosResult
+
+    result = EthosResult(
+        command=command,
+        ok=False,
+        state="gapped",
+        required_gaps=("adopter_profile_invalid:.ethos/profile.toml",),
+        next_actions=("repair .ethos/profile.toml and rerun the command",),
+        data={"error_boundary": "adopter_profile_validation"},
+    )
+    emit(result, json_output=json_output, enforce=enforce)
+
+
 def sha256_file(path: Path) -> str:
     """Return the sha256:<hex> digest of a file (drift/attestation helper)."""
     digest = hashlib.sha256()
@@ -111,11 +127,11 @@ def emit(result: EthosResult, *, json_output: bool, enforce: bool = True) -> Non
     """
     try:
         if json_output:
-            print(result.to_json())
+            sys.stdout.write(f"{result.to_json()}\n")
         else:
-            print(f"{result.command}: {result.state}")
+            sys.stdout.write(f"{result.command}: {result.state}\n")
             for action in result.next_actions:
-                print(f"next: {action}")
+                sys.stdout.write(f"next: {action}\n")
     except (BrokenPipeError, BlockingIOError):
         return
     if enforce and not result.ok:

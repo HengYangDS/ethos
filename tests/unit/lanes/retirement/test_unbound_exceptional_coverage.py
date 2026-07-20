@@ -102,3 +102,20 @@ def test_observation_and_record_fail_closed_matrix(tmp_path: Path) -> None:
     assert records.valid_lease_relinquishment(
         payload["lease_relinquish_binding"], {}, subject=branch
     )
+
+
+def test_owner_unavailable_policy_rejects_nonexact_lease_binding(tmp_path: Path) -> None:
+    repo, branch, head, chronicle = _exceptional_fixture(tmp_path)
+    observed = observation.observe(repo, branch=branch, chronicle_ref=chronicle)
+    observed[observation.HAS_ACTIVE_LEASE] = True
+    observed["active_lease"] = {
+        "lease_id": "lease:foreign",
+        "holder_ref": "agent:test:foreign",
+        "epoch": 1,
+        "expected_head": head,
+        "recorded_path": (tmp_path / "missing-worktree").as_posix(),
+    }
+
+    assert policy.owner_unavailable_recovery_gaps(
+        observed, recovery_actor="agent:test:recovery"
+    ) == ["unbound_retire_owner_unavailable_chronicle_missing"]

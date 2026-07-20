@@ -1,5 +1,6 @@
 """Policy for exceptional unbound Work Lane retirement."""
 
+import os
 from pathlib import Path
 from typing import Any
 from typing import cast
@@ -11,6 +12,7 @@ from ethos_core.contracts.branch.roles import load_branch_role_policy
 
 EVENT = "lane_retire/unbound_exceptional"
 _CONTROL_ROOT_UNAVAILABLE = "unbound_retire_accepted_control_root_unavailable"
+OWNER_UNAVAILABLE_RECOVERY = "owner_unavailable"
 
 
 def _failed(*, first: bool = False, **checks: bool) -> list[str]:
@@ -78,6 +80,58 @@ def lease_relinquish_gap(observed: dict[str, object], *, holder_ref: str) -> str
         or str(lease.get("expected_head") or "") != str(observed.get("head") or "")
     )
     return "unbound_retire_active_lease" if invalid else ""
+
+
+def lease_recovery_gaps(
+    observed: dict[str, object],
+    *,
+    holder_ref: str,
+    owner_unavailable_recovery: bool,
+) -> list[str]:
+    """Admit only an exact owned relinquishment or accepted unavailable-owner recovery."""
+    if owner_unavailable_recovery:
+        return owner_unavailable_recovery_gaps(observed, recovery_actor=holder_ref)
+    gap = lease_relinquish_gap(observed, holder_ref=holder_ref)
+    return [gap] if gap else []
+
+
+def owner_unavailable_recovery_gaps(
+    observed: dict[str, object],
+    *,
+    recovery_actor: str,
+) -> list[str]:
+    """Validate the narrow accepted-policy exception for an unavailable source holder."""
+    if not bool(observed[observation.HAS_ACTIVE_LEASE]):
+        return ["unbound_retire_owner_unavailable_not_required"]
+    lease = cast("dict[str, object]", observed["active_lease"])
+    holder = str(lease.get("holder_ref") or "")
+    if not recovery_actor:
+        return ["unbound_retire_recovery_actor_required"]
+    if holder == recovery_actor:
+        return ["unbound_retire_owner_unavailable_holder_not_foreign"]
+    chronicle = cast("dict[str, object]", observed["chronicle"])
+    if str(chronicle.get("lease_recovery") or "") != OWNER_UNAVAILABLE_RECOVERY:
+        return ["unbound_retire_owner_unavailable_chronicle_missing"]
+    source_lease_matches = (
+        str(chronicle.get("source_lease_id") or "") == str(lease.get("lease_id") or "")
+        and str(chronicle.get("source_lease_holder") or "") == holder
+        and str(chronicle.get("source_lease_epoch") or "") == str(lease.get("epoch") or "")
+        and str(chronicle.get("source_lease_expected_head") or "")
+        == str(lease.get("expected_head") or "")
+    )
+    if not source_lease_matches:
+        return ["unbound_retire_owner_unavailable_lease_mismatch"]
+    recorded_path = str(lease.get("recorded_path") or "")
+    source_path = Path(recorded_path)
+    if not recorded_path or not source_path.is_absolute():
+        return ["unbound_retire_owner_unavailable_source_path_invalid"]
+    if str(chronicle.get("source_worktree_path") or "") != recorded_path:
+        return ["unbound_retire_owner_unavailable_source_path_mismatch"]
+    if str(chronicle.get("source_worktree_absent") or "") != "true":
+        return ["unbound_retire_owner_unavailable_chronicle_missing"]
+    if os.path.lexists(source_path):
+        return ["unbound_retire_owner_unavailable_source_path_present"]
+    return []
 
 
 def active_lease_gaps(observed: dict[str, object]) -> list[str]:

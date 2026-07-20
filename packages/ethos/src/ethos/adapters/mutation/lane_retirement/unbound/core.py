@@ -15,6 +15,7 @@ from ethos.adapters.mutation.lane_lifecycle.core import repo_root
 from ethos.adapters.mutation.lane_lifecycle.core import run_git
 from ethos.adapters.store.state.lease.lifecycle.core import expected_current_lease
 from ethos.adapters.store.state.lease.lifecycle.effects import revoke_lease
+from ethos.adapters.store.state.lease.lifecycle.effects import revoke_owner_unavailable_lease
 from ethos.adapters.store.state.schema import initialize_state
 
 type _Controls = dict[str, Any]
@@ -62,6 +63,7 @@ def retire_unbound_work_lane_ref(  # noqa: PLR0913, RUF100 - exact retirement pr
     authorized: bool = False,
     break_glass: bool = False,
     confirm_irreversible: bool = False,
+    owner_unavailable_recovery: bool = False,
 ) -> dict[str, object]:
     """Retire exactly one accepted-policy-bound unbound ``work/*`` ref."""
     repo = repo_root(root)
@@ -79,10 +81,20 @@ def retire_unbound_work_lane_ref(  # noqa: PLR0913, RUF100 - exact retirement pr
     before = _observe(repo, branch=branch, chronicle_ref=chronicle_ref)
     holder_ref = lane_retirement_shared.current_holder_ref()
     gaps = _admission_gaps(repo, observed=before, controls=controls)
-    lease_gap = policy.lease_relinquish_gap(before, holder_ref=holder_ref)
-    if lease_gap:
-        gaps.append(lease_gap)
-    result = reporting.report(observed=before, chronicle_ref=chronicle_ref, gaps=gaps, **controls)
+    gaps.extend(
+        policy.lease_recovery_gaps(
+            before,
+            holder_ref=holder_ref,
+            owner_unavailable_recovery=owner_unavailable_recovery,
+        )
+    )
+    result = reporting.report(
+        observed=before,
+        chronicle_ref=chronicle_ref,
+        owner_unavailable_recovery=owner_unavailable_recovery,
+        gaps=gaps,
+        **controls,
+    )
     if gaps or not apply:
         return result
     return _apply_retirement(
@@ -92,6 +104,7 @@ def retire_unbound_work_lane_ref(  # noqa: PLR0913, RUF100 - exact retirement pr
         controls=controls,
         chronicle_ref=chronicle_ref,
         holder_ref=holder_ref,
+        owner_unavailable_recovery=owner_unavailable_recovery,
     )
 
 
@@ -103,6 +116,7 @@ def _apply_retirement(  # noqa: PLR0913, RUF100 - bound irreversible transition 
     controls: _Controls,
     chronicle_ref: str,
     holder_ref: str,
+    owner_unavailable_recovery: bool,
 ) -> dict[str, object]:
     """Persist an admitted attempt and recheck it before any irreversible effect."""
     control_root, gap = policy.accepted_control_root(
@@ -136,6 +150,13 @@ def _apply_retirement(  # noqa: PLR0913, RUF100 - bound irreversible transition 
     context = _data(attempt_path=attempt_path, operation_id=operation_id)
     pre_effect = _observe(repo, branch=controls["branch"], chronicle_ref=chronicle_ref)
     pre_gaps = _admission_gaps(repo, observed=pre_effect, controls=controls, apply=True)
+    pre_gaps.extend(
+        policy.lease_recovery_gaps(
+            pre_effect,
+            holder_ref=holder_ref,
+            owner_unavailable_recovery=owner_unavailable_recovery,
+        )
+    )
     if observation.operation_bindings(before) != observation.operation_bindings(pre_effect):
         pre_gaps.append("unbound_retire_pre_effect_observation_stale")
     if pre_gaps:
@@ -156,6 +177,7 @@ def _apply_retirement(  # noqa: PLR0913, RUF100 - bound irreversible transition 
         controls=controls,
         chronicle_ref=chronicle_ref,
         holder_ref=holder_ref,
+        owner_unavailable_recovery=owner_unavailable_recovery,
     )
 
 
@@ -171,6 +193,7 @@ def _relinquish_then_delete(  # noqa: PLR0913, RUF100 - bound irreversible trans
     controls: _Controls,
     chronicle_ref: str,
     holder_ref: str,
+    owner_unavailable_recovery: bool,
 ) -> dict[str, object]:
     """Hold the lease writer lock across exact revocation and atomic ref deletion."""
     database = control_root / ".ethos" / "state" / "state.sqlite"
@@ -183,8 +206,13 @@ def _relinquish_then_delete(  # noqa: PLR0913, RUF100 - bound irreversible trans
             delete_gaps = _admission_gaps(
                 repo, observed=before_delete, controls=controls, apply=True
             )
-            lease_gap = policy.lease_relinquish_gap(before_delete, holder_ref=holder_ref)
-            delete_gaps.extend(filter(None, (lease_gap,)))
+            delete_gaps.extend(
+                policy.lease_recovery_gaps(
+                    before_delete,
+                    holder_ref=holder_ref,
+                    owner_unavailable_recovery=owner_unavailable_recovery,
+                )
+            )
             if observation.operation_bindings(pre_effect) != observation.operation_bindings(
                 before_delete
             ):
@@ -198,6 +226,7 @@ def _relinquish_then_delete(  # noqa: PLR0913, RUF100 - bound irreversible trans
                 observed=before_delete,
                 holder_ref=holder_ref,
                 connection=connection,
+                owner_unavailable_recovery=owner_unavailable_recovery,
             )
             if lease_relinquished is None:
                 connection.rollback()
@@ -288,6 +317,7 @@ def _relinquish_then_delete(  # noqa: PLR0913, RUF100 - bound irreversible trans
                     observed=after,
                     break_glass=controls["break_glass"],
                     confirm_irreversible=controls["confirm_irreversible"],
+                    owner_unavailable_recovery=owner_unavailable_recovery,
                     gaps=[],
                 ),
             )
@@ -326,28 +356,36 @@ def relinquish_owned_lease(
     observed: dict[str, object],
     holder_ref: str,
     connection: sqlite3.Connection | None = None,
+    owner_unavailable_recovery: bool = False,
 ) -> dict[str, object] | None:
     """Revoke only this actor's exact lease generation within the native transition."""
     if not bool(observed[observation.HAS_ACTIVE_LEASE]):
         return {}
     lease = cast("dict[str, object]", observed["active_lease"])
     epoch = lease.get("epoch")
-    if (
-        str(lease.get("holder_ref") or "") != holder_ref
-        or not isinstance(epoch, int)
-        or isinstance(epoch, bool)
-        or epoch <= 0
-    ):
+    source_holder = str(lease.get("holder_ref") or "")
+    if not isinstance(epoch, int) or isinstance(epoch, bool) or epoch <= 0:
+        return None
+    if not owner_unavailable_recovery and source_holder != holder_ref:
         return None
     try:
         arguments = _data(
             subject=str(observed["branch"]),
-            holder_ref=holder_ref,
+            holder_ref=source_holder,
             expected_lease_id=str(lease["lease_id"]),
             expected_epoch=epoch,
             expected_head=str(lease["expected_head"]),
         )
         if connection is None:
+            if owner_unavailable_recovery:
+                return revoke_owner_unavailable_lease(
+                    control_root / ".ethos" / "state" / "state.sqlite",
+                    subject=str(arguments["subject"]),
+                    source_holder_ref=source_holder,
+                    expected_lease_id=str(arguments["expected_lease_id"]),
+                    expected_epoch=epoch,
+                    expected_head=str(arguments["expected_head"]),
+                )
             return revoke_lease(control_root / ".ethos" / "state" / "state.sqlite", **arguments)
         row, payload = expected_current_lease(connection, require_expired=False, **arguments)
         connection.execute("delete from leases where id = ?", (str(row[0]),))
@@ -355,7 +393,7 @@ def relinquish_owned_lease(
             "revoked": True,
             "subject": arguments["subject"],
             "lease_id": str(row[0]),
-            "holder_ref": holder_ref,
+            "holder_ref": source_holder,
             "epoch": int(payload.get("epoch") or 0),
             "expected_head": str(payload.get("expected_head") or ""),
         }

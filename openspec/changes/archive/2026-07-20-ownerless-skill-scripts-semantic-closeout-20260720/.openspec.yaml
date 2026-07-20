@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-07-20
+goal: Absorb useful semantic delta; preserve then retire only the exact dirty
+  ownerless lane after local lifecycle proof and closeout.

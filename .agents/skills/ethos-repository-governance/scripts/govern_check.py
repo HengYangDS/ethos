@@ -29,6 +29,10 @@ STEPS: tuple[tuple[str, tuple[str, ...]], ...] = (
 )
 
 
+def _write_stdout(line: str) -> None:
+    sys.stdout.write(f"{line}\n")
+
+
 def _run(args: tuple[str, ...], root: str) -> dict[str, object]:
     completed = subprocess.run(
         ["ethos", *args, "--root", root],
@@ -54,12 +58,12 @@ def main(*, root: str = ".") -> int:
         ok = bool(payload.get("ok"))
         gaps = list(payload.get("required_gaps", []))
         marker = "ok" if ok else "GAP"
-        print(f"[{marker}] {name}: {payload.get('state', '?')} ({len(gaps)} gaps)")
+        _write_stdout(f"[{marker}] {name}: {payload.get('state', '?')} ({len(gaps)} gaps)")
         if not ok:
             all_ok = False
             for gap in gaps[:5]:
-                print(f"      - {gap}")
-    print("GOVERNANCE CLEAN" if all_ok else "GOVERNANCE GAPS — see above")
+                _write_stdout(f"      - {gap}")
+    _write_stdout("GOVERNANCE CLEAN" if all_ok else "GOVERNANCE GAPS — see above")
     return 0 if all_ok else 1
 
 
@@ -67,5 +71,5 @@ if __name__ == "__main__":
     try:
         app(sys.argv[1:])
     except FileNotFoundError:
-        print("error: `ethos` command not found on PATH", file=sys.stderr)
+        sys.stderr.write("error: `ethos` command not found on PATH\n")
         raise SystemExit(2) from None

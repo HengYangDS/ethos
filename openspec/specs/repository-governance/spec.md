@@ -1424,6 +1424,23 @@ capability profile, claim binding, evidence, and archive lifecycle checks.
   claim carriers, evidence refs, and archive closeout without replacing official
   OpenSpec syntax or semantics.
 
+#### Scenario: clean ownerless landed residual retires after exact accepted absorption
+
+- **GIVEN** one named linked Work Lane is clean, has no active lease, and its
+  exact head is a strict ancestor of the current accepted branch
+- **AND** an accepted target-specific Claim and Chronicle bind that source ref,
+  source head, accepted absorption basis, and a recovery plan
+- **WHEN** the native resolver records and applies a fresh
+  `lane_resolution/retire` decision with break-glass and irreversible
+  confirmation
+- **THEN** it SHALL re-observe the named source's ref, head, linked binding,
+  cleanliness, lease state, Chronicle bytes, and accepted control state before
+  any effect
+- **AND** it SHALL remove only that source's branch and worktree and write a
+  receipt
+- **AND** an inventory, expired lease, graph relation, or historical evidence
+  alone SHALL NOT authorize retirement of another lane.
+
 ### Requirement: Work Lane Lifecycle Resolution
 
 ETHOS SHALL keep routine mechanically determined lane lifecycle local and SHALL

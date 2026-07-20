@@ -1,0 +1,40 @@
+[claim]
+id = "ownerless-landed-residual-retirement-20260720"
+subject = "ethos:work-lane:work/history-residue-closeout-root-20260719"
+state = "active"
+change_id = "ownerless-landed-residual-retirement-20260720"
+summary = "One accepted authority carrier records direct accepted absorption of the clean lease-free history-residue landed residual before one native local retirement."
+
+[evidence]
+dated = "evidence/chronicle/ownerless-landed-residual-retirement-20260720/2026-07-20.md"
+sha256 = "66d95c9637ae99472f34662df3823a09adcaad12cc40d55f773952e3a8703508"
+evidence_ids = ["evidence:ownerless-landed-residual-retirement-20260720"]
+binding = "This Claim binds only work/history-residue-closeout-root-20260719 at 60c07b85d7f2bc8333131c4bf759fb329165e655, the accepted head 522cf142cc2a5261f00fc68d3177dd92d62b5eae, and one later native lane_resolution/retire decision. It does not treat an inventory, stale lease record, a generic preservation package, or historical local proof as authority for another lane."
+verifier = "digest_only"
+tests = [
+  "git merge-base --is-ancestor 60c07b85d7f2bc8333131c4bf759fb329165e655 dev",
+  "git -C <linked-source-worktree> status --porcelain --untracked-files=all",
+  "openspec validate ownerless-landed-residual-retirement-20260720 --strict --json",
+  "ethos prove --execute --expect-head <committed-head> --json",
+  "ethos lane resolution decide --branch work/history-residue-closeout-root-20260719 --disposition retire --chronicle-ref evidence/chronicle/ownerless-landed-residual-retirement-20260720/2026-07-20.md --break-glass --apply --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "One exact clean, linked, lease-free accepted-ancestor Work Lane residue and one later native local retirement."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-20-ownerless-landed-residual-retirement-20260720"
+fallback = "Keep the exact source branch and linked worktree intact if any source, Chronicle, accepted-head, or control-plane fact drifts before native apply."
+kill_signal = "An inventory is interpreted as batch authority, a foreign or active lease is taken over, a native effect deletes an unlisted lane, or historical evidence is called current remote proof."
+
+[promotion]
+targets = [
+  "docs/plans/ownerless-landed-residual-retirement-20260720.md",
+  "evidence/claims/ownerless-landed-residual-retirement-20260720.toml",
+  "evidence/chronicle/ownerless-landed-residual-retirement-20260720/2026-07-20.md",
+  "openspec/changes/archive/2026-07-20-ownerless-landed-residual-retirement-20260720",
+]

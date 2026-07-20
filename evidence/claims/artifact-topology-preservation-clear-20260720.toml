@@ -2,7 +2,7 @@
 id = "artifact-topology-preservation-clear-20260720"
 subject = "ethos:lane-resolution:lane-decision:48f82dc4-cc1a-4c25-8a48-f02ccce2c5fb"
 state = "active"
-change_id = "artifact-topology-preservation-clear-20260720"
+change_id = "artifact-topology-preservation-clear"
 summary = "One minimum-scope carrier authorizes native clearance of one manifest-bound artifact-topology recovery package only after its retained parity patch is proved superseded by accepted local truth."
 
 [evidence]
@@ -27,7 +27,7 @@ owner = "ethos-repository"
 scope = "One retained artifact-topology recovery package and one manifest-bound native clear transition only."
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-20-artifact-topology-preservation-clear-20260720"
+openspec = "openspec/changes/archive/2026-07-20-artifact-topology-preservation-clear"
 fallback = "Keep the package, decision, receipt, and all unrelated retained packages intact if the manifest, accepted proof, current parity basis, Chronicle, or native clear check cannot be verified."
 kill_signal = "A broad retained-package sweep, raw deletion, receipt deletion, an unproven parity assertion, a foreign lane change, a remote mutation, or a hosted-CI claim."
 
@@ -36,5 +36,5 @@ targets = [
   "docs/plans/artifact-topology-preservation-clear-20260720.md",
   "evidence/claims/artifact-topology-preservation-clear-20260720.toml",
   "evidence/chronicle/artifact-topology-preservation-clear-20260720/2026-07-20.md",
-  "openspec/changes/archive/2026-07-20-artifact-topology-preservation-clear-20260720",
+  "openspec/changes/archive/2026-07-20-artifact-topology-preservation-clear",
 ]

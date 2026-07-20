@@ -6,7 +6,7 @@ summary = "ETHOS gates public Python product-surface docstring coverage through 
 
 [evidence]
 dated = "evidence/chronicle/docstring-quality-gate/2026-07-05.md"
-sha256 = "1f97eaaf28110d3d318cb59bebad02ec1dbe4ee36d64ecad44fc394cfe0e1c52"
+sha256 = "5fca4d0afd7128c7e381ca79e273634acbed06ece478995416f8a34d7b93941d"
 evidence_ids = ["evidence:ethos-docstring-quality-gate"]
 binding = "declared docstring quality gate evidence binding"
 verifier = "digest_only"
@@ -25,7 +25,7 @@ owner = "ethos-quality"
 scope = "Public Python product-surface docstring coverage gate"
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-05-ethos-docstring-quality-gate-20260705"
+openspec = "openspec/changes/archive/2026-07-05-ethos-docstring-quality-gate"
 
 fallback = "Keep Ruff and tests as the existing quality floor while public-surface docstring coverage remains advisory."
 kill_signal = "A public ETHOS command, explicit export, or package boundary can lose its intent-bearing docstring while proof and CI remain green."
@@ -46,5 +46,5 @@ targets = [
   "tests/unit/cli/test_quality_surface_more.py",
   "tests/unit/governance/validation",
   "tests/unit/cli/test_contracts.py",
-  "openspec/changes/archive/2026-07-05-ethos-docstring-quality-gate-20260705/specs/ethos-quality/spec.md",
+  "openspec/changes/archive/2026-07-05-ethos-docstring-quality-gate/specs/ethos-quality/spec.md",
 ]

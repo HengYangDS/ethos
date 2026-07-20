@@ -1,4 +1,4 @@
-claim = { id = "publish-synchronized-observation-20260714", subject = "repository-governance:publish-synchronized-tracking-observation", state = "active", change_id = "publish-synchronized-observation-20260714", summary = "Read-only publish readiness distinguishes a synchronized local tracking observation from deferred remote mutation without claiming a push or a hosted-runner outcome." }
+claim = { id = "publish-synchronized-observation-20260714", subject = "repository-governance:publish-synchronized-tracking-observation", state = "active", change_id = "publish-synchronized-observation", summary = "Read-only publish readiness distinguishes a synchronized local tracking observation from deferred remote mutation without claiming a push or a hosted-runner outcome." }
 evidence = { dated = "evidence/chronicle/publish-synchronized-observation-20260714/2026-07-14.md", sha256 = "0732581db34dfcc3ece930084a1b3419f5191fc68f523b03e466f8f618db023d", evidence_ids = [
   "evidence:publish-synchronized-observation-20260714",
 ], binding = "The archived OpenSpec record, publication reducer, CLI mutation envelope, regression fixture, and dated Chronicle bind the narrow remote-tracking observation.", verifier = "digest_only", tests = [
@@ -6,11 +6,11 @@ evidence = { dated = "evidence/chronicle/publish-synchronized-observation-202607
   "ethos prove --execute --expect-head <pre-refresh-head> --json (passed before governed candidate-base refresh)",
 ], freshness = { mode = "historical" } }
 boundary = { owner = "repository-governance", scope = "Read-only publication readiness projection for local remote-tracking synchronization; excludes remote mutation, credentials, submit-branch creation, and hosted-runner outcomes." }
-carriers = { openspec = "openspec/changes/archive/2026-07-14-publish-synchronized-observation-20260714", fallback = "Treat publication observation as deferred unless a local tracking comparison is synchronized; never infer a push from reachability or local proof.", kill_signal = "A synchronized tracking observation reports remote_push as performed, authorizes remote mutation, claims a hosted-runner result, or obscures a non-synchronized tracking state." }
+carriers = { openspec = "openspec/changes/archive/2026-07-14-publish-synchronized-observation", fallback = "Treat publication observation as deferred unless a local tracking comparison is synchronized; never infer a push from reachability or local proof.", kill_signal = "A synchronized tracking observation reports remote_push as performed, authorizes remote mutation, claims a hosted-runner result, or obscures a non-synchronized tracking state." }
 promotion = { targets = [
   "packages/ethos/src/ethos/domain/land/publication.py",
   "packages/ethos/src/ethos/surface/cli/root/lifecycle.py",
   "tests/unit/cli/land/test_publication.py",
-  "openspec/changes/archive/2026-07-14-publish-synchronized-observation-20260714",
+  "openspec/changes/archive/2026-07-14-publish-synchronized-observation",
   "evidence/chronicle/publish-synchronized-observation-20260714/2026-07-14.md",
 ] }

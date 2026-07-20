@@ -6,7 +6,7 @@ summary = "Digest-bound record for treating parity projection-only refresh-base 
 
 [evidence]
 dated = "evidence/chronicle/refresh-base-projection-regeneration/2026-07-09.md"
-sha256 = "c2cd11db0d6f5e6469450e6abba9e80e13adcc0fa7a47d63d910877aed55274b"
+sha256 = "1cefb8f352c3b7a676281f8e5ad6b3116ace4488872f684728406c5715ae5605"
 evidence_ids = ["evidence:refresh-base-projection-regeneration"]
 binding = "Refresh-base replay distinguishes repository truth conflicts from regenerable parity projection evidence."
 verifier = "digest_only"
@@ -24,7 +24,7 @@ owner = "repository-governance"
 scope = "refresh-base projection-only parity evidence conflict handling"
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-09-refresh-base-projection-regeneration-20260709"
+openspec = "openspec/changes/archive/2026-07-09-refresh-base-projection-regeneration"
 fallback = "If projection-only conflict handling regresses, abort refresh-base and require manual parity shadow regeneration before retry."
 kill_signal = "A non-projection conflict is auto-resolved, or a stale parity projection becomes landable without regeneration and head-bound proof."
 
@@ -39,6 +39,6 @@ targets = [
   { kind = "tests", path = "tests/unit/cli/test_contracts_lane_refresh_base_projection.py" },
   { kind = "tests", path = "tests/unit/lanes/test_projection_rebase_parity.py" },
   { kind = "evidence", path = "evidence/chronicle/refresh-base-projection-regeneration/2026-07-09.md" },
-  { kind = "openspec", path = "openspec/changes/archive/2026-07-09-refresh-base-projection-regeneration-20260709" },
+  { kind = "openspec", path = "openspec/changes/archive/2026-07-09-refresh-base-projection-regeneration" },
   { kind = "evidence", path = "evidence/claims/refresh-base-projection-regeneration.toml" },
 ]

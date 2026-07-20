@@ -602,8 +602,10 @@ Changes. A dated archive directory name is rejected rather than forwarded as an
 active identifier. To read historical archive identity, use
 `ethos openspec --archive-id <logical-id> --json`: it resolves exactly one
 `YYYY-MM-DD-<logical-id>` carrier and fails closed on invalid, missing, or
-ambiguous identifiers. This reader neither selects by date nor rewrites an
-archived carrier.
+ambiguous identifiers. A logical ID starts with a letter, is date-free
+lower-kebab, and cannot end in `-YYYYMMDD`; the archive date belongs only in
+the leading directory component. This reader neither selects by date nor
+rewrites an archived carrier.
 
 Proof states are execution-depth states. `ethos prove --json` is readiness and
 reports `state=ready` with `executed=false` when planning and static admission

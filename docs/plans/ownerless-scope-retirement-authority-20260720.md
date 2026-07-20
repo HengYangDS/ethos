@@ -3,7 +3,7 @@ subject: ethos:ownerless-scope-retirement-authority-20260720
 role: plan
 state: archived
 relations:
-  carrier: openspec/changes/archive/2026-07-19-ownerless-scope-retirement-authority-20260720
+  carrier: openspec/changes/archive/2026-07-19-ownerless-scope-retirement-authority
   follows: ownerless-semantic-absorption-20260719
 ---
 

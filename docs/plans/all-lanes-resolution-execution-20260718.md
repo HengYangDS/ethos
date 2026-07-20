@@ -19,7 +19,7 @@ holders or deleting unresolved work.
 See also: [Mutation Rules](../../rules/mutation.md),
 [Evidence Rules](../../rules/evidence.md), and
 [All Work Lanes Resolution Chronicle](../../evidence/chronicle/all-lanes-resolution-execution-20260718/2026-07-18.md),
-plus the [archived OpenSpec Change](../../openspec/changes/archive/2026-07-18-all-lanes-resolution-execution-20260718/).
+plus the [archived OpenSpec Change](../../openspec/changes/archive/2026-07-18-all-lanes-resolution-execution/).
 
 ## Objective
 

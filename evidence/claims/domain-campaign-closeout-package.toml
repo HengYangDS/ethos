@@ -1,4 +1,4 @@
-claim = { id = "domain-campaign-closeout-package", subject = "ethos:domain-campaign-closeout-package", state = "active", change_id = "domain-campaign-closeout-package-20260709", summary = "ETHOS moved campaign closeout domain logic out of a suffix-flat module into a declared campaign subpackage and shrank the module-layout ratchet to the refreshed candidate baseline." }
+claim = { id = "domain-campaign-closeout-package", subject = "ethos:domain-campaign-closeout-package", state = "active", change_id = "domain-campaign-closeout-package", summary = "ETHOS moved campaign closeout domain logic out of a suffix-flat module into a declared campaign subpackage and shrank the module-layout ratchet to the refreshed candidate baseline." }
 evidence = { dated = "evidence/chronicle/domain-campaign-closeout-package/2026-07-09.md", sha256 = "f133829559a0c8bc61efafe3a58a20187eda027aef7624456ed7db5dbba23c67", evidence_ids = [
   "evidence:domain-campaign-closeout-package",
 ], binding = "Declared subpackage migration, direct concrete imports, no compatibility facade, module-layout ratchet shrink, focused tests, and quality audits.", verifier = "digest_only", tests = [

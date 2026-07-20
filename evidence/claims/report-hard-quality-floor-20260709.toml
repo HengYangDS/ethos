@@ -1,4 +1,4 @@
-claim = { id = "report-hard-quality-floor-20260709", subject = "ethos:report-hard-quality-floor", state = "active", change_id = "2026-07-09-report-hard-quality-floor", summary = "ETHOS report aggregates coverage, type, and public-surface docstring required gaps into the product hard quality floor and routes them to standalone quality commands." }
+claim = { id = "report-hard-quality-floor-20260709", subject = "ethos:report-hard-quality-floor", state = "active", change_id = "report-hard-quality-floor", summary = "ETHOS report aggregates coverage, type, and public-surface docstring required gaps into the product hard quality floor and routes them to standalone quality commands." }
 evidence = { dated = "evidence/chronicle/report-hard-quality-floor-20260709/2026-07-09.md", sha256 = "02ae8feb3d4b649a9a813f4f63c1db93e73b97352075a2c789f7705b7830017b", evidence_ids = [
   "evidence:report-hard-quality-floor-20260709",
 ], binding = "Report hard quality floor aggregation and next-action routing evidence binding", verifier = "digest_only", tests = [

@@ -2,7 +2,7 @@
 id = "hook-deployment-bootstrap-closeout-20260718"
 subject = "ethos:managed-hook-deployment-bootstrap-closeout"
 state = "active"
-change_id = "hook-deployment-bootstrap-closeout-20260718"
+change_id = "hook-deployment-bootstrap-closeout"
 summary = "A changed managed protected-ref shell hook reaches the accepted checkout through bounded official local closeout."
 
 [evidence]
@@ -21,9 +21,9 @@ owner = "ethos-repository"
 scope = "Local managed-hook deployment bootstrap for accepted_ff closeout only."
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-18-hook-deployment-bootstrap-closeout-20260718"
+openspec = "openspec/changes/archive/2026-07-18-hook-deployment-bootstrap-closeout"
 fallback = "Reject closeout without moving main when a changed hook cannot be promoted through the ordinary accepted transition."
 kill_signal = "A changed shell hook requires a bypass, a raw ref move, or an unreported dev/main divergence."
 
 [promotion]
-targets = ["docs/reference/command-plane.md", "packages/ethos/src/ethos/adapters/mutation/closeout/core.py", "tests/unit/lanes/test_armed_hook_closeout_e2e.py", "openspec/changes/archive/2026-07-18-hook-deployment-bootstrap-closeout-20260718", "evidence/claims/hook-deployment-bootstrap-closeout-20260718.toml", "evidence/chronicle/hook-deployment-bootstrap-closeout-20260718"]
+targets = ["docs/reference/command-plane.md", "packages/ethos/src/ethos/adapters/mutation/closeout/core.py", "tests/unit/lanes/test_armed_hook_closeout_e2e.py", "openspec/changes/archive/2026-07-18-hook-deployment-bootstrap-closeout", "evidence/claims/hook-deployment-bootstrap-closeout-20260718.toml", "evidence/chronicle/hook-deployment-bootstrap-closeout-20260718"]

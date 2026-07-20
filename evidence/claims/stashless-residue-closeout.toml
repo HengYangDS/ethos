@@ -25,7 +25,7 @@ owner = "repository-governance"
 scope = "stashless residue closeout and pre-run admission"
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-07-stashless-residue-closeout-20260707"
+openspec = "openspec/changes/archive/2026-07-07-stashless-residue-closeout"
 
 fallback = "If hook admission is unavailable, classify dirty work visibly, absorb useful work into an owned Work Lane, and revert useless or unsafe pollution from the protected root."
 kill_signal = "A tracked rule, skill, or workflow tells agents to use git stash as a backup, handoff, residue, or closeout carrier."
@@ -39,10 +39,10 @@ targets = [
   "rules/hooks.md",
   "system/invalid_states.toml",
   ".agents/skills/ethos-change-lifecycle/references/verdicts-and-gaps.md",
-  "openspec/changes/archive/2026-07-07-stashless-residue-closeout-20260707/proposal.md",
-  "openspec/changes/archive/2026-07-07-stashless-residue-closeout-20260707/design.md",
-  "openspec/changes/archive/2026-07-07-stashless-residue-closeout-20260707/tasks.md",
-  "openspec/changes/archive/2026-07-07-stashless-residue-closeout-20260707/specs/repository-governance/spec.md",
+  "openspec/changes/archive/2026-07-07-stashless-residue-closeout/proposal.md",
+  "openspec/changes/archive/2026-07-07-stashless-residue-closeout/design.md",
+  "openspec/changes/archive/2026-07-07-stashless-residue-closeout/tasks.md",
+  "openspec/changes/archive/2026-07-07-stashless-residue-closeout/specs/repository-governance/spec.md",
   "evidence/chronicle/stashless-residue-closeout/2026-07-07.md",
   "evidence/claims/stashless-residue-closeout.toml",
 ]

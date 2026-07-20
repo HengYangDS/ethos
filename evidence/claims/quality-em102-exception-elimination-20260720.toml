@@ -1,6 +1,6 @@
 [claim]
 id = "quality-em102-exception-elimination-20260720"
-change_id = "quality-em102-exception-elimination-20260720"
+change_id = "quality-em102-exception-elimination"
 subject = "quality:python-em102"
 state = "active"
 summary = "The bounded EM102 quality exception is removed from source and both canonical Ruff policy carriers; the rule returns to direct owner-gate enforcement."
@@ -26,7 +26,7 @@ owner = "ethos-quality-gate-governance"
 scope = "ProofRun exception-message binding and removal of the two EM102 exception carriers; not terminal zero-exception quality."
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-20-quality-em102-exception-elimination-20260720"
+openspec = "openspec/changes/archive/2026-07-20-quality-em102-exception-elimination"
 fallback = "Restore the bounded source and both matching policy entries together only if ProofRun validation semantics or direct EM102 enforcement regresses."
 kill_signal = "The whole-corpus EM102 probe finds a diagnostic, the rule returns to either exception carrier, or the canonical Ruff owner gate fails."
 
@@ -36,7 +36,7 @@ targets = [
   ".config/checks/ruff/ratchet.toml",
   "packages/ethos/src/ethos/repository/evidence/core.py",
   "tests/unit/governance/test_quality_regime.py",
-  "openspec/changes/archive/2026-07-20-quality-em102-exception-elimination-20260720",
+  "openspec/changes/archive/2026-07-20-quality-em102-exception-elimination",
   "evidence/claims/quality-em102-exception-elimination-20260720.toml",
   "evidence/chronicle/quality-em102-exception-elimination-20260720/2026-07-20.md",
 ]

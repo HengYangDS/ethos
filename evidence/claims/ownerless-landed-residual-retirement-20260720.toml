@@ -2,7 +2,7 @@
 id = "ownerless-landed-residual-retirement-20260720"
 subject = "ethos:work-lane:work/history-residue-closeout-root-20260719"
 state = "active"
-change_id = "ownerless-landed-residual-retirement-20260720"
+change_id = "ownerless-landed-residual-retirement"
 summary = "One accepted authority carrier records direct accepted absorption of the clean lease-free history-residue landed residual before one native local retirement."
 
 [evidence]
@@ -27,7 +27,7 @@ owner = "ethos-repository"
 scope = "One exact clean, linked, lease-free accepted-ancestor Work Lane residue and one later native local retirement."
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-20-ownerless-landed-residual-retirement-20260720"
+openspec = "openspec/changes/archive/2026-07-20-ownerless-landed-residual-retirement"
 fallback = "Keep the exact source branch and linked worktree intact if any source, Chronicle, accepted-head, or control-plane fact drifts before native apply."
 kill_signal = "An inventory is interpreted as batch authority, a foreign or active lease is taken over, a native effect deletes an unlisted lane, or historical evidence is called current remote proof."
 
@@ -36,5 +36,5 @@ targets = [
   "docs/plans/ownerless-landed-residual-retirement-20260720.md",
   "evidence/claims/ownerless-landed-residual-retirement-20260720.toml",
   "evidence/chronicle/ownerless-landed-residual-retirement-20260720/2026-07-20.md",
-  "openspec/changes/archive/2026-07-20-ownerless-landed-residual-retirement-20260720",
+  "openspec/changes/archive/2026-07-20-ownerless-landed-residual-retirement",
 ]

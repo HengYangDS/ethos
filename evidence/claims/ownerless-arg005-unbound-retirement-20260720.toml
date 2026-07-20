@@ -2,7 +2,7 @@
 id = "ownerless-arg005-unbound-retirement-20260720"
 subject = "ethos:work-lane:work/arg005-coverage-edges-20260719"
 state = "active"
-change_id = "ownerless-arg005-unbound-retirement-20260720"
+change_id = "ownerless-arg005-unbound-retirement"
 summary = "One current accepted authority carrier binds a clean lease-free ARG005 unbound accepted-ancestor ref to a later native exceptional retirement only."
 
 [evidence]
@@ -25,7 +25,7 @@ owner = "ethos-repository"
 scope = "One exact clean lease-free unbound accepted-ancestor ARG005 Work Lane ref and one later native retirement receipt."
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-20-ownerless-arg005-unbound-retirement-20260720"
+openspec = "openspec/changes/archive/2026-07-20-ownerless-arg005-unbound-retirement"
 fallback = "Keep the exact ref intact if target, head, accepted relation, unbound state, lease state, Claim, Chronicle, protected refs, or postconditions drift."
 kill_signal = "A ref other than the exact target is retired, a dirty or leased sibling is treated as absorbed, a raw Git/SQLite delete occurs, or historical evidence is called current remote proof."
 
@@ -34,5 +34,5 @@ targets = [
   "docs/plans/ownerless-arg005-unbound-retirement-20260720.md",
   "evidence/claims/ownerless-arg005-unbound-retirement-20260720.toml",
   "evidence/chronicle/ownerless-arg005-unbound-retirement-20260720/2026-07-20.md",
-  "openspec/changes/archive/2026-07-20-ownerless-arg005-unbound-retirement-20260720",
+  "openspec/changes/archive/2026-07-20-ownerless-arg005-unbound-retirement",
 ]

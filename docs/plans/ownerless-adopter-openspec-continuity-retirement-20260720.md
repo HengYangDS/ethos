@@ -3,7 +3,7 @@ subject: ethos:ownerless-adopter-openspec-continuity-retirement-20260720
 role: plan
 state: active
 relations:
-  carrier: openspec/changes/archive/2026-07-20-ownerless-adopter-openspec-continuity-retirement-20260720
+  carrier: openspec/changes/archive/2026-07-20-ownerless-adopter-openspec-continuity-retirement
   source_lane: work/adopter-openspec-lifecycle-continuity-20260719
 ---
 

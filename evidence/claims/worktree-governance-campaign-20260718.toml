@@ -1,5 +1,5 @@
-claim = { id = "worktree-governance-campaign-20260718", subject = "ethos:repo-first-worktree-governance-campaign", state = "active", change_id = "repo-first-worktree-governance-campaign-20260718", summary = "The dedicated repo-first worktree-governance campaign records a locally closed bootstrap and serially scopes its active fail-closed retirement successor without asserting recovery, migration, remote, foreign-lane, or portfolio completion." }
-evidence = { dated = "evidence/chronicle/worktree-governance-campaign-20260718/2026-07-18.md", sha256 = "6b499cd36e0fada1d8415c3e61bc5a1337b9921d0605f36ffab94721f761097f", evidence_ids = [
+claim = { id = "worktree-governance-campaign-20260718", subject = "ethos:repo-first-worktree-governance-campaign", state = "active", change_id = "repo-first-worktree-governance-campaign", summary = "The dedicated repo-first worktree-governance campaign records a locally closed bootstrap and serially scopes its active fail-closed retirement successor without asserting recovery, migration, remote, foreign-lane, or portfolio completion." }
+evidence = { dated = "evidence/chronicle/worktree-governance-campaign-20260718/2026-07-18.md", sha256 = "34c7e2c5b51a91b1655b5fb2406969697f3065c1f90769d20fb7109bc59f2722", evidence_ids = [
   "evidence:worktree-governance-campaign-20260718",
 ], binding = "Dedicated campaign manifest, archived bootstrap carrier, local accepted-root closeout receipt summary, selector-bounded campaign report, and dated local-only Chronicle bind the bootstrap transition without importing successor completion.", verifier = "digest_only", tests = [
   "pytest -q tests/unit/cli/test_contracts_proof.py::test_campaign_closeout_scopes_to_selected_campaign tests/unit/cli/test_contracts_proof.py::test_campaign_closeout_unknown_selector_reports_gap",
@@ -9,7 +9,7 @@ evidence = { dated = "evidence/chronicle/worktree-governance-campaign-20260718/2
   "ethos prove --execute --expect-head <committed-head> --json",
 ], freshness = { mode = "historical" } }
 boundary = { owner = "ethos-repository", scope = "Dedicated strict-serial repo-first worktree-governance bootstrap closeout and active successor routing; recovery, migration, remote, foreign-lane, and portfolio outcomes remain excluded." }
-carriers = { openspec = "openspec/changes/archive/2026-07-18-repo-first-worktree-governance-campaign-20260718", fallback = "Keep every future worktree-governance transition behind its own owned OpenSpec lane; use only repository-local closeout evidence for the bootstrap and unscoped campaign reports only for portfolio observation.", kill_signal = "A campaign step becomes active before its dependency is retired, a bootstrap receipt is treated as successor completion, or campaign visibility is used to mutate a foreign, unknown, or App-managed Work Lane." }
+carriers = { openspec = "openspec/changes/archive/2026-07-18-repo-first-worktree-governance-campaign", fallback = "Keep every future worktree-governance transition behind its own owned OpenSpec lane; use only repository-local closeout evidence for the bootstrap and unscoped campaign reports only for portfolio observation.", kill_signal = "A campaign step becomes active before its dependency is retired, a bootstrap receipt is treated as successor completion, or campaign visibility is used to mutate a foreign, unknown, or App-managed Work Lane." }
 promotion = { targets = [
   ".ethos/rules.toml",
   "docs/governance/evolution-campaign.md",
@@ -17,7 +17,7 @@ promotion = { targets = [
   "evidence/claims/worktree-governance-campaign-20260718.toml",
   "evidence/chronicle/worktree-governance-campaign-20260718/2026-07-18.md",
   "evolution/campaigns/repo-first-worktree-governance-v2/campaign.toml",
-  "openspec/changes/archive/2026-07-18-repo-first-worktree-governance-campaign-20260718",
+  "openspec/changes/archive/2026-07-18-repo-first-worktree-governance-campaign",
   "openspec/specs/repository-governance/spec.md",
   "packages/ethos/src/ethos/repository/adoption/evolution.py",
   "packages/ethos/src/ethos/domain/campaign/closeout.py",

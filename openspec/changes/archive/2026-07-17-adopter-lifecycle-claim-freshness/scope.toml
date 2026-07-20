@@ -1,0 +1,11 @@
+schema_version = 1
+paths = [
+  ".ethos/rules.toml",
+  "evidence/claims/adopter-lifecycle-claim-freshness-20260718.toml",
+  "evidence/claims/adopter-openspec-lifecycle-20260714.toml",
+  "evidence/chronicle/adopter-lifecycle-claim-freshness-20260718/**",
+  "evidence/chronicle/adopter-openspec-lifecycle-20260714/2026-07-14.md",
+  "openspec/changes/archive/2026-07-17-adopter-lifecycle-claim-freshness/**",
+  "openspec/specs/repository-governance/spec.md",
+  "tests/unit/governance/test_claims.py",
+]

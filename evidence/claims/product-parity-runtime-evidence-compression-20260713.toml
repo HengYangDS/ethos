@@ -1,5 +1,5 @@
-claim = { id = "product-parity-runtime-evidence-compression-20260713", change_id = "product-parity-runtime-evidence-compression-20260713", subject = "quality:product-parity-runtime-evidence-test-compression", state = "active", summary = "Product-parity runtime, evidence-writing, and report tests use compact inert fixtures and declarative partitions while distinct diagnostic boundaries remain named." }
-evidence = { dated = "evidence/chronicle/product-parity-runtime-evidence-compression-20260713/2026-07-13.md", sha256 = "23d3adb6a0458aae1ff8094934bf3d4355ae5a44a21f08bf9815d41de02f85a6", evidence_ids = [
+claim = { id = "product-parity-runtime-evidence-compression-20260713", change_id = "product-parity-runtime-evidence-compression", subject = "quality:product-parity-runtime-evidence-test-compression", state = "active", summary = "Product-parity runtime, evidence-writing, and report tests use compact inert fixtures and declarative partitions while distinct diagnostic boundaries remain named." }
+evidence = { dated = "evidence/chronicle/product-parity-runtime-evidence-compression-20260713/2026-07-13.md", sha256 = "092ca2c835d0989943070b8f3da88cd80ec51398ba806ce0b1056edb3025fedc", evidence_ids = [
   "evidence:product-parity-runtime-evidence-compression-20260713",
   "test:tests/unit/product/parity/test_runners.py",
   "test:tests/unit/product/parity/test_evidence_writing.py",
@@ -13,14 +13,14 @@ evidence = { dated = "evidence/chronicle/product-parity-runtime-evidence-compres
   "uv run --package ethos ethos prove --execute --expect-head $(git rev-parse HEAD) --json",
 ], freshness = { mode = "historical" } }
 boundary = { owner = "quality", scope = "Product-parity runtime/evidence/report test representation only; production parity execution, evidence semantics, and public command contracts remain unchanged." }
-carriers = { openspec = "openspec/changes/archive/2026-07-13-product-parity-runtime-evidence-compression-20260713", fallback = "Restore the former focused test representation only if the compact fixtures or literal tables lose diagnostic clarity, coverage, or public-contract precision; do not retain two permanent representations.", kill_signal = "The scoped effective test-line total does not decline, a retained diagnostic boundary loses coverage, a quality ratchet grows, or repository coverage falls below 100 percent." }
+carriers = { openspec = "openspec/changes/archive/2026-07-13-product-parity-runtime-evidence-compression", fallback = "Restore the former focused test representation only if the compact fixtures or literal tables lose diagnostic clarity, coverage, or public-contract precision; do not retain two permanent representations.", kill_signal = "The scoped effective test-line total does not decline, a retained diagnostic boundary loses coverage, a quality ratchet grows, or repository coverage falls below 100 percent." }
 promotion = { targets = [
   { kind = "tests", path = "tests/unit/product/parity/snapshots.py" },
   { kind = "tests", path = "tests/unit/product/parity/test_runners.py" },
   { kind = "tests", path = "tests/unit/product/parity/test_evidence_writing.py" },
   { kind = "tests", path = "tests/unit/product/parity/test_report.py" },
   { kind = "schema", path = ".config/checks/ruff/ratchet.toml" },
-  { kind = "openspec", path = "openspec/changes/archive/2026-07-13-product-parity-runtime-evidence-compression-20260713" },
+  { kind = "openspec", path = "openspec/changes/archive/2026-07-13-product-parity-runtime-evidence-compression" },
   { kind = "openspec", path = "openspec/specs/quality/spec.md" },
   { kind = "evidence", path = "evidence/chronicle/product-parity-runtime-evidence-compression-20260713/2026-07-13.md" },
   { kind = "evidence", path = "evidence/parity/generic-shadow.json" },

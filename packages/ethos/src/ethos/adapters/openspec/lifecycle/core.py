@@ -8,6 +8,7 @@ from typing import NamedTuple
 
 from ethos.adapters.openspec.preflight.core import openspec_archive_preflight_report
 from ethos.adapters.openspec.protocol.core import proposal_protocol_report
+from ethos.repository.openspec.identifiers import logical_change_identifier_issue
 from ethos.repository.profile import profile_root
 
 from . import scope
@@ -134,6 +135,8 @@ def _change_report(root: Path, name: str, claim_carriers: set[str], base_command
         "claim_binding": claim_binds_change(claim_carriers, name),
     }
     gaps = [f"openspec_{artifact}_missing:{name}" for artifact, present in carriers.items() if not present]
+    if logical_change_identifier_issue(name):
+        gaps.append(f"openspec_active_change_identifier_invalid:{name}")
     protocol = proposal_protocol_report(root, name)
     gaps.extend(map(str, protocol["required_gaps"]))
     preflight = openspec_archive_preflight_report(root, name, base_command=base_command) if base_command is not None else {"ok": True, "state": "not_run", "change": name, "isolated": True, "command": [], "diagnostics": [], "required_gaps": []}

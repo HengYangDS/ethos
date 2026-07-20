@@ -2,7 +2,7 @@
 id = "ownerless-skill-scripts-semantic-closeout-20260720"
 subject = "ethos:work-lane:work/skill-scripts-ruff-20260719"
 state = "active"
-change_id = "ownerless-skill-scripts-semantic-closeout-20260720"
+change_id = "ownerless-skill-scripts-semantic-closeout"
 summary = "One current-base carrier records helper-script output hardening from one dirty lease-free accepted-ancestor lane and bounds only its later native preserve-retire resolution."
 
 [evidence]
@@ -26,7 +26,7 @@ owner = "ethos-repository"
 scope = "One exact dirty, linked, lease-free accepted-ancestor Work Lane and one later native preserve-retire receipt after a current bounded output-hardening basis."
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-20-ownerless-skill-scripts-semantic-closeout-20260720"
+openspec = "openspec/changes/archive/2026-07-20-ownerless-skill-scripts-semantic-closeout"
 fallback = "Keep the exact source branch and worktree intact if target state, current absorbed behavior, Claim, Chronicle, candidate, accepted controls, or native postconditions drift."
 kill_signal = "A source-wide merge/rebase occurs, stale source quality semantics replace accepted tests, a dirty lane is deleted without preservation, any other lane is retired, or local proof is called remote publication."
 
@@ -35,5 +35,5 @@ targets = [
   "docs/plans/ownerless-skill-scripts-semantic-closeout-20260720.md",
   "evidence/claims/ownerless-skill-scripts-semantic-closeout-20260720.toml",
   "evidence/chronicle/ownerless-skill-scripts-semantic-closeout-20260720/2026-07-20.md",
-  "openspec/changes/archive/2026-07-20-ownerless-skill-scripts-semantic-closeout-20260720",
+  "openspec/changes/archive/2026-07-20-ownerless-skill-scripts-semantic-closeout",
 ]

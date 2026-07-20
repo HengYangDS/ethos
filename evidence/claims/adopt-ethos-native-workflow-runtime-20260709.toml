@@ -14,7 +14,7 @@ evidence = { dated = "evidence/chronicle/adopt-ethos-native-workflow-runtime-202
   "uv run --group dev pytest -q tests/unit/kernel/test_invalid_states.py tests/unit/lanes/hook/test_path_admission.py tests/architecture/test_product_boundaries.py::test_product_surfaces_are_author_and_adopter_neutral",
 ], freshness = { mode = "historical" } }
 boundary = { owner = "ethos-repository", scope = "Workflow runtime read model and governed-passage practice evolution; governed commitments are auditable handles, practice claims carry evaluated practice changes, and external frameworks remain bounded carriers, adapters, projections, or method packs." }
-carriers = { openspec = "openspec/changes/archive/2026-07-09-adopt-ethos-native-workflow-runtime-20260709", fallback = "Disable runtime projection and continue with status-plan-prove-land-publish, OpenSpec carriers, claims, evidence, and Chronicle.", kill_signal = "Any external framework, runtime state, task store, skill pack, or projection marks lifecycle truth without ETHOS claim/evidence/chronicle binding." }
+carriers = { openspec = "openspec/changes/archive/2026-07-09-adopt-ethos-native-workflow-runtime", fallback = "Disable runtime projection and continue with status-plan-prove-land-publish, OpenSpec carriers, claims, evidence, and Chronicle.", kill_signal = "Any external framework, runtime state, task store, skill pack, or projection marks lifecycle truth without ETHOS claim/evidence/chronicle binding." }
 promotion = { targets = [
   "evidence/claims/adopt-ethos-native-workflow-runtime-20260709.toml",
   "evidence/chronicle/adopt-ethos-native-workflow-runtime-20260709/2026-07-09.md",
@@ -28,10 +28,10 @@ promotion = { targets = [
   "system/schemas/kernel/workflow-run.schema.json",
   "system/schemas/kernel/handoff-package.schema.json",
   "system/schemas/kernel/skill-package-manifest.schema.json",
-  "openspec/changes/archive/2026-07-09-adopt-ethos-native-workflow-runtime-20260709/proposal.md",
-  "openspec/changes/archive/2026-07-09-adopt-ethos-native-workflow-runtime-20260709/design.md",
-  "openspec/changes/archive/2026-07-09-adopt-ethos-native-workflow-runtime-20260709/tasks.md",
-  "openspec/changes/archive/2026-07-09-adopt-ethos-native-workflow-runtime-20260709/specs/repository-governance/spec.md",
+  "openspec/changes/archive/2026-07-09-adopt-ethos-native-workflow-runtime/proposal.md",
+  "openspec/changes/archive/2026-07-09-adopt-ethos-native-workflow-runtime/design.md",
+  "openspec/changes/archive/2026-07-09-adopt-ethos-native-workflow-runtime/tasks.md",
+  "openspec/changes/archive/2026-07-09-adopt-ethos-native-workflow-runtime/specs/repository-governance/spec.md",
   "packages/ethos-core/src/ethos_core/contracts/workflow.py",
   "packages/ethos/src/ethos/repository/workflow/runtime.py",
   "packages/ethos/src/ethos/repository/adoption/evolution.py",

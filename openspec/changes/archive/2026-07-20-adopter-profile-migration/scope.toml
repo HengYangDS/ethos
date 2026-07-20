@@ -5,7 +5,7 @@ paths = [
   "evidence/claims/adopter-profile-migration-20260720.toml",
   "evidence/chronicle/adopter-profile-migration-20260720/**",
   "openspec/changes/adopter-profile-migration-20260720/**",
-  "openspec/changes/archive/2026-07-20-adopter-profile-migration-20260720/**",
+  "openspec/changes/archive/2026-07-20-adopter-profile-migration/**",
   "openspec/specs/repository-governance/spec.md",
   "packages/ethos/src/ethos/adapters/admission/evidence/external.py",
   "packages/ethos/src/ethos/domain/reporting/parity/core.py",

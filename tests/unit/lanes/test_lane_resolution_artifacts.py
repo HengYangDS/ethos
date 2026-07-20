@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 import ethos.adapters.mutation.resolution.receipts as receipt_adapter
+from ethos.adapters.mutation.resolution._shared import records_artifact_root
 from ethos.adapters.mutation.resolution.lane import apply_lane_resolution
 from ethos.adapters.mutation.resolution.lane import plan_lane_resolution
 from ethos.adapters.mutation.resolution.receipts import LaneResolutionClearRequest
@@ -267,6 +268,133 @@ def test_inventory_and_verify_bind_actual_manifest_to_immutable_receipt(
     assert inventory["required_gaps"] == ["lane_resolution_manifest_receipt_mismatch"]
     with pytest.raises(ValueError, match="lane_resolution_preservation_package_invalid"):
         verify_preservation_package(root=repo, package=applied["preservation_package"])
+
+
+@pytest.mark.parametrize("location", ["canonical", "legacy"])
+def test_inventory_and_clear_block_symlinked_package_directory(
+    tmp_path: Path,
+    location: str,
+) -> None:
+    if location == "canonical":
+        repo, lane = orphan_work_lane(tmp_path)
+        applied = _preserve(repo, lane)
+        decision_id = str(applied["receipt"]["decision_id"])
+        package_link = Path(str(applied["preservation_package"]["path"]))
+        outside = tmp_path / "canonical-outside"
+        package_link.rename(outside)
+    else:
+        repo = init_repo(tmp_path / "repo")
+        decision_id = _LEGACY_DECISION_ID
+        outside = tmp_path / "legacy-outside"
+        outside.mkdir()
+        manifest = {
+            "decision_id": decision_id,
+            "lane_ref": "work/legacy",
+            "head": "a" * 40,
+        }
+        (outside / "manifest.json").write_text(
+            json.dumps(manifest, sort_keys=True) + "\n", encoding="utf-8"
+        )
+        package_link = repo / "build/artifacts/lane-resolution/symlinked"
+        package_link.parent.mkdir(parents=True)
+    package_link.symlink_to(outside, target_is_directory=True)
+    marker = outside / "must-survive.txt"
+    marker.write_text("retained\n", encoding="utf-8")
+    manifest_sha256 = hashlib.sha256((outside / "manifest.json").read_bytes()).hexdigest()
+
+    inventory = lane_resolution_inventory(root=repo)
+    cleared = clear_lane_resolution_package(
+        root=repo,
+        request=LaneResolutionClearRequest(
+            decision_id=decision_id,
+            expect_manifest_sha256=manifest_sha256,
+            chronicle_ref=write_chronicle_decision(
+                repo, topic="lane-resolution-artifacts", token="clear-preservation"
+            ),
+            reason="A symlinked package must never authorize external deletion.",
+            break_glass=True,
+            confirm_irreversible=True,
+            apply=True,
+        ),
+    )
+
+    assert inventory["ok"] is False
+    assert inventory["required_gaps"] == ["lane_resolution_package_path_unsafe"]
+    assert cleared["ok"] is False
+    assert "lane_resolution_package_path_unsafe" in cleared["required_gaps"]
+    assert package_link.is_symlink()
+    assert marker.read_text(encoding="utf-8") == "retained\n"
+
+
+def test_clear_blocks_receipt_with_empty_manifest_digest(
+    tmp_path: Path,
+) -> None:
+    repo, lane = orphan_work_lane(tmp_path)
+    applied = _preserve(repo, lane)
+    package = Path(str(applied["preservation_package"]["path"]))
+    manifest_sha256 = hashlib.sha256((package / "manifest.json").read_bytes()).hexdigest()
+    receipt_path = Path(str(applied["receipt_path"]))
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    receipt["preservation_manifest_sha256"] = ""
+    receipt_path.write_text(json.dumps(receipt, sort_keys=True) + "\n", encoding="utf-8")
+
+    report = clear_lane_resolution_package(
+        root=repo,
+        request=LaneResolutionClearRequest(
+            decision_id=str(applied["receipt"]["decision_id"]),
+            expect_manifest_sha256=manifest_sha256,
+            chronicle_ref=write_chronicle_decision(
+                repo, topic="lane-resolution-artifacts", token="clear-preservation"
+            ),
+            reason="An empty receipt digest cannot authorize deletion.",
+            break_glass=True,
+            confirm_irreversible=True,
+            apply=True,
+        ),
+    )
+
+    assert report["ok"] is False
+    assert report["required_gaps"] == ["lane_resolution_manifest_receipt_mismatch"]
+    assert package.is_dir()
+
+
+def test_resolution_receipt_write_blocks_symlinked_record_category(
+    tmp_path: Path,
+) -> None:
+    repo, lane = orphan_work_lane(tmp_path)
+    (lane / "README.md").write_text("# preserve safely\n", encoding="utf-8")
+    artifact_root = records_artifact_root(repo)
+    artifact_root.mkdir(parents=True)
+    outside = tmp_path / "receipt-outside"
+    outside.mkdir()
+    (artifact_root / "receipts").symlink_to(outside, target_is_directory=True)
+    decision_path = _default_decision_path(repo, "work/orphan")
+    planned = plan_lane_resolution(
+        root=repo,
+        branch="work/orphan",
+        disposition="preserve",
+        reason="Record destinations must not follow symlinks.",
+        evidence_refs=("evidence:review",),
+        chronicle_ref=write_chronicle_decision(
+            repo, topic="lane-resolution-artifacts", token="preserve"
+        ),
+        recovery_plan="Block before writing a receipt outside the records owner.",
+        decision_path=decision_path,
+        break_glass=False,
+        apply=True,
+    )
+
+    applied = apply_lane_resolution(
+        root=repo,
+        decision_path=decision_path,
+        confirm_irreversible=False,
+        apply=True,
+    )
+
+    assert planned["ok"] is True
+    assert applied["ok"] is False
+    assert applied["required_gaps"] == ["lane_resolution_receipt_path_unsafe"]
+    assert list(outside.iterdir()) == []
 
 
 def test_manual_clear_requires_exact_chronicle_and_manifest_binding(

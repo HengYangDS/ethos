@@ -227,12 +227,12 @@ def load_repository_profile(root: Path, *, tree_ref: str | None = None) -> Repos
 
 
 def _normalize_legacy_profile_payload(payload: object) -> object:
-    """Remove the one retired profile envelope before strict current validation.
+    """Normalize the one explicit former profile declaration before validation.
 
     The former envelope carried version and repository-identification metadata
-    that no longer participates in the typed binding.  It is accepted only as
-    the complete historical shape; partial or malformed legacy data remains an
-    invalid profile under the normal strict validator.
+    that no longer participates in the typed binding.  Its former root-level
+    rules workaround is normalized only with that complete historical shape;
+    partial or malformed legacy data remains invalid under the strict validator.
     """
     if not isinstance(payload, dict):
         return payload
@@ -255,7 +255,13 @@ def _normalize_legacy_profile_payload(payload: object) -> object:
     )
     if not expected:
         return payload
-    return {key: value for key, value in payload.items() if key not in retired}
+    normalized = {key: value for key, value in payload.items() if key not in retired}
+    roots = normalized.get("roots")
+    if isinstance(roots, dict) and roots.get("rules") == ".":
+        normalized["roots"] = {key: value for key, value in roots.items() if key != "rules"}
+        if normalized.get("normative_sources") is None:
+            normalized["normative_sources"] = ["guidelines.md"]
+    return normalized
 
 
 def _git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:

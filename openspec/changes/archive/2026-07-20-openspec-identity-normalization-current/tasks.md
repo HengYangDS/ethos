@@ -17,8 +17,8 @@
 
 ## 4. Validation and Transition Boundary
 
-- [ ] 4.1 Validate the active Change, claims, archiveability, and focused behavior on the final source HEAD.
-- [ ] 4.2 Run HEAD-bound executed proof, archive the Change, refresh archive-bound evidence, and prove the archive HEAD.
+- [x] 4.1 Validate the active Change, claims, archiveability, and focused behavior on the final source HEAD.
+- [x] 4.2 Run HEAD-bound executed proof, archive the Change, refresh archive-bound evidence, and prove the archive HEAD.
 
 Candidate land, accepted-root closeout, GitLab publication, and Work Lane
 retirement are separate governed transitions and are not completed by this

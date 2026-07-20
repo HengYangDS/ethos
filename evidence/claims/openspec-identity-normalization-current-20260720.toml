@@ -2,14 +2,14 @@
 id = "openspec-identity-normalization-current-20260720"
 change_id = "openspec-identity-normalization-current"
 subject = "repository-governance:openspec-identity-normalization"
-state = "active"
-summary = "One current Work Lane normalizes OpenSpec logical Change identities and makes archive identity validation fail closed."
+state = "archived"
+summary = "Archived current normalization receipt: the official OpenSpec archive preserves canonical date-free Change-ID validation without aliases, redirects, or foreign-lane mutation."
 
 [evidence]
 dated = "evidence/chronicle/openspec-identity-normalization-current-20260720/2026-07-20.md"
-sha256 = "192f7318a4d7b18b3036310d16ba56d63a455481f9574567d866b9e389c92f52"
+sha256 = "e4d803fe1a32c1d619063c23dbad187b7bdf3c6817cb1af0805908ec4e493ed4"
 evidence_ids = ["evidence:openspec-identity-normalization-current-20260720"]
-binding = "This Claim binds one current owned lane, the observed archive-identity inventory, deterministic tracked-path normalization, and the date-free logical Change-ID guard. It excludes foreign-lane changes, private runtime-state repair, remote effects, and provider-specific behavior."
+binding = "The official archive 2026-07-20-openspec-identity-normalization-current records the owned successor absorption, observed archive-identity inventory, deterministic tracked-path normalization, and date-free logical Change-ID guard. It excludes candidate land, accepted closeout, foreign-lane changes, private runtime-state repair, remote effects, and provider-specific behavior."
 verifier = "digest_only"
 tests = [
   "ethos openspec --lifecycle --json",
@@ -25,7 +25,7 @@ owner = "ethos-repository"
 scope = "Canonical OpenSpec logical Change IDs, dated archive paths, tracked references, and identifier validation only."
 
 [carriers]
-openspec = "openspec/changes/openspec-identity-normalization-current"
+openspec = "openspec/changes/archive/2026-07-20-openspec-identity-normalization-current"
 fallback = "Keep the current candidate and every foreign lane intact; if an archive path, logical identity, claim binding, or proof HEAD drifts, stop and preserve the observed state rather than replaying or guessing."
 kill_signal = "A numeric-leading or terminal-date logical Change ID is accepted, a duplicate archive identity is selected by date, an alias or redirect is added, or a foreign/private/vendor-specific surface is modified."
 
@@ -37,7 +37,7 @@ targets = [
   "packages/ethos/src/ethos/adapters/openspec/archive/query.py",
   "packages/ethos/src/ethos/adapters/openspec/lifecycle/core.py",
   "tests/unit/product/test_openspec_edges.py",
-  "openspec/changes/openspec-identity-normalization-current",
+  "openspec/changes/archive/2026-07-20-openspec-identity-normalization-current",
   "openspec/specs/command-plane/spec.md",
   "openspec/specs/repository-governance/spec.md",
   "evidence/claims/openspec-identity-normalization-current-20260720.toml",

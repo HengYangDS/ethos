@@ -767,13 +767,8 @@ ETHOS SHALL treat OpenSpec as the repository case and specification carrier,
 with accepted specs, active changes, archived changes, capability profiles,
 claims, and evidence refs serving distinct product duties. Archive closeout
 SHALL preserve accepted scenario obligations unless an explicit removal decision
-carries the deletion.
-
-Archive closeout SHALL also reject a non-canonical archive name, a logical
-Change ID with a numeric start or terminal `YYYYMMDD` suffix, and more than one
-dated archive carrier for the same logical Change ID. Historical claims and
-Chronicles may retain their own dated evidence identifiers; those are not
-logical Change IDs.
+carries the deletion. Archive closeout SHALL reject non-canonical or duplicate
+logical archive identities.
 
 #### Scenario: Archive closeout is a product gate
 
@@ -791,11 +786,11 @@ logical Change IDs.
 
 #### Scenario: Archive identity is canonical and unique
 
-- **WHEN** an archive-closeout audit observes archived carriers
-- **THEN** each carrier SHALL have the form `YYYY-MM-DD-<date-free-change-id>`
-- **AND** each logical Change ID SHALL resolve to exactly one archive carrier
-- **AND** invalid historical names or duplicate logical identities SHALL block
-  closeout rather than being silently selected by date.
+- **WHEN** archive closeout evaluates historical carriers
+- **THEN** each name SHALL be `YYYY-MM-DD-<date-free-logical-id>`
+- **AND** each logical ID SHALL resolve to exactly one archive carrier
+- **AND** numeric-leading, terminal-date, and duplicate logical identities
+  SHALL block closeout without compatibility aliases or date selection.
 
 ### Requirement: Campaign Orchestration
 

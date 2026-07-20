@@ -13,8 +13,8 @@ without bypassing native lease/ref controls.
 - Add one explicit `--owner-unavailable-recovery` mode to the existing native
   `ethos lane retire unbound` command.
 - Require the accepted target Chronicle to bind the exact active source lease
-  ID, holder, epoch, expected head, source worktree path, and verified absence
-  of that path.
+  ID, holder, epoch, expected head, a SHA-256 digest of the source worktree
+  path, and verified absence of that local path.
 - Require a non-empty recovery actor different from the source holder, and
   preserve the existing expected-head, Claim, accepted-Chronicle,
   break-glass, irreversible-confirmation, re-observation, native CAS, guarded

@@ -12,7 +12,7 @@ evidence_ids = ["evidence:owner-unavailable-unbound-retirement-recovery-20260720
 binding = "The active OpenSpec carrier, target-specific accepted policy contract, focused native-transition regressions, and dated Chronicle bind recovery mechanics only; they do not retire any external target until fresh effect-time observation succeeds."
 verifier = "digest_only"
 tests = [
-  "uv run --all-packages --group dev pytest -q tests/unit/lanes/retirement/test_unbound_and_helpers.py tests/unit/lanes/retirement/test_unbound_exceptional_coverage.py tests/unit/cli/test_contracts_lane.py",
+  "uv run --all-packages --group dev pytest -q tests/unit/coverage/test_cov_v3_mutation_edges.py tests/unit/lanes/retirement/test_unbound_and_helpers.py tests/unit/lanes/retirement/test_unbound_exceptional_coverage.py tests/unit/cli/test_contracts_lane.py",
   "uv run --all-packages --group dev ruff check packages/ethos/src/ethos/adapters/mutation/lane_retirement/unbound packages/ethos/src/ethos/adapters/store/state/lease/lifecycle/effects.py packages/ethos/src/ethos/surface/cli/lane/core.py",
   "openspec validate owner-unavailable-unbound-retirement-recovery-20260720 --strict --json",
 ]
@@ -43,5 +43,7 @@ targets = [
   "packages/ethos/src/ethos/adapters/store/state/lease/lifecycle/effects.py",
   "packages/ethos/src/ethos/surface/cli/lane/core.py",
   "tests/unit/cli/test_contracts_lane.py",
+  "tests/unit/coverage/test_cov_v3_mutation_edges.py",
   "tests/unit/lanes/retirement/test_unbound_and_helpers.py",
+  "tests/unit/lanes/retirement/test_unbound_exceptional_coverage.py",
 ]

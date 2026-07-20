@@ -235,6 +235,58 @@ def test_unbound_core_exception_edges(tmp_path: Path, monkeypatch) -> None:
     assert _finish_retirement(tmp_path, {})["required_gaps"] == ["unbound_retire_active_lease"]
 
 
+def test_unbound_lease_recovery_argument_edges(tmp_path: Path, monkeypatch) -> None:
+    observed = {
+        obs.HAS_ACTIVE_LEASE: True,
+        "branch": "work/x",
+        "active_lease": {
+            "holder_ref": "agent:test:source",
+            "lease_id": "lease:source",
+            "epoch": 1,
+            "expected_head": "h",
+        },
+    }
+    assert (
+        unbound._lease_relinquish_arguments(  # noqa: SLF001, RUF100
+            observed=observed,
+            holder_ref="agent:test:recovery",
+            owner_unavailable_recovery=False,
+        )
+        is None
+    )
+    missing_branch = dict(observed)
+    missing_branch.pop("branch")
+    assert (
+        unbound._lease_relinquish_arguments(  # noqa: SLF001, RUF100
+            observed=missing_branch,
+            holder_ref="agent:test:source",
+            owner_unavailable_recovery=False,
+        )
+        is None
+    )
+
+    seen: dict[str, object] = {}
+
+    def revoke_owner_unavailable(_database: Path, **kwargs):
+        seen.update(kwargs)
+        return {"revoked": True}
+
+    monkeypatch.setattr(unbound, "revoke_owner_unavailable_lease", revoke_owner_unavailable)
+    assert unbound.relinquish_owned_lease(
+        tmp_path,
+        observed=observed,
+        holder_ref="agent:test:recovery",
+        owner_unavailable_recovery=True,
+    ) == {"revoked": True}
+    assert seen == {
+        "subject": "work/x",
+        "source_holder_ref": "agent:test:source",
+        "expected_lease_id": "lease:source",
+        "expected_epoch": 1,
+        "expected_head": "h",
+    }
+
+
 def test_unbound_pre_effect_and_receipt_edges(tmp_path: Path, monkeypatch) -> None:
     before = {"status": {}, "accepted_head": "h", "protected_refs": {}, "claim_id": "c", "observation_sha256": "s", "bind": 1}  # fmt: skip
     monkeypatch.setattr(unbound.policy, "accepted_control_root", lambda *_args, **_kw: (tmp_path, ""))  # fmt: skip

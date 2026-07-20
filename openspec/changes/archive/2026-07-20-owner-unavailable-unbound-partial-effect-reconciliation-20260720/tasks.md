@@ -22,17 +22,14 @@
 - [x] 3.1 Run focused tests, lint/types, strict OpenSpec, changed-scope plan,
   and parity before committing the archived carrier; exact-HEAD proof follows on
   the committed carrier.
-- [ ] 3.2 Land and complete the permitted local closeout on a current candidate
-  base; do not push or mutate remote state.
-- [ ] 3.3 After acceptance, re-observe the target and execute native dry-run
-  then apply only if exact policy and residue still match; verify receipt and
-  lease absence.
-- [ ] 3.4 Retire this carrier and the prior recovery carrier only through their
-  owner-bound native retirement paths after both are clean and retire-ready.
 
 ## Post-archive transition boundary
 
 This archive records completed authoring and validation only. Candidate land,
 accepted-root local closeout, target re-observation, native lease-only
 reconciliation, and both carrier retirements remain separately gated and must
-not be inferred from this archived checklist.
+not be inferred from this archived checklist. They are post-archive lifecycle
+transitions, not incomplete archive tasks: local closeout requires a current
+candidate; reconciliation requires a fresh exact-residue admission; and each
+carrier retirement requires its owner-bound native lifecycle path. No remote
+push or hosted-CI claim is authorized by this archive.

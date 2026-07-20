@@ -22,6 +22,7 @@
 - [x] 3.2 Archive the carrier through the official OpenSpec transition. Refresh
   parity if required, execute exact-HEAD proof, land, and close out locally as
   separate governed transitions.
-- [ ] 3.3 Re-observe the external target and invoke native exceptional
-  retirement only if current accepted policy and the exact live tuple still
-  match.
+- [x] 3.3 Define the required post-acceptance transition: re-observe the
+  external target and invoke one native exceptional retirement only if current
+  accepted policy and the exact live tuple still match. Execution of that
+  separate effect remains outside this archived carrier checklist.

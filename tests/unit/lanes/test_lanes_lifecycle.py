@@ -26,6 +26,14 @@ from tests.support.lane_helpers import init_repo
 if TYPE_CHECKING:
     from pathlib import Path
 
+_HOLDER_REF = "agent:test:case:agent-test"
+
+
+def _start_lane(
+    root: Path, *, name: str = "feature", path: Path | None = None
+) -> dict[str, object]:
+    return start_work_lane(root=root, name=name, path=path, holder_ref=_HOLDER_REF, apply=True)
+
 
 def test_branch_role_policy_semantic_order_uses_configured_roles_without_hardcoded_names() -> None:
     policy = BranchRolePolicy(
@@ -99,17 +107,9 @@ def test_start_work_lane_uses_configured_candidate_and_work_role_policy(
     )
     worktree = tmp_path / "repo-lane-feature"
 
-    report = start_work_lane(
-        root=repo,
-        name="feature",
-        path=worktree,
-        holder_ref="agent:test:case:agent-test",
-        apply=True,
-    )
+    report = _start_lane(repo, path=worktree)
 
-    assert report["ok"] is True
-    assert report["branch"] == "lane/feature"
-    assert report["base"] == "stage/dev"
+    assert (report["ok"], report["branch"], report["base"]) == (True, "lane/feature", "stage/dev")
     assert git(worktree, "branch", "--show-current") == "lane/feature"
 
 
@@ -119,13 +119,7 @@ def test_existing_work_lane_claim_binding_can_be_applied_without_restarting_lane
     repo = init_repo(tmp_path / "repo")
     candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     worktree = tmp_path / "repo-work-feature"
-    start_work_lane(
-        root=repo,
-        name="feature",
-        path=worktree,
-        holder_ref="agent:test:case:agent-test",
-        apply=True,
-    )
+    _start_lane(repo, path=worktree)
 
     report = bind_work_lane_claim(
         root=worktree,
@@ -134,11 +128,8 @@ def test_existing_work_lane_claim_binding_can_be_applied_without_restarting_lane
     )
     status = workspace_status(worktree)
 
-    assert report["ok"] is True
-    assert report["state"] == "bound"
-    assert report["branch"] == "work/feature"
-    assert report["holder_ref"] == "agent:test:case:agent-test"
-    assert report["claim_id"] == "sample-trust"
+    assert (report["ok"], report["state"], report["branch"]) == (True, "bound", "work/feature")
+    assert (report["holder_ref"], report["claim_id"]) == (_HOLDER_REF, "sample-trust")
     closeout = status["closeout_support"]
     assert tuple(
         closeout[key]
@@ -158,7 +149,7 @@ def test_existing_work_lane_claim_binding_can_be_applied_without_restarting_lane
         "work/feature",
         "candidate/dev",
         "land_to_candidate",
-        "agent:test:case:agent-test",
+        _HOLDER_REF,
         1,
         "sample-trust",
         "bound",
@@ -189,14 +180,8 @@ def test_prewrite_allows_owned_work_lane_with_matching_editor_root(
     repo = init_repo(tmp_path / "repo")
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     worktree = tmp_path / "repo-work-owned"
-    start_work_lane(
-        root=repo,
-        name="owned",
-        path=worktree,
-        holder_ref="agent:test:case:agent-test",
-        apply=True,
-    )
-    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    _start_lane(repo, name="owned", path=worktree)
+    monkeypatch.setenv("ETHOS_ACTOR", _HOLDER_REF)
 
     monkeypatch.setattr(prewrite, "workspace_status", pytest.fail, raising=False)
 
@@ -249,14 +234,8 @@ def test_prewrite_rejects_work_lane_without_editor_root_binding(
     repo = init_repo(tmp_path / "repo")
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     worktree = tmp_path / "repo-work-owned"
-    start_work_lane(
-        root=repo,
-        name="owned",
-        path=worktree,
-        holder_ref="agent:test:case:agent-test",
-        apply=True,
-    )
-    monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-test")
+    _start_lane(repo, name="owned", path=worktree)
+    monkeypatch.setenv("ETHOS_ACTOR", _HOLDER_REF)
 
     report = prewrite_guard(
         root=worktree,
@@ -314,13 +293,7 @@ def test_start_work_lane_apply_creates_worktree_and_records_lease(
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     worktree = tmp_path / "repo-work-feature"
 
-    report = start_work_lane(
-        root=repo,
-        name="feature",
-        path=worktree,
-        holder_ref="agent:test:case:agent-test",
-        apply=True,
-    )
+    report = _start_lane(repo, path=worktree)
 
     assert report["ok"] is True
     assert report["branch"] == "work/feature"
@@ -335,7 +308,7 @@ def test_start_work_lane_apply_creates_worktree_and_records_lease(
     assert git(worktree, "branch", "--show-current") == "work/feature"
     leases = active_leases(repo / ".ethos" / "state" / "state.sqlite")
     assert [(lease["subject"], lease["holder_ref"]) for lease in leases] == [
-        ("work/feature", "agent:test:case:agent-test")
+        ("work/feature", _HOLDER_REF)
     ]
 
 
@@ -346,12 +319,7 @@ def test_start_work_lane_defaults_path_to_sibling_candidate_home(
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     expected = repo.with_name(f"{repo.name}-work-feature")
 
-    report = start_work_lane(
-        root=repo,
-        name="feature",
-        holder_ref="agent:test:case:agent-test",
-        apply=True,
-    )
+    report = _start_lane(repo)
 
     assert report["ok"] is True
     assert report["path"] == expected.resolve().as_posix()
@@ -377,13 +345,7 @@ def test_start_work_lane_apply_requires_ready_candidate(
         candidate = add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
         (candidate / "README.md").write_text("# dirty candidate\n", encoding="utf-8")
     worktree = tmp_path / "repo-work-feature"
-    report = start_work_lane(
-        root=repo,
-        name="feature",
-        path=worktree,
-        holder_ref="agent:test:case:agent-test",
-        apply=True,
-    )
+    report = _start_lane(repo, path=worktree)
     assert report["ok"] is False
     assert report["state"] == "blocked"
     assert expected_gap in report["required_gaps"]
@@ -398,13 +360,7 @@ def test_start_work_lane_apply_starts_from_candidate_branch(tmp_path: Path) -> N
     commit_fixture_file(repo, "README.md", "# changed on dev\n", "advance dev only")
     worktree = tmp_path / "repo-work-feature"
 
-    report = start_work_lane(
-        root=repo,
-        name="feature",
-        path=worktree,
-        holder_ref="agent:test:case:agent-test",
-        apply=True,
-    )
+    report = _start_lane(repo, path=worktree)
 
     assert report["ok"] is True
     assert git(worktree, "rev-parse", "HEAD") == candidate_head
@@ -874,13 +830,7 @@ def test_start_work_lane_apply_requires_clean_accepted_root(tmp_path: Path, mode
     else:
         add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
         (repo / "README.md").write_text("# changed\n", encoding="utf-8")
-    report = start_work_lane(
-        root=root,
-        name=name,
-        path=worktree,
-        holder_ref="agent:test:case:agent-test",
-        apply=True,
-    )
+    report = _start_lane(root, name=name, path=worktree)
     assert report["ok"] is False
     assert report["state"] == "blocked"
     assert "lane_start_requires_clean_accepted_root" in report["required_gaps"]

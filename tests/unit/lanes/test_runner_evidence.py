@@ -98,7 +98,7 @@ def test_evidence_set_binds_head_and_digests() -> None:
     )
 
     evidence = EvidenceSet.from_runs(
-        id="evidence:test",
+        evidence_id="evidence:test",
         head="abc123",
         runs=(run,),
         durability="repository",
@@ -107,6 +107,27 @@ def test_evidence_set_binds_head_and_digests() -> None:
     assert evidence.head == "abc123"
     assert evidence.digest
     assert evidence.runs[0].state == "proven"
+
+
+def test_evidence_set_uses_evidence_id_without_shadowing_builtin() -> None:
+    run = ProofRun(
+        action_id="pytest",
+        command=("pytest", "-q"),
+        exit_code=0,
+        stdout="22 passed",
+        stderr="",
+        state="proven",
+        verdict="passed",
+        trust_bearing=True,
+    )
+
+    evidence = EvidenceSet.from_runs(
+        evidence_id="evidence:test",
+        head="abc123",
+        runs=(run,),
+    )
+
+    assert evidence.id == "evidence:test"
 
 
 def test_provenance_envelope_is_slsa_shaped() -> None:
@@ -120,7 +141,7 @@ def test_provenance_envelope_is_slsa_shaped() -> None:
         verdict="passed",
         trust_bearing=True,
     )
-    evidence = EvidenceSet.from_runs(id="evidence:test", head="abc123", runs=(run,))
+    evidence = EvidenceSet.from_runs(evidence_id="evidence:test", head="abc123", runs=(run,))
 
     envelope = provenance_envelope(evidence)
 

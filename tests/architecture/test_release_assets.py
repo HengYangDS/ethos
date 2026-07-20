@@ -107,6 +107,8 @@ def test_configuration_layout_is_separated_by_concern() -> None:
     }
     assert not (ROOT / "pytest.ini").exists()
     assert "[lint.per-file-ignores]" in ruff
+    assert '"packages/ethos/src/ethos/repository/evidence/core.py" = ["C901"]' in ruff
+    assert '"packages/ethos/src/ethos/repository/evidence/core.py" = ["C901", "A002"]' not in ruff
     assert "[pytest]" in pytest
     assert "pythonpath" in pytest
     assert "error" in pytest

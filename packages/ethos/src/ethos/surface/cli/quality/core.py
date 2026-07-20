@@ -250,7 +250,7 @@ def provenance(
     """Emit a provenance envelope for a planned ETHOS proof."""
     repo = resolve_root(root)
     evidence = EvidenceSet.from_runs(
-        id=f"ethos:{objective}",
+        evidence_id=f"ethos:{objective}",
         head=git_adapter.current_head(repo),
         runs=(ProofRun("planned-proof", ("ethos", "prove", "--json"), None, "", "", "planned"),),
         durability="local",

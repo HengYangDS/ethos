@@ -12,5 +12,6 @@
 
 - [x] 3.1 Execute focused contracts, whole-corpus probe, owner gate, and strict
   OpenSpec validation; HEAD-bound proof remains the next transition.
-- [ ] 3.2 Integrate, close out, publish if authorized, and retire the lane by
-  native lifecycle commands.
+- [x] 3.2 Archive this bounded Change through the official OpenSpec lifecycle
+  after local validation. Candidate integration, accepted closeout, publication,
+  and lane retirement remain separately governed downstream transitions.

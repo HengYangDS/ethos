@@ -8,6 +8,7 @@ from subprocess import CompletedProcess
 
 from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.mutation.lane_lifecycle.core import run_git
+from ethos.adapters.mutation.resolution._shared import LEGACY_ARTIFACT_ROOT
 from ethos_core.contracts.lifecycle.core import MutationRequest
 
 type GitRunner = Callable[..., CompletedProcess[str]]
@@ -44,6 +45,8 @@ def _linked_lane_reobservation_gaps(branch, path, expect_head, runner):
     lane_path = Path(path) if path else Path()
     if not path or not lane_path.is_dir():
         return [*gaps, "retirement_worktree_path_unavailable"]
+    if any((lane_path / LEGACY_ARTIFACT_ROOT).glob("*/manifest.json")):
+        return [*gaps, "lane_resolution_legacy_retention_present"]
     observations = (
         (("rev-parse", f"refs/heads/{branch}"), "retirement_ref", expect_head),
         (("rev-parse", "HEAD"), "retirement_worktree_head", expect_head),

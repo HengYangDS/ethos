@@ -12,15 +12,21 @@ from ethos.adapters.mutation.resolution.lane import plan_lane_resolution
 from ethos.adapters.mutation.resolution.receipts import LaneResolutionClearRequest
 from ethos.adapters.mutation.resolution.receipts import clear_lane_resolution_package
 from ethos.adapters.mutation.resolution.receipts import lane_resolution_inventory
+from ethos.adapters.mutation.resolution.receipts import verify_preservation_package
 from ethos.adapters.mutation.resolution.receipts import write_resolution_receipt
+from ethos.surface.cli.lane.resolution import _default_decision_path
 from tests.support.contract_helpers import write_chronicle_decision
+from tests.support.lane_helpers import git
 from tests.support.lane_helpers import init_repo
 from tests.support.lane_helpers import orphan_work_lane
 
+_LEGACY_DECISION_ID = "lane-decision:00000000-0000-4000-8000-000000000001"
+_CARRIER_DECISION_ID = "lane-decision:00000000-0000-4000-8000-000000000002"
 
-def _preserve(repo: Path, lane: Path, tmp_path: Path) -> dict[str, object]:
+
+def _preserve(repo: Path, lane: Path) -> dict[str, object]:
     (lane / "README.md").write_text("# preserved\n", encoding="utf-8")
-    decision_path = tmp_path / "decision.json"
+    decision_path = _default_decision_path(repo, "work/orphan")
     planned = plan_lane_resolution(
         root=repo,
         branch="work/orphan",
@@ -50,7 +56,7 @@ def test_resolution_materializes_immutable_receipt_and_inventory(
     tmp_path: Path,
 ) -> None:
     repo, lane = orphan_work_lane(tmp_path)
-    applied = _preserve(repo, lane, tmp_path)
+    applied = _preserve(repo, lane)
 
     receipt = applied["receipt"]
     receipt_path = repo / str(applied["receipt_path"])
@@ -82,7 +88,7 @@ def test_resolution_receipt_refuses_to_overwrite_existing_decision(
     tmp_path: Path,
 ) -> None:
     repo, lane = orphan_work_lane(tmp_path)
-    applied = _preserve(repo, lane, tmp_path)
+    applied = _preserve(repo, lane)
 
     with pytest.raises(FileExistsError):
         write_resolution_receipt(root=repo, receipt=applied["receipt"])
@@ -90,7 +96,7 @@ def test_resolution_receipt_refuses_to_overwrite_existing_decision(
 
 def test_inventory_reports_receipt_without_preservation_package(tmp_path: Path) -> None:
     repo, lane = orphan_work_lane(tmp_path)
-    applied = _preserve(repo, lane, tmp_path)
+    applied = _preserve(repo, lane)
 
     package = repo / str(applied["preservation_package"]["path"])
     receipt_adapter.shutil.rmtree(package)
@@ -107,7 +113,7 @@ def test_inventory_keeps_legacy_manifest_visible_without_inventing_receipt(
     package = repo / "build" / "artifacts" / "lane-resolution" / "legacy"
     package.mkdir(parents=True)
     manifest = {
-        "decision_id": "lane-decision:legacy",
+        "decision_id": _LEGACY_DECISION_ID,
         "lane_ref": "work/legacy",
         "head": "a" * 40,
         "observation_digest": "b" * 64,
@@ -124,7 +130,7 @@ def test_inventory_keeps_legacy_manifest_visible_without_inventing_receipt(
     assert inventory["ok"] is True
     assert inventory["entries"] == [
         {
-            "decision_id": "lane-decision:legacy",
+            "decision_id": _LEGACY_DECISION_ID,
             "lane_ref": "work/legacy",
             "head": "a" * 40,
             "state": "unindexed",
@@ -135,11 +141,139 @@ def test_inventory_keeps_legacy_manifest_visible_without_inventing_receipt(
     ]
 
 
+def test_inventory_reads_legacy_manifest_from_registered_carrier_worktree(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    carrier = tmp_path / "repo-work-carrier"
+    git(repo, "worktree", "add", "-b", "work/carrier", carrier.as_posix(), "dev")
+    package = carrier / "build/artifacts/lane-resolution/legacy-carrier"
+    package.mkdir(parents=True)
+    manifest = {
+        "decision_id": _CARRIER_DECISION_ID,
+        "lane_ref": "work/carrier",
+        "head": "a" * 40,
+    }
+    (package / "manifest.json").write_text(json.dumps(manifest) + "\n", encoding="utf-8")
+
+    inventory = lane_resolution_inventory(root=repo)
+
+    assert inventory["ok"] is True
+    assert inventory["entries"][0]["decision_id"] == _CARRIER_DECISION_ID
+    assert inventory["entries"][0]["package_path"] == package.as_posix()
+
+
+def test_inventory_blocks_conflicting_canonical_and_legacy_decision_records(
+    tmp_path: Path,
+) -> None:
+    repo, lane = orphan_work_lane(tmp_path)
+    applied = _preserve(repo, lane)
+    manifest = dict(applied["preservation_package"]["manifest"])
+    manifest["head"] = "f" * 40
+    legacy = repo / "build/artifacts/lane-resolution/conflicting/manifest.json"
+    legacy.parent.mkdir(parents=True)
+    legacy.write_text(json.dumps(manifest, sort_keys=True) + "\n", encoding="utf-8")
+
+    inventory = lane_resolution_inventory(root=repo)
+
+    assert inventory["ok"] is False
+    assert inventory["state"] == "blocked"
+    assert inventory["required_gaps"] == ["lane_resolution_decision_record_conflict"]
+
+
+def test_clear_blocks_conflicting_canonical_and_legacy_decision_records(
+    tmp_path: Path,
+) -> None:
+    repo, lane = orphan_work_lane(tmp_path)
+    applied = _preserve(repo, lane)
+    raw_package = Path(str(applied["preservation_package"]["path"]))
+    package = raw_package if raw_package.is_absolute() else repo / raw_package
+    canonical_manifest = package / "manifest.json"
+    manifest = dict(applied["preservation_package"]["manifest"])
+    manifest["head"] = "f" * 40
+    legacy = repo / "build/artifacts/lane-resolution/conflicting/manifest.json"
+    legacy.parent.mkdir(parents=True)
+    legacy.write_text(json.dumps(manifest, sort_keys=True) + "\n", encoding="utf-8")
+
+    report = clear_lane_resolution_package(
+        root=repo,
+        request=LaneResolutionClearRequest(
+            decision_id=str(applied["receipt"]["decision_id"]),
+            expect_manifest_sha256=hashlib.sha256(canonical_manifest.read_bytes()).hexdigest(),
+            chronicle_ref=write_chronicle_decision(
+                repo, topic="lane-resolution-artifacts", token="clear-preservation"
+            ),
+            reason="Conflicting local records must be reconciled before clear.",
+            break_glass=True,
+            confirm_irreversible=True,
+            apply=True,
+        ),
+    )
+
+    assert report["ok"] is False
+    assert report["required_gaps"] == ["lane_resolution_decision_record_conflict"]
+    assert package.is_dir()
+    assert legacy.parent.is_dir()
+
+
+def test_clear_blocks_identical_canonical_and_legacy_package_copies(
+    tmp_path: Path,
+) -> None:
+    repo, lane = orphan_work_lane(tmp_path)
+    applied = _preserve(repo, lane)
+    package = Path(str(applied["preservation_package"]["path"]))
+    canonical_manifest = package / "manifest.json"
+    legacy = repo / "build/artifacts/lane-resolution/identical/manifest.json"
+    legacy.parent.mkdir(parents=True)
+    legacy.write_bytes(canonical_manifest.read_bytes())
+
+    report = clear_lane_resolution_package(
+        root=repo,
+        request=LaneResolutionClearRequest(
+            decision_id=str(applied["receipt"]["decision_id"]),
+            expect_manifest_sha256=hashlib.sha256(canonical_manifest.read_bytes()).hexdigest(),
+            chronicle_ref=write_chronicle_decision(
+                repo, topic="lane-resolution-artifacts", token="clear-preservation"
+            ),
+            reason="Ambiguous duplicate packages require reconciliation.",
+            break_glass=True,
+            confirm_irreversible=True,
+            apply=True,
+        ),
+    )
+
+    assert report["ok"] is False
+    assert report["required_gaps"] == ["lane_resolution_clear_package_ambiguous"]
+    assert package.is_dir()
+    assert legacy.parent.is_dir()
+
+
+def test_inventory_and_verify_bind_actual_manifest_to_immutable_receipt(
+    tmp_path: Path,
+) -> None:
+    repo, lane = orphan_work_lane(tmp_path)
+    applied = _preserve(repo, lane)
+    package = Path(str(applied["preservation_package"]["path"]))
+    manifest_path = package / "manifest.json"
+    tampered = json.loads(manifest_path.read_text(encoding="utf-8"))
+    tampered["head"] = "f" * 40
+    manifest_path.write_text(
+        json.dumps(tampered, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+
+    inventory = lane_resolution_inventory(root=repo)
+
+    assert inventory["ok"] is False
+    assert inventory["required_gaps"] == ["lane_resolution_manifest_receipt_mismatch"]
+    with pytest.raises(ValueError, match="lane_resolution_preservation_package_invalid"):
+        verify_preservation_package(root=repo, package=applied["preservation_package"])
+
+
 def test_manual_clear_requires_exact_chronicle_and_manifest_binding(
     tmp_path: Path,
 ) -> None:
     repo, lane = orphan_work_lane(tmp_path)
-    applied = _preserve(repo, lane, tmp_path)
+    applied = _preserve(repo, lane)
     package = repo / str(applied["preservation_package"]["path"])
     manifest_path = package / "manifest.json"
     manifest_sha256 = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
@@ -213,7 +347,7 @@ def test_manual_clear_removal_failure_keeps_package_and_discards_clear_receipt(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo, lane = orphan_work_lane(tmp_path)
-    applied = _preserve(repo, lane, tmp_path)
+    applied = _preserve(repo, lane)
     package = repo / str(applied["preservation_package"]["path"])
     manifest_sha256 = hashlib.sha256((package / "manifest.json").read_bytes()).hexdigest()
     decision_id = str(applied["receipt"]["decision_id"])

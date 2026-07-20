@@ -20,7 +20,48 @@ docstring-code-format = true
 # Broad rule set: raise the quality
 # floor and make low-quality code unrepresentable. Correctness + determinism + elegance +
 # security + exception hygiene + boolean-trap + private-access + logging.
-select = ["E", "W", "F", "I", "UP", "B", "SIM", "C4", "RET", "PTH", "PT", "N", "A", "ISC", "FLY", "PERF", "TC", "TID", "PIE", "RUF", "C90", "PL", "TRY", "FBT", "SLF", "ARG", "PGH", "FURB", "G", "DTZ", "EM", "LOG", "BLE", "RSE", "SLOT", "PIE", "INP", "T20", "YTT", "ASYNC"]
+select = [
+  "E",
+  "W",
+  "F",
+  "I",
+  "UP",
+  "B",
+  "SIM",
+  "C4",
+  "RET",
+  "PTH",
+  "PT",
+  "N",
+  "A",
+  "ISC",
+  "FLY",
+  "PERF",
+  "TC",
+  "TID",
+  "PIE",
+  "RUF",
+  "C90",
+  "PL",
+  "TRY",
+  "FBT",
+  "SLF",
+  "ARG",
+  "PGH",
+  "FURB",
+  "G",
+  "DTZ",
+  "EM",
+  "LOG",
+  "BLE",
+  "RSE",
+  "SLOT",
+  "PIE",
+  "INP",
+  "T20",
+  "YTT",
+  "ASYNC",
+]
 # Ratchet: correctness rules are enforced everywhere. A bounded set of
 # pre-existing style/idiom debt is frozen here and must shrink as focused refactors
 # dissolve legacy report reducers and wide command handlers. New code gets the full set.
@@ -43,7 +84,6 @@ ignore = [
   "S101", # runtime assertions are visible security debt; ratchet owns the exact count
   "S105", # token literals used as sentinels are visible security debt
   "S603", # subprocess list-form invocations are visible security debt
-  "S606", # one execvpe bootstrap is visible security debt
   "S607", # PATH-resolved tool invocations are visible security debt
 ]
 
@@ -57,7 +97,16 @@ max-complexity = 10
 # (TID enforces the ban on relative). All current and historical ethos package names
 # are treated as first-party so archived evidence and migration fixtures stay stable.
 force-single-line = true
-known-first-party = ["ethos", "ethos_adapters", "ethos_assistants", "ethos_contracts", "ethos_core", "ethos_quality", "ethos_repository", "ethos_test"]
+known-first-party = [
+  "ethos",
+  "ethos_adapters",
+  "ethos_assistants",
+  "ethos_contracts",
+  "ethos_core",
+  "ethos_quality",
+  "ethos_repository",
+  "ethos_test",
+]
 
 [lint.pydocstyle]
 # Google style is the admitted structured-docstring convention. The dedicated
@@ -76,8 +125,26 @@ convention = "google"
 # payloads/fixtures; logic still wraps). No refactor removes the need for these.
 # SLF001 is NOT here — private-member access IS reducible debt, so it is a shrinking
 # whole-repo ratchet (.config/checks/ruff/ratchet.toml SLF001=220), not a blanket ignore.
-"tests/**" = ["E501", "INP001", "PLR2004", "S101", "S105", "S106", "S603", "S606", "S607"]
-"extensions/**/tests/**" = ["E501", "INP001", "PLR2004", "S101", "S105", "S106", "S603", "S606", "S607"]
+"tests/**" = [
+  "E501",
+  "INP001",
+  "PLR2004",
+  "S101",
+  "S105",
+  "S106",
+  "S603",
+  "S607",
+]
+"extensions/**/tests/**" = [
+  "E501",
+  "INP001",
+  "PLR2004",
+  "S101",
+  "S105",
+  "S106",
+  "S603",
+  "S607",
+]
 # C901 cyclomatic-complexity ratchet: pre-existing tangled functions are frozen
 # and decompose during the package/surface split. New code: cap 10.
 "packages/ethos-core/src/ethos_core/contracts/rules.py" = ["C901"]

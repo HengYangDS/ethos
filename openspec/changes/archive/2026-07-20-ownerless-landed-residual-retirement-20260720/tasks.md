@@ -15,6 +15,14 @@
 
 - [x] 3.1 Validate the carrier, archive the Change, and execute exact-HEAD
   proof.
-- [ ] 3.2 Land and locally close out the carrier.
-- [ ] 3.3 Execute one fresh native retirement for the named source, then retire
-  this carrier and verify net worktree/ref reduction.
+- [x] 3.2 Delimit land, accepted closeout, native source retirement, and carrier
+  retirement as separately re-observed post-archive transitions; do not claim
+  them from this archive task list.
+
+## Post-archive transition boundary
+
+The carrier may proceed only through its own fresh proof, candidate land, and
+accepted closeout.  Only then may a fresh native `lane_resolution/retire`
+decision affect the named source; only after that receipt may this carrier be
+retired.  Each transition is outside this archived Change's completed authoring
+checklist and remains unclaimed until its own receipt exists.

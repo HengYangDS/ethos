@@ -1,0 +1,59 @@
+[claim]
+id = "budget-contract-v2-carrier-resource-boundary-20260720"
+subject = "quality:budget-contract-v2:carrier-resource-boundary"
+state = "active"
+summary = "Implement a versioned provider-wide carrier-byte execution boundary before Budget Contract v2 immutable replay or activation while keeping v1 authoritative and per-file ELOC unchanged."
+
+[evidence]
+dated = "evidence/chronicle/budget-contract-v2-carrier-resource-boundary-20260720/2026-07-20.md"
+sha256 = "0b0caad589413200d2590526e6d117062b23651070a8d5a0c42379f010dd3581"
+evidence_ids = ["evidence:budget-contract-v2-carrier-resource-boundary-20260720"]
+binding = "This active carrier binds only C1 MetricContract v3 execution fields, provider-wide fixed byte ceilings, pre-read and direct-native admission, digest propagation, focused tests, and the canonical replay prerequisite. It does not claim implementation, proof, archive, replay, YAML remediation, v2 policy/enforcement, cutover, publication, or retirement."
+verifier = "digest_only"
+tests = [
+  "openspec validate budget-contract-v2-carrier-resource-boundary --strict --json",
+  "tools/ci/scripts/run-ethos-lane.sh openspec --change budget-contract-v2-carrier-resource-boundary --lifecycle --json",
+  "tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev pytest -q tests/unit/kernel/test_source_budget_metrics_contract.py tests/unit/kernel/test_source_budget_measurements_contract.py tests/unit/kernel/test_source_budget_measurements_integrity.py tests/unit/adapters/repo/source_budget/test_carriers.py tests/unit/adapters/repo/source_budget/test_measurement.py tests/unit/adapters/repo/source_budget/test_measurement_resource_boundary.py",
+  "tools/ci/scripts/run-python-lint.sh",
+  "tools/ci/scripts/run-config-lint.sh",
+  "tools/ci/scripts/run-json-schema-check.sh",
+  "tools/ci/scripts/run-module-layout.sh",
+  "tools/ci/scripts/run-ethos-lane.sh quality code-size --json",
+  "tools/ci/scripts/run-ethos-lane.sh quality source-budget --json",
+  "tools/ci/scripts/run-ethos-lane.sh prove --execute --expect-head <committed-head> --json",
+  "tools/ci/scripts/run-ethos-lane.sh prove --execute --full --expect-head <committed-head> --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "quality"
+scope = "C1 versioned carrier resource boundary only: MetricContract v3 execution fields, fixed provider ceilings, descriptor-reader and direct-native fail-closed admission, identity propagation, tests, and plan correction."
+
+[carriers]
+openspec = "openspec/changes/budget-contract-v2-carrier-resource-boundary"
+fallback = "Keep v1 source-budget authoritative and v2 inactive; if bounded in-process execution is rejected, keep C1 open until an admitted isolated_worker_v1 exists with no in-process fallback."
+kill_signal = "Any path-specific ceiling, automatically raised limit, unbounded pre-parser allocation, partial carrier/snapshot result, weakened YAML safety, changed v1 allowance/debt/terminal/ELOC rule, or premature replay/policy/cutover behavior."
+
+[promotion]
+targets = [
+  "docs/plans/budget-contract-v2-design.md",
+  "docs/plans/budget-contract-v2-implementation.md",
+  "evidence/claims/budget-contract-v2-carrier-resource-boundary-20260720.toml",
+  "evidence/chronicle/budget-contract-v2-carrier-resource-boundary-20260720/2026-07-20.md",
+  "openspec/changes/budget-contract-v2-carrier-resource-boundary",
+  "openspec/specs/contracts/spec.md",
+  "packages/ethos-core/src/ethos_core/contracts/source_budget/metrics.py",
+  "packages/ethos/src/ethos/adapters/repo/source_budget/measurement/core.py",
+  "packages/ethos/src/ethos/adapters/repo/source_budget/measurement/native/core.py",
+  "system/policies/source-budget-metrics.toml",
+  "system/schemas/kernel/source-budget-metrics.schema.json",
+  "tests/fixtures/source-budget-v2/compression-cases.json",
+  "tests/unit/adapters/repo/source_budget/test_carriers.py",
+  "tests/unit/adapters/repo/source_budget/test_measurement.py",
+  "tests/unit/kernel/source_budget_measurement_support.py",
+  "tests/unit/kernel/test_source_budget_measurements_contract.py",
+  "tests/unit/kernel/test_source_budget_measurements_integrity.py",
+  "tests/unit/kernel/test_source_budget_metrics_contract.py",
+]

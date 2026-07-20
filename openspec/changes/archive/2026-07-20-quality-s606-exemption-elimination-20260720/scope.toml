@@ -7,7 +7,7 @@ paths = [
   "tests/unit/skills/quality_gate/test_quality_audit.py",
   "tests/architecture/test_testing_platform.py",
   "tests/unit/governance/test_quality_regime.py",
-  "openspec/changes/quality-s606-exemption-elimination-20260720/**",
+  "openspec/changes/archive/2026-07-20-quality-s606-exemption-elimination-20260720/**",
   "evidence/claims/quality-s606-exemption-elimination-20260720.toml",
   "evidence/chronicle/quality-s606-exemption-elimination-20260720/**",
   "evidence/parity/generic-shadow.json",

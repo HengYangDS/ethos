@@ -20,6 +20,7 @@ from ethos.adapters.mutation.resolution._shared import display_path
 from ethos.adapters.mutation.resolution._shared import records_artifact_root
 from ethos.adapters.mutation.resolution._shared import sha256_digest
 from ethos.adapters.mutation.resolution._shared import valid_decision_id
+from ethos.adapters.mutation.resolution.receipts import resolution_receipt_destination_safe
 from ethos.adapters.mutation.resolution.receipts import verify_preservation_package
 from ethos.adapters.mutation.resolution.receipts import write_resolution_receipt
 from ethos.adapters.store.state.lease.projection import active_leases
@@ -130,6 +131,11 @@ def apply_lane_resolution(
     branch = str(decision.get("observation", {}).get("lane_ref") or "")
     observation, observation_gaps = _observe_lane(root, branch)
     disposition = str(decision.get("disposition") or "")
+    expected_state = {
+        "decision_id": str(decision.get("decision_id") or ""),
+        "observation_digest": str(decision.get("observation_digest") or ""),
+        "confirm_irreversible": confirm_irreversible,
+    }
     evaluation = reduce_guards(
         LANE_RESOLUTION_APPLY,
         apply=apply,
@@ -151,35 +157,43 @@ def apply_lane_resolution(
     if apply and evaluation.ok:
         control_root = accepted_control_root(root)
         artifact_root = records_artifact_root(root)
-        package: dict[str, object] = {}
-        if disposition in {"preserve", "preserve-retire"}:
-            package_path = canonical_package_path(
-                artifact_root, str(decision.get("decision_id") or "")
+        decision_id = str(decision.get("decision_id") or "")
+        if not resolution_receipt_destination_safe(
+            root=control_root,
+            decision_id=decision_id,
+            artifact_root=artifact_root,
+        ):
+            report.update(
+                ok=False,
+                state="blocked",
+                required_gaps=["lane_resolution_receipt_path_unsafe"],
             )
-            if package_path is None:
-                report.update(
-                    ok=False,
-                    state="blocked",
-                    required_gaps=["lane_resolution_preservation_path_outside_root"],
-                )
-                return _finish(
-                    report,
-                    command="lane-resolution-apply",
-                    action=f"lane.resolution.{disposition}",
-                    resource=branch,
-                    expected_state={
-                        "decision_id": str(decision.get("decision_id") or ""),
-                        "observation_digest": str(decision.get("observation_digest") or ""),
-                        "confirm_irreversible": confirm_irreversible,
-                    },
-                    apply=apply,
-                    confirmation=confirm_irreversible,
-                )
-            package = _preserve(
-                root=root,
-                package=package_path,
-                observation=observation,
-                decision=decision,
+            return _finish(
+                report,
+                command="lane-resolution-apply",
+                action=f"lane.resolution.{disposition}",
+                resource=branch,
+                expected_state=expected_state,
+                apply=apply,
+                confirmation=confirm_irreversible,
+            )
+        package, package_gap = _prepare_preservation_package(
+            root=root,
+            artifact_root=artifact_root,
+            decision=decision,
+            observation=observation,
+            disposition=disposition,
+        )
+        if package_gap:
+            report.update(ok=False, state="blocked", required_gaps=[package_gap])
+            return _finish(
+                report,
+                command="lane-resolution-apply",
+                action=f"lane.resolution.{disposition}",
+                resource=branch,
+                expected_state=expected_state,
+                apply=apply,
+                confirmation=confirm_irreversible,
             )
         state = {
             "preserve-retire": "preserved_and_retired",
@@ -223,11 +237,7 @@ def apply_lane_resolution(
                 command="lane-resolution-apply",
                 action=f"lane.resolution.{disposition}",
                 resource=branch,
-                expected_state={
-                    "decision_id": str(decision.get("decision_id") or ""),
-                    "observation_digest": str(decision.get("observation_digest") or ""),
-                    "confirm_irreversible": confirm_irreversible,
-                },
+                expected_state=expected_state,
                 apply=apply,
                 confirmation=confirm_irreversible,
             )
@@ -240,11 +250,7 @@ def apply_lane_resolution(
         command="lane-resolution-apply",
         action=f"lane.resolution.{disposition or 'unknown'}",
         resource=branch or decision_path.resolve().as_posix(),
-        expected_state={
-            "decision_id": str(decision.get("decision_id") or ""),
-            "observation_digest": str(decision.get("observation_digest") or ""),
-            "confirm_irreversible": confirm_irreversible,
-        },
+        expected_state=expected_state,
         apply=apply,
         confirmation=confirm_irreversible,
     )
@@ -382,10 +388,38 @@ def _accepted_chronicle(
     return relative, hashlib.sha256(path.read_bytes()).hexdigest(), []
 
 
+def _prepare_preservation_package(
+    *,
+    root: Path,
+    artifact_root: Path,
+    decision: dict[str, Any],
+    observation: LaneObservation,
+    disposition: str,
+) -> tuple[dict[str, object], str]:
+    if disposition not in {"preserve", "preserve-retire"}:
+        return {}, ""
+    package_path = canonical_package_path(artifact_root, str(decision.get("decision_id") or ""))
+    if package_path is None:
+        return {}, "lane_resolution_preservation_path_outside_root"
+    package_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        package_path.mkdir()
+    except FileExistsError:
+        return {}, "lane_resolution_preservation_package_exists"
+    return (
+        _preserve(
+            root=root,
+            package=package_path,
+            observation=observation,
+            decision=decision,
+        ),
+        "",
+    )
+
+
 def _preserve(
     *, root: Path, package: Path, observation: LaneObservation, decision: dict[str, Any]
 ) -> dict[str, object]:
-    package.mkdir(parents=True, exist_ok=True)
     bundle, patch, archive = (
         package / "repository.bundle",
         package / "tracked.patch",
@@ -447,13 +481,7 @@ def _retire(*, root: Path, observation: LaneObservation) -> None:
 def _completion_receipt(
     decision: dict[str, Any], observation: LaneObservation, state: str, package: dict[str, object]
 ) -> dict[str, object]:
-    manifest = package.get("manifest")
-    payload = cast("dict[str, object]", manifest) if isinstance(manifest, dict) else {}
-    manifest_digest = (
-        hashlib.sha256((json.dumps(payload, indent=2, sort_keys=True) + "\n").encode()).hexdigest()
-        if payload
-        else ""
-    )
+    manifest_digest = str(package.get("manifest_sha256") or "")
     return LaneResolutionReceipt(
         receipt_id=f"lane-resolution-receipt:{uuid.uuid4()}",
         decision_id=str(decision["decision_id"]),

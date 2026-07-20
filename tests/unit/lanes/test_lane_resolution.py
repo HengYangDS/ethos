@@ -662,6 +662,43 @@ def test_resolution_rejects_symlinked_package_destination_outside_records_owner(
     assert list(outside.iterdir()) == []
 
 
+def test_resolution_preservation_package_refuses_to_clobber_existing_directory(
+    tmp_path: Path,
+) -> None:
+    repo, lane = orphan_work_lane(tmp_path)
+    (lane / "README.md").write_text("# preserve without clobber\n", encoding="utf-8")
+    decision_path = _default_decision_path(repo, "work/orphan")
+    planned = plan_lane_resolution(
+        root=repo,
+        branch="work/orphan",
+        disposition="preserve",
+        reason="Existing recovery bytes are immutable.",
+        evidence_refs=("evidence:review",),
+        chronicle_ref=write_chronicle_decision(
+            repo, topic="lane-resolution-test", token="preserve"
+        ),
+        recovery_plan="Allocate a fresh package directory or block.",
+        decision_path=decision_path,
+        break_glass=False,
+        apply=True,
+    )
+    package = records_artifact_root(repo) / str(planned["decision"]["decision_id"])
+    package.mkdir(parents=True)
+    tracked_patch = package / "tracked.patch"
+    tracked_patch.write_bytes(b"existing recovery bytes")
+
+    applied = apply_lane_resolution(
+        root=repo,
+        decision_path=decision_path,
+        confirm_irreversible=False,
+        apply=True,
+    )
+
+    assert applied["ok"] is False
+    assert applied["required_gaps"] == ["lane_resolution_preservation_package_exists"]
+    assert tracked_patch.read_bytes() == b"existing recovery bytes"
+
+
 def test_resolution_decide_does_not_write_tracked_chronicle_path(
     tmp_path: Path,
 ) -> None:

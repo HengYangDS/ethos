@@ -4,7 +4,7 @@ role: plan
 state: active
 relations:
   governs: exact local Work Lane cohort convergence
-  carrier: openspec/changes/archive/2026-07-16-all-work-lanes-convergence-20260716
+  carrier: openspec/changes/archive/2026-07-16-all-work-lanes-convergence
 ---
 
 # All Work Lanes Convergence Program — 2026-07-16

@@ -1,5 +1,5 @@
-claim = { id = "openspec-semantic-capability-layout", subject = "ethos:openspec-semantic-capability-layout", state = "archived", change_id = "openspec-semantic-capability-layout-20260706", summary = "ETHOS binds the active OpenSpec declared capability layout change to local quality gates and executed proof while remote GitLab publication remains deferred." }
-evidence = { dated = "evidence/chronicle/openspec-semantic-capability-layout/2026-07-06.md", sha256 = "8a51c1414f75cf1c25210bf6b8ed31534114492a9aa9e6703b0aaa814a415a93", evidence_ids = [
+claim = { id = "openspec-semantic-capability-layout", subject = "ethos:openspec-semantic-capability-layout", state = "archived", change_id = "openspec-semantic-capability-layout", summary = "ETHOS binds the active OpenSpec declared capability layout change to local quality gates and executed proof while remote GitLab publication remains deferred." }
+evidence = { dated = "evidence/chronicle/openspec-semantic-capability-layout/2026-07-06.md", sha256 = "20c443cc09f977184bd2304447d2cf22f974d8a80374aa7ce90ac7386630faf4", evidence_ids = [
   "evidence:openspec-semantic-capability-layout",
 ], binding = "active OpenSpec change carrier binding for declared capability layout", verifier = "digest_only", tests = [
   "openspec validate --all --strict --json",
@@ -13,7 +13,7 @@ evidence = { dated = "evidence/chronicle/openspec-semantic-capability-layout/202
   "ethos prove --execute --expect-head $(git rev-parse HEAD) --json",
 ], freshness = { mode = "historical" } }
 boundary = { owner = "ethos", scope = "OpenSpec accepted capability identity and scaffold/audit defaults" }
-carriers = { openspec = "openspec/changes/archive/2026-07-06-openspec-semantic-capability-layout-20260706", fallback = "Keep official OpenSpec flat capability shape while preserving old IDs until semantic layout tests pass.", kill_signal = "Accepted OpenSpec capability IDs must mirror implementation package names or old package ontology for validation to work." }
+carriers = { openspec = "openspec/changes/archive/2026-07-06-openspec-semantic-capability-layout", fallback = "Keep official OpenSpec flat capability shape while preserving old IDs until semantic layout tests pass.", kill_signal = "Accepted OpenSpec capability IDs must mirror implementation package names or old package ontology for validation to work." }
 promotion = { targets = [
   "openspec/specs/README.md",
   "openspec/specs/families.toml",
@@ -23,7 +23,7 @@ promotion = { targets = [
   "packages/ethos/src/ethos/repository/adoption/scaffold/templates.py",
   "packages/ethos/src/ethos/repository/adoption/scaffold/template_files/openspec",
   "packages/ethos/src/ethos/repository/audit.py",
-  "openspec/changes/archive/2026-07-06-openspec-semantic-capability-layout-20260706",
+  "openspec/changes/archive/2026-07-06-openspec-semantic-capability-layout",
   "evidence/claims/openspec-semantic-capability-layout.toml",
   "evidence/chronicle/openspec-semantic-capability-layout/2026-07-06.md",
 ] }

@@ -1,4 +1,4 @@
-claim = { id = "ethos-root-philosophy-kernel", change_id = "root-philosophy-kernel-20260705", subject = "ethos:root-philosophy-kernel", state = "active", summary = "ETHOS keeps the root text bound to the kernel as a restrained judgment constraint while the current derived machine-adjacent reading lives in system/axioms.md." }
+claim = { id = "ethos-root-philosophy-kernel", change_id = "root-philosophy-kernel", subject = "ethos:root-philosophy-kernel", state = "active", summary = "ETHOS keeps the root text bound to the kernel as a restrained judgment constraint while the current derived machine-adjacent reading lives in system/axioms.md." }
 evidence = { dated = "evidence/chronicle/root-philosophy-kernel/2026-07-05.md", sha256 = "cae5d74965615ddf0d2145887ac3fe47cffbd02a534ff7f05de95f2ea7167cff", evidence_ids = [
   "evidence:ethos-root-philosophy-kernel",
 ], binding = "declared root-constraint kernel evidence binding", verifier = "digest_only", tests = [
@@ -9,7 +9,7 @@ evidence = { dated = "evidence/chronicle/root-philosophy-kernel/2026-07-05.md", 
   "uv run --group dev pytest -q",
 ], freshness = { mode = "historical" } }
 boundary = { owner = "ethos-core", scope = "Root text as restrained kernel judgment constraint for boundary-preserving future surfaces" }
-carriers = { openspec = "openspec/changes/archive/2026-07-05-root-philosophy-kernel-20260705", fallback = "Keep the Product Design Contract root constraint section as the reader-facing explanation if the derived axiom file needs revision.", kill_signal = "Future tools, models, assistants, hosts, or frameworks become truth centers instead of projections derived from the ETHOS kernel chain." }
+carriers = { openspec = "openspec/changes/archive/2026-07-05-root-philosophy-kernel", fallback = "Keep the Product Design Contract root constraint section as the reader-facing explanation if the derived axiom file needs revision.", kill_signal = "Future tools, models, assistants, hosts, or frameworks become truth centers instead of projections derived from the ETHOS kernel chain." }
 promotion = { targets = [
   "evidence/claims/ethos-root-philosophy-kernel.toml",
   "evidence/chronicle/root-philosophy-kernel/2026-07-05.md",
@@ -20,8 +20,8 @@ promotion = { targets = [
   "README.md",
   "openspec/specs/kernel/spec.md",
   "tests/architecture/test_product_design_contract.py",
-  "openspec/changes/archive/2026-07-05-root-philosophy-kernel-20260705/proposal.md",
-  "openspec/changes/archive/2026-07-05-root-philosophy-kernel-20260705/design.md",
-  "openspec/changes/archive/2026-07-05-root-philosophy-kernel-20260705/tasks.md",
-  "openspec/changes/archive/2026-07-05-root-philosophy-kernel-20260705/specs/ethos-core/spec.md",
+  "openspec/changes/archive/2026-07-05-root-philosophy-kernel/proposal.md",
+  "openspec/changes/archive/2026-07-05-root-philosophy-kernel/design.md",
+  "openspec/changes/archive/2026-07-05-root-philosophy-kernel/tasks.md",
+  "openspec/changes/archive/2026-07-05-root-philosophy-kernel/specs/ethos-core/spec.md",
 ] }

@@ -6,7 +6,7 @@ summary = "Explicit overlay adoption preserves declared external governance surf
 
 [evidence]
 dated = "evidence/chronicle/external-adopter-overlay-resume-20260712/2026-07-12.md"
-sha256 = "a76adeddbb3540765ffa902a9a7c06a99a317736745a8d9a708644c063a49aec"
+sha256 = "a742a7cebd478689b962bde37f5aa188b3ba228fd558b251db92c79410d7d2aa"
 evidence_ids = ["evidence:external-adopter-overlay-resume-20260712"]
 binding = "bounded local external-adopter overlay pilot evidence"
 verifier = "digest_only"
@@ -20,7 +20,7 @@ owner = "ethos-repository"
 scope = "Explicit non-destructive overlay adoption for existing external repository governance surfaces."
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-12-external-adopter-overlay-20260712"
+openspec = "openspec/changes/archive/2026-07-12-external-adopter-overlay"
 fallback = "Use strict adoption and stop before any write when a differing scaffold surface is found."
 kill_signal = "Overlay mutates a preserved adopter-owned surface, omits its digest from the plan, or permits a conflicting ETHOS-owned binding surface."
 

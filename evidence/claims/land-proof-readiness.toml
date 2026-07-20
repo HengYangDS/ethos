@@ -27,7 +27,7 @@ owner = "repository-governance"
 scope = "Work Lane land dry-run readiness and exact-HEAD executed proof visibility"
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-09-land-proof-readiness-20260709"
+openspec = "openspec/changes/archive/2026-07-09-land-proof-readiness"
 fallback = "Treat Work Lane land dry-run as blocked and run ethos prove --execute --expect-head <HEAD> --json before landing."
 kill_signal = "A clean Work Lane can report ready_to_land while executed proof for its current HEAD is missing or invalid."
 
@@ -38,10 +38,10 @@ targets = [
   "packages/ethos/src/ethos/surface/cli/root/lifecycle.py",
   "tests/unit/cli/test_contracts_land.py",
   "openspec/specs/repository-governance/spec.md",
-  "openspec/changes/archive/2026-07-09-land-proof-readiness-20260709/proposal.md",
-  "openspec/changes/archive/2026-07-09-land-proof-readiness-20260709/design.md",
-  "openspec/changes/archive/2026-07-09-land-proof-readiness-20260709/tasks.md",
-  "openspec/changes/archive/2026-07-09-land-proof-readiness-20260709/specs/repository-governance/spec.md",
+  "openspec/changes/archive/2026-07-09-land-proof-readiness/proposal.md",
+  "openspec/changes/archive/2026-07-09-land-proof-readiness/design.md",
+  "openspec/changes/archive/2026-07-09-land-proof-readiness/tasks.md",
+  "openspec/changes/archive/2026-07-09-land-proof-readiness/specs/repository-governance/spec.md",
   "evidence/chronicle/land-proof-readiness/2026-07-09.md",
   "evidence/claims/land-proof-readiness.toml",
   "evidence/parity/generic-shadow.json",

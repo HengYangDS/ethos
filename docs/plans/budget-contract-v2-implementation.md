@@ -4,7 +4,7 @@ role: plan
 state: planned
 relations:
   implements: docs/decisions/accepted/DR-0008-metric-domain-budget-contract.md
-  governed_by: openspec/changes/archive/2026-07-19-budget-contract-v2-foundation-integration-continuation-20260719
+  governed_by: openspec/changes/archive/2026-07-19-budget-contract-v2-foundation-integration-continuation
 ---
 
 # Budget Contract v2 Implementation Plan
@@ -56,7 +56,7 @@ relations:
 - Modify: `system/commands.toml`
 - Modify: `tests/unit/domain/test_prove.py`
 - Modify: `tests/unit/kernel/test_command_declaration.py`
-- Archived carrier: `openspec/changes/archive/2026-07-19-budget-contract-v2-foundation-20260719/**`
+- Archived carrier: `openspec/changes/archive/2026-07-19-budget-contract-v2-foundation/**`
 - Modify: `evidence/claims/budget-contract-v2-foundation-20260719.toml`
 - Modify: `evidence/chronicle/budget-contract-v2-foundation-20260719/2026-07-19.md`
 

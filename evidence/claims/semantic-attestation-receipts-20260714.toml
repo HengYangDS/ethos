@@ -20,7 +20,7 @@ owner = "ethos-repository"
 scope = "semantic claim assurance and external receipt admission"
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-13-semantic-attestation-receipts-20260714"
+openspec = "openspec/changes/archive/2026-07-13-semantic-attestation-receipts"
 fallback = "Use digest-only evidence until a fresh candidate-external receipt is supplied."
 kill_signal = "A semantic attestation is admitted without exact claim, evidence, scope, HEAD, validity, or external-path binding."
 
@@ -33,7 +33,7 @@ targets = [
   "system/invalid_states.toml",
   "system/schemas/kernel/claim.schema.json",
   "system/schemas/kernel/semantic-attestation-receipt.schema.json",
-  "openspec/changes/archive/2026-07-13-semantic-attestation-receipts-20260714",
+  "openspec/changes/archive/2026-07-13-semantic-attestation-receipts",
   "openspec/specs/kernel/spec.md",
   "openspec/specs/repository-governance/spec.md",
   "docs/governance/provenance-and-attestation.md",

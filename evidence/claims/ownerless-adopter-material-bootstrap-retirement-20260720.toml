@@ -1,11 +1,11 @@
 boundary = { owner = "ethos-repository", scope = "One clean ownerless diverged historical adopter material-bootstrap ref; one later native local resolver decision only after fresh observation and local lifecycle closure." }
-carriers = { openspec = "openspec/changes/archive/2026-07-19-ownerless-adopter-material-bootstrap-retirement-20260720", fallback = "Keep the exact source ref intact whenever source facts, accepted semantic basis, Chronicle bytes, or native decision bindings drift.", kill_signal = "A missing lease, historical tree inequality, preservation package, or inventory record is treated as absorption or as authority to delete another lane." }
+carriers = { openspec = "openspec/changes/archive/2026-07-19-ownerless-adopter-material-bootstrap-retirement", fallback = "Keep the exact source ref intact whenever source facts, accepted semantic basis, Chronicle bytes, or native decision bindings drift.", kill_signal = "A missing lease, historical tree inequality, preservation package, or inventory record is treated as absorption or as authority to delete another lane." }
 
 [claim]
 id = "ownerless-adopter-material-bootstrap-retirement-20260720"
 subject = "ethos:work-lane:ownerless-adopter-material-bootstrap-retirement"
 state = "active"
-change_id = "ownerless-adopter-material-bootstrap-retirement-20260720"
+change_id = "ownerless-adopter-material-bootstrap-retirement"
 summary = "One target-specific local authority carrier records a bounded historical observation for the clean ownerless diverged adopter material-bootstrap ref; its native transition remains separate."
 
 [evidence]
@@ -20,4 +20,4 @@ tests = ["openspec validate ownerless-adopter-material-bootstrap-retirement-2026
 mode = "historical"
 
 [promotion]
-targets = ["docs/plans/ownerless-adopter-material-bootstrap-retirement-20260720.md", "evidence/claims/ownerless-adopter-material-bootstrap-retirement-20260720.toml", "evidence/chronicle/ownerless-adopter-material-bootstrap-retirement-20260720/2026-07-20.md", "openspec/changes/archive/2026-07-19-ownerless-adopter-material-bootstrap-retirement-20260720", "openspec/specs/repository-governance/spec.md"]
+targets = ["docs/plans/ownerless-adopter-material-bootstrap-retirement-20260720.md", "evidence/claims/ownerless-adopter-material-bootstrap-retirement-20260720.toml", "evidence/chronicle/ownerless-adopter-material-bootstrap-retirement-20260720/2026-07-20.md", "openspec/changes/archive/2026-07-19-ownerless-adopter-material-bootstrap-retirement", "openspec/specs/repository-governance/spec.md"]

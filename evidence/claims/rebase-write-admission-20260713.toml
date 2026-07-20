@@ -27,7 +27,7 @@ owner = "ethos-repository"
 scope = "Lease-head comparison during a sanctioned owned Work Lane rebase."
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-13-rebase-write-admission-20260713"
+openspec = "openspec/changes/archive/2026-07-13-rebase-write-admission"
 fallback = "Reject the replay and retain the pre-rebase Work Lane ref when rebase context or its named lease binding cannot be proven."
 kill_signal = "Admission accepts an arbitrary detached branch, changes a lease holder or epoch during replay, or compares an unresolved/mismatched named Work Lane ref as if it were current lease state."
 
@@ -35,7 +35,7 @@ kill_signal = "Admission accepts an arbitrary detached branch, changes a lease h
 targets = [
   "packages/ethos/src/ethos/adapters/admission/prewrite.py",
   "tests/unit/lanes/test_hook_admission.py",
-  "openspec/changes/archive/2026-07-13-rebase-write-admission-20260713",
+  "openspec/changes/archive/2026-07-13-rebase-write-admission",
   "evidence/chronicle/rebase-write-admission-20260713/2026-07-13.md",
   "evidence/claims/rebase-write-admission-20260713.toml",
 ]

@@ -1,0 +1,23 @@
+schema_version = 1
+paths = [
+  "docs/plans/budget-contract-v2-implementation.md",
+  "evidence/claims/budget-contract-v2-carrier-metric-contracts-20260719.toml",
+  "evidence/chronicle/budget-contract-v2-carrier-metric-contracts-20260719/**",
+  "evidence/parity/generic-shadow.json",
+  "openspec/changes/budget-contract-v2-carrier-metric-contracts-20260719/**",
+  "openspec/changes/archive/2026-07-19-budget-contract-v2-carrier-metric-contracts/**",
+  "openspec/specs/contracts/spec.md",
+  "packages/ethos-core/src/ethos_core/contracts/source_budget/__init__.py",
+  "packages/ethos-core/src/ethos_core/contracts/source_budget/carriers.py",
+  "packages/ethos-core/src/ethos_core/contracts/source_budget/metrics.py",
+  "packages/ethos/src/ethos/adapters/repo/source_budget/__init__.py",
+  "packages/ethos/src/ethos/adapters/repo/source_budget/carriers.py",
+  "system/policies/source-budget-carriers.toml",
+  "system/policies/source-budget-metrics.toml",
+  "system/schemas/kernel/source-budget-carriers.schema.json",
+  "system/schemas/kernel/source-budget-metrics.schema.json",
+  "tests/unit/adapters/repo/source_budget/test_carriers.py",
+  "tests/unit/governance/validation/test_schemas.py",
+  "tests/unit/kernel/test_source_budget_carriers_contract.py",
+  "tests/unit/kernel/test_source_budget_metrics_contract.py",
+]

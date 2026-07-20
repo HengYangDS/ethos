@@ -6,7 +6,7 @@ summary = "Accepted ref admission evaluates promoted candidate control through i
 
 [evidence]
 dated = "evidence/chronicle/candidate-control-runner-binding-replay-20260715/2026-07-15.md"
-sha256 = "e5fc9438842772c68f152d85cfb33d46a3d2dbf3132867f8836268b045377bbf"
+sha256 = "89f8249cc33be69235dc8096af06fc5fd67fc9307b76ae30e66bd2175e1397d0"
 evidence_ids = ["evidence:candidate-control-runner-binding-replay-20260715"]
 binding = "Candidate-runner provenance is bound to the accepted ref transition and the current replay lane."
 verifier = "digest_only"
@@ -29,7 +29,7 @@ owner = "ethos-repository"
 scope = "Accepted reference-transaction semantic runner provenance for candidate promotion."
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-14-candidate-control-runner-binding-replay-20260715"
+openspec = "openspec/changes/archive/2026-07-14-candidate-control-runner-binding-replay"
 fallback = "Reject accepted ref movement when the exact clean candidate semantic runner cannot be bound."
 kill_signal = "An accepted ref transition is evaluated through accepted-old source or a candidate runner outside the exact promoted checkout."
 
@@ -40,11 +40,11 @@ targets = [
   "tests/unit/lanes/test_armed_hook_closeout_e2e.py",
   "openspec/specs/adapters/spec.md",
   "openspec/specs/repository-governance/spec.md",
-  "openspec/changes/archive/2026-07-14-candidate-control-runner-binding-replay-20260715/proposal.md",
-  "openspec/changes/archive/2026-07-14-candidate-control-runner-binding-replay-20260715/design.md",
-  "openspec/changes/archive/2026-07-14-candidate-control-runner-binding-replay-20260715/tasks.md",
-  "openspec/changes/archive/2026-07-14-candidate-control-runner-binding-replay-20260715/specs/adapters/spec.md",
-  "openspec/changes/archive/2026-07-14-candidate-control-runner-binding-replay-20260715/specs/repository-governance/spec.md",
+  "openspec/changes/archive/2026-07-14-candidate-control-runner-binding-replay/proposal.md",
+  "openspec/changes/archive/2026-07-14-candidate-control-runner-binding-replay/design.md",
+  "openspec/changes/archive/2026-07-14-candidate-control-runner-binding-replay/tasks.md",
+  "openspec/changes/archive/2026-07-14-candidate-control-runner-binding-replay/specs/adapters/spec.md",
+  "openspec/changes/archive/2026-07-14-candidate-control-runner-binding-replay/specs/repository-governance/spec.md",
   "evidence/chronicle/candidate-control-runner-binding-replay-20260715/2026-07-15.md",
   "evidence/claims/candidate-control-runner-binding-replay-20260715.toml",
 ]

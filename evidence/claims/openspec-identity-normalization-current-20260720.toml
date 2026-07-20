@@ -1,0 +1,45 @@
+[claim]
+id = "openspec-identity-normalization-current-20260720"
+change_id = "openspec-identity-normalization-current"
+subject = "repository-governance:openspec-identity-normalization"
+state = "active"
+summary = "One current Work Lane normalizes OpenSpec logical Change identities and makes archive identity validation fail closed."
+
+[evidence]
+dated = "evidence/chronicle/openspec-identity-normalization-current-20260720/2026-07-20.md"
+sha256 = "6a3b8386d5e091a94970dd0c5e9d5a9ed6d5c44aafb1318d8fb503ba9a358bea"
+evidence_ids = ["evidence:openspec-identity-normalization-current-20260720"]
+binding = "This Claim binds one current owned lane, the observed archive-identity inventory, deterministic tracked-path normalization, and the date-free logical Change-ID guard. It excludes foreign-lane changes, private runtime-state repair, remote effects, and provider-specific behavior."
+verifier = "digest_only"
+tests = [
+  "ethos openspec --lifecycle --json",
+  "ethos quality claims --json",
+  "ethos prove --execute --expect-head <committed-head> --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "Canonical OpenSpec logical Change IDs, dated archive paths, tracked references, and identifier validation only."
+
+[carriers]
+openspec = "openspec/changes/openspec-identity-normalization-current"
+fallback = "Keep the current candidate and every foreign lane intact; if an archive path, logical identity, claim binding, or proof HEAD drifts, stop and preserve the observed state rather than replaying or guessing."
+kill_signal = "A numeric-leading or terminal-date logical Change ID is accepted, a duplicate archive identity is selected by date, an alias or redirect is added, or a foreign/private/vendor-specific surface is modified."
+
+[promotion]
+targets = [
+  "packages/ethos/src/ethos/repository/openspec/identifiers.py",
+  "packages/ethos/src/ethos/repository/openspec/audit.py",
+  "packages/ethos/src/ethos/adapters/openspec/archive/core.py",
+  "packages/ethos/src/ethos/adapters/openspec/archive/query.py",
+  "packages/ethos/src/ethos/adapters/openspec/lifecycle/core.py",
+  "tests/unit/product/test_openspec_edges.py",
+  "openspec/changes/openspec-identity-normalization-current",
+  "openspec/specs/command-plane/spec.md",
+  "openspec/specs/repository-governance/spec.md",
+  "evidence/claims/openspec-identity-normalization-current-20260720.toml",
+  "evidence/chronicle/openspec-identity-normalization-current-20260720/2026-07-20.md",
+]

@@ -1,7 +1,7 @@
 [claim]
 id = "bounded-lane-retirement-20260714"
 subject = "ethos:bounded-landed-work-lane-retirement"
-change_id = "harden-bounded-lane-retirement-20260714"
+change_id = "harden-bounded-lane-retirement"
 state = "active"
 summary = "ETHOS scopes explicit landed Work Lane retirement to the selected lane and fails closed for unavailable selected worktree paths."
 
@@ -30,7 +30,7 @@ owner = "ethos-repository"
 scope = "Branch-targeted landed Work Lane retirement inspection and unavailable-worktree fail-closed behavior."
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-13-harden-bounded-lane-retirement-20260714"
+openspec = "openspec/changes/archive/2026-07-13-harden-bounded-lane-retirement"
 fallback = "Block retirement when the selected worktree path cannot be verified, while leaving unrelated foreign lane state untouched."
 kill_signal = "A selected retirement inspects or mutates an unrelated lane, or an unavailable selected worktree is treated as clean or triggers an unhandled exception."
 
@@ -39,7 +39,7 @@ targets = [
   "packages/ethos/src/ethos/adapters/mutation/lane_retirement/landed/core.py",
   "packages/ethos/src/ethos/adapters/mutation/lane_retirement/shared/core.py",
   "tests/unit/lanes/test_lanes_retire.py",
-  "openspec/changes/archive/2026-07-13-harden-bounded-lane-retirement-20260714",
+  "openspec/changes/archive/2026-07-13-harden-bounded-lane-retirement",
   "evidence/chronicle/bounded-lane-retirement-20260714/2026-07-14.md",
   ".ethos/rules.toml",
   "evidence/claims/bounded-lane-retirement-20260714.toml",

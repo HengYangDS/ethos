@@ -1,4 +1,4 @@
-claim = { id = "retire-landed-apply-verdict-20260709", subject = "ethos:retire-landed-apply-verdict", state = "active", change_id = "retire-landed-apply-verdict-20260709", summary = "ETHOS retire-landed apply summaries now preserve the selected retirement outcome when post-apply lane listings no longer contain the removed selected lane." }
+claim = { id = "retire-landed-apply-verdict-20260709", subject = "ethos:retire-landed-apply-verdict", state = "active", change_id = "retire-landed-apply-verdict", summary = "ETHOS retire-landed apply summaries now preserve the selected retirement outcome when post-apply lane listings no longer contain the removed selected lane." }
 evidence = { dated = "evidence/chronicle/retire-landed-apply-verdict-20260709/2026-07-09.md", sha256 = "f767aaa562de9fe8bd4315e1c2d902dd266c3afbc57b6931dea4d630d66bd6e8", evidence_ids = [
   "evidence:retire-landed-apply-verdict-20260709",
 ], binding = "TDD regression for post-apply selected retirement summary plus existing retire-landed lifecycle contract tests.", verifier = "digest_only", tests = [

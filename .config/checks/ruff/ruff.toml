@@ -28,7 +28,6 @@ ignore = [
   "PERF401", # manual list-comprehension: junk-drawer modules to be dissolved
   "TRY003",  # long exception messages: pervasive, low-value to reflow now
   "EM101",   # string-literal in exception: idiom churn, dissolves on rewrite
-  "EM102",   # f-string in exception: same
   "PLR0913", # too-many-arguments: some command handlers legitimately wide
   "PLC0415", # import-not-at-top: lazy imports are the perf design (surface split)
   "PLR2004", # magic-value-comparison: pervasive in report reducers; ratchet debt

@@ -317,6 +317,9 @@ def test_ruff_ratchet_has_no_zero_debt_ignore_residue() -> None:
     )
     assert '"ARG002"' not in ruff_config
     assert "ARG002" not in ratchet
+    assert '"EM102"' not in ruff_config
+    assert "EM102" not in ratchet
+    assert ratchet["TRY003"] == 8
 
 
 def test_ruff_ratchet_uses_tracked_python_file_set() -> None:

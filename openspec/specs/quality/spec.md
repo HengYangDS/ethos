@@ -88,6 +88,17 @@ returning to direct enforcement.
 - **AND** any future `EM102` finding fails the canonical Ruff owner gate
 - **AND** no alternate command, baseline, or compatibility policy accepts it
 
+#### Scenario: An obsolete process-execution rule returns to direct enforcement
+
+- **WHEN** the Python quality policy and owner lint gate run against all tracked
+  Python files
+- **THEN** the corpus reports zero `S606` findings
+- **AND** `S606` is absent from the Ruff global ignore list and ratchet baseline
+- **AND** the quality-audit owner script contains no Python-before-3.11 re-exec
+  bootstrap or alternate host command path
+- **AND** any future `S606` finding fails the canonical Ruff owner gate
+- **AND** no alternate command, baseline, or compatibility policy accepts it
+
 ### Requirement: Gate Descriptor Model
 
 ETHOS SHALL describe quality gates with asset classes, dimensions, execution

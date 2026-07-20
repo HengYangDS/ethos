@@ -12,6 +12,6 @@
 
 - [x] 3.1 Execute focused contracts, whole-corpus probe, canonical owner gate,
   strict OpenSpec validation, claim validation, and current-HEAD proof.
-- [ ] 3.2 Archive this bounded Change through the official OpenSpec lifecycle
+- [x] 3.2 Archive this bounded Change through the official OpenSpec lifecycle
   after local validation. Candidate integration, accepted closeout, publication,
   and lane retirement remain separately governed downstream transitions.

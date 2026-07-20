@@ -16,5 +16,5 @@
 - [x] 3.1 Record the modified repository-governance requirement, design, and
   scope.
 - [x] 3.2 Bind the active Claim and dated Chronicle.
-- [ ] 3.3 Run focused tests, strict OpenSpec validation, lifecycle and claim
+- [x] 3.3 Run focused tests, strict OpenSpec validation, lifecycle and claim
   gates, then exact-HEAD proof before candidate integration.

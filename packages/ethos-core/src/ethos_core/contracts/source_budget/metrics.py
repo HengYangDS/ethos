@@ -72,6 +72,20 @@ class MetricContract(carrier.FrozenContract):
         return value
 
 
+def _canonical_metric_contracts(
+    contracts: tuple[MetricContract, ...],
+) -> tuple[MetricContract, ...]:
+    try:
+        return tuple(
+            MetricContract.model_validate(
+                p.BaseModel.model_dump(item, mode="python", by_alias=True, warnings="error")
+            )
+            for item in contracts
+        )
+    except (AttributeError, TypeError, ValueError):
+        err(_C + "atoms must be canonical")
+
+
 class MetricContractSet(carrier._Registry):
     """Complete immutable profile and metric registry."""
 
@@ -83,7 +97,9 @@ class MetricContractSet(carrier._Registry):
     def model_post_init(self, _context: t.Any) -> None:
         """Reject duplicate, dangling, incomplete, or role-mismatched contracts."""
         ps, cs = self.profiles, self.contracts
-        self.contract_version == 3 or err(_C + "version must be 3")
+        (type(self.contract_version) is int and self.contract_version == 3) or err(
+            _C + "version must be 3"
+        )
         mismatched = sorted(
             c.contract_id for c in cs if c.contract_version != self.contract_version
         )
@@ -137,6 +153,14 @@ class MetricContractSetLoad:
             _L,
             "requires typed contracts",
         )
+        if self.contracts is None:
+            return
+        if type(self.contracts) is not MetricContractSet:
+            err(_L + "requires typed contracts")
+        (
+            type(self.contracts.contract_version) is int and self.contracts.contract_version == 3
+        ) or err(_C + "version must be 3")
+        _canonical_metric_contracts(self.contracts.contracts)
 
 
 def validate_metric_contracts(payload: object) -> MetricContractSet:
@@ -164,6 +188,7 @@ def metric_provider_resource_contract(
 ) -> tuple[t.Literal["bounded_in_process_v1"], int]:
     """Return one exact provider resource contract for resolved metric atoms."""
     contracts or err(_C + "provider contracts must not be empty")
+    contracts = _canonical_metric_contracts(contracts)
     providers = {
         (
             item.parser_id,
@@ -184,6 +209,10 @@ def resolve_metric_contracts(
     identity: carrier.CarrierIdentity, contracts: MetricContractSet
 ) -> tuple[MetricContract, ...]:
     """Resolve the complete declared metric vector for one measured carrier."""
+    type(contracts) is MetricContractSet or err(_C + "registry must be canonical")
+    (type(contracts.contract_version) is int and contracts.contract_version == 3) or err(
+        _C + "version must be 3"
+    )
     if identity.disposition == "exclude":
         return ()
     profile_id = identity.metric_profile

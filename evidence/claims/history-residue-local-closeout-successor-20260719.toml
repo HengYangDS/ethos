@@ -7,7 +7,7 @@ summary = "The active July 19 successor binds historical local-state maintenance
 
 [evidence]
 dated = "evidence/chronicle/history-residue-local-closeout-successor-20260719/2026-07-19.md"
-sha256 = "0dea83376cb438178a29b3b1b70f2c539c599767ee8bdb55d582e869c19012ca"
+sha256 = "72c00b55615e66361830385acb89636523979b55dd829b0044df535847562930"
 evidence_ids = ["evidence:history-residue-local-closeout-successor-20260719"]
 binding = "Raw-byte Chronicle digest binding for the historical operator receipt, live budget settlement, and local lifecycle boundary; final HEAD-bound proof remains separate."
 verifier = "digest_only"

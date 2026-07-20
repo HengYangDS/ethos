@@ -3183,14 +3183,17 @@ incompatible data.
 
 #### Scenario: Former profile normalizes to the current contract
 - **WHEN** an adopter profile contains the historical version metadata and
-  repository metadata with their declared historical values
+  repository metadata with their declared historical values, including the former
+  `roots.rules = "."` workaround for one root-level normative file
 - **THEN** ETHOS SHALL load the profile as valid current contract data
 - **AND** it SHALL preserve current typed roots, proof gates, and OpenSpec
   material paths.
+- **AND THEN** it SHALL derive `normative_sources = ["guidelines.md"]` only when
+  that field was not already declared.
 
 #### Scenario: Unsupported legacy data remains blocked
 - **WHEN** an adopter profile contains an unknown field, an invalid path, or a
-  malformed retired field
+  malformed retired field, or a current profile uses `roots.rules = "."`
 - **THEN** ETHOS SHALL report
   `adopter_profile_invalid:.ethos/profile.toml`
 - **AND** it SHALL not silently ignore or reinterpret the data.

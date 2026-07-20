@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-07-20
+goal: Resolve the DDWG profile bootstrap deadlock through a bounded
+  legacy-normalization bridge.

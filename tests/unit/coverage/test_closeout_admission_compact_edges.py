@@ -66,6 +66,8 @@ def test_admission_and_prewrite_fail_closed_edges(tmp_path: Path, monkeypatch: p
     workspace = {"role": "work_lane", "branch": "work/x", "closeout_support": {"supported": True, "claim_binding": "missing"}}  # fmt: skip
     claim_report = {"ok": False, "required_gaps": ["claim_invalid"], "claims": {}}
     assert "work_lane_claim_binding_missing:work/x" in trust.trust_closeout_package(workspace=workspace, claims=claim_report)["required_gaps"]  # fmt: skip
+    bound_workspace = {"role": "work_lane", "branch": "work/x", "closeout_support": {"supported": True, "claim_binding": "bound"}}  # fmt: skip
+    assert "work_lane_claim_binding_missing:work/x" not in trust.trust_closeout_package(workspace=bound_workspace, claims=claim_report)["required_gaps"]  # fmt: skip
     _patch(monkeypatch, adm, workspace_status=lambda *_args, **_kwargs: {"role": "work_lane", "branch": "work/x", "changed_paths": []})  # fmt: skip
 
     def request(layer: str, **values: object) -> dict[str, object]:

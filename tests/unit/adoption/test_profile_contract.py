@@ -6,6 +6,7 @@ import pytest
 from pydantic import ValidationError
 
 from ethos.repository.profile import RepositoryProfileDeclaration
+from ethos.repository.profile import _normalize_legacy_profile_payload
 from ethos.repository.profile import load_repository_profile
 from ethos.repository.profile import profile_evidence_roots
 from ethos.repository.profile import profile_root
@@ -112,6 +113,12 @@ def test_profile_contract_rejects_non_string_paths() -> None:
                 "roots": {"claims": 1},
             }
         )
+
+
+def test_legacy_profile_normalizer_preserves_non_mapping_input() -> None:
+    payload = ("not", "a", "profile")
+
+    assert _normalize_legacy_profile_payload(payload) is payload
 
 
 def test_legacy_profile_envelope_normalizes_to_current_contract(tmp_path: Path) -> None:

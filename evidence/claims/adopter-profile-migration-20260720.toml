@@ -7,7 +7,7 @@ summary = "Bounded former-profile normalization, explicit normative file sources
 
 [evidence]
 dated = "evidence/chronicle/adopter-profile-migration-20260720/2026-07-20.md"
-sha256 = "11ec8017b08f2225589b35429cca83533be37c94c52e587985ccc734763fdc53"
+sha256 = "21fd9f7d642ebc436a1172f2397374174997cdee67976a6cb2d18e4417cdd216"
 evidence_ids = ["evidence:adopter-profile-migration-20260720"]
 binding = "The archived OpenSpec Change, strict profile tests, JSON-boundary tests, and dated Chronicle delimit this product repair."
 verifier = "digest_only"

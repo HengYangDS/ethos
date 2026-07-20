@@ -28,10 +28,10 @@ NATIVE_MODULE = "ethos.adapters.repo.source_budget.measurement.native.core"
 REVIEWED_CONFORMANCE_DIGESTS = {
     "c4": "5f8bac5ef288997b60fb1cedaf08790c8ae1adc5c0471a57f36318e10d35735c",
     "ini": "b502516798252b49f65c0a9a0113e1abc12c9e0f90e782fd20a8af11f18eb2fa",
-    "jinja": "93148cb5ccf204577951d9147b36a2cb6eb21c3de6caec0622b2efeb7fa6927a",
+    "jinja": "337d89fad45ac03517fd3b60d090a8d850f60714b11cd894e0aa8bedf4ca068b",
     "json": "9f66c10e9ca91655f6b6efc1a212d1f28b5a17bba80431a671e63838559e1752",
     "python": "ce3459c91f2d4185791ff067dfb52bba4b53930c2c9e8a1b6ffbd1597a561176",
-    "shell": "150512ab51042005ef1344fdefc0124552cb8da86c1fb9106a367708984e8496",
+    "shell": "a4d8d0b5590b4c69b298cbceb4655c9c551948fda7781e4be0bc667a90fc03c7",
     "toml": "4e0a08136432076ce5771746128ef9079c8d839b980157104464a93c5129e2e1",
     "utf8-control": "45d13f0f9cd68df46c317ad4d10d720cfdde11e5ab95d062a64b0938398d0e50",
     "utf8-footprint": "156f5c6465dbf820bdf522220411dbf5f072e53edb3b4866a0e188f4bb92f23d",
@@ -314,6 +314,20 @@ def test_jinja_dynamic_payload_bytes_cannot_be_laundered_by_ast_unit_count() -> 
     assert short["template_dynamic_units"] == long["template_dynamic_units"]
     assert long["template_dynamic_bytes"] > short["template_dynamic_bytes"]
     assert short["template_static_bytes"] == long["template_static_bytes"] == 0
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "{{ 1e999 }}",
+        "{{ 1e999999999999999999999999999999999999999999999999999999999999 }}",
+    ],
+)
+def test_jinja_non_finite_literals_fail_closed(source: str) -> None:
+    load = _native().measure_native(source.encode(), _contracts("template-jinja-v2"))
+
+    assert load.measurement is None
+    assert load.required_gaps == ("source_budget_native_parse_failed:jinja",)
 
 
 def test_malformed_jinja_returns_no_partial_vector() -> None:

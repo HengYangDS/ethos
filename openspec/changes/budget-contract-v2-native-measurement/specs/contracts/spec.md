@@ -36,7 +36,7 @@ without ambiguity.
 - **THEN** programming source SHALL produce significant lexical tokens and canonical normalized bytes
 - **AND** semicolon statement packing SHALL NOT reduce either Python coordinate relative to equivalent newline-separated statements
 - **AND** structured declarations SHALL produce semantic nodes and canonical scalar bytes independent of pretty printing or declaration order
-- **AND** Jinja SHALL be parsed without rendering and SHALL separately emit dynamic AST units, canonical dynamic AST payload bytes, and static data/comment payload bytes
+- **AND** Jinja SHALL be parsed without rendering, SHALL reject non-finite numeric AST leaves, SHALL use strict canonical JSON, and SHALL separately emit dynamic AST units, canonical dynamic AST payload bytes, and static data/comment payload bytes
 - **AND** those three Jinja coordinates SHALL be non-compensating, so equal node counts SHALL NOT hide larger dynamic literals and static/comment bytes SHALL NOT offset dynamic growth
 - **AND** the parse-only provider SHALL bind a product-owned `template_source` carrier without restoring adoption scaffold templates or an adoption rendering surface
 - **AND** the measurement classifier SHALL NOT by itself admit a new tracked template extension without a separately governed format and execution owner
@@ -45,8 +45,9 @@ without ambiguity.
 #### Scenario: Finite shell and YAML grammars preserve admitted semantics
 
 - **WHEN** governed shell or YAML source is measured
-- **THEN** Shell v3 SHALL track command, function-header, case subject/pattern/body/closure, group, redirection, and heredoc state explicitly
+- **THEN** Shell v4 SHALL track command, function-header, case subject/pattern/body/closure, group, redirection, and heredoc state explicitly
 - **AND** shell arithmetic shifts SHALL remain arithmetic rather than heredoc operators, case keywords SHALL be interpreted only in the matching case phase, reserved spellings outside reserved-word position SHALL remain word text, Zsh `${(j:,:)items}` SHALL remain a parameter expansion, quote-removed heredoc delimiter fragments SHALL NOT be expanded, and an unterminated backtick inside double quotes SHALL fail closed
+- **AND** adjacent nested command, process, quoted, and arithmetic substitution closers SHALL be selected from active group context rather than longest-prefix text alone
 - **AND** a scanner iteration that cannot advance SHALL fail closed rather than loop
 - **AND** YAML SHALL use complete YAML 1.2 Core scalar resolution with strict bool/int/float/null constructors and SHALL reject a non-1.2 version directive
 - **AND** YAML mapping-key uniqueness SHALL compare scalar tag plus canonical scalar frame, preserve tag-distinct Python-equal keys in typed storage, and reject same-tag canonical duplicates
@@ -57,7 +58,7 @@ without ambiguity.
 
 - **WHEN** content has invalid UTF-8, parser failure, duplicate structured keys, non-finite values, unsafe YAML tags or graph structure, malformed Jinja, unterminated shell constructs, malformed C4 records, or a grammar/version mismatch
 - **THEN** ETHOS SHALL return no native or carrier measurement
-- **AND** local memory/resource exhaustion SHALL map to a stable resource-exhausted gap without exception text, descriptor data, absolute paths, or partial coordinates
+- **AND** local memory or recursion exhaustion SHALL map to a stable resource-exhausted gap without exception text, descriptor data, absolute paths, or partial coordinates
 - **AND** it SHALL return stable non-empty required gaps without library exception text or partial coordinates.
 
 ### Requirement: Deterministic Fail-Closed Measurement Aggregation

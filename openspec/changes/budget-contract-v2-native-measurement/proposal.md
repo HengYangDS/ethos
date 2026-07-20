@@ -35,9 +35,10 @@ plausible but untrustworthy vector.
 - Extend the metric contract owner and generated JSON Schema with Jinja's three
   non-compensating coordinates: dynamic units, canonical dynamic payload bytes,
   and static data/comment bytes.
-- Implement Shell v3 in the semantic `measurement/native/shell/` subpackage,
+- Implement Shell v4 in the semantic `measurement/native/shell/` subpackage,
   including function headers, case phases, Zsh parameter forms, quote-removed
-  heredoc words, line continuations, and fail-closed no-progress guards.
+  heredoc words, line continuations, contextual nested substitution closers,
+  recursion-exhaustion classification, and fail-closed no-progress guards.
 - Make YAML 1.2 key uniqueness compare tag plus canonical scalar identity while
   preserving tag-distinct Python-equal keys in typed storage rather than a
   lossy Python dictionary.
@@ -53,7 +54,7 @@ plausible but untrustworthy vector.
   exception or eagerly import the provider.
 - Add an adversarial corpus encoded in one test-domain TOML carrier and tests
   for formatting games, identifier shortening, giant payloads, duplicate keys,
-  non-finite values, unsafe YAML graphs/tags, invalid UTF-8, BOM/CRLF,
+  non-finite structured and Jinja values, unsafe YAML graphs/tags, invalid UTF-8, BOM/CRLF,
   unavailable or mismatched providers, symlink/object swaps, reversed order,
   domain movement, digest forgery, and partial-result rejection.
 - Map memory/resource exhaustion to stable non-sensitive gaps, close every

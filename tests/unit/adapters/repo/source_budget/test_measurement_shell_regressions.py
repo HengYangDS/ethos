@@ -303,6 +303,41 @@ def test_shell_accepts_mixed_nested_substitution() -> None:
     assert _success("shell-nested-substitution").values
 
 
+@pytest.mark.parametrize(
+    "source",
+    [
+        "echo $(echo $(date))\n",
+        "echo <(cat <(printf x))\n",
+        'value="$(echo $(date))"\n',
+        'echo "$((1 + $(printf 2)))"\n',
+    ],
+)
+def test_shell_accepts_contextual_nested_substitution_closers(source: str) -> None:
+    load = native_core.measure_native(source.encode(), _contracts("shell-source-v2"))
+
+    assert load.required_gaps == ()
+    assert load.measurement is not None
+
+
+@pytest.mark.parametrize(
+    ("depth", "expected_gap"),
+    [
+        (20, None),
+        (200, "source_budget_native_resource_exhausted"),
+    ],
+)
+def test_shell_deep_parameter_expansion_reports_resource_exhaustion(
+    depth: int,
+    expected_gap: str | None,
+) -> None:
+    source = "echo " + ("${x:-" * depth) + "z" + ("}" * depth) + "\n"
+
+    load = native_core.measure_native(source.encode(), _contracts("shell-source-v2"))
+
+    assert load.required_gaps == (() if expected_gap is None else (expected_gap,))
+    assert (load.measurement is not None) is (expected_gap is None)
+
+
 def test_shell_rejects_unclosed_group_inside_substitution() -> None:
     _failure(
         "shell-unclosed-group-in-substitution",

@@ -454,9 +454,13 @@ def _shell_operator(
     *,
     command_start: bool,
 ) -> str | None:
-    operator = next(
-        (item for item in _SHELL_OPERATORS if text.startswith(item, index)),
-        None,
+    operator = (
+        groups[-1]
+        if groups and text.startswith(groups[-1], index)
+        else next(
+            (item for item in _SHELL_OPERATORS if text.startswith(item, index)),
+            None,
+        )
     )
     if operator in {"[[", "{"} and (
         not command_start or not _operator_word_boundary(text, index + len(operator))

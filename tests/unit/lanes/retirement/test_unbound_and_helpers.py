@@ -471,3 +471,38 @@ def test_predelete_recheck_blocks_drift(
     report = _apply(repo, branch, head, chronicle)
     assert report["required_gaps"] == list(gaps)
     assert git(repo, "rev-parse", "--verify", branch) == head
+
+
+def test_owner_unavailable_effect_wrapper_revokes_exact_generation(tmp_path: Path) -> None:
+    """The unavailable-owner wrapper preserves the source-holder CAS tuple."""
+    from ethos.adapters.store.state.lease.lifecycle.effects import (  # noqa: PLC0415, RUF100
+        revoke_owner_unavailable_lease,
+    )
+
+    branch = "work/owner-unavailable"
+    holder = "agent:test:session:unavailable-owner"
+    head = "b" * 40
+    lease = state.acquire_lease(
+        tmp_path / "state.sqlite",
+        subject=branch,
+        holder_ref=holder,
+        payload={"branch": branch, "expected_head": head},
+    )
+
+    revoked = revoke_owner_unavailable_lease(
+        tmp_path / "state.sqlite",
+        subject=branch,
+        source_holder_ref=holder,
+        expected_lease_id=str(lease["lease_id"]),
+        expected_epoch=int(lease["epoch"]),
+        expected_head=head,
+    )
+
+    assert revoked == {
+        "revoked": True,
+        "subject": branch,
+        "lease_id": lease["lease_id"],
+        "holder_ref": holder,
+        "epoch": lease["epoch"],
+        "expected_head": head,
+    }

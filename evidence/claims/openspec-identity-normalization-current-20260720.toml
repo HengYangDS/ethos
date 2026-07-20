@@ -7,7 +7,7 @@ summary = "One current Work Lane normalizes OpenSpec logical Change identities a
 
 [evidence]
 dated = "evidence/chronicle/openspec-identity-normalization-current-20260720/2026-07-20.md"
-sha256 = "6a3b8386d5e091a94970dd0c5e9d5a9ed6d5c44aafb1318d8fb503ba9a358bea"
+sha256 = "09bc1b158cb9daa00e1f30280948d37f27afe23e58b3039c3f45faff02b96b58"
 evidence_ids = ["evidence:openspec-identity-normalization-current-20260720"]
 binding = "This Claim binds one current owned lane, the observed archive-identity inventory, deterministic tracked-path normalization, and the date-free logical Change-ID guard. It excludes foreign-lane changes, private runtime-state repair, remote effects, and provider-specific behavior."
 verifier = "digest_only"

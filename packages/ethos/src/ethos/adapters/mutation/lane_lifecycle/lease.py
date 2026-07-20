@@ -1,193 +1,152 @@
-"""Product operations over generation-bound local Lane Leases.
-
-These operations bind one exact request to Git and ignored SQLite observations.
-They coordinate cooperative writers; they do not mint identity or authority.
-"""
+"""Generation-bound local Lane Lease operations."""
 
 from __future__ import annotations
 
-from pathlib import Path
+import inspect
+from typing import TYPE_CHECKING
 from typing import Any
-from typing import cast
 
 from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.mutation.lane_lifecycle.core import repo_root
 from ethos.adapters.mutation.lane_lifecycle.core import run_git
+from ethos.adapters.repo.status.bindings import accepted_worktree_root
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.adapters.store.state.lease.lifecycle.core import accept_lease_handoff
 from ethos.adapters.store.state.lease.lifecycle.core import offer_lease_handoff
 from ethos.adapters.store.state.lease.lifecycle.core import renew_lease
 from ethos.adapters.store.state.lease.lifecycle.core import resume_lease
 from ethos.adapters.store.state.lease.projection import integer_value
-from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.coordination import HolderRef
 from ethos_core.contracts.lifecycle.core import LeaseFacts
+from ethos_core.contracts.lifecycle.core import LeaseOperationRequest
+from ethos_core.contracts.lifecycle.core import MutationEvaluation
 from ethos_core.contracts.lifecycle.core import MutationRequest
-from ethos_core.contracts.lifecycle.core import lease_transition
 from ethos_core.contracts.lifecycle.core import reduce_lease_request
+from ethos_core.contracts.workflow import load_workflow_contract_declaration
 
-_LEASE_EFFECTS = {
-    "renew": (renew_lease, "holder_ref expected_epoch ttl_seconds"),
-    "resume": (resume_lease, "holder_ref expected_epoch ttl_seconds"),
-    "handoff_offer": (
-        offer_lease_handoff,
-        "holder_ref expected_epoch target_holder_ref",
-    ),
-    "handoff_accept": (
-        accept_lease_handoff,
-        "target_holder_ref offer_id expected_epoch holder_quiesced ttl_seconds",
-    ),
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    from pathlib import Path
+
+    from ethos_core.contracts.lifecycle.core import LeaseTransition
+
+_LEASE_EFFECTS: dict[str, Callable[..., dict[str, Any]]] = {
+    "renew": renew_lease,
+    "resume": resume_lease,
+    "handoff_offer": offer_lease_handoff,
+    "handoff_accept": accept_lease_handoff,
 }
 
 
-def renew_work_lane_lease(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
-    *,
-    root: Path,
-    branch: str,
-    holder_ref: str,
-    lease_id: str,
-    epoch: int,
-    expect_head: str,
-    ttl_seconds: int,
-    apply: bool,
-) -> dict[str, object]:
-    """Renew one exact, unexpired local lease generation."""
-    return _lease_lifecycle_operation("renew", locals())
-
-
-def resume_work_lane_lease(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
-    *,
-    root: Path,
-    branch: str,
-    holder_ref: str,
-    lease_id: str,
-    epoch: int,
-    expect_head: str,
-    ttl_seconds: int,
-    contrary_decision: bool,
-    apply: bool,
-) -> dict[str, object]:
-    """Resume one expired lease only for its previous holder and generation."""
-    return _lease_lifecycle_operation(
-        "resume",
-        locals()
-        | {"extra_gaps": ("lease_resume_blocked_by_decision",) if contrary_decision else ()},
-    )
-
-
-def offer_work_lane_handoff(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
-    *,
-    root: Path,
-    branch: str,
-    holder_ref: str,
-    target_holder_ref: str,
-    lease_id: str,
-    epoch: int,
-    expect_head: str,
-    apply: bool,
-) -> dict[str, object]:
-    """Offer one local holder handoff without changing the current holder."""
-    return _lease_lifecycle_operation("handoff_offer", locals())
-
-
-def accept_work_lane_handoff(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
-    *,
-    root: Path,
-    branch: str,
-    target_holder_ref: str,
-    offer_id: str,
-    lease_id: str,
-    epoch: int,
-    expect_head: str,
-    holder_quiesced: bool,
-    ttl_seconds: int,
-    apply: bool,
-) -> dict[str, object]:
-    """Accept one exact offer and replace the local holder plus generation."""
-    return _lease_lifecycle_operation(
-        "handoff_accept",
-        locals()
-        | {
-            "holder_ref": target_holder_ref,
-            "confirmation_present": holder_quiesced,
-            "extra_gaps": () if holder_quiesced else ("holder_quiescence_confirmation_required",),
-        },
-    )
-
-
-def _lease_lifecycle_operation(operation: str, values: dict[str, Any]) -> dict[str, object]:
-    root = cast("Path", values["root"])
-    branch = str(values["branch"])
-    lease_id = str(values["lease_id"])
-    epoch = cast("int | None", values.get("epoch"))
-    expect_head = str(values["expect_head"])
-    ttl_seconds = cast("int", values.get("ttl_seconds", 86_400))
-    apply = bool(values["apply"])
+def execute_lease_operation(*, root: Path, request: LeaseOperationRequest) -> dict[str, object]:
+    """Evaluate and optionally execute one declaration-owned lease transition."""
     repo = repo_root(root)
     status = workspace_status(repo)
-    expected_state, holder_gaps = _lease_expected_state(
-        repo,
-        values,
-    )
-    transition = lease_transition(operation)
-    evaluation = reduce_lease_request(
-        transition,
-        LeaseFacts(
-            role=str(status.get("role") or ""),
-            current_branch=str(status.get("branch") or ""),
-            current_head=run_git(repo, "rev-parse", "HEAD").stdout.strip(),
-            branch=branch,
-            expect_head=expect_head,
-            lease_id=lease_id,
-            epoch=epoch,
-            ttl_seconds=ttl_seconds,
-            offer_id=str(values.get("offer_id") or ""),
-            apply=apply,
-            initial_gaps=cast("tuple[str, ...]", values.get("extra_gaps", ())) + holder_gaps,
-        ),
-    )
-    request = MutationRequest(
-        command=f"lane-{operation.replace('_', '-')}",
-        apply=apply,
-        authorized=bool(values.get("confirmation_present")),
-        expect_head=expect_head or None,
-    )
-    result: dict[str, object] = {
-        "ok": evaluation.ok,
-        "state": evaluation.state,
-        "branch": branch,
-        "lease": {},
-        "handoff_offer": {},
-        "receipt": {},
-        "required_gaps": list(evaluation.gaps),
-    }
-    if apply and evaluation.ok:
+    expected_state, holder_gaps = _lease_expected_state(repo, request)
+    transition, effect, contract_gaps = _lease_effect_binding(repo, request.operation)
+
+    if transition is None or contract_gaps:
+        evaluation = MutationEvaluation(
+            ok=False,
+            state="blocked",
+            gaps=tuple(dict.fromkeys((*contract_gaps, *holder_gaps))),
+        )
+    else:
+        evaluation = reduce_lease_request(
+            transition,
+            LeaseFacts(
+                role=str(status.get("role") or ""),
+                current_branch=str(status.get("branch") or ""),
+                current_head=run_git(repo, "rev-parse", "HEAD").stdout.strip(),
+                branch=request.branch,
+                holder_ref=request.holder_ref,
+                target_holder_ref=request.target_holder_ref,
+                expect_head=request.expect_head,
+                lease_id=request.lease_id,
+                expected_epoch=request.expected_epoch,
+                ttl_seconds=request.ttl_seconds,
+                offer_id=request.offer_id,
+                holder_quiesced=request.holder_quiesced,
+                contrary_decision=request.contrary_decision,
+                apply=request.apply,
+                initial_gaps=holder_gaps,
+            ),
+        )
+
+    ok, state, gaps = evaluation.ok, evaluation.state, evaluation.gaps
+    lease: dict[str, object] = {}
+    handoff_offer: dict[str, object] = {}
+    receipt: dict[str, object] = {}
+    if request.apply and ok and effect is not None and transition is not None:
+        arguments = request.model_dump()
+        arguments.update(
+            holder_ref=str(expected_state["holder_ref"]),
+            target_holder_ref=str(expected_state["target_holder_ref"]),
+        )
+        effect_arguments = {field: arguments[field] for field in transition.effect_fields}
+        database = (
+            accepted_worktree_root(status.get("worktrees"), repo) / ".ethos/state/state.sqlite"
+        )
         try:
-            effect = _apply_lease_effect(
-                operation,
-                state_root(status, repo) / ".ethos" / "state" / "state.sqlite",
-                expected_state,
-                values,
+            inspect.signature(effect).bind(
+                database,
+                subject=request.branch,
+                expected_lease_id=request.lease_id,
+                expected_head=request.expect_head,
+                **effect_arguments,
             )
-        except ValueError as exc:
-            result.update(ok=False, state="blocked", required_gaps=[str(exc)])
+        except (KeyError, TypeError):
+            ok, state, gaps = (
+                False,
+                "blocked",
+                (f"lease_effect_contract_invalid:{request.operation}",),
+            )
         else:
-            result["handoff_offer" if operation == "handoff_offer" else "lease"] = effect
-            result["state"] = transition.applied_state
-            result["receipt"] = _lease_operation_receipt(
-                operation=operation,
-                branch=branch,
-                effect=effect,
-            )
+            try:
+                payload = effect(
+                    database,
+                    subject=request.branch,
+                    expected_lease_id=request.lease_id,
+                    expected_head=request.expect_head,
+                    **effect_arguments,
+                )
+            except ValueError as exc:
+                ok, state, gaps = False, "blocked", (str(exc),)
+            else:
+                if "offer_id" in payload:
+                    handoff_offer = payload
+                else:
+                    lease = payload
+                state = transition.applied_state
+                receipt = _lease_operation_receipt(
+                    operation=request.operation,
+                    branch=request.branch,
+                    effect=payload,
+                )
+
+    result: dict[str, object] = {
+        "ok": ok,
+        "state": state,
+        "branch": request.branch,
+        "lease": lease,
+        "handoff_offer": handoff_offer,
+        "receipt": receipt,
+        "required_gaps": list(gaps),
+    }
     result["mutation"] = mutation_envelope(
-        request,
-        action=f"lane.lease.{operation.replace('_', '.')}",
-        resource=f"refs/heads/{branch}",
+        MutationRequest(
+            command=f"lane-{request.operation.replace('_', '-')}",
+            apply=request.apply,
+            authorized=request.holder_quiesced,
+            expect_head=request.expect_head or None,
+        ),
+        action=f"lane.lease.{request.operation.replace('_', '.')}",
+        resource=f"refs/heads/{request.branch}",
         expected_state=expected_state,
-        verdict=cast("Any", "allow" if result["ok"] else "block"),
-        required_gaps=tuple(map(str, cast("list[object]", result["required_gaps"]))),
-        why=(str(result["state"]),) if result["ok"] else (),
-        state=str(result["state"]),
+        verdict="allow" if ok else "block",
+        required_gaps=gaps,
+        why=(state,) if ok else (),
+        state=state,
         identity_basis="holder_ref_equality",
         evidence_boundary="current_git_and_local_lease_observation",
         enforcement_boundary="local_sqlite_compare_and_swap",
@@ -196,67 +155,64 @@ def _lease_lifecycle_operation(operation: str, values: dict[str, Any]) -> dict[s
     return result
 
 
-def _lease_expected_state(
-    repo: Path, values: dict[str, Any]
-) -> tuple[dict[str, object], tuple[str, ...]]:
-    expected_state: dict[str, object] = {
-        "root": repo.resolve().as_posix(),
-        "branch": str(values["branch"]),
-        "head": str(values["expect_head"]),
-        "holder_ref": str(values["holder_ref"]),
-        "lease_id": str(values["lease_id"]),
-        "epoch": cast("int | None", values.get("epoch")) or 0,
-        "target_holder_ref": str(values.get("target_holder_ref") or ""),
-        "offer_id": str(values.get("offer_id") or ""),
-    }
+def _lease_effect_binding(
+    repo: Path, operation: str
+) -> tuple[
+    LeaseTransition | None,
+    Callable[..., dict[str, Any]] | None,
+    tuple[str, ...],
+]:
+    """Bind one declared operation to its exact local effect capability."""
     try:
-        for field in ("holder_ref", "target_holder_ref"):
-            value = str(expected_state[field])
-            if value or field == "holder_ref":
-                expected_state[field] = HolderRef.parse(value).serialize()
-    except ValueError:
-        return expected_state, ("holder_ref_invalid",)
-    return expected_state, ()
-
-
-def _apply_lease_effect(
-    operation: str,
-    db_path: Path,
-    expected_state: dict[str, object],
-    values: dict[str, Any],
-) -> dict[str, object]:
+        transitions = load_workflow_contract_declaration(repo).lease_transition
+    except (OSError, ValueError):
+        return None, None, ("lease_transition_contract_invalid",)
+    transition = next((item for item in transitions if item.id == operation), None)
+    if transition is None:
+        return None, None, (f"lease_transition_unknown:{operation}",)
+    effect = _LEASE_EFFECTS.get(transition.id)
+    if effect is None:
+        return transition, None, (f"lease_effect_unknown:{transition.id}",)
     try:
-        handler, fields = _LEASE_EFFECTS[operation]
-    except KeyError:
-        raise ValueError(f"lease_operation_unknown:{operation}") from None  # noqa: EM102, RUF100 - machine-readable gap token is the exception contract
-    arguments = {
-        "holder_ref": str(expected_state["holder_ref"]),
-        "target_holder_ref": str(expected_state["target_holder_ref"]),
-        "offer_id": str(values.get("offer_id") or ""),
-        "expected_epoch": cast("int | None", values.get("epoch")) or 0,
-        "holder_quiesced": bool(values.get("holder_quiesced")),
-        "ttl_seconds": cast("int", values.get("ttl_seconds", 86_400)),
-    }
-    return cast("Any", handler)(
-        db_path,
-        subject=str(values["branch"]),
-        expected_lease_id=str(values["lease_id"]),
-        expected_head=str(values["expect_head"]),
-        **{field: arguments[field] for field in fields.split()},
+        effect_fields = set(inspect.signature(effect).parameters) - {
+            "db_path",
+            "subject",
+            "expected_lease_id",
+            "expected_head",
+        }
+    except (TypeError, ValueError):
+        return transition, effect, (f"lease_effect_contract_invalid:{transition.id}",)
+    gaps = (
+        ()
+        if set(transition.effect_fields) == effect_fields
+        else (f"lease_effect_contract_invalid:{transition.id}",)
     )
+    return transition, effect, gaps
 
 
-def state_root(status: dict[str, object], default_root: Path) -> Path:
-    """Resolve the accepted checkout that owns Git-common-directory local state."""
-    worktrees = status.get("worktrees")
-    if isinstance(worktrees, list):
-        for worktree in worktrees:
-            if not isinstance(worktree, dict):
-                continue
-            payload = cast("dict[str, object]", worktree)
-            if payload.get("role") == ROLE_ACCEPTED_ROOT and payload.get("path"):
-                return Path(str(payload["path"]))
-    return default_root
+def _lease_expected_state(
+    repo: Path, request: LeaseOperationRequest
+) -> tuple[dict[str, object], tuple[str, ...]]:
+    expected: dict[str, object] = {
+        "root": repo.resolve().as_posix(),
+        "branch": request.branch,
+        "head": request.expect_head,
+        "holder_ref": request.holder_ref,
+        "lease_id": request.lease_id,
+        "epoch": request.expected_epoch or 0,
+        "target_holder_ref": request.target_holder_ref,
+        "offer_id": request.offer_id,
+    }
+    gaps: list[str] = []
+    for field in ("holder_ref", "target_holder_ref"):
+        value = str(expected[field])
+        if not value and field == "target_holder_ref":
+            continue
+        try:
+            expected[field] = HolderRef.parse(value).serialize()
+        except ValueError:
+            gaps.append(f"{field}_invalid")
+    return expected, tuple(gaps)
 
 
 def _lease_operation_receipt(

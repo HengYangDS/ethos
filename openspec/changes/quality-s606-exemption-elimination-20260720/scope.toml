@@ -10,4 +10,5 @@ paths = [
   "openspec/changes/quality-s606-exemption-elimination-20260720/**",
   "evidence/claims/quality-s606-exemption-elimination-20260720.toml",
   "evidence/chronicle/quality-s606-exemption-elimination-20260720/**",
+  "evidence/parity/generic-shadow.json",
 ]

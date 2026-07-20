@@ -4,7 +4,7 @@ paths = [
   "evidence/chronicle/ddwg-legacy-profile-bootstrap-bridge-20260721/**",
   "evidence/claims/ddwg-legacy-profile-bootstrap-bridge-20260721.toml",
   "evidence/parity/generic-shadow.json",
-  "openspec/changes/ddwg-legacy-profile-bootstrap-bridge/**",
+  "openspec/changes/archive/2026-07-20-ddwg-legacy-profile-bootstrap-bridge/**",
   "openspec/specs/repository-governance/spec.md",
   "packages/ethos/src/ethos/repository/profile.py",
   "tests/unit/adoption/test_profile_contract.py",

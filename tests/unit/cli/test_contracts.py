@@ -125,14 +125,14 @@ def test_primary_commands_use_same_context_for_adopted_repository(
     tmp_path: Path,
 ) -> None:
     repo = init_git_repo(tmp_path / "repo")
-    adoption_plan(repo, profile="generic", apply=True)
+    adoption_plan(repo, apply=True)
 
     for command in PRIMARY_COMMANDS_WITH_GOVERNANCE_CONTEXT:
         runner = run_ethos_blocked if command[0] == "prove" else run_ethos
         payload = runner(*command[:-1], "--root", repo.as_posix(), command[-1])
 
         context = payload["governance_context"]
-        _assert_governed_repository_context(context, profile="generic")
+        _assert_governed_repository_context(context, profile="adopter")
         assert context["subject"]["id"] == str(repo.resolve())
 
     status_payload = run_ethos("status", "--root", repo.as_posix(), "--json")
@@ -238,7 +238,7 @@ def test_quality_docs_registry_surfaces_all_required_gaps(tmp_path: Path) -> Non
 
 
 def test_emit_handles_closed_pipes(monkeypatch) -> None:
-    def closed_pipe(*args, **kwargs) -> None:
+    def closed_pipe(*_args, **_kwargs) -> None:
         raise BrokenPipeError
 
     monkeypatch.setattr(builtins, "print", closed_pipe)
@@ -247,7 +247,7 @@ def test_emit_handles_closed_pipes(monkeypatch) -> None:
 
 
 def test_emit_handles_nonblocking_closed_pipes(monkeypatch) -> None:
-    def closed_nonblocking_pipe(*args, **kwargs) -> None:
+    def closed_nonblocking_pipe(*_args, **_kwargs) -> None:
         raise BlockingIOError
 
     monkeypatch.setattr(builtins, "print", closed_nonblocking_pipe)
@@ -336,7 +336,7 @@ def test_plan_changed_surfaces_active_archive_preflight_gap(monkeypatch) -> None
 def test_plan_adopter_surfaces_openspec_lifecycle_gap(monkeypatch, tmp_path: Path) -> None:
     """An adopter plan cannot omit the shared Change lifecycle."""
     repo = init_git_repo(tmp_path / "adopter")
-    adoption_plan(repo, profile="generic", apply=True)
+    adoption_plan(repo, apply=True)
     git(repo, "add", ".")
     git(repo, "commit", "-m", "adopt generic profile")
     lifecycle_payload = {
@@ -346,7 +346,11 @@ def test_plan_adopter_surfaces_openspec_lifecycle_gap(monkeypatch, tmp_path: Pat
     calls: list[tuple[Path, bool, tuple[str, ...]]] = []
 
     def report(
-        root: Path, *, lifecycle: bool = False, changed_paths: tuple[str, ...] = ()
+        root: Path,
+        *,
+        lifecycle: bool = False,
+        changed_paths: tuple[str, ...] = (),
+        **_kwargs: object,
     ) -> dict[str, object]:
         calls.append((root, lifecycle, changed_paths))
         return lifecycle_payload
@@ -702,7 +706,7 @@ def test_openspec_uses_official_native_cli(monkeypatch) -> None:
 
 
 def test_openspec_lifecycle_flag_reports_lifecycle_summary(monkeypatch) -> None:
-    def fake_report(root: Path, *, change: str | None = None, lifecycle: bool = False):
+    def fake_report(_root: Path, *, change: str | None = None, lifecycle: bool = False):
         return {
             "ok": True,
             "official_cli": {

@@ -1,157 +1,28 @@
-# ruff: noqa: TC003, FLY002
-from __future__ import annotations
-
-from pathlib import Path
-
-import ethos.assistants.skills.capabilities as cap
-import ethos.assistants.skills.packages as sp
-from ethos_core.normalization.core import string_list
-
-SKILL_MD = """---
-name: sample
-description: Use when validating sample skill packages.
----
-
-# Sample
-
-## When to Use
-Use when repository truth matters.
-
-## Workflow
-Run ethos status.
-
-## Evidence
-Command JSON is evidence.
-
-## Trust Boundary
-Repository truth is the source of truth.
-"""
+import ethos.assistants.skills.capabilities as c
+import ethos.assistants.skills.packages as p
 
 
-def write_skill(root: Path, manifest_extra: str = "", skill_text: str = SKILL_MD) -> Path:
-    package = root / ".agents" / "skills" / "sample"
+def test_capability_and_package_edges(tmp_path) -> None:
+    items = [None, {"kind": "unknown"}, {"kind": "command_readonly", "command": ["ethos", 1]}, {"kind": "command_proof"}]  # fmt: skip
+    gaps, _records = c.capability_records("s", items)
+    joined = " ".join(gaps)
+    assert all(term in joined for term in ("capability_invalid", "kind_unknown", "command_invalid", "command_missing"))  # fmt: skip
+    contexts = [c.CapabilityValidationContext("s", "c", "script_readonly", command, {}, tmp_path, frozenset()) for command in ([], ["."], ["python3"])]  # fmt: skip
+    assert not any(map(c.is_trusted_readonly_script, contexts))
+    assert not c.is_mutating_command([])
+    assert not c.contained_package_path(tmp_path, tmp_path.as_posix())
+    package = tmp_path / ".agents/skills/bad"
     package.mkdir(parents=True)
-    (package / "SKILL.md").write_text(skill_text, encoding="utf-8")
-    digest = sp.compute_skill_package_digest(package, ["SKILL.md"])
-    (package / "skill-package.toml").write_text(
-        "\n".join(
-            [
-                'id = "sample"',
-                "schema_version = 2",
-                'digest_algorithm = "sha256"',
-                'entrypoint = "SKILL.md"',
-                'include = ["SKILL.md"]',
-                f'expected_digest = "{digest}"',
-                'required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]',
-                manifest_extra,
-            ]
-        ),
-        encoding="utf-8",
-    )
-    return package / "skill-package.toml"
-
-
-def test_skill_package_validates_manifest_digest_markdown_and_capabilities(tmp_path: Path) -> None:
-    manifest = write_skill(
-        tmp_path,
-        "\n".join(
-            [
-                "[[capability]]",
-                'id = "status"',
-                'kind = "command_readonly"',
-                'command = ["ethos", "status", "--json"]',
-                "[[capability]]",
-                'id = "prove"',
-                'kind = "command_proof"',
-                'command = ["ethos", "prove", "--json"]',
-                "[[capability]]",
-                'id = "land"',
-                'kind = "command_mutation_guarded"',
-                'command = ["ethos", "land", "--apply"]',
-                'guard = "prewrite"',
-            ]
-        ),
-    )
-    report = sp.validate_skill_package_manifest(tmp_path, manifest.relative_to(tmp_path).as_posix())
-    assert report["ok"] is True
-    assert len(report["capabilities"]) == 3
-
-
-def test_skill_package_manifest_and_markdown_rejections(tmp_path: Path) -> None:
-    assert (
-        "skill_package_manifest_path_escape:.."
-        in sp.validate_skill_package_manifest(tmp_path, "../skill-package.toml")["required_gaps"]
-    )
-    assert (
-        "skill_package_manifest_missing:missing"
-        in sp.validate_skill_package_manifest(
-            tmp_path, ".agents/skills/missing/skill-package.toml"
-        )["required_gaps"]
-    )
-    package = tmp_path / ".agents" / "skills" / "bad"
-    package.mkdir(parents=True)
-    (package / "skill-package.toml").write_text("[[bad]\n", encoding="utf-8")
-    assert (
-        "skill_package_manifest_invalid_toml:bad"
-        in sp.validate_skill_package_manifest(tmp_path, ".agents/skills/bad/skill-package.toml")[
-            "required_gaps"
-        ]
-    )
-    manifest = write_skill(tmp_path)
-    manifest.write_text(
-        manifest.read_text(encoding="utf-8").replace("sha256:", "sha256:0", 1), encoding="utf-8"
-    )
-    assert (
-        "skill_package_expected_digest_invalid:sample"
-        in sp.validate_skill_package_manifest(tmp_path, manifest.relative_to(tmp_path).as_posix())[
-            "required_gaps"
-        ]
-    )
-    path = tmp_path / "SKILL.md"
-    path.write_text("# No frontmatter\n\n## When to Use\nTBD\n", encoding="utf-8")
-    gaps = sp.validate_skill_markdown(
-        tmp_path,
-        "SKILL.md",
-        "sample",
-        ["When to Use", "Workflow"],
-        placeholder_allowed=False,
-    )["required_gaps"]
-    assert "skill_quality_missing_frontmatter:sample" in gaps
-    assert "skill_quality_missing_section:sample:Workflow" in gaps
-    assert "skill_quality_missing_truth_boundary:sample" in gaps
-    assert "skill_quality_placeholder_section:sample:When to Use" in gaps
-
-
-def test_capability_semantics_and_helpers(tmp_path: Path) -> None:
-    gaps, records = cap.capability_records(
-        "sample",
-        [
-            {"id": "bad-kind", "kind": "unknown"},
-            {"id": "bad-command", "kind": "command_readonly", "command": ["git", "status"]},
-            {"id": "mutating-read", "kind": "command_readonly", "command": ["ethos", "land"]},
-            {"id": "bad-proof", "kind": "command_proof", "command": ["ethos", "status"]},
-            {"id": "unguarded", "kind": "script_mutation_guarded", "command": ["script.sh"]},
-            {"id": "invalid-command", "kind": "command_readonly", "command": ["ethos", 1]},
-            "not-a-dict",
-        ],
-    )
-    assert records
-    for expected in (
-        "skill_package_capability_kind_unknown:sample:unknown",
-        "skill_package_capability_readonly_untrusted:sample:bad-command",
-        "skill_package_capability_readonly_mutating:sample:mutating-read",
-        "skill_package_capability_proof_invalid:sample:bad-proof",
-        "skill_package_capability_guard_missing:sample:unguarded",
-        "skill_package_capability_command_invalid:sample:5",
-        "skill_package_capability_invalid:sample:6",
-    ):
-        assert expected in gaps
-    package = tmp_path / "pkg"
-    package.mkdir()
-    assert cap.contained_package_path(package, "SKILL.md") is True
-    assert cap.contained_package_path(package, "/workspace/outside") is False
-    assert cap.contained_package_path(package, "../outside") is False
-    assert sp._frontmatter_ok("---\nname: x\ndescription: y\n---\n") is True
-    assert sp._section_body("## A\nbody\n## B\nnext", "A") == "body"
-    assert sp._is_placeholder_body(" Coming soon. ") is True
-    assert string_list(["a", 2, ""], drop_empty=True) == ["a", "2"]
+    (package / "package.toml").write_text("[[bad]\n", encoding="utf-8")
+    report = p.validate_skill_package_manifest(tmp_path, ".agents/skills/bad/package.toml")
+    assert report["required_gaps"] == ["skill_package_manifest_invalid_toml:bad"]
+    assert p.validate_skill_markdown(tmp_path, "missing.md", "s")["required_gaps"] == ["skill_missing_file:s"]  # fmt: skip
+    schema = {"schema_version": 2, "digest_algorithm": "sha256", "expected_digest": "sha256:" + "0" * 64}  # fmt: skip
+    assert set(p._manifest_schema_gaps("s", schema)) == {"skill_package_include_missing:s", "skill_package_required_sections_missing:s"}  # fmt: skip
+    long = "---\nname: s\ndescription: Use when " + "x " * 70 + "\n---\n"
+    assert p._frontmatter_gaps("s", long) == ["skill_quality_description_too_long:s"]
+    disclosure = p._progressive_disclosure_gaps("s", "## Workflow\n" + "1. x\n" * 199)
+    assert len(disclosure) == 3
+    assert all(term in " ".join(disclosure) for term in ("entrypoint_too_long", "workflow_too_many_steps"))  # fmt: skip
+    bad = "---\nname: s\ndescription: x\n"
+    assert (p._frontmatter_header(bad), p._frontmatter_ok(bad)) == ("", False)

@@ -36,7 +36,9 @@ def test_config_quality_has_dedicated_policy_not_pyproject_dumping_ground() -> N
     config_readme = (ROOT / ".config" / "README.md").read_text(encoding="utf-8")
 
     assert "[tool.ruff" not in pyproject_text
-    assert "[tool.pytest" not in pyproject_text
+    assert tomllib.loads(pyproject_text).get("tool", {}).get("pytest") == {
+        "ini_options": {"cache_dir": "build/runtime/tool-cache/pytest"}
+    }
     assert "[tool.coverage" not in pyproject_text
     assert "[tool.taplo" not in pyproject_text
     assert "strict-config" not in pyproject_text
@@ -46,7 +48,10 @@ def test_config_quality_has_dedicated_policy_not_pyproject_dumping_ground() -> N
     assert ".config/checks/whitespace/policy.toml" not in config_readme
     assert ".config/checks/shell/.shellcheckrc" in config_readme
     assert "cache routing" in config_readme
-    assert "pyproject.toml` is not a pytest policy" in config_readme
+    assert (
+        "root `pyproject.toml` carries only the pytest discovery cache routing invariant"
+        in config_readme
+    )
 
 
 def test_blank_line_owners_use_native_policies_without_custom_reader() -> None:
@@ -94,9 +99,32 @@ def test_pytest_runtime_cache_stays_out_of_config_plane() -> None:
     assert not (ROOT / "pytest.ini").exists()
     assert (ROOT / "ruff.toml").is_file()
     assert "cache_dir = build/runtime/tool-cache/pytest" in pytest_ini
-    assert "[tool.pytest" not in pyproject_text
+    assert tomllib.loads(pyproject_text).get("tool", {}).get("pytest") == {
+        "ini_options": {"cache_dir": "build/runtime/tool-cache/pytest"}
+    }
     assert "cache_dir = .config/checks/pytest" not in pytest_ini
     assert not (ROOT / ".config" / "checks" / "pytest" / ".gitignore").exists()
+
+
+def test_bare_pytest_discovery_routes_cache_without_importing_owner_policy(tmp_path: Path) -> None:
+    """Bare pytest discovers only the root cache adapter, never a root cache home."""
+    (tmp_path / "pyproject.toml").write_text(
+        (ROOT / "pyproject.toml").read_text(encoding="utf-8"), encoding="utf-8"
+    )
+    (tmp_path / "test_discovery.py").write_text(
+        "def test_discovery() -> None:\n    assert True\n", encoding="utf-8"
+    )
+
+    subprocess.run(
+        [sys.executable, "-m", "pytest", "-q", "test_discovery.py"],
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    assert not (tmp_path / ".pytest_cache").exists()
+    assert (tmp_path / "build" / "runtime" / "tool-cache" / "pytest").is_dir()
 
 
 def test_tool_catalog_marks_config_gates_active_with_owner_scripts() -> None:
@@ -238,7 +266,6 @@ def test_python_lint_owner_supports_macos_bash(tmp_path: Path) -> None:
     for owner in (
         ROOT / "tools/ci/scripts/run-python-lint.sh",
         ROOT / "tools/ci/scripts/run-ruff-ratchet.sh",
-        ROOT / "tools/ci/scripts/run-bandit.sh",
     ):
         owner_text = owner.read_text(encoding="utf-8")
         assert "mapfile" not in owner_text

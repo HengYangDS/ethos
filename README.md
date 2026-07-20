@@ -55,9 +55,9 @@ it is not another transition verb:
 ethos report
 ```
 
-Start read-only. Choose an adoption profile, review the planned files with a
-dry run, apply only when the generated file list and rollback path are clear,
-then use the five-command loop above.
+Start read-only with `ethos adopt --json`. Review the exact one-file binding
+plan, apply only when conflicts are empty and rollback is clear, then use the
+five-command loop above.
 
 ## Human And Agent Discovery
 

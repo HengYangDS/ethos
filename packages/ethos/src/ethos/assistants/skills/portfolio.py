@@ -9,38 +9,21 @@ SKILL_PACKAGE_FILE_LIMIT = 6
 INTENT_TOKEN_OWNER_LIMIT = 2
 
 
-def empty_portfolio_coverage() -> dict[str, object]:
-    return {
-        "ok": True,
-        "contract": {"required_primary_subjects": [], "single_owner_subjects": []},
-        "owners": {},
-        "required_gaps": [],
-    }
-
-
-def empty_portfolio_design() -> dict[str, object]:
-    return {
-        "ok": True,
-        "command_owner_count": {},
-        "path_glob_owner_count": {},
-        "intent_token_owner_count": {},
-        "required_gaps": [],
-    }
-
-
 def portfolio_coverage(
     coverage_contract: object,
     records: list[dict[str, object]],
 ) -> dict[str, object]:
     contract = coverage_contract if isinstance(coverage_contract, dict) else {}
-    required_subjects = dedupe(
-        string_list(contract.get("required_primary_subjects"), drop_empty=True)
+    required_subjects = list(
+        dict.fromkeys(string_list(contract.get("required_primary_subjects"), drop_empty=True))
     )
-    single_owner_subjects = dedupe(
-        [
-            *required_subjects,
-            *string_list(contract.get("single_owner_subjects"), drop_empty=True),
-        ]
+    single_owner_subjects = list(
+        dict.fromkeys(
+            [
+                *required_subjects,
+                *string_list(contract.get("single_owner_subjects"), drop_empty=True),
+            ]
+        )
     )
     owners: dict[str, list[str]] = {}
     for record in records:
@@ -111,11 +94,3 @@ def portfolio_design(
         "intent_token_owner_count": {key: len(ids) for key, ids in sorted(token_owners.items())},
         "required_gaps": gaps,
     }
-
-
-def dedupe(items: list[str]) -> list[str]:
-    result: list[str] = []
-    for item in items:
-        if item not in result:
-            result.append(item)
-    return result

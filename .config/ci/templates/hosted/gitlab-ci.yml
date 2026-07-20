@@ -26,8 +26,6 @@ cache:
   key: ${CI_PROJECT_PATH_SLUG}
   paths:
     - build/runtime/tool-cache/uv/
-    - build/runtime/tool-cache/lychee/
-    - build/runtime/tool-cache/ci-tools/
 
 # Auto-retry every job on infrastructure failures only (image-pull timeouts to
 # Docker Hub, runner crashes, API hiccups) — the runner's egress to external
@@ -45,8 +43,8 @@ default:
 
 # The quality stage runs every registered gate so a red gate fails CI — not just a
 # subset. Gates: ruff (broad rule families + format), ty (types), import-linter
-# (architecture), docstrings, product-boundary/contributor policy, bandit
-# (security + Python vulnerability audit), gitleaks (secrets), config (TOML/YAML format+lint), shell lint,
+# (architecture), docstrings, product-boundary/contributor policy, Ruff S rules,
+# Python vulnerability audit, gitleaks (secrets), config (TOML/YAML format+lint), shell lint,
 # markdown lint, lychee (doc links), provider projection drift, local emulator
 # boundaries, format selection, architecture projection, runbook/MCP smoke,
 # closeout evidence, local-state, and release supply-chain checks.
@@ -124,7 +122,6 @@ ethos:security:
   <<: *python_setup
   stage: quality
   script:
-    - tools/ci/scripts/run-bandit.sh
     - tools/ci/scripts/run-python-vulnerability-audit.sh
   artifacts:
     when: always

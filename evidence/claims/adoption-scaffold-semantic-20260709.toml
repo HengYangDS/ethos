@@ -1,4 +1,4 @@
-claim = { id = "adoption-scaffold-semantic-20260709", subject = "ethos:adoption-scaffold-semantic-20260709", state = "active", summary = "ETHOS retired adoption scaffold suffix-flat residue into declared subpackages without compatibility facades." }
+claim = { id = "adoption-scaffold-semantic-20260709", subject = "ethos:adoption-scaffold-semantic-20260709", state = "archived", summary = "ETHOS retired adoption scaffold suffix-flat residue into declared subpackages without compatibility facades." }
 evidence = { dated = "evidence/chronicle/adoption-scaffold-semantic-20260709/2026-07-09.md", sha256 = "c99043557216fda63e5f10b33baebcab806e55663722f846604a76a9abc8daee", evidence_ids = [
   "evidence:adoption-scaffold-semantic-20260709",
 ], binding = "Declared scaffold package migration, no compatibility import shells, no package-root barrels, module-layout ratchet shrink, and focused validation.", verifier = "digest_only", tests = [

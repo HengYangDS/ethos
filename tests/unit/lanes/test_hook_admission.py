@@ -777,7 +777,7 @@ def test_executed_proof_record_rejects_forgery(
     # without confusing state with verdict. `executed_proof_record` is integrity-only,
     # so a mixed non-trust + trust shape verifies as a valid record.
     trust_run = ProofRun(
-        action_id="python-tests",
+        action_id="unit-architecture",
         command=("pytest",),
         exit_code=0,
         stdout="",

@@ -1,4 +1,4 @@
-"""Protected file adapter for optional independent-verification receipts."""
+"""File-based adapters for optional external identity and enforcement receipts."""
 
 from __future__ import annotations
 
@@ -17,9 +17,11 @@ from typing import cast
 from pydantic import ValidationError
 
 import ethos.adapters.repo.git as git
+from ethos.repository.policy.gates import default_gate_ids
 from ethos.repository.policy.gates import gate_policy_digest
-from ethos.repository.policy.gates import promotion_required_gate_ids
-from ethos.repository.profile import independent_verification_policy_table
+from ethos.repository.profile import IndependentVerificationPolicy
+from ethos.repository.profile import load_repository_profile
+from ethos.repository.profile import profile_required_gaps
 from ethos_core.contracts.evidence.external import IndependentVerificationReceipt
 from ethos_core.contracts.rules import stable_digest
 
@@ -29,7 +31,6 @@ _SYSTEM_PROVIDER_CONFIGS = (
 )
 _SSH_KEYGEN = Path("/usr/bin/ssh-keygen")
 _SHA256_LENGTH = 64
-_INDEPENDENT_VERIFICATION_MODE_ERROR = "independent verification mode is invalid"
 
 
 def _read_mapping(path: Path, gap: str) -> tuple[dict[str, Any], str]:
@@ -40,17 +41,6 @@ def _read_mapping(path: Path, gap: str) -> tuple[dict[str, Any], str]:
     if not isinstance(payload, dict):
         return {}, gap
     return cast("dict[str, Any]", payload), ""
-
-
-@dataclass(frozen=True, slots=True)
-class IndependentVerificationPolicy:
-    """Policy depth for one named action; provider details never appear here."""
-
-    mode: str = "disabled"
-
-    def __post_init__(self) -> None:
-        if self.mode not in {"disabled", "optional", "required"}:
-            raise ValueError(_INDEPENDENT_VERIFICATION_MODE_ERROR)
 
 
 @dataclass(frozen=True, slots=True)
@@ -194,7 +184,14 @@ def _verify_independent_receipt_signature(
 
 def independent_verification_policy(root: Path, action: str) -> IndependentVerificationPolicy:
     """Load the action-scoped policy with a default-disabled adopter posture."""
-    return IndependentVerificationPolicy(**independent_verification_policy_table(root, action))
+    profile = load_repository_profile(root)
+    if gaps := profile_required_gaps(profile):
+        raise ValueError(gaps[0])
+    declaration = profile.declaration
+    policy = declaration.independent_verification if declaration else None
+    selected = policy.mode if policy else "disabled"
+    action_policy = getattr(policy.actions, action, None) if policy else None
+    return IndependentVerificationPolicy(mode=action_policy.mode if action_policy else selected)
 
 
 def independent_verification_request(*, root: Path, action: str) -> dict[str, object]:
@@ -207,7 +204,7 @@ def independent_verification_request(*, root: Path, action: str) -> dict[str, ob
     """
     commit = git.current_head(root)
     tree = git.git_stdout(root, "rev-parse", f"{commit}^{{tree}}") if commit else ""
-    floor = promotion_required_gate_ids(root)
+    floor = default_gate_ids(root=root)
     return {
         "remote": git.git_stdout(root, "remote", "get-url", "origin"),
         "commit": commit,

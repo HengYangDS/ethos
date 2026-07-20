@@ -12,8 +12,6 @@ MetricUnit = t.Literal[
     "semantic_node",
     "normalized_byte",
     "normalized_scalar_byte",
-    "template_dynamic_unit",
-    "template_static_byte",
 ]
 
 

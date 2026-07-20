@@ -8,7 +8,6 @@ import ethos.adapters.openspec.archive.query as archive_query
 import ethos.adapters.openspec.cli as openspec_cli
 import ethos.adapters.openspec.core as openspec_core
 import ethos.adapters.openspec.lifecycle.core as openspec_lifecycle
-import ethos.adapters.openspec.lifecycle.scope as openspec_scope
 import ethos.adapters.openspec.metadata.core as openspec_metadata_adapter
 import ethos.adapters.openspec.protocol.core as proposal_mod
 import ethos.repository.openspec.metadata as openspec_metadata
@@ -161,16 +160,6 @@ def test_selection_and_validation_helper_edge_cases() -> None:
         validate=command,
         selected=None,
     )
-
-
-def test_material_scope_reports_no_matching_material_paths(tmp_path: Path) -> None:
-    profile = tmp_path / ".ethos" / "profile.toml"
-    profile.parent.mkdir()
-    profile.write_text('[openspec]\nmaterial_paths = ["docs/**"]\n', encoding="utf-8")
-
-    report = openspec_scope.material_change_scope_report(tmp_path, changed_paths=("README.md",))
-
-    assert report["state"] == "no_material_paths"
 
 
 def test_completed_active_changes_report_handles_missing_cli_and_bad_list(

@@ -10,8 +10,8 @@ relations:
 
 Status: canonical.
 
-Purpose: define the minimal semantic documentation kernel shared by ETHOS and
-repositories governed by ETHOS.
+Purpose: define the strict semantic documentation kernel used when the
+docs-topology capability is selected.
 
 See also: [Documentation Root](../README.md), [Docs Registry](../governance/docs-registry.md),
 [Decision Records](../decisions/README.md), and
@@ -19,22 +19,12 @@ See also: [Documentation Root](../README.md), [Docs Registry](../governance/docs
 
 ## Contract
 
-ETHOS requires a small common docs kernel across governed repositories so humans
-and agents can recover decisions, evidence, reference vocabulary, and history
-without learning a new information architecture for every repository.
-Documentation is organized on two bound axes: a directory names a document's
-subject domain, while its `role` front matter names the document's function. A
-role must be legal for its directory — kernel roles (`decision`, `evidence`,
-`history`, `reference`) are bound to their lanes everywhere, and product or
-adopter extension roots declare the roles they accept in the taxonomy. Lifecycle
-state is declared with the explicit state vocabulary and backed by HEAD-bound
-evidence. `current` and `future` are not valid documentation state values and
-must not be encoded as docs roots.
-
-The contract is about semantic isomorphism, not physical uniformity. Governed
-repositories share the same decision/evidence/reference/history recovery
-kernel, while product or domain roots remain extensions owned by the repository
-that declares them.
+The docs-topology capability audits one repository-form-invariant recovery
+kernel. Directories name subject domains, while `role` front matter names a
+document's function. Kernel roles (`decision`, `evidence`, `history`,
+`reference`) remain bound to their lanes. Lifecycle state is explicit metadata
+backed by repository evidence; `current` and `future` are neither valid state
+values nor valid documentation roots.
 
 Required paths:
 
@@ -60,32 +50,12 @@ Forbidden roots:
 | `docs/current/` | encodes present truth in topology instead of state metadata and HEAD-bound evidence |
 | `docs/future/` | encodes unlanded intent in topology instead of OpenSpec, plans, research, or promotion status |
 
-By default this list is fail-closed, especially for the ETHOS product repository. An
-existing adopter may keep adopter compatibility time-state roots only when its
-`.ethos/profile.toml` declares `[docs_topology] state_root_policy =
-"adopter_declared_compatibility"`, lists the exact `time_state_roots`, and points
-`compatibility_decision` at a tracked adopter-owned documentation-IA decision or
-reference. Existing adopters may also map a adopter page contract such as
-`Status: index` or `Status: current governance` into ETHOS state vocabulary by
-declaring `state_metadata_policy = "front_matter_or_status_line"`,
-`status_field = "Status"`, and a `[docs_topology.state_value_map]`. This
-profile declaration is a migration boundary, not a product ontology change: the
-listed roots stop being retirement-blocking forbidden-root gaps and mapped
-adopter statuses can satisfy required state metadata, but the shared
-decision/evidence/reference/history kernel, explicit target state vocabulary,
-role/root law, proof evidence, and retirement gates remain required. Unlisted
-`docs/current/` or `docs/future/` roots and unmapped required statuses still
-fail.
-
-The required kernel is repository-form invariant: a single repository, monorepo,
-or multi-repository governed subject uses the same required docs paths. The
-contract does not force all repositories to use identical subject matter or
-product extension roots. ETHOS product roots such as `docs/architecture/`,
+There is no compatibility policy, mapped status vocabulary, alternate root set,
+or repository-form exception. Single repositories, monorepos, and
+multi-repository subjects use this same kernel whenever the capability is
+executed. Product or domain roots such as `docs/architecture/`,
 `docs/concepts/`, `docs/governance/`, `docs/plans/`, `docs/research/`, and
-`docs/start/` may exist as product extensions; adopter repositories may add
-domain-specific subtrees. The common minimal semantic kernel remains stable.
-Extension roots do not become mandatory adoption requirements merely because
-the ETHOS product repository uses them.
+`docs/start/` remain optional extensions.
 
 ## Audit
 
@@ -93,24 +63,18 @@ the ETHOS product repository uses them.
 ethos quality docs-topology --json
 ```
 
-The audit reports missing required docs-kernel paths, forbidden `current`/`future`
-roots, and visible ETHOS product extension roots. It is a proof gate:
+The same strict audit may be selected explicitly in proof:
 
 ```bash
 ethos prove --execute --gate docs-topology --expect-head <git-head> --json
 ```
 
-## Adoption
+## Adoption And Retirement
 
-`ethos adopt` scaffolds the minimal semantic common kernel for new adopters
-and may add first-run or governance extension docs when useful. Existing
-adopters must
-converge toward the same kernel before embedded ETHOS retirement can be claimed,
-because retirement depends on shared evidence/decision/reference routing and
-explicit state metadata, not just passing runtime tests.
+`ethos adopt` writes only `.ethos/profile.toml`; it neither creates nor
+implicitly activates documentation topology. Missing docs carriers therefore do
+not block the default adopter proof floor.
 
 `ethos fleet retirement-readiness --target <repo> --root <product> --json`
-therefore treats `ethos quality docs-topology --root <repo> --json` gaps as
-blocking retirement gaps. A repository may keep richer domain-specific docs, but
-it cannot retire an embedded ETHOS backend while the minimal semantic common docs kernel is
-missing or using forbidden `current`/`future` documentation roots.
+explicitly selects this capability. At that boundary the complete kernel is
+required and `docs/current/` or `docs/future/` blocks retirement.

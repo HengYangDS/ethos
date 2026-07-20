@@ -37,7 +37,6 @@ def test_format_selection_config_is_fail_closed_and_executable() -> None:
     assert config["policy"]["forbid_tracked_extensions"] == [".pickle", ".pkl", ".joblib"]
     assert any(item["extensions"] == [".c4"] for item in formats)
     assert any(item["extensions"] == [".mmd"] for item in formats)
-    assert any(".j2" in item["extensions"] for item in formats)
 
     payload = run_json(ROOT, ["tools/ci/scripts/run-format-selection.sh"])
     assert payload["kind"] == "ethos_format_selection_audit"
@@ -151,7 +150,6 @@ def test_active_p1_p2_tools_have_owner_surfaces() -> None:
 
 def test_optional_adapters_and_supply_chain_remain_planned() -> None:
     for concern in [
-        "osv_vuln",
         "signing",
         "nox_runner_adapter",
         "pixi_environment_adapter",

@@ -13,16 +13,12 @@ import ethos.repository.policy.rules.evaluation as rule_evaluation
 import ethos.repository.policy.rules.exceptions as rule_exceptions
 import ethos.repository.registry.docs.commands as docs_commands
 import ethos.repository.registry.docs.links as docs_links
-from ethos.repository.adoption.scaffold.core import OPENSPEC_CAPABILITIES
-from ethos.repository.adoption.scaffold.core import default_files
 from ethos.repository.evidence.parity.validation import command_matches_identity
 from ethos.repository.evidence.parity.validation import semantic_tree_digest
 from ethos.repository.evidence.parity.validation import validate_parity_evidence
 from ethos.repository.openspec.metadata import is_relative_to
 from ethos.repository.openspec.metadata import read_openspec_metadata
 from ethos.repository.policy import schema as policy_schema
-from ethos.repository.profile import load_repository_profile
-from ethos.repository.profile import table_version
 from tests.unit.product.parity.snapshots import complete_parity_evidence
 
 if TYPE_CHECKING:
@@ -33,11 +29,6 @@ def test_repository_core_edges(tmp_path: Path) -> None:
     metadata = tmp_path / ".openspec.yaml"
     metadata.write_text("# comment\n\n   \nschema: spec-driven\n  # comment\nstatus: active\n", encoding="utf-8")  # fmt: skip
     assert read_openspec_metadata(metadata) == {"schema": "spec-driven", "status": "active"}
-    files = default_files(tmp_path, "github")
-    workflow = files[".github/workflows/ethos.yml"]
-    assert [text in workflow for text in ("name: ethos", "runs-on: ubuntu-latest", "ethos status --json", "ethos report --json", "ethos prove --json")] == [True] * 5  # fmt: skip
-    assert [text in workflow for text in ("tools/ci/scripts/run-python", "uv run --group dev pytest")] == [False, False]  # fmt: skip
-    assert ".github/workflows/ethos.yml" not in default_files(tmp_path, "generic")
     assert semantic_tree_digest(tmp_path, head="", relevant_paths=("a.py",)) == ""
     evidence = complete_parity_evidence("generic")
     evidence["verified_capabilities"] = None
@@ -49,13 +40,6 @@ def test_repository_core_edges(tmp_path: Path) -> None:
     assert isinstance(freshness, dict)
     del freshness["product_head"]
     assert "parity_evidence_invalid:generic:product_head" in validate_parity_evidence(evidence, "generic")  # fmt: skip
-    ethos_dir = tmp_path / ".ethos"
-    ethos_dir.mkdir()
-    (ethos_dir / "profile.toml").write_text('profile_id="sample"\n[previous_projection]\nold_rules="legacy/rules"\nblank=""\nnumeric=7\n', encoding="utf-8")  # fmt: skip
-    profile = load_repository_profile(tmp_path)
-    assert (profile.previous_projection, profile.exists, profile.valid) == ({"old_rules": "legacy/rules"}, True, True)  # fmt: skip
-    assert [table_version(value) for value in ({}, {"meta": "x"}, {"meta": {"version": "x"}}, {"meta": {"version": [1]}}, {"meta": {"version": "3"}})] == [1, 1, 1, 1, 3]  # fmt: skip
-    assert len(OPENSPEC_CAPABILITIES) == len(set(OPENSPEC_CAPABILITIES))
 
 
 def test_repository_schema_and_policy_edges(  # noqa: PLR0915, RUF100 - related repository edge matrix

@@ -1,0 +1,51 @@
+[claim]
+id = "minimal-governed-bootstrap-20260719"
+subject = "ethos:minimal-governed-bootstrap"
+state = "active"
+change_id = "minimal-governed-bootstrap-20260719"
+summary = "Digest-bound archive carrier for replacing default adoption output with one strict repository-profile binding."
+
+[evidence]
+dated = "evidence/chronicle/minimal-governed-bootstrap-20260719/2026-07-20.md"
+sha256 = "e043fedbe6ba30b8a1e0539ad8430f6ec6d6abe861f6af6e359af171b61c86d1"
+evidence_ids = ["evidence:minimal-governed-bootstrap-20260719"]
+binding = "Archived OpenSpec delta, one-file adoption behavior, repository-profile contract, and Chronicle digest delimit this replacement."
+verifier = "digest_only"
+tests = [
+  "uv run --group dev pytest -W error -q tests/unit/adoption tests/unit/cli/test_contracts_proof.py",
+  "tools/ci/scripts/run-python-lint.sh",
+  "tools/ci/scripts/run-config-lint.sh",
+  "tools/ci/scripts/run-shell-lint.sh",
+  "openspec validate --all --strict --json",
+  "tools/ci/scripts/run-ethos-lane.sh quality source-budget --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "Local replacement of default adopter generation with one strict .ethos/profile.toml binding carrier."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-19-minimal-governed-bootstrap-20260719"
+fallback = "Refuse adoption rather than restore a profile selector, overlay, compatibility mode, template manifest, or full scaffold."
+kill_signal = "Default adoption writes any tracked path other than .ethos/profile.toml or retains a parallel historical adoption path."
+
+[promotion]
+targets = [
+  "openspec/changes/archive/2026-07-19-minimal-governed-bootstrap-20260719",
+  "openspec/specs/repository-governance/spec.md",
+  "openspec/specs/quality/spec.md",
+  ".config/checks/ruff/ruff.toml",
+  ".config/checks/security/audit.toml",
+  "tools/ci/scripts/run-python-vulnerability-audit.sh",
+  "packages/ethos/pyproject.toml",
+  "packages/ethos/src/ethos/repository/adoption/planner.py",
+  "packages/ethos/src/ethos/repository/profile.py",
+  "packages/ethos/src/ethos/surface/cli/root/adoption.py",
+  "tests/unit/adoption/test_apply_sample.py",
+  "tests/unit/adoption/test_profile_contract.py",
+  "evidence/claims/minimal-governed-bootstrap-20260719.toml",
+  "evidence/chronicle/minimal-governed-bootstrap-20260719/2026-07-20.md",
+]

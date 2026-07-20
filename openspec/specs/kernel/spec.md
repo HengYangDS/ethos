@@ -6,13 +6,12 @@ ETHOS SHALL model repository operation through Authority, Subject,
 Commitment, Change, Evidence, Claim, and Chronicle.
 ## Requirements
 ### Requirement: Kernel Chain
-ETHOS SHALL model repository operation through the kernel chain
-Authority, Subject, Commitment, Change, Evidence, Claim, and Chronicle.
-The chain SHALL preserve the root text as a judgment constraint without turning
-that text into a subsystem, feature map, or low-level implementation label.
-Commitment SHALL remain the governed promise that can become repository law;
-practice claims and workflow runtime facts SHALL remain carriers or projections
-that propose, test, or inspect effects on commitments.
+
+ETHOS SHALL model repository operation through Authority, Subject, Commitment,
+Change, Evidence, Claim, and Chronicle. Commitment SHALL remain the governed
+promise that may become repository law; practice claims and workflow runtime
+facts SHALL remain subordinate carriers or projections that propose, test, or
+inspect commitment effects.
 
 #### Scenario: Repository operation is represented
 - **WHEN** ETHOS records a repository operation
@@ -28,6 +27,11 @@ that propose, test, or inspect effects on commitments.
 - **AND** the receipt SHALL name an independent reviewer role, basis, allow verdict, validity interval, and `mints_authority = false`
 - **AND** missing, malformed, stale, repository-local, or mismatched receipts SHALL block the claim
 - **AND** `digest_only` claims SHALL require no receipt directory, account, daemon, credential, network, or dedicated local account
+
+### Requirement: Root Interpretation Boundary
+
+The kernel chain SHALL preserve the root text as a judgment constraint. It
+SHALL NOT turn that text into a subsystem, feature map, or low-level implementation label.
 
 #### Scenario: Root text remains canonical and restrained
 - **WHEN** ETHOS adds or changes an active code, config, hook, system contract, or

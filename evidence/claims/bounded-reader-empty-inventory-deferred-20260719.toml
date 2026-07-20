@@ -1,0 +1,51 @@
+[claim]
+id = "bounded-reader-empty-inventory-deferred-20260719"
+change_id = "bounded-reader-empty-inventory-deferred-20260719"
+subject = "ethos:bounded-reader-empty-inventory-deferred"
+state = "archived"
+summary = "Archived repair preserving deferred empty bounded coordination, correcting the concurrently accepted exact-empty drift, and retaining bounded local lifecycle evidence without external outcome claims."
+
+[evidence]
+dated = "evidence/chronicle/bounded-reader-empty-inventory-deferred-20260719/2026-07-19.md"
+sha256 = "0b98ad62fe77cbb7b8fab7ded05ac8df81f944dd05dafef2ca51ebb74aeb5f5c"
+evidence_ids = ["evidence:bounded-reader-empty-inventory-deferred-20260719"]
+binding = "The dated Chronicle digest binds the root-cause observation, explicit reader-mode design, exact material scope, minimal production repair, local Task 2 GREEN results, pre-archive checks, and official OpenSpec archive fusion; it does not establish landing, publication, hosted success, or retirement."
+verifier = "digest_only"
+tests = [
+  "pytest -q -p no:cacheprovider tests/unit/lanes/test_lanes_bounded_status.py",
+  "openspec validate --all --strict --json",
+  "ethos openspec --lifecycle --json",
+  "ethos openspec --archive-id bounded-reader-empty-inventory-deferred-20260719 --json",
+  "ethos quality claims --json",
+  "tools/ci/scripts/run-config-lint.sh",
+  "ethos parity gaps --json",
+  "ethos prove --execute --expect-head <final-head> --json",
+  "ethos prove --full --execute --expect-head <final-head> --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository-governance"
+scope = "Explicit bounded-versus-full empty-inventory coordination semantics plus restoration of weakened status/orient assertions and supersession of the conflicting claim; schemas, commands, providers, remote publication, and hosted success remain excluded."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-19-bounded-reader-empty-inventory-deferred-20260719"
+fallback = "Keep bounded coordination detail deferred and block integration if the empty-inventory mode cannot be proven without weakening tests."
+kill_signal = "A bounded empty inventory reports exact detail, any of the five detail-dependent aggregates reports zero, or the repair changes schemas, commands, providers, or orient test expectations."
+
+[promotion]
+targets = [
+  "evidence/claims/bounded-reader-empty-inventory-deferred-20260719.toml",
+  "evidence/chronicle/bounded-reader-empty-inventory-deferred-20260719/2026-07-19.md",
+  "evidence/parity/generic-shadow.json",
+  "openspec/changes/archive/2026-07-19-bounded-reader-empty-inventory-deferred-20260719",
+  "openspec/specs/repository-governance/spec.md",
+  "packages/ethos/src/ethos/adapters/repo/coordination.py",
+  "packages/ethos/src/ethos/adapters/repo/status/core.py",
+  "tests/unit/lanes/test_lanes_bounded_status.py",
+  "tests/unit/product/test_orient.py",
+  "evidence/claims/hosted-coordination-detail-contract-20260719.toml",
+  "evidence/chronicle/hosted-coordination-detail-contract-20260719/2026-07-19.md",
+]

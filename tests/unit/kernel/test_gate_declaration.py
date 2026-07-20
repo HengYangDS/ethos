@@ -34,14 +34,11 @@ def test_gate_declaration_compiles_runtime_quality_and_proof_sets() -> None:
     assert bound_runtime["repository-audit"].command[0] == "/python"
     assert runtime["repository-audit"].to_dict()["command"][0] == "{python}"
     assert bound_runtime["repository-audit"].to_node().id == "repository-audit"
-    assert quality["module-layout"].depends_on == ("python-lint",)
+    assert quality["ruff"] == runtime["ruff"]
+    assert quality["module-layout"] == runtime["module-layout"]
     assert runtime["module-layout"].depends_on == ()
     assert declaration.proof_sets.product_default[0] == "repository-audit"
     assert declaration.proof_sets.product_full[-1] == "npm-pack"
-    assert declaration.proof_sets.product_full.count("local-install-smoke") == 1
-    assert declaration.proof_sets.product_full.index("build") < (
-        declaration.proof_sets.product_full.index("local-install-smoke")
-    )
     assert set(declaration.proof_sets.product_default) <= set(declaration.proof_sets.product_full)
 
 
@@ -74,6 +71,10 @@ adopter_default = []
         (
             lambda payload: payload["gates"].append(dict(payload["gates"][0])),
             "duplicate gate id",
+        ),
+        (
+            lambda payload: payload["gates"][1].update(command=payload["gates"][0]["command"]),
+            "duplicate gate command",
         ),
         (
             lambda payload: payload["gates"][0].update(depends_on=["missing"]),

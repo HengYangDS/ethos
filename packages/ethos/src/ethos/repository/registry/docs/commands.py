@@ -30,7 +30,6 @@ KNOWN_ETHOS_COMMANDS = {
     "ethos prove",
     "ethos land",
     "ethos publish",
-    "ethos init",
     "ethos adopt",
     "ethos doctor",
     "ethos report",

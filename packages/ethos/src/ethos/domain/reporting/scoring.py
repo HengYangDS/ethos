@@ -44,23 +44,13 @@ def adopter_scores(
     audit: dict[str, object],
     projection: dict[str, object],
     context_projection_score: int,
-    playbooks: dict[str, object],
+    _playbooks: dict[str, object],
     workflow_runtime: dict[str, object] | None = None,
 ) -> dict[str, int]:
-    audit_adopter = cast("dict[str, object]", audit["adopter"])
-    adopter = cast(
-        "dict[str, object]",
-        cast("dict[str, object]", audit_adopter["adopter"])["governance"],
-    )
     return {
         "adopter_governance": int(bool(audit["ok"])),
-        "schemas": int(bool(cast("dict[str, object]", audit["schemas"])["ok"])),
-        "claims": int(bool(adopter["claims"])),
-        "evidence": int(bool(adopter["evidence"])),
-        "docs": int(bool(adopter["docs"])),
         "assistant_projection": int(projection["truth"] == ASSISTANT_TRUTH_BOUNDARY),
         "context_projection": context_projection_score,
-        "playbooks": int(bool(playbooks["ok"])),
         "workflow_runtime": int(_workflow_runtime_score(workflow_runtime)),
         "parity_ledger": int(bool(parity_ledger_report()["ok"])),
     }
@@ -85,7 +75,6 @@ def product_scores(
     evolution: dict[str, object],
     signature: dict[str, object],
     playbooks: dict[str, object],
-    adoption_scaffold: dict[str, object],
     parity_ledger: dict[str, object],
     context_projection_score: int,
     workflow_runtime: dict[str, object] | None = None,
@@ -112,7 +101,6 @@ def product_scores(
         "openspec": int(bool(cast("dict[str, object]", audit["openspec"])["ok"])),
         "playbooks": int(bool(playbooks["ok"])),
         "workflow_runtime": int(bool((workflow_runtime or {"ok": True})["ok"])),
-        "adoption_scaffold": int(bool(adoption_scaffold["ok"])),
         "parity_ledger": int(bool(parity_ledger["ok"])),
     }
 

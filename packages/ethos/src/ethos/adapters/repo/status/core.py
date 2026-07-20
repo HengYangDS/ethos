@@ -71,7 +71,7 @@ def workspace_status(root: Path, *, include_foreign_path_scope: bool = True) -> 
     try:
         repo = Path(git_stdout_checked(root, "rev-parse", "--show-toplevel")).resolve()
     except subprocess.CalledProcessError:
-        return _non_git_status(root)
+        return _non_git_status(root, defer_details=not include_foreign_path_scope)
     provenance = dirty_provenance(root)
     paths = tuple(str(item["path"]) for item in cast("list[dict[str, str]]", provenance["entries"]))
     branch, head, policy = current_branch(root), _safe_ref(root, "HEAD"), load_branch_role_policy(repo)
@@ -86,7 +86,7 @@ def workspace_status(root: Path, *, include_foreign_path_scope: bool = True) -> 
     unbound_refs = unbound_work_lane_refs(repo, bindings, policy=policy)
     if unbound_refs:
         advisory.append("unbound_work_lane_ref_present")
-    coordination = coordination_package(foreign, required_gaps=required, advisory_gaps=advisory, unbound_work_lane_refs=unbound_refs)
+    coordination = coordination_package(foreign, required_gaps=required, advisory_gaps=advisory, defer_details=not include_foreign_path_scope, unbound_work_lane_refs=unbound_refs)
     support = closeout_support(branch=branch, role=role, dirty=bool(paths), candidate=candidate, lease_by_branch=leases, coordination_required_gaps=required)
     landing = landing_readiness(repo, branch=branch, role=role, candidate=candidate)
     return _status_payload(root=root, runtime_root=repo, branch=branch, head=head, paths=paths, provenance=provenance, role=role, policy=policy, candidate=candidate, landing=landing, support=support, worktrees=worktrees, bindings=bindings, foreign=foreign, required=required, advisory=advisory, coordination=coordination, workspace_gaps=workspace_required_gaps(cast("list[str]", support["required_gaps"]), candidate=candidate))
@@ -122,7 +122,7 @@ def _stage_gates(
     return {"authoring_allowed": authoring, "integration_allowed": integration, "accepted_closeout_allowed": False, "blocked_stage": blocked, "blocker_owner": owner, "recommended_next_command": commands[-1], "next_commands": commands}
 
 
-def _non_git_status(root: Path) -> dict[str, object]:
+def _non_git_status(root: Path, *, defer_details: bool) -> dict[str, object]:
     policy = load_branch_role_policy(root)
     candidate: dict[str, object] = {"branch": policy.candidate_branch, "exists": False, "head": "", "worktree_exists": False, "worktree_path": "", "worktree_binding": "absent"}
     landing: dict[str, object] = {"kind": "landing_readiness", "state": "not_work_lane", "branch": "untracked", "head": "", "candidate_branch": policy.candidate_branch, "candidate_head": "", "required_gaps": ["git_repository_missing"], "next_action": "enter a Git-backed Work Lane before landing"}
@@ -130,7 +130,7 @@ def _non_git_status(root: Path) -> dict[str, object]:
     provenance = {"dirty": False, "state": "non_git", "entries": [], "summary": {}, "temporary_probes": {"count": 0, "paths": [], "truncated": False}}
     worktrees: list[dict[str, str]] = []
     bindings = branch_bindings(root, worktrees, candidate, policy=policy, lease_by_branch={})
-    coordination = coordination_package([], required_gaps=[], advisory_gaps=[])
+    coordination = coordination_package([], required_gaps=[], advisory_gaps=[], defer_details=defer_details)
     return _status_payload(root=root, runtime_root=root, branch="untracked", head=None, paths=(), provenance=provenance, role="other", policy=policy, candidate=candidate, landing=landing, support=support, worktrees=worktrees, bindings=bindings, foreign=[], required=[], advisory=[], coordination=coordination, workspace_gaps=["git_repository_missing", "candidate_branch_missing"])
 
 

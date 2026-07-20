@@ -20,7 +20,7 @@ remain current facts until changed, but they are not the desired end state when
 they conflict with this page.
 
 This lane lands design and planning substrate only. It does not claim the full
-terminal runtime, hook system, projection generator, scaffold system, package
+terminal runtime, hook system, projection generator, adoption binding, package
 collapse, release workflow, or extension runtime is implemented.
 
 ## Product Thesis
@@ -306,7 +306,7 @@ ETHOS must ship more than a CLI:
 | Skills | Agent workflow packages generated from repository truth. | `.agents/skills/` source, host projections generated as needed |
 | SDK | Stable client API for command JSON and governance records. | `sdks/typescript` when needed |
 | Distributions | Thin launchers and runner packages. | `distributions/` |
-| Scaffolds | Bootstrap and adopt profiles. | `scaffolds/` |
+| Adoption binding | Minimal repository binding. | `.ethos/profile.toml` via `packages/ethos` |
 | Extensions | Ecosystem plugins and integrations. | `extensions/` |
 
 The CLI is not the semantic center. All surfaces consume the same contracts,
@@ -388,11 +388,6 @@ This is the desired repository shape after destructive migration:
 |   `-- <skill-id>/
 |-- extensions/
 |   `-- <extension-id>/
-|-- scaffolds/
-|   |-- profiles.toml
-|   |-- product/
-|   |-- minimal/
-|   `-- agentic/
 |-- packages/
 |   |-- ethos-core/
 |   `-- ethos/
@@ -498,7 +493,7 @@ Examples:
 .config/checks/sqlfluff/config.ini
 .config/checks/shell/shfmt.toml
 .config/security/gitleaks.toml
-.config/security/osv-scanner.toml
+.config/security/audit.toml
 .config/docs/lychee.toml
 .config/release/bump-my-version.toml
 .config/ci/github/
@@ -565,7 +560,7 @@ openspec/
         `-- specs/
 ```
 
-The scaffolded templates should enforce the product protocol: proposal
+The official OpenSpec templates should enforce the product protocol: proposal
 metadata, direct capability names, reuse stance, out-of-scope lines, design
 evidence for new or extracted capability topology, task status/progress, and
 delta sections. The template is guidance; validation must come from schemas and
@@ -685,7 +680,6 @@ extensions/<id>/
 |-- schemas/
 |-- gates.toml
 |-- policies/
-|-- scaffolds/
 |-- .agents/skills/
 |-- mcp/
 |-- adapters/
@@ -704,117 +698,13 @@ Plugin execution:
 Extensions cannot define root judgment, override contracts, bypass workflows, or promote
 truth without evidence.
 
-### `scaffolds/`
+### Adoption Binding
 
-Scaffolds provide bootstrap and adoption profiles.
-
-| Profile | Purpose |
-| --- | --- |
-| `minimal` | Add the smallest governance substrate to a repository. |
-| `product` | Govern ETHOS itself or a product repository. |
-| `agentic` | Add skills, MCP, projections, and evolution support. |
-
-Scaffold execution should use mature template tooling where it reduces code.
-The default is declarative manifests plus Copier or Jinja templates behind a
-small ETHOS preflight/postflight wrapper. ETHOS owns profile semantics,
-rollback, and evidence; the template engine owns rendering.
-
-Bootstrap must install a complete substrate:
-
-```text
-README.md
-CHANGELOG.md
-CONTRIBUTING.md
-LICENSE
-SECURITY.md
-AGENTS.md
-ETHOS.md
-.gitignore
-.gitattributes
-.editorconfig
-.gitleaks.toml
-.pre-commit-config.yaml
-ethos.toml
-system/
-rules/
-.config/
-docs/
-openspec/
-evidence/
-.ethos/ ignored runtime root
-```
-
-The `openspec/` substrate must include config, README files, change and
-capability templates, `specs/families.toml`, and a first capability profile
-when the selected profile knows the governed domain. An empty directory is not a
-complete product scaffold.
-
-### `packages/`
-
-The terminal Python product has two packages:
-
-```text
-packages/ethos-core
-packages/ethos
-```
-
-`ethos-core` owns pure, low-dependency semantics:
-
-```text
-ids
-result envelopes
-schema loading
-TOML model parsing
-workflow graph validation
-guard evaluation
-evidence contracts
-surface contracts
-```
-
-`ethos-core` must not import Git, subprocess, CLI frameworks, MCP SDKs, hosted
-forge APIs, SQLite, pytest, or adopter semantics.
-
-`ethos` owns product runtime:
-
-```text
-CLI
-MCP server
-bootstrap/adopt
-evidence runner
-Git/process adapters
-OpenSpec adapter
-projection generation
-extension loading
-release orchestration
-diagnostics
-```
-
-This collapses the current eight-package ontology because destructive migration
-does not need package-level compatibility shells. Internal modules may remain
-cohesive, but package boundaries must earn their cost.
-
-### `sdks/`
-
-SDKs are product surfaces, not alternate implementations.
-
-`sdks/typescript` may exist when npm, MCP clients, editor integrations, or web
-views need typed access to command JSON and schemas. It must be generated or
-schema-bound where practical.
-
-### `distributions/`
-
-Distributions are launchers and runners:
-
-```text
-distributions/npm
-distributions/homebrew
-distributions/docker
-distributions/github-action
-distributions/gitlab-component
-```
-
-They must not duplicate ETHOS product semantics. They call the Python command
-plane or package it.
+Adoption uses one strict frozen repository-profile declaration and writes only
+`.ethos/profile.toml`. There are no profile families, template engine, answer
+file, update lineage, or complete-substrate mode. Existing repository files are
+outside bootstrap scope; optional docs, OpenSpec, skills, evidence, and provider
+projections are created only by their owning capabilities.
 
 ### `.ethos/`
 
@@ -835,48 +725,16 @@ source, docs, OpenSpec, or evidence.
 
 ## Governed Repository Layout
 
-`ethos init` or `ethos adopt` must create a complete governance substrate in a
-target repository.
-
-Minimal governed repository:
+A newly bound adopter may contain only its existing repository plus:
 
 ```text
-.
-|-- AGENTS.md
-|-- CHANGELOG.md
-|-- CONTRIBUTING.md
-|-- ETHOS.md
-|-- LICENSE
-|-- README.md
-|-- SECURITY.md
-|-- .editorconfig
-|-- .gitattributes
-|-- .gitignore
-|-- .gitleaks.toml
-|-- .pre-commit-config.yaml
-|-- ethos.toml
-|-- system/
-|-- rules/
-|-- .config/
-|-- docs/
-|-- openspec/
-|-- evidence/
-`-- .ethos/        ignored
+.ethos/profile.toml
 ```
 
-Agentic governed repository adds:
-
-```text
-.agents/skills/
-extensions/
-scaffolds/
-system/projections/
-.mcp/ or host-native MCP profile when the host requires it
-host projections generated from system/surfaces.toml
-```
-
-Generated host surfaces are optional and declared. If committed, they are
-checked for drift. If untracked, they are runtime views.
+This carrier binds identity, material OpenSpec paths, and optional references to
+repository-owned capabilities. ETHOS interprets defaults rather than cloning a
+product layout. No repository language, package topology, provider, docs tree,
+or OpenSpec workspace is a universal adoption prerequisite.
 
 ## Workflow Model
 
@@ -962,7 +820,7 @@ Stage preference:
 | Stage | Example |
 | --- | --- |
 | Schema/default | Invalid config cannot be represented. |
-| Scaffold/template | New repositories are born with the right substrate. |
+| Declaration/default | New repositories are born with the right binding facts. |
 | Context hook | Wrong repository context cannot be reused. |
 | Pre-tool hook | Wrong checkout cannot be edited. |
 | Pre-run hook | Dangerous commands require explicit mode. |
@@ -973,7 +831,7 @@ Stage preference:
 The goal is not more gates. The goal is shorter distance between intent and
 failure. A failure found at publish time should become a CI gate. A repeated CI
 failure should become a Git hook. A repeated Git-hook failure should become a
-pre-tool hook, scaffold default, or schema constraint.
+pre-tool hook, declaration default, or schema constraint.
 
 The accepted-root mutation incident proves a specific missing choke point:
 
@@ -1018,8 +876,7 @@ and hosted execution projection do not own each other's semantics.
 | Docker | `hadolint` | `.config/checks/docker/` | distribution |
 | SQL | `sqlfluff` | `.config/checks/sqlfluff/` | extension |
 | Secrets | `gitleaks`; optional `trufflehog` | `.gitleaks.toml` | minimal |
-| Python vuln | `pip-audit` | `.config/security/` | security |
-| OSV vuln | `osv-scanner` | `.config/security/` | security |
+| Python vuln | `uv audit` | `.config/security/` | security |
 | SBOM | `syft` | `.config/release/` | release |
 | Image/package scan | `grype` | `.config/security/` | release |
 | Signing | `sigstore`, `cosign` | `.config/release/` | release |
@@ -1040,7 +897,7 @@ ETHOS must prove docs-code consistency before land and publish.
 | OpenSpec specs are current | Compare accepted specs with implemented behavior and tests. |
 | CHANGELOG is current | Compare version, release fragments, and release evidence. |
 | Links are current | Run `lychee` over docs and root Markdown. |
-| Projection surfaces are current | Compare generated digest with source templates and surfaces registry. |
+| Projection surfaces are current | Compare generated digest with source declarations and surfaces registry. |
 | Evidence is bound | Check HEAD, command, gate profile, timestamp, and digest. |
 
 ## Release And Version Bump
@@ -1143,7 +1000,6 @@ rules/
 evidence/
 evolution/
 .agents/skills/
-scaffolds/
 extensions/
 ```
 
@@ -1213,11 +1069,9 @@ check-jsonschema
 Then add profile-gated tools for typing, prose, supply chain, release, Docker,
 SQL, YAML, and architecture boundaries.
 
-### Stage 6: Bootstrap And Projections
+### Stage 6: Binding And Projections
 
-Implement `ethos init` and `ethos adopt` from `scaffolds/profiles.toml`.
-
-Every generated tracked projection must have source digest and drift proof.
+Keep `ethos adopt` at one typed binding leaf. Create later projections through their owning capabilities, and require source digest plus drift proof for every generated tracked projection.
 
 ### Stage 7: Evolution And Memory
 
@@ -1242,9 +1096,8 @@ The terminal redesign is acceptable only when:
 
 1. `ethos status`, `plan`, `prove`, `land`, `publish`, and `report` work from
    the terminal layout.
-1. `ethos init` can bootstrap a new minimal governed repository completely.
-1. `ethos adopt` can add governance to an existing repository without partial
-   substrate gaps.
+1. `ethos adopt` plans and writes exactly one strict binding manifest.
+1. Optional capabilities remain explicit and do not make the binding invalid.
 1. MCP manifest and server expose the same command JSON and docs truth as CLI.
 1. Skills are sourced from `.agents/skills/` and projections pass drift checks.
 1. OpenSpec changes serve as case carriers without a separate `cases/` root.

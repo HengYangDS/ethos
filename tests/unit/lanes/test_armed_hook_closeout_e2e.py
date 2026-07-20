@@ -108,7 +108,10 @@ def _armed_repo(tmp_path: Path, *, mirror: bool = False, incumbent_hook: str | N
     (repo / "README.md").write_text("# x\n", encoding="utf-8")
     profile = repo / ".ethos" / "profile.toml"
     profile.parent.mkdir(exist_ok=True)
-    profile.write_text('profile_id = "armed-adopter"\n', encoding="utf-8")
+    profile.write_text(
+        'profile_id = "armed-adopter"\n\n[openspec]\nmaterial_paths = [".ethos/profile.toml"]\n',
+        encoding="utf-8",
+    )
     _declare_minimal_code_correctness(repo)
     if mirror:
         policy = repo / ".ethos" / "workspace.toml"

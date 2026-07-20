@@ -30,43 +30,31 @@ refs are visible, whether readiness is gapped, and which command should run
 next. It reads `status` and `report`; it is not a transition verb and does not
 mint repository truth.
 
-Use `--json` when an agent or script needs stable evidence, then choose a profile:
-
-| Profile | Use when | Reads | Plans to write |
-| --- | --- | --- | --- |
-| `generic` | Any Git repository needs the ETHOS loop | `.git`, README, package hints | `.ethos/`, `.agents/`, docs, OpenSpec, claims |
-| `python` | A Python package or app is present | `pyproject.toml`, lock files, test/lint config | Python proof gates and workspace profile |
-| `monorepo` | Multiple packages share one repository | workspace manifests, `packages/*` | package map and changed-scope routing |
-| `github` | GitHub Actions is the hosted projection | `.github/workflows/*`, remote metadata when available | hosted CI projection only |
-| `gitlab` | GitLab CI/MR is the hosted projection | `.gitlab-ci.yml`, GitLab templates | hosted CI/MR projection only |
-
-Preview before applying:
+Use `--json` when an agent or script needs stable evidence. Adoption has one
+read-only plan and one binding carrier:
 
 ```bash
-ethos adopt --profile python --dry-run --json
+ethos adopt --root <repo> --json
 ```
 
-Use the dry-run output to review generated files. The important fields are
-`detected_profile`, `requested_profile`, `profile_match`, `observed_files`,
-`write_plan`, `required_gaps`, and `rollback`. The apply criteria are:
+Review `read_files`, `planned_files`, `write_plan`, `required_gaps`, and
+`rollback`. The apply criteria are:
 
-- the profile matches the repository shape;
-- `write_plan` contains only expected ETHOS governance files;
+- `planned_files` contains only `.ethos/profile.toml`;
 - `required_gaps` is empty, especially no `adoption_conflict:<path>` entries;
-- no hosted CI or remote publication is claimed from local evidence;
 - rollback is clear: remove `rollback.generated_files` or restore the
   pre-adoption Git state.
 
 Apply only with explicit authorization and the current HEAD:
 
 ```bash
-ethos adopt --profile python --apply --authorize --expect-head <git-head> --json
+ethos adopt --root <repo> --apply --authorize --expect-head <git-head> --json
 ```
 
 If the repository is not tracked by Git yet, initialize Git first or use the
 dry-run plan as a review artifact without claiming HEAD-bound adoption.
 
-After the scaffold is applied, re-orient and use the five-command transition
+After the binding is applied, re-orient and use the five-command transition
 loop:
 
 ```bash
@@ -125,8 +113,7 @@ For governance and discovery:
 
 ```bash
 ethos doctor
-ethos init --profile gitlab --dry-run
-ethos adopt --profile gitlab --dry-run
+ethos adopt --root <repo> --json
 ethos fleet inspect --target .
 ethos playbooks check
 ethos quality docs

@@ -28,7 +28,7 @@ should become reusable declarations:
 | --- | --- |
 | `repository/policy` | Many imperative checkers append gap strings directly. |
 | `surface/cli` | Command glue repeats parameter, handler, envelope, docs, and JSON logic. |
-| `repository/adoption` | Scaffold generation contains Python branching that belongs in templates. |
+| `repository/adoption` | Binding generation must remain one typed declaration and one serializer leaf. |
 | `repository/evidence` | Claim and evidence reports repeat shape, freshness, and projection logic. |
 | graph planning | Action, gate, workflow, claim, evidence, and projection graphs lack one shared kernel. |
 
@@ -43,7 +43,7 @@ Deliverables:
 2. Publish the compiler architecture.
 3. Publish this phased modernization plan.
 4. Add anti-regression checks in later lanes so new work cannot silently return
-   to hand-written policies, commands, scaffolds, public dict payloads, or custom
+   to hand-written policies, commands, multi-file generators, public dict payloads, or custom
    DAG traversal.
 
 Evidence:
@@ -140,24 +140,19 @@ Evidence:
 - CLI smoke for generated commands;
 - no manual command addition without a registry entry.
 
-## Phase 5: Template Projection And Scaffold
+## Phase 5: Minimal Binding And Explicit Projections
 
-Move adopter scaffolds and projection file generation to tracked Jinja2
-templates with typed contexts.
-
-Targets:
-
-1. adoption profile scaffolds;
-2. evidence skeletons;
-3. docs/rules projection files;
-4. host projection bundles.
+Keep adoption at one strict repository-profile declaration serialized through
+`tomli-w`. Interpret defaults instead of generating docs, skills, OpenSpec,
+evidence, or provider trees. Any later projection belongs to its capability and
+must prove that generation deletes more maintained code than it adds.
 
 Evidence:
 
-- dry-run render plans;
-- apply parity fixtures;
-- generated artifact topology checks;
-- template context schema tests.
+- exact one-file adoption plans;
+- strict load/render round trips;
+- conflict and rollback fixtures;
+- generated-artifact topology checks proving no hidden scaffold remains.
 
 ## Phase 6: Evidence And Claim Event Projection
 
@@ -234,7 +229,7 @@ Add quality gates that track the desired direction:
 - public dict payload ban;
 - imperative policy checker ban;
 - manual CLI command ban;
-- manual scaffold builder ban;
+- manual multi-file generator ban;
 - custom DAG traversal ban;
 - effective Python SLOC budget and trend report.
 
@@ -246,7 +241,7 @@ procedure, more contract, more declaration, and stronger proof.
 | Batch | Lanes | Goal |
 | --- | --- | --- |
 | A | decision, contract spine, graph kernel | Establish reversible foundation. |
-| B | CEL policy pilot, quality CLI registry, scaffold templates | Delete largest process-heavy hotspots. |
+| B | CEL policy pilot, quality CLI registry, minimal binding | Delete largest process-heavy hotspots. |
 | C | evidence events, read-model DSL, gates as data | Make proof/report/status declaration-first. |
 | D | functional core shell, anti-regression gates | Prevent backsliding and sustain compression. |
 

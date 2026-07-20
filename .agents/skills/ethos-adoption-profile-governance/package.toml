@@ -7,7 +7,7 @@ digest_algorithm = "sha256"
 include = ["SKILL.md"]
 exclude = [".DS_Store"]
 required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
-expected_digest = "sha256:d157b4aa46abb3fd1a181b1d086fe0a8e138f12d2701e6383a05201cde859864"
+expected_digest = "sha256:d53fb7203fcd9dec676858de87e51d9e1521df7794cfbe2184778a7f2a82ea15"
 
 [quality]
 placeholder_allowed = false

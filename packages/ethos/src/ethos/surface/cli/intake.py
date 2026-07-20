@@ -45,9 +45,7 @@ def intake_status(
         },
         required_gaps=gaps,
         next_actions=(
-            ("ethos adopt --dry-run",)
-            if not projection["configured"]
-            else ("ethos plan --changed",)
+            ("ethos adopt --json",) if not projection["configured"] else ("ethos plan --changed",)
         ),
         data=data,
     )

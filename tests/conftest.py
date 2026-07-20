@@ -12,10 +12,13 @@ user.name/user.email (the case in CI's clean container — the dominant cause of
 the suite self-contained instead of depending on the developer's ambient machine
 config. The fixture also disables commit signing through Git's environment-backed
 config so global `commit.gpgsign=true` cannot make temporary test commits depend
-on local keys. It also binds `init.templateDir` to a repository-owned empty
-template directory so temporary test repositories never inherit developer-global
-hooks such as pre-commit. It also disables fsmonitor so temporary test
-repositories never depend on a host-local filesystem monitor.
+on local keys. System and user Git config are hidden entirely, while
+`init.templateDir` points to a repository-owned empty template directory so
+temporary test repositories never inherit developer-global hooks such as
+pre-commit. Repository-local config remains authoritative so hook tests exercise
+the same `core.hooksPath` semantics as production. The fixture also disables
+fsmonitor so temporary test repositories never depend on a host-local filesystem
+monitor.
 """
 
 from __future__ import annotations
@@ -61,6 +64,8 @@ def _hermetic_git_identity(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> N
     monkeypatch.setenv("GIT_AUTHOR_EMAIL", "test@ethos.local")
     monkeypatch.setenv("GIT_COMMITTER_NAME", "ETHOS Test")
     monkeypatch.setenv("GIT_COMMITTER_EMAIL", "test@ethos.local")
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", os.devnull)
+    monkeypatch.setenv("GIT_CONFIG_SYSTEM", os.devnull)
     monkeypatch.setenv("GIT_CONFIG_COUNT", "3")
     monkeypatch.setenv("GIT_CONFIG_KEY_0", "commit.gpgsign")
     monkeypatch.setenv("GIT_CONFIG_VALUE_0", "false")

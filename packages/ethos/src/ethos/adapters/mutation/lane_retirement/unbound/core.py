@@ -4,6 +4,7 @@ import sqlite3
 from contextlib import closing
 from pathlib import Path
 from typing import Any
+from typing import NamedTuple
 from typing import cast
 
 import ethos.adapters.mutation.lane_retirement.shared.core as lane_retirement_shared
@@ -19,6 +20,14 @@ from ethos.adapters.store.state.lease.lifecycle.effects import revoke_owner_unav
 from ethos.adapters.store.state.schema import initialize_state
 
 type _Controls = dict[str, Any]
+
+
+class _LeaseRevokeArguments(NamedTuple):
+    subject: str
+    holder_ref: str
+    expected_lease_id: str
+    expected_epoch: int
+    expected_head: str
 
 
 def _data(**values: Any) -> dict[str, Any]:
@@ -116,7 +125,7 @@ def _apply_retirement(  # noqa: PLR0913, RUF100 - bound irreversible transition 
     controls: _Controls,
     chronicle_ref: str,
     holder_ref: str,
-    owner_unavailable_recovery: bool,
+    owner_unavailable_recovery: bool = False,
 ) -> dict[str, object]:
     """Persist an admitted attempt and recheck it before any irreversible effect."""
     control_root, gap = policy.accepted_control_root(
@@ -193,7 +202,7 @@ def _relinquish_then_delete(  # noqa: PLR0913, RUF100 - bound irreversible trans
     controls: _Controls,
     chronicle_ref: str,
     holder_ref: str,
-    owner_unavailable_recovery: bool,
+    owner_unavailable_recovery: bool = False,
 ) -> dict[str, object]:
     """Hold the lease writer lock across exact revocation and atomic ref deletion."""
     database = control_root / ".ethos" / "state" / "state.sqlite"
@@ -373,7 +382,15 @@ def relinquish_owned_lease(
             control_root, arguments=arguments, owner_unavailable_recovery=owner_unavailable_recovery
         )
     try:
-        row, payload = expected_current_lease(connection, require_expired=False, **arguments)
+        row, payload = expected_current_lease(
+            connection,
+            subject=arguments.subject,
+            holder_ref=arguments.holder_ref,
+            expected_lease_id=arguments.expected_lease_id,
+            expected_epoch=arguments.expected_epoch,
+            expected_head=arguments.expected_head,
+            require_expired=False,
+        )
         connection.execute("delete from leases where id = ?", (str(row[0]),))
     except (KeyError, TypeError, ValueError):
         return None
@@ -382,7 +399,7 @@ def relinquish_owned_lease(
 
 def _lease_relinquish_arguments(
     *, observed: dict[str, object], holder_ref: str, owner_unavailable_recovery: bool
-) -> dict[str, object] | None:
+) -> _LeaseRevokeArguments | None:
     lease = cast("dict[str, object]", observed["active_lease"])
     epoch = lease.get("epoch")
     source_holder = str(lease.get("holder_ref") or "")
@@ -391,7 +408,7 @@ def _lease_relinquish_arguments(
     if not owner_unavailable_recovery and source_holder != holder_ref:
         return None
     try:
-        return _data(
+        return _LeaseRevokeArguments(
             subject=str(observed["branch"]),
             holder_ref=source_holder,
             expected_lease_id=str(lease["lease_id"]),
@@ -403,31 +420,41 @@ def _lease_relinquish_arguments(
 
 
 def _revoke_lease_from_database(
-    control_root: Path, *, arguments: dict[str, object], owner_unavailable_recovery: bool
+    control_root: Path, *, arguments: _LeaseRevokeArguments, owner_unavailable_recovery: bool
 ) -> dict[str, object] | None:
     database = control_root / ".ethos" / "state" / "state.sqlite"
-    epoch = int(arguments["expected_epoch"])
     if owner_unavailable_recovery:
         return revoke_owner_unavailable_lease(
             database,
-            subject=str(arguments["subject"]),
-            source_holder_ref=str(arguments["holder_ref"]),
-            expected_lease_id=str(arguments["expected_lease_id"]),
-            expected_epoch=epoch,
-            expected_head=str(arguments["expected_head"]),
+            subject=arguments.subject,
+            source_holder_ref=arguments.holder_ref,
+            expected_lease_id=arguments.expected_lease_id,
+            expected_epoch=arguments.expected_epoch,
+            expected_head=arguments.expected_head,
         )
-    return revoke_lease(database, **arguments)
+    return revoke_lease(
+        database,
+        subject=arguments.subject,
+        holder_ref=arguments.holder_ref,
+        expected_lease_id=arguments.expected_lease_id,
+        expected_epoch=arguments.expected_epoch,
+        expected_head=arguments.expected_head,
+    )
 
 
 def _revoked_lease_payload(
-    *, row: tuple[object, ...], payload: dict[str, object], arguments: dict[str, object]
+    *,
+    row: sqlite3.Row | tuple[Any, ...],
+    payload: dict[str, Any],
+    arguments: _LeaseRevokeArguments,
 ) -> dict[str, object]:
+    epoch = payload.get("epoch")
     return {
         "revoked": True,
-        "subject": arguments["subject"],
+        "subject": arguments.subject,
         "lease_id": str(row[0]),
-        "holder_ref": arguments["holder_ref"],
-        "epoch": int(payload.get("epoch") or 0),
+        "holder_ref": arguments.holder_ref,
+        "epoch": epoch if isinstance(epoch, int) and not isinstance(epoch, bool) else 0,
         "expected_head": str(payload.get("expected_head") or ""),
     }
 

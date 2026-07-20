@@ -45,12 +45,12 @@ def _setattrs(monkeypatch, target, values: dict[str, object]) -> None:
 
 def _apply_retirement(tmp_path: Path, before: dict[str, object]) -> dict[str, object]:
     operation = unbound._apply_retirement  # noqa: SLF001, RUF100 - internal retirement edge
-    return operation(repo=tmp_path, before=before, result={}, controls=dict(_CONTROLS), chronicle_ref="c", holder_ref="holder")  # fmt: skip
+    return operation(repo=tmp_path, before=before, result={}, controls=dict(_CONTROLS), chronicle_ref="c", holder_ref="holder", owner_unavailable_recovery=False)  # fmt: skip
 
 
 def _finish_retirement(tmp_path: Path, context: dict[str, object]) -> dict[str, object]:
     operation = unbound._relinquish_then_delete  # noqa: SLF001, RUF100 - internal effect edge
-    return operation(repo=tmp_path, control_root=tmp_path, records_root=tmp_path, before={}, pre_effect={}, result={}, context=context, controls=dict(_CONTROLS), chronicle_ref="c", holder_ref="holder")  # fmt: skip
+    return operation(repo=tmp_path, control_root=tmp_path, records_root=tmp_path, before={}, pre_effect={}, result={}, context=context, controls=dict(_CONTROLS), chronicle_ref="c", holder_ref="holder", owner_unavailable_recovery=False)  # fmt: skip
 
 
 def test_closeout_and_lane_guards(tmp_path: Path) -> None:
@@ -214,7 +214,7 @@ def test_unbound_core_exception_edges(tmp_path: Path, monkeypatch) -> None:
     write = unbound._write  # noqa: SLF001, RUF100 - stable write edge
     assert write(tmp_path, {}, "kind") == ("", "write_gap")
     _setattrs(monkeypatch, unbound, {"repo_root": lambda root: root, "_observe": lambda *_args, **_kw: {}, "_admission_gaps": lambda *_args, **_kw: []})  # fmt: skip
-    monkeypatch.setattr(unbound.policy, "lease_relinquish_gap", lambda *_args, **_kw: "lease_gap")
+    monkeypatch.setattr(unbound.policy, "lease_recovery_gaps", lambda *_args, **_kw: ["lease_gap"])
     monkeypatch.setattr(unbound.lane_retirement_shared, "current_holder_ref", lambda: "holder")
     monkeypatch.setattr(unbound.reporting, "report", lambda **kw: {"required_gaps": kw["gaps"]})
     assert unbound.retire_unbound_work_lane_ref(root=tmp_path, branch="work/x")["required_gaps"] == ["lease_gap"]  # fmt: skip
@@ -245,6 +245,7 @@ def test_unbound_pre_effect_and_receipt_edges(tmp_path: Path, monkeypatch) -> No
     monkeypatch.setattr(unbound, "_write", lambda *_args: ("attempt", ""))
     monkeypatch.setattr(unbound, "_observe", lambda *_args, **_kw: {"bind": 2})
     monkeypatch.setattr(unbound, "_admission_gaps", lambda *_args, **_kw: [])
+    monkeypatch.setattr(unbound.policy, "lease_recovery_gaps", lambda *_args, **_kw: [])
     monkeypatch.setattr(unbound.observation, "operation_bindings", lambda value: {"bind": value["bind"]})  # fmt: skip
     monkeypatch.setattr(unbound.observation, "public_observation", lambda value: value)
     assert _apply_retirement(tmp_path, before)["required_gaps"] == ["unbound_retire_pre_effect_observation_stale"]  # fmt: skip
@@ -262,7 +263,7 @@ def test_unbound_pre_effect_and_receipt_edges(tmp_path: Path, monkeypatch) -> No
     observations = iter(({}, {}))
     _setattrs(monkeypatch, unbound, {"initialize_state": lambda _path: None, "_observe": lambda *_args, **_kw: next(observations), "relinquish_owned_lease": lambda *_args, **_kw: {}, "_delete_ref_transaction": lambda *_args, **_kw: SimpleNamespace(returncode=0, stderr=""), "_commit_or_restore": lambda *_args: None, "_write": lambda *_args: ("", "receipt_gap")})  # fmt: skip
     monkeypatch.setattr(unbound.sqlite3, "connect", lambda _path: Conn())
-    _setattrs(monkeypatch, unbound.policy, {"lease_relinquish_gap": lambda *_args, **_kw: "", "post_effect_gaps": lambda **_kw: []})  # fmt: skip
+    _setattrs(monkeypatch, unbound.policy, {"lease_recovery_gaps": lambda *_args, **_kw: [], "post_effect_gaps": lambda **_kw: []})  # fmt: skip
     monkeypatch.setattr(unbound.observation, "operation_bindings", lambda _value: {})
     _setattrs(monkeypatch, unbound.records, {"effect_summary": lambda _value: {}, "receipt_payload": lambda **_kw: {}, "receipt_path": lambda *_args: tmp_path / "receipt"})  # fmt: skip
     assert _finish_retirement(tmp_path, {"operation_id": "op"})["required_gaps"] == ["receipt_gap"]

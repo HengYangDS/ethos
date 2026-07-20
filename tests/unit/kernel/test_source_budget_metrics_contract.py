@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import tomllib
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
@@ -32,8 +33,8 @@ def _c(metric_id: str, unit: str, **changes: object) -> m.MetricContract:
 def _s(profiles: object = None, contracts: object = None) -> m.MetricContractSet:
     default = (_c("lexical_tokens", "lexical_token"), _c("normalized_bytes", "normalized_byte"))
     return m.MetricContractSet(
-        schema="ethos-source-budget-metrics-v2",
-        contract_version=2,
+        schema="ethos-source-budget-metrics-v3",
+        contract_version=3,
         profiles=profiles or (_p(),),
         contracts=contracts or default,
     )
@@ -85,7 +86,7 @@ def test_metric_validation_matrix() -> None:
                 value, required
             ),
         )
-    payload = _s().model_dump(mode="json", by_alias=True) | {"contract_version": 3}
+    payload = _s().model_dump(mode="json", by_alias=True) | {"contract_version": 4}
     _raises(
         ValidationError, "contract version", lambda: m.MetricContractSet.model_validate(payload)
     )
@@ -128,3 +129,128 @@ def test_metric_behavior_matrix() -> None:
         Path("system/schemas/kernel/source-budget-metrics.schema.json").read_text()
         == expected_schema
     )
+
+
+def _constructed_contract(metric_id: str, unit: str, **changes: object) -> m.MetricContract:
+    payload = _D["base_contract"] | {"metric_id": metric_id, "unit": unit} | changes
+    payload.setdefault("contract_id", f"{payload['metric_profile']}:{metric_id}")
+    contract = m.MetricContract.model_construct(
+        **{key: value for key, value in payload.items() if key in m.MetricContract.model_fields}
+    )
+    for field in ("execution_mode", "max_carrier_bytes"):
+        object.__setattr__(contract, field, payload[field])
+    return contract
+
+
+def test_metric_contract_v3_resource_boundary_is_required_and_strict() -> None:
+    contract = _c("lexical_tokens", "lexical_token")
+    assert contract.execution_mode == "bounded_in_process_v1"
+    assert contract.max_carrier_bytes == 65536
+    for field in ("execution_mode", "max_carrier_bytes"):
+        payload = contract.model_dump()
+        payload.pop(field)
+        _raises(
+            ValidationError,
+            field,
+            lambda payload=payload: m.MetricContract.model_validate(payload),
+        )
+    payload = contract.model_dump() | {"path_override": {"packages/**": 1}}
+    _raises(ValidationError, "path_override", lambda: m.MetricContract.model_validate(payload))
+
+
+def test_metric_provider_resource_contract_rejects_mixed_provider_or_ceiling() -> None:
+    lexical = _constructed_contract("lexical_tokens", "lexical_token")
+    normalized = _constructed_contract("normalized_bytes", "normalized_byte")
+    assert m.metric_provider_resource_contract((lexical, normalized)) == (
+        "bounded_in_process_v1",
+        65536,
+    )
+    drifted = _constructed_contract("normalized_bytes", "normalized_byte", max_carrier_bytes=32768)
+    _raises(
+        ValueError,
+        "resource",
+        lambda: m.metric_provider_resource_contract((lexical, drifted)),
+    )
+    other = _constructed_contract(
+        "normalized_bytes",
+        "normalized_byte",
+        parser_id="json-stdlib",
+        parser_version="cpython-3.14+ethos-json-v1",
+        grammar_digest="b" * 64,
+        normalization_id="structured-scalars",
+    )
+    _raises(ValueError, "provider", lambda: m.metric_provider_resource_contract((lexical, other)))
+
+
+def test_metric_registry_rejects_cross_profile_provider_resource_drift() -> None:
+    profiles = (
+        _p(profile_id="python-a", required_metric_ids=("lexical_tokens",)),
+        _p(profile_id="python-b", required_metric_ids=("normalized_bytes",)),
+    )
+    contracts = (
+        _constructed_contract(
+            "lexical_tokens", "lexical_token", metric_profile="python-a", contract_id="a"
+        ),
+        _constructed_contract(
+            "normalized_bytes",
+            "normalized_byte",
+            metric_profile="python-b",
+            contract_id="b",
+            max_carrier_bytes=32768,
+        ),
+    )
+    _raises(
+        ValueError,
+        "provider resource",
+        lambda: m.MetricContractSet.model_construct(
+            schema_id="ethos-source-budget-metrics-v3",
+            contract_version=3,
+            profiles=profiles,
+            contracts=contracts,
+        ),
+    )
+
+
+def test_metric_resource_fields_change_digest_and_schema_projection() -> None:
+    contracts = (
+        _constructed_contract("lexical_tokens", "lexical_token"),
+        _constructed_contract("normalized_bytes", "normalized_byte"),
+    )
+    registry = m.MetricContractSet.model_construct(
+        schema_id="ethos-source-budget-metrics-v3",
+        contract_version=3,
+        profiles=(_p(),),
+        contracts=contracts,
+    )
+    changed_contracts = tuple(
+        item.model_copy(update={"max_carrier_bytes": 131072}) for item in contracts
+    )
+    changed = m.MetricContractSet.model_construct(
+        schema_id="ethos-source-budget-metrics-v3",
+        contract_version=3,
+        profiles=registry.profiles,
+        contracts=changed_contracts,
+    )
+    assert m.metric_contracts_digest(registry) != m.metric_contracts_digest(changed)
+    schema = m.metric_contracts_json_schema()
+    assert schema["properties"]["schema"]["const"] == "ethos-source-budget-metrics-v3"
+    contract_schema = schema["$defs"]["MetricContract"]
+    assert contract_schema["properties"]["execution_mode"]["const"] == "bounded_in_process_v1"
+    assert contract_schema["properties"]["max_carrier_bytes"]["exclusiveMinimum"] == 0
+
+
+def test_repository_metric_policy_declares_v3_fixed_provider_ceilings() -> None:
+    payload = tomllib.loads(Path("system/policies/source-budget-metrics.toml").read_text())
+    assert payload["schema"] == "ethos-source-budget-metrics-v3"
+    assert payload["contract_version"] == 3
+    for contract in payload["contracts"]:
+        expected = (
+            262144
+            if contract["parser_id"] == "utf8-footprint"
+            else 65536
+            if contract["parser_id"] == "python-tokenize"
+            else 32768
+        )
+        assert contract["contract_version"] == 3
+        assert contract["execution_mode"] == "bounded_in_process_v1"
+        assert contract["max_carrier_bytes"] == expected

@@ -1164,22 +1164,6 @@ resolution database.
 - **AND** the authority SHALL NOT extend to another lane, a valid lease, remote
   mutation, or a hosted-provider claim.
 
-#### Scenario: dirty ownerless source retires only after semantic absorption and preservation
-
-- **GIVEN** one named linked Work Lane is dirty, has no active lease, and its
-  committed head is an ancestor of the current accepted branch
-- **AND** an accepted target-specific Claim and Chronicle bind its exact ref,
-  exact source head, current semantic absorption basis, remaining dirty-path
-  recovery plan, and `lane_resolution/preserve-retire` policy
-- **WHEN** the native resolver records and applies a fresh decision with
-  break-glass and irreversible confirmation after the absorption carrier's own
-  local proof, candidate land, and accepted closeout
-- **THEN** it SHALL re-observe and preserve the exact source contents before
-  removing only that source branch and worktree, then write a receipt
-- **AND** a missing lease, accepted ancestry, prior package, or historical source
-  diff alone SHALL NOT authorize retirement of another lane, candidate movement,
-  remote mutation, or a hosted-provider claim.
-
 ### Requirement: Evolution Ledger Single Source Of Truth
 
 ETHOS SHALL keep reviewed evolution records and active hypotheses in one
@@ -1554,22 +1538,6 @@ resolution database.
   inventory entry alone SHALL NOT authorize retirement
 - **AND** the authority SHALL NOT extend to another lane, a valid lease, remote
   mutation, or a hosted-provider claim.
-
-#### Scenario: dirty ownerless source retires only after semantic absorption and preservation
-
-- **GIVEN** one named linked Work Lane is dirty, has no active lease, and its
-  committed head is an ancestor of the current accepted branch
-- **AND** an accepted target-specific Claim and Chronicle bind its exact ref,
-  exact source head, current semantic absorption basis, remaining dirty-path
-  recovery plan, and `lane_resolution/preserve-retire` policy
-- **WHEN** the native resolver records and applies a fresh decision with
-  break-glass and irreversible confirmation after the absorption carrier's own
-  local proof, candidate land, and accepted closeout
-- **THEN** it SHALL re-observe and preserve the exact source contents before
-  removing only that source branch and worktree, then write a receipt
-- **AND** a missing lease, accepted ancestry, prior package, or historical source
-  diff alone SHALL NOT authorize retirement of another lane, candidate movement,
-  remote mutation, or a hosted-provider claim.
 
 ### Requirement: Preservation-bound exceptional Work Lane retirement
 

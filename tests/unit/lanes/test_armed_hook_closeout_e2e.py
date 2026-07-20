@@ -60,7 +60,10 @@ def _seed_proof(root: Path, head: str) -> None:
     runs = tuple(
         conformant_proof_run(gate_id, root) for gate_id in default_gate_ids(full=False, root=root)
     )
-    record_executed_proof(root, EvidenceSet.from_runs(id="p", head=head, runs=runs).to_dict())
+    record_executed_proof(
+        root,
+        EvidenceSet.from_runs(evidence_id="p", head=head, runs=runs).to_dict(),
+    )
 
 
 def _armed_repo(tmp_path: Path, *, mirror: bool = False, incumbent_hook: str | None = None) -> Path:

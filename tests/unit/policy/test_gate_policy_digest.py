@@ -192,7 +192,7 @@ def test_gate_policy_gaps_flags_stale_digest(tmp_path: Path) -> None:
     head = "a" * 40
     runs = tuple(conformant_proof_run(g, tmp_path) for g in default_gate_ids(root=tmp_path))
     record_executed_proof(
-        tmp_path, EvidenceSet.from_runs(id="proof", head=head, runs=runs).to_dict()
+        tmp_path, EvidenceSet.from_runs(evidence_id="proof", head=head, runs=runs).to_dict()
     )
     # Corrupt the stored digest on disk so it no longer matches the live one.
     path = _proof_path(tmp_path, head)
@@ -278,7 +278,7 @@ def test_committed_product_floor_is_pure_function_of_candidate_tree(tmp_path: Pa
     candidate_floor = committed_product_default_gate_ids(repo, candidate)
     assert candidate_floor is not None
     evidence = EvidenceSet.from_runs(
-        id="candidate-floor",
+        evidence_id="candidate-floor",
         head=candidate,
         runs=tuple(conformant_proof_run(gate_id, repo) for gate_id in candidate_floor),
     ).to_dict()

@@ -1,0 +1,51 @@
+[claim]
+id = "ownerless-skill-resolution-retention-repair-20260720"
+subject = "ethos:lane-resolution:retention-integrity"
+state = "active"
+change_id = "ownerless-skill-resolution-retention-repair-20260720"
+summary = "The successor removes one false skill-script carrier, moves non-rebuildable lane-resolution recovery to the accepted-owner records root, blocks legacy retained-package retirement, and authorizes one honest new recovery package."
+
+[evidence]
+dated = "evidence/chronicle/ownerless-skill-resolution-retention-repair-20260720/2026-07-20.md"
+sha256 = "3932a7c3d99dde6ae652cba7c3c8e2059a5e308dc7eb2688bbbc1392ab8559dd"
+evidence_ids = ["evidence:ownerless-skill-resolution-retention-repair-20260720"]
+binding = "This Claim binds the dbf17ff range forward revert, stable accepted-owner lane-resolution records, legacy retained-manifest retirement blocking, explicit partial-transition reporting, and one post-closeout new preserve-retire recovery of patch SHA-256 26fdae9bbaf9ce6460bca5a5bbbcf196d42e5d35af0fdfb55e7898a654fee07b from source 87911a89faeb01d97a29afce1c24e0fc5ed94f2a. It does not claim the deleted old package, receipt, or bundle survived."
+verifier = "digest_only"
+tests = [
+  "tools/ci/scripts/run-ethos-lane.sh openspec --lifecycle --json",
+  "tools/ci/scripts/run-ethos-lane.sh quality claims --json",
+  "tools/ci/scripts/run-ethos-lane.sh prove --execute --expect-head \"$(git rev-parse HEAD)\" --json",
+  "tools/ci/scripts/run-ethos-lane.sh prove --execute --full --expect-head \"$(git rev-parse HEAD)\" --json",
+  "tools/ci/scripts/run-ethos-lane.sh lane resolution inventory --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "One invalid accepted range, the lane-resolution recovery-record owner, legacy retained-package retirement admission, and one exact post-closeout recovery patch."
+
+[carriers]
+openspec = "openspec/changes/ownerless-skill-resolution-retention-repair-20260720"
+fallback = "Keep remote publication blocked, preserve every legacy worktree containing a retained manifest, and leave the lost historical receipt explicitly unresolved until a new exact recovery package is verified in the stable records owner."
+kill_signal = "A reset or force update touches protected refs, a foreign lane is mutated, an old decision or receipt is fabricated, a retained manifest is deleted by ordinary retirement, GitHub is written, or publication proceeds without fresh full proof and stable inventory."
+
+[promotion]
+targets = [
+  "docs/architecture/local-state.md",
+  "docs/plans/ownerless-skill-resolution-retention-repair-20260720.md",
+  "docs/reference/command-plane.md",
+  "evidence/claims/ownerless-skill-resolution-retention-repair-20260720.toml",
+  "evidence/chronicle/ownerless-skill-resolution-retention-repair-20260720/2026-07-20.md",
+  "openspec/changes/ownerless-skill-resolution-retention-repair-20260720",
+  "openspec/specs/repository-governance/spec.md",
+  "packages/ethos/src/ethos/adapters/mutation/lane_retirement/shared/core.py",
+  "packages/ethos/src/ethos/adapters/mutation/resolution/_shared.py",
+  "packages/ethos/src/ethos/adapters/mutation/resolution/lane.py",
+  "packages/ethos/src/ethos/adapters/mutation/resolution/receipts.py",
+  "packages/ethos/src/ethos/surface/cli/lane/resolution.py",
+  "tests/unit/lanes/test_lane_resolution.py",
+  "tests/unit/lanes/test_lane_resolution_artifacts.py",
+  "tests/unit/lanes/test_lanes_retire.py",
+]

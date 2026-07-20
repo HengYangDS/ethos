@@ -7,6 +7,7 @@ import hashlib
 import importlib
 import io
 import json
+import math
 import platform
 import sys
 import tokenize
@@ -47,10 +48,10 @@ _STRUCTURED_MODULE = "ethos.adapters.repo.source_budget.measurement.native._stru
 _PROVIDER_PARSERS = {
     "c4": "diagram-contract|cpython-3.14+ethos-c4-v1",
     "ini": "configparser|cpython-3.14+ethos-ini-v1",
-    "jinja": "jinja2|cpython-3.14+jinja-3+ethos-jinja-v2",
+    "jinja": "jinja2|cpython-3.14+jinja-3+ethos-jinja-v3",
     "json": "json-stdlib|cpython-3.14+ethos-json-v1",
     "python": "python-tokenize|cpython-3.14+ethos-python-v1",
-    "shell": "shell-lexical|cpython-3.14+ethos-shell-v3",
+    "shell": "shell-lexical|cpython-3.14+ethos-shell-v4",
     "toml": "tomllib|cpython-3.14+ethos-toml-v1",
     "utf8-control": "utf8-control|cpython-3.14+ethos-utf8-v1",
     "utf8-footprint": "utf8-footprint|cpython-3.14+ethos-utf8-v1",
@@ -61,7 +62,7 @@ _PROVIDER_RULES = {
     "ini": "strict-duplicates|no-interpolation|canonical-scalars",
     "jinja": (
         "parse-only|keep-trailing-lf|dynamic-ast-units|canonical-dynamic-bytes"
-        "|static-data-comment-bytes"
+        "|finite-numeric-literals|strict-json|static-data-comment-bytes"
     ),
     "json": "unique-object-keys|finite-numbers|canonical-scalars",
     "python": "ast-syntax-guard|significant-token-count|type-and-spelling-frames",
@@ -71,7 +72,8 @@ _PROVIDER_RULES = {
         "|quoted-backticks|nested-heredocs|comment-delimiter-rejection"
         "|quote-removed-heredoc-word-fragments|heredoc-payloads"
         "|function-definition-headers|line-continuation-command-state"
-        "|parameter-expansion-literals"
+        "|parameter-expansion-literals|contextual-nested-closers"
+        "|resource-exhaustion-classification"
     ),
     "toml": "tomllib-parse|unique-keys|canonical-scalars",
     "utf8-control": "strict-utf8|one-leading-bom|lf-newlines",
@@ -86,7 +88,7 @@ _PROVIDER_IDS = tuple(sorted(_PROVIDER_PARSERS))
 _CONFORMANCE_CASES = {
     "c4": (b'system ETHOS "Governance"\ncontainer Git "Git" "Refs"\nrel ETHOS Git "uses"\n'),
     "ini": b"[service]\nname=ethos\ncount=2\n",
-    "jinja": b'a{#comment#}{{ "payload-value" | upper }}b\n',
+    "jinja": b'a{#comment#}{{ "payload-value" | upper }}{{ 1e3 }}b\n',
     "json": b'{"name":"ethos","items":[1,true,null]}\n',
     "python": b"first=1; second='two' # comment\n",
     "shell": (
@@ -103,6 +105,8 @@ _CONFORMANCE_CASES = {
         b"joined_zsh=${(j:,:)items}\n"
         b"echo ${arr[1<<2]} ${x#<<}\n"
         b'echo "`printf ok`" "\\`literal"\n'
+        b"echo $(echo $(date))\n"
+        b"echo <(cat <(printf x))\n"
         b"f() { :; }\n"
         b"function g\n{ :; }\n"
         b"if true && \\\n{ :; }\n"
@@ -129,10 +133,10 @@ _CONFORMANCE_CASES = {
 _EXPECTED_CONFORMANCE_DIGESTS = {
     "c4": "5f8bac5ef288997b60fb1cedaf08790c8ae1adc5c0471a57f36318e10d35735c",
     "ini": "b502516798252b49f65c0a9a0113e1abc12c9e0f90e782fd20a8af11f18eb2fa",
-    "jinja": "93148cb5ccf204577951d9147b36a2cb6eb21c3de6caec0622b2efeb7fa6927a",
+    "jinja": "337d89fad45ac03517fd3b60d090a8d850f60714b11cd894e0aa8bedf4ca068b",
     "json": "9f66c10e9ca91655f6b6efc1a212d1f28b5a17bba80431a671e63838559e1752",
     "python": "ce3459c91f2d4185791ff067dfb52bba4b53930c2c9e8a1b6ffbd1597a561176",
-    "shell": "150512ab51042005ef1344fdefc0124552cb8da86c1fb9106a367708984e8496",
+    "shell": "a4d8d0b5590b4c69b298cbceb4655c9c551948fda7781e4be0bc667a90fc03c7",
     "toml": "4e0a08136432076ce5771746128ef9079c8d839b980157104464a93c5129e2e1",
     "utf8-control": "45d13f0f9cd68df46c317ad4d10d720cfdde11e5ab95d062a64b0938398d0e50",
     "utf8-footprint": ("156f5c6465dbf820bdf522220411dbf5f072e53edb3b4866a0e188f4bb92f23d"),
@@ -154,7 +158,7 @@ class _ProviderBoundary:
         return None
 
     def __exit__(self, _t: object, error: BaseException | None, _tb: object) -> Literal[False]:
-        if isinstance(error, MemoryError):
+        if isinstance(error, (MemoryError, RecursionError)):
             _raise(_ProviderError, "source_budget_native_resource_exhausted", error)
         if isinstance(error, Exception) and not isinstance(error, _ProviderError):
             _raise(_ProviderError, self.gap, error)
@@ -475,7 +479,11 @@ def _jinja_value(value: object, nodes: Any) -> object:
         }
     if isinstance(value, (list, tuple)):
         return [_jinja_value(item, nodes) for item in value]
-    if value is None or type(value) in {bool, float, int, str}:
+    if type(value) is float:
+        if not math.isfinite(value):
+            _raise(ValueError, "non-finite jinja AST field")
+        return value
+    if value is None or type(value) in {bool, int, str}:
         return value
     _raise(ValueError, "unsupported jinja AST field")
 
@@ -485,4 +493,10 @@ def _frame(label: bytes, payload: bytes) -> bytes:
 
 
 def _canonical_json_bytes(value: object) -> bytes:
-    return json.dumps(value, ensure_ascii=False, separators=(",", ":"), sort_keys=True).encode()
+    return json.dumps(
+        value,
+        allow_nan=False,
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode()

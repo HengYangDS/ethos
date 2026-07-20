@@ -31,7 +31,9 @@ from ethos.adapters.repo.status.core import workspace_status
 from ethos.domain.reporting.scoring import adopter_quality_floor_report
 from ethos.domain.reporting.scoring import hard_quality_floor_report
 from ethos.repository.context import context_for_root
+from ethos.repository.context import is_product_root
 from ethos.repository.openspec.audit import protected_branch_active_change_required_gaps
+from ethos.repository.profile import load_repository_profile
 from ethos.repository.release.core import release_config
 from ethos.repository.release.publication import publication_branch_admission
 from ethos.repository.release.publication import publication_topology
@@ -39,6 +41,7 @@ from ethos.repository.release.publication import topology_remotes
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import emit
+from ethos.surface.cli._base import emit_invalid_adopter_profile
 from ethos.surface.cli._base import resolve_root
 from ethos_core.contracts.branch.roles import load_branch_role_policy
 from ethos_core.contracts.lifecycle.core import MutationEvaluation
@@ -204,6 +207,14 @@ def _stable_control_replacement(*, repo: Path, audit_root: Path, accepted_head: 
 def land(*, apply: bool = False, authorize: bool = False, expect_head: str | None = None, closeout: bool = False, control_verifier_receipt: Annotated[Path | None, Parameter(name="--control-verifier-receipt")] = None, root: RootOption | None = None, json_output: JsonFlag = False) -> None:
     """Report land readiness."""
     repo = resolve_root(root)
+    profile = load_repository_profile(repo)
+    if not is_product_root(repo) and profile.state == "invalid":
+        emit_invalid_adopter_profile(
+            command="land",
+            json_output=json_output,
+            enforce=apply,
+        )
+        return
     current_head = git.current_head(repo)
     if closeout:
         request = MutationRequest(command="closeout", apply=apply, authorized=authorize, expect_head=expect_head)

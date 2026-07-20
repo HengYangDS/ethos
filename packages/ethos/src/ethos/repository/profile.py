@@ -240,13 +240,18 @@ def _normalize_legacy_profile_payload(payload: object) -> object:
     if not any(key in payload for key in retired):
         return payload
     repository = payload.get("repository")
+    repository_fields = repository if isinstance(repository, dict) else {}
+    kind = repository_fields.get("kind")
+    root_subject = repository_fields.get("root_subject")
     expected = (
         payload.get("schema_version") == 1
         and payload.get("profile_version") == "1"
         and payload.get("ethos_contract_version") == "1"
-        and isinstance(repository, dict)
-        and set(repository) == {"kind", "root_subject"}
-        and all(isinstance(repository[key], str) and repository[key] for key in repository)
+        and set(repository_fields) == {"kind", "root_subject"}
+        and isinstance(kind, str)
+        and bool(kind)
+        and isinstance(root_subject, str)
+        and bool(root_subject)
     )
     if not expected:
         return payload

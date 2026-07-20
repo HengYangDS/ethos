@@ -1,13 +1,16 @@
 schema_version = 1
 paths = [
+  ".config/checks/ruff/ratchet.toml",
   "docs/governance/repository-profile-contract.md",
   "evidence/claims/adopter-profile-migration-20260720.toml",
   "evidence/chronicle/adopter-profile-migration-20260720/**",
   "openspec/changes/adopter-profile-migration-20260720/**",
+  "openspec/changes/archive/2026-07-20-adopter-profile-migration-20260720/**",
   "openspec/specs/repository-governance/spec.md",
   "packages/ethos/src/ethos/adapters/admission/evidence/external.py",
   "packages/ethos/src/ethos/domain/reporting/parity/core.py",
   "packages/ethos/src/ethos/repository/evidence/shadow/routing.py",
+  "packages/ethos/src/ethos/cli.py",
   "packages/ethos/src/ethos/repository/profile.py",
   "packages/ethos/src/ethos/surface/cli/_base.py",
   "packages/ethos/src/ethos/surface/cli/root/inspection.py",
@@ -16,6 +19,7 @@ paths = [
   "packages/ethos/src/ethos/surface/cli/root/proof.py",
   "packages/ethos/src/ethos/surface/cli/root/reference.py",
   "tests/unit/adoption/test_profile_contract.py",
+  "tests/unit/cli/test_invalid_profile_boundary.py",
   "tests/unit/cli/test_contracts_proof.py",
   "tests/unit/domain/test_report.py",
 ]

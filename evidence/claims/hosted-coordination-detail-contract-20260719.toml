@@ -2,7 +2,7 @@
 id = "hosted-coordination-detail-contract-20260719"
 subject = "repository-governance:coordination-detail-read-model"
 state = "archived"
-change_id = "hosted-coordination-detail-contract-20260719"
+change_id = "hosted-coordination-detail-contract"
 summary = "Archived rejected attempt to accept exact detail for an empty bounded coordination inventory; superseded by explicit caller-mode semantics."
 
 [evidence]
@@ -26,14 +26,14 @@ owner = "repository-governance"
 scope = "Historical rejected exact-empty bounded-reader interpretation; no current product or hosted-success claim."
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-19-hosted-coordination-detail-contract-20260719"
+openspec = "openspec/changes/archive/2026-07-19-hosted-coordination-detail-contract"
 fallback = "Treat the observed detail state as unverified and retain the existing read-only coordination boundary until focused tests and HEAD-bound proof pass."
 kill_signal = "A provider-specific branch, lease-authority change, foreign Work Lane mutation grant, or hosted-success claim is added to this carrier."
 
 [promotion]
 targets = [
   "tests/unit/product/test_orient.py",
-  "openspec/changes/archive/2026-07-19-hosted-coordination-detail-contract-20260719",
+  "openspec/changes/archive/2026-07-19-hosted-coordination-detail-contract",
   "evidence/claims/hosted-coordination-detail-contract-20260719.toml",
   "evidence/chronicle/hosted-coordination-detail-contract-20260719/2026-07-19.md",
 ]

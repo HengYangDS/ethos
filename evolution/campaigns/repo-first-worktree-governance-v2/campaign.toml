@@ -10,7 +10,7 @@ title = "Campaign bootstrap and scoped closeout"
 state = "retired"
 ordinal = 1
 depends_on = []
-openspec_change = "repo-first-worktree-governance-campaign-20260718"
+openspec_change = "repo-first-worktree-governance-campaign"
 work_lane = "work/20260718-worktree-governance-campaign"
 claim_id = "worktree-governance-campaign-20260718"
 
@@ -28,7 +28,7 @@ title = "Retirement fail-closed"
 state = "archive_ready"
 ordinal = 2
 depends_on = ["campaign-bootstrap"]
-openspec_change = "worktree-retirement-fail-closed-20260718"
+openspec_change = "worktree-retirement-fail-closed"
 work_lane = "work/20260719-worktree-retirement-fail-closed"
 claim_id = "worktree-retirement-fail-closed-20260718"
 
@@ -44,7 +44,7 @@ title = "Recovery package v2"
 state = "planned"
 ordinal = 3
 depends_on = ["retirement-fail-closed"]
-openspec_change = "worktree-recovery-package-v2-20260718"
+openspec_change = "worktree-recovery-package-v2"
 work_lane = "work/worktree-recovery-package-v2-20260718"
 claim_id = "worktree-recovery-package-v2-20260718"
 
@@ -60,7 +60,7 @@ title = "Deletion-scope admission"
 state = "planned"
 ordinal = 4
 depends_on = ["recovery-package-v2"]
-openspec_change = "worktree-deletion-scope-admission-20260718"
+openspec_change = "worktree-deletion-scope-admission"
 work_lane = "work/worktree-deletion-scope-admission-20260718"
 claim_id = "worktree-deletion-scope-admission-20260718"
 
@@ -76,7 +76,7 @@ title = "Records initialization and sealing"
 state = "planned"
 ordinal = 5
 depends_on = ["deletion-scope-admission"]
-openspec_change = "worktree-records-init-and-seal-20260718"
+openspec_change = "worktree-records-init-and-seal"
 work_lane = "work/worktree-records-init-and-seal-20260718"
 claim_id = "worktree-records-init-and-seal-20260718"
 
@@ -92,7 +92,7 @@ title = "Worktree governance inventory"
 state = "planned"
 ordinal = 6
 depends_on = ["records-init-and-seal"]
-openspec_change = "worktree-governance-inventory-20260718"
+openspec_change = "worktree-governance-inventory"
 work_lane = "work/worktree-governance-inventory-20260718"
 claim_id = "worktree-governance-inventory-20260718"
 
@@ -108,7 +108,7 @@ title = "Clean worktree migration"
 state = "planned"
 ordinal = 7
 depends_on = ["worktree-governance-inventory"]
-openspec_change = "worktree-clean-migration-20260718"
+openspec_change = "worktree-clean-migration"
 work_lane = "work/worktree-clean-migration-20260718"
 claim_id = "worktree-clean-migration-20260718"
 
@@ -124,7 +124,7 @@ title = "Worktree retirement saga"
 state = "planned"
 ordinal = 8
 depends_on = ["clean-worktree-migration"]
-openspec_change = "worktree-retirement-saga-20260718"
+openspec_change = "worktree-retirement-saga"
 work_lane = "work/worktree-retirement-saga-20260718"
 claim_id = "worktree-retirement-saga-20260718"
 
@@ -140,7 +140,7 @@ title = "Exceptional dirty preserve-retire"
 state = "planned"
 ordinal = 9
 depends_on = ["worktree-retirement-saga"]
-openspec_change = "worktree-dirty-preserve-retire-20260718"
+openspec_change = "worktree-dirty-preserve-retire"
 work_lane = "work/worktree-dirty-preserve-retire-20260718"
 claim_id = "worktree-dirty-preserve-retire-20260718"
 
@@ -156,7 +156,7 @@ title = "Portfolio convergence"
 state = "planned"
 ordinal = 10
 depends_on = ["exceptional-dirty-preserve-retire"]
-openspec_change = "worktree-portfolio-convergence-20260718"
+openspec_change = "worktree-portfolio-convergence"
 work_lane = "work/worktree-portfolio-convergence-20260718"
 claim_id = "worktree-portfolio-convergence-20260718"
 

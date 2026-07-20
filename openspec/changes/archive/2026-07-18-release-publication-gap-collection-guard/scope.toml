@@ -1,0 +1,8 @@
+schema_version = 1
+paths = [
+  "packages/ethos/src/ethos/repository/release/core.py",
+  "tests/unit/release/test_policy_attestation.py",
+  "openspec/changes/archive/2026-07-18-release-publication-gap-collection-guard/**",
+  "evidence/claims/release-publication-gap-collection-guard-20260718.toml",
+  "evidence/chronicle/release-publication-gap-collection-guard-20260718/**",
+]

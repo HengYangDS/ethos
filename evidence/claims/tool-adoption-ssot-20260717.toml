@@ -9,12 +9,12 @@ evidence = { dated = "evidence/chronicle/tool-adoption-ssot-20260717/2026-07-17.
   "openspec validate tool-adoption-ssot-20260717 --strict --json",
 ], freshness = { mode = "historical" } }
 boundary = { owner = "ethos-quality-gate-governance", scope = "Tool adoption state declaration, catalog-derived quality projection, and schema validation." }
-carriers = { openspec = "openspec/changes/archive/2026-07-17-tool-adoption-ssot-20260717", fallback = "Restore the preceding static adapter projection only by reverting catalog, schema, source, and tests together.", kill_signal = "A tool profile differs from the catalog, accepts an undeclared state, or treats a non-active entry as an active gate." }
+carriers = { openspec = "openspec/changes/archive/2026-07-17-tool-adoption-ssot", fallback = "Restore the preceding static adapter projection only by reverting catalog, schema, source, and tests together.", kill_signal = "A tool profile differs from the catalog, accepts an undeclared state, or treats a non-active entry as an active gate." }
 promotion = { targets = [
   "evidence/claims/tool-adoption-ssot-20260717.toml",
   "evidence/chronicle/tool-adoption-ssot-20260717/2026-07-17.md",
   "evidence/parity/generic-shadow.json",
-  "openspec/changes/archive/2026-07-17-tool-adoption-ssot-20260717",
+  "openspec/changes/archive/2026-07-17-tool-adoption-ssot",
   "openspec/specs/quality/spec.md",
   "packages/ethos-core/src/ethos_core/quality/profiles.py",
   "packages/ethos/src/ethos/adapters/gates/ty.py",

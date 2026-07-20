@@ -12,11 +12,11 @@ relations:
 Status: active successor-v3 closeout.
 
 Purpose: execute the bounded tracked cleanup defined by the
-[OpenSpec archive](../../openspec/changes/archive/2026-07-19-history-residue-closeout-20260719/) and
+[OpenSpec archive](../../openspec/changes/archive/2026-07-19-history-residue-closeout/) and
 [design](history-residue-closeout-design.md).
 
 See also: the
-[OpenSpec archive](../../openspec/changes/archive/2026-07-19-history-residue-closeout-20260719/) and
+[OpenSpec archive](../../openspec/changes/archive/2026-07-19-history-residue-closeout/) and
 [design](history-residue-closeout-design.md).
 
 ## Global Constraints

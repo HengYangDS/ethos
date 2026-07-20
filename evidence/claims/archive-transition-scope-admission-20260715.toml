@@ -1,6 +1,6 @@
 [claim]
 id = "archive-transition-scope-admission-20260715"
-change_id = "archive-transition-scope-admission-20260715"
+change_id = "archive-transition-scope-admission"
 subject = "ethos:archive-transition-scope-admission"
 state = "active"
 summary = "ETHOS admits a current archive companion and its own archive directory only for one archive reconciliation diff."
@@ -21,9 +21,9 @@ owner = "ethos-repository"
 scope = "Current-diff-only archived OpenSpec companion selection and archive-directory self-coverage for material paths; excludes standing historical authority, archive-external implicit coverage, claim binding, archive completeness, and provider publication controls."
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-17-archive-transition-scope-admission-20260715"
+openspec = "openspec/changes/archive/2026-07-17-archive-transition-scope-admission"
 fallback = "Reject uncovered material paths when no active, archiving, or current-diff archive companion validly covers them."
 kill_signal = "An archive with no path in the current Work Lane diff covers a material write, a malformed archive companion grants coverage, or archive self-coverage reaches a path outside its own directory."
 
 [promotion]
-targets = ["packages/ethos/src/ethos/adapters/openspec/lifecycle/scope.py", "system/invalid_states.toml", "tests/unit/kernel/test_invalid_states.py", "tests/unit/lanes/test_lanes_openspec_scope.py", "openspec/specs/repository-governance/spec.md", "openspec/changes/archive/2026-07-17-archive-transition-scope-admission-20260715", "evidence/chronicle/archive-transition-scope-admission-20260715/2026-07-15.md", "evidence/claims/archive-transition-scope-admission-20260715.toml"]
+targets = ["packages/ethos/src/ethos/adapters/openspec/lifecycle/scope.py", "system/invalid_states.toml", "tests/unit/kernel/test_invalid_states.py", "tests/unit/lanes/test_lanes_openspec_scope.py", "openspec/specs/repository-governance/spec.md", "openspec/changes/archive/2026-07-17-archive-transition-scope-admission", "evidence/chronicle/archive-transition-scope-admission-20260715/2026-07-15.md", "evidence/claims/archive-transition-scope-admission-20260715.toml"]

@@ -1,5 +1,5 @@
-claim = { id = "runtime-topology-convergence-20260711", subject = "repository-governance:worktree-bound-runtime-topology", change_id = "runtime-topology-convergence-20260711", state = "active", summary = "ETHOS binds product-owned Python producers to a worktree-local declared runtime while keeping dependency caching explicitly host- or CI-scoped, including safe cross-worktree bootstrap, lock-free marked owner-script handoff, recoverable generated coverage-writer locking, and fail-closed accepted-ref maintenance policy." }
-evidence = { dated = "evidence/chronicle/runtime-topology-convergence-20260711/2026-07-11.md", sha256 = "947cf311d1958fb53ef1d6692857014be64cf455b5af2d97f19bc1dcf9b39a04", evidence_ids = [
+claim = { id = "runtime-topology-convergence-20260711", subject = "repository-governance:worktree-bound-runtime-topology", change_id = "runtime-topology-convergence", state = "active", summary = "ETHOS binds product-owned Python producers to a worktree-local declared runtime while keeping dependency caching explicitly host- or CI-scoped, including safe cross-worktree bootstrap, lock-free marked owner-script handoff, recoverable generated coverage-writer locking, and fail-closed accepted-ref maintenance policy." }
+evidence = { dated = "evidence/chronicle/runtime-topology-convergence-20260711/2026-07-11.md", sha256 = "36af89576932f29f79fa7bcd523fb7d66ead9c235a422c66e0c569eda7743f8e", evidence_ids = [
   "evidence:runtime-topology-convergence-20260711",
 ], binding = "Archived OpenSpec carrier, runtime bootstrap and topology policy, provider-projection contract, cross-worktree and same-worktree cache-lock regressions, dead-owner coverage-lock recovery, fail-closed accepted-ref maintenance policy, local generated-artifact audit, and this dated Chronicle bind the worktree-local runtime boundary.", verifier = "digest_only", tests = [
   "tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev pytest -q tests/architecture/test_ci_provider_projections.py",
@@ -10,7 +10,7 @@ evidence = { dated = "evidence/chronicle/runtime-topology-convergence-20260711/2
   "tools/ci/scripts/with-python-runtime.sh -- uv run --package ethos ethos prove --execute --expect-head $(git rev-parse HEAD) --json",
 ], freshness = { mode = "historical" } }
 boundary = { owner = "repository-governance", scope = "Worktree-bound Python runtime bootstrap, bounded cross-worktree cache namespace, lock-free marked owner-script handoff, recoverable generated coverage-writer locking, fail-closed accepted-ref maintenance policy, explicit cache boundary, provider projection routing, and generated-artifact runtime-entrypoint enforcement." }
-carriers = { openspec = "openspec/changes/archive/2026-07-11-runtime-topology-convergence-20260711", fallback = "Invoke repository Python owners through the worktree-bound bootstrap and keep pre-existing root environments ignored and non-authoritative until an explicit local operator removes them.", kill_signal = "A repository-owned executable producer falls back to root .venv, invokes bare uv run outside the bootstrap, shares a source environment across checkouts, or represents hosted or remote success without provider evidence." }
+carriers = { openspec = "openspec/changes/archive/2026-07-11-runtime-topology-convergence", fallback = "Invoke repository Python owners through the worktree-bound bootstrap and keep pre-existing root environments ignored and non-authoritative until an explicit local operator removes them.", kill_signal = "A repository-owned executable producer falls back to root .venv, invokes bare uv run outside the bootstrap, shares a source environment across checkouts, or represents hosted or remote success without provider evidence." }
 promotion = { targets = [
   ".config/ci/templates/hosted/github-actions.yml",
   ".config/ci/templates/hosted/gitlab-ci.yml",
@@ -23,7 +23,7 @@ promotion = { targets = [
   "docs/architecture/generated-artifact-topology.md",
   "evidence/parity/generic-shadow.json",
   "openspec/specs/repository-governance/spec.md",
-  "openspec/changes/archive/2026-07-11-runtime-topology-convergence-20260711",
+  "openspec/changes/archive/2026-07-11-runtime-topology-convergence",
   "packages/ethos/src/ethos/adapters/mutation/lanes.py",
   "packages/ethos/src/ethos/surface/cli/hook/core.py",
   "packages/ethos/src/ethos/repository/policy/artifacts.py",

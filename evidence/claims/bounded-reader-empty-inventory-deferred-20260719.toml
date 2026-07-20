@@ -1,13 +1,13 @@
 [claim]
 id = "bounded-reader-empty-inventory-deferred-20260719"
-change_id = "bounded-reader-empty-inventory-deferred-20260719"
+change_id = "bounded-reader-empty-inventory-deferred"
 subject = "ethos:bounded-reader-empty-inventory-deferred"
 state = "archived"
 summary = "Archived repair preserving deferred empty bounded coordination, correcting the concurrently accepted exact-empty drift, and retaining bounded local lifecycle evidence without external outcome claims."
 
 [evidence]
 dated = "evidence/chronicle/bounded-reader-empty-inventory-deferred-20260719/2026-07-19.md"
-sha256 = "0b98ad62fe77cbb7b8fab7ded05ac8df81f944dd05dafef2ca51ebb74aeb5f5c"
+sha256 = "764ba74ee84c835fefaf64acd48de9f82c2ad58ec7ee5f25a13e332da9d48b1a"
 evidence_ids = ["evidence:bounded-reader-empty-inventory-deferred-20260719"]
 binding = "The dated Chronicle digest binds the root-cause observation, explicit reader-mode design, exact material scope, minimal production repair, local Task 2 GREEN results, pre-archive checks, and official OpenSpec archive fusion; it does not establish landing, publication, hosted success, or retirement."
 verifier = "digest_only"
@@ -31,7 +31,7 @@ owner = "ethos-repository-governance"
 scope = "Explicit bounded-versus-full empty-inventory coordination semantics plus restoration of weakened status/orient assertions and supersession of the conflicting claim; schemas, commands, providers, remote publication, and hosted success remain excluded."
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-19-bounded-reader-empty-inventory-deferred-20260719"
+openspec = "openspec/changes/archive/2026-07-19-bounded-reader-empty-inventory-deferred"
 fallback = "Keep bounded coordination detail deferred and block integration if the empty-inventory mode cannot be proven without weakening tests."
 kill_signal = "A bounded empty inventory reports exact detail, any of the five detail-dependent aggregates reports zero, or the repair changes schemas, commands, providers, or orient test expectations."
 
@@ -40,7 +40,7 @@ targets = [
   "evidence/claims/bounded-reader-empty-inventory-deferred-20260719.toml",
   "evidence/chronicle/bounded-reader-empty-inventory-deferred-20260719/2026-07-19.md",
   "evidence/parity/generic-shadow.json",
-  "openspec/changes/archive/2026-07-19-bounded-reader-empty-inventory-deferred-20260719",
+  "openspec/changes/archive/2026-07-19-bounded-reader-empty-inventory-deferred",
   "openspec/specs/repository-governance/spec.md",
   "packages/ethos/src/ethos/adapters/repo/coordination.py",
   "packages/ethos/src/ethos/adapters/repo/status/core.py",

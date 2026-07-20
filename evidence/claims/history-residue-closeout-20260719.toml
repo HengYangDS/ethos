@@ -6,7 +6,7 @@ summary = "The active claim binds the dated successor-v3 OpenSpec archive and Ch
 
 [evidence]
 dated = "evidence/chronicle/history-residue-closeout-20260719/2026-07-19.md"
-sha256 = "d39e6c5d1faa5eb0e3719aca646e58e10458c0c68b5ea7d62232c9252c50e6de"
+sha256 = "7afd9473f23a00d7d5f31f1d397d54176a3101bae6adec4fd8595f58e3e9810e"
 evidence_ids = ["evidence:history-residue-closeout-20260719"]
 binding = "Raw-byte digest association between the dated OpenSpec archive and the historical Chronicle; no local-state effect or terminal campaign completion is asserted."
 verifier = "digest_only"
@@ -27,13 +27,13 @@ owner = "repository-governance"
 scope = "Tracked successor-v3 cleanup, tests, OpenSpec, claims, and Chronicle only; excludes real local-state mutation, recovery deletion, terminal source-budget settlement, and remote or hosted completion."
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-19-history-residue-closeout-20260719"
+openspec = "openspec/changes/archive/2026-07-19-history-residue-closeout"
 fallback = "Revert tracked authoring changes; leave ignored local state, leases, proofs, recovery material, and remote refs untouched unless separately authorized."
 kill_signal = "The carrier or Chronicle is missing, the raw-byte digest breaks, a historical claim is deleted without disposition, or the record expands into unobserved local, remote, hosted, or terminal-completion claims."
 
 [promotion]
 targets = [
-  "openspec/changes/archive/2026-07-19-history-residue-closeout-20260719",
+  "openspec/changes/archive/2026-07-19-history-residue-closeout",
   "evidence/claims/history-residue-closeout-20260719.toml",
   "evidence/chronicle/history-residue-closeout-20260719/2026-07-19.md",
 ]

@@ -20,7 +20,7 @@ owner = "ethos-adapters"
 scope = "Optional, provider-neutral local observation; no adopter account, key, daemon, network service, semantic assertion, or authority claim."
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-14-current-head-real-adopter-evidence-20260714"
+openspec = "openspec/changes/archive/2026-07-14-current-candidate-head-real-adopter-evidence"
 fallback = "Treat this observation as historical; do not make independent verification or yheng-agent-ethos an ordinary adopter prerequisite."
 kill_signal = "The observation rewrites the adopter, promotes raw host-local material, claims semantic correctness, or becomes mandatory for ordinary adoption."
 
@@ -28,5 +28,5 @@ kill_signal = "The observation rewrites the adopter, promotes raw host-local mat
 targets = [
   { kind = "evidence", path = "evidence/chronicle/current-head-real-adopter-evidence-20260714/2026-07-14.md" },
   { kind = "evidence", path = "evidence/claims/current-head-real-adopter-evidence-20260714.toml" },
-  { kind = "openspec", path = "openspec/changes/archive/2026-07-14-current-head-real-adopter-evidence-20260714" },
+  { kind = "openspec", path = "openspec/changes/archive/2026-07-14-current-candidate-head-real-adopter-evidence" },
 ]

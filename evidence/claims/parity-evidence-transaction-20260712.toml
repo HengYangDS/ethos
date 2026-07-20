@@ -1,11 +1,11 @@
-claim = { id = "parity-evidence-transaction-20260712", change_id = "parity-evidence-transaction-20260712", subject = "repository-governance:parity-evidence-transaction", state = "active", summary = "ETHOS requires configured generic parity evidence to refresh and commit in the admitted Work Lane before executed proof, preserving protected candidate and accepted roots." }
+claim = { id = "parity-evidence-transaction-20260712", change_id = "parity-evidence-transaction", subject = "repository-governance:parity-evidence-transaction", state = "active", summary = "ETHOS requires configured generic parity evidence to refresh and commit in the admitted Work Lane before executed proof, preserving protected candidate and accepted roots." }
 evidence = { dated = "evidence/chronicle/parity-evidence-transaction-20260712/2026-07-12.md", sha256 = "798735f54553af24f6d2f1010ecf3e99e2f352bab3e7b40e03f2c944de8a38af", evidence_ids = [
   "evidence:parity-evidence-transaction-20260712",
 ], binding = "Work-Lane-owned parity refresh and proof-order evidence binding", verifier = "digest_only", tests = [
   "build/runtime/venv/bin/python -m pytest tests/unit/product/parity/test_evidence_freshness.py tests/unit/product/parity/test_gaps.py tests/unit/product/parity/test_evidence_writing.py -q",
 ], freshness = { mode = "historical" } }
 boundary = { owner = "ethos-repository", scope = "Configured generic parity evidence lifecycle from owned Work Lane through candidate landing" }
-carriers = { openspec = "openspec/changes/archive/2026-07-12-parity-evidence-transaction-20260712", fallback = "Keep stale generic parity evidence blocking proof and require a manual owner-lane refresh rather than writing a protected candidate checkout.", kill_signal = "A candidate or accepted checkout can directly write generic parity evidence, or stale parity can pass proof without a Work-Lane refresh package." }
+carriers = { openspec = "openspec/changes/archive/2026-07-12-parity-evidence-transaction", fallback = "Keep stale generic parity evidence blocking proof and require a manual owner-lane refresh rather than writing a protected candidate checkout.", kill_signal = "A candidate or accepted checkout can directly write generic parity evidence, or stale parity can pass proof without a Work-Lane refresh package." }
 promotion = { targets = [
   "packages/ethos/src/ethos/repository/evidence/freshness.py",
   "packages/ethos/src/ethos/repository/evidence/parity/core.py",

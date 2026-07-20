@@ -19,7 +19,11 @@ case = proposal + design + tasks + spec deltas + claim/evidence refs
 - Current accepted behavior lives under `openspec/specs/<capability>/spec.md`.
 - Capability routing metadata lives in `openspec/specs/<capability>/capability.toml`.
 - Capability family vocabulary lives in `openspec/specs/families.toml`.
-- Active change intent lives under `openspec/changes/<change-id>/`.
+- Active Change IDs are date-free lower-kebab identifiers that start with a
+  letter; intent lives under `openspec/changes/<change-id>/`.
+- Historical carriers use exactly one archive date:
+  `openspec/changes/archive/YYYY-MM-DD-<change-id>/`. A Change ID itself does
+  not carry a terminal `YYYYMMDD` suffix.
 - Archived changes are history after closeout; they are not reusable active work
   containers.
 - For adopters, `scope.toml` is ETHOS companion data beside an active Change;

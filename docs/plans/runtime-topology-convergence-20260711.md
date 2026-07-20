@@ -3,7 +3,7 @@ subject: ethos:runtime-topology-convergence-20260711
 role: plan
 state: active
 relations:
-  implements: openspec/changes/archive/2026-07-11-runtime-topology-convergence-20260711
+  implements: openspec/changes/archive/2026-07-11-runtime-topology-convergence
 ---
 
 # Runtime Topology Convergence Plan
@@ -14,7 +14,7 @@ Purpose: make every normal product Python execution checkout-bound and prevent
 root `.venv` creation from product-owned executable entrypoints.
 
 See also: [Generated Artifact Topology](../architecture/generated-artifact-topology.md)
-and the [archived OpenSpec carrier](../../openspec/changes/archive/2026-07-11-runtime-topology-convergence-20260711/).
+and the [archived OpenSpec carrier](../../openspec/changes/archive/2026-07-11-runtime-topology-convergence/).
 
 ## Architecture
 

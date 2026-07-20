@@ -15,7 +15,7 @@ Purpose: define the tracked cleanup, evidence, and safety boundaries for the
 July 19, 2026 history-residue closeout.
 
 See also: the normative
-[OpenSpec archive](../../openspec/changes/archive/2026-07-19-history-residue-closeout-20260719/)
+[OpenSpec archive](../../openspec/changes/archive/2026-07-19-history-residue-closeout/)
 and the [implementation plan](history-residue-closeout-implementation.md).
 
 ## Decision

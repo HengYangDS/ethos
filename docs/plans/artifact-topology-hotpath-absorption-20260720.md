@@ -4,7 +4,7 @@ role: plan
 state: active
 relations:
   source_lane: work/artifact-topology-hotpath-repair-20260714
-  carrier: openspec/changes/archive/2026-07-20-artifact-topology-hotpath-absorption-20260720
+  carrier: openspec/changes/archive/2026-07-20-artifact-topology-hotpath-absorption
 ---
 
 # Artifact-Topology Hotpath Absorption — 2026-07-20

@@ -225,6 +225,11 @@ ETHOS SHALL expose an explicit read-only archive query that accepts a logical
 OpenSpec Change ID and resolves exactly one dated archived carrier under
 `openspec/changes/archive` without mutating historical archives.
 
+A logical Change ID SHALL be a date-free lower-kebab identifier that begins
+with a letter. Its archive carrier SHALL use exactly one leading archive date:
+`YYYY-MM-DD-<logical-id>`. A terminal `YYYYMMDD` segment is not part of either
+an active logical Change ID or an archived carrier's logical portion.
+
 #### Scenario: Logical archive ID resolves uniquely
 - **WHEN** `ethos openspec --archive-id <logical-id> --json` receives a valid
   logical ID with exactly one matching `YYYY-MM-DD-<logical-id>` archive
@@ -236,6 +241,14 @@ OpenSpec Change ID and resolves exactly one dated archived carrier under
   name, no matching archive, or more than one matching archive
 - **THEN** it reports a distinct required gap for that condition
 - **AND** it does not choose an archive by date or mutate an archive
+
+#### Scenario: Numeric or temporal logical IDs are rejected
+
+- **WHEN** an active or archive selector receives an ID that begins with a
+  digit or ends in `-YYYYMMDD`
+- **THEN** ETHOS SHALL reject it as an invalid logical Change ID
+- **AND** it SHALL require the date-free logical ID rather than a compatibility
+  alias, redirect, or fallback lookup.
 
 ### Requirement: Active Change selection excludes archive directory names
 ETHOS SHALL keep `ethos openspec --change` scoped to active logical Change IDs.

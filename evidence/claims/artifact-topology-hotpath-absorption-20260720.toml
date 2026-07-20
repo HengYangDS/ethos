@@ -2,7 +2,7 @@
 id = "artifact-topology-hotpath-absorption-20260720"
 subject = "ethos:work-lane:work/artifact-topology-hotpath-repair-20260714"
 state = "active"
-change_id = "artifact-topology-hotpath-absorption-20260720"
+change_id = "artifact-topology-hotpath-absorption"
 summary = "One current-baseline carrier records the bounded comparison between accepted generated-artifact topology contracts and the useful behavior of work/artifact-topology-hotpath-repair-20260714 before one native preserve-retire transition."
 
 [evidence]
@@ -27,7 +27,7 @@ owner = "ethos-repository"
 scope = "One dirty missing-lease artifact-topology source lane, one exact source head, its staged parity delta, current accepted semantic contracts, and one later native local preservation-retirement only."
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-20-artifact-topology-hotpath-absorption-20260720"
+openspec = "openspec/changes/archive/2026-07-20-artifact-topology-hotpath-absorption"
 fallback = "Keep the source branch, linked worktree, staged delta, and existing retained packages intact whenever focused behavior, source observation, Chronicle, manifest, or current accepted basis cannot be proved."
 kill_signal = "Preservation is called absorption; a source tree is merged without current replay evidence; a foreign lane, valid lease, raw ref/store deletion, remote, or unrelated package is touched."
 
@@ -36,5 +36,5 @@ targets = [
   "docs/plans/artifact-topology-hotpath-absorption-20260720.md",
   "evidence/claims/artifact-topology-hotpath-absorption-20260720.toml",
   "evidence/chronicle/artifact-topology-hotpath-absorption-20260720/2026-07-20.md",
-  "openspec/changes/archive/2026-07-20-artifact-topology-hotpath-absorption-20260720",
+  "openspec/changes/archive/2026-07-20-artifact-topology-hotpath-absorption",
 ]

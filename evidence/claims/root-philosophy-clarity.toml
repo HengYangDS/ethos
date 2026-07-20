@@ -1,5 +1,5 @@
 claim = { id = "root-philosophy-clarity", change_id = "root-philosophy-clarity", subject = "ethos:root-constraint-clarity", state = "active", summary = "ETHOS keeps 问道 as the Product Design Contract root constraint while derived axioms remain subordinate and active low-level surfaces use concrete engineering invariants." }
-evidence = { dated = "evidence/chronicle/root-philosophy-clarity/2026-07-07.md", sha256 = "e25f406adcbd8a1a4532a0dbd911a21c2437dd419165e49668577e41693407f5", evidence_ids = [
+evidence = { dated = "evidence/chronicle/root-philosophy-clarity/2026-07-07.md", sha256 = "be71f2d501eb96fc7736feb8f7b372834649497138570fbea787c6bd509ca12a", evidence_ids = [
   "evidence:root-philosophy-clarity",
 ], binding = "declared root constraint clarity evidence binding", verifier = "digest_only", tests = [
   "ETHOS_ROOT=<worktree> uv run --group dev pytest tests/architecture/test_product_design_contract.py tests/unit/kernel/test_contracts.py -q",

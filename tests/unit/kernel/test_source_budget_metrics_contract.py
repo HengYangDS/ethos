@@ -142,6 +142,65 @@ def _constructed_contract(metric_id: str, unit: str, **changes: object) -> m.Met
     return contract
 
 
+def _forged_contracts(method: str, field: str, value: object) -> tuple[m.MetricContract, ...]:
+    contracts = _s().contracts
+    if method == "model_copy":
+        return tuple(item.model_copy(update={field: value}) for item in contracts)
+    return tuple(
+        m.MetricContract.model_construct(**(item.model_dump() | {field: value}))
+        for item in contracts
+    )
+
+
+def test_metric_registry_rejects_forged_float_version_at_trust_boundaries() -> None:
+    registry = _s()
+    _raises(
+        ValueError,
+        "contract version",
+        lambda: m.MetricContractSet.model_construct(
+            schema_id=registry.schema_id,
+            contract_version=3.0,
+            profiles=registry.profiles,
+            contracts=registry.contracts,
+        ),
+    )
+    forged = registry.model_copy(update={"contract_version": 3.0})
+    _raises(ValueError, "contract version", lambda: m.MetricContractSetLoad(forged, ()))
+    identity = c.CarrierIdentity.model_validate(_D["base_carrier"])
+    _raises(ValueError, "contract version", lambda: m.resolve_metric_contracts(identity, forged))
+
+
+def test_metric_resource_boundaries_replay_homogeneous_forged_atoms() -> None:
+    identity = c.CarrierIdentity.model_validate(_D["base_carrier"])
+    invalid = (
+        ("contract_version", 3.0),
+        ("execution_mode", "subprocess"),
+        ("max_carrier_bytes", True),
+        ("max_carrier_bytes", 1.5),
+        ("max_carrier_bytes", 0),
+        ("max_carrier_bytes", -1),
+    )
+    for field, value in invalid:
+        for method in ("model_construct", "model_copy"):
+            atoms = _forged_contracts(method, field, value)
+            registry = _s().model_copy(update={"contracts": atoms})
+            _raises(
+                ValueError,
+                "metric contract",
+                lambda atoms=atoms: m.metric_provider_resource_contract(atoms),
+            )
+            _raises(
+                ValueError,
+                "metric contract",
+                lambda registry=registry: m.MetricContractSetLoad(registry, ()),
+            )
+            _raises(
+                ValueError,
+                "metric contract",
+                lambda registry=registry: m.resolve_metric_contracts(identity, registry),
+            )
+
+
 def test_metric_contract_v3_resource_boundary_is_required_and_strict() -> None:
     contract = _c("lexical_tokens", "lexical_token")
     assert contract.execution_mode == "bounded_in_process_v1"

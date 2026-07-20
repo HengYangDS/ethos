@@ -2,11 +2,21 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from pydantic import BaseModel
+from pydantic import ConfigDict
+from pydantic import Field
+from pydantic import field_validator
+
+_EFFECT_FIELDS_INVALID = "lease_effect_fields_invalid"
 
 
-@dataclass(frozen=True, slots=True)
-class MutationRequest:
+class LifecycleModel(BaseModel):
+    """Strict immutable base for lifecycle facts and declarations."""
+
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
+
+
+class MutationRequest(LifecycleModel):
     """The bounded intent and confirmation supplied to a mutation boundary."""
 
     command: str
@@ -17,15 +27,12 @@ class MutationRequest:
     def to_payload(self) -> dict[str, object]:
         """Project intent without performing authorization or mutation."""
         return {
-            "command": self.command,
-            "apply": self.apply,
+            **self.model_dump(exclude={"authorized"}),
             "confirmation_present": self.authorized,
-            "expect_head": self.expect_head,
         }
 
 
-@dataclass(frozen=True, slots=True)
-class MutationEvaluation:
+class MutationEvaluation(LifecycleModel):
     """Pure lifecycle decision; the public contract remains ``AdmissionDecision``."""
 
     ok: bool
@@ -33,8 +40,7 @@ class MutationEvaluation:
     gaps: tuple[str, ...] = ()
 
 
-@dataclass(frozen=True, slots=True)
-class MutationTransition:
+class MutationTransition(LifecycleModel):
     """Immutable transition declaration interpreted by ``reduce_mutation``."""
 
     id: str
@@ -46,8 +52,7 @@ class MutationTransition:
     current_state: str = ""
 
 
-@dataclass(frozen=True, slots=True)
-class MutationFacts:
+class MutationFacts(LifecycleModel):
     """Already-observed facts supplied by an imperative adapter to the reducer."""
 
     role: str = ""
@@ -58,35 +63,67 @@ class MutationFacts:
     current: bool = False
 
 
-@dataclass(frozen=True, slots=True)
-class LeaseTransition:
+class LeaseTransition(LifecycleModel):
     """Immutable operation declaration for the local lease lifecycle."""
 
-    id: str
-    applied_state: str
-    requires_epoch: bool = True
-    requires_offer: bool = False
+    id: str = Field(min_length=1)
+    applied_state: str = Field(min_length=1)
+    effect_fields: tuple[str, ...] = Field(min_length=1)
+    blocks_contrary_decision: bool = False
+
+    @field_validator("effect_fields", mode="before")
+    @classmethod
+    def compile_effect_fields(cls, value: object) -> tuple[str, ...]:
+        if not isinstance(value, list | tuple):
+            raise TypeError(_EFFECT_FIELDS_INVALID)
+        fields: list[str] = []
+        for item in value:
+            if not isinstance(item, str) or not item:
+                raise ValueError(_EFFECT_FIELDS_INVALID)
+            fields.append(item)
+        if len(fields) != len(set(fields)):
+            raise ValueError(_EFFECT_FIELDS_INVALID)
+        return tuple(fields)
 
 
-@dataclass(frozen=True, slots=True)
-class LeaseFacts:
+class LeaseFacts(LifecycleModel):
     """Observed local lease facts supplied to the pure lease reducer."""
 
     role: str
     current_branch: str
     current_head: str
     branch: str
+    holder_ref: str
+    target_holder_ref: str
     expect_head: str
     lease_id: str
-    epoch: int | None
+    expected_epoch: int | None
     ttl_seconds: int
     offer_id: str
+    holder_quiesced: bool = False
+    contrary_decision: bool = False
     apply: bool
     initial_gaps: tuple[str, ...] = ()
 
 
-@dataclass(frozen=True, slots=True)
-class GuardedTransition:
+class LeaseOperationRequest(LifecycleModel):
+    """One request shape for every same-common-directory lease transition."""
+
+    operation: str = Field(min_length=1)
+    branch: str
+    holder_ref: str
+    lease_id: str
+    expected_epoch: int | None
+    expect_head: str
+    apply: bool = False
+    ttl_seconds: int = 86_400
+    target_holder_ref: str = ""
+    offer_id: str = ""
+    holder_quiesced: bool = False
+    contrary_decision: bool = False
+
+
+class GuardedTransition(LifecycleModel):
     """State names for a fact-only transition with no effectful knowledge."""
 
     id: str
@@ -109,18 +146,6 @@ CLOSEOUT_MUTATION = MutationTransition(
     role_gap="accepted_root_required",
     dirty_gap="accepted_root_dirty",
     current_state="current",
-)
-
-LEASE_TRANSITIONS = (
-    LeaseTransition(id="normalize", applied_state="normalized", requires_epoch=False),
-    LeaseTransition(id="renew", applied_state="renewed"),
-    LeaseTransition(id="resume", applied_state="resumed"),
-    LeaseTransition(id="handoff_offer", applied_state="handoff_offered"),
-    LeaseTransition(
-        id="handoff_accept",
-        applied_state="handoff_accepted",
-        requires_offer=True,
-    ),
 )
 
 HANDOFF_EXPORT = GuardedTransition(id="handoff_export")
@@ -164,42 +189,55 @@ def reduce_mutation(
     return MutationEvaluation(ok=True, state=f"{request.command}_ready")
 
 
-def lease_transition(operation: str) -> LeaseTransition:
-    """Resolve one declared lease transition without reaching into adapter state."""
-    for transition in LEASE_TRANSITIONS:
-        if transition.id == operation:
-            return transition
-    msg = f"lease_operation_unknown:{operation}"
-    raise ValueError(msg)
-
-
 def reduce_lease_request(
     transition: LeaseTransition,
     facts: LeaseFacts,
 ) -> MutationEvaluation:
     """Reduce lease facts into a deterministic planned, applied, or blocked state."""
-    gaps = list(facts.initial_gaps)
-    if facts.role != "work_lane":
-        gaps.append("work_lane_required")
-    if facts.current_branch != facts.branch:
-        gaps.append("lane_branch_mismatch")
-    if not facts.expect_head:
-        gaps.append("expect_head_required")
-    elif facts.current_head != facts.expect_head:
-        gaps.append("expect_head_mismatch")
-    if not facts.lease_id:
-        gaps.append("lease_id_required")
-    if transition.requires_epoch and (facts.epoch is None or facts.epoch < 1):
-        gaps.append("lease_epoch_required")
-    if facts.ttl_seconds < 1:
-        gaps.append("lease_ttl_invalid")
-    if transition.requires_offer and not facts.offer_id:
-        gaps.append("handoff_offer_id_required")
-    ordered_gaps = tuple(dict.fromkeys(gaps))
-    return MutationEvaluation(
-        ok=not ordered_gaps,
-        state="blocked" if ordered_gaps else transition.applied_state if facts.apply else "planned",
-        gaps=ordered_gaps,
+    effect_values = {
+        "holder_ref": facts.holder_ref,
+        "target_holder_ref": facts.target_holder_ref,
+        "offer_id": facts.offer_id,
+        "holder_quiesced": facts.holder_quiesced,
+    }
+    effect_value_gaps = {
+        "holder_ref": "holder_ref_invalid",
+        "target_holder_ref": "target_holder_ref_invalid",
+        "offer_id": "handoff_offer_id_required",
+        "holder_quiesced": "holder_quiescence_confirmation_required",
+    }
+    checks = (
+        (facts.role == "work_lane", "work_lane_required"),
+        (facts.current_branch == facts.branch, "lane_branch_mismatch"),
+        (bool(facts.expect_head), "expect_head_required"),
+        (not facts.expect_head or facts.current_head == facts.expect_head, "expect_head_mismatch"),
+        (bool(facts.lease_id), "lease_id_required"),
+        (
+            "expected_epoch" not in transition.effect_fields
+            or (facts.expected_epoch is not None and facts.expected_epoch >= 1),
+            "lease_epoch_required",
+        ),
+        (
+            "ttl_seconds" not in transition.effect_fields or facts.ttl_seconds >= 1,
+            "lease_ttl_invalid",
+        ),
+        (
+            not transition.blocks_contrary_decision or not facts.contrary_decision,
+            "lease_resume_blocked_by_decision",
+        ),
+        *(
+            (
+                effect_values[field] not in ("", None, False),
+                effect_value_gaps[field],
+            )
+            for field in transition.effect_fields
+            if field in effect_values
+        ),
+    )
+    return _transition_evaluation(
+        applied_state=transition.applied_state,
+        apply=facts.apply,
+        gaps=(*facts.initial_gaps, *(gap for valid, gap in checks if not valid)),
     )
 
 
@@ -217,15 +255,26 @@ def reduce_guards(
         *initial_gaps,
         *(gap for satisfied, gap in checks if not satisfied),
     ]
-    ordered_gaps = tuple(dict.fromkeys(gaps))
+    return _transition_evaluation(
+        applied_state=transition.applied_state,
+        planned_state=transition.planned_state,
+        apply=apply,
+        gaps=tuple(gaps),
+    )
+
+
+def _transition_evaluation(
+    *,
+    applied_state: str,
+    apply: bool,
+    gaps: tuple[str, ...],
+    planned_state: str = "planned",
+) -> MutationEvaluation:
+    ordered = tuple(dict.fromkeys(gaps))
     return MutationEvaluation(
-        ok=not ordered_gaps,
-        state="blocked"
-        if ordered_gaps
-        else transition.applied_state
-        if apply
-        else transition.planned_state,
-        gaps=ordered_gaps,
+        ok=not ordered,
+        state="blocked" if ordered else applied_state if apply else planned_state,
+        gaps=ordered,
     )
 
 

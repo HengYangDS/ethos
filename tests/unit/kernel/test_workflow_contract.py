@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from pathlib import Path
 
 import pytest
@@ -14,7 +15,7 @@ from ethos_core.contracts.workflow import planned_transition_projection
 from ethos_core.contracts.workflow import workflow_contract_report
 
 
-def test_workflow_contract_is_strict_frozen_typed_declaration() -> None:
+def test_workflow_contract_is_frozen_typed_declaration() -> None:
     contract = WorkflowContract.model_validate(load_system_contract(Path(), "workflows"))
 
     assert "event" not in WorkflowContract.model_fields
@@ -24,6 +25,9 @@ def test_workflow_contract_is_strict_frozen_typed_declaration() -> None:
     assert contract.node[0].id == "status"
     assert contract.transition[0].source == "planned"
     assert contract.transition[0].target == "admitted"
+    assert tuple(item.id for item in contract.lease_transition) == tuple(
+        item["id"] for item in load_system_contract(Path(), "workflows")["lease_transition"]
+    )
     assert contract.to_report()["node_count"] >= 6
     assert contract.to_projection(changed_paths=("docs/a.md",))["graph"]["ok"] is True
 
@@ -34,6 +38,30 @@ def test_workflow_contract_is_strict_frozen_typed_declaration() -> None:
     with pytest.raises(ValidationError) as extra_error:
         WorkflowContract.model_validate({"unexpected": True})
     assert extra_error.value.errors()[0]["type"] == "extra_forbidden"
+
+
+@pytest.mark.parametrize(
+    "mutate",
+    [
+        pytest.param(
+            lambda payload: payload["lease_transition"].append(
+                deepcopy(payload["lease_transition"][0])
+            ),
+            id="duplicate-operation",
+        ),
+        pytest.param(
+            lambda payload: payload["lease_transition"][0].update(effect_fields=[1]),
+            id="non-string-effect-field",
+        ),
+    ],
+)
+def test_workflow_contract_rejects_invalid_lease_transition_matrix(mutate) -> None:
+    payload = load_system_contract(Path(), "workflows")
+
+    mutate(payload)
+
+    with pytest.raises(ValidationError):
+        WorkflowContract.model_validate(payload)
 
 
 def test_workflow_contract_normalizes_list_fields_to_immutable_tuples() -> None:
@@ -92,7 +120,8 @@ def test_workflow_contract_declares_runtime_nodes_and_evolution_bridge() -> None
     assert report["evolution"]["selection_policy"] == "evidence_weighted_candidate_comparison"
     assert (
         report["evolution"]["commitment_effect_policy"]
-        == "practice_claim_declares_create_compose_refine_replace_remove_or_reject_commitment_effect"
+        == "practice_claim_declares_create_compose_refine_"
+        "replace_remove_or_reject_commitment_effect"
     )
     assert (
         report["evolution"]["practice_claim_policy"]

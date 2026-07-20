@@ -468,3 +468,70 @@ def test_reconciliation_blocks_unavailable_accepted_control_root(residue, monkey
     report = _apply(repo, branch, chronicle)
 
     assert report["required_gaps"] == ["gone", "unbound_retire_partial_effect_attempt_mismatch"]
+
+
+def test_reconciliation_apply_blocks_control_root_that_disappears_after_admission(
+    residue, monkeypatch
+) -> None:
+    """The final effect window rechecks the accepted control root before touching the lease."""
+    repo, branch, _head, chronicle, _lease, _attempt, _source_path = residue
+    original = policy.accepted_control_root
+    calls = 0
+
+    def disappears(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        return original(*args, **kwargs) if calls == 1 else (None, "gone-during-apply")
+
+    monkeypatch.setattr(policy, "accepted_control_root", disappears)
+
+    report = _apply(repo, branch, chronicle)
+
+    assert report["required_gaps"] == ["gone-during-apply"]
+
+
+def test_reconciliation_record_validators_reject_missing_or_invalid_nested_attempt(residue) -> None:
+    """Attempt and receipt validators reject absent or malformed nested history."""
+    repo, branch, _head, chronicle, _lease, attempt, _source_path = residue
+    observed = observation.observe_ref_absent_reconciliation(
+        repo, branch=branch, chronicle_ref=chronicle
+    )
+    operation_id = "ref-absent-owner-unavailable-lease-reconciliation:" + "a" * 64
+    attempt_payload = records.reconciliation_attempt_payload(
+        operation_id=operation_id,
+        reason="reason",
+        observation=observed,
+        source_retirement_attempt=attempt,
+    )
+    with pytest.raises(TypeError, match="unbound_retire_record_invalid"):
+        records.validate_record(
+            {
+                key: value
+                for key, value in attempt_payload.items()
+                if key != "source_retirement_attempt"
+            },
+            kind=records.RECONCILIATION_ATTEMPT_KIND,
+        )
+
+    receipt = records.reconciliation_receipt_payload(
+        operation_id=operation_id,
+        branch=branch,
+        target_head=str(observed["chronicle"]["target_head"]),
+        reason="reason",
+        before=observed,
+        after={**observed, observation.HAS_ACTIVE_LEASE: False},
+        source_retirement_attempt=attempt,
+        chronicle_unchanged=True,
+        lease_relinquished={
+            "revoked": True,
+            "subject": branch,
+            "lease_id": observed["active_lease"]["lease_id"],
+            "holder_ref": observed["active_lease"]["holder_ref"],
+            "epoch": observed["active_lease"]["epoch"],
+            "expected_head": observed["active_lease"]["expected_head"],
+        },
+    )
+    receipt["source_retirement_attempt"] = {**attempt, "kind": "wrong"}
+
+    with pytest.raises(ValueError, match="unbound_retire_record_invalid"):
+        records.validate_record(receipt, kind=records.RECONCILIATION_RECEIPT_KIND)

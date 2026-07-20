@@ -407,9 +407,10 @@ head-mismatched lease remains blocked.
 one active source lease whose holder cannot offer a normal handoff. It does not
 turn a host, session, provider, missing process, or user-supplied holder string
 into authority. Its accepted Chronicle must bind `lease_recovery:
-owner_unavailable`, the exact source lease ID/holder/epoch/expected head, the
-absolute recorded source path, and `source_worktree_absent: true`; the current
-actor must be non-empty and different from the source holder, and the path must
+owner_unavailable`, the exact source lease ID/holder/epoch/expected head,
+the SHA-256 digest of the absolute recorded source path, and
+`source_worktree_absent: true`; the current actor must be non-empty and
+different from the source holder, and the path must
 still be absent at effect time. Any mismatch preserves the ref and lease.
 Apply additionally requires `--authorize`, `--break-glass`, and
 `--confirm-irreversible`. Before the compare-and-delete ref effect, ETHOS writes

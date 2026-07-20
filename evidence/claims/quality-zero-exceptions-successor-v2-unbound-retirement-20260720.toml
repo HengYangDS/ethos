@@ -6,9 +6,9 @@ summary = "One accepted-ancestor quality-zero-exceptions successor ref is bound 
 
 [evidence]
 dated = "evidence/chronicle/owner-unavailable-unbound-retirement-recovery-20260720/quality-zero-exceptions-successor-v2-2026-07-20.md"
-sha256 = "d86639443be7a43c39d8b49f4f44860670b95e9582177dcabf4bd358c4e4afa3"
+sha256 = "d64aa848b73cd2fc9c4d1ef43feb07d659e56b67e6edd02528184c65cf5b4194"
 evidence_ids = ["evidence:quality-zero-exceptions-successor-v2-unbound-retirement-20260720"]
-binding = "The exact branch/head, exact active source lease tuple, absent recorded source worktree, accepted-ancestor relation, and accepted target Chronicle bind one later native exceptional retirement only."
+binding = "The exact branch/head, exact active source lease tuple, absent locally observed source worktree whose path digest matches the accepted Chronicle, accepted-ancestor relation, and accepted target Chronicle bind one later native exceptional retirement only."
 verifier = "digest_only"
 tests = ["ethos lane retire unbound --branch work/quality-zero-exceptions-successor-v2-20260719 --expect-head 943a5e1e373b009f02533ff22815e8bca32b3157 --owner-unavailable-recovery --json"]
 

@@ -361,6 +361,28 @@ def relinquish_owned_lease(
     """Revoke only this actor's exact lease generation within the native transition."""
     if not bool(observed[observation.HAS_ACTIVE_LEASE]):
         return {}
+    arguments = _lease_relinquish_arguments(
+        observed=observed,
+        holder_ref=holder_ref,
+        owner_unavailable_recovery=owner_unavailable_recovery,
+    )
+    if arguments is None:
+        return None
+    if connection is None:
+        return _revoke_lease_from_database(
+            control_root, arguments=arguments, owner_unavailable_recovery=owner_unavailable_recovery
+        )
+    try:
+        row, payload = expected_current_lease(connection, require_expired=False, **arguments)
+        connection.execute("delete from leases where id = ?", (str(row[0]),))
+    except (KeyError, TypeError, ValueError):
+        return None
+    return _revoked_lease_payload(row=row, payload=payload, arguments=arguments)
+
+
+def _lease_relinquish_arguments(
+    *, observed: dict[str, object], holder_ref: str, owner_unavailable_recovery: bool
+) -> dict[str, object] | None:
     lease = cast("dict[str, object]", observed["active_lease"])
     epoch = lease.get("epoch")
     source_holder = str(lease.get("holder_ref") or "")
@@ -369,36 +391,45 @@ def relinquish_owned_lease(
     if not owner_unavailable_recovery and source_holder != holder_ref:
         return None
     try:
-        arguments = _data(
+        return _data(
             subject=str(observed["branch"]),
             holder_ref=source_holder,
             expected_lease_id=str(lease["lease_id"]),
             expected_epoch=epoch,
             expected_head=str(lease["expected_head"]),
         )
-        if connection is None:
-            if owner_unavailable_recovery:
-                return revoke_owner_unavailable_lease(
-                    control_root / ".ethos" / "state" / "state.sqlite",
-                    subject=str(arguments["subject"]),
-                    source_holder_ref=source_holder,
-                    expected_lease_id=str(arguments["expected_lease_id"]),
-                    expected_epoch=epoch,
-                    expected_head=str(arguments["expected_head"]),
-                )
-            return revoke_lease(control_root / ".ethos" / "state" / "state.sqlite", **arguments)
-        row, payload = expected_current_lease(connection, require_expired=False, **arguments)
-        connection.execute("delete from leases where id = ?", (str(row[0]),))
-        return {
-            "revoked": True,
-            "subject": arguments["subject"],
-            "lease_id": str(row[0]),
-            "holder_ref": source_holder,
-            "epoch": int(payload.get("epoch") or 0),
-            "expected_head": str(payload.get("expected_head") or ""),
-        }
     except (KeyError, TypeError, ValueError):
         return None
+
+
+def _revoke_lease_from_database(
+    control_root: Path, *, arguments: dict[str, object], owner_unavailable_recovery: bool
+) -> dict[str, object] | None:
+    database = control_root / ".ethos" / "state" / "state.sqlite"
+    epoch = int(arguments["expected_epoch"])
+    if owner_unavailable_recovery:
+        return revoke_owner_unavailable_lease(
+            database,
+            subject=str(arguments["subject"]),
+            source_holder_ref=str(arguments["holder_ref"]),
+            expected_lease_id=str(arguments["expected_lease_id"]),
+            expected_epoch=epoch,
+            expected_head=str(arguments["expected_head"]),
+        )
+    return revoke_lease(database, **arguments)
+
+
+def _revoked_lease_payload(
+    *, row: tuple[object, ...], payload: dict[str, object], arguments: dict[str, object]
+) -> dict[str, object]:
+    return {
+        "revoked": True,
+        "subject": arguments["subject"],
+        "lease_id": str(row[0]),
+        "holder_ref": arguments["holder_ref"],
+        "epoch": int(payload.get("epoch") or 0),
+        "expected_head": str(payload.get("expected_head") or ""),
+    }
 
 
 def _observe(repo: Path, *, branch: str, chronicle_ref: str) -> dict[str, object]:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from typing import TYPE_CHECKING
 
@@ -9,6 +10,7 @@ import ethos.adapters.mutation.lane_retirement.unbound.observation.core as obser
 import ethos.adapters.mutation.lane_retirement.unbound.policy.core as policy
 import ethos.adapters.mutation.lane_retirement.unbound.records.core as records
 from tests.unit.lanes.retirement.test_unbound_and_helpers import _exceptional_fixture
+from tests.unit.lanes.retirement.test_unbound_and_helpers import _owner_unavailable_fixture
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -102,6 +104,18 @@ def test_observation_and_record_fail_closed_matrix(tmp_path: Path) -> None:
     assert records.valid_lease_relinquishment(
         payload["lease_relinquish_binding"], {}, subject=branch
     )
+
+
+def test_owner_unavailable_policy_requires_source_path_digest(tmp_path: Path) -> None:
+    repo, branch, _head, chronicle, _lease, source_path = _owner_unavailable_fixture(tmp_path)
+    observed = observation.observe(repo, branch=branch, chronicle_ref=chronicle)
+    observed["chronicle"]["source_worktree_path_sha256"] = hashlib.sha256(
+        (source_path.as_posix() + "-mismatch").encode()
+    ).hexdigest()
+
+    assert policy.owner_unavailable_recovery_gaps(
+        observed, recovery_actor="agent:test:recovery"
+    ) == ["unbound_retire_owner_unavailable_source_path_mismatch"]
 
 
 def test_owner_unavailable_policy_rejects_nonexact_lease_binding(tmp_path: Path) -> None:

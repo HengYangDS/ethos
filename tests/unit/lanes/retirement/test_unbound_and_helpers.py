@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import sqlite3
 import subprocess
@@ -103,7 +104,10 @@ def _owner_unavailable_fixture(
                 f"source_lease_holder: {holder}",
                 f"source_lease_epoch: {lease['epoch']}",
                 f"source_lease_expected_head: {head}",
-                f"source_worktree_path: {source_path}",
+                (
+                    "source_worktree_path_sha256: "
+                    f"{hashlib.sha256(source_path.as_posix().encode()).hexdigest()}"
+                ),
                 "source_worktree_absent: true",
                 "",
             )

@@ -348,9 +348,6 @@ def test_reconciliation_rejects_an_unavailable_or_malformed_prior_attempt(
 ) -> None:
     """Prior-attempt loading is fail-closed before any reconciliation intent record."""
     repo, branch, _head, chronicle, _lease, _attempt, _source_path = residue
-    observed = observation.observe_ref_absent_reconciliation(
-        repo, branch=branch, chronicle_ref=chronicle
-    )
     if mode == "missing":
         monkeypatch.setattr(
             records,
@@ -358,11 +355,25 @@ def test_reconciliation_rejects_an_unavailable_or_malformed_prior_attempt(
             lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("invalid")),
         )
     else:
-        observed["chronicle"]["source_retirement_attempt_id"] = "wrong"
+        observe = reconciliation.observation.chronicle_observation
 
-    _attempt, gap = reconciliation._partial_effect_attempt(observed)
+        def malformed(*args, **kwargs):
+            return {
+                **observe(*args, **kwargs),
+                "source_retirement_attempt_id": "wrong:attempt",
+            }
 
-    assert gap == expected_gap
+        monkeypatch.setattr(reconciliation.observation, "chronicle_observation", malformed)
+
+    report = reconciliation.reconcile_ref_absent_owner_unavailable_lease(
+        root=repo,
+        branch=branch,
+        controls=reconciliation.RefAbsentReconciliationControls(
+            reason="reason", chronicle_ref=chronicle
+        ),
+    )
+
+    assert expected_gap in report["required_gaps"]
 
 
 @pytest.mark.parametrize(
@@ -399,10 +410,7 @@ def test_reconciliation_apply_controls_are_independently_required(
     residue, controls: reconciliation.RefAbsentReconciliationControls, expected_gap: str
 ) -> None:
     """Each irreversible apply control remains independently enforced."""
-    repo, branch, _head, chronicle, _lease, attempt, _source_path = residue
-    observed = observation.observe_ref_absent_reconciliation(
-        repo, branch=branch, chronicle_ref=chronicle
-    )
+    repo, branch, _head, chronicle, _lease, _attempt, _source_path = residue
     controls = reconciliation.RefAbsentReconciliationControls(
         reason=controls.reason,
         chronicle_ref=chronicle,
@@ -412,35 +420,35 @@ def test_reconciliation_apply_controls_are_independently_required(
         confirm_irreversible=controls.confirm_irreversible,
     )
 
-    assert expected_gap in reconciliation._partial_effect_admission_gaps(
-        observed,
-        controls=controls,
-        holder_ref="agent:test:case:recovery-operator",
-        source_attempt=attempt,
-        attempt_gap="",
+    report = reconciliation.reconcile_ref_absent_owner_unavailable_lease(
+        root=repo, branch=branch, controls=controls
     )
 
+    assert expected_gap in report["required_gaps"]
 
-def test_reconciliation_rejects_missing_protected_ref_observation(residue) -> None:
+
+def test_reconciliation_rejects_missing_protected_ref_observation(residue, monkeypatch) -> None:
     """Reconciliation requires every protected ref before it can enter the effect window."""
-    repo, branch, _head, chronicle, _lease, attempt, _source_path = residue
-    observed = observation.observe_ref_absent_reconciliation(
-        repo, branch=branch, chronicle_ref=chronicle
-    )
-    observed["protected_refs"] = {"dev": ""}
+    repo, branch, _head, chronicle, _lease, _attempt, _source_path = residue
+    observe = reconciliation.observation.observe_ref_absent_reconciliation
 
-    assert (
-        "unbound_retire_protected_ref_unavailable"
-        in reconciliation._partial_effect_admission_gaps(
-            observed,
-            controls=reconciliation.RefAbsentReconciliationControls(
-                reason="reason", chronicle_ref=chronicle
-            ),
-            holder_ref="agent:test:case:recovery-operator",
-            source_attempt=attempt,
-            attempt_gap="",
-        )
+    def missing_protected(*args, **kwargs):
+        return {**observe(*args, **kwargs), "protected_refs": {"dev": ""}}
+
+    monkeypatch.setattr(
+        reconciliation.observation,
+        "observe_ref_absent_reconciliation",
+        missing_protected,
     )
+    report = reconciliation.reconcile_ref_absent_owner_unavailable_lease(
+        root=repo,
+        branch=branch,
+        controls=reconciliation.RefAbsentReconciliationControls(
+            reason="reason", chronicle_ref=chronicle
+        ),
+    )
+
+    assert report["required_gaps"] == ["unbound_retire_protected_ref_unavailable"]
 
 
 def test_reconciliation_records_reject_invalid_nested_source_attempt(residue) -> None:

@@ -152,6 +152,14 @@ def test_github_repository_proof_projects_single_worker_stability() -> None:
     github = yaml.safe_load((ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8"))
 
     assert github["jobs"]["verify"]["env"] == {"ETHOS_TEST_WORKERS": "1"}
+    expected_runner = ["self-hosted", "macOS", "ARM64", "${{ vars.ETHOS_GITHUB_RUNNER_LABEL }}"]
+
+    assert github["jobs"]["quality"]["runs-on"] == expected_runner
+    assert github["jobs"]["verify"]["runs-on"] == expected_runner
+    assert github["jobs"]["package"]["runs-on"] == expected_runner
+    gitlab = yaml.safe_load((ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8"))
+
+    assert gitlab["default"]["tags"] == ["${ETHOS_GITLAB_RUNNER_TAG}"]
 
 
 def test_provider_python_producers_are_runtime_bound() -> None:

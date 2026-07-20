@@ -258,8 +258,8 @@ subsequent separately evidenced transitions.
 - Modify: docs/plans/budget-contract-v2-design.md
 - Modify: docs/plans/global-declarative-compression-program.md
 - Modify: .config/checks/deptry/policy.toml
-- Create: openspec/changes/budget-contract-v2-native-measurement-20260719/specs/repository-governance/spec.md
-- Create: openspec/changes/budget-contract-v2-native-measurement-20260719/specs/quality/spec.md
+- Create: openspec/changes/budget-contract-v2-native-measurement/specs/repository-governance/spec.md
+- Create: openspec/changes/budget-contract-v2-native-measurement/specs/quality/spec.md
 - Modify via official archive: openspec/specs/quality/spec.md
 - Modify via official archive: openspec/specs/repository-governance/spec.md
 - Modify: packages/ethos-core/src/ethos_core/contracts/source_budget/carriers.py

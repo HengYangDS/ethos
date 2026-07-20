@@ -1,0 +1,8 @@
+schema_version = 1
+paths = [
+  "docs/plans/ownerless-landed-residual-retirement-20260720.md",
+  "evidence/claims/ownerless-landed-residual-retirement-20260720.toml",
+  "evidence/chronicle/ownerless-landed-residual-retirement-20260720/**",
+  "openspec/changes/ownerless-landed-residual-retirement-20260720/**",
+  "openspec/specs/repository-governance/spec.md",
+]

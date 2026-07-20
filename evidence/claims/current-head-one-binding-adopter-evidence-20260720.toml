@@ -1,0 +1,37 @@
+[claim]
+id = "current-head-one-binding-adopter-evidence-20260720"
+subject = "ethos:current-product-revision-one-binding-external-adopter-observation"
+state = "archived"
+summary = "Digest-bound historical observation of one product revision creating only the minimal adopter binding and refusing replacement of a differing nonempty binding."
+
+[evidence]
+dated = "evidence/chronicle/current-head-one-binding-adopter-evidence-20260720/2026-07-20.md"
+sha256 = "b0bc35fdf58088682681a514b1f985c200f0c60f6cf698fd8495a451649dce7e"
+evidence_ids = ["evidence:current-head-one-binding-adopter-evidence-20260720"]
+binding = "Digest-bound product and isolated adopter revisions, one-binding create and conflict outcomes, preservation facts, normalized raw-bundle identity, and explicit no-push boundary."
+verifier = "digest_only"
+tests = [
+  "tools/ci/scripts/run-ethos-lane.sh adopt --root <missing-binding-clone> --json",
+  "tools/ci/scripts/run-ethos-lane.sh adopt --root <missing-binding-clone> --apply --authorize --expect-head <missing-head> --json",
+  "tools/ci/scripts/run-ethos-lane.sh adopt --root <existing-binding-clone> --json",
+  "tools/ci/scripts/run-ethos-lane.sh adopt --root <existing-binding-clone> --apply --authorize --expect-head <existing-head> --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "Provider-neutral local one-binding create/conflict observation only; no parity, semantic, hosted, authority, independent-review, account, credential, key, daemon, network, or remote-publication claim."
+
+[carriers]
+openspec = "openspec/changes/budget-contract-v2-native-measurement"
+fallback = "Treat the observation as historical and rerun against a new clean committed product revision when currentness is required."
+kill_signal = "The evidence promotes workstation paths or adopter-private material, rewrites unrelated adopter files, claims parity or correctness, or becomes an ordinary adoption prerequisite."
+
+[promotion]
+targets = [
+  "evidence/chronicle/current-head-one-binding-adopter-evidence-20260720/2026-07-20.md",
+  "evidence/claims/current-head-one-binding-adopter-evidence-20260720.toml",
+  "openspec/changes/budget-contract-v2-native-measurement",
+]

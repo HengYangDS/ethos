@@ -6,9 +6,9 @@ summary = "Open the bounded Task 3 governance carrier for content-bound native m
 
 [evidence]
 dated = "evidence/chronicle/budget-contract-v2-native-measurement-20260719/2026-07-19.md"
-sha256 = "7386f16071f27e3535b312c0168834fbf7270cfc4a7f5970af4efec3ddad57fd"
+sha256 = "9308fa7632bd51c11051361397ea832b52019a88ee16d4d7e83096e393f67d88"
 evidence_ids = ["evidence:budget-contract-v2-native-measurement-20260719"]
-binding = "This active authoring carrier binds the corrected Task 3 topology, canonical CPython 3.14 measurement-runtime and conformance decision, descriptor-bound worktree-byte boundary, classified-only and exclusion-aware aggregation boundary, raw-versus-normalized digest separation, test-domain corpus strategy, staged promotion rule, RED/GREEN plan, and explicit T3/T4 and v1-authority boundaries. It records the superseded pre-remediation runs, six NOT APPROVED review waves, the withdrawn R7 package, the three independent R10 APPROVED decisions for the pre-ratchet exact-typed context-bound contract checkpoint, and the current no-ceiling-raise quality refactor: metaclass-enforced Load finality independent of base order, trusted field-annotation-guided recursive canonical storage admission that rejects nested model subclasses before reading their storage or serializing them, safe tuple-subclass canonicalization through built-in iteration, exact built-in field keys and scalar leaves, cycle and mutable-state rejection, centralized stable Load errors, separated validated-success/context replay, a typed-only domain-separated digest surface backed by an independent JSON-plus-SHA-256 test oracle, exact pre-change Ruff ratchet counts, 39 focused tests, 100 percent coverage across 400 statements and 106 branches, 190 source-budget regressions, and 482/99/136 ELOC across the three contract owners. The frozen R15 package (review brief a8e5bf9cf23eeba0f625d9ef609ca8e5fdafe4b5db110abad5acb2adf730ec59; manifest d2579c177d9092dbbe2d8ef41d32b10b17dac265042a5090e11aabd7ff099333) received APPROVED decisions from API-to-spec, object-model and deterministic-serialization, and spec-bound simplicity reviews with no Critical or Important mismatch, so it binds the unchanged production AST and OpenSpec Tasks 2.1 and 2.2. A later audit found the R15 code-size log blocked at 812>800 for the integrity test owner; the correction only relocates two unchanged top-level test functions into the contract test owner, preserves all 33 combined test-function ASTs and all production SHA-256 values, keeps 39 focused tests at 100 percent coverage and 190 source-budget regressions, and restores the official code-size gate at 357/775 ELOC. The frozen R16 package (review brief b5be109fddaa52a70579374dee4b763cf863847076fdd2f4e76e5fff7d56d5d1; manifest bee79ef6f15e89da165b0d8515a9d5fd834d0acdbb37a8e60c0efa104ec52443; R15-equivalence record a90b0bdecf3128c8b9e9fb8d19ff098c9d9c342333e9a08bff1ce89551d74eae) received APPROVED decisions from API-to-spec, object-model and deterministic-test, and spec-bound simplicity reviews with no Critical or Important mismatch, so this claim binds the current ratchet-clean production and test package as the independently confirmed OpenSpec Tasks 2.1 and 2.2 checkpoint; it does not bind native-provider or adapter success, complete-inventory measurement, parity, proof, archive, integration, release readiness, external runner state, or network state."
+binding = "This active authoring carrier binds the corrected Task 3 topology, canonical CPython 3.14 measurement-runtime and conformance decision, descriptor-bound worktree-byte boundary, classified-only and exclusion-aware aggregation boundary, raw-versus-normalized digest separation, test-domain corpus strategy, staged promotion rule, RED/GREEN plan, and explicit T3/T4 and v1-authority boundaries. It records the superseded pre-remediation runs, six NOT APPROVED review waves, the withdrawn R7 package, the three independent R10 APPROVED decisions for the pre-ratchet exact-typed context-bound contract checkpoint, and the current no-ceiling-raise quality refactor: metaclass-enforced Load finality independent of base order, trusted field-annotation-guided recursive canonical storage admission that rejects nested model subclasses before reading their storage or serializing them, safe tuple-subclass canonicalization through built-in iteration, exact built-in field keys and scalar leaves, cycle and mutable-state rejection, centralized stable Load errors, separated validated-success/context replay, a typed-only domain-separated digest surface backed by an independent JSON-plus-SHA-256 test oracle, exact pre-change Ruff ratchet counts, 39 focused tests, 100 percent coverage across 400 statements and 106 branches, 190 source-budget regressions, and 482/99/136 ELOC across the three contract owners. The frozen R15 package (review brief a8e5bf9cf23eeba0f625d9ef609ca8e5fdafe4b5db110abad5acb2adf730ec59; manifest d2579c177d9092dbbe2d8ef41d32b10b17dac265042a5090e11aabd7ff099333) received APPROVED decisions from API-to-spec, object-model and deterministic-serialization, and spec-bound simplicity reviews with no Critical or Important mismatch, so it binds the unchanged production AST and OpenSpec Tasks 2.1 and 2.2. A later audit found the R15 code-size log blocked at 812>800 for the integrity test owner; the correction only relocates two unchanged top-level test functions into the contract test owner, preserves all 33 combined test-function ASTs and all production SHA-256 values, keeps 39 focused tests at 100 percent coverage and 190 source-budget regressions, and restores the official code-size gate at 357/775 ELOC. The frozen R16 package (review brief b5be109fddaa52a70579374dee4b763cf863847076fdd2f4e76e5fff7d56d5d1; manifest bee79ef6f15e89da165b0d8515a9d5fd834d0acdbb37a8e60c0efa104ec52443; R15-equivalence record a90b0bdecf3128c8b9e9fb8d19ff098c9d9c342333e9a08bff1ce89551d74eae) received APPROVED decisions from API-to-spec, object-model and deterministic-test, and spec-bound simplicity reviews with no Critical or Important mismatch, so this claim binds the current ratchet-clean production and test package as the independently confirmed OpenSpec Tasks 2.1 and 2.2 checkpoint; it does not bind native-provider or adapter success, complete-inventory measurement, parity, proof, archive, integration, release readiness, external runner state, or network state The current-candidate successor at revision 820e54ac6f4908e34fed4a28f988228de0d57fe1 and tree eaca6dc7766a9bde1899bba3fa1eadbe7dfb48c9 additionally binds the native providers, descriptor-safe carrier and deterministic snapshot orchestration, the fail-closed complete-inventory observation, and the digest-only one-binding adopter bundle 41f547053b92224c85c295111838e5836a3925134fcac91d87f3edf4c8adbc82. V2 remains inactive and v1 remains authoritative; proof, archive, land, accepted closeout, publication, remote state, and T4 activation remain unbound."
 verifier = "digest_only"
 tests = [
   "tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev pytest -q tests/unit/kernel/test_source_budget_measurements_contract.py tests/unit/kernel/test_source_budget_measurements_integrity.py",
@@ -38,20 +38,46 @@ kill_signal = "A symlink or object swap escapes the root, a parser/version misma
 
 [promotion]
 targets = [
+  ".config/checks/deptry/policy.toml",
+  "docs/plans/budget-contract-v2-design.md",
   "docs/plans/budget-contract-v2-implementation.md",
+  "docs/plans/global-declarative-compression-program.md",
+  "packages/ethos-core/src/ethos_core/contracts/source_budget/carriers.py",
+  "packages/ethos-core/src/ethos_core/contracts/source_budget/metrics.py",
   "packages/ethos-core/src/ethos_core/contracts/source_budget/measurement/__init__.py",
   "packages/ethos-core/src/ethos_core/contracts/source_budget/measurement/admission.py",
   "packages/ethos-core/src/ethos_core/contracts/source_budget/measurement/canonical.py",
   "packages/ethos-core/src/ethos_core/contracts/source_budget/measurements.py",
+  "packages/ethos/pyproject.toml",
+  "packages/ethos/src/ethos/adapters/repo/source_budget/measurement/__init__.py",
+  "packages/ethos/src/ethos/adapters/repo/source_budget/measurement/core.py",
+  "packages/ethos/src/ethos/adapters/repo/source_budget/measurement/native/__init__.py",
+  "packages/ethos/src/ethos/adapters/repo/source_budget/measurement/native/_structured.py",
+  "packages/ethos/src/ethos/adapters/repo/source_budget/measurement/native/core.py",
+  "packages/ethos/src/ethos/adapters/repo/source_budget/measurement/native/shell/__init__.py",
+  "packages/ethos/src/ethos/adapters/repo/source_budget/measurement/native/shell/core.py",
+  "packages/ethos/src/ethos/adapters/repo/source_budget/measurement/native/shell/grammar.py",
+  "packages/ethos/src/ethos/surface/cli/_base.py",
+  "system/policies/source-budget-carriers.toml",
+  "system/policies/source-budget-metrics.toml",
+  "system/schemas/kernel/source-budget-carriers.schema.json",
+  "system/schemas/kernel/source-budget-metrics.schema.json",
+  "tests/architecture/test_dependency_prose_schema_gates.py",
+  "tests/fixtures/source-budget-v2/cases.toml",
+  "tests/unit/adapters/repo/source_budget/test_measurement.py",
+  "tests/unit/adapters/repo/source_budget/test_measurement_orchestration.py",
+  "tests/unit/adapters/repo/source_budget/test_measurement_shell_regressions.py",
+  "tests/unit/adapters/repo/source_budget/test_measurement_yaml_regressions.py",
+  "tests/unit/cli/test_adoption_root_resolution.py",
   "tests/unit/kernel/source_budget_measurement_support.py",
   "tests/unit/kernel/test_source_budget_measurements_contract.py",
   "tests/unit/kernel/test_source_budget_measurements_integrity.py",
-  "packages/ethos/pyproject.toml",
-  "system/policies/source-budget-metrics.toml",
+  "tools/ci/scripts/run-dependency-hygiene.sh",
   "uv.lock",
   "openspec/changes/budget-contract-v2-native-measurement",
-  "openspec/specs/contracts/spec.md",
   "evidence/claims/budget-contract-v2-native-measurement-20260719.toml",
   "evidence/chronicle/budget-contract-v2-native-measurement-20260719",
+  "evidence/claims/current-head-one-binding-adopter-evidence-20260720.toml",
+  "evidence/chronicle/current-head-one-binding-adopter-evidence-20260720/2026-07-20.md",
   "evidence/parity/generic-shadow.json",
 ]

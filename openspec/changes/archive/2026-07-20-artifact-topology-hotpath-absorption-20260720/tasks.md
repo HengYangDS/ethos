@@ -12,7 +12,7 @@
 
 ## 3. Validation and lifecycle
 
-- [ ] 3.1 Run strict OpenSpec, claims, focused topology/CEL tests, and current
+- [x] 3.1 Run strict OpenSpec, claims, focused topology/CEL tests, and current
   source-observation checks.
 - [ ] 3.2 Refresh parity if required; execute HEAD-bound proof; land and close
   out locally.

@@ -7,7 +7,7 @@ summary = "The bounded ARG002 quality exception is removed from source and both 
 
 [evidence]
 dated = "evidence/chronicle/quality-arg002-exemption-elimination-v3-20260720/2026-07-20.md"
-sha256 = "ec646b74556b5c2040c6f5a51030986ead208888df2b929340b0dece5b172121"
+sha256 = "c003f931dab3fb9b70871c84394cac0214bf2f3817f582c852a50c1d5e259d4a"
 evidence_ids = ["evidence:quality-arg002-exemption-elimination-v3-20260720"]
 binding = "The active OpenSpec carrier, execution-root regressions, whole-corpus ARG002 probe, canonical Ruff owner gate, and dated Chronicle bind only the ARG002 elimination slice."
 verifier = "digest_only"

@@ -1,0 +1,8 @@
+schema_version = 1
+paths = [
+  "docs/plans/ownerless-arg005-unbound-retirement-20260720.md",
+  "evidence/claims/ownerless-arg005-unbound-retirement-20260720.toml",
+  "evidence/chronicle/ownerless-arg005-unbound-retirement-20260720/**",
+  "openspec/changes/archive/2026-07-20-ownerless-arg005-unbound-retirement-20260720/**",
+  "openspec/specs/repository-governance/spec.md",
+]

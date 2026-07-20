@@ -1,6 +1,6 @@
 [claim]
 id = "owner-unavailable-unbound-partial-effect-reconciliation-20260720"
-change_id = "owner-unavailable-unbound-partial-effect-reconciliation-20260720"
+change_id = "owner-unavailable-unbound-partial-effect-reconciliation"
 subject = "ethos:lane:owner-unavailable-unbound-partial-effect-reconciliation"
 state = "active"
 summary = "ETHOS can reconcile one exact owner-unavailable exceptional-retirement partial effect when the source ref is already absent but its exact foreign lease remains, through current accepted policy, immutable-attempt binding, and native lease CAS only."
@@ -14,7 +14,7 @@ verifier = "digest_only"
 tests = [
   "uv run --all-packages --group dev pytest -q tests/unit/lanes/retirement/test_unbound_and_helpers.py tests/unit/lanes/retirement/test_ref_absent_reconciliation.py tests/unit/cli/test_contracts_lane.py tests/unit/cli/test_ref_absent_reconciliation.py",
   "uv run --all-packages --group dev ruff check packages/ethos/src/ethos/adapters/mutation/lane_retirement/unbound packages/ethos/src/ethos/surface/cli/lane/core.py",
-  "openspec validate owner-unavailable-unbound-partial-effect-reconciliation-20260720 --strict --json",
+  "openspec validate owner-unavailable-unbound-partial-effect-reconciliation --strict --json",
   "ethos lane retire reconcile-ref-absent --branch work/quality-zero-exceptions-successor-v2-20260719 --chronicle-ref evidence/chronicle/owner-unavailable-unbound-partial-effect-reconciliation-20260720/2026-07-20.md --json",
 ]
 
@@ -26,7 +26,7 @@ owner = "ethos-repository-governance"
 scope = "One ref-absent owner-unavailable Work Lane lease residue and one future native lease-only reconciliation; generic takeover, raw ref/state mutation, source-holder impersonation, remote mutation, and hosted claims are excluded."
 
 [carriers]
-openspec = "openspec/changes/archive/2026-07-20-owner-unavailable-unbound-partial-effect-reconciliation-20260720"
+openspec = "openspec/changes/archive/2026-07-20-owner-unavailable-unbound-partial-effect-reconciliation"
 fallback = "Retain the absent ref, foreign lease, historical attempt, and accepted records if current policy, lease tuple, source path, protected refs, or postconditions cannot be proved exactly."
 kill_signal = "A path reappears, a ref is recreated, a lease tuple or immutable attempt mismatches, a provider/session label is accepted as authority, any raw deletion path is used, or the native receipt cannot prove all postconditions."
 
@@ -35,7 +35,7 @@ targets = [
   "docs/reference/command-plane.md",
   "evidence/claims/owner-unavailable-unbound-partial-effect-reconciliation-20260720.toml",
   "evidence/chronicle/owner-unavailable-unbound-partial-effect-reconciliation-20260720/2026-07-20.md",
-  "openspec/changes/archive/2026-07-20-owner-unavailable-unbound-partial-effect-reconciliation-20260720",
+  "openspec/changes/archive/2026-07-20-owner-unavailable-unbound-partial-effect-reconciliation",
   "openspec/specs/command-plane/spec.md",
   "openspec/specs/repository-governance/spec.md",
   "packages/ethos/src/ethos/adapters/mutation/lane_retirement/unbound/core.py",

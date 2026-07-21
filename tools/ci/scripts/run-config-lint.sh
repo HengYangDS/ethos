@@ -4,7 +4,7 @@
 # Ownership boundaries:
 # - TOML format/lint policy: .config/checks/taplo/taplo.toml
 # - YAML lint policy: .config/checks/yaml/yamllint.yaml
-# - JSON format policy: .config/checks/json/format.toml, executed by jq.
+# - JSON format policy: .config/checks/json/format.toml, executed by Python stdlib json.
 # - Provider CI calls this script; it does not restate policy inline.
 set -euo pipefail
 
@@ -94,26 +94,43 @@ if ((${#toml_files[@]})); then
 fi
 
 if ((${#json_files[@]})); then
-  if ! command -v jq >/dev/null 2>&1; then
-    echo "jq is required by .config/checks/json/format.toml" >&2
-    exit 1
-  fi
   "${ethos_python}" - .config/checks/json/format.toml "${json_files[@]}" <<'PY'
 from __future__ import annotations
 
-import fnmatch, subprocess, sys, tomllib
+import fnmatch
+import json
+import sys
+import tomllib
 from pathlib import Path
 
-policy = tomllib.loads(Path(sys.argv[1]).read_text(encoding="utf-8")); rules = policy.get("rule", []); failed = False
+policy = tomllib.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+rules = policy.get("rule", [])
+failed = False
 for raw in sys.argv[2:]:
-    path = Path(raw); relative = path.as_posix()
-    mode = next((str(rule["mode"]) for rule in reversed(rules) if any(fnmatch.fnmatchcase(relative, glob) for glob in rule["globs"])), str(policy["default_mode"]))
-    command = ["jq", "-c"] if mode == "compact" else ["jq", "--indent", str(policy["indent"])]
-    rendered = subprocess.run([*command, ".", relative], capture_output=True, check=False)
-    if rendered.returncode:
-        sys.stderr.buffer.write(rendered.stderr); failed = True
-    elif path.read_bytes() != rendered.stdout:
-        print(f"{relative}: JSON format drift ({mode})", file=sys.stderr); failed = True
+    path = Path(raw)
+    relative = path.as_posix()
+    mode = next(
+        (
+            str(rule["mode"])
+            for rule in reversed(rules)
+            if any(fnmatch.fnmatchcase(relative, glob) for glob in rule["globs"])
+        ),
+        str(policy["default_mode"]),
+    )
+    try:
+        parsed = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        print(f"{relative}: JSON parse failed: {exc}", file=sys.stderr)
+        failed = True
+        continue
+    indent = None if mode == "compact" else int(policy["indent"])
+    kwargs = {"ensure_ascii": False, "indent": indent}
+    if indent is None:
+        kwargs["separators"] = (",", ":")
+    rendered = (json.dumps(parsed, **kwargs) + "\n").encode()
+    if path.read_bytes() != rendered:
+        print(f"{relative}: JSON format drift ({mode})", file=sys.stderr)
+        failed = True
 raise SystemExit(1 if failed else 0)
 PY
 fi

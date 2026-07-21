@@ -71,25 +71,48 @@ url="https://nodejs.org/dist/v${version}/${archive}"
 cache_root="${ETHOS_CI_TOOL_CACHE_DIR:-${CI_PROJECT_DIR:-$(pwd)}/build/runtime/tool-cache/ci-tools}"
 cache_dir="${cache_root}/node/${version}"
 archive_path="${cache_dir}/${archive}"
+persistent_cache_root="${ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR:-}"
+if [ -n "${persistent_cache_root}" ]; then
+  persistent_cache_dir="${persistent_cache_root}/node/${version}/linux-${arch}"
+  persistent_archive_path="${persistent_cache_dir}/${archive}"
+else
+  persistent_cache_dir=""
+  persistent_archive_path=""
+fi
 tmpdir="$(mktemp -d)"
 trap 'rm -rf "${tmpdir}"' EXIT
 
 mkdir -p "${cache_dir}"
 
 verify_archive_checksum() {
-  printf '%s  %s\n' "${archive_sha256}" "${archive_path}" | sha256sum -c -
+  printf '%s  %s\n' "${archive_sha256}" "$1" | sha256sum -c -
 }
 
-if [ ! -s "${archive_path}" ] || ! tar tJf "${archive_path}" >/dev/null 2>&1 || ! verify_archive_checksum >/dev/null 2>&1; then
+if [ -n "${persistent_archive_path}" ] \
+  && [ -s "${persistent_archive_path}" ] \
+  && tar tJf "${persistent_archive_path}" >/dev/null 2>&1 \
+  && verify_archive_checksum "${persistent_archive_path}" >/dev/null 2>&1; then
+  cp "${persistent_archive_path}" "${archive_path}"
+fi
+
+if [ ! -s "${archive_path}" ] \
+  || ! tar tJf "${archive_path}" >/dev/null 2>&1 \
+  || ! verify_archive_checksum "${archive_path}" >/dev/null 2>&1; then
   rm -f "${archive_path}"
   echo "Installing node v${version} for linux-${arch} from ${url}"
   "${script_dir}/download-file.sh" "${url}" "${archive_path}"
 fi
 
-if ! verify_archive_checksum; then
+if ! verify_archive_checksum "${archive_path}"; then
   rm -f "${archive_path}"
   echo "Node archive checksum mismatch: ${archive}" >&2
   exit 1
+fi
+
+if [ -n "${persistent_archive_path}" ]; then
+  mkdir -p "${persistent_cache_dir}"
+  cp "${archive_path}" "${persistent_archive_path}.tmp"
+  mv "${persistent_archive_path}.tmp" "${persistent_archive_path}"
 fi
 
 tar xJf "${archive_path}" -C "${tmpdir}"
@@ -99,10 +122,16 @@ if [ ! -x "${node_dir}/bin/node" ]; then
   tar tJf "${archive_path}" >&2
   exit 1
 fi
-# Install into a prefix on PATH; the tarball bundles node, npm, and npx.
-install -m 0755 "${node_dir}/bin/node" /usr/local/bin/node
-cp -a "${node_dir}/lib/node_modules" /usr/local/lib/node_modules
-ln -sf /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm
-ln -sf /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx
+# Install into a writable prefix on PATH; the tarball bundles node, npm, and npx.
+install_prefix="${ETHOS_CI_NODE_INSTALL_PREFIX:-/usr/local}"
+install_bin_dir="${install_prefix}/bin"
+install_lib_dir="${install_prefix}/lib"
+mkdir -p "${install_bin_dir}" "${install_lib_dir}"
+install -m 0755 "${node_dir}/bin/node" "${install_bin_dir}/node"
+rm -rf "${install_lib_dir}/node_modules"
+cp -a "${node_dir}/lib/node_modules" "${install_lib_dir}/node_modules"
+ln -sf "${install_lib_dir}/node_modules/npm/bin/npm-cli.js" "${install_bin_dir}/npm"
+ln -sf "${install_lib_dir}/node_modules/npm/bin/npx-cli.js" "${install_bin_dir}/npx"
+export PATH="${install_bin_dir}:${PATH}"
 node --version
 npm --version

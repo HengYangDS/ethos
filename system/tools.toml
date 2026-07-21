@@ -177,7 +177,7 @@ gate = "tools/ci/scripts/run-config-lint.sh"
 
 [[tool]]
 concern = "json_format"
-tool = "jq"
+tool = "python stdlib json"
 config = ".config/checks/json/format.toml"
 profile = "minimal"
 adoption = "active"

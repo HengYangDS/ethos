@@ -12,6 +12,7 @@ import sqlite3
 import stat
 import subprocess
 import tempfile
+from contextlib import closing
 from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -296,8 +297,8 @@ def _verify_export_snapshot(
         raise _error(handoff_export_head_drift=None)
     if dirty_content_sha256(repo) != handoff.dirty_content_sha256:
         raise _error(handoff_export_dirty_drift=None)
-    with sqlite3.connect(
-        Path(git_common_dir(repo)).parent / ".ethos/state/state.sqlite"
+    with closing(
+        sqlite3.connect(Path(git_common_dir(repo)).parent / ".ethos/state/state.sqlite")
     ) as connection:
         connection.execute("begin immediate")
         try:
@@ -322,7 +323,7 @@ def _commit_import(
     manifest: dict[str, Any],
     lease: dict[str, Any],
 ) -> tuple[dict[str, Any], dict[str, object]]:
-    with sqlite3.connect(destination / ".ethos/state/state.sqlite") as connection:
+    with closing(sqlite3.connect(destination / ".ethos/state/state.sqlite")) as connection:
         connection.execute("begin immediate")
         initialize_state_connection(connection)
         row, _ = expected_current_lease(

@@ -718,17 +718,13 @@ truth.
 
 ### Requirement: Global Executable Source Budget And Compression Debt
 
-ETHOS SHALL measure maintained executable source across product code, tests,
-tools, shell, JavaScript, declarations, schemas, templates, and tracked derived
-projections. It SHALL reject an unbounded source increase that lacks an explicit
-compression-debt record, but that global report SHALL not be part of the default
-fine-grained promotion proof floor. Source-budget remains required for full
-proof and global compression closeout. When a stale Work Lane is reconstructed
-on a newer candidate train, candidate-owned debt records MUST remain visible,
-every active record MUST have one registered ISO-8601 deletion wave and expiry,
-and measured settlement MUST remove only the named allowance. Reconstruction
-MUST preserve immutable baseline and terminal targets and regenerate evidence
-from the successor HEAD.
+ETHOS SHALL measure executable source across product code, tests, tools,
+scripts, declarations, schemas, templates, and tracked projections. Unbounded
+growth requires explicit compression debt. Default fine-grained proof may omit
+source-budget; full proof and campaign closeout may not. Successor reconstruction
+SHALL preserve candidate debt and immutable targets, bind each active debt to one
+ISO-8601 deletion wave and expiry, settle only its allowance, and regenerate
+evidence at successor HEAD.
 
 #### Scenario: A fine-grained Change and a global compression debt coexist
 
@@ -1262,13 +1258,12 @@ network, scan history, or write quality evidence.
 
 ### Requirement: Budget Contract v2 Migration Integrity
 
-ETHOS SHALL preserve the versioned v1 source-budget baseline, thresholds, debt
-lifecycle, inventory rules, and historical/current required or advisory
-observations at their named HEADs while migrating to Budget Contract v2. The
-migration SHALL introduce a typed carrier inventory and versioned,
-non-compensating native metric vector before v2 can become authoritative. ELOC
-SHALL remain the individual-file readability ceiling; repository-wide LOC
-retirement requires a later accepted calibration and supersession decision.
+ETHOS SHALL preserve Budget v1 baselines, thresholds, debt lifecycle, inventory
+rules, and HEAD-bound historical/current verdicts during v2 migration. V2 SHALL
+become authoritative only after a typed carrier inventory and versioned,
+non-compensating native metric vector exist. ELOC remains the per-file
+readability ceiling; repository-wide LOC retirement requires a later accepted
+calibration and supersession decision.
 
 #### Scenario: Foundation extraction preserves v1 behavior
 

@@ -149,7 +149,11 @@ def test_config_lint_targeted_toml_invocation_handles_empty_json_set(
     bin_dir = repo / "bin"
     bin_dir.mkdir()
     taplo = bin_dir / "taplo"
-    taplo.write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
+    taplo.write_text(
+        "#!/usr/bin/env bash\n"
+        '[[ "${RUST_LOG:-}" == "warn" ]] || echo " INFO taplo: success noise" >&2\n',
+        encoding="utf-8",
+    )
     taplo.chmod(0o755)
 
     subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
@@ -170,6 +174,7 @@ def test_config_lint_targeted_toml_invocation_handles_empty_json_set(
     )
 
     assert completed.returncode == 0, completed.stdout + completed.stderr
+    assert completed.stderr == ""
 
 def test_scope_binding_requirement_has_one_accepted_authority() -> None:
     spec = (ROOT / "openspec/specs/repository-governance/spec.md").read_text(encoding="utf-8")

@@ -38,6 +38,11 @@ complete.
 - Make Work Lane start no-clobber: reject a pre-existing target path or ref
   before acquiring a lease, recheck after acquisition, and revoke the new lease
   only after every carrier created by the failed attempt is proven absent.
+- Compress the 17 overlong canonical OpenSpec requirement texts without
+  removing scenarios or obligations; official strict validation must report
+  zero issues at every level.
+- Set Taplo's native success log floor to warning so configuration gates are
+  quiet on success while preserving real warning/error output and exit status.
 
 ## Capabilities
 
@@ -56,7 +61,7 @@ None.
 Affected surfaces are the lease and handoff contracts, linked and exceptional
 retirement adapters, Work Lane start saga, Cyclopts lane commands, exact
 lease/ref race regressions, invalid-state classification, quality ratchets, the
-current Claim/Chronicle, and this OpenSpec carrier.
+current Claim/Chronicle, canonical quality and repository-governance specs, and this OpenSpec carrier.
 
 ## Out Of Scope
 

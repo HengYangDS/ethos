@@ -25,6 +25,8 @@ reducer and one explicit destructive effect.
 - Delete wrappers, re-exports, compatibility summaries, and redundant tests.
 - Delete the archived source-budget Claim-specific rebase compatibility path.
 - Delete every ignored SQLite lease migration and database-wide version claim.
+- Require official full-corpus OpenSpec strict validation to return zero issues.
+- Make successful configuration validation warning-free without output filtering.
 
 **Non-Goals:**
 
@@ -77,32 +79,38 @@ reducer and one explicit destructive effect.
     before acknowledgement, and deletes temporary refs only by expected value.
     Destination acknowledgement is a separate receipt and never mutates the
     content-addressed source package.
-10. **One complete lease fingerprint crosses every boundary.** The exact
+11. **One complete lease fingerprint crosses every boundary.** The exact
     generation comprises lease ID, holder, epoch, lane ref, expected head, row
     expiry, and raw payload SHA-256. Status, handoff, Chronicle, receipts, and
     effects must either carry all of it or fail closed; there is no five-field
     compatibility read.
-11. **Policy modes do not own effects.** Ordinary holder relinquishment and
+12. **Policy modes do not own effects.** Ordinary holder relinquishment and
     accepted unavailable-holder recovery both call the same exact revoke
     primitive. The latter changes admission facts only; it does not introduce a
     wrapper, alias, or parallel storage effect.
-12. **Lane start is a no-clobber saga.** Target path and ref absence are checked
+13. **Lane start is a no-clobber saga.** Target path and ref absence are checked
     before and after lease acquisition. A failed Git add removes only an exact
     worktree/ref created at the leased expected head. Any uncertain ownership or
     cleanup failure retains the lease and observable carrier for deterministic
     recovery; only complete absence permits exact lease revocation.
-13. **Cross-host handoff is actor-bound and content-addressed.** Import requires
+14. **Cross-host handoff is actor-bound and content-addressed.** Import requires
     the invocation actor to equal the package target holder. A successful import
     emits a schema-validated acknowledgement whose content ID binds the package,
     target actor, lane/head, incarnation, and complete destination Lease
     generation. The acknowledgement is a destination-holder assertion, not a
     signature or remote authority proof.
-14. **Content-addressed packages are immutable.** Re-export reuses an existing
+15. **Content-addressed packages are immutable.** Re-export reuses an existing
     directory only when its manifest, declared artifacts, digests, and complete
     file set are identical; it never deletes or replaces that directory.
     Collision, invalid or extra prior content, and uncertain import compensation
     fail closed. Failed import revokes its exact new Lease only after its exact
     Git carriers are proven absent.
+16. **OpenSpec issues are findings.** Canonical requirement prose is compressed
+    in place without deleting scenarios or obligations. Official strict JSON
+    must contain no ERROR, WARNING, or INFO issue; exit zero alone is insufficient.
+17. **Tool-native log levels own success noise.** Taplo runs with `RUST_LOG=warn`;
+    no wrapper filters its streams, so real warning/error diagnostics and failure
+    exit status remain observable while successful validation stays quiet.
 
 ## Risks / Trade-offs
 

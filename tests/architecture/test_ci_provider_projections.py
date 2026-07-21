@@ -151,10 +151,10 @@ def test_gitlab_node_compatibility_matrix_projects_the_runtime_policy() -> None:
     assert "NODE_VERSION" not in npm_package_job
     assert "npm run test:npm" in npm_package_job["script"]
 
-def test_github_repository_proof_projects_single_worker_stability() -> None:
+def test_github_repository_proof_projects_parallel_worker_stability() -> None:
     github = yaml.safe_load((ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8"))
 
-    assert github["jobs"]["verify"]["env"] == {"ETHOS_TEST_WORKERS": "1"}
+    assert github["jobs"]["verify"]["env"] == {"ETHOS_TEST_WORKERS": "4"}
     expected_runner = ["self-hosted", "macOS", "ARM64", "${{ vars.ETHOS_GITHUB_RUNNER_LABEL }}"]
 
     assert github["jobs"]["quality"]["runs-on"] == expected_runner

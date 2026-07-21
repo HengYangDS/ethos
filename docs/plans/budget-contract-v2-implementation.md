@@ -304,41 +304,48 @@ subsequent separately evidenced transitions.
 - [x] **Step 6: Complete official OpenSpec archive and canonical contracts/quality/repository-governance spec fusion as a separate committed state; do not treat archive as archive-HEAD proof or integration.**
 - [ ] **Step 7: Complete post-archive parity, default and full archive-HEAD proof, candidate land, accepted-root closeout, local publication-readiness evaluation, and owned successor-Lane retirement as separately evidenced transitions; do not claim remote publication or hosted CI.**
 
-### Prerequisite C1: Versioned Carrier Resource Boundary
+### Prerequisite C1: Versioned Static Hybrid Carrier Execution
 
 **Files:**
 
 - Modify: `packages/ethos-core/src/ethos_core/contracts/source_budget/metrics.py`
+- Create: `packages/ethos-core/src/ethos_core/contracts/source_budget/measurement/execution.py`
+- Create: `packages/ethos-core/src/ethos_core/contracts/source_budget/measurement/worker/`
 - Modify: `packages/ethos/src/ethos/adapters/repo/source_budget/measurement/core.py`
-- Modify: `packages/ethos/src/ethos/adapters/repo/source_budget/measurement/native/core.py`
+- Refactor: `packages/ethos/src/ethos/adapters/repo/source_budget/measurement/native/`
 - Modify: `system/policies/source-budget-metrics.toml`
 - Modify: `system/schemas/kernel/source-budget-metrics.schema.json`
-- Modify: `tests/fixtures/source-budget-v2/compression-cases.json`
-- Modify: `tests/unit/kernel/test_source_budget_metrics_contract.py`
-- Modify: `tests/unit/kernel/source_budget_measurement_support.py`
-- Modify: `tests/unit/kernel/test_source_budget_measurements_contract.py`
-- Modify: `tests/unit/kernel/test_source_budget_measurements_integrity.py`
-- Modify: `tests/unit/adapters/repo/source_budget/test_carriers.py`
-- Modify: `tests/unit/adapters/repo/source_budget/test_measurement.py`
-- Create: `tests/unit/adapters/repo/source_budget/test_measurement_resource_boundary.py`
+- Create: `system/schemas/kernel/source-budget-worker-protocol.schema.json`
+- Modify/Create: focused kernel, adapter, architecture, adversarial, and platform tests
 
 **Interfaces:**
 
-- Consumes: Task 3 carrier classification, exact provider signatures,
-  descriptor-bound reads, native measurement, and fail-closed Loads.
-- Produces: MetricContract wire version 3 with
-  `execution_mode = "bounded_in_process_v1"`, a strict provider-wide
-  `max_carrier_bytes`, and pre-read/direct-native rejection with no partial
+- Consumes: Task 3 classification, exact provider signatures, descriptor-bound
+  reads, native measurement, and fail-closed Loads.
+- Produces: MetricContract wire version 4 with static provider routing, fixed
+  carrier ceilings, execution-contract id/digest, a strict worker protocol,
+  bounded linear reads, one-shot complex-parser isolation, and no partial
   measurement.
-- Boundary: v1 remains authoritative and v2 remains inactive. This prerequisite
-  does not implement Git replay, fix the known YAML gap, add policy/debt/gates,
-  or change v1 allowance, debt, terminal targets, or per-file ELOC.
+- Static bounded parser ids: `utf8-footprint`, `utf8-control`, and
+  `diagram-contract`, all under
+  `ethos-source-budget-execution:bounded-in-process-v1`.
+- Static isolated parser ids: `python-tokenize`, `json-stdlib`, `tomllib`,
+  `pyyaml-safe`, `configparser`, `jinja2`, and `shell-lexical`, all under
+  `ethos-source-budget-execution:isolated-worker-v1`.
+- Boundary: v1 remains authoritative and v2 inactive. C1 does not implement Git
+  replay, fix YAML, add v2 policy/debt/gates, or change v1 allowance, debt,
+  terminal targets, global LOC, or per-file ELOC.
 
-- [ ] **Step 1: Write RED tests for strict v3 resource fields, provider-wide consistency, digest propagation, exact ceilings, limit-minus-one/exact-limit success, limit-plus-one rejection before reading/parsing, growth, forged signatures, and whole-snapshot failure.**
-- [ ] **Step 2: Run the focused kernel and adapter tests and retain the intended missing-field, missing-helper, old-wire, unbounded-read, and late-native-rejection failures.**
-- [ ] **Step 3: Implement the minimal contract/provider signature changes, resolve the resource contract before content open, bound reads to `limit + 1`, and recheck direct bytes before startup conformance, decoding, AST, or provider parsing.**
-- [ ] **Step 4: Regenerate policy grammar digests and JSON Schema atomically; verify the current and immutable-baseline inventories have no oversize gap and that the existing YAML graph-safety gap is unchanged.**
-- [ ] **Step 5: Complete independent security/design review, focused 100 percent branch coverage, regressions, owner gates, exact-HEAD proof, archive, land, accepted closeout, local publish readiness, and owned-Lane retirement. If security review rejects the ceiling, keep C1 open and implement admitted isolation instead.**
+- [x] **Step 1: Record the bounded-only v3 precursor and independent security rejection; discard only the uncommitted reader/native GREEN, retain committed v3 contracts/tests as explicit migration input, and amend governance to v4 static hybrid execution.**
+- [ ] **Step 2: Write and verify eight diagnostic MetricContract v4 RED nodes: bounded positive, isolated positive, complete-v3 rejection, helper four-tuple, parser-global mode/id/digest drift, identity propagation with unchanged measurement vector, schema requirements, and exact repository policy mapping.**
+- [ ] **Step 3: Implement the pure-kernel execution owner, descriptor-only protocol/resource owners, v4 contracts/helper, provider descriptor v2, generated schemas, 28 policy atoms, and owner-computed digest goldens atomically. The helper returns `(mode, ceiling, id, digest)` and current policy has four parameterized execution digests.**
+- [ ] **Step 4: Write and verify pure worker-protocol RED for typed request/result XOR, exact gap allowlist, canonical five-digest binding, parent replay, length framing, canonical JSON, truncation, duplicates, overlimits, and trailing data.**
+- [ ] **Step 5: Implement the pure kernel protocol and frame codecs without subprocess behavior.**
+- [ ] **Step 6: Write router/import-boundary RED and split bounded provider identity/engine from isolated provider engine; prove no isolated failure can call an in-process fallback.**
+- [ ] **Step 7: Write supervisor/backend RED for private launch, resource setup before import, bounded nonblocking pipes, CPU/RSS/wall/FD/process/output/protocol failures, TERM/KILL/reap, descendants, and Linux/Darwin capability paths.**
+- [ ] **Step 8: Implement one-carrier/one-process worker bootstrap, POSIX supervisor, Linux/Darwin telemetry, stable redacted gaps, and strict parent result reconstruction.**
+- [ ] **Step 9: Implement the common single-read parent boundary for both modes and direct native recheck; prove limit-minus-one/exact-limit success, limit-plus-one rejection, pre-spawn safety, drift semantics, and all-or-nothing snapshots.**
+- [ ] **Step 10: Run exact-ceiling INI amplification plus every provider adversarial corpus, performance/inventory checks, focused 100 percent coverage, all owner gates, independent security/contract/simplicity/platform review, and expand Claim promotion targets to the execution owner, worker package, protocol schema, protocol/frame tests, supervisor test, and architecture test before proof, archive, land, accepted closeout, local publication readiness, and Lane retirement. If hybrid is rejected, keep C1 open and do not raise a ceiling.**
 
 ### Task 4: Git Snapshot Replay And v2 Shadow Report
 

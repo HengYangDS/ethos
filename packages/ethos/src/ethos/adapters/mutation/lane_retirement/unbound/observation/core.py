@@ -83,9 +83,7 @@ def observe(repo: Path, *, branch: str, chronicle_ref: str) -> dict[str, object]
     """Observe the exact target, policy, lease, and protected-ref state."""
     status, branch_policy = workspace_status(repo), load_branch_role_policy(repo)
     current, binding = unbound_work_lane_ref(status, branch), branch_binding(status, branch)
-    worktrees = status.get("worktrees")
-    typed = cast("list[dict[str, str]]", worktrees) if isinstance(worktrees, list) else []
-    active_lease = leases_by_branch(typed, current_path=repo).get(branch, {})
+    active_lease = leases_by_branch(repo).get(branch, {})
     refs = protected_refs(
         branch_policy.release_branch, branch_policy.accepted_branch, branch_policy.candidate_branch
     )
@@ -121,7 +119,7 @@ def observe_ref_absent_reconciliation(
     status, branch_policy = workspace_status(repo), load_branch_role_policy(repo)
     worktrees = status.get("worktrees")
     typed = cast("list[dict[str, str]]", worktrees) if isinstance(worktrees, list) else []
-    active_lease = leases_by_branch(typed, current_path=repo).get(branch, {})
+    active_lease = leases_by_branch(repo).get(branch, {})
     refs = protected_refs(
         branch_policy.release_branch, branch_policy.accepted_branch, branch_policy.candidate_branch
     )

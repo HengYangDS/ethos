@@ -111,6 +111,10 @@ reducer and one explicit destructive effect.
 17. **Tool-native log levels own success noise.** Taplo runs with `RUST_LOG=warn`;
     no wrapper filters its streams, so real warning/error diagnostics and failure
     exit status remain observable while successful validation stays quiet.
+18. **Git common-directory identity owns local state.** Lease reads and effects
+    derive one database from the resolved common directory regardless of which
+    protected branch is checked out. The accepted checkout remains a separate
+    destructive-retirement control root and does not own state discovery.
 
 ## Risks / Trade-offs
 

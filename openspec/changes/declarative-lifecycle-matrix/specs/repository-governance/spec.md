@@ -160,6 +160,11 @@ retain a lease-owned database-wide version ledger, or reject unrelated tables
 owned by other local-state capabilities. Unsupported lease state fails closed
 and must be recreated through the canonical lifecycle.
 
+The local-state database SHALL derive from resolved Git common-directory
+identity and remain invariant when the accepted branch is not checked out.
+Destructive linked-retirement SHALL independently require the accepted checkout
+as its control root.
+
 #### Scenario: A fresh state database is initialized
 
 - **WHEN** no state schema exists
@@ -187,3 +192,9 @@ and must be recreated through the canonical lifecycle.
 - **WHEN** the exact current subject-keyed lease schema already exists
 - **THEN** initialization is idempotent
 - **AND** no active coordination row is rewritten or deleted.
+
+#### Scenario: The accepted branch is not checked out
+
+- **WHEN** another protected branch occupies the canonical repository path
+- **THEN** a linked Work Lane reads the same Lease generation and Claim binding
+- **AND** destructive retirement still requires its accepted-checkout control root.

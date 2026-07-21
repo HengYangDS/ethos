@@ -17,6 +17,7 @@ from ethos.adapters.mutation.resolution._shared import sha256_digest
 from ethos.adapters.mutation.resolution.receipts import verify_preservation_package
 from ethos.adapters.mutation.resolution.receipts import write_resolution_receipt
 from ethos.adapters.store.state.lease.projection import active_leases
+from ethos.adapters.store.state.schema import state_database
 from ethos.repository.policy.schema import validate_schema_instance
 from ethos_core.contracts.lifecycle.core import MutationRequest
 from ethos_core.contracts.lifecycle.core import reduce_guards
@@ -192,7 +193,9 @@ def _observe_lane(root: Path, branch: str) -> tuple[LaneObservation, list[str]]:
         ), ["lane_resolution_target_missing"]
     path = Path(worktree["worktree"])
     head = _git(root, "rev-parse", f"refs/heads/{branch}")
-    leases = [lease for lease in _leases(root) if lease.get("subject") == branch]
+    leases = [
+        lease for lease in active_leases(state_database(root)) if lease.get("subject") == branch
+    ]
     lease = leases[0] if len(leases) == 1 else {}
     holder = str(lease.get("holder_ref") or "")
     incarnation = str(lease.get("lane_incarnation_id") or "") or (
@@ -226,12 +229,6 @@ def _worktree(root: Path, branch: str) -> dict[str, str]:
             rows.append(current)
             current = {}
     return next((row for row in rows if row.get("branch") == f"refs/heads/{branch}"), {})
-
-
-def _leases(root: Path) -> list[dict[str, Any]]:
-    common = Path(_git(root, "rev-parse", "--git-common-dir"))
-    control_root = (common if common.is_absolute() else root / common).resolve().parent
-    return active_leases(control_root / ".ethos/state/state.sqlite")
 
 
 def _read_decision(path: Path, *, root: Path) -> tuple[dict[str, Any], list[str]]:

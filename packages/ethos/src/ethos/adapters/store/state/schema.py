@@ -5,11 +5,10 @@ from __future__ import annotations
 import hashlib
 import sqlite3
 from contextlib import closing
-from typing import TYPE_CHECKING
+from pathlib import Path
 from typing import Any
 
-if TYPE_CHECKING:
-    from pathlib import Path
+from ethos.adapters.repo.git import git_common_dir
 
 SCHEMA = (
     """
@@ -131,6 +130,15 @@ def _require_no_lease_triggers(connection: sqlite3.Connection) -> None:
 def read_only_state_uri(db_path: Path) -> str:
     """Return a SQLite URI that cannot create or mutate state sidecars."""
     return f"{db_path.resolve().as_uri()}?mode=ro"
+
+
+def state_database(root: Path) -> Path:
+    """Return the one repository-local state database shared by all worktrees."""
+    common = git_common_dir(root)
+    if not common:
+        message = "git_common_directory_unavailable"
+        raise ValueError(message)
+    return Path(common).parent / ".ethos" / "state" / "state.sqlite"
 
 
 def initialize_state_connection(connection: sqlite3.Connection) -> None:

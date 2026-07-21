@@ -9,13 +9,13 @@ from typing import Any
 from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.mutation.lane_lifecycle.core import repo_root
 from ethos.adapters.mutation.lane_lifecycle.core import run_git
-from ethos.adapters.repo.status.bindings import accepted_worktree_root
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.adapters.store.state.lease.lifecycle.core import accept_lease_handoff
 from ethos.adapters.store.state.lease.lifecycle.core import offer_lease_handoff
 from ethos.adapters.store.state.lease.lifecycle.core import renew_lease
 from ethos.adapters.store.state.lease.lifecycle.core import resume_lease
 from ethos.adapters.store.state.lease.projection import integer_value
+from ethos.adapters.store.state.schema import state_database
 from ethos_core.contracts.coordination import HolderRef
 from ethos_core.contracts.lifecycle.core import LeaseFacts
 from ethos_core.contracts.lifecycle.core import LeaseOperationRequest
@@ -42,7 +42,7 @@ def execute_lease_operation(*, root: Path, request: LeaseOperationRequest) -> di
     """Evaluate and optionally execute one declaration-owned lease transition."""
     repo = repo_root(root)
     status = workspace_status(repo)
-    database = accepted_worktree_root(status.get("worktrees"), repo) / ".ethos/state/state.sqlite"
+    database = state_database(repo)
     expected_state, holder_gaps = _lease_expected_state(repo, request)
     transition, effect, contract_gaps = _lease_effect_binding(repo, request.operation)
 

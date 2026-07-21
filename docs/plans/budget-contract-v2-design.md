@@ -162,21 +162,43 @@ every remaining v1 obligation and v2 must remain visibly blocked.
 
 ## Historical Replay
 
-Historical replay is gated by a versioned measurement execution boundary. Every
-MetricContract atom binds an execution mode and provider-wide carrier-byte
-ceiling before any worktree or Git blob content is allocated or parsed. The
-initial admitted mode is `bounded_in_process_v1`: `utf8-footprint` is capped at
-262,144 bytes, `python-tokenize` at 65,536 bytes, and every other current
-provider, including `utf8-control`, at 32,768 bytes. The ceiling is part of the
-provider and measurement identity, cannot vary by path/profile/metric, and is
-rechecked by both the descriptor reader and direct native API. A rejected
-carrier invalidates the complete snapshot.
+Historical replay is gated by a versioned provider execution boundary. The
+first bounded-only design was rejected on July 21, 2026 after an INI carrier of
+9,590 bytes produced a 77.4 MiB Python peak, a 20,489,335-byte canonical stream,
+and 2.87 seconds of work. Metric registry and atoms therefore advance to v4
+and bind a static hybrid execution contract. The discarded reader/native GREEN
+was never committed; the v3 metric-contract and diagnostic-test commits already
+on the Work Lane remain migration input and must be superseded atomically.
 
-These fixed limits are not source-budget allowances and are not derived from
-current maxima. If independent security review rejects bounded in-process
-execution, replay remains blocked until a versioned one-shot isolated worker
-has memory, CPU, wall, descriptor/process, protocol, and output limits with no
-in-process fallback.
+Parser ids `utf8-footprint`, `utf8-control`, and `diagram-contract` are the only
+providers admitted to `bounded_in_process_v1` under
+`ethos-source-budget-execution:bounded-in-process-v1`. Parser ids
+`python-tokenize`, `json-stdlib`, `tomllib`, `pyyaml-safe`, `configparser`,
+`jinja2`, and `shell-lexical` use one-carrier/one-process `isolated_worker_v1`
+under `ethos-source-budget-execution:isolated-worker-v1`, with no in-process
+fallback. Both modes resolve the complete descriptor before content open,
+perform one parent `limit + 1` read, and recheck direct bytes before parse or
+spawn. Every atom binds the exact `(mode, ceiling, execution-contract id,
+execution-contract digest)` tuple; the provider descriptor, not a path or
+caller, selects it. The execution digest excludes parser/grammar/normalization
+and coordinates, which provider descriptor v2 binds separately.
+
+Worker protocol v1 is path blind, canonical, typed, length framed, and bounded.
+Parent and child both revalidate content, contracts, provider identity,
+execution identity, and ceilings. The supervisor enforces CPU, wall, memory
+intent, descriptor/process, request/response, protocol, and output bounds, then
+terminates and reaps the whole process group on failure. Linux and Darwin use
+platform-specific enforcement while making the same resource-fault-isolation
+claim. Darwin samples RSS every 10 ms and trips virtual-memory growth above the
+first successful pre-request `pti_virtual_size` baseline plus 512 MiB; it is not
+described as a kernel-hard absolute RSS/AS sandbox.
+
+The carrier ceilings remain 262,144 bytes for `utf8-footprint`, 65,536 for
+Python, and 32,768 for every other provider. They are execution boundaries, not
+source-budget allowances, and cannot rise from current maxima. Static hybrid
+routing reduces the planned replay workload from 2,889 worker starts to 873, a
+69.8 percent reduction, without leaving any complex parser on the bounded path.
+Cold-start seconds remain platform evidence to remeasure, not a design constant.
 
 Baseline and selected historical snapshots are recomputed from Git blobs rather
 than trusting declared totals. The observed v1 replay mismatch is itself a

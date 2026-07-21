@@ -9,7 +9,6 @@ from ethos.adapters.mutation.lane_lifecycle.core import repo_root
 from ethos.adapters.mutation.lane_lifecycle.core import run_git
 from ethos.adapters.mutation.lane_lifecycle.core import slug
 from ethos.adapters.repo.dirty.core import changed_paths
-from ethos.adapters.repo.status.bindings import accepted_worktree_root
 from ethos.adapters.repo.status.bindings import ref_head
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.adapters.store.state.lease.lifecycle.core import acquire_lease
@@ -17,13 +16,14 @@ from ethos.adapters.store.state.lease.lifecycle.effects import revoke_lease
 from ethos.adapters.store.state.lease.lifecycle.effects import update_lease_payload
 from ethos.adapters.store.state.lease.projection import active_leases
 from ethos.adapters.store.state.lease.projection import integer_value
+from ethos.adapters.store.state.schema import state_database
 from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 from ethos_core.contracts.branch.roles import load_branch_role_policy
 from ethos_core.contracts.coordination import HolderRef
 
 
-def start_work_lane(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
+def start_work_lane(  # noqa: C901, PLR0913, RUF100 - exact start saga dimensions
     *,
     root: Path,
     name: str,
@@ -86,7 +86,7 @@ def start_work_lane(  # noqa: PLR0913, RUF100 - exact request envelope preserves
         return blocked("candidate_worktree_dirty")
     if gap := _lane_start_carrier_gap(repo, target=target, branch=branch):
         return blocked(gap)
-    database = repo / ".ethos" / "state" / "state.sqlite"
+    database = state_database(repo)
     try:
         lease = acquire_lease(
             database,
@@ -143,7 +143,7 @@ def start_work_lane(  # noqa: PLR0913, RUF100 - exact request envelope preserves
     }
 
 
-def _abort_lane_start(
+def _abort_lane_start(  # noqa: C901 - exact compensation state machine
     repo: Path,
     *,
     target: Path,
@@ -209,7 +209,7 @@ def _abort_lane_start(
     try:
         if not gap:
             revoke_lease(
-                repo / ".ethos" / "state" / "state.sqlite",
+                state_database(repo),
                 subject=branch,
                 holder_ref=str(lease["holder_ref"]),
                 expected_lease_id=str(lease["lease_id"]),
@@ -276,7 +276,7 @@ def bind_work_lane_claim(
     )
     if lane is None:
         gaps.append(f"work_lane_not_found:{target_branch}")
-    state_db = accepted_worktree_root(status.get("worktrees"), repo) / ".ethos/state/state.sqlite"
+    state_db = state_database(repo)
     lease = _active_lease(state_db, target_branch)
     if lease is None:
         gaps.append(f"work_lane_missing_lease:{target_branch}")

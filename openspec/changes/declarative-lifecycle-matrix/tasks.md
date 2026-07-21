@@ -39,6 +39,9 @@
 - [x] 2.13 Make Taplo success output quiet through its native warning log floor;
   preserve real diagnostics and prove the configuration gate emits no success
   stderr.
+- [x] 2.14 Derive shared local state from Git common-directory identity, keep
+  destructive accepted-checkout control separate, and remove parallel Lease
+  state-root derivation.
 
 ## 3. Verification and lifecycle
 

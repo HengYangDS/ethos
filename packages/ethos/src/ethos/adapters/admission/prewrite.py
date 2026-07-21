@@ -219,8 +219,7 @@ def _lease_report(
 
 def _work_lane_lease(*, root: Path, status: dict[str, object], branch: str) -> dict[str, object]:
     current_path = Path(str(status.get("root") or root)).resolve()
-    worktrees = cast("list[dict[str, str]]", status["worktrees"])
-    return leases_by_branch(worktrees, current_path=current_path).get(branch, {})
+    return leases_by_branch(current_path).get(branch, {})
 
 
 def _lease_binding_reason(

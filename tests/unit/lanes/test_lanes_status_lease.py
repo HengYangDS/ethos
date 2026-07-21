@@ -235,6 +235,31 @@ def test_workspace_status_blocks_raw_work_lane_without_lease(tmp_path: Path) -> 
     assert status["required_gaps"] == ["work_lane_missing_lease:work/raw"]
 
 
+def test_workspace_status_reads_common_state_without_accepted_checkout(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
+    worktree = tmp_path / "repo-work-feature"
+    start_work_lane(
+        root=repo,
+        name="feature",
+        path=worktree,
+        holder_ref="agent:test:case:agent-test",
+        claim_id="sample-trust",
+        apply=True,
+    )
+    git(repo, "branch", "main", "dev")
+    git(repo, "checkout", "main")
+
+    status = workspace_status(worktree)
+
+    assert status["closeout_support"]["holder_ref"] == "agent:test:case:agent-test"
+    assert status["closeout_support"]["claim_id"] == "sample-trust"
+    assert status["closeout_support"]["lease_epoch"] == 1
+    assert status["closeout_support"]["lease_expected_head"] == status["head"]
+
+
 def test_workspace_status_reports_closeout_holder_from_lane_lease(
     tmp_path: Path,
 ) -> None:

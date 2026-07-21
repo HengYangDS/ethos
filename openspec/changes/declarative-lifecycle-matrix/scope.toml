@@ -13,6 +13,7 @@ paths = [
   "openspec/specs/quality/spec.md",
   "openspec/specs/repository-governance/spec.md",
   "packages/ethos-core/src/ethos_core/contracts/**",
+  "packages/ethos/src/ethos/adapters/admission/prewrite.py",
   "packages/ethos/src/ethos/adapters/admission/transitions.py",
   "packages/ethos/src/ethos/adapters/mutation/lane_lifecycle/**",
   "packages/ethos/src/ethos/adapters/mutation/lane_retirement/**",

@@ -53,7 +53,7 @@ def retire_linked_work_lane(
     absorbed_by = request.absorbed_by.strip()
     accepted_head = _output(repo, "rev-parse", policy.accepted_branch) or ""
     control_root = _control_root(worktrees, repo)
-    leases = leases_by_branch(cast("list[dict[str, str]]", worktrees), current_path=repo)
+    leases = leases_by_branch(repo)
     candidates = [
         lane
         for lane in worktrees

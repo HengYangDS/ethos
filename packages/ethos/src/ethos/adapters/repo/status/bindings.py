@@ -6,6 +6,7 @@ from pathlib import Path
 from ethos.adapters.repo.git import git_stdout_checked
 from ethos.adapters.store.state.lease.projection import active_leases
 from ethos.adapters.store.state.lease.projection import integer_value
+from ethos.adapters.store.state.schema import state_database
 from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch.roles import ROLE_CANDIDATE
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
@@ -173,19 +174,16 @@ def worktree_binding(path: str, *, current_path: Path) -> str:
     return "linked" if resolved.exists() else "missing"
 
 
-def leases_by_branch(
-    worktrees: list[dict[str, str]], *, current_path: Path
-) -> dict[str, dict[str, object]]:
-    """Load current SQLite leases from the accepted-root control store."""
-    control_root = accepted_worktree_root(worktrees, current_path)
+def leases_by_branch(current_path: Path) -> dict[str, dict[str, object]]:
+    """Load current SQLite leases from the Git-common-directory state store."""
     return {
         str(lease["subject"]): lease
-        for lease in active_leases(control_root / ".ethos" / "state" / "state.sqlite")
+        for lease in active_leases(state_database(current_path))
     }
 
 
 def accepted_worktree_root(worktrees: object, default: Path) -> Path:
-    """Return the linked accepted checkout that owns common-directory local state."""
+    """Return the linked accepted checkout required for destructive closeout."""
     return next(
         (
             Path(str(item.get("path")))

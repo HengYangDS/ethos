@@ -123,8 +123,8 @@ convention = "google"
 # INP001 (test dirs are deliberately not import packages), PLR2004 (asserting against
 # a literal expected value is the correct test idiom), E501 (unbreakable assertion
 # payloads/fixtures; logic still wraps). No refactor removes the need for these.
-# SLF001 is NOT here — private-member access IS reducible debt, so it is a shrinking
-# whole-repo ratchet (.config/checks/ruff/ratchet.toml SLF001=220), not a blanket ignore.
+# SLF001 is NOT here — private-member access IS reducible debt governed by the
+# exact shrinking baseline in .config/checks/ruff/ratchet.toml, not a blanket ignore.
 "tests/**" = [
   "E501",
   "INP001",

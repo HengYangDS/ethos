@@ -9,7 +9,8 @@ repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 # `.venv` or ambient interpreter.
 export UV_PROJECT_ENVIRONMENT="${repo_root}/build/runtime/venv"
 bootstrap_venv="${repo_root}/build/runtime/tool-cache/uv-bootstrap"
-python -m venv "${bootstrap_venv}"
+bootstrap_python="${ETHOS_BOOTSTRAP_PYTHON:-python3}"
+"${bootstrap_python}" -m venv "${bootstrap_venv}"
 "${bootstrap_venv}/bin/pip" install --disable-pip-version-check --quiet uv
 export PATH="${bootstrap_venv}/bin:${PATH}"
 
@@ -22,7 +23,9 @@ if ! command -v npx >/dev/null 2>&1; then
 elif ! command -v jq >/dev/null 2>&1; then
   apt-get update >/dev/null && apt-get install -y --no-install-recommends jq >/dev/null
 fi
-printf '%s\n' '#!/usr/bin/env bash' 'exec npx --yes @fission-ai/openspec@1.6.0 "$@"' > /usr/local/bin/openspec
-chmod +x /usr/local/bin/openspec
+openspec_shim="${bootstrap_venv}/bin/openspec"
+printf '%s\n' '#!/usr/bin/env bash' 'exec npx --yes @fission-ai/openspec@1.6.0 "$@"' > "${openspec_shim}"
+chmod +x "${openspec_shim}"
+if [[ -n "${GITHUB_PATH:-}" ]]; then printf '%s\n' "${bootstrap_venv}/bin" >> "${GITHUB_PATH}"; fi
 uv --version
 uv sync --all-packages --group dev

@@ -48,7 +48,7 @@ projection = ".gitlab-ci.yml"
 emulator_tool = "gitlab-ci-local"
 emulator_event = "pipeline"
 emulator_job = "ethos:lint"
-emulator_image = "python:3.12"
+emulator_image = "python:3.14"
 forbidden_log_patterns = [
   "(?:^|[ >])DeprecationWarning:",
   "(?:^|[ >])WARNING:",

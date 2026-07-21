@@ -21,6 +21,9 @@ variables:
   UV_CACHE_DIR: build/runtime/tool-cache/uv
   LYCHEE_CACHE_DIR: build/runtime/tool-cache/lychee
   ETHOS_CI_TOOL_CACHE_DIR: build/runtime/tool-cache/ci-tools
+  # GitLab exposes /cache through a project-scoped runner cache volume.
+  # Actionlint verifies the cached archive SHA-256 before reuse.
+  ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR: /cache/${CI_PROJECT_PATH_SLUG}/ci-tools
 
 cache:
   key: ${CI_PROJECT_PATH_SLUG}

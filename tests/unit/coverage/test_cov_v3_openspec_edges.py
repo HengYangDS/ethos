@@ -67,6 +67,21 @@ def test_archive_delta_issues_specs_dir_without_spec_files(tmp_path: Path) -> No
     assert [issue["code"] for issue in issues] == ["openspec_archive_delta_specs_missing"]
 
 
+def test_archive_metadata_rejects_created_after_archive_date(tmp_path: Path) -> None:
+    path = tmp_path / ".openspec.yaml"
+    path.write_text("schema: spec-driven\ncreated: 2026-01-02\n", encoding="utf-8")
+
+    issues = archive_mod.archive_metadata_issues(
+        path,
+        archive_name="2026-01-01-sample",
+        root=tmp_path,
+    )
+
+    assert [issue["code"] for issue in issues] == [
+        "openspec_archive_metadata_created_after_archive"
+    ]
+
+
 def test_workspace_signature_empty_without_openspec_dir(tmp_path: Path) -> None:
     assert openspec_workspace.openspec_workspace_signature(tmp_path) == ()
 

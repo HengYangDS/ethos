@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import pytest
+from pydantic import ValidationError
+
 from ethos.adapters.mutation.lane_lifecycle.lease import execute_lease_operation
 from ethos.adapters.mutation.lanes import start_work_lane
 from ethos.adapters.store.state.lease.lifecycle.core import acquire_lease
@@ -19,6 +22,23 @@ if TYPE_CHECKING:
 
 HOLDER_A = "agent:test:case:holder-a"
 HOLDER_B = "agent:test:case:holder-b"
+
+
+@pytest.fixture(autouse=True)
+def _bind_source_actor(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ETHOS_ACTOR", HOLDER_A)
+
+
+def test_lease_operation_request_requires_complete_generation() -> None:
+    with pytest.raises(ValidationError):
+        LeaseOperationRequest(
+            operation="renew",
+            branch="work/feature",
+            holder_ref=HOLDER_A,
+            lease_id="lease:one",
+            expected_epoch=1,
+            expect_head="a" * 40,
+        )
 
 
 def _started_lane(tmp_path: Path) -> tuple[Path, Path, dict[str, object]]:
@@ -50,6 +70,10 @@ def _lease_args(report: dict[str, object], worktree: Path) -> tuple[str, ...]:
         str(lease["epoch"]),
         "--expect-head",
         git(worktree, "rev-parse", "HEAD"),
+        "--expires-at",
+        str(lease["expires_at"]),
+        "--payload-sha256",
+        str(lease["payload_sha256"]),
     )
 
 
@@ -67,6 +91,8 @@ def test_unknown_lease_operation_blocks_with_mutation_envelope(tmp_path: Path) -
             lease_id=str(lease["lease_id"]),
             expected_epoch=int(lease["epoch"]),
             expect_head=git(worktree, "rev-parse", "HEAD"),
+            expected_expires_at=str(lease["expires_at"]),
+            expected_payload_sha256=str(lease["payload_sha256"]),
         ),
     )
 
@@ -96,9 +122,34 @@ def test_lane_lease_renew_is_generation_bound_and_emits_receipt(tmp_path: Path) 
     assert payload["data"]["lease"]["holder_ref"] == HOLDER_A
     assert payload["data"]["lease"]["epoch"] == 1
     assert payload["data"]["mutation"]["decision"]["subject"]["action"] == "lane.lease.renew"
-    assert payload["data"]["receipt"]["operation"] == "renew"
-    assert payload["data"]["receipt"]["applied"] is True
-    assert payload["data"]["receipt"]["mints_authority"] is False
+    receipt = payload["data"]["receipt"]
+    lease = payload["data"]["lease"]
+    assert receipt["operation"] == "renew"
+    assert receipt["applied"] is True
+    assert receipt["mints_authority"] is False
+    assert {
+        key: receipt[key]
+        for key in (
+            "lease_id",
+            "holder_ref",
+            "epoch",
+            "lane_ref",
+            "expected_head",
+            "expires_at",
+            "payload_sha256",
+        )
+    } == {
+        key: lease[key]
+        for key in (
+            "lease_id",
+            "holder_ref",
+            "epoch",
+            "lane_ref",
+            "expected_head",
+            "expires_at",
+            "payload_sha256",
+        )
+    }
 
 
 def test_lane_lease_renew_blocks_stale_epoch_before_effect(tmp_path: Path) -> None:
@@ -152,6 +203,10 @@ def test_lane_lease_resume_only_revives_expired_same_generation(tmp_path: Path) 
         str(lease["epoch"]),
         "--expect-head",
         git(worktree, "rev-parse", "HEAD"),
+        "--expires-at",
+        str(lease["expires_at"]),
+        "--payload-sha256",
+        str(lease["payload_sha256"]),
         "--apply",
         "--root",
         worktree.as_posix(),
@@ -166,7 +221,7 @@ def test_lane_lease_resume_only_revives_expired_same_generation(tmp_path: Path) 
 
 
 def test_lane_handoff_requires_offer_target_and_quiescence_confirmation(
-    tmp_path: Path,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo, worktree, started = _started_lane(tmp_path)
     common_args = _lease_args(started, worktree)
@@ -184,24 +239,34 @@ def test_lane_handoff_requires_offer_target_and_quiescence_confirmation(
         "--json",
         cwd=worktree,
     )
-    offer_id = offered["data"]["handoff_offer"]["offer_id"]
-
-    blocked = run_ethos_blocked(
-        "lane",
-        "handoff",
-        "accept",
+    offered_lease = offered["data"]["handoff_offer"]
+    offer_id = offered_lease["offer_id"]
+    accept_args = (
         "--branch",
         "work/feature",
+        "--holder-ref",
+        HOLDER_A,
         "--target-holder-ref",
         HOLDER_B,
         "--offer-id",
         offer_id,
         "--lease-id",
-        str(started["lease"]["lease_id"]),
+        str(offered_lease["lease_id"]),
         "--epoch",
-        "1",
+        str(offered_lease["epoch"]),
         "--expect-head",
         git(worktree, "rev-parse", "HEAD"),
+        "--expires-at",
+        str(offered_lease["expires_at"]),
+        "--payload-sha256",
+        str(offered_lease["payload_sha256"]),
+    )
+
+    blocked = run_ethos_blocked(
+        "lane",
+        "handoff",
+        "accept",
+        *accept_args,
         "--apply",
         "--root",
         worktree.as_posix(),
@@ -210,22 +275,26 @@ def test_lane_handoff_requires_offer_target_and_quiescence_confirmation(
     )
     assert "holder_quiescence_confirmation_required" in blocked["required_gaps"]
 
+    wrong_actor = run_ethos_blocked(
+        "lane",
+        "handoff",
+        "accept",
+        *accept_args,
+        "--confirm-holder-quiesced",
+        "--apply",
+        "--root",
+        worktree.as_posix(),
+        "--json",
+        cwd=worktree,
+    )
+    assert "lease_actor_mismatch" in wrong_actor["required_gaps"]
+
+    monkeypatch.setenv("ETHOS_ACTOR", HOLDER_B)
     accepted = run_ethos(
         "lane",
         "handoff",
         "accept",
-        "--branch",
-        "work/feature",
-        "--target-holder-ref",
-        HOLDER_B,
-        "--offer-id",
-        offer_id,
-        "--lease-id",
-        str(started["lease"]["lease_id"]),
-        "--epoch",
-        "1",
-        "--expect-head",
-        git(worktree, "rev-parse", "HEAD"),
+        *accept_args,
         "--confirm-holder-quiesced",
         "--apply",
         "--root",

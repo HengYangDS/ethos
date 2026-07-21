@@ -2,16 +2,19 @@ from __future__ import annotations
 
 import json
 import shutil
+import sqlite3
 import subprocess
 from functools import partial
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
 import pytest
 
-import ethos.adapters.mutation.lane_retirement.shared.core as retirement_shared
 import ethos.adapters.repo.dirty.core as repo_dirty
 import ethos.adapters.store.state.lease.lifecycle.core as state
-from ethos.adapters.mutation.lane_retirement.landed.core import retire_landed_work_lanes
+import ethos.adapters.store.state.lease.projection as state_read
+from ethos.adapters.mutation.lane_retirement import core
+from ethos.adapters.mutation.lane_retirement.core import LinkedRetirementRequest
 from ethos.adapters.mutation.lanes import start_work_lane
 from ethos.adapters.repo import coordination as repo_coordination
 from ethos.adapters.repo.dirty.core import committed_change_paths
@@ -23,10 +26,8 @@ from tests.support.contract_helpers import commit_fixture_file
 from tests.support.lane_helpers import add_candidate_worktree
 from tests.support.lane_helpers import git
 from tests.support.lane_helpers import init_repo
-from tests.support.subprocesses import completed
 
 type MonkeyPatch = pytest.MonkeyPatch
-type GitResult = subprocess.CompletedProcess[str]
 
 
 if TYPE_CHECKING:
@@ -51,7 +52,11 @@ def _landed_lane(tmp_path: Path, *, lease_holder: str = "") -> tuple[Path, Path,
     database = repo / ".ethos" / "state" / "state.sqlite"
     if lease_holder:
         state.acquire_lease(
-            database, subject=_LANDED_BRANCH, holder_ref=lease_holder, ttl_seconds=3600
+            database,
+            subject=_LANDED_BRANCH,
+            holder_ref=lease_holder,
+            ttl_seconds=3600,
+            payload={"expected_head": git(landed, "rev-parse", "HEAD")},
         )
     return (repo, landed, database)
 
@@ -78,29 +83,22 @@ def _assert_unavailable(report: dict[str, Any], error: str) -> None:
     assert error in str(report["error"])
 
 
-def _linked_lane(tmp_path: Path, *, branch: str = "work/stuck") -> tuple[Path, dict[str, str]]:
-    repo = init_repo(tmp_path / "repo")
-    path = tmp_path / "repo-work-stuck"
-    if branch:
-        path.mkdir()
-    return repo, {"branch": branch, "path": path.as_posix() if branch else ""}
-
-
-def _sequence_runner(
-    *outputs: str, failures: tuple[int, ...] = (), error: str = "failure"
-) -> tuple[object, list[tuple[str, ...]]]:
-    calls: list[tuple[str, ...]] = []
-    responses = iter(enumerate(outputs))
-
-    def run_git(_root: Path, *args: str, check: bool = False) -> GitResult:
-        assert check is False
-        assert args[:2] != ("worktree", "remove") or _root == _root.with_name("repo")
-        calls.append(args)
-        index, stdout = next(responses)
-        failed = index in failures
-        return completed(stdout, error if failed else "", int(failed))
-
-    return run_git, calls
+def _retire_landed(
+    root: Path,
+    *,
+    branch: str | None = None,
+    expect_head: str | None = None,
+    apply: bool = False,
+) -> dict[str, object]:
+    return core.retire_linked_work_lane(
+        root=root,
+        mode="landed",
+        request=LinkedRetirementRequest(
+            branch=branch,
+            expect_head=expect_head,
+            apply=apply,
+        ),
+    )
 
 
 def test_retire_plans_only_merged_lanes(tmp_path: Path) -> None:
@@ -111,7 +109,7 @@ def test_retire_plans_only_merged_lanes(tmp_path: Path) -> None:
     git(repo, "worktree", "add", "-b", "work/landed", landed.as_posix(), "dev")
     git(repo, "worktree", "add", "-b", "work/active", active.as_posix(), "dev")
     commit_fixture_file(active, "README.md", "# active\n", "active work")
-    report = retire_landed_work_lanes(root=repo)
+    report = _retire_landed(repo)
     assert (report["ok"], report["state"], report["required_gaps"]) == (True, "planned", [])
     lanes = {lane["branch"]: lane for lane in report["lanes"]}
     assert lanes["work/landed"]["retire_ready"] is True
@@ -124,7 +122,7 @@ def test_retire_rejects_legacy_owner_projection(monkeypatch, tmp_path: Path) -> 
     repo, landed, _database = _landed_lane(tmp_path)
     _legacy_leases(repo, landed, (_LANDED_BRANCH, "agent-json"))
     monkeypatch.setenv("ETHOS_ACTOR", "agent-json")
-    report = retire_landed_work_lanes(root=repo, branch=_LANDED_BRANCH)
+    report = _retire_landed(repo, branch=_LANDED_BRANCH)
     assert (report["ok"], report["state"]) == (False, "blocked")
     assert report["required_gaps"] == ["foreign_work_lane_retire_authority_required"]
     selected = next(lane for lane in report["lanes"] if lane["branch"] == _LANDED_BRANCH)
@@ -142,9 +140,7 @@ def test_retire_preserves_unverified_json_projection(monkeypatch, tmp_path: Path
         ("work/other", "agent-other"),
     )
     monkeypatch.setenv("ETHOS_ACTOR", "agent-json")
-    report = retire_landed_work_lanes(
-        root=repo, branch=_LANDED_BRANCH, expect_head=head, apply=True
-    )
+    report = _retire_landed(repo, branch=_LANDED_BRANCH, expect_head=head, apply=True)
     assert (report["ok"], report["state"]) == (False, "blocked")
     assert report["required_gaps"] == ["foreign_work_lane_retire_authority_required"]
     assert landed.exists()
@@ -157,49 +153,44 @@ def test_retire_block_explains_required_actor(monkeypatch, tmp_path: Path) -> No
     repo, landed, _database = _landed_lane(tmp_path, lease_holder=_LEASE_HOLDER)
     landed_head = git(landed, "rev-parse", "HEAD")
     monkeypatch.delenv("ETHOS_ACTOR", raising=False)
-    blocked = retire_landed_work_lanes(
-        root=repo, branch=_LANDED_BRANCH, expect_head=landed_head, apply=True
-    )
+    blocked = _retire_landed(repo, branch=_LANDED_BRANCH, expect_head=landed_head, apply=True)
     assert (blocked["ok"], blocked["required_gaps"]) == (
         False,
         ["foreign_work_lane_retire_authority_required"],
     )
     mutation = blocked["mutation"]
+    request = mutation["request"]
+    expected = mutation["decision"]["subject"]["expected_state"]
     assert (
-        mutation["invocation_holder_ref"],
-        mutation["holder_bound"],
-        mutation["invocation_source"],
-        mutation["expect_head"],
-        mutation["ref"],
-        mutation["required_holder_ref"],
+        request["expect_head"],
+        expected["ref"],
+        expected["invocation_holder_ref"],
+        expected["required_holder_ref"],
     ) == (
-        "",
-        "false",
-        "ETHOS_ACTOR",
         landed_head,
         f"refs/heads/{_LANDED_BRANCH}",
+        "",
         _LEASE_HOLDER,
     )
     assert mutation["decision"]["verdict"] == "block"
-    assert mutation["legacy_binding_authoritative"] is False
     assert blocked["next_action"] == "set ETHOS_ACTOR to the current holder_ref or obtain handoff"
 
 
 def test_retire_requires_matching_owner(monkeypatch, tmp_path: Path) -> None:
     repo, landed, _database = _landed_lane(tmp_path, lease_holder=_LEASE_HOLDER)
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-b")
-    blocked = retire_landed_work_lanes(root=repo, branch="work/landed")
+    blocked = _retire_landed(repo, branch="work/landed")
     assert (blocked["ok"], blocked["state"]) == (False, "blocked")
     assert blocked["required_gaps"] == ["foreign_work_lane_retire_authority_required"]
     assert landed.exists()
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:agent-a")
-    allowed = retire_landed_work_lanes(root=repo, branch=_LANDED_BRANCH)
+    allowed = _retire_landed(repo, branch=_LANDED_BRANCH)
     assert (allowed["ok"], allowed["state"], allowed["required_gaps"]) == (True, "planned", [])
 
 
 def test_retire_apply_requires_branch(tmp_path: Path) -> None:
     repo, landed, _database = _landed_lane(tmp_path)
-    report = retire_landed_work_lanes(root=repo, apply=True)
+    report = _retire_landed(repo, apply=True)
     assert (report["ok"], report["required_gaps"]) == (False, ["retire_branch_required"])
     assert landed.exists()
 
@@ -209,7 +200,7 @@ def test_retire_reports_missing_branch(
 ) -> None:
     repo = init_repo(tmp_path / "repo")
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
-    report = retire_landed_work_lanes(root=repo, branch="work/missing")
+    report = _retire_landed(repo, branch="work/missing")
     assert report["required_gaps"] == ["retire_branch_not_found"]
 
 
@@ -217,28 +208,91 @@ def test_retire_projects_removal_failure(monkeypatch: MonkeyPatch, tmp_path: Pat
     repo, landed, _database = _landed_lane(tmp_path, lease_holder=_LEASE_HOLDER)
     head = git(landed, "rev-parse", "HEAD")
     monkeypatch.setenv("ETHOS_ACTOR", _LEASE_HOLDER)
-    monkeypatch.setattr(
-        retirement_shared,
-        "remove_linked_lane",
-        lambda *_args, **_kwargs: {
-            "ok": False,
-            "state": "blocked",
-            "required_gaps": ["worktree_remove_failed"],
-        },
-    )
-    report = retire_landed_work_lanes(
-        root=repo, branch=_LANDED_BRANCH, expect_head=head, apply=True
-    )
+    run_git = core.run_git
+
+    def fail_remove(root: Path, *args: str, **kwargs):
+        if args[:2] == ("worktree", "remove"):
+            return subprocess.CompletedProcess(args, 128, stdout="", stderr="locked")
+        return run_git(root, *args, **kwargs)
+
+    monkeypatch.setattr(core, "run_git", fail_remove)
+    report = _retire_landed(repo, branch=_LANDED_BRANCH, expect_head=head, apply=True)
     assert report["required_gaps"] == ["worktree_remove_failed"]
 
 
 def test_retire_blocks_without_stable_control_root(monkeypatch, tmp_path: Path) -> None:
     repo, landed, _database = _landed_lane(tmp_path, lease_holder=_LEASE_HOLDER)
-    head, retire = git(landed, "rev-parse", "HEAD"), retire_landed_work_lanes
+    head = git(landed, "rev-parse", "HEAD")
+    status = workspace_status(repo)
+    status["worktrees"] = [
+        worktree for worktree in status["worktrees"] if worktree["role"] != "accepted_root"
+    ]
     monkeypatch.setenv("ETHOS_ACTOR", _LEASE_HOLDER)
-    monkeypatch.setitem(retire.__globals__, "_retirement_control_root", lambda _: None)
-    report = retire(root=repo, branch=_LANDED_BRANCH, expect_head=head, apply=True)
+    monkeypatch.setattr(core, "workspace_status", lambda _root: status)
+    report = _retire_landed(repo, branch=_LANDED_BRANCH, expect_head=head, apply=True)
     assert report["required_gaps"] == ["retirement_control_root_unavailable"]
+
+
+@pytest.mark.parametrize(
+    ("case", "gap"),
+    [
+        ("control-root", "retirement_control_root_stale"),
+        ("actor", "foreign_work_lane_retire_authority_required"),
+        ("missing-path", "retirement_worktree_path_unavailable"),
+        ("git-unavailable", "retirement_ref_unavailable"),
+        ("dirty", "work_lane_dirty"),
+    ],
+)
+def test_retire_rechecks_effect_boundaries(
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+    case: str,
+    gap: str,
+) -> None:
+    repo, landed, _database = _landed_lane(tmp_path / case, lease_holder=_LEASE_HOLDER)
+    head = git(landed, "rev-parse", "HEAD")
+    run_git = core.run_git
+    holder_ref = core.current_holder_ref
+    calls = 0
+
+    def observe(root: Path, *args: str, **kwargs):
+        if case == "control-root" and args == ("symbolic-ref", "--short", "HEAD"):
+            return subprocess.CompletedProcess(args, 0, stdout="other\n", stderr="")
+        if (
+            case == "git-unavailable"
+            and root == landed
+            and args
+            == (
+                "rev-parse",
+                f"refs/heads/{_LANDED_BRANCH}",
+            )
+        ):
+            return subprocess.CompletedProcess(args, 128, stdout="", stderr="unavailable")
+        return run_git(root, *args, **kwargs)
+
+    def actor() -> str:
+        nonlocal calls
+        calls += 1
+        return "agent:test:case:other" if case == "actor" and calls == 3 else holder_ref()
+
+    if case in {"missing-path", "dirty"}:
+
+        def actor_after_effect() -> str:
+            nonlocal calls
+            calls += 1
+            if calls == 3:
+                if case == "missing-path":
+                    shutil.rmtree(landed)
+                else:
+                    (landed / "dirty.txt").write_text("dirty\n", encoding="utf-8")
+            return holder_ref()
+
+        actor = actor_after_effect
+    monkeypatch.setenv("ETHOS_ACTOR", _LEASE_HOLDER)
+    monkeypatch.setattr(core, "run_git", observe)
+    monkeypatch.setattr(core, "current_holder_ref", actor)
+    report = _retire_landed(repo, branch=_LANDED_BRANCH, expect_head=head, apply=True)
+    assert report["required_gaps"] == [gap]
 
 
 @pytest.mark.parametrize(
@@ -251,9 +305,7 @@ def test_retire_apply_requires_expected_head(
 ) -> None:
     repo, landed, _database = _landed_lane(tmp_path, lease_holder=_LEASE_HOLDER)
     monkeypatch.setenv("ETHOS_ACTOR", _LEASE_HOLDER)
-    report = retire_landed_work_lanes(
-        root=repo, branch=_LANDED_BRANCH, expect_head=expect_head, apply=True
-    )
+    report = _retire_landed(repo, branch=_LANDED_BRANCH, expect_head=expect_head, apply=True)
     assert report["ok"] is False
     assert report["required_gaps"] == [required_gap]
     assert landed.exists()
@@ -264,116 +316,277 @@ def test_retire_removes_own_clean_merged_lane(monkeypatch, tmp_path: Path) -> No
     repo, landed, _database = _landed_lane(tmp_path, lease_holder=_LEASE_HOLDER)
     landed_head = git(landed, "rev-parse", "HEAD")
     monkeypatch.setenv("ETHOS_ACTOR", _LEASE_HOLDER)
-    report = retire_landed_work_lanes(
-        root=landed, branch=_LANDED_BRANCH, expect_head=landed_head, apply=True
-    )
+    report = _retire_landed(landed, branch=_LANDED_BRANCH, expect_head=landed_head, apply=True)
     assert (report["ok"], report["state"]) == (True, "retired")
-    assert report["mutation"]["expect_head"] == landed_head
+    assert report["mutation"]["request"]["expect_head"] == landed_head
     assert not landed.exists()
     assert git(repo, "branch", "--list", _LANDED_BRANCH) == ""
 
 
-def test_remove_lane_deletes_worktree_before_ref(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
-    repo, lane = _linked_lane(tmp_path)
-    runner, calls = _sequence_runner("a" * 40, "a" * 40, "", "", "")
-    monkeypatch.setattr(retirement_shared, "run_git", runner)
-    report = retirement_shared.remove_linked_lane(repo, lane, expect_head="a" * 40)
-    assert report == {}
-    assert calls == [
-        ("rev-parse", "refs/heads/work/stuck"),
-        ("rev-parse", "HEAD"),
-        ("status", "--porcelain", "--untracked-files=all"),
-        ("worktree", "remove", lane["path"]),
-        ("update-ref", "-d", "refs/heads/work/stuck", "a" * 40),
-    ]
+def test_retire_blocks_handoff_after_observation(monkeypatch: MonkeyPatch, tmp_path: Path) -> None:
+    repo, landed, database = _landed_lane(tmp_path, lease_holder=_LEASE_HOLDER)
+    head = git(landed, "rev-parse", "HEAD")
+    observed = state_read.active_leases(database)[0]
+    holder_ref = core.current_holder_ref
+    calls = 0
+
+    def drift_after_observation() -> str:
+        nonlocal calls
+        calls += 1
+        if calls != 2:
+            return holder_ref()
+        offer = state.offer_lease_handoff(
+            database,
+            subject=_LANDED_BRANCH,
+            holder_ref=_LEASE_HOLDER,
+            expected_lease_id=str(observed["lease_id"]),
+            expected_epoch=int(observed["epoch"]),
+            target_holder_ref="agent:test:case:agent-b",
+            expected_head=head,
+            expected_expires_at=str(observed["expires_at"]),
+            expected_payload_sha256=str(observed["payload_sha256"]),
+        )
+        offered = state_read.active_leases(database)[0]
+        state.accept_lease_handoff(
+            database,
+            subject=_LANDED_BRANCH,
+            holder_ref=_LEASE_HOLDER,
+            target_holder_ref="agent:test:case:agent-b",
+            offer_id=str(offer["offer_id"]),
+            expected_lease_id=str(observed["lease_id"]),
+            expected_epoch=int(observed["epoch"]),
+            expected_head=head,
+            expected_expires_at=str(offered["expires_at"]),
+            expected_payload_sha256=str(offered["payload_sha256"]),
+            holder_quiesced=True,
+        )
+        return holder_ref()
+
+    monkeypatch.setenv("ETHOS_ACTOR", _LEASE_HOLDER)
+    monkeypatch.setattr(core, "current_holder_ref", drift_after_observation)
+    report = _retire_landed(repo, branch=_LANDED_BRANCH, expect_head=head, apply=True)
+
+    assert report["ok"] is False
+    assert report["required_gaps"] == ["lease_holder_mismatch"]
+    assert landed.exists()
+    assert git(repo, "rev-parse", "--verify", _LANDED_BRANCH) == head
 
 
-def test_remove_lane_blocks_stale_or_dirty_state(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
-    repo, lane = _linked_lane(tmp_path)
-    runner, _calls = _sequence_runner("b" * 40, "a" * 40, "?? uncommitted.txt")
-    monkeypatch.setattr(retirement_shared, "run_git", runner)
-    report = retirement_shared.remove_linked_lane(repo, lane, expect_head="a" * 40)
-    assert report == {
-        "ok": False,
-        "state": "blocked",
-        "required_gaps": ["retirement_ref_stale", "work_lane_dirty"],
-    }
+@pytest.mark.parametrize("mutation", ["renew", "offer"])
+def test_retire_rejects_lease_payload_drift_after_planning(
+    monkeypatch: MonkeyPatch, tmp_path: Path, mutation: str
+) -> None:
+    repo, landed, database = _landed_lane(tmp_path, lease_holder=_LEASE_HOLDER)
+    head = git(landed, "rev-parse", "HEAD")
+    lease = state_read.active_leases(database)[0]
+
+    def mutate() -> None:
+        if mutation == "renew":
+            state.renew_lease(
+                database,
+                subject=_LANDED_BRANCH,
+                holder_ref=_LEASE_HOLDER,
+                expected_lease_id=str(lease["lease_id"]),
+                expected_epoch=int(lease["epoch"]),
+                expected_head=head,
+                expected_expires_at=str(lease["expires_at"]),
+                expected_payload_sha256=str(lease["payload_sha256"]),
+                ttl_seconds=7200,
+            )
+        else:
+            state.offer_lease_handoff(
+                database,
+                subject=_LANDED_BRANCH,
+                holder_ref=_LEASE_HOLDER,
+                expected_lease_id=str(lease["lease_id"]),
+                expected_epoch=int(lease["epoch"]),
+                target_holder_ref="agent:test:case:agent-b",
+                expected_head=head,
+                expected_expires_at=str(lease["expires_at"]),
+                expected_payload_sha256=str(lease["payload_sha256"]),
+            )
+
+    apply_retirement = core._apply_retirement  # noqa: SLF001, RUF100 - exact plan/effect race injection
+
+    def mutate_then_apply(*args, **kwargs):
+        mutate()
+        return apply_retirement(*args, **kwargs)
+
+    monkeypatch.setenv("ETHOS_ACTOR", _LEASE_HOLDER)
+    monkeypatch.setattr(core, "_apply_retirement", mutate_then_apply)
+    report = _retire_landed(repo, branch=_LANDED_BRANCH, expect_head=head, apply=True)
+
+    assert report["required_gaps"] == ["lease_maintenance_candidate_drift"]
+    assert landed.exists()
+    assert git(repo, "rev-parse", "--verify", _LANDED_BRANCH) == head
+    assert state_read.active_leases(database)[0]["subject"] == _LANDED_BRANCH
+
+
+def test_retire_preserves_branch_when_accepted_ref_moves_during_effect(
+    monkeypatch: MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    repo, landed, _database = _landed_lane(tmp_path, lease_holder=_LEASE_HOLDER)
+    head = git(landed, "rev-parse", "HEAD")
+    accepted = git(repo, "rev-parse", "dev")
+    tree = git(repo, "rev-parse", f"{accepted}^{{tree}}")
+    replacement = core.run_git(
+        repo, "commit-tree", tree, "-m", "replacement accepted root"
+    ).stdout.strip()
+    run_git = core.run_git
+    moved = False
+
+    def move_accepted(root: Path, *args: str, **kwargs):
+        nonlocal moved
+        if args[:2] == ("worktree", "remove") and not moved:
+            moved = True
+            run_git(
+                repo,
+                "update-ref",
+                "refs/heads/dev",
+                replacement,
+                accepted,
+            )
+        return run_git(root, *args, **kwargs)
+
+    monkeypatch.setenv("ETHOS_ACTOR", _LEASE_HOLDER)
+    monkeypatch.setattr(core, "run_git", move_accepted)
+    report = _retire_landed(repo, branch=_LANDED_BRANCH, expect_head=head, apply=True)
+
+    assert report["ok"] is False
+    assert report["required_gaps"] == ["accepted_ref_changed_after_worktree_removed"]
+    assert report["mutation"]["decision"]["verdict"] == "block"
+    assert report["lease_state"] == "retained"
+    assert not landed.exists()
+    assert git(repo, "rev-parse", "--verify", _LANDED_BRANCH) == head
 
 
 @pytest.mark.parametrize(
-    ("branch", "expect_head", "outputs", "failures", "required_gaps"),
+    ("case", "expectation"),
     [
-        pytest.param(
-            "",
-            None,
-            (),
-            (),
-            [
-                "retirement_branch_missing",
-                "expect_head_required",
-                "retirement_worktree_path_unavailable",
-            ],
-            id="missing-metadata",
+        ("sqlite", (["lease_cleanup_failed"], False, True, {})),
+        (
+            "ref-transaction",
+            (
+                ["branch_delete_failed_after_worktree_removed"],
+                True,
+                True,
+                {"ref_preserved": True},
+            ),
         ),
-        pytest.param(
-            "work/stuck",
-            "a" * 40,
-            ("", "", ""),
-            (0, 1, 2),
-            [
-                "retirement_ref_unavailable",
-                "retirement_worktree_head_unavailable",
-                "retirement_worktree_status_unavailable",
-            ],
-            id="unavailable-observations",
+        (
+            "ref-diagnostic-oserror",
+            (
+                ["branch_delete_failed_after_worktree_removed"],
+                True,
+                True,
+                {"ref_preserved": True},
+            ),
         ),
-        pytest.param(
-            "work/stuck",
-            "a" * 40,
-            ("a" * 40, "b" * 40, ""),
-            (),
-            ["retirement_worktree_head_stale"],
-            id="stale-worktree-head",
+        (
+            "commit",
+            (
+                ["lease_cleanup_failed_after_lane_removed"],
+                True,
+                True,
+                {"ref_restored": True},
+            ),
+        ),
+        (
+            "restore",
+            (
+                [
+                    "lease_cleanup_failed_after_lane_removed",
+                    "branch_restore_failed_after_lease_cleanup",
+                ],
+                True,
+                False,
+                {"ref_restored": False},
+            ),
+        ),
+        (
+            "restore-oserror",
+            (
+                [
+                    "lease_cleanup_failed_after_lane_removed",
+                    "branch_restore_failed_after_lease_cleanup",
+                ],
+                True,
+                False,
+                {"ref_restored": False},
+            ),
         ),
     ],
 )
-def test_remove_lane_fails_closed_for_unavailable_state(
-    tmp_path: Path,
+def test_retire_reports_transaction_failures(
     monkeypatch: MonkeyPatch,
-    branch: str,
-    expect_head: str | None,
-    outputs: tuple[str, ...],
-    failures: tuple[int, ...],
-    required_gaps: list[str],
+    tmp_path: Path,
+    case: str,
+    expectation: tuple[list[str], bool, bool, dict[str, bool]],
 ) -> None:
-    repo, lane = _linked_lane(tmp_path, branch=branch)
-    runner, _calls = _sequence_runner(*outputs, failures=failures)
-    monkeypatch.setattr(retirement_shared, "run_git", runner)
-    report = retirement_shared.remove_linked_lane(repo, lane, expect_head=expect_head)
-    assert report == {"ok": False, "state": "blocked", "required_gaps": required_gaps}
+    gaps, removed, ref_present, effect_state = expectation
+    repo, landed, database = _landed_lane(tmp_path, lease_holder=_LEASE_HOLDER)
+    head = git(landed, "rev-parse", "HEAD")
 
+    class CommitFailure(sqlite3.Connection):
+        def commit(self) -> None:
+            raise sqlite3.OperationalError
 
-def test_remove_lane_preserves_newer_ref(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
-    repo, lane = _linked_lane(tmp_path)
-    runner, calls = _sequence_runner(
-        "a" * 40,
-        "a" * 40,
-        "",
-        "",
-        "",
-        failures=(4,),
-        error="cannot lock ref",
-    )
-    monkeypatch.setattr(retirement_shared, "run_git", runner)
-    report = retirement_shared.remove_linked_lane(repo, lane, expect_head="a" * 40)
-    assert report == {
-        "ok": False,
-        "state": "blocked",
-        "required_gaps": ["branch_delete_failed_after_worktree_removed"],
-        "stderr": "cannot lock ref",
-    }
-    assert ("worktree", "remove", lane["path"]) in calls
-    assert ("update-ref", "-d", "refs/heads/work/stuck", "a" * 40) in calls
+    if case == "sqlite":
+
+        def connect_failure(_path: Path) -> sqlite3.Connection:
+            message = "database unavailable"
+            raise sqlite3.OperationalError(message)
+
+        connect = connect_failure
+    else:
+        connect = (
+            partial(sqlite3.connect, factory=CommitFailure)
+            if case not in {"ref-transaction", "sqlite"}
+            else sqlite3.connect
+        )
+    monkeypatch.setattr(core, "sqlite3", SimpleNamespace(connect=connect, Error=sqlite3.Error))
+    run_git = core.run_git
+    ref_transaction_failed = False
+
+    def fail_git(root: Path, *args: str, **kwargs):
+        nonlocal ref_transaction_failed
+        if case == "ref-transaction" and args[:2] == ("update-ref", "--stdin"):
+            message = "git unavailable"
+            raise OSError(message)
+        if case == "ref-diagnostic-oserror" and args[:2] == ("update-ref", "--stdin"):
+            ref_transaction_failed = True
+            return subprocess.CompletedProcess(args, 1, stdout="", stderr="transaction failed")
+        if ref_transaction_failed and args == ("rev-parse", "dev"):
+            message = "git unavailable"
+            raise OSError(message)
+        if (
+            case in {"restore", "restore-oserror"}
+            and args[:1] == ("update-ref",)
+            and args[:2]
+            != (
+                "update-ref",
+                "--stdin",
+            )
+        ):
+            if case == "restore-oserror":
+                message = "git unavailable"
+                raise OSError(message)
+            return subprocess.CompletedProcess(args, 1, stdout="", stderr="ref occupied")
+        return run_git(root, *args, **kwargs)
+
+    monkeypatch.setattr(core, "run_git", fail_git)
+    monkeypatch.setenv("ETHOS_ACTOR", _LEASE_HOLDER)
+    report = _retire_landed(repo, branch=_LANDED_BRANCH, expect_head=head, apply=True)
+
+    assert report["required_gaps"] == gaps
+    assert report["mutation"]["decision"]["verdict"] == "block"
+    assert report.get("worktree_removed", False) is removed
+    assert {key: report[key] for key in effect_state} == effect_state
+    assert report.get("lease_state", "") == ("retained" if removed else "")
+    assert landed.exists() is not removed
+    assert (git(repo, "branch", "--list", _LANDED_BRANCH) != "") is ref_present
+    assert state_read.active_leases(database)[0]["subject"] == _LANDED_BRANCH
 
 
 def test_status_reports_candidate_behind_accepted(tmp_path: Path) -> None:
@@ -557,9 +770,7 @@ def test_retire_selected_ignores_missing_foreign(monkeypatch, tmp_path: Path) ->
     missing_foreign = tmp_path / "repo-work-missing-foreign"
     git(repo, "worktree", "add", "-b", "work/foreign", missing_foreign.as_posix(), "dev")
     shutil.rmtree(missing_foreign)
-    report = retire_landed_work_lanes(
-        root=repo, branch=_LANDED_BRANCH, expect_head=owned_head, apply=True
-    )
+    report = _retire_landed(repo, branch=_LANDED_BRANCH, expect_head=owned_head, apply=True)
     assert report["ok"] is True
     assert report["state"] == "retired"
     assert not owned.exists()
@@ -572,9 +783,7 @@ def test_retire_selected_missing_worktree_blocks(monkeypatch, tmp_path: Path) ->
     missing_head = git(missing, "rev-parse", "HEAD")
     shutil.rmtree(missing)
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:owner")
-    report = retire_landed_work_lanes(
-        root=repo, branch=_LANDED_BRANCH, expect_head=missing_head, apply=True
-    )
+    report = _retire_landed(repo, branch=_LANDED_BRANCH, expect_head=missing_head, apply=True)
     assert report["ok"] is False
     assert report["state"] == "blocked"
     assert report["required_gaps"] == ["work_lane_dirty"]

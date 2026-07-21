@@ -32,6 +32,7 @@ def _acquire_lane_lease(repo: Path, branch: str) -> None:
         subject=branch,
         holder_ref="agent:test:case:agent-a",
         ttl_seconds=3600,
+        payload={"expected_head": git(repo, "rev-parse", branch)},
     )
 
 
@@ -671,7 +672,7 @@ def test_lane_retire_landed_apply_removes_selected_branch(monkeypatch, tmp_path:
     assert payload["command"] == "lane retire landed"
     assert payload["ok"] is True
     assert payload["state"] == "retired"
-    assert payload["data"]["mutation"]["expect_head"] == worktree_head
+    assert payload["data"]["mutation"]["request"]["expect_head"] == worktree_head
     assert not worktree.exists()
 
 

@@ -101,6 +101,8 @@ REQUIRED_SCHEMAS = (
     "skill-registry.schema.json",
     "skill-package-manifest.schema.json",
     "lane-lease.schema.json",
+    "handoff-package.schema.json",
+    "handoff-acknowledgement.schema.json",
     "mutation-decision.schema.json",
     "workspace-status.schema.json",
     "authority.schema.json",

@@ -17,7 +17,9 @@ from pydantic import field_validator
 
 from ethos_core.action_graph.core import ActionGraph
 from ethos_core.action_graph.core import ActionNode
-from ethos_core.contracts.lifecycle.core import LeaseTransition
+from ethos_core.contracts.lifecycle.core import (
+    LeaseTransition,  # noqa: TC001, RUF100 - Pydantic resolves this annotation at runtime
+)
 from ethos_core.contracts.policy.cel import evaluate_cel_rules
 from ethos_core.contracts.policy.cel import validate_cel_expression
 from ethos_core.contracts.system.contracts import load_system_contract
@@ -26,6 +28,18 @@ from ethos_core.graph.core import GraphNode
 from ethos_core.state.invalid import NODE_ORDER
 
 _LEASE_TRANSITION_MATRIX_INVALID = "lease_transition_matrix_invalid"
+_LEASE_EFFECT_FIELDS = frozenset(
+    {
+        "holder_ref",
+        "target_holder_ref",
+        "offer_id",
+        "expected_epoch",
+        "expected_expires_at",
+        "expected_payload_sha256",
+        "holder_quiesced",
+        "ttl_seconds",
+    }
+)
 _ALLOWED_NODE_KINDS = {"control", "producer", "action", "handoff", "guardrail"}
 _ALLOWED_ENFORCEMENT = {"guarded", "handoff-guarded", "evidence-only", "advisory"}
 _ALLOWED_METRICS = {"pass_at_k", "pass_power_k", "weighted_score", "instability_gap"}
@@ -93,6 +107,7 @@ class WorkflowRuntimeDeclaration(_WorkflowModel):
     run_state_locality: str = ""
     run_state_schema: str = ""
     handoff_package_schema: str = ""
+    handoff_acknowledgement_schema: str = ""
     public_lifecycle_commands: tuple[str, ...] = ()
     evolution_bridge: bool = False
 
@@ -279,19 +294,21 @@ class WorkflowContract(_WorkflowModel):
     evolution: WorkflowEvolutionDeclaration = Field(default_factory=WorkflowEvolutionDeclaration)
     campaign: CampaignWorkflowDeclaration | None = None
 
-    @field_validator("lease_transition", mode="before")
+    @field_validator("lease_transition")
     @classmethod
-    def compile_lease_transition_matrix(cls, value: object) -> tuple[LeaseTransition, ...]:
-        if not isinstance(value, list | tuple):
-            raise TypeError(_LEASE_TRANSITION_MATRIX_INVALID)
-        transitions = tuple(
-            item if isinstance(item, LeaseTransition) else LeaseTransition.model_validate(item)
-            for item in value
-        )
-        operations = tuple(item.id for item in transitions)
+    def compile_lease_transition_matrix(
+        cls, value: tuple[LeaseTransition, ...]
+    ) -> tuple[LeaseTransition, ...]:
+        operations = tuple(item.id for item in value)
         if len(operations) != len(set(operations)):
             raise ValueError(_LEASE_TRANSITION_MATRIX_INVALID)
-        return transitions
+        if any(
+            field not in _LEASE_EFFECT_FIELDS
+            for transition in value
+            for field in transition.effect_fields
+        ):
+            raise ValueError(_LEASE_TRANSITION_MATRIX_INVALID)
+        return value
 
     @field_validator("guards", mode="before")
     @classmethod
@@ -512,6 +529,7 @@ def _runtime_gaps(runtime: WorkflowRuntimeDeclaration) -> list[str]:
         for key, value in (
             ("run_state_schema", runtime.run_state_schema),
             ("handoff_package_schema", runtime.handoff_package_schema),
+            ("handoff_acknowledgement_schema", runtime.handoff_acknowledgement_schema),
         )
         if not value
     )

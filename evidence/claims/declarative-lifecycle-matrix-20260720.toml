@@ -1,0 +1,95 @@
+[claim]
+id = "declarative-lifecycle-matrix-20260720"
+subject = "ethos:declarative-lifecycle-matrix"
+change_id = "declarative-lifecycle-matrix"
+state = "active"
+summary = "This dated episode Claim binds the date-free declarative-lifecycle-matrix Change: four declared lease generation transitions, one generation-bound linked-retirement owner, current-only subject-keyed lease storage, and generic-only rebase recovery pending archive and local lifecycle closeout."
+
+[evidence]
+dated = "evidence/chronicle/declarative-lifecycle-matrix-20260720/2026-07-20.md"
+sha256 = "101223aa4d4f2526d6f1fe20df289d74107dc9db3b4de3ad376a7780cb79b29d"
+evidence_ids = ["evidence:declarative-lifecycle-matrix-20260720"]
+binding = "The date-free Change and dated Chronicle bind the declared renew, resume, handoff-offer, and handoff-accept reducer; exact cross-host generation handoff; Work Lane start acquisition and no-clobber compensation; the single linked-retirement transaction; accepted-policy-bound unavailable-holder exact revoke; the current subject-keyed SQLite lease table and exact subject-unique index without retired resource-keyed migration or database-wide lease version ownership; and deletion of the archived Claim-specific rebase resolver. Final frozen-tree proof, archive, land, publication, and remote execution remain separate transitions until observed."
+verifier = "digest_only"
+tests = [
+  "tools/ci/scripts/run-python-tests.sh",
+  "tools/ci/scripts/run-python-lint.sh",
+  "tools/ci/scripts/run-ethos-lane.sh quality types --json",
+  "tools/ci/scripts/run-ethos-lane.sh quality claims --json",
+  "tools/ci/scripts/run-ethos-lane.sh quality generated-artifacts --json",
+  "tools/ci/scripts/run-module-layout.sh",
+  "tools/ci/scripts/run-no-compat.sh",
+  "tools/ci/scripts/run-import-linter.sh",
+  "tools/ci/scripts/run-config-lint.sh",
+  "tools/ci/scripts/run-json-schema-check.sh",
+  "npx --yes @fission-ai/openspec@1.6.0 validate --all --strict --json",
+  "tools/ci/scripts/run-ethos-lane.sh openspec --change declarative-lifecycle-matrix --lifecycle --json",
+  "tools/ci/scripts/run-ethos-lane.sh prove --execute --expect-head <committed-head> --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "Declaration-compiled renew, resume, handoff-offer, and handoff-accept generation transitions; exact cross-host handoff; Work Lane start acquisition and no-clobber compensation; ordinary holder-bound linked landed and superseded retirement; accepted-policy-bound unavailable-holder admission using the canonical exact revoke primitive; current subject-keyed SQLite lease schema evolution and uniqueness; and generic parity or semantic-ledger rebase recovery after removal of one archived Claim-specific resolver. General foreign authority, dirty recovery, remote mutation, hosted execution, and broader intent takeover are excluded."
+
+[carriers]
+openspec = "openspec/changes/declarative-lifecycle-matrix"
+fallback = "Preserve the linked checkout, lane ref, and current lease on uncertain retirement state; fail closed on unsupported retired lease storage or unresolved rebase conflicts; recreate current local coordination only through the canonical lifecycle."
+kill_signal = "A parallel lease or linked-retirement owner returns, a retired resource-keyed lease schema is translated, duplicate subjects require Python arbitration, an archived Claim-specific rebase resolver returns, a lane ref is deleted after accepted-state drift, compensation clobbers a newer ref, or a later lifecycle transition is claimed before evidence exists."
+
+[promotion]
+targets = [
+  ".config/checks/ruff/ratchet.toml",
+  "evidence/claims/adopter-openspec-lifecycle-20260714.toml",
+  "evidence/claims/bounded-lane-retirement-20260714.toml",
+  "evidence/claims/declarative-lifecycle-matrix-20260720.toml",
+  "evidence/claims/lane-public-primitives-20260709.toml",
+  "evidence/claims/retire-landed-apply-verdict-20260709.toml",
+  "evidence/chronicle/declarative-lifecycle-matrix-20260720/2026-07-20.md",
+  "evidence/parity/generic-shadow.json",
+  "docs/reference/command-plane.md",
+  "openspec/changes/declarative-lifecycle-matrix",
+  "packages/ethos-core/src/ethos_core/contracts/coordination.py",
+  "packages/ethos-core/src/ethos_core/contracts/lifecycle/core.py",
+  "packages/ethos-core/src/ethos_core/contracts/workflow.py",
+  "packages/ethos/src/ethos/adapters/admission/transitions.py",
+  "packages/ethos/src/ethos/adapters/mutation/lane_lifecycle/handoff/core.py",
+  "packages/ethos/src/ethos/adapters/mutation/lane_lifecycle/handoff/package.py",
+  "packages/ethos/src/ethos/adapters/mutation/lane_lifecycle/lease.py",
+  "packages/ethos/src/ethos/adapters/mutation/lane_lifecycle/projection_rebase/core.py",
+  "packages/ethos/src/ethos/adapters/mutation/lane_lifecycle/refresh.py",
+  "packages/ethos/src/ethos/adapters/mutation/lane_retirement",
+  "packages/ethos/src/ethos/adapters/mutation/lanes.py",
+  "packages/ethos/src/ethos/adapters/mutation/resolution/lane.py",
+  "packages/ethos/src/ethos/adapters/repo/coordination.py",
+  "packages/ethos/src/ethos/adapters/repo/status/bindings.py",
+  "packages/ethos/src/ethos/adapters/repo/status/core.py",
+  "packages/ethos/src/ethos/repository/audit.py",
+  "packages/ethos/src/ethos/adapters/store/state/lease/lifecycle/core.py",
+  "packages/ethos/src/ethos/adapters/store/state/lease/lifecycle/effects.py",
+  "packages/ethos/src/ethos/adapters/store/state/lease/projection.py",
+  "packages/ethos/src/ethos/adapters/store/state/schema.py",
+  "packages/ethos/src/ethos/surface/cli/lane/core.py",
+  "packages/ethos/src/ethos/surface/cli/lane/lease.py",
+  "packages/ethos/src/ethos/surface/cli/root/lifecycle.py",
+  "system/invalid_states.toml",
+  "system/schemas/contracts/workflows.schema.json",
+  "system/schemas/kernel/handoff-acknowledgement.schema.json",
+  "system/schemas/kernel/handoff-package.schema.json",
+  "system/schemas/kernel/workspace-status.schema.json",
+  "system/workflows.toml",
+  "tests/support/lane_helpers.py",
+  "tests/unit/cli/lane",
+  "tests/unit/cli/test_contracts_land.py",
+  "tests/unit/cli/test_contracts_lane.py",
+  "tests/unit/cli/test_contracts_lane_retire_superseded.py",
+  "tests/unit/cli/test_contracts_proof.py",
+  "tests/unit/coverage",
+  "tests/unit/kernel/test_handoff_contract.py",
+  "tests/unit/kernel/test_mutation_reducer.py",
+  "tests/unit/kernel/test_workflow_contract.py",
+  "tests/unit/lanes",
+  "tests/unit/policy/test_module_layout.py",
+]

@@ -676,17 +676,22 @@ def test_lane_lifecycle_modules_do_not_import_sibling_private_helpers() -> None:
     assert offenders == []
 
 
-def test_lane_retirement_uses_semantic_subpackage_not_suffix_flat_module() -> None:
+def test_lane_retirement_has_one_linked_owner_and_independent_unbound_boundary() -> None:
     old_module = Path("packages/ethos/src/ethos/adapters/mutation/lanes_retire.py")
+    linked_owner = Path("packages/ethos/src/ethos/adapters/mutation/lane_retirement/core.py")
+    landed_package = Path("packages/ethos/src/ethos/adapters/mutation/lane_retirement/landed")
     lanes_source = Path("packages/ethos/src/ethos/adapters/mutation/lanes.py").read_text(
+        encoding="utf-8"
+    )
+    cli_source = Path("packages/ethos/src/ethos/surface/cli/lane/core.py").read_text(
         encoding="utf-8"
     )
 
     assert not old_module.exists()
     assert "lanes_retire" not in lanes_source
-    assert Path(
-        "packages/ethos/src/ethos/adapters/mutation/lane_retirement/landed/core.py"
-    ).exists()
+    assert linked_owner.exists()
+    assert not landed_package.exists()
+    assert "lane_retirement.landed" not in cli_source
     assert Path(
         "packages/ethos/src/ethos/adapters/mutation/lane_retirement/unbound/core.py"
     ).exists()

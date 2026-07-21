@@ -139,7 +139,7 @@ def _publish_next_actions(*, ok: bool, publication: dict[str, object]) -> tuple[
 def _land_expected_state(*, repo: Path, current_head: str, status_payload: Mapping[str, object], closeout_support: Mapping[str, object]) -> dict[str, object]:
     policy = load_branch_role_policy(repo)
     candidate = string_mapping(status_payload.get("candidate"))
-    return {"root": repo.resolve().as_posix(), "source_ref": f"refs/heads/{status_payload.get('branch', '')}", "source_head": current_head, "target_ref": f"refs/heads/{policy.candidate_branch}", "target_head": str(candidate.get("head") or ""), "holder_ref": str(closeout_support.get("holder_ref") or ""), "lease_id": str(closeout_support.get("lease_id") or ""), "lease_epoch": _int_value(closeout_support.get("lease_epoch"))}
+    return {"root": repo.resolve().as_posix(), "source_ref": f"refs/heads/{status_payload.get('branch', '')}", "source_head": current_head, "target_ref": f"refs/heads/{policy.candidate_branch}", "target_head": str(candidate.get("head") or ""), "holder_ref": str(closeout_support.get("holder_ref") or ""), "lease_id": str(closeout_support.get("lease_id") or ""), "lease_epoch": _int_value(closeout_support.get("lease_epoch")), "lease_expected_head": str(closeout_support.get("lease_expected_head") or ""), "lease_expires_at": str(closeout_support.get("lease_expires_at") or ""), "lease_payload_sha256": str(closeout_support.get("lease_payload_sha256") or "")}
 
 
 def _closeout_expected_state(payload: _CloseoutPayload) -> dict[str, object]:

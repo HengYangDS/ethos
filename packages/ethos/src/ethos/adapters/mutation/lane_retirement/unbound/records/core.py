@@ -425,22 +425,35 @@ def source_attempt_binding(source_attempt: dict[str, object]) -> dict[str, objec
 
 def valid_lease_relinquish_binding(value: object) -> bool:
     """Accept an exact lease binding or the explicit no-lease shape."""
-    fields = {"active", "lease_id", "holder_ref", "epoch", "expected_head"}
+    fields = {
+        "active",
+        "lease_id",
+        "holder_ref",
+        "epoch",
+        "expected_head",
+        "expires_at",
+        "payload_sha256",
+    }
     if not isinstance(value, dict) or set(value) != fields:
         return False
     binding = cast("dict[str, object]", value)
     active, epoch = binding.get("active"), binding.get("epoch")
     if not isinstance(active, bool):
         return False
-    texts = tuple(binding.get(key) for key in ("lease_id", "holder_ref", "expected_head"))
+    texts = tuple(
+        binding.get(key)
+        for key in ("lease_id", "holder_ref", "expected_head", "expires_at", "payload_sha256")
+    )
     if not active:
-        return epoch == 0 and texts == ("", "", "")
+        return epoch == 0 and texts == ("", "", "", "", "")
     return (
         all(isinstance(item, str) and item for item in texts)
         and isinstance(epoch, int)
         and not isinstance(epoch, bool)
         and epoch > 0
         and len(cast("str", texts[2])) == _GIT_SHA_LENGTH
+        and len(cast("str", texts[4])) == hashlib.sha256().digest_size * 2
+        and set(cast("str", texts[4])) <= set("0123456789abcdef")
     )
 
 
@@ -460,6 +473,8 @@ def valid_lease_relinquishment(binding: object, relinquished: object, *, subject
         "holder_ref": lease.get("holder_ref"),
         "epoch": lease.get("epoch"),
         "expected_head": lease.get("expected_head"),
+        "expires_at": lease.get("expires_at"),
+        "payload_sha256": lease.get("payload_sha256"),
     }
 
 

@@ -34,6 +34,7 @@ _CHRONICLE_TEXT = _keys(
     "sha256 accepted_sha256 event target_branch target_head target_claim "
     "claim_sha256 claim_accepted_sha256 lease_recovery source_lease_id "
     "source_lease_holder source_lease_epoch source_lease_expected_head "
+    "source_lease_expires_at source_lease_payload_sha256 "
     "source_worktree_path_sha256 source_worktree_absent "
     "partial_effect_reconciliation source_retirement_attempt_id "
     "source_retirement_attempt_accepted_head source_retirement_attempt_claim_id "
@@ -68,7 +69,8 @@ _CHRONICLE_BINDING_KEYS = _keys(
     "claim_sha256 claim_accepted_sha256 byte_identical_to_accepted "
     "claim_byte_identical_to_accepted has_accepted_chronicle has_accepted_claim "
     "lease_recovery source_lease_id source_lease_holder source_lease_epoch "
-    "source_lease_expected_head source_worktree_path_sha256 source_worktree_absent "
+    "source_lease_expected_head source_lease_expires_at source_lease_payload_sha256 "
+    "source_worktree_path_sha256 source_worktree_absent "
     "partial_effect_reconciliation source_retirement_attempt_id "
     "source_retirement_attempt_accepted_head source_retirement_attempt_claim_id "
     "source_retirement_attempt_chronicle_ref source_retirement_attempt_chronicle_sha256 "
@@ -240,6 +242,8 @@ def chronicle_fields(payload: bytes) -> dict[str, str]:
             "source_lease_holder",
             "source_lease_epoch",
             "source_lease_expected_head",
+            "source_lease_expires_at",
+            "source_lease_payload_sha256",
             "source_worktree_path_sha256",
             "source_worktree_absent",
             "partial_effect_reconciliation",
@@ -347,6 +351,8 @@ def lease_relinquish_binding(value: dict[str, object]) -> dict[str, object]:
         holder_ref=str(lease.get("holder_ref") or "") if active else "",
         epoch=epoch if active and isinstance(epoch, int) and not isinstance(epoch, bool) else 0,
         expected_head=str(lease.get("expected_head") or "") if active else "",
+        expires_at=str(lease.get("expires_at") or "") if active else "",
+        payload_sha256=str(lease.get("payload_sha256") or "") if active else "",
     )
 
 
@@ -361,9 +367,10 @@ def public_lease(lease: dict[str, object]) -> dict[str, object]:
     """Project lease facts without exposing storage details."""
     payload = lease.get("payload")
     recorded_path = str(payload.get("path") or "") if isinstance(payload, dict) else ""
-    return _project(lease, _keys("lease_id holder_ref epoch expected_head expires_at")) | {
-        "recorded_path": recorded_path
-    }
+    return _project(
+        lease,
+        _keys("lease_id holder_ref epoch expected_head expires_at payload_sha256"),
+    ) | {"recorded_path": recorded_path}
 
 
 def lease_claim_id(lease: dict[str, object]) -> str:

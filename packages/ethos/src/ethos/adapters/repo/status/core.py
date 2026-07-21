@@ -126,7 +126,7 @@ def _non_git_status(root: Path, *, defer_details: bool) -> dict[str, object]:
     policy = load_branch_role_policy(root)
     candidate: dict[str, object] = {"branch": policy.candidate_branch, "exists": False, "head": "", "worktree_exists": False, "worktree_path": "", "worktree_binding": "absent"}
     landing: dict[str, object] = {"kind": "landing_readiness", "state": "not_work_lane", "branch": "untracked", "head": "", "candidate_branch": policy.candidate_branch, "candidate_head": "", "required_gaps": ["git_repository_missing"], "next_action": "enter a Git-backed Work Lane before landing"}
-    support: dict[str, object] = {"supported": False, "branch": "", "target_branch": policy.candidate_branch, "target_path": "", "operation": "", "holder_ref": "", "lease_id": "", "lease_epoch": 0, "claim_id": "", "claim_binding": "unbound", "required_gaps": ["protected_root_mutation", "git_repository_missing"]}
+    support: dict[str, object] = {"supported": False, "branch": "", "target_branch": policy.candidate_branch, "target_path": "", "operation": "", "holder_ref": "", "lease_id": "", "lease_epoch": 0, "lease_expected_head": "", "lease_expires_at": "", "lease_payload_sha256": "", "claim_id": "", "claim_binding": "unbound", "required_gaps": ["protected_root_mutation", "git_repository_missing"]}
     provenance = {"dirty": False, "state": "non_git", "entries": [], "summary": {}, "temporary_probes": {"count": 0, "paths": [], "truncated": False}}
     worktrees: list[dict[str, str]] = []
     bindings = branch_bindings(root, worktrees, candidate, policy=policy, lease_by_branch={})

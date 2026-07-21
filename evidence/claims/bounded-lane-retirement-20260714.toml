@@ -2,7 +2,7 @@
 id = "bounded-lane-retirement-20260714"
 subject = "ethos:bounded-landed-work-lane-retirement"
 change_id = "harden-bounded-lane-retirement"
-state = "active"
+state = "superseded"
 summary = "ETHOS scopes explicit landed Work Lane retirement to the selected lane and fails closed for unavailable selected worktree paths."
 
 [evidence]

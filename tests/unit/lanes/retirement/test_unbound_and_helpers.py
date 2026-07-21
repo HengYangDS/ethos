@@ -9,7 +9,6 @@ from pathlib import Path
 
 import pytest
 
-import ethos.adapters.mutation.lane_retirement.shared.core as retirement_shared
 import ethos.adapters.mutation.lane_retirement.unbound.core as retirement
 import ethos.adapters.mutation.lane_retirement.unbound.observation.core as observation
 import ethos.adapters.mutation.lane_retirement.unbound.reconciliation.core as reconciliation
@@ -109,6 +108,8 @@ def _owner_unavailable_fixture(
                 f"source_lease_holder: {holder}",
                 f"source_lease_epoch: {lease['epoch']}",
                 f"source_lease_expected_head: {head}",
+                f"source_lease_expires_at: {lease['expires_at']}",
+                f"source_lease_payload_sha256: {lease['payload_sha256']}",
                 (
                     "source_worktree_path_sha256: "
                     f"{hashlib.sha256(source_path.as_posix().encode()).hexdigest()}"
@@ -192,6 +193,8 @@ def _partial_effect_reconciliation_fixture(
                 f"source_lease_holder: {lease['holder_ref']}",
                 f"source_lease_epoch: {lease['epoch']}",
                 f"source_lease_expected_head: {head}",
+                f"source_lease_expires_at: {lease['expires_at']}",
+                f"source_lease_payload_sha256: {lease['payload_sha256']}",
                 (
                     "source_worktree_path_sha256: "
                     f"{hashlib.sha256(source_path.as_posix().encode()).hexdigest()}"
@@ -291,6 +294,8 @@ def test_owner_unavailable_recovery_revokes_exact_foreign_lease(
         "holder_ref": lease["holder_ref"],
         "epoch": lease["epoch"],
         "expected_head": head,
+        "expires_at": lease["expires_at"],
+        "payload_sha256": lease["payload_sha256"],
     }
     assert report["receipt"]["postconditions"]["active_lease_absent"] is True
 
@@ -344,7 +349,10 @@ def test_ref_absent_reconciliation_revokes_only_exact_foreign_lease(
         != 0
     )
     assert report["state"] == "reconciled_ref_absent_owner_unavailable_lease"
-    assert report["mutation"]["invocation_holder_ref"] == "agent:test:case:recovery-operator"
+    assert (
+        report["mutation"]["decision"]["subject"]["expected_state"]["invocation_holder_ref"]
+        == "agent:test:case:recovery-operator"
+    )
     assert report["source_retirement_attempt"] == source_attempt
     assert report["lease_relinquished"] == {
         "revoked": True,
@@ -353,6 +361,8 @@ def test_ref_absent_reconciliation_revokes_only_exact_foreign_lease(
         "holder_ref": lease["holder_ref"],
         "epoch": lease["epoch"],
         "expected_head": head,
+        "expires_at": lease["expires_at"],
+        "payload_sha256": lease["payload_sha256"],
     }
     assert Path(str(report["receipt_path"])).is_file()
     assert report["receipt"]["postconditions"] == {
@@ -377,7 +387,7 @@ def test_ref_absent_reconciliation_revokes_only_exact_foreign_lease(
 def test_ref_absent_reconciliation_fail_closed_matrix(
     monkeypatch, tmp_path: Path, mode: str, expected_gap: str
 ) -> None:
-    repo, branch, head, chronicle, lease, _source_attempt, _source_path = (
+    repo, branch, head, chronicle, lease, source_attempt, _source_path = (
         _partial_effect_reconciliation_fixture(tmp_path)
     )
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:recovery-operator")
@@ -395,20 +405,14 @@ def test_ref_absent_reconciliation_fail_closed_matrix(
             )
             connection.commit()
     elif mode == "attempt":
-        path = records.attempt_path(
-            repo.parent / f"{repo.name}-records",
-            "exceptional-unbound-retirement:missing",
+        monkeypatch.setattr(
+            reconciliation.records,
+            "read_record",
+            lambda *_args, **_kwargs: {
+                **source_attempt,
+                "operation_id": "exceptional-unbound-retirement:missing",
+            },
         )
-        _write(
-            repo / chronicle,
-            (repo / chronicle)
-            .read_text(encoding="utf-8")
-            .replace(
-                "source_retirement_attempt_id: exceptional-unbound-retirement:",
-                "source_retirement_attempt_id: exceptional-unbound-retirement:missing",
-            ),
-        )
-        assert path.exists() is False
     else:
         (repo / chronicle).write_text("drift\n", encoding="utf-8")
 
@@ -460,14 +464,6 @@ def test_projection_and_dirty_support(tmp_path: Path) -> None:
     repo = init_repo(tmp_path / "dirty")
     (repo / "new.txt").write_text("new\n", encoding="utf-8")
     assert dirty_provenance(repo)["summary"]["untracked"] == 1
-    projection = tmp_path / "projection"
-    projection.mkdir()
-    path = projection / ".cache/local-state/worktree/leases.json"
-    path.parent.mkdir(parents=True)
-    payload = {"leases": [{"subject": "work/landed"}, {"branch": "work/other"}]}
-    path.write_text(json.dumps(payload), encoding="utf-8")
-    assert retirement_shared.delete_json_projection_lease(projection, subject="work/landed") == 1
-    assert json.loads(path.read_text(encoding="utf-8"))["leases"] == [{"branch": "work/other"}]
     assert (
         observation.unbound_work_lane_ref(
             {"coordination": {"unbound_work_lane_refs": [{"branch": "work/other"}]}}, "work/x"
@@ -544,36 +540,48 @@ def test_owned_lease_relinquishment_receipt(monkeypatch, tmp_path: Path) -> None
         "holder_ref": holder,
         "epoch": lease["epoch"],
         "expected_head": head,
+        "expires_at": lease["expires_at"],
+        "payload_sha256": lease["payload_sha256"],
     }
     assert report["lease_relinquished"] == expected
     assert report["receipt"]["lease_relinquished"] == expected
     assert report["receipt"]["lease_relinquish_binding"] == {
         "active": True,
-        **{key: expected[key] for key in ("lease_id", "holder_ref", "epoch", "expected_head")},
+        **{
+            key: expected[key]
+            for key in (
+                "lease_id",
+                "holder_ref",
+                "epoch",
+                "expected_head",
+                "expires_at",
+                "payload_sha256",
+            )
+        },
     }
     assert report["receipt"]["effect"]["command"] == "git update-ref --stdin"
     assert report["receipt"]["effect"]["transaction"] == "cas_protected_refs_delete_target"
 
 
 def test_owned_lease_relinquishment_fail_closed(monkeypatch, tmp_path: Path) -> None:
-    repo, branch, _head, _chronicle = _exceptional_fixture(tmp_path / "epoch")
-    assert (
-        retirement.relinquish_owned_lease(
-            repo,
-            observed={
-                observation.HAS_ACTIVE_LEASE: True,
-                "active_lease": {"holder_ref": "agent:test", "epoch": "bad"},
-                "branch": branch,
-            },
-            holder_ref="agent:test",
+    with closing(sqlite3.connect(":memory:")) as connection:
+        assert (
+            retirement.relinquish_owned_lease(
+                connection,
+                observed={
+                    observation.HAS_ACTIVE_LEASE: True,
+                    "active_lease": {"holder_ref": "agent:test", "epoch": "bad"},
+                    "branch": "work/stale-ref",
+                },
+                holder_ref="agent:test",
+            )
+            is None
         )
-        is None
-    )
     with monkeypatch.context() as patch:
         repo, branch, head, chronicle, _holder, _lease = _leased_case(tmp_path / "revoke", patch)
         patch.setattr(
             retirement,
-            "expected_current_lease",
+            "revoke_lease_from_connection",
             lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError()),
         )
         report = _apply(repo, branch, head, chronicle)
@@ -696,41 +704,6 @@ def test_predelete_recheck_blocks_drift(
     report = _apply(repo, branch, head, chronicle)
     assert report["required_gaps"] == list(gaps)
     assert git(repo, "rev-parse", "--verify", branch) == head
-
-
-def test_owner_unavailable_effect_wrapper_revokes_exact_generation(tmp_path: Path) -> None:
-    """The unavailable-owner wrapper preserves the source-holder CAS tuple."""
-    from ethos.adapters.store.state.lease.lifecycle.effects import (  # noqa: PLC0415, RUF100
-        revoke_owner_unavailable_lease,
-    )
-
-    branch = "work/owner-unavailable"
-    holder = "agent:test:session:unavailable-owner"
-    head = "b" * 40
-    lease = state.acquire_lease(
-        tmp_path / "state.sqlite",
-        subject=branch,
-        holder_ref=holder,
-        payload={"branch": branch, "expected_head": head},
-    )
-
-    revoked = revoke_owner_unavailable_lease(
-        tmp_path / "state.sqlite",
-        subject=branch,
-        source_holder_ref=holder,
-        expected_lease_id=str(lease["lease_id"]),
-        expected_epoch=int(lease["epoch"]),
-        expected_head=head,
-    )
-
-    assert revoked == {
-        "revoked": True,
-        "subject": branch,
-        "lease_id": lease["lease_id"],
-        "holder_ref": holder,
-        "epoch": lease["epoch"],
-        "expected_head": head,
-    }
 
 
 def test_ref_absent_reconciliation_rejects_missing_reason(monkeypatch, tmp_path: Path) -> None:

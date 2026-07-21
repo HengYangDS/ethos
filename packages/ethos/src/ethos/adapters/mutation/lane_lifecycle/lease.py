@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import inspect
+import os
 from typing import TYPE_CHECKING
 from typing import Any
 
@@ -42,6 +42,7 @@ def execute_lease_operation(*, root: Path, request: LeaseOperationRequest) -> di
     """Evaluate and optionally execute one declaration-owned lease transition."""
     repo = repo_root(root)
     status = workspace_status(repo)
+    database = accepted_worktree_root(status.get("worktrees"), repo) / ".ethos/state/state.sqlite"
     expected_state, holder_gaps = _lease_expected_state(repo, request)
     transition, effect, contract_gaps = _lease_effect_binding(repo, request.operation)
 
@@ -61,9 +62,12 @@ def execute_lease_operation(*, root: Path, request: LeaseOperationRequest) -> di
                 branch=request.branch,
                 holder_ref=request.holder_ref,
                 target_holder_ref=request.target_holder_ref,
+                actor_ref=str(expected_state["actor_ref"]),
                 expect_head=request.expect_head,
                 lease_id=request.lease_id,
                 expected_epoch=request.expected_epoch,
+                expected_expires_at=request.expected_expires_at,
+                expected_payload_sha256=request.expected_payload_sha256,
                 ttl_seconds=request.ttl_seconds,
                 offer_id=request.offer_id,
                 holder_quiesced=request.holder_quiesced,
@@ -84,45 +88,26 @@ def execute_lease_operation(*, root: Path, request: LeaseOperationRequest) -> di
             target_holder_ref=str(expected_state["target_holder_ref"]),
         )
         effect_arguments = {field: arguments[field] for field in transition.effect_fields}
-        database = (
-            accepted_worktree_root(status.get("worktrees"), repo) / ".ethos/state/state.sqlite"
-        )
         try:
-            inspect.signature(effect).bind(
+            payload = effect(
                 database,
                 subject=request.branch,
                 expected_lease_id=request.lease_id,
                 expected_head=request.expect_head,
                 **effect_arguments,
             )
-        except (KeyError, TypeError):
-            ok, state, gaps = (
-                False,
-                "blocked",
-                (f"lease_effect_contract_invalid:{request.operation}",),
-            )
+        except ValueError as exc:
+            ok, state, gaps = False, "blocked", (str(exc),)
         else:
-            try:
-                payload = effect(
-                    database,
-                    subject=request.branch,
-                    expected_lease_id=request.lease_id,
-                    expected_head=request.expect_head,
-                    **effect_arguments,
-                )
-            except ValueError as exc:
-                ok, state, gaps = False, "blocked", (str(exc),)
+            if "offer_id" in payload:
+                handoff_offer = payload
             else:
-                if "offer_id" in payload:
-                    handoff_offer = payload
-                else:
-                    lease = payload
-                state = transition.applied_state
-                receipt = _lease_operation_receipt(
-                    operation=request.operation,
-                    branch=request.branch,
-                    effect=payload,
-                )
+                lease = payload
+            state = transition.applied_state
+            receipt = _lease_operation_receipt(
+                operation=request.operation,
+                effect=payload,
+            )
 
     result: dict[str, object] = {
         "ok": ok,
@@ -147,7 +132,7 @@ def execute_lease_operation(*, root: Path, request: LeaseOperationRequest) -> di
         required_gaps=gaps,
         why=(state,) if ok else (),
         state=state,
-        identity_basis="holder_ref_equality",
+        identity_basis="declared_actor_ref_equality",
         evidence_boundary="current_git_and_local_lease_observation",
         enforcement_boundary="local_sqlite_compare_and_swap",
         verifier_provenance="current_worktree_runner",
@@ -170,24 +155,10 @@ def _lease_effect_binding(
     transition = next((item for item in transitions if item.id == operation), None)
     if transition is None:
         return None, None, (f"lease_transition_unknown:{operation}",)
-    effect = _LEASE_EFFECTS.get(transition.id)
+    effect = _LEASE_EFFECTS.get(operation)
     if effect is None:
         return transition, None, (f"lease_effect_unknown:{transition.id}",)
-    try:
-        effect_fields = set(inspect.signature(effect).parameters) - {
-            "db_path",
-            "subject",
-            "expected_lease_id",
-            "expected_head",
-        }
-    except (TypeError, ValueError):
-        return transition, effect, (f"lease_effect_contract_invalid:{transition.id}",)
-    gaps = (
-        ()
-        if set(transition.effect_fields) == effect_fields
-        else (f"lease_effect_contract_invalid:{transition.id}",)
-    )
-    return transition, effect, gaps
+    return transition, effect, ()
 
 
 def _lease_expected_state(
@@ -200,8 +171,11 @@ def _lease_expected_state(
         "holder_ref": request.holder_ref,
         "lease_id": request.lease_id,
         "epoch": request.expected_epoch or 0,
+        "expires_at": request.expected_expires_at,
+        "payload_sha256": request.expected_payload_sha256,
         "target_holder_ref": request.target_holder_ref,
         "offer_id": request.offer_id,
+        "actor_ref": os.environ.get("ETHOS_ACTOR", "").strip(),
     }
     gaps: list[str] = []
     for field in ("holder_ref", "target_holder_ref"):
@@ -215,17 +189,18 @@ def _lease_expected_state(
     return expected, tuple(gaps)
 
 
-def _lease_operation_receipt(
-    *, operation: str, branch: str, effect: dict[str, object]
-) -> dict[str, object]:
+def _lease_operation_receipt(*, operation: str, effect: dict[str, object]) -> dict[str, object]:
     return {
         "receipt_id": f"receipt:{operation}:{effect.get('lease_id') or effect.get('offer_id')}",
         "operation": operation.replace("handoff_", "handoff-"),
-        "branch": branch,
         "applied": True,
         "lease_id": str(effect.get("lease_id") or ""),
+        "holder_ref": str(effect.get("holder_ref") or ""),
         "epoch": integer_value(effect.get("epoch")),
+        "lane_ref": str(effect.get("lane_ref") or ""),
         "expected_head": str(effect.get("expected_head") or ""),
+        "expires_at": str(effect.get("expires_at") or ""),
+        "payload_sha256": str(effect.get("payload_sha256") or ""),
         "mints_authority": False,
         "transferable": False,
     }

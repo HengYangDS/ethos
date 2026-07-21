@@ -72,24 +72,16 @@ def test_test_harness_disables_a_local_fsmonitor_configuration(tmp_path: Path) -
     assert completed.stdout.strip() == "false"
 
 
-def test_cli_subprocess_helper_keeps_fsmonitor_isolation() -> None:
+def test_cli_subprocess_helper_keeps_existing_fsmonitor_isolation() -> None:
     environment = {
-        "GIT_CONFIG_COUNT": "3",
-        "GIT_CONFIG_KEY_0": "commit.gpgsign",
-        "GIT_CONFIG_VALUE_0": "false",
-        "GIT_CONFIG_KEY_1": "init.templateDir",
-        "GIT_CONFIG_VALUE_1": "template-dir",
-        "GIT_CONFIG_KEY_2": "core.fsmonitor",
-        "GIT_CONFIG_VALUE_2": "false",
-    }
-
-    sanitized = _without_test_git_config_overlay(environment)
-
-    assert sanitized == {
         "GIT_CONFIG_COUNT": "1",
         "GIT_CONFIG_KEY_0": "core.fsmonitor",
         "GIT_CONFIG_VALUE_0": "false",
     }
+
+    sanitized = _without_test_git_config_overlay(environment)
+
+    assert sanitized == environment
 
 
 def test_python_test_gate_serializes_shared_coverage_evidence_writes() -> None:

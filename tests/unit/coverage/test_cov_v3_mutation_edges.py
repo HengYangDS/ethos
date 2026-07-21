@@ -548,7 +548,7 @@ def test_unbound_core_exception_edges(tmp_path: Path, monkeypatch) -> None:
     assert _finish_retirement(tmp_path, {})["required_gaps"] == ["unbound_retire_active_lease"]
 
 
-def test_unbound_lease_recovery_argument_edges(tmp_path: Path, monkeypatch) -> None:
+def test_unbound_lease_recovery_argument_edges() -> None:
     observed = {
         obs.HAS_ACTIVE_LEASE: True,
         "branch": "work/x",

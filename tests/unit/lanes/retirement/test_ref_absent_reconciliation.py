@@ -530,13 +530,11 @@ def test_reconciliation_record_validators_reject_missing_or_invalid_nested_attem
         after={**observed, observation.HAS_ACTIVE_LEASE: False},
         source_retirement_attempt=attempt,
         chronicle_unchanged=True,
-        lease_relinquished={
-            "revoked": True,
-            "subject": branch,
-            "lease_id": observed["active_lease"]["lease_id"],
-            "holder_ref": observed["active_lease"]["holder_ref"],
-            "epoch": observed["active_lease"]["epoch"],
-            "expected_head": observed["active_lease"]["expected_head"],
+        lease_relinquished={"revoked": True, "subject": branch}
+        | {
+            key: value
+            for key, value in observation.lease_relinquish_binding(observed).items()
+            if key != "active"
         },
     )
     records.validate_record(receipt, kind=records.RECONCILIATION_RECEIPT_KIND)

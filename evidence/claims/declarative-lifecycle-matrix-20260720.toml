@@ -7,7 +7,7 @@ summary = "This dated episode Claim binds the date-free declarative-lifecycle-ma
 
 [evidence]
 dated = "evidence/chronicle/declarative-lifecycle-matrix-20260720/2026-07-20.md"
-sha256 = "1857117d0c9ded1edc07c1083e7dd31c1a8f601c9d0f66d377cf2accafdfb296"
+sha256 = "fe8119e02d8d59603ccc99a930268581e3838b22375890e9de6a3039d5c4a18f"
 evidence_ids = ["evidence:declarative-lifecycle-matrix-20260720"]
 binding = "The date-free Change and dated Chronicle bind the declared renew, resume, handoff-offer, and handoff-accept reducer; exact cross-host generation handoff; Work Lane start acquisition and no-clobber compensation; the single linked-retirement transaction; accepted-policy-bound unavailable-holder exact revoke; Git-common-directory local-state identity separated from destructive accepted-checkout control; the current subject-keyed SQLite lease table and exact subject-unique index without retired resource-keyed migration or database-wide lease version ownership; deletion of the archived Claim-specific rebase resolver, explicit SQLite connection closure, warning-free canonical OpenSpec normalization, and Taplo native warning-level logging. Final frozen-tree proof, archive, land, publication, and remote execution remain separate transitions until observed."
 verifier = "digest_only"
@@ -73,6 +73,7 @@ targets = [
   "system/schemas/kernel/workspace-status.schema.json",
   "system/workflows.toml",
   "tests/architecture/test_dependency_prose_schema_gates.py",
+  "tests/architecture/test_product_design_contract.py",
   "tests/support/lane_helpers.py",
   "tests/unit/cli/lane",
   "tests/unit/cli/test_contracts_land.py",

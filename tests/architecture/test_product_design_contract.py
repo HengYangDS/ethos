@@ -270,8 +270,8 @@ def test_repository_governance_defines_loss_bounded_successor_continuity() -> No
     )
     for phrase in (
         "original host worktree",
-        "same episode claim",
-        "re-execute current proof",
+        "same episode Claim",
+        "rerun current proof",
         "no-reconstruction boundary",
         "historical proof, temporary runtime\n  state, hosted CI, and remote publication",
     ):

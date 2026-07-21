@@ -143,7 +143,9 @@ def test_resolution_missing_dirty_and_invalid_decisions(tmp_path: Path, monkeypa
     ]
 
 
-def test_resolution_observation_ambiguous_lease_and_common_dir(tmp_path: Path, monkeypatch) -> None:
+def test_resolution_observation_reads_single_common_directory_lease(
+    tmp_path: Path, monkeypatch
+) -> None:
     lane = tmp_path / "lane"
     lane.mkdir()
     monkeypatch.setattr(
@@ -157,39 +159,29 @@ def test_resolution_observation_ambiguous_lease_and_common_dir(tmp_path: Path, m
         lambda _root, *args, **kwargs: "a" * 40 if args[0] == "rev-parse" else "",
     )
     monkeypatch.setattr(resolution, "_untracked_digest", lambda _path: "c" * 64)
+    database = tmp_path / ".ethos/state/state.sqlite"
+    monkeypatch.setattr(resolution, "state_database", lambda _root: database)
     monkeypatch.setattr(
         resolution,
-        "_leases",
-        lambda _root: [
-            {"subject": "work/example", "holder_ref": "one"},
-            {"subject": "work/example", "holder_ref": "two"},
-        ],
+        "active_leases",
+        lambda path: (
+            [
+                {
+                    "subject": "work/example",
+                    "holder_ref": "agent:test:case:holder",
+                    "lane_incarnation_id": "lane:stored",
+                }
+            ]
+            if path == database
+            else []
+        ),
     )
-    observation, gaps = resolution._observe_lane(tmp_path, "work/example")
+    stored, gaps = resolution._observe_lane(tmp_path, "work/example")
     assert gaps == []
-    assert observation.ambiguous is True
-    assert observation.holder_ref == ""
-    assert observation.lane_incarnation_id.startswith("decision-incarnation:")
-
-    monkeypatch.setattr(
-        resolution,
-        "_leases",
-        lambda _root: [
-            {
-                "subject": "work/example",
-                "holder_ref": "agent:test:case:holder",
-                "lane_incarnation_id": "lane:stored",
-            }
-        ],
-    )
-    stored, _ = resolution._observe_lane(tmp_path, "work/example")
     assert stored.holder_ref == "agent:test:case:holder"
     assert stored.lane_incarnation_id == "lane:stored"
-
-    monkeypatch.undo()
-    monkeypatch.setattr(resolution, "_git", lambda *_args, **_kwargs: ".git/worktrees/lane")
-    monkeypatch.setattr(resolution, "active_leases", lambda path: [{"path": path.as_posix()}])
-    assert resolution._leases(tmp_path)[0]["path"].endswith(".ethos/state/state.sqlite")
+    assert stored.ambiguous is False
+    assert stored.orphan is False
 
 
 def test_resolution_read_decision_schema_and_digest_edges(tmp_path: Path, monkeypatch) -> None:

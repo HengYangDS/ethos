@@ -55,7 +55,7 @@ def test_lane_retire_superseded_apply_removes_absorbed_linked_lane(
         "absorbed_by": accepted_head,
         "retire_ready": True,
     }
-    assert payload["data"]["mutation"]["expect_head"] == worktree_head
+    assert payload["data"]["mutation"]["request"]["expect_head"] == worktree_head
     assert not worktree.exists()
 
 

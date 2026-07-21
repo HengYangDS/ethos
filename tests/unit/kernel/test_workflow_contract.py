@@ -53,6 +53,30 @@ def test_workflow_contract_is_frozen_typed_declaration() -> None:
             lambda payload: payload["lease_transition"][0].update(effect_fields=[1]),
             id="non-string-effect-field",
         ),
+        pytest.param(
+            lambda payload: payload["lease_transition"][0].update(
+                effect_fields=["holder_ref", "holder_ref"]
+            ),
+            id="duplicate-effect-field",
+        ),
+        pytest.param(
+            lambda payload: payload["lease_transition"][0].update(
+                effect_fields=["holder_ref", "unexpected"]
+            ),
+            id="unknown-effect-field",
+        ),
+        pytest.param(
+            lambda payload: payload["lease_transition"][0].pop("actor_field"),
+            id="missing-actor-field",
+        ),
+        pytest.param(
+            lambda payload: payload["lease_transition"][0].update(actor_field="actor_ref"),
+            id="invalid-actor-field",
+        ),
+        pytest.param(
+            lambda payload: payload["lease_transition"][0].update(actor_field="target_holder_ref"),
+            id="actor-field-not-effect-field",
+        ),
     ],
 )
 def test_workflow_contract_rejects_invalid_lease_transition_matrix(mutate) -> None:
@@ -62,6 +86,63 @@ def test_workflow_contract_rejects_invalid_lease_transition_matrix(mutate) -> No
 
     with pytest.raises(ValidationError):
         WorkflowContract.model_validate(payload)
+
+
+def test_workflow_contract_declares_exact_lease_effect_bindings() -> None:
+    declaration = WorkflowContract.model_validate(load_system_contract(Path(), "workflows"))
+
+    assert {
+        item.id: (item.effect_fields, item.actor_field, item.blocks_contrary_decision)
+        for item in declaration.lease_transition
+    } == {
+        "renew": (
+            (
+                "holder_ref",
+                "expected_epoch",
+                "expected_expires_at",
+                "expected_payload_sha256",
+                "ttl_seconds",
+            ),
+            "holder_ref",
+            False,
+        ),
+        "resume": (
+            (
+                "holder_ref",
+                "expected_epoch",
+                "expected_expires_at",
+                "expected_payload_sha256",
+                "ttl_seconds",
+            ),
+            "holder_ref",
+            True,
+        ),
+        "handoff_offer": (
+            (
+                "holder_ref",
+                "expected_epoch",
+                "expected_expires_at",
+                "expected_payload_sha256",
+                "target_holder_ref",
+            ),
+            "holder_ref",
+            False,
+        ),
+        "handoff_accept": (
+            (
+                "holder_ref",
+                "target_holder_ref",
+                "offer_id",
+                "expected_epoch",
+                "expected_expires_at",
+                "expected_payload_sha256",
+                "holder_quiesced",
+                "ttl_seconds",
+            ),
+            "target_holder_ref",
+            False,
+        ),
+    }
 
 
 def test_workflow_contract_normalizes_list_fields_to_immutable_tuples() -> None:
@@ -219,6 +300,24 @@ def test_workflow_contract_rejects_invalid_public_command_boundary() -> None:
 
     assert report["ok"] is False
     assert "workflow_runtime_public_commands_invalid" in report["required_gaps"]
+
+
+def test_workflow_contract_registers_handoff_acknowledgement_schema() -> None:
+    payload = load_system_contract(Path(), "workflows")
+    declaration = WorkflowContract.model_validate(payload)
+
+    assert declaration.runtime.handoff_acknowledgement_schema == (
+        "system/schemas/kernel/handoff-acknowledgement.schema.json"
+    )
+
+    runtime = dict(payload["runtime"])
+    runtime.pop("handoff_acknowledgement_schema", None)
+    payload["runtime"] = runtime
+
+    report = workflow_contract_report(payload)
+
+    assert report["ok"] is False
+    assert "workflow_runtime_handoff_acknowledgement_schema_missing" in report["required_gaps"]
 
 
 def test_workflow_contract_reports_missing_runtime_eval_and_evolution_contracts() -> None:

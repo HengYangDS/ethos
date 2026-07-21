@@ -3,6 +3,7 @@
 import ast
 import sqlite3
 import subprocess
+from contextlib import closing
 from pathlib import Path
 
 import pytest
@@ -10,11 +11,13 @@ import pytest
 import ethos.adapters.store.state.lease.lifecycle.core as lease
 import ethos.adapters.store.state.lease.lifecycle.effects as effects
 import ethos.adapters.store.state.lease.projection as projection
+import ethos.adapters.store.state.schema as state_schema
 from ethos.adapters.store.retrieval import common
 from ethos.adapters.store.retrieval import indexing
 from ethos.adapters.store.retrieval import query
 from ethos.adapters.store.retrieval import schema
 from ethos.adapters.store.retrieval import sources
+from ethos.adapters.store.state.schema import initialize_state_connection
 from ethos_core.contracts.context.projection import redact_secret_like
 
 
@@ -90,13 +93,61 @@ def test_store_edges(  # noqa: PLR0915, RUF100 - related store edge matrix
     assert query.query_candidates(plain / "missing", "!!!", limit=1) == []
     assert query.fts_query_str("!!!") == ""
     present = plain / "present"
+    real_lease_rows = projection.lease_rows
     monkeypatch.setattr(projection, "lease_rows", lambda _: [("id", "lane", "owner", "bad", "{}")])
     assert projection.active_leases(present) == []
     present.touch()
     assert projection.active_leases(present) == []
     monkeypatch.setattr(projection, "lease_rows", lambda _: [("id", "lane", "owner", "x", "{")])
     assert not projection.lease_inventory_rows(present)[0]["payload_valid"]
-    assert (projection.integer_value("7"), projection.integer_value("x"), effects.delete_exact_leases(plain / "absent", [])) == (7, 0, [])  # fmt: skip
+    monkeypatch.setattr(projection, "lease_rows", real_lease_rows)
+    truth: object = True
+    assert (projection.integer_value(truth), projection.integer_value("7"), projection.integer_value("x")) == (0, 7, 0)  # fmt: skip
+    assert effects.update_lease_payload(plain / "missing.sqlite", candidate={}, payload={}) == {}  # fmt: skip
+    empty_db = plain / "empty.sqlite"
+    with closing(sqlite3.connect(empty_db)) as connection:
+        connection.execute("create table unrelated(value text)")
+    assert projection.lease_rows(empty_db) == []
+    invalid_payload_db = plain / "invalid-payload.sqlite"
+    invalid_payload_lease = lease.acquire_lease(
+        invalid_payload_db,
+        subject="work/invalid",
+        holder_ref="agent:test:case:owner",
+    )
+    with closing(sqlite3.connect(invalid_payload_db)) as connection:
+        connection.execute(
+            "update leases set payload_json = '[]' where id = ?",
+            (invalid_payload_lease["lease_id"],),
+        )
+        connection.commit()
+    with pytest.raises(ValueError, match="lease_id_stale"):
+        effects.update_lease_payload(
+            invalid_payload_db,
+            candidate=invalid_payload_lease,
+            payload={},
+        )
+    indexed_db = plain / "indexed.sqlite"
+    lease.acquire_lease(
+        indexed_db,
+        subject="work/indexed",
+        holder_ref="agent:test:case:owner",
+    )
+    with closing(sqlite3.connect(indexed_db)) as connection:
+        connection.execute("create index leases_owner on leases(owner)")
+        connection.commit()
+        connection.execute("begin")
+        state_schema.initialize_state_connection(connection)
+    with closing(sqlite3.connect(":memory:")) as connection:
+        with pytest.raises(RuntimeError, match="state_schema_transaction_required"):
+            state_schema.initialize_state_connection(connection)
+        connection.execute("begin")
+        connection.execute("create table unrelated(value text)")
+        state_schema.initialize_state_connection(connection)
+    with closing(sqlite3.connect(":memory:")) as connection:
+        connection.execute("begin")
+        initialize_state_connection(connection)
+        with pytest.raises(ValueError, match="lease_maintenance_candidate_drift:missing"):
+            effects._expect_lease_candidate(connection, {"id": "missing"})  # noqa: SLF001, RUF100 - missing exact candidate edge  # fmt: skip
     source = plain / "x.md"
     monkeypatch.setattr(query, "tracked_source_paths", lambda _: {"x.md"})
     monkeypatch.setattr(query, "allowed_sources", lambda _: [source])
@@ -108,22 +159,16 @@ def test_store_edges(  # noqa: PLR0915, RUF100 - related store edge matrix
     monkeypatch.setattr(projection, "_selectlease_rows", lambda _: [("id", "lane", "owner", "x", "{")])  # fmt: skip
     assert not projection.lease_inventory_rows_from_connection(object())[0]["payload_valid"]
     with pytest.raises(ValueError, match="holder_not_quiesced"):
-        lease.accept_lease_handoff(plain / "db", subject="lane", target_holder_ref="agent:claude:session:second", offer_id="o", expected_lease_id="l", expected_epoch=1, expected_head="h", holder_quiesced=False)  # fmt: skip
-    connection = sqlite3.connect(":memory:")
-    connection.execute("create table leases(id,subject,owner,expires_at,payload_json)")
-    with pytest.raises(ValueError, match="missing_lease"):
-        lease._sole_subject_row(connection, "lane")  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch  # fmt: skip
-    connection.execute("insert into leases values(?,?,?,?,?)", ("id", "lane", "h", "2000-01-01T00:00:00+00:00", '{"holder_ref":"h","epoch":1,"expected_head":"head"}'))  # fmt: skip
-    with pytest.raises(ValueError, match="lease_expired"):
-        lease.expected_current_lease(connection, subject="lane", holder_ref="h", expected_lease_id="id", expected_epoch=1, expected_head="head", require_expired=False)  # fmt: skip
+        lease.accept_lease_handoff(plain / "db", subject="lane", holder_ref="agent:test:case:first", target_holder_ref="agent:claude:session:second", offer_id="o", expected_lease_id="l", expected_epoch=1, expected_head="h", expected_expires_at="x", expected_payload_sha256="y", holder_quiesced=False)  # fmt: skip
+    with closing(sqlite3.connect(":memory:")) as connection:
+        connection.execute("begin immediate")
+        initialize_state_connection(connection)
+        with pytest.raises(ValueError, match="missing_lease"):
+            lease._sole_subject_row(connection, "lane")  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch  # fmt: skip
+        connection.execute("insert into leases values(?,?,?,?,?)", ("id", "lane", "h", "2000-01-01T00:00:00+00:00", '{"lease_id":"id","lane_incarnation_id":"lane-incarnation:test","lane_ref":"lane","holder_ref":"h","epoch":1,"expected_head":"head"}'))  # fmt: skip
+        with pytest.raises(ValueError, match="lease_expired"):
+            lease.expected_current_lease(connection, subject="lane", holder_ref="h", expected_lease_id="id", expected_epoch=1, expected_head="head", expected_expires_at="2000-01-01T00:00:00+00:00", expected_payload_sha256=projection.hashlib.sha256(connection.execute("select payload_json from leases").fetchone()[0].encode()).hexdigest(), require_expired=False)  # fmt: skip
     assert lease._is_expired("bad")  # noqa: RUF100, SLF001 - invalid expiry branch coverage
     assert lease._is_expired(  # noqa: RUF100, SLF001 - naive expiry branch coverage
         "2000-01-01T00:00:00"
     )
-    with pytest.raises(ValueError, match="database_missing"):
-        effects.delete_exact_leases(plain / "absent", [{"id": "x"}])
-    database = plain / "empty.sqlite"
-    database.touch()
-    monkeypatch.setattr(effects, "delete_exact_leases_from_connection", lambda *_: ["x"])
-    assert effects.delete_exact_leases(database, [{}]) == ["x"]
-    connection.close()

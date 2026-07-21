@@ -107,14 +107,19 @@ def bootstrap_candidate(
         return report(ok=True, state="planned", gaps=[], **details)
     if target.exists():
         return report(ok=False, state="blocked", gaps=["candidate_worktree_path_exists"], **details)
-    if not candidate["exists"]:
-        completed = run_git(repo, "branch", policy.candidate_branch, current_head,
-                                           check=False)
-        if completed.returncode != 0:
-            return report(ok=False, state="blocked", gaps=["candidate_bootstrap_failed"],
-                          stderr=completed.stderr.strip(), **details)
-    completed = run_git(repo, "worktree", "add", target.as_posix(),
-                                       policy.candidate_branch, check=False)
+    args = (
+        ("worktree", "add", target.as_posix(), policy.candidate_branch)
+        if candidate["exists"]
+        else (
+            "worktree",
+            "add",
+            "-b",
+            policy.candidate_branch,
+            target.as_posix(),
+            current_head,
+        )
+    )
+    completed = run_git(repo, *args, check=False)
     failed = completed.returncode != 0
     return report(ok=not failed, state="blocked" if failed else "bootstrapped",
                   gaps=["candidate_worktree_add_failed"] if failed else [],
@@ -272,9 +277,7 @@ def _replay_work_lane(
         return report(ok=False, state="blocked", head=current_head, gaps=snapshot_gaps)
     completed = run_git(root, "-c", "rebase.updateRefs=false", "rebase", candidate_head,
                                 current_head, check=False)
-    projection_resolution = resolve_projection_rebase(
-        root, completed, candidate_head=candidate_head
-    )
+    projection_resolution = resolve_projection_rebase(root, completed)
     projection_recovered = completed.returncode != 0 and projection_resolution["ok"]
     if completed.returncode != 0 and not projection_recovered:
         run_git(root, "rebase", "--abort", check=False)
@@ -340,9 +343,6 @@ def _replay_work_lane(
                 for path in projection_resolution["paths"]
                 if path.startswith("evidence/parity/")
             ]
-            semantic_paths = [
-                path for path in projection_resolution["paths"] if path not in projection_paths
-            ]
             result.update(
                 {
                     "state": (
@@ -353,7 +353,6 @@ def _replay_work_lane(
                     "projection_refresh_required": bool(projection_gaps),
                     "projection_refresh_gaps": projection_resolution["gaps"],
                     "stale_projection_paths": projection_paths,
-                    "semantic_recovery_paths": semantic_paths,
                     "next_actions": projection_resolution["next_actions"]
                     + ["ethos prove --execute --expect-head $(git rev-parse HEAD) --json"],
                 }

@@ -93,7 +93,11 @@ def superseded_work_lane(
     )
     database = repo / ".ethos" / "state" / "state.sqlite"
     state.acquire_lease(
-        database, subject="work/superseded", holder_ref=holder_ref, ttl_seconds=3600
+        database,
+        subject="work/superseded",
+        holder_ref=holder_ref,
+        ttl_seconds=3600,
+        payload={"expected_head": head},
     )
     return repo, lane, head, accepted, database
 

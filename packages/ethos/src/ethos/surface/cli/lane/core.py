@@ -15,9 +15,8 @@ from ethos.adapters.admission.prewrite import prewrite_guard
 from ethos.adapters.mutation.lane_lifecycle.refresh import bootstrap_candidate
 from ethos.adapters.mutation.lane_lifecycle.refresh import refresh_candidate_from_accepted
 from ethos.adapters.mutation.lane_lifecycle.refresh import refresh_work_lane_base
-from ethos.adapters.mutation.lane_retirement.core import SupersededLaneRetirementRequest
-from ethos.adapters.mutation.lane_retirement.core import retire_superseded_work_lane
-from ethos.adapters.mutation.lane_retirement.landed.core import retire_landed_work_lanes
+from ethos.adapters.mutation.lane_retirement.core import LinkedRetirementRequest
+from ethos.adapters.mutation.lane_retirement.core import retire_linked_work_lane
 from ethos.adapters.mutation.lane_retirement.unbound.core import retire_unbound_work_lane_ref
 from ethos.adapters.mutation.lane_retirement.unbound.reconciliation.core import (
     RefAbsentReconciliationControls,
@@ -37,21 +36,6 @@ from ethos.surface.cli._base import lane_retire_app
 from ethos.surface.cli._base import resolve_root
 from ethos_core.normalization.core import string_sequence
 from ethos_core.result import EthosResult
-
-
-@dataclass(frozen=True, slots=True)
-class _RetireSupersededOptions:
-    """CLI options for `ethos lane retire superseded`."""
-
-    branch: Annotated[str, Parameter(name="--branch")]
-    expect_head: Annotated[str | None, Parameter(name="--expect-head")] = None
-    absorbed_by: Annotated[str, Parameter(name="--absorbed-by")] = ""
-    reason: Annotated[str, Parameter(name="--reason")] = ""
-    authorize: bool = False
-    apply: bool = False
-
-
-_DEFAULT_RETIRE_SUPERSEDED_OPTIONS = _RetireSupersededOptions(branch="")
 
 
 @dataclass(frozen=True, slots=True)
@@ -465,41 +449,37 @@ def lane_retire_reconcile_ref_absent(
 @lane_retire_app.command(name="superseded")
 def lane_retire_superseded(
     options: Annotated[
-        _RetireSupersededOptions,
+        LinkedRetirementRequest | None,
         Parameter(name="*"),
-    ] = _DEFAULT_RETIRE_SUPERSEDED_OPTIONS,
+    ] = None,
     *,
     root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
     """Retire a clean linked Work Lane already absorbed by accepted truth."""
     repo = resolve_root(root)
-    report = retire_superseded_work_lane(
+    request = options or LinkedRetirementRequest()
+    report = retire_linked_work_lane(
         root=repo,
-        request=SupersededLaneRetirementRequest(
-            branch=options.branch,
-            expect_head=options.expect_head,
-            absorbed_by=options.absorbed_by,
-            reason=options.reason,
-            apply=options.apply,
-            authorized=options.authorize,
-        ),
+        mode="superseded",
+        request=request,
     )
+    lane = cast("dict[str, object]", report["lane"])
     result = EthosResult(
         command="lane retire superseded",
         ok=bool(report["ok"]),
         state=str(report["state"]),
         summary={
             "branch": report["branch"],
-            "head": report["head"],
-            "absorbed_by": report["absorbed_by"],
-            "retire_ready": report["retire_ready"],
+            "head": lane.get("head") or request.expect_head or "",
+            "absorbed_by": request.absorbed_by.strip(),
+            "retire_ready": bool(lane.get("retire_ready")) and not report["required_gaps"],
         },
         required_gaps=tuple(string_sequence(report.get("required_gaps"))),
         next_actions=("ethos status",) if report["ok"] else ("ethos lane status",),
         data=report,
     )
-    emit(result, json_output=json_output, enforce=options.apply)
+    emit(result, json_output=json_output, enforce=request.apply)
 
 
 @lane_retire_app.command(name="landed")
@@ -513,45 +493,31 @@ def lane_retire_landed(
 ) -> None:
     """Retire a landed Work Lane after it is merged into the accepted root."""
     repo = resolve_root(root)
-    report = retire_landed_work_lanes(
+    report = retire_linked_work_lane(
         root=repo,
-        branch=branch,
-        expect_head=expect_head,
-        apply=apply,
+        mode="landed",
+        request=LinkedRetirementRequest(
+            branch=branch,
+            expect_head=expect_head,
+            apply=apply,
+        ),
     )
-    summary = _retire_landed_summary(report, branch=branch)
+    lanes = cast("list[dict[str, object]]", report["lanes"])
+    selected = next((lane for lane in lanes if lane["branch"] == branch), {})
     result = EthosResult(
         command="lane retire landed",
         ok=bool(report["ok"]),
         state=str(report["state"]),
-        summary=summary,
+        summary={
+            "landed_lane_count": sum(bool(lane.get("retire_ready")) for lane in lanes),
+            "selected_branch": branch or "",
+            "selected_retire_ready": bool(selected.get("retire_ready")),
+            "selected_blockers": tuple(
+                cast("tuple[str, ...] | list[str]", selected.get("required_gaps", ()))
+            ),
+        },
         required_gaps=tuple(string_sequence(report.get("required_gaps"))),
         next_actions=("ethos status",) if report["ok"] else ("ethos lane status",),
         data=report,
     )
     emit(result, json_output=json_output)
-
-
-def _retire_landed_summary(report: dict[str, object], *, branch: str | None) -> dict[str, object]:
-    lanes = cast("list[dict[str, object]]", report["lanes"])
-    selected_lane = next((lane for lane in lanes if lane["branch"] == branch), {})
-    retired = report.get("retired")
-    retired_lane = retired if isinstance(retired, dict) else {}
-    if not selected_lane and retired_lane.get("branch") == branch:
-        selected_lane = cast("dict[str, object]", retired_lane)
-    selected_blockers = tuple(
-        cast("tuple[str, ...] | list[str]", selected_lane.get("required_gaps", ()))
-    )
-    landed_lane_count = sum(1 for lane in lanes if lane["retire_ready"])
-    retired_branch = retired_lane.get("branch")
-    retired_missing_from_lanes = bool(retired_branch) and all(
-        lane.get("branch") != retired_branch for lane in lanes
-    )
-    if retired_missing_from_lanes and retired_lane.get("retire_ready"):
-        landed_lane_count += 1
-    return {
-        "landed_lane_count": landed_lane_count,
-        "selected_branch": branch or "",
-        "selected_retire_ready": bool(selected_lane.get("retire_ready")),
-        "selected_blockers": selected_blockers,
-    }

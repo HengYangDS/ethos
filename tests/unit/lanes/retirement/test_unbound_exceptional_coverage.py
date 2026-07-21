@@ -49,6 +49,8 @@ def test_observation_and_record_fail_closed_matrix(tmp_path: Path) -> None:
         "holder_ref": "",
         "epoch": 0,
         "expected_head": "",
+        "expires_at": "",
+        "payload_sha256": "",
     }
     path = tmp_path / "record.json"
     assert records.write_record(path, payload, kind=records.ATTEMPT_KIND) == path.as_posix()
@@ -99,6 +101,8 @@ def test_observation_and_record_fail_closed_matrix(tmp_path: Path) -> None:
             "holder_ref": "agent:test",
             "epoch": 1,
             "expected_head": head,
+            "expires_at": "2099-01-01T00:00:00+00:00",
+            "payload_sha256": "a" * 64,
         }
     )
     assert records.valid_lease_relinquishment(
@@ -168,6 +172,8 @@ def test_owner_unavailable_policy_rejects_nonexact_lease_binding(tmp_path: Path)
         "holder_ref": "agent:test:foreign",
         "epoch": 1,
         "expected_head": head,
+        "expires_at": "2099-01-01T00:00:00+00:00",
+        "payload_sha256": "a" * 64,
         "recorded_path": (tmp_path / "missing-worktree").as_posix(),
     }
 

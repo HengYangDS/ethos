@@ -7,7 +7,6 @@ import subprocess
 from pathlib import Path
 
 import ethos.adapters.mutation.lane_lifecycle.refresh as lanes_refresh
-import ethos.adapters.mutation.lane_retirement.shared.core as lane_retirement_shared
 from ethos.adapters import config
 
 # --- adapters/config.py ------------------------------------------------------
@@ -83,12 +82,3 @@ def test_candidate_worktree_gaps_dirty(tmp_path: Path) -> None:
     assert lanes_refresh._candidate_worktree_gaps(candidate, str(tmp_path)) == [
         "candidate_worktree_dirty"
     ]
-
-
-# --- adapters/mutation/lane_retirement/landed/core.py ------------------------
-
-
-def test_has_changed_paths_true_outside_repo(tmp_path: Path) -> None:
-    # `git status` fails outside a repo, so the helper conservatively returns True
-    # (lines 278-279).
-    assert lane_retirement_shared.has_changed_paths(tmp_path) is True

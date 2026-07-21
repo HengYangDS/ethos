@@ -104,9 +104,12 @@ class CrossHostHandoff(BaseModel):
     source_tree: str = Field(pattern=r"^[a-f0-9]{40,64}$")
     target_holder_ref: HolderRef
     context_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
+    dirty_content_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     dirty_disposition: str = Field(pattern=r"^(clean|committed|preserved)$")
     source_lease_id: str = Field(min_length=1)
     source_lease_epoch: int = Field(ge=1)
+    source_lease_expires_at: str = Field(min_length=1)
+    source_lease_payload_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     source_holder_ref: HolderRef
     artifacts: tuple[dict[str, str], ...] = ()
 
@@ -118,12 +121,15 @@ class CrossHostHandoff(BaseModel):
             "source_tree": self.source_tree,
             "target_holder_ref": self.target_holder_ref.serialize(),
             "context_digest": self.context_digest,
+            "dirty_content_sha256": self.dirty_content_sha256,
             "dirty_disposition": self.dirty_disposition,
             "source_lease_binding": {
                 "lease_id": self.source_lease_id,
                 "epoch": self.source_lease_epoch,
                 "holder_ref": self.source_holder_ref.serialize(),
                 "expected_head": self.source_head,
+                "expires_at": self.source_lease_expires_at,
+                "payload_sha256": self.source_lease_payload_sha256,
             },
             "artifacts": [dict(artifact) for artifact in self.artifacts],
             "transfers_source_lease": False,

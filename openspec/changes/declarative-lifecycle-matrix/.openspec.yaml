@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-07-20
+goal: One declared lifecycle, one complete lease generation, and one
+  no-clobber carrier transition.

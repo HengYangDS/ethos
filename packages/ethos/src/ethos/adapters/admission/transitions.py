@@ -45,6 +45,8 @@ def work_lane_ref_transition_report(
             expected_epoch=integer_value(lease.get("epoch")),
             old_head=old_value,
             new_head=new_value,
+            expected_expires_at=str(lease.get("expires_at") or ""),
+            expected_payload_sha256=str(lease.get("payload_sha256") or ""),
         )
     except ValueError as exc:
         base.update(ok=False, state="repair_required")

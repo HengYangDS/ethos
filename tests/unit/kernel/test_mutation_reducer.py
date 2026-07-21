@@ -3,7 +3,6 @@ from __future__ import annotations
 import pytest
 
 from ethos_core.contracts.lifecycle.core import CLOSEOUT_MUTATION
-from ethos_core.contracts.lifecycle.core import HANDOFF_EXPORT
 from ethos_core.contracts.lifecycle.core import WORK_LANE_MUTATION
 from ethos_core.contracts.lifecycle.core import LeaseFacts
 from ethos_core.contracts.lifecycle.core import MutationFacts
@@ -126,6 +125,8 @@ def test_closeout_reducer_distinguishes_current_from_ready_and_blocked() -> None
                 "ttl_seconds": 0,
                 "target_holder_ref": "",
                 "offer_id": "",
+                "expected_expires_at": "",
+                "expected_payload_sha256": "",
                 "holder_quiesced": False,
             },
             "blocked",
@@ -138,6 +139,8 @@ def test_closeout_reducer_distinguishes_current_from_ready_and_blocked() -> None
                 "lease_ttl_invalid",
                 "target_holder_ref_invalid",
                 "handoff_offer_id_required",
+                "lease_expires_at_required",
+                "lease_payload_sha256_required",
                 "holder_quiescence_confirmation_required",
             ),
             id="handoff-accept/all-required-facts-missing",
@@ -157,9 +160,14 @@ def test_lease_transition_matrix(
         "branch": "work/example",
         "holder_ref": "agent:test:case:holder",
         "target_holder_ref": "agent:test:case:target" if operation.startswith("handoff_") else "",
+        "actor_ref": "agent:test:case:target"
+        if operation == "handoff_accept"
+        else "agent:test:case:holder",
         "expect_head": "head",
         "lease_id": "lease:one",
         "expected_epoch": 1,
+        "expected_expires_at": "2099-01-01T00:00:00+00:00",
+        "expected_payload_sha256": "a" * 64,
         "ttl_seconds": 60,
         "offer_id": "offer:one" if operation == "handoff_accept" else "",
         "holder_quiesced": operation == "handoff_accept",
@@ -174,7 +182,6 @@ def test_lease_transition_matrix(
 
 def test_guard_reducer_preserves_declared_order_deduplicates_and_applies_state() -> None:
     evaluation = reduce_guards(
-        HANDOFF_EXPORT,
         apply=True,
         initial_gaps=("first", "first"),
         checks=((False, "second"),),

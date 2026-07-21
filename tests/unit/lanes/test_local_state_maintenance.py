@@ -339,17 +339,12 @@ def test_failed_apply_preserves_database_writes_committed_after_staging(monkeypa
     archive_root = tmp_path / 'archive'
     insert_lease(repo, lease_id='lease:orphan', subject='work/orphan', expires_at='2026-07-18T00:00:00+00:00', payload=current_lease_payload(path=(tmp_path / 'gone').as_posix()))
     db_path = repo / '.ethos' / 'state' / 'state.sqlite'
-    with closing(sqlite3.connect(db_path)) as connection:
-        connection.execute('create table concurrent_state (value text not null)')
-        connection.commit()
     inventory = local_state_maintenance_inventory(repo, archive_root, OBSERVED_AT)
     path_type = type(repo)
     original_replace = path_type.replace
 
     def verify_then_write(_archive: Path, manifest: dict[str, list[object]], **_kwargs: object) -> dict[str, object]:
-        with closing(sqlite3.connect(db_path)) as connection:
-            connection.execute("insert into concurrent_state(value) values ('committed')")
-            connection.commit()
+        insert_lease(repo, lease_id='lease:concurrent', subject='work/concurrent', expires_at='2099-07-18T00:00:00+00:00', payload=current_lease_payload())
         return {'entry_count': len(manifest['entries']), 'bundle_verifications': []}
 
     def fail_receipt(source: Path, target: Path) -> Path:
@@ -362,10 +357,8 @@ def test_failed_apply_preserves_database_writes_committed_after_staging(monkeypa
     with pytest.raises(OSError, match='receipt write failed'):
         apply_local_state_maintenance(repo, archive_root, OBSERVED_AT, expect_inventory_digest=inventory['inventory_digest'], confirm_irreversible=True)
     with closing(sqlite3.connect(db_path)) as connection:
-        concurrent = connection.execute('select value from concurrent_state').fetchall()
         leases = connection.execute('select id from leases order by id').fetchall()
-    assert concurrent == [('committed',)]
-    assert leases == [('lease:orphan',)]
+    assert leases == [('lease:concurrent',), ('lease:orphan',)]
 
 def test_failed_apply_restores_only_missing_recovery_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     repo = maintenance_repo(tmp_path)

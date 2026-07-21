@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import json
+import os
 import subprocess
 from typing import TYPE_CHECKING
 from typing import Any
@@ -15,15 +15,14 @@ from ethos.adapters.mutation.lane_lifecycle.core import run_git
 from ethos.adapters.repo.dirty.core import changed_paths
 from ethos.adapters.repo.status.bindings import accepted_worktree_root
 from ethos.adapters.repo.status.core import workspace_status
+from ethos.adapters.store.retrieval.common import sha256_text
 from ethos.adapters.store.state.lease.lifecycle.effects import revoke_lease
 from ethos.adapters.store.state.lease.projection import active_leases
 from ethos.adapters.store.state.lease.projection import integer_value
 from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
+from ethos_core.contracts.coordination import CrossHostHandoff
 from ethos_core.contracts.coordination import HolderRef
-from ethos_core.contracts.lifecycle.core import HANDOFF_EXPORT
-from ethos_core.contracts.lifecycle.core import HANDOFF_IMPORT
-from ethos_core.contracts.lifecycle.core import HANDOFF_REVOKE_SOURCE
 from ethos_core.contracts.lifecycle.core import MutationRequest
 from ethos_core.contracts.lifecycle.core import reduce_guards
 
@@ -41,6 +40,8 @@ def export_cross_host_handoff(  # noqa: PLR0913, RUF100 - exact request envelope
     target_holder_ref: str,
     lease_id: str,
     epoch: int,
+    expected_expires_at: str,
+    expected_payload_sha256: str,
     expect_head: str,
     context_text: str,
     context_file: Path | None,
@@ -56,6 +57,7 @@ def export_cross_host_handoff(  # noqa: PLR0913, RUF100 - exact request envelope
     lease = _current_lease(status=status, repo=repo, branch=branch)
     context, context_gap = _handoff_context(context_text=context_text, context_file=context_file)
     dirty_paths = changed_paths(repo)
+    dirty_content_sha256 = handoff_package.dirty_content_sha256(repo)
     disposition = dirty_disposition or ("clean" if not dirty_paths else "")
     expected_state: dict[str, object] = {
         "root": repo.resolve().as_posix(),
@@ -66,6 +68,8 @@ def export_cross_host_handoff(  # noqa: PLR0913, RUF100 - exact request envelope
         "target_holder_ref": target_holder_ref,
         "lease_id": lease_id,
         "epoch": epoch,
+        "expires_at": expected_expires_at,
+        "payload_sha256": expected_payload_sha256,
         "dirty_disposition": disposition,
     }
     checks = (
@@ -77,6 +81,12 @@ def export_cross_host_handoff(  # noqa: PLR0913, RUF100 - exact request envelope
         (str(lease.get("lease_id") or "") == lease_id, "lease_id_stale"),
         (integer_value(lease.get("epoch")) == epoch, "lease_epoch_stale"),
         (str(lease.get("expected_head") or "") == head, "lease_head_stale"),
+        (
+            str(lease.get("expires_at") or "") == expected_expires_at
+            and str(lease.get("payload_sha256") or "") == expected_payload_sha256,
+            "lease_generation_stale",
+        ),
+        (os.environ.get("ETHOS_ACTOR", "").strip() == holder_ref, "lease_actor_mismatch"),
     )
     gaps = list(
         dict.fromkeys(
@@ -86,7 +96,7 @@ def export_cross_host_handoff(  # noqa: PLR0913, RUF100 - exact request envelope
             + _dirty_disposition_gaps(dirty_paths, disposition)
         )
     )
-    evaluation = reduce_guards(HANDOFF_EXPORT, apply=apply, initial_gaps=tuple(gaps))
+    evaluation = reduce_guards(apply=apply, initial_gaps=tuple(gaps))
     report = _handoff_report(branch=branch, evaluation=evaluation)
     if apply and evaluation.ok:
         _apply_report(
@@ -94,17 +104,22 @@ def export_cross_host_handoff(  # noqa: PLR0913, RUF100 - exact request envelope
             "handoff_export_failed",
             lambda: handoff_package.write_handoff_package(
                 repo=repo,
-                branch=branch,
-                head=head,
-                tree=tree,
-                holder_ref=holder_ref,
-                target_holder_ref=target_holder_ref,
-                lease_id=lease_id,
-                epoch=epoch,
+                handoff=CrossHostHandoff(
+                    source_lane_ref=branch,
+                    source_head=head,
+                    source_tree=tree,
+                    source_holder_ref=HolderRef.parse(holder_ref),
+                    target_holder_ref=HolderRef.parse(target_holder_ref),
+                    source_lease_id=lease_id,
+                    source_lease_epoch=epoch,
+                    source_lease_expires_at=expected_expires_at,
+                    source_lease_payload_sha256=expected_payload_sha256,
+                    dirty_content_sha256=dirty_content_sha256,
+                    dirty_disposition=disposition,
+                    context_digest=sha256_text(context),
+                ),
                 context=context,
                 output_root=output_root,
-                dirty_disposition=disposition,
-                dirty_paths=dirty_paths,
             ),
         )
     return _finish_report(
@@ -141,6 +156,8 @@ def import_cross_host_handoff(
         normalized_target = target_holder_ref
     if manifest and normalized_target != str(manifest.get("target_holder_ref") or ""):
         gaps.append("handoff_target_holder_mismatch")
+    if os.environ.get("ETHOS_ACTOR", "").strip() != normalized_target:
+        gaps.append("handoff_target_actor_mismatch")
     branch = str(manifest.get("source_lane_ref") or "")
     checks = (
         (
@@ -157,7 +174,6 @@ def import_cross_host_handoff(
         ),
     )
     evaluation = reduce_guards(
-        HANDOFF_IMPORT,
         apply=apply,
         initial_gaps=tuple(gaps),
         checks=checks,
@@ -194,6 +210,8 @@ def revoke_cross_host_source(  # noqa: PLR0913, RUF100 - exact request envelope 
     holder_ref: str,
     lease_id: str,
     epoch: int,
+    expected_expires_at: str,
+    expected_payload_sha256: str,
     expect_head: str,
     apply: bool,
 ) -> dict[str, object]:
@@ -201,11 +219,15 @@ def revoke_cross_host_source(  # noqa: PLR0913, RUF100 - exact request envelope 
     repo = repo_root(root)
     status = workspace_status(repo)
     manifest, gaps = handoff_package.verified_handoff_manifest(package=package, root=repo)
-    ack = _json_mapping(acknowledgement, gap="handoff_acknowledgement_invalid", gaps=gaps)
+    ack, acknowledgement_gaps = handoff_package.verified_handoff_acknowledgement(
+        acknowledgement=acknowledgement, root=repo
+    )
+    gaps.extend(acknowledgement_gaps)
     branch = str(manifest.get("source_lane_ref") or "")
     head = _git_value(repo, "rev-parse", "HEAD")
     source_binding = manifest.get("source_lease_binding")
     binding = source_binding if isinstance(source_binding, dict) else {}
+    lease = _current_lease(status=status, repo=repo, branch=branch)
     expected_state: dict[str, object] = {
         "root": repo.resolve().as_posix(),
         "package_id": str(manifest.get("package_id") or ""),
@@ -214,6 +236,8 @@ def revoke_cross_host_source(  # noqa: PLR0913, RUF100 - exact request envelope 
         "holder_ref": holder_ref,
         "lease_id": lease_id,
         "epoch": epoch,
+        "expires_at": expected_expires_at,
+        "payload_sha256": expected_payload_sha256,
         "acknowledgement_id": str(ack.get("acknowledgement_id") or ""),
     }
     comparisons = (
@@ -239,6 +263,51 @@ def revoke_cross_host_source(  # noqa: PLR0913, RUF100 - exact request envelope 
             expect_head,
             "handoff_acknowledgement_head_mismatch",
         ),
+        (
+            str(ack.get("destination_tree") or ""),
+            str(manifest.get("source_tree") or ""),
+            "handoff_acknowledgement_tree_mismatch",
+        ),
+        (
+            str(ack.get("destination_lane_ref") or ""),
+            branch,
+            "handoff_acknowledgement_lane_mismatch",
+        ),
+        (
+            str(ack.get("destination_holder_ref") or ""),
+            str(manifest.get("target_holder_ref") or ""),
+            "handoff_acknowledgement_holder_mismatch",
+        ),
+        (
+            str(ack.get("destination_lease_expected_head") or ""),
+            expect_head,
+            "handoff_acknowledgement_destination_head_mismatch",
+        ),
+        (
+            expected_expires_at,
+            str(binding.get("expires_at") or ""),
+            "handoff_source_lease_mismatch",
+        ),
+        (
+            expected_payload_sha256,
+            str(binding.get("payload_sha256") or ""),
+            "handoff_source_lease_mismatch",
+        ),
+        (
+            str(lease.get("expires_at") or ""),
+            expected_expires_at,
+            "lease_generation_stale",
+        ),
+        (
+            str(lease.get("payload_sha256") or ""),
+            expected_payload_sha256,
+            "lease_generation_stale",
+        ),
+        (
+            os.environ.get("ETHOS_ACTOR", "").strip(),
+            holder_ref,
+            "lease_actor_mismatch",
+        ),
     )
     checks = (
         (
@@ -254,7 +323,6 @@ def revoke_cross_host_source(  # noqa: PLR0913, RUF100 - exact request envelope 
     )
 
     evaluation = reduce_guards(
-        HANDOFF_REVOKE_SOURCE,
         apply=apply,
         initial_gaps=tuple(gaps),
         checks=checks,
@@ -269,6 +337,8 @@ def revoke_cross_host_source(  # noqa: PLR0913, RUF100 - exact request envelope 
                 expected_lease_id=lease_id,
                 expected_epoch=epoch,
                 expected_head=expect_head,
+                expected_expires_at=expected_expires_at,
+                expected_payload_sha256=expected_payload_sha256,
             )
         except ValueError as exc:
             report.update(ok=False, state="blocked", required_gaps=[str(exc)])
@@ -334,17 +404,6 @@ def _current_lease(*, status: dict[str, object], repo: Path, branch: str) -> dic
         if lease.get("subject") == branch
     )
     return cast("dict[str, object]", matches[0]) if len(matches) == 1 else {}
-
-
-def _json_mapping(path: Path, *, gap: str, gaps: list[str]) -> dict[str, Any]:
-    try:
-        payload = json.loads(path.resolve().read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        payload = None
-    if not isinstance(payload, dict):
-        gaps.append(gap)
-        return {}
-    return cast("dict[str, Any]", payload)
 
 
 def _handoff_report(*, branch: str, evaluation: Any) -> dict[str, object]:

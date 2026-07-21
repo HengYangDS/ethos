@@ -57,25 +57,28 @@ PY
 EOF
 
 if [ -n "${name}" ]; then
-  git config user.name "${name}"
+  git config --local user.name "${name}"
 fi
 if [ -n "${email}" ]; then
-  git config user.email "${email}"
+  git config --local user.email "${email}"
 fi
-echo "git identity: $(git config --get user.name) <$(git config --get user.email)>"
+echo "git identity: $(git config --local --get user.name) <$(git config --local --get user.email)>"
 
 if [ -n "${signing_required}" ]; then
   format="${signing_format:-ssh}"
-  git config commit.gpgsign true
-  git config gpg.format "${format}"
-  if [ "${format}" = "ssh" ] && [ -z "$(git config --get user.signingkey || true)" ]; then
+  git config --local commit.gpgsign true
+  git config --local gpg.format "${format}"
+  # The CI checkout must not borrow a host-global (or a prior job's stale local)
+  # signing key. Test execution deliberately hides global Git configuration, so
+  # the checkout must own a current job-local key to remain self-consistent.
+  if [ "${format}" = "ssh" ]; then
     key_dir="${TMPDIR:-/tmp}/ethos-ci-signing"
     mkdir -p "${key_dir}"
     key_path="${key_dir}/id_ed25519"
     if [ ! -f "${key_path}" ]; then
       ssh-keygen -t ed25519 -f "${key_path}" -N "" -C "ethos-ci@${CI_PROJECT_PATH:-local}" -q
     fi
-    git config user.signingkey "${key_path}.pub"
+    git config --local user.signingkey "${key_path}.pub"
   fi
-  echo "commit signing: gpgsign=$(git config --get commit.gpgsign) format=$(git config --get gpg.format)"
+  echo "commit signing: gpgsign=$(git config --local --get commit.gpgsign) format=$(git config --local --get gpg.format)"
 fi

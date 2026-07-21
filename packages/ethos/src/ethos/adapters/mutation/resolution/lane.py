@@ -193,10 +193,10 @@ def _observe_lane(root: Path, branch: str) -> tuple[LaneObservation, list[str]]:
         ), ["lane_resolution_target_missing"]
     path = Path(worktree["worktree"])
     head = _git(root, "rev-parse", f"refs/heads/{branch}")
-    leases = [
-        lease for lease in active_leases(state_database(root)) if lease.get("subject") == branch
-    ]
-    lease = leases[0] if len(leases) == 1 else {}
+    lease = next(
+        (lease for lease in active_leases(state_database(root)) if lease.get("subject") == branch),
+        {},
+    )
     holder = str(lease.get("holder_ref") or "")
     incarnation = str(lease.get("lane_incarnation_id") or "") or (
         "decision-incarnation:"
@@ -210,8 +210,8 @@ def _observe_lane(root: Path, branch: str) -> tuple[LaneObservation, list[str]]:
         path=path.resolve().as_posix(),
         dirty=bool(_git(path, "status", "--porcelain", check=False)),
         foreign=not bool(holder),
-        orphan=not bool(leases),
-        ambiguous=len(leases) > 1,
+        orphan=not bool(lease),
+        ambiguous=False,
         tracked_digest=hashlib.sha256(
             _git(path, "diff", "--binary", "HEAD", "--", check=False).encode()
         ).hexdigest(),

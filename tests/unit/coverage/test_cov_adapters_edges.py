@@ -7,6 +7,7 @@ import ethos.adapters.mutation.core as core
 import ethos.adapters.mutation.lanes as lanes
 import ethos.adapters.repo.status.bindings as bindings
 import ethos_core.contracts.branch.roles as roles
+from tests.support.contract_helpers import init_git_repo
 
 
 def test_signature_gap_matrices() -> None:
@@ -25,6 +26,7 @@ def test_signature_gap_matrices() -> None:
 
 
 def test_mutation_blocker_matrices(monkeypatch, tmp_path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
     policy = SimpleNamespace(candidate_branch="candidate/dev")
     monkeypatch.setattr(core, "load_branch_role_policy", lambda _root: policy)
     monkeypatch.setattr(core, "run_git", lambda *_args, **_kwargs: SimpleNamespace(stdout="h\n"))
@@ -43,10 +45,10 @@ def test_mutation_blocker_matrices(monkeypatch, tmp_path) -> None:
     status = {"branch": "work/x", "worktrees": [{"branch": "work/x", "role": roles.ROLE_WORK_LANE}]}
     monkeypatch.setattr(lanes, "workspace_status", lambda _root: status)
     monkeypatch.setattr(lanes, "_active_lease", lambda *_args: None)
-    report = lanes.bind_work_lane_claim(root=tmp_path, claim_id="", apply=False)
+    report = lanes.bind_work_lane_claim(root=repo, claim_id="", apply=False)
     assert report["required_gaps"] == ["missing_claim_id", "work_lane_missing_lease:work/x"]
     monkeypatch.setattr(lanes, "_active_lease", lambda *_args: {"holder_ref": "agent:test:case:me"})
-    report = lanes.bind_work_lane_claim(root=tmp_path, claim_id="claim", apply=False)
+    report = lanes.bind_work_lane_claim(root=repo, claim_id="claim", apply=False)
     assert report["state"] == "planned"
 
 

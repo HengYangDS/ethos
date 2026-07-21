@@ -126,7 +126,7 @@ def test_handoff_core_edges(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
         "source_lease_transferred": False,
     }
     ack.write_text(json.dumps(ack_payload), encoding="utf-8")
-    _patch(monkeypatch, hc, workspace_status=lambda root: {"role": WORK, "branch": branch}, _git_value=lambda *args: head, _current_lease=lambda **kw: {"expires_at": "x", "payload_sha256": "y"}, revoke_lease=lambda *args, **kw: (_ for _ in ()).throw(ValueError("stale")))  # noqa: ARG005 coverage closure keeps callback and branch shapes explicit  # fmt: skip
+    _patch(monkeypatch, hc, workspace_status=lambda root: {"role": WORK, "branch": branch}, _git_value=lambda *args: head, leases_by_branch=lambda _root: {branch: {"expires_at": "x", "payload_sha256": "y"}}, state_database=lambda _root: tmp_path / "state.sqlite", revoke_lease=lambda *args, **kw: (_ for _ in ()).throw(ValueError("stale")))  # noqa: ARG005 coverage closure keeps callback and branch shapes explicit  # fmt: skip
     monkeypatch.setenv("ETHOS_ACTOR", holder)
     monkeypatch.setattr(hc.handoff_package, "verified_handoff_manifest", lambda **kw: (manifest, []))  # noqa: ARG005 coverage closure keeps callback and branch shapes explicit  # fmt: skip
     monkeypatch.setattr(

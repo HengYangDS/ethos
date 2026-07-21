@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import stat
 import subprocess
 import sys
@@ -171,6 +172,62 @@ def test_github_repository_proof_projects_parallel_worker_stability() -> None:
     gitlab = yaml.safe_load((ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8"))
 
     assert gitlab["default"]["tags"] == ["${ETHOS_GITLAB_RUNNER_TAG}"]
+
+
+def test_configure_governed_checkout_does_not_reuse_host_global_signing_key(
+    tmp_path: Path,
+) -> None:
+    """CI must materialize signing in its checkout, not borrow the runner host."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(("git", "init", "-b", "main"), cwd=repo, check=True, capture_output=True)
+    workspace = repo / ".ethos" / "workspace.toml"
+    workspace.parent.mkdir()
+    workspace.write_text(
+        "[commit_policy]\n"
+        'expected_name = "ETHOS CI"\n'
+        'expected_email = "ethos-ci@example.invalid"\n'
+        "signing_required = true\n"
+        'signing_format = "ssh"\n',
+        encoding="utf-8",
+    )
+    host_key = tmp_path / "host-global-key.pub"
+    host_key.write_text("host-global-key\n", encoding="utf-8")
+    host_config = tmp_path / "host.gitconfig"
+    host_config.write_text(
+        "[user]\n"
+        f"\tsigningkey = {host_key}\n",
+        encoding="utf-8",
+    )
+    runtime_tmp = tmp_path / "runtime-tmp"
+    runtime_tmp.mkdir()
+    env = os.environ | {
+        "CI_PROJECT_PATH": "example/ethos",
+        "GIT_CONFIG_GLOBAL": str(host_config),
+        "GIT_CONFIG_NOSYSTEM": "1",
+        "TMPDIR": str(runtime_tmp),
+    }
+
+    subprocess.run(
+        [str(ROOT / "tools/ci/scripts/configure-git-checkout.sh")],
+        cwd=repo,
+        env=env,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    local_signing_key = subprocess.run(
+        ("git", "config", "--local", "--get", "user.signingkey"),
+        cwd=repo,
+        env=env,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+
+    assert local_signing_key
+    assert local_signing_key != str(host_key)
+    assert Path(local_signing_key).is_file()
 
 
 def test_provider_python_producers_are_runtime_bound() -> None:

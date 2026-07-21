@@ -55,7 +55,7 @@ def test_hosted_provider_templates_are_projection_sources() -> None:
             "emulator_tool": "gitlab-ci-local",
             "emulator_event": "pipeline",
             "emulator_job": "ethos:lint",
-            "emulator_image": "python:3.12",
+            "emulator_image": "python:3.14",
         },
     }
     for provider, entry in providers.items():
@@ -222,7 +222,7 @@ def test_openspec_ci_supply_is_pinned_to_the_supported_release() -> None:
 def test_hosted_python_bootstrap_avoids_ambient_root_pip() -> None:
     bootstrap = (ROOT / "tools/ci/scripts/bootstrap-python.sh").read_text(encoding="utf-8")
 
-    assert "python -m venv" in bootstrap
+    assert '"${bootstrap_python}" -m venv' in bootstrap
     assert "python -m pip install" not in bootstrap
     assert "pip install uv" not in bootstrap
 
@@ -389,7 +389,7 @@ def test_local_emulator_run_executes_a_selected_formal_provider_job(monkeypatch,
     }
     declared_images = {
         "github": "catthehacker/ubuntu:act-latest",
-        "gitlab": "python:3.12",
+        "gitlab": "python:3.14",
     }
     for provider, command in expected.items():
         output = tmp_path / f"{provider}.json"

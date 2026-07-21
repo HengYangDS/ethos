@@ -3,13 +3,13 @@ id = "declarative-lifecycle-matrix-20260720"
 subject = "ethos:declarative-lifecycle-matrix"
 change_id = "declarative-lifecycle-matrix"
 state = "active"
-summary = "This dated episode Claim binds the date-free declarative-lifecycle-matrix Change: four declared lease generation transitions, one generation-bound linked-retirement owner, current-only subject-keyed lease storage, and generic-only rebase recovery pending archive and local lifecycle closeout."
+summary = "This dated episode Claim binds the date-free declarative-lifecycle-matrix Change: four declared lease generation transitions, one generation-bound linked-retirement owner, current-only subject-keyed lease storage, and generic-only rebase recovery, closed SQLite resource warnings, zero-issue canonical OpenSpec validation, and quiet successful configuration gates pending archive and local lifecycle closeout."
 
 [evidence]
 dated = "evidence/chronicle/declarative-lifecycle-matrix-20260720/2026-07-20.md"
-sha256 = "101223aa4d4f2526d6f1fe20df289d74107dc9db3b4de3ad376a7780cb79b29d"
+sha256 = "9b4ba4e72d2837961003bffaa409174e57dc87a39f3ea2b388c6da148e8d05d9"
 evidence_ids = ["evidence:declarative-lifecycle-matrix-20260720"]
-binding = "The date-free Change and dated Chronicle bind the declared renew, resume, handoff-offer, and handoff-accept reducer; exact cross-host generation handoff; Work Lane start acquisition and no-clobber compensation; the single linked-retirement transaction; accepted-policy-bound unavailable-holder exact revoke; the current subject-keyed SQLite lease table and exact subject-unique index without retired resource-keyed migration or database-wide lease version ownership; and deletion of the archived Claim-specific rebase resolver. Final frozen-tree proof, archive, land, publication, and remote execution remain separate transitions until observed."
+binding = "The date-free Change and dated Chronicle bind the declared renew, resume, handoff-offer, and handoff-accept reducer; exact cross-host generation handoff; Work Lane start acquisition and no-clobber compensation; the single linked-retirement transaction; accepted-policy-bound unavailable-holder exact revoke; the current subject-keyed SQLite lease table and exact subject-unique index without retired resource-keyed migration or database-wide lease version ownership; deletion of the archived Claim-specific rebase resolver, explicit SQLite connection closure, warning-free canonical OpenSpec normalization, and Taplo native warning-level logging. Final frozen-tree proof, archive, land, publication, and remote execution remain separate transitions until observed."
 verifier = "digest_only"
 tests = [
   "tools/ci/scripts/run-python-tests.sh",
@@ -32,7 +32,7 @@ mode = "historical"
 
 [boundary]
 owner = "ethos-repository"
-scope = "Declaration-compiled renew, resume, handoff-offer, and handoff-accept generation transitions; exact cross-host handoff; Work Lane start acquisition and no-clobber compensation; ordinary holder-bound linked landed and superseded retirement; accepted-policy-bound unavailable-holder admission using the canonical exact revoke primitive; current subject-keyed SQLite lease schema evolution and uniqueness; and generic parity or semantic-ledger rebase recovery after removal of one archived Claim-specific resolver. General foreign authority, dirty recovery, remote mutation, hosted execution, and broader intent takeover are excluded."
+scope = "Declaration-compiled renew, resume, handoff-offer, and handoff-accept generation transitions; exact cross-host handoff; Work Lane start acquisition and no-clobber compensation; ordinary holder-bound linked landed and superseded retirement; accepted-policy-bound unavailable-holder admission using the canonical exact revoke primitive; current subject-keyed SQLite lease schema evolution and uniqueness; warning-free canonical OpenSpec validation; warning-free successful configuration validation; and generic parity or semantic-ledger rebase recovery after removal of one archived Claim-specific resolver. General foreign authority, dirty recovery, remote mutation, hosted execution, and broader intent takeover are excluded."
 
 [carriers]
 openspec = "openspec/changes/declarative-lifecycle-matrix"
@@ -42,6 +42,7 @@ kill_signal = "A parallel lease or linked-retirement owner returns, a retired re
 [promotion]
 targets = [
   ".config/checks/ruff/ratchet.toml",
+  "docs/reference/command-plane.md",
   "evidence/claims/adopter-openspec-lifecycle-20260714.toml",
   "evidence/claims/bounded-lane-retirement-20260714.toml",
   "evidence/claims/declarative-lifecycle-matrix-20260720.toml",
@@ -49,30 +50,20 @@ targets = [
   "evidence/claims/retire-landed-apply-verdict-20260709.toml",
   "evidence/chronicle/declarative-lifecycle-matrix-20260720/2026-07-20.md",
   "evidence/parity/generic-shadow.json",
-  "docs/reference/command-plane.md",
   "openspec/changes/declarative-lifecycle-matrix",
-  "packages/ethos-core/src/ethos_core/contracts/coordination.py",
-  "packages/ethos-core/src/ethos_core/contracts/lifecycle/core.py",
-  "packages/ethos-core/src/ethos_core/contracts/workflow.py",
+  "openspec/specs/quality/spec.md",
+  "openspec/specs/repository-governance/spec.md",
+  "packages/ethos-core/src/ethos_core/contracts",
   "packages/ethos/src/ethos/adapters/admission/transitions.py",
-  "packages/ethos/src/ethos/adapters/mutation/lane_lifecycle/handoff/core.py",
-  "packages/ethos/src/ethos/adapters/mutation/lane_lifecycle/handoff/package.py",
-  "packages/ethos/src/ethos/adapters/mutation/lane_lifecycle/lease.py",
-  "packages/ethos/src/ethos/adapters/mutation/lane_lifecycle/projection_rebase/core.py",
-  "packages/ethos/src/ethos/adapters/mutation/lane_lifecycle/refresh.py",
+  "packages/ethos/src/ethos/adapters/mutation/lane_lifecycle",
   "packages/ethos/src/ethos/adapters/mutation/lane_retirement",
   "packages/ethos/src/ethos/adapters/mutation/lanes.py",
   "packages/ethos/src/ethos/adapters/mutation/resolution/lane.py",
   "packages/ethos/src/ethos/adapters/repo/coordination.py",
-  "packages/ethos/src/ethos/adapters/repo/status/bindings.py",
-  "packages/ethos/src/ethos/adapters/repo/status/core.py",
+  "packages/ethos/src/ethos/adapters/repo/status",
+  "packages/ethos/src/ethos/adapters/store/state",
   "packages/ethos/src/ethos/repository/audit.py",
-  "packages/ethos/src/ethos/adapters/store/state/lease/lifecycle/core.py",
-  "packages/ethos/src/ethos/adapters/store/state/lease/lifecycle/effects.py",
-  "packages/ethos/src/ethos/adapters/store/state/lease/projection.py",
-  "packages/ethos/src/ethos/adapters/store/state/schema.py",
-  "packages/ethos/src/ethos/surface/cli/lane/core.py",
-  "packages/ethos/src/ethos/surface/cli/lane/lease.py",
+  "packages/ethos/src/ethos/surface/cli/lane",
   "packages/ethos/src/ethos/surface/cli/root/lifecycle.py",
   "system/invalid_states.toml",
   "system/schemas/contracts/workflows.schema.json",
@@ -80,6 +71,7 @@ targets = [
   "system/schemas/kernel/handoff-package.schema.json",
   "system/schemas/kernel/workspace-status.schema.json",
   "system/workflows.toml",
+  "tests/architecture/test_dependency_prose_schema_gates.py",
   "tests/support/lane_helpers.py",
   "tests/unit/cli/lane",
   "tests/unit/cli/test_contracts_land.py",
@@ -92,4 +84,5 @@ targets = [
   "tests/unit/kernel/test_workflow_contract.py",
   "tests/unit/lanes",
   "tests/unit/policy/test_module_layout.py",
+  "tools/ci/scripts/run-config-lint.sh",
 ]

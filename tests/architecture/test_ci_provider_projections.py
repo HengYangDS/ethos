@@ -160,6 +160,14 @@ def test_github_repository_proof_projects_parallel_worker_stability() -> None:
     assert github["jobs"]["quality"]["runs-on"] == expected_runner
     assert github["jobs"]["verify"]["runs-on"] == expected_runner
     assert github["jobs"]["package"]["runs-on"] == expected_runner
+    checkout_hook_isolation = {
+        "GIT_CONFIG_COUNT": "1",
+        "GIT_CONFIG_KEY_0": "core.hooksPath",
+        "GIT_CONFIG_VALUE_0": "/dev/null",
+    }
+    for job in ("quality", "verify", "package"):
+        assert github["jobs"][job]["steps"][0]["uses"] == "actions/checkout@v7"
+        assert github["jobs"][job]["steps"][0]["env"] == checkout_hook_isolation
     gitlab = yaml.safe_load((ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8"))
 
     assert gitlab["default"]["tags"] == ["${ETHOS_GITLAB_RUNNER_TAG}"]

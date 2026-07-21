@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-# fmt: off
 import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -24,49 +23,46 @@ if TYPE_CHECKING:
 SSH_SIGNING_TRANSPORT_TIMEOUT_SECONDS = 5.0
 
 
-def _ssh_agent_has_signing_key(key: str, *, env: dict[str, str] | None = None) -> bool:
+def ssh_signing_transport_ready(key: str, program: str = "ssh-keygen") -> bool:
+    """Ask Git's configured SSH signer to sign an in-memory probe."""
     try:
         completed = subprocess.run(
-            ["ssh-add", "-T", key], check=False, text=True, capture_output=True,
-            timeout=SSH_SIGNING_TRANSPORT_TIMEOUT_SECONDS, env=env,
+            [program, "-Y", "sign", "-n", "git", "-f", key, "-"],
+            capture_output=True,
+            check=False,
+            input="ethos-refresh-signing-preflight\n",
+            text=True,
+            timeout=SSH_SIGNING_TRANSPORT_TIMEOUT_SECONDS,
         )
     except (OSError, subprocess.TimeoutExpired):
         return False
     return completed.returncode == 0
 
 
-def ssh_signing_transport_ready(key: str) -> bool:
-    """Check the inherited then GUI-projected SSH-agent transport."""
-    if _ssh_agent_has_signing_key(key):
-        return True
-    try:
-        completed = subprocess.run(
-            ["launchctl", "getenv", "SSH_AUTH_SOCK"], check=False, text=True, capture_output=True,
-            timeout=SSH_SIGNING_TRANSPORT_TIMEOUT_SECONDS,
-        )
-    except (OSError, subprocess.TimeoutExpired):
-        return False
-    socket = completed.stdout.strip() if completed.returncode == 0 else ""
-    return bool(socket) and _ssh_agent_has_signing_key(key, env={"SSH_AUTH_SOCK": socket})
-
-
 def _signing_preflight_gaps(root: Path) -> list[str]:
     def config(key: str) -> str:
         return str(run_git(root, "config", "--get", key, check=False).stdout).strip()
 
-    if (config("commit.gpgsign").casefold() not in {"true", "yes", "on", "1"}
-            or config("gpg.format").casefold() != "ssh"):
+    if (
+        config("commit.gpgsign").casefold() not in {"true", "yes", "on", "1"}
+        or config("gpg.format").casefold() != "ssh"
+    ):
         return []
     key_path = Path(config("user.signingkey")).expanduser()
     key_path = key_path if key_path.is_absolute() else root / key_path
     if not key_path.is_file():
         return []
-    public_key = key_path if key_path.suffix.casefold() == ".pub" else key_path.with_name(
-        f"{key_path.name}.pub"
+    public_key = (
+        key_path
+        if key_path.suffix.casefold() == ".pub"
+        else key_path.with_name(f"{key_path.name}.pub")
     )
-    return [] if public_key.is_file() and ssh_signing_transport_ready(public_key.as_posix()) else [
-        "refresh_signing_transport_unavailable"
-    ]
+    signer = config("gpg.ssh.program") or "ssh-keygen"
+    return (
+        []
+        if public_key.is_file() and ssh_signing_transport_ready(public_key.as_posix(), signer)
+        else ["refresh_signing_transport_unavailable"]
+    )
 
 
 def _ref_head(root: Path, ref: str) -> str:
@@ -85,19 +81,30 @@ def bootstrap_candidate(
     policy = load_branch_role_policy(repo)
     status = workspace_status(repo)
     current_head = run_git(repo, "rev-parse", "HEAD").stdout.strip()
-    target = (path or default_candidate_path(repo, policy.candidate_branch)
-              ).resolve()
+    target = (path or default_candidate_path(repo, policy.candidate_branch)).resolve()
 
     def report(*, ok: bool, state: str, gaps: list[str], **details: object) -> dict[str, object]:
-        return _refresh_report(ok=ok, state=state, branch=policy.candidate_branch,
-                               head=current_head, gaps=gaps, **details)
+        return _refresh_report(
+            ok=ok,
+            state=state,
+            branch=policy.candidate_branch,
+            head=current_head,
+            gaps=gaps,
+            **details,
+        )
 
     details = {"path": target.as_posix()}
-    gaps = [gap for gap, present in (
-        ("candidate_bootstrap_requires_clean_accepted_root",
-         status["role"] != ROLE_ACCEPTED_ROOT or status["dirty"]),
-        ("expect_head_mismatch", expect_head is not None and expect_head != current_head),
-    ) if present]
+    gaps = [
+        gap
+        for gap, present in (
+            (
+                "candidate_bootstrap_requires_clean_accepted_root",
+                status["role"] != ROLE_ACCEPTED_ROOT or status["dirty"],
+            ),
+            ("expect_head_mismatch", expect_head is not None and expect_head != current_head),
+        )
+        if present
+    ]
     if gaps:
         return report(ok=False, state="blocked", gaps=gaps, **details)
     candidate = cast("dict[str, object]", status["candidate"])
@@ -121,19 +128,30 @@ def bootstrap_candidate(
     )
     completed = run_git(repo, *args, check=False)
     failed = completed.returncode != 0
-    return report(ok=not failed, state="blocked" if failed else "bootstrapped",
-                  gaps=["candidate_worktree_add_failed"] if failed else [],
-                  stderr=completed.stderr.strip() if failed else "", **details)
+    return report(
+        ok=not failed,
+        state="blocked" if failed else "bootstrapped",
+        gaps=["candidate_worktree_add_failed"] if failed else [],
+        stderr=completed.stderr.strip() if failed else "",
+        **details,
+    )
 
 
 def _apply_gaps(
     *, apply: bool, authorized: bool, expect_head: str | None, current_head: str
 ) -> list[str]:
-    return [gap for gap, present in (
-        ("authorization_required", apply and not authorized),
-        ("expect_head_required", apply and expect_head is None),
-        ("expect_head_mismatch", apply and expect_head is not None and expect_head != current_head),
-    ) if present]
+    return [
+        gap
+        for gap, present in (
+            ("authorization_required", apply and not authorized),
+            ("expect_head_required", apply and expect_head is None),
+            (
+                "expect_head_mismatch",
+                apply and expect_head is not None and expect_head != current_head,
+            ),
+        )
+        if present
+    ]
 
 
 def _candidate_worktree_gaps(
@@ -144,9 +162,7 @@ def _candidate_worktree_gaps(
         return ["candidate_branch_missing"]
     if not candidate["worktree_exists"]:
         return ["candidate_worktree_missing"]
-    return (
-        ["candidate_worktree_dirty"] if changed_paths(Path(candidate_path)) else []
-    )
+    return ["candidate_worktree_dirty"] if changed_paths(Path(candidate_path)) else []
 
 
 def _refresh_report(
@@ -188,17 +204,31 @@ def refresh_candidate_from_accepted(
     candidate_path = str(candidate.get("worktree_path") or "")
 
     def report(*, ok: bool, state: str, gaps: list[str], **more: object) -> dict[str, object]:
-        return _refresh_report(ok=ok, state=state, branch=policy.candidate_branch,
-                               head=current_head, gaps=gaps, previous_head=candidate_head,
-                               path=candidate_path, **more)
+        return _refresh_report(
+            ok=ok,
+            state=state,
+            branch=policy.candidate_branch,
+            head=current_head,
+            gaps=gaps,
+            previous_head=candidate_head,
+            path=candidate_path,
+            **more,
+        )
 
-    gaps = [gap for gap, present in (
-        ("accepted_root_required", status["role"] != ROLE_ACCEPTED_ROOT),
-        ("accepted_root_dirty", status["role"] == ROLE_ACCEPTED_ROOT and status["dirty"]),
-    ) if present]
+    gaps = [
+        gap
+        for gap, present in (
+            ("accepted_root_required", status["role"] != ROLE_ACCEPTED_ROOT),
+            ("accepted_root_dirty", status["role"] == ROLE_ACCEPTED_ROOT and status["dirty"]),
+        )
+        if present
+    ]
     gaps.extend(_candidate_worktree_gaps(candidate, candidate_path))
-    gaps.extend(_apply_gaps(apply=apply, authorized=authorized, expect_head=expect_head,
-                            current_head=current_head))
+    gaps.extend(
+        _apply_gaps(
+            apply=apply, authorized=authorized, expect_head=expect_head, current_head=current_head
+        )
+    )
     if gaps:
         return report(ok=False, state="blocked", gaps=gaps)
     if candidate_head == current_head:
@@ -209,11 +239,14 @@ def refresh_candidate_from_accepted(
     # accepted branch, so the reference-transaction hook's candidate admission admits it
     # without a fresh proof (see _contained_in_accepted); no ref-move escape is needed now
     # that the ETHOS_ALLOW_REF_MOVE bypass has been removed from the candidate train.
-    completed = run_git(Path(candidate_path), "reset", "--hard", current_head,
-                                       check=False)
+    completed = run_git(Path(candidate_path), "reset", "--hard", current_head, check=False)
     if completed.returncode != 0:
-        return report(ok=False, state="blocked", gaps=["candidate_refresh_from_accepted_failed"],
-                      stderr=completed.stderr.strip())
+        return report(
+            ok=False,
+            state="blocked",
+            gaps=["candidate_refresh_from_accepted_failed"],
+            stderr=completed.stderr.strip(),
+        )
     return report(ok=True, state="refreshed_from_accepted", gaps=[])
 
 
@@ -235,18 +268,32 @@ def refresh_work_lane_base(
     def report(
         *, ok: bool, state: str, head: str, gaps: list[str], **more: object
     ) -> dict[str, object]:
-        return _refresh_report(ok=ok, state=state, branch=branch, head=head, gaps=gaps,
-                               candidate_branch=policy.candidate_branch,
-                               candidate_head=candidate_head,
-                               candidate_path=candidate_path, **more)
+        return _refresh_report(
+            ok=ok,
+            state=state,
+            branch=branch,
+            head=head,
+            gaps=gaps,
+            candidate_branch=policy.candidate_branch,
+            candidate_head=candidate_head,
+            candidate_path=candidate_path,
+            **more,
+        )
 
-    gaps = [gap for gap, present in (
-        ("protected_root_mutation", status["role"] != ROLE_WORK_LANE),
-        ("work_lane_dirty", status["role"] == ROLE_WORK_LANE and status["dirty"]),
-    ) if present]
+    gaps = [
+        gap
+        for gap, present in (
+            ("protected_root_mutation", status["role"] != ROLE_WORK_LANE),
+            ("work_lane_dirty", status["role"] == ROLE_WORK_LANE and status["dirty"]),
+        )
+        if present
+    ]
     gaps.extend(_candidate_worktree_gaps(candidate, candidate_path))
-    gaps.extend(_apply_gaps(apply=apply, authorized=authorized, expect_head=expect_head,
-                            current_head=current_head))
+    gaps.extend(
+        _apply_gaps(
+            apply=apply, authorized=authorized, expect_head=expect_head, current_head=current_head
+        )
+    )
     if gaps:
         return report(ok=False, state="blocked", head=current_head, gaps=gaps)
     if is_ancestor(root, candidate_head, current_head):
@@ -257,26 +304,32 @@ def refresh_work_lane_base(
     if signing_gaps:
         return report(ok=False, state="blocked", head=current_head, gaps=signing_gaps)
     return _replay_work_lane(
-        root=root, snapshot=(branch, policy.candidate_branch, candidate_head, current_head),
+        root=root,
+        snapshot=(branch, policy.candidate_branch, candidate_head, current_head),
         report=report,
     )
 
 
 def _replay_work_lane(
-    *, root: Path, snapshot: tuple[str, str, str, str],
+    *,
+    root: Path,
+    snapshot: tuple[str, str, str, str],
     report: Callable[..., dict[str, object]],
 ) -> dict[str, object]:
     branch, candidate_branch, candidate_head, current_head = snapshot
     snapshot_gaps: list[str] = [
-        f"refresh_base_snapshot_stale:{name}" for name, ref, admitted in (
+        f"refresh_base_snapshot_stale:{name}"
+        for name, ref, admitted in (
             ("work_lane", "HEAD", current_head),
             ("candidate", candidate_branch, candidate_head),
-        ) if _ref_head(root, ref) != admitted
+        )
+        if _ref_head(root, ref) != admitted
     ]
     if snapshot_gaps:
         return report(ok=False, state="blocked", head=current_head, gaps=snapshot_gaps)
-    completed = run_git(root, "-c", "rebase.updateRefs=false", "rebase", candidate_head,
-                                current_head, check=False)
+    completed = run_git(
+        root, "-c", "rebase.updateRefs=false", "rebase", candidate_head, current_head, check=False
+    )
     projection_resolution = resolve_projection_rebase(root, completed)
     projection_recovered = completed.returncode != 0 and projection_resolution["ok"]
     if completed.returncode != 0 and not projection_recovered:
@@ -295,13 +348,15 @@ def _replay_work_lane(
 
     def finish(rebased_head: str) -> dict[str, object]:
         def blocked(gaps: list[str], *, head: str, **more: object) -> dict[str, object]:
-            return report(ok=False, state="blocked", head=head, gaps=gaps,
-                          previous_head=current_head, **more)
+            return report(
+                ok=False, state="blocked", head=head, gaps=gaps, previous_head=current_head, **more
+            )
 
         if not is_ancestor(root, candidate_head, rebased_head):
             run_git(root, "switch", branch, check=False)
             return blocked(
-                ["refresh_base_postcondition_failed"], head=_ref_head(root, "HEAD"),
+                ["refresh_base_postcondition_failed"],
+                head=_ref_head(root, "HEAD"),
                 next_actions=[
                     "inspect current Git ancestry and runner, signing, or hook diagnostics",
                     "repair the replay environment and rerun ethos lane refresh-base",
@@ -318,20 +373,35 @@ def _replay_work_lane(
         )
         if updated.returncode != 0:
             restored = run_git(root, "switch", branch, check=False)
-            return blocked([
+            return blocked(
+                [
                     "refresh_base_snapshot_stale:work_lane",
                     *([] if restored.returncode == 0 else ["refresh_base_worktree_restore_failed"]),
-                ], head=_ref_head(root, "HEAD"), stderr=updated.stderr.strip())
+                ],
+                head=_ref_head(root, "HEAD"),
+                stderr=updated.stderr.strip(),
+            )
         attached = run_git(root, "switch", branch, check=False)
         if attached.returncode != 0:
-            return blocked(["refresh_base_worktree_attach_failed"], head=rebased_head,
-                           stderr=attached.stderr.strip())
+            return blocked(
+                ["refresh_base_worktree_attach_failed"],
+                head=rebased_head,
+                stderr=attached.stderr.strip(),
+            )
         refreshed_head = _ref_head(root, "HEAD")
         if refreshed_head != rebased_head:
-            return blocked(["refresh_base_snapshot_stale:work_lane"], head=refreshed_head,
-                           stderr="work-lane branch advanced after refresh compare-and-swap")
-        result = report(ok=True, state="base_refreshed", head=refreshed_head, gaps=[],
-                        previous_head=current_head)
+            return blocked(
+                ["refresh_base_snapshot_stale:work_lane"],
+                head=refreshed_head,
+                stderr="work-lane branch advanced after refresh compare-and-swap",
+            )
+        result = report(
+            ok=True,
+            state="base_refreshed",
+            head=refreshed_head,
+            gaps=[],
+            previous_head=current_head,
+        )
         if projection_recovered:
             projection_gaps = [
                 gap
@@ -346,9 +416,7 @@ def _replay_work_lane(
             result.update(
                 {
                     "state": (
-                        "base_refreshed_projection_stale"
-                        if projection_gaps
-                        else "base_refreshed"
+                        "base_refreshed_projection_stale" if projection_gaps else "base_refreshed"
                     ),
                     "projection_refresh_required": bool(projection_gaps),
                     "projection_refresh_gaps": projection_resolution["gaps"],
@@ -360,4 +428,3 @@ def _replay_work_lane(
         return result
 
     return finish(_ref_head(root, "HEAD"))
-# fmt: on

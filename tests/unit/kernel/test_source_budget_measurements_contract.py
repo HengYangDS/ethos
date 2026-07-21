@@ -7,6 +7,7 @@ from pydantic import ValidationError
 
 import ethos_core.contracts.source_budget.measurement.canonical as canonical
 import ethos_core.contracts.source_budget.measurements as measurements_module
+import ethos_core.contracts.source_budget.metrics as metrics_module
 from ethos_core.contracts.source_budget.measurements import CarrierMeasurement
 from ethos_core.contracts.source_budget.measurements import CarrierMeasurementLoad
 from ethos_core.contracts.source_budget.measurements import MeasurementCoordinate
@@ -418,3 +419,159 @@ def test_contract_module_surface_and_effective_size_are_bounded() -> None:
     assert not hasattr(canonical, "__all__")
     assert measurements_module.__file__ is not None
     assert effective_code_lines(Path(measurements_module.__file__)) <= 500
+
+
+def test_execution_identity_propagates_without_changing_measurement_vector() -> None:
+    execution_digest = "0851b19f0adff27f5038a7eb78f68649a3a81c725f7056b2c301ba4cd5cfaafe"
+    contracts = tuple(
+        metrics_module.MetricContract.model_validate(
+            {
+                "contract_id": f"python-source-v2:{metric_id}",
+                "contract_version": 4,
+                "metric_id": metric_id,
+                "unit": unit,
+                "carrier_role": "authored_behavioral_source",
+                "metric_profile": "python-source-v2",
+                "parser_id": "python-tokenize",
+                "parser_version": "cpython-3.14+ethos-python-v1",
+                "grammar_digest": "2" * 64,
+                "normalization_id": "python-source",
+                "normalization_version": "1",
+                "aggregation": "sum",
+                "non_compensable": True,
+                "execution_mode": "isolated_worker_v1",
+                "max_carrier_bytes": 65536,
+                "execution_contract_id": ("ethos-source-budget-execution:isolated-worker-v1"),
+                "execution_contract_digest": execution_digest,
+            }
+        )
+        for metric_id, unit in (
+            ("lexical_tokens", "lexical_token"),
+            ("normalized_bytes", "normalized_byte"),
+        )
+    )
+    registry = metrics_module.MetricContractSet.model_validate(
+        {
+            "schema": "ethos-source-budget-metrics-v4",
+            "contract_version": 4,
+            "profiles": (
+                {
+                    "profile_id": "python-source-v2",
+                    "carrier_role": "authored_behavioral_source",
+                    "required_metric_ids": ("lexical_tokens", "normalized_bytes"),
+                },
+            ),
+            "contracts": contracts,
+        }
+    )
+    drifted_contracts = tuple(
+        contract.model_copy(update={"execution_contract_digest": "f" * 64})
+        for contract in contracts
+    )
+    drifted_registry = metrics_module.MetricContractSet.model_construct(
+        schema_id=registry.schema_id,
+        contract_version=registry.contract_version,
+        profiles=registry.profiles,
+        contracts=drifted_contracts,
+    )
+    registry_digest = metrics_module.metric_contracts_digest(registry)
+    drifted_registry_digest = metrics_module.metric_contracts_digest(drifted_registry)
+    resolved_digest = canonical.resolved_model_digest(contracts)
+    drifted_resolved_digest = canonical.resolved_model_digest(drifted_contracts)
+    values = (_value(), _value("normalized_bytes", "normalized_byte", 17))
+    native_digest = canonical.native_model_digest(
+        RAW_A,
+        NORMALIZED,
+        resolved_digest,
+        values,
+    )
+    drifted_native_digest = canonical.native_model_digest(
+        RAW_A,
+        NORMALIZED,
+        drifted_resolved_digest,
+        values,
+    )
+    native = NativeMeasurement.model_construct(
+        content_sha256=RAW_A,
+        normalized_digest=NORMALIZED,
+        contracts=contracts,
+        resolved_contracts_digest=resolved_digest,
+        values=values,
+        measurement_digest=native_digest,
+    )
+    drifted_native = NativeMeasurement.model_construct(
+        content_sha256=RAW_A,
+        normalized_digest=NORMALIZED,
+        contracts=drifted_contracts,
+        resolved_contracts_digest=drifted_resolved_digest,
+        values=values,
+        measurement_digest=drifted_native_digest,
+    )
+    identity = _identity()
+    relative_path = "packages/sample.py"
+    carrier_digest = canonical.carrier_model_digest(
+        relative_path,
+        identity,
+        registry_digest,
+        native,
+    )
+    drifted_carrier_digest = canonical.carrier_model_digest(
+        relative_path,
+        identity,
+        drifted_registry_digest,
+        drifted_native,
+    )
+    carrier = CarrierMeasurement.model_construct(
+        relative_path=relative_path,
+        identity=identity,
+        contract_set_digest=registry_digest,
+        native=native,
+        measurement_digest=carrier_digest,
+    )
+    drifted_carrier = CarrierMeasurement.model_construct(
+        relative_path=relative_path,
+        identity=identity,
+        contract_set_digest=drifted_registry_digest,
+        native=drifted_native,
+        measurement_digest=drifted_carrier_digest,
+    )
+    inventory = _inventory((relative_path,))
+    coordinates = (
+        MeasurementCoordinate(
+            scope_id="product.python",
+            metric_id="lexical_tokens",
+            unit="lexical_token",
+            value=3,
+        ),
+        MeasurementCoordinate(
+            scope_id="product.python",
+            metric_id="normalized_bytes",
+            unit="normalized_byte",
+            value=17,
+        ),
+    )
+    drifted_coordinates = tuple(item.model_copy() for item in coordinates)
+    snapshot_digest = canonical.snapshot_model_digest(
+        inventory.manifest_digest,
+        inventory.inventory_digest,
+        registry_digest,
+        (carrier,),
+        coordinates,
+    )
+    drifted_snapshot_digest = canonical.snapshot_model_digest(
+        inventory.manifest_digest,
+        inventory.inventory_digest,
+        drifted_registry_digest,
+        (drifted_carrier,),
+        drifted_coordinates,
+    )
+
+    assert registry_digest != drifted_registry_digest
+    assert resolved_digest != drifted_resolved_digest
+    assert native_digest != drifted_native_digest
+    assert carrier_digest != drifted_carrier_digest
+    assert snapshot_digest != drifted_snapshot_digest
+    assert coordinates == drifted_coordinates
+    assert canonical.vector_model_digest(coordinates) == canonical.vector_model_digest(
+        drifted_coordinates
+    )

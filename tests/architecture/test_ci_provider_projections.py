@@ -172,6 +172,9 @@ def test_github_repository_proof_projects_parallel_worker_stability() -> None:
     gitlab = yaml.safe_load((ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8"))
 
     assert gitlab["default"]["tags"] == ["${ETHOS_GITLAB_RUNNER_TAG}"]
+    assert gitlab["variables"]["ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR"] == (
+        "/cache/${CI_PROJECT_PATH_SLUG}/ci-tools"
+    )
 
 
 def test_configure_governed_checkout_does_not_reuse_host_global_signing_key(

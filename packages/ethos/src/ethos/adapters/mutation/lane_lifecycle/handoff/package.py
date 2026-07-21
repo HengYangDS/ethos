@@ -33,6 +33,10 @@ if TYPE_CHECKING:
     from ethos_core.contracts.coordination import CrossHostHandoff
 
 
+def _error(**gap: None) -> ValueError:
+    return ValueError(next(iter(gap)))
+
+
 def write_handoff_package(
     *,
     repo: Path,
@@ -197,8 +201,8 @@ def apply_handoff_import(
     head = str(manifest["source_head"])
     worktree_path = destination.with_name(f"{destination.name}-{branch.replace('/', '-')}")
     if os.path.lexists(worktree_path):
-        raise ValueError("handoff_destination_path_exists")
-    created = [False, False]
+        raise _error(handoff_destination_path_exists=None)
+    ref_created = worktree_created = False
     lease: dict[str, Any] = {}
     try:
         with _verified_package_snapshot(
@@ -218,9 +222,9 @@ def apply_handoff_import(
                 head,
                 "0" * len(head),
             )
-            created[0] = True
+            ref_created = True
             _run(destination, "git", "worktree", "add", worktree_path.as_posix(), branch)
-            created[1] = True
+            worktree_created = True
             lease = acquire_lease(
                 destination / ".ethos" / "state" / "state.sqlite",
                 subject=branch,
@@ -238,7 +242,7 @@ def apply_handoff_import(
             destination=destination,
             manifest=manifest,
             worktree_path=worktree_path,
-            created=tuple(created),
+            created=(ref_created, worktree_created),
             lease=lease,
         )
         raise
@@ -254,14 +258,14 @@ def apply_handoff_import(
 def _unbundle(destination: Path, bundle: Path, head: str, tree: str) -> None:
     heads = run_git(destination, "bundle", "list-heads", bundle.as_posix()).stdout.splitlines()
     if heads != [f"{head} refs/heads/source"]:
-        raise ValueError("handoff_bundle_identity_mismatch")
+        raise _error(handoff_bundle_identity_mismatch=None)
     _run(destination, "git", "bundle", "unbundle", bundle.as_posix())
     actual = tuple(
         run_git(destination, "rev-parse", f"{head}^{{{kind}}}").stdout.strip()
         for kind in ("commit", "tree")
     )
     if actual != (head, tree):
-        raise ValueError("handoff_bundle_identity_mismatch")
+        raise _error(handoff_bundle_identity_mismatch=None)
 
 
 def _verify_destination_identity(
@@ -280,7 +284,7 @@ def _verify_destination_identity(
         str((lease or {}).get("expected_head") or head),
     )
     if actual != (head, head, tree, head):
-        raise ValueError("handoff_destination_identity_drift")
+        raise _error(handoff_destination_identity_drift=None)
 
 
 def _verify_export_snapshot(
@@ -289,9 +293,9 @@ def _verify_export_snapshot(
     handoff: CrossHostHandoff,
 ) -> None:
     if run_git(repo, "rev-parse", handoff.source_lane_ref).stdout.strip() != handoff.source_head:
-        raise ValueError("handoff_export_head_drift")
+        raise _error(handoff_export_head_drift=None)
     if dirty_content_sha256(repo) != handoff.dirty_content_sha256:
-        raise ValueError("handoff_export_dirty_drift")
+        raise _error(handoff_export_dirty_drift=None)
     with sqlite3.connect(
         Path(git_common_dir(repo)).parent / ".ethos/state/state.sqlite"
     ) as connection:
@@ -309,7 +313,7 @@ def _verify_export_snapshot(
                 require_expired=False,
             )
         except ValueError as exc:
-            raise ValueError("handoff_export_lease_drift") from exc
+            raise _error(handoff_export_lease_drift=None) from exc
 
 
 def _commit_import(
@@ -336,7 +340,6 @@ def _commit_import(
         _verify_destination_identity(destination, worktree, manifest, current)
         return current, _validated_handoff_acknowledgement(
             root=destination,
-            worktree=worktree,
             manifest=manifest,
             lease=current,
         )
@@ -351,7 +354,7 @@ def _verified_package_snapshot(*, package: Path, manifest: dict[str, Any], root:
         )
         copied, gaps = verified_handoff_manifest(package=snapshot, root=root)
         if gaps or copied != manifest:
-            raise ValueError("handoff_package_changed_after_verification")
+            raise _error(handoff_package_changed_after_verification=None)
         yield snapshot
 
 
@@ -390,18 +393,14 @@ def _publish_package(
     try:
         _rename_no_replace(staging, package_dir)
     except FileExistsError:
-        pass
-    else:
-        return
-    existing, gaps = verified_handoff_manifest(package=package_dir, root=root)
-    if gaps or existing != manifest:
-        raise ValueError("handoff_package_collision_or_invalid")
+        existing, gaps = verified_handoff_manifest(package=package_dir, root=root)
+        if gaps or existing != manifest:
+            raise _error(handoff_package_collision_or_invalid=None) from None
 
 
 def _validated_handoff_acknowledgement(
     *,
     root: Path,
-    worktree: Path,
     manifest: dict[str, Any],
     lease: dict[str, Any],
 ) -> dict[str, object]:
@@ -462,7 +461,7 @@ def _compensate_failed_import(
         ).returncode
         == 0
     ):
-        raise ValueError("handoff_import_compensation_failed")
+        raise _error(handoff_import_compensation_failed=None)
     if lease:
         revoke_lease(
             destination / ".ethos" / "state" / "state.sqlite",

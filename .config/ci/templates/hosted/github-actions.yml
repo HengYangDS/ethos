@@ -88,7 +88,10 @@ jobs:
     runs-on: [self-hosted, macOS, ARM64, "${{ vars.ETHOS_GITHUB_RUNNER_LABEL }}"]
     needs: quality
     env:
-      ETHOS_TEST_WORKERS: "1"
+      # A single worker protects correctness but exceeds the 120s per-test timeout
+      # on the repository's large isolated lane/closeout test groups. Four workers
+      # preserve the same owner-script coverage gate while isolating test state.
+      ETHOS_TEST_WORKERS: "4"
     steps:
       - uses: actions/checkout@v7
         with:

@@ -140,7 +140,7 @@ def test_cli_contract_and_transition_edges(tmp_path: Path, monkeypatch: pytest.M
     assert gaps("work/x", {}, "a", "h") == ["work_lane_missing_lease:work/x"]
     data = {"holder_ref": "a", "lease_id": "l", "epoch": 1, "expected_head": "h"}
     monkeypatch.setenv("ETHOS_ACTOR", "a")
-    _patch(monkeypatch, tx, load_branch_role_policy=lambda _root: object(), worktree_records=lambda *_args, **_kwargs: [], leases_by_branch=lambda *_args, **_kwargs: {"work/x": data})  # fmt: skip
+    _patch(monkeypatch, tx, leases_by_branch=lambda _root: {"work/x": data}, state_database=lambda _root: tmp_path / "state.sqlite")  # fmt: skip
 
     def stale(*_args: object, **_kwargs: object) -> object:
         raise ValueError("stale")  # noqa: EM101, RUF100 - injected lease transition failure

@@ -68,7 +68,7 @@ def test_closeout_and_lane_guards(tmp_path: Path) -> None:
     blocked = lifecycle.MutationEvaluation(ok=False, state="blocked", gaps=("authorization_required",))  # fmt: skip
     result = core.apply_land_to_candidate(root=init_git_repo(tmp_path / "blocked"), authorized=False, expect_head=None, admitted_decision=blocked)  # fmt: skip
     assert result["required_gaps"] == ["authorization_required"]
-    report = lanes.bind_work_lane_claim(root=tmp_path, claim_id="c", branch="work/none", apply=False)  # fmt: skip
+    report = lanes.bind_work_lane_claim(root=repo, claim_id="c", branch="work/none", apply=False)  # fmt: skip
     assert "work_lane_not_found:work/none" in report["required_gaps"]
     db = tmp_path / ".ethos/state/state.sqlite"
     acquire_lease(db, subject="work/other", holder_ref="agent:test:case:owner")

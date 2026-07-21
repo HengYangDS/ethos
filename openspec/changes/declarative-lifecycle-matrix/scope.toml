@@ -31,6 +31,7 @@ paths = [
   "system/schemas/kernel/workspace-status.schema.json",
   "system/workflows.toml",
   "tests/architecture/test_dependency_prose_schema_gates.py",
+  "tests/architecture/test_product_design_contract.py",
   "tests/support/lane_helpers.py",
   "tests/unit/cli/lane/**",
   "tests/unit/cli/test_contracts_*.py",

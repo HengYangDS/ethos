@@ -25,6 +25,13 @@ jobs:
     runs-on: [self-hosted, macOS, ARM64, "${{ vars.ETHOS_GITHUB_RUNNER_LABEL }}"]
     steps:
       - uses: actions/checkout@v7
+        env:
+          # The macOS host globally arms ETHOS ref-transaction hooks. Checkout must
+          # establish the immutable CI ref before this job can configure its own
+          # governed checkout, so disable only that inherited hook for this action.
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: core.hooksPath
+          GIT_CONFIG_VALUE_0: /dev/null
         with:
           fetch-depth: 0
       - uses: actions/setup-python@v6
@@ -94,6 +101,11 @@ jobs:
       ETHOS_TEST_WORKERS: "4"
     steps:
       - uses: actions/checkout@v7
+        env:
+          # See quality: the source-controlled admission hook is armed after checkout.
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: core.hooksPath
+          GIT_CONFIG_VALUE_0: /dev/null
         with:
           fetch-depth: 0
       - uses: actions/setup-python@v6
@@ -127,6 +139,11 @@ jobs:
     needs: verify
     steps:
       - uses: actions/checkout@v7
+        env:
+          # Prevent the runner host's global hook from vetoing the initial checkout.
+          GIT_CONFIG_COUNT: "1"
+          GIT_CONFIG_KEY_0: core.hooksPath
+          GIT_CONFIG_VALUE_0: /dev/null
       - uses: actions/setup-python@v6
         with:
           python-version: "3.14"

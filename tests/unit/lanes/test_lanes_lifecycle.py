@@ -527,107 +527,27 @@ def test_refresh_work_lane_base_apply_rebases_current_lane(tmp_path: Path) -> No
     assert (worktree / "FEATURE.md").exists()
 
 
-def test_ssh_signing_transport_uses_configured_program(monkeypatch: pytest.MonkeyPatch) -> None:
-    calls: list[tuple[tuple[str, ...], dict[str, object]]] = []
-
-    def run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
-        calls.append((tuple(command), kwargs))
-        return subprocess.CompletedProcess(command, 0, "signature", "")
-
-    monkeypatch.setattr(lane_refresh.subprocess, "run", run)
-
-    assert lane_refresh.ssh_signing_transport_ready("signing-key.pub", "keychain-signer")
-    assert calls == [
-        (
-            (
-                "keychain-signer",
-                "-Y",
-                "sign",
-                "-n",
-                "git",
-                "-f",
-                "signing-key.pub",
-                "-",
-            ),
-            {
-                "capture_output": True,
-                "check": False,
-                "input": "ethos-refresh-signing-preflight\n",
-                "text": True,
-                "timeout": lane_refresh.SSH_SIGNING_TRANSPORT_TIMEOUT_SECONDS,
-            },
-        )
-    ]
-
-
-def test_refresh_work_lane_base_blocks_unavailable_file_backed_ssh_before_rebase(
+def test_refresh_work_lane_base_uses_git_as_signing_authority(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    _, _, worktree, _, _ = _stale_work_lane(tmp_path)
-    key = worktree / "keys" / "signing-key"
-    key.parent.mkdir()
-    key.write_text("private\n", encoding="utf-8")
-    key.with_name("signing-key.pub").write_text("public\n", encoding="utf-8")
-    git(worktree, "add", "keys")
-    git(
-        worktree,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit",
-        "-m",
-        "add signing key fixture",
-    )
-    previous_head = git(worktree, "rev-parse", "HEAD")
+    _, _, worktree, previous_head, _ = _stale_work_lane(tmp_path)
     original_run_git = lane_refresh.run_git
-    rebase_calls: list[tuple[str, ...]] = []
-    values = {"commit.gpgsign": "true", "gpg.format": "ssh", "user.signingkey": "keys/signing-key"}
+    calls: list[tuple[str, ...]] = []
 
-    def signing_git(root: Path, *args: str, **kwargs: object) -> subprocess.CompletedProcess[str]:
-        if args[:2] == ("config", "--get"):
-            return subprocess.CompletedProcess(["git", *args], 0, values.get(args[-1], ""), "")
-        if "rebase" in args:
-            rebase_calls.append(args)
-            return subprocess.CompletedProcess(["git", *args], 0, "", "")
+    def run_git(root: Path, *args: str, **kwargs: object) -> subprocess.CompletedProcess[str]:
+        calls.append(args)
         return original_run_git(root, *args, **kwargs)
 
-    monkeypatch.setattr(
-        lane_refresh,
-        "ssh_signing_transport_ready",
-        lambda _key, _program: False,
-        raising=False,
-    )
-    monkeypatch.setattr(lane_refresh, "run_git", signing_git)
-    report = lane_refresh.refresh_work_lane_base(
-        root=worktree,
-        apply=True,
-        authorized=True,
-        expect_head=previous_head,
-    )
-
-    assert report["required_gaps"] == ["refresh_signing_transport_unavailable"]
-    assert rebase_calls == []
-    assert git(worktree, "rev-parse", "HEAD") == previous_head
-
-
-def test_refresh_work_lane_base_blocks_snapshot_moved_during_preflight(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    _, candidate, worktree, previous_head, _ = _stale_work_lane(tmp_path)
-
-    def move_candidate(*_args: object, **_kwargs: object) -> list[str]:
-        commit_fixture_file(candidate, "LATE.md", "# late\n", "advance candidate late")
-        return []
-
-    monkeypatch.setattr(lane_refresh, "_signing_preflight_gaps", move_candidate, raising=False)
+    monkeypatch.setattr(lane_refresh, "run_git", run_git)
 
     report = refresh_work_lane_base(
         root=worktree, apply=True, authorized=True, expect_head=previous_head
     )
 
-    assert report["required_gaps"] == ["refresh_base_snapshot_stale:candidate"]
-    assert git(worktree, "rev-parse", "HEAD") == previous_head
+    assert report["ok"] is True
+    assert report["required_gaps"] == []
+    assert any("rebase" in call for call in calls)
+    assert all(call[:2] != ("config", "--get") for call in calls)
 
 
 def test_refresh_work_lane_base_rechecks_configured_candidate_ref(

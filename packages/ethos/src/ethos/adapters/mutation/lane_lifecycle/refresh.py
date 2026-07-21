@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
@@ -18,51 +17,6 @@ from ethos_core.contracts.branch.roles import load_branch_role_policy
 
 if TYPE_CHECKING:
     from collections.abc import Callable
-
-
-SSH_SIGNING_TRANSPORT_TIMEOUT_SECONDS = 5.0
-
-
-def ssh_signing_transport_ready(key: str, program: str = "ssh-keygen") -> bool:
-    """Ask Git's configured SSH signer to sign an in-memory probe."""
-    try:
-        completed = subprocess.run(
-            [program, "-Y", "sign", "-n", "git", "-f", key, "-"],
-            capture_output=True,
-            check=False,
-            input="ethos-refresh-signing-preflight\n",
-            text=True,
-            timeout=SSH_SIGNING_TRANSPORT_TIMEOUT_SECONDS,
-        )
-    except (OSError, subprocess.TimeoutExpired):
-        return False
-    return completed.returncode == 0
-
-
-def _signing_preflight_gaps(root: Path) -> list[str]:
-    def config(key: str) -> str:
-        return str(run_git(root, "config", "--get", key, check=False).stdout).strip()
-
-    if (
-        config("commit.gpgsign").casefold() not in {"true", "yes", "on", "1"}
-        or config("gpg.format").casefold() != "ssh"
-    ):
-        return []
-    key_path = Path(config("user.signingkey")).expanduser()
-    key_path = key_path if key_path.is_absolute() else root / key_path
-    if not key_path.is_file():
-        return []
-    public_key = (
-        key_path
-        if key_path.suffix.casefold() == ".pub"
-        else key_path.with_name(f"{key_path.name}.pub")
-    )
-    signer = config("gpg.ssh.program") or "ssh-keygen"
-    return (
-        []
-        if public_key.is_file() and ssh_signing_transport_ready(public_key.as_posix(), signer)
-        else ["refresh_signing_transport_unavailable"]
-    )
 
 
 def _ref_head(root: Path, ref: str) -> str:
@@ -300,9 +254,6 @@ def refresh_work_lane_base(
         return report(ok=True, state="base_current", head=current_head, gaps=[])
     if not apply:
         return report(ok=True, state="ready_to_refresh_base", head=current_head, gaps=[])
-    signing_gaps = _signing_preflight_gaps(root)
-    if signing_gaps:
-        return report(ok=False, state="blocked", head=current_head, gaps=signing_gaps)
     return _replay_work_lane(
         root=root,
         snapshot=(branch, policy.candidate_branch, candidate_head, current_head),

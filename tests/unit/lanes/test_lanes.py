@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 import shutil
+import subprocess
 from typing import TYPE_CHECKING
 
+import pytest
+
+from ethos.adapters.mutation.lane_lifecycle.core import repo_root
 from ethos.adapters.mutation.lanes import start_work_lane
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.repository.policy.schema import validate_schema_instance
@@ -14,6 +18,11 @@ from tests.support.lane_helpers import init_repo
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+
+def test_mutation_repo_root_rejects_a_non_git_directory(tmp_path: Path) -> None:
+    with pytest.raises(subprocess.CalledProcessError):
+        repo_root(tmp_path)
 
 
 def test_workspace_status_reports_stage_gates_for_accepted_root(tmp_path: Path) -> None:

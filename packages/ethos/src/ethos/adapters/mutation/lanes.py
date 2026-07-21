@@ -143,7 +143,7 @@ def start_work_lane(  # noqa: C901, PLR0913, RUF100 - exact start saga dimension
     }
 
 
-def _abort_lane_start(  # noqa: C901 - exact compensation state machine
+def _abort_lane_start(
     repo: Path,
     *,
     target: Path,
@@ -175,13 +175,17 @@ def _abort_lane_start(  # noqa: C901 - exact compensation state machine
         }
 
     current_head = ref_head(repo, branch)
-    if (completed.returncode != 0 and (target_exists or worktree)) or (
+    path_ownership_unknown = (completed.returncode != 0 and (target_exists or worktree)) or (
         target_exists and not worktree
-    ):
-        gap = "lane_start_target_path_ownership_unknown"
-    elif completed.returncode != 0 and current_head:
-        gap = "lane_start_target_ref_ownership_unknown"
-    elif worktree:
+    )
+    gap = (
+        "lane_start_target_path_ownership_unknown"
+        if path_ownership_unknown
+        else "lane_start_target_ref_ownership_unknown"
+        if completed.returncode != 0 and current_head
+        else ""
+    )
+    if worktree and not gap:
         arguments = (
             ("worktree", "remove", target.as_posix())
             if target_exists

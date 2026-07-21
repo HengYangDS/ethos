@@ -3,14 +3,12 @@
 # This is local, HEAD-bound evidence; it does not publish or claim hosted CI.
 set -euo pipefail
 
-script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; default_ethos_cache="${XDG_CACHE_HOME:-${HOME}/.cache}/ethos/uv"
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [[ "${ETHOS_RUNTIME_BOOTSTRAPPED:-}" != "1" ]]; then
-  local_install_uv_cache="${ETHOS_LOCAL_INSTALL_UV_CACHE_DIR:-${UV_CACHE_DIR:-}}"; if [[ -z "${local_install_uv_cache}" || "${local_install_uv_cache}" == "${default_ethos_cache}" ]]; then local_install_uv_cache="$(env -u UV_CACHE_DIR uv cache dir)"; fi
-  exec env ETHOS_LOCAL_INSTALL_UV_CACHE_DIR="${local_install_uv_cache}" ETHOS_UV_CACHE_DIR="${local_install_uv_cache}" "${script_dir}/with-python-runtime.sh" -- uv run --all-packages --group dev env ETHOS_RUNTIME_BOOTSTRAPPED=1 "$0" "$@"
+  exec "${script_dir}/with-python-runtime.sh" -- uv run --all-packages --group dev env ETHOS_RUNTIME_BOOTSTRAPPED=1 "$0" "$@"
 fi
 
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"; cd "${repo_root}"; artifact_dir="${repo_root}/build/artifacts/python"; scratch_root="${repo_root}/build/runtime/work/local-install-smoke"; venv_dir="${scratch_root}/venv"; check_dir="${scratch_root}/check"; evidence_path="${repo_root}/build/evidence/local-install/smoke.json"
-local_install_uv_cache="${ETHOS_LOCAL_INSTALL_UV_CACHE_DIR:-${UV_CACHE_DIR:-}}"; if [[ -z "${local_install_uv_cache}" || "${local_install_uv_cache}" == "${default_ethos_cache}" ]]; then local_install_uv_cache="$(env -u UV_CACHE_DIR uv cache dir)"; fi
 
 local_install_head="$("${script_dir}/require-stable-head.sh" capture)"
 _ethos_finalize_local_install_smoke() {
@@ -21,13 +19,13 @@ _ethos_finalize_local_install_smoke() {
 }
 trap _ethos_finalize_local_install_smoke EXIT; rm -rf "${scratch_root}"; rm -f "${evidence_path}"; mkdir -p "${artifact_dir}" "${check_dir}" "$(dirname "${evidence_path}")"
 
-env UV_CACHE_DIR="${local_install_uv_cache}" uv build --offline --all-packages --wheel --out-dir build/artifacts/python --clear --no-create-gitignore >&2
+uv build --offline --all-packages --wheel --out-dir build/artifacts/python --clear --no-create-gitignore >&2
 
 shopt -s nullglob; ethos_wheels=("${artifact_dir}"/ethos-*.whl); core_wheels=("${artifact_dir}"/ethos_core-*.whl)
 if [[ "${#ethos_wheels[@]}" -ne 1 || "${#core_wheels[@]}" -ne 1 ]]; then echo "expected exactly one ethos wheel and one ethos-core wheel" >&2; exit 1; fi
 
-source_python="${ETHOS_PYTHON:-${repo_root}/build/runtime/venv/bin/python}"; env UV_CACHE_DIR="${local_install_uv_cache}" uv venv --offline --clear --python "${source_python}" "${venv_dir}" >&2
-smoke_python="${venv_dir}/bin/python"; smoke_ethos="${venv_dir}/bin/ethos"; env UV_CACHE_DIR="${local_install_uv_cache}" uv pip install --offline --python "${smoke_python}" "${core_wheels[0]}" "${ethos_wheels[0]}" >&2
+source_python="${ETHOS_PYTHON:-${repo_root}/build/runtime/venv/bin/python}"; env -u VIRTUAL_ENV UV_PROJECT_ENVIRONMENT="${venv_dir}" uv sync --locked --offline --all-packages --no-dev --no-install-workspace --python "${source_python}" >&2
+smoke_python="${venv_dir}/bin/python"; smoke_ethos="${venv_dir}/bin/ethos"; uv pip install --offline --no-deps --python "${smoke_python}" "${core_wheels[0]}" "${ethos_wheels[0]}" >&2; uv pip check --python "${smoke_python}" >&2
 
 cd "${check_dir}"
 origins_json="$(VIRTUAL_ENV="${venv_dir}" "${smoke_python}" - <<'PY'

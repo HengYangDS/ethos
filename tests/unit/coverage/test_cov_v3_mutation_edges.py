@@ -77,10 +77,11 @@ def test_closeout_and_lane_guards(tmp_path: Path) -> None:
 
 
 def test_lane_start_input_and_git_failure_edges(tmp_path: Path, monkeypatch) -> None:
-    invalid = lanes.start_work_lane(root=tmp_path, name="x", holder_ref="bad")
+    repo = init_git_repo(tmp_path / "repo")
+    invalid = lanes.start_work_lane(root=repo, name="x", holder_ref="bad")
     assert invalid["required_gaps"] == ["holder_ref_invalid"]
     planned = lanes.start_work_lane(
-        root=tmp_path,
+        root=repo,
         name="x",
         holder_ref="agent:test:case:owner",
     )
@@ -91,7 +92,7 @@ def test_lane_start_input_and_git_failure_edges(tmp_path: Path, monkeypatch) -> 
         "candidate": {
             "exists": True,
             "worktree_exists": True,
-            "worktree_path": str(tmp_path),
+            "worktree_path": str(repo),
             "head": "h",
         },
     }
@@ -105,7 +106,7 @@ def test_lane_start_input_and_git_failure_edges(tmp_path: Path, monkeypatch) -> 
         },
     )
     failed = lanes.start_work_lane(
-        root=tmp_path,
+        root=repo,
         name="x",
         holder_ref="agent:test:case:owner",
         apply=True,
@@ -113,17 +114,17 @@ def test_lane_start_input_and_git_failure_edges(tmp_path: Path, monkeypatch) -> 
     assert failed["required_gaps"] == ["worktree_add_failed"]
     occupied = tmp_path / "occupied"
     occupied.mkdir()
-    blocked = lanes.start_work_lane(root=tmp_path, name="occupied", path=occupied, holder_ref="agent:test:case:owner", apply=True)  # fmt: skip
+    blocked = lanes.start_work_lane(root=repo, name="occupied", path=occupied, holder_ref="agent:test:case:owner", apply=True)  # fmt: skip
     assert blocked["required_gaps"] == ["lane_start_target_path_exists"]
     occupied.rmdir()
     acquire, carrier_gap = lanes.acquire_lease, lanes._lane_start_carrier_gap  # noqa: SLF001, RUF100 - exact acquisition edges  # fmt: skip
     monkeypatch.setattr(lanes, "acquire_lease", lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("lease_acquire_failed")))  # fmt: skip
-    assert lanes.start_work_lane(root=tmp_path, name="acquire", holder_ref="agent:test:case:owner", apply=True)["required_gaps"] == ["lease_acquire_failed"]  # fmt: skip
+    assert lanes.start_work_lane(root=repo, name="acquire", holder_ref="agent:test:case:owner", apply=True)["required_gaps"] == ["lease_acquire_failed"]  # fmt: skip
     lease = {"expected_head": "h", "holder_ref": "agent:test:case:owner", "lease_id": "lease:x", "epoch": 1, "expires_at": "x", "payload_sha256": "a" * 64}  # fmt: skip
     monkeypatch.setattr(lanes, "acquire_lease", lambda *_args, **_kwargs: lease)
     gaps = iter(("", "lane_start_target_path_exists"))
     monkeypatch.setattr(lanes, "_lane_start_carrier_gap", lambda *_args, **_kwargs: next(gaps))
-    raced = lanes.start_work_lane(root=tmp_path, name="raced", holder_ref="agent:test:case:owner", apply=True)  # fmt: skip
+    raced = lanes.start_work_lane(root=repo, name="raced", holder_ref="agent:test:case:owner", apply=True)  # fmt: skip
     assert raced["required_gaps"] == ["lane_creation_compensation_failed", "lane_start_target_path_ownership_unknown"]  # fmt: skip
     monkeypatch.setattr(lanes, "acquire_lease", acquire)
     monkeypatch.setattr(lanes, "_lane_start_carrier_gap", carrier_gap)
@@ -132,6 +133,7 @@ def test_lane_start_input_and_git_failure_edges(tmp_path: Path, monkeypatch) -> 
 def test_lane_start_uses_captured_candidate_and_preserves_foreign_same_head_ref(
     tmp_path: Path, monkeypatch
 ) -> None:
+    repo = init_git_repo(tmp_path / "repo")
     target = tmp_path / "lane"
     captured, current = "a" * 40, {"head": "a" * 40}
     status = {
@@ -140,7 +142,7 @@ def test_lane_start_uses_captured_candidate_and_preserves_foreign_same_head_ref(
         "candidate": {
             "exists": True,
             "worktree_exists": True,
-            "worktree_path": str(tmp_path),
+            "worktree_path": str(repo),
             "head": captured,
         },
     }
@@ -175,7 +177,7 @@ def test_lane_start_uses_captured_candidate_and_preserves_foreign_same_head_ref(
         },
     )
     started = lanes.start_work_lane(
-        root=tmp_path,
+        root=repo,
         name="x",
         path=target,
         holder_ref="agent:test:case:owner",
@@ -187,7 +189,7 @@ def test_lane_start_uses_captured_candidate_and_preserves_foreign_same_head_ref(
     monkeypatch.setattr(lanes, "ref_head", lambda *_args: captured)
     monkeypatch.setattr(lanes, "run_git", pytest.fail)
     retained = lanes._abort_lane_start(  # noqa: SLF001, RUF100 - exact saga boundary
-        tmp_path,
+        repo,
         target=target,
         branch="work/x",
         lease=started["lease"],
@@ -203,6 +205,7 @@ def test_lane_start_uses_captured_candidate_and_preserves_foreign_same_head_ref(
 def test_lane_start_failed_add_preserves_concurrent_same_shape_carrier(
     tmp_path: Path, monkeypatch
 ) -> None:
+    repo = init_git_repo(tmp_path / "repo")
     target = tmp_path / "lane"
     head = "a" * 40
     status = {
@@ -211,7 +214,7 @@ def test_lane_start_failed_add_preserves_concurrent_same_shape_carrier(
         "candidate": {
             "exists": True,
             "worktree_exists": True,
-            "worktree_path": str(tmp_path),
+            "worktree_path": str(repo),
             "head": head,
         },
     }
@@ -245,7 +248,7 @@ def test_lane_start_failed_add_preserves_concurrent_same_shape_carrier(
     )
 
     report = lanes.start_work_lane(
-        root=tmp_path,
+        root=repo,
         name="x",
         path=target,
         holder_ref="agent:test:case:owner",
@@ -263,6 +266,7 @@ def test_lane_start_failed_add_preserves_concurrent_same_shape_carrier(
 def test_lane_start_abort_retains_lease_for_unknown_or_failed_cleanup(
     tmp_path: Path, monkeypatch
 ) -> None:
+    repo = init_git_repo(tmp_path / "repo")
     branch = "work/x"
     target = tmp_path / "lane"
     lease = {
@@ -276,7 +280,7 @@ def test_lane_start_abort_retains_lease_for_unknown_or_failed_cleanup(
     monkeypatch.setattr(lanes, "_exact_worktree", lambda *_args, **_kwargs: False)
     target.mkdir()
     unknown = lanes._abort_lane_start(  # noqa: SLF001, RUF100 - exact saga boundary
-        tmp_path,
+        repo,
         target=target,
         branch=branch,
         lease=lease,
@@ -295,7 +299,7 @@ def test_lane_start_abort_retains_lease_for_unknown_or_failed_cleanup(
         lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("lease_revoke_failed")),
     )
     retained = lanes._abort_lane_start(  # noqa: SLF001, RUF100 - exact saga boundary
-        tmp_path,
+        repo,
         target=target,
         branch=branch,
         lease=lease,
@@ -316,6 +320,7 @@ def test_lane_start_abort_retains_lease_for_unknown_or_failed_cleanup(
 def test_lane_start_abort_removes_exact_carriers(
     tmp_path: Path, monkeypatch, target_state: str
 ) -> None:
+    repo = init_git_repo(tmp_path / "repo")
     target_exists = target_state == "present"
     target, head = tmp_path / "lane", "h"
     if target_exists:
@@ -330,22 +335,23 @@ def test_lane_start_abort_removes_exact_carriers(
         return subprocess.CompletedProcess(args, 0, "", "")
 
     _setattrs(monkeypatch, lanes, {"_exact_worktree": lambda *_args, **_kwargs: next(exact), "ref_head": lambda *_args: next(refs), "run_git": git, "revoke_lease": lambda *_args, **_kwargs: {}})  # fmt: skip
-    report = lanes._abort_lane_start(tmp_path, target=target, branch="work/x", lease=lease, completed=subprocess.CompletedProcess([], 0, "", "failed"))  # noqa: SLF001, RUF100 - exact saga boundary  # fmt: skip
+    report = lanes._abort_lane_start(repo, target=target, branch="work/x", lease=lease, completed=subprocess.CompletedProcess([], 0, "", "failed"))  # noqa: SLF001, RUF100 - exact saga boundary  # fmt: skip
     assert report["lease_state"] == "revoked"
 
 
 def test_lane_start_abort_reports_carrier_cleanup_failures(tmp_path: Path, monkeypatch) -> None:
+    repo = init_git_repo(tmp_path / "repo")
     target, head = tmp_path / "lane", "h"
     lease = {"expected_head": head, "holder_ref": "agent:test:case:owner", "lease_id": "lease:x", "epoch": 1, "expires_at": "x", "payload_sha256": "a" * 64}  # fmt: skip
     _setattrs(monkeypatch, lanes, {"_exact_worktree": lambda *_args, **_kwargs: True, "run_git": lambda *_args, **_kwargs: subprocess.CompletedProcess([], 1, "", "")})  # fmt: skip
-    worktree = lanes._abort_lane_start(tmp_path, target=target, branch="work/x", lease=lease, completed=subprocess.CompletedProcess([], 0, "", "failed"))  # noqa: SLF001, RUF100 - exact saga boundary  # fmt: skip
+    worktree = lanes._abort_lane_start(repo, target=target, branch="work/x", lease=lease, completed=subprocess.CompletedProcess([], 0, "", "failed"))  # noqa: SLF001, RUF100 - exact saga boundary  # fmt: skip
     assert worktree["required_gaps"][-1] == "lane_start_worktree_cleanup_failed"
     exact, git_results = iter((True, False)), iter((0, 1))
     _setattrs(monkeypatch, lanes, {"_exact_worktree": lambda *_args, **_kwargs: next(exact), "ref_head": lambda *_args: head, "run_git": lambda *_args, **_kwargs: subprocess.CompletedProcess([], next(git_results), "", "")})  # fmt: skip
-    ref = lanes._abort_lane_start(tmp_path, target=target, branch="work/x", lease=lease, completed=subprocess.CompletedProcess([], 0, "", "failed"))  # noqa: SLF001, RUF100 - exact saga boundary  # fmt: skip
+    ref = lanes._abort_lane_start(repo, target=target, branch="work/x", lease=lease, completed=subprocess.CompletedProcess([], 0, "", "failed"))  # noqa: SLF001, RUF100 - exact saga boundary  # fmt: skip
     assert ref["required_gaps"][-1] == "lane_start_ref_cleanup_failed"
     _setattrs(monkeypatch, lanes, {"_exact_worktree": lambda *_args, **_kwargs: False, "ref_head": lambda *_args: "changed"})  # fmt: skip
-    changed = lanes._abort_lane_start(tmp_path, target=target, branch="work/x", lease=lease, completed=subprocess.CompletedProcess([], 0, "", "failed"))  # noqa: SLF001, RUF100 - exact saga boundary  # fmt: skip
+    changed = lanes._abort_lane_start(repo, target=target, branch="work/x", lease=lease, completed=subprocess.CompletedProcess([], 0, "", "failed"))  # noqa: SLF001, RUF100 - exact saga boundary  # fmt: skip
     assert changed["required_gaps"][-1] == "lane_start_ref_changed"
 
 

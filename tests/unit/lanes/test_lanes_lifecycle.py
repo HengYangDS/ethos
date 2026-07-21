@@ -527,43 +527,37 @@ def test_refresh_work_lane_base_apply_rebases_current_lane(tmp_path: Path) -> No
     assert (worktree / "FEATURE.md").exists()
 
 
-def test_ssh_signing_transport_uses_launchd_agent_socket(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_ssh_signing_transport_uses_configured_program(monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[tuple[tuple[str, ...], dict[str, object]]] = []
 
-    def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+    def run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
         calls.append((tuple(command), kwargs))
-        if command[:2] == ["launchctl", "getenv"]:
-            return subprocess.CompletedProcess(command, 0, "agent.sock\n", "")
-        if command[:2] == ["ssh-add", "-T"]:
-            return subprocess.CompletedProcess(
-                command,
-                0 if isinstance(kwargs.get("env"), dict) else 1,
-                "",
-                "",
-            )
-        raise AssertionError(command)
+        return subprocess.CompletedProcess(command, 0, "signature", "")
 
-    monkeypatch.setattr(lane_refresh.subprocess, "run", fake_run)
+    monkeypatch.setattr(lane_refresh.subprocess, "run", run)
 
-    public_key = "signing-key.pub"
-    agent_socket = "agent.sock"
-
-    assert lane_refresh.ssh_signing_transport_ready(public_key) is True
-    assert calls[0][0] == ("ssh-add", "-T", public_key)
-    assert calls[1][0] == ("launchctl", "getenv", "SSH_AUTH_SOCK")
-    assert calls[2][1]["env"] == {"SSH_AUTH_SOCK": agent_socket}
-    monkeypatch.setattr(
-        lane_refresh.subprocess,
-        "run",
-        lambda command, **_kwargs: subprocess.CompletedProcess(command, 0, "", ""),
-    )
-    assert lane_refresh.ssh_signing_transport_ready(public_key) is True
-
-    def unavailable(*_args: object, **_kwargs: object) -> None:
-        raise OSError
-
-    monkeypatch.setattr(lane_refresh.subprocess, "run", unavailable)
-    assert lane_refresh.ssh_signing_transport_ready(public_key) is False
+    assert lane_refresh.ssh_signing_transport_ready("signing-key.pub", "keychain-signer")
+    assert calls == [
+        (
+            (
+                "keychain-signer",
+                "-Y",
+                "sign",
+                "-n",
+                "git",
+                "-f",
+                "signing-key.pub",
+                "-",
+            ),
+            {
+                "capture_output": True,
+                "check": False,
+                "input": "ethos-refresh-signing-preflight\n",
+                "text": True,
+                "timeout": lane_refresh.SSH_SIGNING_TRANSPORT_TIMEOUT_SECONDS,
+            },
+        )
+    ]
 
 
 def test_refresh_work_lane_base_blocks_unavailable_file_backed_ssh_before_rebase(
@@ -599,7 +593,10 @@ def test_refresh_work_lane_base_blocks_unavailable_file_backed_ssh_before_rebase
         return original_run_git(root, *args, **kwargs)
 
     monkeypatch.setattr(
-        lane_refresh, "ssh_signing_transport_ready", lambda _key: False, raising=False
+        lane_refresh,
+        "ssh_signing_transport_ready",
+        lambda _key, _program: False,
+        raising=False,
     )
     monkeypatch.setattr(lane_refresh, "run_git", signing_git)
     report = lane_refresh.refresh_work_lane_base(

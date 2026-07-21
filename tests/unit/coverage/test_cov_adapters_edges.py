@@ -15,9 +15,10 @@ def test_signature_gap_matrices() -> None:
     cases = [(("x", "x"), ["git_user_name_mismatch", "git_user_email_mismatch"]), (("y", "y"), [])]
     for actual, gaps in cases:
         assert signature._authorship_gaps(actual_identity=actual, **common) == gaps
-    signing = {"gpgsign": "true", "gpg_format": "gpg", "signing_key": ""}
+    signing = {"gpgsign": "false", "gpg_format": "gpg", "signing_key": ""}
     signing["expected_format"] = "ssh"
     assert signature._signing_gaps(**signing) == [
+        "commit_signing_disabled",
         "commit_signing_format_mismatch",
         "commit_signing_key_missing",
     ]

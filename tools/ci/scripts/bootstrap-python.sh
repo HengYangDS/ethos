@@ -14,14 +14,12 @@ bootstrap_python="${ETHOS_BOOTSTRAP_PYTHON:-python3}"
 "${bootstrap_venv}/bin/pip" install --disable-pip-version-check --quiet 'uv==0.11.29'
 export PATH="${bootstrap_venv}/bin:${PATH}"
 
-# The openspec shim execs `npx`, so Node.js must exist in the python:3.12 image the
-# quality/verify jobs run in (only the ethos:npm jobs use a node image). Without this,
-# `openspec --version` in ethos:verify fails with `npx: command not found`. Install
-# Node from the Debian repos when npx is absent so the shim resolves.
+# The OpenSpec shim execs npx. Hosted Python images do not supply Node, and
+# this runner's Debian mirror can stall during apt installation. Reuse the
+# checksum-pinned Node archive installer so every hosted job has node/npm/npx
+# without a Debian package dependency.
 if ! command -v npx >/dev/null 2>&1; then
-  apt-get update >/dev/null && apt-get install -y --no-install-recommends nodejs npm jq >/dev/null
-elif ! command -v jq >/dev/null 2>&1; then
-  apt-get update >/dev/null && apt-get install -y --no-install-recommends jq >/dev/null
+  "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/install-node.sh"
 fi
 openspec_shim="${bootstrap_venv}/bin/openspec"
 printf '%s\n' '#!/usr/bin/env bash' 'exec npx --yes @fission-ai/openspec@1.6.0 "$@"' > "${openspec_shim}"

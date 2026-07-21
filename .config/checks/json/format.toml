@@ -1,6 +1,6 @@
 schema = "ethos-json-format-v1"
 owner = "ethos-quality-gate-governance"
-formatter = "jq"
+formatter = "python-stdlib-json"
 default_mode = "pretty"
 indent = 2
 

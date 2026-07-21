@@ -11,7 +11,7 @@ export UV_PROJECT_ENVIRONMENT="${repo_root}/build/runtime/venv"
 bootstrap_venv="${repo_root}/build/runtime/tool-cache/uv-bootstrap"
 bootstrap_python="${ETHOS_BOOTSTRAP_PYTHON:-python3}"
 "${bootstrap_python}" -m venv "${bootstrap_venv}"
-"${bootstrap_venv}/bin/pip" install --disable-pip-version-check --quiet uv
+"${bootstrap_venv}/bin/pip" install --disable-pip-version-check --quiet 'uv==0.11.29'
 export PATH="${bootstrap_venv}/bin:${PATH}"
 
 # The openspec shim execs `npx`, so Node.js must exist in the python:3.12 image the

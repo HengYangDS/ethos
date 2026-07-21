@@ -6,7 +6,7 @@ set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; default_ethos_cache="${XDG_CACHE_HOME:-${HOME}/.cache}/ethos/uv"
 if [[ "${ETHOS_RUNTIME_BOOTSTRAPPED:-}" != "1" ]]; then
   local_install_uv_cache="${ETHOS_LOCAL_INSTALL_UV_CACHE_DIR:-${UV_CACHE_DIR:-}}"; if [[ -z "${local_install_uv_cache}" || "${local_install_uv_cache}" == "${default_ethos_cache}" ]]; then local_install_uv_cache="$(env -u UV_CACHE_DIR uv cache dir)"; fi
-  exec env ETHOS_LOCAL_INSTALL_UV_CACHE_DIR="${local_install_uv_cache}" "${script_dir}/with-python-runtime.sh" -- uv run --all-packages --group dev env ETHOS_RUNTIME_BOOTSTRAPPED=1 "$0" "$@"
+  exec env ETHOS_LOCAL_INSTALL_UV_CACHE_DIR="${local_install_uv_cache}" ETHOS_UV_CACHE_DIR="${local_install_uv_cache}" "${script_dir}/with-python-runtime.sh" -- uv run --all-packages --group dev env ETHOS_RUNTIME_BOOTSTRAPPED=1 "$0" "$@"
 fi
 
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"; cd "${repo_root}"; artifact_dir="${repo_root}/build/artifacts/python"; scratch_root="${repo_root}/build/runtime/work/local-install-smoke"; venv_dir="${scratch_root}/venv"; check_dir="${scratch_root}/check"; evidence_path="${repo_root}/build/evidence/local-install/smoke.json"

@@ -33,6 +33,12 @@
 - [x] 2.11 Snapshot verified handoff artifacts before use, publish packages and
   refs without replacement, and revalidate destination ref/worktree/tree/Lease
   identity before acknowledgement.
+- [x] 2.12 Compress all 17 overlong canonical OpenSpec requirement texts while
+  preserving their scenarios and obligations; require official strict validation
+  to report zero issues rather than accepting exit zero alone.
+- [x] 2.13 Make Taplo success output quiet through its native warning log floor;
+  preserve real diagnostics and prove the configuration gate emits no success
+  stderr.
 
 ## 3. Verification and lifecycle
 
@@ -48,7 +54,6 @@ Archive, carrier relocation, commit, candidate-base refresh, parity refresh,
 HEAD-bound proof, and local land are lifecycle transitions performed after all
 task checkboxes are complete; they are not implementation tasks themselves.
 
-The corpus-wide OpenSpec INFO findings and source-budget campaign advisories
-remain blockers to campaign completion and are assigned to the immediately
-following archive-identity normalization Change; they are not treated as
-completed or suppressed by this carrier.
+The former corpus-wide OpenSpec INFO findings are closed in this Change.
+Campaign-terminal source-budget and broader compatibility-surface debt remain
+explicit later-wave obligations and are not claimed complete here.

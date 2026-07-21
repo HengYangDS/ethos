@@ -84,10 +84,10 @@ if ((${#toml_files[@]})); then
   # Rust sdist on the ARM runner. install-taplo.sh provides a prebuilt binary (or the
   # dev's on-PATH taplo) so format/lint run the same everywhere.
   "${script_dir}/install-taplo.sh"
-  taplo format --check \
+  RUST_LOG=warn taplo format --check \
     --config .config/checks/taplo/taplo.toml \
     "${toml_files[@]}"
-  taplo lint \
+  RUST_LOG=warn taplo lint \
     --config .config/checks/taplo/taplo.toml \
     --no-schema \
     "${toml_files[@]}"

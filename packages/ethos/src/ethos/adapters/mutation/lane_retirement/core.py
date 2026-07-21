@@ -17,6 +17,7 @@ from ethos.adapters.repo.status.bindings import has_changed_paths
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.adapters.store.state.lease.lifecycle.effects import revoke_lease_from_connection
+from ethos.adapters.store.state.lease.projection import integer_value
 from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 from ethos_core.contracts.branch.roles import BranchRolePolicy
@@ -170,7 +171,7 @@ def _apply_retirement(
                 subject=str(lane["branch"]),
                 holder_ref=_holder_ref(lane),
                 expected_lease_id=str(lease.get("lease_id") or ""),
-                expected_epoch=int(lease.get("epoch") or 0),
+                expected_epoch=integer_value(lease.get("epoch")),
                 expected_head=str(lane["head"]),
                 expected_expires_at=str(lease.get("expires_at") or ""),
                 expected_payload_sha256=str(lease.get("payload_sha256") or ""),

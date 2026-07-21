@@ -921,14 +921,12 @@ freshness mode: `historical`, `head_bound`, or `semantic_scope`.
 
 ### Requirement: Work Lane Coordination Read Model
 
-ETHOS SHALL treat a Lane Lease as ignored, one-writer coordination within one Git
-common directory. The lease SHALL identify a concrete holder and generation but
-SHALL NOT be an identity assertion, capability grant, filesystem fence,
-cross-host lock, or repository truth. Reader output SHALL be a
-non-authoritative action preview rather than a reusable permission. Bounded
-readers SHALL preserve the caller-selected `deferred` state even when no foreign
-Work Lane rows are visible; full readers SHALL report `exact` only after the
-full foreign coordination inventory has been computed.
+A Lane Lease SHALL remain ignored, one-writer coordination within one Git common
+directory. It identifies one concrete holder and generation but grants no
+identity, capability, filesystem fence, cross-host lock, or repository truth.
+Reader output is a non-reusable action preview. Bounded readers SHALL preserve
+`deferred`, even with no visible foreign lanes; only a fully computed foreign
+inventory may report `exact`.
 
 #### Scenario: foreign lane preview remains observe-only
 
@@ -1299,13 +1297,10 @@ reader views without treating them as transition-blocking required gaps.
 - **AND** the scorecard remains read-only and does not authorize foreign Work Lane cleanup
 
 ### Requirement: Generated Evidence Boundary
-ETHOS SHALL keep generated proof artifacts outside repository truth while making
-latest-artifact writes deterministic enough for proof gates. Its product package
-build gate and contributor-facing package-build command SHALL route output to
-`build/artifacts/python` and SHALL clear that local-artifact home before the
-build; they SHALL NOT create a redundant output-local `.gitignore`, because the
-repository-level ignore owns the generated home; and they SHALL NOT use the
-repository-root `dist/` default.
+Generated proof artifacts SHALL remain outside repository truth, with
+deterministic latest-artifact writes. Product and contributor package builds
+SHALL clear and write `build/artifacts/python`, SHALL rely on the repository-level
+ignore, and SHALL NOT use root `dist/` or add an output-local `.gitignore`.
 
 #### Scenario: Shared coverage evidence writes are serialized
 
@@ -1343,14 +1338,11 @@ repository-root `dist/` default.
 
 ### Requirement: Forge provider projections preserve ETHOS repository truth
 
-ETHOS SHALL support GitHub and GitLab as hosted forge providers that project the
-same repository governance contract without changing `status -> plan -> prove ->
-land -> publish` semantics. GitLab and GitHub SHALL be independent remote planes
-with equal `repository`, `ci_cd`, and `publication` capabilities; their distinct
-organization-collaboration and public-distribution roles SHALL NOT create
-precedence, failover, or replacement semantics. Provider CI SHALL accept only
-`dev`, `main`, and `submit/*`; the local-only `candidate/dev` and every `work/*`
-branch SHALL be excluded.
+GitHub and GitLab SHALL independently project the same `status -> plan -> prove
+-> land -> publish` contract. Each has equal `repository`, `ci_cd`, and
+`publication` capability; differing collaboration/distribution roles create no
+precedence, failover, or replacement. Hosted CI accepts only `dev`, `main`, and
+`submit/*`; `candidate/dev` and `work/*` remain local.
 
 #### Scenario: Dual provider templates mirror one gate contract
 
@@ -1386,15 +1378,12 @@ branch SHALL be excluded.
 
 ### Requirement: Equal dual-remote publication topology
 
-ETHOS SHALL model publication as one local verification/install layer and two
-independent remote targets: GitLab organization collaboration and GitHub public
-distribution. Each target SHALL expose equal `repository`, `ci_cd`, and
-`publication` capabilities; no target SHALL become a fallback or authority
-above the other. Remote admission and hosted CI SHALL allow only `dev`, `main`,
-and `submit/*`; `candidate/dev` and every `work/*` branch SHALL remain local.
-`ethos publish` SHALL observe declared targets independently without pushing or
-claiming hosted CI success. Compact declarations SHALL retain valid former
-verbose remote records for adopter compatibility.
+Publication SHALL comprise local verification/install plus independent GitLab
+organization and GitHub public targets. The remotes have equal `repository`,
+`ci_cd`, and `publication` capability and no authority ordering. Admission
+permits only `dev`, `main`, and `submit/*`; local branches remain excluded.
+`ethos publish` only observes targets. Compact declarations SHALL still accept
+valid former verbose remote records.
 
 #### Scenario: explicit remote admission preserves local candidate isolation
 
@@ -1678,16 +1667,12 @@ OpenSpec workspace or provider CI surface.
 
 ### Requirement: Campaign Lifecycle Truth Is Carrier-Bound
 
-ETHOS SHALL derive a campaign execution step's lifecycle legality from its
-declared state, OpenSpec carrier home, and closeout record. An `active` or
-`in_progress` step SHALL reference an active carrier under
-`openspec/changes/<id>` and SHALL NOT report terminal closeout. An `archived` or
-`landed` step SHALL reference an archived carrier while closeout remains
-non-terminal. A `closed` or `retired` step SHALL reference an archived carrier
-and SHALL carry terminal closeout state, accepted and candidate heads, and dated
-evidence. A campaign MAY remain `active` with no execution step while its next
-step remains `planned`; the reader SHALL expose that next planned step rather
-than fabricate an active lane.
+Campaign step legality SHALL derive from declared state, OpenSpec carrier, and
+closeout. `active`/`in_progress` uses an active carrier and no terminal closeout;
+`archived`/`landed` uses an archived carrier with non-terminal closeout;
+`closed`/`retired` adds terminal closeout, accepted/candidate heads, and dated
+evidence. A campaign may be active with only a planned next step, which readers
+SHALL expose without inventing an active lane.
 
 #### Scenario: archived carrier is presented as active
 
@@ -1749,19 +1734,13 @@ The generated-artifact entrypoint audit SHALL evaluate executable producer comma
 
 ### Requirement: Worktree-bound semantic runtime bootstrap
 
-ETHOS SHALL provide one repository-owned runtime bootstrap for product Python
-execution. The bootstrap MUST bind `UV_PROJECT_ENVIRONMENT` to
-`build/runtime/venv` under the current Git worktree and MUST execute against
-that checkout's source tree. The bootstrap SHALL expose an explicit cache
-boundary: an explicitly supplied CI or operator cache location takes precedence;
-otherwise uv download state uses a host-scoped content-addressed cache outside
-the repository checkout. A nested bootstrap that enters a different worktree
-while an outer uv invocation holds the selected cache lock MUST use a bounded
-child namespace beneath that selected cache root; it MUST retain the child
-worktree's source environment and MUST NOT wait on the outer lock. An owner
-script launched through the explicit `ETHOS_RUNTIME_BOOTSTRAPPED=1` handoff MUST
-run its outer uv command with `--no-sync`, so a tool invoked by that script does
-not wait on a parent process holding the same worktree environment lock.
+One repository bootstrap SHALL bind `UV_PROJECT_ENVIRONMENT` to the current
+worktree's `build/runtime/venv` and execute that checkout's source. Explicit
+cache roots win; otherwise downloads use a host-scoped content-addressed cache.
+Nested cross-worktree bootstrap SHALL use a bounded child cache namespace and
+keep child source without waiting on the outer lock.
+`ETHOS_RUNTIME_BOOTSTRAPPED=1` owner scripts SHALL invoke outer uv with
+`--no-sync`.
 
 #### Scenario: two Work Lanes initialize independently
 
@@ -1819,15 +1798,12 @@ silently make root `.venv` the default runtime.
 
 ### Requirement: Generated Artifact Topology Contract
 
-ETHOS SHALL classify generated outputs by semantic lifecycle and SHALL audit
-active executable producer entrypoints as well as existing files. Root `.venv`
-MUST NOT be an active normal-execution environment. Existing ignored root
-`.venv` directories MAY remain as non-authoritative migration residue until an
-explicit local operator removes them; ETHOS MUST NOT delete them automatically.
-Host-bootstrap adapters that install a missing hosted toolchain or configure the
-checkout before a repository runtime exists MAY invoke the host interpreter, but
-MUST NOT execute product modules and MUST remain explicitly allowlisted by the
-topology audit.
+ETHOS SHALL classify generated outputs by lifecycle and audit both files and
+executable producers. Root `.venv` SHALL NOT serve normal execution; ignored
+legacy copies may remain observable migration residue but SHALL NOT be
+auto-deleted. Allowlisted host-bootstrap adapters may use the host interpreter
+only to install or configure a missing hosted toolchain before repository
+runtime exists, and SHALL NOT execute product modules.
 
 #### Scenario: an executable entrypoint attempts root environment fallback
 
@@ -2226,19 +2202,13 @@ current Work Lane scope.
 
 ### Requirement: Accepted closeout remains candidate-first and non-self-approving
 
-ETHOS SHALL admit an accepted-branch advance only when it fast-forwards to the
-live candidate head, carries candidate-head proof, and is an official closeout
-identified by a one-shot transition marker. Candidate-tree semantic evaluation
-shall determine the promoted tree's admission policy; the accepted checkout
-shall retain the protected Git-hook and CAS boundary. When the declared policy
-uses `release_mirror = "accepted_ff"`, the release-mirror ref is an additional
-protected transition in the same atomic closeout and SHALL use that exact clean
-candidate semantic evaluator as well. If the candidate replaces the tracked
-reference-transaction hook, the official atomic closeout SHALL invoke Git with
-the exact clean candidate hook directory for that single transaction; it SHALL
-require that hook file to be present and executable and SHALL not mutate global
-hook configuration or weaken raw Git admission. A closeout that does not
-replace that tracked hook SHALL retain its configured-hook route.
+Accepted advance SHALL fast-forward to live candidate with candidate proof and
+one-shot official closeout. Candidate-tree policy decides admission; accepted
+hooks and CAS enforce it. With `release_mirror = "accepted_ff"`, both protected
+refs advance atomically under that evaluator. A candidate replacement for the
+reference-transaction hook SHALL be clean, executable, and transaction-local;
+it SHALL NOT change global config or weaken raw admission. Otherwise configured
+hooks remain.
 
 #### Scenario: raw update-ref targets a proven candidate head
 
@@ -2500,14 +2470,12 @@ provider observation as distinct evidence classes.
 
 ### Requirement: Remote reconciliation continuation preserves historical carrier boundaries
 
-When a historical remote-reconciliation carrier promoted its delta but lifecycle
-work remains unfinished, ETHOS SHALL preserve the historical archive without
-false completion and bind an active continuation to the same episode claim
-before remaining closeout work proceeds. When the historical Work Lane cannot
-be resumed in its original host worktree, the continuation SHALL retain only
-context that can be freshly observed. It SHALL run in a distinct owned Work
-Lane on a current candidate baseline and re-execute current proof rather than
-treat historical proof or a reconstructed path as current authority.
+If historical remote-reconciliation content landed but lifecycle work remains,
+ETHOS SHALL preserve its archive without claiming completion and bind an active
+continuation to the same episode Claim. If the original host worktree cannot
+resume, the continuation SHALL use a distinct owned lane on current candidate,
+retain only freshly observable context, and rerun current proof; historical
+proof or reconstructed paths grant no current authority.
 
 #### Scenario: remaining lifecycle work continues after historical archival
 
@@ -2539,17 +2507,12 @@ treat historical proof or a reconstructed path as current authority.
 
 ### Requirement: Authorized Work Lane cohort closeout is exact and evidence-bound
 
-ETHOS SHALL treat a user-authorized Work Lane cohort closeout as an owned
-governance operation over individually observed targets, not as reusable
-authority over every visible foreign lane. Before an exceptional handoff,
-preservation, semantic replay, supersession, or retirement effect, the owned
-carrier SHALL bind the target branch, current head, relation to accepted truth,
-lease/incarnation observation, claim binding, dirty provenance, intended
-disposition, recovery plan, and evidence reference. A semantic-replay outcome
-SHALL additionally bind the current implementation, focused regression, owned
-proof, and accepted closeout that incorporated the behavior before the source
-lane may retire. A target fact change SHALL invalidate the pending effect until
-a new observation and decision are recorded.
+Authorized cohort closeout SHALL evaluate each observed lane, never grant
+wildcard foreign-lane authority. Before handoff, preservation, replay,
+supersession, or retirement, its carrier SHALL bind branch/head, accepted
+relation, lease/incarnation, Claim, dirty provenance, disposition, recovery, and
+evidence. Replay also binds implementation, focused regression, owned proof,
+and accepted absorption. Any target drift invalidates the decision.
 
 #### Scenario: A visible foreign lane is not wildcard authority
 
@@ -2692,15 +2655,12 @@ truth and its own normal deletion dry-run is accepted.
 
 ### Requirement: Campaign-terminal protected publication admission
 
-When a campaign manifest declares `publication.mode = "campaign_terminal"`,
-ETHOS SHALL report the campaign's structural publication validity separately
-from its terminal-progress advisory state. A malformed or unbound publication
-contract SHALL remain a protected-push blocker. Active campaign state,
-unretired steps, terminal source-budget non-attainment, active temporary debt,
-and source-budget progress SHALL remain explicit advisory state; they SHALL NOT
-block an ordinary non-force protected remote update after executed local proof
-and governed candidate/accepted closeout. Receiving-plane branch protection
-remains authoritative and is not replaced by this local gate.
+For `publication.mode = "campaign_terminal"`, ETHOS SHALL separate structural
+publication validity from terminal-progress advisories. Malformed or unbound
+contracts block protected push. Active state, unfinished steps, budget or debt
+gaps, and compression progress remain explicit advisories and do not block an
+ordinary non-force protected update after executed proof and candidate/accepted
+closeout. Receiving-branch protection remains authoritative.
 
 #### Scenario: Non-terminal compression campaign blocks protected push
 
@@ -2866,21 +2826,13 @@ regenerate every projection and proof whose validity depends on the new HEAD.
 
 ### Requirement: Exceptional unbound Work Lane retirement is exact and accepted-policy-bound
 
-ETHOS SHALL expose a native exceptional route through `ethos lane retire
-unbound` for one unbound `work/*` ref only when the current ref is an ancestor
-of the accepted branch, has no linked worktree, carries an
-accepted-Chronicle-bound active Claim, and matches the supplied expected head.
-The target SHALL have either no active lease or exactly one active lease whose
-holder, ID, epoch, and expected head remain bound to the current invocation for
-native relinquishment. The route SHALL require an accepted, repository-local
-Chronicle that contains `lane_retire/unbound_exceptional`, `target_branch:
-<branch>`, `target_head: <head>`, and `target_claim: <claim-id>` for the same
-exact target. The named local Claim SHALL be byte-identical to its accepted
-branch version. One accepted evidence carrier SHALL bind one target; it SHALL
-NOT permit a batch effect or apply to another inventory item. Apply SHALL
-additionally require explicit authorization, break-glass, and irreversible
-confirmation. The route SHALL NOT infer authority from an agent vendor,
-session, account, or host-specific path.
+`ethos lane retire unbound` SHALL admit one head-matched, accepted-ancestor
+unbound `work/*` ref with no worktree and an active Claim bound to an accepted
+Chronicle. Lease is absent or one exact
+invocation-bound holder/ID/epoch/head generation. Chronicle SHALL bind operation,
+target branch/head, and Claim; Claim bytes match accepted. One carrier authorizes
+one target. Apply requires authorization, break-glass, and irreversible
+confirmation; provider, session, or host grants no authority.
 
 #### Scenario: Exact accepted-ancestor residue is inspected
 
@@ -2932,14 +2884,11 @@ session, account, or host-specific path.
 
 ### Requirement: Exceptional unbound effects are compare-and-delete and receipt-bound
 
-For an admitted exceptional unbound retirement, ETHOS SHALL reobserve the exact
-target, accepted policy binding, lease state, and protected refs immediately
-before effect. It SHALL create a no-clobber local attempt record before calling
-`git update-ref -d refs/heads/<branch> <expected-head>`. It SHALL reobserve the
-target and protected refs afterwards, require the target ref and unbound reader
-entry to be absent and protected refs unchanged, then create a no-clobber local
-receipt. It SHALL NOT force-remove a worktree, mutate a remote, or fall back to
-unconstrained branch deletion.
+Before exceptional unbound effect, ETHOS SHALL reobserve the exact target,
+accepted policy, lease, and protected refs. It SHALL create a no-clobber attempt,
+compare-delete only `refs/heads/<branch>` at expected head, then require target
+ref and reader absence plus unchanged protected refs before a no-clobber receipt.
+It SHALL NOT remove worktrees, mutate remotes, or use unconstrained deletion.
 
 #### Scenario: Current holder relinquishes one exact lease generation
 
@@ -2988,15 +2937,13 @@ unconstrained branch deletion.
 
 ### Requirement: Ref-absent owner-unavailable partial effects are reconciled only through exact native lease CAS
 
-When a prior native exceptional-retirement attempt is immutable evidence but
-the target ref is absent and its exact foreign lease remains, ETHOS SHALL expose
-`ethos lane retire reconcile-ref-absent` as a distinct native reconciliation.
-It SHALL require a current accepted Chronicle and Claim whose bytes match the
-accepted branch, an exact source lease tuple and absent source-path binding, a
-non-empty recovery actor different from the source holder, and a Chronicle
-binding to the immutable prior attempt’s operation ID, accepted head, Claim,
-Chronicle ref, and digests. Apply SHALL require authorization, break-glass, and
-irreversible confirmation. It SHALL neither recreate nor delete a source ref.
+`ethos lane retire reconcile-ref-absent` SHALL reconcile only an immutable prior
+attempt whose ref and path are absent while its exact foreign lease remains. It
+requires accepted-byte-identical Claim and Chronicle, exact source lease tuple,
+a distinct recovery actor, and Chronicle binding to prior operation ID,
+accepted head, Claim, Chronicle ref, and digests. Apply requires authorization,
+break-glass, and irreversible confirmation; it neither recreates nor deletes the
+source ref.
 
 #### Scenario: Exact ref-absent residue is reconciled
 
@@ -3174,13 +3121,11 @@ external receipt.
 - **AND** the receipt binds exact accepted and candidate heads, control paths, both control digests, verifier digest, and executed-proof digest
 
 ### Requirement: Adopter profile is a strict, migratable repository binding
-ETHOS SHALL validate an adopter profile through one typed repository binding
-contract. It SHALL accept only the current declared fields, except for the
-explicitly enumerated historical declaration fields needed to normalize a
-former profile. The normalization SHALL be deterministic, SHALL discard only
-retired metadata, SHALL translate the documented former
-`roots.rules = "."` workaround only with that complete historical envelope,
-and SHALL reject unknown, malformed, or semantically incompatible data.
+ETHOS SHALL validate adopter profiles through one typed current binding. It may
+accept only explicitly enumerated historical fields needed for deterministic
+normalization. Normalization discards only retired metadata and translates former
+`roots.rules = "."` only with its complete historical envelope; unknown,
+malformed, or incompatible data SHALL fail.
 
 #### Scenario: Former profile normalizes to the current contract
 - **WHEN** an adopter profile contains the historical version metadata and

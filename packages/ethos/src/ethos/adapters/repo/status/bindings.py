@@ -1,9 +1,6 @@
 from __future__ import annotations
 
-import json
 import subprocess
-from datetime import UTC
-from datetime import datetime
 from pathlib import Path
 
 from ethos.adapters.repo.git import git_stdout_checked
@@ -179,14 +176,12 @@ def worktree_binding(path: str, *, current_path: Path) -> str:
 def leases_by_branch(
     worktrees: list[dict[str, str]], *, current_path: Path
 ) -> dict[str, dict[str, object]]:
-    """Load active leases, preferring the accepted-root control store."""
+    """Load current SQLite leases from the accepted-root control store."""
     control_root = accepted_worktree_root(worktrees, current_path)
-    leases = {str(lease["subject"]): lease for lease in _json_projection_leases(control_root)}
-    leases.update({
+    return {
         str(lease["subject"]): lease
         for lease in active_leases(control_root / ".ethos" / "state" / "state.sqlite")
-    })
-    return leases
+    }
 
 
 def accepted_worktree_root(worktrees: object, default: Path) -> Path:
@@ -201,42 +196,6 @@ def accepted_worktree_root(worktrees: object, default: Path) -> Path:
         ),
         default,
     )
-
-
-def _json_projection_leases(control_root: Path) -> list[dict[str, object]]:
-    path = control_root / ".cache" / "local-state" / "worktree" / "leases.json"
-    if not path.exists():
-        return []
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
-        return []
-    rows = payload.get("leases") if isinstance(payload, dict) else []
-    if not isinstance(rows, list):
-        return []
-    leases, now = [], datetime.now(UTC)
-    for row in rows:
-        if not isinstance(row, dict):
-            continue
-        branch = str(row.get("branch") or row.get("subject") or "")
-        owner, expires_at = str(row.get("owner") or ""), str(row.get("expires_at") or "")
-        try:
-            expiry = datetime.fromisoformat(expires_at)
-        except ValueError:
-            continue
-        expiry = expiry if expiry.tzinfo else expiry.replace(tzinfo=UTC)
-        if not branch or not owner or expiry <= now:
-            continue
-        leases.append({
-            "id": str(row.get("id") or f"json:{branch}"), "subject": branch,
-            "owner": owner, "expires_at": expires_at,
-            "payload": {
-                "branch": branch, "claim_id": str(row.get("claim_id") or ""),
-                "path": str(row.get("worktree_path") or row.get("path") or ""),
-                "session_id": str(row.get("session_id") or ""),
-            },
-        })
-    return leases
 
 
 def lease_claim_id(lease: dict[str, object]) -> str:
@@ -275,6 +234,9 @@ def closeout_support(  # noqa: PLR0913, RUF100 - exact bound-state dimensions
         "holder_ref": str(lease.get("holder_ref") or ""),
         "lease_id": str(lease.get("lease_id") or ""),
         "lease_epoch": integer_value(lease.get("epoch")) if lease else 0,
+        "lease_expected_head": str(lease.get("expected_head") or ""),
+        "lease_expires_at": str(lease.get("expires_at") or ""),
+        "lease_payload_sha256": str(lease.get("payload_sha256") or ""),
         "claim_id": claim_id,
         "claim_binding": (
             "bound" if claim_id else "missing" if is_work_lane else "unbound"

@@ -251,10 +251,14 @@ def test_configured_branch_roles_drive_local_lifecycle_commands(monkeypatch, tmp
     assert start_payload['data']['branch'] == 'lane/configured'
     assert start_payload['data']['base'] == 'stage/integration'
     assert start_payload['summary'] == {'branch': 'lane/configured', 'path': worktree.resolve().as_posix()}
+    lease_head = git(worktree, 'rev-parse', 'HEAD')
     (worktree / 'README.md').write_text('# configured lane\n', encoding='utf-8')
     git(worktree, 'add', 'README.md')
     git(worktree, '-c', 'user.name=Test User', '-c', 'user.email=test@example.com', 'commit', '-m', 'configured lane change')
     work_head = git(worktree, 'rev-parse', 'HEAD')
+    monkeypatch.setenv('ETHOS_ACTOR', 'agent:test:case:agent-test')
+    hook_payload = run_ethos('hook', 'ref-transaction', 'refs/heads/lane/configured', lease_head, work_head, '--phase', 'committed', '--root', worktree.as_posix(), '--json', cwd=worktree)
+    assert hook_payload['ok'] is True
     seed_executed_proof(worktree, work_head)
     publish_payload = run_ethos('publish', '--json', cwd=worktree)
     assert publish_payload['ok'] is True
@@ -297,11 +301,10 @@ def test_configured_branch_roles_drive_local_lifecycle_commands(monkeypatch, tmp
     assert accepted_update['proof_carry']['source_verified'] is True
     assert accepted_update['proof_carry']['target_verified'] is True
     assert accepted_update['proof_carry']['same_head_only'] is True
-    monkeypatch.setenv('ETHOS_ACTOR', 'agent:test:case:agent-test')
     retire_payload = run_ethos('lane', 'retire', 'landed', '--branch', 'lane/configured', '--expect-head', work_head, '--apply', '--root', repo.as_posix(), '--json', cwd=repo)
     assert retire_payload['ok'] is True
     assert retire_payload['summary'] == {'landed_lane_count': 1, 'selected_branch': 'lane/configured', 'selected_retire_ready': True, 'selected_blockers': []}
-    assert retire_payload['data']['mutation']['expect_head'] == work_head
+    assert retire_payload['data']['mutation']['request']['expect_head'] == work_head
 
 def test_publish_apply_requires_authorization_and_expected_head(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / 'repo')

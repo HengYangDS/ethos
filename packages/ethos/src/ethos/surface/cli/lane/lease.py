@@ -36,14 +36,19 @@ class _CommandOptions(BaseModel):
     json_output: JsonFlag = False
 
 
-class _GenerationOptions(_CommandOptions):
+class _LeaseGenerationOptions(_CommandOptions):
+    lease_id: Annotated[str, Parameter(name="--lease-id")]
+    epoch: Annotated[int, Parameter(name="--epoch")]
+    expect_head: Annotated[str, Parameter(name="--expect-head")]
+    expected_expires_at: Annotated[str, Parameter(name="--expires-at")]
+    expected_payload_sha256: Annotated[str, Parameter(name="--payload-sha256")]
+
+
+class _GenerationOptions(_LeaseGenerationOptions):
     command: ClassVar[str] = ""
     operation: ClassVar[str] = ""
 
     branch: Annotated[str, Parameter(name="--branch")]
-    lease_id: Annotated[str, Parameter(name="--lease-id")]
-    epoch: Annotated[int, Parameter(name="--epoch")]
-    expect_head: Annotated[str, Parameter(name="--expect-head")]
 
 
 class _HolderOptions(_GenerationOptions):
@@ -71,7 +76,7 @@ class _OfferOptions(_HolderOptions):
     target_holder_ref: Annotated[str, Parameter(name="--target-holder-ref")]
 
 
-class _AcceptOptions(_GenerationOptions):
+class _AcceptOptions(_HolderOptions):
     command = "lane handoff accept"
     operation = "handoff_accept"
 
@@ -97,15 +102,12 @@ class _ImportOptions(_CommandOptions):
     target_holder_ref: Annotated[str, Parameter(name="--target-holder-ref")]
 
 
-class _RevokeOptions(_CommandOptions):
+class _RevokeOptions(_LeaseGenerationOptions):
     command: ClassVar[str] = "lane handoff revoke-source"
 
     package: Annotated[Path, Parameter(name="--package")]
     acknowledgement: Annotated[Path, Parameter(name="--acknowledgement")]
     holder_ref: Annotated[str, Parameter(name="--holder-ref")]
-    lease_id: Annotated[str, Parameter(name="--lease-id")]
-    epoch: Annotated[int, Parameter(name="--epoch")]
-    expect_head: Annotated[str, Parameter(name="--expect-head")]
 
 
 def _emit_lease_result(command: str, report: dict[str, object], *, json_output: bool) -> None:
@@ -135,7 +137,6 @@ def _run_lease(options: _GenerationOptions) -> None:
     """Compile one Cyclopts model into the strict declaration-owned request."""
     values = options.model_dump(exclude={"root", "json_output"})
     values["expected_epoch"] = values.pop("epoch")
-    values.setdefault("holder_ref", str(values.get("target_holder_ref") or ""))
     report = execute_lease_operation(
         root=resolve_root(options.root),
         request=LeaseOperationRequest(operation=options.operation, **values),

@@ -210,8 +210,10 @@ ethos lane start <name> --path <worktree-path> --holder-ref <holder-ref> --claim
 ethos lane refresh-base --apply --authorize --expect-head <git-head>
 ethos lane bind-claim --claim-id <claim> --apply
 ethos lane prewrite <paths> --editor-root <worktree-path> --require-editor-root
-ethos lane lease renew --branch <branch> --holder-ref <holder-ref> --lease-id <lease-id> --epoch <epoch> --expect-head <head> --apply
-ethos lane handoff export --branch <branch> --holder-ref <holder-ref> --target-holder-ref <holder-ref> --lease-id <lease-id> --epoch <epoch> --expect-head <head> --context-file <path> --apply
+ethos lane lease renew --branch <branch> --holder-ref <holder-ref> --lease-id <lease-id> --epoch <epoch> --expires-at <timestamp> --payload-sha256 <sha256> --expect-head <head> --apply
+ethos lane handoff export --branch <branch> --holder-ref <holder-ref> --target-holder-ref <holder-ref> --lease-id <lease-id> --epoch <epoch> --expires-at <timestamp> --payload-sha256 <sha256> --expect-head <head> --context-file <path> --apply
+ethos lane handoff import --package <path> --target-holder-ref <holder-ref> --apply
+ethos lane handoff revoke-source --package <path> --acknowledgement <path> --holder-ref <holder-ref> --lease-id <lease-id> --epoch <epoch> --expires-at <timestamp> --payload-sha256 <sha256> --expect-head <head> --apply
 ethos lane resolution decide --branch <branch> --disposition <block|preserve|retire|preserve-retire> --reason <why> --evidence-ref <evidence> --chronicle-ref <accepted-chronicle> --recovery-plan <plan> --decision-path <build-artifact> --apply
 ethos lane resolution apply --decision-path <build-artifact> --apply
 ethos lane resolution inventory --json
@@ -270,9 +272,10 @@ it explains how to inspect coordination signals, not which transition command
 must run next. Human `ethos orient` output renders coordination as one concise
 line when coordination signals are present.
 The `data.closeout_support` object reports whether the current checkout can land
-to the configured candidate branch, which target path would be updated, which
-lease holder is bound when known, which claim is bound when known, and which
-mutation gap blocks closeout. The holder contract is `holder_ref`; predecessor
+to the configured candidate branch, which target path would be updated, the
+complete current Lease generation (`holder_ref`, `lease_id`, `lease_epoch`,
+`lease_expected_head`, `lease_expires_at`, and `lease_payload_sha256`), which
+claim is bound when known, and which mutation gap blocks closeout. Predecessor
 owner fields are storage or migration diagnostics only and are never authoritative.
 The `data.coordination` object reports foreign Work Lanes with scope-aware
 coordination state and unbound Work Lane refs with their relation to accepted
@@ -336,7 +339,23 @@ uses the same `worktree_binding` vocabulary as status output, so hosts can
 project the new Work Lane without treating adapter UI text as product truth.
 Start admission requires both the accepted root and the candidate worktree to be
 clean. A dirty candidate returns `candidate_worktree_dirty` and does not create
-a Work Lane.
+a Work Lane. A pre-existing target path or lane ref blocks before lease
+acquisition. The start saga rechecks both after acquisition; on Git failure it
+removes only a worktree and ref proven to match the requested path, branch, and
+leased expected head. Any uncertain ownership or cleanup failure retains the
+lease. Only complete carrier absence permits exact revocation of the newly
+acquired generation.
+Cross-host import requires `ETHOS_ACTOR` to equal the package target holder and
+creates a destination-local Lease rather than transferring the source Lease. Its
+acknowledgement is schema-validated and content-addressed over the package,
+target holder, lane/head, incarnation, and complete destination generation.
+That acknowledgement is a destination-holder assertion, not a cryptographic
+signature or remote authority proof. Source revocation rejects edited or
+incomplete acknowledgements. Re-export never overwrites a content-addressed
+package: an existing directory is reused only when the manifest, declared
+artifacts, digests, and complete file set match exactly; otherwise the command
+fails closed and preserves the existing directory. Failed import revokes its
+new exact Lease only after its exact Git carriers are proven absent.
 `ethos lane bind-claim --claim-id <claim> --apply --json` updates an existing
 Work Lane lease with a trust-bearing claim id. It is the handoff path for lanes
 started before a claim id was known; it does not create a lease for raw
@@ -398,21 +417,26 @@ unbound `work/*` ref that is an accepted ancestor with a bound Claim, and a
 Chronicle whose current bytes are identical to the accepted branch version and
 name the same event, branch, and head. The ordinary path requires no live
 lease. A narrow native continuation may instead consume one active lease only
-when its holder is the current `ETHOS_ACTOR` and its lease ID, epoch, and
-expected head exactly match the target; it revokes that generation by the native
-CAS and reobserves the remaining retirement bindings and absence of any active
-lease before deletion. Any foreign, malformed, stale, replaced, or
+when its holder is the current `ETHOS_ACTOR` and its lease ID, epoch, expected
+head, row expiry, and raw payload SHA-256 exactly match the target; it revokes
+that generation by the native CAS and reobserves the remaining retirement
+bindings and absence of any active lease before deletion. Any foreign,
+malformed, stale, replaced, expired-at-a-different-value, payload-drifted, or
 head-mismatched lease remains blocked.
 
 `--owner-unavailable-recovery` is a narrower target-specific continuation for
 one active source lease whose holder cannot offer a normal handoff. It does not
 turn a host, session, provider, missing process, or user-supplied holder string
 into authority. Its accepted Chronicle must bind `lease_recovery:
-owner_unavailable`, the exact source lease ID/holder/epoch/expected head,
+owner_unavailable`, the exact source lease ID, holder, epoch, expected head,
+row expiry, and raw payload SHA-256,
 the SHA-256 digest of the absolute recorded source path, and
 `source_worktree_absent: true`; the current actor must be non-empty and
 different from the source holder, and the path must
 still be absent at effect time. Any mismatch preserves the ref and lease.
+Unavailable-holder recovery changes policy admission only; it invokes the same
+native exact revoke primitive as ordinary holder relinquishment and owns no
+wrapper or parallel destructive effect.
 Apply additionally requires `--authorize`, `--break-glass`, and
 `--confirm-irreversible`. Before the compare-and-delete ref effect, ETHOS writes
 a no-clobber local attempt record; attempt and successful receipt retain the

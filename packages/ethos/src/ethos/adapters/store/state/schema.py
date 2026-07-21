@@ -1,29 +1,17 @@
-# ruff: noqa: E501 - source-budget closeout preserves the exact AST in a compact representation.
-# fmt: off
-"""Shared ignored SQLite state schema and migration owner."""
+"""Shared ignored SQLite state schema owner."""
 
 from __future__ import annotations
 
 import hashlib
 import sqlite3
 from contextlib import closing
-from datetime import UTC
-from datetime import datetime
 from typing import TYPE_CHECKING
 from typing import Any
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-SCHEMA_VERSION = 2
-
 SCHEMA = (
-    """
-    create table if not exists schema_migrations (
-      version integer primary key,
-      applied_at text not null
-    )
-    """,
     """
     create table if not exists leases (
       id text primary key,
@@ -33,44 +21,111 @@ SCHEMA = (
       payload_json text not null
     )
     """,
+    "create unique index leases_subject_unique on leases(subject)",
 )
+_CANONICAL_LEASE_TABLE_SQL = (
+    "CREATE TABLE leases (\n"
+    "      id text primary key,\n"
+    "      subject text not null,\n"
+    "      owner text not null,\n"
+    "      expires_at text not null,\n"
+    "      payload_json text not null\n"
+    "    )"
+)
+_CANONICAL_SUBJECT_INDEX_SQL = "CREATE UNIQUE INDEX leases_subject_unique on leases(subject)"
+
+_TABLE_COLUMNS = {
+    "leases": (
+        ("id", "TEXT", 0, None, 1, 0),
+        ("subject", "TEXT", 1, None, 0, 0),
+        ("owner", "TEXT", 1, None, 0, 0),
+        ("expires_at", "TEXT", 1, None, 0, 0),
+        ("payload_json", "TEXT", 1, None, 0, 0),
+    ),
+}
 
 
-def _migrate_retired_lease_schema(connection: sqlite3.Connection) -> None:
-    if not _table_exists(connection, "leases"):
-        return
-    columns = {str(row[1]) for row in connection.execute("pragma table_info(leases)")}
-    current = {"id", "subject", "owner", "expires_at", "payload_json"}
-    retired = {"id", "owner", "resource", "expires_at", "created_at"}
-    if current <= columns or not retired <= columns:
-        return
-    rows = connection.execute("select id, resource, owner, expires_at from leases order by id").fetchall()
-    connection.execute("alter table leases rename to leases_retired_resource")
-    connection.execute(SCHEMA[1])
-    connection.executemany("insert or replace into leases(id, subject, owner, expires_at, payload_json) values (?, ?, ?, ?, ?)", ((row[0], str(row[1]), row[2], row[3], "{}") for row in rows if row[1]))
-    connection.execute("drop table leases_retired_resource")
+def _lease_table_exists(connection: sqlite3.Connection) -> bool:
+    return (
+        connection.execute(
+            "select 1 from sqlite_master where type = 'table' and name = 'leases'"
+        ).fetchone()
+        is not None
+    )
 
 
-def _table_exists(connection: sqlite3.Connection, table: str) -> bool:
-    row = connection.execute("select 1 from sqlite_master where type = 'table' and name = ?", (table,)).fetchone()
-    return row is not None
+def _normalized_sql(sql: str) -> str:
+    return " ".join(sql.upper().split())
 
 
-def _migrate_to_schema_v2(connection: sqlite3.Connection) -> None:
-    versions = {int(row[0]) for row in connection.execute("select version from schema_migrations").fetchall()}
-    if SCHEMA_VERSION in versions:
-        return
-    if _table_exists(connection, "cache_entries"):
-        row = connection.execute("select count(*) from cache_entries").fetchone()
-        if row is None or int(row[0]) != 0:
-            message = "state_schema_v2_cache_entries_not_empty"
-            raise RuntimeError(message)
-        connection.execute("drop table cache_entries")
-    connection.execute("insert into schema_migrations(version, applied_at) values (?, ?)", (SCHEMA_VERSION, now()))
+def _subject_unique_indexes(connection: sqlite3.Connection) -> list[tuple[bool, str, bool]]:
+    indexes: list[tuple[bool, str, bool]] = []
+    for row in connection.execute("pragma index_list(leases)"):
+        if not row[2]:
+            continue
+        keys = [
+            column
+            for column in connection.execute(
+                "select seqno, cid, name, desc, coll, key "
+                "from pragma_index_xinfo(?) order by seqno",
+                (row[1],),
+            )
+            if column[5]
+        ]
+        if len(keys) == 1 and str(keys[0][2]) == "subject":
+            indexes.append((bool(row[4]), str(keys[0][4]).upper(), bool(keys[0][3])))
+    return indexes
 
 
-def now() -> str:
-    return datetime.now(UTC).isoformat()
+def _require_canonical_lease_objects(connection: sqlite3.Connection) -> None:
+    table = connection.execute(
+        "select sql from sqlite_master where type = 'table' and name = 'leases'"
+    ).fetchone()
+    index = connection.execute(
+        "select sql from sqlite_master where type = 'index' and name = 'leases_subject_unique'"
+    ).fetchone()
+    if table is None or _normalized_sql(str(table[0])) != _normalized_sql(
+        _CANONICAL_LEASE_TABLE_SQL
+    ):
+        message = "state_schema_lease_table_definition_mismatch"
+        raise RuntimeError(message)
+    if index is None or _normalized_sql(str(index[0])) != _normalized_sql(
+        _CANONICAL_SUBJECT_INDEX_SQL
+    ):
+        message = "state_schema_lease_subject_unique_missing"
+        raise RuntimeError(message)
+
+
+def _require_exact_subject_uniqueness(connection: sqlite3.Connection) -> None:
+    indexes = _subject_unique_indexes(connection)
+    if indexes != [(False, "BINARY", False)]:
+        message = "state_schema_lease_subject_unique_missing"
+        raise RuntimeError(message)
+
+
+def _require_exact_lease_table(connection: sqlite3.Connection) -> None:
+    actual = tuple(
+        (
+            str(row[1]),
+            str(row[2]).upper(),
+            int(row[3]),
+            row[4],
+            int(row[5]),
+            int(row[6]),
+        )
+        for row in connection.execute("pragma table_xinfo(leases)")
+    )
+    if actual != _TABLE_COLUMNS["leases"]:
+        message = "state_schema_lease_table_definition_mismatch"
+        raise RuntimeError(message)
+
+
+def _require_no_lease_triggers(connection: sqlite3.Connection) -> None:
+    if connection.execute(
+        "select 1 from sqlite_master where type = 'trigger' and tbl_name = 'leases'"
+    ).fetchone():
+        message = "state_schema_lease_trigger_present"
+        raise RuntimeError(message)
 
 
 def read_only_state_uri(db_path: Path) -> str:
@@ -79,11 +134,29 @@ def read_only_state_uri(db_path: Path) -> str:
 
 
 def initialize_state_connection(connection: sqlite3.Connection) -> None:
-    """Apply state schema migrations inside the caller's active transaction."""
-    _migrate_retired_lease_schema(connection)
-    for statement in SCHEMA:
-        connection.execute(statement)
-    _migrate_to_schema_v2(connection)
+    """Create or validate the lease-owned subset of shared local state."""
+    if not connection.in_transaction:
+        message = "state_schema_transaction_required"
+        raise RuntimeError(message)
+    if not _lease_table_exists(connection):
+        for statement in SCHEMA:
+            connection.execute(statement)
+        return
+    _require_exact_lease_table(connection)
+    _require_canonical_lease_objects(connection)
+    _require_exact_subject_uniqueness(connection)
+    _require_no_lease_triggers(connection)
+
+
+def validate_current_lease_schema(connection: sqlite3.Connection) -> bool:
+    """Validate an existing lease table; report absence as an empty projection."""
+    if not _lease_table_exists(connection):
+        return False
+    _require_exact_lease_table(connection)
+    _require_canonical_lease_objects(connection)
+    _require_exact_subject_uniqueness(connection)
+    _require_no_lease_triggers(connection)
+    return True
 
 
 def initialize_state(db_path: Path) -> None:
@@ -103,14 +176,27 @@ def initialize_state(db_path: Path) -> None:
 def state_database_inventory(db_path: Path) -> dict[str, Any]:
     """Return a read-only digest and schema inventory for one state database."""
     if not db_path.exists():
-        return {"path": db_path.as_posix(), "exists": False, "digest": "", "schema_versions": [], "target_schema_version": SCHEMA_VERSION, "cache_entries": {"exists": False, "row_count": 0}}
+        return {
+            "path": db_path.as_posix(),
+            "exists": False,
+            "digest": "",
+            "lease_schema": "absent",
+        }
     try:
         with closing(sqlite3.connect(read_only_state_uri(db_path), uri=True)) as connection:
-            tables = {str(row[0]) for row in connection.execute("select name from sqlite_master where type = 'table'").fetchall()}
-            versions = [int(row[0]) for row in connection.execute("select version from schema_migrations order by version").fetchall()] if "schema_migrations" in tables else []
-            cache_count = int(connection.execute("select count(*) from cache_entries").fetchone()[0]) if "cache_entries" in tables else 0
+            lease_schema = "current" if validate_current_lease_schema(connection) else "absent"
             digest = hashlib.sha256(connection.serialize()).hexdigest()
-    except sqlite3.Error as exc:
-        return {"path": db_path.as_posix(), "exists": True, "digest": "", "schema_versions": [], "target_schema_version": SCHEMA_VERSION, "cache_entries": {"exists": False, "row_count": 0}, "error": exc.__class__.__name__}
-    return {"path": db_path.as_posix(), "exists": True, "digest": digest, "schema_versions": versions, "target_schema_version": SCHEMA_VERSION, "cache_entries": {"exists": "cache_entries" in tables, "row_count": cache_count}}
-# fmt: on
+    except (RuntimeError, sqlite3.Error) as exc:
+        return {
+            "path": db_path.as_posix(),
+            "exists": True,
+            "digest": "",
+            "lease_schema": "invalid",
+            "error": exc.__class__.__name__,
+        }
+    return {
+        "path": db_path.as_posix(),
+        "exists": True,
+        "digest": digest,
+        "lease_schema": lease_schema,
+    }

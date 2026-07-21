@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+from typing import Annotated
+from typing import Literal
+
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
 from pydantic import field_validator
+from pydantic import model_validator
 
 _EFFECT_FIELDS_INVALID = "lease_effect_fields_invalid"
 
@@ -68,22 +72,24 @@ class LeaseTransition(LifecycleModel):
 
     id: str = Field(min_length=1)
     applied_state: str = Field(min_length=1)
-    effect_fields: tuple[str, ...] = Field(min_length=1)
+    effect_fields: tuple[Annotated[str, Field(min_length=1)], ...] = Field(
+        min_length=1, strict=False
+    )
+    actor_field: Literal["holder_ref", "target_holder_ref"]
     blocks_contrary_decision: bool = False
 
-    @field_validator("effect_fields", mode="before")
+    @field_validator("effect_fields")
     @classmethod
-    def compile_effect_fields(cls, value: object) -> tuple[str, ...]:
-        if not isinstance(value, list | tuple):
-            raise TypeError(_EFFECT_FIELDS_INVALID)
-        fields: list[str] = []
-        for item in value:
-            if not isinstance(item, str) or not item:
-                raise ValueError(_EFFECT_FIELDS_INVALID)
-            fields.append(item)
+    def compile_effect_fields(cls, fields: tuple[str, ...]) -> tuple[str, ...]:
         if len(fields) != len(set(fields)):
             raise ValueError(_EFFECT_FIELDS_INVALID)
-        return tuple(fields)
+        return fields
+
+    @model_validator(mode="after")
+    def bind_actor_to_effect(self) -> LeaseTransition:
+        if self.actor_field not in self.effect_fields:
+            raise ValueError(_EFFECT_FIELDS_INVALID)
+        return self
 
 
 class LeaseFacts(LifecycleModel):
@@ -95,9 +101,12 @@ class LeaseFacts(LifecycleModel):
     branch: str
     holder_ref: str
     target_holder_ref: str
+    actor_ref: str
     expect_head: str
     lease_id: str
     expected_epoch: int | None
+    expected_expires_at: str = ""
+    expected_payload_sha256: str = ""
     ttl_seconds: int
     offer_id: str
     holder_quiesced: bool = False
@@ -115,20 +124,14 @@ class LeaseOperationRequest(LifecycleModel):
     lease_id: str
     expected_epoch: int | None
     expect_head: str
+    expected_expires_at: str = Field(min_length=1)
+    expected_payload_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     apply: bool = False
     ttl_seconds: int = 86_400
     target_holder_ref: str = ""
     offer_id: str = ""
     holder_quiesced: bool = False
     contrary_decision: bool = False
-
-
-class GuardedTransition(LifecycleModel):
-    """State names for a fact-only transition with no effectful knowledge."""
-
-    id: str
-    planned_state: str = "planned"
-    applied_state: str = "applying"
 
 
 WORK_LANE_MUTATION = MutationTransition(
@@ -147,12 +150,6 @@ CLOSEOUT_MUTATION = MutationTransition(
     dirty_gap="accepted_root_dirty",
     current_state="current",
 )
-
-HANDOFF_EXPORT = GuardedTransition(id="handoff_export")
-HANDOFF_IMPORT = GuardedTransition(id="handoff_import")
-HANDOFF_REVOKE_SOURCE = GuardedTransition(id="handoff_revoke_source")
-LANE_RESOLUTION_DECIDE = GuardedTransition(id="lane_resolution_decide")
-LANE_RESOLUTION_APPLY = GuardedTransition(id="lane_resolution_apply")
 
 
 def reduce_mutation(
@@ -199,12 +196,16 @@ def reduce_lease_request(
         "target_holder_ref": facts.target_holder_ref,
         "offer_id": facts.offer_id,
         "holder_quiesced": facts.holder_quiesced,
+        "expected_expires_at": facts.expected_expires_at,
+        "expected_payload_sha256": facts.expected_payload_sha256,
     }
     effect_value_gaps = {
         "holder_ref": "holder_ref_invalid",
         "target_holder_ref": "target_holder_ref_invalid",
         "offer_id": "handoff_offer_id_required",
         "holder_quiesced": "holder_quiescence_confirmation_required",
+        "expected_expires_at": "lease_expires_at_required",
+        "expected_payload_sha256": "lease_payload_sha256_required",
     }
     checks = (
         (facts.role == "work_lane", "work_lane_required"),
@@ -225,6 +226,10 @@ def reduce_lease_request(
             not transition.blocks_contrary_decision or not facts.contrary_decision,
             "lease_resume_blocked_by_decision",
         ),
+        (
+            not facts.apply or facts.actor_ref == effect_values[transition.actor_field],
+            "lease_actor_mismatch",
+        ),
         *(
             (
                 effect_values[field] not in ("", None, False),
@@ -242,7 +247,6 @@ def reduce_lease_request(
 
 
 def reduce_guards(
-    transition: GuardedTransition,
     *,
     apply: bool,
     initial_gaps: tuple[str, ...] = (),
@@ -256,8 +260,7 @@ def reduce_guards(
         *(gap for satisfied, gap in checks if not satisfied),
     ]
     return _transition_evaluation(
-        applied_state=transition.applied_state,
-        planned_state=transition.planned_state,
+        applied_state="applying",
         apply=apply,
         gaps=tuple(gaps),
     )

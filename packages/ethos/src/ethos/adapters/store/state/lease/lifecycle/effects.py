@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import sqlite3
 from contextlib import closing
@@ -10,8 +9,9 @@ from typing import TYPE_CHECKING
 from typing import Any
 
 from ethos.adapters.store.state.lease.lifecycle.core import expected_current_lease
-from ethos.adapters.store.state.lease.projection import active_leases
-from ethos.adapters.store.state.schema import initialize_state
+from ethos.adapters.store.state.lease.projection import expect_exact_lease_candidate
+from ethos.adapters.store.state.lease.projection import lease_record
+from ethos.adapters.store.state.schema import initialize_state_connection
 from ethos_core.contracts.coordination import HolderRef
 
 if TYPE_CHECKING:
@@ -21,68 +21,42 @@ if TYPE_CHECKING:
 def update_lease_payload(
     db_path: Path,
     *,
-    subject: str,
+    candidate: dict[str, Any],
     payload: dict[str, Any],
 ) -> dict[str, Any]:
-    initialize_state(db_path)
-    matching = [lease for lease in active_leases(db_path) if lease["subject"] == subject]
-    if len(matching) != 1:
+    if not db_path.exists():
         return {}
-    lease = matching[0]
-    merged_payload = dict(lease["payload"])
-    merged_payload.update(payload)
-    with closing(sqlite3.connect(db_path)) as connection:
-        connection.execute("pragma foreign_keys = on")
-        connection.execute(
-            """
-            update leases
-            set payload_json = ?
-            where id = ?
-            """,
-            (json.dumps(merged_payload, sort_keys=True), lease["id"]),
-        )
-        connection.commit()
-    updated = dict(lease)
-    updated["payload"] = merged_payload
-    return updated
-
-
-def delete_lease(db_path: Path, *, subject: str) -> int:
-    """Delete all leases for a subject (work-lane branch). Returns the count removed.
-
-    Called on lane retirement so a lease cannot outlive its lane — a destroyed and
-    later recreated same-named branch must not present a resolvable stale lease
-    (a truth store that cannot be proved is not a trustworthy store).
-    """
-    if not db_path.exists():
-        return 0
-    with closing(sqlite3.connect(db_path)) as connection:
-        connection.execute("pragma foreign_keys = on")
-        cursor = connection.execute(
-            "delete from leases where subject = ?",
-            (subject,),
-        )
-        connection.commit()
-        return cursor.rowcount
-
-
-def delete_exact_leases(db_path: Path, candidates: list[dict[str, Any]]) -> list[str]:
-    """Delete exact maintenance candidates through a row-bound transaction."""
-    if not candidates:
-        return []
-    if not db_path.exists():
-        message = "lease_maintenance_database_missing"
-        raise ValueError(message)
     with closing(sqlite3.connect(db_path)) as connection:
         connection.execute("pragma foreign_keys = on")
         connection.execute("begin immediate")
-        try:
-            deleted = delete_exact_leases_from_connection(connection, candidates)
-            connection.commit()
-        except Exception:
-            connection.rollback()
-            raise
-    return deleted
+        initialize_state_connection(connection)
+        row, merged_payload = expected_current_lease(
+            connection,
+            subject=str(candidate.get("subject") or ""),
+            holder_ref=str(candidate.get("holder_ref") or ""),
+            expected_lease_id=str(candidate.get("lease_id") or ""),
+            expected_epoch=int(candidate.get("epoch") or 0),
+            expected_head=str(candidate.get("expected_head") or ""),
+            expected_expires_at=str(candidate.get("expires_at") or ""),
+            expected_payload_sha256=str(candidate.get("payload_sha256") or ""),
+            require_expired=False,
+        )
+        merged_payload.update(payload)
+        raw_payload = json.dumps(merged_payload, sort_keys=True)
+        connection.execute(
+            "update leases set payload_json = ? where id = ?",
+            (raw_payload, str(row[0])),
+        )
+        connection.commit()
+    return lease_record(
+        (
+            str(row[0]),
+            str(row[1]),
+            str(row[2]),
+            str(row[3]),
+            raw_payload,
+        )
+    )
 
 
 def delete_exact_leases_from_connection(
@@ -90,6 +64,7 @@ def delete_exact_leases_from_connection(
     candidates: list[dict[str, Any]],
 ) -> list[str]:
     """Delete exact candidates inside the caller's active transaction."""
+    initialize_state_connection(connection)
     deleted: list[str] = []
     for candidate in candidates:
         lease_id = str(candidate.get("id") or "")
@@ -109,20 +84,10 @@ def _expect_lease_candidate(connection: sqlite3.Connection, candidate: dict[str,
         """,
         (lease_id,),
     ).fetchone()
-    if row is None or not _lease_candidate_matches(row, candidate):
+    if row is None:
         message = f"lease_maintenance_candidate_drift:{lease_id}"
         raise ValueError(message)
-
-
-def _lease_candidate_matches(row: sqlite3.Row | tuple[Any, ...], candidate: dict[str, Any]) -> bool:
-    payload_digest = hashlib.sha256(str(row[4]).encode()).hexdigest()
-    return (
-        str(row[0]) == str(candidate.get("id") or "")
-        and str(row[1]) == str(candidate.get("subject") or "")
-        and str(row[2]) == str(candidate.get("owner") or "")
-        and str(row[3]) == str(candidate.get("expires_at") or "")
-        and payload_digest == str(candidate.get("payload_sha256") or "")
-    )
+    expect_exact_lease_candidate(row, candidate)
 
 
 def revoke_lease(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
@@ -133,24 +98,52 @@ def revoke_lease(  # noqa: PLR0913, RUF100 - exact request envelope preserves bo
     expected_lease_id: str,
     expected_epoch: int,
     expected_head: str,
+    expected_expires_at: str,
+    expected_payload_sha256: str,
 ) -> dict[str, Any]:
     """Delete one exact local lease generation after a completed handoff saga."""
-    HolderRef.parse(holder_ref)
-    initialize_state(db_path)
     with closing(sqlite3.connect(db_path)) as connection:
         connection.execute("pragma foreign_keys = on")
         connection.execute("begin immediate")
-        row, payload = expected_current_lease(
+        revoked = revoke_lease_from_connection(
             connection,
             subject=subject,
             holder_ref=holder_ref,
             expected_lease_id=expected_lease_id,
             expected_epoch=expected_epoch,
             expected_head=expected_head,
-            require_expired=False,
+            expected_expires_at=expected_expires_at,
+            expected_payload_sha256=expected_payload_sha256,
         )
-        connection.execute("delete from leases where id = ?", (str(row[0]),))
         connection.commit()
+    return revoked
+
+
+def revoke_lease_from_connection(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
+    connection: sqlite3.Connection,
+    *,
+    subject: str,
+    holder_ref: str,
+    expected_lease_id: str,
+    expected_epoch: int,
+    expected_head: str,
+    expected_expires_at: str,
+    expected_payload_sha256: str,
+) -> dict[str, Any]:
+    """Delete one exact lease generation inside the caller's active transaction."""
+    HolderRef.parse(holder_ref)
+    row, payload = expected_current_lease(
+        connection,
+        subject=subject,
+        holder_ref=holder_ref,
+        expected_lease_id=expected_lease_id,
+        expected_epoch=expected_epoch,
+        expected_head=expected_head,
+        expected_expires_at=expected_expires_at,
+        expected_payload_sha256=expected_payload_sha256,
+        require_expired=False,
+    )
+    connection.execute("delete from leases where id = ?", (str(row[0]),))
     return {
         "revoked": True,
         "subject": subject,
@@ -158,24 +151,6 @@ def revoke_lease(  # noqa: PLR0913, RUF100 - exact request envelope preserves bo
         "holder_ref": holder_ref,
         "epoch": int(payload.get("epoch") or 0),
         "expected_head": str(payload.get("expected_head") or ""),
+        "expires_at": str(row[3]),
+        "payload_sha256": expected_payload_sha256,
     }
-
-
-def revoke_owner_unavailable_lease(  # noqa: PLR0913, RUF100 - accepted exceptional recovery keeps exact CAS dimensions
-    db_path: Path,
-    *,
-    subject: str,
-    source_holder_ref: str,
-    expected_lease_id: str,
-    expected_epoch: int,
-    expected_head: str,
-) -> dict[str, Any]:
-    """Revoke one accepted-policy-bound unavailable-owner lease generation by exact CAS."""
-    return revoke_lease(
-        db_path,
-        subject=subject,
-        holder_ref=source_holder_ref,
-        expected_lease_id=expected_lease_id,
-        expected_epoch=expected_epoch,
-        expected_head=expected_head,
-    )

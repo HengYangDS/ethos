@@ -13,6 +13,7 @@ import ethos.adapters.admission.prewrite as pw
 import ethos.adapters.admission.shell as shell
 import ethos.adapters.admission.transitions as tx
 import ethos.adapters.gates.runner as gates
+import ethos.adapters.mutation.lane_lifecycle.lease as lease_adapter
 import ethos.domain.land.intake.core as intake
 import ethos.domain.land.trust.core as trust
 import ethos.surface.cli._base as cli
@@ -21,6 +22,7 @@ import ethos_core.contracts.lifecycle.core as lifecycle
 from ethos_core.contracts.admission import HookAdmissionRequest
 from ethos_core.contracts.coordination import HolderRef
 from ethos_core.contracts.coordination import LaneLease
+from ethos_core.contracts.workflow import load_workflow_contract_declaration
 from ethos_core.result import EthosResult
 
 if TYPE_CHECKING:
@@ -32,9 +34,28 @@ def _patch(monkeypatch: pytest.MonkeyPatch, target: object, **values: object) ->
         monkeypatch.setattr(target, name, value)
 
 
-def test_lease_shell_and_git_parser_matrix() -> None:
-    facts = lifecycle.LeaseFacts(role="work_lane", current_branch="work/x", current_head="a", branch="work/x", expect_head="b", lease_id="l", epoch=1, ttl_seconds=1, offer_id="", apply=False)  # fmt: skip
-    assert lifecycle.reduce_lease_request(lifecycle.lease_transition("renew"), facts).gaps == ("expect_head_mismatch",)  # fmt: skip
+def test_lease_shell_and_git_parser_matrix(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    facts = lifecycle.LeaseFacts(role="work_lane", current_branch="work/x", current_head="a", branch="work/x", holder_ref="agent:test:case:owner", target_holder_ref="", actor_ref="agent:test:case:owner", expect_head="b", lease_id="l", expected_epoch=1, expected_expires_at="x", expected_payload_sha256="a" * 64, ttl_seconds=1, offer_id="", apply=False)  # fmt: skip
+    renew = next(item for item in load_workflow_contract_declaration().lease_transition if item.id == "renew")  # fmt: skip
+    assert lifecycle.reduce_lease_request(renew, facts).gaps == ("expect_head_mismatch",)  # fmt: skip
+    monkeypatch.setattr(
+        lease_adapter,
+        "load_workflow_contract_declaration",
+        lambda _repo: (_ for _ in ()).throw(ValueError("bad")),
+    )
+    assert lease_adapter._lease_effect_binding(tmp_path, "renew")[2] == ("lease_transition_contract_invalid",)  # noqa: SLF001, RUF100 - fail-closed declaration edge  # fmt: skip
+    monkeypatch.setattr(
+        lease_adapter,
+        "load_workflow_contract_declaration",
+        lambda _repo: type("Contract", (), {"lease_transition": (renew,)})(),
+    )
+    effect = lease_adapter._LEASE_EFFECTS.pop("renew")  # noqa: SLF001, RUF100 - declaration/effect drift edge
+    try:
+        assert lease_adapter._lease_effect_binding(tmp_path, "renew")[2] == ("lease_effect_unknown:renew",)  # noqa: SLF001, RUF100  # fmt: skip
+    finally:
+        lease_adapter._LEASE_EFFECTS["renew"] = effect  # noqa: SLF001, RUF100
+    invalid = lifecycle.LeaseOperationRequest(operation="renew", branch="work/x", holder_ref="bad", target_holder_ref="also-bad", lease_id="l", expected_epoch=1, expect_head="h", expected_expires_at="x", expected_payload_sha256="a" * 64)  # fmt: skip
+    assert set(lease_adapter._lease_expected_state(tmp_path, invalid)[1]) == {"holder_ref_invalid", "target_holder_ref_invalid"}  # noqa: SLF001, RUF100  # fmt: skip
     cases = json.loads('[ ["","work_lane",false], ["git stash list","accepted_root",false], ["git branch --list","accepted_root",false], ["git worktree list","accepted_root",false], ["ethos status --json","accepted_root",false], ["git branch -D old","work_lane",true], ["python script.py","accepted_root",true] ]')  # fmt: skip
     assert [shell.command_risk(command, role=role)["tracked_mutation_risk"] for command, role, _ in cases] == [expected for _, _, expected in cases]  # fmt: skip
     tokens, find, mutates, protected, readonly = shell._shell_tokens, shell._find_git_subcommand, shell._has_explicit_mutation_command, shell._is_protected_read_command, shell._git_command_is_read_only  # noqa: SLF001, RUF100 - parser edges  # fmt: skip

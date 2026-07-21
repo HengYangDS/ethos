@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import sqlite3
 import subprocess
+from contextlib import closing
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -26,7 +27,7 @@ _REFRESH_CASES = json.loads(
 {"id":"bootstrap-present","operation":"bootstrap","role":"accepted_root","dirty":false,"candidate_exists":true,"candidate_head":"c1","ancestor":false,"apply":false,"path_exists":false,"state":"present","gap":""},
 {"id":"bootstrap-planned","operation":"bootstrap","role":"accepted_root","dirty":false,"candidate_exists":false,"candidate_head":"c1","ancestor":false,"apply":false,"path_exists":false,"state":"planned","gap":""},
 {"id":"bootstrap-path-exists","operation":"bootstrap","role":"accepted_root","dirty":false,"candidate_exists":false,"candidate_head":"c1","ancestor":false,"apply":true,"path_exists":true,"state":"blocked","gap":"candidate_worktree_path_exists"},
-{"id":"bootstrap-git-failure","operation":"bootstrap","role":"accepted_root","dirty":false,"candidate_exists":false,"candidate_head":"c1","ancestor":false,"apply":true,"path_exists":false,"state":"blocked","gap":"candidate_bootstrap_failed"},
+{"id":"bootstrap-git-failure","operation":"bootstrap","role":"accepted_root","dirty":false,"candidate_exists":false,"candidate_head":"c1","ancestor":false,"apply":true,"path_exists":false,"state":"blocked","gap":"candidate_worktree_add_failed"},
 {"id":"candidate-wrong-role","operation":"candidate","role":"work_lane","dirty":false,"candidate_exists":true,"candidate_head":"c1","ancestor":true,"apply":false,"path_exists":false,"state":"blocked","gap":"accepted_root_required"},
 {"id":"candidate-dirty","operation":"candidate","role":"accepted_root","dirty":true,"candidate_exists":true,"candidate_head":"c1","ancestor":true,"apply":false,"path_exists":false,"state":"blocked","gap":"accepted_root_dirty"},
 {"id":"candidate-current","operation":"candidate","role":"accepted_root","dirty":false,"candidate_exists":true,"candidate_head":"h1","ancestor":true,"apply":false,"path_exists":false,"state":"base_current","gap":""},
@@ -73,6 +74,279 @@ def test_closeout_and_lane_guards(tmp_path: Path) -> None:
     acquire_lease(db, subject="work/other", holder_ref="agent:test:case:owner")
     active_lease = lanes._active_lease  # noqa: SLF001, RUF100 - lease lookup edge
     assert active_lease(db, "work/target") is None
+
+
+def test_lane_start_input_and_git_failure_edges(tmp_path: Path, monkeypatch) -> None:
+    invalid = lanes.start_work_lane(root=tmp_path, name="x", holder_ref="bad")
+    assert invalid["required_gaps"] == ["holder_ref_invalid"]
+    planned = lanes.start_work_lane(
+        root=tmp_path,
+        name="x",
+        holder_ref="agent:test:case:owner",
+    )
+    assert planned["state"] == "planned"
+    status = {
+        "role": "accepted_root",
+        "dirty": False,
+        "candidate": {
+            "exists": True,
+            "worktree_exists": True,
+            "worktree_path": str(tmp_path),
+            "head": "h",
+        },
+    }
+    _setattrs(
+        monkeypatch,
+        lanes,
+        {
+            "workspace_status": lambda _root: status,
+            "changed_paths": lambda _path: [],
+            "run_git": lambda *_args, **_kwargs: subprocess.CompletedProcess([], 1, "", "failed"),
+        },
+    )
+    failed = lanes.start_work_lane(
+        root=tmp_path,
+        name="x",
+        holder_ref="agent:test:case:owner",
+        apply=True,
+    )
+    assert failed["required_gaps"] == ["worktree_add_failed"]
+    occupied = tmp_path / "occupied"
+    occupied.mkdir()
+    blocked = lanes.start_work_lane(root=tmp_path, name="occupied", path=occupied, holder_ref="agent:test:case:owner", apply=True)  # fmt: skip
+    assert blocked["required_gaps"] == ["lane_start_target_path_exists"]
+    occupied.rmdir()
+    acquire, carrier_gap = lanes.acquire_lease, lanes._lane_start_carrier_gap  # noqa: SLF001, RUF100 - exact acquisition edges  # fmt: skip
+    monkeypatch.setattr(lanes, "acquire_lease", lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("lease_acquire_failed")))  # fmt: skip
+    assert lanes.start_work_lane(root=tmp_path, name="acquire", holder_ref="agent:test:case:owner", apply=True)["required_gaps"] == ["lease_acquire_failed"]  # fmt: skip
+    lease = {"expected_head": "h", "holder_ref": "agent:test:case:owner", "lease_id": "lease:x", "epoch": 1, "expires_at": "x", "payload_sha256": "a" * 64}  # fmt: skip
+    monkeypatch.setattr(lanes, "acquire_lease", lambda *_args, **_kwargs: lease)
+    gaps = iter(("", "lane_start_target_path_exists"))
+    monkeypatch.setattr(lanes, "_lane_start_carrier_gap", lambda *_args, **_kwargs: next(gaps))
+    raced = lanes.start_work_lane(root=tmp_path, name="raced", holder_ref="agent:test:case:owner", apply=True)  # fmt: skip
+    assert raced["required_gaps"] == ["lane_creation_compensation_failed", "lane_start_target_path_ownership_unknown"]  # fmt: skip
+    monkeypatch.setattr(lanes, "acquire_lease", acquire)
+    monkeypatch.setattr(lanes, "_lane_start_carrier_gap", carrier_gap)
+
+
+def test_lane_start_uses_captured_candidate_and_preserves_foreign_same_head_ref(
+    tmp_path: Path, monkeypatch
+) -> None:
+    target = tmp_path / "lane"
+    captured, current = "a" * 40, {"head": "a" * 40}
+    status = {
+        "role": "accepted_root",
+        "dirty": False,
+        "candidate": {
+            "exists": True,
+            "worktree_exists": True,
+            "worktree_path": str(tmp_path),
+            "head": captured,
+        },
+    }
+
+    def acquire(_database, **kwargs):
+        assert kwargs["payload"]["expected_head"] == captured
+        current["head"] = "b" * 40
+        return {
+            "expected_head": captured,
+            "holder_ref": kwargs["holder_ref"],
+            "lease_id": "lease:x",
+            "epoch": 1,
+            "expires_at": "2099-01-01T00:00:00+00:00",
+            "payload_sha256": "c" * 64,
+        }
+
+    def git(_root, *args, **_kwargs):
+        assert current["head"] != captured
+        assert args[-1] == captured
+        return subprocess.CompletedProcess(args, 0, "", "")
+
+    _setattrs(
+        monkeypatch,
+        lanes,
+        {
+            "workspace_status": lambda _root: status,
+            "changed_paths": lambda _path: [],
+            "acquire_lease": acquire,
+            "run_git": git,
+            "_exact_worktree": lambda *_args, **kwargs: kwargs["head"] == captured,
+            "_started_worktree": lambda **_kwargs: {},
+        },
+    )
+    started = lanes.start_work_lane(
+        root=tmp_path,
+        name="x",
+        path=target,
+        holder_ref="agent:test:case:owner",
+        apply=True,
+    )
+    assert started["base_head"] == captured
+
+    monkeypatch.setattr(lanes, "_exact_worktree", lambda *_args, **_kwargs: False)
+    monkeypatch.setattr(lanes, "ref_head", lambda *_args: captured)
+    monkeypatch.setattr(lanes, "run_git", pytest.fail)
+    retained = lanes._abort_lane_start(  # noqa: SLF001, RUF100 - exact saga boundary
+        tmp_path,
+        target=target,
+        branch="work/x",
+        lease=started["lease"],
+        completed=subprocess.CompletedProcess([], 1, "", "failed"),
+    )
+    assert retained["lease_state"] == "retained"
+    assert retained["required_gaps"] == [
+        "lane_creation_compensation_failed",
+        "lane_start_target_ref_ownership_unknown",
+    ]
+
+
+def test_lane_start_failed_add_preserves_concurrent_same_shape_carrier(
+    tmp_path: Path, monkeypatch
+) -> None:
+    target = tmp_path / "lane"
+    head = "a" * 40
+    status = {
+        "role": "accepted_root",
+        "dirty": False,
+        "candidate": {
+            "exists": True,
+            "worktree_exists": True,
+            "worktree_path": str(tmp_path),
+            "head": head,
+        },
+    }
+    lease = {
+        "expected_head": head,
+        "holder_ref": "agent:test:case:owner",
+        "lease_id": "lease:x",
+        "epoch": 1,
+        "expires_at": "2099-01-01T00:00:00+00:00",
+        "payload_sha256": "a" * 64,
+    }
+
+    def git(_root, *args, **_kwargs):
+        if args[:2] == ("worktree", "add"):
+            target.mkdir()
+            return subprocess.CompletedProcess(args, 1, "", "lost race")
+        pytest.fail(f"foreign carrier cleanup attempted: {args}")
+
+    _setattrs(
+        monkeypatch,
+        lanes,
+        {
+            "workspace_status": lambda _root: status,
+            "changed_paths": lambda _path: [],
+            "acquire_lease": lambda *_args, **_kwargs: lease,
+            "_lane_start_carrier_gap": lambda *_args, **_kwargs: "",
+            "_exact_worktree": lambda *_args, **_kwargs: target.exists(),
+            "ref_head": lambda *_args: head if target.exists() else "",
+            "run_git": git,
+        },
+    )
+
+    report = lanes.start_work_lane(
+        root=tmp_path,
+        name="x",
+        path=target,
+        holder_ref="agent:test:case:owner",
+        apply=True,
+    )
+
+    assert target.exists()
+    assert report["lease_state"] == "retained"
+    assert report["required_gaps"] == [
+        "lane_creation_compensation_failed",
+        "lane_start_target_path_ownership_unknown",
+    ]
+
+
+def test_lane_start_abort_retains_lease_for_unknown_or_failed_cleanup(
+    tmp_path: Path, monkeypatch
+) -> None:
+    branch = "work/x"
+    target = tmp_path / "lane"
+    lease = {
+        "expected_head": "h",
+        "holder_ref": "agent:test:case:owner",
+        "lease_id": "lease:x",
+        "epoch": 1,
+        "expires_at": "2099-01-01T00:00:00+00:00",
+        "payload_sha256": "a" * 64,
+    }
+    monkeypatch.setattr(lanes, "_exact_worktree", lambda *_args, **_kwargs: False)
+    target.mkdir()
+    unknown = lanes._abort_lane_start(  # noqa: SLF001, RUF100 - exact saga boundary
+        tmp_path,
+        target=target,
+        branch=branch,
+        lease=lease,
+        completed=subprocess.CompletedProcess([], 1, "", "failed"),
+    )
+    assert unknown["lease_state"] == "retained"
+    assert unknown["required_gaps"] == [
+        "lane_creation_compensation_failed",
+        "lane_start_target_path_ownership_unknown",
+    ]
+    target.rmdir()
+    monkeypatch.setattr(lanes, "ref_head", lambda *_args: "")
+    monkeypatch.setattr(
+        lanes,
+        "revoke_lease",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError("lease_revoke_failed")),
+    )
+    retained = lanes._abort_lane_start(  # noqa: SLF001, RUF100 - exact saga boundary
+        tmp_path,
+        target=target,
+        branch=branch,
+        lease=lease,
+        completed=subprocess.CompletedProcess([], 1, "", "failed"),
+    )
+    assert retained["carrier_cleanup"] == {
+        "worktree_removed": True,
+        "ref_removed": True,
+    }
+    assert retained["lease_state"] == "retained"
+    assert retained["required_gaps"] == [
+        "lane_creation_compensation_failed",
+        "lease_revoke_failed",
+    ]
+
+
+@pytest.mark.parametrize("target_state", ["missing", "present"])
+def test_lane_start_abort_removes_exact_carriers(
+    tmp_path: Path, monkeypatch, target_state: str
+) -> None:
+    target_exists = target_state == "present"
+    target, head = tmp_path / "lane", "h"
+    if target_exists:
+        target.mkdir()
+    lease = {"expected_head": head, "holder_ref": "agent:test:case:owner", "lease_id": "lease:x", "epoch": 1, "expires_at": "x", "payload_sha256": "a" * 64}  # fmt: skip
+    exact, refs = iter((True, False)), iter((head, ""))
+
+    def git(_root, *args, **_kwargs):
+        if args[:2] == ("worktree", "remove") and target_exists:
+            target.rmdir()
+        assert ("--force" in args) is not target_exists if args[:2] == ("worktree", "remove") else args[:2] == ("update-ref", "-d")  # fmt: skip
+        return subprocess.CompletedProcess(args, 0, "", "")
+
+    _setattrs(monkeypatch, lanes, {"_exact_worktree": lambda *_args, **_kwargs: next(exact), "ref_head": lambda *_args: next(refs), "run_git": git, "revoke_lease": lambda *_args, **_kwargs: {}})  # fmt: skip
+    report = lanes._abort_lane_start(tmp_path, target=target, branch="work/x", lease=lease, completed=subprocess.CompletedProcess([], 0, "", "failed"))  # noqa: SLF001, RUF100 - exact saga boundary  # fmt: skip
+    assert report["lease_state"] == "revoked"
+
+
+def test_lane_start_abort_reports_carrier_cleanup_failures(tmp_path: Path, monkeypatch) -> None:
+    target, head = tmp_path / "lane", "h"
+    lease = {"expected_head": head, "holder_ref": "agent:test:case:owner", "lease_id": "lease:x", "epoch": 1, "expires_at": "x", "payload_sha256": "a" * 64}  # fmt: skip
+    _setattrs(monkeypatch, lanes, {"_exact_worktree": lambda *_args, **_kwargs: True, "run_git": lambda *_args, **_kwargs: subprocess.CompletedProcess([], 1, "", "")})  # fmt: skip
+    worktree = lanes._abort_lane_start(tmp_path, target=target, branch="work/x", lease=lease, completed=subprocess.CompletedProcess([], 0, "", "failed"))  # noqa: SLF001, RUF100 - exact saga boundary  # fmt: skip
+    assert worktree["required_gaps"][-1] == "lane_start_worktree_cleanup_failed"
+    exact, git_results = iter((True, False)), iter((0, 1))
+    _setattrs(monkeypatch, lanes, {"_exact_worktree": lambda *_args, **_kwargs: next(exact), "ref_head": lambda *_args: head, "run_git": lambda *_args, **_kwargs: subprocess.CompletedProcess([], next(git_results), "", "")})  # fmt: skip
+    ref = lanes._abort_lane_start(tmp_path, target=target, branch="work/x", lease=lease, completed=subprocess.CompletedProcess([], 0, "", "failed"))  # noqa: SLF001, RUF100 - exact saga boundary  # fmt: skip
+    assert ref["required_gaps"][-1] == "lane_start_ref_cleanup_failed"
+    _setattrs(monkeypatch, lanes, {"_exact_worktree": lambda *_args, **_kwargs: False, "ref_head": lambda *_args: "changed"})  # fmt: skip
+    changed = lanes._abort_lane_start(tmp_path, target=target, branch="work/x", lease=lease, completed=subprocess.CompletedProcess([], 0, "", "failed"))  # noqa: SLF001, RUF100 - exact saga boundary  # fmt: skip
+    assert changed["required_gaps"][-1] == "lane_start_ref_changed"
 
 
 def test_land_proof_failure(tmp_path: Path, monkeypatch) -> None:
@@ -122,8 +396,8 @@ def test_refresh_matrix(tmp_path: Path, monkeypatch, case: dict[str, object]) ->
     status = {"role": case["role"], "dirty": case["dirty"], "branch": "work/x", "candidate": candidate}  # fmt: skip
 
     def git(_root: Path, *args: str, **_kwargs):
-        branch_failed = args[:1] == ("branch",)
-        return subprocess.CompletedProcess([], int(branch_failed), "h1\n" if args == ("rev-parse", "HEAD") else "", "branch failed" if branch_failed else "")  # fmt: skip
+        failed = case["id"] == "bootstrap-git-failure" and args[:2] == ("worktree", "add")
+        return subprocess.CompletedProcess([], int(failed), "h1\n" if args == ("rev-parse", "HEAD") else "", "worktree add failed" if failed else "")  # fmt: skip
 
     _setattrs(monkeypatch, refresh, {"repo_root": lambda root: root, "load_branch_role_policy": lambda _root: SimpleNamespace(candidate_branch="candidate/dev"), "workspace_status": lambda _root: status, "changed_paths": lambda _path: [], "is_ancestor": lambda *_args: case["ancestor"], "run_git": git})  # fmt: skip
     if case["operation"] == "bootstrap":
@@ -133,6 +407,48 @@ def test_refresh_matrix(tmp_path: Path, monkeypatch, case: dict[str, object]) ->
     else:
         report = refresh.refresh_work_lane_base(root=tmp_path)
     assert (report["state"], report["required_gaps"]) == (case["state"], [case["gap"]] if case["gap"] else [])  # fmt: skip
+
+
+def test_candidate_refresh_reports_reset_failure(tmp_path: Path, monkeypatch) -> None:
+    status = {
+        "role": "accepted_root",
+        "dirty": False,
+        "candidate": {
+            "exists": True,
+            "worktree_exists": True,
+            "worktree_path": str(tmp_path),
+            "head": "candidate",
+        },
+    }
+
+    def git(_root: Path, *args: str, **_kwargs):
+        return subprocess.CompletedProcess(
+            [],
+            int(args[:2] == ("reset", "--hard")),
+            "accepted\n" if args == ("rev-parse", "HEAD") else "",
+            "reset failed" if args[:2] == ("reset", "--hard") else "",
+        )
+
+    _setattrs(
+        monkeypatch,
+        refresh,
+        {
+            "repo_root": lambda root: root,
+            "load_branch_role_policy": lambda _root: SimpleNamespace(
+                candidate_branch="candidate/dev"
+            ),
+            "workspace_status": lambda _root: status,
+            "changed_paths": lambda _path: [],
+            "run_git": git,
+        },
+    )
+    report = refresh.refresh_candidate_from_accepted(
+        root=tmp_path,
+        apply=True,
+        authorized=True,
+        expect_head="accepted",
+    )
+    assert report["required_gaps"] == ["candidate_refresh_from_accepted_failed"]
 
 
 def test_unbound_observation_policy_records(tmp_path: Path, monkeypatch) -> None:
@@ -222,14 +538,11 @@ def test_unbound_core_exception_edges(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setattr(unbound.policy, "accepted_control_root", lambda *_args, **_kw: (None, "no_root"))  # fmt: skip
     monkeypatch.setattr(unbound.reporting, "blocked", lambda result, gaps: result | {"required_gaps": gaps})  # fmt: skip
     assert _apply_retirement(tmp_path, before)["required_gaps"] == ["no_root"]
-    observed = {obs.HAS_ACTIVE_LEASE: True, "branch": "work/x", "active_lease": {"holder_ref": "holder", "lease_id": "l", "epoch": 1, "expected_head": "h"}}  # fmt: skip
-    monkeypatch.setattr(unbound, "revoke_lease", lambda *_args, **_kw: {"revoked": True})
-    assert unbound.relinquish_owned_lease(tmp_path, observed=observed, holder_ref="holder") == {"revoked": True}  # fmt: skip
 
     def locked(_path):
         raise sqlite3.OperationalError("locked")  # noqa: EM101, RUF100 - injected lock failure
 
-    monkeypatch.setattr(unbound, "initialize_state", locked)
+    monkeypatch.setattr(unbound.sqlite3, "connect", locked)
     monkeypatch.setattr(unbound.observation, "public_observation", lambda value: value)
     assert _finish_retirement(tmp_path, {"lease_relinquished": {"lease_id": "l"}})["lease_relinquish_rolled_back"] == {"lease_id": "l"}  # fmt: skip
     assert _finish_retirement(tmp_path, {})["required_gaps"] == ["unbound_retire_active_lease"]
@@ -244,47 +557,30 @@ def test_unbound_lease_recovery_argument_edges(tmp_path: Path, monkeypatch) -> N
             "lease_id": "lease:source",
             "epoch": 1,
             "expected_head": "h",
+            "expires_at": "x",
+            "payload_sha256": "y",
         },
     }
-    assert (
-        unbound._lease_relinquish_arguments(  # noqa: SLF001, RUF100
-            observed=observed,
-            holder_ref="agent:test:recovery",
-            owner_unavailable_recovery=False,
+    with closing(sqlite3.connect(":memory:")) as connection:
+        assert (
+            unbound.relinquish_owned_lease(
+                connection,
+                observed=observed,
+                holder_ref="agent:test:recovery",
+            )
+            is None
         )
-        is None
-    )
     missing_branch = dict(observed)
     missing_branch.pop("branch")
-    assert (
-        unbound._lease_relinquish_arguments(  # noqa: SLF001, RUF100
-            observed=missing_branch,
-            holder_ref="agent:test:source",
-            owner_unavailable_recovery=False,
+    with closing(sqlite3.connect(":memory:")) as connection:
+        assert (
+            unbound.relinquish_owned_lease(
+                connection,
+                observed=missing_branch,
+                holder_ref="agent:test:source",
+            )
+            is None
         )
-        is None
-    )
-
-    seen: dict[str, object] = {}
-
-    def revoke_owner_unavailable(_database: Path, **kwargs):
-        seen.update(kwargs)
-        return {"revoked": True}
-
-    monkeypatch.setattr(unbound, "revoke_owner_unavailable_lease", revoke_owner_unavailable)
-    assert unbound.relinquish_owned_lease(
-        tmp_path,
-        observed=observed,
-        holder_ref="agent:test:recovery",
-        owner_unavailable_recovery=True,
-    ) == {"revoked": True}
-    assert seen == {
-        "subject": "work/x",
-        "source_holder_ref": "agent:test:source",
-        "expected_lease_id": "lease:source",
-        "expected_epoch": 1,
-        "expected_head": "h",
-    }
 
 
 def test_unbound_pre_effect_and_receipt_edges(tmp_path: Path, monkeypatch) -> None:
@@ -313,7 +609,7 @@ def test_unbound_pre_effect_and_receipt_edges(tmp_path: Path, monkeypatch) -> No
             return None
 
     observations = iter(({}, {}))
-    _setattrs(monkeypatch, unbound, {"initialize_state": lambda _path: None, "_observe": lambda *_args, **_kw: next(observations), "relinquish_owned_lease": lambda *_args, **_kw: {}, "_delete_ref_transaction": lambda *_args, **_kw: SimpleNamespace(returncode=0, stderr=""), "_commit_or_restore": lambda *_args: None, "_write": lambda *_args: ("", "receipt_gap")})  # fmt: skip
+    _setattrs(monkeypatch, unbound, {"_observe": lambda *_args, **_kw: next(observations), "relinquish_owned_lease": lambda *_args, **_kw: {}, "_delete_ref_transaction": lambda *_args, **_kw: SimpleNamespace(returncode=0, stderr=""), "_commit_or_restore": lambda *_args: None, "_write": lambda *_args: ("", "receipt_gap")})  # fmt: skip
     monkeypatch.setattr(unbound.sqlite3, "connect", lambda _path: Conn())
     _setattrs(monkeypatch, unbound.policy, {"lease_recovery_gaps": lambda *_args, **_kw: [], "post_effect_gaps": lambda **_kw: []})  # fmt: skip
     monkeypatch.setattr(unbound.observation, "operation_bindings", lambda _value: {})

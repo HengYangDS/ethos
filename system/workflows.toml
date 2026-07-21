@@ -15,10 +15,10 @@ transition = [
   { from = "closed", to = "retired", guard = "work_lane_retired_after_merge", invalid_state = "chronicle_missing", invalid_states = ["change_unbounded", "chronicle_missing"] },
 ]
 lease_transition = [
-  { id = "renew", applied_state = "renewed", effect_fields = ["holder_ref", "expected_epoch", "ttl_seconds"] },
-  { id = "resume", applied_state = "resumed", effect_fields = ["holder_ref", "expected_epoch", "ttl_seconds"], blocks_contrary_decision = true },
-  { id = "handoff_offer", applied_state = "handoff_offered", effect_fields = ["holder_ref", "expected_epoch", "target_holder_ref"] },
-  { id = "handoff_accept", applied_state = "handoff_accepted", effect_fields = ["target_holder_ref", "offer_id", "expected_epoch", "holder_quiesced", "ttl_seconds"] },
+  { id = "renew", applied_state = "renewed", effect_fields = ["holder_ref", "expected_epoch", "expected_expires_at", "expected_payload_sha256", "ttl_seconds"], actor_field = "holder_ref" },
+  { id = "resume", applied_state = "resumed", effect_fields = ["holder_ref", "expected_epoch", "expected_expires_at", "expected_payload_sha256", "ttl_seconds"], actor_field = "holder_ref", blocks_contrary_decision = true },
+  { id = "handoff_offer", applied_state = "handoff_offered", effect_fields = ["holder_ref", "expected_epoch", "expected_expires_at", "expected_payload_sha256", "target_holder_ref"], actor_field = "holder_ref" },
+  { id = "handoff_accept", applied_state = "handoff_accepted", effect_fields = ["holder_ref", "target_holder_ref", "offer_id", "expected_epoch", "expected_expires_at", "expected_payload_sha256", "holder_quiesced", "ttl_seconds"], actor_field = "target_holder_ref" },
 ]
 node = [
   { id = "status", kind = "control", command = "ethos status --json", enforcement = "guarded", produces = ["workspace_status"] },
@@ -54,6 +54,7 @@ truth_boundary = "derived_repository_projection"
 run_state_locality = "ignored_or_evidence_bound"
 run_state_schema = "system/schemas/kernel/workflow-run.schema.json"
 handoff_package_schema = "system/schemas/kernel/handoff-package.schema.json"
+handoff_acknowledgement_schema = "system/schemas/kernel/handoff-acknowledgement.schema.json"
 public_lifecycle_commands = ["ethos status", "ethos plan", "ethos prove", "ethos land", "ethos publish"]
 evolution_bridge = true
 

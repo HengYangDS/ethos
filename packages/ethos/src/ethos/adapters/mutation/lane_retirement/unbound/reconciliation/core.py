@@ -243,10 +243,9 @@ def _apply_ref_absent_reconciliation(  # noqa: C901, PLR0911, PLR0912, PLR0913, 
                     observation=observation.public_observation(current),
                 )
             lease_relinquished = relinquish_owned_lease(
-                control_root,
+                connection,
                 observed=current,
                 holder_ref=holder_ref,
-                connection=connection,
                 owner_unavailable_recovery=True,
             )
             if lease_relinquished is None:

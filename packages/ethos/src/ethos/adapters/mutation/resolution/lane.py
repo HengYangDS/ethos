@@ -18,8 +18,6 @@ from ethos.adapters.mutation.resolution.receipts import verify_preservation_pack
 from ethos.adapters.mutation.resolution.receipts import write_resolution_receipt
 from ethos.adapters.store.state.lease.projection import active_leases
 from ethos.repository.policy.schema import validate_schema_instance
-from ethos_core.contracts.lifecycle.core import LANE_RESOLUTION_APPLY
-from ethos_core.contracts.lifecycle.core import LANE_RESOLUTION_DECIDE
 from ethos_core.contracts.lifecycle.core import MutationRequest
 from ethos_core.contracts.lifecycle.core import reduce_guards
 from ethos_core.contracts.resolution.lane import LaneObservation
@@ -48,7 +46,6 @@ def plan_lane_resolution(  # noqa: PLR0913, RUF100 - exact request envelope pres
         root, chronicle_ref=chronicle_ref, disposition=disposition
     )
     evaluation = reduce_guards(
-        LANE_RESOLUTION_DECIDE,
         apply=apply,
         initial_gaps=(*gaps, *chronicle_gaps),
         prefix_checks=(
@@ -118,7 +115,6 @@ def apply_lane_resolution(
     observation, observation_gaps = _observe_lane(root, branch)
     disposition = str(decision.get("disposition") or "")
     evaluation = reduce_guards(
-        LANE_RESOLUTION_APPLY,
         apply=apply,
         initial_gaps=(*gaps, *observation_gaps),
         checks=(

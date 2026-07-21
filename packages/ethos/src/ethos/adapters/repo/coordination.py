@@ -118,7 +118,7 @@ def lane_next_action(disposition: str, *, branch: str = "", head: str = "") -> s
 def lease_summary(lease: dict[str, object]) -> dict[str, object]:
     """Project non-secret local coordination fields without minting authority."""
     result: dict[str, object] = {name: str(lease.get(name) or "") for name in
-                                ("lane_incarnation_id", "lease_id", "holder_ref", "expected_head", "expires_at")}
+                                ("lane_incarnation_id", "lease_id", "holder_ref", "expected_head", "expires_at", "payload_sha256")}
     result.update(epoch=integer_value(lease.get("epoch")), mints_authority=False)
     return result
 

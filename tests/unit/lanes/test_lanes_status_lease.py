@@ -1,16 +1,10 @@
 from __future__ import annotations
 
 import json
-import sqlite3
-from contextlib import closing
-from datetime import UTC
-from datetime import datetime
-from datetime import timedelta
 from typing import TYPE_CHECKING
 
 from ethos.adapters.mutation.lanes import start_work_lane
 from ethos.adapters.repo.status.core import workspace_status
-from ethos.adapters.store.state.lease.projection import active_leases
 from tests.support.lane_helpers import add_candidate_worktree
 from tests.support.lane_helpers import git
 from tests.support.lane_helpers import init_repo
@@ -29,6 +23,9 @@ def _missing_closeout_support(candidate: Path, branch: str) -> dict[str, object]
         "holder_ref": "",
         "lease_id": "",
         "lease_epoch": 0,
+        "lease_expected_head": "",
+        "lease_expires_at": "",
+        "lease_payload_sha256": "",
         "claim_id": "",
         "claim_binding": "missing",
         "required_gaps": [f"work_lane_missing_lease:{branch}"],
@@ -121,6 +118,9 @@ def test_workspace_status_prefers_sqlite_lease_over_json_projection(
         "holder_ref": "agent:test:case:agent-sqlite",
         "lease_id": status["closeout_support"]["lease_id"],
         "lease_epoch": 1,
+        "lease_expected_head": status["head"],
+        "lease_expires_at": status["closeout_support"]["lease_expires_at"],
+        "lease_payload_sha256": status["closeout_support"]["lease_payload_sha256"],
         "claim_id": "",
         "claim_binding": "missing",
         "required_gaps": [],
@@ -255,41 +255,6 @@ def test_workspace_status_reports_closeout_holder_from_lane_lease(
     assert status["closeout_support"]["holder_ref"] == "agent:test:case:agent-test"
     assert status["closeout_support"]["lease_id"].startswith("lease:")
     assert status["closeout_support"]["lease_epoch"] == 1
-
-
-def test_workspace_status_ignores_retired_state_lease_schema(tmp_path: Path) -> None:
-    repo = init_repo(tmp_path / "repo")
-    add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
-    state_db = repo / ".ethos" / "state" / "state.sqlite"
-    expires_at = datetime.now(UTC) + timedelta(hours=1)
-    with closing(sqlite3.connect(state_db)) as connection:
-        connection.execute(
-            """
-            create table leases (
-              id text primary key,
-              owner text not null default '',
-              resource text not null default '',
-              expires_at text not null default '',
-              created_at text not null
-            )
-            """
-        )
-        connection.execute(
-            """
-            insert into leases(id, owner, resource, expires_at, created_at)
-            values (?, ?, ?, ?, ?)
-            """,
-            (
-                "lease:retired",
-                "agent:retired",
-                "work/retired",
-                expires_at.isoformat(),
-                datetime.now(UTC).isoformat(),
-            ),
-        )
-
-    status = workspace_status(repo)
-    leases = active_leases(state_db)
-
-    assert status["role"] == "accepted_root"
-    assert leases == []
+    assert status["closeout_support"]["lease_expected_head"] == status["head"]
+    assert status["closeout_support"]["lease_expires_at"]
+    assert len(status["closeout_support"]["lease_payload_sha256"]) == 64

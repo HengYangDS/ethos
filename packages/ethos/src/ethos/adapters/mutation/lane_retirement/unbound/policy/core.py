@@ -80,6 +80,8 @@ def lease_relinquish_gap(observed: dict[str, object], *, holder_ref: str) -> str
         or str(lease.get("holder_ref") or "") != holder_ref
         or not str(lease.get("lease_id") or "")
         or str(lease.get("expected_head") or "") != str(observed.get("head") or "")
+        or not str(lease.get("expires_at") or "")
+        or len(str(lease.get("payload_sha256") or "")) != hashlib.sha256().digest_size * 2
     )
     return "unbound_retire_active_lease" if invalid else ""
 
@@ -196,15 +198,9 @@ def _partial_effect_attempt_gaps(
         return ["unbound_retire_partial_effect_attempt_mismatch"]
     if source_attempt.get("effect") != "git_update_ref_compare_and_delete":
         return ["unbound_retire_partial_effect_attempt_mismatch"]
-    binding = source_attempt.get("lease_relinquish_binding")
-    lease = cast("dict[str, object]", observed["active_lease"])
-    if binding != {
-        "active": True,
-        "lease_id": str(lease.get("lease_id") or ""),
-        "holder_ref": str(lease.get("holder_ref") or ""),
-        "epoch": lease.get("epoch"),
-        "expected_head": str(lease.get("expected_head") or ""),
-    }:
+    if source_attempt.get("lease_relinquish_binding") != observation.lease_relinquish_binding(
+        observed
+    ):
         return ["unbound_retire_partial_effect_attempt_mismatch"]
     return []
 
@@ -226,6 +222,10 @@ def _owner_unavailable_lease_gap(
         and str(chronicle.get("source_lease_epoch") or "") == str(lease.get("epoch") or "")
         and str(chronicle.get("source_lease_expected_head") or "")
         == str(lease.get("expected_head") or "")
+        and str(chronicle.get("source_lease_expires_at") or "")
+        == str(lease.get("expires_at") or "")
+        and str(chronicle.get("source_lease_payload_sha256") or "")
+        == str(lease.get("payload_sha256") or "")
     )
     return "" if source_lease_matches else "unbound_retire_owner_unavailable_lease_mismatch"
 

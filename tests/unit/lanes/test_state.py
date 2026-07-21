@@ -63,38 +63,50 @@ def test_explicit_state_initialization_creates_only_owned_tables(tmp_path: Path)
 
 
 @pytest.mark.parametrize(
-    "replacement",
+    "statements",
     [
-        "",
-        "create unique index invalid on leases(subject) where owner = 'agent:test:case:owner'",
-        "create unique index invalid on leases(subject collate nocase)",
+        ("drop index leases_subject_unique",),
+        (
+            "drop index leases_subject_unique",
+            "create unique index invalid on leases(subject) where owner = 'agent:test:case:owner'",
+        ),
+        (
+            "drop index leases_subject_unique",
+            "create unique index invalid on leases(subject collate nocase)",
+        ),
+        ("create unique index duplicate_subject_unique on leases(subject)",),
     ],
 )
 def test_initialize_state_rejects_noncanonical_subject_uniqueness(
-    tmp_path: Path, replacement: str
+    tmp_path: Path, statements: tuple[str, ...]
 ) -> None:
     db_path = tmp_path / ".ethos" / "state" / "state.sqlite"
     initialize_state(db_path)
     with closing(sqlite3.connect(db_path)) as connection:
-        connection.execute("drop index leases_subject_unique")
-        if replacement:
-            connection.execute(replacement)
+        for statement in statements:
+            connection.execute(statement)
         connection.commit()
     with pytest.raises(RuntimeError, match="state_schema_lease_subject_unique_missing"):
         initialize_state(db_path)
 
 
-def test_initialize_state_rejects_nonprimary_lease_id(tmp_path: Path) -> None:
+def test_initialize_state_rejects_noncanonical_lease_definition(tmp_path: Path) -> None:
     db_path = tmp_path / ".ethos" / "state" / "state.sqlite"
     db_path.parent.mkdir(parents=True)
     with closing(sqlite3.connect(db_path)) as connection:
-        connection.executescript("""
-            create table leases(id text, subject text not null, owner text not null, expires_at text not null, payload_json text not null);
-            create unique index leases_subject_unique on leases(subject);
-        """)
+        table = state_schema.SCHEMA[0].replace(
+            "id text primary key",
+            "id text primary key asc",
+        )
+        connection.executescript(f"{table};{state_schema.SCHEMA[1]};")
         connection.commit()
     with pytest.raises(RuntimeError, match="state_schema_lease_table_definition_mismatch"):
         initialize_state(db_path)
+
+
+def test_state_database_rejects_a_non_git_root(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="git_common_directory_unavailable"):
+        state_schema.state_database(tmp_path)
 
 
 def test_initialize_state_rejects_lease_trigger_that_mutates_foreign_table(tmp_path: Path) -> None:

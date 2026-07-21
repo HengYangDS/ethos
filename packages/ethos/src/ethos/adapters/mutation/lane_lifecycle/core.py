@@ -26,10 +26,7 @@ def run_git(
 
 
 def repo_root(root: Path) -> Path:
-    try:
-        return Path(run_git(root, "rev-parse", "--show-toplevel").stdout.strip()).resolve()
-    except subprocess.CalledProcessError:
-        return root.resolve()
+    return Path(run_git(root, "rev-parse", "--show-toplevel").stdout.strip()).resolve()
 
 
 def slug(name: str) -> str:

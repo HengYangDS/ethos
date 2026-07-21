@@ -651,17 +651,17 @@ def test_cross_host_import_rejects_manifest_drift_before_mutation(
     _assert_no_temporary_handoff_refs(destination)
 
 
-@pytest.mark.parametrize("drift", ["bundle", "destination"])
+@pytest.mark.parametrize("drift", ["heads", "bundle", "destination"])
 def test_cross_host_import_cleans_carriers_after_identity_drift(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, drift: str
 ) -> None:
     _, _, _, package_dir, destination = _import_input(tmp_path, monkeypatch, "bundle mismatch")
-    manifest = _manifest(package_dir)
-    original = handoff.handoff_package.run_git
+    manifest, original = _manifest(package_dir), handoff.handoff_package.run_git
     destination_worktree = destination.with_name("destination-work-feature")
 
     def mismatched_tree(root: Path, *args: str, **kwargs):
         result = original(root, *args, **kwargs)
+        heads = drift == "heads" and args[:2] == ("bundle", "list-heads")
         bundle_tree = drift == "bundle" and args[0] == "rev-parse" and args[-1].endswith("^{tree}")
         worktree_tree = (
             drift == "destination"
@@ -672,15 +672,17 @@ def test_cross_host_import_cleans_carriers_after_identity_drift(
                 "HEAD^{tree}",
             )
         )
+        output = "f" * 40 + (" refs/heads/other\n" if heads else "\n")
         return (
-            subprocess.CompletedProcess(result.args, 0, "f" * 40 + "\n", "")
-            if bundle_tree or worktree_tree
+            subprocess.CompletedProcess(result.args, 0, output, "")
+            if heads or bundle_tree or worktree_tree
             else result
         )
 
     monkeypatch.setattr(handoff.handoff_package, "run_git", mismatched_tree)
 
-    with pytest.raises(ValueError, match=f"handoff_{drift}.*identity.*(?:mismatch|drift)"):
+    expected = "bundle" if drift == "heads" else drift
+    with pytest.raises(ValueError, match=f"handoff_{expected}.*identity.*(?:mismatch|drift)"):
         _apply_import(destination, package_dir, manifest)
 
     _assert_no_temporary_handoff_refs(destination)

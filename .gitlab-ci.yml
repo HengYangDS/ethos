@@ -231,6 +231,7 @@ ethos:verify:
     # capability intact; this hosted projection deliberately runs one worker.
     ETHOS_TEST_WORKERS: "1"
   script:
+    - source tools/ci/scripts/bootstrap-python.sh
     # Make the runner checkout a real governed ETHOS working copy: wire the git
     # identity and signing from .ethos/workspace.toml [commit_policy] and arm
     # write-admission, so the dogfood signature/audit/prove gates and tests see the
@@ -258,6 +259,7 @@ ethos:npm:
   # releases installed from nodejs.org; see the runtime policy and installer.
   image: python:3.14
   script:
+    - source tools/ci/scripts/bootstrap-python.sh
     - tools/ci/scripts/install-node.sh
     - tools/ci/scripts/run-node-compatibility.sh
 
@@ -277,6 +279,7 @@ ethos:npm-package:
   # node:24 image.
   image: python:3.14
   script:
+    - source tools/ci/scripts/bootstrap-python.sh
     - tools/ci/scripts/install-node.sh
     - npm config set engine-strict true
     - npm ci --ignore-scripts

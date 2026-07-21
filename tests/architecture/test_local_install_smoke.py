@@ -34,6 +34,7 @@ def test_local_install_smoke_is_offline_isolated_and_head_bound() -> None:
     assert "ethos_core" in owner
     assert "ethos.__file__" in owner
     assert "ethos_core.__file__" in owner
+    assert 'ETHOS_UV_CACHE_DIR="${local_install_uv_cache}"' in owner
     assert '"${smoke_ethos}" --help' in owner
     assert '"${smoke_ethos}" --version' in owner
     assert owner.count("require-stable-head.sh") == 2

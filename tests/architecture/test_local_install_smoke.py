@@ -30,11 +30,17 @@ def test_local_install_smoke_is_offline_isolated_and_head_bound() -> None:
     assert "build/artifacts/python" in owner
     assert "build/runtime/work/local-install-smoke" in owner
     assert "build/evidence/local-install/smoke.json" in owner
-    assert "--offline" in owner
+    assert (
+        'env -u VIRTUAL_ENV UV_PROJECT_ENVIRONMENT="${venv_dir}" '
+        "uv sync --locked --offline --all-packages --no-dev --no-install-workspace"
+    ) in owner
+    assert "uv pip install --offline --no-deps" in owner
+    assert "uv pip check" in owner
     assert "ethos_core" in owner
     assert "ethos.__file__" in owner
     assert "ethos_core.__file__" in owner
-    assert 'ETHOS_UV_CACHE_DIR="${local_install_uv_cache}"' in owner
+    assert "uv cache dir" not in owner
+    assert "ETHOS_LOCAL_INSTALL_UV_CACHE_DIR" not in owner
     assert '"${smoke_ethos}" --help' in owner
     assert '"${smoke_ethos}" --version' in owner
     assert owner.count("require-stable-head.sh") == 2

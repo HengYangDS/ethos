@@ -20,13 +20,13 @@ from typing import Any
 from typing import cast
 
 from ethos.adapters.mutation.lane_lifecycle.core import run_git
-from ethos.adapters.repo.git import git_common_dir
 from ethos.adapters.store.retrieval.common import sha256_bytes
 from ethos.adapters.store.state.lease.lifecycle.core import acquire_lease
 from ethos.adapters.store.state.lease.lifecycle.core import expected_current_lease
 from ethos.adapters.store.state.lease.lifecycle.effects import revoke_lease
 from ethos.adapters.store.state.lease.projection import lease_record
 from ethos.adapters.store.state.schema import initialize_state_connection
+from ethos.adapters.store.state.schema import state_database
 from ethos.repository.policy.schema import validate_schema_instance
 from ethos_core.normalization.core import string_sequence
 
@@ -227,7 +227,7 @@ def apply_handoff_import(
             _run(destination, "git", "worktree", "add", worktree_path.as_posix(), branch)
             worktree_created = True
             lease = acquire_lease(
-                destination / ".ethos" / "state" / "state.sqlite",
+                state_database(destination),
                 subject=branch,
                 holder_ref=target_holder_ref,
                 payload={
@@ -297,9 +297,7 @@ def _verify_export_snapshot(
         raise _error(handoff_export_head_drift=None)
     if dirty_content_sha256(repo) != handoff.dirty_content_sha256:
         raise _error(handoff_export_dirty_drift=None)
-    with closing(
-        sqlite3.connect(Path(git_common_dir(repo)).parent / ".ethos/state/state.sqlite")
-    ) as connection:
+    with closing(sqlite3.connect(state_database(repo))) as connection:
         connection.execute("begin immediate")
         try:
             expected_current_lease(
@@ -323,7 +321,7 @@ def _commit_import(
     manifest: dict[str, Any],
     lease: dict[str, Any],
 ) -> tuple[dict[str, Any], dict[str, object]]:
-    with closing(sqlite3.connect(destination / ".ethos/state/state.sqlite")) as connection:
+    with closing(sqlite3.connect(state_database(destination))) as connection:
         connection.execute("begin immediate")
         initialize_state_connection(connection)
         row, _ = expected_current_lease(
@@ -465,7 +463,7 @@ def _compensate_failed_import(
         raise _error(handoff_import_compensation_failed=None)
     if lease:
         revoke_lease(
-            destination / ".ethos" / "state" / "state.sqlite",
+            state_database(destination),
             subject=branch,
             holder_ref=str(lease["holder_ref"]),
             expected_lease_id=str(lease["lease_id"]),

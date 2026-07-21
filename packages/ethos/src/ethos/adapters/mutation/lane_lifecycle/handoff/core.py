@@ -13,12 +13,12 @@ from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.mutation.lane_lifecycle.core import repo_root
 from ethos.adapters.mutation.lane_lifecycle.core import run_git
 from ethos.adapters.repo.dirty.core import changed_paths
-from ethos.adapters.repo.status.bindings import accepted_worktree_root
+from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.adapters.store.retrieval.common import sha256_text
 from ethos.adapters.store.state.lease.lifecycle.effects import revoke_lease
-from ethos.adapters.store.state.lease.projection import active_leases
 from ethos.adapters.store.state.lease.projection import integer_value
+from ethos.adapters.store.state.schema import state_database
 from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 from ethos_core.contracts.coordination import CrossHostHandoff
@@ -54,7 +54,7 @@ def export_cross_host_handoff(  # noqa: PLR0913, RUF100 - exact request envelope
     status = workspace_status(repo)
     head = _git_value(repo, "rev-parse", "HEAD")
     tree = _git_value(repo, "rev-parse", "HEAD^{tree}")
-    lease = _current_lease(status=status, repo=repo, branch=branch)
+    lease = leases_by_branch(repo).get(branch, {})
     context, context_gap = _handoff_context(context_text=context_text, context_file=context_file)
     dirty_paths = changed_paths(repo)
     dirty_content_sha256 = handoff_package.dirty_content_sha256(repo)
@@ -227,7 +227,7 @@ def revoke_cross_host_source(  # noqa: PLR0913, RUF100 - exact request envelope 
     head = _git_value(repo, "rev-parse", "HEAD")
     source_binding = manifest.get("source_lease_binding")
     binding = source_binding if isinstance(source_binding, dict) else {}
-    lease = _current_lease(status=status, repo=repo, branch=branch)
+    lease = leases_by_branch(repo).get(branch, {})
     expected_state: dict[str, object] = {
         "root": repo.resolve().as_posix(),
         "package_id": str(manifest.get("package_id") or ""),
@@ -331,7 +331,7 @@ def revoke_cross_host_source(  # noqa: PLR0913, RUF100 - exact request envelope 
     if apply and evaluation.ok:
         try:
             revoked = revoke_lease(
-                accepted_worktree_root(status.get("worktrees"), repo) / ".ethos/state/state.sqlite",
+                state_database(repo),
                 subject=branch,
                 holder_ref=holder_ref,
                 expected_lease_id=lease_id,
@@ -393,17 +393,6 @@ def _handoff_context(*, context_text: str, context_file: Path | None) -> tuple[s
             return "", "handoff_context_file_unreadable"
         return value, "" if value.strip() else "handoff_context_required"
     return context_text, "" if context_text.strip() else "handoff_context_required"
-
-
-def _current_lease(*, status: dict[str, object], repo: Path, branch: str) -> dict[str, object]:
-    matches = tuple(
-        lease
-        for lease in active_leases(
-            accepted_worktree_root(status.get("worktrees"), repo) / ".ethos/state/state.sqlite"
-        )
-        if lease.get("subject") == branch
-    )
-    return cast("dict[str, object]", matches[0]) if len(matches) == 1 else {}
 
 
 def _handoff_report(*, branch: str, evaluation: Any) -> dict[str, object]:

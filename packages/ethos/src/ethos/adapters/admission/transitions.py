@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from ethos.adapters.repo.status.bindings import leases_by_branch
-from ethos.adapters.repo.status.core import worktree_records
 from ethos.adapters.store.state.lease.lifecycle.core import advance_lease_head
 from ethos.adapters.store.state.lease.projection import integer_value
-from ethos_core.contracts.branch.roles import load_branch_role_policy
+from ethos.adapters.store.state.schema import state_database
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 _ZERO_OID = "0" * 40
 
@@ -29,8 +31,7 @@ def work_lane_ref_transition_report(
         )
         return _admit(phase, ref_name, old_value, new_value, reason)
     repo = root.resolve()
-    worktrees = worktree_records(repo, current_path=repo, policy=load_branch_role_policy(repo))
-    lease = leases_by_branch(worktrees, current_path=repo).get(branch, {})
+    lease = leases_by_branch(repo).get(branch, {})
     actor = os.environ.get("ETHOS_ACTOR", "").strip()
     gaps = _work_lane_lease_transition_gaps(branch, lease, actor, old_value)
     base = _report(phase, ref_name, old_value, new_value, lease, gaps)
@@ -38,7 +39,7 @@ def work_lane_ref_transition_report(
         return base
     try:
         updated = advance_lease_head(
-            _control_state_db(worktrees, repo),
+            state_database(repo),
             subject=branch,
             holder_ref=actor,
             expected_lease_id=str(lease.get("lease_id") or lease.get("id") or ""),
@@ -103,15 +104,3 @@ def _work_lane_lease_transition_gaps(
         (expected != old_value, f"lease_head_stale:{expected}!={old_value}"),
     )
     return [gap for failed, gap in checks if failed]
-
-
-def _control_state_db(worktrees: list[dict[str, str]], repo: Path) -> Path:
-    accepted = next(
-        (
-            Path(item["path"])
-            for item in worktrees
-            if item.get("role") == "accepted_root" and item.get("path")
-        ),
-        repo,
-    )
-    return accepted / ".ethos/state/state.sqlite"

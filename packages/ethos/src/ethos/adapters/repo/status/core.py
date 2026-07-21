@@ -78,7 +78,7 @@ def workspace_status(root: Path, *, include_foreign_path_scope: bool = True) -> 
     role = policy.role_for_branch(branch)
     worktrees = worktree_records(root, current_path=repo, policy=policy)
     candidate = _candidate_status(root, worktrees, policy=policy)
-    leases = leases_by_branch(worktrees, current_path=repo)
+    leases = leases_by_branch(repo)
     bindings = branch_bindings(repo, worktrees, candidate, policy=policy, lease_by_branch=leases)
     scope = branch_path_scope(repo, branch=branch, candidate_branch=policy.candidate_branch) if include_foreign_path_scope else ((), "deferred")
     foreign = _foreign_work_lanes(worktrees, current=(repo, role, *scope), policy=policy, leases=leases, include_path_scope=include_foreign_path_scope)

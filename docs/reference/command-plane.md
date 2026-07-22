@@ -323,7 +323,7 @@ invoking carrier. The owner policy is read from the Git primary control root,
 not from mutable caller bytes, and the configured accepted ref and checkout HEAD
 must agree. Default decision paths include a branch digest and UUID, use
 exclusive creation, and never overwrite an earlier judgment. An explicit
-legacy, foreign-worktree, or unrelated path blocks with
+predecessor, foreign-worktree, or unrelated path blocks with
 `lane_resolution_decision_path_not_local_artifact`; an existing path blocks with
 `lane_resolution_decision_path_exists`. Decision identifiers must be canonical
 `lane-decision:<UUID>` values, and package realpaths must remain below the pinned
@@ -349,9 +349,9 @@ completes but immutable receipt materialization fails, apply returns
 package remain available for reconciliation.
 
 `ethos lane resolution inventory` derives retained, cleared, and unindexed
-package state from the canonical records owner plus read-only legacy
+package state from the canonical records owner plus read-only predecessor
 `build/artifacts/lane-resolution/` stores across registered worktrees. Conflicting
-canonical and legacy records for one decision block inventory and clear with
+canonical and predecessor records for one decision block inventory and clear with
 `lane_resolution_decision_record_conflict`; scan order never selects a winner.
 Byte-identical package copies make clear ambiguous and block with
 `lane_resolution_clear_package_ambiguous`. Inventory also compares the actual
@@ -363,9 +363,8 @@ Symlinked package or record paths block with
 completion-receipt destinations are checked before destructive effect and again
 at write time, so a category symlink cannot redirect evidence outside the pinned
 owner.
-Ordinary linked-lane retirement also blocks with
-`lane_resolution_legacy_retention_present` while the selected worktree still
-contains a legacy retained manifest. Recovery package deletion is never a cache
+Ordinary linked-lane retirement also blocks while the selected worktree
+still contains a retained predecessor manifest. Recovery package deletion is never a cache
 cleanup: `clear` requires an exact manifest SHA-256, an accepted Chronicle
 containing `lane_resolution/clear-preservation`, a reason, break-glass, and an
 irreversible confirmation; it leaves the original resolution receipt and

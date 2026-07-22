@@ -1,32 +1,332 @@
 from __future__ import annotations
 
-import importlib
-from typing import TYPE_CHECKING
+import hashlib
+import json
 
 import pytest
 
-if TYPE_CHECKING:
-    from types import ModuleType
+from ethos_core.contracts.source_budget.measurement.execution import ExecutionDescriptor
+from ethos_core.contracts.source_budget.measurement.execution import execution_descriptor
+from ethos_core.contracts.source_budget.measurement.worker.protocol.core import WorkerRequest
+from ethos_core.contracts.source_budget.measurement.worker.protocol.core import WorkerResult
+from ethos_core.contracts.source_budget.measurement.worker.protocol.core import replay_worker_result
+from ethos_core.contracts.source_budget.measurements import MetricValue
+from ethos_core.contracts.source_budget.measurements import NativeMeasurement
+from ethos_core.contracts.source_budget.metrics import MetricContract
 
-_PROTOCOL_MODULE = "ethos_core.contracts.source_budget.measurement.worker.protocol.core"
-_PUBLIC_API = (
-    "CHILD_WORKER_GAPS",
-    "PARENT_WORKER_GAPS",
-    "WorkerRequest",
-    "WorkerResult",
-    "WorkerSuccess",
-    "replay_worker_result",
-    "worker_protocol_json_schema",
+_PROTOCOL_ID = "ethos-source-budget-worker-protocol-v1"
+_REQUEST_SCHEMA = "ethos-source-budget-worker-request-v1"
+_RESULT_SCHEMA = "ethos-source-budget-worker-result-v1"
+_CONTENT = b"first=1; second='two'\n"
+_NORMALIZED_DIGEST = hashlib.sha256(b"normalized-python-stream").hexdigest()
+
+
+def _canonical_json(payload: object) -> bytes:
+    return json.dumps(
+        payload,
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+
+
+def _sha256(payload: object) -> str:
+    return hashlib.sha256(_canonical_json(payload)).hexdigest()
+
+
+def _domain_digest(kind: str, payload: object) -> str:
+    return _sha256({"kind": kind, "schema_version": 1, "payload": payload})
+
+
+def _isolated_execution_descriptor() -> ExecutionDescriptor:
+    return execution_descriptor("isolated_worker_v1", 65536)
+
+
+def _execution_payload() -> dict[str, object]:
+    return _isolated_execution_descriptor().model_dump(mode="json", by_alias=True)
+
+
+def _provider_descriptor() -> dict[str, object]:
+    return {
+        "algorithm_rules": [
+            "ast-syntax-guard",
+            "significant-token-count",
+            "type-and-spelling-frames",
+        ],
+        "canonical_runtime": {"implementation": "CPython", "major": 3, "minor": 14},
+        "conformance": {
+            "corpus_digest": ("b74bd3249b00e0ff977eb8be46b23497dff54057dbc9fffb1eb2042bf4918921"),
+            "expected_output_digest": (
+                "ce3459c91f2d4185791ff067dfb52bba4b53930c2c9e8a1b6ffbd1597a561176"
+            ),
+        },
+        "dependencies": {},
+        "execution": _execution_payload(),
+        "metrics": [
+            {"metric_id": "lexical_tokens", "unit": "lexical_token"},
+            {"metric_id": "normalized_bytes", "unit": "normalized_byte"},
+        ],
+        "normalization": {"id": "python-source", "version": "1"},
+        "parser": {"id": "python-tokenize", "version": "cpython-3.14+ethos-python-v1"},
+        "provider_id": "python",
+        "schema": "ethos-source-budget-native-provider-v2",
+    }
+
+
+def _contracts(
+    provider_descriptor: dict[str, object] | None = None,
+) -> tuple[MetricContract, ...]:
+    provider = _provider_descriptor() if provider_descriptor is None else provider_descriptor
+    common: dict[str, object] = {
+        "contract_version": 4,
+        "carrier_role": "authored_behavioral_source",
+        "metric_profile": "python-source-v2",
+        "parser_id": "python-tokenize",
+        "parser_version": "cpython-3.14+ethos-python-v1",
+        "grammar_digest": _sha256(provider),
+        "normalization_id": "python-source",
+        "normalization_version": "1",
+        "aggregation": "sum",
+        "non_compensable": True,
+        "execution_mode": "isolated_worker_v1",
+        "max_carrier_bytes": 65536,
+        "execution_contract_id": "ethos-source-budget-execution:isolated-worker-v1",
+        "execution_contract_digest": _sha256(_execution_payload()),
+    }
+    return tuple(
+        MetricContract.model_validate(common | item)
+        for item in (
+            {
+                "contract_id": "python-source-v2:lexical_tokens",
+                "metric_id": "lexical_tokens",
+                "unit": "lexical_token",
+            },
+            {
+                "contract_id": "python-source-v2:normalized_bytes",
+                "metric_id": "normalized_bytes",
+                "unit": "normalized_byte",
+            },
+        )
+    )
+
+
+def _values() -> tuple[MetricValue, ...]:
+    return (
+        MetricValue(
+            contract_id="python-source-v2:lexical_tokens",
+            metric_id="lexical_tokens",
+            unit="lexical_token",
+            value=7,
+        ),
+        MetricValue(
+            contract_id="python-source-v2:normalized_bytes",
+            metric_id="normalized_bytes",
+            unit="normalized_byte",
+            value=19,
+        ),
+    )
+
+
+def _expected_request_payload(contracts: tuple[MetricContract, ...]) -> dict[str, object]:
+    contract_payloads = [item.model_dump(mode="json") for item in contracts]
+    payload: dict[str, object] = {
+        "schema": _REQUEST_SCHEMA,
+        "protocol_id": _PROTOCOL_ID,
+        "contracts": contract_payloads,
+        "content_sha256": hashlib.sha256(_CONTENT).hexdigest(),
+        "resolved_contracts_digest": _domain_digest(
+            "resolved_metric_contracts",
+            contract_payloads,
+        ),
+        "provider_digest": _sha256(_provider_descriptor()),
+        "execution_contract_digest": _sha256(_execution_payload()),
+    }
+    payload["request_digest"] = _sha256(payload)
+    return payload
+
+
+def test_worker_protocol_happy_path_binds_and_replays_typed_results() -> None:
+    contracts = _contracts()
+    request = WorkerRequest.create(
+        content=_CONTENT,
+        contracts=contracts,
+        provider_descriptor=_provider_descriptor(),
+        execution_descriptor=_isolated_execution_descriptor(),
+    )
+    expected_request = _expected_request_payload(contracts)
+    assert request.model_dump(mode="json", by_alias=True) == expected_request
+
+    native = NativeMeasurement.create(
+        content_sha256=expected_request["content_sha256"],
+        normalized_digest=_NORMALIZED_DIGEST,
+        contracts=contracts,
+        values=_values(),
+    )
+    success = WorkerResult.from_measurement(request=request, measurement=native)
+    echoed = {
+        name: expected_request[name]
+        for name in (
+            "content_sha256",
+            "resolved_contracts_digest",
+            "provider_digest",
+            "execution_contract_digest",
+            "request_digest",
+        )
+    }
+    assert success.model_dump(mode="json", by_alias=True) == {
+        "schema": _RESULT_SCHEMA,
+        "protocol_id": _PROTOCOL_ID,
+        **echoed,
+        "success": {
+            "normalized_digest": native.normalized_digest,
+            "values": [item.model_dump(mode="json") for item in native.values],
+            "measurement_digest": native.measurement_digest,
+        },
+        "gap": None,
+    }
+    replayed = replay_worker_result(request, success)
+    assert type(replayed) is NativeMeasurement
+    assert replayed == native
+    assert replayed is not native
+
+
+def test_parent_replay_rejects_a_result_bound_to_another_request() -> None:
+    contracts = _contracts()
+    descriptor = _isolated_execution_descriptor()
+    request_a = WorkerRequest.create(
+        content=_CONTENT,
+        contracts=contracts,
+        provider_descriptor=_provider_descriptor(),
+        execution_descriptor=descriptor,
+    )
+    content_b = b"third=3\n"
+    request_b = WorkerRequest.create(
+        content=content_b,
+        contracts=contracts,
+        provider_descriptor=_provider_descriptor(),
+        execution_descriptor=descriptor,
+    )
+    native_b = NativeMeasurement.create(
+        content_sha256=hashlib.sha256(content_b).hexdigest(),
+        normalized_digest=_NORMALIZED_DIGEST,
+        contracts=contracts,
+        values=_values(),
+    )
+    result_b = WorkerResult.from_measurement(request=request_b, measurement=native_b)
+
+    with pytest.raises(ValueError, match="request"):
+        replay_worker_result(request_a, result_b)
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "content_sha256",
+        "resolved_contracts_digest",
+        "provider_digest",
+        "execution_contract_digest",
+    ],
 )
+def test_parent_replay_rejects_forged_request_echo(field: str) -> None:
+    contracts = _contracts()
+    request = WorkerRequest.create(
+        content=_CONTENT,
+        contracts=contracts,
+        provider_descriptor=_provider_descriptor(),
+        execution_descriptor=_isolated_execution_descriptor(),
+    )
+    native = NativeMeasurement.create(
+        content_sha256=request.content_sha256,
+        normalized_digest=_NORMALIZED_DIGEST,
+        contracts=contracts,
+        values=_values(),
+    )
+    result = WorkerResult.from_measurement(request=request, measurement=native)
+    forged = result.model_copy(update={field: "f" * 64})
+
+    with pytest.raises(ValueError, match=r"request.*binding"):
+        replay_worker_result(request, forged)
 
 
-def _protocol() -> ModuleType:
-    return importlib.import_module(_PROTOCOL_MODULE)
+def test_parent_replay_rejects_forged_child_measurement_digest() -> None:
+    contracts = _contracts()
+    request = WorkerRequest.create(
+        content=_CONTENT,
+        contracts=contracts,
+        provider_descriptor=_provider_descriptor(),
+        execution_descriptor=_isolated_execution_descriptor(),
+    )
+    native = NativeMeasurement.create(
+        content_sha256=request.content_sha256,
+        normalized_digest=_NORMALIZED_DIGEST,
+        contracts=contracts,
+        values=_values(),
+    )
+    result = WorkerResult.from_measurement(request=request, measurement=native)
+    forged_success = result.success.model_copy(update={"measurement_digest": "f" * 64})
+    forged_result = result.model_copy(update={"success": forged_success})
+
+    with pytest.raises(ValueError, match=r"measurement.*digest"):
+        replay_worker_result(request, forged_result)
 
 
-def test_worker_protocol_exposes_final_public_api() -> None:
-    module = _protocol()
-    missing = tuple(name for name in _PUBLIC_API if not hasattr(module, name))
+@pytest.mark.parametrize("case", ["provider", "execution", "bounded"])
+def test_worker_request_rejects_mismatched_authority(case: str) -> None:
+    provider = _provider_descriptor()
+    descriptor = _isolated_execution_descriptor()
+    match = "provider"
+    if case == "provider":
+        provider["provider_id"] = "forged-python"
+    elif case == "execution":
+        descriptor = execution_descriptor("isolated_worker_v1", 32768)
+        match = "execution"
+    else:
+        descriptor = execution_descriptor("bounded_in_process_v1", 65536)
+        match = "isolated"
 
-    if missing:
-        pytest.fail(f"worker protocol RED: missing final public API {missing}")
+    with pytest.raises(ValueError, match=match):
+        WorkerRequest.create(
+            content=_CONTENT,
+            contracts=_contracts(),
+            provider_descriptor=provider,
+            execution_descriptor=descriptor,
+        )
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        (
+            "execution",
+            execution_descriptor("isolated_worker_v1", 32768).model_dump(
+                mode="json", by_alias=True
+            ),
+        ),
+        (
+            "parser",
+            {"id": "json-stdlib", "version": "cpython-3.14+ethos-python-v1"},
+        ),
+        ("normalization", {"id": "structured-scalars", "version": "1"}),
+        (
+            "metrics",
+            [
+                {"metric_id": "semantic_nodes", "unit": "semantic_node"},
+                {"metric_id": "normalized_bytes", "unit": "normalized_byte"},
+            ],
+        ),
+    ],
+)
+def test_worker_request_rejects_provider_descriptor_internal_conflict(
+    field: str,
+    value: object,
+) -> None:
+    provider = _provider_descriptor()
+    provider[field] = value
+
+    with pytest.raises(ValueError, match="provider"):
+        WorkerRequest.create(
+            content=_CONTENT,
+            contracts=_contracts(provider),
+            provider_descriptor=provider,
+            execution_descriptor=_isolated_execution_descriptor(),
+        )

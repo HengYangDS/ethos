@@ -51,7 +51,7 @@ def _apply_retirement(tmp_path: Path, before: dict[str, object]) -> dict[str, ob
 
 def _finish_retirement(tmp_path: Path, context: dict[str, object]) -> dict[str, object]:
     operation = unbound._relinquish_then_delete  # noqa: SLF001, RUF100 - internal effect edge
-    return operation(repo=tmp_path, control_root=tmp_path, records_root=tmp_path, before={}, pre_effect={}, result={}, context=context, controls=dict(_CONTROLS), chronicle_ref="c", holder_ref="holder", owner_unavailable_recovery=False)  # fmt: skip
+    return operation(repo=tmp_path, records_root=tmp_path, before={}, pre_effect={}, result={}, context=context, controls=dict(_CONTROLS), chronicle_ref="c", holder_ref="holder", owner_unavailable_recovery=False)  # fmt: skip
 
 
 def test_closeout_and_lane_guards(tmp_path: Path) -> None:
@@ -549,6 +549,7 @@ def test_unbound_core_exception_edges(tmp_path: Path, monkeypatch) -> None:
         raise sqlite3.OperationalError("locked")  # noqa: EM101, RUF100 - injected lock failure
 
     monkeypatch.setattr(unbound.sqlite3, "connect", locked)
+    monkeypatch.setattr(unbound, "state_database", lambda _repo: tmp_path / "state.sqlite")
     monkeypatch.setattr(unbound.observation, "public_observation", lambda value: value)
     assert _finish_retirement(tmp_path, {"lease_relinquished": {"lease_id": "l"}})["lease_relinquish_rolled_back"] == {"lease_id": "l"}  # fmt: skip
     assert _finish_retirement(tmp_path, {})["required_gaps"] == ["unbound_retire_active_lease"]
@@ -592,6 +593,8 @@ def test_unbound_lease_recovery_argument_edges() -> None:
 def test_unbound_pre_effect_and_receipt_edges(tmp_path: Path, monkeypatch) -> None:
     before = {"status": {}, "accepted_head": "h", "protected_refs": {}, "claim_id": "c", "observation_sha256": "s", "bind": 1}  # fmt: skip
     monkeypatch.setattr(unbound.policy, "accepted_control_root", lambda *_args, **_kw: (tmp_path, ""))  # fmt: skip
+    monkeypatch.setattr(unbound.records, "repository_records_root", lambda _repo: tmp_path)
+    monkeypatch.setattr(unbound, "state_database", lambda _repo: tmp_path / "state.sqlite")
     _setattrs(monkeypatch, unbound.records, {"operation_id": lambda **_kw: "op:x", "attempt_payload": lambda **_kw: {}, "attempt_path": lambda *_args: tmp_path / "attempt"})  # fmt: skip
     monkeypatch.setattr(unbound.reporting, "blocked", lambda result, gaps: result | {"required_gaps": gaps})  # fmt: skip
     monkeypatch.setattr(unbound, "_write", lambda *_args: ("", "write_gap"))

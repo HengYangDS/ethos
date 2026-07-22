@@ -276,6 +276,166 @@ def test_reference_transaction_skips_runtime_bootstrap_for_fresh_work_lane_ref(
     assert marker.exists() is False
 
 
+def test_protected_ref_uses_candidate_locked_offline_isolated_runtime(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init", "-b", "dev")
+    _git(repo, "config", "user.name", "t")
+    _git(repo, "config", "user.email", "t@example.test")
+
+    for package, module in (("ethos", "ethos"), ("ethos-core", "ethos_core")):
+        package_root = repo / "packages" / package
+        source = package_root / "src" / module
+        source.mkdir(parents=True)
+        (source / "__init__.py").write_text("\n", encoding="utf-8")
+        (package_root / "pyproject.toml").write_text(
+            f'[project]\nname = "{package}"\nversion = "0"\n', encoding="utf-8"
+        )
+    (repo / "pyproject.toml").write_text(
+        '[project]\nname = "runtime-binding"\nversion = "0"\n', encoding="utf-8"
+    )
+    (repo / "uv.lock").write_text('dependency-version = "accepted"\n', encoding="utf-8")
+    (repo / "README.md").write_text("accepted\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "accepted")
+
+    candidate = tmp_path / "candidate"
+    _git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
+    (candidate / "uv.lock").write_text('dependency-version = "candidate"\n', encoding="utf-8")
+    (candidate / "README.md").write_text("candidate\n", encoding="utf-8")
+    _git(candidate, "add", "uv.lock", "README.md")
+    _git(candidate, "commit", "-m", "candidate")
+
+    hooks = repo / ".githooks"
+    hooks.mkdir()
+    hook = hooks / "reference-transaction"
+    shutil.copy(ROOT / ".githooks/reference-transaction", hook)
+    hook.chmod(0o755)
+
+    arguments = tmp_path / "runtime-arguments"
+    pythonpath = tmp_path / "runtime-pythonpath"
+    runtime = repo / "tools/ci/scripts/with-python-runtime.sh"
+    _write_executable(
+        runtime,
+        """#!/bin/sh
+printf '%s\\n' "$@" > "${RUNTIME_ARGUMENTS:?}"
+printf '%s' "${PYTHONPATH-unset}" > "${RUNTIME_PYTHONPATH:?}"
+case " $* " in
+  *" -- uv run --project ${CANDIDATE_ROOT:?} --locked --offline --isolated --all-packages --group dev python -m ethos.cli hook ref-transaction "*)
+    grep -q 'dependency-version = "candidate"' "${CANDIDATE_ROOT}/uv.lock" || exit 92
+    printf '%s\\n' '{"state":"admitted"}'
+    ;;
+  *)
+    printf '%s\\n' '{"state":"blocked"}'
+    ;;
+esac
+""",
+    )
+    candidate_runtime = candidate / "tools/ci/scripts/with-python-runtime.sh"
+    candidate_runtime.parent.mkdir(parents=True)
+    shutil.copy(runtime, candidate_runtime)
+    candidate_runtime.chmod(0o755)
+    _git(candidate, "add", "tools/ci/scripts/with-python-runtime.sh")
+    _git(candidate, "commit", "-m", "candidate runtime")
+    accepted_python = repo / "build/runtime/venv/bin/python"
+    _write_executable(accepted_python, "#!/bin/sh\nexit 93\n")
+
+    old_head = _git(repo, "rev-parse", "dev").stdout.strip()
+    candidate_head = _git(candidate, "rev-parse", "HEAD").stdout.strip()
+    completed = subprocess.run(
+        [hook, "prepared"],
+        cwd=repo,
+        env={
+            **os.environ,
+            "CANDIDATE_ROOT": candidate.as_posix(),
+            "PYTHONPATH": "accepted-only-source",
+            "RUNTIME_ARGUMENTS": arguments.as_posix(),
+            "RUNTIME_PYTHONPATH": pythonpath.as_posix(),
+        },
+        input=f"{old_head} {candidate_head} refs/heads/dev\n",
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert arguments.read_text(encoding="utf-8").splitlines() == [
+        "--",
+        "uv",
+        "run",
+        "--project",
+        candidate.as_posix(),
+        "--locked",
+        "--offline",
+        "--isolated",
+        "--all-packages",
+        "--group",
+        "dev",
+        "python",
+        "-m",
+        "ethos.cli",
+        "hook",
+        "ref-transaction",
+        "refs/heads/dev",
+        old_head,
+        candidate_head,
+        "--phase",
+        "prepared",
+        "--root",
+        repo.as_posix(),
+        "--json",
+    ]
+    assert pythonpath.read_text(encoding="utf-8") == "unset"
+    assert accepted_python.as_posix() not in arguments.read_text(encoding="utf-8")
+
+
+def test_protected_ref_uses_candidate_runtime_wrapper() -> None:
+    script = Path(".githooks/reference-transaction").read_text(encoding="utf-8")
+
+    assert (
+        'candidate_runtime_runner="$candidate_root/tools/ci/scripts/with-python-runtime.sh"'
+        in script
+    )
+    assert 'cd "$candidate_root" || exit 1' in script
+    assert '"${candidate_runtime_runner}" -- uv run --project "$candidate_root"' in script
+
+
+def test_python_runtime_uses_projectless_semantic_venv(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init", "-b", "dev")
+    runtime = repo / "tools/ci/scripts/with-python-runtime.sh"
+    runtime.parent.mkdir(parents=True)
+    shutil.copy(ROOT / "tools/ci/scripts/with-python-runtime.sh", runtime)
+    semantic = repo / "build/runtime/venv"
+    semantic.parent.mkdir(parents=True)
+    semantic.symlink_to(Path(os.sys.executable).absolute().parent.parent, target_is_directory=True)
+    marker = tmp_path / "uv-invoked"
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    _write_executable(fake_bin / "uv", f'#!/bin/sh\ntouch "{marker}"\nexit 97\n')
+
+    completed = subprocess.run(
+        [
+            runtime,
+            "--",
+            semantic / "bin/python",
+            "-B",
+            "-c",
+            "import cyclopts; print('semantic-runtime')",
+        ],
+        cwd=repo,
+        env={**os.environ, "PATH": f"{fake_bin}{os.pathsep}{os.environ['PATH']}"},
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert completed.stdout.strip() == "semantic-runtime"
+    assert marker.exists() is False
+
+
 def test_pre_commit_places_staged_secret_scan_before_ruff_and_admission() -> None:
     script = PRE_COMMIT_HOOK.read_text(encoding="utf-8")
     empty_index_guard = 'if [ "${#staged[@]}" -eq 0 ]; then\n  exit 0\nfi'

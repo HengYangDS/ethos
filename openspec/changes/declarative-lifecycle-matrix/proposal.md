@@ -17,6 +17,12 @@ complete.
 - Bind every lease mutation to the exact lease ID, holder, epoch, lane ref,
   expected head, row expiry, and raw payload digest under a SQLite generation
   lock.
+- Separate authority from outcome: a resolution Decision declares the admitted
+  disposition, while its Receipt records only the realized state and links back
+  through `decision_id`; no duplicate receipt disposition remains.
+- Make handoff, resolution, and receipt contracts strict: reject coercive
+  booleans and integers, accept only exact 40- or 64-hex Git object IDs, and
+  remove redundant wire fields and artifact variants.
 - Recheck the accepted control root and accepted ref at effect time, remove the
   clean linked worktree, and compare-and-delete the exact lane ref in one Git ref
   transaction.
@@ -43,6 +49,13 @@ complete.
   zero issues at every level.
 - Set Taplo's native success log floor to warning so configuration gates are
   quiet on success while preserving real warning/error output and exit status.
+- Bind protected-ref evaluation to the candidate commit's project, lock,
+  package metadata, and source through locked, offline, isolated execution;
+  inherited `PYTHONPATH`, candidate ignored runtimes, and accepted-source
+  interpreters are not trusted.
+- Require proof for a control-plane revision to match the repository role of
+  the committed tree being promoted; a product-root commit cannot be admitted
+  by an adopter-profile proof floor.
 
 ## Capabilities
 
@@ -58,10 +71,11 @@ None.
 
 ## Impact
 
-Affected surfaces are the lease and handoff contracts, linked and exceptional
-retirement adapters, Work Lane start saga, Cyclopts lane commands, exact
-lease/ref race regressions, invalid-state classification, quality ratchets, the
-current Claim/Chronicle, canonical quality and repository-governance specs, and this OpenSpec carrier.
+Affected surfaces are the lease, handoff, resolution Decision, and resolution
+Receipt contracts; linked and exceptional retirement adapters; Work Lane start;
+protected-ref runtime selection; Cyclopts lane commands; exact lease/ref/runtime
+regressions; schema validation; invalid-state classification; quality ratchets;
+the current Claim/Chronicle; canonical specs; and this OpenSpec carrier.
 
 ## Out Of Scope
 

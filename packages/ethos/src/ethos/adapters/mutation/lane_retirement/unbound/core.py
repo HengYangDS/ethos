@@ -18,6 +18,7 @@ import ethos.adapters.mutation.lane_retirement.unbound.reporting.core as reporti
 from ethos.adapters.mutation.lane_lifecycle.core import repo_root
 from ethos.adapters.mutation.lane_lifecycle.core import run_git
 from ethos.adapters.store.state.lease.lifecycle.effects import revoke_lease_from_connection
+from ethos.adapters.store.state.schema import state_database
 
 type _Controls = dict[str, Any]
 
@@ -126,7 +127,7 @@ def _apply_retirement(  # noqa: PLR0913, RUF100 - bound irreversible transition 
     )
     if control_root is None:
         return reporting.blocked(result, [gap])
-    records_root = control_root.parent / f"{control_root.name}-records"
+    records_root = records.repository_records_root(repo)
     operation_id = records.operation_id(
         branch=controls["branch"],
         expect_head=controls["expect_head"],
@@ -170,7 +171,6 @@ def _apply_retirement(  # noqa: PLR0913, RUF100 - bound irreversible transition 
         )
     return _relinquish_then_delete(
         repo=repo,
-        control_root=control_root,
         records_root=records_root,
         before=before,
         pre_effect=pre_effect,
@@ -186,7 +186,6 @@ def _apply_retirement(  # noqa: PLR0913, RUF100 - bound irreversible transition 
 def _relinquish_then_delete(  # noqa: PLR0913, RUF100 - bound irreversible transition shape
     *,
     repo: Path,
-    control_root: Path,
     records_root: Path,
     before: dict[str, object],
     pre_effect: dict[str, object],
@@ -198,7 +197,7 @@ def _relinquish_then_delete(  # noqa: PLR0913, RUF100 - bound irreversible trans
     owner_unavailable_recovery: bool = False,
 ) -> dict[str, object]:
     """Hold the lease writer lock across exact revocation and atomic ref deletion."""
-    database = control_root / ".ethos" / "state" / "state.sqlite"
+    database = state_database(repo)
     try:
         with closing(sqlite3.connect(database)) as connection:
             connection.execute("pragma foreign_keys = on")
@@ -331,7 +330,7 @@ def _commit_or_restore(connection: sqlite3.Connection, repo: Path, controls: _Co
     except sqlite3.Error:
         connection.rollback()
         ref, head = f"refs/heads/{controls['branch']}", controls["expect_head"]
-        return run_git(repo, "update-ref", ref, head, "0" * 40, check=False)
+        return run_git(repo, "update-ref", "--stdin", check=False, stdin=f"create {ref} {head}\n")
     return None
 
 

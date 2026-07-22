@@ -15,6 +15,7 @@ import ethos.adapters.mutation.lane_retirement.unbound.reporting.core as reporti
 from ethos.adapters.mutation.lane_lifecycle.core import repo_root
 from ethos.adapters.mutation.lane_retirement.unbound.core import relinquish_owned_lease
 from ethos.adapters.store.state.schema import initialize_state
+from ethos.adapters.store.state.schema import state_database
 
 
 @dataclass(frozen=True, slots=True)
@@ -127,9 +128,7 @@ def _partial_effect_attempt(observed: dict[str, object]) -> tuple[dict[str, obje
     try:
         return (
             records.read_record(
-                records.attempt_path(
-                    control_root.parent / f"{control_root.name}-records", attempt_id
-                ),
+                records.attempt_path(records.repository_records_root(control_root), attempt_id),
                 kind=records.ATTEMPT_KIND,
             ),
             "",
@@ -185,7 +184,7 @@ def _apply_ref_absent_reconciliation(  # noqa: C901, PLR0911, PLR0912, PLR0913, 
     )
     if control_root is None:
         return reporting.blocked(result, [gap])
-    records_root = control_root.parent / f"{control_root.name}-records"
+    records_root = records.repository_records_root(repo)
     operation_id = records.reconciliation_operation_id(
         branch=str(before["branch"]),
         target_head=str(cast("dict[str, object]", before["chronicle"])["target_head"]),
@@ -216,7 +215,7 @@ def _apply_ref_absent_reconciliation(  # noqa: C901, PLR0911, PLR0912, PLR0913, 
         source_retirement_attempt=source_attempt,
     )
     try:
-        database = control_root / ".ethos" / "state" / "state.sqlite"
+        database = state_database(repo)
         initialize_state(database)
         with closing(sqlite3.connect(database)) as connection:
             connection.execute("pragma foreign_keys = on")

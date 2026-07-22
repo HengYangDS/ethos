@@ -13,17 +13,19 @@ from typing import cast
 from pydantic import ValidationError
 
 from ethos.adapters.mutation.decision import mutation_envelope
+from ethos.adapters.mutation.lane_lifecycle.core import run_git
 from ethos.adapters.mutation.resolution._shared import sha256_digest
 from ethos.adapters.mutation.resolution.receipts import verify_preservation_package
 from ethos.adapters.mutation.resolution.receipts import write_resolution_receipt
-from ethos.adapters.store.state.lease.projection import active_leases
-from ethos.adapters.store.state.schema import state_database
+from ethos.adapters.repo.status.bindings import leases_by_branch
+from ethos.adapters.repo.status.core import workspace_status
 from ethos.repository.policy.schema import validate_schema_instance
 from ethos_core.contracts.lifecycle.core import MutationRequest
 from ethos_core.contracts.lifecycle.core import reduce_guards
 from ethos_core.contracts.resolution.lane import LaneObservation
 from ethos_core.contracts.resolution.lane import LaneResolutionDecision
 from ethos_core.contracts.resolution.lane import LaneResolutionReceipt
+from ethos_core.contracts.resolution.lane import LaneResolutionState
 
 _DISPOSITIONS = {"block", "preserve", "retire", "preserve-retire"}
 
@@ -133,33 +135,27 @@ def apply_lane_resolution(
     )
     report = _report(branch, evaluation)
     if apply and evaluation.ok:
-        package: dict[str, object] = {}
-        if disposition in {"preserve", "preserve-retire"}:
-            package = _preserve(root=root, observation=observation, decision=decision)
-        if disposition == "preserve-retire":
-            verify_preservation_package(root=root, package=package)
-            _retire(root=root, observation=observation)
-            report.update(state="preserved_and_retired", preservation_package=package)
-        elif disposition == "preserve":
-            report.update(state="preserved", preservation_package=package)
-        elif disposition == "retire":
-            _retire(root=root, observation=observation)
-            report.update(state="retired")
-        else:
-            report.update(state="blocked_by_decision")
-        receipt = _completion_receipt(decision, observation, str(report["state"]), package)
-        if not validate_schema_instance("lane-resolution-receipt.schema.json", receipt, root=root)[
-            "ok"
-        ]:
-            report.update(
-                ok=False, state="blocked", required_gaps=["lane_resolution_receipt_invalid"]
-            )
-            return report
-        report.update(
-            receipt=receipt,
-            receipt_path=write_resolution_receipt(root=root, receipt=receipt),
-            chronicle_event=_chronicle_event(decision, receipt),
+        package = _apply_resolution_effect(
+            root=root,
+            decision=decision,
+            observation=observation,
+            report=report,
         )
+        if report["ok"]:
+            state = cast("LaneResolutionState", report["state"])
+            receipt = _resolution_receipt(decision, observation, state, package)
+            if not validate_schema_instance(
+                "lane-resolution-receipt.schema.json", receipt, root=root
+            )["ok"]:
+                report.update(
+                    ok=False, state="blocked", required_gaps=["lane_resolution_receipt_invalid"]
+                )
+                return report
+            report.update(
+                receipt=receipt,
+                receipt_path=write_resolution_receipt(root=root, receipt=receipt),
+                chronicle_event=_chronicle_event(decision, receipt),
+            )
     return _finish(
         report,
         command="lane-resolution-apply",
@@ -175,13 +171,81 @@ def apply_lane_resolution(
     )
 
 
+def _apply_resolution_effect(
+    *,
+    root: Path,
+    decision: dict[str, Any],
+    observation: LaneObservation,
+    report: dict[str, object],
+) -> dict[str, object]:
+    disposition = str(decision["disposition"])
+    package = (
+        _preserve(root=root, observation=observation, decision=decision)
+        if disposition in {"preserve", "preserve-retire"}
+        else {}
+    )
+    if disposition == "preserve":
+        report.update(state="preserved", preservation_package=package)
+        return package
+    if disposition == "block":
+        report.update(state="blocked_by_decision")
+        return package
+    if disposition == "preserve-retire":
+        verify_preservation_package(root=root, package=package)
+        current, gaps = _observe_lane(root, observation.lane_ref)
+        if gaps or current.digest() != observation.digest():
+            report.update(
+                ok=False,
+                state="blocked",
+                required_gaps=[*gaps, "lane_resolution_observation_stale"],
+                preservation_package=package,
+            )
+            return package
+    try:
+        _retire(
+            root=root,
+            observation=observation,
+            force=disposition == "preserve-retire" and observation.dirty,
+        )
+    except ValueError as exc:
+        gap = str(exc)
+        if gap not in {
+            "lane_resolution_worktree_remove_failed",
+            "lane_resolution_branch_delete_failed_after_worktree_removed",
+            "lane_resolution_branch_delete_state_uncertain",
+        }:
+            raise
+        report.update(
+            ok=False,
+            state=gap.removeprefix("lane_resolution_"),
+            required_gaps=[gap],
+            preservation_package=package,
+        )
+        return package
+    report.update(
+        state="preserved_and_retired" if disposition == "preserve-retire" else "retired",
+        preservation_package=package,
+    )
+    return package
+
+
 def _observe_lane(root: Path, branch: str) -> tuple[LaneObservation, list[str]]:
-    worktree = _worktree(root, branch)
+    worktree = next(
+        (
+            item
+            for item in cast("list[dict[str, str]]", workspace_status(root)["worktrees"])
+            if item["branch"] == branch
+        ),
+        {},
+    )
     if not worktree:
         empty = hashlib.sha256(b"").hexdigest()
+        object_format = run_git(
+            root, "rev-parse", "--show-object-format", check=False
+        ).stdout.strip()
         return LaneObservation(
             lane_ref=branch or "unknown",
-            head="0" * 40,
+            head="0" * (64 if object_format == "sha256" else 40),
             lane_incarnation_id="missing",
             path=root.resolve().as_posix(),
             dirty=True,
@@ -191,12 +255,9 @@ def _observe_lane(root: Path, branch: str) -> tuple[LaneObservation, list[str]]:
             tracked_digest=empty,
             untracked_digest=empty,
         ), ["lane_resolution_target_missing"]
-    path = Path(worktree["worktree"])
-    head = _git(root, "rev-parse", f"refs/heads/{branch}")
-    lease = next(
-        (lease for lease in active_leases(state_database(root)) if lease.get("subject") == branch),
-        {},
-    )
+    path = Path(worktree["path"])
+    head = run_git(root, "rev-parse", f"refs/heads/{branch}").stdout.strip()
+    lease = leases_by_branch(root).get(branch, {})
     holder = str(lease.get("holder_ref") or "")
     incarnation = str(lease.get("lane_incarnation_id") or "") or (
         "decision-incarnation:"
@@ -208,34 +269,22 @@ def _observe_lane(root: Path, branch: str) -> tuple[LaneObservation, list[str]]:
         lane_incarnation_id=incarnation,
         holder_ref=holder,
         path=path.resolve().as_posix(),
-        dirty=bool(_git(path, "status", "--porcelain", check=False)),
+        dirty=bool(run_git(path, "status", "--porcelain", check=False).stdout.strip()),
         foreign=not bool(holder),
         orphan=not bool(lease),
         ambiguous=False,
         tracked_digest=hashlib.sha256(
-            _git(path, "diff", "--binary", "HEAD", "--", check=False).encode()
+            run_git(path, "diff", "--binary", "HEAD", "--", check=False).stdout.encode()
         ).hexdigest(),
         untracked_digest=_untracked_digest(path),
     ), []
 
 
-def _worktree(root: Path, branch: str) -> dict[str, str]:
-    rows, current = [], {}
-    for line in [*_git(root, "worktree", "list", "--porcelain", check=False).splitlines(), ""]:
-        if line:
-            key, _, value = line.partition(" ")
-            current[key] = value
-        elif current:
-            rows.append(current)
-            current = {}
-    return next((row for row in rows if row.get("branch") == f"refs/heads/{branch}"), {})
-
-
 def _read_decision(path: Path, *, root: Path) -> tuple[dict[str, Any], list[str]]:
     try:
         payload = json.loads(path.resolve().read_text(encoding="utf-8"))
-        decision = LaneResolutionDecision.model_validate(
-            {field: payload[field] for field in LaneResolutionDecision.model_fields}
+        decision = LaneResolutionDecision.model_validate_json(
+            json.dumps({field: payload[field] for field in LaneResolutionDecision.model_fields})
         )
     except (KeyError, OSError, json.JSONDecodeError, ValidationError, TypeError):
         return {}, ["lane_resolution_decision_invalid"]
@@ -315,7 +364,7 @@ def _preserve(
         package / "untracked.tar",
     )
     source = Path(observation.path)
-    _run(source, "git", "bundle", "create", bundle.as_posix(), observation.lane_ref)
+    run_git(source, "bundle", "create", bundle.as_posix(), observation.lane_ref)
     patch.write_bytes(
         subprocess.run(
             ["git", "diff", "--binary", "HEAD", "--"], cwd=source, check=False, capture_output=True
@@ -325,13 +374,17 @@ def _preserve(
     if inventory is None:
         raise ValueError("lane_resolution_untracked_inventory_failed")  # noqa: EM101, RUF100
     if inventory:
-        _run(
-            source,
-            "tar",
-            "-cf",
-            archive.as_posix(),
-            "--",
-            *(item.decode(errors="surrogateescape") for item in inventory),
+        subprocess.run(
+            [
+                "tar",
+                "-cf",
+                archive.as_posix(),
+                "--",
+                *(item.decode(errors="surrogateescape") for item in inventory),
+            ],
+            cwd=source,
+            check=True,
+            capture_output=True,
         )
     manifest = {
         "decision_id": decision["decision_id"],
@@ -349,21 +402,60 @@ def _preserve(
     return {"path": relative.as_posix(), "manifest": manifest}
 
 
-def _retire(*, root: Path, observation: LaneObservation) -> None:
+def _retire(*, root: Path, observation: LaneObservation, force: bool = False) -> None:
     ref = f"refs/heads/{observation.lane_ref}"
+    with subprocess.Popen(
+        ["git", "update-ref", "--stdin"],
+        cwd=root,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    ) as transaction:
+        stdin, stdout = transaction.stdin, transaction.stdout
+        if stdin is None or stdout is None or transaction.stderr is None:
+            raise ValueError("lane_resolution_branch_delete_failed")  # noqa: EM101, RUF100
+        try:
+            stdin.write("start\n")
+            stdin.flush()
+            started = stdout.readline() == "start: ok\n"
+            stdin.write(f"delete {ref} {observation.head}\nprepare\n")
+            stdin.flush()
+            prepared = stdout.readline() == "prepare: ok\n"
+        except OSError as exc:
+            message = "lane_resolution_branch_delete_failed"
+            raise ValueError(message) from exc
+        if not (started and prepared):
+            stdin.write("abort\n")
+            stdin.close()
+            raise ValueError("lane_resolution_branch_delete_failed")  # noqa: EM101, RUF100
+        remove = ("worktree", "remove", *(("--force",) if force else ()), observation.path)
+        removed = run_git(root, *remove, check=False)
+        if removed.returncode:
+            stdin.write("abort\n")
+            stdin.close()
+            raise ValueError("lane_resolution_worktree_remove_failed")  # noqa: EM101, RUF100
+        try:
+            stdin.write("commit\n")
+            stdin.close()
+            committed = stdout.readline() == "commit: ok\n" and transaction.wait() == 0
+        except OSError:
+            committed = False
+    if not committed:
+        present = run_git(root, "show-ref", "--verify", "--quiet", ref, check=False).returncode == 0
+        message = (
+            "lane_resolution_branch_delete_failed_after_worktree_removed"
+            if present
+            else "lane_resolution_branch_delete_state_uncertain"
+        )
+        raise ValueError(message)
 
-    def run(*args: str):
-        return subprocess.run(["git", *args], cwd=root, check=False, capture_output=True, text=True)
 
-    if run("update-ref", "-d", ref, observation.head).returncode:
-        raise ValueError("lane_resolution_branch_delete_failed")  # noqa: EM101, RUF100
-    if run("worktree", "remove", "--force", observation.path).returncode:
-        run("update-ref", ref, observation.head, "0" * 40)
-        raise ValueError("lane_resolution_worktree_remove_failed")  # noqa: EM101, RUF100
-
-
-def _completion_receipt(
-    decision: dict[str, Any], observation: LaneObservation, state: str, package: dict[str, object]
+def _resolution_receipt(
+    decision: dict[str, Any],
+    observation: LaneObservation,
+    state: LaneResolutionState,
+    package: dict[str, object],
 ) -> dict[str, object]:
     manifest = package.get("manifest")
     payload = cast("dict[str, object]", manifest) if isinstance(manifest, dict) else {}
@@ -375,7 +467,6 @@ def _completion_receipt(
     return LaneResolutionReceipt(
         receipt_id=f"lane-resolution-receipt:{uuid.uuid4()}",
         decision_id=str(decision["decision_id"]),
-        disposition=decision["disposition"],
         completed=True,
         state=state,
         observation_digest=observation.digest(),
@@ -409,12 +500,6 @@ def _report(branch: str, evaluation: Any) -> dict[str, object]:
         "ok": evaluation.ok,
         "state": evaluation.state,
         "branch": branch,
-        "decision": {},
-        "decision_path": "",
-        "preservation_package": {},
-        "receipt": {},
-        "receipt_path": "",
-        "chronicle_event": {},
         "required_gaps": list(evaluation.gaps),
     }
 
@@ -443,18 +528,3 @@ def _finish(  # noqa: PLR0913, RUF100
         verifier_provenance="current_runner",
     )
     return report
-
-
-def _git(root: Path, *args: str, check: bool = True) -> str:
-    completed = subprocess.run(
-        ["git", *args], cwd=root, check=False, capture_output=True, text=True
-    )
-    if check and completed.returncode:
-        raise ValueError(completed.stderr.strip() or "git_command_failed")
-    return completed.stdout.strip()
-
-
-def _run(root: Path, *args: str) -> None:
-    completed = subprocess.run(args, cwd=root, check=False, capture_output=True, text=True)
-    if completed.returncode:
-        raise ValueError(completed.stderr.strip() or "command_failed")

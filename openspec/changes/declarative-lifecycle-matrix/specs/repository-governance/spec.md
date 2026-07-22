@@ -134,6 +134,57 @@ are proven absent.
 - **THEN** ETHOS revokes only the newly acquired exact lease generation
 - **AND** unrelated leases, paths, and refs remain unchanged.
 
+### Requirement: Resolution Decisions and Receipts are semantically disjoint
+
+ETHOS SHALL keep authorization and realized outcome as separate facts. A lane
+resolution Decision SHALL carry the admitted disposition. A completion Receipt
+SHALL carry only its realized state and SHALL link to the Decision through
+`decision_id`; it SHALL NOT repeat disposition. Handoff, Decision, and Receipt
+contracts SHALL reject coercive scalar values and Git object IDs whose width is
+not exactly 40 or 64 hexadecimal characters.
+
+#### Scenario: A resolution effect completes
+
+- **WHEN** an admitted resolution effect writes its completion Receipt
+- **THEN** the Receipt records the exact realized state
+- **AND** `decision_id` identifies the authorizing Decision
+- **AND** no Receipt disposition, alias, compatibility field, or parallel
+  outcome vocabulary is serialized.
+
+#### Scenario: A wire payload relies on coercion or an ambiguous object ID
+
+- **WHEN** a handoff or resolution payload supplies a boolean as an integer, a
+  lease epoch as a string or boolean, or a Git object ID of intermediate width
+- **THEN** both the typed contract and its JSON Schema boundary reject it
+- **AND** no lifecycle effect begins.
+
+### Requirement: Protected-ref semantics are candidate-commit bound
+
+For a protected-ref transition, ETHOS SHALL require the candidate HEAD to own
+the root project, lockfile, package metadata, and package initializers used by
+the semantic runner. It SHALL execute from that candidate project using locked,
+offline, isolated dependency resolution and SHALL clear inherited
+`PYTHONPATH`. It SHALL NOT trust a candidate ignored virtual environment or an
+accepted-checkout interpreter. The required proof floor SHALL match the
+repository role of the committed candidate tree.
+
+#### Scenario: Candidate runtime state attempts to override committed semantics
+
+- **WHEN** a candidate ignored interpreter, inherited `PYTHONPATH`, accepted
+  interpreter, uncommitted lockfile, or uncommitted package source differs from
+  the candidate HEAD
+- **THEN** the protected-ref transition does not execute that state
+- **AND** missing or mismatched committed candidate inputs block the transition.
+
+#### Scenario: A product-root control revision carries adopter proof
+
+- **WHEN** the committed candidate tree is a product root but its proof was
+  generated while an adopter profile still classified the worktree
+- **THEN** admission requires the product proof floor and reports every missing
+  product gate
+- **AND** it does not reinterpret the proof through a `full` option or weaken
+  the promotion floor.
+
 ### Requirement: Archived evidence does not own runtime replay
 
 ETHOS SHALL NOT hard-code one archived Claim ID, dated archive carrier, or fixed

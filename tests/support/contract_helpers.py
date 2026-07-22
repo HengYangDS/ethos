@@ -121,9 +121,9 @@ def write_test_profile(root: Path, **updates: object) -> Path:
     return profile
 
 
-def init_git_repo(path: Path) -> Path:
+def init_git_repo(path: Path, *, object_format: str = "sha1") -> Path:
     path.mkdir(parents=True)
-    git(path, "init", "-b", "dev")
+    git(path, "init", "--object-format=" + object_format, "-b", "dev")
     git(path, "config", "commit.gpgsign", "false")
     (path / ".gitignore").write_text(".ethos/state/*\n!.ethos/state/.gitignore\n", encoding="utf-8")
     (path / "README.md").write_text("# sample\n", encoding="utf-8")

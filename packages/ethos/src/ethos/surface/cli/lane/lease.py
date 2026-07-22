@@ -92,7 +92,6 @@ class _ExportOptions(_OfferOptions):
     context_text: Annotated[str, Parameter(name="--context-text")] = ""
     context_file: Annotated[Path | None, Parameter(name="--context-file")] = None
     output_root: Annotated[Path | None, Parameter(name="--output-root")] = None
-    dirty_disposition: Annotated[str | None, Parameter(name="--dirty-disposition")] = None
 
 
 class _ImportOptions(_CommandOptions):

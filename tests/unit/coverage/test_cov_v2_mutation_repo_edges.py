@@ -93,7 +93,6 @@ def test_git_edges(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_handoff_core_edges(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     assert hc._holder_ref_gaps("bad", "bad") == ["holder_ref_invalid", "target_holder_ref_invalid"]  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch  # fmt: skip
-    assert hc._dirty_disposition_gaps([], "bad") == ["dirty_disposition_invalid"]  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch  # fmt: skip
     assert hc._handoff_context(context_text="x", context_file=tmp_path)[1] == "handoff_context_ambiguous"  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch  # fmt: skip
     assert hc._handoff_context(context_text="", context_file=tmp_path / "missing")[1] == "handoff_context_file_unreadable"  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch  # fmt: skip
     manifest = {"package_id": "p", "source_lane_ref": "work/x", "source_head": "h", "target_holder_ref": "agent:test:case:other"}  # fmt: skip
@@ -152,13 +151,15 @@ def test_handoff_manifest_edges(tmp_path: Path, monkeypatch: pytest.MonkeyPatch)
         path.write_text(text, encoding="utf-8")
         assert hp.verified_handoff_manifest(package=package, root=tmp_path)[1] == gaps
     monkeypatch.setattr(hp, "validate_schema_instance", lambda *args, **kw: {"ok": True, "required_gaps": []})  # noqa: ARG005 coverage closure keeps callback and branch shapes explicit  # fmt: skip
+    monkeypatch.setattr(hp, "_content_id", lambda *_args: "handoff:test")
     (package / "digest").write_text("x", encoding="utf-8")
-    payload = {"artifacts": ["bad", {"path": "missing"}, {"path": "digest", "sha256": "bad"}]}
+    body = {"artifacts": ["bad", {"path": "missing"}, {"path": "digest", "sha256": "bad"}]}
+    payload = {"package_id": "handoff:test", **body}
     path.write_text(json.dumps(payload), encoding="utf-8")
     assert hp.verified_handoff_manifest(package=package, root=tmp_path)[1] == [
         "handoff_artifact_invalid",
-        "handoff_artifact_missing:missing",
         "handoff_artifact_kind_duplicate:",
+        "handoff_artifact_missing:missing",
         "handoff_artifact_digest_mismatch:digest",
         "handoff_artifact_kind_missing:git_bundle",
         "handoff_artifact_kind_missing:context",
@@ -170,14 +171,13 @@ def test_handoff_package_effect_edges(tmp_path: Path, monkeypatch: pytest.Monkey
     package, destination = tmp_path / "pkg", tmp_path / "repo"
     package.mkdir()
     calls: list[tuple[str, ...]] = []
-    real_run = hp._run  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch  # fmt: skip
-    _patch(monkeypatch, hp, _run=lambda root, *args: calls.append(args), acquire_lease=lambda *args, **kw: (_ for _ in ()).throw(ValueError("lease")))  # noqa: ARG005 coverage closure keeps callback and branch shapes explicit  # fmt: skip
+    _patch(monkeypatch, hp, acquire_lease=lambda *args, **kw: (_ for _ in ()).throw(ValueError("lease")))  # noqa: ARG005 coverage closure keeps callback and branch shapes explicit  # fmt: skip
 
     def git_result(args, **_kw):
         calls.append(tuple(args))
         stdout = ""
         if args[1:3] == ["bundle", "list-heads"]:
-            stdout = "h refs/heads/source\n"
+            stdout = "h refs/heads/work/x\n"
         elif args[1:2] == ["rev-parse"]:
             stdout = "t\n" if str(args[-1]).endswith("^{tree}") else "h\n"
         return SimpleNamespace(
@@ -194,34 +194,58 @@ def test_handoff_package_effect_edges(tmp_path: Path, monkeypatch: pytest.Monkey
         "artifacts": [],
     }
     monkeypatch.setattr(hp, "_verified_package_snapshot", lambda **_: nullcontext(package))
-    with pytest.raises(ValueError, match="lease"):
+    with pytest.raises(ValueError, match="handoff_import_compensation_failed"):
         hp.apply_handoff_import(destination=destination, package=package, manifest=manifest, target_holder_ref="agent:test:case:owner")  # fmt: skip
-    worktree = destination.with_name(f"{destination.name}-work-x")
-    assert ("git", "worktree", "remove", "--force", worktree.as_posix()) in calls
-    assert ("git", "update-ref", "-d", "refs/heads/work/x", "h") in calls
-    for prefix, word in (
-        (("git", "bundle", "unbundle"), "unbundle"),
-        (("git", "worktree"), "worktree"),
-    ):
-        monkeypatch.setattr(hp, "_run", lambda root, *args, prefix=prefix, word=word: (_ for _ in ()).throw(ValueError(word)) if args[: len(prefix)] == prefix else None)  # noqa: ARG005 coverage closure keeps callback and branch shapes explicit  # fmt: skip
-        with pytest.raises(ValueError, match=word):
-            hp.apply_handoff_import(destination=destination, package=package, manifest=manifest, target_holder_ref="agent:test:case:owner")  # fmt: skip
+    assert ("git", "worktree", "list", "--porcelain") in calls
+    original_run_git = hp.run_git
+    monkeypatch.setattr(hp, "run_git", lambda root, *args, **kw: (_ for _ in ()).throw(ValueError("unbundle")) if args[:2] == ("bundle", "unbundle") else original_run_git(root, *args, **kw))  # fmt: skip
+    with pytest.raises(ValueError, match="unbundle"):
+        hp.apply_handoff_import(destination=destination, package=package, manifest=manifest, target_holder_ref="agent:test:case:owner")  # fmt: skip
+    monkeypatch.setattr(hp, "run_git", original_run_git)
     calls.clear()
-    monkeypatch.setattr(hp, "_run", lambda root, *args: calls.append(args))  # noqa: ARG005 coverage closure keeps callback and branch shapes explicit  # fmt: skip
-    for artifacts in ([], [{"kind": "tracked_patch", "path": "p"}, {"kind": "untracked_archive", "path": "a"}]):  # fmt: skip
-        hp._restore_preserved_work(package=package, manifest={"dirty_disposition": "preserved", "artifacts": artifacts}, worktree=tmp_path)  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch  # fmt: skip
-    assert len(calls) == 2
-    monkeypatch.setattr(hp, "_artifact", lambda path, root, kind: {"path": path.name, "kind": kind, "sha256": "x"})  # noqa: ARG005 coverage closure keeps callback and branch shapes explicit  # fmt: skip
-    for untracked, kinds in ((["u"], ["untracked_archive"]), ([], [])):
-        monkeypatch.setattr(hp, "_git_lines", lambda *args, u=untracked: u)  # noqa: ARG005 coverage closure keeps callback and branch shapes explicit  # fmt: skip
-        assert [x["kind"] for x in hp._preserve_dirty_work(repo=tmp_path, package_dir=package)] == kinds  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch  # fmt: skip
     output = tmp_path / "out"
     (output / "p").mkdir(parents=True)
     monkeypatch.setattr(hp, "shutil", SimpleNamespace(rmtree=lambda _path: None))
-    _patch(monkeypatch, hp, _run=lambda *args: None, validate_schema_instance=lambda *args, **kw: {"ok": False, "required_gaps": ["bad"]})  # noqa: ARG005 coverage closure keeps callback and branch shapes explicit  # fmt: skip
+    _patch(monkeypatch, hp, run_git=lambda *args, **kw: SimpleNamespace(stdout=f"{'a' * 40} refs/heads/work/x\n"), _artifact=lambda path, root, kind: {"path": path.name, "sha256": "0" * 64, "kind": kind}, _verify_export_snapshot=lambda **_: None, validate_schema_instance=lambda *args, **kw: {"ok": False, "required_gaps": ["bad"]})  # noqa: ARG005 coverage closure keeps callback and branch shapes explicit  # fmt: skip
     with pytest.raises(ValueError, match="handoff_manifest_invalid:bad"):
-        hp.write_handoff_package(repo=tmp_path, handoff=CrossHostHandoff(source_lane_ref="work/x", source_head="a" * 40, source_tree="b" * 40, source_holder_ref=HolderRef.parse("agent:test:case:owner"), target_holder_ref=HolderRef.parse("agent:test:case:other"), source_lease_id="l", source_lease_epoch=1, source_lease_expires_at="x", source_lease_payload_sha256="a" * 64, dirty_content_sha256="b" * 64, dirty_disposition="clean", context_digest="c" * 64), context="c", output_root=output)  # fmt: skip
-    monkeypatch.setattr(hp, "_run", real_run)
-    monkeypatch.setattr(hp.subprocess, "run", lambda *args, **kw: SimpleNamespace(returncode=1, stderr="bad", stdout=""))  # noqa: ARG005 coverage closure keeps callback and branch shapes explicit  # fmt: skip
-    with pytest.raises(subprocess.SubprocessError, match="bad"):
-        hp._run(tmp_path, "git", "bad")  # noqa: RUF100, SLF001 - coverage exercises an exact internal fail-closed branch  # fmt: skip
+        hp.write_handoff_package(repo=tmp_path, handoff=CrossHostHandoff(source_lane_ref="work/x", source_head="a" * 40, source_tree="b" * 40, source_holder_ref=HolderRef.parse("agent:test:case:owner"), target_holder_ref=HolderRef.parse("agent:test:case:other"), source_lease_id="l", source_lease_epoch=1, source_lease_expires_at="x", source_lease_payload_sha256="a" * 64, dirty_content_sha256="b" * 64, context_digest="c" * 64), context="c", output_root=output)  # fmt: skip
+
+
+def test_handoff_import_compensation_accepts_ref_already_absent(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    package, destination = tmp_path / "pkg", tmp_path / "repo"
+    package.mkdir()
+    manifest = {
+        "source_lane_ref": "work/x",
+        "source_head": "h",
+        "source_tree": "t",
+        "package_id": "p",
+    }
+    monkeypatch.setattr(hp, "_verified_package_snapshot", lambda **_: nullcontext(package))
+
+    def run_git(_root, *args, **_kwargs):
+        if args[:2] == ("bundle", "list-heads"):
+            return SimpleNamespace(returncode=0, stdout="h refs/heads/work/x\n")
+        if args[:1] == ("rev-parse",):
+            return SimpleNamespace(
+                returncode=0,
+                stdout="t\n" if str(args[-1]).endswith("^{tree}") else "h\n",
+            )
+        if args[:2] == ("worktree", "add"):
+            message = "worktree add failed"
+            raise ValueError(message)
+        return SimpleNamespace(
+            returncode=1 if args[:2] == ("show-ref", "--verify") else 0,
+            stdout="",
+        )
+
+    monkeypatch.setattr(hp, "run_git", run_git)
+
+    with pytest.raises(ValueError, match="worktree add failed"):
+        hp.apply_handoff_import(
+            destination=destination,
+            package=package,
+            manifest=manifest,
+            target_holder_ref="agent:test:case:owner",
+        )

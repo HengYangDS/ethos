@@ -1,0 +1,46 @@
+[claim]
+id = "t8-adoption-retirement-test-matrix-compression-20260723"
+change_id = "t8-adoption-retirement-test-matrix-compression"
+subject = "quality:adoption-retirement-test-matrix-compression"
+state = "active"
+summary = "Adoption-retirement tests use bounded declarative matrices and inert fixtures while retaining exact public gaps, lifecycle states, effect boundaries, and retirement-package branch coverage."
+
+[evidence]
+dated = "evidence/chronicle/t8-adoption-retirement-test-matrix-compression-20260723/2026-07-23.md"
+sha256 = "142e9d3074a39d947fba6d914e47e3307998d2efcbcc321d3eb2b944a3def9d7"
+evidence_ids = ["evidence:t8-adoption-retirement-test-matrix-compression-20260723"]
+binding = "The dated baseline, literal partitions, direct effect checks, scoped measurements, warnings-as-errors results, retirement-package branch coverage, Ruff ratchet, source-budget report, and strict OpenSpec validation bind this test-only compression slice."
+verifier = "digest_only"
+tests = [
+  "uv run pytest -q -W error tests/unit/adoption/test_retirement.py",
+  "uv run pytest -q -W error tests/unit/adoption --cov=ethos.repository.adoption.retirement --cov-branch",
+  "uv run ruff format --check tests/unit/adoption/test_retirement.py tests/unit/adoption/retirement/fixtures.py",
+  "uv run ruff check tests/unit/adoption/test_retirement.py tests/unit/adoption/retirement/fixtures.py",
+  "tools/ci/scripts/run-ruff-ratchet.sh",
+  "scc tests/unit/adoption/test_retirement.py tests/unit/adoption/retirement/fixtures.py --by-file --dryness --format json",
+  "tools/ci/scripts/run-config-lint.sh",
+  "tools/ci/scripts/run-python-tests.sh",
+  "tools/ci/scripts/run-ethos-lane.sh quality source-budget --json",
+  "uv run openspec validate --all --strict --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "quality"
+scope = "Adoption-retirement test and fixture representation only; production retirement semantics, schemas, commands, dependencies, thresholds, and publication state remain unchanged."
+
+[carriers]
+openspec = "openspec/changes/t8-adoption-retirement-test-matrix-compression"
+fallback = "Restore a deleted direct test only if the compact matrices cannot preserve its distinct public contract or effect boundary; do not retain parallel permanent representations."
+kill_signal = "A public retirement state, gap, next action, Git/filesystem/CLI boundary, or 100 percent retirement-package branch coverage regresses, or scoped Code, ULOC, or duplication exceeds the declared limits."
+
+[promotion]
+targets = [
+  { kind = "tests", path = "tests/unit/adoption/retirement/fixtures.py" },
+  { kind = "tests", path = "tests/unit/adoption/test_retirement.py" },
+  { kind = "openspec", path = "openspec/changes/t8-adoption-retirement-test-matrix-compression" },
+  { kind = "evidence", path = "evidence/claims/t8-adoption-retirement-test-matrix-compression-20260723.toml" },
+  { kind = "evidence", path = "evidence/chronicle/t8-adoption-retirement-test-matrix-compression-20260723/2026-07-23.md" },
+]

@@ -55,7 +55,6 @@ def test_branch_role_policy_semantic_order_uses_configured_roles_without_hardcod
         "lane/",
         "review/",
         "independent",
-        False,
     )
     assert [
         (item["role"], item["kind"], item["config_key"], item["pattern"])
@@ -329,47 +328,6 @@ def test_start_work_lane_defaults_path_to_sibling_candidate_home(
     assert report["path"] == expected.resolve().as_posix()
     assert expected.exists()
     assert git(expected, "branch", "--show-current") == "work/feature"
-
-
-def test_start_work_lane_uses_date_bound_family_identity_when_profile_enabled(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    repo = init_repo(tmp_path / "repo")
-    workspace_path = repo / ".ethos" / "workspace.toml"
-    workspace_path.parent.mkdir(parents=True, exist_ok=True)
-    workspace_path.write_text(
-        "[branch_roles]\nrepository_family_worktrees = true\n",
-        encoding="utf-8",
-    )
-    monkeypatch.setattr(lanes, "utc_now", lambda: datetime(2026, 7, 22, tzinfo=UTC), raising=False)
-
-    report = lanes.start_work_lane(
-        root=repo,
-        name="ownerless closeout admission",
-        holder_ref=_HOLDER_REF,
-        apply=False,
-    )
-
-    expected_lane_id = "20260722-ownerless-closeout-admission"
-    assert report["branch"] == f"work/{expected_lane_id}"
-    assert report["path"] == (tmp_path / "repo-worktrees" / expected_lane_id).as_posix()
-
-
-def test_start_work_lane_rejects_noncanonical_path_when_family_profile_enabled(
-    tmp_path: Path,
-) -> None:
-    repo = init_repo(tmp_path / "repo")
-    workspace_path = repo / ".ethos" / "workspace.toml"
-    workspace_path.parent.mkdir(parents=True, exist_ok=True)
-    workspace_path.write_text(
-        "[branch_roles]\nrepository_family_worktrees = true\n",
-        encoding="utf-8",
-    )
-
-    report = _start_lane(repo, path=tmp_path / "outside")
-
-    assert report["ok"] is False
-    assert report["required_gaps"] == ["lane_start_path_not_canonical"]
 
 
 @pytest.mark.parametrize(

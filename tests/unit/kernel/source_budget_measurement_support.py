@@ -67,7 +67,7 @@ def _contract(metric_id: str, unit: str) -> MetricContract:
     return MetricContract.model_validate(
         {
             "contract_id": f"python-source-v2:{metric_id}",
-            "contract_version": 3,
+            "contract_version": 4,
             "metric_id": metric_id,
             "unit": unit,
             "carrier_role": "authored_behavioral_source",
@@ -79,8 +79,12 @@ def _contract(metric_id: str, unit: str) -> MetricContract:
             "normalization_version": "1",
             "aggregation": "sum",
             "non_compensable": True,
-            "execution_mode": "bounded_in_process_v1",
+            "execution_mode": "isolated_worker_v1",
             "max_carrier_bytes": 65536,
+            "execution_contract_id": "ethos-source-budget-execution:isolated-worker-v1",
+            "execution_contract_digest": (
+                "0851b19f0adff27f5038a7eb78f68649a3a81c725f7056b2c301ba4cd5cfaafe"
+            ),
         }
     )
 
@@ -98,8 +102,8 @@ def _contract_set(
     resolved = contracts or _contracts()
     return MetricContractSet.model_validate(
         {
-            "schema": "ethos-source-budget-metrics-v3",
-            "contract_version": 3,
+            "schema": "ethos-source-budget-metrics-v4",
+            "contract_version": 4,
             "profiles": (
                 {
                     "profile_id": "python-source-v2",

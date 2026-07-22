@@ -415,7 +415,7 @@ def test_loads_reject_mutable_constructed_data_and_forged_typed_context() -> Non
 
     registry = _contract_set()
     forged_payload = registry.contracts[0].model_dump()
-    forged_payload["contract_version"] = 3.0
+    forged_payload["contract_version"] = 4.0
     forged_contract = MetricContract.model_construct(**forged_payload)
     forged_registry = type(registry).model_construct(
         schema=registry.schema_id,

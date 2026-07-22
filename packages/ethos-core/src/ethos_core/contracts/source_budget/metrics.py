@@ -6,6 +6,7 @@ from dataclasses import dataclass
 import pydantic as p
 
 import ethos_core.contracts.source_budget.carriers as carrier
+import ethos_core.contracts.source_budget.measurement.execution as execution
 
 MetricUnit = t.Literal[
     "lexical_token",
@@ -25,12 +26,12 @@ err, unique = carrier.err, carrier.unique
 
 
 def _require_contract_version(value: object) -> object:
-    """Require the exact bounded metric-contract wire version."""
-    (type(value) is int and value == 3) or err(_C + "version must be 3")
+    """Require the exact static-hybrid metric-contract wire version."""
+    (type(value) is int and value == 4) or err(_C + "version must be 4")
     return value
 
 
-MetricContractVersion = t.Annotated[t.Literal[3], p.BeforeValidator(_require_contract_version)]
+MetricContractVersion = t.Annotated[t.Literal[4], p.BeforeValidator(_require_contract_version)]
 
 
 class MetricProfile(carrier.FrozenContract):
@@ -61,8 +62,10 @@ class MetricContract(carrier.FrozenContract):
     normalization_version: carrier.NonEmptyStr
     aggregation: t.Literal["sum"]
     non_compensable: t.Literal[True]
-    execution_mode: t.Literal["bounded_in_process_v1"]
+    execution_mode: execution.ExecutionMode
     max_carrier_bytes: carrier.PositiveInt
+    execution_contract_id: carrier.NonEmptyStr
+    execution_contract_digest: carrier.Sha256
 
     @p.field_validator("non_compensable", mode="before")
     @classmethod
@@ -70,6 +73,18 @@ class MetricContract(carrier.FrozenContract):
         """Reject truthy coercions; only the boolean singleton is admissible."""
         value is True or err(_C + "must be non-compensable")
         return value
+
+    @p.model_validator(mode="after")
+    def validate_execution_identity(self) -> t.Self:
+        """Bind id and digest to the declared mode and parameterised ceiling."""
+        descriptor = execution.execution_descriptor(self.execution_mode, self.max_carrier_bytes)
+        expected = (
+            descriptor.execution_contract_id,
+            execution.execution_descriptor_digest(descriptor),
+        )
+        actual = self.execution_contract_id, self.execution_contract_digest
+        actual == expected or err(f"{_C}execution identity mismatch:{self.parser_id}")
+        return self
 
 
 def _canonical_metric_contracts(
@@ -89,16 +104,24 @@ def _canonical_metric_contracts(
 class MetricContractSet(carrier._Registry):
     """Complete immutable profile and metric registry."""
 
-    schema_id: t.Literal["ethos-source-budget-metrics-v3"] = p.Field(alias="schema")
+    schema_id: t.Literal["ethos-source-budget-metrics-v4"] = p.Field(alias="schema")
     contract_version: MetricContractVersion
     profiles: tuple[MetricProfile, ...] = p.Field(min_length=1)
     contracts: tuple[MetricContract, ...] = p.Field(min_length=1)
 
+    @p.model_validator(mode="before")
+    @classmethod
+    def reject_non_v4_registry(cls, value: object) -> object:
+        """Reject a complete legacy registry before atom-level migration errors."""
+        if isinstance(value, dict) and "contract_version" in value:
+            _require_contract_version(value["contract_version"])
+        return value
+
     def model_post_init(self, _context: t.Any) -> None:
         """Reject duplicate, dangling, incomplete, or role-mismatched contracts."""
         ps, cs = self.profiles, self.contracts
-        (type(self.contract_version) is int and self.contract_version == 3) or err(
-            _C + "version must be 3"
+        (type(self.contract_version) is int and self.contract_version == 4) or err(
+            _C + "version must be 4"
         )
         mismatched = sorted(
             c.contract_id for c in cs if c.contract_version != self.contract_version
@@ -110,13 +133,18 @@ class MetricContractSet(carrier._Registry):
         unique(contract_ids) or err(_C + "ids must be unique")
         coordinates = tuple((c.metric_profile, c.carrier_role, c.metric_id) for c in cs)
         unique(coordinates) or err(_C + "coordinates must be unique")
-        provider_resources: dict[tuple[str, str], tuple[str, int]] = {}
+        provider_resources: dict[str, execution.ExecutionContract] = {}
         for contract in cs:
-            provider = contract.parser_id, contract.parser_version
-            resource = contract.execution_mode, contract.max_carrier_bytes
+            provider = contract.parser_id
+            resource = (
+                contract.execution_mode,
+                contract.max_carrier_bytes,
+                contract.execution_contract_id,
+                contract.execution_contract_digest,
+            )
             previous = provider_resources.setdefault(provider, resource)
             previous == resource or err(
-                f"{_C}provider resource mismatch:{contract.parser_id}:{contract.parser_version}"
+                f"{_C}provider execution mismatch:provider resource mismatch:{contract.parser_id}"
             )
         available: dict[str, set[str]] = {p.profile_id: set() for p in ps}
         for contract in cs:
@@ -135,6 +163,12 @@ class MetricContractSet(carrier._Registry):
             not (unexpected := sorted(available[profile.profile_id] - required)) or err(
                 f"{_P}undeclared metric:{profile.profile_id}:{unexpected[0]}"
             )
+
+    @p.model_validator(mode="after")
+    def validate_parser_execution_contracts(self) -> t.Self:
+        """Require the repository-owned static parser-to-execution map."""
+        _require_parser_execution_contracts(self.contracts)
+        return self
 
 
 @dataclass(frozen=True, slots=True)
@@ -158,9 +192,10 @@ class MetricContractSetLoad:
         if type(self.contracts) is not MetricContractSet:
             err(_L + "requires typed contracts")
         (
-            type(self.contracts.contract_version) is int and self.contracts.contract_version == 3
-        ) or err(_C + "version must be 3")
-        _canonical_metric_contracts(self.contracts.contracts)
+            type(self.contracts.contract_version) is int and self.contracts.contract_version == 4
+        ) or err(_C + "version must be 4")
+        canonical = _canonical_metric_contracts(self.contracts.contracts)
+        _require_parser_execution_contracts(canonical)
 
 
 def validate_metric_contracts(payload: object) -> MetricContractSet:
@@ -185,10 +220,11 @@ def metric_contracts_digest(contracts: MetricContractSet) -> str:
 
 def metric_provider_resource_contract(
     contracts: tuple[MetricContract, ...],
-) -> tuple[t.Literal["bounded_in_process_v1"], int]:
+) -> execution.ExecutionContract:
     """Return one exact provider resource contract for resolved metric atoms."""
     contracts or err(_C + "provider contracts must not be empty")
     contracts = _canonical_metric_contracts(contracts)
+    _require_parser_execution_contracts(contracts)
     providers = {
         (
             item.parser_id,
@@ -200,9 +236,33 @@ def metric_provider_resource_contract(
         for item in contracts
     }
     len(providers) == 1 or err(_C + "provider signature mismatch")
-    resources = {(item.execution_mode, item.max_carrier_bytes) for item in contracts}
+    resources = {
+        (
+            item.execution_mode,
+            item.max_carrier_bytes,
+            item.execution_contract_id,
+            item.execution_contract_digest,
+        )
+        for item in contracts
+    }
     len(resources) == 1 or err(_C + "provider resource mismatch")
     return next(iter(resources))
+
+
+def _require_parser_execution_contracts(contracts: tuple[MetricContract, ...]) -> None:
+    """Reject unknown or overridden parser execution declarations."""
+    for contract in contracts:
+        try:
+            expected = execution.parser_execution_contract(contract.parser_id)
+        except ValueError:
+            err(f"{_C}execution parser is not admitted:{contract.parser_id}")
+        actual = (
+            contract.execution_mode,
+            contract.max_carrier_bytes,
+            contract.execution_contract_id,
+            contract.execution_contract_digest,
+        )
+        actual == expected or err(f"{_C}execution identity mismatch:{contract.parser_id}")
 
 
 def resolve_metric_contracts(
@@ -210,8 +270,8 @@ def resolve_metric_contracts(
 ) -> tuple[MetricContract, ...]:
     """Resolve the complete declared metric vector for one measured carrier."""
     type(contracts) is MetricContractSet or err(_C + "registry must be canonical")
-    (type(contracts.contract_version) is int and contracts.contract_version == 3) or err(
-        _C + "version must be 3"
+    (type(contracts.contract_version) is int and contracts.contract_version == 4) or err(
+        _C + "version must be 4"
     )
     if identity.disposition == "exclude":
         return ()

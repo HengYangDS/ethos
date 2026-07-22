@@ -54,9 +54,9 @@ tracked Chronicle and Claim still authorize every transition. Unlike runtime
 caches or SQLite coordination, however, a preservation bundle and patch may be
 the only remaining recovery material after source and carrier retirement, so
 they are not assumed rebuildable and require an evidence-bound clear. Inventory,
-verification, and clear retain read-only compatibility with legacy per-worktree
+verification, and clear retain read-only compatibility with predecessor per-worktree
 `build/artifacts/lane-resolution/` records; ordinary retirement blocks while a
-selected worktree still owns a retained legacy manifest.
+selected worktree still owns a retained predecessor manifest.
 
 The Git primary control root owns the branch-role policy used to locate the
 configured accepted checkout, so mutable caller Work Lane bytes cannot redirect

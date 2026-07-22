@@ -4,14 +4,31 @@ from __future__ import annotations
 
 import hashlib
 import json
+from typing import TYPE_CHECKING
+from typing import Annotated
 from typing import Literal
+from typing import Self
+from typing import cast
 
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
+from pydantic import SerializeAsAny
 from pydantic import field_validator
 
+import ethos_core.contracts.source_budget.measurement.canonical as canonical
+
+if TYPE_CHECKING:
+    from ethos_core.contracts.source_budget.measurement.execution import ExecutionDescriptor
+    from ethos_core.contracts.source_budget.measurements import MetricValue
+    from ethos_core.contracts.source_budget.measurements import NativeMeasurement
+    from ethos_core.contracts.source_budget.metrics import MetricContract
+
 WORKER_PROTOCOL_ID = "ethos-source-budget-worker-protocol-v1"
+_REQUEST_SCHEMA = "ethos-source-budget-worker-request-v1"
+_RESULT_SCHEMA = "ethos-source-budget-worker-result-v1"
+_SHA256_PATTERN = r"^[a-f0-9]{64}$"
+_Sha256 = Annotated[str, Field(pattern=_SHA256_PATTERN)]
 
 
 class WorkerProtocolDescriptor(BaseModel):
@@ -75,3 +92,208 @@ def worker_protocol_descriptor_digest(descriptor: WorkerProtocolDescriptor) -> s
         sort_keys=True,
     ).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
+
+
+class WorkerRequest(BaseModel):
+    """Path-blind canonical request for one admitted carrier."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        strict=True,
+        validate_by_alias=True,
+        validate_by_name=False,
+        serialize_by_alias=True,
+    )
+
+    schema_id: Literal["ethos-source-budget-worker-request-v1"] = Field(alias="schema")
+    protocol_id: Literal["ethos-source-budget-worker-protocol-v1"]
+    contracts: tuple[SerializeAsAny[BaseModel], ...] = Field(min_length=1)
+    content_sha256: _Sha256
+    resolved_contracts_digest: _Sha256
+    provider_digest: _Sha256
+    execution_contract_digest: _Sha256
+    request_digest: _Sha256
+
+    @field_validator("contracts", mode="before")
+    @classmethod
+    def _validate_contracts(cls, values: object) -> object:
+        """Materialize typed metric contracts from canonical wire objects."""
+        from ethos_core.contracts.source_budget.metrics import MetricContract
+
+        return tuple(
+            item if type(item) is MetricContract else MetricContract.model_validate(item)
+            for item in cast("list[object] | tuple[object, ...]", values)
+        )
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        content: bytes,
+        contracts: tuple[MetricContract, ...],
+        provider_descriptor: dict[str, object],
+        execution_descriptor: ExecutionDescriptor,
+    ) -> Self:
+        """Bind admitted bytes and typed provider/execution descriptors."""
+        provider_digest = _canonical_sha256(provider_descriptor)
+        from ethos_core.contracts.source_budget.measurement.execution import (
+            execution_descriptor_digest,
+        )
+        from ethos_core.contracts.source_budget.metrics import metric_provider_resource_contract
+
+        execution_digest = execution_descriptor_digest(execution_descriptor)
+        if any(item.grammar_digest != provider_digest for item in contracts):
+            raise ValueError("worker request provider descriptor digest mismatch")
+        expected_execution = metric_provider_resource_contract(contracts)
+        if execution_descriptor.execution_mode != "isolated_worker_v1":
+            raise ValueError("worker request requires an isolated execution descriptor")
+        actual_execution = (
+            execution_descriptor.execution_mode,
+            execution_descriptor.max_carrier_bytes,
+            execution_descriptor.execution_contract_id,
+            execution_digest,
+        )
+        if actual_execution != expected_execution:
+            raise ValueError("worker request execution descriptor mismatch")
+        first_contract = contracts[0]
+        expected_provider_identity = {
+            "execution": execution_descriptor.model_dump(mode="json", by_alias=True),
+            "parser": {
+                "id": first_contract.parser_id,
+                "version": first_contract.parser_version,
+            },
+            "normalization": {
+                "id": first_contract.normalization_id,
+                "version": first_contract.normalization_version,
+            },
+            "metrics": [{"metric_id": item.metric_id, "unit": item.unit} for item in contracts],
+        }
+        if any(
+            provider_descriptor.get(field) != expected
+            for field, expected in expected_provider_identity.items()
+        ):
+            raise ValueError("worker request provider descriptor identity mismatch")
+        resolved_digest = canonical.resolved_model_digest(contracts)
+        content_digest = hashlib.sha256(content).hexdigest()
+        payload: dict[str, object] = {
+            "schema": _REQUEST_SCHEMA,
+            "protocol_id": WORKER_PROTOCOL_ID,
+            "contracts": [item.model_dump(mode="json") for item in contracts],
+            "content_sha256": content_digest,
+            "resolved_contracts_digest": resolved_digest,
+            "provider_digest": provider_digest,
+            "execution_contract_digest": execution_digest,
+        }
+        payload["request_digest"] = _canonical_sha256(payload)
+        return cls.model_validate(payload)
+
+
+class _WorkerSuccess(BaseModel):
+    """Typed child output sufficient for trusted parent reconstruction."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
+
+    normalized_digest: _Sha256
+    values: tuple[SerializeAsAny[BaseModel], ...] = Field(min_length=1)
+    measurement_digest: _Sha256
+
+    @field_validator("values", mode="before")
+    @classmethod
+    def _validate_values(cls, values: object) -> object:
+        """Materialize typed metric values from canonical wire objects."""
+        from ethos_core.contracts.source_budget.measurements import MetricValue
+
+        return tuple(
+            item if type(item) is MetricValue else MetricValue.model_validate(item)
+            for item in cast("list[object] | tuple[object, ...]", values)
+        )
+
+
+class WorkerResult(BaseModel):
+    """One typed worker success bound to its originating request."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        strict=True,
+        validate_by_alias=True,
+        validate_by_name=False,
+        serialize_by_alias=True,
+    )
+
+    schema_id: Literal["ethos-source-budget-worker-result-v1"] = Field(alias="schema")
+    protocol_id: Literal["ethos-source-budget-worker-protocol-v1"]
+    content_sha256: _Sha256
+    resolved_contracts_digest: _Sha256
+    provider_digest: _Sha256
+    execution_contract_digest: _Sha256
+    request_digest: _Sha256
+    success: _WorkerSuccess
+    gap: Literal[None]
+
+    @classmethod
+    def from_measurement(
+        cls,
+        *,
+        request: WorkerRequest,
+        measurement: NativeMeasurement,
+    ) -> Self:
+        """Return one typed success bound to the request digests."""
+        return cls(
+            schema=_RESULT_SCHEMA,
+            protocol_id=WORKER_PROTOCOL_ID,
+            content_sha256=request.content_sha256,
+            resolved_contracts_digest=request.resolved_contracts_digest,
+            provider_digest=request.provider_digest,
+            execution_contract_digest=request.execution_contract_digest,
+            request_digest=request.request_digest,
+            success=_WorkerSuccess(
+                normalized_digest=measurement.normalized_digest,
+                values=measurement.values,
+                measurement_digest=measurement.measurement_digest,
+            ),
+            gap=None,
+        )
+
+
+def replay_worker_result(request: WorkerRequest, result: WorkerResult) -> NativeMeasurement:
+    """Reconstruct one native measurement from trusted request contracts."""
+    if (
+        result.content_sha256,
+        result.resolved_contracts_digest,
+        result.provider_digest,
+        result.execution_contract_digest,
+        result.request_digest,
+    ) != (
+        request.content_sha256,
+        request.resolved_contracts_digest,
+        request.provider_digest,
+        request.execution_contract_digest,
+        request.request_digest,
+    ):
+        raise ValueError("worker result request binding mismatch")
+    from ethos_core.contracts.source_budget.measurements import NativeMeasurement
+
+    replayed = NativeMeasurement.create(
+        content_sha256=request.content_sha256,
+        normalized_digest=result.success.normalized_digest,
+        contracts=cast("tuple[MetricContract, ...]", request.contracts),
+        values=cast("tuple[MetricValue, ...]", result.success.values),
+    )
+    if replayed.measurement_digest != result.success.measurement_digest:
+        raise ValueError("worker result measurement digest mismatch")
+    return replayed
+
+
+def _canonical_json_bytes(payload: object) -> bytes:
+    return json.dumps(
+        payload,
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+
+
+def _canonical_sha256(payload: object) -> str:
+    return hashlib.sha256(_canonical_json_bytes(payload)).hexdigest()

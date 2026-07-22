@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import subprocess
-from datetime import UTC
-from datetime import datetime
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
@@ -10,7 +8,6 @@ import pytest
 
 import ethos.adapters.admission.prewrite as prewrite
 import ethos.adapters.mutation.lane_lifecycle.refresh as lane_refresh
-import ethos.adapters.mutation.lanes as lanes
 from ethos.adapters.admission.prewrite import prewrite_guard
 from ethos.adapters.mutation.lane_lifecycle.refresh import refresh_work_lane_base
 from ethos.adapters.mutation.lanes import bind_work_lane_claim

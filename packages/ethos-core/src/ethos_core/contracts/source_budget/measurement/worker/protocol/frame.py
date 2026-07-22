@@ -13,6 +13,10 @@ if TYPE_CHECKING:
     from ethos_core.contracts.source_budget.measurement.worker.protocol.core import WorkerRequest
     from ethos_core.contracts.source_budget.measurement.worker.protocol.core import WorkerResult
 
+_DUPLICATE_JSON_ERROR = "worker frame JSON contains duplicate keys"
+_INVALID_JSON_ERROR = "worker frame JSON must be valid UTF-8 JSON"
+_NONCANONICAL_JSON_ERROR = "worker frame JSON must be canonical"
+
 
 def encode_request_frame(request: WorkerRequest, content: bytes) -> bytes:
     """Encode one canonical request header followed by exact raw content."""
@@ -40,7 +44,9 @@ def decode_request_frame(frame: bytes) -> tuple[WorkerRequest, bytes]:
     header_length, content_length = struct.unpack(">II", frame[8:16])
     header_end = 16 + header_length
     content_end = header_end + content_length
-    request = core.WorkerRequest.model_validate_json(frame[16:header_end], strict=True)
+    header = frame[16:header_end]
+    _require_canonical_json_bytes(header)
+    request = core.WorkerRequest.model_validate_json(header, strict=True)
     content = frame[header_end:content_end]
     return request, content
 
@@ -67,7 +73,27 @@ def decode_result_frame(frame: bytes) -> WorkerResult:
         raise ValueError("worker result frame magic mismatch")
     (payload_length,) = struct.unpack(">I", frame[8:12])
     payload_end = 12 + payload_length
-    return core.WorkerResult.model_validate_json(frame[12:payload_end], strict=True)
+    payload = frame[12:payload_end]
+    _require_canonical_json_bytes(payload)
+    return core.WorkerResult.model_validate_json(payload, strict=True)
+
+
+def _reject_duplicate_pairs(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    payload: dict[str, object] = {}
+    for key, value in pairs:
+        if key in payload:
+            raise ValueError(_DUPLICATE_JSON_ERROR)
+        payload[key] = value
+    return payload
+
+
+def _require_canonical_json_bytes(encoded: bytes) -> None:
+    try:
+        payload = json.loads(encoded, object_pairs_hook=_reject_duplicate_pairs)
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ValueError(_INVALID_JSON_ERROR) from error
+    if _canonical_json_bytes(payload) != encoded:
+        raise ValueError(_NONCANONICAL_JSON_ERROR)
 
 
 def _canonical_json_bytes(payload: object) -> bytes:

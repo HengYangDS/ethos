@@ -37,4 +37,6 @@ def test_hosted_bootstrap_keeps_the_openspec_shim_in_its_job_local_venv() -> Non
     assert ' > "${openspec_shim}"' in bootstrap
     assert 'printf \'%s\\n\' "${bootstrap_venv}/bin" >> "${GITHUB_PATH}"' in bootstrap
     assert 'exec npx --yes @fission-ai/openspec@1.6.0 "$@"' in bootstrap
+    assert ')/install-node.sh"' in bootstrap
+    assert "apt-get" not in bootstrap
     assert "/usr/local/bin/openspec" not in bootstrap

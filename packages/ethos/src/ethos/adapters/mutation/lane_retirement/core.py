@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import sqlite3
 from contextlib import closing
 from pathlib import Path
@@ -11,6 +12,7 @@ from ethos.adapters.mutation.lane_lifecycle.core import repo_root
 from ethos.adapters.mutation.lane_lifecycle.core import run_git
 from ethos.adapters.mutation.lane_retirement.shared.core import current_holder_ref
 from ethos.adapters.mutation.lane_retirement.shared.core import retire_mutation_envelope
+from ethos.adapters.mutation.resolution._shared import LEGACY_ARTIFACT_ROOT
 from ethos.adapters.repo.coordination import lease_summary
 from ethos.adapters.repo.status.bindings import accepted_worktree_root
 from ethos.adapters.repo.status.bindings import has_changed_paths
@@ -249,23 +251,69 @@ def _remove_linked_lane(
         )
         if deleted.returncode == 0:
             return {}
-        accepted_changed = _output(control_root, "rev-parse", accepted_branch) != accepted_head
     except OSError as exc:
-        return {
-            **_blocked(["branch_delete_failed_after_worktree_removed"], str(exc)),
-            "worktree_removed": True,
-            "ref_preserved": True,
-        }
-    gap = (
-        "accepted_ref_changed_after_worktree_removed"
-        if accepted_changed
-        else "branch_delete_failed_after_worktree_removed"
+        return _failed_ref_transition(
+            control_root,
+            target=(branch, expected),
+            accepted=(accepted_branch, accepted_head),
+            stderr=str(exc),
+        )
+    return _failed_ref_transition(
+        control_root,
+        target=(branch, expected),
+        accepted=(accepted_branch, accepted_head),
+        stderr=deleted.stderr,
     )
+
+
+def _failed_ref_transition(
+    control_root: Path,
+    *,
+    target: tuple[str, str],
+    accepted: tuple[str, str],
+    stderr: str,
+) -> dict[str, object]:
+    branch, expected = target
+    accepted_branch, accepted_head = accepted
+    accepted_state = _ref_outcome(control_root, accepted_branch, accepted_head)
+    ref_state = _ref_outcome(control_root, branch, expected)
+    gaps = [
+        "accepted_ref_changed_after_worktree_removed"
+        if accepted_state in {"absent", "moved"}
+        else "branch_delete_failed_after_worktree_removed"
+    ]
+    if accepted_state == "unavailable":
+        gaps.append("accepted_ref_state_unavailable_after_worktree_removed")
+    ref_gap = {
+        "absent": "retirement_ref_absent_after_failed_delete",
+        "moved": "retirement_ref_moved_after_worktree_removed",
+        "unavailable": "retirement_ref_state_unavailable_after_worktree_removed",
+    }.get(ref_state)
+    if ref_gap:
+        gaps.append(ref_gap)
     return {
-        **_blocked([gap], deleted.stderr),
+        **_blocked(gaps, stderr),
         "worktree_removed": True,
-        "ref_preserved": True,
+        "ref_state": ref_state,
+        "ref_preserved": ref_state == "expected",
     }
+
+
+def _ref_outcome(root: Path, branch: str, expected: str) -> str:
+    try:
+        observed = run_git(
+            root,
+            "show-ref",
+            "--verify",
+            "--hash",
+            f"refs/heads/{branch}",
+            check=False,
+        )
+    except OSError:
+        return "unavailable"
+    if observed.returncode == 0:
+        return "expected" if observed.stdout.strip() == expected else "moved"
+    return "absent" if observed.returncode == 1 else "unavailable"
 
 
 def _landed_gaps(
@@ -446,6 +494,8 @@ def _reobservation_gaps(
     lane_path = Path(path) if path else Path()
     if not path or not lane_path.is_dir():
         return [*gaps, "retirement_worktree_path_unavailable"]
+    if legacy_gap := _legacy_retention_gap(lane_path):
+        return [*gaps, legacy_gap]
     for args, gap, expected in (
         (("rev-parse", f"refs/heads/{branch}"), "retirement_ref", expect_head),
         (("rev-parse", "HEAD"), "retirement_worktree_head", expect_head),
@@ -460,6 +510,34 @@ def _reobservation_gaps(
         elif gap == "retirement_worktree_status" and value:
             gaps.append("work_lane_dirty")
     return sorted(set(gaps))
+
+
+def _legacy_retention_gap(lane_path: Path) -> str:
+    root = lane_path / LEGACY_ARTIFACT_ROOT
+    if root.is_symlink():
+        return "lane_resolution_legacy_retention_present"
+    try:
+        packages = os.scandir(root)
+    except FileNotFoundError:
+        return ""
+    except OSError:
+        return "lane_resolution_legacy_retention_observation_failed"
+    gap = ""
+    try:
+        with packages:
+            for package in packages:
+                if package.is_symlink():
+                    gap = "lane_resolution_legacy_retention_present"
+                    break
+                if not package.is_dir(follow_symlinks=False):
+                    continue
+                with os.scandir(package.path) as files:
+                    if any(item.name == "manifest.json" for item in files):
+                        gap = "lane_resolution_legacy_retention_present"
+                        break
+    except OSError:
+        return "lane_resolution_legacy_retention_observation_failed"
+    return gap
 
 
 def _blocked(gaps: list[str], stderr: str = "") -> dict[str, object]:

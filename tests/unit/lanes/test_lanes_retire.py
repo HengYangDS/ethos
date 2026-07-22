@@ -44,8 +44,14 @@ _UNKNOWN_FOREIGN_LANES = [
 ]
 
 
-def _landed_lane(tmp_path: Path, *, lease_holder: str = "") -> tuple[Path, Path, Path]:
-    repo = init_repo(tmp_path / "repo")
+def _landed_lane(
+    tmp_path: Path,
+    *,
+    lease_holder: str = "",
+    linked_accepted: bool = False,
+    object_format: str = "sha1",
+) -> tuple[Path, Path, Path]:
+    repo = init_repo(tmp_path / "repo", object_format=object_format)
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     landed = tmp_path / "repo-work-landed"
     git(repo, "worktree", "add", "-b", _LANDED_BRANCH, landed.as_posix(), "dev")
@@ -58,6 +64,10 @@ def _landed_lane(tmp_path: Path, *, lease_holder: str = "") -> tuple[Path, Path,
             ttl_seconds=3600,
             payload={"expected_head": git(landed, "rev-parse", "HEAD")},
         )
+    if linked_accepted:
+        git(repo, "branch", "main", "dev")
+        git(repo, "switch", "main")
+        git(repo, "worktree", "add", (tmp_path / "repo-accepted-dev").as_posix(), "dev")
     return (repo, landed, database)
 
 
@@ -312,8 +322,11 @@ def test_retire_apply_requires_expected_head(
     assert git(repo, "branch", "--list", _LANDED_BRANCH) != ""
 
 
-def test_retire_removes_own_clean_merged_lane(monkeypatch, tmp_path: Path) -> None:
-    repo, landed, _database = _landed_lane(tmp_path, lease_holder=_LEASE_HOLDER)
+@pytest.mark.parametrize("linked_accepted", [False, True], ids=("canonical", "linked"))
+def test_retire_removes_own_clean_merged_lane(monkeypatch, tmp_path: Path, linked_accepted) -> None:
+    repo, landed, _database = _landed_lane(
+        tmp_path, lease_holder=_LEASE_HOLDER, linked_accepted=linked_accepted
+    )
     landed_head = git(landed, "rev-parse", "HEAD")
     monkeypatch.setenv("ETHOS_ACTOR", _LEASE_HOLDER)
     report = _retire_landed(landed, branch=_LANDED_BRANCH, expect_head=landed_head, apply=True)
@@ -493,6 +506,15 @@ def test_retire_preserves_branch_when_accepted_ref_moves_during_effect(
             ),
         ),
         (
+            "commit-sha256",
+            (
+                ["lease_cleanup_failed_after_lane_removed"],
+                True,
+                True,
+                {"ref_restored": True},
+            ),
+        ),
+        (
             "restore",
             (
                 [
@@ -525,7 +547,11 @@ def test_retire_reports_transaction_failures(
     expectation: tuple[list[str], bool, bool, dict[str, bool]],
 ) -> None:
     gaps, removed, ref_present, effect_state = expectation
-    repo, landed, database = _landed_lane(tmp_path, lease_holder=_LEASE_HOLDER)
+    repo, landed, database = _landed_lane(
+        tmp_path,
+        lease_holder=_LEASE_HOLDER,
+        object_format="sha256" if case == "commit-sha256" else "sha1",
+    )
     head = git(landed, "rev-parse", "HEAD")
 
     class CommitFailure(sqlite3.Connection):
@@ -560,15 +586,10 @@ def test_retire_reports_transaction_failures(
         if ref_transaction_failed and args == ("rev-parse", "dev"):
             message = "git unavailable"
             raise OSError(message)
-        if (
-            case in {"restore", "restore-oserror"}
-            and args[:1] == ("update-ref",)
-            and args[:2]
-            != (
-                "update-ref",
-                "--stdin",
-            )
-        ):
+        restore = args[:2] == ("update-ref", "--stdin") and str(
+            kwargs.get("stdin") or ""
+        ).startswith("create ")
+        if case in {"restore", "restore-oserror"} and restore:
             if case == "restore-oserror":
                 message = "git unavailable"
                 raise OSError(message)

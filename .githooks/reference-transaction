@@ -64,21 +64,25 @@ resolve_candidate_runner() {
     # Ignored runtime/cache state is permitted, but tracked or ordinary untracked source
     # makes the candidate checkout non-reproducible and therefore non-admissible.
     [ -z "$(git -C "$candidate_root" status --porcelain 2>/dev/null)" ] || return 1
-    candidate_runtime_runner="$candidate_root/tools/ci/scripts/with-python-runtime.sh"
-    candidate_runtime_python="$candidate_root/build/runtime/venv/bin/python"
-    candidate_ethos_source="$(cd "$candidate_root/packages/ethos/src" 2>/dev/null && pwd -P)" || return 1
-    candidate_core_source="$(cd "$candidate_root/packages/ethos-core/src" 2>/dev/null && pwd -P)" || return 1
-    case "$candidate_ethos_source:$candidate_core_source" in
-        "$candidate_root"/*:"$candidate_root"/*) ;;
-        *) return 1 ;;
-    esac
-    candidate_pythonpath="$candidate_ethos_source:$candidate_core_source"
-    [ -x "$candidate_runtime_runner" ] || return 1
-    printf '%s\n%s\n%s\n%s\n' \
-        "$candidate_root" "$candidate_runtime_runner" "$candidate_runtime_python" "$candidate_pythonpath"
+    for candidate_path in \
+        pyproject.toml \
+        uv.lock \
+        packages/ethos/pyproject.toml \
+        packages/ethos/src/ethos/__init__.py \
+        packages/ethos-core/pyproject.toml \
+        packages/ethos-core/src/ethos_core/__init__.py \
+        tools/ci/scripts/with-python-runtime.sh
+    do
+        [ -f "$candidate_root/$candidate_path" ] || return 1
+        [ ! -L "$candidate_root/$candidate_path" ] || return 1
+        git -C "$candidate_root" cat-file -e "$candidate_head:$candidate_path" 2>/dev/null || return 1
+    done
+    [ -x "$candidate_root/tools/ci/scripts/with-python-runtime.sh" ] || return 1
+    printf '%s\n' "$candidate_root"
 }
 
 while read -r old_value new_value ref_name; do
+    protected_ref="false"
     case "$ref_name" in
         refs/heads/*) ;;
         *) continue ;;
@@ -146,6 +150,7 @@ while read -r old_value new_value ref_name; do
 
         if [ "$branch" = "$accepted" ] || \
             { [ "$release_mirror" = "accepted_ff" ] && [ "$branch" = "$release_branch" ]; }; then
+            protected_ref="true"
             candidate_branch="$(awk '
                 /^\[branch_roles\][[:space:]]*$/ { in_roles = 1; next }
                 /^\[/ { in_roles = 0 }
@@ -164,14 +169,13 @@ while read -r old_value new_value ref_name; do
                 echo "ethos: blocked ref move on $ref_name — candidate semantic runner is unavailable." >&2
                 exit 1
             }
-            candidate_root="$(printf '%s\n' "$candidate_runner" | sed -n '1p')"
-            candidate_runtime_runner="$(printf '%s\n' "$candidate_runner" | sed -n '2p')"
-            candidate_runtime_python="$(printf '%s\n' "$candidate_runner" | sed -n '3p')"
-            candidate_pythonpath="$(printf '%s\n' "$candidate_runner" | sed -n '4p')"
+            candidate_root="$candidate_runner"
+            candidate_runtime_runner="$candidate_root/tools/ci/scripts/with-python-runtime.sh"
             verdict="$(
                 cd "$candidate_root" || exit 1
-                PYTHONPATH="$candidate_pythonpath${PYTHONPATH:+:$PYTHONPATH}" \
-                    "${candidate_runtime_runner}" -- "${candidate_runtime_python}" -m ethos.cli hook ref-transaction \
+                unset PYTHONPATH
+                "${candidate_runtime_runner}" -- uv run --project "$candidate_root" --locked --offline \
+                    --isolated --all-packages --group dev python -m ethos.cli hook ref-transaction \
                     "$ref_name" "$old_value" "$new_value" --phase "$phase" \
                     --root "$repo_root" --json 2>/dev/null | tr -d ' \n'
             )"
@@ -195,7 +199,7 @@ while read -r old_value new_value ref_name; do
                 echo "ethos: lease repair required after ref move on $ref_name." >&2
                 ;;
         esac
-    elif [ "$branch" = "$accepted" ]; then
+    elif [ "$protected_ref" = "true" ]; then
         # Accepted branch: fail CLOSED. Proceed only on an explicit admitted verdict;
         # a missing/erroring binary (empty verdict) or a block both abort.
         case "$verdict" in

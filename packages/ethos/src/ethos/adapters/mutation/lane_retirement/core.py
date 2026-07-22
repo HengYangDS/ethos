@@ -18,6 +18,7 @@ from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.adapters.store.state.lease.lifecycle.effects import revoke_lease_from_connection
 from ethos.adapters.store.state.lease.projection import integer_value
+from ethos.adapters.store.state.schema import state_database
 from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
 from ethos_core.contracts.branch.roles import BranchRolePolicy
@@ -133,6 +134,7 @@ def retire_linked_work_lane(
         return report
 
     effect = _apply_retirement(
+        repo,
         cast("Path", control_root),
         policy=policy,
         lane=lane,
@@ -152,6 +154,7 @@ def retire_linked_work_lane(
 
 
 def _apply_retirement(
+    repo: Path,
     control_root: Path,
     *,
     policy: BranchRolePolicy,
@@ -161,9 +164,7 @@ def _apply_retirement(
     removed = False
     lease = cast("dict[str, object]", lane.get("lease") or {})
     try:
-        with closing(
-            sqlite3.connect(control_root / ".ethos" / "state" / "state.sqlite")
-        ) as connection:
+        with closing(sqlite3.connect(state_database(repo))) as connection:
             connection.execute("pragma foreign_keys = on")
             connection.execute("begin immediate")
             revoke_lease_from_connection(
@@ -204,10 +205,9 @@ def _apply_retirement(
             restored = run_git(
                 control_root,
                 "update-ref",
-                f"refs/heads/{lane['branch']}",
-                str(lane["head"]),
-                "0" * 40,
+                "--stdin",
                 check=False,
+                stdin=f"create refs/heads/{lane['branch']} {lane['head']}\n",
             )
         except OSError:
             restored = None

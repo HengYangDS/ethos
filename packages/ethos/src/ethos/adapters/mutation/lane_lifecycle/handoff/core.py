@@ -28,7 +28,6 @@ from ethos_core.contracts.lifecycle.core import reduce_guards
 
 if TYPE_CHECKING:
     from collections.abc import Callable
-    from collections.abc import Sequence
     from pathlib import Path
 
 
@@ -46,7 +45,6 @@ def export_cross_host_handoff(  # noqa: PLR0913, RUF100 - exact request envelope
     context_text: str,
     context_file: Path | None,
     output_root: Path | None,
-    dirty_disposition: str | None,
     apply: bool,
 ) -> dict[str, object]:
     """Create a portable Git/context package without copying local lease state."""
@@ -58,7 +56,6 @@ def export_cross_host_handoff(  # noqa: PLR0913, RUF100 - exact request envelope
     context, context_gap = _handoff_context(context_text=context_text, context_file=context_file)
     dirty_paths = changed_paths(repo)
     dirty_content_sha256 = handoff_package.dirty_content_sha256(repo)
-    disposition = dirty_disposition or ("clean" if not dirty_paths else "")
     expected_state: dict[str, object] = {
         "root": repo.resolve().as_posix(),
         "branch": branch,
@@ -70,7 +67,6 @@ def export_cross_host_handoff(  # noqa: PLR0913, RUF100 - exact request envelope
         "epoch": epoch,
         "expires_at": expected_expires_at,
         "payload_sha256": expected_payload_sha256,
-        "dirty_disposition": disposition,
     }
     checks = (
         (status.get("role") == ROLE_WORK_LANE, "work_lane_required"),
@@ -87,13 +83,13 @@ def export_cross_host_handoff(  # noqa: PLR0913, RUF100 - exact request envelope
             "lease_generation_stale",
         ),
         (os.environ.get("ETHOS_ACTOR", "").strip() == holder_ref, "lease_actor_mismatch"),
+        (not dirty_paths, "handoff_export_requires_clean_lane"),
     )
     gaps = list(
         dict.fromkeys(
             [context_gap] * bool(context_gap)
             + _holder_ref_gaps(holder_ref, target_holder_ref)
             + [gap for ok, gap in checks if not ok]
-            + _dirty_disposition_gaps(dirty_paths, disposition)
         )
     )
     evaluation = reduce_guards(apply=apply, initial_gaps=tuple(gaps))
@@ -115,7 +111,6 @@ def export_cross_host_handoff(  # noqa: PLR0913, RUF100 - exact request envelope
                     source_lease_expires_at=expected_expires_at,
                     source_lease_payload_sha256=expected_payload_sha256,
                     dirty_content_sha256=dirty_content_sha256,
-                    dirty_disposition=disposition,
                     context_digest=sha256_text(context),
                 ),
                 context=context,
@@ -371,16 +366,6 @@ def _holder_ref_gaps(holder_ref: str, target_holder_ref: str) -> list[str]:
         except ValueError:
             gaps.append(gap)
     return gaps
-
-
-def _dirty_disposition_gaps(dirty_paths: Sequence[str], dirty_disposition: str) -> list[str]:
-    if dirty_paths and not dirty_disposition:
-        return ["dirty_disposition_required"]
-    if dirty_disposition not in {"clean", "committed", "preserved"}:
-        return ["dirty_disposition_invalid"]
-    if bool(dirty_paths) != (dirty_disposition == "preserved"):
-        return ["dirty_disposition_mismatch"]
-    return []
 
 
 def _handoff_context(*, context_text: str, context_file: Path | None) -> tuple[str, str]:

@@ -5,14 +5,13 @@ import hashlib
 import json
 import subprocess
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
 
 import ethos.adapters.mutation.resolution.lane as resolution
 import ethos.surface.cli.lane.resolution as resolution_cli
 from ethos_core.contracts.resolution.lane import LaneObservation
-from tests.support.lane_helpers import git
-from tests.support.lane_helpers import init_repo
 
 
 def _observation(tmp_path: Path, *, dirty: bool = False) -> LaneObservation:
@@ -28,6 +27,15 @@ def _observation(tmp_path: Path, *, dirty: bool = False) -> LaneObservation:
         tracked_digest="b" * 64,
         untracked_digest="c" * 64,
     )
+
+
+def _transaction(*responses: str, returncode: int = 0) -> MagicMock:
+    transaction = MagicMock()
+    transaction.__enter__.return_value = transaction
+    transaction.__exit__.return_value = False
+    transaction.stdout.readline.side_effect = responses
+    transaction.wait.return_value = returncode
+    return transaction
 
 
 def test_resolution_plan_collects_all_request_gaps(tmp_path: Path, monkeypatch) -> None:
@@ -150,31 +158,24 @@ def test_resolution_observation_reads_single_common_directory_lease(
     lane.mkdir()
     monkeypatch.setattr(
         resolution,
-        "_worktree",
-        lambda *_args: {"worktree": lane.as_posix(), "branch": "refs/heads/work/example"},
+        "workspace_status",
+        lambda _root: {"worktrees": [{"path": lane.as_posix(), "branch": "work/example"}]},
     )
     monkeypatch.setattr(
         resolution,
-        "_git",
-        lambda _root, *args, **kwargs: "a" * 40 if args[0] == "rev-parse" else "",
+        "run_git",
+        lambda *args, **kwargs: subprocess.CompletedProcess(args, 0, stdout="a" * 40, stderr=""),
     )
     monkeypatch.setattr(resolution, "_untracked_digest", lambda _path: "c" * 64)
-    database = tmp_path / ".ethos/state/state.sqlite"
-    monkeypatch.setattr(resolution, "state_database", lambda _root: database)
     monkeypatch.setattr(
         resolution,
-        "active_leases",
-        lambda path: (
-            [
-                {
-                    "subject": "work/example",
-                    "holder_ref": "agent:test:case:holder",
-                    "lane_incarnation_id": "lane:stored",
-                }
-            ]
-            if path == database
-            else []
-        ),
+        "leases_by_branch",
+        lambda _root: {
+            "work/example": {
+                "holder_ref": "agent:test:case:holder",
+                "lane_incarnation_id": "lane:stored",
+            }
+        },
     )
     stored, gaps = resolution._observe_lane(tmp_path, "work/example")
     assert gaps == []
@@ -232,21 +233,15 @@ def test_resolution_untracked_chronicle_and_command_failures(tmp_path: Path, mon
         tmp_path, chronicle_ref="evidence/chronicle/x.md", disposition="block"
     )[2] == ["lane_resolution_chronicle_disposition_mismatch"]
 
-    monkeypatch.setattr(
-        resolution.subprocess,
-        "run",
-        lambda *args, **kwargs: subprocess.CompletedProcess(args[0], 1, stdout="", stderr="bad"),
-    )
-    with pytest.raises(ValueError, match="bad"):
-        resolution._git(tmp_path, "status")
-    with pytest.raises(ValueError, match="bad"):
-        resolution._run(tmp_path, "false")
-
 
 def test_resolution_preserve_inventory_and_retire_failures(tmp_path: Path, monkeypatch) -> None:
     observation = _observation(tmp_path)
     decision = {"decision_id": "decision:one"}
-    monkeypatch.setattr(resolution, "_run", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        resolution,
+        "run_git",
+        lambda *args, **kwargs: subprocess.CompletedProcess(args, 0, stdout="", stderr=""),
+    )
     responses = iter(
         (
             subprocess.CompletedProcess(["git"], 0, stdout=b"patch"),
@@ -257,27 +252,121 @@ def test_resolution_preserve_inventory_and_retire_failures(tmp_path: Path, monke
     with pytest.raises(ValueError, match="lane_resolution_untracked_inventory_failed"):
         resolution._preserve(root=tmp_path, observation=observation, decision=decision)
 
-    responses = iter((subprocess.CompletedProcess(["git"], 1, stdout="", stderr=""),))
-    monkeypatch.setattr(resolution.subprocess, "run", lambda *args, **kwargs: next(responses))
-    with pytest.raises(ValueError, match="lane_resolution_branch_delete_failed"):
-        resolution._retire(root=tmp_path, observation=observation)
-
-    calls: list[list[str]] = []
-    responses = iter(
-        (
-            subprocess.CompletedProcess(["git"], 0, stdout="", stderr=""),
-            subprocess.CompletedProcess(["git"], 1, stdout="", stderr=""),
-            subprocess.CompletedProcess(["git"], 0, stdout="", stderr=""),
-        )
-    )
+    transaction = _transaction("start: ok\n", "prepare: ok\n")
+    monkeypatch.setattr(resolution.subprocess, "Popen", lambda *_args, **_kwargs: transaction)
     monkeypatch.setattr(
-        resolution.subprocess,
-        "run",
-        lambda args, **kwargs: calls.append(args) or next(responses),
+        resolution,
+        "run_git",
+        lambda *args, **_kwargs: subprocess.CompletedProcess(args, 1, stdout="", stderr=""),
     )
     with pytest.raises(ValueError, match="lane_resolution_worktree_remove_failed"):
         resolution._retire(root=tmp_path, observation=observation)
-    assert calls[-1][1:3] == ["update-ref", "refs/heads/work/example"]
+
+    monkeypatch.setattr(
+        resolution.subprocess,
+        "Popen",
+        lambda *_args, **_kwargs: _transaction("start: ok\n", ""),
+    )
+    with pytest.raises(ValueError, match="lane_resolution_branch_delete_failed"):
+        resolution._retire(root=tmp_path, observation=observation, force=True)
+
+
+def test_resolution_apply_surfaces_retire_runtime_failures(tmp_path: Path, monkeypatch) -> None:
+    observation = _observation(tmp_path)
+    decision = {
+        "decision_id": "decision:one",
+        "disposition": "retire",
+        "observation": observation.model_dump(mode="json"),
+        "observation_digest": observation.digest(),
+    }
+    monkeypatch.setattr(resolution, "_read_decision", lambda *_args, **_kwargs: (decision, []))
+    monkeypatch.setattr(resolution, "_observe_lane", lambda *_args: (observation, []))
+
+    transaction = _transaction()
+    transaction.stderr = None
+    monkeypatch.setattr(resolution.subprocess, "Popen", lambda *_args, **_kwargs: transaction)
+    with pytest.raises(ValueError, match="lane_resolution_branch_delete_failed"):
+        resolution.apply_lane_resolution(
+            root=tmp_path,
+            decision_path=tmp_path / "decision.json",
+            confirm_irreversible=True,
+            apply=True,
+        )
+
+    transaction = _transaction()
+    transaction.stdin.write.side_effect = OSError
+    monkeypatch.setattr(resolution.subprocess, "Popen", lambda *_args, **_kwargs: transaction)
+    with pytest.raises(ValueError, match="lane_resolution_branch_delete_failed"):
+        resolution.apply_lane_resolution(
+            root=tmp_path,
+            decision_path=tmp_path / "decision.json",
+            confirm_irreversible=True,
+            apply=True,
+        )
+
+    transaction = _transaction("start: ok\n", "prepare: ok\n")
+    transaction.stdin.write.side_effect = (None, None, OSError())
+    monkeypatch.setattr(resolution.subprocess, "Popen", lambda *_args, **_kwargs: transaction)
+    monkeypatch.setattr(
+        resolution,
+        "run_git",
+        MagicMock(
+            side_effect=(
+                subprocess.CompletedProcess(["git", "worktree"], 0),
+                subprocess.CompletedProcess(["git", "show-ref"], 0),
+            )
+        ),
+    )
+    report = resolution.apply_lane_resolution(
+        root=tmp_path,
+        decision_path=tmp_path / "decision.json",
+        confirm_irreversible=True,
+        apply=True,
+    )
+    assert report["required_gaps"] == [
+        "lane_resolution_branch_delete_failed_after_worktree_removed"
+    ]
+
+
+def test_resolution_locks_the_ref_before_removing_the_worktree(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    observation = _observation(tmp_path)
+    transaction = _transaction("start: ok\n", "prepare: ok\n", "commit: ok\n")
+    monkeypatch.setattr(resolution.subprocess, "Popen", lambda *_args, **_kwargs: transaction)
+    monkeypatch.setattr(
+        resolution,
+        "run_git",
+        lambda *args, **_kwargs: (
+            transaction.stdout.readline.call_count == 2
+            and subprocess.CompletedProcess(args, 0, stdout="", stderr="")
+        ),
+    )
+
+    resolution._retire(root=tmp_path, observation=observation, force=True)
+
+    assert transaction.stdout.readline.call_count == 3
+
+
+def test_resolution_reports_ref_preservation_after_commit_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    observation = _observation(tmp_path)
+
+    transaction = _transaction("start: ok\n", "prepare: ok\n", "", returncode=1)
+    monkeypatch.setattr(resolution.subprocess, "Popen", lambda *_args, **_kwargs: transaction)
+    responses = iter(
+        (
+            subprocess.CompletedProcess(["git", "worktree"], 0, stdout="", stderr=""),
+            subprocess.CompletedProcess(["git", "show-ref"], 0, stdout="", stderr=""),
+        )
+    )
+    monkeypatch.setattr(resolution, "run_git", lambda *_args, **_kwargs: next(responses))
+
+    with pytest.raises(
+        ValueError, match="lane_resolution_branch_delete_failed_after_worktree_removed"
+    ):
+        resolution._retire(root=tmp_path, observation=observation, force=True)
 
 
 def test_resolution_cli_delegates_and_emits(tmp_path: Path, monkeypatch) -> None:
@@ -315,10 +404,3 @@ def test_resolution_cli_delegates_and_emits(tmp_path: Path, monkeypatch) -> None
         "lane resolution decide",
         "lane resolution apply",
     ]
-
-
-def test_resolution_real_worktree_parser(tmp_path: Path) -> None:
-    repo = init_repo(tmp_path / "repo")
-    lane = tmp_path / "lane"
-    git(repo, "worktree", "add", "-b", "work/example", lane.as_posix(), "dev")
-    assert resolution._worktree(repo, "work/example")["worktree"] == lane.as_posix()

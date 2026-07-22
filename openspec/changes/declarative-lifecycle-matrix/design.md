@@ -16,6 +16,10 @@ reducer and one explicit destructive effect.
   state.
 - Carry row expiry and raw payload digest through every lease, handoff, status,
   Chronicle, and receipt compare-and-swap boundary.
+- Keep Decision disposition and Receipt outcome state MECE; relate them only by
+  `decision_id` rather than copying authorization vocabulary into the Receipt.
+- Reject coercive wire values and ambiguous Git object widths at both Pydantic
+  and JSON Schema boundaries.
 - Preserve the lane ref and lease whenever any observation or transaction
   boundary fails.
 - Make Work Lane start reject pre-existing carriers and revoke a newly acquired
@@ -27,6 +31,10 @@ reducer and one explicit destructive effect.
 - Delete every ignored SQLite lease migration and database-wide version claim.
 - Require official full-corpus OpenSpec strict validation to return zero issues.
 - Make successful configuration validation warning-free without output filtering.
+- Execute protected-ref semantics from candidate-committed project, lock,
+  metadata, and source using locked, offline, isolated dependency resolution.
+- Match a control-plane revision's proof floor to the repository role encoded
+  by its committed tree.
 
 **Non-Goals:**
 
@@ -115,6 +123,24 @@ reducer and one explicit destructive effect.
     derive one database from the resolved common directory regardless of which
     protected branch is checked out. The accepted checkout remains a separate
     destructive-retirement control root and does not own state discovery.
+19. **Decision and Receipt carry different truths.** A Decision's disposition
+    records what effect was admitted. A Receipt's state records what effect
+    actually completed. `decision_id` is the only semantic join; the Receipt
+    does not repeat disposition or infer authorization from outcome.
+20. **Wire contracts are strict and unambiguous.** Handoff and resolution
+    Pydantic models reject coercion, schemas accept only exact SHA-1 or SHA-256
+    object widths, and retired fields or artifact variants are removed rather
+    than dual-read.
+21. **The candidate commit owns protected-ref execution.** The hook requires the
+    candidate HEAD to own the root project, lock, package metadata, and package
+    initializers, then runs `uv` with `--locked --offline --isolated` and clears
+    inherited `PYTHONPATH`. Candidate ignored virtual environments and accepted
+    interpreters cannot decide the candidate's semantics.
+22. **Committed repository role owns the proof floor.** Product promotion tests
+    remove the adopter profile before committing the candidate control-plane
+    revision and create the ordinary product proof. A `full` switch cannot turn
+    an adopter proof into a product proof, and admission is not weakened to
+    accommodate a mismatched fixture.
 
 ## Risks / Trade-offs
 
@@ -132,6 +158,11 @@ reducer and one explicit destructive effect.
 - **A cross-host acknowledgement is forged or edited** → its schema or content
   digest no longer matches, so source revocation blocks and the source Lease is
   retained.
+- **Candidate source or lock is not committed at the proposed HEAD** → the
+  protected-ref hook blocks instead of executing ignored or incumbent code.
+- **A proof was created under an adopter profile for a product-root commit** →
+  product admission reports the missing product floor rather than reclassifying
+  the commit or accepting a broader-looking but role-mismatched proof.
 
 ## Migration Plan
 

@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+import ethos.adapters.mutation.resolution.lane as resolution
 from ethos.adapters.mutation.resolution.lane import apply_lane_resolution
 from ethos.adapters.mutation.resolution.lane import plan_lane_resolution
 from ethos.adapters.mutation.resolution.receipts import verify_preservation_package
@@ -143,7 +144,8 @@ def test_preserve_resolution_writes_recovery_package_and_completion_receipt(
     package = applied["preservation_package"]
     assert (repo / package["path"] / "manifest.json").is_file()
     assert applied["receipt"]["completed"] is True
-    assert applied["receipt"]["disposition"] == "preserve"
+    assert applied["receipt"]["state"] == "preserved"
+    assert "disposition" not in applied["receipt"]
     assert git(repo, "show-ref", "--verify", "refs/heads/work/orphan")
 
 
@@ -268,6 +270,8 @@ def test_preserve_retire_keeps_verified_recovery_package_before_lane_removal(
     assert planned["ok"] is True
     assert applied["ok"] is True
     assert applied["state"] == "preserved_and_retired"
+    assert "worktree_removed" not in applied
+    assert "ref_preserved" not in applied
     package = repo / applied["preservation_package"]["path"]
     manifest = json.loads((package / "manifest.json").read_text(encoding="utf-8"))
     assert (package / "repository.bundle").is_file()
@@ -285,6 +289,162 @@ def test_preserve_retire_keeps_verified_recovery_package_before_lane_removal(
         ).returncode
         != 0
     )
+
+
+def test_preserve_retire_rechecks_the_source_after_package_verification(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, lane = orphan_work_lane(tmp_path)
+    (lane / "README.md").write_text("# initial dirty state\n", encoding="utf-8")
+    decision_path = tmp_path / "decision.json"
+    plan_lane_resolution(
+        root=repo,
+        branch="work/orphan",
+        disposition="preserve-retire",
+        reason="Preserve the exact source before retirement.",
+        evidence_refs=("evidence:maintainer-decision",),
+        chronicle_ref=write_chronicle_decision(
+            repo, topic="lane-resolution-test", token="preserve-retire"
+        ),
+        recovery_plan="Verify the package, recheck the source, then retire.",
+        decision_path=decision_path,
+        break_glass=True,
+        apply=True,
+    )
+    verify = resolution.verify_preservation_package
+
+    def mutate_after_verification(**kwargs) -> None:
+        verify(**kwargs)
+        (lane / "late.txt").write_text("late write\n", encoding="utf-8")
+
+    monkeypatch.setattr(resolution, "verify_preservation_package", mutate_after_verification)
+
+    report = apply_lane_resolution(
+        root=repo,
+        decision_path=decision_path,
+        confirm_irreversible=True,
+        apply=True,
+    )
+
+    assert report["ok"] is False
+    assert report["required_gaps"] == ["lane_resolution_observation_stale"]
+    assert (lane / "late.txt").read_text(encoding="utf-8") == "late write\n"
+
+
+def test_resolution_reports_a_ref_commit_partial_outcome_without_a_completion_receipt(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, _lane = orphan_work_lane(tmp_path)
+    decision_path = tmp_path / "decision.json"
+    plan_lane_resolution(
+        root=repo,
+        branch="work/orphan",
+        disposition="retire",
+        reason="Retire the clean orphan.",
+        evidence_refs=("evidence:maintainer-decision",),
+        chronicle_ref=write_chronicle_decision(repo, topic="lane-resolution-test", token="retire"),
+        recovery_plan="Reconcile the preserved ref if the final transaction fails.",
+        decision_path=decision_path,
+        break_glass=True,
+        apply=True,
+    )
+    monkeypatch.setattr(
+        resolution,
+        "_retire",
+        lambda **_kwargs: (_ for _ in ()).throw(
+            ValueError("lane_resolution_branch_delete_failed_after_worktree_removed")
+        ),
+    )
+
+    report = apply_lane_resolution(
+        root=repo,
+        decision_path=decision_path,
+        confirm_irreversible=True,
+        apply=True,
+    )
+
+    assert report["ok"] is False
+    assert report["state"] == "branch_delete_failed_after_worktree_removed"
+    assert "receipt" not in report
+    assert "receipt_path" not in report
+
+
+def test_resolution_reports_worktree_remove_failure_without_a_completion_receipt(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, _lane = orphan_work_lane(tmp_path)
+    decision_path = tmp_path / "decision.json"
+    plan_lane_resolution(
+        root=repo,
+        branch="work/orphan",
+        disposition="retire",
+        reason="Retire the clean orphan.",
+        evidence_refs=("evidence:maintainer-decision",),
+        chronicle_ref=write_chronicle_decision(repo, topic="lane-resolution-test", token="retire"),
+        recovery_plan="Retry after the worktree can be removed.",
+        decision_path=decision_path,
+        break_glass=True,
+        apply=True,
+    )
+    monkeypatch.setattr(
+        resolution,
+        "_retire",
+        lambda **_kwargs: (_ for _ in ()).throw(
+            ValueError("lane_resolution_worktree_remove_failed")
+        ),
+    )
+
+    report = apply_lane_resolution(
+        root=repo,
+        decision_path=decision_path,
+        confirm_irreversible=True,
+        apply=True,
+    )
+
+    assert report["ok"] is False
+    assert report["state"] == "worktree_remove_failed"
+    assert report["required_gaps"] == ["lane_resolution_worktree_remove_failed"]
+    assert "receipt" not in report
+    assert "receipt_path" not in report
+
+
+def test_resolution_reports_uncertain_ref_state_without_a_completion_receipt(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo, _lane = orphan_work_lane(tmp_path)
+    decision_path = tmp_path / "decision.json"
+    plan_lane_resolution(
+        root=repo,
+        branch="work/orphan",
+        disposition="retire",
+        reason="Retire the clean orphan.",
+        evidence_refs=("evidence:maintainer-decision",),
+        chronicle_ref=write_chronicle_decision(repo, topic="lane-resolution-test", token="retire"),
+        recovery_plan="Reconcile the ref state after a failed transaction.",
+        decision_path=decision_path,
+        break_glass=True,
+        apply=True,
+    )
+    monkeypatch.setattr(
+        resolution,
+        "_retire",
+        lambda **_kwargs: (_ for _ in ()).throw(
+            ValueError("lane_resolution_branch_delete_state_uncertain")
+        ),
+    )
+
+    report = apply_lane_resolution(
+        root=repo,
+        decision_path=decision_path,
+        confirm_irreversible=True,
+        apply=True,
+    )
+
+    assert report["ok"] is False
+    assert report["state"] == "branch_delete_state_uncertain"
+    assert report["required_gaps"] == ["lane_resolution_branch_delete_state_uncertain"]
+    assert "receipt" not in report
+    assert "receipt_path" not in report
 
 
 def test_preservation_package_verifier_fails_closed_on_invalid_packages(

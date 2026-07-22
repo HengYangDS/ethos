@@ -30,8 +30,32 @@ def _write(path: Path, text: str) -> None:
     path.write_text(text, encoding="utf-8")
 
 
-def _exceptional_fixture(tmp_path: Path) -> tuple[Path, str, str, str]:
-    repo = init_repo(tmp_path / "repo")
+def test_records_root_uses_the_primary_worktree_not_git_metadata_parent(
+    tmp_path: Path,
+) -> None:
+    roots = []
+    for name in ("alpha", "beta"):
+        worktree = tmp_path / name
+        git_dir = tmp_path / "metadata" / f"{name}.git"
+        git_dir.parent.mkdir(exist_ok=True)
+        subprocess.run(
+            ["git", "init", "--separate-git-dir", git_dir, worktree],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        roots.append(records.repository_records_root(worktree))
+
+    assert roots == [
+        tmp_path / "metadata/alpha-records",
+        tmp_path / "metadata/beta-records",
+    ]
+
+
+def _exceptional_fixture(
+    tmp_path: Path, *, object_format: str = "sha1"
+) -> tuple[Path, str, str, str]:
+    repo = init_repo(tmp_path / "repo", object_format=object_format)
     git(repo, "branch", "main", "dev")
     branch = "work/stale-ref"
     git(repo, "branch", branch, "dev")
@@ -78,6 +102,8 @@ def _retire(repo: Path, branch: str, head: str, chronicle: str, **changes):
 
 def _owner_unavailable_fixture(
     tmp_path: Path,
+    *,
+    linked_accepted: bool = False,
 ) -> tuple[Path, str, str, str, dict[str, object], Path]:
     """Create one accepted-policy-bound unbound ref with an absent source owner path."""
     repo, branch, head, chronicle_ref = _exceptional_fixture(tmp_path)
@@ -130,11 +156,16 @@ def _owner_unavailable_fixture(
         "-m",
         "accept owner-unavailable policy",
     )
+    if linked_accepted:
+        git(repo, "switch", "main")
+        git(repo, "worktree", "add", (tmp_path / "repo-accepted-dev").as_posix(), "dev")
     return repo, branch, head, chronicle_ref, lease, source_path
 
 
 def _partial_effect_reconciliation_fixture(
     tmp_path: Path,
+    *,
+    linked_accepted: bool = False,
 ) -> tuple[Path, str, str, str, dict[str, object], dict[str, object], Path]:
     """Create an accepted ref-absent residue plus its immutable failed-attempt record."""
     repo, branch, head, source_chronicle, lease, source_path = _owner_unavailable_fixture(tmp_path)
@@ -229,6 +260,9 @@ def _partial_effect_reconciliation_fixture(
         "-m",
         "accept ref-absent reconciliation policy",
     )
+    if linked_accepted:
+        git(repo, "switch", "main")
+        git(repo, "worktree", "add", (tmp_path / "repo-accepted-dev").as_posix(), "dev")
     return repo, branch, head, chronicle_ref, lease, source_attempt, source_path
 
 
@@ -267,10 +301,13 @@ def test_owner_unavailable_recovery_requires_an_active_foreign_lease(
     assert git(repo, "rev-parse", "--verify", branch) == head
 
 
+@pytest.mark.parametrize("linked_accepted", [False, True], ids=("canonical", "linked"))
 def test_owner_unavailable_recovery_revokes_exact_foreign_lease(
-    monkeypatch, tmp_path: Path
+    monkeypatch, tmp_path: Path, linked_accepted
 ) -> None:
-    repo, branch, head, chronicle, lease, source_path = _owner_unavailable_fixture(tmp_path)
+    repo, branch, head, chronicle, lease, source_path = _owner_unavailable_fixture(
+        tmp_path, linked_accepted=linked_accepted
+    )
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:recovery-operator")
 
     report = _retire(
@@ -321,11 +358,12 @@ def test_owner_unavailable_recovery_blocks_path_reappearance(monkeypatch, tmp_pa
     assert git(repo, "rev-parse", "--verify", branch) == head
 
 
+@pytest.mark.parametrize("linked_accepted", [False, True], ids=("canonical", "linked"))
 def test_ref_absent_reconciliation_revokes_only_exact_foreign_lease(
-    monkeypatch, tmp_path: Path
+    monkeypatch, tmp_path: Path, linked_accepted
 ) -> None:
     repo, branch, head, chronicle, lease, source_attempt, source_path = (
-        _partial_effect_reconciliation_fixture(tmp_path)
+        _partial_effect_reconciliation_fixture(tmp_path, linked_accepted=linked_accepted)
     )
     monkeypatch.setenv("ETHOS_ACTOR", "agent:test:case:recovery-operator")
 
@@ -472,8 +510,10 @@ def test_projection_and_dirty_support(tmp_path: Path) -> None:
     )
 
 
-def _leased_case(tmp_path: Path, monkeypatch) -> tuple[Path, str, str, str, str, dict[str, object]]:
-    repo, branch, head, chronicle = _exceptional_fixture(tmp_path)
+def _leased_case(
+    tmp_path: Path, monkeypatch, *, object_format: str = "sha1"
+) -> tuple[Path, str, str, str, str, dict[str, object]]:
+    repo, branch, head, chronicle = _exceptional_fixture(tmp_path, object_format=object_format)
     holder = "agent:test:case:lease-holder"
     lease = state.acquire_lease(
         repo / ".ethos/state/state.sqlite",
@@ -647,13 +687,17 @@ def test_last_window_protected_ref_drift_keeps_target_ref(monkeypatch, tmp_path:
     assert real_git(repo, "rev-parse", "--verify", branch, check=False).stdout.strip() == head
 
 
-@pytest.mark.parametrize("rc", [0, 1])
-def test_commit_failure_compensation(monkeypatch, tmp_path: Path, rc: int) -> None:
-    repo, branch, head, chronicle, _holder, _lease = _leased_case(tmp_path, monkeypatch)
+@pytest.mark.parametrize(("rc", "object_format"), [(0, "sha1"), (0, "sha256"), (1, "sha1")])
+def test_commit_failure_compensation(
+    monkeypatch, tmp_path: Path, rc: int, object_format: str
+) -> None:
+    repo, branch, head, chronicle, _holder, _lease = _leased_case(
+        tmp_path, monkeypatch, object_format=object_format
+    )
     real_git, real_closing = retirement.run_git, retirement.closing
 
     def fail_restore(root: Path, *args: str, check: bool = True, env=None, stdin=None):
-        if rc and args[:1] == ("update-ref",) and args[1:2] != ("--stdin",):
+        if rc and args[:2] == ("update-ref", "--stdin") and str(stdin or "").startswith("create "):
             return subprocess.CompletedProcess(["git", *args], 1, "", "restore rejected")
         return real_git(root, *args, check=check, env=env, stdin=stdin)
 

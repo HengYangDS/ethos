@@ -7,12 +7,14 @@ They do not model users, teams, permissions, or durable repository truth.
 from __future__ import annotations
 
 from typing import Any
+from typing import Literal
 from typing import Self
 
 from pydantic import AwareDatetime
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
+from pydantic import field_validator
 from pydantic import model_validator
 
 
@@ -94,24 +96,42 @@ class LaneLease(BaseModel):
         }
 
 
+class HandoffArtifact(BaseModel):
+    """One canonical content-addressed handoff package member."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
+
+    path: str = Field(min_length=1)
+    sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    kind: Literal["git_bundle", "context"]
+
+    @field_validator("path")
+    @classmethod
+    def validate_relative_path(cls, value: str) -> str:
+        """Reject absolute, URI-like, and parent-traversing artifact paths."""
+        parts = value.split("/")
+        if value.startswith("/") or ":" in parts[0] or ".." in parts:
+            raise ValueError("handoff artifact path must stay package-relative")  # noqa: EM101, RUF100, TRY003 - wire contract failure text
+        return value
+
+
 class CrossHostHandoff(BaseModel):
     """Content-addressed transfer contract between Git common directories."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
 
     source_lane_ref: str = Field(min_length=1)
-    source_head: str = Field(pattern=r"^[a-f0-9]{40,64}$")
-    source_tree: str = Field(pattern=r"^[a-f0-9]{40,64}$")
+    source_head: str = Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
+    source_tree: str = Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
     target_holder_ref: HolderRef
     context_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
     dirty_content_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
-    dirty_disposition: str = Field(pattern=r"^(clean|committed|preserved)$")
     source_lease_id: str = Field(min_length=1)
     source_lease_epoch: int = Field(ge=1)
     source_lease_expires_at: str = Field(min_length=1)
     source_lease_payload_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     source_holder_ref: HolderRef
-    artifacts: tuple[dict[str, str], ...] = ()
+    artifacts: tuple[HandoffArtifact, ...] = ()
 
     def to_payload(self) -> dict[str, Any]:
         """Project transferable Git/context facts without the source lease."""
@@ -122,7 +142,6 @@ class CrossHostHandoff(BaseModel):
             "target_holder_ref": self.target_holder_ref.serialize(),
             "context_digest": self.context_digest,
             "dirty_content_sha256": self.dirty_content_sha256,
-            "dirty_disposition": self.dirty_disposition,
             "source_lease_binding": {
                 "lease_id": self.source_lease_id,
                 "epoch": self.source_lease_epoch,
@@ -131,7 +150,7 @@ class CrossHostHandoff(BaseModel):
                 "expires_at": self.source_lease_expires_at,
                 "payload_sha256": self.source_lease_payload_sha256,
             },
-            "artifacts": [dict(artifact) for artifact in self.artifacts],
+            "artifacts": [artifact.model_dump(mode="json") for artifact in self.artifacts],
             "transfers_source_lease": False,
             "destination_creates_local_incarnation": True,
             "truth_boundary": "content_addressed_context_until_promoted",

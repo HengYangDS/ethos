@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 from typing import cast
 
+from ethos.adapters.repo.status.bindings import accepted_worktree_root
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.bindings import ref_head
 from ethos.adapters.repo.status.core import workspace_status
@@ -82,6 +83,7 @@ _CHRONICLE_BINDING_KEYS = _keys(
 def observe(repo: Path, *, branch: str, chronicle_ref: str) -> dict[str, object]:
     """Observe the exact target, policy, lease, and protected-ref state."""
     status, branch_policy = workspace_status(repo), load_branch_role_policy(repo)
+    policy_root = accepted_worktree_root(status.get("worktrees"), repo)
     current, binding = unbound_work_lane_ref(status, branch), branch_binding(status, branch)
     active_lease = leases_by_branch(repo).get(branch, {})
     refs = protected_refs(
@@ -98,7 +100,9 @@ def observe(repo: Path, *, branch: str, chronicle_ref: str) -> dict[str, object]
     payload |= _data(active_lease=public_lease(active_lease), has_active_lease=bool(active_lease))
     payload |= _data(
         chronicle=chronicle_observation(
-            repo, accepted_branch=branch_policy.accepted_branch, chronicle_ref=chronicle_ref
+            policy_root,
+            accepted_branch=branch_policy.accepted_branch,
+            chronicle_ref=chronicle_ref,
         ),
         status=status,
     )
@@ -117,6 +121,7 @@ def observe_ref_absent_reconciliation(
     later native reconciliation may revoke.
     """
     status, branch_policy = workspace_status(repo), load_branch_role_policy(repo)
+    policy_root = accepted_worktree_root(status.get("worktrees"), repo)
     worktrees = status.get("worktrees")
     typed = cast("list[dict[str, str]]", worktrees) if isinstance(worktrees, list) else []
     active_lease = leases_by_branch(repo).get(branch, {})
@@ -128,7 +133,9 @@ def observe_ref_absent_reconciliation(
     payload |= _data(accepted_head=ref_head(repo, branch_policy.accepted_branch))
     payload |= _data(protected_refs={ref: ref_head(repo, ref) for ref in refs})
     chronicle = chronicle_observation(
-        repo, accepted_branch=branch_policy.accepted_branch, chronicle_ref=chronicle_ref
+        policy_root,
+        accepted_branch=branch_policy.accepted_branch,
+        chronicle_ref=chronicle_ref,
     )
     claim_id = str(chronicle.get("target_claim") or "")
     claim_bound = bool(

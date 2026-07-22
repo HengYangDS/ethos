@@ -3,7 +3,9 @@ from __future__ import annotations
 import json
 import tomllib
 from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import Any
+from typing import TypedDict
 
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError
@@ -17,6 +19,14 @@ from ethos_core.contracts.skill.activation import skill_registry_digest
 from ethos_core.normalization.core import string_list
 from ethos_core.quality.gates import product_gate_plan
 from ethos_core.quality.profiles import product_quality_profile
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+
+class SchemaInstanceValidation(TypedDict):
+    ok: bool
+    required_gaps: list[str]
 
 
 def _repo_root() -> Path:
@@ -106,7 +116,7 @@ def validate_schema_instance(
     payload: dict[str, Any],
     *,
     root: Path | None = None,
-) -> dict[str, object]:
+) -> SchemaInstanceValidation:
     schema_root = root or _repo_root()
     schema = _bundle_local_refs(load_schema(schema_name, root=schema_root), root=schema_root)
     validator = Draft202012Validator(schema)
@@ -134,10 +144,10 @@ def _bundle_node(value: Any, *, root: Path, seen: frozenset[str]) -> Any:
     return {key: _bundle_node(item, root=root, seen=seen) for key, item in value.items()}
 
 
-def _instance_validation_report(root: Path, *, mode: str) -> dict[str, dict[str, object]]:
+def _instance_validation_report(root: Path, *, mode: str) -> dict[str, Mapping[str, object]]:
     from ethos.repository.policy.coupling.core import coupling_audit_report
 
-    instances: dict[str, dict[str, object]] = {}
+    instances: dict[str, Mapping[str, object]] = {}
     ledger_path = root / "evolution" / "ledger.toml"
     if ledger_path.exists():
         try:
@@ -215,8 +225,8 @@ def _instance_validation_report(root: Path, *, mode: str) -> dict[str, dict[str,
     return instances
 
 
-def _live_skill_contract_instances(root: Path) -> dict[str, dict[str, object]]:
-    instances: dict[str, dict[str, object]] = {}
+def _live_skill_contract_instances(root: Path) -> dict[str, Mapping[str, object]]:
+    instances: dict[str, Mapping[str, object]] = {}
     activation_path = root / ".agents" / "skills" / "activation.toml"
     if not activation_path.exists():
         return instances
@@ -302,5 +312,5 @@ def validate_ethos_result(
     payload: dict[str, Any],
     *,
     root: Path | None = None,
-) -> dict[str, object]:
+) -> SchemaInstanceValidation:
     return validate_schema_instance("result.schema.json", payload, root=root)

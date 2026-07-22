@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-from typing import TYPE_CHECKING
 from typing import Annotated
 from typing import Literal
 from typing import Self
@@ -13,20 +12,24 @@ from typing import cast
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
-from pydantic import SerializeAsAny
+from pydantic import TypeAdapter
 from pydantic import field_validator
 from pydantic import model_validator
 
 import ethos_core.contracts.source_budget.measurement.canonical as canonical
-
-if TYPE_CHECKING:
-    from ethos_core.contracts.source_budget.measurement.execution import ExecutionDescriptor
-    from ethos_core.contracts.source_budget.measurements import NativeMeasurement
-    from ethos_core.contracts.source_budget.metrics import MetricContract
+from ethos_core.contracts.source_budget.carriers import JSON_SCHEMA_DRAFT_2020_12
+from ethos_core.contracts.source_budget.measurement.execution import ExecutionDescriptor
+from ethos_core.contracts.source_budget.measurement.execution import execution_descriptor_digest
+from ethos_core.contracts.source_budget.measurements import MetricValue
+from ethos_core.contracts.source_budget.measurements import NativeMeasurement
+from ethos_core.contracts.source_budget.metrics import MetricContract
+from ethos_core.contracts.source_budget.metrics import metric_provider_resource_contract
 
 WORKER_PROTOCOL_ID = "ethos-source-budget-worker-protocol-v1"
 _REQUEST_SCHEMA = "ethos-source-budget-worker-request-v1"
 _RESULT_SCHEMA = "ethos-source-budget-worker-result-v1"
+_CANONICAL_CONTRACTS_ERROR = "worker request contracts must be canonical"
+_CANONICAL_VALUES_ERROR = "worker success values must be canonical"
 _SHA256_PATTERN = r"^[a-f0-9]{64}$"
 _Sha256 = Annotated[str, Field(pattern=_SHA256_PATTERN)]
 _ChildWorkerGap = Literal[
@@ -62,6 +65,28 @@ _ChildWorkerGap = Literal[
     "source_budget_native_text_embedded_bom",
     "source_budget_native_text_invalid_utf8",
 ]
+
+
+def _require_exact_contracts(
+    contracts: tuple[MetricContract, ...],
+) -> tuple[MetricContract, ...]:
+    if (
+        type(contracts) is not tuple
+        or not contracts
+        or any(type(item) is not MetricContract for item in contracts)
+    ):
+        raise ValueError(_CANONICAL_CONTRACTS_ERROR)
+    return contracts
+
+
+def _require_exact_values(values: tuple[MetricValue, ...]) -> tuple[MetricValue, ...]:
+    if (
+        type(values) is not tuple
+        or not values
+        or any(type(item) is not MetricValue for item in values)
+    ):
+        raise ValueError(_CANONICAL_VALUES_ERROR)
+    return values
 
 
 class WorkerProtocolDescriptor(BaseModel):
@@ -141,23 +166,21 @@ class WorkerRequest(BaseModel):
 
     schema_id: Literal["ethos-source-budget-worker-request-v1"] = Field(alias="schema")
     protocol_id: Literal["ethos-source-budget-worker-protocol-v1"]
-    contracts: tuple[SerializeAsAny[BaseModel], ...] = Field(min_length=1)
+    contracts: tuple[MetricContract, ...] = Field(min_length=1)
     content_sha256: _Sha256
     resolved_contracts_digest: _Sha256
     provider_digest: _Sha256
     execution_contract_digest: _Sha256
     request_digest: _Sha256
 
-    @field_validator("contracts", mode="before")
+    @field_validator("contracts")
     @classmethod
-    def _validate_contracts(cls, values: object) -> object:
-        """Materialize typed metric contracts from canonical wire objects."""
-        from ethos_core.contracts.source_budget.metrics import MetricContract
-
-        return tuple(
-            item if type(item) is MetricContract else MetricContract.model_validate(item)
-            for item in cast("list[object] | tuple[object, ...]", values)
-        )
+    def _validate_exact_contracts(
+        cls,
+        contracts: tuple[MetricContract, ...],
+    ) -> tuple[MetricContract, ...]:
+        """Reject non-canonical metric-contract model instances."""
+        return _require_exact_contracts(contracts)
 
     @model_validator(mode="after")
     def _validate_contract_digests(self) -> Self:
@@ -167,8 +190,6 @@ class WorkerRequest(BaseModel):
             raise ValueError("worker request resolved contracts digest mismatch")
         if {item.grammar_digest for item in contracts} != {self.provider_digest}:
             raise ValueError("worker request provider digest mismatch")
-        from ethos_core.contracts.source_budget.metrics import metric_provider_resource_contract
-
         execution = metric_provider_resource_contract(contracts)
         if execution[0] != "isolated_worker_v1" or execution[3] != self.execution_contract_digest:
             raise ValueError("worker request execution contract digest mismatch")
@@ -193,22 +214,12 @@ class WorkerRequest(BaseModel):
         """Bind admitted bytes and typed provider/execution descriptors."""
         if type(content) is not bytes:
             raise ValueError("worker request content must be canonical bytes")
-        if type(contracts) is not tuple or not contracts:
-            raise ValueError("worker request contracts must be a non-empty canonical tuple")
-        from ethos_core.contracts.source_budget.metrics import MetricContract
-        from ethos_core.contracts.source_budget.metrics import metric_provider_resource_contract
-
-        if any(type(item) is not MetricContract for item in contracts):
-            raise ValueError("worker request contracts must be canonical")
+        _require_exact_contracts(contracts)
         expected_execution = metric_provider_resource_contract(contracts)
         ordered = tuple(
             sorted(contracts, key=lambda item: (item.metric_id, item.unit, item.contract_id))
         )
         provider_digest = _canonical_sha256(provider_descriptor)
-        from ethos_core.contracts.source_budget.measurement.execution import (
-            execution_descriptor_digest,
-        )
-
         execution_digest = execution_descriptor_digest(execution_descriptor)
         if execution_descriptor.execution_mode != "isolated_worker_v1":
             raise ValueError("worker request requires an isolated execution descriptor")
@@ -245,7 +256,7 @@ class WorkerRequest(BaseModel):
         payload: dict[str, object] = {
             "schema": _REQUEST_SCHEMA,
             "protocol_id": WORKER_PROTOCOL_ID,
-            "contracts": [item.model_dump(mode="json") for item in ordered],
+            "contracts": tuple(item.model_dump(mode="python") for item in ordered),
             "content_sha256": content_digest,
             "resolved_contracts_digest": resolved_digest,
             "provider_digest": provider_digest,
@@ -261,19 +272,17 @@ class _WorkerSuccess(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
 
     normalized_digest: _Sha256
-    values: tuple[SerializeAsAny[BaseModel], ...] = Field(min_length=1)
+    values: tuple[MetricValue, ...] = Field(min_length=1)
     measurement_digest: _Sha256
 
-    @field_validator("values", mode="before")
+    @field_validator("values")
     @classmethod
-    def _validate_values(cls, values: object) -> object:
-        """Materialize typed metric values from canonical wire objects."""
-        from ethos_core.contracts.source_budget.measurements import MetricValue
-
-        return tuple(
-            item if type(item) is MetricValue else MetricValue.model_validate(item)
-            for item in cast("list[object] | tuple[object, ...]", values)
-        )
+    def _validate_exact_values(
+        cls,
+        values: tuple[MetricValue, ...],
+    ) -> tuple[MetricValue, ...]:
+        """Reject non-canonical metric-value model instances."""
+        return _require_exact_values(values)
 
 
 def _request_bindings(request: WorkerRequest) -> dict[str, str]:
@@ -297,6 +306,22 @@ class WorkerResult(BaseModel):
         validate_by_alias=True,
         validate_by_name=False,
         serialize_by_alias=True,
+        json_schema_extra={
+            "oneOf": [
+                {
+                    "properties": {
+                        "success": {"not": {"type": "null"}},
+                        "gap": {"type": "null"},
+                    }
+                },
+                {
+                    "properties": {
+                        "success": {"type": "null"},
+                        "gap": {"not": {"type": "null"}},
+                    }
+                },
+            ]
+        },
     )
 
     schema_id: Literal["ethos-source-budget-worker-result-v1"] = Field(alias="schema")
@@ -353,12 +378,12 @@ class WorkerResult(BaseModel):
         )
 
 
-def _canonical_model_payload(
+def _require_canonical_model_storage(
     value: BaseModel,
     model_type: type[BaseModel],
     label: str,
-) -> dict[str, object]:
-    """Return one exact model payload without trusting forged model storage."""
+) -> None:
+    """Reject forged outer model storage before reading nested values."""
     expected_fields = set(model_type.model_fields)
     if (
         type(value) is not model_type
@@ -367,6 +392,10 @@ def _canonical_model_payload(
     ):
         message = f"worker {label} model storage must be canonical"
         raise ValueError(message)
+
+
+def _model_payload(value: BaseModel) -> dict[str, object]:
+    """Dump one model only after its complete storage has been admitted."""
     return cast(
         "dict[str, object]",
         value.model_dump(mode="python", by_alias=True, warnings="error"),
@@ -375,10 +404,15 @@ def _canonical_model_payload(
 
 def replay_worker_result(request: WorkerRequest, result: WorkerResult) -> NativeMeasurement:
     """Reconstruct one native measurement from trusted request contracts."""
-    request_payload = _canonical_model_payload(request, WorkerRequest, "request")
-    result_payload = _canonical_model_payload(result, WorkerResult, "result")
-    if result.success is not None:
-        _canonical_model_payload(result.success, _WorkerSuccess, "success")
+    _require_canonical_model_storage(request, WorkerRequest, "request")
+    _require_canonical_model_storage(result, WorkerResult, "result")
+    _require_exact_contracts(request.contracts)
+    stored_success = result.success
+    if stored_success is not None:
+        _require_canonical_model_storage(stored_success, _WorkerSuccess, "success")
+        _require_exact_values(stored_success.values)
+    request_payload = _model_payload(request)
+    result_payload = _model_payload(result)
     request = WorkerRequest.model_validate(request_payload)
     result = WorkerResult.model_validate(result_payload)
     if (
@@ -398,8 +432,6 @@ def replay_worker_result(request: WorkerRequest, result: WorkerResult) -> Native
     success = result.success
     if success is None:
         raise ValueError("worker result success is required for replay")
-    from ethos_core.contracts.source_budget.measurements import NativeMeasurement
-
     return NativeMeasurement.model_validate(
         {
             "content_sha256": request.content_sha256,
@@ -410,6 +442,16 @@ def replay_worker_result(request: WorkerRequest, result: WorkerResult) -> Native
             "measurement_digest": success.measurement_digest,
         }
     )
+
+
+def worker_protocol_json_schema() -> dict[str, object]:
+    """Generate the published worker request/result JSON Schema."""
+    schema = TypeAdapter(WorkerRequest | WorkerResult).json_schema(by_alias=True)
+    return {
+        "$schema": JSON_SCHEMA_DRAFT_2020_12,
+        **schema,
+        "title": "ETHOS Source Budget Worker Protocol",
+    }
 
 
 def _canonical_json_bytes(payload: object) -> bytes:

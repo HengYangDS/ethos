@@ -130,12 +130,13 @@ def test_resolution_plan_and_apply_schema_failure_edges(tmp_path: Path, monkeypa
     artifact_root = tmp_path / "records"
     monkeypatch.setattr(resolution, "accepted_control_root", lambda _root: control_root)
     monkeypatch.setattr(resolution, "records_artifact_root", lambda _root: artifact_root)
-    applied = resolution.apply_lane_resolution(
-        root=tmp_path,
-        decision_path=tmp_path / "decision.json",
-        confirm_irreversible=False,
-        apply=True,
-    )
+    apply_request = {
+        "root": tmp_path,
+        "decision_path": tmp_path / "decision.json",
+        "confirm_irreversible": False,
+        "apply": True,
+    }
+    applied = resolution.apply_lane_resolution(**apply_request)
     assert applied["required_gaps"] == ["lane_resolution_receipt_invalid"]
 
     monkeypatch.setattr(
@@ -145,12 +146,7 @@ def test_resolution_plan_and_apply_schema_failure_edges(tmp_path: Path, monkeypa
             ValueError("lane_resolution_accepted_control_root_unavailable")
         ),
     )
-    unavailable = resolution.apply_lane_resolution(
-        root=tmp_path,
-        decision_path=tmp_path / "decision.json",
-        confirm_irreversible=False,
-        apply=True,
-    )
+    unavailable = resolution.apply_lane_resolution(**apply_request)
     assert unavailable["required_gaps"] == ["lane_resolution_accepted_control_root_unavailable"]
 
     monkeypatch.setattr(resolution, "accepted_control_root", lambda _root: control_root)
@@ -159,12 +155,7 @@ def test_resolution_plan_and_apply_schema_failure_edges(tmp_path: Path, monkeypa
         "reserve_resolution_receipt",
         lambda **_kwargs: (_ for _ in ()).throw(ValueError("lane_resolution_receipt_invalid")),
     )
-    invalid_reservation = resolution.apply_lane_resolution(
-        root=tmp_path,
-        decision_path=tmp_path / "decision.json",
-        confirm_irreversible=False,
-        apply=True,
-    )
+    invalid_reservation = resolution.apply_lane_resolution(**apply_request)
     assert invalid_reservation["required_gaps"] == ["lane_resolution_receipt_invalid"]
 
     monkeypatch.setattr(resolution, "reserve_resolution_receipt", lambda **_kwargs: None)
@@ -173,12 +164,7 @@ def test_resolution_plan_and_apply_schema_failure_edges(tmp_path: Path, monkeypa
         "prepare_resolution_effect",
         lambda **_kwargs: (_ for _ in ()).throw(ValueError("unexpected effect failure")),
     )
-    effect_failure = resolution.apply_lane_resolution(
-        root=tmp_path,
-        decision_path=tmp_path / "decision.json",
-        confirm_irreversible=False,
-        apply=True,
-    )
+    effect_failure = resolution.apply_lane_resolution(**apply_request)
     assert effect_failure["required_gaps"] == ["lane_resolution_effect_failed"]
 
     monkeypatch.setattr(
@@ -186,12 +172,7 @@ def test_resolution_plan_and_apply_schema_failure_edges(tmp_path: Path, monkeypa
         "release_resolution_receipt_reservation",
         lambda **_kwargs: (_ for _ in ()).throw(OSError("cleanup failed")),
     )
-    cleanup_failure = resolution.apply_lane_resolution(
-        root=tmp_path,
-        decision_path=tmp_path / "decision.json",
-        confirm_irreversible=False,
-        apply=True,
-    )
+    cleanup_failure = resolution.apply_lane_resolution(**apply_request)
     assert cleanup_failure["required_gaps"] == [
         "lane_resolution_effect_failed",
         "lane_resolution_receipt_reservation_release_failed",
@@ -571,21 +552,15 @@ def test_resolution_receipt_and_manifest_validation_edges(tmp_path: Path) -> Non
     package = tmp_path / "package"
     package.mkdir()
     manifest_path = package / "manifest.json"
+    verification = {"root": tmp_path, "artifact_root": tmp_path}
+    stored_package = {"path": package.as_posix()}
     manifest_path.write_text("{", encoding="utf-8")
     with pytest.raises(TypeError, match="lane_resolution_preservation_manifest_invalid"):
-        resolution_receipts.verify_preservation_package(
-            root=tmp_path,
-            package={"path": package.as_posix()},
-            artifact_root=tmp_path,
-        )
+        resolution_receipts.verify_preservation_package(package=stored_package, **verification)
 
     manifest_path.write_text("[]", encoding="utf-8")
     with pytest.raises(TypeError, match="lane_resolution_preservation_manifest_invalid"):
-        resolution_receipts.verify_preservation_package(
-            root=tmp_path,
-            package={"path": package.as_posix()},
-            artifact_root=tmp_path,
-        )
+        resolution_receipts.verify_preservation_package(package=stored_package, **verification)
 
     bundle = package / "repository.bundle"
     patch = package / "tracked.patch"
@@ -600,25 +575,19 @@ def test_resolution_receipt_and_manifest_validation_edges(tmp_path: Path) -> Non
     manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
     with pytest.raises(TypeError, match="lane_resolution_preservation_manifest_invalid"):
         resolution_receipts.verify_preservation_package(
-            root=tmp_path,
             package={"path": package.as_posix(), "manifest": "invalid"},
-            artifact_root=tmp_path,
+            **verification,
         )
     with pytest.raises(ValueError, match="lane_resolution_preservation_package_invalid"):
         resolution_receipts.verify_preservation_package(
-            root=tmp_path,
             package={"path": package.as_posix(), "manifest": {"decision_id": decision_id}},
-            artifact_root=tmp_path,
+            **verification,
         )
 
     manifest["untracked_archive_sha256"] = "0" * 64
     manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
     with pytest.raises(ValueError, match="lane_resolution_preservation_package_invalid"):
-        resolution_receipts.verify_preservation_package(
-            root=tmp_path,
-            package={"path": package.as_posix()},
-            artifact_root=tmp_path,
-        )
+        resolution_receipts.verify_preservation_package(package=stored_package, **verification)
 
 
 def test_resolution_clear_post_receipt_failure_edges(
@@ -678,16 +647,14 @@ def test_resolution_clear_post_receipt_failure_edges(
 
     monkeypatch.setattr(resolution_receipts, "record_destination_safe", lambda *_args: False)
     unsafe_receipt = resolution_receipts.clear_lane_resolution_package(
-        root=tmp_path,
-        request=request,
+        root=tmp_path, request=request
     )
     assert unsafe_receipt["required_gaps"] == ["lane_resolution_clear_receipt_path_unsafe"]
 
     monkeypatch.setattr(resolution_receipts, "record_destination_safe", lambda *_args: True)
     monkeypatch.setattr(resolution_receipts, "_package_path_safe", lambda *_args: False)
     unsafe_package = resolution_receipts.clear_lane_resolution_package(
-        root=tmp_path,
-        request=request,
+        root=tmp_path, request=request
     )
     assert unsafe_package["required_gaps"] == ["lane_resolution_package_path_unsafe"]
     assert not receipt_path.exists()

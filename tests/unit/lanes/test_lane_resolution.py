@@ -22,6 +22,30 @@ from tests.support.lane_helpers import init_repo
 from tests.support.lane_helpers import orphan_work_lane
 
 
+def _decide(
+    root: Path,
+    decision_path: Path,
+    disposition: str = "block",
+    *,
+    chronicle_ref: str | None = None,
+    break_glass: bool | None = None,
+) -> dict[str, object]:
+    exceptional = disposition in {"preserve-retire", "retire"}
+    return plan_lane_resolution(
+        root=root,
+        branch="work/orphan",
+        disposition=disposition,
+        reason="Exercise the bounded lane-resolution transition.",
+        evidence_refs=(("evidence:maintainer-decision",) if exceptional else ("evidence:review",)),
+        chronicle_ref=chronicle_ref
+        or write_chronicle_decision(root, topic="lane-resolution-test", token=disposition),
+        recovery_plan="Preserve exact observed state or block before effect.",
+        decision_path=decision_path,
+        break_glass=exceptional if break_glass is None else break_glass,
+        apply=True,
+    )
+
+
 def test_resolution_decision_default_path_is_a_valid_local_artifact_home(
     tmp_path: Path,
 ) -> None:
@@ -46,18 +70,7 @@ def test_resolution_decision_record_refuses_to_clobber_existing_path(
     decision_path.parent.mkdir(parents=True)
     decision_path.write_text("do not replace\n", encoding="utf-8")
 
-    planned = plan_lane_resolution(
-        root=repo,
-        branch="work/orphan",
-        disposition="block",
-        reason="Existing local records are immutable.",
-        evidence_refs=("evidence:review",),
-        chronicle_ref=write_chronicle_decision(repo, topic="lane-resolution-test", token="block"),
-        recovery_plan="Choose a new unique decision path.",
-        decision_path=decision_path,
-        break_glass=False,
-        apply=True,
-    )
+    planned = _decide(repo, decision_path)
 
     assert planned["ok"] is False
     assert planned["required_gaps"] == ["lane_resolution_decision_path_exists"]
@@ -84,18 +97,7 @@ def test_resolution_decision_rejects_symlinked_records_owner(tmp_path: Path) -> 
     (tmp_path / "repo-records").symlink_to(outside, target_is_directory=True)
     decision_path = _default_decision_path(repo, "work/orphan")
 
-    report = plan_lane_resolution(
-        root=repo,
-        branch="work/orphan",
-        disposition="block",
-        reason="Do not write through a redirected records owner.",
-        evidence_refs=("evidence:review",),
-        chronicle_ref=write_chronicle_decision(repo, topic="lane-resolution-test", token="block"),
-        recovery_plan="Restore the canonical non-symlinked records owner.",
-        decision_path=decision_path,
-        break_glass=False,
-        apply=True,
-    )
+    report = _decide(repo, decision_path)
 
     assert report["required_gaps"] == ["lane_resolution_decision_path_not_local_artifact"]
     assert not tuple(outside.rglob("*"))
@@ -106,18 +108,7 @@ def test_exceptional_resolution_recomputes_observation_before_effect(
 ) -> None:
     repo, lane = orphan_work_lane(tmp_path)
     decision_path = _default_decision_path(repo, "work/orphan")
-    planned = plan_lane_resolution(
-        root=repo,
-        branch="work/orphan",
-        disposition="block",
-        reason="Unknown owner; block mutation.",
-        evidence_refs=("evidence:review",),
-        chronicle_ref=write_chronicle_decision(repo, topic="lane-resolution-test", token="block"),
-        recovery_plan="Preserve or block exact observed state before effect.",
-        decision_path=decision_path,
-        break_glass=False,
-        apply=True,
-    )
+    planned = _decide(repo, decision_path)
     assert planned["ok"] is True
     (lane / "README.md").write_text("# changed after decision\n", encoding="utf-8")
 
@@ -139,18 +130,7 @@ def test_exceptional_resolution_observation_binds_untracked_content(
     untracked = lane / "notes.txt"
     untracked.write_text("first\n", encoding="utf-8")
     decision_path = _default_decision_path(repo, "work/orphan")
-    plan_lane_resolution(
-        root=repo,
-        branch="work/orphan",
-        disposition="block",
-        reason="Unknown owner; block mutation.",
-        evidence_refs=("evidence:review",),
-        chronicle_ref=write_chronicle_decision(repo, topic="lane-resolution-test", token="block"),
-        recovery_plan="Preserve or block exact observed state before effect.",
-        decision_path=decision_path,
-        break_glass=False,
-        apply=True,
-    )
+    _decide(repo, decision_path)
     untracked.write_text("second\n", encoding="utf-8")
 
     applied = apply_lane_resolution(
@@ -168,17 +148,10 @@ def test_exceptional_resolution_requires_accepted_chronicle_binding(
     tmp_path: Path,
 ) -> None:
     repo, _ = orphan_work_lane(tmp_path)
-    planned = plan_lane_resolution(
-        root=repo,
-        branch="work/orphan",
-        disposition="block",
-        reason="Unknown owner; block mutation.",
-        evidence_refs=("evidence:review",),
+    planned = _decide(
+        repo,
+        _default_decision_path(repo, "work/orphan"),
         chronicle_ref="evidence/chronicle/missing/decision.md",
-        recovery_plan="Preserve or block exact observed state before effect.",
-        decision_path=_default_decision_path(repo, "work/orphan"),
-        break_glass=False,
-        apply=True,
     )
 
     assert planned["ok"] is False
@@ -191,20 +164,7 @@ def test_preserve_resolution_writes_recovery_package_and_completion_receipt(
     repo, lane = orphan_work_lane(tmp_path)
     (lane / "README.md").write_text("# dirty preserved\n", encoding="utf-8")
     decision_path = _default_decision_path(repo, "work/orphan")
-    plan_lane_resolution(
-        root=repo,
-        branch="work/orphan",
-        disposition="preserve",
-        reason="Preserve owner-unknown work.",
-        evidence_refs=("evidence:review",),
-        chronicle_ref=write_chronicle_decision(
-            repo, topic="lane-resolution-test", token="preserve"
-        ),
-        recovery_plan="Preserve or block exact observed state before effect.",
-        decision_path=decision_path,
-        break_glass=False,
-        apply=True,
-    )
+    _decide(repo, decision_path, "preserve")
 
     applied = apply_lane_resolution(
         root=repo,
@@ -228,20 +188,7 @@ def test_preserve_resolution_includes_non_ignored_untracked_files(
     repo, lane = orphan_work_lane(tmp_path)
     (lane / "notes.txt").write_text("owner-unknown work\n", encoding="utf-8")
     decision_path = _default_decision_path(repo, "work/orphan")
-    plan_lane_resolution(
-        root=repo,
-        branch="work/orphan",
-        disposition="preserve",
-        reason="Preserve all recoverable work.",
-        evidence_refs=("evidence:review",),
-        chronicle_ref=write_chronicle_decision(
-            repo, topic="lane-resolution-test", token="preserve"
-        ),
-        recovery_plan="Preserve or block exact observed state before effect.",
-        decision_path=decision_path,
-        break_glass=False,
-        apply=True,
-    )
+    _decide(repo, decision_path, "preserve")
 
     applied = apply_lane_resolution(
         root=repo,
@@ -270,33 +217,14 @@ def test_preserve_retire_requires_break_glass_and_irreversible_confirmation(
     (lane / "README.md").write_text("# dirty preserved then retired\n", encoding="utf-8")
     decision_path = _default_decision_path(repo, "work/orphan")
 
-    blocked = plan_lane_resolution(
-        root=repo,
-        branch="work/orphan",
-        disposition="preserve-retire",
-        reason="Retire only after durable preservation.",
-        evidence_refs=("evidence:maintainer-decision",),
-        chronicle_ref=write_chronicle_decision(
-            repo, topic="lane-resolution-test", token="preserve-retire"
-        ),
-        recovery_plan="Preserve exact dirty state, verify it, then retire the lane.",
-        decision_path=decision_path,
-        break_glass=False,
-        apply=True,
-    )
+    blocked = _decide(repo, decision_path, "preserve-retire", break_glass=False)
     assert "retire_exception_requires_break_glass" in blocked["required_gaps"]
 
-    planned = plan_lane_resolution(
-        root=repo,
-        branch="work/orphan",
-        disposition="preserve-retire",
-        reason="Retire only after durable preservation.",
-        evidence_refs=("evidence:maintainer-decision",),
+    planned = _decide(
+        repo,
+        decision_path,
+        "preserve-retire",
         chronicle_ref="evidence/chronicle/lane-resolution-test/preserve-retire.md",
-        recovery_plan="Preserve exact dirty state, verify it, then retire the lane.",
-        decision_path=decision_path,
-        break_glass=True,
-        apply=True,
     )
 
     assert planned["ok"] is True
@@ -318,20 +246,7 @@ def test_preserve_retire_keeps_verified_recovery_package_before_lane_removal(
     (lane / "README.md").write_text("# tracked delta\n", encoding="utf-8")
     (lane / "notes.txt").write_text("untracked delta\n", encoding="utf-8")
     decision_path = _default_decision_path(repo, "work/orphan")
-    planned = plan_lane_resolution(
-        root=repo,
-        branch="work/orphan",
-        disposition="preserve-retire",
-        reason="Owner is unavailable; preserve before exceptional retirement.",
-        evidence_refs=("evidence:maintainer-decision",),
-        chronicle_ref=write_chronicle_decision(
-            repo, topic="lane-resolution-test", token="preserve-retire"
-        ),
-        recovery_plan="Preserve exact dirty state, verify it, then retire the lane.",
-        decision_path=decision_path,
-        break_glass=True,
-        apply=True,
-    )
+    planned = _decide(repo, decision_path, "preserve-retire")
 
     applied = apply_lane_resolution(
         root=repo,
@@ -368,20 +283,7 @@ def test_preserve_retire_rechecks_the_source_after_package_verification(
     repo, lane = orphan_work_lane(tmp_path)
     (lane / "README.md").write_text("# initial dirty state\n", encoding="utf-8")
     decision_path = _default_decision_path(repo, "work/orphan")
-    plan_lane_resolution(
-        root=repo,
-        branch="work/orphan",
-        disposition="preserve-retire",
-        reason="Preserve the exact source before retirement.",
-        evidence_refs=("evidence:maintainer-decision",),
-        chronicle_ref=write_chronicle_decision(
-            repo, topic="lane-resolution-test", token="preserve-retire"
-        ),
-        recovery_plan="Verify the package, recheck the source, then retire.",
-        decision_path=decision_path,
-        break_glass=True,
-        apply=True,
-    )
+    _decide(repo, decision_path, "preserve-retire")
     verify = effect_adapter.verify_preservation_package
 
     def mutate_after_verification(**kwargs) -> None:
@@ -424,18 +326,7 @@ def test_resolution_retains_reservation_for_partial_ref_outcome(
 ) -> None:
     repo, _lane = orphan_work_lane(tmp_path)
     decision_path = _default_decision_path(repo, "work/orphan")
-    plan_lane_resolution(
-        root=repo,
-        branch="work/orphan",
-        disposition="retire",
-        reason="Retire the clean orphan.",
-        evidence_refs=("evidence:maintainer-decision",),
-        chronicle_ref=write_chronicle_decision(repo, topic="lane-resolution-test", token="retire"),
-        recovery_plan="Reconcile the exact ref state before another transition.",
-        decision_path=decision_path,
-        break_glass=True,
-        apply=True,
-    )
+    _decide(repo, decision_path, "retire")
     monkeypatch.setitem(
         apply_lane_resolution.__globals__,
         "retire_lane",
@@ -466,18 +357,7 @@ def test_resolution_releases_reservation_when_worktree_remove_fails(
 ) -> None:
     repo, lane = orphan_work_lane(tmp_path)
     decision_path = _default_decision_path(repo, "work/orphan")
-    plan_lane_resolution(
-        root=repo,
-        branch="work/orphan",
-        disposition="retire",
-        reason="Retire the clean orphan.",
-        evidence_refs=("evidence:maintainer-decision",),
-        chronicle_ref=write_chronicle_decision(repo, topic="lane-resolution-test", token="retire"),
-        recovery_plan="Retry after the worktree can be removed.",
-        decision_path=decision_path,
-        break_glass=True,
-        apply=True,
-    )
+    _decide(repo, decision_path, "retire")
     monkeypatch.setitem(
         apply_lane_resolution.__globals__,
         "retire_lane",
@@ -516,18 +396,7 @@ def test_preserve_retire_records_survive_resolution_carrier_removal(
     carrier = tmp_path / "repo-work-carrier"
     git(repo, "worktree", "add", "-b", "work/carrier", carrier.as_posix(), "dev")
     decision_path = _default_decision_path(carrier, "work/orphan")
-    planned = plan_lane_resolution(
-        root=carrier,
-        branch="work/orphan",
-        disposition="preserve-retire",
-        reason="Preserve outside the disposable resolution carrier.",
-        evidence_refs=("evidence:maintainer-decision",),
-        chronicle_ref=chronicle_ref,
-        recovery_plan="Retain the exact package after both lanes are absent.",
-        decision_path=decision_path,
-        break_glass=True,
-        apply=True,
-    )
+    planned = _decide(carrier, decision_path, "preserve-retire", chronicle_ref=chronicle_ref)
 
     applied = apply_lane_resolution(
         root=carrier,
@@ -627,19 +496,11 @@ def test_receipt_failure_is_classified_by_effect_boundary(
     repo, lane = orphan_work_lane(tmp_path)
     (lane / "README.md").write_text("# receipt failure\n", encoding="utf-8")
     decision_path = _default_decision_path(repo, "work/orphan")
-    plan_lane_resolution(
-        root=repo,
-        branch="work/orphan",
-        disposition=disposition,
-        reason="Exercise the exact receipt failure boundary.",
-        evidence_refs=("evidence:maintainer-decision",),
-        chronicle_ref=write_chronicle_decision(
-            repo, topic="lane-resolution-test", token=disposition
-        ),
-        recovery_plan="Keep the stable package inspectable if receipt materialization fails.",
-        decision_path=decision_path,
+    _decide(
+        repo,
+        decision_path,
+        disposition,
         break_glass=break_glass,
-        apply=True,
     )
 
     def fail_receipt_write(
@@ -678,18 +539,7 @@ def test_resolution_reports_reservation_cleanup_failure_after_receipt(
 ) -> None:
     repo, _lane = orphan_work_lane(tmp_path)
     decision_path = _default_decision_path(repo, "work/orphan")
-    plan_lane_resolution(
-        root=repo,
-        branch="work/orphan",
-        disposition="block",
-        reason="Keep owner-unknown work intact.",
-        evidence_refs=("evidence:review",),
-        chronicle_ref=write_chronicle_decision(repo, topic="lane-resolution-test", token="block"),
-        recovery_plan="Leave the lane untouched and record the bounded decision.",
-        decision_path=decision_path,
-        break_glass=False,
-        apply=True,
-    )
+    _decide(repo, decision_path)
     monkeypatch.setitem(
         apply_lane_resolution.__globals__,
         "release_resolution_receipt_reservation",
@@ -720,20 +570,7 @@ def test_existing_receipt_blocks_preserve_retire_before_destructive_effect(
     repo, lane = orphan_work_lane(tmp_path)
     (lane / "README.md").write_text("# receipt destination already exists\n", encoding="utf-8")
     decision_path = _default_decision_path(repo, "work/orphan")
-    planned = plan_lane_resolution(
-        root=repo,
-        branch="work/orphan",
-        disposition="preserve-retire",
-        reason="Do not retire when the immutable receipt target is occupied.",
-        evidence_refs=("evidence:maintainer-decision",),
-        chronicle_ref=write_chronicle_decision(
-            repo, topic="lane-resolution-test", token="preserve-retire"
-        ),
-        recovery_plan="Keep the lane intact until a unique receipt can be reserved.",
-        decision_path=decision_path,
-        break_glass=True,
-        apply=True,
-    )
+    planned = _decide(repo, decision_path, "preserve-retire")
     decision_id = str(planned["decision"]["decision_id"])
     receipt_path = (
         records_artifact_root(repo)
@@ -809,18 +646,7 @@ def test_resolution_decision_and_receipt_validate_against_kernel_schemas(
 ) -> None:
     repo, _ = orphan_work_lane(tmp_path)
     decision_path = _default_decision_path(repo, "work/orphan")
-    planned = plan_lane_resolution(
-        root=repo,
-        branch="work/orphan",
-        disposition="block",
-        reason="Keep ambiguous state intact.",
-        evidence_refs=("evidence:review",),
-        chronicle_ref=write_chronicle_decision(repo, topic="lane-resolution-test", token="block"),
-        recovery_plan="Preserve or block exact observed state before effect.",
-        decision_path=decision_path,
-        break_glass=False,
-        apply=True,
-    )
+    planned = _decide(repo, decision_path)
     applied = apply_lane_resolution(
         root=repo,
         decision_path=decision_path,
@@ -845,18 +671,7 @@ def test_resolution_decision_and_receipt_validate_against_kernel_schemas(
 def test_resolution_rejects_tampered_schema_constants(tmp_path: Path) -> None:
     repo, _ = orphan_work_lane(tmp_path)
     decision_path = _default_decision_path(repo, "work/orphan")
-    plan_lane_resolution(
-        root=repo,
-        branch="work/orphan",
-        disposition="block",
-        reason="Keep ambiguous state intact.",
-        evidence_refs=("evidence:review",),
-        chronicle_ref=write_chronicle_decision(repo, topic="lane-resolution-test", token="block"),
-        recovery_plan="Preserve or block exact observed state before effect.",
-        decision_path=decision_path,
-        break_glass=False,
-        apply=True,
-    )
+    _decide(repo, decision_path)
     decision = json.loads(decision_path.read_text(encoding="utf-8"))
     decision["mints_authority"] = True
     decision_path.write_text(json.dumps(decision), encoding="utf-8")
@@ -880,20 +695,7 @@ def test_resolution_rejects_unsafe_decision_identifier_before_package_write(
     repo, lane = orphan_work_lane(tmp_path)
     (lane / "README.md").write_text("# preserve safely\n", encoding="utf-8")
     decision_path = _default_decision_path(repo, "work/orphan")
-    plan_lane_resolution(
-        root=repo,
-        branch="work/orphan",
-        disposition="preserve",
-        reason="Reject identifiers that can escape the package owner.",
-        evidence_refs=("evidence:review",),
-        chronicle_ref=write_chronicle_decision(
-            repo, topic="lane-resolution-test", token="preserve"
-        ),
-        recovery_plan="Require a canonical lane-decision UUID.",
-        decision_path=decision_path,
-        break_glass=False,
-        apply=True,
-    )
+    _decide(repo, decision_path, "preserve")
     decision = json.loads(decision_path.read_text(encoding="utf-8"))
     decision["decision_id"] = (
         (tmp_path / "absolute-escape").as_posix()
@@ -919,20 +721,7 @@ def test_resolution_rejects_symlinked_package_destination_outside_records_owner(
     repo, lane = orphan_work_lane(tmp_path)
     (lane / "README.md").write_text("# preserve safely\n", encoding="utf-8")
     decision_path = _default_decision_path(repo, "work/orphan")
-    planned = plan_lane_resolution(
-        root=repo,
-        branch="work/orphan",
-        disposition="preserve",
-        reason="Reject a package destination redirected outside the records owner.",
-        evidence_refs=("evidence:review",),
-        chronicle_ref=write_chronicle_decision(
-            repo, topic="lane-resolution-test", token="preserve"
-        ),
-        recovery_plan="Resolve the final package path before writing.",
-        decision_path=decision_path,
-        break_glass=False,
-        apply=True,
-    )
+    planned = _decide(repo, decision_path, "preserve")
     decision_id = str(planned["decision"]["decision_id"])
     uuid.UUID(decision_id.removeprefix("lane-decision:"))
     outside = tmp_path / "outside-package"
@@ -958,20 +747,7 @@ def test_resolution_preservation_package_refuses_to_clobber_existing_directory(
     repo, lane = orphan_work_lane(tmp_path)
     (lane / "README.md").write_text("# preserve without clobber\n", encoding="utf-8")
     decision_path = _default_decision_path(repo, "work/orphan")
-    planned = plan_lane_resolution(
-        root=repo,
-        branch="work/orphan",
-        disposition="preserve",
-        reason="Existing recovery bytes are immutable.",
-        evidence_refs=("evidence:review",),
-        chronicle_ref=write_chronicle_decision(
-            repo, topic="lane-resolution-test", token="preserve"
-        ),
-        recovery_plan="Allocate a fresh package directory or block.",
-        decision_path=decision_path,
-        break_glass=False,
-        apply=True,
-    )
+    planned = _decide(repo, decision_path, "preserve")
     package = records_artifact_root(repo) / str(planned["decision"]["decision_id"])
     package.mkdir(parents=True)
     tracked_patch = package / "tracked.patch"
@@ -997,18 +773,7 @@ def test_resolution_decide_does_not_write_tracked_chronicle_path(
     repo, _ = orphan_work_lane(tmp_path)
     decision_path = repo / "evidence" / "chronicle" / "decision.json"
 
-    planned = plan_lane_resolution(
-        root=repo,
-        branch="work/orphan",
-        disposition="block",
-        reason="Keep ambiguous state intact.",
-        evidence_refs=("evidence:review",),
-        chronicle_ref=write_chronicle_decision(repo, topic="lane-resolution-test", token="block"),
-        recovery_plan="Preserve or block exact observed state before effect.",
-        decision_path=decision_path,
-        break_glass=False,
-        apply=True,
-    )
+    planned = _decide(repo, decision_path)
 
     assert planned["ok"] is False
     assert "lane_resolution_decision_path_not_local_artifact" in planned["required_gaps"]
@@ -1021,18 +786,7 @@ def test_resolution_decide_rejects_registered_legacy_worktree_path(
     repo, lane = orphan_work_lane(tmp_path)
     decision_path = lane / "build/artifacts/lane-resolution/decisions/foreign.json"
 
-    planned = plan_lane_resolution(
-        root=repo,
-        branch="work/orphan",
-        disposition="block",
-        reason="A registered Work Lane must not own a new decision record.",
-        evidence_refs=("evidence:review",),
-        chronicle_ref=write_chronicle_decision(repo, topic="lane-resolution-test", token="block"),
-        recovery_plan="Write new decisions only through the stable records owner.",
-        decision_path=decision_path,
-        break_glass=False,
-        apply=True,
-    )
+    planned = _decide(repo, decision_path)
 
     assert planned["ok"] is False
     assert planned["required_gaps"] == ["lane_resolution_decision_path_not_local_artifact"]
@@ -1044,18 +798,7 @@ def test_retire_resolution_requires_clean_target_and_irreversible_confirmation(
 ) -> None:
     repo, lane = orphan_work_lane(tmp_path)
     decision_path = _default_decision_path(repo, "work/orphan")
-    plan_lane_resolution(
-        root=repo,
-        branch="work/orphan",
-        disposition="retire",
-        reason="Reviewed obsolete lane.",
-        evidence_refs=("evidence:maintainer-decision",),
-        chronicle_ref=write_chronicle_decision(repo, topic="lane-resolution-test", token="retire"),
-        recovery_plan="Preserve or block exact observed state before effect.",
-        decision_path=decision_path,
-        break_glass=True,
-        apply=True,
-    )
+    _decide(repo, decision_path, "retire")
 
     blocked = apply_lane_resolution(
         root=repo,
@@ -1093,7 +836,7 @@ def test_break_glass_requires_reconciliation_receipt(tmp_path: Path) -> None:
         reason="Emergency containment.",
         evidence_refs=("evidence:incident",),
         chronicle_ref=write_chronicle_decision(repo, topic="lane-resolution-test", token="block"),
-        recovery_plan="Preserve or block exact observed state before effect.",
+        recovery_plan="Preserve exact observed state or block before effect.",
         decision_path=decision_path,
         break_glass=True,
         apply=True,

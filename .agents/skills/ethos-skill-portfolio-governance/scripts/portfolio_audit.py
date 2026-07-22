@@ -99,19 +99,13 @@ def main() -> int:
         "root": str(root),
         "skill_count": len(skill_dirs(root)),
         "checks": {
-            "playbooks_v2": {
-                "ok": bool(playbooks.get("ok")),
-                "state": playbooks.get("state"),
-            },
-            "projection_drift": {
-                "ok": bool(drift.get("ok")),
-                "state": drift.get("state"),
-            },
+            "playbooks_v2": {"ok": bool(playbooks.get("ok")), "state": playbooks.get("state")},
+            "projection_drift": {"ok": bool(drift.get("ok")), "state": drift.get("state")},
             "local_shape": {"ok": not local_shape_gaps(root)},
         },
         "required_gaps": sorted(dict.fromkeys(gaps)),
     }
-    sys.stdout.write(f"{json.dumps(report, indent=2, sort_keys=True)}\n")
+    print(json.dumps(report, indent=2, sort_keys=True))
     return 0 if report["ok"] else 1
 
 

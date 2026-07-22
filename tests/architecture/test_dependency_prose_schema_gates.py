@@ -176,6 +176,47 @@ def test_config_lint_targeted_toml_invocation_handles_empty_json_set(
     assert completed.returncode == 0, completed.stdout + completed.stderr
     assert completed.stderr == ""
 
+
+def test_config_lint_json_uses_stdlib_when_jq_is_unavailable(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    (repo / ".config/checks/json").mkdir(parents=True)
+    (repo / "tools/ci/scripts").mkdir(parents=True)
+    (repo / ".config/checks/json/format.toml").write_text(
+        (ROOT / ".config/checks/json/format.toml").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    (repo / "payload.json").write_text('{\n  "ok": true\n}\n', encoding="utf-8")
+    runner = repo / "tools/ci/scripts/run-config-lint.sh"
+    runner.write_text(
+        (ROOT / "tools/ci/scripts/run-config-lint.sh").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    runner.chmod(0o755)
+    bin_dir = repo / "bin"
+    bin_dir.mkdir()
+    git = bin_dir / "git"
+    git.write_text("#!/usr/bin/env bash\nexec /usr/bin/git \"$@\"\n", encoding="utf-8")
+    git.chmod(0o755)
+    subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+    subprocess.run(["git", "add", "."], cwd=repo, check=True)
+
+    completed = subprocess.run(
+        ["/bin/bash", "tools/ci/scripts/run-config-lint.sh", "payload.json"],
+        cwd=repo,
+        check=False,
+        capture_output=True,
+        text=True,
+        env={
+            **os.environ,
+            "ETHOS_RUNTIME_BOOTSTRAPPED": "1",
+            "PATH": bin_dir.as_posix() + os.pathsep + "/usr/bin:/bin",
+            "PYTHON": Path(os.sys.executable).as_posix(),
+        },
+    )
+
+    assert completed.returncode == 0, completed.stdout + completed.stderr
+
+
 def test_scope_binding_requirement_has_one_accepted_authority() -> None:
     spec = (ROOT / "openspec/specs/repository-governance/spec.md").read_text(encoding="utf-8")
 

@@ -43,8 +43,16 @@ archive="gitleaks_${version}_linux_${arch}.tar.gz"
 url="https://github.com/gitleaks/gitleaks/releases/download/v${version}/${archive}"
 
 cache_root="${ETHOS_CI_TOOL_CACHE_DIR:-${CI_PROJECT_DIR:-$(pwd)}/build/runtime/tool-cache/ci-tools}"
-cache_dir="${cache_root}/gitleaks/${version}"
+cache_dir="${cache_root}/gitleaks/${version}/${arch}"
 archive_path="${cache_dir}/${archive}"
+persistent_cache_root="${ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR:-}"
+if [ -n "${persistent_cache_root}" ]; then
+  persistent_cache_dir="${persistent_cache_root}/gitleaks/${version}/linux-${arch}"
+  persistent_archive_path="${persistent_cache_dir}/${archive}"
+else
+  persistent_cache_dir=""
+  persistent_archive_path=""
+fi
 tmpdir="$(mktemp -d)"
 trap 'rm -rf "${tmpdir}"' EXIT
 
@@ -52,16 +60,28 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 mkdir -p "${cache_dir}"
 
 verify_archive_checksum() {
-  printf '%s  %s\n' "${archive_sha256}" "${archive_path}" | sha256sum -c -
+  printf '%s  %s\n' "${archive_sha256}" "$1" | sha256sum -c -
 }
 
-if [ ! -s "${archive_path}" ] || ! tar tzf "${archive_path}" >/dev/null 2>&1 || ! verify_archive_checksum >/dev/null 2>&1; then
+if [ -n "${persistent_archive_path}" ] \
+  && [ -s "${persistent_archive_path}" ] \
+  && tar tzf "${persistent_archive_path}" >/dev/null 2>&1 \
+  && verify_archive_checksum "${persistent_archive_path}" >/dev/null 2>&1; then
+  cp "${persistent_archive_path}" "${archive_path}"
+fi
+
+if [ ! -s "${archive_path}" ] || ! tar tzf "${archive_path}" >/dev/null 2>&1 || ! verify_archive_checksum "${archive_path}" >/dev/null 2>&1; then
   rm -f "${archive_path}"
   echo "Installing gitleaks ${version} for linux-${arch} from ${url}"
   "${script_dir}/download-file.sh" "${url}" "${archive_path}"
 fi
 
-verify_archive_checksum
+verify_archive_checksum "${archive_path}"
+if [ -n "${persistent_archive_path}" ]; then
+  mkdir -p "${persistent_cache_dir}"
+  cp "${archive_path}" "${persistent_archive_path}.tmp"
+  mv "${persistent_archive_path}.tmp" "${persistent_archive_path}"
+fi
 
 if ! tar tzf "${archive_path}" | grep -qx 'gitleaks'; then
   echo "gitleaks binary not found in ${archive_path}" >&2

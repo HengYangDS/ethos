@@ -30,7 +30,7 @@
 
 - [x] 4.1 Run focused tests and canonical lint, then strict OpenSpec, claims,
   and docs validation.
-- [ ] 4.2 Archive the completed carrier through the official OpenSpec
+- [x] 4.2 Archive the completed carrier through the official OpenSpec
   transition.
 
 ## Post-archive transition boundary

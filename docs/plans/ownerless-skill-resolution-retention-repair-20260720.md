@@ -3,15 +3,15 @@ subject: ethos:ownerless-skill-resolution-retention-repair-20260720
 role: plan
 state: active
 relations:
-  carrier: openspec/changes/ownerless-skill-resolution-retention-repair-20260720
+  carrier: openspec/changes/archive/2026-07-22-ownerless-skill-resolution-retention-repair-20260720
   supersedes: ownerless-skill-scripts-semantic-closeout-20260720
 ---
 
 # Ownerless Skill Resolution Retention Repair Implementation Plan
 
-Status: active closeout carrier; Tasks 1 through 3 and the reservation hardening
-commit are complete. Task 4 owns authoring validation, archive, proof, land, and
-accepted closeout.
+Status: archived closeout carrier; Tasks 1 through 4 and the reservation
+hardening commit are complete. The remaining transition owns parity, proof,
+land, accepted closeout, recovery, publication, and carrier retirement.
 
 Purpose: remove one invalid carrier without rewriting history, retain
 non-rebuildable lane-resolution recovery outside disposable worktrees, and

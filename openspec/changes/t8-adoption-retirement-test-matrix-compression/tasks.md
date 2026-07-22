@@ -18,12 +18,12 @@
   failures and preserve every distinct public state/gap/effect boundary.
 - [x] 3.2 Prove the two-file scope is at most 700 `scc` code lines and 250
   repeated lines, with no unique-line growth.
-- [ ] 3.3 Run changed-scope lint/type/coverage, source-budget, Ponytail review,
+- [x] 3.3 Run changed-scope lint/type/coverage, source-budget, Ponytail review,
   parity, and HEAD-bound executed proof.
 
 ## 4. Evidence And Lifecycle
 
-- [ ] 4.1 Bind the exact scoped delta, measurements, tests, and proof to the
+- [x] 4.1 Bind the exact scoped delta, measurements, tests, and proof to the
   claim and Chronicle without claiming remote or hosted success.
-- [ ] 4.2 Complete the implementation carrier; archive, candidate land,
+- [x] 4.2 Complete the implementation carrier; archive, candidate land,
   accepted-root closeout, and lane retirement remain separate native steps.

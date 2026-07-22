@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING
 
 import pytest
@@ -48,6 +49,34 @@ def _request_result() -> tuple[WorkerRequest, bytes, WorkerResult]:
         values=_values(),
     )
     return request, _CONTENT, WorkerResult.from_measurement(request=request, measurement=native)
+
+
+def _raw_request_frame(header: bytes, content: bytes = _CONTENT) -> bytes:
+    return b"".join(
+        (
+            _REQUEST_MAGIC,
+            len(header).to_bytes(4, "big"),
+            len(content).to_bytes(4, "big"),
+            header,
+            content,
+        )
+    )
+
+
+def _raw_result_frame(payload: bytes) -> bytes:
+    return _RESULT_MAGIC + len(payload).to_bytes(4, "big") + payload
+
+
+def _duplicate_json_member(payload: object, key: str, value: object) -> bytes:
+    encoded = _canonical_json(payload).decode("utf-8")
+    member = ":".join(
+        (
+            json.dumps(key, ensure_ascii=False),
+            json.dumps(value, ensure_ascii=False, separators=(",", ":"), sort_keys=True),
+        )
+    )
+    assert member in encoded
+    return encoded.replace(member, f"{member},{member}", 1).encode("utf-8")
 
 
 def test_frame_decoders_construct_typed_models_from_wire_alone() -> None:
@@ -134,6 +163,71 @@ def test_request_frame_encoder_rejects_content_not_bound_by_request() -> None:
 
     with pytest.raises(ValueError, match=r"content.*digest"):
         encode_request_frame(request, substituted)
+
+
+@pytest.mark.parametrize("direction", ["request", "result"])
+@pytest.mark.parametrize("variant", ["whitespace", "unsorted"])
+def test_frame_decoders_reject_noncanonical_json_bytes(direction: str, variant: str) -> None:
+    request, content, result = _request_result()
+    if direction == "request":
+        payload = request.model_dump(mode="json", by_alias=True)
+        decoder = decode_request_frame
+    else:
+        payload = result.model_dump(mode="json", by_alias=True)
+        decoder = decode_result_frame
+    if variant == "whitespace":
+        encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=1).encode("utf-8")
+    else:
+        encoded = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    assert json.loads(encoded) == payload
+    frame = (
+        _raw_request_frame(encoded, content)
+        if direction == "request"
+        else _raw_result_frame(encoded)
+    )
+
+    with pytest.raises(ValueError, match=r"canonical|json"):
+        decoder(frame)
+
+
+@pytest.mark.parametrize("direction", ["request", "result"])
+def test_frame_decoders_reject_invalid_utf8_json(direction: str) -> None:
+    decoder = decode_request_frame if direction == "request" else decode_result_frame
+    frame = _raw_request_frame(b"\xff") if direction == "request" else _raw_result_frame(b"\xff")
+
+    with pytest.raises(ValueError, match=r"(?i)json|unicode|utf"):
+        decoder(frame)
+
+
+@pytest.mark.parametrize("direction", ["request", "result"])
+@pytest.mark.parametrize("scope", ["top", "nested"])
+def test_frame_decoders_reject_duplicate_json_keys(direction: str, scope: str) -> None:
+    request, content, result = _request_result()
+    nested = scope == "nested"
+    if direction == "request":
+        payload = request.model_dump(mode="json", by_alias=True)
+        nested_value = payload["contracts"][0]["contract_id"]
+        duplicated = _duplicate_json_member(
+            payload,
+            "contract_id" if nested else "schema",
+            nested_value if nested else payload["schema"],
+        )
+        frame = _raw_request_frame(duplicated, content)
+        decoder = decode_request_frame
+    else:
+        payload = result.model_dump(mode="json", by_alias=True)
+        nested_value = payload["success"]["values"][0]["contract_id"]
+        duplicated = _duplicate_json_member(
+            payload,
+            "contract_id" if nested else "schema",
+            nested_value if nested else payload["schema"],
+        )
+        frame = _raw_result_frame(duplicated)
+        decoder = decode_result_frame
+    assert json.loads(duplicated) == payload
+
+    with pytest.raises(ValueError, match=r"duplicate|canonical|json"):
+        decoder(frame)
 
 
 @pytest.mark.parametrize("direction", ["request", "result"])

@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+from typing import cast
 
 import pytest
 
 from ethos_core.contracts.source_budget.measurement.execution import ExecutionDescriptor
 from ethos_core.contracts.source_budget.measurement.execution import execution_descriptor
+from ethos_core.contracts.source_budget.measurement.execution import execution_descriptor_digest
 from ethos_core.contracts.source_budget.measurement.worker.protocol.core import WorkerRequest
 from ethos_core.contracts.source_budget.measurement.worker.protocol.core import WorkerResult
 from ethos_core.contracts.source_budget.measurement.worker.protocol.core import replay_worker_result
@@ -143,6 +145,132 @@ def _expected_request_payload(contracts: tuple[MetricContract, ...]) -> dict[str
     }
     payload["request_digest"] = _sha256(payload)
     return payload
+
+
+def _resign_request_payload(payload: dict[str, object]) -> None:
+    unsigned = {key: value for key, value in payload.items() if key != "request_digest"}
+    payload["request_digest"] = _sha256(unsigned)
+
+
+def test_worker_request_create_canonicalizes_contract_order_at_exact_ceiling() -> None:
+    content = b"x" * 65536
+    contracts = _contracts()
+    forward = WorkerRequest.create(
+        content=content,
+        contracts=contracts,
+        provider_descriptor=_provider_descriptor(),
+        execution_descriptor=_isolated_execution_descriptor(),
+    )
+
+    reversed_request = WorkerRequest.create(
+        content=content,
+        contracts=tuple(reversed(contracts)),
+        provider_descriptor=_provider_descriptor(),
+        execution_descriptor=_isolated_execution_descriptor(),
+    )
+
+    assert reversed_request == forward
+
+
+@pytest.mark.parametrize("case", ["bytearray", "list", "empty", "item", "forged"])
+def test_worker_request_create_rejects_noncanonical_inputs(case: str) -> None:
+    content: bytes = _CONTENT
+    contracts: tuple[MetricContract, ...] = _contracts()
+    if case == "bytearray":
+        content = cast("bytes", bytearray(content))
+    elif case == "list":
+        contracts = cast("tuple[MetricContract, ...]", list(contracts))
+    elif case == "empty":
+        contracts = ()
+    elif case == "item":
+        contracts = cast("tuple[MetricContract, ...]", (object(),))
+    else:
+        contracts = (MetricContract.model_construct(contract_id="forged"),)
+
+    with pytest.raises(ValueError, match=r"bytes|canonical|contracts"):
+        WorkerRequest.create(
+            content=content,
+            contracts=contracts,
+            provider_descriptor=_provider_descriptor(),
+            execution_descriptor=_isolated_execution_descriptor(),
+        )
+
+
+def test_worker_request_create_rejects_content_above_execution_ceiling() -> None:
+    with pytest.raises(ValueError, match=r"bytes|carrier|ceiling"):
+        WorkerRequest.create(
+            content=b"x" * 65537,
+            contracts=_contracts(),
+            provider_descriptor=_provider_descriptor(),
+            execution_descriptor=_isolated_execution_descriptor(),
+        )
+
+
+@pytest.mark.parametrize(
+    ("field", "resign", "match"),
+    [
+        pytest.param("resolved_contracts_digest", "outer", "resolved", id="resolved"),
+        pytest.param("provider_digest", "outer", "provider", id="provider"),
+        pytest.param("execution_contract_digest", "outer", "execution", id="execution"),
+        pytest.param("request_digest", "none", "request digest", id="request"),
+    ],
+)
+def test_worker_request_wire_rejects_digest_drift(
+    field: str,
+    resign: str,
+    match: str,
+) -> None:
+    request = WorkerRequest.create(
+        content=_CONTENT,
+        contracts=_contracts(),
+        provider_descriptor=_provider_descriptor(),
+        execution_descriptor=_isolated_execution_descriptor(),
+    )
+    payload = request.model_dump(mode="python", by_alias=True)
+    assert WorkerRequest.model_validate(payload) == request
+
+    payload[field] = "f" * 64
+    if resign == "outer":
+        _resign_request_payload(payload)
+
+    with pytest.raises(ValueError, match=match):
+        WorkerRequest.model_validate(payload)
+
+
+def test_worker_request_wire_rejects_coherent_bounded_contract_tuple() -> None:
+    request = WorkerRequest.create(
+        content=_CONTENT,
+        contracts=_contracts(),
+        provider_descriptor=_provider_descriptor(),
+        execution_descriptor=_isolated_execution_descriptor(),
+    )
+    payload = request.model_dump(mode="python", by_alias=True)
+    assert WorkerRequest.model_validate(payload) == request
+
+    bounded_descriptor = execution_descriptor("bounded_in_process_v1", 65536)
+    bounded_digest = execution_descriptor_digest(bounded_descriptor)
+    bounded_contracts = tuple(
+        MetricContract.model_validate(
+            item.model_dump(mode="python")
+            | {
+                "execution_mode": "bounded_in_process_v1",
+                "execution_contract_id": bounded_descriptor.execution_contract_id,
+                "execution_contract_digest": bounded_digest,
+            }
+        )
+        for item in _contracts()
+    )
+    contract_payloads = [item.model_dump(mode="json") for item in bounded_contracts]
+    payload["contracts"] = contract_payloads
+    payload["resolved_contracts_digest"] = _domain_digest(
+        "resolved_metric_contracts",
+        contract_payloads,
+    )
+    payload["execution_contract_digest"] = bounded_digest
+    _resign_request_payload(payload)
+
+    with pytest.raises(ValueError, match="execution"):
+        WorkerRequest.model_validate(payload)
 
 
 def test_worker_protocol_happy_path_binds_and_replays_typed_results() -> None:

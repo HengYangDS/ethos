@@ -7,7 +7,7 @@ summary = "The successor removes one false skill-script carrier, moves non-rebui
 
 [evidence]
 dated = "evidence/chronicle/ownerless-skill-resolution-retention-repair-20260720/2026-07-20.md"
-sha256 = "0205328daa235da6055b1dc0281a05302bde6aad1dd3ac5f9681a6349a627e93"
+sha256 = "6bb592acb63e370179a55af092837c99b23146192233da206422fb6c2cd69f10"
 evidence_ids = ["evidence:ownerless-skill-resolution-retention-repair-20260720"]
 binding = "This Claim binds the invalid dbf17ff range-delta forward revert, stable accepted-owner lane-resolution records, immutable canonical-write and legacy-read separation, lane_resolution_decision_record_conflict, lane_resolution_clear_package_ambiguous, lane_resolution_manifest_receipt_mismatch, lane_resolution_preservation_package_exists, lane_resolution_receipt_path_exists before package/ref/worktree effect, hidden exclusive receipt reservations, lane_resolution_package_path_unsafe, lane_resolution_record_path_unsafe, lane_resolution_legacy_retention_present, lane_resolution_receipt_write_failed_after_effect with partial_transition and retained reconciliation reservation, and one post-closeout new preserve-retire recovery of patch SHA-256 26fdae9bbaf9ce6460bca5a5bbbcf196d42e5d35af0fdfb55e7898a654fee07b from source 87911a89faeb01d97a29afce1c24e0fc5ed94f2a. It does not claim the deleted old package, receipt, or bundle survived."
 verifier = "digest_only"
@@ -62,6 +62,7 @@ targets = [
   "packages/ethos/src/ethos/adapters/mutation/resolution/_shared.py",
   "packages/ethos/src/ethos/adapters/mutation/resolution/lane.py",
   "packages/ethos/src/ethos/adapters/mutation/resolution/receipts.py",
+  "packages/ethos/src/ethos/adapters/mutation/resolution/records/__init__.py",
   "packages/ethos/src/ethos/adapters/mutation/resolution/records/core.py",
   "packages/ethos/src/ethos/surface/cli/lane/resolution.py",
   "tests/unit/coverage/test_lane_resolution_edges.py",

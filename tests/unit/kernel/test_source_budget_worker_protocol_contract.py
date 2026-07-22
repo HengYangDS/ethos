@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import hashlib
 import json
+from pathlib import Path
 from typing import cast
 
 import pytest
 
+import ethos_core.contracts.source_budget.measurement.worker.protocol.core as worker_protocol_core
 from ethos_core.contracts.source_budget.measurement.execution import ExecutionDescriptor
 from ethos_core.contracts.source_budget.measurement.execution import execution_descriptor
 from ethos_core.contracts.source_budget.measurement.execution import execution_descriptor_digest
@@ -208,6 +210,37 @@ def _gap_result_payload() -> tuple[WorkerRequest, dict[str, object]]:
     return request, result.model_dump(mode="python", by_alias=True)
 
 
+def _successful_request_result() -> tuple[WorkerRequest, WorkerResult, NativeMeasurement]:
+    contracts = _contracts()
+    request = WorkerRequest.create(
+        content=_CONTENT,
+        contracts=contracts,
+        provider_descriptor=_provider_descriptor(),
+        execution_descriptor=_isolated_execution_descriptor(),
+    )
+    native = NativeMeasurement.create(
+        content_sha256=request.content_sha256,
+        normalized_digest=_NORMALIZED_DIGEST,
+        contracts=contracts,
+        values=_values(),
+    )
+    return request, WorkerResult.from_measurement(request=request, measurement=native), native
+
+
+def _schema_property_names(value: object) -> set[str]:
+    if isinstance(value, dict):
+        names = set(value.get("properties", {}))
+        for child in value.values():
+            names.update(_schema_property_names(child))
+        return names
+    if isinstance(value, list):
+        names: set[str] = set()
+        for child in value:
+            names.update(_schema_property_names(child))
+        return names
+    return set()
+
+
 def test_worker_request_create_canonicalizes_contract_order_at_exact_ceiling() -> None:
     content = b"x" * 65536
     contracts = _contracts()
@@ -293,6 +326,25 @@ def test_worker_request_wire_rejects_digest_drift(
         WorkerRequest.model_validate(payload)
 
 
+def test_worker_request_rejects_metric_contract_subclass_storage() -> None:
+    class _MetricContractSubclass(MetricContract):
+        pass
+
+    request = WorkerRequest.create(
+        content=_CONTENT,
+        contracts=_contracts(),
+        provider_descriptor=_provider_descriptor(),
+        execution_descriptor=_isolated_execution_descriptor(),
+    )
+    payload = request.model_dump(mode="python", by_alias=True)
+    payload["contracts"] = tuple(
+        _MetricContractSubclass.model_validate(item.model_dump(mode="python"))
+        for item in request.contracts
+    )
+    with pytest.raises(ValueError, match=r"canonical|contracts"):
+        WorkerRequest.model_validate(payload)
+
+
 def test_worker_request_wire_rejects_coherent_bounded_contract_tuple() -> None:
     request = WorkerRequest.create(
         content=_CONTENT,
@@ -317,7 +369,7 @@ def test_worker_request_wire_rejects_coherent_bounded_contract_tuple() -> None:
         for item in _contracts()
     )
     contract_payloads = [item.model_dump(mode="json") for item in bounded_contracts]
-    payload["contracts"] = contract_payloads
+    payload["contracts"] = tuple(item.model_dump(mode="python") for item in bounded_contracts)
     payload["resolved_contracts_digest"] = _domain_digest(
         "resolved_metric_contracts",
         contract_payloads,
@@ -475,6 +527,53 @@ def test_worker_gap_result_echoes_bindings_and_rejects_sensitive_fields() -> Non
         WorkerResult.model_validate(payload | {"path": "sensitive"})
 
 
+def test_worker_protocol_schema_is_generated_strict_and_path_blind() -> None:
+    schema = worker_protocol_core.worker_protocol_json_schema()
+    assert schema["$schema"] == "https://json-schema.org/draft/2020-12/schema"
+    assert schema["title"] == "ETHOS Source Budget Worker Protocol"
+
+    definitions = schema["$defs"]
+    titles = {item.get("title") for item in definitions.values()}
+    assert "BaseModel" not in titles
+    assert {"WorkerRequest", "WorkerResult", "MetricContract", "MetricValue"} <= titles
+    request = next(item for item in definitions.values() if item.get("title") == "WorkerRequest")
+    result = next(item for item in definitions.values() if item.get("title") == "WorkerResult")
+    success = next(
+        item
+        for item in definitions.values()
+        if set(item.get("properties", {})) == {"normalized_digest", "values", "measurement_digest"}
+    )
+    assert all(item["additionalProperties"] is False for item in (request, result, success))
+    assert {"success", "gap"} <= set(result["required"])
+    assert len(result["oneOf"]) == 2
+
+    gap_schema = result["properties"]["gap"]
+    production_gaps = next(item["enum"] for item in gap_schema["anyOf"] if "enum" in item)
+    assert tuple(production_gaps) == _CHILD_WORKER_GAPS
+    forbidden = {
+        "path",
+        "root",
+        "cwd",
+        "env",
+        "environment",
+        "pid",
+        "signal",
+        "bytes",
+        "threshold",
+        "observed_size",
+        "exception",
+        "source_descriptor",
+        "source_fd",
+        "content_length",
+    }
+    assert _schema_property_names(schema).isdisjoint(forbidden)
+
+    published = Path("system/schemas/kernel/source-budget-worker-protocol.schema.json").read_text(
+        encoding="utf-8"
+    )
+    assert published == json.dumps(schema, ensure_ascii=False, separators=(",", ":")) + "\n"
+
+
 @pytest.mark.parametrize(
     "case",
     [
@@ -489,20 +588,7 @@ def test_worker_gap_result_echoes_bindings_and_rejects_sensitive_fields() -> Non
     ],
 )
 def test_parent_replay_revalidates_untrusted_model_storage(case: str) -> None:
-    contracts = _contracts()
-    request = WorkerRequest.create(
-        content=_CONTENT,
-        contracts=contracts,
-        provider_descriptor=_provider_descriptor(),
-        execution_descriptor=_isolated_execution_descriptor(),
-    )
-    native = NativeMeasurement.create(
-        content_sha256=request.content_sha256,
-        normalized_digest=_NORMALIZED_DIGEST,
-        contracts=contracts,
-        values=_values(),
-    )
-    result = WorkerResult.from_measurement(request=request, measurement=native)
+    request, result, native = _successful_request_result()
     assert replay_worker_result(request, result) == native
 
     forged_request = request
@@ -520,10 +606,15 @@ def test_parent_replay_revalidates_untrusted_model_storage(case: str) -> None:
     elif case == "request-subclass":
 
         class _ForgedRequest(WorkerRequest):
-            pass
+            def __getattribute__(self, name: str) -> object:
+                if name == "contracts":
+                    message = "forged request storage was accessed"
+                    raise AssertionError(message)
+                return super().__getattribute__(name)
 
-        forged_request = _ForgedRequest.model_validate(
-            request.model_dump(mode="python", by_alias=True)
+        forged_request = _ForgedRequest.model_construct(
+            _fields_set=set(WorkerRequest.model_fields),
+            **request.model_dump(mode="python", by_alias=False),
         )
     elif case == "request-fields-set":
         forged_request = WorkerRequest.model_construct(
@@ -543,6 +634,71 @@ def test_parent_replay_revalidates_untrusted_model_storage(case: str) -> None:
 
     with pytest.raises(ValueError, match=match):
         replay_worker_result(forged_request, forged_result)
+
+
+@pytest.mark.parametrize("case", ["request", "success"])
+def test_parent_replay_rejects_nested_model_subclass_storage(case: str) -> None:
+    request, result, _native = _successful_request_result()
+    forged_request = request
+    forged_result = result
+    if case == "request":
+
+        class _MetricContractSubclass(MetricContract):
+            pass
+
+        forged_contract = _MetricContractSubclass.model_validate(
+            request.contracts[0].model_dump(mode="python")
+        )
+        forged_request = request.model_copy(
+            update={"contracts": (forged_contract, *request.contracts[1:])}
+        )
+    else:
+
+        class _MetricValueSubclass(MetricValue):
+            pass
+
+        assert result.success is not None
+        forged_value = _MetricValueSubclass.model_validate(
+            result.success.values[0].model_dump(mode="python")
+        )
+        forged_success = result.success.model_copy(
+            update={"values": (forged_value, *result.success.values[1:])}
+        )
+        forged_result = result.model_copy(update={"success": forged_success})
+
+    with pytest.raises(ValueError, match=r"canonical|contracts|values"):
+        replay_worker_result(forged_request, forged_result)
+
+
+def test_worker_result_rejects_metric_value_subclass_storage() -> None:
+    class _MetricValueSubclass(MetricValue):
+        pass
+
+    contracts = _contracts()
+    request = WorkerRequest.create(
+        content=_CONTENT,
+        contracts=contracts,
+        provider_descriptor=_provider_descriptor(),
+        execution_descriptor=_isolated_execution_descriptor(),
+    )
+    native = NativeMeasurement.create(
+        content_sha256=request.content_sha256,
+        normalized_digest=_NORMALIZED_DIGEST,
+        contracts=contracts,
+        values=_values(),
+    )
+    payload = WorkerResult.from_measurement(
+        request=request,
+        measurement=native,
+    ).model_dump(mode="python", by_alias=True)
+    values = _values()
+    payload["success"]["values"] = (
+        _MetricValueSubclass.model_validate(values[0].model_dump(mode="python")),
+        values[1],
+    )
+
+    with pytest.raises(ValueError, match=r"canonical|values"):
+        WorkerResult.model_validate(payload)
 
 
 def test_parent_replay_rejects_a_result_bound_to_another_request() -> None:

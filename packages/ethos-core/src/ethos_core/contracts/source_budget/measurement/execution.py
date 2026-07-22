@@ -12,13 +12,6 @@ from pydantic import ConfigDict
 from pydantic import Field
 from pydantic import model_validator
 
-from ethos_core.contracts.source_budget.measurement.worker.protocol.core import WORKER_PROTOCOL_ID
-from ethos_core.contracts.source_budget.measurement.worker.protocol.core import (
-    worker_protocol_descriptor,
-)
-from ethos_core.contracts.source_budget.measurement.worker.protocol.core import (
-    worker_protocol_descriptor_digest,
-)
 from ethos_core.contracts.source_budget.measurement.worker.resource import (
     WORKER_RESOURCE_PROFILE_ID,
 )
@@ -47,6 +40,14 @@ _PARSER_EXECUTION: dict[str, tuple[ExecutionMode, int]] = {
     "jinja2": ("isolated_worker_v1", 32768),
     "shell-lexical": ("isolated_worker_v1", 32768),
 }
+
+
+def _worker_protocol_reference() -> tuple[str, str]:
+    """Resolve the protocol identity lazily to keep schema imports acyclic."""
+    import ethos_core.contracts.source_budget.measurement.worker.protocol.core as protocol
+
+    descriptor = protocol.worker_protocol_descriptor()
+    return protocol.WORKER_PROTOCOL_ID, protocol.worker_protocol_descriptor_digest(descriptor)
 
 
 class DescriptorReference(BaseModel):
@@ -98,11 +99,7 @@ class IsolatedExecutionDescriptor(BaseModel):
     @model_validator(mode="after")
     def validate_descriptor_references(self) -> IsolatedExecutionDescriptor:
         """Require the exact repository-owned protocol and resource identities."""
-        protocol = worker_protocol_descriptor()
-        expected_protocol = (
-            WORKER_PROTOCOL_ID,
-            worker_protocol_descriptor_digest(protocol),
-        )
+        expected_protocol = _worker_protocol_reference()
         actual_protocol = self.worker_protocol.id, self.worker_protocol.digest
         if actual_protocol != expected_protocol:
             raise ValueError("source-budget execution descriptor worker protocol mismatch")
@@ -131,7 +128,7 @@ def execution_descriptor(mode: ExecutionMode, ceiling: int) -> ExecutionDescript
             max_carrier_bytes=ceiling,
         )
     if mode == "isolated_worker_v1":
-        protocol = worker_protocol_descriptor()
+        protocol_id, protocol_digest = _worker_protocol_reference()
         resource = worker_resource_profile_descriptor()
         return IsolatedExecutionDescriptor(
             schema="ethos-source-budget-execution-descriptor-v1",
@@ -139,8 +136,8 @@ def execution_descriptor(mode: ExecutionMode, ceiling: int) -> ExecutionDescript
             execution_mode=mode,
             max_carrier_bytes=ceiling,
             worker_protocol=DescriptorReference(
-                id=WORKER_PROTOCOL_ID,
-                digest=worker_protocol_descriptor_digest(protocol),
+                id=protocol_id,
+                digest=protocol_digest,
             ),
             resource_profile=DescriptorReference(
                 id=WORKER_RESOURCE_PROFILE_ID,

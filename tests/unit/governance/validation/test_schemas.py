@@ -74,6 +74,7 @@ def test_schema_validation_report_covers_all_ethos_schemas() -> None:
     assert report["schemas"]["promotion-target.schema.json"]["ok"] is True
     assert report["schemas"]["source-budget-carriers.schema.json"]["ok"] is True
     assert report["schemas"]["source-budget-metrics.schema.json"]["ok"] is True
+    assert report["schemas"]["source-budget-worker-protocol.schema.json"]["ok"] is True
     assert report["schemas"]["capability-profile.schema.json"]["ok"] is True
     assert report["schemas"]["skill-activation.schema.json"]["ok"] is True
     assert report["schemas"]["skill-registry.schema.json"]["ok"] is True
@@ -130,7 +131,14 @@ def test_schema_validation_keeps_adopter_capability_profiles_advisory(
     profile_dir = tmp_path / "openspec" / "specs" / "legacy-family"
     profile_dir.mkdir(parents=True)
     (profile_dir / "capability.toml").write_text(
-        'family = "legacy-family"\nowner_object = "legacy-kernel"\nprimary_invariant = "legacy repository owns its own capability profile"\nrouting_question = "Is this adopter capability in scope?"\ndecision_axes = ["adopter_metadata"]\n\n[boundary_rules]\nlegacy = "legacy adopter profile shape remains adopter-owned metadata"\n',
+        'family = "legacy-family"\n'
+        'owner_object = "legacy-kernel"\n'
+        'primary_invariant = "legacy repository owns its own capability profile"\n'
+        'routing_question = "Is this adopter capability in scope?"\n'
+        'decision_axes = ["adopter_metadata"]\n'
+        "\n"
+        "[boundary_rules]\n"
+        'legacy = "legacy adopter profile shape remains adopter-owned metadata"\n',
         encoding="utf-8",
     )
 

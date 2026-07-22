@@ -42,4 +42,4 @@ def test_family_profile_rejects_noncanonical_path(tmp_path: Path) -> None:
         root=repo, name="feature", path=tmp_path / "outside", holder_ref=_HOLDER, apply=True
     )
     assert report["ok"] is False
-    assert report["required_gaps"] == ["lane_start_path_not_canonical"]
+    assert report["required_gaps"] == ["work_lane_path_not_canonical"]

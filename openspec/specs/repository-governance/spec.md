@@ -1593,136 +1593,137 @@ bound the exact resolution.
 ETHOS SHALL materialize successful exceptional-resolution decisions, receipts,
 preservation manifests, and bounded clear records under a stable local records
 owner derived from the configured accepted checkout. The records owner SHALL
-survive linked Work Lane retirement. Inventory, verification, and clear SHALL
-retain read-only compatibility with legacy per-worktree lane-resolution
-artifacts, but conflicting records for one decision SHALL fail closed.
+survive linked Work Lane retirement. Inventory and clear SHALL retain
+read-only compatibility with legacy per-worktree lane-resolution artifacts,
+but conflicting records for one decision SHALL fail closed.
 
 #### Scenario: a preserved resolution is discoverable
 
-- **GIVEN** a `preserve` or `preserve-retire` decision succeeds
+- **GIVEN** a preserve or preserve-retire decision succeeds
 - **WHEN** ETHOS completes the local effect
 - **THEN** it writes a schema-validated immutable receipt bound to the observed
   lane, head, decision, and manifest when present
 - **AND** inventory reports retained or unindexed state without minting
-  authority from an artifact
+  authority from an artifact.
 
 #### Scenario: a carrier invokes preservation and is later retired
 
-- **GIVEN** a Work Lane invokes `lane_resolution/preserve-retire` for an exact
+- **GIVEN** a Work Lane invokes lane_resolution/preserve-retire for an exact
   source observation
 - **WHEN** ETHOS writes the decision, package, and completion receipt
-- **THEN** those records are owned by the configured accepted checkout's sibling
-  recovery-records root rather than by the invoking Work Lane
-- **AND** later retirement of the invoking Work Lane does not remove them
-- **AND** accepted-root inventory and package verification still report the
-  retained package after both source and carrier worktrees are absent.
+- **THEN** those records SHALL be owned by the configured accepted checkout's
+  sibling recovery-records root rather than by the invoking Work Lane
+- **AND** later retirement of the invoking Work Lane SHALL not remove them
+- **AND** accepted-root inventory and package verification SHALL still report
+  the retained package after both source and carrier worktrees are absent.
 
 #### Scenario: immutable decision records cannot collide or redirect ownership
 
 - **GIVEN** a caller records more than one decision for the same branch, or
   supplies a path that already exists
 - **WHEN** ETHOS selects or writes the decision path
-- **THEN** each default path is unique and an existing explicit path blocks with
-  `lane_resolution_decision_path_exists`
-- **AND** caller Work Lane policy bytes do not redirect the configured accepted
-  checkout's sibling records owner.
+- **THEN** each default path SHALL be unique and an existing explicit path SHALL
+  block with `lane_resolution_decision_path_exists`
+- **AND** caller Work Lane policy bytes SHALL NOT redirect the configured
+  accepted checkout's sibling records owner.
 
 #### Scenario: a new decision path targets a legacy or unrelated root
 
 - **GIVEN** a caller supplies an explicit decision path outside the configured
   accepted checkout's sibling lane-resolution records root
 - **WHEN** ETHOS plans the decision
-- **THEN** it reports `lane_resolution_decision_path_not_local_artifact`
-- **AND** it does not write into a legacy, foreign-worktree, or unrelated root.
+- **THEN** it SHALL report `lane_resolution_decision_path_not_local_artifact`
+- **AND** it SHALL not write into a legacy, foreign-worktree, or unrelated root.
 
 #### Scenario: a tampered decision identifier attempts package path escape
 
 - **GIVEN** a stored decision identifier is not canonical
   `lane-decision:<UUID>` or its package realpath escapes the pinned records root
 - **WHEN** ETHOS applies the decision
-- **THEN** it blocks before package materialization
-- **AND** it does not write into a foreign, legacy, or unrelated root.
+- **THEN** it SHALL block before package materialization
+- **AND** it SHALL not write into a foreign, legacy, or unrelated root.
 
 #### Scenario: an existing package directory cannot be reused
 
 - **GIVEN** the canonical package path for one decision already exists
 - **WHEN** ETHOS applies a preserve or preserve-retire decision
-- **THEN** it reports `lane_resolution_preservation_package_exists`
-- **AND** it does not overwrite any existing recovery bytes.
+- **THEN** it SHALL report `lane_resolution_preservation_package_exists`
+- **AND** it SHALL not overwrite any existing recovery bytes.
 
 #### Scenario: a completion receipt is already present or reserved
 
 - **GIVEN** the deterministic completion-receipt destination already exists or
   another conforming writer owns its hidden reservation sidecar
-- **WHEN** ETHOS applies a `preserve-retire` decision
-- **THEN** it reports `lane_resolution_receipt_path_exists` before package, ref,
-  or worktree mutation
-- **AND** it preserves the existing bytes, branch, and linked worktree.
+- **WHEN** ETHOS applies a preserve-retire decision
+- **THEN** it SHALL report `lane_resolution_receipt_path_exists` before package,
+  ref, or worktree mutation
+- **AND** it SHALL preserve the existing bytes, branch, and linked worktree.
 
 #### Scenario: receipt reservation follows the effect boundary
 
 - **GIVEN** ETHOS exclusively reserves a completion-receipt destination
 - **WHEN** preparation fails before effect or final receipt materialization
   succeeds
-- **THEN** it releases the reservation
+- **THEN** it SHALL release the reservation
 - **AND** when a destructive effect completes but final receipt writing fails,
-  it retains the reservation for reconciliation and still enforces the final
-  writer's no-clobber check.
+  it SHALL retain the reservation for reconciliation and still enforce the
+  final writer's no-clobber check.
 
 #### Scenario: a package or record path contains a symlink component
 
 - **GIVEN** a package, manifest, receipt, or clear-record path redirects through
   a symlink
 - **WHEN** ETHOS inventories, writes, verifies, or clears resolution records
-- **THEN** it reports `lane_resolution_package_path_unsafe` or
+- **THEN** it SHALL report `lane_resolution_package_path_unsafe` or
   `lane_resolution_record_path_unsafe`
-- **AND** it does not write or delete outside the pinned records owner.
+- **AND** it SHALL not write or delete outside the pinned records owner.
 
 #### Scenario: a legacy Work Lane still owns retained recovery material
 
 - **GIVEN** a linked Work Lane contains an ignored legacy
-  `build/artifacts/lane-resolution/*/manifest.json`
+  build/artifacts/lane-resolution/*/manifest.json
 - **WHEN** ordinary landed or superseded retirement reobserves the selected
   worktree
-- **THEN** ETHOS blocks with `lane_resolution_legacy_retention_present` before
-  removing the worktree, branch ref, or lease
-- **AND** the retained material still requires migration or an evidence-bound
-  clear.
+- **THEN** ETHOS SHALL block with `lane_resolution_legacy_retention_present`
+  before removing the worktree, branch ref, or lease
+- **AND** it SHALL report that retained lane-resolution recovery material still
+  requires migration or an evidence-bound clear.
 
 #### Scenario: duplicate local decision records conflict
 
 - **GIVEN** canonical and legacy stores expose the same decision ID with
-  different manifest, decision, receipt, or clear-record content
+  different manifest or receipt content
 - **WHEN** inventory or clear is requested
-- **THEN** ETHOS reports `lane_resolution_decision_record_conflict`
-- **AND** it does not choose one record by scan order or remove either package.
+- **THEN** ETHOS SHALL report `lane_resolution_decision_record_conflict`
+- **AND** it SHALL not choose one record by scan order or remove either package.
 
 #### Scenario: byte-identical package copies make clear ambiguous
 
 - **GIVEN** more than one physical package location exposes the same decision ID
   and manifest bytes
 - **WHEN** clear is requested
-- **THEN** ETHOS reports `lane_resolution_clear_package_ambiguous`
-- **AND** it does not remove only the scan-order-selected copy.
+- **THEN** ETHOS SHALL report `lane_resolution_clear_package_ambiguous`
+- **AND** it SHALL not remove only the scan-order-selected copy.
 
 #### Scenario: durable manifest and receipt binding diverges
 
 - **GIVEN** a retained manifest digest no longer matches its immutable receipt
 - **WHEN** inventory, verification, or clear reads durable records
-- **THEN** ETHOS reports `lane_resolution_manifest_receipt_mismatch`
-- **AND** it does not report the package as consistently retained or cleared.
+- **THEN** ETHOS SHALL report `lane_resolution_manifest_receipt_mismatch`
+- **AND** it SHALL not report the package as consistently retained or cleared.
 
 #### Scenario: final receipt materialization fails after effect
 
 - **GIVEN** a stable decision and verified preservation package exist
 - **WHEN** the bounded source transition completes but immutable receipt writing
   fails
-- **THEN** ETHOS reports `ok=false`, `state=partial_transition`, and
+- **THEN** ETHOS SHALL report `ok=false`, `state=partial_transition`, and
   `lane_resolution_receipt_write_failed_after_effect`
-- **AND** the stable decision and package remain inspectable for reconciliation
-- **AND** the exclusive receipt reservation remains present for explicit
+- **AND** the stable decision and package SHALL remain inspectable for
   reconciliation
-- **AND** the command does not report ordinary success.
+- **AND** the exclusive receipt reservation SHALL remain present for explicit
+  reconciliation
+- **AND** the command SHALL not report ordinary success.
 
 ### Requirement: Evidence-bound preservation-package clearing
 

@@ -33,7 +33,7 @@ owner = "ethos-repository"
 scope = "One invalid accepted range, the lane-resolution recovery-record owner, legacy retained-package retirement admission, and one exact post-closeout recovery patch."
 
 [carriers]
-openspec = "openspec/changes/ownerless-skill-resolution-retention-repair-20260720"
+openspec = "openspec/changes/archive/2026-07-22-ownerless-skill-resolution-retention-repair-20260720"
 fallback = "Keep remote publication blocked, preserve every legacy worktree containing a retained manifest, and leave the lost historical receipt explicitly unresolved until a new exact recovery package is verified in the stable records owner."
 kill_signal = "A reset or force update touches protected refs, a foreign lane is mutated, an old decision or receipt is fabricated, a retained manifest is deleted by ordinary retirement, GitHub is written, or publication proceeds without fresh full proof and stable inventory."
 
@@ -54,7 +54,7 @@ targets = [
   "evidence/claims/ownerless-skill-resolution-retention-repair-20260720.toml",
   "evidence/chronicle/ownerless-skill-resolution-retention-repair-20260720/2026-07-20.md",
   "evidence/parity/generic-shadow.json",
-  "openspec/changes/ownerless-skill-resolution-retention-repair-20260720",
+  "openspec/changes/archive/2026-07-22-ownerless-skill-resolution-retention-repair-20260720",
   "openspec/specs/repository-governance/spec.md",
   "packages/ethos/src/ethos/adapters/mutation/lane_retirement/shared/core.py",
   "packages/ethos/src/ethos/adapters/mutation/resolution/_effects.py",

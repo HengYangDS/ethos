@@ -17,6 +17,8 @@ from typing import TYPE_CHECKING
 from pydantic import ValidationError
 
 from ethos.adapters.repo.source_budget.measurement.native.shell.core import shell_tokens
+from ethos_core.contracts.source_budget.measurement.execution import execution_descriptor
+from ethos_core.contracts.source_budget.measurement.execution import parser_execution_contract
 from ethos_core.contracts.source_budget.measurements import MetricValue
 from ethos_core.contracts.source_budget.measurements import NativeMeasurement
 from ethos_core.contracts.source_budget.measurements import NativeMeasurementLoad
@@ -198,13 +200,13 @@ def _admit_native_request(
             _raise(_ProviderError, "source_budget_native_contract_invalid")
         if any(type(item) is not MetricContract for item in contracts):
             _raise(_ProviderError, "source_budget_native_contract_invalid")
-        contracts = tuple(
-            MetricContract.model_validate(item.model_dump(mode="python")) for item in contracts
-        )
         provider_ids = tuple(_provider_id_for_contract(item) for item in contracts)
         provider_id = provider_ids[0]
         if provider_id is None or any(item != provider_id for item in provider_ids):
             _raise(_ProviderError, "source_budget_native_provider_signature_mismatch")
+        contracts = tuple(
+            MetricContract.model_validate(item.model_dump(mode="python")) for item in contracts
+        )
         expected_coordinates = set(_provider_metrics(provider_id))
         actual_coordinates = {(item.metric_id, item.unit) for item in contracts}
         if actual_coordinates != expected_coordinates:
@@ -333,6 +335,7 @@ def _provider_descriptor(provider_id: str) -> dict[str, object]:
     parser_id, parser_version = _PROVIDER_PARSERS[provider_id].split("|")
     normalization_id, normalization_version = _provider_normalization(provider_id)
     corpus_digest = hashlib.sha256(_CONFORMANCE_CASES[provider_id]).hexdigest()
+    execution_mode, max_carrier_bytes, _, _ = parser_execution_contract(parser_id)
     return {
         "algorithm_rules": _PROVIDER_RULES[provider_id].split("|"),
         "canonical_runtime": _CANONICAL_RUNTIME,
@@ -341,6 +344,9 @@ def _provider_descriptor(provider_id: str) -> dict[str, object]:
             "expected_output_digest": _EXPECTED_CONFORMANCE_DIGESTS[provider_id],
         },
         "dependencies": dict(_PROVIDER_DEPENDENCIES.get(provider_id, {})),
+        "execution": execution_descriptor(execution_mode, max_carrier_bytes).model_dump(
+            mode="json"
+        ),
         "metrics": [
             {"metric_id": metric_id, "unit": unit}
             for metric_id, unit in _provider_metrics(provider_id)
@@ -348,7 +354,7 @@ def _provider_descriptor(provider_id: str) -> dict[str, object]:
         "normalization": {"id": normalization_id, "version": normalization_version},
         "parser": {"id": parser_id, "version": parser_version},
         "provider_id": provider_id,
-        "schema": "ethos-source-budget-native-provider-v1",
+        "schema": "ethos-source-budget-native-provider-v2",
     }
 
 
@@ -359,12 +365,20 @@ def _provider_grammar_digest(provider_id: str) -> str:
 
 def _provider_id_for_contract(contract: MetricContract) -> str | None:
     for provider_id in _PROVIDER_IDS:
+        parser_id = _PROVIDER_PARSERS[provider_id].split("|", 1)[0]
         if (
             f"{contract.parser_id}|{contract.parser_version}" == _PROVIDER_PARSERS[provider_id]
             and contract.grammar_digest == _provider_grammar_digest(provider_id)
             and (contract.normalization_id, contract.normalization_version)
             == _provider_normalization(provider_id)
             and (contract.metric_id, contract.unit) in _provider_metrics(provider_id)
+            and (
+                contract.execution_mode,
+                contract.max_carrier_bytes,
+                contract.execution_contract_id,
+                contract.execution_contract_digest,
+            )
+            == parser_execution_contract(parser_id)
         ):
             return provider_id
     return None

@@ -1,5 +1,3 @@
-# ruff: noqa: INP001
-
 from __future__ import annotations
 
 import importlib
@@ -69,7 +67,9 @@ def _python_contracts() -> tuple[MetricContract, ...]:
 
 
 def _python_limit() -> int:
-    _mode, limit = metric_provider_resource_contract(_python_contracts())
+    _mode, limit, _execution_id, _execution_digest = metric_provider_resource_contract(
+        _python_contracts()
+    )
     return limit
 
 

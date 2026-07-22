@@ -392,7 +392,7 @@ def test_canonical_digest_has_reviewed_golden_and_domain_separation() -> None:
     resolved_digest = canonical.resolved_model_digest((contract,))
     vector_digest = canonical.vector_model_digest((coordinate,))
 
-    assert resolved_digest == ("1ddbd7eb548ee59df4a94f51102acff53d687d461f60a9467f2893009c4f43e5")
+    assert resolved_digest == ("9d4e5e6d941ef7305a624c588d614123fd247733add484f01412ba6e9678a9ed")
     assert vector_digest == "a6ac56136eed38a95f73e6825ce8107f58ac1cbdf175e9ebddd75b76175c3f24"
     assert resolved_digest != vector_digest
     assert not canonical.is_valid_relative_path(chr(0xD800))

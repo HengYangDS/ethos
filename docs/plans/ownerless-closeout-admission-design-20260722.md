@@ -10,6 +10,8 @@ relations:
 
 Status: approved design; implementation has not started.
 
+Purpose: define the fail-closed repair that permits semantically absorbed, clean ownerless lanes to retire without inventing ownership or bypassing repository-family checks.
+
 ## Problem
 
 A clean ownerless lane may have an accepted Chronicle that proves semantic
@@ -79,4 +81,4 @@ Required regression coverage proves:
 
 ## See Also
 
-See also: [Ownerless First-Batch Retirement](ownerless-first-batch-retirement-20260722.md), [Authorized Work Lane Cohort Closeout](all-lanes-authorized-closeout-20260718.md), and [Repository Family Governance](../governance/repository-family-governance.md).
+See also: [Ownerless First-Batch Retirement](ownerless-first-batch-retirement-20260722.md), [Authorized Work Lane Cohort Closeout](all-lanes-authorized-closeout-20260718.md), and [Detached Worktree Housekeeping](detached-worktree-housekeeping-20260719.md).

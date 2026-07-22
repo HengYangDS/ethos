@@ -219,13 +219,31 @@ def apply_lane_resolution(
                 chronicle_event=_chronicle_event(decision, receipt),
             )
         finally:
-            if not effect_started or receipt_written:
-                release_resolution_receipt_reservation(
-                    root=control_root,
-                    decision_id=decision_id,
-                    artifact_root=artifact_root,
-                )
+            _release_receipt_reservation_unless_partial(
+                control_root=control_root,
+                artifact_root=artifact_root,
+                decision_id=decision_id,
+                effect_started=effect_started,
+                receipt_written=receipt_written,
+            )
     return finish_report()
+
+
+def _release_receipt_reservation_unless_partial(
+    *,
+    control_root: Path,
+    artifact_root: Path,
+    decision_id: str,
+    effect_started: bool,
+    receipt_written: bool,
+) -> None:
+    if effect_started and not receipt_written:
+        return
+    release_resolution_receipt_reservation(
+        root=control_root,
+        decision_id=decision_id,
+        artifact_root=artifact_root,
+    )
 
 
 def _read_decision(path: Path, *, root: Path) -> tuple[dict[str, Any], list[str]]:

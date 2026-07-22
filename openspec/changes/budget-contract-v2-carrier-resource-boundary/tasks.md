@@ -13,17 +13,17 @@
 
 ## 1. MetricContract v4 RED And GREEN
 
-- [ ] 1.1 Add exactly eight diagnostic RED nodes without first replacing the
+- [x] 1.1 Add exactly eight diagnostic RED nodes without first replacing the
   shared valid fixture: bounded-v4 positive, isolated-v4 positive, complete-v3
   fail-closed, helper four-tuple, parser-global mode/id/digest drift,
   execution-identity propagation with unchanged measurement vector, generated
   schema requirements, and repository static-policy mapping.
-- [ ] 1.2 Implement v4 models and make
+- [x] 1.2 Implement v4 models and make
   `metric_provider_resource_contract(...)` return exactly
   `(execution_mode, max_carrier_bytes, execution_contract_id,
   execution_contract_digest)`, preserving the old first-two-field order. Keep
   carrier-manifest v2, 16 profile ids, and 28 `*-v2:*` contract ids unchanged.
-- [ ] 1.3 Add the pure-kernel execution descriptor owner at
+- [x] 1.3 Add the pure-kernel execution descriptor owner at
   `measurement/execution.py` plus descriptor-only worker protocol/resource
   owners, then provider descriptor v2. Atomically update 28 policy atoms and
   every grammar/digest golden from owner-computed real digests. The four current

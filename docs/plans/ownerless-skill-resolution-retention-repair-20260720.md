@@ -79,7 +79,7 @@ tests/unit/lanes/test_lanes_retire.py.
 ## Task 3: Minimal implementation
 
 **Files:** resolution `_shared.py`, `_observation.py`, `_effects.py`,
-`record_store.py`, `lane.py`, `receipts.py`, CLI resolution, ordinary retirement
+`records/core.py`, `lane.py`, `receipts.py`, CLI resolution, ordinary retirement
 shared core, and the Ruff ignored-rule ratchet.
 
 - [x] Implement accepted control-root and sibling records-root resolution.

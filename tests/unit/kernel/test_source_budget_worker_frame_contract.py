@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from typing import TYPE_CHECKING
 
@@ -30,6 +31,8 @@ from tests.unit.kernel.test_source_budget_worker_protocol_contract import _value
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from ethos_core.contracts.source_budget.metrics import MetricContract
+
 _REQUEST_MAGIC = b"ESBWREQ1"
 _RESULT_MAGIC = b"ESBWRES1"
 
@@ -51,20 +54,87 @@ def _request_result() -> tuple[WorkerRequest, bytes, WorkerResult]:
     return request, _CONTENT, WorkerResult.from_measurement(request=request, measurement=native)
 
 
-def _raw_request_frame(header: bytes, content: bytes = _CONTENT) -> bytes:
+def _request_for_contracts(contracts: tuple[MetricContract, ...]) -> WorkerRequest:
+    return WorkerRequest.create(
+        content=_CONTENT,
+        contracts=contracts,
+        provider_descriptor=_provider_descriptor(),
+        execution_descriptor=_isolated_execution_descriptor(),
+    )
+
+
+def _request_at_header_size(target: int) -> tuple[WorkerRequest, bytes]:
+    contracts = _contracts()
+    base = _request_for_contracts(contracts)
+    base_header = _canonical_json(base.model_dump(mode="json", by_alias=True))
+    suffix_length = target - len(base_header)
+    assert suffix_length >= 0
+    first = contracts[0].model_copy(
+        update={"contract_id": contracts[0].contract_id + ("x" * suffix_length)}
+    )
+    request = _request_for_contracts((first, *contracts[1:]))
+    header = _canonical_json(request.model_dump(mode="json", by_alias=True))
+    assert len(header) == target
+    return request, header
+
+
+def _result_at_total_size(target: int) -> tuple[WorkerResult, bytes]:
+    _request, _content, base_result = _request_result()
+    base_payload = _canonical_json(base_result.model_dump(mode="json", by_alias=True))
+    suffix_length = target - 12 - len(base_payload)
+    assert suffix_length >= 0
+    contracts = _contracts()
+    contract_id = contracts[0].contract_id + ("x" * suffix_length)
+    first_contract = contracts[0].model_copy(update={"contract_id": contract_id})
+    adjusted_contracts = (first_contract, *contracts[1:])
+    values = _values()
+    first_value = values[0].model_copy(update={"contract_id": contract_id})
+    request = _request_for_contracts(adjusted_contracts)
+    native = NativeMeasurement.create(
+        content_sha256=request.content_sha256,
+        normalized_digest=_NORMALIZED_DIGEST,
+        contracts=adjusted_contracts,
+        values=(first_value, *values[1:]),
+    )
+    result = WorkerResult.from_measurement(request=request, measurement=native)
+    payload = _canonical_json(result.model_dump(mode="json", by_alias=True))
+    assert 12 + len(payload) == target
+    return result, payload
+
+
+def _resigned_request_header(request: WorkerRequest, content: bytes) -> bytes:
+    payload = request.model_dump(mode="json", by_alias=True)
+    payload["content_sha256"] = hashlib.sha256(content).hexdigest()
+    unsigned = {key: value for key, value in payload.items() if key != "request_digest"}
+    payload["request_digest"] = hashlib.sha256(_canonical_json(unsigned)).hexdigest()
+    return _canonical_json(payload)
+
+
+def _raw_request_frame(
+    header: bytes,
+    content: bytes = _CONTENT,
+    *,
+    header_length: int | None = None,
+    content_length: int | None = None,
+) -> bytes:
     return b"".join(
         (
             _REQUEST_MAGIC,
-            len(header).to_bytes(4, "big"),
-            len(content).to_bytes(4, "big"),
+            (len(header) if header_length is None else header_length).to_bytes(4, "big"),
+            (len(content) if content_length is None else content_length).to_bytes(4, "big"),
             header,
             content,
         )
     )
 
 
-def _raw_result_frame(payload: bytes) -> bytes:
-    return _RESULT_MAGIC + len(payload).to_bytes(4, "big") + payload
+def _raw_result_frame(
+    payload: bytes,
+    *,
+    payload_length: int | None = None,
+) -> bytes:
+    length = len(payload) if payload_length is None else payload_length
+    return _RESULT_MAGIC + length.to_bytes(4, "big") + payload
 
 
 def _duplicate_json_member(payload: object, key: str, value: object) -> bytes:
@@ -230,8 +300,71 @@ def test_frame_decoders_reject_duplicate_json_keys(direction: str, scope: str) -
         decoder(frame)
 
 
+@pytest.mark.parametrize("case", ["header-truncated", "content-truncated", "content-overclaim"])
+def test_request_decoder_rejects_truncation_and_overclaim(case: str) -> None:
+    request, content, _result = _request_result()
+    header = _canonical_json(request.model_dump(mode="json", by_alias=True))
+    if case == "header-truncated":
+        frame = _raw_request_frame(header[:-1], content, header_length=len(header))
+    elif case == "content-truncated":
+        frame = _raw_request_frame(header, content[:-1], content_length=len(content))
+    else:
+        frame = _raw_request_frame(header, content, content_length=len(content) + 1)
+
+    with pytest.raises(ValueError, match=r"length|truncated|frame|json"):
+        decode_request_frame(frame)
+
+
+@pytest.mark.parametrize("case", ["payload-truncated", "payload-overclaim"])
+def test_result_decoder_rejects_truncation_and_overclaim(case: str) -> None:
+    _request, _content, result = _request_result()
+    payload = _canonical_json(result.model_dump(mode="json", by_alias=True))
+    if case == "payload-truncated":
+        frame = _raw_result_frame(payload[:-1], payload_length=len(payload))
+    else:
+        frame = _raw_result_frame(payload, payload_length=len(payload) + 1)
+
+    with pytest.raises(ValueError, match=r"length|truncated|frame|json"):
+        decode_result_frame(frame)
+
+
 @pytest.mark.parametrize("direction", ["request", "result"])
-def test_frame_decoders_reject_unknown_magic(direction: str) -> None:
+def test_frame_decoders_reject_trailing_bytes(direction: str) -> None:
+    request, content, result = _request_result()
+    if direction == "request":
+        decoder = decode_request_frame
+        frame = encode_request_frame(request, content)
+    else:
+        decoder = decode_result_frame
+        frame = encode_result_frame(result)
+
+    with pytest.raises(ValueError, match=r"length|trailing|frame"):
+        decoder(frame + b"x")
+
+
+def test_result_decoder_rejects_a_second_complete_response() -> None:
+    _request, _content, result = _request_result()
+    frame = encode_result_frame(result)
+
+    with pytest.raises(ValueError, match=r"length|trailing|frame"):
+        decode_result_frame(frame + frame)
+
+
+@pytest.mark.parametrize(
+    ("direction", "replacement_magic"),
+    [
+        ("request", b"BADMAGIC"),
+        ("request", _RESULT_MAGIC),
+        ("request", b"ESBWREQ2"),
+        ("result", b"BADMAGIC"),
+        ("result", _REQUEST_MAGIC),
+        ("result", b"ESBWRES2"),
+    ],
+)
+def test_frame_decoders_require_exact_direction_magic_and_version(
+    direction: str,
+    replacement_magic: bytes,
+) -> None:
     request, content, result = _request_result()
     if direction == "request":
         decoder = decode_request_frame
@@ -241,23 +374,107 @@ def test_frame_decoders_reject_unknown_magic(direction: str) -> None:
         frame = encode_result_frame(result)
 
     with pytest.raises(ValueError, match="magic"):
-        decoder(b"BADMAGIC" + frame[8:])
+        decoder(replacement_magic + frame[8:])
 
 
-@pytest.mark.parametrize("direction", ["request", "result"])
-def test_frame_decoders_reject_wrong_direction_magic(direction: str) -> None:
-    request, content, result = _request_result()
-    if direction == "request":
-        decoder = decode_request_frame
-        frame = encode_request_frame(request, content)
-        wrong_magic = _RESULT_MAGIC
+@pytest.mark.parametrize("operation", ["encode", "decode"])
+@pytest.mark.parametrize("size", [32767, 32768, 32769])
+def test_request_codec_enforces_exact_header_max_bytes(operation: str, size: int) -> None:
+    request, header = _request_at_header_size(size)
+    raw = _raw_request_frame(header)
+    if size <= 32768:
+        if operation == "encode":
+            assert encode_request_frame(request, _CONTENT) == raw
+        else:
+            assert decode_request_frame(raw) == (request, _CONTENT)
+    elif operation == "encode":
+        with pytest.raises(ValueError, match=r"header|limit|max"):
+            encode_request_frame(request, _CONTENT)
     else:
-        decoder = decode_result_frame
-        frame = encode_result_frame(result)
-        wrong_magic = _REQUEST_MAGIC
+        with pytest.raises(ValueError, match=r"header|limit|max"):
+            decode_request_frame(raw)
 
-    with pytest.raises(ValueError, match="magic"):
-        decoder(wrong_magic + frame[8:])
+
+@pytest.mark.parametrize("total", [327679, 327680, 327681])
+def test_request_decoder_enforces_total_stdin_max_before_json_parse(total: int) -> None:
+    header = b"x"
+    content = b"x" * (total - 17)
+    frame = _raw_request_frame(header, content)
+    assert len(frame) == total
+    if total <= 327680:
+        with pytest.raises(ValueError, match=r"(?i)json|canonical"):
+            decode_request_frame(frame)
+    else:
+        with pytest.raises(ValueError, match=r"stdin|limit|max"):
+            decode_request_frame(frame)
+
+
+@pytest.mark.parametrize("total", [327679, 327680, 327681])
+def test_request_encoder_enforces_total_stdin_max(total: int) -> None:
+    request, _header = _request_at_header_size(32768)
+    content = b"x" * (total - 16 - 32768)
+    oversized_request = WorkerRequest.model_validate_json(
+        _resigned_request_header(request, content)
+    )
+    assert 16 + len(_resigned_request_header(request, content)) + len(content) == total
+    if total <= 327680:
+        with pytest.raises(ValueError, match=r"carrier|ceiling|limit"):
+            encode_request_frame(oversized_request, content)
+    else:
+        with pytest.raises(ValueError, match=r"stdin|limit|max"):
+            encode_request_frame(oversized_request, content)
+
+
+@pytest.mark.parametrize("operation", ["encode", "decode"])
+@pytest.mark.parametrize("total", [65535, 65536, 65537])
+def test_result_codec_enforces_exact_total_max_bytes(operation: str, total: int) -> None:
+    result, payload = _result_at_total_size(total)
+    raw = _raw_result_frame(payload)
+    if total <= 65536:
+        if operation == "encode":
+            assert encode_result_frame(result) == raw
+        else:
+            assert decode_result_frame(raw) == result
+    elif operation == "encode":
+        with pytest.raises(ValueError, match=r"result|limit|max"):
+            encode_result_frame(result)
+    else:
+        with pytest.raises(ValueError, match=r"result|limit|max"):
+            decode_result_frame(raw)
+
+
+def test_request_decoder_revalidates_content_digest() -> None:
+    request, content, _result = _request_result()
+    frame = encode_request_frame(request, content)
+    substituted = b"x" * len(content)
+
+    with pytest.raises(ValueError, match=r"content.*digest"):
+        decode_request_frame(frame[: -len(content)] + substituted)
+
+
+def test_request_encoder_revalidates_execution_ceiling() -> None:
+    request, _content, _result = _request_result()
+    content = b"x" * 65537
+    oversized_request = WorkerRequest.model_validate_json(
+        _resigned_request_header(request, content)
+    )
+
+    with pytest.raises(ValueError, match=r"carrier|ceiling|limit"):
+        encode_request_frame(oversized_request, content)
+
+
+@pytest.mark.parametrize("size", [65536, 65537])
+def test_request_decoder_revalidates_execution_ceiling(size: int) -> None:
+    request, _content, _result = _request_result()
+    content = b"x" * size
+    frame = _raw_request_frame(_resigned_request_header(request, content), content)
+    if size == 65536:
+        decoded_request, decoded_content = decode_request_frame(frame)
+        assert decoded_request.content_sha256 == hashlib.sha256(content).hexdigest()
+        assert decoded_content == content
+    else:
+        with pytest.raises(ValueError, match=r"carrier|ceiling|limit"):
+            decode_request_frame(frame)
 
 
 @pytest.mark.parametrize(

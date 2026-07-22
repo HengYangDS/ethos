@@ -245,7 +245,7 @@ def _remove_linked_lane(
             "--stdin",
             check=False,
             stdin=(
-                f"start\nverify refs/heads/{accepted_branch} {accepted_head}\n"
+                f"start\nupdate refs/heads/{accepted_branch} {accepted_head} {accepted_head}\n"
                 f"delete refs/heads/{branch} {expected}\nprepare\ncommit\n"
             ),
         )

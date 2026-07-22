@@ -516,15 +516,9 @@ def _legacy_retention_gap(lane_path: Path) -> str:
     root = lane_path / LEGACY_ARTIFACT_ROOT
     if root.is_symlink():
         return "lane_resolution_legacy_retention_present"
-    try:
-        packages = os.scandir(root)
-    except FileNotFoundError:
-        return ""
-    except OSError:
-        return "lane_resolution_legacy_retention_observation_failed"
     gap = ""
     try:
-        with packages:
+        with os.scandir(root) as packages:
             for package in packages:
                 if package.is_symlink():
                     gap = "lane_resolution_legacy_retention_present"
@@ -535,8 +529,10 @@ def _legacy_retention_gap(lane_path: Path) -> str:
                     if any(item.name == "manifest.json" for item in files):
                         gap = "lane_resolution_legacy_retention_present"
                         break
+    except FileNotFoundError:
+        pass
     except OSError:
-        return "lane_resolution_legacy_retention_observation_failed"
+        gap = "lane_resolution_legacy_retention_observation_failed"
     return gap
 
 

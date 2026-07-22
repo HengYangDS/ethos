@@ -100,15 +100,8 @@ def _retire_landed(
     expect_head: str | None = None,
     apply: bool = False,
 ) -> dict[str, object]:
-    return core.retire_linked_work_lane(
-        root=root,
-        mode="landed",
-        request=LinkedRetirementRequest(
-            branch=branch,
-            expect_head=expect_head,
-            apply=apply,
-        ),
-    )
+    request = LinkedRetirementRequest(branch=branch, expect_head=expect_head, apply=apply)
+    return core.retire_linked_work_lane(root=root, mode="landed", request=request)
 
 
 def test_retire_plans_only_merged_lanes(tmp_path: Path) -> None:

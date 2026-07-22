@@ -33,9 +33,9 @@ generated_outputs_tracked_truth = false
 # (each limit sits near the role's p90–p95 so the genuine tail must split while
 # cohesive mid-size modules stay whole):
 #
-#   role=logic   (domain/adapters/kernel reducers):   500
-#   role=surface (CLI command groups / aggregators):  750
-#   role=test    (broad contract coverage):          1000
+#   role=logic   (domain/adapters/kernel reducers):  500
+#   role=surface (CLI command groups / aggregators): 800
+#   role=test    (broad contract coverage):          800
 #
 # There is NO per-file exemption and NO soft/hard split: a governance runtime that
 # forbids `# pragma: no cover` cannot ship a size-exemption table either. An

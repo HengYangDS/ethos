@@ -15,6 +15,7 @@ from pydantic import ConfigDict
 from pydantic import Field
 from pydantic import SerializeAsAny
 from pydantic import field_validator
+from pydantic import model_validator
 
 import ethos_core.contracts.source_budget.measurement.canonical as canonical
 
@@ -126,6 +127,28 @@ class WorkerRequest(BaseModel):
             for item in cast("list[object] | tuple[object, ...]", values)
         )
 
+    @model_validator(mode="after")
+    def _validate_contract_digests(self) -> Self:
+        """Require all contract-owned request digests to match typed contracts."""
+        contracts = cast("tuple[MetricContract, ...]", self.contracts)
+        if self.resolved_contracts_digest != canonical.resolved_model_digest(contracts):
+            raise ValueError("worker request resolved contracts digest mismatch")
+        if {item.grammar_digest for item in contracts} != {self.provider_digest}:
+            raise ValueError("worker request provider digest mismatch")
+        from ethos_core.contracts.source_budget.metrics import metric_provider_resource_contract
+
+        execution = metric_provider_resource_contract(contracts)
+        if execution[0] != "isolated_worker_v1" or execution[3] != self.execution_contract_digest:
+            raise ValueError("worker request execution contract digest mismatch")
+        unsigned = self.model_dump(
+            mode="json",
+            by_alias=True,
+            exclude={"request_digest"},
+        )
+        if self.request_digest != _canonical_sha256(unsigned):
+            raise ValueError("worker request digest mismatch")
+        return self
+
     @classmethod
     def create(
         cls,
@@ -136,16 +159,25 @@ class WorkerRequest(BaseModel):
         execution_descriptor: ExecutionDescriptor,
     ) -> Self:
         """Bind admitted bytes and typed provider/execution descriptors."""
+        if type(content) is not bytes:
+            raise ValueError("worker request content must be canonical bytes")
+        if type(contracts) is not tuple or not contracts:
+            raise ValueError("worker request contracts must be a non-empty canonical tuple")
+        from ethos_core.contracts.source_budget.metrics import MetricContract
+        from ethos_core.contracts.source_budget.metrics import metric_provider_resource_contract
+
+        if any(type(item) is not MetricContract for item in contracts):
+            raise ValueError("worker request contracts must be canonical")
+        expected_execution = metric_provider_resource_contract(contracts)
+        ordered = tuple(
+            sorted(contracts, key=lambda item: (item.metric_id, item.unit, item.contract_id))
+        )
         provider_digest = _canonical_sha256(provider_descriptor)
         from ethos_core.contracts.source_budget.measurement.execution import (
             execution_descriptor_digest,
         )
-        from ethos_core.contracts.source_budget.metrics import metric_provider_resource_contract
 
         execution_digest = execution_descriptor_digest(execution_descriptor)
-        if any(item.grammar_digest != provider_digest for item in contracts):
-            raise ValueError("worker request provider descriptor digest mismatch")
-        expected_execution = metric_provider_resource_contract(contracts)
         if execution_descriptor.execution_mode != "isolated_worker_v1":
             raise ValueError("worker request requires an isolated execution descriptor")
         actual_execution = (
@@ -156,7 +188,9 @@ class WorkerRequest(BaseModel):
         )
         if actual_execution != expected_execution:
             raise ValueError("worker request execution descriptor mismatch")
-        first_contract = contracts[0]
+        if len(content) > execution_descriptor.max_carrier_bytes:
+            raise ValueError("worker request carrier bytes exceed execution ceiling")
+        first_contract = ordered[0]
         expected_provider_identity = {
             "execution": execution_descriptor.model_dump(mode="json", by_alias=True),
             "parser": {
@@ -167,19 +201,19 @@ class WorkerRequest(BaseModel):
                 "id": first_contract.normalization_id,
                 "version": first_contract.normalization_version,
             },
-            "metrics": [{"metric_id": item.metric_id, "unit": item.unit} for item in contracts],
+            "metrics": [{"metric_id": item.metric_id, "unit": item.unit} for item in ordered],
         }
         if any(
             provider_descriptor.get(field) != expected
             for field, expected in expected_provider_identity.items()
         ):
             raise ValueError("worker request provider descriptor identity mismatch")
-        resolved_digest = canonical.resolved_model_digest(contracts)
+        resolved_digest = canonical.resolved_model_digest(ordered)
         content_digest = hashlib.sha256(content).hexdigest()
         payload: dict[str, object] = {
             "schema": _REQUEST_SCHEMA,
             "protocol_id": WORKER_PROTOCOL_ID,
-            "contracts": [item.model_dump(mode="json") for item in contracts],
+            "contracts": [item.model_dump(mode="json") for item in ordered],
             "content_sha256": content_digest,
             "resolved_contracts_digest": resolved_digest,
             "provider_digest": provider_digest,

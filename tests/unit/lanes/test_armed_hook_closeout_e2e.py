@@ -27,6 +27,7 @@ from pathlib import Path
 
 from ethos.adapters.mutation.core import apply_candidate_to_accepted
 from ethos.adapters.mutation.core import apply_land_to_candidate
+from ethos.adapters.mutation.lane_retirement.core import _remove_linked_lane
 from ethos.adapters.mutation.proof import record_executed_proof
 from ethos.adapters.store.state.lease.lifecycle.core import acquire_lease
 from ethos.repository.evidence.core import EvidenceSet
@@ -201,6 +202,21 @@ def _materialize_accepted_ethos_package(repo: Path) -> Path:
     package.unlink()
     shutil.copytree(source, package)
     return package
+
+
+def test_landed_retirement_uses_same_value_accepted_cas_with_armed_hook(tmp_path: Path) -> None:
+    repo = _armed_repo(tmp_path)
+    accepted = _g(repo, "rev-parse", "dev").stdout.strip()
+    lane = tmp_path / "retiring"
+    no_hooks = ("-c", "core.hooksPath=/dev/null")
+    created = _g(repo, *no_hooks, "worktree", "add", "-b", "work/retiring", str(lane), "dev")
+    carrier = {"branch": "work/retiring", "path": lane.as_posix(), "head": accepted}
+    report = _remove_linked_lane(repo, carrier, accepted_branch="dev", accepted_head=accepted)
+
+    assert created.returncode == 0, created.stderr
+    assert report == {}
+    assert _g(repo, "rev-parse", "dev").stdout.strip() == accepted
+    assert _g(repo, "rev-parse", "--verify", "work/retiring").returncode != 0
 
 
 def _land_proven_work(repo: Path, tmp_path: Path, name: str, content: str) -> str:

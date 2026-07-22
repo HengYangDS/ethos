@@ -35,8 +35,8 @@ def _c(metric_id: str, unit: str, **changes: object) -> m.MetricContract:
 def _s(profiles: object = None, contracts: object = None) -> m.MetricContractSet:
     default = (_c("lexical_tokens", "lexical_token"), _c("normalized_bytes", "normalized_byte"))
     return m.MetricContractSet(
-        schema="ethos-source-budget-metrics-v3",
-        contract_version=3,
+        schema="ethos-source-budget-metrics-v4",
+        contract_version=4,
         profiles=profiles or (_p(),),
         contracts=contracts or default,
     )
@@ -88,7 +88,7 @@ def test_metric_validation_matrix() -> None:
                 value, required
             ),
         )
-    payload = _s().model_dump(mode="json", by_alias=True) | {"contract_version": 4}
+    payload = _s().model_dump(mode="json", by_alias=True) | {"contract_version": 3}
     _raises(
         ValidationError, "contract version", lambda: m.MetricContractSet.model_validate(payload)
     )
@@ -139,7 +139,12 @@ def _constructed_contract(metric_id: str, unit: str, **changes: object) -> m.Met
     contract = m.MetricContract.model_construct(
         **{key: value for key, value in payload.items() if key in m.MetricContract.model_fields}
     )
-    for field in ("execution_mode", "max_carrier_bytes"):
+    for field in (
+        "execution_mode",
+        "max_carrier_bytes",
+        "execution_contract_id",
+        "execution_contract_digest",
+    ):
         object.__setattr__(contract, field, payload[field])
     return contract
 
@@ -161,12 +166,12 @@ def test_metric_registry_rejects_forged_float_version_at_trust_boundaries() -> N
         "contract version",
         lambda: m.MetricContractSet.model_construct(
             schema_id=registry.schema_id,
-            contract_version=3.0,
+            contract_version=4.0,
             profiles=registry.profiles,
             contracts=registry.contracts,
         ),
     )
-    forged = registry.model_copy(update={"contract_version": 3.0})
+    forged = registry.model_copy(update={"contract_version": 4.0})
     _raises(ValueError, "contract version", lambda: m.MetricContractSetLoad(forged, ()))
     identity = c.CarrierIdentity.model_validate(_D["base_carrier"])
     _raises(ValueError, "contract version", lambda: m.resolve_metric_contracts(identity, forged))
@@ -175,12 +180,14 @@ def test_metric_registry_rejects_forged_float_version_at_trust_boundaries() -> N
 def test_metric_resource_boundaries_replay_homogeneous_forged_atoms() -> None:
     identity = c.CarrierIdentity.model_validate(_D["base_carrier"])
     invalid = (
-        ("contract_version", 3.0),
+        ("contract_version", 4.0),
         ("execution_mode", "subprocess"),
         ("max_carrier_bytes", True),
         ("max_carrier_bytes", 1.5),
         ("max_carrier_bytes", 0),
         ("max_carrier_bytes", -1),
+        ("execution_contract_id", "not-admitted"),
+        ("execution_contract_digest", "0" * 64),
     )
     for field, value in invalid:
         for method in ("model_construct", "model_copy"):
@@ -203,11 +210,20 @@ def test_metric_resource_boundaries_replay_homogeneous_forged_atoms() -> None:
             )
 
 
-def test_metric_contract_v3_resource_boundary_is_required_and_strict() -> None:
+def test_metric_contract_v4_resource_boundary_is_required_and_strict() -> None:
     contract = _c("lexical_tokens", "lexical_token")
-    assert contract.execution_mode == "bounded_in_process_v1"
+    assert contract.execution_mode == "isolated_worker_v1"
     assert contract.max_carrier_bytes == 65536
-    for field in ("execution_mode", "max_carrier_bytes"):
+    assert contract.execution_contract_id == _ISOLATED_ID
+    assert contract.execution_contract_digest == (
+        "0851b19f0adff27f5038a7eb78f68649a3a81c725f7056b2c301ba4cd5cfaafe"
+    )
+    for field in (
+        "execution_mode",
+        "max_carrier_bytes",
+        "execution_contract_id",
+        "execution_contract_digest",
+    ):
         payload = contract.model_dump()
         payload.pop(field)
         _raises(
@@ -223,22 +239,27 @@ def test_metric_contract_v3_resource_boundary_is_required_and_strict() -> None:
             lambda payload=payload: m.MetricContract.model_validate(payload),
         )
     old_unbounded = contract.model_dump()
-    old_unbounded["contract_version"] = 2
-    old_unbounded.pop("execution_mode")
-    old_unbounded.pop("max_carrier_bytes")
+    old_unbounded["contract_version"] = 3
+    for field in (
+        "execution_mode",
+        "max_carrier_bytes",
+        "execution_contract_id",
+        "execution_contract_digest",
+    ):
+        old_unbounded.pop(field)
     _raises(
         ValidationError,
         "contract version",
         lambda: m.MetricContract.model_validate(old_unbounded),
     )
-    all_v4 = _s().model_dump(mode="json", by_alias=True)
-    all_v4["contract_version"] = 4
-    for item in all_v4["contracts"]:
-        item["contract_version"] = 4
+    all_v3 = _s().model_dump(mode="json", by_alias=True)
+    all_v3["contract_version"] = 3
+    for item in all_v3["contracts"]:
+        item["contract_version"] = 3
     _raises(
         ValidationError,
         "contract version",
-        lambda: m.MetricContractSet.model_validate(all_v4),
+        lambda: m.MetricContractSet.model_validate(all_v3),
     )
 
 
@@ -246,13 +267,15 @@ def test_metric_provider_resource_contract_rejects_mixed_provider_or_ceiling() -
     lexical = _constructed_contract("lexical_tokens", "lexical_token")
     normalized = _constructed_contract("normalized_bytes", "normalized_byte")
     assert m.metric_provider_resource_contract((lexical, normalized)) == (
-        "bounded_in_process_v1",
+        "isolated_worker_v1",
         65536,
+        _ISOLATED_ID,
+        "0851b19f0adff27f5038a7eb78f68649a3a81c725f7056b2c301ba4cd5cfaafe",
     )
     drifted = _constructed_contract("normalized_bytes", "normalized_byte", max_carrier_bytes=32768)
     _raises(
         ValueError,
-        "resource",
+        "metric contract",
         lambda: m.metric_provider_resource_contract((lexical, drifted)),
     )
     other = _constructed_contract(
@@ -262,6 +285,10 @@ def test_metric_provider_resource_contract_rejects_mixed_provider_or_ceiling() -
         parser_version="cpython-3.14+ethos-json-v1",
         grammar_digest="b" * 64,
         normalization_id="structured-scalars",
+        max_carrier_bytes=32768,
+        execution_contract_digest=(
+            "95f7e8634d591a6d6085a96ca8e793398ac2ad58b04cfc4561fcd2e0346db2fc"
+        ),
     )
     _raises(ValueError, "provider", lambda: m.metric_provider_resource_contract((lexical, other)))
 
@@ -287,8 +314,8 @@ def test_metric_registry_rejects_cross_profile_provider_resource_drift() -> None
         ValueError,
         "provider resource",
         lambda: m.MetricContractSet.model_construct(
-            schema_id="ethos-source-budget-metrics-v3",
-            contract_version=3,
+            schema_id="ethos-source-budget-metrics-v4",
+            contract_version=4,
             profiles=profiles,
             contracts=contracts,
         ),
@@ -301,8 +328,8 @@ def test_metric_resource_fields_change_digest_and_schema_projection() -> None:
         _constructed_contract("normalized_bytes", "normalized_byte"),
     )
     registry = m.MetricContractSet.model_construct(
-        schema_id="ethos-source-budget-metrics-v3",
-        contract_version=3,
+        schema_id="ethos-source-budget-metrics-v4",
+        contract_version=4,
         profiles=(_p(),),
         contracts=contracts,
     )
@@ -310,23 +337,27 @@ def test_metric_resource_fields_change_digest_and_schema_projection() -> None:
         item.model_copy(update={"max_carrier_bytes": 131072}) for item in contracts
     )
     changed = m.MetricContractSet.model_construct(
-        schema_id="ethos-source-budget-metrics-v3",
-        contract_version=3,
+        schema_id="ethos-source-budget-metrics-v4",
+        contract_version=4,
         profiles=registry.profiles,
         contracts=changed_contracts,
     )
     assert m.metric_contracts_digest(registry) != m.metric_contracts_digest(changed)
     schema = m.metric_contracts_json_schema()
-    assert schema["properties"]["schema"]["const"] == "ethos-source-budget-metrics-v3"
+    assert schema["properties"]["schema"]["const"] == "ethos-source-budget-metrics-v4"
     contract_schema = schema["$defs"]["MetricContract"]
-    assert contract_schema["properties"]["execution_mode"]["const"] == "bounded_in_process_v1"
+    assert set(contract_schema["properties"]["execution_mode"]["enum"]) == {
+        "bounded_in_process_v1",
+        "isolated_worker_v1",
+    }
     assert contract_schema["properties"]["max_carrier_bytes"]["exclusiveMinimum"] == 0
 
 
-def test_repository_metric_policy_declares_v3_fixed_provider_ceilings() -> None:
+def test_repository_metric_policy_declares_v4_fixed_provider_ceilings() -> None:
     payload = tomllib.loads(Path("system/policies/source-budget-metrics.toml").read_text())
-    assert payload["schema"] == "ethos-source-budget-metrics-v3"
-    assert payload["contract_version"] == 3
+    assert payload["schema"] == "ethos-source-budget-metrics-v4"
+    assert payload["contract_version"] == 4
+    bounded = {"utf8-footprint", "utf8-control", "diagram-contract"}
     for contract in payload["contracts"]:
         expected = (
             262144
@@ -335,8 +366,11 @@ def test_repository_metric_policy_declares_v3_fixed_provider_ceilings() -> None:
             if contract["parser_id"] == "python-tokenize"
             else 32768
         )
-        assert contract["contract_version"] == 3
-        assert contract["execution_mode"] == "bounded_in_process_v1"
+        assert contract["contract_version"] == 4
+        expected_mode = (
+            "bounded_in_process_v1" if contract["parser_id"] in bounded else "isolated_worker_v1"
+        )
+        assert contract["execution_mode"] == expected_mode
         assert contract["max_carrier_bytes"] == expected
 
 
@@ -345,6 +379,58 @@ _BOUNDED_ID = "ethos-source-budget-execution:bounded-in-process-v1"
 _ISOLATED_ID = "ethos-source-budget-execution:isolated-worker-v1"
 _PROTOCOL_ID = "ethos-source-budget-worker-protocol-v1"
 _RESOURCE_ID = "ethos-source-budget-worker-resource-profile-v1"
+_EXPECTED_PROFILE_IDS = frozenset(
+    {
+        "control-source-v2",
+        "derived-footprint-v2",
+        "diagram-source-v2",
+        "documentation-footprint-v2",
+        "evidence-footprint-v2",
+        "governance-footprint-v2",
+        "ini-source-v2",
+        "json-source-v2",
+        "python-source-v2",
+        "shell-source-v2",
+        "template-jinja-v2",
+        "test-json-v2",
+        "test-python-v2",
+        "test-toml-v2",
+        "toml-source-v2",
+        "yaml-source-v2",
+    }
+)
+_EXPECTED_CONTRACT_IDS = frozenset(
+    {
+        "control-source-v2:normalized_bytes",
+        "derived-footprint-v2:normalized_bytes",
+        "diagram-source-v2:normalized_scalar_bytes",
+        "diagram-source-v2:semantic_nodes",
+        "documentation-footprint-v2:normalized_bytes",
+        "evidence-footprint-v2:normalized_bytes",
+        "governance-footprint-v2:normalized_bytes",
+        "ini-source-v2:normalized_scalar_bytes",
+        "ini-source-v2:semantic_nodes",
+        "json-source-v2:normalized_scalar_bytes",
+        "json-source-v2:semantic_nodes",
+        "python-source-v2:lexical_tokens",
+        "python-source-v2:normalized_bytes",
+        "shell-source-v2:lexical_tokens",
+        "shell-source-v2:normalized_bytes",
+        "template-jinja-v2:template_dynamic_bytes",
+        "template-jinja-v2:template_dynamic_units",
+        "template-jinja-v2:template_static_bytes",
+        "test-json-v2:normalized_scalar_bytes",
+        "test-json-v2:semantic_nodes",
+        "test-python-v2:lexical_tokens",
+        "test-python-v2:normalized_bytes",
+        "test-toml-v2:normalized_scalar_bytes",
+        "test-toml-v2:semantic_nodes",
+        "toml-source-v2:normalized_scalar_bytes",
+        "toml-source-v2:semantic_nodes",
+        "yaml-source-v2:normalized_scalar_bytes",
+        "yaml-source-v2:semantic_nodes",
+    }
+)
 _PROTOCOL_DESCRIPTOR = {
     "schema": "ethos-source-budget-worker-protocol-descriptor-v1",
     "id": _PROTOCOL_ID,
@@ -511,11 +597,110 @@ def test_metric_contract_v4_accepts_isolated_execution_identity() -> None:
     with pytest.raises(ValidationError, match="execution"):
         m.MetricContract.model_validate(payload | {"execution_contract_id": _BOUNDED_ID})
 
+    execution = importlib.import_module(_EXECUTION_MODULE)
+    descriptor = execution.execution_descriptor("isolated_worker_v1", 65536)
+    descriptor_payload = descriptor.model_dump(mode="json")
+    for field, forged in (
+        ("worker_protocol", {"id": "forged", "digest": "0" * 64}),
+        ("resource_profile", {"id": "forged", "digest": "0" * 64}),
+    ):
+        with pytest.raises(ValidationError, match="descriptor"):
+            execution.IsolatedExecutionDescriptor.model_validate(
+                descriptor_payload | {field: forged}
+            )
+
+    for module_name, descriptor_type, constructor, field, forged in (
+        (
+            "ethos_core.contracts.source_budget.measurement.worker.protocol.core",
+            "WorkerProtocolDescriptor",
+            "worker_protocol_descriptor",
+            "header_max_bytes",
+            32768.0,
+        ),
+        (
+            "ethos_core.contracts.source_budget.measurement.worker.resource",
+            "WorkerResourceProfileDescriptor",
+            "worker_resource_profile_descriptor",
+            "private_home_tmp_cwd",
+            1,
+        ),
+        (
+            "ethos_core.contracts.source_budget.measurement.worker.resource",
+            "WorkerResourceProfileDescriptor",
+            "worker_resource_profile_descriptor",
+            "cpu_soft_seconds",
+            5.0,
+        ),
+    ):
+        module = importlib.import_module(module_name)
+        payload = getattr(module, constructor)().model_dump(mode="python")
+        with pytest.raises(ValidationError) as caught:
+            getattr(module, descriptor_type).model_validate(payload | {field: forged})
+        assert [error["loc"] for error in caught.value.errors()] == [(field,)]
+
+
+def test_descriptor_digest_owners_reject_model_copy_forgeries() -> None:
+    execution = importlib.import_module(_EXECUTION_MODULE)
+    descriptor = execution.execution_descriptor("isolated_worker_v1", 65536)
+
+    for field in ("worker_protocol", "resource_profile"):
+        forged_reference = getattr(descriptor, field).model_copy(update={"unexpected": True})
+        forged_descriptor = descriptor.model_copy(update={field: forged_reference})
+        with pytest.raises(ValueError, match="canonical"):
+            execution.execution_descriptor_digest(forged_descriptor)
+
+    bounded = execution.execution_descriptor("bounded_in_process_v1", 32768)
+    for canonical_descriptor in (bounded, descriptor):
+        forged_descriptor = canonical_descriptor.model_copy(update={"unexpected": True})
+        with pytest.raises(ValueError, match="canonical"):
+            execution.execution_descriptor_digest(forged_descriptor)
+
+    for module_name, constructor, digest_function, updates in (
+        (
+            "ethos_core.contracts.source_budget.measurement.worker.protocol.core",
+            "worker_protocol_descriptor",
+            "worker_protocol_descriptor_digest",
+            ({"header_max_bytes": 32768.0}, {"header_max_bytes": True}),
+        ),
+        (
+            "ethos_core.contracts.source_budget.measurement.worker.resource",
+            "worker_resource_profile_descriptor",
+            "worker_resource_profile_descriptor_digest",
+            (
+                {"cpu_soft_seconds": 5.0},
+                {"cpu_soft_seconds": True},
+                {"private_home_tmp_cwd": 1},
+                {"private_home_tmp_cwd": False},
+            ),
+        ),
+    ):
+        module = importlib.import_module(module_name)
+        descriptor = getattr(module, constructor)()
+        with pytest.raises(ValueError, match="canonical"):
+            getattr(module, digest_function)(descriptor.model_copy(update={"unexpected": True}))
+        for update in updates:
+            forged = descriptor.model_copy(update=update)
+            with pytest.raises(ValidationError):
+                getattr(module, digest_function)(forged)
+
 
 def test_metric_contract_v4_rejects_complete_legacy_v3_registry() -> None:
-    base = _D["base_contract"]
+    legacy_base = {
+        "contract_version": 3,
+        "carrier_role": "authored_behavioral_source",
+        "metric_profile": "python-source-v2",
+        "parser_id": "python-tokenize",
+        "parser_version": "cpython-3.14+ethos-python-v1",
+        "grammar_digest": "a" * 64,
+        "normalization_id": "python-source",
+        "normalization_version": "1",
+        "aggregation": "sum",
+        "non_compensable": True,
+        "execution_mode": "bounded_in_process_v1",
+        "max_carrier_bytes": 65536,
+    }
     contracts = [
-        base
+        legacy_base
         | {
             "contract_id": f"python-source-v2:{metric_id}",
             "metric_id": metric_id,
@@ -526,15 +711,43 @@ def test_metric_contract_v4_rejects_complete_legacy_v3_registry() -> None:
             ("normalized_bytes", "normalized_byte"),
         )
     ]
+    legacy_fields = {
+        "contract_id",
+        "contract_version",
+        "metric_id",
+        "unit",
+        "carrier_role",
+        "metric_profile",
+        "parser_id",
+        "parser_version",
+        "grammar_digest",
+        "normalization_id",
+        "normalization_version",
+        "aggregation",
+        "non_compensable",
+        "execution_mode",
+        "max_carrier_bytes",
+    }
+    assert all(set(contract) == legacy_fields for contract in contracts)
     payload = {
         "schema": "ethos-source-budget-metrics-v3",
         "contract_version": 3,
-        "profiles": [_D["base_profile"]],
+        "profiles": [
+            {
+                "profile_id": "python-source-v2",
+                "carrier_role": "authored_behavioral_source",
+                "required_metric_ids": ["lexical_tokens", "normalized_bytes"],
+            }
+        ],
         "contracts": contracts,
     }
 
-    with pytest.raises(ValidationError, match="version must be 4"):
+    with pytest.raises(ValidationError) as caught:
         m.validate_metric_contracts(payload)
+
+    assert [(error["loc"], error["msg"]) for error in caught.value.errors()] == [
+        ((), "Value error, metric contract version must be 4")
+    ]
 
 
 def test_metric_provider_resource_contract_returns_complete_v4_tuple() -> None:
@@ -652,8 +865,10 @@ def test_repository_metric_policy_declares_v4_static_hybrid_real_digests() -> No
 
     assert payload["schema"] == "ethos-source-budget-metrics-v4"
     assert payload["contract_version"] == 4
-    assert len(payload["profiles"]) == 16
-    assert len(payload["contracts"]) == 28
+    assert {profile["profile_id"] for profile in payload["profiles"]} == _EXPECTED_PROFILE_IDS
+    assert {contract["contract_id"] for contract in payload["contracts"]} == (
+        _EXPECTED_CONTRACT_IDS
+    )
     execution = importlib.import_module(_EXECUTION_MODULE)
     for contract in payload["contracts"]:
         parser_id = contract["parser_id"]

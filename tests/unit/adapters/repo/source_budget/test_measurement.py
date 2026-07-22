@@ -3,6 +3,7 @@ from __future__ import annotations
 import ast
 import hashlib
 import importlib
+import json
 import re
 import subprocess
 import sys
@@ -25,6 +26,58 @@ if TYPE_CHECKING:
 ROOT = Path(__file__).resolve().parents[5]
 CASES_PATH = ROOT / "tests" / "fixtures" / "source-budget-v2" / "cases.toml"
 NATIVE_MODULE = "ethos.adapters.repo.source_budget.measurement.native.core"
+PYTHON_PROVIDER_V2_DESCRIPTOR = {
+    "algorithm_rules": [
+        "ast-syntax-guard",
+        "significant-token-count",
+        "type-and-spelling-frames",
+    ],
+    "canonical_runtime": {"implementation": "CPython", "major": 3, "minor": 14},
+    "conformance": {
+        "corpus_digest": "b74bd3249b00e0ff977eb8be46b23497dff54057dbc9fffb1eb2042bf4918921",
+        "expected_output_digest": (
+            "ce3459c91f2d4185791ff067dfb52bba4b53930c2c9e8a1b6ffbd1597a561176"
+        ),
+    },
+    "dependencies": {},
+    "execution": {
+        "schema": "ethos-source-budget-execution-descriptor-v1",
+        "execution_contract_id": "ethos-source-budget-execution:isolated-worker-v1",
+        "execution_mode": "isolated_worker_v1",
+        "max_carrier_bytes": 65536,
+        "worker_protocol": {
+            "id": "ethos-source-budget-worker-protocol-v1",
+            "digest": "1bd8b1f75c0d00a0b19937cf53f7b88f711752c1135e2e0f4f04376265177cf7",
+        },
+        "resource_profile": {
+            "id": "ethos-source-budget-worker-resource-profile-v1",
+            "digest": "46c32d91c10e0d3c6dd963f01f3b9a08bc4965d9bbbcb1de003322c331b2cd1b",
+        },
+    },
+    "metrics": [
+        {"metric_id": "lexical_tokens", "unit": "lexical_token"},
+        {"metric_id": "normalized_bytes", "unit": "normalized_byte"},
+    ],
+    "normalization": {"id": "python-source", "version": "1"},
+    "parser": {"id": "python-tokenize", "version": "cpython-3.14+ethos-python-v1"},
+    "provider_id": "python",
+    "schema": "ethos-source-budget-native-provider-v2",
+}
+PYTHON_PROVIDER_V2_DIGEST = "e7a02edc3be974d9e5898256b1e0cfaad1fa86d2c9081731ca60945f58af790f"
+REVIEWED_PROVIDER_V2_GRAMMAR_DIGESTS = {
+    "c4": "ed2e5a0d9509dcdaa7c132112fcc867ed0d1855f373c0e3b1dd22341bf1f081c",
+    "ini": "c0ee2a3743c5ad3e32819340d56fd97e6219ee43b2243e0726d97d70c959da07",
+    "jinja": "34e6a55b0deb5e0fdbf0183598ec87fa5b9594296a356b8a29a12e1db86aaca9",
+    "json": "d94e85e9de58b3f1ccfa4b0cfa822c6035fb3996177eb3a044b7e6637f5e39b2",
+    "python": PYTHON_PROVIDER_V2_DIGEST,
+    "shell": "b77ef4d67dc30a08f5ae10abfaba1ad54559df84c3db1dec5df2f08e1bf555d7",
+    "toml": "49871d1c8c721710d32ceabc55d4f869e66df972379c6febba31fc6a71661002",
+    "utf8-control": "6481f502b183e8653fc07a212bc7d089099095d46e7ff0a2d794e6d72371b752",
+    "utf8-footprint": "cf5eff29d8627273cbc9f49f51f0a0893d138cbd4b68c72e0040011115c7244d",
+    "yaml": "6f44470bdb58d7f6087be40753108e65391e9187d856d4b8f24effde198765fb",
+}
+
+
 REVIEWED_CONFORMANCE_DIGESTS = {
     "c4": "5f8bac5ef288997b60fb1cedaf08790c8ae1adc5c0471a57f36318e10d35735c",
     "ini": "b502516798252b49f65c0a9a0113e1abc12c9e0f90e782fd20a8af11f18eb2fa",
@@ -135,6 +188,16 @@ def _native() -> ModuleType:
         if exc.name and NATIVE_MODULE.startswith(exc.name):
             pytest.fail(f"missing native measurement provider:{NATIVE_MODULE}", pytrace=False)
         raise
+
+
+def _canonical_payload_digest(payload: object) -> str:
+    encoded = json.dumps(
+        payload,
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
 
 
 def _measure(case_id: str, contracts: tuple[MetricContract, ...] | None = None):
@@ -350,6 +413,30 @@ def test_shell_provider_admits_governed_bash_and_zsh_lexical_constructs(
 )
 def test_unterminated_shell_constructs_fail_closed(case_id: str) -> None:
     _failure(case_id, "source_budget_native_parse_failed:shell")
+
+
+def test_provider_descriptor_v2_binds_independent_execution_oracle() -> None:
+    module = _native()
+    assert _canonical_payload_digest(PYTHON_PROVIDER_V2_DESCRIPTOR) == (PYTHON_PROVIDER_V2_DIGEST)
+    assert vars(module)["_provider_descriptor"]("python") == PYTHON_PROVIDER_V2_DESCRIPTOR
+    provider_ids = tuple(vars(module)["_PROVIDER_IDS"])
+    assert set(provider_ids) == set(REVIEWED_PROVIDER_V2_GRAMMAR_DIGESTS)
+    grammar_digest = vars(module)["_provider_grammar_digest"]
+    assert {provider_id: grammar_digest(provider_id) for provider_id in provider_ids} == (
+        REVIEWED_PROVIDER_V2_GRAMMAR_DIGESTS
+    )
+
+    legacy_descriptor = dict(PYTHON_PROVIDER_V2_DESCRIPTOR)
+    legacy_descriptor.pop("execution")
+    legacy_digest = _canonical_payload_digest(legacy_descriptor)
+    assert legacy_digest != PYTHON_PROVIDER_V2_DIGEST
+    forged_contracts = tuple(
+        contract.model_copy(update={"grammar_digest": legacy_digest})
+        for contract in _contracts("python-source-v2")
+    )
+    load = _measure("python-lines", forged_contracts)
+    assert load.measurement is None
+    assert load.required_gaps == ("source_budget_native_provider_signature_mismatch",)
 
 
 @pytest.mark.parametrize(

@@ -32,13 +32,13 @@
 
 ## 2. Worker Protocol Contract RED And GREEN
 
-- [ ] 2.1 Add pure kernel RED for typed request/result models, success-gap XOR,
+- [x] 2.1 Add pure kernel RED for typed request/result models, success-gap XOR,
   the exact finite child-gap allowlist and seven parent-only worker gaps, five
   bound digests, parent replay, generated schema, and no path/environment fields.
-- [ ] 2.2 Add binary-frame RED for magic/version, big-endian lengths, canonical
+- [x] 2.2 Add binary-frame RED for magic/version, big-endian lengths, canonical
   JSON, duplicate keys, all truncation boundaries, overlimits, wrong-direction
   frames, extra responses, and trailing bytes.
-- [ ] 2.3 Implement protocol models, canonical digest constructors,
+- [x] 2.3 Implement protocol models, canonical digest constructors,
   revalidation, strict frame codecs, and generated worker schema without adding
   subprocess behavior to the kernel package.
 

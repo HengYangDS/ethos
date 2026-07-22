@@ -331,6 +331,13 @@ def test_ci_node_installer_is_architecture_aware() -> None:
     assert "--continue-at -" in downloader
     assert "--speed-limit" in downloader
     assert "ETHOS_CI_DOWNLOAD_ATTEMPTS" in downloader
+    assert "ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR" in installer
+    assert "persistent_archive_path" in installer
+    assert "node/${version}/linux-${arch}" in installer
+    assert 'verify_archive_checksum "${persistent_archive_path}"' in installer
+    assert 'cp "${archive_path}" "${persistent_archive_path}.tmp"' in installer
+    assert "ETHOS_CI_NODE_INSTALL_PREFIX" in installer
+    assert 'export PATH="${install_bin_dir}:${PATH}"' in installer
 
 
 def test_secrets_scan_is_bounded_to_git_tracked_source() -> None:
@@ -355,6 +362,11 @@ def test_ci_gitleaks_installer_uses_cached_tool_supply_with_checksum() -> None:
     assert "sha256sum -c" in installer
     assert "GITLEAKS_LINUX_X64_SHA256" in installer
     assert "GITLEAKS_LINUX_ARM64_SHA256" in installer
+    assert "ETHOS_CI_PERSISTENT_TOOL_CACHE_DIR" in installer
+    assert "persistent_archive_path" in installer
+    assert "gitleaks/${version}/linux-${arch}" in installer
+    assert 'verify_archive_checksum "${persistent_archive_path}"' in installer
+    assert 'cp "${archive_path}" "${persistent_archive_path}.tmp"' in installer
     assert 'concern = "ci_tool_supply"' in tools
     assert 'config = "tools/ci/scripts/download-file.sh"' in tools
     assert 'artifacts = "build/runtime/tool-cache/ci-tools/"' in tools

@@ -51,12 +51,11 @@ keeps machine-stable counts and score data; it does not mint a separate truth
 source or bypass `ethos prove` / `ethos land`.
 
 This is the command grammar. `status`, `plan`, `prove`, `land`, and `publish`
-
-The same transition command semantics apply in the product repository and in adopted repositories.
-are the transition verbs; `report` is the payoff view. Every maintainer,
-quality, parity, assistant, playbook, fleet, hook, lane, or docs command is a
-domain lens or repair surface over that grammar. It must project a kernel
-object, expose its boundary, and reduce its decision back to one of the
+are the transition verbs; `report` is the payoff view. The same transition
+command semantics apply in the product repository and in adopted repositories.
+Every maintainer, quality, parity, assistant, playbook, fleet, hook, lane, or
+docs command is a domain lens or repair surface over that grammar. It must
+project a kernel object, expose its boundary, and reduce its decision back to one of the
 transition questions rather than becoming a parallel command plane.
 
 `ethos plan --changed --json` reports the current change scope under
@@ -214,8 +213,8 @@ ethos lane lease renew --branch <branch> --holder-ref <holder-ref> --lease-id <l
 ethos lane handoff export --branch <branch> --holder-ref <holder-ref> --target-holder-ref <holder-ref> --lease-id <lease-id> --epoch <epoch> --expires-at <timestamp> --payload-sha256 <sha256> --expect-head <head> --context-file <path> --apply
 ethos lane handoff import --package <path> --target-holder-ref <holder-ref> --apply
 ethos lane handoff revoke-source --package <path> --acknowledgement <path> --holder-ref <holder-ref> --lease-id <lease-id> --epoch <epoch> --expires-at <timestamp> --payload-sha256 <sha256> --expect-head <head> --apply
-ethos lane resolution decide --branch <branch> --disposition <block|preserve|retire|preserve-retire> --reason <why> --evidence-ref <evidence> --chronicle-ref <accepted-chronicle> --recovery-plan <plan> --decision-path <build-artifact> --apply
-ethos lane resolution apply --decision-path <build-artifact> --apply
+ethos lane resolution decide --branch <branch> --disposition <block|preserve|retire|preserve-retire> --reason <why> --evidence-ref <evidence> --chronicle-ref <accepted-chronicle> --recovery-plan <plan> --apply
+ethos lane resolution apply --decision-path <decision-path-from-decide> --apply
 ethos lane resolution inventory --json
 ethos lane resolution clear --decision-id <decision-id> --expect-manifest-sha256 <sha256> --chronicle-ref <accepted-chronicle> --reason <why> --break-glass --confirm-irreversible --apply
 ethos lane retire landed --branch <work-lane-branch> --expect-head <work-lane-head> --apply
@@ -318,18 +317,60 @@ their own owned lane.
 `preserve-retire` is the exceptional, irreversible path for a dirty orphan or
 foreign lane after accepted Chronicle evidence: it first creates and verifies a
 digest-bound bundle, tracked patch, untracked archive, and manifest under the
-local lane-resolution artifact root, then removes the exact branch and linked
-worktree. It requires `--break-glass` at decision time and
+configured accepted checkout's sibling records owner:
+`<accepted-checkout-parent>/<accepted-checkout-name>-records/recovery/lane-resolution/`.
+It then removes the exact branch and linked worktree. The stable decision,
+package, and receipt therefore survive retirement of both the source and the
+invoking carrier. The owner policy is read from the Git primary control root,
+not from mutable caller bytes, and the configured accepted ref and checkout HEAD
+must agree. Default decision paths include a branch digest and UUID, use
+exclusive creation, and never overwrite an earlier judgment. An explicit
+predecessor, foreign-worktree, or unrelated path blocks with
+`lane_resolution_decision_path_not_local_artifact`; an existing path blocks with
+`lane_resolution_decision_path_exists`. Decision identifiers must be canonical
+`lane-decision:<UUID>` values, and package realpaths must remain below the pinned
+canonical owner. A pre-existing package directory blocks with
+`lane_resolution_preservation_package_exists` instead of overwriting recovery
+bytes.
+
+Before package creation or any destructive effect, apply reserves the
+deterministic completion-receipt path with a hidden non-JSON sidecar created by
+exclusive filesystem creation. An existing final receipt or existing reservation
+blocks with `lane_resolution_receipt_path_exists`; the package is not created and
+the branch and worktree remain intact. A pre-effect failure or successful final
+receipt removes the sidecar. A final write failure after the effect retains the
+sidecar for reconciliation, while the final receipt writer still performs its
+own no-symlink and no-clobber check.
+
+The command requires `--break-glass` at decision time and
 `--confirm-irreversible` at apply time. Plain `retire` remains blocked for a
-dirty lane; `preserve` remains non-destructive.
-Every successful resolution now materializes an immutable local receipt under
-`build/artifacts/lane-resolution/receipts/`. `ethos lane resolution inventory`
-derives retained, cleared, and unindexed package state from receipts, manifests,
-and clear receipts without treating any artifact as authority. Recovery package
-deletion is never a cache cleanup: `clear` requires an exact manifest SHA-256,
-an accepted Chronicle containing `lane_resolution/clear-preservation`, a
-reason, break-glass, and an irreversible confirmation; it leaves the receipt
-and Chronicle intact.
+dirty lane; `preserve` remains non-destructive. If the destructive effect
+completes but immutable receipt materialization fails, apply returns
+`ok=false`, `state=partial_transition`, and
+`lane_resolution_receipt_write_failed_after_effect`; the stable decision and
+package remain available for reconciliation.
+
+`ethos lane resolution inventory` derives retained, cleared, and unindexed
+package state from the canonical records owner plus read-only predecessor
+`build/artifacts/lane-resolution/` stores across registered worktrees. Conflicting
+canonical and predecessor records for one decision block inventory and clear with
+`lane_resolution_decision_record_conflict`; scan order never selects a winner.
+Byte-identical package copies make clear ambiguous and block with
+`lane_resolution_clear_package_ambiguous`. Inventory also compares the actual
+manifest digest with the immutable receipt and blocks on
+`lane_resolution_manifest_receipt_mismatch`; verification rereads the durable
+manifest rather than trusting a stale in-memory copy.
+Symlinked package or record paths block with
+`lane_resolution_package_path_unsafe` or `lane_resolution_record_path_unsafe`;
+completion-receipt destinations are checked before destructive effect and again
+at write time, so a category symlink cannot redirect evidence outside the pinned
+owner.
+Ordinary linked-lane retirement also blocks while the selected worktree
+still contains a retained predecessor manifest. Recovery package deletion is never a cache
+cleanup: `clear` requires an exact manifest SHA-256, an accepted Chronicle
+containing `lane_resolution/clear-preservation`, a reason, break-glass, and an
+irreversible confirmation; it leaves the original resolution receipt and
+Chronicle intact.
 `ethos lane start --json` returns `data.worktree` and
 `data.runner_bootstrap` in apply mode. The first `next_actions` entry changes
 to the new Work Lane and invokes `tools/ci/scripts/run-ethos-lane.sh`; that

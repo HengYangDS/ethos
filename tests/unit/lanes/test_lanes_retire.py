@@ -305,6 +305,68 @@ def test_retire_rechecks_effect_boundaries(
     assert report["required_gaps"] == [gap]
 
 
+def test_retire_blocks_legacy_retention_and_scan_failure(
+    monkeypatch: MonkeyPatch, tmp_path: Path
+) -> None:
+    repo, landed, _database = _landed_lane(tmp_path, lease_holder=_LEASE_HOLDER)
+    head = git(landed, "rev-parse", "HEAD")
+    manifest = landed / "build/artifacts/lane-resolution/legacy/manifest.json"
+    manifest.parent.mkdir(parents=True)
+    manifest.write_text('{"decision_id":"lane-decision:legacy"}\n', encoding="utf-8")
+    monkeypatch.setenv("ETHOS_ACTOR", _LEASE_HOLDER)
+    monkeypatch.setattr(core, "has_changed_paths", lambda _path: False)
+
+    report = _retire_landed(repo, branch=_LANDED_BRANCH, expect_head=head, apply=True)
+
+    assert report["required_gaps"] == ["lane_resolution_legacy_retention_present"]
+    manifest.unlink()
+    legacy_root = manifest.parents[1]
+    assert core._legacy_retention_gap(landed) == ""  # noqa: SLF001, RUF100 - exact empty scan contract
+    (legacy_root / "not-a-package.txt").write_text("ignored\n", encoding="utf-8")
+    assert core._legacy_retention_gap(landed) == ""  # noqa: SLF001, RUF100 - exact non-package scan contract
+    linked_target = tmp_path / "linked-package"
+    linked_target.mkdir()
+    (legacy_root / "linked").symlink_to(linked_target, target_is_directory=True)
+    assert core._legacy_retention_gap(landed) == (  # noqa: SLF001, RUF100 - exact package-symlink contract
+        "lane_resolution_legacy_retention_present"
+    )
+
+    symlinked_lane = tmp_path / "symlinked-lane"
+    symlinked_root = symlinked_lane / "build/artifacts/lane-resolution"
+    symlinked_root.parent.mkdir(parents=True)
+    symlinked_root.symlink_to(linked_target, target_is_directory=True)
+    assert core._legacy_retention_gap(symlinked_lane) == (  # noqa: SLF001, RUF100 - exact root-symlink contract
+        "lane_resolution_legacy_retention_present"
+    )
+
+    scandir = core.os.scandir
+
+    def fail_scan(path):
+        if str(path).endswith("build/artifacts/lane-resolution"):
+            message = "unreadable"
+            raise OSError(message)
+        return scandir(path)
+
+    with monkeypatch.context() as scoped:
+        scoped.setattr(core.os, "scandir", fail_scan)
+        assert core._legacy_retention_gap(landed) == (  # noqa: SLF001, RUF100 - exact fail-closed scan contract
+            "lane_resolution_legacy_retention_observation_failed"
+        )
+
+    def fail_package_scan(path):
+        if str(path) == manifest.parent.as_posix():
+            message = "unreadable package"
+            raise OSError(message)
+        return scandir(path)
+
+    (legacy_root / "linked").unlink()
+    with monkeypatch.context() as scoped:
+        scoped.setattr(core.os, "scandir", fail_package_scan)
+        assert core._legacy_retention_gap(landed) == (  # noqa: SLF001, RUF100 - exact nested scan contract
+            "lane_resolution_legacy_retention_observation_failed"
+        )
+
+
 @pytest.mark.parametrize(
     ("expect_head", "required_gap"),
     [(None, "expect_head_required"), ("not-the-lane-head", "expect_head_mismatch")],
@@ -490,7 +552,10 @@ def test_retire_preserves_branch_when_accepted_ref_moves_during_effect(
         (
             "ref-diagnostic-oserror",
             (
-                ["branch_delete_failed_after_worktree_removed"],
+                [
+                    "branch_delete_failed_after_worktree_removed",
+                    "accepted_ref_state_unavailable_after_worktree_removed",
+                ],
                 True,
                 True,
                 {"ref_preserved": True},
@@ -583,7 +648,12 @@ def test_retire_reports_transaction_failures(
         if case == "ref-diagnostic-oserror" and args[:2] == ("update-ref", "--stdin"):
             ref_transaction_failed = True
             return subprocess.CompletedProcess(args, 1, stdout="", stderr="transaction failed")
-        if ref_transaction_failed and args == ("rev-parse", "dev"):
+        if ref_transaction_failed and args == (
+            "show-ref",
+            "--verify",
+            "--hash",
+            "refs/heads/dev",
+        ):
             message = "git unavailable"
             raise OSError(message)
         restore = args[:2] == ("update-ref", "--stdin") and str(
@@ -608,6 +678,56 @@ def test_retire_reports_transaction_failures(
     assert landed.exists() is not removed
     assert (git(repo, "branch", "--list", _LANDED_BRANCH) != "") is ref_present
     assert state_read.active_leases(database)[0]["subject"] == _LANDED_BRANCH
+
+
+def test_failed_ref_transition_reports_observed_lane_ref_state(
+    monkeypatch: MonkeyPatch, tmp_path: Path
+) -> None:
+    expected = "a" * 40
+    accepted = "b" * 40
+    cases = (
+        (
+            subprocess.CompletedProcess(["git"], 0, stdout="c" * 40, stderr=""),
+            "moved",
+            "retirement_ref_moved_after_worktree_removed",
+        ),
+        (
+            subprocess.CompletedProcess(["git"], 1, stdout="", stderr=""),
+            "absent",
+            "retirement_ref_absent_after_failed_delete",
+        ),
+        (
+            subprocess.CompletedProcess(["git"], 2, stdout="", stderr="unavailable"),
+            "unavailable",
+            "retirement_ref_state_unavailable_after_worktree_removed",
+        ),
+    )
+    for target_result, state_name, state_gap in cases:
+        results = iter(
+            (
+                subprocess.CompletedProcess(["git"], 0, stdout=accepted, stderr=""),
+                target_result,
+            )
+        )
+
+        def next_result(*_args, sequence=results, **_kwargs):
+            return next(sequence)
+
+        monkeypatch.setattr(core, "run_git", next_result)
+
+        report = core._failed_ref_transition(  # noqa: SLF001, RUF100 - exact post-removal ref-state contract
+            tmp_path,
+            target=("work/example", expected),
+            accepted=("dev", accepted),
+            stderr="transaction failed",
+        )
+
+        assert report["required_gaps"] == [
+            "branch_delete_failed_after_worktree_removed",
+            state_gap,
+        ]
+        assert report["ref_state"] == state_name
+        assert report["ref_preserved"] is False
 
 
 def test_status_reports_candidate_behind_accepted(tmp_path: Path) -> None:

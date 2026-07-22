@@ -4,28 +4,32 @@ from __future__ import annotations
 
 import hashlib
 import json
-import subprocess
 import uuid
-from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
 
 from pydantic import ValidationError
 
 from ethos.adapters.mutation.decision import mutation_envelope
-from ethos.adapters.mutation.lane_lifecycle.core import run_git
-from ethos.adapters.mutation.resolution._shared import sha256_digest
-from ethos.adapters.mutation.resolution.receipts import verify_preservation_package
+from ethos.adapters.mutation.resolution._effects import prepare_resolution_effect
+from ethos.adapters.mutation.resolution._effects import retire_lane
+from ethos.adapters.mutation.resolution._observation import observe_lane
+from ethos.adapters.mutation.resolution._shared import accepted_control_root
+from ethos.adapters.mutation.resolution._shared import canonical_record_path
+from ethos.adapters.mutation.resolution._shared import records_artifact_root
+from ethos.adapters.mutation.resolution._shared import valid_decision_id
 from ethos.adapters.mutation.resolution.receipts import write_resolution_receipt
-from ethos.adapters.repo.status.bindings import leases_by_branch
-from ethos.adapters.repo.status.core import workspace_status
+from ethos.adapters.mutation.resolution.records.core import release_resolution_receipt_reservation
+from ethos.adapters.mutation.resolution.records.core import reserve_resolution_receipt
 from ethos.repository.policy.schema import validate_schema_instance
 from ethos_core.contracts.lifecycle.core import MutationRequest
 from ethos_core.contracts.lifecycle.core import reduce_guards
 from ethos_core.contracts.resolution.lane import LaneObservation
 from ethos_core.contracts.resolution.lane import LaneResolutionDecision
-from ethos_core.contracts.resolution.lane import LaneResolutionReceipt
-from ethos_core.contracts.resolution.lane import LaneResolutionState
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 _DISPOSITIONS = {"block", "preserve", "retire", "preserve-retire"}
 
@@ -44,7 +48,7 @@ def plan_lane_resolution(  # noqa: PLR0913, RUF100 - exact request envelope pres
     apply: bool,
 ) -> dict[str, object]:
     """Create the first-phase exceptional judgment; no lane effect occurs."""
-    observation, gaps = _observe_lane(root, branch)
+    observation, gaps = observe_lane(root, branch)
     chronicle, chronicle_digest, chronicle_gaps = _accepted_chronicle(
         root, chronicle_ref=chronicle_ref, disposition=disposition
     )
@@ -63,7 +67,7 @@ def plan_lane_resolution(  # noqa: PLR0913, RUF100 - exact request envelope pres
                 "retire_exception_requires_break_glass",
             ),
             (
-                _local_artifact_path(root, decision_path),
+                canonical_record_path(root, decision_path),
                 "lane_resolution_decision_path_not_local_artifact",
             ),
         ),
@@ -90,15 +94,22 @@ def plan_lane_resolution(  # noqa: PLR0913, RUF100 - exact request envelope pres
             return report
         destination = decision_path.resolve()
         destination.parent.mkdir(parents=True, exist_ok=True)
-        destination.write_text(
-            json.dumps(decision, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-        )
-        report.update(
-            state="decision_recorded",
-            decision=decision,
-            decision_path=destination.as_posix(),
-            chronicle_event=_chronicle_event(decision),
-        )
+        try:
+            with destination.open("x", encoding="utf-8") as handle:
+                handle.write(json.dumps(decision, indent=2, sort_keys=True) + "\n")
+        except FileExistsError:
+            report.update(
+                ok=False,
+                state="blocked",
+                required_gaps=["lane_resolution_decision_path_exists"],
+            )
+        else:
+            report.update(
+                state="decision_recorded",
+                decision=decision,
+                decision_path=destination.as_posix(),
+                chronicle_event=_chronicle_event(decision),
+            )
     return _finish(
         report,
         command="lane-resolution-plan",
@@ -115,8 +126,13 @@ def apply_lane_resolution(
     """Recompute the decision observation, then apply the bounded disposition."""
     decision, gaps = _read_decision(decision_path, root=root)
     branch = str(decision.get("observation", {}).get("lane_ref") or "")
-    observation, observation_gaps = _observe_lane(root, branch)
+    observation, observation_gaps = observe_lane(root, branch)
     disposition = str(decision.get("disposition") or "")
+    expected_state: dict[str, object] = {
+        "decision_id": str(decision.get("decision_id") or ""),
+        "observation_digest": str(decision.get("observation_digest") or ""),
+        "confirm_irreversible": confirm_irreversible,
+    }
     evaluation = reduce_guards(
         apply=apply,
         initial_gaps=(*gaps, *observation_gaps),
@@ -135,152 +151,222 @@ def apply_lane_resolution(
     )
     report = _report(branch, evaluation)
     if apply and evaluation.ok:
-        package = _apply_resolution_effect(
+        _apply_resolution(
             root=root,
             decision=decision,
             observation=observation,
+            disposition=disposition,
             report=report,
         )
-        if report["ok"]:
-            state = cast("LaneResolutionState", report["state"])
-            receipt = _resolution_receipt(decision, observation, state, package)
-            if not validate_schema_instance(
-                "lane-resolution-receipt.schema.json", receipt, root=root
-            )["ok"]:
-                report.update(
-                    ok=False, state="blocked", required_gaps=["lane_resolution_receipt_invalid"]
-                )
-                return report
-            report.update(
-                receipt=receipt,
-                receipt_path=write_resolution_receipt(root=root, receipt=receipt),
-                chronicle_event=_chronicle_event(decision, receipt),
-            )
     return _finish(
         report,
         command="lane-resolution-apply",
         action=f"lane.resolution.{disposition or 'unknown'}",
         resource=branch or decision_path.resolve().as_posix(),
-        expected_state={
-            "decision_id": str(decision.get("decision_id") or ""),
-            "observation_digest": str(decision.get("observation_digest") or ""),
-            "confirm_irreversible": confirm_irreversible,
-        },
+        expected_state=expected_state,
         apply=apply,
         confirmation=confirm_irreversible,
     )
 
 
-def _apply_resolution_effect(
+def _apply_resolution(
     *,
     root: Path,
     decision: dict[str, Any],
     observation: LaneObservation,
+    disposition: str,
     report: dict[str, object],
-) -> dict[str, object]:
-    disposition = str(decision["disposition"])
-    package = (
-        _preserve(root=root, observation=observation, decision=decision)
-        if disposition in {"preserve", "preserve-retire"}
-        else {}
-    )
-    if disposition == "preserve":
-        report.update(state="preserved", preservation_package=package)
-        return package
-    if disposition == "block":
-        report.update(state="blocked_by_decision")
-        return package
-    if disposition == "preserve-retire":
-        verify_preservation_package(root=root, package=package)
-        current, gaps = _observe_lane(root, observation.lane_ref)
-        if gaps or current.digest() != observation.digest():
-            report.update(
-                ok=False,
-                state="blocked",
-                required_gaps=[*gaps, "lane_resolution_observation_stale"],
-                preservation_package=package,
-            )
-            return package
+) -> None:
+    control_root, artifact_root, root_gap = _resolution_roots(root)
+    if root_gap or control_root is None or artifact_root is None:
+        _block(report, root_gap)
+        return
+    decision_id = str(decision.get("decision_id") or "")
+    if reservation_gap := _reserve_receipt(control_root, artifact_root, decision_id):
+        _block(report, reservation_gap)
+        return
+
+    retain_reservation = False
+    receipt_written = False
     try:
-        _retire(
+        package, receipt, state, effect_gaps = _prepare_resolution(
+            control_root=control_root,
+            artifact_root=artifact_root,
+            decision=decision,
+            observation=observation,
+            disposition=disposition,
+        )
+        if effect_gaps:
+            _block(report, *effect_gaps)
+            return
+        report.update(state=state, preservation_package=package)
+        retain_reservation, retire_gap = _retire_resolution(
+            root=root,
+            observation=observation,
+            disposition=disposition,
+        )
+        if retire_gap:
+            _block(report, retire_gap, state=retire_gap.removeprefix("lane_resolution_"))
+            return
+        destructive_effect = disposition in {"retire", "preserve-retire"}
+        try:
+            receipt_path = write_resolution_receipt(
+                root=control_root,
+                receipt=receipt,
+                artifact_root=artifact_root,
+            )
+        except OSError:
+            _block(
+                report,
+                "lane_resolution_receipt_write_failed_after_effect"
+                if destructive_effect
+                else "lane_resolution_receipt_write_failed",
+                state="partial_transition" if destructive_effect else "blocked",
+            )
+            return
+        receipt_written = True
+        report.update(
+            receipt=receipt,
+            receipt_path=receipt_path,
+            chronicle_event=_chronicle_event(decision, receipt),
+        )
+    finally:
+        cleanup_gap = _release_receipt_reservation_unless_partial(
+            control_root=control_root,
+            artifact_root=artifact_root,
+            decision_id=decision_id,
+            retain_reservation=retain_reservation,
+            receipt_written=receipt_written,
+        )
+        if cleanup_gap:
+            current_gaps = cast("list[str]", report["required_gaps"])
+            _block(
+                report,
+                *current_gaps,
+                cleanup_gap,
+                state="partial_transition" if receipt_written else "blocked",
+            )
+
+
+def _resolution_roots(root: Path) -> tuple[Path | None, Path | None, str]:
+    try:
+        return accepted_control_root(root), records_artifact_root(root), ""
+    except ValueError as error:
+        return None, None, _transition_gap(error, "lane_resolution_control_root_unavailable")
+
+
+def _reserve_receipt(control_root: Path, artifact_root: Path, decision_id: str) -> str:
+    try:
+        reserve_resolution_receipt(
+            root=control_root,
+            decision_id=decision_id,
+            artifact_root=artifact_root,
+        )
+    except ValueError as error:
+        return _transition_gap(error, "lane_resolution_receipt_invalid")
+    except OSError as error:
+        return (
+            "lane_resolution_receipt_path_exists"
+            if isinstance(error, FileExistsError)
+            else "lane_resolution_receipt_path_unsafe"
+        )
+    return ""
+
+
+def _prepare_resolution(
+    *,
+    control_root: Path,
+    artifact_root: Path,
+    decision: dict[str, Any],
+    observation: LaneObservation,
+    disposition: str,
+) -> tuple[dict[str, object], dict[str, object], str, tuple[str, ...]]:
+    try:
+        package, receipt, state, effect_gap = prepare_resolution_effect(
+            control_root=control_root,
+            artifact_root=artifact_root,
+            decision=decision,
+            observation=observation,
+            disposition=disposition,
+        )
+    except (OSError, ValueError) as error:
+        return {}, {}, "blocked", (_transition_gap(error, "lane_resolution_effect_failed"),)
+    if effect_gap:
+        return package, receipt, state, (effect_gap,)
+    if disposition != "preserve-retire":
+        return package, receipt, state, ()
+    current, current_gaps = observe_lane(control_root, observation.lane_ref)
+    if current_gaps or current.digest() != observation.digest():
+        return (
+            package,
+            receipt,
+            state,
+            tuple(dict.fromkeys((*current_gaps, "lane_resolution_observation_stale"))),
+        )
+    return package, receipt, state, ()
+
+
+def _retire_resolution(
+    *, root: Path, observation: LaneObservation, disposition: str
+) -> tuple[bool, str]:
+    if disposition not in {"retire", "preserve-retire"}:
+        return False, ""
+    try:
+        retire_lane(
             root=root,
             observation=observation,
             force=disposition == "preserve-retire" and observation.dirty,
         )
-    except ValueError as exc:
-        gap = str(exc)
-        if gap not in {
-            "lane_resolution_worktree_remove_failed",
-            "lane_resolution_branch_delete_failed_after_worktree_removed",
-            "lane_resolution_branch_delete_state_uncertain",
-        }:
-            raise
-        report.update(
-            ok=False,
-            state=gap.removeprefix("lane_resolution_"),
-            required_gaps=[gap],
-            preservation_package=package,
+    except ValueError as error:
+        gap = _transition_gap(error, "lane_resolution_branch_delete_failed")
+        return (
+            gap
+            in {
+                "lane_resolution_branch_delete_failed_after_worktree_removed",
+                "lane_resolution_branch_delete_state_uncertain",
+            },
+            gap,
         )
-        return package
+    return True, ""
+
+
+def _block(report: dict[str, object], *gaps: str, state: str = "blocked") -> None:
     report.update(
-        state="preserved_and_retired" if disposition == "preserve-retire" else "retired",
-        preservation_package=package,
+        ok=False,
+        state=state,
+        required_gaps=list(dict.fromkeys(gap for gap in gaps if gap)),
     )
-    return package
 
 
-def _observe_lane(root: Path, branch: str) -> tuple[LaneObservation, list[str]]:
-    worktree = next(
-        (
-            item
-            for item in cast("list[dict[str, str]]", workspace_status(root)["worktrees"])
-            if item["branch"] == branch
-        ),
-        {},
-    )
-    if not worktree:
-        empty = hashlib.sha256(b"").hexdigest()
-        object_format = run_git(
-            root, "rev-parse", "--show-object-format", check=False
-        ).stdout.strip()
-        return LaneObservation(
-            lane_ref=branch or "unknown",
-            head="0" * (64 if object_format == "sha256" else 40),
-            lane_incarnation_id="missing",
-            path=root.resolve().as_posix(),
-            dirty=True,
-            foreign=True,
-            orphan=True,
-            ambiguous=True,
-            tracked_digest=empty,
-            untracked_digest=empty,
-        ), ["lane_resolution_target_missing"]
-    path = Path(worktree["path"])
-    head = run_git(root, "rev-parse", f"refs/heads/{branch}").stdout.strip()
-    lease = leases_by_branch(root).get(branch, {})
-    holder = str(lease.get("holder_ref") or "")
-    incarnation = str(lease.get("lane_incarnation_id") or "") or (
-        "decision-incarnation:"
-        + hashlib.sha256(f"{branch}\0{head}\0{path.resolve().as_posix()}".encode()).hexdigest()
-    )
-    return LaneObservation(
-        lane_ref=branch,
-        head=head,
-        lane_incarnation_id=incarnation,
-        holder_ref=holder,
-        path=path.resolve().as_posix(),
-        dirty=bool(run_git(path, "status", "--porcelain", check=False).stdout.strip()),
-        foreign=not bool(holder),
-        orphan=not bool(lease),
-        ambiguous=False,
-        tracked_digest=hashlib.sha256(
-            run_git(path, "diff", "--binary", "HEAD", "--", check=False).stdout.encode()
-        ).hexdigest(),
-        untracked_digest=_untracked_digest(path),
-    ), []
+def _release_receipt_reservation_unless_partial(
+    *,
+    control_root: Path,
+    artifact_root: Path,
+    decision_id: str,
+    retain_reservation: bool,
+    receipt_written: bool,
+) -> str:
+    if retain_reservation and not receipt_written:
+        return ""
+    try:
+        release_resolution_receipt_reservation(
+            root=control_root,
+            decision_id=decision_id,
+            artifact_root=artifact_root,
+        )
+    except OSError:
+        return "lane_resolution_receipt_reservation_release_failed"
+    return ""
+
+
+def _transition_gap(error: Exception, fallback: str) -> str:
+    message = str(error).strip()
+    return message if message.startswith("lane_resolution_") else fallback
 
 
 def _read_decision(path: Path, *, root: Path) -> tuple[dict[str, Any], list[str]]:
+    if not canonical_record_path(root, path):
+        return {}, ["lane_resolution_decision_path_not_local_artifact"]
     try:
         payload = json.loads(path.resolve().read_text(encoding="utf-8"))
         decision = LaneResolutionDecision.model_validate_json(
@@ -292,47 +378,14 @@ def _read_decision(path: Path, *, root: Path) -> tuple[dict[str, Any], list[str]
         "ok"
     ]:
         return cast("dict[str, Any]", payload), ["lane_resolution_decision_invalid"]
+    if not valid_decision_id(str(payload.get("decision_id") or "")):
+        return cast("dict[str, Any]", payload), ["lane_resolution_decision_invalid"]
     gaps = (
         []
         if decision.observation.digest() == payload.get("observation_digest")
         else ["lane_resolution_decision_digest_invalid"]
     )
     return cast("dict[str, Any]", payload), gaps
-
-
-def _local_artifact_path(root: Path, path: Path) -> bool:
-    try:
-        relative = path.resolve().relative_to(root.resolve())
-    except ValueError:
-        return True
-    return relative.parts[:2] in {("build", "artifacts"), ("build", "evidence")}
-
-
-def _untracked_digest(path: Path) -> str:
-    inventory = _untracked_files(path)
-    if inventory is None:
-        return hashlib.sha256(b"unavailable").hexdigest()
-    digest = hashlib.sha256()
-    for raw in inventory:
-        file_path = path / raw.decode(errors="surrogateescape")
-        digest.update(
-            raw + b"\0" + (file_path.read_bytes() if file_path.is_file() else b"") + b"\0"
-        )
-    return digest.hexdigest()
-
-
-def _untracked_files(path: Path) -> list[bytes] | None:
-    completed = subprocess.run(
-        ["git", "ls-files", "--others", "--exclude-standard", "-z"],
-        cwd=path,
-        check=False,
-        capture_output=True,
-    )
-    return (
-        None
-        if completed.returncode
-        else sorted(item for item in completed.stdout.split(b"\0") if item)
-    )
 
 
 def _accepted_chronicle(
@@ -350,133 +403,6 @@ def _accepted_chronicle(
     if f"lane_resolution/{disposition}" not in path.read_text(encoding="utf-8"):
         return relative, "", ["lane_resolution_chronicle_disposition_mismatch"]
     return relative, hashlib.sha256(path.read_bytes()).hexdigest(), []
-
-
-def _preserve(
-    *, root: Path, observation: LaneObservation, decision: dict[str, Any]
-) -> dict[str, object]:
-    relative = Path("build/artifacts/lane-resolution") / str(decision["decision_id"])
-    package = root / relative
-    package.mkdir(parents=True, exist_ok=True)
-    bundle, patch, archive = (
-        package / "repository.bundle",
-        package / "tracked.patch",
-        package / "untracked.tar",
-    )
-    source = Path(observation.path)
-    run_git(source, "bundle", "create", bundle.as_posix(), observation.lane_ref)
-    patch.write_bytes(
-        subprocess.run(
-            ["git", "diff", "--binary", "HEAD", "--"], cwd=source, check=False, capture_output=True
-        ).stdout
-    )
-    inventory = _untracked_files(source)
-    if inventory is None:
-        raise ValueError("lane_resolution_untracked_inventory_failed")  # noqa: EM101, RUF100
-    if inventory:
-        subprocess.run(
-            [
-                "tar",
-                "-cf",
-                archive.as_posix(),
-                "--",
-                *(item.decode(errors="surrogateescape") for item in inventory),
-            ],
-            cwd=source,
-            check=True,
-            capture_output=True,
-        )
-    manifest = {
-        "decision_id": decision["decision_id"],
-        "lane_ref": observation.lane_ref,
-        "head": observation.head,
-        "observation_digest": observation.digest(),
-        "bundle_sha256": sha256_digest(bundle),
-        "patch_sha256": sha256_digest(patch),
-        "untracked_archive_sha256": sha256_digest(archive) if archive.is_file() else "",
-        "source_lease_transferred": False,
-    }
-    (package / "manifest.json").write_text(
-        json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-    )
-    return {"path": relative.as_posix(), "manifest": manifest}
-
-
-def _retire(*, root: Path, observation: LaneObservation, force: bool = False) -> None:
-    ref = f"refs/heads/{observation.lane_ref}"
-    with subprocess.Popen(
-        ["git", "update-ref", "--stdin"],
-        cwd=root,
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-    ) as transaction:
-        stdin, stdout = transaction.stdin, transaction.stdout
-        if stdin is None or stdout is None or transaction.stderr is None:
-            raise ValueError("lane_resolution_branch_delete_failed")  # noqa: EM101, RUF100
-        try:
-            stdin.write("start\n")
-            stdin.flush()
-            started = stdout.readline() == "start: ok\n"
-            stdin.write(f"delete {ref} {observation.head}\nprepare\n")
-            stdin.flush()
-            prepared = stdout.readline() == "prepare: ok\n"
-        except OSError as exc:
-            message = "lane_resolution_branch_delete_failed"
-            raise ValueError(message) from exc
-        if not (started and prepared):
-            stdin.write("abort\n")
-            stdin.close()
-            raise ValueError("lane_resolution_branch_delete_failed")  # noqa: EM101, RUF100
-        remove = ("worktree", "remove", *(("--force",) if force else ()), observation.path)
-        removed = run_git(root, *remove, check=False)
-        if removed.returncode:
-            stdin.write("abort\n")
-            stdin.close()
-            raise ValueError("lane_resolution_worktree_remove_failed")  # noqa: EM101, RUF100
-        try:
-            stdin.write("commit\n")
-            stdin.close()
-            committed = stdout.readline() == "commit: ok\n" and transaction.wait() == 0
-        except OSError:
-            committed = False
-    if not committed:
-        present = run_git(root, "show-ref", "--verify", "--quiet", ref, check=False).returncode == 0
-        message = (
-            "lane_resolution_branch_delete_failed_after_worktree_removed"
-            if present
-            else "lane_resolution_branch_delete_state_uncertain"
-        )
-        raise ValueError(message)
-
-
-def _resolution_receipt(
-    decision: dict[str, Any],
-    observation: LaneObservation,
-    state: LaneResolutionState,
-    package: dict[str, object],
-) -> dict[str, object]:
-    manifest = package.get("manifest")
-    payload = cast("dict[str, object]", manifest) if isinstance(manifest, dict) else {}
-    manifest_digest = (
-        hashlib.sha256((json.dumps(payload, indent=2, sort_keys=True) + "\n").encode()).hexdigest()
-        if payload
-        else ""
-    )
-    return LaneResolutionReceipt(
-        receipt_id=f"lane-resolution-receipt:{uuid.uuid4()}",
-        decision_id=str(decision["decision_id"]),
-        completed=True,
-        state=state,
-        observation_digest=observation.digest(),
-        reconciliation_required=bool(decision.get("break_glass")),
-        lane_ref=observation.lane_ref,
-        head=observation.head,
-        preservation_package=str(package.get("path") or ""),
-        preservation_manifest_sha256=manifest_digest,
-        mints_authority=False,
-    ).to_payload()
 
 
 def _chronicle_event(
@@ -500,6 +426,12 @@ def _report(branch: str, evaluation: Any) -> dict[str, object]:
         "ok": evaluation.ok,
         "state": evaluation.state,
         "branch": branch,
+        "decision": {},
+        "decision_path": "",
+        "preservation_package": {},
+        "receipt": {},
+        "receipt_path": "",
+        "chronicle_event": {},
         "required_gaps": list(evaluation.gaps),
     }
 

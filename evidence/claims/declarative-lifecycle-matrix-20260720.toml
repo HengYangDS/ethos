@@ -3,13 +3,13 @@ id = "declarative-lifecycle-matrix-20260720"
 subject = "ethos:declarative-lifecycle-matrix"
 change_id = "declarative-lifecycle-matrix"
 state = "active"
-summary = "This dated episode Claim binds the date-free declarative-lifecycle-matrix Change: four declared lease generation transitions, one generation-bound linked-retirement owner, Git-common-directory local-state identity, current-only subject-keyed lease storage, generic-only rebase recovery, closed SQLite resource warnings, zero-issue canonical OpenSpec validation, and quiet successful configuration gates pending archive and local lifecycle closeout."
+summary = "This dated episode Claim binds the archived date-free declarative-lifecycle-matrix Change: four declared lease generation transitions, one generation-bound linked-retirement owner, Git-common-directory local-state identity, current-only subject-keyed lease storage, generic-only rebase recovery, closed SQLite resource warnings, zero-issue canonical OpenSpec validation, and quiet successful configuration gates pending local lifecycle closeout."
 
 [evidence]
 dated = "evidence/chronicle/declarative-lifecycle-matrix-20260720/2026-07-20.md"
 sha256 = "fe8119e02d8d59603ccc99a930268581e3838b22375890e9de6a3039d5c4a18f"
 evidence_ids = ["evidence:declarative-lifecycle-matrix-20260720"]
-binding = "The date-free Change and dated Chronicle bind the declared renew, resume, handoff-offer, and handoff-accept reducer; exact cross-host generation handoff; Work Lane start acquisition and no-clobber compensation; the single linked-retirement transaction; accepted-policy-bound unavailable-holder exact revoke; Git-common-directory local-state identity separated from destructive accepted-checkout control; the current subject-keyed SQLite lease table and exact subject-unique index without retired resource-keyed migration or database-wide lease version ownership; deletion of the archived Claim-specific rebase resolver, explicit SQLite connection closure, warning-free canonical OpenSpec normalization, and Taplo native warning-level logging. Final frozen-tree proof, archive, land, publication, and remote execution remain separate transitions until observed."
+binding = "The archived date-free Change and dated Chronicle bind the declared renew, resume, handoff-offer, and handoff-accept reducer; exact cross-host generation handoff; Work Lane start acquisition and no-clobber compensation; the single linked-retirement transaction; accepted-policy-bound unavailable-holder exact revoke; Git-common-directory local-state identity separated from destructive accepted-checkout control; the current subject-keyed SQLite lease table and exact subject-unique index without retired resource-keyed migration or database-wide lease version ownership; deletion of the archived Claim-specific rebase resolver, explicit SQLite connection closure, warning-free canonical OpenSpec normalization, and Taplo native warning-level logging. Final frozen-tree proof, land, publication, and remote execution remain separate transitions until observed."
 verifier = "digest_only"
 tests = [
   "tools/ci/scripts/run-python-tests.sh",
@@ -35,7 +35,7 @@ owner = "ethos-repository"
 scope = "Declaration-compiled renew, resume, handoff-offer, and handoff-accept generation transitions; exact cross-host handoff; Work Lane start acquisition and no-clobber compensation; Git-common-directory local-state identity; ordinary holder-bound linked landed and superseded retirement; accepted-policy-bound unavailable-holder admission using the canonical exact revoke primitive; current subject-keyed SQLite lease schema evolution and uniqueness; warning-free canonical OpenSpec validation; warning-free successful configuration validation; and generic parity or semantic-ledger rebase recovery after removal of one archived Claim-specific resolver. General foreign authority, dirty recovery, remote mutation, hosted execution, and broader intent takeover are excluded."
 
 [carriers]
-openspec = "openspec/changes/declarative-lifecycle-matrix"
+openspec = "openspec/changes/archive/2026-07-22-declarative-lifecycle-matrix"
 fallback = "Preserve the linked checkout, lane ref, and current lease on uncertain retirement state; fail closed on unsupported retired lease storage or unresolved rebase conflicts; recreate current local coordination only through the canonical lifecycle."
 kill_signal = "A parallel lease or linked-retirement owner returns, a retired resource-keyed lease schema is translated, duplicate subjects require Python arbitration, an archived Claim-specific rebase resolver returns, a lane ref is deleted after accepted-state drift, compensation clobbers a newer ref, or a later lifecycle transition is claimed before evidence exists."
 
@@ -50,7 +50,7 @@ targets = [
   "evidence/claims/retire-landed-apply-verdict-20260709.toml",
   "evidence/chronicle/declarative-lifecycle-matrix-20260720/2026-07-20.md",
   "evidence/parity/generic-shadow.json",
-  "openspec/changes/declarative-lifecycle-matrix",
+  "openspec/changes/archive/2026-07-22-declarative-lifecycle-matrix",
   "openspec/specs/quality/spec.md",
   "openspec/specs/repository-governance/spec.md",
   "packages/ethos-core/src/ethos_core/contracts",

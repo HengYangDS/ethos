@@ -21,8 +21,8 @@ until a concrete runtime cache earns its own owner and lifecycle.
 
 No generic event, session, gate-run, action-run, or evidence-index table is
 created speculatively. Durable Chronicle truth remains repository evidence,
-not an ignored SQLite event stream. Local state can be deleted and rebuilt
-without changing repository history.
+not an ignored SQLite event stream. The `.ethos/state` SQLite coordination store
+can be deleted and rebuilt without changing repository history.
 
 The state owner currently records schema version 2. Initialization performs
 ordered migrations in one SQLite transaction. Version 2 removes the retired
@@ -36,6 +36,48 @@ Git history, OpenSpec records, claims, evidence, or Chronicle judgments.
 Productized leases identify the concrete acting holder, not merely a provider
 class. Current prewrite and apply-mode admission are enforced by checkout role,
 editor-root binding, HEAD checks, and active lease holder binding.
+
+## Stable Recovery Records
+
+Non-rebuildable lane-resolution recovery material is not stored in a disposable
+Work Lane build tree. New decisions, preservation packages, immutable receipts,
+and bounded clear records live below the configured accepted checkout's sibling
+owner:
+
+```text
+<accepted-checkout-parent>/<accepted-checkout-name>-records/
+  recovery/lane-resolution/
+```
+
+These records are ignored host-local evidence, not repository authority. The
+tracked Chronicle and Claim still authorize every transition. Unlike runtime
+caches or SQLite coordination, however, a preservation bundle and patch may be
+the only remaining recovery material after source and carrier retirement, so
+they are not assumed rebuildable and require an evidence-bound clear. Inventory,
+verification, and clear retain read-only compatibility with legacy per-worktree
+`build/artifacts/lane-resolution/` records; ordinary retirement blocks while a
+selected worktree still owns a retained legacy manifest.
+
+The Git primary control root owns the branch-role policy used to locate the
+configured accepted checkout, so mutable caller Work Lane bytes cannot redirect
+new records. Decisions are immutable, uniquely named, and created without
+clobbering. Preservation verification rereads the durable manifest and binds it
+to the immutable receipt before inventory or clear can report a consistent
+retained transition.
+
+Package, manifest, receipt, and clear-record paths are checked lexically against
+the pinned owner and reject symlink components. Existing package directories are
+never reused, and clear rechecks the package and manifest immediately before
+removal.
+
+Before any destructive lane-resolution effect, ETHOS reserves the deterministic
+completion-receipt destination with a hidden, non-JSON sidecar created through
+exclusive filesystem creation. An existing final receipt or reservation blocks
+with `lane_resolution_receipt_path_exists` before a preservation package, branch
+ref, or worktree is mutated. Pre-effect failure and successful receipt
+materialization release the reservation; a receipt failure after the effect
+retains it as fail-closed reconciliation state. Final receipt writing still uses
+an independent no-clobber and no-symlink check.
 
 ## Explicit Maintenance
 

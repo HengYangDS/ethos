@@ -16,14 +16,20 @@ do not detect this loss.
 
 ## What Changes
 
-- Forward-revert the six-commit e54b81d..dbf17ff range without reset,
-  force, or protected-ref mutation, removing its false Claim, Chronicle, plan,
-  archived carrier, duplicate specification scenario, parity refreshes, and
-  style-only script changes.
+- Forward-revert the invalid semantic delta introduced by the six-commit
+  e54b81d..dbf17ff range without reset, force, or protected-ref mutation. Remove
+  its false Claim, Chronicle, plan, archived carrier, duplicate specification
+  scenario, and style-only script changes while preserving later accepted
+  changes to shared specification and parity files.
 - Route new lane-resolution decisions, preservation packages, receipts, clear
   receipts, inventory, and verification through the configured accepted
   checkout's sibling records owner:
-  <accepted-repo>-records/recovery/lane-resolution/.
+  <accepted-checkout-parent>/<accepted-checkout-name>-records/
+  recovery/lane-resolution/.
+- Reserve the deterministic completion-receipt destination before package
+  creation or destructive effect. Existing final receipts or concurrent
+  reservations fail closed without deleting the lane; post-effect receipt
+  failure retains explicit reconciliation state.
 - Keep read-only compatibility for legacy
   build/artifacts/lane-resolution/ records, but block ordinary Work Lane
   retirement whenever the selected worktree still contains a retained legacy

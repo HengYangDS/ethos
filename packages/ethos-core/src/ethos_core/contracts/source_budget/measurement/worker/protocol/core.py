@@ -21,7 +21,6 @@ import ethos_core.contracts.source_budget.measurement.canonical as canonical
 
 if TYPE_CHECKING:
     from ethos_core.contracts.source_budget.measurement.execution import ExecutionDescriptor
-    from ethos_core.contracts.source_budget.measurements import MetricValue
     from ethos_core.contracts.source_budget.measurements import NativeMeasurement
     from ethos_core.contracts.source_budget.metrics import MetricContract
 
@@ -30,6 +29,39 @@ _REQUEST_SCHEMA = "ethos-source-budget-worker-request-v1"
 _RESULT_SCHEMA = "ethos-source-budget-worker-result-v1"
 _SHA256_PATTERN = r"^[a-f0-9]{64}$"
 _Sha256 = Annotated[str, Field(pattern=_SHA256_PATTERN)]
+_ChildWorkerGap = Literal[
+    "source_budget_native_carrier_bytes_exceeded",
+    "source_budget_native_conformance_mismatch:ini",
+    "source_budget_native_conformance_mismatch:jinja",
+    "source_budget_native_conformance_mismatch:json",
+    "source_budget_native_conformance_mismatch:python",
+    "source_budget_native_conformance_mismatch:shell",
+    "source_budget_native_conformance_mismatch:toml",
+    "source_budget_native_conformance_mismatch:yaml",
+    "source_budget_native_contract_invalid",
+    "source_budget_native_dependency_major_mismatch:jinja2",
+    "source_budget_native_dependency_major_mismatch:pyyaml",
+    "source_budget_native_execution_contract_invalid",
+    "source_budget_native_parse_failed:ini",
+    "source_budget_native_parse_failed:jinja",
+    "source_budget_native_parse_failed:json",
+    "source_budget_native_parse_failed:python",
+    "source_budget_native_parse_failed:shell",
+    "source_budget_native_parse_failed:toml",
+    "source_budget_native_parse_failed:yaml",
+    "source_budget_native_provider_signature_mismatch",
+    "source_budget_native_provider_unavailable:ini",
+    "source_budget_native_provider_unavailable:jinja",
+    "source_budget_native_provider_unavailable:json",
+    "source_budget_native_provider_unavailable:python",
+    "source_budget_native_provider_unavailable:shell",
+    "source_budget_native_provider_unavailable:toml",
+    "source_budget_native_provider_unavailable:yaml",
+    "source_budget_native_resource_exhausted",
+    "source_budget_native_runtime_unsupported",
+    "source_budget_native_text_embedded_bom",
+    "source_budget_native_text_invalid_utf8",
+]
 
 
 class WorkerProtocolDescriptor(BaseModel):
@@ -244,6 +276,17 @@ class _WorkerSuccess(BaseModel):
         )
 
 
+def _request_bindings(request: WorkerRequest) -> dict[str, str]:
+    """Return the five request digests echoed by every worker result."""
+    return {
+        "content_sha256": request.content_sha256,
+        "resolved_contracts_digest": request.resolved_contracts_digest,
+        "provider_digest": request.provider_digest,
+        "execution_contract_digest": request.execution_contract_digest,
+        "request_digest": request.request_digest,
+    }
+
+
 class WorkerResult(BaseModel):
     """One typed worker success bound to its originating request."""
 
@@ -263,8 +306,15 @@ class WorkerResult(BaseModel):
     provider_digest: _Sha256
     execution_contract_digest: _Sha256
     request_digest: _Sha256
-    success: _WorkerSuccess
-    gap: Literal[None]
+    success: _WorkerSuccess | None
+    gap: _ChildWorkerGap | None
+
+    @model_validator(mode="after")
+    def _validate_success_gap_xor(self) -> Self:
+        """Require exactly one typed success or admitted child gap."""
+        if (self.success is None) == (self.gap is None):
+            raise ValueError("worker result requires exactly one of success or gap")
+        return self
 
     @classmethod
     def from_measurement(
@@ -277,11 +327,7 @@ class WorkerResult(BaseModel):
         return cls(
             schema=_RESULT_SCHEMA,
             protocol_id=WORKER_PROTOCOL_ID,
-            content_sha256=request.content_sha256,
-            resolved_contracts_digest=request.resolved_contracts_digest,
-            provider_digest=request.provider_digest,
-            execution_contract_digest=request.execution_contract_digest,
-            request_digest=request.request_digest,
+            **_request_bindings(request),
             success=_WorkerSuccess(
                 normalized_digest=measurement.normalized_digest,
                 values=measurement.values,
@@ -290,9 +336,51 @@ class WorkerResult(BaseModel):
             gap=None,
         )
 
+    @classmethod
+    def from_gap(
+        cls,
+        *,
+        request: WorkerRequest,
+        gap: _ChildWorkerGap,
+    ) -> Self:
+        """Return one typed child gap bound to the request digests."""
+        return cls(
+            schema=_RESULT_SCHEMA,
+            protocol_id=WORKER_PROTOCOL_ID,
+            **_request_bindings(request),
+            success=None,
+            gap=gap,
+        )
+
+
+def _canonical_model_payload(
+    value: BaseModel,
+    model_type: type[BaseModel],
+    label: str,
+) -> dict[str, object]:
+    """Return one exact model payload without trusting forged model storage."""
+    expected_fields = set(model_type.model_fields)
+    if (
+        type(value) is not model_type
+        or set(vars(value)) != expected_fields
+        or value.model_fields_set != expected_fields
+    ):
+        message = f"worker {label} model storage must be canonical"
+        raise ValueError(message)
+    return cast(
+        "dict[str, object]",
+        value.model_dump(mode="python", by_alias=True, warnings="error"),
+    )
+
 
 def replay_worker_result(request: WorkerRequest, result: WorkerResult) -> NativeMeasurement:
     """Reconstruct one native measurement from trusted request contracts."""
+    request_payload = _canonical_model_payload(request, WorkerRequest, "request")
+    result_payload = _canonical_model_payload(result, WorkerResult, "result")
+    if result.success is not None:
+        _canonical_model_payload(result.success, _WorkerSuccess, "success")
+    request = WorkerRequest.model_validate(request_payload)
+    result = WorkerResult.model_validate(result_payload)
     if (
         result.content_sha256,
         result.resolved_contracts_digest,
@@ -307,17 +395,21 @@ def replay_worker_result(request: WorkerRequest, result: WorkerResult) -> Native
         request.request_digest,
     ):
         raise ValueError("worker result request binding mismatch")
+    success = result.success
+    if success is None:
+        raise ValueError("worker result success is required for replay")
     from ethos_core.contracts.source_budget.measurements import NativeMeasurement
 
-    replayed = NativeMeasurement.create(
-        content_sha256=request.content_sha256,
-        normalized_digest=result.success.normalized_digest,
-        contracts=cast("tuple[MetricContract, ...]", request.contracts),
-        values=cast("tuple[MetricValue, ...]", result.success.values),
+    return NativeMeasurement.model_validate(
+        {
+            "content_sha256": request.content_sha256,
+            "normalized_digest": success.normalized_digest,
+            "contracts": request.contracts,
+            "resolved_contracts_digest": request.resolved_contracts_digest,
+            "values": success.values,
+            "measurement_digest": success.measurement_digest,
+        }
     )
-    if replayed.measurement_digest != result.success.measurement_digest:
-        raise ValueError("worker result measurement digest mismatch")
-    return replayed
 
 
 def _canonical_json_bytes(payload: object) -> bytes:

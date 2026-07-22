@@ -1,16 +1,20 @@
 from __future__ import annotations
 
-# ruff: noqa: ARG005, TC003
+# ruff: noqa: ARG005
 import hashlib
 import json
 import subprocess
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 import ethos.adapters.mutation.resolution._effects as resolution_effects
 import ethos.adapters.mutation.resolution._observation as resolution_observation
+import ethos.adapters.mutation.resolution._shared as resolution_shared
 import ethos.adapters.mutation.resolution.lane as resolution
+import ethos.adapters.mutation.resolution.receipts as resolution_receipts
+import ethos.adapters.mutation.resolution.records.core as resolution_records
 import ethos.surface.cli.lane.resolution as resolution_cli
 from ethos_core.contracts.resolution.lane import LaneObservation
 from tests.support.lane_helpers import git
@@ -370,3 +374,428 @@ def test_resolution_real_worktree_parser(tmp_path: Path) -> None:
     lane = tmp_path / "lane"
     git(repo, "worktree", "add", "-b", "work/example", lane.as_posix(), "dev")
     assert resolution_observation.worktree(repo, "work/example")["worktree"] == lane.as_posix()
+
+
+def test_resolution_shared_control_root_failure_edges(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(resolution_shared, "_primary_control_root", lambda _root: tmp_path)
+    monkeypatch.setattr(
+        resolution_shared,
+        "load_branch_role_policy",
+        lambda _root: SimpleNamespace(accepted_branch="dev"),
+    )
+    monkeypatch.setattr(resolution_shared, "_git_output", lambda *_args: "")
+    with pytest.raises(ValueError, match="lane_resolution_accepted_control_root_unavailable"):
+        resolution_shared.accepted_control_root(tmp_path)
+
+    missing = tmp_path / "missing"
+    monkeypatch.setattr(resolution_shared, "_git_output", lambda *_args: "a" * 40)
+    monkeypatch.setattr(
+        resolution_shared,
+        "_registered_worktrees",
+        lambda _root: [
+            {"branch": "refs/heads/other", "worktree": tmp_path.as_posix()},
+            {"branch": "refs/heads/dev", "worktree": missing.as_posix()},
+        ],
+    )
+    with pytest.raises(ValueError, match="lane_resolution_accepted_control_root_unavailable"):
+        resolution_shared.accepted_control_root(tmp_path)
+
+
+def test_resolution_shared_parser_and_path_edges(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        resolution_shared,
+        "_git_output",
+        lambda *_args: (tmp_path / "missing" / ".git").as_posix(),
+    )
+    with pytest.raises(ValueError, match="lane_resolution_accepted_control_root_unavailable"):
+        resolution_shared._primary_control_root(tmp_path)
+
+    monkeypatch.setattr(
+        resolution_shared.subprocess,
+        "run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(args[0], 1, stdout="", stderr=""),
+    )
+    with pytest.raises(ValueError, match="lane_resolution_accepted_control_root_unavailable"):
+        resolution_shared._registered_worktrees(tmp_path)
+
+    monkeypatch.setattr(
+        resolution_shared.subprocess,
+        "run",
+        lambda *args, **kwargs: subprocess.CompletedProcess(
+            args[0],
+            0,
+            stdout=f"worktree {tmp_path}\nbranch refs/heads/dev\n\n",
+            stderr="",
+        ),
+    )
+    assert resolution_shared._registered_worktrees(tmp_path) == [
+        {"worktree": tmp_path.as_posix(), "branch": "refs/heads/dev"}
+    ]
+    assert resolution_shared.canonical_package_path(tmp_path, "invalid") is None
+    outside = tmp_path.parent / "outside-record"
+    assert resolution_shared.display_path(tmp_path, outside) == outside.resolve().as_posix()
+
+
+def test_resolution_effect_and_decision_path_failure_edges(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        resolution_effects,
+        "write_resolution_receipt",
+        lambda **_kwargs: (_ for _ in ()).throw(OSError("write failed")),
+    )
+    with pytest.raises(OSError, match="write failed"):
+        resolution_effects.write_completion_receipt(
+            control_root=tmp_path,
+            artifact_root=tmp_path / "records",
+            receipt={},
+            destructive_effect=False,
+        )
+
+    monkeypatch.setattr(resolution, "canonical_record_path", lambda *_args: False)
+    assert resolution._read_decision(tmp_path / "decision.json", root=tmp_path)[1] == [
+        "lane_resolution_decision_path_not_local_artifact"
+    ]
+
+
+def test_resolution_receipt_and_manifest_validation_edges(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    decision_id = "lane-decision:00000000-0000-4000-8000-000000000099"
+    receipt = resolution_effects.completion_receipt(
+        {"decision_id": decision_id, "disposition": "block", "break_glass": False},
+        _observation(tmp_path),
+        "blocked_by_decision",
+        {},
+    )
+    receipt["decision_id"] = "invalid"
+    with pytest.raises(ValueError, match="lane_resolution_receipt_invalid"):
+        resolution_receipts.write_resolution_receipt(
+            root=tmp_path,
+            receipt=receipt,
+            artifact_root=tmp_path,
+        )
+
+    package = tmp_path / "package"
+    package.mkdir()
+    manifest_path = package / "manifest.json"
+    manifest_path.write_text("{", encoding="utf-8")
+    with pytest.raises(TypeError, match="lane_resolution_preservation_manifest_invalid"):
+        resolution_receipts.verify_preservation_package(
+            root=tmp_path,
+            package={"path": package.as_posix()},
+            artifact_root=tmp_path,
+        )
+
+    manifest_path.write_text("[]", encoding="utf-8")
+    with pytest.raises(TypeError, match="lane_resolution_preservation_manifest_invalid"):
+        resolution_receipts.verify_preservation_package(
+            root=tmp_path,
+            package={"path": package.as_posix()},
+            artifact_root=tmp_path,
+        )
+
+    bundle = package / "repository.bundle"
+    patch = package / "tracked.patch"
+    bundle.write_bytes(b"bundle")
+    patch.write_bytes(b"patch")
+    manifest = {
+        "decision_id": decision_id,
+        "bundle_sha256": hashlib.sha256(bundle.read_bytes()).hexdigest(),
+        "patch_sha256": hashlib.sha256(patch.read_bytes()).hexdigest(),
+        "untracked_archive_sha256": "",
+    }
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    with pytest.raises(TypeError, match="lane_resolution_preservation_manifest_invalid"):
+        resolution_receipts.verify_preservation_package(
+            root=tmp_path,
+            package={"path": package.as_posix(), "manifest": "invalid"},
+            artifact_root=tmp_path,
+        )
+    with pytest.raises(ValueError, match="lane_resolution_preservation_package_invalid"):
+        resolution_receipts.verify_preservation_package(
+            root=tmp_path,
+            package={"path": package.as_posix(), "manifest": {"decision_id": decision_id}},
+            artifact_root=tmp_path,
+        )
+
+    manifest["untracked_archive_sha256"] = "0" * 64
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    with pytest.raises(ValueError, match="lane_resolution_preservation_package_invalid"):
+        resolution_receipts.verify_preservation_package(
+            root=tmp_path,
+            package={"path": package.as_posix()},
+            artifact_root=tmp_path,
+        )
+
+
+def test_resolution_clear_post_receipt_failure_edges(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    decision_id = "lane-decision:00000000-0000-4000-8000-000000000100"
+    manifest_sha256 = "a" * 64
+    manifest = {
+        "manifest_sha256": manifest_sha256,
+        "package_path": "package",
+        "copy_count": 1,
+    }
+    monkeypatch.setattr(
+        resolution_receipts,
+        "_manifests_with_conflicts",
+        lambda _root: ({decision_id: manifest}, set()),
+    )
+    monkeypatch.setattr(resolution_receipts, "_unsafe_package_path_present", lambda _root: False)
+    monkeypatch.setattr(resolution_receipts, "_unsafe_record_path_present", lambda _root: False)
+
+    def records(_root: Path, category: str, _schema: str):
+        if category == "receipts":
+            return ({decision_id: {"preservation_manifest_sha256": manifest_sha256}}, set())
+        return ({}, set())
+
+    monkeypatch.setattr(resolution_receipts, "_records_with_conflicts", records)
+    monkeypatch.setattr(
+        resolution_receipts,
+        "_clear_chronicle",
+        lambda *_args: ("evidence/chronicle/clear.md", "b" * 64, []),
+    )
+    monkeypatch.setattr(resolution_receipts, "_validate_schema", lambda *_args: None)
+    record_root = tmp_path / "records"
+    receipt_path = record_root / "clears" / "receipt.json"
+    monkeypatch.setattr(resolution_receipts, "records_artifact_root", lambda _root: record_root)
+    monkeypatch.setattr(
+        resolution_receipts,
+        "clear_receipt_path",
+        lambda _root, _decision_id: receipt_path,
+    )
+
+    def write_receipt(path: Path, _payload: dict[str, object], *, record_root: Path) -> None:
+        assert path.is_relative_to(record_root)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("receipt\n", encoding="utf-8")
+
+    monkeypatch.setattr(resolution_receipts, "write_json_atomic", write_receipt)
+    request = resolution_receipts.LaneResolutionClearRequest(
+        decision_id=decision_id,
+        expect_manifest_sha256=manifest_sha256,
+        chronicle_ref="evidence/chronicle/clear.md",
+        reason="Clear the exact retained package.",
+        break_glass=True,
+        confirm_irreversible=True,
+        apply=True,
+    )
+
+    monkeypatch.setattr(resolution_receipts, "record_destination_safe", lambda *_args: False)
+    unsafe_receipt = resolution_receipts.clear_lane_resolution_package(
+        root=tmp_path,
+        request=request,
+    )
+    assert unsafe_receipt["required_gaps"] == ["lane_resolution_clear_receipt_path_unsafe"]
+
+    monkeypatch.setattr(resolution_receipts, "record_destination_safe", lambda *_args: True)
+    monkeypatch.setattr(resolution_receipts, "_package_path_safe", lambda *_args: False)
+    unsafe_package = resolution_receipts.clear_lane_resolution_package(
+        root=tmp_path,
+        request=request,
+    )
+    assert unsafe_package["required_gaps"] == ["lane_resolution_package_path_unsafe"]
+    assert not receipt_path.exists()
+
+    package = tmp_path / "package"
+    package.mkdir()
+    (package / "manifest.json").write_text("different\n", encoding="utf-8")
+    monkeypatch.setattr(resolution_receipts, "_package_path_safe", lambda *_args: True)
+    mismatched = resolution_receipts.clear_lane_resolution_package(root=tmp_path, request=request)
+    assert mismatched["required_gaps"] == ["lane_resolution_clear_manifest_mismatch"]
+    assert not receipt_path.exists()
+
+
+def test_resolution_receipt_inventory_scan_edges(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    symlink_root = tmp_path / "symlink-root"
+    symlink_root.symlink_to(outside, target_is_directory=True)
+    monkeypatch.setattr(resolution_receipts, "artifact_roots", lambda _root: (symlink_root,))
+    assert resolution_receipts._unsafe_package_path_present(tmp_path) is True
+
+    unreadable = tmp_path / "unreadable"
+    unreadable.mkdir()
+    original_iterdir = Path.iterdir
+    monkeypatch.setattr(
+        Path,
+        "iterdir",
+        lambda self: (
+            (_ for _ in ()).throw(OSError("unreadable"))
+            if self == unreadable
+            else original_iterdir(self)
+        ),
+    )
+    monkeypatch.setattr(resolution_receipts, "artifact_roots", lambda _root: (unreadable,))
+    assert resolution_receipts._unsafe_package_path_present(tmp_path) is True
+
+    manifest_root = tmp_path / "manifest-root"
+    manifest_path = manifest_root / "package" / "manifest.json"
+    manifest_path.parent.mkdir(parents=True)
+    manifest_path.write_text(json.dumps({"decision_id": "invalid"}), encoding="utf-8")
+    monkeypatch.setattr(resolution_receipts, "artifact_roots", lambda _root: (manifest_root,))
+    monkeypatch.setattr(resolution_receipts, "_package_path_safe", lambda *_args: True)
+    assert resolution_receipts._manifests_with_conflicts(tmp_path) == ({}, set())
+
+    category_target = tmp_path / "category-target"
+    category_target.mkdir()
+    category_root = tmp_path / "category-root"
+    category_root.mkdir()
+    (category_root / "receipts").symlink_to(category_target, target_is_directory=True)
+    monkeypatch.setattr(resolution_receipts, "artifact_roots", lambda _root: (category_root,))
+    assert resolution_receipts._records_with_conflicts(
+        tmp_path,
+        "receipts",
+        "lane-resolution-receipt.schema.json",
+    ) == ({}, set())
+
+    decision_id = "lane-decision:00000000-0000-4000-8000-000000000101"
+    first = tmp_path / "first"
+    second = tmp_path / "second"
+    for root, payload in (
+        (first, {"decision_id": "invalid"}),
+        (first, {"decision_id": decision_id, "head": "a" * 40}),
+        (second, {"decision_id": decision_id, "head": "b" * 40}),
+    ):
+        category = root / "receipts"
+        category.mkdir(parents=True, exist_ok=True)
+        name = hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
+        (category / f"{name}.json").write_text(json.dumps(payload), encoding="utf-8")
+    monkeypatch.setattr(resolution_receipts, "artifact_roots", lambda _root: (first, second))
+    monkeypatch.setattr(
+        resolution_receipts,
+        "validate_schema_instance",
+        lambda *_args, **_kwargs: {"ok": True},
+    )
+    records, conflicts = resolution_receipts._records_with_conflicts(
+        tmp_path,
+        "receipts",
+        "lane-resolution-receipt.schema.json",
+    )
+    assert records[decision_id]["head"] == "a" * 40
+    assert conflicts == {decision_id}
+
+
+def test_resolution_record_storage_failure_edges(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    target = tmp_path / "target"
+    target.mkdir()
+    symlink_root = tmp_path / "record-root-link"
+    symlink_root.symlink_to(target, target_is_directory=True)
+    assert (
+        resolution_records.record_destination_safe(symlink_root, symlink_root / "record") is False
+    )
+
+    record_root = tmp_path / "records"
+    with pytest.raises(OSError, match="lane_resolution_record_path_unsafe"):
+        resolution_records.write_json_atomic(
+            tmp_path / "outside.json",
+            {},
+            record_root=record_root,
+        )
+
+    destination = record_root / "receipts" / "record.json"
+    with monkeypatch.context() as scoped:
+        checks = iter((True, False))
+        scoped.setattr(resolution_records, "record_destination_safe", lambda *_args: next(checks))
+        with pytest.raises(OSError, match="lane_resolution_record_path_unsafe"):
+            resolution_records.write_json_atomic(destination, {}, record_root=record_root)
+
+    with monkeypatch.context() as scoped:
+        checks = iter((True, True, False))
+        scoped.setattr(resolution_records, "record_destination_safe", lambda *_args: next(checks))
+        with pytest.raises(OSError, match="lane_resolution_record_path_unsafe"):
+            resolution_records.write_json_atomic(destination, {}, record_root=record_root)
+
+    with pytest.raises(ValueError, match="lane_resolution_receipt_invalid"):
+        resolution_records.reserve_resolution_receipt(
+            root=tmp_path,
+            decision_id="invalid",
+            artifact_root=record_root,
+        )
+
+    decision_id = "lane-decision:00000000-0000-4000-8000-000000000102"
+    with monkeypatch.context() as scoped:
+        checks = iter((True, True, False))
+        scoped.setattr(resolution_records, "record_destination_safe", lambda *_args: next(checks))
+        with pytest.raises(OSError, match="lane_resolution_record_path_unsafe"):
+            resolution_records.reserve_resolution_receipt(
+                root=tmp_path,
+                decision_id=decision_id,
+                artifact_root=record_root,
+            )
+
+    reservation = resolution_records._receipt_reservation_path(
+        resolution_records.receipt_path(tmp_path, decision_id, artifact_root=record_root)
+    )
+    with monkeypatch.context() as scoped:
+        scoped.setattr(
+            resolution_records,
+            "_fsync_directory",
+            lambda _directory: (_ for _ in ()).throw(RuntimeError("fsync failed")),
+        )
+        with pytest.raises(RuntimeError, match="fsync failed"):
+            resolution_records.reserve_resolution_receipt(
+                root=tmp_path,
+                decision_id=decision_id,
+                artifact_root=record_root,
+            )
+    assert not reservation.exists()
+
+    with monkeypatch.context() as scoped:
+        checks = iter((True, True, True, True, False, True))
+        scoped.setattr(resolution_records, "record_destination_safe", lambda *_args: next(checks))
+        with pytest.raises(OSError, match="lane_resolution_record_path_unsafe"):
+            resolution_records.reserve_resolution_receipt(
+                root=tmp_path,
+                decision_id=decision_id,
+                artifact_root=record_root,
+            )
+    assert not reservation.exists()
+
+    occupied_id = "lane-decision:00000000-0000-4000-8000-000000000103"
+    occupied_destination = resolution_records.receipt_path(
+        tmp_path,
+        occupied_id,
+        artifact_root=record_root,
+    )
+
+    def occupy_destination(_directory: Path) -> None:
+        occupied_destination.parent.mkdir(parents=True, exist_ok=True)
+        occupied_destination.write_text("occupied\n", encoding="utf-8")
+
+    with monkeypatch.context() as scoped:
+        scoped.setattr(resolution_records, "_fsync_directory", occupy_destination)
+        with pytest.raises(FileExistsError):
+            resolution_records.reserve_resolution_receipt(
+                root=tmp_path,
+                decision_id=occupied_id,
+                artifact_root=record_root,
+            )
+    assert occupied_destination.is_file()
+
+    with monkeypatch.context() as scoped:
+        scoped.setattr(resolution_records, "record_destination_safe", lambda *_args: False)
+        with pytest.raises(OSError, match="lane_resolution_record_path_unsafe"):
+            resolution_records.release_resolution_receipt_reservation(
+                root=tmp_path,
+                decision_id=decision_id,
+                artifact_root=record_root,
+            )
+
+    missing_id = "lane-decision:00000000-0000-4000-8000-000000000104"
+    resolution_records.release_resolution_receipt_reservation(
+        root=tmp_path,
+        decision_id=missing_id,
+        artifact_root=record_root,
+    )

@@ -3,7 +3,7 @@ subject: ethos:ownerless-skill-resolution-retention-repair-20260720
 role: plan
 state: active
 relations:
-  carrier: openspec/changes/archive/2026-07-22-ownerless-skill-resolution-retention-repair-20260720
+  carrier: openspec/changes/archive/2026-07-22-ownerless-skill-resolution-retention-repair
   supersedes: ownerless-skill-scripts-semantic-closeout-20260720
 ---
 

@@ -42,7 +42,7 @@ current observation reports no claim binding or dirty residue.
    a separate integrity defect. No package is cleared, overwritten, or ignored
    by this cohort.
 
-## See also
+## See Also
 
 - [Authorized Work Lane Cohort Closeout](all-lanes-authorized-closeout-20260718.md)
 - [All Work Lanes Convergence Program](all-work-lanes-convergence-program-20260716.md)

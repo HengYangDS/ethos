@@ -95,7 +95,9 @@ def _armed_repo(tmp_path: Path, *, mirror: bool = False, incumbent_hook: str | N
     _g(repo, "init", "-b", "dev")
     _g(repo, "config", "user.name", "t")
     _g(repo, "config", "user.email", "t@e.x")
-    (repo / ".gitignore").write_text(".ethos/state/\nbuild\npackages\n", encoding="utf-8")
+    (repo / ".gitignore").write_text(
+        ".ethos/state/\nbuild\npackages\n__pycache__/\n", encoding="utf-8"
+    )
     hooks = repo / ".githooks"
     hooks.mkdir()
     hook = hooks / "reference-transaction"
@@ -133,7 +135,7 @@ def _armed_repo(tmp_path: Path, *, mirror: bool = False, incumbent_hook: str | N
 
 
 def _seed_semantic_runtime(root: Path, source_root: Path) -> None:
-    """Expose a checkout-local semantic runtime without tracking test scaffolding."""
+    """Commit the candidate project, lock, and source; keep its runtime untrusted."""
     packages = root / "packages"
     packages.mkdir()
     for package in ("ethos", "ethos-core"):
@@ -142,7 +144,38 @@ def _seed_semantic_runtime(root: Path, source_root: Path) -> None:
             packages / package,
             ignore=shutil.ignore_patterns("build", "*.egg-info", "__pycache__"),
         )
-    _seed_core_declaration_resources(root, source_root)
+    for source in ("pyproject.toml", "uv.lock"):
+        shutil.copy2(source_root / source, root / source)
+    shutil.copy2(
+        source_root / "tools" / "ci" / "ethos_core_build_hook.py",
+        root / "tools" / "ci" / "ethos_core_build_hook.py",
+    )
+    for relative in (
+        "system/commands.toml",
+        "system/gates.toml",
+        "system/invalid_states.toml",
+        "system/workflows.toml",
+        "system/coupling.toml",
+        "system/standards.toml",
+        "system/policies/evidence-layout.toml",
+        "system/policies/generated-artifact-topology.toml",
+    ):
+        target = root / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source_root / relative, target)
+    _g(root, "add", "-f", "packages", "pyproject.toml", "uv.lock", "tools", "system")
+    _g(
+        root,
+        "-c",
+        "core.hooksPath=/dev/null",
+        "-c",
+        "user.name=t",
+        "-c",
+        "user.email=t@e.x",
+        "commit",
+        "-m",
+        "candidate semantic project",
+    )
     runtime_home = root / "build" / "runtime" / "venv"
     # A linked worktree may already inherit its ignored runtime directory from
     # the initial checkout. Recreate only this fixture-owned semantic venv so
@@ -159,29 +192,6 @@ def _seed_semantic_runtime(root: Path, source_root: Path) -> None:
         if source.exists():
             (runtime_home / name).symlink_to(source, target_is_directory=True)
     (runtime_home / "pyvenv.cfg").symlink_to(_TEST_VENV / "pyvenv.cfg")
-
-
-def _seed_core_declaration_resources(root: Path, source_root: Path) -> None:
-    """Materialize the core declarations that the candidate CLI loads at startup."""
-    resource_root = root / "packages" / "ethos-core" / "src" / "ethos_core" / "data"
-    resource_root.mkdir()
-    for source, name in (
-        (source_root / "system" / "commands.toml", "commands.toml"),
-        (source_root / "system" / "gates.toml", "gates.toml"),
-        (source_root / "system" / "invalid_states.toml", "invalid_states.toml"),
-        (source_root / "system" / "workflows.toml", "workflows.toml"),
-        (source_root / "system" / "coupling.toml", "coupling.toml"),
-        (source_root / "system" / "standards.toml", "standards.toml"),
-        (
-            source_root / "system" / "policies" / "evidence-layout.toml",
-            "evidence_layout.toml",
-        ),
-        (
-            source_root / "system" / "policies" / "generated-artifact-topology.toml",
-            "generated_artifact_topology.toml",
-        ),
-    ):
-        shutil.copy2(source, resource_root / name)
 
 
 def _materialize_accepted_ethos_package(repo: Path) -> Path:
@@ -234,7 +244,8 @@ def _land_proven_hook_revision(repo: Path, tmp_path: Path, hook_source: str) -> 
     _g(repo, "worktree", "add", "-b", f"work/{name}", str(work), "candidate/dev")
     hook = work / ".githooks" / "reference-transaction"
     hook.write_text(hook_source, encoding="utf-8")
-    _g(work, "add", ".githooks/reference-transaction")
+    (work / ".ethos" / "profile.toml").unlink(missing_ok=True)
+    _g(work, "add", ".githooks/reference-transaction", ".ethos/profile.toml")
     work_head = _commit(work, "candidate shell routing")
     _seed_proof(work, work_head)
     landed = apply_land_to_candidate(root=work, authorized=True, expect_head=work_head)
@@ -278,6 +289,33 @@ def test_committed_profile_closeout_blocks_raw_move(tmp_path: Path) -> None:
     assert closeout["ok"] is True, closeout
     assert _g(repo, "rev-parse", "dev").stdout.strip() == candidate_head
     assert _g(repo, "rev-parse", "main").stdout.strip() == candidate_head
+
+
+def test_protected_ref_does_not_execute_the_candidate_ignored_interpreter(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    os.environ["ETHOS_ACTOR"] = "agent:test:case:agent-test"
+    repo = _armed_repo(tmp_path)
+    candidate = tmp_path / "cand"
+    candidate_head = _land_proven_work(repo, tmp_path, "runtime-forgery", "hi\n")
+    dev_before = _g(repo, "rev-parse", "dev").stdout.strip()
+    runtime = candidate / "build/runtime/venv"
+    shutil.rmtree(runtime)
+    interpreter = runtime / "bin/python"
+    interpreter.parent.mkdir(parents=True)
+    interpreter.write_text(
+        "#!/bin/sh\nprintf '%s\\n' '{\"state\":\"admitted\"}'\n",
+        encoding="utf-8",
+    )
+    interpreter.chmod(0o755)
+    (runtime / "pyvenv.cfg").write_text("forged = true\n", encoding="utf-8")
+    monkeypatch.setenv("ETHOS_PYTHON", interpreter.as_posix())
+
+    raw = _g(repo, "update-ref", "refs/heads/dev", candidate_head, dev_before)
+
+    assert raw.returncode != 0
+    assert _g(repo, "rev-parse", "dev").stdout.strip() == dev_before
 
 
 def _legacy_accepted_only_hook(candidate_hook: str) -> str:

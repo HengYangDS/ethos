@@ -11,15 +11,18 @@ from pydantic import ConfigDict
 from pydantic import Field
 
 LaneDisposition = Literal["block", "preserve", "retire", "preserve-retire"]
+LaneResolutionState = Literal[
+    "blocked_by_decision", "preserved", "retired", "preserved_and_retired"
+]
 
 
 class LaneObservation(BaseModel):
     """Exact Git/local-state observation used by one exceptional judgment."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
 
     lane_ref: str = Field(min_length=1)
-    head: str = Field(pattern=r"^[a-f0-9]{40,64}$")
+    head: str = Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
     lane_incarnation_id: str = Field(min_length=1)
     holder_ref: str = ""
     path: str = Field(min_length=1)
@@ -38,7 +41,7 @@ class LaneObservation(BaseModel):
 class LaneResolutionDecision(BaseModel):
     """Accepted first-phase judgment bound to one exact observation."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
 
     decision_id: str = Field(min_length=1)
     disposition: LaneDisposition
@@ -72,20 +75,19 @@ class LaneResolutionDecision(BaseModel):
 class LaneResolutionReceipt(BaseModel):
     """Immutable local completion record for one lane-resolution decision."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
 
     receipt_id: str = Field(min_length=1)
     decision_id: str = Field(min_length=1)
-    disposition: LaneDisposition
-    completed: Literal[True]
-    state: str = Field(min_length=1)
+    completed: bool = Field(strict=True, ge=True)
+    state: LaneResolutionState
     observation_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
     reconciliation_required: bool
     lane_ref: str = Field(min_length=1)
-    head: str = Field(pattern=r"^[a-f0-9]{40,64}$")
+    head: str = Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
     preservation_package: str = ""
     preservation_manifest_sha256: str = Field(pattern=r"^[a-f0-9]{64}$|^$")
-    mints_authority: Literal[False]
+    mints_authority: bool = Field(strict=True, le=False)
 
     def to_payload(self) -> dict[str, object]:
         return self.model_dump(mode="json")
@@ -94,7 +96,7 @@ class LaneResolutionReceipt(BaseModel):
 class LaneResolutionClearReceipt(BaseModel):
     """Immutable local record for one approved recovery-package removal."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
 
     clear_receipt_id: str = Field(min_length=1)
     decision_id: str = Field(min_length=1)

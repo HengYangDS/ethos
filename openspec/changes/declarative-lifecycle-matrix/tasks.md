@@ -42,20 +42,33 @@
 - [x] 2.14 Derive shared local state from Git common-directory identity, keep
   destructive accepted-checkout control separate, and remove parallel Lease
   state-root derivation.
+- [x] 2.15 Separate resolution authorization from realized outcome: retain
+  disposition only on the Decision and state only on the Receipt.
+- [x] 2.16 Make handoff and resolution wire contracts strict, reject coercion
+  and intermediate Git object widths, and remove retired fields and artifact
+  variants without compatibility reads.
+- [x] 2.17 Bind protected-ref execution to candidate-committed project, lock,
+  package metadata, and source through locked, offline, isolated runtime
+  resolution with no inherited `PYTHONPATH` or ignored-runtime trust.
+- [x] 2.18 Require control-plane proof to match the committed repository role;
+  product promotion cannot reuse an adopter-profile proof floor.
 
 ## 3. Verification and lifecycle
 
 - [x] 3.1 Add exact holder/epoch/head, accepted-ref race, commit-failure
   compensation, and real committed-hook regressions.
-- [ ] 3.2 Pass focused and full local product gates with Python warnings as
+- [x] 3.2 Pass focused and full local product gates with Python warnings as
   errors and 100% line/branch coverage.
-- [ ] 3.3 Complete zero-blocker correctness, governance, and ponytail reviews.
-- [ ] 3.4 Validate the official archive preflight and record the post-archive
+- [x] 3.3 Complete zero-blocker correctness, governance, and ponytail reviews.
+- [x] 3.4 Validate the official archive preflight and record the post-archive
   transition boundary.
 
-Archive, carrier relocation, commit, candidate-base refresh, parity refresh,
-HEAD-bound proof, and local land are lifecycle transitions performed after all
-task checkboxes are complete; they are not implementation tasks themselves.
+## Post-archive transition boundary
+
+Official archive relocates the Change carrier and applies its delta spec. It
+does not refresh the candidate base or parity, produce HEAD-bound proof, land to
+the candidate, close out accepted refs, publish remotely, or retire the Work
+Lane; every transition requires separate current command evidence.
 
 The former corpus-wide OpenSpec INFO findings are closed in this Change.
 Campaign-terminal source-budget and broader compatibility-surface debt remain

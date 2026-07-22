@@ -15,6 +15,7 @@ from ethos.adapters.mutation.lane_lifecycle.handoff import core as handoff
 from ethos.adapters.mutation.lanes import start_work_lane
 from ethos.adapters.store.state.lease.lifecycle.core import advance_lease_head
 from ethos.adapters.store.state.lease.lifecycle.core import renew_lease
+from ethos.adapters.store.state.lease.lifecycle.effects import revoke_lease
 from ethos.adapters.store.state.lease.projection import active_leases
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
@@ -35,8 +36,10 @@ def _lease(started: dict[str, object]) -> dict[str, object]:
     return cast("dict[str, object]", started["lease"])
 
 
-def _source_lane(tmp_path: Path) -> tuple[Path, Path, dict[str, object]]:
-    repo = init_repo(tmp_path / "repo")
+def _source_lane(
+    tmp_path: Path, object_format: str = "sha1"
+) -> tuple[Path, Path, dict[str, object]]:
+    repo = init_repo(tmp_path / "repo", object_format=object_format)
     add_candidate_worktree(repo, tmp_path / "repo-candidate-dev")
     worktree = tmp_path / "repo-work-feature"
     started = start_work_lane(
@@ -58,7 +61,6 @@ def _export(
     output_root: Path,
     context: str,
     context_option: str = "--context-text",
-    dirty_disposition: str = "",
     expected_expires_at: str = "",
     expected_payload_sha256: str = "",
     blocked: bool = False,
@@ -89,7 +91,6 @@ def _export(
         *source_args,
         context_option,
         context,
-        *(("--dirty-disposition", dirty_disposition) if dirty_disposition else ()),
         "--output-root",
         output_root.as_posix(),
         "--apply",
@@ -195,23 +196,22 @@ def _handoff_args(
 
 
 def _import_input(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, context: str
-) -> tuple[Path, Path, dict[str, object], Path, Path]:
-    repo, worktree, started = _source_lane(tmp_path)
-    output_root = tmp_path / "handoff-output"
-    exported = _export(worktree, started, output_root=output_root, context=context)
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, context: str, object_format: str = "sha1"
+) -> tuple[Path, dict[str, object], Path, Path]:
+    worktree, started, package = _exported(tmp_path, context, object_format)
     monkeypatch.setenv("ETHOS_ACTOR", HOLDER_B)
     return (
-        repo,
         worktree,
         started,
-        output_root / str(exported["data"]["package_id"]),
-        init_repo(tmp_path / "destination"),
+        package,
+        init_repo(tmp_path / "destination", object_format=object_format),
     )
 
 
-def _exported(tmp_path: Path, context: str) -> tuple[Path, dict[str, object], Path]:
-    _, worktree, started = _source_lane(tmp_path)
+def _exported(
+    tmp_path: Path, context: str, object_format: str = "sha1"
+) -> tuple[Path, dict[str, object], Path]:
+    _, worktree, started = _source_lane(tmp_path, object_format)
     output_root = tmp_path / "handoff-output"
     exported = _export(worktree, started, output_root=output_root, context=context)
     return worktree, started, output_root / str(exported["data"]["package_id"])
@@ -293,7 +293,6 @@ def test_cross_host_export_is_content_addressed_and_excludes_sqlite_lease(
     assert (package_dir / "repository.bundle").is_file()
     assert manifest["source_head"] == head
     assert manifest["target_holder_ref"] == HOLDER_B
-    assert manifest["dirty_disposition"] == "clean"
     assert manifest["transfers_source_lease"] is False
     assert manifest["destination_creates_local_incarnation"] is True
     lease = _lease(started)
@@ -394,25 +393,11 @@ def test_cross_host_import_rejects_manifest_identity_tampering(tmp_path: Path) -
     assert "handoff_package_id_mismatch" in payload["required_gaps"]
 
 
-@pytest.mark.parametrize(
-    ("duplicate_field", "gap"),
-    [
-        ("kind", "handoff_artifact_kind_duplicate:context"),
-        ("path", "handoff_artifact_path_duplicate:context.md"),
-    ],
-)
-def test_cross_host_import_rejects_duplicate_artifact_identity(
-    tmp_path: Path,
-    duplicate_field: str,
-    gap: str,
-) -> None:
-    _, _, package_dir = _exported(tmp_path, "artifact identity")
+def test_cross_host_import_rejects_duplicate_artifact_identity(tmp_path: Path) -> None:
+    worktree, _, package_dir = _exported(tmp_path, "artifact identity")
     manifest_path = package_dir / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    duplicate = dict(manifest["artifacts"][1])
-    if duplicate_field == "path":
-        duplicate["kind"] = "tracked_patch"
-    manifest["artifacts"].append(duplicate)
+    manifest["artifacts"].extend(dict(manifest["artifacts"][index]) for index in (1, 0))
     manifest["package_id"] = handoff.handoff_package._content_id(
         "handoff",
         {key: value for key, value in manifest.items() if key != "package_id"},
@@ -422,42 +407,49 @@ def test_cross_host_import_rejects_duplicate_artifact_identity(
     manifest_path = replacement / "manifest.json"
     manifest_path.write_text(json.dumps(manifest, sort_keys=True), encoding="utf-8")
 
-    payload = _import(replacement, init_repo(tmp_path / "destination"), blocked=True)
+    _, gaps = handoff.handoff_package.verified_handoff_manifest(package=replacement, root=worktree)
 
-    assert gap in payload["required_gaps"]
+    assert gaps == [
+        "handoff_artifact_path_duplicate:repository.bundle",
+        "handoff_artifact_path_duplicate:context.md",
+        "handoff_artifact_kind_duplicate:git_bundle",
+        "handoff_artifact_kind_duplicate:context",
+    ]
 
 
-def test_cross_host_export_dirty_disposition_matrix(tmp_path: Path) -> None:
-    for index, disposition, gap in (
-        ("required", "", "dirty_disposition_required"),
-        ("mismatch", "committed", "dirty_disposition_mismatch"),
-    ):
-        _, worktree, started = _source_lane(tmp_path / index)
-        (worktree / "README.md").write_text("# changed\n", encoding="utf-8")
-        payload = _export(
-            worktree,
-            started,
-            output_root=tmp_path / index / "handoff-output",
-            context="preserve work",
-            dirty_disposition=disposition,
-            blocked=True,
-        )
-        assert gap in payload["required_gaps"]
+def test_cross_host_export_requires_a_clean_lane(tmp_path: Path) -> None:
+    _, worktree, started = _source_lane(tmp_path)
+    (worktree / "README.md").write_text("# changed\n", encoding="utf-8")
+
+    payload = _export(
+        worktree,
+        started,
+        output_root=tmp_path / "handoff-output",
+        context="clean Git generation only",
+        blocked=True,
+    )
+
+    assert payload["required_gaps"] == ["handoff_export_requires_clean_lane"]
 
 
 @pytest.mark.parametrize(
-    ("mutation", "gap"),
+    ("mutation", "gap", "object_format"),
     [
-        ("", ""),
-        ("id", "handoff_acknowledgement_id_mismatch"),
-        ("tree", "handoff_acknowledgement_tree_mismatch"),
+        ("", "", "sha1"),
+        ("id", "handoff_acknowledgement_id_mismatch", "sha1"),
+        ("tree", "handoff_acknowledgement_tree_mismatch", "sha1"),
+        ("", "", "sha256"),
     ],
 )
 def test_cross_host_import_acknowledgement_and_source_revoke(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mutation: str, gap: str
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    mutation: str,
+    gap: str,
+    object_format: str,
 ) -> None:
-    _, worktree, started, package_dir, destination = _import_input(
-        tmp_path, monkeypatch, "destination context"
+    worktree, started, package_dir, destination = _import_input(
+        tmp_path, monkeypatch, "destination context", object_format
     )
     imported = _import(package_dir, destination)
     lease = _lease(started)
@@ -515,47 +507,10 @@ def test_cross_host_import_acknowledgement_and_source_revoke(
         assert active_leases(worktree.parent / "repo" / ".ethos" / "state" / "state.sqlite") == []
 
 
-def test_cross_host_import_restores_preserved_tracked_and_untracked_work(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    _, worktree, started = _source_lane(tmp_path)
-    (worktree / "README.md").write_text("# preserved tracked\n", encoding="utf-8")
-    (worktree / "notes.txt").write_text("preserved untracked\n", encoding="utf-8")
-    output_root = tmp_path / "handoff-output"
-    exported = _export(
-        worktree,
-        started,
-        output_root=output_root,
-        context="preserved destination context",
-        dirty_disposition="preserved",
-    )
-    (worktree / "README.md").write_text("# second identity\n", encoding="utf-8")
-    second = _export(
-        worktree,
-        started,
-        output_root=output_root,
-        context="preserved destination context",
-        dirty_disposition="preserved",
-    )
-    assert exported["data"]["package_id"] != second["data"]["package_id"]
-    package_dir = output_root / exported["data"]["package_id"]
-    destination = init_repo(tmp_path / "destination")
-    monkeypatch.setenv("ETHOS_ACTOR", HOLDER_B)
-
-    imported = _import(package_dir, destination)
-
-    imported_worktree = Path(imported["data"]["worktree"]["path"])
-    assert (imported_worktree / "README.md").read_text(encoding="utf-8") == "# preserved tracked\n"
-    assert (imported_worktree / "notes.txt").read_text(encoding="utf-8") == (
-        "preserved untracked\n"
-    )
-
-
 def test_cross_host_import_rolls_back_git_state_when_lease_creation_fails(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    _, _, _, package_dir, destination = _import_input(tmp_path, monkeypatch, "destination context")
+    _, _, package_dir, destination = _import_input(tmp_path, monkeypatch, "destination context")
 
     def fail_acquire(*args, **kwargs):  # noqa: ARG001, RUF100 - test double preserves the patched callable signature
         raise ValueError("simulated_lease_failure")  # noqa: EM101, RUF100 - machine-readable gap token is the exception contract
@@ -577,7 +532,7 @@ def test_cross_host_import_path_collision_leaves_no_attempt_ref(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    _, _, _, package_dir, destination = _import_input(tmp_path, monkeypatch, "path collision")
+    _, _, package_dir, destination = _import_input(tmp_path, monkeypatch, "path collision")
     destination.with_name("destination-work-feature").mkdir()
 
     payload = _import(package_dir, destination, blocked=True)
@@ -589,7 +544,7 @@ def test_cross_host_import_path_collision_leaves_no_attempt_ref(
 def test_cross_host_import_unbundles_without_temporary_ref(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    _, _, _, package_dir, destination = _import_input(tmp_path, monkeypatch, "direct unbundle")
+    _, _, package_dir, destination = _import_input(tmp_path, monkeypatch, "direct unbundle")
     original_run = subprocess.run
     commands: list[tuple[str, ...]] = []
 
@@ -611,28 +566,29 @@ def test_cross_host_import_unbundles_without_temporary_ref(
 def test_cross_host_import_preserves_same_head_ref_created_during_cas_failure(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    _, _, _, package_dir, destination = _import_input(tmp_path, monkeypatch, "ref race")
+    _, _, package_dir, destination = _import_input(tmp_path, monkeypatch, "ref race")
     manifest = _manifest(package_dir)
     head = str(manifest["source_head"])
     original_run = subprocess.run
 
     def create_ref_then_fail(args, *positional, cwd, **kwargs):
-        if args[:3] == ("git", "update-ref", "refs/heads/work/feature"):
+        if args[:3] == ["git", "update-ref", "--stdin"]:
             original_run(
-                ["git", "update-ref", "refs/heads/work/feature", head, "0" * 40],
+                ["git", "update-ref", "refs/heads/work/feature", head, "0" * len(head)],
                 cwd=cwd,
                 check=True,
                 capture_output=True,
                 text=True,
             )
-            return subprocess.CompletedProcess(args, 1, "", "simulated_cas_race")
+            raise subprocess.CalledProcessError(1, args, stderr="simulated_cas_race")
         return original_run(args, *positional, cwd=cwd, **kwargs)
 
     monkeypatch.setattr(handoff.handoff_package.subprocess, "run", create_ref_then_fail)
 
-    with pytest.raises(subprocess.SubprocessError, match="simulated_cas_race"):
+    with pytest.raises(subprocess.CalledProcessError) as raised:
         _apply_import(destination, package_dir, manifest)
 
+    assert raised.value.stderr == "simulated_cas_race"
     assert git(destination, "rev-parse", "refs/heads/work/feature") == head
 
 
@@ -640,7 +596,7 @@ def test_cross_host_import_preserves_same_head_ref_created_during_cas_failure(
 def test_cross_host_import_rejects_manifest_drift_before_mutation(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, field: str
 ) -> None:
-    _, _, _, package_dir, destination = _import_input(tmp_path, monkeypatch, "bundle identity")
+    _, _, package_dir, destination = _import_input(tmp_path, monkeypatch, "bundle identity")
     manifest = cast("dict[str, object]", json.loads((package_dir / "manifest.json").read_text()))
     manifest[field] = "f" * 40
 
@@ -655,7 +611,7 @@ def test_cross_host_import_rejects_manifest_drift_before_mutation(
 def test_cross_host_import_cleans_carriers_after_identity_drift(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, drift: str
 ) -> None:
-    _, _, _, package_dir, destination = _import_input(tmp_path, monkeypatch, "bundle mismatch")
+    _, _, package_dir, destination = _import_input(tmp_path, monkeypatch, "bundle mismatch")
     manifest, original = _manifest(package_dir), handoff.handoff_package.run_git
     destination_worktree = destination.with_name("destination-work-feature")
 
@@ -681,12 +637,19 @@ def test_cross_host_import_cleans_carriers_after_identity_drift(
 
     monkeypatch.setattr(handoff.handoff_package, "run_git", mismatched_tree)
 
-    expected = "bundle" if drift == "heads" else drift
-    with pytest.raises(ValueError, match=f"handoff_{expected}.*identity.*(?:mismatch|drift)"):
+    expected = (
+        "handoff_import_compensation_failed"
+        if drift == "destination"
+        else f"handoff_{'bundle' if drift == 'heads' else drift}.*identity.*(?:mismatch|drift)"
+    )
+    with pytest.raises(ValueError, match=expected):
         _apply_import(destination, package_dir, manifest)
 
     _assert_no_temporary_handoff_refs(destination)
-    assert not destination_worktree.exists()
+    assert destination_worktree.exists() is (drift == "destination")
+    assert bool(active_leases(destination / ".ethos/state/state.sqlite")) is (
+        drift == "destination"
+    )
 
 
 def test_cross_host_import_rejects_nonregular_snapshot_entry(tmp_path: Path) -> None:
@@ -714,7 +677,7 @@ def test_cross_host_import_rejects_nonregular_snapshot_entry(tmp_path: Path) -> 
 def test_cross_host_import_compensates_non_value_failures(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, error: Exception
 ) -> None:
-    _, _, _, package_dir, destination = _import_input(tmp_path, monkeypatch, "broad cleanup")
+    _, _, package_dir, destination = _import_input(tmp_path, monkeypatch, "broad cleanup")
     monkeypatch.setattr(
         handoff.handoff_package,
         "acquire_lease",
@@ -731,34 +694,13 @@ def test_cross_host_import_compensates_non_value_failures(
     _assert_no_import_carriers(destination)
 
 
-def test_cross_host_import_revokes_destination_lease_after_restore_failure(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    _, _, _, package_dir, destination = _import_input(tmp_path, monkeypatch, "restore failure")
-    monkeypatch.setattr(
-        handoff.handoff_package,
-        "_restore_preserved_work",
-        lambda **_: (_ for _ in ()).throw(ValueError("simulated_restore_failure")),
-    )
-
-    payload = handoff.import_cross_host_handoff(
-        root=destination,
-        package=package_dir,
-        target_holder_ref=HOLDER_B,
-        apply=True,
-    )
-
-    assert payload["ok"] is False
-    assert active_leases(destination / ".ethos" / "state" / "state.sqlite") == []
-
-
-@pytest.mark.parametrize("race", ["renew", "revoke"])
+@pytest.mark.parametrize("race", ["renew", "revoke", "dirty", "ignored"])
 def test_cross_host_import_rejects_lease_race_before_acknowledgement(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     race: str,
 ) -> None:
-    _, _, _, package_dir, destination = _import_input(tmp_path, monkeypatch, "lease race")
+    _, _, package_dir, destination = _import_input(tmp_path, monkeypatch, "lease race")
     commit_import = handoff.handoff_package._commit_import
 
     def race_then_commit(_destination, _worktree, _manifest, lease):
@@ -772,10 +714,17 @@ def test_cross_host_import_rejects_lease_race_before_acknowledgement(
             "expected_expires_at": str(lease["expires_at"]),
             "expected_payload_sha256": str(lease["payload_sha256"]),
         }
+        if race in {"dirty", "ignored"}:
+            relative = Path(
+                ".ethos/state/concurrent.txt" if race == "ignored" else "concurrent.txt"
+            )
+            (_worktree / relative).write_text("preserve\n", encoding="utf-8")
+            message = "simulated_import_failure"
+            raise ValueError(message)
         if race == "renew":
             renew_lease(db_path, **arguments)
         else:
-            handoff.handoff_package.revoke_lease(db_path, **arguments)
+            revoke_lease(db_path, **arguments)
         return commit_import(_destination, _worktree, _manifest, lease)
 
     monkeypatch.setattr(
@@ -789,11 +738,14 @@ def test_cross_host_import_rejects_lease_race_before_acknowledgement(
     )
 
     assert payload["ok"] is False
-    assert payload["required_gaps"][0].startswith("handoff_import_failed:")
-    assert any(
-        token in payload["required_gaps"][0] for token in ("lease_", "work_lane_missing_lease")
-    )
+    assert payload["required_gaps"] == ["handoff_import_failed:handoff_import_compensation_failed"]
     assert not payload.get("data", {}).get("acknowledgement")
+    assert destination.with_name("destination-work-feature").is_dir()
+    assert git(destination, "rev-parse", "work/feature") == _manifest(package_dir)["source_head"]
+    assert bool(active_leases(destination / ".ethos/state/state.sqlite")) is (race != "revoke")
+    if race in {"dirty", "ignored"}:
+        relative = Path(".ethos/state/concurrent.txt" if race == "ignored" else "concurrent.txt")
+        assert (destination.with_name("destination-work-feature") / relative).is_file()
 
 
 def test_cross_host_export_does_not_overwrite_existing_content_addressed_package(
@@ -906,32 +858,3 @@ def test_cross_host_import_rejects_invalid_generated_acknowledgement(
     assert payload["required_gaps"] == [
         "handoff_import_failed:handoff_acknowledgement_invalid:invalid"
     ]
-
-
-def test_cross_host_import_reports_incomplete_compensation(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    _, _, package_dir = _exported(tmp_path, "failed cleanup")
-    destination = init_repo(tmp_path / "destination")
-    monkeypatch.setenv("ETHOS_ACTOR", HOLDER_B)
-    monkeypatch.setattr(
-        handoff.handoff_package,
-        "acquire_lease",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValueError()),
-    )
-    original_run_git = handoff.handoff_package.run_git
-
-    def keep_ref(root: Path, *args: str, **kwargs):
-        if args[:3] == ("update-ref", "-d", "refs/heads/work/feature"):
-            return subprocess.CompletedProcess(["git", *args], 0, "", "")
-        return original_run_git(root, *args, **kwargs)
-
-    monkeypatch.setattr(handoff.handoff_package, "run_git", keep_ref)
-
-    with pytest.raises(ValueError, match="handoff_import_compensation_failed"):
-        handoff.handoff_package.apply_handoff_import(
-            destination=destination,
-            package=package_dir,
-            manifest=_manifest(package_dir),
-            target_holder_ref=HOLDER_B,
-        )

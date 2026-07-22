@@ -10,13 +10,13 @@ from typing import Any
 from typing import cast
 
 import ethos.adapters.mutation.lane_retirement.unbound.observation.core as observation
+from ethos.adapters.repo.git import git_common_dir
 
 ATTEMPT_KIND = "exceptional_unbound_retirement_attempt"
 RECEIPT_KIND = "exceptional_unbound_retirement_receipt"
 RECONCILIATION_ATTEMPT_KIND = "ref_absent_owner_unavailable_lease_reconciliation_attempt"
 RECONCILIATION_RECEIPT_KIND = "ref_absent_owner_unavailable_lease_reconciliation_receipt"
 MAX_STABLE_ERROR_LENGTH = 240
-_GIT_SHA_LENGTH = 40
 _RECORD_COLLISION = "unbound_retire_record_collision"
 _RECORD_UNSAFE = "unbound_retire_record_unsafe"
 _RECORD_INVALID = "unbound_retire_record_invalid"
@@ -222,6 +222,13 @@ def _record_path(records_root: Path, operation_id: str, category: str) -> Path:
     return records_root / "recovery/unbound-retirement" / category / f"{suffix(operation_id)}.json"
 
 
+def repository_records_root(repo: Path) -> Path:
+    """Return the canonical repository-family records root for any linked checkout."""
+    common = Path(git_common_dir(repo))
+    canonical = common.parent if common.name == ".git" else common.with_suffix("")
+    return canonical.with_name(f"{canonical.name}-records")
+
+
 def attempt_path(records_root: Path, operation_id: str) -> Path:
     """Return the durable attempt path for one operation identity."""
     return _record_path(records_root, operation_id, "attempts")
@@ -296,8 +303,18 @@ def read_record(path: Path, *, kind: str) -> dict[str, object]:
     return payload
 
 
-def _valid_digest(value: object) -> bool:
-    return isinstance(value, str) and len(value) in {40, 64}
+def _valid_git_oid(value: object) -> bool:
+    return (
+        isinstance(value, str) and len(value) in {40, 64} and set(value) <= set("0123456789abcdef")
+    )
+
+
+def _valid_sha256(value: object) -> bool:
+    return (
+        isinstance(value, str)
+        and len(value) == hashlib.sha256().digest_size * 2
+        and set(value) <= set("0123456789abcdef")
+    )
 
 
 def validate_record(payload: dict[str, object], *, kind: str) -> None:
@@ -318,19 +335,19 @@ def validate_record(payload: dict[str, object], *, kind: str) -> None:
         or payload.get("schema_version") != 1
         or not str(payload.get("operation_id") or "").startswith(_RETIREMENT_OPERATION_PREFIX)
         or not str(payload.get("branch") or "").startswith("work/")
+        or not git_oid_fields(payload, "expected_head", "accepted_head")
         or not sha256_text_fields(
             payload,
-            "expected_head",
-            "accepted_head",
             "chronicle_sha256",
             "chronicle_claim_sha256",
+            "before_observation_sha256",
         )
         or payload.get("mints_authority") is not False
         or payload.get("recheck_required") is not True
         or not valid_lease_relinquish_binding(payload.get("lease_relinquish_binding"))
         or not isinstance(protected, dict)
         or not protected
-        or not all(protected.values())
+        or not all(_valid_git_oid(value) for value in protected.values())
     )
     postconditions = payload.get("postconditions")
     invalid |= receipt and (
@@ -343,6 +360,7 @@ def validate_record(payload: dict[str, object], *, kind: str) -> None:
             payload.get("lease_relinquished"),
             subject=str(payload.get("branch") or ""),
         )
+        or not _valid_sha256(payload.get("after_observation_sha256"))
     )
     if invalid:
         raise ValueError(_RECORD_INVALID)
@@ -375,19 +393,19 @@ def _validate_reconciliation_record(payload: dict[str, object], *, kind: str) ->
         or payload.get("schema_version") != 1
         or not str(payload.get("operation_id") or "").startswith(_RECONCILIATION_OPERATION_PREFIX)
         or not str(payload.get("branch") or "").startswith("work/")
+        or not git_oid_fields(payload, "expected_head", "accepted_head")
         or not sha256_text_fields(
             payload,
-            "expected_head",
-            "accepted_head",
             "chronicle_sha256",
             "chronicle_claim_sha256",
+            "before_observation_sha256",
         )
         or payload.get("mints_authority") is not False
         or payload.get("recheck_required") is not True
         or not valid_lease_relinquish_binding(payload.get("lease_relinquish_binding"))
         or not isinstance(protected, dict)
         or not protected
-        or not all(protected.values())
+        or not all(_valid_git_oid(value) for value in protected.values())
         or str(source_attempt.get("branch") or "") != str(payload.get("branch") or "")
         or str(source_attempt.get("expected_head") or "") != str(payload.get("expected_head") or "")
     )
@@ -402,6 +420,7 @@ def _validate_reconciliation_record(payload: dict[str, object], *, kind: str) ->
             payload.get("lease_relinquished"),
             subject=str(payload.get("branch") or ""),
         )
+        or not _valid_sha256(payload.get("after_observation_sha256"))
     )
     if invalid:
         raise ValueError(_RECORD_INVALID)
@@ -451,9 +470,8 @@ def valid_lease_relinquish_binding(value: object) -> bool:
         and isinstance(epoch, int)
         and not isinstance(epoch, bool)
         and epoch > 0
-        and len(cast("str", texts[2])) == _GIT_SHA_LENGTH
-        and len(cast("str", texts[4])) == hashlib.sha256().digest_size * 2
-        and set(cast("str", texts[4])) <= set("0123456789abcdef")
+        and _valid_git_oid(texts[2])
+        and _valid_sha256(texts[4])
     )
 
 
@@ -479,8 +497,13 @@ def valid_lease_relinquishment(binding: object, relinquished: object, *, subject
 
 
 def sha256_text_fields(payload: dict[str, object], *keys: str) -> bool:
-    """Accept only SHA-1/SHA-256 textual record fields."""
-    return all(_valid_digest(payload.get(key)) for key in keys)
+    """Accept only exact SHA-256 textual record fields."""
+    return all(_valid_sha256(payload.get(key)) for key in keys)
+
+
+def git_oid_fields(payload: dict[str, object], *keys: str) -> bool:
+    """Accept only exact SHA-1 or SHA-256 Git object identities."""
+    return all(_valid_git_oid(payload.get(key)) for key in keys)
 
 
 def effect_summary(completed: object) -> dict[str, object]:

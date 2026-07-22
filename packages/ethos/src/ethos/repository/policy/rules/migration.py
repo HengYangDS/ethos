@@ -167,7 +167,7 @@ def _legacy_rule_migration_gaps(root: Path, source: dict[str, Any]) -> list[str]
                 gaps.append(f"rules_migration_ambiguous:{rule_id}:risk:{v2_key}")
         normalized = normalize_rule_item(rule)
         validation = validate_schema_instance("rule.schema.json", normalized, root=root)
-        gaps.extend(f"rules_migration_invalid:{rule_id}:{gap}" for gap in cast("list[str]", validation["required_gaps"]))
+        gaps.extend(f"rules_migration_invalid:{rule_id}:{gap}" for gap in validation["required_gaps"])
     return list(dict.fromkeys(gaps))
 
 

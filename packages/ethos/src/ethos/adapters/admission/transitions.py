@@ -13,8 +13,6 @@ from ethos.adapters.store.state.schema import state_database
 if TYPE_CHECKING:
     from pathlib import Path
 
-_ZERO_OID = "0" * 40
-
 
 def work_lane_ref_transition_report(
     *, root: Path, phase: str, ref_name: str, old_value: str, new_value: str
@@ -23,12 +21,9 @@ def work_lane_ref_transition_report(
     branch = ref_name.removeprefix("refs/heads/")
     if old_value == new_value:
         return _admit(phase, ref_name, old_value, new_value, "lane_ref_noop")
-    if old_value in {_ZERO_OID, ""} or new_value in {_ZERO_OID, ""}:
-        reason = (
-            "lane_creation_saga_started"
-            if old_value in {_ZERO_OID, ""}
-            else "lane_teardown_ref_deletion"
-        )
+    old_zero, new_zero = _is_zero_oid(old_value), _is_zero_oid(new_value)
+    if old_zero or new_zero:
+        reason = "lane_creation_saga_started" if old_zero else "lane_teardown_ref_deletion"
         return _admit(phase, ref_name, old_value, new_value, reason)
     repo = root.resolve()
     lease = leases_by_branch(repo).get(branch, {})
@@ -57,6 +52,10 @@ def work_lane_ref_transition_report(
     base.update(state="lease_head_advanced", lease=updated)
     base["decision"] = {"action": "allow", "reason": "lease_head_advanced"}
     return base
+
+
+def _is_zero_oid(value: str) -> bool:
+    return len(value) in {40, 64} and not value.strip("0")
 
 
 def _admit(

@@ -35,28 +35,59 @@ from tests.support.lane_helpers import git
 from tests.support.lane_helpers import init_repo
 
 
-def test_work_lane_ref_transition_admits_ref_deletion_without_lease(tmp_path: Path) -> None:
-    """A work-lane ref DELETION (new_value all-zeros) promotes nothing and is admitted
-    without lease binding — the teardown counterpart of the old_value==zero creation
-    short-circuit. This is what lets a lane with a legacy/unnormalizable lease still be
-    retired: its `git update-ref -d` fires this hook and must not block on lease admission
-    it cannot satisfy."""
+@pytest.mark.parametrize(
+    ("old_value", "new_value", "reason"),
+    [
+        ("a" * 40, "0" * 40, "lane_teardown_ref_deletion"),
+        ("a" * 64, "0" * 64, "lane_teardown_ref_deletion"),
+        ("0" * 40, "a" * 40, "lane_creation_saga_started"),
+        ("0" * 64, "a" * 64, "lane_creation_saga_started"),
+    ],
+)
+def test_work_lane_ref_transition_admits_zero_oid_without_lease(
+    tmp_path: Path, old_value: str, new_value: str, reason: str
+) -> None:
+    """Git's repository-width zero OID denotes lane creation or teardown."""
+    report = work_lane_ref_transition_report(
+        root=tmp_path,
+        phase="prepared",
+        ref_name="refs/heads/work/doomed",
+        old_value=old_value,
+        new_value=new_value,
+    )
+
+    assert report["ok"] is True
+    assert report["decision"] == {"action": "allow", "reason": reason}
+    assert report["required_gaps"] == []
+
+
+@pytest.mark.parametrize("width", [1, 39, 41, 63, 65])
+def test_work_lane_ref_transition_rejects_non_git_zero_width(tmp_path: Path, width: int) -> None:
     repo = init_repo(tmp_path / "repo")
-    lane = tmp_path / "repo-work-doomed"
-    git(repo, "worktree", "add", "-b", "work/doomed", lane.as_posix(), "dev")
-    head = git(lane, "rev-parse", "HEAD")
+    report = work_lane_ref_transition_report(
+        root=repo,
+        phase="prepared",
+        ref_name="refs/heads/work/doomed",
+        old_value="a" * width,
+        new_value="0" * width,
+    )
+    assert report["ok"] is False
+    assert report["required_gaps"] == ["work_lane_missing_lease:work/doomed"]
+
+
+def test_work_lane_ref_transition_rejects_an_empty_oid(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path / "repo")
 
     report = work_lane_ref_transition_report(
         root=repo,
         phase="prepared",
         ref_name="refs/heads/work/doomed",
-        old_value=head,
-        new_value="0" * 40,  # deletion — no lease exists for this lane
+        old_value="a" * 40,
+        new_value="",
     )
 
-    assert report["ok"] is True
-    assert report["decision"] == {"action": "allow", "reason": "lane_teardown_ref_deletion"}
-    assert report["required_gaps"] == []
+    assert report["ok"] is False
+    assert report["required_gaps"] == ["work_lane_missing_lease:work/doomed"]
 
 
 def test_work_lane_ref_transition_admits_noop_without_lease(tmp_path: Path) -> None:
@@ -511,6 +542,43 @@ def test_reference_transaction_hook_fails_closed_on_accepted_branch(tmp_path: Pa
     escape = g("merge", "--ff-only", "work/x", env={**no_binary, "ETHOS_ALLOW_REF_MOVE": "1"})
     assert escape.returncode != 0
     assert g("rev-parse", "dev").stdout.strip() == dev_head
+
+
+def test_reference_transaction_hook_fails_closed_on_empty_release_mirror_verdict(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    candidate = tmp_path / "candidate"
+    git(repo, "branch", "main")
+    git(repo, "worktree", "add", "-b", "candidate/dev", candidate.as_posix(), "dev")
+    (candidate / "change").write_text("candidate\n", encoding="utf-8")
+    git(candidate, "add", "change")
+    git(candidate, "commit", "-m", "candidate")
+    candidate_head = git(candidate, "rev-parse", "HEAD")
+    exclude = repo / git(repo, "rev-parse", "--git-path", "info/exclude")
+    exclude.parent.mkdir(parents=True, exist_ok=True)
+    with exclude.open("a", encoding="utf-8") as excluded:
+        excluded.write("build/\npackages/\ntools/\n")
+    runtime = candidate / "tools/ci/scripts/with-python-runtime.sh"
+    runtime.parent.mkdir(parents=True)
+    runtime.write_text("#!/bin/sh\nexit 97\n", encoding="utf-8")
+    runtime.chmod(0o755)
+    for package in ("ethos", "ethos-core"):
+        (candidate / "packages" / package / "src").mkdir(parents=True)
+    workspace = repo / ".ethos/workspace.toml"
+    workspace.write_text('[branch_roles]\nrelease_mirror = "accepted_ff"\n', encoding="utf-8")
+    hook = Path(__file__).resolve().parents[3] / ".githooks/reference-transaction"
+
+    completed = subprocess.run(
+        [hook, "prepared"],
+        cwd=repo,
+        input=f"{git(repo, 'rev-parse', 'main')} {candidate_head} refs/heads/main\n",
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode != 0
 
 
 # ── H2: the push plane enforces the SAME candidate-train topology as the ref-move plane ──

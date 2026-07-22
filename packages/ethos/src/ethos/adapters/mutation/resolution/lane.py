@@ -4,34 +4,33 @@ from __future__ import annotations
 
 import hashlib
 import json
-import subprocess
 import uuid
-from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
 
 from pydantic import ValidationError
 
 from ethos.adapters.mutation.decision import mutation_envelope
+from ethos.adapters.mutation.resolution._effects import prepare_resolution_effect
+from ethos.adapters.mutation.resolution._effects import retire_lane
+from ethos.adapters.mutation.resolution._effects import write_completion_receipt
+from ethos.adapters.mutation.resolution._observation import observe_lane
 from ethos.adapters.mutation.resolution._shared import accepted_control_root
-from ethos.adapters.mutation.resolution._shared import canonical_package_path
 from ethos.adapters.mutation.resolution._shared import canonical_record_path
-from ethos.adapters.mutation.resolution._shared import display_path
 from ethos.adapters.mutation.resolution._shared import records_artifact_root
-from ethos.adapters.mutation.resolution._shared import sha256_digest
 from ethos.adapters.mutation.resolution._shared import valid_decision_id
-from ethos.adapters.mutation.resolution.receipts import resolution_receipt_destination_safe
-from ethos.adapters.mutation.resolution.receipts import verify_preservation_package
-from ethos.adapters.mutation.resolution.receipts import write_resolution_receipt
-from ethos.adapters.store.state.lease.projection import active_leases
+from ethos.adapters.mutation.resolution.record_store import release_resolution_receipt_reservation
+from ethos.adapters.mutation.resolution.record_store import reserve_resolution_receipt
 from ethos.repository.policy.schema import validate_schema_instance
 from ethos_core.contracts.lifecycle.core import LANE_RESOLUTION_APPLY
 from ethos_core.contracts.lifecycle.core import LANE_RESOLUTION_DECIDE
 from ethos_core.contracts.lifecycle.core import MutationRequest
 from ethos_core.contracts.lifecycle.core import reduce_guards
-from ethos_core.contracts.resolution.lane import LaneObservation
 from ethos_core.contracts.resolution.lane import LaneResolutionDecision
-from ethos_core.contracts.resolution.lane import LaneResolutionReceipt
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 _DISPOSITIONS = {"block", "preserve", "retire", "preserve-retire"}
 
@@ -50,7 +49,7 @@ def plan_lane_resolution(  # noqa: PLR0913, RUF100 - exact request envelope pres
     apply: bool,
 ) -> dict[str, object]:
     """Create the first-phase exceptional judgment; no lane effect occurs."""
-    observation, gaps = _observe_lane(root, branch)
+    observation, gaps = observe_lane(root, branch)
     chronicle, chronicle_digest, chronicle_gaps = _accepted_chronicle(
         root, chronicle_ref=chronicle_ref, disposition=disposition
     )
@@ -129,9 +128,9 @@ def apply_lane_resolution(
     """Recompute the decision observation, then apply the bounded disposition."""
     decision, gaps = _read_decision(decision_path, root=root)
     branch = str(decision.get("observation", {}).get("lane_ref") or "")
-    observation, observation_gaps = _observe_lane(root, branch)
+    observation, observation_gaps = observe_lane(root, branch)
     disposition = str(decision.get("disposition") or "")
-    expected_state = {
+    expected_state: dict[str, object] = {
         "decision_id": str(decision.get("decision_id") or ""),
         "observation_digest": str(decision.get("observation_digest") or ""),
         "confirm_irreversible": confirm_irreversible,
@@ -154,166 +153,79 @@ def apply_lane_resolution(
         ),
     )
     report = _report(branch, evaluation)
+
+    def finish_report() -> dict[str, object]:
+        return _finish(
+            report,
+            command="lane-resolution-apply",
+            action=f"lane.resolution.{disposition or 'unknown'}",
+            resource=branch or decision_path.resolve().as_posix(),
+            expected_state=expected_state,
+            apply=apply,
+            confirmation=confirm_irreversible,
+        )
+
+    def stop(gap: str, *, state: str = "blocked") -> dict[str, object]:
+        report.update(ok=False, state=state, required_gaps=[gap])
+        return finish_report()
+
     if apply and evaluation.ok:
         control_root = accepted_control_root(root)
         artifact_root = records_artifact_root(root)
         decision_id = str(decision.get("decision_id") or "")
-        if not resolution_receipt_destination_safe(
-            root=control_root,
-            decision_id=decision_id,
-            artifact_root=artifact_root,
-        ):
-            report.update(
-                ok=False,
-                state="blocked",
-                required_gaps=["lane_resolution_receipt_path_unsafe"],
-            )
-            return _finish(
-                report,
-                command="lane-resolution-apply",
-                action=f"lane.resolution.{disposition}",
-                resource=branch,
-                expected_state=expected_state,
-                apply=apply,
-                confirmation=confirm_irreversible,
-            )
-        package, package_gap = _prepare_preservation_package(
-            root=root,
-            artifact_root=artifact_root,
-            decision=decision,
-            observation=observation,
-            disposition=disposition,
-        )
-        if package_gap:
-            report.update(ok=False, state="blocked", required_gaps=[package_gap])
-            return _finish(
-                report,
-                command="lane-resolution-apply",
-                action=f"lane.resolution.{disposition}",
-                resource=branch,
-                expected_state=expected_state,
-                apply=apply,
-                confirmation=confirm_irreversible,
-            )
-        state = {
-            "preserve-retire": "preserved_and_retired",
-            "preserve": "preserved",
-            "retire": "retired",
-        }.get(disposition, "blocked_by_decision")
-        if disposition == "preserve-retire":
-            verify_preservation_package(
-                root=control_root,
-                package=package,
-                artifact_root=artifact_root,
-            )
-        receipt = _completion_receipt(decision, observation, state, package)
-        if not validate_schema_instance(
-            "lane-resolution-receipt.schema.json", receipt, root=control_root
-        )["ok"]:
-            report.update(
-                ok=False, state="blocked", required_gaps=["lane_resolution_receipt_invalid"]
-            )
-            return report
-        report.update(state=state, preservation_package=package, receipt=receipt)
-        destructive_effect = disposition in {"retire", "preserve-retire"}
-        if destructive_effect:
-            _retire(root=root, observation=observation)
         try:
-            receipt_path = write_resolution_receipt(
+            reserve_resolution_receipt(
                 root=control_root,
-                receipt=receipt,
+                decision_id=decision_id,
                 artifact_root=artifact_root,
             )
-        except OSError:
-            if not destructive_effect:
-                raise
+        except OSError as error:
+            return stop(
+                "lane_resolution_receipt_path_exists"
+                if isinstance(error, FileExistsError)
+                else "lane_resolution_receipt_path_unsafe"
+            )
+        effect_started = False
+        receipt_written = False
+        try:
+            package, receipt, state, effect_gap = prepare_resolution_effect(
+                control_root=control_root,
+                artifact_root=artifact_root,
+                decision=decision,
+                observation=observation,
+                disposition=disposition,
+            )
+            if effect_gap:
+                return stop(effect_gap)
+            report.update(state=state, preservation_package=package, receipt=receipt)
+            destructive_effect = disposition in {"retire", "preserve-retire"}
+            if destructive_effect:
+                effect_started = True
+                retire_lane(root=root, observation=observation)
+            receipt_path, write_gap = write_completion_receipt(
+                control_root=control_root,
+                artifact_root=artifact_root,
+                receipt=receipt,
+                destructive_effect=destructive_effect,
+            )
+            if write_gap:
+                return stop(
+                    write_gap,
+                    state="partial_transition",
+                )
+            receipt_written = True
             report.update(
-                ok=False,
-                state="partial_transition",
-                required_gaps=["lane_resolution_receipt_write_failed_after_effect"],
+                receipt_path=receipt_path,
+                chronicle_event=_chronicle_event(decision, receipt),
             )
-            return _finish(
-                report,
-                command="lane-resolution-apply",
-                action=f"lane.resolution.{disposition}",
-                resource=branch,
-                expected_state=expected_state,
-                apply=apply,
-                confirmation=confirm_irreversible,
-            )
-        report.update(
-            receipt_path=receipt_path,
-            chronicle_event=_chronicle_event(decision, receipt),
-        )
-    return _finish(
-        report,
-        command="lane-resolution-apply",
-        action=f"lane.resolution.{disposition or 'unknown'}",
-        resource=branch or decision_path.resolve().as_posix(),
-        expected_state=expected_state,
-        apply=apply,
-        confirmation=confirm_irreversible,
-    )
-
-
-def _observe_lane(root: Path, branch: str) -> tuple[LaneObservation, list[str]]:
-    worktree = _worktree(root, branch)
-    if not worktree:
-        empty = hashlib.sha256(b"").hexdigest()
-        return LaneObservation(
-            lane_ref=branch or "unknown",
-            head="0" * 40,
-            lane_incarnation_id="missing",
-            path=root.resolve().as_posix(),
-            dirty=True,
-            foreign=True,
-            orphan=True,
-            ambiguous=True,
-            tracked_digest=empty,
-            untracked_digest=empty,
-        ), ["lane_resolution_target_missing"]
-    path = Path(worktree["worktree"])
-    head = _git(root, "rev-parse", f"refs/heads/{branch}")
-    leases = [lease for lease in _leases(root) if lease.get("subject") == branch]
-    lease = leases[0] if len(leases) == 1 else {}
-    holder = str(lease.get("holder_ref") or "")
-    incarnation = str(lease.get("lane_incarnation_id") or "") or (
-        "decision-incarnation:"
-        + hashlib.sha256(f"{branch}\0{head}\0{path.resolve().as_posix()}".encode()).hexdigest()
-    )
-    return LaneObservation(
-        lane_ref=branch,
-        head=head,
-        lane_incarnation_id=incarnation,
-        holder_ref=holder,
-        path=path.resolve().as_posix(),
-        dirty=bool(_git(path, "status", "--porcelain", check=False)),
-        foreign=not bool(holder),
-        orphan=not bool(leases),
-        ambiguous=len(leases) > 1,
-        tracked_digest=hashlib.sha256(
-            _git(path, "diff", "--binary", "HEAD", "--", check=False).encode()
-        ).hexdigest(),
-        untracked_digest=_untracked_digest(path),
-    ), []
-
-
-def _worktree(root: Path, branch: str) -> dict[str, str]:
-    rows, current = [], {}
-    for line in [*_git(root, "worktree", "list", "--porcelain", check=False).splitlines(), ""]:
-        if line:
-            key, _, value = line.partition(" ")
-            current[key] = value
-        elif current:
-            rows.append(current)
-            current = {}
-    return next((row for row in rows if row.get("branch") == f"refs/heads/{branch}"), {})
-
-
-def _leases(root: Path) -> list[dict[str, Any]]:
-    common = Path(_git(root, "rev-parse", "--git-common-dir"))
-    control_root = (common if common.is_absolute() else root / common).resolve().parent
-    return active_leases(control_root / ".ethos/state/state.sqlite")
+        finally:
+            if not effect_started or receipt_written:
+                release_resolution_receipt_reservation(
+                    root=control_root,
+                    decision_id=decision_id,
+                    artifact_root=artifact_root,
+                )
+    return finish_report()
 
 
 def _read_decision(path: Path, *, root: Path) -> tuple[dict[str, Any], list[str]]:
@@ -344,33 +256,6 @@ def _local_artifact_path(root: Path, path: Path) -> bool:
     return canonical_record_path(root, path)
 
 
-def _untracked_digest(path: Path) -> str:
-    inventory = _untracked_files(path)
-    if inventory is None:
-        return hashlib.sha256(b"unavailable").hexdigest()
-    digest = hashlib.sha256()
-    for raw in inventory:
-        file_path = path / raw.decode(errors="surrogateescape")
-        digest.update(
-            raw + b"\0" + (file_path.read_bytes() if file_path.is_file() else b"") + b"\0"
-        )
-    return digest.hexdigest()
-
-
-def _untracked_files(path: Path) -> list[bytes] | None:
-    completed = subprocess.run(
-        ["git", "ls-files", "--others", "--exclude-standard", "-z"],
-        cwd=path,
-        check=False,
-        capture_output=True,
-    )
-    return (
-        None
-        if completed.returncode
-        else sorted(item for item in completed.stdout.split(b"\0") if item)
-    )
-
-
 def _accepted_chronicle(
     root: Path, *, chronicle_ref: str, disposition: str
 ) -> tuple[str, str, list[str]]:
@@ -386,116 +271,6 @@ def _accepted_chronicle(
     if f"lane_resolution/{disposition}" not in path.read_text(encoding="utf-8"):
         return relative, "", ["lane_resolution_chronicle_disposition_mismatch"]
     return relative, hashlib.sha256(path.read_bytes()).hexdigest(), []
-
-
-def _prepare_preservation_package(
-    *,
-    root: Path,
-    artifact_root: Path,
-    decision: dict[str, Any],
-    observation: LaneObservation,
-    disposition: str,
-) -> tuple[dict[str, object], str]:
-    if disposition not in {"preserve", "preserve-retire"}:
-        return {}, ""
-    package_path = canonical_package_path(artifact_root, str(decision.get("decision_id") or ""))
-    if package_path is None:
-        return {}, "lane_resolution_preservation_path_outside_root"
-    package_path.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        package_path.mkdir()
-    except FileExistsError:
-        return {}, "lane_resolution_preservation_package_exists"
-    return (
-        _preserve(
-            root=root,
-            package=package_path,
-            observation=observation,
-            decision=decision,
-        ),
-        "",
-    )
-
-
-def _preserve(
-    *, root: Path, package: Path, observation: LaneObservation, decision: dict[str, Any]
-) -> dict[str, object]:
-    bundle, patch, archive = (
-        package / "repository.bundle",
-        package / "tracked.patch",
-        package / "untracked.tar",
-    )
-    source = Path(observation.path)
-    _run(source, "git", "bundle", "create", bundle.as_posix(), observation.lane_ref)
-    patch.write_bytes(
-        subprocess.run(
-            ["git", "diff", "--binary", "HEAD", "--"], cwd=source, check=False, capture_output=True
-        ).stdout
-    )
-    inventory = _untracked_files(source)
-    if inventory is None:
-        raise ValueError("lane_resolution_untracked_inventory_failed")  # noqa: EM101, RUF100
-    if inventory:
-        _run(
-            source,
-            "tar",
-            "-cf",
-            archive.as_posix(),
-            "--",
-            *(item.decode(errors="surrogateescape") for item in inventory),
-        )
-    manifest = {
-        "decision_id": decision["decision_id"],
-        "lane_ref": observation.lane_ref,
-        "head": observation.head,
-        "observation_digest": observation.digest(),
-        "bundle_sha256": sha256_digest(bundle),
-        "patch_sha256": sha256_digest(patch),
-        "untracked_archive_sha256": sha256_digest(archive) if archive.is_file() else "",
-        "source_lease_transferred": False,
-    }
-    manifest_path = package / "manifest.json"
-    manifest_path.write_text(
-        json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-    )
-    return {
-        "path": display_path(root, package),
-        "manifest": manifest,
-        "manifest_sha256": sha256_digest(manifest_path),
-    }
-
-
-def _retire(*, root: Path, observation: LaneObservation) -> None:
-    ref = f"refs/heads/{observation.lane_ref}"
-
-    def run(*args: str):
-        return subprocess.run(["git", *args], cwd=root, check=False, capture_output=True, text=True)
-
-    if run("update-ref", "-d", ref, observation.head).returncode:
-        raise ValueError("lane_resolution_branch_delete_failed")  # noqa: EM101, RUF100
-    if run("worktree", "remove", "--force", observation.path).returncode:
-        run("update-ref", ref, observation.head, "0" * 40)
-        raise ValueError("lane_resolution_worktree_remove_failed")  # noqa: EM101, RUF100
-
-
-def _completion_receipt(
-    decision: dict[str, Any], observation: LaneObservation, state: str, package: dict[str, object]
-) -> dict[str, object]:
-    manifest_digest = str(package.get("manifest_sha256") or "")
-    return LaneResolutionReceipt(
-        receipt_id=f"lane-resolution-receipt:{uuid.uuid4()}",
-        decision_id=str(decision["decision_id"]),
-        disposition=decision["disposition"],
-        completed=True,
-        state=state,
-        observation_digest=observation.digest(),
-        reconciliation_required=bool(decision.get("break_glass")),
-        lane_ref=observation.lane_ref,
-        head=observation.head,
-        preservation_package=str(package.get("path") or ""),
-        preservation_manifest_sha256=manifest_digest,
-        mints_authority=False,
-    ).to_payload()
 
 
 def _chronicle_event(
@@ -553,18 +328,3 @@ def _finish(  # noqa: PLR0913, RUF100
         verifier_provenance="current_runner",
     )
     return report
-
-
-def _git(root: Path, *args: str, check: bool = True) -> str:
-    completed = subprocess.run(
-        ["git", *args], cwd=root, check=False, capture_output=True, text=True
-    )
-    if check and completed.returncode:
-        raise ValueError(completed.stderr.strip() or "git_command_failed")
-    return completed.stdout.strip()
-
-
-def _run(root: Path, *args: str) -> None:
-    completed = subprocess.run(args, cwd=root, check=False, capture_output=True, text=True)
-    if completed.returncode:
-        raise ValueError(completed.stderr.strip() or "command_failed")

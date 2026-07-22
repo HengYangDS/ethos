@@ -46,3 +46,5 @@ current observation reports no claim binding or dirty residue.
 
 - [Authorized Work Lane Cohort Closeout](all-lanes-authorized-closeout-20260718.md)
 - [All Work Lanes Convergence Program](all-work-lanes-convergence-program-20260716.md)
+
+See also: these carriers define the accepted-decision boundary for the exact effects above.

@@ -8,6 +8,10 @@ relations:
 
 # Ownerless Closeout Admission Implementation Plan
 
+Status: approved implementation plan; no implementation task has started.
+
+Purpose: convert the approved ownerless closeout design into a tested, fail-closed cross-component delivery sequence.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Permit only a clean, semantically absorbed, ownerless linked Work Lane to retire through an accepted decision and a fresh fail-closed closeout check, while making new ETHOS lanes conform to the repository-family branch/path grammar.

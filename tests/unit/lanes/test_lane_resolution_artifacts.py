@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 import ethos.adapters.mutation.resolution.receipts as receipt_adapter
+import ethos.adapters.mutation.resolution.record_store as record_store
 from ethos.adapters.mutation.resolution._shared import records_artifact_root
 from ethos.adapters.mutation.resolution.lane import apply_lane_resolution
 from ethos.adapters.mutation.resolution.lane import plan_lane_resolution
@@ -23,6 +24,7 @@ from tests.support.lane_helpers import orphan_work_lane
 
 _LEGACY_DECISION_ID = "lane-decision:00000000-0000-4000-8000-000000000001"
 _CARRIER_DECISION_ID = "lane-decision:00000000-0000-4000-8000-000000000002"
+_RESERVATION_DECISION_ID = "lane-decision:00000000-0000-4000-8000-000000000003"
 
 
 def _preserve(repo: Path, lane: Path) -> dict[str, object]:
@@ -93,6 +95,33 @@ def test_resolution_receipt_refuses_to_overwrite_existing_decision(
 
     with pytest.raises(FileExistsError):
         write_resolution_receipt(root=repo, receipt=applied["receipt"])
+
+
+def test_resolution_receipt_reservation_is_exclusive_and_owner_preserving(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+
+    reservation = record_store.reserve_resolution_receipt(
+        root=repo,
+        decision_id=_RESERVATION_DECISION_ID,
+    )
+
+    assert reservation.is_file()
+    assert reservation.name.startswith(".")
+    assert reservation.name.endswith(".receipt-reservation")
+    with pytest.raises(FileExistsError):
+        record_store.reserve_resolution_receipt(
+            root=repo,
+            decision_id=_RESERVATION_DECISION_ID,
+        )
+    assert reservation.is_file()
+
+    record_store.release_resolution_receipt_reservation(
+        root=repo,
+        decision_id=_RESERVATION_DECISION_ID,
+    )
+    assert not reservation.exists()
 
 
 def test_inventory_reports_receipt_without_preservation_package(tmp_path: Path) -> None:

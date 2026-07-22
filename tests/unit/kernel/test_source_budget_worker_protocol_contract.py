@@ -21,6 +21,48 @@ _REQUEST_SCHEMA = "ethos-source-budget-worker-request-v1"
 _RESULT_SCHEMA = "ethos-source-budget-worker-result-v1"
 _CONTENT = b"first=1; second='two'\n"
 _NORMALIZED_DIGEST = hashlib.sha256(b"normalized-python-stream").hexdigest()
+_CHILD_WORKER_GAPS = (
+    "source_budget_native_carrier_bytes_exceeded",
+    "source_budget_native_conformance_mismatch:ini",
+    "source_budget_native_conformance_mismatch:jinja",
+    "source_budget_native_conformance_mismatch:json",
+    "source_budget_native_conformance_mismatch:python",
+    "source_budget_native_conformance_mismatch:shell",
+    "source_budget_native_conformance_mismatch:toml",
+    "source_budget_native_conformance_mismatch:yaml",
+    "source_budget_native_contract_invalid",
+    "source_budget_native_dependency_major_mismatch:jinja2",
+    "source_budget_native_dependency_major_mismatch:pyyaml",
+    "source_budget_native_execution_contract_invalid",
+    "source_budget_native_parse_failed:ini",
+    "source_budget_native_parse_failed:jinja",
+    "source_budget_native_parse_failed:json",
+    "source_budget_native_parse_failed:python",
+    "source_budget_native_parse_failed:shell",
+    "source_budget_native_parse_failed:toml",
+    "source_budget_native_parse_failed:yaml",
+    "source_budget_native_provider_signature_mismatch",
+    "source_budget_native_provider_unavailable:ini",
+    "source_budget_native_provider_unavailable:jinja",
+    "source_budget_native_provider_unavailable:json",
+    "source_budget_native_provider_unavailable:python",
+    "source_budget_native_provider_unavailable:shell",
+    "source_budget_native_provider_unavailable:toml",
+    "source_budget_native_provider_unavailable:yaml",
+    "source_budget_native_resource_exhausted",
+    "source_budget_native_runtime_unsupported",
+    "source_budget_native_text_embedded_bom",
+    "source_budget_native_text_invalid_utf8",
+)
+_PARENT_WORKER_GAPS = (
+    "source_budget_worker_failed",
+    "source_budget_worker_isolation_unsupported",
+    "source_budget_worker_output_exceeded",
+    "source_budget_worker_protocol_invalid",
+    "source_budget_worker_resource_exhausted",
+    "source_budget_worker_timeout",
+    "source_budget_worker_unavailable",
+)
 
 
 def _canonical_json(payload: object) -> bytes:
@@ -150,6 +192,20 @@ def _expected_request_payload(contracts: tuple[MetricContract, ...]) -> dict[str
 def _resign_request_payload(payload: dict[str, object]) -> None:
     unsigned = {key: value for key, value in payload.items() if key != "request_digest"}
     payload["request_digest"] = _sha256(unsigned)
+
+
+def _gap_result_payload() -> tuple[WorkerRequest, dict[str, object]]:
+    request = WorkerRequest.create(
+        content=_CONTENT,
+        contracts=_contracts(),
+        provider_descriptor=_provider_descriptor(),
+        execution_descriptor=_isolated_execution_descriptor(),
+    )
+    result = WorkerResult.from_gap(
+        request=request,
+        gap="source_budget_native_contract_invalid",
+    )
+    return request, result.model_dump(mode="python", by_alias=True)
 
 
 def test_worker_request_create_canonicalizes_contract_order_at_exact_ceiling() -> None:
@@ -316,6 +372,177 @@ def test_worker_protocol_happy_path_binds_and_replays_typed_results() -> None:
     assert type(replayed) is NativeMeasurement
     assert replayed == native
     assert replayed is not native
+
+
+def test_worker_result_requires_exact_success_gap_xor() -> None:
+    contracts = _contracts()
+    request = WorkerRequest.create(
+        content=_CONTENT,
+        contracts=contracts,
+        provider_descriptor=_provider_descriptor(),
+        execution_descriptor=_isolated_execution_descriptor(),
+    )
+    native = NativeMeasurement.create(
+        content_sha256=request.content_sha256,
+        normalized_digest=_NORMALIZED_DIGEST,
+        contracts=contracts,
+        values=_values(),
+    )
+    success = WorkerResult.from_measurement(request=request, measurement=native)
+    assert WorkerResult.model_validate(success.model_dump(mode="python", by_alias=True)) == success
+
+    gap = WorkerResult.from_gap(
+        request=request,
+        gap="source_budget_native_contract_invalid",
+    )
+    assert gap.success is None
+    assert gap.gap == "source_budget_native_contract_invalid"
+    assert WorkerResult.model_validate(gap.model_dump(mode="python", by_alias=True)) == gap
+    with pytest.raises(ValueError, match="success"):
+        replay_worker_result(request, gap)
+
+    success_payload = success.model_dump(mode="python", by_alias=True)
+    gap_payload = gap.model_dump(mode="python", by_alias=True)
+    invalid_payloads = (
+        gap_payload | {"success": success_payload["success"]},
+        gap_payload | {"gap": None},
+    )
+    for payload in invalid_payloads:
+        with pytest.raises(ValueError, match=r"exactly one|success.*gap"):
+            WorkerResult.model_validate(payload)
+
+
+def test_worker_child_gap_allowlist_is_exact_sorted_and_child_only() -> None:
+    assert len(_CHILD_WORKER_GAPS) == 31
+    assert len(set(_CHILD_WORKER_GAPS)) == 31
+    assert tuple(sorted(_CHILD_WORKER_GAPS)) == _CHILD_WORKER_GAPS
+    gap_schema = WorkerResult.model_json_schema(by_alias=True)["properties"]["gap"]
+    production_gaps = next(item["enum"] for item in gap_schema["anyOf"] if "enum" in item)
+    assert tuple(production_gaps) == _CHILD_WORKER_GAPS
+
+    _request, base = _gap_result_payload()
+    for gap in _CHILD_WORKER_GAPS:
+        result = WorkerResult.model_validate(base | {"gap": gap})
+        assert result.gap == gap
+
+    invalid_gaps = (
+        "source_budget_native_parse_failed:c4",
+        "source_budget_native_dependency_major_mismatch:jinja",
+        "source_budget_worker_timeout",
+        "source_budget_native_unknown",
+        "source_budget_native_contract_invalid:src/example.py",
+    )
+    for gap in invalid_gaps:
+        with pytest.raises(ValueError, match="gap"):
+            WorkerResult.model_validate(base | {"gap": gap})
+
+
+def test_worker_parent_gap_allowlist_is_exact_sorted_and_disjoint() -> None:
+    assert len(_PARENT_WORKER_GAPS) == 7
+    assert len(set(_PARENT_WORKER_GAPS)) == 7
+    assert tuple(sorted(_PARENT_WORKER_GAPS)) == _PARENT_WORKER_GAPS
+    assert set(_PARENT_WORKER_GAPS).isdisjoint(_CHILD_WORKER_GAPS)
+
+    _request, base = _gap_result_payload()
+    for gap in _PARENT_WORKER_GAPS:
+        with pytest.raises(ValueError, match="gap"):
+            WorkerResult.model_validate(base | {"gap": gap})
+
+
+def test_worker_gap_result_echoes_bindings_and_rejects_sensitive_fields() -> None:
+    request, payload = _gap_result_payload()
+    assert set(payload) == {
+        "schema",
+        "protocol_id",
+        "content_sha256",
+        "resolved_contracts_digest",
+        "provider_digest",
+        "execution_contract_digest",
+        "request_digest",
+        "success",
+        "gap",
+    }
+    for field in (
+        "content_sha256",
+        "resolved_contracts_digest",
+        "provider_digest",
+        "execution_contract_digest",
+        "request_digest",
+    ):
+        assert payload[field] == getattr(request, field)
+
+    with pytest.raises(ValueError, match=r"extra|forbid"):
+        WorkerResult.model_validate(payload | {"path": "sensitive"})
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        "echo-pair",
+        "success-gap",
+        "result-extra",
+        "request-extra",
+        "request-subclass",
+        "request-fields-set",
+        "success-extra",
+        "reversed-values",
+    ],
+)
+def test_parent_replay_revalidates_untrusted_model_storage(case: str) -> None:
+    contracts = _contracts()
+    request = WorkerRequest.create(
+        content=_CONTENT,
+        contracts=contracts,
+        provider_descriptor=_provider_descriptor(),
+        execution_descriptor=_isolated_execution_descriptor(),
+    )
+    native = NativeMeasurement.create(
+        content_sha256=request.content_sha256,
+        normalized_digest=_NORMALIZED_DIGEST,
+        contracts=contracts,
+        values=_values(),
+    )
+    result = WorkerResult.from_measurement(request=request, measurement=native)
+    assert replay_worker_result(request, result) == native
+
+    forged_request = request
+    forged_result = result
+    match = r"canonical|request|result|values|success|gap"
+    if case == "echo-pair":
+        forged_request = request.model_copy(update={"provider_digest": "f" * 64})
+        forged_result = result.model_copy(update={"provider_digest": "f" * 64})
+    elif case == "success-gap":
+        forged_result = result.model_copy(update={"gap": "source_budget_native_contract_invalid"})
+    elif case == "result-extra":
+        forged_result = result.model_copy(update={"path": "src/example.py"})
+    elif case == "request-extra":
+        forged_request = request.model_copy(update={"path": "src/example.py"})
+    elif case == "request-subclass":
+
+        class _ForgedRequest(WorkerRequest):
+            pass
+
+        forged_request = _ForgedRequest.model_validate(
+            request.model_dump(mode="python", by_alias=True)
+        )
+    elif case == "request-fields-set":
+        forged_request = WorkerRequest.model_construct(
+            _fields_set={"request_digest"},
+            **request.model_dump(mode="python"),
+        )
+    elif case == "success-extra":
+        assert result.success is not None
+        forged_success = result.success.model_copy(update={"path": "src/example.py"})
+        forged_result = result.model_copy(update={"success": forged_success})
+    else:
+        assert result.success is not None
+        forged_success = result.success.model_copy(
+            update={"values": tuple(reversed(result.success.values))}
+        )
+        forged_result = result.model_copy(update={"success": forged_success})
+
+    with pytest.raises(ValueError, match=match):
+        replay_worker_result(forged_request, forged_result)
 
 
 def test_parent_replay_rejects_a_result_bound_to_another_request() -> None:

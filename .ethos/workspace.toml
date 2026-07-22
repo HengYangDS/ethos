@@ -5,6 +5,7 @@ candidate_branch = "candidate/dev"
 release_mirror = "accepted_ff"
 work_branch_prefix = "work/"
 submit_branch_prefix = "submit/"
+repository_family_worktrees = true
 
 [commit_policy]
 # ETHOS is organization-native rather than author-native. The product ships with

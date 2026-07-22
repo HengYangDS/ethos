@@ -3,6 +3,8 @@ from __future__ import annotations
 import os
 import re
 import subprocess
+from datetime import UTC
+from datetime import datetime
 from pathlib import Path
 
 
@@ -31,6 +33,15 @@ def repo_root(root: Path) -> Path:
 
 def slug(name: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]+", "-", name.strip().lower()).strip("-") or "work"
+
+
+def canonical_lane_identity(name: str, *, observed_at: datetime) -> tuple[str, str]:
+    lane_id = f"{observed_at.astimezone(UTC):%Y%m%d}-{slug(name)}"
+    return lane_id, f"work/{lane_id}"
+
+
+def canonical_lane_path(repo: Path, lane_id: str) -> Path:
+    return repo.parent / f"{repo.name}-worktrees" / lane_id
 
 
 def default_candidate_path(repo: Path, candidate_branch: str) -> Path:

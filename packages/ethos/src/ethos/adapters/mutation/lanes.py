@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 import os
+from datetime import UTC
+from datetime import datetime
 from pathlib import Path
 from typing import cast
 
+from ethos.adapters.mutation.lane_lifecycle.core import canonical_lane_identity
+from ethos.adapters.mutation.lane_lifecycle.core import canonical_lane_path
 from ethos.adapters.mutation.lane_lifecycle.core import default_candidate_path
 from ethos.adapters.mutation.lane_lifecycle.core import repo_root
 from ethos.adapters.mutation.lane_lifecycle.core import run_git
@@ -23,6 +27,10 @@ from ethos_core.contracts.branch.roles import load_branch_role_policy
 from ethos_core.contracts.coordination import HolderRef
 
 
+def utc_now() -> datetime:
+    return datetime.now(UTC)
+
+
 def start_work_lane(  # noqa: C901, PLR0913, RUF100 - exact start saga dimensions
     *,
     root: Path,
@@ -35,11 +43,29 @@ def start_work_lane(  # noqa: C901, PLR0913, RUF100 - exact start saga dimension
     repo = repo_root(root)
     policy = load_branch_role_policy(repo)
     lane_slug = slug(name)
-    branch = policy.work_branch(lane_slug)
-    # Default the lane home to the canonical sibling of the accepted root
-    # (repo-<branch-slug>) so lanes stop scattering into /tmp; callers may
-    # still pin an explicit path.
-    target = (path or default_candidate_path(repo, branch)).resolve()
+    if getattr(policy, "repository_family_worktrees", False):
+        lane_id, branch = canonical_lane_identity(name, observed_at=utc_now())
+        if policy.work_branch_prefix != "work/":
+            return {
+                "ok": False,
+                "state": "blocked",
+                "branch": branch,
+                "required_gaps": ["repository_family_profile_requires_work_branch_prefix"],
+            }
+        canonical_target = canonical_lane_path(repo, lane_id).resolve()
+        if path is not None and path.resolve() != canonical_target:
+            return {
+                "ok": False,
+                "state": "blocked",
+                "branch": branch,
+                "path": path.resolve().as_posix(),
+                "required_gaps": ["work_lane_path_not_canonical"],
+            }
+        target = canonical_target
+    else:
+        branch = policy.work_branch(lane_slug)
+        # Generic adopters retain their configured policy and explicit paths.
+        target = (path or default_candidate_path(repo, branch)).resolve()
 
     def blocked(*gaps: str, **extra: object) -> dict[str, object]:
         return {

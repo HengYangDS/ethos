@@ -38,6 +38,7 @@ class BranchRolePolicy:
     work_branch_prefix: str = "work/"
     submit_branch_prefix: str = "submit/"
     release_mirror: str = "independent"
+    repository_family_worktrees: bool = False
 
     def role_for_branch(self, branch: str) -> str:
         exact_roles = (
@@ -146,6 +147,7 @@ def branch_role_policy_from_text(text: str) -> BranchRolePolicy:
         release_mirror=RELEASE_MIRROR_ACCEPTED_FF
         if raw_policy.get("release_mirror") == RELEASE_MIRROR_ACCEPTED_FF
         else "independent",
+        repository_family_worktrees=raw_policy.get("repository_family_worktrees") is True,
     )
 
 

@@ -27,7 +27,9 @@ Purpose: convert the approved ownerless closeout design into a tested, fail-clos
 - Dirty, diverged, valid-owner, claim-bound, stale-head, Chronicle-drift, malformed-layout, and receipt-mismatch states fail closed.
 - The retirement effect remains `no-force`; raw Git worktree/ref deletion remains forbidden.
 - New lanes use `work/YYYYMMDD-task-slug` and `repo-worktrees/YYYYMMDD-task-slug`.
-- Legacy lanes are migration-required; this change does not rename or remove them.
+- New lanes use canonical repository-family identity. A legacy linked `work/*`
+  lane is never renamed or taken over; a clean ownerless accepted ancestor may
+  retire only through the same exact decision-bound compatibility preflight.
 - Workstation deployment is source-built and verified; do not hand-edit an installed artifact.
 
 ---
@@ -288,14 +290,17 @@ git commit -m "docs(lanes): define ownerless closeout admission"
 - Create: one immutable record below the governed `ethos-records/evidence/<UTC>-ownerless-closeout-pilot/` root, admitted with `record-admit`
 
 **Interfaces:**
-- Select exactly one current clean ownerless accepted ancestor with a canonical branch/path pair.
+- Select exactly one current clean ownerless accepted ancestor with either a
+  canonical branch/path pair or a registered legacy `work/*` sibling path.
 - The record includes `README.md`, `closeout.json`, `MANIFEST.json`, and `SHA256SUMS` and is verified before index update.
 
 - [ ] **Step 1: Re-observe all target facts without mutation**
 
 Run `ethos lane status --json`, `git worktree list --porcelain`, the selected target’s porcelain status, current branch/head relation, active lease/claim lookup, and ownerless decision dry-run.
 
-Expected: selected target remains clean, linked, missing lease/claim, canonical, and an accepted ancestor.
+Expected: selected target remains clean, linked, missing lease/claim, and an
+accepted ancestor. A legacy target must also remain a registered sibling
+`work/*` lane; it is not renamed or reclassified.
 
 - [ ] **Step 2: Run the ownerless closeout preflight dry-run**
 

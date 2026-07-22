@@ -8,6 +8,8 @@ relations:
 
 # Ownerless First-Batch Retirement — 2026-07-22
 
+Status: active, ownerless-first execution carrier; not yet accepted.
+
 Purpose: perform the first bounded retirement cohort before any valid-owner
 lane is considered. This carrier is deliberately limited to clean, linked,
 missing-lease lanes whose exact heads are accepted-root ancestors and whose
@@ -39,3 +41,8 @@ current observation reports no claim binding or dirty residue.
 4. The pre-existing `lane_resolution_manifest_receipt_mismatch` is preserved as
    a separate integrity defect. No package is cleared, overwritten, or ignored
    by this cohort.
+
+## See also
+
+- [Authorized Work Lane Cohort Closeout](all-lanes-authorized-closeout-20260718.md)
+- [All Work Lanes Convergence Program](all-work-lanes-convergence-program-20260716.md)

@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 import ethos.adapters.mutation.resolution.receipts as receipt_adapter
-import ethos.adapters.mutation.resolution.record_store as record_store
+import ethos.adapters.mutation.resolution.records.core as record_store
 from ethos.adapters.mutation.resolution._shared import records_artifact_root
 from ethos.adapters.mutation.resolution.lane import apply_lane_resolution
 from ethos.adapters.mutation.resolution.lane import plan_lane_resolution

@@ -378,6 +378,18 @@ completes but immutable receipt materialization fails, apply returns
 `lane_resolution_receipt_write_failed_after_effect`; the stable decision and
 package remain available for reconciliation.
 
+When the repository-family worktree profile is enabled, a clean `retire`
+decision for an ownerless lane performs a read-only repository-family preflight
+immediately before the native effect. It binds the exact decision, Chronicle,
+branch, head, path, accepted control branch, and executor reference. A failed,
+malformed, or non-ownerless response blocks with an
+`ownerless_closeout_preflight_*` gap and leaves the worktree and ref untouched.
+The executor is recorded for that effect only; it does not become a lane owner.
+Canonical date-bound lanes are admitted directly. A legacy linked `work/*` lane
+may use this route only when the same exact clean ownerless decision binds its
+registered sibling path; this compatibility route cannot create, take over, or
+reclassify a lane.
+
 `ethos lane resolution inventory` derives retained, cleared, and unindexed
 package state from the canonical records owner plus read-only predecessor
 `build/artifacts/lane-resolution/` stores across registered worktrees. Conflicting

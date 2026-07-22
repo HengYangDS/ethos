@@ -20,8 +20,8 @@ from ethos.adapters.mutation.resolution._shared import accepted_control_root
 from ethos.adapters.mutation.resolution._shared import canonical_record_path
 from ethos.adapters.mutation.resolution._shared import records_artifact_root
 from ethos.adapters.mutation.resolution._shared import valid_decision_id
-from ethos.adapters.mutation.resolution.record_store import release_resolution_receipt_reservation
-from ethos.adapters.mutation.resolution.record_store import reserve_resolution_receipt
+from ethos.adapters.mutation.resolution.records.core import release_resolution_receipt_reservation
+from ethos.adapters.mutation.resolution.records.core import reserve_resolution_receipt
 from ethos.repository.policy.schema import validate_schema_instance
 from ethos_core.contracts.lifecycle.core import LANE_RESOLUTION_APPLY
 from ethos_core.contracts.lifecycle.core import LANE_RESOLUTION_DECIDE

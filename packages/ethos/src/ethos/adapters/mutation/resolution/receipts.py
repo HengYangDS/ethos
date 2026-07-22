@@ -13,10 +13,10 @@ from ethos.adapters.mutation.resolution._shared import display_path
 from ethos.adapters.mutation.resolution._shared import records_artifact_root
 from ethos.adapters.mutation.resolution._shared import sha256_digest
 from ethos.adapters.mutation.resolution._shared import valid_decision_id
-from ethos.adapters.mutation.resolution.record_store import clear_receipt_path
-from ethos.adapters.mutation.resolution.record_store import receipt_path
-from ethos.adapters.mutation.resolution.record_store import record_destination_safe
-from ethos.adapters.mutation.resolution.record_store import write_json_atomic
+from ethos.adapters.mutation.resolution.records.core import clear_receipt_path
+from ethos.adapters.mutation.resolution.records.core import receipt_path
+from ethos.adapters.mutation.resolution.records.core import record_destination_safe
+from ethos.adapters.mutation.resolution.records.core import write_json_atomic
 from ethos.repository.policy.schema import validate_schema_instance
 from ethos_core.contracts.resolution.lane import LaneResolutionClearReceipt
 from ethos_core.contracts.resolution.lane import LaneResolutionReceipt

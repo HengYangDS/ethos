@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-import ethos.adapters.mutation.resolution.lane as lane_adapter
+import ethos.adapters.mutation.resolution._effects as effect_adapter
 from ethos.adapters.mutation.resolution._shared import records_artifact_root
 from ethos.adapters.mutation.resolution.lane import apply_lane_resolution
 from ethos.adapters.mutation.resolution.lane import plan_lane_resolution
@@ -455,9 +455,10 @@ def test_receipt_failure_after_destructive_effect_reports_partial_transition(
         artifact_root: Path | None = None,
     ) -> str:
         del root, receipt, artifact_root
-        raise OSError("receipt unavailable")
+        message = "receipt unavailable"
+        raise OSError(message)
 
-    monkeypatch.setattr(lane_adapter, "write_resolution_receipt", fail_receipt_write)
+    monkeypatch.setattr(effect_adapter, "write_resolution_receipt", fail_receipt_write)
     report = apply_lane_resolution(
         root=repo,
         decision_path=decision_path,
@@ -471,6 +472,57 @@ def test_receipt_failure_after_destructive_effect_reports_partial_transition(
     assert report["receipt"]["completed"] is True
     assert not lane.exists()
     assert Path(str(report["preservation_package"]["path"])).is_dir()
+    reservations = tuple((records_artifact_root(repo) / "receipts").glob(".*.receipt-reservation"))
+    assert len(reservations) == 1
+
+
+def test_existing_receipt_blocks_preserve_retire_before_destructive_effect(
+    tmp_path: Path,
+) -> None:
+    repo, lane = orphan_work_lane(tmp_path)
+    (lane / "README.md").write_text("# receipt destination already exists\n", encoding="utf-8")
+    decision_path = _default_decision_path(repo, "work/orphan")
+    planned = plan_lane_resolution(
+        root=repo,
+        branch="work/orphan",
+        disposition="preserve-retire",
+        reason="Do not retire when the immutable receipt target is occupied.",
+        evidence_refs=("evidence:maintainer-decision",),
+        chronicle_ref=write_chronicle_decision(
+            repo, topic="lane-resolution-test", token="preserve-retire"
+        ),
+        recovery_plan="Keep the lane intact until a unique receipt can be reserved.",
+        decision_path=decision_path,
+        break_glass=True,
+        apply=True,
+    )
+    decision_id = str(planned["decision"]["decision_id"])
+    receipt_path = (
+        records_artifact_root(repo)
+        / "receipts"
+        / f"{hashlib.sha256(decision_id.encode()).hexdigest()}.json"
+    )
+    receipt_path.parent.mkdir(parents=True)
+    original = b"do not replace\n"
+    receipt_path.write_bytes(original)
+
+    report = apply_lane_resolution(
+        root=repo,
+        decision_path=decision_path,
+        confirm_irreversible=True,
+        apply=True,
+    )
+
+    assert report["ok"] is False
+    assert report["state"] == "blocked"
+    assert report["required_gaps"] == ["lane_resolution_receipt_path_exists"]
+    assert lane.is_dir()
+    assert git(repo, "show-ref", "--verify", "refs/heads/work/orphan")
+    assert receipt_path.read_bytes() == original
+    assert report["preservation_package"] == {}
+    assert report["receipt"] == {}
+    assert not (records_artifact_root(repo) / decision_id).exists()
+    assert not tuple(receipt_path.parent.glob(".*.receipt-reservation"))
 
 
 def test_preservation_package_verifier_fails_closed_on_invalid_packages(
@@ -697,6 +749,8 @@ def test_resolution_preservation_package_refuses_to_clobber_existing_directory(
     assert applied["ok"] is False
     assert applied["required_gaps"] == ["lane_resolution_preservation_package_exists"]
     assert tracked_patch.read_bytes() == b"existing recovery bytes"
+    assert lane.is_dir()
+    assert not tuple((records_artifact_root(repo) / "receipts").glob(".*.receipt-reservation"))
 
 
 def test_resolution_decide_does_not_write_tracked_chronicle_path(

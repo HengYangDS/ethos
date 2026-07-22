@@ -2,11 +2,8 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
-import os
 import shutil
-import tempfile
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -16,6 +13,10 @@ from ethos.adapters.mutation.resolution._shared import display_path
 from ethos.adapters.mutation.resolution._shared import records_artifact_root
 from ethos.adapters.mutation.resolution._shared import sha256_digest
 from ethos.adapters.mutation.resolution._shared import valid_decision_id
+from ethos.adapters.mutation.resolution.record_store import clear_receipt_path
+from ethos.adapters.mutation.resolution.record_store import receipt_path
+from ethos.adapters.mutation.resolution.record_store import record_destination_safe
+from ethos.adapters.mutation.resolution.record_store import write_json_atomic
 from ethos.repository.policy.schema import validate_schema_instance
 from ethos_core.contracts.resolution.lane import LaneResolutionClearReceipt
 from ethos_core.contracts.resolution.lane import LaneResolutionReceipt
@@ -51,23 +52,14 @@ def write_resolution_receipt(
     if not valid_decision_id(str(payload["decision_id"])):
         raise ValueError(_RECEIPT_INVALID)
     _validate_schema(root, "lane-resolution-receipt.schema.json", payload)
-    destination = _receipt_path(
+    destination = receipt_path(
         root,
         str(payload["decision_id"]),
         artifact_root=artifact_root,
     )
     record_root = artifact_root or records_artifact_root(root)
-    _write_json_atomic(destination, payload, record_root=record_root)
+    write_json_atomic(destination, payload, record_root=record_root)
     return display_path(root, destination)
-
-
-def resolution_receipt_destination_safe(
-    *, root: Path, decision_id: str, artifact_root: Path | None = None
-) -> bool:
-    """Return whether one completion receipt stays in a non-symlinked owner."""
-    record_root = artifact_root or records_artifact_root(root)
-    destination = _receipt_path(root, decision_id, artifact_root=record_root)
-    return _record_destination_safe(record_root, destination)
 
 
 def verify_preservation_package(
@@ -283,15 +275,15 @@ def clear_lane_resolution_package(
     ).to_payload()
     _validate_schema(root, "lane-resolution-clear-receipt.schema.json", receipt)
     record_root = records_artifact_root(root)
-    receipt_path = _clear_receipt_path(root, request.decision_id)
-    if not _record_destination_safe(record_root, receipt_path):
+    receipt_path = clear_receipt_path(root, request.decision_id)
+    if not record_destination_safe(record_root, receipt_path):
         report.update(
             ok=False,
             state="blocked",
             required_gaps=["lane_resolution_clear_receipt_path_unsafe"],
         )
         return report
-    _write_json_atomic(receipt_path, receipt, record_root=record_root)
+    write_json_atomic(receipt_path, receipt, record_root=record_root)
     package_path = Path(str(manifest["package_path"]))
     if not package_path.is_absolute():
         package_path = root / package_path
@@ -356,8 +348,8 @@ def _unsafe_record_path_present(root: Path) -> bool:
 
 def _package_path_safe(root: Path, package_path: Path) -> bool:
     return any(
-        _record_destination_safe(artifact_root, package_path)
-        and _record_destination_safe(artifact_root, package_path / "manifest.json")
+        record_destination_safe(artifact_root, package_path)
+        and record_destination_safe(artifact_root, package_path / "manifest.json")
         for artifact_root in artifact_roots(root)
     )
 
@@ -450,78 +442,6 @@ def _clear_chronicle(root: Path, chronicle_ref: str) -> tuple[str, str, list[str
     if "lane_resolution/clear-preservation" not in candidate.read_text(encoding="utf-8"):
         return relative, "", ["lane_resolution_clear_chronicle_disposition_mismatch"]
     return relative, sha256_digest(candidate), []
-
-
-def _receipt_path(
-    root: Path,
-    decision_id: str,
-    *,
-    artifact_root: Path | None = None,
-) -> Path:
-    return _record_path(root, _RECEIPTS, decision_id, artifact_root=artifact_root)
-
-
-def _clear_receipt_path(root: Path, decision_id: str) -> Path:
-    return _record_path(root, _CLEARS, decision_id)
-
-
-def _record_path(
-    root: Path,
-    category: str,
-    decision_id: str,
-    *,
-    artifact_root: Path | None = None,
-) -> Path:
-    return (
-        (artifact_root or records_artifact_root(root))
-        / category
-        / f"{hashlib.sha256(decision_id.encode()).hexdigest()}.json"
-    )
-
-
-def _record_destination_safe(record_root: Path, destination: Path) -> bool:
-    lexical_root = record_root.absolute()
-    lexical_destination = destination.absolute()
-    if not lexical_destination.is_relative_to(lexical_root):
-        return False
-    current = lexical_root
-    if current.is_symlink():
-        return False
-    for part in lexical_destination.relative_to(lexical_root).parts:
-        current /= part
-        if current.is_symlink():
-            return False
-    return True
-
-
-def _write_json_atomic(
-    destination: Path,
-    payload: dict[str, object],
-    *,
-    record_root: Path,
-) -> None:
-    if not _record_destination_safe(record_root, destination):
-        raise OSError("lane_resolution_record_path_unsafe")
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    if not _record_destination_safe(record_root, destination):
-        raise OSError("lane_resolution_record_path_unsafe")
-    descriptor, name = tempfile.mkstemp(
-        dir=destination.parent, prefix=f".{destination.name}.", suffix=".tmp"
-    )
-    temporary = Path(name)
-    try:
-        with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
-            handle.write(json.dumps(payload, indent=2, sort_keys=True) + "\n")
-            handle.flush()
-            os.fsync(handle.fileno())
-        if not _record_destination_safe(record_root, destination):
-            raise OSError("lane_resolution_record_path_unsafe")
-        try:
-            os.link(temporary, destination)
-        except FileExistsError as error:
-            raise FileExistsError(destination) from error
-    finally:
-        temporary.unlink(missing_ok=True)
 
 
 def _validate_schema(root: Path, schema: str, payload: dict[str, object]) -> None:

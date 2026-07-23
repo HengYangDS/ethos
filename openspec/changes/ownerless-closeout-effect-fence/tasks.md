@@ -46,9 +46,10 @@
   tracked evidence.
 - [x] 4.6 Run disposable cross-repository effect acceptance, workstation
   full/quick evaluation, task/lease/snapshot checks, and final housekeeping.
-- [ ] 4.7 After every tracked pre-archive input is committed, execute the final
-  exact-HEAD pre-archive implementation proof and confirm isolated official
-  OpenSpec archive preflight is ready.
+- [x] 4.7 After every tracked implementation and parity input is committed,
+  execute the final exact-HEAD pre-archive implementation proof, confirm
+  isolated official OpenSpec archive preflight is ready, and close this
+  evidence-only checklist without claiming a second self-referential proof.
 
 ## Post-archive transition boundary
 

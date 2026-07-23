@@ -8,7 +8,10 @@ relations:
 
 # Ownerless Closeout Admission Implementation Plan
 
-Status: approved implementation plan; no implementation task has started.
+Status: active convergence plan. The candidate baseline already supplies the
+WCP-backed ownerless effect, recovery, fencing, receipts, and compatibility
+admission; this lane integrates canonical lane creation without replacing that
+bounded implementation.
 
 Purpose: convert the approved ownerless closeout design into a tested, fail-closed cross-component delivery sequence.
 
@@ -27,7 +30,7 @@ Purpose: convert the approved ownerless closeout design into a tested, fail-clos
 - Dirty, diverged, valid-owner, claim-bound, stale-head, Chronicle-drift, malformed-layout, and receipt-mismatch states fail closed.
 - The retirement effect remains `no-force`; raw Git worktree/ref deletion remains forbidden.
 - New lanes use `work/YYYYMMDD-task-slug` and `repo-worktrees/YYYYMMDD-task-slug`.
-- New lanes use canonical repository-family identity. A legacy linked `work/*`
+- New lanes use canonical repository-family identity. A pre-existing linked `work/*`
   lane is never renamed or taken over; a clean ownerless accepted ancestor may
   retire only through the same exact decision-bound compatibility preflight.
 - Workstation deployment is source-built and verified; do not hand-edit an installed artifact.
@@ -35,6 +38,22 @@ Purpose: convert the approved ownerless closeout design into a tested, fail-clos
 ---
 
 ## File Map
+
+## Delivery-state update — 2026-07-23
+
+- The authoritative workstation-control-plane ownerless-decision admission is
+  deployed separately from this ETHOS lane.
+- The current candidate baseline already uses a bounded WCP adapter, exact
+  decision bindings, durable fence/reservation state, receipt-bound recovery,
+  and no-force CAS retirement. Do not reintroduce the earlier lightweight
+  subprocess adapter described below.
+- The remaining ETHOS change in this lane is the opt-in
+  `repository_family_worktrees` profile: canonical date-bound work branches and
+  sibling worktree paths for new lanes, while generic adopters retain existing
+  path policy.
+- The detailed Tasks 2 and 3 below are retained as the original design record;
+  their functional scope is superseded by the candidate baseline and must be
+  validated through its WCP regression suites rather than reimplemented here.
 
 - Modify: `packages/ethos/src/ethos/adapters/mutation/lanes.py` — create canonical date-bound branch/path pairs.
 - Modify: `packages/ethos/src/ethos/adapters/mutation/lane_lifecycle/core.py` — centralize lane identity parsing and canonical sibling path derivation.

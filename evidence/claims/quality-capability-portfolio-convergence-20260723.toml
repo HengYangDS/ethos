@@ -7,9 +7,9 @@ summary = "ETHOS quality mechanisms have one ranked decision surface; import-lin
 
 [evidence]
 dated = "evidence/chronicle/quality-capability-portfolio-convergence-20260723/2026-07-23.md"
-sha256 = "36ae0cdd35aafc05b4789ecc2ac6e313f0bf40ed38689e65f3e7f875189b9f07"
+sha256 = "34c9e8838cf52797345ec3d9439c2c22a9748ae41ef02288ffe8847c1c75faea"
 evidence_ids = ["evidence:quality-capability-portfolio-convergence-20260723"]
-binding = "The dated inventory, ranked capability decisions, gate repair, claim narrowing, focused tests, source budget, parity, exact-HEAD proof, claim binding, and archive preflight bind this portfolio convergence."
+binding = "The dated inventory, ranked capability decisions, gate repair, claim narrowing, focused tests, source budget, parity, exact-HEAD proof, claim binding, and archive transition bind this portfolio convergence."
 verifier = "digest_only"
 tests = [
   "tools/ci/scripts/run-config-lint.sh",
@@ -33,7 +33,7 @@ owner = "quality"
 scope = "Quality capability admission, selected active gate repair, exact tool/standard claims, and roadmap/catalog truth; complete gate-registry projection, future pilot execution, and remote platforms remain separate."
 
 [carriers]
-openspec = "openspec/changes/quality-capability-portfolio-convergence"
+openspec = "openspec/changes/archive/2026-07-23-quality-capability-portfolio-convergence"
 fallback = "Revert a portfolio decision only with evidence that the selected mechanism cannot provide its distinct capability; do not restore a parallel permanent toolchain."
 kill_signal = "An active tool bypasses its owner surface, a proof set omits a declared hard-floor gate, a tool or standard claim exceeds executed behavior, or a candidate leaves permanent parallel residue."
 
@@ -47,7 +47,7 @@ targets = [
   "evidence/claims/ethos-asset-quality-kernel.toml",
   "evidence/claims/quality-capability-portfolio-convergence-20260723.toml",
   "evidence/chronicle/quality-capability-portfolio-convergence-20260723/2026-07-23.md",
-  "openspec/changes/quality-capability-portfolio-convergence",
+  "openspec/changes/archive/2026-07-23-quality-capability-portfolio-convergence",
   "packages/ethos-core/src/ethos_core/quality/profiles.py",
   "packages/ethos/src/ethos/repository/audit.py",
   "packages/ethos/src/ethos/repository/release/core.py",

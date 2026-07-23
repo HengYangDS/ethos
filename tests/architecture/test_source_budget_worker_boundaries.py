@@ -7,6 +7,7 @@ import inspect
 import subprocess
 import sys
 import tomllib
+from dataclasses import is_dataclass
 from dataclasses import replace
 from functools import lru_cache
 from pathlib import Path
@@ -36,6 +37,9 @@ IDENTITY_MODULE = "ethos.adapters.repo.source_budget.measurement.native.identity
 BOUNDED_MODULE = "ethos.adapters.repo.source_budget.measurement.native.bounded.core"
 ISOLATED_MODULE = "ethos.adapters.repo.source_budget.measurement.native.isolated.core"
 SUPERVISOR_MODULE = "ethos.adapters.repo.source_budget.measurement.worker.supervisor.core"
+SUPERVISOR_LIFECYCLE_MODULE = (
+    "ethos.adapters.repo.source_budget.measurement.worker.supervisor.lifecycle.core"
+)
 BOUNDED_PARSERS = frozenset({"utf8-footprint", "utf8-control", "diagram-contract"})
 ISOLATED_PARSERS = frozenset(
     {
@@ -561,6 +565,79 @@ assert load.measurement is not None, load.required_gaps
         text=True,
     )
     assert completed.returncode == 0, completed.stderr
+
+
+def test_worker_supervisor_dataclasses_are_frozen_slots() -> None:
+    supervisor_root = MEASUREMENT_ROOT / "worker/supervisor"
+    for path in sorted(supervisor_root.rglob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ClassDef):
+                continue
+            for decorator in node.decorator_list:
+                if (
+                    isinstance(decorator, ast.Call)
+                    and isinstance(decorator.func, ast.Name)
+                    and decorator.func.id == "dataclass"
+                ):
+                    keywords = {item.arg: item.value for item in decorator.keywords}
+                    assert "frozen" in keywords, (path, node.name)
+                    assert ast.literal_eval(keywords["frozen"]) is True, (path, node.name)
+                    assert "slots" in keywords, (path, node.name)
+                    assert ast.literal_eval(keywords["slots"]) is True, (path, node.name)
+    lifecycle_module = _module(SUPERVISOR_LIFECYCLE_MODULE)
+    carriers = (
+        (
+            lifecycle_module.WorkerExchangeState,
+            (
+                "cleanup_cause",
+                "cleanup_failed",
+                "first_cause",
+                "request_offset",
+                "returncode",
+                "stdout",
+                "stdout_eof",
+            ),
+        ),
+        (
+            lifecycle_module.WorkerExchangeContext,
+            (
+                "darwin_vms_baseline",
+                "monotonic",
+                "next_sample",
+                "process",
+                "profile",
+                "protocol",
+                "request_frame",
+                "request_permitted",
+                "selector",
+                "state",
+                "telemetry",
+                "wall_deadline",
+            ),
+        ),
+        (
+            lifecycle_module.WorkerLifecycleOwner,
+            (
+                "_cleanup_complete",
+                "_cleanup_lock",
+                "_cleanup_state",
+                "_cleanup_thread",
+                "_control_error",
+                "_exchange_claimed",
+                "_process",
+                "_process_acquisition_complete",
+                "_process_acquisition_state",
+                "_process_acquisition_thread",
+                "_selector",
+                "private_directory",
+            ),
+        ),
+    )
+    for carrier, expected_slots in carriers:
+        assert not is_dataclass(carrier)
+        assert frozenset(carrier.__slots__) == frozenset(expected_slots)
+        assert not hasattr(object.__new__(carrier), "__dict__")
 
 
 def test_parent_source_graph_has_no_isolated_engine_edge_or_compatibility_shell() -> None:

@@ -36,9 +36,12 @@ from tests.support.source_budget_worker import WorkerProcess
 from tests.support.source_budget_worker import WorkerSelector
 
 if TYPE_CHECKING:
+    import selectors
     from collections.abc import Callable
     from pathlib import Path
     from subprocess import Popen
+
+    from ethos.adapters.repo.source_budget.measurement.worker.backend.core import WorkerTelemetry
 
 PROFILE = worker_resource_profile_descriptor()
 PROTOCOL = worker_protocol_descriptor()
@@ -67,7 +70,7 @@ class _ExchangeContextView(Protocol):
 
 def _lifecycle_case(private: Path) -> types.SimpleNamespace:
     private.mkdir(exist_ok=True)
-    state = vars(exchange)["_ExchangeState"]()
+    state = lifecycle.WorkerExchangeState()
     owner = lifecycle.WorkerLifecycleOwner(private)
     boundary = lifecycle.WorkerLifecycleBoundary(owner, state)
     context = lifecycle.WorkerLifecycleContext(
@@ -108,18 +111,28 @@ def _exchange_context(
     options: _ExchangeOptions = _DEFAULT_EXCHANGE_OPTIONS,
 ) -> _ExchangeContextView:
     events: list[str] = []
-    context = vars(exchange)["_ExchangeContext"](
+    config = exchange.WorkerExchangeConfig(
+        request_frame=cast("bytes", options.request_frame),
+        telemetry=cast("WorkerTelemetry | None", options.telemetry),
+        profile=PROFILE,
+        protocol=PROTOCOL,
+        wall_deadline=options.wall_deadline,
+        resource_sampled_at=1.0 - PROFILE.sample_interval_ms / 1000,
+        request_permitted=options.request_permitted,
+    )
+    context = lifecycle.WorkerExchangeContext(
         _process(events) if options.process is None else options.process,
-        options.request_frame,
-        options.telemetry,
-        PROFILE,
-        PROTOCOL,
-        WorkerSelector(WorkerClock(), (), events) if options.selector is None else options.selector,
-        vars(exchange)["_ExchangeState"]() if options.state is None else options.state,
-        options.wall_deadline,
-        None,
-        1.0,
-        options.request_permitted,
+        cast(
+            "selectors.BaseSelector",
+            WorkerSelector(WorkerClock(), (), events)
+            if options.selector is None
+            else options.selector,
+        ),
+        cast(
+            "lifecycle.WorkerExchangeState",
+            lifecycle.WorkerExchangeState() if options.state is None else options.state,
+        ),
+        config,
         options.monotonic,
     )
     return cast("_ExchangeContextView", context)
@@ -471,7 +484,7 @@ def test_cleanup_capability_failure_precedes_nonzero_returncode_mapping() -> Non
 
 
 def test_exchange_state_preserves_first_cause() -> None:
-    state = vars(exchange)["_ExchangeState"]()
+    state = lifecycle.WorkerExchangeState()
     state.trigger("timeout")
     state.trigger("pipe_failed")
     assert state.first_cause == "timeout"
@@ -556,7 +569,7 @@ def test_run_exchange_skips_drive_after_pipe_preparation_triggers(
 
 
 def test_trigger_parent_failure_prefers_expired_deadline() -> None:
-    state = vars(exchange)["_ExchangeState"]()
+    state = lifecycle.WorkerExchangeState()
     hooks = types.SimpleNamespace(monotonic=lambda: 2.0)
     vars(exchange)["_trigger_parent_failure"](state, hooks, 1.0, "pipe_failed")
     assert state.first_cause == "timeout"
@@ -669,7 +682,7 @@ def test_expire_exchange_records_timeout() -> None:
 
 
 def test_select_events_returns_when_already_triggered() -> None:
-    state = vars(exchange)["_ExchangeState"]()
+    state = lifecycle.WorkerExchangeState()
     state.trigger("pipe_failed")
     context = _exchange_context(_ExchangeOptions(state=cast("_ExchangeStateView", state)))
     assert vars(exchange)["_select_events"](context, None) == []

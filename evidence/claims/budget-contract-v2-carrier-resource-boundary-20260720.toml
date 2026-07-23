@@ -40,7 +40,9 @@ tests = [
 ]
 
 [evidence.freshness]
-mode = "historical"
+mode = "semantic_scope"
+head = "62efb853a47f67e07ed2e9f0b0de00255ede9087"
+semantic_sha256 = "239c11930794183a7b44e06ba21030b82ffd47bd7835c9abd0c44dadd69e787e"
 
 [boundary]
 owner = "quality"

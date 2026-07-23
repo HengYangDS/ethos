@@ -13,51 +13,8 @@ from ethos_core import models
 from ethos_core.contracts.branch.roles import BranchRolePolicy
 from ethos_core.contracts.branch.roles import load_branch_role_policy
 from ethos_core.contracts.context.projection import redact_secret_like
-from ethos_core.quality.models import QualityFinding
-from ethos_core.quality.models import ToolAdapterProfile
 
 # fmt: off
-
-
-def test_quality_finding_to_dict_serializes_all_fields() -> None:
-    # Explicit path: asdict emits every dataclass field as a flat str->str map.
-    finding = QualityFinding(
-        id="F1",
-        severity="error",
-        asset_class="python-code",
-        dimension="lint",
-        message="unused import",
-        path="pkg/mod.py",
-    )
-    assert finding.to_dict() == {
-        "id": "F1",
-        "severity": "error",
-        "asset_class": "python-code",
-        "dimension": "lint",
-        "message": "unused import",
-        "path": "pkg/mod.py",
-    }
-
-    # Default path: the optional field falls back to the empty string.
-    without_path = QualityFinding(
-        id="F2",
-        severity="warning",
-        asset_class="markdown-docs",
-        dimension="links",
-        message="dead link",
-    )
-    serialized = without_path.to_dict()
-    assert serialized["path"] == ""
-    assert set(serialized) == {
-        "id",
-        "severity",
-        "asset_class",
-        "dimension",
-        "message",
-        "path",
-    }
-    adapter = ToolAdapterProfile("ruff", "ruff", ("python-code",), ("lint",), "format boundary")
-    assert adapter.to_dict()["asset_classes"] == ["python-code"]
 
 
 def test_redact_secret_like_masks_secret_and_preserves_plain_text() -> None:

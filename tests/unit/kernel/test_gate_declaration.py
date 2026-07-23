@@ -81,7 +81,9 @@ adopter_default = []
             "unavailable gate dependency",
         ),
         (
-            lambda payload: payload["proof_sets"]["product_default"].append("import-boundaries"),
+            lambda payload: payload["proof_sets"]["product_full"].remove(
+                payload["proof_sets"]["product_default"][0]
+            ),
             "product full missing default",
         ),
         (

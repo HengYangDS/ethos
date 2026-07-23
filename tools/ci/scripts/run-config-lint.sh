@@ -5,6 +5,7 @@
 # - TOML format/lint policy: .config/checks/taplo/taplo.toml
 # - YAML lint policy: .config/checks/yaml/yamllint.yaml
 # - JSON format policy: .config/checks/json/format.toml, executed by Python stdlib json.
+# - Hook config shape: .pre-commit-config.yaml, validated by locked pre-commit.
 # - Provider CI calls this script; it does not restate policy inline.
 set -euo pipefail
 
@@ -17,6 +18,10 @@ fi
 cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 ethos_python="${ETHOS_PYTHON:-${PYTHON:-python3}}"
 toml_files=() yaml_files=() json_files=()
+
+if [[ -f .pre-commit-config.yaml ]]; then
+  pre-commit validate-config .pre-commit-config.yaml
+fi
 
 if (($#)); then
   for target in "$@"; do

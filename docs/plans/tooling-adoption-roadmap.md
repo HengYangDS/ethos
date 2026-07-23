@@ -48,7 +48,7 @@ Completed baseline:
   official-compatible ETHOS capability/profile, claim-binding, evidence-ref, and
   archive lifecycle checks layered after official validation.
 - Format selection, dependency hygiene, prose spelling, JSON Schema hygiene,
-  Python vulnerability audit over uv-exported resolved requirements, C4-like
+  native `uv audit --frozen` lock analysis, C4-like
   architecture projection drift, runbook registry, MCP smoke, closeout evidence
   manifest, local-state audit, hosted-provider observation, SBOM, and release
   attestation envelopes have active owner surfaces where cataloged as active.
@@ -89,195 +89,217 @@ ETHOS already has these product-native mechanisms:
 - mandatory OpenSpec governance plus ETHOS lifecycle checks;
 - schema-governed command JSON;
 - compact owner-script quality gates under `tools/ci/scripts/`;
-- a tool catalog in `system/tools.toml` that distinguishes active and planned
-  tools;
+- an executable-mechanism catalog in `system/tools.toml` that contains admitted
+  active tools only;
 - product-boundary and contributor-policy gates that keep distribution and
   identity organization-native.
 
-## Mechanism Families
+## Quality Capability Portfolio
 
-| Mechanism family | ETHOS adoption form | Priority | Core? |
-| --- | --- | --- | --- |
-| Hosted CI provider parity | Provider contract, hosted templates, template drift gate | P0 | Provider projection |
-| Local CI emulation | Local emulator wrappers with evidence-bound trust labels | P0 | Adapter |
-| Template consistency | `ethos` quality gate over tracked provider projections | P0 | Gate |
-| OpenSpec profile customization | Official validation first, then ETHOS lifecycle/profile checks | P0 | Governance extension |
-| Agent method packs | Optional method-pack adapter; no runtime dependency | P0 | No |
-| Format-selection policy | Report-first file-format boundary audit | P1 | Gate/profile |
-| Dependency hygiene | Tool-specific profile after config owner and proof coverage exist | P1 | Tool gate |
-| Vulnerability scanning | Security profile gates with separate tool supply governance | P1 | Tool gate |
-| Closeout evidence operations | Evidence manifest, retained digest, local-state cleanup plan | P1 | Evidence operation |
-| Architecture projection | Source-owned model with generated diagram drift checks | P1 | Projection |
-| Runbook registry | Generated command/runbook registry with drift check | P2 | Documentation projection |
-| MCP smoke | Agent projection smoke gate; logs are evidence, not truth stores | P2 | Adapter gate |
-| SBOM/signing/attestation | Release profile gates and provenance envelopes | P2 | Release adapter |
-| Environment runners | Optional adapter only when adopter profile needs them | Optional | No |
-| Task ledgers | Optional task/intake adapter; Change/Claim lifecycle stays ETHOS-owned | Optional | No |
-| Broad policy suites | Mine checks; do not copy command planes | Optional | No |
+This roadmap is the sole comparison and future-decision surface. The runtime
+catalog contains admitted active mechanisms only. A bounded OpenSpec Change owns
+pilot config, supply, runner, evidence, and expiry outside that catalog; the tool
+enters the catalog only on promotion. Warnings fail just like errors. A tool that
+loses a pilot leaves no dependency, config, cache, wrapper, allowlist, or
+re-export.
 
-## P0 Work Package: Provider Parity And Local Emulation
+`system/gates.toml` is the gate-set SSOT. Local CI, hooks, GitHub, and GitLab still
+contain handwritten projections; the next convergence wave must derive or
+validate them against the registry. Tool-native config owns only tool policy.
+Version, source, license, digest, cache, network, and write boundaries require a
+single tracked supply declaration rather than comments spread across runners.
 
-Deliverables:
+### Admitted floor
 
-1. Keep provider-neutral CI contract and docs as the authority.
-1. Keep hosted templates for GitHub Actions and GitLab CI under tracked
-   projection owners.
-1. Make tracked hosted files generated-or-checked projections.
-1. Keep template drift checks and generated-file presence policy active.
-1. Add provider syntax gates only when the tool has an owner config and script.
-1. Keep local provider emulator entrypoints separate from hosted observations.
-1. Emit evidence with hosted-provider success explicitly unclaimed for emulator
-   runs.
-1. Keep local owner gate, local emulator, hosted observation, and remote
-   publication as separate evidence classes.
-
-Acceptance evidence:
-
-- `ethos quality tool-profiles --json` shows provider tools with correct
-  profiles and planned or active states;
-- provider template drift check fails on deliberate drift;
-- local emulator wrappers refuse trust-bearing runs with untracked materialized
-  inputs unless explicitly allowed for non-proof modes;
-- `ethos publish --json` distinguishes local proof from hosted observations.
-
-## P0 Work Package: OpenSpec Schema/Profile Customization
-
-ETHOS customizes OpenSpec through official-compatible extension, not by forking
-OpenSpec semantics.
-
-Rules:
-
-1. Run official OpenSpec validation first.
-1. Add ETHOS validation after official validation.
-1. Keep ETHOS-specific profile records in repo-local schemas such as
-   `capability-profile.schema.json`.
-1. Validate capability profiles, family ownership, proposal facets, claim
-   binding, evidence refs, and archive closeout.
-1. Never replace official `WHEN` / `THEN` / `AND` semantics with private syntax.
-
-Acceptance evidence:
-
-- `openspec validate --all --strict --json` passes;
-- `ethos openspec --lifecycle --json` proves official validation plus ETHOS
-  carrier checks;
-- active changes without claim binding remain gaps.
-
-## P0 Work Package: Agent Method-Pack Boundary
-
-Agent method packs are useful execution discipline. They are not required ETHOS
-substrate.
-
-ETHOS MUST NOT:
-
-- vendor third-party method-pack bodies;
-- depend on a method pack as package runtime;
-- make a method pack a precondition for repository governance;
-- treat method-pack artifacts as proof without promotion into ETHOS evidence.
-
-ETHOS MAY:
-
-- recognize an installed method pack as an optional adapter;
-- record whether a method pack was used for a plan or review;
-- map the same discipline to ETHOS-native plan/proof/verification gates;
-- allow alternative method packs that satisfy the same evidence contract.
-
-Acceptance evidence:
-
-- agent/skill docs describe method packs as replaceable;
-- no runtime dependency or vendored copy appears in package metadata;
-- method-pack usage never satisfies claim proof by itself.
-
-## P1 Work Package: Quality, Format, Architecture, And Supply Hygiene
-
-Quality additions extend the current hard floor without producing a second
-quality authority.
-
-Deliverables:
-
-1. Keep dependency hygiene active through `deptry` package-local owner gates.
-1. Keep prose spelling active through `codespell` report-first checks.
-1. Keep JSON Schema metaschema hygiene active through `check-jsonschema`.
-1. Keep the native `uv audit --frozen` vulnerability gate active against
-   `uv.lock` through its repository-owned script and OSV evidence boundary.
-1. Activate image/package scanning or external signing only after pinned
-   tool supply, owner configs, runner scripts, CI projections, and proof coverage
-   exist.
-1. Keep fail-closed file-format admission for Python, Markdown, TOML, YAML,
-   JSON, shell, and ecosystem-native formats; an unregistered executable carrier
-   or a carrier outside its declared home blocks rather than merely reporting.
-1. Add a source-owned architecture model and generated diagram projection only
-   when it proves value over existing documentation.
-1. Add architecture projection drift checks so generated diagrams cannot become
-   unreviewed truth.
-1. Add semantic-owner or redundancy audits only when they produce actionable,
-   bounded findings.
-
-Acceptance evidence:
-
-- every active tool has `system/tools.toml`, config owner, reusable gate, CI/hook
-  projection, and proof coverage;
-- architecture artifacts are projections and can be regenerated from tracked
-  source;
-- no generated diagram overrides source/docs/OpenSpec truth.
-
-## P1 Work Package: Evidence Operations
-
-ETHOS should strengthen practical evidence operations generically:
-
-- closeout evidence manifest;
-- retained evidence digest manifest;
-- local-state audit and cleanup plan;
-- hosted CI trace scan as observation, not hosted truth;
-- local handoff summary that cites local proof and explicitly names missing
-  hosted evidence.
-
-Acceptance evidence:
-
-- closeout summaries hash referenced artifacts;
-- cleanup plans are plan-first and fixed-point checked in apply mode;
-- hosted trace scans are labeled observations and cannot claim provider success
-  without provider status facts.
-
-## P2 Work Package: Runbook, MCP, Release Supply Chain
-
-Deliverables:
-
-1. Generate a runbook registry from command registry, docs, and tests.
-1. Add MCP projection smoke for configured agent adapters.
-1. Add SBOM/signing/attestation gates under release profile.
-1. Add provider artifact observation capture for supported hosted providers.
-
-Deferred non-goals for this plan: external signing upload, image/package
-scanning, and OSV scanner activation remain separate Work Lanes until tool
-supply, owner configs, runner scripts, CI projections, and proof coverage exist.
-
-Acceptance evidence:
-
-- runbook registry drift is checked;
-- MCP smoke logs are evidence artifacts, not truth stores;
-- release profile can emit SBOM/provenance/signature evidence without requiring
-  adopters to use the same release substrate.
-
-## Non-Adoption Decisions
-
-| Tool class | Decision | Reason |
+| Capability | Single owner | Boundary |
 | --- | --- | --- |
-| Environment runners | Optional profile adapter | Too strong as universal ETHOS runtime. |
-| Graph build systems | Optional graph/changed-scope adapter | No proven core-scale graph need yet. |
-| Task ledgers | Optional task/intake adapter | Task UI must not own Change/Claim lifecycle. |
-| Method packs | Optional adapter | Replaceable agent discipline, not repository truth. |
-| Broad policy suites | Mine checks only | A copied suite would create a parallel command plane. |
+| Change and specification semantics | OpenSpec strict plus ETHOS lifecycle | Official syntax first; ETHOS adds identity, scope, claim, and archive governance. |
+| Python format, lint, idioms, cyclomatic complexity, and fast SAST | Ruff | Includes C90, PL, FURB, SLOT, security, exception, and suppression ratchets; no Pylint/Flake8/Black/isort stack. |
+| Python types | ty | One locked checker across Python 3.12-3.14; no permanent mypy/Pyright mirror. |
+| Import architecture | import-linter | Explicit layer contracts; discovery tools do not replace declared boundaries. |
+| Dependency hygiene | deptry | Distribution-local metadata truth; not vulnerability evidence. |
+| Test execution | pytest, pytest-timeout, pytest-xdist | Strict config/markers and warnings-as-errors; xdist is scheduling, not concurrency proof, and reruns never convert failure into proof. |
+| Concurrency proof | pytest plus deterministic subprocess barriers | Extend the existing real-process harness for lease, handoff, and closeout races; sleep-only tests are not proof. |
+| Property and state-space testing | Hypothesis | Own property, state-machine, differential, and metamorphic tests before another invariant DSL is considered. |
+| Statement and branch coverage | coverage.py plus pytest-cov | The hard floor remains 100%; coverage proves reachability, not assertion adequacy. |
+| TOML | Taplo | Canonical format and lint after supply bootstrap. |
+| YAML | yamllint | Strict lint only; no permanent second formatter. |
+| JSON and JSON Schema | Python stdlib JSON plus check-jsonschema | Path-selected compact/pretty form and metaschema validation; jq is not a second formatter. |
+| Hook configuration | pre-commit validate-config | Syntax and shape validation only; repository-local owner scripts remain the hook policy. |
+| Shell lint | ShellCheck | Style warnings fail; tracked scripts and extensionless Git hooks use their declared shebang through one config owner. |
+| Markdown, links, spelling, and docs topology | markdownlint-cli2, Lychee, codespell, ETHOS docs gates | Active docs and current OpenSpec changes are governed; immutable archive/evidence remains history, not rewrite material. |
+| Blank lines, trailing space, and final newlines | Carrier-native formatters plus repository hygiene | Markdown/YAML/TOML/Python owners enforce their own syntax; no generic reader or EditorConfig clone becomes a second authority. |
+| GitHub workflow syntax | actionlint | Syntax and expression owner only; security belongs to zizmor. |
+| Provider projections | template drift plus act/gitlab-ci-local adapters | Local execution is not hosted-provider success. |
+| MCP projection shape | ETHOS MCP smoke | Configuration presence only; protocol semantics remain unclaimed. |
+| Secrets | Gitleaks | One scanner; broad test exclusions must shrink to exact fixtures. |
+| Python vulnerabilities | uv audit | Native lock audit remains current; a multi-ecosystem replacement must prove net deletion first. |
+| Build and local installation | uv build plus isolated wheel smoke | Artifact contents and reproducibility remain separate future checks. |
+| Source budget | ETHOS native measurement | `scc` is an independent inventory sensor, never correctness authority. |
+| Release envelopes | ETHOS SPDX-lite and in-toto/SLSA-shaped projections | Local shapes only; no standard-conformance or artifact-signature claim. |
 
-## Sequencing Rule
+### Bounded pilot queue
 
-A planned tool becomes an active ETHOS gate only when all five owner surfaces
-exist:
+External pilots wait behind two native P0 closures: every active trust-bearing
+gate must map owner -> descriptor -> proof set -> execution planes, and every
+tool supply path must declare version, source, digest, cache, network, write, and
+license boundaries. A check-only runner must never install or update its tool.
 
-1. `system/tools.toml` explains why/profile/boundary;
-1. config owner exists under `.config/checks/` or a native owner;
-1. reusable execution surface exists under `tools/ci/scripts/` or `ethos ...`;
-1. hosted CI/hooks invoke the owner surface without duplicating policy;
-1. tests/proof assert the contract.
+| Priority | Capability | Incumbent | Promotion or terminal exit |
+| --- | --- | --- | --- |
+| P0 | Gate-plane compilation | `system/gates.toml` plus native projection compiler | Delete copied commands from hooks/local/GitHub/GitLab; do not add a task runner. |
+| P0 | Repository asset closure | `git ls-files`, shebangs, and the format registry | Every tracked carrier maps to one asset class and owner or an explicit not-applicable decision; gate self-enumeration is insufficient. |
+| P0 | CI binary supply compression | Aqua, CI projection only | Replace and delete admitted download/checksum installers; local macOS remains Brew-admitted and no Aqua task/environment plane is allowed. |
+| P0 | Suppression debt | Existing Ruff, type, and coverage owners | Count `fmt`, `noqa`, type ignores, `pragma: no cover`, and coverage exclusions with exact reasons and a declining baseline; no second linter. |
+| P0 | Dev-tool dependency reachability | Existing dependency-hygiene owner | Every root dev requirement maps to a source import, pytest plugin, owner executable, or declared tool identity; remove unmapped names rather than add a second dependency scanner. |
+| P0 | Runtime compatibility | uv-managed CPython 3.12, 3.13, and 3.14 matrix | One owner script projects identically to GitHub and GitLab; a 3.14-only sensor cannot stand in for compatibility. |
+| P0 | Dual-forge distribution parity | registry-derived provider jobs | Python and npm build/test/release capabilities must exist on both forges; provider status remains separate. |
+| P0 | GitHub workflow security | zizmor | Pin Actions to immutable commits and remove real findings; otherwise reject with no config. |
+| P0 | Clone-driven compression | find-dup-defs diagnostic pilot | Require pinned supply, repeatable macOS/Linux output, and net deletion on two real changes; otherwise absorb findings and retire. |
+| P0 | Stateful lifecycle proof | Hypothesis RuleBasedStateMachine | Replace combinatorial lease/handoff/retire examples and delete superseded tests; no new tool. |
+| P0 | Test replay receipt | Existing pytest/Hypothesis owner | Bind HEAD, interpreter, OS, workers, shards, selected node IDs, seed/reproducer, and environment boundary without adding a test-report platform. |
+| P1 | Shell canonical form | shfmt | One destructive format convergence, then a check-only gate; reject if supply code or ELOC inflation outweighs consistency. |
+| P1 | Mutation adequacy | mutmut | Pure reducers only; promote only if stable survivors expose missing assertions without full-suite cost. |
+| P1 | Network isolation | pytest-socket | Default-deny only after explicit network tests are marked; a hidden network dependency is a test failure. |
+| P1 | Time-boundary determinism | time-machine | Use only for lease/TTL integration boundaries; retain explicit clock parameters in pure code and forbid autouse freezing. |
+| P1 | Unused test fixtures | pytest-deadfixtures | Promote only for deterministic, manually confirmed deletions; dynamic fixture use must not create an allowlist. |
+| P1 | Subprocess coverage | coverage.py subprocess patch | Extend the existing owner only for CLI/process subsets; no second coverage tool. |
+| P1 | Fault and interruption proof | pytest monkeypatch plus existing process harness | Inject failed rename/write, permission, signal, and child-process boundaries; preserve or replay state and delete weaker examples. |
+| P1 | Concurrent-history consistency | Hypothesis model plus native operation-history checker | Validate observed lease/handoff/retire histories against the lifecycle model; do not introduce a distributed-test control plane. |
+| P1 | Reproducible packages | two isolated uv/Hatchling builds | Fixed source epoch and equal wheel/sdist hashes; invoke diffoscope only on mismatch. |
+| P1 | Semantic repository policy | Semgrep CE | Admit one pinned offline rule only when Ruff/import-linter cannot express it; no independent finding means reject. |
+| P1 | Package metadata | validate-pyproject | Warnings, missing license/project URLs, and placeholder public-distribution URLs are failures; promote only if it catches defects before uv build. |
+| P1 | Built distribution metadata | `twine check --strict` | Inspect actual wheel/sdist rendering; reject if validate-pyproject and install smoke already expose every finding. |
+| P1 | Wheel contents | check-wheel-contents | Post-build, check-only; promote only if it adds value beyond install smoke. |
+| P1 | npm package correctness | publint | Run against the packed thin launcher; reject if it adds no finding beyond `npm pack --dry-run` and native smoke. |
+| P1 | MCP protocol conformance | official MCP conformance suite | Own protocol behavior and delete overlapping semantic smoke; keep the current projection-only check separate. |
+| P1 | Documentation terminology | Vale | Product docs only; prove value for controlled vocabulary without policing archives or Chinese prose incorrectly. |
+| P1 | Standard SBOM | Syft | Replace and delete the native SPDX-lite builder/tests after parity; never coexist permanently. |
+| P1 | SBOM conformance | SPDX tools-python | Validate the admitted SPDX output; generation and conformance remain separate capabilities. |
+| P1 | File-level licensing | REUSE | Prefer one bounded repository metadata declaration over thousands of source headers. |
+| P2 | Test-order coupling | pytest-randomly | Use changing scheduled seeds, retain the failing seed, and reproduce exactly; promote only after two real coupling defects. |
+| P2 | Performance regression | pytest-benchmark | Serial, opt-in, hardware-labelled evidence; never join the correctness floor. |
+| P2 | Artifact vulnerability | Grype | Release profile over the admitted Syft SBOM; it does not duplicate uv lock auditing. |
+| P2 | Dependency license policy | Grant over the admitted Syft SBOM | One allow/deny owner after standard SBOM cutover; reject pip-licenses/LicenseCheck in parallel. |
+| P2 | GitLab merged-config semantics | GitLab CI Lint API through hosted observation | Bind merged YAML and commit; network/provider success never enters the offline floor. |
+| P2 | Provenance and signing | PyPI PEP 740 and npm trusted-publishing attestations; cosign only for detached blobs | Prefer registry-native OIDC on both forges; bind exact subjects, digests, verification, and publication. |
 
-Until then it remains planned and MUST NOT be reported as an active quality
-floor.
+Read-only exploration on 2026-07-23 was admission evidence, not promotion proof.
+Vulture reported only the dynamically loaded build hook at high confidence and
+flooded on Pydantic/Cyclopts declarations at lower confidence, so a permanent
+allowlist would cost more than it deletes. Repeated find-dup-defs output was
+byte-stable and exposed a duplicate production helper, making it the current
+pilot incumbent rather than an admitted owner. pyscn exposed useful structural
+signals, but its raw timestamps, durations, and unstable ordering disqualify it
+from clone ownership while the narrower candidate exists.
+
+Primary-source anchors: [Aqua](https://aquaproj.github.io/),
+[MCP conformance](https://github.com/modelcontextprotocol/conformance),
+[PyPI attestations](https://docs.pypi.org/attestations/),
+[npm provenance](https://docs.npmjs.com/generating-provenance-statements/),
+[publint](https://publint.dev/),
+[Twine](https://twine.readthedocs.io/en/stable/#twine-check),
+[GitLab CI Lint](https://docs.gitlab.com/api/lint/),
+[Grant](https://github.com/anchore/grant), and
+[time-machine](https://time-machine.readthedocs.io/).
+
+### Deferred or on-demand
+
+| Mechanism | Use only when | Why not active |
+| --- | --- | --- |
+| pyscn | A real cohesion question exists, clone analysis is disabled, and upstream supports the ETHOS Python 3.14 baseline | Overlaps active architecture/complexity owners and needs output normalization. |
+| jscpd | A real cross-language lexical clone question appears | Too noisy for Python-first default proof. |
+| deadcode | A no-allowlist trial proves materially better precision than Vulture | Whole-program dynamic declarations make dead-code scanners expensive to govern. |
+| complexipy | Ruff C901 misses a demonstrated cognitive-complexity defect | A second complexity metric must first prove independent actionability. |
+| Griffe | ETHOS declares an explicit supported Python API manifest | Compatibility findings must not freeze incidental public names or justify shims. |
+| Tach | Import-linter contracts cannot express a proven boundary | Replacement benchmark only; never a parallel architecture gate. |
+| pytest-repeat | Reproducing a known flake | Diagnostic repetition only; no pass-by-rerun. |
+| pytest-testmon or pytest-split | Inner-loop selection or CI balancing is measurably slow | Cache-based selection can accelerate iteration but never satisfies final proof. |
+| prek | A replacement benchmark proves materially faster hooks and removes the Python pre-commit dependency | Current hooks are local system commands, so a second binary supply path may cost more than it saves. |
+| pytest-run-parallel | Free-threaded Python becomes an explicit supported runtime | Thread-safety stress is distinct from xdist, but not current compatibility proof. |
+| HypoFuzz | At least three mature Hypothesis properties have stable databases | Reuse the property corpus before adding a fuzz campaign. |
+| Atheris | A byte/parser boundary has a retained corpus and crash contract | Native fuzzing cost is unjustified for ordinary reducers. |
+| CrossHair | Pure functions have mature type/contracts after Hypothesis coverage | Symbolic search remains bounded and secondary. |
+| Memray, pytest-leaks, or a psutil sentinel | A retained memory/reference leak reproducer exists | Native instrumentation and heavy artifacts are diagnostic, not a default pass/fail authority. |
+| CodeQL | A major security audit requires provider-scale analysis | Heavy hosted/provider control plane. |
+| OpenSSF Scorecard | Hosted repository posture needs observation | Provider observation is not local correctness proof. |
+| ast-grep or LibCST | One-time structural search or repeatable Python codemod | Refactoring tools are not permanent policy; retained codemods need their own tests. |
+| rumdl or typos | A replacement benchmark beats markdownlint/codespell with net deletion | Challenger tools cannot coexist permanently with the current owners. |
+| yamlfmt | Human-owned YAML format drift becomes material | Most YAML is provider/OpenSpec projection already governed by owners. |
+| Renovate | Dual-forge update policy, validation, and merge authority are designed | It must be the only update bot; Dependabot cannot coexist. |
+| TruffleHog | Incident response needs verified-history diagnostics | Network verification and a second secret baseline do not belong in default proof. |
+| OSV-Scanner | One scanner can replace uv/npm/artifact clients with less code | Current adoption would add binary supply and another wrapper without net deletion. |
+| GuardDog | A new direct dependency or incident needs malicious-package analysis | Heuristic and network-bound supply analysis cannot become routine lockfile proof. |
+| json-schema-diff | Public schema compatibility direction and supported schema set are declared | Current Draft 2020-12 contracts exceed the tool's reliable compatibility coverage. |
+| SARIF tooling | More than one admitted producer needs one external interchange | ETHOS evidence remains typed repository truth; a format adapter must delete bespoke parsers. |
+| MCP Inspector | Interactive MCP diagnosis is needed | The official conformance suite, not an interactive proxy/UI, owns automation. |
+| Hosted AI reviewers | A human requests advisory review over non-sensitive code | Non-deterministic vendor findings never become a gate or claim authority. |
+| sbomqs | A standard SBOM exists and a concrete field defect escapes SPDX validation | Aggregated quality scores must not become a parallel release authority. |
+| Spectral | OpenAPI or AsyncAPI enters the repository | There is no API-description carrier today. |
+| diffoscope | Two clean builds produce different hashes | Failure diagnosis only. |
+| `git fsck --strict` or git-sizer | Object integrity or repository-history growth becomes an observed risk | Native/diagnostic repository health is separate from source correctness and must not become a parallel scorecard. |
+| LikeC4, CUE, TLA+, or Apalache | Model/query or state-space scale proves current declarations and Hypothesis insufficient | A second modeling or proof language needs a bounded invariant and deletion payoff. |
+| Copier or Cruft | Multiple adopters share an updateable scaffold contract | Scaffolding cannot become a parallel source of repository truth. |
+| Nox, Pixi, Pants | An adopter profile proves a bounded need | Optional adapters, never ETHOS core runtime. |
+
+### Rejected defaults
+
+- Pylint, Flake8, Black, isort, Radon/Xenon, refurb, slotscheck, interrogate,
+  and a second permanent type checker duplicate Ruff, ty, or ETHOS-native gates.
+- Vulture, slopo, and redup failed the signal, determinism, Python-compatibility,
+  supply, or maintenance bar for this repository.
+- SonarQube/SonarCloud, Snyk, DeepSource, Code Climate, Trivy omnibus,
+  MegaLinter, Super-Linter, and Trunk create hosted or heavyweight parallel
+  control planes.
+- Mise, Devbox, Nix/devenv, and Pixi task/environment ownership are too broad for
+  the core supply problem; Aqua is admissible only as the narrow CI binary adapter.
+- Allure, pytest-rerunfailures, generic snapshot-approval plugins, pyperf beside
+  pytest-benchmark, icontract/deal beside Pydantic/Hypothesis, and Schemathesis
+  without an API schema add overlapping semantics or hide invalid states.
+- mdformat, Prettier, dprint, and Biome conflict with carrier-native format
+  owners; EditorConfig may guide editors but cannot become a second blank-line
+  or formatting authority.
+- Hadolint/Dockle, TFLint/Checkov, kubeconform/kube-linter, SQLFluff,
+  Spectral/Schemathesis, Biome/Knip, notebook/data-quality, frontend accessibility,
+  and LLM-evaluation stacks get no config while those asset classes are absent.
+- pre-commit.ci, Dependabot beside Renovate, release-please, semantic-release,
+  Commitizen, and Towncrier as a second release authority are rejected.
+
+### Convergence order
+
+1. Make catalog, owner scripts, descriptors, proof sets, and execution planes
+   tell one exact story; narrow claims before adding tools.
+2. Compile execution planes from the gate registry and replace repeated CI
+   download logic with one narrow supply declaration; ban `latest` and ambient
+   versions without introducing a second task/environment plane.
+3. Partition docs into current/canonical, active-change, and immutable-history
+   scopes; govern format, lint, type, and coverage suppressions as debt, not
+   escape hatches.
+4. Run P0 pilots, land only net-deleting or high-severity corrections, and
+   retire losers immediately.
+5. Bind replayable test receipts, then expand stateful, fault-injection,
+   operation-history, time-boundary, metamorphic, concurrency, and mutation
+   proof so stronger tests replace combinatorial examples; then add random-order
+   and leak checks.
+6. Prove Python 3.12/3.13/3.14 compatibility through one owner-script matrix.
+7. Converge package and release quality in order: metadata, contents,
+   reproducibility, SBOM generation, SBOM validation, licensing, artifact
+   vulnerability, provenance, signing, and publication.
+8. Keep local proof, emulator output, hosted observation, release evidence, and
+   publication as separate claims throughout.
+
+## Admission Contract
+
+A planned tool becomes active only when one bounded Change supplies all of:
+
+1. one capability owner and the alternatives it displaces;
+1. pinned source, version, license, digest, cache, network, and write policy;
+1. native config under the smallest stable owner;
+1. one reusable owner script or `ethos ...` command;
+1. descriptor/proof/execution-plane projections without copied command bodies;
+1. deterministic output and two independent real findings or measurable net
+   deletion; and
+1. a terminal promote, absorb-and-retire, or reject decision.
+
+Until then the mechanism stays roadmap-only and MUST NOT be reported as an
+active quality floor.

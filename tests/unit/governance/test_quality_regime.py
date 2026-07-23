@@ -75,6 +75,14 @@ def test_blank_line_owners_use_native_policies_without_custom_reader() -> None:
     assert not (ROOT / ".config/checks/whitespace/policy.toml").exists()
 
 
+def test_shell_owner_uses_shebangs_and_covers_extensionless_hooks() -> None:
+    runner = (ROOT / "tools/ci/scripts/run-shell-lint.sh").read_text(encoding="utf-8")
+
+    assert "git ls-files '*.sh' '.githooks/*'" in runner
+    assert "--rcfile=.config/checks/shell/.shellcheckrc" in runner
+    assert "--shell=bash" not in runner
+
+
 def test_toml_files_have_exactly_one_final_newline_and_no_trailing_space() -> None:
     bad: list[str] = []
     for path in sorted(ROOT.rglob("*.toml")):
@@ -129,6 +137,9 @@ def test_bare_pytest_discovery_routes_cache_without_importing_owner_policy(tmp_p
 
 def test_tool_catalog_marks_config_gates_active_with_owner_scripts() -> None:
     tools = (ROOT / "system" / "tools.toml").read_text(encoding="utf-8")
+    catalog = tomllib.loads(tools)["tool"]
+
+    assert all("adoption" not in tool and "optional" not in tool for tool in catalog)
 
     assert re.search(
         r'concern = "toml"[\s\S]*?config = "\.config/checks/taplo/taplo\.toml"[\s\S]*?gate = "tools/ci/scripts/run-config-lint\.sh"',
@@ -142,6 +153,20 @@ def test_tool_catalog_marks_config_gates_active_with_owner_scripts() -> None:
         r'concern = "shell"[\s\S]*?config = "\.config/checks/shell/\.shellcheckrc"[\s\S]*?gate = "tools/ci/scripts/run-shell-lint\.sh"',
         tools,
     )
+    assert re.search(
+        r'concern = "hook_config"[\s\S]*?tool = "pre-commit validate-config"[\s\S]*?gate = "tools/ci/scripts/run-config-lint\.sh"',
+        tools,
+    )
+
+
+def test_config_owner_validates_pre_commit_control_surface() -> None:
+    runner = (ROOT / "tools/ci/scripts/run-config-lint.sh").read_text(encoding="utf-8")
+    dependencies = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))[
+        "dependency-groups"
+    ]["dev"]
+
+    assert "pre-commit validate-config .pre-commit-config.yaml" in runner
+    assert any(dependency.startswith("pre-commit>=") for dependency in dependencies)
 
 
 def test_ruff_runtime_cache_stays_under_build_runtime() -> None:
@@ -329,6 +354,7 @@ def test_ruff_ratchet_uses_tracked_python_file_set() -> None:
 
     assert 'git ls-files -z "*.py" "*.pyi"' in runner
     assert '"${python_quality_paths[@]}"' in runner
+    assert '[[ -f "${path}" ]] || continue' in runner
     assert "mapfile" not in runner
     assert 'while IFS= read -r -d "" path' in runner
     assert '"."' not in runner

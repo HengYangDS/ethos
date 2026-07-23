@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import ast
+import tomllib
 from pathlib import Path
 
 import ethos_core.quality.docs.profile
 import ethos_core.quality.gates
-import ethos_core.quality.models
 import ethos_core.quality.profiles
 import ethos_core.quality.proof.policy
 from ethos_core.quality.docs.profile import docs_quality_profile
@@ -21,7 +21,6 @@ def test_quality_package_is_focused_and_importable() -> None:
     tree = ast.parse(init_path.read_text(encoding="utf-8"))
 
     assert not any(isinstance(node, (ast.Import, ast.ImportFrom)) for node in ast.walk(tree))
-    assert ethos_core.quality.models.__name__ == "ethos_core.quality.models"
     assert ethos_core.quality.profiles.__name__ == "ethos_core.quality.profiles"
     assert ethos_core.quality.gates.__name__ == "ethos_core.quality.gates"
     assert ethos_core.quality.docs.profile.__name__ == "ethos_core.quality.docs.profile"
@@ -32,11 +31,14 @@ def test_quality_package_is_focused_and_importable() -> None:
 
 def test_quality_profile_covers_repository_asset_classes() -> None:
     profile = product_quality_profile(ROOT)
-    asset_classes = {asset["class"] for asset in profile["asset_classes"]}
+    assets = {asset["class"]: asset for asset in profile["asset_classes"]}
+    asset_classes = set(assets)
+    gates = tomllib.loads((ROOT / "system/gates.toml").read_text(encoding="utf-8"))["gates"]
     dimensions = {
         dimension for asset in profile["asset_classes"] for dimension in asset["dimensions"]
     }
 
+    assert asset_classes == {asset_class for gate in gates for asset_class in gate["asset_classes"]}
     assert {
         "python-code",
         "markdown-docs",
@@ -59,6 +61,9 @@ def test_quality_profile_covers_repository_asset_classes() -> None:
         "freshness",
         "provenance",
     } <= dimensions
+    assert assets["shell-scripts"]["default_adapters"] == ["shellcheck"]
+    assert "shfmt" not in assets["shell-scripts"]["default_adapters"]
+    assert "jq" not in assets["json-contracts"]["default_adapters"]
 
 
 def test_gate_plan_uses_quality_descriptors_not_commands_only() -> None:

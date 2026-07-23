@@ -19,7 +19,6 @@ def test_local_install_smoke_has_one_executable_owner() -> None:
     assert OWNER.is_file()
     assert OWNER.stat().st_mode & stat.S_IXUSR
     block = tool_block(ROOT, "local_install_smoke")
-    assert 'adoption = "active"' in block
     assert 'gate = "tools/ci/scripts/run-local-install-smoke.sh"' in block
     assert 'artifacts = "build/evidence/local-install/"' in block
 

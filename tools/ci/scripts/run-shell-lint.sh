@@ -15,7 +15,7 @@ shell_files=("$@")
 if (($# == 0)); then
   while IFS= read -r target; do
     shell_files+=("${target}")
-  done < <(git ls-files '*.sh')
+  done < <(git ls-files '*.sh' '.githooks/*')
 fi
 (( ${#shell_files[@]} )) || exit 0
 
@@ -29,4 +29,4 @@ if ! command -v shellcheck >/dev/null 2>&1; then
   fi
 fi
 
-shellcheck --shell=bash --severity=style "${shell_files[@]}"
+shellcheck --rcfile=.config/checks/shell/.shellcheckrc "${shell_files[@]}"

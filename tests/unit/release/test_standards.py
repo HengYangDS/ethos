@@ -3,10 +3,10 @@ from __future__ import annotations
 from ethos.repository.registry.standards import standard_adapter_registry
 
 EXPECTED_MODES = {
-    "slsa": "native-standard",
-    "in_toto": "attestation-envelope",
+    "slsa": "local-projection",
+    "in_toto": "local-projection",
     "sigstore": "first-class-adapter",
-    "spdx": "artifact-metadata-adapter",
+    "spdx": "local-projection",
     "mcp": "agent-projection",
 }
 

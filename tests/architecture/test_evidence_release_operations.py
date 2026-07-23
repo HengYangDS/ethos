@@ -78,11 +78,6 @@ def test_evidence_and_release_gates_have_active_owner_surfaces() -> None:
         assert script.is_file()
         assert script.stat().st_mode & stat.S_IXUSR
 
-    expected_adoption = {"image_package_scan": "deferred", "signing": "candidate"}
-    for concern, adoption in expected_adoption.items():
-        assert f'adoption = "{adoption}"' in tool_block(ROOT, concern)
-
-
 def test_ci_and_runbook_project_evidence_and_release_gates() -> None:
     combined_ci = (ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8") + (
         ROOT / ".github/workflows/ci.yml"

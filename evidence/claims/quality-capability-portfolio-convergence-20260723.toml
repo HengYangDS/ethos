@@ -1,0 +1,70 @@
+[claim]
+id = "quality-capability-portfolio-convergence-20260723"
+change_id = "quality-capability-portfolio-convergence"
+subject = "quality:capability-portfolio-convergence"
+state = "active"
+summary = "ETHOS quality mechanisms have one ranked decision surface; import-linter and deptry now use owner scripts and declared proof floors, release wording is bounded, and future pilots cannot become permanent parallel implementations."
+
+[evidence]
+dated = "evidence/chronicle/quality-capability-portfolio-convergence-20260723/2026-07-23.md"
+sha256 = "33f2b312dc7327d449dd523304bfc326d27e1e85229de4d319d3a6f7e0cc4f8a"
+evidence_ids = ["evidence:quality-capability-portfolio-convergence-20260723"]
+binding = "The dated inventory, ranked capability decisions, import/dependency gate repair, claim narrowing, focused tests, and source-budget observation bind this portfolio convergence."
+verifier = "digest_only"
+tests = [
+  "tools/ci/scripts/run-config-lint.sh",
+  "tools/ci/scripts/run-import-linter.sh",
+  "tools/ci/scripts/run-dependency-hygiene.sh",
+  "tools/ci/scripts/run-shell-lint.sh",
+  "tools/ci/scripts/run-secrets-scan.sh",
+  "tools/ci/scripts/run-python-tests.sh",
+  "tools/ci/scripts/run-ethos-lane.sh quality source-budget --json",
+  "uv run openspec validate --all --strict --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "quality"
+scope = "Quality capability admission, selected active gate repair, exact tool/standard claims, and roadmap/catalog truth; complete gate-registry projection, future pilot execution, and remote platforms remain separate."
+
+[carriers]
+openspec = "openspec/changes/quality-capability-portfolio-convergence"
+fallback = "Revert a portfolio decision only with evidence that the selected mechanism cannot provide its distinct capability; do not restore a parallel permanent toolchain."
+kill_signal = "An active tool bypasses its owner surface, a proof set omits a declared hard-floor gate, a tool or standard claim exceeds executed behavior, or a candidate leaves permanent parallel residue."
+
+[promotion]
+targets = [
+  ".config/checks/shell/.shellcheckrc",
+  ".ethos/release.toml",
+  ".gitleaks.toml",
+  "docs/plans/complete-implementation-roadmap.md",
+  "docs/plans/tooling-adoption-roadmap.md",
+  "evidence/claims/ethos-asset-quality-kernel.toml",
+  "evidence/claims/quality-capability-portfolio-convergence-20260723.toml",
+  "evidence/chronicle/quality-capability-portfolio-convergence-20260723/2026-07-23.md",
+  "openspec/changes/quality-capability-portfolio-convergence",
+  "packages/ethos-core/src/ethos_core/quality/profiles.py",
+  "packages/ethos/src/ethos/repository/audit.py",
+  "packages/ethos/src/ethos/repository/release/core.py",
+  "pyproject.toml",
+  "system/gates.toml",
+  "system/schemas/contracts/tools.schema.json",
+  "system/schemas/kernel/quality-profile.schema.json",
+  "system/standards.toml",
+  "system/tools.toml",
+  "tests/architecture/test_testing_platform.py",
+  "tests/architecture/test_local_install_smoke.py",
+  "tests/architecture/test_release_assets.py",
+  "tests/unit/cli/test_tool_profile_boundaries.py",
+  "tests/unit/governance/test_quality_regime.py",
+  "tests/unit/governance/validation/test_gates.py",
+  "tests/unit/kernel/test_quality.py",
+  "tests/unit/release/test_policy_attestation.py",
+  "tools/ci/scripts/run-config-lint.sh",
+  "tools/ci/scripts/run-python-lint.sh",
+  "tools/ci/scripts/run-python-tests.sh",
+  "tools/ci/scripts/run-shell-lint.sh",
+  "uv.lock",
+]

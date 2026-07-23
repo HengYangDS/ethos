@@ -42,7 +42,7 @@
   close every report hard-floor gap.
 - [x] 4.4 Complete independent task review and whole-branch
   security/simplicity review with no unresolved Critical or Important finding.
-- [ ] 4.5 Refresh generic parity in the admitted Work Lane and commit all
+- [x] 4.5 Refresh generic parity in the admitted Work Lane and commit all
   tracked evidence.
 - [x] 4.6 Run disposable cross-repository effect acceptance, workstation
   full/quick evaluation, task/lease/snapshot checks, and final housekeeping.

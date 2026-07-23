@@ -7,7 +7,7 @@ summary = "A current-base successor defines effect-side fencing, exact WCP respo
 
 [evidence]
 dated = "evidence/chronicle/ownerless-closeout-effect-fence-20260722/2026-07-22.md"
-sha256 = "a441f0cb5a2e8c0606b1c83a84a11ed0d7ae01ab99a6e2479cd00977e1c8135a"
+sha256 = "c88022a4b008a70167830dff3c96122685560210c109991052dd465329a22d85"
 evidence_ids = ["evidence:ownerless-closeout-effect-fence-20260722"]
 binding = "This active Claim binds the authored implementation and local staged-snapshot verification only. It does not claim exact-HEAD proof, archive, land, accepted closeout, external publication, or a predecessor-lane outcome before those transitions produce their own current receipts."
 verifier = "digest_only"

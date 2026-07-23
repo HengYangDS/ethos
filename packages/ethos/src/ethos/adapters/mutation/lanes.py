@@ -23,6 +23,7 @@ from ethos.adapters.store.state.lease.projection import integer_value
 from ethos.adapters.store.state.schema import state_database
 from ethos_core.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos_core.contracts.branch.roles import ROLE_WORK_LANE
+from ethos_core.contracts.branch.roles import BranchRolePolicy
 from ethos_core.contracts.branch.roles import load_branch_role_policy
 from ethos_core.contracts.coordination import HolderRef
 
@@ -42,30 +43,9 @@ def start_work_lane(  # noqa: C901, PLR0913, RUF100 - exact start saga dimension
 ) -> dict[str, object]:
     repo = repo_root(root)
     policy = load_branch_role_policy(repo)
-    lane_slug = slug(name)
-    if getattr(policy, "repository_family_worktrees", False):
-        lane_id, branch = canonical_lane_identity(name, observed_at=utc_now())
-        if policy.work_branch_prefix != "work/":
-            return {
-                "ok": False,
-                "state": "blocked",
-                "branch": branch,
-                "required_gaps": ["repository_family_profile_requires_work_branch_prefix"],
-            }
-        canonical_target = canonical_lane_path(repo, lane_id).resolve()
-        if path is not None and path.resolve() != canonical_target:
-            return {
-                "ok": False,
-                "state": "blocked",
-                "branch": branch,
-                "path": path.resolve().as_posix(),
-                "required_gaps": ["work_lane_path_not_canonical"],
-            }
-        target = canonical_target
-    else:
-        branch = policy.work_branch(lane_slug)
-        # Generic adopters retain their configured policy and explicit paths.
-        target = (path or default_candidate_path(repo, branch)).resolve()
+    branch, target, profile_block = _lane_start_target(repo, policy, name=name, path=path)
+    if profile_block:
+        return profile_block
 
     def blocked(*gaps: str, **extra: object) -> dict[str, object]:
         return {
@@ -167,6 +147,40 @@ def start_work_lane(  # noqa: C901, PLR0913, RUF100 - exact start saga dimension
         "runner_bootstrap": _runner_bootstrap(target),
         "required_gaps": [],
     }
+
+
+def _lane_start_target(
+    repo: Path, policy: BranchRolePolicy, *, name: str, path: Path | None
+) -> tuple[str, Path, dict[str, object] | None]:
+    if not getattr(policy, "repository_family_worktrees", False):
+        branch = policy.work_branch(slug(name))
+        return branch, (path or default_candidate_path(repo, branch)).resolve(), None
+    lane_id, branch = canonical_lane_identity(name, observed_at=utc_now())
+    if policy.work_branch_prefix != "work/":
+        return (
+            branch,
+            Path(),
+            {
+                "ok": False,
+                "state": "blocked",
+                "branch": branch,
+                "required_gaps": ["repository_family_profile_requires_work_branch_prefix"],
+            },
+        )
+    target = canonical_lane_path(repo, lane_id).resolve()
+    if path is not None and path.resolve() != target:
+        return (
+            branch,
+            target,
+            {
+                "ok": False,
+                "state": "blocked",
+                "branch": branch,
+                "path": path.resolve().as_posix(),
+                "required_gaps": ["work_lane_path_not_canonical"],
+            },
+        )
+    return branch, target, None
 
 
 def _abort_lane_start(

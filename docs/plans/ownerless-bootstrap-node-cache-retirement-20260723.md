@@ -8,9 +8,10 @@ relations:
 
 # Ownerless bootstrap-node-cache retirement — 2026-07-23
 
-## Purpose
+Status: active, local-only target-specific carrier; the native effect remains
+separate and unexecuted.
 
-Record one target-specific, local-only semantic-absorption decision for the
+Purpose: record one target-specific, local-only semantic-absorption decision for the
 clean ownerless Work Lane `work/20260721-bootstrap-node-cache`. This plan does
 not transfer ownership, delete a lane, or assert remote or hosted state.
 
@@ -51,3 +52,7 @@ is authorized.
 If the native transition is blocked or partial, retain the exact branch,
 linked worktree, and native recovery records for re-observation. The executor
 is not the historical owner and cannot take over a lane with a valid owner.
+
+See also: [Ownerless Closeout Admission Design](ownerless-closeout-admission-design-20260722.md),
+[Ownerless First-Batch Retirement](ownerless-first-batch-retirement-20260722.md), and
+[Runner and Mutation](../architecture/runner-and-mutation.md).

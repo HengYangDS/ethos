@@ -22,12 +22,13 @@ MetricUnit = t.Literal[
 _P = "metric profile "
 _L = "metric contract load "
 _C = "metric contract "
+_METRIC_CONTRACT_VERSION = 4
 err, unique = carrier.err, carrier.unique
 
 
 def _require_contract_version(value: object) -> object:
     """Require the exact static-hybrid metric-contract wire version."""
-    (type(value) is int and value == 4) or err(_C + "version must be 4")
+    (type(value) is int and value == _METRIC_CONTRACT_VERSION) or err(_C + "version must be 4")
     return value
 
 
@@ -113,16 +114,18 @@ class MetricContractSet(carrier._Registry):
     @classmethod
     def reject_non_v4_registry(cls, value: object) -> object:
         """Reject a complete legacy registry before atom-level migration errors."""
-        if isinstance(value, dict) and "contract_version" in value:
-            _require_contract_version(value["contract_version"])
+        if isinstance(value, dict):
+            payload = t.cast("dict[str, object]", value)
+            if "contract_version" in payload:
+                _require_contract_version(payload["contract_version"])
         return value
 
     def model_post_init(self, _context: t.Any) -> None:
         """Reject duplicate, dangling, incomplete, or role-mismatched contracts."""
         ps, cs = self.profiles, self.contracts
-        (type(self.contract_version) is int and self.contract_version == 4) or err(
-            _C + "version must be 4"
-        )
+        (
+            type(self.contract_version) is int and self.contract_version == _METRIC_CONTRACT_VERSION
+        ) or err(_C + "version must be 4")
         mismatched = sorted(
             c.contract_id for c in cs if c.contract_version != self.contract_version
         )
@@ -171,6 +174,52 @@ class MetricContractSet(carrier._Registry):
         return self
 
 
+def admit_resolved_metric_contracts(
+    contracts: tuple[MetricContract, ...],
+    registry: MetricContractSet,
+) -> tuple[MetricContract, ...]:
+    """Admit one exact profile vector declared by a canonical metric registry."""
+    if type(contracts) is not tuple or not contracts or type(registry) is not MetricContractSet:
+        err(_C + "resolved vector requires canonical registry context")
+    try:
+        canonical_registry = MetricContractSet.model_validate(
+            p.BaseModel.model_dump(
+                registry,
+                mode="python",
+                by_alias=True,
+                warnings="error",
+            )
+        )
+        canonical = _canonical_metric_contracts(contracts)
+        ordered = tuple(
+            sorted(canonical, key=lambda item: (item.metric_id, item.unit, item.contract_id))
+        )
+        if canonical != ordered:
+            err(_C + "resolved vector must be stably ordered")
+        profiles = {item.metric_profile for item in canonical}
+        if len(profiles) != 1:
+            err(_C + "resolved vector requires one profile")
+        profile_id = next(iter(profiles))
+        expected = tuple(
+            sorted(
+                (
+                    item
+                    for item in canonical_registry.contracts
+                    if item.metric_profile == profile_id
+                ),
+                key=lambda item: (item.metric_id, item.unit, item.contract_id),
+            )
+        )
+        if not expected or canonical != expected:
+            err(_C + "resolved vector is not declared by registry")
+    except MemoryError:
+        raise
+    except (AttributeError, KeyError, RuntimeError, TypeError, ValueError):
+        err(_C + "resolved vector is not canonical")
+    else:
+        return canonical
+
+
 @dataclass(frozen=True, slots=True)
 class MetricContractSetLoad:
     """A metric registry read that yields typed truth or explicit required gaps."""
@@ -192,7 +241,8 @@ class MetricContractSetLoad:
         if type(self.contracts) is not MetricContractSet:
             err(_L + "requires typed contracts")
         (
-            type(self.contracts.contract_version) is int and self.contracts.contract_version == 4
+            type(self.contracts.contract_version) is int
+            and self.contracts.contract_version == _METRIC_CONTRACT_VERSION
         ) or err(_C + "version must be 4")
         canonical = _canonical_metric_contracts(self.contracts.contracts)
         _require_parser_execution_contracts(canonical)
@@ -270,9 +320,10 @@ def resolve_metric_contracts(
 ) -> tuple[MetricContract, ...]:
     """Resolve the complete declared metric vector for one measured carrier."""
     type(contracts) is MetricContractSet or err(_C + "registry must be canonical")
-    (type(contracts.contract_version) is int and contracts.contract_version == 4) or err(
-        _C + "version must be 4"
-    )
+    (
+        type(contracts.contract_version) is int
+        and contracts.contract_version == _METRIC_CONTRACT_VERSION
+    ) or err(_C + "version must be 4")
     if identity.disposition == "exclude":
         return ()
     profile_id = identity.metric_profile

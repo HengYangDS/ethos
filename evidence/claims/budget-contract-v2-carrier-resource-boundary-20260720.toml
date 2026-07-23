@@ -2,24 +2,38 @@
 id = "budget-contract-v2-carrier-resource-boundary-20260720"
 subject = "quality:budget-contract-v2:carrier-resource-boundary"
 state = "active"
-summary = "Implement MetricContract v4 static hybrid carrier execution: descriptor-bound bounded reads for reviewed linear providers and one-shot isolated workers for every complex parser, while v1 remains authoritative and per-file ELOC remains."
+summary = "Implement MetricContract v4 static hybrid carrier execution with fixed provider ceilings, one bounded parent read, and one-shot complex-provider workers while v1 remains authoritative and per-file ELOC remains."
 
 [evidence]
-dated = "evidence/chronicle/budget-contract-v2-carrier-resource-boundary-20260720/2026-07-21.md"
-sha256 = "cec85cfd2a3473d30c6cb72bbfffba106e80be84f9e332f07a10a47e9d457077"
-evidence_ids = ["evidence:budget-contract-v2-carrier-resource-boundary-20260720", "evidence:budget-contract-v2-carrier-resource-boundary-security-pivot-20260721"]
-binding = "This authoring-stage carrier binds the reviewed C1 design: MetricContract v4 static hybrid execution, unchanged provider ceilings, execution-contract identity, provider descriptor v2, one common bounded parent read, one-shot complex-parser worker protocol/supervision, parent-child revalidation, stable failure gaps, tests, and the canonical replay prerequisite. Current promotion targets intentionally bind only existing governance and precursor artifacts. Before this Claim can assert implementation or proof, targets must atomically add measurement/execution.py, the kernel measurement/worker package, source-budget-worker-protocol.schema.json, protocol/frame tests, the supervisor test, and the architecture boundary test. It does not yet claim implementation, proof, archive, replay, YAML remediation, v2 activation, cutover, publication, or retirement."
-verifier = "digest_only"
+dated = "evidence/chronicle/budget-contract-v2-carrier-resource-boundary-20260720/2026-07-23.md"
+sha256 = "5a63870cf5ac1d6b41d42425827fbff623fde45f96b70b71ada491d3d81450cd"
+evidence_ids = [
+  "evidence:budget-contract-v2-carrier-resource-boundary-20260720",
+  "evidence:budget-contract-v2-carrier-resource-boundary-implementation-20260723",
+  "evidence:budget-contract-v2-carrier-resource-boundary-acceptance-20260723",
+  "evidence:budget-contract-v2-carrier-resource-boundary-review-20260723",
+]
+binding = "This implementation-stage C1 Claim binds MetricContract v4 static hybrid execution, unchanged provider ceilings, complete provider/execution resolution before content open, exact resolved-provider admission without identity replacement, descriptor-owned static routing, one bounded parent read, no second bounded resolution, typed worker protocol, parent replay, platform-specific supervision, one lifecycle owner, all-or-nothing carrier and snapshot results, exact-ceiling and deep/wide acceptance cases, current and immutable inventory observations, runtime observations, a 738-test 100 percent statement/branch coverage result across 22 modules, clean Darwin/Linux Python 3.14 checks for all 50 current candidate Python paths, and independent contract/trust/simplicity/platform review with zero final findings. V1 policy, debt, terminal targets, global LOC, and per-file ELOC remain unchanged and authoritative; v2 remains inactive. Exact-HEAD proof, the same-SHA Linux receipt, archive, land, accepted closeout, publication readiness, external distribution, provider-run checks, and retirement remain later transitions."
+verifier = "independently_reviewed"
 tests = [
-  "openspec validate budget-contract-v2-carrier-resource-boundary --strict --json",
-  "tools/ci/scripts/run-ethos-lane.sh openspec --change budget-contract-v2-carrier-resource-boundary --lifecycle --json",
-  "tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev pytest -q tests/unit/kernel/test_source_budget_metrics_contract.py tests/unit/kernel/test_source_budget_measurements_contract.py tests/unit/kernel/test_source_budget_measurements_integrity.py tests/unit/kernel/test_source_budget_worker_protocol_contract.py tests/unit/kernel/test_source_budget_worker_frame_contract.py tests/unit/adapters/repo/source_budget/test_measurement_resource_boundary.py tests/unit/adapters/repo/source_budget/test_measurement_worker_supervisor.py tests/architecture/test_source_budget_worker_boundaries.py",
+  "npx --yes @fission-ai/openspec@1.6.0 validate budget-contract-v2-carrier-resource-boundary --strict --json",
+  "tools/ci/scripts/run-ethos-lane.sh openspec --lifecycle --json",
+  "tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev pytest -q tests/unit/adapters/repo/source_budget/test_measurement_worker_acceptance.py",
+  "tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev pytest -q <C1 combined coverage selection>",
+  "tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev ty check --python-version 3.14 --python-platform darwin --error-on-warning <C1 candidate Python paths>",
+  "tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev ty check --python-version 3.14 --python-platform linux --error-on-warning <C1 candidate Python paths>",
   "tools/ci/scripts/run-python-lint.sh",
+  "tools/ci/scripts/run-module-layout.sh",
   "tools/ci/scripts/run-config-lint.sh",
   "tools/ci/scripts/run-json-schema-check.sh",
+  "tools/ci/scripts/run-shell-lint.sh",
   "tools/ci/scripts/run-dependency-hygiene.sh",
-  "tools/ci/scripts/run-module-layout.sh",
+  "tools/ci/scripts/run-import-linter.sh",
+  "tools/ci/scripts/run-ethos-lane.sh quality no-compat --json",
   "tools/ci/scripts/run-ethos-lane.sh quality code-size --json",
+  "tools/ci/scripts/run-ethos-lane.sh quality types --json",
+  "tools/ci/scripts/run-ethos-lane.sh quality claims --json",
+  "tools/ci/scripts/run-ethos-lane.sh quality coverage --json",
   "tools/ci/scripts/run-ethos-lane.sh quality source-budget --json",
   "tools/ci/scripts/run-ethos-lane.sh prove --execute --expect-head <committed-head> --json",
   "tools/ci/scripts/run-ethos-lane.sh prove --execute --full --expect-head <committed-head> --json",
@@ -30,33 +44,88 @@ mode = "historical"
 
 [boundary]
 owner = "quality"
-scope = "C1 only: MetricContract v4 static provider execution, fixed carrier ceilings, execution/provider identity, bounded linear reader, isolated complex-parser protocol/supervisor/platform backends, native admission, all-or-nothing results, tests, evidence, and plan correction."
+scope = "C1 only: MetricContract v4 static provider execution, fixed carrier ceilings, execution/provider identity, bounded linear reader, isolated complex-provider protocol/supervisor/platform backends, native admission, all-or-nothing results, tests, evidence, and plan correction."
 
 [carriers]
 openspec = "openspec/changes/budget-contract-v2-carrier-resource-boundary"
-fallback = "Keep v1 source-budget authoritative and v2 inactive. An isolated provider failure returns a stable gap and never retries in process. If hybrid isolation or a required Linux/Darwin capability is rejected, keep C1 open; do not raise a carrier ceiling."
-kill_signal = "Any path/profile/carrier/runtime override, dynamic resource expansion, worker pool or batch, unbounded pipe, source path passed to a worker, in-process fallback for an isolated provider, unreaped process tree, forged result acceptance, partial carrier/snapshot result, weakened YAML safety, changed v1 allowance/debt/terminal/ELOC rule, premature replay/cutover, or claim that this is a general sandbox."
+fallback = "Keep v1 source-budget authoritative and v2 inactive. An isolated provider failure returns a stable gap and never retries in process. If hybrid execution or a required Linux/Darwin capability is rejected, keep C1 open; do not raise a carrier ceiling."
+kill_signal = "Any path/profile/carrier/runtime override, dynamic resource expansion, worker pool or batch, unbounded pipe, source path passed to a worker, in-process fallback for an isolated provider, unreconciled worker residue, forged result acceptance, partial carrier/snapshot result, weakened YAML safety, changed v1 allowance/debt/terminal/ELOC rule, premature replay/cutover, or claim that this is a general sandbox."
 
 [promotion]
 targets = [
   "docs/plans/budget-contract-v2-design.md",
   "docs/plans/budget-contract-v2-implementation.md",
-  "evidence/claims/budget-contract-v2-carrier-resource-boundary-20260720.toml",
   "evidence/chronicle/budget-contract-v2-carrier-resource-boundary-20260720/2026-07-20.md",
   "evidence/chronicle/budget-contract-v2-carrier-resource-boundary-20260720/2026-07-21.md",
-  "openspec/changes/budget-contract-v2-carrier-resource-boundary",
-  "openspec/specs/contracts/spec.md",
+  "evidence/chronicle/budget-contract-v2-carrier-resource-boundary-20260720/2026-07-23.md",
+  "evidence/claims/budget-contract-v2-carrier-resource-boundary-20260720.toml",
+  "evidence/parity/generic-shadow.json",
+  "openspec/changes/budget-contract-v2-carrier-resource-boundary/.openspec.yaml",
+  "openspec/changes/budget-contract-v2-carrier-resource-boundary/design.md",
+  "openspec/changes/budget-contract-v2-carrier-resource-boundary/proposal.md",
+  "openspec/changes/budget-contract-v2-carrier-resource-boundary/scope.toml",
+  "openspec/changes/budget-contract-v2-carrier-resource-boundary/specs/contracts/spec.md",
+  "openspec/changes/budget-contract-v2-carrier-resource-boundary/tasks.md",
+  "packages/ethos-core/src/ethos_core/contracts/source_budget/measurement/execution.py",
+  "packages/ethos-core/src/ethos_core/contracts/source_budget/measurement/worker/__init__.py",
+  "packages/ethos-core/src/ethos_core/contracts/source_budget/measurement/worker/protocol/__init__.py",
+  "packages/ethos-core/src/ethos_core/contracts/source_budget/measurement/worker/protocol/core.py",
+  "packages/ethos-core/src/ethos_core/contracts/source_budget/measurement/worker/protocol/frame.py",
+  "packages/ethos-core/src/ethos_core/contracts/source_budget/measurement/worker/resource.py",
   "packages/ethos-core/src/ethos_core/contracts/source_budget/metrics.py",
   "packages/ethos/src/ethos/adapters/repo/source_budget/measurement/core.py",
-  "packages/ethos/src/ethos/adapters/repo/source_budget/measurement/native",
+  "packages/ethos/src/ethos/adapters/repo/source_budget/measurement/native/bounded/__init__.py",
+  "packages/ethos/src/ethos/adapters/repo/source_budget/measurement/native/bounded/core.py",
+  "packages/ethos/src/ethos/adapters/repo/source_budget/measurement/native/canonical.py",
+  "packages/ethos/src/ethos/adapters/repo/source_budget/measurement/native/identity.py",
+  "packages/ethos/src/ethos/adapters/repo/source_budget/measurement/native/isolated/__init__.py",
+  "packages/ethos/src/ethos/adapters/repo/source_budget/measurement/native/isolated/core.py",
+  "packages/ethos/src/ethos/adapters/repo/source_budget/measurement/native/isolated/structured.py",
+  "packages/ethos/src/ethos/adapters/repo/source_budget/measurement/router.py",
+  "packages/ethos/src/ethos/adapters/repo/source_budget/measurement/worker/__init__.py",
+  "packages/ethos/src/ethos/adapters/repo/source_budget/measurement/worker/backend/__init__.py",
+  "packages/ethos/src/ethos/adapters/repo/source_budget/measurement/worker/backend/core.py",
+  "packages/ethos/src/ethos/adapters/repo/source_budget/measurement/worker/backend/darwin/__init__.py",
+  "packages/ethos/src/ethos/adapters/repo/source_budget/measurement/worker/backend/darwin/core.py",
+  "packages/ethos/src/ethos/adapters/repo/source_budget/measurement/worker/backend/linux/__init__.py",
+  "packages/ethos/src/ethos/adapters/repo/source_budget/measurement/worker/backend/linux/core.py",
+  "packages/ethos/src/ethos/adapters/repo/source_budget/measurement/worker/bootstrap/__init__.py",
+  "packages/ethos/src/ethos/adapters/repo/source_budget/measurement/worker/bootstrap/core.py",
+  "packages/ethos/src/ethos/adapters/repo/source_budget/measurement/worker/supervisor/__init__.py",
+  "packages/ethos/src/ethos/adapters/repo/source_budget/measurement/worker/supervisor/core.py",
+  "packages/ethos/src/ethos/adapters/repo/source_budget/measurement/worker/supervisor/io.py",
+  "packages/ethos/src/ethos/adapters/repo/source_budget/measurement/worker/supervisor/lifecycle/__init__.py",
+  "packages/ethos/src/ethos/adapters/repo/source_budget/measurement/worker/supervisor/lifecycle/cleanup.py",
+  "packages/ethos/src/ethos/adapters/repo/source_budget/measurement/worker/supervisor/lifecycle/core.py",
   "system/policies/source-budget-metrics.toml",
   "system/schemas/kernel/source-budget-metrics.schema.json",
+  "system/schemas/kernel/source-budget-worker-protocol.schema.json",
+  "tests/architecture/test_source_budget_router_trust_boundary.py",
+  "tests/architecture/test_source_budget_worker_boundaries.py",
   "tests/fixtures/source-budget-v2/compression-cases.json",
-  "tests/unit/adapters/repo/source_budget/test_carriers.py",
+  "tests/support/source_budget_measurement.py",
+  "tests/support/source_budget_worker.py",
+  "tests/support/source_budget_worker_lifecycle.py",
   "tests/unit/adapters/repo/source_budget/test_measurement.py",
+  "tests/unit/adapters/repo/source_budget/test_measurement_native_edge_contracts.py",
+  "tests/unit/adapters/repo/source_budget/test_measurement_orchestration.py",
   "tests/unit/adapters/repo/source_budget/test_measurement_resource_boundary.py",
+  "tests/unit/adapters/repo/source_budget/test_measurement_shell_regressions.py",
+  "tests/unit/adapters/repo/source_budget/test_measurement_worker_acceptance.py",
+  "tests/unit/adapters/repo/source_budget/test_measurement_worker_atomicity.py",
+  "tests/unit/adapters/repo/source_budget/test_measurement_worker_backends.py",
+  "tests/unit/adapters/repo/source_budget/test_measurement_worker_bootstrap_edges.py",
+  "tests/unit/adapters/repo/source_budget/test_measurement_worker_exchange_edges.py",
+  "tests/unit/adapters/repo/source_budget/test_measurement_worker_lifecycle.py",
+  "tests/unit/adapters/repo/source_budget/test_measurement_worker_lifecycle_edges.py",
+  "tests/unit/adapters/repo/source_budget/test_measurement_worker_supervisor.py",
+  "tests/unit/adapters/repo/source_budget/test_measurement_yaml_regressions.py",
+  "tests/unit/governance/validation/test_schemas.py",
   "tests/unit/kernel/source_budget_measurement_support.py",
+  "tests/unit/kernel/test_source_budget_execution_edge_contracts.py",
   "tests/unit/kernel/test_source_budget_measurements_contract.py",
   "tests/unit/kernel/test_source_budget_measurements_integrity.py",
   "tests/unit/kernel/test_source_budget_metrics_contract.py",
+  "tests/unit/kernel/test_source_budget_worker_frame_contract.py",
+  "tests/unit/kernel/test_source_budget_worker_protocol_contract.py",
 ]

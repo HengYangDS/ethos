@@ -18,6 +18,12 @@ _DUPLICATE_JSON_ERROR = "worker frame JSON contains duplicate keys"
 _CONTENT_DIGEST_ERROR = "worker request frame content digest mismatch"
 _INVALID_JSON_ERROR = "worker frame JSON must be valid UTF-8 JSON"
 _NONCANONICAL_JSON_ERROR = "worker frame JSON must be canonical"
+_REQUEST_FRAME_PREFIX_BYTES = 16
+_REQUEST_MAGIC_ERROR = "worker request frame magic mismatch"
+_REQUEST_PREFIX_ERROR = "worker request frame prefix is truncated"
+_RESULT_FRAME_PREFIX_BYTES = 12
+_RESULT_MAGIC_ERROR = "worker result frame magic mismatch"
+_RESULT_PREFIX_ERROR = "worker result frame prefix is truncated"
 
 
 def encode_request_frame(request: WorkerRequest, content: bytes) -> bytes:
@@ -27,7 +33,11 @@ def encode_request_frame(request: WorkerRequest, content: bytes) -> bytes:
     descriptor = core.worker_protocol_descriptor()
     header = _canonical_json_bytes(request.model_dump(mode="json", by_alias=True))
     _require_at_most(len(header), descriptor.header_max_bytes, "request header")
-    _require_at_most(16 + len(header) + len(content), descriptor.stdin_max_bytes, "request stdin")
+    _require_at_most(
+        _REQUEST_FRAME_PREFIX_BYTES + len(header) + len(content),
+        descriptor.stdin_max_bytes,
+        "request stdin",
+    )
     _require_execution_ceiling(request, content)
     return b"".join(
         (
@@ -41,18 +51,18 @@ def encode_request_frame(request: WorkerRequest, content: bytes) -> bytes:
 
 def decode_request_frame(frame: bytes) -> tuple[WorkerRequest, bytes]:
     """Decode one request and cross-check prefix length and raw content SHA."""
-    if len(frame) < 16:
-        raise ValueError("worker request frame prefix is truncated")
+    if len(frame) < _REQUEST_FRAME_PREFIX_BYTES:
+        raise ValueError(_REQUEST_PREFIX_ERROR)
     descriptor = core.worker_protocol_descriptor()
     if frame[:8] != descriptor.request_magic.encode("ascii"):
-        raise ValueError("worker request frame magic mismatch")
+        raise ValueError(_REQUEST_MAGIC_ERROR)
     _require_at_most(len(frame), descriptor.stdin_max_bytes, "request stdin")
     header_length, content_length = struct.unpack(">II", frame[8:16])
     _require_at_most(header_length, descriptor.header_max_bytes, "request header")
-    header_end = 16 + header_length
+    header_end = _REQUEST_FRAME_PREFIX_BYTES + header_length
     content_end = header_end + content_length
     _require_exact_frame_length(frame, content_end, "request")
-    header = frame[16:header_end]
+    header = frame[_REQUEST_FRAME_PREFIX_BYTES:header_end]
     _require_canonical_json_bytes(header)
     request = core.WorkerRequest.model_validate_json(header, strict=True)
     content = frame[header_end:content_end]
@@ -66,7 +76,9 @@ def encode_result_frame(result: WorkerResult) -> bytes:
     """Encode one canonical typed worker result."""
     descriptor = core.worker_protocol_descriptor()
     payload = _canonical_json_bytes(result.model_dump(mode="json", by_alias=True))
-    _require_at_most(12 + len(payload), descriptor.result_max_bytes, "result frame")
+    _require_at_most(
+        _RESULT_FRAME_PREFIX_BYTES + len(payload), descriptor.result_max_bytes, "result frame"
+    )
     return b"".join(
         (
             descriptor.result_magic.encode("ascii"),
@@ -78,16 +90,16 @@ def encode_result_frame(result: WorkerResult) -> bytes:
 
 def decode_result_frame(frame: bytes) -> WorkerResult:
     """Decode one exact typed worker result."""
-    if len(frame) < 12:
-        raise ValueError("worker result frame prefix is truncated")
+    if len(frame) < _RESULT_FRAME_PREFIX_BYTES:
+        raise ValueError(_RESULT_PREFIX_ERROR)
     descriptor = core.worker_protocol_descriptor()
     if frame[:8] != descriptor.result_magic.encode("ascii"):
-        raise ValueError("worker result frame magic mismatch")
+        raise ValueError(_RESULT_MAGIC_ERROR)
     _require_at_most(len(frame), descriptor.result_max_bytes, "result frame")
     (payload_length,) = struct.unpack(">I", frame[8:12])
-    payload_end = 12 + payload_length
+    payload_end = _RESULT_FRAME_PREFIX_BYTES + payload_length
     _require_exact_frame_length(frame, payload_end, "result")
-    payload = frame[12:payload_end]
+    payload = frame[_RESULT_FRAME_PREFIX_BYTES:payload_end]
     _require_canonical_json_bytes(payload)
     return core.WorkerResult.model_validate_json(payload, strict=True)
 

@@ -1,14 +1,17 @@
 from __future__ import annotations
 
 import ast
+import copy
 import importlib
 import inspect
 import subprocess
 import sys
 import tomllib
+from dataclasses import replace
 from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING
+from typing import cast
 
 import pytest
 
@@ -22,6 +25,7 @@ if TYPE_CHECKING:
     from types import ModuleType
     from typing import Any
 
+    from ethos.adapters.repo.source_budget.measurement.native.identity import ResolvedNativeProvider
     from ethos_core.contracts.source_budget.metrics import MetricContract
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -199,7 +203,7 @@ def _child_load(
     content: bytes,
     contracts: tuple[MetricContract, ...],
 ) -> NativeMeasurementLoad:
-    identity = _module(IDENTITY_MODULE).resolve_native_provider(contracts)
+    identity = _module(IDENTITY_MODULE).resolve_native_provider(contracts, _registry())
     request = WorkerRequest.create(
         content=content,
         contracts=identity.contracts,
@@ -236,9 +240,11 @@ def test_bounded_parser_ids_route_once_only_to_bounded_engine(
         calls["supervisor"] += 1
         return NativeMeasurementLoad(None, ("source_budget_worker_unavailable",))
 
-    monkeypatch.setattr(router, "measure_bounded", bounded)
+    monkeypatch.setattr(router, "measure_bounded_resolved", bounded)
     monkeypatch.setattr(router, "run_isolated_worker", supervisor)
-    load = router.measure_native(SAMPLE_CONTENT[parser_id], _route_contracts(parser_id))
+    contracts = _route_contracts(parser_id)
+    provider = _module(IDENTITY_MODULE).resolve_native_provider(contracts, _registry())
+    load = router.measure_native(SAMPLE_CONTENT[parser_id], provider, _registry())
 
     assert load.required_gaps == ("source_budget_native_runtime_unsupported",)
     assert calls == {"bounded": 1, "supervisor": 0}
@@ -262,9 +268,11 @@ def test_isolated_parser_ids_route_once_only_to_supervisor(
         calls["supervisor"] += 1
         return NativeMeasurementLoad(None, ("source_budget_worker_unavailable",))
 
-    monkeypatch.setattr(router, "measure_bounded", bounded)
+    monkeypatch.setattr(router, "measure_bounded_resolved", bounded)
     monkeypatch.setattr(router, "run_isolated_worker", supervisor)
-    load = router.measure_native(SAMPLE_CONTENT[parser_id], _route_contracts(parser_id))
+    contracts = _route_contracts(parser_id)
+    provider = _module(IDENTITY_MODULE).resolve_native_provider(contracts, _registry())
+    load = router.measure_native(SAMPLE_CONTENT[parser_id], provider, _registry())
 
     assert load.required_gaps == ("source_budget_worker_unavailable",)
     assert calls == {"bounded": 0, "supervisor": 1}
@@ -275,22 +283,26 @@ def test_parser_identity_alone_fixes_execution_mode_across_profiles_and_roles(
 ) -> None:
     router = _module(ROUTER_MODULE)
     signature = inspect.signature(router.measure_native)
-    assert tuple(signature.parameters) == ("content", "contracts")
+    assert tuple(signature.parameters) == ("content", "provider", "registry")
     observed: list[tuple[str, str]] = []
 
-    def bounded(_content: bytes, contracts: tuple[MetricContract, ...]) -> NativeMeasurementLoad:
-        observed.append((contracts[0].parser_id, "bounded"))
+    def bounded(
+        _content: bytes,
+        provider: ResolvedNativeProvider,
+    ) -> NativeMeasurementLoad:
+        observed.append((provider.contracts[0].parser_id, "bounded"))
         return NativeMeasurementLoad(None, ("source_budget_native_runtime_unsupported",))
 
     def supervisor(request: WorkerRequest, _content: bytes) -> NativeMeasurementLoad:
         observed.append((request.contracts[0].parser_id, "isolated"))
         return NativeMeasurementLoad(None, ("source_budget_worker_unavailable",))
 
-    monkeypatch.setattr(router, "measure_bounded", bounded)
+    monkeypatch.setattr(router, "measure_bounded_resolved", bounded)
     monkeypatch.setattr(router, "run_isolated_worker", supervisor)
     for profile in sorted({item.metric_profile for item in _registry().contracts}):
         contracts = _contracts(profile)
-        router.measure_native(SAMPLE_CONTENT[contracts[0].parser_id], contracts)
+        provider = _module(IDENTITY_MODULE).resolve_native_provider(contracts, _registry())
+        router.measure_native(SAMPLE_CONTENT[contracts[0].parser_id], provider, _registry())
 
     expected = {
         (item.parser_id, "bounded" if item.parser_id in BOUNDED_PARSERS else "isolated")
@@ -304,6 +316,7 @@ def test_mixed_or_forged_execution_tuple_fails_before_any_engine(
 ) -> None:
     router = _module(ROUTER_MODULE)
     original = _contracts("python-source-v2")
+    canonical = _module(IDENTITY_MODULE).resolve_native_provider(original, _registry())
     bounded = _contracts("control-source-v2")[0]
     replacement = {
         "execution_mode": bounded.execution_mode,
@@ -320,13 +333,161 @@ def test_mixed_or_forged_execution_tuple_fails_before_any_engine(
         calls += 1
         return NativeMeasurementLoad(None, ("unexpected",))
 
-    monkeypatch.setattr(router, "measure_bounded", engine)
+    monkeypatch.setattr(router, "measure_bounded_resolved", engine)
     monkeypatch.setattr(router, "run_isolated_worker", engine)
     for contracts in (forged, mixed):
-        load = router.measure_native(b"value = 1\n", contracts)
+        provider = replace(canonical, contracts=contracts)
+        load = router.measure_native(b"value = 1\n", provider, _registry())
         assert load.measurement is None
         assert load.required_gaps == ("source_budget_native_provider_signature_mismatch",)
     assert calls == 0
+
+
+def test_forged_contract_field_is_rejected_before_engine_inspection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FormatBomb:
+        def __format__(self, _format_spec: str) -> str:
+            message = "SENSITIVE_FORMAT"
+            raise RuntimeError(message)
+
+    router = _module(ROUTER_MODULE)
+    contracts = _contracts("control-source-v2")
+    canonical = _module(IDENTITY_MODULE).resolve_native_provider(contracts, _registry())
+    forged = (contracts[0].model_copy(update={"parser_id": FormatBomb()}),)
+    calls = {"bounded": 0, "supervisor": 0}
+
+    def bounded(*_args: object) -> NativeMeasurementLoad:
+        calls["bounded"] += 1
+        return NativeMeasurementLoad(None, ("unexpected",))
+
+    def supervisor(*_args: object) -> NativeMeasurementLoad:
+        calls["supervisor"] += 1
+        return NativeMeasurementLoad(None, ("unexpected",))
+
+    monkeypatch.setattr(router, "measure_bounded_resolved", bounded)
+    monkeypatch.setattr(router, "run_isolated_worker", supervisor)
+    load = router.measure_native(b"ethos\r\n", replace(canonical, contracts=forged), _registry())
+
+    assert load.measurement is None
+    assert load.required_gaps == ("source_budget_native_provider_signature_mismatch",)
+    assert calls == {"bounded": 0, "supervisor": 0}
+
+
+def test_duplicate_bounded_atom_is_rejected_before_engine_execution(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    router = _module(ROUTER_MODULE)
+    contracts = _contracts("control-source-v2")
+    canonical = _module(IDENTITY_MODULE).resolve_native_provider(contracts, _registry())
+    calls = {"bounded": 0, "supervisor": 0}
+
+    def engine(*_args: object) -> NativeMeasurementLoad:
+        calls["bounded"] += 1
+        return NativeMeasurementLoad(None, ("unexpected",))
+
+    def supervisor(*_args: object) -> NativeMeasurementLoad:
+        calls["supervisor"] += 1
+        return NativeMeasurementLoad(None, ("unexpected",))
+
+    monkeypatch.setattr(router, "measure_bounded_resolved", engine)
+    monkeypatch.setattr(router, "run_isolated_worker", supervisor)
+    provider = replace(canonical, contracts=contracts + contracts)
+    load = router.measure_native(b"ethos\r\n", provider, _registry())
+
+    assert load.measurement is None
+    assert load.required_gaps == ("source_budget_native_provider_signature_mismatch",)
+    assert calls == {"bounded": 0, "supervisor": 0}
+
+
+def test_repeated_isolated_contract_id_is_rejected_before_supervisor(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    router = _module(ROUTER_MODULE)
+    contracts = _contracts("python-source-v2")
+    canonical = _module(IDENTITY_MODULE).resolve_native_provider(contracts, _registry())
+    forged = (
+        contracts[0],
+        contracts[1].model_copy(update={"contract_id": contracts[0].contract_id}),
+    )
+    calls = {"bounded": 0, "supervisor": 0}
+
+    def bounded(*_args: object) -> NativeMeasurementLoad:
+        calls["bounded"] += 1
+        return NativeMeasurementLoad(None, ("unexpected",))
+
+    def supervisor(*_args: object) -> NativeMeasurementLoad:
+        calls["supervisor"] += 1
+        return NativeMeasurementLoad(None, ("unexpected",))
+
+    monkeypatch.setattr(router, "measure_bounded_resolved", bounded)
+    monkeypatch.setattr(router, "run_isolated_worker", supervisor)
+    load = router.measure_native(b"value = 1\n", replace(canonical, contracts=forged), _registry())
+
+    assert load.measurement is None
+    assert load.required_gaps == ("source_budget_native_provider_signature_mismatch",)
+    assert calls == {"bounded": 0, "supervisor": 0}
+
+
+def test_provider_descriptors_are_deeply_independent_canonical_payloads(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    identity = _module(IDENTITY_MODULE)
+    first = identity.resolve_native_provider(
+        _contracts("python-source-v2"), _registry()
+    ).provider_descriptor
+    expected = copy.deepcopy(first)
+
+    canonical_runtime = first["canonical_runtime"]
+    metrics = first["metrics"]
+    execution = first["execution"]
+    assert isinstance(canonical_runtime, dict)
+    assert isinstance(metrics, list)
+    assert isinstance(metrics[0], dict)
+    assert isinstance(execution, dict)
+    monkeypatch.setitem(canonical_runtime, "major", 0)
+    monkeypatch.setitem(metrics[0], "metric_id", "forged")
+    monkeypatch.setitem(execution, "max_carrier_bytes", 0)
+
+    fresh = identity.resolve_native_provider(
+        _contracts("python-source-v2"), _registry()
+    ).provider_descriptor
+    assert fresh == expected
+    assert (
+        identity.provider_grammar_digest("python")
+        == _contracts("python-source-v2")[0].grammar_digest
+    )
+
+
+def test_isolated_child_validation_rejections_return_typed_worker_gaps() -> None:
+    identity = _module(IDENTITY_MODULE).resolve_native_provider(
+        _contracts("python-source-v2"), _registry()
+    )
+    request_content = b"value = 1\n"
+    request = WorkerRequest.create(
+        content=request_content,
+        contracts=identity.contracts,
+        provider_descriptor=identity.provider_descriptor,
+        execution_descriptor=identity.execution_descriptor,
+    )
+    cases = (
+        (b"value = 2\n", "source_budget_native_contract_invalid"),
+        (
+            b"x" * (identity.execution_descriptor.max_carrier_bytes + 1),
+            "source_budget_native_carrier_bytes_exceeded",
+        ),
+    )
+
+    for content, expected_gap in cases:
+        result = _module(ISOLATED_MODULE).measure_isolated(request, content)
+        assert type(result) is WorkerResult
+        assert result.success is None
+        assert result.gap == expected_gap
+        assert result.content_sha256 == request.content_sha256
+        assert result.resolved_contracts_digest == request.resolved_contracts_digest
+        assert result.provider_digest == request.provider_digest
+        assert result.execution_contract_digest == request.execution_contract_digest
+        assert result.request_digest == request.request_digest
 
 
 def test_parent_imports_do_not_load_isolated_or_complex_provider_modules() -> None:
@@ -341,7 +502,11 @@ forbidden = (
     'jinja2',
     'yaml',
 )
-loaded = sorted(name for name in sys.modules if any(name == item or name.startswith(item + '.') for item in forbidden))
+loaded = sorted(
+    name
+    for name in sys.modules
+    if any(name == item or name.startswith(item + '.') for item in forbidden)
+)
 assert loaded == [], loaded
 """
     completed = subprocess.run(
@@ -385,7 +550,7 @@ def guarded(name, *args, **kwargs):
     return real_import(name, *args, **kwargs)
 builtins.__import__ = guarded
 module = importlib.import_module({BOUNDED_MODULE!r})
-load = module.measure_bounded(b'system ETHOS "Governance"\\n', resolved)
+load = module.measure_bounded(b'system ETHOS "Governance"\\n', resolved, contracts)
 assert load.measurement is not None, load.required_gaps
 """
     completed = subprocess.run(
@@ -449,13 +614,60 @@ def test_every_supervisor_gap_returns_without_bounded_fallback(
         calls["supervisor"] += 1
         return NativeMeasurementLoad(None, (gap,))
 
-    monkeypatch.setattr(router, "measure_bounded", bounded)
+    monkeypatch.setattr(router, "measure_bounded_resolved", bounded)
     monkeypatch.setattr(router, "run_isolated_worker", supervisor)
-    load = router.measure_native(b"value = 1\n", _contracts("python-source-v2"))
+    contracts = _contracts("python-source-v2")
+    provider = _module(IDENTITY_MODULE).resolve_native_provider(contracts, _registry())
+    load = router.measure_native(b"value = 1\n", provider, _registry())
 
     assert load.measurement is None
     assert load.required_gaps == (gap,)
     assert calls == {"bounded": 0, "supervisor": 1}
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        RuntimeError("SENSITIVE_RUNTIME"),
+        OSError("SENSITIVE_OS"),
+        ValueError("source_budget_native_parse_failed:python:SENSITIVE_VALUE"),
+    ],
+    ids=("runtime", "os", "sensitive-value"),
+)
+def test_supervisor_exceptions_are_redacted_to_worker_failed_without_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+    error: Exception,
+) -> None:
+    router = _module(ROUTER_MODULE)
+    calls = {"bounded": 0, "supervisor": 0}
+
+    def bounded(*_args: object) -> NativeMeasurementLoad:
+        calls["bounded"] += 1
+        return NativeMeasurementLoad(None, ("unexpected",))
+
+    def supervisor(*_args: object) -> NativeMeasurementLoad:
+        calls["supervisor"] += 1
+        raise error
+
+    monkeypatch.setattr(router, "measure_bounded_resolved", bounded)
+    monkeypatch.setattr(router, "run_isolated_worker", supervisor)
+    contracts = _contracts("python-source-v2")
+    provider = _module(IDENTITY_MODULE).resolve_native_provider(contracts, _registry())
+    load = router.measure_native(b"value = 1\n", provider, _registry())
+
+    assert load.measurement is None
+    assert load.required_gaps == ("source_budget_worker_failed",)
+    assert calls == {"bounded": 0, "supervisor": 1}
+
+
+def test_direct_supervisor_rejects_malformed_exact_request() -> None:
+    supervisor = _module(SUPERVISOR_MODULE)
+    request = WorkerRequest.model_construct()
+
+    load = supervisor.run_isolated_worker(request, b"value = 1\n")
+
+    assert load.measurement is None
+    assert load.required_gaps == ("source_budget_worker_protocol_invalid",)
 
 
 def test_wrong_or_forged_supervisor_success_fails_closed_without_fallback(
@@ -463,6 +675,7 @@ def test_wrong_or_forged_supervisor_success_fails_closed_without_fallback(
 ) -> None:
     router = _module(ROUTER_MODULE)
     contracts = _contracts("python-source-v2")
+    provider = _module(IDENTITY_MODULE).resolve_native_provider(contracts, _registry())
     other = _child_load(b"value = 2\n", contracts)
     assert other.measurement is not None
     bounded_calls = 0
@@ -472,10 +685,10 @@ def test_wrong_or_forged_supervisor_success_fails_closed_without_fallback(
         bounded_calls += 1
         return NativeMeasurementLoad(None, ("source_budget_native_runtime_unsupported",))
 
-    monkeypatch.setattr(router, "measure_bounded", bounded)
+    monkeypatch.setattr(router, "measure_bounded_resolved", bounded)
     for result in (object(), other):
         monkeypatch.setattr(router, "run_isolated_worker", lambda *_args, value=result: value)
-        load = router.measure_native(b"value = 1\n", contracts)
+        load = router.measure_native(b"value = 1\n", provider, _registry())
         assert load.measurement is None
         assert load.required_gaps == ("source_budget_worker_protocol_invalid",)
     assert bounded_calls == 0
@@ -485,10 +698,30 @@ def test_bounded_engine_rejects_direct_isolated_contracts() -> None:
     load = _module(BOUNDED_MODULE).measure_bounded(
         b"value = 1\n",
         _contracts("python-source-v2"),
+        _registry(),
     )
 
     assert load.measurement is None
     assert load.required_gaps == ("source_budget_native_execution_contract_invalid",)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [("metric_profile", []), ("carrier_role", {})],
+)
+def test_forged_unhashable_contract_fields_fail_closed_in_resolver_and_bounded_engine(
+    field: str,
+    value: object,
+) -> None:
+    identity = _module(IDENTITY_MODULE)
+    contracts = _contracts("control-source-v2")
+    forged = tuple(item.model_copy(update={field: value}) for item in contracts)
+
+    with pytest.raises(ValueError, match=r"^source_budget_native_contract_invalid$"):
+        identity.resolve_native_provider(forged, _registry())
+    load = _module(BOUNDED_MODULE).measure_bounded(b"ethos\r\n", forged, _registry())
+    assert load.measurement is None
+    assert load.required_gaps == ("source_budget_native_contract_invalid",)
 
 
 @pytest.mark.parametrize("parser_id", sorted(GOLDENS))
@@ -497,10 +730,10 @@ def test_all_provider_values_and_digests_match_reviewed_goldens(parser_id: str) 
     if "case" in golden:
         content, contracts = _case(str(golden["case"]))
     else:
-        content = golden["content_bytes"]
+        content = cast("bytes", golden["content_bytes"])
         contracts = _contracts(str(golden["profile"]))
     if parser_id in BOUNDED_PARSERS:
-        load = _module(BOUNDED_MODULE).measure_bounded(content, contracts)
+        load = _module(BOUNDED_MODULE).measure_bounded(content, contracts, _registry())
     else:
         load = _child_load(content, contracts)
 

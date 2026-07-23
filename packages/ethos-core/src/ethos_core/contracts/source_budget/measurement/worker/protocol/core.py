@@ -29,7 +29,21 @@ WORKER_PROTOCOL_ID = "ethos-source-budget-worker-protocol-v1"
 _REQUEST_SCHEMA = "ethos-source-budget-worker-request-v1"
 _RESULT_SCHEMA = "ethos-source-budget-worker-result-v1"
 _CANONICAL_CONTRACTS_ERROR = "worker request contracts must be canonical"
+_CANONICAL_PROTOCOL_DESCRIPTOR_ERROR = "worker protocol descriptor must be canonical"
 _CANONICAL_VALUES_ERROR = "worker success values must be canonical"
+_EXECUTION_CONTRACT_DIGEST_ERROR = "worker request execution contract digest mismatch"
+_EXECUTION_DESCRIPTOR_ERROR = "worker request execution descriptor mismatch"
+_ISOLATED_EXECUTION_ERROR = "worker request requires an isolated execution descriptor"
+_PROTOCOL_INTEGER_ERROR = "worker protocol descriptor integers must be exact"
+_PROVIDER_DIGEST_ERROR = "worker request provider digest mismatch"
+_PROVIDER_IDENTITY_ERROR = "worker request provider descriptor identity mismatch"
+_REQUEST_BINDING_ERROR = "worker result request binding mismatch"
+_REQUEST_CARRIER_CEILING_ERROR = "worker request carrier bytes exceed execution ceiling"
+_REQUEST_CONTENT_ERROR = "worker request content must be canonical bytes"
+_REQUEST_DIGEST_ERROR = "worker request digest mismatch"
+_RESOLVED_CONTRACTS_DIGEST_ERROR = "worker request resolved contracts digest mismatch"
+_RESULT_SUCCESS_ERROR = "worker result success is required for replay"
+_RESULT_XOR_ERROR = "worker result requires exactly one of success or gap"
 _SHA256_PATTERN = r"^[a-f0-9]{64}$"
 _Sha256 = Annotated[str, Field(pattern=_SHA256_PATTERN)]
 _ChildWorkerGap = Literal[
@@ -65,6 +79,12 @@ _ChildWorkerGap = Literal[
     "source_budget_native_text_embedded_bom",
     "source_budget_native_text_invalid_utf8",
 ]
+_CHILD_WORKER_GAP_ADAPTER: TypeAdapter[_ChildWorkerGap] = TypeAdapter(_ChildWorkerGap)
+
+
+def admit_child_worker_gap(value: str) -> _ChildWorkerGap:
+    """Admit one child gap from the finite worker protocol vocabulary."""
+    return _CHILD_WORKER_GAP_ADAPTER.validate_python(value)
 
 
 def _require_exact_contracts(
@@ -116,7 +136,7 @@ class WorkerProtocolDescriptor(BaseModel):
     def validate_exact_integer(cls, value: object) -> object:
         """Reject equal-but-non-integer wire values."""
         if type(value) is not int:
-            raise ValueError("worker protocol descriptor integers must be exact")
+            raise ValueError(_PROTOCOL_INTEGER_ERROR)
         return value
 
 
@@ -138,10 +158,10 @@ def worker_protocol_descriptor() -> WorkerProtocolDescriptor:
 def worker_protocol_descriptor_digest(descriptor: WorkerProtocolDescriptor) -> str:
     """Return canonical compact sorted-key JSON SHA-256 for one descriptor."""
     if type(descriptor) is not WorkerProtocolDescriptor:
-        raise ValueError("worker protocol descriptor must be canonical")
+        raise ValueError(_CANONICAL_PROTOCOL_DESCRIPTOR_ERROR)
     expected_fields = set(WorkerProtocolDescriptor.model_fields)
     if set(vars(descriptor)) != expected_fields or descriptor.model_fields_set != expected_fields:
-        raise ValueError("worker protocol descriptor must be canonical")
+        raise ValueError(_CANONICAL_PROTOCOL_DESCRIPTOR_ERROR)
     canonical = WorkerProtocolDescriptor.model_validate(descriptor.model_dump(mode="python"))
     encoded = json.dumps(
         canonical.model_dump(mode="json"),
@@ -185,21 +205,21 @@ class WorkerRequest(BaseModel):
     @model_validator(mode="after")
     def _validate_contract_digests(self) -> Self:
         """Require all contract-owned request digests to match typed contracts."""
-        contracts = cast("tuple[MetricContract, ...]", self.contracts)
+        contracts = self.contracts
         if self.resolved_contracts_digest != canonical.resolved_model_digest(contracts):
-            raise ValueError("worker request resolved contracts digest mismatch")
+            raise ValueError(_RESOLVED_CONTRACTS_DIGEST_ERROR)
         if {item.grammar_digest for item in contracts} != {self.provider_digest}:
-            raise ValueError("worker request provider digest mismatch")
+            raise ValueError(_PROVIDER_DIGEST_ERROR)
         execution = metric_provider_resource_contract(contracts)
         if execution[0] != "isolated_worker_v1" or execution[3] != self.execution_contract_digest:
-            raise ValueError("worker request execution contract digest mismatch")
+            raise ValueError(_EXECUTION_CONTRACT_DIGEST_ERROR)
         unsigned = self.model_dump(
             mode="json",
             by_alias=True,
             exclude={"request_digest"},
         )
         if self.request_digest != _canonical_sha256(unsigned):
-            raise ValueError("worker request digest mismatch")
+            raise ValueError(_REQUEST_DIGEST_ERROR)
         return self
 
     @classmethod
@@ -213,7 +233,7 @@ class WorkerRequest(BaseModel):
     ) -> Self:
         """Bind admitted bytes and typed provider/execution descriptors."""
         if type(content) is not bytes:
-            raise ValueError("worker request content must be canonical bytes")
+            raise ValueError(_REQUEST_CONTENT_ERROR)
         _require_exact_contracts(contracts)
         expected_execution = metric_provider_resource_contract(contracts)
         ordered = tuple(
@@ -222,7 +242,7 @@ class WorkerRequest(BaseModel):
         provider_digest = _canonical_sha256(provider_descriptor)
         execution_digest = execution_descriptor_digest(execution_descriptor)
         if execution_descriptor.execution_mode != "isolated_worker_v1":
-            raise ValueError("worker request requires an isolated execution descriptor")
+            raise ValueError(_ISOLATED_EXECUTION_ERROR)
         actual_execution = (
             execution_descriptor.execution_mode,
             execution_descriptor.max_carrier_bytes,
@@ -230,9 +250,9 @@ class WorkerRequest(BaseModel):
             execution_digest,
         )
         if actual_execution != expected_execution:
-            raise ValueError("worker request execution descriptor mismatch")
+            raise ValueError(_EXECUTION_DESCRIPTOR_ERROR)
         if len(content) > execution_descriptor.max_carrier_bytes:
-            raise ValueError("worker request carrier bytes exceed execution ceiling")
+            raise ValueError(_REQUEST_CARRIER_CEILING_ERROR)
         first_contract = ordered[0]
         expected_provider_identity = {
             "execution": execution_descriptor.model_dump(mode="json", by_alias=True),
@@ -250,7 +270,7 @@ class WorkerRequest(BaseModel):
             provider_descriptor.get(field) != expected
             for field, expected in expected_provider_identity.items()
         ):
-            raise ValueError("worker request provider descriptor identity mismatch")
+            raise ValueError(_PROVIDER_IDENTITY_ERROR)
         resolved_digest = canonical.resolved_model_digest(ordered)
         content_digest = hashlib.sha256(content).hexdigest()
         payload: dict[str, object] = {
@@ -338,7 +358,7 @@ class WorkerResult(BaseModel):
     def _validate_success_gap_xor(self) -> Self:
         """Require exactly one typed success or admitted child gap."""
         if (self.success is None) == (self.gap is None):
-            raise ValueError("worker result requires exactly one of success or gap")
+            raise ValueError(_RESULT_XOR_ERROR)
         return self
 
     @classmethod
@@ -428,10 +448,10 @@ def replay_worker_result(request: WorkerRequest, result: WorkerResult) -> Native
         request.execution_contract_digest,
         request.request_digest,
     ):
-        raise ValueError("worker result request binding mismatch")
+        raise ValueError(_REQUEST_BINDING_ERROR)
     success = result.success
     if success is None:
-        raise ValueError("worker result success is required for replay")
+        raise ValueError(_RESULT_SUCCESS_ERROR)
     return NativeMeasurement.model_validate(
         {
             "content_sha256": request.content_sha256,

@@ -1,4 +1,4 @@
-"""Strict structured and C4 native measurement primitives."""
+"""Strict INI, JSON, TOML, and YAML measurement primitives."""
 
 from __future__ import annotations
 
@@ -7,7 +7,6 @@ import json
 import math
 import re
 import tomllib
-from dataclasses import dataclass
 from datetime import date
 from datetime import datetime
 from datetime import time
@@ -20,14 +19,17 @@ from yaml.events import AliasEvent
 from yaml.nodes import MappingNode
 from yaml.nodes import ScalarNode
 
+from ethos.adapters.repo.source_budget.measurement.native.canonical import CanonicalMappingValue
+from ethos.adapters.repo.source_budget.measurement.native.canonical import canonical_value
+from ethos.adapters.repo.source_budget.measurement.native.canonical import frame
+from ethos.adapters.repo.source_budget.measurement.native.canonical import scalar_frame
+
 if TYPE_CHECKING:
-    from collections.abc import Iterable
     from typing import Never
 
     from yaml.nodes import Node
 
 Scalar = str | int | float | bool | None | date | datetime | time
-_ID = re.compile(r"[A-Za-z_][A-Za-z0-9_.-]*\Z")
 _BOOL_TAG = "tag:yaml.org,2002:bool"
 _FLOAT_TAG = "tag:yaml.org,2002:float"
 _INT_TAG = "tag:yaml.org,2002:int"
@@ -58,12 +60,6 @@ _ALLOWED_YAML_TAGS = {
     "tag:yaml.org,2002:seq",
     "tag:yaml.org,2002:str",
 }
-_C4_ARITY = {"container": 3, "rel": 3, "system": 2}
-
-
-@dataclass(frozen=True, slots=True)
-class _YamlMapping:
-    entries: tuple[tuple[bytes, Scalar, object], ...]
 
 
 def _raise(error_type: type[Exception], message: str, cause: Exception | None = None) -> Never:
@@ -133,24 +129,24 @@ class _RestrictedYamlLoader(yaml.SafeLoader):
             _raise(yaml.YAMLError, "yaml tag is not admitted")
         return node
 
-    def construct_typed_mapping(self, node: MappingNode) -> _YamlMapping:
-        entries: list[tuple[bytes, Scalar, object]] = []
+    def construct_typed_mapping(self, node: MappingNode) -> CanonicalMappingValue:
+        entries: list[tuple[object, object]] = []
         seen: set[bytes] = set()
         for key_node, value_node in node.value:
             if not isinstance(key_node, ScalarNode):
                 _raise(yaml.YAMLError, "yaml mapping key must be scalar")
             key = cast("Scalar", self.construct_object(key_node, deep=True))
             try:
-                canonical = _scalar_frame(key)
+                canonical = scalar_frame(key)
             except ValueError as exc:
                 _raise(yaml.YAMLError, "yaml mapping key is invalid", exc)
-            identity = _frame(key_node.tag.encode(), canonical)
+            identity = frame(key_node.tag.encode(), canonical)
             if identity in seen:
                 _raise(yaml.YAMLError, "yaml mapping keys must be unique")
             seen.add(identity)
             value = self.construct_object(value_node, deep=True)
-            entries.append((identity, key, value))
-        return _YamlMapping(tuple(entries))
+            entries.append((key, value))
+        return CanonicalMappingValue(tuple(entries))
 
 
 def measure_structured(provider_id: str, text: str) -> tuple[bytes, int, int]:
@@ -159,7 +155,7 @@ def measure_structured(provider_id: str, text: str) -> tuple[bytes, int, int]:
         parsed = _parse(provider_id, text)
     except (configparser.Error, yaml.YAMLError) as exc:
         _raise(ValueError, "structured parser rejected input", exc)
-    stream, scalar_bytes, nodes = _canonical(parsed)
+    stream, scalar_bytes, nodes = canonical_value(parsed)
     return stream, nodes, scalar_bytes
 
 
@@ -176,7 +172,7 @@ def _parse(provider_id: str, text: str) -> object:
         return yaml.load(text, Loader=_RestrictedYamlLoader)
     if provider_id == "ini":
         return _parse_ini(text)
-    return _parse_c4(text)
+    return _raise(ValueError, "structured provider is not admitted")
 
 
 def _json_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
@@ -201,133 +197,3 @@ def _parse_ini(text: str) -> dict[str, object]:
     for section in parser.sections():
         result[section] = dict(parser.items(section, raw=True))
     return result
-
-
-def _parse_c4(text: str) -> tuple[dict[str, object], ...]:
-    records: list[dict[str, object]] = []
-    for line in text.splitlines():
-        tokens = _c4_tokens(line)
-        if not tokens:
-            continue
-        keyword = tokens[0][0].lower()
-        arity = _C4_ARITY.get(keyword)
-        if arity is None or len(tokens) != arity + 1:
-            _raise(ValueError, "c4 record kind or arity is invalid")
-        fields = tokens[1:]
-        if not _c4_shape(keyword, fields):
-            _raise(ValueError, "c4 record quoting is invalid")
-        records.append({"kind": keyword, "fields": tuple(value for value, _ in fields)})
-    if not records:
-        _raise(ValueError, "c4 source requires records")
-    return tuple(sorted(records, key=lambda item: json.dumps(item, sort_keys=True)))
-
-
-def _c4_shape(keyword: str, fields: list[tuple[str, bool]]) -> bool:
-    values = [value for value, _quoted in fields]
-    quoted = [item for _value, item in fields]
-    if keyword == "system":
-        return bool(_ID.fullmatch(values[0])) and quoted == [False, True]
-    if keyword == "container":
-        return bool(_ID.fullmatch(values[0])) and quoted == [False, True, True]
-    return all(_ID.fullmatch(value) for value in values[:2]) and quoted == [
-        False,
-        False,
-        True,
-    ]
-
-
-def _c4_tokens(line: str) -> list[tuple[str, bool]]:
-    tokens: list[tuple[str, bool]] = []
-    index = 0
-    while index < len(line):
-        if line[index].isspace():
-            index += 1
-            continue
-        if line[index] == "#":
-            break
-        if line[index] == '"':
-            value, index = _c4_quoted(line, index)
-            tokens.append((value, True))
-            continue
-        end = index
-        while end < len(line) and not line[end].isspace() and line[end] != "#":
-            if line[end] == '"':
-                _raise(ValueError, "c4 quoting must start a field")
-            end += 1
-        tokens.append((line[index:end], False))
-        index = end
-    return tokens
-
-
-def _c4_quoted(line: str, index: int) -> tuple[str, int]:
-    output: list[str] = []
-    index += 1
-    while index < len(line):
-        char = line[index]
-        if char == '"':
-            return "".join(output), index + 1
-        if char == "\\":
-            index += 1
-            if index >= len(line):
-                break
-            output.append({"n": "\n", "r": "\r", "t": "\t"}.get(line[index], line[index]))
-        else:
-            output.append(char)
-        index += 1
-    _raise(ValueError, "c4 quoted field is unterminated")
-
-
-def _canonical(value: object) -> tuple[bytes, int, int]:
-    if isinstance(value, _YamlMapping):
-        return _canonical_mapping((key, child) for _identity, key, child in value.entries)
-    if isinstance(value, dict):
-        return _canonical_mapping(value.items())
-    if isinstance(value, (list, tuple)):
-        children = tuple(_canonical(item) for item in value)
-        return (
-            _frame(b"seq", b"".join(_frame(b"item", item[0]) for item in children)),
-            sum(item[1] for item in children),
-            1 + sum(item[2] for item in children),
-        )
-    scalar = _scalar_frame(value)
-    return _frame(b"scalar", scalar), len(scalar), 1
-
-
-def _canonical_mapping(entries: Iterable[tuple[object, object]]) -> tuple[bytes, int, int]:
-    framed: list[tuple[bytes, bytes, int, int]] = []
-    for key, child in entries:
-        key_frame = _scalar_frame(key)
-        child_stream, child_bytes, child_nodes = _canonical(child)
-        entry = _frame(b"key", key_frame) + _frame(b"value", child_stream)
-        framed.append((key_frame, entry, len(key_frame) + child_bytes, child_nodes + 1))
-    framed.sort(key=lambda item: item[0])
-    return (
-        _frame(b"map", b"".join(item[1] for item in framed)),
-        sum(item[2] for item in framed),
-        1 + sum(item[3] for item in framed),
-    )
-
-
-def _scalar_frame(value: object) -> bytes:
-    if value is None:
-        return _frame(b"null", b"")
-    if type(value) is bool:
-        return _frame(b"bool", b"true" if value else b"false")
-    if type(value) is int:
-        return _frame(b"int", str(value).encode())
-    if type(value) is float:
-        if not math.isfinite(value):
-            _raise(ValueError, "non-finite structured scalar is not admitted")
-        return _frame(b"float", value.hex().encode())
-    if type(value) is str:
-        return _frame(b"str", value.encode("utf-8"))
-    if type(value) in {date, datetime, time}:
-        return _frame(
-            type(value).__name__.encode(),
-            cast("date | datetime | time", value).isoformat().encode(),
-        )
-    _raise(ValueError, "structured scalar type is not admitted")
-
-
-def _frame(label: bytes, payload: bytes) -> bytes:
-    return label + b":" + str(len(payload)).encode() + b":" + payload

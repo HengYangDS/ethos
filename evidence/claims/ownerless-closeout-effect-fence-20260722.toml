@@ -3,13 +3,13 @@ id = "ownerless-closeout-effect-fence-20260722"
 subject = "ethos:worktree-retirement:ownerless-effect-fence"
 state = "active"
 change_id = "ownerless-closeout-effect-fence"
-summary = "A current-base successor defines effect-side fencing, exact WCP response binding, accepted-ref CAS, no-force removal, postcondition verification, and recoverable receipts for clean ownerless Work Lane retirement."
+summary = "The officially archived successor defines effect-side fencing, exact WCP response binding, accepted-ref CAS, no-force removal, postcondition verification, and recoverable receipts for clean ownerless Work Lane retirement."
 
 [evidence]
 dated = "evidence/chronicle/ownerless-closeout-effect-fence-20260722/2026-07-22.md"
-sha256 = "ce426def61432471b664371e1d69a450e215565dcecb81016f4f705de3d085dd"
+sha256 = "b746a323453486b9819720a6c880bfe23c9121670f9e6e1ae82ec89a6156d920"
 evidence_ids = ["evidence:ownerless-closeout-effect-fence-20260722"]
-binding = "This active Claim binds the authored implementation, staged-snapshot verification, and the pre-archive exact-HEAD proof and isolated preflight receipt recorded in the Chronicle. The checklist and Claim update are an evidence-only closure after the final committed implementation/parity proof and do not claim a second self-referential pre-archive proof. It does not claim archive, land, accepted closeout, external publication, or a predecessor-lane outcome before those transitions produce their own current receipts."
+binding = "This active Claim binds the authored implementation, staged-snapshot verification, pre-archive exact-HEAD proof, isolated preflight, and official 2026-07-23 OpenSpec archive and canonical-fusion receipt recorded in the Chronicle. It does not claim archive-HEAD proof, land, accepted closeout, external publication, or a predecessor-lane outcome before those transitions produce their own current receipts."
 verifier = "digest_only"
 tests = [
   "tools/ci/scripts/run-python-tests.sh",
@@ -19,8 +19,8 @@ tests = [
   "tools/ci/scripts/run-ethos-lane.sh quality module-layout --json",
   "tools/ci/scripts/run-ethos-lane.sh quality code-size --json",
   "tools/ci/scripts/run-ethos-lane.sh quality no-compat --json",
-  "openspec validate ownerless-closeout-effect-fence --strict --json",
-  "tools/ci/scripts/run-ethos-lane.sh openspec --change ownerless-closeout-effect-fence --lifecycle --json",
+  "npx --yes @fission-ai/openspec@1.6.0 validate --all --strict --json",
+  "tools/ci/scripts/run-ethos-lane.sh openspec --archive-id ownerless-closeout-effect-fence --json",
   "tools/ci/scripts/run-ethos-lane.sh quality claims --json",
   "tools/ci/scripts/run-ethos-lane.sh prove --execute --expect-head <committed-head> --json",
 ]
@@ -33,7 +33,7 @@ owner = "ethos-repository"
 scope = "Clean linked ownerless Work Lane effect fencing and completion evidence; no dirty preserve-retire, foreign takeover, real target deletion, remote mutation, GitLab dependency, distributed lock, or filesystem-lock claim."
 
 [carriers]
-openspec = "openspec/changes/ownerless-closeout-effect-fence"
+openspec = "openspec/changes/archive/2026-07-23-ownerless-closeout-effect-fence"
 fallback = "Keep the exact lane, ref, worktree, and any partial fence/reservation intact whenever WCP, lease/Claim, accepted-head, decision, path, CAS, postcondition, or receipt binding cannot be proved."
 kill_signal = "ETHOS trusts a partial WCP response, permits a late lease or competing decision, force-removes the ownerless worktree, deletes a ref without accepted-head CAS, hides a partial transition, or writes an unbound completion receipt."
 
@@ -41,7 +41,7 @@ kill_signal = "ETHOS trusts a partial WCP response, permits a late lease or comp
 targets = [
   { kind = "evidence", path = "evidence/claims/ownerless-closeout-effect-fence-20260722.toml" },
   { kind = "evidence", path = "evidence/chronicle/ownerless-closeout-effect-fence-20260722/2026-07-22.md" },
-  { kind = "openspec", path = "openspec/changes/ownerless-closeout-effect-fence" },
+  { kind = "openspec", path = "openspec/changes/archive/2026-07-23-ownerless-closeout-effect-fence" },
   { kind = "openspec", path = "openspec/specs/repository-governance/spec.md" },
   { kind = "docs", path = "docs/reference/command-plane.md" },
   { kind = "source", path = "packages/ethos-core/src/ethos_core/contracts/resolution/lane.py" },

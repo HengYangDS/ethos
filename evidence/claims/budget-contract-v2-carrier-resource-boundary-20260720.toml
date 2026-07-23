@@ -13,7 +13,7 @@ evidence_ids = [
   "evidence:budget-contract-v2-carrier-resource-boundary-acceptance-20260723",
   "evidence:budget-contract-v2-carrier-resource-boundary-review-20260723",
 ]
-binding = "This implementation-stage C1 Claim binds MetricContract v4 static hybrid execution, unchanged provider ceilings, complete provider/execution resolution before content open, exact resolved-provider admission without identity replacement, descriptor-owned static routing, one bounded parent read, no second bounded resolution, typed worker protocol, parent replay, platform-specific supervision, one lifecycle owner, all-or-nothing carrier and snapshot results, exact-ceiling and deep/wide acceptance cases, current and immutable inventory observations, runtime observations, a 738-test 100 percent statement/branch coverage result across 22 modules, clean Darwin/Linux Python 3.14 checks for all 50 current candidate Python paths, and independent contract/trust/simplicity/platform review with zero final findings. V1 policy, debt, terminal targets, global LOC, and per-file ELOC remain unchanged and authoritative; v2 remains inactive. Exact-HEAD proof, the same-SHA Linux receipt, archive, land, accepted closeout, publication readiness, external distribution, provider-run checks, and retirement remain later transitions."
+binding = "This implementation-stage C1 Claim binds MetricContract v4 static hybrid execution, unchanged provider ceilings, complete provider/execution resolution before content open, exact resolved-provider admission without identity replacement, descriptor-owned static routing, one bounded parent read, no second bounded resolution, typed worker protocol, parent replay, platform-specific supervision, one lifecycle owner, all-or-nothing carrier and snapshot results, exact-ceiling and deep/wide acceptance cases, current and immutable inventory observations, runtime observations, a 738-test 100 percent statement/branch coverage result across 22 modules, clean Darwin/Linux Python 3.14 checks for all 50 current candidate Python paths, and independent contract/trust/simplicity/platform review with zero final findings. V1 policy, debt, terminal targets, global LOC, and per-file ELOC remain unchanged and authoritative; v2 remains inactive. Generic parity is deliberately outside this Claim's semantic promotion scope; it remains a separate repository-wide freshness witness required by parity gaps, quality evidence-freshness, and exact-HEAD proof after the Claim is committed. Exact-HEAD proof, the same-SHA Linux receipt, archive, land, accepted closeout, publication readiness, external distribution, provider-run checks, and retirement remain later transitions."
 verifier = "independently_reviewed"
 tests = [
   "npx --yes @fission-ai/openspec@1.6.0 validate budget-contract-v2-carrier-resource-boundary --strict --json",
@@ -33,6 +33,8 @@ tests = [
   "tools/ci/scripts/run-ethos-lane.sh quality code-size --json",
   "tools/ci/scripts/run-ethos-lane.sh quality types --json",
   "tools/ci/scripts/run-ethos-lane.sh quality claims --json",
+  "tools/ci/scripts/run-ethos-lane.sh parity gaps --adopter generic --target . --json",
+  "tools/ci/scripts/run-ethos-lane.sh quality evidence-freshness --json",
   "tools/ci/scripts/run-ethos-lane.sh quality coverage --json",
   "tools/ci/scripts/run-ethos-lane.sh quality source-budget --json",
   "tools/ci/scripts/run-ethos-lane.sh prove --execute --expect-head <committed-head> --json",
@@ -41,8 +43,8 @@ tests = [
 
 [evidence.freshness]
 mode = "semantic_scope"
-head = "62efb853a47f67e07ed2e9f0b0de00255ede9087"
-semantic_sha256 = "239c11930794183a7b44e06ba21030b82ffd47bd7835c9abd0c44dadd69e787e"
+head = "5e4e99b3ef82e65afa439404eed8932b2ef274f6"
+semantic_sha256 = "f6da0c4d551c2a1020f1ee0fd7412f9e09a4e2b6991777607977995f7040a61c"
 
 [boundary]
 owner = "quality"
@@ -61,7 +63,6 @@ targets = [
   "evidence/chronicle/budget-contract-v2-carrier-resource-boundary-20260720/2026-07-21.md",
   "evidence/chronicle/budget-contract-v2-carrier-resource-boundary-20260720/2026-07-23.md",
   "evidence/claims/budget-contract-v2-carrier-resource-boundary-20260720.toml",
-  "evidence/parity/generic-shadow.json",
   "openspec/changes/budget-contract-v2-carrier-resource-boundary/.openspec.yaml",
   "openspec/changes/budget-contract-v2-carrier-resource-boundary/design.md",
   "openspec/changes/budget-contract-v2-carrier-resource-boundary/proposal.md",

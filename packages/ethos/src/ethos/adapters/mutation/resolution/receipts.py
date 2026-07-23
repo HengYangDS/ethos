@@ -8,6 +8,7 @@ import uuid
 from dataclasses import dataclass
 from pathlib import Path
 
+import ethos.adapters.mutation.resolution.records.inventory as records_inventory
 from ethos.adapters.mutation.resolution._shared import artifact_roots
 from ethos.adapters.mutation.resolution._shared import display_path
 from ethos.adapters.mutation.resolution._shared import record_destination_safe
@@ -16,16 +17,91 @@ from ethos.adapters.mutation.resolution._shared import sha256_digest
 from ethos.adapters.mutation.resolution._shared import valid_decision_id
 from ethos.adapters.mutation.resolution.records.core import clear_receipt_path
 from ethos.adapters.mutation.resolution.records.core import receipt_path
+from ethos.adapters.mutation.resolution.records.core import target_digest
 from ethos.adapters.mutation.resolution.records.core import write_json_atomic
 from ethos.repository.policy.schema import validate_schema_instance
 from ethos_core.contracts.resolution.lane import LaneResolutionClearReceipt
+from ethos_core.contracts.resolution.lane import LaneResolutionDecision
 from ethos_core.contracts.resolution.lane import LaneResolutionReceipt
 
-_DECISIONS, _RECEIPTS, _CLEARS = "decisions", "receipts", "clears"
+_DECISIONS, _RECEIPTS, _CLEARS, _RESERVATIONS = (
+    "decisions",
+    "receipts",
+    "clears",
+    "reservations",
+)
 _RECEIPT_INVALID = "lane_resolution_receipt_invalid"
+_RECORD_PATH_UNSAFE = "lane_resolution_record_path_unsafe"
 _PRESERVATION_MANIFEST_INVALID = "lane_resolution_preservation_manifest_invalid"
 _PRESERVATION_PACKAGE_INVALID = "lane_resolution_preservation_package_invalid"
 _PRESERVATION_PACKAGE_OUTSIDE_ROOT = "lane_resolution_preservation_package_outside_root"
+
+
+def canonical_resolution_decision_snapshot(
+    *, decision_bytes: bytes, decision: dict[str, object]
+) -> tuple[dict[str, object], str]:
+    """Return one strict canonical decision snapshot and its validation gap."""
+    try:
+        payload = json.loads(decision_bytes)
+        source = payload if isinstance(payload, dict) else {}
+        model = LaneResolutionDecision.model_validate_json(
+            json.dumps(
+                {field: source[field] for field in LaneResolutionDecision.model_fields},
+                allow_nan=False,
+            )
+        )
+    except (KeyError, TypeError, ValueError, UnicodeDecodeError):
+        return {}, "lane_resolution_ownerless_decision_invalid"
+    snapshot = model.to_payload()
+    if not _same_canonical_payload(payload, snapshot) or not _same_canonical_payload(
+        decision, snapshot
+    ):
+        return {}, "lane_resolution_ownerless_decision_stale"
+    return snapshot, ""
+
+
+def exact_ownerless_resolution_receipt(
+    *,
+    receipt: dict[str, object] | None,
+    decision: dict[str, object],
+    observation: object,
+    expected_binding: dict[str, object],
+) -> bool:
+    """Match one immutable ownerless receipt to its complete decision binding."""
+    if receipt is None:
+        return False
+    try:
+        canonical_receipt = LaneResolutionReceipt.model_validate(receipt).to_payload()
+    except ValueError:
+        return False
+    if not _same_canonical_payload(receipt, canonical_receipt):
+        return False
+    lane_ref = str(getattr(observation, "lane_ref", ""))
+    head = str(getattr(observation, "head", ""))
+    digest = getattr(observation, "digest", None)
+    return (
+        callable(digest)
+        and canonical_receipt.get("decision_id") == decision.get("decision_id")
+        and canonical_receipt.get("lane_ref") == lane_ref
+        and canonical_receipt.get("head") == head
+        and canonical_receipt.get("observation_digest") == digest()
+        and canonical_receipt.get("state") == "retired"
+        and canonical_receipt.get("preservation_package") == ""
+        and canonical_receipt.get("preservation_manifest_sha256") == ""
+        and canonical_receipt.get("reconciliation_required") is bool(decision.get("break_glass"))
+        and canonical_receipt.get("ownerless_closeout_binding") == expected_binding
+    )
+
+
+def _canonical_json(value: object) -> str:
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False)
+
+
+def _same_canonical_payload(left: object, right: object) -> bool:
+    try:
+        return _canonical_json(left) == _canonical_json(right)
+    except (TypeError, ValueError):
+        return False
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,12 +122,14 @@ def write_resolution_receipt(
     root: Path,
     receipt: dict[str, object],
     artifact_root: Path | None = None,
+    require_ownerless_closeout_binding: bool = False,
 ) -> str:
     """Validate and atomically materialize one immutable completion receipt."""
-    payload = LaneResolutionReceipt.model_validate(receipt).to_payload()
-    if not valid_decision_id(str(payload["decision_id"])):
-        raise ValueError(_RECEIPT_INVALID)
-    _validate_schema(root, "lane-resolution-receipt.schema.json", payload)
+    payload = _validated_resolution_receipt(
+        root=root,
+        receipt=receipt,
+        require_ownerless_closeout_binding=require_ownerless_closeout_binding,
+    )
     destination = receipt_path(
         root,
         str(payload["decision_id"]),
@@ -60,6 +138,61 @@ def write_resolution_receipt(
     record_root = artifact_root or records_artifact_root(root)
     write_json_atomic(destination, payload, record_root=record_root)
     return display_path(root, destination)
+
+
+def read_resolution_receipt(
+    *,
+    root: Path,
+    decision_id: str,
+    artifact_root: Path | None = None,
+    require_ownerless_closeout_binding: bool = False,
+) -> tuple[dict[str, object], str] | None:
+    """Read one deterministic immutable receipt without weakening write validation."""
+    record_root = artifact_root or records_artifact_root(root)
+    destination = receipt_path(root, decision_id, artifact_root=record_root)
+    if not destination.exists() and not destination.is_symlink():
+        return None
+    if not record_destination_safe(record_root, destination) or destination.is_symlink():
+        raise OSError(_RECORD_PATH_UNSAFE)
+    try:
+        receipt = json.loads(destination.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError(_RECEIPT_INVALID) from error
+    if not isinstance(receipt, dict):
+        raise TypeError(_RECEIPT_INVALID)
+    payload = _validated_resolution_receipt(
+        root=root,
+        receipt=receipt,
+        require_ownerless_closeout_binding=require_ownerless_closeout_binding,
+    )
+    if payload["decision_id"] != decision_id:
+        raise ValueError(_RECEIPT_INVALID)
+    return payload, display_path(root, destination)
+
+
+def _validated_resolution_receipt(
+    *,
+    root: Path,
+    receipt: dict[str, object],
+    require_ownerless_closeout_binding: bool,
+) -> dict[str, object]:
+    try:
+        payload = LaneResolutionReceipt.model_validate(receipt).to_payload()
+    except ValueError as error:
+        raise ValueError(_RECEIPT_INVALID) from error
+    if require_ownerless_closeout_binding and not _same_canonical_payload(receipt, payload):
+        raise ValueError(_RECEIPT_INVALID)
+    if require_ownerless_closeout_binding and "ownerless_closeout_binding" not in payload:
+        raise ValueError(_RECEIPT_INVALID)
+    binding = payload.get("ownerless_closeout_binding")
+    if isinstance(binding, dict) and binding.get("target_digest") != target_digest(
+        str(payload["lane_ref"]), str(payload["head"])
+    ):
+        raise ValueError(_RECEIPT_INVALID)
+    if not valid_decision_id(str(payload["decision_id"])):
+        raise ValueError(_RECEIPT_INVALID)
+    _validate_schema(root, "lane-resolution-receipt.schema.json", payload)
+    return payload
 
 
 def verify_preservation_package(
@@ -130,92 +263,33 @@ def _preservation_manifest(destination: Path, package: dict[str, object]) -> dic
 def lane_resolution_inventory(*, root: Path) -> dict[str, object]:
     """Return a read-only reconciliation view over local resolution artifacts."""
     try:
-        return _lane_resolution_inventory(root)
+        return records_inventory.lane_resolution_inventory(
+            root=root,
+            readers=records_inventory.LaneResolutionInventoryReaders(
+                artifact_roots=artifact_roots,
+                manifests_with_conflicts=_manifests_with_conflicts,
+                records_with_conflicts=_records_with_conflicts,
+                unsafe_package_path_present=_unsafe_package_path_present,
+                unsafe_record_path_present=_unsafe_record_path_present,
+            ),
+        )
     except ValueError as error:
         gap = _records_owner_gap(error)
         return {
             "ok": False,
             "state": "blocked",
-            "summary": {"package_count": 0, "receipt_count": 0, "clear_count": 0},
+            "summary": {
+                "package_count": 0,
+                "receipt_count": 0,
+                "clear_count": 0,
+                "inflight_count": 0,
+                "partial_count": 0,
+            },
             "entries": [],
             "conflicting_decision_ids": [],
             "integrity_decision_ids": [],
             "required_gaps": [gap],
         }
-
-
-def _lane_resolution_inventory(root: Path) -> dict[str, object]:
-    manifests, manifest_conflicts = _manifests_with_conflicts(root)
-    _decisions, decision_conflicts = _records_with_conflicts(
-        root, _DECISIONS, "lane-resolution-decision.schema.json"
-    )
-    receipts, receipt_conflicts = _records_with_conflicts(
-        root, _RECEIPTS, "lane-resolution-receipt.schema.json"
-    )
-    clears, clear_conflicts = _records_with_conflicts(
-        root, _CLEARS, "lane-resolution-clear-receipt.schema.json"
-    )
-    conflicts = sorted(
-        manifest_conflicts | decision_conflicts | receipt_conflicts | clear_conflicts
-    )
-    integrity_ids: list[str] = []
-    entries = []
-    for decision_id in sorted(set(manifests) | set(receipts) | set(clears)):
-        manifest, receipt, clear = (
-            manifests.get(decision_id, {}),
-            receipts.get(decision_id, {}),
-            clears.get(decision_id, {}),
-        )
-        manifest_sha256 = str(manifest.get("manifest_sha256") or "")
-        receipt_manifest_sha256 = str(receipt.get("preservation_manifest_sha256") or "")
-        inconsistent = bool(manifest and receipt and manifest_sha256 != receipt_manifest_sha256)
-        if inconsistent:
-            integrity_ids.append(decision_id)
-        state = (
-            "cleared"
-            if clear
-            else "inconsistent"
-            if inconsistent
-            else "retained"
-            if manifest and receipt
-            else "receipt_only"
-            if receipt
-            else "unindexed"
-        )
-        entries.append(
-            {
-                "decision_id": decision_id,
-                "lane_ref": str(manifest.get("lane_ref") or receipt.get("lane_ref") or ""),
-                "head": str(manifest.get("head") or receipt.get("head") or ""),
-                "state": state,
-                "receipt_path": str(receipt.get("record_path") or ""),
-                "package_path": str(
-                    manifest.get("package_path") or receipt.get("preservation_package") or ""
-                ),
-                "manifest_sha256": manifest_sha256 or receipt_manifest_sha256,
-            }
-        )
-    unsafe_package_path = _unsafe_package_path_present(root)
-    unsafe_record_path = _unsafe_record_path_present(root)
-    required_gaps = [
-        *(["lane_resolution_decision_record_conflict"] if conflicts else []),
-        *(["lane_resolution_manifest_receipt_mismatch"] if integrity_ids else []),
-        *(["lane_resolution_package_path_unsafe"] if unsafe_package_path else []),
-        *(["lane_resolution_record_path_unsafe"] if unsafe_record_path else []),
-    ]
-    return {
-        "ok": not required_gaps,
-        "state": "blocked" if required_gaps else "ready",
-        "summary": {
-            "package_count": len(manifests),
-            "receipt_count": len(receipts),
-            "clear_count": len(clears),
-        },
-        "entries": entries,
-        "conflicting_decision_ids": conflicts,
-        "integrity_decision_ids": integrity_ids,
-        "required_gaps": required_gaps,
-    }
 
 
 def clear_lane_resolution_package(
@@ -376,7 +450,7 @@ def _unsafe_record_path_present(root: Path) -> bool:
     return any(
         (artifact_root / category).is_symlink()
         for artifact_root in artifact_roots(root)
-        for category in (_DECISIONS, _RECEIPTS, _CLEARS)
+        for category in (_DECISIONS, _RECEIPTS, _CLEARS, _RESERVATIONS)
     )
 
 

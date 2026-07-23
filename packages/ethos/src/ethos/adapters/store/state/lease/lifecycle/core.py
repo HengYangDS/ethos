@@ -14,6 +14,7 @@ from datetime import timedelta
 from typing import TYPE_CHECKING
 from typing import Any
 
+from ethos.adapters.store.state.closeout import closeout_fence_exists_from_connection
 from ethos.adapters.store.state.lease.projection import expect_exact_lease_candidate
 from ethos.adapters.store.state.lease.projection import json_object
 from ethos.adapters.store.state.lease.projection import lease_record
@@ -58,6 +59,8 @@ def acquire_lease(db_path: Path, *, subject: str, holder_ref: str, ttl_seconds: 
         connection.execute("begin immediate")
         try:
             initialize_state_connection(connection)
+            if closeout_fence_exists_from_connection(connection, subject=subject):
+                raise ValueError(f"lane_closeout_fenced:{subject}")  # noqa: EM102, RUF100 - machine-readable gap token is the exception contract
             connection.execute(
                 """
                 insert into leases(id, subject, owner, expires_at, payload_json)

@@ -42,7 +42,7 @@ _NON_GAP_TOKENS = {
         "untrusted_output_schema_invalid missing_required_path_count "
         "missing_required_state_count missing_required_state_paths role_root_mismatch_count "
         "role_root_mismatches physical_target_homes_present projection_drift adapter_bypass "
-        "extra_gaps"
+        "extra_gaps effect_complete_receipt_missing"
     )
     .strip()
     .split(),

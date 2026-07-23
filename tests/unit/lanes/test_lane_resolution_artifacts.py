@@ -25,6 +25,48 @@ from tests.support.lane_helpers import orphan_work_lane
 _LEGACY_DECISION_ID = "lane-decision:00000000-0000-4000-8000-000000000001"
 _CARRIER_DECISION_ID = "lane-decision:00000000-0000-4000-8000-000000000002"
 _RESERVATION_DECISION_ID = "lane-decision:00000000-0000-4000-8000-000000000003"
+_OWNERLESS_DECISION_ID = "lane-decision:00000000-0000-4000-8000-000000000004"
+_COMPETING_DECISION_ID = "lane-decision:00000000-0000-4000-8000-000000000005"
+
+
+def _ownerless_reservation(*, decision_id: str = _OWNERLESS_DECISION_ID) -> dict[str, object]:
+    lane_ref, head = "work/20260722-ownerless", "a" * 40
+    return {
+        "schema_version": 1,
+        "decision_id": decision_id,
+        "lane_ref": lane_ref,
+        "head": head,
+        "executor_ref": "agent:codex:thread:executor",
+        "wcp_schema_version": "workstation.repo-family-governance.v1",
+        "wcp_decision_sha256": "b" * 64,
+        "accepted_branch": "dev",
+        "accepted_head": "c" * 40,
+        "wcp_binding_digest": "d" * 64,
+        "target_digest": record_store.target_digest(lane_ref, head),
+        "target_binding_digest": "e" * 64,
+        "phase": "reserved",
+        "recovery_state": "reserved_no_effect",
+        "postcondition_digest": "",
+    }
+
+
+def _ownerless_receipt(binding: dict[str, object] | None) -> dict[str, object]:
+    payload: dict[str, object] = {
+        "receipt_id": "lane-resolution-receipt:ownerless",
+        "decision_id": _OWNERLESS_DECISION_ID,
+        "completed": True,
+        "state": "retired",
+        "observation_digest": "e" * 64,
+        "reconciliation_required": False,
+        "lane_ref": "work/20260722-ownerless",
+        "head": "a" * 40,
+        "preservation_package": "",
+        "preservation_manifest_sha256": "",
+        "mints_authority": False,
+    }
+    if binding is not None:
+        payload["ownerless_closeout_binding"] = binding
+    return payload
 
 
 def _preserve(repo: Path, lane: Path) -> dict[str, object]:
@@ -73,6 +115,8 @@ def test_resolution_materializes_immutable_receipt_and_inventory(
         "package_count": 1,
         "receipt_count": 1,
         "clear_count": 0,
+        "inflight_count": 0,
+        "partial_count": 0,
     }
     assert inventory["entries"] == [
         {
@@ -97,7 +141,7 @@ def test_resolution_receipt_refuses_to_overwrite_existing_decision(
         write_resolution_receipt(root=repo, receipt=applied["receipt"])
 
 
-def test_resolution_receipt_reservation_is_exclusive_and_owner_preserving(
+def test_resolution_receipt_reservation_is_exactly_idempotent_and_owner_preserving(
     tmp_path: Path,
 ) -> None:
     repo = init_repo(tmp_path / "repo")
@@ -110,11 +154,13 @@ def test_resolution_receipt_reservation_is_exclusive_and_owner_preserving(
     assert reservation.is_file()
     assert reservation.name.startswith(".")
     assert reservation.name.endswith(".receipt-reservation")
-    with pytest.raises(FileExistsError):
+    assert (
         record_store.reserve_resolution_receipt(
             root=repo,
             decision_id=_RESERVATION_DECISION_ID,
         )
+        == reservation
+    )
     assert reservation.is_file()
 
     record_store.release_resolution_receipt_reservation(
@@ -122,6 +168,41 @@ def test_resolution_receipt_reservation_is_exclusive_and_owner_preserving(
         decision_id=_RESERVATION_DECISION_ID,
     )
     assert not reservation.exists()
+
+
+def test_resolution_receipt_reservation_rejects_drifted_existing_sidecar(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    reservation = record_store.reserve_resolution_receipt(
+        root=repo,
+        decision_id=_RESERVATION_DECISION_ID,
+    )
+    reservation.write_text(f"{_COMPETING_DECISION_ID}\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="lane_resolution_receipt_invalid"):
+        record_store.reserve_resolution_receipt(
+            root=repo,
+            decision_id=_RESERVATION_DECISION_ID,
+        )
+
+
+def test_resolution_receipt_reservation_rejects_symlinked_existing_sidecar(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    reservation = record_store.reserve_resolution_receipt(
+        root=repo,
+        decision_id=_RESERVATION_DECISION_ID,
+    )
+    reservation.unlink()
+    reservation.symlink_to(tmp_path / "missing-sidecar")
+
+    with pytest.raises(OSError, match="lane_resolution_record_path_unsafe"):
+        record_store.reserve_resolution_receipt(
+            root=repo,
+            decision_id=_RESERVATION_DECISION_ID,
+        )
 
 
 def test_inventory_reports_receipt_without_preservation_package(tmp_path: Path) -> None:

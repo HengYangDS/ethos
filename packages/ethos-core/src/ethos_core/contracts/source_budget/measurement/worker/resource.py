@@ -13,6 +13,10 @@ from pydantic import field_validator
 
 WORKER_RESOURCE_PROFILE_ID = "ethos-source-budget-worker-resource-profile-v1"
 
+_CANONICAL_RESOURCE_DESCRIPTOR_ERROR = "worker resource profile descriptor must be canonical"
+_RESOURCE_BOOLEAN_ERROR = "worker resource descriptor booleans must be exact"
+_RESOURCE_INTEGER_ERROR = "worker resource descriptor integers must be exact"
+
 
 class WorkerResourceProfileDescriptor(BaseModel):
     """Immutable resource intent without supervisor or platform behavior."""
@@ -68,7 +72,7 @@ class WorkerResourceProfileDescriptor(BaseModel):
     def validate_exact_integer(cls, value: object) -> object:
         """Reject equal-but-non-integer resource values."""
         if type(value) is not int:
-            raise ValueError("worker resource descriptor integers must be exact")
+            raise ValueError(_RESOURCE_INTEGER_ERROR)
         return value
 
     @field_validator(
@@ -81,7 +85,7 @@ class WorkerResourceProfileDescriptor(BaseModel):
     def validate_exact_true(cls, value: object) -> object:
         """Reject truthy wire values other than the boolean singleton."""
         if value is not True:
-            raise ValueError("worker resource descriptor booleans must be exact")
+            raise ValueError(_RESOURCE_BOOLEAN_ERROR)
         return value
 
 
@@ -115,10 +119,10 @@ def worker_resource_profile_descriptor_digest(
 ) -> str:
     """Return canonical compact sorted-key JSON SHA-256 for one descriptor."""
     if type(descriptor) is not WorkerResourceProfileDescriptor:
-        raise ValueError("worker resource profile descriptor must be canonical")
+        raise ValueError(_CANONICAL_RESOURCE_DESCRIPTOR_ERROR)
     expected_fields = set(WorkerResourceProfileDescriptor.model_fields)
     if set(vars(descriptor)) != expected_fields or descriptor.model_fields_set != expected_fields:
-        raise ValueError("worker resource profile descriptor must be canonical")
+        raise ValueError(_CANONICAL_RESOURCE_DESCRIPTOR_ERROR)
     canonical = WorkerResourceProfileDescriptor.model_validate(descriptor.model_dump(mode="python"))
     encoded = json.dumps(
         canonical.model_dump(mode="json"),

@@ -337,15 +337,26 @@ subsequent separately evidenced transitions.
   terminal targets, global LOC, or per-file ELOC.
 
 - [x] **Step 1: Record the bounded-only v3 precursor and independent security rejection; discard only the uncommitted reader/native GREEN, retain committed v3 contracts/tests as explicit migration input, and amend governance to v4 static hybrid execution.**
-- [ ] **Step 2: Write and verify eight diagnostic MetricContract v4 RED nodes: bounded positive, isolated positive, complete-v3 rejection, helper four-tuple, parser-global mode/id/digest drift, identity propagation with unchanged measurement vector, schema requirements, and exact repository policy mapping.**
-- [ ] **Step 3: Implement the pure-kernel execution owner, descriptor-only protocol/resource owners, v4 contracts/helper, provider descriptor v2, generated schemas, 28 policy atoms, and owner-computed digest goldens atomically. The helper returns `(mode, ceiling, id, digest)` and current policy has four parameterized execution digests.**
-- [ ] **Step 4: Write and verify pure worker-protocol RED for typed request/result XOR, exact gap allowlist, canonical five-digest binding, parent replay, length framing, canonical JSON, truncation, duplicates, overlimits, and trailing data.**
-- [ ] **Step 5: Implement the pure kernel protocol and frame codecs without subprocess behavior.**
-- [ ] **Step 6: Write router/import-boundary RED and split bounded provider identity/engine from isolated provider engine; prove no isolated failure can call an in-process fallback.**
-- [ ] **Step 7: Write supervisor/backend RED for private launch, resource setup before import, bounded nonblocking pipes, CPU/RSS/wall/FD/process/output/protocol failures, TERM/KILL/reap, descendants, and Linux/Darwin capability paths.**
-- [ ] **Step 8: Implement one-carrier/one-process worker bootstrap, POSIX supervisor, Linux/Darwin telemetry, stable redacted gaps, and strict parent result reconstruction.**
-- [ ] **Step 9: Implement the common single-read parent boundary for both modes and direct native recheck; prove limit-minus-one/exact-limit success, limit-plus-one rejection, pre-spawn safety, drift semantics, and all-or-nothing snapshots.**
-- [ ] **Step 10: Run exact-ceiling INI amplification plus every provider adversarial corpus, performance/inventory checks, focused 100 percent coverage, all owner gates, independent security/contract/simplicity/platform review, and expand Claim promotion targets to the execution owner, worker package, protocol schema, protocol/frame tests, supervisor test, and architecture test before proof, archive, land, accepted closeout, local publication readiness, and Lane retirement. If hybrid is rejected, keep C1 open and do not raise a ceiling.**
+- [x] **Step 2: Write and verify eight diagnostic MetricContract v4 RED nodes: bounded positive, isolated positive, complete-v3 rejection, helper four-tuple, parser-global mode/id/digest drift, identity propagation with unchanged measurement vector, schema requirements, and exact repository policy mapping.**
+- [x] **Step 3: Implement the pure-kernel execution owner, descriptor-only protocol/resource owners, v4 contracts/helper, provider descriptor v2, generated schemas, 28 policy atoms, and owner-computed digest goldens atomically. The helper returns `(mode, ceiling, id, digest)` and current policy has four parameterized execution digests.**
+- [x] **Step 4: Write and verify pure worker-protocol RED for typed request/result XOR, exact gap allowlist, canonical five-digest binding, parent replay, length framing, canonical JSON, truncation, duplicates, overlimits, and trailing data.**
+- [x] **Step 5: Implement the pure kernel protocol and frame codecs without subprocess behavior.**
+- [x] **Step 6: Write router/import-boundary RED and split bounded provider identity/engine from isolated provider engine; prove no isolated failure can call an in-process fallback.**
+- [x] **Step 7: Write supervisor/backend RED for private launch, resource setup before import, bounded nonblocking pipes, CPU/RSS/wall/FD/process/output/protocol failures, TERM/KILL/reap, descendants, and Linux/Darwin capability paths.**
+- [x] **Step 8: Implement one-carrier/one-process worker bootstrap, POSIX supervisor, Linux/Darwin telemetry, stable redacted gaps, and strict parent result reconstruction.**
+- [x] **Step 9: Implement the common single-read parent boundary for both modes and direct native recheck; prove limit-minus-one/exact-limit success, limit-plus-one rejection, pre-spawn safety, drift semantics, and all-or-nothing snapshots.**
+- [ ] **Step 10: Complete the C1 pre-transition closeout: exact-ceiling and deep/wide provider acceptance, performance and current/immutable inventory evidence, focused 100 percent coverage, every owner gate, independent security/contract/simplicity/platform review, exact promotion targets, semantic Claim binding, parity, exact-HEAD default/full proof, and the same-SHA Linux CPython 3.14 receipt. If hybrid is rejected, keep C1 open and do not raise a ceiling.**
+
+  The July 23 final candidate-index stage completed exact-ceiling/deep-wide
+  acceptance, inventory/runtime observations, every local owner gate, 100
+  percent focused statement/branch coverage, and independent
+  contract/trust/simplicity/platform review. This step remains open for the
+  governed material commit, semantic Claim binding, parity, exact-HEAD
+  default/full proof, and the same-SHA live Linux CPython 3.14 receipt.
+
+Post-archive parity/proof, candidate land, accepted-root closeout, local
+publication readiness, and owned-Lane retirement remain mandatory separate
+transitions. Remote publication and hosted CI are not claimed by C1.
 
 ### Task 4: Git Snapshot Replay And v2 Shadow Report
 

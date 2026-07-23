@@ -9,11 +9,12 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-import ethos.adapters.repo.source_budget.measurement.native.core as native_core
+import ethos.adapters.repo.source_budget.measurement.native.isolated.core as native_core
 import ethos.adapters.repo.source_budget.measurement.native.shell.core as shell_core
 import ethos.adapters.repo.source_budget.measurement.native.shell.grammar as shell_grammar
 from ethos.adapters.repo.source_budget.carriers import load_metric_contracts
 from ethos.adapters.repo.source_budget.measurement.native.shell.core import shell_tokens
+from tests.support.source_budget_measurement import measure_provider
 
 if TYPE_CHECKING:
     from typing import Any
@@ -54,7 +55,7 @@ def _contracts(profile: str) -> tuple[MetricContract, ...]:
 
 def _measure(case_id: str):
     case = _cases()[case_id]
-    return native_core.measure_native(_content(case_id), _contracts(str(case["profile"])))
+    return measure_provider(_content(case_id), _contracts(str(case["profile"])))
 
 
 def _success(case_id: str):
@@ -236,7 +237,7 @@ def test_shell_rejects_every_unclosed_or_unmatched_group() -> None:
         "shell-heredoc-missing-delimiter",
     ):
         _failure(case_id, "source_budget_native_parse_failed:shell")
-    load = native_core.measure_native(b"cat <<\n", _contracts("shell-source-v2"))
+    load = measure_provider(b"cat <<\n", _contracts("shell-source-v2"))
     assert load.measurement is None
     assert load.required_gaps == ("source_budget_native_parse_failed:shell",)
     assert _success("shell-ansi-heredoc").values
@@ -313,7 +314,7 @@ def test_shell_accepts_mixed_nested_substitution() -> None:
     ],
 )
 def test_shell_accepts_contextual_nested_substitution_closers(source: str) -> None:
-    load = native_core.measure_native(source.encode(), _contracts("shell-source-v2"))
+    load = measure_provider(source.encode(), _contracts("shell-source-v2"))
 
     assert load.required_gaps == ()
     assert load.measurement is not None
@@ -323,7 +324,7 @@ def test_shell_accepts_bounded_deep_parameter_expansion() -> None:
     depth = 20
     source = "echo " + ("${x:-" * depth) + "z" + ("}" * depth) + "\n"
 
-    load = native_core.measure_native(source.encode(), _contracts("shell-source-v2"))
+    load = measure_provider(source.encode(), _contracts("shell-source-v2"))
 
     assert load.required_gaps == ()
     assert load.measurement is not None
@@ -333,14 +334,14 @@ def test_shell_recursion_exhaustion_reports_stable_resource_gap(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     contracts = _contracts("shell-source-v2")
-    assert native_core.measure_native(b"echo ready\n", contracts).measurement is not None
+    assert measure_provider(b"echo ready\n", contracts).measurement is not None
 
     def exhausted(_source: str) -> tuple[str, ...]:
         message = "SENSITIVE"
         raise RecursionError(message)
 
     monkeypatch.setattr(native_core, "shell_tokens", exhausted)
-    load = native_core.measure_native(b"echo unreachable\n", contracts)
+    load = measure_provider(b"echo unreachable\n", contracts)
 
     assert load.required_gaps == ("source_budget_native_resource_exhausted",)
     assert load.measurement is None

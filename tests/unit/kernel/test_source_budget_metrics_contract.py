@@ -4,9 +4,11 @@ import hashlib
 import importlib
 import json
 import tomllib
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import cast
 
 import pytest
 from pydantic import ValidationError
@@ -37,8 +39,8 @@ def _s(profiles: object = None, contracts: object = None) -> m.MetricContractSet
     return m.MetricContractSet(
         schema="ethos-source-budget-metrics-v4",
         contract_version=4,
-        profiles=profiles or (_p(),),
-        contracts=contracts or default,
+        profiles=cast("tuple[m.MetricProfile, ...]", profiles or (_p(),)),
+        contracts=cast("tuple[m.MetricContract, ...]", contracts or default),
     )
 
 
@@ -78,9 +80,9 @@ def test_metric_validation_matrix() -> None:
     payload = _s().model_dump(mode="json", by_alias=True)
     payload["schema_id"] = payload.pop("schema")
     _raises(ValidationError, "schema", lambda: m.MetricContractSet.model_validate(payload))
-    values = {"none": None, "contracts": _s(), "object": object()}
+    values: dict[str, Any] = {"none": None, "contracts": _s(), "object": object()}
     for value_kind, gap_kind, gaps, message in _D["load_envelopes"]:
-        required = list(gaps) if gap_kind == "list" else tuple(gaps)
+        required: Any = list(gaps) if gap_kind == "list" else tuple(gaps)
         _raises(
             ValueError,
             message,
@@ -123,7 +125,7 @@ def test_metric_behavior_matrix() -> None:
     assert digest == m.metric_contracts_digest(_s(contracts=(normalized, lexical)))
     changed = lexical.model_copy(update={"parser_version": "stdlib-3.15"})
     assert digest != m.metric_contracts_digest(_s(contracts=(changed, normalized)))
-    schema = m.metric_contracts_json_schema()
+    schema: dict[str, Any] = m.metric_contracts_json_schema()
     assert schema["$schema"] == "https://json-schema.org/draft/2020-12/schema"
     assert schema["title"] == "ETHOS Source Budget Metric Contracts"
     expected_schema = json.dumps(schema, separators=(",", ":")) + "\n"
@@ -343,7 +345,7 @@ def test_metric_resource_fields_change_digest_and_schema_projection() -> None:
         contracts=changed_contracts,
     )
     assert m.metric_contracts_digest(registry) != m.metric_contracts_digest(changed)
-    schema = m.metric_contracts_json_schema()
+    schema: dict[str, Any] = m.metric_contracts_json_schema()
     assert schema["properties"]["schema"]["const"] == "ethos-source-budget-metrics-v4"
     contract_schema = schema["$defs"]["MetricContract"]
     assert set(contract_schema["properties"]["execution_mode"]["enum"]) == {
@@ -380,57 +382,29 @@ _ISOLATED_ID = "ethos-source-budget-execution:isolated-worker-v1"
 _PROTOCOL_ID = "ethos-source-budget-worker-protocol-v1"
 _RESOURCE_ID = "ethos-source-budget-worker-resource-profile-v1"
 _EXPECTED_PROFILE_IDS = frozenset(
-    {
-        "control-source-v2",
-        "derived-footprint-v2",
-        "diagram-source-v2",
-        "documentation-footprint-v2",
-        "evidence-footprint-v2",
-        "governance-footprint-v2",
-        "ini-source-v2",
-        "json-source-v2",
-        "python-source-v2",
-        "shell-source-v2",
-        "template-jinja-v2",
-        "test-json-v2",
-        "test-python-v2",
-        "test-toml-v2",
-        "toml-source-v2",
-        "yaml-source-v2",
-    }
+    {"control-source-v2", "derived-footprint-v2", "diagram-source-v2"}
+    | {"documentation-footprint-v2", "evidence-footprint-v2", "governance-footprint-v2"}
+    | {"ini-source-v2", "json-source-v2", "python-source-v2", "shell-source-v2"}
+    | {"template-jinja-v2", "test-json-v2", "test-python-v2", "test-toml-v2", "toml-source-v2"}
+    | {"yaml-source-v2"}
 )
 _EXPECTED_CONTRACT_IDS = frozenset(
-    {
-        "control-source-v2:normalized_bytes",
-        "derived-footprint-v2:normalized_bytes",
-        "diagram-source-v2:normalized_scalar_bytes",
-        "diagram-source-v2:semantic_nodes",
-        "documentation-footprint-v2:normalized_bytes",
-        "evidence-footprint-v2:normalized_bytes",
-        "governance-footprint-v2:normalized_bytes",
-        "ini-source-v2:normalized_scalar_bytes",
-        "ini-source-v2:semantic_nodes",
-        "json-source-v2:normalized_scalar_bytes",
-        "json-source-v2:semantic_nodes",
-        "python-source-v2:lexical_tokens",
-        "python-source-v2:normalized_bytes",
-        "shell-source-v2:lexical_tokens",
-        "shell-source-v2:normalized_bytes",
-        "template-jinja-v2:template_dynamic_bytes",
-        "template-jinja-v2:template_dynamic_units",
-        "template-jinja-v2:template_static_bytes",
-        "test-json-v2:normalized_scalar_bytes",
-        "test-json-v2:semantic_nodes",
-        "test-python-v2:lexical_tokens",
-        "test-python-v2:normalized_bytes",
-        "test-toml-v2:normalized_scalar_bytes",
-        "test-toml-v2:semantic_nodes",
-        "toml-source-v2:normalized_scalar_bytes",
-        "toml-source-v2:semantic_nodes",
-        "yaml-source-v2:normalized_scalar_bytes",
-        "yaml-source-v2:semantic_nodes",
-    }
+    {"control-source-v2:normalized_bytes", "derived-footprint-v2:normalized_bytes"}
+    | {"diagram-source-v2:normalized_scalar_bytes", "diagram-source-v2:semantic_nodes"}
+    | {"documentation-footprint-v2:normalized_bytes", "evidence-footprint-v2:normalized_bytes"}
+    | {"governance-footprint-v2:normalized_bytes", "ini-source-v2:normalized_scalar_bytes"}
+    | {"ini-source-v2:semantic_nodes", "json-source-v2:normalized_scalar_bytes"}
+    | {"json-source-v2:semantic_nodes", "python-source-v2:lexical_tokens"}
+    | {"python-source-v2:normalized_bytes", "shell-source-v2:lexical_tokens"}
+    | {"shell-source-v2:normalized_bytes", "template-jinja-v2:template_dynamic_bytes"}
+    | {"template-jinja-v2:template_dynamic_units", "template-jinja-v2:template_static_bytes"}
+    | {"test-json-v2:normalized_scalar_bytes", "test-json-v2:semantic_nodes"}
+    | {"test-python-v2:lexical_tokens", "test-python-v2:normalized_bytes"}
+    | {"test-toml-v2:normalized_scalar_bytes", "test-toml-v2:semantic_nodes"}
+    | {"toml-source-v2:normalized_scalar_bytes", "toml-source-v2:semantic_nodes"}
+    | {"yaml-source-v2:normalized_scalar_bytes", "yaml-source-v2:semantic_nodes"}
 )
+
 _PROTOCOL_DESCRIPTOR = {
     "schema": "ethos-source-budget-worker-protocol-descriptor-v1",
     "id": _PROTOCOL_ID,
@@ -500,28 +474,36 @@ def _expected_execution_fields(mode: str, ceiling: int) -> tuple[str, str]:
     return str(payload["execution_contract_id"]), _canonical_sha256(payload)
 
 
+@dataclass(frozen=True, slots=True)
+class _MetricContractIdentity:
+    metric_id: str = "normalized_bytes"
+    unit: str = "normalized_byte"
+    metric_profile: str = "control-source-v2"
+    carrier_role: str = "authored_declarative_source"
+
+
+_DEFAULT_METRIC_CONTRACT_IDENTITY = _MetricContractIdentity()
+
+
 def _v4_contract_payload(
     *,
     parser_id: str,
     parser_version: str,
     execution_mode: str,
     max_carrier_bytes: int,
-    metric_id: str = "normalized_bytes",
-    unit: str = "normalized_byte",
-    metric_profile: str = "control-source-v2",
-    carrier_role: str = "authored_declarative_source",
+    identity: _MetricContractIdentity = _DEFAULT_METRIC_CONTRACT_IDENTITY,
 ) -> dict[str, object]:
     execution_contract_id, execution_contract_digest = _expected_execution_fields(
         execution_mode,
         max_carrier_bytes,
     )
     return {
-        "contract_id": f"{metric_profile}:{metric_id}",
+        "contract_id": f"{identity.metric_profile}:{identity.metric_id}",
         "contract_version": 4,
-        "metric_id": metric_id,
-        "unit": unit,
-        "carrier_role": carrier_role,
-        "metric_profile": metric_profile,
+        "metric_id": identity.metric_id,
+        "unit": identity.unit,
+        "carrier_role": identity.carrier_role,
+        "metric_profile": identity.metric_profile,
         "parser_id": parser_id,
         "parser_version": parser_version,
         "grammar_digest": "a" * 64,
@@ -537,7 +519,7 @@ def _v4_contract_payload(
 
 
 def _constructed_v4_contract(**changes: object) -> m.MetricContract:
-    payload = {
+    payload: dict[str, Any] = {
         "contract_id": "python-a:lexical_tokens",
         "contract_version": 4,
         "metric_id": "lexical_tokens",
@@ -585,10 +567,12 @@ def test_metric_contract_v4_accepts_isolated_execution_identity() -> None:
         parser_version="cpython-3.14+ethos-python-v1",
         execution_mode="isolated_worker_v1",
         max_carrier_bytes=65536,
-        metric_id="lexical_tokens",
-        unit="lexical_token",
-        metric_profile="python-source-v2",
-        carrier_role="authored_behavioral_source",
+        identity=_MetricContractIdentity(
+            metric_id="lexical_tokens",
+            unit="lexical_token",
+            metric_profile="python-source-v2",
+            carrier_role="authored_behavioral_source",
+        ),
     )
     contract = m.MetricContract.model_validate(payload)
 
@@ -757,20 +741,24 @@ def test_metric_provider_resource_contract_returns_complete_v4_tuple() -> None:
             parser_version="cpython-3.14+ethos-python-v1",
             execution_mode="isolated_worker_v1",
             max_carrier_bytes=65536,
-            metric_id="lexical_tokens",
-            unit="lexical_token",
-            metric_profile="python-source-v2",
-            carrier_role="authored_behavioral_source",
+            identity=_MetricContractIdentity(
+                metric_id="lexical_tokens",
+                unit="lexical_token",
+                metric_profile="python-source-v2",
+                carrier_role="authored_behavioral_source",
+            ),
         ),
         _v4_contract_payload(
             parser_id="python-tokenize",
             parser_version="cpython-3.14+ethos-python-v1",
             execution_mode="isolated_worker_v1",
             max_carrier_bytes=65536,
-            metric_id="normalized_bytes",
-            unit="normalized_byte",
-            metric_profile="python-source-v2",
-            carrier_role="authored_behavioral_source",
+            identity=_MetricContractIdentity(
+                metric_id="normalized_bytes",
+                unit="normalized_byte",
+                metric_profile="python-source-v2",
+                carrier_role="authored_behavioral_source",
+            ),
         ),
     )
     contracts = tuple(m.MetricContract.model_validate(payload) for payload in payloads)
@@ -838,7 +826,7 @@ def test_metric_registry_rejects_parser_global_execution_drift_across_versions()
 
 
 def test_metric_contract_v4_schema_requires_execution_identity() -> None:
-    schema = m.metric_contracts_json_schema()
+    schema: dict[str, Any] = m.metric_contracts_json_schema()
     contract = schema["$defs"]["MetricContract"]
 
     assert schema["properties"]["schema"]["const"] == "ethos-source-budget-metrics-v4"

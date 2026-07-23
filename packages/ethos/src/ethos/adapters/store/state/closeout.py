@@ -7,6 +7,8 @@ import json
 import re
 import sqlite3
 from contextlib import closing
+from datetime import UTC
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -43,6 +45,22 @@ def _record(row: sqlite3.Row | tuple[Any, ...]) -> dict[str, object]:
 def _fail(gap: str, subject: str) -> None:
     message = f"{gap}:{subject}"
     raise ValueError(message)
+
+
+def _has_unexpired_lease(connection: sqlite3.Connection, *, subject: str) -> bool:
+    """Keep ownerless closeout fenced only by a current, unambiguous lease."""
+    row = connection.execute(
+        "select expires_at from leases where subject = ?", (subject,)
+    ).fetchone()
+    if row is None:
+        return False
+    try:
+        expires_at = datetime.fromisoformat(str(row[0]))
+    except ValueError:
+        return True
+    if expires_at.tzinfo is None:
+        return True
+    return expires_at.astimezone(UTC) > datetime.now(UTC)
 
 
 def _validated_payload(  # noqa: PLR0913, RUF100 - exact durable fence binding
@@ -157,7 +175,7 @@ def acquire_closeout_fence(  # noqa: PLR0913, RUF100 - exact durable fence bindi
         try:
             initialize_state_connection(connection)
             initialize_closeout_fence_connection(connection)
-            if connection.execute("select 1 from leases where subject = ?", (subject,)).fetchone():
+            if _has_unexpired_lease(connection, subject=subject):
                 _fail("lane_closeout_coordinated", subject)
             row = connection.execute(_SELECT, (subject,)).fetchone()
             if row is not None:

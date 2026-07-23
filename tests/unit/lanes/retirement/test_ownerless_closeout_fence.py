@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sqlite3
 from typing import TYPE_CHECKING
 
 import pytest
@@ -63,6 +64,35 @@ def test_closeout_fence_rejects_existing_lease_or_claim(tmp_path: Path) -> None:
         holder_ref="agent:test:case:owner",
         payload={"claim_id": "claim:late"},
     )
+    with pytest.raises(ValueError, match="lane_closeout_coordinated:work/target"):
+        _acquire(db_path)
+
+
+def test_closeout_fence_allows_an_expired_lease_residue(tmp_path: Path) -> None:
+    db_path = tmp_path / "state.sqlite"
+    acquire_lease(
+        db_path,
+        subject="work/target",
+        holder_ref="agent:test:case:expired-owner",
+        payload={"claim_id": ""},
+        ttl_seconds=-1,
+    )
+
+    assert _acquire(db_path)["subject"] == "work/target"
+
+
+@pytest.mark.parametrize("expiry", ["not-a-time", "2026-07-22T16:57:22"])
+def test_closeout_fence_blocks_a_lease_with_ambiguous_expiry(tmp_path: Path, expiry: str) -> None:
+    db_path = tmp_path / "state.sqlite"
+    acquire_lease(
+        db_path,
+        subject="work/target",
+        holder_ref="agent:test:case:ambiguous-owner",
+        payload={"claim_id": ""},
+    )
+    with sqlite3.connect(db_path) as connection:
+        connection.execute("update leases set expires_at = ?", (expiry,))
+
     with pytest.raises(ValueError, match="lane_closeout_coordinated:work/target"):
         _acquire(db_path)
 

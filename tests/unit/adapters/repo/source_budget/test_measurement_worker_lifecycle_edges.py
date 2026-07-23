@@ -14,7 +14,6 @@ from typing import cast
 
 import pytest
 
-import ethos.adapters.repo.source_budget.measurement.worker.supervisor.io as exchange
 import ethos.adapters.repo.source_budget.measurement.worker.supervisor.lifecycle.cleanup as cleanup
 import ethos.adapters.repo.source_budget.measurement.worker.supervisor.lifecycle.core as lifecycle
 from ethos.adapters.repo.source_budget.measurement.worker.backend.core import (
@@ -97,7 +96,7 @@ def _case(
     options: _CaseOptions = _DEFAULT_CASE_OPTIONS,
 ) -> _LifecycleCase:
     private.mkdir(exist_ok=True)
-    state = cast("_CleanupStateView", vars(exchange)["_ExchangeState"]())
+    state = cast("_CleanupStateView", lifecycle.WorkerExchangeState())
     owner = lifecycle.WorkerLifecycleOwner(private)
     boundary = lifecycle.WorkerLifecycleBoundary(owner, state)
     context = lifecycle.WorkerLifecycleContext(

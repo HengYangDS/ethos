@@ -11,7 +11,6 @@ import time
 from collections.abc import Callable
 from contextlib import suppress
 from dataclasses import dataclass
-from dataclasses import field
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Literal
@@ -29,8 +28,15 @@ from ethos.adapters.repo.source_budget.measurement.worker.supervisor.lifecycle.c
 
 if TYPE_CHECKING:
     import selectors
-    from contextlib import AbstractContextManager
     from types import TracebackType
+
+    from ethos.adapters.repo.source_budget.measurement.worker.backend.core import WorkerTelemetry
+    from ethos_core.contracts.source_budget.measurement.worker.protocol.core import (
+        WorkerProtocolDescriptor,
+    )
+    from ethos_core.contracts.source_budget.measurement.worker.resource import (
+        WorkerResourceProfileDescriptor,
+    )
 
 _Monotonic = Callable[[], float]
 _GroupSignal = Callable[[int, int], None]
@@ -61,6 +67,13 @@ _FinishAction = Literal[
 CleanupCause = Literal["capability_failed"]
 CleanupWait = Callable[[float], None]
 ProcessGroupProbe = Callable[..., WorkerProcessGroupState]
+WorkerExchangeCause = Literal[
+    "timeout",
+    "resource_exhausted",
+    "output_exceeded",
+    "pipe_failed",
+    "capability_failed",
+]
 
 
 def bind_worker_process(
@@ -173,6 +186,98 @@ class _CleanupState(Protocol):
     cleanup_failed: bool
 
 
+class _WorkerExchangeConfig(Protocol):
+    request_frame: bytes
+    telemetry: WorkerTelemetry | None
+    profile: WorkerResourceProfileDescriptor
+    protocol: WorkerProtocolDescriptor
+    wall_deadline: float
+    darwin_vms_baseline: int | None
+    resource_sampled_at: float | None
+    request_permitted: bool
+
+
+class WorkerExchangeState:
+    """Mutable progress and cleanup result for one worker exchange."""
+
+    __slots__ = (
+        "cleanup_cause",
+        "cleanup_failed",
+        "first_cause",
+        "request_offset",
+        "returncode",
+        "stdout",
+        "stdout_eof",
+    )
+
+    def __init__(
+        self,
+        *,
+        stdout: bytearray | None = None,
+        first_cause: WorkerExchangeCause | None = None,
+    ) -> None:
+        """Initialize one independent mutable exchange state."""
+        self.stdout = bytearray() if stdout is None else stdout
+        self.request_offset = 0
+        self.stdout_eof = False
+        self.returncode: int | None = None
+        self.first_cause = first_cause
+        self.cleanup_failed = False
+        self.cleanup_cause: CleanupCause | None = None
+
+    def trigger(self, cause: WorkerExchangeCause) -> None:
+        """Preserve the first exchange failure cause."""
+        self.first_cause = cause if self.first_cause is None else self.first_cause
+
+    def triggered(self) -> bool:
+        """Return whether the exchange has a terminal cause."""
+        return self.first_cause is not None
+
+
+class WorkerExchangeContext:
+    """Mutable loop context for one admitted worker exchange."""
+
+    __slots__ = (
+        "darwin_vms_baseline",
+        "monotonic",
+        "next_sample",
+        "process",
+        "profile",
+        "protocol",
+        "request_frame",
+        "request_permitted",
+        "selector",
+        "state",
+        "telemetry",
+        "wall_deadline",
+    )
+
+    def __init__(
+        self,
+        process: subprocess.Popen[bytes],
+        selector: selectors.BaseSelector,
+        state: WorkerExchangeState,
+        config: _WorkerExchangeConfig,
+        monotonic: _Monotonic,
+    ) -> None:
+        """Bind the exact mutable loop carriers for one exchange."""
+        self.process = process
+        self.request_frame = config.request_frame
+        self.telemetry = config.telemetry
+        self.profile = config.profile
+        self.protocol = config.protocol
+        self.selector = selector
+        self.state = state
+        self.wall_deadline = config.wall_deadline
+        self.darwin_vms_baseline = config.darwin_vms_baseline
+        sampled_at = (
+            monotonic() if config.resource_sampled_at is None else config.resource_sampled_at
+        )
+        self.next_sample = sampled_at + config.profile.sample_interval_ms / 1000
+        self.request_permitted = config.request_permitted
+        self.monotonic = monotonic
+
+
 _ObserveChild = Callable[[subprocess.Popen[bytes]], int | None]
 
 
@@ -196,28 +301,38 @@ class _LifecycleAcquisitionIncompleteError(RuntimeError):
         super().__init__("worker process acquisition did not complete")
 
 
-@dataclass(slots=True)
 class WorkerLifecycleOwner:
     """Pre-spawn bind-once resources owned by one serialized cleanup sequence."""
 
-    private_directory: Path
-    _process: subprocess.Popen[bytes] | None = None
-    _selector: selectors.BaseSelector | None = None
-    _process_acquisition_state: _ProcessAcquisitionState = "idle"
-    _process_acquisition_thread: int | None = None
-    _cleanup_state: str = "open"
-    _exchange_claimed: bool = False
-    _cleanup_lock: AbstractContextManager[object] = field(
-        default_factory=threading.RLock,
-        repr=False,
+    __slots__ = (
+        "_cleanup_complete",
+        "_cleanup_lock",
+        "_cleanup_state",
+        "_cleanup_thread",
+        "_control_error",
+        "_exchange_claimed",
+        "_process",
+        "_process_acquisition_complete",
+        "_process_acquisition_state",
+        "_process_acquisition_thread",
+        "_selector",
+        "private_directory",
     )
-    _cleanup_complete: threading.Event = field(default_factory=threading.Event, repr=False)
-    _process_acquisition_complete: threading.Event = field(
-        default_factory=threading.Event,
-        repr=False,
-    )
-    _cleanup_thread: int | None = None
-    _control_error: BaseException | None = None
+
+    def __init__(self, private_directory: Path) -> None:
+        """Allocate one independent lifecycle owner before worker spawn."""
+        self.private_directory = private_directory
+        self._process: subprocess.Popen[bytes] | None = None
+        self._selector: selectors.BaseSelector | None = None
+        self._process_acquisition_state: _ProcessAcquisitionState = "idle"
+        self._process_acquisition_thread: int | None = None
+        self._cleanup_state: str = "open"
+        self._exchange_claimed = False
+        self._cleanup_lock = threading.RLock()
+        self._cleanup_complete = threading.Event()
+        self._process_acquisition_complete = threading.Event()
+        self._cleanup_thread: int | None = None
+        self._control_error: BaseException | None = None
 
     @property
     def process(self) -> subprocess.Popen[bytes] | None:

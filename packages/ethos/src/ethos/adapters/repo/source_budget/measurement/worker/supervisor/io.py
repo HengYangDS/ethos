@@ -8,10 +8,8 @@ import shutil
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
-from dataclasses import field
 from pathlib import Path
 from typing import TYPE_CHECKING
-from typing import Literal
 
 from ethos.adapters.repo.source_budget.measurement.worker.backend.core import (
     WorkerIsolationUnsupportedError,
@@ -24,6 +22,12 @@ from ethos.adapters.repo.source_budget.measurement.worker.supervisor.lifecycle.c
 )
 from ethos.adapters.repo.source_budget.measurement.worker.supervisor.lifecycle.core import (
     ProcessGroupProbe,
+)
+from ethos.adapters.repo.source_budget.measurement.worker.supervisor.lifecycle.core import (
+    WorkerExchangeContext,
+)
+from ethos.adapters.repo.source_budget.measurement.worker.supervisor.lifecycle.core import (
+    WorkerExchangeState,
 )
 from ethos.adapters.repo.source_budget.measurement.worker.supervisor.lifecycle.core import (
     WorkerLifecycleBoundary,
@@ -48,6 +52,9 @@ if TYPE_CHECKING:
     import subprocess
 
     from ethos.adapters.repo.source_budget.measurement.worker.backend.core import WorkerTelemetry
+    from ethos.adapters.repo.source_budget.measurement.worker.supervisor.lifecycle.core import (
+        WorkerExchangeCause,
+    )
     from ethos_core.contracts.source_budget.measurement.worker.protocol.core import (
         WorkerProtocolDescriptor,
     )
@@ -55,13 +62,6 @@ if TYPE_CHECKING:
         WorkerResourceProfileDescriptor,
     )
 
-_Cause = Literal[
-    "timeout",
-    "resource_exhausted",
-    "output_exceeded",
-    "pipe_failed",
-    "capability_failed",
-]
 _SelectFactory = Callable[[], selectors.BaseSelector]
 _Monotonic = Callable[[], float]
 _GroupSignal = Callable[[int, int], None]
@@ -85,7 +85,7 @@ class WorkerExchangeConfig:
     darwin_vms_baseline: int | None = None
     resource_sampled_at: float | None = None
     request_permitted: bool = True
-    initial_cause: _Cause | None = None
+    initial_cause: WorkerExchangeCause | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -107,33 +107,16 @@ class WorkerExchangeResult:
     stdout: bytes
     stdout_eof: bool
     returncode: int | None
-    first_cause: _Cause | None
+    first_cause: WorkerExchangeCause | None
     cleanup_failed: bool
     cleanup_cause: CleanupCause | None = None
-
-
-@dataclass(slots=True)
-class _ExchangeState:
-    stdout: bytearray = field(default_factory=bytearray)
-    request_offset: int = 0
-    stdout_eof: bool = False
-    returncode: int | None = None
-    first_cause: _Cause | None = None
-    cleanup_failed: bool = False
-    cleanup_cause: CleanupCause | None = None
-
-    def trigger(self, cause: _Cause) -> None:
-        self.first_cause = cause if self.first_cause is None else self.first_cause
-
-    def triggered(self) -> bool:
-        return self.first_cause is not None
 
 
 @dataclass(frozen=True, slots=True)
 class WorkerExchangeSession:
     """Pre-spawn exchange state and its single idempotent lifecycle owner."""
 
-    state: _ExchangeState
+    state: WorkerExchangeState
     lifecycle: WorkerLifecycleContext
 
     def bind_process(self, process: subprocess.Popen[bytes]) -> None:
@@ -143,22 +126,6 @@ class WorkerExchangeSession:
     def finish(self, active_error: BaseException | None = None) -> None:
         """Attempt lifecycle cleanup once."""
         finish_worker_process(self.lifecycle, active_error)
-
-
-@dataclass(slots=True)
-class _ExchangeContext:
-    process: subprocess.Popen[bytes]
-    request_frame: bytes
-    telemetry: WorkerTelemetry | None
-    profile: WorkerResourceProfileDescriptor
-    protocol: WorkerProtocolDescriptor
-    selector: selectors.BaseSelector
-    state: _ExchangeState
-    wall_deadline: float
-    darwin_vms_baseline: int | None
-    next_sample: float
-    request_permitted: bool
-    monotonic: _Monotonic
 
 
 def exchange_worker_process(
@@ -191,7 +158,7 @@ def prepare_worker_exchange(
     hooks: WorkerExchangeHooks,
 ) -> WorkerExchangeSession:
     """Allocate every cleanup-critical carrier before worker spawn."""
-    state = _ExchangeState()
+    state = WorkerExchangeState()
     owner = WorkerLifecycleOwner(private_directory=private_directory)
     boundary = WorkerLifecycleBoundary(owner, state)
     lifecycle = WorkerLifecycleContext(
@@ -212,7 +179,7 @@ def prepare_worker_exchange(
 def _run_exchange(
     config: WorkerExchangeConfig,
     hooks: WorkerExchangeHooks,
-    state: _ExchangeState,
+    state: WorkerExchangeState,
     session: WorkerExchangeSession,
     process: subprocess.Popen[bytes],
 ) -> None:
@@ -223,21 +190,11 @@ def _run_exchange(
             state.trigger("timeout")
             return
         selector = acquire_worker_selector(session.lifecycle, hooks.selector_factory)
-        sampled_at = (
-            hooks.monotonic() if config.resource_sampled_at is None else config.resource_sampled_at
-        )
-        context = _ExchangeContext(
+        context = WorkerExchangeContext(
             process,
-            config.request_frame,
-            config.telemetry,
-            config.profile,
-            config.protocol,
             selector,
             state,
-            config.wall_deadline,
-            config.darwin_vms_baseline,
-            sampled_at + config.profile.sample_interval_ms / 1000,
-            config.request_permitted,
+            config,
             hooks.monotonic,
         )
         _prepare_pipes(context)
@@ -252,16 +209,16 @@ def _run_exchange(
 
 
 def _trigger_parent_failure(
-    state: _ExchangeState,
+    state: WorkerExchangeState,
     hooks: WorkerExchangeHooks,
     wall_deadline: float,
-    cause: _Cause,
+    cause: WorkerExchangeCause,
 ) -> None:
     expired = not state.triggered() and hooks.monotonic() >= wall_deadline
     state.trigger("timeout" if expired else cause)
 
 
-def _prepare_pipes(context: _ExchangeContext) -> None:
+def _prepare_pipes(context: WorkerExchangeContext) -> None:
     process = context.process
     if _expire_exchange(context):
         return
@@ -292,7 +249,7 @@ def _prepare_pipes(context: _ExchangeContext) -> None:
             context.state.trigger("pipe_failed")
 
 
-def _drive_exchange(context: _ExchangeContext) -> None:
+def _drive_exchange(context: WorkerExchangeContext) -> None:
     state = context.state
     interval = context.profile.sample_interval_ms / 1000
     telemetry_active = context.request_permitted
@@ -318,7 +275,7 @@ def _drive_exchange(context: _ExchangeContext) -> None:
         _handle_events(context, _select_events(context, wait_deadline), allow_write=True)
 
 
-def _exchange_complete(context: _ExchangeContext) -> bool:
+def _exchange_complete(context: WorkerExchangeContext) -> bool:
     state = context.state
     if (returncode := _observe_direct_child(context.process)) is not None:
         state.returncode = returncode
@@ -332,7 +289,7 @@ def _exchange_complete(context: _ExchangeContext) -> bool:
 
 
 def _sample_if_due(
-    context: _ExchangeContext,
+    context: WorkerExchangeContext,
     *,
     telemetry_active: bool,
     now: float,
@@ -355,7 +312,7 @@ def _sample_if_due(
     return telemetry_active
 
 
-def _expire_exchange(context: _ExchangeContext) -> bool:
+def _expire_exchange(context: WorkerExchangeContext) -> bool:
     if context.monotonic() < context.wall_deadline:
         return False
     context.state.trigger("timeout")
@@ -363,7 +320,7 @@ def _expire_exchange(context: _ExchangeContext) -> bool:
 
 
 def _select_events(
-    context: _ExchangeContext,
+    context: WorkerExchangeContext,
     wait_deadline: float | None,
 ) -> list[tuple[selectors.SelectorKey, int]]:
     while not context.state.triggered():
@@ -384,7 +341,7 @@ def _select_events(
     return []
 
 
-def _sample_resources(context: _ExchangeContext) -> None:
+def _sample_resources(context: WorkerExchangeContext) -> None:
     telemetry = context.telemetry
     if telemetry is None:
         raise WorkerIsolationUnsupportedError(_TELEMETRY_ERROR)
@@ -404,7 +361,7 @@ def _sample_resources(context: _ExchangeContext) -> None:
 
 
 def _reconcile_terminal_after_telemetry_loss(
-    context: _ExchangeContext,
+    context: WorkerExchangeContext,
     race_deadline: float,
 ) -> bool:
     while True:
@@ -426,7 +383,7 @@ def _reconcile_terminal_after_telemetry_loss(
 
 
 def _handle_events(
-    context: _ExchangeContext,
+    context: WorkerExchangeContext,
     events: list[tuple[selectors.SelectorKey, int]],
     *,
     allow_write: bool,
@@ -440,7 +397,7 @@ def _handle_events(
             break
 
 
-def _write_request(context: _ExchangeContext) -> None:
+def _write_request(context: WorkerExchangeContext) -> None:
     process = context.process
     state = context.state
     if process.stdin is None:
@@ -465,7 +422,7 @@ def _write_request(context: _ExchangeContext) -> None:
 
 
 def _write_nonblocking(
-    context: _ExchangeContext,
+    context: WorkerExchangeContext,
     descriptor: int,
     payload: bytes,
 ) -> int | None:
@@ -482,7 +439,7 @@ def _write_nonblocking(
     return None
 
 
-def _read_stdout(context: _ExchangeContext) -> None:
+def _read_stdout(context: WorkerExchangeContext) -> None:
     process = context.process
     state = context.state
     if process.stdout is None:
@@ -516,7 +473,7 @@ def _read_stdout(context: _ExchangeContext) -> None:
 
 
 def _read_nonblocking(
-    context: _ExchangeContext,
+    context: WorkerExchangeContext,
     descriptor: int,
     maximum: int,
 ) -> bytes | None:
@@ -555,7 +512,7 @@ def _observe_direct_child(process: subprocess.Popen[bytes]) -> int | None:
     raise WorkerIsolationUnsupportedError(_EXIT_OBSERVATION_ERROR)
 
 
-def _freeze_exchange(state: _ExchangeState) -> WorkerExchangeResult:
+def _freeze_exchange(state: WorkerExchangeState) -> WorkerExchangeResult:
     try:
         return _frozen_exchange(state, bytes(state.stdout))
     except MemoryError:
@@ -564,7 +521,7 @@ def _freeze_exchange(state: _ExchangeState) -> WorkerExchangeResult:
         return _frozen_exchange(state, b"")
 
 
-def _frozen_exchange(state: _ExchangeState, stdout: bytes) -> WorkerExchangeResult:
+def _frozen_exchange(state: WorkerExchangeState, stdout: bytes) -> WorkerExchangeResult:
     return WorkerExchangeResult(
         stdout=stdout,
         stdout_eof=state.stdout_eof,

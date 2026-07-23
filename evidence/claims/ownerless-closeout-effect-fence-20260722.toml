@@ -1,0 +1,79 @@
+[claim]
+id = "ownerless-closeout-effect-fence-20260722"
+subject = "ethos:worktree-retirement:ownerless-effect-fence"
+state = "active"
+change_id = "ownerless-closeout-effect-fence"
+summary = "A current-base successor defines effect-side fencing, exact WCP response binding, accepted-ref CAS, no-force removal, postcondition verification, and recoverable receipts for clean ownerless Work Lane retirement."
+
+[evidence]
+dated = "evidence/chronicle/ownerless-closeout-effect-fence-20260722/2026-07-22.md"
+sha256 = "2ded05ecf9dffc0ec9324ca5ceca699891db96f96e5c4a4bdf21a8dc6e8026c6"
+evidence_ids = ["evidence:ownerless-closeout-effect-fence-20260722"]
+binding = "This active Claim binds the authored implementation and local staged-snapshot verification only. It does not claim exact-HEAD proof, archive, land, accepted closeout, external publication, or a predecessor-lane outcome before those transitions produce their own current receipts."
+verifier = "digest_only"
+tests = [
+  "tools/ci/scripts/run-python-tests.sh",
+  "tools/ci/scripts/run-python-lint.sh",
+  "tools/ci/scripts/run-ethos-lane.sh quality types --json",
+  "tools/ci/scripts/run-ethos-lane.sh quality schemas --json",
+  "tools/ci/scripts/run-ethos-lane.sh quality module-layout --json",
+  "tools/ci/scripts/run-ethos-lane.sh quality code-size --json",
+  "tools/ci/scripts/run-ethos-lane.sh quality no-compat --json",
+  "openspec validate ownerless-closeout-effect-fence --strict --json",
+  "tools/ci/scripts/run-ethos-lane.sh openspec --change ownerless-closeout-effect-fence --lifecycle --json",
+  "tools/ci/scripts/run-ethos-lane.sh quality claims --json",
+  "tools/ci/scripts/run-ethos-lane.sh prove --execute --expect-head <committed-head> --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "Clean linked ownerless Work Lane effect fencing and completion evidence; no dirty preserve-retire, foreign takeover, real target deletion, remote mutation, GitLab dependency, distributed lock, or filesystem-lock claim."
+
+[carriers]
+openspec = "openspec/changes/ownerless-closeout-effect-fence"
+fallback = "Keep the exact lane, ref, worktree, and any partial fence/reservation intact whenever WCP, lease/Claim, accepted-head, decision, path, CAS, postcondition, or receipt binding cannot be proved."
+kill_signal = "ETHOS trusts a partial WCP response, permits a late lease or competing decision, force-removes the ownerless worktree, deletes a ref without accepted-head CAS, hides a partial transition, or writes an unbound completion receipt."
+
+[promotion]
+targets = [
+  { kind = "evidence", path = "evidence/claims/ownerless-closeout-effect-fence-20260722.toml" },
+  { kind = "evidence", path = "evidence/chronicle/ownerless-closeout-effect-fence-20260722/2026-07-22.md" },
+  { kind = "openspec", path = "openspec/changes/ownerless-closeout-effect-fence" },
+  { kind = "openspec", path = "openspec/specs/repository-governance/spec.md" },
+  { kind = "docs", path = "docs/reference/command-plane.md" },
+  { kind = "source", path = "packages/ethos-core/src/ethos_core/contracts/resolution/lane.py" },
+  { kind = "source", path = "packages/ethos/src/ethos/adapters/mutation/resolution/closeout" },
+  { kind = "source", path = "packages/ethos/src/ethos/adapters/mutation/resolution/records" },
+  { kind = "source", path = "packages/ethos/src/ethos/adapters/mutation/resolution/_effects.py" },
+  { kind = "source", path = "packages/ethos/src/ethos/adapters/mutation/resolution/lane.py" },
+  { kind = "source", path = "packages/ethos/src/ethos/adapters/mutation/resolution/receipts.py" },
+  { kind = "source", path = "packages/ethos/src/ethos/adapters/store/state/closeout.py" },
+  { kind = "source", path = "packages/ethos/src/ethos/adapters/store/state/lease/lifecycle/core.py" },
+  { kind = "source", path = "packages/ethos/src/ethos/adapters/store/state/schema.py" },
+  { kind = "source", path = "system/invalid_states.toml" },
+  { kind = "schema", path = "system/schemas/kernel/lane-resolution-receipt.schema.json" },
+  { kind = "test", path = "tests/unit/cli/test_contracts_lane_resolution.py" },
+  { kind = "test", path = "tests/unit/kernel/test_invalid_states.py" },
+  { kind = "test", path = "tests/unit/lanes/retirement/test_ownerless_cleanup_recovery.py" },
+  { kind = "test", path = "tests/unit/lanes/retirement/test_ownerless_closeout_admission.py" },
+  { kind = "test", path = "tests/unit/lanes/retirement/test_ownerless_closeout_effect.py" },
+  { kind = "test", path = "tests/unit/lanes/retirement/test_ownerless_closeout_fence.py" },
+  { kind = "test", path = "tests/unit/lanes/retirement/test_ownerless_closeout_records.py" },
+  { kind = "test", path = "tests/unit/lanes/retirement/test_ownerless_closeout_recovery.py" },
+  { kind = "test", path = "tests/unit/lanes/retirement/test_ownerless_closeout_wcp_edges.py" },
+  { kind = "test", path = "tests/unit/lanes/retirement/test_ownerless_closeout_receipt_edges.py" },
+  { kind = "test", path = "tests/unit/coverage/test_lane_resolution_record_edges.py" },
+  { kind = "test", path = "tests/unit/lanes/retirement/test_ownerless_closeout_effect_final_edges.py" },
+  { kind = "test", path = "tests/unit/lanes/retirement/test_ownerless_closeout_cas_final_edges.py" },
+  { kind = "test", path = "tests/unit/coverage/test_ownerless_recovery_final_edges.py" },
+  { kind = "test", path = "tests/unit/coverage/test_ownerless_cleanup_final_edges.py" },
+  { kind = "test", path = "tests/unit/kernel/test_ownerless_receipt_canonical_final_edges.py" },
+  { kind = "test", path = "tests/unit/kernel/test_ownerless_state_final_edges.py" },
+  { kind = "test", path = "tests/unit/lanes/test_armed_hook_closeout_e2e.py" },
+  { kind = "test", path = "tests/unit/lanes/test_lane_resolution.py" },
+  { kind = "test", path = "tests/unit/lanes/test_lane_resolution_artifacts.py" },
+  { kind = "test", path = "tests/unit/lanes/test_state.py" },
+]

@@ -202,6 +202,51 @@ def test_acquire_lease_leaves_current_lease_schema_unchanged(tmp_path: Path) -> 
     assert second["subject"] == "work/next"
 
 
+@pytest.mark.parametrize(
+    ("payload_json", "expected_error"),
+    [
+        ("{not-json", "JSONDecodeError"),
+        ("[]", "TypeError"),
+        ("1" * 5000, "ValueError"),
+    ],
+)
+def test_state_inventory_reports_corrupt_closeout_payload_as_invalid(
+    tmp_path: Path,
+    payload_json: str,
+    expected_error: str,
+) -> None:
+    db_path = tmp_path / "state.sqlite"
+    with closing(sqlite3.connect(db_path)) as connection:
+        connection.execute("begin immediate")
+        state_schema.initialize_state_connection(connection)
+        state_schema.initialize_closeout_fence_connection(connection)
+        connection.execute(
+            """insert into closeout_fences(subject, expected_head, decision_id,
+            executor_ref, accepted_branch, accepted_head, target_binding_digest, payload_json)
+            values (?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                "work/corrupt",
+                "a" * 40,
+                "lane-decision:00000000-0000-4000-8000-000000000001",
+                "agent:test:case:executor",
+                "dev",
+                "b" * 40,
+                "c" * 64,
+                payload_json,
+            ),
+        )
+        connection.commit()
+
+    inventory = state_schema.state_database_inventory(db_path)
+
+    assert inventory["exists"] is True
+    assert inventory["lease_schema"] == "current"
+    assert inventory["closeout_fence_schema"] == "invalid"
+    assert inventory["closeout_fence_count"] == 0
+    assert inventory["closeout_fences"] == []
+    assert inventory["error"] == expected_error
+
+
 def test_acquire_lease_sets_wal_before_transaction(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

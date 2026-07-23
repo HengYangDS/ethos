@@ -9,9 +9,11 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-import ethos.adapters.repo.source_budget.measurement.native.core as native_core
 from ethos.adapters.repo.source_budget.carriers import load_metric_contracts
-from ethos.adapters.repo.source_budget.measurement.native._structured import measure_structured
+from ethos.adapters.repo.source_budget.measurement.native.isolated.structured import (
+    measure_structured,
+)
+from tests.support.source_budget_measurement import measure_provider
 
 if TYPE_CHECKING:
     from typing import Any
@@ -52,7 +54,7 @@ def _contracts(profile: str) -> tuple[MetricContract, ...]:
 
 def _measure(case_id: str):
     case = _cases()[case_id]
-    return native_core.measure_native(_content(case_id), _contracts(str(case["profile"])))
+    return measure_provider(_content(case_id), _contracts(str(case["profile"])))
 
 
 def _success(case_id: str):

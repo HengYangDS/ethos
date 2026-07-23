@@ -106,16 +106,59 @@ design constant or a reason to weaken the reviewed boundary.
    10 ms observation, Linux address-space cap 512 MiB, NOFILE 32, NPROC 1,
    CORE 0, regular-file FSIZE 0, request/header/output limits above, no stderr,
    private mode-0700 HOME/TMP/cwd, `sys.executable -I -B -X utf8`, closed file
-   descriptors, and a new session. Violation causes process-group TERM, a
-   100 ms grace, KILL, pipe close, and bounded wait/reap.
+   descriptors, and a new session. After applying and reading back limits, the
+   child self-stops before stdin; the parent observes exact readiness with
+   non-consuming `waitid(..., WNOWAIT)`, establishes telemetry, continues the
+   child, and only then registers/writes stdin. One absolute monotonic wall
+   deadline is created before `Popen`; readiness and exchange consume it without
+   reset or refund. Every child-state observation before ordered cleanup remains
+   non-consuming, and only the final bounded direct-child wait owns reap. After
+   private-directory creation and before the deadline or `Popen`, the parent
+   allocates the exchange state, one lifecycle owner, its reentrant lock,
+   completion signal and exception boundary, the immutable cleanup context, and
+   the exchange session. `Popen` and selector creation are admitted trusted
+   primitives: once a returned object is addressable in caller-owned Python state,
+   the same lifecycle must either publish it to the owner or clean/close it before
+   any later dependent allocation. This contract does not claim bytecode-level
+   atomicity before a primitive return has become addressable. The session claims
+   its one exchange before invoking the selector factory. No cleanup-critical
+   carrier is allocated while unwinding. One outer `finally` keeps the owner
+   active across every normal, failure, and exceptional exit.
+   Cleanup freezes the first cause, always attempts group TERM, preserves one
+   fixed 100 ms grace, uses bounded KILL delivery and proof attempts when liveness
+   remains or is indeterminate, closes parent carriers, performs the sole bounded
+   direct-child reap, and rechecks liveness when the pre-reap proof was unavailable.
+   The private directory is removed only after no live group member is proved; an
+   indeterminate or live group retains the directory and reports cleanup failure.
+   These cleanup facts are additive and never replace an earlier semantic cause;
+   normal leader exit is not success while a descendant remains live.
+   The public raw exchange/result seam remains in `supervisor/io.py`; the
+   cohesive TERM/grace/KILL/no-live-proof/close/reap/remove state machine lives in
+   `supervisor/lifecycle/core.py`; platform backends own only their exact group probe and
+   signal capabilities. Cross-module exchange inputs use frozen, slots-based
+   `WorkerExchangeConfig`, `WorkerExchangeHooks`, and `WorkerExchangeSession`.
+   Config does not duplicate the owned process or private directory; the session
+   owner is their sole source of truth. Lifecycle cleanup uses one pre-spawn
+   slots-based `WorkerLifecycleOwner` whose process and selector references are
+   bind-only. Its preallocated reentrant lock elects one cleanup runner without
+   spanning backend or OS callbacks; same-thread re-entry is a no-op, while a
+   concurrent finisher waits on the preallocated completion signal and fails
+   closed rather than returning a success-bearing result before cleanup completes.
+   A preallocated boundary records every ordinary failure, preserves the first
+   control `BaseException`, attempts every remaining applicable phase, marks the
+   owner done, and only then re-raises that control exception when no earlier body
+   exception has propagation priority. These types are concrete module contracts,
+   not package exports or a generic process framework.
 
 10. **Platform claims remain truthful.** Linux uses kernel CPU/address-space/
     descriptor/process limits plus `/proc` telemetry. Darwin has no independent
     kernel-hard absolute AS/RSS limit (`RLIMIT_AS` aliases `RLIMIT_RSS`), so it
     uses kernel CPU/FD/process/core/file limits plus `libproc` RSS observation.
-    Before the parent writes any request bytes, the first successful pre-request
-    `PROC_PIDTASKINFO.pti_virtual_size` sample becomes an immutable baseline;
-    every 10 ms sample above baseline plus 536,870,912 bytes trips the resource
+    While the resource-ready child is stopped and before the parent registers or
+    writes stdin, the first successful pre-request
+    `PROC_PIDTASKINFO.pti_virtual_size` sample becomes an immutable baseline; the
+    parent then continues the child and every later 10 ms sample above baseline
+    plus 536,870,912 bytes trips the resource
     boundary. Missing baseline/telemetry reports
     `source_budget_worker_isolation_unsupported`. This watchdog is not described
     as seccomp/container or a kernel-hard absolute memory sandbox.
@@ -187,6 +230,9 @@ design constant or a reason to weaken the reviewed boundary.
   harming the parent or producing a partial measurement.
 - Current and immutable-baseline inventories show no new oversize gap and retain
   the known YAML graph-safety gap.
+- The exact final commit has a live Linux CPython 3.14 capability receipt in
+  addition to the local Darwin review; a receipt for another tree or commit does
+  not close platform acceptance.
 - v1 policy/debt/terminal targets and per-file ELOC remain unchanged and
   authoritative; v2 remains inactive.
 - Before implementation/proof is claimed, Claim promotion targets include the

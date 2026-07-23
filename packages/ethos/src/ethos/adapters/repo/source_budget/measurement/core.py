@@ -8,11 +8,12 @@ import os
 import stat
 from contextlib import suppress
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from pydantic import ValidationError
 
-from ethos.adapters.repo.source_budget.measurement.native.core import measure_native
-from ethos_core.contracts.source_budget.carriers import CarrierIdentity
+from ethos.adapters.repo.source_budget.measurement.native.identity import resolve_native_provider
+from ethos.adapters.repo.source_budget.measurement.router import measure_native
 from ethos_core.contracts.source_budget.carriers import CarrierInventory
 from ethos_core.contracts.source_budget.carriers import CarrierMatch
 from ethos_core.contracts.source_budget.measurements import CarrierMeasurement
@@ -23,9 +24,11 @@ from ethos_core.contracts.source_budget.measurements import NativeMeasurementLoa
 from ethos_core.contracts.source_budget.metrics import MetricContractSet
 from ethos_core.contracts.source_budget.metrics import resolve_metric_contracts
 
+if TYPE_CHECKING:
+    from ethos.adapters.repo.source_budget.measurement.native.identity import ResolvedNativeProvider
+
 _DIRECTORY_FLAGS = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
 _FINAL_FLAGS = os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK
-_READ_CHUNK_SIZE = 64 * 1024
 _RESOURCE_EXHAUSTED_ERRNOS = frozenset({errno.EMFILE, errno.ENFILE, errno.ENOMEM})
 
 type _EntryIdentity = tuple[int, int, int]
@@ -47,6 +50,15 @@ class _ObjectChangedError(Exception):
 
 class _ResourceExhaustedError(Exception):
     pass
+
+
+class _CarrierBytesExceededError(Exception):
+    pass
+
+
+def _require_carrier_byte_limit(size: int, limit: int) -> None:
+    if size > limit:
+        raise _CarrierBytesExceededError
 
 
 def _object_read_error(exc: OSError) -> Exception:
@@ -101,24 +113,32 @@ def _measure_admitted_carrier(
     identity = match.identity
     if match.state != "classified" or identity is None:
         return _carrier_failure(f"source_budget_measurement_carrier_not_classified:{relative}")
-    content, gap = _read_carrier(root, relative)
+    try:
+        resolved_contracts = resolve_metric_contracts(identity, contracts)
+        provider = resolve_native_provider(resolved_contracts, contracts)
+    except (AttributeError, KeyError, TypeError, ValueError, ValidationError):
+        return _carrier_failure(f"source_budget_measurement_contract_invalid:{relative}")
+    content, gap = _read_carrier(
+        root,
+        relative,
+        provider.execution_descriptor.max_carrier_bytes,
+    )
     if gap is not None:
         return _carrier_failure(gap)
     if content is None:
         return _carrier_failure(f"source_budget_measurement_contract_invalid:{relative}")
-    return _measure_carrier_content(content, relative, match, identity, contracts)
+    return _measure_carrier_content(content, relative, match, provider, contracts)
 
 
 def _measure_carrier_content(
     content: bytes,
     relative: str,
     match: CarrierMatch,
-    identity: CarrierIdentity,
+    provider: ResolvedNativeProvider,
     contracts: MetricContractSet,
 ) -> CarrierMeasurementLoad:
     try:
-        resolved = resolve_metric_contracts(identity, contracts)
-        native = measure_native(content, resolved)
+        native = measure_native(content, provider, contracts)
         return _load_native_measurement(content, relative, match, contracts, native)
     except (AttributeError, KeyError, TypeError, ValueError, ValidationError):
         return _carrier_failure(f"source_budget_measurement_contract_invalid:{relative}")
@@ -274,9 +294,15 @@ def _canonical_contracts(contracts: MetricContractSet) -> MetricContractSet | No
         return None
 
 
-def _read_carrier(root: Path, relative: str) -> tuple[bytes | None, str | None]:
+def _read_carrier(
+    root: Path,
+    relative: str,
+    max_carrier_bytes: int,
+) -> tuple[bytes | None, str | None]:
     try:
-        return _read_stable_bytes(root, relative), None
+        return _read_stable_bytes(root, relative, max_carrier_bytes), None
+    except _CarrierBytesExceededError:
+        return None, f"source_budget_measurement_carrier_bytes_exceeded:{relative}"
     except _ObjectUnsupportedError:
         return None, f"source_budget_measurement_object_unsupported:{relative}"
     except _ObjectChangedError:
@@ -287,7 +313,7 @@ def _read_carrier(root: Path, relative: str) -> tuple[bytes | None, str | None]:
         return None, f"source_budget_measurement_object_unreadable:{relative}"
 
 
-def _read_stable_bytes(root: Path, relative: str) -> bytes:
+def _read_stable_bytes(root: Path, relative: str, max_carrier_bytes: int) -> bytes:
     descriptors: list[int] = []
     entries: list[_OpenedEntry] = []
     content: bytes | None = None
@@ -311,13 +337,15 @@ def _read_stable_bytes(root: Path, relative: str) -> bytes:
         _register_descriptor(descriptors, final_fd)
         before = os.fstat(final_fd)
         _require_regular_file(before)
+        _require_carrier_byte_limit(before.st_size, max_carrier_bytes)
         entries.append((parent_fd, final_name, _entry_identity(before)))
-        content = _read_exact(final_fd, before.st_size)
+        content = _read_exact(final_fd, before.st_size, max_carrier_bytes)
         after = os.fstat(final_fd)
         _require_stable_fingerprint(before, after)
         _reverify_entries(entries)
     except (
         _ObjectChangedError,
+        _CarrierBytesExceededError,
         _ResourceExhaustedError,
         _ObjectUnreadableError,
         _ObjectUnsupportedError,
@@ -367,16 +395,10 @@ def _entry_is_unsupported(parent_fd: int, name: str, *, directory: bool) -> bool
     return not (stat.S_ISDIR(observed.st_mode) if directory else stat.S_ISREG(observed.st_mode))
 
 
-def _read_exact(fd: int, expected_size: int) -> bytes:
-    chunks: list[bytes] = []
-    remaining = expected_size + 1
-    while remaining:
-        chunk = os.read(fd, min(_READ_CHUNK_SIZE, remaining))
-        if not chunk:
-            break
-        chunks.append(chunk)
-        remaining -= len(chunk)
-    content = b"".join(chunks)
+def _read_exact(fd: int, expected_size: int, max_carrier_bytes: int) -> bytes:
+    content = os.read(fd, min(expected_size + 1, max_carrier_bytes + 1))
+    if len(content) > max_carrier_bytes:
+        raise _CarrierBytesExceededError
     if len(content) != expected_size:
         raise _ObjectChangedError
     return content

@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import hashlib
+import importlib
 import json
 from typing import Annotated
+from typing import Any
 from typing import Literal
 
 from pydantic import BaseModel
@@ -28,6 +30,13 @@ ExecutionMode = Literal["bounded_in_process_v1", "isolated_worker_v1"]
 PositiveInt = Annotated[int, Field(strict=True, gt=0)]
 Sha256 = Annotated[str, Field(pattern=r"^[a-f0-9]{64}$")]
 
+_CANONICAL_DESCRIPTOR_ERROR = "source-budget execution descriptor must be canonical"
+_EXECUTION_MODE_ERROR = "source-budget execution mode is not admitted"
+_PARSER_EXECUTION_ERROR = "source-budget parser execution is not admitted"
+_RESOURCE_PROFILE_MISMATCH_ERROR = "source-budget execution descriptor resource profile mismatch"
+_WORKER_PROTOCOL_MISMATCH_ERROR = "source-budget execution descriptor worker protocol mismatch"
+_WORKER_PROTOCOL_MODULE = "ethos_core.contracts.source_budget.measurement.worker.protocol.core"
+
 _PARSER_EXECUTION: dict[str, tuple[ExecutionMode, int]] = {
     "utf8-footprint": ("bounded_in_process_v1", 262144),
     "utf8-control": ("bounded_in_process_v1", 32768),
@@ -44,8 +53,7 @@ _PARSER_EXECUTION: dict[str, tuple[ExecutionMode, int]] = {
 
 def _worker_protocol_reference() -> tuple[str, str]:
     """Resolve the protocol identity lazily to keep schema imports acyclic."""
-    import ethos_core.contracts.source_budget.measurement.worker.protocol.core as protocol
-
+    protocol: Any = importlib.import_module(_WORKER_PROTOCOL_MODULE)
     descriptor = protocol.worker_protocol_descriptor()
     return protocol.WORKER_PROTOCOL_ID, protocol.worker_protocol_descriptor_digest(descriptor)
 
@@ -102,7 +110,7 @@ class IsolatedExecutionDescriptor(BaseModel):
         expected_protocol = _worker_protocol_reference()
         actual_protocol = self.worker_protocol.id, self.worker_protocol.digest
         if actual_protocol != expected_protocol:
-            raise ValueError("source-budget execution descriptor worker protocol mismatch")
+            raise ValueError(_WORKER_PROTOCOL_MISMATCH_ERROR)
         resource = worker_resource_profile_descriptor()
         expected_resource = (
             WORKER_RESOURCE_PROFILE_ID,
@@ -110,7 +118,7 @@ class IsolatedExecutionDescriptor(BaseModel):
         )
         actual_resource = self.resource_profile.id, self.resource_profile.digest
         if actual_resource != expected_resource:
-            raise ValueError("source-budget execution descriptor resource profile mismatch")
+            raise ValueError(_RESOURCE_PROFILE_MISMATCH_ERROR)
         return self
 
 
@@ -144,7 +152,7 @@ def execution_descriptor(mode: ExecutionMode, ceiling: int) -> ExecutionDescript
                 digest=worker_resource_profile_descriptor_digest(resource),
             ),
         )
-    raise ValueError("source-budget execution mode is not admitted")
+    raise ValueError(_EXECUTION_MODE_ERROR)
 
 
 def execution_descriptor_digest(descriptor: ExecutionDescriptor) -> str:
@@ -155,10 +163,10 @@ def execution_descriptor_digest(descriptor: ExecutionDescriptor) -> str:
     elif type(descriptor) is IsolatedExecutionDescriptor:
         descriptor_type = IsolatedExecutionDescriptor
     else:
-        raise ValueError("source-budget execution descriptor must be canonical")
+        raise ValueError(_CANONICAL_DESCRIPTOR_ERROR)
     expected_fields = set(descriptor_type.model_fields)
     if set(vars(descriptor)) != expected_fields or descriptor.model_fields_set != expected_fields:
-        raise ValueError("source-budget execution descriptor must be canonical")
+        raise ValueError(_CANONICAL_DESCRIPTOR_ERROR)
     if type(descriptor) is IsolatedExecutionDescriptor:
         reference_fields = set(DescriptorReference.model_fields)
         references = descriptor.worker_protocol, descriptor.resource_profile
@@ -168,7 +176,7 @@ def execution_descriptor_digest(descriptor: ExecutionDescriptor) -> str:
             or reference.model_fields_set != reference_fields
             for reference in references
         ):
-            raise ValueError("source-budget execution descriptor must be canonical")
+            raise ValueError(_CANONICAL_DESCRIPTOR_ERROR)
     canonical = descriptor_type.model_validate(descriptor.model_dump(mode="python"))
     encoded = json.dumps(
         canonical.model_dump(mode="json"),
@@ -184,7 +192,7 @@ def parser_execution_contract(parser_id: str) -> ExecutionContract:
     try:
         mode, ceiling = _PARSER_EXECUTION[parser_id]
     except (KeyError, TypeError):
-        raise ValueError("source-budget parser execution is not admitted") from None
+        raise ValueError(_PARSER_EXECUTION_ERROR) from None
     descriptor = execution_descriptor(mode, ceiling)
     return (
         mode,

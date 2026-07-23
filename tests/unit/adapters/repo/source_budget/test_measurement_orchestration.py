@@ -7,21 +7,28 @@ import stat
 from functools import lru_cache
 from pathlib import Path
 from types import SimpleNamespace
+from typing import TYPE_CHECKING
 from typing import Any
 
 import pytest
 
 from ethos.adapters.repo.source_budget.carriers import load_carrier_manifest
 from ethos.adapters.repo.source_budget.carriers import load_metric_contracts
+from ethos.adapters.repo.source_budget.measurement.native.identity import ResolvedNativeProvider
 from ethos_core.contracts.source_budget.carriers import CarrierIdentity
 from ethos_core.contracts.source_budget.carriers import CarrierManifest
 from ethos_core.contracts.source_budget.carriers import classify_carriers
 from ethos_core.contracts.source_budget.measurements import CarrierMeasurementLoad
 from ethos_core.contracts.source_budget.measurements import NativeMeasurementLoad
 from ethos_core.contracts.source_budget.metrics import resolve_metric_contracts
+from tests.support.source_budget_measurement import measure_provider
 
 ROOT = Path(__file__).resolve().parents[5]
 MODULE = "ethos.adapters.repo.source_budget.measurement.core"
+
+if TYPE_CHECKING:
+    from ethos_core.contracts.source_budget.metrics import MetricContract
+    from ethos_core.contracts.source_budget.metrics import MetricContractSet
 
 
 class _LowLevelFaults:
@@ -111,6 +118,21 @@ def _module():
     return importlib.import_module(MODULE)
 
 
+def _direct_module(monkeypatch: pytest.MonkeyPatch):
+    module = _module()
+    monkeypatch.setattr(module, "measure_native", _measure_provider)
+    return module
+
+
+def _measure_provider(
+    content: bytes,
+    provider: tuple[MetricContract, ...] | ResolvedNativeProvider,
+    registry: MetricContractSet,
+) -> NativeMeasurementLoad:
+    contracts = provider.contracts if isinstance(provider, ResolvedNativeProvider) else provider
+    return measure_provider(content, contracts, registry)
+
+
 def test_jinja_measurement_carrier_is_owned_outside_adoption_rendering() -> None:
     load = load_carrier_manifest(ROOT)
     assert load.required_gaps == ()
@@ -131,11 +153,14 @@ def test_jinja_measurement_carrier_is_owned_outside_adoption_rendering() -> None
 
 def test_measurement_orchestrator_measures_one_regular_inventory(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     relative = "sample.py"
     (tmp_path / relative).write_text("value = 1\n", encoding="utf-8")
     inventory = _inventory((relative,), _identity("test-python", relative))
-    carrier = _module().measure_carrier(tmp_path, inventory.matches[0], _registry())
+    carrier = _direct_module(monkeypatch).measure_carrier(
+        tmp_path, inventory.matches[0], _registry()
+    )
     assert carrier.required_gaps == ()
     assert carrier.measurement is not None
     snapshot = _module().measure_snapshot(tmp_path, inventory, _registry())
@@ -251,7 +276,7 @@ def test_snapshot_construction_maps_memory_exhaustion_to_stable_gap(
     relative = "sample.py"
     (tmp_path / relative).write_text("value = 1\n", encoding="utf-8")
     inventory = _inventory((relative,), _identity("test-python", relative))
-    module = _module()
+    module = _direct_module(monkeypatch)
 
     def exhausted(*_args: object, **_kwargs: object) -> None:
         message = f"SENSITIVE-SNAPSHOT-CONSTRUCTION:{tmp_path}"
@@ -281,14 +306,19 @@ def test_descriptor_reader_opens_one_component_at_a_time(
     relative = "nested/sample.py"
     (tmp_path / "nested").mkdir()
     (tmp_path / relative).write_text("value = 1\n", encoding="utf-8")
-    module = _module()
+    module = _direct_module(monkeypatch)
     real_open = os.open
     real_close = os.close
     calls: list[tuple[object, int, int | None]] = []
     opened: list[int] = []
     closed: list[int] = []
 
-    def recorded(path: object, flags: int, *args: object, dir_fd: int | None = None) -> int:
+    def recorded(
+        path: str | bytes | os.PathLike[str] | os.PathLike[bytes],
+        flags: int,
+        *args: int,
+        dir_fd: int | None = None,
+    ) -> int:
         calls.append((path, flags, dir_fd))
         fd = real_open(path, flags, *args, dir_fd=dir_fd)
         opened.append(fd)
@@ -381,7 +411,10 @@ def test_descriptor_reader_rejects_failures_and_post_open_drift(
     assert str(tmp_path) not in load.required_gaps[0]
 
 
-def test_snapshot_orders_sums_and_binds_reviewed_exclusions(tmp_path: Path) -> None:
+def test_snapshot_orders_sums_and_binds_reviewed_exclusions(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     for relative in ("a.py", "b.py"):
         (tmp_path / relative).write_text(f"{relative[0]} = 1\n", encoding="utf-8")
     (tmp_path / "skip.bin").write_bytes(b"\xff")
@@ -397,8 +430,9 @@ def test_snapshot_orders_sums_and_binds_reviewed_exclusions(tmp_path: Path) -> N
     )
     forward = _inventory(("a.py", "b.py", "skip.bin"), *identities)
     reverse = _inventory(("skip.bin", "b.py", "a.py"), *identities)
-    first = _module().measure_snapshot(tmp_path, forward, _registry())
-    second = _module().measure_snapshot(tmp_path, reverse, _registry())
+    module = _direct_module(monkeypatch)
+    first = module.measure_snapshot(tmp_path, forward, _registry())
+    second = module.measure_snapshot(tmp_path, reverse, _registry())
     assert first.snapshot is not None
     assert second.snapshot == first.snapshot
     assert tuple(item.relative_path for item in first.snapshot.measurements) == (
@@ -413,13 +447,14 @@ def test_snapshot_orders_sums_and_binds_reviewed_exclusions(tmp_path: Path) -> N
 
 def test_snapshot_reports_all_path_bound_failures_without_partial_result(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     (tmp_path / "good.py").write_text("value = 1\n", encoding="utf-8")
     for relative in ("bad-a.py", "bad-b.py"):
         (tmp_path / relative).write_bytes(b"\xff")
     identity = _identity("python", "*.py")
     inventory = _inventory(("bad-b.py", "good.py", "bad-a.py"), identity)
-    load = _module().measure_snapshot(tmp_path, inventory, _registry())
+    load = _direct_module(monkeypatch).measure_snapshot(tmp_path, inventory, _registry())
     assert load.snapshot is None
     assert load.required_gaps == tuple(
         f"source_budget_native_text_invalid_utf8:{relative}"
@@ -427,14 +462,18 @@ def test_snapshot_reports_all_path_bound_failures_without_partial_result(
     )
 
 
-def test_snapshot_separates_raw_vector_and_scope_identity(tmp_path: Path) -> None:
+def test_snapshot_separates_raw_vector_and_scope_identity(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     relative = "sample.py"
     path = tmp_path / relative
     first_inventory = _inventory((relative,), _identity("python", relative))
     path.write_bytes(b"value = 1\n")
-    first = _module().measure_snapshot(tmp_path, first_inventory, _registry()).snapshot
+    module = _direct_module(monkeypatch)
+    first = module.measure_snapshot(tmp_path, first_inventory, _registry()).snapshot
     path.write_bytes(b"value = 1\r\n")
-    second = _module().measure_snapshot(tmp_path, first_inventory, _registry()).snapshot
+    second = module.measure_snapshot(tmp_path, first_inventory, _registry()).snapshot
     assert first is not None
     assert second is not None
     assert first.coordinates == second.coordinates
@@ -568,7 +607,12 @@ def test_descriptor_reader_closes_every_descriptor_on_memory_exhaustion(
     opened: list[int] = []
     closed: list[int] = []
 
-    def recorded(path: object, flags: int, *args: object, dir_fd: int | None = None) -> int:
+    def recorded(
+        path: str | bytes | os.PathLike[str] | os.PathLike[bytes],
+        flags: int,
+        *args: int,
+        dir_fd: int | None = None,
+    ) -> int:
         fd = real_open(path, flags, *args, dir_fd=dir_fd)
         opened.append(fd)
         return fd
@@ -615,7 +659,12 @@ def test_descriptor_reader_closes_descriptor_when_registration_exhausts(
 
     exhausted_registry: Any = ExhaustedRegistry()
 
-    def recorded(path: object, flags: int, *args: object, dir_fd: int | None = None) -> int:
+    def recorded(
+        path: str | bytes | os.PathLike[str] | os.PathLike[bytes],
+        flags: int,
+        *args: int,
+        dir_fd: int | None = None,
+    ) -> int:
         fd = real_open(path, flags, *args, dir_fd=dir_fd)
         opened.append(fd)
         return fd
@@ -692,11 +741,7 @@ def test_orchestrator_rejects_forged_provider_and_snapshot_outputs(
     inventory = _inventory((relative,), _identity("python", relative))
     match = inventory.matches[0]
     contracts = resolve_metric_contracts(match.identity, _registry())
-    native = (
-        importlib.import_module("ethos.adapters.repo.source_budget.measurement.native.core")
-        .measure_native(b"value = 1\n", contracts)
-        .measurement
-    )
+    native = measure_provider(b"value = 1\n", contracts).measurement
     assert native is not None
     forged = native.model_copy(update={"values": (native.values[0], native.values[0])})
     load = object.__new__(NativeMeasurementLoad)
@@ -722,6 +767,7 @@ def test_orchestrator_rejects_forged_provider_and_snapshot_outputs(
     )
 
     monkeypatch.undo()
+    monkeypatch.setattr(module, "measure_native", _measure_provider)
     valid_carrier = module.measure_carrier(tmp_path, match, _registry())
     assert valid_carrier.measurement is not None
     forged_carrier = CarrierMeasurementLoad(
@@ -756,9 +802,7 @@ def test_orchestrator_rejects_provider_output_for_different_content(
     inventory = _inventory((relative,), _identity("python", relative))
     match = inventory.matches[0]
     contracts = resolve_metric_contracts(match.identity, _registry())
-    other = importlib.import_module(
-        "ethos.adapters.repo.source_budget.measurement.native.core"
-    ).measure_native(b"value = 2\n", contracts)
+    other = measure_provider(b"value = 2\n", contracts)
     assert other.measurement is not None
     module = _module()
     monkeypatch.setattr(

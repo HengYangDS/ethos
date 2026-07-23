@@ -89,9 +89,55 @@ ETHOS SHALL execute every complex parser in a one-carrier/one-process
 - **THEN** the parent SHALL use the common bounded carrier admission, hash those
   bytes, verify provider/execution identity, and send no repository path or
   source descriptor to the child
-- **AND** the child SHALL establish its resource limits before importing the
-  isolated engine and SHALL revalidate the same bytes, contracts, provider, and
-  execution identity before parsing
+- **AND** the child SHALL establish and read back its resource limits before
+  importing the isolated engine and SHALL revalidate the same bytes, contracts,
+  provider, and execution identity before parsing
+- **AND** after those limits and before its first stdin read, the child SHALL enter
+  an exact `SIGSTOP` readiness state; the parent SHALL observe exact
+  `CLD_STOPPED`/`SIGSTOP` through non-consuming `waitid(..., WNOWAIT)`, obtain the
+  required pre-request telemetry while the child is frozen, send `SIGCONT`, and
+  only then register or write request stdin
+- **AND** the parent SHALL create one absolute monotonic wall deadline before
+  `Popen`; readiness and exchange SHALL consume that same deadline without reset
+  or refund
+- **AND** after private-directory creation and before the deadline or `Popen`, the
+  parent SHALL allocate the exchange state, the single lifecycle owner with
+  unbound process and selector slots, its reentrant lock, completion signal and
+  exception boundary, the immutable cleanup context, and the exchange session
+- **AND** `Popen` and selector creation SHALL be admitted trusted primitives; once
+  a returned object is addressable in caller-owned Python state, the same
+  lifecycle SHALL publish it or clean/close it before any later dependent
+  allocation, without claiming bytecode-level atomicity before that point
+- **AND** the session SHALL claim its one exchange before invoking the selector
+  factory; the selector SHALL be bind-once before exchange-context allocation,
+  and no cleanup-critical carrier MAY be allocated while unwinding
+- **AND** the session owner SHALL be the sole process/private-directory source of
+  truth; exchange configuration SHALL NOT carry a second process or directory
+  identity
+- **AND** every child-state observation before ordered cleanup, including
+  telemetry-disappearance reconciliation, SHALL be non-consuming; only the final
+  bounded direct-child wait MAY reap
+- **AND** after `Popen` succeeds, one exception-total owner SHALL run ordered
+  cleanup from one outer `finally` for every normal, failure, and exceptional
+  path; the preallocated lock SHALL elect one runner without spanning external
+  callbacks, same-thread re-entry SHALL NOT repeat work, and concurrent finishers
+  SHALL wait for completion or fail closed before exposing any result
+- **AND** if any cleanup phase raises a control `BaseException`, the owner SHALL
+  preserve the first such exception, attempt every remaining applicable cleanup
+  phase, mark cleanup done, and only then re-raise it when no earlier body
+  exception has propagation priority
+- **AND** before exposing success, including after a normal direct-child exit, the
+  parent SHALL prove that no live worker process-group member remains
+- **AND** cleanup SHALL freeze the first observed cause, attempt process-group
+  `SIGTERM`, preserve one fixed 100 ms grace, make bounded `SIGKILL` delivery and
+  proof attempts when a live member remains or liveness cannot be proved, close
+  parent carriers, perform the sole bounded direct-child reap, and retry the
+  no-live proof when needed
+- **AND** the private directory SHALL be removed only after no live group member
+  is proved; live or indeterminate liveness SHALL retain it and mark cleanup failed
+- **AND** cleanup, close, reap, or removal failure SHALL be additive and SHALL NOT
+  replace an earlier timeout, resource, output, capability, protocol, or crash
+  cause; without an earlier cause it SHALL report `source_budget_worker_failed`
 - **AND** CPU, wall, memory intent, descriptors, processes, file output, request,
   response, protocol, and result sizes SHALL be fixed and versioned
 - **AND** any spawn, capability, timeout, resource, output, protocol, crash, or
@@ -150,10 +196,10 @@ sandbox and SHALL fail closed when a required platform capability is absent.
 - **AND** Linux SHALL use a 536,870,912-byte address-space limit and `/proc`
   telemetry
 - **AND** on Darwin the parent SHALL obtain the first successful pre-request
-  `libproc` `pti_virtual_size` sample as an immutable baseline, SHALL write no
-  request bytes before it exists, and SHALL trip on any 10 ms sample above
-  baseline plus 536,870,912 bytes without claiming a kernel-hard absolute AS/RSS
-  bound
+  `libproc` `pti_virtual_size` sample while the resource-ready child is stopped,
+  freeze it as the immutable baseline, write no request bytes before the child is
+  continued, and trip on any later 10 ms sample above baseline plus 536,870,912
+  bytes without claiming a kernel-hard absolute AS/RSS bound
 - **AND** missing telemetry, limit, session, or kill/reap capability SHALL report
   `source_budget_worker_isolation_unsupported` rather than silently weakening
   execution.

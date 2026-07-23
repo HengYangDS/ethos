@@ -5,18 +5,21 @@ import hashlib
 import importlib
 import json
 import re
-import subprocess
 import sys
 import tomllib
+from dataclasses import replace
 from functools import lru_cache
 from pathlib import Path
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
+from typing import cast
 
 import pytest
 
 from ethos.adapters.repo.source_budget.carriers import load_metric_contracts
 from ethos_core.contracts.source_budget.metrics import MetricContract
+from tests.support.source_budget_measurement import measure_isolated_provider
+from tests.support.source_budget_measurement import measure_provider
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -25,7 +28,10 @@ if TYPE_CHECKING:
 
 ROOT = Path(__file__).resolve().parents[5]
 CASES_PATH = ROOT / "tests" / "fixtures" / "source-budget-v2" / "cases.toml"
-NATIVE_MODULE = "ethos.adapters.repo.source_budget.measurement.native.core"
+NATIVE_MODULE = "ethos.adapters.repo.source_budget.measurement.router"
+IDENTITY_MODULE = "ethos.adapters.repo.source_budget.measurement.native.identity"
+BOUNDED_MODULE = "ethos.adapters.repo.source_budget.measurement.native.bounded.core"
+ISOLATED_MODULE = "ethos.adapters.repo.source_budget.measurement.native.isolated.core"
 PYTHON_PROVIDER_V2_DESCRIPTOR = {
     "algorithm_rules": [
         "ast-syntax-guard",
@@ -190,6 +196,18 @@ def _native() -> ModuleType:
         raise
 
 
+def _identity() -> ModuleType:
+    return importlib.import_module(IDENTITY_MODULE)
+
+
+def _bounded() -> ModuleType:
+    return importlib.import_module(BOUNDED_MODULE)
+
+
+def _isolated() -> ModuleType:
+    return importlib.import_module(ISOLATED_MODULE)
+
+
 def _canonical_payload_digest(payload: object) -> str:
     encoded = json.dumps(
         payload,
@@ -203,7 +221,7 @@ def _canonical_payload_digest(payload: object) -> str:
 def _measure(case_id: str, contracts: tuple[MetricContract, ...] | None = None):
     case = _case(case_id)
     resolved = contracts or _contracts(str(case["profile"]))
-    return _native().measure_native(_content(case_id), resolved)
+    return measure_provider(_content(case_id), resolved)
 
 
 def _success(case_id: str):
@@ -226,13 +244,15 @@ def _values(measurement) -> dict[str, int]:
 
 @pytest.fixture(autouse=True)
 def _isolate_native_conformance_cache() -> Iterator[None]:
-    module = sys.modules.get(NATIVE_MODULE)
-    if module is not None:
-        importlib.reload(module)
+    for module_name in (BOUNDED_MODULE, ISOLATED_MODULE):
+        module = sys.modules.get(module_name)
+        if module is not None:
+            importlib.reload(module)
     yield
-    module = sys.modules.get(NATIVE_MODULE)
-    if module is not None:
-        importlib.reload(module)
+    for module_name in (BOUNDED_MODULE, ISOLATED_MODULE):
+        module = sys.modules.get(module_name)
+        if module is not None:
+            importlib.reload(module)
 
 
 def test_case_carrier_is_complete_xor_and_materializes_logical_suffixes(
@@ -387,7 +407,7 @@ def test_jinja_dynamic_payload_bytes_cannot_be_laundered_by_ast_unit_count() -> 
     ],
 )
 def test_jinja_non_finite_literals_fail_closed(source: str) -> None:
-    load = _native().measure_native(source.encode(), _contracts("template-jinja-v2"))
+    load = measure_provider(source.encode(), _contracts("template-jinja-v2"))
 
     assert load.measurement is None
     assert load.required_gaps == ("source_budget_native_parse_failed:jinja",)
@@ -416,12 +436,12 @@ def test_unterminated_shell_constructs_fail_closed(case_id: str) -> None:
 
 
 def test_provider_descriptor_v2_binds_independent_execution_oracle() -> None:
-    module = _native()
+    module = _identity()
     assert _canonical_payload_digest(PYTHON_PROVIDER_V2_DESCRIPTOR) == (PYTHON_PROVIDER_V2_DIGEST)
-    assert vars(module)["_provider_descriptor"]("python") == PYTHON_PROVIDER_V2_DESCRIPTOR
-    provider_ids = tuple(vars(module)["_PROVIDER_IDS"])
+    assert module.provider_descriptor("python") == PYTHON_PROVIDER_V2_DESCRIPTOR
+    provider_ids = module.provider_ids()
     assert set(provider_ids) == set(REVIEWED_PROVIDER_V2_GRAMMAR_DIGESTS)
-    grammar_digest = vars(module)["_provider_grammar_digest"]
+    grammar_digest = module.provider_grammar_digest
     assert {provider_id: grammar_digest(provider_id) for provider_id in provider_ids} == (
         REVIEWED_PROVIDER_V2_GRAMMAR_DIGESTS
     )
@@ -459,7 +479,12 @@ def test_dispatch_requires_the_complete_exact_provider_signature(
     contracts[0] = contracts[0].model_copy(update={field: replacement})
     load = _measure("python-lines", tuple(contracts))
     assert load.measurement is None
-    assert load.required_gaps == ("source_budget_native_provider_signature_mismatch",)
+    expected_gap = (
+        "source_budget_native_contract_invalid"
+        if field == "metric_id"
+        else "source_budget_native_provider_signature_mismatch"
+    )
+    assert load.required_gaps == (expected_gap,)
 
 
 @pytest.mark.parametrize(
@@ -474,7 +499,7 @@ def test_only_cpython_314_is_an_admitted_measurement_runtime(
     monkeypatch: pytest.MonkeyPatch,
     identity: tuple[str, int, int],
 ) -> None:
-    module = _native()
+    module = _isolated()
     monkeypatch.setattr(module, "_runtime_identity", lambda: identity)
     load = _measure("python-lines")
     assert load.measurement is None
@@ -482,8 +507,8 @@ def test_only_cpython_314_is_an_admitted_measurement_runtime(
 
 
 def test_provider_dependencies_are_major_bound(monkeypatch: pytest.MonkeyPatch) -> None:
-    module = _native()
-    monkeypatch.setattr(module, "_dependency_majors", lambda: {"jinja2": 4, "pyyaml": 6})
+    module = _isolated()
+    monkeypatch.setattr(module, "_dependency_majors", lambda _provider: {"jinja2": 4})
     load = _measure("jinja-base")
     assert load.measurement is None
     assert load.required_gaps == ("source_budget_native_dependency_major_mismatch:jinja2",)
@@ -492,7 +517,7 @@ def test_provider_dependencies_are_major_bound(monkeypatch: pytest.MonkeyPatch) 
 def test_provider_conformance_fingerprint_drift_fails_closed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    module = _native()
+    module = _isolated()
 
     def drift(provider_id: str) -> str:
         return "0" * 64 if provider_id == "python" else REVIEWED_CONFORMANCE_DIGESTS[provider_id]
@@ -501,23 +526,6 @@ def test_provider_conformance_fingerprint_drift_fails_closed(
     load = _measure("python-lines")
     assert load.measurement is None
     assert load.required_gaps == ("source_budget_native_conformance_mismatch:python",)
-
-
-def test_mixed_startup_gaps_remain_stably_sorted_through_public_api(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    module = _native()
-    gaps = {
-        "c4": "source_budget_native_provider_unavailable:c4",
-        "python": "source_budget_native_conformance_mismatch:python",
-    }
-    monkeypatch.setattr(module, "_conformance_gap", gaps.get)
-    load = module.measure_native(_content("python-lines"), _contracts("python-source-v2"))
-    assert load.measurement is None
-    assert load.required_gaps == (
-        "source_budget_native_conformance_mismatch:python",
-        "source_budget_native_provider_unavailable:c4",
-    )
 
 
 def test_registry_contracts_are_complete_deterministic_and_publicly_dispatchable() -> None:
@@ -547,43 +555,46 @@ def test_registry_contracts_are_complete_deterministic_and_publicly_dispatchable
     for contracts in profiles.values():
         ordered = tuple(sorted(contracts, key=lambda item: (item.metric_id, item.unit)))
         content = samples[ordered[0].parser_id]
-        first = _native().measure_native(content, ordered)
-        second = _native().measure_native(content, ordered)
+        first = measure_provider(content, ordered)
+        second = measure_provider(content, ordered)
         assert first.required_gaps == second.required_gaps == ()
         assert first.measurement == second.measurement
 
 
-def test_native_owner_is_the_only_new_public_measurement_api() -> None:
-    module = _native()
-    public = {name for name in vars(module) if not name.startswith("_")}
-    assert "measure_native" in public
-    assert "measure_carrier" not in public
-    assert "measure_snapshot" not in public
-    assert NATIVE_MODULE in sys.modules
-
-
 @pytest.mark.parametrize(
-    ("content", "contracts"),
+    ("content", "provider_case"),
     [
-        (bytearray(b"pass\n"), _contracts("python-source-v2")),
-        (b"pass\n", ()),
-        (b"pass\n", [_contracts("python-source-v2")[0]]),
-        (b"pass\n", (object(),)),
+        (bytearray(b"pass\n"), "canonical"),
+        (b"pass\n", "empty-tuple"),
+        (b"pass\n", "contract-list"),
+        (b"pass\n", "object-tuple"),
     ],
 )
-def test_native_rejects_non_exact_content_and_contract_containers(
+def test_native_rejects_non_exact_content_and_provider_containers(
     content: object,
-    contracts: object,
+    provider_case: str,
 ) -> None:
-    load = _native().measure_native(content, contracts)
+    contracts = _contracts("python-source-v2")
+    canonical = _identity().resolve_native_provider(contracts, _registry())
+    provider = {
+        "canonical": canonical,
+        "empty-tuple": (),
+        "contract-list": [contracts[0]],
+        "object-tuple": (object(),),
+    }[provider_case]
+
+    load = _native().measure_native(content, provider, _registry())
     assert load.measurement is None
     assert load.required_gaps == ("source_budget_native_contract_invalid",)
 
 
 def test_native_rejects_incomplete_provider_coordinate_vector() -> None:
+    contracts = _contracts("python-source-v2")
+    canonical = _identity().resolve_native_provider(contracts, _registry())
     load = _native().measure_native(
         _content("python-lines"),
-        (_contracts("python-source-v2")[0],),
+        replace(canonical, contracts=(contracts[0],)),
+        _registry(),
     )
     assert load.measurement is None
     assert load.required_gaps == ("source_budget_native_provider_signature_mismatch",)
@@ -592,10 +603,10 @@ def test_native_rejects_incomplete_provider_coordinate_vector() -> None:
 def test_native_canonicalizes_internal_value_failures_without_partial_output(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    module = _native()
+    module = _isolated()
     assert _success("python-lines").values
     monkeypatch.setattr(module, "_measure_provider", lambda _provider, _text: (b"stream", {}))
-    load = module.measure_native(_content("python-lines"), _contracts("python-source-v2"))
+    load = measure_isolated_provider(_content("python-lines"), _contracts("python-source-v2"))
     assert load.measurement is None
     assert load.required_gaps == ("source_budget_native_contract_invalid",)
 
@@ -605,7 +616,7 @@ def test_native_maps_memory_exhaustion_to_stable_gap(
     monkeypatch: pytest.MonkeyPatch,
     stage: str,
 ) -> None:
-    module = _native()
+    module = _isolated()
     assert _success("python-lines").values
 
     def exhausted(*_args: object) -> None:
@@ -617,13 +628,13 @@ def test_native_maps_memory_exhaustion_to_stable_gap(
         "_normalize_text" if stage == "normalize" else "_measure_provider",
         exhausted,
     )
-    load = module.measure_native(_content("python-lines"), _contracts("python-source-v2"))
+    load = measure_isolated_provider(_content("python-lines"), _contracts("python-source-v2"))
     assert load.measurement is None
     assert load.required_gaps == ("source_budget_native_resource_exhausted",)
 
 
 def test_provider_boundary_maps_memory_exhaustion_without_leaking_detail() -> None:
-    module = _native()
+    module = _isolated()
     provider_boundary = vars(module)["_ProviderBoundary"]
     message = "SENSITIVE"
 
@@ -637,14 +648,16 @@ def test_provider_boundary_maps_memory_exhaustion_without_leaking_detail() -> No
 def test_native_admission_maps_memory_exhaustion_to_stable_gap(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    module = _native()
+    module = _identity()
+    contracts = _contracts("python-source-v2")
+    provider = module.resolve_native_provider(contracts, _registry())
 
     def exhausted(_contract: MetricContract) -> None:
         message = "SENSITIVE"
         raise MemoryError(message)
 
     monkeypatch.setattr(module, "_provider_id_for_contract", exhausted)
-    load = module.measure_native(_content("python-lines"), _contracts("python-source-v2"))
+    load = _native().measure_native(_content("python-lines"), provider, _registry())
     assert load.measurement is None
     assert load.required_gaps == ("source_budget_native_resource_exhausted",)
 
@@ -652,9 +665,9 @@ def test_native_admission_maps_memory_exhaustion_to_stable_gap(
 def test_native_startup_maps_memory_exhaustion_to_stable_gap(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    module = _native()
+    module = _isolated()
 
-    def exhausted() -> dict[str, int]:
+    def exhausted(_provider: str) -> dict[str, int]:
         message = "SENSITIVE-STARTUP"
         raise MemoryError(message)
 
@@ -663,7 +676,7 @@ def test_native_startup_maps_memory_exhaustion_to_stable_gap(
     startup_conformance = vars(module)["_startup_conformance"]
     startup_conformance.cache_clear()
     try:
-        load = module.measure_native(_content("python-lines"), _contracts("python-source-v2"))
+        load = measure_isolated_provider(_content("python-lines"), _contracts("python-source-v2"))
     finally:
         startup_conformance.cache_clear()
 
@@ -674,11 +687,11 @@ def test_native_startup_maps_memory_exhaustion_to_stable_gap(
 def test_python_tokenizer_error_becomes_public_parse_gap(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    module = _native()
+    module = _isolated()
     assert _success("python-lines").values
     token = module.tokenize.TokenInfo(module.tokenize.ERRORTOKEN, "?", (1, 0), (1, 1), "?\n")
     monkeypatch.setattr(module.tokenize, "generate_tokens", lambda _readline: iter((token,)))
-    load = module.measure_native(_content("python-lines"), _contracts("python-source-v2"))
+    load = measure_isolated_provider(_content("python-lines"), _contracts("python-source-v2"))
     assert load.measurement is None
     assert load.required_gaps == ("source_budget_native_parse_failed:python",)
 
@@ -686,7 +699,7 @@ def test_python_tokenizer_error_becomes_public_parse_gap(
 def test_jinja_canonicalizer_rejects_unknown_ast_leaves_through_public_api(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    module = _native()
+    module = _isolated()
     assert _success("jinja-base").values
 
     class FakeNode:
@@ -711,7 +724,7 @@ def test_jinja_canonicalizer_rejects_unknown_ast_leaves_through_public_api(
         nodes=SimpleNamespace(Node=FakeNode, TemplateData=type("TemplateData", (), {})),
     )
     monkeypatch.setattr(module, "_provider_module", lambda *_args: fake)
-    load = module.measure_native(_content("jinja-base"), _contracts("template-jinja-v2"))
+    load = measure_isolated_provider(_content("jinja-base"), _contracts("template-jinja-v2"))
     assert load.measurement is None
     assert load.required_gaps == ("source_budget_native_parse_failed:jinja",)
 
@@ -766,9 +779,7 @@ def test_shell_accepts_case_patterns_literal_dollar_and_repository_corpus() -> N
         "tools/ci/scripts/run-config-lint.sh",
         "tools/ci/scripts/run-python-tests.sh",
     ):
-        load = _native().measure_native(
-            (ROOT / relative).read_bytes(), _contracts("shell-source-v2")
-        )
+        load = measure_provider((ROOT / relative).read_bytes(), _contracts("shell-source-v2"))
         assert load.required_gaps == ()
         assert load.measurement is not None
 
@@ -789,56 +800,30 @@ def test_structured_additional_boundaries_are_stable() -> None:
 def test_structured_temporal_and_unknown_scalars_are_handled_through_public_api(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    core = _native()
     temporal = b"date=2026-07-19\ndatetime=2026-07-19T01:02:03Z\ntime=01:02:03\nfloat=1.5\n"
-    load = core.measure_native(temporal, _contracts("toml-source-v2"))
+    load = measure_isolated_provider(temporal, _contracts("toml-source-v2"))
     assert load.required_gaps == ()
     assert load.measurement is not None
 
     monkeypatch.setattr(tomllib, "loads", lambda _text: object())
-    load = core.measure_native(_content("toml-a"), _contracts("toml-source-v2"))
+    load = measure_isolated_provider(_content("toml-a"), _contracts("toml-source-v2"))
     assert load.measurement is None
     assert load.required_gaps == ("source_budget_native_parse_failed:toml",)
 
 
 def test_forged_exact_metric_contract_fails_closed_before_dispatch() -> None:
+    contracts = _contracts("python-source-v2")
+    canonical = _identity().resolve_native_provider(contracts, _registry())
     forged = MetricContract.model_construct()
-    load = _native().measure_native(_content("python-lines"), (forged,))
+    provider = replace(canonical, contracts=(forged,))
+    load = _native().measure_native(_content("python-lines"), provider, _registry())
     assert load.measurement is None
-    assert load.required_gaps == ("source_budget_native_contract_invalid",)
-
-
-def test_native_core_import_does_not_eagerly_load_provider_modules() -> None:
-    script = f"""
-import builtins
-real_import = builtins.__import__
-blocked = {{
-    'jinja2',
-    'yaml',
-    'ethos.adapters.repo.source_budget.measurement.native._structured',
-}}
-def guarded(name, *args, **kwargs):
-    if name in blocked:
-        raise ModuleNotFoundError(name=name)
-    return real_import(name, *args, **kwargs)
-builtins.__import__ = guarded
-import {NATIVE_MODULE} as module
-assert not hasattr(module, '__all__')
-assert callable(module.measure_native)
-"""
-    completed = subprocess.run(
-        [sys.executable, "-c", script],
-        cwd=ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    assert completed.returncode == 0, completed.stderr
+    assert load.required_gaps == ("source_budget_native_provider_signature_mismatch",)
 
 
 def test_reviewed_conformance_digests_are_a_complete_literal_map() -> None:
-    module = _native()
-    source = Path(module.__file__).read_text(encoding="utf-8")
+    module = _identity()
+    source = Path(cast("str", module.__file__)).read_text(encoding="utf-8")
     assignment = next(
         node
         for node in ast.parse(source).body
@@ -854,7 +839,7 @@ def test_reviewed_conformance_digests_are_a_complete_literal_map() -> None:
 def test_startup_primitive_exception_becomes_stable_conformance_gap(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    module = _native()
+    module = _isolated()
 
     def explode(provider_id: str) -> str:
         if provider_id == "python":
@@ -862,7 +847,7 @@ def test_startup_primitive_exception_becomes_stable_conformance_gap(
         return REVIEWED_CONFORMANCE_DIGESTS[provider_id]
 
     monkeypatch.setattr(module, "_conformance_output_digest", explode)
-    load = module.measure_native(_content("python-lines"), _contracts("python-source-v2"))
+    load = measure_isolated_provider(_content("python-lines"), _contracts("python-source-v2"))
     assert load.measurement is None
     assert load.required_gaps == ("source_budget_native_conformance_mismatch:python",)
 
@@ -870,7 +855,7 @@ def test_startup_primitive_exception_becomes_stable_conformance_gap(
 def test_missing_dependency_becomes_stable_provider_gap(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    module = _native()
+    module = _isolated()
     real_import = module.importlib.import_module
 
     def unavailable(name: str):
@@ -879,7 +864,7 @@ def test_missing_dependency_becomes_stable_provider_gap(
         return real_import(name)
 
     monkeypatch.setattr(module.importlib, "import_module", unavailable)
-    load = module.measure_native(_content("python-lines"), _contracts("python-source-v2"))
+    load = measure_isolated_provider(_content("jinja-base"), _contracts("template-jinja-v2"))
     assert load.measurement is None
     assert load.required_gaps == ("source_budget_native_provider_unavailable:jinja",)
 
@@ -887,7 +872,7 @@ def test_missing_dependency_becomes_stable_provider_gap(
 def test_provider_loading_and_version_read_fail_with_stable_gaps(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    module = _native()
+    module = _isolated()
     real_import = module.importlib.import_module
 
     class BrokenVersion:
@@ -899,7 +884,7 @@ def test_provider_loading_and_version_read_fail_with_stable_gaps(
         return BrokenVersion() if name == "jinja2" else real_import(name)
 
     monkeypatch.setattr(module.importlib, "import_module", broken)
-    load = module.measure_native(_content("python-lines"), _contracts("python-source-v2"))
+    load = measure_isolated_provider(_content("jinja-base"), _contracts("template-jinja-v2"))
     assert load.measurement is None
     assert load.required_gaps == ("source_budget_native_provider_unavailable:jinja",)
 
@@ -907,29 +892,25 @@ def test_provider_loading_and_version_read_fail_with_stable_gaps(
 def test_conformance_provider_unavailability_is_preserved_through_public_api(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    module = _native()
+    module = _isolated()
     real_import = module.importlib.import_module
 
     def unavailable(name: str):
-        if name.endswith("._structured"):
+        if name.endswith(".isolated.structured"):
             raise ModuleNotFoundError(name=name)
         return real_import(name)
 
     monkeypatch.setattr(module.importlib, "import_module", unavailable)
-    load = module.measure_native(_content("python-lines"), _contracts("python-source-v2"))
+    load = measure_isolated_provider(_content("yaml-a"), _contracts("yaml-source-v2"))
     assert load.measurement is None
-    assert load.required_gaps == tuple(
-        f"source_budget_native_provider_unavailable:{provider_id}"
-        for provider_id in ("c4", "ini", "json", "toml", "yaml")
-    )
+    assert load.required_gaps == ("source_budget_native_provider_unavailable:yaml",)
 
 
 def test_conformance_parse_failure_becomes_provider_mismatch_through_public_api(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    module = _native()
     monkeypatch.setattr(tomllib, "loads", lambda _text: object())
-    load = module.measure_native(_content("python-lines"), _contracts("python-source-v2"))
+    load = measure_isolated_provider(_content("toml-a"), _contracts("toml-source-v2"))
     assert load.measurement is None
     assert load.required_gaps == ("source_budget_native_conformance_mismatch:toml",)
 

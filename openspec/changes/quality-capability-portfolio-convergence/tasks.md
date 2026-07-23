@@ -26,7 +26,7 @@
 
 - [x] 4.1 Add focused tests for proof-set membership, owner-script routing,
   config meta-validation, catalog decisions, and exact standards wording.
-- [ ] 4.2 Run focused gates, full tests, source budget, strict OpenSpec,
+- [x] 4.2 Run focused gates, full tests, source budget, strict OpenSpec,
   Ponytail review, parity, and exact-HEAD proof.
-- [ ] 4.3 Bind claim and Chronicle evidence and prove archive readiness; landing,
+- [x] 4.3 Bind claim and Chronicle evidence and prove archive readiness; landing,
   accepted-root closeout, and Work Lane retirement remain post-archive transitions.

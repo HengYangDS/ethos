@@ -43,6 +43,37 @@ _TEST_PYTHON = Path(os.environ.get("ETHOS_TEST_PYTHON", os.sys.executable)).abso
 _TEST_VENV = _TEST_PYTHON.parent.parent
 
 
+def _editable_runtime_bindings() -> tuple[str, ...]:
+    """Snapshot editable ETHOS package owners in the caller's test interpreter."""
+    site_packages = _TEST_VENV / "lib"
+    return tuple(
+        sorted(
+            path.read_text(encoding="utf-8")
+            for path in site_packages.glob(
+                "python*/site-packages/*ethos*.dist-info/direct_url.json"
+            )
+        )
+    )
+
+
+def _expose_test_interpreter(runtime_home: Path) -> None:
+    """Expose one isolated launcher without sharing the caller's writable venv."""
+    runtime_home.mkdir()
+    bin_dir = runtime_home / "bin"
+    bin_dir.mkdir()
+    launcher = bin_dir / "python"
+    launcher.symlink_to(_TEST_PYTHON)
+    shutil.copy2(_TEST_VENV / "pyvenv.cfg", runtime_home / "pyvenv.cfg")
+    version = f"python{os.sys.version_info.major}.{os.sys.version_info.minor}"
+    source_packages = _TEST_VENV / "lib" / version / "site-packages"
+    private_packages = runtime_home / "lib" / version / "site-packages"
+    private_packages.mkdir(parents=True)
+    (private_packages / "ethos-test-dependencies.pth").write_text(
+        source_packages.as_posix() + "\n",
+        encoding="utf-8",
+    )
+
+
 def _g(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(["git", *args], cwd=root, capture_output=True, text=True, check=False)
 
@@ -82,15 +113,7 @@ def _armed_repo(tmp_path: Path, *, mirror: bool = False, incumbent_hook: str | N
     (repo / "packages").mkdir()
     runtime_home = repo / "build" / "runtime" / "venv"
     runtime_home.parent.mkdir(parents=True)
-    # `with-python-runtime.sh` deliberately calls `mkdir -p` on its semantic
-    # environment home.  Symlinking the directory itself therefore breaks the
-    # bootstrap; expose only its interpreter entrypoint instead.
-    runtime_home.mkdir()
-    for name in ("bin", "lib", "include"):
-        source = _TEST_VENV / name
-        if source.exists():
-            (runtime_home / name).symlink_to(source, target_is_directory=True)
-    (runtime_home / "pyvenv.cfg").symlink_to(_TEST_VENV / "pyvenv.cfg")
+    _expose_test_interpreter(runtime_home)
     (repo / "packages" / "ethos").symlink_to(src_root / "packages" / "ethos")
     (repo / "packages" / "ethos-core").symlink_to(src_root / "packages" / "ethos-core")
     _g(repo, "init", "-b", "dev")
@@ -187,12 +210,7 @@ def _seed_semantic_runtime(root: Path, source_root: Path) -> None:
         else:
             runtime_home.unlink()
     runtime_home.parent.mkdir(parents=True, exist_ok=True)
-    runtime_home.mkdir()
-    for name in ("bin", "lib", "include"):
-        source = _TEST_VENV / name
-        if source.exists():
-            (runtime_home / name).symlink_to(source, target_is_directory=True)
-    (runtime_home / "pyvenv.cfg").symlink_to(_TEST_VENV / "pyvenv.cfg")
+    _expose_test_interpreter(runtime_home)
 
 
 def _materialize_accepted_ethos_package(repo: Path) -> Path:
@@ -448,6 +466,8 @@ def test_mirrored_closeout_bootstraps_changed_shell_hook(tmp_path: Path) -> None
     """
     if not _HOOK_SRC.exists():
         return
+    runtime_bindings = _editable_runtime_bindings()
+    assert runtime_bindings
     os.environ["ETHOS_ACTOR"] = "agent:test:case:agent-test"
     candidate_hook_source = _HOOK_SRC.read_text(encoding="utf-8")
     repo = _armed_repo(
@@ -484,3 +504,4 @@ def test_mirrored_closeout_bootstraps_changed_shell_hook(tmp_path: Path) -> None
     assert (repo / ".githooks" / "reference-transaction").read_text(
         encoding="utf-8"
     ) == candidate_hook.read_text(encoding="utf-8")
+    assert _editable_runtime_bindings() == runtime_bindings

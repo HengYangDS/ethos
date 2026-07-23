@@ -9,16 +9,43 @@ from pathlib import Path
 from typing import Any
 from typing import cast
 
+import ethos.adapters.mutation.resolution.closeout.effect as ownerless_effect
 from ethos.adapters.mutation.lane_lifecycle.core import run_git
+from ethos.adapters.mutation.resolution._observation import observe_lane
 from ethos.adapters.mutation.resolution._observation import untracked_files
 from ethos.adapters.mutation.resolution._shared import canonical_package_path
 from ethos.adapters.mutation.resolution._shared import display_path
+from ethos.adapters.mutation.resolution._shared import records_artifact_root
 from ethos.adapters.mutation.resolution._shared import sha256_digest
+from ethos.adapters.mutation.resolution.closeout.wcp.core import run_worktree_closeout_check
 from ethos.adapters.mutation.resolution.receipts import verify_preservation_package
+from ethos.adapters.mutation.resolution.records.core import reserve_ownerless_closeout_target
+from ethos.adapters.mutation.resolution.records.core import (
+    transition_ownerless_closeout_reservation,
+)
+from ethos.adapters.repo.status.bindings import leases_by_branch
+from ethos.adapters.store.state.closeout import acquire_closeout_fence
+from ethos.adapters.store.state.closeout import get_closeout_fence
+from ethos.adapters.store.state.closeout import probe_closeout_fence
+from ethos.adapters.store.state.schema import state_database
 from ethos.repository.policy.schema import validate_schema_instance
 from ethos_core.contracts.resolution.lane import LaneObservation
 from ethos_core.contracts.resolution.lane import LaneResolutionReceipt
 from ethos_core.contracts.resolution.lane import LaneResolutionState
+
+_OWNERLESS_REF_PREPARE_FAILED = "lane_resolution_ownerless_ref_prepare_failed"
+
+
+class OwnerlessCloseoutError(ValueError):
+    """A fail-closed ownerless transition with durable-fence state."""
+
+    def __init__(self, gap: str, *, fence_acquired: bool) -> None:
+        super().__init__(gap)
+        self.fence_acquired = fence_acquired
+
+
+def _ownerless_error(gap: str, *, fence_acquired: bool) -> OwnerlessCloseoutError:
+    return OwnerlessCloseoutError(gap, fence_acquired=fence_acquired)
 
 
 def prepare_resolution_effect(
@@ -136,6 +163,230 @@ def preserve_package(
         "manifest": manifest,
         "manifest_sha256": sha256_digest(manifest_path),
     }
+
+
+def _ownerless_runtime() -> ownerless_effect.OwnerlessCloseoutRuntime:
+    return ownerless_effect.OwnerlessCloseoutRuntime(
+        run_git=run_git,
+        observe_lane=observe_lane,
+        records_artifact_root=records_artifact_root,
+        reserve_target=reserve_ownerless_closeout_target,
+        transition_reservation=transition_ownerless_closeout_reservation,
+        leases_by_branch=leases_by_branch,
+        acquire_fence=acquire_closeout_fence,
+        get_fence=get_closeout_fence,
+        probe_fence=probe_closeout_fence,
+        state_database=state_database,
+        run_wcp=run_worktree_closeout_check,
+        ownerless_error=_ownerless_error,
+        ownerless_error_type=OwnerlessCloseoutError,
+        verify_pre_effect=_verify_ownerless_pre_effect,
+        retire_cas=_retire_clean_ownerless_cas,
+        probe_ref=probe_ownerless_ref,
+        verify_postconditions=_verify_ownerless_postconditions,
+    )
+
+
+def retire_clean_ownerless_lane(  # noqa: PLR0913, RUF100 - compatibility effect boundary
+    *,
+    root: Path,
+    decision_path: Path,
+    decision: dict[str, Any],
+    observation: LaneObservation,
+    executor_ref: str,
+    accepted_branch: str,
+    accepted_head: str,
+    artifact_root: Path | None = None,
+) -> dict[str, object]:
+    """Run strict WCP admission, durable fencing, exact CAS, and postverification."""
+    return ownerless_effect.retire_clean_ownerless_lane(
+        root=root,
+        decision_path=decision_path,
+        decision=decision,
+        observation=observation,
+        executor_ref=executor_ref,
+        accepted_branch=accepted_branch,
+        accepted_head=accepted_head,
+        artifact_root=artifact_root,
+        runtime=_ownerless_runtime(),
+    )
+
+
+def recover_completed_ownerless_closeout(  # noqa: PLR0913, RUF100 - compatibility recovery boundary
+    *,
+    root: Path,
+    decision_path: Path,
+    decision: dict[str, Any],
+    observation: LaneObservation,
+    executor_ref: str,
+    reservation: dict[str, object],
+    receipt: dict[str, object] | None = None,
+) -> dict[str, object]:
+    """Reverify one exact completed effect before its missing receipt is written."""
+    return ownerless_effect.recover_completed_ownerless_closeout(
+        root=root,
+        decision_path=decision_path,
+        decision=decision,
+        observation=observation,
+        executor_ref=executor_ref,
+        reservation=reservation,
+        receipt=receipt,
+        runtime=_ownerless_runtime(),
+    )
+
+
+def _verify_ownerless_pre_effect(  # noqa: PLR0913, RUF100 - exact pre-effect CAS dimensions
+    *,
+    root: Path,
+    database: Path,
+    decision_path: Path,
+    decision_sha256: str,
+    observation: LaneObservation,
+    accepted_branch: str,
+    accepted_head: str,
+    fence: dict[str, object],
+) -> None:
+    ownerless_effect.verify_ownerless_pre_effect(
+        runtime=_ownerless_runtime(),
+        root=root,
+        database=database,
+        decision_path=decision_path,
+        decision_sha256=decision_sha256,
+        observation=observation,
+        accepted_branch=accepted_branch,
+        accepted_head=accepted_head,
+        fence=fence,
+    )
+
+
+def _retire_clean_ownerless_cas(
+    *,
+    root: Path,
+    observation: LaneObservation,
+    accepted_branch: str,
+    accepted_head: str,
+) -> None:
+    target_ref = f"refs/heads/{observation.lane_ref}"
+    accepted_ref = f"refs/heads/{accepted_branch}"
+    removed = remove_failed = committed = False
+    try:
+        with subprocess.Popen(
+            ["git", "update-ref", "--stdin"],  # noqa: S607, RUF100 - effect boundary
+            cwd=root,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        ) as transaction:
+            stdin, stdout = transaction.stdin, transaction.stdout
+            if stdin is None or stdout is None or transaction.stderr is None:
+                raise _ownerless_error(_OWNERLESS_REF_PREPARE_FAILED, fence_acquired=True)
+            stdin.write("start\n")
+            stdin.flush()
+            started = stdout.readline() == "start: ok\n"
+            stdin.write(f"verify {accepted_ref} {accepted_head}\n")
+            stdin.write(f"delete {target_ref} {observation.head}\nprepare\n")
+            stdin.flush()
+            prepared = stdout.readline() == "prepare: ok\n"
+            if not (started and prepared):
+                stdin.write("abort\n")
+                stdin.close()
+                raise _ownerless_error(_OWNERLESS_REF_PREPARE_FAILED, fence_acquired=True)
+            remove_failed = True
+            remove = run_git(root, "worktree", "remove", observation.path, check=False)
+            if remove.returncode:
+                stdin.write("abort\n")
+                stdin.close()
+                transaction.wait()
+            else:
+                remove_failed = False
+                removed = True
+                stdin.write("commit\n")
+                stdin.close()
+                committed = stdout.readline() == "commit: ok\n" and transaction.wait() == 0
+    except OSError as error:
+        if not (removed or remove_failed):
+            raise _ownerless_error(_OWNERLESS_REF_PREPARE_FAILED, fence_acquired=True) from error
+        committed = False
+    if remove_failed:
+        raise _ownerless_error(
+            _failed_ownerless_remove_gap(root, observation, allow_no_effect=True),
+            fence_acquired=True,
+        )
+    if committed:
+        return
+    raise _ownerless_error(
+        _failed_ownerless_remove_gap(root, observation, allow_no_effect=False),
+        fence_acquired=True,
+    )
+
+
+def _failed_ownerless_remove_gap(
+    root: Path, observation: LaneObservation, *, allow_no_effect: bool
+) -> str:
+    ref_state, oid = probe_ownerless_ref(root, observation.lane_ref)
+    registration = _ownerless_worktree_registration(root, observation.path)
+    path_intact = Path(observation.path).is_dir() and not Path(observation.path).is_symlink()
+    ref_intact = ref_state == "oid" and oid == observation.head
+    if allow_no_effect and ref_intact and registration is True and path_intact:
+        return "lane_resolution_ownerless_worktree_remove_failed"
+    if ref_intact and (registration is False or not path_intact):
+        return "lane_resolution_ownerless_worktree_removed_ref_present"
+    return "lane_resolution_ownerless_transition_unknown"
+
+
+def _ownerless_worktree_registration(root: Path, path: str) -> bool | None:
+    try:
+        result = run_git(root, "worktree", "list", "--porcelain", check=False)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if result.returncode:
+        return None
+    return f"worktree {path}" in result.stdout.splitlines()
+
+
+def probe_ownerless_ref(root: Path, branch: str) -> tuple[str, str]:
+    """Return the exact ref OID, explicit absence, or an unverifiable state."""
+    ref = f"refs/heads/{branch}"
+    try:
+        presence = run_git(root, "show-ref", "--verify", "--quiet", ref, check=False)
+        if presence.returncode == 1:
+            return "absent", ""
+        if presence.returncode:
+            return "unverifiable", ""
+        result = run_git(root, "show-ref", "--hash", "--verify", ref, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return "unverifiable", ""
+    oid = result.stdout.strip()
+    if result.returncode == 0 and len(oid) in {40, 64} and set(oid) <= set("0123456789abcdef"):
+        return "oid", oid
+    return "unverifiable", ""
+
+
+def _verify_ownerless_postconditions(  # noqa: PLR0913, RUF100 - exact postcondition dimensions
+    *,
+    root: Path,
+    database: Path,
+    decision_path: Path,
+    decision_sha256: str,
+    observation: LaneObservation,
+    accepted_branch: str,
+    accepted_head: str,
+    fence: dict[str, object] | None,
+    decision_bytes: bytes | None = None,
+) -> dict[str, object]:
+    return ownerless_effect.verify_ownerless_postconditions(
+        runtime=_ownerless_runtime(),
+        root=root,
+        database=database,
+        decision_path=decision_path,
+        decision_sha256=decision_sha256,
+        observation=observation,
+        accepted_branch=accepted_branch,
+        accepted_head=accepted_head,
+        fence=fence,
+        decision_bytes=decision_bytes,
+    )
 
 
 def retire_lane(*, root: Path, observation: LaneObservation, force: bool = False) -> None:

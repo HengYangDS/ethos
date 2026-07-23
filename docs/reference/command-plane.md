@@ -336,11 +336,39 @@ bytes.
 Before package creation or any destructive effect, apply reserves the
 deterministic completion-receipt path with a hidden non-JSON sidecar created by
 exclusive filesystem creation. An existing final receipt or existing reservation
-blocks with `lane_resolution_receipt_path_exists`; the package is not created and
-the branch and worktree remain intact. A pre-effect failure or successful final
-receipt removes the sidecar. A final write failure after the effect retains the
-sidecar for reconciliation, while the final receipt writer still performs its
-own no-symlink and no-clobber check.
+normally blocks with lane_resolution_receipt_path_exists; the package is not
+created and the branch and worktree remain intact. A pre-effect failure or
+successful final receipt removes the sidecar. A final write failure after the
+effect retains the sidecar for reconciliation, while the final receipt writer
+still performs its own no-symlink and no-clobber check.
+
+Clean ownerless retire is a stricter effect-boundary protocol. ETHOS validates
+the complete WCP response, strictly re-parses the current decision bytes and
+requires their canonical payload to equal the admitted decision, acquires a
+Git-common-directory SQLite target fence that competes with lease acquisition,
+re-observes the target, and prepares accepted-ref verification plus exact
+target-ref deletion. It removes the registered worktree without force. A
+non-zero worktree-remove result triggers an exact ref, registration, and path
+re-observation; only a fully unchanged target remains a zero-effect retry.
+Target-ref postconditions use a three-state probe, so an inspection error never
+counts as absence.
+
+The ownerless target reservation is a visible JSON record separate from the
+hidden receipt sidecar. reserved_no_effect may retry only the same decision
+after fresh WCP admission. effect_complete_receipt_missing is handled before
+ordinary lane observation and does not rerun WCP. If the exact immutable
+receipt is already durable after a crash or cleanup failure, retry validates
+its schema and decision, lane, head, and ownerless binding, re-verifies the
+effect postconditions, and performs cleanup without rewriting the receipt or
+repeating a Git/worktree effect. Receipt-first cleanup remains available when
+reservation unlink completed before the crash. Fence inspection is three-state:
+pre-effect requires the exact present fence, recovery accepts explicit absence
+only with the exact receipt, and unverifiable state blocks. Cleanup releases the
+exact SQLite fence first and only then deletes the visible reservation. An
+already-released fence and already-absent reservation may converge only with the
+exact receipt and all non-fence postconditions; a different fence or mismatched
+receipt blocks. worktree_removed_ref_present, postcondition_failed, and
+transition_unknown require explicit reconciliation.
 
 The command requires `--break-glass` at decision time and
 `--confirm-irreversible` at apply time. Plain `retire` remains blocked for a

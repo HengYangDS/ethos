@@ -5,6 +5,7 @@ import json
 import subprocess
 import uuid
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -44,6 +45,25 @@ def _decide(
         break_glass=exceptional if break_glass is None else break_glass,
         apply=True,
     )
+
+
+def _ownerless_preflight(*, expected: Any, **_kwargs: object) -> dict[str, object]:
+    decision = json.loads(expected.decision_bytes)
+    return {
+        "schema_version": "workstation.repo-family-governance.v1",
+        "decision_sha256": hashlib.sha256(expected.decision_bytes).hexdigest(),
+        "executor_ref": expected.executor_ref,
+        "observation_digest": hashlib.sha256(
+            json.dumps(
+                expected.observation,
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode()
+        ).hexdigest(),
+        "chronicle_digest": decision["chronicle_digest"],
+        "source": {"head": expected.accepted_head},
+        "coordination": {"binding_digest": "d" * 64},
+    }
 
 
 def test_resolution_decision_default_path_is_a_valid_local_artifact_home(
@@ -305,86 +325,6 @@ def test_preserve_retire_rechecks_the_source_after_package_verification(
     assert not tuple((records_artifact_root(repo) / "receipts").glob(".*.receipt-reservation"))
 
 
-@pytest.mark.parametrize(
-    ("gap", "state"),
-    [
-        (
-            "lane_resolution_branch_delete_failed_after_worktree_removed",
-            "branch_delete_failed_after_worktree_removed",
-        ),
-        (
-            "lane_resolution_branch_delete_state_uncertain",
-            "branch_delete_state_uncertain",
-        ),
-    ],
-)
-def test_resolution_retains_reservation_for_partial_ref_outcome(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    gap: str,
-    state: str,
-) -> None:
-    repo, _lane = orphan_work_lane(tmp_path)
-    decision_path = _default_decision_path(repo, "work/orphan")
-    _decide(repo, decision_path, "retire")
-    monkeypatch.setitem(
-        apply_lane_resolution.__globals__,
-        "retire_lane",
-        lambda **_kwargs: (_ for _ in ()).throw(ValueError(gap)),
-    )
-
-    report = apply_lane_resolution(
-        root=repo,
-        decision_path=decision_path,
-        confirm_irreversible=True,
-        apply=True,
-    )
-
-    assert (report["ok"], report["state"], report["required_gaps"]) == (
-        False,
-        state,
-        [gap],
-    )
-    assert report["receipt"] == {}
-    assert report["receipt_path"] == ""
-    assert (
-        len(tuple((records_artifact_root(repo) / "receipts").glob(".*.receipt-reservation"))) == 1
-    )
-
-
-def test_resolution_releases_reservation_when_worktree_remove_fails(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    repo, lane = orphan_work_lane(tmp_path)
-    decision_path = _default_decision_path(repo, "work/orphan")
-    _decide(repo, decision_path, "retire")
-    monkeypatch.setitem(
-        apply_lane_resolution.__globals__,
-        "retire_lane",
-        lambda **_kwargs: (_ for _ in ()).throw(
-            ValueError("lane_resolution_worktree_remove_failed")
-        ),
-    )
-
-    report = apply_lane_resolution(
-        root=repo,
-        decision_path=decision_path,
-        confirm_irreversible=True,
-        apply=True,
-    )
-
-    assert (report["ok"], report["state"], report["required_gaps"]) == (
-        False,
-        "worktree_remove_failed",
-        ["lane_resolution_worktree_remove_failed"],
-    )
-    assert lane.is_dir()
-    assert git(repo, "show-ref", "--verify", "refs/heads/work/orphan")
-    assert report["receipt"] == {}
-    assert report["receipt_path"] == ""
-    assert not tuple((records_artifact_root(repo) / "receipts").glob(".*.receipt-reservation"))
-
-
 def test_preserve_retire_records_survive_resolution_carrier_removal(
     tmp_path: Path,
 ) -> None:
@@ -508,8 +448,9 @@ def test_receipt_failure_is_classified_by_effect_boundary(
         root: Path,
         receipt: dict[str, object],
         artifact_root: Path | None = None,
+        require_ownerless_closeout_binding: bool = False,
     ) -> str:
-        del root, receipt, artifact_root
+        del root, receipt, artifact_root, require_ownerless_closeout_binding
         message = "receipt unavailable"
         raise OSError(message)
 
@@ -791,39 +732,6 @@ def test_resolution_decide_rejects_registered_legacy_worktree_path(
     assert planned["ok"] is False
     assert planned["required_gaps"] == ["lane_resolution_decision_path_not_local_artifact"]
     assert not decision_path.exists()
-
-
-def test_retire_resolution_requires_clean_target_and_irreversible_confirmation(
-    tmp_path: Path,
-) -> None:
-    repo, lane = orphan_work_lane(tmp_path)
-    decision_path = _default_decision_path(repo, "work/orphan")
-    _decide(repo, decision_path, "retire")
-
-    blocked = apply_lane_resolution(
-        root=repo,
-        decision_path=decision_path,
-        confirm_irreversible=False,
-        apply=True,
-    )
-    assert "irreversible_confirmation_required" in blocked["required_gaps"]
-
-    applied = apply_lane_resolution(
-        root=repo,
-        decision_path=decision_path,
-        confirm_irreversible=True,
-        apply=True,
-    )
-    assert applied["ok"] is True
-    assert not lane.exists()
-    assert (
-        subprocess.run(
-            ["git", "show-ref", "--verify", "refs/heads/work/orphan"],
-            cwd=repo,
-            check=False,
-        ).returncode
-        != 0
-    )
 
 
 def test_break_glass_requires_reconciliation_receipt(tmp_path: Path) -> None:

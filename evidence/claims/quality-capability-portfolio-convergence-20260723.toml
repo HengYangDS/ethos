@@ -7,9 +7,9 @@ summary = "ETHOS quality mechanisms have one ranked decision surface; import-lin
 
 [evidence]
 dated = "evidence/chronicle/quality-capability-portfolio-convergence-20260723/2026-07-23.md"
-sha256 = "33f2b312dc7327d449dd523304bfc326d27e1e85229de4d319d3a6f7e0cc4f8a"
+sha256 = "36ae0cdd35aafc05b4789ecc2ac6e313f0bf40ed38689e65f3e7f875189b9f07"
 evidence_ids = ["evidence:quality-capability-portfolio-convergence-20260723"]
-binding = "The dated inventory, ranked capability decisions, import/dependency gate repair, claim narrowing, focused tests, and source-budget observation bind this portfolio convergence."
+binding = "The dated inventory, ranked capability decisions, gate repair, claim narrowing, focused tests, source budget, parity, exact-HEAD proof, claim binding, and archive preflight bind this portfolio convergence."
 verifier = "digest_only"
 tests = [
   "tools/ci/scripts/run-config-lint.sh",
@@ -20,6 +20,9 @@ tests = [
   "tools/ci/scripts/run-python-tests.sh",
   "tools/ci/scripts/run-ethos-lane.sh quality source-budget --json",
   "uv run openspec validate --all --strict --json",
+  "uv run --package ethos ethos parity gaps --json",
+  "uv run --package ethos ethos openspec --lifecycle --json",
+  "uv run --package ethos ethos prove --execute --expect-head $(git rev-parse HEAD) --json",
 ]
 
 [evidence.freshness]

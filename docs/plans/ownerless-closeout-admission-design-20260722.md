@@ -8,7 +8,9 @@ relations:
 
 # Ownerless Closeout Admission Design — 2026-07-22
 
-Status: approved design; implementation has not started.
+Status: approved design; the WCP-based ownerless-closeout core is present in
+the candidate baseline, and repository-family lane-start integration is in
+progress.
 
 Purpose: define the fail-closed repair that permits semantically absorbed, clean ownerless lanes to retire without inventing ownership or bypassing repository-family checks.
 
@@ -34,7 +36,8 @@ the repository-family grammar.
 3. The acting operator is recorded as executor only; it never becomes the
    historical lane owner and cannot satisfy valid-owner cases.
 4. Lane creation emits `work/YYYYMMDD-slug` and a matching sibling-worktree
-   directory. Legacy names require an explicit non-destructive migration route.
+   directory. Pre-existing names require an explicit non-destructive migration
+   route.
 
 ## Rejected approaches
 
@@ -60,7 +63,7 @@ the repository-family grammar.
 ## Error handling and boundaries
 
 - Dirty, diverged, valid-lease, claim-bound, absent-path, stale-head, Chronicle
-  drift, malformed legacy layout, or receipt mismatch all stop without deletion.
+  drift, malformed pre-existing layout, or receipt mismatch all stop without deletion.
 - Dirty ownerless lanes remain preservation-first and are out of this clean-lane
   transition.
 - Valid-owner lanes remain holder-bound and out of scope.
@@ -77,7 +80,7 @@ Required regression coverage proves:
 3. a valid lease or claim cannot use it;
 4. a stale Chronicle, decision, head, path, or postcondition blocks;
 5. lane start emits grammar-compliant branch/path pairs; and
-6. legacy naming is reported as migration-required rather than deleted.
+6. pre-existing naming is reported as migration-required rather than deleted.
 
 ## See Also
 

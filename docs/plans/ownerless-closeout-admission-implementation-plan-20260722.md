@@ -69,11 +69,13 @@ Purpose: convert the approved ownerless closeout design into a tested, fail-clos
 ## Task 1: Establish canonical lane identity at creation time
 
 **Files:**
+
 - Modify: `packages/ethos/src/ethos/adapters/mutation/lane_lifecycle/core.py`
 - Modify: `packages/ethos/src/ethos/adapters/mutation/lanes.py`
 - Modify: `tests/unit/lanes/test_lanes_lifecycle.py`
 
 **Interfaces:**
+
 - Produces `canonical_lane_identity(name: str, *, observed_at: datetime) -> tuple[str, str]` returning `(lane_id, branch)`.
 - Produces `canonical_lane_path(repo: Path, lane_id: str) -> Path` returning the governed sibling worktree path.
 - `start_work_lane` uses these functions and refuses an explicit path that does not equal the canonical path.
@@ -131,10 +133,12 @@ git commit -m "fix(lanes): create canonical date-bound work lanes"
 ## Task 2: Add a repository-family ownerless-decision preflight
 
 **Files:**
+
 - Modify: the tracked source that deploys `~/.config/workstation/repo_family_governance.py`
 - Modify: its colocated source tests and artifact build verification
 
 **Interfaces:**
+
 - Add CLI flags `--ownerless-decision <absolute-json-path>` and `--executor-ref <holder-ref>` to `worktree-closeout-check`.
 - Preserve `--owner-task` for the existing owner-bound route; exactly one route is required.
 - Return `action="worktree_closeout_check"` plus `admission_mode="ownerless_decision"` on success.
@@ -190,12 +194,14 @@ Commit only the authoritative workstation-control-plane source, tests, and artif
 ## Task 3: Integrate preflight into ETHOS resolution before the destructive effect
 
 **Files:**
+
 - Create: `packages/ethos/src/ethos/adapters/mutation/resolution/repo_family.py`
 - Modify: `packages/ethos/src/ethos/adapters/mutation/resolution/lane.py`
 - Modify: `packages/ethos/src/ethos/adapters/mutation/resolution/_effects.py`
 - Create: `tests/unit/lanes/retirement/test_ownerless_closeout_admission.py`
 
 **Interfaces:**
+
 - `ownerless_closeout_preflight(*, root: Path, decision_path: Path, observation: LaneObservation, executor_ref: str) -> dict[str, object]`
 - The adapter runs only `workstation repo-family worktree-closeout-check`, requires JSON, and never executes removal.
 - `prepare_resolution_effect` accepts a successful preflight binding and refuses a `retire` effect without it.
@@ -260,11 +266,13 @@ git commit -m "feat(lanes): admit ownerless retire through accepted decision"
 ## Task 4: Document and prove the integrated contract
 
 **Files:**
+
 - Modify: `docs/reference/command-plane.md`
 - Modify: `docs/plans/ownerless-closeout-admission-design-20260722.md` only if the implementation changes an approved interface
 - Modify: targeted CLI contract tests when the command output changes
 
 **Interfaces:**
+
 - Documentation names the ownerless decision route as pre-effect, target-specific, executor-recording, and fail-closed.
 - CLI output names `ownerless_decision` without exposing it as a generic takeover authority.
 
@@ -306,9 +314,11 @@ git commit -m "docs(lanes): define ownerless closeout admission"
 ## Task 5: Controlled rollout against one clean ownerless target
 
 **Files:**
+
 - Create: one immutable record below the governed `ethos-records/evidence/<UTC>-ownerless-closeout-pilot/` root, admitted with `record-admit`
 
 **Interfaces:**
+
 - Select exactly one current clean ownerless accepted ancestor with either a
   canonical branch/path pair or a registered legacy `work/*` sibling path.
 - The record includes `README.md`, `closeout.json`, `MANIFEST.json`, and `SHA256SUMS` and is verified before index update.

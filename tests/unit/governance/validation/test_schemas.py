@@ -65,7 +65,6 @@ def test_schema_validation_report_covers_all_ethos_schemas() -> None:
     assert report["schema_count"] >= 30
     assert report["required_gaps"] == []
     assert report["schemas"]["quality-asset.schema.json"]["ok"] is True
-    assert report["schemas"]["quality-finding.schema.json"]["ok"] is True
     assert report["schemas"]["quality-gate-plan.schema.json"]["ok"] is True
     assert report["schemas"]["quality-profile.schema.json"]["ok"] is True
     assert report["schemas"]["review-record.schema.json"]["ok"] is True

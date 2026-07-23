@@ -25,6 +25,7 @@ mkdir -p "${ruff_cache_dir}"
 # become side lanes.
 python_quality_paths=()
 while IFS= read -r -d "" path; do
+  [[ -f "${path}" ]] || continue
   python_quality_paths+=("${path}")
 done < <(git ls-files -z "*.py" "*.pyi")
 if [[ "${#python_quality_paths[@]}" -eq 0 ]]; then

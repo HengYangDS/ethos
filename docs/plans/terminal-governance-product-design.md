@@ -845,8 +845,9 @@ Terminal ETHOS must treat bypassable guidance as an incomplete control.
 
 ## Tool Catalog
 
-`system/tools.toml` declares tool identity, maturity, profiles, gate mapping,
-config path, install strategy, and evidence output.
+`system/tools.toml` declares admitted tool identity, profile, gate mapping,
+config path, supply boundary, and evidence output. `system/gates.toml` alone
+owns executable gate sets, dependencies, and proof selection.
 
 Configuration follows separation of concerns:
 
@@ -856,34 +857,14 @@ Configuration follows separation of concerns:
 - Hosted CI files are provider projections over those commands, not another policy store.
 
 This keeps configuration MECE: package metadata, tool runtime behavior, gate policy,
-and hosted execution projection do not own each other's semantics.
+and hosted execution projection do not own each other's semantics. Current
+owners and carriers are queried from `system/tools.toml` through
+`ethos quality tool-profiles --json`; this design does not duplicate that view.
 
-| Concern | Default tool | Config carrier | Profile |
-| --- | --- | --- | --- |
-| Python format/lint | `ruff` | `.config/checks/ruff/ruff.toml` + `.config/checks/ruff/ratchet.toml` | minimal |
-| Python typing | `ty`; optional `mypy` strict | `.config/checks/ty/`, `.config/checks/mypy/` | product |
-| Tests | `pytest` | `.config/checks/pytest/pytest.ini` + `.config/checks/pytest/policy.toml` | minimal |
-| Coverage | `coverage.py` | `.config/checks/coverage/` | product |
-| Import boundaries | `import-linter` | `.config/boundaries/` | product |
-| Dependency hygiene | `deptry` | `.config/checks/deptry/` | product |
-| TOML | `taplo` | `.config/checks/taplo/` | minimal |
-| Markdown style | `markdownlint-cli2`, `mdformat` | `.config/checks/markdown/` | minimal |
-| Links | `lychee` | `.config/docs/lychee.toml` | product |
-| Prose | `vale`, `codespell` | `.config/checks/prose/` | product |
-| YAML | `yamllint`, `spectral` | `.config/checks/yaml/` | ecosystem |
-| JSON/schema | `check-jsonschema`, `jq` | `system/schemas/` | minimal |
-| Shell | `shellcheck`, `shfmt` | `.config/checks/shell/` | product |
-| Docker | `hadolint` | `.config/checks/docker/` | distribution |
-| SQL | `sqlfluff` | `.config/checks/sqlfluff/` | extension |
-| Secrets | `gitleaks`; optional `trufflehog` | `.gitleaks.toml` | minimal |
-| Python vuln | `uv audit` | `.config/security/` | security |
-| SBOM | `syft` | `.config/release/` | release |
-| Image/package scan | `grype` | `.config/security/` | release |
-| Signing | `sigstore`, `cosign` | `.config/release/` | release |
-| Attestation | `in-toto`, SLSA provenance | `evidence/attestations/` | release |
-
-Profiles decide which gates run by default. The presence of a tool in the
-catalog does not make it mandatory for every repository.
+Profiles decide which gates run by default. Future tools and rejected
+alternatives belong only in the
+[Tooling Adoption Roadmap](tooling-adoption-roadmap.md) until a bounded pilot is
+admitted; the runtime catalog does not carry a speculative backlog.
 
 ## Docs And Code Consistency
 
@@ -1050,8 +1031,10 @@ Remove forwarding modules and package compatibility shells.
 
 ### Stage 5: Tool Catalog And Gates
 
-Move gate definitions into `system/tools.toml` and `.config/`. Implement one
-runner that executes declared gates and normalizes evidence.
+Move executable gate definitions into `system/gates.toml`, keep admitted tool
+identity and supply in `system/tools.toml`, and keep tool policy under
+`.config/`. Implement one runner that executes declared gates and normalizes
+evidence.
 
 Start with:
 
@@ -1060,7 +1043,6 @@ ruff
 pytest
 taplo
 markdownlint-cli2
-mdformat
 lychee
 gitleaks
 check-jsonschema

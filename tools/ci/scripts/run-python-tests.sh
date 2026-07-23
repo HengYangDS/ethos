@@ -13,6 +13,7 @@ pytest_tmp_dir="${ETHOS_TEST_BASETEMP:-${TMPDIR:-/tmp}/ethos-pytest-${USER:-user
 if ! [[ "${coverage_lock_wait_seconds}" =~ ^[0-9]+$ ]]; then echo "ETHOS_COVERAGE_LOCK_WAIT_SECONDS must be a non-negative integer" >&2; exit 2; fi
 if [[ "${shards}" != "1" && "${shards}" != "serial" ]] && { ! [[ "${shards}" =~ ^[0-9]+$ ]] || [[ "${shards}" -lt 1 ]]; }; then echo "ETHOS_TEST_SHARDS must be a positive integer" >&2; exit 2; fi
 ethos_python="${ETHOS_PYTHON:-${PYTHON:-${UV_PROJECT_ENVIRONMENT}/bin/python}}"
+export UV_PROJECT_ENVIRONMENT="build/runtime/venv"
 mkdir -p "${coverage_evidence_dir}" "${pytest_evidence_dir}" "${pytest_tmp_dir}"
 export COVERAGE_FILE="${coverage_evidence_dir}/.coverage" RUFF_CACHE_DIR="${RUFF_CACHE_DIR:-${repo_root}/build/runtime/tool-cache/ruff}"
 coverage_lock_acquired="false"; coverage_lock_invalid_reclaim_attempted="false"; sharded_mode="false"

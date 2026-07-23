@@ -41,6 +41,8 @@ def test_gate_registry_has_real_default_gates() -> None:
         "python-types",
         "docstrings",
         "module-layout",
+        "import-boundaries",
+        "dependency-hygiene",
         "no-compat",
         "product-boundary",
     } <= set(registry)
@@ -52,6 +54,8 @@ def test_gate_registry_has_real_default_gates() -> None:
     assert registry["docstrings"].command == ("tools/ci/scripts/run-docstring-coverage.sh",)
     assert registry["module-layout"].command == ("tools/ci/scripts/run-module-layout.sh",)
     assert registry["module-layout"].execution_mode == "adapter"
+    assert registry["import-boundaries"].command == ("tools/ci/scripts/run-import-linter.sh",)
+    assert registry["dependency-hygiene"].command == ("tools/ci/scripts/run-dependency-hygiene.sh",)
     assert registry["no-compat"].command == ("tools/ci/scripts/run-no-compat.sh",)
     assert registry["no-compat"].execution_mode == "adapter"
     assert registry["product-boundary"].command == ("tools/ci/scripts/run-product-boundary.sh",)
@@ -127,6 +131,8 @@ def test_default_gate_graph_includes_ci_owner_quality_floor() -> None:
         "python-types",
         "docstrings",
         "module-layout",
+        "import-boundaries",
+        "dependency-hygiene",
         "no-compat",
         "python-size",
         "config-quality",
@@ -142,6 +148,12 @@ def test_default_gate_graph_includes_ci_owner_quality_floor() -> None:
     ]
     assert nodes["ruff"].to_dict()["command"] == ["tools/ci/scripts/run-python-lint.sh"]
     assert nodes["module-layout"].to_dict()["command"] == ["tools/ci/scripts/run-module-layout.sh"]
+    assert nodes["import-boundaries"].to_dict()["command"] == [
+        "tools/ci/scripts/run-import-linter.sh"
+    ]
+    assert nodes["dependency-hygiene"].to_dict()["command"] == [
+        "tools/ci/scripts/run-dependency-hygiene.sh"
+    ]
     assert nodes["no-compat"].to_dict()["command"] == ["tools/ci/scripts/run-no-compat.sh"]
     assert nodes["product-boundary"].to_dict()["command"] == [
         "tools/ci/scripts/run-product-boundary.sh"

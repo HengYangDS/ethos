@@ -139,6 +139,14 @@ def test_python_test_gate_fails_closed_when_head_changes_during_run() -> None:
     assert "cleanup_denied_runtime_residue" in exit_cleanup
 
 
+def test_python_test_gate_scopes_uv_environments_to_subprocess_project_roots() -> None:
+    script = (ROOT / "tools/ci/scripts/run-python-tests.sh").read_text(encoding="utf-8")
+
+    assert script.index('ethos_python="${ETHOS_PYTHON') < script.index(
+        'export UV_PROJECT_ENVIRONMENT="build/runtime/venv"'
+    ) < script.index("run_pytest()")
+
+
 def test_test_and_report_mechanisms_have_declared_boundaries() -> None:
     tools = tomllib.loads((ROOT / "system/tools.toml").read_text(encoding="utf-8"))["tool"]
     by_concern = {tool["concern"]: tool for tool in tools}
@@ -150,7 +158,9 @@ def test_test_and_report_mechanisms_have_declared_boundaries() -> None:
     )
     assert by_concern["tests"]["artifacts"] == "build/evidence/quality/tests/"
     assert "test_performance" not in by_concern
-    assert by_concern["test_reporting"]["adoption"] == "candidate"
+    assert "test_reporting" not in by_concern
+    assert "benchmarking" not in by_concern
+    assert "test_order_randomization" not in by_concern
 
 
 def test_retired_performance_evidence_feature_has_no_active_owner() -> None:
@@ -227,6 +237,7 @@ def test_python_lint_gate_discovers_every_tracked_python_source() -> None:
     assert "*.py" in script
     assert "*.pyi" in script
     assert "python_quality_paths" in script
+    assert '[[ -f "${path}" ]] || continue' in script
     assert "no tracked Python files found for Ruff" in script
     assert "packages/tools/tests are required" in script
     assert "not sufficient" in script
@@ -247,7 +258,7 @@ def test_python_owner_scripts_execute_under_macos_bash(tmp_path: Path) -> None:
     fake_bin = tmp_path / "bin"
     fake_bin.mkdir()
     scripts = {
-        "git": f'#!/bin/sh\nif [ "$1" = "rev-parse" ]; then printf "%s\\n" "{ROOT}"; else printf "sample.py\\0"; fi\n',
+        "git": f'#!/bin/sh\nif [ "$1" = "rev-parse" ]; then printf "%s\\n" "{ROOT}"; else printf "tests/architecture/test_testing_platform.py\\0"; fi\n',
         "uv": "#!/bin/sh\nexit 0\n",
     }
     for name, content in scripts.items():

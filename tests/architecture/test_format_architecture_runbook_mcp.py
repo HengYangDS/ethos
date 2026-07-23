@@ -148,16 +148,13 @@ def test_active_p1_p2_tools_have_owner_surfaces() -> None:
         assert gate in combined
 
 
-def test_optional_adapters_and_supply_chain_remain_planned() -> None:
-    for concern in [
-        "signing",
-        "nox_runner_adapter",
-        "pixi_environment_adapter",
-        "pants_graph_adapter",
-        "task_ledger_adapter",
-        "agent_method_pack_adapter",
-    ]:
-        block = tool_block(ROOT, concern)
-        assert 'adoption = "candidate"' in block
+def test_future_adapters_remain_roadmap_only() -> None:
+    catalog = (ROOT / "system/tools.toml").read_text(encoding="utf-8")
+    roadmap = (ROOT / "docs/plans/tooling-adoption-roadmap.md").read_text(encoding="utf-8")
+
+    for concern in ("nox_runner_adapter", "pixi_environment_adapter", "pants_graph_adapter"):
+        assert concern not in catalog
+    for tool in ("Nox", "Pixi", "Pants", "Syft", "cosign"):
+        assert tool in roadmap
 
 # fmt: on

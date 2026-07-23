@@ -1,0 +1,41 @@
+[claim]
+id = "ownerless-bootstrap-node-cache-retirement-20260723"
+subject = "ethos:work-lane:work/20260721-bootstrap-node-cache"
+state = "active"
+change_id = "ownerless-bootstrap-node-cache-retirement"
+summary = "One accepted, target-specific local carrier records accepted-ancestor absorption of the clean lease-free bootstrap-node-cache Work Lane before one later native resolution decision."
+
+[evidence]
+dated = "evidence/chronicle/ownerless-bootstrap-node-cache-retirement-20260723/2026-07-23.md"
+sha256 = "d312b9863a0cc85804c33e791d709b1704798f0af00505344bd7b187f9302c3c"
+evidence_ids = ["evidence:ownerless-bootstrap-node-cache-retirement-20260723"]
+binding = "This Claim binds only work/20260721-bootstrap-node-cache at bb4af98039a5d34cae5de69d7a623fdbe076ea20, accepted dev at 8d5cc270e148141a54e5e9dd7aa1269ac31241d7, and one later native lane_resolution/retire decision. It does not turn inventory visibility, a missing lease, or executor identity into ownership, batch authority, external publication, or hosted evidence."
+verifier = "digest_only"
+tests = [
+  "git merge-base --is-ancestor bb4af98039a5d34cae5de69d7a623fdbe076ea20 dev",
+  "git -C <linked-source-worktree> status --porcelain --untracked-files=all",
+  "ethos lane status --json",
+  "ethos lane resolution decide --branch work/20260721-bootstrap-node-cache --disposition retire --reason <accepted-ancestor-semantic-absorption> --evidence-ref evidence:ownerless-bootstrap-node-cache-retirement-20260723 --chronicle-ref evidence/chronicle/ownerless-bootstrap-node-cache-retirement-20260723/2026-07-23.md --recovery-plan <retain-native-recovery-records-on-drift> --break-glass --apply --json",
+  "ethos prove --execute --expect-head <committed-head> --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "One exact clean linked ownerless accepted-ancestor Work Lane and one later native local resolution transition; no valid-owner takeover, dirty-lane effect, raw deletion, remote mutation, or hosted claim."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-23-ownerless-closeout-effect-fence"
+fallback = "Keep the exact source branch and linked worktree intact if any source, lease, claim, accepted-head, Chronicle, closeout, or postcondition fact drifts before native apply."
+kill_signal = "A missing lease is treated as generic ownership, an effect reaches an unlisted lane, a dirty or valid-owner lane is selected, a native failure is hidden by manual cleanup, or local evidence is called remote or hosted completion."
+
+[promotion]
+targets = [
+  "docs/plans/ownerless-bootstrap-node-cache-retirement-20260723.md",
+  "evidence/claims/ownerless-bootstrap-node-cache-retirement-20260723.toml",
+  "evidence/chronicle/ownerless-bootstrap-node-cache-retirement-20260723/2026-07-23.md",
+  "openspec/changes/archive/2026-07-23-ownerless-closeout-effect-fence",
+  "openspec/specs/repository-governance/spec.md",
+]

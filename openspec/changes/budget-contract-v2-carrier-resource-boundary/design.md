@@ -135,12 +135,15 @@ design constant or a reason to weaken the reviewed boundary.
    The public raw exchange/result seam remains in `supervisor/io.py`; the
    cohesive TERM/grace/KILL/no-live-proof/close/reap/remove state machine lives in
    `supervisor/lifecycle/core.py`; platform backends own only their exact group probe and
-   signal capabilities. Cross-module exchange inputs use frozen, slots-based
-   `WorkerExchangeConfig`, `WorkerExchangeHooks`, and `WorkerExchangeSession`.
-   Config does not duplicate the owned process or private directory; the session
-   owner is their sole source of truth. Lifecycle cleanup uses one pre-spawn
-   slots-based `WorkerLifecycleOwner` whose process and selector references are
-   bind-only. Its preallocated reentrant lock elects one cleanup runner without
+   signal capabilities. Cross-module immutable exchange inputs use frozen,
+   slots-based `WorkerExchangeConfig`, `WorkerExchangeHooks`, and
+   `WorkerExchangeSession`. Config does not duplicate the owned process or private
+   directory; the session owner is their sole source of truth. The mutable
+   exchange progress, loop context, and lifecycle owner are ordinary
+   explicit-`__slots__` classes in `supervisor/lifecycle/core.py`; they are not
+   mutable dataclasses and do not pretend to be frozen. The owner's process and
+   selector references remain bind-only. Its preallocated reentrant lock elects
+   one cleanup runner without
    spanning backend or OS callbacks; same-thread re-entry is a no-op, while a
    concurrent finisher waits on the preallocated completion signal and fails
    closed rather than returning a success-bearing result before cleanup completes.
@@ -183,6 +186,14 @@ design constant or a reason to weaken the reviewed boundary.
     snapshot. Public gaps contain no PID, signal, absolute path, observed size,
     threshold, bytes, or exception text; measurement adds only the governed
     repository-relative path.
+
+13. **Claim and parity freshness form a directed evidence graph.** The C1
+    semantic Claim hashes its source, contract, active OpenSpec, docs, and tests,
+    but does not hash `evidence/parity/generic-shadow.json`. Generic parity is a
+    separate repository-wide freshness witness whose own semantic tree includes
+    `evidence/claims`; it remains a required `quality evidence-freshness` and
+    proof gate. The stable order is semantic target commit, Claim binding commit,
+    parity refresh, parity-only commit, then exact-HEAD proof.
 
 ## Rejected Alternatives
 

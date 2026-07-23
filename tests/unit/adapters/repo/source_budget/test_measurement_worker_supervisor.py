@@ -686,7 +686,7 @@ def test_exchange_api_has_one_write_once_cause(monkeypatch: pytest.MonkeyPatch, 
     def construct(**values: object) -> object:
         return _step(constructors, result_type)(**values)
     monkeypatch.setattr(module, "WorkerExchangeResult", construct)
-    freeze, state_type = vars(module)["_freeze_exchange"], vars(module)["_ExchangeState"]
+    freeze, state_type = vars(module)["_freeze_exchange"], _module(LIFECYCLE).WorkerExchangeState
     frozen = freeze(state_type(stdout=bytearray(b"discard"), first_cause="resource_exhausted"))
     assert frozen.stdout == b""
     assert frozen.first_cause == "resource_exhausted"
@@ -912,7 +912,7 @@ def test_unexpected_exchange_exception_has_one_cleanup_owner(monkeypatch: pytest
     assert (carrier.load.required_gaps, carrier.private.exists(), carrier.process.returncode is not None, carrier.events.count(f"signal:{signal.SIGTERM}"), carrier.events.count("reap:0.1")) == (("source_budget_worker_failed",), False, True, 1, 1)
     monkeypatch.setattr(module, "_WorkerLaunch", worker_launch)
     exchange = _module(EXCHANGE)
-    for allocation in ("_ExchangeState", "WorkerLifecycleOwner", "WorkerLifecycleBoundary", "WorkerLifecycleContext", "WorkerExchangeSession"):
+    for allocation in ("WorkerExchangeState", "WorkerLifecycleOwner", "WorkerLifecycleBoundary", "WorkerLifecycleContext", "WorkerExchangeSession"):
         original = getattr(exchange, allocation)
         monkeypatch.setattr(exchange, allocation, lambda *_args, name=allocation, **_kwargs: (_ for _ in ()).throw(MemoryError(name)))
         rejected = _supervise(monkeypatch, tmp_path, worker_case, _outcome())

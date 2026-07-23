@@ -74,10 +74,12 @@
   reap, POSIX supervisor, platform telemetry, exception-total group termination,
   normal-success and post-KILL bounded no-live proof, immutable first-cause stable
   redacted parent gaps, and strict parent result replay. Keep the public exchange
-  and raw result in `supervisor/io.py`, carry its inputs through frozen
-  `WorkerExchangeConfig`/`WorkerExchangeHooks`, allocate a slots-based
-  `WorkerExchangeSession`, its single `WorkerLifecycleOwner`, reentrant lock,
-  completion signal, exception boundary, and immutable cleanup context before the
+  and raw result in `supervisor/io.py`, carry immutable inputs through frozen
+  `WorkerExchangeConfig`/`WorkerExchangeHooks`/`WorkerExchangeSession`, and keep
+  mutable exchange state, loop context, and `WorkerLifecycleOwner` as ordinary
+  explicit-`__slots__` classes in `supervisor/lifecycle/core.py`. Allocate the
+  owner, reentrant lock, completion signal, exception boundary, and immutable
+  cleanup context before the
   deadline and `Popen`; treat spawn/selector creation as trusted primitives, and
   once a returned object is addressable publish it or clean/close it before later
   dependent allocation. Claim the one exchange before selector creation, keep
@@ -127,7 +129,9 @@
   Before an implementation/proof claim, promotion targets SHALL add
   `measurement/execution.py`, the kernel `measurement/worker` package, the
   worker-protocol schema, protocol/frame tests, supervisor test, and architecture
-  boundary test. Do not push remotely.
+  boundary test. Generic parity remains a separate repository-wide freshness
+  witness rather than a C1 Claim semantic target: commit the semantic Claim, then
+  refresh and commit parity before exact-HEAD proof. Do not push remotely.
 
 ## Post-Archive Transition Boundary
 

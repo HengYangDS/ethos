@@ -116,12 +116,6 @@ def test_dependency_hygiene_declares_parse_only_jinja_dynamic_import() -> None:
     assert "--per-rule-ignores DEP002=jinja2" in runner
 
 
-def test_non_python_vulnerability_scanners_remain_planned() -> None:
-    expected_adoption = {"image_package_scan": "deferred", "signing": "candidate"}
-    for concern, adoption in expected_adoption.items():
-        assert f'adoption = "{adoption}"' in tool_block(ROOT, concern)
-
-
 def test_config_lint_targeted_toml_invocation_handles_empty_json_set(
     tmp_path: Path,
 ) -> None:

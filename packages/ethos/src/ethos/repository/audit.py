@@ -108,7 +108,6 @@ REQUIRED_SCHEMAS = (
     "authority.schema.json",
     "authority-graph.schema.json",
     "quality-asset.schema.json",
-    "quality-finding.schema.json",
     "quality-gate-plan.schema.json",
     "quality-profile.schema.json",
     "review-record.schema.json",

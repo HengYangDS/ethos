@@ -3,8 +3,8 @@ id = "gate-registry"
 source_refs = ["system/gates.toml"]
 
 [proof_sets]
-product_default = ["repository-audit", "claims", "evidence-freshness", "docs-registry", "docs-topology", "schemas", "playbooks-v2", "generated-artifacts", "product-boundary", "unit-architecture", "ruff", "python-types", "docstrings", "module-layout", "no-compat", "python-size", "config-quality", "shell-lint", "format-policy"]
-product_full = ["repository-audit", "claims", "evidence-freshness", "docs-registry", "docs-topology", "schemas", "playbooks-v2", "generated-artifacts", "product-boundary", "openspec", "unit-architecture", "ruff", "python-types", "docstrings", "module-layout", "no-compat", "build", "local-install-smoke", "markdown-links", "shell-lint", "config-quality", "markdown-structure", "format-policy", "asset-determinism", "proof-policy", "python-size", "source-budget", "npm-pack"]
+product_default = ["repository-audit", "claims", "evidence-freshness", "docs-registry", "docs-topology", "schemas", "playbooks-v2", "generated-artifacts", "product-boundary", "unit-architecture", "ruff", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "no-compat", "python-size", "config-quality", "shell-lint", "format-policy"]
+product_full = ["repository-audit", "claims", "evidence-freshness", "docs-registry", "docs-topology", "schemas", "playbooks-v2", "generated-artifacts", "product-boundary", "openspec", "unit-architecture", "ruff", "python-types", "docstrings", "module-layout", "import-boundaries", "dependency-hygiene", "no-compat", "build", "local-install-smoke", "markdown-links", "shell-lint", "config-quality", "markdown-structure", "format-policy", "asset-determinism", "proof-policy", "python-size", "source-budget", "npm-pack"]
 adopter_default = []
 
 [[gates]]
@@ -518,7 +518,7 @@ version_source = "locked-toolchain"
 id = "import-boundaries"
 registries = ["quality", "runtime"]
 kind = "architecture"
-command = ["lint-imports", "--config", ".config/checks/import-linter/contracts.ini"]
+command = ["tools/ci/scripts/run-import-linter.sh"]
 policy = "required"
 profile = "product"
 toolchain = "quality-adapter"
@@ -529,5 +529,23 @@ evidence_class = "contract"
 trust_bearing = true
 tool_adapter = "import-linter"
 writes_files = false
+network_policy = "offline"
+version_source = "locked-toolchain"
+
+[[gates]]
+id = "dependency-hygiene"
+registries = ["quality", "runtime"]
+kind = "dependency"
+command = ["tools/ci/scripts/run-dependency-hygiene.sh"]
+policy = "required"
+profile = "product-toolchain"
+toolchain = "uv-python"
+asset_classes = ["python-code", "config"]
+dimensions = ["dependency-hygiene", "metadata"]
+execution_mode = "adapter"
+evidence_class = "diagnostic"
+trust_bearing = true
+tool_adapter = "deptry"
+writes_files = true
 network_policy = "offline"
 version_source = "locked-toolchain"

@@ -347,7 +347,7 @@ def test_release_policy_uses_configured_branch_roles_for_protected_refs(
         encoding="utf-8",
     )
     (root / ".ethos" / "release.toml").write_text(
-        '[release]\nversion_source = "pyproject.toml"\ntag_pattern = "v{version}"\nartifact_glob = "dist/*"\n\n[protected_refs]\nbranches = ["release", "integration"]\ntags = ["v*"]\n\n[host_profile]\nprovider = "gitlab"\n\n[host_profile.surfaces]\nci = ".gitlab-ci.yml"\nmerge_request_template = ".gitlab/merge_request_templates/default.md"\nissue_template = ".gitlab/issue_templates/task.md"\n\n[attestation]\nformats = ["in-toto", "slsa", "spdx-lite"]\nsigning = "git-ssh"\n',
+        '[release]\nversion_source = "pyproject.toml"\ntag_pattern = "v{version}"\nartifact_glob = "dist/*"\n\n[protected_refs]\nbranches = ["release", "integration"]\ntags = ["v*"]\n\n[host_profile]\nprovider = "gitlab"\n\n[host_profile.surfaces]\nci = ".gitlab-ci.yml"\nmerge_request_template = ".gitlab/merge_request_templates/default.md"\nissue_template = ".gitlab/issue_templates/task.md"\n\n[attestation]\nformats = ["in-toto-shaped", "slsa-shaped", "spdx-lite"]\nsigning = "git-ssh"\n',
         encoding="utf-8",
     )
 
@@ -370,7 +370,7 @@ def test_release_policy_does_not_accept_retired_provider_section(
         encoding="utf-8",
     )
     (root / ".ethos" / "release.toml").write_text(
-        '[protected_refs]\nbranches = ["main", "dev"]\ntags = ["v*"]\n\n[gitlab]\nci = ".gitlab-ci.yml"\n\n[attestation]\nformats = ["in-toto", "slsa", "spdx-lite"]\n',
+        '[protected_refs]\nbranches = ["main", "dev"]\ntags = ["v*"]\n\n[gitlab]\nci = ".gitlab-ci.yml"\n\n[attestation]\nformats = ["in-toto-shaped", "slsa-shaped", "spdx-lite"]\n',
         encoding="utf-8",
     )
 
@@ -395,7 +395,7 @@ def test_release_policy_reports_host_surface_gaps_without_product_file_coupling(
         encoding="utf-8",
     )
     (root / ".ethos" / "release.toml").write_text(
-        '[protected_refs]\nbranches = ["main", "dev"]\ntags = ["v*"]\n\n[host_profile]\nprovider = "gitlab"\n\n[host_profile.surfaces]\nci = ".gitlab-ci.yml"\n\n[attestation]\nformats = ["in-toto", "slsa", "spdx-lite"]\n',
+        '[protected_refs]\nbranches = ["main", "dev"]\ntags = ["v*"]\n\n[host_profile]\nprovider = "gitlab"\n\n[host_profile.surfaces]\nci = ".gitlab-ci.yml"\n\n[attestation]\nformats = ["in-toto-shaped", "slsa-shaped", "spdx-lite"]\n',
         encoding="utf-8",
     )
 
@@ -405,7 +405,7 @@ def test_release_policy_reports_host_surface_gaps_without_product_file_coupling(
     assert "host_surface_missing:gitlab:ci:.gitlab-ci.yml" in report["required_gaps"]
 
 
-def test_release_attestation_is_in_toto_slsa_and_lockfile_material_shaped() -> None:
+def test_release_attestation_is_in_toto_and_slsa_shaped_without_conformance_claim() -> None:
     attestation = release_attestation(
         root=Path.cwd(),
         head="abc123",

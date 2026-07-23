@@ -171,7 +171,8 @@ Goal: make quality gates owner-scripted, cataloged, and reproducible.
 
 Tasks:
 
-- Keep `system/tools.toml` as tool-adoption state SSOT.
+- Keep `system/tools.toml` as the admitted active-tool SSOT and the tooling
+  roadmap as the sole comparison and future-decision surface.
 - Preserve owner scripts for tests, lint, import boundaries, markdown, prose,
   config, shell/yaml, security, dependency, coverage, release supply chain,
   local state, and closeout manifests.
@@ -254,8 +255,8 @@ true for that HEAD:
 - GitHub and GitLab template checks pass from shared policy.
 - Local emulator evidence exists for both forge profiles, or missing optional
   host tools are reported as bounded local gaps.
-- `system/tools.toml` records adoption state for active, candidate, deferred,
-  and rejected tools.
+- `system/tools.toml` contains admitted active tools only; candidate, deferred,
+  and rejected decisions exist only in the tooling roadmap.
 - Architecture projection drift has been checked.
 - Adopter-profile findings are either closed or explicitly recorded as
   adopter-profile gaps.

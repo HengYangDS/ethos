@@ -350,6 +350,14 @@ def test_secrets_scan_is_bounded_to_git_tracked_source() -> None:
     assert "tracked files" in runner
 
 
+def test_gitleaks_allowlist_never_exempts_the_test_tree() -> None:
+    allowlist = tomllib.loads((ROOT / ".gitleaks.toml").read_text(encoding="utf-8"))["allowlist"]
+
+    assert "paths" not in allowlist
+    assert "tests/" not in "\n".join(allowlist["regexes"])
+    assert "sk-proj-1234567890abcdef1234567890abcdef" in allowlist["regexes"]
+
+
 def test_ci_gitleaks_installer_uses_cached_tool_supply_with_checksum() -> None:
     installer = (ROOT / "tools/ci/scripts/install-gitleaks.sh").read_text(encoding="utf-8")
     tools = (ROOT / "system/tools.toml").read_text(encoding="utf-8")

@@ -3,23 +3,23 @@ schema_version = 1
 
 [[adapter]]
 id = "slsa"
-mode = "native-standard"
+mode = "local-projection"
 lifecycle = "adapter"
 reference = "https://slsa.dev/spec"
-boundary = "Evidence and release facts may project to SLSA-style provenance."
+boundary = "Evidence and release facts may project to ETHOS-local SLSA-shaped fields without claiming SLSA conformance."
 input_contract = "ETHOS EvidenceSet plus release subject digest."
-output_contract = "SLSA provenance predicate projection."
+output_contract = "ETHOS provenance projection with SLSA-shaped fields."
 fallback = "Keep unsigned JSON evidence with HEAD and digest binding."
 exit_strategy = "Remove the projection while preserving ETHOS Evidence schema."
 
 [[adapter]]
 id = "in_toto"
-mode = "attestation-envelope"
+mode = "local-projection"
 lifecycle = "adapter"
 reference = "https://in-toto.io/"
-boundary = "Wrap ETHOS evidence sets as statement envelopes."
+boundary = "Wrap ETHOS evidence sets as in-toto-shaped statement envelopes without claiming in-toto conformance."
 input_contract = "ETHOS provenance envelope."
-output_contract = "in-toto statement-shaped attestation."
+output_contract = "ETHOS-local in-toto-shaped attestation."
 fallback = "Emit ETHOS provenance JSON without external envelope publication."
 exit_strategy = "Drop envelope projection while keeping evidence digest binding."
 
@@ -36,12 +36,12 @@ exit_strategy = "Disable signing adapter without changing proof semantics."
 
 [[adapter]]
 id = "spdx"
-mode = "artifact-metadata-adapter"
+mode = "local-projection"
 lifecycle = "adapter"
 reference = "https://spdx.dev/"
-boundary = "Project release package metadata and SBOM facts."
+boundary = "Project release package metadata and lockfile facts without claiming SPDX conformance."
 input_contract = "Workspace package metadata and lock data."
-output_contract = "SPDX-compatible SBOM projection."
+output_contract = "ETHOS lockfile-derived SPDX-lite SBOM projection."
 fallback = "Keep package metadata and dependency lock evidence."
 exit_strategy = "Remove SBOM projection without changing release readiness."
 

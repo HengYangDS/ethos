@@ -725,7 +725,7 @@ def test_github_emulator_run_materializes_an_independent_git_source(
     assert recorded["run"]["cwd"] == source_dir
 
 
-def test_tool_catalog_distinguishes_active_provider_gates_from_planned_adapters() -> None:
+def test_tool_catalog_contains_only_active_provider_gates() -> None:
     active = {
         "ci_template_consistency": "tools/ci/scripts/run-ci-template-check.sh",
         "github_workflow_syntax": "tools/ci/scripts/run-actionlint.sh",
@@ -744,16 +744,5 @@ def test_tool_catalog_distinguishes_active_provider_gates_from_planned_adapters(
 
     tool_catalog = (ROOT / "system/tools.toml").read_text(encoding="utf-8")
     assert ".config/ci/emulators/" not in tool_catalog
-
-    for concern in [
-        "nox_runner_adapter",
-        "pixi_environment_adapter",
-        "pants_graph_adapter",
-        "task_ledger_adapter",
-        "agent_method_pack_adapter",
-    ]:
-        block = tool_block(ROOT, concern)
-        assert 'adoption = "candidate"' in block
-        assert "adapter_only = true" in block
 
 # fmt: on

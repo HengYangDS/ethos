@@ -18,7 +18,10 @@ export RUFF_CACHE_DIR="${RUFF_CACHE_DIR:-${repo_root}/build/runtime/tool-cache/r
 mkdir -p "${RUFF_CACHE_DIR}"
 
 python_quality_paths=()
-while IFS= read -r -d "" path; do python_quality_paths+=("${path}"); done < <(git ls-files -z "*.py" "*.pyi")
+while IFS= read -r -d "" path; do
+  [[ -f "${path}" ]] || continue
+  python_quality_paths+=("${path}")
+done < <(git ls-files -z "*.py" "*.pyi")
 if [[ "${#python_quality_paths[@]}" -eq 0 ]]; then
   echo "no tracked Python files found for Ruff ratchet" >&2
   exit 1

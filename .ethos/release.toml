@@ -14,5 +14,5 @@ issue_template = ".gitlab/issue_templates/task.md"
 remotes = ["origin", "github"]
 
 [attestation]
-formats = ["in-toto", "slsa", "spdx-lite"]
+formats = ["in-toto-shaped", "slsa-shaped", "spdx-lite"]
 signing = "git-ssh"

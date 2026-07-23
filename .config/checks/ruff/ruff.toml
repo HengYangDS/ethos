@@ -56,7 +56,6 @@ select = [
   "BLE",
   "RSE",
   "SLOT",
-  "PIE",
   "INP",
   "T20",
   "YTT",

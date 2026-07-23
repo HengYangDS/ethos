@@ -25,7 +25,13 @@ git_config_fsmonitor_index="${git_config_count}"
 export GIT_CONFIG_KEY_"${git_config_fsmonitor_index}"=core.fsmonitor
 export GIT_CONFIG_VALUE_"${git_config_fsmonitor_index}"=false
 export GIT_CONFIG_COUNT="$((git_config_count + 1))"
-cleanup_denied_runtime_residue() { rm -rf .pytest_cache .ruff_cache build/runtime/gitlab-ci-local; }
+cleanup_source_bytecode_caches() {
+  find packages -type d -name "__pycache__" -prune -exec rm -rf {} +
+}
+cleanup_denied_runtime_residue() {
+  rm -rf .pytest_cache .ruff_cache build/runtime/gitlab-ci-local
+  cleanup_source_bytecode_caches
+}
 cleanup_root_coverage_artifacts() { rm -f .coverage .coverage.* coverage.xml junit.xml; }
 release_coverage_lock() { if [[ "${coverage_lock_acquired}" == "true" ]]; then rm -f "${coverage_lock_owner_path}"; rmdir "${coverage_lock_dir}" 2>/dev/null || true; fi; }
 cleanup_and_release() {

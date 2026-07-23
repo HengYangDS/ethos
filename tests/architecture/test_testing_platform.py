@@ -60,6 +60,7 @@ def test_python_test_gate_removes_source_bytecode_caches() -> None:
 
     assert "cleanup_source_bytecode_caches" in script
     assert 'find packages -type d -name "__pycache__" -prune -exec rm -rf {} +' in script
+    assert "find packages -depth -type d -empty -delete" in script
 
 
 def test_test_harness_disables_a_local_fsmonitor_configuration(tmp_path: Path) -> None:

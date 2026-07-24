@@ -5,9 +5,12 @@
 Budget Contract v2 now has typed carriers, versioned native measurement, and an
 accepted static-hybrid resource boundary, but the migration still lacks an
 immutable Git-blob replay and a truthful shadow comparison. The declared v1
-baseline must remain `105342`; current v1 semantics replay that historical tree
-as `105060`, so the `-282` drift is a governed observation rather than a reason
-to rewrite the declaration.
+baseline must remain `105342`. Versioned observer profile
+`v1-continuation-20260719` replays that historical tree as `105060`, so the
+`-282` drift is a governed observation rather than a reason to rewrite the
+declaration. The later live Task 4-start taxonomy intentionally omits Jinja and
+therefore yields a separate `104389` observation that must remain unresolved,
+not overwrite the historical correction.
 
 The replay boundary must not create temporary checkouts or worktrees. It must
 bind the selected commit, tree, inventory, blob identities, measurement
@@ -23,9 +26,21 @@ contracts, and fail-closed gaps before a comparison can be reviewed.
   through one validated `git cat-file --batch` exchange.
 - Replay the immutable baseline commit
   `2dab77f169eceb2d45f917358c2a7487e7ac8db6` and tree
-  `075da5ad45be962e9f5e775b3f050cab4023ea0d`, binding 933 governed files and
-  inventory SHA-256
+  `075da5ad45be962e9f5e775b3f050cab4023ea0d`, binding subject snapshot and
+  observer taxonomy independently.
+- Bind historical observer profile `v1-continuation-20260719` at commit
+  `604934c7afe244caf5b671423f108823a7753a98`, taxonomy blob
+  `51a3931b43aa9030e166309289d6d85a80831526`, and taxonomy content SHA-256
+  `b5dfc532586b0e1f3c3f614ce34e70cd9e817b84adfeabfbda266adf19d07a3d`;
+  it yields 933 governed files and inventory SHA-256
   `f8e85ace7648b60592fbe6e678f78169afa98c6289b0e8bb7d7fbc3961fa1c8d`.
+- Bind live observer profile `v1-live-at-task4-start` at commit
+  `fe94c0268d060742e808770d4d65d554709af0dd`, taxonomy blob
+  `280f4ff640b0d6088c6fc819bebca2c6a7de5fea`, and taxonomy content SHA-256
+  `3180f9739fc254c29fa6ca6924818a2c3eb5d1ccedd0fe1916e88a05e1b41983`;
+  it yields 888 governed files, inventory digest
+  `d48fca7255274216d029c600b98972f00bd367b91979441b4d6512a857fb7a5c`,
+  global `104389`, and no Jinja coordinate.
 - Preserve declared v1 total `105342`, report replay total `105060`, and expose
   only JavaScript `89 -> 90`, YAML `1082 -> 800`, and diagram `24 -> 23` as
   changed categories.

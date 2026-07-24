@@ -384,8 +384,15 @@ transitions. Remote publication and hosted CI are not claimed by C1.
 - Replays baseline commit `2dab77f169eceb2d45f917358c2a7487e7ac8db6`
   and tree `075da5ad45be962e9f5e775b3f050cab4023ea0d`; provenance beginning
   `540e06d5` remains declaration history, not the replay treeish.
-- Binds 933 governed files and inventory digest
-  `f8e85ace7648b60592fbe6e678f78169afa98c6289b0e8bb7d7fbc3961fa1c8d`.
+- Historical observer profile `v1-continuation-20260719` binds commit
+  `604934c7afe244caf5b671423f108823a7753a98`, taxonomy blob
+  `51a3931b43aa9030e166309289d6d85a80831526`, 933 governed files, and inventory
+  digest `f8e85ace7648b60592fbe6e678f78169afa98c6289b0e8bb7d7fbc3961fa1c8d`.
+  Live profile `v1-live-at-task4-start` binds commit
+  `fe94c0268d060742e808770d4d65d554709af0dd`, taxonomy blob
+  `280f4ff640b0d6088c6fc819bebca2c6a7de5fea`, 888 files, digest
+  `d48fca7255274216d029c600b98972f00bd367b91979441b4d6512a857fb7a5c`,
+  global `104389`, and no Jinja coordinate; the profile drift remains unresolved.
   Selected C1 checkpoint `c1-static-hybrid-accepted` is exact commit
   `3468ce78e2b636b9c0516904aa73cde2eb30fa62`; its YAML adapter gap remains
   blocked/unresolved.
@@ -394,7 +401,7 @@ transitions. Remote publication and hosted CI are not claimed by C1.
   `build/evidence/quality/source-budget-v2/replay/`; v1 stays authoritative and
   v2 inactive.
 
-- [ ] **Step 1: Write failing tests that recompute the immutable baseline from Git blobs and expose the 282-ELOC v1 semantic drift (105342 -> 105060; JavaScript +1, YAML -282, diagram -1) without rewriting the declaration.**
+- [ ] **Step 1: Write failing tests that recompute the immutable baseline from Git blobs with versioned observer profile `v1-continuation-20260719`, expose the 282-ELOC drift (105342 -> 105060; JavaScript +1, YAML -282, diagram -1), and separately expose live profile `v1-live-at-task4-start` as 104389/888/no-Jinja unresolved taxonomy drift without rewriting the declaration or restoring live Jinja.**
 - [ ] **Step 2: Verify RED against the absent snapshot adapter.**
 - [ ] **Step 3: Implement batch Git blob reads and a shadow comparison containing v1, v2, digests, coverage, disagreements, and required gaps.**
 - [ ] **Step 4: Run baseline and selected historical replays; verify no unresolved disagreement is classified as clean.**

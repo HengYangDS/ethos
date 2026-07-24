@@ -22,8 +22,10 @@
 
 ## 4. Historical Replay And Shadow
 
-- [ ] 4.1 Write and observe RED for the exact baseline identities, 933-file
-  inventory digest, v1 `105342 -> 105060` replay, and the three category deltas.
+- [ ] 4.1 Write and observe RED for the exact baseline identities, historical
+  observer profile, 933-file inventory digest, v1 `105342 -> 105060` replay,
+  and the three category deltas; separately bind the live observer profile,
+  888-file digest, `104389`, and absent-Jinja unresolved disagreement.
 - [ ] 4.2 Implement replay and selected C1 checkpoint observation without
   resolving or hiding its YAML adapter gap.
 - [ ] 4.3 Write and observe RED for v1-authoritative shadow output and fail-closed

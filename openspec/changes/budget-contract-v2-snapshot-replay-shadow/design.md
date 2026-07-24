@@ -8,9 +8,18 @@ with an inactive v2 observer.
 The declared v1 baseline came from provenance beginning `540e06d5`; that
 provenance is not the replay treeish. The replay subject is exact commit
 `2dab77f169eceb2d45f917358c2a7487e7ac8db6`, whose tree is
-`075da5ad45be962e9f5e775b3f050cab4023ea0d`. The second selected checkpoint is
-accepted C1 commit `3468ce78e2b636b9c0516904aa73cde2eb30fa62`; its known YAML
-adapter gap remains blocked.
+`075da5ad45be962e9f5e775b3f050cab4023ea0d`. Observer taxonomy is an independent
+coordinate. Historical observer profile `v1-continuation-20260719` binds commit
+`604934c7afe244caf5b671423f108823a7753a98`, taxonomy blob
+`51a3931b43aa9030e166309289d6d85a80831526`, and content SHA-256
+`b5dfc532586b0e1f3c3f614ce34e70cd9e817b84adfeabfbda266adf19d07a3d`.
+Live profile `v1-live-at-task4-start` binds commit
+`fe94c0268d060742e808770d4d65d554709af0dd`, taxonomy blob
+`280f4ff640b0d6088c6fc819bebca2c6a7de5fea`, and content SHA-256
+`3180f9739fc254c29fa6ca6924818a2c3eb5d1ccedd0fe1916e88a05e1b41983`.
+The second selected checkpoint is accepted C1 commit
+`3468ce78e2b636b9c0516904aa73cde2eb30fa62`; its known YAML adapter gap remains
+blocked.
 
 ## Decisions
 
@@ -39,13 +48,18 @@ adapter gap remains blocked.
    Existing path-based APIs read once and delegate. Immutable replay never
    imports private content functions and never copies parser logic.
 
-5. **The historical v1 declaration is immutable.** Baseline replay reports
-   declared `105342`, replayed `105060`, and drift `-282`. The only category
-   differences are JavaScript `+1`, YAML `-282`, and diagram `-1`. The governed
+5. **The historical v1 declaration and observer profiles are immutable.**
+   Profile `v1-continuation-20260719` reports declared `105342`, replayed
+   `105060`, and drift `-282`. The only category differences are JavaScript
+   `+1`, YAML `-282`, and diagram `-1`; Jinja remains `671`. Its governed
    inventory has 933 files and digest
    `f8e85ace7648b60592fbe6e678f78169afa98c6289b0e8bb7d7fbc3961fa1c8d`.
-   These observations supersede an inaccurate statement without editing its
-   historical carrier.
+   Live profile `v1-live-at-task4-start` intentionally reflects the later Jinja
+   taxonomy removal: 888 files, digest
+   `d48fca7255274216d029c600b98972f00bd367b91979441b4d6512a857fb7a5c`,
+   global `104389`, and no Jinja coordinate. That taxonomy-profile drift is a
+   separate unresolved disagreement; it neither rewrites nor replaces the
+   reviewed historical correction.
 
 6. **Shadow is observation, never authority.** Existing v1 top-level `ok`,
    `state`, and `required_gaps` remain authoritative. `v2_shadow.mode` is
@@ -81,8 +95,10 @@ ignored observations may be discarded without altering repository truth.
 - The baseline and C1 checkpoints bind their exact commit/tree identities.
 - Strict Git framing and batch-protocol adversarial cases fail closed without a
   checkout, worktree, or partial observation.
-- Exact baseline replay yields 933 files, the required inventory digest, total
-  `105060`, drift `-282`, and only the three declared category deltas.
+- Exact historical-profile baseline replay yields 933 files, the required
+  inventory digest, total `105060`, drift `-282`, and only the three declared
+  category deltas; the live profile separately yields 888 files, its exact
+  digest, `104389`, and an unresolved absent-Jinja disagreement.
 - Shadow output preserves v1 authority and never classifies unresolved
   disagreement as clean.
 - Focused and broader quality, lifecycle, Claim, parity, and exact-HEAD proof

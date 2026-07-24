@@ -7,9 +7,9 @@ summary = "Replay immutable source-budget snapshots from Git blobs and add a fai
 
 [evidence]
 dated = "evidence/chronicle/budget-contract-v2-snapshot-replay-shadow-20260724/2026-07-24.md"
-sha256 = "3350a515b145c202be193fc14c006f54868712e01f2c36669c353db2df74c8ee"
+sha256 = "8b4528a12390f59e52d9f6f394f32e307b1533c2e677298ee84dcacfe4b0c31b"
 evidence_ids = ["evidence:budget-contract-v2-snapshot-replay-shadow-20260724"]
-binding = "Initial carrier admission only: exact baseline and C1 coordinates, immutable Git-blob replay boundary, public source/bytes measurement seams, v1-authoritative/v2-inactive shadow shape, ignored raw artifacts, and explicit Task 5+ exclusions. No implementation, replay result, proof, archive, land, publication, or retirement claim is made yet."
+binding = "Initial carrier admission only: exact baseline and C1 coordinates, independently bound historical and live observer taxonomy profiles, immutable Git-blob replay boundary, public source/bytes measurement seams, v1-authoritative/v2-inactive shadow shape, ignored raw artifacts, and explicit Task 5+ exclusions. No implementation, replay result, proof, archive, land, publication, or retirement claim is made yet."
 verifier = "digest_only"
 tests = [
   "npx --yes @fission-ai/openspec@1.6.0 validate budget-contract-v2-snapshot-replay-shadow --strict --json",

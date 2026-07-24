@@ -345,21 +345,18 @@ subsequent separately evidenced transitions.
 - [x] **Step 7: Write supervisor/backend RED for private launch, resource setup before import, bounded nonblocking pipes, CPU/RSS/wall/FD/process/output/protocol failures, TERM/KILL/reap, descendants, and Linux/Darwin capability paths.**
 - [x] **Step 8: Implement one-carrier/one-process worker bootstrap, POSIX supervisor, Linux/Darwin telemetry, stable redacted gaps, and strict parent result reconstruction.**
 - [x] **Step 9: Implement the common single-read parent boundary for both modes and direct native recheck; prove limit-minus-one/exact-limit success, limit-plus-one rejection, pre-spawn safety, drift semantics, and all-or-nothing snapshots.**
-- [ ] **Step 10: Complete the C1 pre-transition closeout: exact-ceiling and deep/wide provider acceptance, performance and current/immutable inventory evidence, focused 100 percent coverage, every owner gate, independent security/contract/simplicity/platform review, exact promotion targets, semantic Claim binding, parity, exact-HEAD default/full proof, and the same-SHA Linux CPython 3.14 receipt. If hybrid is rejected, keep C1 open and do not raise a ceiling.**
+- [x] **Step 10: Complete the C1 pre-transition closeout: exact-ceiling and deep/wide provider acceptance, performance and current/immutable inventory evidence, focused 100 percent coverage, every owner gate, independent security/contract/simplicity/platform review, exact promotion targets, semantic Claim binding, parity, exact-HEAD default/full proof, and the same-SHA Linux CPython 3.14 receipt. If hybrid is rejected, keep C1 open and do not raise a ceiling.**
 
-  The July 23 candidate-index stage completed exact-ceiling/deep-wide
-  acceptance, inventory/runtime observations, every local owner gate, 100
-  percent focused statement/branch coverage, and independent
-  contract/trust/simplicity/platform review. The governed material
-  implementation, the initial extant implementation promotion-target set, and
-  the initial semantic Claim binding are committed. Because candidate advanced
-  three times after that checkpoint, this step remains open. After the carrier
-  reconciliation, refreshed Claim binding, and generic parity are committed,
-  rerun coverage, classify all 58 existing ACMR Python paths, run
-  Darwin/Linux type evidence over the 31 changed package-source paths plus the
-  full zero-tolerance package owner gate, and execute exact-HEAD default/full
-  proof and the live Linux CPython 3.14 receipt on the resulting final
-  pre-archive HEAD.
+  C1 pre-transition closeout completed at final pre-archive HEAD
+  `4071bad853608ec60a43f987363f99f7ba9aaf6e`. The focused selection passed 739
+  tests with 4,007 of 4,007 statements and 1,202 of 1,202 branches; the complete
+  owner suite passed 3,446 tests with 25,595 of 25,595 lines and 6,896 of 6,896
+  branches. Darwin and Linux Python 3.14 checks passed over all 31 changed
+  package-source paths, and the zero-tolerance package owner gate remained
+  clean. Exact-HEAD default and full proof reached proven state with 21 and 30
+  gates. A local Linux arm64 CPython 3.14 receipt ran 21 tests with zero failures
+  against the same HEAD and tree. V1 authority, debt, terminal targets, global
+  LOC, and per-file ELOC were unchanged; v2 remained inactive.
 
 Post-archive parity/proof, candidate land, accepted-root closeout, local
 publication readiness, and owned-Lane retirement remain mandatory separate

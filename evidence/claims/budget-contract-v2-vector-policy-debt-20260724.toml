@@ -7,13 +7,14 @@ summary = "Implement strict Budget Contract v2 vector policy, Debt v2, inactive 
 
 [evidence]
 dated = "evidence/chronicle/budget-contract-v2-vector-policy-debt-20260724/2026-07-24.md"
-sha256 = "c7a8cd23326400f5393efc0a75eac4456edbb33d116233ebff7dbf046dc45a7c"
+sha256 = "7e4f936e8a45f08042a6d3d04c90255688323d6ed8a1fde9a56125804ef9b4a6"
 evidence_ids = ["evidence:budget-contract-v2-vector-policy-debt-20260724"]
-binding = "The active OpenSpec carrier, strict contracts, pure reducer, inactive repository policy, composed schema, RED-GREEN regressions, owner gates, refreshed generic parity, and dated Chronicle bind the implemented Task 5 scope. Exact-HEAD default/full proof gates official archive; archive-HEAD proof, land, publication, and retirement remain separate transitions."
+binding = "The active OpenSpec carrier, strict contracts, pure reducer, inactive repository policy, composed schema, RED-GREEN regressions, 100 percent owner coverage repair, owner gates, and dated Chronicle bind the implemented Task 5 scope. Fresh generic parity and exact-HEAD default/full proof gate official archive; archive-HEAD proof, land, publication, and retirement remain separate transitions."
 verifier = "digest_only"
 tests = [
   "uv run --all-packages --group dev pytest -q tests/unit/kernel/test_source_budget_contract.py tests/unit/domain/source_budget/test_verdict.py tests/unit/domain/source_budget/test_shadow_report.py tests/unit/adapters/test_config.py",
   "uv run --all-packages --group dev pytest -q tests/unit/domain/source_budget tests/unit/kernel/test_source_budget_contract.py tests/unit/kernel/test_source_budget_measurements_contract.py tests/unit/kernel/test_source_budget_measurements_integrity.py tests/unit/adapters/test_config.py tests/unit/adapters/repo/source_budget tests/unit/ci/source_budget",
+  "tools/ci/scripts/run-python-tests.sh",
   "tools/ci/scripts/run-python-lint.sh",
   "tools/ci/scripts/run-ethos-lane.sh quality types --json",
   "tools/ci/scripts/run-module-layout.sh",

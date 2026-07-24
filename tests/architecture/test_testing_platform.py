@@ -32,6 +32,14 @@ def test_python_test_platform_is_parallel_timeout_bound_and_owner_scripted() -> 
     assert policy["default_workers"] == 8
     assert 'workers="${ETHOS_TEST_WORKERS:-8}"' in script
     assert policy["timeout_seconds"] == 120
+    assert "timeout = 120" in pytest_ini
+    assert "timeout_method = thread" in pytest_ini
+    assert 'timeout_seconds="${ETHOS_TEST_TIMEOUT_SECONDS:-}"' in script
+    assert 'timeout_method="${ETHOS_TEST_TIMEOUT_METHOD:-}"' in script
+    assert "ETHOS_TEST_TIMEOUT_SECONDS and ETHOS_TEST_TIMEOUT_METHOD must be set together" in script
+    assert "ETHOS_TEST_TIMEOUT_SECONDS must be a positive integer" in script
+    assert "ETHOS_TEST_TIMEOUT_METHOD must be signal or thread" in script
+    assert 'pytest_common_args+=(--timeout="${timeout_seconds}" --timeout-method="${timeout_method}")' in script
     assert policy["default_evidence_root"] == "build/evidence/quality/tests"
     assert "cache_dir = build/runtime/tool-cache/pytest" in pytest_ini
     assert ".config/checks/pytest/.pytest_cache" not in pytest_ini
@@ -53,6 +61,93 @@ def test_python_test_platform_is_parallel_timeout_bound_and_owner_scripted() -> 
     assert 'export GIT_CONFIG_COUNT="$((git_config_count + 1))"' in script
     assert ".coverage.*" in (ROOT / ".gitignore").read_text(encoding="utf-8")
     assert "junit.xml" in (ROOT / ".gitignore").read_text(encoding="utf-8")
+
+
+def test_python_test_gate_rejects_invalid_timeout_override_pairs(tmp_path: Path) -> None:
+    script = ROOT / "tools/ci/scripts/run-python-tests.sh"
+    cases = (
+        ({"ETHOS_TEST_TIMEOUT_SECONDS": "300", "ETHOS_TEST_TIMEOUT_METHOD": ""}, "must be set together"),
+        ({"ETHOS_TEST_TIMEOUT_SECONDS": "", "ETHOS_TEST_TIMEOUT_METHOD": "signal"}, "must be set together"),
+        ({"ETHOS_TEST_TIMEOUT_SECONDS": "0", "ETHOS_TEST_TIMEOUT_METHOD": "signal"}, "must be a positive integer"),
+        ({"ETHOS_TEST_TIMEOUT_SECONDS": "300", "ETHOS_TEST_TIMEOUT_METHOD": "kill"}, "must be signal or thread"),
+    )
+
+    for index, (timeout_env, diagnostic) in enumerate(cases):
+        completed = subprocess.run(
+            ["/bin/bash", str(script)],
+            cwd=ROOT,
+            env=os.environ
+            | {
+                "ETHOS_RUNTIME_BOOTSTRAPPED": "1",
+                "ETHOS_PYTHON": "/usr/bin/false",
+                "ETHOS_TEST_EVIDENCE_DIR": str(tmp_path / f"evidence-{index}"),
+                "ETHOS_TEST_BASETEMP": str(tmp_path / f"pytest-{index}"),
+                **timeout_env,
+            },
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        assert completed.returncode == 2, completed
+        assert diagnostic in completed.stderr
+
+
+def test_python_test_gate_applies_optional_timeout_without_breaking_default(
+    tmp_path: Path,
+) -> None:
+    script = ROOT / "tools/ci/scripts/run-python-tests.sh"
+    fake_python = tmp_path / "python"
+    fake_python.write_text(
+        "#!/bin/sh\n"
+        "if [ \"$1\" = \"-\" ]; then printf '100\\n'; exit 0; fi\n"
+        "if [ \"$1\" = \"-m\" ] && [ \"$2\" = \"pytest\" ] && [ \"${3:-}\" = \"--version\" ]; then exit 0; fi\n"
+        "if [ \"$1\" = \"-m\" ] && [ \"$2\" = \"pytest\" ]; then printf '%s\\n' \"$@\" > \"$ETHOS_TEST_ARGV_CAPTURE\"; exit 0; fi\n"
+        "exit 1\n",
+        encoding="utf-8",
+    )
+    fake_python.chmod(0o755)
+    cases = (
+        ("default", {}, ()),
+        (
+            "override",
+            {
+                "ETHOS_TEST_TIMEOUT_SECONDS": "300",
+                "ETHOS_TEST_TIMEOUT_METHOD": "signal",
+            },
+            ("--timeout=300", "--timeout-method=signal"),
+        ),
+    )
+
+    for label, timeout_env, expected_args in cases:
+        capture = tmp_path / f"{label}.argv"
+        environment = os.environ.copy()
+        environment.pop("ETHOS_TEST_TIMEOUT_SECONDS", None)
+        environment.pop("ETHOS_TEST_TIMEOUT_METHOD", None)
+        environment.update(
+            {
+                "ETHOS_RUNTIME_BOOTSTRAPPED": "1",
+                "ETHOS_PYTHON": str(fake_python),
+                "ETHOS_TEST_ARGV_CAPTURE": str(capture),
+                "ETHOS_TEST_EVIDENCE_DIR": str(tmp_path / f"evidence-{label}"),
+                "ETHOS_TEST_BASETEMP": str(tmp_path / f"pytest-{label}"),
+                **timeout_env,
+            }
+        )
+
+        completed = subprocess.run(
+            ["/bin/bash", str(script)],
+            cwd=ROOT,
+            env=environment,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        assert completed.returncode == 0, completed
+        argv = capture.read_text(encoding="utf-8").splitlines()
+        timeout_args = tuple(arg for arg in argv if arg.startswith("--timeout"))
+        assert timeout_args == expected_args
 
 
 def test_python_test_gate_removes_source_bytecode_caches() -> None:

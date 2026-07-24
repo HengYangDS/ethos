@@ -1,0 +1,46 @@
+[claim]
+id = "github-pytest-timeout-resilience-20260724"
+subject = "quality:github-pytest-timeout-resilience"
+state = "active"
+change_id = "github-pytest-timeout-resilience"
+summary = "ETHOS keeps the GitHub macOS repository proof finite and observable by routing a validated 300-second signal timeout through the Python test owner script without changing global or GitLab defaults."
+
+[evidence]
+dated = "evidence/chronicle/github-pytest-timeout-resilience-20260724/2026-07-24.md"
+sha256 = "06dcca11a78f9ba6e48584d64ee88db2e575d6954c4250e6621096f1363c76ce"
+evidence_ids = ["evidence:github-pytest-timeout-resilience-20260724"]
+binding = "The archived OpenSpec carrier, RED/GREEN architecture contracts, owner-script validation, canonical GitHub template projection, and dated Chronicle bind this local timeout-resilience claim."
+verifier = "digest_only"
+tests = [
+  "pytest focused timeout and provider projection contracts",
+  "pytest affected architecture modules under the owner Git overlay",
+  "OpenSpec strict validation",
+  "CI template drift and actionlint",
+  "shell lint and Python lint/format",
+  "full owner-script Python test gate with four workers and 300-second signal timeout",
+  "HEAD-bound ETHOS proof after archive",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "quality"
+scope = "Validated Python test timeout overrides and the GitHub macOS repository-proof projection only; no global pytest default, GitLab worker policy, runner topology, foreign lane, remote publication, or hosted-success inference."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-24-github-pytest-timeout-resilience"
+fallback = "Remove the GitHub timeout inputs and owner-script optional arguments, retaining the unchanged 120-second thread default while hosted proof remains explicitly not green."
+kill_signal = "An invalid or partial override reaches pytest, a timeout is reported as passing, the global or GitLab default changes, an xdist worker still exits without an ordinary failure, or hosted success is claimed without a fresh provider run."
+
+[promotion]
+targets = [
+  "tools/ci/scripts/run-python-tests.sh",
+  ".config/ci/templates/hosted/github-actions.yml",
+  ".github/workflows/ci.yml",
+  "tests/architecture/test_testing_platform.py",
+  "tests/architecture/test_ci_provider_projections.py",
+  "openspec/changes/archive/2026-07-24-github-pytest-timeout-resilience",
+  "evidence/chronicle/github-pytest-timeout-resilience-20260724/2026-07-24.md",
+  "evidence/claims/github-pytest-timeout-resilience-20260724.toml",
+]

@@ -27,16 +27,17 @@ and leave every currently leased lane untouched.
 ## Frozen Current Boundary
 
 At accepted `dev`, `main`, and `candidate/dev` HEAD
-`fe94c0268d060742e808770d4d65d554709af0dd`, the exact reader inventory contains
-78 foreign Work Lanes. Seven have a live lease and are protected. Seventy-one
+`f1e2481ad0e77247953c81b6b69dfe2de44c2205`, the exact reader inventory contains
+79 foreign Work Lanes. Eight have a live lease, including this controller's
+carrier, and are protected. Seventy-one
 have `lease_state=missing`; all 71 diverge from accepted, 56 are clean, and 15
 are dirty. Their commit ancestry collapses to 47 maximal tips: one 24-lane
 OpenSpec identity-normalization chain, one two-lane completion-integrity chain,
 and 45 singleton components.
 
 A live lease is a protection boundary even when its Claim binding is missing.
-The controller therefore excludes all seven leased lanes, including
-`work/20260723-ownerless-closeout-compression` and
+The controller therefore excludes all eight leased lanes, including its own
+carrier, `work/20260723-ownerless-closeout-compression`, and
 `work/20260724-budget-contract-v2-snapshot-replay-shadow-successor`.
 
 ## Decision Method
@@ -79,9 +80,12 @@ age or branch naming as retirement evidence.
 ## First Family Decision
 
 The 24-lane OpenSpec identity-normalization lineage is superseded by accepted
-`openspec-identity-normalization-current`. Current accepted lifecycle and Claims
-checks are clean, strict OpenSpec validation passes 9/9, and the focused identity
-suite passes 85 tests. The V26 tip's own untracked Claim, Chronicle, proposal,
+`openspec-identity-normalization-current`. The accepted train advanced from `fe94c0268`
+to `f1e2481a` through the bounded GitHub pytest-timeout resilience change and
+its parity receipts; the 71-target ownerless set and this family judgment did
+not change. Current accepted lifecycle and Claims
+checks are clean across 236 Claims, strict OpenSpec validation passes 9/9, and
+the focused identity suite passes 85 tests. The V26 tip's own untracked Claim, Chronicle, proposal,
 design, and tasks say that candidate drift ended its integration eligibility and
 forbid refresh, cherry-pick, manual replay, proof, or land.
 

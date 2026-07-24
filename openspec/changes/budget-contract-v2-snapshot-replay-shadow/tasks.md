@@ -35,10 +35,10 @@
 
 - [x] 5.1 Write and observe RED for history configuration, CLI, shell wrapper,
   ignored artifact root, exit status, and `system/tools.toml` registration.
-- [ ] 5.2 Implement GREEN, run focused and Task 2/3/C1 regressions, then run lint,
+- [x] 5.2 Implement GREEN, run focused and Task 2/3/C1 regressions, then run lint,
   types, config/schema/shell/module-layout/code-size/source-budget, lifecycle,
   Claims, and parity gates.
-- [ ] 5.3 Refresh the Claim and Chronicle with reviewed replay/shadow digests,
+- [x] 5.3 Refresh the Claim and Chronicle with reviewed replay/shadow digests,
   refresh generic parity, commit all tracked evidence, and run exact-HEAD default
   and full executed proof.
 

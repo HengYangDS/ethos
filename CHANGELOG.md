@@ -7,6 +7,8 @@ Commits.
 
 ## Unreleased
 
+## 0.1.0a2 - 2026-07-24
+
 ### Added
 
 - Release governance files for GitLab visibility: `LICENSE`, `CONTRIBUTING.md`,

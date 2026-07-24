@@ -564,7 +564,7 @@ def test_npm_launcher_runs_source_checkout_command_plane() -> None:
     )
 
     assert completed.returncode == 0, completed.stderr
-    assert completed.stdout.strip() == "0.1.0a1"
+    assert completed.stdout.strip() == "0.1.0a2"
 
 
 def test_npm_launcher_fallback_executes_python_command_once(tmp_path: Path) -> None:

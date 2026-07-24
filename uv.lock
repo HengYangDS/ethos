@@ -308,7 +308,7 @@ wheels = [
 
 [[package]]
 name = "ethos"
-version = "0.1.0a1"
+version = "0.1.0a2"
 source = { editable = "packages/ethos" }
 dependencies = [
     { name = "cyclopts" },
@@ -335,7 +335,7 @@ requires-dist = [
 
 [[package]]
 name = "ethos-core"
-version = "0.1.0a1"
+version = "0.1.0a2"
 source = { editable = "packages/ethos-core" }
 dependencies = [
     { name = "cel-python" },
@@ -350,7 +350,7 @@ requires-dist = [
 
 [[package]]
 name = "ethos-product-monorepo"
-version = "0.1.0a1"
+version = "0.1.0a2"
 source = { virtual = "." }
 
 [package.dev-dependencies]

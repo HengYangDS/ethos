@@ -229,6 +229,10 @@ ethos:verify:
   <<: *python_setup
   stage: verify
   variables:
+    # GIT_DEPTH=0 does not repair a runner checkout that was previously
+    # shallow. Reclone only the history-sensitive verify job so replay can
+    # resolve its pinned commits without making every quality job reclone.
+    GIT_STRATEGY: clone
     # The arm64 hosted runner can terminate xdist workers under the full
     # coverage suite. Keep the reusable owner script and its default parallel
     # capability intact; this hosted projection deliberately runs one worker.

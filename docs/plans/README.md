@@ -31,6 +31,8 @@ claims, or evidence.
 - [Global Declarative Compression Program](global-declarative-compression-program.md)
 - [Tooling Adoption Roadmap](tooling-adoption-roadmap.md)
 - [Complete Implementation Roadmap](complete-implementation-roadmap.md)
+- [Artifact-Topology Detached Residue Absorption Design](artifact-topology-detached-residue-absorption-design-20260724.md)
+- [Artifact-Topology Detached Residue Absorption Implementation](artifact-topology-detached-residue-absorption-implementation-plan-20260724.md)
 
 ## Archived Plans
 

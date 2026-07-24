@@ -1,0 +1,44 @@
+[claim]
+id = "artifact-topology-detached-residue-absorption-20260724"
+subject = "ethos:work-lane:work/artifact-topology-hotpath-20260714"
+state = "active"
+change_id = "artifact-topology-detached-residue-absorption"
+summary = "Current accepted artifact-topology contracts absorb the useful behavior of one exact dirty ownerless detached residue; a later native preserve-retire may affect only that reconstructed historical Work Lane."
+
+[evidence]
+dated = "evidence/chronicle/artifact-topology-detached-residue-absorption-20260724/2026-07-24.md"
+sha256 = "50f5da0e57654cd15ebba65f2152ca9dfde84554e722da9e31c1a8d058644466"
+evidence_ids = ["evidence:artifact-topology-detached-residue-absorption-20260724"]
+binding = "This active Claim binds only work/artifact-topology-hotpath-20260714 at 70defe82f306708badf1cfabe0c3f8fa917287fa, its exact four-path dirty patch SHA-256 6a84df8a7b28d703f82f1bcac0ee61e8534874438e25c7376c38d8c81f5a404a, the accepted behavioral replacements named in the Chronicle, and one later native preserve-retire transition after exact local proof and closeout."
+verifier = "digest_only"
+tests = [
+  "tools/ci/scripts/run-ethos-lane.sh openspec --change artifact-topology-detached-residue-absorption --lifecycle --json",
+  "openspec validate artifact-topology-detached-residue-absorption --strict --json",
+  "tools/ci/scripts/run-ethos-lane.sh quality claims --json",
+  "uv run --all-packages --group dev pytest -q tests/unit/governance/test_generated_artifact_topology.py tests/unit/kernel/test_cel_topology_predicates.py",
+  "tools/ci/scripts/run-ethos-lane.sh prove --execute --expect-head $(git rev-parse HEAD) --json",
+  "tools/ci/scripts/run-ethos-lane.sh lane resolution decide --branch work/artifact-topology-hotpath-20260714 --disposition preserve-retire --chronicle-ref evidence/chronicle/artifact-topology-detached-residue-absorption-20260724/2026-07-24.md --break-glass --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "One reconstructed dirty missing-lease artifact-topology Work Lane, one exact accepted-ancestor head, four exact dirty paths, one patch digest, current accepted behavioral carriers, and one later local native preservation-retirement only."
+
+[carriers]
+openspec = "openspec/changes/artifact-topology-detached-residue-absorption"
+fallback = "Keep the source branch, linked worktree, dirty bytes, and any later package intact whenever focused behavior, source observation, accepted Chronicle, manifest, or current accepted basis cannot be proved exactly."
+kill_signal = "The historical implementation is replayed without a current product gap; preservation is called absorption; a valid owner or unrelated lane is touched; a raw ref/worktree delete occurs; or a package is cleared without an accepted exact-manifest decision."
+
+[promotion]
+targets = [
+  "docs/plans/README.md",
+  "docs/plans/artifact-topology-detached-residue-absorption-design-20260724.md",
+  "docs/plans/artifact-topology-detached-residue-absorption-implementation-plan-20260724.md",
+  "evidence/claims/artifact-topology-detached-residue-absorption-20260724.toml",
+  "evidence/chronicle/artifact-topology-detached-residue-absorption-20260724/2026-07-24.md",
+  "openspec/changes/artifact-topology-detached-residue-absorption",
+  "openspec/specs/repository-governance/spec.md",
+]

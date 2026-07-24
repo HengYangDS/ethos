@@ -9,6 +9,14 @@ relations:
 
 # Ownerless Diverged Work Lane Semantic Resolution — 2026-07-24
 
+Status: active local resolution carrier. The OpenSpec identity-normalization
+family is decision-ready; all other ownerless families remain pending until
+their own analysis is recorded and accepted.
+
+Purpose: provide exact, reviewable, family-level disposition evidence for
+missing-lease Work Lanes while preserving dirty recovery bytes and protecting
+every live lease.
+
 ## Objective
 
 Resolve only Work Lanes that currently have no live Lane Lease. Preserve every
@@ -98,3 +106,13 @@ would recreate duplicate identity grammar ownership.
 
 Remote push, hosted-provider success, release/tag publication, and distribution
 remain separate and are not authorized by this plan.
+
+## See Also
+
+See also:
+
+- [Authorized Work Lane Cohort Closeout](all-lanes-authorized-closeout-20260718.md)
+- [All Work Lanes Convergence](all-work-lanes-convergence-implementation-plan-20260716.md)
+- [Ownerless Closeout Admission](ownerless-closeout-admission-implementation-plan-20260722.md)
+- [Mutation Rules](../../rules/mutation.md)
+- [Evidence Rules](../../rules/evidence.md)

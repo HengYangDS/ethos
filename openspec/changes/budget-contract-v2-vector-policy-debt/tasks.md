@@ -33,7 +33,7 @@
 
 ## 5. Proof And Lifecycle Closeout
 
-- [ ] 5.1 Refresh Claim/Chronicle and generic parity, then run exact-HEAD default
+- [x] 5.1 Refresh Claim/Chronicle and generic parity, then run exact-HEAD default
   and full pre-archive proof.
 - [ ] 5.2 Archive through official OpenSpec, bind the archive, refresh parity,
   and run archive-HEAD default/full proof.

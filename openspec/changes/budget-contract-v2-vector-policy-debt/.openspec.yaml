@@ -1,0 +1,5 @@
+schema: spec-driven
+created: 2026-07-24
+goal: Define strict Budget Contract v2 vector policy, Debt v2, and a pure
+  fail-closed verdict while v1 remains authoritative and repository v2 stays
+  explicitly inactive until complete immutable baseline evidence exists.

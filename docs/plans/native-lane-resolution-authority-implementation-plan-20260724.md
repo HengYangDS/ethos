@@ -127,7 +127,11 @@ and explicit permission for semantic replay only.
 4. Keep the predecessor lane clean and registered. Do not retire it until Task 13
    proves successor absorption.
 
-5. Validate the planning carrier before production work:
+5. Keep `ownerless-closeout-effect-fence-20260722` active until the native
+   replacement has implementation, full proof, and official archive evidence.
+   The new Claim authorizes implementation and records future supersession only.
+
+6. Validate the planning carrier before production work:
 
    ```text
    openspec status --change native-lane-resolution-authority --json
@@ -571,10 +575,10 @@ or mutable/callable admission state.
 
 ```text
 completed-effect recovery precheck
-native admission
-reserved-no-effect retry reset
-acquire exact fence
-complete fence-held re-observation
+exact pre-fence native admission and reservation classification
+release/reset the old exact zero-effect fence and reservation, when classified
+acquire a fresh exact fence
+complete under-fence re-observation
 persist typed reservation
 no-force worktree removal
 accepted-ref verification
@@ -613,8 +617,10 @@ reservation removal
    fence only when exact ownership and zero durable effect are proved; retain
    reservation visibility at or after effect.
 5. Make completed-effect recovery validate decision and Chronicle before ordinary
-   worktree observation. Make zero-effect retry release the old exact fence and
-   reservation before fresh admission.
+   worktree observation. For a possible zero-effect retry, first complete exact
+   pre-fence admission and reservation classification; only then release/reset the
+   old exact fence and reservation, acquire a fresh fence, and complete the full
+   under-fence re-observation before a new reservation or effect.
 6. Run GREEN, then the entire lane-resolution, state, crash, retry, and
    three-state suite.
 7. Run direct-import and residue checks:

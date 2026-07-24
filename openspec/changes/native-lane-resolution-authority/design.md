@@ -195,10 +195,10 @@ The order is:
 
 ```text
 completed-effect recovery precheck
--> native admission
--> exact reserved-no-effect retry reset
--> exact fence acquisition
--> complete fence-held re-observation
+-> exact pre-fence native admission and reservation classification
+-> release/reset the old exact zero-effect fence and reservation, when classified
+-> acquire a fresh exact fence
+-> complete under-fence re-observation
 -> typed reservation persistence
 -> no-force worktree removal
 -> accepted-ref verification
@@ -212,11 +212,13 @@ completed-effect recovery precheck
 Completed-effect recovery validates decision and Chronicle before ordinary target
 observation because a completed effect removed the target worktree.
 
-A zero-effect retry may rebind only when decision, executor, target, registration
-token, and coordination facts are exact, no effect occurred, and current accepted
-HEAD equals or descends from the reserved accepted HEAD. Descendant classification
-precedes ordinary competing-reservation rejection. The old fence and reservation
-are released before a fresh binding.
+A zero-effect retry may rebind only after exact pre-fence admission classifies
+decision, executor, target, registration token, coordination facts, and the
+reservation as the same zero-effect retry, no effect occurred, and current
+accepted HEAD equals or descends from the reserved accepted HEAD. Descendant
+classification precedes ordinary competing-reservation rejection. ETHOS then
+releases the old exact fence and reservation, acquires a fresh fence, and
+completes full under-fence re-observation before a new reservation or effect.
 
 Cleanup uses explicit phase and recovery state, not `fence_acquired: bool`.
 Pre-effect exceptions may release only a provably owned zero-effect fence. Effect

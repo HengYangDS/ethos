@@ -19,14 +19,20 @@ from ethos.adapters.mutation.resolution._shared import display_path
 from ethos.adapters.mutation.resolution._shared import sha256_digest
 from ethos.adapters.mutation.resolution.closeout.wcp.core import run_worktree_closeout_check
 from ethos.adapters.mutation.resolution.receipts import verify_preservation_package
-from ethos.adapters.mutation.resolution.records.core import ownerless_closeout_reservation_path
-from ethos.adapters.mutation.resolution.records.core import read_ownerless_closeout_reservation
-from ethos.adapters.mutation.resolution.records.core import reserve_ownerless_closeout_target
-from ethos.adapters.mutation.resolution.records.core import (
-    transition_ownerless_closeout_reservation,
+from ethos.adapters.mutation.resolution.records.reservations import (
+    ownerless_closeout_reservation_path,
 )
-from ethos.adapters.mutation.resolution.records.release import (
+from ethos.adapters.mutation.resolution.records.reservations import (
+    read_ownerless_closeout_reservation,
+)
+from ethos.adapters.mutation.resolution.records.reservations import (
     release_ownerless_no_effect_reservation,
+)
+from ethos.adapters.mutation.resolution.records.reservations import (
+    reserve_ownerless_closeout_target,
+)
+from ethos.adapters.mutation.resolution.records.reservations import (
+    transition_ownerless_closeout_reservation,
 )
 from ethos.adapters.mutation.resolution.records.roots import current_record_root
 from ethos.adapters.repo.status.bindings import leases_by_branch

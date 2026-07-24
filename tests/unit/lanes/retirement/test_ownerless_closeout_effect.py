@@ -9,9 +9,9 @@ import pytest
 
 import ethos.adapters.mutation.resolution._effects as effects
 import ethos.adapters.mutation.resolution.lane as lane_adapter
+import ethos.adapters.mutation.resolution.records.reservations as reservation_store
 from ethos.adapters.mutation.resolution._observation import observe_lane
-from ethos.adapters.mutation.resolution._shared import records_artifact_root
-from ethos.adapters.mutation.resolution.records import core as record_store
+from ethos.adapters.mutation.resolution.records.roots import current_record_root
 from ethos.adapters.store.state.closeout import get_closeout_fence
 from ethos.adapters.store.state.closeout import release_closeout_fence
 from ethos.adapters.store.state.schema import state_database
@@ -176,9 +176,9 @@ def test_ownerless_effect_rejects_replaced_decision_before_any_effect(
     assert _registered(repo, lane)
     assert git(repo, "rev-parse", "work/orphan") == observation.head
     assert get_closeout_fence(state_database(repo), subject=observation.lane_ref) is None
-    assert not record_store.ownerless_closeout_reservation_path(
+    assert not reservation_store.ownerless_closeout_reservation_path(
         repo,
-        record_store.target_digest(observation.lane_ref, observation.head),
+        reservation_store.target_digest(observation.lane_ref, observation.head),
     ).exists()
 
 
@@ -223,11 +223,11 @@ def test_ownerless_effect_classifies_failed_remove_after_real_removal(
     assert not lane.exists()
     assert not _registered(repo, lane)
     assert git(repo, "rev-parse", "work/orphan") == observation.head
-    reservation = record_store.read_ownerless_closeout_reservation(
-        record_root=records_artifact_root(repo),
-        path=record_store.ownerless_closeout_reservation_path(
+    reservation = reservation_store.read_ownerless_closeout_reservation(
+        record_root=current_record_root(repo),
+        path=reservation_store.ownerless_closeout_reservation_path(
             repo,
-            record_store.target_digest(observation.lane_ref, observation.head),
+            reservation_store.target_digest(observation.lane_ref, observation.head),
         ),
     )
     assert (reservation["phase"], reservation["recovery_state"]) == (
@@ -281,11 +281,11 @@ def test_ownerless_effect_classifies_failed_remove_with_unverifiable_ref_as_unkn
         )
 
     assert not lane.exists()
-    reservation = record_store.read_ownerless_closeout_reservation(
-        record_root=records_artifact_root(repo),
-        path=record_store.ownerless_closeout_reservation_path(
+    reservation = reservation_store.read_ownerless_closeout_reservation(
+        record_root=current_record_root(repo),
+        path=reservation_store.ownerless_closeout_reservation_path(
             repo,
-            record_store.target_digest(observation.lane_ref, observation.head),
+            reservation_store.target_digest(observation.lane_ref, observation.head),
         ),
     )
     assert (reservation["phase"], reservation["recovery_state"]) == (
@@ -339,11 +339,11 @@ def test_ownerless_effect_requires_verifiable_registration_for_no_effect(
         )
 
     assert lane.is_dir()
-    reservation = record_store.read_ownerless_closeout_reservation(
-        record_root=records_artifact_root(repo),
-        path=record_store.ownerless_closeout_reservation_path(
+    reservation = reservation_store.read_ownerless_closeout_reservation(
+        record_root=current_record_root(repo),
+        path=reservation_store.ownerless_closeout_reservation_path(
             repo,
-            record_store.target_digest(observation.lane_ref, observation.head),
+            reservation_store.target_digest(observation.lane_ref, observation.head),
         ),
     )
     assert (reservation["phase"], reservation["recovery_state"]) == (
@@ -391,11 +391,11 @@ def test_ownerless_effect_keeps_no_effect_state_when_failed_remove_preserves_tar
     assert lane.is_dir()
     assert _registered(repo, lane)
     assert git(repo, "rev-parse", "work/orphan") == observation.head
-    reservation = record_store.read_ownerless_closeout_reservation(
-        record_root=records_artifact_root(repo),
-        path=record_store.ownerless_closeout_reservation_path(
+    reservation = reservation_store.read_ownerless_closeout_reservation(
+        record_root=current_record_root(repo),
+        path=reservation_store.ownerless_closeout_reservation_path(
             repo,
-            record_store.target_digest(observation.lane_ref, observation.head),
+            reservation_store.target_digest(observation.lane_ref, observation.head),
         ),
     )
     assert (reservation["phase"], reservation["recovery_state"]) == (
@@ -455,11 +455,11 @@ def test_ownerless_effect_fails_closed_when_target_ref_absence_is_unverifiable(
             accepted_head=accepted_head,
         )
 
-    reservation = record_store.read_ownerless_closeout_reservation(
-        record_root=records_artifact_root(repo),
-        path=record_store.ownerless_closeout_reservation_path(
+    reservation = reservation_store.read_ownerless_closeout_reservation(
+        record_root=current_record_root(repo),
+        path=reservation_store.ownerless_closeout_reservation_path(
             repo,
-            record_store.target_digest(observation.lane_ref, observation.head),
+            reservation_store.target_digest(observation.lane_ref, observation.head),
         ),
     )
     assert (reservation["phase"], reservation["recovery_state"]) == (
@@ -490,9 +490,9 @@ def test_completed_ownerless_recovery_allows_only_an_exactly_released_fence(
         accepted_branch="dev",
         accepted_head=accepted_head,
     )
-    reservation = record_store.read_ownerless_closeout_reservation(
-        record_root=records_artifact_root(repo),
-        path=record_store.ownerless_closeout_reservation_path(
+    reservation = reservation_store.read_ownerless_closeout_reservation(
+        record_root=current_record_root(repo),
+        path=reservation_store.ownerless_closeout_reservation_path(
             repo,
             str(binding["target_digest"]),
         ),
@@ -625,9 +625,9 @@ def test_ownerless_effect_orders_preflight_fence_cas_and_postverify(
         "postcondition_digest",
     }
     assert len(str(binding["postcondition_digest"])) == 64
-    reservation = record_store.read_ownerless_closeout_reservation(
-        record_root=records_artifact_root(repo),
-        path=record_store.ownerless_closeout_reservation_path(
+    reservation = reservation_store.read_ownerless_closeout_reservation(
+        record_root=current_record_root(repo),
+        path=reservation_store.ownerless_closeout_reservation_path(
             repo,
             str(binding["target_digest"]),
         ),
@@ -686,11 +686,11 @@ def test_ownerless_effect_retains_fence_when_accepted_ref_drifts_after_admission
     assert "accepted_head_stale" in str(caught.value)
     assert lane.is_dir()
     assert git(repo, "rev-parse", "work/orphan") == observation.head
-    reservation = record_store.read_ownerless_closeout_reservation(
-        record_root=records_artifact_root(repo),
-        path=record_store.ownerless_closeout_reservation_path(
+    reservation = reservation_store.read_ownerless_closeout_reservation(
+        record_root=current_record_root(repo),
+        path=reservation_store.ownerless_closeout_reservation_path(
             repo,
-            record_store.target_digest(observation.lane_ref, observation.head),
+            reservation_store.target_digest(observation.lane_ref, observation.head),
         ),
     )
     assert reservation["phase"] == "reserved"
@@ -732,11 +732,11 @@ def test_ownerless_effect_records_transition_unknown_for_ordinary_post_cas_excep
         )
 
     assert not lane.exists()
-    reservation = record_store.read_ownerless_closeout_reservation(
-        record_root=records_artifact_root(repo),
-        path=record_store.ownerless_closeout_reservation_path(
+    reservation = reservation_store.read_ownerless_closeout_reservation(
+        record_root=current_record_root(repo),
+        path=reservation_store.ownerless_closeout_reservation_path(
             repo,
-            record_store.target_digest(observation.lane_ref, observation.head),
+            reservation_store.target_digest(observation.lane_ref, observation.head),
         ),
     )
     assert (reservation["phase"], reservation["recovery_state"]) == (
@@ -781,11 +781,11 @@ def test_ownerless_effect_rejects_dangling_symlink_at_retired_target_path(
         )
 
     assert lane.is_symlink()
-    reservation = record_store.read_ownerless_closeout_reservation(
-        record_root=records_artifact_root(repo),
-        path=record_store.ownerless_closeout_reservation_path(
+    reservation = reservation_store.read_ownerless_closeout_reservation(
+        record_root=current_record_root(repo),
+        path=reservation_store.ownerless_closeout_reservation_path(
             repo,
-            record_store.target_digest(observation.lane_ref, observation.head),
+            reservation_store.target_digest(observation.lane_ref, observation.head),
         ),
     )
     assert (reservation["phase"], reservation["recovery_state"]) == (

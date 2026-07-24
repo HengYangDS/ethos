@@ -22,7 +22,13 @@ _SELECT = """select subject, expected_head, decision_id, executor_ref, accepted_
 accepted_head, target_binding_digest, payload_json from closeout_fences where subject = ?"""
 _GIT_OID = re.compile(r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
 _SHA256 = re.compile(r"^[a-f0-9]{64}$")
-_WCP_SCHEMA_VERSION = "workstation.repo-family-governance.v1"
+_PAYLOAD_FIELDS = {
+    "target_path",
+    "lane_incarnation_id",
+    "observation_digest",
+    "decision_sha256",
+    "chronicle_digest",
+}
 
 
 def _canonical(value: object) -> str:
@@ -30,16 +36,35 @@ def _canonical(value: object) -> str:
 
 
 def _record(row: sqlite3.Row | tuple[Any, ...]) -> dict[str, object]:
-    return {
-        "subject": str(row[0]),
+    subject = str(row[0])
+    payload = json.loads(str(row[7]))
+    if not isinstance(payload, dict) or set(payload) != _PAYLOAD_FIELDS:
+        _fail("lane_closeout_fence_binding_invalid", subject)
+    executor_ref = HolderRef.parse(str(row[3])).serialize()
+    binding = {
+        "subject": subject,
         "expected_head": str(row[1]),
         "decision_id": str(row[2]),
-        "executor_ref": str(row[3]),
+        "executor_ref": executor_ref,
         "accepted_branch": str(row[4]),
         "accepted_head": str(row[5]),
-        "target_binding_digest": str(row[6]),
-        "payload": json.loads(str(row[7])),
+        "payload": _validated_payload(
+            subject=subject,
+            expected_head=str(row[1]),
+            decision_id=str(row[2]),
+            accepted_branch=str(row[4]),
+            accepted_head=str(row[5]),
+            target_path=str(payload.get("target_path") or ""),
+            lane_incarnation_id=str(payload.get("lane_incarnation_id") or ""),
+            observation_digest=str(payload.get("observation_digest") or ""),
+            decision_sha256=str(payload.get("decision_sha256") or ""),
+            chronicle_digest=str(payload.get("chronicle_digest") or ""),
+        ),
     }
+    target_binding_digest = hashlib.sha256(_canonical(binding).encode()).hexdigest()
+    if str(row[6]) != target_binding_digest:
+        _fail("lane_closeout_fence_binding_invalid", subject)
+    return {**binding, "target_binding_digest": target_binding_digest}
 
 
 def _fail(gap: str, subject: str) -> None:
@@ -75,9 +100,6 @@ def _validated_payload(  # noqa: PLR0913, RUF100 - exact durable fence binding
     observation_digest: str,
     decision_sha256: str,
     chronicle_digest: str,
-    wcp_schema_version: str,
-    wcp_decision_sha256: str,
-    wcp_binding_digest: str,
 ) -> dict[str, str]:
     path = Path(target_path)
     checks = (
@@ -91,10 +113,6 @@ def _validated_payload(  # noqa: PLR0913, RUF100 - exact durable fence binding
         bool(_SHA256.fullmatch(observation_digest)),
         bool(_SHA256.fullmatch(decision_sha256)),
         bool(_SHA256.fullmatch(chronicle_digest)),
-        wcp_schema_version == _WCP_SCHEMA_VERSION,
-        bool(_SHA256.fullmatch(wcp_decision_sha256)),
-        decision_sha256 == wcp_decision_sha256,
-        bool(_SHA256.fullmatch(wcp_binding_digest)),
     )
     if not all(checks):
         _fail("lane_closeout_fence_binding_invalid", subject)
@@ -104,9 +122,6 @@ def _validated_payload(  # noqa: PLR0913, RUF100 - exact durable fence binding
         "observation_digest": observation_digest,
         "decision_sha256": decision_sha256,
         "chronicle_digest": chronicle_digest,
-        "wcp_schema_version": wcp_schema_version,
-        "wcp_decision_sha256": wcp_decision_sha256,
-        "wcp_binding_digest": wcp_binding_digest,
     }
 
 
@@ -134,9 +149,6 @@ def acquire_closeout_fence(  # noqa: PLR0913, RUF100 - exact durable fence bindi
     observation_digest: str,
     decision_sha256: str,
     chronicle_digest: str,
-    wcp_schema_version: str,
-    wcp_decision_sha256: str,
-    wcp_binding_digest: str,
 ) -> dict[str, object]:
     """Atomically reserve one ownerless target against lease acquisition."""
     executor_ref = HolderRef.parse(executor_ref).serialize()
@@ -151,9 +163,6 @@ def acquire_closeout_fence(  # noqa: PLR0913, RUF100 - exact durable fence bindi
         observation_digest=observation_digest,
         decision_sha256=decision_sha256,
         chronicle_digest=chronicle_digest,
-        wcp_schema_version=wcp_schema_version,
-        wcp_decision_sha256=wcp_decision_sha256,
-        wcp_binding_digest=wcp_binding_digest,
     )
     payload_json = _canonical(payload)
     binding = {

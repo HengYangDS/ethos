@@ -9,7 +9,7 @@ from ethos.adapters.mutation.resolution.receipts import exact_ownerless_resoluti
 from ethos.adapters.mutation.resolution.receipts import read_resolution_receipt
 from ethos.adapters.mutation.resolution.receipts import write_resolution_receipt
 from ethos.adapters.mutation.resolution.records.core import receipt_path
-from ethos.adapters.mutation.resolution.records.core import target_digest
+from ethos.adapters.mutation.resolution.records.reservations import target_digest
 from ethos_core.contracts.resolution.closeout import LaneResolutionReceipt
 from ethos_core.contracts.resolution.lane import LaneObservation
 

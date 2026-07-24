@@ -9,8 +9,9 @@ relations:
 
 # Ownerless Diverged Work Lane Semantic Resolution — 2026-07-24
 
-Status: active local execution carrier. Thirty-six lanes are complete and the
-remaining 35 are decision-ready after current-head semantic analysis.
+Status: semantic resolution and safe housekeeping are complete. Final proof,
+accepted-root closeout, evidence-record verification, and controller retirement
+remain in progress.
 
 Purpose: resolve the initial 71 missing-lease Work Lanes without losing dirty
 bytes, preserving obsolete implementations as live lanes, or touching any valid
@@ -18,121 +19,102 @@ owner's lane.
 
 ## Current Boundary
 
-Accepted dev, main, candidate/dev, and this controller started this decision at
-738a75aeca0e9264462f0d6abf04bf15722d9329. The accepted and candidate checkouts were clean. The exact
-reader observation contained 43 foreign Work Lanes: 35 had
-lease_state=missing and 11 of those were dirty; eight had live leases and are
-protected.
+At the all-target closure observation, accepted dev, main, candidate/dev, and
+the controller were aligned at `f1bff558ab2d8995750e456c208291bb94f12c28`. All 71 historical targets were
+absent as branch refs, paths, Git worktree registrations, and lane-status rows.
+Seven live-lease lanes remained protected; no missing-lease lane remained
+visible.
 
-Ownerlessness is never inferred from age, process absence, or a missing Claim.
-Every effect must reobserve the same branch, HEAD, path, dirty bytes, and
-lease_state=missing.
+Ownerlessness was never inferred from age, process absence, a missing Claim, or
+IDE residue. Every effect reobserved the exact branch, HEAD, path, dirty bytes,
+and `lease_state=missing` before mutation.
+
+One detached dirty non-lane checkout remains protected outside this cohort. It
+is not temporary, clean, branch-bound, or covered by an accepted semantic
+disposition, so housekeeping correctly leaves its four-file overlay intact.
 
 ## Completed Families
 
 - OpenSpec identity-normalization lineage: 24 verified preserve-retire effects.
-- Resolution, retirement, and history lineage: 12 verified preserve-retire effects.
+- Resolution, retirement, and history lineage: 12 verified effects.
+- OpenSpec lifecycle, adoption, and declarative state: 7 verified effects.
+- Quality, lint, and exception governance: 9 verified effects.
+- Publication, remote, hosted-CI, brand, and npm supply: 8 verified effects,
+  including one direct brand replay before preservation and retirement.
+- Candidate, ledger, delegation, documentation, evidence, and governance: 11
+  verified effects.
 
-After the second family the resolution inventory was ready with 154 packages,
-52 receipts, and no inflight or partial record.
+The final resolution inventory reports 189 packages, 87 receipts, one historical
+clear record, zero inflight records, and zero partial records. Sixty-six lanes
+closed through direct postconditions; five transient or platform-specific
+postcondition observations have explicit successful reconciliation artifacts.
+All 15 dirty members across the original 71-lane cohort retain package-v2
+tracked, index, and untracked reconstruction evidence.
 
-## Decision-Ready Families
+## Completed Family Decisions
 
 ### OpenSpec Lifecycle, Adoption, and Declarative State
 
-- work/adopter-openspec-schema-compatibility-20260715
-- work/archived-openspec-identifier-normalization-current-absorption-v22-20260720
-- work/archived-openspec-identifier-normalization-successor-v21-20260720
-- work/declarative-lifecycle-matrix-20260720
-- work/lifecycle-transition-fail-closed-20260719
-- work/lifecycle-transition-review-repair-successor-20260720
-- work/openspec-new-capability-lifecycle-20260715
-
 Current official OpenSpec lifecycle, identity, profile, archive, declarative
-lease, handoff, resolution, and fail-closed transition owners absorb these
-semantics. The dirty review-repair successor is preserved but superseded.
+lease, handoff, resolution, and fail-closed transition owners absorbed the live
+semantics. Stale-stop identity receipts and the dirty review-repair successor
+were preserved but not promoted.
 
 ### Quality, Lint, and Exception Elimination
 
-- work/lint-small-tests-20260719
-- work/quality-exception-elimination-foundation-20260715
-- work/quality-zero-exceptions-20260718
-- work/quality-zero-exceptions-successor-20260719
-- work/ruff-discovery-adapter-20260720
-- work/e501-hosted-evidence-core-20260719
-- work/perf401-product-core-20260719
-- work/quality-a002-exemption-elimination-20260720
-- work/quality-law-20260712
-
 The accepted exact Ruff ratchet remains authoritative. E501 hosted and A002
-affected scopes are at zero, but PERF401 remains 32 corpus-wide and 27 in
+affected scopes were zero, while PERF401 remained 32 corpus-wide and 27 in
 product scope. Wholesale zero-exception snapshots and the staged 80-path
-ratchet deletion are rejected; their bytes remain recoverable.
+ratchet deletion were rejected; their bytes remain reconstructable.
 
 ### Publication, Remote, Hosted CI, and npm Supply
 
-- work/brand-public-surface-20260722
-- work/dual-remote-publication-equivalence-20260718
-- work/dual-remote-publication-topology-20260715
-- work/github-hosted-ci-reconciliation-20260717
-- work/npm-supply-governance-20260716
-- work/release-mirror-policy-20260712
-- work/remote-mirror-reconciliation-20260717
-- work/remote-reconciliation-resume-r7-20260718
-
-Equal GitLab and GitHub topology, local, remote, and hosted evidence separation,
-atomic accepted_ff closeout, and current release supply owners absorb the live
-contracts. Remote push and hosted success remain unclaimed. The standalone
-Linux npm installer is rejected as a second supply authority.
-
-work/brand-public-surface-20260722 is the exception to pure supersession: its
-seven presentation assets are replayed byte-exact into this carrier, and its
-README, documentation, format, and source-budget semantics are adapted to
-current owners before the lane is preserved and retired.
+Equal GitLab and GitHub topology, local/remote/hosted evidence separation,
+atomic accepted-FF closeout, and current release supply owners absorbed the
+durable contracts. The standalone Linux npm installer was rejected as a second
+supply authority. The brand lane's seven assets were replayed byte-exact and its
+documentation, format ownership, and source-budget semantics were adapted to
+current owners before retirement. Remote push and hosted success remain
+unclaimed.
 
 ### Candidate, Ledger, Delegation, Documentation, Evidence, and Governance
 
-- work/all-lanes-convergence-implementation-20260716
-- work/budget-contract-v2-native-measurement-20260719
-- work/ddwg-accepted-state-binding-20260720
-- work/docs-semantic-navigation-coverage-20260715
-- work/expert-review-remediation-20260716
-- work/feedback-completion-20260720
-- work/principal-delegation-foundation-20260712
-- work/skill-script-closeout-integrity-repair-20260720
-- work/candidate-generation-lease-20260714
-- work/lane-ledger-integrity-20260712
-- work/runtime-evidence-isolation-20260713
-
 Current budget v4, resolution state, proof carry, profile normalization,
-candidate lifecycle, ledger fencing, runtime evidence, and minimal docs
-topology absorb the durable invariants. A first-class Principal or Agent
-registry is explicitly rejected, as is the repetitive 112-path
-document-backlink graph.
+candidate lifecycle, ledger fencing, runtime evidence, and minimal docs topology
+absorbed the durable invariants. A first-class Principal/Agent registry and the
+repetitive 112-path document-backlink graph were explicitly rejected.
 
 ## Effect Protocol
 
 1. Reobserve one exact family member.
-2. Stop if it has gained a lease, changed HEAD, or changed dirty bytes.
-3. Record an accepted preserve-retire decision.
-4. Confirm ordinary worktree closeout does not falsely admit the diverged lane.
+2. Stop if it gained a lease, changed HEAD, or changed dirty bytes.
+3. Record an accepted `preserve-retire` decision.
+4. Confirm ordinary worktree closeout did not falsely admit the diverged lane.
 5. Create and verify one immutable repository bundle and package-v2 payload.
 6. Verify tracked, index, untracked, receipt, ref, path, registration, inventory,
    accepted-root, and protected-owner postconditions before continuing.
 
+## Housekeeping Result
+
+The ETHOS housekeeping dry-run and authorized apply protected every real
+checkout. A separate Git-native dry-run then identified exactly six already
+missing paths with `prunable` registration metadata. The bounded metadata-only
+prune removed those six registrations, preserved the recovery branch ref, and
+reverified every live lease branch, HEAD, holder, and path unchanged. No
+prunable registration remains.
+
 ## Completion Criteria
 
-- all 71 initial lanes are either completed or have an accepted exact decision;
-- all 11 remaining dirty targets receive verified reconstructable package-v2
-  preservation;
-- all retired targets are absent as path, ref, worktree registration, and lease;
-- all eight currently leased lanes remain outside this controller;
-- resolution inventory remains free of inflight, partial, conflicting, or
-  unverified records;
-- safe housekeeping removes only proven tool residue or prunable registrations;
-- final status, report, parity, quality, proof, candidate land, accepted
-  closeout, repository-family audit, and record verification pass; and
-- the controller retires only after its accepted completion record is landed.
+- [x] All 71 initial lanes completed verified `preserve-retire` effects.
+- [x] All 15 dirty targets retain reconstructable package-v2 preservation.
+- [x] All targets are absent as path, ref, worktree registration, and lane row.
+- [x] All seven current live-lease lanes remain outside this controller.
+- [x] Resolution inventory is free of inflight, partial, conflicting, or
+      integrity-invalid records.
+- [x] Safe housekeeping removed only six proven stale registrations and kept the
+      dirty detached non-lane checkout intact.
+- [ ] Final status, report, parity, quality, proof, candidate land, accepted
+      closeout, repository-family record verification, and controller retirement.
 
 Remote mutation, hosted-provider success, release or tag publication, and
 distribution publication are excluded.

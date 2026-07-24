@@ -139,9 +139,15 @@ def test_closeout_contracts_live_in_their_defining_module_only() -> None:
     ("path", "value"),
     [
         (("head",), "a" * 40 + "\n"),
+        (("head",), "a" * 39 + "\n"),
+        (("head",), "a" * 63 + "\n"),
         (("observation_digest",), "d" * 64 + "\n"),
+        (("observation_digest",), "d" * 63 + "\n"),
         (("preservation_manifest_sha256",), "e" * 64 + "\n"),
+        (("preservation_manifest_sha256",), "e" * 63 + "\n"),
         (("ownerless_closeout_binding", "accepted_head"), "c" * 40 + "\n"),
+        (("ownerless_closeout_binding", "accepted_head"), "c" * 39 + "\n"),
+        (("ownerless_closeout_binding", "accepted_head"), "c" * 63 + "\n"),
         (("ownerless_closeout_binding", "decision_sha256"), "b" * 64 + "\n"),
         (("ownerless_closeout_binding", "target_digest"), "a" * 64 + "\n"),
         (("ownerless_closeout_binding", "target_binding_digest"), "d" * 64 + "\n"),
@@ -164,7 +170,10 @@ def test_lane_resolution_receipt_schema_rejects_trailing_newlines(
 
 
 @pytest.mark.parametrize("field", ["manifest_sha256", "chronicle_digest"])
-def test_lane_resolution_clear_receipt_schema_rejects_trailing_newlines(field: str) -> None:
+@pytest.mark.parametrize("hex_count", [63, 64])
+def test_lane_resolution_clear_receipt_schema_rejects_trailing_newlines(
+    field: str, hex_count: int
+) -> None:
     clear = LaneResolutionClearReceipt(
         schema_version=1,
         clear_receipt_id="lane-resolution-clear-receipt:one",
@@ -176,7 +185,7 @@ def test_lane_resolution_clear_receipt_schema_rejects_trailing_newlines(field: s
         completed=True,
         mints_authority=False,
     ).model_dump(mode="json")
-    clear[field] = str(clear[field]) + "\n"
+    clear[field] = "a" * hex_count + "\n"
 
     assert (
         validate_schema_instance("lane-resolution-clear-receipt.schema.json", clear)["ok"] is False

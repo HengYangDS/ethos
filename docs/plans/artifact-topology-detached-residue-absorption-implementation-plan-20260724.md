@@ -76,16 +76,16 @@ Python topology tests, repository-family governance.
   authority.
 - [x] Validate strict OpenSpec, Claim digest, docs registry, provenance, and
   focused topology/CEL tests.
-- [ ] Commit the authority carrier with a verified signature.
+- [x] Commit the authority carrier with a verified signature.
 
 ### Task 3: Archive and prove the carrier
 
 **Files:**
 - Modify: the active OpenSpec carrier and Claim paths produced by official archive.
 
-- [ ] Complete only checkboxes backed by fresh evidence.
-- [ ] Run generic shadow parity in the admitted Work Lane and commit the result.
-- [ ] Officially archive the change.
+- [x] Complete only checkboxes backed by fresh evidence.
+- [x] Run generic shadow parity in the admitted Work Lane and commit the result.
+- [x] Officially archive the change.
 - [ ] Run exact-HEAD executed proof and report with no required gap.
 
 ### Task 4: Land and accepted closeout

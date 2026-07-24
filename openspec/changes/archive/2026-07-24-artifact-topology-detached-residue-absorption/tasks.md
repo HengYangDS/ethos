@@ -18,7 +18,7 @@
 
 ## 3. Proof and local closeout
 
-- [ ] 3.1 Commit the carrier, refresh generic parity, and run exact-HEAD proof.
+- [x] 3.1 Commit the carrier, refresh generic parity, and run exact-HEAD proof.
 - [ ] 3.2 Officially archive the change and rerun archive-HEAD proof.
 - [ ] 3.3 Refresh, land, and perform accepted-root closeout as separate audited
   transitions without remote push.

@@ -70,14 +70,6 @@ def _ownerless_reservation_invalid() -> ValueError:
     return ValueError(_OWNERLESS_RESERVATION_INVALID)
 
 
-def _ownerless_reservation_mismatch() -> ValueError:
-    return ValueError(_OWNERLESS_RESERVATION_MISMATCH)
-
-
-def _record_path_unsafe() -> OSError:
-    return OSError(_RECORD_PATH_UNSAFE)
-
-
 def receipt_path(
     root: Path,
     decision_id: str,
@@ -255,29 +247,6 @@ def ownerless_closeout_recovery_binding(
 def read_ownerless_closeout_reservation(*, record_root: Path, path: Path) -> dict[str, object]:
     """Read and validate one inventory-visible ownerless reservation."""
     return _read_ownerless_reservation(record_root, path)
-
-
-def release_ownerless_no_effect_reservation(
-    *,
-    root: Path,
-    expected: dict[str, object],
-    artifact_root: Path | None = None,
-) -> None:
-    """Release only one exact reservation whose destructive effect never started."""
-    expected_payload = _validated_ownerless_reservation(expected, initial=True)
-    record_root = artifact_root or records_artifact_root(root)
-    reservation = ownerless_closeout_reservation_path(
-        root,
-        str(expected_payload["target_digest"]),
-        artifact_root=record_root,
-    )
-    current = _read_ownerless_reservation(record_root, reservation)
-    if current != expected_payload:
-        raise _ownerless_reservation_mismatch()
-    if not record_destination_safe(record_root, reservation) or reservation.is_symlink():
-        raise _record_path_unsafe()
-    reservation.unlink()
-    _fsync_directory(reservation.parent)
 
 
 def release_ownerless_closeout_reservation(

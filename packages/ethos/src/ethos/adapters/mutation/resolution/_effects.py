@@ -19,6 +19,9 @@ from ethos.adapters.mutation.resolution._shared import records_artifact_root
 from ethos.adapters.mutation.resolution._shared import sha256_digest
 from ethos.adapters.mutation.resolution.closeout.wcp.core import run_worktree_closeout_check
 from ethos.adapters.mutation.resolution.receipts import verify_preservation_package
+from ethos.adapters.mutation.resolution.records.core import ownerless_closeout_reservation_path
+from ethos.adapters.mutation.resolution.records.core import read_ownerless_closeout_reservation
+from ethos.adapters.mutation.resolution.records.core import release_ownerless_no_effect_reservation
 from ethos.adapters.mutation.resolution.records.core import reserve_ownerless_closeout_target
 from ethos.adapters.mutation.resolution.records.core import (
     transition_ownerless_closeout_reservation,
@@ -27,6 +30,7 @@ from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.store.state.closeout import acquire_closeout_fence
 from ethos.adapters.store.state.closeout import get_closeout_fence
 from ethos.adapters.store.state.closeout import probe_closeout_fence
+from ethos.adapters.store.state.closeout import release_closeout_fence
 from ethos.adapters.store.state.schema import state_database
 from ethos.repository.policy.schema import validate_schema_instance
 from ethos_core.contracts.resolution.lane import LaneObservation
@@ -170,10 +174,14 @@ def _ownerless_runtime() -> ownerless_effect.OwnerlessCloseoutRuntime:
         run_git=run_git,
         observe_lane=observe_lane,
         records_artifact_root=records_artifact_root,
+        reservation_path=ownerless_closeout_reservation_path,
+        read_reservation=read_ownerless_closeout_reservation,
         reserve_target=reserve_ownerless_closeout_target,
+        release_no_effect_reservation=release_ownerless_no_effect_reservation,
         transition_reservation=transition_ownerless_closeout_reservation,
         leases_by_branch=leases_by_branch,
         acquire_fence=acquire_closeout_fence,
+        release_fence=release_closeout_fence,
         get_fence=get_closeout_fence,
         probe_fence=probe_closeout_fence,
         state_database=state_database,

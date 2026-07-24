@@ -6,7 +6,7 @@ summary = "Implement MetricContract v4 static hybrid carrier execution with fixe
 
 [evidence]
 dated = "evidence/chronicle/budget-contract-v2-carrier-resource-boundary-20260720/2026-07-24.md"
-sha256 = "b0c701c110fad10856c8496b21b94ee5995ed93f97621075292f3ae970b15961"
+sha256 = "b0b81b8481260fc63a141654dd49af0699811ff0dd5ead6eab91030f9c00876e"
 evidence_ids = [
   "evidence:budget-contract-v2-carrier-resource-boundary-20260720",
   "evidence:budget-contract-v2-carrier-resource-boundary-closeout-reconciliation-20260724",
@@ -14,7 +14,7 @@ evidence_ids = [
   "evidence:budget-contract-v2-carrier-resource-boundary-acceptance-20260723",
   "evidence:budget-contract-v2-carrier-resource-boundary-review-20260723",
 ]
-binding = "This refreshed implementation-stage C1 Claim binds MetricContract v4 static hybrid execution, unchanged provider ceilings, complete provider/execution resolution before content open, exact resolved-provider admission without identity replacement, descriptor-owned static routing, one bounded parent read, no second bounded resolution, typed worker protocol, parent replay, platform-specific supervision, one lifecycle owner, all-or-nothing carrier and snapshot results, exact-ceiling and deep/wide acceptance cases, current and immutable inventory observations, runtime observations, and independent contract/trust/simplicity/platform review with zero final findings. The July 23 738-test and 50-path candidate-index bundle and the first-refresh 739-test/full-suite bundle are historical implementation checkpoints, not current-HEAD proof. Against carrier base 24d6edcf31ee94c1a10b6abb022298e290242380, the C1 diff contains 58 existing ACMR Python paths plus one deleted path; 31 existing paths are package source. Final platform-specific direct typing covers those 31 changed package paths, and the canonical zero-tolerance owner gate covers both complete governed packages. Test and support paths remain under pytest, Ruff, and schema owners rather than an ad hoc expanded typing policy. V1 policy, debt, terminal targets, global LOC, and per-file ELOC remain unchanged and authoritative; v2 remains inactive. Generic parity is deliberately outside this Claim's semantic promotion scope; it remains a separate repository-wide freshness witness required by parity gaps, quality evidence-freshness, and exact-HEAD proof after the Claim is committed. Exact-HEAD proof, the same-SHA Linux receipt, archive, land, accepted closeout, publication readiness, external distribution, provider-run checks, and retirement remain later transitions."
+binding = "This refreshed implementation-stage C1 Claim binds MetricContract v4 static hybrid execution, unchanged provider ceilings, complete provider/execution resolution before content open, exact resolved-provider admission without identity replacement, descriptor-owned static routing, one bounded parent read, no second bounded resolution, typed worker protocol, parent replay, platform-specific supervision, one lifecycle owner, all-or-nothing carrier and snapshot results, exact-ceiling and deep/wide acceptance cases, current and immutable inventory observations, runtime observations, and independent contract/trust/simplicity/platform review with zero final findings. The July 23 738-test and 50-path candidate-index bundle and the first-refresh 739-test/full-suite bundle are historical implementation checkpoints, not current-HEAD proof. The second-refresh exact-HEAD focused and type bundle at ea92e0cbebb1187ba5af846521bef52091465c5c is also historical after the third candidate advance. Against carrier base 266018e9832866c00499bd5bcbf4dfa9cc831d89, the C1 diff contains 58 existing ACMR Python paths plus one deleted path; 31 existing paths are package source. Final platform-specific direct typing covers those 31 changed package paths, and the canonical zero-tolerance owner gate covers both complete governed packages. Test and support paths remain under pytest, Ruff, and schema owners rather than an ad hoc expanded typing policy. V1 policy, debt, terminal targets, global LOC, and per-file ELOC remain unchanged and authoritative; v2 remains inactive. Generic parity is deliberately outside this Claim's semantic promotion scope; it remains a separate repository-wide freshness witness required by parity gaps, quality evidence-freshness, and exact-HEAD proof after the Claim is committed. Exact-HEAD proof, the same-SHA Linux receipt, archive, land, accepted closeout, publication readiness, external distribution, provider-run checks, and retirement remain later transitions."
 verifier = "independently_reviewed"
 tests = [
   "npx --yes @fission-ai/openspec@1.6.0 validate budget-contract-v2-carrier-resource-boundary --strict --json",
@@ -22,8 +22,8 @@ tests = [
   "tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev pytest -q tests/unit/adapters/repo/source_budget/test_measurement_worker_acceptance.py",
   "tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev pytest -q tests/architecture/test_source_budget_router_trust_boundary.py tests/architecture/test_source_budget_worker_boundaries.py tests/unit/adapters/repo/source_budget tests/unit/kernel/test_source_budget_metrics_contract.py tests/unit/kernel/test_source_budget_measurements_contract.py tests/unit/kernel/test_source_budget_measurements_integrity.py tests/unit/kernel/test_source_budget_worker_protocol_contract.py tests/unit/kernel/test_source_budget_worker_frame_contract.py tests/unit/kernel/test_source_budget_execution_edge_contracts.py",
   "tools/ci/scripts/run-python-tests.sh",
-  "git diff --name-only --diff-filter=ACMR 24d6edcf31ee94c1a10b6abb022298e290242380...HEAD -- 'packages/**/*.py' | xargs tools/ci/scripts/with-python-runtime.sh -- uv run --locked --all-packages --group dev ty check --python-version 3.14 --python-platform darwin --error-on-warning",
-  "git diff --name-only --diff-filter=ACMR 24d6edcf31ee94c1a10b6abb022298e290242380...HEAD -- 'packages/**/*.py' | xargs tools/ci/scripts/with-python-runtime.sh -- uv run --locked --all-packages --group dev ty check --python-version 3.14 --python-platform linux --error-on-warning",
+  "git diff --name-only --diff-filter=ACMR 266018e9832866c00499bd5bcbf4dfa9cc831d89...HEAD -- 'packages/**/*.py' | xargs tools/ci/scripts/with-python-runtime.sh -- uv run --locked --all-packages --group dev ty check --python-version 3.14 --python-platform darwin --error-on-warning",
+  "git diff --name-only --diff-filter=ACMR 266018e9832866c00499bd5bcbf4dfa9cc831d89...HEAD -- 'packages/**/*.py' | xargs tools/ci/scripts/with-python-runtime.sh -- uv run --locked --all-packages --group dev ty check --python-version 3.14 --python-platform linux --error-on-warning",
   "tools/ci/scripts/run-python-lint.sh",
   "tools/ci/scripts/run-module-layout.sh",
   "tools/ci/scripts/run-config-lint.sh",
@@ -45,8 +45,8 @@ tests = [
 
 [evidence.freshness]
 mode = "semantic_scope"
-head = "cdf6a87dda8eca6f20af170ef5b5e5b1a6e3f359"
-semantic_sha256 = "4e5f9387a8907c4011bc8c9dd05f48824e77c89421006c95fc513d2f9b2d24b4"
+head = "1ee10040cf7ba73bb88d23cb11a545a23f06338f"
+semantic_sha256 = "463c6be8f9bed3cd5a42640b4e9f6dc6910fdb59ebe3b835c86960e99e94a313"
 
 [boundary]
 owner = "quality"

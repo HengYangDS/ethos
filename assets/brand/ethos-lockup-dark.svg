@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="512" viewBox="0 0 1800 512" role="img" aria-labelledby="title desc">
+  <title id="title">ETHOS</title>
+  <desc id="desc">The ETHOS aperture mark and wordmark.</desc>
+  <rect width="1800" height="512" fill="#10242C"/>
+  <g transform="translate(28 28) scale(.891)">
+    <path d="M399.6 150.6 A164 164 0 1 0 399.6 361.4" fill="none" stroke="#F6F1E8" stroke-width="25" stroke-linecap="round"/>
+    <path d="M274 256 C307 243 341 216 377 178" fill="none" stroke="#F6F1E8" stroke-width="17" stroke-linecap="round"/>
+    <path d="M274 256 C311 272 350 307 389 343" fill="none" stroke="#F6F1E8" stroke-width="17" stroke-linecap="round"/>
+    <circle cx="274" cy="256" r="14" fill="#B5523D"/><circle cx="274" cy="256" r="4.75" fill="#10242C"/>
+  </g>
+  <text x="580" y="294" fill="#F6F1E8" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-size="164" font-weight="500" letter-spacing="20">ETHOS</text>
+</svg>

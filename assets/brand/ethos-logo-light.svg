@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">ETHOS</title>
+  <desc id="desc">An aperture mark with one origin, two differentiated passages, and one containing boundary.</desc>
+  <rect width="512" height="512" fill="#F6F1E8"/>
+  <path d="M399.6 150.6 A164 164 0 1 0 399.6 361.4" fill="none" stroke="#10242C" stroke-width="25" stroke-linecap="round"/>
+  <path d="M274 256 C307 243 341 216 377 178" fill="none" stroke="#10242C" stroke-width="17" stroke-linecap="round"/>
+  <path d="M274 256 C311 272 350 307 389 343" fill="none" stroke="#10242C" stroke-width="17" stroke-linecap="round"/>
+  <circle cx="274" cy="256" r="14" fill="#B5523D"/><circle cx="274" cy="256" r="4.75" fill="#F6F1E8"/>
+</svg>

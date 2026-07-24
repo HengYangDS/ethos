@@ -38,18 +38,24 @@ def _digest(value: object) -> str:
 
 
 def _decision(
+    root: Path,
     path: Path,
     observation: LaneObservation,
     *,
     decision_id: str = _DECISION_ID,
 ) -> tuple[dict[str, object], bytes]:
+    chronicle_ref = "evidence/chronicle/test.md"
+    chronicle = root / chronicle_ref
+    chronicle.parent.mkdir(parents=True, exist_ok=True)
+    chronicle_bytes = b"decision: lane_resolution/retire\n"
+    chronicle.write_bytes(chronicle_bytes)
     payload = LaneResolutionDecision(
         decision_id=decision_id,
         disposition="retire",
         observation=observation,
         evidence_refs=("evidence/test.md",),
-        chronicle_ref="evidence/chronicle/test.md",
-        chronicle_digest="c" * 64,
+        chronicle_ref=chronicle_ref,
+        chronicle_digest=hashlib.sha256(chronicle_bytes).hexdigest(),
         recovery_plan="Restore the exact linked Work Lane if closeout is partial.",
         reason="The exact clean ownerless Work Lane is approved for closeout.",
         break_glass=True,
@@ -60,12 +66,13 @@ def _decision(
 
 
 def _wcp(raw: bytes, observation: LaneObservation, accepted_head: str) -> dict[str, object]:
+    decision = json.loads(raw)
     return {
         "schema_version": "workstation.repo-family-governance.v1",
         "decision_sha256": hashlib.sha256(raw).hexdigest(),
         "executor_ref": _EXECUTOR,
         "observation_digest": observation.digest(),
-        "chronicle_digest": "c" * 64,
+        "chronicle_digest": str(decision["chronicle_digest"]),
         "source": {"head": accepted_head},
         "coordination": {"binding_digest": "d" * 64},
     }
@@ -142,8 +149,9 @@ def test_ownerless_effect_rejects_replaced_decision_before_any_effect(
     observation, _ = observe_lane(repo, "work/orphan")
     accepted_head = git(repo, "rev-parse", "dev")
     decision_path = tmp_path / "decision.json"
-    decision, _ = _decision(decision_path, observation)
+    decision, _ = _decision(repo, decision_path, observation)
     _, replacement_raw = _decision(
+        repo,
         decision_path,
         observation,
         decision_id=_REPLACEMENT_DECISION_ID,
@@ -189,7 +197,7 @@ def test_ownerless_effect_classifies_failed_remove_after_real_removal(
     observation, _ = observe_lane(repo, "work/orphan")
     accepted_head = git(repo, "rev-parse", "dev")
     decision_path = tmp_path / "decision.json"
-    decision, raw = _decision(decision_path, observation)
+    decision, raw = _decision(repo, decision_path, observation)
     real_run_git = effects.run_git
     monkeypatch.setattr(
         effects,
@@ -243,7 +251,7 @@ def test_ownerless_effect_classifies_failed_remove_with_unverifiable_ref_as_unkn
     observation, _ = observe_lane(repo, "work/orphan")
     accepted_head = git(repo, "rev-parse", "dev")
     decision_path = tmp_path / "decision.json"
-    decision, raw = _decision(decision_path, observation)
+    decision, raw = _decision(repo, decision_path, observation)
     real_run_git = effects.run_git
     target_ref = f"refs/heads/{observation.lane_ref}"
     removed = False
@@ -304,7 +312,7 @@ def test_ownerless_effect_requires_verifiable_registration_for_no_effect(
     observation, _ = observe_lane(repo, "work/orphan")
     accepted_head = git(repo, "rev-parse", "dev")
     decision_path = tmp_path / "decision.json"
-    decision, raw = _decision(decision_path, observation)
+    decision, raw = _decision(repo, decision_path, observation)
     real_run_git = effects.run_git
     monkeypatch.setattr(
         effects,
@@ -359,7 +367,7 @@ def test_ownerless_effect_keeps_no_effect_state_when_failed_remove_preserves_tar
     observation, _ = observe_lane(repo, "work/orphan")
     accepted_head = git(repo, "rev-parse", "dev")
     decision_path = tmp_path / "decision.json"
-    decision, raw = _decision(decision_path, observation)
+    decision, raw = _decision(repo, decision_path, observation)
     real_run_git = effects.run_git
     monkeypatch.setattr(
         effects,
@@ -414,7 +422,7 @@ def test_ownerless_effect_fails_closed_when_target_ref_absence_is_unverifiable(
     observation, _ = observe_lane(repo, "work/orphan")
     accepted_head = git(repo, "rev-parse", "dev")
     decision_path = tmp_path / "decision.json"
-    decision, raw = _decision(decision_path, observation)
+    decision, raw = _decision(repo, decision_path, observation)
     real_run_git = effects.run_git
     target_ref = f"refs/heads/{observation.lane_ref}"
     monkeypatch.setattr(
@@ -475,7 +483,7 @@ def test_completed_ownerless_recovery_allows_only_an_exactly_released_fence(
     observation, _ = observe_lane(repo, "work/orphan")
     accepted_head = git(repo, "rev-parse", "dev")
     decision_path = tmp_path / "decision.json"
-    decision, raw = _decision(decision_path, observation)
+    decision, raw = _decision(repo, decision_path, observation)
     monkeypatch.setattr(
         effects,
         "run_worktree_closeout_check",
@@ -558,7 +566,7 @@ def test_ownerless_effect_orders_preflight_fence_cas_and_postverify(
     assert gaps == []
     accepted_head = git(repo, "rev-parse", "dev")
     decision_path = tmp_path / "decision.json"
-    decision, raw = _decision(decision_path, observation)
+    decision, raw = _decision(repo, decision_path, observation)
     wcp = _wcp(raw, observation, accepted_head)
     events: list[str] = []
     git_calls: list[tuple[str, ...]] = []
@@ -643,7 +651,7 @@ def test_ownerless_effect_retains_fence_when_accepted_ref_drifts_after_admission
     observation, _ = observe_lane(repo, "work/orphan")
     accepted_head = git(repo, "rev-parse", "dev")
     decision_path = tmp_path / "decision.json"
-    decision, raw = _decision(decision_path, observation)
+    decision, raw = _decision(repo, decision_path, observation)
     fence = _fence(observation, accepted_head)
 
     monkeypatch.setattr(
@@ -704,7 +712,7 @@ def test_ownerless_effect_records_transition_unknown_for_ordinary_post_cas_excep
     observation, _ = observe_lane(repo, "work/orphan")
     accepted_head = git(repo, "rev-parse", "dev")
     decision_path = tmp_path / "decision.json"
-    decision, raw = _decision(decision_path, observation)
+    decision, raw = _decision(repo, decision_path, observation)
     monkeypatch.setattr(
         effects,
         "run_worktree_closeout_check",
@@ -752,7 +760,7 @@ def test_ownerless_effect_rejects_dangling_symlink_at_retired_target_path(
     observation, _ = observe_lane(repo, "work/orphan")
     accepted_head = git(repo, "rev-parse", "dev")
     decision_path = tmp_path / "decision.json"
-    decision, raw = _decision(decision_path, observation)
+    decision, raw = _decision(repo, decision_path, observation)
     real_cas = effects._retire_clean_ownerless_cas  # noqa: SLF001, RUF100 - fault injection seam
     monkeypatch.setattr(
         effects,

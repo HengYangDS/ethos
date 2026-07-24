@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
 
+from ethos.adapters.mutation.resolution._shared import current_chronicle_matches
 from ethos.adapters.mutation.resolution.closeout.retry import reset_reserved_no_effect_retry
 from ethos.adapters.mutation.resolution.closeout.wcp.core import WCPCloseoutExpectation
 from ethos.adapters.mutation.resolution.closeout.wcp.core import WCPResponseError
@@ -28,6 +29,7 @@ if TYPE_CHECKING:
 _OWNERLESS_EXECUTOR_REQUIRED = "lane_resolution_ownerless_executor_required"
 _OWNERLESS_DECISION_INVALID = "lane_resolution_ownerless_decision_invalid"
 _OWNERLESS_DECISION_STALE = "lane_resolution_ownerless_decision_stale"
+_OWNERLESS_CHRONICLE_STALE = "lane_resolution_ownerless_chronicle_stale"
 _OWNERLESS_ACCEPTED_HEAD_STALE = "lane_resolution_ownerless_accepted_head_stale"
 _OWNERLESS_FENCE_STALE = "lane_resolution_ownerless_fence_stale"
 _OWNERLESS_FENCE_UNVERIFIABLE = "lane_resolution_ownerless_fence_unverifiable"
@@ -333,6 +335,8 @@ def recover_completed_ownerless_closeout(  # noqa: PLR0913, RUF100 - exact recov
         runtime=runtime,
         fence_acquired=True,
     )
+    if not current_chronicle_matches(root, decision):
+        raise runtime.ownerless_error(_OWNERLESS_CHRONICLE_STALE, fence_acquired=True)
     observation = LaneObservation.model_validate(decision["observation"])
     decision_sha256 = hashlib.sha256(decision_bytes).hexdigest()
     exact_target = (

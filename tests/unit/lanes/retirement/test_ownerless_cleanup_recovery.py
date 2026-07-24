@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import sqlite3
+import subprocess
+import sys
 from contextlib import closing
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -15,6 +18,7 @@ import ethos.adapters.mutation.resolution.lane as lane_adapter
 import ethos.adapters.mutation.resolution.records.core as record_store
 import ethos.adapters.mutation.resolution.records.io.core as record_io
 import ethos.adapters.mutation.resolution.records.reservations as reservation_store
+from ethos.adapters.mutation.resolution._shared import current_chronicle_matches
 from ethos.adapters.mutation.resolution.lane import apply_lane_resolution
 from ethos.adapters.mutation.resolution.lane import plan_lane_resolution
 from ethos.adapters.mutation.resolution.records.roots import current_record_root
@@ -153,14 +157,15 @@ def _fail_one_record_unlink(
         nonlocal failed
         metadata = record_io.os.fstat(dir_fd) if dir_fd is not None else None
         parent = target.parent.stat() if target.parent.exists() else None
-        exact_staging = (
+        exact_tombstone = (
             metadata is not None
             and parent is not None
             and (metadata.st_dev, metadata.st_ino) == (parent.st_dev, parent.st_ino)
-            and str(path).startswith(prefix)
-            and str(path).endswith(".cas")
+            and prefix in str(path)
+            and ".cas." in str(path)
+            and str(path).endswith(".delete")
         )
-        if exact_staging and ready() and not failed:
+        if exact_tombstone and ready() and not failed:
             failed = True
             message = "reservation unlink interrupted"
             raise OSError(message)
@@ -312,13 +317,13 @@ def test_receipt_sidecar_swap_reports_release_gap_and_retries(
         locked_descriptor: int,
         expected: bytes,
         staging: str,
-    ) -> None:
+    ) -> record_io.posix.FileIdentity:
         nonlocal swapped
         if parent.destination == sidecar and receipt.is_file() and not swapped:
             sidecar.unlink()
             sidecar.write_bytes(expected)
             swapped = True
-        original_stage(parent, locked_descriptor, expected, staging)
+        return original_stage(parent, locked_descriptor, expected, staging)
 
     monkeypatch.setattr(record_io, "_stage_expected_record", swap_before_stage)
 
@@ -654,3 +659,70 @@ def test_completed_recovery_reads_decision_bytes_once(
     )
 
     assert reads == 1
+
+
+def test_completed_recovery_rejects_chronicle_drift_before_receipt_write_or_cleanup(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, decision_path, decision, ownerless_reservation, receipt = _setup(tmp_path, monkeypatch)
+    real_write = lane_adapter.write_resolution_receipt
+    monkeypatch.setattr(
+        lane_adapter,
+        "write_resolution_receipt",
+        lambda **_kwargs: (_ for _ in ()).throw(OSError("receipt write interrupted")),
+    )
+    first = _apply(repo, decision_path)
+    assert first["required_gaps"] == ["lane_resolution_receipt_write_failed_after_effect"]
+    assert ownerless_reservation.is_file()
+    assert not receipt.exists()
+    assert get_closeout_fence(state_database(repo), subject="work/orphan") is not None
+
+    chronicle = repo / str(decision["chronicle_ref"])
+    chronicle.write_text(
+        chronicle.read_text(encoding="utf-8") + "mutated after completed effect\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(lane_adapter, "write_resolution_receipt", real_write)
+
+    blocked = _apply(repo, decision_path)
+
+    assert (blocked["ok"], blocked["state"], blocked["required_gaps"]) == (
+        False,
+        "partial_transition",
+        ["lane_resolution_ownerless_chronicle_stale"],
+    )
+    assert ownerless_reservation.is_file()
+    assert not receipt.exists()
+    assert get_closeout_fence(state_database(repo), subject="work/orphan") is not None
+
+
+def test_current_chronicle_match_rejects_fifo_without_blocking(tmp_path: Path) -> None:
+    root = tmp_path / "repo"
+    chronicle = root / "evidence/chronicle/fifo.md"
+    chronicle.parent.mkdir(parents=True)
+    os.mkfifo(chronicle)
+    decision = {
+        "chronicle_ref": "evidence/chronicle/fifo.md",
+        "chronicle_digest": "0" * 64,
+        "disposition": "retire",
+    }
+    script = (
+        "import json\n"
+        "from pathlib import Path\n"
+        "from ethos.adapters.mutation.resolution._shared import current_chronicle_matches\n"
+        f"root = Path({root.as_posix()!r})\n"
+        f"decision = json.loads({json.dumps(decision)!r})\n"
+        "raise SystemExit(1 if current_chronicle_matches(root, decision) else 0)\n"
+    )
+
+    completed = subprocess.run(
+        [sys.executable, "-c", script],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=1,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert current_chronicle_matches(root, decision) is False

@@ -6,7 +6,7 @@ paths = [
   "evidence/chronicle/budget-contract-v2-carrier-resource-boundary-20260720/**",
   "evidence/parity/generic-shadow.json",
   "openspec/changes/budget-contract-v2-carrier-resource-boundary/**",
-  "openspec/changes/archive/2026-07-23-budget-contract-v2-carrier-resource-boundary/**",
+  "openspec/changes/archive/2026-07-24-budget-contract-v2-carrier-resource-boundary/**",
   "openspec/specs/contracts/spec.md",
   "packages/ethos-core/src/ethos_core/contracts/source_budget/metrics.py",
   "packages/ethos-core/src/ethos_core/contracts/source_budget/measurement/execution.py",

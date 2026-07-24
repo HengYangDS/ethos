@@ -347,12 +347,17 @@ subsequent separately evidenced transitions.
 - [x] **Step 9: Implement the common single-read parent boundary for both modes and direct native recheck; prove limit-minus-one/exact-limit success, limit-plus-one rejection, pre-spawn safety, drift semantics, and all-or-nothing snapshots.**
 - [ ] **Step 10: Complete the C1 pre-transition closeout: exact-ceiling and deep/wide provider acceptance, performance and current/immutable inventory evidence, focused 100 percent coverage, every owner gate, independent security/contract/simplicity/platform review, exact promotion targets, semantic Claim binding, parity, exact-HEAD default/full proof, and the same-SHA Linux CPython 3.14 receipt. If hybrid is rejected, keep C1 open and do not raise a ceiling.**
 
-  The July 23 final candidate-index stage completed exact-ceiling/deep-wide
+  The July 23 candidate-index stage completed exact-ceiling/deep-wide
   acceptance, inventory/runtime observations, every local owner gate, 100
   percent focused statement/branch coverage, and independent
-  contract/trust/simplicity/platform review. This step remains open for the
-  governed material commit, semantic Claim binding, parity, exact-HEAD
-  default/full proof, and the same-SHA live Linux CPython 3.14 receipt.
+  contract/trust/simplicity/platform review. The governed material
+  implementation, the initial extant implementation promotion-target set, and
+  the initial semantic Claim binding are committed. Because candidate advanced
+  twice after that checkpoint, this step remains open. After the carrier
+  reconciliation, refreshed Claim binding, and generic parity are committed,
+  rerun coverage, 58-path Darwin/Linux type evidence, exact-HEAD default/full
+  proof, and the live Linux CPython 3.14 receipt on the resulting final
+  pre-archive HEAD.
 
 Post-archive parity/proof, candidate land, accepted-root closeout, local
 publication readiness, and owned-Lane retirement remain mandatory separate
@@ -512,6 +517,6 @@ transitions. Remote publication and hosted CI are not claimed by C1.
 
 - [ ] **Step 1: Run focused owner checks, complete test suite, lint/config/schema/quality audit, strict OpenSpec lifecycle, and parity gaps.**
 - [ ] **Step 2: Refresh tracked parity evidence when stale, commit it, and rerun checks at the new HEAD.**
-- [ ] **Step 3: Run `ethos prove --execute --expect-head <HEAD>` and `ethos prove --full --execute --expect-head <HEAD>`; require both clean for terminal completion.**
+- [ ] **Step 3: Run `tools/ci/scripts/run-ethos-lane.sh prove --execute --expect-head "$(git rev-parse HEAD)" --json` and `tools/ci/scripts/run-ethos-lane.sh prove --execute --full --expect-head "$(git rev-parse HEAD)" --json`; require both clean for terminal completion.**
 - [ ] **Step 4: Archive through official OpenSpec, update carrier/digests, prove the archive HEAD, land to candidate, then perform audited accepted-root closeout.**
 - [ ] **Step 5: Evaluate local `publish --json`, retire the owned landed Lane, and report remote publication and hosted CI separately.**

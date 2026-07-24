@@ -330,6 +330,7 @@ def test_resolution_preserve_inventory_and_retire_failures(tmp_path: Path, monke
     responses = iter(
         (
             subprocess.CompletedProcess(["git"], 0, stdout=b"patch"),
+            subprocess.CompletedProcess(["git"], 0, stdout=b"index patch"),
             subprocess.CompletedProcess(["git"], 1, stdout=b""),
         )
     )

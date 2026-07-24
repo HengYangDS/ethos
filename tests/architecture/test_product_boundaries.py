@@ -348,6 +348,7 @@ def test_tool_command_surfaces_use_cyclopts_not_legacy_parser() -> None:
     tool_cli_paths = [
         ROOT / "tools/ci/ci_templates.py",
         ROOT / "tools/ci/hosted_observation.py",
+        ROOT / "tools/ci/source_budget_replay.py",
     ]
 
     for path in tool_cli_paths:

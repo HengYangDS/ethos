@@ -12,9 +12,10 @@ import pytest
 import ethos.adapters.mutation.resolution._effects as effect_adapter
 import ethos.adapters.mutation.resolution.lane as lane_adapter
 import ethos.adapters.mutation.resolution.records.core as record_store
-from ethos.adapters.mutation.resolution._shared import records_artifact_root
+import ethos.adapters.mutation.resolution.records.reservations as reservation_store
 from ethos.adapters.mutation.resolution.lane import apply_lane_resolution
 from ethos.adapters.mutation.resolution.lane import plan_lane_resolution
+from ethos.adapters.mutation.resolution.records.roots import current_record_root
 from ethos.adapters.store.state.closeout import acquire_closeout_fence
 from ethos.adapters.store.state.closeout import get_closeout_fence
 from ethos.adapters.store.state.closeout import release_closeout_fence
@@ -73,12 +74,12 @@ def _setup(
     assert isinstance(decision, dict)
     observation = decision["observation"]
     assert isinstance(observation, dict)
-    artifact_root = records_artifact_root(repo)
-    target = record_store.target_digest(
+    artifact_root = current_record_root(repo)
+    target = reservation_store.target_digest(
         str(observation["lane_ref"]),
         str(observation["head"]),
     )
-    ownerless_reservation = record_store.ownerless_closeout_reservation_path(
+    ownerless_reservation = reservation_store.ownerless_closeout_reservation_path(
         repo,
         target,
         artifact_root=artifact_root,
@@ -118,7 +119,7 @@ def _assert_cleanup_converged(
     assert _receipt_snapshot(receipt) == snapshot
     assert not ownerless_reservation.exists()
     assert get_closeout_fence(state_database(repo), subject="work/orphan") is None
-    assert not tuple((records_artifact_root(repo) / "receipts").glob(".*.receipt-reservation"))
+    assert not tuple((current_record_root(repo) / "receipts").glob(".*.receipt-reservation"))
 
 
 def test_retry_converges_when_receipt_link_succeeds_but_directory_fsync_fails(
@@ -247,16 +248,21 @@ def test_retry_converges_after_reservation_unlink_failure_with_fence_already_abs
 
 
 @pytest.mark.parametrize(
-    ("case", "expected_gap"),
+    ("case", "expected_state", "expected_gap"),
     [
-        ("binding_mismatch", "lane_resolution_ownerless_receipt_mismatch"),
-        ("schema_invalid", "lane_resolution_receipt_invalid"),
+        (
+            "binding_mismatch",
+            "partial_transition",
+            "lane_resolution_ownerless_receipt_mismatch",
+        ),
+        ("schema_invalid", "blocked", "lane_resolution_current_record_invalid"),
     ],
 )
 def test_retry_blocks_invalid_or_mismatched_existing_receipt(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     case: str,
+    expected_state: str,
     expected_gap: str,
 ) -> None:
     repo, decision_path, _decision, ownerless_reservation, receipt = _setup(tmp_path, monkeypatch)
@@ -283,7 +289,7 @@ def test_retry_blocks_invalid_or_mismatched_existing_receipt(
 
     assert (blocked["ok"], blocked["state"], blocked["required_gaps"]) == (
         False,
-        "partial_transition",
+        expected_state,
         [expected_gap],
     )
     assert ownerless_reservation.is_file()
@@ -326,9 +332,6 @@ def test_retry_blocks_a_different_fence_after_cleanup_was_partially_released(
         observation_digest=str(decision["observation_digest"]),
         decision_sha256="1" * 64,
         chronicle_digest="2" * 64,
-        wcp_schema_version="workstation.repo-family-governance.v1",
-        wcp_decision_sha256="1" * 64,
-        wcp_binding_digest="3" * 64,
     )
 
     blocked = _apply(repo, decision_path)
@@ -352,8 +355,8 @@ def _completed_with_retained_cleanup(
     first = _apply(repo, decision_path)
     assert first["required_gaps"] == ["lane_resolution_ownerless_cleanup_failed"]
     observation = LaneObservation.model_validate(decision["observation"])
-    reservation = record_store.read_ownerless_closeout_reservation(
-        record_root=records_artifact_root(repo),
+    reservation = reservation_store.read_ownerless_closeout_reservation(
+        record_root=current_record_root(repo),
         path=ownerless_reservation,
     )
     receipt = json.loads(receipt_path.read_text(encoding="utf-8"))

@@ -10,12 +10,12 @@ import pytest
 
 import ethos.adapters.mutation.resolution._effects as effect_adapter
 import ethos.adapters.mutation.resolution.lane as lane_adapter
-import ethos.adapters.mutation.resolution.records.core as record_store
-from ethos.adapters.mutation.resolution._shared import records_artifact_root
+import ethos.adapters.mutation.resolution.records.reservations as reservation_store
 from ethos.adapters.mutation.resolution.lane import apply_lane_resolution
 from ethos.adapters.mutation.resolution.lane import plan_lane_resolution
-from ethos.adapters.mutation.resolution.receipts import lane_resolution_inventory
 from ethos.adapters.mutation.resolution.receipts import write_resolution_receipt
+from ethos.adapters.mutation.resolution.records.inventory import lane_resolution_inventory
+from ethos.adapters.mutation.resolution.records.roots import current_record_root
 from ethos.adapters.store.state.closeout import get_closeout_fence
 from ethos.adapters.store.state.schema import state_database
 from ethos.surface.cli.lane.resolution import _default_decision_path
@@ -72,17 +72,15 @@ def _ownerless_preflight(*, expected: Any, **_kwargs: object) -> dict[str, objec
 def _ownerless_reservation(*, decision_id: str = _OWNERLESS_DECISION_ID) -> dict[str, object]:
     lane_ref, head = "work/20260722-ownerless", "a" * 40
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "decision_id": decision_id,
         "lane_ref": lane_ref,
         "head": head,
         "executor_ref": "agent:codex:thread:executor",
-        "wcp_schema_version": "workstation.repo-family-governance.v1",
-        "wcp_decision_sha256": "b" * 64,
+        "decision_sha256": "b" * 64,
         "accepted_branch": "dev",
         "accepted_head": "c" * 40,
-        "wcp_binding_digest": "d" * 64,
-        "target_digest": record_store.target_digest(lane_ref, head),
+        "target_digest": reservation_store.target_digest(lane_ref, head),
         "target_binding_digest": "e" * 64,
         "phase": "reserved",
         "recovery_state": "reserved_no_effect",
@@ -92,6 +90,7 @@ def _ownerless_reservation(*, decision_id: str = _OWNERLESS_DECISION_ID) -> dict
 
 def _ownerless_receipt(binding: dict[str, object] | None) -> dict[str, object]:
     payload: dict[str, object] = {
+        "schema_version": 3,
         "receipt_id": "lane-resolution-receipt:ownerless",
         "decision_id": _OWNERLESS_DECISION_ID,
         "completed": True,
@@ -105,7 +104,6 @@ def _ownerless_receipt(binding: dict[str, object] | None) -> dict[str, object]:
         "mints_authority": False,
     }
     if binding is not None:
-        payload["schema_version"] = 2
         payload["ownerless_closeout_binding"] = binding
     return payload
 
@@ -155,9 +153,7 @@ def test_resolution_retains_reservation_for_partial_ref_outcome(
     )
     assert report["receipt"] == {}
     assert report["receipt_path"] == ""
-    assert (
-        len(tuple((records_artifact_root(repo) / "receipts").glob(".*.receipt-reservation"))) == 1
-    )
+    assert len(tuple((current_record_root(repo) / "receipts").glob(".*.receipt-reservation"))) == 1
 
 
 def test_resolution_retains_reservation_when_ownerless_worktree_remove_fails(
@@ -194,9 +190,7 @@ def test_resolution_retains_reservation_when_ownerless_worktree_remove_fails(
     assert git(repo, "show-ref", "--verify", "refs/heads/work/orphan")
     assert report["receipt"] == {}
     assert report["receipt_path"] == ""
-    assert (
-        len(tuple((records_artifact_root(repo) / "receipts").glob(".*.receipt-reservation"))) == 1
-    )
+    assert len(tuple((current_record_root(repo) / "receipts").glob(".*.receipt-reservation"))) == 1
 
 
 def test_ownerless_effect_complete_retry_finalizes_receipt_before_observation(
@@ -227,14 +221,14 @@ def test_ownerless_effect_complete_retry_finalizes_receipt_before_observation(
 
     assert first["required_gaps"] == ["lane_resolution_receipt_write_failed_after_effect"]
     assert not lane.exists()
-    target = record_store.target_digest(
+    target = reservation_store.target_digest(
         "work/orphan",
         str(planned["decision"]["observation"]["head"]),
     )
-    reservation_path = record_store.ownerless_closeout_reservation_path(repo, target)
+    reservation_path = reservation_store.ownerless_closeout_reservation_path(repo, target)
     assert (
-        record_store.read_ownerless_closeout_reservation(
-            record_root=records_artifact_root(repo),
+        reservation_store.read_ownerless_closeout_reservation(
+            record_root=current_record_root(repo),
             path=reservation_path,
         )["recovery_state"]
         == "effect_complete_receipt_missing"
@@ -259,7 +253,7 @@ def test_ownerless_effect_complete_retry_finalizes_receipt_before_observation(
     assert Path(str(recovered["receipt_path"])).is_file()
     assert not reservation_path.exists()
     assert get_closeout_fence(state_database(repo), subject="work/orphan") is None
-    assert not tuple((records_artifact_root(repo) / "receipts").glob(".*.receipt-reservation"))
+    assert not tuple((current_record_root(repo) / "receipts").glob(".*.receipt-reservation"))
 
 
 @pytest.mark.parametrize(
@@ -283,17 +277,15 @@ def test_ownerless_other_partial_retry_requires_explicit_reconciliation(
     observation = decision["observation"]
     accepted_head = git(repo, "rev-parse", "dev")
     reservation = {
-        "schema_version": 1,
+        "schema_version": 2,
         "decision_id": decision["decision_id"],
         "lane_ref": observation["lane_ref"],
         "head": observation["head"],
         "executor_ref": "agent:codex:thread:executor",
-        "wcp_schema_version": "workstation.repo-family-governance.v1",
-        "wcp_decision_sha256": hashlib.sha256(decision_path.read_bytes()).hexdigest(),
+        "decision_sha256": hashlib.sha256(decision_path.read_bytes()).hexdigest(),
         "accepted_branch": "dev",
         "accepted_head": accepted_head,
-        "wcp_binding_digest": "d" * 64,
-        "target_digest": record_store.target_digest(
+        "target_digest": reservation_store.target_digest(
             str(observation["lane_ref"]), str(observation["head"])
         ),
         "target_binding_digest": "e" * 64,
@@ -301,8 +293,8 @@ def test_ownerless_other_partial_retry_requires_explicit_reconciliation(
         "recovery_state": "reserved_no_effect",
         "postcondition_digest": "",
     }
-    record_store.reserve_ownerless_closeout_target(root=repo, reservation=reservation)
-    record_store.transition_ownerless_closeout_reservation(
+    reservation_store.reserve_ownerless_closeout_target(root=repo, reservation=reservation)
+    reservation_store.transition_ownerless_closeout_reservation(
         root=repo,
         expected=reservation,
         phase=phase,
@@ -354,7 +346,7 @@ def test_ownerless_cleanup_keeps_visible_reservation_when_fence_release_fails(
         apply=True,
     )
 
-    target = record_store.target_digest(
+    target = reservation_store.target_digest(
         "work/orphan",
         str(planned["decision"]["observation"]["head"]),
     )
@@ -363,7 +355,7 @@ def test_ownerless_cleanup_keeps_visible_reservation_when_fence_release_fails(
         "partial_transition",
         ["lane_resolution_ownerless_cleanup_failed"],
     )
-    assert record_store.ownerless_closeout_reservation_path(repo, target).is_file()
+    assert reservation_store.ownerless_closeout_reservation_path(repo, target).is_file()
     assert get_closeout_fence(state_database(repo), subject="work/orphan") is not None
 
 
@@ -412,7 +404,7 @@ def test_retire_resolution_requires_clean_target_and_irreversible_confirmation(
     )
     assert applied["ok"] is True
     binding = applied["receipt"]["ownerless_closeout_binding"]
-    assert binding["target_digest"] == record_store.target_digest(
+    assert binding["target_digest"] == reservation_store.target_digest(
         "work/orphan", str(applied["receipt"]["head"])
     )
     assert binding["target_binding_digest"]
@@ -425,7 +417,7 @@ def test_retire_resolution_requires_clean_target_and_irreversible_confirmation(
         ).returncode
         != 0
     )
-    assert not record_store.ownerless_closeout_reservation_path(
+    assert not reservation_store.ownerless_closeout_reservation_path(
         repo,
         str(binding["target_digest"]),
     ).exists()
@@ -438,21 +430,22 @@ def test_ownerless_target_reservation_is_target_scoped_and_exactly_resumable(
     repo = init_repo(tmp_path / "repo")
     reservation = _ownerless_reservation()
 
-    path = record_store.reserve_ownerless_closeout_target(root=repo, reservation=reservation)
+    path = reservation_store.reserve_ownerless_closeout_target(root=repo, reservation=reservation)
 
     assert path.name == f"{reservation['target_digest']}.json"
     assert json.loads(path.read_text(encoding="utf-8")) == reservation
     assert (
-        record_store.reserve_ownerless_closeout_target(root=repo, reservation=reservation) == path
+        reservation_store.reserve_ownerless_closeout_target(root=repo, reservation=reservation)
+        == path
     )
     with pytest.raises(FileExistsError):
-        record_store.reserve_ownerless_closeout_target(
+        reservation_store.reserve_ownerless_closeout_target(
             root=repo,
             reservation=_ownerless_reservation(decision_id=_COMPETING_DECISION_ID),
         )
     changed = dict(reservation, executor_ref="agent:codex:thread:other")
     with pytest.raises(ValueError, match="lane_resolution_ownerless_reservation_mismatch"):
-        record_store.reserve_ownerless_closeout_target(root=repo, reservation=changed)
+        reservation_store.reserve_ownerless_closeout_target(root=repo, reservation=changed)
 
 
 def test_ownerless_reservation_accepts_the_canonical_holder_ref_contract(
@@ -462,11 +455,11 @@ def test_ownerless_reservation_accepts_the_canonical_holder_ref_contract(
     reservation = _ownerless_reservation()
     reservation["executor_ref"] = "agent:Codex:thread:Executor+1"
 
-    path = record_store.reserve_ownerless_closeout_target(root=repo, reservation=reservation)
+    path = reservation_store.reserve_ownerless_closeout_target(root=repo, reservation=reservation)
 
     assert (
-        record_store.read_ownerless_closeout_reservation(
-            record_root=records_artifact_root(repo),
+        reservation_store.read_ownerless_closeout_reservation(
+            record_root=current_record_root(repo),
             path=path,
         )["executor_ref"]
         == reservation["executor_ref"]
@@ -489,9 +482,9 @@ def test_inventory_exposes_ownerless_partial_reservation(
 ) -> None:
     repo = init_repo(tmp_path / "repo")
     reservation = _ownerless_reservation()
-    record_store.reserve_ownerless_closeout_target(root=repo, reservation=reservation)
+    reservation_store.reserve_ownerless_closeout_target(root=repo, reservation=reservation)
     postcondition_digest = "f" * 64 if recovery_state == "effect_complete_receipt_missing" else ""
-    record_store.transition_ownerless_closeout_reservation(
+    reservation_store.transition_ownerless_closeout_reservation(
         root=repo,
         expected=reservation,
         phase=phase,
@@ -516,10 +509,10 @@ def test_ownerless_recovery_requires_same_decision_exact_binding_and_complete_ef
 ) -> None:
     repo = init_repo(tmp_path / "repo")
     reservation = _ownerless_reservation()
-    record_store.reserve_ownerless_closeout_target(root=repo, reservation=reservation)
+    reservation_store.reserve_ownerless_closeout_target(root=repo, reservation=reservation)
     with pytest.raises(ValueError, match="lane_resolution_ownerless_recovery_not_finalizable"):
-        record_store.ownerless_closeout_recovery_binding(root=repo, expected=reservation)
-    completed = record_store.transition_ownerless_closeout_reservation(
+        reservation_store.ownerless_closeout_recovery_binding(root=repo, expected=reservation)
+    completed = reservation_store.transition_ownerless_closeout_reservation(
         root=repo,
         expected=reservation,
         phase="receipt",
@@ -527,17 +520,15 @@ def test_ownerless_recovery_requires_same_decision_exact_binding_and_complete_ef
         postcondition_digest="f" * 64,
     )
 
-    binding = record_store.ownerless_closeout_recovery_binding(root=repo, expected=reservation)
+    binding = reservation_store.ownerless_closeout_recovery_binding(root=repo, expected=reservation)
 
     assert binding == {
         key: completed[key]
         for key in (
             "executor_ref",
-            "wcp_schema_version",
-            "wcp_decision_sha256",
+            "decision_sha256",
             "accepted_branch",
             "accepted_head",
-            "wcp_binding_digest",
             "target_digest",
             "target_binding_digest",
             "postcondition_digest",
@@ -545,7 +536,7 @@ def test_ownerless_recovery_requires_same_decision_exact_binding_and_complete_ef
     }
     competing = dict(reservation, decision_id=_COMPETING_DECISION_ID)
     with pytest.raises(ValueError, match="lane_resolution_ownerless_recovery_binding_mismatch"):
-        record_store.ownerless_closeout_recovery_binding(root=repo, expected=competing)
+        reservation_store.ownerless_closeout_recovery_binding(root=repo, expected=competing)
     receipt = _ownerless_receipt(binding)
     write_resolution_receipt(
         root=repo,
@@ -553,9 +544,9 @@ def test_ownerless_recovery_requires_same_decision_exact_binding_and_complete_ef
         require_ownerless_closeout_binding=True,
     )
 
-    record_store.release_ownerless_closeout_reservation(root=repo, expected=reservation)
+    reservation_store.release_ownerless_closeout_reservation(root=repo, expected=reservation)
 
-    assert not record_store.ownerless_closeout_reservation_path(
+    assert not reservation_store.ownerless_closeout_reservation_path(
         repo, str(reservation["target_digest"])
     ).exists()
 
@@ -565,8 +556,8 @@ def test_ownerless_partial_reservation_cannot_be_downgraded_to_no_effect(
 ) -> None:
     repo = init_repo(tmp_path / "repo")
     reservation = _ownerless_reservation()
-    path = record_store.reserve_ownerless_closeout_target(root=repo, reservation=reservation)
-    partial = record_store.transition_ownerless_closeout_reservation(
+    path = reservation_store.reserve_ownerless_closeout_target(root=repo, reservation=reservation)
+    partial = reservation_store.transition_ownerless_closeout_reservation(
         root=repo,
         expected=reservation,
         phase="unknown",
@@ -574,7 +565,7 @@ def test_ownerless_partial_reservation_cannot_be_downgraded_to_no_effect(
     )
 
     with pytest.raises(ValueError, match="lane_resolution_ownerless_reservation_invalid"):
-        record_store.transition_ownerless_closeout_reservation(
+        reservation_store.transition_ownerless_closeout_reservation(
             root=repo,
             expected=reservation,
             phase="reserved",
@@ -621,7 +612,7 @@ def test_ownerless_reservation_reader_rejects_invalid_state_contract(
             postcondition_digest="f" * 64,
         )
     canonical = _ownerless_reservation()
-    path = record_store.ownerless_closeout_reservation_path(
+    path = reservation_store.ownerless_closeout_reservation_path(
         repo,
         str(canonical["target_digest"]),
     )
@@ -629,8 +620,8 @@ def test_ownerless_reservation_reader_rejects_invalid_state_contract(
     path.write_text(json.dumps(reservation), encoding="utf-8")
 
     with pytest.raises(ValueError, match="lane_resolution_ownerless_reservation_invalid"):
-        record_store.read_ownerless_closeout_reservation(
-            record_root=records_artifact_root(repo),
+        reservation_store.read_ownerless_closeout_reservation(
+            record_root=current_record_root(repo),
             path=path,
         )
 
@@ -646,11 +637,9 @@ def test_ownerless_receipt_binding_is_optional_for_history_but_complete_when_req
         if key
         in {
             "executor_ref",
-            "wcp_schema_version",
-            "wcp_decision_sha256",
+            "decision_sha256",
             "accepted_branch",
             "accepted_head",
-            "wcp_binding_digest",
             "target_digest",
             "target_binding_digest",
             "postcondition_digest",

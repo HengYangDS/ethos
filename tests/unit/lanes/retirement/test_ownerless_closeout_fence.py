@@ -30,9 +30,6 @@ def _acquire(db_path: Path, *, subject: str = "work/target", decision_id: str = 
         observation_digest="c" * 64,
         decision_sha256="d" * 64,
         chronicle_digest="e" * 64,
-        wcp_schema_version="workstation.repo-family-governance.v1",
-        wcp_decision_sha256="d" * 64,
-        wcp_binding_digest="f" * 64,
     )
 
 
@@ -41,6 +38,13 @@ def test_closeout_fence_is_exact_idempotent_and_release_is_cas(tmp_path: Path) -
     first = _acquire(db_path)
     assert _acquire(db_path) == first
     assert get_closeout_fence(db_path, subject="work/target") == first
+    assert set(first["payload"]) == {
+        "target_path",
+        "lane_incarnation_id",
+        "observation_digest",
+        "decision_sha256",
+        "chronicle_digest",
+    }
     with pytest.raises(ValueError, match="lane_closeout_fence_release_stale"):
         release_closeout_fence(
             db_path,
@@ -141,9 +145,6 @@ def test_closeout_fence_inventory_exposes_exact_recovery_binding(tmp_path: Path)
         ("observation_digest", "not-a-digest"),
         ("decision_sha256", "0" * 63),
         ("chronicle_digest", "0" * 65),
-        ("wcp_schema_version", "1"),
-        ("wcp_decision_sha256", "0" * 63),
-        ("wcp_binding_digest", "0" * 63),
     ],
 )
 def test_closeout_fence_rejects_incomplete_or_untyped_binding(
@@ -161,9 +162,6 @@ def test_closeout_fence_rejects_incomplete_or_untyped_binding(
         "observation_digest": "c" * 64,
         "decision_sha256": "d" * 64,
         "chronicle_digest": "e" * 64,
-        "wcp_schema_version": "workstation.repo-family-governance.v1",
-        "wcp_decision_sha256": "d" * 64,
-        "wcp_binding_digest": "f" * 64,
     }
     kwargs[field] = bad
 

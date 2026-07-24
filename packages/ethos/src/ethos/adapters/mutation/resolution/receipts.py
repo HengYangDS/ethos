@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -11,8 +12,8 @@ from ethos.adapters.mutation.resolution._shared import record_destination_safe
 from ethos.adapters.mutation.resolution._shared import sha256_digest
 from ethos.adapters.mutation.resolution._shared import valid_decision_id
 from ethos.adapters.mutation.resolution.records.core import receipt_path
-from ethos.adapters.mutation.resolution.records.core import target_digest
 from ethos.adapters.mutation.resolution.records.core import write_json_atomic
+from ethos.adapters.mutation.resolution.records.reservations import target_digest
 from ethos.adapters.mutation.resolution.records.roots import current_record_root
 from ethos.repository.policy.schema import validate_schema_instance
 from ethos_core.contracts.resolution.closeout import LaneResolutionReceipt
@@ -83,6 +84,11 @@ def exact_ownerless_resolution_receipt(
 
 def _canonical_json(value: object) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False)
+
+
+def canonical_resolution_payload_digest(value: object) -> str:
+    """Return the SHA-256 digest of one canonical resolution payload."""
+    return hashlib.sha256(_canonical_json(value).encode()).hexdigest()
 
 
 def _same_canonical_payload(left: object, right: object) -> bool:

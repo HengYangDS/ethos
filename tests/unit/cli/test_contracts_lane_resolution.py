@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-import ethos.adapters.mutation.resolution.records.core as record_store
+import ethos.adapters.mutation.resolution.records.reservations as reservation_store
 from ethos.adapters.mutation.resolution.receipts import write_resolution_receipt
 from ethos.adapters.mutation.resolution.records.roots import current_record_root
 from ethos.repository.policy.schema import validate_schema_instance
@@ -26,7 +26,7 @@ def _ownerless_reservation() -> dict[str, object]:
         "decision_sha256": "b" * 64,
         "accepted_branch": "dev",
         "accepted_head": "c" * 40,
-        "target_digest": record_store.target_digest(lane_ref, head),
+        "target_digest": reservation_store.target_digest(lane_ref, head),
         "target_binding_digest": "e" * 64,
         "phase": "reserved",
         "recovery_state": "reserved_no_effect",
@@ -57,7 +57,7 @@ def _ownerless_binding(*, executor_ref: str) -> dict[str, object]:
         "decision_sha256": "b" * 64,
         "accepted_branch": "dev",
         "accepted_head": "c" * 40,
-        "target_digest": record_store.target_digest("work/20260722-ownerless", "a" * 40),
+        "target_digest": reservation_store.target_digest("work/20260722-ownerless", "a" * 40),
         "target_binding_digest": "e" * 64,
         "postcondition_digest": "f" * 64,
     }
@@ -121,7 +121,7 @@ def test_lane_resolution_clear_exposes_bounded_refusal_contract(tmp_path) -> Non
 def test_inventory_ignores_historical_ownerless_reservation_state_drift(tmp_path) -> None:
     repo = init_repo(tmp_path / "repo")
     canonical = _ownerless_reservation()
-    record_store.reserve_ownerless_closeout_target(root=repo, reservation=canonical)
+    reservation_store.reserve_ownerless_closeout_target(root=repo, reservation=canonical)
     legacy = {
         **canonical,
         "phase": "receipt",

@@ -17,6 +17,7 @@ from ethos.adapters.mutation.resolution.lane import plan_lane_resolution
 from ethos.adapters.mutation.resolution.records.clear.core import LaneResolutionClearRequest
 from ethos.adapters.mutation.resolution.records.clear.core import clear_lane_resolution_package
 from ethos.adapters.mutation.resolution.records.inventory import lane_resolution_inventory
+from ethos.adapters.mutation.resolution.records.reservations import target_digest
 from ethos.adapters.mutation.resolution.records.roots import current_record_root
 from ethos.surface.cli.lane.resolution import _default_decision_path
 from tests.support.contract_helpers import write_chronicle_decision
@@ -696,9 +697,7 @@ def test_ownerless_retired_receipt_requires_exact_decision_binding(
             "decision_sha256": "f" * 64 if decision_sha256 != "f" * 64 else "e" * 64,
             "accepted_branch": "dev",
             "accepted_head": str(observation["head"]),
-            "target_digest": record_store.target_digest(
-                str(observation["lane_ref"]), str(observation["head"])
-            ),
+            "target_digest": target_digest(str(observation["lane_ref"]), str(observation["head"])),
             "target_binding_digest": "d" * 64,
             "postcondition_digest": "c" * 64,
         }

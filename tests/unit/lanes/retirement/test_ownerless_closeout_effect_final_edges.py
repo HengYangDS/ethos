@@ -13,7 +13,7 @@ from ethos.adapters.mutation.resolution.closeout.effect import OwnerlessCloseout
 from ethos.adapters.mutation.resolution.closeout.wcp.core import WCPCloseoutExpectation
 from ethos.adapters.mutation.resolution.closeout.wcp.core import WCPResponseError
 from ethos.adapters.mutation.resolution.lane import apply_lane_resolution
-from ethos.adapters.mutation.resolution.records.core import target_digest
+from ethos.adapters.mutation.resolution.records.reservations import target_digest
 from ethos_core.contracts.resolution.lane import LaneObservation
 from ethos_core.contracts.resolution.lane import LaneResolutionDecision
 
@@ -90,7 +90,7 @@ def _runtime(
             [], 0, "1" * 40 + "\n", ""
         ),
         "observe_lane": lambda *_args, **_kwargs: (observation, []),
-        "records_artifact_root": lambda root: root / "records",
+        "current_record_root": lambda root: root / "records",
         "reservation_path": lambda root, target, artifact_root=None: (
             (artifact_root or root / "records") / "reservations" / f"{target}.json"
         ),
@@ -145,16 +145,14 @@ def _reservation(
 ) -> dict[str, object]:
     checks = postconditions or {"complete": True}
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "decision_id": decision["decision_id"],
         "lane_ref": observation.lane_ref,
         "head": observation.head,
         "executor_ref": _EXECUTOR,
-        "wcp_schema_version": "workstation.repo-family-governance.v1",
-        "wcp_decision_sha256": hashlib.sha256(raw).hexdigest(),
+        "decision_sha256": hashlib.sha256(raw).hexdigest(),
         "accepted_branch": "dev",
         "accepted_head": _ACCEPTED_HEAD,
-        "wcp_binding_digest": "4" * 64,
         "target_digest": target_digest(observation.lane_ref, observation.head),
         "target_binding_digest": "f" * 64,
         "phase": "receipt",
@@ -167,7 +165,6 @@ def _expected_fence(
     decision: dict[str, object],
     raw: bytes,
     observation: LaneObservation,
-    reservation: dict[str, object],
 ) -> dict[str, object]:
     return {
         "subject": observation.lane_ref,
@@ -183,9 +180,6 @@ def _expected_fence(
             "observation_digest": observation.digest(),
             "decision_sha256": hashlib.sha256(raw).hexdigest(),
             "chronicle_digest": str(decision["chronicle_digest"]),
-            "wcp_schema_version": "workstation.repo-family-governance.v1",
-            "wcp_decision_sha256": hashlib.sha256(raw).hexdigest(),
-            "wcp_binding_digest": str(reservation["wcp_binding_digest"]),
         },
     }
 
@@ -462,7 +456,7 @@ def test_recovery_rejects_accepted_head_and_postcondition_drift(tmp_path) -> Non
             runtime=stale_head,
         )
 
-    fence = _expected_fence(decision, raw, observation, reservation)
+    fence = _expected_fence(decision, raw, observation)
     digest_drift = _runtime(
         observation,
         raw,
@@ -478,6 +472,40 @@ def test_recovery_rejects_accepted_head_and_postcondition_drift(tmp_path) -> Non
             executor_ref=_EXECUTOR,
             reservation=reservation,
             runtime=digest_drift,
+        )
+
+
+@pytest.mark.parametrize("extra_location", ["top-level", "payload"])
+def test_recovery_rejects_fence_superset_as_stale(
+    tmp_path,
+    extra_location: str,
+) -> None:
+    observation = _observation(tmp_path)
+    decision_path = tmp_path / "decision.json"
+    decision, raw = _decision(decision_path, observation)
+    reservation = _reservation(decision, raw, observation)
+    fence = _expected_fence(decision, raw, observation)
+    if extra_location == "top-level":
+        fence["provider_metadata"] = "unexpected"
+    else:
+        payload = dict(cast("dict[str, object]", fence["payload"]))
+        payload["provider_metadata"] = "unexpected"
+        fence["payload"] = payload
+    runtime = _runtime(
+        observation,
+        raw,
+        probe_fence=lambda *_args, **_kwargs: ("present", fence),
+    )
+
+    with pytest.raises(OwnerlessTestError, match="ownerless_fence_stale"):
+        closeout_effect.recover_completed_ownerless_closeout(
+            root=tmp_path,
+            decision_path=decision_path,
+            decision=decision,
+            observation=observation,
+            executor_ref=_EXECUTOR,
+            reservation=reservation,
+            runtime=runtime,
         )
 
 

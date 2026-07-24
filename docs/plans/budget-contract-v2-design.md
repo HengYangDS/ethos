@@ -211,6 +211,17 @@ This correction supersedes the archived Foundation statement without rewriting
 that historical archive. v2 must version the semantic drift; it must not
 rewrite the declared v1 baseline.
 
+The replay treeish is baseline commit
+`2dab77f169eceb2d45f917358c2a7487e7ac8db6`, which peels to tree
+`075da5ad45be962e9f5e775b3f050cab4023ea0d`; declaration provenance beginning
+`540e06d5` is not a replay substitute. The second selected history entry is
+`c1-static-hybrid-accepted` at
+`3468ce78e2b636b9c0516904aa73cde2eb30fa62`. Its known YAML adapter gap remains
+blocked and unresolved, so Task 4 may report null v2 coordinates but may not
+manufacture a complete snapshot or a clean comparison. Raw replay/shadow output
+stays ignored under `build/evidence/quality/source-budget-v2/replay/`; tracked
+Claim and Chronicle records carry only reviewed summaries and digests.
+
 ## Evidence Boundary
 
 Raw per-file observations, backtests, performance results, and shadow comparisons

@@ -1,0 +1,45 @@
+[claim]
+id = "budget-contract-v2-snapshot-replay-shadow-20260724"
+change_id = "budget-contract-v2-snapshot-replay-shadow"
+subject = "quality:budget-contract-v2:snapshot-replay-shadow"
+state = "active"
+summary = "Replay immutable source-budget snapshots from Git blobs and add a fail-closed v2 shadow while v1 remains authoritative and unchanged."
+
+[evidence]
+dated = "evidence/chronicle/budget-contract-v2-snapshot-replay-shadow-20260724/2026-07-24.md"
+sha256 = "3350a515b145c202be193fc14c006f54868712e01f2c36669c353db2df74c8ee"
+evidence_ids = ["evidence:budget-contract-v2-snapshot-replay-shadow-20260724"]
+binding = "Initial carrier admission only: exact baseline and C1 coordinates, immutable Git-blob replay boundary, public source/bytes measurement seams, v1-authoritative/v2-inactive shadow shape, ignored raw artifacts, and explicit Task 5+ exclusions. No implementation, replay result, proof, archive, land, publication, or retirement claim is made yet."
+verifier = "digest_only"
+tests = [
+  "npx --yes @fission-ai/openspec@1.6.0 validate budget-contract-v2-snapshot-replay-shadow --strict --json",
+  "tools/ci/scripts/run-ethos-lane.sh openspec --lifecycle --json",
+  "tools/ci/scripts/run-ethos-lane.sh quality claims --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "quality"
+scope = "Task 4 only: public source/bytes measurement, immutable Git tree/blob snapshots, exact v1 historical replay, v1-authoritative v2 shadow, replay config/tooling, focused tests, and reviewed evidence."
+
+[carriers]
+openspec = "openspec/changes/budget-contract-v2-snapshot-replay-shadow"
+fallback = "Keep v1 authoritative and v2 inactive. Preserve declared history and report replay/shadow disagreement as blocked or unresolved."
+kill_signal = "Any checkout/worktree materialization for replay, partial observation, private parser import, duplicated measurement semantics, rewritten v1 declaration, hidden YAML gap, clean unresolved comparison, Task 5+ policy, cutover, archive, land, publication, push, or foreign-Lane mutation."
+
+[promotion]
+targets = [
+  "docs/plans/budget-contract-v2-design.md",
+  "docs/plans/budget-contract-v2-implementation.md",
+  "evidence/claims/budget-contract-v2-snapshot-replay-shadow-20260724.toml",
+  "evidence/chronicle/budget-contract-v2-snapshot-replay-shadow-20260724/2026-07-24.md",
+  "openspec/changes/budget-contract-v2-snapshot-replay-shadow/.openspec.yaml",
+  "openspec/changes/budget-contract-v2-snapshot-replay-shadow/design.md",
+  "openspec/changes/budget-contract-v2-snapshot-replay-shadow/proposal.md",
+  "openspec/changes/budget-contract-v2-snapshot-replay-shadow/scope.toml",
+  "openspec/changes/budget-contract-v2-snapshot-replay-shadow/specs/contracts/spec.md",
+  "openspec/changes/budget-contract-v2-snapshot-replay-shadow/specs/quality/spec.md",
+  "openspec/changes/budget-contract-v2-snapshot-replay-shadow/tasks.md",
+]

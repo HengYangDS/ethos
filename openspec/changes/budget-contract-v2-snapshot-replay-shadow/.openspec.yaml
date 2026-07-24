@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-07-24
+goal: Recompute immutable source-budget snapshots from Git blobs and add a
+  fail-closed Budget Contract v2 shadow while v1 remains authoritative.

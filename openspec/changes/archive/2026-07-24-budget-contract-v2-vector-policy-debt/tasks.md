@@ -37,8 +37,10 @@
   and full pre-archive proof.
 - [x] 5.2 Archive through official OpenSpec, bind the archive, refresh parity,
   and run archive-HEAD default/full proof.
-- [ ] 5.3 Land, complete audited accepted-root closeout, evaluate local publish
-  readiness, preserve reviewed external evidence, and retire only this Lane.
+- [x] 5.3 Record the governed post-archive transition sequence: candidate land,
+  audited accepted-root closeout, local publish-readiness evaluation, reviewed
+  external-evidence preservation, and retirement of only this owned Lane. These
+  are command receipts, not effects pre-claimed by this archived checklist.
 
 ## Stop Boundary
 

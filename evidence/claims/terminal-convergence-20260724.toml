@@ -1,0 +1,40 @@
+[claim]
+id = "terminal-convergence-20260724"
+subject = "ethos:terminal-convergence-campaign-carrier"
+state = "active"
+summary = "The approved terminal-convergence campaign has one canonical design and one active OpenSpec carrier; implementation and closeout remain open."
+
+[evidence]
+dated = "evidence/chronicle/terminal-convergence-20260724/2026-07-24.md"
+sha256 = "36c51ec62d8df1d7b39ac13d713bbd03c40eb4a41cdc9db46e4147671b0a2cb7"
+evidence_ids = ["evidence:terminal-convergence-campaign-carrier-20260724"]
+binding = "Digest-bound evidence that the terminal design and active OpenSpec planning carrier exist in the owned Work Lane; no implementation or closeout claim."
+verifier = "digest_only"
+tests = [
+  "openspec status --change terminal-convergence --json",
+  "openspec validate terminal-convergence --strict --json",
+  "ethos openspec --change terminal-convergence --lifecycle --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "terminal-convergence"
+scope = "Canonical terminal design, active OpenSpec planning carriers, and owned Work Lane binding only; implementation, proof, provider, landing, publication, release, and retirement remain outside this claim."
+
+[carriers]
+openspec = "openspec/changes/terminal-convergence"
+fallback = "Treat the canonical design and active OpenSpec change as planning input only; inspect current source, tests, Git facts, and executed attestations before any implementation or completion statement."
+kill_signal = "The canonical design or active OpenSpec carrier is absent, internally inconsistent, or presented as proof that implementation or closeout is complete."
+
+[promotion]
+targets = [
+  "docs/plans/terminal-governance-product-design.md",
+  "openspec/changes/terminal-convergence/proposal.md",
+  "openspec/changes/terminal-convergence/design.md",
+  "openspec/changes/terminal-convergence/tasks.md",
+  "openspec/changes/terminal-convergence/scope.toml",
+  "evidence/chronicle/terminal-convergence-20260724/2026-07-24.md",
+  "evidence/claims/terminal-convergence-20260724.toml",
+]

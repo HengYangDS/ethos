@@ -7,7 +7,7 @@ summary = "ETHOS keeps the GitHub macOS repository proof finite and observable b
 
 [evidence]
 dated = "evidence/chronicle/github-pytest-timeout-resilience-20260724/2026-07-24.md"
-sha256 = "06dcca11a78f9ba6e48584d64ee88db2e575d6954c4250e6621096f1363c76ce"
+sha256 = "4c9e4f1583e498ff57113076de79b3a51dc40d83caa29d4a7fc205d7475cff94"
 evidence_ids = ["evidence:github-pytest-timeout-resilience-20260724"]
 binding = "The archived OpenSpec carrier, RED/GREEN architecture contracts, owner-script validation, canonical GitHub template projection, and dated Chronicle bind this local timeout-resilience claim."
 verifier = "digest_only"
@@ -18,6 +18,7 @@ tests = [
   "CI template drift and actionlint",
   "shell lint and Python lint/format",
   "full owner-script Python test gate with four workers and 300-second signal timeout",
+  "generic shadow parity execution and tracked evidence refresh after rebase",
   "HEAD-bound ETHOS proof after archive",
 ]
 
@@ -40,6 +41,7 @@ targets = [
   ".github/workflows/ci.yml",
   "tests/architecture/test_testing_platform.py",
   "tests/architecture/test_ci_provider_projections.py",
+  "evidence/parity/generic-shadow.json",
   "openspec/changes/archive/2026-07-24-github-pytest-timeout-resilience",
   "evidence/chronicle/github-pytest-timeout-resilience-20260724/2026-07-24.md",
   "evidence/claims/github-pytest-timeout-resilience-20260724.toml",

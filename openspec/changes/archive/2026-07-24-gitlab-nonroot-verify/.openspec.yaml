@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-07-24
+goal: Keep GitLab Docker repository proof resource-truthful by preserving root
+  bootstrap while running the Python test gate as an admitted unprivileged user.

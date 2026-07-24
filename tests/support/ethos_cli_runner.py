@@ -76,12 +76,12 @@ def _write_test_git_config_overlay(
 
 
 def _without_test_git_config_overlay(env: MutableMapping[str, str]) -> dict[str, str]:
-    """Remove test identity overlay but retain fsmonitor execution isolation."""
+    """Remove test identity overlay but retain Git execution isolation."""
     clean = dict(env)
     retained = tuple(
         (key, value)
         for key, value in _test_git_config_overlay_items(env)
-        if key == "core.fsmonitor" and value == "false"
+        if (key == "core.fsmonitor" and value == "false") or key == "safe.directory"
     )
     _clear_test_git_config_overlay(clean)
     _write_test_git_config_overlay(clean, retained)
@@ -89,7 +89,7 @@ def _without_test_git_config_overlay(env: MutableMapping[str, str]) -> dict[str,
 
 
 def _remove_test_git_config_overlay(env: MutableMapping[str, str]) -> dict[str, str]:
-    """Remove identity overlays in-place but retain fsmonitor safety."""
+    """Remove identity overlays in-place but retain Git execution isolation."""
     original = dict(env)
     replacement = _without_test_git_config_overlay(env)
     _clear_test_git_config_overlay(env)

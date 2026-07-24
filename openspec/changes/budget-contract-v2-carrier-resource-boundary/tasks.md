@@ -127,7 +127,7 @@
 - [x] 7.3a Commit the governed material implementation, the initial extant
   implementation promotion-target set, and the initial semantic-scope Claim
   binding. Generic parity remains outside the Claim semantic target set.
-- [ ] 7.3b Commit the carrier reconciliation, rebind the Claim to that carrier
+- [x] 7.3b Commit the carrier reconciliation, rebind the Claim to that carrier
   commit, and then refresh and commit generic parity.
 - [ ] 7.3c On the resulting final pre-archive HEAD, rerun focused 100 percent
   coverage and the owner test/coverage artifact path; classify all 58 existing

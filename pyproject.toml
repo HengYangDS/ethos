@@ -1,6 +1,6 @@
 [project]
 name = "ethos-product-monorepo"
-version = "0.1.0a1"
+version = "0.1.0a2"
 description = "ETHOS product workspace"
 requires-python = ">=3.12"
 dependencies = []

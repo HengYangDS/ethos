@@ -14,8 +14,8 @@ from ethos.repository.release.publication import publication_topology
 def test_version_manifest_keeps_workspace_packages_aligned() -> None:
     manifest = version_manifest(Path.cwd())
 
-    assert manifest["version"] == "0.1.0a1"
-    assert manifest["tag"] == "v0.1.0a1"
+    assert manifest["version"] == "0.1.0a2"
+    assert manifest["tag"] == "v0.1.0a2"
     assert manifest["all_package_versions_match"] is True
     assert set(manifest["packages"]) == {
         "ethos",
@@ -30,7 +30,7 @@ def test_release_policy_reports_host_profile_separately_from_product_files() -> 
     assert report["ok"] is True
     assert "release" not in config
     assert report["required_gaps"] == []
-    assert report["version"]["tag"] == "v0.1.0a1"
+    assert report["version"]["tag"] == "v0.1.0a2"
     assert report["required_files"] == [
         "README.md",
         "LICENSE",
@@ -415,7 +415,7 @@ def test_release_attestation_is_in_toto_and_slsa_shaped_without_conformance_clai
     assert attestation["_type"] == "https://in-toto.io/Statement/v1"
     assert attestation["predicateType"].endswith("/ethos-release/v1")
     assert attestation["predicate"]["slsa"]["builder"]["id"] == "ethos"
-    assert attestation["subject"][0]["name"] == "ethos@0.1.0a1"
+    assert attestation["subject"][0]["name"] == "ethos@0.1.0a2"
     materials = attestation["predicate"]["slsa"]["materials"]
     material_uris = {material["uri"] for material in materials}
     assert "git+repository" in material_uris

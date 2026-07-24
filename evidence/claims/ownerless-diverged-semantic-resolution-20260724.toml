@@ -6,7 +6,7 @@ summary = "Current-head family-level disposition analysis for 71 missing-lease d
 
 [evidence]
 dated = "evidence/chronicle/ownerless-diverged-semantic-resolution-20260724/2026-07-24.md"
-sha256 = "441270094a991354cefb2079d630516a1c988cfa52ceeaa30a7dd3998cbbc445"
+sha256 = "1181c1c2b412aaa33420798b82226291631f8814624854d40e61878cca616aed"
 evidence_ids = ["evidence:ownerless-diverged-semantic-resolution-20260724"]
 binding = "The accepted HEAD, exact live owner boundary, lineage graph, family analysis, machine-readable dispositions, focused accepted checks, and later exact decision/receipt postconditions bind this local resolution claim."
 verifier = "digest_only"

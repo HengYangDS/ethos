@@ -122,21 +122,18 @@ def preserve_package(
     observation: LaneObservation,
     decision: dict[str, Any],
 ) -> dict[str, object]:
-    """Materialize a recovery bundle, patch, untracked archive, and manifest."""
-    bundle, patch, archive = (
+    """Materialize a recovery bundle, worktree/index patches, archive, and manifest."""
+    bundle, patch, index_patch, archive = (
         package / "repository.bundle",
         package / "tracked.patch",
+        package / "index.patch",
         package / "untracked.tar",
     )
     source = Path(observation.path)
     run_command(source, "git", "bundle", "create", bundle.as_posix(), observation.lane_ref)
-    patch.write_bytes(
-        subprocess.run(
-            ["git", "diff", "--binary", "HEAD", "--"],
-            cwd=source,
-            check=False,
-            capture_output=True,
-        ).stdout
+    patch.write_bytes(run_command_bytes(source, "git", "diff", "--binary", "HEAD", "--"))
+    index_patch.write_bytes(
+        run_command_bytes(source, "git", "diff", "--cached", "--binary", "HEAD", "--")
     )
     inventory = untracked_files(source)
     if inventory is None:
@@ -151,12 +148,14 @@ def preserve_package(
             *(item.decode(errors="surrogateescape") for item in inventory),
         )
     manifest = {
+        "package_format_version": "v2",
         "decision_id": decision["decision_id"],
         "lane_ref": observation.lane_ref,
         "head": observation.head,
         "observation_digest": observation.digest(),
         "bundle_sha256": sha256_digest(bundle),
         "patch_sha256": sha256_digest(patch),
+        "index_patch_sha256": sha256_digest(index_patch),
         "untracked_archive_sha256": sha256_digest(archive) if archive.is_file() else "",
         "source_lease_transferred": False,
     }
@@ -473,6 +472,18 @@ def completion_receipt(
 
 def run_command(root: Path, *args: str) -> None:
     """Run one required preservation command and fail with its diagnostic."""
-    completed = subprocess.run(args, cwd=root, check=False, capture_output=True, text=True)
+    _run_required_command(root, *args, text=True)
+
+
+def run_command_bytes(root: Path, *args: str) -> bytes:
+    """Run one byte-preserving command and fail with its diagnostic."""
+    return cast("bytes", _run_required_command(root, *args, text=False).stdout)
+
+
+def _run_required_command(root: Path, *args: str, text: bool) -> subprocess.CompletedProcess[Any]:
+    completed = subprocess.run(args, cwd=root, check=False, capture_output=True, text=text)
     if completed.returncode:
-        raise ValueError(completed.stderr.strip() or "command_failed")
+        stderr = completed.stderr
+        detail = stderr.decode(errors="replace") if isinstance(stderr, bytes) else str(stderr or "")
+        raise ValueError(detail.strip() or "command_failed")
+    return completed

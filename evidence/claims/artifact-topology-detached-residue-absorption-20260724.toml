@@ -28,7 +28,7 @@ owner = "ethos-repository"
 scope = "One reconstructed dirty missing-lease artifact-topology Work Lane, one exact accepted-ancestor head, four exact dirty paths, one patch digest, current accepted behavioral carriers, and one later local native preservation-retirement only."
 
 [carriers]
-openspec = "openspec/changes/artifact-topology-detached-residue-absorption"
+openspec = "openspec/changes/archive/2026-07-24-artifact-topology-detached-residue-absorption"
 fallback = "Keep the source branch, linked worktree, dirty bytes, and any later package intact whenever focused behavior, source observation, accepted Chronicle, manifest, or current accepted basis cannot be proved exactly."
 kill_signal = "The historical implementation is replayed without a current product gap; preservation is called absorption; a valid owner or unrelated lane is touched; a raw ref/worktree delete occurs; or a package is cleared without an accepted exact-manifest decision."
 
@@ -39,6 +39,6 @@ targets = [
   "docs/plans/artifact-topology-detached-residue-absorption-implementation-plan-20260724.md",
   "evidence/claims/artifact-topology-detached-residue-absorption-20260724.toml",
   "evidence/chronicle/artifact-topology-detached-residue-absorption-20260724/2026-07-24.md",
-  "openspec/changes/artifact-topology-detached-residue-absorption",
+  "openspec/changes/archive/2026-07-24-artifact-topology-detached-residue-absorption",
   "openspec/specs/repository-governance/spec.md",
 ]

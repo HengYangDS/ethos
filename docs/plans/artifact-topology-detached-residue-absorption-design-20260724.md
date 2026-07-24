@@ -4,7 +4,7 @@ role: plan
 state: active
 relations:
   source_lane: work/artifact-topology-hotpath-20260714
-  change: openspec/changes/artifact-topology-detached-residue-absorption
+  change: openspec/changes/archive/2026-07-24-artifact-topology-detached-residue-absorption
 ---
 
 # Artifact-Topology Detached Residue Absorption Design

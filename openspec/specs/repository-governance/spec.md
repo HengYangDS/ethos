@@ -1577,6 +1577,21 @@ bound the exact resolution.
 - **AND** a changed target blocks the decision rather than inheriting the prior
   disposition.
 
+#### Scenario: detached dirty residue is normalized without changing bytes
+
+- **GIVEN** one registered detached historical worktree has an absent Work Lane
+  ref, no valid owner, a committed HEAD already in accepted history, and dirty
+  tracked or untracked bytes
+- **WHEN** a maintainer prepares it for target-specific behavioral resolution
+- **THEN** the detached observation, reflog, HEAD, index, dirty inventory,
+  content digests, session ownership, and path occupancy SHALL be captured first
+- **AND** any reconstructed historical Work Lane ref SHALL point to the exact
+  detached HEAD and SHALL NOT change index or working bytes
+- **AND** ref reconstruction SHALL NOT mint ownership or effect authority
+- **AND** an accepted target-specific Chronicle SHALL distinguish behavioral
+  absorption, rejected historical behavior, preservation, retirement, and later
+  package clearing before any destructive effect.
+
 ### Requirement: Durable exceptional-resolution recovery inventory
 
 ETHOS SHALL materialize successful exceptional-resolution decisions, receipts,

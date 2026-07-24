@@ -18,16 +18,14 @@ _DECISION_ID = "lane-decision:00000000-0000-4000-8000-000000000001"
 def _ownerless_reservation() -> dict[str, object]:
     lane_ref, head = "work/20260722-ownerless", "a" * 40
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "decision_id": _DECISION_ID,
         "lane_ref": lane_ref,
         "head": head,
         "executor_ref": "agent:Codex:thread:Executor+1",
-        "wcp_schema_version": "workstation.repo-family-governance.v1",
-        "wcp_decision_sha256": "b" * 64,
+        "decision_sha256": "b" * 64,
         "accepted_branch": "dev",
         "accepted_head": "c" * 40,
-        "wcp_binding_digest": "d" * 64,
         "target_digest": record_store.target_digest(lane_ref, head),
         "target_binding_digest": "e" * 64,
         "phase": "reserved",
@@ -38,6 +36,7 @@ def _ownerless_reservation() -> dict[str, object]:
 
 def _receipt(*, decision_id: str = _DECISION_ID) -> dict[str, object]:
     return {
+        "schema_version": 3,
         "receipt_id": "lane-resolution-receipt:one",
         "decision_id": decision_id,
         "completed": True,
@@ -55,11 +54,9 @@ def _receipt(*, decision_id: str = _DECISION_ID) -> dict[str, object]:
 def _ownerless_binding(*, executor_ref: str) -> dict[str, object]:
     return {
         "executor_ref": executor_ref,
-        "wcp_schema_version": "workstation.repo-family-governance.v1",
-        "wcp_decision_sha256": "b" * 64,
+        "decision_sha256": "b" * 64,
         "accepted_branch": "dev",
         "accepted_head": "c" * 40,
-        "wcp_binding_digest": "d" * 64,
         "target_digest": record_store.target_digest("work/20260722-ownerless", "a" * 40),
         "target_binding_digest": "e" * 64,
         "postcondition_digest": "f" * 64,
@@ -170,25 +167,21 @@ def test_inventory_maps_non_object_ownerless_reservation_to_stable_gap(tmp_path)
     assert payload["required_gaps"] == ["lane_resolution_target_reservation_invalid"]
 
 
-def test_receipt_writer_upgrades_unversioned_history_to_v2_while_reader_remains_compatible(
+def test_receipt_writer_rejects_an_unversioned_current_record(
     tmp_path,
 ) -> None:
     repo = init_repo(tmp_path / "repo")
-    legacy = _receipt()
+    unversioned = _receipt()
+    unversioned.pop("schema_version")
 
     assert (
-        validate_schema_instance("lane-resolution-receipt.schema.json", legacy, root=repo)["ok"]
-        is True
+        validate_schema_instance("lane-resolution-receipt.schema.json", unversioned, root=repo)[
+            "ok"
+        ]
+        is False
     )
-
-    written = Path(write_resolution_receipt(root=repo, receipt=legacy))
-    payload = json.loads(written.read_text(encoding="utf-8"))
-
-    assert payload["schema_version"] == 2
-    assert (
-        validate_schema_instance("lane-resolution-receipt.schema.json", payload, root=repo)["ok"]
-        is True
-    )
+    with pytest.raises(ValueError, match="lane_resolution_receipt_invalid"):
+        write_resolution_receipt(root=repo, receipt=unversioned)
 
 
 def test_receipt_contract_requires_preservation_package(tmp_path) -> None:
@@ -203,8 +196,8 @@ def test_receipt_contract_requires_preservation_package(tmp_path) -> None:
         write_resolution_receipt(root=repo, receipt=payload)
 
 
-@pytest.mark.parametrize("version", [1, 3, "2"])
-def test_receipt_contract_rejects_explicit_non_v2_versions(tmp_path, version: object) -> None:
+@pytest.mark.parametrize("version", [1, 2, 4, "3"])
+def test_receipt_contract_rejects_explicit_non_v3_versions(tmp_path, version: object) -> None:
     repo = init_repo(tmp_path / "repo")
     payload = {**_receipt(), "schema_version": version}
 
@@ -218,7 +211,7 @@ def test_receipt_contract_rejects_explicit_non_v2_versions(tmp_path, version: ob
 
 def test_ownerless_receipt_executor_uses_canonical_holder_ref_contract(tmp_path) -> None:
     repo = init_repo(tmp_path / "repo")
-    valid = {**_receipt(), "schema_version": 2}
+    valid = _receipt()
     valid["ownerless_closeout_binding"] = _ownerless_binding(
         executor_ref="agent:Codex:thread:Executor+1"
     )

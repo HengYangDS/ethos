@@ -9,14 +9,8 @@ from typing import Literal
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
-from pydantic import field_validator
-
-from ethos_core.contracts.coordination import HolderRef
 
 LaneDisposition = Literal["block", "preserve", "retire", "preserve-retire"]
-LaneResolutionState = Literal[
-    "blocked_by_decision", "preserved", "retired", "preserved_and_retired"
-]
 
 
 class LaneObservation(BaseModel):
@@ -73,66 +67,3 @@ class LaneResolutionDecision(BaseModel):
             "reusable_authorization": False,
             "mints_authority": False,
         }
-
-
-class OwnerlessCloseoutBinding(BaseModel):
-    """Complete external-admission and postcondition binding for ownerless closeout."""
-
-    model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
-
-    executor_ref: str = Field(min_length=1)
-    wcp_schema_version: Literal["workstation.repo-family-governance.v1"]
-    wcp_decision_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
-    accepted_branch: str = Field(min_length=1)
-    accepted_head: str = Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
-    wcp_binding_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
-    target_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
-    target_binding_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
-    postcondition_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
-
-    @field_validator("executor_ref")
-    @classmethod
-    def validate_executor_ref(cls, value: str) -> str:
-        """Apply the provider-neutral holder identity wire contract."""
-        return HolderRef.parse(value).serialize()
-
-
-class LaneResolutionReceipt(BaseModel):
-    """Immutable local completion record for one lane-resolution decision."""
-
-    model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
-
-    schema_version: Literal[2] = 2
-    receipt_id: str = Field(min_length=1)
-    decision_id: str = Field(min_length=1)
-    completed: bool = Field(strict=True, ge=True)
-    state: LaneResolutionState
-    observation_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
-    reconciliation_required: bool
-    lane_ref: str = Field(min_length=1)
-    head: str = Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
-    preservation_package: str
-    preservation_manifest_sha256: str = Field(pattern=r"^[a-f0-9]{64}$|^$")
-    ownerless_closeout_binding: OwnerlessCloseoutBinding | None = None
-    mints_authority: bool = Field(strict=True, le=False)
-
-    def to_payload(self) -> dict[str, object]:
-        return self.model_dump(mode="json", exclude_none=True)
-
-
-class LaneResolutionClearReceipt(BaseModel):
-    """Immutable local record for one approved recovery-package removal."""
-
-    model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
-
-    clear_receipt_id: str = Field(min_length=1)
-    decision_id: str = Field(min_length=1)
-    manifest_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
-    chronicle_ref: str = Field(min_length=1)
-    chronicle_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
-    reason: str = Field(min_length=1)
-    completed: Literal[True]
-    mints_authority: Literal[False]
-
-    def to_payload(self) -> dict[str, object]:
-        return self.model_dump(mode="json")

@@ -350,8 +350,10 @@ def test_bounded_runner_terminates_descendant_process_group(
         if failure == "oversize"
         else "raise SystemExit(0)"
     )
+    startup_delay = "time.sleep(0.3); " if failure == "timeout" else ""
     script = (
         "import pathlib, subprocess, sys, time; "
+        f"{startup_delay}"
         "child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)']); "
         f"pathlib.Path({pid_path.as_posix()!r}).write_text(str(child.pid), encoding='utf-8'); "
         f"{trigger}"
@@ -360,7 +362,7 @@ def test_bounded_runner_terminates_descendant_process_group(
     with pytest.raises(WCPResponseError) as raised:
         wcp_adapter._run_bounded_output(  # noqa: SLF001, RUF100 - process-group contract
             [sys.executable, "-c", script],
-            timeout_seconds=0.2 if failure == "timeout" else 2,
+            timeout_seconds=2,
         )
 
     assert raised.value.gap == expected_gap

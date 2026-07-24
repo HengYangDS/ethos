@@ -93,6 +93,167 @@ def test_python_test_gate_rejects_invalid_timeout_override_pairs(tmp_path: Path)
         assert diagnostic in completed.stderr
 
 
+def test_python_test_gate_rejects_invalid_unprivileged_identity_pairs(tmp_path: Path) -> None:
+    script = ROOT / "tools/ci/scripts/run-python-tests.sh"
+    cases = (
+        ({"ETHOS_TEST_RUN_AS_UID": "1000", "ETHOS_TEST_RUN_AS_GID": ""}, "must be set together"),
+        ({"ETHOS_TEST_RUN_AS_UID": "", "ETHOS_TEST_RUN_AS_GID": "1000"}, "must be set together"),
+        ({"ETHOS_TEST_RUN_AS_UID": "0", "ETHOS_TEST_RUN_AS_GID": "1000"}, "positive decimal integers"),
+        ({"ETHOS_TEST_RUN_AS_UID": "1000", "ETHOS_TEST_RUN_AS_GID": "0"}, "positive decimal integers"),
+        ({"ETHOS_TEST_RUN_AS_UID": "user", "ETHOS_TEST_RUN_AS_GID": "1000"}, "positive decimal integers"),
+    )
+
+    for index, (identity_env, diagnostic) in enumerate(cases):
+        environment = os.environ.copy()
+        environment.pop("ETHOS_TEST_RUN_AS_UID", None)
+        environment.pop("ETHOS_TEST_RUN_AS_GID", None)
+        environment.update(
+            {
+                "ETHOS_RUNTIME_BOOTSTRAPPED": "1",
+                "ETHOS_PYTHON": "/usr/bin/false",
+                "ETHOS_TEST_EVIDENCE_DIR": str(tmp_path / f"evidence-{index}"),
+                "ETHOS_TEST_BASETEMP": str(tmp_path / f"pytest-{index}"),
+                **identity_env,
+            }
+        )
+
+        completed = subprocess.run(
+            ["/bin/bash", str(script)],
+            cwd=ROOT,
+            env=environment,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        assert completed.returncode == 2, completed
+        assert diagnostic in completed.stderr
+
+
+def test_python_test_gate_runs_pytest_under_validated_unprivileged_identity(
+    tmp_path: Path,
+) -> None:
+    script = ROOT / "tools/ci/scripts/run-python-tests.sh"
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    setpriv_capture = tmp_path / "setpriv.argv"
+    chown_capture = tmp_path / "chown.argv"
+    identity_capture = tmp_path / "identity.env"
+    fake_id = fake_bin / "id"
+    fake_id.write_text(
+        "#!/bin/sh\n"
+        "if [ \"${1:-}\" = \"-u\" ]; then printf '0\\n'; exit 0; fi\n"
+        "exec /usr/bin/id \"$@\"\n",
+        encoding="utf-8",
+    )
+    fake_id.chmod(0o755)
+    fake_chown = fake_bin / "chown"
+    fake_chown.write_text(
+        "#!/bin/sh\n"
+        "printf '%s\\n' \"$*\" >> \"$ETHOS_TEST_CHOWN_CAPTURE\"\n",
+        encoding="utf-8",
+    )
+    fake_chown.chmod(0o755)
+    fake_setpriv = fake_bin / "setpriv"
+    fake_setpriv.write_text(
+        "#!/bin/sh\n"
+        "printf '%s\\n' \"$*\" >> \"$ETHOS_TEST_SETPRIV_CAPTURE\"\n"
+        "while [ \"$#\" -gt 0 ]; do\n"
+        "  case \"$1\" in\n"
+        "    --reuid=*|--regid=*|--clear-groups) shift ;;\n"
+        "    *) exec \"$@\" ;;\n"
+        "  esac\n"
+        "done\n"
+        "exit 1\n",
+        encoding="utf-8",
+    )
+    fake_setpriv.chmod(0o755)
+    fake_python = tmp_path / "python"
+    fake_python.write_text(
+        "#!/bin/sh\n"
+        "if [ \"$1\" = \"-\" ]; then printf '100\\n'; exit 0; fi\n"
+        "if [ \"$1\" = \"-m\" ] && [ \"$2\" = \"pytest\" ] && [ \"${3:-}\" = \"--version\" ]; then exit 0; fi\n"
+        "if [ \"$1\" = \"-m\" ] && [ \"$2\" = \"pytest\" ]; then\n"
+        "  {\n"
+        "    printf 'count=%s\\n' \"${GIT_CONFIG_COUNT:-}\"\n"
+        "    printf 'key0=%s\\n' \"${GIT_CONFIG_KEY_0:-}\"\n"
+        "    printf 'value0=%s\\n' \"${GIT_CONFIG_VALUE_0:-}\"\n"
+        "    printf 'key1=%s\\n' \"${GIT_CONFIG_KEY_1:-}\"\n"
+        "    printf 'value1=%s\\n' \"${GIT_CONFIG_VALUE_1:-}\"\n"
+        "    printf 'key2=%s\\n' \"${GIT_CONFIG_KEY_2:-}\"\n"
+        "    printf 'value2=%s\\n' \"${GIT_CONFIG_VALUE_2:-}\"\n"
+        "    printf 'home=%s\\n' \"${HOME:-}\"\n"
+        "    printf 'xdg_cache=%s\\n' \"${XDG_CACHE_HOME:-}\"\n"
+        "    printf 'uv_cache=%s\\n' \"${UV_CACHE_DIR:-}\"\n"
+        "    printf 'no_bytecode=%s\\n' \"${PYTHONDONTWRITEBYTECODE:-}\"\n"
+        "    printf 'run_as_uid=%s\\n' \"${ETHOS_TEST_RUN_AS_UID:-}\"\n"
+        "    printf 'run_as_gid=%s\\n' \"${ETHOS_TEST_RUN_AS_GID:-}\"\n"
+        "  } > \"$ETHOS_TEST_IDENTITY_CAPTURE\"\n"
+        "  exit 0\n"
+        "fi\n"
+        "exit 1\n",
+        encoding="utf-8",
+    )
+    fake_python.chmod(0o755)
+    environment = os.environ.copy()
+    for key in tuple(environment):
+        if key == "GIT_CONFIG_COUNT" or key.startswith(
+            ("GIT_CONFIG_KEY_", "GIT_CONFIG_VALUE_")
+        ):
+            environment.pop(key)
+    environment.update(
+        {
+            "ETHOS_RUNTIME_BOOTSTRAPPED": "1",
+            "ETHOS_PYTHON": str(fake_python),
+            "ETHOS_TEST_RUN_AS_UID": "65534",
+            "ETHOS_TEST_RUN_AS_GID": "65534",
+            "ETHOS_TEST_SETPRIV_CAPTURE": str(setpriv_capture),
+            "ETHOS_TEST_CHOWN_CAPTURE": str(chown_capture),
+            "ETHOS_TEST_IDENTITY_CAPTURE": str(identity_capture),
+            "ETHOS_TEST_EVIDENCE_DIR": str(tmp_path / "tmp" / "evidence"),
+            "ETHOS_TEST_BASETEMP": str(tmp_path / "tmp" / "pytest"),
+            "TMPDIR": str(tmp_path / "tmp"),
+            "UV_CACHE_DIR": "build/runtime/tool-cache/uv",
+            "PATH": f"{fake_bin}:{environment['PATH']}",
+        }
+    )
+
+    completed = subprocess.run(
+        ["/bin/bash", str(script)],
+        cwd=ROOT,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert completed.returncode == 0, completed
+    setpriv_calls = setpriv_capture.read_text(encoding="utf-8").splitlines()
+    prefix = "--reuid=65534 --regid=65534 --clear-groups"
+    assert any(f"{prefix} {fake_python} -m pytest" in call for call in setpriv_calls)
+    chown_calls = chown_capture.read_text(encoding="utf-8").splitlines()
+    assert chown_calls[0].startswith("-R 65534:65534 ")
+    assert " build " in chown_calls[0]
+    assert any(call == "-R 0:0 build" for call in chown_calls)
+    identity = dict(
+        line.split("=", maxsplit=1)
+        for line in identity_capture.read_text(encoding="utf-8").splitlines()
+    )
+    assert identity["count"] == "3"
+    assert identity["key0"] == "safe.directory"
+    assert identity["value0"] == ROOT.as_posix()
+    assert identity["key1"] == "safe.directory"
+    assert identity["value1"] == (ROOT / ".git").as_posix()
+    assert identity["key2"] == "core.fsmonitor"
+    assert identity["value2"] == "false"
+    assert "ethos-test-identity-65534-65534-" in identity["home"]
+    assert identity["xdg_cache"].startswith(identity["home"])
+    assert identity["uv_cache"] == "build/runtime/tool-cache/uv"
+    assert identity["no_bytecode"] == "1"
+    assert identity["run_as_uid"] == ""
+    assert identity["run_as_gid"] == ""
+
+
 def test_python_test_gate_applies_optional_timeout_without_breaking_default(
     tmp_path: Path,
 ) -> None:
@@ -185,6 +346,28 @@ def test_cli_subprocess_helper_keeps_existing_fsmonitor_isolation() -> None:
     sanitized = _without_test_git_config_overlay(environment)
 
     assert sanitized == environment
+
+
+def test_cli_subprocess_helper_keeps_safe_directory_execution_isolation() -> None:
+    environment = {
+        "GIT_CONFIG_COUNT": "3",
+        "GIT_CONFIG_KEY_0": "safe.directory",
+        "GIT_CONFIG_VALUE_0": ROOT.as_posix(),
+        "GIT_CONFIG_KEY_1": "user.name",
+        "GIT_CONFIG_VALUE_1": "test identity",
+        "GIT_CONFIG_KEY_2": "core.fsmonitor",
+        "GIT_CONFIG_VALUE_2": "false",
+    }
+
+    sanitized = _without_test_git_config_overlay(environment)
+
+    assert sanitized == {
+        "GIT_CONFIG_COUNT": "2",
+        "GIT_CONFIG_KEY_0": "safe.directory",
+        "GIT_CONFIG_VALUE_0": ROOT.as_posix(),
+        "GIT_CONFIG_KEY_1": "core.fsmonitor",
+        "GIT_CONFIG_VALUE_1": "false",
+    }
 
 
 def test_python_test_gate_serializes_shared_coverage_evidence_writes() -> None:

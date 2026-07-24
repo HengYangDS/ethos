@@ -3,7 +3,20 @@
 set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [[ "${ETHOS_RUNTIME_BOOTSTRAPPED:-}" != "1" ]]; then exec "${script_dir}/with-python-runtime.sh" -- uv run --all-packages --group dev env ETHOS_RUNTIME_BOOTSTRAPPED=1 "$0" "$@"; fi
-repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"; cd "${repo_root}"
+run_as_uid="${ETHOS_TEST_RUN_AS_UID:-}"; run_as_gid="${ETHOS_TEST_RUN_AS_GID:-}"
+repo_root_from_script="$(cd "${script_dir}/../../.." && pwd)"
+export GIT_CONFIG_COUNT="${GIT_CONFIG_COUNT:-0}"; git_config_count="${GIT_CONFIG_COUNT}"
+if ! [[ "${git_config_count}" =~ ^[0-9]+$ ]]; then echo "GIT_CONFIG_COUNT must be a non-negative integer" >&2; exit 2; fi
+if [[ -n "${run_as_uid}" || -n "${run_as_gid}" ]]; then
+  for git_safe_directory in "${repo_root_from_script}" "${repo_root_from_script}/.git"; do
+    git_config_safe_directory_index="${git_config_count}"
+    export GIT_CONFIG_KEY_"${git_config_safe_directory_index}"=safe.directory
+    export GIT_CONFIG_VALUE_"${git_config_safe_directory_index}"="${git_safe_directory}"
+    git_config_count="$((git_config_count + 1))"
+  done
+  export GIT_CONFIG_COUNT="${git_config_count}"
+fi
+repo_root="$(git rev-parse --show-toplevel 2>/dev/null || printf '%s\n' "${repo_root_from_script}")"; cd "${repo_root}"
 ethos_python_test_head="$(tools/ci/scripts/require-stable-head.sh capture)"
 _ethos_verify_python_test_head_stability() { tools/ci/scripts/require-stable-head.sh verify "${ethos_python_test_head}" "tools/ci/scripts/run-python-tests.sh"; }
 coverage_config_dir=".config/checks/coverage"; coverage_policy_path="${coverage_config_dir}/policy.toml"; pytest_config_path=".config/checks/pytest/pytest.ini"
@@ -16,17 +29,36 @@ if [[ -n "${timeout_seconds}" || -n "${timeout_method}" ]]; then
   if ! [[ "${timeout_seconds}" =~ ^[1-9][0-9]*$ ]]; then echo "ETHOS_TEST_TIMEOUT_SECONDS must be a positive integer" >&2; exit 2; fi
   case "${timeout_method}" in signal|thread) ;; *) echo "ETHOS_TEST_TIMEOUT_METHOD must be signal or thread" >&2; exit 2 ;; esac
 fi
+pytest_identity_prefix=(); identity_runtime_dir=""
+if [[ -n "${run_as_uid}" || -n "${run_as_gid}" ]]; then
+  if [[ -z "${run_as_uid}" || -z "${run_as_gid}" ]]; then echo "ETHOS_TEST_RUN_AS_UID and ETHOS_TEST_RUN_AS_GID must be set together" >&2; exit 2; fi
+  if ! [[ "${run_as_uid}" =~ ^[1-9][0-9]*$ && "${run_as_gid}" =~ ^[1-9][0-9]*$ ]]; then echo "ETHOS_TEST_RUN_AS_UID and ETHOS_TEST_RUN_AS_GID must be positive decimal integers" >&2; exit 2; fi
+  if ! command -v setpriv >/dev/null 2>&1; then echo "setpriv is required for ETHOS_TEST_RUN_AS_UID/ETHOS_TEST_RUN_AS_GID" >&2; exit 2; fi
+  if [[ "$(id -u)" != "0" ]]; then echo "ETHOS_TEST_RUN_AS_UID/ETHOS_TEST_RUN_AS_GID require a root launcher" >&2; exit 2; fi
+  pytest_identity_prefix=(setpriv "--reuid=${run_as_uid}" "--regid=${run_as_gid}" --clear-groups)
+  identity_tmp_root="${TMPDIR:-/tmp}"; identity_tmp_root="${identity_tmp_root%/}"
+  identity_runtime_dir="${identity_tmp_root}/ethos-test-identity-${run_as_uid}-${run_as_gid}-$$"
+fi
 if ! [[ "${coverage_lock_wait_seconds}" =~ ^[0-9]+$ ]]; then echo "ETHOS_COVERAGE_LOCK_WAIT_SECONDS must be a non-negative integer" >&2; exit 2; fi
 if [[ "${shards}" != "1" && "${shards}" != "serial" ]] && { ! [[ "${shards}" =~ ^[0-9]+$ ]] || [[ "${shards}" -lt 1 ]]; }; then echo "ETHOS_TEST_SHARDS must be a positive integer" >&2; exit 2; fi
 ethos_python="${ETHOS_PYTHON:-${PYTHON:-${UV_PROJECT_ENVIRONMENT}/bin/python}}"
 export UV_PROJECT_ENVIRONMENT="build/runtime/venv"
-mkdir -p "${coverage_evidence_dir}" "${pytest_evidence_dir}" "${pytest_tmp_dir}"
 export COVERAGE_FILE="${coverage_evidence_dir}/.coverage" RUFF_CACHE_DIR="${RUFF_CACHE_DIR:-${repo_root}/build/runtime/tool-cache/ruff}"
+if [[ "${#pytest_identity_prefix[@]}" -gt 0 ]]; then
+  export HOME="${identity_runtime_dir}/home" XDG_CACHE_HOME="${identity_runtime_dir}/home/.cache" PYTHONDONTWRITEBYTECODE=1
+  identity_writable_paths=(build "${coverage_evidence_dir}" "${pytest_evidence_dir}" "${pytest_tmp_dir}" "${identity_runtime_dir}")
+  for identity_writable_path in "${identity_writable_paths[@]}"; do
+    case "${identity_writable_path}" in build|build/*|"${repo_root}"/build|"${repo_root}"/build/*|"${identity_tmp_root}"/*) ;; *) echo "unprivileged test path escapes build or TMPDIR: ${identity_writable_path}" >&2; exit 2 ;; esac
+  done
+  mkdir -p "${identity_writable_paths[@]}" "${HOME}"
+  chown -R "${run_as_uid}:${run_as_gid}" "${identity_writable_paths[@]}" "${HOME}"
+else
+  mkdir -p "${coverage_evidence_dir}" "${pytest_evidence_dir}" "${pytest_tmp_dir}"
+fi
+if [[ "${#pytest_identity_prefix[@]}" -gt 0 ]]; then unset ETHOS_TEST_RUN_AS_UID ETHOS_TEST_RUN_AS_GID; fi
 coverage_lock_acquired="false"; coverage_lock_invalid_reclaim_attempted="false"; sharded_mode="false"
 if [[ "${shards}" != "1" && "${shards}" != "serial" ]]; then sharded_mode="true"; fi
 # Preserve caller-owned Git overlays while disabling only fsmonitor for test subprocesses.
-export GIT_CONFIG_COUNT="${GIT_CONFIG_COUNT:-0}"; git_config_count="${GIT_CONFIG_COUNT}"
-if ! [[ "${git_config_count}" =~ ^[0-9]+$ ]]; then echo "GIT_CONFIG_COUNT must be a non-negative integer" >&2; exit 2; fi
 git_config_fsmonitor_index="${git_config_count}"
 export GIT_CONFIG_KEY_"${git_config_fsmonitor_index}"=core.fsmonitor
 export GIT_CONFIG_VALUE_"${git_config_fsmonitor_index}"=false
@@ -40,9 +72,17 @@ cleanup_denied_runtime_residue() {
   cleanup_source_bytecode_caches
 }
 cleanup_root_coverage_artifacts() { rm -f .coverage .coverage.* coverage.xml junit.xml; }
+cleanup_identity_runtime() { if [[ -n "${identity_runtime_dir}" ]]; then rm -rf "${identity_runtime_dir}"; fi; }
+restore_root_runtime_ownership() {
+  if [[ "${#pytest_identity_prefix[@]}" -gt 0 ]]; then
+    for identity_restore_path in build "${pytest_tmp_dir}"; do
+      if [[ -e "${identity_restore_path}" || -L "${identity_restore_path}" ]]; then chown -R 0:0 "${identity_restore_path}"; fi
+    done
+  fi
+}
 release_coverage_lock() { if [[ "${coverage_lock_acquired}" == "true" ]]; then rm -f "${coverage_lock_owner_path}"; rmdir "${coverage_lock_dir}" 2>/dev/null || true; fi; }
 cleanup_and_release() {
-  cleanup_denied_runtime_residue; cleanup_root_coverage_artifacts; release_coverage_lock; _ethos_verify_python_test_head_stability
+  cleanup_denied_runtime_residue; cleanup_root_coverage_artifacts; release_coverage_lock; cleanup_identity_runtime; restore_root_runtime_ownership; _ethos_verify_python_test_head_stability
 }
 # coverage evidence writes are serialized; only a PID/start-fingerprint-proven dead owner is reclaimed.
 coverage_lock_process_start() { local owner_pid="$1"; ps -o lstart= -p "${owner_pid}" 2>/dev/null | tr -s ' ' | sed 's/^ //' || true; }
@@ -99,7 +139,9 @@ pytest_runner=("${ethos_python}" -m pytest); coverage_runner=("${ethos_python}" 
 if ! "${ethos_python}" -m pytest --version >/dev/null 2>&1; then pytest_runner=(uv run --all-packages --group dev pytest); coverage_runner=(uv run --all-packages --group dev coverage); fi
 if [[ "${workers}" != "1" && "${workers}" != "serial" ]]; then pytest_common_args=(-n "${workers}" "${pytest_common_args[@]}"); fi
 export GIT_CONFIG_GLOBAL="${GIT_CONFIG_GLOBAL:-/dev/null}" GIT_CONFIG_NOSYSTEM="${GIT_CONFIG_NOSYSTEM:-1}"
-run_pytest() { "${pytest_runner[@]}" "$@"; }
+run_pytest() {
+  if [[ "${#pytest_identity_prefix[@]}" -gt 0 ]]; then "${pytest_identity_prefix[@]}" "${pytest_runner[@]}" "$@"; else "${pytest_runner[@]}" "$@"; fi
+}
 run_coverage() { "${coverage_runner[@]}" "$@"; }
 if [[ "${sharded_mode}" != "true" ]]; then
   run_pytest "${pytest_common_args[@]}" "${pytest_junit_arg[@]}" "${pytest_report_args[@]}" "${pytest_targets[@]}" -q

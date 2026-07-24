@@ -121,8 +121,18 @@ def test_gitlab_emulator_runtime_state_stays_under_build_runtime() -> None:
     assert not root_state.exists()
 
 
-def test_gitlab_materialization_creates_an_independent_git_snapshot(tmp_path: Path) -> None:
+def test_gitlab_materialization_creates_an_independent_git_snapshot(
+    monkeypatch, tmp_path: Path
+) -> None:
     ci_templates = _load_ci_templates_module()
+    git_commands: list[tuple[str, ...]] = []
+    real_git = vars(ci_templates)["_git"]
+
+    def recording_git(root: Path, *args: str, **kwargs) -> bytes:
+        git_commands.append(args)
+        return real_git(root, *args, **kwargs)
+
+    monkeypatch.setattr(ci_templates, "_git", recording_git)
     repository = tmp_path / "repository"
     linked_worktree = tmp_path / "linked-worktree"
     state_dir = tmp_path / "runtime"
@@ -170,6 +180,9 @@ def test_gitlab_materialization_creates_an_independent_git_snapshot(tmp_path: Pa
     assert materialization["source_head"] == expected_head
     assert materialization["source_head_matches_expected"] is True
     assert materialization["uses_external_object_alternates"] is False
+    assert any(command[:2] == ("bundle", "create") for command in git_commands)
+    assert all(command[0] != "clone" for command in git_commands)
+    assert not (state_dir / "source.bundle").exists()
     assert (
         subprocess.run(
             ["git", "-C", str(snapshot), "status", "--short"],

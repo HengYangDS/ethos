@@ -1,0 +1,54 @@
+[claim]
+id = "gitlab-nonroot-verify-20260724"
+subject = "quality:gitlab-nonroot-verify"
+state = "active"
+change_id = "gitlab-nonroot-verify"
+summary = "ETHOS preserves GitLab root bootstrap while running the complete Python verify gate as an admitted unprivileged identity, retaining fail-closed worker isolation, independent emulator materialization, and 100% cross-platform coverage."
+
+[evidence]
+dated = "evidence/chronicle/gitlab-nonroot-verify-20260724/2026-07-24.md"
+sha256 = "14c6acc28aa859889c0ffda7b56c7f13a21546dafb44f0ad9b6485c66a6a954c"
+evidence_ids = ["evidence:gitlab-nonroot-verify-20260724"]
+binding = "The archived OpenSpec carrier, RED/GREEN owner-script and emulator contracts, canonical GitLab projection, worker acceptance corrections, cross-platform coverage contracts, and dated Chronicle bind this local non-root verify claim."
+verifier = "digest_only"
+tests = [
+  "focused Python test identity and GitLab projection contracts",
+  "independent emulator materialization contract",
+  "source-budget worker acceptance and platform backend contracts",
+  "complete python:3.14 Docker replay with root bootstrap and UID/GID 65534 pytest",
+  "OpenSpec strict validation",
+  "CI template consistency, shell lint, Python lint, and format gates",
+  "generic shadow parity refresh after candidate-base refresh",
+  "exact-HEAD ETHOS proof after official archive",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "quality"
+scope = "GitLab repository-proof pytest identity, generated runtime ownership, narrow Git execution overlays, local emulator materialization, and deterministic platform coverage only; no runner-service mutation, worker-policy weakening, foreign Work Lane action, remote publication, or hosted-success inference."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-24-gitlab-nonroot-verify"
+fallback = "Remove the GitLab UID/GID projection and owner-script privilege drop, restore clone materialization, and retain the known hosted isolation failure as an explicit blocker rather than treating root execution as valid proof."
+kill_signal = "Pytest runs as UID 0 or with prohibited capabilities; a partial or invalid identity reaches pytest; generated-path ownership escapes build or temporary roots; safe-directory trust becomes global; emulator materialization depends on source object alternates; actual resource exhaustion exposes partial coordinates; Linux coverage falls below 100%; or hosted success is claimed without a fresh exact-SHA run."
+
+[promotion]
+targets = [
+  "tools/ci/scripts/run-python-tests.sh",
+  ".config/ci/templates/hosted/gitlab-ci.yml",
+  ".gitlab-ci.yml",
+  "tools/ci/ci_templates.py",
+  "tests/architecture/test_testing_platform.py",
+  "tests/architecture/test_ci_native_measurement_runtime.py",
+  "tests/architecture/test_ci_emulator_materialization.py",
+  "tests/support/ethos_cli_runner.py",
+  "tests/unit/adapters/repo/source_budget/test_measurement_worker_acceptance.py",
+  "tests/unit/adapters/repo/source_budget/test_measurement_worker_backends.py",
+  "tests/unit/adapters/repo/source_budget/test_measurement_worker_lifecycle_edges.py",
+  "evidence/parity/generic-shadow.json",
+  "openspec/changes/archive/2026-07-24-gitlab-nonroot-verify",
+  "evidence/chronicle/gitlab-nonroot-verify-20260724/2026-07-24.md",
+  "evidence/claims/gitlab-nonroot-verify-20260724.toml",
+]

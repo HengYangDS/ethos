@@ -233,6 +233,11 @@ ethos:verify:
     # coverage suite. Keep the reusable owner script and its default parallel
     # capability intact; this hosted projection deliberately runs one worker.
     ETHOS_TEST_WORKERS: "1"
+    # The Docker executor starts python:3.14 as root, where RLIMIT_NPROC is not
+    # enforceable. The owner script drops only pytest to the image's numeric
+    # nobody identity.
+    ETHOS_TEST_RUN_AS_UID: "65534"
+    ETHOS_TEST_RUN_AS_GID: "65534"
   script:
     - source tools/ci/scripts/bootstrap-python.sh
     # Make the runner checkout a real governed ETHOS working copy: wire the git

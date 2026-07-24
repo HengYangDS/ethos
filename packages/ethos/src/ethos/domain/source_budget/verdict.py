@@ -152,7 +152,7 @@ def compile_budget_verdict(
         coordinates=coordinates,
         terminal_target_met=not terminal_overages,
         active_debt_ids=active_ids,
-        advisory_gaps=advisory if not required else (),
+        advisory_gaps=advisory,
         required_gaps=required,
     )
 
@@ -236,6 +236,7 @@ def _policy_findings(
     if policy.enforcement == "transition":
         required = transition
     elif policy.enforcement == "campaign_terminal":
+        required = terminal
         advisory = tuple(
             item.replace("transition_exceeded", "campaign_growth_overage") for item in transition
         )

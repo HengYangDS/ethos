@@ -315,14 +315,17 @@ def test_expired_overdue_stale_and_unmapped_debt_contribute_zero_allowance() -> 
     assert unmapped_verdict.required_gaps == ("source_budget_v2_debt_unmapped:debt-1",)
 
 
-def test_campaign_growth_is_advisory_while_terminal_mode_is_blocking() -> None:
+def test_campaign_growth_is_advisory_but_unmet_terminal_target_is_blocking() -> None:
     api = verdict_api
     campaign = _policy(enforcement="campaign_terminal")
     campaign_verdict = api.compile_budget_verdict(
         _inputs(current_product=11, policy=campaign), campaign, date(2026, 7, 24)
     )
-    assert campaign_verdict.ok is True
-    assert campaign_verdict.required_gaps == ()
+    assert campaign_verdict.ok is False
+    assert campaign_verdict.required_gaps == (
+        "source_budget_v2_terminal_exceeded:product.python:lexical_tokens:11>8",
+        "source_budget_v2_terminal_exceeded:tests.python:normalized_bytes:20>15",
+    )
     assert campaign_verdict.advisory_gaps == (
         "source_budget_v2_campaign_growth_overage:product.python:lexical_tokens:11>10",
     )

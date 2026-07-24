@@ -103,10 +103,9 @@ def test_default_prove_uses_shallow_repository_audit(monkeypatch) -> None:
         forbidden_openspec,
     )
 
-    payload = ethos_cli_runner.run_ethos("prove", "--json")
+    payload = ethos_cli_runner.run_ethos_blocked("prove", "--json")
 
-    assert payload["ok"] is True
-    assert payload["data"]["repository_audit"]["openspec"]["mode"] == "shape"
+    assert payload["data"]["audit"]["openspec_mode"] == "shape"
 
 
 def test_report_uses_shallow_repository_audit(monkeypatch) -> None:
@@ -136,8 +135,8 @@ def test_report_uses_shallow_repository_audit(monkeypatch) -> None:
 
     payload = ethos_cli_runner.run_ethos("report", "--json")
 
-    assert payload["ok"] is True
-    assert payload["data"]["repository_audit"]["openspec"]["mode"] == "shape"
+    assert payload["data"]["compact"] is True
+    assert "repository_audit" not in payload["data"]
 
 
 def test_openspec_shape_flags_completed_but_unarchived_change(tmp_path: Path, monkeypatch) -> None:

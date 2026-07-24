@@ -395,7 +395,7 @@ def source_budget_report(
     )
     if policy.enforcement == "transition":
         verdict += messages("source_budget_exceeded")
-    elif policy.enforcement == "terminal" and not terminal_met:
+    elif policy.enforcement in {"campaign_terminal", "terminal"} and not terminal_met:
         verdict += [
             f"source_budget_terminal_exceeded:{category}:{metrics.get(category, 0)}>{target}"
             for category, target in policy.terminal.items()

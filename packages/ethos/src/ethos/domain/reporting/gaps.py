@@ -176,7 +176,7 @@ def gap_layers(
         ),
         "global_compression": _gap_layer(
             scope="global_compression",
-            blocking=False,
+            blocking=True,
             ok=bool(global_compression["ok"]),
             gaps=list(cast("list[str]", global_compression["required_gaps"])),
         ),

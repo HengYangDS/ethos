@@ -107,7 +107,7 @@ def test_report_json_compact_emits_agent_token_friendly_contract(
     monkeypatch.setattr(root_inspection, "resolve_root", lambda root: root or Path.cwd())
     monkeypatch.setattr(root_inspection, "scorecard_report", lambda _repo, **_kwargs: full_payload)
 
-    root_inspection.report(root=tmp_path, json_output=True, compact=True)
+    root_inspection.report(root=tmp_path, json_output=True)
 
     compact_payload = emitted[0]
     assert compact_payload["ok"] == full_payload["ok"]
@@ -200,7 +200,7 @@ def test_report_compact_reduces_malformed_optional_sections(
         lambda _repo, **_kwargs: malformed_payload,
     )
 
-    root_inspection.report(root=tmp_path, json_output=True, compact=True)
+    root_inspection.report(root=tmp_path, json_output=True)
 
     compact = emitted[0]
     assert compact["summary"] == {"compact": True}
@@ -215,18 +215,25 @@ def test_report_compact_reduces_malformed_optional_sections(
     emitted.clear()
     malformed_payload["data"]["gap_layers"] = {"clean": "not-a-layer"}
 
-    root_inspection.report(root=tmp_path, json_output=True, compact=True)
+    root_inspection.report(root=tmp_path, json_output=True)
 
     nested_compact = emitted[0]
     assert nested_compact["data"]["gap_layers"] == {}
 
 
-def test_report_help_exposes_compact_flag_for_discoverability() -> None:
+def test_report_help_has_no_parallel_compact_surface() -> None:
     completed = run_ethos_raw("report", "--help")
 
     assert completed.returncode == 0
-    assert "--compact" in completed.stdout
-    assert "--no-compact" in completed.stdout
+    assert "--compact" not in completed.stdout
+    assert "--no-compact" not in completed.stdout
+
+
+def test_report_default_json_stays_within_payload_budget() -> None:
+    completed = run_ethos_raw("report", "--json")
+
+    assert completed.returncode == 0
+    assert len(completed.stdout.encode()) <= 16 * 1024
 
 
 def test_report_uses_adopter_scorecard_for_non_product_repo(tmp_path: Path) -> None:
@@ -234,16 +241,14 @@ def test_report_uses_adopter_scorecard_for_non_product_repo(tmp_path: Path) -> N
 
     payload = run_ethos("report", "--root", tmp_path.as_posix(), "--json")
 
-    assert payload["ok"] is False
+    assert payload["ok"] is True
     assert "self_audit" not in payload["data"]
-    assert payload["data"]["repository_audit"]["mode"] == "repository"
-    assert (
-        payload["data"]["governance_context"]
-        == payload["data"]["repository_audit"]["governance_context"]
-    )
-    assert "posture" not in payload["data"]["governance_context"]
+    assert payload["governance_context"]["profile"] == "adopter"
+    assert "repository_audit" not in payload["data"]
+    assert "posture" not in payload["governance_context"]
     assert payload["summary"]["governance_gap_count"] == 0
     assert payload["summary"]["parity_pending_count"] > 0
+    assert payload["state"] == "advisory"
     assert payload["data"]["scores"]["adopter_governance"] == 1
     assert payload["data"]["first_hour"] == {
         "proof_status": "ready",
@@ -294,6 +299,11 @@ def test_report_scorecard_is_derived_from_governance_checks(monkeypatch) -> None
     )
     monkeypatch.setattr(
         reporting_scoring,
+        "ty_gate_report",
+        lambda _repo: {"ok": True, "state": "clean", "required_gaps": []},
+    )
+    monkeypatch.setattr(
+        reporting_scoring,
         "generated_artifact_topology_report",
         lambda _repo: {"ok": True, "state": "clean", "required_gaps": []},
     )
@@ -306,66 +316,29 @@ def test_report_scorecard_is_derived_from_governance_checks(monkeypatch) -> None
     payload = run_ethos("report", "--json")
 
     assert payload["ok"] is True
-    assert payload["data"]["scores"]["distribution_adapter"] == 1
-    assert payload["data"]["scores"]["claims"] == 1
-    assert payload["data"]["scores"]["docs"] == 1
-    assert payload["data"]["scores"]["assistant_projection"] == 1
-    assert payload["data"]["scores"]["openspec"] == 1
-    assert payload["data"]["scores"]["playbooks"] == 1
-    assert "adoption_scaffold" not in payload["data"]["scores"]
-    assert payload["data"]["scores"]["parity_ledger"] == 1
-    scorecards = {item["id"]: item for item in payload["data"]["scorecards"]}
-    assert scorecards["skills-v2"]["ok"] is True
-    assert scorecards["skills-v2"]["mode"] == "v2-strict"
-    assert scorecards["skills-v2"]["score"] == scorecards["skills-v2"]["max_score"]
-    assert payload["data"]["parity"]["ledger"]["summary"]["unclassified_count"] == 0
-    assert payload["data"]["parity"]["gaps"]["ok"] is True
-    assert payload["data"]["parity"]["gaps"]["required_gaps"] == []
-    assert payload["summary"]["parity_pending_count"] == len(
-        payload["data"]["parity"]["gaps"]["required_gaps"]
-    )
+    assert payload["required_gaps"] == []
+    assert payload["data"]["compact"] is True
     assert payload["summary"]["parity_pending_count"] == 0
-    assert payload["data"]["parity"]["gaps"]["pending_packages"] == []
     assert payload["summary"]["governance_gap_count"] == 0
+    for layer in ("governance_audit", "hard_quality_floor", "global_compression"):
+        assert payload["data"]["gap_layers"][layer]["required_count"] == 0
     advisory_layer = payload["data"]["gap_layers"]["advisory_signals"]
     assert advisory_layer["blocking"] is False
     assert advisory_layer["gap_count"] == payload["summary"]["advisory_gap_count"]
-    assert advisory_layer["advisory_gaps"] == payload["data"]["advisory_signals"]["advisory_gaps"]
-    assert advisory_layer["next_actions"] == payload["data"]["advisory_signals"]["next_actions"]
+    assert payload["data"]["advisory_signals"]["gap_count"] == advisory_layer["gap_count"]
     assert "self_audit" not in payload["data"]
-    assert (
-        payload["data"]["governance_context"]
-        == payload["data"]["repository_audit"]["governance_context"]
-    )
-    assert "posture" not in payload["data"]["governance_context"]
-    assert payload["data"]["gap_layers"]["governance_audit"] == {
-        "scope": "governance_audit",
-        "blocking": True,
-        "ok": True,
-        "required_gaps": [],
-        "gap_count": 0,
-        "invalid_states": {"categories": {}, "category_count": 0, "gap_count": 0},
-    }
-    assert payload["data"]["gap_layers"]["capability_parity"] == {
-        "scope": "capability_parity",
-        "blocking": False,
-        "ok": True,
-        "required_gaps": payload["data"]["parity"]["gaps"]["required_gaps"],
-        "gap_count": payload["summary"]["parity_pending_count"],
-        "invalid_states": {"categories": {}, "category_count": 0, "gap_count": 0},
-    }
-    assert payload["data"]["invalid_states"] == {
-        "categories": {},
-        "category_count": 0,
-        "gap_count": 0,
-    }
+    assert "repository_audit" not in payload["data"]
+    assert "posture" not in payload["governance_context"]
+    assert payload["data"]["invalid_states"] == {"category_count": 0, "gap_count": 0}
     parity_note = payload["data"]["parity"]["scope"]["note"].lower()
     assert "adopter-domain storage" not in parity_note
     assert "backend retirement" not in parity_note
     assert "domain profile parity" in parity_note
     if payload["summary"]["advisory_gap_count"]:
         assert payload["state"] == "advisory"
-        assert payload["next_actions"] == advisory_layer["next_actions"]
+        assert payload["data"]["advisory_signals"]["next_action_count"] == len(
+            payload["next_actions"]
+        )
     else:
         assert payload["state"] == "ready"
         assert payload["next_actions"] == ["ethos prove --full"]

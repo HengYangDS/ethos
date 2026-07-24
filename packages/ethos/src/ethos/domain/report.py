@@ -123,12 +123,14 @@ def scorecard_report(repo: Path, *, product_root: Path | None = None) -> dict[st
     nominal_score = sum(scores.values())
     max_score = len(scores)
     result_required_gaps = tuple(cast("list[str]", audit["required_gaps"]))
+    compression_gaps = tuple(cast("list[str]", global_compression["required_gaps"]))
     if product_profile:
         result_required_gaps = (
             result_required_gaps
             + tuple(cast("list[str]", claim_report["required_gaps"]))
             + tuple(cast("list[str]", hard_quality_floor["required_gaps"]))
             + tuple(cast("list[str]", workflow_runtime["required_gaps"]))
+            + compression_gaps
         )
     generic_parity_pending_count = len(cast("list[str]", parity_gaps["required_gaps"]))
     adopter_parity_pending_count = len(
@@ -160,7 +162,6 @@ def scorecard_report(repo: Path, *, product_root: Path | None = None) -> dict[st
                     hosted_observation,
                     *quality_gates.values(),
                 ),
-                *cast("list[str]", global_compression["required_gaps"]),
             )
         )
     )
@@ -169,11 +170,7 @@ def scorecard_report(repo: Path, *, product_root: Path | None = None) -> dict[st
         result_required_gaps, proof_readiness
     )
     has_advisory_signals = bool(advisory_gap_items or coordination_advisory_gaps)
-    report_ok = (
-        all(value == 1 for value in scores.values())
-        and not result_required_gaps
-        and parity_pending_count == 0
-    )
+    report_ok = not result_required_gaps
     report_state = "gapped" if not report_ok else "advisory" if has_advisory_signals else "ready"
     report_gap_layers = reporting_gaps.gap_layers(
         result_required_gaps,
@@ -196,7 +193,9 @@ def scorecard_report(repo: Path, *, product_root: Path | None = None) -> dict[st
         coordination_required_gaps=coordination_required_gaps,
         playbooks=playbooks,
     )
-    if report_state == "advisory" and advisory_action_items:
+    if compression_gaps:
+        next_actions = ("ethos quality source-budget --json",)
+    elif report_state == "advisory" and advisory_action_items:
         next_actions = advisory_action_items
     return {
         "ok": report_ok,

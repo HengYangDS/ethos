@@ -119,19 +119,24 @@
 
 - [x] 7.1 Reach focused 100 percent statement/branch coverage and run native/v1
   regressions, Ruff, types, config/schema/shell, dependency/import,
-  module-layout, code-size, no-compat, and source-budget gates.
+  module-layout, code-size, no-compat, and source-budget gates. The July 23
+  candidate-index result is a historical implementation checkpoint; candidate
+  base refreshes require the stable closeout HEAD to be checked again in 7.3.
 - [x] 7.2 Complete independent security, contract, simplicity, and platform
   review. If hybrid isolation is rejected, keep C1 open; do not raise a ceiling.
-- [ ] 7.3 Bind final evidence/promotion targets, refresh parity, run exact-HEAD
-  default/full proof, obtain a live Linux CPython 3.14 receipt for that exact final
-  commit, and prepare the official archive inputs without claiming later
-  transitions prematurely.
-  Before an implementation/proof claim, promotion targets SHALL add
-  `measurement/execution.py`, the kernel `measurement/worker` package, the
-  worker-protocol schema, protocol/frame tests, supervisor test, and architecture
-  boundary test. Generic parity remains a separate repository-wide freshness
-  witness rather than a C1 Claim semantic target: commit the semantic Claim, then
-  refresh and commit parity before exact-HEAD proof. Do not push remotely.
+- [x] 7.3a Commit the governed material implementation, the initial extant
+  implementation promotion-target set, and the initial semantic-scope Claim
+  binding. Generic parity remains outside the Claim semantic target set.
+- [ ] 7.3b Commit the carrier reconciliation, rebind the Claim to that carrier
+  commit, and then refresh and commit generic parity.
+- [ ] 7.3c On the resulting final pre-archive HEAD, rerun focused 100 percent
+  coverage, the owner test/coverage artifact path, Darwin/Linux Python 3.14 type
+  checks for all 58 current candidate Python paths, exact-HEAD default/full
+  proof, and a live Linux CPython 3.14 receipt for that same final pre-archive
+  HEAD.
+- [ ] 7.3d Prepare the official archive inputs without claiming archive-HEAD
+  proof, candidate land, accepted-root closeout, publication, hosted CI, or
+  retirement prematurely. Do not push remotely.
 
 ## Post-Archive Transition Boundary
 

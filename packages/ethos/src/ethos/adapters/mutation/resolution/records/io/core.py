@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import ctypes
-import errno
 import fcntl
 import hashlib
 import os
@@ -14,6 +12,7 @@ from contextlib import suppress
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+import ethos.adapters.mutation.resolution.records.io.posix as posix
 from ethos.adapters.mutation.resolution._shared import record_destination_safe
 
 if TYPE_CHECKING:
@@ -26,9 +25,6 @@ _CURRENT_RECORD_INVALID = "lane_resolution_current_record_invalid"
 _MAX_CURRENT_RECORD_BYTES = 16 * 1024 * 1024
 _RECORD_PATH_PART_COUNT = 2
 
-_FileIdentity = tuple[int, int, int, int, int, int]
-_DirectoryIdentity = tuple[int, int, int]
-
 
 @dataclass(frozen=True, slots=True)
 class _RecordParent:
@@ -38,8 +34,8 @@ class _RecordParent:
     parent_descriptor: int
     category: str
     name: str
-    root_identity: _DirectoryIdentity
-    parent_identity: _DirectoryIdentity
+    root_identity: posix.DirectoryIdentity
+    parent_identity: posix.DirectoryIdentity
 
 
 def write_record_bytes(destination: Path, content: bytes, *, record_root: Path) -> None:
@@ -103,7 +99,7 @@ def remove_record_bytes(
 
 def read_descriptor_bytes(descriptor: int) -> bytes:
     """Read bounded raw bytes from one stable regular-file descriptor."""
-    before = _file_identity(os.fstat(descriptor))
+    before = posix.file_identity(os.fstat(descriptor))
     if not stat.S_ISREG(before[2]) or before[3] > _MAX_CURRENT_RECORD_BYTES:
         raise ValueError(_CURRENT_RECORD_INVALID)
     os.lseek(descriptor, 0, os.SEEK_SET)
@@ -113,7 +109,9 @@ def read_descriptor_bytes(descriptor: int) -> bytes:
         chunks.append(chunk)
         remaining -= len(chunk)
     content = b"".join(chunks)
-    if len(content) > _MAX_CURRENT_RECORD_BYTES or before != _file_identity(os.fstat(descriptor)):
+    if len(content) > _MAX_CURRENT_RECORD_BYTES or before != posix.file_identity(
+        os.fstat(descriptor)
+    ):
         raise ValueError(_CURRENT_RECORD_INVALID)
     return content
 
@@ -172,57 +170,45 @@ def reserve_record_sidecar(
     expected: bytes,
     record_root: Path,
 ) -> None:
-    """Create or reuse one exact sidecar while the completion name is absent."""
+    """Create one exclusive exact sidecar while the completion name is absent."""
     with _open_record_parent(record_root, reservation, create=True) as parent:
-        if _entry_identity_at(parent.parent_descriptor, blocker.name) is not None:
+        if posix.entry_file_identity(parent.parent_descriptor, blocker.name) is not None:
             raise FileExistsError(blocker)
         try:
             _write_bound_bytes(parent, expected)
-        except FileExistsError:
-            if _read_bound_bytes(parent) != expected:
+        except FileExistsError as error:
+            try:
+                content = _read_bound_bytes(parent)
+            except OSError:
+                if posix.entry_file_identity(parent.parent_descriptor, parent.name) is None:
+                    raise FileExistsError(parent.destination) from error
+                raise
+            if content != expected:
                 raise ValueError(_CURRENT_RECORD_CHANGED) from None
+            raise FileExistsError(parent.destination) from error
         _require_parent_identity(parent)
-        if _entry_identity_at(parent.parent_descriptor, blocker.name) is not None:
+        if posix.entry_file_identity(parent.parent_descriptor, blocker.name) is not None:
             remove_record_bytes(reservation, expected=expected, record_root=record_root)
             raise FileExistsError(blocker)
 
 
-def rename_record_no_replace(
-    directory_descriptor: int,
-    source_name: str,
-    target_name: str,
-) -> None:
-    """Rename one descriptor-relative record without replacing a competitor."""
-    library = ctypes.CDLL(None, use_errno=True)
-    source_bytes = os.fsencode(source_name)
-    target_bytes = os.fsencode(target_name)
-    if hasattr(library, "renameatx_np"):
-        result = library.renameatx_np(
-            directory_descriptor, source_bytes, directory_descriptor, target_bytes, 4
-        )
-    elif hasattr(library, "renameat2"):
-        result = library.renameat2(
-            directory_descriptor, source_bytes, directory_descriptor, target_bytes, 1
-        )
-    else:
-        raise OSError(errno.ENOTSUP, os.strerror(errno.ENOTSUP), target_name)
-    if result == 0:
-        return
-    error = ctypes.get_errno()
-    exception = FileExistsError if error == errno.EEXIST else OSError
-    raise exception(error, os.strerror(error), target_name)
+def record_entry_exists(destination: Path, *, record_root: Path) -> bool:
+    """Return whether one descriptor-bound record entry currently exists."""
+    with _open_record_parent(record_root, destination, create=False) as parent:
+        _require_parent_identity(parent)
+        return posix.entry_file_identity(parent.parent_descriptor, parent.name) is not None
 
 
 def _write_bound_bytes(parent: _RecordParent, content: bytes) -> None:
     _require_parent_identity(parent)
-    if _entry_identity_at(parent.parent_descriptor, parent.name) is not None:
+    if posix.entry_file_identity(parent.parent_descriptor, parent.name) is not None:
         raise FileExistsError(parent.destination)
     temporary = _temporary_name(parent.name)
-    descriptor = _create_bound_file(parent.parent_descriptor, temporary)
+    descriptor = posix.create_bound_file(parent.parent_descriptor, temporary)
     try:
-        _write_all(descriptor, content)
+        posix.write_all(descriptor, content)
         os.fsync(descriptor)
-        temporary_identity = _file_identity(os.fstat(descriptor))
+        temporary_identity = posix.file_identity(os.fstat(descriptor))
     finally:
         os.close(descriptor)
     linked = False
@@ -239,13 +225,13 @@ def _write_bound_bytes(parent: _RecordParent, content: bytes) -> None:
         _require_written_record(parent, temporary_identity, content)
         os.fsync(parent.parent_descriptor)
     except BaseException:
-        if linked and _same_content_identity(
-            _entry_identity_at(parent.parent_descriptor, parent.name), temporary_identity
+        if linked and posix.same_content_identity(
+            posix.entry_file_identity(parent.parent_descriptor, parent.name), temporary_identity
         ):
             os.unlink(parent.name, dir_fd=parent.parent_descriptor)
         raise
     finally:
-        _unlink_if_present(parent.parent_descriptor, temporary)
+        posix.unlink_if_present(parent.parent_descriptor, temporary)
 
 
 def _replace_record_bytes(
@@ -258,11 +244,11 @@ def _replace_record_bytes(
 ) -> None:
     with _open_record_parent(record_root, destination, create=False) as parent:
         temporary = _temporary_name(parent.name)
-        descriptor = _create_bound_file(parent.parent_descriptor, temporary)
+        descriptor = posix.create_bound_file(parent.parent_descriptor, temporary)
         try:
-            _write_all(descriptor, replacement)
+            posix.write_all(descriptor, replacement)
             os.fsync(descriptor)
-            temporary_identity = _file_identity(os.fstat(descriptor))
+            temporary_identity = posix.file_identity(os.fstat(descriptor))
         finally:
             os.close(descriptor)
         staging = _staging_name(parent.name, expected)
@@ -287,15 +273,15 @@ def _replace_record_bytes(
             staged = False
             os.fsync(parent.parent_descriptor)
         except BaseException:
-            if linked and _same_content_identity(
-                _entry_identity_at(parent.parent_descriptor, parent.name), temporary_identity
+            if linked and posix.same_content_identity(
+                posix.entry_file_identity(parent.parent_descriptor, parent.name), temporary_identity
             ):
                 os.unlink(parent.name, dir_fd=parent.parent_descriptor)
             if staged:
                 _restore_staged_record(parent, staging)
             raise
         finally:
-            _unlink_if_present(parent.parent_descriptor, temporary)
+            posix.unlink_if_present(parent.parent_descriptor, temporary)
 
 
 def _remove_record_bytes(
@@ -315,7 +301,7 @@ def _remove_record_bytes(
         except BaseException:
             _restore_staged_record(parent, staging)
             raise
-        if _entry_identity_at(parent.parent_descriptor, parent.name) is not None:
+        if posix.entry_file_identity(parent.parent_descriptor, parent.name) is not None:
             raise ValueError(_CURRENT_RECORD_CHANGED)
 
 
@@ -330,13 +316,14 @@ def _stage_expected_record(
         parent, locked_descriptor
     ):
         raise ValueError(_CURRENT_RECORD_CHANGED)
-    if _entry_identity_at(parent.parent_descriptor, staging) is not None:
+    if posix.entry_file_identity(parent.parent_descriptor, staging) is not None:
         raise ValueError(_CURRENT_RECORD_CHANGED)
-    rename_record_no_replace(parent.parent_descriptor, parent.name, staging)
-    descriptor = os.open(staging, _file_flags(), dir_fd=parent.parent_descriptor)
+    posix.rename_no_replace(parent.parent_descriptor, parent.name, staging)
+    descriptor = os.open(staging, posix.file_flags(), dir_fd=parent.parent_descriptor)
     try:
         valid = (
-            _file_identity(os.fstat(descriptor)) == _file_identity(os.fstat(locked_descriptor))
+            posix.file_identity(os.fstat(descriptor))
+            == posix.file_identity(os.fstat(locked_descriptor))
             and read_descriptor_bytes(descriptor) == expected
         )
     finally:
@@ -348,12 +335,12 @@ def _stage_expected_record(
 
 
 def _restore_staged_record(parent: _RecordParent, staging: str) -> None:
-    if _entry_identity_at(parent.parent_descriptor, staging) is None:
+    if posix.entry_file_identity(parent.parent_descriptor, staging) is None:
         return
-    if _entry_identity_at(parent.parent_descriptor, parent.name) is not None:
+    if posix.entry_file_identity(parent.parent_descriptor, parent.name) is not None:
         return
     try:
-        rename_record_no_replace(parent.parent_descriptor, staging, parent.name)
+        posix.rename_no_replace(parent.parent_descriptor, staging, parent.name)
         os.fsync(parent.parent_descriptor)
     except OSError:
         pass
@@ -385,13 +372,13 @@ def _open_record_parent(
     root_descriptor: int | None = None
     parent_descriptor: int | None = None
     try:
-        root_descriptor = os.open(record_root, _directory_flags())
-        root_identity = _directory_identity(os.fstat(root_descriptor))
+        root_descriptor = os.open(record_root, posix.directory_flags())
+        root_identity = posix.directory_identity(os.fstat(root_descriptor))
         if create:
             with suppress(FileExistsError):
                 os.mkdir(category, mode=0o700, dir_fd=root_descriptor)
-        parent_descriptor = os.open(category, _directory_flags(), dir_fd=root_descriptor)
-        parent_identity = _directory_identity(os.fstat(parent_descriptor))
+        parent_descriptor = os.open(category, posix.directory_flags(), dir_fd=root_descriptor)
+        parent_identity = posix.directory_identity(os.fstat(parent_descriptor))
         parent = _RecordParent(
             record_root,
             destination,
@@ -427,17 +414,15 @@ def _record_parts(record_root: Path, destination: Path) -> tuple[str, str]:
         relative = destination.absolute().relative_to(record_root.absolute())
     except ValueError as error:
         raise OSError(_RECORD_PATH_UNSAFE) from error
-    if len(relative.parts) != _RECORD_PATH_PART_COUNT or any(
-        part in {"", ".", ".."} for part in relative.parts
-    ):
+    if len(relative.parts) != _RECORD_PATH_PART_COUNT or ".." in relative.parts:
         raise OSError(_RECORD_PATH_UNSAFE)
     return relative.parts[0], relative.parts[1]
 
 
 def _require_parent_identity(parent: _RecordParent) -> None:
     try:
-        root_visible = _directory_identity(parent.record_root.stat(follow_symlinks=False))
-        category_visible = _entry_directory_identity_at(parent.root_descriptor, parent.category)
+        root_visible = posix.directory_identity(parent.record_root.stat(follow_symlinks=False))
+        category_visible = posix.entry_directory_identity(parent.root_descriptor, parent.category)
     except OSError as error:
         raise OSError(_RECORD_PATH_UNSAFE) from error
     if root_visible != parent.root_identity or category_visible != parent.parent_identity:
@@ -446,70 +431,30 @@ def _require_parent_identity(parent: _RecordParent) -> None:
 
 def _open_record_file(parent: _RecordParent) -> int:
     try:
-        descriptor = os.open(parent.name, _file_flags(), dir_fd=parent.parent_descriptor)
+        return posix.open_regular_file(parent.parent_descriptor, parent.name)
     except FileNotFoundError:
         raise
     except OSError as error:
         raise OSError(_RECORD_PATH_UNSAFE) from error
-    if stat.S_ISREG(os.fstat(descriptor).st_mode):
-        return descriptor
-    os.close(descriptor)
-    raise OSError(_RECORD_PATH_UNSAFE)
 
 
 def _descriptor_matches_entry(parent: _RecordParent, descriptor: int) -> bool:
     try:
-        return _entry_identity_at(parent.parent_descriptor, parent.name) == _file_identity(
-            os.fstat(descriptor)
-        )
+        return posix.entry_file_identity(
+            parent.parent_descriptor, parent.name
+        ) == posix.file_identity(os.fstat(descriptor))
     except OSError:
         return False
 
 
-def _entry_identity_at(descriptor: int, name: str) -> _FileIdentity | None:
-    try:
-        return _file_identity(os.stat(name, dir_fd=descriptor, follow_symlinks=False))
-    except FileNotFoundError:
-        return None
-
-
-def _entry_directory_identity_at(
-    descriptor: int,
-    name: str,
-) -> _DirectoryIdentity | None:
-    try:
-        return _directory_identity(os.stat(name, dir_fd=descriptor, follow_symlinks=False))
-    except FileNotFoundError:
-        return None
-
-
-def _file_identity(metadata: os.stat_result) -> _FileIdentity:
-    return (
-        metadata.st_dev,
-        metadata.st_ino,
-        metadata.st_mode,
-        metadata.st_size,
-        metadata.st_mtime_ns,
-        metadata.st_ctime_ns,
-    )
-
-
-def _directory_identity(metadata: os.stat_result) -> _DirectoryIdentity:
-    return metadata.st_dev, metadata.st_ino, metadata.st_mode
-
-
-def _same_content_identity(left: _FileIdentity | None, right: _FileIdentity) -> bool:
-    return left is not None and left[:5] == right[:5]
-
-
 def _require_written_record(
     parent: _RecordParent,
-    identity: _FileIdentity,
+    identity: posix.FileIdentity,
     content: bytes,
 ) -> None:
     if (
-        not _same_content_identity(
-            _entry_identity_at(parent.parent_descriptor, parent.name), identity
+        not posix.same_content_identity(
+            posix.entry_file_identity(parent.parent_descriptor, parent.name), identity
         )
         or _read_bound_bytes(parent) != content
     ):
@@ -518,42 +463,16 @@ def _require_written_record(
 
 def _require_replaced_record(
     parent: _RecordParent,
-    identity: _FileIdentity,
+    identity: posix.FileIdentity,
     content: bytes,
 ) -> None:
     if (
-        not _same_content_identity(
-            _entry_identity_at(parent.parent_descriptor, parent.name), identity
+        not posix.same_content_identity(
+            posix.entry_file_identity(parent.parent_descriptor, parent.name), identity
         )
         or _read_bound_bytes(parent) != content
     ):
         raise ValueError(_CURRENT_RECORD_CHANGED)
-
-
-def _create_bound_file(directory_descriptor: int, name: str) -> int:
-    flags = (
-        os.O_WRONLY
-        | os.O_CREAT
-        | os.O_EXCL
-        | getattr(os, "O_CLOEXEC", 0)
-        | getattr(os, "O_NOFOLLOW", 0)
-        | getattr(os, "O_NONBLOCK", 0)
-    )
-    return os.open(name, flags, 0o600, dir_fd=directory_descriptor)
-
-
-def _write_all(descriptor: int, content: bytes) -> None:
-    view = memoryview(content)
-    while view:
-        written = os.write(descriptor, view)
-        if written <= 0:
-            raise OSError(_RECORD_PATH_UNSAFE)
-        view = view[written:]
-
-
-def _unlink_if_present(directory_descriptor: int, name: str) -> None:
-    with suppress(FileNotFoundError):
-        os.unlink(name, dir_fd=directory_descriptor)
 
 
 def _temporary_name(name: str) -> str:
@@ -563,22 +482,3 @@ def _temporary_name(name: str) -> str:
 def _staging_name(name: str, expected: bytes) -> str:
     digest = hashlib.sha256(expected).hexdigest()
     return f".{name}.{digest}.{uuid.uuid4().hex}.cas"
-
-
-def _directory_flags() -> int:
-    return (
-        os.O_RDONLY
-        | getattr(os, "O_CLOEXEC", 0)
-        | getattr(os, "O_DIRECTORY", 0)
-        | getattr(os, "O_NOFOLLOW", 0)
-        | getattr(os, "O_NONBLOCK", 0)
-    )
-
-
-def _file_flags() -> int:
-    return (
-        os.O_RDONLY
-        | getattr(os, "O_CLOEXEC", 0)
-        | getattr(os, "O_NOFOLLOW", 0)
-        | getattr(os, "O_NONBLOCK", 0)
-    )

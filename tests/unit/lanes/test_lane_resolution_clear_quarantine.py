@@ -15,6 +15,7 @@ import ethos.adapters.mutation.resolution.records.clear.core as clear_adapter
 import ethos.adapters.mutation.resolution.records.clear.quarantine as quarantine_store
 import ethos.adapters.mutation.resolution.records.core as record_store
 import ethos.adapters.mutation.resolution.records.current.snapshot as current_snapshot
+import ethos.adapters.mutation.resolution.records.io.posix as record_posix
 from ethos.adapters.mutation.resolution.records.clear.core import LaneResolutionClearRequest
 from ethos.adapters.mutation.resolution.records.clear.core import clear_lane_resolution_package
 from ethos.adapters.mutation.resolution.records.inventory import lane_resolution_inventory
@@ -197,6 +198,112 @@ def test_quarantine_open_fstat_failure_closes_descriptor(
         real_fstat(opened["descriptor"])
 
 
+def test_quarantine_stage_fsync_failure_restores_payload_without_hidden_residue(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    record_root = tmp_path / "records"
+    quarantine = record_root / "quarantine"
+    quarantine.mkdir(parents=True)
+    payload = quarantine / "tracked.patch"
+    content = b"tracked patch\n"
+    payload.write_bytes(content)
+    metadata = payload.stat()
+    identity = (
+        metadata.st_dev,
+        metadata.st_ino,
+        metadata.st_mode,
+        metadata.st_size,
+        metadata.st_mtime_ns,
+        metadata.st_ctime_ns,
+    )
+    original_fsync = current_snapshot.os.fsync
+    failed = False
+
+    def fail_staged_directory_fsync(descriptor: int) -> None:
+        nonlocal failed
+        descriptor_metadata = current_snapshot.os.fstat(descriptor)
+        directory_metadata = quarantine.stat()
+        exact_directory = (descriptor_metadata.st_dev, descriptor_metadata.st_ino) == (
+            directory_metadata.st_dev,
+            directory_metadata.st_ino,
+        )
+        staged = tuple(quarantine.glob("*.clear-delete"))
+        if exact_directory and staged and not payload.exists() and not failed:
+            failed = True
+            message = "quarantine stage fsync interrupted"
+            raise OSError(message)
+        original_fsync(descriptor)
+
+    monkeypatch.setattr(current_snapshot.os, "fsync", fail_staged_directory_fsync)
+
+    removed = current_snapshot.remove_quarantined_package(
+        root=record_root,
+        quarantine_name=quarantine.name,
+        binding=current_snapshot.QuarantinedPackageBinding(
+            identity=entry_identity(quarantine),
+            names={payload.name},
+            sha256={payload.name: hashlib.sha256(content).hexdigest()},
+            file_identities={payload.name: identity},
+        ),
+    )
+
+    assert failed is True
+    assert removed is False
+    assert payload.read_bytes() == content
+    assert not tuple(quarantine.glob("*.clear-delete"))
+
+
+def test_quarantine_post_rename_identity_failure_restores_payload(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    record_root = tmp_path / "records"
+    quarantine = record_root / "quarantine"
+    quarantine.mkdir(parents=True)
+    payload = quarantine / "tracked.patch"
+    content = b"tracked patch\n"
+    payload.write_bytes(content)
+    metadata = payload.stat()
+    identity = (
+        metadata.st_dev,
+        metadata.st_ino,
+        metadata.st_mode,
+        metadata.st_size,
+        metadata.st_mtime_ns,
+        metadata.st_ctime_ns,
+    )
+    original_identity = record_posix.entry_file_identity
+    staged_identity_reads = 0
+
+    def fail_staged_identity(descriptor: int, name: str):
+        nonlocal staged_identity_reads
+        if name.endswith(".clear-delete"):
+            staged_identity_reads += 1
+            if staged_identity_reads == 2:
+                message = "quarantine staged identity interrupted"
+                raise OSError(message)
+        return original_identity(descriptor, name)
+
+    monkeypatch.setattr(record_posix, "entry_file_identity", fail_staged_identity)
+
+    removed = current_snapshot.remove_quarantined_package(
+        root=record_root,
+        quarantine_name=quarantine.name,
+        binding=current_snapshot.QuarantinedPackageBinding(
+            identity=entry_identity(quarantine),
+            names={payload.name},
+            sha256={payload.name: hashlib.sha256(content).hexdigest()},
+            file_identities={payload.name: identity},
+        ),
+    )
+
+    assert staged_identity_reads >= 3
+    assert removed is False
+    assert payload.read_bytes() == content
+    assert not tuple(quarantine.glob("*.clear-delete"))
+
+
 def test_quarantine_unlink_crash_keeps_manifest_until_payloads_are_removed(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -376,7 +483,7 @@ def test_payload_swap_during_remove_is_not_deleted(
         ) -> None:
             nonlocal swapped
             real_unlink(path, dir_fd=dir_fd)
-            if swapped or str(path) == "tracked.patch":
+            if swapped or "tracked.patch.clear-delete" in str(path):
                 return
             real_unlink("tracked.patch", dir_fd=dir_fd)
             descriptor = os.open(

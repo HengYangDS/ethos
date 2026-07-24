@@ -55,13 +55,18 @@ def _observation(tmp_path) -> LaneObservation:
 
 
 def _decision(path, observation: LaneObservation) -> tuple[dict[str, object], bytes]:
+    chronicle_ref = "evidence/chronicle/final-edge-review.md"
+    chronicle = path.parent / chronicle_ref
+    chronicle.parent.mkdir(parents=True, exist_ok=True)
+    chronicle_bytes = b"decision: lane_resolution/retire\n"
+    chronicle.write_bytes(chronicle_bytes)
     payload = LaneResolutionDecision(
         decision_id="lane-decision:00000000-0000-4000-8000-000000000022",
         disposition="retire",
         observation=observation,
         evidence_refs=("evidence:final-edge-review",),
-        chronicle_ref="evidence/chronicle/final-edge-review.md",
-        chronicle_digest="e" * 64,
+        chronicle_ref=chronicle_ref,
+        chronicle_digest=hashlib.sha256(chronicle_bytes).hexdigest(),
         recovery_plan="Reconcile the exact durable closeout binding before retrying.",
         reason="Exercise the remaining fail-closed effect edges.",
         break_glass=True,

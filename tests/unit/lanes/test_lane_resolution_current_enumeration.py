@@ -14,6 +14,7 @@ import ethos.adapters.mutation.resolution.records.clear.quarantine as quarantine
 import ethos.adapters.mutation.resolution.records.core as record_store
 import ethos.adapters.mutation.resolution.records.current.core as current_store
 import ethos.adapters.mutation.resolution.records.current.snapshot as current_snapshot
+import ethos.adapters.mutation.resolution.records.io.posix as record_posix
 from ethos.adapters.mutation.resolution.lane import apply_lane_resolution
 from ethos.adapters.mutation.resolution.lane import plan_lane_resolution
 from ethos.adapters.mutation.resolution.records.clear.core import LaneResolutionClearRequest
@@ -440,16 +441,12 @@ def test_receipt_with_noncanonical_package_binding_blocks_irreversible_clear(
     assert package.is_dir()
 
 
-def test_fd_snapshot_keeps_category_bound_after_path_replacement(tmp_path: Path) -> None:
+def test_fd_snapshot_rejects_category_path_replacement(tmp_path: Path) -> None:
     record_root = tmp_path / "records"
     receipts = record_root / "receipts"
     receipts.mkdir(parents=True)
     name = "record.json"
     (receipts / name).write_bytes(b"original\n")
-    outside = tmp_path / "outside"
-    outside.mkdir()
-    (outside / name).write_bytes(b"outside\n")
-
     snapshot, state = current_snapshot.open_current_record_snapshot(record_root)
     assert state == "valid"
     assert snapshot is not None
@@ -458,9 +455,49 @@ def test_fd_snapshot_keeps_category_bound_after_path_replacement(tmp_path: Path)
         assert category_state == "valid"
         saved = tmp_path / "saved-receipts"
         receipts.rename(saved)
-        receipts.symlink_to(outside, target_is_directory=True)
+        receipts.mkdir()
+        (receipts / name).write_bytes(b"replacement\n")
 
-        assert snapshot.read_file("receipts", name) == b"original\n"
+        assert snapshot.read_file("receipts", name) is None
+        assert snapshot.open_directory("receipts") == ((), "invalid")
+
+
+def test_quarantine_rejects_ctime_drift_with_matching_five_field_identity(
+    tmp_path: Path,
+) -> None:
+    record_root = tmp_path / "records"
+    quarantine = record_root / "quarantine"
+    quarantine.mkdir(parents=True)
+    payload = quarantine / "tracked.patch"
+    content = b"tracked patch\n"
+    payload.write_bytes(content)
+    metadata = payload.stat()
+    identity = record_posix.file_identity(metadata)
+    with payload.open("r+b", buffering=0) as stream:
+        stream.write(content)
+        record_posix.os.fsync(stream.fileno())
+    record_posix.os.utime(
+        payload,
+        ns=(metadata.st_atime_ns, identity[4]),
+        follow_symlinks=False,
+    )
+    drifted = record_posix.file_identity(payload.stat())
+    assert drifted[:5] == identity[:5]
+    assert drifted != identity
+
+    removed = current_snapshot.remove_quarantined_package(
+        root=record_root,
+        quarantine_name=quarantine.name,
+        binding=current_snapshot.QuarantinedPackageBinding(
+            identity=entry_identity(quarantine),
+            names={payload.name},
+            sha256={payload.name: hashlib.sha256(content).hexdigest()},
+            file_identities={payload.name: identity},
+        ),
+    )
+
+    assert removed is False
+    assert payload.read_bytes() == content
 
 
 def test_inventory_blocks_coherent_records_that_disagree_with_decision(tmp_path: Path) -> None:

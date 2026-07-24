@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+import fcntl
 import hashlib
 import json
+import os
+from contextlib import ExitStack
 from contextlib import contextmanager
+from pathlib import Path
 from typing import TYPE_CHECKING
 
+import ethos.adapters.mutation.resolution.records.io.posix as record_posix
 from ethos.adapters.mutation.resolution._shared import valid_decision_id
 from ethos.adapters.mutation.resolution.records.io.core import claim_record_sidecar
 from ethos.adapters.mutation.resolution.records.io.core import remove_record_bytes
@@ -14,10 +19,10 @@ from ethos.adapters.mutation.resolution.records.io.core import replace_record_by
 from ethos.adapters.mutation.resolution.records.io.core import reserve_record_sidecar
 from ethos.adapters.mutation.resolution.records.io.core import write_record_bytes
 from ethos.adapters.mutation.resolution.records.roots import current_record_root
+from ethos.adapters.repo.git import git_common_dir
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
-    from pathlib import Path
     from typing import Literal
 
 
@@ -26,6 +31,7 @@ _CLEARS = "clears"
 _RECEIPT_INVALID = "lane_resolution_receipt_invalid"
 _RECEIPT_RESERVATION_SUFFIX = ".receipt-reservation"
 _CLEAR_QUARANTINE_IDENTITY_FIELD_COUNT = 3
+_RECORD_PATH_UNSAFE = "lane_resolution_record_path_unsafe"
 
 
 def receipt_path(
@@ -158,12 +164,13 @@ def reserve_resolution_receipt(
     destination = receipt_path(root, decision_id, artifact_root=record_root)
     reservation = _receipt_reservation_path(destination)
     try:
-        reserve_record_sidecar(
-            reservation,
-            destination,
-            expected=f"{decision_id}\n".encode(),
-            record_root=record_root,
-        )
+        with _receipt_coordination_lock(root, record_root, reservation):
+            reserve_record_sidecar(
+                reservation,
+                destination,
+                expected=f"{decision_id}\n".encode(),
+                record_root=record_root,
+            )
     except ValueError as error:
         raise ValueError(_RECEIPT_INVALID) from error
     return reservation
@@ -183,17 +190,21 @@ def claim_resolution_receipt_reservation(
     record_root = artifact_root or current_record_root(root)
     destination = receipt_path(root, decision_id, artifact_root=record_root)
     reservation = _receipt_reservation_path(destination)
-    try:
-        with claim_record_sidecar(
-            reservation,
-            destination,
-            expected=f"{decision_id}\n".encode(),
-            record_root=record_root,
-            mode=mode,
-        ) as descriptor:
-            yield descriptor
-    except ValueError as error:
-        raise ValueError(_RECEIPT_INVALID) from error
+    with ExitStack() as stack:
+        try:
+            stack.enter_context(_receipt_coordination_lock(root, record_root, reservation))
+            descriptor = stack.enter_context(
+                claim_record_sidecar(
+                    reservation,
+                    destination,
+                    expected=f"{decision_id}\n".encode(),
+                    record_root=record_root,
+                    mode=mode,
+                )
+            )
+        except ValueError as error:
+            raise ValueError(_RECEIPT_INVALID) from error
+        yield descriptor
 
 
 def release_resolution_receipt_reservation(
@@ -219,3 +230,60 @@ def release_resolution_receipt_reservation(
 
 def _receipt_reservation_path(destination: Path) -> Path:
     return destination.with_name(f".{destination.stem}{_RECEIPT_RESERVATION_SUFFIX}")
+
+
+def _receipt_coordination_root(root: Path, record_root: Path) -> Path:
+    common = git_common_dir(root)
+    if common:
+        return Path(common)
+    coordination = root.absolute()
+    target = record_root.absolute()
+    while not target.is_relative_to(coordination):
+        parent = coordination.parent
+        if parent == coordination:
+            raise OSError(_RECORD_PATH_UNSAFE)
+        coordination = parent
+    if coordination in (coordination.parent, target):
+        raise OSError(_RECORD_PATH_UNSAFE)
+    return coordination
+
+
+@contextmanager
+def _receipt_coordination_lock(
+    root: Path,
+    record_root: Path,
+    reservation: Path,
+) -> Iterator[None]:
+    coordination = _receipt_coordination_root(root, record_root)
+    try:
+        descriptor = record_posix.open_directory_path(coordination, create=False)
+    except OSError as error:
+        raise OSError(_RECORD_PATH_UNSAFE) from error
+    identity = record_posix.directory_identity(os.fstat(descriptor))
+    locked = False
+    try:
+        _acquire_coordination_lock(descriptor, reservation)
+        locked = True
+        _require_coordination_live(coordination, descriptor, identity)
+        yield
+        _require_coordination_live(coordination, descriptor, identity)
+    finally:
+        if locked:
+            fcntl.flock(descriptor, fcntl.LOCK_UN)
+        os.close(descriptor)
+
+
+def _acquire_coordination_lock(descriptor: int, reservation: Path) -> None:
+    try:
+        fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError as error:
+        raise FileExistsError(reservation) from error
+
+
+def _require_coordination_live(
+    path: Path,
+    descriptor: int,
+    identity: record_posix.DirectoryIdentity,
+) -> None:
+    if not record_posix.directory_descriptor_is_live(path, descriptor, identity):
+        raise OSError(_RECORD_PATH_UNSAFE)

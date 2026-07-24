@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import errno
 import importlib
 import importlib.util
 import json
@@ -743,7 +744,7 @@ def test_ownerless_release_requires_canonical_completion_receipt(
     assert reservation_path.is_file()
 
 
-def test_failed_replace_cas_removes_staging_after_a_competing_create(
+def test_failed_replace_cas_preserves_competitor_and_staged_expected_record(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -781,6 +782,43 @@ def test_failed_replace_cas_removes_staging_after_a_competing_create(
 
     monkeypatch.setattr(record_io.os, "link", install_competitor_before_link)
 
+    with pytest.raises(OSError, match=r"record\.json") as captured:
+        record_store.replace_json_atomic(
+            destination,
+            {"value": "new"},
+            expected=expected,
+            record_root=record_root,
+        )
+
+    expected_bytes = record_store.canonical_current_record_bytes(expected)
+    assert captured.value.errno == errno.ESTALE
+    assert raced is True
+    assert destination.read_bytes() == record_store.canonical_current_record_bytes(competitor)
+    staging = tuple(category.glob(".*.cas"))
+    assert len(staging) == 1
+    assert staging[0].read_bytes() == expected_bytes
+    assert tuple(category.glob(".*.tmp")) == ()
+
+
+def test_failed_replace_link_with_absent_canonical_restores_predecessor(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    record_root = tmp_path / "records"
+    destination = record_root / "reservations" / "record.json"
+    destination.parent.mkdir(parents=True)
+    expected = {"value": "old"}
+    expected_bytes = record_store.canonical_current_record_bytes(expected)
+    destination.write_bytes(expected_bytes)
+    original_link = record_io.os.link
+
+    def fail_replacement_link(source: object, target: object, **kwargs: object) -> None:
+        if target == destination.name and str(source).endswith(".tmp"):
+            raise FileExistsError(destination)
+        original_link(source, target, **kwargs)
+
+    monkeypatch.setattr(record_io.os, "link", fail_replacement_link)
+
     with pytest.raises(ValueError, match="lane_resolution_current_record_changed"):
         record_store.replace_json_atomic(
             destination,
@@ -789,6 +827,6 @@ def test_failed_replace_cas_removes_staging_after_a_competing_create(
             record_root=record_root,
         )
 
-    assert raced is True
-    assert destination.read_bytes() == record_store.canonical_current_record_bytes(competitor)
-    assert tuple(category.glob(".*.cas")) == ()
+    assert destination.read_bytes() == expected_bytes
+    assert not tuple(destination.parent.glob("*.cas"))
+    assert not tuple(destination.parent.glob("*.tmp"))

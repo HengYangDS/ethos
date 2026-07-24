@@ -12,6 +12,7 @@ import ethos.adapters.mutation.resolution.records.core as record_store
 import ethos.adapters.mutation.resolution.records.io.core as record_io
 import ethos.adapters.mutation.resolution.records.io.posix as record_posix
 import ethos.adapters.mutation.resolution.records.reservations as reservation_store
+import ethos.adapters.mutation.resolution.records.roots as resolution_roots
 from ethos.adapters.mutation.resolution.lane import apply_lane_resolution
 from ethos.adapters.mutation.resolution.lane import plan_lane_resolution
 from ethos.adapters.mutation.resolution.records.clear.core import LaneResolutionClearRequest
@@ -831,7 +832,7 @@ def test_resolution_record_storage_write_edges(
     target.mkdir()
     symlink_root = tmp_path / "record-root-link"
     symlink_root.symlink_to(target, target_is_directory=True)
-    assert record_io.record_destination_safe(symlink_root, symlink_root / "record") is False
+    assert resolution_roots.record_destination_safe(symlink_root, symlink_root / "record") is False
 
     record_root = tmp_path / "records"
     original_resolve = Path.resolve
@@ -843,14 +844,16 @@ def test_resolution_record_storage_write_edges(
 
     with monkeypatch.context() as scoped:
         scoped.setattr(Path, "resolve", fail_resolve)
-        assert record_io.record_destination_safe(record_root, record_root / "record") is False
+        assert (
+            resolution_roots.record_destination_safe(record_root, record_root / "record") is False
+        )
 
     with pytest.raises(OSError, match="lane_resolution_record_path_unsafe"):
         record_store.write_json_atomic(tmp_path / "outside.json", {}, record_root=record_root)
 
     destination = record_root / "receipts" / "record.json"
     with monkeypatch.context() as scoped:
-        scoped.setattr(record_io, "record_destination_safe", lambda *_args: False)
+        scoped.setattr(resolution_roots, "record_destination_safe", lambda *_args: False)
         with pytest.raises(OSError, match="lane_resolution_record_path_unsafe"):
             record_store.write_json_atomic(destination, {}, record_root=record_root)
 
@@ -869,7 +872,7 @@ def test_resolution_receipt_reservation_failure_edges(
     record_root = tmp_path / "records"
     decision_id = "lane-decision:00000000-0000-4000-8000-000000000102"
     with monkeypatch.context() as scoped:
-        scoped.setattr(record_io, "record_destination_safe", lambda *_args: False)
+        scoped.setattr(resolution_roots, "record_destination_safe", lambda *_args: False)
         with pytest.raises(OSError, match="lane_resolution_record_path_unsafe"):
             record_store.reserve_resolution_receipt(
                 root=tmp_path,
@@ -919,7 +922,7 @@ def test_resolution_receipt_reservation_failure_edges(
     assert occupied_destination.is_file()
 
     with monkeypatch.context() as scoped:
-        scoped.setattr(record_io, "record_destination_safe", lambda *_args: False)
+        scoped.setattr(resolution_roots, "record_destination_safe", lambda *_args: False)
         with pytest.raises(OSError, match="lane_resolution_record_path_unsafe"):
             record_store.release_resolution_receipt_reservation(
                 root=tmp_path,

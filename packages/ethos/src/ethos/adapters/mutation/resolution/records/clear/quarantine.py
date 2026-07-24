@@ -31,7 +31,7 @@ _PRESERVATION_PACKAGE_NAMES = {
 _CURRENT_RECORD_INVALID = "lane_resolution_current_record_invalid"
 _RECORD_CATEGORIES = {"decisions", "receipts", "clears", "reservations"}
 _SHA256_LENGTH = 64
-_FILE_IDENTITY_FIELD_COUNT = 5
+_FILE_IDENTITY_FIELD_COUNT = 6
 _QUARANTINE_NAME_PART_COUNT = 3
 _MANIFEST_FIELDS = {
     "decision_id",

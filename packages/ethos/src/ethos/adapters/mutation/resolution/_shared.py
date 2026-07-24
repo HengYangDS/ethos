@@ -3,15 +3,20 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
+import ethos.adapters.mutation.resolution.records.io.posix as record_posix
+
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
 LEGACY_ARTIFACT_ROOT = Path("build/artifacts/lane-resolution")
+_MAX_CHRONICLE_BYTES = 1024 * 1024
+_MIN_CHRONICLE_REF_PARTS = 3
 _DISPOSITION_STATES = {
     "block": "blocked_by_decision",
     "preserve": "preserved",
@@ -86,6 +91,47 @@ def display_path(root: Path, path: Path) -> str:
 def sha256_digest(path: Path) -> str:
     """Return the hex sha256 digest of a file's bytes."""
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def current_chronicle_matches(root: Path, decision: Mapping[str, object]) -> bool:
+    """Match current Chronicle bytes using the admitted lane-resolution semantics."""
+    reference = Path(str(decision.get("chronicle_ref") or ""))
+    if reference.is_absolute() or ".." in reference.parts:
+        return False
+    candidate = (root / reference).absolute()
+    try:
+        relative = candidate.relative_to(root.absolute())
+        if (
+            relative.parts[:2] != ("evidence", "chronicle")
+            or len(relative.parts) < _MIN_CHRONICLE_REF_PARTS
+        ):
+            return False
+        parent = record_posix.open_directory_path(candidate.parent, create=False)
+        parent_identity = record_posix.directory_identity(os.fstat(parent))
+        identity = record_posix.entry_file_identity(parent, candidate.name)
+        content = (
+            None
+            if identity is None
+            else record_posix.read_bound_file(
+                parent,
+                candidate.name,
+                identity,
+                max_bytes=_MAX_CHRONICLE_BYTES,
+            )
+        )
+        if content is None or not record_posix.directory_descriptor_is_live(
+            candidate.parent, parent, parent_identity
+        ):
+            return False
+        text = content.decode()
+    except (OSError, UnicodeDecodeError, ValueError):
+        return False
+    finally:
+        if "parent" in locals():
+            os.close(parent)
+    return f"lane_resolution/{decision.get('disposition')}" in text and hashlib.sha256(
+        content
+    ).hexdigest() == decision.get("chronicle_digest")
 
 
 def preservation_payloads_match(

@@ -12,6 +12,7 @@ from ethos.adapters.mutation.resolution._shared import cross_record_invalid_path
 from ethos.adapters.mutation.resolution._shared import display_path
 from ethos.adapters.mutation.resolution._shared import preservation_payloads_match
 from ethos.adapters.mutation.resolution._shared import valid_decision_id
+from ethos.adapters.mutation.resolution.records.clear.quarantine import ClearQuarantineCandidate
 from ethos.adapters.mutation.resolution.records.clear.quarantine import clear_quarantines
 from ethos.adapters.mutation.resolution.records.clear.quarantine import quarantined_payloads_match
 from ethos.adapters.mutation.resolution.records.clear.quarantine import validated_manifest
@@ -74,7 +75,7 @@ class _CurrentRecordTopology:
     records: dict[str, tuple[_CurrentPayload, ...]]
     manifests: tuple[_CurrentPayload, ...]
     receipt_reservations: tuple[_CurrentPayload, ...]
-    quarantine_candidates: tuple[_CurrentPayload, ...]
+    quarantine_candidates: tuple[ClearQuarantineCandidate, ...]
     invalid_paths: tuple[Path, ...]
 
 
@@ -189,7 +190,7 @@ def _current_record_topology(record_root: Path) -> _CurrentRecordTopology:
         return _CurrentRecordTopology(records, (), (), (), (record_root,))
     manifests: list[_CurrentPayload] = []
     receipt_reservations: list[_CurrentPayload] = []
-    quarantine_candidates: list[_CurrentPayload] = []
+    quarantine_candidates: list[ClearQuarantineCandidate] = []
     invalid_paths: list[Path] = []
     with snapshot:
         for name in snapshot.names:
@@ -242,7 +243,7 @@ def _package_topology(
     snapshot: CurrentRecordSnapshot,
     record_root: Path,
     package: str,
-) -> tuple[_CurrentPayload | None, _CurrentPayload | None, Path | None]:
+) -> tuple[_CurrentPayload | None, ClearQuarantineCandidate | None, Path | None]:
     names, state = snapshot.open_directory(package)
     package_root = record_root / package
     if state != "valid":
@@ -251,9 +252,8 @@ def _package_topology(
         if package.endswith(".clear-quarantine"):
             return (
                 None,
-                _CurrentPayload(
+                ClearQuarantineCandidate(
                     path=package_root,
-                    content=None,
                     payload_sha256={name: snapshot.digest_file(package, name) for name in names},
                     package_names=set(names),
                     payload_identities={

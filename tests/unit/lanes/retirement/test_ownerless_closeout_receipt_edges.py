@@ -1,20 +1,18 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 import pytest
 
 from ethos.adapters.mutation.resolution.receipts import exact_ownerless_resolution_receipt
 from ethos.adapters.mutation.resolution.receipts import read_resolution_receipt
 from ethos.adapters.mutation.resolution.receipts import write_resolution_receipt
+from ethos.adapters.mutation.resolution.records.core import canonical_current_record_bytes
 from ethos.adapters.mutation.resolution.records.core import receipt_path
 from ethos.adapters.mutation.resolution.records.reservations import target_digest
 from ethos_core.contracts.resolution.closeout import LaneResolutionReceipt
 from ethos_core.contracts.resolution.lane import LaneObservation
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 _FIRST_DECISION_ID = "lane-decision:00000000-0000-4000-8000-000000000001"
 _SECOND_DECISION_ID = "lane-decision:00000000-0000-4000-8000-000000000002"
@@ -160,6 +158,55 @@ def test_receipt_reader_rejects_a_non_object_payload(tmp_path: Path) -> None:
             decision_id=_FIRST_DECISION_ID,
             artifact_root=record_root,
         )
+
+
+def test_receipt_reader_rejects_noncanonical_raw_bytes_in_all_modes(tmp_path: Path) -> None:
+    record_root = tmp_path / "records"
+    destination = _stored_receipt_path(tmp_path, record_root, _FIRST_DECISION_ID)
+    destination.write_text(json.dumps(_receipt()) + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="lane_resolution_receipt_invalid"):
+        read_resolution_receipt(
+            root=tmp_path,
+            decision_id=_FIRST_DECISION_ID,
+            artifact_root=record_root,
+        )
+
+
+def test_receipt_reader_does_not_follow_a_rebound_category(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    record_root = tmp_path / "records"
+    destination = _stored_receipt_path(tmp_path, record_root, _FIRST_DECISION_ID)
+    original = _receipt()
+    destination.write_bytes(canonical_current_record_bytes(original))
+    outside = tmp_path / "outside-receipts"
+    outside.mkdir()
+    replacement = dict(original, receipt_id="lane-resolution-receipt:replacement")
+    (outside / destination.name).write_bytes(canonical_current_record_bytes(replacement))
+    held = record_root / "receipts-held"
+    original_read_text = Path.read_text
+    rebound = False
+
+    def rebind_before_read(path: Path, *args: object, **kwargs: object) -> str:
+        nonlocal rebound
+        if path == destination and not rebound:
+            destination.parent.rename(held)
+            destination.parent.symlink_to(outside, target_is_directory=True)
+            rebound = True
+        return original_read_text(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", rebind_before_read)
+
+    receipt = read_resolution_receipt(
+        root=tmp_path,
+        decision_id=_FIRST_DECISION_ID,
+        artifact_root=record_root,
+    )
+
+    assert receipt is not None
+    assert receipt[0]["receipt_id"] == original["receipt_id"]
 
 
 @pytest.mark.parametrize("field", ["schema_version", "preservation_package"])

@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from pathlib import Path
 
 import pytest
 
 import ethos.adapters.mutation.resolution.records.core as record_store
+import ethos.adapters.mutation.resolution.records.io.core as record_io
 import ethos.adapters.mutation.resolution.records.reservations as reservation_store
 from ethos.adapters.mutation.resolution.lane import apply_lane_resolution
 from ethos.adapters.mutation.resolution.lane import plan_lane_resolution
@@ -496,50 +498,41 @@ def _receipt_reservation_paths(root: Path) -> tuple[Path, Path, Path]:
     return record_root, destination, reservation
 
 
+def _mutate_current_record(
+    operation: str,
+    destination: Path,
+    expected: dict[str, object],
+    *,
+    record_root: Path,
+) -> None:
+    if operation == "replace":
+        record_store.replace_json_atomic(
+            destination,
+            {"value": "new"},
+            expected=expected,
+            record_root=record_root,
+        )
+        return
+    record_store.remove_record(
+        destination,
+        expected=expected,
+        record_root=record_root,
+    )
+
+
 def test_receipt_reservation_reuse_rejects_pre_read_drift(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     record_root, destination, reservation = _receipt_reservation_paths(tmp_path)
     reservation.write_text(f"{_DECISION_ID}\n", encoding="utf-8")
+    destination.write_text("occupied", encoding="utf-8")
 
-    with monkeypatch.context() as scoped:
-        safety = iter((True, True, True, True, False))
-        scoped.setattr(record_store, "record_destination_safe", lambda *_args: next(safety))
-        with pytest.raises(OSError, match="lane_resolution_record_path_unsafe"):
-            record_store.reserve_resolution_receipt(
-                root=tmp_path,
-                decision_id=_DECISION_ID,
-                artifact_root=record_root,
-            )
-
-    def occupy_before_reuse(*_args: object) -> int:
-        destination.write_text("occupied", encoding="utf-8")
-        raise FileExistsError(reservation)
-
-    with monkeypatch.context() as scoped:
-        scoped.setattr(record_store.os, "open", occupy_before_reuse)
-        with pytest.raises(FileExistsError):
-            record_store.reserve_resolution_receipt(
-                root=tmp_path,
-                decision_id=_DECISION_ID,
-                artifact_root=record_root,
-            )
-    destination.unlink()
-
-    def fail_both_opens(_path: object, flags: int, *_args: object) -> int:
-        if flags & record_store.os.O_EXCL:
-            raise FileExistsError(reservation)
-        raise OSError
-
-    with monkeypatch.context() as scoped:
-        scoped.setattr(record_store.os, "open", fail_both_opens)
-        with pytest.raises(OSError, match="lane_resolution_record_path_unsafe"):
-            record_store.reserve_resolution_receipt(
-                root=tmp_path,
-                decision_id=_DECISION_ID,
-                artifact_root=record_root,
-            )
+    with pytest.raises(FileExistsError):
+        record_store.reserve_resolution_receipt(
+            root=tmp_path,
+            decision_id=_DECISION_ID,
+            artifact_root=record_root,
+        )
 
 
 def test_receipt_reservation_reuse_rejects_post_read_drift(
@@ -549,27 +542,226 @@ def test_receipt_reservation_reuse_rejects_post_read_drift(
     record_root, destination, reservation = _receipt_reservation_paths(tmp_path)
     reservation.write_text(f"{_DECISION_ID}\n", encoding="utf-8")
 
-    with monkeypatch.context() as scoped:
-        safety = iter((True, True, True, True, True, True, False))
-        scoped.setattr(record_store, "record_destination_safe", lambda *_args: next(safety))
-        with pytest.raises(OSError, match="lane_resolution_record_path_unsafe"):
-            record_store.reserve_resolution_receipt(
-                root=tmp_path,
-                decision_id=_DECISION_ID,
-                artifact_root=record_root,
-            )
-
-    original_read = record_store.os.read
+    original_read = record_io.os.read
 
     def occupy_destination(descriptor: int, length: int) -> bytes:
         content = original_read(descriptor, length)
         destination.write_text("occupied", encoding="utf-8")
         return content
 
-    monkeypatch.setattr(record_store.os, "read", occupy_destination)
+    monkeypatch.setattr(record_io.os, "read", occupy_destination)
     with pytest.raises(FileExistsError):
         record_store.reserve_resolution_receipt(
             root=tmp_path,
             decision_id=_DECISION_ID,
             artifact_root=record_root,
         )
+
+
+def test_descriptor_json_reader_rejects_oversize_raw_bytes(tmp_path: Path) -> None:
+    source = tmp_path / "oversize.json"
+    source.write_bytes(b'"' + b"x" * (17 * 1024 * 1024) + b'"')
+    descriptor = os.open(source, os.O_RDONLY)
+    try:
+        with pytest.raises(ValueError, match="lane_resolution_current_record_invalid"):
+            record_io.read_descriptor_bytes(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def test_immutable_record_write_rejects_a_rebound_category(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    record_root = tmp_path / "records"
+    category = record_root / "receipts"
+    category.mkdir(parents=True)
+    destination = category / "record.json"
+    held = record_root / "receipts-held"
+    outside = tmp_path / "outside-receipts"
+    outside.mkdir()
+    original_open = record_io.os.open
+    rebound = False
+
+    def rebind_before_category_open(
+        path: object,
+        flags: int,
+        mode: int = 0o777,
+        *,
+        dir_fd: int | None = None,
+    ) -> int:
+        nonlocal rebound
+        category_open = (dir_fd is None and Path(path) == category) or (
+            dir_fd is not None and path == category.name
+        )
+        if category_open and not rebound:
+            category.rename(held)
+            category.symlink_to(outside, target_is_directory=True)
+            rebound = True
+        return original_open(path, flags, mode, dir_fd=dir_fd)
+
+    monkeypatch.setattr(record_io.os, "open", rebind_before_category_open)
+
+    with pytest.raises(OSError, match="lane_resolution_record_path_unsafe"):
+        record_store.write_json_atomic(destination, {"value": "new"}, record_root=record_root)
+
+    assert not (outside / destination.name).exists()
+
+
+@pytest.mark.parametrize("operation", ["replace", "remove"])
+def test_mutable_record_operation_rejects_a_rebound_category(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    operation: str,
+) -> None:
+    record_root = tmp_path / "records"
+    category = record_root / "reservations"
+    category.mkdir(parents=True)
+    destination = category / "record.json"
+    expected = {"value": "old"}
+    destination.write_bytes(record_store.canonical_current_record_bytes(expected))
+    held = record_root / "reservations-held"
+    outside = tmp_path / "outside-reservations"
+    outside.mkdir()
+    original_open = record_io.os.open
+    rebound = False
+
+    def rebind_before_category_open(
+        path: object,
+        flags: int,
+        mode: int = 0o777,
+        *,
+        dir_fd: int | None = None,
+    ) -> int:
+        nonlocal rebound
+        category_open = (dir_fd is None and Path(path) == category) or (
+            dir_fd is not None and path == category.name
+        )
+        if category_open and not rebound:
+            category.rename(held)
+            category.symlink_to(outside, target_is_directory=True)
+            rebound = True
+        return original_open(path, flags, mode, dir_fd=dir_fd)
+
+    monkeypatch.setattr(record_io.os, "open", rebind_before_category_open)
+
+    with pytest.raises(OSError, match="lane_resolution_record_path_unsafe"):
+        _mutate_current_record(operation, destination, expected, record_root=record_root)
+
+    assert (held / destination.name).read_bytes() == record_store.canonical_current_record_bytes(
+        expected
+    )
+    assert not (outside / destination.name).exists()
+
+
+@pytest.mark.parametrize("operation", ["replace", "remove"])
+def test_mutable_record_operation_preserves_a_post_compare_replacement(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    operation: str,
+) -> None:
+    record_root = tmp_path / "records"
+    destination = record_root / "reservations" / "record.json"
+    destination.parent.mkdir(parents=True)
+    expected = {"value": "old"}
+    competitor = {"value": "competitor"}
+    destination.write_bytes(record_store.canonical_current_record_bytes(expected))
+    rename_no_replace = record_io.rename_record_no_replace
+    raced = False
+
+    def install_competitor_then_rename(
+        directory_descriptor: int,
+        source_name: str,
+        target_name: str,
+    ) -> None:
+        nonlocal raced
+        if not raced:
+            replacement = destination.with_name("replacement.json")
+            replacement.write_bytes(record_store.canonical_current_record_bytes(competitor))
+            replacement.replace(destination)
+            raced = True
+        assert rename_no_replace is not None
+        rename_no_replace(directory_descriptor, source_name, target_name)
+
+    monkeypatch.setattr(
+        record_io,
+        "rename_record_no_replace",
+        install_competitor_then_rename,
+        raising=False,
+    )
+
+    with pytest.raises(ValueError, match="lane_resolution_current_record_changed"):
+        _mutate_current_record(operation, destination, expected, record_root=record_root)
+
+    assert destination.read_bytes() == record_store.canonical_current_record_bytes(competitor)
+
+
+def test_receipt_reservation_create_does_not_follow_a_rebound_category(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    record_root, destination, reservation = _receipt_reservation_paths(tmp_path)
+    held = record_root / "receipts-held"
+    outside = tmp_path / "outside-receipts"
+    outside.mkdir()
+    original_open = record_io.os.open
+    rebound = False
+
+    def rebind_before_absolute_create(
+        path: object,
+        flags: int,
+        mode: int = 0o777,
+        *,
+        dir_fd: int | None = None,
+    ) -> int:
+        nonlocal rebound
+        if dir_fd is None and Path(path) == reservation and not rebound:
+            destination.parent.rename(held)
+            destination.parent.symlink_to(outside, target_is_directory=True)
+            rebound = True
+        return original_open(path, flags, mode, dir_fd=dir_fd)
+
+    monkeypatch.setattr(record_io.os, "open", rebind_before_absolute_create)
+
+    created = record_store.reserve_resolution_receipt(
+        root=tmp_path,
+        decision_id=_DECISION_ID,
+        artifact_root=record_root,
+    )
+
+    assert created == reservation
+    assert reservation.read_text(encoding="utf-8") == f"{_DECISION_ID}\n"
+    assert not (outside / reservation.name).exists()
+
+
+def test_receipt_reservation_release_does_not_unlink_through_a_rebound_category(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    record_root, destination, reservation = _receipt_reservation_paths(tmp_path)
+    reservation.write_text(f"{_DECISION_ID}\n", encoding="utf-8")
+    held = record_root / "receipts-held"
+    outside = tmp_path / "outside-receipts"
+    outside.mkdir()
+    outside_reservation = outside / reservation.name
+    outside_reservation.write_text("outside\n", encoding="utf-8")
+    original_unlink = Path.unlink
+    rebound = False
+
+    def rebind_before_unlink(path: Path, *args: object, **kwargs: object) -> None:
+        nonlocal rebound
+        if path == reservation and not rebound:
+            destination.parent.rename(held)
+            destination.parent.symlink_to(outside, target_is_directory=True)
+            rebound = True
+        original_unlink(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "unlink", rebind_before_unlink)
+
+    record_store.release_resolution_receipt_reservation(
+        root=tmp_path,
+        decision_id=_DECISION_ID,
+        artifact_root=record_root,
+    )
+
+    assert outside_reservation.read_text(encoding="utf-8") == "outside\n"

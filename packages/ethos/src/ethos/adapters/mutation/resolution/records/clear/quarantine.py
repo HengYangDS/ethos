@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
-from typing import Protocol
 from typing import cast
 
 from ethos.adapters.mutation.resolution._shared import display_path
@@ -50,8 +50,9 @@ _V2_MANIFEST_FIELDS = {
 }
 
 
-class CurrentPackageSource(Protocol):
-    """Structural current-package snapshot consumed by quarantine validation."""
+@dataclass(frozen=True, slots=True)
+class ClearQuarantineCandidate:
+    """Concrete descriptor-bound package facts consumed by clear validation."""
 
     path: Path
     payload_sha256: dict[str, str | None] | None
@@ -146,7 +147,7 @@ def exact_package_binding(
 
 def clear_quarantines(
     root: Path,
-    sources: tuple[CurrentPackageSource, ...],
+    sources: tuple[ClearQuarantineCandidate, ...],
     clears: dict[str, dict[str, object]],
     manifests: dict[str, dict[str, object]],
 ) -> tuple[dict[str, dict[str, object]], list[Path]]:
@@ -156,7 +157,7 @@ def clear_quarantines(
     by_digest = {
         hashlib.sha256(decision_id.encode()).hexdigest(): decision_id for decision_id in clears
     }
-    admitted: dict[str, list[tuple[CurrentPackageSource, tuple[int, int, int]]]] = {}
+    admitted: dict[str, list[tuple[ClearQuarantineCandidate, tuple[int, int, int]]]] = {}
     for source in sources:
         parts = source.path.name.split(".", 2)
         digest = parts[1] if len(parts) == _QUARANTINE_NAME_PART_COUNT and not parts[0] else ""
@@ -187,6 +188,9 @@ def clear_quarantines(
                 invalid_paths.append(cast("Path", manifest["physical_path"]))
             continue
         source, identity = candidates[0]
+        names = source.package_names
+        digests = source.payload_sha256
+        identities = source.payload_identities
         records[decision_id] = {
             "decision_id": decision_id,
             "physical_path": source.path,

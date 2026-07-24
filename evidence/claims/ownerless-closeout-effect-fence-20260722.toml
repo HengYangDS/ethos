@@ -1,7 +1,7 @@
 [claim]
 id = "ownerless-closeout-effect-fence-20260722"
 subject = "ethos:worktree-retirement:ownerless-effect-fence"
-state = "active"
+state = "superseded"
 change_id = "ownerless-closeout-effect-fence"
 summary = "The officially archived successor defines effect-side fencing, exact WCP response binding, accepted-ref CAS, no-force removal, postcondition verification, and recoverable receipts for clean ownerless Work Lane retirement."
 

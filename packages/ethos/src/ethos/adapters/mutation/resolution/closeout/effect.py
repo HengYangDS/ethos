@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -31,7 +32,9 @@ _OWNERLESS_FENCE_STALE = "lane_resolution_ownerless_fence_stale"
 _OWNERLESS_FENCE_UNVERIFIABLE = "lane_resolution_ownerless_fence_unverifiable"
 _OWNERLESS_OBSERVATION_STALE = "lane_resolution_ownerless_observation_stale"
 _OWNERLESS_RECEIPT_MISMATCH = "lane_resolution_ownerless_receipt_mismatch"
+_OWNERLESS_WCP_EXPECTATION_INVALID = "lane_resolution_ownerless_wcp_expectation_invalid"
 _OWNERLESS_RECEIPT_FIELDS = tuple(OwnerlessCloseoutBinding.model_fields)
+_WCP_LANE_ID_RE = re.compile(r"^(?P<date>\d{8})-(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)$")
 
 
 @dataclass(frozen=True, slots=True)
@@ -87,6 +90,29 @@ def _decision_snapshot(
     return cast("dict[str, Any]", snapshot)
 
 
+def _wcp_lane_identity(
+    root: Path,
+    observation: LaneObservation,
+    runtime: OwnerlessCloseoutRuntime,
+) -> tuple[str, str]:
+    """Mirror the WCP identity contract for supported ownerless lane layouts."""
+    if not observation.lane_ref.startswith("work/"):
+        raise runtime.ownerless_error(_OWNERLESS_WCP_EXPECTATION_INVALID, fence_acquired=False)
+    branch_lane_id = observation.lane_ref.removeprefix("work/")
+    if not branch_lane_id:
+        raise runtime.ownerless_error(_OWNERLESS_WCP_EXPECTATION_INVALID, fence_acquired=False)
+    canonical_worktrees = root.resolve().parent / f"{root.resolve().name}-worktrees"
+    lane_path = Path(observation.path).resolve()
+    if lane_path.parent != canonical_worktrees:
+        return branch_lane_id, "legacy_ownerless"
+    if lane_path.name == branch_lane_id:
+        return branch_lane_id, "canonical"
+    historical = _WCP_LANE_ID_RE.fullmatch(lane_path.name)
+    if historical is not None and historical.group("slug") == branch_lane_id:
+        return lane_path.name, "historical_ownerless"
+    raise runtime.ownerless_error(_OWNERLESS_WCP_EXPECTATION_INVALID, fence_acquired=False)
+
+
 def retire_clean_ownerless_lane(  # noqa: PLR0913, PLR0915, RUF100 - exact cross-owner binding envelope
     *,
     root: Path,
@@ -115,14 +141,7 @@ def retire_clean_ownerless_lane(  # noqa: PLR0913, PLR0915, RUF100 - exact cross
         fence_acquired=False,
     )
     decision_sha256 = hashlib.sha256(decision_bytes).hexdigest()
-    lane_id = observation.lane_ref.removeprefix("work/")
-    canonical_worktrees = root.resolve().parent / f"{root.resolve().name}-worktrees"
-    lane_layout = (
-        "canonical"
-        if Path(observation.path).resolve().parent == canonical_worktrees
-        and Path(observation.path).name == lane_id
-        else "legacy_ownerless"
-    )
+    lane_id, lane_layout = _wcp_lane_identity(root, observation, runtime)
     accepted_tree_result = runtime.run_git(
         root, "rev-parse", f"{accepted_head}^{{tree}}", check=False
     )

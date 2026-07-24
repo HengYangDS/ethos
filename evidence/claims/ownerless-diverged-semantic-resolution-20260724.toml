@@ -2,13 +2,13 @@
 id = "ownerless-diverged-semantic-resolution-20260724"
 subject = "ethos:ownerless-diverged-semantic-resolution"
 state = "active"
-summary = "Current-head family disposition for the initial 71 ownerless diverged Work Lanes: 36 completed and 35 decision-ready, with one direct brand replay, eight live-lease lanes protected, and all 11 dirty targets bound to reconstructable preservation."
+summary = "All 71 initial ownerless diverged Work Lanes completed bounded absorption-or-rejection dispositions and preserve-retire transitions; all 15 dirty carriers remain reconstructable, six stale Git registrations were pruned, and seven live-lease lanes remain protected."
 
 [evidence]
 dated = "evidence/chronicle/ownerless-diverged-semantic-resolution-20260724/2026-07-24.md"
-sha256 = "bf3550dbaf260642c090b94a39907c6ef61f9fd863b4ead65ca24029c4f38919"
+sha256 = "9ec6a4dc9b977d8e93fc4b5b4af468480c2677501dff81cff1029c9c3c0fb14b"
 evidence_ids = ["evidence:ownerless-diverged-semantic-resolution-20260724"]
-binding = "The accepted HEAD, exact live owner boundary, current missing-lease set, four family analyses, machine-readable dispositions, focused accepted checks, direct brand replay, and exact decision and receipt postconditions bind this local resolution claim."
+binding = "The exact 71-lane outcome matrix, immutable decisions, packages, receipts, 66 direct postconditions, five reconciliation artifacts, final zero-inflight inventory, target absence observations, and bounded housekeeping postconditions bind this recorded local procedure."
 verifier = "digest_only"
 tests = [
   "ethos lane status --json",
@@ -23,6 +23,9 @@ tests = [
   "ethos lane resolution decide --json",
   "ethos lane resolution apply --json",
   "ethos prove --execute --expect-head <committed-head> --json",
+  "71/71 target ref, path, worktree-registration, and lane-status absence",
+  "resolution inventory: 189 packages, 87 receipts, zero inflight, zero partial",
+  "bounded Git worktree metadata prune: six stale registrations, protected refs and leases unchanged",
 ]
 
 [evidence.freshness]
@@ -30,7 +33,7 @@ mode = "historical"
 
 [boundary]
 owner = "ethos-repository"
-scope = "Only exact Work Lanes reobserved with lease_state=missing and an accepted family decision; all live-lease lanes, remotes, hosted execution, release tags, and distribution remain excluded."
+scope = "The historical 71-lane cohort only; all current live-lease lanes, the protected dirty detached non-lane checkout, remotes, hosted execution, release tags, and distribution remain excluded."
 
 [carriers]
 openspec = "openspec/changes/archive/2026-07-18-all-lanes-authorized-closeout"

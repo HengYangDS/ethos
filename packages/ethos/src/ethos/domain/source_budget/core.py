@@ -37,6 +37,7 @@ _GIT_OID = r"^[0-9a-f]{40}(?:[0-9a-f]{24})?$"
 _SHA256 = r"^[0-9a-f]{64}$"
 _NONSPACE_PATTERN = r"^\S+$"
 _SHADOW_TAXONOMY_PATH_INVALID = "shadow taxonomy path invalid"
+_SHADOW_INVENTORY_COUNT_INVALID = "shadow inventory count invalid"
 _SHADOW_V1_TOTALS_INVALID = "shadow v1 totals invalid"
 _SHADOW_V2_SNAPSHOT_STATE_INVALID = "shadow v2 snapshot state invalid"
 _SHADOW_V2_COORDINATES_INVALID = "shadow v2 coordinates invalid"
@@ -87,6 +88,12 @@ class _ShadowInventory(_ShadowStrict):
     file_count: _ShadowCount
     digest: _ShadowSha256
     category_counts: dict[_ShadowToken, _ShadowCount]
+
+    @model_validator(mode="after")
+    def validate_file_count(self) -> Self:
+        if self.file_count != sum(self.category_counts.values()):
+            raise ValueError(_SHADOW_INVENTORY_COUNT_INVALID)
+        return self
 
 
 class _ShadowV1(_ShadowStrict):

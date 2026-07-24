@@ -2,13 +2,13 @@
 id = "native-lane-resolution-authority-20260724"
 subject = "ethos:worktree-retirement:native-lane-resolution-authority"
 state = "active"
-summary = "The active successor replaces split ownerless-retirement authority with one ETHOS-native decision, admission, fence, reservation, Git CAS, receipt, recovery, and versioned-current-record chain; the predecessor Claim is superseded."
+summary = "The active successor Claim authorizes implementation of an ETHOS-native decision, admission, fence, reservation, Git CAS, receipt, recovery, and versioned-current-record chain that will supersede the predecessor only after implementation, full proof, and official archive evidence exist."
 
 [evidence]
 dated = "evidence/chronicle/native-lane-resolution-authority-20260724/2026-07-24.md"
-sha256 = "9af8981dae484b05f7701593bc11925af15df48cb050c9b9c3b0862cda3f53cd"
+sha256 = "7c42a910d7f1641a81848e67e4a5f800f8b4f8adbd850c79480199c44ec70354"
 evidence_ids = ["evidence:native-lane-resolution-authority-20260724"]
-binding = "The approved design, non-destructive authority cut, live zero-inflight and zero-fence baseline, owned successor lane, active OpenSpec carrier, and predecessor-Claim supersession authorize implementation. This initial binding does not claim completed code, passing gates, exact-HEAD proof, archive, land, accepted closeout, predecessor-lane retirement, publication, or hosted execution."
+binding = "The approved design, non-destructive authority cut, live zero-inflight and zero-fence baseline, owned successor lane, active OpenSpec carrier, and read-only predecessor rollback carrier authorize implementation. The predecessor Claim remains active; this Claim will supersede it only after replacement behavior has implementation evidence, full proof, official archive evidence, and refreshed Claim/Chronicle binding. This initial binding does not claim completed code, passing gates, exact-HEAD proof, archive, supersession, land, accepted closeout, task-lane retirement, publication, or hosted execution."
 verifier = "digest_only"
 tests = [
   "openspec validate native-lane-resolution-authority --strict --json",

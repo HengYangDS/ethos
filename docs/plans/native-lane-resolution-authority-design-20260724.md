@@ -25,10 +25,12 @@ native chain:
 
 ```text
 exact decision and Chronicle snapshot
--> exact configured-policy, Git, worktree-registration, record, and state observation
--> completed-effect recovery classification or zero-effect retry reset
--> SQLite target fence
--> complete fence-held re-observation
+-> completed-effect recovery precheck
+-> exact pre-fence configured-policy, Git, worktree-registration, record,
+   state, and reservation admission/classification
+-> release/reset the old exact zero-effect fence and reservation, when classified
+-> acquire a fresh SQLite target fence
+-> complete under-fence re-observation
 -> typed durable reservation
 -> no-force worktree removal
 -> accepted-ref verification and exact target-ref CAS
@@ -234,10 +236,10 @@ The execution order is fixed:
 
 ```text
 completed-effect recovery precheck
--> native admission
--> exact reserved-no-effect retry reset, when present
--> acquire exact fence
--> complete fence-held re-observation
+-> exact pre-fence native admission and reservation classification
+-> release/reset the old exact zero-effect fence and reservation, when classified
+-> acquire a fresh exact fence
+-> complete under-fence re-observation
 -> persist typed reservation
 -> no-force registered-worktree removal
 -> verify accepted ref unchanged
@@ -252,12 +254,14 @@ Completed-effect recovery validates the exact decision and Chronicle before
 reconstructing or accepting a receipt; it runs before ordinary target worktree
 observation because a completed effect has already removed that worktree.
 
-A zero-effect retry may rebind only when the same decision, executor, target,
-registration token, and coordination facts hold, the current accepted HEAD is
-equal to or descends from the reserved accepted HEAD, and no worktree/ref effect
-occurred. Descendant classification happens before ordinary competing-
-reservation rejection. The old exact fence and reservation are released before
-a fresh binding is acquired.
+A zero-effect retry may rebind only after exact pre-fence admission classifies
+the same decision, executor, target, registration token, coordination facts, and
+reservation as a zero-effect retry, the current accepted HEAD equals or descends
+from the reserved accepted HEAD, and no worktree/ref effect occurred. Descendant
+classification happens before ordinary competing-reservation rejection. ETHOS
+then releases the old exact fence and reservation, acquires a fresh fence, and
+performs the complete under-fence re-observation before persisting a fresh
+reservation or starting effect.
 
 Cleanup uses explicit phase and recovery state. The overloaded
 `fence_acquired: bool` signal is removed. Exceptions before effect may release

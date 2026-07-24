@@ -26,8 +26,11 @@ control plane.
   branch policy, including a non-default Work Lane branch prefix.
 - Extend generic coupling governance so an undeclared external executable cannot
   silently become mandatory lifecycle authority.
-- Supersede the predecessor Claim and normalize retired provider vocabulary from
-  the current tracked tree while preserving chronology and meaning.
+- Keep the predecessor Claim active while the new Claim authorizes
+  implementation; supersede it only after the native replacement has
+  implementation, full proof, and official archive evidence. Normalize retired
+  provider vocabulary from the current tracked tree while preserving chronology
+  and meaning.
 
 ## Capabilities
 

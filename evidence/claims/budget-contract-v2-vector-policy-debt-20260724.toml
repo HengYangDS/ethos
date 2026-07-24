@@ -7,7 +7,7 @@ summary = "Implement strict Budget Contract v2 vector policy, Debt v2, inactive 
 
 [evidence]
 dated = "evidence/chronicle/budget-contract-v2-vector-policy-debt-20260724/2026-07-24.md"
-sha256 = "f049730e3480f351778b8ff2b25073be29c91de767e56034ab4a3b34bec7f1bd"
+sha256 = "00a596888080ae10a4f924b8acabdc69f66395a819f72b87a8aeb54d126b5166"
 evidence_ids = ["evidence:budget-contract-v2-vector-policy-debt-20260724"]
 binding = "The active OpenSpec carrier, strict contracts, pure reducer, inactive repository policy, composed schema, RED-GREEN regressions, owner gates, and dated Chronicle bind the implemented Task 5 scope. Exact-HEAD proof, archive, land, publication, and retirement remain separate future transitions."
 verifier = "digest_only"

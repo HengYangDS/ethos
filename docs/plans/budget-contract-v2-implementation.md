@@ -429,7 +429,7 @@ transitions. Remote publication and hosted CI are not claimed by C1.
 - [x] **Step 2: Verify RED.**
 - [x] **Step 3: Implement strict policy/debt models and pure verdict compilation.**
 - [x] **Step 4: Remeasure each v1 debt record or emit an explicit `unmapped` successor gap; run all reducer/config tests to GREEN.**
-- [ ] **Step 5: Commit with `feat(quality): add vector policy and debt v2`.**
+- [x] **Step 5: Commit with `feat(quality): add vector policy and debt v2`.**
 
 ### Task 6: Changed-Scope Source Admission And Domain Separation
 

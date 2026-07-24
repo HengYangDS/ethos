@@ -7,9 +7,9 @@ summary = "Replay immutable source-budget snapshots from Git blobs and add a fai
 
 [evidence]
 dated = "evidence/chronicle/budget-contract-v2-snapshot-replay-shadow-20260724/2026-07-24.md"
-sha256 = "587c6b22c233ca95d917864aa09337eecbc1ccd88c66cd7e8dff66cc41b204c7"
+sha256 = "8e9d3cf0f79be050a6618621819a03c1d05b10eed5f8dd73d5ce87da6ee155c1"
 evidence_ids = ["evidence:budget-contract-v2-snapshot-replay-shadow-20260724"]
-binding = "Task 4 implementation observation: public source/bytes boundaries, strict immutable Git tree/blob transport, declarative replay history, explicit CLI/wrapper, and v1-authoritative shadow are covered by 113 focused tests and clean local quality gates. Reviewed v1 artifact digest d69bb677b73f753449e5b0ac1d73627e339caee45766f52e088d786621df8dee preserves the historical 105060 correction and separately records live 104389/no-Jinja as unresolved. Reviewed C1 artifact digest e146c7a140f6c693cf8412be7877644b8b8acc57bcfb213cf31c80ea2ec0f22b preserves the exact YAML gap with a null v2 observation: no provider coverage, snapshot, vector, or coordinates are manufactured. The Lane was natively refreshed onto candidate 738a75aeca0e9264462f0d6abf04bf15722d9329 at refreshed HEAD 22e7dc299b9b0ce2756a92cea9be42d11ccbb06d; final parity and exact-HEAD proof remain pending. No archive, land, closeout, publication, push, or retirement claim is made."
+binding = "Task 4 pre-archive observation is complete without changing v1 authority: public source/bytes boundaries, strict immutable Git snapshot transport, declarative replay history, Cyclopts CLI/wrapper, v1-authoritative shadow, invalid-state classification, and fail-closed edge coverage are recorded by the bound commands and digests. Reviewed v1 artifact digest d69bb677b73f753449e5b0ac1d73627e339caee45766f52e088d786621df8dee preserves historical 105060 and live 104389/no-Jinja unresolved profiles; reviewed C1 digest e146c7a140f6c693cf8412be7877644b8b8acc57bcfb213cf31c80ea2ec0f22b preserves the exact YAML gap with v2 null. The complete owner suite passed 3515 tests with 26258/26258 statements and 7108/7108 branches. Generic parity matched with zero false negatives. At pre-archive HEAD 5b4295c46763e41a5c690c12f0a9dfd1229ceb9f, default proof was proven across 21 gates with evidence digest 12e361c3507e5d1dc00d6c59674862c6923cea4bf967a74099964700e23e1fe5 and full proof was proven across 30 gates with evidence digest 1275aa496379dc8db196b70f598691168abf507a6b578bcf3ff4b65a67da5623. Archive, archive-HEAD proof, land, closeout, publication, push, forge-side execution, and retirement are not claimed."
 verifier = "digest_only"
 tests = [
   "tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev pytest -q tests/unit/kernel/test_measure.py tests/unit/adapters/test_config.py tests/unit/adapters/repo/source_budget/test_measurement_orchestration.py tests/unit/adapters/repo/source_budget/test_snapshots.py tests/architecture/test_source_budget_snapshot_boundaries.py tests/unit/ci/source_budget/test_replay.py tests/unit/domain/source_budget/test_shadow_report.py",
@@ -24,6 +24,10 @@ tests = [
   "npx --yes @fission-ai/openspec@1.6.0 validate budget-contract-v2-snapshot-replay-shadow --strict --json",
   "tools/ci/scripts/run-ethos-lane.sh openspec --lifecycle --json",
   "tools/ci/scripts/run-ethos-lane.sh quality claims --json",
+  "tools/ci/scripts/run-python-tests.sh",
+  "tools/ci/scripts/run-ethos-lane.sh parity gaps --json",
+  "tools/ci/scripts/run-ethos-lane.sh prove --execute --expect-head 5b4295c46763e41a5c690c12f0a9dfd1229ceb9f --json",
+  "tools/ci/scripts/run-ethos-lane.sh prove --execute --full --expect-head 5b4295c46763e41a5c690c12f0a9dfd1229ceb9f --json",
 ]
 
 [evidence.freshness]

@@ -58,7 +58,6 @@ linked/superseded retirement then passed 89 tests.
 - No raw `git worktree remove`, branch deletion, lease deletion, recovery-package
   clear, remote push, hosted-CI claim, release, or publication is authorized.
 
-
 ## See Also
 
 See also: the accepted lane-resolution authority and repository mutation/evidence rules.

@@ -13,6 +13,7 @@ paths = [
   "openspec/specs/quality/spec.md",
   "packages/ethos-core/src/ethos_core/measure.py",
   "packages/ethos/src/ethos/adapters/config.py",
+  "packages/ethos/src/ethos/adapters/repo/source_budget/artifacts.py",
   "packages/ethos/src/ethos/adapters/repo/source_budget/measurement/core.py",
   "packages/ethos/src/ethos/adapters/repo/source_budget/snapshots.py",
   "packages/ethos/src/ethos/domain/source_budget/core.py",

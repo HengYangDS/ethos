@@ -220,7 +220,7 @@ def test_source_budget_derives_python_total_allowance_from_python_categories(tmp
     assert report["ok"] is True
 
 
-def test_campaign_terminal_source_growth_is_advisory(tmp_path, monkeypatch):
+def test_campaign_terminal_source_growth_blocks_unmet_terminal_target(tmp_path, monkeypatch):
     _use_taxonomy(monkeypatch)
     monkeypatch.setattr(
         source_budget,
@@ -247,8 +247,12 @@ def test_campaign_terminal_source_growth_is_advisory(tmp_path, monkeypatch):
 
     report = source_budget.source_budget_report(tmp_path)
 
-    assert report["ok"] is True
-    assert report["required_gaps"] == []
+    assert report["ok"] is False
+    assert report["state"] == "blocked"
+    assert report["required_gaps"] == [
+        "source_budget_terminal_exceeded:python_total:1>0",
+        "source_budget_terminal_exceeded:global_total:1>0",
+    ]
     assert report["advisory_gaps"] == [
         "source_budget_campaign_growth_overage:global_total:1>0",
         "source_budget_campaign_growth_overage:python_total:1>0",

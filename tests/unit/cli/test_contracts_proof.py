@@ -14,6 +14,7 @@ from tests.support.contract_helpers import git
 from tests.support.contract_helpers import init_git_repo
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.ethos_cli_runner import run_ethos_blocked
+from tests.support.ethos_cli_runner import run_ethos_raw
 
 
 def test_full_proof_requires_executed_evidence() -> None:
@@ -91,7 +92,7 @@ def test_adopter_id_only_gate_declaration_fails_closed_without_traceback(
 
     assert payload["state"] == "gapped"
     assert "adopter_gate_descriptor_missing:acme-tests" in payload["required_gaps"]
-    assert "acme-tests" not in [node["id"] for node in payload["data"]["action_graph"]["nodes"]]
+    assert "acme-tests" not in payload["data"]["gate_ids"]
 
 
 def test_executed_proof_blocks_ethos_json_gate_failures(tmp_path: Path) -> None:
@@ -125,14 +126,26 @@ def test_executed_proof_blocks_ethos_json_gate_failures(tmp_path: Path) -> None:
     ]
 
 
-def test_default_proof_reports_readiness_not_proven() -> None:
-    payload = run_ethos("prove", "--json")
+def test_default_proof_reports_terminal_gap_without_claiming_proof() -> None:
+    payload = run_ethos_blocked("prove", "--json")
 
-    assert payload["ok"] is True
-    assert payload["state"] == "ready"
+    assert payload["ok"] is False
+    assert payload["state"] == "gapped"
+    assert any(
+        gap.startswith("source_budget_terminal_exceeded:") for gap in payload["required_gaps"]
+    )
     assert payload["data"]["executed"] is False
     assert {run["state"] for run in payload["data"]["evidence"]["runs"]} == {"planned"}
     assert all(run["trust_bearing"] is False for run in payload["data"]["evidence"]["runs"])
+    assert "repository_audit" not in payload["data"]
+    assert "provenance" not in payload["data"]
+
+
+def test_default_proof_json_stays_within_payload_budget() -> None:
+    completed = run_ethos_raw("prove", "--json")
+
+    assert completed.returncode == 1
+    assert len(completed.stdout.encode()) <= 32 * 1024
 
 
 def test_prove_surfaces_active_archive_preflight_gap(monkeypatch) -> None:
@@ -149,11 +162,11 @@ def test_prove_surfaces_active_archive_preflight_gap(monkeypatch) -> None:
         raising=False,
     )
 
-    payload = run_ethos_blocked("prove", "--json")
+    payload = run_ethos_blocked("prove", "--scope", "change", "--json")
 
     assert payload["state"] == "gapped"
     assert payload["required_gaps"] == lifecycle["required_gaps"]
-    assert payload["data"]["openspec_lifecycle"] == lifecycle
+    assert payload["data"]["openspec_lifecycle"]["required_gaps"] == lifecycle["required_gaps"]
 
 
 def test_adopter_proof_surfaces_openspec_lifecycle_gap(monkeypatch, tmp_path: Path) -> None:
@@ -235,7 +248,7 @@ def test_prove_rejects_unknown_proof_scope() -> None:
 def test_prove_accepts_matching_expected_head() -> None:
     head = git(Path.cwd(), "rev-parse", "HEAD")
 
-    payload = run_ethos("prove", "--expect-head", head, "--json")
+    payload = run_ethos("prove", "--scope", "change", "--expect-head", head, "--json")
 
     assert payload["ok"] is True
     assert payload["state"] == "ready"
@@ -298,7 +311,8 @@ def test_adopt_apply_writes_minimal_binding_in_git_repo(tmp_path: Path) -> None:
     assert (target / ".ethos" / "profile.toml").exists()
 
     status = run_ethos("status", "--root", target.as_posix(), "--json")
-    assert status["ok"] is True
+    assert status["ok"] is False
+    assert status["required_gaps"] == ["candidate_branch_missing"]
     assert [
         gap
         for diagnostic in status["diagnostics"]
@@ -376,10 +390,10 @@ def test_adopt_ignores_unrelated_existing_adopter_entrypoint(
 
 
 def test_prove_default_floor_includes_config_and_script_quality_gates() -> None:
-    payload = run_ethos("prove", "--json")
+    payload = run_ethos_blocked("prove", "--json")
 
-    assert payload["ok"] is True
-    node_ids = [node["id"] for node in payload["data"]["action_graph"]["nodes"]]
+    assert payload["ok"] is False
+    node_ids = payload["data"]["gate_ids"]
     assert payload["summary"]["gate_count"] == len(node_ids)
     assert {
         "evidence-freshness",
@@ -409,7 +423,7 @@ material_paths = [\".ethos/profile.toml\"]
     payload = run_ethos_blocked("prove", "--root", str(repo), "--json")
 
     assert payload["summary"]["gate_count"] == 0
-    node_ids = [node["id"] for node in payload["data"]["action_graph"]["nodes"]]
+    node_ids = payload["data"]["gate_ids"]
     assert node_ids == []
 
 
@@ -467,7 +481,7 @@ def test_prove_execute_can_select_real_gates(monkeypatch, tmp_path: Path) -> Non
     monkeypatch.setattr(proof_cli, "LocalSubprocessRunner", PassingRunner)
     monkeypatch.setattr(proof_cli, "record_executed_proof", capture_executed_proof)
 
-    proof_cli.prove(execute=True, root=tmp_path, json_output=True)
+    run_ethos("prove", "--execute", "--root", tmp_path.as_posix(), "--json")
 
     assert recorded["repo"] == tmp_path
     evidence = recorded["evidence"]
@@ -545,7 +559,7 @@ def test_prove_execute_preserves_non_trust_bearing_gate_classification(
 
 
 def test_prove_returns_evidence_and_provenance() -> None:
-    payload = run_ethos("prove", "--objective", "cli contract", "--json")
+    payload = run_ethos("prove", "--objective", "cli contract", "--gate", "python-size", "--json")
 
     assert payload["ok"] is True
     assert payload["data"]["evidence"]["digest"]
@@ -568,44 +582,29 @@ def test_prove_uses_repository_audit_for_non_product_repo(tmp_path: Path) -> Non
     assert payload["ok"] is False
     assert payload["required_gaps"] == ["adopter_profile_missing_code_correctness_gates"]
     assert "self_audit" not in payload["data"]
-    assert payload["data"]["repository_audit"]["mode"] == "repository"
-    assert (
-        payload["data"]["governance_context"]
-        == payload["data"]["repository_audit"]["governance_context"]
-    )
-    assert payload["data"]["governance_context"]["contract"] == "governed_repository"
-    assert payload["data"]["repository_audit"]["governance_context"]["contract"] == (
-        "governed_repository"
-    )
-    assert "posture" not in payload["data"]["governance_context"]
-    assert "posture" not in payload["data"]["repository_audit"]["governance_context"]
-    assert payload["data"]["repository_audit"]["governance_context"]["profile"] == "adopter"
-    assert (
-        payload["data"]["repository_audit"]["governance_context"]["subject"]["kind"] == "repository"
-    )
-    assert payload["data"]["repository_audit"]["governance_context"]["subject"]["id"] == str(
-        tmp_path.resolve()
-    )
-    assert payload["data"]["repository_audit"]["governance_context"]["shared_commands"] == [
+    assert payload["data"]["audit"]["mode"] == "repository"
+    context = payload["governance_context"]
+    assert context["contract"] == "governed_repository"
+    assert "posture" not in context
+    assert context["profile"] == "adopter"
+    assert context["subject"]["kind"] == "repository"
+    assert context["subject"]["id"] == str(tmp_path.resolve())
+    assert context["shared_commands"] == [
         "ethos status",
         "ethos plan",
         "ethos prove",
         "ethos land",
         "ethos publish",
     ]
-    assert payload["data"]["repository_audit"]["governance_context"]["transition_commands"] == [
+    assert context["transition_commands"] == [
         "ethos status",
         "ethos plan",
         "ethos prove",
         "ethos land",
         "ethos publish",
     ]
-    assert payload["data"]["repository_audit"]["governance_context"]["reader_view_commands"] == [
-        "ethos orient"
-    ]
-    assert payload["data"]["repository_audit"]["governance_context"]["scorecard_commands"] == [
-        "ethos report",
-    ]
+    assert context["reader_view_commands"] == ["ethos orient"]
+    assert context["scorecard_commands"] == ["ethos report"]
 
 
 def test_projection_drift_reports_registry_and_generator_digest_state() -> None:

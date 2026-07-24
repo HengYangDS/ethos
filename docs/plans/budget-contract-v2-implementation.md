@@ -411,7 +411,7 @@ transitions. Remote publication and hosted CI are not claimed by C1.
 
 **Files:**
 
-- Create: `packages/ethos-core/src/ethos_core/contracts/source_budget/policy_v2.py`
+- Create: `packages/ethos-core/src/ethos_core/contracts/source_budget/policy/core.py`
 - Create: `packages/ethos/src/ethos/domain/source_budget/verdict.py`
 - Create: `tests/unit/domain/source_budget/test_verdict.py`
 - Modify: `.ethos/rules.toml`
@@ -425,10 +425,10 @@ transitions. Remote publication and hosted CI are not claimed by C1.
 - Consumes: v2 observations and immutable replay evidence.
 - Produces: `compile_budget_verdict(observations, policy, today) -> SourceBudgetVerdict`.
 
-- [ ] **Step 1: Write failing reducer tests for logical AND, duplicate coordinates, cross-axis conversion, expiry after wave due date, and expected deletion below allowance.**
-- [ ] **Step 2: Verify RED.**
-- [ ] **Step 3: Implement strict policy/debt models and pure verdict compilation.**
-- [ ] **Step 4: Remeasure each v1 debt record or emit an explicit `unmapped` successor gap; run all reducer/config tests to GREEN.**
+- [x] **Step 1: Write failing reducer tests for logical AND, duplicate coordinates, cross-axis conversion, expiry after wave due date, and expected deletion below allowance.**
+- [x] **Step 2: Verify RED.**
+- [x] **Step 3: Implement strict policy/debt models and pure verdict compilation.**
+- [x] **Step 4: Remeasure each v1 debt record or emit an explicit `unmapped` successor gap; run all reducer/config tests to GREEN.**
 - [ ] **Step 5: Commit with `feat(quality): add vector policy and debt v2`.**
 
 ### Task 6: Changed-Scope Source Admission And Domain Separation

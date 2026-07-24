@@ -96,6 +96,35 @@ allowance = 165
 expected_net_deletion = 165
 allowance_by_category = { python_tests = 135, shell = 107 }
 
+[quality.source_budget_v2]
+schema = "ethos-source-budget-policy-v2"
+contract_version = 2
+state = "inactive"
+baseline_head = "2dab77f169eceb2d45f917358c2a7487e7ac8db6"
+enforcement = "campaign_terminal"
+campaign_id = "global-declarative-compression-program"
+
+[[quality.source_budget_v2.debt.waves]]
+id = "node-runtime-compatibility-compression"
+due_on = "2026-10-28"
+state = "active"
+
+[[quality.source_budget_v2.debt.records]]
+mapping_state = "unmapped"
+id = "node-runtime-compatibility-20260716"
+origin_change = "node-runtime-compatibility-20260716"
+owner = "node-runtime-compatibility-20260716"
+replacement = "consolidate fake-process fixtures, checksum-policy parsing, and installer validation without removing the exact Node matrix contract"
+deletion_wave = "node-runtime-compatibility-compression"
+expiry = "2026-10-28"
+missing_bindings = [
+  "admitted_head",
+  "scope_digest",
+  "inventory_digest",
+  "baseline_snapshot",
+  "historical_replay",
+]
+
 [gates.local-state-audit]
 command = "tools/ci/scripts/run-local-state-audit.sh"
 blocking = true

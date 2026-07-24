@@ -16,6 +16,8 @@ from ethos_core.contracts.source_budget.core import SourceBudgetPolicyLoad
 from ethos_core.contracts.source_budget.core import SourceBudgetTaxonomy
 from ethos_core.contracts.source_budget.core import validate_source_budget_policy
 from ethos_core.contracts.source_budget.core import validate_source_budget_taxonomy
+from ethos_core.contracts.source_budget.policy.core import SourceBudgetPolicyV2Load
+from ethos_core.contracts.source_budget.policy.core import validate_source_budget_policy_v2
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -58,6 +60,35 @@ def source_budget_policy(root: Path) -> SourceBudgetPolicyLoad:
         )
         return SourceBudgetPolicyLoad(policy=None, required_gaps=gaps)
     return SourceBudgetPolicyLoad(policy=policy, required_gaps=())
+
+
+def source_budget_policy_v2(root: Path) -> SourceBudgetPolicyV2Load:
+    """Load the sibling Budget Contract v2 policy without changing v1 behavior."""
+    rules = rules_config(root)
+    quality = rules.get("quality")
+    if not isinstance(quality, dict):
+        return SourceBudgetPolicyV2Load(
+            policy=None, required_gaps=("source_budget_policy_v2_missing",)
+        )
+    budget = quality.get("source_budget_v2")
+    if not isinstance(budget, dict):
+        return SourceBudgetPolicyV2Load(
+            policy=None, required_gaps=("source_budget_policy_v2_missing",)
+        )
+    try:
+        policy = validate_source_budget_policy_v2(budget)
+    except ValidationError as exc:
+        gaps = tuple(
+            "source_budget_policy_v2_invalid:" + _v2_error_location(error["loc"])
+            for error in exc.errors()
+        )
+        return SourceBudgetPolicyV2Load(policy=None, required_gaps=gaps)
+    return SourceBudgetPolicyV2Load(policy=policy, required_gaps=())
+
+
+def _v2_error_location(location: tuple[object, ...]) -> str:
+    parts = location[1:] if location and location[0] in {"inactive", "shadow"} else location
+    return ".".join(map(str, parts))
 
 
 def source_budget_taxonomy_from_bytes(content: bytes) -> SourceBudgetTaxonomy:

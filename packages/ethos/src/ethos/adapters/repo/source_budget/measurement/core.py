@@ -8,10 +8,10 @@ import os
 import stat
 from contextlib import suppress
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from pydantic import ValidationError
 
+from ethos.adapters.repo.source_budget.measurement.native.identity import ResolvedNativeProvider
 from ethos.adapters.repo.source_budget.measurement.native.identity import resolve_native_provider
 from ethos.adapters.repo.source_budget.measurement.router import measure_native
 from ethos_core.contracts.source_budget.carriers import CarrierInventory
@@ -24,12 +24,10 @@ from ethos_core.contracts.source_budget.measurements import NativeMeasurementLoa
 from ethos_core.contracts.source_budget.metrics import MetricContractSet
 from ethos_core.contracts.source_budget.metrics import resolve_metric_contracts
 
-if TYPE_CHECKING:
-    from ethos.adapters.repo.source_budget.measurement.native.identity import ResolvedNativeProvider
-
 _DIRECTORY_FLAGS = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
 _FINAL_FLAGS = os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK
 _RESOURCE_EXHAUSTED_ERRNOS = frozenset({errno.EMFILE, errno.ENFILE, errno.ENOMEM})
+_PATH_CONTENT_PAIR_SIZE = 2
 
 type _EntryIdentity = tuple[int, int, int]
 type _Fingerprint = tuple[int, int, int, int, int, int]
@@ -102,32 +100,91 @@ def measure_carrier(
         )
 
 
+def _resolve_carrier_provider(
+    match: CarrierMatch,
+    contracts: MetricContractSet,
+) -> tuple[ResolvedNativeProvider | None, str | None]:
+    relative = match.relative_path
+    if match.state == "excluded":
+        return None, f"source_budget_measurement_carrier_excluded:{relative}"
+    identity = match.identity
+    if match.state != "classified" or identity is None:
+        return None, f"source_budget_measurement_carrier_not_classified:{relative}"
+    try:
+        resolved_contracts = resolve_metric_contracts(identity, contracts)
+        return resolve_native_provider(resolved_contracts, contracts), None
+    except (AttributeError, KeyError, TypeError, ValueError, ValidationError):
+        return None, f"source_budget_measurement_contract_invalid:{relative}"
+
+
 def _measure_admitted_carrier(
     root: Path,
     match: CarrierMatch,
     contracts: MetricContractSet,
 ) -> CarrierMeasurementLoad:
-    relative = match.relative_path
-    if match.state == "excluded":
-        return _carrier_failure(f"source_budget_measurement_carrier_excluded:{relative}")
-    identity = match.identity
-    if match.state != "classified" or identity is None:
-        return _carrier_failure(f"source_budget_measurement_carrier_not_classified:{relative}")
-    try:
-        resolved_contracts = resolve_metric_contracts(identity, contracts)
-        provider = resolve_native_provider(resolved_contracts, contracts)
-    except (AttributeError, KeyError, TypeError, ValueError, ValidationError):
-        return _carrier_failure(f"source_budget_measurement_contract_invalid:{relative}")
+    provider, gap = _resolve_carrier_provider(match, contracts)
+    if gap is not None or provider is None:
+        return _carrier_failure(gap or "source_budget_measurement_contract_invalid")
     content, gap = _read_carrier(
         root,
-        relative,
+        match.relative_path,
         provider.execution_descriptor.max_carrier_bytes,
     )
     if gap is not None:
         return _carrier_failure(gap)
     if content is None:
-        return _carrier_failure(f"source_budget_measurement_contract_invalid:{relative}")
-    return _measure_carrier_content(content, relative, match, provider, contracts)
+        return _carrier_failure(f"source_budget_measurement_contract_invalid:{match.relative_path}")
+    return measure_carrier_bytes(content, match, contracts, _provider=provider)
+
+
+def measure_carrier_bytes(
+    content: bytes,
+    match: CarrierMatch,
+    contracts: MetricContractSet,
+    *,
+    _provider: ResolvedNativeProvider | None = None,
+) -> CarrierMeasurementLoad:
+    """Measure one exact classified carrier from already-admitted bytes."""
+    try:
+        if type(content) is not bytes:
+            return _carrier_failure("source_budget_measurement_contract_invalid")
+        admitted = _admit_carrier_inputs(Path(), match, contracts)
+        if admitted is None:
+            return _carrier_failure("source_budget_measurement_contract_invalid")
+        _, match, contracts = admitted
+        provider = _provider
+        if provider is None:
+            provider, gap = _resolve_carrier_provider(match, contracts)
+            if gap is not None or provider is None:
+                return _carrier_failure(gap or "source_budget_measurement_contract_invalid")
+        elif type(provider) is not ResolvedNativeProvider:
+            return _carrier_failure("source_budget_measurement_contract_invalid")
+        return _measure_carrier_bytes_admitted(content, match, provider, contracts)
+    except MemoryError:
+        relative = getattr(match, "relative_path", "")
+        gap = "source_budget_measurement_resource_exhausted"
+        if relative:
+            gap = f"{gap}:{relative}"
+        return _carrier_failure(gap)
+
+
+def _measure_carrier_bytes_admitted(
+    content: bytes,
+    match: CarrierMatch,
+    provider: ResolvedNativeProvider,
+    contracts: MetricContractSet,
+) -> CarrierMeasurementLoad:
+    if len(content) > provider.execution_descriptor.max_carrier_bytes:
+        return _carrier_failure(
+            f"source_budget_measurement_carrier_bytes_exceeded:{match.relative_path}"
+        )
+    return _measure_carrier_content(
+        content,
+        match.relative_path,
+        match,
+        provider,
+        contracts,
+    )
 
 
 def _measure_carrier_content(
@@ -191,55 +248,39 @@ def _replay_carrier_load(
         return None
 
 
-def measure_snapshot(
-    root: Path,
+def _measure_snapshot_contents(
+    contents: tuple[tuple[str, bytes], ...],
     inventory: CarrierInventory,
     contracts: MetricContractSet,
-) -> MeasurementSnapshotLoad:
-    """Measure every classified carrier and expose no partial snapshot."""
-    try:
-        admitted = _admit_snapshot_inputs(root, inventory, contracts)
-    except MemoryError:
-        return _snapshot_failure("source_budget_measurement_resource_exhausted")
-    if admitted is None:
-        return _snapshot_failure("source_budget_measurement_contract_invalid")
-    try:
-        return _measure_admitted_snapshot(*admitted)
-    except MemoryError:
-        return _snapshot_failure("source_budget_measurement_resource_exhausted")
-
-
-def _measure_admitted_snapshot(
-    root: Path,
-    inventory: CarrierInventory,
-    contracts: MetricContractSet,
-) -> MeasurementSnapshotLoad:
-    if inventory.required_gaps:
-        return _snapshot_failure(*inventory.required_gaps)
+) -> tuple[tuple[CarrierMeasurement, ...], tuple[str, ...]]:
     measured: list[CarrierMeasurement] = []
     gaps: list[str] = []
-    for match in inventory.matches:
-        if match.state == "excluded":
-            continue
+    matches = (item for item in inventory.matches if item.state != "excluded")
+    for match, (_, content) in zip(matches, contents, strict=True):
         try:
-            load = _replay_carrier_load(measure_carrier(root, match, contracts), match, contracts)
+            carrier_load = measure_carrier_bytes(content, match, contracts)
+            load = _replay_carrier_load(carrier_load, match, contracts)
         except MemoryError:
-            return _snapshot_failure(
-                f"source_budget_measurement_resource_exhausted:{match.relative_path}"
-            )
+            return (), (f"source_budget_measurement_resource_exhausted:{match.relative_path}",)
         if load is None:
             gaps.append(f"source_budget_measurement_contract_invalid:{match.relative_path}")
         elif load.measurement is None:
             gaps.extend(load.required_gaps)
         else:
             measured.append(load.measurement)
-    if gaps:
-        return _snapshot_failure(*gaps)
+    return tuple(measured), tuple(gaps)
+
+
+def _measurement_snapshot_load(
+    measured: tuple[CarrierMeasurement, ...],
+    inventory: CarrierInventory,
+    contracts: MetricContractSet,
+) -> MeasurementSnapshotLoad:
     try:
         snapshot = MeasurementSnapshot.from_inventory(
             inventory=inventory,
             contracts=contracts,
-            measurements=tuple(measured),
+            measurements=measured,
         )
         return MeasurementSnapshotLoad(
             snapshot,
@@ -249,6 +290,80 @@ def _measure_admitted_snapshot(
         )
     except (AttributeError, KeyError, TypeError, ValueError, ValidationError):
         return _snapshot_failure("source_budget_measurement_snapshot_invalid")
+
+
+def measure_snapshot_bytes(
+    contents: tuple[tuple[str, bytes], ...],
+    inventory: CarrierInventory,
+    contracts: MetricContractSet,
+) -> MeasurementSnapshotLoad:
+    """Measure a complete inventory from ordered immutable path/bytes pairs."""
+    try:
+        admitted = _admit_snapshot_inputs(Path(), inventory, contracts)
+    except MemoryError:
+        return _snapshot_failure("source_budget_measurement_resource_exhausted")
+    if admitted is None or type(contents) is not tuple:
+        return _snapshot_failure("source_budget_measurement_contract_invalid")
+    _, inventory, contracts = admitted
+    if inventory.required_gaps:
+        return _snapshot_failure(*inventory.required_gaps)
+    expected = tuple(
+        match.relative_path for match in inventory.matches if match.state != "excluded"
+    )
+    valid_items = all(
+        type(item) is tuple
+        and len(item) == _PATH_CONTENT_PAIR_SIZE
+        and type(item[0]) is str
+        and type(item[1]) is bytes
+        for item in contents
+    )
+    if not valid_items or tuple(item[0] for item in contents) != expected:
+        return _snapshot_failure("source_budget_measurement_snapshot_bytes_invalid")
+    measured, gaps = _measure_snapshot_contents(contents, inventory, contracts)
+    if gaps:
+        return _snapshot_failure(*gaps)
+    return _measurement_snapshot_load(measured, inventory, contracts)
+
+
+def measure_snapshot(
+    root: Path,
+    inventory: CarrierInventory,
+    contracts: MetricContractSet,
+) -> MeasurementSnapshotLoad:
+    """Read every classified carrier once and delegate ordered bytes measurement."""
+    try:
+        admitted = _admit_snapshot_inputs(root, inventory, contracts)
+    except MemoryError:
+        return _snapshot_failure("source_budget_measurement_resource_exhausted")
+    if admitted is None:
+        return _snapshot_failure("source_budget_measurement_contract_invalid")
+    root, inventory, contracts = admitted
+    if inventory.required_gaps:
+        return _snapshot_failure(*inventory.required_gaps)
+    contents: list[tuple[str, bytes]] = []
+    gaps: list[str] = []
+    for match in inventory.matches:
+        if match.state == "excluded":
+            continue
+        provider, gap = _resolve_carrier_provider(match, contracts)
+        if gap is not None or provider is None:
+            gaps.append(gap or "source_budget_measurement_contract_invalid")
+            continue
+        content, gap = _read_carrier(
+            root,
+            match.relative_path,
+            provider.execution_descriptor.max_carrier_bytes,
+        )
+        if gap is not None or content is None:
+            gaps.append(gap or f"source_budget_measurement_contract_invalid:{match.relative_path}")
+            continue
+        contents.append((match.relative_path, content))
+    if gaps:
+        return _snapshot_failure(*gaps)
+    try:
+        return measure_snapshot_bytes(tuple(contents), inventory, contracts)
+    except MemoryError:
+        return _snapshot_failure("source_budget_measurement_resource_exhausted")
 
 
 def _admit_carrier_inputs(

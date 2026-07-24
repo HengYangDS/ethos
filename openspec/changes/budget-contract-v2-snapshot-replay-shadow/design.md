@@ -80,9 +80,15 @@ blocked.
 
 Every adapter or measurement failure is fail closed and redacted. A failed
 snapshot exposes stable gaps and no entries/blob payloads/measurements/snapshot
-digest. Replay exit status is non-zero for invalid configuration, failed load,
-failed measurement, unexpected declared identity/count/digest, or any comparison
-that the selected history entry requires to be reviewed or blocked.
+digest. Replay default exit status is non-zero only for invalid configuration, failed
+load/measurement, unexpected declared identity/count/digest, or a comparison
+state outside the history entry's configured expected states. Expected
+`reviewed_observation`, `unresolved`, and `blocked` results are valid transport
+observations and do not fail the default command. An explicit `--require-clean`
+mode returns non-zero unless every selected entry is `reviewed_observation` with
+no required gaps. Ordinary `source_budget_report` never executes historical or
+C1 replay; it only reduces a supplied observation or reports nested observation
+absence while preserving top-level v1 authority.
 
 ## Rollback
 

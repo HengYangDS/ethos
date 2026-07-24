@@ -7,11 +7,20 @@ summary = "Replay immutable source-budget snapshots from Git blobs and add a fai
 
 [evidence]
 dated = "evidence/chronicle/budget-contract-v2-snapshot-replay-shadow-20260724/2026-07-24.md"
-sha256 = "8b4528a12390f59e52d9f6f394f32e307b1533c2e677298ee84dcacfe4b0c31b"
+sha256 = "3545fd357e5dc34c50116959f88641abfa3e8f5c3c534e89fe9ff14cda3bf846"
 evidence_ids = ["evidence:budget-contract-v2-snapshot-replay-shadow-20260724"]
-binding = "Initial carrier admission only: exact baseline and C1 coordinates, independently bound historical and live observer taxonomy profiles, immutable Git-blob replay boundary, public source/bytes measurement seams, v1-authoritative/v2-inactive shadow shape, ignored raw artifacts, and explicit Task 5+ exclusions. No implementation, replay result, proof, archive, land, publication, or retirement claim is made yet."
+binding = "Task 4 implementation observation: public source/bytes boundaries, strict immutable Git tree/blob transport, declarative replay history, explicit CLI/wrapper, and v1-authoritative shadow are covered by 107 focused tests and clean local quality gates. Reviewed v1 artifact digest d69bb677b73f753449e5b0ac1d73627e339caee45766f52e088d786621df8dee preserves the historical 105060 correction and separately records live 104389/no-Jinja as unresolved. Reviewed C1 artifact digest b0313a00252623a029f4803a1b4c19a11bad341a4dea019860a59b27ae001cd2 preserves the exact YAML gap with no v2 snapshot/vector/coordinates. Accepted authority advanced externally, so final parity and HEAD-bound proof remain deferred until native refresh-base. No archive, land, closeout, publication, push, or retirement claim is made."
 verifier = "digest_only"
 tests = [
+  "tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev pytest -q tests/unit/kernel/test_measure.py tests/unit/adapters/test_config.py tests/unit/adapters/repo/source_budget/test_measurement_orchestration.py tests/unit/adapters/repo/source_budget/test_snapshots.py tests/architecture/test_source_budget_snapshot_boundaries.py tests/unit/ci/source_budget/test_replay.py tests/unit/domain/source_budget/test_shadow_report.py",
+  "tools/ci/scripts/run-python-lint.sh",
+  ".agents/skills/ethos-quality-gate-governance/scripts/quality_audit.py .",
+  "tools/ci/scripts/run-config-lint.sh && tools/ci/scripts/run-json-schema-check.sh && tools/ci/scripts/run-shell-lint.sh && tools/ci/scripts/run-module-layout.sh",
+  "tools/ci/scripts/run-ethos-lane.sh quality types --json",
+  "tools/ci/scripts/run-ethos-lane.sh quality code-size --json",
+  "tools/ci/scripts/run-ethos-lane.sh quality source-budget --json",
+  "tools/ci/scripts/run-source-budget-replay.sh --entry v1-continuation-20260719 --entry v1-live-at-task4-start --output build/evidence/quality/source-budget-v2/replay/v1-profiles.json",
+  "tools/ci/scripts/run-source-budget-replay.sh --entry c1-static-hybrid-accepted --output build/evidence/quality/source-budget-v2/replay/c1-static-hybrid-accepted.json",
   "npx --yes @fission-ai/openspec@1.6.0 validate budget-contract-v2-snapshot-replay-shadow --strict --json",
   "tools/ci/scripts/run-ethos-lane.sh openspec --lifecycle --json",
   "tools/ci/scripts/run-ethos-lane.sh quality claims --json",

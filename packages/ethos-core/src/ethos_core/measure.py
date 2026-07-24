@@ -39,7 +39,7 @@ def _string_expr_line_spans(tree: ast.AST) -> set[int]:
 
 
 @lru_cache(maxsize=4_096)
-def _effective_code_lines_for_source(source: str) -> int:
+def effective_code_lines_for_source(source: str) -> int:
     """Measure immutable Python source once for repeated read-only reports."""
     try:
         tree: ast.AST | None = ast.parse(source)
@@ -61,4 +61,4 @@ def _effective_code_lines_for_source(source: str) -> int:
 
 def effective_code_lines(path: Path) -> int:
     """Count effective code lines in a Python file (see module docstring)."""
-    return _effective_code_lines_for_source(path.read_text(encoding="utf-8"))
+    return effective_code_lines_for_source(path.read_text(encoding="utf-8"))

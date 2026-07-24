@@ -60,6 +60,12 @@ def valid_decision_id(value: str) -> bool:
     return value == f"{prefix}{parsed}"
 
 
+def transition_gap(error: Exception, fallback: str) -> str:
+    """Preserve one stable resolution gap and otherwise use the bounded fallback."""
+    message = str(error).strip()
+    return message if message.startswith(("lane_resolution_", "lane_closeout_")) else fallback
+
+
 def canonical_package_path(artifact_root: Path, decision_id: str) -> Path | None:
     """Resolve a package destination without allowing traversal or symlink escape."""
     if not valid_decision_id(decision_id):

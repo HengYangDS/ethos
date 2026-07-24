@@ -741,3 +741,54 @@ def test_ownerless_release_requires_canonical_completion_receipt(
         )
 
     assert reservation_path.is_file()
+
+
+def test_failed_replace_cas_removes_staging_after_a_competing_create(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    record_root = tmp_path / "records"
+    category = record_root / "reservations"
+    destination = category / "record.json"
+    category.mkdir(parents=True)
+    expected = {"value": "old"}
+    competitor = {"value": "competitor"}
+    destination.write_bytes(record_store.canonical_current_record_bytes(expected))
+    original_link = record_io.os.link
+    raced = False
+
+    def install_competitor_before_link(
+        source: object,
+        target: object,
+        *,
+        src_dir_fd: int | None = None,
+        dst_dir_fd: int | None = None,
+        follow_symlinks: bool = True,
+    ) -> None:
+        nonlocal raced
+        if target == destination.name and str(source).endswith(".tmp") and not raced:
+            candidate = category / "competitor.json"
+            candidate.write_bytes(record_store.canonical_current_record_bytes(competitor))
+            candidate.replace(destination)
+            raced = True
+        original_link(
+            source,
+            target,
+            src_dir_fd=src_dir_fd,
+            dst_dir_fd=dst_dir_fd,
+            follow_symlinks=follow_symlinks,
+        )
+
+    monkeypatch.setattr(record_io.os, "link", install_competitor_before_link)
+
+    with pytest.raises(ValueError, match="lane_resolution_current_record_changed"):
+        record_store.replace_json_atomic(
+            destination,
+            {"value": "new"},
+            expected=expected,
+            record_root=record_root,
+        )
+
+    assert raced is True
+    assert destination.read_bytes() == record_store.canonical_current_record_bytes(competitor)
+    assert tuple(category.glob(".*.cas")) == ()

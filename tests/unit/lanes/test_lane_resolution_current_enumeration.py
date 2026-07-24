@@ -10,7 +10,9 @@ import pytest
 
 import ethos.adapters.mutation.resolution.lane as lane_adapter
 import ethos.adapters.mutation.resolution.records.clear.core as clear_adapter
+import ethos.adapters.mutation.resolution.records.clear.quarantine as quarantine_store
 import ethos.adapters.mutation.resolution.records.core as record_store
+import ethos.adapters.mutation.resolution.records.current.core as current_store
 import ethos.adapters.mutation.resolution.records.current.snapshot as current_snapshot
 from ethos.adapters.mutation.resolution.lane import apply_lane_resolution
 from ethos.adapters.mutation.resolution.lane import plan_lane_resolution
@@ -26,6 +28,93 @@ from tests.unit.lanes.resolution.records import entry_identity
 from tests.unit.lanes.resolution.records import preserve_lane
 
 _PACKAGE_DECISION_ID = "lane-decision:00000000-0000-4000-8000-000000000401"
+
+
+def test_current_reader_rejects_unsafe_invalid_and_duplicate_topology(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    symlink_root = tmp_path / "symlink-root"
+    symlink_root.symlink_to(outside, target_is_directory=True)
+    monkeypatch.setattr(quarantine_store, "current_record_root", lambda _root: symlink_root)
+    assert quarantine_store.unsafe_package_path_present(tmp_path) is True
+
+    unreadable = tmp_path / "unreadable"
+    unreadable.mkdir()
+    original_iterdir = Path.iterdir
+    with monkeypatch.context() as scoped:
+        scoped.setattr(quarantine_store, "current_record_root", lambda _root: unreadable)
+        scoped.setattr(
+            Path,
+            "iterdir",
+            lambda self: (
+                (_ for _ in ()).throw(OSError) if self == unreadable else original_iterdir(self)
+            ),
+        )
+        assert quarantine_store.unsafe_package_path_present(tmp_path) is True
+
+    category_target = tmp_path / "category-target"
+    category_target.mkdir()
+    category_root = tmp_path / "category-root"
+    category_root.mkdir()
+    (category_root / "receipts").symlink_to(category_target, target_is_directory=True)
+    monkeypatch.setattr(quarantine_store, "current_record_root", lambda _root: category_root)
+    assert quarantine_store.unsafe_record_path_present(tmp_path) is True
+
+    invalid_manifest_path = tmp_path / "package" / "manifest.json"
+    invalid_manifest = current_store._CurrentPayload(  # noqa: SLF001, RUF100
+        path=invalid_manifest_path,
+        content=record_store.canonical_current_record_bytes({"decision_id": "invalid"}),
+        payload_sha256={},
+        package_names={"manifest.json"},
+        payload_identities={},
+        entry_identity=(1, 2, 3),
+    )
+    manifests, manifest_conflicts, invalid_manifests = current_store._manifests_with_conflicts(  # noqa: SLF001, RUF100
+        tmp_path,
+        (invalid_manifest,),
+        {},
+    )
+    assert (manifests, manifest_conflicts, invalid_manifests) == (
+        {},
+        set(),
+        [invalid_manifest_path],
+    )
+
+    decision_id = "lane-decision:00000000-0000-4000-8000-000000000101"
+    invalid_path = tmp_path / "receipts" / "invalid.json"
+    first_path = tmp_path / "receipts" / "first.json"
+    second_path = tmp_path / "receipts" / "second.json"
+    sources = tuple(
+        current_store._CurrentPayload(  # noqa: SLF001, RUF100
+            path=path,
+            content=record_store.canonical_current_record_bytes(payload),
+        )
+        for path, payload in (
+            (invalid_path, {"decision_id": "invalid"}),
+            (first_path, {"decision_id": decision_id, "head": "a" * 40}),
+            (second_path, {"decision_id": decision_id, "head": "b" * 40}),
+        )
+    )
+
+    def validate(payload: dict[str, object]) -> dict[str, object]:
+        if payload["decision_id"] == "invalid":
+            raise ValueError
+        return payload
+
+    monkeypatch.setattr(current_store, "canonical_record_name", lambda **_kwargs: True)
+    records, conflicts, invalid_records = current_store._records_with_conflicts(  # noqa: SLF001, RUF100
+        tmp_path,
+        tmp_path,
+        "receipts",
+        sources,
+        validate,
+    )
+    assert records[decision_id]["head"] == "a" * 40
+    assert conflicts == {decision_id}
+    assert invalid_records == [invalid_path]
 
 
 def _plan_block(repo: Path) -> tuple[Path, dict[str, object]]:

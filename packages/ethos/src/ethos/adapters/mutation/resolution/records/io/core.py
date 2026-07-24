@@ -11,6 +11,7 @@ from contextlib import contextmanager
 from contextlib import suppress
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
+from typing import Literal
 
 import ethos.adapters.mutation.resolution.records.io.posix as posix
 from ethos.adapters.mutation.resolution._shared import record_destination_safe
@@ -192,6 +193,51 @@ def reserve_record_sidecar(
             raise FileExistsError(blocker)
 
 
+@contextmanager
+def claim_record_sidecar(
+    reservation: Path,
+    blocker: Path,
+    *,
+    expected: bytes,
+    record_root: Path,
+    mode: Literal["create", "recover", "recover_completed"],
+) -> Iterator[int | None]:
+    """Hold exclusive ownership of one new or explicitly recovered sidecar."""
+    with _open_record_parent(record_root, reservation, create=True) as parent:
+        blocker_exists = (
+            posix.entry_file_identity(parent.parent_descriptor, blocker.name) is not None
+        )
+        if blocker_exists and mode != "recover_completed":
+            raise FileExistsError(blocker)
+        if (
+            blocker_exists
+            and posix.entry_file_identity(parent.parent_descriptor, parent.name) is None
+        ):
+            yield None
+            return
+        created = False
+        try:
+            descriptor = _create_locked_bound_bytes(parent, expected)
+            created = True
+        except FileExistsError:
+            if mode == "create":
+                raise
+            descriptor = _lock_existing_bound_record(parent, expected)
+        try:
+            _require_parent_identity(parent)
+            if (
+                posix.entry_file_identity(parent.parent_descriptor, blocker.name) is not None
+                and mode != "recover_completed"
+            ):
+                if created and _descriptor_matches_entry(parent, descriptor):
+                    os.unlink(parent.name, dir_fd=parent.parent_descriptor)
+                    os.fsync(parent.parent_descriptor)
+                raise FileExistsError(blocker)
+            yield descriptor
+        finally:
+            posix.unlock_close(descriptor)
+
+
 def record_entry_exists(destination: Path, *, record_root: Path) -> bool:
     """Return whether one descriptor-bound record entry currently exists."""
     with _open_record_parent(record_root, destination, create=False) as parent:
@@ -232,6 +278,53 @@ def _write_bound_bytes(parent: _RecordParent, content: bytes) -> None:
         raise
     finally:
         posix.unlink_if_present(parent.parent_descriptor, temporary)
+
+
+def _create_locked_bound_bytes(parent: _RecordParent, content: bytes) -> int:
+    _require_parent_identity(parent)
+    if posix.entry_file_identity(parent.parent_descriptor, parent.name) is not None:
+        raise FileExistsError(parent.destination)
+    descriptor, identity = posix.create_locked_file_link(
+        parent.parent_descriptor,
+        parent.name,
+        content,
+    )
+    try:
+        _require_parent_identity(parent)
+        _require_written_record(parent, identity, content)
+    except BaseException:
+        if posix.same_content_identity(
+            posix.entry_file_identity(parent.parent_descriptor, parent.name), identity
+        ):
+            os.unlink(parent.name, dir_fd=parent.parent_descriptor)
+        posix.unlock_close(descriptor)
+        raise
+    return descriptor
+
+
+def _lock_existing_bound_record(parent: _RecordParent, expected: bytes) -> int:
+    try:
+        descriptor = posix.lock_regular_file(parent.parent_descriptor, parent.name)
+    except BlockingIOError as error:
+        raise FileExistsError(parent.destination) from error
+    try:
+        _require_locked_record_content(parent, descriptor, expected)
+    except BaseException:
+        posix.unlock_close(descriptor)
+        raise
+    return descriptor
+
+
+def _require_locked_record_content(
+    parent: _RecordParent,
+    descriptor: int,
+    expected: bytes,
+) -> None:
+    if read_descriptor_bytes(descriptor) != expected or not _descriptor_matches_entry(
+        parent, descriptor
+    ):
+        raise ValueError(_CURRENT_RECORD_CHANGED)
+    _require_parent_identity(parent)
 
 
 def _replace_record_bytes(
@@ -337,10 +430,11 @@ def _stage_expected_record(
 def _restore_staged_record(parent: _RecordParent, staging: str) -> None:
     if posix.entry_file_identity(parent.parent_descriptor, staging) is None:
         return
-    if posix.entry_file_identity(parent.parent_descriptor, parent.name) is not None:
-        return
     try:
-        posix.rename_no_replace(parent.parent_descriptor, staging, parent.name)
+        if posix.entry_file_identity(parent.parent_descriptor, parent.name) is None:
+            posix.rename_no_replace(parent.parent_descriptor, staging, parent.name)
+        else:
+            os.unlink(staging, dir_fd=parent.parent_descriptor)
         os.fsync(parent.parent_descriptor)
     except OSError:
         pass
@@ -367,12 +461,10 @@ def _open_record_parent(
     category, name = _record_parts(record_root, destination)
     if not record_destination_safe(record_root, destination):
         raise OSError(_RECORD_PATH_UNSAFE)
-    if create:
-        record_root.mkdir(parents=True, exist_ok=True)
     root_descriptor: int | None = None
     parent_descriptor: int | None = None
     try:
-        root_descriptor = os.open(record_root, posix.directory_flags())
+        root_descriptor = posix.open_directory_path(record_root, create=create)
         root_identity = posix.directory_identity(os.fstat(root_descriptor))
         if create:
             with suppress(FileExistsError):
@@ -421,7 +513,7 @@ def _record_parts(record_root: Path, destination: Path) -> tuple[str, str]:
 
 def _require_parent_identity(parent: _RecordParent) -> None:
     try:
-        root_visible = posix.directory_identity(parent.record_root.stat(follow_symlinks=False))
+        root_visible = posix.directory_identity(os.fstat(parent.root_descriptor))
         category_visible = posix.entry_directory_identity(parent.root_descriptor, parent.category)
     except OSError as error:
         raise OSError(_RECORD_PATH_UNSAFE) from error

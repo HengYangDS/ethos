@@ -186,3 +186,15 @@ def test_repository_source_budget_v2_is_inactive_without_changing_v1() -> None:
         "historical_replay",
     )
     assert not hasattr(record, "allowance")
+
+
+def test_source_budget_policy_v2_treats_non_mapping_subtable_as_missing(
+    tmp_path, monkeypatch
+) -> None:
+    monkeypatch.setattr(
+        config,
+        "rules_config",
+        lambda _root: {"quality": {"source_budget_v2": "not-a-table"}},
+    )
+
+    assert source_budget_policy_v2(tmp_path).required_gaps == ("source_budget_policy_v2_missing",)

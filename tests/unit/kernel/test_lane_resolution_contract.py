@@ -5,6 +5,7 @@ import hashlib
 import pytest
 from pydantic import ValidationError
 
+import ethos_core.contracts.resolution.lane
 from ethos.repository.policy.schema import validate_schema_instance
 from ethos_core.contracts.resolution.closeout import LaneResolutionClearReceipt
 from ethos_core.contracts.resolution.closeout import LaneResolutionReceipt
@@ -100,8 +101,6 @@ def _receipt(**overrides: object) -> dict[str, object]:
 
 
 def test_closeout_contracts_live_in_their_defining_module_only() -> None:
-    from ethos_core.contracts.resolution import lane as lane_contracts
-
     assert tuple(OwnerlessCloseoutBinding.model_fields) == (
         "executor_ref",
         "decision_sha256",
@@ -133,7 +132,55 @@ def test_closeout_contracts_live_in_their_defining_module_only() -> None:
         "OwnerlessCloseoutBinding",
         "OwnerlessCloseoutReservation",
     ):
-        assert not hasattr(lane_contracts, retired_name)
+        assert not hasattr(ethos_core.contracts.resolution.lane, retired_name)
+
+
+@pytest.mark.parametrize(
+    ("path", "value"),
+    [
+        (("head",), "a" * 40 + "\n"),
+        (("observation_digest",), "d" * 64 + "\n"),
+        (("preservation_manifest_sha256",), "e" * 64 + "\n"),
+        (("ownerless_closeout_binding", "accepted_head"), "c" * 40 + "\n"),
+        (("ownerless_closeout_binding", "decision_sha256"), "b" * 64 + "\n"),
+        (("ownerless_closeout_binding", "target_digest"), "a" * 64 + "\n"),
+        (("ownerless_closeout_binding", "target_binding_digest"), "d" * 64 + "\n"),
+        (("ownerless_closeout_binding", "postcondition_digest"), "e" * 64 + "\n"),
+        (("ownerless_closeout_binding", "executor_ref"), "agent:codex:thread:executor\n"),
+    ],
+)
+def test_lane_resolution_receipt_schema_rejects_trailing_newlines(
+    path: tuple[str, ...], value: str
+) -> None:
+    payload = _receipt(ownerless_closeout_binding=_binding())
+    target = payload
+    for field in path[:-1]:
+        nested = target[field]
+        assert isinstance(nested, dict)
+        target = nested
+    target[path[-1]] = value
+
+    assert validate_schema_instance("lane-resolution-receipt.schema.json", payload)["ok"] is False
+
+
+@pytest.mark.parametrize("field", ["manifest_sha256", "chronicle_digest"])
+def test_lane_resolution_clear_receipt_schema_rejects_trailing_newlines(field: str) -> None:
+    clear = LaneResolutionClearReceipt(
+        schema_version=1,
+        clear_receipt_id="lane-resolution-clear-receipt:one",
+        decision_id="lane-decision:one",
+        manifest_sha256="a" * 64,
+        chronicle_ref="evidence/chronicle/lane-resolution/clear.md",
+        chronicle_digest="b" * 64,
+        reason="The exact recovery package was reviewed and cleared.",
+        completed=True,
+        mints_authority=False,
+    ).model_dump(mode="json")
+    clear[field] = str(clear[field]) + "\n"
+
+    assert (
+        validate_schema_instance("lane-resolution-clear-receipt.schema.json", clear)["ok"] is False
+    )
 
 
 def test_closeout_records_require_explicit_provider_neutral_versions() -> None:

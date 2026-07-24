@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import stat
 import tomllib
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -210,9 +211,7 @@ def test_c1_replay_admits_exact_expected_blocker_without_partial_v2_snapshot(
     assert entry["transport_valid"] is True
     assert entry["comparison_state"] == "blocked"
     assert entry["required_gaps"] == [expected_gap]
-    assert entry["v2"]["coordinates"] is None
-    assert entry["v2"]["vector_digest"] is None
-    assert entry["v2"]["snapshot_digest"] is None
+    assert entry["v2"] is None
     assert replay.main([*args, "--require-clean"]) == 1
 
 
@@ -355,6 +354,37 @@ def test_artifact_publication_reuses_identical_rejects_conflict_and_separates_co
         )
     assert paths == tuple(root / ARTIFACT_ROOT / f"{item['digest']}.json" for item in payloads)
     assert len(set(paths)) == 2
+
+
+def test_artifact_publication_rejects_parent_swap_during_final_directory_fsync(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "repo"
+    root.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    parent = root / ARTIFACT_ROOT
+    parent.mkdir(parents=True)
+    moved = outside / "moved-replay"
+    payload = _artifact_payload("fsync-swap")
+    real_fsync = os.fsync
+    swapped = False
+
+    def swap_during_directory_fsync(descriptor: int) -> None:
+        nonlocal swapped
+        if not swapped and stat.S_ISDIR(os.fstat(descriptor).st_mode):
+            parent.rename(moved)
+            parent.symlink_to(outside, target_is_directory=True)
+            swapped = True
+        real_fsync(descriptor)
+
+    monkeypatch.setattr(artifacts.os, "fsync", swap_during_directory_fsync)
+
+    with pytest.raises(OSError, match="artifact directory changed"):
+        artifacts.write_replay_artifact(root, ARTIFACT_ROOT, None, payload)
+    assert swapped is True
+    assert not list(outside.rglob("*.json"))
 
 
 def test_replay_redacts_memory_failure(monkeypatch: pytest.MonkeyPatch) -> None:

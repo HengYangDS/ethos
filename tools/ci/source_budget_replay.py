@@ -354,12 +354,7 @@ def _v2_observation(
         "provider_coverage": dict(sorted(coverage.items())),
     }
     if load.snapshot is None:
-        return {
-            **common,
-            "coordinates": None,
-            "vector_digest": None,
-            "snapshot_digest": None,
-        }, list(load.required_gaps)
+        return None, list(load.required_gaps)
     snapshot = load.snapshot
     return {
         **common,

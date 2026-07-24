@@ -35,7 +35,7 @@ def _observation() -> dict[str, object]:
             "inventory": {
                 "file_count": 888,
                 "digest": "4" * 64,
-                "category_counts": {"python_product": 316, "yaml": 11},
+                "category_counts": {"python_product": 877, "yaml": 11},
             },
         },
         "v2": None,
@@ -183,3 +183,10 @@ def test_shadow_rejects_mixed_gaps_forged_identities_and_invalid_v2_values() -> 
 
     for candidate in variants:
         _assert_canonical_invalid(candidate)
+
+
+def test_shadow_rejects_inventory_count_mismatch() -> None:
+    observation = _observation()
+    observation["v1"]["inventory"]["category_counts"] = {"python_product": 1}
+
+    _assert_canonical_invalid(observation)

@@ -11,6 +11,9 @@ import pytest
 
 import ethos.adapters.repo.source_budget.snapshots as snapshots
 
+_TREE_DIGEST = cast("Any", vars(snapshots)["_tree_digest"])
+_BYTES_DIGEST = cast("Any", vars(snapshots)["_bytes_digest"])
+
 if TYPE_CHECKING:
     from pathlib import Path
 
@@ -517,6 +520,28 @@ def test_snapshot_models_reject_forged_identity_order_digest_and_load_envelopes(
 
     with pytest.raises(ValueError, match="invalid Git tree entry"):
         snapshots.GitTreeEntry("link", "120000", "blob", entry.oid)
+    with pytest.raises(ValueError, match="invalid Git tree entry"):
+        snapshots.GitTreeEntry("a\x00b", entry.mode, entry.object_type, entry.oid)
+    forged_entry = object.__new__(snapshots.GitTreeEntry)
+    for field in ("relative_path", "mode", "object_type", "oid"):
+        object.__setattr__(forged_entry, field, getattr(entry, field))
+    object.__setattr__(forged_entry, "mode", "120000")
+    forged_entries = (forged_entry,)
+    forged_digest = _TREE_DIGEST(tree.commit_sha, tree.tree_sha, forged_entries)
+    with pytest.raises(ValueError, match="invalid Git tree snapshot"):
+        snapshots.GitTreeSnapshot(
+            tree.commit_sha,
+            tree.tree_sha,
+            forged_entries,
+            forged_digest,
+        )
+    forged_nested_tree = object.__new__(snapshots.GitTreeSnapshot)
+    for field in ("commit_sha", "tree_sha", "entries", "snapshot_digest"):
+        object.__setattr__(forged_nested_tree, field, getattr(tree, field))
+    object.__setattr__(forged_nested_tree, "entries", forged_entries)
+    object.__setattr__(forged_nested_tree, "snapshot_digest", forged_digest)
+    with pytest.raises(ValueError, match="invalid Git tree snapshot load"):
+        snapshots.GitTreeSnapshotLoad(forged_nested_tree, ())
     with pytest.raises(ValueError, match="invalid Git tree snapshot"):
         replace(tree, snapshot_digest="d" * 64)
     with pytest.raises(ValueError, match="invalid Git tree snapshot"):
@@ -525,6 +550,27 @@ def test_snapshot_models_reject_forged_identity_order_digest_and_load_envelopes(
         snapshots.GitTreeSnapshotLoad(None, ())
     with pytest.raises(ValueError, match="invalid Git tree snapshot load"):
         snapshots.GitTreeSnapshotLoad(tree, ("gap",))
+
+    class Gap(str):
+        __slots__ = ()
+
+    with pytest.raises(ValueError, match="non-empty strings"):
+        snapshots.GitTreeSnapshotLoad(None, (Gap("gap"),))
+    forged_tree = object.__new__(snapshots.GitTreeSnapshot)
+    for field in ("commit_sha", "tree_sha", "entries", "snapshot_digest"):
+        object.__setattr__(forged_tree, field, getattr(tree, field))
+    object.__setattr__(forged_tree, "snapshot_digest", "0" * 64)
+    with pytest.raises(ValueError, match="invalid Git tree snapshot load"):
+        snapshots.GitTreeSnapshotLoad(forged_tree, ())
+    for model in (
+        snapshots.GitTreeEntry,
+        snapshots.GitTreeSnapshot,
+        snapshots.GitTreeSnapshotLoad,
+        snapshots.SnapshotBytes,
+        snapshots.SnapshotBytesLoad,
+    ):
+        with pytest.raises(TypeError, match="forbid subclasses"):
+            type("BypassSnapshotModel", (model,), {"__slots__": ()})
 
 
 def test_snapshot_bytes_reject_malformed_shapes_as_value_errors(tmp_path: Path) -> None:
@@ -553,10 +599,26 @@ def test_snapshot_bytes_reject_malformed_shapes_as_value_errors(tmp_path: Path) 
         replace(blob_snapshot, tree_snapshot_digest=cast("str", None))
     with pytest.raises(ValueError, match="invalid snapshot bytes"):
         replace(blob_snapshot, content_digest=cast("str", None))
+    nul_contents = (("a\x00b", b"a\n"),)
+    nul_digest = _BYTES_DIGEST(nul_contents)
+    with pytest.raises(ValueError, match="invalid snapshot bytes"):
+        snapshots.SnapshotBytes(blob_snapshot.tree_snapshot_digest, nul_contents, nul_digest)
     with pytest.raises(ValueError, match="invalid snapshot bytes load"):
         snapshots.SnapshotBytesLoad(None, ())
     with pytest.raises(ValueError, match="invalid snapshot bytes load"):
         snapshots.SnapshotBytesLoad(blob_snapshot, ("gap",))
+    forged_bytes = object.__new__(snapshots.SnapshotBytes)
+    for field in ("tree_snapshot_digest", "contents", "content_digest"):
+        object.__setattr__(forged_bytes, field, getattr(blob_snapshot, field))
+    object.__setattr__(forged_bytes, "content_digest", "0" * 64)
+    with pytest.raises(ValueError, match="invalid snapshot bytes load"):
+        snapshots.SnapshotBytesLoad(forged_bytes, ())
+    forged_nul_bytes = object.__new__(snapshots.SnapshotBytes)
+    object.__setattr__(forged_nul_bytes, "tree_snapshot_digest", blob_snapshot.tree_snapshot_digest)
+    object.__setattr__(forged_nul_bytes, "contents", nul_contents)
+    object.__setattr__(forged_nul_bytes, "content_digest", nul_digest)
+    with pytest.raises(ValueError, match="invalid snapshot bytes load"):
+        snapshots.SnapshotBytesLoad(forged_nul_bytes, ())
 
 
 def test_blob_selection_requires_unique_sorted_paths(tmp_path: Path) -> None:
@@ -570,3 +632,53 @@ def test_blob_selection_requires_unique_sorted_paths(tmp_path: Path) -> None:
         load = snapshots.read_snapshot_blobs(root, tree, paths)
         assert load.snapshot is None
         assert load.required_gaps == ("git_snapshot_path_selection_invalid",)
+
+
+def test_blob_reads_rebind_snapshot_to_exact_repository_and_reject_forgery(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = _repo(tmp_path)
+    (root / "a.txt").write_text("a\n", encoding="utf-8")
+    (root / "b.txt").write_text("b\n", encoding="utf-8")
+    tree = snapshots.tree_snapshot(root, _commit(root)).snapshot
+    assert tree is not None
+    assert snapshots.read_snapshot_blobs(root, tree, ("a.txt",)).snapshot is not None
+
+    other_parent = tmp_path / "other"
+    other_parent.mkdir()
+    other = _repo(other_parent)
+    (other / "a.txt").write_text("a\n", encoding="utf-8")
+    (other / "other.txt").write_text("different tree\n", encoding="utf-8")
+    _commit(other)
+    real_run = subprocess.run
+    commands: list[list[str]] = []
+
+    def recorded(command: list[str], **kwargs: Any) -> subprocess.CompletedProcess[bytes]:
+        commands.append(command)
+        return real_run(command, **kwargs)
+
+    monkeypatch.setattr(snapshots.subprocess, "run", recorded)
+    cross_repo = snapshots.read_snapshot_blobs(other, tree, ("a.txt",))
+    assert cross_repo.snapshot is None
+    assert cross_repo.required_gaps == ("git_snapshot_identity_mismatch",)
+    assert not any("cat-file" in command for command in commands)
+
+    entries = (replace(tree.entries[0], oid=tree.entries[1].oid), tree.entries[1])
+    forged = snapshots.GitTreeSnapshot(
+        tree.commit_sha,
+        tree.tree_sha,
+        entries,
+        _TREE_DIGEST(tree.commit_sha, tree.tree_sha, entries),
+    )
+    forged_load = snapshots.read_snapshot_blobs(root, forged, ("a.txt",))
+    assert forged_load.snapshot is None
+    assert forged_load.required_gaps == ("git_snapshot_identity_mismatch",)
+
+    invalid_digest = object.__new__(snapshots.GitTreeSnapshot)
+    for field in ("commit_sha", "tree_sha", "entries", "snapshot_digest"):
+        object.__setattr__(invalid_digest, field, getattr(tree, field))
+    object.__setattr__(invalid_digest, "snapshot_digest", "0" * 64)
+    digest_load = snapshots.read_snapshot_blobs(root, invalid_digest, ("a.txt",))
+    assert digest_load.snapshot is None
+    assert digest_load.required_gaps == ("git_snapshot_identity_mismatch",)

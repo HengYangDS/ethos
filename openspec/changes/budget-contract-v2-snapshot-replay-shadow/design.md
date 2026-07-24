@@ -45,8 +45,10 @@ blocked.
 4. **Public byte/source APIs own semantics.** The kernel exposes
    `effective_code_lines_for_source(source: str) -> int`. Repository measurement
    exposes `measure_carrier_bytes(...)` and `measure_snapshot_bytes(...)`.
-   Existing path-based APIs read once and delegate. Immutable replay never
-   imports private content functions and never copies parser logic.
+   Existing path-based APIs read once, resolve each provider once, and reuse the
+   same private admitted byte-measurement core without a public provider escape
+   hatch. Immutable replay uses the public byte APIs, never imports private
+   content functions, and never copies parser logic.
 
 5. **The historical v1 declaration and observer profiles are immutable.**
    Profile `v1-continuation-20260719` reports declared `105342`, replayed
@@ -73,8 +75,12 @@ blocked.
 7. **History is declarative and artifacts are separated.**
    `.config/checks/source-budget/history.toml` declares exact checkpoints. The
    repository-owned CLI and shell wrapper write raw JSON only beneath ignored
-   `build/evidence/quality/source-budget-v2/replay/`. Tracked Claim/Chronicle
-   files record reviewed summaries and digests, not raw per-file observations.
+   `build/evidence/quality/source-budget-v2/replay/`. Publication is bound to
+   no-follow directory handles and immutable digest-named files; identical
+   bytes are idempotent, conflicts fail, and a relocated parent is cleaned up
+   and rejected rather than returning a stale configured path. Tracked
+   Claim/Chronicle files record reviewed summaries and digests, not raw
+   per-file observations.
 
 ## Failure Semantics
 

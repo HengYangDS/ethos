@@ -9,7 +9,19 @@ from datetime import UTC
 from datetime import date
 from datetime import datetime
 from pathlib import Path
+from pathlib import PurePosixPath
+from typing import Annotated
 from typing import Any
+from typing import Literal
+from typing import Self
+
+from pydantic import BaseModel
+from pydantic import ConfigDict
+from pydantic import Field
+from pydantic import StrictStr
+from pydantic import ValidationError
+from pydantic import field_validator
+from pydantic import model_validator
 
 import ethos.adapters.repo.git as git_adapter
 import ethos.adapters.repo.source_budget.core as source_budget_adapter
@@ -21,50 +33,146 @@ from ethos_core.measure import effective_code_lines_for_source
 
 _LIFECYCLE_FIELDS = {"owner", "replacement", "expiry", "allowance", "expected_net_deletion"}
 _PATH_CONTENT_PAIR_SIZE = 2
-_SHADOW_FIELD_ORDER = (
-    "observer",
-    "subject",
-    "v1",
-    "v2",
-    "disagreements",
-    "required_gaps",
-    "comparison_state",
-)
-_SHADOW_FIELDS = frozenset(_SHADOW_FIELD_ORDER)
-_SHADOW_OBSERVER_FIELDS = frozenset(
-    {
-        "profile_id",
-        "commit_sha",
-        "tree_sha",
-        "taxonomy_path",
-        "taxonomy_blob",
-        "taxonomy_content_sha256",
-        "taxonomy_semantic_sha256",
-    }
-)
-_SHADOW_SUBJECT_FIELDS = frozenset({"commit_sha", "tree_sha", "snapshot_digest"})
-_SHADOW_V1_FIELDS = frozenset(
-    {
-        "declaration_commit",
-        "declared_total",
-        "replay_total",
-        "drift",
-        "metrics",
-        "category_deltas",
-        "inventory",
-    }
-)
-_SHADOW_V2_FIELDS = frozenset(
-    {
-        "manifest_digest",
-        "inventory_digest",
-        "contract_set_digest",
-        "provider_coverage",
-        "coordinates",
-        "vector_digest",
-        "snapshot_digest",
-    }
-)
+_GIT_OID = r"^[0-9a-f]{40}(?:[0-9a-f]{24})?$"
+_SHA256 = r"^[0-9a-f]{64}$"
+_NONSPACE_PATTERN = r"^\S+$"
+_SHADOW_TAXONOMY_PATH_INVALID = "shadow taxonomy path invalid"
+_SHADOW_V1_TOTALS_INVALID = "shadow v1 totals invalid"
+_SHADOW_V2_SNAPSHOT_STATE_INVALID = "shadow v2 snapshot state invalid"
+_SHADOW_V2_COORDINATES_INVALID = "shadow v2 coordinates invalid"
+_SHADOW_TOKENS_NOT_UNIQUE = "shadow tokens must be unique"
+_SHADOW_COMPARISON_STATE_INVALID = "shadow comparison state invalid"
+_ShadowToken = Annotated[StrictStr, Field(min_length=1, pattern=_NONSPACE_PATTERN)]
+_ShadowGitOid = Annotated[StrictStr, Field(pattern=_GIT_OID)]
+_ShadowSha256 = Annotated[StrictStr, Field(pattern=_SHA256)]
+_ShadowCount = Annotated[int, Field(strict=True, ge=0)]
+
+
+class _ShadowStrict(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
+
+
+class _ShadowObserver(_ShadowStrict):
+    profile_id: _ShadowToken
+    commit_sha: _ShadowGitOid
+    tree_sha: _ShadowGitOid
+    taxonomy_path: StrictStr
+    taxonomy_blob: _ShadowGitOid
+    taxonomy_content_sha256: _ShadowSha256
+    taxonomy_semantic_sha256: _ShadowSha256
+
+    @field_validator("taxonomy_path")
+    @classmethod
+    def validate_path(cls, value: str) -> str:
+        path = PurePosixPath(value)
+        if (
+            not value
+            or "\x00" in value
+            or "\\" in value
+            or path.is_absolute()
+            or str(path) != value
+            or any(part in {"", ".", ".."} for part in path.parts)
+        ):
+            raise ValueError(_SHADOW_TAXONOMY_PATH_INVALID)
+        return value
+
+
+class _ShadowSubject(_ShadowStrict):
+    commit_sha: _ShadowGitOid
+    tree_sha: _ShadowGitOid
+    snapshot_digest: _ShadowSha256
+
+
+class _ShadowInventory(_ShadowStrict):
+    file_count: _ShadowCount
+    digest: _ShadowSha256
+    category_counts: dict[_ShadowToken, _ShadowCount]
+
+
+class _ShadowV1(_ShadowStrict):
+    declaration_commit: _ShadowGitOid
+    declared_total: _ShadowCount
+    replay_total: _ShadowCount
+    drift: int = Field(strict=True)
+    metrics: dict[_ShadowToken, _ShadowCount]
+    category_deltas: dict[_ShadowToken, int]
+    inventory: _ShadowInventory
+
+    @model_validator(mode="after")
+    def validate_totals(self) -> Self:
+        if (
+            self.drift != self.replay_total - self.declared_total
+            or self.metrics.get("global_total") != self.replay_total
+        ):
+            raise ValueError(_SHADOW_V1_TOTALS_INVALID)
+        return self
+
+
+class _ShadowCoordinate(_ShadowStrict):
+    scope_id: _ShadowToken
+    metric_id: _ShadowToken
+    unit: Literal[
+        "lexical_token",
+        "semantic_node",
+        "normalized_byte",
+        "normalized_scalar_byte",
+        "template_dynamic_byte",
+        "template_dynamic_unit",
+        "template_static_byte",
+    ]
+    value: _ShadowCount
+
+
+class _ShadowV2(_ShadowStrict):
+    manifest_digest: _ShadowSha256
+    inventory_digest: _ShadowSha256
+    contract_set_digest: _ShadowSha256
+    provider_coverage: dict[_ShadowToken, _ShadowCount]
+    coordinates: list[_ShadowCoordinate] | None
+    vector_digest: _ShadowSha256 | None
+    snapshot_digest: _ShadowSha256 | None
+
+    @model_validator(mode="after")
+    def validate_snapshot_state(self) -> Self:
+        if self.coordinates is None and (
+            self.vector_digest is not None or self.snapshot_digest is not None
+        ):
+            raise ValueError(_SHADOW_V2_SNAPSHOT_STATE_INVALID)
+        if self.coordinates is not None and (
+            self.vector_digest is None or self.snapshot_digest is None
+        ):
+            raise ValueError(_SHADOW_V2_SNAPSHOT_STATE_INVALID)
+        if self.coordinates is not None:
+            keys = tuple((item.scope_id, item.metric_id, item.unit) for item in self.coordinates)
+            if keys != tuple(sorted(set(keys))):
+                raise ValueError(_SHADOW_V2_COORDINATES_INVALID)
+        return self
+
+
+class _ShadowObservation(_ShadowStrict):
+    observer: _ShadowObserver
+    subject: _ShadowSubject
+    v1: _ShadowV1
+    v2: _ShadowV2 | None
+    disagreements: list[_ShadowToken]
+    required_gaps: list[_ShadowToken]
+    comparison_state: Literal["blocked", "unresolved", "reviewed_observation"]
+
+    @field_validator("disagreements", "required_gaps")
+    @classmethod
+    def validate_unique_tokens(cls, values: list[str]) -> list[str]:
+        if len(values) != len(set(values)):
+            raise ValueError(_SHADOW_TOKENS_NOT_UNIQUE)
+        return values
+
+    @model_validator(mode="after")
+    def validate_state(self) -> Self:
+        if (self.comparison_state == "reviewed_observation" and self.required_gaps) or (
+            self.comparison_state != "reviewed_observation"
+            and not (self.required_gaps or self.disagreements)
+        ):
+            raise ValueError(_SHADOW_COMPARISON_STATE_INVALID)
+        return self
 
 
 def _data(**values: Any) -> dict[str, Any]:
@@ -197,40 +305,18 @@ def _source_budget_metrics(
     )
 
 
-def _mapping_has_fields(value: object, fields: frozenset[str]) -> bool:
-    return isinstance(value, Mapping) and set(value) == fields
-
-
-def _valid_shadow_observation(observation: Mapping[str, object]) -> bool:
-    if set(observation) != _SHADOW_FIELDS:
-        return False
-    observer = observation.get("observer")
-    subject = observation.get("subject")
-    v1 = observation.get("v1")
-    v2 = observation.get("v2")
-    gaps = observation.get("required_gaps")
-    disagreements = observation.get("disagreements")
-    state = observation.get("comparison_state")
-    string_lists = (
-        isinstance(gaps, list)
-        and len(gaps) == len(set(gaps))
-        and all(type(item) is str and item for item in gaps)
-        and isinstance(disagreements, list)
-        and len(disagreements) == len(set(disagreements))
-        and all(type(item) is str and item for item in disagreements)
-    )
-    shapes = (
-        _mapping_has_fields(observer, _SHADOW_OBSERVER_FIELDS)
-        and _mapping_has_fields(subject, _SHADOW_SUBJECT_FIELDS)
-        and _mapping_has_fields(v1, _SHADOW_V1_FIELDS)
-        and (v2 is None or _mapping_has_fields(v2, _SHADOW_V2_FIELDS))
-    )
-    coherent = (
-        state in {"blocked", "unresolved", "reviewed_observation"}
-        and (state != "reviewed_observation" or not gaps)
-        and (state == "reviewed_observation" or bool(gaps or disagreements))
-    )
-    return bool(string_lists and shapes and coherent)
+def _blocked_shadow(gap: str) -> dict[str, object]:
+    return {
+        "mode": "v1_authoritative_v2_shadow",
+        "authoritative": "v1",
+        "observer": None,
+        "subject": None,
+        "v1": None,
+        "v2": None,
+        "disagreements": [],
+        "required_gaps": [gap],
+        "comparison_state": "blocked",
+    }
 
 
 def source_budget_shadow_report(
@@ -240,34 +326,16 @@ def source_budget_shadow_report(
     """Attach a fail-closed inactive-v2 observer without changing v1 authority."""
     report = dict(v1_report)
     if observation is None:
-        report["v2_shadow"] = {
-            "mode": "v1_authoritative_v2_shadow",
-            "authoritative": "v1",
-            "observer": None,
-            "subject": None,
-            "v1": None,
-            "v2": None,
-            "disagreements": [],
-            "required_gaps": ["source_budget_v2_shadow_observation_missing"],
-            "comparison_state": "blocked",
-        }
+        report["v2_shadow"] = _blocked_shadow("source_budget_v2_shadow_observation_missing")
         return report
-    gaps = observation.get("required_gaps")
-    disagreements = observation.get("disagreements")
-    if not _valid_shadow_observation(observation):
-        observed_gaps = list(gaps) if isinstance(gaps, list) else []
-        observed_gaps.append("source_budget_v2_shadow_observation_invalid")
-        shadow = {
-            "observer": observation.get("observer"),
-            "subject": observation.get("subject"),
-            "v1": observation.get("v1"),
-            "v2": observation.get("v2"),
-            "disagreements": list(disagreements) if isinstance(disagreements, list) else [],
-            "required_gaps": sorted(set(observed_gaps)),
-            "comparison_state": "blocked",
-        }
-    else:
-        shadow = {key: observation[key] for key in _SHADOW_FIELD_ORDER}
+    if type(observation) is not dict:
+        report["v2_shadow"] = _blocked_shadow("source_budget_v2_shadow_observation_invalid")
+        return report
+    try:
+        shadow = _ShadowObservation.model_validate(observation).model_dump(mode="json")
+    except (AttributeError, TypeError, ValueError, ValidationError):
+        report["v2_shadow"] = _blocked_shadow("source_budget_v2_shadow_observation_invalid")
+        return report
     report["v2_shadow"] = {
         "mode": "v1_authoritative_v2_shadow",
         "authoritative": "v1",

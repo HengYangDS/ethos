@@ -6,11 +6,8 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import os
 import sys
-import tempfile
 import tomllib
-from contextlib import suppress
 from pathlib import Path
 from pathlib import PurePosixPath
 from typing import Literal
@@ -24,6 +21,7 @@ from pydantic import field_validator
 from pydantic import model_validator
 
 from ethos.adapters.config import source_budget_taxonomy_from_bytes
+from ethos.adapters.repo.source_budget.artifacts import write_replay_artifact as _write_artifact
 from ethos.adapters.repo.source_budget.measurement.core import measure_snapshot_bytes
 from ethos.adapters.repo.source_budget.snapshots import GitTreeSnapshot
 from ethos.adapters.repo.source_budget.snapshots import read_snapshot_blobs
@@ -454,56 +452,6 @@ def replay_entry(
     }
 
 
-def _artifact_output(root: Path, artifact_root: str, requested: Path | None) -> Path:
-    expected_root = Path(os.path.normpath(root / artifact_root))
-    output = requested if requested is not None else expected_root / "replay.json"
-    output = output if output.is_absolute() else root / output
-    output = Path(os.path.normpath(output))
-    if output == expected_root or not output.is_relative_to(expected_root):
-        _invalid("replay output must remain under configured artifact root")
-    _reject_symlink_components(root, expected_root)
-    _reject_symlink_components(root, output)
-    expected_root.mkdir(parents=True, exist_ok=True)
-    output.parent.mkdir(parents=True, exist_ok=True)
-    _reject_symlink_components(root, output)
-    return output
-
-
-def _reject_symlink_components(root: Path, path: Path) -> None:
-    try:
-        relative = path.relative_to(root)
-    except ValueError as exc:
-        message = "artifact path escaped repository root"
-        raise ValueError(message) from exc
-    current = root
-    for part in relative.parts:
-        current /= part
-        if current.is_symlink():
-            _invalid("replay artifact path must not contain symlinks")
-
-
-def _write_artifact(output: Path, payload: dict[str, object]) -> None:
-    data = (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode()
-    descriptor, temporary = tempfile.mkstemp(prefix=f".{output.name}.", dir=output.parent)
-    temporary_path = Path(temporary)
-    try:
-        with os.fdopen(descriptor, "wb") as stream:
-            stream.write(data)
-            stream.flush()
-            os.fsync(stream.fileno())
-        temporary_path.replace(output)
-        directory = os.open(output.parent, os.O_RDONLY | os.O_DIRECTORY)
-        try:
-            os.fsync(directory)
-        finally:
-            os.close(directory)
-    except BaseException:
-        with suppress(OSError):
-            os.close(descriptor)
-        temporary_path.unlink(missing_ok=True)
-        raise
-
-
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, default=Path.cwd())
@@ -536,8 +484,7 @@ def _run_replay(args: argparse.Namespace) -> int:
     payload["digest"] = hashlib.sha256(
         json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
     ).hexdigest()
-    output = _artifact_output(root, history.artifact_root, args.output)
-    _write_artifact(output, payload)
+    _write_artifact(root, history.artifact_root, args.output, payload)
     valid = all(bool(item["transport_valid"]) for item in entries)
     clean = all(
         item["comparison_state"] == "reviewed_observation" and not item["required_gaps"]

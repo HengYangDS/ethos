@@ -51,4 +51,5 @@ targets = [
   "openspec/changes/budget-contract-v2-snapshot-replay-shadow/specs/contracts/spec.md",
   "openspec/changes/budget-contract-v2-snapshot-replay-shadow/specs/quality/spec.md",
   "openspec/changes/budget-contract-v2-snapshot-replay-shadow/tasks.md",
+  "packages/ethos/src/ethos/adapters/repo/source_budget/artifacts.py",
 ]

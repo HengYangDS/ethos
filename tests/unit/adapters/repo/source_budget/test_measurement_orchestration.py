@@ -263,7 +263,7 @@ def test_snapshot_carrier_loop_maps_memory_exhaustion_to_path_gap(
         message = f"SENSITIVE-{stage.upper()}:{tmp_path}"
         raise MemoryError(message)
 
-    target = "measure_carrier_bytes" if stage == "carrier" else "_replay_carrier_load"
+    target = "_measure_carrier_bytes_admitted" if stage == "carrier" else "_replay_carrier_load"
     monkeypatch.setattr(module, target, exhausted)
     load = module.measure_snapshot(tmp_path, inventory, _registry())
 
@@ -783,7 +783,7 @@ def test_orchestrator_rejects_forged_provider_and_snapshot_outputs(
         "required_gaps",
         ("source_budget_native_parse_failed:python",),
     )
-    monkeypatch.setattr(module, "measure_carrier_bytes", lambda *_: forged_carrier)
+    monkeypatch.setattr(module, "_measure_carrier_bytes_admitted", lambda *_: forged_carrier)
     invalid_snapshot = module.measure_snapshot(tmp_path, inventory, _registry())
     assert invalid_snapshot.snapshot is None
     assert invalid_snapshot.required_gaps == (
@@ -854,26 +854,25 @@ def test_public_bytes_measurement_owns_carrier_and_snapshot_orchestration(
     assert snapshot.snapshot.measurements == (carrier.measurement,)
 
 
-def test_path_measurement_reads_once_then_delegates_to_public_bytes_boundary(
+def test_path_measurement_resolves_provider_once_with_clean_public_bytes_api(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     relative = "sample.py"
-    content = b"value = 1\n"
-    (tmp_path / relative).write_bytes(content)
+    (tmp_path / relative).write_bytes(b"value = 1\n")
     inventory = _inventory((relative,), _identity("test-python", relative))
     module = _direct_module(monkeypatch)
-    original = module.measure_carrier_bytes
-    calls: list[bytes] = []
+    original, calls = module.resolve_native_provider, 0
 
-    def recorded(value: bytes, *args, **kwargs):
-        calls.append(value)
-        return original(value, *args, **kwargs)
+    def recorded(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        return original(*args, **kwargs)
 
-    monkeypatch.setattr(module, "measure_carrier_bytes", recorded)
+    monkeypatch.setattr(module, "resolve_native_provider", recorded)
     module.measure_carrier(tmp_path, inventory.matches[0], _registry())
 
-    assert calls == [content]
+    assert (calls, "_provider" in module.measure_carrier_bytes.__code__.co_varnames) == (1, False)
 
 
 def test_snapshot_bytes_rejects_duplicate_disordered_missing_and_extra_entries(
@@ -897,7 +896,7 @@ def test_snapshot_bytes_rejects_duplicate_disordered_missing_and_extra_entries(
         assert load.required_gaps == ("source_budget_measurement_snapshot_bytes_invalid",)
 
 
-def test_path_snapshot_delegates_ordered_bytes_to_public_snapshot_boundary(
+def test_path_snapshot_resolves_each_provider_once(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -909,17 +908,17 @@ def test_path_snapshot_delegates_ordered_bytes_to_public_snapshot_boundary(
         _identity("test-python-b", "b.py"),
     )
     module = _direct_module(monkeypatch)
-    original = module.measure_snapshot_bytes
-    calls: list[tuple[tuple[str, bytes], ...]] = []
+    original, calls = module.resolve_native_provider, 0
 
-    def recorded(contents, selected, contracts):
-        calls.append(contents)
-        return original(contents, selected, contracts)
+    def recorded(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        return original(*args, **kwargs)
 
-    monkeypatch.setattr(module, "measure_snapshot_bytes", recorded)
-    module.measure_snapshot(tmp_path, inventory, _registry())
+    monkeypatch.setattr(module, "resolve_native_provider", recorded)
+    load = module.measure_snapshot(tmp_path, inventory, _registry())
 
-    assert calls == [(("a.py", b"a = 1\n"), ("b.py", b"b = 1\n"))]
+    assert (load.snapshot is not None, calls) == (True, 2)
 
 
 def test_path_snapshot_aggregates_multiple_read_failures_before_failing(

@@ -5,7 +5,7 @@
 ETHOS SHALL expose public source/bytes measurement boundaries so immutable Git
 objects and ordinary files use one canonical semantic implementation.
 
-#### Scenario: Existing file APIs delegate to public bytes/source APIs
+#### Scenario: File and byte APIs share one admitted semantic core
 
 - **WHEN** a caller measures ELOC from source text or measures a classified
   carrier or complete snapshot from already-admitted bytes
@@ -13,7 +13,9 @@ objects and ordinary files use one canonical semantic implementation.
   path-based ELOC SHALL delegate after reading text
 - **AND** `measure_carrier_bytes(...)` and `measure_snapshot_bytes(...)` SHALL
   own native carrier/snapshot measurement over direct bytes
-- **AND** existing path APIs SHALL read once and delegate to those public APIs
+- **AND** existing path APIs SHALL read once, resolve each native provider once,
+  and call the same private admitted byte-measurement core used by those public
+  APIs, without exposing a provider-injection parameter on the public boundary
 - **AND** the source-budget taxonomy adapter SHALL expose a public pure
   bytes-to-`SourceBudgetTaxonomy` compiler and its file API SHALL read once and
   delegate, so historical taxonomy blobs reuse the same validation path

@@ -1,12 +1,12 @@
 [claim]
 id = "budget-contract-v2-carrier-resource-boundary-20260720"
 subject = "quality:budget-contract-v2:carrier-resource-boundary"
-state = "active"
+state = "archived"
 summary = "Implement MetricContract v4 static hybrid carrier execution with fixed provider ceilings, one bounded parent read, and one-shot complex-provider workers while v1 remains authoritative and per-file ELOC remains."
 
 [evidence]
 dated = "evidence/chronicle/budget-contract-v2-carrier-resource-boundary-20260720/2026-07-24.md"
-sha256 = "b0b81b8481260fc63a141654dd49af0699811ff0dd5ead6eab91030f9c00876e"
+sha256 = "ca5ff955270eac1100bbb639f85257a5b81c43d87f9b7902e1b0b0a4e23cebdc"
 evidence_ids = [
   "evidence:budget-contract-v2-carrier-resource-boundary-20260720",
   "evidence:budget-contract-v2-carrier-resource-boundary-closeout-reconciliation-20260724",
@@ -14,7 +14,7 @@ evidence_ids = [
   "evidence:budget-contract-v2-carrier-resource-boundary-acceptance-20260723",
   "evidence:budget-contract-v2-carrier-resource-boundary-review-20260723",
 ]
-binding = "This refreshed implementation-stage C1 Claim binds MetricContract v4 static hybrid execution, unchanged provider ceilings, complete provider/execution resolution before content open, exact resolved-provider admission without identity replacement, descriptor-owned static routing, one bounded parent read, no second bounded resolution, typed worker protocol, parent replay, platform-specific supervision, one lifecycle owner, all-or-nothing carrier and snapshot results, exact-ceiling and deep/wide acceptance cases, current and immutable inventory observations, runtime observations, and independent contract/trust/simplicity/platform review with zero final findings. The July 23 738-test and 50-path candidate-index bundle and the first-refresh 739-test/full-suite bundle are historical implementation checkpoints, not current-HEAD proof. The second-refresh exact-HEAD focused and type bundle at ea92e0cbebb1187ba5af846521bef52091465c5c is also historical after the third candidate advance. Against carrier base 266018e9832866c00499bd5bcbf4dfa9cc831d89, the C1 diff contains 58 existing ACMR Python paths plus one deleted path; 31 existing paths are package source. Final platform-specific direct typing covers those 31 changed package paths, and the canonical zero-tolerance owner gate covers both complete governed packages. Test and support paths remain under pytest, Ruff, and schema owners rather than an ad hoc expanded typing policy. V1 policy, debt, terminal targets, global LOC, and per-file ELOC remain unchanged and authoritative; v2 remains inactive. Generic parity is deliberately outside this Claim's semantic promotion scope; it remains a separate repository-wide freshness witness required by parity gaps, quality evidence-freshness, and exact-HEAD proof after the Claim is committed. Exact-HEAD proof, the same-SHA Linux receipt, archive, land, accepted closeout, publication readiness, external distribution, provider-run checks, and retirement remain later transitions."
+binding = "Archived C1 binds MetricContract v4 static hybrid execution with unchanged provider ceilings, complete provider and execution resolution before content open, exact resolved-provider admission without identity replacement, one bounded parent read, typed worker protocol, platform-specific one-shot supervision, and all-or-nothing carrier and snapshot results. Against candidate base 266018e9832866c00499bd5bcbf4dfa9cc831d89, the C1 diff contained 58 existing ACMR Python paths plus one deleted path, with 31 package-source paths under direct Darwin and Linux Python 3.14 checks and both complete packages under the zero-tolerance owner type gate. At final pre-archive HEAD 4071bad853608ec60a43f987363f99f7ba9aaf6e, 739 focused tests reached 4,007 of 4,007 statements and 1,202 of 1,202 branches, while the owner suite passed 3,446 tests with 25,595 of 25,595 lines and 6,896 of 6,896 branches. Default and full executed proof reached proven state with 21 and 30 gates and evidence digests e785e71f779940e6e419833f76dd0ec95b78459d70e38fd0ebd71d43887ac47b and 25287eee17f00dd988a418c44ac4dae039add24066eb3815f6f30041b437a7ff. The same-head local Linux arm64 CPython 3.14 owner receipt ran 21 tests with zero failures and receipt SHA-256 456e975e2affaec4efabc8520a74f032251376c76b23e0cd4d374a827c6dd5cc; it is not hosted CI or remote publication evidence. The official archive carrier and canonical contracts spec preserve this C1 scope. V1 policy, debt, terminal targets, global LOC, and per-file ELOC remain authoritative and v2 remains inactive. Archive-HEAD proof, land, accepted closeout, local publication readiness, external distribution, and Lane retirement remain separate transitions."
 verifier = "independently_reviewed"
 tests = [
   "npx --yes @fission-ai/openspec@1.6.0 validate budget-contract-v2-carrier-resource-boundary --strict --json",
@@ -44,16 +44,14 @@ tests = [
 ]
 
 [evidence.freshness]
-mode = "semantic_scope"
-head = "d6b1bbaeb05233dd3005f34c84223c4e2c4754d1"
-semantic_sha256 = "bacd05bff11faa33213cb03e2cc13b6eb8fc51a51d16ea97fbb82b4f2be8e0e9"
+mode = "historical"
 
 [boundary]
 owner = "quality"
 scope = "C1 only: MetricContract v4 static provider execution, fixed carrier ceilings, execution/provider identity, bounded linear reader, isolated complex-provider protocol/supervisor/platform backends, native admission, all-or-nothing results, tests, evidence, and plan correction."
 
 [carriers]
-openspec = "openspec/changes/budget-contract-v2-carrier-resource-boundary"
+openspec = "openspec/changes/archive/2026-07-24-budget-contract-v2-carrier-resource-boundary"
 fallback = "Keep v1 source-budget authoritative and v2 inactive. An isolated provider failure returns a stable gap and never retries in process. If hybrid execution or a required Linux/Darwin capability is rejected, keep C1 open; do not raise a carrier ceiling."
 kill_signal = "Any path/profile/carrier/runtime override, dynamic resource expansion, worker pool or batch, unbounded pipe, source path passed to a worker, in-process fallback for an isolated provider, unreconciled worker residue, forged result acceptance, partial carrier/snapshot result, weakened YAML safety, changed v1 allowance/debt/terminal/ELOC rule, premature replay/cutover, or claim that this is a general sandbox."
 
@@ -66,12 +64,13 @@ targets = [
   "evidence/chronicle/budget-contract-v2-carrier-resource-boundary-20260720/2026-07-23.md",
   "evidence/chronicle/budget-contract-v2-carrier-resource-boundary-20260720/2026-07-24.md",
   "evidence/claims/budget-contract-v2-carrier-resource-boundary-20260720.toml",
-  "openspec/changes/budget-contract-v2-carrier-resource-boundary/.openspec.yaml",
-  "openspec/changes/budget-contract-v2-carrier-resource-boundary/design.md",
-  "openspec/changes/budget-contract-v2-carrier-resource-boundary/proposal.md",
-  "openspec/changes/budget-contract-v2-carrier-resource-boundary/scope.toml",
-  "openspec/changes/budget-contract-v2-carrier-resource-boundary/specs/contracts/spec.md",
-  "openspec/changes/budget-contract-v2-carrier-resource-boundary/tasks.md",
+  "openspec/changes/archive/2026-07-24-budget-contract-v2-carrier-resource-boundary/.openspec.yaml",
+  "openspec/changes/archive/2026-07-24-budget-contract-v2-carrier-resource-boundary/design.md",
+  "openspec/changes/archive/2026-07-24-budget-contract-v2-carrier-resource-boundary/proposal.md",
+  "openspec/changes/archive/2026-07-24-budget-contract-v2-carrier-resource-boundary/scope.toml",
+  "openspec/changes/archive/2026-07-24-budget-contract-v2-carrier-resource-boundary/specs/contracts/spec.md",
+  "openspec/changes/archive/2026-07-24-budget-contract-v2-carrier-resource-boundary/tasks.md",
+  "openspec/specs/contracts/spec.md",
   "packages/ethos-core/src/ethos_core/contracts/source_budget/measurement/execution.py",
   "packages/ethos-core/src/ethos_core/contracts/source_budget/measurement/worker/__init__.py",
   "packages/ethos-core/src/ethos_core/contracts/source_budget/measurement/worker/protocol/__init__.py",

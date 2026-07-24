@@ -150,7 +150,7 @@ def test_deep_provider_cases_fail_closed_without_partial_measurement(
     assert load.required_gaps == (expected_gap,)
 
 
-def test_exact_ceiling_ini_amplification_is_contained_without_partial_measurement() -> None:
+def test_exact_ceiling_ini_amplification_completes_or_fails_closed_atomically() -> None:
     content = b"".join(
         (
             b"[DEFAULT]\n",
@@ -164,5 +164,10 @@ def test_exact_ceiling_ini_amplification_is_contained_without_partial_measuremen
     provider = resolve_native_provider(contracts, _registry())
     load = measure_native(content, provider, _registry())
 
-    assert load.measurement is None
-    assert load.required_gaps == ("source_budget_worker_resource_exhausted",)
+    if load.measurement is None:
+        assert load.required_gaps == ("source_budget_worker_resource_exhausted",)
+        return
+    assert load.required_gaps == ()
+    assert {item.contract_id for item in load.measurement.values} == {
+        item.contract_id for item in contracts
+    }

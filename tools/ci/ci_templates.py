@@ -70,18 +70,24 @@ def materialize_emulator_source(
 ) -> dict[str, Any]:
     """Create a standalone Git snapshot so Docker never sees a linked `.git` file."""
     state_dir.mkdir(parents=True, exist_ok=True)
-    source_dir, staging_dir = state_dir / "source", state_dir / "source.staging"
+    source_dir = state_dir / "source"
+    staging_dir = state_dir / "source.staging"
+    bundle_path = state_dir / "source.bundle"
     _remove_path(staging_dir)
-    try:
-        _git(
-            source_root,
-            "clone",
-            "--no-local",
-            "--no-checkout",
-            str(source_root),
-            str(staging_dir),
+    _remove_path(bundle_path)
+    tracked_diff = b""
+    source_head = _git(source_root, "rev-parse", "HEAD").decode().strip()
+    if source_head != expected_head:
+        message = (
+            "Local emulator source materialization failed: "
+            f"expected HEAD {expected_head}, observed {source_head}"
         )
-        _git(staging_dir, "checkout", "--detach", expected_head)
+        raise RuntimeError(message)
+    try:
+        _git(source_root, "bundle", "create", str(bundle_path), "HEAD")
+        _git(state_dir, "init", "--quiet", str(staging_dir))
+        _git(staging_dir, "fetch", "--quiet", "--no-tags", str(bundle_path), "HEAD")
+        _git(staging_dir, "checkout", "--quiet", "--detach", "FETCH_HEAD")
         tracked_diff = _git(source_root, "diff", "--binary", expected_head)
         if tracked_diff:
             _git(
@@ -98,6 +104,8 @@ def materialize_emulator_source(
     except Exception:
         _remove_path(staging_dir)
         raise
+    finally:
+        _remove_path(bundle_path)
 
     source_head = _git(source_dir, "rev-parse", "HEAD").decode().strip()
     return {

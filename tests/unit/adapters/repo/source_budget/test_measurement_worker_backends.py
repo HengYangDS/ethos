@@ -430,6 +430,41 @@ def test_resource_samples_reject_noncanonical_values(
     "loader_name",
     ["_system_proc_pidinfo", "_system_proc_listpgrppids"],
 )
+def test_darwin_libproc_loader_binds_the_exact_symbol(
+    monkeypatch: pytest.MonkeyPatch,
+    loader_name: str,
+) -> None:
+    symbol_name = {
+        "_system_proc_pidinfo": "proc_pidinfo",
+        "_system_proc_listpgrppids": "proc_listpgrppids",
+    }[loader_name]
+    expected_arity = 5 if loader_name == "_system_proc_pidinfo" else 3
+
+    class Function:
+        argtypes: list[object] | None = None
+        restype: object | None = None
+
+    function = Function()
+    library = type("LibProc", (), {symbol_name: function})()
+    loader = getattr(darwin, loader_name)
+    loader.cache_clear()
+    monkeypatch.setattr(darwin.ctypes.util, "find_library", lambda _name: "/tmp/libproc")
+    monkeypatch.setattr(darwin.ctypes, "CDLL", lambda *_args, **_kwargs: library)
+
+    try:
+        observed = loader()
+        assert observed is function
+        assert function.argtypes is not None
+        assert len(function.argtypes) == expected_arity
+        assert function.restype is ctypes.c_int
+    finally:
+        loader.cache_clear()
+
+
+@pytest.mark.parametrize(
+    "loader_name",
+    ["_system_proc_pidinfo", "_system_proc_listpgrppids"],
+)
 def test_darwin_libproc_loader_fails_closed_when_symbol_is_missing(
     monkeypatch: pytest.MonkeyPatch,
     loader_name: str,
@@ -490,6 +525,25 @@ def test_darwin_group_pid_enumeration_rejects_unstable_capacity(
 
     with pytest.raises(WorkerIsolationUnsupportedError):
         vars(darwin)["_darwin_group_pids"](4312)
+
+
+def test_darwin_group_pid_enumeration_returns_unique_positive_members(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def enumerate_group(_group: int, buffer: object | None, _size: int) -> int:
+        if buffer is None:
+            return 2
+        typed = ctypes.cast(
+            t.cast("ctypes.Array[ctypes.c_int]", buffer),
+            ctypes.POINTER(ctypes.c_int),
+        )
+        typed[0] = 4312
+        typed[1] = 4313
+        return 2
+
+    monkeypatch.setattr(darwin, "_system_proc_listpgrppids", lambda: enumerate_group)
+
+    assert vars(darwin)["_darwin_group_pids"](4312) == (4312, 4313)
 
 
 @pytest.mark.parametrize(
@@ -610,6 +664,23 @@ def test_darwin_parent_telemetry_rejects_privileged_or_invalid_context(
     monkeypatch.setattr(darwin.os, "geteuid", lambda: 501)
     with pytest.raises(WorkerIsolationUnsupportedError):
         darwin.DarwinWorkerBackend().open_parent_telemetry(4312, PROFILE)
+
+
+def test_darwin_backend_binds_nonprivileged_telemetry_and_forwards_group_signal(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    signals: list[tuple[int, int]] = []
+    monkeypatch.setattr(darwin.os, "getuid", lambda: 501)
+    monkeypatch.setattr(darwin.os, "geteuid", lambda: 501)
+    monkeypatch.setattr(darwin.os, "killpg", lambda group, number: signals.append((group, number)))
+    backend = darwin.DarwinWorkerBackend()
+
+    telemetry = backend.open_parent_telemetry(4312, PROFILE)
+    backend.signal_process_group(4312, 15)
+
+    assert isinstance(telemetry, darwin.DarwinWorkerTelemetry)
+    assert telemetry.pid == 4312
+    assert signals == [(4312, 15)]
 
 
 def test_darwin_group_probe_rejects_invalid_identifier() -> None:

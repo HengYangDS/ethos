@@ -177,9 +177,9 @@ links, anchors, and command examples.
 ETHOS SHALL run the default Python test gate through a reusable owner script that
 supports bounded parallel execution, timeout protection, slow-test visibility,
 JUnit output, branch coverage, and the configured hard coverage floor. The owner
-script SHALL accept an optional paired timeout-seconds and timeout-method
-override, validate it before test execution, and otherwise preserve the
-repository-wide pytest defaults.
+script SHALL accept optional paired timeout-seconds/timeout-method and
+run-as-UID/run-as-GID inputs, validate either pair before test execution, and
+otherwise preserve the repository-wide pytest defaults and caller identity.
 
 #### Scenario: default Python test gate is bounded and parallel-capable
 
@@ -205,6 +205,28 @@ repository-wide pytest defaults.
   defaults
 - **AND** missing, non-positive, or unsupported override values fail before test
   execution.
+
+#### Scenario: GitLab Docker proof preserves root bootstrap and truthful worker isolation
+
+- **GIVEN** the GitLab Docker executor launches `python:3.14` as root so bootstrap
+  can install the pinned Node runtime and maintain persistent root-owned caches
+- **WHEN** the `ethos:verify` job reaches the Python test owner script
+- **THEN** GitLab supplies the complete numeric UID/GID pair `65534:65534`
+- **AND** the owner script requires a root launcher and `setpriv`, prepares only
+  generated `build/` and temporary test paths for that identity, and runs pytest
+  with cleared supplementary groups
+- **AND** before returning to later root-owned job stages, the owner script
+  restores root ownership of generated build and pytest temporary paths
+- **AND** the run-as pair is consumed before pytest so nested owner-script calls
+  remain unprivileged without attempting a second root-only drop
+- **AND** the test process retains only exact safe-directory overlays for the
+  checkout root and `.git`, plus the fsmonitor-disable overlay
+- **AND** the source-budget worker still fails closed if UID 0 or prohibited
+  capabilities remain
+- **AND** a missing, partial, zero, non-decimal, non-root, or unavailable-`setpriv`
+  identity request fails before pytest execution
+- **AND** the complete Linux gate SHALL independently exercise platform adapter
+  contracts and satisfy the configured 100% branch-coverage floor.
 
 ### Requirement: Configuration and Script Quality Gates
 

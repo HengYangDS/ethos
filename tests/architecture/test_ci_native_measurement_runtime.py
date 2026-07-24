@@ -28,6 +28,17 @@ def test_hosted_ci_uses_the_native_measurement_runtime() -> None:
     assert gitlab["ethos:npm-package"]["image"] == f"python:{CANONICAL_RUNTIME}"
 
 
+def test_gitlab_verify_runs_native_measurement_under_unprivileged_identity() -> None:
+    gitlab = yaml.safe_load((ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8"))
+    variables = gitlab["ethos:verify"]["variables"]
+
+    assert variables["ETHOS_TEST_WORKERS"] == "1"
+    assert variables["ETHOS_TEST_RUN_AS_UID"] == "65534"
+    assert variables["ETHOS_TEST_RUN_AS_GID"] == "65534"
+    assert "ETHOS_TEST_RUN_AS_UID" not in gitlab["variables"]
+    assert "ETHOS_TEST_RUN_AS_GID" not in gitlab["variables"]
+
+
 def test_hosted_bootstrap_keeps_the_openspec_shim_in_its_job_local_venv() -> None:
     bootstrap = (ROOT / "tools/ci/scripts/bootstrap-python.sh").read_text(encoding="utf-8")
 

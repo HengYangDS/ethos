@@ -159,6 +159,27 @@ def test_signal_denial_with_live_group_fails_cleanup(tmp_path: Path) -> None:
     assert case.state.cleanup_failed is True
 
 
+def test_signal_denial_with_absent_group_is_already_settled(tmp_path: Path) -> None:
+    case = _case(
+        tmp_path / "denied-absent",
+        _CaseOptions(
+            send=lambda *_args: _raise(PermissionError()),
+            probe=lambda *_args, **_kwargs: WorkerProcessGroupState.ABSENT,
+        ),
+    )
+
+    delivered = vars(cleanup)["_attempt_signal"](
+        case.context,
+        _process(),
+        signal.SIGTERM,
+        deadline=1.0,
+        retry_failures=False,
+    )
+
+    assert delivered is True
+    assert case.state.cleanup_failed is False
+
+
 def test_signal_attempt_has_a_natural_finite_loop_exit(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

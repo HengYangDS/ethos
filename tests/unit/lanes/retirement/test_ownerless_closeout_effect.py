@@ -15,8 +15,8 @@ from ethos.adapters.mutation.resolution.records import core as record_store
 from ethos.adapters.store.state.closeout import get_closeout_fence
 from ethos.adapters.store.state.closeout import release_closeout_fence
 from ethos.adapters.store.state.schema import state_database
+from ethos_core.contracts.resolution.closeout import OwnerlessCloseoutBinding
 from ethos_core.contracts.resolution.lane import LaneResolutionDecision
-from ethos_core.contracts.resolution.lane import OwnerlessCloseoutBinding
 from tests.support.lane_helpers import git
 from tests.support.lane_helpers import orphan_work_lane
 
@@ -519,7 +519,7 @@ def test_completed_ownerless_recovery_allows_only_an_exactly_released_fence(
 
     receipt = effects.completion_receipt(decision, observation, "retired", {})
     receipt["ownerless_closeout_binding"] = {
-        field: reservation[field] for field in OwnerlessCloseoutBinding.model_fields
+        field: binding[field] for field in OwnerlessCloseoutBinding.model_fields
     }
     recovered = effects.recover_completed_ownerless_closeout(
         root=repo,
@@ -614,7 +614,16 @@ def test_ownerless_effect_orders_preflight_fence_cas_and_postverify(
     assert git(repo, "rev-parse", "dev") == accepted_head
     assert all("--force" not in call for call in git_calls)
     assert binding["target_binding_digest"] == acquired["target_binding_digest"]
-    assert binding["wcp_decision_sha256"] == hashlib.sha256(raw).hexdigest()
+    assert binding["decision_sha256"] == hashlib.sha256(raw).hexdigest()
+    assert set(OwnerlessCloseoutBinding.model_validate(binding).model_dump()) == {
+        "executor_ref",
+        "decision_sha256",
+        "accepted_branch",
+        "accepted_head",
+        "target_digest",
+        "target_binding_digest",
+        "postcondition_digest",
+    }
     assert len(str(binding["postcondition_digest"])) == 64
     reservation = record_store.read_ownerless_closeout_reservation(
         record_root=records_artifact_root(repo),

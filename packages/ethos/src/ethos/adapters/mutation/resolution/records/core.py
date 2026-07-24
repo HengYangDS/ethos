@@ -13,8 +13,9 @@ from ethos.adapters.mutation.resolution._shared import record_destination_safe
 from ethos.adapters.mutation.resolution._shared import records_artifact_root
 from ethos.adapters.mutation.resolution._shared import valid_decision_id
 from ethos.repository.policy.schema import validate_schema_instance
-from ethos_core.contracts.coordination import HolderRef
-from ethos_core.contracts.resolution.lane import LaneResolutionReceipt
+from ethos_core.contracts.resolution.closeout import LaneResolutionReceipt
+from ethos_core.contracts.resolution.closeout import OwnerlessCloseoutBinding
+from ethos_core.contracts.resolution.closeout import OwnerlessCloseoutReservation
 
 _RECEIPTS = "receipts"
 _CLEARS = "clears"
@@ -27,43 +28,12 @@ _OWNERLESS_RESERVATION_MISMATCH = "lane_resolution_ownerless_reservation_mismatc
 _OWNERLESS_RECOVERY_BINDING_MISMATCH = "lane_resolution_ownerless_recovery_binding_mismatch"
 _OWNERLESS_RECOVERY_NOT_FINALIZABLE = "lane_resolution_ownerless_recovery_not_finalizable"
 _OWNERLESS_RESERVATION_RELEASE_INVALID = "lane_resolution_ownerless_reservation_release_invalid"
-_SHA256_FIELDS = {
-    "wcp_decision_sha256",
-    "wcp_binding_digest",
-    "target_digest",
-    "target_binding_digest",
-}
-_IMMUTABLE_RESERVATION_FIELDS = (
-    "schema_version",
-    "decision_id",
-    "lane_ref",
-    "head",
-    "executor_ref",
-    "wcp_schema_version",
-    "wcp_decision_sha256",
-    "accepted_branch",
-    "accepted_head",
-    "wcp_binding_digest",
-    "target_digest",
-    "target_binding_digest",
+_RESERVATION_STATE_FIELDS = {"phase", "recovery_state", "postcondition_digest"}
+_IMMUTABLE_RESERVATION_FIELDS = tuple(
+    field
+    for field in OwnerlessCloseoutReservation.model_fields
+    if field not in _RESERVATION_STATE_FIELDS
 )
-_RECOVERY_STATES = {
-    "reserved_no_effect",
-    "worktree_removed_ref_present",
-    "effect_complete_receipt_missing",
-    "postcondition_failed",
-    "transition_unknown",
-}
-_PHASES = {"reserved", "effect", "postcondition", "receipt", "unknown"}
-_RECOVERY_PHASES = {
-    "reserved_no_effect": "reserved",
-    "worktree_removed_ref_present": "effect",
-    "effect_complete_receipt_missing": "receipt",
-    "postcondition_failed": "postcondition",
-    "transition_unknown": "unknown",
-}
-_WCP_SCHEMA_VERSION = "workstation.repo-family-governance.v1"
-_SHA256_LENGTH = 64
 
 
 def _ownerless_reservation_invalid() -> ValueError:
@@ -182,15 +152,7 @@ def transition_ownerless_closeout_reservation(  # noqa: PLR0913, RUF100 - exact 
 ) -> dict[str, object]:
     """Durably classify an inflight or partial transition without clearing it."""
     expected_payload = _validated_ownerless_reservation(expected, initial=True)
-    if (
-        phase not in _PHASES
-        or recovery_state not in _RECOVERY_STATES
-        or recovery_state == "reserved_no_effect"
-    ):
-        raise ValueError(_OWNERLESS_RESERVATION_INVALID)
-    if postcondition_digest and not _is_sha256(postcondition_digest):
-        raise ValueError(_OWNERLESS_RESERVATION_INVALID)
-    if recovery_state == "effect_complete_receipt_missing" and not postcondition_digest:
+    if recovery_state == "reserved_no_effect":
         raise ValueError(_OWNERLESS_RESERVATION_INVALID)
     record_root = artifact_root or records_artifact_root(root)
     destination = ownerless_closeout_reservation_path(
@@ -198,12 +160,14 @@ def transition_ownerless_closeout_reservation(  # noqa: PLR0913, RUF100 - exact 
     )
     current = _read_ownerless_reservation(record_root, destination)
     _require_exact_ownerless_binding(current, expected_payload, _OWNERLESS_RESERVATION_MISMATCH)
-    updated = {
-        **current,
-        "phase": phase,
-        "recovery_state": recovery_state,
-        "postcondition_digest": postcondition_digest,
-    }
+    updated = _validated_ownerless_reservation(
+        {
+            **current,
+            "phase": phase,
+            "recovery_state": recovery_state,
+            "postcondition_digest": postcondition_digest,
+        }
+    )
     _write_json_replace_atomic(destination, updated, record_root=record_root)
     return updated
 
@@ -224,24 +188,17 @@ def ownerless_closeout_recovery_binding(
     _require_exact_ownerless_binding(
         current, expected_payload, _OWNERLESS_RECOVERY_BINDING_MISMATCH
     )
-    if current.get("recovery_state") != "effect_complete_receipt_missing" or not _is_sha256(
-        current.get("postcondition_digest")
-    ):
+    if current.get("recovery_state") != "effect_complete_receipt_missing":
         raise ValueError(_OWNERLESS_RECOVERY_NOT_FINALIZABLE)
-    return {
-        key: current[key]
-        for key in (
-            "executor_ref",
-            "wcp_schema_version",
-            "wcp_decision_sha256",
-            "accepted_branch",
-            "accepted_head",
-            "wcp_binding_digest",
-            "target_digest",
-            "target_binding_digest",
-            "postcondition_digest",
-        )
-    }
+    return OwnerlessCloseoutBinding(
+        executor_ref=str(current["executor_ref"]),
+        decision_sha256=str(current["decision_sha256"]),
+        accepted_branch=str(current["accepted_branch"]),
+        accepted_head=str(current["accepted_head"]),
+        target_digest=str(current["target_digest"]),
+        target_binding_digest=str(current["target_binding_digest"]),
+        postcondition_digest=str(current["postcondition_digest"]),
+    ).model_dump(mode="json")
 
 
 def read_ownerless_closeout_reservation(*, record_root: Path, path: Path) -> dict[str, object]:
@@ -325,59 +282,15 @@ def _validate_ownerless_completion_receipt(
 def _validated_ownerless_reservation(
     payload: dict[str, object], *, initial: bool = False
 ) -> dict[str, object]:
-    required = set(_IMMUTABLE_RESERVATION_FIELDS) | {
-        "phase",
-        "recovery_state",
-        "postcondition_digest",
-    }
-    if set(payload) != required:
-        raise ValueError(_OWNERLESS_RESERVATION_INVALID)
-    _validate_ownerless_reservation_identity(payload, required)
-    _validate_ownerless_reservation_state(payload, initial=initial)
-    return dict(payload)
-
-
-def _validate_ownerless_reservation_identity(
-    payload: dict[str, object], required: set[str]
-) -> None:
-    if type(payload.get("schema_version")) is not int or payload["schema_version"] != 1:
-        raise ValueError(_OWNERLESS_RESERVATION_INVALID)
-    if payload.get("wcp_schema_version") != _WCP_SCHEMA_VERSION:
-        raise ValueError(_OWNERLESS_RESERVATION_INVALID)
-    string_fields = required - {"schema_version", "postcondition_digest"}
-    if any(
-        not isinstance(payload.get(field), str) or not payload[field] for field in string_fields
-    ):
-        raise ValueError(_OWNERLESS_RESERVATION_INVALID)
-    if not valid_decision_id(str(payload["decision_id"])):
-        raise ValueError(_OWNERLESS_RESERVATION_INVALID)
     try:
-        executor_ref = HolderRef.parse(str(payload["executor_ref"])).serialize()
+        canonical = OwnerlessCloseoutReservation.model_validate(payload).to_payload()
     except ValueError as error:
         raise ValueError(_OWNERLESS_RESERVATION_INVALID) from error
-    if executor_ref != payload["executor_ref"]:
+    if canonical != payload:
         raise ValueError(_OWNERLESS_RESERVATION_INVALID)
-    if not _is_git_oid(payload["head"]) or not _is_git_oid(payload["accepted_head"]):
+    if initial and canonical["recovery_state"] != "reserved_no_effect":
         raise ValueError(_OWNERLESS_RESERVATION_INVALID)
-    if any(not _is_sha256(payload[field]) for field in _SHA256_FIELDS):
-        raise ValueError(_OWNERLESS_RESERVATION_INVALID)
-    if payload["target_digest"] != target_digest(str(payload["lane_ref"]), str(payload["head"])):
-        raise ValueError(_OWNERLESS_RESERVATION_INVALID)
-
-
-def _validate_ownerless_reservation_state(payload: dict[str, object], *, initial: bool) -> None:
-    if payload["phase"] not in _PHASES or payload["recovery_state"] not in _RECOVERY_STATES:
-        raise ValueError(_OWNERLESS_RESERVATION_INVALID)
-    recovery_state = str(payload["recovery_state"])
-    if payload["phase"] != _RECOVERY_PHASES[recovery_state]:
-        raise ValueError(_OWNERLESS_RESERVATION_INVALID)
-    postcondition = payload["postcondition_digest"]
-    if not isinstance(postcondition, str) or (postcondition and not _is_sha256(postcondition)):
-        raise ValueError(_OWNERLESS_RESERVATION_INVALID)
-    if (recovery_state == "effect_complete_receipt_missing") != bool(postcondition):
-        raise ValueError(_OWNERLESS_RESERVATION_INVALID)
-    if initial and (recovery_state != "reserved_no_effect"):
-        raise ValueError(_OWNERLESS_RESERVATION_INVALID)
+    return canonical
 
 
 def _require_exact_ownerless_binding(
@@ -422,22 +335,6 @@ def _write_json_replace_atomic(
         _fsync_directory(destination.parent)
     finally:
         temporary.unlink(missing_ok=True)
-
-
-def _is_sha256(value: object) -> bool:
-    return (
-        isinstance(value, str)
-        and len(value) == _SHA256_LENGTH
-        and all(character in "0123456789abcdef" for character in value)
-    )
-
-
-def _is_git_oid(value: object) -> bool:
-    return (
-        isinstance(value, str)
-        and len(value) in {40, 64}
-        and all(character in "0123456789abcdef" for character in value)
-    )
 
 
 def reserve_resolution_receipt(

@@ -6,6 +6,7 @@ import json
 import subprocess
 import uuid
 from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
 
@@ -35,9 +36,11 @@ from ethos.adapters.store.state.closeout import probe_closeout_fence
 from ethos.adapters.store.state.closeout import release_closeout_fence
 from ethos.adapters.store.state.schema import state_database
 from ethos.repository.policy.schema import validate_schema_instance
-from ethos_core.contracts.resolution.lane import LaneObservation
-from ethos_core.contracts.resolution.lane import LaneResolutionReceipt
-from ethos_core.contracts.resolution.lane import LaneResolutionState
+from ethos_core.contracts.resolution.closeout import LaneResolutionReceipt
+from ethos_core.contracts.resolution.closeout import LaneResolutionState
+
+if TYPE_CHECKING:
+    from ethos_core.contracts.resolution.lane import LaneObservation
 
 _OWNERLESS_REF_PREPARE_FAILED = "lane_resolution_ownerless_ref_prepare_failed"
 
@@ -456,6 +459,7 @@ def completion_receipt(
 ) -> dict[str, object]:
     """Build one schema-bound completion receipt payload."""
     return LaneResolutionReceipt(
+        schema_version=3,
         receipt_id=f"lane-resolution-receipt:{uuid.uuid4()}",
         decision_id=str(decision["decision_id"]),
         completed=True,

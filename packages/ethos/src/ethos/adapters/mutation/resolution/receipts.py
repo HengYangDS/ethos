@@ -20,9 +20,9 @@ from ethos.adapters.mutation.resolution.records.core import receipt_path
 from ethos.adapters.mutation.resolution.records.core import target_digest
 from ethos.adapters.mutation.resolution.records.core import write_json_atomic
 from ethos.repository.policy.schema import validate_schema_instance
-from ethos_core.contracts.resolution.lane import LaneResolutionClearReceipt
+from ethos_core.contracts.resolution.closeout import LaneResolutionClearReceipt
+from ethos_core.contracts.resolution.closeout import LaneResolutionReceipt
 from ethos_core.contracts.resolution.lane import LaneResolutionDecision
-from ethos_core.contracts.resolution.lane import LaneResolutionReceipt
 
 _DECISIONS, _RECEIPTS, _CLEARS, _RESERVATIONS = (
     "decisions",
@@ -372,6 +372,7 @@ def _clear_lane_resolution_package(
     if not request.apply or gaps:
         return report
     receipt = LaneResolutionClearReceipt(
+        schema_version=1,
         clear_receipt_id=f"lane-resolution-clear-receipt:{uuid.uuid4()}",
         decision_id=request.decision_id,
         manifest_sha256=actual,

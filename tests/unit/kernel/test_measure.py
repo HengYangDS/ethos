@@ -57,3 +57,21 @@ def test_effective_code_lines_reuses_immutable_source_measurement(tmp_path, monk
     assert effective_code_lines(path) == 1
     assert effective_code_lines(path) == 1
     assert calls == 1
+
+
+def test_effective_code_lines_for_source_is_public_and_path_api_delegates(tmp_path, monkeypatch):
+    source = '"""doc"""\n# comment\nvalue = 1\n'
+    calls: list[str] = []
+    original = measure.effective_code_lines_for_source
+
+    def recorded(value: str) -> int:
+        calls.append(value)
+        return original(value)
+
+    monkeypatch.setattr(measure, "effective_code_lines_for_source", recorded)
+    path = tmp_path / "sample.py"
+    path.write_text(source, encoding="utf-8")
+
+    assert original(source) == 1
+    assert effective_code_lines(path) == 1
+    assert calls == [source]

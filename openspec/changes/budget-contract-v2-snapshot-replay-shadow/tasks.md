@@ -7,33 +7,33 @@
 
 ## 2. Public Source And Bytes Boundaries
 
-- [ ] 2.1 Write and observe RED for source-based ELOC and byte-based carrier and
+- [x] 2.1 Write and observe RED for source-based ELOC and byte-based carrier and
   snapshot measurement APIs.
-- [ ] 2.2 Implement delegation from existing file APIs and verify GREEN without
+- [x] 2.2 Implement delegation from existing file APIs and verify GREEN without
   private imports or duplicate parser logic.
 
 ## 3. Immutable Git Snapshot Adapter
 
-- [ ] 3.1 Write and observe RED for commit/tree peeling, strict NUL `ls-tree`, one
+- [x] 3.1 Write and observe RED for commit/tree peeling, strict NUL `ls-tree`, one
   `cat-file --batch`, exact order/size/framing, and clean-HEAD worktree behavior.
-- [ ] 3.2 Implement all-or-nothing snapshot and blob loads; reject symlink,
+- [x] 3.2 Implement all-or-nothing snapshot and blob loads; reject symlink,
   gitlink, missing object, malformed/truncated/trailing data, dirty tracked or
   untracked worktree, and read failure.
 
 ## 4. Historical Replay And Shadow
 
-- [ ] 4.1 Write and observe RED for the exact baseline identities, historical
+- [x] 4.1 Write and observe RED for the exact baseline identities, historical
   observer profile, 933-file inventory digest, v1 `105342 -> 105060` replay,
   and the three category deltas; separately bind the live observer profile,
   888-file digest, `104389`, and absent-Jinja unresolved disagreement.
-- [ ] 4.2 Implement replay and selected C1 checkpoint observation without
+- [x] 4.2 Implement replay and selected C1 checkpoint observation without
   resolving or hiding its YAML adapter gap.
-- [ ] 4.3 Write and observe RED for v1-authoritative shadow output and fail-closed
+- [x] 4.3 Write and observe RED for v1-authoritative shadow output and fail-closed
   disagreement classification, then implement minimal GREEN.
 
 ## 5. Tooling And Evidence
 
-- [ ] 5.1 Write and observe RED for history configuration, CLI, shell wrapper,
+- [x] 5.1 Write and observe RED for history configuration, CLI, shell wrapper,
   ignored artifact root, exit status, and `system/tools.toml` registration.
 - [ ] 5.2 Implement GREEN, run focused and Task 2/3/C1 regressions, then run lint,
   types, config/schema/shell/module-layout/code-size/source-budget, lifecycle,

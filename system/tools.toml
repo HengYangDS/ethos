@@ -337,3 +337,11 @@ config = ".config/checks/ci/hosted-observation.toml"
 artifacts = "build/evidence/hosted-ci/"
 gate = "tools/ci/scripts/run-hosted-provider-observation.sh"
 profile = "provider"
+
+[[tool]]
+concern = "source_budget_replay"
+tool = "git plumbing + ETHOS source-budget replay"
+config = ".config/checks/source-budget/history.toml"
+artifacts = "build/evidence/quality/source-budget-v2/replay/"
+profile = "product"
+gate = "tools/ci/scripts/run-source-budget-replay.sh"

@@ -130,10 +130,11 @@
 - [ ] 7.3b Commit the carrier reconciliation, rebind the Claim to that carrier
   commit, and then refresh and commit generic parity.
 - [ ] 7.3c On the resulting final pre-archive HEAD, rerun focused 100 percent
-  coverage, the owner test/coverage artifact path, Darwin/Linux Python 3.14 type
-  checks for all 58 current candidate Python paths, exact-HEAD default/full
-  proof, and a live Linux CPython 3.14 receipt for that same final pre-archive
-  HEAD.
+  coverage and the owner test/coverage artifact path; classify all 58 existing
+  ACMR Python paths; run Darwin/Linux Python 3.14 checks over the 31 changed
+  package-source paths plus the full zero-tolerance package owner type gate; then
+  run exact-HEAD default/full proof and a live Linux CPython 3.14 receipt for
+  that same final pre-archive HEAD.
 - [ ] 7.3d Prepare the official archive inputs without claiming archive-HEAD
   proof, candidate land, accepted-root closeout, publication, hosted CI, or
   retirement prematurely. Do not push remotely.

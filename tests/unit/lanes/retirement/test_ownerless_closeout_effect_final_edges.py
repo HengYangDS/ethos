@@ -302,6 +302,24 @@ def test_retire_rejects_unrelated_branch_and_canonical_directory_before_wcp(tmp_
     assert events == []
 
 
+@pytest.mark.parametrize("lane_ref", ["orphan", "work/"])
+def test_retire_rejects_invalid_lane_ref_before_wcp(tmp_path, lane_ref: str) -> None:
+    observation = _observation(tmp_path).model_copy(update={"lane_ref": lane_ref})
+    decision_path = tmp_path / "decision.json"
+    decision, raw = _decision(decision_path, observation)
+    events: list[str] = []
+
+    def reject_wcp(**_kwargs: object) -> dict[str, object]:
+        events.append("wcp")
+        raise WCPResponseError(_UNEXPECTED_WCP_CALL)
+
+    runtime = _runtime(observation, raw, run_wcp=reject_wcp)
+    with pytest.raises(OwnerlessTestError, match="ownerless_wcp_expectation_invalid"):
+        _retire(decision_path, decision, observation, runtime)
+
+    assert events == []
+
+
 @pytest.mark.parametrize(
     ("message", "expected"),
     [

@@ -5,23 +5,25 @@ state = "active"
 summary = "Implement MetricContract v4 static hybrid carrier execution with fixed provider ceilings, one bounded parent read, and one-shot complex-provider workers while v1 remains authoritative and per-file ELOC remains."
 
 [evidence]
-dated = "evidence/chronicle/budget-contract-v2-carrier-resource-boundary-20260720/2026-07-23.md"
-sha256 = "5a63870cf5ac1d6b41d42425827fbff623fde45f96b70b71ada491d3d81450cd"
+dated = "evidence/chronicle/budget-contract-v2-carrier-resource-boundary-20260720/2026-07-24.md"
+sha256 = "80186dec9474005344056fba2a08516e58ef105ea8e8a2fb3d5604b3ca0f89a7"
 evidence_ids = [
   "evidence:budget-contract-v2-carrier-resource-boundary-20260720",
+  "evidence:budget-contract-v2-carrier-resource-boundary-closeout-reconciliation-20260724",
   "evidence:budget-contract-v2-carrier-resource-boundary-implementation-20260723",
   "evidence:budget-contract-v2-carrier-resource-boundary-acceptance-20260723",
   "evidence:budget-contract-v2-carrier-resource-boundary-review-20260723",
 ]
-binding = "This implementation-stage C1 Claim binds MetricContract v4 static hybrid execution, unchanged provider ceilings, complete provider/execution resolution before content open, exact resolved-provider admission without identity replacement, descriptor-owned static routing, one bounded parent read, no second bounded resolution, typed worker protocol, parent replay, platform-specific supervision, one lifecycle owner, all-or-nothing carrier and snapshot results, exact-ceiling and deep/wide acceptance cases, current and immutable inventory observations, runtime observations, a 738-test 100 percent statement/branch coverage result across 22 modules, clean Darwin/Linux Python 3.14 checks for all 50 current candidate Python paths, and independent contract/trust/simplicity/platform review with zero final findings. V1 policy, debt, terminal targets, global LOC, and per-file ELOC remain unchanged and authoritative; v2 remains inactive. Generic parity is deliberately outside this Claim's semantic promotion scope; it remains a separate repository-wide freshness witness required by parity gaps, quality evidence-freshness, and exact-HEAD proof after the Claim is committed. Exact-HEAD proof, the same-SHA Linux receipt, archive, land, accepted closeout, publication readiness, external distribution, provider-run checks, and retirement remain later transitions."
+binding = "This refreshed implementation-stage C1 Claim binds MetricContract v4 static hybrid execution, unchanged provider ceilings, complete provider/execution resolution before content open, exact resolved-provider admission without identity replacement, descriptor-owned static routing, one bounded parent read, no second bounded resolution, typed worker protocol, parent replay, platform-specific supervision, one lifecycle owner, all-or-nothing carrier and snapshot results, exact-ceiling and deep/wide acceptance cases, current and immutable inventory observations, runtime observations, and independent contract/trust/simplicity/platform review with zero final findings. The July 23 738-test and 50-path candidate-index bundle and the first-refresh 739-test/full-suite bundle are historical implementation checkpoints, not current-HEAD proof. Against carrier base 24d6edcf31ee94c1a10b6abb022298e290242380, the C1 diff contains 58 Python paths that must be checked again on the stable implementation HEAD. V1 policy, debt, terminal targets, global LOC, and per-file ELOC remain unchanged and authoritative; v2 remains inactive. Generic parity is deliberately outside this Claim's semantic promotion scope; it remains a separate repository-wide freshness witness required by parity gaps, quality evidence-freshness, and exact-HEAD proof after the Claim is committed. Exact-HEAD proof, the same-SHA Linux receipt, archive, land, accepted closeout, publication readiness, external distribution, provider-run checks, and retirement remain later transitions."
 verifier = "independently_reviewed"
 tests = [
   "npx --yes @fission-ai/openspec@1.6.0 validate budget-contract-v2-carrier-resource-boundary --strict --json",
   "tools/ci/scripts/run-ethos-lane.sh openspec --lifecycle --json",
   "tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev pytest -q tests/unit/adapters/repo/source_budget/test_measurement_worker_acceptance.py",
-  "tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev pytest -q <C1 combined coverage selection>",
-  "tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev ty check --python-version 3.14 --python-platform darwin --error-on-warning <C1 candidate Python paths>",
-  "tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev ty check --python-version 3.14 --python-platform linux --error-on-warning <C1 candidate Python paths>",
+  "tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev pytest -q tests/architecture/test_source_budget_router_trust_boundary.py tests/architecture/test_source_budget_worker_boundaries.py tests/unit/adapters/repo/source_budget tests/unit/kernel/test_source_budget_metrics_contract.py tests/unit/kernel/test_source_budget_measurements_contract.py tests/unit/kernel/test_source_budget_measurements_integrity.py tests/unit/kernel/test_source_budget_worker_protocol_contract.py tests/unit/kernel/test_source_budget_worker_frame_contract.py tests/unit/kernel/test_source_budget_execution_edge_contracts.py",
+  "tools/ci/scripts/run-python-tests.sh",
+  "git diff --name-only --diff-filter=ACMR 24d6edcf31ee94c1a10b6abb022298e290242380...HEAD -- '*.py' | xargs tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev ty check --python-version 3.14 --python-platform darwin --error-on-warning",
+  "git diff --name-only --diff-filter=ACMR 24d6edcf31ee94c1a10b6abb022298e290242380...HEAD -- '*.py' | xargs tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev ty check --python-version 3.14 --python-platform linux --error-on-warning",
   "tools/ci/scripts/run-python-lint.sh",
   "tools/ci/scripts/run-module-layout.sh",
   "tools/ci/scripts/run-config-lint.sh",
@@ -37,14 +39,14 @@ tests = [
   "tools/ci/scripts/run-ethos-lane.sh quality evidence-freshness --json",
   "tools/ci/scripts/run-ethos-lane.sh quality coverage --json",
   "tools/ci/scripts/run-ethos-lane.sh quality source-budget --json",
-  "tools/ci/scripts/run-ethos-lane.sh prove --execute --expect-head <committed-head> --json",
-  "tools/ci/scripts/run-ethos-lane.sh prove --execute --full --expect-head <committed-head> --json",
+  "tools/ci/scripts/run-ethos-lane.sh prove --execute --expect-head \"$(git rev-parse HEAD)\" --json",
+  "tools/ci/scripts/run-ethos-lane.sh prove --execute --full --expect-head \"$(git rev-parse HEAD)\" --json",
 ]
 
 [evidence.freshness]
 mode = "semantic_scope"
-head = "5e4e99b3ef82e65afa439404eed8932b2ef274f6"
-semantic_sha256 = "f6da0c4d551c2a1020f1ee0fd7412f9e09a4e2b6991777607977995f7040a61c"
+head = "219cda8f663a151b48652364719714863744bab8"
+semantic_sha256 = "ef31f671d12b9402f3ff20b29dc6349baa31f504befa3005225cd20056984803"
 
 [boundary]
 owner = "quality"
@@ -62,6 +64,7 @@ targets = [
   "evidence/chronicle/budget-contract-v2-carrier-resource-boundary-20260720/2026-07-20.md",
   "evidence/chronicle/budget-contract-v2-carrier-resource-boundary-20260720/2026-07-21.md",
   "evidence/chronicle/budget-contract-v2-carrier-resource-boundary-20260720/2026-07-23.md",
+  "evidence/chronicle/budget-contract-v2-carrier-resource-boundary-20260720/2026-07-24.md",
   "evidence/claims/budget-contract-v2-carrier-resource-boundary-20260720.toml",
   "openspec/changes/budget-contract-v2-carrier-resource-boundary/.openspec.yaml",
   "openspec/changes/budget-contract-v2-carrier-resource-boundary/design.md",

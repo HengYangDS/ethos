@@ -241,17 +241,10 @@ def _run_git(
 ) -> subprocess.CompletedProcess[bytes] | None:
     if _GIT_EXECUTABLE is None:
         return None
+    git_prefix = (_GIT_EXECUTABLE, "--no-replace-objects", "-c", f"safe.directory={root}")
     try:
         return subprocess.run(  # noqa: S603, RUF100 - exact audited argv, no shell
-            [
-                _GIT_EXECUTABLE,
-                "--no-replace-objects",
-                "-c",
-                f"safe.directory={root}",
-                "-C",
-                str(root),
-                *args,
-            ],
+            [*git_prefix, "-C", str(root), *args],
             input=input_bytes,
             capture_output=True,
             check=False,

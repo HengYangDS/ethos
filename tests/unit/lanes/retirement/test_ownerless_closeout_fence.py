@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
+from contextlib import closing
 from typing import TYPE_CHECKING
 
 import pytest
@@ -90,7 +91,7 @@ def test_closeout_fence_blocks_a_lease_with_ambiguous_expiry(tmp_path: Path, exp
         holder_ref="agent:test:case:ambiguous-owner",
         payload={"claim_id": ""},
     )
-    with sqlite3.connect(db_path) as connection:
+    with closing(sqlite3.connect(db_path)) as connection:
         connection.execute("update leases set expires_at = ?", (expiry,))
 
     with pytest.raises(ValueError, match="lane_closeout_coordinated:work/target"):

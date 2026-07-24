@@ -355,20 +355,29 @@ counts as absence.
 
 The ownerless target reservation is a visible JSON record separate from the
 hidden receipt sidecar. reserved_no_effect may retry only the same decision
-after fresh WCP admission. effect_complete_receipt_missing is handled before
-ordinary lane observation and does not rerun WCP. If the exact immutable
-receipt is already durable after a crash or cleanup failure, retry validates
-its schema and decision, lane, head, and ownerless binding, re-verifies the
-effect postconditions, and performs cleanup without rewriting the receipt or
-repeating a Git/worktree effect. Receipt-first cleanup remains available when
-reservation unlink completed before the crash. Fence inspection is three-state:
-pre-effect requires the exact present fence, recovery accepts explicit absence
-only with the exact receipt, and unverifiable state blocks. Cleanup releases the
-exact SQLite fence first and only then deletes the visible reservation. An
-already-released fence and already-absent reservation may converge only with the
-exact receipt and all non-fence postconditions; a different fence or mismatched
-receipt blocks. worktree_removed_ref_present, postcondition_failed, and
-transition_unknown require explicit reconciliation.
+after fresh WCP admission. If accepted history advanced, the old accepted head
+must remain an ancestor of the newly admitted head. ETHOS then re-verifies the
+same decision, target, executor, observation, and coordination, releases the
+exact old SQLite fence, exact-compare-deletes the zero-effect reservation, and
+acquires fresh bindings before any Git/worktree effect. An explicitly absent
+old fence is accepted only for the crash window after that exact release and
+before reservation unlink; a divergent accepted head, different or
+unverifiable fence, or any decision, target, executor, or coordination drift
+blocks without effect.
+
+effect_complete_receipt_missing is handled before ordinary lane observation
+and does not rerun WCP. If the exact immutable receipt is already durable after
+a crash or cleanup failure, retry validates its schema and decision, lane,
+head, and ownerless binding, re-verifies the effect postconditions, and performs
+cleanup without rewriting the receipt or repeating a Git/worktree effect.
+Receipt-first cleanup remains available when reservation unlink completed
+before the crash. Fence inspection is three-state: ordinary pre-effect requires
+the exact present fence; zero-effect reset accepts explicit absence only with
+the exact reserved_no_effect record plus fresh WCP and unchanged-target proof;
+completed-effect recovery accepts explicit absence only with the exact receipt;
+and unverifiable state blocks. Cleanup releases the exact SQLite fence first and
+only then deletes the visible reservation. worktree_removed_ref_present,
+postcondition_failed, and transition_unknown require explicit reconciliation.
 
 The command requires `--break-glass` at decision time and
 `--confirm-irreversible` at apply time. Plain `retire` remains blocked for a

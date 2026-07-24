@@ -3630,6 +3630,24 @@ postconditions are verified.
 - **AND** it SHALL otherwise record worktree_removed_ref_present or
   transition_unknown for explicit reconciliation.
 
+#### Scenario: zero-effect retry is rebound after accepted history advances
+
+- **GIVEN** one exact reservation remains in reserved_no_effect for the same
+  decision, target, and executor, and no Git or worktree effect occurred
+- **WHEN** fresh WCP admits the unchanged target against an accepted head that is
+  equal to or a descendant of the reservation's accepted head
+- **THEN** ETHOS SHALL re-verify the decision, observation, coordination,
+  accepted ancestry, and exact old fence when present
+- **AND** it SHALL release the old fence through exact CAS before exact
+  compare-and-delete of the old reservation, then acquire a fresh fence and
+  reservation before any effect
+- **AND** an explicitly absent old fence MAY converge only as the crash window
+  after exact fence release and before reservation unlink, with the same fresh
+  WCP and zero-effect proof
+- **AND** a divergent accepted head, different or unverifiable fence, executor
+  drift, target drift, decision drift, or coordination drift SHALL block without
+  Git or worktree effect.
+
 #### Scenario: target-ref inspection is three state
 
 - **GIVEN** ownerless effect postconditions are being verified
@@ -3669,8 +3687,10 @@ postconditions are verified.
 - **GIVEN** pre-effect or receipt-present recovery inspects the exact target fence
 - **WHEN** the fence is exactly present, explicitly absent, or cannot be verified
 - **THEN** pre-effect SHALL require the exact present fence
-- **AND** recovery MAY accept explicit absence only with the exact immutable
-  receipt and matching non-fence postconditions
+- **AND** zero-effect retry reset MAY accept explicit absence only with the exact
+  reserved_no_effect record, fresh WCP, and unchanged target proof
+- **AND** completed-effect recovery MAY accept explicit absence only with the
+  exact immutable receipt and matching non-fence postconditions
 - **AND** an unreadable, malformed, missing-store, or otherwise unverifiable
   fence state SHALL fail closed.
 

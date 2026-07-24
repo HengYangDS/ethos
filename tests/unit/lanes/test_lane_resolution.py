@@ -10,11 +10,11 @@ from typing import Any
 import pytest
 
 import ethos.adapters.mutation.resolution._effects as effect_adapter
-from ethos.adapters.mutation.resolution._shared import records_artifact_root
 from ethos.adapters.mutation.resolution.lane import apply_lane_resolution
 from ethos.adapters.mutation.resolution.lane import plan_lane_resolution
-from ethos.adapters.mutation.resolution.receipts import lane_resolution_inventory
 from ethos.adapters.mutation.resolution.receipts import verify_preservation_package
+from ethos.adapters.mutation.resolution.records.inventory import lane_resolution_inventory
+from ethos.adapters.mutation.resolution.records.roots import current_record_root
 from ethos.repository.policy.schema import validate_schema_instance
 from ethos.surface.cli.lane.resolution import _default_decision_path
 from tests.support.contract_helpers import write_chronicle_decision
@@ -76,7 +76,7 @@ def test_resolution_decision_default_path_is_a_valid_local_artifact_home(
         _default_decision_path(repo, "work/a-b"),
         _default_decision_path(repo, "work/a/b"),
     )
-    expected_parent = tmp_path / "repo-records/recovery/lane-resolution/decisions"
+    expected_parent = tmp_path / "repo-records/recovery/lane-resolution-v2/decisions"
 
     assert all(path.parent == expected_parent for path in paths)
     assert len(set(paths)) == len(paths)
@@ -107,7 +107,7 @@ def test_records_owner_policy_ignores_dirty_caller_branch_role_bytes(
     workspace.parent.mkdir(parents=True, exist_ok=True)
     workspace.write_text('[branch_roles]\naccepted_branch = "work/caller"\n', encoding="utf-8")
 
-    assert records_artifact_root(caller) == (tmp_path / "repo-records/recovery/lane-resolution")
+    assert current_record_root(caller) == (tmp_path / "repo-records/recovery/lane-resolution-v2")
 
 
 def test_resolution_decision_rejects_symlinked_records_owner(tmp_path: Path) -> None:
@@ -369,7 +369,7 @@ def test_preserve_retire_keeps_exact_index_and_worktree_deltas(tmp_path: Path) -
 
 def test_preservation_package_verifier_keeps_v1_packages_compatible(tmp_path: Path) -> None:
     repo = init_repo(tmp_path / "repo")
-    package = repo / "build/artifacts/lane-resolution/legacy"
+    package = current_record_root(repo) / "legacy"
     package.mkdir(parents=True)
     bundle = package / "repository.bundle"
     patch = package / "tracked.patch"
@@ -435,7 +435,7 @@ def test_preserve_retire_rechecks_the_source_after_package_verification(
     assert report["ok"] is False
     assert report["required_gaps"] == ["lane_resolution_observation_stale"]
     assert (lane / "late.txt").read_text(encoding="utf-8") == "late write\n"
-    assert not tuple((records_artifact_root(repo) / "receipts").glob(".*.receipt-reservation"))
+    assert not tuple((current_record_root(repo) / "receipts").glob(".*.receipt-reservation"))
 
 
 def test_preserve_retire_records_survive_resolution_carrier_removal(
@@ -458,7 +458,7 @@ def test_preserve_retire_records_survive_resolution_carrier_removal(
         apply=True,
     )
 
-    records_root = tmp_path / "repo-records/recovery/lane-resolution"
+    records_root = tmp_path / "repo-records/recovery/lane-resolution-v2"
     assert Path(str(planned["decision_path"])).is_relative_to(records_root)
     assert Path(str(applied["preservation_package"]["path"])).is_relative_to(records_root)
     assert Path(str(applied["receipt_path"])).is_relative_to(records_root)
@@ -584,7 +584,7 @@ def test_receipt_failure_is_classified_by_effect_boundary(
     assert report["receipt_path"] == ""
     assert lane.exists() is not removed
     assert Path(str(report["preservation_package"]["path"])).is_dir()
-    pending = tuple((records_artifact_root(repo) / "receipts").glob(".*.receipt-reservation"))
+    pending = tuple((current_record_root(repo) / "receipts").glob(".*.receipt-reservation"))
     assert len(pending) == reservations
 
 
@@ -613,9 +613,7 @@ def test_resolution_reports_reservation_cleanup_failure_after_receipt(
         ["lane_resolution_receipt_reservation_release_failed"],
     )
     assert report["receipt"]["completed"] is True
-    assert (
-        len(tuple((records_artifact_root(repo) / "receipts").glob(".*.receipt-reservation"))) == 1
-    )
+    assert len(tuple((current_record_root(repo) / "receipts").glob(".*.receipt-reservation"))) == 1
 
 
 def test_existing_receipt_blocks_preserve_retire_before_destructive_effect(
@@ -627,7 +625,7 @@ def test_existing_receipt_blocks_preserve_retire_before_destructive_effect(
     planned = _decide(repo, decision_path, "preserve-retire")
     decision_id = str(planned["decision"]["decision_id"])
     receipt_path = (
-        records_artifact_root(repo)
+        current_record_root(repo)
         / "receipts"
         / f"{hashlib.sha256(decision_id.encode()).hexdigest()}.json"
     )
@@ -644,13 +642,13 @@ def test_existing_receipt_blocks_preserve_retire_before_destructive_effect(
 
     assert report["ok"] is False
     assert report["state"] == "blocked"
-    assert report["required_gaps"] == ["lane_resolution_receipt_path_exists"]
+    assert report["required_gaps"] == ["lane_resolution_current_record_invalid"]
     assert lane.is_dir()
     assert git(repo, "show-ref", "--verify", "refs/heads/work/orphan")
     assert receipt_path.read_bytes() == original
     assert report["preservation_package"] == {}
     assert report["receipt"] == {}
-    assert not (records_artifact_root(repo) / decision_id).exists()
+    assert not (current_record_root(repo) / decision_id).exists()
     assert not tuple(receipt_path.parent.glob(".*.receipt-reservation"))
 
 
@@ -666,15 +664,14 @@ def test_preservation_package_verifier_fails_closed_on_invalid_packages(
             package={"path": "evidence/recovery", "manifest": {}},
         )
 
-    relative_package = "build/artifacts/lane-resolution/recovery"
-    package = root / relative_package
+    package = current_record_root(root) / "recovery"
     package.mkdir(parents=True)
     with pytest.raises(TypeError, match="lane_resolution_preservation_manifest_invalid"):
-        verify_preservation_package(root=root, package={"path": relative_package})
+        verify_preservation_package(root=root, package={"path": package})
     with pytest.raises(ValueError, match="lane_resolution_preservation_package_invalid"):
         verify_preservation_package(
             root=root,
-            package={"path": relative_package, "manifest": {}},
+            package={"path": package, "manifest": {}},
         )
 
     bundle = package / "repository.bundle"
@@ -691,7 +688,7 @@ def test_preservation_package_verifier_fails_closed_on_invalid_packages(
     with pytest.raises(ValueError, match="lane_resolution_preservation_package_invalid"):
         verify_preservation_package(
             root=root,
-            package={"path": relative_package, "manifest": manifest},
+            package={"path": package, "manifest": manifest},
         )
 
 
@@ -780,7 +777,7 @@ def test_resolution_rejects_symlinked_package_destination_outside_records_owner(
     uuid.UUID(decision_id.removeprefix("lane-decision:"))
     outside = tmp_path / "outside-package"
     outside.mkdir()
-    package_path = records_artifact_root(repo) / decision_id
+    package_path = current_record_root(repo) / decision_id
     package_path.symlink_to(outside, target_is_directory=True)
 
     applied = apply_lane_resolution(
@@ -791,7 +788,7 @@ def test_resolution_rejects_symlinked_package_destination_outside_records_owner(
     )
 
     assert applied["ok"] is False
-    assert applied["required_gaps"] == ["lane_resolution_preservation_path_outside_root"]
+    assert applied["required_gaps"] == ["lane_resolution_current_record_invalid"]
     assert list(outside.iterdir()) == []
 
 
@@ -802,7 +799,7 @@ def test_resolution_preservation_package_refuses_to_clobber_existing_directory(
     (lane / "README.md").write_text("# preserve without clobber\n", encoding="utf-8")
     decision_path = _default_decision_path(repo, "work/orphan")
     planned = _decide(repo, decision_path, "preserve")
-    package = records_artifact_root(repo) / str(planned["decision"]["decision_id"])
+    package = current_record_root(repo) / str(planned["decision"]["decision_id"])
     package.mkdir(parents=True)
     tracked_patch = package / "tracked.patch"
     tracked_patch.write_bytes(b"existing recovery bytes")
@@ -815,10 +812,10 @@ def test_resolution_preservation_package_refuses_to_clobber_existing_directory(
     )
 
     assert applied["ok"] is False
-    assert applied["required_gaps"] == ["lane_resolution_preservation_package_exists"]
+    assert applied["required_gaps"] == ["lane_resolution_current_record_invalid"]
     assert tracked_patch.read_bytes() == b"existing recovery bytes"
     assert lane.is_dir()
-    assert not tuple((records_artifact_root(repo) / "receipts").glob(".*.receipt-reservation"))
+    assert not tuple((current_record_root(repo) / "receipts").glob(".*.receipt-reservation"))
 
 
 def test_resolution_decide_does_not_write_tracked_chronicle_path(

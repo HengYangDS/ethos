@@ -43,7 +43,7 @@ class OwnerlessCloseoutRuntime:
 
     run_git: Callable[..., subprocess.CompletedProcess[str]]
     observe_lane: Callable[[Path, str], tuple[LaneObservation, list[str]]]
-    records_artifact_root: Callable[[Path], Path]
+    current_record_root: Callable[[Path], Path]
     reservation_path: Callable[..., Path]
     read_reservation: Callable[..., dict[str, object]]
     reserve_target: Callable[..., Path]
@@ -177,7 +177,7 @@ def retire_clean_ownerless_lane(  # noqa: PLR0913, PLR0915, RUF100 - exact cross
             _ownerless_gap("wcp_rejected"), fence_acquired=False
         ) from error
     wcp_binding_digest = _canonical_digest(wcp)
-    record_root = artifact_root or runtime.records_artifact_root(root)
+    record_root = artifact_root or runtime.current_record_root(root)
     database = runtime.state_database(root)
     reset_reserved_no_effect_retry(
         runtime=runtime,

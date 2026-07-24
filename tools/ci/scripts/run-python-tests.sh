@@ -10,6 +10,12 @@ coverage_config_dir=".config/checks/coverage"; coverage_policy_path="${coverage_
 evidence_root="${ETHOS_TEST_EVIDENCE_DIR:-build/evidence/quality/tests}"; coverage_evidence_dir="${evidence_root}/coverage"; pytest_evidence_dir="${evidence_root}/pytest"
 coverage_lock_dir="${coverage_evidence_dir}/.write.lock"; coverage_lock_owner_path="${coverage_lock_dir}/owner.pid"; coverage_lock_wait_seconds="${ETHOS_COVERAGE_LOCK_WAIT_SECONDS:-30}"
 pytest_tmp_dir="${ETHOS_TEST_BASETEMP:-${TMPDIR:-/tmp}/ethos-pytest-${USER:-user}-$$}"; workers="${ETHOS_TEST_WORKERS:-8}"; durations="${ETHOS_TEST_DURATIONS:-20}"; shards="${ETHOS_TEST_SHARDS:-1}"
+timeout_seconds="${ETHOS_TEST_TIMEOUT_SECONDS:-}"; timeout_method="${ETHOS_TEST_TIMEOUT_METHOD:-}"
+if [[ -n "${timeout_seconds}" || -n "${timeout_method}" ]]; then
+  if [[ -z "${timeout_seconds}" || -z "${timeout_method}" ]]; then echo "ETHOS_TEST_TIMEOUT_SECONDS and ETHOS_TEST_TIMEOUT_METHOD must be set together" >&2; exit 2; fi
+  if ! [[ "${timeout_seconds}" =~ ^[1-9][0-9]*$ ]]; then echo "ETHOS_TEST_TIMEOUT_SECONDS must be a positive integer" >&2; exit 2; fi
+  case "${timeout_method}" in signal|thread) ;; *) echo "ETHOS_TEST_TIMEOUT_METHOD must be signal or thread" >&2; exit 2 ;; esac
+fi
 if ! [[ "${coverage_lock_wait_seconds}" =~ ^[0-9]+$ ]]; then echo "ETHOS_COVERAGE_LOCK_WAIT_SECONDS must be a non-negative integer" >&2; exit 2; fi
 if [[ "${shards}" != "1" && "${shards}" != "serial" ]] && { ! [[ "${shards}" =~ ^[0-9]+$ ]] || [[ "${shards}" -lt 1 ]]; }; then echo "ETHOS_TEST_SHARDS must be a positive integer" >&2; exit 2; fi
 ethos_python="${ETHOS_PYTHON:-${PYTHON:-${UV_PROJECT_ENVIRONMENT}/bin/python}}"
@@ -86,6 +92,7 @@ PY
 )"
 pytest_targets=(tests/unit tests/architecture)
 pytest_common_args=(-c "${pytest_config_path}" -W error --rootdir=. --cov-config="${coverage_config_dir}/coverage.ini" --cov=ethos --cov=ethos_core --basetemp="${pytest_tmp_dir}" --durations="${durations}" --dist=loadscope)
+if [[ -n "${timeout_seconds}" ]]; then pytest_common_args+=(--timeout="${timeout_seconds}" --timeout-method="${timeout_method}"); fi
 pytest_junit_arg=(--junitxml="${pytest_evidence_dir}/junit.xml")
 pytest_report_args=(--cov-report=term-missing --cov-report="xml:${coverage_evidence_dir}/coverage.xml" "--cov-fail-under=${coverage_hard_floor}")
 pytest_runner=("${ethos_python}" -m pytest); coverage_runner=("${ethos_python}" -m coverage)

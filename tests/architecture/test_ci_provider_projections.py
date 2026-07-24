@@ -155,7 +155,11 @@ def test_gitlab_node_compatibility_matrix_projects_the_runtime_policy() -> None:
 def test_github_repository_proof_projects_parallel_worker_stability() -> None:
     github = yaml.safe_load((ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8"))
 
-    assert github["jobs"]["verify"]["env"] == {"ETHOS_TEST_WORKERS": "4"}
+    assert github["jobs"]["verify"]["env"] == {
+        "ETHOS_TEST_WORKERS": "4",
+        "ETHOS_TEST_TIMEOUT_SECONDS": "300",
+        "ETHOS_TEST_TIMEOUT_METHOD": "signal",
+    }
     expected_runner = ["self-hosted", "macOS", "ARM64", "${{ vars.ETHOS_GITHUB_RUNNER_LABEL }}"]
 
     assert github["jobs"]["quality"]["runs-on"] == expected_runner

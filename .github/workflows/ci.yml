@@ -99,6 +99,11 @@ jobs:
       # on the repository's large isolated lane/closeout test groups. Four workers
       # preserve the same owner-script coverage gate while isolating test state.
       ETHOS_TEST_WORKERS: "4"
+      # pytest-timeout thread mode ends a timed-out xdist worker with os._exit(1).
+      # This macOS-only projection keeps a finite bound while preserving a normal
+      # pytest failure and teardown path for diagnosis.
+      ETHOS_TEST_TIMEOUT_SECONDS: "300"
+      ETHOS_TEST_TIMEOUT_METHOD: "signal"
     steps:
       - uses: actions/checkout@v7
         env:

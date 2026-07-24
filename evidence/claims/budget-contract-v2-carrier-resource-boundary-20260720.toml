@@ -6,7 +6,7 @@ summary = "Implement MetricContract v4 static hybrid carrier execution with fixe
 
 [evidence]
 dated = "evidence/chronicle/budget-contract-v2-carrier-resource-boundary-20260720/2026-07-24.md"
-sha256 = "ca5ff955270eac1100bbb639f85257a5b81c43d87f9b7902e1b0b0a4e23cebdc"
+sha256 = "cec4dd7245a8d0f1bf9c7a65d6c675fd9c10deed0666e6d684e424b194d9db32"
 evidence_ids = [
   "evidence:budget-contract-v2-carrier-resource-boundary-20260720",
   "evidence:budget-contract-v2-carrier-resource-boundary-closeout-reconciliation-20260724",

@@ -45,8 +45,8 @@ tests = [
 
 [evidence.freshness]
 mode = "semantic_scope"
-head = "1ee10040cf7ba73bb88d23cb11a545a23f06338f"
-semantic_sha256 = "463c6be8f9bed3cd5a42640b4e9f6dc6910fdb59ebe3b835c86960e99e94a313"
+head = "d6b1bbaeb05233dd3005f34c84223c4e2c4754d1"
+semantic_sha256 = "bacd05bff11faa33213cb03e2cc13b6eb8fc51a51d16ea97fbb82b4f2be8e0e9"
 
 [boundary]
 owner = "quality"

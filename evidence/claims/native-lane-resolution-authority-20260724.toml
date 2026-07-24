@@ -1,0 +1,62 @@
+[claim]
+id = "native-lane-resolution-authority-20260724"
+subject = "ethos:worktree-retirement:native-lane-resolution-authority"
+state = "active"
+summary = "The active successor replaces split ownerless-retirement authority with one ETHOS-native decision, admission, fence, reservation, Git CAS, receipt, recovery, and versioned-current-record chain; the predecessor Claim is superseded."
+
+[evidence]
+dated = "evidence/chronicle/native-lane-resolution-authority-20260724/2026-07-24.md"
+sha256 = "9af8981dae484b05f7701593bc11925af15df48cb050c9b9c3b0862cda3f53cd"
+evidence_ids = ["evidence:native-lane-resolution-authority-20260724"]
+binding = "The approved design, non-destructive authority cut, live zero-inflight and zero-fence baseline, owned successor lane, active OpenSpec carrier, and predecessor-Claim supersession authorize implementation. This initial binding does not claim completed code, passing gates, exact-HEAD proof, archive, land, accepted closeout, predecessor-lane retirement, publication, or hosted execution."
+verifier = "digest_only"
+tests = [
+  "openspec validate native-lane-resolution-authority --strict --json",
+  "tools/ci/scripts/run-ethos-lane.sh openspec --lifecycle --json",
+  "tools/ci/scripts/run-ethos-lane.sh quality claims --json",
+  "tools/ci/scripts/run-python-tests.sh",
+  "tools/ci/scripts/run-python-lint.sh",
+  "tools/ci/scripts/run-ethos-lane.sh quality types --json",
+  "tools/ci/scripts/run-ethos-lane.sh quality schemas --json",
+  "tools/ci/scripts/run-ethos-lane.sh quality module-layout --json",
+  "tools/ci/scripts/run-ethos-lane.sh quality code-size --json",
+  "tools/ci/scripts/run-ethos-lane.sh quality no-compat --json",
+  "tools/ci/scripts/run-ethos-lane.sh quality coupling-audit --json",
+  "tools/ci/scripts/run-ethos-lane.sh prove --execute --expect-head <committed-head> --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "Clean linked ownerless Work Lane native admission, effect, current records, recovery, configured-role enforcement, and generic undeclared-executable prevention; no workspace-key migration, lane-start change, real foreign-lane retirement, predecessor-record mutation, remote publication, hosted mutation, distributed lock, or filesystem-lock claim."
+
+[carriers]
+openspec = "openspec/changes/native-lane-resolution-authority"
+fallback = "Leave the exact lane, ref, worktree registration, path, fence, reservation, decision, and records untouched whenever any native binding or postcondition cannot be proved."
+kill_signal = "Current effect authority consults predecessor records, requires an undeclared external verifier, accepts provider-specific contract fields, skips an invalid current payload, hard-codes the Work Lane prefix, or performs an unbound Git/worktree effect."
+
+[promotion]
+targets = [
+  { kind = "evidence", path = "evidence/claims/native-lane-resolution-authority-20260724.toml" },
+  { kind = "evidence", path = "evidence/chronicle/native-lane-resolution-authority-20260724/2026-07-24.md" },
+  { kind = "evidence", path = "evidence/claims/ownerless-closeout-effect-fence-20260722.toml" },
+  { kind = "openspec", path = "openspec/changes/native-lane-resolution-authority" },
+  { kind = "openspec", path = "openspec/specs/repository-governance/spec.md" },
+  { kind = "docs", path = "docs/plans/native-lane-resolution-authority-design-20260724.md" },
+  { kind = "docs", path = "docs/plans/native-lane-resolution-authority-implementation-plan-20260724.md" },
+  { kind = "docs", path = "docs/reference/command-plane.md" },
+  { kind = "source", path = "packages/ethos-core/src/ethos_core/contracts/resolution" },
+  { kind = "source", path = "packages/ethos/src/ethos/adapters/mutation/resolution" },
+  { kind = "source", path = "packages/ethos/src/ethos/adapters/store/state/closeout.py" },
+  { kind = "source", path = "packages/ethos/src/ethos/surface/cli/lane/resolution.py" },
+  { kind = "source", path = "system/coupling.toml" },
+  { kind = "schema", path = "system/schemas/kernel/lane-resolution-receipt.schema.json" },
+  { kind = "tests", path = "tests/unit/cli/test_contracts_lane_resolution.py" },
+  { kind = "tests", path = "tests/unit/kernel/test_lane_resolution_contract.py" },
+  { kind = "tests", path = "tests/unit/lanes/test_lane_resolution_artifacts.py" },
+  { kind = "tests", path = "tests/unit/lanes/retirement/test_ownerless_closeout_admission.py" },
+  { kind = "tests", path = "tests/unit/lanes/retirement/test_ownerless_closeout_effect.py" },
+  { kind = "tests", path = "tests/unit/lanes/retirement/test_ownerless_closeout_recovery.py" },
+]

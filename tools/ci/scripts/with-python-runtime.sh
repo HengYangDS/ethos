@@ -8,6 +8,8 @@ bootstrap_bin="${repo_root}/build/runtime/tool-cache/uv-bootstrap/bin"
 if [[ -x "${bootstrap_bin}/uv" ]]; then export PATH="${bootstrap_bin}:${PATH}"; fi
 export UV_PROJECT_ENVIRONMENT="${repo_root}/build/runtime/venv"; unset VIRTUAL_ENV
 if [[ -n "${ETHOS_UV_CACHE_DIR:-}" ]]; then export UV_CACHE_DIR="${ETHOS_UV_CACHE_DIR}"; elif [[ -n "${UV_CACHE_DIR:-}" ]]; then export UV_CACHE_DIR; else export UV_CACHE_DIR="${XDG_CACHE_HOME:-${HOME}/.cache}/ethos/uv"; fi
+# Keep a caller-owned relative cache bound to its outer runtime when a nested checkout takes over.
+if [[ "${UV_CACHE_DIR}" != /* ]]; then cache_owner_root="${repo_root}"; if [[ -n "${inherited_runtime_root}" && "${inherited_runtime_root}" != "${repo_root}" ]]; then cache_owner_root="${inherited_runtime_root}"; fi; export UV_CACHE_DIR="${cache_owner_root}/${UV_CACHE_DIR}"; fi
 mkdir -p "${UV_CACHE_DIR}"; export ETHOS_RUNTIME_ROOT="${repo_root}"
 # Bootstrap only the default checkout interpreter; explicit Python overrides remain caller-owned.
 semantic_python="${UV_PROJECT_ENVIRONMENT}/bin/python"; if [[ "$1" == "${semantic_python}" ]]; then

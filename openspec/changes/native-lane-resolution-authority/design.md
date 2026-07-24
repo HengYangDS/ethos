@@ -1,49 +1,82 @@
 ## Context
 
-ETHOS already owns the irreversible ownerless-retirement effect: it observes the
-lane, stores the decision, acquires a SQLite fence that competes with lease
-acquisition, persists a durable reservation, removes the registered worktree
-without force, performs exact Git reference CAS, verifies postconditions, writes
-an immutable receipt, and recovers crash windows. A host-side verifier was added
-between observation and effect and its response fields were promoted into ETHOS
-contracts. At the same time, current readers scan both the canonical records
-directory and predecessor worktree artifact roots. The result is split authority,
-provider vocabulary in kernel contracts, and historical records participating in
-current effect decisions.
+ETHOS already owns the irreversible ownerless-retirement effect: decision and
+Chronicle records, SQLite exclusion, durable reservation, no-force worktree
+removal, exact Git ref CAS, postconditions, immutable receipts, and crash
+recovery. A workstation control-plane verifier and mixed predecessor record roots
+were later placed inside that authority path. The result is split authority,
+provider vocabulary in kernel contracts, historical records influencing current
+effects, and callback/runtime bags that hide the concrete owner of behavior.
 
-The cutover starts only when current inventory has no inflight or partial record,
-the closeout-fence table is empty, and no reservation sidecar is present. Those
-conditions were observed before this Change was created.
+The original implementation lane also fell materially behind `candidate/dev`.
+Native refresh reported real conflicts, so implementation moved to a successor
+lane created from current candidate truth. The old lane remains a clean rollback
+carrier. Product code is replayed by semantic slice; it is not bulk cherry-picked.
+
+Current candidate truth includes staged-index recovery package v2 from commit
+`8fcea306d`: `tracked.patch`, `index.patch`, and `index_patch_sha256`. The old
+preservation commit `21142430c` predates that complete current shape and cannot be
+replayed as a whole.
 
 ## Goals / Non-Goals
 
 **Goals:**
 
-- Make ownerless lane-resolution admission and effect self-contained inside
-  ETHOS repository and local-state authority.
-- Preserve one exact CAS, one exact binding, and one exact receipt path.
+- Make Work Lane observation, admission, records, effect, retry, recovery, and
+  cleanup self-contained inside ETHOS repository and local-state authority.
+- Enforce refresh-first implementation and successor-lane semantic replay after a
+  real native-refresh conflict.
+- Preserve the old lane as rollback carrier until landed absorption is exact.
+- Preserve one exact CAS, one exact binding, one exact typed reservation, and one
+  immutable receipt path.
 - Separate current records from immutable history without a data migration.
 - Make invalid or pending current records visible and fail closed.
-- Respect the existing configured Work Lane role and branch prefix.
-- Keep modules small, concrete, and directly imported; every `__init__.py`
-  remains declaration-only.
-- Remove retired provider vocabulary from the current tracked tree and prevent
-  undeclared external lifecycle executables generically.
+- Observe Git, Chronicle, policy, worktree registration, lease, Claim, and fence
+  facts byte- and descriptor-exactly.
+- Replace synthetic branch/head/path incarnation with a descriptor-bound Git
+  worktree registration token.
+- Preserve staged-index recovery package v2 while making archive creation native,
+  byte exact, descriptor bound, and bounded in memory.
+- Remove runtime/callback bags and import concrete owners directly.
+- Prevent undeclared mandatory lifecycle executables through generic,
+  declaration-driven coupling audit.
+- Remove WCP from the current tracked tree without rewriting Git history or local
+  predecessor records.
+- Pay branch-owned Ruff, module-layout, and code-size debt without baseline
+  expansion.
 
 **Non-Goals:**
 
 - No compatibility alias, dual reader, dual writer, provider adapter, facade,
-  single-implementation Protocol, or package-root export.
+  single-implementation Protocol, package-root export, or runtime service bag.
 - No archive/freeze/tombstone migration, activation marker, migration journal,
   or destructive history cleanup.
-- No process-table occupancy substitute. Repository safety is derived from Git
-  registration, clean state, accepted ancestry, lease/Claim state, fence
-  exclusion, exact CAS, and fresh observations.
+- No process-table occupancy substitute.
 - No workspace-key migration or Work Lane creation-policy change.
+- No whole-commit replay of predecessor preservation code.
+- No rewrite of Git history, historical local records, SQLite history,
+  virtual environments, or IDE/session metadata.
+- No retirement of a foreign Work Lane during implementation acceptance.
+- No remote publication or hosted mutation.
 
 ## Decisions
 
-### 1. One non-destructive authority cut
+### 1. Refresh-first successor semantic replay
+
+Before any implementation slice, the successor must show `candidate/dev` as an
+ancestor. If candidate advances, native `ethos lane refresh-base` runs first. A
+real refresh conflict aborts and restores the lane; work continues only in a new
+successor started from current candidate.
+
+The predecessor lane is read-only rollback material. Its commits may be inspected
+with `git show`, but product commits are not cherry-picked. Each slice starts with
+current-candidate RED tests, replays only still-valid semantics, receives focused
+review, and lands as a signed commit.
+
+Alternative rejected: continue on the stale lane and refresh at the end. That
+would multiply conflicts and bind proof to obsolete candidate truth.
+
+### 2. One non-destructive current-record authority cut
 
 Current authority moves to:
 
@@ -58,16 +91,12 @@ Predecessor history remains at:
 <registered-worktree>/build/artifacts/lane-resolution/
 ```
 
-`current_record_root()` is the only root used by decide, apply, recovery,
+`current_record_root()` is the only root used by decide, apply, retry, recovery,
 receipt, clear, and current inventory. `historical_record_roots()` is an
-independent read-only locator for explicit history inspection. There is no
-fallback from current to history, and current clear never deletes history.
+independent read-only locator. There is no current-to-history fallback and
+current clear never deletes history.
 
-Alternative rejected: moving or copying records. It creates a migration
-authority, risks changing evidence bytes, and is unnecessary while no effect is
-in flight.
-
-### 2. Provider-neutral typed records
+### 3. Provider-neutral typed records
 
 `LaneResolutionReceipt` writes schema version 3. Its ownerless binding contains
 exactly:
@@ -82,120 +111,240 @@ target_binding_digest
 postcondition_digest
 ```
 
-`OwnerlessCloseoutReservation` is the single schema-version-2 typed owner of
-reservation shape and phase/recovery invariants. `records/core.py` delegates to
-that model instead of maintaining a second handwritten field set. Clear receipts
-carry `schema_version = 1`. Decision version 1 remains unchanged because its
-meaning does not change.
+`OwnerlessCloseoutReservation` is the single schema-version-2 owner of
+reservation shape and phase/recovery invariants. Clear receipts carry version 1.
+Decision version 1 remains unchanged. Closed models and schemas reject provider-
+prefixed fields, unexpected fields, invalid OIDs, and non-canonical bytes.
 
-Alternative rejected: retaining legacy fields or unversioned current readers.
-That would keep the retired provider authoritative and make malformed current
-payloads indistinguishable from history.
+Current inventory enumerates decisions, manifests, receipts, clears, and
+reservations. It reports `decision_pending` and blocking invalid-current-record
+facts instead of treating parse failure as absence.
 
-### 3. Native admission at the effect boundary
+### 4. Fixed, byte-exact Git observation
 
-`closeout/admission.py` validates, in order:
+Mandatory lifecycle Git execution uses literal `git`, byte stdout/stderr,
+`GIT_OPTIONAL_LOCKS=0`, `shell=False`, and no executable override. Git failures or
+malformed output are unverifiable.
 
-1. exact canonical decision bytes and decision digest;
-2. Chronicle existence, disposition, and digest;
-3. configured Work Lane role rather than a hard-coded branch prefix;
-4. exact registered worktree path, HEAD, and incarnation;
-5. clean, ownerless state with no holder, lease, or Claim;
-6. target HEAD ancestry under the current accepted HEAD;
-7. canonical executor reference and target/target-binding digests;
-8. the same complete observation after the SQLite fence is acquired.
+Cleanliness includes porcelain-v2 status, worktree diff, staged diff, exact
+untracked inventory, and rejection of `assume-unchanged` and `skip-worktree`
+entries. Exact blobs, patches, and paths are not normalized through text.
 
-Any mismatch returns a stable gap before Git or worktree effect. The executor
-then reuses the existing no-force removal, accepted-ref no-op verification,
-target-ref exact delete CAS, three-state probes, durable reservation, and receipt
-cleanup order.
+### 5. Descriptor-bound Git worktree registration token
 
-Alternative rejected: recreating the host verifier response internally. Echoed
-tree/layout/coordination fields add a second wire contract without adding a new
-repository invariant.
+`GitWorktreeRegistrationToken` binds the target worktree directory, target `.git`
+gitfile, linked-worktree administration directory, administration `gitdir`
+backlink, their descriptor identities, their exact pointer bytes, and their exact
+paths. Components are opened relative to pinned parent descriptors with
+`O_NOFOLLOW`, and visible/descriptor identities are compared before and after the
+read.
 
-### 4. Current inventory is complete and strict
+The token replaces `hash(branch, head, path)` as the decision incarnation. A
+same-path, same-ref, same-HEAD delete/recreate changes the token and blocks the old
+decision.
 
-Inventory enumerates the union of decision, manifest, receipt, clear, and
-reservation identifiers. It reports `decision_count`,
-`pending_decision_count`, `invalid_current_record_count`, and the
-`decision_pending` state. A payload present in the current root that cannot be
-validated is a blocking integrity record; it is never skipped.
+### 6. Exact Chronicle, policy, and local-state admission
 
-Alternative rejected: treating parse failure as absence. That converts damaged
-authority into apparent safety.
+Chronicle working bytes are read from a pinned repository-root descriptor.
+Accepted bytes come from exact Git object plumbing only after exactly one
+`ls-tree -z` record proves regular blob mode `100644` or `100755`. Symlink,
+submodule, tree, duplicate, absent, malformed, or failed observations block.
+Working bytes, accepted bytes, declared digest, and required disposition must all
+match.
 
-### 5. Existing configured Work Lane role is authoritative
+An absent `.ethos/workspace.toml` uses default branch roles. A present file must
+be valid TOML with a strict `branch_roles` table and exact raw field types. A
+malformed present file cannot silently select defaults. The configured
+`work_branch_prefix` remains authoritative.
 
-Native admission consumes the existing branch-role policy and its configured
-`work_branch_prefix`. It does not rename a workspace key, change lane-start
-behavior, rename existing registered worktrees, or infer authority from a
-directory spelling.
+Lease and fence readers validate raw SQLite row and JSON types before model
+construction. Damaged schema, payload, sidecar, holder, lease, Claim, or fence
+facts are unverifiable, not absent.
 
-### 6. Generic coupling prevention
+### 7. Immutable fact-only admission
 
-Coupling audit compares observed lifecycle executable bindings with declared
-bindings in `system/coupling.toml`. The Work Lane lifecycle contract admits Git,
-ETHOS state/SQLite, and native JSON/schema operations. An undeclared mandatory
-external command is blocking. The check is provider-neutral and does not retain
-a permanent special-case token for the retired dependency.
+Public API remains:
 
-### 7. Concrete module boundaries
+```text
+OwnerlessCloseoutAdmission, frozen and slots-only
+admit_ownerless_closeout(
+  *, root: Path, decision_path: Path,
+  decision: dict[str, Any], executor_ref: str
+) -> OwnerlessCloseoutAdmission
+reobserve_ownerless_closeout_under_fence(
+  *, admission: OwnerlessCloseoutAdmission,
+  fence: dict[str, object]
+) -> OwnerlessCloseoutAdmission
+```
 
-- `ethos_core/contracts/resolution/closeout.py`: receipt binding and typed
-  reservation contracts.
-- `resolution/records/roots.py`: current and historical root location only.
-- `resolution/records/reservations.py`: reservation persistence and transition
-  helpers using the typed model.
-- `resolution/closeout/admission.py`: native pre-effect validation.
-- Existing effect, retry, recovery, cleanup, state, and receipt modules retain
-  their current distinct responsibilities and import defining modules directly.
+The admission snapshot contains only immutable observed facts. It contains no
+functions, command runners, state stores, Protocols, or service objects.
 
-The retired adapter package is deleted. No `__init__.py` exports names.
+Pre-fence admission validates exact decision bytes, Chronicle, strict policy,
+executor, accepted and target Git facts, registration token, clean ownerless
+state, accepted ancestry, current-record integrity, reservation classification,
+and binding digests.
+
+Fence-held admission repeats the complete observation. The after-fence probe runs
+from a `finally` boundary for every exception class. A missing, changed, damaged,
+or competing fence blocks effect and cannot authorize cleanup.
+
+### 8. Exact effect, retry, recovery, and cleanup order
+
+The order is:
+
+```text
+completed-effect recovery precheck
+-> native admission
+-> exact reserved-no-effect retry reset
+-> exact fence acquisition
+-> complete fence-held re-observation
+-> typed reservation persistence
+-> no-force worktree removal
+-> accepted-ref verification
+-> exact target-ref deletion CAS
+-> explicit postconditions
+-> immutable receipt
+-> fence release CAS
+-> reservation removal
+```
+
+Completed-effect recovery validates decision and Chronicle before ordinary target
+observation because a completed effect removed the target worktree.
+
+A zero-effect retry may rebind only when decision, executor, target, registration
+token, and coordination facts are exact, no effect occurred, and current accepted
+HEAD equals or descends from the reserved accepted HEAD. Descendant classification
+precedes ordinary competing-reservation rejection. The old fence and reservation
+are released before a fresh binding.
+
+Cleanup uses explicit phase and recovery state, not `fence_acquired: bool`.
+Pre-effect exceptions may release only a provably owned zero-effect fence. Effect
+or later exceptions preserve visible reservation state and classify the
+transition as partial or unknown. Receipt-present cleanup is effect-free and
+releases the fence before deleting the reservation.
+
+`OwnerlessCloseoutRuntime`, `ResolutionRuntime`, `_ownerless_runtime()`,
+`_resolution_runtime()`, and all callable/runtime dictionaries are deleted.
+Tests patch concrete consumer module boundaries.
+
+### 9. Preserve current recovery package v2
+
+Preservation uses fixed Git and stdlib `tarfile`. Untracked members are walked
+from pinned descriptors with no-follow semantics and bounded-memory spooling.
+External `tar` is removed from mandatory lifecycle execution.
+
+New packages retain:
+
+```text
+repository.bundle
+tracked.patch
+index.patch
+untracked.tar, when present
+manifest.json with package_format_version=v2,
+  patch_sha256, index_patch_sha256, and archive digest
+```
+
+Alternative rejected: cherry-pick predecessor preservation commit `21142430c`.
+It would regress staged-index current truth from candidate commit `8fcea306d`.
+
+### 10. Generic executable coupling governance
+
+`system/coupling.toml` declares audit-root-bound mandatory lifecycle paths and
+allowed external executables. Lane resolution declares only literal `git`.
+SQLite, JSON, schemas, descriptors, and `tarfile` are in-process protocols.
+
+A declaration-driven AST audit scans only mandatory paths and rejects undeclared
+executables, dynamic `argv[0]`, command strings, `shell=True`, executable
+overrides, and path escapes. Optional semantic-attestation, control-replacement,
+release-profile, and policy adapters outside the mandatory path remain unaffected.
+No WCP-name blacklist is added.
+
+### 11. Module and quality governance
+
+The `_observation.py` to `observation.py` move is a net-neutral rename. The layout
+gate changes only so existing-directory growth requires
+`current_count > previous_count`; five-to-six growth and burst rules remain
+blocking.
+
+Every `__init__.py` stays docstring-only and all imports name defining modules.
+`closeout/admission.py` remains within the logic soft limit. The enlarged record
+edge test is split into a two-module semantic subpackage. Branch-owned `EM101`,
+`TRY003`, and `PLR0911` findings are fixed without expanding Ruff or code-size
+baselines.
+
+### 12. Current truth, proof, archive, land, and housekeeping
+
+The current tracked tree is normalized to zero WCP token/path/field/test residue,
+including current Claims, Chronicle, active plans, canonical specs, and archived
+OpenSpec carriers. Dates, actions, decisions, evidence digests, limitations, and
+chronology remain. Git history and local predecessor records are untouched.
+
+Focused tests precede each slice. Full gates, generic parity, and exact-HEAD
+executed proof run on a stable signed HEAD. Official OpenSpec archive changes
+HEAD, so validation and executed proof run again after archive.
+
+Final candidate refresh precedes land. If it changes HEAD, all proof is rerun.
+Land to candidate, accepted-root closeout, and local publish readiness are
+separate transitions. No push occurs.
+
+Only task-owned, exactly absorbed successor/predecessor lanes and task-created
+scratch/caches are retired or deleted. Foreign lanes, virtual environments,
+local records, SQLite history, and session metadata remain untouched.
 
 ## Risks / Trade-offs
 
-- **Current-root cut hides predecessor records from ordinary inventory** → Keep
-  them in place and expose only an explicit opaque history view if required;
-  document that history never authorizes current effect.
-- **Contract cut rejects predecessor payloads** → Current root starts empty and
-  strict; predecessor payloads are never parsed as current.
-- **Accepted HEAD advances during zero-effect retry** → Permit rebinding only
-  when the target and decision are unchanged, no effect occurred, and the new
-  accepted HEAD descends from the reserved accepted HEAD.
-- **Module growth exceeds repository limits** → Move roots, reservations, and
-  admission into concrete semantic modules; do not raise layout or size limits.
-- **Vocabulary cleanup could erase history meaning** → Replace only the retired
-  token with neutral repository-role wording, retain dates, decisions, digests,
-  limitations, and chronology, then rebind Claim digests.
-- **Generic coupling detection overreaches optional adapters** → Apply it only
-  to mandatory lifecycle execution paths; optional configured attestation and
-  policy adapters remain outside this Change.
+- **Descriptor identities are platform facts** -> Keep them inside native
+  observation/admission and serialize only a deterministic token into the existing
+  incarnation field.
+- **Exact no-lock Git observation may expose previously hidden failures** -> Fail
+  closed; authority must not depend on an observation that could not be proved.
+- **Strict present-policy parsing differs from tolerant reader behavior** -> Add a
+  strict admission-only path and preserve tolerant behavior for unrelated reader
+  projections.
+- **Semantic replay takes longer than cherry-pick** -> It prevents regression of
+  current candidate truth and makes each slice independently reviewable.
+- **Tracked vocabulary normalization touches history carriers** -> Preserve
+  historical meaning and digests, but remove the current product dependency token;
+  do not rewrite Git history or local records.
+- **Generic executable audit may overreach** -> Bind it to declaration-listed
+  mandatory paths only and test optional adapters explicitly.
 
 ## Migration Plan
 
-1. Establish and strictly validate this successor Change, Claim, Chronicle,
-   design, and implementation plan.
-2. Add failing contract/root/inventory tests, then implement the versioned
-   current root and typed records.
-3. Add failing native-admission and configured-role tests, then reconnect the
-   existing fence/reservation/recovery/CAS effect path and delete the external
-   adapter.
-4. Add failing generic coupling and provider-neutral residue tests, then update
-   schemas, docs, canonical spec, Claim, Chronicle, and
-   historical tracked vocabulary.
-5. Run focused and complete gates, generic shadow parity, and exact-HEAD proof.
-6. Officially archive the Change, update the Claim carrier and Chronicle, rerun
-   proof, land to candidate, perform accepted-root closeout, and report local
-   publish readiness without pushing.
-7. Retire only task-owned lanes and predecessor mistake lanes through native
-   closeout. If absorption cannot be proved, use Chronicle-bound preserve-retire.
+1. Confirm current successor ancestry and strict carrier validity; refresh first
+   whenever candidate advances.
+2. Replay strict contracts, record roots, inventory, clear, and typed reservation
+   slices with RED/GREEN tests and signed reviews.
+3. Port descriptor-safe preservation onto candidate recovery package v2, retaining
+   staged-index recovery.
+4. Correct the net-neutral module-rename gate without changing growth limits.
+5. Implement fixed-byte Git/Chronicle observation and descriptor-bound
+   registration tokens.
+6. Implement strict native admission and raw-state validation.
+7. Reconnect effect/retry/recovery/cleanup in the fixed order and delete provider
+   execution plus runtime/callback bags.
+8. Add declaration-driven mandatory executable coupling audit.
+9. Normalize current tracked provider residue, pay branch-owned quality debt, and
+   complete independent review.
+10. Run full gates, generic parity, exact-HEAD proof, official archive, and
+    archive-HEAD proof.
+11. Refresh once more, land, perform audited accepted-root closeout, report local
+    publish readiness, and retire only exactly absorbed task-owned lanes.
 
-Rollback before land is branch deletion after evidence review. After land, the
-rollback is a new governed Change; predecessor records remain available as
-history but never regain automatic current authority.
+Rollback before land is removal of the successor after evidence review; the old
+lane remains the rollback carrier. After land, rollback is a new governed Change.
+Historical records never regain automatic current authority.
+
+## Stop Conditions
+
+Stop mutation when candidate is not an ancestor, refresh conflicts, current
+candidate recovery package v2 would regress, any authority fact is unverifiable,
+the registration token or fence changes, a required quality/coupling/residue/
+parity/Claim/OpenSpec/proof gate remains gapped, candidate advances after proof,
+archive HEAD lacks fresh proof, or lane ownership/absorption is not exact.
 
 ## Open Questions
 
-None. The authority, migration, contract, module, and closeout boundaries are
-fully decided for implementation.
+None. Authority, replay, observation, contract, state-machine, coupling, proof,
+and closeout boundaries are decided.

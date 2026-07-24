@@ -1,0 +1,43 @@
+[claim]
+id = "ownerless-diverged-semantic-resolution-20260724"
+subject = "ethos:ownerless-diverged-semantic-resolution"
+state = "active"
+summary = "Current-head family-level disposition analysis for 71 missing-lease diverged Work Lanes, with live-lease protection, dirty-byte preservation, explicit rejection, and one-lane-at-a-time local resolution."
+
+[evidence]
+dated = "evidence/chronicle/ownerless-diverged-semantic-resolution-20260724/2026-07-24.md"
+sha256 = "ee62c21d1ffc11ef3f6b9fd847ca533d0f9e33366c808549baa8b26b330b4125"
+evidence_ids = ["evidence:ownerless-diverged-semantic-resolution-20260724"]
+binding = "The accepted HEAD, exact live owner boundary, lineage graph, family analysis, machine-readable dispositions, focused accepted checks, and later exact decision/receipt postconditions bind this local resolution claim."
+verifier = "digest_only"
+tests = [
+  "ethos lane status --json",
+  "ethos openspec --lifecycle --json",
+  "ethos quality claims --json",
+  "openspec validate --all --strict --json",
+  "pytest focused semantic suites",
+  "ethos lane resolution decide --json",
+  "ethos lane resolution apply --json",
+  "ethos prove --execute --expect-head <committed-head> --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "Only the exact Work Lanes reobserved with lease_state=missing; all live-lease lanes, protected roots outside audited closeout, remotes, hosted execution, release tags, and distribution remain excluded."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-18-all-lanes-authorized-closeout"
+fallback = "Keep any lane visible and intact whenever its live lease, HEAD, path, dirty bytes, semantic classification, preservation package, or accepted Chronicle binding cannot be re-proven."
+kill_signal = "A live-lease lane is touched, dirty bytes are lost, an exact-head recheck is skipped, a pending family is retired, or remote/hosted completion is claimed from local evidence."
+
+[promotion]
+targets = [
+  "docs/plans/ownerless-diverged-semantic-resolution-20260724.md",
+  "evidence/claims/ownerless-diverged-semantic-resolution-20260724.toml",
+  "evidence/chronicle/ownerless-diverged-semantic-resolution-20260724/2026-07-24.md",
+  "evidence/chronicle/ownerless-diverged-semantic-resolution-20260724/family-analysis.json",
+  "evidence/chronicle/ownerless-diverged-semantic-resolution-20260724/lane-dispositions.json",
+]

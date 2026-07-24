@@ -1,0 +1,93 @@
+{
+  "accepted_head": "fe94c0268d060742e808770d4d65d554709af0dd",
+  "families": [
+    {
+      "accepted_replacement": {
+        "accepted_checks": {
+          "claims": "ok=true,state=clean,235 claims,required_gaps=[]",
+          "focused_tests": "85 passed",
+          "lifecycle": "ok=true,state=clean,required_gaps=[]",
+          "strict_openspec": "9/9 passed"
+        },
+        "archive": "openspec/changes/archive/2026-07-20-openspec-identity-normalization-current",
+        "chronicle": "evidence/chronicle/openspec-identity-normalization-current-20260720/2026-07-20.md",
+        "claim": "evidence/claims/openspec-identity-normalization-current-20260720.toml",
+        "contract_module": "packages/ethos/src/ethos/repository/openspec/identifiers.py"
+      },
+      "disposition": {
+        "clean_ancestors": "retire",
+        "recovery": "retain the V26 v2 package and immutable receipt; earlier clean ancestry remains reachable through the preserved tip package and Git history recorded before retirement",
+        "tip": "preserve-retire"
+      },
+      "family_id": "openspec-identity-normalization-lineage",
+      "member_count": 24,
+      "members": [
+        "work/archived-openspec-identifier-normalization-finalization-v20-20260720",
+        "work/integrate-archived-openspec-identifier-normalization-successor-v10-20260720",
+        "work/integrate-archived-openspec-identifier-normalization-successor-v11-20260720",
+        "work/integrate-archived-openspec-identifier-normalization-successor-v12-20260720",
+        "work/integrate-archived-openspec-identifier-normalization-successor-v13-20260720",
+        "work/integrate-archived-openspec-identifier-normalization-successor-v14-20260720",
+        "work/integrate-archived-openspec-identifier-normalization-successor-v15-20260720",
+        "work/integrate-archived-openspec-identifier-normalization-successor-v16-20260720",
+        "work/integrate-archived-openspec-identifier-normalization-successor-v17-20260720",
+        "work/integrate-archived-openspec-identifier-normalization-successor-v18-20260720",
+        "work/integrate-archived-openspec-identifier-normalization-successor-v19-20260720",
+        "work/integrate-archived-openspec-identifier-normalization-successor-v6-20260719",
+        "work/integrate-archived-openspec-identifier-normalization-successor-v7-20260720",
+        "work/integrate-archived-openspec-identifier-normalization-successor-v8-20260720",
+        "work/integrate-archived-openspec-identifier-normalization-successor-v9-20260719",
+        "work/integrate-openspec-archive-identifier-normalization-20260719",
+        "work/integrate-openspec-archive-identifier-normalization-successor-20260720",
+        "work/integrate-openspec-archive-identifier-normalization-successor-v2-20260720",
+        "work/integrate-openspec-archive-identifier-normalization-successor-v3-20260720",
+        "work/openspec-archive-identifier-normalization-20260719",
+        "work/openspec-identifier-normalization-material-successor-v23-20260720",
+        "work/openspec-identity-convergence-v24-20260720",
+        "work/openspec-identity-normalization-completion-v25-20260720",
+        "work/openspec-identity-normalization-successor-v26-20260720"
+      ],
+      "semantic_judgment": {
+        "basis": [
+          "The accepted current-normalization Claim and Chronicle explicitly own date-free logical IDs, singly dated archives, exact-one lookup, and no alias or date fallback.",
+          "The current accepted lifecycle, claims, strict OpenSpec validation, and focused identity tests are green.",
+          "The V26 untracked Claim, Chronicle, proposal, design, and tasks explicitly state candidate drift ended integration eligibility and forbid refresh, cherry-pick, manual replay, proof, or land.",
+          "The alternative historical identity.py spine is not promoted because accepted identifiers.py is the current authoritative implementation and retaining both would recreate duplicate grammar ownership."
+        ],
+        "decision": "accepted implementation supersedes the historical lineage; V26 is a stale receipt, not a replay source",
+        "head_changed_path_count": 1853,
+        "head_different_from_accepted_count": 175,
+        "head_exact_in_accepted_count": 1678,
+        "head_exact_ratio": 0.905558553696708,
+        "rejected_options": [
+          "merge or replay the 107-commit stale lineage",
+          "promote the alternate identity.py module beside accepted identifiers.py",
+          "drop the seven untracked V26 stale-boundary records",
+          "retire the dirty tip without a v2 preservation package"
+        ]
+      },
+      "state": "decision_ready",
+      "tip": "work/openspec-identity-normalization-successor-v26-20260720",
+      "tip_head": "a8946dbb03c2402f96610acf6bb2da833b4a0bb5"
+    }
+  ],
+  "generated_at": "2026-07-24T08:15:06.787105+00:00",
+  "pending_component_count": 46,
+  "pending_lane_count": 47,
+  "policy": {
+    "clean_rule": "clean targets use retire only after an accepted Chronicle authorizes the exact head",
+    "dirty_rule": "dirty targets require v2 preserve-retire and post-package reconstruction verification",
+    "owner_boundary": "only lease_state=missing targets may be resolved; every live lease remains protected",
+    "semantic_rule": "final blob inequality is not a loss signal; disposition is based on lineage, accepted replacement evidence, current focused verification, and dirty-byte preservation"
+  },
+  "schema_version": 1,
+  "source_artifacts_sha256": {
+    "live-ownerless-classification-20260724T080313Z.json": "d6e9e94446eddd521847e3a932ac87372f09575386be625499b85b44cf0d9387",
+    "live-ownerless-lineage-graph-20260724T080313Z.json": "d1f3769db928bda8e695101819c9a0956db682a1c5d981d0bfdb38467482e41c",
+    "live-ownerless-semantic-comparison-20260724T080313Z.json": "e753b7c95c3e50b32451b3fad92d8003a902963a93b2f19fdd9f1d34d0a5db23",
+    "openspec-family-accepted-claims.json": "36ae0864295b92c4c13026e6b80a0d6b36f0424d4571775ab27bcc4e24aa5911",
+    "openspec-family-accepted-focused-tests.txt": "383ba222308cb388c5dbc2f23d983a4c2f77a4163049461d6cd1cd6ac64f9728",
+    "openspec-family-accepted-lifecycle.json": "96f2491c98a515fb65d32b435d4ab151fa1be28ac04133e9269533f61d469eca",
+    "openspec-family-accepted-strict-validation.json": "3de958f126c40b7f0d0105e25b9c3ea7a5342b8e7470c938d2ea555186942507"
+  }
+}

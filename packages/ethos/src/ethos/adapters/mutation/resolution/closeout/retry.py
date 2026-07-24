@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import hashlib
-import json
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
 
-from ethos.adapters.mutation.resolution.records.core import target_digest
+from ethos.adapters.mutation.resolution.receipts import canonical_resolution_payload_digest
+from ethos.adapters.mutation.resolution.records.reservations import target_digest
 
 if TYPE_CHECKING:
     from ethos.adapters.mutation.resolution.closeout.effect import OwnerlessCloseoutRuntime
@@ -25,43 +25,6 @@ def _ownerless_gap(suffix: str) -> str:
     return f"lane_resolution_ownerless_{suffix}"
 
 
-def _canonical_digest(value: object) -> str:
-    return hashlib.sha256(
-        json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
-    ).hexdigest()
-
-
-def ownerless_reservation(  # noqa: PLR0913, RUF100 - exact durable reservation binding
-    *,
-    decision: dict[str, Any],
-    observation: LaneObservation,
-    executor_ref: str,
-    accepted_branch: str,
-    accepted_head: str,
-    wcp: dict[str, object],
-    wcp_binding_digest: str,
-    target_binding_digest: str,
-) -> dict[str, object]:
-    """Build the initial exact reservation for one fenced ownerless target."""
-    return {
-        "schema_version": 1,
-        "decision_id": str(decision.get("decision_id") or ""),
-        "lane_ref": observation.lane_ref,
-        "head": observation.head,
-        "executor_ref": executor_ref,
-        "wcp_schema_version": str(wcp.get("schema_version") or ""),
-        "wcp_decision_sha256": str(wcp.get("decision_sha256") or ""),
-        "accepted_branch": accepted_branch,
-        "accepted_head": accepted_head,
-        "wcp_binding_digest": wcp_binding_digest,
-        "target_digest": target_digest(observation.lane_ref, observation.head),
-        "target_binding_digest": target_binding_digest,
-        "phase": "reserved",
-        "recovery_state": "reserved_no_effect",
-        "postcondition_digest": "",
-    }
-
-
 def reset_reserved_no_effect_retry(  # noqa: PLR0913, RUF100 - exact retry binding envelope
     *,
     runtime: OwnerlessCloseoutRuntime,
@@ -75,8 +38,6 @@ def reset_reserved_no_effect_retry(  # noqa: PLR0913, RUF100 - exact retry bindi
     executor_ref: str,
     accepted_branch: str,
     accepted_head: str,
-    wcp: dict[str, object],
-    wcp_binding_digest: str,
 ) -> None:
     """Reset one exact zero-effect attempt, mapping operational failures to a stable gap."""
     try:
@@ -92,8 +53,6 @@ def reset_reserved_no_effect_retry(  # noqa: PLR0913, RUF100 - exact retry bindi
             executor_ref=executor_ref,
             accepted_branch=accepted_branch,
             accepted_head=accepted_head,
-            wcp=wcp,
-            wcp_binding_digest=wcp_binding_digest,
         )
     except runtime.ownerless_error_type:
         raise
@@ -116,8 +75,6 @@ def _reset_reserved_no_effect_retry(  # noqa: PLR0913, RUF100 - exact retry bind
     executor_ref: str,
     accepted_branch: str,
     accepted_head: str,
-    wcp: dict[str, object],
-    wcp_binding_digest: str,
 ) -> None:
     reservation_path = runtime.reservation_path(
         root,
@@ -160,14 +117,6 @@ def _reset_reserved_no_effect_retry(  # noqa: PLR0913, RUF100 - exact retry bind
         raise runtime.ownerless_error(_FENCE_STALE, fence_acquired=True)
     if fence_state == "present" and fence != expected_fence:
         raise runtime.ownerless_error(_FENCE_STALE, fence_acquired=True)
-    current_binding = (
-        reservation["accepted_head"] == accepted_head
-        and reservation["wcp_schema_version"] == wcp.get("schema_version")
-        and reservation["wcp_decision_sha256"] == wcp.get("decision_sha256")
-        and reservation["wcp_binding_digest"] == wcp_binding_digest
-    )
-    if fence_state == "present" and current_binding:
-        return
     _verify_retry_state(
         runtime=runtime,
         root=root,
@@ -177,6 +126,8 @@ def _reset_reserved_no_effect_retry(  # noqa: PLR0913, RUF100 - exact retry bind
         accepted_branch=accepted_branch,
         accepted_head=accepted_head,
     )
+    if fence_state == "present" and reservation["accepted_head"] == accepted_head:
+        return
     _release_old_binding(
         runtime=runtime,
         root=root,
@@ -207,7 +158,7 @@ def _verify_retry_binding(  # noqa: PLR0913, RUF100 - exact immutable retry bind
         "lane_ref": observation.lane_ref,
         "head": observation.head,
         "executor_ref": executor_ref,
-        "wcp_decision_sha256": decision_sha256,
+        "decision_sha256": decision_sha256,
         "accepted_branch": accepted_branch,
         "target_digest": target_digest(observation.lane_ref, observation.head),
         "phase": "reserved",
@@ -318,12 +269,12 @@ def _expected_fence(
             "observation_digest": observation.digest(),
             "decision_sha256": decision_sha256,
             "chronicle_digest": str(decision.get("chronicle_digest") or ""),
-            "wcp_schema_version": str(reservation["wcp_schema_version"]),
-            "wcp_decision_sha256": str(reservation["wcp_decision_sha256"]),
-            "wcp_binding_digest": str(reservation["wcp_binding_digest"]),
         },
     }
-    return {**binding, "target_binding_digest": _canonical_digest(binding)}
+    return {
+        **binding,
+        "target_binding_digest": canonical_resolution_payload_digest(binding),
+    }
 
 
 def _ref_head(runtime: OwnerlessCloseoutRuntime, root: Path, branch: str) -> str:

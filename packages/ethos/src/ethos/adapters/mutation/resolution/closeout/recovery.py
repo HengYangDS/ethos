@@ -23,9 +23,13 @@ from ethos.adapters.mutation.resolution.closeout.cleanup.core import (
     release_ownerless_closeout_resources,
 )
 from ethos.adapters.mutation.resolution.closeout.cleanup.core import release_receipt_reservation
-from ethos.adapters.mutation.resolution.records.core import ownerless_closeout_reservation_path
-from ethos.adapters.mutation.resolution.records.core import read_ownerless_closeout_reservation
-from ethos.adapters.mutation.resolution.records.core import target_digest
+from ethos.adapters.mutation.resolution.records.reservations import (
+    ownerless_closeout_reservation_path,
+)
+from ethos.adapters.mutation.resolution.records.reservations import (
+    read_ownerless_closeout_reservation,
+)
+from ethos.adapters.mutation.resolution.records.reservations import target_digest
 from ethos_core.contracts.branch.roles import load_branch_role_policy
 from ethos_core.contracts.resolution.closeout import OwnerlessCloseoutBinding
 from ethos_core.contracts.resolution.lane import LaneObservation

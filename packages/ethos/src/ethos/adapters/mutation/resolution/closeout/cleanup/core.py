@@ -11,8 +11,12 @@ from ethos.adapters.mutation.resolution._effects import OwnerlessCloseoutError
 from ethos.adapters.mutation.resolution._effects import recover_completed_ownerless_closeout
 from ethos.adapters.mutation.resolution.receipts import exact_ownerless_resolution_receipt
 from ethos.adapters.mutation.resolution.receipts import read_resolution_receipt
-from ethos.adapters.mutation.resolution.records.core import ownerless_closeout_reservation_path
-from ethos.adapters.mutation.resolution.records.core import release_ownerless_closeout_reservation
+from ethos.adapters.mutation.resolution.records.reservations import (
+    ownerless_closeout_reservation_path,
+)
+from ethos.adapters.mutation.resolution.records.reservations import (
+    release_ownerless_closeout_reservation,
+)
 from ethos.adapters.store.state.closeout import probe_closeout_fence
 from ethos.adapters.store.state.schema import state_database
 from ethos_core.contracts.resolution.closeout import OwnerlessCloseoutBinding

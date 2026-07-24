@@ -8,11 +8,13 @@ from typing import TYPE_CHECKING
 from ethos.adapters.mutation.resolution._shared import display_path
 from ethos.adapters.mutation.resolution._shared import valid_decision_id
 from ethos.adapters.mutation.resolution.records.core import record_path
-from ethos.adapters.mutation.resolution.records.core import target_digest
+from ethos.adapters.mutation.resolution.records.reservations import target_digest
+from ethos.adapters.mutation.resolution.records.reservations import (
+    validate_ownerless_closeout_reservation,
+)
 from ethos.repository.policy.schema import validate_schema_instance
 from ethos_core.contracts.resolution.closeout import LaneResolutionClearReceipt
 from ethos_core.contracts.resolution.closeout import LaneResolutionReceipt
-from ethos_core.contracts.resolution.closeout import OwnerlessCloseoutReservation
 from ethos_core.contracts.resolution.lane import LaneResolutionDecision
 
 if TYPE_CHECKING:
@@ -96,10 +98,10 @@ def validate_clear_receipt(root: Path, payload: dict[str, object]) -> dict[str, 
 
 def validate_reservation(payload: dict[str, object]) -> dict[str, object]:
     """Return one canonical current reservation or raise the stable invalid gap."""
-    canonical = OwnerlessCloseoutReservation.model_validate(payload).to_payload()
-    if canonical != payload:
-        raise ValueError(_CURRENT_RECORD_INVALID)
-    return canonical
+    try:
+        return validate_ownerless_closeout_reservation(payload)
+    except (TypeError, ValueError) as error:
+        raise ValueError(_CURRENT_RECORD_INVALID) from error
 
 
 def _require_schema(root: Path, schema: str, payload: dict[str, object]) -> None:

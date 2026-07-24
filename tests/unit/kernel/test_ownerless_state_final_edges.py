@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import sqlite3
 from contextlib import closing
 from typing import TYPE_CHECKING
@@ -26,10 +28,44 @@ def _fence_kwargs() -> dict[str, str]:
         "observation_digest": "c" * 64,
         "decision_sha256": "d" * 64,
         "chronicle_digest": "e" * 64,
-        "wcp_schema_version": "workstation.repo-family-governance.v1",
-        "wcp_decision_sha256": "d" * 64,
-        "wcp_binding_digest": "f" * 64,
     }
+
+
+def _replace_fence_payload(
+    db_path: Path,
+    *,
+    fence: dict[str, object],
+    payload: dict[str, object],
+) -> None:
+    binding = {
+        field: fence[field]
+        for field in (
+            "subject",
+            "expected_head",
+            "decision_id",
+            "executor_ref",
+            "accepted_branch",
+            "accepted_head",
+        )
+    }
+    binding["payload"] = payload
+    canonical_binding = json.dumps(
+        binding,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    )
+    target_binding_digest = hashlib.sha256(canonical_binding.encode()).hexdigest()
+    with closing(sqlite3.connect(db_path)) as connection, connection:
+        connection.execute(
+            """update closeout_fences
+            set target_binding_digest = ?, payload_json = ? where subject = ?""",
+            (
+                target_binding_digest,
+                json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False),
+                _fence_kwargs()["subject"],
+            ),
+        )
 
 
 def test_closeout_fence_rejects_same_decision_with_changed_binding(tmp_path: Path) -> None:
@@ -71,6 +107,34 @@ def test_closeout_fence_probe_maps_malformed_schema_to_unverifiable(tmp_path: Pa
         connection.execute("create table closeout_fences(subject text not null)")
 
     assert closeout.probe_closeout_fence(db_path, subject="work/20260722-state-final") == (
+        "unverifiable",
+        None,
+    )
+
+
+def test_closeout_fence_rejects_provider_field_with_rebound_digest(tmp_path: Path) -> None:
+    db_path = tmp_path / "provider-field.sqlite"
+    fence = closeout.acquire_closeout_fence(db_path, **_fence_kwargs())
+    payload = dict(fence["payload"])
+    payload["provider_binding_digest"] = "f" * 64
+    _replace_fence_payload(db_path, fence=fence, payload=payload)
+
+    with pytest.raises(ValueError, match="lane_closeout_fence_binding_invalid"):
+        closeout.acquire_closeout_fence(db_path, **_fence_kwargs())
+
+
+@pytest.mark.parametrize("provider_field", ["wcp_binding_digest", "provider_binding_digest"])
+def test_closeout_fence_probe_maps_provider_prefixed_payload_to_unverifiable(
+    tmp_path: Path,
+    provider_field: str,
+) -> None:
+    db_path = tmp_path / f"{provider_field}.sqlite"
+    fence = closeout.acquire_closeout_fence(db_path, **_fence_kwargs())
+    payload = dict(fence["payload"])
+    payload[provider_field] = "f" * 64
+    _replace_fence_payload(db_path, fence=fence, payload=payload)
+
+    assert closeout.probe_closeout_fence(db_path, subject=_fence_kwargs()["subject"]) == (
         "unverifiable",
         None,
     )

@@ -10,8 +10,7 @@ from typing import Any
 import pytest
 
 import ethos.adapters.mutation.resolution._effects as effect_adapter
-import ethos.adapters.mutation.resolution.records.core as record_store
-import ethos.adapters.mutation.resolution.records.release as no_effect_records
+import ethos.adapters.mutation.resolution.records.reservations as reservation_store
 from ethos.adapters.mutation.resolution.lane import apply_lane_resolution
 from ethos.adapters.mutation.resolution.lane import plan_lane_resolution
 from ethos.adapters.store.state.closeout import get_closeout_fence
@@ -67,17 +66,15 @@ def _ownerless_preflight(*, expected: Any, **_kwargs: object) -> dict[str, objec
 def _ownerless_reservation() -> dict[str, object]:
     lane_ref, head = "work/20260722-ownerless", "a" * 40
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "decision_id": _OWNERLESS_DECISION_ID,
         "lane_ref": lane_ref,
         "head": head,
         "executor_ref": "agent:codex:thread:executor",
-        "wcp_schema_version": "workstation.repo-family-governance.v1",
-        "wcp_decision_sha256": "b" * 64,
+        "decision_sha256": "b" * 64,
         "accepted_branch": "dev",
         "accepted_head": "c" * 40,
-        "wcp_binding_digest": "d" * 64,
-        "target_digest": record_store.target_digest(lane_ref, head),
+        "target_digest": reservation_store.target_digest(lane_ref, head),
         "target_binding_digest": "e" * 64,
         "phase": "reserved",
         "recovery_state": "reserved_no_effect",
@@ -127,11 +124,11 @@ def _planned_reservation_path(repo: Path, planned: dict[str, object]) -> Path:
     assert isinstance(decision, dict)
     observation = decision["observation"]
     assert isinstance(observation, dict)
-    target = record_store.target_digest(
+    target = reservation_store.target_digest(
         "work/orphan",
         str(observation["head"]),
     )
-    return record_store.ownerless_closeout_reservation_path(repo, target)
+    return reservation_store.ownerless_closeout_reservation_path(repo, target)
 
 
 def test_ownerless_reserved_no_effect_retry_reuses_exact_sidecar_and_rechecks_wcp(
@@ -141,11 +138,44 @@ def test_ownerless_reserved_no_effect_retry_reuses_exact_sidecar_and_rechecks_wc
     decision_path = _default_decision_path(repo, "work/orphan")
     planned = _decide(repo, decision_path)
     first, attempts = _start_reserved_no_effect_attempt(repo, decision_path, monkeypatch)
+    events: list[str] = []
+
+    def retry_preflight(*, expected: Any, **kwargs: object) -> dict[str, object]:
+        events.append("wcp")
+        response = _ownerless_preflight(expected=expected, **kwargs)
+        response["coordination"] = {"binding_digest": "9" * 64}
+        return response
+
+    monkeypatch.setattr(effect_adapter, "run_worktree_closeout_check", retry_preflight)
+    real_cas = effect_adapter._retire_clean_ownerless_cas  # noqa: SLF001, RUF100
+    real_release_fence = effect_adapter.release_closeout_fence
+    real_release_reservation = effect_adapter.release_ownerless_no_effect_reservation
+
+    def observe_cas(**kwargs: object) -> None:
+        events.append("cas")
+        real_cas(**kwargs)
+
+    def observe_fence_release(*args: object, **kwargs: object) -> None:
+        events.append("fence")
+        real_release_fence(*args, **kwargs)
+
+    def observe_reservation_release(**kwargs: object) -> None:
+        events.append("reservation")
+        real_release_reservation(**kwargs)
+
+    monkeypatch.setattr(effect_adapter, "_retire_clean_ownerless_cas", observe_cas)
+    monkeypatch.setattr(effect_adapter, "release_closeout_fence", observe_fence_release)
+    monkeypatch.setattr(
+        effect_adapter,
+        "release_ownerless_no_effect_reservation",
+        observe_reservation_release,
+    )
     second = _apply_retire(repo, decision_path)
 
     assert first["required_gaps"] == ["lane_resolution_ownerless_accepted_head_stale"]
     assert second["ok"] is True
     assert attempts["count"] == 2
+    assert events[:2] == ["wcp", "cas"]
     assert not lane.exists()
     assert not _planned_reservation_path(repo, planned).exists()
 
@@ -159,6 +189,30 @@ def test_ownerless_reserved_no_effect_retry_rebinds_after_accepted_forward(
     first, attempts = _start_reserved_no_effect_attempt(repo, decision_path, monkeypatch)
     old_fence = get_closeout_fence(state_database(repo), subject="work/orphan")
     new_accepted_head = absorb_obsolete_delta_in_accepted(repo)
+    events: list[str] = []
+    real_cas = effect_adapter._retire_clean_ownerless_cas  # noqa: SLF001, RUF100
+    real_release_fence = effect_adapter.release_closeout_fence
+    real_release_reservation = effect_adapter.release_ownerless_no_effect_reservation
+
+    def observe_cas(**kwargs: object) -> None:
+        events.append("cas")
+        real_cas(**kwargs)
+
+    def observe_fence_release(*args: object, **kwargs: object) -> None:
+        events.append("fence")
+        real_release_fence(*args, **kwargs)
+
+    def observe_reservation_release(**kwargs: object) -> None:
+        events.append("reservation")
+        real_release_reservation(**kwargs)
+
+    monkeypatch.setattr(effect_adapter, "_retire_clean_ownerless_cas", observe_cas)
+    monkeypatch.setattr(effect_adapter, "release_closeout_fence", observe_fence_release)
+    monkeypatch.setattr(
+        effect_adapter,
+        "release_ownerless_no_effect_reservation",
+        observe_reservation_release,
+    )
     second = _apply_retire(repo, decision_path)
 
     assert first["required_gaps"] == ["lane_resolution_ownerless_accepted_head_stale"]
@@ -167,6 +221,7 @@ def test_ownerless_reserved_no_effect_retry_rebinds_after_accepted_forward(
     assert second["ok"] is True
     assert second["receipt"]["ownerless_closeout_binding"]["accepted_head"] == new_accepted_head
     assert attempts["count"] == 2
+    assert events[:3] == ["fence", "reservation", "cas"]
     assert not lane.exists()
     assert not _planned_reservation_path(repo, planned).exists()
     assert get_closeout_fence(state_database(repo), subject="work/orphan") is None
@@ -332,7 +387,7 @@ def test_ownerless_reserved_no_effect_retry_rejects_correlated_binding_corruptio
     blocked = _apply_retire(repo, decision_path)
 
     assert first["required_gaps"] == ["lane_resolution_ownerless_accepted_head_stale"]
-    assert blocked["required_gaps"] == ["lane_resolution_ownerless_fence_stale"]
+    assert blocked["required_gaps"] == ["lane_resolution_ownerless_fence_unverifiable"]
     assert reservation_path.is_file()
     assert lane.is_dir()
     assert git(repo, "show-ref", "--verify", "refs/heads/work/orphan")
@@ -505,16 +560,16 @@ def test_ownerless_no_effect_reservation_release_is_exact_compare_and_delete(
 ) -> None:
     repo = init_repo(tmp_path / "repo")
     reservation = _ownerless_reservation()
-    path = record_store.reserve_ownerless_closeout_target(root=repo, reservation=reservation)
+    path = reservation_store.reserve_ownerless_closeout_target(root=repo, reservation=reservation)
 
     with pytest.raises(ValueError, match="lane_resolution_ownerless_reservation_mismatch"):
-        no_effect_records.release_ownerless_no_effect_reservation(
+        reservation_store.release_ownerless_no_effect_reservation(
             root=repo,
-            expected=dict(reservation, wcp_binding_digest="0" * 64),
+            expected=dict(reservation, target_binding_digest="0" * 64),
         )
 
     assert path.is_file()
-    no_effect_records.release_ownerless_no_effect_reservation(root=repo, expected=reservation)
+    reservation_store.release_ownerless_no_effect_reservation(root=repo, expected=reservation)
     assert not path.exists()
 
 
@@ -523,11 +578,11 @@ def test_ownerless_no_effect_reservation_release_rejects_unsafe_path(
 ) -> None:
     repo = init_repo(tmp_path / "repo")
     reservation = _ownerless_reservation()
-    path = record_store.reserve_ownerless_closeout_target(root=repo, reservation=reservation)
-    monkeypatch.setattr(no_effect_records, "record_destination_safe", lambda *_args: False)
+    path = reservation_store.reserve_ownerless_closeout_target(root=repo, reservation=reservation)
+    monkeypatch.setattr(reservation_store, "record_destination_safe", lambda *_args: False)
 
     with pytest.raises(OSError, match="lane_resolution_record_path_unsafe"):
-        no_effect_records.release_ownerless_no_effect_reservation(
+        reservation_store.release_ownerless_no_effect_reservation(
             root=repo,
             expected=reservation,
         )

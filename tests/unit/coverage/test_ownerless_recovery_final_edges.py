@@ -41,11 +41,9 @@ def _decision(observation: LaneObservation | None = None) -> dict[str, Any]:
 def _binding() -> dict[str, object]:
     return {
         "executor_ref": "agent:codex:thread:executor",
-        "wcp_schema_version": "workstation.repo-family-governance.v1",
-        "wcp_decision_sha256": "d" * 64,
+        "decision_sha256": "d" * 64,
         "accepted_branch": "dev",
         "accepted_head": "e" * 40,
-        "wcp_binding_digest": "f" * 64,
         "target_digest": "1" * 64,
         "target_binding_digest": "2" * 64,
         "postcondition_digest": "3" * 64,
@@ -69,7 +67,7 @@ def _runtime(**overrides: Any) -> ResolutionRuntime:
 
     defaults: dict[str, Any] = {
         "accepted_control_root": lambda root: root,
-        "records_artifact_root": lambda root: root / "records",
+        "current_record_root": lambda root: root / "records",
         "observe_lane": lambda _root, _lane_ref: (_observation(), []),
         "prepare_resolution_effect": prepare,
         "reserve_resolution_receipt": reserve,

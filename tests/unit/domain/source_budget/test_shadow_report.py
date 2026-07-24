@@ -180,6 +180,12 @@ def test_shadow_rejects_mixed_gaps_forged_identities_and_invalid_v2_values() -> 
         candidate["v2"] = _v2()
         candidate["v2"][field] = value
         variants.append(candidate)
+    partial_v2 = json.loads(json.dumps(_observation()))
+    partial_v2["v2"] = _v2()
+    partial_v2["v2"]["coordinates"] = None
+    partial_v2["v2"]["vector_digest"] = None
+    partial_v2["v2"]["snapshot_digest"] = None
+    variants.append(partial_v2)
 
     for candidate in variants:
         _assert_canonical_invalid(candidate)

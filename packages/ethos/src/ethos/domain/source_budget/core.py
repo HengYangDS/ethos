@@ -39,7 +39,6 @@ _NONSPACE_PATTERN = r"^\S+$"
 _SHADOW_TAXONOMY_PATH_INVALID = "shadow taxonomy path invalid"
 _SHADOW_INVENTORY_COUNT_INVALID = "shadow inventory count invalid"
 _SHADOW_V1_TOTALS_INVALID = "shadow v1 totals invalid"
-_SHADOW_V2_SNAPSHOT_STATE_INVALID = "shadow v2 snapshot state invalid"
 _SHADOW_V2_COORDINATES_INVALID = "shadow v2 coordinates invalid"
 _SHADOW_TOKENS_NOT_UNIQUE = "shadow tokens must be unique"
 _SHADOW_COMPARISON_STATE_INVALID = "shadow comparison state invalid"
@@ -135,24 +134,15 @@ class _ShadowV2(_ShadowStrict):
     inventory_digest: _ShadowSha256
     contract_set_digest: _ShadowSha256
     provider_coverage: dict[_ShadowToken, _ShadowCount]
-    coordinates: list[_ShadowCoordinate] | None
-    vector_digest: _ShadowSha256 | None
-    snapshot_digest: _ShadowSha256 | None
+    coordinates: list[_ShadowCoordinate]
+    vector_digest: _ShadowSha256
+    snapshot_digest: _ShadowSha256
 
     @model_validator(mode="after")
     def validate_snapshot_state(self) -> Self:
-        if self.coordinates is None and (
-            self.vector_digest is not None or self.snapshot_digest is not None
-        ):
-            raise ValueError(_SHADOW_V2_SNAPSHOT_STATE_INVALID)
-        if self.coordinates is not None and (
-            self.vector_digest is None or self.snapshot_digest is None
-        ):
-            raise ValueError(_SHADOW_V2_SNAPSHOT_STATE_INVALID)
-        if self.coordinates is not None:
-            keys = tuple((item.scope_id, item.metric_id, item.unit) for item in self.coordinates)
-            if keys != tuple(sorted(set(keys))):
-                raise ValueError(_SHADOW_V2_COORDINATES_INVALID)
+        keys = tuple((item.scope_id, item.metric_id, item.unit) for item in self.coordinates)
+        if keys != tuple(sorted(set(keys))):
+            raise ValueError(_SHADOW_V2_COORDINATES_INVALID)
         return self
 
 

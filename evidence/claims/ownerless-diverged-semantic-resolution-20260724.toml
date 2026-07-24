@@ -2,18 +2,21 @@
 id = "ownerless-diverged-semantic-resolution-20260724"
 subject = "ethos:ownerless-diverged-semantic-resolution"
 state = "active"
-summary = "Current-head family disposition for the initial 71 ownerless diverged Work Lanes: 24 completed, 12 decision-ready, 35 pending, with live-lease protection and reconstructable dirty-byte retention."
+summary = "Current-head family disposition for the initial 71 ownerless diverged Work Lanes: 36 completed and 35 decision-ready, with one direct brand replay, eight live-lease lanes protected, and all 11 dirty targets bound to reconstructable preservation."
 
 [evidence]
 dated = "evidence/chronicle/ownerless-diverged-semantic-resolution-20260724/2026-07-24.md"
-sha256 = "6c396b4c035a50eb0e54105a1f64f1da25bb76044df19d75be89b80c2854dbcd"
+sha256 = "458aafd474eab847386fabebd4b01e379788b0b78d7b6db592eb047a1f65cf44"
 evidence_ids = ["evidence:ownerless-diverged-semantic-resolution-20260724"]
-binding = "The accepted HEAD, exact live owner boundary, current missing-lease set, family analysis, machine-readable dispositions, focused accepted checks, and exact decision/receipt postconditions bind this local resolution claim."
+binding = "The accepted HEAD, exact live owner boundary, current missing-lease set, four family analyses, machine-readable dispositions, focused accepted checks, direct brand replay, and exact decision and receipt postconditions bind this local resolution claim."
 verifier = "digest_only"
 tests = [
   "ethos lane status --json",
   "ethos lane resolution inventory --json",
-  "pytest focused resolution and retirement suites",
+  "185 focused OpenSpec lifecycle tests",
+  "quality lint, types, no-compat, source-budget, and quality audit owners",
+  "96 focused publication tests and 103 accepted_ff closeout tests",
+  "1083 focused governance, budget, docs, lifecycle, and evidence tests",
   "ethos openspec --lifecycle --json",
   "ethos quality claims --json",
   "openspec validate --all --strict --json",
@@ -27,16 +30,28 @@ mode = "historical"
 
 [boundary]
 owner = "ethos-repository"
-scope = "Only exact Work Lanes reobserved with lease_state=missing and an accepted family decision; all live-lease lanes, pending families, remotes, hosted execution, release tags, and distribution remain excluded."
+scope = "Only exact Work Lanes reobserved with lease_state=missing and an accepted family decision; all live-lease lanes, remotes, hosted execution, release tags, and distribution remain excluded."
 
 [carriers]
 openspec = "openspec/changes/archive/2026-07-18-all-lanes-authorized-closeout"
 fallback = "Keep any lane visible and intact whenever its live lease, HEAD, path, dirty bytes, semantic classification, preservation package, or accepted Chronicle binding cannot be re-proven."
-kill_signal = "A live-lease lane is touched, dirty bytes are lost, an exact-head recheck is skipped, a pending family is retired, or remote/hosted completion is claimed from local evidence."
+kill_signal = "A live-lease lane is touched, dirty bytes are lost, an exact-head recheck is skipped, a decision-ready family is bypassed, or remote or hosted completion is claimed from local evidence."
 
 [promotion]
 targets = [
   ".config/checks/format/selection.toml",
+  "README.md",
+  "assets/brand/ethos-lockup-dark.svg",
+  "assets/brand/ethos-logo-1024.png",
+  "assets/brand/ethos-logo-light.svg",
+  "assets/brand/ethos-logo-mono.svg",
+  "assets/brand/ethos-logo.svg",
+  "assets/brand/ethos-poster.png",
+  "assets/brand/ethos-social-preview.png",
+  "docs/index.md",
+  "docs/reference/README.md",
+  "docs/reference/brand-kit.md",
+  "system/policies/source-budget-carriers.toml",
   "docs/plans/ownerless-diverged-semantic-resolution-20260724.md",
   "evidence/claims/ownerless-diverged-semantic-resolution-20260724.toml",
   "evidence/chronicle/ownerless-diverged-semantic-resolution-20260724/2026-07-24.md",

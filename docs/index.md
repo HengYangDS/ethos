@@ -14,7 +14,7 @@ Purpose: provide the stable navigation map for ETHOS product truth, governance,
 architecture, reference, and evidence docs.
 
 See also: [Quickstart](start/quickstart.md), [Command Plane](reference/command-plane.md),
-and [Glossary](reference/glossary.md).
+[Brand Kit](reference/brand-kit.md), and [Glossary](reference/glossary.md).
 
 Start with [Start](start/quickstart.md), then read
 [Kernel Model](concepts/kernel-model.md),
@@ -67,6 +67,7 @@ or maintainer break-glass evidence.
 - Start: [Quickstart](start/quickstart.md)
 - Concepts: [Kernel Model](concepts/kernel-model.md)
 - Command plane: [Command Plane](reference/command-plane.md)
+- Brand kit: [Brand Kit](reference/brand-kit.md)
 - Glossary: [Glossary](reference/glossary.md)
 - Product design contract: [Product Design Contract](governance/product-design-contract.md)
 - Decision Records: [Decision Records](decisions/README.md)

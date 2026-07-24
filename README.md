@@ -1,6 +1,16 @@
 # ETHOS
 
+<p align="center">
+  <img src="assets/brand/ethos-lockup-dark.svg" alt="ETHOS" width="520">
+</p>
+
+<p align="center">
+  <em>Evidence-grounded Trust for Human-Agent Operational Stewardship</em>
+</p>
+
 ETHOS is Evidence-grounded Trust for Human-Agent Operational Stewardship.
+
+See the [Brand Kit](docs/reference/brand-kit.md) for repository-owned public identity and presentation assets.
 
 It gives a Git repository a safe operating loop for human-agent change: inspect
 where you are, plan the required proof, run that proof, land through a controlled

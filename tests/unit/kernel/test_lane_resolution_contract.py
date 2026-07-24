@@ -1,12 +1,53 @@
 from __future__ import annotations
 
+import hashlib
+
 import pytest
 from pydantic import ValidationError
 
 from ethos.repository.policy.schema import validate_schema_instance
+from ethos_core.contracts.resolution.closeout import LaneResolutionClearReceipt
+from ethos_core.contracts.resolution.closeout import LaneResolutionReceipt
+from ethos_core.contracts.resolution.closeout import OwnerlessCloseoutBinding
+from ethos_core.contracts.resolution.closeout import OwnerlessCloseoutReservation
 from ethos_core.contracts.resolution.lane import LaneObservation
 from ethos_core.contracts.resolution.lane import LaneResolutionDecision
-from ethos_core.contracts.resolution.lane import LaneResolutionReceipt
+
+_DECISION_ID = "lane-decision:00000000-0000-4000-8000-000000000001"
+
+
+def _target_digest(lane_ref: str, head: str) -> str:
+    return hashlib.sha256(f"{lane_ref}\0{head}".encode()).hexdigest()
+
+
+def _binding(**overrides: object) -> dict[str, object]:
+    return {
+        "executor_ref": "agent:codex:thread:executor",
+        "decision_sha256": "b" * 64,
+        "accepted_branch": "dev",
+        "accepted_head": "c" * 40,
+        "target_digest": _target_digest("work/orphan", "a" * 40),
+        "target_binding_digest": "d" * 64,
+        "postcondition_digest": "e" * 64,
+    } | overrides
+
+
+def _reservation(**overrides: object) -> dict[str, object]:
+    return {
+        "schema_version": 2,
+        "decision_id": _DECISION_ID,
+        "lane_ref": "work/orphan",
+        "head": "a" * 40,
+        "executor_ref": "agent:codex:thread:executor",
+        "decision_sha256": "b" * 64,
+        "accepted_branch": "dev",
+        "accepted_head": "c" * 40,
+        "target_digest": _target_digest("work/orphan", "a" * 40),
+        "target_binding_digest": "d" * 64,
+        "phase": "reserved",
+        "recovery_state": "reserved_no_effect",
+        "postcondition_digest": "",
+    } | overrides
 
 
 def test_lane_resolution_decision_binds_exact_observation_and_does_not_authorize_replay() -> None:
@@ -43,6 +84,7 @@ def test_lane_resolution_decision_binds_exact_observation_and_does_not_authorize
 
 def _receipt(**overrides: object) -> dict[str, object]:
     return {
+        "schema_version": 3,
         "receipt_id": "lane-resolution-receipt:one",
         "decision_id": "lane-decision:one",
         "completed": True,
@@ -57,9 +99,126 @@ def _receipt(**overrides: object) -> dict[str, object]:
     } | overrides
 
 
+def test_closeout_contracts_live_in_their_defining_module_only() -> None:
+    from ethos_core.contracts.resolution import lane as lane_contracts
+
+    assert tuple(OwnerlessCloseoutBinding.model_fields) == (
+        "executor_ref",
+        "decision_sha256",
+        "accepted_branch",
+        "accepted_head",
+        "target_digest",
+        "target_binding_digest",
+        "postcondition_digest",
+    )
+    assert tuple(OwnerlessCloseoutReservation.model_fields) == (
+        "schema_version",
+        "decision_id",
+        "lane_ref",
+        "head",
+        "executor_ref",
+        "decision_sha256",
+        "accepted_branch",
+        "accepted_head",
+        "target_digest",
+        "target_binding_digest",
+        "phase",
+        "recovery_state",
+        "postcondition_digest",
+    )
+    for retired_name in (
+        "LaneResolutionClearReceipt",
+        "LaneResolutionReceipt",
+        "LaneResolutionState",
+        "OwnerlessCloseoutBinding",
+        "OwnerlessCloseoutReservation",
+    ):
+        assert not hasattr(lane_contracts, retired_name)
+
+
+def test_closeout_records_require_explicit_provider_neutral_versions() -> None:
+    receipt = LaneResolutionReceipt.model_validate(_receipt())
+    clear = LaneResolutionClearReceipt(
+        schema_version=1,
+        clear_receipt_id="lane-resolution-clear-receipt:one",
+        decision_id="lane-decision:one",
+        manifest_sha256="a" * 64,
+        chronicle_ref="evidence/chronicle/lane-resolution/clear.md",
+        chronicle_digest="b" * 64,
+        reason="The exact recovery package was reviewed and cleared.",
+        completed=True,
+        mints_authority=False,
+    )
+
+    assert receipt.schema_version == 3
+    assert clear.schema_version == 1
+    with pytest.raises(ValidationError):
+        LaneResolutionReceipt.model_validate(
+            {key: value for key, value in _receipt().items() if key != "schema_version"}
+        )
+    with pytest.raises(ValidationError):
+        LaneResolutionClearReceipt.model_validate(
+            {key: value for key, value in clear.model_dump().items() if key != "schema_version"}
+        )
+
+
+@pytest.mark.parametrize(
+    ("phase", "recovery_state", "postcondition_digest"),
+    [
+        ("reserved", "reserved_no_effect", ""),
+        ("effect", "worktree_removed_ref_present", ""),
+        ("postcondition", "postcondition_failed", ""),
+        ("receipt", "effect_complete_receipt_missing", "f" * 64),
+        ("unknown", "transition_unknown", ""),
+    ],
+)
+def test_ownerless_reservation_preserves_phase_recovery_invariants(
+    phase: str, recovery_state: str, postcondition_digest: str
+) -> None:
+    reservation = OwnerlessCloseoutReservation.model_validate(
+        _reservation(
+            phase=phase,
+            recovery_state=recovery_state,
+            postcondition_digest=postcondition_digest,
+        )
+    )
+
+    assert reservation.phase == phase
+    assert reservation.recovery_state == recovery_state
+
+
+@pytest.mark.parametrize(
+    ("phase", "recovery_state", "postcondition_digest"),
+    [
+        ("effect", "reserved_no_effect", ""),
+        ("receipt", "effect_complete_receipt_missing", ""),
+        ("reserved", "reserved_no_effect", "f" * 64),
+    ],
+)
+def test_ownerless_reservation_rejects_invalid_phase_recovery_combinations(
+    phase: str, recovery_state: str, postcondition_digest: str
+) -> None:
+    with pytest.raises(ValidationError):
+        OwnerlessCloseoutReservation.model_validate(
+            _reservation(
+                phase=phase,
+                recovery_state=recovery_state,
+                postcondition_digest=postcondition_digest,
+            )
+        )
+
+
+def test_ownerless_closeout_contracts_reject_provider_fields_and_target_drift() -> None:
+    with pytest.raises(ValidationError):
+        OwnerlessCloseoutBinding.model_validate(_binding(adapter_binding_digest="f" * 64))
+    with pytest.raises(ValidationError):
+        OwnerlessCloseoutReservation.model_validate(_reservation(target_digest="f" * 64))
+
+
 def test_lane_resolution_receipt_has_one_outcome_field() -> None:
     payload = LaneResolutionReceipt.model_validate(_receipt()).to_payload()
 
+    assert payload["schema_version"] == 3
     assert payload["state"] == "retired"
     assert "disposition" not in payload
 
@@ -86,6 +245,12 @@ def test_lane_resolution_contracts_reject_intermediate_oid_widths(width: int) ->
         ]
         is False
     )
+    with pytest.raises(ValidationError):
+        OwnerlessCloseoutReservation.model_validate(
+            _reservation(head="a" * width, target_digest=_target_digest("work/orphan", "a" * width))
+        )
+    with pytest.raises(ValidationError):
+        OwnerlessCloseoutBinding.model_validate(_binding(accepted_head="a" * width))
 
 
 @pytest.mark.parametrize(

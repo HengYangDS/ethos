@@ -15,7 +15,7 @@ from ethos.adapters.mutation.resolution.records.core import ownerless_closeout_r
 from ethos.adapters.mutation.resolution.records.core import release_ownerless_closeout_reservation
 from ethos.adapters.store.state.closeout import probe_closeout_fence
 from ethos.adapters.store.state.schema import state_database
-from ethos_core.contracts.resolution.lane import OwnerlessCloseoutBinding
+from ethos_core.contracts.resolution.closeout import OwnerlessCloseoutBinding
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -60,7 +60,7 @@ def ownerless_receipt_recovery_context(  # noqa: PLR0913, RUF100 - exact receipt
     ):
         return {}, _RECEIPT_MISMATCH
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "decision_id": str(decision["decision_id"]),
         "lane_ref": observation.lane_ref,
         "head": observation.head,
@@ -185,7 +185,7 @@ def release_ownerless_closeout_resources(  # noqa: PLR0913, RUF100 - exact CAS e
 ) -> str:
     """Release an exact fence then its visible reservation; tolerate an absent fence."""
     expected = {
-        "schema_version": 1,
+        "schema_version": 2,
         "decision_id": str(decision.get("decision_id") or ""),
         "lane_ref": observation.lane_ref,
         "head": observation.head,

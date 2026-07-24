@@ -10,8 +10,8 @@ from ethos.adapters.mutation.resolution.receipts import read_resolution_receipt
 from ethos.adapters.mutation.resolution.receipts import write_resolution_receipt
 from ethos.adapters.mutation.resolution.records.core import receipt_path
 from ethos.adapters.mutation.resolution.records.core import target_digest
+from ethos_core.contracts.resolution.closeout import LaneResolutionReceipt
 from ethos_core.contracts.resolution.lane import LaneObservation
-from ethos_core.contracts.resolution.lane import LaneResolutionReceipt
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -22,7 +22,7 @@ _SECOND_DECISION_ID = "lane-decision:00000000-0000-4000-8000-000000000002"
 
 def _receipt(*, decision_id: str = _FIRST_DECISION_ID) -> dict[str, object]:
     return {
-        "schema_version": 2,
+        "schema_version": 3,
         "receipt_id": "lane-resolution-receipt:ownerless-edge",
         "decision_id": decision_id,
         "completed": True,
@@ -61,16 +61,15 @@ def _exact_receipt() -> tuple[
     decision = {"decision_id": _FIRST_DECISION_ID, "break_glass": False}
     binding: dict[str, object] = {
         "executor_ref": "agent:codex:thread:executor",
-        "wcp_schema_version": "workstation.repo-family-governance.v1",
-        "wcp_decision_sha256": "d" * 64,
+        "decision_sha256": "d" * 64,
         "accepted_branch": "dev",
         "accepted_head": "e" * 40,
-        "wcp_binding_digest": "f" * 64,
         "target_digest": target_digest(observation.lane_ref, observation.head),
         "target_binding_digest": "2" * 64,
         "postcondition_digest": "3" * 64,
     }
     receipt = LaneResolutionReceipt(
+        schema_version=3,
         receipt_id="lane-resolution-receipt:ownerless-exact",
         decision_id=_FIRST_DECISION_ID,
         completed=True,

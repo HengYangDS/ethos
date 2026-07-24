@@ -11,14 +11,15 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
 
-from ethos.adapters.mutation.resolution.closeout.retry import ownerless_reservation
 from ethos.adapters.mutation.resolution.closeout.retry import reset_reserved_no_effect_retry
 from ethos.adapters.mutation.resolution.closeout.wcp.core import WCPCloseoutExpectation
 from ethos.adapters.mutation.resolution.closeout.wcp.core import WCPResponseError
 from ethos.adapters.mutation.resolution.receipts import canonical_resolution_decision_snapshot
 from ethos.adapters.mutation.resolution.receipts import exact_ownerless_resolution_receipt
+from ethos.adapters.mutation.resolution.records.core import target_digest
+from ethos_core.contracts.resolution.closeout import OwnerlessCloseoutBinding
+from ethos_core.contracts.resolution.closeout import OwnerlessCloseoutReservation
 from ethos_core.contracts.resolution.lane import LaneObservation
-from ethos_core.contracts.resolution.lane import OwnerlessCloseoutBinding
 
 if TYPE_CHECKING:
     import subprocess
@@ -33,7 +34,6 @@ _OWNERLESS_FENCE_UNVERIFIABLE = "lane_resolution_ownerless_fence_unverifiable"
 _OWNERLESS_OBSERVATION_STALE = "lane_resolution_ownerless_observation_stale"
 _OWNERLESS_RECEIPT_MISMATCH = "lane_resolution_ownerless_receipt_mismatch"
 _OWNERLESS_WCP_EXPECTATION_INVALID = "lane_resolution_ownerless_wcp_expectation_invalid"
-_OWNERLESS_RECEIPT_FIELDS = tuple(OwnerlessCloseoutBinding.model_fields)
 _WCP_LANE_ID_RE = re.compile(r"^(?P<date>\d{8})-(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)$")
 
 
@@ -218,16 +218,21 @@ def retire_clean_ownerless_lane(  # noqa: PLR0913, PLR0915, RUF100 - exact cross
             gap if gap.startswith("lane_closeout_") else _ownerless_gap("fence_failed"),
             fence_acquired=False,
         ) from error
-    reservation = ownerless_reservation(
-        decision=decision,
-        observation=observation,
+    reservation = OwnerlessCloseoutReservation(
+        schema_version=2,
+        decision_id=str(decision.get("decision_id") or ""),
+        lane_ref=observation.lane_ref,
+        head=observation.head,
         executor_ref=executor_ref,
+        decision_sha256=decision_sha256,
         accepted_branch=accepted_branch,
         accepted_head=accepted_head,
-        wcp=wcp,
-        wcp_binding_digest=wcp_binding_digest,
+        target_digest=target_digest(observation.lane_ref, observation.head),
         target_binding_digest=str(fence["target_binding_digest"]),
-    )
+        phase="reserved",
+        recovery_state="reserved_no_effect",
+        postcondition_digest="",
+    ).to_payload()
     try:
         runtime.reserve_target(
             root=root,
@@ -307,24 +312,15 @@ def retire_clean_ownerless_lane(  # noqa: PLR0913, PLR0915, RUF100 - exact cross
             _ownerless_gap("reservation_update_failed"),
             fence_acquired=True,
         ) from error
-    return {
-        "executor_ref": executor_ref,
-        "wcp_schema_version": str(wcp["schema_version"]),
-        "wcp_decision_sha256": str(wcp["decision_sha256"]),
-        "decision_sha256": decision_sha256,
-        "accepted_branch": accepted_branch,
-        "accepted_head": accepted_head,
-        "wcp_binding_digest": wcp_binding_digest,
-        "target_digest": str(reservation["target_digest"]),
-        "target_binding_digest": str(fence["target_binding_digest"]),
-        "postcondition_digest": postcondition_digest,
-        "observation_digest": observation.digest(),
-        "chronicle_digest": str(decision.get("chronicle_digest") or ""),
-        "lane_ref": observation.lane_ref,
-        "head": observation.head,
-        "path": observation.path,
-        "lane_incarnation_id": observation.lane_incarnation_id,
-    }
+    return OwnerlessCloseoutBinding(
+        executor_ref=executor_ref,
+        decision_sha256=decision_sha256,
+        accepted_branch=accepted_branch,
+        accepted_head=accepted_head,
+        target_digest=str(reservation["target_digest"]),
+        target_binding_digest=str(fence["target_binding_digest"]),
+        postcondition_digest=postcondition_digest,
+    ).model_dump(mode="json")
 
 
 def recover_completed_ownerless_closeout(  # noqa: PLR0913, RUF100 - exact recovery binding envelope
@@ -356,7 +352,7 @@ def recover_completed_ownerless_closeout(  # noqa: PLR0913, RUF100 - exact recov
         and reservation.get("lane_ref") == observation.lane_ref
         and reservation.get("head") == observation.head
     )
-    if not exact_target or decision_sha256 != reservation.get("wcp_decision_sha256"):
+    if not exact_target or decision_sha256 != reservation.get("decision_sha256"):
         raise runtime.ownerless_error(_OWNERLESS_DECISION_STALE, fence_acquired=True)
     if executor_ref != reservation.get("executor_ref"):
         raise runtime.ownerless_error(
@@ -384,12 +380,17 @@ def recover_completed_ownerless_closeout(  # noqa: PLR0913, RUF100 - exact recov
             "observation_digest": observation.digest(),
             "decision_sha256": decision_sha256,
             "chronicle_digest": str(decision.get("chronicle_digest") or ""),
-            "wcp_schema_version": str(reservation.get("wcp_schema_version") or ""),
-            "wcp_decision_sha256": str(reservation.get("wcp_decision_sha256") or ""),
-            "wcp_binding_digest": str(reservation.get("wcp_binding_digest") or ""),
         },
     }
-    expected_binding = {field: reservation.get(field) for field in _OWNERLESS_RECEIPT_FIELDS}
+    expected_binding = {
+        "executor_ref": reservation.get("executor_ref"),
+        "decision_sha256": decision_sha256,
+        "accepted_branch": reservation.get("accepted_branch"),
+        "accepted_head": reservation.get("accepted_head"),
+        "target_digest": reservation.get("target_digest"),
+        "target_binding_digest": reservation.get("target_binding_digest"),
+        "postcondition_digest": reservation.get("postcondition_digest"),
+    }
     exact_receipt = exact_ownerless_resolution_receipt(
         receipt=receipt,
         decision=decision,
@@ -400,7 +401,7 @@ def recover_completed_ownerless_closeout(  # noqa: PLR0913, RUF100 - exact recov
         raise runtime.ownerless_error(_OWNERLESS_RECEIPT_MISMATCH, fence_acquired=True)
     if fence_state == "unverifiable":
         raise runtime.ownerless_error(_OWNERLESS_FENCE_UNVERIFIABLE, fence_acquired=True)
-    if (fence_state == "present" and fence != expected_fence) or (
+    if (fence_state == "present" and not _fence_contains(fence, expected_fence)) or (
         fence_state == "absent" and not exact_receipt
     ):
         raise runtime.ownerless_error(_OWNERLESS_FENCE_STALE, fence_acquired=True)
@@ -420,7 +421,21 @@ def recover_completed_ownerless_closeout(  # noqa: PLR0913, RUF100 - exact recov
             _ownerless_gap("postcondition_failed:postcondition_digest"),
             fence_acquired=True,
         )
-    return {field: reservation[field] for field in _OWNERLESS_RECEIPT_FIELDS}
+    return OwnerlessCloseoutBinding.model_validate(expected_binding).model_dump(mode="json")
+
+
+def _fence_contains(fence: dict[str, object] | None, expected: dict[str, object]) -> bool:
+    """Match the native fence binding while its state carrier still has extra metadata."""
+    if not isinstance(fence, dict):
+        return False
+    expected_payload = expected.get("payload")
+    actual_payload = fence.get("payload")
+    if not isinstance(expected_payload, dict) or not isinstance(actual_payload, dict):
+        return False
+    top_level = set(expected) - {"payload"}
+    return all(fence.get(field) == expected[field] for field in top_level) and all(
+        actual_payload.get(field) == value for field, value in expected_payload.items()
+    )
 
 
 def _record_ownerless_partial(

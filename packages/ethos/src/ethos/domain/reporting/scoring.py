@@ -109,6 +109,7 @@ def hard_quality_floor_report(repo: Path) -> dict[str, object]:
     """Return product hard quality gates that the scorecard must not hide."""
     gate_reports = {
         "python-size": code_size_report(repo),
+        "source-budget": source_budget_report(repo),
         "coverage": coverage_quality_report(repo),
         "types": ty_gate_report(repo),
         "docstrings": docstring_coverage_report(repo),

@@ -345,6 +345,3 @@ def candidate_base_report(*, root: Path, status=None) -> dict[str, object]:
         "path": candidate_path.as_posix(),
         "required_gaps": [],
     }
-
-
-# fmt: on

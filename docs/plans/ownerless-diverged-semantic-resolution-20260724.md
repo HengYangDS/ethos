@@ -27,7 +27,7 @@ and leave every currently leased lane untouched.
 ## Frozen Current Boundary
 
 At accepted `dev`, `main`, and `candidate/dev` HEAD
-`f1e2481ad0e77247953c81b6b69dfe2de44c2205`, the exact reader inventory contains
+`ae759420a2aab97352955a0323666d18e7772d9e`, the exact reader inventory contains
 79 foreign Work Lanes. Eight have a live lease, including this controller's
 carrier, and are protected. Seventy-one
 have `lease_state=missing`; all 71 diverge from accepted, 56 are clean, and 15
@@ -52,13 +52,15 @@ carrier, `work/20260723-ownerless-closeout-compression`, and
 4. Classify useful semantics as already absorbed, requiring focused replay,
    explicitly rejected, or blocked. Record context, rejected options, evidence,
    owner boundary, and review trigger.
-5. For dirty targets, use `preserve-retire` with preservation-package v2,
-   verify manifest, tracked patch, index patch, untracked archive, receipt, and
-   reconstruction before accepting deletion. Never use stash or manual cleanup.
-6. For clean targets, use `retire` only after the accepted Chronicle authorizes
-   that exact HEAD. Run repository-family closeout check even when divergence is
-   expected to block its normal integrated-lane path; retain that result as a
-   boundary observation before native exceptional resolution.
+5. For any diverged target whose useful semantics are already absorbed, use exact
+   `preserve-retire`: its immutable repository bundle keeps provenance without
+   keeping the Work Lane live. Dirty targets additionally require preservation-
+   package v2 index, tracked, and untracked reconstruction checks. Never use
+   stash or manual cleanup.
+6. Use unbundled `retire` only when repository-family admission can prove a clean
+   accepted-ancestor relation. All 24 members of the first lineage are diverged,
+   so the native accepted-ancestor route is intentionally not bypassed; bounded
+   `preserve-retire` is the safe terminal effect after semantic absorption.
 7. Apply one lane at a time. After each effect, prove path, ref, registration,
    lease, package, receipt, and resolution inventory postconditions before the
    next lane.
@@ -80,21 +82,26 @@ age or branch naming as retirement evidence.
 ## First Family Decision
 
 The 24-lane OpenSpec identity-normalization lineage is superseded by accepted
-`openspec-identity-normalization-current`. The accepted train advanced from `fe94c0268`
-to `f1e2481a` through the bounded GitHub pytest-timeout resilience change and
-its parity receipts; the 71-target ownerless set and this family judgment did
-not change. Current accepted lifecycle and Claims
-checks are clean across 236 Claims, strict OpenSpec validation passes 9/9, and
-the focused identity suite passes 85 tests. The V26 tip's own untracked Claim, Chronicle, proposal,
-design, and tasks say that candidate drift ended its integration eligibility and
-forbid refresh, cherry-pick, manual replay, proof, or land.
+`openspec-identity-normalization-current`. After the bounded GitHub pytest-timeout
+change, this decision carrier itself advanced accepted from `f1e2481a` to
+`ae759420`; fresh observation proves the same 71 ownerless targets and exact
+24-member lineage remain. Current accepted lifecycle and Claims checks are clean
+across 237 Claims, strict OpenSpec validation passes 9/9, and a 102-test focused
+OpenSpec, identity, Claim, schema, and invalid-state suite passes with warnings
+treated as errors. The V26 tip's own untracked Claim, Chronicle, proposal, design,
+and tasks say that candidate drift ended its integration eligibility and forbid
+refresh, cherry-pick, manual replay, proof, or land.
 
-Therefore the 23 clean predecessors are selected for exact `retire`, and the
-dirty V26 tip is selected for v2 `preserve-retire`. Its seven untracked stale-
-boundary records are recovery evidence, not product semantics to discard or
-silently promote. The alternate historical `identity.py` spine is explicitly
-rejected because accepted `identifiers.py` is authoritative and retaining both
-would recreate duplicate identity grammar ownership.
+All 24 heads are diverged from accepted. Repository-family ownerless `retire` is
+correctly limited to clean accepted ancestors, so treating the 23 clean historical
+heads as integrated would be false. The exact terminal disposition is therefore
+`preserve-retire` for every member: each lane is removed, while an immutable
+repository bundle preserves provenance; V26 additionally preserves and verifies
+its seven untracked stale-boundary records through package v2. This is recovery
+retention after semantic absorption, not promotion or indefinite lane preservation.
+The alternate historical `identity.py` spine remains explicitly rejected because
+accepted `identifiers.py` is authoritative and retaining both would recreate
+duplicate identity grammar ownership.
 
 ## Completion Criteria
 

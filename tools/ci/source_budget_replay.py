@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import argparse
 import hashlib
 import json
 import sys
@@ -14,6 +13,7 @@ from typing import Literal
 from typing import Never
 from typing import Self
 
+from cyclopts import App
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
@@ -447,15 +447,6 @@ def replay_entry(
     }
 
 
-def _parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--root", type=Path, default=Path.cwd())
-    parser.add_argument("--entry", action="append", default=[])
-    parser.add_argument("--output", type=Path)
-    parser.add_argument("--require-clean", action="store_true")
-    return parser
-
-
 def _selected_entry_ids(history: HistoryConfig, requested: list[str]) -> list[str]:
     selected = requested or list(history.entries)
     if len(selected) != len(set(selected)) or any(item not in history.entries for item in selected):
@@ -463,11 +454,17 @@ def _selected_entry_ids(history: HistoryConfig, requested: list[str]) -> list[st
     return selected
 
 
-def _run_replay(args: argparse.Namespace) -> int:
-    root = args.root.resolve()
+def _run_replay(
+    *,
+    root: Path = Path(),
+    entry: list[str] | None = None,
+    output: Path | None = None,
+    require_clean: bool = False,
+) -> int:
+    root = root.resolve()
     history = load_history_config(root)
     _declaration(root, history.declaration)
-    selected = _selected_entry_ids(history, args.entry)
+    selected = _selected_entry_ids(history, entry or [])
     entries = [
         replay_entry(root, item, history.entries[item], history.declaration) for item in selected
     ]
@@ -479,19 +476,21 @@ def _run_replay(args: argparse.Namespace) -> int:
     payload["digest"] = hashlib.sha256(
         json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
     ).hexdigest()
-    _write_artifact(root, history.artifact_root, args.output, payload)
+    _write_artifact(root, history.artifact_root, output, payload)
     valid = all(bool(item["transport_valid"]) for item in entries)
     clean = all(
         item["comparison_state"] == "reviewed_observation" and not item["required_gaps"]
         for item in entries
     )
-    return 0 if valid and (clean or not args.require_clean) else 1
+    return 0 if valid and (clean or not require_clean) else 1
+
+
+app = App(name="ethos-source-budget-replay", default_command=_run_replay)
 
 
 def main(argv: list[str] | None = None) -> int:
-    args = _parser().parse_args(argv)
     try:
-        result = _run_replay(args)
+        app(argv)
     except (
         KeyError,
         MemoryError,
@@ -502,7 +501,9 @@ def main(argv: list[str] | None = None) -> int:
     ) as exc:
         sys.stderr.write(f"source-budget replay failed: {type(exc).__name__}\n")
         return 2
-    return result
+    except SystemExit as exc:
+        return exc.code if isinstance(exc.code, int) else 1
+    return 0
 
 
 if __name__ == "__main__":

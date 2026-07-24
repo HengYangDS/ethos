@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+from typing import Any
+from typing import cast
 
 from ethos.domain.source_budget.core import source_budget_shadow_report
 
@@ -196,3 +198,26 @@ def test_shadow_rejects_inventory_count_mismatch() -> None:
     observation["v1"]["inventory"]["category_counts"] = {"python_product": 1}
 
     _assert_canonical_invalid(observation)
+
+
+def test_shadow_rejects_non_mapping_duplicate_tokens_totals_and_coordinates() -> None:
+    assert (
+        source_budget_shadow_report(_v1(), cast("Any", []))["v2_shadow"]["comparison_state"]
+        == "blocked"
+    )
+
+    duplicate_tokens = _observation()
+    duplicate_tokens["required_gaps"] = [
+        "source_budget_taxonomy_profile_unresolved",
+        "source_budget_taxonomy_profile_unresolved",
+    ]
+    _assert_canonical_invalid(duplicate_tokens)
+
+    invalid_totals = _observation()
+    invalid_totals["v1"]["drift"] = 0
+    _assert_canonical_invalid(invalid_totals)
+
+    duplicate_coordinates = _observation()
+    duplicate_coordinates["v2"] = _v2()
+    duplicate_coordinates["v2"]["coordinates"] *= 2
+    _assert_canonical_invalid(duplicate_coordinates)

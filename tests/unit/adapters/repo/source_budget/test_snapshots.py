@@ -105,7 +105,14 @@ def test_tree_snapshot_binds_exact_git_argv_environment_timeout_and_root(
     load = snapshots.tree_snapshot(alias, commit)
 
     assert load.snapshot is not None
-    prefix = [which("git"), "--no-replace-objects", "-C", str(root.resolve())]
+    prefix = [
+        which("git"),
+        "--no-replace-objects",
+        "-c",
+        f"safe.directory={root.resolve()}",
+        "-C",
+        str(root.resolve()),
+    ]
     assert [command for command, _ in calls] == [
         [*prefix, "rev-parse", "--show-toplevel"],
         [*prefix, "rev-parse", "--verify", "--end-of-options", f"{commit}^{{commit}}"],
@@ -180,6 +187,8 @@ def test_blob_batch_deduplicates_oids_at_first_inventory_occurrence(
     assert command == [
         which("git"),
         "--no-replace-objects",
+        "-c",
+        f"safe.directory={root.resolve()}",
         "-C",
         str(root.resolve()),
         "cat-file",

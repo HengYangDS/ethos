@@ -243,7 +243,15 @@ def _run_git(
         return None
     try:
         return subprocess.run(  # noqa: S603, RUF100 - exact audited argv, no shell
-            [_GIT_EXECUTABLE, "--no-replace-objects", "-C", str(root), *args],
+            [
+                _GIT_EXECUTABLE,
+                "--no-replace-objects",
+                "-c",
+                f"safe.directory={root}",
+                "-C",
+                str(root),
+                *args,
+            ],
             input=input_bytes,
             capture_output=True,
             check=False,

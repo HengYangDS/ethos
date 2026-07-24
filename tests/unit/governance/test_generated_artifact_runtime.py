@@ -119,6 +119,24 @@ def test_bootstrap_cache_precedence(
         assert (tmp_path / "operator-cache/uv").is_dir()
 
 
+def test_nested_relative_cache_reuses_inherited_runtime_root(repo: Path, tmp_path: Path) -> None:
+    relative_cache = Path("build/runtime/tool-cache/uv")
+    inherited_root = tmp_path / "outer"
+    env = _env(
+        _uv(tmp_path, UV_CONTEXT),
+        UV_CACHE_DIR=relative_cache.as_posix(),
+        ETHOS_RUNTIME_ROOT=inherited_root.as_posix(),
+    )
+
+    assert _run(repo, env, "uv", "--version") == [
+        f"{repo}/build/runtime/venv",
+        str(inherited_root / relative_cache),
+        "--version",
+    ]
+    assert (inherited_root / relative_cache).is_dir()
+    assert not (repo / relative_cache).exists()
+
+
 @pytest.mark.parametrize(("mode", "tail"), [("direct", ("status", "--json")), ("nested", ())])
 def test_missing_checkout_python_uses_locked_fallback(
     repo: Path, tmp_path: Path, mode: str, tail: tuple[str, ...]

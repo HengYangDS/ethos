@@ -218,6 +218,8 @@ persistence, effect, or WCP deletion in this commit.
 - Create declaration-only:
   `packages/ethos/src/ethos/adapters/mutation/resolution/records/io/__init__.py`
 - Create: `packages/ethos/src/ethos/adapters/mutation/resolution/records/io/core.py`
+- Create: `packages/ethos/src/ethos/adapters/mutation/resolution/records/io/posix.py`
+- Modify: `packages/ethos/src/ethos/adapters/mutation/resolution/records/roots.py`
 - Modify: `packages/ethos/src/ethos/adapters/mutation/resolution/records/inventory.py`
 - Delete: `packages/ethos/src/ethos/adapters/mutation/resolution/records/release.py`
 - Create: `packages/ethos/src/ethos/adapters/mutation/resolution/records/current/core.py`
@@ -239,6 +241,17 @@ persistence, effect, or WCP deletion in this commit.
 - Create test support owner: `tests/unit/lanes/resolution/records.py`
 - Test: `tests/unit/lanes/retirement/test_ownerless_closeout_records.py`
 - Test: `tests/unit/lanes/retirement/test_ownerless_closeout_receipt_edges.py`
+
+Independent-review repairs may also modify the concrete effect/recovery owners
+and their existing tests when required to preserve current-record exclusion:
+
+- Modify: `packages/ethos/src/ethos/adapters/mutation/resolution/_shared.py`
+- Modify: `packages/ethos/src/ethos/adapters/mutation/resolution/lane.py`
+- Create: `packages/ethos/src/ethos/adapters/mutation/resolution/closeout/receipt.py`
+- Modify concrete modules under
+  `packages/ethos/src/ethos/adapters/mutation/resolution/closeout/`
+- Modify existing lane-resolution and ownerless recovery/effect tests under
+  `tests/unit/coverage/` and `tests/unit/lanes/retirement/`
 
 **Interfaces:**
 
@@ -290,7 +303,12 @@ lane_resolution_inventory(*, root: Path) -> dict[str, object]
 3. Implement current-record snapshots, validation, clear/quarantine, and typed
    reservation persistence. Use descriptor-bound no-follow reads and writes;
    handwritten validation may enforce storage atomicity but must delegate record
-   shape to `OwnerlessCloseoutReservation`.
+   shape to `OwnerlessCloseoutReservation`. Bind concurrent ETHOS writers through
+   one repository-owned namespace lock outside the mutable record tree, revalidate
+   lexical descriptor identity before and after each operation, and move owned
+   destructive cleanup through an unpredictable private transaction namespace.
+   Do not claim protection from arbitrary non-cooperating same-user mutation of
+   that private namespace; fail closed when its identity cannot be proved.
 4. Run GREEN, schemas, types, code-size, module-layout, and no-compat.
 5. Commit record isolation and reservation persistence as two signed commits so
    either review slice can be rejected independently:
@@ -316,6 +334,7 @@ current bytes are skipped, or reservation replacement is not exact CAS.
 - Modify: `packages/ethos/src/ethos/adapters/mutation/resolution/receipts.py`
 - Modify: `tests/unit/lanes/test_lane_resolution.py`
 - Create: `tests/unit/lanes/resolution/test_preservation.py`
+- Modify: `tests/unit/coverage/test_lane_resolution_edges.py`
 
 **Interfaces:**
 
@@ -328,16 +347,20 @@ write_untracked_archive(*, source: Path, archive: Path, inventory: list[bytes]) 
 run_git_bytes(root: Path, *args: str) -> subprocess.CompletedProcess[bytes]
 ```
 
-1. Treat candidate commit `8fcea306d` and its tests as current truth. Add RED
-   cases for raw non-UTF8 member names, parent symlink swap, regular-file swap,
-   large-file bounded-memory capture, unsupported members, Git byte failures,
-   staged plus unstaged recovery, and tampered `index.patch`.
+1. Treat candidate commit `8fcea306d` and its tests as current truth. Use
+   `21142430c`, `53ca29ad4`, `9dbba7ada`, and `0b795ab24` only as read-only
+   semantic references for native archive creation, descriptor binding, bounded
+   spooling, and payload typing; do not cherry-pick any of them. Add RED cases for
+   raw non-UTF8 member names, parent symlink swap, regular-file swap, large-file
+   bounded-memory capture, unsupported members, Git byte failures, staged plus
+   unstaged recovery, and tampered `index.patch`.
 2. Run RED:
 
    ```text
    uv run --package ethos python -m pytest -q \
      tests/unit/lanes/test_lane_resolution.py \
-     tests/unit/lanes/resolution/test_preservation.py
+     tests/unit/lanes/resolution/test_preservation.py \
+     tests/unit/coverage/test_lane_resolution_edges.py
    ```
 
 3. Port only the descriptor/no-follow/tarfile/bounded-spool behavior from the
@@ -349,7 +372,8 @@ run_git_bytes(root: Path, *args: str) -> subprocess.CompletedProcess[bytes]
    ```text
    uv run --package ethos python -m pytest -q \
      tests/unit/lanes/test_lane_resolution.py::test_preserve_retire_keeps_exact_index_and_worktree_deltas \
-     tests/unit/lanes/resolution/test_preservation.py
+     tests/unit/lanes/resolution/test_preservation.py \
+     tests/unit/coverage/test_lane_resolution_edges.py
    tools/ci/scripts/run-python-lint.sh
    tools/ci/scripts/run-module-layout.sh
    ```
@@ -387,8 +411,8 @@ patch capture, or whole-commit cherry-pick of `21142430c`.
 - Modify: `tests/unit/policy/test_module_layout_growth_edges.py`
 
 1. Add three focused regressions:
-   - an existing directory with five modules renamed to another five modules is
-     allowed;
+   - one module renamed inside an existing five-module directory, keeping the
+     total at five, is allowed;
    - five modules growing to six remains blocked;
    - existing burst and new-directory burst results are unchanged.
 2. Run RED:
@@ -430,6 +454,9 @@ patch capture, or whole-commit cherry-pick of `21142430c`.
 - Create: `tests/unit/lanes/retirement/admission/test_git_observation.py`
 - Create: `tests/unit/lanes/retirement/admission/test_chronicle_observation.py`
 - Modify: `tests/unit/lanes/retirement/test_ownerless_closeout_admission.py`
+- Modify: `tests/unit/coverage/test_lane_resolution_edges.py`
+- Modify: `tests/unit/lanes/retirement/test_ownerless_closeout_effect.py`
+- Modify: `tests/unit/lanes/retirement/test_ownerless_closeout_cas_final_edges.py`
 
 **Interfaces and immutable fields:**
 
@@ -442,12 +469,15 @@ GitWorktreeRegistrationToken(
   registered_path, administration_path
 )
 OwnerlessGitFacts(accepted_head, observation, registration_token)
+observe_lane(root: Path, branch: str) -> tuple[LaneObservation, list[str]]
 observe_ownerless_git(root: Path, *, branch: str, accepted_branch: str) -> OwnerlessGitFacts
 read_root_bound_regular_file(
   root: Path, relative_path: str, *, maximum_bytes: int
 ) -> ExactFileSnapshot
 git_object_bytes(root: Path, object_spec: str) -> bytes
-git_ancestry(root: Path, ancestor: str, descendant: str) -> str
+git_ancestry(root: Path, ancestor: str, descendant: str) -> Literal[
+  "ancestor", "diverged", "unverifiable"
+]
 ```
 
 1. Add RED cases for malformed `worktree list --porcelain -z`, duplicate
@@ -464,7 +494,10 @@ git_ancestry(root: Path, ancestor: str, descendant: str) -> str
    uv run --package ethos python -m pytest -q \
      tests/unit/lanes/retirement/admission/test_git_observation.py \
      tests/unit/lanes/retirement/admission/test_chronicle_observation.py \
-     tests/unit/lanes/retirement/test_ownerless_closeout_admission.py
+     tests/unit/lanes/retirement/test_ownerless_closeout_admission.py \
+     tests/unit/coverage/test_lane_resolution_edges.py \
+     tests/unit/lanes/retirement/test_ownerless_closeout_effect.py \
+     tests/unit/lanes/retirement/test_ownerless_closeout_cas_final_edges.py
    ```
 
 4. Implement the public observation module. Walk file components from pinned

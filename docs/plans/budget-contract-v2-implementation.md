@@ -353,7 +353,7 @@ subsequent separately evidenced transitions.
   contract/trust/simplicity/platform review. The governed material
   implementation, the initial extant implementation promotion-target set, and
   the initial semantic Claim binding are committed. Because candidate advanced
-  twice after that checkpoint, this step remains open. After the carrier
+  three times after that checkpoint, this step remains open. After the carrier
   reconciliation, refreshed Claim binding, and generic parity are committed,
   rerun coverage, classify all 58 existing ACMR Python paths, run
   Darwin/Linux type evidence over the 31 changed package-source paths plus the

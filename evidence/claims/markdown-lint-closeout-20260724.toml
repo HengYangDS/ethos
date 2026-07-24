@@ -1,0 +1,41 @@
+[claim]
+id = "markdown-lint-closeout-20260724"
+subject = "quality:markdown-lint-closeout"
+state = "active"
+summary = "ETHOS removes one accepted duplicate Markdown blank line so hosted quality gates can reach repository proof without changing lint policy or document meaning."
+
+[evidence]
+dated = "evidence/chronicle/markdown-lint-closeout-20260724/2026-07-24.md"
+sha256 = "897d7a68b0319c935893602df6c855b78459da217e1494ae01bdfec65890f71e"
+evidence_ids = ["evidence:markdown-lint-closeout-20260724"]
+binding = "The GitHub failure log, local RED/GREEN owner-script replay, one-line signed patch, exact-proof JUnit diagnosis, and dated Chronicle bind this Markdown closeout claim."
+verifier = "digest_only"
+tests = [
+  "tools/ci/scripts/run-markdown-lint.sh",
+  "tools/ci/scripts/run-prose-check.sh",
+  "OpenSpec strict validation",
+  "pytest tests/unit/cli/test_contracts_proof.py::test_campaign_closeout_reports_local_campaign_packages",
+  "ethos quality claims --json",
+  "HEAD-bound ETHOS proof",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "quality"
+scope = "One duplicate blank line in the accepted ownerless dirty-ancestor closeout plan plus the exact claim binding required by the corrective Work Lane; no lint-policy, CI-topology, product-semantic, foreign-lane, remote-publication, or hosted-success claim."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-24-markdown-lint-closeout"
+fallback = "Restore the extra blank line only if Markdown policy intentionally permits consecutive blank lines and the owner script is changed through a separately governed quality-policy change."
+kill_signal = "The patch changes prose meaning, relaxes Markdown policy, touches another product path, or hosted success is inferred without fresh provider runs."
+
+[promotion]
+targets = [
+  "docs/plans/ownerless-dirty-ancestor-semantic-closeout-20260724.md",
+  "openspec/specs/quality/spec.md",
+  "openspec/changes/archive/2026-07-24-markdown-lint-closeout",
+  "evidence/chronicle/markdown-lint-closeout-20260724/2026-07-24.md",
+  "evidence/claims/markdown-lint-closeout-20260724.toml",
+]

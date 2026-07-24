@@ -40,10 +40,14 @@ class OwnerlessCloseoutRuntime:
     run_git: Callable[..., subprocess.CompletedProcess[str]]
     observe_lane: Callable[[Path, str], tuple[LaneObservation, list[str]]]
     records_artifact_root: Callable[[Path], Path]
+    reservation_path: Callable[..., Path]
+    read_reservation: Callable[..., dict[str, object]]
     reserve_target: Callable[..., Path]
+    release_no_effect_reservation: Callable[..., None]
     transition_reservation: Callable[..., dict[str, object]]
     leases_by_branch: Callable[[Path], dict[str, dict[str, object]]]
     acquire_fence: Callable[..., dict[str, object]]
+    release_fence: Callable[..., None]
     get_fence: Callable[..., dict[str, object] | None]
     probe_fence: Callable[..., tuple[str, dict[str, object] | None]]
     state_database: Callable[[Path], Path]
@@ -153,7 +157,23 @@ def retire_clean_ownerless_lane(  # noqa: PLR0913, PLR0915, RUF100 - exact cross
             _ownerless_gap("wcp_rejected"), fence_acquired=False
         ) from error
     wcp_binding_digest = _canonical_digest(wcp)
+    record_root = artifact_root or runtime.records_artifact_root(root)
     database = runtime.state_database(root)
+    _reset_reserved_no_effect_retry_or_fail(
+        runtime=runtime,
+        root=root,
+        database=database,
+        record_root=record_root,
+        decision_path=decision_path,
+        decision=decision,
+        decision_sha256=decision_sha256,
+        observation=observation,
+        executor_ref=executor_ref,
+        accepted_branch=accepted_branch,
+        accepted_head=accepted_head,
+        wcp=wcp,
+        wcp_binding_digest=wcp_binding_digest,
+    )
     try:
         fence = runtime.acquire_fence(
             database,
@@ -188,7 +208,6 @@ def retire_clean_ownerless_lane(  # noqa: PLR0913, PLR0915, RUF100 - exact cross
         wcp_binding_digest=wcp_binding_digest,
         target_binding_digest=str(fence["target_binding_digest"]),
     )
-    record_root = artifact_root or runtime.records_artifact_root(root)
     try:
         runtime.reserve_target(
             root=root,
@@ -286,6 +305,248 @@ def retire_clean_ownerless_lane(  # noqa: PLR0913, PLR0915, RUF100 - exact cross
         "path": observation.path,
         "lane_incarnation_id": observation.lane_incarnation_id,
     }
+
+
+def _reset_reserved_no_effect_retry_or_fail(  # noqa: PLR0913, RUF100 - exact retry binding envelope
+    *,
+    runtime: OwnerlessCloseoutRuntime,
+    root: Path,
+    database: Path,
+    record_root: Path,
+    decision_path: Path,
+    decision: dict[str, Any],
+    decision_sha256: str,
+    observation: LaneObservation,
+    executor_ref: str,
+    accepted_branch: str,
+    accepted_head: str,
+    wcp: dict[str, object],
+    wcp_binding_digest: str,
+) -> None:
+    """Map every operational reset failure to one fail-closed ownerless gap."""
+    try:
+        _reset_reserved_no_effect_retry(
+            runtime=runtime,
+            root=root,
+            database=database,
+            record_root=record_root,
+            decision_path=decision_path,
+            decision=decision,
+            decision_sha256=decision_sha256,
+            observation=observation,
+            executor_ref=executor_ref,
+            accepted_branch=accepted_branch,
+            accepted_head=accepted_head,
+            wcp=wcp,
+            wcp_binding_digest=wcp_binding_digest,
+        )
+    except runtime.ownerless_error_type:
+        raise
+    except (OSError, RuntimeError, TypeError, ValueError) as error:
+        raise runtime.ownerless_error(
+            _ownerless_gap("retry_reset_failed"), fence_acquired=False
+        ) from error
+
+
+def _reset_reserved_no_effect_retry(  # noqa: PLR0913, RUF100 - exact retry binding envelope
+    *,
+    runtime: OwnerlessCloseoutRuntime,
+    root: Path,
+    database: Path,
+    record_root: Path,
+    decision_path: Path,
+    decision: dict[str, Any],
+    decision_sha256: str,
+    observation: LaneObservation,
+    executor_ref: str,
+    accepted_branch: str,
+    accepted_head: str,
+    wcp: dict[str, object],
+    wcp_binding_digest: str,
+) -> None:
+    """Reset only a proven zero-effect attempt before rebinding fresh WCP state."""
+    reservation_path = runtime.reservation_path(
+        root,
+        target_digest(observation.lane_ref, observation.head),
+        artifact_root=record_root,
+    )
+    if not reservation_path.exists() and not reservation_path.is_symlink():
+        return
+    try:
+        reservation = runtime.read_reservation(record_root=record_root, path=reservation_path)
+    except (OSError, TypeError, ValueError) as error:
+        raise runtime.ownerless_error(
+            _ownerless_gap("reservation_failed"), fence_acquired=False
+        ) from error
+    _verify_no_effect_retry_binding(
+        runtime=runtime,
+        root=root,
+        decision_path=decision_path,
+        decision=decision,
+        decision_sha256=decision_sha256,
+        observation=observation,
+        reservation=reservation,
+        executor_ref=executor_ref,
+        accepted_branch=accepted_branch,
+        accepted_head=accepted_head,
+    )
+    fence_state, fence = runtime.probe_fence(database, subject=observation.lane_ref)
+    expected_fence = _reserved_no_effect_fence(
+        decision=decision,
+        decision_sha256=decision_sha256,
+        observation=observation,
+        reservation=reservation,
+    )
+    probe_valid = (fence_state == "present" and isinstance(fence, dict)) or (
+        fence_state == "absent" and fence is None
+    )
+    if not probe_valid:
+        raise runtime.ownerless_error(_OWNERLESS_FENCE_UNVERIFIABLE, fence_acquired=False)
+    if reservation["target_binding_digest"] != expected_fence["target_binding_digest"]:
+        raise runtime.ownerless_error(_OWNERLESS_FENCE_STALE, fence_acquired=True)
+    if fence_state == "present" and fence != expected_fence:
+        raise runtime.ownerless_error(_OWNERLESS_FENCE_STALE, fence_acquired=True)
+    current_binding = (
+        reservation["accepted_head"] == accepted_head
+        and reservation["wcp_schema_version"] == wcp.get("schema_version")
+        and reservation["wcp_decision_sha256"] == wcp.get("decision_sha256")
+        and reservation["wcp_binding_digest"] == wcp_binding_digest
+    )
+    if fence_state == "present" and current_binding:
+        return
+    _verify_no_effect_retry_state(
+        runtime=runtime,
+        root=root,
+        decision_path=decision_path,
+        decision_sha256=decision_sha256,
+        observation=observation,
+        accepted_branch=accepted_branch,
+        accepted_head=accepted_head,
+    )
+    try:
+        if fence_state == "present":
+            runtime.release_fence(
+                database,
+                subject=observation.lane_ref,
+                decision_id=str(decision["decision_id"]),
+                target_binding_digest=str(reservation["target_binding_digest"]),
+            )
+        runtime.release_no_effect_reservation(
+            root=root,
+            expected=reservation,
+            artifact_root=record_root,
+        )
+    except (OSError, RuntimeError, TypeError, ValueError) as error:
+        gap = str(error).strip()
+        reset_gap = (
+            gap
+            if gap.startswith(("lane_resolution_", "lane_closeout_"))
+            else _ownerless_gap("retry_reset_failed")
+        )
+        raise runtime.ownerless_error(
+            reset_gap,
+            fence_acquired=fence_state == "present",
+        ) from error
+
+
+def _verify_no_effect_retry_binding(  # noqa: PLR0913, RUF100 - exact immutable retry binding
+    *,
+    runtime: OwnerlessCloseoutRuntime,
+    root: Path,
+    decision_path: Path,
+    decision: dict[str, Any],
+    decision_sha256: str,
+    observation: LaneObservation,
+    reservation: dict[str, object],
+    executor_ref: str,
+    accepted_branch: str,
+    accepted_head: str,
+) -> None:
+    expected = {
+        "decision_id": str(decision.get("decision_id") or ""),
+        "lane_ref": observation.lane_ref,
+        "head": observation.head,
+        "executor_ref": executor_ref,
+        "wcp_decision_sha256": decision_sha256,
+        "accepted_branch": accepted_branch,
+        "target_digest": target_digest(observation.lane_ref, observation.head),
+        "phase": "reserved",
+        "recovery_state": "reserved_no_effect",
+        "postcondition_digest": "",
+    }
+    mismatch = next(
+        (field for field, value in expected.items() if reservation.get(field) != value),
+        "",
+    )
+    if mismatch:
+        raise runtime.ownerless_error(
+            _ownerless_gap(f"recovery_binding_mismatch:{mismatch}"),
+            fence_acquired=True,
+        )
+    ancestry = runtime.run_git(
+        root,
+        "merge-base",
+        "--is-ancestor",
+        str(reservation["accepted_head"]),
+        accepted_head,
+        check=False,
+    )
+    if ancestry.returncode != 0:
+        raise runtime.ownerless_error(_OWNERLESS_ACCEPTED_HEAD_STALE, fence_acquired=True)
+    if _path_digest(decision_path) != decision_sha256:
+        raise runtime.ownerless_error(_OWNERLESS_DECISION_STALE, fence_acquired=True)
+
+
+def _verify_no_effect_retry_state(  # noqa: PLR0913, RUF100 - exact live zero-effect proof
+    *,
+    runtime: OwnerlessCloseoutRuntime,
+    root: Path,
+    decision_path: Path,
+    decision_sha256: str,
+    observation: LaneObservation,
+    accepted_branch: str,
+    accepted_head: str,
+) -> None:
+    if _path_digest(decision_path) != decision_sha256:
+        raise runtime.ownerless_error(_OWNERLESS_DECISION_STALE, fence_acquired=True)
+    if _ref_head(runtime, root, accepted_branch) != accepted_head:
+        raise runtime.ownerless_error(_OWNERLESS_ACCEPTED_HEAD_STALE, fence_acquired=True)
+    current, gaps = runtime.observe_lane(root, observation.lane_ref)
+    if gaps or current.digest() != observation.digest():
+        raise runtime.ownerless_error(_OWNERLESS_OBSERVATION_STALE, fence_acquired=True)
+    if observation.lane_ref in runtime.leases_by_branch(root):
+        raise runtime.ownerless_error(
+            _ownerless_gap("recovery_binding_mismatch:coordination"),
+            fence_acquired=True,
+        )
+
+
+def _reserved_no_effect_fence(
+    *,
+    decision: dict[str, Any],
+    decision_sha256: str,
+    observation: LaneObservation,
+    reservation: dict[str, object],
+) -> dict[str, object]:
+    binding: dict[str, object] = {
+        "subject": observation.lane_ref,
+        "expected_head": observation.head,
+        "decision_id": str(decision.get("decision_id") or ""),
+        "executor_ref": str(reservation["executor_ref"]),
+        "accepted_branch": str(reservation["accepted_branch"]),
+        "accepted_head": str(reservation["accepted_head"]),
+        "payload": {
+            "target_path": Path(observation.path).resolve(strict=False).as_posix(),
+            "lane_incarnation_id": observation.lane_incarnation_id,
+            "observation_digest": observation.digest(),
+            "decision_sha256": decision_sha256,
+            "chronicle_digest": str(decision.get("chronicle_digest") or ""),
+            "wcp_schema_version": str(reservation["wcp_schema_version"]),
+            "wcp_decision_sha256": str(reservation["wcp_decision_sha256"]),
+            "wcp_binding_digest": str(reservation["wcp_binding_digest"]),
+        },
+    }
+    return {**binding, "target_binding_digest": _canonical_digest(binding)}
 
 
 def recover_completed_ownerless_closeout(  # noqa: PLR0913, RUF100 - exact recovery binding envelope

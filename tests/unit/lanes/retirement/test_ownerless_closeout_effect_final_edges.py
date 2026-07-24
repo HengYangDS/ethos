@@ -87,10 +87,16 @@ def _runtime(
         ),
         "observe_lane": lambda *_args, **_kwargs: (observation, []),
         "records_artifact_root": lambda root: root / "records",
+        "reservation_path": lambda root, target, artifact_root=None: (
+            (artifact_root or root / "records") / "reservations" / f"{target}.json"
+        ),
+        "read_reservation": lambda **_kwargs: {},
         "reserve_target": lambda **_kwargs: None,
+        "release_no_effect_reservation": lambda **_kwargs: None,
         "transition_reservation": lambda **_kwargs: {},
         "leases_by_branch": lambda _root: {},
         "acquire_fence": lambda *_args, **_kwargs: fence,
+        "release_fence": lambda *_args, **_kwargs: None,
         "get_fence": lambda *_args, **_kwargs: fence,
         "probe_fence": lambda *_args, **_kwargs: ("present", fence),
         "state_database": lambda root: root / "state.sqlite",

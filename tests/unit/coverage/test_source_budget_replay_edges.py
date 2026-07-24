@@ -5,6 +5,7 @@ import json
 import os
 import subprocess
 from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
 
@@ -19,7 +20,9 @@ from ethos.domain.source_budget.core import source_budget_metrics_from_bytes
 from ethos_core.contracts.source_budget.carriers import CarrierIdentity
 from ethos_core.contracts.source_budget.carriers import CarrierManifest
 from ethos_core.contracts.source_budget.carriers import classify_carriers
-from ethos_core.contracts.source_budget.metrics import MetricContractSet
+
+if TYPE_CHECKING:
+    from ethos_core.contracts.source_budget.metrics import MetricContractSet
 
 ROOT = Path(__file__).resolve().parents[3]
 
@@ -82,8 +85,12 @@ def test_artifact_contract_and_cleanup_edges(
     root = tmp_path / "root"
     root.mkdir()
 
-    for payload in (cast("dict[str, object]", []), {1: "invalid"}, {"digest": "bad"}):
-        with pytest.raises(ValueError):
+    for payload, message in (
+        (cast("dict[str, object]", []), "payload invalid"),
+        ({1: "invalid"}, "payload invalid"),
+        ({"digest": "bad"}, "digest invalid"),
+    ):
+        with pytest.raises(ValueError, match=message):
             artifact_data(payload)
     for invalid_root in ("", "../outside", "/absolute", "bad\\root"):
         with pytest.raises(ValueError, match="artifact root invalid"):
@@ -147,31 +154,22 @@ def test_snapshot_model_envelope_edges() -> None:
     with pytest.raises(ValueError, match="invalid Git tree snapshot load"):
         snapshots.GitTreeSnapshotLoad(cast("Any", object()), ())
 
-    for gaps in (
-        cast("tuple[str, ...]", ["gap"]),
-        ("",),
-        ("gap", "gap"),
+    for gaps, message in (
+        (cast("tuple[str, ...]", ["gap"]), "invalid snapshot bytes load"),
+        (("",), "non-empty strings"),
+        (("gap", "gap"), "invalid snapshot bytes load"),
     ):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=message):
             snapshots.SnapshotBytesLoad(None, gaps)
     with pytest.raises(ValueError, match="invalid snapshot bytes load"):
         snapshots.SnapshotBytesLoad(cast("Any", tree), ())
     assert snapshots.SnapshotBytesLoad(blob, ()).snapshot == blob
 
 
-def test_snapshot_transport_helper_edges(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_snapshot_git_runtime_helper_edges(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     run_git = vars(snapshots)["_run_git"]
     bound_root = vars(snapshots)["_bound_root"]
     identity = vars(snapshots)["_identity"]
-    parse_record = vars(snapshots)["_parse_ls_tree_record"]
-    parse_tree = vars(snapshots)["_parse_ls_tree"]
-    tree_from_root = vars(snapshots)["_tree_snapshot_from_bound_root"]
-    worktree_from_root = vars(snapshots)["_worktree_snapshot_from_bound_root"]
-    parse_header = vars(snapshots)["_parse_batch_header"]
-    batch_contents = vars(snapshots)["_batch_contents"]
-    selected_entries = vars(snapshots)["_selected_entries"]
-    read_bound = vars(snapshots)["_read_bound_snapshot_blobs"]
-    tree = _empty_tree()
 
     with monkeypatch.context() as patch:
         patch.setattr(snapshots, "_GIT_EXECUTABLE", None)
@@ -195,6 +193,20 @@ def test_snapshot_transport_helper_edges(tmp_path: Path, monkeypatch: pytest.Mon
     with monkeypatch.context() as patch:
         patch.setattr(snapshots, "_run_git", lambda *_args, **_kwargs: no_newline)
         assert identity(tmp_path, "HEAD") is None
+
+
+def test_snapshot_parse_and_public_load_edges(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    parse_record = vars(snapshots)["_parse_ls_tree_record"]
+    parse_tree = vars(snapshots)["_parse_ls_tree"]
+    tree_from_root = vars(snapshots)["_tree_snapshot_from_bound_root"]
+    worktree_from_root = vars(snapshots)["_worktree_snapshot_from_bound_root"]
+    parse_header = vars(snapshots)["_parse_batch_header"]
+    batch_contents = vars(snapshots)["_batch_contents"]
+    selected_entries = vars(snapshots)["_selected_entries"]
+    read_bound = vars(snapshots)["_read_bound_snapshot_blobs"]
+    tree = _empty_tree()
 
     assert parse_record(b"\xff blob " + b"a" * 40 + b"\ta", b"")[0] is None
     assert parse_tree(b"") == ((), ())
@@ -276,7 +288,8 @@ def test_measurement_public_and_provider_edge_contracts(
         assert load.required_gaps == (expected,)
 
     provider, gap = resolve_provider(match, registry)
-    assert provider is not None and gap is None
+    assert provider is not None
+    assert gap is None
     exceeded = measure_bytes_admitted(
         b"x" * (provider.execution_descriptor.max_carrier_bytes + 1),
         match,

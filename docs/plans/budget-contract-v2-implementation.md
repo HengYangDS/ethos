@@ -355,8 +355,10 @@ subsequent separately evidenced transitions.
   the initial semantic Claim binding are committed. Because candidate advanced
   twice after that checkpoint, this step remains open. After the carrier
   reconciliation, refreshed Claim binding, and generic parity are committed,
-  rerun coverage, 58-path Darwin/Linux type evidence, exact-HEAD default/full
-  proof, and the live Linux CPython 3.14 receipt on the resulting final
+  rerun coverage, classify all 58 existing ACMR Python paths, run
+  Darwin/Linux type evidence over the 31 changed package-source paths plus the
+  full zero-tolerance package owner gate, and execute exact-HEAD default/full
+  proof and the live Linux CPython 3.14 receipt on the resulting final
   pre-archive HEAD.
 
 Post-archive parity/proof, candidate land, accepted-root closeout, local

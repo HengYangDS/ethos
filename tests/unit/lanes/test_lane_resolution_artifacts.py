@@ -2,20 +2,24 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from pathlib import Path
 
 import pytest
 
+import ethos.adapters.mutation.resolution.lane as lane_adapter
 import ethos.adapters.mutation.resolution.receipts as receipt_adapter
+import ethos.adapters.mutation.resolution.records.clear.core as clear_adapter
 import ethos.adapters.mutation.resolution.records.core as record_store
-from ethos.adapters.mutation.resolution._shared import records_artifact_root
+import ethos.adapters.mutation.resolution.records.inventory as record_inventory
 from ethos.adapters.mutation.resolution.lane import apply_lane_resolution
 from ethos.adapters.mutation.resolution.lane import plan_lane_resolution
-from ethos.adapters.mutation.resolution.receipts import LaneResolutionClearRequest
-from ethos.adapters.mutation.resolution.receipts import clear_lane_resolution_package
-from ethos.adapters.mutation.resolution.receipts import lane_resolution_inventory
+from ethos.adapters.mutation.resolution.receipts import read_resolution_receipt
 from ethos.adapters.mutation.resolution.receipts import verify_preservation_package
 from ethos.adapters.mutation.resolution.receipts import write_resolution_receipt
+from ethos.adapters.mutation.resolution.records.clear.core import LaneResolutionClearRequest
+from ethos.adapters.mutation.resolution.records.clear.core import clear_lane_resolution_package
+from ethos.adapters.mutation.resolution.records.inventory import lane_resolution_inventory
 from ethos.adapters.mutation.resolution.records.roots import current_record_root
 from ethos.adapters.mutation.resolution.records.roots import historical_record_roots
 from ethos.surface.cli.lane.resolution import _default_decision_path
@@ -34,16 +38,14 @@ _COMPETING_DECISION_ID = "lane-decision:00000000-0000-4000-8000-000000000005"
 def _ownerless_reservation(*, decision_id: str = _OWNERLESS_DECISION_ID) -> dict[str, object]:
     lane_ref, head = "work/20260722-ownerless", "a" * 40
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "decision_id": decision_id,
         "lane_ref": lane_ref,
         "head": head,
         "executor_ref": "agent:codex:thread:executor",
-        "wcp_schema_version": "workstation.repo-family-governance.v1",
-        "wcp_decision_sha256": "b" * 64,
+        "decision_sha256": "b" * 64,
         "accepted_branch": "dev",
         "accepted_head": "c" * 40,
-        "wcp_binding_digest": "d" * 64,
         "target_digest": record_store.target_digest(lane_ref, head),
         "target_binding_digest": "e" * 64,
         "phase": "reserved",
@@ -54,6 +56,7 @@ def _ownerless_reservation(*, decision_id: str = _OWNERLESS_DECISION_ID) -> dict
 
 def _ownerless_receipt(binding: dict[str, object] | None) -> dict[str, object]:
     payload: dict[str, object] = {
+        "schema_version": 3,
         "receipt_id": "lane-resolution-receipt:ownerless",
         "decision_id": _OWNERLESS_DECISION_ID,
         "completed": True,
@@ -99,31 +102,59 @@ def _preserve(repo: Path, lane: Path) -> dict[str, object]:
     return applied
 
 
-def test_record_roots_separate_current_v2_from_immutable_history(tmp_path: Path) -> None:
-    repo = init_repo(tmp_path / "repo")
-
-    current = current_record_root(repo)
-    history = historical_record_roots(repo)
-
-    assert current == tmp_path / "repo-records/recovery/lane-resolution-v2"
-    assert history == (
-        tmp_path / "repo-records/recovery/lane-resolution",
-        repo / "build/artifacts/lane-resolution",
+def _plan_block(repo: Path, decision_path: Path) -> dict[str, object]:
+    return plan_lane_resolution(
+        root=repo,
+        branch="work/orphan",
+        disposition="block",
+        reason="Block this exact observed lane state.",
+        evidence_refs=("evidence:review",),
+        chronicle_ref=write_chronicle_decision(
+            repo, topic="lane-resolution-artifacts", token="block"
+        ),
+        recovery_plan="Keep the lane unchanged until a current decision is recorded.",
+        decision_path=decision_path,
+        break_glass=False,
+        apply=True,
     )
-    assert current not in history
 
 
-def test_current_record_root_does_not_fallback_to_populated_history(tmp_path: Path) -> None:
-    repo = init_repo(tmp_path / "repo")
-    history = historical_record_roots(repo)
-    for record_root in history:
-        record_root.mkdir(parents=True)
+def test_plan_rejects_traversal_spelled_historical_decision_path(tmp_path: Path) -> None:
+    repo, _lane = orphan_work_lane(tmp_path)
+    historical = historical_record_roots(repo)[0] / "decisions/traversal-plan.json"
+    traversal = current_record_root(repo) / ".." / "lane-resolution/decisions/traversal-plan.json"
 
-    current = current_record_root(repo)
+    report = _plan_block(repo, traversal)
 
-    assert current == tmp_path / "repo-records/recovery/lane-resolution-v2"
-    assert not current.exists()
-    assert all(record_root.is_dir() for record_root in history)
+    assert report["ok"] is False
+    assert report["required_gaps"] == ["lane_resolution_decision_path_not_local_artifact"]
+    assert not historical.exists()
+
+
+def test_read_and_apply_reject_traversal_spelled_historical_decision(
+    tmp_path: Path,
+) -> None:
+    repo, _lane = orphan_work_lane(tmp_path)
+    current_decision = _default_decision_path(repo, "work/orphan")
+    planned = _plan_block(repo, current_decision)
+    assert planned["ok"] is True
+    historical = historical_record_roots(repo)[0] / "decisions/traversal-apply.json"
+    historical.parent.mkdir(parents=True, exist_ok=True)
+    historical.write_bytes(current_decision.read_bytes())
+    traversal = current_record_root(repo) / ".." / "lane-resolution/decisions/traversal-apply.json"
+
+    decision, gaps = lane_adapter._read_decision(traversal, root=repo)  # noqa: SLF001, RUF100 - regression covers the private reader boundary
+    report = apply_lane_resolution(
+        root=repo,
+        decision_path=traversal,
+        confirm_irreversible=False,
+        apply=False,
+    )
+
+    assert decision == {}
+    assert gaps == ["lane_resolution_decision_path_not_local_artifact"]
+    assert report["ok"] is False
+    assert "lane_resolution_decision_path_not_local_artifact" in report["required_gaps"]
 
 
 def test_resolution_materializes_immutable_receipt_and_inventory(
@@ -146,6 +177,9 @@ def test_resolution_materializes_immutable_receipt_and_inventory(
         "clear_count": 0,
         "inflight_count": 0,
         "partial_count": 0,
+        "decision_count": 1,
+        "pending_decision_count": 0,
+        "invalid_current_record_count": 0,
     }
     assert inventory["entries"] == [
         {
@@ -156,6 +190,38 @@ def test_resolution_materializes_immutable_receipt_and_inventory(
             "receipt_path": str(applied["receipt_path"]),
             "package_path": str(applied["preservation_package"]["path"]),
             "manifest_sha256": receipt["preservation_manifest_sha256"],
+        }
+    ]
+
+
+def test_inventory_exposes_decision_only_as_pending(tmp_path: Path) -> None:
+    repo, _lane = orphan_work_lane(tmp_path)
+    decision_path = _default_decision_path(repo, "work/orphan")
+    planned = _plan_block(repo, decision_path)
+
+    inventory = lane_resolution_inventory(root=repo)
+
+    assert planned["ok"] is True
+    assert inventory["ok"] is True
+    assert inventory["summary"] == {
+        "package_count": 0,
+        "receipt_count": 0,
+        "clear_count": 0,
+        "inflight_count": 0,
+        "partial_count": 0,
+        "decision_count": 1,
+        "pending_decision_count": 1,
+        "invalid_current_record_count": 0,
+    }
+    assert inventory["entries"] == [
+        {
+            "decision_id": planned["decision"]["decision_id"],
+            "lane_ref": "work/orphan",
+            "head": planned["decision"]["observation"]["head"],
+            "state": "decision_pending",
+            "receipt_path": "",
+            "package_path": "",
+            "manifest_sha256": "",
         }
     ]
 
@@ -234,27 +300,248 @@ def test_resolution_receipt_reservation_rejects_symlinked_existing_sidecar(
         )
 
 
-def test_inventory_reports_receipt_without_preservation_package(tmp_path: Path) -> None:
-    repo, lane = orphan_work_lane(tmp_path)
-    applied = _preserve(repo, lane)
+def test_current_inventory_ignores_historical_manifests(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path / "repo")
+    carrier = tmp_path / "repo-work-carrier"
+    git(repo, "worktree", "add", "-b", "work/carrier", carrier.as_posix(), "dev")
 
-    package = repo / str(applied["preservation_package"]["path"])
-    receipt_adapter.shutil.rmtree(package)
+    for index, record_root in enumerate(historical_record_roots(repo), start=1):
+        package = record_root / f"historical-{index}"
+        package.mkdir(parents=True)
+        manifest = {
+            "decision_id": f"lane-decision:00000000-0000-4000-8000-{index:012d}",
+            "lane_ref": f"work/historical-{index}",
+            "head": "a" * 40,
+            "observation_digest": "b" * 64,
+            "bundle_sha256": "c" * 64,
+            "patch_sha256": "d" * 64,
+            "untracked_archive_sha256": "",
+            "source_lease_transferred": False,
+        }
+        (package / "manifest.json").write_text(
+            json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
 
     inventory = lane_resolution_inventory(root=repo)
 
-    assert inventory["entries"][0]["state"] == "receipt_only"
+    assert inventory["ok"] is True
+    assert inventory["entries"] == []
+    assert inventory["summary"]["invalid_current_record_count"] == 0
 
 
-def test_inventory_keeps_legacy_manifest_visible_without_inventing_receipt(
+def test_current_inventory_ignores_invalid_historical_payloads(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path / "repo")
+
+    for index, record_root in enumerate(historical_record_roots(repo), start=1):
+        invalid = record_root / "receipts" / f"invalid-{index}.json"
+        invalid.parent.mkdir(parents=True, exist_ok=True)
+        invalid.write_text("not json", encoding="utf-8")
+
+    inventory = lane_resolution_inventory(root=repo)
+
+    assert inventory["ok"] is True
+    assert inventory["entries"] == []
+    assert inventory["summary"]["invalid_current_record_count"] == 0
+
+
+@pytest.mark.parametrize(
+    "relative_path",
+    [
+        "receipts/nonregular.json",
+        f"receipts/.{_RESERVATION_DECISION_ID}.receipt-reservation",
+    ],
+)
+def test_current_inventory_rejects_non_regular_payload_without_reading(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    relative_path: str,
 ) -> None:
     repo = init_repo(tmp_path / "repo")
-    package = repo / "build" / "artifacts" / "lane-resolution" / "legacy"
+    payload_path = current_record_root(repo) / relative_path
+    payload_path.parent.mkdir(parents=True, exist_ok=True)
+    os.mkfifo(payload_path)
+    real_read_bytes = Path.read_bytes
+
+    def guarded_read_bytes(path: Path) -> bytes:
+        if path == payload_path:
+            pytest.fail("non-regular current payload must not be opened")
+        return real_read_bytes(path)
+
+    monkeypatch.setattr(Path, "read_bytes", guarded_read_bytes)
+
+    inventory = lane_resolution_inventory(root=repo)
+
+    assert inventory["ok"] is False
+    assert inventory["summary"]["invalid_current_record_count"] == 1
+    assert inventory["invalid_current_record_paths"] == [payload_path.absolute().as_posix()]
+    assert inventory["required_gaps"] == ["lane_resolution_current_record_invalid"]
+
+
+def test_current_inventory_ignores_conflicting_historical_manifest(tmp_path: Path) -> None:
+    repo, lane = orphan_work_lane(tmp_path)
+    applied = _preserve(repo, lane)
+    manifest = dict(applied["preservation_package"]["manifest"])
+    manifest["head"] = "f" * 40
+    historical = historical_record_roots(repo)[-1] / "conflicting/manifest.json"
+    historical.parent.mkdir(parents=True)
+    historical.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    inventory = lane_resolution_inventory(root=repo)
+
+    assert inventory["ok"] is True
+    assert inventory["conflicting_decision_ids"] == []
+    assert [entry["decision_id"] for entry in inventory["entries"]] == [
+        applied["receipt"]["decision_id"]
+    ]
+
+
+def test_exact_invalid_receipt_blocks_apply_before_recovery_or_effect(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, lane = orphan_work_lane(tmp_path)
+    decision_path = _default_decision_path(repo, "work/orphan")
+    planned = _plan_block(repo, decision_path)
+    decision_id = str(planned["decision"]["decision_id"])
+    invalid = record_store.receipt_path(repo, decision_id)
+    invalid.parent.mkdir(parents=True)
+    invalid.write_text("not json", encoding="utf-8")
+    calls = {"recovery": 0, "effect": 0}
+
+    def record_recovery(*_args: object, **_kwargs: object):
+        calls["recovery"] += 1
+        return {}, None, None, ""
+
+    def record_effect(*_args: object, **_kwargs: object) -> None:
+        calls["effect"] += 1
+
+    monkeypatch.setattr(lane_adapter, "ownerless_recovery_context", record_recovery)
+    monkeypatch.setattr(lane_adapter, "apply_resolution", record_effect)
+
+    report = apply_lane_resolution(
+        root=repo,
+        decision_path=decision_path,
+        confirm_irreversible=False,
+        apply=True,
+    )
+
+    assert report["required_gaps"] == ["lane_resolution_current_record_invalid"]
+    assert calls == {"recovery": 0, "effect": 0}
+    assert lane.is_dir()
+
+
+def test_exact_noncanonical_decision_blocks_apply_before_recovery_or_effect(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, lane = orphan_work_lane(tmp_path)
+    decision_path = _default_decision_path(repo, "work/orphan")
+    planned = _plan_block(repo, decision_path)
+    decision = json.loads(decision_path.read_text(encoding="utf-8"))
+    decision_path.write_text(json.dumps(decision), encoding="utf-8")
+    calls = {"recovery": 0, "effect": 0}
+
+    def record_recovery(
+        *_args: object, **_kwargs: object
+    ) -> tuple[dict[str, object], Path | None, Path | None, str]:
+        calls["recovery"] += 1
+        return {}, None, None, ""
+
+    def record_effect(*_args: object, **_kwargs: object) -> None:
+        calls["effect"] += 1
+
+    monkeypatch.setattr(lane_adapter, "ownerless_recovery_context", record_recovery)
+    monkeypatch.setattr(lane_adapter, "apply_resolution", record_effect)
+
+    inventory = lane_resolution_inventory(root=repo)
+    report = apply_lane_resolution(
+        root=repo,
+        decision_path=decision_path,
+        confirm_irreversible=False,
+        apply=True,
+    )
+
+    assert planned["ok"] is True
+    assert inventory["summary"]["invalid_current_record_count"] == 1
+    assert report["ok"] is False
+    assert report["required_gaps"] == ["lane_resolution_current_record_invalid"]
+    assert calls == {"recovery": 0, "effect": 0}
+    assert lane.is_dir()
+
+
+def test_exact_non_regular_decision_blocks_apply_without_reading(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, lane = orphan_work_lane(tmp_path)
+    decision_path = _default_decision_path(repo, "work/orphan")
+    planned = _plan_block(repo, decision_path)
+    decision_path.unlink()
+    os.mkfifo(decision_path)
+    real_read_bytes = Path.read_bytes
+    calls = {"recovery": 0, "effect": 0}
+
+    def guarded_read_bytes(path: Path) -> bytes:
+        if path == decision_path:
+            pytest.fail("non-regular decision must not be opened")
+        return real_read_bytes(path)
+
+    def record_recovery(
+        *_args: object, **_kwargs: object
+    ) -> tuple[dict[str, object], Path | None, Path | None, str]:
+        calls["recovery"] += 1
+        return {}, None, None, ""
+
+    def record_effect(*_args: object, **_kwargs: object) -> None:
+        calls["effect"] += 1
+
+    monkeypatch.setattr(Path, "read_bytes", guarded_read_bytes)
+    monkeypatch.setattr(lane_adapter, "ownerless_recovery_context", record_recovery)
+    monkeypatch.setattr(lane_adapter, "apply_resolution", record_effect)
+
+    report = apply_lane_resolution(
+        root=repo,
+        decision_path=decision_path,
+        confirm_irreversible=False,
+        apply=True,
+    )
+
+    assert planned["ok"] is True
+    assert report["ok"] is False
+    assert report["required_gaps"] == ["lane_resolution_current_record_invalid"]
+    assert calls == {"recovery": 0, "effect": 0}
+    assert lane.is_dir()
+
+
+def test_current_receipt_reader_does_not_fallback_to_history(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path / "repo")
+    carrier = tmp_path / "repo-work-carrier"
+    git(repo, "worktree", "add", "-b", "work/carrier", carrier.as_posix(), "dev")
+    receipt = _ownerless_receipt(None)
+
+    for record_root in historical_record_roots(repo):
+        destination = record_store.receipt_path(
+            repo,
+            _OWNERLESS_DECISION_ID,
+            artifact_root=record_root,
+        )
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(
+            json.dumps(receipt, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+
+    assert read_resolution_receipt(root=repo, decision_id=_OWNERLESS_DECISION_ID) is None
+
+
+def test_clear_does_not_select_or_delete_historical_package(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path / "repo")
+    package = historical_record_roots(repo)[0] / _LEGACY_DECISION_ID
     package.mkdir(parents=True)
     manifest = {
         "decision_id": _LEGACY_DECISION_ID,
-        "lane_ref": "work/legacy",
+        "lane_ref": "work/historical",
         "head": "a" * 40,
         "observation_digest": "b" * 64,
         "bundle_sha256": "c" * 64,
@@ -263,87 +550,20 @@ def test_inventory_keeps_legacy_manifest_visible_without_inventing_receipt(
         "source_lease_transferred": False,
     }
     manifest_path = package / "manifest.json"
-    manifest_path.write_text(json.dumps(manifest) + "\n", encoding="utf-8")
-
-    inventory = lane_resolution_inventory(root=repo)
-
-    assert inventory["ok"] is True
-    assert inventory["entries"] == [
-        {
-            "decision_id": _LEGACY_DECISION_ID,
-            "lane_ref": "work/legacy",
-            "head": "a" * 40,
-            "state": "unindexed",
-            "receipt_path": "",
-            "package_path": "build/artifacts/lane-resolution/legacy",
-            "manifest_sha256": hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
-        }
-    ]
-
-
-def test_inventory_reads_legacy_manifest_from_registered_carrier_worktree(
-    tmp_path: Path,
-) -> None:
-    repo = init_repo(tmp_path / "repo")
-    carrier = tmp_path / "repo-work-carrier"
-    git(repo, "worktree", "add", "-b", "work/carrier", carrier.as_posix(), "dev")
-    package = carrier / "build/artifacts/lane-resolution/legacy-carrier"
-    package.mkdir(parents=True)
-    manifest = {
-        "decision_id": _CARRIER_DECISION_ID,
-        "lane_ref": "work/carrier",
-        "head": "a" * 40,
-    }
-    (package / "manifest.json").write_text(json.dumps(manifest) + "\n", encoding="utf-8")
-
-    inventory = lane_resolution_inventory(root=repo)
-
-    assert inventory["ok"] is True
-    assert inventory["entries"][0]["decision_id"] == _CARRIER_DECISION_ID
-    assert inventory["entries"][0]["package_path"] == package.as_posix()
-
-
-def test_inventory_blocks_conflicting_canonical_and_legacy_decision_records(
-    tmp_path: Path,
-) -> None:
-    repo, lane = orphan_work_lane(tmp_path)
-    applied = _preserve(repo, lane)
-    manifest = dict(applied["preservation_package"]["manifest"])
-    manifest["head"] = "f" * 40
-    legacy = repo / "build/artifacts/lane-resolution/conflicting/manifest.json"
-    legacy.parent.mkdir(parents=True)
-    legacy.write_text(json.dumps(manifest, sort_keys=True) + "\n", encoding="utf-8")
-
-    inventory = lane_resolution_inventory(root=repo)
-
-    assert inventory["ok"] is False
-    assert inventory["state"] == "blocked"
-    assert inventory["required_gaps"] == ["lane_resolution_decision_record_conflict"]
-
-
-def test_clear_blocks_conflicting_canonical_and_legacy_decision_records(
-    tmp_path: Path,
-) -> None:
-    repo, lane = orphan_work_lane(tmp_path)
-    applied = _preserve(repo, lane)
-    raw_package = Path(str(applied["preservation_package"]["path"]))
-    package = raw_package if raw_package.is_absolute() else repo / raw_package
-    canonical_manifest = package / "manifest.json"
-    manifest = dict(applied["preservation_package"]["manifest"])
-    manifest["head"] = "f" * 40
-    legacy = repo / "build/artifacts/lane-resolution/conflicting/manifest.json"
-    legacy.parent.mkdir(parents=True)
-    legacy.write_text(json.dumps(manifest, sort_keys=True) + "\n", encoding="utf-8")
+    manifest_path.write_text(
+        json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
 
     report = clear_lane_resolution_package(
         root=repo,
         request=LaneResolutionClearRequest(
-            decision_id=str(applied["receipt"]["decision_id"]),
-            expect_manifest_sha256=hashlib.sha256(canonical_manifest.read_bytes()).hexdigest(),
+            decision_id=_LEGACY_DECISION_ID,
+            expect_manifest_sha256=hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
             chronicle_ref=write_chronicle_decision(
                 repo, topic="lane-resolution-artifacts", token="clear-preservation"
             ),
-            reason="Conflicting local records must be reconciled before clear.",
+            reason="Historical bytes never authorize current clear.",
             break_glass=True,
             confirm_irreversible=True,
             apply=True,
@@ -351,31 +571,37 @@ def test_clear_blocks_conflicting_canonical_and_legacy_decision_records(
     )
 
     assert report["ok"] is False
-    assert report["required_gaps"] == ["lane_resolution_decision_record_conflict"]
+    assert "lane_resolution_clear_package_missing" in report["required_gaps"]
     assert package.is_dir()
-    assert legacy.parent.is_dir()
 
 
-def test_clear_blocks_identical_canonical_and_legacy_package_copies(
+@pytest.mark.parametrize("invalid_location", ["unrelated", "exact_receipt"])
+def test_clear_blocks_any_invalid_current_payload_before_delete(
     tmp_path: Path,
+    invalid_location: str,
 ) -> None:
     repo, lane = orphan_work_lane(tmp_path)
     applied = _preserve(repo, lane)
+    decision_id = str(applied["receipt"]["decision_id"])
     package = Path(str(applied["preservation_package"]["path"]))
-    canonical_manifest = package / "manifest.json"
-    legacy = repo / "build/artifacts/lane-resolution/identical/manifest.json"
-    legacy.parent.mkdir(parents=True)
-    legacy.write_bytes(canonical_manifest.read_bytes())
+    manifest_path = package / "manifest.json"
+    invalid = (
+        record_store.receipt_path(repo, decision_id)
+        if invalid_location == "exact_receipt"
+        else current_record_root(repo) / "receipts" / "unrelated-invalid.json"
+    )
+    invalid.parent.mkdir(parents=True, exist_ok=True)
+    invalid.write_text("not json", encoding="utf-8")
 
     report = clear_lane_resolution_package(
         root=repo,
         request=LaneResolutionClearRequest(
-            decision_id=str(applied["receipt"]["decision_id"]),
-            expect_manifest_sha256=hashlib.sha256(canonical_manifest.read_bytes()).hexdigest(),
+            decision_id=decision_id,
+            expect_manifest_sha256=hashlib.sha256(manifest_path.read_bytes()).hexdigest(),
             chronicle_ref=write_chronicle_decision(
                 repo, topic="lane-resolution-artifacts", token="clear-preservation"
             ),
-            reason="Ambiguous duplicate packages require reconciliation.",
+            reason="Current-record corruption blocks irreversible package deletion.",
             break_glass=True,
             confirm_irreversible=True,
             apply=True,
@@ -383,9 +609,9 @@ def test_clear_blocks_identical_canonical_and_legacy_package_copies(
     )
 
     assert report["ok"] is False
-    assert report["required_gaps"] == ["lane_resolution_clear_package_ambiguous"]
+    assert report["required_gaps"] == ["lane_resolution_current_record_invalid"]
     assert package.is_dir()
-    assert legacy.parent.is_dir()
+    assert not record_store.clear_receipt_path(repo, decision_id).exists()
 
 
 def test_inventory_and_verify_bind_actual_manifest_to_immutable_receipt(
@@ -404,44 +630,23 @@ def test_inventory_and_verify_bind_actual_manifest_to_immutable_receipt(
     inventory = lane_resolution_inventory(root=repo)
 
     assert inventory["ok"] is False
-    assert inventory["required_gaps"] == ["lane_resolution_manifest_receipt_mismatch"]
+    assert inventory["required_gaps"] == [
+        "lane_resolution_manifest_receipt_mismatch",
+        "lane_resolution_current_record_invalid",
+    ]
     with pytest.raises(ValueError, match="lane_resolution_preservation_package_invalid"):
         verify_preservation_package(root=repo, package=applied["preservation_package"])
 
 
-@pytest.mark.parametrize("location", ["canonical", "legacy-package", "legacy-root"])
-def test_inventory_and_clear_block_symlinked_artifact_paths(
-    tmp_path: Path,
-    location: str,
-) -> None:
-    if location == "canonical":
-        repo, lane = orphan_work_lane(tmp_path)
-        applied = _preserve(repo, lane)
-        decision_id = str(applied["receipt"]["decision_id"])
-        package_link = Path(str(applied["preservation_package"]["path"]))
-        outside = tmp_path / "canonical-outside"
-        package_link.rename(outside)
-        link_target = outside
-        manifest_path = outside / "manifest.json"
-    else:
-        repo = init_repo(tmp_path / "repo")
-        decision_id = _LEGACY_DECISION_ID
-        outside = tmp_path / f"{location}-outside"
-        package = outside if location == "legacy-package" else outside / "symlinked"
-        package.mkdir(parents=True)
-        manifest = {
-            "decision_id": decision_id,
-            "lane_ref": "work/legacy",
-            "head": "a" * 40,
-        }
-        manifest_path = package / "manifest.json"
-        manifest_path.write_text(json.dumps(manifest, sort_keys=True) + "\n", encoding="utf-8")
-        package_link = repo / "build/artifacts/lane-resolution"
-        link_target = outside
-        if location == "legacy-package":
-            package_link /= "symlinked"
-            link_target = package
-        package_link.parent.mkdir(parents=True, exist_ok=True)
+def test_inventory_and_clear_block_symlinked_current_package(tmp_path: Path) -> None:
+    repo, lane = orphan_work_lane(tmp_path)
+    applied = _preserve(repo, lane)
+    decision_id = str(applied["receipt"]["decision_id"])
+    package_link = Path(str(applied["preservation_package"]["path"]))
+    outside = tmp_path / "current-outside"
+    package_link.rename(outside)
+    link_target = outside
+    manifest_path = outside / "manifest.json"
     package_link.symlink_to(link_target, target_is_directory=True)
     marker = link_target / "must-survive.txt"
     marker.write_text("retained\n", encoding="utf-8")
@@ -464,9 +669,11 @@ def test_inventory_and_clear_block_symlinked_artifact_paths(
     )
 
     assert inventory["ok"] is False
-    assert inventory["required_gaps"] == ["lane_resolution_package_path_unsafe"]
-    assert cleared["ok"] is False
-    assert "lane_resolution_package_path_unsafe" in cleared["required_gaps"]
+    assert set(inventory["required_gaps"]) == {
+        "lane_resolution_package_path_unsafe",
+        "lane_resolution_current_record_invalid",
+    }
+    assert "lane_resolution_current_record_invalid" in cleared["required_gaps"]
     assert package_link.is_symlink()
     assert marker.read_text(encoding="utf-8") == "retained\n"
 
@@ -499,7 +706,7 @@ def test_clear_blocks_receipt_with_empty_manifest_digest(
     )
 
     assert report["ok"] is False
-    assert report["required_gaps"] == ["lane_resolution_manifest_receipt_mismatch"]
+    assert report["required_gaps"] == ["lane_resolution_current_record_invalid"]
     assert package.is_dir()
 
 
@@ -508,7 +715,7 @@ def test_resolution_receipt_write_blocks_symlinked_record_category(
 ) -> None:
     repo, lane = orphan_work_lane(tmp_path)
     (lane / "README.md").write_text("# preserve safely\n", encoding="utf-8")
-    artifact_root = records_artifact_root(repo)
+    artifact_root = current_record_root(repo)
     artifact_root.mkdir(parents=True)
     outside = tmp_path / "receipt-outside"
     outside.mkdir()
@@ -538,7 +745,7 @@ def test_resolution_receipt_write_blocks_symlinked_record_category(
 
     assert planned["ok"] is True
     assert applied["ok"] is False
-    assert applied["required_gaps"] == ["lane_resolution_receipt_path_unsafe"]
+    assert applied["required_gaps"] == ["lane_resolution_current_record_invalid"]
     assert list(outside.iterdir()) == []
 
 
@@ -592,6 +799,18 @@ def test_manual_clear_requires_exact_chronicle_and_manifest_binding(
     assert cleared["state"] == "cleared"
     assert not package.exists()
     assert (repo / str(cleared["clear_receipt_path"])).is_file()
+    inventory = lane_resolution_inventory(root=repo)
+    assert inventory["summary"] == {
+        "package_count": 0,
+        "receipt_count": 1,
+        "clear_count": 1,
+        "inflight_count": 0,
+        "partial_count": 0,
+        "decision_count": 1,
+        "pending_decision_count": 0,
+        "invalid_current_record_count": 0,
+    }
+    assert inventory["entries"][0]["state"] == "cleared"
 
 
 def test_manual_clear_reports_missing_package_and_manifest_mismatch(tmp_path: Path) -> None:
@@ -616,26 +835,21 @@ def test_manual_clear_reports_missing_package_and_manifest_mismatch(tmp_path: Pa
     }
 
 
-def test_manual_clear_removal_failure_keeps_package_and_discards_clear_receipt(
+def test_manual_clear_removal_failure_keeps_quarantine_and_clear_receipt(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo, lane = orphan_work_lane(tmp_path)
     applied = _preserve(repo, lane)
     package = repo / str(applied["preservation_package"]["path"])
+    metadata = package.stat(follow_symlinks=False)
+    package_identity = metadata.st_dev, metadata.st_ino, metadata.st_mode
     manifest_sha256 = hashlib.sha256((package / "manifest.json").read_bytes()).hexdigest()
     decision_id = str(applied["receipt"]["decision_id"])
     chronicle_ref = write_chronicle_decision(
         repo, topic="lane-resolution-artifacts", token="clear-preservation"
     )
 
-    original_rmtree = receipt_adapter.shutil.rmtree
-
-    def fail_remove(path: Path, *args: object, **kwargs: object) -> None:
-        if Path(path) == package:
-            raise OSError
-        original_rmtree(path, *args, **kwargs)
-
-    monkeypatch.setattr(receipt_adapter.shutil, "rmtree", fail_remove)
+    monkeypatch.setattr(clear_adapter, "remove_quarantined_package", lambda **_kwargs: False)
     report = clear_lane_resolution_package(
         root=repo,
         request=LaneResolutionClearRequest(
@@ -650,30 +864,14 @@ def test_manual_clear_removal_failure_keeps_package_and_discards_clear_receipt(
     )
 
     assert report["required_gaps"] == ["lane_resolution_clear_remove_failed"]
-    assert package.is_dir()
-    assert not list((repo / "build/artifacts/lane-resolution/clears").glob("*.json"))
+    assert report["state"] == "partial_transition"
+    assert not package.exists()
+    assert record_store.clear_quarantine_path(repo, decision_id, package_identity).is_dir()
+    assert record_store.clear_receipt_path(repo, decision_id).is_file()
 
 
-def test_receipt_inventory_ignores_malformed_records_and_rejects_invalid_schema(
-    tmp_path: Path,
-) -> None:
+def test_receipt_schema_validator_rejects_invalid_schema(tmp_path: Path) -> None:
     repo = init_repo(tmp_path / "repo")
-    artifacts = repo / "build/artifacts/lane-resolution"
-    malformed_manifest = artifacts / "malformed" / "manifest.json"
-    malformed_manifest.parent.mkdir(parents=True)
-    malformed_manifest.write_text("not json", encoding="utf-8")
-    receipts = artifacts / "receipts"
-    receipts.mkdir()
-    (receipts / "invalid-schema.json").write_text("{}", encoding="utf-8")
-    (receipts / "malformed.json").write_text("not json", encoding="utf-8")
-
-    assert receipt_adapter._manifests_with_conflicts(repo)[0] == {}  # noqa: RUF100, SLF001 - coverage exercises malformed manifest handling
-    assert (
-        receipt_adapter._records_with_conflicts(  # noqa: RUF100, SLF001 - coverage exercises invalid record handling
-            repo, "receipts", "lane-resolution-receipt.schema.json"
-        )[0]
-        == {}
-    )
     with pytest.raises(ValueError, match="lane_resolution_receipt_invalid"):
         receipt_adapter._validate_schema(  # noqa: RUF100, SLF001 - coverage exercises schema refusal
             repo, "lane-resolution-receipt.schema.json", {}
@@ -684,11 +882,10 @@ def test_inventory_and_clear_block_when_records_owner_is_unavailable(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     error = ValueError("lane_resolution_accepted_control_root_unavailable")
-    monkeypatch.setattr(
-        receipt_adapter,
-        "artifact_roots",
-        lambda _root: (_ for _ in ()).throw(error),
-    )
+    for module in (clear_adapter, record_inventory):
+        monkeypatch.setattr(
+            module, "current_record_root", lambda _root: (_ for _ in ()).throw(error)
+        )
 
     inventory = lane_resolution_inventory(root=tmp_path)
     cleared = clear_lane_resolution_package(
@@ -707,11 +904,12 @@ def test_inventory_and_clear_block_when_records_owner_is_unavailable(
     assert inventory["required_gaps"] == ["lane_resolution_accepted_control_root_unavailable"]
     assert cleared["required_gaps"] == ["lane_resolution_accepted_control_root_unavailable"]
 
-    monkeypatch.setattr(
-        receipt_adapter,
-        "artifact_roots",
-        lambda _root: (_ for _ in ()).throw(ValueError("unexpected")),
-    )
+    for module in (clear_adapter, record_inventory):
+        monkeypatch.setattr(
+            module,
+            "current_record_root",
+            lambda _root: (_ for _ in ()).throw(ValueError("unexpected")),
+        )
     with pytest.raises(ValueError, match="unexpected"):
         lane_resolution_inventory(root=tmp_path)
 
@@ -724,12 +922,39 @@ def test_clear_chronicle_rejects_outside_missing_and_mismatched_records(tmp_path
     mismatch.parent.mkdir(parents=True)
     mismatch.write_text("decision: lane_resolution/preserve\n", encoding="utf-8")
 
-    assert receipt_adapter._clear_chronicle(  # noqa: RUF100, SLF001 - coverage exercises Chronicle boundary refusal
+    assert clear_adapter._clear_chronicle(  # noqa: RUF100, SLF001 - coverage exercises Chronicle boundary refusal
         repo, outside.as_posix()
     )[2] == ["lane_resolution_clear_chronicle_outside_repository"]
-    assert receipt_adapter._clear_chronicle(  # noqa: RUF100, SLF001 - coverage exercises missing Chronicle refusal
+    assert clear_adapter._clear_chronicle(  # noqa: RUF100, SLF001 - coverage exercises missing Chronicle refusal
         repo, "evidence/chronicle/missing.md"
     )[2] == ["lane_resolution_clear_chronicle_missing"]
-    assert receipt_adapter._clear_chronicle(  # noqa: RUF100, SLF001 - coverage exercises Chronicle token refusal
+    assert clear_adapter._clear_chronicle(  # noqa: RUF100, SLF001 - coverage exercises Chronicle token refusal
         repo, "evidence/chronicle/lane-resolution-artifacts/mismatch.md"
     )[2] == ["lane_resolution_clear_chronicle_disposition_mismatch"]
+
+
+def test_record_roots_separate_current_v2_from_immutable_history(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path / "repo")
+
+    current = current_record_root(repo)
+    history = historical_record_roots(repo)
+
+    assert current == tmp_path / "repo-records/recovery/lane-resolution-v2"
+    assert history == (
+        tmp_path / "repo-records/recovery/lane-resolution",
+        repo / "build/artifacts/lane-resolution",
+    )
+    assert current not in history
+
+
+def test_current_record_root_does_not_fallback_to_populated_history(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path / "repo")
+    history = historical_record_roots(repo)
+    for record_root in history:
+        record_root.mkdir(parents=True)
+
+    current = current_record_root(repo)
+
+    assert current == tmp_path / "repo-records/recovery/lane-resolution-v2"
+    assert not current.exists()
+    assert all(record_root.is_dir() for record_root in history)

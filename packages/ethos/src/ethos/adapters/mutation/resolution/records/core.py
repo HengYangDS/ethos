@@ -10,8 +10,8 @@ import tempfile
 from pathlib import Path
 
 from ethos.adapters.mutation.resolution._shared import record_destination_safe
-from ethos.adapters.mutation.resolution._shared import records_artifact_root
 from ethos.adapters.mutation.resolution._shared import valid_decision_id
+from ethos.adapters.mutation.resolution.records.roots import current_record_root
 from ethos.repository.policy.schema import validate_schema_instance
 from ethos_core.contracts.resolution.closeout import LaneResolutionReceipt
 from ethos_core.contracts.resolution.closeout import OwnerlessCloseoutBinding
@@ -28,6 +28,7 @@ _OWNERLESS_RESERVATION_MISMATCH = "lane_resolution_ownerless_reservation_mismatc
 _OWNERLESS_RECOVERY_BINDING_MISMATCH = "lane_resolution_ownerless_recovery_binding_mismatch"
 _OWNERLESS_RECOVERY_NOT_FINALIZABLE = "lane_resolution_ownerless_recovery_not_finalizable"
 _OWNERLESS_RESERVATION_RELEASE_INVALID = "lane_resolution_ownerless_reservation_release_invalid"
+_CLEAR_QUARANTINE_IDENTITY_FIELD_COUNT = 3
 _RESERVATION_STATE_FIELDS = {"phase", "recovery_state", "postcondition_digest"}
 _IMMUTABLE_RESERVATION_FIELDS = tuple(
     field
@@ -55,6 +56,43 @@ def clear_receipt_path(root: Path, decision_id: str) -> Path:
     return record_path(root, _CLEARS, decision_id)
 
 
+def clear_quarantine_name(decision_id: str, identity: tuple[int, int, int]) -> str:
+    """Bind one clear quarantine name to its decision and captured filesystem identity."""
+    device, inode, mode = identity
+    digest = hashlib.sha256(decision_id.encode()).hexdigest()
+    return f".{digest}.{device:x}-{inode:x}-{mode:x}.clear-quarantine"
+
+
+def clear_quarantine_identity(name: str, decision_id: str) -> tuple[int, int, int] | None:
+    """Parse the identity only from the exact quarantine namespace for one decision."""
+    digest = hashlib.sha256(decision_id.encode()).hexdigest()
+    prefix, suffix = f".{digest}.", ".clear-quarantine"
+    if not name.startswith(prefix) or not name.endswith(suffix):
+        return None
+    encoded = name.removeprefix(prefix).removesuffix(suffix)
+    try:
+        values = tuple(int(part, 16) for part in encoded.split("-"))
+    except ValueError:
+        return None
+    if len(values) != _CLEAR_QUARANTINE_IDENTITY_FIELD_COUNT:
+        return None
+    identity = values[0], values[1], values[2]
+    return identity if clear_quarantine_name(decision_id, identity) == name else None
+
+
+def clear_quarantine_path(
+    root: Path,
+    decision_id: str,
+    identity: tuple[int, int, int],
+    *,
+    artifact_root: Path | None = None,
+) -> Path:
+    """Return the deterministic package quarantine under the current record root."""
+    return (artifact_root or current_record_root(root)) / clear_quarantine_name(
+        decision_id, identity
+    )
+
+
 def target_digest(lane_ref: str, head: str) -> str:
     """Bind one exact lane ref and head without ambiguous concatenation."""
     return hashlib.sha256(f"{lane_ref}\0{head}".encode()).hexdigest()
@@ -67,7 +105,7 @@ def ownerless_closeout_reservation_path(
     artifact_root: Path | None = None,
 ) -> Path:
     """Return the target-scoped durable ownerless-closeout reservation path."""
-    return (artifact_root or records_artifact_root(root)) / _RESERVATIONS / f"{target}.json"
+    return (artifact_root or current_record_root(root)) / _RESERVATIONS / f"{target}.json"
 
 
 def record_path(
@@ -79,10 +117,15 @@ def record_path(
 ) -> Path:
     """Return one digest-addressed record path under the stable owner."""
     return (
-        (artifact_root or records_artifact_root(root))
+        (artifact_root or current_record_root(root))
         / category
         / f"{hashlib.sha256(decision_id.encode()).hexdigest()}.json"
     )
+
+
+def canonical_current_record_bytes(payload: dict[str, object]) -> bytes:
+    """Encode one current record with the canonical immutable writer format."""
+    return (json.dumps(payload, indent=2, sort_keys=True, allow_nan=False) + "\n").encode()
 
 
 def write_json_atomic(
@@ -125,7 +168,7 @@ def reserve_ownerless_closeout_target(
 ) -> Path:
     """Atomically reserve one lane/head target; exact same-decision replay is idempotent."""
     payload = _validated_ownerless_reservation(reservation, initial=True)
-    record_root = artifact_root or records_artifact_root(root)
+    record_root = artifact_root or current_record_root(root)
     destination = ownerless_closeout_reservation_path(
         root, str(payload["target_digest"]), artifact_root=record_root
     )
@@ -154,7 +197,7 @@ def transition_ownerless_closeout_reservation(  # noqa: PLR0913, RUF100 - exact 
     expected_payload = _validated_ownerless_reservation(expected, initial=True)
     if recovery_state == "reserved_no_effect":
         raise ValueError(_OWNERLESS_RESERVATION_INVALID)
-    record_root = artifact_root or records_artifact_root(root)
+    record_root = artifact_root or current_record_root(root)
     destination = ownerless_closeout_reservation_path(
         root, str(expected_payload["target_digest"]), artifact_root=record_root
     )
@@ -180,7 +223,7 @@ def ownerless_closeout_recovery_binding(
 ) -> dict[str, object]:
     """Return receipt binding only for the same exact completed-effect decision."""
     expected_payload = _validated_ownerless_reservation(expected, initial=True)
-    record_root = artifact_root or records_artifact_root(root)
+    record_root = artifact_root or current_record_root(root)
     destination = ownerless_closeout_reservation_path(
         root, str(expected_payload["target_digest"]), artifact_root=record_root
     )
@@ -219,7 +262,7 @@ def release_ownerless_closeout_reservation(
         expected=expected_payload,
         artifact_root=artifact_root,
     )
-    record_root = artifact_root or records_artifact_root(root)
+    record_root = artifact_root or current_record_root(root)
     completion = receipt_path(
         root,
         str(expected_payload["decision_id"]),
@@ -343,7 +386,7 @@ def reserve_resolution_receipt(
     """Atomically reserve one immutable receipt before any destructive effect."""
     if not valid_decision_id(decision_id):
         raise ValueError(_RECEIPT_INVALID)
-    record_root = artifact_root or records_artifact_root(root)
+    record_root = artifact_root or current_record_root(root)
     destination = receipt_path(root, decision_id, artifact_root=record_root)
     reservation = _receipt_reservation_path(destination)
     if not record_destination_safe(record_root, destination) or not record_destination_safe(
@@ -428,7 +471,7 @@ def release_resolution_receipt_reservation(
     *, root: Path, decision_id: str, artifact_root: Path | None = None
 ) -> None:
     """Release the exact sidecar reservation for one completion receipt."""
-    record_root = artifact_root or records_artifact_root(root)
+    record_root = artifact_root or current_record_root(root)
     destination = receipt_path(root, decision_id, artifact_root=record_root)
     reservation = _receipt_reservation_path(destination)
     if not record_destination_safe(record_root, reservation):

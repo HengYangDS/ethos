@@ -6,9 +6,9 @@ import os
 from typing import TYPE_CHECKING
 
 from ethos.adapters.mutation.resolution._shared import record_destination_safe
-from ethos.adapters.mutation.resolution._shared import records_artifact_root
 from ethos.adapters.mutation.resolution.records.core import ownerless_closeout_reservation_path
 from ethos.adapters.mutation.resolution.records.core import read_ownerless_closeout_reservation
+from ethos.adapters.mutation.resolution.records.roots import current_record_root
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -24,7 +24,7 @@ def release_ownerless_no_effect_reservation(
     artifact_root: Path | None = None,
 ) -> None:
     """Release only one exact reservation whose destructive effect never started."""
-    record_root = artifact_root or records_artifact_root(root)
+    record_root = artifact_root or current_record_root(root)
     reservation = ownerless_closeout_reservation_path(
         root,
         str(expected.get("target_digest") or ""),

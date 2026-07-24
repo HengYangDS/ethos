@@ -42,7 +42,7 @@ class ResolutionRuntime:
     """Mutation seams supplied by the public lane adapter at call time."""
 
     accepted_control_root: Callable[[Path], Path]
-    records_artifact_root: Callable[[Path], Path]
+    current_record_root: Callable[[Path], Path]
     observe_lane: Callable[[Path, str], tuple[LaneObservation, list[str]]]
     prepare_resolution_effect: Callable[
         ...,
@@ -379,7 +379,7 @@ def _resolution_roots(
     root: Path, runtime: ResolutionRuntime
 ) -> tuple[Path | None, Path | None, str]:
     try:
-        return runtime.accepted_control_root(root), runtime.records_artifact_root(root), ""
+        return runtime.accepted_control_root(root), runtime.current_record_root(root), ""
     except ValueError as error:
         return None, None, _transition_gap(error, "lane_resolution_control_root_unavailable")
 

@@ -9,23 +9,25 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
 
-from pydantic import ValidationError
-
 from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.mutation.resolution._effects import prepare_resolution_effect
 from ethos.adapters.mutation.resolution._effects import retire_clean_ownerless_lane
 from ethos.adapters.mutation.resolution._observation import observe_lane
-from ethos.adapters.mutation.resolution._shared import accepted_control_root
-from ethos.adapters.mutation.resolution._shared import canonical_record_path
-from ethos.adapters.mutation.resolution._shared import records_artifact_root
 from ethos.adapters.mutation.resolution._shared import valid_decision_id
 from ethos.adapters.mutation.resolution.closeout.recovery import ResolutionRuntime
 from ethos.adapters.mutation.resolution.closeout.recovery import apply_resolution
 from ethos.adapters.mutation.resolution.closeout.recovery import ownerless_recovery_context
 from ethos.adapters.mutation.resolution.closeout.recovery import recover_ownerless_resolution
 from ethos.adapters.mutation.resolution.receipts import write_resolution_receipt
+from ethos.adapters.mutation.resolution.records.core import canonical_current_record_bytes
 from ethos.adapters.mutation.resolution.records.core import release_resolution_receipt_reservation
 from ethos.adapters.mutation.resolution.records.core import reserve_resolution_receipt
+from ethos.adapters.mutation.resolution.records.current.core import current_record_integrity_gap
+from ethos.adapters.mutation.resolution.records.current.snapshot import read_current_record_path
+from ethos.adapters.mutation.resolution.records.inventory import lane_resolution_inventory
+from ethos.adapters.mutation.resolution.records.roots import accepted_control_root
+from ethos.adapters.mutation.resolution.records.roots import canonical_record_path
+from ethos.adapters.mutation.resolution.records.roots import current_record_root
 from ethos.adapters.store.state.closeout import release_closeout_fence
 from ethos.repository.policy.schema import validate_schema_instance
 from ethos_core.contracts.lifecycle.core import MutationRequest
@@ -37,6 +39,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 _DISPOSITIONS = {"block", "preserve", "retire", "preserve-retire"}
+_CURRENT_RECORD_INVALID = "lane_resolution_current_record_invalid"
 
 
 def plan_lane_resolution(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
@@ -137,6 +140,23 @@ def apply_lane_resolution(
         "observation_digest": str(decision.get("observation_digest") or ""),
         "confirm_irreversible": confirm_irreversible,
     }
+    integrity_gap = current_record_integrity_gap(
+        inventory=lane_resolution_inventory(root=root),
+    )
+    if integrity_gap or _CURRENT_RECORD_INVALID in gaps:
+        evaluation = reduce_guards(
+            apply=apply,
+            initial_gaps=(*gaps, *((integrity_gap,) if integrity_gap else ())),
+        )
+        return _finish(
+            _report(branch, evaluation),
+            command="lane-resolution-apply",
+            action=f"lane.resolution.{disposition or 'unknown'}",
+            resource=branch or decision_path.resolve().as_posix(),
+            expected_state=expected_state,
+            apply=apply,
+            confirmation=confirm_irreversible,
+        )
     runtime = _resolution_runtime()
     recovery, control_root, artifact_root, recovery_gap = (
         ownerless_recovery_context(
@@ -234,7 +254,7 @@ def apply_lane_resolution(
 def _resolution_runtime() -> ResolutionRuntime:
     return ResolutionRuntime(
         accepted_control_root=accepted_control_root,
-        records_artifact_root=records_artifact_root,
+        current_record_root=current_record_root,
         observe_lane=observe_lane,
         prepare_resolution_effect=prepare_resolution_effect,
         reserve_resolution_receipt=reserve_resolution_receipt,
@@ -267,25 +287,42 @@ def _block_resolution_report(report: dict[str, object], *gaps: str, state: str =
 def _read_decision(path: Path, *, root: Path) -> tuple[dict[str, Any], list[str]]:
     if not canonical_record_path(root, path):
         return {}, ["lane_resolution_decision_path_not_local_artifact"]
+    content, read_state = read_current_record_path(current_record_root(root), path)
+    if content is None:
+        gap = (
+            "lane_resolution_decision_invalid"
+            if read_state == "missing"
+            else _CURRENT_RECORD_INVALID
+        )
+        return {}, [gap]
     try:
-        payload = json.loads(path.resolve().read_text(encoding="utf-8"))
+        payload = json.loads(content)
         decision = LaneResolutionDecision.model_validate_json(
             json.dumps({field: payload[field] for field in LaneResolutionDecision.model_fields})
         )
-    except (KeyError, OSError, json.JSONDecodeError, ValidationError, TypeError):
+    except (
+        KeyError,
+        OSError,
+        OverflowError,
+        RecursionError,
+        TypeError,
+        UnicodeDecodeError,
+        ValueError,
+    ):
         return {}, ["lane_resolution_decision_invalid"]
-    if not validate_schema_instance("lane-resolution-decision.schema.json", payload, root=root)[
-        "ok"
-    ]:
-        return cast("dict[str, Any]", payload), ["lane_resolution_decision_invalid"]
-    if not valid_decision_id(str(payload.get("decision_id") or "")):
-        return cast("dict[str, Any]", payload), ["lane_resolution_decision_invalid"]
-    gaps = (
-        []
-        if decision.observation.digest() == payload.get("observation_digest")
-        else ["lane_resolution_decision_digest_invalid"]
+    gap = (
+        "lane_resolution_decision_invalid"
+        if not validate_schema_instance("lane-resolution-decision.schema.json", payload, root=root)[
+            "ok"
+        ]
+        or not valid_decision_id(str(payload.get("decision_id") or ""))
+        else _CURRENT_RECORD_INVALID
+        if content != canonical_current_record_bytes(cast("dict[str, object]", payload))
+        else "lane_resolution_decision_digest_invalid"
+        if decision.observation.digest() != payload.get("observation_digest")
+        else ""
     )
-    return cast("dict[str, Any]", payload), gaps
+    return cast("dict[str, Any]", payload), [gap] if gap else []
 
 
 def _accepted_chronicle(

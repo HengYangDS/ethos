@@ -91,8 +91,12 @@ def test_closeout_fence_blocks_a_lease_with_ambiguous_expiry(tmp_path: Path, exp
         holder_ref="agent:test:case:ambiguous-owner",
         payload={"claim_id": ""},
     )
-    with closing(sqlite3.connect(db_path)) as connection:
+    with closing(sqlite3.connect(db_path)) as connection, connection:
         connection.execute("update leases set expires_at = ?", (expiry,))
+    with closing(sqlite3.connect(db_path)) as connection:
+        assert connection.execute(
+            "select expires_at from leases where subject = ?", ("work/target",)
+        ).fetchone() == (expiry,)
 
     with pytest.raises(ValueError, match="lane_closeout_coordinated:work/target"):
         _acquire(db_path)

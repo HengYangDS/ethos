@@ -184,6 +184,19 @@ def test_coverage_artifact_gaps_reduce_to_evidence() -> None:
     )
 
 
+def test_git_snapshot_transport_gaps_reduce_to_evidence() -> None:
+    gaps = (
+        "git_snapshot_request_invalid",
+        "git_snapshot_root_invalid",
+        "git_snapshot_identity_mismatch",
+        "git_snapshot_ls_tree_invalid",
+        "git_snapshot_path_selection_invalid",
+        "git_snapshot_blob_batch_invalid",
+    )
+
+    assert all(classify(gap) == "evidence_missing_or_stale" for gap in gaps)
+
+
 def test_runtime_and_projection_failures_reduce_to_substrate() -> None:
     assert classify("python_entrypoint_invalid:.venv/bin/python") == "substrate_untrusted"
     assert classify("uv_interpreter_probe_stuck") == "substrate_untrusted"

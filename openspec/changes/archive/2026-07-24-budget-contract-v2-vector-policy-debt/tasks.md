@@ -35,7 +35,7 @@
 
 - [x] 5.1 Refresh Claim/Chronicle and generic parity, then run exact-HEAD default
   and full pre-archive proof.
-- [ ] 5.2 Archive through official OpenSpec, bind the archive, refresh parity,
+- [x] 5.2 Archive through official OpenSpec, bind the archive, refresh parity,
   and run archive-HEAD default/full proof.
 - [ ] 5.3 Land, complete audited accepted-root closeout, evaluate local publish
   readiness, preserve reviewed external evidence, and retire only this Lane.

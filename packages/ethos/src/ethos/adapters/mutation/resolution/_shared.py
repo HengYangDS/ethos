@@ -32,9 +32,9 @@ def record_destination_safe(record_root: Path, destination: Path) -> bool:
         return False
     try:
         resolved_root = lexical_root.resolve()
-        if resolved_root != lexical_root:
-            return False
     except (OSError, RuntimeError):
+        return False
+    if resolved_root != lexical_root:
         return False
     current = lexical_root
     for part in relative_destination.parts:
@@ -42,9 +42,10 @@ def record_destination_safe(record_root: Path, destination: Path) -> bool:
         if current.is_symlink():
             return False
     try:
-        return lexical_destination.resolve().is_relative_to(resolved_root)
+        destination_safe = lexical_destination.resolve().is_relative_to(resolved_root)
     except (OSError, RuntimeError):
-        return False
+        destination_safe = False
+    return destination_safe
 
 
 def valid_decision_id(value: str) -> bool:

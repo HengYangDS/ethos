@@ -237,7 +237,7 @@ def test_resolution_receipt_refuses_to_overwrite_existing_decision(
         write_resolution_receipt(root=repo, receipt=applied["receipt"])
 
 
-def test_resolution_receipt_reservation_is_exactly_idempotent_and_owner_preserving(
+def test_resolution_receipt_reservation_reports_an_exact_existing_owner_as_busy(
     tmp_path: Path,
 ) -> None:
     repo = init_repo(tmp_path / "repo")
@@ -250,13 +250,11 @@ def test_resolution_receipt_reservation_is_exactly_idempotent_and_owner_preservi
     assert reservation.is_file()
     assert reservation.name.startswith(".")
     assert reservation.name.endswith(".receipt-reservation")
-    assert (
+    with pytest.raises(FileExistsError):
         record_store.reserve_resolution_receipt(
             root=repo,
             decision_id=_RESERVATION_DECISION_ID,
         )
-        == reservation
-    )
     assert reservation.is_file()
 
     record_store.release_resolution_receipt_reservation(

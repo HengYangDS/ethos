@@ -8,21 +8,13 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
 
+import ethos.adapters.mutation.resolution.closeout.cleanup.core as cleanup
 from ethos.adapters.mutation.lane_lifecycle.core import run_git
 from ethos.adapters.mutation.resolution._effects import OwnerlessCloseoutError
 from ethos.adapters.mutation.resolution._effects import recover_completed_ownerless_closeout
 from ethos.adapters.mutation.resolution._effects import retire_lane
 from ethos.adapters.mutation.resolution._shared import valid_decision_id
-from ethos.adapters.mutation.resolution.closeout.cleanup.core import (
-    ownerless_receipt_recovery_context,
-)
-from ethos.adapters.mutation.resolution.closeout.cleanup.core import (
-    recover_existing_ownerless_receipt,
-)
-from ethos.adapters.mutation.resolution.closeout.cleanup.core import (
-    release_ownerless_closeout_resources,
-)
-from ethos.adapters.mutation.resolution.closeout.cleanup.core import release_receipt_reservation
+from ethos.adapters.mutation.resolution.records.core import require_resolution_receipt_reservation
 from ethos.adapters.mutation.resolution.records.reservations import (
     ownerless_closeout_reservation_path,
 )
@@ -94,7 +86,7 @@ def ownerless_recovery_context(  # noqa: PLR0911, RUF100 - fail-closed states
     if not lane_ref or not head:
         return {}, control_root, artifact_root, ""
     lane_observation = LaneObservation.model_validate(observation)
-    receipt_recovery, receipt_gap = ownerless_receipt_recovery_context(
+    receipt_recovery, receipt_gap = cleanup.ownerless_receipt_recovery_context(
         control_root=control_root,
         artifact_root=artifact_root,
         decision=decision,
@@ -165,7 +157,7 @@ def recover_ownerless_resolution(  # noqa: PLR0913, RUF100 - exact recovery enve
     """Finalize a completed ownerless effect without re-observing its removed lane."""
     context = _ResolutionContext(control_root, artifact_root, runtime)
     decision_id = str(decision.get("decision_id") or "")
-    if recover_existing_ownerless_receipt(
+    if cleanup.recover_existing_ownerless_receipt(
         control_root=control_root,
         artifact_root=artifact_root,
         decision_path=decision_path,
@@ -177,7 +169,13 @@ def recover_ownerless_resolution(  # noqa: PLR0913, RUF100 - exact recovery enve
         chronicle_event=chronicle_event,
     ):
         return
-    if reservation_gap := _reserve_receipt(control_root, artifact_root, decision_id, runtime):
+    if reservation_gap := _reserve_receipt(
+        control_root,
+        artifact_root,
+        decision_id,
+        runtime,
+        reuse_existing=True,
+    ):
         runtime.block_resolution_report(report, reservation_gap, state="partial_transition")
         return
     receipt_written = False
@@ -240,7 +238,7 @@ def recover_ownerless_resolution(  # noqa: PLR0913, RUF100 - exact recovery enve
             ownerless_closeout_binding=receipt_binding,
             chronicle_event=chronicle_event(decision, receipt),
         )
-        cleanup_gap = release_ownerless_closeout_resources(
+        cleanup_gap = cleanup.release_ownerless_closeout_resources(
             control_root=control_root,
             artifact_root=artifact_root,
             decision=decision,
@@ -251,7 +249,7 @@ def recover_ownerless_resolution(  # noqa: PLR0913, RUF100 - exact recovery enve
         if cleanup_gap:
             runtime.block_resolution_report(report, cleanup_gap, state="partial_transition")
     finally:
-        cleanup_gap = release_receipt_reservation(
+        cleanup_gap = cleanup.release_receipt_reservation(
             control_root=control_root,
             artifact_root=artifact_root,
             decision_id=decision_id,
@@ -278,6 +276,7 @@ def apply_resolution(  # noqa: PLR0913, RUF100 - exact effect binding envelope
     report: dict[str, object],
     runtime: ResolutionRuntime,
     chronicle_event: Callable[[dict[str, Any], dict[str, object] | None], dict[str, object]],
+    reuse_receipt_reservation: bool = False,
 ) -> None:
     """Apply one bounded resolution effect and retain partial-transition evidence."""
     control_root, artifact_root, root_gap = _resolution_roots(root, runtime)
@@ -286,7 +285,13 @@ def apply_resolution(  # noqa: PLR0913, RUF100 - exact effect binding envelope
         return
     context = _ResolutionContext(control_root, artifact_root, runtime)
     decision_id = str(decision.get("decision_id") or "")
-    if reservation_gap := _reserve_receipt(control_root, artifact_root, decision_id, runtime):
+    if reservation_gap := _reserve_receipt(
+        control_root,
+        artifact_root,
+        decision_id,
+        runtime,
+        reuse_existing=reuse_receipt_reservation,
+    ):
         runtime.block_resolution_report(report, reservation_gap)
         return
 
@@ -350,7 +355,7 @@ def apply_resolution(  # noqa: PLR0913, RUF100 - exact effect binding envelope
             chronicle_event=chronicle_event(decision, receipt),
         )
         if ownerless_binding:
-            cleanup_gap = release_ownerless_closeout_resources(
+            cleanup_gap = cleanup.release_ownerless_closeout_resources(
                 control_root=control_root,
                 artifact_root=artifact_root,
                 decision=decision,
@@ -362,7 +367,7 @@ def apply_resolution(  # noqa: PLR0913, RUF100 - exact effect binding envelope
                 runtime.block_resolution_report(report, cleanup_gap, state="partial_transition")
                 return
     finally:
-        cleanup_gap = release_receipt_reservation(
+        cleanup_gap = cleanup.release_receipt_reservation(
             control_root=control_root,
             artifact_root=artifact_root,
             decision_id=decision_id,
@@ -393,6 +398,8 @@ def _reserve_receipt(
     artifact_root: Path,
     decision_id: str,
     runtime: ResolutionRuntime,
+    *,
+    reuse_existing: bool = False,
 ) -> str:
     try:
         runtime.reserve_resolution_receipt(
@@ -400,9 +407,20 @@ def _reserve_receipt(
             decision_id=decision_id,
             artifact_root=artifact_root,
         )
-    except ValueError as error:
-        return _transition_gap(error, "lane_resolution_receipt_invalid")
-    except OSError as error:
+    except (OSError, ValueError) as error:
+        if isinstance(error, FileExistsError) and reuse_existing:
+            try:
+                require_resolution_receipt_reservation(
+                    root=control_root,
+                    decision_id=decision_id,
+                    artifact_root=artifact_root,
+                )
+            except (OSError, ValueError) as reuse_error:
+                error = reuse_error
+            else:
+                return ""
+        if isinstance(error, ValueError):
+            return _transition_gap(error, "lane_resolution_receipt_invalid")
         return (
             "lane_resolution_receipt_path_exists"
             if isinstance(error, FileExistsError)

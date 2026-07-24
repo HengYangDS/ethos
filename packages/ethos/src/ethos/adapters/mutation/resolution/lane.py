@@ -239,6 +239,9 @@ def apply_lane_resolution(
             report=report,
             runtime=runtime,
             chronicle_event=_chronicle_event,
+            reuse_receipt_reservation=bool(
+                recovery and str(recovery["recovery_state"]) == "reserved_no_effect"
+            ),
         )
     return _finish(
         report,

@@ -51,11 +51,17 @@ def historical_record_roots(root: Path) -> tuple[Path, ...]:
 
 
 def canonical_record_path(root: Path, path: Path) -> bool:
-    """Return whether a current record path stays under the versioned root."""
+    """Return whether a decision is a direct JSON child of its current category."""
     try:
-        return record_destination_safe(current_record_root(root), path)
+        decision_root = current_record_root(root) / "decisions"
     except ValueError:
         return False
+    candidate = path.absolute()
+    return (
+        candidate.parent == decision_root.absolute()
+        and candidate.suffix == ".json"
+        and record_destination_safe(decision_root, candidate)
+    )
 
 
 def _primary_control_root(root: Path) -> Path:

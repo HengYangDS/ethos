@@ -3,123 +3,48 @@
 from __future__ import annotations
 
 import hashlib
-import subprocess
 import uuid
 from pathlib import Path
+from typing import TYPE_CHECKING
+from typing import cast
 
-from ethos_core.contracts.branch.roles import load_branch_role_policy
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 LEGACY_ARTIFACT_ROOT = Path("build/artifacts/lane-resolution")
-RECORDS_ARTIFACT_ROOT = Path("recovery/lane-resolution")
-
-
-def accepted_control_root(root: Path) -> Path:
-    """Return the registered checkout for the configured accepted branch."""
-    primary_root = _primary_control_root(root)
-    accepted_ref = f"refs/heads/{load_branch_role_policy(primary_root).accepted_branch}"
-    accepted_head = _git_output(primary_root, "rev-parse", "--verify", accepted_ref)
-    if not accepted_head:
-        raise ValueError("lane_resolution_accepted_control_root_unavailable")  # noqa: EM101, RUF100
-    for current in _registered_worktrees(primary_root):
-        if current.get("branch") != accepted_ref:
-            continue
-        candidate = Path(current.get("worktree", "")).resolve()
-        if candidate.is_dir() and _git_output(candidate, "rev-parse", "HEAD") == accepted_head:
-            return candidate
-    raise ValueError("lane_resolution_accepted_control_root_unavailable")  # noqa: EM101, RUF100
-
-
-def _primary_control_root(root: Path) -> Path:
-    common_raw = _git_output(root, "rev-parse", "--git-common-dir")
-    if not common_raw:
-        raise ValueError("lane_resolution_accepted_control_root_unavailable")  # noqa: EM101, RUF100
-    common = Path(common_raw)
-    if not common.is_absolute():
-        common = root / common
-    primary = common.resolve().parent
-    if not primary.is_dir():
-        raise ValueError("lane_resolution_accepted_control_root_unavailable")  # noqa: EM101, RUF100
-    return primary
-
-
-def _registered_worktrees(root: Path) -> list[dict[str, str]]:
-    completed = subprocess.run(
-        ["git", "worktree", "list", "--porcelain"],
-        cwd=root,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    if completed.returncode:
-        raise ValueError("lane_resolution_accepted_control_root_unavailable")  # noqa: EM101, RUF100
-    records: list[dict[str, str]] = []
-    current: dict[str, str] = {}
-    for line in [*completed.stdout.splitlines(), ""]:
-        if line:
-            key, _, value = line.partition(" ")
-            current[key] = value
-            continue
-        if current:
-            records.append(current)
-        current = {}
-    return records
-
-
-def _git_output(root: Path, *args: str) -> str:
-    completed = subprocess.run(
-        ["git", *args], cwd=root, check=False, capture_output=True, text=True
-    )
-    return completed.stdout.strip() if completed.returncode == 0 else ""
-
-
-def records_artifact_root(root: Path) -> Path:
-    """Return the stable sibling owner for new lane-resolution records."""
-    control_root = accepted_control_root(root)
-    return control_root.parent / f"{control_root.name}-records" / RECORDS_ARTIFACT_ROOT
-
-
-def artifact_roots(root: Path) -> tuple[Path, ...]:
-    """Return canonical then legacy read roots without duplicate paths."""
-    control_root = accepted_control_root(root)
-    registered = tuple(
-        Path(record["worktree"]).absolute() / LEGACY_ARTIFACT_ROOT
-        for record in _registered_worktrees(root)
-        if record.get("worktree") and Path(record["worktree"]).is_dir()
-    )
-    candidates = (
-        control_root.parent / f"{control_root.name}-records" / RECORDS_ARTIFACT_ROOT,
-        control_root / LEGACY_ARTIFACT_ROOT,
-        *registered,
-        root / LEGACY_ARTIFACT_ROOT,
-    )
-    return tuple(dict.fromkeys(path.absolute() for path in candidates))
-
-
-def canonical_record_path(root: Path, path: Path) -> bool:
-    """Return whether a new record path belongs to the stable records owner."""
-    try:
-        return record_destination_safe(records_artifact_root(root), path)
-    except ValueError:
-        return False
+_DISPOSITION_STATES = {
+    "block": "blocked_by_decision",
+    "preserve": "preserved",
+    "retire": "retired",
+    "preserve-retire": "preserved_and_retired",
+}
 
 
 def record_destination_safe(record_root: Path, destination: Path) -> bool:
     """Return whether a record path stays under non-symlinked owner components."""
     lexical_root = record_root.absolute()
     lexical_destination = destination.absolute()
-    if not lexical_destination.is_relative_to(lexical_root):
+    try:
+        relative_destination = lexical_destination.relative_to(lexical_root)
+    except ValueError:
+        return False
+    if ".." in relative_destination.parts:
         return False
     try:
-        if lexical_root.resolve() != lexical_root:
+        resolved_root = lexical_root.resolve()
+        if resolved_root != lexical_root:
             return False
-    except OSError:
+    except (OSError, RuntimeError):
         return False
     current = lexical_root
-    for part in lexical_destination.relative_to(lexical_root).parts:
+    for part in relative_destination.parts:
         current /= part
         if current.is_symlink():
             return False
-    return True
+    try:
+        return lexical_destination.resolve().is_relative_to(resolved_root)
+    except (OSError, RuntimeError):
+        return False
 
 
 def valid_decision_id(value: str) -> bool:
@@ -154,3 +79,159 @@ def display_path(root: Path, path: Path) -> str:
 def sha256_digest(path: Path) -> str:
     """Return the hex sha256 digest of a file's bytes."""
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def preservation_payloads_match(
+    manifest: Mapping[str, object],
+    payload_sha256: Mapping[str, str | None],
+    present_names: set[str],
+) -> bool:
+    """Return whether captured package payloads match one preservation manifest."""
+    package_format = manifest.get("package_format_version")
+    if package_format not in (None, "v2"):
+        return False
+    required = [
+        ("repository.bundle", "bundle_sha256"),
+        ("tracked.patch", "patch_sha256"),
+    ]
+    expected_names = {"manifest.json", "repository.bundle", "tracked.patch"}
+    if package_format == "v2":
+        required.append(("index.patch", "index_patch_sha256"))
+        expected_names.add("index.patch")
+    archive_digest = str(manifest.get("untracked_archive_sha256") or "")
+    if archive_digest:
+        expected_names.add("untracked.tar")
+    if present_names != expected_names or any(
+        payload_sha256.get(name) != str(manifest.get(field) or "") for name, field in required
+    ):
+        return False
+    return not archive_digest or payload_sha256.get("untracked.tar") == archive_digest
+
+
+def cross_record_invalid_paths(
+    *,
+    decisions: dict[str, dict[str, object]],
+    manifests: dict[str, dict[str, object]],
+    receipts: dict[str, dict[str, object]],
+    clears: dict[str, dict[str, object]],
+    reservations: dict[str, dict[str, object]],
+) -> list[Path]:
+    """Return physical records whose bindings disagree within one held snapshot."""
+    return [
+        *_decision_binding_invalid_paths(
+            decisions=decisions,
+            manifests=manifests,
+            receipts=receipts,
+            reservations=reservations,
+        ),
+        *_artifact_binding_invalid_paths(
+            manifests=manifests,
+            receipts=receipts,
+            clears=clears,
+        ),
+    ]
+
+
+def _decision_binding_invalid_paths(
+    *,
+    decisions: dict[str, dict[str, object]],
+    manifests: dict[str, dict[str, object]],
+    receipts: dict[str, dict[str, object]],
+    reservations: dict[str, dict[str, object]],
+) -> list[Path]:
+    invalid: list[Path] = []
+    for decision_id, decision in decisions.items():
+        observation = decision.get("observation")
+        expected = (
+            cast("Mapping[str, object]", observation) if isinstance(observation, dict) else {}
+        )
+        manifest = manifests.get(decision_id)
+        receipt = receipts.get(decision_id)
+        reservation = reservations.get(decision_id)
+        if manifest and not _same_binding(manifest, expected, decision):
+            invalid.append(cast("Path", manifest["physical_path"]))
+        if receipt and not _same_binding(receipt, expected, decision, receipt=True):
+            invalid.append(cast("Path", receipt["physical_path"]))
+        if reservation and not _reservation_binding(reservation, expected, decision):
+            invalid.append(cast("Path", reservation["physical_path"]))
+    return invalid
+
+
+def _artifact_binding_invalid_paths(
+    *,
+    manifests: dict[str, dict[str, object]],
+    receipts: dict[str, dict[str, object]],
+    clears: dict[str, dict[str, object]],
+) -> list[Path]:
+    invalid: list[Path] = []
+    for decision_id, receipt in receipts.items():
+        preserved = str(receipt.get("state") or "") in {"preserved", "preserved_and_retired"}
+        manifest = manifests.get(decision_id)
+        clear = clears.get(decision_id)
+        if preserved and manifest is None and clear is None:
+            invalid.append(cast("Path", receipt["physical_path"]))
+        if manifest and receipt.get("preservation_manifest_sha256") != manifest.get(
+            "manifest_sha256"
+        ):
+            invalid.append(cast("Path", receipt["physical_path"]))
+        if clear and clear.get("manifest_sha256") != receipt.get("preservation_manifest_sha256"):
+            invalid.append(cast("Path", clear["physical_path"]))
+    for decision_id, manifest in manifests.items():
+        if decision_id not in receipts:
+            invalid.append(cast("Path", manifest["physical_path"]))
+        if manifest.get("quarantined") is True and decision_id not in clears:
+            invalid.append(cast("Path", manifest["physical_path"]))
+    for decision_id, clear in clears.items():
+        if decision_id not in receipts:
+            invalid.append(cast("Path", clear["physical_path"]))
+    return invalid
+
+
+def _same_binding(
+    record: Mapping[str, object],
+    observation: Mapping[str, object],
+    decision: Mapping[str, object],
+    *,
+    receipt: bool = False,
+) -> bool:
+    common = (
+        record.get("lane_ref") == observation.get("lane_ref")
+        and record.get("head") == observation.get("head")
+        and record.get("observation_digest") == decision.get("observation_digest")
+    )
+    if not receipt:
+        return common
+    binding = record.get("ownerless_closeout_binding")
+    ownerless_binding_valid = not _ownerless_retire_candidate(decision, observation) or (
+        isinstance(binding, dict)
+        and binding.get("decision_sha256") == decision.get("content_sha256")
+    )
+    return (
+        common
+        and record.get("state") == _DISPOSITION_STATES.get(str(decision.get("disposition") or ""))
+        and record.get("reconciliation_required") is bool(decision.get("break_glass"))
+        and ownerless_binding_valid
+    )
+
+
+def _ownerless_retire_candidate(
+    decision: Mapping[str, object], observation: Mapping[str, object]
+) -> bool:
+    return (
+        decision.get("disposition") == "retire"
+        and observation.get("dirty") is False
+        and observation.get("orphan") is True
+        and not observation.get("holder_ref")
+    )
+
+
+def _reservation_binding(
+    record: Mapping[str, object],
+    observation: Mapping[str, object],
+    decision: Mapping[str, object],
+) -> bool:
+    return (
+        record.get("lane_ref") == observation.get("lane_ref")
+        and record.get("head") == observation.get("head")
+        and record.get("decision_sha256") == decision.get("content_sha256")
+    )

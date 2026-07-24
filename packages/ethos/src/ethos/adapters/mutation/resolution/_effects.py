@@ -16,7 +16,6 @@ from ethos.adapters.mutation.resolution._observation import observe_lane
 from ethos.adapters.mutation.resolution._observation import untracked_files
 from ethos.adapters.mutation.resolution._shared import canonical_package_path
 from ethos.adapters.mutation.resolution._shared import display_path
-from ethos.adapters.mutation.resolution._shared import records_artifact_root
 from ethos.adapters.mutation.resolution._shared import sha256_digest
 from ethos.adapters.mutation.resolution.closeout.wcp.core import run_worktree_closeout_check
 from ethos.adapters.mutation.resolution.receipts import verify_preservation_package
@@ -29,6 +28,7 @@ from ethos.adapters.mutation.resolution.records.core import (
 from ethos.adapters.mutation.resolution.records.release import (
     release_ownerless_no_effect_reservation,
 )
+from ethos.adapters.mutation.resolution.records.roots import current_record_root
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.store.state.closeout import acquire_closeout_fence
 from ethos.adapters.store.state.closeout import get_closeout_fence
@@ -177,7 +177,7 @@ def _ownerless_runtime() -> ownerless_effect.OwnerlessCloseoutRuntime:
     return ownerless_effect.OwnerlessCloseoutRuntime(
         run_git=run_git,
         observe_lane=observe_lane,
-        records_artifact_root=records_artifact_root,
+        current_record_root=current_record_root,
         reservation_path=ownerless_closeout_reservation_path,
         read_reservation=read_ownerless_closeout_reservation,
         reserve_target=reserve_ownerless_closeout_target,

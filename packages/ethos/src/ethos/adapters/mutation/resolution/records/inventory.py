@@ -5,86 +5,87 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from ethos.adapters.mutation.resolution._shared import display_path
-from ethos.adapters.mutation.resolution._shared import valid_decision_id
-from ethos.adapters.mutation.resolution.records.core import read_ownerless_closeout_reservation
+from ethos.adapters.mutation.resolution.records.clear.quarantine import unsafe_package_path_present
+from ethos.adapters.mutation.resolution.records.clear.quarantine import unsafe_record_path_present
+from ethos.adapters.mutation.resolution.records.current.core import (
+    read_current_lane_resolution_records,
+)
+from ethos.adapters.mutation.resolution.records.roots import current_record_root
 
 if TYPE_CHECKING:
     from collections.abc import Callable
     from pathlib import Path
 
 
-_DECISIONS = "decisions"
-_RECEIPTS = "receipts"
-_CLEARS = "clears"
-_RESERVATIONS = "reservations"
+_CURRENT_RECORD_INVALID = "lane_resolution_current_record_invalid"
 
 
 @dataclass(frozen=True, slots=True)
 class LaneResolutionInventoryReaders:
     """Filesystem readers used to build one lane-resolution inventory."""
 
-    artifact_roots: Callable[[Path], tuple[Path, ...]]
-    manifests_with_conflicts: Callable[[Path], tuple[dict[str, dict[str, object]], set[str]]]
-    records_with_conflicts: Callable[[Path, str, str], tuple[dict[str, dict[str, str]], set[str]]]
+    current_record_root: Callable[[Path], Path]
     unsafe_package_path_present: Callable[[Path], bool]
     unsafe_record_path_present: Callable[[Path], bool]
 
 
-def lane_resolution_inventory(
+def _lane_resolution_inventory(
     *, root: Path, readers: LaneResolutionInventoryReaders
 ) -> dict[str, object]:
-    """Build the reconciliation view from the current immutable record sources."""
-    manifests, manifest_conflicts = readers.manifests_with_conflicts(root)
-    _decisions, decision_conflicts = readers.records_with_conflicts(
-        root, _DECISIONS, "lane-resolution-decision.schema.json"
-    )
-    receipts, receipt_conflicts = readers.records_with_conflicts(
-        root, _RECEIPTS, "lane-resolution-receipt.schema.json"
-    )
-    clears, clear_conflicts = readers.records_with_conflicts(
-        root, _CLEARS, "lane-resolution-clear-receipt.schema.json"
-    )
-    reservations, reservation_conflicts, invalid_reservations = (
-        _ownerless_reservations_with_conflicts(root, readers.artifact_roots)
-    )
-    legacy_reservations = {
+    """Build the reconciliation view from the sole current record root."""
+    record_root = readers.current_record_root(root)
+    current = read_current_lane_resolution_records(root=root, record_root=record_root)
+    decisions = current.decisions
+    manifests = current.manifests
+    receipts = current.receipts
+    clears = current.clears
+    clear_quarantines = current.clear_quarantines
+    reservations = current.reservations
+    receipt_reservations = current.receipt_reservations
+    receipt_reservations = {
         decision_id: payload
-        for decision_id, payload in _legacy_receipt_reservations(
-            root, readers.artifact_roots
-        ).items()
+        for decision_id, payload in receipt_reservations.items()
         if decision_id not in reservations
     }
-    conflicts = sorted(
-        manifest_conflicts
-        | decision_conflicts
-        | receipt_conflicts
-        | clear_conflicts
-        | reservation_conflicts
-    )
+    conflicts = sorted(current.conflicts)
+    invalid_current_record_count = current.invalid_count
+    package_ids = set(manifests) | set(clear_quarantines)
+    artifact_ids = package_ids | set(receipts) | set(clears) | set(reservations)
+    artifact_ids.update(receipt_reservations)
+    pending_decision_ids = set(decisions) - artifact_ids
     integrity_ids: list[str] = []
     entries = []
-    all_decision_ids = (
-        set(manifests) | set(receipts) | set(clears) | set(reservations) | set(legacy_reservations)
-    )
+    all_decision_ids = set(decisions) | artifact_ids
     for decision_id in sorted(all_decision_ids):
-        manifest, receipt, clear = (
+        decision, manifest, quarantine, receipt, clear = (
+            decisions.get(decision_id, {}),
             manifests.get(decision_id, {}),
+            clear_quarantines.get(decision_id, {}),
             receipts.get(decision_id, {}),
             clears.get(decision_id, {}),
         )
-        reservation = reservations.get(decision_id, {}) or legacy_reservations.get(decision_id, {})
+        reservation = reservations.get(decision_id, {}) or receipt_reservations.get(decision_id, {})
         manifest_sha256 = str(manifest.get("manifest_sha256") or "")
         receipt_manifest_sha256 = str(receipt.get("preservation_manifest_sha256") or "")
-        inconsistent = bool(manifest and receipt and manifest_sha256 != receipt_manifest_sha256)
+        preserved = str(receipt.get("state") or "") in {"preserved", "preserved_and_retired"}
+        has_package = bool(manifest or quarantine)
+        inconsistent = bool(
+            receipt
+            and (
+                (preserved and not has_package and not clear)
+                or (manifest and manifest_sha256 != receipt_manifest_sha256)
+            )
+        )
         if inconsistent:
             integrity_ids.append(decision_id)
         recovery_state = str(reservation.get("recovery_state") or "")
         state = (
-            "cleared"
-            if clear
+            "partial_transition"
+            if clear and has_package
             else "inconsistent"
             if inconsistent
+            else "cleared"
+            if clear
             else "partial_transition"
             if reservation and recovery_state != "reserved_no_effect"
             else "inflight"
@@ -93,39 +94,57 @@ def lane_resolution_inventory(
             if manifest and receipt
             else "receipt_only"
             if receipt
+            else "decision_pending"
+            if decision_id in pending_decision_ids
             else "unindexed"
         )
+        decision_observation = decision.get("observation")
+        observation = decision_observation if isinstance(decision_observation, dict) else {}
         entry: dict[str, object] = {
             "decision_id": decision_id,
             "lane_ref": str(
                 manifest.get("lane_ref")
                 or receipt.get("lane_ref")
                 or reservation.get("lane_ref")
+                or observation.get("lane_ref")
                 or ""
             ),
             "head": str(
-                manifest.get("head") or receipt.get("head") or reservation.get("head") or ""
+                manifest.get("head")
+                or receipt.get("head")
+                or reservation.get("head")
+                or observation.get("head")
+                or ""
             ),
             "state": state,
             "receipt_path": str(receipt.get("record_path") or ""),
             "package_path": str(
-                manifest.get("package_path") or receipt.get("preservation_package") or ""
+                manifest.get("package_path")
+                or quarantine.get("package_path")
+                or receipt.get("preservation_package")
+                or ""
             ),
-            "manifest_sha256": manifest_sha256 or receipt_manifest_sha256,
+            "manifest_sha256": (
+                manifest_sha256
+                or str(quarantine.get("manifest_sha256") or "")
+                or receipt_manifest_sha256
+            ),
         }
         if reservation:
             entry.update(
-                reservation_path=str(reservation.get("reservation_path") or ""),
+                reservation_path=str(
+                    reservation.get("reservation_path") or reservation.get("record_path") or ""
+                ),
                 target_digest=str(reservation.get("target_digest") or ""),
                 phase=str(reservation.get("phase") or "unknown"),
                 recovery_state=recovery_state or "transition_unknown",
             )
         entries.append(entry)
-    inflight_count = len(reservations) + len(legacy_reservations)
+    inflight_count = len(reservations) + len(receipt_reservations)
     partial_count = sum(
         str(payload.get("recovery_state") or "") != "reserved_no_effect"
-        for payload in [*reservations.values(), *legacy_reservations.values()]
-    )
+        for payload in [*reservations.values(), *receipt_reservations.values()]
+    ) + len(set(clears) & package_ids)
     unsafe_package_path = readers.unsafe_package_path_present(root)
     unsafe_record_path = readers.unsafe_record_path_present(root)
     required_gaps = [
@@ -133,7 +152,7 @@ def lane_resolution_inventory(
         *(["lane_resolution_manifest_receipt_mismatch"] if integrity_ids else []),
         *(["lane_resolution_package_path_unsafe"] if unsafe_package_path else []),
         *(["lane_resolution_record_path_unsafe"] if unsafe_record_path else []),
-        *(["lane_resolution_target_reservation_invalid"] if invalid_reservations else []),
+        *([_CURRENT_RECORD_INVALID] if invalid_current_record_count else []),
         *(
             ["lane_resolution_partial_transition_present"]
             if partial_count
@@ -146,73 +165,60 @@ def lane_resolution_inventory(
         "ok": not required_gaps,
         "state": "blocked" if required_gaps else "ready",
         "summary": {
-            "package_count": len(manifests),
+            "package_count": len(package_ids),
             "receipt_count": len(receipts),
             "clear_count": len(clears),
             "inflight_count": inflight_count,
             "partial_count": partial_count,
+            "decision_count": len(decisions),
+            "pending_decision_count": len(pending_decision_ids),
+            "invalid_current_record_count": invalid_current_record_count,
         },
         "entries": entries,
         "conflicting_decision_ids": conflicts,
         "integrity_decision_ids": integrity_ids,
+        "invalid_current_record_paths": [
+            path.absolute().as_posix() for path in current.invalid_paths
+        ],
         "required_gaps": required_gaps,
     }
 
 
-def _ownerless_reservations_with_conflicts(
-    root: Path, artifact_roots: Callable[[Path], tuple[Path, ...]]
-) -> tuple[dict[str, dict[str, object]], set[str], list[str]]:
-    records: dict[str, dict[str, object]] = {}
-    conflicts: set[str] = set()
-    invalid: list[str] = []
-    for artifact_root in artifact_roots(root):
-        category_root = artifact_root / _RESERVATIONS
-        if category_root.is_symlink():
-            invalid.append(display_path(root, category_root))
-            continue
-        for path in sorted(category_root.glob("*.json")):
-            try:
-                payload = read_ownerless_closeout_reservation(record_root=artifact_root, path=path)
-            except (OSError, TypeError, ValueError):
-                invalid.append(display_path(root, path))
-                continue
-            decision_id = str(payload["decision_id"])
-            projected = {**payload, "reservation_path": display_path(root, path)}
-            existing = records.get(decision_id)
-            existing_payload = (
-                {field: value for field, value in existing.items() if field != "reservation_path"}
-                if existing
-                else None
-            )
-            if existing_payload is not None and existing_payload != payload:
-                conflicts.add(decision_id)
-                continue
-            records.setdefault(decision_id, projected)
-    return records, conflicts, invalid
-
-
-def _legacy_receipt_reservations(
-    root: Path, artifact_roots: Callable[[Path], tuple[Path, ...]]
-) -> dict[str, dict[str, object]]:
-    records: dict[str, dict[str, object]] = {}
-    for artifact_root in artifact_roots(root):
-        receipt_root = artifact_root / _RECEIPTS
-        if receipt_root.is_symlink():
-            continue
-        for path in sorted(receipt_root.glob(".*.receipt-reservation")):
-            try:
-                decision_id = path.read_text(encoding="utf-8").strip()
-            except OSError:
-                continue
-            if not valid_decision_id(decision_id):
-                continue
-            records.setdefault(
-                decision_id,
-                {
-                    "decision_id": decision_id,
-                    "reservation_path": display_path(root, path),
-                    "phase": "unknown",
-                    "recovery_state": "transition_unknown",
-                },
-            )
-    return records
+def lane_resolution_inventory(
+    *, root: Path, readers: LaneResolutionInventoryReaders | None = None
+) -> dict[str, object]:
+    """Return a read-only reconciliation view over current resolution records."""
+    if readers is not None:
+        return _lane_resolution_inventory(root=root, readers=readers)
+    try:
+        return _lane_resolution_inventory(
+            root=root,
+            readers=LaneResolutionInventoryReaders(
+                current_record_root=current_record_root,
+                unsafe_package_path_present=unsafe_package_path_present,
+                unsafe_record_path_present=unsafe_record_path_present,
+            ),
+        )
+    except ValueError as error:
+        gap = str(error).strip()
+        if gap != "lane_resolution_accepted_control_root_unavailable":
+            raise
+        return {
+            "ok": False,
+            "state": "blocked",
+            "summary": {
+                "package_count": 0,
+                "receipt_count": 0,
+                "clear_count": 0,
+                "inflight_count": 0,
+                "partial_count": 0,
+                "decision_count": 0,
+                "pending_decision_count": 0,
+                "invalid_current_record_count": 0,
+            },
+            "entries": [],
+            "conflicting_decision_ids": [],
+            "integrity_decision_ids": [],
+            "invalid_current_record_paths": [],
+            "required_gaps": [gap],
+        }

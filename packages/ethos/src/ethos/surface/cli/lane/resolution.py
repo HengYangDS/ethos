@@ -11,12 +11,12 @@ from typing import cast
 
 from cyclopts import Parameter
 
-from ethos.adapters.mutation.resolution._shared import records_artifact_root
 from ethos.adapters.mutation.resolution.lane import apply_lane_resolution
 from ethos.adapters.mutation.resolution.lane import plan_lane_resolution
-from ethos.adapters.mutation.resolution.receipts import LaneResolutionClearRequest
-from ethos.adapters.mutation.resolution.receipts import clear_lane_resolution_package
-from ethos.adapters.mutation.resolution.receipts import lane_resolution_inventory
+from ethos.adapters.mutation.resolution.records.clear.core import LaneResolutionClearRequest
+from ethos.adapters.mutation.resolution.records.clear.core import clear_lane_resolution_package
+from ethos.adapters.mutation.resolution.records.inventory import lane_resolution_inventory
+from ethos.adapters.mutation.resolution.records.roots import current_record_root
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
 from ethos.surface.cli._base import emit
@@ -51,7 +51,7 @@ def _default_decision_path(root: Path, branch: str) -> Path:
     token = branch.strip().replace("/", "-") or "lane-resolution"
     branch_digest = hashlib.sha256(branch.encode()).hexdigest()[:12]
     name = f"{token}-{branch_digest}-{uuid.uuid4()}.json"
-    return records_artifact_root(root) / "decisions" / name
+    return current_record_root(root) / "decisions" / name
 
 
 def _emit(command: str, report: dict[str, object], *, json_output: bool) -> None:

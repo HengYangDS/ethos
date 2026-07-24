@@ -6,8 +6,8 @@ from pathlib import Path
 import pytest
 
 import ethos.adapters.mutation.resolution.records.core as record_store
-from ethos.adapters.mutation.resolution._shared import records_artifact_root
 from ethos.adapters.mutation.resolution.receipts import write_resolution_receipt
+from ethos.adapters.mutation.resolution.records.roots import current_record_root
 from ethos.repository.policy.schema import validate_schema_instance
 from tests.support.ethos_cli_runner import run_ethos
 from tests.support.lane_helpers import init_repo
@@ -85,6 +85,9 @@ def test_lane_resolution_inventory_exposes_empty_local_artifact_view(tmp_path) -
         "clear_count": 0,
         "inflight_count": 0,
         "partial_count": 0,
+        "decision_count": 0,
+        "pending_decision_count": 0,
+        "invalid_current_record_count": 0,
     }
     assert payload["data"]["entries"] == []
 
@@ -115,7 +118,7 @@ def test_lane_resolution_clear_exposes_bounded_refusal_contract(tmp_path) -> Non
     assert "lane_resolution_clear_package_missing" in payload["required_gaps"]
 
 
-def test_inventory_blocks_cross_root_ownerless_reservation_state_drift(tmp_path) -> None:
+def test_inventory_ignores_historical_ownerless_reservation_state_drift(tmp_path) -> None:
     repo = init_repo(tmp_path / "repo")
     canonical = _ownerless_reservation()
     record_store.reserve_ownerless_closeout_target(root=repo, reservation=canonical)
@@ -142,14 +145,16 @@ def test_inventory_blocks_cross_root_ownerless_reservation_state_drift(tmp_path)
     )
 
     assert payload["ok"] is False
-    assert payload["data"]["conflicting_decision_ids"] == [_DECISION_ID]
-    assert "lane_resolution_decision_record_conflict" in payload["required_gaps"]
+    assert payload["data"]["conflicting_decision_ids"] == []
+    assert payload["required_gaps"] == ["lane_resolution_inflight_reservation_present"]
 
 
-def test_inventory_maps_non_object_ownerless_reservation_to_stable_gap(tmp_path) -> None:
+def test_inventory_maps_non_object_ownerless_reservation_to_current_record_gap(
+    tmp_path,
+) -> None:
     repo = init_repo(tmp_path / "repo")
     reservation = _ownerless_reservation()
-    path = records_artifact_root(repo) / "reservations" / f"{reservation['target_digest']}.json"
+    path = current_record_root(repo) / "reservations" / f"{reservation['target_digest']}.json"
     path.parent.mkdir(parents=True)
     path.write_text("[]\n", encoding="utf-8")
 
@@ -164,7 +169,32 @@ def test_inventory_maps_non_object_ownerless_reservation_to_stable_gap(tmp_path)
     )
 
     assert payload["ok"] is False
-    assert payload["required_gaps"] == ["lane_resolution_target_reservation_invalid"]
+    assert payload["required_gaps"] == ["lane_resolution_current_record_invalid"]
+    assert payload["summary"]["invalid_current_record_count"] == 1
+
+
+def test_inventory_preserves_current_record_blocker_through_cli_projection(tmp_path) -> None:
+    repo = init_repo(tmp_path / "repo")
+    receipt = _receipt()
+    receipt["unexpected"] = "field"
+    path = current_record_root(repo) / "receipts" / "invalid-extra-field.json"
+    path.parent.mkdir(parents=True)
+    path.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    payload = run_ethos(
+        "lane",
+        "resolution",
+        "inventory",
+        "--root",
+        repo.as_posix(),
+        "--json",
+        cwd=repo,
+    )
+
+    assert payload["ok"] is False
+    assert payload["state"] == "blocked"
+    assert payload["required_gaps"] == ["lane_resolution_current_record_invalid"]
+    assert payload["data"]["summary"]["invalid_current_record_count"] == 1
 
 
 def test_receipt_writer_rejects_an_unversioned_current_record(

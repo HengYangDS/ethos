@@ -297,6 +297,119 @@ def test_preserve_retire_keeps_verified_recovery_package_before_lane_removal(
     )
 
 
+def test_preserve_retire_keeps_exact_index_and_worktree_deltas(tmp_path: Path) -> None:
+    repo, lane = orphan_work_lane(tmp_path)
+    tracked = lane / "README.md"
+    tracked.write_text("# staged state\n", encoding="utf-8")
+    git(lane, "add", "README.md")
+    expected_index = subprocess.run(
+        ["git", "diff", "--cached", "--binary", "HEAD", "--"],
+        cwd=lane,
+        check=True,
+        capture_output=True,
+    ).stdout
+    tracked.write_text("# unstaged state\n", encoding="utf-8")
+    expected_worktree = subprocess.run(
+        ["git", "diff", "--binary", "HEAD", "--"],
+        cwd=lane,
+        check=True,
+        capture_output=True,
+    ).stdout
+    decision_path = _default_decision_path(repo, "work/orphan")
+    _decide(repo, decision_path, "preserve-retire")
+
+    applied = apply_lane_resolution(
+        root=repo,
+        decision_path=decision_path,
+        confirm_irreversible=True,
+        apply=True,
+    )
+
+    package = Path(str(applied["preservation_package"]["path"]))
+    manifest = json.loads((package / "manifest.json").read_text(encoding="utf-8"))
+    assert (package / "tracked.patch").read_bytes() == expected_worktree
+    assert (package / "index.patch").read_bytes() == expected_index
+    assert manifest["package_format_version"] == "v2"
+    assert manifest["index_patch_sha256"] == hashlib.sha256(expected_index).hexdigest()
+
+    recovered = tmp_path / "recovered"
+    git(
+        repo,
+        "clone",
+        "--branch",
+        "work/orphan",
+        (package / "repository.bundle").as_posix(),
+        recovered.as_posix(),
+    )
+    git(recovered, "apply", (package / "tracked.patch").as_posix())
+    git(recovered, "apply", "--cached", (package / "index.patch").as_posix())
+    assert (
+        subprocess.run(
+            ["git", "diff", "--binary", "HEAD", "--"],
+            cwd=recovered,
+            check=True,
+            capture_output=True,
+        ).stdout
+        == expected_worktree
+    )
+    assert (
+        subprocess.run(
+            ["git", "diff", "--cached", "--binary", "HEAD", "--"],
+            cwd=recovered,
+            check=True,
+            capture_output=True,
+        ).stdout
+        == expected_index
+    )
+    verify_preservation_package(root=repo, package=applied["preservation_package"])
+    (package / "index.patch").write_bytes(b"tampered index state")
+    with pytest.raises(ValueError, match="lane_resolution_preservation_package_invalid"):
+        verify_preservation_package(root=repo, package=applied["preservation_package"])
+
+
+def test_preservation_package_verifier_keeps_v1_packages_compatible(tmp_path: Path) -> None:
+    repo = init_repo(tmp_path / "repo")
+    package = repo / "build/artifacts/lane-resolution/legacy"
+    package.mkdir(parents=True)
+    bundle = package / "repository.bundle"
+    patch = package / "tracked.patch"
+    bundle.write_bytes(b"legacy bundle")
+    patch.write_bytes(b"legacy patch")
+    manifest = {
+        "decision_id": f"lane-decision:{uuid.uuid4()}",
+        "bundle_sha256": hashlib.sha256(bundle.read_bytes()).hexdigest(),
+        "patch_sha256": hashlib.sha256(patch.read_bytes()).hexdigest(),
+        "untracked_archive_sha256": "",
+    }
+    (package / "manifest.json").write_text(
+        json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    verify_preservation_package(root=repo, package={"path": package.as_posix()})
+    manifest["package_format_version"] = "v3"
+    (package / "manifest.json").write_text(
+        json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="lane_resolution_preservation_package_invalid"):
+        verify_preservation_package(root=repo, package={"path": package.as_posix()})
+
+
+def test_preservation_byte_command_surfaces_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        effect_adapter.subprocess,
+        "run",
+        lambda *args, **_kwargs: subprocess.CompletedProcess(
+            args[0], 1, stdout=b"", stderr=b"bad bytes"
+        ),
+    )
+    with pytest.raises(ValueError, match="bad bytes"):
+        effect_adapter.run_command_bytes(tmp_path, "false")
+
+
 def test_preserve_retire_rechecks_the_source_after_package_verification(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

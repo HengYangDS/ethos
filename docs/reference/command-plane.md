@@ -316,9 +316,14 @@ and CI adapters all see the same repository fact and must route mutation through
 their own owned lane.
 `preserve-retire` is the exceptional, irreversible path for a dirty orphan or
 foreign lane after accepted Chronicle evidence: it first creates and verifies a
-digest-bound bundle, tracked patch, untracked archive, and manifest under the
-configured accepted checkout's sibling records owner:
+digest-bound bundle, tracked patch, index patch, untracked archive, and manifest
+under the configured accepted checkout's sibling records owner:
 `<accepted-checkout-parent>/<accepted-checkout-name>-records/recovery/lane-resolution/`.
+Package format v2 binds `tracked.patch` to the exact HEAD-to-worktree state and
+`index.patch` to the exact HEAD-to-index state, so a staged/unstaged split can
+be reconstructed by applying the tracked patch to a clean checkout and then
+applying the index patch with `git apply --cached`. Existing format-v1 packages
+without an index patch remain readable; newly created packages always use v2.
 It then removes the exact branch and linked worktree. The stable decision,
 package, and receipt therefore survive retirement of both the source and the
 invoking carrier. The owner policy is read from the Git primary control root,

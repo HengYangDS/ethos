@@ -207,11 +207,14 @@ def verify_preservation_package(
     allowed_roots = (
         (artifact_root.resolve(),) if artifact_root is not None else artifact_roots(root)
     )
-    allowed = any(destination.is_relative_to(candidate) for candidate in allowed_roots)
-    if not allowed:
+    if not any(destination.is_relative_to(candidate) for candidate in allowed_roots):
         raise ValueError(_PRESERVATION_PACKAGE_OUTSIDE_ROOT)
     manifest = _preservation_manifest(destination, package)
-    checks = (("repository.bundle", "bundle_sha256"), ("tracked.patch", "patch_sha256"))
+    checks = [("repository.bundle", "bundle_sha256"), ("tracked.patch", "patch_sha256")]
+    if (package_format := manifest.get("package_format_version")) not in (None, "v2"):
+        raise ValueError(_PRESERVATION_PACKAGE_INVALID)
+    if package_format:
+        checks.append(("index.patch", "index_patch_sha256"))
     invalid = any(
         (path := destination / name).is_symlink()
         or not path.is_file()

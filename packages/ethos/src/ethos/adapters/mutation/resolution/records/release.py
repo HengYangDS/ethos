@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 from ethos.adapters.mutation.resolution._shared import record_destination_safe
 from ethos.adapters.mutation.resolution._shared import records_artifact_root
 from ethos.adapters.mutation.resolution.records.core import ownerless_closeout_reservation_path
 from ethos.adapters.mutation.resolution.records.core import read_ownerless_closeout_reservation
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 _RECORD_PATH_UNSAFE = "lane_resolution_record_path_unsafe"
 _RESERVATION_MISMATCH = "lane_resolution_ownerless_reservation_mismatch"

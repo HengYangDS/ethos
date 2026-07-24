@@ -9,10 +9,10 @@ from typing import TYPE_CHECKING
 from typing import Any
 
 from ethos.adapters.mutation.resolution.records.core import target_digest
-from ethos_core.contracts.resolution.lane import LaneObservation
 
 if TYPE_CHECKING:
     from ethos.adapters.mutation.resolution.closeout.effect import OwnerlessCloseoutRuntime
+    from ethos_core.contracts.resolution.lane import LaneObservation
 
 _ACCEPTED_HEAD_STALE = "lane_resolution_ownerless_accepted_head_stale"
 _DECISION_STALE = "lane_resolution_ownerless_decision_stale"

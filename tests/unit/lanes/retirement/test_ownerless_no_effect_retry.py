@@ -3,9 +3,8 @@ from __future__ import annotations
 import hashlib
 import json
 import sqlite3
-import subprocess
 from contextlib import closing
-from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import Any
 
 import pytest
@@ -23,6 +22,10 @@ from tests.support.lane_helpers import absorb_obsolete_delta_in_accepted
 from tests.support.lane_helpers import git
 from tests.support.lane_helpers import init_repo
 from tests.support.lane_helpers import orphan_work_lane
+
+if TYPE_CHECKING:
+    import subprocess
+    from pathlib import Path
 
 _OWNERLESS_DECISION_ID = "lane-decision:00000000-0000-4000-8000-000000000004"
 

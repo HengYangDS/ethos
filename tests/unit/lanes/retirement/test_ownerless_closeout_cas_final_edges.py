@@ -128,6 +128,26 @@ def test_ownerless_cas_aborts_failed_prepare(
     assert case[1].is_dir()
 
 
+def test_ownerless_cas_uses_noop_update_for_accepted_head_check(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    case = _case(tmp_path, monkeypatch)
+    transaction = _transaction("start: ok\n", "prepare: rejected\n")
+    _route_update_ref(monkeypatch, transaction)
+
+    with pytest.raises(effects.OwnerlessCloseoutError, match="ownerless_ref_prepare_failed"):
+        _retire(case)
+
+    _repo, _lane, observation, accepted_head, *_rest = case
+    writes = [call.args[0] for call in transaction.stdin.write.call_args_list]
+    assert writes[:3] == [
+        "start\n",
+        f"update refs/heads/dev {accepted_head} {accepted_head}\n",
+        f"delete refs/heads/{observation.lane_ref} {observation.head}\nprepare\n",
+    ]
+
+
 def test_ownerless_cas_classifies_update_ref_start_failure(
     tmp_path,
     monkeypatch: pytest.MonkeyPatch,

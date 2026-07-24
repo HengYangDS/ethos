@@ -294,7 +294,7 @@ def _retire_clean_ownerless_cas(
             stdin.write("start\n")
             stdin.flush()
             started = stdout.readline() == "start: ok\n"
-            stdin.write(f"verify {accepted_ref} {accepted_head}\n")
+            stdin.write(f"update {accepted_ref} {accepted_head} {accepted_head}\n")
             stdin.write(f"delete {target_ref} {observation.head}\nprepare\n")
             stdin.flush()
             prepared = stdout.readline() == "prepare: ok\n"

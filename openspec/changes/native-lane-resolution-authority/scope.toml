@@ -33,6 +33,7 @@ paths = [
   "tests/unit/coverage/test_cov_core_edges.py",
   "tests/unit/coverage/test_lane_resolution_edges.py",
   "tests/unit/coverage/test_lane_resolution_record_edges.py",
+  "tests/unit/coverage/test_lane_resolution_reservation_edges.py",
   "tests/unit/coverage/test_ownerless_cleanup_final_edges.py",
   "tests/unit/coverage/test_ownerless_recovery_final_edges.py",
   "tests/unit/governance/test_coupling_executables.py",
@@ -47,5 +48,6 @@ paths = [
   "tests/unit/lanes/test_lane_resolution_artifacts.py",
   "tests/unit/lanes/test_lane_resolution_clear_quarantine.py",
   "tests/unit/lanes/test_lane_resolution_current_enumeration.py",
+  "tests/unit/lanes/test_lane_resolution_record_roots.py",
   "tests/unit/policy/test_module_layout_growth_edges.py",
 ]

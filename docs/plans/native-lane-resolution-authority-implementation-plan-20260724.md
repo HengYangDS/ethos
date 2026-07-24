@@ -39,10 +39,11 @@ fixed-literal Git plumbing, descriptor-relative POSIX file APIs, stdlib
 
 ## Global constraints
 
-- Work only in
-  `/Users/yheng/projects/ethos-worktrees/20260724-native-lane-resolution-authority-successor`
+- Work only in the owned successor root reported by `ethos status --json`
   unless native refresh fails again and a newly named successor is created from
-  the current candidate.
+  the current candidate. Examples below use `<successor-root>`,
+  `<candidate-root>`, and `<accepted-root>` for live command-plane paths; never
+  substitute a remembered workstation path.
 - Export
   `ETHOS_ACTOR=agent:codex:thread:019f8f90-7bcb-7a11-8fd2-a953c8bbbc06`.
 - Run every ETHOS command through `tools/ci/scripts/run-ethos-lane.sh`.
@@ -116,7 +117,7 @@ and explicit permission for semantic replay only.
    candidate root instead of resolving the stale lane in place:
 
    ```text
-   cd /Users/yheng/projects/ethos-candidate-dev
+   cd <candidate-root>
    tools/ci/scripts/run-ethos-lane.sh lane start \
      20260724-native-lane-resolution-authority-successor-2 \
      --holder-ref "$ETHOS_ACTOR" \
@@ -227,8 +228,12 @@ persistence, effect, or WCP deletion in this commit.
 - Create: `packages/ethos/src/ethos/adapters/mutation/resolution/records/reservations.py`
 - Modify: `packages/ethos/src/ethos/adapters/mutation/resolution/receipts.py`
 - Test: `tests/unit/coverage/test_lane_resolution_record_edges.py`
+- Test: `tests/unit/coverage/test_lane_resolution_reservation_edges.py`
 - Test: `tests/unit/lanes/test_lane_resolution_clear_quarantine.py`
 - Test: `tests/unit/lanes/test_lane_resolution_current_enumeration.py`
+- Test: `tests/unit/lanes/test_lane_resolution_record_roots.py`
+- Create declaration-only: `tests/unit/lanes/resolution/__init__.py`
+- Create test support owner: `tests/unit/lanes/resolution/records.py`
 - Test: `tests/unit/lanes/retirement/test_ownerless_closeout_records.py`
 - Test: `tests/unit/lanes/retirement/test_ownerless_closeout_receipt_edges.py`
 
@@ -271,8 +276,10 @@ lane_resolution_inventory(*, root: Path) -> dict[str, object]
    ```text
    uv run --package ethos python -m pytest -q \
      tests/unit/coverage/test_lane_resolution_record_edges.py \
+     tests/unit/coverage/test_lane_resolution_reservation_edges.py \
      tests/unit/lanes/test_lane_resolution_clear_quarantine.py \
      tests/unit/lanes/test_lane_resolution_current_enumeration.py \
+     tests/unit/lanes/test_lane_resolution_record_roots.py \
      tests/unit/lanes/retirement/test_ownerless_closeout_records.py \
      tests/unit/lanes/retirement/test_ownerless_closeout_receipt_edges.py
    ```
@@ -898,11 +905,11 @@ archive HEAD.
      --apply --authorize --expect-head "$(git rev-parse HEAD)" --json
    ```
 
-3. From `/Users/yheng/projects/ethos`, run accepted-root closeout as a distinct
+3. From `<accepted-root>`, run accepted-root closeout as a distinct
    audited transition after candidate/accepted facts are current:
 
    ```text
-   cd /Users/yheng/projects/ethos
+   cd <accepted-root>
    tools/ci/scripts/run-ethos-lane.sh status --json
    tools/ci/scripts/run-ethos-lane.sh land \
      --closeout --apply --authorize --expect-head "$(git rev-parse HEAD)" --json
@@ -954,8 +961,8 @@ archive HEAD.
 7. Finish with:
 
    ```text
-   git -C /Users/yheng/projects/ethos status --short --branch
-   git -C /Users/yheng/projects/ethos-candidate-dev status --short --branch
+   git -C <accepted-root> status --short --branch
+   git -C <candidate-root> status --short --branch
    tools/ci/scripts/run-ethos-lane.sh lane status --json
    tools/ci/scripts/run-ethos-lane.sh report --json
    ```

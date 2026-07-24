@@ -4,6 +4,7 @@ import json
 from typing import Any
 from typing import cast
 
+from ethos.domain.source_budget.core import SourceBudgetShadowObservation
 from ethos.domain.source_budget.core import source_budget_shadow_report
 
 
@@ -221,3 +222,10 @@ def test_shadow_rejects_non_mapping_duplicate_tokens_totals_and_coordinates() ->
     duplicate_coordinates["v2"] = _v2()
     duplicate_coordinates["v2"]["coordinates"] *= 2
     _assert_canonical_invalid(duplicate_coordinates)
+
+
+def test_task4_shadow_observation_is_a_public_reusable_contract() -> None:
+    typed = SourceBudgetShadowObservation.model_validate(_observation())
+
+    assert typed.comparison_state == "unresolved"
+    assert typed.model_dump(mode="json") == _observation()

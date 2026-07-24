@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Annotated
 from typing import Literal
+from typing import cast
 
 from pydantic import BaseModel
 from pydantic import ConfigDict
@@ -13,6 +14,8 @@ from pydantic import Field
 from pydantic import TypeAdapter
 from pydantic import field_validator
 from pydantic import model_validator
+
+from ethos_core.contracts.source_budget.policy.core import source_budget_v2_json_schema
 
 NonNegativeInt = Annotated[int, Field(strict=True, ge=0)]
 PositiveInt = Annotated[int, Field(strict=True, gt=0)]
@@ -150,10 +153,16 @@ SourceBudgetPolicyAdapter = _POLICY_ADAPTER = TypeAdapter(SourceBudgetPolicy)
 
 
 def source_budget_json_schema() -> dict[str, object]:
-    """Generate the published source-budget JSON Schema contract."""
+    """Compose the unchanged v1 union and strict v2 union into one schema."""
+    v1 = _POLICY_ADAPTER.json_schema()
+    v2 = source_budget_v2_json_schema()
+    definitions = cast("dict[str, object]", v1.pop("$defs", {}))
+    definitions.update(cast("dict[str, object]", v2.pop("$defs", {})))
+    v2.pop("title", None)
     return {
         "$schema": _SCHEMA_DRAFT,
-        **_POLICY_ADAPTER.json_schema(),
+        "$defs": definitions,
+        "oneOf": [v1, v2],
         "title": _SCHEMA_TITLE,
     }
 

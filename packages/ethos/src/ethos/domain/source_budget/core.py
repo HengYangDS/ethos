@@ -146,7 +146,9 @@ class _ShadowV2(_ShadowStrict):
         return self
 
 
-class _ShadowObservation(_ShadowStrict):
+class SourceBudgetShadowObservation(_ShadowStrict):
+    """Reviewed Task 4 replay observation consumed by later pure reducers."""
+
     observer: _ShadowObserver
     subject: _ShadowSubject
     v1: _ShadowV1
@@ -329,7 +331,7 @@ def source_budget_shadow_report(
         report["v2_shadow"] = _blocked_shadow("source_budget_v2_shadow_observation_invalid")
         return report
     try:
-        shadow = _ShadowObservation.model_validate(observation).model_dump(mode="json")
+        shadow = SourceBudgetShadowObservation.model_validate(observation).model_dump(mode="json")
     except (AttributeError, TypeError, ValueError, ValidationError):
         report["v2_shadow"] = _blocked_shadow("source_budget_v2_shadow_observation_invalid")
         return report

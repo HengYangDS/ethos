@@ -3,16 +3,23 @@ id = "budget-contract-v2-vector-policy-debt-20260724"
 change_id = "budget-contract-v2-vector-policy-debt"
 subject = "quality:budget-contract-v2:vector-policy-debt"
 state = "active"
-summary = "Define the bounded Task 5 design carrier for strict vector policy, Debt v2, an inactive repository declaration, and pure verdict compilation while v1 remains authoritative."
+summary = "Implement strict Budget Contract v2 vector policy, Debt v2, inactive repository config, public Task 4 observation reuse, and pure fail-closed verdict compilation while v1 remains authoritative."
 
 [evidence]
 dated = "evidence/chronicle/budget-contract-v2-vector-policy-debt-20260724/2026-07-24.md"
-sha256 = "d6ec231518c819dfea670dd16852287e1f905c6353198e98ae16c9c3e1fad562"
+sha256 = "f049730e3480f351778b8ff2b25073be29c91de767e56034ab4a3b34bec7f1bd"
 evidence_ids = ["evidence:budget-contract-v2-vector-policy-debt-20260724"]
-binding = "The active OpenSpec carrier, accepted Budget Contract design, accepted Task 4 archive, and dated Chronicle bind the planned Task 5 scope and inactive/unmapped boundary. No implementation, proof, archive, land, publication, or retirement conclusion is made."
+binding = "The active OpenSpec carrier, strict contracts, pure reducer, inactive repository policy, composed schema, RED-GREEN regressions, owner gates, and dated Chronicle bind the implemented Task 5 scope. Exact-HEAD proof, archive, land, publication, and retirement remain separate future transitions."
 verifier = "digest_only"
 tests = [
-  "npx --yes @fission-ai/openspec@1.6.0 validate budget-contract-v2-vector-policy-debt --strict --json",
+  "uv run --all-packages --group dev pytest -q tests/unit/kernel/test_source_budget_contract.py tests/unit/domain/source_budget/test_verdict.py tests/unit/domain/source_budget/test_shadow_report.py tests/unit/adapters/test_config.py",
+  "uv run --all-packages --group dev pytest -q tests/unit/domain/source_budget tests/unit/kernel/test_source_budget_contract.py tests/unit/kernel/test_source_budget_measurements_contract.py tests/unit/kernel/test_source_budget_measurements_integrity.py tests/unit/adapters/test_config.py tests/unit/adapters/repo/source_budget tests/unit/ci/source_budget",
+  "tools/ci/scripts/run-python-lint.sh",
+  "tools/ci/scripts/run-ethos-lane.sh quality types --json",
+  "tools/ci/scripts/run-module-layout.sh",
+  "tools/ci/scripts/run-import-linter.sh",
+  "tools/ci/scripts/run-config-lint.sh .ethos/rules.toml system/schemas/kernel/source-budget.schema.json",
+  "tools/ci/scripts/run-json-schema-check.sh",
   "tools/ci/scripts/run-ethos-lane.sh openspec --lifecycle --json",
   "tools/ci/scripts/run-ethos-lane.sh quality claims --json",
 ]

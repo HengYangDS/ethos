@@ -4,11 +4,13 @@ import hashlib
 import json
 import subprocess
 from typing import Any
+from typing import cast
 
 import pytest
 
 import ethos.adapters.mutation.resolution.closeout.effect as closeout_effect
 from ethos.adapters.mutation.resolution.closeout.effect import OwnerlessCloseoutRuntime
+from ethos.adapters.mutation.resolution.closeout.wcp.core import WCPCloseoutExpectation
 from ethos.adapters.mutation.resolution.closeout.wcp.core import WCPResponseError
 from ethos.adapters.mutation.resolution.lane import apply_lane_resolution
 from ethos.adapters.mutation.resolution.records.core import target_digest
@@ -17,6 +19,8 @@ from ethos_core.contracts.resolution.lane import LaneResolutionDecision
 
 _EXECUTOR = "agent:codex:thread:executor"
 _ACCEPTED_HEAD = "d" * 40
+_STOP_AFTER_EXPECTATION_CAPTURE = "stop_after_expectation_capture"
+_UNEXPECTED_WCP_CALL = "unexpected_wcp_call"
 
 
 class OwnerlessTestError(ValueError):
@@ -232,6 +236,70 @@ def test_retire_rejects_missing_accepted_tree_and_wcp_response(tmp_path) -> None
     rejected = _runtime(observation, raw, run_wcp=reject_wcp)
     with pytest.raises(OwnerlessTestError, match="ownerless_wcp_rejected"):
         _retire(decision_path, decision, observation, rejected)
+
+
+@pytest.mark.parametrize(
+    ("layout_case", "lane_ref", "expected_id", "expected_layout"),
+    [
+        ("canonical", "work/20260721-orphan", "20260721-orphan", "canonical"),
+        ("historical", "work/orphan", "20260721-orphan", "historical_ownerless"),
+        ("legacy", "work/orphan", "orphan", "legacy_ownerless"),
+    ],
+)
+def test_retire_binds_exact_ownerless_layout_expectation(
+    tmp_path,
+    layout_case: str,
+    lane_ref: str,
+    expected_id: str,
+    expected_layout: str,
+) -> None:
+    canonical_worktrees = tmp_path.parent / f"{tmp_path.name}-worktrees"
+    lane_path = {
+        "canonical": canonical_worktrees / "20260721-orphan",
+        "historical": canonical_worktrees / "20260721-orphan",
+        "legacy": tmp_path / "repo-work-orphan",
+    }[layout_case]
+    observation = _observation(tmp_path).model_copy(
+        update={"lane_ref": lane_ref, "path": lane_path.as_posix()}
+    )
+    decision_path = tmp_path / "decision.json"
+    decision, raw = _decision(decision_path, observation)
+    captured: dict[str, object] = {}
+
+    def capture_expectation(**kwargs: object) -> dict[str, object]:
+        captured["expected"] = kwargs["expected"]
+        raise WCPResponseError(_STOP_AFTER_EXPECTATION_CAPTURE)
+
+    runtime = _runtime(observation, raw, run_wcp=capture_expectation)
+    with pytest.raises(OwnerlessTestError, match="ownerless_wcp_rejected"):
+        _retire(decision_path, decision, observation, runtime)
+
+    expected = cast("WCPCloseoutExpectation", captured["expected"])
+    assert expected.lane_id == expected_id
+    assert expected.lane_layout == expected_layout
+
+
+def test_retire_rejects_unrelated_branch_and_canonical_directory_before_wcp(tmp_path) -> None:
+    canonical_worktrees = tmp_path.parent / f"{tmp_path.name}-worktrees"
+    observation = _observation(tmp_path).model_copy(
+        update={
+            "lane_ref": "work/orphan",
+            "path": (canonical_worktrees / "20260721-unrelated").as_posix(),
+        }
+    )
+    decision_path = tmp_path / "decision.json"
+    decision, raw = _decision(decision_path, observation)
+    events: list[str] = []
+
+    def reject_wcp(**_kwargs: object) -> dict[str, object]:
+        events.append("wcp")
+        raise WCPResponseError(_UNEXPECTED_WCP_CALL)
+
+    runtime = _runtime(observation, raw, run_wcp=reject_wcp)
+    with pytest.raises(OwnerlessTestError, match="ownerless_wcp_expectation_invalid"):
+        _retire(decision_path, decision, observation, runtime)
+
+    assert events == []
 
 
 @pytest.mark.parametrize(

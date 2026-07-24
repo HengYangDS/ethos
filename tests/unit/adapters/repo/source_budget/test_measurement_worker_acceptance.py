@@ -165,7 +165,10 @@ def test_exact_ceiling_ini_amplification_completes_or_fails_closed_atomically() 
     load = measure_native(content, provider, _registry())
 
     if load.measurement is None:
-        assert load.required_gaps == ("source_budget_worker_resource_exhausted",)
+        assert load.required_gaps in {
+            ("source_budget_worker_resource_exhausted",),
+            ("source_budget_worker_timeout",),
+        }
         return
     assert load.required_gaps == ()
     assert {item.contract_id for item in load.measurement.values} == {

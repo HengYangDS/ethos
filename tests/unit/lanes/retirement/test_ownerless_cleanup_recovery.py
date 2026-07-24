@@ -5,6 +5,7 @@ import json
 import sqlite3
 from contextlib import closing
 from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import Any
 
 import pytest
@@ -12,6 +13,7 @@ import pytest
 import ethos.adapters.mutation.resolution._effects as effect_adapter
 import ethos.adapters.mutation.resolution.lane as lane_adapter
 import ethos.adapters.mutation.resolution.records.core as record_store
+import ethos.adapters.mutation.resolution.records.io.core as record_io
 import ethos.adapters.mutation.resolution.records.reservations as reservation_store
 from ethos.adapters.mutation.resolution.lane import apply_lane_resolution
 from ethos.adapters.mutation.resolution.lane import plan_lane_resolution
@@ -25,6 +27,9 @@ from ethos_core.contracts.resolution.lane import LaneObservation
 from tests.support.contract_helpers import write_chronicle_decision
 from tests.support.lane_helpers import git
 from tests.support.lane_helpers import orphan_work_lane
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 _COMPETING_DECISION_ID = "lane-decision:00000000-0000-4000-8000-000000000099"
 
@@ -107,6 +112,64 @@ def _receipt_snapshot(path: Path) -> tuple[int, bytes]:
     return path.stat().st_ino, path.read_bytes()
 
 
+def _fail_one_directory_fsync(
+    monkeypatch: pytest.MonkeyPatch,
+    directory: Path,
+    *,
+    ready: Callable[[], bool],
+    message: str,
+) -> Callable[[int], None]:
+    original = record_io.os.fsync
+    failed = False
+
+    def fail(descriptor: int) -> None:
+        nonlocal failed
+        metadata = record_io.os.fstat(descriptor)
+        directory_metadata = directory.stat() if directory.exists() else None
+        exact_directory = directory_metadata is not None and (
+            metadata.st_dev,
+            metadata.st_ino,
+        ) == (directory_metadata.st_dev, directory_metadata.st_ino)
+        if exact_directory and ready() and not failed:
+            failed = True
+            raise OSError(message)
+        original(descriptor)
+
+    monkeypatch.setattr(record_io.os, "fsync", fail)
+    return original
+
+
+def _fail_one_record_unlink(
+    monkeypatch: pytest.MonkeyPatch,
+    target: Path,
+    *,
+    ready: Callable[[], bool],
+) -> Callable[..., None]:
+    original = record_io.os.unlink
+    prefix = f".{target.name}."
+    failed = False
+
+    def fail(path: object, *, dir_fd: int | None = None) -> None:
+        nonlocal failed
+        metadata = record_io.os.fstat(dir_fd) if dir_fd is not None else None
+        parent = target.parent.stat() if target.parent.exists() else None
+        exact_staging = (
+            metadata is not None
+            and parent is not None
+            and (metadata.st_dev, metadata.st_ino) == (parent.st_dev, parent.st_ino)
+            and str(path).startswith(prefix)
+            and str(path).endswith(".cas")
+        )
+        if exact_staging and ready() and not failed:
+            failed = True
+            message = "reservation unlink interrupted"
+            raise OSError(message)
+        original(path, dir_fd=dir_fd)
+
+    monkeypatch.setattr(record_io.os, "unlink", fail)
+    return original
+
+
 def _assert_cleanup_converged(
     *,
     report: dict[str, object],
@@ -122,30 +185,25 @@ def _assert_cleanup_converged(
     assert not tuple((current_record_root(repo) / "receipts").glob(".*.receipt-reservation"))
 
 
-def test_retry_converges_when_receipt_link_succeeds_but_directory_fsync_fails(
+def test_retry_converges_when_receipt_write_fails_after_durable_link(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo, decision_path, _decision, ownerless_reservation, receipt = _setup(tmp_path, monkeypatch)
-    real_fsync = vars(record_store)["_fsync_directory"]
-    failed = False
+    real_write = lane_adapter.write_resolution_receipt
 
-    def fail_after_receipt_link(directory: Path) -> None:
-        nonlocal failed
-        linked = receipt.is_file()
-        if directory == receipt.parent and linked and not failed:
-            failed = True
-            message = "receipt directory fsync interrupted"
-            raise OSError(message)
-        real_fsync(directory)
+    def write_then_fail(**kwargs: Any) -> str:
+        real_write(**kwargs)
+        message = "receipt writer interrupted after durable link"
+        raise OSError(message)
 
-    monkeypatch.setattr(record_store, "_fsync_directory", fail_after_receipt_link)
+    monkeypatch.setattr(lane_adapter, "write_resolution_receipt", write_then_fail)
     first = _apply(repo, decision_path)
 
     assert first["required_gaps"] == ["lane_resolution_receipt_write_failed_after_effect"]
     assert receipt.is_file()
     snapshot = _receipt_snapshot(receipt)
-    monkeypatch.setattr(record_store, "_fsync_directory", real_fsync)
+    monkeypatch.setattr(lane_adapter, "write_resolution_receipt", real_write)
     monkeypatch.setattr(
         effect_adapter,
         "run_worktree_closeout_check",
@@ -202,25 +260,18 @@ def test_retry_converges_after_reservation_unlink_failure_with_fence_already_abs
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo, decision_path, _decision, ownerless_reservation, receipt = _setup(tmp_path, monkeypatch)
-    real_unlink = Path.unlink
-    failed = False
-
-    def fail_ownerless_unlink(path: Path, *args: object, **kwargs: object) -> None:
-        nonlocal failed
-        if path == ownerless_reservation and not failed:
-            failed = True
-            message = "reservation unlink interrupted"
-            raise OSError(message)
-        real_unlink(path, *args, **kwargs)
-
-    monkeypatch.setattr(Path, "unlink", fail_ownerless_unlink)
+    real_unlink = _fail_one_record_unlink(
+        monkeypatch,
+        ownerless_reservation,
+        ready=receipt.is_file,
+    )
     first = _apply(repo, decision_path)
 
     assert first["required_gaps"] == ["lane_resolution_ownerless_cleanup_failed"]
     assert get_closeout_fence(state_database(repo), subject="work/orphan") is None
     assert ownerless_reservation.is_file()
     snapshot = _receipt_snapshot(receipt)
-    monkeypatch.setattr(Path, "unlink", real_unlink)
+    monkeypatch.setattr(record_io.os, "unlink", real_unlink)
     monkeypatch.setattr(
         effect_adapter,
         "run_worktree_closeout_check",
@@ -245,6 +296,61 @@ def test_retry_converges_after_reservation_unlink_failure_with_fence_already_abs
         ownerless_reservation=ownerless_reservation,
     )
     assert verified_fences == [None]
+
+
+def test_receipt_sidecar_swap_reports_release_gap_and_retries(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, decision_path, decision, ownerless_reservation, receipt = _setup(tmp_path, monkeypatch)
+    sidecar = receipt.with_name(f".{receipt.stem}.receipt-reservation")
+    original_stage = record_io._stage_expected_record  # noqa: SLF001, RUF100
+    swapped = False
+
+    def swap_before_stage(
+        parent: object,
+        locked_descriptor: int,
+        expected: bytes,
+        staging: str,
+    ) -> None:
+        nonlocal swapped
+        if parent.destination == sidecar and receipt.is_file() and not swapped:
+            sidecar.unlink()
+            sidecar.write_bytes(expected)
+            swapped = True
+        original_stage(parent, locked_descriptor, expected, staging)
+
+    monkeypatch.setattr(record_io, "_stage_expected_record", swap_before_stage)
+
+    first = _apply(repo, decision_path)
+
+    assert swapped is True
+    assert (first["ok"], first["state"], first["required_gaps"]) == (
+        False,
+        "partial_transition",
+        ["lane_resolution_receipt_reservation_release_failed"],
+    )
+    assert receipt.is_file()
+    snapshot = _receipt_snapshot(receipt)
+    assert sidecar.read_bytes() == f"{decision['decision_id']}\n".encode()
+    assert not ownerless_reservation.exists()
+    assert get_closeout_fence(state_database(repo), subject="work/orphan") is None
+    monkeypatch.setattr(record_io, "_stage_expected_record", original_stage)
+    monkeypatch.setattr(
+        effect_adapter,
+        "run_worktree_closeout_check",
+        lambda **_kwargs: pytest.fail("exact receipt recovery must not rerun WCP"),
+    )
+
+    recovered = _apply(repo, decision_path)
+
+    _assert_cleanup_converged(
+        report=recovered,
+        repo=repo,
+        receipt=receipt,
+        snapshot=snapshot,
+        ownerless_reservation=ownerless_reservation,
+    )
 
 
 @pytest.mark.parametrize(
@@ -300,25 +406,18 @@ def test_retry_blocks_a_different_fence_after_cleanup_was_partially_released(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    repo, decision_path, decision, ownerless_reservation, _receipt = _setup(tmp_path, monkeypatch)
+    repo, decision_path, decision, ownerless_reservation, receipt = _setup(tmp_path, monkeypatch)
     observation = decision["observation"]
     assert isinstance(observation, dict)
-    real_unlink = Path.unlink
-    failed = False
-
-    def fail_ownerless_unlink(path: Path, *args: object, **kwargs: object) -> None:
-        nonlocal failed
-        if path == ownerless_reservation and not failed:
-            failed = True
-            message = "reservation unlink interrupted"
-            raise OSError(message)
-        real_unlink(path, *args, **kwargs)
-
-    monkeypatch.setattr(Path, "unlink", fail_ownerless_unlink)
+    real_unlink = _fail_one_record_unlink(
+        monkeypatch,
+        ownerless_reservation,
+        ready=receipt.is_file,
+    )
     first = _apply(repo, decision_path)
     assert first["required_gaps"] == ["lane_resolution_ownerless_cleanup_failed"]
     assert get_closeout_fence(state_database(repo), subject="work/orphan") is None
-    monkeypatch.setattr(Path, "unlink", real_unlink)
+    monkeypatch.setattr(record_io.os, "unlink", real_unlink)
     acquire_closeout_fence(
         state_database(repo),
         subject="work/orphan",
@@ -368,23 +467,12 @@ def test_retry_converges_when_ownerless_reservation_unlink_precedes_crash(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo, decision_path, _decision, ownerless_reservation, receipt = _setup(tmp_path, monkeypatch)
-    real_fsync = vars(record_store)["_fsync_directory"]
-    failed = False
-
-    def fail_after_ownerless_unlink(directory: Path) -> None:
-        nonlocal failed
-        if (
-            directory == ownerless_reservation.parent
-            and receipt.is_file()
-            and not ownerless_reservation.exists()
-            and not failed
-        ):
-            failed = True
-            message = "ownerless reservation directory fsync interrupted"
-            raise OSError(message)
-        real_fsync(directory)
-
-    monkeypatch.setattr(record_store, "_fsync_directory", fail_after_ownerless_unlink)
+    real_fsync = _fail_one_directory_fsync(
+        monkeypatch,
+        ownerless_reservation.parent,
+        ready=lambda: receipt.is_file() and not ownerless_reservation.exists(),
+        message="ownerless reservation directory fsync interrupted",
+    )
     first = _apply(repo, decision_path)
 
     assert first["required_gaps"] == ["lane_resolution_ownerless_cleanup_failed"]
@@ -392,7 +480,7 @@ def test_retry_converges_when_ownerless_reservation_unlink_precedes_crash(
     assert not ownerless_reservation.exists()
     assert get_closeout_fence(state_database(repo), subject="work/orphan") is None
     snapshot = _receipt_snapshot(receipt)
-    monkeypatch.setattr(record_store, "_fsync_directory", real_fsync)
+    monkeypatch.setattr(record_io.os, "fsync", real_fsync)
     monkeypatch.setattr(
         effect_adapter,
         "run_worktree_closeout_check",
@@ -414,22 +502,15 @@ def test_retry_rejects_unverifiable_fence_absence_even_with_exact_receipt(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    repo, decision_path, _decision, ownerless_reservation, _receipt = _setup(tmp_path, monkeypatch)
-    real_unlink = Path.unlink
-    failed = False
-
-    def fail_ownerless_unlink(path: Path, *args: object, **kwargs: object) -> None:
-        nonlocal failed
-        if path == ownerless_reservation and not failed:
-            failed = True
-            message = "reservation unlink interrupted"
-            raise OSError(message)
-        real_unlink(path, *args, **kwargs)
-
-    monkeypatch.setattr(Path, "unlink", fail_ownerless_unlink)
+    repo, decision_path, _decision, ownerless_reservation, receipt = _setup(tmp_path, monkeypatch)
+    real_unlink = _fail_one_record_unlink(
+        monkeypatch,
+        ownerless_reservation,
+        ready=receipt.is_file,
+    )
     first = _apply(repo, decision_path)
     assert first["required_gaps"] == ["lane_resolution_ownerless_cleanup_failed"]
-    monkeypatch.setattr(Path, "unlink", real_unlink)
+    monkeypatch.setattr(record_io.os, "unlink", real_unlink)
     database = state_database(repo)
     assert database.is_file()
     database.unlink()
@@ -449,23 +530,16 @@ def test_retry_maps_malformed_fence_schema_to_stable_unverifiable_gap(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo, decision_path, _decision, ownerless_reservation, receipt = _setup(tmp_path, monkeypatch)
-    real_unlink = Path.unlink
-    failed = False
-
-    def fail_ownerless_unlink(path: Path, *args: object, **kwargs: object) -> None:
-        nonlocal failed
-        if path == ownerless_reservation and not failed:
-            failed = True
-            message = "reservation unlink interrupted"
-            raise OSError(message)
-        real_unlink(path, *args, **kwargs)
-
-    monkeypatch.setattr(Path, "unlink", fail_ownerless_unlink)
+    real_unlink = _fail_one_record_unlink(
+        monkeypatch,
+        ownerless_reservation,
+        ready=receipt.is_file,
+    )
     first = _apply(repo, decision_path)
     assert first["required_gaps"] == ["lane_resolution_ownerless_cleanup_failed"]
     assert ownerless_reservation.is_file()
     snapshot = _receipt_snapshot(receipt)
-    monkeypatch.setattr(Path, "unlink", real_unlink)
+    monkeypatch.setattr(record_io.os, "unlink", real_unlink)
     with closing(sqlite3.connect(state_database(repo))) as connection:
         connection.execute("drop index closeout_fences_subject_unique")
     monkeypatch.setattr(

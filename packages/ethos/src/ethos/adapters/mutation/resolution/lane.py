@@ -21,7 +21,7 @@ from ethos.adapters.mutation.resolution.closeout.recovery import recover_ownerle
 from ethos.adapters.mutation.resolution.receipts import write_resolution_receipt
 from ethos.adapters.mutation.resolution.records.core import canonical_current_record_bytes
 from ethos.adapters.mutation.resolution.records.core import release_resolution_receipt_reservation
-from ethos.adapters.mutation.resolution.records.core import reserve_resolution_receipt
+from ethos.adapters.mutation.resolution.records.core import write_json_atomic
 from ethos.adapters.mutation.resolution.records.current.core import current_record_integrity_gap
 from ethos.adapters.mutation.resolution.records.current.snapshot import read_current_record_path
 from ethos.adapters.mutation.resolution.records.inventory import lane_resolution_inventory
@@ -100,16 +100,24 @@ def plan_lane_resolution(  # noqa: PLR0913, RUF100 - exact request envelope pres
                 ok=False, state="blocked", required_gaps=["lane_resolution_decision_invalid"]
             )
             return report
-        destination = decision_path.resolve()
-        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination = decision_path.absolute()
         try:
-            with destination.open("x", encoding="utf-8") as handle:
-                handle.write(json.dumps(decision, indent=2, sort_keys=True) + "\n")
+            write_json_atomic(
+                destination,
+                decision,
+                record_root=current_record_root(root),
+            )
         except FileExistsError:
             report.update(
                 ok=False,
                 state="blocked",
                 required_gaps=["lane_resolution_decision_path_exists"],
+            )
+        except (OSError, ValueError):
+            report.update(
+                ok=False,
+                state="blocked",
+                required_gaps=["lane_resolution_decision_path_not_local_artifact"],
             )
         else:
             report.update(
@@ -239,7 +247,7 @@ def apply_lane_resolution(
             report=report,
             runtime=runtime,
             chronicle_event=_chronicle_event,
-            reuse_receipt_reservation=bool(
+            recover_receipt_reservation=bool(
                 recovery and str(recovery["recovery_state"]) == "reserved_no_effect"
             ),
         )
@@ -260,7 +268,6 @@ def _resolution_runtime() -> ResolutionRuntime:
         current_record_root=current_record_root,
         observe_lane=observe_lane,
         prepare_resolution_effect=prepare_resolution_effect,
-        reserve_resolution_receipt=reserve_resolution_receipt,
         release_resolution_receipt_reservation=release_resolution_receipt_reservation,
         retire_clean_ownerless_lane=retire_clean_ownerless_lane,
         write_resolution_receipt=write_resolution_receipt,

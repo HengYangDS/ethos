@@ -821,3 +821,114 @@ def test_receipt_reservation_release_does_not_unlink_through_a_rebound_category(
     )
 
     assert outside_reservation.read_text(encoding="utf-8") == "outside\n"
+
+
+def test_resolution_record_storage_write_edges(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target = tmp_path / "target"
+    target.mkdir()
+    symlink_root = tmp_path / "record-root-link"
+    symlink_root.symlink_to(target, target_is_directory=True)
+    assert record_io.record_destination_safe(symlink_root, symlink_root / "record") is False
+
+    record_root = tmp_path / "records"
+    original_resolve = Path.resolve
+
+    def fail_resolve(path: Path, *args: object, **kwargs: object) -> Path:
+        if path == record_root:
+            raise OSError
+        return original_resolve(path, *args, **kwargs)
+
+    with monkeypatch.context() as scoped:
+        scoped.setattr(Path, "resolve", fail_resolve)
+        assert record_io.record_destination_safe(record_root, record_root / "record") is False
+
+    with pytest.raises(OSError, match="lane_resolution_record_path_unsafe"):
+        record_store.write_json_atomic(tmp_path / "outside.json", {}, record_root=record_root)
+
+    destination = record_root / "receipts" / "record.json"
+    with monkeypatch.context() as scoped:
+        scoped.setattr(record_io, "record_destination_safe", lambda *_args: False)
+        with pytest.raises(OSError, match="lane_resolution_record_path_unsafe"):
+            record_store.write_json_atomic(destination, {}, record_root=record_root)
+
+    with pytest.raises(ValueError, match="lane_resolution_receipt_invalid"):
+        record_store.reserve_resolution_receipt(
+            root=tmp_path,
+            decision_id="invalid",
+            artifact_root=record_root,
+        )
+
+
+def test_resolution_receipt_reservation_failure_edges(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    record_root = tmp_path / "records"
+    decision_id = "lane-decision:00000000-0000-4000-8000-000000000102"
+    with monkeypatch.context() as scoped:
+        scoped.setattr(record_io, "record_destination_safe", lambda *_args: False)
+        with pytest.raises(OSError, match="lane_resolution_record_path_unsafe"):
+            record_store.reserve_resolution_receipt(
+                root=tmp_path,
+                decision_id=decision_id,
+                artifact_root=record_root,
+            )
+
+    destination = record_store.receipt_path(
+        tmp_path,
+        decision_id,
+        artifact_root=record_root,
+    )
+    reservation = destination.with_name(f".{destination.stem}.receipt-reservation")
+    with monkeypatch.context() as scoped:
+        scoped.setattr(
+            record_io.os, "fsync", lambda _descriptor: (_ for _ in ()).throw(RuntimeError)
+        )
+        with pytest.raises(RuntimeError):
+            record_store.reserve_resolution_receipt(
+                root=tmp_path,
+                decision_id=decision_id,
+                artifact_root=record_root,
+            )
+    assert not reservation.exists()
+
+    occupied_id = "lane-decision:00000000-0000-4000-8000-000000000103"
+    occupied_destination = record_store.receipt_path(
+        tmp_path,
+        occupied_id,
+        artifact_root=record_root,
+    )
+    original_write = record_io._write_bound_bytes  # noqa: SLF001, RUF100
+
+    def write_then_occupy(parent: object, content: bytes) -> None:
+        original_write(parent, content)
+        occupied_destination.parent.mkdir(parents=True, exist_ok=True)
+        occupied_destination.write_text("occupied\n", encoding="utf-8")
+
+    with monkeypatch.context() as scoped:
+        scoped.setattr(record_io, "_write_bound_bytes", write_then_occupy)
+        with pytest.raises(FileExistsError):
+            record_store.reserve_resolution_receipt(
+                root=tmp_path,
+                decision_id=occupied_id,
+                artifact_root=record_root,
+            )
+    assert occupied_destination.is_file()
+
+    with monkeypatch.context() as scoped:
+        scoped.setattr(record_io, "record_destination_safe", lambda *_args: False)
+        with pytest.raises(OSError, match="lane_resolution_record_path_unsafe"):
+            record_store.release_resolution_receipt_reservation(
+                root=tmp_path,
+                decision_id=decision_id,
+                artifact_root=record_root,
+            )
+
+    record_store.release_resolution_receipt_reservation(
+        root=tmp_path,
+        decision_id="lane-decision:00000000-0000-4000-8000-000000000104",
+        artifact_root=record_root,
+    )

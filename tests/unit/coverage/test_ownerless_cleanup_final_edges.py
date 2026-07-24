@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import Any
 
 import pytest
@@ -9,6 +9,9 @@ import ethos.adapters.mutation.resolution.closeout.cleanup.core as cleanup
 from ethos.adapters.mutation.resolution._effects import OwnerlessCloseoutError
 from ethos.adapters.mutation.resolution.closeout.recovery import ResolutionRuntime
 from ethos_core.contracts.resolution.lane import LaneObservation
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 _DECISION_ID = "lane-decision:00000000-0000-4000-8000-000000000004"
 
@@ -79,15 +82,11 @@ def _runtime(**overrides: Any) -> ResolutionRuntime:
     def prepare(**_kwargs: object) -> tuple[dict[str, object], dict[str, object], str, str]:
         return {}, {}, "retired", ""
 
-    def reserve(**_kwargs: object) -> Path:
-        return Path("receipt.reservation")
-
     defaults: dict[str, Any] = {
         "accepted_control_root": lambda root: root,
         "current_record_root": lambda root: root / "records",
         "observe_lane": lambda _root, _lane_ref: (_observation(), []),
         "prepare_resolution_effect": prepare,
-        "reserve_resolution_receipt": reserve,
         "release_resolution_receipt_reservation": lambda **_kwargs: None,
         "retire_clean_ownerless_lane": lambda **_kwargs: _binding(),
         "write_resolution_receipt": lambda **_kwargs: "receipt.json",
@@ -253,27 +252,9 @@ def test_existing_receipt_recovery_blocks_recomputed_binding_mismatch(
     assert report["required_gaps"] == ["lane_resolution_ownerless_receipt_mismatch"]
 
 
-@pytest.mark.parametrize(
-    ("cleanup_gap", "sidecar_gap", "expected_gaps"),
-    [
-        (
-            "lane_resolution_ownerless_cleanup_failed",
-            "",
-            ["lane_resolution_ownerless_cleanup_failed"],
-        ),
-        (
-            "",
-            "lane_resolution_receipt_reservation_release_failed",
-            ["lane_resolution_receipt_reservation_release_failed"],
-        ),
-    ],
-)
 def test_existing_receipt_recovery_retains_cleanup_failures(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
-    cleanup_gap: str,
-    sidecar_gap: str,
-    expected_gaps: list[str],
 ) -> None:
     monkeypatch.setenv("ETHOS_ACTOR", "agent:codex:thread:executor")
     monkeypatch.setattr(
@@ -290,19 +271,14 @@ def test_existing_receipt_recovery_retains_cleanup_failures(
     monkeypatch.setattr(
         cleanup,
         "release_ownerless_closeout_resources",
-        lambda **_kwargs: cleanup_gap,
-    )
-    monkeypatch.setattr(
-        cleanup,
-        "release_receipt_reservation",
-        lambda **_kwargs: sidecar_gap,
+        lambda **_kwargs: "lane_resolution_ownerless_cleanup_failed",
     )
 
     recovered, report = _recover_existing(tmp_path=tmp_path)
 
     assert recovered is True
     assert report["state"] == "partial_transition"
-    assert report["required_gaps"] == expected_gaps
+    assert report["required_gaps"] == ["lane_resolution_ownerless_cleanup_failed"]
 
 
 def test_cleanup_tolerates_exact_fence_already_absent(

@@ -10,6 +10,8 @@ import stat
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+import ethos.adapters.mutation.resolution.records.io.posix as posix
+
 if TYPE_CHECKING:
     from pathlib import Path
     from types import TracebackType
@@ -185,7 +187,7 @@ def open_current_record_snapshot(
 ) -> tuple[CurrentRecordSnapshot | None, str]:
     """Open one bounded no-follow snapshot of the current record root."""
     try:
-        descriptor = os.open(root, _directory_flags())
+        descriptor = posix.open_directory_path(root, create=False)
     except FileNotFoundError:
         return None, "missing"
     except OSError:

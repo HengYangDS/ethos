@@ -7,6 +7,7 @@ import shutil
 from dataclasses import FrozenInstanceError
 from dataclasses import is_dataclass
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -37,6 +38,69 @@ def test_clear_quarantine_candidates_are_concrete_immutable_facts(tmp_path: Path
     assert is_dataclass(candidate)
     with pytest.raises(FrozenInstanceError):
         candidate.path = tmp_path / "replacement"
+
+
+def test_clear_reports_unsafe_receipt_package_and_manifest_mismatch(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    decision_id = "lane-decision:00000000-0000-4000-8000-000000000100"
+    manifest_sha256 = "a" * 64
+    manifest = {
+        "manifest_sha256": manifest_sha256,
+        "package_path": (tmp_path / "package").as_posix(),
+        "copy_count": 1,
+    }
+    current = SimpleNamespace(
+        manifests={decision_id: manifest},
+        clear_quarantines={},
+        clears={},
+        receipts={},
+        invalid_count=0,
+        conflicts=set(),
+    )
+    record_root = tmp_path / "records"
+    receipt_path = record_root / "clears" / "receipt.json"
+    monkeypatch.setattr(clear_adapter, "current_record_root", lambda _root: record_root)
+    monkeypatch.setattr(
+        clear_adapter,
+        "read_current_lane_resolution_records",
+        lambda **_kwargs: current,
+    )
+    monkeypatch.setattr(clear_adapter, "unsafe_package_path_present", lambda _root: False)
+    monkeypatch.setattr(clear_adapter, "unsafe_record_path_present", lambda _root: False)
+    monkeypatch.setattr(
+        clear_adapter,
+        "_clear_chronicle",
+        lambda *_args: ("evidence/chronicle/clear.md", "b" * 64, []),
+    )
+    monkeypatch.setattr(clear_adapter, "_validate_clear_schema", lambda *_args: None)
+    monkeypatch.setattr(clear_adapter, "clear_receipt_path", lambda *_args: receipt_path)
+    request = LaneResolutionClearRequest(
+        decision_id=decision_id,
+        expect_manifest_sha256=manifest_sha256,
+        chronicle_ref="evidence/chronicle/clear.md",
+        reason="Clear the exact retained package.",
+        break_glass=True,
+        confirm_irreversible=True,
+        apply=True,
+    )
+
+    monkeypatch.setattr(clear_adapter, "record_destination_safe", lambda *_args: False)
+    unsafe_receipt = clear_lane_resolution_package(root=tmp_path, request=request)
+    assert unsafe_receipt["required_gaps"] == ["lane_resolution_clear_receipt_path_unsafe"]
+
+    monkeypatch.setattr(clear_adapter, "record_destination_safe", lambda *_args: True)
+    monkeypatch.setattr(clear_adapter, "package_path_safe", lambda *_args: False)
+    unsafe_package = clear_lane_resolution_package(root=tmp_path, request=request)
+    assert unsafe_package["required_gaps"] == ["lane_resolution_package_path_unsafe"]
+    assert not receipt_path.exists()
+
+    manifest["manifest_sha256"] = "c" * 64
+    monkeypatch.setattr(clear_adapter, "package_path_safe", lambda *_args: True)
+    mismatched = clear_lane_resolution_package(root=tmp_path, request=request)
+    assert mismatched["required_gaps"] == ["lane_resolution_clear_manifest_mismatch"]
+    assert not receipt_path.exists()
 
 
 def test_post_quarantine_crash_retries_exact_package(

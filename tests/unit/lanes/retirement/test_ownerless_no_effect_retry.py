@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import sqlite3
+import threading
 from contextlib import closing
 from typing import TYPE_CHECKING
 from typing import Any
@@ -178,6 +179,54 @@ def test_ownerless_reserved_no_effect_retry_reuses_exact_sidecar_and_rechecks_wc
     assert events[:2] == ["wcp", "cas"]
     assert not lane.exists()
     assert not _planned_reservation_path(repo, planned).exists()
+
+
+def test_ownerless_retry_does_not_adopt_a_live_writer_sidecar(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo, lane = orphan_work_lane(tmp_path)
+    decision_path = _default_decision_path(repo, "work/orphan")
+    _decide(repo, decision_path)
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:codex:thread:executor")
+    monkeypatch.setattr(effect_adapter, "run_worktree_closeout_check", _ownerless_preflight)
+    real_verify = effect_adapter._verify_ownerless_pre_effect  # noqa: SLF001, RUF100
+    live_writer_ready = threading.Event()
+    release_live_writer = threading.Event()
+    adopted_live_sidecar = threading.Event()
+    first_reports: list[dict[str, object]] = []
+
+    def pause_live_writer(**kwargs: object) -> None:
+        if threading.current_thread().name == "live-writer":
+            live_writer_ready.set()
+            assert release_live_writer.wait(timeout=5)
+            real_verify(**kwargs)
+            return
+        adopted_live_sidecar.set()
+        message = "lane_resolution_ownerless_live_sidecar_adopted"
+        raise effect_adapter.OwnerlessCloseoutError(
+            message,
+            fence_acquired=True,
+        )
+
+    def run_live_writer() -> None:
+        first_reports.append(_apply_retire(repo, decision_path))
+
+    monkeypatch.setattr(effect_adapter, "_verify_ownerless_pre_effect", pause_live_writer)
+    live_writer = threading.Thread(target=run_live_writer, name="live-writer")
+    live_writer.start()
+    assert live_writer_ready.wait(timeout=5)
+
+    retry = _apply_retire(repo, decision_path)
+    release_live_writer.set()
+    live_writer.join(timeout=5)
+
+    assert live_writer.is_alive() is False
+    assert adopted_live_sidecar.is_set() is False
+    assert retry["ok"] is False
+    assert retry["required_gaps"] == ["lane_resolution_receipt_path_exists"]
+    assert first_reports[0]["ok"] is True
+    assert lane.exists() is False
 
 
 def test_ownerless_reserved_no_effect_retry_rebinds_after_accepted_forward(

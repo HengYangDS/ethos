@@ -4,12 +4,38 @@ from __future__ import annotations
 
 import ctypes
 import errno
+import fcntl
 import os
 import stat
+import uuid
 from contextlib import suppress
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 FileIdentity = tuple[int, int, int, int, int, int]
 DirectoryIdentity = tuple[int, int, int]
+
+
+def open_directory_path(path: Path, *, create: bool) -> int:
+    """Open every absolute directory component without following symlinks."""
+    if ".." in path.parts:
+        raise OSError(errno.EINVAL, os.strerror(errno.EINVAL), path)
+    absolute = path.absolute()
+    descriptor = os.open(absolute.anchor, directory_flags())
+    try:
+        for component in absolute.parts[1:]:
+            if create:
+                with suppress(FileExistsError):
+                    os.mkdir(component, mode=0o700, dir_fd=descriptor)
+            child = os.open(component, directory_flags(), dir_fd=descriptor)
+            os.close(descriptor)
+            descriptor = child
+    except BaseException:
+        os.close(descriptor)
+        raise
+    return descriptor
 
 
 def rename_no_replace(
@@ -70,7 +96,7 @@ def file_flags() -> int:
 def create_bound_file(directory_descriptor: int, name: str) -> int:
     """Create one exclusive no-follow file relative to a held directory."""
     flags = (
-        os.O_WRONLY
+        os.O_RDWR
         | os.O_CREAT
         | os.O_EXCL
         | getattr(os, "O_CLOEXEC", 0)
@@ -78,6 +104,64 @@ def create_bound_file(directory_descriptor: int, name: str) -> int:
         | getattr(os, "O_NONBLOCK", 0)
     )
     return os.open(name, flags, 0o600, dir_fd=directory_descriptor)
+
+
+def create_locked_file_link(
+    directory_descriptor: int,
+    name: str,
+    content: bytes,
+) -> tuple[int, FileIdentity]:
+    """Create, lock, and link one immutable file relative to a held directory."""
+    temporary = f".{name}.{uuid.uuid4().hex}.tmp"
+    descriptor = create_bound_file(directory_descriptor, temporary)
+    identity: FileIdentity | None = None
+    linked = locked = False
+    try:
+        fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        locked = True
+        write_all(descriptor, content)
+        os.fsync(descriptor)
+        identity = file_identity(os.fstat(descriptor))
+        os.link(
+            temporary,
+            name,
+            src_dir_fd=directory_descriptor,
+            dst_dir_fd=directory_descriptor,
+            follow_symlinks=False,
+        )
+        linked = True
+        os.fsync(directory_descriptor)
+    except BaseException:
+        if (
+            linked
+            and identity is not None
+            and same_content_identity(entry_file_identity(directory_descriptor, name), identity)
+        ):
+            os.unlink(name, dir_fd=directory_descriptor)
+        if locked:
+            fcntl.flock(descriptor, fcntl.LOCK_UN)
+        os.close(descriptor)
+        raise
+    finally:
+        unlink_if_present(directory_descriptor, temporary)
+    return descriptor, identity
+
+
+def lock_regular_file(directory_descriptor: int, name: str) -> int:
+    """Open and non-blockingly lock one descriptor-relative regular file."""
+    descriptor = open_regular_file(directory_descriptor, name)
+    try:
+        fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BaseException:
+        os.close(descriptor)
+        raise
+    return descriptor
+
+
+def unlock_close(descriptor: int) -> None:
+    """Release one advisory lock and close its descriptor."""
+    fcntl.flock(descriptor, fcntl.LOCK_UN)
+    os.close(descriptor)
 
 
 def open_regular_file(directory_descriptor: int, name: str) -> int:

@@ -215,6 +215,9 @@ persistence, effect, or WCP deletion in this commit.
 **Files:**
 
 - Modify: `packages/ethos/src/ethos/adapters/mutation/resolution/records/core.py`
+- Create declaration-only:
+  `packages/ethos/src/ethos/adapters/mutation/resolution/records/io/__init__.py`
+- Create: `packages/ethos/src/ethos/adapters/mutation/resolution/records/io/core.py`
 - Modify: `packages/ethos/src/ethos/adapters/mutation/resolution/records/inventory.py`
 - Delete: `packages/ethos/src/ethos/adapters/mutation/resolution/records/release.py`
 - Create: `packages/ethos/src/ethos/adapters/mutation/resolution/records/current/core.py`

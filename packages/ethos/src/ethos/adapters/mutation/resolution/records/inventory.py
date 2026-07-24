@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from ethos.adapters.mutation.resolution.records.clear.quarantine import unsafe_package_path_present
@@ -13,27 +12,15 @@ from ethos.adapters.mutation.resolution.records.current.core import (
 from ethos.adapters.mutation.resolution.records.roots import current_record_root
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
     from pathlib import Path
 
 
 _CURRENT_RECORD_INVALID = "lane_resolution_current_record_invalid"
 
 
-@dataclass(frozen=True, slots=True)
-class LaneResolutionInventoryReaders:
-    """Filesystem readers used to build one lane-resolution inventory."""
-
-    current_record_root: Callable[[Path], Path]
-    unsafe_package_path_present: Callable[[Path], bool]
-    unsafe_record_path_present: Callable[[Path], bool]
-
-
-def _lane_resolution_inventory(
-    *, root: Path, readers: LaneResolutionInventoryReaders
-) -> dict[str, object]:
+def _lane_resolution_inventory(*, root: Path) -> dict[str, object]:
     """Build the reconciliation view from the sole current record root."""
-    record_root = readers.current_record_root(root)
+    record_root = current_record_root(root)
     current = read_current_lane_resolution_records(root=root, record_root=record_root)
     decisions = current.decisions
     manifests = current.manifests
@@ -145,8 +132,8 @@ def _lane_resolution_inventory(
         str(payload.get("recovery_state") or "") != "reserved_no_effect"
         for payload in [*reservations.values(), *receipt_reservations.values()]
     ) + len(set(clears) & package_ids)
-    unsafe_package_path = readers.unsafe_package_path_present(root)
-    unsafe_record_path = readers.unsafe_record_path_present(root)
+    unsafe_package_path = unsafe_package_path_present(root)
+    unsafe_record_path = unsafe_record_path_present(root)
     required_gaps = [
         *(["lane_resolution_decision_record_conflict"] if conflicts else []),
         *(["lane_resolution_manifest_receipt_mismatch"] if integrity_ids else []),
@@ -184,21 +171,10 @@ def _lane_resolution_inventory(
     }
 
 
-def lane_resolution_inventory(
-    *, root: Path, readers: LaneResolutionInventoryReaders | None = None
-) -> dict[str, object]:
+def lane_resolution_inventory(*, root: Path) -> dict[str, object]:
     """Return a read-only reconciliation view over current resolution records."""
-    if readers is not None:
-        return _lane_resolution_inventory(root=root, readers=readers)
     try:
-        return _lane_resolution_inventory(
-            root=root,
-            readers=LaneResolutionInventoryReaders(
-                current_record_root=current_record_root,
-                unsafe_package_path_present=unsafe_package_path_present,
-                unsafe_record_path_present=unsafe_record_path_present,
-            ),
-        )
+        return _lane_resolution_inventory(root=root)
     except ValueError as error:
         gap = str(error).strip()
         if gap != "lane_resolution_accepted_control_root_unavailable":

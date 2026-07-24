@@ -4,16 +4,15 @@ import importlib
 import importlib.util
 import json
 import threading
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 import pytest
 
 import ethos.adapters.mutation.resolution.records.core as record_store
+import ethos.adapters.mutation.resolution.records.io.core as record_io
 import ethos.adapters.mutation.resolution.records.reservations as reservation_store
+from ethos.adapters.mutation.resolution.records.core import canonical_current_record_bytes
 from ethos_core.contracts.coordination import HolderRef
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 _DECISION_ID = "lane-decision:00000000-0000-4000-8000-000000000201"
 
@@ -120,6 +119,26 @@ def _write_completion_receipt(
     )
     destination.write_text(json.dumps(payload), encoding="utf-8")
     return destination
+
+
+def _replay_or_read_reservation(
+    operation: str,
+    *,
+    root: Path,
+    record_root: Path,
+    reservation: dict[str, object],
+    destination: Path,
+) -> object:
+    if operation == "replay":
+        return reservation_store.reserve_ownerless_closeout_target(
+            root=root,
+            reservation=reservation,
+            artifact_root=record_root,
+        )
+    return reservation_store.read_ownerless_closeout_reservation(
+        record_root=record_root,
+        path=destination,
+    )
 
 
 @pytest.mark.parametrize(
@@ -235,11 +254,91 @@ def test_ownerless_reservation_reader_rejects_unsafe_path_and_invalid_json(
         )
 
 
-@pytest.mark.parametrize("checks", [(True, False), (True, True, False)])
+@pytest.mark.parametrize("operation", ["replay", "read"])
+def test_ownerless_reservation_rejects_noncanonical_raw_bytes(
+    tmp_path: Path,
+    operation: str,
+) -> None:
+    record_root = tmp_path / "records"
+    reservation = _reservation()
+    destination = reservation_store.ownerless_closeout_reservation_path(
+        tmp_path,
+        str(reservation["target_digest"]),
+        artifact_root=record_root,
+    )
+    destination.parent.mkdir(parents=True)
+    destination.write_text(json.dumps(reservation) + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="lane_resolution_ownerless_reservation_invalid"):
+        _replay_or_read_reservation(
+            operation,
+            root=tmp_path,
+            record_root=record_root,
+            reservation=reservation,
+            destination=destination,
+        )
+
+
+def test_ownerless_reservation_reader_rejects_oversize_raw_bytes(tmp_path: Path) -> None:
+    record_root = tmp_path / "records"
+    reservation = _reservation()
+    destination = reservation_store.ownerless_closeout_reservation_path(
+        tmp_path,
+        str(reservation["target_digest"]),
+        artifact_root=record_root,
+    )
+    destination.parent.mkdir(parents=True)
+    destination.write_bytes(canonical_current_record_bytes(reservation) + b" " * (17 * 1024 * 1024))
+
+    with pytest.raises(ValueError, match="lane_resolution_ownerless_reservation_invalid"):
+        reservation_store.read_ownerless_closeout_reservation(
+            record_root=record_root,
+            path=destination,
+        )
+
+
+def test_ownerless_reservation_reader_does_not_follow_a_rebound_category(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    record_root = tmp_path / "records"
+    reservation = _reservation()
+    destination = reservation_store.ownerless_closeout_reservation_path(
+        tmp_path,
+        str(reservation["target_digest"]),
+        artifact_root=record_root,
+    )
+    destination.parent.mkdir(parents=True)
+    destination.write_bytes(canonical_current_record_bytes(reservation))
+    replacement = dict(reservation, executor_ref="agent:codex:thread:replacement")
+    outside = tmp_path / "outside-reservations"
+    outside.mkdir()
+    (outside / destination.name).write_bytes(canonical_current_record_bytes(replacement))
+    held = record_root / "reservations-held"
+    original_read_text = Path.read_text
+    rebound = False
+
+    def rebind_before_read(path: Path, *args: object, **kwargs: object) -> str:
+        nonlocal rebound
+        if path == destination and not rebound:
+            destination.parent.rename(held)
+            destination.parent.symlink_to(outside, target_is_directory=True)
+            rebound = True
+        return original_read_text(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", rebind_before_read)
+
+    observed = reservation_store.read_ownerless_closeout_reservation(
+        record_root=record_root,
+        path=destination,
+    )
+
+    assert observed == reservation
+
+
 def test_ownerless_transition_preserves_record_when_replace_path_becomes_unsafe(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
-    checks: tuple[bool, ...],
 ) -> None:
     record_root = tmp_path / "records"
     reservation = _reservation()
@@ -248,13 +347,31 @@ def test_ownerless_transition_preserves_record_when_replace_path_becomes_unsafe(
         reservation=reservation,
         artifact_root=record_root,
     )
-    safety = iter(checks)
+    category = path.parent
+    held = record_root / "reservations-held"
+    outside = tmp_path / "outside-reservations"
+    outside.mkdir()
+    original_open = record_io.os.open
+    rebound = False
 
-    def safe(*_args: object) -> bool:
-        return next(safety)
+    def rebind_before_category_open(
+        opened: object,
+        flags: int,
+        mode: int = 0o777,
+        *,
+        dir_fd: int | None = None,
+    ) -> int:
+        nonlocal rebound
+        category_open = (dir_fd is None and Path(opened) == category) or (
+            dir_fd is not None and opened == category.name
+        )
+        if category_open and not rebound:
+            category.rename(held)
+            category.symlink_to(outside, target_is_directory=True)
+            rebound = True
+        return original_open(opened, flags, mode, dir_fd=dir_fd)
 
-    monkeypatch.setattr(reservation_store, "record_destination_safe", safe)
-    monkeypatch.setattr(record_store, "record_destination_safe", safe)
+    monkeypatch.setattr(record_io.os, "open", rebind_before_category_open)
 
     with pytest.raises(OSError, match="lane_resolution_record_path_unsafe"):
         reservation_store.transition_ownerless_closeout_reservation(
@@ -265,7 +382,8 @@ def test_ownerless_transition_preserves_record_when_replace_path_becomes_unsafe(
             artifact_root=record_root,
         )
 
-    assert json.loads(path.read_text(encoding="utf-8")) == reservation
+    assert json.loads((held / path.name).read_text(encoding="utf-8")) == reservation
+    assert not (outside / path.name).exists()
 
 
 def test_ownerless_transition_serializes_exact_compare_and_replace(
@@ -287,12 +405,20 @@ def test_ownerless_transition_serializes_exact_compare_and_replace(
         destination: Path,
         payload: dict[str, object],
         *,
+        expected: dict[str, object],
         record_root: Path,
+        locked_descriptor: int | None = None,
     ) -> None:
         if threading.current_thread().name == "first-transition":
             first_at_replace.set()
             assert release_first.wait(timeout=2)
-        original_replace(destination, payload, record_root=record_root)
+        original_replace(
+            destination,
+            payload,
+            expected=expected,
+            record_root=record_root,
+            locked_descriptor=locked_descriptor,
+        )
 
     monkeypatch.setattr(reservation_store, "replace_json_atomic", pause_first_replace)
     completed: list[str] = []
@@ -355,12 +481,20 @@ def test_ownerless_no_effect_release_cannot_delete_effect_started_reservation(
         destination: Path,
         payload: dict[str, object],
         *,
+        expected: dict[str, object],
         record_root: Path,
+        locked_descriptor: int | None = None,
     ) -> None:
         if threading.current_thread().name == "effect-transition":
             effect_at_replace.set()
             assert allow_effect.wait(timeout=2)
-        original_replace(destination, payload, record_root=record_root)
+        original_replace(
+            destination,
+            payload,
+            expected=expected,
+            record_root=record_root,
+            locked_descriptor=locked_descriptor,
+        )
 
     monkeypatch.setattr(reservation_store, "replace_json_atomic", pause_effect_replace)
     completed: list[str] = []
@@ -442,23 +576,12 @@ def test_ownerless_transition_cas_rejects_immutable_mismatch_without_changing_by
 
 def test_ownerless_release_rejects_unsafe_or_unreadable_receipt(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     record_root, reservation, _path, _binding = _partial_reservation(tmp_path)
-    safety = iter((True, False))
-    monkeypatch.setattr(
-        reservation_store,
-        "record_destination_safe",
-        lambda *_args: next(safety),
-    )
-    with pytest.raises(OSError, match="lane_resolution_record_path_unsafe"):
-        reservation_store.release_ownerless_closeout_reservation(
-            root=tmp_path,
-            expected=reservation,
-            artifact_root=record_root,
-        )
+    outside = tmp_path / "outside-receipts"
+    outside.mkdir()
+    (record_root / "receipts").symlink_to(outside, target_is_directory=True)
 
-    monkeypatch.undo()
     with pytest.raises(ValueError, match="lane_resolution_ownerless_reservation_release_invalid"):
         reservation_store.release_ownerless_closeout_reservation(
             root=tmp_path,
@@ -469,9 +592,8 @@ def test_ownerless_release_rejects_unsafe_or_unreadable_receipt(
 
 def test_ownerless_release_rejects_mismatched_receipt_and_unsafe_reservation(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    record_root, reservation, _path, binding = _partial_reservation(tmp_path)
+    record_root, reservation, reservation_path, binding = _partial_reservation(tmp_path)
     destination = _write_completion_receipt(
         tmp_path,
         record_root,
@@ -488,19 +610,85 @@ def test_ownerless_release_rejects_mismatched_receipt_and_unsafe_reservation(
 
     destination.unlink()
     _write_completion_receipt(tmp_path, record_root, reservation, binding)
-    safety = iter((True, True, False))
-
-    def safe(*_args: object) -> bool:
-        return next(safety)
-
-    monkeypatch.setattr(reservation_store, "record_destination_safe", safe)
-    monkeypatch.setattr(record_store, "record_destination_safe", safe)
+    category = reservation_path.parent
+    held = record_root / "reservations-held"
+    outside = tmp_path / "outside-reservations"
+    outside.mkdir()
+    category.rename(held)
+    category.symlink_to(outside, target_is_directory=True)
     with pytest.raises(OSError, match="lane_resolution_record_path_unsafe"):
         reservation_store.release_ownerless_closeout_reservation(
             root=tmp_path,
             expected=reservation,
             artifact_root=record_root,
         )
+    assert (held / reservation_path.name).is_file()
+
+
+def test_ownerless_release_reads_the_completion_receipt_from_a_pinned_category(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    record_root, reservation, reservation_path, binding = _partial_reservation(tmp_path)
+    destination = _write_completion_receipt(
+        tmp_path,
+        record_root,
+        reservation,
+        binding,
+        valid=False,
+    )
+    outside_root = tmp_path / "outside-records"
+    outside_destination = _write_completion_receipt(
+        tmp_path,
+        outside_root,
+        reservation,
+        binding,
+    )
+    held = record_root / "receipts-held"
+    original_read_text = Path.read_text
+    rebound = False
+
+    def rebind_before_read(path: Path, *args: object, **kwargs: object) -> str:
+        nonlocal rebound
+        if path == destination and not rebound:
+            destination.parent.rename(held)
+            destination.parent.symlink_to(outside_destination.parent, target_is_directory=True)
+            rebound = True
+        return original_read_text(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", rebind_before_read)
+
+    with pytest.raises(ValueError, match="lane_resolution_ownerless_reservation_release_invalid"):
+        reservation_store.release_ownerless_closeout_reservation(
+            root=tmp_path,
+            expected=reservation,
+            artifact_root=record_root,
+        )
+
+    assert reservation_path.is_file()
+
+
+def test_ownerless_release_rejects_noncanonical_completion_receipt_bytes(
+    tmp_path: Path,
+) -> None:
+    record_root, reservation, reservation_path, binding = _partial_reservation(tmp_path)
+    destination = _write_completion_receipt(
+        tmp_path,
+        record_root,
+        reservation,
+        binding,
+    )
+    payload = json.loads(destination.read_text(encoding="utf-8"))
+    destination.write_text(json.dumps(payload) + "\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="lane_resolution_ownerless_reservation_release_invalid"):
+        reservation_store.release_ownerless_closeout_reservation(
+            root=tmp_path,
+            expected=reservation,
+            artifact_root=record_root,
+        )
+
+    assert reservation_path.is_file()
 
 
 @pytest.mark.parametrize("case", ["five-field", "unversioned"])

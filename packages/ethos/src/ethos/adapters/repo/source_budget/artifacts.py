@@ -141,6 +141,23 @@ def _temporary(parent: int, final_name: str) -> tuple[int, str]:
     raise FileExistsError(_TEMPORARY_EXHAUSTED_MESSAGE)
 
 
+def _require_current_parent(
+    root: Path,
+    parts: tuple[str, ...],
+    parent: int,
+    name: str,
+    *,
+    published: bool,
+) -> None:
+    if _parent_is_current(root, parts, parent):
+        return
+    if published:
+        with suppress(FileNotFoundError):
+            os.unlink(name, dir_fd=parent)
+        os.fsync(parent)
+    raise OSError(_DIRECTORY_CHANGED_MESSAGE)
+
+
 def write_replay_artifact(
     root: Path,
     artifact_root: str,
@@ -175,13 +192,9 @@ def write_replay_artifact(
         finally:
             os.unlink(temporary, dir_fd=parent)
             temporary = ""
-        if not _parent_is_current(root, parents, parent):
-            if published:
-                with suppress(FileNotFoundError):
-                    os.unlink(name, dir_fd=parent)
-                os.fsync(parent)
-            raise OSError(_DIRECTORY_CHANGED_MESSAGE)
+        _require_current_parent(root, parents, parent, name, published=published)
         os.fsync(parent)
+        _require_current_parent(root, parents, parent, name, published=published)
         return output
     finally:
         if temporary:

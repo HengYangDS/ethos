@@ -8,186 +8,956 @@ relations:
 
 # Native Lane Resolution Authority Implementation Plan
 
-Status: active.
+Status: active; successor carrier established, production replay not yet accepted.
 
 Purpose: execute the approved native lane-resolution authority cut through
-test-first implementation, proof, archive, land, closeout, and bounded
-housekeeping.
+refresh-first semantic replay, test-first implementation, independent review,
+proof, archive, land, accepted closeout, and bounded housekeeping.
 
 See also: [Design](native-lane-resolution-authority-design-20260724.md),
 [Product Design Contract](../governance/product-design-contract.md), and
 [Command Plane](../reference/command-plane.md).
 
-> **For agentic workers:** execute every task test-first, verify the intended RED
-> before production edits, and review each independently testable slice before
-> continuing.
+> **For agentic workers:** REQUIRED SUB-SKILL: use
+> `superpowers:subagent-driven-development` or `superpowers:executing-plans` task
+> by task. Every production slice starts with an observed RED test and ends with
+> a signed commit plus an independent Important/Critical review gate.
 
-**Goal:** Replace split ownerless-retirement authority with a self-contained,
-provider-neutral ETHOS implementation and close the complete governance,
-evidence, landing, and housekeeping lifecycle.
+**Goal:** Make ETHOS the sole owner of Work Lane observation, admission, records,
+effect, retry, recovery, and cleanup; remove WCP from current tracked product
+truth without rewriting history or local predecessor records.
 
-**Architecture:** Perform a single non-destructive authority cut to a new current
-record root. Add native admission over existing repository/Git/state facts, then
-reuse the proven fence, reservation, recovery, CAS, postcondition, and cleanup
-mechanisms. Historical roots remain opaque and immutable.
+**Architecture:** Continue from a successor Work Lane based on current
+`candidate/dev`. Replay old-lane work by semantic slice, never by bulk production
+cherry-pick. Use exact native observation and an immutable fact snapshot before
+reusing the existing fence, reservation, no-force removal, exact ref CAS,
+postcondition, receipt, and cleanup mechanisms.
 
-**Tech stack:** Python 3.14, Pydantic contracts, JSON Schema 2020-12, SQLite,
-Git plumbing, pytest, Ruff, ty, OpenSpec 1.6, ETHOS lifecycle commands.
+**Tech stack:** Python 3.14, Pydantic strict models, JSON Schema 2020-12, SQLite,
+fixed-literal Git plumbing, descriptor-relative POSIX file APIs, stdlib
+`tarfile`, pytest, Ruff, ty, OpenSpec 1.6, and ETHOS lifecycle commands.
 
 ## Global constraints
 
-- All tracked writes stay in `work/20260724-native-lane-resolution-authority`
-  after exact `ethos lane prewrite` admission.
-- Every `__init__.py` contains only a docstring.
-- Import every symbol from its defining module; no facade, barrel, alias,
-  `__getattr__`, compatibility layer, or single-implementation Protocol.
-- Current readers and writers use only
-  `<accepted>-records/recovery/lane-resolution-v2/`.
-- Predecessor records remain byte-preserved in place and never authorize current
-  effect, conflict resolution, recovery, or clear.
-- No production code may precede its focused failing regression test.
-- No real foreign lane is retired during effect acceptance.
-- Remote publication is not authorized.
+- Work only in
+  `/Users/yheng/projects/ethos-worktrees/20260724-native-lane-resolution-authority-successor`
+  unless native refresh fails again and a newly named successor is created from
+  the current candidate.
+- Export
+  `ETHOS_ACTOR=agent:codex:thread:019f8f90-7bcb-7a11-8fd2-a953c8bbbc06`.
+- Run every ETHOS command through `tools/ci/scripts/run-ethos-lane.sh`.
+- Immediately before every tracked write, run fresh `status --json` and exact
+  `lane prewrite` with `--editor-root` and `--require-editor-root`.
+- Every commit is signed (`git commit -S`).
+- Do not cherry-pick any production commit from the predecessor lane. `git show`
+  may be used as a read-only reference after current candidate behavior is
+  established by tests.
+- Specifically, do not cherry-pick `21142430c`. Candidate commit `8fcea306d`
+  owns recovery package v2 and staged-index preservation; `index.patch` and
+  `index_patch_sha256` must survive every preservation change.
+- Every `__init__.py` contains only a docstring. Import from defining modules;
+  no facade, barrel, alias shim, `__getattr__`, compatibility fallback,
+  single-implementation Protocol, runtime service bag, or callback dictionary.
+- No tracked baseline expansion in Ruff, module-layout, code-size, import, or
+  compatibility policy.
+- No real foreign lane is mutated or retired during implementation acceptance.
+- Do not rewrite Git history, predecessor local records, SQLite history,
+  virtual environments, or IDE/session JSONL/database state.
+- Remote push and hosted mutation are not authorized.
 
-## Task 1: Carrier and baseline
+Before each task write, export the actor, run fresh status, then invoke
+`tools/ci/scripts/run-ethos-lane.sh lane prewrite` with every exact create,
+modify, and delete path in that task's **Files** list plus
+`--editor-root "$(git rev-parse --show-toplevel)" --require-editor-root --json`.
+Do not shorten that request with a directory wildcard. Repeat status and
+prewrite after every commit because the lease binding HEAD has changed.
 
-**Files:** the active OpenSpec Change, its scope, this design and plan, the new
-Claim and Chronicle, and the predecessor Claim.
+Stop the task if status is not a clean owned Work Lane, prewrite is not
+`state=admitted`, the candidate is not an ancestor of `HEAD`, or an exact path is
+outside the active OpenSpec scope.
 
-1. Run strict lifecycle before implementation and retain the exact gaps.
-2. Validate that current inventory has zero inflight/partial records, the fence
-   table is empty, and no reservation sidecar exists.
-3. Supersede the predecessor Claim and bind the successor Claim to existing
-   carrier and design paths only.
-4. Run `openspec validate native-lane-resolution-authority --strict --json`,
-   `tools/ci/scripts/run-ethos-lane.sh openspec --lifecycle --json`, and
-   `tools/ci/scripts/run-ethos-lane.sh quality claims --json`.
+## Task 1: Refresh-first successor baseline and rollback carrier
 
-## Task 2: Record roots and inventory
+**OpenSpec alignment:** section 1.
 
-**Tests:**
+**Read-only inputs:**
 
-- `tests/unit/lanes/test_lane_resolution_artifacts.py`
-- `tests/unit/coverage/test_lane_resolution_record_edges.py`
-- `tests/unit/cli/test_contracts_lane_resolution.py`
+- `candidate/dev`
+- `work/20260724-native-lane-resolution-authority`
+- `work/20260724-native-lane-resolution-authority-successor`
+- active Change `native-lane-resolution-authority`
 
-**Production:**
+**Produces:** a current successor baseline, a clean predecessor rollback carrier,
+and explicit permission for semantic replay only.
 
-- create `resolution/records/roots.py`;
-- modify current receipt, release, recovery, cleanup, and inventory readers;
-- remove the ambiguous multi-root helper.
+1. Verify current identity and candidate ancestry:
 
-Write and observe failing tests for current/history isolation, decision-only
-inventory, and invalid current payloads. Implement `current_record_root()` and
-`historical_record_roots()`, change the identifier union to include decisions,
-and expose `decision_count`, `pending_decision_count`,
-`invalid_current_record_count`, and `decision_pending`. Run the three focused
-files until green, then run module-layout and no-compat gates.
+   ```text
+   tools/ci/scripts/run-ethos-lane.sh status --json
+   tools/ci/scripts/run-ethos-lane.sh lane status --json
+   git merge-base --is-ancestor candidate/dev HEAD
+   git status --short --branch
+   ```
 
-## Task 3: Typed receipt, reservation, and clear records
+   Expected: owned successor lane, clean worktree, and exit 0 from the ancestry
+   check.
 
-**Tests:**
+2. If candidate has advanced, run native refresh before any implementation:
 
-- `tests/unit/kernel/test_lane_resolution_contract.py`
-- `tests/unit/lanes/retirement/test_ownerless_closeout_receipt_edges.py`
-- `tests/unit/lanes/retirement/test_ownerless_closeout_recovery.py`
-- `tests/unit/kernel/test_ownerless_state_final_edges.py`
+   ```text
+   tools/ci/scripts/run-ethos-lane.sh lane refresh-base \
+     --apply --authorize --expect-head "$(git rev-parse HEAD)" --json
+   ```
 
-**Production:**
+   Expected: applied refresh and clean worktree. If the command reports a real
+   conflict, confirm it aborted and restored the old HEAD, then stop this lane.
 
-- create `ethos_core/contracts/resolution/closeout.py`;
-- create `resolution/records/reservations.py`;
-- modify receipt/clear schemas, `records/core.py`, state fencing, effect, retry,
-  recovery, and cleanup.
+3. After a refresh conflict, create the next successor from the configured
+   candidate root instead of resolving the stale lane in place:
 
-First make tests fail on the old version and provider-prefixed fields. Add the
-closed version-3 receipt binding, version-2 reservation model, version-1 clear
-receipt, and exact 40/64 Git OID constraints. Delegate reservation persistence
-to the typed model and remove duplicate handwritten shape validation. Preserve
-phase and recovery-state matrices. Run focused tests, schema validation, types,
-code-size, module-layout, and no-compat.
+   ```text
+   cd /Users/yheng/projects/ethos-candidate-dev
+   tools/ci/scripts/run-ethos-lane.sh lane start \
+     20260724-native-lane-resolution-authority-successor-2 \
+     --holder-ref "$ETHOS_ACTOR" \
+     --claim-id native-lane-resolution-authority-20260724 \
+     --apply --json
+   ```
 
-## Task 4: Native admission and effect reconnection
+4. Keep the predecessor lane clean and registered. Do not retire it until Task 13
+   proves successor absorption.
 
-**Tests:**
+5. Validate the planning carrier before production work:
 
-- `tests/unit/lanes/retirement/test_ownerless_closeout_admission.py`
-- `tests/unit/lanes/retirement/test_ownerless_closeout_effect.py`
-- `tests/unit/lanes/retirement/test_ownerless_closeout_fence.py`
-- `tests/unit/lanes/retirement/test_ownerless_no_effect_retry.py`
-- `tests/unit/lanes/retirement/test_ownerless_cleanup_recovery.py`
+   ```text
+   openspec status --change native-lane-resolution-authority --json
+   openspec validate native-lane-resolution-authority --strict --json
+   tools/ci/scripts/run-ethos-lane.sh openspec \
+     --change native-lane-resolution-authority --lifecycle --json
+   ```
 
-**Production:**
+**Stop conditions:** failed ancestry, refresh conflict without a clean abort,
+dirty predecessor, missing Change, or strict OpenSpec failure.
 
-- create `resolution/closeout/admission.py`;
-- modify `_effects.py`, effect, retry, recovery, cleanup, observation, and Git
-  ancestry helpers;
-- delete the retired adapter package and its response-edge test file.
+## Task 2: Replay provider-neutral contracts and record roots
 
-Add failing cases for decision and Chronicle drift, custom Work Lane role,
-registration/path/HEAD/incarnation drift, dirty state, holder/lease/Claim,
-accepted ancestry, competing fence, and post-fence drift. Implement native
-preflight and a complete post-fence re-observation, then feed the resulting
-provider-neutral binding into the existing reservation and CAS path. Run the
-focused state-machine, crash/retry, Git CAS, and three-state suites until green.
+**OpenSpec alignment:** section 2.
 
-## Task 5: Configured role and generic coupling
+**Files:**
 
-**Tests:** native-admission custom-prefix tests plus governance coupling tests
-under `tests/unit/governance` and `tests/architecture`.
+- Create: `packages/ethos-core/src/ethos_core/contracts/resolution/closeout.py`
+- Modify: `packages/ethos-core/src/ethos_core/contracts/resolution/lane.py`
+- Modify: `system/schemas/kernel/lane-resolution-receipt.schema.json`
+- Modify: `system/schemas/kernel/lane-resolution-clear-receipt.schema.json`
+- Create: `packages/ethos/src/ethos/adapters/mutation/resolution/records/roots.py`
+- Test: `tests/unit/kernel/test_lane_resolution_contract.py`
+- Test: `tests/unit/cli/test_contracts_lane_resolution.py`
+- Test: `tests/unit/lanes/test_lane_resolution_artifacts.py`
 
-Add a failing custom-prefix admission fixture before implementation and consume
-the existing `work_branch_prefix` role policy without renaming keys or changing
-lane-start behavior. Extend coupling audit to
-discover mandatory lifecycle command execution and fail when the binding is not
-declared. Declare only Git and ETHOS-native state/schema bindings for Work Lane
-lifecycle. Confirm optional unrelated adapters remain valid.
+**Interfaces:**
 
-## Task 6: Current truth and zero residue
-
-Update the canonical requirement, command reference, predecessor plans, archived
-carrier, predecessor Claim/Chronicle, schemas, source comments, and tests using
-neutral repository-role vocabulary. Keep permanent prevention provider-neutral:
-contract fields cannot promote adapter-specific authority and mandatory
-lifecycle executables must be declared by the coupling registry. Use a one-time
-closeout scan to prove the retired token is absent from the current tracked tree;
-do not add that token to any tracked blacklist, constant, or test. Recompute
-Chronicle digests and validate Claims.
-
-## Task 7: Full proof and archive
-
-Run, at minimum:
-
-```bash
-tools/ci/scripts/run-python-lint.sh
-tools/ci/scripts/run-python-tests.sh
-tools/ci/scripts/run-config-lint.sh
-tools/ci/scripts/run-shell-lint.sh
-tools/ci/scripts/run-module-layout.sh
-tools/ci/scripts/run-no-compat.sh
-tools/ci/scripts/run-import-linter.sh
-tools/ci/scripts/run-ethos-lane.sh quality types --json
-tools/ci/scripts/run-ethos-lane.sh quality schemas --json
-tools/ci/scripts/run-ethos-lane.sh quality code-size --json
-tools/ci/scripts/run-ethos-lane.sh quality coupling-audit --json
-tools/ci/scripts/run-ethos-lane.sh quality claims --json
-tools/ci/scripts/run-ethos-lane.sh openspec --lifecycle --json
+```text
+OwnerlessCloseoutBinding(BaseModel)
+LaneResolutionReceipt(BaseModel)
+OwnerlessCloseoutReservation(BaseModel)
+LaneResolutionClearReceipt(BaseModel)
+current_record_root(root: Path) -> Path
+historical_record_roots(root: Path) -> tuple[Path, ...]
 ```
 
-Execute generic shadow parity in the admitted lane, commit the result, then run
-`ethos prove --execute --expect-head "$(git rev-parse HEAD)" --json`. Complete
-the task checklist and Chronicle only after fresh evidence exists. Officially
-archive the Change, move the Claim carrier to the dated archive, commit, and
-rerun exact-HEAD proof.
+1. Add failing tests for closed version-3 receipts, version-2 reservations,
+   version-1 clear receipts, exact 40/64 lowercase Git OIDs, provider-prefixed
+   field rejection, newline rejection, and non-hex rejection.
+2. Add failing root tests proving current readers select only
+   `recovery/lane-resolution-v2/` and explicit history lookup never feeds current
+   decide/apply/recovery/clear behavior.
+3. Run RED:
 
-## Task 8: Land, closeout, and housekeeping
+   ```text
+   uv run --package ethos python -m pytest -q \
+     tests/unit/kernel/test_lane_resolution_contract.py \
+     tests/unit/cli/test_contracts_lane_resolution.py \
+     tests/unit/lanes/test_lane_resolution_artifacts.py
+   ```
 
-Land the exact proven HEAD to candidate, then perform accepted-root closeout as
-a separate audited transition. Run `ethos publish --json` only as a local
-readiness check. Retire the landed successor and the two task-owned predecessor
-mistake lanes using native exact closeout; if ancestry/absorption is unprovable,
-create a Chronicle-bound preserve-retire decision instead of inventing
-supersession evidence. Remove only task scratch, caches, bytecode, and abandoned
-temporary proof artifacts. Finish with clean accepted/candidate roots, no live
-task-owned lease, no task-owned registered worktree, and unchanged predecessor
-local records.
+   Expected: failures identify missing strict closeout contracts and root APIs.
+
+4. Implement the minimal closed models and roots. Move ownerless binding and
+   receipt definitions out of `lane.py`; do not re-export them from either
+   package root.
+5. Run GREEN with the command above, then:
+
+   ```text
+   tools/ci/scripts/run-ethos-lane.sh quality schemas --json
+   tools/ci/scripts/run-ethos-lane.sh quality types --json
+   tools/ci/scripts/run-module-layout.sh
+   tools/ci/scripts/run-no-compat.sh
+   ```
+
+6. Commit:
+
+   ```text
+   git commit -S -m 'refactor(resolution): define native closeout contracts'
+   ```
+
+**Review boundary:** contract/schema/root shape only; no inventory, reservation
+persistence, effect, or WCP deletion in this commit.
+
+## Task 3: Replay strict current records, inventory, clear, and reservations
+
+**OpenSpec alignment:** section 3.
+
+**Files:**
+
+- Modify: `packages/ethos/src/ethos/adapters/mutation/resolution/records/core.py`
+- Modify: `packages/ethos/src/ethos/adapters/mutation/resolution/records/inventory.py`
+- Delete: `packages/ethos/src/ethos/adapters/mutation/resolution/records/release.py`
+- Create: `packages/ethos/src/ethos/adapters/mutation/resolution/records/current/core.py`
+- Create: `packages/ethos/src/ethos/adapters/mutation/resolution/records/current/snapshot.py`
+- Create: `packages/ethos/src/ethos/adapters/mutation/resolution/records/current/validation/core.py`
+- Create declaration-only package roots under `records/current/` and
+  `records/current/validation/`
+- Create: `packages/ethos/src/ethos/adapters/mutation/resolution/records/clear/core.py`
+- Create: `packages/ethos/src/ethos/adapters/mutation/resolution/records/clear/quarantine.py`
+- Create declaration-only `records/clear/__init__.py`
+- Create: `packages/ethos/src/ethos/adapters/mutation/resolution/records/reservations.py`
+- Modify: `packages/ethos/src/ethos/adapters/mutation/resolution/receipts.py`
+- Test: `tests/unit/coverage/test_lane_resolution_record_edges.py`
+- Test: `tests/unit/lanes/test_lane_resolution_clear_quarantine.py`
+- Test: `tests/unit/lanes/test_lane_resolution_current_enumeration.py`
+- Test: `tests/unit/lanes/retirement/test_ownerless_closeout_records.py`
+- Test: `tests/unit/lanes/retirement/test_ownerless_closeout_receipt_edges.py`
+
+**Interfaces:**
+
+```text
+validate_ownerless_closeout_reservation(payload: object) -> dict[str, object]
+ownerless_closeout_reservation_path(
+  root: Path, target: str, *, artifact_root: Path | None = None
+) -> Path
+reserve_ownerless_closeout_target(
+  *, root: Path, reservation: dict[str, object],
+  artifact_root: Path | None = None
+) -> Path
+transition_ownerless_closeout_reservation(
+  *, root: Path, expected: dict[str, object], phase: str,
+  recovery_state: str, postcondition_digest: str = "",
+  artifact_root: Path | None = None
+) -> dict[str, object]
+read_ownerless_closeout_reservation(
+  *, record_root: Path, path: Path
+) -> dict[str, object]
+release_ownerless_closeout_reservation(
+  *, root: Path, expected: dict[str, object],
+  artifact_root: Path | None = None
+) -> None
+ownerless_closeout_reservation_admission(
+  *, root: Path, record_root: Path, decision_path: Path,
+  decision_sha256: str, expected: OwnerlessCloseoutReservation
+) -> OwnerlessCloseoutReservation | None
+lane_resolution_inventory(*, root: Path) -> dict[str, object]
+```
+
+1. Add failing tests for the identifier union of decisions, manifests, receipts,
+   clears, and reservations; `decision_pending`; blocking invalid current bytes;
+   traversal-spelled paths; symlink swaps; canonical bytes; immutable reservation
+   CAS; competing reservations; and closed provider-neutral reservation shape.
+2. Run RED:
+
+   ```text
+   uv run --package ethos python -m pytest -q \
+     tests/unit/coverage/test_lane_resolution_record_edges.py \
+     tests/unit/lanes/test_lane_resolution_clear_quarantine.py \
+     tests/unit/lanes/test_lane_resolution_current_enumeration.py \
+     tests/unit/lanes/retirement/test_ownerless_closeout_records.py \
+     tests/unit/lanes/retirement/test_ownerless_closeout_receipt_edges.py
+   ```
+
+3. Implement current-record snapshots, validation, clear/quarantine, and typed
+   reservation persistence. Use descriptor-bound no-follow reads and writes;
+   handwritten validation may enforce storage atomicity but must delegate record
+   shape to `OwnerlessCloseoutReservation`.
+4. Run GREEN, schemas, types, code-size, module-layout, and no-compat.
+5. Commit record isolation and reservation persistence as two signed commits so
+   either review slice can be rejected independently:
+
+   ```text
+   git commit -S -m 'refactor(lanes): cut record authority to current root'
+   git commit -S -m 'refactor(resolution): own native reservation persistence'
+   ```
+
+**Stop conditions:** a historical root affects current inventory/effect, invalid
+current bytes are skipped, or reservation replacement is not exact CAS.
+
+## Task 4: Port descriptor-safe preservation without regressing package v2
+
+**OpenSpec alignment:** section 4.
+
+**Files:**
+
+- Create: `packages/ethos/src/ethos/adapters/mutation/resolution/preservation/core.py`
+- Create declaration-only:
+  `packages/ethos/src/ethos/adapters/mutation/resolution/preservation/__init__.py`
+- Modify: `packages/ethos/src/ethos/adapters/mutation/resolution/_effects.py`
+- Modify: `packages/ethos/src/ethos/adapters/mutation/resolution/receipts.py`
+- Modify: `tests/unit/lanes/test_lane_resolution.py`
+- Create: `tests/unit/lanes/resolution/test_preservation.py`
+
+**Interfaces:**
+
+```text
+write_git_preservation_payloads(
+    *, source: Path, bundle: Path, tracked_patch: Path,
+    index_patch: Path, lane_ref: str
+) -> None
+write_untracked_archive(*, source: Path, archive: Path, inventory: list[bytes]) -> None
+run_git_bytes(root: Path, *args: str) -> subprocess.CompletedProcess[bytes]
+```
+
+1. Treat candidate commit `8fcea306d` and its tests as current truth. Add RED
+   cases for raw non-UTF8 member names, parent symlink swap, regular-file swap,
+   large-file bounded-memory capture, unsupported members, Git byte failures,
+   staged plus unstaged recovery, and tampered `index.patch`.
+2. Run RED:
+
+   ```text
+   uv run --package ethos python -m pytest -q \
+     tests/unit/lanes/test_lane_resolution.py \
+     tests/unit/lanes/resolution/test_preservation.py
+   ```
+
+3. Port only the descriptor/no-follow/tarfile/bounded-spool behavior from the
+   predecessor. Keep fixed Git, package format v2, `tracked.patch`, `index.patch`,
+   `patch_sha256`, and `index_patch_sha256`. Do not restore the predecessor
+   three-file package shape and do not invoke external `tar`.
+4. Run GREEN and verify the specific staged-index contract:
+
+   ```text
+   uv run --package ethos python -m pytest -q \
+     tests/unit/lanes/test_lane_resolution.py::test_preserve_retire_keeps_exact_index_and_worktree_deltas \
+     tests/unit/lanes/resolution/test_preservation.py
+   tools/ci/scripts/run-python-lint.sh
+   tools/ci/scripts/run-module-layout.sh
+   ```
+
+5. Compare candidate truth before committing:
+
+   ```text
+   git diff candidate/dev -- \
+     packages/ethos/src/ethos/adapters/mutation/resolution/_effects.py \
+     packages/ethos/src/ethos/adapters/mutation/resolution/receipts.py \
+     tests/unit/lanes/test_lane_resolution.py
+   ```
+
+   Expected: descriptor hardening and external-`tar` removal are added; staged-
+   index v2 behavior is not deleted.
+6. Commit:
+
+   ```text
+   git commit -S -m 'refactor(resolution): preserve recovery packages natively'
+   ```
+
+**Stop conditions:** missing or altered `index.patch`, package version other than
+v2 for new packages, unbounded whole-file memory, external `tar`, text-mode Git
+patch capture, or whole-commit cherry-pick of `21142430c`.
+
+## Task 5: Correct the net-neutral module-rename gate
+
+**OpenSpec alignment:** section 5.1.
+
+**Required skill:** `ethos-quality-gate-governance`.
+
+**Files:**
+
+- Modify: `packages/ethos/src/ethos/repository/policy/layout/growth/core.py`
+- Modify: `tests/unit/policy/test_module_layout_growth_edges.py`
+
+1. Add three focused regressions:
+   - an existing directory with five modules renamed to another five modules is
+     allowed;
+   - five modules growing to six remains blocked;
+   - existing burst and new-directory burst results are unchanged.
+2. Run RED:
+
+   ```text
+   uv run --package ethos python -m pytest -q \
+     tests/unit/policy/test_module_layout_growth_edges.py
+   ```
+
+3. Change only the existing-directory growth condition so a flat-growth finding
+   requires `current_count > previous_count`. Do not alter limits, baselines,
+   burst rules, or new-directory rules.
+4. Run GREEN and the owner gate:
+
+   ```text
+   uv run --package ethos python -m pytest -q \
+     tests/unit/policy/test_module_layout_growth_edges.py
+   tools/ci/scripts/run-module-layout.sh
+   ```
+
+5. Commit:
+
+   ```text
+   git commit -S -m 'fix(layout): allow net-neutral module renames'
+   ```
+
+## Task 6: Build exact Git, Chronicle, and registration observation
+
+**OpenSpec alignment:** section 5.2.
+
+**Files:**
+
+- Create: `packages/ethos/src/ethos/adapters/mutation/resolution/observation.py`
+- Delete: `packages/ethos/src/ethos/adapters/mutation/resolution/_observation.py`
+- Modify direct imports in `packages/ethos/src/ethos/adapters/mutation/resolution/lane.py`
+  and `packages/ethos/src/ethos/adapters/mutation/resolution/_effects.py`
+- Create declaration-only:
+  `tests/unit/lanes/retirement/admission/__init__.py`
+- Create: `tests/unit/lanes/retirement/admission/test_git_observation.py`
+- Create: `tests/unit/lanes/retirement/admission/test_chronicle_observation.py`
+- Modify: `tests/unit/lanes/retirement/test_ownerless_closeout_admission.py`
+
+**Interfaces and immutable fields:**
+
+```text
+DescriptorIdentity(device, inode, mode, size, mtime_ns, ctime_ns)
+ExactFileSnapshot(raw, identity)
+GitWorktreeRegistrationToken(
+  worktree_identity, gitfile_identity, gitfile_sha256,
+  administration_identity, backlink_identity, backlink_sha256,
+  registered_path, administration_path
+)
+OwnerlessGitFacts(accepted_head, observation, registration_token)
+observe_ownerless_git(root: Path, *, branch: str, accepted_branch: str) -> OwnerlessGitFacts
+read_root_bound_regular_file(
+  root: Path, relative_path: str, *, maximum_bytes: int
+) -> ExactFileSnapshot
+git_object_bytes(root: Path, object_spec: str) -> bytes
+git_ancestry(root: Path, ancestor: str, descendant: str) -> str
+```
+
+1. Add RED cases for malformed `worktree list --porcelain -z`, duplicate
+   registration, target or accepted live-HEAD drift, Git stderr/non-zero, raw
+   non-UTF8 output, index/worktree/untracked dirt, `assume-unchanged`,
+   `skip-worktree`, same-path/same-ref/same-HEAD delete-recreate, root or component
+   symlinks, Chronicle directory swap, accepted-tree symlink/submodule/tree modes,
+   duplicate tree records, CRLF bytes, and non-UTF8 blob bytes.
+2. Assert every Git subprocess uses literal `git`, byte mode,
+   `GIT_OPTIONAL_LOCKS=0`, `shell=False`, and no executable override.
+3. Run RED:
+
+   ```text
+   uv run --package ethos python -m pytest -q \
+     tests/unit/lanes/retirement/admission/test_git_observation.py \
+     tests/unit/lanes/retirement/admission/test_chronicle_observation.py \
+     tests/unit/lanes/retirement/test_ownerless_closeout_admission.py
+   ```
+
+4. Implement the public observation module. Walk file components from pinned
+   descriptors with `O_NOFOLLOW`. Derive the serialized lane incarnation from
+   the descriptor token, not branch/head/path. Parse exactly one accepted
+   `ls-tree -z` record and admit only modes `100644` and `100755`.
+5. Run GREEN, module-layout, Ruff, types, and no-compat.
+6. Commit:
+
+   ```text
+   git commit -S -m 'refactor(resolution): observe ownerless targets exactly'
+   ```
+
+**Stop conditions:** any synthetic branch/head/path incarnation remains, Git may
+write optional locks, hidden index flags can bypass dirt checks, accepted mode is
+not regular, or exact bytes are normalized.
+
+## Task 7: Implement strict native admission and raw-state validation
+
+**OpenSpec alignment:** section 6.
+
+**Files:**
+
+- Create: `packages/ethos/src/ethos/adapters/mutation/resolution/closeout/admission.py`
+- Modify: `packages/ethos/src/ethos/adapters/store/state/closeout.py`
+- Modify: `packages/ethos/src/ethos/adapters/mutation/resolution/records/current/validation/core.py`
+- Modify: `packages/ethos/src/ethos/adapters/mutation/resolution/records/inventory.py`
+- Modify: `packages/ethos-core/src/ethos_core/contracts/branch/roles.py` only if a
+  pure strict text parser is required; preserve the existing tolerant reader for
+  non-admission call sites.
+- Test: `tests/unit/lanes/retirement/test_ownerless_closeout_admission.py`
+- Test: `tests/unit/lanes/retirement/test_ownerless_closeout_fence.py`
+- Test: `tests/unit/kernel/test_ownerless_state_final_edges.py`
+- Test: `tests/unit/coverage/test_ownerless_recovery_final_edges.py`
+- Test: `tests/unit/coverage/test_ownerless_cleanup_final_edges.py`
+
+**Public API:**
+
+```text
+OwnerlessCloseoutAdmissionError(gap: str, detail: str = "")
+OwnerlessCloseoutAdmission, frozen and slots-only, containing facts but no callables
+admit_ownerless_closeout(
+  *, root: Path, decision_path: Path,
+  decision: dict[str, Any], executor_ref: str
+) -> OwnerlessCloseoutAdmission
+reobserve_ownerless_closeout_under_fence(
+  *, admission: OwnerlessCloseoutAdmission,
+  fence: dict[str, object]
+) -> OwnerlessCloseoutAdmission
+observe_ownerless_closeout_state(
+  db_path: Path, *, subject: str,
+  observed_fence: tuple[str, dict[str, object] | None] | None = None
+) -> tuple[str, dict[str, object] | None]
+```
+
+1. Add RED cases for canonical decision bytes/digest, Chronicle bytes/mode/
+   disposition, strict present-policy TOML/table/field types, custom
+   `work_branch_prefix`, executor canonicalization, registration token drift,
+   accepted ancestry three-state results, raw lease type corruption, Claim,
+   holder, expired/current lease distinctions, damaged SQLite/fence/sidecars,
+   invalid current records, exact retry reservation, competing reservation, and
+   every post-fence exception path.
+2. Require absence-only policy defaults. A present malformed policy file must not
+   silently become the default policy.
+3. Validate raw lease row and payload types before `HolderRef` parsing and
+   `LaneLease.model_validate(..., strict=True)`; reject `bool` where integer is
+   expected and reject string coercion for booleans, epochs, path lists, and
+   digests.
+4. Run RED:
+
+   ```text
+   uv run --package ethos python -m pytest -q \
+     tests/unit/lanes/retirement/test_ownerless_closeout_admission.py \
+     tests/unit/lanes/retirement/test_ownerless_closeout_fence.py \
+     tests/unit/kernel/test_ownerless_state_final_edges.py \
+     tests/unit/coverage/test_ownerless_recovery_final_edges.py \
+     tests/unit/coverage/test_ownerless_cleanup_final_edges.py
+   ```
+
+5. Implement native admission with `OwnerlessCloseoutAdmission` as an immutable
+   fact snapshot. The fence-held function must probe the exact fence before and
+   from a `finally` boundary after complete re-observation, including unexpected
+   exceptions.
+6. Keep `closeout/admission.py` at or below 400 effective lines by locating Git
+   observation in `observation.py`, current-record validation in its defining
+   module, and raw-state validation in `store/state/closeout.py`.
+7. Run GREEN, Ruff, types, code-size, module-layout, schemas, and no-compat.
+8. Commit:
+
+   ```text
+   git commit -S -m 'feat(resolution): admit ownerless closeout natively'
+   ```
+
+**Stop conditions:** tolerant present-policy fallback, Pydantic coercion before
+raw validation, incomplete Chronicle mode/bytes check, missing after-fence probe,
+or mutable/callable admission state.
+
+## Task 8: Reconnect effect, retry, recovery, and cleanup; delete runtime bags
+
+**OpenSpec alignment:** section 7.
+
+**Files:**
+
+- Modify: `packages/ethos/src/ethos/adapters/mutation/resolution/closeout/effect.py`
+- Modify: `packages/ethos/src/ethos/adapters/mutation/resolution/closeout/retry.py`
+- Modify: `packages/ethos/src/ethos/adapters/mutation/resolution/closeout/recovery.py`
+- Modify: `packages/ethos/src/ethos/adapters/mutation/resolution/closeout/cleanup/core.py`
+- Modify: `packages/ethos/src/ethos/adapters/mutation/resolution/_effects.py`
+- Modify: `packages/ethos/src/ethos/adapters/mutation/resolution/lane.py`
+- Modify: `packages/ethos/src/ethos/adapters/mutation/resolution/receipts.py`
+- Modify: `packages/ethos/src/ethos/adapters/store/state/closeout.py`
+- Delete: `packages/ethos/src/ethos/adapters/mutation/resolution/closeout/wcp/`
+- Delete: `tests/unit/lanes/retirement/test_ownerless_closeout_wcp_edges.py`
+- Modify all ownerless effect/retry/recovery/cleanup tests under
+  `tests/unit/lanes/retirement/` and final-edge tests under `tests/unit/coverage/`
+
+**Required order:**
+
+```text
+completed-effect recovery precheck
+native admission
+reserved-no-effect retry reset
+acquire exact fence
+complete fence-held re-observation
+persist typed reservation
+no-force worktree removal
+accepted-ref verification
+exact target-ref delete CAS
+postconditions
+immutable receipt
+fence CAS release
+reservation removal
+```
+
+1. Add or update RED cases for same-head and descendant accepted-head retry,
+   divergence, target drift, decision/Chronicle drift, descendant classification
+   before competition, removal failure re-observation, crash after each durable
+   boundary, completed-effect recovery before target observation, receipt-present
+   effect-free cleanup, dangling paths, post-CAS exception, three-state ref/
+   registration/fence probes, and cleanup ordering.
+2. Run RED:
+
+   ```text
+   uv run --package ethos python -m pytest -q \
+     tests/unit/lanes/retirement/test_ownerless_closeout_effect.py \
+     tests/unit/lanes/retirement/test_ownerless_closeout_effect_final_edges.py \
+     tests/unit/lanes/retirement/test_ownerless_closeout_cas_final_edges.py \
+     tests/unit/lanes/retirement/test_ownerless_no_effect_retry.py \
+     tests/unit/lanes/retirement/test_ownerless_closeout_recovery.py \
+     tests/unit/lanes/retirement/test_ownerless_cleanup_recovery.py \
+     tests/unit/coverage/test_ownerless_recovery_final_edges.py \
+     tests/unit/coverage/test_ownerless_cleanup_final_edges.py
+   ```
+
+3. Connect admission directly. Remove `OwnerlessCloseoutRuntime`,
+   `ResolutionRuntime`, `_ownerless_runtime()`, `_resolution_runtime()`, provider
+   process execution, callback fields, and callable dictionaries.
+4. Replace the overloaded `fence_acquired` error flag with explicit
+   `OwnerlessCloseoutPhase` and reservation recovery state. Release a pre-effect
+   fence only when exact ownership and zero durable effect are proved; retain
+   reservation visibility at or after effect.
+5. Make completed-effect recovery validate decision and Chronicle before ordinary
+   worktree observation. Make zero-effect retry release the old exact fence and
+   reservation before fresh admission.
+6. Run GREEN, then the entire lane-resolution, state, crash, retry, and
+   three-state suite.
+7. Run direct-import and residue checks:
+
+   ```text
+   rg -n 'OwnerlessCloseoutRuntime|ResolutionRuntime|_ownerless_runtime|_resolution_runtime' \
+     packages tests
+   tools/ci/scripts/run-no-compat.sh
+   tools/ci/scripts/run-import-linter.sh
+   ```
+
+   Expected: `rg` has no production or test result.
+8. Commit:
+
+   ```text
+   git commit -S -m 'refactor(resolution): make ownerless effect native'
+   ```
+
+## Task 9: Add declaration-driven mandatory executable coupling audit
+
+**OpenSpec alignment:** section 8.
+
+**Files:**
+
+- Modify first: `openspec/changes/native-lane-resolution-authority/scope.toml` to
+  include the exact contract, audit, schema, and test paths below
+- Modify: `system/coupling.toml`
+- Modify: `packages/ethos-core/src/ethos_core/contracts/registry/declarations.py`
+- Create declaration-only:
+  `packages/ethos/src/ethos/repository/policy/coupling/execution/__init__.py`
+- Create: `packages/ethos/src/ethos/repository/policy/coupling/execution/audit.py`
+- Modify: `packages/ethos/src/ethos/repository/policy/coupling/core.py`
+- Modify: `system/schemas/kernel/coupling-audit.schema.json`
+- Create: `tests/unit/governance/test_coupling_executables.py`
+- Modify: `tests/unit/governance/validation/test_schemas.py`
+- Modify: `tests/architecture/test_product_boundaries.py`
+
+**Contract fields and interface:**
+
+```text
+CouplingBinding.mandatory_paths: tuple[str, ...]
+CouplingBinding.declared_executables: tuple[str, ...]
+CouplingBinding.audit_root_bound: bool
+mandatory_executable_gaps(
+  root: Path, declaration: CouplingDeclaration
+) -> list[str]
+```
+
+1. Add RED fixtures for an undeclared literal executable, dynamic `argv[0]`, a
+   command string, `shell=True`, non-`None` `executable=`, a declared literal
+   `git`, a path escaping the audit root, and optional semantic-attestation/
+   control-replacement modules outside mandatory paths.
+2. Declare the lane-resolution mandatory paths and only `git` as the external
+   executable. Do not declare `tar`, a Python interpreter, a shell, or a provider
+   executable for the lifecycle effect.
+3. Implement AST inspection only for declaration-listed, audit-root-bound paths.
+   Do not scan all repository subprocess use and do not add a provider-name
+   blacklist.
+4. Run:
+
+   ```text
+   uv run --package ethos python -m pytest -q \
+     tests/unit/governance/test_coupling_executables.py \
+     tests/unit/governance/validation/test_schemas.py \
+     tests/architecture/test_product_boundaries.py
+   tools/ci/scripts/run-ethos-lane.sh quality coupling-audit --json
+   tools/ci/scripts/run-ethos-lane.sh quality schemas --json
+   tools/ci/scripts/run-config-lint.sh
+   ```
+
+5. Commit:
+
+   ```text
+   git commit -S -m 'feat(governance): audit mandatory lifecycle executables'
+   ```
+
+**Stop conditions:** whole-repository overreach, optional-adapter false positives,
+dynamic executable acceptance, shell acceptance, or provider-specific blacklist.
+
+## Task 10: Converge current tracked truth to zero WCP residue
+
+**OpenSpec alignment:** section 9.
+
+**Files:** every current tracked path returned by the exact scans below, including
+source, tests, schemas, canonical specs, command reference, active plans,
+Claims, Chronicle, and archived OpenSpec carriers. Git history and local records
+are excluded.
+
+1. Capture the live tracked set:
+
+   ```text
+   retired_token="$(printf '%s%s' w cp)"
+   git grep -l -I -i "$retired_token" -- . | sort
+   git ls-files | rg -i "$retired_token" | sort
+   ```
+
+2. Delete the retired adapter package and provider-response test. Replace every
+   remaining current tracked occurrence with neutral repository-role wording
+   while preserving dates, decisions, actions, evidence digests, limitations,
+   and chronology.
+3. Remove the literal token from this design, this implementation plan, and the
+   active OpenSpec Change before the final scan. Keep the prevention mechanism
+   generic through closed contracts and executable coupling declarations.
+4. Recompute only digests made stale by tracked text edits, then validate Claims:
+
+   ```text
+   tools/ci/scripts/run-ethos-lane.sh quality claims --json
+   openspec validate native-lane-resolution-authority --strict --json
+   ```
+
+5. Prove zero current tracked residue:
+
+   ```text
+   retired_token="$(printf '%s%s' w cp)"
+   test -z "$(git grep -n -I -i "$retired_token" -- . || true)"
+   test -z "$(git ls-files | rg -i "$retired_token" || true)"
+   ```
+
+6. Commit:
+
+   ```text
+   git commit -S -m 'docs(governance): remove retired provider authority residue'
+   ```
+
+**Stop conditions:** a tracked match remains, a special-case blacklist is added,
+a historical Git commit is rewritten, or local predecessor records are edited.
+
+## Task 11: Pay branch-owned quality debt and perform independent review
+
+**OpenSpec alignment:** section 10.
+
+**Files:**
+
+- Refine: `packages/ethos/src/ethos/adapters/mutation/resolution/closeout/admission.py`
+- Split: `tests/unit/coverage/test_lane_resolution_record_edges.py`
+- Create declaration-only: `tests/unit/coverage/lane_resolution_records/__init__.py`
+- Create: `tests/unit/coverage/lane_resolution_records/test_current_records.py`
+- Create: `tests/unit/coverage/lane_resolution_records/test_clear_and_reservations.py`
+- Modify OpenSpec scope before writing the new test paths
+- Do not modify `.config/checks/ruff/ratchet.toml` except to remove already-paid
+  entries when the owner gate generates an evidence-backed shrink
+
+1. Run branch-focused Ruff and code-size to capture exact debt:
+
+   ```text
+   tools/ci/scripts/run-python-lint.sh
+   tools/ci/scripts/run-ethos-lane.sh quality code-size --json
+   ```
+
+2. Remove branch-owned `EM101`, `TRY003`, and `PLR0911` findings by using stable
+   module constants/helpers and by splitting decision branches. Keep admission at
+   or below 400 effective lines.
+3. Move record tests into the two semantic files above so no test file exceeds
+   the configured hard ceiling. Do not raise the ceiling and do not create more
+   than two direct modules in the new directory.
+4. Run:
+
+   ```text
+   uv run --package ethos python -m pytest -q \
+     tests/unit/coverage/lane_resolution_records/test_current_records.py \
+     tests/unit/coverage/lane_resolution_records/test_clear_and_reservations.py
+   tools/ci/scripts/run-python-lint.sh
+   tools/ci/scripts/run-ethos-lane.sh quality code-size --json
+   tools/ci/scripts/run-module-layout.sh
+   ```
+
+5. Commit quality repayment separately:
+
+   ```text
+   git commit -S -m 'refactor(resolution): pay native closeout quality debt'
+   ```
+
+6. Request an independent task review of contracts/records, preservation,
+   observation/admission, effect/recovery, coupling, and truth convergence. Fix
+   every Important or Critical finding in a focused signed commit and rerun that
+   slice's complete test set.
+
+**Stop conditions:** any baseline grows, any Important/Critical finding remains,
+or the test split changes semantics instead of file ownership.
+
+## Task 12: Complete proof, generic parity, and official archive
+
+**OpenSpec alignment:** section 11.
+
+1. Confirm a clean, current candidate base:
+
+   ```text
+   tools/ci/scripts/run-ethos-lane.sh status --json
+   git merge-base --is-ancestor candidate/dev HEAD
+   git status --short
+   ```
+
+2. Run focused and full gates on one stable HEAD:
+
+   ```text
+   tools/ci/scripts/run-python-lint.sh
+   tools/ci/scripts/run-python-tests.sh
+   tools/ci/scripts/run-config-lint.sh
+   tools/ci/scripts/run-shell-lint.sh
+   tools/ci/scripts/run-markdown-lint.sh
+   tools/ci/scripts/run-format-selection.sh
+   tools/ci/scripts/run-module-layout.sh
+   tools/ci/scripts/run-no-compat.sh
+   tools/ci/scripts/run-import-linter.sh
+   tools/ci/scripts/run-ethos-lane.sh quality types --json
+   tools/ci/scripts/run-ethos-lane.sh quality schemas --json
+   tools/ci/scripts/run-ethos-lane.sh quality code-size --json
+   tools/ci/scripts/run-ethos-lane.sh quality coupling-audit --json
+   tools/ci/scripts/run-ethos-lane.sh quality claims --json
+   tools/ci/scripts/run-ethos-lane.sh quality docs --json
+   tools/ci/scripts/run-ethos-lane.sh openspec \
+     --change native-lane-resolution-authority --lifecycle --json
+   openspec validate native-lane-resolution-authority --strict --json
+   git diff --check
+   ```
+
+3. Execute generic parity in the admitted lane and commit its evidence:
+
+   ```text
+   tools/ci/scripts/run-ethos-lane.sh parity gaps --json
+   tools/ci/scripts/run-ethos-lane.sh parity shadow \
+     --adopter generic --target . --execute --write-evidence --json
+   git commit -S -m 'test(parity): refresh native lane resolution evidence'
+   ```
+
+4. Update only checklist items proved by fresh evidence, then update Claim and
+   Chronicle digests. Commit and run exact-HEAD proof:
+
+   ```text
+   tools/ci/scripts/run-ethos-lane.sh prove \
+     --execute --expect-head "$(git rev-parse HEAD)" --json
+   ```
+
+5. Officially archive and update the Claim carrier to the dated archive:
+
+   ```text
+   openspec archive native-lane-resolution-authority --yes --json
+   openspec validate --all --strict --json
+   tools/ci/scripts/run-ethos-lane.sh openspec --lifecycle --json
+   git commit -S -m 'docs(openspec): archive native lane resolution authority'
+   ```
+
+6. Because archive changed HEAD, rerun Claim validation, the zero-residue scan,
+   report, and exact-HEAD proof:
+
+   ```text
+   tools/ci/scripts/run-ethos-lane.sh quality claims --json
+   tools/ci/scripts/run-ethos-lane.sh report --json
+   tools/ci/scripts/run-ethos-lane.sh prove \
+     --execute --expect-head "$(git rev-parse HEAD)" --json
+   ```
+
+**Stop conditions:** HEAD moves inside a gate bundle, parity remains pending,
+archive validation fails, proof is dry-run only, or proof is bound to a pre-
+archive HEAD.
+
+## Task 13: Final refresh, land, accepted closeout, publish readiness, housekeeping
+
+**OpenSpec alignment:** section 12.
+
+1. Refresh again immediately before land:
+
+   ```text
+   tools/ci/scripts/run-ethos-lane.sh lane refresh-base \
+     --apply --authorize --expect-head "$(git rev-parse HEAD)" --json
+   ```
+
+   If HEAD changes, rerun every Task 12 gate, parity check, and executed proof.
+   If refresh conflicts, stop; do not hand-resolve a proven HEAD.
+
+2. Land the exact proven HEAD to candidate:
+
+   ```text
+   tools/ci/scripts/run-ethos-lane.sh land \
+     --apply --authorize --expect-head "$(git rev-parse HEAD)" --json
+   ```
+
+3. From `/Users/yheng/projects/ethos`, run accepted-root closeout as a distinct
+   audited transition after candidate/accepted facts are current:
+
+   ```text
+   cd /Users/yheng/projects/ethos
+   tools/ci/scripts/run-ethos-lane.sh status --json
+   tools/ci/scripts/run-ethos-lane.sh land \
+     --closeout --apply --authorize --expect-head "$(git rev-parse HEAD)" --json
+   ```
+
+4. Report local publication readiness only:
+
+   ```text
+   tools/ci/scripts/run-ethos-lane.sh publish --json
+   ```
+
+   Do not run `git push`.
+
+5. Re-observe live ownership and absorption before each retirement. Retire the
+   landed successor and these task-owned predecessor mistake lanes only when the
+   native command proves exact absorption:
+
+   ```text
+   work/20260724-native-lane-resolution-authority-successor
+   work/20260724-native-lane-resolution-authority
+   work/20260723-native-worktree-authority-wcp-zero-coupling
+   work/20260723-legacy-lane-resolution-record-freeze-capability
+   ```
+
+   Capture exact heads before removal and retire each admitted branch explicitly:
+
+   ```text
+   for branch in \
+     work/20260724-native-lane-resolution-authority-successor \
+     work/20260724-native-lane-resolution-authority \
+     work/20260723-native-worktree-authority-wcp-zero-coupling \
+     work/20260723-legacy-lane-resolution-record-freeze-capability
+   do
+     head="$(git rev-parse --verify "$branch")"
+     tools/ci/scripts/run-ethos-lane.sh lane retire landed \
+       --branch "$branch" --expect-head "$head" --apply --json
+   done
+   ```
+
+   Run the loop one branch at a time after a fresh `lane status --json`; stop the
+   loop on the first branch whose native preview does not prove absorption. If
+   absorption is not provable, create and apply a Chronicle-bound
+   `preserve-retire` decision through `ethos lane resolution`; do not invent a
+   supersession relationship.
+
+6. Remove only task-created review packets, scratch files, `__pycache__`, pytest
+   caches, and temporary proof output. Leave foreign lanes, `.venv`, historical
+   records, SQLite, session JSONL, and IDE databases untouched.
+7. Finish with:
+
+   ```text
+   git -C /Users/yheng/projects/ethos status --short --branch
+   git -C /Users/yheng/projects/ethos-candidate-dev status --short --branch
+   tools/ci/scripts/run-ethos-lane.sh lane status --json
+   tools/ci/scripts/run-ethos-lane.sh report --json
+   ```
+
+**Completion conditions:** current tracked retired-provider residue is zero;
+mandatory lifecycle executables are declaration-bound; native admission/effect/
+retry/recovery are complete; runtime bags are gone; every required gate and
+archive-HEAD proof passes; candidate and accepted closeout are distinct and
+complete; local publish readiness is reported without push; task-owned lanes and
+scratch are closed; protected roots and surviving foreign lanes are clean and
+untouched.

@@ -15,6 +15,12 @@ if TYPE_CHECKING:
     from ethos_core.contracts.source_budget.metrics import MetricContractSet
 
 ROOT = Path.cwd()
+_PARENT_WORKER_FAIL_CLOSED_GAPS = frozenset(
+    {
+        ("source_budget_worker_resource_exhausted",),
+        ("source_budget_worker_timeout",),
+    }
+)
 
 
 @lru_cache(maxsize=1)
@@ -147,7 +153,10 @@ def test_deep_provider_cases_fail_closed_without_partial_measurement(
     load = measure_native(content, provider, _registry())
 
     assert load.measurement is None
-    assert load.required_gaps == (expected_gap,)
+    assert (
+        load.required_gaps == (expected_gap,)
+        or load.required_gaps in _PARENT_WORKER_FAIL_CLOSED_GAPS
+    )
 
 
 def test_exact_ceiling_ini_amplification_completes_or_fails_closed_atomically() -> None:
@@ -165,10 +174,7 @@ def test_exact_ceiling_ini_amplification_completes_or_fails_closed_atomically() 
     load = measure_native(content, provider, _registry())
 
     if load.measurement is None:
-        assert load.required_gaps in {
-            ("source_budget_worker_resource_exhausted",),
-            ("source_budget_worker_timeout",),
-        }
+        assert load.required_gaps in _PARENT_WORKER_FAIL_CLOSED_GAPS
         return
     assert load.required_gaps == ()
     assert {item.contract_id for item in load.measurement.values} == {

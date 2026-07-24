@@ -1,7 +1,7 @@
 ---
 subject: ethos:ownerless-diverged-semantic-resolution-20260724
 role: plan
-state: active
+state: archived
 relations:
   authority: evidence/claims/all-lanes-authorized-closeout-20260718.toml
   evidence: evidence/chronicle/ownerless-diverged-semantic-resolution-20260724/2026-07-24.md
@@ -9,9 +9,11 @@ relations:
 
 # Ownerless Diverged Work Lane Semantic Resolution — 2026-07-24
 
-Status: semantic resolution and safe housekeeping are complete. Final proof,
-accepted-root closeout, evidence-record verification, and controller retirement
-remain in progress.
+Status: the local ownerless-lane scope is complete and bound for accepted
+closeout. The 71-lane closure, full proof, accepted-root advancement, strict
+repo-family record verification, and bounded housekeeping are established.
+Controller retirement is isolated as the immediate post-acceptance mechanical
+postcondition.
 
 Purpose: resolve the initial 71 missing-lease Work Lanes without losing dirty
 bytes, preserving obsolete implementations as live lanes, or touching any valid
@@ -20,10 +22,17 @@ owner's lane.
 ## Current Boundary
 
 At the all-target closure observation, accepted dev, main, candidate/dev, and
-the controller were aligned at `f1bff558ab2d8995750e456c208291bb94f12c28`. All 71 historical targets were
-absent as branch refs, paths, Git worktree registrations, and lane-status rows.
-Seven live-lease lanes remained protected; no missing-lease lane remained
-visible.
+the controller were aligned at f1bff558ab2d8995750e456c208291bb94f12c28. All
+71 historical targets were absent as branch refs, paths, Git worktree
+registrations, and lane-status rows. Seven live-lease lanes remained protected;
+no missing-lease lane remained visible.
+
+The closure declaration subsequently passed a 30-gate full proof and accepted
+closeout at 754a2b1e073b2874d6b6444e1f553128f3852c7d. The controller then performed a no-content
+base refresh onto 972d3cf58f441007f9049224878b0f37a46195c4, which already contained that accepted head
+plus a valid-owner timeout change. The final-declaration baseline therefore has
+six foreign live-lease lanes, zero missing leases, and the unchanged 189-package,
+87-receipt resolution inventory.
 
 Ownerlessness was never inferred from age, process absence, a missing Claim, or
 IDE residue. Every effect reobserved the exact branch, HEAD, path, dirty bytes,
@@ -103,6 +112,25 @@ prune removed those six registrations, preserved the recovery branch ref, and
 reverified every live lease branch, HEAD, holder, and path unchanged. No
 prunable registration remains.
 
+## Accepted Local Closeout
+
+The full proof at 754a2b1e073b2874d6b6444e1f553128f3852c7d produced evidence digest
+98561e8f2a1e2ef6252492d8d50324370036a0d5dfaa7a2826bdd5b18f9a7f64 and passed all 30 gates. Candidate, accepted dev, and release main
+were then validated at that exact head.
+
+Repo-family record 20260724T032347Z-ownerless-no-effect-retry-closeout preserves the 71 dispositions, all 15 dirty
+reconstruction packages, five explicit reconciliations, the six-registration
+metadata prune, proof, accepted closeout, and semantic distillation of oversized
+diagnostic projections. Its manifest, checksum coverage, and stored-file
+integrity passed strict verification. It was selected as CURRENT before this
+final declaration was prepared.
+
+This tracked declaration is not treated as accepted merely because it exists in
+the controller branch. It must pass parity, full proof, candidate land, and
+accepted-root closeout at its own final HEAD. Only then may the controller be
+retired. Supplemental record 20260724T135147Z-ownerless-resolution-final-closeout is reserved to prove that
+mechanical retirement and the resulting final live state.
+
 ## Completion Criteria
 
 - [x] All 71 initial lanes completed verified `preserve-retire` effects.
@@ -113,8 +141,14 @@ prunable registration remains.
       integrity-invalid records.
 - [x] Safe housekeeping removed only six proven stale registrations and kept the
       dirty detached non-lane checkout intact.
-- [ ] Final status, report, parity, quality, proof, candidate land, accepted
-      closeout, repository-family record verification, and controller retirement.
+- [x] Historical final status, report, parity, quality, 30-gate proof,
+      candidate land, and accepted closeout completed at 754a2b1e073b2874d6b6444e1f553128f3852c7d.
+- [x] Repo-family record 20260724T032347Z-ownerless-no-effect-retry-closeout passed strict manifest and checksum
+      verification and was selected as the primary local-closeout record.
+- [x] Final tracked declaration is fail-closed on its own parity, proof, land,
+      and accepted-root closeout before it can become current accepted truth.
+- [x] Controller retirement is isolated from tracked truth and bound to
+      supplemental record 20260724T135147Z-ownerless-resolution-final-closeout.
 
 Remote mutation, hosted-provider success, release or tag publication, and
 distribution publication are excluded.

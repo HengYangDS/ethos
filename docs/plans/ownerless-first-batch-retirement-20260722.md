@@ -8,7 +8,10 @@ relations:
 
 # Ownerless First-Batch Retirement — 2026-07-22
 
-Status: active, ownerless-first execution carrier; not yet accepted.
+Status: the original eight-row carrier is accepted and executed. This revision
+binds a three-row clean-ancestor extension; native retirement is authorized
+only after this exact revision completes normal candidate and accepted-root
+closeout.
 
 Purpose: perform the first bounded retirement cohort before any valid-owner
 lane is considered. This carrier is deliberately limited to clean, linked,
@@ -27,6 +30,17 @@ current observation reports no claim binding or dirty residue.
 | `work/ddwg-profile-bootstrap-bridge` | `25e6ca1ece57a934dd47c5e4970d107945fc5c2a` | Current profile normalization supersedes this bootstrap bridge. | retire |
 | `work/20260721-github-runner-isolation` | `e7c29a2213f35b6bfbfe7e77a33e47121b5f0c4c` | Accepted runner controls supersede this clean ancestor. | retire |
 | `work/github-timeout-source-budget` | `9271c46d63064dfdc10651f867bcd19aad8dce63` | Accepted source-budget governance supersedes this clean ancestor. | retire |
+| `work/budget-contract-v2-carrier-resource-boundary-successor-20260723` | `102afdf3b0248b58bfde7aa2d0865109406c2ede` | The exact parity-only commit is in accepted ancestry; its historical parity blob has since been refreshed by accepted commits. | retire |
+| `work/gitlab-runner-resilience` | `ffe5bf56719a2e218d74ac1a3fd35ebe777f5136` | The exact CI hardening commit is in accepted ancestry; production blobs remain represented and the test projection has only been superseded by later accepted coverage. | retire |
+| `work/20260721-gitleaks-cache-resilience-v2` | `408e06eeadae7326ada2fc4f468612971b35031a` | The exact verified-artifact commit is in accepted ancestry; the installer blob remains represented and its test coverage has only been superseded by later accepted coverage. | retire |
+
+For the three-row extension, semantic absorption is established by exact Git
+ancestry, not by age, path existence, or an archive label. At observation
+baseline `24d6edcf31ee94c1a10b6abb022298e290242380`, each named target HEAD is an
+ancestor of accepted `dev`. The individual Chronicles additionally bind the
+target commit paths to identical or later accepted blobs. Native resolution
+must repeat the ancestry, cleanliness, lease, claim, and exact-HEAD checks
+before effect.
 
 ## Preconditions and boundaries
 

@@ -60,10 +60,9 @@ def source_budget_policy(root: Path) -> SourceBudgetPolicyLoad:
     return SourceBudgetPolicyLoad(policy=policy, required_gaps=())
 
 
-def source_budget_taxonomy(root: Path) -> SourceBudgetTaxonomy:
-    """Load the source carrier taxonomy from the format-selection SSOT."""
-    path = root / ".config" / "checks" / "format" / "selection.toml"
-    payload = tomllib.loads(path.read_text(encoding="utf-8"))
+def source_budget_taxonomy_from_bytes(content: bytes) -> SourceBudgetTaxonomy:
+    """Compile one exact format-selection blob into the v1 taxonomy contract."""
+    payload = tomllib.loads(content.decode("utf-8"))
     carrier = [
         {"extensions": item["extensions"], **budget}
         for item in payload["format"]
@@ -72,3 +71,9 @@ def source_budget_taxonomy(root: Path) -> SourceBudgetTaxonomy:
     return validate_source_budget_taxonomy(
         {"carrier": carrier, "aggregates": payload["source_budget"]["aggregates"]}
     )
+
+
+def source_budget_taxonomy(root: Path) -> SourceBudgetTaxonomy:
+    """Load the source carrier taxonomy from the format-selection SSOT."""
+    path = root / ".config" / "checks" / "format" / "selection.toml"
+    return source_budget_taxonomy_from_bytes(path.read_bytes())

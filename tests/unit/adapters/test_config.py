@@ -102,3 +102,16 @@ def test_repository_source_budget_policy_has_a_complete_lifecycle_contract():
     assert all(
         record.expected_net_deletion >= record.allowance for record in result.policy.debt.records
     )
+
+
+def test_source_budget_taxonomy_bytes_compiler_matches_file_loader(tmp_path):
+    selection = Path(__file__).resolve().parents[3] / ".config/checks/format/selection.toml"
+    content = selection.read_bytes()
+    target = tmp_path / ".config/checks/format"
+    target.mkdir(parents=True)
+    (target / "selection.toml").write_bytes(content)
+
+    direct = config.source_budget_taxonomy_from_bytes(content)
+    loaded = config.source_budget_taxonomy(tmp_path)
+
+    assert direct == loaded

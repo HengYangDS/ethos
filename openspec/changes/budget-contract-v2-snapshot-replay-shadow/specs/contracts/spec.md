@@ -14,8 +14,11 @@ objects and ordinary files use one canonical semantic implementation.
 - **AND** `measure_carrier_bytes(...)` and `measure_snapshot_bytes(...)` SHALL
   own native carrier/snapshot measurement over direct bytes
 - **AND** existing path APIs SHALL read once and delegate to those public APIs
+- **AND** the source-budget taxonomy adapter SHALL expose a public pure
+  bytes-to-`SourceBudgetTaxonomy` compiler and its file API SHALL read once and
+  delegate, so historical taxonomy blobs reuse the same validation path
 - **AND** immutable replay SHALL NOT import a private content helper or duplicate
-  a parser/normalizer implementation.
+  a parser/normalizer or taxonomy-compilation implementation.
 
 ### Requirement: Immutable Git Tree Snapshot Load
 

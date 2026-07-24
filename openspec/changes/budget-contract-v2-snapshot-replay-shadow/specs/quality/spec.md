@@ -86,7 +86,11 @@ while providing one declared repository-owned replay command.
   `build/evidence/quality/source-budget-v2/replay/`
 - **AND** `system/tools.toml` SHALL register the shell owner script rather than
   duplicate command policy
-- **AND** invalid config, identity/count/digest mismatch, load/measurement gap,
-  or disallowed comparison state SHALL exit non-zero
+- **AND** default execution SHALL return zero for configured expected transport
+  states, including expected `reviewed_observation`, `unresolved`, or `blocked`,
+  but invalid config, identity/count/digest mismatch, load/measurement failure,
+  or an unexpected comparison state SHALL exit non-zero
+- **AND** explicit `--require-clean` SHALL exit non-zero unless every selected
+  entry is `reviewed_observation` with no required gaps
 - **AND** tracked Claim/Chronicle evidence SHALL contain only reviewed summaries
   and digests.

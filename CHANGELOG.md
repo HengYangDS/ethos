@@ -34,6 +34,8 @@ Commits.
   so the 100% floor holds on Linux and macOS alike.
 - Hardened `coverage.xml` parsing against XXE (defusedxml) and installed taplo
   from a prebuilt binary to avoid a broken aarch64 source build.
+- GitLab verification reclones complete history so replay checks resolve pinned
+  commits even when a runner workspace was previously shallow.
 
 ## 0.1.0a1 - 2026-06-30
 

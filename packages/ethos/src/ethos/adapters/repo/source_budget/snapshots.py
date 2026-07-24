@@ -29,14 +29,36 @@ _GIT_EXECUTABLE = shutil.which("git")
 _PATH_CONTENT_PAIR_SIZE = 2
 _MISSING_HEADER_FIELD_COUNT = 2
 _BLOB_HEADER_FIELD_COUNT = 3
+_SNAPSHOT_SUBCLASS_MESSAGE = "snapshot models forbid subclasses"
 
 
 def _invalid(message: str) -> Never:
     raise ValueError(message)
 
 
+class _FinalSnapshotMeta(type):
+    def __new__(
+        mcls,
+        name: str,
+        bases: tuple[type, ...],
+        namespace: dict[str, object],
+        **kwargs: object,
+    ) -> type:
+        if any(
+            isinstance(base, _FinalSnapshotMeta)
+            and any(isinstance(parent, _FinalSnapshotMeta) for parent in base.__bases__)
+            for base in bases
+        ):
+            raise TypeError(_SNAPSHOT_SUBCLASS_MESSAGE)
+        return super().__new__(mcls, name, bases, namespace, **kwargs)
+
+
+class _SnapshotModel(metaclass=_FinalSnapshotMeta):
+    __slots__ = ()
+
+
 @dataclass(frozen=True, slots=True)
-class GitTreeEntry:
+class GitTreeEntry(_SnapshotModel):
     """One validated regular blob entry in a Git tree."""
 
     relative_path: str
@@ -45,7 +67,13 @@ class GitTreeEntry:
     oid: str
 
     def __post_init__(self) -> None:
-        raw = self.relative_path.encode("utf-8")
+        values = (self.relative_path, self.mode, self.object_type, self.oid)
+        if any(type(value) is not str for value in values):
+            _invalid("invalid Git tree entry")
+        try:
+            raw = self.relative_path.encode("utf-8")
+        except UnicodeError:
+            _invalid("invalid Git tree entry")
         if (
             _valid_path(raw) != self.relative_path
             or self.mode not in _REGULAR_MODES
@@ -56,7 +84,7 @@ class GitTreeEntry:
 
 
 @dataclass(frozen=True, slots=True)
-class GitTreeSnapshot:
+class GitTreeSnapshot(_SnapshotModel):
     """One immutable commit/tree identity and its complete regular entries."""
 
     commit_sha: str
@@ -65,6 +93,22 @@ class GitTreeSnapshot:
     snapshot_digest: str
 
     def __post_init__(self) -> None:
+        if (
+            type(self.commit_sha) is not str
+            or type(self.tree_sha) is not str
+            or type(self.entries) is not tuple
+            or any(type(item) is not GitTreeEntry for item in self.entries)
+            or type(self.snapshot_digest) is not str
+        ):
+            _invalid("invalid Git tree snapshot")
+        try:
+            entries = tuple(
+                GitTreeEntry(item.relative_path, item.mode, item.object_type, item.oid)
+                for item in self.entries
+            )
+        except (AttributeError, TypeError, ValueError):
+            _invalid("invalid Git tree snapshot")
+        object.__setattr__(self, "entries", entries)
         paths = tuple(item.relative_path for item in self.entries)
         if (
             not _OID.fullmatch(self.commit_sha)
@@ -76,21 +120,39 @@ class GitTreeSnapshot:
 
 
 @dataclass(frozen=True, slots=True)
-class GitTreeSnapshotLoad:
+class GitTreeSnapshotLoad(_SnapshotModel):
     """All-or-nothing Git tree snapshot load."""
 
     snapshot: GitTreeSnapshot | None
     required_gaps: tuple[str, ...]
 
     def __post_init__(self) -> None:
-        invalid = (self.snapshot is None) == (not self.required_gaps)
-        invalid = invalid or self.required_gaps != tuple(sorted(set(self.required_gaps)))
-        if invalid:
+        if type(self.required_gaps) is not tuple:
+            _invalid("invalid Git tree snapshot load")
+        if any(type(gap) is not str or not gap for gap in self.required_gaps):
+            _invalid("Git tree snapshot load gaps must be non-empty strings")
+        if self.required_gaps != tuple(sorted(set(self.required_gaps))):
+            _invalid("invalid Git tree snapshot load")
+        snapshot = self.snapshot
+        if snapshot is not None:
+            if type(snapshot) is not GitTreeSnapshot:
+                _invalid("invalid Git tree snapshot load")
+            try:
+                snapshot = GitTreeSnapshot(
+                    snapshot.commit_sha,
+                    snapshot.tree_sha,
+                    snapshot.entries,
+                    snapshot.snapshot_digest,
+                )
+            except (AttributeError, TypeError, ValueError):
+                _invalid("invalid Git tree snapshot load")
+            object.__setattr__(self, "snapshot", snapshot)
+        if (snapshot is None) == (not self.required_gaps):
             _invalid("invalid Git tree snapshot load")
 
 
 @dataclass(frozen=True, slots=True)
-class SnapshotBytes:
+class SnapshotBytes(_SnapshotModel):
     """Selected path-keyed immutable blob bytes from one tree snapshot."""
 
     tree_snapshot_digest: str
@@ -112,6 +174,7 @@ class SnapshotBytes:
             and len(item) == _PATH_CONTENT_PAIR_SIZE
             and type(item[0]) is str
             and type(item[1]) is bytes
+            and _valid_path(item[0].encode("utf-8")) == item[0]
             for item in self.contents
         )
         if not valid_contents:
@@ -124,16 +187,33 @@ class SnapshotBytes:
 
 
 @dataclass(frozen=True, slots=True)
-class SnapshotBytesLoad:
+class SnapshotBytesLoad(_SnapshotModel):
     """All-or-nothing selected blob load."""
 
     snapshot: SnapshotBytes | None
     required_gaps: tuple[str, ...]
 
     def __post_init__(self) -> None:
-        invalid = (self.snapshot is None) == (not self.required_gaps)
-        invalid = invalid or self.required_gaps != tuple(sorted(set(self.required_gaps)))
-        if invalid:
+        if type(self.required_gaps) is not tuple:
+            _invalid("invalid snapshot bytes load")
+        if any(type(gap) is not str or not gap for gap in self.required_gaps):
+            _invalid("snapshot bytes load gaps must be non-empty strings")
+        if self.required_gaps != tuple(sorted(set(self.required_gaps))):
+            _invalid("invalid snapshot bytes load")
+        snapshot = self.snapshot
+        if snapshot is not None:
+            if type(snapshot) is not SnapshotBytes:
+                _invalid("invalid snapshot bytes load")
+            try:
+                snapshot = SnapshotBytes(
+                    snapshot.tree_snapshot_digest,
+                    snapshot.contents,
+                    snapshot.content_digest,
+                )
+            except (AttributeError, TypeError, UnicodeError, ValueError):
+                _invalid("invalid snapshot bytes load")
+            object.__setattr__(self, "snapshot", snapshot)
+        if (snapshot is None) == (not self.required_gaps):
             _invalid("invalid snapshot bytes load")
 
 
@@ -235,6 +315,7 @@ def _valid_path(raw: bytes) -> str | None:
     if (
         not value
         or value.startswith("/")
+        or "\x00" in value
         or "\\" in value
         or any(part in {"", ".", ".."} for part in parts)
         or value.encode("utf-8") != raw
@@ -434,6 +515,20 @@ def _selected_entries(
     return tuple(entries[path] for path in relative_paths), ()
 
 
+def _rebound_snapshot(root: Path, snapshot: GitTreeSnapshot) -> GitTreeSnapshot | None:
+    try:
+        canonical = GitTreeSnapshot(
+            snapshot.commit_sha,
+            snapshot.tree_sha,
+            snapshot.entries,
+            snapshot.snapshot_digest,
+        )
+    except (AttributeError, TypeError, ValueError):
+        return None
+    replayed = _tree_snapshot_from_bound_root(root, canonical.commit_sha).snapshot
+    return replayed if replayed == canonical else None
+
+
 def _read_bound_snapshot_blobs(
     root: Path,
     snapshot: GitTreeSnapshot,
@@ -475,7 +570,10 @@ def read_snapshot_blobs(
     bound_root = _bound_root(root)
     if bound_root is None:
         return SnapshotBytesLoad(None, ("git_snapshot_root_invalid",))
-    selected, gaps = _selected_entries(snapshot, relative_paths)
+    rebound = _rebound_snapshot(bound_root, snapshot)
+    if rebound is None:
+        return SnapshotBytesLoad(None, ("git_snapshot_identity_mismatch",))
+    selected, gaps = _selected_entries(rebound, relative_paths)
     if selected is None:
         return SnapshotBytesLoad(None, gaps)
-    return _read_bound_snapshot_blobs(bound_root, snapshot, selected)
+    return _read_bound_snapshot_blobs(bound_root, rebound, selected)

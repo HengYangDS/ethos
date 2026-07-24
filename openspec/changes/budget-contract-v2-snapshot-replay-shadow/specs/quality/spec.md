@@ -84,6 +84,12 @@ while providing one declared repository-owned replay command.
   `.config/checks/source-budget/history.toml`
 - **AND** raw JSON SHALL be written only under ignored
   `build/evidence/quality/source-budget-v2/replay/`
+- **AND** the default output name SHALL be the validated payload digest, and
+  publication SHALL use no-follow directory handles plus no-replace linking so
+  identical bytes are idempotent while conflicting bytes are rejected
+- **AND** if the opened artifact parent no longer matches the configured path
+  before completion, any newly published name SHALL be removed and the command
+  SHALL fail rather than return a stale path
 - **AND** `system/tools.toml` SHALL register the shell owner script rather than
   duplicate command policy
 - **AND** default execution SHALL return zero for configured expected transport

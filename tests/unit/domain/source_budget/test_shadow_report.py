@@ -32,12 +32,49 @@ def _observation() -> dict[str, object]:
             "drift": -953,
             "metrics": {"global_total": 104389},
             "category_deltas": {"jinja": -671},
-            "inventory": {"file_count": 888, "digest": "4" * 64},
+            "inventory": {
+                "file_count": 888,
+                "digest": "4" * 64,
+                "category_counts": {"python_product": 316, "yaml": 11},
+            },
         },
         "v2": None,
         "disagreements": ["taxonomy_profile_drift:jinja"],
         "required_gaps": ["source_budget_taxonomy_profile_unresolved"],
         "comparison_state": "unresolved",
+    }
+
+
+def _v2() -> dict[str, object]:
+    return {
+        "manifest_digest": "5" * 64,
+        "inventory_digest": "6" * 64,
+        "contract_set_digest": "7" * 64,
+        "provider_coverage": {"python-source-v2": 1},
+        "coordinates": [
+            {
+                "scope_id": "test.python",
+                "metric_id": "lexical_tokens",
+                "unit": "lexical_token",
+                "value": 1,
+            }
+        ],
+        "vector_digest": "8" * 64,
+        "snapshot_digest": "9" * 64,
+    }
+
+
+def _assert_canonical_invalid(observation: dict[str, object]) -> None:
+    assert source_budget_shadow_report(_v1(), observation)["v2_shadow"] == {
+        "mode": "v1_authoritative_v2_shadow",
+        "authoritative": "v1",
+        "observer": None,
+        "subject": None,
+        "v1": None,
+        "v2": None,
+        "disagreements": [],
+        "required_gaps": ["source_budget_v2_shadow_observation_invalid"],
+        "comparison_state": "blocked",
     }
 
 
@@ -106,3 +143,43 @@ def test_shadow_fails_closed_when_observation_is_missing_or_claims_clean_disagre
     )["v2_shadow"]
     assert forged["comparison_state"] == "blocked"
     assert "source_budget_v2_shadow_observation_invalid" in forged["required_gaps"]
+
+
+def test_shadow_rejects_mixed_gaps_forged_identities_and_invalid_v2_values() -> None:
+    typed = _observation()
+    typed["v2"] = _v2()
+    assert source_budget_shadow_report(_v1(), typed)["v2_shadow"]["v2"] == _v2()
+
+    variants: list[dict[str, object]] = []
+    for field, value in (
+        ("required_gaps", ["source_budget_taxonomy_profile_unresolved", None]),
+        ("required_gaps", ["invalid gap token"]),
+    ):
+        candidate = json.loads(json.dumps(_observation()))
+        candidate[field] = value
+        variants.append(candidate)
+    for parent, field, value in (
+        ("observer", "commit_sha", None),
+        ("observer", "taxonomy_path", "taxonomy\x00.toml"),
+        ("subject", "snapshot_digest", "short"),
+        ("v1", "replay_total", True),
+        ("v1", "metrics", {"global_total": "104389"}),
+    ):
+        candidate = json.loads(json.dumps(_observation()))
+        candidate[parent][field] = value
+        variants.append(candidate)
+    for field, value in (
+        (
+            "coordinates",
+            [{"scope_id": "x", "metric_id": "m", "unit": "lexical_token", "value": "1"}],
+        ),
+        ("vector_digest", None),
+        ("provider_coverage", {"python-source-v2": True}),
+    ):
+        candidate = json.loads(json.dumps(_observation()))
+        candidate["v2"] = _v2()
+        candidate["v2"][field] = value
+        variants.append(candidate)
+
+    for candidate in variants:
+        _assert_canonical_invalid(candidate)

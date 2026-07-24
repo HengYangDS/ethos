@@ -1,13 +1,18 @@
 from __future__ import annotations
 
+import hashlib
 import json
+import os
 import tomllib
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 from pydantic import ValidationError
 
+import ethos.adapters.repo.source_budget.artifacts as artifacts
+import tools.ci.source_budget_replay as replay
 from ethos.adapters.config import source_budget_taxonomy_from_bytes
 from ethos.adapters.repo.source_budget.snapshots import read_snapshot_blobs
 from ethos.adapters.repo.source_budget.snapshots import tree_snapshot
@@ -18,6 +23,15 @@ from ethos_core.contracts.source_budget.measurements import MeasurementSnapshotL
 ROOT = Path(__file__).resolve().parents[4]
 BASELINE = "2dab77f169eceb2d45f917358c2a7487e7ac8db6"
 TAXONOMY_PATH = ".config/checks/format/selection.toml"
+ARTIFACT_ROOT = "build/evidence/quality/source-budget-v2/replay"
+
+
+def _artifact_payload(label: str) -> dict[str, object]:
+    payload: dict[str, object] = {"schema": "test", "entries": [{"entry_id": label}]}
+    payload["digest"] = hashlib.sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+    return payload
 
 
 def _taxonomy(commit: str):
@@ -65,8 +79,6 @@ def test_exact_baseline_replay_binds_historical_and_live_observer_profiles() -> 
 
 
 def test_history_config_binds_subject_observer_and_declaration_independently() -> None:
-    import tools.ci.source_budget_replay as replay
-
     history = replay.load_history_config(ROOT)
     historical = history.entries["v1-continuation-20260719"]
     live = history.entries["v1-live-at-task4-start"]
@@ -94,8 +106,6 @@ def test_history_config_binds_subject_observer_and_declaration_independently() -
 
 
 def test_history_config_is_strict_and_rejects_unknown_fields_and_traversal() -> None:
-    import tools.ci.source_budget_replay as replay
-
     source = tomllib.loads(
         (ROOT / ".config/checks/source-budget/history.toml").read_text(encoding="utf-8")
     )
@@ -118,9 +128,7 @@ def test_history_config_is_strict_and_rejects_unknown_fields_and_traversal() -> 
         replay.HistoryConfig.model_validate(source)
 
 
-def test_replay_cli_writes_ignored_artifact_and_has_explicit_clean_mode(tmp_path: Path) -> None:
-    import tools.ci.source_budget_replay as replay
-
+def test_replay_cli_writes_ignored_artifact_and_has_explicit_clean_mode() -> None:
     output = ROOT / "build/evidence/quality/source-budget-v2/replay/test-task4.json"
     output.unlink(missing_ok=True)
     assert (
@@ -138,13 +146,22 @@ def test_replay_cli_writes_ignored_artifact_and_has_explicit_clean_mode(tmp_path
         "js": 1,
         "yaml": -282,
     }
+    live_output = output.with_name("test-task4-live.json")
+    live_output.unlink(missing_ok=True)
     assert (
         replay.main(
-            ["--root", str(ROOT), "--entry", "v1-live-at-task4-start", "--output", str(output)]
+            [
+                "--root",
+                str(ROOT),
+                "--entry",
+                "v1-live-at-task4-start",
+                "--output",
+                str(live_output),
+            ]
         )
         == 0
     )
-    payload = json.loads(output.read_text(encoding="utf-8"))
+    payload = json.loads(live_output.read_text(encoding="utf-8"))
     live = payload["entries"][0]
     assert live["comparison_state"] == "unresolved"
     assert live["required_gaps"] == ["source_budget_taxonomy_profile_unresolved"]
@@ -159,7 +176,7 @@ def test_replay_cli_writes_ignored_artifact_and_has_explicit_clean_mode(tmp_path
                 "v1-live-at-task4-start",
                 "--require-clean",
                 "--output",
-                str(output),
+                str(live_output),
             ]
         )
         == 1
@@ -169,8 +186,6 @@ def test_replay_cli_writes_ignored_artifact_and_has_explicit_clean_mode(tmp_path
 def test_c1_replay_admits_exact_expected_blocker_without_partial_v2_snapshot(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import tools.ci.source_budget_replay as replay
-
     expected_gap = (
         "source_budget_native_parse_failed:yaml:.config/ci/templates/hosted/gitlab-ci.yml"
     )
@@ -204,8 +219,6 @@ def test_c1_replay_admits_exact_expected_blocker_without_partial_v2_snapshot(
 def test_c1_replay_rejects_forged_measurement_load(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import tools.ci.source_budget_replay as replay
-
     output = ROOT / "build/evidence/quality/source-budget-v2/replay/test-task4-c1-forged.json"
     output.unlink(missing_ok=True)
     monkeypatch.setattr(
@@ -238,8 +251,6 @@ def test_c1_replay_rejects_forged_measurement_load(
 
 
 def test_replay_rejects_outside_output_without_creating_parent(tmp_path: Path) -> None:
-    import tools.ci.source_budget_replay as replay
-
     output = tmp_path / "outside" / "replay.json"
 
     assert (
@@ -261,18 +272,16 @@ def test_replay_rejects_outside_output_without_creating_parent(tmp_path: Path) -
 def test_replay_atomic_write_failure_removes_temporary_file(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import tools.ci.source_budget_replay as replay
-
     output = ROOT / "build/evidence/quality/source-budget-v2/replay/test-task4-atomic.json"
     output.unlink(missing_ok=True)
     for temporary in output.parent.glob(f".{output.name}.*"):
         temporary.unlink()
 
-    def fail_replace(_source: str, _target: Path) -> None:
-        message = "injected replace failure"
+    def fail_link(*_args: object, **_kwargs: object) -> None:
+        message = "injected link failure"
         raise OSError(message)
 
-    monkeypatch.setattr(replay.os, "replace", fail_replace)
+    monkeypatch.setattr(artifacts.os, "link", fail_link)
     assert (
         replay.main(
             [
@@ -290,9 +299,65 @@ def test_replay_atomic_write_failure_removes_temporary_file(
     assert list(output.parent.glob(f".{output.name}.*")) == []
 
 
-def test_replay_redacts_memory_failure(monkeypatch: pytest.MonkeyPatch) -> None:
-    import tools.ci.source_budget_replay as replay
+def test_artifact_publication_rejects_symlink_parent_and_is_handle_bound_on_swap(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "repo"
+    root.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (root / "build").symlink_to(outside, target_is_directory=True)
+    with pytest.raises(OSError, match=r"Not a directory|Too many levels"):
+        artifacts.write_replay_artifact(root, ARTIFACT_ROOT, None, _artifact_payload("symlink"))
+    assert list(outside.rglob("*.json")) == []
 
+    (root / "build").unlink()
+    parent = root / ARTIFACT_ROOT
+    parent.mkdir(parents=True)
+    moved = outside / "moved-replay"
+    payload = _artifact_payload("swap")
+    real_link = os.link
+
+    def swap_then_link(*args: object, **kwargs: object) -> None:
+        parent.rename(moved)
+        parent.symlink_to(outside, target_is_directory=True)
+        real_link(*args, **kwargs)
+
+    monkeypatch.setattr(artifacts.os, "link", swap_then_link)
+    with pytest.raises(OSError, match="artifact directory changed"):
+        artifacts.write_replay_artifact(root, ARTIFACT_ROOT, None, payload)
+    assert not list(outside.rglob("*.json"))
+
+
+def test_artifact_publication_reuses_identical_rejects_conflict_and_separates_concurrency(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "repo"
+    root.mkdir()
+    output = root / ARTIFACT_ROOT / "named.json"
+    first = _artifact_payload("first")
+    assert artifacts.write_replay_artifact(root, ARTIFACT_ROOT, output, first) == output
+    before = output.read_bytes()
+    assert artifacts.write_replay_artifact(root, ARTIFACT_ROOT, output, first) == output
+    assert output.read_bytes() == before
+    with pytest.raises(ValueError, match="conflicting replay artifact"):
+        artifacts.write_replay_artifact(root, ARTIFACT_ROOT, output, _artifact_payload("conflict"))
+    assert output.read_bytes() == before
+
+    payloads = (_artifact_payload("left"), _artifact_payload("right"))
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        paths = tuple(
+            pool.map(
+                lambda item: artifacts.write_replay_artifact(root, ARTIFACT_ROOT, None, item),
+                payloads,
+            )
+        )
+    assert paths == tuple(root / ARTIFACT_ROOT / f"{item['digest']}.json" for item in payloads)
+    assert len(set(paths)) == 2
+
+
+def test_replay_redacts_memory_failure(monkeypatch: pytest.MonkeyPatch) -> None:
     def fail_load(_root: Path):
         raise MemoryError
 
@@ -301,8 +366,6 @@ def test_replay_redacts_memory_failure(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_replay_wrapper_and_tool_registry_use_one_owner_script() -> None:
-    import tomllib
-
     wrapper = ROOT / "tools/ci/scripts/run-source-budget-replay.sh"
     assert wrapper.is_file()
     assert "source_budget_replay.py" in wrapper.read_text(encoding="utf-8")

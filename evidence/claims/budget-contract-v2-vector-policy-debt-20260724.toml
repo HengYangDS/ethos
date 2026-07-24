@@ -2,15 +2,15 @@
 id = "budget-contract-v2-vector-policy-debt-20260724"
 change_id = "budget-contract-v2-vector-policy-debt"
 subject = "quality:budget-contract-v2:vector-policy-debt"
-state = "active"
+state = "archived"
 summary = "Implement strict Budget Contract v2 vector policy, Debt v2, inactive repository config, public Task 4 observation reuse, and pure fail-closed verdict compilation while v1 remains authoritative."
 
 [evidence]
 dated = "evidence/chronicle/budget-contract-v2-vector-policy-debt-20260724/2026-07-24.md"
-sha256 = "7e4f936e8a45f08042a6d3d04c90255688323d6ed8a1fde9a56125804ef9b4a6"
+sha256 = "841011b000b059c02e0fa7a68a0d3ef171ae79a001a7a1006769754fbe34d00b"
 evidence_ids = ["evidence:budget-contract-v2-vector-policy-debt-20260724"]
-binding = "The active OpenSpec carrier, strict contracts, pure reducer, inactive repository policy, composed schema, RED-GREEN regressions, 100 percent owner coverage repair, owner gates, and dated Chronicle bind the implemented Task 5 scope. Fresh generic parity and exact-HEAD default/full proof gate official archive; archive-HEAD proof, land, publication, and retirement remain separate transitions."
-verifier = "digest_only"
+binding = "The archived OpenSpec carrier, canonical contracts/quality fusion, strict contracts, pure reducer, inactive repository policy, composed schema, RED-GREEN regressions, 100 percent owner coverage repair, pre-archive default/full proof, owner gates, and dated Chronicle bind Task 5. Archive-HEAD parity/proof, land, publication, and retirement remain separate transitions."
+verifier = "independently_reviewed"
 tests = [
   "uv run --all-packages --group dev pytest -q tests/unit/kernel/test_source_budget_contract.py tests/unit/domain/source_budget/test_verdict.py tests/unit/domain/source_budget/test_shadow_report.py tests/unit/adapters/test_config.py",
   "uv run --all-packages --group dev pytest -q tests/unit/domain/source_budget tests/unit/kernel/test_source_budget_contract.py tests/unit/kernel/test_source_budget_measurements_contract.py tests/unit/kernel/test_source_budget_measurements_integrity.py tests/unit/adapters/test_config.py tests/unit/adapters/repo/source_budget tests/unit/ci/source_budget",
@@ -36,7 +36,7 @@ owner = "quality"
 scope = "Task 5 strict vector/debt contracts, pure reducer, inactive repository policy, explicit unmapped successor, sibling config loader, and schema composition only."
 
 [carriers]
-openspec = "openspec/changes/budget-contract-v2-vector-policy-debt"
+openspec = "openspec/changes/archive/2026-07-24-budget-contract-v2-vector-policy-debt"
 fallback = "Keep v1 source-budget authoritative and v2 inactive; unmapped or incomplete v2 input remains blocking and contributes no allowance."
 kill_signal = "A partial replay produces coordinates, one coordinate funds another, an inferred admitted HEAD becomes policy truth, unmapped debt carries allowance, or Task 6+ authority enters this Change."
 
@@ -46,6 +46,8 @@ targets = [
   "docs/plans/budget-contract-v2-implementation.md",
   "evidence/claims/budget-contract-v2-vector-policy-debt-20260724.toml",
   "evidence/chronicle/budget-contract-v2-vector-policy-debt-20260724/2026-07-24.md",
-  "openspec/changes/budget-contract-v2-vector-policy-debt",
+  "openspec/changes/archive/2026-07-24-budget-contract-v2-vector-policy-debt",
+  "openspec/specs/contracts/spec.md",
+  "openspec/specs/quality/spec.md",
   "openspec/changes/archive/2026-07-24-budget-contract-v2-snapshot-replay-shadow",
 ]

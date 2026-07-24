@@ -9,6 +9,7 @@ from typing import cast
 
 from ethos.adapters.mutation.resolution._effects import OwnerlessCloseoutError
 from ethos.adapters.mutation.resolution._effects import recover_completed_ownerless_closeout
+from ethos.adapters.mutation.resolution._shared import transition_gap
 from ethos.adapters.mutation.resolution.receipts import exact_ownerless_resolution_receipt
 from ethos.adapters.mutation.resolution.receipts import read_resolution_receipt
 from ethos.adapters.mutation.resolution.records.reservations import (
@@ -48,7 +49,7 @@ def ownerless_receipt_recovery_context(  # noqa: PLR0913, RUF100 - exact receipt
             require_ownerless_closeout_binding=True,
         )
     except (OSError, TypeError, ValueError) as error:
-        return {}, _transition_gap(error, "lane_resolution_receipt_invalid")
+        return {}, transition_gap(error, "lane_resolution_receipt_invalid")
     if current is None:
         return {}, ""
     receipt, _receipt_path = current
@@ -98,7 +99,7 @@ def recover_existing_ownerless_receipt(  # noqa: PLR0913, RUF100 - exact recover
     except (OSError, TypeError, ValueError) as error:
         runtime.block_resolution_report(
             report,
-            _transition_gap(error, "lane_resolution_receipt_invalid"),
+            transition_gap(error, "lane_resolution_receipt_invalid"),
             state="partial_transition",
         )
         return True
@@ -135,7 +136,7 @@ def recover_existing_ownerless_receipt(  # noqa: PLR0913, RUF100 - exact recover
     except OwnerlessCloseoutError as error:
         runtime.block_resolution_report(
             report,
-            _transition_gap(error, "lane_resolution_ownerless_recovery_not_finalizable"),
+            transition_gap(error, "lane_resolution_ownerless_recovery_not_finalizable"),
             state="partial_transition",
         )
         return True
@@ -160,21 +161,6 @@ def recover_existing_ownerless_receipt(  # noqa: PLR0913, RUF100 - exact recover
         )
         if cleanup_gap:
             runtime.block_resolution_report(report, cleanup_gap, state="partial_transition")
-        sidecar_gap = release_receipt_reservation(
-            control_root=control_root,
-            artifact_root=artifact_root,
-            decision_id=decision_id,
-            release_allowed=True,
-            runtime=runtime,
-        )
-        if sidecar_gap:
-            current_gaps = cast("list[str]", report["required_gaps"])
-            runtime.block_resolution_report(
-                report,
-                *current_gaps,
-                sidecar_gap,
-                state="partial_transition",
-            )
     return True
 
 
@@ -238,23 +224,19 @@ def release_receipt_reservation(
     control_root: Path,
     artifact_root: Path,
     decision_id: str,
-    release_allowed: bool,
     runtime: ResolutionRuntime,
+    locked_descriptor: int | None,
 ) -> str:
-    """Release the exact receipt sidecar unless a destructive effect is still partial."""
-    if not release_allowed:
+    """Release the exact descriptor-bound receipt sidecar."""
+    if locked_descriptor is None:
         return ""
     try:
         runtime.release_resolution_receipt_reservation(
             root=control_root,
             decision_id=decision_id,
             artifact_root=artifact_root,
+            locked_descriptor=locked_descriptor,
         )
-    except OSError:
+    except (OSError, ValueError):
         return "lane_resolution_receipt_reservation_release_failed"
     return ""
-
-
-def _transition_gap(error: Exception, fallback: str) -> str:
-    message = str(error).strip()
-    return message if message.startswith(("lane_resolution_", "lane_closeout_")) else fallback

@@ -1,16 +1,22 @@
 from __future__ import annotations
 
 import subprocess
-from pathlib import Path
+from contextlib import contextmanager
 from types import SimpleNamespace
+from typing import TYPE_CHECKING
 from typing import Any
 
 import pytest
 
+import ethos.adapters.mutation.resolution.closeout.receipt as receipt_claim
 import ethos.adapters.mutation.resolution.closeout.recovery as recovery
 from ethos.adapters.mutation.resolution._effects import OwnerlessCloseoutError
 from ethos.adapters.mutation.resolution.closeout.recovery import ResolutionRuntime
 from ethos_core.contracts.resolution.lane import LaneObservation
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+    from pathlib import Path
 
 _DECISION_ID = "lane-decision:00000000-0000-4000-8000-000000000004"
 
@@ -62,15 +68,11 @@ def _runtime(**overrides: Any) -> ResolutionRuntime:
     def prepare(**_kwargs: object) -> tuple[dict[str, object], dict[str, object], str, str]:
         return {}, {}, "retired", ""
 
-    def reserve(**_kwargs: object) -> Path:
-        return Path("receipt.reservation")
-
     defaults: dict[str, Any] = {
         "accepted_control_root": lambda root: root,
         "current_record_root": lambda root: root / "records",
         "observe_lane": lambda _root, _lane_ref: (_observation(), []),
         "prepare_resolution_effect": prepare,
-        "reserve_resolution_receipt": reserve,
         "release_resolution_receipt_reservation": lambda **_kwargs: None,
         "retire_clean_ownerless_lane": lambda **_kwargs: _binding(),
         "write_resolution_receipt": lambda **_kwargs: "receipt.json",
@@ -161,7 +163,11 @@ def test_ownerless_recovery_context_rejects_unreadable_reservation(
     def unreadable_reservation(**_kwargs: object) -> dict[str, object]:
         raise error
 
-    monkeypatch.setattr(recovery, "ownerless_receipt_recovery_context", lambda **_kwargs: ({}, ""))
+    monkeypatch.setattr(
+        recovery.cleanup,
+        "ownerless_receipt_recovery_context",
+        lambda **_kwargs: ({}, ""),
+    )
     monkeypatch.setattr(
         recovery,
         "ownerless_closeout_reservation_path",
@@ -192,7 +198,11 @@ def test_ownerless_recovery_context_rejects_different_reservation_target(
         "head": "a" * 40,
         "recovery_state": "reserved_no_effect",
     }
-    monkeypatch.setattr(recovery, "ownerless_receipt_recovery_context", lambda **_kwargs: ({}, ""))
+    monkeypatch.setattr(
+        recovery.cleanup,
+        "ownerless_receipt_recovery_context",
+        lambda **_kwargs: ({}, ""),
+    )
     monkeypatch.setattr(
         recovery,
         "ownerless_closeout_reservation_path",
@@ -219,12 +229,14 @@ def test_recover_ownerless_resolution_blocks_receipt_reservation_collision(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    def collide(**_kwargs: object) -> Path:
+    @contextmanager
+    def collide(**_kwargs: object) -> Iterator[int]:
         raise FileExistsError
+        yield -1
 
-    monkeypatch.setattr(recovery, "recover_existing_ownerless_receipt", lambda **_kwargs: False)
+    monkeypatch.setattr(receipt_claim, "claim_resolution_receipt_reservation", collide)
 
-    report = _recover(tmp_path=tmp_path, runtime=_runtime(reserve_resolution_receipt=collide))
+    report = _recover(tmp_path=tmp_path, runtime=_runtime())
 
     assert report["state"] == "partial_transition"
     assert report["required_gaps"] == ["lane_resolution_receipt_path_exists"]
@@ -235,7 +247,11 @@ def test_recover_ownerless_resolution_requires_executor(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.delenv("ETHOS_ACTOR", raising=False)
-    monkeypatch.setattr(recovery, "recover_existing_ownerless_receipt", lambda **_kwargs: False)
+    monkeypatch.setattr(
+        recovery.cleanup,
+        "recover_existing_ownerless_receipt",
+        lambda **_kwargs: False,
+    )
 
     report = _recover(tmp_path=tmp_path, runtime=_runtime())
 
@@ -256,7 +272,11 @@ def test_recover_ownerless_resolution_blocks_unfinalizable_effect(
         raise error
 
     monkeypatch.setenv("ETHOS_ACTOR", "agent:codex:thread:executor")
-    monkeypatch.setattr(recovery, "recover_existing_ownerless_receipt", lambda **_kwargs: False)
+    monkeypatch.setattr(
+        recovery.cleanup,
+        "recover_existing_ownerless_receipt",
+        lambda **_kwargs: False,
+    )
     monkeypatch.setattr(recovery, "recover_completed_ownerless_closeout", reject_recovery)
 
     report = _recover(tmp_path=tmp_path, runtime=_runtime())
@@ -273,7 +293,11 @@ def test_recover_ownerless_resolution_blocks_effect_preparation_gap(
         return {}, {}, "retired", "lane_resolution_preservation_missing"
 
     monkeypatch.setenv("ETHOS_ACTOR", "agent:codex:thread:executor")
-    monkeypatch.setattr(recovery, "recover_existing_ownerless_receipt", lambda **_kwargs: False)
+    monkeypatch.setattr(
+        recovery.cleanup,
+        "recover_existing_ownerless_receipt",
+        lambda **_kwargs: False,
+    )
     monkeypatch.setattr(
         recovery,
         "recover_completed_ownerless_closeout",
@@ -294,7 +318,11 @@ def test_recover_ownerless_resolution_blocks_receipt_write_failure(
         raise OSError
 
     monkeypatch.setenv("ETHOS_ACTOR", "agent:codex:thread:executor")
-    monkeypatch.setattr(recovery, "recover_existing_ownerless_receipt", lambda **_kwargs: False)
+    monkeypatch.setattr(
+        recovery.cleanup,
+        "recover_existing_ownerless_receipt",
+        lambda **_kwargs: False,
+    )
     monkeypatch.setattr(
         recovery,
         "recover_completed_ownerless_closeout",
@@ -307,22 +335,31 @@ def test_recover_ownerless_resolution_blocks_receipt_write_failure(
     assert report["required_gaps"] == ["lane_resolution_receipt_write_failed_after_effect"]
 
 
+@pytest.mark.parametrize(
+    "release_error",
+    [OSError(), ValueError("lane_resolution_current_record_changed")],
+)
 def test_recover_ownerless_resolution_retains_cleanup_and_sidecar_gaps(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    release_error: Exception,
 ) -> None:
     def fail_sidecar_release(**_kwargs: object) -> None:
-        raise OSError
+        raise release_error
 
     monkeypatch.setenv("ETHOS_ACTOR", "agent:codex:thread:executor")
-    monkeypatch.setattr(recovery, "recover_existing_ownerless_receipt", lambda **_kwargs: False)
+    monkeypatch.setattr(
+        recovery.cleanup,
+        "recover_existing_ownerless_receipt",
+        lambda **_kwargs: False,
+    )
     monkeypatch.setattr(
         recovery,
         "recover_completed_ownerless_closeout",
         lambda **_kwargs: _binding(),
     )
     monkeypatch.setattr(
-        recovery,
+        recovery.cleanup,
         "release_ownerless_closeout_resources",
         lambda **_kwargs: "lane_resolution_ownerless_cleanup_failed",
     )

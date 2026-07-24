@@ -1,14 +1,14 @@
 [claim]
 id = "ownerless-diverged-semantic-resolution-20260724"
 subject = "ethos:ownerless-diverged-semantic-resolution"
-state = "active"
+state = "accepted"
 summary = "All 71 initial ownerless diverged Work Lanes completed bounded absorption-or-rejection dispositions and preserve-retire transitions; all 15 dirty carriers remain reconstructable, six stale Git registrations were pruned, and seven live-lease lanes remain protected."
 
 [evidence]
 dated = "evidence/chronicle/ownerless-diverged-semantic-resolution-20260724/2026-07-24.md"
-sha256 = "9ec6a4dc9b977d8e93fc4b5b4af468480c2677501dff81cff1029c9c3c0fb14b"
+sha256 = "9ac9cdbf1b92b42d13ae0d10cea6a40a3ac1ad7972ac14c88aa5f6431562dbcd"
 evidence_ids = ["evidence:ownerless-diverged-semantic-resolution-20260724"]
-binding = "The exact 71-lane outcome matrix, immutable decisions, packages, receipts, 66 direct postconditions, five reconciliation artifacts, final zero-inflight inventory, target absence observations, and bounded housekeeping postconditions bind this recorded local procedure."
+binding = "The exact 71-lane outcome matrix, immutable decisions, packages, receipts, 66 direct postconditions, five reconciliation artifacts, zero-inflight inventory, target absence observations, bounded housekeeping postconditions, and strict-pass repo-family record 20260724T032347Z-ownerless-no-effect-retry-closeout bind this recorded local procedure."
 verifier = "digest_only"
 tests = [
   "ethos lane status --json",
@@ -26,6 +26,10 @@ tests = [
   "71/71 target ref, path, worktree-registration, and lane-status absence",
   "resolution inventory: 189 packages, 87 receipts, zero inflight, zero partial",
   "bounded Git worktree metadata prune: six stale registrations, protected refs and leases unchanged",
+  "30-gate full proof at 754a2b1e073b2874d6b6444e1f553128f3852c7d: 98561e8f2a1e2ef6252492d8d50324370036a0d5dfaa7a2826bdd5b18f9a7f64",
+  "accepted candidate/dev/main closeout at 754a2b1e073b2874d6b6444e1f553128f3852c7d",
+  "repo-family record 20260724T032347Z-ownerless-no-effect-retry-closeout: strict pass with complete checksum coverage",
+  "final tracked declaration must pass parity, proof, land, and accepted-root closeout before controller retirement",
 ]
 
 [evidence.freshness]

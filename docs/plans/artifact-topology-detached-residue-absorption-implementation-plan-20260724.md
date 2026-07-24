@@ -86,7 +86,7 @@ Python topology tests, repository-family governance.
 - [x] Complete only checkboxes backed by fresh evidence.
 - [x] Run generic shadow parity in the admitted Work Lane and commit the result.
 - [x] Officially archive the change.
-- [ ] Run exact-HEAD executed proof and report with no required gap.
+- [x] Run exact-HEAD executed proof and report with no required gap.
 
 ### Task 4: Land and accepted closeout
 

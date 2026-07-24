@@ -16,24 +16,27 @@
 - [x] 2.3 Validate strict OpenSpec, Claim digest, docs, provenance, and focused
   topology/CEL behavior.
 
-## 3. Proof and local closeout
+## 3. Proof and archive closeout
 
 - [x] 3.1 Commit the carrier, refresh generic parity, and run exact-HEAD proof.
-- [ ] 3.2 Officially archive the change and rerun archive-HEAD proof.
-- [ ] 3.3 Refresh, land, and perform accepted-root closeout as separate audited
-  transitions without remote push.
-
-## 4. Source effect and package boundary
-
-- [ ] 4.1 Re-observe and apply one exact native
-  `lane_resolution/preserve-retire` decision for the named source.
-- [ ] 4.2 Verify the package, receipt, patch digest, source ref/worktree absence,
-  and accepted-root cleanliness.
-- [ ] 4.3 Keep package clear blocked until a separate accepted Chronicle binds
-  the exact preservation manifest and proves no unique behavior remains.
+- [x] 3.2 Officially archive the change and rerun archive-HEAD proof.
+- [x] 3.3 Refresh the current base and establish exact proof-backed land
+  readiness without remote push.
 
 ## Post-archive transition boundary
 
+The following are later native transitions, not unfinished tasks in this
+archived Change:
+
+- land the exact proven carrier to `candidate/dev`;
+- perform accepted-root closeout as a separate audited transition;
+- re-observe and apply one exact native `lane_resolution/preserve-retire`
+  decision for the named source;
+- verify the package, receipt, patch digest, source ref/worktree absence, and
+  accepted-root cleanliness; and
+- keep package clear blocked until a separate accepted Chronicle binds the
+  exact preservation manifest and proves no unique behavior remains.
+
 Archiving this carrier does not itself land, close out, preserve, retire, clear,
-publish, or prove hosted execution.  Every later transition requires fresh
+publish, or prove hosted execution. Every later transition requires fresh
 exact-state evidence and its own receipt.

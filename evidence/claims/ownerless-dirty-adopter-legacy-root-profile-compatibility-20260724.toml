@@ -1,0 +1,37 @@
+[claim]
+id = "ownerless-dirty-adopter-legacy-root-profile-compatibility-20260724"
+subject = "ethos:work-lane:work/adopter-legacy-root-profile-compatibility-20260720"
+state = "active"
+summary = "Accepted profile behavior is equivalent and stricter; native preservation must retain the stale dirty and untracked carrier bytes before source retirement."
+
+[evidence]
+dated = "evidence/chronicle/ownerless-dirty-ancestor-semantic-closeout-20260724/adopter-legacy-root-profile-compatibility-20260720.md"
+sha256 = "99bc73d87260149e0cf79af65704d7318da270d286247caeacd633d9cd0d901f"
+evidence_ids = ["evidence:ownerless-dirty-adopter-legacy-root-profile-compatibility-20260724"]
+binding = "This Claim binds only work/adopter-legacy-root-profile-compatibility-20260720, its exact accepted-ancestor head and dirty-content observation named by the Chronicle, accepted dev 266018e9832866c00499bd5bcbf4dfa9cc831d89, and one later native lane_resolution/preserve-retire decision."
+verifier = "digest_only"
+tests = [
+  "git -C <exact-source-worktree> status --porcelain --untracked-files=all",
+  "tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev pytest -q tests/unit/adoption/test_profile_contract.py",
+  "ethos prove --execute --expect-head <committed-head> --json",
+  "ethos lane resolution decide --branch work/adopter-legacy-root-profile-compatibility-20260720 --disposition preserve-retire --evidence-ref evidence:ownerless-dirty-adopter-legacy-root-profile-compatibility-20260724 --chronicle-ref evidence/chronicle/ownerless-dirty-ancestor-semantic-closeout-20260724/adopter-legacy-root-profile-compatibility-20260720.md --break-glass --apply --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "One exact dirty ownerless profile-compatibility source lane and one local preserve-retire transition. No valid-owner takeover, raw deletion, remote mutation, hosted claim, or recovery-package clear."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-11-preserve-retire-lane-resolution"
+fallback = "Keep the exact dirty source branch and linked worktree intact if any head, path, dirty digest, lease, claim, accepted-head, Chronicle, occupancy, package, or receipt fact drifts."
+kill_signal = "Preservation is described as absorption, stale source is replayed without semantic review, an unlisted or valid-owner lane is selected, or native failure is hidden by manual cleanup."
+
+[promotion]
+targets = [
+  "docs/plans/ownerless-dirty-ancestor-semantic-closeout-20260724.md",
+  "evidence/claims/ownerless-dirty-adopter-legacy-root-profile-compatibility-20260724.toml",
+  "evidence/chronicle/ownerless-dirty-ancestor-semantic-closeout-20260724/adopter-legacy-root-profile-compatibility-20260720.md",
+]

@@ -132,6 +132,8 @@ yaml_allowed_roots = [
   "evidence/chronicle/all-lanes-convergence-replay-20260718/lane-resolution-matrix.json",
   "evidence/chronicle/all-lanes-authorized-closeout-20260718/current-lane-matrix.json",
   "evidence/chronicle/all-lanes-resolution-execution-20260718/lane-resolution-matrix.json",
+  "evidence/chronicle/ownerless-diverged-semantic-resolution-20260724/family-analysis.json",
+  "evidence/chronicle/ownerless-diverged-semantic-resolution-20260724/lane-dispositions.json",
 ] }
 ".mjs" = { roots = ["distributions/npm/"] }
 ".c4" = { roots = [".config/checks/architecture/models/"] }

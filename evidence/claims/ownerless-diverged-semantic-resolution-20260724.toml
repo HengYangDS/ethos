@@ -35,6 +35,7 @@ kill_signal = "A live-lease lane is touched, dirty bytes are lost, an exact-head
 
 [promotion]
 targets = [
+  ".config/checks/format/selection.toml",
   "docs/plans/ownerless-diverged-semantic-resolution-20260724.md",
   "evidence/claims/ownerless-diverged-semantic-resolution-20260724.toml",
   "evidence/chronicle/ownerless-diverged-semantic-resolution-20260724/2026-07-24.md",

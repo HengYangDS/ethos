@@ -4,11 +4,14 @@ import hashlib
 import json
 import os
 import shutil
+from dataclasses import FrozenInstanceError
+from dataclasses import is_dataclass
 from pathlib import Path
 
 import pytest
 
 import ethos.adapters.mutation.resolution.records.clear.core as clear_adapter
+import ethos.adapters.mutation.resolution.records.clear.quarantine as quarantine_store
 import ethos.adapters.mutation.resolution.records.core as record_store
 import ethos.adapters.mutation.resolution.records.current.snapshot as current_snapshot
 from ethos.adapters.mutation.resolution.records.clear.core import LaneResolutionClearRequest
@@ -17,8 +20,23 @@ from ethos.adapters.mutation.resolution.records.inventory import lane_resolution
 from ethos.adapters.mutation.resolution.records.roots import current_record_root
 from tests.support.contract_helpers import write_chronicle_decision
 from tests.support.lane_helpers import orphan_work_lane
-from tests.unit.lanes.test_lane_resolution_current_enumeration import _entry_identity
-from tests.unit.lanes.test_lane_resolution_current_enumeration import _preserve
+from tests.unit.lanes.resolution.records import entry_identity
+from tests.unit.lanes.resolution.records import preserve_lane
+
+
+def test_clear_quarantine_candidates_are_concrete_immutable_facts(tmp_path: Path) -> None:
+    assert not hasattr(quarantine_store, "CurrentPackageSource")
+    candidate = quarantine_store.ClearQuarantineCandidate(
+        path=tmp_path / "candidate",
+        payload_sha256={},
+        package_names=set(),
+        payload_identities={},
+        entry_identity=(1, 2, 3),
+    )
+
+    assert is_dataclass(candidate)
+    with pytest.raises(FrozenInstanceError):
+        candidate.path = tmp_path / "replacement"
 
 
 def test_post_quarantine_crash_retries_exact_package(
@@ -26,10 +44,10 @@ def test_post_quarantine_crash_retries_exact_package(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo, lane = orphan_work_lane(tmp_path)
-    applied = _preserve(repo, lane)
+    applied = preserve_lane(repo, lane)
     decision_id = str(applied["receipt"]["decision_id"])
     package = Path(str(applied["preservation_package"]["path"]))
-    package_identity = _entry_identity(package)
+    package_identity = entry_identity(package)
     manifest_sha256 = hashlib.sha256((package / "manifest.json").read_bytes()).hexdigest()
     chronicle_ref = write_chronicle_decision(
         repo, topic="lane-resolution-current-enumeration", token="clear-preservation"
@@ -74,7 +92,7 @@ def test_quarantine_open_fstat_failure_closes_descriptor(
     record_root = tmp_path / "records"
     quarantine = record_root / "quarantine"
     quarantine.mkdir(parents=True)
-    identity = _entry_identity(quarantine)
+    identity = entry_identity(quarantine)
     real_open = current_snapshot.os.open
     real_fstat = current_snapshot.os.fstat
     opened: dict[str, int] = {}
@@ -120,10 +138,10 @@ def test_quarantine_unlink_crash_keeps_manifest_until_payloads_are_removed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo, lane = orphan_work_lane(tmp_path)
-    applied = _preserve(repo, lane)
+    applied = preserve_lane(repo, lane)
     decision_id = str(applied["receipt"]["decision_id"])
     package = Path(str(applied["preservation_package"]["path"]))
-    package_identity = _entry_identity(package)
+    package_identity = entry_identity(package)
     manifest_sha256 = hashlib.sha256((package / "manifest.json").read_bytes()).hexdigest()
     request = LaneResolutionClearRequest(
         decision_id=decision_id,
@@ -197,10 +215,10 @@ def test_remaining_quarantine_payload_replacement_blocks_retry_without_delete(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo, lane = orphan_work_lane(tmp_path)
-    applied = _preserve(repo, lane)
+    applied = preserve_lane(repo, lane)
     decision_id = str(applied["receipt"]["decision_id"])
     package = Path(str(applied["preservation_package"]["path"]))
-    package_identity = _entry_identity(package)
+    package_identity = entry_identity(package)
     manifest_sha256 = hashlib.sha256((package / "manifest.json").read_bytes()).hexdigest()
     request = LaneResolutionClearRequest(
         decision_id=decision_id,
@@ -269,10 +287,10 @@ def test_payload_swap_during_remove_is_not_deleted(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo, lane = orphan_work_lane(tmp_path)
-    applied = _preserve(repo, lane)
+    applied = preserve_lane(repo, lane)
     decision_id = str(applied["receipt"]["decision_id"])
     package = Path(str(applied["preservation_package"]["path"]))
-    package_identity = _entry_identity(package)
+    package_identity = entry_identity(package)
     manifest_sha256 = hashlib.sha256((package / "manifest.json").read_bytes()).hexdigest()
     quarantine = record_store.clear_quarantine_path(repo, decision_id, package_identity)
     real_remove = clear_adapter.remove_quarantined_package
@@ -344,10 +362,10 @@ def test_identical_replacement_quarantine_is_not_deleted(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo, lane = orphan_work_lane(tmp_path)
-    applied = _preserve(repo, lane)
+    applied = preserve_lane(repo, lane)
     decision_id = str(applied["receipt"]["decision_id"])
     package = Path(str(applied["preservation_package"]["path"]))
-    package_identity = _entry_identity(package)
+    package_identity = entry_identity(package)
     manifest_sha256 = hashlib.sha256((package / "manifest.json").read_bytes()).hexdigest()
     request = LaneResolutionClearRequest(
         decision_id=decision_id,
@@ -374,7 +392,7 @@ def test_identical_replacement_quarantine_is_not_deleted(
     saved = repo.parent / "saved-original-quarantine"
     quarantine.rename(saved)
     shutil.copytree(saved, quarantine)
-    assert _entry_identity(quarantine) != package_identity
+    assert entry_identity(quarantine) != package_identity
 
     monkeypatch.setattr(clear_adapter, "remove_quarantined_package", real_remove)
     inventory = lane_resolution_inventory(root=repo)
@@ -392,10 +410,10 @@ def test_valid_clear_receipt_swap_blocks_before_delete(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo, lane = orphan_work_lane(tmp_path)
-    applied = _preserve(repo, lane)
+    applied = preserve_lane(repo, lane)
     decision_id = str(applied["receipt"]["decision_id"])
     package = Path(str(applied["preservation_package"]["path"]))
-    package_identity = _entry_identity(package)
+    package_identity = entry_identity(package)
     manifest_sha256 = hashlib.sha256((package / "manifest.json").read_bytes()).hexdigest()
     real_move = clear_adapter.move_current_package_to_quarantine
 
@@ -440,10 +458,10 @@ def test_late_unknown_quarantine_entry_blocks_delete(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo, lane = orphan_work_lane(tmp_path)
-    applied = _preserve(repo, lane)
+    applied = preserve_lane(repo, lane)
     decision_id = str(applied["receipt"]["decision_id"])
     package = Path(str(applied["preservation_package"]["path"]))
-    package_identity = _entry_identity(package)
+    package_identity = entry_identity(package)
     manifest_sha256 = hashlib.sha256((package / "manifest.json").read_bytes()).hexdigest()
     real_remove = clear_adapter.remove_quarantined_package
 
@@ -479,10 +497,10 @@ def test_malformed_identity_quarantine_blocks_retry(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo, lane = orphan_work_lane(tmp_path)
-    applied = _preserve(repo, lane)
+    applied = preserve_lane(repo, lane)
     decision_id = str(applied["receipt"]["decision_id"])
     package = Path(str(applied["preservation_package"]["path"]))
-    package_identity = _entry_identity(package)
+    package_identity = entry_identity(package)
     manifest_sha256 = hashlib.sha256((package / "manifest.json").read_bytes()).hexdigest()
     request = LaneResolutionClearRequest(
         decision_id=decision_id,
@@ -525,10 +543,10 @@ def test_multiple_identity_quarantines_block_before_delete(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo, lane = orphan_work_lane(tmp_path)
-    applied = _preserve(repo, lane)
+    applied = preserve_lane(repo, lane)
     decision_id = str(applied["receipt"]["decision_id"])
     package = Path(str(applied["preservation_package"]["path"]))
-    package_identity = _entry_identity(package)
+    package_identity = entry_identity(package)
     manifest_sha256 = hashlib.sha256((package / "manifest.json").read_bytes()).hexdigest()
     request = LaneResolutionClearRequest(
         decision_id=decision_id,
@@ -554,7 +572,7 @@ def test_multiple_identity_quarantines_block_before_delete(
     quarantine = record_store.clear_quarantine_path(repo, decision_id, package_identity)
     temporary = current_record_root(repo) / "second-quarantine"
     temporary.mkdir()
-    second = record_store.clear_quarantine_path(repo, decision_id, _entry_identity(temporary))
+    second = record_store.clear_quarantine_path(repo, decision_id, entry_identity(temporary))
     temporary.rename(second)
 
     monkeypatch.setattr(clear_adapter, "remove_quarantined_package", real_remove)
@@ -573,7 +591,7 @@ def test_post_delete_crash_is_terminal_and_idempotent(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo, lane = orphan_work_lane(tmp_path)
-    applied = _preserve(repo, lane)
+    applied = preserve_lane(repo, lane)
     decision_id = str(applied["receipt"]["decision_id"])
     package = Path(str(applied["preservation_package"]["path"]))
     manifest_sha256 = hashlib.sha256((package / "manifest.json").read_bytes()).hexdigest()
@@ -616,7 +634,7 @@ def test_clear_package_identity_swap_blocks_without_deleting_replacement(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo, lane = orphan_work_lane(tmp_path)
-    applied = _preserve(repo, lane)
+    applied = preserve_lane(repo, lane)
     decision_id = str(applied["receipt"]["decision_id"])
     package = Path(str(applied["preservation_package"]["path"]))
     manifest_sha256 = hashlib.sha256((package / "manifest.json").read_bytes()).hexdigest()
@@ -657,10 +675,10 @@ def test_clear_quarantine_collision_never_overwrites_existing_path(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo, lane = orphan_work_lane(tmp_path)
-    applied = _preserve(repo, lane)
+    applied = preserve_lane(repo, lane)
     decision_id = str(applied["receipt"]["decision_id"])
     package = Path(str(applied["preservation_package"]["path"]))
-    package_identity = _entry_identity(package)
+    package_identity = entry_identity(package)
     manifest_sha256 = hashlib.sha256((package / "manifest.json").read_bytes()).hexdigest()
     quarantine = record_store.clear_quarantine_path(repo, decision_id, package_identity)
     real_move = clear_adapter.move_current_package_to_quarantine

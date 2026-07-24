@@ -8,14 +8,15 @@ from contextlib import ExitStack
 from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
-from ethos.adapters.mutation.resolution._shared import record_destination_safe
-from ethos.adapters.mutation.resolution.records.core import lock_record
-from ethos.adapters.mutation.resolution.records.core import read_json_descriptor
+from ethos.adapters.mutation.resolution.records.core import canonical_current_record_bytes
 from ethos.adapters.mutation.resolution.records.core import receipt_path
 from ethos.adapters.mutation.resolution.records.core import remove_record
 from ethos.adapters.mutation.resolution.records.core import replace_json_atomic
-from ethos.adapters.mutation.resolution.records.core import require_locked_record_identity
 from ethos.adapters.mutation.resolution.records.core import write_json_atomic
+from ethos.adapters.mutation.resolution.records.io.core import lock_record
+from ethos.adapters.mutation.resolution.records.io.core import read_descriptor_bytes
+from ethos.adapters.mutation.resolution.records.io.core import read_record_bytes
+from ethos.adapters.mutation.resolution.records.io.core import require_locked_record_identity
 from ethos.adapters.mutation.resolution.records.roots import current_record_root
 from ethos.repository.policy.schema import validate_schema_instance
 from ethos_core.contracts.resolution.closeout import LaneResolutionReceipt
@@ -27,7 +28,6 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 _RESERVATIONS = "reservations"
-_RECORD_PATH_UNSAFE = "lane_resolution_record_path_unsafe"
 _OWNERLESS_RESERVATION_INVALID = "lane_resolution_ownerless_reservation_invalid"
 _OWNERLESS_RESERVATION_BUSY = "lane_resolution_ownerless_reservation_busy"
 _OWNERLESS_RESERVATION_MISMATCH = "lane_resolution_ownerless_reservation_mismatch"
@@ -131,7 +131,13 @@ def transition_ownerless_closeout_reservation(  # noqa: PLR0913, RUF100 - exact 
             descriptor,
             record_root=record_root,
         )
-        replace_json_atomic(destination, updated, record_root=record_root)
+        replace_json_atomic(
+            destination,
+            updated,
+            expected=current,
+            record_root=record_root,
+            locked_descriptor=descriptor,
+        )
     return updated
 
 
@@ -184,15 +190,15 @@ def release_ownerless_closeout_reservation(
             str(expected_payload["decision_id"]),
             artifact_root=record_root,
         )
-        if not record_destination_safe(record_root, completion) or completion.is_symlink():
-            raise OSError(_RECORD_PATH_UNSAFE)
         try:
-            receipt = json.loads(completion.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError) as error:
+            receipt_bytes = read_record_bytes(completion, record_root=record_root)
+            receipt = json.loads(receipt_bytes)
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError) as error:
             raise ValueError(_OWNERLESS_RESERVATION_RELEASE_INVALID) from error
         _validate_ownerless_completion_receipt(
             root=root,
             receipt=receipt,
+            receipt_bytes=receipt_bytes,
             expected=expected_payload,
             binding=binding,
         )
@@ -201,7 +207,12 @@ def release_ownerless_closeout_reservation(
             descriptor,
             record_root=record_root,
         )
-        remove_record(reservation, record_root=record_root)
+        remove_record(
+            reservation,
+            expected=current,
+            record_root=record_root,
+            locked_descriptor=descriptor,
+        )
 
 
 def release_ownerless_no_effect_reservation(
@@ -227,13 +238,19 @@ def release_ownerless_no_effect_reservation(
             descriptor,
             record_root=record_root,
         )
-        remove_record(reservation, record_root=record_root)
+        remove_record(
+            reservation,
+            expected=current,
+            record_root=record_root,
+            locked_descriptor=descriptor,
+        )
 
 
 def _validate_ownerless_completion_receipt(
     *,
     root: Path,
     receipt: object,
+    receipt_bytes: bytes,
     expected: dict[str, object],
     binding: dict[str, object],
 ) -> None:
@@ -248,6 +265,7 @@ def _validate_ownerless_completion_receipt(
         raise ValueError(_OWNERLESS_RESERVATION_RELEASE_INVALID) from error
     valid = (
         receipt == payload
+        and receipt_bytes == canonical_current_record_bytes(payload)
         and schema_ok
         and payload["state"] == "retired"
         and payload["preservation_package"] == ""
@@ -296,8 +314,6 @@ def _ownerless_closeout_recovery_binding(
 
 @contextmanager
 def _locked_ownerless_reservation(record_root: Path, destination: Path) -> Iterator[int]:
-    if not record_destination_safe(record_root, destination) or destination.is_symlink():
-        raise OSError(_RECORD_PATH_UNSAFE)
     with ExitStack() as stack:
         try:
             descriptor = stack.enter_context(lock_record(destination, record_root=record_root))
@@ -310,17 +326,23 @@ def _locked_ownerless_reservation(record_root: Path, destination: Path) -> Itera
 
 def _read_locked_ownerless_reservation(descriptor: int) -> dict[str, object]:
     try:
-        payload = read_json_descriptor(descriptor)
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        content = read_descriptor_bytes(descriptor)
+        payload = json.loads(content)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError) as error:
         raise _ownerless_reservation_invalid() from error
-    return validate_ownerless_closeout_reservation(payload)
+    canonical = validate_ownerless_closeout_reservation(payload)
+    if content != canonical_current_record_bytes(canonical):
+        raise _ownerless_reservation_invalid()
+    return canonical
 
 
 def _read_ownerless_reservation(record_root: Path, destination: Path) -> dict[str, object]:
-    if not record_destination_safe(record_root, destination) or destination.is_symlink():
-        raise OSError(_RECORD_PATH_UNSAFE)
     try:
-        payload = json.loads(destination.read_text(encoding="utf-8"))
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        content = read_record_bytes(destination, record_root=record_root)
+        payload = json.loads(content)
+    except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as error:
         raise ValueError(_OWNERLESS_RESERVATION_INVALID) from error
-    return validate_ownerless_closeout_reservation(payload)
+    canonical = validate_ownerless_closeout_reservation(payload)
+    if content != canonical_current_record_bytes(canonical):
+        raise ValueError(_OWNERLESS_RESERVATION_INVALID)
+    return canonical

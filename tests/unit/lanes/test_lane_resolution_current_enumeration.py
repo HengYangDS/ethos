@@ -22,13 +22,10 @@ from ethos.adapters.mutation.resolution.records.roots import current_record_root
 from ethos.surface.cli.lane.resolution import _default_decision_path
 from tests.support.contract_helpers import write_chronicle_decision
 from tests.support.lane_helpers import orphan_work_lane
+from tests.unit.lanes.resolution.records import entry_identity
+from tests.unit.lanes.resolution.records import preserve_lane
 
 _PACKAGE_DECISION_ID = "lane-decision:00000000-0000-4000-8000-000000000401"
-
-
-def _entry_identity(path: Path) -> tuple[int, int, int]:
-    metadata = path.stat(follow_symlinks=False)
-    return metadata.st_dev, metadata.st_ino, metadata.st_mode
 
 
 def _plan_block(repo: Path) -> tuple[Path, dict[str, object]]:
@@ -49,34 +46,6 @@ def _plan_block(repo: Path) -> tuple[Path, dict[str, object]]:
     )
     assert planned["ok"] is True
     return decision_path, planned
-
-
-def _preserve(repo: Path, lane: Path) -> dict[str, object]:
-    (lane / "README.md").write_text("# preserve\n", encoding="utf-8")
-    decision_path = _default_decision_path(repo, "work/orphan")
-    planned = plan_lane_resolution(
-        root=repo,
-        branch="work/orphan",
-        disposition="preserve",
-        reason="Preserve this exact lane state.",
-        evidence_refs=("evidence:current-enumeration",),
-        chronicle_ref=write_chronicle_decision(
-            repo, topic="lane-resolution-current-enumeration", token="preserve"
-        ),
-        recovery_plan="Retain the exact observed bytes.",
-        decision_path=decision_path,
-        break_glass=False,
-        apply=True,
-    )
-    assert planned["ok"] is True
-    applied = apply_lane_resolution(
-        root=repo,
-        decision_path=decision_path,
-        confirm_irreversible=False,
-        apply=True,
-    )
-    assert applied["ok"] is True
-    return applied
 
 
 def _plan_ownerless_retire(repo: Path) -> tuple[Path, dict[str, object]]:
@@ -234,7 +203,7 @@ def test_every_unadmitted_current_node_blocks_irreversible_clear(
     layout: str,
 ) -> None:
     repo, lane = orphan_work_lane(tmp_path)
-    applied = _preserve(repo, lane)
+    applied = preserve_lane(repo, lane)
     decision_id = str(applied["receipt"]["decision_id"])
     package = Path(str(applied["preservation_package"]["path"]))
     manifest_path = package / "manifest.json"
@@ -267,7 +236,7 @@ def test_renamed_current_package_blocks_inventory_and_irreversible_clear(
     tmp_path: Path,
 ) -> None:
     repo, lane = orphan_work_lane(tmp_path)
-    applied = _preserve(repo, lane)
+    applied = preserve_lane(repo, lane)
     decision_id = str(applied["receipt"]["decision_id"])
     package = Path(str(applied["preservation_package"]["path"]))
     renamed = package.with_name("arbitrary-package-name")
@@ -305,7 +274,7 @@ def test_relocated_current_receipt_blocks_inventory_and_irreversible_clear(
     tmp_path: Path,
 ) -> None:
     repo, lane = orphan_work_lane(tmp_path)
-    applied = _preserve(repo, lane)
+    applied = preserve_lane(repo, lane)
     decision_id = str(applied["receipt"]["decision_id"])
     package = Path(str(applied["preservation_package"]["path"]))
     manifest_path = package / "manifest.json"
@@ -345,7 +314,7 @@ def test_receipt_with_noncanonical_package_binding_blocks_irreversible_clear(
     tmp_path: Path,
 ) -> None:
     repo, lane = orphan_work_lane(tmp_path)
-    applied = _preserve(repo, lane)
+    applied = preserve_lane(repo, lane)
     decision_id = str(applied["receipt"]["decision_id"])
     package = Path(str(applied["preservation_package"]["path"]))
     manifest_path = package / "manifest.json"
@@ -407,7 +376,7 @@ def test_fd_snapshot_keeps_category_bound_after_path_replacement(tmp_path: Path)
 
 def test_inventory_blocks_coherent_records_that_disagree_with_decision(tmp_path: Path) -> None:
     repo, lane = orphan_work_lane(tmp_path)
-    applied = _preserve(repo, lane)
+    applied = preserve_lane(repo, lane)
     decision_id = str(applied["receipt"]["decision_id"])
     package = Path(str(applied["preservation_package"]["path"]))
     manifest_path = package / "manifest.json"
@@ -435,7 +404,7 @@ def test_inventory_blocks_coherent_records_that_disagree_with_decision(tmp_path:
 
 def test_inventory_blocks_preserved_receipt_when_package_is_missing(tmp_path: Path) -> None:
     repo, lane = orphan_work_lane(tmp_path)
-    applied = _preserve(repo, lane)
+    applied = preserve_lane(repo, lane)
     package = Path(str(applied["preservation_package"]["path"]))
     shutil.rmtree(package)
 
@@ -452,10 +421,10 @@ def test_clear_rescans_current_records_immediately_before_delete(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo, lane = orphan_work_lane(tmp_path)
-    applied = _preserve(repo, lane)
+    applied = preserve_lane(repo, lane)
     decision_id = str(applied["receipt"]["decision_id"])
     package = Path(str(applied["preservation_package"]["path"]))
-    package_identity = _entry_identity(package)
+    package_identity = entry_identity(package)
     manifest_path = package / "manifest.json"
     real_read = clear_adapter.read_current_lane_resolution_records
     calls = 0
@@ -532,7 +501,7 @@ def test_clear_receipt_before_move_retry_fails_closed_without_durable_identity(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo, lane = orphan_work_lane(tmp_path)
-    applied = _preserve(repo, lane)
+    applied = preserve_lane(repo, lane)
     decision_id = str(applied["receipt"]["decision_id"])
     package = Path(str(applied["preservation_package"]["path"]))
     manifest_path = package / "manifest.json"
@@ -592,10 +561,10 @@ def test_pre_move_identical_canonical_replacement_is_not_deleted(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo, lane = orphan_work_lane(tmp_path)
-    applied = _preserve(repo, lane)
+    applied = preserve_lane(repo, lane)
     decision_id = str(applied["receipt"]["decision_id"])
     package = Path(str(applied["preservation_package"]["path"]))
-    original_identity = _entry_identity(package)
+    original_identity = entry_identity(package)
     manifest_sha256 = hashlib.sha256((package / "manifest.json").read_bytes()).hexdigest()
     request = LaneResolutionClearRequest(
         decision_id=decision_id,
@@ -621,7 +590,7 @@ def test_pre_move_identical_canonical_replacement_is_not_deleted(
     saved = repo.parent / "saved-original-canonical-package"
     package.rename(saved)
     shutil.copytree(saved, package)
-    assert _entry_identity(package) != original_identity
+    assert entry_identity(package) != original_identity
 
     monkeypatch.setattr(clear_adapter, "move_current_package_to_quarantine", real_move)
     retried = clear_lane_resolution_package(root=repo, request=request)
@@ -635,7 +604,7 @@ def test_pre_move_identical_canonical_replacement_is_not_deleted(
 
 def test_inventory_verifies_preservation_payload_files(tmp_path: Path) -> None:
     repo, lane = orphan_work_lane(tmp_path)
-    applied = _preserve(repo, lane)
+    applied = preserve_lane(repo, lane)
     package = Path(str(applied["preservation_package"]["path"]))
     (package / "repository.bundle").unlink()
 
@@ -647,7 +616,7 @@ def test_inventory_verifies_preservation_payload_files(tmp_path: Path) -> None:
 
 def test_inventory_rejects_extra_preservation_payload(tmp_path: Path) -> None:
     repo, lane = orphan_work_lane(tmp_path)
-    applied = _preserve(repo, lane)
+    applied = preserve_lane(repo, lane)
     package = Path(str(applied["preservation_package"]["path"]))
     (package / "unexpected.bin").write_bytes(b"unexpected")
 
@@ -659,7 +628,7 @@ def test_inventory_rejects_extra_preservation_payload(tmp_path: Path) -> None:
 
 def test_inventory_rejects_undeclared_preservation_archive(tmp_path: Path) -> None:
     repo, lane = orphan_work_lane(tmp_path)
-    applied = _preserve(repo, lane)
+    applied = preserve_lane(repo, lane)
     decision_id = str(applied["receipt"]["decision_id"])
     package = Path(str(applied["preservation_package"]["path"]))
     manifest_path = package / "manifest.json"

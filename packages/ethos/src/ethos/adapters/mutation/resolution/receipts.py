@@ -8,11 +8,12 @@ from pathlib import Path
 
 from ethos.adapters.mutation.resolution._shared import display_path
 from ethos.adapters.mutation.resolution._shared import preservation_payloads_match
-from ethos.adapters.mutation.resolution._shared import record_destination_safe
 from ethos.adapters.mutation.resolution._shared import sha256_digest
 from ethos.adapters.mutation.resolution._shared import valid_decision_id
+from ethos.adapters.mutation.resolution.records.core import canonical_current_record_bytes
 from ethos.adapters.mutation.resolution.records.core import receipt_path
 from ethos.adapters.mutation.resolution.records.core import write_json_atomic
+from ethos.adapters.mutation.resolution.records.io.core import read_record_bytes
 from ethos.adapters.mutation.resolution.records.reservations import target_digest
 from ethos.adapters.mutation.resolution.records.roots import current_record_root
 from ethos.repository.policy.schema import validate_schema_instance
@@ -131,13 +132,13 @@ def read_resolution_receipt(
     """Read one deterministic immutable receipt without weakening write validation."""
     record_root = artifact_root or current_record_root(root)
     destination = receipt_path(root, decision_id, artifact_root=record_root)
-    if not destination.exists() and not destination.is_symlink():
-        return None
-    if not record_destination_safe(record_root, destination) or destination.is_symlink():
-        raise OSError(_RECORD_PATH_UNSAFE)
     try:
-        receipt = json.loads(destination.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as error:
+        content = read_record_bytes(destination, record_root=record_root)
+    except FileNotFoundError:
+        return None
+    try:
+        receipt = json.loads(content)
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
         raise ValueError(_RECEIPT_INVALID) from error
     if not isinstance(receipt, dict):
         raise TypeError(_RECEIPT_INVALID)
@@ -147,6 +148,8 @@ def read_resolution_receipt(
         require_ownerless_closeout_binding=require_ownerless_closeout_binding,
     )
     if payload["decision_id"] != decision_id:
+        raise ValueError(_RECEIPT_INVALID)
+    if content != canonical_current_record_bytes(payload):
         raise ValueError(_RECEIPT_INVALID)
     return payload, display_path(root, destination)
 

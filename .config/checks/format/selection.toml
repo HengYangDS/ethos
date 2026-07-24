@@ -20,6 +20,13 @@ budget = [
 ]
 
 [[format]]
+extensions = [".svg", ".png"]
+carrier = "Brand presentation asset"
+owner = "assets/brand/"
+execution = "ethos quality asset-policy --json"
+truth_boundary = "repository-owned public presentation projection"
+
+[[format]]
 extensions = [".md"]
 carrier = "Markdown"
 owner = ".config/checks/markdown/.markdownlint-cli2.yaml"
@@ -138,3 +145,5 @@ yaml_allowed_roots = [
 ".mjs" = { roots = ["distributions/npm/"] }
 ".c4" = { roots = [".config/checks/architecture/models/"] }
 ".mmd" = { roots = ["docs/architecture/_generated/"] }
+".svg" = { roots = ["assets/brand/"] }
+".png" = { roots = ["assets/brand/"] }

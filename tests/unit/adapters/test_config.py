@@ -6,6 +6,7 @@ import ethos.adapters.config as config
 from ethos.adapters.config import code_size_policy
 from ethos.adapters.config import rules_config
 from ethos.adapters.config import source_budget_policy
+from ethos.adapters.config import source_budget_policy_v2
 
 
 def test_rules_config_returns_empty_for_missing_config(tmp_path):
@@ -115,3 +116,73 @@ def test_source_budget_taxonomy_bytes_compiler_matches_file_loader(tmp_path):
     loaded = config.source_budget_taxonomy(tmp_path)
 
     assert direct == loaded
+
+
+def test_source_budget_policy_v2_missing_and_invalid_are_distinct(tmp_path, monkeypatch):
+    missing = source_budget_policy_v2(tmp_path)
+    assert missing.policy is None
+    assert missing.required_gaps == ("source_budget_policy_v2_missing",)
+
+    monkeypatch.setattr(
+        config,
+        "rules_config",
+        lambda _root: {
+            "quality": {
+                "source_budget_v2": {
+                    "schema": "ethos-source-budget-policy-v2",
+                    "contract_version": 2,
+                    "state": "inactive",
+                    "baseline_head": "a" * 40,
+                    "enforcement": "campaign_terminal",
+                    "campaign_id": "compression",
+                    "debt": {
+                        "waves": [{"id": "wave-1", "due_on": "2026-07-30", "state": "active"}],
+                        "records": [
+                            {
+                                "mapping_state": "unmapped",
+                                "id": "debt-1",
+                                "origin_change": "change-1",
+                                "owner": "owner",
+                                "replacement": "replacement",
+                                "deletion_wave": "wave-1",
+                                "expiry": "2026-07-30",
+                                "missing_bindings": [],
+                            }
+                        ],
+                    },
+                }
+            }
+        },
+    )
+
+    invalid = source_budget_policy_v2(tmp_path)
+    assert invalid.policy is None
+    assert invalid.required_gaps == (
+        "source_budget_policy_v2_invalid:debt.records.0.unmapped.missing_bindings",
+    )
+
+
+def test_repository_source_budget_v2_is_inactive_without_changing_v1() -> None:
+    root = Path(__file__).resolve().parents[3]
+    v1_before = source_budget_policy(root)
+    v2 = source_budget_policy_v2(root)
+    v1_after = source_budget_policy(root)
+
+    assert v1_after == v1_before
+    assert v2.required_gaps == ()
+    assert v2.policy is not None
+    assert v2.policy.state == "inactive"
+    assert v2.policy.baseline_head == "2dab77f169eceb2d45f917358c2a7487e7ac8db6"
+    assert v2.policy.campaign_id == "global-declarative-compression-program"
+    assert len(v2.policy.debt.records) == 1
+    record = v2.policy.debt.records[0]
+    assert record.mapping_state == "unmapped"
+    assert record.id == "node-runtime-compatibility-20260716"
+    assert record.missing_bindings == (
+        "admitted_head",
+        "scope_digest",
+        "inventory_digest",
+        "baseline_snapshot",
+        "historical_replay",
+    )
+    assert not hasattr(record, "allowance")

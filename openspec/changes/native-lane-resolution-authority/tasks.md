@@ -9,8 +9,11 @@
 - [x] 1.4 Record that candidate staged-index recovery package v2 from `8fcea306d`
   is current truth and that predecessor preservation commit `21142430c` cannot be
   cherry-picked as a unit.
-- [x] 1.5 Pass strict official OpenSpec validation for the revised design and
-  executable implementation plan before product replay begins.
+- [x] 1.5 Keep the predecessor Claim active and bind the new Claim only as
+  implementation authorization until replacement implementation, proof, and
+  official archive evidence support later supersession.
+- [x] 1.6 Pass strict official OpenSpec and Claim validation for the revised
+  design, plan, scope, Chronicle, and Claim boundary before product replay begins.
 
 ## 2. Provider-neutral contracts and record roots
 
@@ -87,10 +90,12 @@
   same-head and descendant zero-effect retry, divergence, drift, crash windows,
   three-state probes, removal failure, receipt-present cleanup, and post-CAS
   exceptions.
-- [ ] 7.2 Enforce the order: recovery precheck, native admission, zero-effect retry
-  reset, fence, complete re-observation, typed reservation, no-force removal,
-  accepted-ref verification, exact target-ref CAS, postconditions, receipt,
-  fence-CAS release, reservation removal.
+- [ ] 7.2 Enforce the order: recovery precheck, exact pre-fence native admission
+  and reservation classification, release/reset of the old exact zero-effect
+  fence and reservation when classified, fresh fence acquisition, complete
+  under-fence re-observation, typed reservation, no-force removal, accepted-ref
+  verification, exact target-ref CAS, postconditions, receipt, fence-CAS release,
+  reservation removal.
 - [ ] 7.3 Delete `OwnerlessCloseoutRuntime`, `ResolutionRuntime`,
   `_ownerless_runtime()`, `_resolution_runtime()`, callback dictionaries, and the
   retired external adapter package/test.

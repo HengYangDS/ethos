@@ -93,14 +93,16 @@ root, or compatibility alias SHALL be required for current authority.
 #### Scenario: zero-effect retry may rebind a descendant accepted head
 
 - **GIVEN** one exact reservation remains `reserved_no_effect`, the same
-  decision, executor, target, and coordination bindings still hold, and no Git
-  or worktree effect occurred
-- **WHEN** the current accepted HEAD equals or descends from the reserved
-  accepted HEAD
-- **THEN** ETHOS SHALL release the old exact fence and reservation before
-  acquiring a fresh binding
-- **AND** divergence, target drift, decision drift, or unverifiable state SHALL
-  block without effect.
+  decision, executor, target, registration token, and coordination bindings still
+  hold, and no Git or worktree effect occurred
+- **WHEN** exact pre-fence admission classifies that reservation as the same
+  zero-effect retry and the current accepted HEAD equals or descends from the
+  reserved accepted HEAD
+- **THEN** ETHOS SHALL release the old exact fence and reservation, acquire a
+  fresh exact fence, and complete the full under-fence re-observation before
+  persisting a new reservation or starting effect
+- **AND** divergence, target drift, decision drift, registration drift, or
+  unverifiable state SHALL block without effect.
 
 #### Scenario: current record authority is isolated from history
 

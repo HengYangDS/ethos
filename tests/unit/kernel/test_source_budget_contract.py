@@ -341,3 +341,118 @@ def test_source_budget_schema_composes_unchanged_v1_and_strict_v2() -> None:
     assert (
         schema_path.read_text(encoding="utf-8") == json.dumps(schema, separators=(",", ":")) + "\n"
     )
+
+
+def test_v2_calendar_coordinate_and_canonical_input_guards() -> None:
+    api = _v2_api()
+    limit = _v2_limit("product.python", "lexical_tokens", "lexical_token", 1)
+
+    with pytest.raises(ValidationError, match="must be an ISO-8601 calendar date"):
+        api.SourceBudgetWaveV2(id="wave-1", due_on="2026-02-30", state="active")
+
+    assert limit.coordinate == api.BudgetCoordinate(
+        scope_id="product.python", metric_id="lexical_tokens", unit="lexical_token"
+    )
+    with pytest.raises(ValueError, match="canonical input must be a tuple"):
+        api.BudgetVector.canonical([limit])  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="coordinate keys must be unique"):
+        api.BudgetVector.canonical(
+            (
+                limit,
+                _v2_limit("product.python", "lexical_tokens", "normalized_byte", 1),
+            )
+        )
+
+
+def test_v2_debt_contracts_reject_ambiguous_deletion_and_ledger_identity() -> None:
+    api = _v2_api()
+    allowance = _v2_vector(_v2_limit("product.python", "lexical_tokens", "lexical_token", 2))
+    mismatched_deletion = _v2_vector(
+        _v2_limit("tests.python", "normalized_bytes", "normalized_byte", 2)
+    )
+    with pytest.raises(ValidationError, match="deletion coordinates must match allowance"):
+        api.MappedSourceBudgetDebtV2(
+            mapping_state="mapped",
+            id="mapped-debt",
+            origin_change="change-1",
+            admitted_head="b" * 40,
+            scope_digest="5" * 64,
+            inventory_digest="6" * 64,
+            baseline_snapshot_digest="7" * 64,
+            historical_replay_digest="8" * 64,
+            owner="owner",
+            replacement="replacement",
+            deletion_wave="wave-1",
+            expiry="2026-07-30",
+            allowance=allowance,
+            expected_deletion=mismatched_deletion,
+        )
+
+    with pytest.raises(ValidationError, match="missing bindings must be unique"):
+        api.UnmappedSourceBudgetDebtV2(
+            mapping_state="unmapped",
+            id="unmapped-debt",
+            origin_change="change-1",
+            owner="owner",
+            replacement="replacement",
+            deletion_wave="wave-1",
+            expiry="2026-07-30",
+            missing_bindings=("admitted_head", "admitted_head"),
+        )
+
+    wave = api.SourceBudgetWaveV2(id="wave-1", due_on="2026-07-30", state="active")
+    record = api.UnmappedSourceBudgetDebtV2(
+        mapping_state="unmapped",
+        id="unmapped-debt",
+        origin_change="change-1",
+        owner="owner",
+        replacement="replacement",
+        deletion_wave="wave-1",
+        expiry="2026-07-30",
+        missing_bindings=("admitted_head",),
+    )
+    with pytest.raises(ValidationError, match="deletion waves must be unique"):
+        api.SourceBudgetDebtLedgerV2(waves=(wave, wave), records=())
+    with pytest.raises(ValidationError, match="debt records must be unique"):
+        api.SourceBudgetDebtLedgerV2(waves=(wave,), records=(record, record))
+    with pytest.raises(ValidationError, match="references unknown wave: wave-1"):
+        api.SourceBudgetDebtLedgerV2(waves=(), records=(record,))
+
+
+def test_v2_policy_rejects_binding_campaign_and_subset_mismatches() -> None:
+    api = _v2_api()
+    baseline_mismatch = _v2_shadow_payload()
+    baseline_mismatch["baseline"]["admitted_head"] = "b" * 40
+    with pytest.raises(ValidationError, match="admitted HEAD must match"):
+        api.validate_source_budget_policy_v2(baseline_mismatch)
+
+    for enforcement, campaign_id in (
+        ("campaign_terminal", None),
+        ("transition", "compression"),
+    ):
+        campaign_mismatch = _v2_shadow_payload()
+        campaign_mismatch["enforcement"] = enforcement
+        campaign_mismatch["campaign_id"] = campaign_id
+        with pytest.raises(ValidationError, match="requires exactly one campaign id"):
+            api.validate_source_budget_policy_v2(campaign_mismatch)
+
+    for limit in (
+        _v2_limit("docs.python", "lexical_tokens", "lexical_token", 1),
+        _v2_limit("product.python", "lexical_tokens", "normalized_byte", 1),
+    ):
+        subset_mismatch = _v2_shadow_payload()
+        subset_mismatch["permanent_allocations"] = _v2_vector(limit).model_dump(mode="json")
+        with pytest.raises(ValidationError, match="must be a baseline subset"):
+            api.validate_source_budget_policy_v2(subset_mismatch)
+
+
+def test_v2_policy_accepts_a_bounded_settled_reduction() -> None:
+    api = _v2_api()
+    payload = _v2_shadow_payload()
+    payload["settled_reductions"] = _v2_vector(
+        _v2_limit("product.python", "lexical_tokens", "lexical_token", 1)
+    ).model_dump(mode="json")
+
+    policy = api.validate_source_budget_policy_v2(payload)
+
+    assert policy.settled_reductions.coordinates[0].value == 1

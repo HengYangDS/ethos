@@ -3,6 +3,9 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
+import pytest
+from pydantic import ValidationError
+
 import ethos.domain.source_budget.verdict as verdict_api
 import ethos_core.contracts.source_budget.policy.core as policy_api
 from ethos.domain.source_budget.core import SourceBudgetShadowObservation
@@ -443,3 +446,109 @@ def test_debt_gap_order_is_independent_of_policy_record_order() -> None:
     )
 
     assert forward_verdict == reverse_verdict
+
+
+def test_verdict_observations_reject_duplicate_replay_and_gap_identity() -> None:
+    inputs = _inputs()
+    record = _debt_record()
+    replay = _debt_replay(record)
+
+    with pytest.raises(ValidationError, match="debt replay bindings must be unique"):
+        verdict_api.SourceBudgetVerdictObservations(
+            baseline=inputs.baseline,
+            current=inputs.current,
+            debt_replays=(replay, replay),
+        )
+    with pytest.raises(ValidationError, match="verdict input gaps must be unique"):
+        verdict_api.SourceBudgetVerdictObservations(
+            baseline=inputs.baseline,
+            current=inputs.current,
+            required_gaps=("source_budget_v2_missing", "source_budget_v2_missing"),
+        )
+
+
+def test_verdict_requires_typed_inputs_and_an_explicit_calendar_date() -> None:
+    policy = _policy()
+
+    with pytest.raises(TypeError, match="typed observations and policy"):
+        verdict_api.compile_budget_verdict(object(), policy, date(2026, 7, 24))  # type: ignore[arg-type]
+    with pytest.raises(TypeError, match="explicit calendar date"):
+        verdict_api.compile_budget_verdict(_inputs(), policy, "2026-07-24")  # type: ignore[arg-type]
+
+
+def test_inactive_policy_blocks_before_vector_evaluation() -> None:
+    inactive = policy_api.InactiveSourceBudgetPolicyV2(
+        schema="ethos-source-budget-policy-v2",
+        contract_version=2,
+        state="inactive",
+        baseline_head="f" * 40,
+        enforcement="campaign_terminal",
+        campaign_id="global-declarative-compression-program",
+        debt=policy_api.SourceBudgetDebtLedgerV2(),
+    )
+
+    result = verdict_api.compile_budget_verdict(_inputs(), inactive, date(2026, 7, 24))
+
+    assert result.required_gaps == ("source_budget_v2_policy_inactive",)
+
+
+def test_forged_baseline_and_current_vectors_accumulate_incomplete_gaps() -> None:
+    policy = _policy()
+    baseline_payload = _inputs().baseline.model_dump(mode="json")
+    current_payload = _inputs().current.model_dump(mode="json")
+    baseline_payload["v2"]["vector_digest"] = "0" * 64
+    current_payload["v2"]["vector_digest"] = "0" * 64
+    baseline = SourceBudgetShadowObservation.model_validate(baseline_payload)
+    current = SourceBudgetShadowObservation.model_validate(current_payload)
+
+    result = verdict_api.compile_budget_verdict(
+        _inputs(baseline=baseline, current=current), policy, date(2026, 7, 24)
+    )
+
+    assert result.required_gaps == (
+        "source_budget_v2_baseline_observation_incomplete",
+        "source_budget_v2_current_observation_incomplete",
+    )
+
+
+def test_current_identity_mismatch_blocks_before_arithmetic() -> None:
+    policy = _policy()
+    current_payload = _inputs().current.model_dump(mode="json")
+    current_payload["v2"]["manifest_digest"] = "0" * 64
+    current = SourceBudgetShadowObservation.model_validate(current_payload)
+
+    result = verdict_api.compile_budget_verdict(_inputs(current=current), policy, date(2026, 7, 24))
+
+    assert result.required_gaps == ("source_budget_v2_current_identity_mismatch",)
+
+
+def test_observation_vector_and_identity_helpers_fail_closed_on_defensive_edges() -> None:
+    policy = _policy()
+    missing = _observation(with_v2=False)
+    vector = _vector(("product.python", "lexical_tokens", "lexical_token", 10))
+
+    observation_vector = vars(verdict_api)["_observation_vector"]
+    baseline_matches = vars(verdict_api)["_baseline_matches"]
+    current_matches = vars(verdict_api)["_current_matches"]
+    assert observation_vector(missing) is None
+    assert baseline_matches(missing, vector, policy) is False
+    assert current_matches(missing, vector, policy) is False
+
+    duplicate_payload = _inputs().current.model_dump(mode="json")
+    duplicate_payload["v2"]["coordinates"] = [
+        {
+            "scope_id": "product.python",
+            "metric_id": "lexical_tokens",
+            "unit": "lexical_token",
+            "value": 10,
+        },
+        {
+            "scope_id": "product.python",
+            "metric_id": "lexical_tokens",
+            "unit": "normalized_byte",
+            "value": 10,
+        },
+    ]
+    duplicate = SourceBudgetShadowObservation.model_validate(duplicate_payload)
+
+    assert observation_vector(duplicate) is None

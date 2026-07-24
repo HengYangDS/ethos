@@ -7,9 +7,9 @@ summary = "Implement strict Budget Contract v2 vector policy, Debt v2, inactive 
 
 [evidence]
 dated = "evidence/chronicle/budget-contract-v2-vector-policy-debt-20260724/2026-07-24.md"
-sha256 = "00a596888080ae10a4f924b8acabdc69f66395a819f72b87a8aeb54d126b5166"
+sha256 = "c7a8cd23326400f5393efc0a75eac4456edbb33d116233ebff7dbf046dc45a7c"
 evidence_ids = ["evidence:budget-contract-v2-vector-policy-debt-20260724"]
-binding = "The active OpenSpec carrier, strict contracts, pure reducer, inactive repository policy, composed schema, RED-GREEN regressions, owner gates, and dated Chronicle bind the implemented Task 5 scope. Exact-HEAD proof, archive, land, publication, and retirement remain separate future transitions."
+binding = "The active OpenSpec carrier, strict contracts, pure reducer, inactive repository policy, composed schema, RED-GREEN regressions, owner gates, refreshed generic parity, and dated Chronicle bind the implemented Task 5 scope. Exact-HEAD default/full proof gates official archive; archive-HEAD proof, land, publication, and retirement remain separate transitions."
 verifier = "digest_only"
 tests = [
   "uv run --all-packages --group dev pytest -q tests/unit/kernel/test_source_budget_contract.py tests/unit/domain/source_budget/test_verdict.py tests/unit/domain/source_budget/test_shadow_report.py tests/unit/adapters/test_config.py",
@@ -22,6 +22,9 @@ tests = [
   "tools/ci/scripts/run-json-schema-check.sh",
   "tools/ci/scripts/run-ethos-lane.sh openspec --lifecycle --json",
   "tools/ci/scripts/run-ethos-lane.sh quality claims --json",
+  "tools/ci/scripts/run-ethos-lane.sh parity gaps --adopter generic --target . --json",
+  "tools/ci/scripts/run-ethos-lane.sh prove --execute --expect-head \"$(git rev-parse HEAD)\" --json",
+  "tools/ci/scripts/run-ethos-lane.sh prove --execute --full --expect-head \"$(git rev-parse HEAD)\" --json",
 ]
 
 [evidence.freshness]

@@ -381,6 +381,18 @@ transitions. Remote publication and hosted CI are not claimed by C1.
   accepted C1 resource boundary. It does not assume that the current worktree
   already yields a successful snapshot.
 - Produces: `tree_snapshot(root, treeish)`, `worktree_snapshot(root)`, baseline replay evidence, and `v2_shadow` report fields.
+- Replays baseline commit `2dab77f169eceb2d45f917358c2a7487e7ac8db6`
+  and tree `075da5ad45be962e9f5e775b3f050cab4023ea0d`; provenance beginning
+  `540e06d5` remains declaration history, not the replay treeish.
+- Binds 933 governed files and inventory digest
+  `f8e85ace7648b60592fbe6e678f78169afa98c6289b0e8bb7d7fbc3961fa1c8d`.
+  Selected C1 checkpoint `c1-static-hybrid-accepted` is exact commit
+  `3468ce78e2b636b9c0516904aa73cde2eb30fa62`; its YAML adapter gap remains
+  blocked/unresolved.
+- Uses public `effective_code_lines_for_source`, `measure_carrier_bytes`, and
+  `measure_snapshot_bytes` seams. Raw output stays ignored under
+  `build/evidence/quality/source-budget-v2/replay/`; v1 stays authoritative and
+  v2 inactive.
 
 - [ ] **Step 1: Write failing tests that recompute the immutable baseline from Git blobs and expose the 282-ELOC v1 semantic drift (105342 -> 105060; JavaScript +1, YAML -282, diagram -1) without rewriting the declaration.**
 - [ ] **Step 2: Verify RED against the absent snapshot adapter.**

@@ -202,8 +202,9 @@ Cold-start seconds remain platform evidence to remeasure, not a design constant.
 
 Baseline and selected historical snapshots are recomputed from Git blobs rather
 than trusting declared totals. The observed v1 replay mismatch is itself a
-migration fact: the declared v1 baseline total is 105342 while the current v1
-algorithm replays 105060, a net drift of -282 ELOC. The replay deltas are
+migration fact: the declared v1 baseline total is 105342 while versioned observer
+profile `v1-continuation-20260719` replays 105060, a net drift of -282 ELOC. The
+replay deltas are
 JavaScript 89 -> 90 (+1), YAML 1082 -> 800 (-282), and diagram 24 -> 23 (-1).
 The governed inventory contains 933 files and has SHA-256
 `f8e85ace7648b60592fbe6e678f78169afa98c6289b0e8bb7d7fbc3961fa1c8d`.
@@ -214,7 +215,21 @@ rewrite the declared v1 baseline.
 The replay treeish is baseline commit
 `2dab77f169eceb2d45f917358c2a7487e7ac8db6`, which peels to tree
 `075da5ad45be962e9f5e775b3f050cab4023ea0d`; declaration provenance beginning
-`540e06d5` is not a replay substitute. The second selected history entry is
+`540e06d5` is not a replay substitute. The historical observer binds commit
+`604934c7afe244caf5b671423f108823a7753a98`, taxonomy blob
+`51a3931b43aa9030e166309289d6d85a80831526`, and taxonomy content SHA-256
+`b5dfc532586b0e1f3c3f614ce34e70cd9e817b84adfeabfbda266adf19d07a3d`.
+
+The live Task 4-start observer is a separate profile at commit
+`fe94c0268d060742e808770d4d65d554709af0dd`, taxonomy blob
+`280f4ff640b0d6088c6fc819bebca2c6a7de5fea`, and content SHA-256
+`3180f9739fc254c29fa6ca6924818a2c3eb5d1ccedd0fe1916e88a05e1b41983`.
+Because commit `4907be1870ebf0f3f413ee314c9674a29cf8509d` intentionally removed live Jinja
+classification, that profile replays 888 files, inventory digest
+`d48fca7255274216d029c600b98972f00bd367b91979441b4d6512a857fb7a5c`,
+global `104389`, and no Jinja coordinate. Task 4 exposes this taxonomy-profile
+drift as unresolved; it does not restore live Jinja or overwrite the historical
+`-282` correction. The second selected history entry is
 `c1-static-hybrid-accepted` at
 `3468ce78e2b636b9c0516904aa73cde2eb30fa62`. Its known YAML adapter gap remains
 blocked and unresolved, so Task 4 may report null v2 coordinates but may not

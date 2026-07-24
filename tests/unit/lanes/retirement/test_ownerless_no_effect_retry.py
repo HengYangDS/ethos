@@ -574,12 +574,16 @@ def test_ownerless_no_effect_reservation_release_is_exact_compare_and_delete(
 
 
 def test_ownerless_no_effect_reservation_release_rejects_unsafe_path(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path,
 ) -> None:
     repo = init_repo(tmp_path / "repo")
     reservation = _ownerless_reservation()
     path = reservation_store.reserve_ownerless_closeout_target(root=repo, reservation=reservation)
-    monkeypatch.setattr(reservation_store, "record_destination_safe", lambda *_args: False)
+    held = path.parent.with_name("reservations-held")
+    path.parent.rename(held)
+    outside = tmp_path / "outside-reservations"
+    outside.mkdir()
+    path.parent.symlink_to(outside, target_is_directory=True)
 
     with pytest.raises(OSError, match="lane_resolution_record_path_unsafe"):
         reservation_store.release_ownerless_no_effect_reservation(
@@ -587,4 +591,4 @@ def test_ownerless_no_effect_reservation_release_rejects_unsafe_path(
             expected=reservation,
         )
 
-    assert path.is_file()
+    assert (held / path.name).is_file()

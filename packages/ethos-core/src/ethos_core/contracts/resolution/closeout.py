@@ -37,6 +37,14 @@ _RECOVERY_PHASES: dict[OwnerlessCloseoutRecoveryState, OwnerlessCloseoutPhase] =
 _GIT_OID_PATTERN = r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$"
 _SHA256_PATTERN = r"^[a-f0-9]{64}$"
 _OPTIONAL_SHA256_PATTERN = r"^(?:[a-f0-9]{64})?$"
+_RECEIPT_INCOMPLETE = "lane-resolution receipt must be completed"
+_RECEIPT_AUTHORITATIVE = "lane-resolution receipt cannot mint authority"
+_DECISION_ID_INVALID = "invalid lane-resolution decision id"
+_TARGET_DIGEST_MISMATCH = "ownerless closeout target digest mismatch"
+_RECOVERY_STATE_MISMATCH = "ownerless closeout phase and recovery state mismatch"
+_POSTCONDITION_DIGEST_MISMATCH = "ownerless closeout postcondition digest mismatch"
+_CLEAR_RECEIPT_INCOMPLETE = "lane-resolution clear receipt must be completed"
+_CLEAR_RECEIPT_AUTHORITATIVE = "lane-resolution clear receipt cannot mint authority"
 
 
 class OwnerlessCloseoutBinding(BaseModel):
@@ -83,7 +91,7 @@ class LaneResolutionReceipt(BaseModel):
     def validate_completed(cls, value: object) -> bool:
         """Require a completed receipt rather than a coercible truthy value."""
         if value is not True:
-            raise ValueError("lane-resolution receipt must be completed")
+            raise ValueError(_RECEIPT_INCOMPLETE)
         return True
 
     @field_validator("mints_authority")
@@ -91,7 +99,7 @@ class LaneResolutionReceipt(BaseModel):
     def validate_non_authoritative(cls, value: object) -> bool:
         """Prevent completion evidence from minting authority."""
         if value is not False:
-            raise ValueError("lane-resolution receipt cannot mint authority")
+            raise ValueError(_RECEIPT_AUTHORITATIVE)
         return False
 
     def to_payload(self) -> dict[str, object]:
@@ -124,13 +132,13 @@ class OwnerlessCloseoutReservation(BaseModel):
         """Require the canonical lane-decision UUID wire form."""
         prefix = "lane-decision:"
         if not value.startswith(prefix):
-            raise ValueError("invalid lane-resolution decision id")
+            raise ValueError(_DECISION_ID_INVALID)
         try:
             parsed = uuid.UUID(value.removeprefix(prefix))
         except ValueError as error:
-            raise ValueError("invalid lane-resolution decision id") from error
+            raise ValueError(_DECISION_ID_INVALID) from error
         if value != f"{prefix}{parsed}":
-            raise ValueError("invalid lane-resolution decision id")
+            raise ValueError(_DECISION_ID_INVALID)
         return value
 
     @field_validator("executor_ref")
@@ -144,12 +152,12 @@ class OwnerlessCloseoutReservation(BaseModel):
         """Bind the target digest and preserve the phase/recovery state matrix."""
         expected_target = hashlib.sha256(f"{self.lane_ref}\0{self.head}".encode()).hexdigest()
         if self.target_digest != expected_target:
-            raise ValueError("ownerless closeout target digest mismatch")
+            raise ValueError(_TARGET_DIGEST_MISMATCH)
         if self.phase != _RECOVERY_PHASES[self.recovery_state]:
-            raise ValueError("ownerless closeout phase and recovery state mismatch")
+            raise ValueError(_RECOVERY_STATE_MISMATCH)
         completed_effect = self.recovery_state == "effect_complete_receipt_missing"
         if completed_effect != bool(self.postcondition_digest):
-            raise ValueError("ownerless closeout postcondition digest mismatch")
+            raise ValueError(_POSTCONDITION_DIGEST_MISMATCH)
         return self
 
     def to_payload(self) -> dict[str, object]:
@@ -177,7 +185,7 @@ class LaneResolutionClearReceipt(BaseModel):
     def validate_completed(cls, value: object) -> bool:
         """Require a completed clear receipt rather than a coercible truthy value."""
         if value is not True:
-            raise ValueError("lane-resolution clear receipt must be completed")
+            raise ValueError(_CLEAR_RECEIPT_INCOMPLETE)
         return True
 
     @field_validator("mints_authority")
@@ -185,7 +193,7 @@ class LaneResolutionClearReceipt(BaseModel):
     def validate_non_authoritative(cls, value: object) -> bool:
         """Prevent clear evidence from minting authority."""
         if value is not False:
-            raise ValueError("lane-resolution clear receipt cannot mint authority")
+            raise ValueError(_CLEAR_RECEIPT_AUTHORITATIVE)
         return False
 
     def to_payload(self) -> dict[str, object]:

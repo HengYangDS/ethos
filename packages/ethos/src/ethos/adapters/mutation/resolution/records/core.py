@@ -7,8 +7,12 @@ import json
 from typing import TYPE_CHECKING
 
 from ethos.adapters.mutation.resolution._shared import valid_decision_id
+from ethos.adapters.mutation.resolution.records.io.core import lock_record
+from ethos.adapters.mutation.resolution.records.io.core import read_descriptor_bytes
+from ethos.adapters.mutation.resolution.records.io.core import record_entry_exists
 from ethos.adapters.mutation.resolution.records.io.core import remove_record_bytes
 from ethos.adapters.mutation.resolution.records.io.core import replace_record_bytes
+from ethos.adapters.mutation.resolution.records.io.core import require_locked_record_identity
 from ethos.adapters.mutation.resolution.records.io.core import reserve_record_sidecar
 from ethos.adapters.mutation.resolution.records.io.core import write_record_bytes
 from ethos.adapters.mutation.resolution.records.roots import current_record_root
@@ -161,6 +165,35 @@ def reserve_resolution_receipt(
         )
     except ValueError as error:
         raise ValueError(_RECEIPT_INVALID) from error
+    return reservation
+
+
+def require_resolution_receipt_reservation(
+    *, root: Path, decision_id: str, artifact_root: Path | None = None
+) -> Path:
+    """Validate and briefly lock one exact retained receipt reservation."""
+    if not valid_decision_id(decision_id):
+        raise ValueError(_RECEIPT_INVALID)
+    record_root = artifact_root or current_record_root(root)
+    destination = receipt_path(root, decision_id, artifact_root=record_root)
+    reservation = _receipt_reservation_path(destination)
+    expected = f"{decision_id}\n".encode()
+    try:
+        if record_entry_exists(destination, record_root=record_root):
+            raise FileExistsError(destination)
+        with lock_record(reservation, record_root=record_root) as descriptor:
+            content = read_descriptor_bytes(descriptor)
+            require_locked_record_identity(
+                reservation,
+                descriptor,
+                record_root=record_root,
+            )
+            if record_entry_exists(destination, record_root=record_root):
+                raise FileExistsError(destination)
+    except ValueError as error:
+        raise ValueError(_RECEIPT_INVALID) from error
+    if content != expected:
+        raise ValueError(_RECEIPT_INVALID)
     return reservation
 
 

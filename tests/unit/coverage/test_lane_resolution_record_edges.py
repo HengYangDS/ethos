@@ -3,12 +3,14 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import threading
 from pathlib import Path
 
 import pytest
 
 import ethos.adapters.mutation.resolution.records.core as record_store
 import ethos.adapters.mutation.resolution.records.io.core as record_io
+import ethos.adapters.mutation.resolution.records.io.posix as record_posix
 import ethos.adapters.mutation.resolution.records.reservations as reservation_store
 from ethos.adapters.mutation.resolution.lane import apply_lane_resolution
 from ethos.adapters.mutation.resolution.lane import plan_lane_resolution
@@ -558,6 +560,61 @@ def test_receipt_reservation_reuse_rejects_post_read_drift(
         )
 
 
+def test_receipt_reservation_reuse_cannot_return_after_public_release(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    record_root, _destination, reservation = _receipt_reservation_paths(tmp_path)
+    record_store.reserve_resolution_receipt(
+        root=tmp_path,
+        decision_id=_DECISION_ID,
+        artifact_root=record_root,
+    )
+    read_complete = threading.Event()
+    resume_reuse = threading.Event()
+    original_read = record_io.read_descriptor_bytes
+    errors: list[BaseException] = []
+    returned: list[Path] = []
+
+    def pause_after_read(descriptor: int) -> bytes:
+        content = original_read(descriptor)
+        if threading.current_thread().name == "reservation-reuse":
+            read_complete.set()
+            assert resume_reuse.wait(timeout=2)
+        return content
+
+    def reuse() -> None:
+        try:
+            returned.append(
+                record_store.reserve_resolution_receipt(
+                    root=tmp_path,
+                    decision_id=_DECISION_ID,
+                    artifact_root=record_root,
+                )
+            )
+        except (OSError, ValueError) as error:
+            errors.append(error)
+
+    monkeypatch.setattr(record_io, "read_descriptor_bytes", pause_after_read)
+    worker = threading.Thread(target=reuse, name="reservation-reuse")
+    worker.start()
+    assert read_complete.wait(timeout=2)
+
+    record_store.release_resolution_receipt_reservation(
+        root=tmp_path,
+        decision_id=_DECISION_ID,
+        artifact_root=record_root,
+    )
+    resume_reuse.set()
+    worker.join(timeout=2)
+
+    assert not worker.is_alive()
+    assert returned == []
+    assert len(errors) == 1
+    assert isinstance(errors[0], FileExistsError)
+    assert not reservation.exists()
+
+
 def test_descriptor_json_reader_rejects_oversize_raw_bytes(tmp_path: Path) -> None:
     source = tmp_path / "oversize.json"
     source.write_bytes(b'"' + b"x" * (17 * 1024 * 1024) + b'"')
@@ -666,7 +723,7 @@ def test_mutable_record_operation_preserves_a_post_compare_replacement(
     expected = {"value": "old"}
     competitor = {"value": "competitor"}
     destination.write_bytes(record_store.canonical_current_record_bytes(expected))
-    rename_no_replace = record_io.rename_record_no_replace
+    rename_no_replace = record_posix.rename_no_replace
     raced = False
 
     def install_competitor_then_rename(
@@ -684,10 +741,9 @@ def test_mutable_record_operation_preserves_a_post_compare_replacement(
         rename_no_replace(directory_descriptor, source_name, target_name)
 
     monkeypatch.setattr(
-        record_io,
-        "rename_record_no_replace",
+        record_posix,
+        "rename_no_replace",
         install_competitor_then_rename,
-        raising=False,
     )
 
     with pytest.raises(ValueError, match="lane_resolution_current_record_changed"):

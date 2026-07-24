@@ -73,6 +73,16 @@ def test_hosted_provider_templates_are_projection_sources() -> None:
     assert 'GIT_DEPTH: "0"' in (ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8")
 
 
+def test_gitlab_verify_reclones_full_history_for_replay() -> None:
+    for relative_path in (
+        ".config/ci/templates/hosted/gitlab-ci.yml",
+        ".gitlab-ci.yml",
+    ):
+        payload = yaml.safe_load((ROOT / relative_path).read_text(encoding="utf-8"))
+        assert payload["variables"]["GIT_DEPTH"] == "0"
+        assert payload["ethos:verify"]["variables"]["GIT_STRATEGY"] == "clone"
+
+
 def test_remote_provider_ci_excludes_local_candidate_and_includes_submit() -> None:
     github = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
     gitlab = (ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8")

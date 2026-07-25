@@ -199,7 +199,7 @@ otherwise preserve the repository-wide pytest defaults and caller identity.
   test owner script
 - **THEN** the provider projection uses two workers to bound simultaneous
   subprocess and Git pressure while preserving parallel execution
-- **THEN** the provider projection sets a 300-second signal timeout through the
+- **AND** the provider projection sets a 300-second signal timeout through the
   validated paired owner-script inputs
 - **AND** a timeout is reported as a pytest test failure rather than an abrupt
   xdist worker exit

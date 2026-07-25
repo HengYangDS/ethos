@@ -4,10 +4,17 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from ethos.adapters.mutation.resolution.closeout.ownerless.admission.core import (
+    ownerless_retry_fence,
+)
 from ethos.adapters.mutation.resolution.records.reservations import (
     release_ownerless_no_effect_reservation,
 )
+from ethos.adapters.store.state.closeout import probe_closeout_fence
 from ethos.adapters.store.state.closeout import release_closeout_fence
+
+_OWNERLESS_FENCE_STALE = "lane_resolution_ownerless_fence_stale"
+_OWNERLESS_FENCE_UNVERIFIABLE = "lane_resolution_ownerless_fence_unverifiable"
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -23,11 +30,25 @@ def reset_reserved_no_effect_retry(
     database: Path,
     record_root: Path,
 ) -> None:
-    """Release only the old exact fence and reservation classified by admission."""
+    """Reobserve and release only the old exact fence and reservation."""
     reservation = admission.existing_reservation
     if reservation is None:
         return
-    if admission.retry_fence_acquisition_id is not None:
+    state, fence = probe_closeout_fence(database, subject=admission.observation.lane_ref)
+    if state == "unverifiable":
+        raise ValueError(_OWNERLESS_FENCE_UNVERIFIABLE)
+    if state == "present":
+        payload = fence.get("payload") if isinstance(fence, dict) else None
+        acquisition_id = payload.get("acquisition_id") if isinstance(payload, dict) else None
+        if type(acquisition_id) is not str:
+            raise ValueError(_OWNERLESS_FENCE_STALE)
+        expected_fence = ownerless_retry_fence(
+            admission=admission,
+            reservation=reservation,
+            acquisition_id=acquisition_id,
+        )
+        if fence != expected_fence:
+            raise ValueError(_OWNERLESS_FENCE_STALE)
         release_closeout_fence(
             database,
             subject=admission.observation.lane_ref,

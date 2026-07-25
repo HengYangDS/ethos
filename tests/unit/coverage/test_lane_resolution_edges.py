@@ -10,13 +10,14 @@ from unittest.mock import MagicMock
 import pytest
 
 import ethos.adapters.mutation.resolution._effects as resolution_effects
-import ethos.adapters.mutation.resolution._observation as resolution_observation
 import ethos.adapters.mutation.resolution.closeout.recovery as resolution_recovery
 import ethos.adapters.mutation.resolution.lane as resolution
+import ethos.adapters.mutation.resolution.observation as resolution_observation
 import ethos.adapters.mutation.resolution.preservation.core as resolution_preservation
 import ethos.adapters.mutation.resolution.receipts as resolution_receipts
 import ethos.surface.cli.lane.resolution as resolution_cli
 from ethos_core.contracts.resolution.lane import LaneObservation
+from tests.support.contract_helpers import init_git_repo
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -182,7 +183,8 @@ def test_resolution_plan_and_apply_schema_failure_edges(tmp_path: Path, monkeypa
 
 
 def test_resolution_missing_dirty_and_invalid_decisions(tmp_path: Path, monkeypatch) -> None:
-    missing, gaps = resolution_observation.observe_lane(tmp_path, "work/missing")
+    repo = init_git_repo(tmp_path / "repo")
+    missing, gaps = resolution_observation.observe_lane(repo, "work/missing")
     assert missing.lane_ref == "work/missing"
     assert gaps == ["lane_resolution_target_missing"]
     record_root = tmp_path / "records"
@@ -212,59 +214,6 @@ def test_resolution_missing_dirty_and_invalid_decisions(tmp_path: Path, monkeypa
         "irreversible_confirmation_required",
         "dirty_lane_retirement_blocked",
     ]
-
-
-def test_resolution_observation_uses_shared_status_and_lease_projection(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    lane = tmp_path / "lane"
-    lane.mkdir()
-    monkeypatch.setattr(
-        resolution_observation,
-        "workspace_status",
-        lambda _root: {"worktrees": [{"branch": "work/example", "path": lane.as_posix()}]},
-    )
-
-    def run_git(_root: Path, *args: str, **_kwargs):
-        stdout = "a" * 40 if args[:1] == ("rev-parse",) else ""
-        return subprocess.CompletedProcess(args, 0, stdout=stdout, stderr="")
-
-    monkeypatch.setattr(resolution_observation, "run_git", run_git)
-    monkeypatch.setattr(resolution_observation, "untracked_digest", lambda _path: "c" * 64)
-    monkeypatch.setattr(
-        resolution_observation,
-        "leases_by_branch",
-        lambda _root: {
-            "work/example": {
-                "holder_ref": "agent:test:case:holder",
-                "lane_incarnation_id": "lane:stored",
-            }
-        },
-    )
-    observation, gaps = resolution_observation.observe_lane(tmp_path, "work/example")
-    assert gaps == []
-    assert observation.holder_ref == "agent:test:case:holder"
-    assert observation.lane_incarnation_id == "lane:stored"
-    assert observation.ambiguous is False
-    assert observation.orphan is False
-
-    monkeypatch.setattr(resolution_observation, "leases_by_branch", lambda _root: {})
-    inferred, _ = resolution_observation.observe_lane(tmp_path, "work/example")
-    assert inferred.holder_ref == ""
-    assert inferred.lane_incarnation_id.startswith("decision-incarnation:")
-    assert inferred.orphan is True
-
-    monkeypatch.setattr(resolution_observation, "workspace_status", lambda _root: {"worktrees": []})
-    monkeypatch.setattr(
-        resolution_observation,
-        "run_git",
-        lambda *_args, **_kwargs: subprocess.CompletedProcess(
-            ["git"], 0, stdout="sha256\n", stderr=""
-        ),
-    )
-    missing, missing_gaps = resolution_observation.observe_lane(tmp_path, "work/missing")
-    assert len(missing.head) == 64
-    assert missing_gaps == ["lane_resolution_target_missing"]
 
 
 def test_resolution_read_decision_schema_and_digest_edges(tmp_path: Path, monkeypatch) -> None:
@@ -301,24 +250,16 @@ def test_resolution_read_decision_schema_and_digest_edges(tmp_path: Path, monkey
     ]
 
 
-def test_resolution_untracked_chronicle_and_command_failures(tmp_path: Path, monkeypatch) -> None:
-    monkeypatch.setattr(
-        resolution_observation.subprocess,
-        "run",
-        lambda *args, **kwargs: subprocess.CompletedProcess(args[0], 1, stdout=b"", stderr=b""),
-    )
-    assert (
-        resolution_observation.untracked_digest(tmp_path)
-        == hashlib.sha256(b"unavailable").hexdigest()
-    )
+def test_resolution_chronicle_command_failures(tmp_path: Path) -> None:
+    accepted_chronicle = resolution._accepted_chronicle
     outside = tmp_path.parent / "outside.md"
-    assert resolution._accepted_chronicle(
-        tmp_path, chronicle_ref=outside.as_posix(), disposition="block"
-    )[2] == ["lane_resolution_chronicle_outside_repository"]
+    assert accepted_chronicle(tmp_path, chronicle_ref=outside.as_posix(), disposition="block")[
+        2
+    ] == ["lane_resolution_chronicle_outside_repository"]
     wrong = tmp_path / "evidence/chronicle/x.md"
     wrong.parent.mkdir(parents=True)
     wrong.write_text("lane_resolution/preserve", encoding="utf-8")
-    assert resolution._accepted_chronicle(
+    assert accepted_chronicle(
         tmp_path, chronicle_ref="evidence/chronicle/x.md", disposition="block"
     )[2] == ["lane_resolution_chronicle_disposition_mismatch"]
 

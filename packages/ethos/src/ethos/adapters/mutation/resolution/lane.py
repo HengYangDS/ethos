@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import uuid
+from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
@@ -12,12 +13,16 @@ from typing import cast
 from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.mutation.resolution._effects import prepare_resolution_effect
 from ethos.adapters.mutation.resolution._effects import retire_clean_ownerless_lane
-from ethos.adapters.mutation.resolution._observation import observe_lane
 from ethos.adapters.mutation.resolution._shared import valid_decision_id
 from ethos.adapters.mutation.resolution.closeout.recovery import ResolutionRuntime
 from ethos.adapters.mutation.resolution.closeout.recovery import apply_resolution
 from ethos.adapters.mutation.resolution.closeout.recovery import ownerless_recovery_context
 from ethos.adapters.mutation.resolution.closeout.recovery import recover_ownerless_resolution
+from ethos.adapters.mutation.resolution.observation import ExactFileSnapshot
+from ethos.adapters.mutation.resolution.observation import OwnerlessGitObservationError
+from ethos.adapters.mutation.resolution.observation import git_object_bytes
+from ethos.adapters.mutation.resolution.observation import observe_lane
+from ethos.adapters.mutation.resolution.observation import read_root_bound_regular_file
 from ethos.adapters.mutation.resolution.receipts import write_resolution_receipt
 from ethos.adapters.mutation.resolution.records.core import canonical_current_record_bytes
 from ethos.adapters.mutation.resolution.records.core import release_resolution_receipt_reservation
@@ -340,16 +345,59 @@ def _accepted_chronicle(
 ) -> tuple[str, str, list[str]]:
     if not chronicle_ref.strip():
         return "", "", ["lane_resolution_chronicle_required"]
-    path = (root / chronicle_ref).resolve()
+    relative, gap = _chronicle_reference(chronicle_ref)
+    if gap:
+        return relative, "", [gap]
+    working, gap = _chronicle_working(root, relative, disposition)
+    if gap or working is None:
+        return relative, "", [gap or "lane_resolution_chronicle_invalid"]
+    if not _accepted_chronicle_matches(root, relative, working):
+        return relative, "", ["lane_resolution_chronicle_invalid"]
+    return relative, hashlib.sha256(working.raw).hexdigest(), []
+
+
+def _chronicle_reference(chronicle_ref: str) -> tuple[str, str]:
+    relative_path = PurePosixPath(chronicle_ref)
+    invalid_path = (
+        relative_path.is_absolute()
+        or ".." in relative_path.parts
+        or relative_path.as_posix() != chronicle_ref
+    )
+    if invalid_path:
+        return "", "lane_resolution_chronicle_outside_repository"
+    relative = relative_path.as_posix()
+    gap = "" if relative.startswith("evidence/chronicle/") else "lane_resolution_chronicle_missing"
+    return relative, gap
+
+
+def _chronicle_working(
+    root: Path, relative: str, disposition: str
+) -> tuple[ExactFileSnapshot | None, str]:
     try:
-        relative = path.relative_to(root.resolve()).as_posix()
-    except ValueError:
-        return "", "", ["lane_resolution_chronicle_outside_repository"]
-    if not relative.startswith("evidence/chronicle/") or not path.is_file():
-        return relative, "", ["lane_resolution_chronicle_missing"]
-    if f"lane_resolution/{disposition}" not in path.read_text(encoding="utf-8"):
-        return relative, "", ["lane_resolution_chronicle_disposition_mismatch"]
-    return relative, hashlib.sha256(path.read_bytes()).hexdigest(), []
+        working = read_root_bound_regular_file(root, relative, maximum_bytes=16 * 1024 * 1024)
+    except OwnerlessGitObservationError as error:
+        gap = (
+            "lane_resolution_chronicle_missing"
+            if error.detail == "file_missing"
+            else "lane_resolution_chronicle_invalid"
+        )
+        return None, gap
+    try:
+        text = working.raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return None, "lane_resolution_chronicle_invalid"
+    if f"lane_resolution/{disposition}" not in text:
+        return None, "lane_resolution_chronicle_disposition_mismatch"
+    return working, ""
+
+
+def _accepted_chronicle_matches(root: Path, relative: str, working: ExactFileSnapshot) -> bool:
+    try:
+        accepted = git_object_bytes(root, f"HEAD:{relative}")
+        current = read_root_bound_regular_file(root, relative, maximum_bytes=16 * 1024 * 1024)
+    except OwnerlessGitObservationError:
+        return False
+    return accepted == working.raw and current == working
 
 
 def _chronicle_event(

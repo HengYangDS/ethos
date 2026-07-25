@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import os
 import stat
 import subprocess
@@ -29,6 +30,7 @@ _PATH_INVALID = "lane_resolution_untracked_path_invalid"
 _BUNDLE_FAILED = "lane_resolution_bundle_failed"
 _TRACKED_DIFF_FAILED = "lane_resolution_diff_failed"
 _INDEX_DIFF_FAILED = "lane_resolution_index_diff_failed"
+_DIFF_FLAGS = ("--no-ext-diff", "--no-textconv", "--binary")
 
 type _Identity = tuple[int, int, int, int, int, int]
 type _DirectoryBinding = tuple[int, str, int, _Identity]
@@ -53,11 +55,11 @@ def write_git_preservation_payloads(
     )
     if bundled.returncode:
         raise ValueError(bundled.stderr.strip() or _BUNDLE_FAILED)
-    tracked = run_git_bytes(source, "diff", "--binary", "HEAD", "--")
+    tracked = run_git_bytes(source, "diff", *_DIFF_FLAGS, "HEAD", "--")
     if tracked.returncode:
         raise ValueError(_byte_diagnostic(tracked.stderr, _TRACKED_DIFF_FAILED))
     tracked_patch.write_bytes(tracked.stdout)
-    index = run_git_bytes(source, "diff", "--cached", "--binary", "HEAD", "--")
+    index = run_git_bytes(source, "diff", "--cached", *_DIFF_FLAGS, "HEAD", "--")
     if index.returncode:
         raise ValueError(_byte_diagnostic(index.stderr, _INDEX_DIFF_FAILED))
     index_patch.write_bytes(index.stdout)
@@ -65,16 +67,11 @@ def write_git_preservation_payloads(
 
 def write_untracked_archive(*, source: Path, archive: Path, inventory: list[bytes]) -> None:
     """Write exact inventoried members without following path components."""
-    root_descriptor = -1
     try:
-        visible_root = source.stat(follow_symlinks=False)
-        if not stat.S_ISDIR(visible_root.st_mode):
-            raise ValueError(_MEMBER_UNSUPPORTED)
-        root_descriptor = os.open(source, _DIRECTORY_FLAGS)
-        root_identity = _identity(os.fstat(root_descriptor))
-        if _identity(visible_root) != root_identity:
-            raise ValueError(_MEMBER_CHANGED)
-        with tarfile.open(archive, "w", dereference=False) as stream:
+        with (
+            _bound_source(source) as (root_descriptor, root_identity),
+            tarfile.open(archive, "w", dereference=False) as stream,
+        ):
             for raw_name in inventory:
                 relative = _relative_member(raw_name)
                 with _capture_member(
@@ -86,18 +83,48 @@ def write_untracked_archive(*, source: Path, archive: Path, inventory: list[byte
                     stream.addfile(info, payload)
     except (OSError, tarfile.TarError) as error:
         raise ValueError(_MEMBER_UNVERIFIABLE) from error
-    finally:
-        if root_descriptor >= 0:
-            os.close(root_descriptor)
+
+
+def digest_untracked_inventory(*, source: Path, inventory: bytes) -> str:
+    """Digest exact inventory plus descriptor-bound regular and symlink member bytes."""
+    members = _inventory_members(inventory)
+    if not members:
+        return hashlib.sha256(b"").hexdigest()
+    digest = hashlib.sha256(inventory)
+    try:
+        with _bound_source(source) as (root_descriptor, root_identity):
+            for raw_name in members:
+                with _capture_member(
+                    source=source,
+                    root_descriptor=root_descriptor,
+                    root_identity=root_identity,
+                    relative=_relative_member(raw_name),
+                ) as (info, payload):
+                    digest.update(info.type)
+                    if payload is None:
+                        target = os.fsencode(info.linkname)
+                        digest.update(len(target).to_bytes(8, "big") + target)
+                    else:
+                        digest.update(info.size.to_bytes(8, "big"))
+                        while chunk := payload.read(_READ_SIZE):
+                            digest.update(chunk)
+    except OSError as error:
+        raise ValueError(_MEMBER_UNVERIFIABLE) from error
+    return digest.hexdigest()
 
 
 def run_git_bytes(root: Path, *args: str) -> subprocess.CompletedProcess[bytes]:
     """Run fixed-literal Git while retaining raw stdout and stderr bytes."""
+    environment = {"PATH": os.environ.get("PATH", os.defpath), "GIT_NO_REPLACE_OBJECTS": "1"}
+    environment |= {"LC_ALL": "C", "GIT_OPTIONAL_LOCKS": "0", "GIT_CONFIG_NOSYSTEM": "1"}
+    environment |= {"GIT_CONFIG_GLOBAL": os.devnull, "GIT_ATTR_NOSYSTEM": "1"}
     return subprocess.run(
         ["git", *args],  # noqa: S607, RUF100 - fixed Git preservation boundary
         cwd=root,
         check=False,
         capture_output=True,
+        env=environment,
+        shell=False,
     )
 
 
@@ -110,6 +137,37 @@ def _relative_member(raw_name: bytes) -> Path:
     if not relative.parts or relative.is_absolute() or ".." in relative.parts:
         raise ValueError(_PATH_INVALID)
     return relative
+
+
+def _inventory_members(inventory: bytes) -> tuple[bytes, ...]:
+    if type(inventory) is not bytes:
+        raise ValueError(_PATH_INVALID)
+    if not inventory:
+        return ()
+    members = tuple(inventory[:-1].split(b"\0")) if inventory.endswith(b"\0") else ()
+    if not members or any(not member for member in members):
+        raise ValueError(_PATH_INVALID)
+    return members
+
+
+@contextmanager
+def _bound_source(source: Path) -> Iterator[tuple[int, _Identity]]:
+    descriptor = -1
+    try:
+        visible = source.stat(follow_symlinks=False)
+        if not stat.S_ISDIR(visible.st_mode):
+            raise ValueError(_MEMBER_UNSUPPORTED)
+        descriptor = os.open(source, _DIRECTORY_FLAGS)
+        identity = _identity(os.fstat(descriptor))
+        if _identity(visible) != identity:
+            raise ValueError(_MEMBER_CHANGED)
+        yield descriptor, identity
+        _verify_root(source, descriptor, identity)
+    except OSError as error:
+        raise ValueError(_MEMBER_UNVERIFIABLE) from error
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
 
 
 @contextmanager

@@ -8,7 +8,7 @@ from unittest.mock import MagicMock
 import pytest
 
 import ethos.adapters.mutation.resolution._effects as effects
-from ethos.adapters.mutation.resolution._observation import observe_lane
+from ethos.adapters.mutation.resolution.observation import observe_lane
 from ethos_core.contracts.resolution.lane import LaneResolutionDecision
 from tests.support.lane_helpers import git
 from tests.support.lane_helpers import orphan_work_lane

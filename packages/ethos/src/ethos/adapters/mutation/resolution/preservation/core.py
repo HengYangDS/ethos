@@ -13,8 +13,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
-from ethos.adapters.mutation.lane_lifecycle.core import run_git
-
 if TYPE_CHECKING:
     from collections.abc import Iterator
     from typing import BinaryIO
@@ -45,22 +43,21 @@ def write_git_preservation_payloads(
     lane_ref: str,
 ) -> None:
     """Write one bundle plus byte-exact worktree and index patches with fixed Git."""
-    bundled = run_git(
+    bundled = run_git_bytes(
         source,
         "bundle",
         "create",
         bundle.as_posix(),
         lane_ref,
-        check=False,
     )
-    if bundled.returncode:
-        raise ValueError(bundled.stderr.strip() or _BUNDLE_FAILED)
+    if bundled.returncode or bundled.stderr:
+        raise ValueError(_byte_diagnostic(bundled.stderr, _BUNDLE_FAILED))
     tracked = run_git_bytes(source, "diff", *_DIFF_FLAGS, "HEAD", "--")
-    if tracked.returncode:
+    if tracked.returncode or tracked.stderr:
         raise ValueError(_byte_diagnostic(tracked.stderr, _TRACKED_DIFF_FAILED))
     tracked_patch.write_bytes(tracked.stdout)
     index = run_git_bytes(source, "diff", "--cached", *_DIFF_FLAGS, "HEAD", "--")
-    if index.returncode:
+    if index.returncode or index.stderr:
         raise ValueError(_byte_diagnostic(index.stderr, _INDEX_DIFF_FAILED))
     index_patch.write_bytes(index.stdout)
 

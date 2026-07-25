@@ -15,6 +15,7 @@ from ethos.adapters.mutation.resolution.records.clear.core import LaneResolution
 from ethos.adapters.mutation.resolution.records.clear.core import clear_lane_resolution_package
 from ethos.adapters.mutation.resolution.records.inventory import lane_resolution_inventory
 from ethos.adapters.mutation.resolution.records.roots import accepted_control_root
+from ethos.adapters.mutation.resolution.records.roots import current_record_root
 from ethos.surface.cli.lane.resolution import _default_decision_path
 from tests.support.contract_helpers import commit_fixture_file
 from tests.support.lane_helpers import git
@@ -143,6 +144,59 @@ def test_preserve_retire_accepts_hashed_target_branch_selector(tmp_path: Path) -
     planned = _plan(repo, chronicle_ref=chronicle_ref)
 
     assert planned["ok"] is True
+
+
+def test_preserve_retire_rejects_pre_effect_chronicle_drift(tmp_path: Path) -> None:
+    repo, lane = orphan_work_lane(tmp_path)
+    control_root = accepted_control_root(repo)
+    observation, gaps = observe_lane(control_root, "work/orphan")
+    assert gaps == []
+    chronicle_ref = "evidence/chronicle/target-binding/pre-effect-stale.md"
+    chronicle = (
+        "---\n"
+        "event: lane_resolution/preserve-retire\n"
+        f"target_branch: {observation.lane_ref}\n"
+        f"target_head: {observation.head}\n"
+        "---\n\n"
+        "revision: one\n"
+    )
+    commit_fixture_file(
+        control_root,
+        chronicle_ref,
+        chronicle,
+        "record target-bound chronicle",
+    )
+    decision_path = current_record_root(control_root) / "decisions" / "pre-effect-stale.json"
+    planned = plan_lane_resolution(
+        root=control_root,
+        branch=observation.lane_ref,
+        disposition="preserve-retire",
+        reason="Preserve one exact diverged predecessor before retirement.",
+        evidence_refs=("evidence:maintainer-decision",),
+        chronicle_ref=chronicle_ref,
+        recovery_plan="Preserve the observed target before any destructive effect.",
+        decision_path=decision_path,
+        break_glass=True,
+        apply=True,
+    )
+    commit_fixture_file(
+        control_root,
+        chronicle_ref,
+        chronicle.replace("revision: one", "revision: two"),
+        "amend target-bound chronicle",
+    )
+
+    applied = apply_lane_resolution(
+        root=control_root,
+        decision_path=decision_path,
+        confirm_irreversible=True,
+        apply=False,
+    )
+
+    assert planned["ok"] is True
+    assert applied["ok"] is False
+    assert applied["required_gaps"] == ["lane_resolution_chronicle_stale"]
+    assert lane.is_dir()
 
 
 def test_preserve_retire_uses_the_configured_accepted_chronicle_root(tmp_path: Path) -> None:

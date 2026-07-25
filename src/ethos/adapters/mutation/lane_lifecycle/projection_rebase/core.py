@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 from typing import TypedDict
 
-from ethos.adapters.mutation.lane_lifecycle.core import run_git
+from ethos.adapters.repo.git import run_git
 
 PARITY_EVIDENCE_ROOT = Path("evidence/parity")
 PARITY_SHADOW_SUFFIX = "-shadow.json"

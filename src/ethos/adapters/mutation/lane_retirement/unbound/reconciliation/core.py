@@ -12,8 +12,8 @@ import ethos.adapters.mutation.lane_retirement.unbound.observation.core as obser
 import ethos.adapters.mutation.lane_retirement.unbound.policy.core as policy
 import ethos.adapters.mutation.lane_retirement.unbound.records.core as records
 import ethos.adapters.mutation.lane_retirement.unbound.reporting.core as reporting
-from ethos.adapters.mutation.lane_lifecycle.core import repo_root
 from ethos.adapters.mutation.lane_retirement.unbound.core import relinquish_owned_lease
+from ethos.adapters.repo.git import repository_root
 from ethos.adapters.store.state.schema import initialize_state
 from ethos.adapters.store.state.schema import state_database
 
@@ -71,7 +71,7 @@ def reconcile_ref_absent_owner_unavailable_lease(
     *, root: Path, branch: str, controls: RefAbsentReconciliationControls
 ) -> dict[str, object]:
     """Reconcile only the lease left after one exact ref-delete partial effect."""
-    repo = repo_root(root)
+    repo = repository_root(root)
     branch = branch.strip()
     controls = controls.normalized()
     before = observation.observe_ref_absent_reconciliation(

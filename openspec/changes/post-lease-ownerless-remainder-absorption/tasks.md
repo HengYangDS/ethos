@@ -20,9 +20,9 @@
 
 ## 3. Carrier lifecycle
 
-- [ ] 3.1 Pass strict OpenSpec lifecycle, Claim, docs, config, and focused
+- [x] 3.1 Pass strict OpenSpec lifecycle, Claim, docs, config, and focused
   governance checks.
-- [ ] 3.2 Refresh and commit generic parity evidence.
+- [x] 3.2 Refresh and commit generic parity evidence.
 - [ ] 3.3 Execute exact-HEAD proof, complete only evidenced tasks, and officially
   archive this change.
 - [ ] 3.4 Reprove the archive HEAD, refresh current base if necessary, land to

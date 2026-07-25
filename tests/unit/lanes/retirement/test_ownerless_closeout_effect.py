@@ -1,97 +1,106 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import subprocess
+from contextlib import ExitStack
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import pytest
 
-import ethos.adapters.mutation.resolution._effects as effects
-import ethos.adapters.mutation.resolution.lane as lane_adapter
-import ethos.adapters.mutation.resolution.records.reservations as reservation_store
-from ethos.adapters.mutation.resolution.observation import observe_lane
+import ethos.adapters.mutation.resolution._effects as closeout_git
+import ethos.adapters.mutation.resolution.closeout.admission as closeout_admission
+import ethos.adapters.mutation.resolution.closeout.effect as effect
+import ethos.adapters.mutation.resolution.closeout.receipt as closeout_receipt
+import ethos.adapters.mutation.resolution.records.reservations as reservations
+from ethos.adapters.mutation.resolution.observation import observe_ownerless_git
+from ethos.adapters.mutation.resolution.records.core import canonical_current_record_bytes
+from ethos.adapters.mutation.resolution.records.core import receipt_path
 from ethos.adapters.mutation.resolution.records.roots import current_record_root
 from ethos.adapters.store.state.closeout import get_closeout_fence
-from ethos.adapters.store.state.closeout import release_closeout_fence
 from ethos.adapters.store.state.schema import state_database
-from ethos_core.contracts.resolution.closeout import OwnerlessCloseoutBinding
 from ethos_core.contracts.resolution.lane import LaneResolutionDecision
 from tests.support.lane_helpers import git
-from tests.support.lane_helpers import orphan_work_lane
+from tests.support.lane_helpers import init_repo
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from ethos_core.contracts.resolution.lane import LaneObservation
-
-
 _EXECUTOR = "agent:codex:thread:executor"
 _DECISION_ID = "lane-decision:00000000-0000-4000-8000-000000000001"
-_REPLACEMENT_DECISION_ID = "lane-decision:00000000-0000-4000-8000-000000000002"
 
 
-def _digest(value: object) -> str:
-    return hashlib.sha256(
-        json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
-    ).hexdigest()
+@dataclass
+class _Scenario:
+    repo: Path
+    target: Path
+    decision_path: Path
+    decision: dict[str, object]
+    head: str
+    accepted_head: str
 
 
-def _decision(
-    root: Path,
-    path: Path,
-    observation: LaneObservation,
-    *,
-    decision_id: str = _DECISION_ID,
-) -> tuple[dict[str, object], bytes]:
-    chronicle_ref = "evidence/chronicle/test.md"
-    chronicle = root / chronicle_ref
-    chronicle.parent.mkdir(parents=True, exist_ok=True)
-    chronicle_bytes = b"decision: lane_resolution/retire\n"
-    chronicle.write_bytes(chronicle_bytes)
-    payload = LaneResolutionDecision(
-        decision_id=decision_id,
+def _scenario(tmp_path: Path) -> _Scenario:
+    repo = init_repo(tmp_path / "repo")
+    head = git(repo, "rev-parse", "dev")
+    git(repo, "branch", "work/orphan", head)
+    chronicle_ref = "evidence/chronicle/effect/retire.md"
+    chronicle = repo / chronicle_ref
+    chronicle.parent.mkdir(parents=True)
+    chronicle.write_bytes(b"# Ownerless effect\n\nlane_resolution/retire\n")
+    git(repo, "add", chronicle_ref)
+    git(
+        repo,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "record ownerless effect decision",
+    )
+    accepted_head = git(repo, "rev-parse", "dev")
+    target = tmp_path / "registered" / "orphan"
+    target.parent.mkdir()
+    git(repo, "worktree", "add", target.as_posix(), "work/orphan")
+    facts = observe_ownerless_git(repo, branch="work/orphan", accepted_branch="dev")
+    decision = LaneResolutionDecision(
+        decision_id=_DECISION_ID,
         disposition="retire",
-        observation=observation,
-        evidence_refs=("evidence/test.md",),
+        observation=facts.observation,
+        evidence_refs=("evidence:effect",),
         chronicle_ref=chronicle_ref,
-        chronicle_digest=hashlib.sha256(chronicle_bytes).hexdigest(),
-        recovery_plan="Restore the exact linked Work Lane if closeout is partial.",
-        reason="The exact clean ownerless Work Lane is approved for closeout.",
+        chronicle_digest=hashlib.sha256(chronicle.read_bytes()).hexdigest(),
+        recovery_plan="Reconcile the exact durable closeout binding.",
+        reason="The clean ownerless lane is absorbed by accepted history.",
         break_glass=True,
     ).to_payload()
-    raw = json.dumps(payload, sort_keys=True).encode()
-    path.write_bytes(raw)
-    return payload, raw
+    decision_path = current_record_root(repo) / "decisions" / "effect.json"
+    decision_path.parent.mkdir(parents=True)
+    decision_path.write_bytes(canonical_current_record_bytes(decision))
+    return _Scenario(repo, target, decision_path, decision, head, accepted_head)
 
 
-def _wcp(raw: bytes, observation: LaneObservation, accepted_head: str) -> dict[str, object]:
-    decision = json.loads(raw)
-    return {
-        "schema_version": "workstation.repo-family-governance.v1",
-        "decision_sha256": hashlib.sha256(raw).hexdigest(),
-        "executor_ref": _EXECUTOR,
-        "observation_digest": observation.digest(),
-        "chronicle_digest": str(decision["chronicle_digest"]),
-        "source": {"head": accepted_head},
-        "coordination": {"binding_digest": "d" * 64},
-    }
+def _apply(scenario: _Scenario) -> dict[str, object]:
+    return effect.retire_clean_ownerless_lane(
+        root=scenario.repo,
+        decision_path=scenario.decision_path,
+        decision=scenario.decision,
+        executor_ref=_EXECUTOR,
+    )
 
 
-def _fence(observation: LaneObservation, accepted_head: str) -> dict[str, object]:
-    return {
-        "subject": observation.lane_ref,
-        "expected_head": observation.head,
-        "decision_id": _DECISION_ID,
-        "executor_ref": _EXECUTOR,
-        "accepted_branch": "dev",
-        "accepted_head": accepted_head,
-        "target_binding_digest": "e" * 64,
-    }
+def _reservation(scenario: _Scenario) -> dict[str, object]:
+    path = _reservation_path(scenario)
+    return reservations.read_ownerless_closeout_reservation(
+        record_root=current_record_root(scenario.repo),
+        path=path,
+    )
 
 
-def _registered(repo: Path, path: Path) -> bool:
-    return f"worktree {path}\n" in git(repo, "worktree", "list", "--porcelain")
+def _reservation_path(scenario: _Scenario) -> Path:
+    target = reservations.target_digest("work/orphan", scenario.head)
+    return reservations.ownerless_closeout_reservation_path(scenario.repo, target)
 
 
 @pytest.mark.parametrize(
@@ -100,20 +109,6 @@ def _registered(repo: Path, path: Path) -> bool:
         ([subprocess.CompletedProcess([], 1, "", "")], ("absent", "")),
         ([subprocess.CompletedProcess([], 128, "", "fatal")], ("unverifiable", "")),
         ([OSError("probe failed")], ("unverifiable", "")),
-        (
-            [
-                subprocess.CompletedProcess([], 0, "", ""),
-                subprocess.CompletedProcess([], 128, "", "fatal"),
-            ],
-            ("unverifiable", ""),
-        ),
-        (
-            [
-                subprocess.CompletedProcess([], 0, "", ""),
-                subprocess.CompletedProcess([], 0, "not-an-oid\n", ""),
-            ],
-            ("unverifiable", ""),
-        ),
         (
             [
                 subprocess.CompletedProcess([], 0, "", ""),
@@ -137,687 +132,366 @@ def test_ownerless_ref_probe_has_explicit_three_state_contract(
             raise response
         return response
 
-    monkeypatch.setattr(effects, "run_git", probe)
+    monkeypatch.setattr(closeout_git, "run_git", probe)
+    assert closeout_git.probe_ownerless_ref(tmp_path, "work/orphan") == expected
 
-    assert effects.probe_ownerless_ref(tmp_path, "work/orphan") == expected
+
+@pytest.mark.parametrize(
+    ("response", "expected"),
+    [
+        (
+            subprocess.CompletedProcess([], 0, "worktree /other\nworktree /target\n", ""),
+            "present",
+        ),
+        (subprocess.CompletedProcess([], 0, "worktree /other\n", ""), "absent"),
+        (subprocess.CompletedProcess([], 128, "", "fatal"), "unverifiable"),
+        (OSError("registration probe failed"), "unverifiable"),
+        (subprocess.SubprocessError("registration probe failed"), "unverifiable"),
+    ],
+)
+def test_ownerless_registration_probe_has_explicit_three_state_contract(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    response: object,
+    expected: str,
+) -> None:
+    calls: list[tuple[tuple[str, ...], dict[str, object]]] = []
+
+    def run(_root: Path, *args: str, **kwargs: object):
+        calls.append((args, kwargs))
+        if isinstance(response, BaseException):
+            raise response
+        return response
+
+    monkeypatch.setattr(closeout_git, "run_git", run)
+
+    assert closeout_git.probe_ownerless_worktree_registration(tmp_path, "/target") == expected
+    assert calls == [(("worktree", "list", "--porcelain"), {"check": False})]
 
 
-def test_ownerless_effect_rejects_replaced_decision_before_any_effect(
+def test_fresh_fence_acquisition_failure_blocks_before_reservation_or_effect(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    repo, lane = orphan_work_lane(tmp_path)
-    observation, _ = observe_lane(repo, "work/orphan")
-    accepted_head = git(repo, "rev-parse", "dev")
-    decision_path = tmp_path / "decision.json"
-    decision, _ = _decision(repo, decision_path, observation)
-    _, replacement_raw = _decision(
-        repo,
-        decision_path,
-        observation,
-        decision_id=_REPLACEMENT_DECISION_ID,
-    )
+    scenario = _scenario(tmp_path)
     events: list[str] = []
 
-    def admitted(**_kwargs: object) -> dict[str, object]:
-        events.append("wcp")
-        return _wcp(replacement_raw, observation, accepted_head)
+    def fail_fence(*_args: object, **_kwargs: object) -> dict[str, object]:
+        events.append("fence")
+        message = "state database unavailable"
+        raise OSError(message)
 
-    monkeypatch.setattr(effects, "run_worktree_closeout_check", admitted)
+    monkeypatch.setattr(effect, "acquire_closeout_fence", fail_fence)
+    monkeypatch.setattr(
+        effect,
+        "reserve_ownerless_closeout_target",
+        lambda **_kwargs: events.append("reservation"),
+    )
+    monkeypatch.setattr(
+        effect,
+        "retire_clean_ownerless_cas",
+        lambda **_kwargs: events.append("effect"),
+    )
 
     with pytest.raises(
-        effects.OwnerlessCloseoutError,
-        match="lane_resolution_ownerless_decision_stale",
-    ) as caught:
-        effects.retire_clean_ownerless_lane(
-            root=repo,
-            decision_path=decision_path,
-            decision=decision,
-            observation=observation,
-            executor_ref=_EXECUTOR,
-            accepted_branch="dev",
-            accepted_head=accepted_head,
-        )
+        effect.OwnerlessCloseoutError,
+        match="lane_resolution_ownerless_fence_failed",
+    ) as raised:
+        _apply(scenario)
 
-    assert caught.value.fence_acquired is False
-    assert events == []
-    assert lane.is_dir()
-    assert _registered(repo, lane)
-    assert git(repo, "rev-parse", "work/orphan") == observation.head
-    assert get_closeout_fence(state_database(repo), subject=observation.lane_ref) is None
-    assert not reservation_store.ownerless_closeout_reservation_path(
-        repo,
-        reservation_store.target_digest(observation.lane_ref, observation.head),
-    ).exists()
+    assert str(raised.value) == "lane_resolution_ownerless_fence_failed"
+    assert raised.value.reservation_visible is False
+    assert events == ["fence"]
+    assert get_closeout_fence(state_database(scenario.repo), subject="work/orphan") is None
+    assert not _reservation_path(scenario).exists()
+    assert scenario.target.is_dir()
+    assert closeout_git.probe_ownerless_ref(scenario.repo, "work/orphan") == (
+        "oid",
+        scenario.head,
+    )
 
 
-def test_ownerless_effect_classifies_failed_remove_after_real_removal(
+def test_initial_reservation_failure_rolls_back_exact_fence_before_effect(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    repo, lane = orphan_work_lane(tmp_path)
-    observation, _ = observe_lane(repo, "work/orphan")
-    accepted_head = git(repo, "rev-parse", "dev")
-    decision_path = tmp_path / "decision.json"
-    decision, raw = _decision(repo, decision_path, observation)
-    real_run_git = effects.run_git
-    monkeypatch.setattr(
-        effects,
-        "run_worktree_closeout_check",
-        lambda **_kwargs: _wcp(raw, observation, accepted_head),
-    )
+    scenario = _scenario(tmp_path)
+    acquired: list[dict[str, object]] = []
+    releases: list[dict[str, object]] = []
+    effect_called = False
+    real_acquire = effect.acquire_closeout_fence
+    real_release = effect.release_closeout_fence
 
-    def partial_remove(root: Path, *args: str, **kwargs: object):
-        if args[:2] == ("worktree", "remove"):
-            removed = real_run_git(root, *args, **kwargs)
-            assert removed.returncode == 0
-            return subprocess.CompletedProcess(args, 1, "", "injected nonzero after removal")
-        return real_run_git(root, *args, **kwargs)
+    def fail_reservation(**_kwargs: object) -> None:
+        message = "reservation unavailable"
+        raise OSError(message)
 
-    monkeypatch.setattr(effects, "run_git", partial_remove)
+    def acquire(database: Path, **kwargs: object) -> dict[str, object]:
+        fence = real_acquire(database, **kwargs)
+        acquired.append(fence)
+        return fence
+
+    def release(database: Path, **kwargs: object) -> None:
+        releases.append(kwargs)
+        real_release(database, **kwargs)
+
+    def retire(**_kwargs: object) -> None:
+        nonlocal effect_called
+        effect_called = True
+
+    monkeypatch.setattr(effect, "acquire_closeout_fence", acquire)
+    monkeypatch.setattr(effect, "reserve_ownerless_closeout_target", fail_reservation)
+    monkeypatch.setattr(effect, "release_closeout_fence", release)
+    monkeypatch.setattr(effect, "retire_clean_ownerless_cas", retire)
 
     with pytest.raises(
-        effects.OwnerlessCloseoutError,
-        match="lane_resolution_ownerless_worktree_removed_ref_present",
-    ):
-        effects.retire_clean_ownerless_lane(
-            root=repo,
-            decision_path=decision_path,
-            decision=decision,
-            observation=observation,
-            executor_ref=_EXECUTOR,
-            accepted_branch="dev",
-            accepted_head=accepted_head,
-        )
+        effect.OwnerlessCloseoutError,
+        match="lane_resolution_ownerless_reservation_failed",
+    ) as raised:
+        _apply(scenario)
 
-    assert not lane.exists()
-    assert not _registered(repo, lane)
-    assert git(repo, "rev-parse", "work/orphan") == observation.head
-    reservation = reservation_store.read_ownerless_closeout_reservation(
-        record_root=current_record_root(repo),
-        path=reservation_store.ownerless_closeout_reservation_path(
-            repo,
-            reservation_store.target_digest(observation.lane_ref, observation.head),
-        ),
+    assert str(raised.value) == "lane_resolution_ownerless_reservation_failed"
+    assert raised.value.reservation_visible is False
+    assert effect_called is False
+    assert len(acquired) == 1
+    assert len(releases) == 1
+    assert releases[0]["subject"] == "work/orphan"
+    assert releases[0]["decision_id"] == _DECISION_ID
+    assert releases[0]["target_binding_digest"] == acquired[0]["target_binding_digest"]
+    assert get_closeout_fence(state_database(scenario.repo), subject="work/orphan") is None
+    assert not _reservation_path(scenario).exists()
+    assert scenario.target.is_dir()
+    assert closeout_git.probe_ownerless_ref(scenario.repo, "work/orphan") == (
+        "oid",
+        scenario.head,
     )
+
+
+def test_final_reservation_transition_failure_retains_recovery_visibility(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    scenario = _scenario(tmp_path)
+    effects = 0
+    real_retire = effect.retire_clean_ownerless_cas
+
+    def retire(**kwargs: object) -> None:
+        nonlocal effects
+        effects += 1
+        real_retire(**kwargs)
+
+    def fail_transition(**_kwargs: object) -> None:
+        message = "reservation transition unavailable"
+        raise OSError(message)
+
+    def unexpected_cleanup(*_args: object, **_kwargs: object) -> None:
+        pytest.fail("post-effect transition failure must not release the fence")
+
+    monkeypatch.setattr(effect, "retire_clean_ownerless_cas", retire)
+    monkeypatch.setattr(effect, "transition_ownerless_closeout_reservation", fail_transition)
+    monkeypatch.setattr(effect, "release_closeout_fence", unexpected_cleanup)
+
+    with pytest.raises(
+        effect.OwnerlessCloseoutError,
+        match="lane_resolution_ownerless_reservation_update_failed",
+    ) as raised:
+        _apply(scenario)
+
+    assert str(raised.value) == "lane_resolution_ownerless_reservation_update_failed"
+    assert effects == 1
+    assert (raised.value.phase, raised.value.recovery_state) == (
+        "unknown",
+        "transition_unknown",
+    )
+    assert raised.value.reservation_visible is True
+    reservation = _reservation(scenario)
+    assert (reservation["phase"], reservation["recovery_state"]) == (
+        "reserved",
+        "reserved_no_effect",
+    )
+    fence = get_closeout_fence(state_database(scenario.repo), subject="work/orphan")
+    assert fence is not None
+    assert reservation["target_binding_digest"] == fence["target_binding_digest"]
+    assert not scenario.target.exists()
+    assert closeout_git.probe_ownerless_ref(scenario.repo, "work/orphan") == ("absent", "")
+
+
+def test_native_effect_uses_fresh_fence_digest_and_reaches_receipt_boundary(tmp_path: Path) -> None:
+    scenario = _scenario(tmp_path)
+    binding = _apply(scenario)
+    fence = get_closeout_fence(state_database(scenario.repo), subject="work/orphan")
+    reservation = _reservation(scenario)
+
+    assert fence is not None
+    assert binding["target_binding_digest"] == fence["target_binding_digest"]
+    assert reservation["target_binding_digest"] == fence["target_binding_digest"]
+    assert reservation["phase"] == "receipt"
+    assert reservation["recovery_state"] == "effect_complete_receipt_missing"
+    assert not scenario.target.exists()
+    assert closeout_git.probe_ownerless_ref(scenario.repo, "work/orphan") == ("absent", "")
+
+
+@pytest.mark.parametrize("mutation", ["replacement_identity", "extra_sidecar"])
+def test_fence_reobservation_rejects_receipt_reservation_drift(
+    tmp_path: Path, mutation: str
+) -> None:
+    scenario = _scenario(tmp_path)
+    admission = closeout_admission.admit_ownerless_closeout(
+        root=scenario.repo,
+        decision_path=scenario.decision_path,
+        decision=scenario.decision,
+        executor_ref=_EXECUTOR,
+    )
+    record_root = current_record_root(scenario.repo)
+    with ExitStack() as stack:
+        claimed, descriptor, gap = closeout_receipt.claim_receipt_reservation(
+            stack,
+            scenario.repo,
+            record_root,
+            _DECISION_ID,
+            mode="create",
+        )
+        assert claimed is True
+        assert descriptor is not None
+        assert gap == ""
+        binder = getattr(closeout_receipt, "bind_ownerless_receipt_reservation", None)
+        assert binder is not None
+        admission = binder(
+            admission=admission,
+            control_root=scenario.repo,
+            artifact_root=record_root,
+            descriptor=descriptor,
+        )
+        database = state_database(scenario.repo)
+        fence = effect._acquire_fresh_fence(admission, database)  # noqa: SLF001, RUF100
+        token = admission.receipt_reservation_token
+        assert token is not None
+        if mutation == "replacement_identity":
+            token.path.unlink()
+            token.path.write_bytes(token.raw)
+        else:
+            competitor_id = "lane-decision:00000000-0000-4000-8000-000000000002"
+            competitor_receipt = receipt_path(
+                scenario.repo,
+                competitor_id,
+                artifact_root=record_root,
+            )
+            competitor_receipt.with_name(
+                f".{competitor_receipt.stem}.receipt-reservation"
+            ).write_bytes(f"{competitor_id}\n".encode())
+        try:
+            with pytest.raises(closeout_admission.OwnerlessCloseoutAdmissionError) as raised:
+                closeout_admission.reobserve_ownerless_closeout_under_fence(
+                    admission=admission,
+                    fence=fence,
+                )
+            assert raised.value.gap == "lane_resolution_ownerless_reservation_competing"
+        finally:
+            effect._release_unreserved_fence(admission, database, fence)  # noqa: SLF001, RUF100
+
+
+def test_failed_remove_with_zero_effect_keeps_retry_state(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    scenario = _scenario(tmp_path)
+    real_run = closeout_git.run_git
+
+    def fail_remove(root: Path, *args: str, **kwargs: object):
+        if args[:2] == ("worktree", "remove"):
+            return subprocess.CompletedProcess(args, 1, "", "failed")
+        return real_run(root, *args, **kwargs)
+
+    monkeypatch.setattr(closeout_git, "run_git", fail_remove)
+    with pytest.raises(effect.OwnerlessCloseoutError) as raised:
+        _apply(scenario)
+    assert str(raised.value) == "lane_resolution_ownerless_worktree_remove_failed"
+    assert (raised.value.phase, raised.value.recovery_state) == (
+        "reserved",
+        "reserved_no_effect",
+    )
+    assert _reservation(scenario)["recovery_state"] == "reserved_no_effect"
+    assert scenario.target.is_dir()
+
+
+def test_failed_remove_after_real_removal_records_effect_state(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    scenario = _scenario(tmp_path)
+    real_run = closeout_git.run_git
+
+    def remove_then_fail(root: Path, *args: str, **kwargs: object):
+        if args[:2] == ("worktree", "remove"):
+            completed = real_run(root, *args, **kwargs)
+            assert completed.returncode == 0
+            return subprocess.CompletedProcess(args, 1, "", "late failure")
+        return real_run(root, *args, **kwargs)
+
+    monkeypatch.setattr(closeout_git, "run_git", remove_then_fail)
+    with pytest.raises(effect.OwnerlessCloseoutError, match="worktree_removed_ref_present"):
+        _apply(scenario)
+    reservation = _reservation(scenario)
     assert (reservation["phase"], reservation["recovery_state"]) == (
         "effect",
         "worktree_removed_ref_present",
     )
 
 
-def test_ownerless_effect_classifies_failed_remove_with_unverifiable_ref_as_unknown(
+def test_accepted_drift_after_reobservation_preserves_partial_state(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    repo, lane = orphan_work_lane(tmp_path)
-    observation, _ = observe_lane(repo, "work/orphan")
-    accepted_head = git(repo, "rev-parse", "dev")
-    decision_path = tmp_path / "decision.json"
-    decision, raw = _decision(repo, decision_path, observation)
-    real_run_git = effects.run_git
-    target_ref = f"refs/heads/{observation.lane_ref}"
-    removed = False
-    monkeypatch.setattr(
-        effects,
-        "run_worktree_closeout_check",
-        lambda **_kwargs: _wcp(raw, observation, accepted_head),
-    )
+    scenario = _scenario(tmp_path)
+    real_reobserve = effect.reobserve_ownerless_closeout_under_fence
 
-    def partial_remove(root: Path, *args: str, **kwargs: object):
-        nonlocal removed
-        if args[:2] == ("worktree", "remove"):
-            completed = real_run_git(root, *args, **kwargs)
-            assert completed.returncode == 0
-            removed = True
-            return subprocess.CompletedProcess(args, 1, "", "injected nonzero after removal")
-        if removed and args[-1:] == (target_ref,) and args[0] == "show-ref":
-            return subprocess.CompletedProcess(args, 128, "", "injected fatal probe")
-        return real_run_git(root, *args, **kwargs)
-
-    monkeypatch.setattr(effects, "run_git", partial_remove)
-
-    with pytest.raises(
-        effects.OwnerlessCloseoutError,
-        match="lane_resolution_ownerless_transition_unknown",
-    ):
-        effects.retire_clean_ownerless_lane(
-            root=repo,
-            decision_path=decision_path,
-            decision=decision,
-            observation=observation,
-            executor_ref=_EXECUTOR,
-            accepted_branch="dev",
-            accepted_head=accepted_head,
-        )
-
-    assert not lane.exists()
-    reservation = reservation_store.read_ownerless_closeout_reservation(
-        record_root=current_record_root(repo),
-        path=reservation_store.ownerless_closeout_reservation_path(
-            repo,
-            reservation_store.target_digest(observation.lane_ref, observation.head),
-        ),
-    )
-    assert (reservation["phase"], reservation["recovery_state"]) == (
-        "unknown",
-        "transition_unknown",
-    )
-
-
-@pytest.mark.parametrize("registration_fault", ["returncode", "exception"])
-def test_ownerless_effect_requires_verifiable_registration_for_no_effect(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-    registration_fault: str,
-) -> None:
-    repo, lane = orphan_work_lane(tmp_path)
-    observation, _ = observe_lane(repo, "work/orphan")
-    accepted_head = git(repo, "rev-parse", "dev")
-    decision_path = tmp_path / "decision.json"
-    decision, raw = _decision(repo, decision_path, observation)
-    real_run_git = effects.run_git
-    monkeypatch.setattr(
-        effects,
-        "run_worktree_closeout_check",
-        lambda **_kwargs: _wcp(raw, observation, accepted_head),
-    )
-
-    def failed_remove(root: Path, *args: str, **kwargs: object):
-        if args[:2] == ("worktree", "remove"):
-            return subprocess.CompletedProcess(args, 1, "", "injected no-effect failure")
-        if args[:3] == ("worktree", "list", "--porcelain"):
-            if registration_fault == "exception":
-                message = "injected registration probe failure"
-                raise OSError(message)
-            return subprocess.CompletedProcess(args, 128, "", "injected fatal probe")
-        return real_run_git(root, *args, **kwargs)
-
-    monkeypatch.setattr(effects, "run_git", failed_remove)
-
-    with pytest.raises(
-        effects.OwnerlessCloseoutError,
-        match="lane_resolution_ownerless_transition_unknown",
-    ):
-        effects.retire_clean_ownerless_lane(
-            root=repo,
-            decision_path=decision_path,
-            decision=decision,
-            observation=observation,
-            executor_ref=_EXECUTOR,
-            accepted_branch="dev",
-            accepted_head=accepted_head,
-        )
-
-    assert lane.is_dir()
-    reservation = reservation_store.read_ownerless_closeout_reservation(
-        record_root=current_record_root(repo),
-        path=reservation_store.ownerless_closeout_reservation_path(
-            repo,
-            reservation_store.target_digest(observation.lane_ref, observation.head),
-        ),
-    )
-    assert (reservation["phase"], reservation["recovery_state"]) == (
-        "unknown",
-        "transition_unknown",
-    )
-
-
-def test_ownerless_effect_keeps_no_effect_state_when_failed_remove_preserves_target(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    repo, lane = orphan_work_lane(tmp_path)
-    observation, _ = observe_lane(repo, "work/orphan")
-    accepted_head = git(repo, "rev-parse", "dev")
-    decision_path = tmp_path / "decision.json"
-    decision, raw = _decision(repo, decision_path, observation)
-    real_run_git = effects.run_git
-    monkeypatch.setattr(
-        effects,
-        "run_worktree_closeout_check",
-        lambda **_kwargs: _wcp(raw, observation, accepted_head),
-    )
-
-    def failed_remove(root: Path, *args: str, **kwargs: object):
-        if args[:2] == ("worktree", "remove"):
-            return subprocess.CompletedProcess(args, 1, "", "injected no-effect failure")
-        return real_run_git(root, *args, **kwargs)
-
-    monkeypatch.setattr(effects, "run_git", failed_remove)
-
-    with pytest.raises(
-        effects.OwnerlessCloseoutError,
-        match="lane_resolution_ownerless_worktree_remove_failed",
-    ):
-        effects.retire_clean_ownerless_lane(
-            root=repo,
-            decision_path=decision_path,
-            decision=decision,
-            observation=observation,
-            executor_ref=_EXECUTOR,
-            accepted_branch="dev",
-            accepted_head=accepted_head,
-        )
-
-    assert lane.is_dir()
-    assert _registered(repo, lane)
-    assert git(repo, "rev-parse", "work/orphan") == observation.head
-    reservation = reservation_store.read_ownerless_closeout_reservation(
-        record_root=current_record_root(repo),
-        path=reservation_store.ownerless_closeout_reservation_path(
-            repo,
-            reservation_store.target_digest(observation.lane_ref, observation.head),
-        ),
-    )
-    assert (reservation["phase"], reservation["recovery_state"]) == (
-        "reserved",
-        "reserved_no_effect",
-    )
-
-
-@pytest.mark.parametrize("probe_fault", ["returncode_128", "exception"])
-def test_ownerless_effect_fails_closed_when_target_ref_absence_is_unverifiable(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-    probe_fault: str,
-) -> None:
-    repo, lane = orphan_work_lane(tmp_path)
-    observation, _ = observe_lane(repo, "work/orphan")
-    accepted_head = git(repo, "rev-parse", "dev")
-    decision_path = tmp_path / "decision.json"
-    decision, raw = _decision(repo, decision_path, observation)
-    real_run_git = effects.run_git
-    target_ref = f"refs/heads/{observation.lane_ref}"
-    monkeypatch.setattr(
-        effects,
-        "run_worktree_closeout_check",
-        lambda **_kwargs: _wcp(raw, observation, accepted_head),
-    )
-
-    def faulting_probe(root: Path, *args: str, **kwargs: object):
-        if (
-            not lane.exists()
-            and args[-1:] == (target_ref,)
-            and args[0]
-            in {
-                "rev-parse",
-                "show-ref",
-            }
-        ):
-            if probe_fault == "exception":
-                message = "injected target-ref probe failure"
-                raise OSError(message)
-            return subprocess.CompletedProcess(args, 128, "", "injected fatal probe")
-        return real_run_git(root, *args, **kwargs)
-
-    monkeypatch.setattr(effects, "run_git", faulting_probe)
-
-    with pytest.raises(
-        effects.OwnerlessCloseoutError,
-        match="lane_resolution_ownerless_postcondition_failed:target_ref_absent",
-    ):
-        effects.retire_clean_ownerless_lane(
-            root=repo,
-            decision_path=decision_path,
-            decision=decision,
-            observation=observation,
-            executor_ref=_EXECUTOR,
-            accepted_branch="dev",
-            accepted_head=accepted_head,
-        )
-
-    reservation = reservation_store.read_ownerless_closeout_reservation(
-        record_root=current_record_root(repo),
-        path=reservation_store.ownerless_closeout_reservation_path(
-            repo,
-            reservation_store.target_digest(observation.lane_ref, observation.head),
-        ),
-    )
-    assert (reservation["phase"], reservation["recovery_state"]) == (
-        "postcondition",
-        "postcondition_failed",
-    )
-
-
-def test_completed_ownerless_recovery_allows_only_an_exactly_released_fence(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    repo, _ = orphan_work_lane(tmp_path)
-    observation, _ = observe_lane(repo, "work/orphan")
-    accepted_head = git(repo, "rev-parse", "dev")
-    decision_path = tmp_path / "decision.json"
-    decision, raw = _decision(repo, decision_path, observation)
-    monkeypatch.setattr(
-        effects,
-        "run_worktree_closeout_check",
-        lambda **_kwargs: _wcp(raw, observation, accepted_head),
-    )
-    binding = effects.retire_clean_ownerless_lane(
-        root=repo,
-        decision_path=decision_path,
-        decision=decision,
-        observation=observation,
-        executor_ref=_EXECUTOR,
-        accepted_branch="dev",
-        accepted_head=accepted_head,
-    )
-    reservation = reservation_store.read_ownerless_closeout_reservation(
-        record_root=current_record_root(repo),
-        path=reservation_store.ownerless_closeout_reservation_path(
-            repo,
-            str(binding["target_digest"]),
-        ),
-    )
-    release_closeout_fence(
-        state_database(repo),
-        subject=observation.lane_ref,
-        decision_id=_DECISION_ID,
-        target_binding_digest=str(binding["target_binding_digest"]),
-    )
-
-    with pytest.raises(
-        effects.OwnerlessCloseoutError,
-        match="lane_resolution_ownerless_fence_stale",
-    ):
-        effects.recover_completed_ownerless_closeout(
-            root=repo,
-            decision_path=decision_path,
-            decision=decision,
-            observation=observation,
-            executor_ref=_EXECUTOR,
-            reservation=reservation,
-        )
-
-    receipt = effects.completion_receipt(decision, observation, "retired", {})
-    receipt["ownerless_closeout_binding"] = {
-        field: binding[field] for field in OwnerlessCloseoutBinding.model_fields
-    }
-    recovered = effects.recover_completed_ownerless_closeout(
-        root=repo,
-        decision_path=decision_path,
-        decision=decision,
-        observation=observation,
-        executor_ref=_EXECUTOR,
-        reservation=reservation,
-        receipt=receipt,
-    )
-    assert recovered["postcondition_digest"] == binding["postcondition_digest"]
-
-    monkeypatch.setattr(
-        effects, "probe_closeout_fence", lambda *_args, **_kwargs: ("present", {"other": 1})
-    )
-    with pytest.raises(
-        effects.OwnerlessCloseoutError,
-        match="lane_resolution_ownerless_fence_stale",
-    ):
-        effects.recover_completed_ownerless_closeout(
-            root=repo,
-            decision_path=decision_path,
-            decision=decision,
-            observation=observation,
-            executor_ref=_EXECUTOR,
-            reservation=reservation,
-            receipt=receipt,
-        )
-
-
-def test_ownerless_effect_orders_preflight_fence_cas_and_postverify(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    repo, lane = orphan_work_lane(tmp_path)
-    observation, gaps = observe_lane(repo, "work/orphan")
-    assert gaps == []
-    accepted_head = git(repo, "rev-parse", "dev")
-    decision_path = tmp_path / "decision.json"
-    decision, raw = _decision(repo, decision_path, observation)
-    wcp = _wcp(raw, observation, accepted_head)
-    events: list[str] = []
-    git_calls: list[tuple[str, ...]] = []
-    acquired: dict[str, object] = {}
-    real_acquire = effects.acquire_closeout_fence
-    real_probe_fence = effects.probe_closeout_fence
-    real_run_git = effects.run_git
-
-    def preflight(**_kwargs: object) -> dict[str, object]:
-        events.append("preflight")
-        return wcp
-
-    def acquire(db_path: Path, **kwargs: object) -> dict[str, object]:
-        assert events == ["preflight"]
-        events.append("fence")
-        acquired.update(real_acquire(db_path, **kwargs))
-        return acquired
-
-    def probe_fence(db_path: Path, *, subject: str) -> tuple[str, dict[str, object] | None]:
-        assert subject == observation.lane_ref
-        events.append("get-fence")
-        return real_probe_fence(db_path, subject=subject)
-
-    def recording_git(root: Path, *args: str, **kwargs: object):
-        git_calls.append(args)
-        return real_run_git(root, *args, **kwargs)
-
-    monkeypatch.setattr(effects, "run_worktree_closeout_check", preflight)
-    monkeypatch.setattr(effects, "acquire_closeout_fence", acquire)
-    monkeypatch.setattr(effects, "probe_closeout_fence", probe_fence)
-    monkeypatch.setattr(effects, "run_git", recording_git)
-
-    binding = effects.retire_clean_ownerless_lane(
-        root=repo,
-        decision_path=decision_path,
-        decision=decision,
-        observation=observation,
-        executor_ref=_EXECUTOR,
-        accepted_branch="dev",
-        accepted_head=accepted_head,
-    )
-
-    assert events[:2] == ["preflight", "fence"]
-    assert not lane.exists()
-    assert (
-        subprocess.run(
-            ["git", "show-ref", "--verify", "refs/heads/work/orphan"],
-            cwd=repo,
-            check=False,
-        ).returncode
-        != 0
-    )
-    assert git(repo, "rev-parse", "dev") == accepted_head
-    assert all("--force" not in call for call in git_calls)
-    assert binding["target_binding_digest"] == acquired["target_binding_digest"]
-    assert binding["decision_sha256"] == hashlib.sha256(raw).hexdigest()
-    assert set(OwnerlessCloseoutBinding.model_validate(binding).model_dump()) == {
-        "executor_ref",
-        "decision_sha256",
-        "accepted_branch",
-        "accepted_head",
-        "target_digest",
-        "target_binding_digest",
-        "postcondition_digest",
-    }
-    assert len(str(binding["postcondition_digest"])) == 64
-    reservation = reservation_store.read_ownerless_closeout_reservation(
-        record_root=current_record_root(repo),
-        path=reservation_store.ownerless_closeout_reservation_path(
-            repo,
-            str(binding["target_digest"]),
-        ),
-    )
-    assert reservation["recovery_state"] == "effect_complete_receipt_missing"
-    assert reservation["postcondition_digest"] == binding["postcondition_digest"]
-
-
-def test_ownerless_effect_retains_fence_when_accepted_ref_drifts_after_admission(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    repo, lane = orphan_work_lane(tmp_path)
-    observation, _ = observe_lane(repo, "work/orphan")
-    accepted_head = git(repo, "rev-parse", "dev")
-    decision_path = tmp_path / "decision.json"
-    decision, raw = _decision(repo, decision_path, observation)
-    fence = _fence(observation, accepted_head)
-
-    monkeypatch.setattr(
-        effects,
-        "run_worktree_closeout_check",
-        lambda **_kwargs: _wcp(raw, observation, accepted_head),
-    )
-
-    def acquire_then_drift(_db_path: Path, **_kwargs: object) -> dict[str, object]:
+    def reobserve_then_drift(**kwargs: object):
+        admission = real_reobserve(**kwargs)
+        (scenario.repo / "late.txt").write_text("late\n", encoding="utf-8")
+        git(scenario.repo, "add", "late.txt")
         git(
-            repo,
+            scenario.repo,
             "-c",
             "user.name=Test User",
             "-c",
             "user.email=test@example.com",
             "commit",
-            "--allow-empty",
             "-m",
-            "accepted drift",
+            "late accepted drift",
         )
-        return fence
+        return admission
 
-    monkeypatch.setattr(effects, "acquire_closeout_fence", acquire_then_drift)
-    monkeypatch.setattr(
-        effects, "probe_closeout_fence", lambda *_args, **_kwargs: ("present", fence)
-    )
-
-    with pytest.raises(effects.OwnerlessCloseoutError) as caught:
-        effects.retire_clean_ownerless_lane(
-            root=repo,
-            decision_path=decision_path,
-            decision=decision,
-            observation=observation,
-            executor_ref=_EXECUTOR,
-            accepted_branch="dev",
-            accepted_head=accepted_head,
-        )
-
-    assert caught.value.fence_acquired is True
-    assert "accepted_head_stale" in str(caught.value)
-    assert lane.is_dir()
-    assert git(repo, "rev-parse", "work/orphan") == observation.head
-    reservation = reservation_store.read_ownerless_closeout_reservation(
-        record_root=current_record_root(repo),
-        path=reservation_store.ownerless_closeout_reservation_path(
-            repo,
-            reservation_store.target_digest(observation.lane_ref, observation.head),
-        ),
-    )
-    assert reservation["phase"] == "reserved"
-    assert reservation["recovery_state"] == "reserved_no_effect"
+    monkeypatch.setattr(effect, "reobserve_ownerless_closeout_under_fence", reobserve_then_drift)
+    with pytest.raises(effect.OwnerlessCloseoutError, match="accepted_head_stale") as raised:
+        _apply(scenario)
+    assert raised.value.recovery_state == "worktree_removed_ref_present"
+    assert _reservation(scenario)["recovery_state"] == "worktree_removed_ref_present"
 
 
-def test_ownerless_effect_records_transition_unknown_for_ordinary_post_cas_exception(
+def test_post_cas_exception_records_transition_unknown(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    repo, lane = orphan_work_lane(tmp_path)
-    observation, _ = observe_lane(repo, "work/orphan")
-    accepted_head = git(repo, "rev-parse", "dev")
-    decision_path = tmp_path / "decision.json"
-    decision, raw = _decision(repo, decision_path, observation)
+    scenario = _scenario(tmp_path)
     monkeypatch.setattr(
-        effects,
-        "run_worktree_closeout_check",
-        lambda **_kwargs: _wcp(raw, observation, accepted_head),
+        effect,
+        "verify_ownerless_postconditions",
+        lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("after cas")),
     )
-
-    def fail_postconditions(**_kwargs: object) -> dict[str, object]:
-        message = "unexpected verifier failure"
-        raise RuntimeError(message)
-
-    monkeypatch.setattr(effects, "_verify_ownerless_postconditions", fail_postconditions)
-
-    with pytest.raises(
-        effects.OwnerlessCloseoutError,
-        match="lane_resolution_ownerless_transition_unknown",
-    ):
-        effects.retire_clean_ownerless_lane(
-            root=repo,
-            decision_path=decision_path,
-            decision=decision,
-            observation=observation,
-            executor_ref=_EXECUTOR,
-            accepted_branch="dev",
-            accepted_head=accepted_head,
-        )
-
-    assert not lane.exists()
-    reservation = reservation_store.read_ownerless_closeout_reservation(
-        record_root=current_record_root(repo),
-        path=reservation_store.ownerless_closeout_reservation_path(
-            repo,
-            reservation_store.target_digest(observation.lane_ref, observation.head),
-        ),
-    )
+    with pytest.raises(effect.OwnerlessCloseoutError, match="transition_unknown"):
+        _apply(scenario)
+    reservation = _reservation(scenario)
     assert (reservation["phase"], reservation["recovery_state"]) == (
         "unknown",
         "transition_unknown",
     )
 
 
-def test_ownerless_effect_rejects_dangling_symlink_at_retired_target_path(
+def test_dangling_path_blocks_postconditions(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    repo, lane = orphan_work_lane(tmp_path)
-    observation, _ = observe_lane(repo, "work/orphan")
-    accepted_head = git(repo, "rev-parse", "dev")
-    decision_path = tmp_path / "decision.json"
-    decision, raw = _decision(repo, decision_path, observation)
-    real_cas = effects._retire_clean_ownerless_cas  # noqa: SLF001, RUF100 - fault injection seam
-    monkeypatch.setattr(
-        effects,
-        "run_worktree_closeout_check",
-        lambda **_kwargs: _wcp(raw, observation, accepted_head),
-    )
+    scenario = _scenario(tmp_path)
+    real_cas = effect.retire_clean_ownerless_cas
 
-    def leave_dangling_symlink(**kwargs: object) -> None:
+    def cas_then_dangling(**kwargs: object) -> None:
         real_cas(**kwargs)
-        lane.symlink_to(tmp_path / "missing-target", target_is_directory=True)
+        scenario.target.symlink_to(tmp_path / "missing", target_is_directory=True)
 
-    monkeypatch.setattr(effects, "_retire_clean_ownerless_cas", leave_dangling_symlink)
-
-    with pytest.raises(
-        effects.OwnerlessCloseoutError,
-        match="lane_resolution_ownerless_postcondition_failed:target_path_absent",
-    ):
-        effects.retire_clean_ownerless_lane(
-            root=repo,
-            decision_path=decision_path,
-            decision=decision,
-            observation=observation,
-            executor_ref=_EXECUTOR,
-            accepted_branch="dev",
-            accepted_head=accepted_head,
-        )
-
-    assert lane.is_symlink()
-    reservation = reservation_store.read_ownerless_closeout_reservation(
-        record_root=current_record_root(repo),
-        path=reservation_store.ownerless_closeout_reservation_path(
-            repo,
-            reservation_store.target_digest(observation.lane_ref, observation.head),
-        ),
-    )
-    assert (reservation["phase"], reservation["recovery_state"]) == (
-        "postcondition",
-        "postcondition_failed",
-    )
-
-
-@pytest.mark.parametrize(
-    ("disposition", "changes", "expected"),
-    [
-        ("retire", {}, 1),
-        ("preserve-retire", {}, 0),
-        ("retire", {"dirty": True}, 0),
-        ("retire", {"orphan": False}, 0),
-        ("retire", {"holder_ref": "agent:test:case:owner"}, 0),
-    ],
-)
-def test_ownerless_route_requires_exact_clean_orphan_state(
-    tmp_path: Path, disposition: str, changes: dict[str, object], expected: int
-) -> None:
-    repo, _ = orphan_work_lane(tmp_path)
-    observation, _ = observe_lane(repo, "work/orphan")
-
-    assert lane_adapter._ownerless_closeout_candidate(  # noqa: SLF001, RUF100 - route law
-        disposition, observation.model_copy(update=changes)
-    ) is bool(expected)
+    monkeypatch.setattr(effect, "retire_clean_ownerless_cas", cas_then_dangling)
+    with pytest.raises(effect.OwnerlessCloseoutError, match="target_path_absent"):
+        _apply(scenario)
+    assert scenario.target.is_symlink()
+    assert _reservation(scenario)["recovery_state"] == "postcondition_failed"

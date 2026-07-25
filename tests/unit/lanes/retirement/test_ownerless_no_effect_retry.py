@@ -1,74 +1,377 @@
 from __future__ import annotations
 
-import hashlib
-import json
-import sqlite3
 import threading
-from contextlib import closing
 from typing import TYPE_CHECKING
-from typing import Any
 
 import pytest
 
-import ethos.adapters.mutation.resolution._effects as effect_adapter
+import ethos.adapters.mutation.resolution.closeout.cleanup.core as cleanup
+import ethos.adapters.mutation.resolution.closeout.effect as effect
+import ethos.adapters.mutation.resolution.closeout.recovery as recovery
+import ethos.adapters.mutation.resolution.closeout.retry as retry
 import ethos.adapters.mutation.resolution.records.reservations as reservation_store
 from ethos.adapters.mutation.resolution.lane import apply_lane_resolution
-from ethos.adapters.mutation.resolution.lane import plan_lane_resolution
+from ethos.adapters.mutation.resolution.records.core import receipt_path
+from ethos.adapters.mutation.resolution.records.roots import current_record_root
 from ethos.adapters.store.state.closeout import get_closeout_fence
+from ethos.adapters.store.state.closeout import release_closeout_fence
 from ethos.adapters.store.state.schema import state_database
-from ethos.surface.cli.lane.resolution import _default_decision_path
-from tests.support.contract_helpers import write_chronicle_decision
-from tests.support.lane_helpers import absorb_obsolete_delta_in_accepted
 from tests.support.lane_helpers import git
 from tests.support.lane_helpers import init_repo
-from tests.support.lane_helpers import orphan_work_lane
+from tests.unit.lanes.retirement.test_ownerless_closeout_effect import _apply
+from tests.unit.lanes.retirement.test_ownerless_closeout_effect import _reservation
+from tests.unit.lanes.retirement.test_ownerless_closeout_effect import _scenario
 
 if TYPE_CHECKING:
-    import subprocess
     from pathlib import Path
 
-_OWNERLESS_DECISION_ID = "lane-decision:00000000-0000-4000-8000-000000000004"
+
+def _start_reserved_no_effect(
+    scenario: object, monkeypatch: pytest.MonkeyPatch
+) -> tuple[dict[str, object], dict[str, int]]:
+    real_cas = effect.retire_clean_ownerless_cas
+    attempts = {"count": 0}
+
+    def fail_first(**kwargs: object) -> None:
+        attempts["count"] += 1
+        if attempts["count"] == 1:
+            message = "lane_resolution_ownerless_accepted_head_stale"
+            raise effect.OwnerlessCloseoutError(
+                message,
+                phase="reserved",
+                recovery_state="reserved_no_effect",
+            )
+        real_cas(**kwargs)
+
+    monkeypatch.setattr(effect, "retire_clean_ownerless_cas", fail_first)
+    with pytest.raises(effect.OwnerlessCloseoutError) as raised:
+        _apply(scenario)
+    assert str(raised.value) == "lane_resolution_ownerless_accepted_head_stale"
+    return _reservation(scenario), attempts
 
 
-def _decide(root: Path, decision_path: Path) -> dict[str, object]:
-    return plan_lane_resolution(
-        root=root,
-        branch="work/orphan",
-        disposition="retire",
-        reason="Exercise the bounded lane-resolution transition.",
-        evidence_refs=("evidence:maintainer-decision",),
-        chronicle_ref=write_chronicle_decision(root, topic="lane-resolution-test", token="retire"),
-        recovery_plan="Preserve exact observed state or block before effect.",
-        decision_path=decision_path,
-        break_glass=True,
+def _apply_top_level(scenario: object) -> dict[str, object]:
+    return apply_lane_resolution(
+        root=scenario.repo,
+        decision_path=scenario.decision_path,
+        confirm_irreversible=True,
         apply=True,
     )
 
 
-def _ownerless_preflight(*, expected: Any, **_kwargs: object) -> dict[str, object]:
-    decision = json.loads(expected.decision_bytes)
-    return {
-        "schema_version": "workstation.repo-family-governance.v1",
-        "decision_sha256": hashlib.sha256(expected.decision_bytes).hexdigest(),
-        "executor_ref": expected.executor_ref,
-        "observation_digest": hashlib.sha256(
-            json.dumps(
-                expected.observation,
-                sort_keys=True,
-                separators=(",", ":"),
-            ).encode()
-        ).hexdigest(),
-        "chronicle_digest": decision["chronicle_digest"],
-        "source": {"head": expected.accepted_head},
-        "coordination": {"binding_digest": "d" * 64},
-    }
+def _receipt_sidecar(scenario: object) -> Path:
+    decision_id = str(scenario.decision["decision_id"])
+    receipt = receipt_path(
+        scenario.repo,
+        decision_id,
+        artifact_root=current_record_root(scenario.repo),
+    )
+    return receipt.with_name(f".{receipt.stem}.receipt-reservation")
 
 
-def _ownerless_reservation() -> dict[str, object]:
-    lane_ref, head = "work/20260722-ownerless", "a" * 40
-    return {
+def test_reserved_no_effect_retry_recovers_exact_existing_sidecar(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    scenario = _scenario(tmp_path)
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:codex:thread:executor")
+    real_cas = effect.retire_clean_ownerless_cas
+    real_release = cleanup.release_receipt_reservation
+    attempts = {"count": 0}
+
+    def fail_first(**kwargs: object) -> None:
+        attempts["count"] += 1
+        if attempts["count"] == 1:
+            message = "lane_resolution_ownerless_accepted_head_stale"
+            raise effect.OwnerlessCloseoutError(
+                message,
+                phase="reserved",
+                recovery_state="reserved_no_effect",
+            )
+        real_cas(**kwargs)
+
+    monkeypatch.setattr(effect, "retire_clean_ownerless_cas", fail_first)
+    monkeypatch.setattr(
+        cleanup,
+        "release_receipt_reservation",
+        lambda **_kwargs: "lane_resolution_receipt_reservation_release_failed",
+    )
+    first = _apply_top_level(scenario)
+    sidecar = _receipt_sidecar(scenario)
+
+    assert first["required_gaps"] == [
+        "lane_resolution_ownerless_accepted_head_stale",
+        "lane_resolution_receipt_reservation_release_failed",
+    ]
+    assert _reservation(scenario)["recovery_state"] == "reserved_no_effect"
+    assert sidecar.read_bytes() == f"{scenario.decision['decision_id']}\n".encode()
+
+    monkeypatch.setattr(cleanup, "release_receipt_reservation", real_release)
+    events: list[str] = []
+    real_claim = recovery.claim_receipt_reservation
+    real_admit = recovery.pre_admit_ownerless_lane
+
+    def claim(*args: object, mode: str, **kwargs: object):
+        events.append(f"claim:{mode}")
+        return real_claim(*args, mode=mode, **kwargs)
+
+    def admit(**kwargs: object):
+        events.append(
+            "admit:token"
+            if kwargs.get("receipt_reservation_token") is not None
+            else "admit:tokenless"
+        )
+        return real_admit(**kwargs)
+
+    monkeypatch.setattr(recovery, "claim_receipt_reservation", claim)
+    monkeypatch.setattr(recovery, "pre_admit_ownerless_lane", admit)
+    recovered = _apply_top_level(scenario)
+
+    assert recovered["ok"] is True
+    assert recovered["state"] == "retired"
+    assert events[:2] == ["claim:recover", "admit:token"]
+    assert attempts["count"] == 2
+    assert not scenario.target.exists()
+    assert not sidecar.exists()
+    assert get_closeout_fence(state_database(scenario.repo), subject="work/orphan") is None
+
+
+def test_retry_does_not_adopt_concurrently_locked_exact_sidecar(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    scenario = _scenario(tmp_path)
+    monkeypatch.setenv("ETHOS_ACTOR", "agent:codex:thread:executor")
+    real_cas = effect.retire_clean_ownerless_cas
+    live_writer_ready = threading.Event()
+    release_live_writer = threading.Event()
+    retry_reached_effect = threading.Event()
+    live_reports: list[dict[str, object]] = []
+
+    def pause_live_writer(**kwargs: object) -> None:
+        if threading.current_thread().name == "live-writer":
+            live_writer_ready.set()
+            assert release_live_writer.wait(timeout=5)
+            real_cas(**kwargs)
+            return
+        retry_reached_effect.set()
+        real_cas(**kwargs)
+
+    monkeypatch.setattr(effect, "retire_clean_ownerless_cas", pause_live_writer)
+    live_writer = threading.Thread(
+        target=lambda: live_reports.append(_apply_top_level(scenario)),
+        name="live-writer",
+    )
+    live_writer.start()
+    assert live_writer_ready.wait(timeout=5)
+
+    try:
+        blocked = _apply_top_level(scenario)
+    finally:
+        release_live_writer.set()
+        live_writer.join(timeout=5)
+
+    assert live_writer.is_alive() is False
+    assert retry_reached_effect.is_set() is False
+    assert blocked["ok"] is False
+    assert blocked["required_gaps"] == ["lane_resolution_receipt_path_exists"]
+    assert live_reports[0]["ok"] is True
+    assert not scenario.target.exists()
+
+
+def _advance_accepted(scenario: object, message: str = "advance accepted") -> str:
+    path = scenario.repo / f"{message.replace(' ', '-')}.txt"
+    path.write_text(f"{message}\n", encoding="utf-8")
+    git(scenario.repo, "add", path.name)
+    git(
+        scenario.repo,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        message,
+    )
+    return git(scenario.repo, "rev-parse", "dev")
+
+
+def test_same_head_retry_releases_old_binding_before_fresh_fence(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    scenario = _scenario(tmp_path)
+    old_reservation, attempts = _start_reserved_no_effect(scenario, monkeypatch)
+    old_fence = get_closeout_fence(state_database(scenario.repo), subject="work/orphan")
+    assert old_fence is not None
+    events: list[str] = []
+    real_release_fence = retry.release_closeout_fence
+    real_release_reservation = retry.release_ownerless_no_effect_reservation
+    real_acquire = effect.acquire_closeout_fence
+    real_reobserve = effect.reobserve_ownerless_closeout_under_fence
+
+    def release_fence(*args: object, **kwargs: object) -> None:
+        events.append("release_fence")
+        real_release_fence(*args, **kwargs)
+
+    def release_reservation(**kwargs: object) -> None:
+        events.append("release_reservation")
+        real_release_reservation(**kwargs)
+
+    def acquire(*args: object, **kwargs: object) -> dict[str, object]:
+        events.append("acquire")
+        return real_acquire(*args, **kwargs)
+
+    def reobserve(**kwargs: object):
+        events.append("reobserve")
+        return real_reobserve(**kwargs)
+
+    monkeypatch.setattr(retry, "release_closeout_fence", release_fence)
+    monkeypatch.setattr(retry, "release_ownerless_no_effect_reservation", release_reservation)
+    monkeypatch.setattr(effect, "acquire_closeout_fence", acquire)
+    monkeypatch.setattr(effect, "reobserve_ownerless_closeout_under_fence", reobserve)
+    binding = _apply(scenario)
+    fresh_fence = get_closeout_fence(state_database(scenario.repo), subject="work/orphan")
+    assert fresh_fence is not None
+    assert events[:4] == ["release_fence", "release_reservation", "acquire", "reobserve"]
+    assert fresh_fence["payload"]["acquisition_id"] != old_fence["payload"]["acquisition_id"]
+    assert binding["target_binding_digest"] == fresh_fence["target_binding_digest"]
+    assert binding["target_binding_digest"] != old_reservation["target_binding_digest"]
+    assert attempts["count"] == 2
+
+
+def test_descendant_retry_rebinds_to_current_accepted_head(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    scenario = _scenario(tmp_path)
+    old_reservation, _attempts = _start_reserved_no_effect(scenario, monkeypatch)
+    new_head = _advance_accepted(scenario)
+    binding = _apply(scenario)
+    assert binding["accepted_head"] == new_head
+    assert binding["accepted_head"] != old_reservation["accepted_head"]
+    assert _reservation(scenario)["accepted_head"] == new_head
+
+
+def test_retry_with_absent_old_fence_releases_reservation_then_reobserves(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    scenario = _scenario(tmp_path)
+    old_reservation, _attempts = _start_reserved_no_effect(scenario, monkeypatch)
+    old_fence = get_closeout_fence(state_database(scenario.repo), subject="work/orphan")
+    assert old_fence is not None
+    release_closeout_fence(
+        state_database(scenario.repo),
+        subject="work/orphan",
+        decision_id=str(old_reservation["decision_id"]),
+        target_binding_digest=str(old_reservation["target_binding_digest"]),
+    )
+    events: list[str] = []
+    real_release = retry.release_ownerless_no_effect_reservation
+    real_admit = effect.admit_ownerless_closeout
+    real_reobserve = effect.reobserve_ownerless_closeout_under_fence
+
+    def release(**kwargs: object) -> None:
+        events.append("release_reservation")
+        real_release(**kwargs)
+
+    def admit(**kwargs: object):
+        events.append("admit")
+        return real_admit(**kwargs)
+
+    def reobserve(**kwargs: object):
+        events.append("reobserve")
+        return real_reobserve(**kwargs)
+
+    monkeypatch.setattr(retry, "release_ownerless_no_effect_reservation", release)
+    monkeypatch.setattr(effect, "admit_ownerless_closeout", admit)
+    monkeypatch.setattr(effect, "reobserve_ownerless_closeout_under_fence", reobserve)
+    _apply(scenario)
+    assert events == ["admit", "release_reservation", "reobserve"]
+
+
+def test_descendant_classification_precedes_competition_rejection(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    scenario = _scenario(tmp_path)
+    _old, _attempts = _start_reserved_no_effect(scenario, monkeypatch)
+    old_fence = get_closeout_fence(state_database(scenario.repo), subject="work/orphan")
+    new_head = _advance_accepted(scenario)
+    assert old_fence is not None
+    assert old_fence["accepted_head"] != new_head
+    binding = _apply(scenario)
+    assert binding["accepted_head"] == new_head
+
+
+def test_divergent_accepted_head_blocks_without_releasing_old_binding(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    scenario = _scenario(tmp_path)
+    old_reservation, _attempts = _start_reserved_no_effect(scenario, monkeypatch)
+    old_fence = get_closeout_fence(state_database(scenario.repo), subject="work/orphan")
+    accepted_tree = git(scenario.repo, "rev-parse", f"{scenario.accepted_head}^{{tree}}")
+    divergent = git(
+        scenario.repo,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit-tree",
+        accepted_tree,
+        "-m",
+        "divergent",
+    )
+    git(scenario.repo, "update-ref", "refs/heads/dev", divergent, scenario.accepted_head)
+    with pytest.raises(effect.OwnerlessCloseoutError, match="accepted_head_stale"):
+        _apply(scenario)
+    assert get_closeout_fence(state_database(scenario.repo), subject="work/orphan") == old_fence
+    assert _reservation(scenario) == old_reservation
+
+
+def test_decision_and_chronicle_drift_block_before_retry_release(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    for drift in ("decision", "chronicle"):
+        scenario = _scenario(tmp_path / drift)
+        old_reservation, _attempts = _start_reserved_no_effect(scenario, monkeypatch)
+        old_fence = get_closeout_fence(state_database(scenario.repo), subject="work/orphan")
+        if drift == "decision":
+            scenario.decision_path.write_bytes(scenario.decision_path.read_bytes() + b"\n")
+        else:
+            (scenario.repo / str(scenario.decision["chronicle_ref"])).write_text(
+                "decision: lane_resolution/retire\ndrift\n", encoding="utf-8"
+            )
+        with pytest.raises(effect.OwnerlessCloseoutError):
+            _apply(scenario)
+        assert get_closeout_fence(state_database(scenario.repo), subject="work/orphan") == old_fence
+        assert _reservation(scenario) == old_reservation
+        monkeypatch.undo()
+
+
+def test_crash_after_old_fence_release_recovers_on_next_retry(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    scenario = _scenario(tmp_path)
+    _old, attempts = _start_reserved_no_effect(scenario, monkeypatch)
+    real_release = retry.release_ownerless_no_effect_reservation
+
+    def crash(**_kwargs: object) -> None:
+        message = "crash after fence release"
+        raise OSError(message)
+
+    monkeypatch.setattr(retry, "release_ownerless_no_effect_reservation", crash)
+    with pytest.raises(effect.OwnerlessCloseoutError, match="retry_reset_failed"):
+        _apply(scenario)
+    assert get_closeout_fence(state_database(scenario.repo), subject="work/orphan") is None
+    monkeypatch.setattr(retry, "release_ownerless_no_effect_reservation", real_release)
+    _apply(scenario)
+    assert attempts["count"] == 2
+
+
+def test_ownerless_no_effect_reservation_release_is_exact_compare_and_delete(
+    tmp_path: Path,
+) -> None:
+    repo = init_repo(tmp_path / "repo")
+    lane_ref, head = "work/ownerless", "a" * 40
+    reservation = {
         "schema_version": 2,
-        "decision_id": _OWNERLESS_DECISION_ID,
+        "decision_id": "lane-decision:00000000-0000-4000-8000-000000000004",
         "lane_ref": lane_ref,
         "head": head,
         "executor_ref": "agent:codex:thread:executor",
@@ -81,563 +384,12 @@ def _ownerless_reservation() -> dict[str, object]:
         "recovery_state": "reserved_no_effect",
         "postcondition_digest": "",
     }
-
-
-def _apply_retire(repo: Path, decision_path: Path) -> dict[str, object]:
-    return apply_lane_resolution(
-        root=repo,
-        decision_path=decision_path,
-        confirm_irreversible=True,
-        apply=True,
-    )
-
-
-def _start_reserved_no_effect_attempt(
-    repo: Path,
-    decision_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> tuple[dict[str, object], dict[str, int]]:
-    monkeypatch.setenv("ETHOS_ACTOR", "agent:codex:thread:executor")
-    monkeypatch.setattr(
-        effect_adapter,
-        "run_worktree_closeout_check",
-        _ownerless_preflight,
-    )
-    real_verify = effect_adapter._verify_ownerless_pre_effect  # noqa: SLF001, RUF100 - retry seam
-    attempts = {"count": 0}
-
-    def fail_first_verify(**kwargs: object) -> None:
-        attempts["count"] += 1
-        if attempts["count"] == 1:
-            gap = "lane_resolution_ownerless_accepted_head_stale"
-            raise effect_adapter.OwnerlessCloseoutError(
-                gap,
-                fence_acquired=True,
-            )
-        real_verify(**kwargs)
-
-    monkeypatch.setattr(effect_adapter, "_verify_ownerless_pre_effect", fail_first_verify)
-    return _apply_retire(repo, decision_path), attempts
-
-
-def _planned_reservation_path(repo: Path, planned: dict[str, object]) -> Path:
-    decision = planned["decision"]
-    assert isinstance(decision, dict)
-    observation = decision["observation"]
-    assert isinstance(observation, dict)
-    target = reservation_store.target_digest(
-        "work/orphan",
-        str(observation["head"]),
-    )
-    return reservation_store.ownerless_closeout_reservation_path(repo, target)
-
-
-def test_ownerless_reserved_no_effect_retry_reuses_exact_sidecar_and_rechecks_wcp(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    repo, lane = orphan_work_lane(tmp_path)
-    decision_path = _default_decision_path(repo, "work/orphan")
-    planned = _decide(repo, decision_path)
-    first, attempts = _start_reserved_no_effect_attempt(repo, decision_path, monkeypatch)
-    events: list[str] = []
-
-    def retry_preflight(*, expected: Any, **kwargs: object) -> dict[str, object]:
-        events.append("wcp")
-        response = _ownerless_preflight(expected=expected, **kwargs)
-        response["coordination"] = {"binding_digest": "9" * 64}
-        return response
-
-    monkeypatch.setattr(effect_adapter, "run_worktree_closeout_check", retry_preflight)
-    real_cas = effect_adapter._retire_clean_ownerless_cas  # noqa: SLF001, RUF100
-    real_release_fence = effect_adapter.release_closeout_fence
-    real_release_reservation = effect_adapter.release_ownerless_no_effect_reservation
-
-    def observe_cas(**kwargs: object) -> None:
-        events.append("cas")
-        real_cas(**kwargs)
-
-    def observe_fence_release(*args: object, **kwargs: object) -> None:
-        events.append("fence")
-        real_release_fence(*args, **kwargs)
-
-    def observe_reservation_release(**kwargs: object) -> None:
-        events.append("reservation")
-        real_release_reservation(**kwargs)
-
-    monkeypatch.setattr(effect_adapter, "_retire_clean_ownerless_cas", observe_cas)
-    monkeypatch.setattr(effect_adapter, "release_closeout_fence", observe_fence_release)
-    monkeypatch.setattr(
-        effect_adapter,
-        "release_ownerless_no_effect_reservation",
-        observe_reservation_release,
-    )
-    second = _apply_retire(repo, decision_path)
-
-    assert first["required_gaps"] == ["lane_resolution_ownerless_accepted_head_stale"]
-    assert second["ok"] is True
-    assert attempts["count"] == 2
-    assert events[:2] == ["wcp", "cas"]
-    assert not lane.exists()
-    assert not _planned_reservation_path(repo, planned).exists()
-
-
-def test_ownerless_retry_does_not_adopt_a_live_writer_sidecar(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    repo, lane = orphan_work_lane(tmp_path)
-    decision_path = _default_decision_path(repo, "work/orphan")
-    _decide(repo, decision_path)
-    monkeypatch.setenv("ETHOS_ACTOR", "agent:codex:thread:executor")
-    monkeypatch.setattr(effect_adapter, "run_worktree_closeout_check", _ownerless_preflight)
-    real_verify = effect_adapter._verify_ownerless_pre_effect  # noqa: SLF001, RUF100
-    live_writer_ready = threading.Event()
-    release_live_writer = threading.Event()
-    adopted_live_sidecar = threading.Event()
-    first_reports: list[dict[str, object]] = []
-
-    def pause_live_writer(**kwargs: object) -> None:
-        if threading.current_thread().name == "live-writer":
-            live_writer_ready.set()
-            assert release_live_writer.wait(timeout=5)
-            real_verify(**kwargs)
-            return
-        adopted_live_sidecar.set()
-        message = "lane_resolution_ownerless_live_sidecar_adopted"
-        raise effect_adapter.OwnerlessCloseoutError(
-            message,
-            fence_acquired=True,
-        )
-
-    def run_live_writer() -> None:
-        first_reports.append(_apply_retire(repo, decision_path))
-
-    monkeypatch.setattr(effect_adapter, "_verify_ownerless_pre_effect", pause_live_writer)
-    live_writer = threading.Thread(target=run_live_writer, name="live-writer")
-    live_writer.start()
-    assert live_writer_ready.wait(timeout=5)
-
-    retry = _apply_retire(repo, decision_path)
-    release_live_writer.set()
-    live_writer.join(timeout=5)
-
-    assert live_writer.is_alive() is False
-    assert adopted_live_sidecar.is_set() is False
-    assert retry["ok"] is False
-    assert retry["required_gaps"] == ["lane_resolution_receipt_path_exists"]
-    assert first_reports[0]["ok"] is True
-    assert lane.exists() is False
-
-
-def test_ownerless_reserved_no_effect_retry_rebinds_after_accepted_forward(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    repo, lane = orphan_work_lane(tmp_path)
-    decision_path = _default_decision_path(repo, "work/orphan")
-    planned = _decide(repo, decision_path)
-    first, attempts = _start_reserved_no_effect_attempt(repo, decision_path, monkeypatch)
-    old_fence = get_closeout_fence(state_database(repo), subject="work/orphan")
-    new_accepted_head = absorb_obsolete_delta_in_accepted(repo)
-    events: list[str] = []
-    real_cas = effect_adapter._retire_clean_ownerless_cas  # noqa: SLF001, RUF100
-    real_release_fence = effect_adapter.release_closeout_fence
-    real_release_reservation = effect_adapter.release_ownerless_no_effect_reservation
-
-    def observe_cas(**kwargs: object) -> None:
-        events.append("cas")
-        real_cas(**kwargs)
-
-    def observe_fence_release(*args: object, **kwargs: object) -> None:
-        events.append("fence")
-        real_release_fence(*args, **kwargs)
-
-    def observe_reservation_release(**kwargs: object) -> None:
-        events.append("reservation")
-        real_release_reservation(**kwargs)
-
-    monkeypatch.setattr(effect_adapter, "_retire_clean_ownerless_cas", observe_cas)
-    monkeypatch.setattr(effect_adapter, "release_closeout_fence", observe_fence_release)
-    monkeypatch.setattr(
-        effect_adapter,
-        "release_ownerless_no_effect_reservation",
-        observe_reservation_release,
-    )
-    second = _apply_retire(repo, decision_path)
-
-    assert first["required_gaps"] == ["lane_resolution_ownerless_accepted_head_stale"]
-    assert old_fence is not None
-    assert old_fence["accepted_head"] != new_accepted_head
-    assert second["ok"] is True
-    assert second["receipt"]["ownerless_closeout_binding"]["accepted_head"] == new_accepted_head
-    assert attempts["count"] == 2
-    assert events[:3] == ["fence", "reservation", "cas"]
-    assert not lane.exists()
-    assert not _planned_reservation_path(repo, planned).exists()
-    assert get_closeout_fence(state_database(repo), subject="work/orphan") is None
-
-
-def test_ownerless_reserved_no_effect_retry_recovers_after_fence_release_crash(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    repo, lane = orphan_work_lane(tmp_path)
-    decision_path = _default_decision_path(repo, "work/orphan")
-    planned = _decide(repo, decision_path)
-    first, _attempts = _start_reserved_no_effect_attempt(repo, decision_path, monkeypatch)
-    new_accepted_head = absorb_obsolete_delta_in_accepted(repo)
-    real_release = effect_adapter.release_ownerless_no_effect_reservation
-
-    def fail_reservation_release(**_kwargs: object) -> None:
-        message = "simulated crash after fence release"
-        raise OSError(message)
-
-    monkeypatch.setattr(
-        effect_adapter,
-        "release_ownerless_no_effect_reservation",
-        fail_reservation_release,
-    )
-    interrupted = _apply_retire(repo, decision_path)
-    reservation_path = _planned_reservation_path(repo, planned)
-
-    assert first["required_gaps"] == ["lane_resolution_ownerless_accepted_head_stale"]
-    assert interrupted["required_gaps"] == ["lane_resolution_ownerless_retry_reset_failed"]
-    assert get_closeout_fence(state_database(repo), subject="work/orphan") is None
-    assert reservation_path.is_file()
-    assert lane.is_dir()
-
-    monkeypatch.setattr(
-        effect_adapter,
-        "release_ownerless_no_effect_reservation",
-        real_release,
-    )
-    recovered = _apply_retire(repo, decision_path)
-
-    assert recovered["ok"] is True
-    assert recovered["receipt"]["ownerless_closeout_binding"]["accepted_head"] == new_accepted_head
-    assert not reservation_path.exists()
-    assert get_closeout_fence(state_database(repo), subject="work/orphan") is None
-    assert not lane.exists()
-
-
-def test_ownerless_reserved_no_effect_retry_rejects_divergent_accepted_head(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    repo, lane = orphan_work_lane(tmp_path)
-    decision_path = _default_decision_path(repo, "work/orphan")
-    planned = _decide(repo, decision_path)
-    first, _attempts = _start_reserved_no_effect_attempt(repo, decision_path, monkeypatch)
-    old_fence = get_closeout_fence(state_database(repo), subject="work/orphan")
-    old_accepted_head = git(repo, "rev-parse", "dev")
-    accepted_tree = git(repo, "rev-parse", f"{old_accepted_head}^{{tree}}")
-    divergent_head = git(
-        repo,
-        "-c",
-        "user.name=Test User",
-        "-c",
-        "user.email=test@example.com",
-        "commit-tree",
-        accepted_tree,
-        "-m",
-        "divergent accepted history",
-    )
-    git(repo, "update-ref", "refs/heads/dev", divergent_head, old_accepted_head)
-
-    blocked = _apply_retire(repo, decision_path)
-
-    assert first["required_gaps"] == ["lane_resolution_ownerless_accepted_head_stale"]
-    assert blocked["required_gaps"] == ["lane_resolution_ownerless_accepted_head_stale"]
-    assert get_closeout_fence(state_database(repo), subject="work/orphan") == old_fence
-    assert _planned_reservation_path(repo, planned).is_file()
-    assert lane.is_dir()
-    assert git(repo, "show-ref", "--verify", "refs/heads/work/orphan")
-
-
-@pytest.mark.parametrize(
-    ("fence_state", "fence", "expected_gap"),
-    [
-        ("present", {"different": True}, "lane_resolution_ownerless_fence_stale"),
-        ("present", None, "lane_resolution_ownerless_fence_unverifiable"),
-        ("unverifiable", None, "lane_resolution_ownerless_fence_unverifiable"),
-        ("unknown", None, "lane_resolution_ownerless_fence_unverifiable"),
-        ("absent", {"unexpected": True}, "lane_resolution_ownerless_fence_unverifiable"),
-    ],
-)
-def test_ownerless_reserved_no_effect_retry_rejects_untrusted_fence(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    fence_state: str,
-    fence: dict[str, object] | None,
-    expected_gap: str,
-) -> None:
-    repo, lane = orphan_work_lane(tmp_path)
-    decision_path = _default_decision_path(repo, "work/orphan")
-    planned = _decide(repo, decision_path)
-    first, _attempts = _start_reserved_no_effect_attempt(repo, decision_path, monkeypatch)
-    old_fence = get_closeout_fence(state_database(repo), subject="work/orphan")
-    absorb_obsolete_delta_in_accepted(repo)
-    monkeypatch.setattr(
-        effect_adapter,
-        "probe_closeout_fence",
-        lambda *_args, **_kwargs: (fence_state, fence),
-    )
-
-    blocked = _apply_retire(repo, decision_path)
-
-    assert first["required_gaps"] == ["lane_resolution_ownerless_accepted_head_stale"]
-    assert blocked["required_gaps"] == [expected_gap]
-    assert get_closeout_fence(state_database(repo), subject="work/orphan") == old_fence
-    assert _planned_reservation_path(repo, planned).is_file()
-    assert lane.is_dir()
-
-
-def test_ownerless_reserved_no_effect_retry_rejects_executor_drift(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    repo, lane = orphan_work_lane(tmp_path)
-    decision_path = _default_decision_path(repo, "work/orphan")
-    planned = _decide(repo, decision_path)
-    first, _attempts = _start_reserved_no_effect_attempt(repo, decision_path, monkeypatch)
-    old_fence = get_closeout_fence(state_database(repo), subject="work/orphan")
-    absorb_obsolete_delta_in_accepted(repo)
-    monkeypatch.setenv("ETHOS_ACTOR", "agent:codex:thread:different-executor")
-
-    blocked = _apply_retire(repo, decision_path)
-
-    assert first["required_gaps"] == ["lane_resolution_ownerless_accepted_head_stale"]
-    assert blocked["required_gaps"] == [
-        "lane_resolution_ownerless_recovery_binding_mismatch:executor_ref"
-    ]
-    assert get_closeout_fence(state_database(repo), subject="work/orphan") == old_fence
-    assert _planned_reservation_path(repo, planned).is_file()
-    assert lane.is_dir()
-
-
-def test_ownerless_reserved_no_effect_retry_rejects_correlated_binding_corruption(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    repo, lane = orphan_work_lane(tmp_path)
-    decision_path = _default_decision_path(repo, "work/orphan")
-    planned = _decide(repo, decision_path)
-    first, _attempts = _start_reserved_no_effect_attempt(repo, decision_path, monkeypatch)
-    reservation_path = _planned_reservation_path(repo, planned)
-    reservation = json.loads(reservation_path.read_text(encoding="utf-8"))
-    reservation["target_binding_digest"] = "0" * 64
-    reservation_path.write_text(
-        json.dumps(reservation, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
-    with closing(sqlite3.connect(state_database(repo))) as connection:
-        connection.execute(
-            "update closeout_fences set target_binding_digest = ? where subject = ?",
-            ("0" * 64, "work/orphan"),
-        )
-        connection.commit()
-    absorb_obsolete_delta_in_accepted(repo)
-
-    blocked = _apply_retire(repo, decision_path)
-
-    assert first["required_gaps"] == ["lane_resolution_ownerless_accepted_head_stale"]
-    assert blocked["required_gaps"] == ["lane_resolution_ownerless_fence_unverifiable"]
-    assert reservation_path.is_file()
-    assert lane.is_dir()
-    assert git(repo, "show-ref", "--verify", "refs/heads/work/orphan")
-
-
-def test_ownerless_reserved_no_effect_retry_maps_ancestry_probe_failure(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    repo, lane = orphan_work_lane(tmp_path)
-    decision_path = _default_decision_path(repo, "work/orphan")
-    planned = _decide(repo, decision_path)
-    first, _attempts = _start_reserved_no_effect_attempt(repo, decision_path, monkeypatch)
-    old_fence = get_closeout_fence(state_database(repo), subject="work/orphan")
-    absorb_obsolete_delta_in_accepted(repo)
-    real_run_git = effect_adapter.run_git
-
-    def fail_ancestry(root: Path, *args: str, **kwargs: object) -> subprocess.CompletedProcess[str]:
-        if args[:2] == ("merge-base", "--is-ancestor"):
-            message = "ancestry probe unavailable"
-            raise OSError(message)
-        return real_run_git(root, *args, **kwargs)
-
-    monkeypatch.setattr(effect_adapter, "run_git", fail_ancestry)
-    blocked = _apply_retire(repo, decision_path)
-
-    assert first["required_gaps"] == ["lane_resolution_ownerless_accepted_head_stale"]
-    assert blocked["required_gaps"] == ["lane_resolution_ownerless_retry_reset_failed"]
-    assert get_closeout_fence(state_database(repo), subject="work/orphan") == old_fence
-    assert _planned_reservation_path(repo, planned).is_file()
-    assert lane.is_dir()
-
-
-def test_ownerless_reserved_no_effect_retry_maps_reservation_read_failure(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    repo, lane = orphan_work_lane(tmp_path)
-    decision_path = _default_decision_path(repo, "work/orphan")
-    planned = _decide(repo, decision_path)
-    first, _attempts = _start_reserved_no_effect_attempt(repo, decision_path, monkeypatch)
-    old_fence = get_closeout_fence(state_database(repo), subject="work/orphan")
-    absorb_obsolete_delta_in_accepted(repo)
-
-    def fail_read(**_kwargs: object) -> dict[str, object]:
-        message = "reservation unavailable"
-        raise ValueError(message)
-
-    monkeypatch.setattr(effect_adapter, "read_ownerless_closeout_reservation", fail_read)
-    blocked = _apply_retire(repo, decision_path)
-
-    assert first["required_gaps"] == ["lane_resolution_ownerless_accepted_head_stale"]
-    assert blocked["required_gaps"] == ["lane_resolution_ownerless_reservation_failed"]
-    assert get_closeout_fence(state_database(repo), subject="work/orphan") == old_fence
-    assert _planned_reservation_path(repo, planned).is_file()
-    assert lane.is_dir()
-
-
-def test_ownerless_reserved_no_effect_retry_rejects_decision_removed_after_wcp(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    repo, lane = orphan_work_lane(tmp_path)
-    decision_path = _default_decision_path(repo, "work/orphan")
-    planned = _decide(repo, decision_path)
-    first, _attempts = _start_reserved_no_effect_attempt(repo, decision_path, monkeypatch)
-    old_fence = get_closeout_fence(state_database(repo), subject="work/orphan")
-    absorb_obsolete_delta_in_accepted(repo)
-
-    def preflight_then_remove_decision(*, expected: Any, **kwargs: object) -> dict[str, object]:
-        response = _ownerless_preflight(expected=expected, **kwargs)
-        decision_path.unlink()
-        return response
-
-    monkeypatch.setattr(
-        effect_adapter,
-        "run_worktree_closeout_check",
-        preflight_then_remove_decision,
-    )
-    blocked = _apply_retire(repo, decision_path)
-
-    assert first["required_gaps"] == ["lane_resolution_ownerless_accepted_head_stale"]
-    assert blocked["required_gaps"] == ["lane_resolution_ownerless_decision_stale"]
-    assert get_closeout_fence(state_database(repo), subject="work/orphan") == old_fence
-    assert _planned_reservation_path(repo, planned).is_file()
-    assert lane.is_dir()
-
-
-@pytest.mark.parametrize(
-    ("drift", "expected_gap"),
-    [
-        ("decision", "lane_resolution_ownerless_decision_stale"),
-        ("accepted", "lane_resolution_ownerless_accepted_head_stale"),
-        ("observation", "lane_resolution_ownerless_observation_stale"),
-    ],
-)
-def test_ownerless_reserved_no_effect_retry_rejects_post_probe_state_drift(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-    drift: str,
-    expected_gap: str,
-) -> None:
-    repo, lane = orphan_work_lane(tmp_path)
-    decision_path = _default_decision_path(repo, "work/orphan")
-    planned = _decide(repo, decision_path)
-    first, _attempts = _start_reserved_no_effect_attempt(repo, decision_path, monkeypatch)
-    old_fence = get_closeout_fence(state_database(repo), subject="work/orphan")
-    absorb_obsolete_delta_in_accepted(repo)
-    real_probe = effect_adapter.probe_closeout_fence
-    drifted = False
-
-    def probe_then_drift(*args: object, **kwargs: object):
-        nonlocal drifted
-        result = real_probe(*args, **kwargs)
-        if drifted:
-            return result
-        drifted = True
-        if drift == "decision":
-            decision_path.write_bytes(decision_path.read_bytes() + b"\n")
-        elif drift == "accepted":
-            git(
-                repo,
-                "-c",
-                "user.name=Test User",
-                "-c",
-                "user.email=test@example.com",
-                "commit",
-                "--allow-empty",
-                "-m",
-                "advance accepted during retry",
-            )
-        else:
-            (lane / "late-drift.txt").write_text("drift\n", encoding="utf-8")
-        return result
-
-    monkeypatch.setattr(effect_adapter, "probe_closeout_fence", probe_then_drift)
-    blocked = _apply_retire(repo, decision_path)
-
-    assert first["required_gaps"] == ["lane_resolution_ownerless_accepted_head_stale"]
-    assert blocked["required_gaps"] == [expected_gap]
-    assert get_closeout_fence(state_database(repo), subject="work/orphan") == old_fence
-    assert _planned_reservation_path(repo, planned).is_file()
-    assert lane.is_dir()
-
-
-def test_ownerless_reserved_no_effect_retry_rejects_late_coordination(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    repo, lane = orphan_work_lane(tmp_path)
-    decision_path = _default_decision_path(repo, "work/orphan")
-    planned = _decide(repo, decision_path)
-    first, _attempts = _start_reserved_no_effect_attempt(repo, decision_path, monkeypatch)
-    old_fence = get_closeout_fence(state_database(repo), subject="work/orphan")
-    absorb_obsolete_delta_in_accepted(repo)
-    monkeypatch.setattr(
-        effect_adapter,
-        "leases_by_branch",
-        lambda _root: {"work/orphan": {"holder_ref": "agent:test:case:late"}},
-    )
-    blocked = _apply_retire(repo, decision_path)
-
-    assert first["required_gaps"] == ["lane_resolution_ownerless_accepted_head_stale"]
-    assert blocked["required_gaps"] == [
-        "lane_resolution_ownerless_recovery_binding_mismatch:coordination"
-    ]
-    assert get_closeout_fence(state_database(repo), subject="work/orphan") == old_fence
-    assert _planned_reservation_path(repo, planned).is_file()
-    assert lane.is_dir()
-
-
-def test_ownerless_no_effect_reservation_release_is_exact_compare_and_delete(
-    tmp_path: Path,
-) -> None:
-    repo = init_repo(tmp_path / "repo")
-    reservation = _ownerless_reservation()
     path = reservation_store.reserve_ownerless_closeout_target(root=repo, reservation=reservation)
-
-    with pytest.raises(ValueError, match="lane_resolution_ownerless_reservation_mismatch"):
+    with pytest.raises(ValueError, match="reservation_mismatch"):
         reservation_store.release_ownerless_no_effect_reservation(
             root=repo,
             expected=dict(reservation, target_binding_digest="0" * 64),
         )
-
     assert path.is_file()
     reservation_store.release_ownerless_no_effect_reservation(root=repo, expected=reservation)
     assert not path.exists()
-
-
-def test_ownerless_no_effect_reservation_release_rejects_unsafe_path(
-    tmp_path: Path,
-) -> None:
-    repo = init_repo(tmp_path / "repo")
-    reservation = _ownerless_reservation()
-    path = reservation_store.reserve_ownerless_closeout_target(root=repo, reservation=reservation)
-    held = path.parent.with_name("reservations-held")
-    path.parent.rename(held)
-    outside = tmp_path / "outside-reservations"
-    outside.mkdir()
-    path.parent.symlink_to(outside, target_is_directory=True)
-
-    with pytest.raises(OSError, match="lane_resolution_record_path_unsafe"):
-        reservation_store.release_ownerless_no_effect_reservation(
-            root=repo,
-            expected=reservation,
-        )
-
-    assert (held / path.name).is_file()

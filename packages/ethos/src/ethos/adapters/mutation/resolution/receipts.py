@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
+from typing import cast
 
 from ethos.adapters.mutation.resolution._shared import display_path
 from ethos.adapters.mutation.resolution._shared import preservation_payloads_match
@@ -25,6 +26,23 @@ _RECORD_PATH_UNSAFE = "lane_resolution_record_path_unsafe"
 _PRESERVATION_MANIFEST_INVALID = "lane_resolution_preservation_manifest_invalid"
 _PRESERVATION_PACKAGE_INVALID = "lane_resolution_preservation_package_invalid"
 _PRESERVATION_PACKAGE_OUTSIDE_ROOT = "lane_resolution_preservation_package_outside_root"
+
+
+def chronicle_event(
+    decision: dict[str, object], receipt: dict[str, object] | None = None
+) -> dict[str, object]:
+    """Project one decision or completed receipt into its Chronicle event."""
+    return {
+        "event_type": "state_change" if receipt else "decision",
+        "subject_id": str(cast("dict[str, object]", decision["observation"])["lane_ref"]),
+        "decision": str(decision["disposition"]),
+        "evidence_ids": [str(receipt["receipt_id"])]
+        if receipt
+        else list(cast("list[object]", decision["evidence_refs"])),
+        "current_state_delta": str(receipt["state"])
+        if receipt
+        else "exceptional resolution accepted; effect pending recomputation",
+    }
 
 
 def canonical_resolution_decision_snapshot(

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import subprocess
+from contextlib import ExitStack
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
@@ -10,6 +11,7 @@ import pytest
 import ethos.adapters.mutation.resolution._effects as effects
 import ethos.adapters.mutation.resolution.closeout.cleanup.core as cleanup
 import ethos.adapters.mutation.resolution.closeout.effect as closeout_effect
+import ethos.adapters.mutation.resolution.closeout.ownerless.effect as ownerless_effect
 import ethos.adapters.mutation.resolution.closeout.recovery as recovery
 from ethos.adapters.mutation.resolution.closeout.ownerless.admission.facts.fence import (
     OwnerlessCloseoutAdmissionError,
@@ -265,10 +267,11 @@ def test_ownerless_effect_receipt_admission_maps_unverifiable(
 ) -> None:
     receipt_reservation = SimpleNamespace()
     observed: list[dict[str, object]] = []
+    admission_unavailable = "admission unavailable"
 
     def admit(**kwargs: object) -> None:
         observed.append(kwargs)
-        raise RuntimeError("admission unavailable")
+        raise RuntimeError(admission_unavailable)
 
     monkeypatch.setattr(closeout_effect, "admit_ownerless_closeout_facts", admit)
     with pytest.raises(
@@ -291,6 +294,85 @@ def test_ownerless_effect_receipt_admission_maps_unverifiable(
             "receipt_reservation": receipt_reservation,
         }
     ]
+
+
+@pytest.mark.parametrize(
+    ("receipt_reservation", "collaborator", "failure", "expected"),
+    [
+        (
+            None,
+            "admit_ownerless_closeout",
+            OwnerlessCloseoutAdmissionError("lane_resolution_ownerless_decision_stale"),
+            "lane_resolution_ownerless_decision_stale",
+        ),
+        (
+            object(),
+            "admit_ownerless_closeout_facts",
+            OwnerlessCloseoutAdmissionError("lane_resolution_ownerless_reservation_competing"),
+            "lane_resolution_ownerless_reservation_competing",
+        ),
+        (
+            object(),
+            "admit_ownerless_closeout_facts",
+            RuntimeError(),
+            "lane_resolution_ownerless_admission_unverifiable",
+        ),
+    ],
+)
+def test_ownerless_effect_admission_translates_public_collaborator_failures(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    receipt_reservation: object | None,
+    collaborator: str,
+    failure: Exception,
+    expected: str,
+) -> None:
+    def fail(**_kwargs: object) -> object:
+        raise failure
+
+    monkeypatch.setattr(ownerless_effect, collaborator, fail)
+
+    with pytest.raises(ownerless_effect.OwnerlessCloseoutError, match=rf"^{expected}$"):
+        ownerless_effect.admit_ownerless_effect_target(
+            root=tmp_path,
+            decision_path=tmp_path / "decision.json",
+            decision={"decision_id": _DECISION_ID},
+            executor_ref=_EXECUTOR,
+            receipt_reservation=receipt_reservation,
+        )
+
+
+def test_recover_claim_skips_ownerless_context_for_non_ownerless_candidate(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    observation = _observation(tmp_path).model_copy(update={"orphan": False})
+
+    def unexpected_context(**_kwargs: object) -> object:
+        pytest.fail("non-ownerless recovery must not build an ownerless context")
+
+    monkeypatch.setattr(
+        ownerless_effect,
+        "claim_receipt_reservation",
+        lambda *_args, **_kwargs: (True, 7, ""),
+    )
+    monkeypatch.setattr(
+        ownerless_effect,
+        "ownerless_receipt_reservation_context",
+        unexpected_context,
+    )
+
+    with ExitStack() as stack:
+        assert ownerless_effect.claim_resolution_effect_attempt(
+            stack=stack,
+            control_root=tmp_path,
+            artifact_root=tmp_path / "records",
+            decision_path=tmp_path / "decision.json",
+            decision={"decision_id": _DECISION_ID},
+            observation=observation,
+            disposition="retire",
+            recover=True,
+        ) == (None, 7, None, ())
 
 
 def test_ownerless_effect_releases_unreserved_fence_after_unexpected_reobservation(

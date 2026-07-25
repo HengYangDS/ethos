@@ -252,6 +252,7 @@ def test_accepted_control_root_fails_closed_for_unavailable_or_unterminated_git_
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     head = b"a" * 40
+    unavailable = "unavailable"
 
     def worktree_unavailable(
         *args: object, **_kwargs: object
@@ -265,7 +266,7 @@ def test_accepted_control_root_fails_closed_for_unavailable_or_unterminated_git_
         if command[1:] == ["rev-parse", "--verify", "refs/heads/dev"]:
             return subprocess.CompletedProcess(command, 0, stdout=head + b"\n", stderr=b"")
         if command[1:] == ["worktree", "list", "--porcelain"]:
-            raise OSError("unavailable")
+            raise OSError(unavailable)
         pytest.fail(f"unexpected Git command: {command}")
 
     monkeypatch.setattr(resolution_roots.subprocess, "run", worktree_unavailable)

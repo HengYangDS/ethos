@@ -11,6 +11,7 @@ import pytest
 import ethos.adapters.mutation.resolution.closeout.ownerless.receipt.completion as completion
 import ethos.adapters.mutation.resolution.closeout.ownerless.receipt.core as receipt
 from ethos.adapters.mutation.resolution._effects import OwnerlessCloseoutError
+from ethos.adapters.mutation.resolution.records.core import receipt_path
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -30,6 +31,41 @@ class _RaisingContext:
 
     def __exit__(self, *_args: object) -> bool:
         return False
+
+
+class _CurrentReceiptSnapshot:
+    def __init__(
+        self,
+        *,
+        names: tuple[str, ...],
+        category_state: str,
+        name: str,
+        identity: object,
+        raw: bytes,
+    ) -> None:
+        self.names = names
+        self.category_state = category_state
+        self.name = name
+        self.identity = identity
+        self.raw = raw
+
+    def __enter__(self) -> _CurrentReceiptSnapshot:
+        return self
+
+    def __exit__(self, *_args: object) -> bool:
+        return False
+
+    def open_directory(self, category: str) -> tuple[tuple[str, ...], str]:
+        assert category == "receipts"
+        return self.names, self.category_state
+
+    def file_identity(self, category: str, name: str) -> object:
+        assert (category, name) == ("receipts", self.name)
+        return self.identity
+
+    def read_file(self, category: str, name: str) -> bytes:
+        assert (category, name) == ("receipts", self.name)
+        return self.raw
 
 
 def _token(path: Path, raw: bytes) -> receipt.OwnerlessReceiptReservationToken:
@@ -80,6 +116,34 @@ def test_effect_receipt_claim_preserves_the_first_claim_gap(
             mode="create",
             admission=None,
         ) == (None, None, None, "lane_resolution_receipt_path_exists")
+
+
+def test_effect_receipt_claim_maps_context_construction_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def unavailable_context(**_kwargs: object) -> object:
+        raise ValueError
+
+    monkeypatch.setattr(
+        receipt,
+        "claim_receipt_reservation",
+        lambda *_args, **_kwargs: (True, 7, ""),
+    )
+    monkeypatch.setattr(
+        receipt,
+        "ownerless_receipt_reservation_context",
+        unavailable_context,
+    )
+
+    with ExitStack() as stack:
+        assert receipt.claim_effect_receipt_reservation(
+            stack,
+            tmp_path,
+            tmp_path / "records",
+            _DECISION_ID,
+            mode="create",
+            admission=object(),
+        ) == (None, 7, None, "lane_resolution_receipt_invalid")
 
 
 def test_receipt_token_rejects_changed_bytes_and_descriptor_identity(
@@ -202,6 +266,10 @@ def test_receipt_context_must_match_the_admission_scope(
 def test_receipt_token_validation_rejects_wrong_or_unverifiable_sidecars(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    record_root = tmp_path / "records"
+    destination = receipt_path(tmp_path, _DECISION_ID, artifact_root=record_root)
+    sidecar = destination.with_name(f".{destination.stem}.receipt-reservation").absolute()
+    token = _token(sidecar, f"{_DECISION_ID}\n".encode())
 
     with pytest.raises(ValueError, match=f"^{_COMPETING}$"):
         receipt.require_ownerless_receipt_reservation_token(
@@ -211,9 +279,6 @@ def test_receipt_token_validation_rejects_wrong_or_unverifiable_sidecars(
             decision_id=_DECISION_ID,
         )
 
-    sidecar = tmp_path / "exact-sidecar"
-    monkeypatch.setattr(receipt, "_reservation_path", lambda *_args: sidecar)
-    monkeypatch.setattr(receipt, "_reservation_bytes", lambda _decision_id: b"exact\n")
     monkeypatch.setattr(
         receipt,
         "open_current_record_snapshot",
@@ -221,9 +286,29 @@ def test_receipt_token_validation_rejects_wrong_or_unverifiable_sidecars(
     )
     with pytest.raises(ValueError, match=f"^{_COMPETING}$"):
         receipt.require_ownerless_receipt_reservation_token(
-            token=_token(sidecar, b"exact\n"),
+            token=token,
             control_root=tmp_path,
-            artifact_root=tmp_path / "records",
+            artifact_root=record_root,
+            decision_id=_DECISION_ID,
+        )
+
+    snapshot = _CurrentReceiptSnapshot(
+        names=(),
+        category_state="valid",
+        name=token.path.name,
+        identity=token.identity,
+        raw=token.raw,
+    )
+    monkeypatch.setattr(
+        receipt,
+        "open_current_record_snapshot",
+        lambda _artifact_root: (snapshot, "valid"),
+    )
+    with pytest.raises(ValueError, match=f"^{_COMPETING}$"):
+        receipt.require_ownerless_receipt_reservation_token(
+            token=token,
+            control_root=tmp_path,
+            artifact_root=record_root,
             decision_id=_DECISION_ID,
         )
 

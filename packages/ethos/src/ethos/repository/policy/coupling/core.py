@@ -7,6 +7,7 @@ from typing import Any
 
 from ethos.repository.policy.coupling.documents import host_projection_term_gaps
 from ethos.repository.policy.coupling.documents import vendor_term_gaps
+from ethos.repository.policy.coupling.execution.audit import mandatory_executable_gaps
 from ethos.repository.policy.coupling.registry import binding_registry
 from ethos.repository.policy.coupling.registry import binding_registry_gaps
 from ethos.repository.policy.coupling.release import release_host_profile
@@ -40,6 +41,7 @@ def coupling_audit_report(root: Path) -> dict[str, Any]:
         + host_projection_term_gaps(root)
         + gate_profile_gaps()
         + binding_registry_gaps(registry, declaration)
+        + mandatory_executable_gaps(root, declaration)
     )
     return {
         "ok": not gaps,

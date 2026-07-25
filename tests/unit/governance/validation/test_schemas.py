@@ -5,6 +5,8 @@ import tomllib
 from copy import deepcopy
 from pathlib import Path
 
+import pytest
+
 from ethos.repository.policy.coupling.core import coupling_audit_report
 from ethos.repository.policy.schema import schema_validation_report
 from ethos.repository.policy.schema import validate_ethos_result
@@ -532,6 +534,74 @@ def test_coupling_audit_schema_rejects_ui_projection_fields() -> None:
 
     assert validation["ok"] is False
     assert validation["required_gaps"]
+
+
+def test_coupling_audit_schema_exposes_mandatory_executable_contract() -> None:
+    schema = json.loads(
+        Path("system/schemas/kernel/coupling-audit.schema.json").read_text(encoding="utf-8")
+    )
+    properties = schema["$defs"]["bindingEntry"]["properties"]
+
+    assert properties["mandatory_paths"] == {
+        "type": "array",
+        "items": {"type": "string"},
+        "uniqueItems": True,
+        "minItems": 1,
+    }
+    assert properties["declared_executables"] == {
+        "type": "array",
+        "items": {"type": "string"},
+        "uniqueItems": True,
+    }
+    assert properties["audit_root_bound"] == {"const": True}
+    assert schema["$defs"]["bindingEntry"]["dependentRequired"] == {
+        "mandatory_paths": ["audit_root_bound"],
+        "declared_executables": ["mandatory_paths", "audit_root_bound"],
+        "audit_root_bound": ["mandatory_paths"],
+    }
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        {"audit_root_bound": False},
+        {"mandatory_paths": []},
+        {"mandatory_paths": None, "audit_root_bound": None},
+    ],
+)
+def test_coupling_audit_schema_rejects_inconsistent_executable_contract(
+    mutation: dict[str, object],
+) -> None:
+    payload = coupling_audit_report(Path.cwd())
+    binding = next(
+        entry
+        for entry in payload["binding_registry"]
+        if entry["id"] == "work_lane_lifecycle_command_contract"
+    )
+    for field, value in mutation.items():
+        if value is None:
+            binding.pop(field)
+        else:
+            binding[field] = value
+
+    validation = validate_schema_instance("coupling-audit.schema.json", payload)
+
+    assert validation["ok"] is False
+    assert validation["required_gaps"]
+
+
+def test_coupling_audit_schema_allows_active_deny_all_executable_contract() -> None:
+    payload = coupling_audit_report(Path.cwd())
+    binding = next(
+        entry
+        for entry in payload["binding_registry"]
+        if entry["id"] == "work_lane_lifecycle_command_contract"
+    )
+    binding.pop("declared_executables")
+
+    validation = validate_schema_instance("coupling-audit.schema.json", payload)
+
+    assert validation["ok"] is True
 
 
 def test_schema_instance_validation_reports_data_gaps() -> None:

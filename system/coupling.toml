@@ -90,6 +90,15 @@ commands = [
   "ethos lane retire unbound",
 ]
 forbidden_workflow_state = ["raw_git_worktree_add"]
+mandatory_paths = [
+  "packages/ethos/src/ethos/adapters/mutation/lane_lifecycle/core.py",
+  "packages/ethos/src/ethos/adapters/mutation/resolution/_effects.py",
+  "packages/ethos/src/ethos/adapters/mutation/resolution/observation.py",
+  "packages/ethos/src/ethos/adapters/mutation/resolution/preservation/core.py",
+  "packages/ethos/src/ethos/adapters/mutation/resolution/records/roots.py",
+]
+declared_executables = ["git"]
+audit_root_bound = true
 required_for = ["tracked mutation isolation", "local closeout"]
 replaceability = "hard-bound"
 degradation_state = "blocked:protected_root_mutation"

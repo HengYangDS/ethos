@@ -67,6 +67,7 @@ class TransitionDecision(LifecycleModel):
     verdict: Literal["pass", "block", "unknown"]
     state: str
     required_gaps: tuple[str, ...] = ()
+    unknown_gaps: tuple[str, ...] = ()
 
     @property
     def ok(self) -> bool:
@@ -76,7 +77,7 @@ class TransitionDecision(LifecycleModel):
     @property
     def gaps(self) -> tuple[str, ...]:
         """Project the canonical gap field used by command surfaces."""
-        return self.required_gaps
+        return tuple(dict.fromkeys((*self.required_gaps, *self.unknown_gaps)))
 
 
 def reduce_transition(
@@ -120,10 +121,16 @@ def reduce_transition(
     gaps.extend(gap for satisfied, gap in facts.checks if not satisfied)
     if request.apply:
         gaps.extend(facts.evidence_gaps)
+    unknown = tuple(dict.fromkeys(gap for gap in facts.unknown_gaps if gap))
     if ordered := tuple(dict.fromkeys(gap for gap in gaps if gap)):
-        return TransitionDecision(verdict="block", state="blocked", required_gaps=ordered)
-    if unknown := tuple(dict.fromkeys(gap for gap in facts.unknown_gaps if gap)):
-        return TransitionDecision(verdict="unknown", state="unknown", required_gaps=unknown)
+        return TransitionDecision(
+            verdict="block",
+            state="blocked",
+            required_gaps=ordered,
+            unknown_gaps=unknown,
+        )
+    if unknown:
+        return TransitionDecision(verdict="unknown", state="unknown", unknown_gaps=unknown)
     state = (
         policy.current_state
         if policy.current_state and facts.current

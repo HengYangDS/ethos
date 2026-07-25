@@ -15,8 +15,8 @@ from ethos.contracts.rules import stable_digest
 from tests.support.contract_helpers import commit_fixture_file
 from tests.support.contract_helpers import git
 from tests.support.contract_helpers import init_git_repo
-from tests.support.contract_helpers import init_repo_with_candidate
 from tests.support.contract_helpers import seed_executed_proof
+from tests.support.contract_helpers import start_adopted_candidate
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 def _control_change(
     tmp_path: Path, relative_path: str = "system/gates.toml"
 ) -> tuple[Path, Path, str, str]:
-    repo, candidate = init_repo_with_candidate(tmp_path)
+    repo, candidate = start_adopted_candidate(tmp_path)
     accepted_head = git(repo, "rev-parse", "HEAD")
     candidate_head = commit_fixture_file(candidate, relative_path, "candidate control\n", "control")
     return repo, candidate, accepted_head, candidate_head

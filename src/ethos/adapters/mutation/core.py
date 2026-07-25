@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import cast
 
@@ -10,7 +11,6 @@ from ethos.adapters.admission.closeout_intent.core import sweep_stale_closeout_i
 from ethos.adapters.admission.evidence.external import independent_verification_admission_report
 from ethos.adapters.admission.evidence.external import independent_verification_request
 from ethos.adapters.mutation.carriers import openspec_carrier_gaps
-from ethos.adapters.mutation.proof import carry_executed_proof_record
 from ethos.adapters.mutation.proof import executed_proof_record
 from ethos.adapters.mutation.proof import gate_policy_gaps
 from ethos.adapters.mutation.proof import promotion_completeness_gaps
@@ -18,7 +18,6 @@ from ethos.adapters.repo.dirty.core import dirty_provenance
 from ethos.adapters.repo.git import committed_file_text
 from ethos.adapters.repo.git import execute_git_effect
 from ethos.adapters.repo.git import git_effect_attestations
-from ethos.adapters.repo.git import git_effect_plan_digest
 from ethos.adapters.repo.git import git_ref_effect
 from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import reference_transaction_hook_changed
@@ -182,19 +181,13 @@ def apply_land_to_candidate(
     if not base_report["ok"]:
         return base_report
     candidate_path = Path(str(base_report["path"]))
-    proof_carry = carry_executed_proof_record(
-        source_root=root, target_root=candidate_path, head=current_head
-    )
-    if not proof_carry["ok"]:
-        return fail(
-            list(cast("list[str]", proof_carry.get("required_gaps", []))),
-            path=candidate_path.as_posix(),
-            proof_carry=proof_carry,
-        )
+    proof = executed_proof_record(candidate_path, current_head)
+    if proof is None:
+        return fail(["proof_not_proven"], path=candidate_path.as_posix())
     candidate_head = str(base_report["candidate_head"])
     effect = GitEffect(
         id=f"git-effect:candidate:{policy.candidate_branch}:{current_head}",
-        plan_digest=git_effect_plan_digest(root, current_head),
+        plan_digest=str(proof["plan_digest"]),
         updates={
             f"refs/heads/{policy.candidate_branch}": GitRefUpdate(
                 expected=candidate_head,
@@ -202,12 +195,14 @@ def apply_land_to_candidate(
             )
         },
     )
+    permissions = tuple(str(item) for item in proof["plan"].get("permissions", ()))
     try:
         attestation = execute_git_effect(
             root,
             effect,
             issuer=_effect_issuer(),
             attestations=git_effect_attestations(root, effect.id),
+            permissions=permissions,
         )
         git_effect_attestations(root, effect.id, attestation)
     except ValueError as error:
@@ -303,46 +298,44 @@ def apply_candidate_to_accepted(
         policy=policy,
         current_head=current_head,
         candidate_head=candidate_head,
-        candidate_path=Path(str(candidate["worktree_path"])),
-        worktrees=cast("list[dict[str, object]]", status.get("worktrees", [])),
+        status=status,
     )
 
 
 def _effect_issuer() -> str:
-    import os
-
     return os.environ.get("ETHOS_ACTOR", "").strip() or "agent:local:process:ethos"
 
 
-def _promote_candidate(*, root, policy, current_head, candidate_head, candidate_path, worktrees):
-    if not is_ancestor(root, current_head, candidate_head):
-        return _accepted_block(
-            policy,
-            current_head,
-            ["candidate_diverged_from_accepted"],
-            candidate_head=candidate_head,
-        )
+def _promote_candidate(*, root, policy, current_head, candidate_head, status):
     mirror = policy.release_mirror == RELEASE_MIRROR_ACCEPTED_FF
     release_old = (
         run_git(root, "rev-parse", policy.release_branch, check=False).stdout.strip()
         if mirror
         else ""
     )
-    if mirror and (not release_old or not is_ancestor(root, release_old, current_head)):
-        gap = (
-            "release_mirror_release_branch_missing"
-            if not release_old
-            else "release_mirror_ahead_of_accepted"
-            if is_ancestor(root, current_head, release_old)
-            else "release_mirror_diverged"
-        )
-        return _accepted_block(policy, current_head, [gap], candidate_head=candidate_head)
-    proof = carry_executed_proof_record(
-        source_root=candidate_path, target_root=root, head=candidate_head
+    blocker, proof = _promotion_blocker(
+        root=root,
+        policy=policy,
+        current_head=current_head,
+        candidate_head=candidate_head,
+        release_old=release_old if mirror else None,
     )
-    if proof.get("ok") is not True:
-        gaps = cast("list[str]", proof.get("required_gaps") or ["proof_invalid"])
-        return _accepted_block(policy, current_head, gaps, proof_carry=proof)
+    if blocker:
+        return blocker
+    proof = cast("dict[str, object]", proof)
+    return _apply_candidate_promotion(
+        root=root,
+        policy=policy,
+        status=status,
+        heads=(current_head, candidate_head),
+        context=(mirror, release_old, proof),
+    )
+
+
+def _apply_candidate_promotion(*, root, policy, status, heads, context):
+    current_head, candidate_head = heads
+    mirror, release_old, proof = context
+    worktrees = cast("list[dict[str, object]]", status.get("worktrees", []))
     sweep_stale_closeout_intents(root)
     transitions = (
         CloseoutTransition(
@@ -364,22 +357,22 @@ def _promote_candidate(*, root, policy, current_head, candidate_head, candidate_
             else ()
         ),
     )
-    digest = git_effect_plan_digest(candidate_path, candidate_head)
+    evidence_digest = str(proof.get("evidence_digest") or "")
     policy_digest = gate_policy_digest(root, tree_ref=candidate_head)
-    try:
-        bootstrap = mirror and reference_transaction_hook_changed(
-            root, current_head, candidate_head
-        )
-    except ValueError as error:
-        return _accepted_block(policy, current_head, [str(error)], candidate_head=candidate_head)
+    bootstrap, bootstrap_gap = _release_bootstrap(root, current_head, candidate_head, mirror)
+    if bootstrap_gap:
+        return _accepted_block(policy, current_head, [bootstrap_gap], candidate_head=candidate_head)
     first_leg = transitions[:1] if bootstrap else transitions
     effect = git_ref_effect(
         f"git-effect:closeout:{policy.accepted_branch}:{candidate_head}",
-        git_effect_plan_digest(candidate_path, candidate_head),
+        str(proof["plan_digest"]),
         first_leg,
         {f"refs/heads/{policy.candidate_branch}": candidate_head},
     )
-    attestation, error = _execute_closeout_effect(root, effect, first_leg, digest, policy_digest)
+    permissions = tuple(str(item) for item in proof["plan"].get("permissions", ()))
+    attestation, error = _execute_closeout_effect(
+        root, effect, first_leg, evidence_digest, policy_digest, permissions
+    )
     if error:
         return _accepted_block(
             policy,
@@ -388,65 +381,24 @@ def _promote_candidate(*, root, policy, current_head, candidate_head, candidate_
             candidate_head=candidate_head,
             stderr=error,
         )
-    synced = sync_current_worktree(root, candidate_head)
-    if synced["state"] != "synced":
-        gap = (
-            "accepted_worktree_sync_failed"
-            if synced["state"] == "failed"
-            else "accepted_worktree_dirty_after_sync"
-        )
-        return _accepted_block(
-            policy,
-            current_head,
-            [gap],
-            candidate_head=candidate_head,
-            accepted_advanced=True,
-            status=synced.get("status", ""),
-            stderr=synced.get("stderr", ""),
-            attestation=attestation.model_dump(mode="json"),
-        )
-    attestations = [attestation]
-    if bootstrap:
-        release = transitions[1]
-        mirror_effect = git_ref_effect(
-            f"git-effect:release-mirror:{policy.release_branch}:{candidate_head}",
-            effect.plan_digest,
-            (release,),
-            {
-                f"refs/heads/{policy.accepted_branch}": candidate_head,
-                f"refs/heads/{policy.candidate_branch}": candidate_head,
-            },
-        )
-        mirror_attestation, error = _execute_closeout_effect(
-            root, mirror_effect, (release,), digest, policy_digest
-        )
-        if error:
-            return _accepted_block(
-                policy,
-                candidate_head,
-                ["release_mirror_bootstrap_incomplete"],
-                candidate_head=candidate_head,
-                accepted_advanced=True,
-                stderr=error,
-                attestation=attestation.model_dump(mode="json"),
-            )
-        attestations.append(mirror_attestation)
+    sync_blocker = _accepted_sync_blocker(root, policy, current_head, candidate_head, attestation)
+    if sync_blocker:
+        return sync_blocker
+    mirror_blocker, attestations = _mirror_bootstrap_result(
+        root=root,
+        policy=policy,
+        candidate_head=candidate_head,
+        transitions=transitions,
+        context=(bootstrap, attestation, effect, evidence_digest, policy_digest, permissions),
+    )
+    if mirror_blocker:
+        return mirror_blocker
     mirror_result = sync_linked_ref_worktree(
         worktrees, policy.release_branch if mirror else "", candidate_head, release_old
     )
-    if mirror_result.get("worktree_sync") in {"failed", "dirty"}:
-        gap = (
-            "release_mirror_worktree_sync_failed"
-            if mirror_result["worktree_sync"] == "failed"
-            else "release_mirror_worktree_dirty_after_sync"
-        )
-        return _accepted_block(
-            policy,
-            candidate_head,
-            [gap],
-            candidate_head=candidate_head,
-            release_mirror=mirror_result,
-        )
+    mirror_blocker = _mirror_sync_blocker(policy, candidate_head, mirror_result)
+    if mirror_blocker:
+        return mirror_blocker
     return {
         "ok": True,
         "state": "accepted_validated",
@@ -461,7 +413,124 @@ def _promote_candidate(*, root, policy, current_head, candidate_head, candidate_
     }
 
 
-def _execute_closeout_effect(root, effect, transitions, evidence_digest, policy_digest):
+def _promotion_topology_gaps(root, current_head, candidate_head, release_old):
+    if not is_ancestor(root, current_head, candidate_head):
+        return ["candidate_diverged_from_accepted"]
+    if release_old is None or (release_old and is_ancestor(root, release_old, current_head)):
+        return []
+    if not release_old:
+        return ["release_mirror_release_branch_missing"]
+    gap = (
+        "release_mirror_ahead_of_accepted"
+        if is_ancestor(root, current_head, release_old)
+        else "release_mirror_diverged"
+    )
+    return [gap]
+
+
+def _mirror_bootstrap_result(*, root, policy, candidate_head, transitions, context):
+    bootstrap, attestation, effect, evidence_digest, policy_digest, permissions = context
+    attestations = [attestation]
+    if not bootstrap:
+        return None, attestations
+    release = transitions[1]
+    mirror_effect = git_ref_effect(
+        f"git-effect:release-mirror:{policy.release_branch}:{candidate_head}",
+        effect.plan_digest,
+        (release,),
+        {
+            f"refs/heads/{policy.accepted_branch}": candidate_head,
+            f"refs/heads/{policy.candidate_branch}": candidate_head,
+        },
+    )
+    mirror_attestation, error = _execute_closeout_effect(
+        root, mirror_effect, (release,), evidence_digest, policy_digest, permissions
+    )
+    if error:
+        return (
+            _accepted_block(
+                policy,
+                candidate_head,
+                ["release_mirror_bootstrap_incomplete"],
+                candidate_head=candidate_head,
+                accepted_advanced=True,
+                stderr=error,
+                attestation=attestation.model_dump(mode="json"),
+            ),
+            attestations,
+        )
+    attestations.append(mirror_attestation)
+    return None, attestations
+
+
+def _mirror_sync_blocker(policy, candidate_head, mirror_result):
+    if mirror_result.get("worktree_sync") not in {"failed", "dirty"}:
+        return None
+    gap = (
+        "release_mirror_worktree_sync_failed"
+        if mirror_result["worktree_sync"] == "failed"
+        else "release_mirror_worktree_dirty_after_sync"
+    )
+    return _accepted_block(
+        policy,
+        candidate_head,
+        [gap],
+        candidate_head=candidate_head,
+        release_mirror=mirror_result,
+    )
+
+
+def _promotion_blocker(*, root, policy, current_head, candidate_head, release_old):
+    topology_gaps = _promotion_topology_gaps(root, current_head, candidate_head, release_old)
+    if topology_gaps:
+        return (
+            _accepted_block(policy, current_head, topology_gaps, candidate_head=candidate_head),
+            None,
+        )
+    proof = executed_proof_record(root, candidate_head)
+    if proof is None:
+        return _accepted_block(policy, current_head, ["proof_not_proven"]), None
+    return None, proof
+
+
+def _release_bootstrap(root, current_head, candidate_head, mirror):
+    if not mirror:
+        return False, ""
+    try:
+        return reference_transaction_hook_changed(root, current_head, candidate_head), ""
+    except ValueError as error:
+        return False, str(error)
+
+
+def _accepted_sync_blocker(root, policy, current_head, candidate_head, attestation):
+    synced = sync_current_worktree(root, candidate_head)
+    if synced["state"] == "synced":
+        return None
+    gap = (
+        "accepted_worktree_sync_failed"
+        if synced["state"] == "failed"
+        else "accepted_worktree_dirty_after_sync"
+    )
+    return _accepted_block(
+        policy,
+        current_head,
+        [gap],
+        candidate_head=candidate_head,
+        accepted_advanced=True,
+        status=synced.get("status", ""),
+        stderr=synced.get("stderr", ""),
+        attestation=attestation.model_dump(mode="json"),
+    )
+
+
+def _execute_closeout_effect(
+    root,
+    effect,
+    transitions,
+    evidence_digest,
+    policy_digest,
+    permissions,
+):
     try:
         return execute_closeout_effect(
             root=root,
@@ -469,7 +538,7 @@ def _execute_closeout_effect(root, effect, transitions, evidence_digest, policy_
             transitions=transitions,
             evidence_digest=evidence_digest,
             gate_policy_digest=policy_digest,
-            issuer=_effect_issuer(),
+            permissions=permissions,
         ), ""
     except ValueError as error:
         return None, str(error)

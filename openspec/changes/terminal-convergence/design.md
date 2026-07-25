@@ -80,7 +80,12 @@ only active implementation carrier for that design.
     one authority owner, and one primary change reason. Ambiguous module names
     require a closed machine role contract; otherwise the module is absorbed,
     precisely renamed, split by real semantic axes, or deleted. ELOC-only splits,
-    compatibility facades, and duplicate command ownership are rejected.
+    compatibility facades, and duplicate command ownership are rejected. The
+    invariant spans source, tests, tools, and agent scripts, but carrier-native
+    syntax is preserved and no file-count metric can mint architecture.
+12. **Open-world signals.** Verdicts are closed, but gap and feedback vocabularies
+    are open. Taxonomies are rebuildable explanations over observed signals and
+    must not reject novelty or force new evidence into an incumbent category.
 
 ## Risks / Trade-offs
 

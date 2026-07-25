@@ -14,7 +14,6 @@ from ethos.contracts.gates import DECLARATION_PATH
 from ethos.contracts.gates import GateDescriptor
 from ethos.contracts.gates import GateRegistryDeclaration
 from ethos.contracts.gates import load_gate_registry_declaration
-from ethos.contracts.plan import PlanIR
 from ethos.contracts.plan import PlanNode
 from ethos.normalization.core import string_mapping
 from ethos.repository.context import is_product_root
@@ -535,17 +534,18 @@ def effective_gate_dependencies(
     return gate.depends_on
 
 
-def gate_plan(
+def gate_nodes(
     gate_ids: tuple[str, ...] = (),
     *,
     full: bool = False,
     root: Path | None = None,
-) -> PlanIR:
-    registry = gate_registry(root)
-    selected = gate_ids or default_gate_ids(full=full, root=root)
+    tree_ref: str | None = None,
+) -> tuple[tuple[PlanNode, ...], tuple[str, ...]]:
+    registry = gate_registry(root, tree_ref=tree_ref)
+    selected = gate_ids or default_gate_ids(full=full, root=root, tree_ref=tree_ref)
     selected_ids = set(selected)
     product = root is None or is_product_root(root)
-    declaration_gaps = list(adopter_gate_descriptor_gaps(root))
+    declaration_gaps = list(adopter_gate_descriptor_gaps(root, tree_ref=tree_ref))
     nodes: list[PlanNode] = []
     for gate_id in selected:
         gate = registry.get(gate_id)
@@ -564,7 +564,4 @@ def gate_plan(
         if effective_dependencies != node.depends_on:
             node = node.model_copy(update={"depends_on": effective_dependencies})
         nodes.append(node)
-    return PlanIR(
-        nodes=tuple(nodes),
-        validation_issues=tuple(dict.fromkeys(declaration_gaps)),
-    )
+    return tuple(nodes), tuple(dict.fromkeys(declaration_gaps))

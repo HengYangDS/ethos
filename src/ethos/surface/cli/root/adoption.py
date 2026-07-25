@@ -21,6 +21,8 @@ def _adoption_result(
     request: TransitionRequest,
     *,
     root: RootOption | None,
+    repository_id: str | None = None,
+    expect_plan_digest: str | None = None,
 ) -> EthosResult:
     target = resolve_root(root)
     current_head = git.current_head(target)
@@ -30,7 +32,12 @@ def _adoption_result(
         TransitionFacts(current_head=current_head),
     )
     do_apply = request.apply and mutation.ok
-    plan_payload = adoption_plan(target, apply=do_apply)
+    plan_payload = adoption_plan(
+        target,
+        apply=do_apply,
+        repository_id=repository_id,
+        expect_plan_digest=expect_plan_digest,
+    )
     required_gaps = mutation.gaps + tuple(string_sequence(plan_payload.get("required_gaps")))
     ok = not required_gaps
     result = EthosResult(
@@ -57,6 +64,8 @@ def adopt(
     apply: bool = False,
     authorize: bool = False,
     expect_head: str | None = None,
+    repository_id: str | None = None,
+    expect_plan_digest: str | None = None,
     json_output: JsonFlag = False,
 ) -> None:
     """Plan or apply ETHOS adoption for a repository."""
@@ -68,5 +77,7 @@ def adopt(
             expect_head=expect_head,
         ),
         root=root,
+        repository_id=repository_id,
+        expect_plan_digest=expect_plan_digest,
     )
     emit(result, json_output=json_output, enforce=apply)

@@ -116,12 +116,11 @@ def test_taxonomy_is_mece_over_the_chain() -> None:
         assert category.node, category.id
 
 
-def test_every_emitted_gap_classifies_to_exactly_one_node() -> None:
-    unclassified = sorted(stem for stem in _emitted_gap_stems() if classify(stem) == UNCLASSIFIED)
-    assert unclassified == [], (
-        "gap strings that reduce to no kernel node (ungoverned invalid states) — "
-        f"add a match_prefix to system/invalid_states.toml: {unclassified}"
-    )
+def test_unclassified_signals_are_preserved_without_extending_old_taxonomy() -> None:
+    signal = "new_semantic_residual"
+
+    assert classify(signal) == UNCLASSIFIED
+    assert classify_all((signal,)) == {UNCLASSIFIED: [signal]}
 
 
 def test_classify_all_groups_in_chain_order() -> None:

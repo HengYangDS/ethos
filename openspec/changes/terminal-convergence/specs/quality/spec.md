@@ -28,13 +28,37 @@ Global branch coverage MUST be at least 95%, authority/CAS/transition reducers M
 - **WHEN** deletion of the test leaves all contract, property, mutation, and adopter proofs unchanged
 - **THEN** the test is classified as removable rather than product evidence
 
-### Requirement: Semantic Module Boundaries
-Every governed module MUST state one narrow concept, one authority owner, and one
-primary reason to change through its name, path, symbols, and dependencies.
+## MODIFIED Requirements
+
+### Requirement: Python Module Layout Gate
+
+ETHOS SHALL gate repository-owned Python as semantic architecture rather than as
+a file-count topology. Every module and package MUST state one narrow concept,
+one authority owner, and one primary reason to change through its name, path,
+symbols, and dependencies. The same semantic invariants MUST cover product
+source, tests, tools, and agent scripts while respecting each carrier's native
+naming syntax.
+
 Ambiguous names MUST fail unless a closed machine role contract proves an
 irreducible kernel or report aggregator. CLI commands MUST have one declaration
-owner, and compatibility facades MUST NOT satisfy this requirement.
+owner, and compatibility facades MUST NOT satisfy this requirement. File count,
+directory width, ELOC, and punctuation MUST NOT mint a semantic split or waiver.
 
-#### Scenario: A mixed or ambiguously named module is introduced
-- **WHEN** a changed module uses an ambiguous catch-all name without an exact role contract, owns multiple command applications, or drifts from its declared public symbols, authority references, import roots, or effective-LOC ceiling
-- **THEN** the module-layout gate blocks with a semantic-boundary gap and requires absorb, precise rename, semantic split, or deletion
+#### Scenario: Semantic module layout is reported and enforced
+
+- **WHEN** `ethos quality module-layout --json` runs
+- **THEN** ETHOS scans tracked and non-ignored untracked Python across the whole
+  repository while excluding deleted and ignored runtime files
+- **AND** it reports ambiguous module and package names, multiple command owners,
+  private import aliases, package `__init__.py` facades, ordinary module facades,
+  dynamic compatibility facades, package-root submodule imports, and cross-module
+  private imports against `.config/checks/module-layout/policy.toml`
+- **AND** product-package topology has a narrower explicit scope so pytest and
+  tool naming syntax is not mistaken for product architecture
+- **AND** the policy has no baseline, allowlist, file-count threshold, or ELOC
+  threshold that converts a semantic defect into accepted debt or mints a split
+- **AND** every finding blocks and requires absorb, precise rename, semantic split,
+  or deletion
+- **AND** hosted CI, pre-commit, local CI, and proof invoke the reusable
+  `tools/ci/scripts/run-module-layout.sh` owner script instead of duplicating the
+  policy inline

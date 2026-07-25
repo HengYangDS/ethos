@@ -30,12 +30,18 @@ def test_git_effect_applies_exact_cas_and_replays_matching_attestation(tmp_path)
     new = git(repo, "commit-tree", "HEAD^{tree}", "-p", old, "-m", "next")
     effect = _effect(old=old, new=new)
 
-    applied = execute_git_effect(repo, effect, issuer="agent:test:case:one")
+    applied = execute_git_effect(
+        repo,
+        effect,
+        issuer="agent:test:case:one",
+        permissions=("git.ref.compare-and-swap",),
+    )
     replayed = execute_git_effect(
         repo,
         effect,
         issuer="agent:test:case:one",
         attestations=(applied,),
+        permissions=("git.ref.compare-and-swap",),
     )
 
     assert git(repo, "rev-parse", "dev") == new
@@ -55,6 +61,7 @@ def test_git_effect_recovers_attestation_when_desired_state_already_holds(tmp_pa
         repo,
         _effect(old=old, new=new),
         issuer="agent:test:case:one",
+        permissions=("git.ref.compare-and-swap",),
     )
 
     assert recovered.content["state"] == "recovered"
@@ -80,6 +87,7 @@ def test_git_effect_blocks_identity_collision_and_stale_cas(tmp_path) -> None:
             effect,
             issuer="agent:test:case:one",
             attestations=(collision,),
+            permissions=("git.ref.compare-and-swap",),
         )
 
     git(repo, "update-ref", "refs/heads/dev", new, old)
@@ -88,6 +96,21 @@ def test_git_effect_blocks_identity_collision_and_stale_cas(tmp_path) -> None:
             repo,
             _effect(old="0" * 40, new=old),
             issuer="agent:test:case:one",
+            permissions=("git.ref.compare-and-swap",),
+        )
+
+
+def test_git_effect_requires_explicit_permission_admission(tmp_path) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    old = git(repo, "rev-parse", "HEAD")
+    new = git(repo, "commit-tree", "HEAD^{tree}", "-p", old, "-m", "next")
+
+    with pytest.raises(ValueError, match="git_effect_permission_denied"):
+        execute_git_effect(
+            repo,
+            _effect(old=old, new=new),
+            issuer="agent:test:case:one",
+            permissions=(),
         )
 
 
@@ -102,7 +125,12 @@ def test_git_effect_blocks_assertion_drift_before_recovery(tmp_path) -> None:
     git(repo, "update-ref", "refs/heads/candidate/dev", new, old)
 
     with pytest.raises(ValueError, match="git_effect_cas_mismatch"):
-        execute_git_effect(repo, effect, issuer="agent:test:case:one")
+        execute_git_effect(
+            repo,
+            effect,
+            issuer="agent:test:case:one",
+            permissions=("git.ref.compare-and-swap",),
+        )
 
 
 def test_git_effect_revalidates_state_before_replaying_attestation(tmp_path) -> None:
@@ -110,7 +138,12 @@ def test_git_effect_revalidates_state_before_replaying_attestation(tmp_path) -> 
     old = git(repo, "rev-parse", "HEAD")
     new = git(repo, "commit-tree", "HEAD^{tree}", "-p", old, "-m", "next")
     effect = _effect(old=old, new=new)
-    applied = execute_git_effect(repo, effect, issuer="agent:test:case:one")
+    applied = execute_git_effect(
+        repo,
+        effect,
+        issuer="agent:test:case:one",
+        permissions=("git.ref.compare-and-swap",),
+    )
     git(repo, "update-ref", "refs/heads/dev", old, new)
 
     with pytest.raises(ValueError, match="git_effect_postcondition_failed"):
@@ -119,6 +152,7 @@ def test_git_effect_revalidates_state_before_replaying_attestation(tmp_path) -> 
             effect,
             issuer="agent:test:case:one",
             attestations=(applied,),
+            permissions=("git.ref.compare-and-swap",),
         )
 
 

@@ -21,6 +21,20 @@ from ethos.contracts.system.contracts import load_system_contract
 from ethos.contracts.system.contracts import system_contracts_report
 from ethos.result import EthosResult
 
+_PLAN_INPUTS = {
+    "contract_digest": "a" * 64,
+    "facts_digest": "b" * 64,
+    "policy_digest": "c" * 64,
+    "facts": {
+        "schema_version": 1,
+        "repository": "repository:test",
+        "head": "a" * 40,
+        "tree": "b" * 40,
+        "values": {},
+        "source_refs": [],
+    },
+}
+
 
 def test_plan_ir_is_deterministic_and_digest_bound() -> None:
     first = PlanNode(
@@ -34,11 +48,11 @@ def test_plan_ir_is_deterministic_and_digest_bound() -> None:
         command=("ethos", "status", "--json"),
     )
 
-    plan = PlanIR(nodes=(first, second))
+    plan = PlanIR(**_PLAN_INPUTS, nodes=(first, second))
     serialized = plan.to_dict()
 
     assert [node["id"] for node in serialized["nodes"]] == ["prove", "status"]
-    assert plan.digest() == PlanIR(nodes=(second, first)).digest()
+    assert plan.digest() == PlanIR(**_PLAN_INPUTS, nodes=(second, first)).digest()
 
 
 def test_terminal_contracts_are_frozen_deterministic_and_schema_shaped() -> None:
@@ -65,6 +79,20 @@ def test_terminal_contracts_are_frozen_deterministic_and_schema_shaped() -> None
     assert facts.digest() == RepositoryFacts.model_validate(facts.model_dump()).digest()
     assert contract.model_config["frozen"] is True
     assert facts.model_config["frozen"] is True
+
+
+def test_repository_facts_digest_ignores_observation_time() -> None:
+    facts = RepositoryFacts(
+        repository="repository:ethos",
+        head="a" * 40,
+        tree="b" * 40,
+        observed_at=datetime(2026, 7, 25, tzinfo=UTC),
+        values={"changed_paths": ("src/ethos/result.py",)},
+    )
+
+    later = facts.model_copy(update={"observed_at": datetime(2026, 7, 26, tzinfo=UTC)})
+
+    assert facts.digest() == later.digest()
 
 
 def test_attestation_content_and_repository_facts_are_deeply_immutable() -> None:
@@ -167,7 +195,11 @@ def test_amendment_attestations_fold_in_sequence_and_bind_prior_digest() -> None
         prior_digest=base.digest(),
         content={"patch": {"acceptance": ["base", "deterministic"]}},
     )
-    after_first = apply_amendments(base, (first,))
+    authority = {
+        "agent:local:task:one": ("acceptance",),
+        "human:local:shell:owner": ("intent",),
+    }
+    after_first = apply_amendments(base, (first,), issuer_permissions=authority)
     second = Attestation(
         id="attestation:second",
         kind="amendment",
@@ -178,11 +210,30 @@ def test_amendment_attestations_fold_in_sequence_and_bind_prior_digest() -> None
         content={"patch": {"intent": "Establish the smallest deterministic terminal kernel."}},
     )
 
-    effective = apply_amendments(base, (second, first))
+    effective = apply_amendments(base, (second, first), issuer_permissions=authority)
 
     assert effective.intent == "Establish the smallest deterministic terminal kernel."
     assert effective.acceptance == ("base", "deterministic")
-    assert effective.digest() == apply_amendments(base, (first, second)).digest()
+    assert (
+        effective.digest()
+        == apply_amendments(base, (first, second), issuer_permissions=authority).digest()
+    )
+
+
+def test_amendment_fold_requires_explicit_authority_map() -> None:
+    base = ChangeContract(id="change:test", intent="Base", subjects=("repository:test",))
+    amendment = Attestation(
+        id="attestation:test",
+        kind="amendment",
+        issuer="agent:local:task:one",
+        subject=base.id,
+        issued_at=datetime(2026, 7, 25, tzinfo=UTC),
+        prior_digest=base.digest(),
+        content={"patch": {"intent": "Changed"}},
+    )
+
+    with pytest.raises(ValueError, match="amendment_authority_missing"):
+        apply_amendments(base, (amendment,))
 
 
 def test_amendment_fold_rejects_digest_break_or_non_amendment_attestation() -> None:
@@ -224,7 +275,11 @@ def test_amendment_fold_rejects_unknown_contract_fields() -> None:
     )
 
     with pytest.raises(ValueError, match="amendment_field_unknown:invented"):
-        apply_amendments(base, (amendment,))
+        apply_amendments(
+            base,
+            (amendment,),
+            issuer_permissions={"agent:local:task:one": ("invented",)},
+        )
 
 
 def test_amendment_fold_rejects_ambiguous_equal_sequence() -> None:
@@ -253,6 +308,58 @@ def test_amendment_fold_rejects_ambiguous_equal_sequence() -> None:
 
     with pytest.raises(ValueError, match="amendment_order_ambiguous"):
         apply_amendments(base, (second, first))
+
+
+def test_amendment_fold_requires_explicit_issuer_and_field_authority() -> None:
+    base = ChangeContract(
+        id="change:terminal-kernel",
+        intent="Base",
+        subjects=("repo",),
+        authority_refs=("authority:maintainer",),
+    )
+    amendment = Attestation(
+        id="attestation:unauthorized",
+        kind="amendment",
+        issuer="agent:local:task:one",
+        subject=base.id,
+        issued_at=datetime(2026, 7, 25, tzinfo=UTC),
+        prior_digest=base.digest(),
+        content={"patch": {"permissions": ["repository.write"]}},
+    )
+
+    with pytest.raises(ValueError, match="amendment_issuer_unauthorized"):
+        apply_amendments(
+            base,
+            (amendment,),
+            issuer_permissions={
+                "authority:maintainer": ("intent",),
+            },
+        )
+
+
+def test_amendment_fold_rejects_fields_outside_issuer_capability() -> None:
+    base = ChangeContract(
+        id="change:terminal-kernel",
+        intent="Base",
+        subjects=("repo",),
+        authority_refs=("authority:maintainer",),
+    )
+    amendment = Attestation(
+        id="attestation:overreach",
+        kind="amendment",
+        issuer="authority:maintainer",
+        subject=base.id,
+        issued_at=datetime(2026, 7, 25, tzinfo=UTC),
+        prior_digest=base.digest(),
+        content={"patch": {"permissions": ["repository.write"]}},
+    )
+
+    with pytest.raises(ValueError, match="amendment_field_unauthorized:permissions"):
+        apply_amendments(
+            base,
+            (amendment,),
+            issuer_permissions={"authority:maintainer": ("intent",)},
+        )
 
 
 def test_terminal_semantic_schemas_are_generated_from_python_contracts() -> None:
@@ -334,13 +441,14 @@ def test_json_schemas_are_valid_json_documents() -> None:
 def test_plan_ir_schema_accepts_the_python_projection() -> None:
     schema = json.loads(Path("system/schemas/kernel/plan-ir.schema.json").read_text())
     plan = PlanIR(
+        **_PLAN_INPUTS,
         nodes=(
             PlanNode(
                 id="land",
                 kind="effect",
                 command=("ethos", "land"),
             ),
-        )
+        ),
     )
 
     jsonschema.Draft202012Validator(schema).validate(plan.to_dict())
@@ -440,9 +548,7 @@ def test_governance_context_projects_repository_authority_without_shadow_models(
     assert context["reader_projection_commands"] == ["ethos status"]
 
 
-def test_workflow_transitions_bind_to_invalid_state_taxonomy() -> None:
-    from ethos.state.invalid import NODE_ORDER
-
+def test_workflow_transitions_bind_to_declared_guards_and_signals() -> None:
     contract = load_system_contract(Path(), "workflows")
     states = set(contract["lifecycle"]["states"])
     guards = set(contract["guards"])
@@ -453,21 +559,7 @@ def test_workflow_transitions_bind_to_invalid_state_taxonomy() -> None:
         assert transition["from"] in states
         assert transition["to"] in states
         assert transition["guard"] in guards
-        assert transition["invalid_state"] in NODE_ORDER
         assert transition["invalid_state"] in transition["invalid_states"]
-        assert set(transition["invalid_states"]).issubset(set(NODE_ORDER))
-    assert {
-        invalid_state
-        for transition in transitions
-        for invalid_state in transition["invalid_states"]
-    } >= {
-        "subject_ambiguous",
-        "change_unbounded",
-        "evidence_missing_or_stale",
-        "claim_unbound_or_overreaching",
-        "chronicle_missing",
-        "substrate_untrusted",
-    }
 
 
 def test_load_system_contract_uses_product_resource_for_workflows_when_root_lacks_contract(

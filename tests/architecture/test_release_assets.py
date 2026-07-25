@@ -421,10 +421,11 @@ def test_module_layout_gate_is_owned_by_policy_and_runner_surfaces() -> None:
 
     assert "ethos quality module-layout" in runner
     assert "--flat-directory-limit" not in runner
-    assert 'paths = ["src/ethos"]' in policy
-    assert "flat_directory_limit = 8" in policy
-    assert "baseline_gap_limit = 0" in policy
-    assert "baseline_suffix_module_limit = 0" in policy
+    assert 'semantic_paths = ["."]' in policy
+    assert 'package_paths = ["src/ethos"]' in policy
+    assert "flat_directory_limit" not in policy
+    assert "baseline_gap_limit" not in policy
+    assert "allowed_" not in policy
     assert "scaffold_openspec" not in policy
     assert "land_support" not in policy
     assert "baseline_gap_limit" not in runner

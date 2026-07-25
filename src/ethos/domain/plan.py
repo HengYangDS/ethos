@@ -10,13 +10,12 @@ from __future__ import annotations
 
 import fnmatch
 import tomllib
-from datetime import UTC
-from datetime import datetime
 from typing import TYPE_CHECKING
 from typing import cast
 
 from ethos.adapters.config import rules_config
-from ethos.adapters.repo.git import current_tree
+from ethos.adapters.repo.git import committed_file_text
+from ethos.adapters.repo.git import git_stdout
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.assistants.projections import projection_contract
 from ethos.contracts.context.projection import ASSISTANT_TRUTH_BOUNDARY
@@ -24,7 +23,6 @@ from ethos.contracts.rules import RuleAttestation
 from ethos.contracts.rules import RuleFactSnapshot
 from ethos.contracts.rules import stable_digest
 from ethos.contracts.semantic import ChangeContract
-from ethos.contracts.semantic import RepositoryFacts
 from ethos.domain.status import audit_for_root
 from ethos.domain.status import status_worktree_gaps
 from ethos.normalization.core import string_list
@@ -36,46 +34,146 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
+def _contract_payload(
+    path: Path,
+    *,
+    missing_gap: str,
+    root: Path | None = None,
+    tree_ref: str | None = None,
+) -> dict[str, object]:
+    try:
+        text = (
+            committed_file_text(root, tree_ref, path.relative_to(root).as_posix())
+            if root is not None and tree_ref is not None
+            else path.read_text(encoding="utf-8")
+        )
+        if not text:
+            raise FileNotFoundError(path)
+        return tomllib.loads(text)
+    except (OSError, UnicodeError, tomllib.TOMLDecodeError) as exc:
+        raise ValueError(missing_gap) from exc
+
+
+def _normalize_contract_payload(payload: dict[str, object]) -> dict[str, object]:
+    tuple_fields = {
+        "subjects",
+        "scope",
+        "invariants",
+        "acceptance",
+        "risks",
+        "authority_refs",
+        "permissions",
+        "hypotheses",
+        "dependencies",
+    }
+    return {
+        key: tuple(value) if key in tuple_fields and isinstance(value, list) else value
+        for key, value in payload.items()
+    }
+
+
+def load_repository_contract(repo: Path, *, tree_ref: str | None = None) -> ChangeContract:
+    """Load the stable repository identity and default governance contract."""
+    path = repo / ".ethos" / "contract.toml"
+    contract = ChangeContract.model_validate(
+        _normalize_contract_payload(
+            _contract_payload(
+                path,
+                missing_gap="repository_contract_missing:.ethos/contract.toml",
+                root=repo,
+                tree_ref=tree_ref,
+            )
+        )
+    )
+    if contract.subjects != (contract.id,):
+        message = "repository_contract_identity_mismatch"
+        raise ValueError(message)
+    return contract
+
+
+def load_change_contract(
+    repo: Path,
+    *,
+    change_id: str | None = None,
+    tree_ref: str | None = None,
+) -> ChangeContract:
+    """Load one active OpenSpec ChangeContract carrier and bind its repository subject."""
+    if change_id is None:
+        carriers = _change_contract_ids(repo, tree_ref=tree_ref)
+        if len(carriers) != 1:
+            kind = "missing" if not carriers else "ambiguous"
+            message = f"change_contract_{kind}"
+            raise ValueError(message)
+        change_id = carriers[0]
+    path = repo / "openspec" / "changes" / change_id / "contract.toml"
+    if _contract_companion_exists(repo, change_id, tree_ref=tree_ref):
+        message = f"change_scope_parallel_truth:{change_id}"
+        raise ValueError(message)
+    repository_contract = load_repository_contract(repo, tree_ref=tree_ref)
+    message = f"change_contract_missing:{change_id}"
+    normalized = _normalize_contract_payload(
+        _contract_payload(
+            path,
+            missing_gap=message,
+            root=repo,
+            tree_ref=tree_ref,
+        )
+    )
+    normalized["subjects"] = tuple(
+        repository_contract.id if subject == "repository:self" else str(subject)
+        for subject in normalized.get("subjects", ())
+    )
+    return ChangeContract.model_validate(normalized)
+
+
+def load_proof_contract(
+    repo: Path,
+    *,
+    change_id: str | None = None,
+    tree_ref: str | None = None,
+) -> ChangeContract:
+    """Load one selected change contract, or the repository contract when none exists."""
+    try:
+        return load_change_contract(repo, change_id=change_id, tree_ref=tree_ref)
+    except ValueError as exc:
+        if change_id is not None or str(exc) != "change_contract_missing":
+            raise
+        return load_repository_contract(repo, tree_ref=tree_ref)
+
+
+def _change_contract_ids(repo: Path, *, tree_ref: str | None) -> list[str]:
+    if tree_ref is None:
+        return sorted(
+            path.parent.name for path in (repo / "openspec" / "changes").glob("*/contract.toml")
+        )
+    suffix = "/contract.toml"
+    return sorted(
+        path.removeprefix("openspec/changes/").removesuffix(suffix)
+        for path in git_stdout(
+            repo, "ls-tree", "-r", "--name-only", tree_ref, "--", "openspec/changes"
+        ).splitlines()
+        if path.startswith("openspec/changes/")
+        and path.endswith(suffix)
+        and "/archive/" not in path
+        and "/" not in path.removeprefix("openspec/changes/").removesuffix(suffix)
+    )
+
+
+def _contract_companion_exists(repo: Path, change_id: str, *, tree_ref: str | None) -> bool:
+    relative = f"openspec/changes/{change_id}/scope.toml"
+    return (
+        bool(committed_file_text(repo, tree_ref, relative))
+        if tree_ref is not None
+        else (repo / relative).exists()
+    )
+
+
 def path_matches(path: str, pattern: str) -> bool:
     """Match a path against a rule pattern (supports trailing /** prefix globs)."""
     if pattern.endswith("/**"):
         prefix = pattern[:-3]
         return path == prefix or path.startswith(f"{prefix}/")
     return fnmatch.fnmatchcase(path, pattern)
-
-
-def planning_inputs(
-    repo: Path,
-    *,
-    status: dict[str, object],
-    changed_paths: tuple[str, ...],
-    authority_refs: tuple[str, ...],
-) -> tuple[ChangeContract, RepositoryFacts]:
-    """Derive the effective change contract and current repository fact snapshot."""
-    head = str(status.get("head") or "")
-    tree = current_tree(repo, head)
-    subjects = (repo.resolve().as_posix(),)
-    return (
-        ChangeContract(
-            id=f"change:{status.get('branch') or 'detached'!s}",
-            intent="Compile the current repository change into an executable plan.",
-            subjects=subjects,
-            authority_refs=authority_refs,
-        ),
-        RepositoryFacts(
-            repository=subjects[0],
-            head=head,
-            tree=tree,
-            observed_at=datetime.now(UTC),
-            values={
-                "branch": status.get("branch", ""),
-                "role": status.get("role", ""),
-                "dirty": status.get("dirty", False),
-                "changed_paths": changed_paths,
-            },
-            source_refs=("git:HEAD", "git:HEAD^{tree}", "ethos:status"),
-        ),
-    )
 
 
 def matching_rule_gates(

@@ -9,32 +9,28 @@ it may be depended upon.
 Derived from the parsimony axiom in `system/axioms.md` and the
 general module-layout boundary study and `system/axioms.md`.
 
----
+| Field | Rule |
+| --- | --- |
+| Authority | [Product Design Contract](../docs/governance/product-design-contract.md), `system/axioms.md`, `.config/checks/module-layout/policy.toml` |
+| Trigger | Creating, moving, renaming, splitting, importing, or deleting repository-owned Python. |
+| Action | Model one narrow concept per owner, preserve carrier-native syntax, and choose absorb, precise rename, semantic split, or delete for mixed ownership. |
+| Evidence | `tools/ci/scripts/run-module-layout.sh` and focused contract tests. |
+| Stop | Ambiguous ownership, duplicate command owners, facades, private cross-module imports, or a split justified only by a metric. |
 
-## 1. Physical organization — semantic sub-packages, never suffix-flat
+## 1. Physical organization — semantic boundaries, not metric shapes
 
 - A package is a **deploy unit** (versioned, released). Its boundary is dependency
   direction, not theme.
 - A module directory is a **semantic axis**. When a directory accumulates modules,
-  group them into sub-packages by MEANING, not by a shared name suffix.
-- **Flat-directory limit**: no more than **8** governed `*.py` modules at one
-  directory level (excluding `__init__.py`). Beyond that, introduce semantic
-  sub-packages. (A generic flat-directory trigger: a wide directory is usually hiding a missing sub-package.)
-- **Flat-growth limit**: an already-populated directory is not a dumping ground.
-  Adding a governed module to a directory that already has **5** direct modules
-  is blocked; adding more than **2** direct modules to the same existing
-  directory in one change is blocked. Creating a brand-new directory with more
-  than **2** direct governed modules is also blocked; a new directory must not
-  be used as a one-shot flat bucket. Create or extend semantic sub-packages
-  instead.
-- **Anti-pattern — suffix-flat**: `foo_report.py`, `foo_native.py`, `foo_index.py`
-  side by side is forbidden as steady state. Prefer `foo/report.py`,
-  `foo/native.py`, `foo/index.py` — a `foo/` sub-package with a semantic interior.
+  group them into sub-packages only when the group owns a distinct concept,
+  invariant, authority, or change reason. Directory width and file count are
+  observations, never automatic split authority.
 - A module name states one narrow domain concept or role slice (`transition.py`,
   `measurement.py`, `report.py`). Generic entry names are not a default.
-- **Ratchet baseline is debt, not permission**: baseline entries in
-  `.config/checks/module-layout/policy.toml` may shrink only. Adding a new
-  `allowed_*` entry or raising `baseline_gap_limit` is a gate failure.
+- Native carrier syntax remains native: pytest discovery names such as
+  `test_*.py` and descriptive tool scripts such as `release_supply_chain.py` are
+  not product package topology. The same semantic invariants apply, but a naming
+  convention required by the carrier is not itself a violation.
 
 ### 1.1 Semantic and physical isomorphism
 
@@ -76,7 +72,7 @@ more than one Cyclopts application, is a hard layout defect.
 
 - **Public module**: name without a leading underscore. It may be imported across
   package boundaries and is part of the package's contract.
-- **Private module**: name with a leading underscore (`_base.py`, `_shared.py`).
+- **Private module**: name with a leading underscore (`_parser.py`, `_encoding.py`).
   It is an implementation detail of its own package and MUST NOT be imported across
   package boundaries.
 
@@ -166,14 +162,14 @@ architecture; these rules make the claim honest and checkable.
 
 ## 3. Size and split
 
-Per-role effective-LOC limits and split-by-surface triggers live in
+Per-role effective-LOC limits live in
 `.ethos/rules.toml [quality.code_size]` and are enforced by the code-size gate:
 
 - logic modules: soft 400 / hard 600
 - surface (CLI command groups): soft 800
 - global hard ceiling: 1200 (no role buys unbounded growth)
-- split trigger: a module past its soft limit, or with too many public
-  functions/classes, is decomposed into a semantic sub-package.
+- a size breach is a design-review trigger, not split authority; the terminal
+  disposition still follows concept, invariant, authority, and change reason.
 
 ## 4. Why this matters
 

@@ -25,12 +25,9 @@ def explain(gap_or_signal: str, *, json_output: JsonFlag = False) -> None:
     category_id = str(string_mapping(data.get("invalid_state")).get("id") or "")
     result = EthosResult(
         command="explain",
-        ok=category_id != UNCLASSIFIED,
+        ok=True,
         state="explained" if category_id != UNCLASSIFIED else "unclassified",
         summary={"gap": gap_or_signal, "invalid_state": category_id},
-        required_gaps=(
-            () if category_id != UNCLASSIFIED else (f"unclassified_invalid_state:{gap_or_signal}",)
-        ),
         data=data,
     )
     emit(result, json_output=json_output, enforce=False)

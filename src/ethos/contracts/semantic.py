@@ -139,6 +139,10 @@ class RepositoryFacts(_SemanticModel):
     values: JsonObject
     source_refs: tuple[str, ...] = ()
 
+    def digest(self) -> str:
+        """Bind facts without making observation time part of semantic identity."""
+        return _digest(self.model_dump(mode="json", exclude={"observed_at"}))
+
 
 def semantic_schema_documents() -> dict[str, dict[str, Any]]:
     """Generate the language-neutral schemas owned by terminal contracts."""
@@ -157,9 +161,33 @@ def semantic_schema_documents() -> dict[str, dict[str, Any]]:
     return schemas
 
 
+def _amendment_patch(
+    attestation: Attestation,
+    issuer_permissions: Mapping[str, tuple[str, ...]] | None,
+) -> Mapping[str, object]:
+    patch = attestation.content.get("patch")
+    if not isinstance(patch, Mapping):
+        message = "amendment_patch_invalid"
+        raise TypeError(message)
+    if issuer_permissions is None:
+        message = "amendment_authority_missing"
+        raise ValueError(message)
+    allowed_fields = issuer_permissions.get(attestation.issuer)
+    if allowed_fields is None:
+        message = "amendment_issuer_unauthorized"
+        raise ValueError(message)
+    unauthorized = next((key for key in patch if key not in allowed_fields), None)
+    if unauthorized is not None:
+        message = f"amendment_field_unauthorized:{unauthorized}"
+        raise ValueError(message)
+    return patch
+
+
 def apply_amendments(
     contract: ChangeContract,
     attestations: tuple[Attestation, ...],
+    *,
+    issuer_permissions: Mapping[str, tuple[str, ...]] | None = None,
 ) -> ChangeContract:
     """Fold chronologically ordered, digest-bound amendment attestations."""
     effective = contract
@@ -178,10 +206,7 @@ def apply_amendments(
         if attestation.prior_digest != effective.digest():
             message = "amendment_prior_digest_mismatch"
             raise ValueError(message)
-        patch = attestation.content.get("patch")
-        if not isinstance(patch, Mapping):
-            message = "amendment_patch_invalid"
-            raise TypeError(message)
+        patch = _amendment_patch(attestation, issuer_permissions)
         payload = effective.model_dump()
         for key, value in patch.items():
             field = ChangeContract.model_fields.get(key)

@@ -14,8 +14,9 @@ residue.
 - Authorize transient `preserve-retire` only as a content-addressed bridge when
   direct clean retirement is blocked by the accepted-ancestor WCP boundary.
 - Bind the existing dirty package to an exact manifest clear decision.
-- Keep the same carrier active across the first accepted authority transition,
-  effect execution, exact-manifest capture, final archive, and final clear.
+- Archive and accepted-close this authority carrier before native effects run.
+- Use a separate exact-manifest successor carrier after effects to authorize the
+  three clean package clears and final housekeeping.
 - Leave every valid-owner lane observe-only.
 
 ## Capabilities

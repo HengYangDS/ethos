@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 import json
+import operator
+from datetime import UTC
+from datetime import datetime
 from pathlib import Path
+from types import MappingProxyType
 
 import jsonschema
 import pytest
@@ -9,6 +13,11 @@ import pytest
 from ethos import models
 from ethos.contracts.plan import PlanIR
 from ethos.contracts.plan import PlanNode
+from ethos.contracts.semantic import Attestation
+from ethos.contracts.semantic import ChangeContract
+from ethos.contracts.semantic import RepositoryFacts
+from ethos.contracts.semantic import apply_amendments
+from ethos.contracts.semantic import semantic_schema_documents
 from ethos.contracts.system.contracts import load_system_contract
 from ethos.contracts.system.contracts import system_contracts_report
 from ethos.result import EthosResult
@@ -77,6 +86,227 @@ def test_plan_ir_is_deterministic_and_digest_bound() -> None:
     assert plan.digest() == PlanIR(nodes=(second, first)).digest()
 
 
+def test_terminal_contracts_are_frozen_deterministic_and_schema_shaped() -> None:
+    contract = ChangeContract(
+        id="change:terminal-kernel",
+        intent="Replace parallel semantic owners with one terminal kernel.",
+        subjects=("repository:ethos",),
+        scope=("src/ethos/contracts/**",),
+        invariants=("no_parallel_truth",),
+        acceptance=("kernel_contracts_validate",),
+        authority_refs=("docs/governance/product-design-contract.md",),
+        permissions=("repository.read", "work-lane.write"),
+    )
+    facts = RepositoryFacts(
+        repository="repository:ethos",
+        head="a" * 40,
+        tree="b" * 40,
+        observed_at=datetime(2026, 7, 25, tzinfo=UTC),
+        values={"branch_role": "work_lane", "dirty": False},
+        source_refs=("git:HEAD", "git:tree"),
+    )
+
+    assert contract.digest() == ChangeContract.model_validate(contract.model_dump()).digest()
+    assert facts.digest() == RepositoryFacts.model_validate(facts.model_dump()).digest()
+    assert contract.model_config["frozen"] is True
+    assert facts.model_config["frozen"] is True
+
+
+def test_attestation_content_and_repository_facts_are_deeply_immutable() -> None:
+    attestation = Attestation(
+        id="attestation:immutable",
+        kind="observation",
+        issuer="agent:local:task:one",
+        subject="change:terminal-kernel",
+        issued_at=datetime(2026, 7, 25, tzinfo=UTC),
+        content={"nested": {"values": ["one", {"two": True}]}},
+    )
+    facts = RepositoryFacts(
+        repository="repository:ethos",
+        head="a" * 40,
+        tree="b" * 40,
+        observed_at=datetime(2026, 7, 25, tzinfo=UTC),
+        values={"nested": {"values": ["one", {"two": True}]}},
+    )
+
+    assert isinstance(attestation.content, MappingProxyType)
+    assert isinstance(attestation.content["nested"], MappingProxyType)
+    assert attestation.content["nested"]["values"] == (
+        "one",
+        MappingProxyType({"two": True}),
+    )
+    assert isinstance(facts.values, MappingProxyType)
+    assert isinstance(facts.values["nested"], MappingProxyType)
+    with pytest.raises(TypeError):
+        operator.setitem(attestation.content, "new", "forbidden")
+    with pytest.raises(TypeError):
+        operator.setitem(facts.values["nested"], "new", "forbidden")
+
+
+def test_attestation_binds_and_validates_its_content_digest() -> None:
+    issued_at = datetime(2026, 7, 25, tzinfo=UTC)
+    attestation = Attestation(
+        id="attestation:digest",
+        kind="observation",
+        issuer="agent:local:task:one",
+        subject="change:terminal-kernel",
+        issued_at=issued_at,
+        content={"state": "observed", "nested": {"count": 1}},
+    )
+
+    assert len(attestation.content_digest) == 64
+    assert Attestation.model_validate(attestation.model_dump()).content_digest == (
+        attestation.content_digest
+    )
+    with pytest.raises(ValueError, match="attestation_content_digest_mismatch"):
+        Attestation(
+            id="attestation:forged",
+            kind="observation",
+            issuer="agent:local:task:one",
+            subject="change:terminal-kernel",
+            issued_at=issued_at,
+            content={"state": "changed"},
+            content_digest=attestation.content_digest,
+        )
+
+
+@pytest.mark.parametrize("invalid", [float("nan"), float("inf"), b"bytes"])
+def test_semantic_json_rejects_values_without_portable_json_meaning(invalid: object) -> None:
+    with pytest.raises(TypeError, match="json_value_invalid"):
+        Attestation(
+            id="attestation:invalid-json",
+            kind="observation",
+            issuer="agent:local:task:one",
+            subject="change:terminal-kernel",
+            issued_at=datetime(2026, 7, 25, tzinfo=UTC),
+            content={"invalid": invalid},
+        )
+
+
+@pytest.mark.parametrize("invalid", ["scalar", ("array",), {1: "non-string-key"}])
+def test_semantic_json_objects_reject_non_object_or_non_string_keys(invalid: object) -> None:
+    with pytest.raises(TypeError, match=r"json_object_invalid|json_object_key_invalid"):
+        Attestation(
+            id="attestation:invalid-object",
+            kind="observation",
+            issuer="agent:local:task:one",
+            subject="change:terminal-kernel",
+            issued_at=datetime(2026, 7, 25, tzinfo=UTC),
+            content=invalid,
+        )
+
+
+def test_amendment_attestations_fold_in_sequence_and_bind_prior_digest() -> None:
+    base = ChangeContract(
+        id="change:terminal-kernel",
+        intent="Establish the terminal kernel.",
+        subjects=("repository:ethos",),
+        acceptance=("base",),
+    )
+    first = Attestation.amendment(
+        attestation_id="attestation:first",
+        issuer="agent:local:task:one",
+        subject=base.id,
+        issued_at=datetime(2026, 7, 25, 1, tzinfo=UTC),
+        prior_digest=base.digest(),
+        patch={"acceptance": ["base", "deterministic"]},
+    )
+    after_first = apply_amendments(base, (first,))
+    second = Attestation.amendment(
+        attestation_id="attestation:second",
+        issuer="human:local:shell:owner",
+        subject=base.id,
+        issued_at=datetime(2026, 7, 25, 2, tzinfo=UTC),
+        prior_digest=after_first.digest(),
+        patch={"intent": "Establish the smallest deterministic terminal kernel."},
+    )
+
+    effective = apply_amendments(base, (second, first))
+
+    assert effective.intent == "Establish the smallest deterministic terminal kernel."
+    assert effective.acceptance == ("base", "deterministic")
+    assert effective.digest() == apply_amendments(base, (first, second)).digest()
+
+
+def test_amendment_fold_rejects_digest_break_or_non_amendment_attestation() -> None:
+    base = ChangeContract(id="change:terminal-kernel", intent="Base", subjects=("repo",))
+    broken = Attestation.amendment(
+        attestation_id="attestation:broken",
+        issuer="agent:local:task:one",
+        subject=base.id,
+        issued_at=datetime(2026, 7, 25, tzinfo=UTC),
+        prior_digest="0" * 64,
+        patch={"intent": "Unbound"},
+    )
+    observation = Attestation(
+        id="attestation:observation",
+        kind="observation",
+        issuer="agent:local:task:one",
+        subject=base.id,
+        issued_at=datetime(2026, 7, 25, tzinfo=UTC),
+        content={"state": "seen"},
+    )
+
+    with pytest.raises(ValueError, match="amendment_prior_digest_mismatch"):
+        apply_amendments(base, (broken,))
+    with pytest.raises(ValueError, match="attestation_not_amendment"):
+        apply_amendments(base, (observation,))
+
+
+def test_amendment_rejects_unknown_contract_fields_at_construction() -> None:
+    base = ChangeContract(id="change:terminal-kernel", intent="Base", subjects=("repo",))
+
+    with pytest.raises(ValueError, match="amendment_field_unknown:invented"):
+        Attestation.amendment(
+            attestation_id="attestation:unknown-field",
+            issuer="agent:local:task:one",
+            subject=base.id,
+            issued_at=datetime(2026, 7, 25, tzinfo=UTC),
+            prior_digest=base.digest(),
+            patch={"invented": "parallel ontology"},
+        )
+
+
+def test_amendment_fold_rejects_ambiguous_equal_sequence() -> None:
+    base = ChangeContract(id="change:terminal-kernel", intent="Base", subjects=("repo",))
+    issued_at = datetime(2026, 7, 25, tzinfo=UTC)
+    first = Attestation.amendment(
+        attestation_id="attestation:first",
+        issuer="agent:local:task:one",
+        subject=base.id,
+        issued_at=issued_at,
+        sequence=1,
+        prior_digest=base.digest(),
+        patch={"intent": "First"},
+    )
+    second = Attestation.amendment(
+        attestation_id="attestation:second",
+        issuer="agent:local:task:two",
+        subject=base.id,
+        issued_at=issued_at,
+        sequence=1,
+        prior_digest=base.digest(),
+        patch={"intent": "Second"},
+    )
+
+    with pytest.raises(ValueError, match="amendment_order_ambiguous"):
+        apply_amendments(base, (second, first))
+
+
+def test_terminal_semantic_schemas_are_generated_from_python_contracts() -> None:
+    generated = semantic_schema_documents()
+
+    assert set(generated) == {
+        "change-contract.schema.json",
+        "attestation.schema.json",
+        "repository-facts.schema.json",
+    }
+    for name, schema in generated.items():
+        path = Path("system/schemas/kernel") / name
+        assert json.loads(path.read_text(encoding="utf-8")) == schema
+        jsonschema.Draft202012Validator.check_schema(schema)
+
+
 def test_result_contract_has_stable_top_level_fields() -> None:
     result = EthosResult(
         command="status",
@@ -106,6 +336,9 @@ def test_json_schemas_are_declared_for_kernel_protocols() -> None:
     schema_dir = Path("system/schemas/kernel")
     expected = {
         "result.schema.json",
+        "change-contract.schema.json",
+        "attestation.schema.json",
+        "repository-facts.schema.json",
         "claim.schema.json",
         "commit-policy.schema.json",
         "subject.schema.json",

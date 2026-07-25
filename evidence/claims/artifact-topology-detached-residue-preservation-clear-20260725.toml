@@ -1,0 +1,43 @@
+[claim]
+id = "artifact-topology-detached-residue-preservation-clear-20260725"
+subject = "ethos:lane-resolution:lane-decision:56a318b4-18e5-4a73-9051-80202eb99576"
+state = "active"
+change_id = "artifact-topology-detached-residue-preservation-clear"
+summary = "One minimum-scope carrier binds native clearance of one exact-manifest recovery package after the retained payload is matched to the captured ownerless residue and current accepted behavior carriers."
+
+[evidence]
+dated = "evidence/chronicle/artifact-topology-detached-residue-preservation-clear-20260725/2026-07-25.md"
+sha256 = "f60166298bd20b1c54455727a138f1a88d9a265de0f6c449cb9d2c7d8ee3d75a"
+evidence_ids = ["evidence:artifact-topology-detached-residue-preservation-clear-20260725"]
+binding = "This Claim binds only decision lane-decision:56a318b4-18e5-4a73-9051-80202eb99576, manifest d4f4f64ad401a4f0131bc5eaa9d40cb267d28c6f41e26a9b94afadb23140a2ed, tracked patch 6a84df8a7b28d703f82f1bcac0ee61e8534874438e25c7376c38d8c81f5a404a, prior completion receipt 946525ef459be5df81452116d9d826745a6e27b5a3780cff0dc7da15ca7c8179, and one later native clear-preservation transition. It authorizes no other package, receipt removal, raw filesystem deletion, or Work Lane effect."
+verifier = "digest_only"
+tests = [
+  "ethos lane resolution inventory --json",
+  "uv run --all-packages --group dev pytest -q tests/unit/governance/test_generated_artifact_topology.py tests/unit/kernel/test_cel_topology_predicates.py",
+  "openspec validate artifact-topology-detached-residue-preservation-clear --strict --json",
+  "ethos quality claims --json",
+  "ethos prove --execute --expect-head <committed-head> --json",
+  "ethos lane resolution clear --decision-id lane-decision:56a318b4-18e5-4a73-9051-80202eb99576 --expect-manifest-sha256 d4f4f64ad401a4f0131bc5eaa9d40cb267d28c6f41e26a9b94afadb23140a2ed --chronicle-ref evidence/chronicle/artifact-topology-detached-residue-preservation-clear-20260725/2026-07-25.md --break-glass --confirm-irreversible --apply --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "One retained detached-residue recovery package and one exact-manifest native clear transition only."
+
+[carriers]
+openspec = "openspec/changes/archive/2026-07-25-artifact-topology-detached-residue-preservation-clear"
+fallback = "Keep the package, decision, receipt, and every unrelated retained package intact if the manifest, accepted behavior basis, Chronicle, inventory, or native clear admission drifts."
+kill_signal = "A broad package sweep, raw deletion, receipt deletion, another Work Lane effect, remote mutation, hosted claim, or clearance without the exact manifest."
+
+[promotion]
+targets = [
+  "docs/plans/README.md",
+  "docs/plans/artifact-topology-detached-residue-preservation-clear-20260725.md",
+  "evidence/claims/artifact-topology-detached-residue-preservation-clear-20260725.toml",
+  "evidence/chronicle/artifact-topology-detached-residue-preservation-clear-20260725/2026-07-25.md",
+  "openspec/changes/archive/2026-07-25-artifact-topology-detached-residue-preservation-clear",
+  "openspec/specs/repository-governance/spec.md",
+]

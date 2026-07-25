@@ -1545,6 +1545,21 @@ bound the exact resolution.
 - **AND** a changed target blocks the decision rather than inheriting the prior
   disposition.
 
+#### Scenario: detached dirty residue is normalized without changing bytes
+
+- **GIVEN** one registered detached historical worktree has an absent Work Lane
+  ref, no valid owner, a committed HEAD already in accepted history, and dirty
+  tracked or untracked bytes
+- **WHEN** a maintainer prepares it for target-specific behavioral resolution
+- **THEN** the detached observation, reflog, HEAD, index, dirty inventory,
+  content digests, session ownership, and path occupancy SHALL be captured first
+- **AND** any reconstructed historical Work Lane ref SHALL point to the exact
+  detached HEAD and SHALL NOT change index or working bytes
+- **AND** ref reconstruction SHALL NOT mint ownership or effect authority
+- **AND** an accepted target-specific Chronicle SHALL distinguish behavioral
+  absorption, rejected historical behavior, preservation, retirement, and later
+  package clearing before any destructive effect.
+
 ### Requirement: Durable exceptional-resolution recovery inventory
 
 ETHOS SHALL materialize successful exceptional-resolution decisions, receipts,
@@ -1681,6 +1696,21 @@ but conflicting records for one decision SHALL fail closed.
 - **AND** the exclusive receipt reservation SHALL remain present for explicit
   reconciliation
 - **AND** the command SHALL not report ordinary success.
+
+#### Scenario: one absorbed detached-residue package is cleared by exact manifest
+
+- **GIVEN** an accepted Chronicle selects
+  `lane_resolution/clear-preservation` for one exact decision id and manifest
+- **AND** the retained tracked patch matches the pre-effect capture, the index
+  patch is empty, no untracked archive exists, and accepted behavior contains
+  no missing capability from that package
+- **WHEN** a maintainer invokes native clear with the matching manifest,
+  non-empty reason, break-glass, and irreversible confirmation
+- **THEN** ETHOS SHALL re-read inventory and manifest bytes before removing only
+  that package and emitting a clear receipt
+- **AND** the original decision and completion receipt SHALL remain
+- **AND** another package, a changed manifest, raw deletion, or batch clear
+  SHALL remain blocked.
 
 ### Requirement: Evidence-bound preservation-package clearing
 

@@ -112,13 +112,13 @@ either a separate local OS identity, or a hosted forge — that **re-executes** 
 
 ## Proof Or Evidence
 
-- `packages/ethos/src/ethos/adapters/mutation/proof.py` — honest docstring + (a)/(c)
+- `src/ethos/adapters/mutation/proof.py` — honest docstring + (a)/(c)
   comments (dev 4086ab81).
 - `tests/unit/mutation/test_proof_forgery_honesty.py` — pins that a hand-authored record is
   accepted (forgeable-by-design) and that the docstring does not over-claim; tripwire against
   future over-claiming.
-- `packages/ethos/src/ethos/adapters/admission/evidence/external.py`,
-  `packages/ethos-core/src/ethos_core/contracts/evidence/external.py` — exact receipt
+- `src/ethos/adapters/admission/evidence/external.py`,
+  `src/ethos/contracts/evidence/external.py` — exact receipt
   contract and provider-local admission boundary.
 - `tests/unit/admission/test_independent_verification.py` — exact request/receipt
   binding, protected provider configuration, signature verification, and

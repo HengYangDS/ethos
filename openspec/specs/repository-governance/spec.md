@@ -1279,7 +1279,7 @@ ignore, and SHALL NOT use root `dist/` or add an output-local `.gitignore`.
 
 - **WHEN** the product full proof executes its package build gate or a
   contributor follows the documented package-build command
-- **THEN** `uv build --all-packages --out-dir build/artifacts/python --clear
+- **THEN** `uv build --out-dir build/artifacts/python --clear
   --no-create-gitignore` is the invoked command
 - **AND** generated package artifacts remain disposable local state under
   `build/artifacts/python`
@@ -2092,10 +2092,10 @@ depend on paths outside its source distribution.
 
 #### Scenario: The core wheel is built from its source distribution
 
-- **WHEN** the `ethos-core` source distribution is unpacked for a wheel build
+- **WHEN** the `ethos` source distribution is unpacked for a wheel build
 - **THEN** each packaged declaration is read from the sdist-local
-  `src/ethos_core/data/` projection
-- **AND** the wheel contains the corresponding `ethos_core/data/` resource
+  `src/ethos/data/` projection
+- **AND** the wheel contains the corresponding `ethos/data/` resource
 - **AND** the build does not require checkout-relative `system/` paths.
 
 ### Requirement: External-adopter profile evidence has a bounded durable record

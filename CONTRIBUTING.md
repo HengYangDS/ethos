@@ -45,12 +45,12 @@ Before proposing a change:
 ```bash
 tools/ci/scripts/run-python-tests.sh
 tools/ci/scripts/run-python-lint.sh
-uv run --package ethos ethos audit --mode shape --json
-uv run --package ethos ethos status --json
+uv run ethos audit --mode shape --json
+uv run ethos status --json
 ```
 
 Changes that affect package metadata should also run:
 
 ```bash
-uv build --all-packages --out-dir build/artifacts/python --clear --no-create-gitignore
+uv build --out-dir build/artifacts/python --clear --no-create-gitignore
 ```

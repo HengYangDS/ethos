@@ -10,7 +10,7 @@ boundary_rules = [
 aliases = []
 
 [owner]
-package = "ethos-core"
+package = "ethos"
 scope = "quality policy, determinism, docs profile, proof policy, and gate descriptors"
 
 [recommended_facets]

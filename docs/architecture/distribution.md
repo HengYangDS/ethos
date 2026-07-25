@@ -20,10 +20,10 @@ commands.
 
 The distribution boundary is:
 
-- Python packages own core, contracts, repository, assistants, adapters, test,
-  and CLI behavior.
+- The Python `ethos` package owns the kernel, contracts, repository, assistants,
+  adapters, and CLI behavior. Tests are not shipped.
 - Node package metadata owns npm `bin` exposure and launcher UX only.
-- Source checkout execution uses `uv run --package ethos ethos`.
+- Source checkout execution uses `uv run ethos`.
 - Installed execution uses `python -P -m ethos.cli` until a published Python
   wheel is available for `uvx` or `pipx` based installs.
 

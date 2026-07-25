@@ -45,8 +45,8 @@ CLI, GitHub CLI, GitLab CLI, repo-family governance.
 **Files:**
 
 - Modify: `pyproject.toml`
-- Modify: `packages/ethos/pyproject.toml`
-- Modify: `packages/ethos-core/pyproject.toml`
+- Modify: `pyproject.toml`
+- Modify: `pyproject.toml`
 - Modify: `uv.lock`
 - Modify: `package.json`
 - Modify: `distributions/npm/package.json`
@@ -76,12 +76,12 @@ CLI, GitHub CLI, GitLab CLI, repo-family governance.
 - [ ] Run:
 
   ```bash
-  uv run --all-packages --group dev pytest \
+  uv run --group dev pytest \
     tests/unit/release/test_policy_attestation.py \
     tests/architecture/test_product_boundaries.py -q
-  uv run --package ethos ethos quality release-policy --json
-  uv run --package ethos ethos quality sbom --json
-  uv run --package ethos ethos quality release-attestation --json
+  uv run ethos quality release-policy --json
+  uv run ethos quality sbom --json
+  uv run ethos quality release-attestation --json
   npm ci --ignore-scripts
   npm run ethos -- --version
   npm run test:npm
@@ -159,7 +159,7 @@ CLI, GitHub CLI, GitLab CLI, repo-family governance.
 - [ ] Build Python distributions with:
 
   ```bash
-  uv build --all-packages \
+  uv build \
     --out-dir build/artifacts/release-0.1.0a2 \
     --clear --no-create-gitignore
   ```

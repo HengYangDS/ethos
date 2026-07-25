@@ -79,7 +79,7 @@ These are the enumerated, enforced import rules. A dependency edge is a claim ab
 architecture; these rules make the claim honest and checkable.
 
 1. **Direction (import-linter, enforced):** the pure kernel never imports the
-   product. `ethos_core` and `ethos_contracts` are pure leaves — they import NO
+   product. `ethos` and `ethos_contracts` are pure leaves — they import NO
    other ethos package. Every other package may import only DOWNWARD
    (surface → domain → adapters → repository/quality/assistants → contracts/core).
    The wrong direction is a hard CI failure. Contracts in

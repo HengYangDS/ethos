@@ -42,7 +42,7 @@ jobs:
       - name: Python lint
         run: tools/ci/scripts/run-python-lint.sh
       - name: Type policy
-        run: tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev ethos quality types --json
+        run: tools/ci/scripts/with-python-runtime.sh -- uv run --group dev ethos quality types --json
       - name: Import boundaries
         run: tools/ci/scripts/run-import-linter.sh
       - name: Dependency hygiene
@@ -121,7 +121,7 @@ jobs:
       - name: Configure governed checkout
         run: tools/ci/scripts/configure-git-checkout.sh
       - name: Arm write admission
-        run: tools/ci/scripts/with-python-runtime.sh -- uv run --package ethos ethos hook install --json
+        run: tools/ci/scripts/with-python-runtime.sh -- uv run ethos hook install --json
       - name: Unit and architecture tests
         run: tools/ci/scripts/run-python-tests.sh
       - name: OpenSpec strict validation
@@ -155,7 +155,7 @@ jobs:
       - name: Bootstrap Python and OpenSpec
         run: tools/ci/scripts/bootstrap-python.sh
       - name: Build Python distributions
-        run: tools/ci/scripts/with-python-runtime.sh -- uv build --all-packages --out-dir build/artifacts/python --clear --no-create-gitignore
+        run: tools/ci/scripts/with-python-runtime.sh -- uv build --out-dir build/artifacts/python --clear --no-create-gitignore
       - uses: actions/upload-artifact@v7
         with:
           name: python-distributions

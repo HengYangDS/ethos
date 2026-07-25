@@ -130,7 +130,7 @@ def test_provider_yaml_invokes_owner_scripts_not_inline_policy() -> None:
     assert "tools/ci/scripts/run-product-boundary.sh" in github
     assert "tools/ci/scripts/run-product-boundary.sh" in gitlab
     assert (
-        "uv build --all-packages --out-dir build/artifacts/python --clear --no-create-gitignore"
+        "uv build --out-dir build/artifacts/python --clear --no-create-gitignore"
     ) in combined
     assert "uv run --group dev pytest tests/unit tests/architecture -q" not in combined
     assert "uv run --no-project --with import-linter lint-imports" not in combined
@@ -335,7 +335,7 @@ def test_hosted_python_bootstrap_materializes_the_source_bound_runtime() -> None
 
     tool_runtime = 'bootstrap_venv="${repo_root}/build/runtime/tool-cache/uv-bootstrap"'
     environment = 'export UV_PROJECT_ENVIRONMENT="${repo_root}/build/runtime/venv"'
-    sync = "uv sync --all-packages --group dev"
+    sync = "uv sync --group dev"
     assert tool_runtime in bootstrap
     assert "build/runtime/bootstrap" not in bootstrap
     assert environment in bootstrap

@@ -97,7 +97,8 @@ def test_configuration_layout_is_separated_by_concern() -> None:
     tools = (ROOT / "system/tools.toml").read_text(encoding="utf-8")
 
     assert "[project]" in pyproject
-    assert "[tool.uv.workspace]" in pyproject
+    assert "[tool.uv.workspace]" not in pyproject
+    assert 'packages = ["src/ethos"]' in pyproject
     assert tomllib.loads(pyproject).get("tool", {}).get("pytest") == {
         "ini_options": {"cache_dir": "build/runtime/tool-cache/pytest"}
     }
@@ -107,8 +108,8 @@ def test_configuration_layout_is_separated_by_concern() -> None:
     }
     assert not (ROOT / "pytest.ini").exists()
     assert "[lint.per-file-ignores]" in ruff
-    assert '"packages/ethos/src/ethos/repository/evidence/core.py" = ["C901"]' in ruff
-    assert '"packages/ethos/src/ethos/repository/evidence/core.py" = ["C901", "A002"]' not in ruff
+    assert '"src/ethos/repository/evidence/core.py" = ["C901"]' in ruff
+    assert '"src/ethos/repository/evidence/core.py" = ["C901", "A002"]' not in ruff
     assert "[pytest]" in pytest
     assert "pythonpath" in pytest
     assert "error" in pytest
@@ -402,7 +403,7 @@ def test_docstring_gate_is_owned_by_separated_policy_and_ci_script() -> None:
     assert "ethos quality docstrings" in runner
     assert "--min-coverage" not in runner
     assert "fail_under = 100" in policy
-    assert 'paths = ["packages/ethos/src", "packages/ethos-core/src"]' in policy
+    assert 'paths = ["src/ethos"]' in policy
     assert "skip_private = true" in policy
     assert 'style = "google"' in policy
     assert "check_structured_signature = true" in policy
@@ -420,7 +421,7 @@ def test_module_layout_gate_is_owned_by_policy_and_runner_surfaces() -> None:
 
     assert "ethos quality module-layout" in runner
     assert "--flat-directory-limit" not in runner
-    assert 'paths = ["packages/ethos/src", "packages/ethos-core/src"]' in policy
+    assert 'paths = ["src/ethos"]' in policy
     assert "flat_directory_limit = 8" in policy
     assert "baseline_gap_limit = 0" in policy
     assert "baseline_suffix_module_limit = 0" in policy
@@ -450,7 +451,7 @@ def test_python_test_gate_enforces_coverage_floor() -> None:
     policy = (ROOT / ".config/checks/coverage/policy.toml").read_text(encoding="utf-8")
 
     assert "--cov=ethos" in runner
-    assert "--cov=ethos_core" in runner
+    assert "--cov=ethos" in runner
     assert "coverage_hard_floor=" in runner
     assert "--cov-fail-under=${coverage_hard_floor}" in runner
     assert "--cov-fail-under=100" not in runner

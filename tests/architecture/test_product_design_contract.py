@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from ethos.contracts.package.ontology import package_ontology_report
 from ethos.repository.audit import REQUIRED_DOCS
 from ethos.repository.audit import repository_audit
-from ethos_core.contracts.package.ontology import package_ontology_report
 
 ROOT = Path(__file__).resolve().parents[2]
 PROVIDER_NEUTRAL_CANONICAL_DOCS = (
@@ -323,18 +323,9 @@ def test_canonical_product_docs_do_not_expose_predecessor_compatibility_language
 def test_package_ontology_declares_target_mece_packages_and_migration_hosts() -> None:
     text = read("docs/architecture/package-ontology.md")
 
-    target_packages = (
-        "ethos-core",
-        "ethos-contracts",
-        "ethos-repository",
-        "ethos-assistants",
-        "ethos-adapters",
-        "ethos",
-        "ethos-test",
-    )
-    for package in target_packages:
-        assert f"`{package}`" in text
-    assert "No active product migration host remains in `packages/`" in text
+    assert "`src/ethos`" in text
+    assert "one buildable Python product package" in text
+    assert "not separately versioned products" in text
     assert "distributions/npm" in text
     assert "Python product package ontology" in text
 
@@ -349,7 +340,7 @@ def test_canonical_kernel_surfaces_do_not_promote_retired_chain_terms() -> None:
     canonical_surfaces = (
         "docs/architecture/package-ontology.md",
         "docs/reference/glossary.md",
-        "packages/ethos-core/README.md",
+        "README.md",
         "openspec/specs/kernel/spec.md",
     )
 
@@ -473,10 +464,7 @@ def test_product_design_contract_is_repository_audited_with_target_ontology() ->
     assert target["physical_target_homes_present"] is True
     assert target["migration_complete"] is True
     assert target["migration_status"] == "complete"
-    assert target["target_packages"] == [
-        "ethos-core",
-        "ethos",
-    ]
+    assert target["target_packages"] == ["ethos"]
     assert target["migration_hosts"] == []
     assert target["target_distribution_adapters"] == ["distributions/npm"]
     assert target["distribution_migration_hosts"] == []

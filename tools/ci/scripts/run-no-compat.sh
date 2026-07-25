@@ -4,4 +4,4 @@ set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-exec "${script_dir}/with-python-runtime.sh" -- uv run --all-packages --group dev python -m ethos.cli quality no-compat --json
+exec "${script_dir}/with-python-runtime.sh" -- uv run --group dev python -m ethos.cli quality no-compat --json

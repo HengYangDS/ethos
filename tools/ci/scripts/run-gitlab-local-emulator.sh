@@ -17,4 +17,4 @@ if [ "${ETHOS_LOCAL_EMULATOR_ALLOW_UNTRACKED:-0}" = "1" ]; then
   allow_untracked_flag="--allow-untracked"
 fi
 
-exec tools/ci/scripts/with-python-runtime.sh -- uv run --package ethos python tools/ci/ci_templates.py emulator-evidence gitlab --mode "${mode}" ${dry_run_flag:+"${dry_run_flag}"} ${allow_untracked_flag:+"${allow_untracked_flag}"}
+exec tools/ci/scripts/with-python-runtime.sh -- uv run python tools/ci/ci_templates.py emulator-evidence gitlab --mode "${mode}" ${dry_run_flag:+"${dry_run_flag}"} ${allow_untracked_flag:+"${allow_untracked_flag}"}

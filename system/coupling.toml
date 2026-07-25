@@ -179,7 +179,7 @@ adapter_replaceable = true
 required_for = ["Python package build"]
 replaceability = "replaceable-adapter"
 degradation_state = "gapped:build_backend_unavailable"
-proof_gate = "uv build --all-packages --out-dir build/artifacts/python --clear --no-create-gitignore"
+proof_gate = "uv build --out-dir build/artifacts/python --clear --no-create-gitignore"
 surfaces = ["PEP 517 build backend", "wheel", "sdist"]
 
 [[binding]]
@@ -242,7 +242,7 @@ adapter_replaceable = true
 required_for = ["npm launcher distribution"]
 replaceability = "replaceable-adapter"
 degradation_state = "deferred:npm_distribution_unavailable"
-proof_gate = "uv build --all-packages --out-dir build/artifacts/python --clear --no-create-gitignore"
+proof_gate = "uv build --out-dir build/artifacts/python --clear --no-create-gitignore"
 admission = { authority_ref = "docs/governance/product-design-contract.md#binding-taxonomy", truth_boundary = "profile_or_adapter", decision_state = "admitted" }
 surfaces = ["distributions/npm", "npm launcher"]
 

@@ -14,10 +14,10 @@ mkdir -p "${UV_CACHE_DIR}"; export ETHOS_RUNTIME_ROOT="${repo_root}"
 # Bootstrap only the default checkout interpreter; explicit Python overrides remain caller-owned.
 semantic_python="${UV_PROJECT_ENVIRONMENT}/bin/python"; if [[ "$1" == "${semantic_python}" ]]; then
   if [[ -x "${semantic_python}" && -f "${UV_PROJECT_ENVIRONMENT}/pyvenv.cfg" && ! -f "${repo_root}/pyproject.toml" ]]; then exec "$@"; fi
-  if [[ -x "${semantic_python}" ]] && uv sync --locked --all-packages --group dev --check >/dev/null 2>&1; then exec "$@"; fi
+  if [[ -x "${semantic_python}" ]] && uv sync --locked --group dev --check >/dev/null 2>&1; then exec "$@"; fi
   bootstrap_cache_dir="${UV_CACHE_DIR}"
   if [[ -n "${inherited_runtime_root}" && "${inherited_runtime_root}" != "${repo_root}" ]]; then nested_cache_key="$(printf '%s' "${repo_root}" | cksum | awk '{print $1}')"; bootstrap_cache_dir="${UV_CACHE_DIR}/nested-bootstrap/${nested_cache_key}"; mkdir -p "${bootstrap_cache_dir}"; fi
-  exec env UV_CACHE_DIR="${bootstrap_cache_dir}" uv run --locked --all-packages --group dev python "${@:2}"
+  exec env UV_CACHE_DIR="${bootstrap_cache_dir}" uv run --locked --group dev python "${@:2}"
 fi
 
 # Prevent an owner-script handoff from recursively waiting on its outer uv sync lock.

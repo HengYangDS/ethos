@@ -32,30 +32,17 @@ name = "ETHOS Automation"
 email = "ethos-bot@example.invalid"
 
 [[package]]
-name = "ethos-core"
-path = "packages/ethos-core"
+name = "ethos"
+path = "."
 domains = [
   "kernel",
-  "action-graph",
-  "state-machine",
-  "schemas",
   "contracts",
   "quality",
-  "proof-policy",
-]
-
-[[package]]
-name = "ethos"
-path = "packages/ethos"
-domains = [
   "cli",
-  "ux",
   "adapters",
   "repository-lifecycle",
   "assistants",
-  "playbooks",
   "execution",
   "local-state",
   "conformance",
-  "fixtures",
 ]

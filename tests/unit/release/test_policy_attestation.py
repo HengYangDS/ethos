@@ -17,10 +17,7 @@ def test_version_manifest_keeps_workspace_packages_aligned() -> None:
     assert manifest["version"] == "0.1.0a2"
     assert manifest["tag"] == "v0.1.0a2"
     assert manifest["all_package_versions_match"] is True
-    assert set(manifest["packages"]) == {
-        "ethos",
-        "ethos-core",
-    }
+    assert manifest["packages"] == {"ethos": "0.1.0a2"}
 
 
 def test_release_policy_reports_host_profile_separately_from_product_files() -> None:
@@ -434,12 +431,12 @@ def test_sbom_projection_lists_workspace_and_lockfile_transitive_packages() -> N
     assert sbom["lockfile"]["path"] == "uv.lock"
     assert sbom["lockfile"]["digest"].startswith("sha256:")
     package_names = {package["name"] for package in sbom["packages"]}
-    assert package_names >= {"ethos", "ethos-core", "pytest"}
+    assert package_names >= {"ethos", "pytest"}
     assert any(
         package["name"] == "pytest" and package["layer"] == "lockfile_transitive"
         for package in sbom["packages"]
     )
-    assert sbom["package_layers"]["workspace"] >= 2
+    assert sbom["package_layers"]["workspace"] == 1
     assert sbom["package_layers"]["lockfile_transitive"] > 0
 
 

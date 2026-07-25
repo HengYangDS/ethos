@@ -15,13 +15,7 @@ if TYPE_CHECKING:
     from collections.abc import MutableMapping
 
 ROOT = Path(__file__).resolve().parents[2]
-PYTHONPATH = os.pathsep.join(
-    str(ROOT / package / "src")
-    for package in (
-        "packages/ethos",
-        "packages/ethos-core",
-    )
-)
+PYTHONPATH = str(ROOT / "src")
 
 
 class ImplicitApplyCheckoutError(AssertionError):

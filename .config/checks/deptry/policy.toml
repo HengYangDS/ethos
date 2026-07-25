@@ -1,18 +1,11 @@
 schema = "ethos-deptry-policy-v1"
 owner = "ethos-quality-gate-governance"
-summary = "Dependency hygiene runs per Python distribution so workspace/package metadata is not misread as one root package."
+summary = "Dependency hygiene validates the sole Python distribution."
 runner = "tools/ci/scripts/run-dependency-hygiene.sh"
 
 [[package]]
 id = "ethos"
-root = "packages/ethos/src/ethos"
-config = "packages/ethos/pyproject.toml"
+root = "src/ethos"
+config = "pyproject.toml"
 known_first_party = ["ethos"]
-
-[[package]]
-id = "ethos-core"
-root = "packages/ethos-core/src/ethos_core"
-config = "packages/ethos-core/pyproject.toml"
-known_first_party = ["ethos_core"]
-per_rule_ignores = ["DEP003=jsonschema"]
-justification = "ethos-core keeps jsonschema soft-imported so the pure core package has zero hard runtime dependency while system contract validation can use jsonschema when present."
+package_module_name_map = ["cel-python=celpy", "pyyaml=yaml"]

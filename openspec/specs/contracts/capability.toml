@@ -10,7 +10,7 @@ boundary_rules = [
 aliases = []
 
 [owner]
-package = "ethos-core"
+package = "ethos"
 scope = "provider-neutral schemas, TOML contracts, evidence envelopes, and command JSON contracts"
 
 [recommended_facets]

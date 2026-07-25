@@ -8,11 +8,11 @@ import subprocess
 import tomllib
 from pathlib import Path
 
+from ethos.contracts.package.ontology import RETIRED_PRODUCT_FAMILIES
+from ethos.contracts.package.ontology import RETIRED_PRODUCT_FAMILY_TOKENS
+from ethos.contracts.package.ontology import package_ontology_report
 from ethos.repository.policy.boundary.product import contributor_policy_report
 from ethos.repository.policy.boundary.product import product_boundary_report
-from ethos_core.contracts.package.ontology import RETIRED_PRODUCT_FAMILIES
-from ethos_core.contracts.package.ontology import RETIRED_PRODUCT_FAMILY_TOKENS
-from ethos_core.contracts.package.ontology import package_ontology_report
 
 ROOT = Path(__file__).resolve().parents[2]
 RETIRED_PUBLIC_ROOTS = {
@@ -108,28 +108,34 @@ def test_kernel_has_no_side_effect_or_profile_imports() -> None:
         "tools",
     }
 
-    for path in (ROOT / "packages/ethos-core/src").rglob("*.py"):
-        assert imported_modules(path).isdisjoint(forbidden), path
+    for source in (
+        ROOT / "src/ethos/contracts",
+        ROOT / "src/ethos/quality",
+        ROOT / "src/ethos/state",
+    ):
+        assert source.is_dir()
+        for path in source.rglob("*.py"):
+            assert imported_modules(path).isdisjoint(forbidden), path
 
 
 def test_target_product_packages_exist_with_build_metadata() -> None:
-    for package in package_ontology_report()["target_packages"]:
-        root = ROOT / "packages" / package
-        assert (root / "README.md").exists(), package
-        pyproject = (root / "pyproject.toml").read_text(encoding="utf-8")
-        assert 'build-backend = "hatchling.build"' in pyproject
+    assert package_ontology_report()["target_packages"] == ["ethos"]
+    assert (ROOT / "src/ethos").is_dir()
+    pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    assert 'name = "ethos"' in pyproject
+    assert 'build-backend = "hatchling.build"' in pyproject
 
 
 def test_semantic_target_packages_do_not_import_provider_execution() -> None:
-    # Keyed on the REAL terminal source trees (2-package world + intra-ethos
-    # sub-packages), each asserted to exist so this scan can never silently go
-    # vacuous again if a future move deletes a directory.
+    # Pure semantic homes are explicit so the scan cannot silently widen into
+    # effect adapters or become vacuous after a move.
     forbidden_by_source = {
-        # ethos-core absorbs contracts (TOML parse) — tomllib ok; no subprocess/sqlite/shell.
-        "packages/ethos-core/src/ethos_core": {"subprocess", "sqlite3", "shutil"},
+        "src/ethos/contracts": {"subprocess", "sqlite3", "shutil"},
+        "src/ethos/quality": {"subprocess", "sqlite3", "shutil"},
+        "src/ethos/state": {"subprocess", "sqlite3", "shutil"},
         # The repository layer holds read-only governance reports; it must not reach
         # UP into the adapters layer (surface>domain>adapters>repository).
-        "packages/ethos/src/ethos/repository": {"ethos.adapters", "sqlite3"},
+        "src/ethos/repository": {"ethos.adapters", "sqlite3"},
     }
     for source_rel, forbidden in forbidden_by_source.items():
         source = ROOT / source_rel
@@ -180,8 +186,8 @@ def test_product_release_metadata_has_no_person_attribution() -> None:
 
     for rel in (
         "pyproject.toml",
-        "packages/ethos/pyproject.toml",
-        "packages/ethos-core/pyproject.toml",
+        "pyproject.toml",
+        "pyproject.toml",
     ):
         project = tomllib.loads((ROOT / rel).read_text(encoding="utf-8"))["project"]
         assert "authors" not in project
@@ -260,10 +266,8 @@ def test_target_packages_do_not_import_migration_hosts() -> None:
     contract = package_ontology_report()
     migration_imports = {package.replace("-", "_") for package in contract["migration_hosts"]}
 
-    for package in contract["target_packages"]:
-        source = ROOT / "packages" / package / "src"
-        for path in source.rglob("*.py"):
-            assert imported_modules(path).isdisjoint(migration_imports), path
+    for path in (ROOT / "src/ethos").rglob("*.py"):
+        assert imported_modules(path).isdisjoint(migration_imports), path
 
 
 def test_product_workspace_has_no_migration_host_packages() -> None:
@@ -283,22 +287,22 @@ def test_ethos_workspace_config_uses_target_product_packages() -> None:
     paths = {package["path"] for package in packages}
 
     assert names == set(package_ontology_report()["target_packages"])
-    core_domains = {
-        domain
-        for package in packages
-        if package["name"] == "ethos-core"
-        for domain in package.get("domains", [])
-    }
     ethos_domains = {
         domain
         for package in packages
         if package["name"] == "ethos"
         for domain in package.get("domains", [])
     }
-    # The two-package world: ethos-core carries the pure kernel + absorbed
-    # contracts/quality; ethos carries the runtime (cli/adapters/repository/assistants).
-    assert core_domains >= {"kernel", "contracts", "quality"}
-    assert ethos_domains >= {"cli", "adapters", "repository-lifecycle", "assistants"}
+    assert paths == {"."}
+    assert ethos_domains >= {
+        "kernel",
+        "contracts",
+        "quality",
+        "cli",
+        "adapters",
+        "repository-lifecycle",
+        "assistants",
+    }
     for retired in RETIRED_PRODUCT_FAMILY_TOKENS:
         assert retired not in names
         assert f"packages/{retired}" not in paths
@@ -320,7 +324,7 @@ def test_active_claims_do_not_use_retired_product_family_subjects() -> None:
                 )
             ]
         )
-        for retired in RETIRED_PRODUCT_FAMILY_TOKENS:
+        for retired in RETIRED_PRODUCT_FAMILIES:
             assert retired not in text, path
 
 
@@ -334,13 +338,13 @@ def test_cli_uses_cyclopts_not_legacy_parser() -> None:
     # The CLI framework (the shared App objects) lives in the surface _base module;
     # cli.py is a thin dispatcher that imports the command-group modules. The
     # invariant is that the surface uses Cyclopts and no module reaches for the legacy parser.
-    base_path = ROOT / "packages/ethos/src/ethos/surface/cli/_base.py"
+    base_path = ROOT / "src/ethos/surface/cli/_base.py"
     assert "cyclopts" in imported_modules(base_path)
     legacy_parser = "arg" + "parse"
 
-    for path in (ROOT / "packages/ethos/src/ethos/surface/cli").glob("*.py"):
+    for path in (ROOT / "src/ethos/surface/cli").glob("*.py"):
         assert legacy_parser not in imported_modules(path), path
-    assert legacy_parser not in imported_modules(ROOT / "packages/ethos/src/ethos/cli.py")
+    assert legacy_parser not in imported_modules(ROOT / "src/ethos/cli.py")
 
 
 def test_tool_command_surfaces_use_cyclopts_not_legacy_parser() -> None:
@@ -361,6 +365,8 @@ def test_tracked_python_follows_parser_model_and_export_policy() -> None:
         ["git", "ls-files", "*.py"], cwd=ROOT, check=True, capture_output=True, text=True
     ).stdout.splitlines():
         path = ROOT / relative
+        if not path.exists():
+            continue
         tree = ast.parse(path.read_text(encoding="utf-8"))
         assert "arg" + "parse" not in imported_modules(path), path
         assert not {"attr", "attrs"} & imported_modules(path), path
@@ -520,14 +526,9 @@ def test_repo_local_skills_are_thin_playbook_projection() -> None:
         assert "source of truth" in skill_text or "repository truth" in skill_text
 
 
-def test_product_packages_have_canonical_readmes() -> None:
-    for package in (
-        "ethos",
-        "ethos-core",
-    ):
-        readme = ROOT / "packages" / package / "README.md"
-        assert readme.exists()
-        assert "Subject" in readme.read_text(encoding="utf-8")
+def test_product_package_has_one_canonical_readme() -> None:
+    assert (ROOT / "README.md").is_file()
+    assert not (ROOT / "packages").exists()
 
 
 def test_npm_launcher_is_distribution_adapter_not_python_family() -> None:

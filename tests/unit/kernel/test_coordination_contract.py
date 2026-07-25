@@ -6,8 +6,8 @@ from datetime import datetime
 import pytest
 from pydantic import ValidationError
 
-from ethos_core.contracts.coordination import HolderRef
-from ethos_core.contracts.coordination import LaneLease
+from ethos.contracts.coordination import HolderRef
+from ethos.contracts.coordination import LaneLease
 
 
 def test_holder_ref_is_provider_neutral_and_carries_no_privilege() -> None:

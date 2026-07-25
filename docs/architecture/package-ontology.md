@@ -8,16 +8,15 @@ relations:
 
 # Package Ontology
 
-The repository contains the buildable product package homes.
-
-No active product migration host remains in `packages/`.
-
-The current Python product package ontology is:
+ETHOS has one buildable Python product package:
 
 ```text
-packages/ethos-core
-packages/ethos
+src/ethos
 ```
+
+The repository-root `pyproject.toml` is its sole distribution owner. Kernel,
+contracts, quality, command, repository, adapter, and projection boundaries are
+internal modules, not separately versioned products.
 
 Non-Python distribution adapters do not belong to the Python product package
 ontology. Distribution adapters use a separate layout:
@@ -34,33 +33,12 @@ extension bundles:
 extensions/<extension-id>/
 ```
 
-## Target Packages
+## Internal Boundary
 
-### `ethos-core`
-
-Pure kernel and product contracts. Owns Authority, Subject, Commitment,
-Change, Evidence, Claim, Chronicle, PlanIR contracts, state-machine
-primitives, result envelope primitives, schema contracts, rule contracts,
-quality semantics, determinism semantics, gate semantics, and proof-policy
-semantics.
-
-Forbidden: CLI parsing, public UX rendering, Git/OpenSpec/SQLite/process
-execution, hosted forge execution, MCP/ACP projection execution, repository
-mutation orchestration, pytest fixture hosting as runtime behavior,
-adopter-specific semantics, and provider-specific ownership.
-
-### `ethos`
-
-Public runtime and CLI package. Owns the command tree, UX composition,
-human-readable rendering, JSON output routing, repository lifecycle
-orchestration, adapters, assistant/context projections, maintainer surfaces,
-and local proof execution. Test fixtures remain under `tests/` and are not
+Pure contracts and reducers must not import repository I/O, subprocess, SQLite,
+hosted providers, or public rendering. Effects and provider integrations remain
+at explicit composition boundaries. Tests live under `tests/` and are not
 shipped as product runtime.
-
-The package is allowed to execute tools and adapt providers, but it must not
-become the semantic center. Product semantics still derive from `ethos-core`,
-tracked repository truth, system contracts, docs, OpenSpec records, evidence,
-and Git facts according to the authority order.
 
 ### `distributions/npm`
 
@@ -70,7 +48,7 @@ Python product package ontology and must not own product semantics.
 ### `extensions/<extension-id>`
 
 An extension bundle owns an ecosystem integration that must remain outside the
-two buildable product packages. Each bundle declares its boundary in
+product package. Each bundle declares its boundary in
 `extension.toml` and keeps its local documentation, adapters, and focused tests
 together. Extensions do not become product truth centers, dynamic package
 imports, or adopter prerequisites by existing in the repository.
@@ -82,10 +60,8 @@ root-level generic adapter directory is part of the product topology.
 
 ## Retired Product Package Families
 
-Earlier product designs used separate Python package homes such as
-`ethos-contracts`, `ethos-quality`, `ethos-repository`, `ethos-assistants`,
-`ethos-adapters`, and `ethos-test`. Those names now describe semantic areas
-inside the two-package topology; they are not active package homes.
+Earlier product designs used separate Python package homes. Their concerns now
+live as internal modules under `src/ethos`; they are not active package homes.
 
 Historical references to those package names are stale unless explicitly marked
 as history. Promoted docs, tests, quality_summarys, and release checks should use the
@@ -93,9 +69,8 @@ active topology above.
 
 ## Boundary Rule
 
-A new package is justified only when it owns a distinct semantic obligation that
-cannot be kept clearer inside `ethos-core` or `ethos`. Split for durable meaning,
-not for temporary implementation convenience.
+A new distribution is justified only by an independently versioned public
+contract. Split for durable product meaning, not implementation convenience.
 
 Status: see front matter.
 

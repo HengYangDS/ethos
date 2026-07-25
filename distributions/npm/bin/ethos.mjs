@@ -25,7 +25,7 @@ function findSourceRoot(start) {
     if (
       resolve(current, "distributions", "npm", "bin") === SCRIPT_DIR &&
       existsSync(resolve(current, "pyproject.toml")) &&
-      existsSync(resolve(current, "packages", "ethos", "pyproject.toml"))
+      existsSync(resolve(current, "src", "ethos", "cli.py"))
     ) {
       return current;
     }
@@ -71,7 +71,7 @@ function pythonHasEthos(command) {
 
 const sourceRoot = findSourceRoot(SCRIPT_DIR);
 if (sourceRoot && commandExists("uv")) {
-  const result = run("uv", ["run", "--package", "ethos", "ethos", ...ARGS], {
+  const result = run("uv", ["run", "ethos", ...ARGS], {
     cwd: sourceRoot,
   });
   process.exit(result.status);

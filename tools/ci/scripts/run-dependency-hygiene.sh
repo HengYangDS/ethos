@@ -1,64 +1,50 @@
 #!/usr/bin/env bash
-# Run dependency hygiene with deptry per Python distribution.
-#
-# Boundary: this is package metadata hygiene. It does not audit vulnerabilities
-# and it does not treat the workspace root as a Python runtime package.
+# Validate dependency declarations for the sole ETHOS Python distribution.
 set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [[ "${ETHOS_RUNTIME_BOOTSTRAPPED:-}" != "1" ]]; then
   exec "${script_dir}/with-python-runtime.sh" -- \
-    uv run --all-packages --group dev env ETHOS_RUNTIME_BOOTSTRAPPED=1 "$0" "$@"
+    uv run --group dev env ETHOS_RUNTIME_BOOTSTRAPPED=1 "$0" "$@"
 fi
 
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "${repo_root}"
+output="build/evidence/quality/dependency/deptry-ethos.json"
+mkdir -p "$(dirname "${output}")"
 
-mkdir -p build/evidence/quality/dependency
-
-uv run --group dev deptry packages/ethos/src/ethos \
-  --config packages/ethos/pyproject.toml \
+uv run --group dev deptry src/ethos \
+  --config pyproject.toml \
   --known-first-party ethos \
-  --json-output build/evidence/quality/dependency/deptry-ethos.json \
+  --package-module-name-map cel-python=celpy,pyyaml=yaml \
+  --json-output "${output}" \
   --no-ansi
 
-uv run --group dev deptry packages/ethos-core/src/ethos_core \
-  --config packages/ethos-core/pyproject.toml \
-  --known-first-party ethos_core \
-  --package-module-name-map cel-python=celpy \
-  --per-rule-ignores DEP003=jsonschema \
-  --json-output build/evidence/quality/dependency/deptry-ethos-core.json \
-  --no-ansi
-
-python - <<'PY'
+python - "${output}" <<'PY'
 from __future__ import annotations
 
 import json
 import subprocess
+import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
-root = Path.cwd()
-head = subprocess.run(
-    ["git", "rev-parse", "HEAD"], cwd=root, capture_output=True, text=True, check=False
-).stdout.strip()
-outputs = [
-    "build/evidence/quality/dependency/deptry-ethos.json",
-    "build/evidence/quality/dependency/deptry-ethos-core.json",
-]
+output = Path(sys.argv[1])
 payload = {
     "schema_version": 1,
     "kind": "ethos_dependency_hygiene",
     "ok": True,
-    "head": head,
+    "head": subprocess.run(
+        ["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=False
+    ).stdout.strip(),
     "config": ".config/checks/deptry/policy.toml",
     "generated_at": datetime.now(UTC).isoformat(),
     "tool": "deptry",
     "evidence_class": "local_owner_gate",
     "not_claimed": ["vulnerability scan", "hosted CI passed"],
-    "outputs": outputs,
+    "outputs": [output.as_posix()],
 }
-path = root / "build/evidence/quality/dependency/summary.json"
+path = Path("build/evidence/quality/dependency/summary.json")
 path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 print(json.dumps(payload, indent=2, sort_keys=True))
 PY

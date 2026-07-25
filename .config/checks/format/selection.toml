@@ -18,7 +18,7 @@ owner = ".config/checks/ruff/ruff.toml"
 execution = "tools/ci/scripts/run-python-lint.sh"
 truth_boundary = "source"
 budget = [
-  { category = "python_product", paths = ["packages/*/src/*"], measure = "python_ast", comment_prefixes = ["#"] },
+  { category = "python_product", paths = ["src/ethos/*"], measure = "python_ast", comment_prefixes = ["#"] },
   { category = "python_tests", paths = ["tests/*", "*/tests/*"], measure = "python_ast", comment_prefixes = ["#"] },
   { category = "python_tools", paths = ["tools/*"], measure = "python_ast", comment_prefixes = ["#"] },
   { category = "python_other", measure = "python_ast", comment_prefixes = ["#"] },

@@ -7,4 +7,4 @@ set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-exec "${script_dir}/with-python-runtime.sh" -- uv run --package ethos ethos quality module-layout --json
+exec "${script_dir}/with-python-runtime.sh" -- uv run ethos quality module-layout --json

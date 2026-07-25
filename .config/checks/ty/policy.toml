@@ -4,6 +4,5 @@
 
 [zero_tolerance]
 packages = [
-  "packages/ethos-core",
-  "packages/ethos",
+  ".",
 ]

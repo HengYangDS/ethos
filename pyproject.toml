@@ -1,21 +1,30 @@
 [project]
-name = "ethos-product-monorepo"
+name = "ethos"
 version = "0.1.0a2"
-description = "ETHOS product workspace"
+description = "Repository change trust protocol"
+readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+  "cel-python>=0.5,<0.6",
+  "cyclopts>=3.20",
+  "defusedxml>=0.7",
+  "jsonschema>=4.23",
+  "pydantic>=2.12,<3",
+  "pyyaml>=6.0,<7",
+  "tomli-w>=1.2,<2",
+]
+
+[project.scripts]
+ethos = "ethos.cli:main"
 
 [dependency-groups]
 dev = [
   "check-jsonschema>=0.37.4",
   "codespell>=2.4.2",
-  "cyclopts>=3.20",
   "deptry>=0.25.1",
   "hypothesis>=6.0,<7",
   "import-linter>=2.12",
-  "jsonschema>=4.23",
   "pre-commit>=4.6.1",
-  "pydantic>=2.12,<3",
   "pytest>=8.0",
   "pytest-cov>=7.0",
   "pytest-timeout>=2.4",
@@ -24,17 +33,31 @@ dev = [
   "ty>=0.0.56",
 ]
 
-[tool.uv]
-package = false
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
-[tool.uv.workspace]
-members = [
-  "packages/ethos",
-  "packages/ethos-core",
+[tool.hatch.build.targets.wheel]
+packages = ["src/ethos"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"system/commands.toml" = "ethos/data/commands.toml"
+"system/gates.toml" = "ethos/data/gates.toml"
+"system/invalid_states.toml" = "ethos/data/invalid_states.toml"
+"system/workflows.toml" = "ethos/data/workflows.toml"
+"system/coupling.toml" = "ethos/data/coupling.toml"
+"system/standards.toml" = "ethos/data/standards.toml"
+"system/policies/evidence-layout.toml" = "ethos/data/evidence_layout.toml"
+"system/policies/generated-artifact-topology.toml" = "ethos/data/generated_artifact_topology.toml"
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "/src",
+  "/system",
+  "/README.md",
+  "/LICENSE",
+  "/pyproject.toml",
 ]
-
-[tool.uv.sources]
-ethos-core = { workspace = true }
 
 [tool.pytest.ini_options]
 cache_dir = "build/runtime/tool-cache/pytest"

@@ -10,6 +10,7 @@ from unittest.mock import MagicMock
 import pytest
 
 import ethos.adapters.mutation.resolution._effects as resolution_effects
+import ethos.adapters.mutation.resolution.closeout.cleanup.core as resolution_cleanup
 import ethos.adapters.mutation.resolution.closeout.recovery as resolution_recovery
 import ethos.adapters.mutation.resolution.lane as resolution
 import ethos.adapters.mutation.resolution.observation as resolution_observation
@@ -131,8 +132,8 @@ def test_resolution_plan_and_apply_schema_failure_edges(tmp_path: Path, monkeypa
     control_root = tmp_path / "control"
     control_root.mkdir()
     artifact_root = tmp_path / "records"
-    monkeypatch.setattr(resolution, "accepted_control_root", lambda _root: control_root)
-    monkeypatch.setattr(resolution, "current_record_root", lambda _root: artifact_root)
+    monkeypatch.setattr(resolution_recovery, "accepted_control_root", lambda _root: control_root)
+    monkeypatch.setattr(resolution_recovery, "current_record_root", lambda _root: artifact_root)
     apply_request = {
         "root": tmp_path,
         "decision_path": tmp_path / "decision.json",
@@ -143,7 +144,7 @@ def test_resolution_plan_and_apply_schema_failure_edges(tmp_path: Path, monkeypa
     assert applied["required_gaps"] == ["lane_resolution_receipt_invalid"]
 
     monkeypatch.setattr(
-        resolution,
+        resolution_recovery,
         "accepted_control_root",
         lambda _root: (_ for _ in ()).throw(
             ValueError("lane_resolution_accepted_control_root_unavailable")
@@ -152,18 +153,18 @@ def test_resolution_plan_and_apply_schema_failure_edges(tmp_path: Path, monkeypa
     unavailable = resolution.apply_lane_resolution(**apply_request)
     assert unavailable["required_gaps"] == ["lane_resolution_accepted_control_root_unavailable"]
 
-    monkeypatch.setattr(resolution, "accepted_control_root", lambda _root: control_root)
+    monkeypatch.setattr(resolution_recovery, "accepted_control_root", lambda _root: control_root)
     with monkeypatch.context() as scoped:
         scoped.setattr(
             resolution_recovery,
-            "claim_receipt_reservation",
-            lambda *_args, **_kwargs: (False, None, "lane_resolution_receipt_invalid"),
+            "claim_effect_receipt_reservation",
+            lambda *_args, **_kwargs: (None, None, "lane_resolution_receipt_invalid"),
         )
         invalid_reservation = resolution.apply_lane_resolution(**apply_request)
     assert invalid_reservation["required_gaps"] == ["lane_resolution_receipt_invalid"]
 
     monkeypatch.setattr(
-        resolution,
+        resolution_recovery,
         "prepare_resolution_effect",
         lambda **_kwargs: (_ for _ in ()).throw(ValueError("unexpected effect failure")),
     )
@@ -171,7 +172,7 @@ def test_resolution_plan_and_apply_schema_failure_edges(tmp_path: Path, monkeypa
     assert effect_failure["required_gaps"] == ["lane_resolution_effect_failed"]
 
     monkeypatch.setattr(
-        resolution,
+        resolution_cleanup,
         "release_resolution_receipt_reservation",
         lambda **_kwargs: (_ for _ in ()).throw(OSError("cleanup failed")),
     )

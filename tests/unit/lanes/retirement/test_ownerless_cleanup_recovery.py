@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import sqlite3
@@ -13,7 +12,9 @@ from typing import Any
 
 import pytest
 
-import ethos.adapters.mutation.resolution._effects as effect_adapter
+import ethos.adapters.mutation.resolution.closeout.cleanup.core as cleanup_adapter
+import ethos.adapters.mutation.resolution.closeout.effect as effect_adapter
+import ethos.adapters.mutation.resolution.closeout.recovery as recovery_adapter
 import ethos.adapters.mutation.resolution.lane as lane_adapter
 import ethos.adapters.mutation.resolution.records.core as record_store
 import ethos.adapters.mutation.resolution.records.io.core as record_io
@@ -28,7 +29,6 @@ from ethos.adapters.store.state.closeout import release_closeout_fence
 from ethos.adapters.store.state.schema import state_database
 from ethos.surface.cli.lane.resolution import _default_decision_path
 from ethos_core.contracts.resolution.lane import LaneObservation
-from tests.support.contract_helpers import write_chronicle_decision
 from tests.support.lane_helpers import git
 from tests.support.lane_helpers import orphan_work_lane
 
@@ -38,6 +38,25 @@ if TYPE_CHECKING:
 _COMPETING_DECISION_ID = "lane-decision:00000000-0000-4000-8000-000000000099"
 
 
+def _write_native_chronicle(root: Path) -> str:
+    relative = Path("evidence/chronicle/ownerless-cleanup-recovery-20260722/retire.md")
+    chronicle = root / relative
+    chronicle.parent.mkdir(parents=True, exist_ok=True)
+    chronicle.write_text("lane_resolution/retire\n", encoding="utf-8")
+    git(root, "add", relative.as_posix())
+    git(
+        root,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        "record retire decision",
+    )
+    return relative.as_posix()
+
+
 def _decide(root: Path, decision_path: Path) -> dict[str, object]:
     return plan_lane_resolution(
         root=root,
@@ -45,31 +64,12 @@ def _decide(root: Path, decision_path: Path) -> dict[str, object]:
         disposition="retire",
         reason="Exercise exact ownerless cleanup recovery.",
         evidence_refs=("evidence:maintainer-decision",),
-        chronicle_ref=write_chronicle_decision(
-            root,
-            topic="ownerless-cleanup-recovery-20260722",
-            token="retire",
-        ),
+        chronicle_ref=_write_native_chronicle(root),
         recovery_plan="Recover only an exact durable completion.",
         decision_path=decision_path,
         break_glass=True,
         apply=True,
     )
-
-
-def _ownerless_preflight(*, expected: Any, **_kwargs: object) -> dict[str, object]:
-    decision = json.loads(expected.decision_bytes)
-    return {
-        "schema_version": "workstation.repo-family-governance.v1",
-        "decision_sha256": hashlib.sha256(expected.decision_bytes).hexdigest(),
-        "executor_ref": expected.executor_ref,
-        "observation_digest": hashlib.sha256(
-            json.dumps(expected.observation, sort_keys=True, separators=(",", ":")).encode()
-        ).hexdigest(),
-        "chronicle_digest": decision["chronicle_digest"],
-        "source": {"head": expected.accepted_head},
-        "coordination": {"binding_digest": "d" * 64},
-    }
 
 
 def _setup(
@@ -99,7 +99,6 @@ def _setup(
         artifact_root=artifact_root,
     )
     monkeypatch.setenv("ETHOS_ACTOR", "agent:codex:thread:executor")
-    monkeypatch.setattr(effect_adapter, "run_worktree_closeout_check", _ownerless_preflight)
     return repo, decision_path, decision, ownerless_reservation, receipt
 
 
@@ -195,24 +194,26 @@ def test_retry_converges_when_receipt_write_fails_after_durable_link(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo, decision_path, _decision, ownerless_reservation, receipt = _setup(tmp_path, monkeypatch)
-    real_write = lane_adapter.write_resolution_receipt
+    real_write = recovery_adapter.write_resolution_receipt
 
     def write_then_fail(**kwargs: Any) -> str:
         real_write(**kwargs)
         message = "receipt writer interrupted after durable link"
         raise OSError(message)
 
-    monkeypatch.setattr(lane_adapter, "write_resolution_receipt", write_then_fail)
+    monkeypatch.setattr(recovery_adapter, "write_resolution_receipt", write_then_fail)
     first = _apply(repo, decision_path)
 
     assert first["required_gaps"] == ["lane_resolution_receipt_write_failed_after_effect"]
     assert receipt.is_file()
     snapshot = _receipt_snapshot(receipt)
-    monkeypatch.setattr(lane_adapter, "write_resolution_receipt", real_write)
+    monkeypatch.setattr(recovery_adapter, "write_resolution_receipt", real_write)
     monkeypatch.setattr(
-        effect_adapter,
-        "run_worktree_closeout_check",
-        lambda **_kwargs: pytest.fail("exact receipt recovery must not rerun WCP"),
+        lane_adapter,
+        "observe_lane",
+        lambda *_args, **_kwargs: pytest.fail(
+            "exact receipt recovery must precede ordinary target observation"
+        ),
     )
 
     recovered = _apply(repo, decision_path)
@@ -231,9 +232,9 @@ def test_retry_converges_after_fence_release_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo, decision_path, _decision, ownerless_reservation, receipt = _setup(tmp_path, monkeypatch)
-    real_release = lane_adapter.release_closeout_fence
+    real_release = cleanup_adapter.release_closeout_fence
     monkeypatch.setattr(
-        lane_adapter,
+        cleanup_adapter,
         "release_closeout_fence",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("fence retained")),
     )
@@ -242,11 +243,13 @@ def test_retry_converges_after_fence_release_failure(
     assert first["required_gaps"] == ["lane_resolution_ownerless_cleanup_failed"]
     assert get_closeout_fence(state_database(repo), subject="work/orphan") is not None
     snapshot = _receipt_snapshot(receipt)
-    monkeypatch.setattr(lane_adapter, "release_closeout_fence", real_release)
+    monkeypatch.setattr(cleanup_adapter, "release_closeout_fence", real_release)
     monkeypatch.setattr(
-        effect_adapter,
-        "run_worktree_closeout_check",
-        lambda **_kwargs: pytest.fail("exact receipt recovery must not rerun WCP"),
+        lane_adapter,
+        "observe_lane",
+        lambda *_args, **_kwargs: pytest.fail(
+            "exact receipt recovery must precede ordinary target observation"
+        ),
     )
 
     recovered = _apply(repo, decision_path)
@@ -278,18 +281,20 @@ def test_retry_converges_after_reservation_unlink_failure_with_fence_already_abs
     snapshot = _receipt_snapshot(receipt)
     monkeypatch.setattr(record_io.os, "unlink", real_unlink)
     monkeypatch.setattr(
-        effect_adapter,
-        "run_worktree_closeout_check",
-        lambda **_kwargs: pytest.fail("exact receipt recovery must not rerun WCP"),
+        lane_adapter,
+        "observe_lane",
+        lambda *_args, **_kwargs: pytest.fail(
+            "exact receipt recovery must precede ordinary target observation"
+        ),
     )
-    real_verify = vars(effect_adapter)["_verify_ownerless_postconditions"]
+    real_verify = effect_adapter.verify_ownerless_postconditions
     verified_fences: list[dict[str, object] | None] = []
 
     def observe_verification(**kwargs: object) -> dict[str, object]:
         verified_fences.append(kwargs.get("fence"))
         return real_verify(**kwargs)
 
-    monkeypatch.setattr(effect_adapter, "_verify_ownerless_postconditions", observe_verification)
+    monkeypatch.setattr(effect_adapter, "verify_ownerless_postconditions", observe_verification)
 
     recovered = _apply(repo, decision_path)
 
@@ -342,9 +347,11 @@ def test_receipt_sidecar_swap_reports_release_gap_and_retries(
     assert get_closeout_fence(state_database(repo), subject="work/orphan") is None
     monkeypatch.setattr(record_io, "_stage_expected_record", original_stage)
     monkeypatch.setattr(
-        effect_adapter,
-        "run_worktree_closeout_check",
-        lambda **_kwargs: pytest.fail("exact receipt recovery must not rerun WCP"),
+        lane_adapter,
+        "observe_lane",
+        lambda *_args, **_kwargs: pytest.fail(
+            "exact receipt recovery must precede ordinary target observation"
+        ),
     )
 
     recovered = _apply(repo, decision_path)
@@ -378,7 +385,7 @@ def test_retry_blocks_invalid_or_mismatched_existing_receipt(
 ) -> None:
     repo, decision_path, _decision, ownerless_reservation, receipt = _setup(tmp_path, monkeypatch)
     monkeypatch.setattr(
-        lane_adapter,
+        cleanup_adapter,
         "release_closeout_fence",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("fence retained")),
     )
@@ -391,9 +398,11 @@ def test_retry_blocks_invalid_or_mismatched_existing_receipt(
         payload["unexpected"] = True
     receipt.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     monkeypatch.setattr(
-        effect_adapter,
-        "run_worktree_closeout_check",
-        lambda **_kwargs: pytest.fail("mismatched receipt must block before WCP"),
+        lane_adapter,
+        "observe_lane",
+        lambda *_args, **_kwargs: pytest.fail(
+            "mismatched receipt must block before ordinary target observation"
+        ),
     )
 
     blocked = _apply(repo, decision_path)
@@ -452,7 +461,7 @@ def _completed_with_retained_cleanup(
         tmp_path, monkeypatch
     )
     monkeypatch.setattr(
-        lane_adapter,
+        cleanup_adapter,
         "release_closeout_fence",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("fence retained")),
     )
@@ -487,9 +496,11 @@ def test_retry_converges_when_ownerless_reservation_unlink_precedes_crash(
     snapshot = _receipt_snapshot(receipt)
     monkeypatch.setattr(record_io.os, "fsync", real_fsync)
     monkeypatch.setattr(
-        effect_adapter,
-        "run_worktree_closeout_check",
-        lambda **_kwargs: pytest.fail("receipt-first recovery must not rerun WCP"),
+        lane_adapter,
+        "observe_lane",
+        lambda *_args, **_kwargs: pytest.fail(
+            "receipt-first recovery must precede ordinary target observation"
+        ),
     )
 
     recovered = _apply(repo, decision_path)
@@ -548,9 +559,11 @@ def test_retry_maps_malformed_fence_schema_to_stable_unverifiable_gap(
     with closing(sqlite3.connect(state_database(repo))) as connection:
         connection.execute("drop index closeout_fences_subject_unique")
     monkeypatch.setattr(
-        effect_adapter,
-        "run_worktree_closeout_check",
-        lambda **_kwargs: pytest.fail("receipt-first recovery must not rerun WCP"),
+        lane_adapter,
+        "observe_lane",
+        lambda *_args, **_kwargs: pytest.fail(
+            "receipt-first recovery must precede ordinary target observation"
+        ),
     )
 
     blocked = _apply(repo, decision_path)
@@ -584,7 +597,6 @@ def test_completed_recovery_requires_exact_receipt_to_accept_an_absent_fence(
         root=repo,
         decision_path=decision_path,
         decision=decision,
-        observation=observation,
         executor_ref=str(binding["executor_ref"]),
         reservation=reservation,
         receipt=receipt,
@@ -601,7 +613,6 @@ def test_completed_recovery_requires_exact_receipt_to_accept_an_absent_fence(
             root=repo,
             decision_path=decision_path,
             decision=decision,
-            observation=observation,
             executor_ref=str(binding["executor_ref"]),
             reservation=reservation,
             receipt=tampered,
@@ -612,7 +623,7 @@ def test_completed_recovery_rejects_noncanonical_initial_decision_snapshot(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    repo, decision_path, decision, observation, reservation, _receipt = (
+    repo, decision_path, decision, _observation, reservation, _receipt = (
         _completed_with_retained_cleanup(tmp_path, monkeypatch)
     )
     tampered = dict(decision)
@@ -626,7 +637,6 @@ def test_completed_recovery_rejects_noncanonical_initial_decision_snapshot(
             root=repo,
             decision_path=decision_path,
             decision=tampered,
-            observation=observation,
             executor_ref=str(reservation["executor_ref"]),
             reservation=reservation,
         )
@@ -636,7 +646,7 @@ def test_completed_recovery_reads_decision_bytes_once(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    repo, decision_path, decision, observation, reservation, _receipt = (
+    repo, decision_path, decision, _observation, reservation, _receipt = (
         _completed_with_retained_cleanup(tmp_path, monkeypatch)
     )
     real_read_bytes = Path.read_bytes
@@ -653,7 +663,6 @@ def test_completed_recovery_reads_decision_bytes_once(
         root=repo,
         decision_path=decision_path,
         decision=decision,
-        observation=observation,
         executor_ref=str(reservation["executor_ref"]),
         reservation=reservation,
     )
@@ -666,9 +675,9 @@ def test_completed_recovery_rejects_chronicle_drift_before_receipt_write_or_clea
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo, decision_path, decision, ownerless_reservation, receipt = _setup(tmp_path, monkeypatch)
-    real_write = lane_adapter.write_resolution_receipt
+    real_write = recovery_adapter.write_resolution_receipt
     monkeypatch.setattr(
-        lane_adapter,
+        recovery_adapter,
         "write_resolution_receipt",
         lambda **_kwargs: (_ for _ in ()).throw(OSError("receipt write interrupted")),
     )
@@ -683,7 +692,7 @@ def test_completed_recovery_rejects_chronicle_drift_before_receipt_write_or_clea
         chronicle.read_text(encoding="utf-8") + "mutated after completed effect\n",
         encoding="utf-8",
     )
-    monkeypatch.setattr(lane_adapter, "write_resolution_receipt", real_write)
+    monkeypatch.setattr(recovery_adapter, "write_resolution_receipt", real_write)
 
     blocked = _apply(repo, decision_path)
 

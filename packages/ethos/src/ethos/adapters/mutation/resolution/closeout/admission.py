@@ -12,9 +12,9 @@ from pathlib import PurePosixPath
 from typing import Any
 from typing import NoReturn
 
+import ethos.adapters.mutation.resolution.closeout.receipt as receipt
 import ethos.adapters.mutation.resolution.observation as git
 import ethos.adapters.mutation.resolution.records.current.validation.core as validation
-import ethos.adapters.mutation.resolution.records.inventory as inventory
 import ethos.adapters.store.state.closeout as state_closeout
 import ethos_core.contracts.branch.roles as roles
 import ethos_core.contracts.resolution.lane as lane
@@ -59,10 +59,16 @@ class OwnerlessCloseoutAdmission:
     target_binding_digest: str
     retry_fence_acquisition_id: str | None
     existing_reservation: OwnerlessCloseoutReservation | None
+    receipt_reservation_token: receipt.OwnerlessReceiptReservationToken | None
 
 
 def admit_ownerless_closeout(
-    *, root: Path, decision_path: Path, decision: dict[str, Any], executor_ref: str
+    *,
+    root: Path,
+    decision_path: Path,
+    decision: dict[str, Any],
+    executor_ref: str,
+    receipt_reservation_token: receipt.OwnerlessReceiptReservationToken | None = None,
 ) -> OwnerlessCloseoutAdmission:
     """Admit one exact clean ownerless target using native repository facts."""
     try:
@@ -71,6 +77,7 @@ def admit_ownerless_closeout(
             decision_path=decision_path,
             decision=decision,
             executor_ref=executor_ref,
+            receipt_reservation_token=receipt_reservation_token,
         )
     except OwnerlessCloseoutAdmissionError:
         raise
@@ -90,13 +97,14 @@ def reobserve_ownerless_closeout_under_fence(
         raise _error(_ADMISSION_UNVERIFIABLE, error.__class__.__name__) from error
 
 
-def _admit(
+def _admit(  # noqa: PLR0913, RUF100 - exact native admission facts
     *,
     root: Path,
     decision_path: Path,
     decision: dict[str, Any],
     executor_ref: str,
     fence_observation: tuple[str, dict[str, object] | None] | None = None,
+    receipt_reservation_token: receipt.OwnerlessReceiptReservationToken | None = None,
 ) -> OwnerlessCloseoutAdmission:
     control = root.absolute()
     policy, executor = _authority_context(control, executor_ref)
@@ -138,7 +146,17 @@ def _admit(
         recovery_state="reserved_no_effect",
         postcondition_digest="",
     )
-    existing = _reservation(control, record_root, decision_path, decision_sha256, expected)
+    existing, reservation_gap = receipt.ownerless_reservation_admission_or_gap(
+        root=control,
+        record_root=record_root,
+        decision_path=decision_path,
+        decision_sha256=decision_sha256,
+        expected=expected,
+        token=receipt_reservation_token,
+    )
+    if reservation_gap:
+        detail = "reservation" if reservation_gap.endswith("reservation_competing") else "records"
+        raise OwnerlessCloseoutAdmissionError(reservation_gap, detail)
     if existing is not None:
         _require_ancestor(control, existing.accepted_head, facts.accepted_head, target=False)
     observed_fence = _state(control, facts.observation.lane_ref, fence_observation)
@@ -175,43 +193,54 @@ def _admit(
         target_binding_digest=binding_digest,
         retry_fence_acquisition_id=retry_fence_acquisition_id,
         existing_reservation=existing,
+        receipt_reservation_token=receipt_reservation_token,
     )
 
 
 def _reobserve(
     admission: OwnerlessCloseoutAdmission, supplied_fence: dict[str, object]
 ) -> OwnerlessCloseoutAdmission:
-    database = _database(admission.root)
-    before = state_closeout.probe_closeout_fence(database, subject=admission.observation.lane_ref)
-    acquisition_id = _acquisition_id(before, "before")
-    expected = _admission_fence(admission, acquisition_id)
-    _exact_fence(before, expected, "before", supplied=supplied_fence)
     try:
-        fresh = _admit(
-            root=admission.root,
-            decision_path=admission.decision_path,
-            decision=admission.decision.to_payload(),
-            executor_ref=admission.executor_ref,
-            fence_observation=before,
-        )
-        reset = admission.existing_reservation is not None and fresh.existing_reservation is None
-        if reset and (
-            admission.retry_fence_acquisition_id is None
-            or acquisition_id == admission.retry_fence_acquisition_id
-        ):
-            _fail("reobservation_stale", "existing_reservation")
-        allowed = {"existing_reservation", "retry_fence_acquisition_id"} if reset else set()
-        for field in fields(OwnerlessCloseoutAdmission):
-            if field.name not in allowed and getattr(fresh, field.name) != getattr(
-                admission, field.name
-            ):
-                _fail("reobservation_stale", field.name)
-        return fresh
-    finally:
-        after = state_closeout.probe_closeout_fence(
-            database, subject=admission.observation.lane_ref
-        )
-        _exact_fence(after, expected, "after", supplied=supplied_fence)
+        with receipt.ownerless_receipt_reservation_guard(admission):
+            database = _database(admission.root)
+            before = state_closeout.probe_closeout_fence(
+                database, subject=admission.observation.lane_ref
+            )
+            acquisition_id = _acquisition_id(before, "before")
+            expected = _admission_fence(admission, acquisition_id)
+            _exact_fence(before, expected, "before", supplied=supplied_fence)
+            try:
+                fresh = _admit(
+                    root=admission.root,
+                    decision_path=admission.decision_path,
+                    decision=admission.decision.to_payload(),
+                    executor_ref=admission.executor_ref,
+                    fence_observation=before,
+                    receipt_reservation_token=admission.receipt_reservation_token,
+                )
+                reset = (
+                    admission.existing_reservation is not None
+                    and fresh.existing_reservation is None
+                )
+                if reset and (
+                    admission.retry_fence_acquisition_id is None
+                    or acquisition_id == admission.retry_fence_acquisition_id
+                ):
+                    _fail("reobservation_stale", "existing_reservation")
+                allowed = {"existing_reservation", "retry_fence_acquisition_id"} if reset else set()
+                for field in fields(OwnerlessCloseoutAdmission):
+                    if field.name not in allowed and getattr(fresh, field.name) != getattr(
+                        admission, field.name
+                    ):
+                        _fail("reobservation_stale", field.name)
+                return fresh
+            finally:
+                after = state_closeout.probe_closeout_fence(
+                    database, subject=admission.observation.lane_ref
+                )
+                _exact_fence(after, expected, "after", supplied=supplied_fence)
+    except receipt.OwnerlessReceiptReservationError as error:
+        _raise("reservation_competing", "receipt_reservation", error)
 
 
 def _authority_context(root: Path, executor_ref: str) -> tuple[roles.BranchRolePolicy, str]:
@@ -286,27 +315,6 @@ def _git_observation(root: Path, branch: str, accepted_branch: str):
         if error.kind == "registration":
             _fail("observation_stale", error.detail)
         _fail("git_unverifiable", error.detail)
-
-
-def _reservation(
-    root: Path,
-    record_root: Path,
-    decision_path: Path,
-    decision_sha256: str,
-    expected: OwnerlessCloseoutReservation,
-) -> OwnerlessCloseoutReservation | None:
-    try:
-        return inventory.ownerless_closeout_reservation_admission(
-            root=root,
-            record_root=record_root,
-            decision_path=decision_path,
-            decision_sha256=decision_sha256,
-            expected=expected,
-        )
-    except ValueError as error:
-        gap = str(error)
-        detail = "reservation" if gap.endswith("reservation_competing") else "records"
-        raise OwnerlessCloseoutAdmissionError(gap, detail) from error
 
 
 def _state(

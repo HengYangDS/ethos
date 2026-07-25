@@ -9,6 +9,7 @@ installs the local admission entrance.
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 from datetime import UTC
 from datetime import datetime
@@ -17,6 +18,8 @@ from pathlib import Path
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.semantic import Attestation
+
+_GIT = shutil.which("git") or "git"
 
 
 def run_git(
@@ -29,7 +32,7 @@ def run_git(
     """Run one Git command and preserve the complete subprocess result."""
     effective_env = None if env is None else {**os.environ, **env}
     return subprocess.run(
-        ["git", *args],
+        [_GIT, *args],
         cwd=root,
         check=check,
         text=True,
@@ -53,13 +56,7 @@ def is_ancestor(root: Path, ancestor: str, descendant: str) -> bool:
 def current_head(root: Path) -> str:
     """Return the current HEAD sha, or 'untracked' if not a resolvable ref."""
     try:
-        completed = subprocess.run(
-            ["git", "rev-parse", "HEAD"],
-            cwd=root,
-            text=True,
-            capture_output=True,
-            check=False,
-        )
+        completed = run_git(root, "rev-parse", "HEAD", check=False)
     except (FileNotFoundError, NotADirectoryError):
         # root does not exist (e.g. a stale or foreign target path): treat as untracked
         # rather than crashing — the caller reports a gap, not an exception.
@@ -82,26 +79,14 @@ def current_tree(root: Path, head: str = "HEAD") -> str:
 
 def git_stdout_checked(root: Path, *args: str) -> str:
     """Run `git <args>` in root and return stdout, raising on failure."""
-    completed = subprocess.run(
-        ["git", *args],
-        cwd=root,
-        check=True,
-        text=True,
-        capture_output=True,
-    )
+    completed = run_git(root, *args)
     return completed.stdout.rstrip("\n")
 
 
 def git_stdout(root: Path, *args: str) -> str:
     """Run `git <args>` in root and return stripped stdout, or '' on failure."""
     try:
-        completed = subprocess.run(
-            ["git", *args],
-            cwd=root,
-            text=True,
-            capture_output=True,
-            check=False,
-        )
+        completed = run_git(root, *args, check=False)
     except (FileNotFoundError, NotADirectoryError):
         # root does not exist: no git facts to read, same as a failed command.
         return ""
@@ -204,25 +189,13 @@ def publication_remote_syncs(root: Path, branch: str) -> dict[str, object]:
 
 def set_hooks_path(root: Path, hooks_path: str) -> bool:
     """Wire git core.hooksPath to hooks_path (the sanctioned local-entrance write)."""
-    completed = subprocess.run(
-        ["git", "config", "core.hooksPath", hooks_path],
-        cwd=root,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
+    completed = run_git(root, "config", "core.hooksPath", hooks_path, check=False)
     return completed.returncode == 0
 
 
 def set_config(root: Path, key: str, value: str) -> bool:
     """Set a local git config key (used to record ethos.acceptedBranch for the hooks)."""
-    completed = subprocess.run(
-        ["git", "config", key, value],
-        cwd=root,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
+    completed = run_git(root, "config", key, value, check=False)
     return completed.returncode == 0
 
 
@@ -246,14 +219,7 @@ def same_git_repository(left: Path, right: Path) -> bool:
 
 def git_files(root: Path, *patterns: str) -> list[str]:
     """Return tracked files matching the given pathspec patterns."""
-    command = ["git", "ls-files", *patterns]
-    completed = subprocess.run(
-        command,
-        cwd=root,
-        text=True,
-        capture_output=True,
-        check=False,
-    )
+    completed = run_git(root, "ls-files", *patterns, check=False)
     if completed.returncode != 0:
         return []
     return [line for line in completed.stdout.splitlines() if line]
@@ -313,7 +279,7 @@ def remote_availability(
         }
     try:
         completed = subprocess.run(
-            ["git", "ls-remote", "--exit-code", remote],
+            [_GIT, "ls-remote", "--exit-code", remote],
             cwd=root,
             text=True,
             capture_output=True,
@@ -390,8 +356,10 @@ def execute_git_effect(
     *,
     issuer: str,
     attestations: tuple[Attestation, ...] = (),
+    permissions: tuple[str, ...],
 ) -> Attestation:
     """Execute, recover, or replay one exact Git ref transaction."""
+    _require_effect_permission(effect, permissions)
     digest = effect.digest()
     matching = tuple(attestation for attestation in attestations if attestation.id == effect.id)
     if matching:
@@ -401,22 +369,27 @@ def execute_git_effect(
             or attestation.content.get("effect_digest") != digest
             for attestation in matching
         ):
-            raise ValueError("git_effect_identity_collision")
+            message = "git_effect_identity_collision"
+            raise ValueError(message)
         attestation = matching[-1]
         if any(_effect_ref(root, ref) != value for ref, value in effect.assertions.items()):
-            raise ValueError("git_effect_cas_mismatch")
+            message = "git_effect_cas_mismatch"
+            raise ValueError(message)
         if any(_effect_ref(root, ref) != update.desired for ref, update in effect.updates.items()):
-            raise ValueError("git_effect_postcondition_failed")
+            message = "git_effect_postcondition_failed"
+            raise ValueError(message)
         return attestation
     observed = {ref: _effect_ref(root, ref) for ref in effect.updates}
     if any(_effect_ref(root, ref) != value for ref, value in effect.assertions.items()):
-        raise ValueError("git_effect_cas_mismatch")
+        message = "git_effect_cas_mismatch"
+        raise ValueError(message)
     desired = {ref: update.desired for ref, update in effect.updates.items()}
     if observed == desired:
         return _attestation(effect, issuer=issuer, state="recovered")
     expected = {ref: update.expected for ref, update in effect.updates.items()}
     if observed != expected:
-        raise ValueError("git_effect_cas_mismatch")
+        message = "git_effect_cas_mismatch"
+        raise ValueError(message)
     program = "\0".join(
         (
             "start",
@@ -435,19 +408,21 @@ def execute_git_effect(
             "",
         )
     )
-    completed = subprocess.run(
-        ["git", "update-ref", "--stdin", "-z"],
-        cwd=root,
-        check=False,
-        capture_output=True,
-        input=program,
-        text=True,
-    )
+    completed = run_git(root, "update-ref", "--stdin", "-z", check=False, stdin=program)
     if completed.returncode:
-        raise ValueError("git_effect_cas_rejected")
+        message = "git_effect_cas_rejected"
+        raise ValueError(message)
     if {ref: _effect_ref(root, ref) for ref in effect.updates} != desired:
-        raise ValueError("git_effect_postcondition_failed")
+        message = "git_effect_postcondition_failed"
+        raise ValueError(message)
     return _attestation(effect, issuer=issuer, state="applied")
+
+
+def _require_effect_permission(effect: GitEffect, permissions: tuple[str, ...]) -> None:
+    admitted = set(permissions)
+    if "git.ref.compare-and-swap" not in admitted and not set(effect.permissions) <= admitted:
+        message = "git_effect_permission_denied"
+        raise ValueError(message)
 
 
 def git_effect_attestations(
@@ -485,17 +460,6 @@ def git_ref_effect(
     )
 
 
-def git_effect_plan_digest(root: Path, head: str) -> str:
-    from ethos.adapters.mutation.proof import executed_proof_record
-    from ethos.adapters.mutation.proof import proof_plan_digest
-
-    record = executed_proof_record(root, head)
-    value = str(record.get("plan_digest") or "") if record else ""
-    if len(value) != 64 or value != proof_plan_digest(root):
-        raise ValueError("git_effect_plan_digest_missing")
-    return value
-
-
 def sync_linked_ref_worktree(
     worktrees: list[dict[str, object]],
     branch: str,
@@ -523,58 +487,26 @@ def sync_linked_ref_worktree(
     }
     if path is None:
         return result
-    reset = subprocess.run(
-        ["git", "reset", "--hard", head],
-        cwd=path,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
+    reset = run_git(path, "reset", "--hard", head, check=False)
     if reset.returncode:
         return {**result, "worktree_sync": "failed", "stderr": reset.stderr.strip()}
     return {
         **result,
         "worktree_sync": (
-            "dirty"
-            if subprocess.run(
-                ["git", "status", "--short"],
-                cwd=path,
-                check=False,
-                capture_output=True,
-                text=True,
-            ).stdout.strip()
-            else "synced"
+            "dirty" if run_git(path, "status", "--short", check=False).stdout.strip() else "synced"
         ),
     }
 
 
 def sync_current_worktree(root: Path, head: str) -> dict[str, object]:
-    reset = subprocess.run(
-        ["git", "reset", "--hard", head],
-        cwd=root,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
+    reset = run_git(root, "reset", "--hard", head, check=False)
     if reset.returncode and any(
         token in reset.stderr.lower() for token in ("index.lock", "could not lock index")
     ):
-        reset = subprocess.run(
-            ["git", "reset", "--hard", head],
-            cwd=root,
-            check=False,
-            capture_output=True,
-            text=True,
-        )
+        reset = run_git(root, "reset", "--hard", head, check=False)
     if reset.returncode:
         return {"state": "failed", "stderr": reset.stderr.strip()}
-    status = subprocess.run(
-        ["git", "status", "--short"],
-        cwd=root,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
+    status = run_git(root, "status", "--short", check=False)
     return {
         "state": "dirty" if status.returncode or status.stdout.strip() else "synced",
         "status": status.stdout.strip(),
@@ -589,28 +521,17 @@ def reference_transaction_hook_changed(
 ) -> bool:
     path = ".githooks/reference-transaction"
     entries = [
-        subprocess.run(
-            ["git", "ls-tree", head, path],
-            cwd=root,
-            check=False,
-            capture_output=True,
-            text=True,
-        ).stdout.strip()
+        run_git(root, "ls-tree", head, path, check=False).stdout.strip()
         for head in (accepted_head, candidate_head)
     ]
     if not entries[1].startswith("100755 blob "):
-        raise ValueError("release_mirror_candidate_hook_invalid")
+        message = "release_mirror_candidate_hook_invalid"
+        raise ValueError(message)
     return entries[0] != entries[1]
 
 
 def _effect_ref(root: Path, ref: str) -> str:
-    completed = subprocess.run(
-        ["git", "rev-parse", "--verify", ref],
-        cwd=root,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
+    completed = run_git(root, "rev-parse", "--verify", ref, check=False)
     return completed.stdout.strip() if completed.returncode == 0 else ""
 
 

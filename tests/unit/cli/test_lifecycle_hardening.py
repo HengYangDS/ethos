@@ -38,7 +38,9 @@ def _diverged_candidate_repo(tmp_path: Path) -> tuple[Path, Path, str, str]:
 
 
 def test_prove_execute_reports_failed_gate_as_required_gap(tmp_path: Path) -> None:
-    docs = tmp_path / "docs"
+    repo = init_git_repo(tmp_path / "repo")
+    adopt_and_commit(repo)
+    docs = repo / "docs"
     docs.mkdir()
     (docs / "guide.md").write_text(
         "---\nsubject: sample:guide\nrole: how-to\nstate: active\nrelations: {}\n---\n\n# Guide\n\nBody without required visible sections.",
@@ -51,7 +53,7 @@ def test_prove_execute_reports_failed_gate_as_required_gap(tmp_path: Path) -> No
         "--gate",
         "docs-registry",
         "--root",
-        tmp_path.as_posix(),
+        repo.as_posix(),
         "--json",
     )
 

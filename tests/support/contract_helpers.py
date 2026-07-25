@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 from ethos.adapters.mutation.proof import _promotion_required_gate_ids
+from ethos.adapters.mutation.proof import proof_plan
 from ethos.adapters.mutation.proof import record_executed_proof
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.repository.evidence.core import EvidenceSet
@@ -266,6 +267,7 @@ def seed_executed_proof(repo: Path, head: str) -> None:
     record_executed_proof(
         repo,
         EvidenceSet.from_runs(evidence_id="proof", head=head, runs=runs).to_dict(),
+        plan=proof_plan(repo, head=head),
     )
 
 

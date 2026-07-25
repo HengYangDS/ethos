@@ -1,11 +1,11 @@
-"""Invalid-state taxonomy — the compression of every ETHOS gap onto the kernel chain.
+"""Optional invalid-state explanations over an open-world gap vocabulary.
 
 ETHOS is a repository trust-transition system: a transition is trustworthy iff every
 node of the chain (Authority -> Subject -> Commitment -> Change -> Evidence -> Claim
 -> Chronicle) is satisfied. Every gap ETHOS emits is therefore a FAILED PRECONDITION
 of exactly one node or boundary precondition. This module loads the SSOT taxonomy
 (system/invalid_states.toml) and classifies any gap string into its category, so
-ad-hoc gap strings reduce to one node-derived vocabulary.
+known gap strings may be grouped for readers without constraining new signals.
 
 Pure kernel: TOML read only, no IO/subprocess/network. Derive-don't-store — the
 categories live in the contract, this module is the projection.
@@ -21,7 +21,7 @@ from pathlib import Path
 from ethos._resources import declaration_text
 
 # The seven chain-node failures plus carrier/substrate boundary failures, in order.
-# A gap that classifies to none of these is itself an ungoverned invalid state.
+# A gap that classifies to none of these remains an explicit unknown signal.
 NODE_ORDER: tuple[str, ...] = (
     "authority_gap",
     "subject_ambiguous",
@@ -97,8 +97,8 @@ def classify(gap: str) -> str:
 
     Longest-prefix wins so specific prefixes beat generic ones; chain order breaks
     ties (an earlier node's precondition is the more fundamental failure). Returns
-    UNCLASSIFIED when a gap matches no category — an ungoverned failure mode, itself an
-    invalid state the coverage test forbids.
+    UNCLASSIFIED when a gap matches no category. Unknown signals are preserved rather
+    than forced into an unsuitable existing category.
     """
     best_id = UNCLASSIFIED
     best_len = -1
@@ -145,8 +145,8 @@ def explain_gap(gap: str) -> dict[str, object]:
         else {
             "id": UNCLASSIFIED,
             "node": "boundary:taxonomy",
-            "question": "Is this gap governed by the invalid-state taxonomy?",
-            "summary": "The gap does not yet reduce to a governed ETHOS failure class.",
+            "question": "Does an existing explanation category fit this signal?",
+            "summary": "No current category fits; the original signal remains authoritative.",
         }
     )
     return {
@@ -164,8 +164,5 @@ def explain_gap(gap: str) -> dict[str, object]:
             "projection_only": True,
             "lifecycle_command": False,
         },
-        "next_action": (
-            "Inspect or repair the precondition named by invalid_state.node, "
-            "then rerun the governing command."
-        ),
+        "next_action": "Inspect the original signal and its owning verifier.",
     }

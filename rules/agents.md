@@ -26,3 +26,6 @@ Purpose: define how agents load repository truth and avoid stale context.
 - Use repo-local skills from `.agents/skills/` when activation matches.
 - Use official external skills as method packs; do not vendor their runtime
   instructions into repository truth.
+- Before creating, moving, renaming, splitting, importing, or deleting Python,
+  read `rules/module_layout.md` and run the module-layout owner gate. Do not use
+  file count, directory width, or ELOC as authority for a semantic boundary.

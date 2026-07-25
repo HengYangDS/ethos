@@ -13,6 +13,7 @@ vendor-specific assistant root canonical.
   [Terminal Governance Product Design](docs/plans/terminal-governance-product-design.md)
 - Rule system: [Rules System](rules/README.md)
 - Agent rules: [Agent Rules](rules/agents.md)
+- Module and semantic ownership rules: [Module Layout Rules](rules/module_layout.md)
 - Mutation and Work Lane rules: [Mutation Rules](rules/mutation.md)
 - Hook and guard rules: [Hook Rules](rules/hooks.md)
 - Evidence rules: [Evidence Rules](rules/evidence.md)

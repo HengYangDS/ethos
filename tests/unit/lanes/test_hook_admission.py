@@ -15,11 +15,13 @@ from ethos.adapters.admission.identity import push_identity_policy_report
 from ethos.adapters.mutation.core import proof_gaps
 from ethos.adapters.mutation.proof import _promotion_required_gate_ids
 from ethos.adapters.mutation.proof import executed_proof_record
+from ethos.adapters.mutation.proof import proof_plan
 from ethos.adapters.mutation.proof import proof_state_dir
 from ethos.adapters.mutation.proof import record_executed_proof
 from ethos.contracts.admission import HookAdmissionRequest
 from ethos.repository.evidence.core import EvidenceSet
 from ethos.repository.evidence.core import ProofRun
+from tests.support.contract_helpers import adopt_and_commit
 from tests.support.contract_helpers import conformant_proof_run
 from tests.support.lane_helpers import git
 from tests.support.lane_helpers import init_repo
@@ -691,16 +693,22 @@ def test_proof_state_dir_defaults_to_repository_local_state(
 def test_proof_state_dir_test_override_is_worker_local(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    head = "abc123"
+    repo = init_repo(tmp_path / "repo")
+    adopt_and_commit(repo)
+    head = git(repo, "rev-parse", "HEAD")
     proof_dir = tmp_path / ".ethos" / "state" / "proof-gw1"
     monkeypatch.setenv("PYTEST_XDIST_WORKER", "gw1")
     monkeypatch.setenv("ETHOS_TEST_PROOF_STATE_DIR", proof_dir.as_posix())
 
-    path = record_executed_proof(tmp_path, _trust_bearing_evidence(head, tmp_path))
+    path = record_executed_proof(
+        repo,
+        _trust_bearing_evidence(head, repo),
+        plan=proof_plan(repo, head=head),
+    )
 
     assert path == proof_dir / f"{head}.json"
-    assert executed_proof_record(tmp_path, head) is not None
-    assert not (tmp_path / ".ethos" / "state" / "proof" / f"{head}.json").exists()
+    assert executed_proof_record(repo, head) is not None
+    assert not (repo / ".ethos" / "state" / "proof" / f"{head}.json").exists()
 
 
 def test_executed_proof_record_rejects_forgery(
@@ -713,8 +721,10 @@ def test_executed_proof_record_rejects_forgery(
     monkeypatch.delenv("ETHOS_TEST_PROOF_STATE_DIR", raising=False)
     monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
     monkeypatch.delenv("PYTEST_XDIST_WORKER", raising=False)
-    head = "a" * 40
-    proof_dir = tmp_path / ".ethos" / "state" / "proof"
+    repo = init_repo(tmp_path / "repo")
+    adopt_and_commit(repo)
+    head = git(repo, "rev-parse", "HEAD")
+    proof_dir = repo / ".ethos" / "state" / "proof"
     proof_dir.mkdir(parents=True)
 
     # bare forgery — no evidence body
@@ -722,15 +732,15 @@ def test_executed_proof_record_rejects_forgery(
         json.dumps({"head": head, "state": "proven", "evidence_digest": "x"}),
         encoding="utf-8",
     )
-    assert executed_proof_record(tmp_path, head) is None
-    assert "proof_not_proven" in proof_gaps(tmp_path, head)
+    assert executed_proof_record(repo, head) is None
+    assert "proof_not_proven" in proof_gaps(repo, head)
 
     # Non-proven local state never admits a proof even if the file is present.
     (proof_dir / f"{head}.json").write_text(
         json.dumps({"head": head, "state": "pending", "evidence_digest": "x"}),
         encoding="utf-8",
     )
-    assert executed_proof_record(tmp_path, head) is None
+    assert executed_proof_record(repo, head) is None
 
     # forgery with a fabricated failing run + wrong digest
     (proof_dir / f"{head}.json").write_text(
@@ -750,7 +760,7 @@ def test_executed_proof_record_rejects_forgery(
         ),
         encoding="utf-8",
     )
-    assert executed_proof_record(tmp_path, head) is None
+    assert executed_proof_record(repo, head) is None
 
     # Non-trust-bearing executed/proven-looking records are rejected: a diagnostic pass
     # without any trust-bearing proven gate cannot promote a HEAD.
@@ -769,8 +779,8 @@ def test_executed_proof_record_rejects_forgery(
     non_trust_evidence = EvidenceSet.from_runs(
         evidence_id="proof", head=head, runs=(non_trust_run,)
     ).to_dict()
-    record_executed_proof(tmp_path, non_trust_evidence)
-    assert executed_proof_record(tmp_path, head) is None
+    record_executed_proof(repo, non_trust_evidence, plan=proof_plan(repo, head=head))
+    assert executed_proof_record(repo, head) is None
 
     # Real CLI proof records may combine non-trust diagnostic passes with
     # trust-bearing proven gates. Lock that shape so land accepts valid executed proof
@@ -791,14 +801,18 @@ def test_executed_proof_record_rejects_forgery(
     evidence = EvidenceSet.from_runs(
         evidence_id="proof", head=head, runs=(non_trust_run, trust_run)
     ).to_dict()
-    record_executed_proof(tmp_path, evidence)
-    assert executed_proof_record(tmp_path, head) is not None
+    record_executed_proof(repo, evidence, plan=proof_plan(repo, head=head))
+    assert executed_proof_record(repo, head) is not None
     # This mixed proof is a valid record but does NOT cover the required land floor,
     # so proof_gaps reports incomplete (completeness is a promotion-gate concern,
     # separate from record integrity). A complete proof clears it.
-    assert any(g.startswith("proof_incomplete") for g in proof_gaps(tmp_path, head))
-    record_executed_proof(tmp_path, _trust_bearing_evidence(head, tmp_path))
-    assert proof_gaps(tmp_path, head) == []
+    assert any(g.startswith("proof_incomplete") for g in proof_gaps(repo, head))
+    record_executed_proof(
+        repo,
+        _trust_bearing_evidence(head, repo),
+        plan=proof_plan(repo, head=head),
+    )
+    assert proof_gaps(repo, head) == []
 
 
 def test_promotion_completeness_helper_edges(tmp_path: Path) -> None:

@@ -13,6 +13,7 @@ import ethos.adapters.repo.git as git
 import ethos.domain.status as status_domain
 from ethos.adapters.gates.runner import DryRunRunner
 from ethos.adapters.gates.runner import LocalSubprocessRunner
+from ethos.adapters.mutation.proof import proof_plan
 from ethos.adapters.mutation.proof import record_executed_proof
 from ethos.adapters.openspec.core import openspec_governance_report
 from ethos.adapters.repo.dirty.core import change_scope_paths_from_status
@@ -26,7 +27,6 @@ from ethos.repository.evidence.core import ProofRun
 from ethos.repository.evidence.core import provenance_envelope
 from ethos.repository.evidence.core import trim_output
 from ethos.repository.policy.gates import adopter_code_correctness_gaps
-from ethos.repository.policy.gates import gate_plan
 from ethos.repository.policy.gates import gate_registry
 from ethos.result import EthosResult
 from ethos.surface.cli._base import JsonFlag
@@ -146,8 +146,40 @@ def prove(
         repo, lifecycle=True, changed_paths=changed_paths, require_workspace=False
     )
     lifecycle_gaps = tuple(str(gap) for gap in openspec_lifecycle.get("required_gaps", []))
-    plan = gate_plan(options.gate, full=options.full, root=repo)
+    try:
+        plan = proof_plan(
+            repo,
+            head=current_head,
+            gate_ids=options.gate,
+            full=options.full,
+            changed_paths=changed_paths,
+        )
+    except ValueError as exc:
+        gap = str(exc)
+        emit(
+            EthosResult(
+                command="prove",
+                ok=False,
+                state="gapped",
+                required_gaps=(gap,),
+                next_actions=("ethos adopt",),
+            ),
+            json_output=json_output,
+        )
+        return
     plan_gaps = plan.gaps()
+    if plan.verdict != "pass":
+        emit(
+            EthosResult(
+                command="prove",
+                ok=False,
+                state="gapped",
+                required_gaps=plan_gaps or ("plan_not_admitted",),
+                next_actions=("repair the ChangeContract or repository facts",),
+            ),
+            json_output=json_output,
+        )
+        return
     correctness_gaps = adopter_code_correctness_gaps(repo)
     gates_by_id = gate_registry(repo)
     runner = (
@@ -236,8 +268,8 @@ def prove(
         and not required_gaps
     )
     result_state = "proven" if ok and options.execute else "ready" if ok else "gapped"
-    if result_state == "proven":
-        record_executed_proof(repo, evidence.to_dict(), plan_digest=plan.digest())
+    if result_state == "proven" and plan.verdict == "pass":
+        record_executed_proof(repo, evidence.to_dict(), plan=plan)
     dependency_next_actions = missing_gate_dependency_next_actions(
         selected_gate_ids=options.gate,
         validation_gaps=plan_gaps,

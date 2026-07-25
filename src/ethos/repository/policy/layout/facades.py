@@ -4,7 +4,7 @@ import ast
 from typing import TYPE_CHECKING
 from typing import Any
 
-from ethos.repository.policy.layout.policy import python_files
+from ethos.repository.policy.layout.policy import semantic_python_files
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 def private_alias_findings(root: Path, policy: dict[str, Any]) -> list[dict[str, object]]:
     """Find imports renamed to private compatibility aliases."""
     findings: list[dict[str, object]] = []
-    for path in python_files(root, policy):
+    for path in semantic_python_files(root, policy):
         rel = path.relative_to(root).as_posix()
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=rel)
         for node in ast.walk(tree):
@@ -27,7 +27,7 @@ def private_alias_findings(root: Path, policy: dict[str, Any]) -> list[dict[str,
 def package_init_facade_findings(root: Path, policy: dict[str, Any]) -> list[dict[str, object]]:
     """Find package `__init__.py` files that act as runtime facades."""
     findings: list[dict[str, object]] = []
-    for path in python_files(root, policy):
+    for path in semantic_python_files(root, policy):
         if path.name != "__init__.py":
             continue
         rel = path.relative_to(root).as_posix()
@@ -43,7 +43,7 @@ def package_init_facade_findings(root: Path, policy: dict[str, Any]) -> list[dic
 def module_facade_findings(root: Path, policy: dict[str, Any]) -> list[dict[str, object]]:
     """Find ordinary modules that only re-export imported symbols."""
     findings: list[dict[str, object]] = []
-    for path in python_files(root, policy):
+    for path in semantic_python_files(root, policy):
         if path.name == "__init__.py":
             continue
         rel = path.relative_to(root).as_posix()
@@ -59,7 +59,7 @@ def module_facade_findings(root: Path, policy: dict[str, Any]) -> list[dict[str,
 def dynamic_compat_facade_findings(root: Path, policy: dict[str, Any]) -> list[dict[str, object]]:
     """Find modules that hide compatibility exports behind module `__getattr__`."""
     findings: list[dict[str, object]] = []
-    for path in python_files(root, policy):
+    for path in semantic_python_files(root, policy):
         if path.name == "__init__.py":
             continue
         rel = path.relative_to(root).as_posix()
@@ -107,6 +107,8 @@ def module_facade_reasons(tree: ast.Module) -> list[str]:
             continue
         if _is_non_future_import(node) or _is_type_checking_import_block(node):
             import_only = True
+        elif _is_all_assignment(node):
+            continue
         elif not isinstance(node, ast.Pass):
             runtime_code = True
     if runtime_code or not import_only:
@@ -142,6 +144,15 @@ def _is_type_checking_import_block(node: ast.AST) -> bool:
     if not isinstance(node.test, ast.Name) or node.test.id != "TYPE_CHECKING":
         return False
     return all(isinstance(item, (ast.Import, ast.ImportFrom, ast.Pass)) for item in node.body)
+
+
+def _is_all_assignment(node: ast.AST) -> bool:
+    return (
+        isinstance(node, ast.Assign)
+        and len(node.targets) == 1
+        and isinstance(node.targets[0], ast.Name)
+        and node.targets[0].id == "__all__"
+    )
 
 
 def _append_reason(reasons: list[str], reason: str) -> None:

@@ -28,6 +28,9 @@ claims, or evidence.
 - [Terminal Governance Product Design](terminal-governance-product-design.md)
 - [Tooling Adoption Roadmap](tooling-adoption-roadmap.md)
 - [Complete Implementation Roadmap](complete-implementation-roadmap.md)
+- [Artifact-Topology Detached Residue Absorption Design](artifact-topology-detached-residue-absorption-design-20260724.md)
+- [Artifact-Topology Detached Residue Absorption Implementation](artifact-topology-detached-residue-absorption-implementation-plan-20260724.md)
+- [Artifact-Topology Detached Residue Preservation Clear](artifact-topology-detached-residue-preservation-clear-20260725.md)
 
 ## Archived Plans
 

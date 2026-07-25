@@ -164,6 +164,19 @@ def test_workflow_contract_declares_exact_lease_effect_bindings() -> None:
     }
 
 
+def test_workflow_contract_declares_exact_transition_policies() -> None:
+    declaration = WorkflowContract.model_validate(load_system_contract(Path(), "workflows"))
+
+    assert tuple(item.id for item in declaration.transition_policy) == (
+        "guarded",
+        "work_lane",
+        "closeout",
+        "adopt",
+    )
+    assert declaration.policy("work_lane").dry_run_commands == ("land",)
+    assert declaration.policy("closeout").required_role == "accepted_root"
+
+
 def test_workflow_contract_normalizes_list_fields_to_immutable_tuples() -> None:
     declaration = WorkflowContract.model_validate(load_system_contract(Path(), "workflows"))
 

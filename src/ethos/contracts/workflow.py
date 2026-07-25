@@ -11,11 +11,13 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Literal
+from typing import Self
 
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
 from pydantic import field_validator
+from pydantic import model_validator
 
 from ethos.contracts.plan import PlanIR
 from ethos.contracts.plan import PlanNode
@@ -23,8 +25,8 @@ from ethos.contracts.plan import compile_plan
 from ethos.contracts.policy.cel import evaluate_cel_rules
 from ethos.contracts.policy.cel import validate_cel_expression
 from ethos.contracts.system.contracts import load_system_contract
-from ethos.contracts.transitions import (
-    TransitionDeclaration,  # noqa: TC001, RUF100 - Pydantic resolves this annotation at runtime
+from ethos.contracts.transition import (
+    TransitionPolicy,  # noqa: TC001, RUF100 - Pydantic resolves this annotation at runtime
 )
 from ethos.state.invalid import NODE_ORDER
 
@@ -33,6 +35,7 @@ if TYPE_CHECKING:
     from ethos.contracts.semantic import RepositoryFacts
 
 _LEASE_TRANSITION_MATRIX_INVALID = "lease_transition_matrix_invalid"
+_TRANSITION_POLICY_MATRIX_INVALID = "transition_policy_matrix_invalid"
 _LEASE_EFFECT_FIELDS = frozenset(
     {
         "holder_ref",
@@ -103,6 +106,29 @@ class WorkflowTransition(_WorkflowModel):
             "required_facts": list(self.required_facts),
             "invalid_states": list(self.invalid_states),
         }
+
+
+class LeaseTransitionDeclaration(_WorkflowModel):
+    """One local lease operation and its exact effect binding."""
+
+    id: str = Field(min_length=1)
+    applied_state: str = Field(min_length=1)
+    effect_fields: tuple[str, ...] = Field(min_length=1, strict=False)
+    actor_field: Literal["holder_ref", "target_holder_ref"]
+    blocks_contrary_decision: bool = False
+
+    @field_validator("effect_fields")
+    @classmethod
+    def compile_effect_fields(cls, fields: tuple[str, ...]) -> tuple[str, ...]:
+        if any(not field for field in fields) or len(fields) != len(set(fields)):
+            raise ValueError(_LEASE_TRANSITION_MATRIX_INVALID)
+        return fields
+
+    @model_validator(mode="after")
+    def bind_actor_to_effect(self) -> Self:
+        if self.actor_field not in self.effect_fields:
+            raise ValueError(_LEASE_TRANSITION_MATRIX_INVALID)
+        return self
 
 
 class WorkflowRuntimeDeclaration(_WorkflowModel):
@@ -277,7 +303,8 @@ class WorkflowContract(_WorkflowModel):
     schema_path: str = Field(default="", alias="schema")
     lifecycle: LifecycleDeclaration = Field(default_factory=lambda: LifecycleDeclaration(states=()))
     transition: tuple[WorkflowTransition, ...] = ()
-    lease_transition: tuple[TransitionDeclaration, ...] = ()
+    transition_policy: tuple[TransitionPolicy, ...] = ()
+    lease_transition: tuple[LeaseTransitionDeclaration, ...] = ()
     guards: tuple[str, ...] = ()
     runtime: WorkflowRuntimeDeclaration = Field(default_factory=WorkflowRuntimeDeclaration)
     node: tuple[WorkflowNode, ...] = ()
@@ -288,8 +315,8 @@ class WorkflowContract(_WorkflowModel):
     @field_validator("lease_transition")
     @classmethod
     def compile_lease_transition_matrix(
-        cls, value: tuple[TransitionDeclaration, ...]
-    ) -> tuple[TransitionDeclaration, ...]:
+        cls, value: tuple[LeaseTransitionDeclaration, ...]
+    ) -> tuple[LeaseTransitionDeclaration, ...]:
         operations = tuple(item.id for item in value)
         if len(operations) != len(set(operations)):
             raise ValueError(_LEASE_TRANSITION_MATRIX_INVALID)
@@ -300,6 +327,24 @@ class WorkflowContract(_WorkflowModel):
         ):
             raise ValueError(_LEASE_TRANSITION_MATRIX_INVALID)
         return value
+
+    @field_validator("transition_policy")
+    @classmethod
+    def compile_transition_policy_matrix(
+        cls, value: tuple[TransitionPolicy, ...]
+    ) -> tuple[TransitionPolicy, ...]:
+        identifiers = tuple(item.id for item in value)
+        if not identifiers or len(identifiers) != len(set(identifiers)):
+            raise ValueError(_TRANSITION_POLICY_MATRIX_INVALID)
+        return value
+
+    def policy(self, identifier: str) -> TransitionPolicy:
+        """Return one exact declared transition policy or fail closed."""
+        policy = next((item for item in self.transition_policy if item.id == identifier), None)
+        if policy is None:
+            message = f"transition_policy_unknown:{identifier}"
+            raise ValueError(message)
+        return policy
 
     @field_validator("guards", mode="before")
     @classmethod
@@ -373,6 +418,8 @@ class WorkflowContract(_WorkflowModel):
         gaps: list[str] = []
         if not self.lease_transition:
             gaps.append("workflow_lease_transition_missing")
+        if not self.transition_policy:
+            gaps.append("workflow_transition_policy_missing")
         gaps.extend(_transition_gaps(states, guards, self.transition))
         gaps.extend(_node_gaps(self.node))
         gaps.extend(_runtime_gaps(self.runtime))

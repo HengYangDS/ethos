@@ -27,8 +27,8 @@ from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.openspec.metadata.core import completed_active_changes_report
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.contracts.branch.roles import load_branch_role_policy
-from ethos.contracts.transitions import TransitionDecision
-from ethos.contracts.transitions import TransitionRequest
+from ethos.contracts.transition import TransitionDecision
+from ethos.contracts.transition import TransitionRequest
 from ethos.domain.campaign.closeout import campaign_publication_report
 from ethos.domain.readiness.quality import adopter_quality_floor_report
 from ethos.domain.readiness.quality import hard_quality_floor_report

@@ -14,6 +14,12 @@ transition = [
   { from = "landed", to = "closed", guard = "accepted_root_closeout_audited", invalid_state = "chronicle_missing", invalid_states = ["chronicle_missing"] },
   { from = "closed", to = "retired", guard = "work_lane_retired_after_merge", invalid_state = "chronicle_missing", invalid_states = ["change_unbounded", "chronicle_missing"] },
 ]
+transition_policy = [
+  { id = "guarded", applied_state = "applying" },
+  { id = "work_lane", applied_state = "work_lane_ready", planned_state = "dry_run", required_role = "work_lane", role_gap = "protected_root_mutation", dirty_gap = "work_lane_dirty", authorization_required = true, expected_head_required = true, dry_run_commands = ["land"] },
+  { id = "closeout", applied_state = "closeout_ready", planned_state = "dry_run", current_state = "current", required_role = "accepted_root", role_gap = "accepted_root_required", dirty_gap = "accepted_root_dirty", authorization_required = true, expected_head_required = true },
+  { id = "adopt", applied_state = "applying", authorization_required = true, expected_head_required = true, head_mismatch_gap = "expected_head_mismatch", untracked_gap = "git_repository_missing" },
+]
 lease_transition = [
   { id = "renew", applied_state = "renewed", effect_fields = ["holder_ref", "expected_epoch", "expected_expires_at", "expected_payload_sha256", "ttl_seconds"], actor_field = "holder_ref" },
   { id = "resume", applied_state = "resumed", effect_fields = ["holder_ref", "expected_epoch", "expected_expires_at", "expected_payload_sha256", "ttl_seconds"], actor_field = "holder_ref", blocks_contrary_decision = true },

@@ -23,14 +23,15 @@
 
 - [x] 3.1 Run the complete owner-script Python test gate with two workers and
   the GitHub timeout inputs after Claim binding.
-- [ ] 3.2 Refresh generic parity evidence and run exact-HEAD ETHOS proof.
-- [ ] 3.3 Complete only tasks backed by fresh evidence and officially archive
-  this change.
-- [ ] 3.4 Re-prove the archived head and establish exact land readiness.
+- [x] 3.2 Refresh generic parity evidence and run pre-archive exact-HEAD ETHOS
+  proof.
+- [x] 3.3 Complete only tasks backed by fresh evidence and validate the complete
+  active carrier before official archive.
 
 ## Post-archive transition boundary
 
 Landing to `candidate/dev`, accepted-root closeout, owned-lane retirement,
 GitHub publication, hosted observation, immutable publication records, and the
 later GitLab resumption are governed transitions outside these implementation
-checkboxes. Archive completion does not imply any of them.
+checkboxes. Official archive and archived-head re-proof precede land readiness;
+archive completion does not imply any later transition.

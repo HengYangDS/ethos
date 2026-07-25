@@ -7,7 +7,7 @@ summary = "ETHOS closes two accepted Markdown list-boundary violations and bound
 
 [evidence]
 dated = "evidence/chronicle/github-pytest-process-contention-resilience-20260725/2026-07-25.md"
-sha256 = "ec1c55ec2b3a98fa9a375a947d56c1c65814f105d77b0451080c59f06af80871"
+sha256 = "afde5b2b96b08eae9e63750b5c4121f93b624d9ed01e297d89da51f17603e4bb"
 evidence_ids = ["evidence:github-pytest-process-contention-resilience-20260725"]
 binding = "The two accepted Markdown failures, two incompatible GitHub failure sets, complete pre-Claim two-worker diagnostic, canonical provider projection, RED/GREEN architecture contract, OpenSpec carrier, and dated Chronicle bind this bounded publication-resilience claim."
 verifier = "digest_only"

@@ -7,7 +7,7 @@ summary = "One minimum-scope carrier binds native clearance of one exact-manifes
 
 [evidence]
 dated = "evidence/chronicle/budget-contract-v2-snapshot-replay-shadow-successor-preservation-clear-20260725/2026-07-25.md"
-sha256 = "e7bcea8f8f1acec896ba0e40387cbca75080b1aa7ea9a5a64499570c96f15e0f"
+sha256 = "8d5141552b864987f0552aaa5ab9e286e3d3a979ab20300b2118eb268493ac38"
 evidence_ids = ["evidence:budget-contract-v2-snapshot-replay-shadow-successor-preservation-clear-20260725"]
 binding = "This Claim binds only decision lane-decision:f912ef18-c897-481b-b3b1-d8e48de61e2e, manifest b4477425826dbd214ea4cf3796bf288fe8b8cf6b769b70d77c79a049e2ae40b4, native tracked patch a28501235292ff13f76aea6e385c436206e7c6586361b534f30d434af0127e69, reconstructed full-index patch 63a72e73f2d9719724f1ce04c39ae451be70789578ed971fac017d546b05dd94, prior completion receipt 1286e83871b9fdc7574ad1adb3b0f9ea53849e4493d8f7822a5609fe43e38369, and one later native clear-preservation transition. It authorizes no other package, receipt removal, raw filesystem deletion, source reconstruction, or Work Lane effect."
 verifier = "digest_only"

@@ -21,7 +21,7 @@
 - [x] 3.1 Run strict OpenSpec, claims, docs, inventory, package-integrity, and
   reconstruction checks.
 - [x] 3.2 Commit, refresh generic parity, and run executed HEAD-bound proof.
-- [ ] 3.3 Bind official archive, post-archive parity and proof, refresh-base,
+- [x] 3.3 Bind official archive, post-archive parity and proof, refresh-base,
   and exact land readiness as the required closeout sequence.
 
 ## Post-archive transition boundary

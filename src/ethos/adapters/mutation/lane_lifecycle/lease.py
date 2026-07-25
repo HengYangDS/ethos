@@ -17,18 +17,18 @@ from ethos.adapters.store.state.lease.lifecycle.core import resume_lease
 from ethos.adapters.store.state.lease.projection import integer_value
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.coordination import HolderRef
-from ethos.contracts.transitions import LeaseOperationRequest
-from ethos.contracts.transitions import TransitionDecision
-from ethos.contracts.transitions import TransitionFacts
-from ethos.contracts.transitions import TransitionRequest
-from ethos.contracts.transitions import reduce_transition
+from ethos.contracts.coordination import LeaseOperationRequest
+from ethos.contracts.transition import TransitionDecision
+from ethos.contracts.transition import TransitionFacts
+from ethos.contracts.transition import TransitionRequest
+from ethos.contracts.transition import reduce_transition
 from ethos.contracts.workflow import load_workflow_contract_declaration
 
 if TYPE_CHECKING:
     from collections.abc import Callable
     from pathlib import Path
 
-    from ethos.contracts.transitions import TransitionDeclaration
+    from ethos.contracts.workflow import LeaseTransitionDeclaration
 
 _LEASE_EFFECTS: dict[str, Callable[..., dict[str, Any]]] = {
     "renew": renew_lease,
@@ -181,7 +181,7 @@ def execute_lease_operation(*, root: Path, request: LeaseOperationRequest) -> di
 def _lease_effect_binding(
     repo: Path, operation: str
 ) -> tuple[
-    TransitionDeclaration | None,
+    LeaseTransitionDeclaration | None,
     Callable[..., dict[str, Any]] | None,
     tuple[str, ...],
 ]:

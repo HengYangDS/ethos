@@ -1,16 +1,18 @@
 from __future__ import annotations
 
-from ethos.contracts.transitions import CLOSEOUT_TRANSITION
-from ethos.contracts.transitions import GUARDED_TRANSITION
-from ethos.contracts.transitions import WORK_LANE_TRANSITION
-from ethos.contracts.transitions import TransitionFacts
-from ethos.contracts.transitions import TransitionRequest
-from ethos.contracts.transitions import reduce_transition
+from ethos.contracts.transition import TransitionFacts
+from ethos.contracts.transition import TransitionRequest
+from ethos.contracts.transition import reduce_transition
+from ethos.contracts.workflow import load_workflow_contract_declaration
+
+
+def _policy(identifier: str):
+    return load_workflow_contract_declaration().policy(identifier)
 
 
 def test_transition_reducer_orders_and_deduplicates_every_hard_gap() -> None:
     decision = reduce_transition(
-        WORK_LANE_TRANSITION,
+        _policy("work_lane"),
         TransitionRequest(command="land", apply=True),
         TransitionFacts(
             current_head="current",
@@ -35,22 +37,22 @@ def test_transition_reducer_orders_and_deduplicates_every_hard_gap() -> None:
 
 def test_transition_reducer_distinguishes_unknown_current_planned_and_applied() -> None:
     unknown = reduce_transition(
-        CLOSEOUT_TRANSITION,
+        _policy("closeout"),
         TransitionRequest(),
         TransitionFacts(unknown_gaps=("candidate_head_unavailable",)),
     )
     current = reduce_transition(
-        CLOSEOUT_TRANSITION,
+        _policy("closeout"),
         TransitionRequest(),
         TransitionFacts(role="accepted_root", current=True),
     )
     planned = reduce_transition(
-        CLOSEOUT_TRANSITION,
+        _policy("closeout"),
         TransitionRequest(),
         TransitionFacts(role="accepted_root"),
     )
     applied = reduce_transition(
-        CLOSEOUT_TRANSITION,
+        _policy("closeout"),
         TransitionRequest(apply=True, authorized=True, expect_head="head"),
         TransitionFacts(current_head="head", role="accepted_root"),
     )
@@ -63,7 +65,7 @@ def test_transition_reducer_distinguishes_unknown_current_planned_and_applied() 
 
 def test_work_lane_non_land_dry_run_short_circuits_without_observation() -> None:
     result = reduce_transition(
-        WORK_LANE_TRANSITION,
+        _policy("work_lane"),
         TransitionRequest(command="publish"),
         TransitionFacts(),
     )
@@ -75,7 +77,7 @@ def test_work_lane_non_land_dry_run_short_circuits_without_observation() -> None
 
 def test_guarded_transition_preserves_order_and_deduplicates() -> None:
     evaluation = reduce_transition(
-        GUARDED_TRANSITION,
+        _policy("guarded"),
         TransitionRequest(apply=True),
         TransitionFacts(initial_gaps=("first", "first"), checks=((False, "second"),)),
     )

@@ -155,3 +155,24 @@ class CrossHostHandoff(BaseModel):
             "destination_creates_local_incarnation": True,
             "truth_boundary": "content_addressed_context_until_promoted",
         }
+
+
+class LeaseOperationRequest(BaseModel):
+    """One exact request for a declaration-owned local lease transition."""
+
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
+
+    operation: str = Field(min_length=1)
+    branch: str
+    holder_ref: str
+    lease_id: str
+    expected_epoch: int | None
+    expect_head: str
+    expected_expires_at: str = Field(min_length=1)
+    expected_payload_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    apply: bool = False
+    ttl_seconds: int = 86_400
+    target_holder_ref: str = ""
+    offer_id: str = ""
+    holder_quiesced: bool = False
+    contrary_decision: bool = False

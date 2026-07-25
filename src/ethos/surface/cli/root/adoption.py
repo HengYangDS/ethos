@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import ethos.adapters.repo.git as git
-from ethos.contracts.transitions import ADOPT_TRANSITION
-from ethos.contracts.transitions import TransitionFacts
-from ethos.contracts.transitions import TransitionRequest
-from ethos.contracts.transitions import reduce_transition
+from ethos.contracts.transition import TransitionFacts
+from ethos.contracts.transition import TransitionRequest
+from ethos.contracts.transition import reduce_transition
+from ethos.contracts.workflow import load_workflow_contract_declaration
 from ethos.normalization.core import object_sequence
 from ethos.normalization.core import string_sequence
 from ethos.repository.adoption.planner import adoption_plan
@@ -25,7 +25,7 @@ def _adoption_result(
     target = resolve_root(root)
     current_head = git.current_head(target)
     mutation = reduce_transition(
-        ADOPT_TRANSITION,
+        load_workflow_contract_declaration(target).policy("adopt"),
         request,
         TransitionFacts(current_head=current_head),
     )

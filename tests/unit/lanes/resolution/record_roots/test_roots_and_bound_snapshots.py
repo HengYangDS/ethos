@@ -292,6 +292,23 @@ def test_accepted_control_root_fails_closed_for_unavailable_or_unterminated_git_
         resolution_roots.accepted_control_root(tmp_path)
 
 
+@pytest.mark.parametrize("failure_type", [OSError, subprocess.SubprocessError, TypeError])
+def test_accepted_control_root_fails_closed_when_git_invocation_raises(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    failure_type: type[Exception],
+) -> None:
+    message = "unavailable"
+
+    def unavailable(*_args: object) -> subprocess.CompletedProcess[bytes]:
+        raise failure_type(message)
+
+    monkeypatch.setattr(resolution_roots, "_git_run", unavailable)
+
+    with pytest.raises(ValueError, match="lane_resolution_accepted_control_root_unavailable"):
+        resolution_roots.accepted_control_root(tmp_path)
+
+
 def test_current_record_create_rejects_intermediate_root_rebind(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

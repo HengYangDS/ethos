@@ -74,36 +74,44 @@ def test_ownerless_effect_receipt_admission_maps_unverifiable(
 
 
 @pytest.mark.parametrize(
-    ("receipt_reservation", "collaborator", "failure", "expected"),
+    "case",
     [
-        (
-            None,
-            "admit_ownerless_closeout",
-            OwnerlessCloseoutAdmissionError("lane_resolution_ownerless_decision_stale"),
-            "lane_resolution_ownerless_decision_stale",
+        pytest.param(
+            (
+                None,
+                "admit_ownerless_closeout",
+                OwnerlessCloseoutAdmissionError("lane_resolution_ownerless_decision_stale"),
+                "lane_resolution_ownerless_decision_stale",
+            ),
+            id="unreserved-decision-stale",
         ),
-        (
-            object(),
-            "admit_ownerless_closeout_facts",
-            OwnerlessCloseoutAdmissionError("lane_resolution_ownerless_reservation_competing"),
-            "lane_resolution_ownerless_reservation_competing",
+        pytest.param(
+            (
+                object(),
+                "admit_ownerless_closeout_facts",
+                OwnerlessCloseoutAdmissionError("lane_resolution_ownerless_reservation_competing"),
+                "lane_resolution_ownerless_reservation_competing",
+            ),
+            id="reserved-competing",
         ),
-        (
-            object(),
-            "admit_ownerless_closeout_facts",
-            RuntimeError(),
-            "lane_resolution_ownerless_admission_unverifiable",
+        pytest.param(
+            (
+                object(),
+                "admit_ownerless_closeout_facts",
+                RuntimeError(),
+                "lane_resolution_ownerless_admission_unverifiable",
+            ),
+            id="reserved-unverifiable",
         ),
     ],
 )
 def test_ownerless_effect_admission_translates_public_collaborator_failures(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
-    receipt_reservation: object | None,
-    collaborator: str,
-    failure: Exception,
-    expected: str,
+    case: tuple[object | None, str, Exception, str],
 ) -> None:
+    receipt_reservation, collaborator, failure, expected = case
+
     def fail(**_kwargs: object) -> object:
         raise failure
 

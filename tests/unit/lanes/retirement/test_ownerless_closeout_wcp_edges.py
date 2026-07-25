@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import signal
 import subprocess
 import sys
+import time
 from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -118,6 +121,14 @@ def test_wcp_response_rejects_a_non_object_payload() -> None:
 
     assert raised.value.gap == "lane_resolution_wcp_response_invalid"
     assert raised.value.detail == "response"
+
+
+def test_wcp_error_exposes_stable_gap_and_separate_detail() -> None:
+    error = WCPResponseError("lane_resolution_wcp_timeout", "worktree-closeout-check")
+
+    assert error.gap == "lane_resolution_wcp_timeout"
+    assert error.detail == "worktree-closeout-check"
+    assert str(error) == "lane_resolution_wcp_timeout:worktree-closeout-check"
 
 
 @pytest.mark.parametrize(
@@ -377,3 +388,133 @@ def test_wcp_command_maps_a_missing_adapter_executable_to_unavailable(tmp_path: 
 
     assert raised.value.gap == "lane_resolution_wcp_unavailable"
     assert raised.value.detail == "FileNotFoundError"
+
+
+def _process_is_running(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    stat = Path(f"/proc/{pid}/stat")
+    if stat.exists():
+        try:
+            return stat.read_text(encoding="utf-8").split()[2] != "Z"
+        except (IndexError, OSError):
+            return True
+    return True
+
+
+def _wait_for_process_exit(pid: int) -> bool:
+    deadline = time.monotonic() + 2
+    while _process_is_running(pid) and time.monotonic() < deadline:
+        time.sleep(0.01)
+    return not _process_is_running(pid)
+
+
+def test_bounded_runner_rejects_timeout() -> None:
+    with pytest.raises(WCPResponseError) as raised:
+        wcp_adapter._run_bounded_output(  # noqa: SLF001, RUF100 - bounded-runner contract
+            [sys.executable, "-c", "import time; time.sleep(1)"],
+            timeout_seconds=0.01,
+        )
+
+    assert raised.value.gap == "lane_resolution_wcp_timeout"
+
+
+def test_bounded_runner_rejects_oversize(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(wcp_adapter, "_MAX_RESPONSE_BYTES", 32)
+
+    with pytest.raises(WCPResponseError) as raised:
+        wcp_adapter._run_bounded_output(  # noqa: SLF001, RUF100 - bounded-runner contract
+            [sys.executable, "-c", "import sys; sys.stdout.buffer.write(b'x' * 64)"],
+            timeout_seconds=2,
+        )
+
+    assert raised.value.gap == "lane_resolution_wcp_response_oversize"
+
+
+@pytest.mark.parametrize(
+    ("failure", "expected_gap"),
+    [
+        ("timeout", "lane_resolution_wcp_timeout"),
+        ("oversize", "lane_resolution_wcp_response_oversize"),
+    ],
+)
+def test_bounded_runner_terminates_descendant_process_group(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    failure: str,
+    expected_gap: str,
+) -> None:
+    monkeypatch.setattr(wcp_adapter, "_MAX_RESPONSE_BYTES", 32)
+    pid_path = tmp_path / "descendant.pid"
+    trigger = (
+        "sys.stdout.buffer.write(b'x' * 64); sys.stdout.flush(); time.sleep(60)"
+        if failure == "oversize"
+        else "raise SystemExit(0)"
+    )
+    startup_delay = "time.sleep(0.3); " if failure == "timeout" else ""
+    script = (
+        "import pathlib, subprocess, sys, time; "
+        f"{startup_delay}"
+        "child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)']); "
+        f"pathlib.Path({pid_path.as_posix()!r}).write_text(str(child.pid), encoding='utf-8'); "
+        f"{trigger}"
+    )
+
+    with pytest.raises(WCPResponseError) as raised:
+        wcp_adapter._run_bounded_output(  # noqa: SLF001, RUF100 - process-group contract
+            [sys.executable, "-c", script],
+            timeout_seconds=2,
+        )
+
+    assert raised.value.gap == expected_gap
+    descendant_pid = int(pid_path.read_text(encoding="utf-8"))
+    try:
+        assert _wait_for_process_exit(descendant_pid)
+    finally:
+        if _process_is_running(descendant_pid):
+            os.kill(descendant_pid, signal.SIGKILL)
+
+
+def test_wcp_command_rejects_non_json_response(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    decision_path = tmp_path / "decision.json"
+    expected = _expectation()
+    decision_path.write_bytes(expected.decision_bytes)
+    monkeypatch.setattr(wcp_adapter, "_run_bounded_output", lambda *_args, **_kwargs: (0, b"no"))
+
+    with pytest.raises(WCPResponseError) as raised:
+        run_worktree_closeout_check(
+            repo=repo,
+            decision_path=decision_path,
+            expected=expected,
+        )
+
+    assert raised.value.gap == "lane_resolution_wcp_response_invalid_json"
+
+
+@pytest.mark.parametrize(
+    "output",
+    [
+        pytest.param(b"1" * 5000, id="integer-conversion-limit"),
+        pytest.param(b"[" * 400_000 + b"]" * 400_000, id="nesting-limit"),
+    ],
+)
+def test_wcp_command_maps_json_parser_resource_errors_to_stable_gap(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, output: bytes
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    decision_path = tmp_path / "decision.json"
+    expected = _expectation()
+    decision_path.write_bytes(expected.decision_bytes)
+    monkeypatch.setattr(wcp_adapter, "_run_bounded_output", lambda *_args, **_kwargs: (0, output))
+
+    with pytest.raises(WCPResponseError) as raised:
+        run_worktree_closeout_check(repo=repo, decision_path=decision_path, expected=expected)
+
+    assert raised.value.gap == "lane_resolution_wcp_response_invalid_json"

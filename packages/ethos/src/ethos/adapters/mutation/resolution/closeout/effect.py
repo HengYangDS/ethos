@@ -358,6 +358,10 @@ def recover_completed_ownerless_closeout(  # noqa: PLR0913, RUF100 - exact recov
     fence_state, fence = runtime.probe_fence(
         runtime.state_database(root), subject=observation.lane_ref
     )
+    observed_payload = fence.get("payload") if isinstance(fence, dict) else None
+    acquisition_id = (
+        observed_payload.get("acquisition_id") if isinstance(observed_payload, dict) else ""
+    )
     expected_fence: dict[str, object] = {
         "subject": observation.lane_ref,
         "expected_head": observation.head,
@@ -372,6 +376,7 @@ def recover_completed_ownerless_closeout(  # noqa: PLR0913, RUF100 - exact recov
             "observation_digest": observation.digest(),
             "decision_sha256": decision_sha256,
             "chronicle_digest": str(decision.get("chronicle_digest") or ""),
+            "acquisition_id": acquisition_id,
         },
     }
     expected_binding = {
@@ -511,10 +516,8 @@ def verify_ownerless_postconditions(  # noqa: PLR0913, RUF100 - exact postcondit
     }
     failed = next((name for name, ok in checks.items() if not ok), "")
     if failed:
-        gap = f"lane_resolution_ownerless_postcondition_failed:{failed}"
         raise runtime.ownerless_error(
-            gap,
-            fence_acquired=True,
+            _ownerless_gap(f"postcondition_failed:{failed}"), fence_acquired=True
         )
     return checks
 

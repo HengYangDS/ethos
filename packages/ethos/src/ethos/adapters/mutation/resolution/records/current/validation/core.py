@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import json
 from typing import TYPE_CHECKING
+from typing import NoReturn
 
 from ethos.adapters.mutation.resolution._shared import display_path
 from ethos.adapters.mutation.resolution._shared import valid_decision_id
+from ethos.adapters.mutation.resolution.records.core import canonical_current_record_bytes
 from ethos.adapters.mutation.resolution.records.core import record_path
+from ethos.adapters.mutation.resolution.records.current.snapshot import read_current_record_path
 from ethos.adapters.mutation.resolution.records.reservations import target_digest
 from ethos.adapters.mutation.resolution.records.reservations import (
     validate_ownerless_closeout_reservation,
@@ -15,6 +18,7 @@ from ethos.adapters.mutation.resolution.records.reservations import (
 from ethos.repository.policy.schema import validate_schema_instance
 from ethos_core.contracts.resolution.closeout import LaneResolutionClearReceipt
 from ethos_core.contracts.resolution.closeout import LaneResolutionReceipt
+from ethos_core.contracts.resolution.lane import LaneObservation
 from ethos_core.contracts.resolution.lane import LaneResolutionDecision
 
 if TYPE_CHECKING:
@@ -107,3 +111,68 @@ def validate_reservation(payload: dict[str, object]) -> dict[str, object]:
 def _require_schema(root: Path, schema: str, payload: dict[str, object]) -> None:
     if not validate_schema_instance(schema, payload, root=root)["ok"]:
         raise ValueError(_CURRENT_RECORD_INVALID)
+
+
+class OwnerlessDecisionAdmissionError(ValueError):
+    """Classified exact-current-decision failure for native admission."""
+
+    def __init__(self, kind: str, detail: str) -> None:
+        super().__init__(f"{kind}:{detail}")
+        self.kind = kind
+        self.detail = detail
+
+
+def admit_ownerless_decision_snapshot(
+    *,
+    root: Path,
+    record_root: Path,
+    decision_path: Path,
+    supplied: dict[str, object],
+) -> tuple[LaneResolutionDecision, bytes]:
+    """Return one exact canonical retire decision and its descriptor-read bytes."""
+    candidate = decision_path.absolute()
+    if candidate.parent != (record_root / "decisions").absolute() or candidate.suffix != ".json":
+        _decision_error("decision_invalid", "path")
+    raw, state = read_current_record_path(record_root, candidate)
+    if raw is None:
+        _decision_error("decision_invalid", f"descriptor_{state}")
+    _payload, canonical, model = _typed_ownerless_decision(root, raw)
+    if raw != canonical_current_record_bytes(canonical):
+        _decision_error("decision_invalid", "canonical_bytes")
+    if supplied != canonical:
+        _decision_error("decision_stale", "decision")
+    if model.to_payload() != canonical:
+        _decision_error("decision_invalid", "typed_model")
+    if model.disposition != "retire":
+        _decision_error("decision_invalid", "disposition")
+    return model, raw
+
+
+def _typed_ownerless_decision(
+    root: Path, raw: bytes
+) -> tuple[dict[str, object], dict[str, object], LaneResolutionDecision]:
+    try:
+        payload = json.loads(raw)
+        if not isinstance(payload, dict):
+            _decision_error("decision_invalid", "payload")
+        observation = payload.get("observation")
+        if not isinstance(observation, dict):
+            _decision_error("decision_invalid", "observation_digest")
+        observed = LaneObservation.model_validate(observation, strict=True)
+        if observed.digest() != payload.get("observation_digest"):
+            _decision_error("decision_invalid", "observation_digest")
+        canonical = validate_decision(root, payload)
+        selected = {field: canonical[field] for field in LaneResolutionDecision.model_fields}
+        model = LaneResolutionDecision.model_validate_json(json.dumps(selected, allow_nan=False))
+    except OwnerlessDecisionAdmissionError:
+        raise
+    except (KeyError, OverflowError, RecursionError, TypeError, ValueError) as error:
+        _decision_error("decision_invalid", "model", error)
+    return payload, canonical, model
+
+
+def _decision_error(kind: str, detail: str, cause: Exception | None = None) -> NoReturn:
+    error = OwnerlessDecisionAdmissionError(kind, detail)
+    if cause is None:
+        raise error
+    raise error from cause

@@ -102,21 +102,28 @@ def _reset_reserved_no_effect_retry(  # noqa: PLR0913, RUF100 - exact retry bind
         accepted_head=accepted_head,
     )
     fence_state, fence = runtime.probe_fence(database, subject=observation.lane_ref)
-    expected_fence = _expected_fence(
-        decision=decision,
-        decision_sha256=decision_sha256,
-        observation=observation,
-        reservation=reservation,
-    )
     probe_valid = (fence_state == "present" and isinstance(fence, dict)) or (
         fence_state == "absent" and fence is None
     )
     if not probe_valid:
         raise runtime.ownerless_error(_FENCE_UNVERIFIABLE, fence_acquired=False)
-    if reservation["target_binding_digest"] != expected_fence["target_binding_digest"]:
-        raise runtime.ownerless_error(_FENCE_STALE, fence_acquired=True)
-    if fence_state == "present" and fence != expected_fence:
-        raise runtime.ownerless_error(_FENCE_STALE, fence_acquired=True)
+    if fence_state == "present" and isinstance(fence, dict):
+        payload = fence.get("payload")
+        acquisition_id = (
+            str(payload.get("acquisition_id") or "") if isinstance(payload, dict) else ""
+        )
+        expected_fence = _expected_fence(
+            decision=decision,
+            decision_sha256=decision_sha256,
+            observation=observation,
+            reservation=reservation,
+            acquisition_id=acquisition_id,
+        )
+        if (
+            reservation["target_binding_digest"] != expected_fence["target_binding_digest"]
+            or fence != expected_fence
+        ):
+            raise runtime.ownerless_error(_FENCE_STALE, fence_acquired=True)
     _verify_retry_state(
         runtime=runtime,
         root=root,
@@ -255,6 +262,7 @@ def _expected_fence(
     decision_sha256: str,
     observation: LaneObservation,
     reservation: dict[str, object],
+    acquisition_id: str,
 ) -> dict[str, object]:
     binding: dict[str, object] = {
         "subject": observation.lane_ref,
@@ -269,6 +277,7 @@ def _expected_fence(
             "observation_digest": observation.digest(),
             "decision_sha256": decision_sha256,
             "chronicle_digest": str(decision.get("chronicle_digest") or ""),
+            "acquisition_id": acquisition_id,
         },
     }
     return {

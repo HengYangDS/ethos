@@ -237,7 +237,7 @@ def prove(
     )
     result_state = "proven" if ok and options.execute else "ready" if ok else "gapped"
     if result_state == "proven":
-        record_executed_proof(repo, evidence.to_dict())
+        record_executed_proof(repo, evidence.to_dict(), plan_digest=plan.digest())
     dependency_next_actions = missing_gate_dependency_next_actions(
         selected_gate_ids=options.gate,
         validation_gaps=plan_gaps,

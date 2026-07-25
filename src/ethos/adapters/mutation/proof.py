@@ -141,7 +141,19 @@ def _merge_same_head_evidence(existing: dict[str, Any], incoming: dict[str, Any]
     return merged
 
 
-def record_executed_proof(root: Path, evidence: dict[str, Any]) -> Path:
+def proof_plan_digest(root: Path) -> str:
+    """Compile the exact gate PlanIR whose execution the proof records."""
+    from ethos.repository.policy.gates import gate_plan
+
+    return gate_plan(root=root).digest()
+
+
+def record_executed_proof(
+    root: Path,
+    evidence: dict[str, Any],
+    *,
+    plan_digest: str = "",
+) -> Path:
     """Persist or extend the executed EvidenceSet for a single HEAD.
 
     Stores the FULL evidence body (not just a summary) so the record is later
@@ -171,6 +183,7 @@ def record_executed_proof(root: Path, evidence: dict[str, Any]) -> Path:
         "state": "proven",
         "evidence": sealed_evidence,
         "evidence_digest": sealed_evidence.get("digest", ""),
+        "plan_digest": plan_digest or proof_plan_digest(root),
         # Stamp the policy digest against head's COMMITTED tree so it is a pure function of
         # the proven commit, matching what the reference-transaction hook recomputes when
         # it validates a move to this head from a worktree still holding a different tree.
@@ -296,6 +309,7 @@ def executed_proof_record(root: Path, head: str) -> dict[str, Any] | None:
     if (
         not isinstance(evidence, dict)
         or evidence.get("head") != head
+        or ("plan_digest" in record and len(str(record.get("plan_digest"))) != 64)
         or not (sealed := str(evidence.get("digest", "")))
         or _evidence_digest(evidence) != sealed
         or not _runs_prove_head(evidence.get("runs"))
@@ -365,21 +379,6 @@ def carry_executed_proof_record(
         source_path=source_path.as_posix(),
         target_path=target_path.as_posix(),
     )
-
-
-def discard_executed_proof(root: Path, head: str) -> bool:
-    """Delete the HEAD-keyed executed-proof record at root, returning whether one existed.
-
-    Used to reclaim a proof pre-placed for a promotion that did not complete (e.g. the
-    accepted CAS lost a concurrent race after the proof was carried). The record is inert
-    once orphaned — a later ref move to the same head still needs a fresh one-shot
-    closeout-intent marker — so this is hygiene, not a safety requirement. Idempotent.
-    """
-    path = _proof_path(root, head)
-    if not path.exists():
-        return False
-    path.unlink(missing_ok=True)
-    return True
 
 
 def proof_retention_inventory(

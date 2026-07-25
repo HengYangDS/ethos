@@ -9,7 +9,13 @@ installs the local admission entrance.
 from __future__ import annotations
 
 import subprocess
+from datetime import UTC
+from datetime import datetime
 from pathlib import Path
+
+from ethos.contracts.plan import GitEffect
+from ethos.contracts.plan import GitRefUpdate
+from ethos.contracts.semantic import Attestation
 
 
 def current_head(root: Path) -> str:
@@ -344,3 +350,248 @@ def remote_availability_not_probed(root: Path, remote: str = "origin") -> dict[s
         "required_gaps": [],
         "advisory_gaps": [],
     }
+
+
+def execute_git_effect(
+    root: Path,
+    effect: GitEffect,
+    *,
+    issuer: str,
+    attestations: tuple[Attestation, ...] = (),
+) -> Attestation:
+    """Execute, recover, or replay one exact Git ref transaction."""
+    digest = effect.digest()
+    matching = tuple(attestation for attestation in attestations if attestation.id == effect.id)
+    if matching:
+        if any(
+            attestation.kind != "git-effect"
+            or attestation.subject != effect.plan_digest
+            or attestation.content.get("effect_digest") != digest
+            for attestation in matching
+        ):
+            raise ValueError("git_effect_identity_collision")
+        attestation = matching[-1]
+        if any(_effect_ref(root, ref) != value for ref, value in effect.assertions.items()):
+            raise ValueError("git_effect_cas_mismatch")
+        if any(_effect_ref(root, ref) != update.desired for ref, update in effect.updates.items()):
+            raise ValueError("git_effect_postcondition_failed")
+        return attestation
+    observed = {ref: _effect_ref(root, ref) for ref in effect.updates}
+    if any(_effect_ref(root, ref) != value for ref, value in effect.assertions.items()):
+        raise ValueError("git_effect_cas_mismatch")
+    desired = {ref: update.desired for ref, update in effect.updates.items()}
+    if observed == desired:
+        return _attestation(effect, issuer=issuer, state="recovered")
+    expected = {ref: update.expected for ref, update in effect.updates.items()}
+    if observed != expected:
+        raise ValueError("git_effect_cas_mismatch")
+    program = "\0".join(
+        (
+            "start",
+            *(
+                token
+                for ref, value in effect.assertions.items()
+                for token in (f"update {ref}", value, value)
+            ),
+            *(
+                token
+                for ref, update in effect.updates.items()
+                for token in (f"update {ref}", update.desired, update.expected)
+            ),
+            "prepare",
+            "commit",
+            "",
+        )
+    )
+    completed = subprocess.run(
+        ["git", "update-ref", "--stdin", "-z"],
+        cwd=root,
+        check=False,
+        capture_output=True,
+        input=program,
+        text=True,
+    )
+    if completed.returncode:
+        raise ValueError("git_effect_cas_rejected")
+    if {ref: _effect_ref(root, ref) for ref in effect.updates} != desired:
+        raise ValueError("git_effect_postcondition_failed")
+    return _attestation(effect, issuer=issuer, state="applied")
+
+
+def git_effect_attestations(
+    root: Path,
+    effect_id: str,
+    record: Attestation | None = None,
+) -> tuple[Attestation, ...]:
+    path = Path(git_common_dir(root), "ethos", "git-effects", f"{effect_id.replace(':', '-')}.json")
+    if record is not None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(record.model_dump_json(), encoding="utf-8")
+        return (record,)
+    try:
+        return (Attestation.model_validate_json(path.read_text(encoding="utf-8")),)
+    except (OSError, ValueError):
+        return ()
+
+
+def git_ref_effect(
+    effect_id: str,
+    plan_digest: str,
+    transitions: tuple[object, ...],
+    assertions: dict[str, str],
+) -> GitEffect:
+    """Build one exact ref effect from transition-shaped records."""
+    updates = {
+        str(item.ref_name): GitRefUpdate(expected=str(item.old_value), desired=str(item.new_value))
+        for item in transitions
+    }
+    return GitEffect(
+        id=effect_id,
+        plan_digest=plan_digest,
+        updates=updates,
+        assertions=assertions,
+    )
+
+
+def git_effect_plan_digest(root: Path, head: str) -> str:
+    from ethos.adapters.mutation.proof import executed_proof_record
+    from ethos.adapters.mutation.proof import proof_plan_digest
+
+    record = executed_proof_record(root, head)
+    value = str(record.get("plan_digest") or "") if record else ""
+    if len(value) != 64 or value != proof_plan_digest(root):
+        raise ValueError("git_effect_plan_digest_missing")
+    return value
+
+
+def sync_linked_ref_worktree(
+    worktrees: list[dict[str, object]],
+    branch: str,
+    head: str,
+    previous: str,
+) -> dict[str, object]:
+    """Synchronize a linked ref worktree after its ref transaction."""
+    if not branch:
+        return {"mode": "independent", "worktree_sync": "not_enabled"}
+    path = next(
+        (
+            Path(str(item["path"]))
+            for item in worktrees
+            if item.get("branch") == branch
+            and item.get("worktree_binding") in {"current", "linked"}
+        ),
+        None,
+    )
+    result = {
+        "mode": "accepted_ff",
+        "branch": branch,
+        "previous_head": previous,
+        "head": head,
+        "worktree_sync": "not_linked" if path is None else "synced",
+    }
+    if path is None:
+        return result
+    reset = subprocess.run(
+        ["git", "reset", "--hard", head],
+        cwd=path,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if reset.returncode:
+        return {**result, "worktree_sync": "failed", "stderr": reset.stderr.strip()}
+    return {
+        **result,
+        "worktree_sync": (
+            "dirty"
+            if subprocess.run(
+                ["git", "status", "--short"],
+                cwd=path,
+                check=False,
+                capture_output=True,
+                text=True,
+            ).stdout.strip()
+            else "synced"
+        ),
+    }
+
+
+def sync_current_worktree(root: Path, head: str) -> dict[str, object]:
+    reset = subprocess.run(
+        ["git", "reset", "--hard", head],
+        cwd=root,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if reset.returncode and any(
+        token in reset.stderr.lower() for token in ("index.lock", "could not lock index")
+    ):
+        reset = subprocess.run(
+            ["git", "reset", "--hard", head],
+            cwd=root,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+    if reset.returncode:
+        return {"state": "failed", "stderr": reset.stderr.strip()}
+    status = subprocess.run(
+        ["git", "status", "--short"],
+        cwd=root,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    return {
+        "state": "dirty" if status.returncode or status.stdout.strip() else "synced",
+        "status": status.stdout.strip(),
+        "stderr": status.stderr.strip(),
+    }
+
+
+def reference_transaction_hook_changed(
+    root: Path,
+    accepted_head: str,
+    candidate_head: str,
+) -> bool:
+    path = ".githooks/reference-transaction"
+    entries = [
+        subprocess.run(
+            ["git", "ls-tree", head, path],
+            cwd=root,
+            check=False,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        for head in (accepted_head, candidate_head)
+    ]
+    if not entries[1].startswith("100755 blob "):
+        raise ValueError("release_mirror_candidate_hook_invalid")
+    return entries[0] != entries[1]
+
+
+def _effect_ref(root: Path, ref: str) -> str:
+    completed = subprocess.run(
+        ["git", "rev-parse", "--verify", ref],
+        cwd=root,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    return completed.stdout.strip() if completed.returncode == 0 else ""
+
+
+def _attestation(effect: GitEffect, *, issuer: str, state: str) -> Attestation:
+    return Attestation(
+        id=effect.id,
+        kind="git-effect",
+        issuer=issuer,
+        subject=effect.plan_digest,
+        issued_at=datetime.now(UTC),
+        content={
+            "effect_digest": effect.digest(),
+            "state": state,
+            "updates": effect.model_dump(mode="json")["updates"],
+        },
+    )

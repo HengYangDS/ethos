@@ -36,10 +36,10 @@ def test_land_closeout_apply_fast_forwards_accepted_root_from_candidate(tmp_path
     assert accepted_update['head'] == candidate_head
     assert accepted_update['previous_head'] == accepted_head
     assert accepted_update['required_gaps'] == []
-    assert accepted_update['proof_carry']['state'] == 'carried'
-    assert accepted_update['proof_carry']['source_verified'] is True
-    assert accepted_update['proof_carry']['target_verified'] is True
-    assert accepted_update['proof_carry']['mints_proof'] is False
+    assert accepted_update['attestation']['kind'] == 'git-effect'
+    assert accepted_update['attestation']['subject']
+    assert accepted_update['attestation']['content']['state'] == 'applied'
+    assert accepted_update['attestation']['mints_authority'] is False
     assert git(repo, 'rev-parse', 'dev') == candidate_head
     assert git(repo, 'rev-parse', 'HEAD') == candidate_head
 
@@ -179,6 +179,7 @@ def test_land_closeout_apply_is_noop_when_candidate_matches_accepted_without_pro
     assert accepted_update['state'] == 'accepted_current'
     assert accepted_update['head'] == accepted_head
     assert accepted_update['previous_head'] == accepted_head
+    assert accepted_update['attestation'] == {}
     assert git(repo, 'rev-parse', 'HEAD') == accepted_head
 
 def test_land_closeout_exposes_bootstrap_package_for_current_runner(tmp_path: Path) -> None:

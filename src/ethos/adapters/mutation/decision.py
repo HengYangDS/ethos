@@ -10,13 +10,13 @@ from ethos.contracts.admission import DecisionBasis
 from ethos.contracts.admission import MutationSubject
 
 if TYPE_CHECKING:
-    from ethos.contracts.lifecycle.core import MutationRequest
+    from ethos.contracts.transitions import TransitionRequest
 
 MutationVerdict = Literal["allow", "block", "defer"]
 
 
 def mutation_envelope(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
-    request: MutationRequest,
+    request: TransitionRequest,
     *,
     action: str,
     resource: str,

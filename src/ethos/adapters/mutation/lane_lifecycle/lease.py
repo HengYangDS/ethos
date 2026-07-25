@@ -17,18 +17,18 @@ from ethos.adapters.store.state.lease.lifecycle.core import resume_lease
 from ethos.adapters.store.state.lease.projection import integer_value
 from ethos.adapters.store.state.schema import state_database
 from ethos.contracts.coordination import HolderRef
-from ethos.contracts.lifecycle.core import LeaseFacts
-from ethos.contracts.lifecycle.core import LeaseOperationRequest
-from ethos.contracts.lifecycle.core import MutationEvaluation
-from ethos.contracts.lifecycle.core import MutationRequest
-from ethos.contracts.lifecycle.core import reduce_lease_request
+from ethos.contracts.transitions import LeaseOperationRequest
+from ethos.contracts.transitions import TransitionDecision
+from ethos.contracts.transitions import TransitionFacts
+from ethos.contracts.transitions import TransitionRequest
+from ethos.contracts.transitions import reduce_transition
 from ethos.contracts.workflow import load_workflow_contract_declaration
 
 if TYPE_CHECKING:
     from collections.abc import Callable
     from pathlib import Path
 
-    from ethos.contracts.lifecycle.core import LeaseTransition
+    from ethos.contracts.transitions import TransitionDeclaration
 
 _LEASE_EFFECTS: dict[str, Callable[..., dict[str, Any]]] = {
     "renew": renew_lease,
@@ -47,33 +47,71 @@ def execute_lease_operation(*, root: Path, request: LeaseOperationRequest) -> di
     transition, effect, contract_gaps = _lease_effect_binding(repo, request.operation)
 
     if transition is None or contract_gaps:
-        evaluation = MutationEvaluation(
-            ok=False,
+        evaluation = TransitionDecision(
+            verdict="block",
             state="blocked",
-            gaps=tuple(dict.fromkeys((*contract_gaps, *holder_gaps))),
+            required_gaps=tuple(dict.fromkeys((*contract_gaps, *holder_gaps))),
         )
     else:
-        evaluation = reduce_lease_request(
+        effect_values = {
+            "holder_ref": request.holder_ref,
+            "target_holder_ref": request.target_holder_ref,
+            "offer_id": request.offer_id,
+            "holder_quiesced": request.holder_quiesced,
+            "expected_expires_at": request.expected_expires_at,
+            "expected_payload_sha256": request.expected_payload_sha256,
+        }
+        effect_value_gaps = {
+            "holder_ref": "holder_ref_invalid",
+            "target_holder_ref": "target_holder_ref_invalid",
+            "offer_id": "handoff_offer_id_required",
+            "holder_quiesced": "holder_quiescence_confirmation_required",
+            "expected_expires_at": "lease_expires_at_required",
+            "expected_payload_sha256": "lease_payload_sha256_required",
+        }
+        evaluation = reduce_transition(
             transition,
-            LeaseFacts(
-                role=str(status.get("role") or ""),
-                current_branch=str(status.get("branch") or ""),
-                current_head=run_git(repo, "rev-parse", "HEAD").stdout.strip(),
-                branch=request.branch,
-                holder_ref=request.holder_ref,
-                target_holder_ref=request.target_holder_ref,
-                actor_ref=str(expected_state["actor_ref"]),
-                expect_head=request.expect_head,
-                lease_id=request.lease_id,
-                expected_epoch=request.expected_epoch,
-                expected_expires_at=request.expected_expires_at,
-                expected_payload_sha256=request.expected_payload_sha256,
-                ttl_seconds=request.ttl_seconds,
-                offer_id=request.offer_id,
-                holder_quiesced=request.holder_quiesced,
-                contrary_decision=request.contrary_decision,
-                apply=request.apply,
+            TransitionRequest(apply=request.apply),
+            TransitionFacts(
                 initial_gaps=holder_gaps,
+                checks=(
+                    (status.get("role") == "work_lane", "work_lane_required"),
+                    (status.get("branch") == request.branch, "lane_branch_mismatch"),
+                    (bool(request.expect_head), "expect_head_required"),
+                    (
+                        not request.expect_head
+                        or run_git(repo, "rev-parse", "HEAD").stdout.strip() == request.expect_head,
+                        "expect_head_mismatch",
+                    ),
+                    (bool(request.lease_id), "lease_id_required"),
+                    (
+                        "expected_epoch" not in transition.effect_fields
+                        or (request.expected_epoch is not None and request.expected_epoch >= 1),
+                        "lease_epoch_required",
+                    ),
+                    (
+                        "ttl_seconds" not in transition.effect_fields or request.ttl_seconds >= 1,
+                        "lease_ttl_invalid",
+                    ),
+                    (
+                        not transition.blocks_contrary_decision or not request.contrary_decision,
+                        "lease_resume_blocked_by_decision",
+                    ),
+                    (
+                        not request.apply
+                        or expected_state["actor_ref"]
+                        == effect_values[str(transition.actor_field)],
+                        "lease_actor_mismatch",
+                    ),
+                    *(
+                        (
+                            effect_values[field] not in ("", None, False),
+                            effect_value_gaps[field],
+                        )
+                        for field in transition.effect_fields
+                        if field in effect_values
+                    ),
+                ),
             ),
         )
 
@@ -119,7 +157,7 @@ def execute_lease_operation(*, root: Path, request: LeaseOperationRequest) -> di
         "required_gaps": list(gaps),
     }
     result["mutation"] = mutation_envelope(
-        MutationRequest(
+        TransitionRequest(
             command=f"lane-{request.operation.replace('_', '-')}",
             apply=request.apply,
             authorized=request.holder_quiesced,
@@ -143,7 +181,7 @@ def execute_lease_operation(*, root: Path, request: LeaseOperationRequest) -> di
 def _lease_effect_binding(
     repo: Path, operation: str
 ) -> tuple[
-    LeaseTransition | None,
+    TransitionDeclaration | None,
     Callable[..., dict[str, Any]] | None,
     tuple[str, ...],
 ]:

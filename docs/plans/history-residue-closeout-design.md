@@ -59,7 +59,7 @@ classes separate:
 | SQLite schema and local-state capability | `ethos.adapters.store.state` |
 | Proof retention | `ethos.adapters.mutation.proof` |
 | External receipt semantics | `ethos.adapters.admission.evidence.external` |
-| Closeout controls | `ethos.adapters.mutation.closeout` and admission owners |
+| Closeout controls | `ethos.adapters.mutation.core`, typed Git effects, and admission owners |
 | Compression observation | `ethos quality source-budget` and the global campaign |
 | Claim integrity | `ethos.repository.evidence.claims` |
 

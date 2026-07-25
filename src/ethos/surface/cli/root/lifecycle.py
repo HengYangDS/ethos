@@ -27,8 +27,8 @@ from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.openspec.metadata.core import completed_active_changes_report
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.contracts.branch.roles import load_branch_role_policy
-from ethos.contracts.lifecycle.core import MutationEvaluation
-from ethos.contracts.lifecycle.core import MutationRequest
+from ethos.contracts.transitions import TransitionDecision
+from ethos.contracts.transitions import TransitionRequest
 from ethos.domain.campaign.closeout import campaign_publication_report
 from ethos.domain.readiness.quality import adopter_quality_floor_report
 from ethos.domain.readiness.quality import hard_quality_floor_report
@@ -56,8 +56,8 @@ if TYPE_CHECKING:
 @dataclass(frozen=True, slots=True)
 class _CloseoutPayload:
     repo: Path
-    mutation: MutationRequest
-    decision: MutationEvaluation
+    mutation: TransitionRequest
+    decision: TransitionDecision
     current_head: str
     audit_root: Path
     audit: dict[str, Any]
@@ -322,7 +322,7 @@ def land(
         return
     current_head = git.current_head(repo)
     if closeout:
-        request = MutationRequest(
+        request = TransitionRequest(
             command="closeout", apply=apply, authorized=authorize, expect_head=expect_head
         )
         decision = evaluate_closeout_mutation(request, root=repo, current_head=current_head)
@@ -402,7 +402,7 @@ def land(
     closeout_gaps: tuple[str, ...] = ()
     if status_payload.get("role") == "work_lane" and not closeout_support.get("supported"):
         closeout_gaps = tuple(string_sequence(closeout_support.get("required_gaps")))
-    request = MutationRequest(
+    request = TransitionRequest(
         command="land", apply=apply, authorized=authorize, expect_head=expect_head
     )
     decision = evaluate_mutation(
@@ -499,7 +499,7 @@ def publish(
     governance = context_for_root(repo)
     current_head = git.current_head(repo)
     decision = evaluate_mutation(
-        MutationRequest(
+        TransitionRequest(
             command="publish",
             apply=options.apply,
             authorized=options.authorize,
@@ -673,7 +673,7 @@ def publish(
             "local_ci_fallback": local_ci_fallback,
             "publication": publication,
             "mutation": mutation_envelope(
-                MutationRequest(
+                TransitionRequest(
                     command="publish",
                     apply=options.apply,
                     authorized=options.authorize,

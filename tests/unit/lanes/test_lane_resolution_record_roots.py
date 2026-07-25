@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+import os
 import stat
 import subprocess
 from pathlib import Path
 from types import SimpleNamespace
-from typing import TYPE_CHECKING
 
 import pytest
 
@@ -21,9 +21,6 @@ from ethos.surface.cli.lane.resolution import _default_decision_path
 from tests.support.contract_helpers import write_chronicle_decision
 from tests.support.lane_helpers import init_repo
 from tests.support.lane_helpers import orphan_work_lane
-
-if TYPE_CHECKING:
-    import os
 
 
 def test_record_roots_separate_current_v2_from_immutable_history(tmp_path: Path) -> None:
@@ -96,7 +93,7 @@ def test_record_root_parser_and_shared_path_edges(
     monkeypatch.setattr(
         resolution_roots.subprocess,
         "run",
-        lambda *args, **_kwargs: subprocess.CompletedProcess(args[0], 1, stdout="", stderr=""),
+        lambda *args, **_kwargs: subprocess.CompletedProcess(args[0], 1, stdout=b"", stderr=b""),
     )
     with pytest.raises(ValueError, match="lane_resolution_accepted_control_root_unavailable"):
         resolution_roots._registered_worktrees(tmp_path)  # noqa: SLF001, RUF100
@@ -107,16 +104,91 @@ def test_record_root_parser_and_shared_path_edges(
         lambda *args, **_kwargs: subprocess.CompletedProcess(
             args[0],
             0,
-            stdout=f"worktree {tmp_path}\nbranch refs/heads/dev\n\n",
-            stderr="",
+            stdout=f"worktree {tmp_path}\nHEAD {'a' * 40}\nbranch refs/heads/dev\n\n".encode(),
+            stderr=b"",
         ),
     )
     assert resolution_roots._registered_worktrees(tmp_path) == [  # noqa: SLF001, RUF100
-        {"worktree": tmp_path.as_posix(), "branch": "refs/heads/dev"}
+        {"worktree": tmp_path.as_posix(), "HEAD": "a" * 40, "branch": "refs/heads/dev"}
     ]
     assert resolution_shared.canonical_package_path(tmp_path, "invalid") is None
     outside = tmp_path.parent / "outside-record"
     assert resolution_shared.display_path(tmp_path, outside) == outside.resolve().as_posix()
+
+
+def test_registered_worktrees_uses_hardened_byte_git_observation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+    head = b"a" * 40
+    stdout = (
+        b"worktree "
+        + tmp_path.as_posix().encode()
+        + b"\nHEAD "
+        + head
+        + b"\nbranch refs/heads/dev\nlocked maintenance\n\n"
+    )
+
+    def run(*args: object, **kwargs: object) -> subprocess.CompletedProcess[bytes]:
+        captured.update(kwargs)
+        return subprocess.CompletedProcess(args[0], 0, stdout=stdout, stderr=b"")
+
+    monkeypatch.setattr(resolution_roots.subprocess, "run", run)
+
+    assert resolution_roots._registered_worktrees(tmp_path) == [  # noqa: SLF001, RUF100
+        {"worktree": tmp_path.as_posix(), "HEAD": "a" * 40, "branch": "refs/heads/dev"}
+    ]
+    assert captured["shell"] is False
+    environment = captured["env"]
+    assert isinstance(environment, dict)
+    assert environment["GIT_NO_REPLACE_OBJECTS"] == "1"
+    assert environment["LC_ALL"] == "C"
+    assert environment["GIT_OPTIONAL_LOCKS"] == "0"
+    assert environment["GIT_CONFIG_NOSYSTEM"] == "1"
+    assert environment["GIT_CONFIG_GLOBAL"] == os.devnull
+    assert environment["GIT_ATTR_NOSYSTEM"] == "1"
+    assert "text" not in captured
+
+
+@pytest.mark.parametrize(
+    ("stdout", "stderr"),
+    [
+        (
+            b"worktree /tmp/accepted\nHEAD " + b"a" * 40 + b"\nbranch refs/heads/dev\n\n",
+            b"warning\n",
+        ),
+        (
+            b"worktree /tmp/accepted\nworktree /tmp/other\nHEAD "
+            + b"a" * 40
+            + b"\nbranch refs/heads/dev\n\n",
+            b"",
+        ),
+        (
+            b"worktree /tmp/accepted\nHEAD "
+            + b"a" * 40
+            + b"\nbranch refs/heads/dev\nunexpected value\n\n",
+            b"",
+        ),
+    ],
+    ids=("stderr", "duplicate-field", "unknown-field"),
+)
+def test_registered_worktrees_rejects_untrusted_porcelain(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    stdout: bytes,
+    stderr: bytes,
+) -> None:
+    monkeypatch.setattr(
+        resolution_roots.subprocess,
+        "run",
+        lambda *args, **_kwargs: subprocess.CompletedProcess(
+            args[0], 0, stdout=stdout, stderr=stderr
+        ),
+    )
+
+    with pytest.raises(ValueError, match="lane_resolution_accepted_control_root_unavailable"):
+        resolution_roots._registered_worktrees(tmp_path)  # noqa: SLF001, RUF100
 
 
 def test_current_record_create_rejects_intermediate_root_rebind(

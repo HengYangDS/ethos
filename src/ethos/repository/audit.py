@@ -79,6 +79,9 @@ REQUIRED_DOCS = (
 
 REQUIRED_SCHEMAS = (
     "result.schema.json",
+    "change-contract.schema.json",
+    "attestation.schema.json",
+    "repository-facts.schema.json",
     "claim.schema.json",
     "commit-policy.schema.json",
     "subject.schema.json",

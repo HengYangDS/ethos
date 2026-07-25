@@ -146,7 +146,7 @@ def test_product_design_contract_operationalizes_root_constraint() -> None:
         assert operational_anchor in text
 
 
-def test_product_design_contract_defines_invalid_state_taxonomy() -> None:
+def test_product_design_contract_keeps_invalid_state_taxonomy_open() -> None:
     text = read("docs/governance/product-design-contract.md")
 
     assert "## Invalid-State Taxonomy" in text
@@ -162,7 +162,8 @@ def test_product_design_contract_defines_invalid_state_taxonomy() -> None:
         "substrate_untrusted",
     ):
         assert category in text
-    assert "not a new ontology" in text
+    assert "not a closed ontology" in text
+    assert "unknown signal remains" in text
     assert "Projection drift" in text
     assert "adapter bypass reduce" in text
     assert "Seven obligations judge" in text
@@ -256,8 +257,8 @@ def test_repository_governance_defines_loss_bounded_successor_continuity() -> No
     repository_spec = read("openspec/specs/repository-governance/spec.md")
 
     assert (
-        "### Requirement: Remote reconciliation continuation preserves historical carrier boundaries"
-        in repository_spec
+        "### Requirement: Remote reconciliation continuation preserves "
+        "historical carrier boundaries" in repository_spec
     )
     for phrase in (
         "original host worktree",

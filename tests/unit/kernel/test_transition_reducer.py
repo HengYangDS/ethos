@@ -35,6 +35,23 @@ def test_transition_reducer_orders_and_deduplicates_every_hard_gap() -> None:
     )
 
 
+def test_transition_reducer_preserves_unknowns_when_hard_gaps_block() -> None:
+    decision = reduce_transition(
+        _policy("guarded"),
+        TransitionRequest(apply=True),
+        TransitionFacts(
+            initial_gaps=("proven_violation",),
+            unknown_gaps=("unresolved_observation", "unresolved_observation"),
+        ),
+    )
+
+    assert decision.verdict == "block"
+    assert decision.required_gaps == ("proven_violation",)
+    assert decision.unknown_gaps == ("unresolved_observation",)
+
+    assert decision.gaps == ("proven_violation", "unresolved_observation")
+
+
 def test_transition_reducer_distinguishes_unknown_current_planned_and_applied() -> None:
     unknown = reduce_transition(
         _policy("closeout"),

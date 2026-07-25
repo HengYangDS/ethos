@@ -24,7 +24,7 @@ promotion legal?".
 from __future__ import annotations
 
 import json
-import subprocess
+import os
 import uuid
 from dataclasses import dataclass
 from datetime import UTC
@@ -32,6 +32,10 @@ from datetime import datetime
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
+
+from ethos.adapters.repo.git import execute_git_effect
+from ethos.adapters.repo.git import git_effect_attestations
+from ethos.adapters.repo.git import git_stdout
 
 # Marker TTL: a closeout writes the marker immediately before its CAS, so the live
 # window is sub-second. A minute is a generous ceiling that still expires a crashed
@@ -75,16 +79,10 @@ def _git_path(root: Path, relative: str) -> Path:
     hardcoding `<root>/.git/...` is wrong there. `--git-path` returns the correct
     per-worktree location (mirrors admission.prewrite._git_path).
     """
-    completed = subprocess.run(
-        ["git", "rev-parse", "--git-path", relative],
-        cwd=root,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    if completed.returncode != 0:
+    resolved = git_stdout(root, "rev-parse", "--git-path", relative)
+    if not resolved:
         return root / ".git" / relative
-    path = Path(completed.stdout.strip())
+    path = Path(resolved)
     return path if path.is_absolute() else root / path
 
 
@@ -196,12 +194,9 @@ def execute_closeout_effect(
     transitions: tuple[object, ...],
     evidence_digest: str,
     gate_policy_digest: str,
-    issuer: str,
+    permissions: tuple[str, ...],
 ) -> object:
     """Execute one effect while its exact closeout intents are live."""
-    from ethos.adapters.repo.git import execute_git_effect
-    from ethos.adapters.repo.git import git_effect_attestations
-
     intents = []
     try:
         for transition in transitions:
@@ -216,8 +211,9 @@ def execute_closeout_effect(
         attestation = execute_git_effect(
             root,
             effect,
-            issuer=issuer,
+            issuer=os.environ.get("ETHOS_ACTOR", "").strip() or "agent:local:process:ethos",
             attestations=git_effect_attestations(root, effect.id),
+            permissions=permissions,
         )
         git_effect_attestations(root, effect.id, attestation)
         return attestation

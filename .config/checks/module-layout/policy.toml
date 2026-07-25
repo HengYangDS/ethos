@@ -1,28 +1,5 @@
-paths = ["src/ethos"]
-flat_directory_limit = 8
-suffix_flat_group_min = 3
-flat_growth_existing_module_limit = 5
-flat_growth_added_module_limit = 2
-baseline_gap_limit = 0
-enforce_baseline_kind_limits = true
-baseline_suffix_module_limit = 0
-baseline_suffix_flat_limit = 0
-baseline_flat_directory_limit = 0
-baseline_private_alias_limit = 0
-baseline_package_init_facade_limit = 0
-baseline_module_facade_limit = 0
-
-allowed_suffix_modules = [
-]
-
-allowed_suffix_flat = [
-]
-
-allowed_flat_directories = [
-]
-
-allowed_private_aliases = [
-]
+semantic_paths = ["."]
+package_paths = ["src/ethos"]
 
 ambiguous_module_names = [
   "base",

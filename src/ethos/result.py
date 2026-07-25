@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
 from pydantic import computed_field
+from pydantic import model_validator
 
 PAYLOAD_BUDGETS = {"status": 16 * 1024, "plan": 32 * 1024}
 _ARTIFACT_HOME = Path("build/ethos/payloads")
@@ -29,11 +30,18 @@ class EthosResult(BaseModel):
     governance_context: dict[str, Any] | None = None
     data: dict[str, Any] = Field(default_factory=dict)
 
+    @model_validator(mode="after")
+    def close_verdict(self) -> EthosResult:
+        """Prevent hard gaps from coexisting with a green command result."""
+        if self.required_gaps:
+            object.__setattr__(self, "ok", False)
+        return self
+
     @computed_field
     @property
     def verdict(self) -> Literal["pass", "block", "unknown"]:
         """Derive the closed verdict; a hard gap can never remain green."""
-        if self.required_gaps or (not self.ok and self.state != "unknown"):
+        if self.required_gaps:
             return "block"
         return "pass" if self.ok else "unknown"
 

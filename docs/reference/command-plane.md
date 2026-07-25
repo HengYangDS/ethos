@@ -153,14 +153,14 @@ promotion scope. Missing freshness is a required gap: ETHOS does not infer an
 undeclared currentness mode or turn durable history into an unearned
 present-tense proof.
 
-`ethos quality module-layout --json` audits semantic subpackages, suffix-flat
-modules, import-only facades, package-root submodule imports, flat-directory
-growth, and module-layout ratchet baselines. A clean verdict means no new or
-stale layout gaps escaped the configured ratchet; it does not mean historic debt
-is absent. Existing baseline debt is explicit in `summary.debt_count` and
-`data.ratchet`, including `state`, `debt_kinds`, `baseline_gap_count`,
-per-kind baseline counts and limits, and the next action to shrink baselines as
-semantic subpackages remove debt.
+`ethos quality module-layout --json` audits repository-owned Python across product
+source, tests, tools, and agent scripts. It blocks ambiguous module or package
+names, multiple command owners, compatibility facades, package-root submodule
+imports, and cross-module private imports. Product-package topology and
+repository-wide semantic rules have separate configured scopes so pytest and tool
+carrier syntax is not mistaken for domain architecture. There is no baseline or
+allowlist: every reported semantic gap remains blocking until its owner is
+absorbed, precisely renamed, split by a real semantic axis, or deleted.
 
 Agent projections:
 
@@ -682,9 +682,9 @@ transition command. It is a read-only explanation vocabulary for failed
 preconditions in the kernel chain and boundary substrate. `ethos explain <gap-or-signal>
 --json` projects one gap or advisory signal into that taxonomy and returns the category id, node,
 question, summary, and taxonomy source. A gap that cannot classify is reported as
-`unclassified_invalid_state`, which means the command plane emitted an ungoverned
-failure mode that must be folded back into the taxonomy or renamed to an existing
-precondition.
+`unclassified_invalid_state` while preserving the original signal. This invites
+taxonomy review; it does not require renaming or forcing new evidence into an old
+category.
 
 Repository governance modes are explicit. `shape` is the daily fast path for product
 shape, schemas, claims, command vocabulary, and OpenSpec layout. `deep` includes

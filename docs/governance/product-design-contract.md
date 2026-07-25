@@ -238,6 +238,10 @@ Generic catch-all modules, mixed command registries, and coincidence-based share
 helpers are rejected unless a closed machine contract proves a genuine kernel or
 report-aggregation role. Remediation absorbs, precisely renames, semantically
 splits, or deletes the owner; it never preserves the old path as a facade.
+This invariant covers product source, tests, tools, agent scripts, configuration,
+schemas, documentation, OpenSpec, and CI. Enforcement respects each carrier's
+native syntax and never treats file count, directory width, ELOC, or naming
+punctuation as authority to invent a semantic boundary.
 
 ### Creative change with net gain
 
@@ -372,9 +376,9 @@ coverage shards or publish a false latest coverage XML.
 
 ## Invalid-State Taxonomy
 
-ETHOS reduces every emitted gap to one terminal invalid-state category. This is
-not a new ontology; it is the failure vocabulary implied by the kernel chain and
-the substrate the chain runs on:
+ETHOS may explain known gaps through a small invalid-state taxonomy. The
+taxonomy is a derived reader vocabulary, not a closed ontology and not an
+admission requirement for new signals:
 
 ```text
 authority_gap
@@ -397,16 +401,17 @@ projections, command runtimes, Python/uv/node launchers, or local state cannot b
 trusted enough to execute the chain. Projection drift and adapter bypass reduce
 there; they do not become new truth centers.
 
-`system/invalid_states.toml` is the machine contract. `ethos status --json`
-projects the taxonomy over current gap layers so humans and agents see whether a
-failure is an authority, subject, commitment, change, carrier, evidence, claim,
-chronicle, or substrate problem before choosing a repair.
+`system/invalid_states.toml` is an optional explanation projection. `ethos
+status --json` may group known signals for readers, but an unknown signal remains
+verbatim and does not become invalid merely because the current taxonomy has not
+yet evolved. Taxonomy changes follow evidence; evidence never conforms to a
+closed taxonomy merely to pass a gate.
 
 ```text
 Seven obligations judge.
 Five verbs transition.
 Three boundaries constrain.
-Nine invalid states block.
+Open signals remain visible.
 ```
 
 ## Truth Boundaries

@@ -29,7 +29,15 @@ def test_ethos_result_is_frozen_strict_schema_model() -> None:
 
 def test_ethos_result_derives_closed_verdict_without_false_green() -> None:
     assert EthosResult(command="status", ok=True, state="ready").verdict == "pass"
-    assert EthosResult(command="status", ok=False, state="blocked").verdict == "block"
+    assert (
+        EthosResult(
+            command="status",
+            ok=False,
+            state="blocked",
+            required_gaps=("hard_gap",),
+        ).verdict
+        == "block"
+    )
     assert EthosResult(command="status", ok=False, state="unknown").verdict == "unknown"
     assert (
         EthosResult(
@@ -40,6 +48,20 @@ def test_ethos_result_derives_closed_verdict_without_false_green() -> None:
         ).verdict
         == "block"
     )
+
+
+def test_ethos_result_cannot_serialize_false_green_ok() -> None:
+    result = EthosResult(
+        command="status",
+        ok=True,
+        state="ready",
+        required_gaps=("hard_gap",),
+    )
+
+    assert result.ok is False
+    assert result.state == "ready"
+    assert result.to_dict()["ok"] is False
+    assert result.to_dict()["state"] == "ready"
 
 
 @pytest.mark.parametrize(
@@ -72,7 +94,7 @@ def test_ethos_result_json_contract_stays_compatible() -> None:
     assert payload == {
         "schema_version": 1,
         "command": "plan",
-        "ok": True,
+        "ok": False,
         "verdict": "block",
         "state": "planned",
         "summary": {"changed": True},

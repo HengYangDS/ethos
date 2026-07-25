@@ -6,6 +6,8 @@ workflow engine and do not store lifecycle truth.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import shlex
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -28,7 +30,6 @@ from ethos.contracts.system.contracts import load_system_contract
 from ethos.contracts.transition import (
     TransitionPolicy,  # noqa: TC001, RUF100 - Pydantic resolves this annotation at runtime
 )
-from ethos.state.invalid import NODE_ORDER
 
 if TYPE_CHECKING:
     from ethos.contracts.semantic import ChangeContract
@@ -409,7 +410,20 @@ class WorkflowContract(_WorkflowModel):
             for item in selected
             if (plan_node := item.to_plan_node(producer_by_fact=producer_by_fact)) is not None
         )
-        return compile_plan(contract, facts, nodes, validation_issues=missing)
+        policy_digest = hashlib.sha256(
+            json.dumps(
+                self.model_dump(mode="json", by_alias=True),
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode()
+        ).hexdigest()
+        return compile_plan(
+            contract,
+            facts,
+            nodes,
+            policy_digest=policy_digest,
+            validation_issues=missing,
+        )
 
     def to_report(self) -> dict[str, Any]:
         """Validate and summarize the declared workflow runtime contract."""
@@ -497,7 +511,6 @@ def _transition_gaps(
     guards: set[str],
     transitions: tuple[WorkflowTransition, ...],
 ) -> list[str]:
-    taxonomy = set(NODE_ORDER)
     gaps: list[str] = []
     if not transitions:
         gaps.append("workflow_transition_missing")
@@ -509,16 +522,10 @@ def _transition_gaps(
         if item.guard not in guards:
             gaps.append(f"workflow_transition_guard_unknown:{index}:{item.guard}")
         invalid_states = set(item.invalid_states)
-        if item.invalid_state not in taxonomy:
-            gaps.append(f"workflow_transition_invalid_state_unknown:{index}:{item.invalid_state}")
         if item.invalid_state and item.invalid_state not in invalid_states:
             gaps.append(
                 f"workflow_transition_invalid_state_not_listed:{index}:{item.invalid_state}"
             )
-        gaps.extend(
-            f"workflow_transition_invalid_state_unknown:{index}:{unknown}"
-            for unknown in sorted(invalid_states - taxonomy)
-        )
     return gaps
 
 

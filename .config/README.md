@@ -12,7 +12,11 @@ configuration plane, not a truth center.
 - `tools/ci/scripts/run-python-lint.sh` owns the executable Python lint proof surface: Ruff check, Ruff format check, and ignored-rule ratchet, all bound to `.config/checks/ruff/ruff.toml`; its explicit `--cache-dir` preserves the semantic `build/runtime/tool-cache/ruff/` home. The root discovery adapter gives bare Ruff the same policy and cache boundary; root `pyproject.toml` remains free of Ruff policy.
 - `.config/checks/coverage/coverage.ini` owns the Python coverage floor; `.config/checks/coverage/policy.toml` records the evidence-bound hard/aspirational boundary. Generated coverage data and XML go to `build/evidence/quality/tests/coverage/`, pytest JUnit evidence goes to `build/evidence/quality/tests/pytest/`, pytest cache goes to ignored `build/runtime/tool-cache/pytest/`, and pytest temporary directories default outside the repository so fixture roots cannot masquerade as repository truth. Pytest policy stays in `.config/checks/pytest/pytest.ini`; root `pyproject.toml` carries only the pytest discovery cache routing invariant for bare pytest and IDE invocation.
 - `.config/checks/docstrings/policy.toml` owns public-surface docstring coverage.
-- `.config/checks/module-layout/policy.toml` owns semantic subpackage, suffix-flat, package `__init__.py` facade, and import-alias layout policy; `tools/ci/scripts/run-module-layout.sh` is the reusable runner.
+- `.config/checks/module-layout/policy.toml` owns all tracked Python as the
+  repository-wide semantic scope, plus the narrower product-package topology
+  scope, ambiguous naming, facade, command-owner, and import-boundary policy; it
+  contains no baseline or file-count waiver.
+  `tools/ci/scripts/run-module-layout.sh` is the reusable runner.
 - `.config/checks/taplo/taplo.toml` owns TOML canonical formatting. `.config/checks/json/format.toml` owns path-selected Python stdlib JSON formatting: ordinary JSON is two-space pretty form, while schemas and evidence remain compact machine carriers. `tools/ci/scripts/run-config-lint.sh` invokes both owners without restating their policy.
 - `.config/checks/yaml/yamllint.yaml` owns YAML linting, including one structural blank line between semantic blocks; CI invokes it through `tools/ci/scripts/run-config-lint.sh`.
 - `.config/checks/shell/.shellcheckrc` owns ShellCheck policy; `tools/ci/scripts/run-shell-lint.sh` is the runner.

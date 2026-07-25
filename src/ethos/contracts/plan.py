@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import fnmatch
 import hashlib
 import json
 from graphlib import CycleError
 from graphlib import TopologicalSorter
+from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Literal
@@ -74,15 +76,18 @@ class GitEffect(_PlanModel):
     @model_validator(mode="after")
     def bind_permissions(self) -> Self:
         refs_valid = all(
-            ref.startswith("refs/") and not any(char.isspace() or ord(char) < 32 for char in ref)
+            ref.startswith("refs/")
+            and not any(char.isspace() or not char.isprintable() for char in ref)
             for ref in (*self.updates, *self.assertions)
         )
         assertions_valid = all(
-            len(value) in {40, 64} and not set(value) - set("0123456789abcdef")
+            len(value) in {40, hashlib.sha256().digest_size * 2}
+            and not set(value) - set("0123456789abcdef")
             for value in self.assertions.values()
         )
         if not refs_valid or set(self.assertions) & set(self.updates) or not assertions_valid:
-            raise ValueError("git_effect_permissions_invalid")
+            message = "git_effect_permissions_invalid"
+            raise ValueError(message)
         return self
 
     def digest(self) -> str:
@@ -124,6 +129,11 @@ def _ordered_ids(nodes: tuple[PlanNode, ...]) -> tuple[tuple[str, ...], tuple[st
 class PlanIR(_PlanModel):
     """Hashable transient plan; it owns no repository truth or mutation."""
 
+    contract_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
+    facts_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
+    policy_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
+    permissions: tuple[str, ...] = ()
+    facts: dict[str, Any] = Field(default_factory=dict)
     nodes: tuple[PlanNode, ...] = ()
     initial_verdict: PlanVerdict = "pass"
     validation_issues: tuple[str, ...] = ()
@@ -149,6 +159,13 @@ class PlanIR(_PlanModel):
     def to_dict(self) -> dict[str, Any]:
         return {
             "schema_version": 1,
+            "inputs": {
+                "contract": self.contract_digest,
+                "facts": self.facts_digest,
+                "policy": self.policy_digest,
+            },
+            "permissions": list(self.permissions),
+            "facts": self.facts,
             "nodes": [node.to_dict() for node in self.ordered_nodes()],
             "verdict": self.verdict,
             "required_gaps": list(self.gaps()),
@@ -156,7 +173,16 @@ class PlanIR(_PlanModel):
         }
 
     def digest(self) -> str:
-        payload: dict[str, Any] = {"nodes": [node.normalized() for node in self.ordered_nodes()]}
+        payload: dict[str, Any] = {
+            "inputs": {
+                "contract": self.contract_digest,
+                "facts": self.facts_digest,
+                "policy": self.policy_digest,
+            },
+            "permissions": sorted(self.permissions),
+            "facts": self.facts,
+            "nodes": [node.normalized() for node in self.ordered_nodes()],
+        }
         if self.initial_verdict != "pass":
             payload["initial_verdict"] = self.initial_verdict
         if self.validation_issues:
@@ -169,6 +195,7 @@ def compile_plan(
     facts: RepositoryFacts,
     nodes: tuple[PlanNode, ...],
     *,
+    policy_digest: str,
     validation_issues: tuple[str, ...] = (),
 ) -> PlanIR:
     """Compile one effective contract and current fact snapshot into PlanIR."""
@@ -177,7 +204,9 @@ def compile_plan(
         issues.append("repository_subject_mismatch")
     if contract.scope:
         changed_paths = facts.values.get("changed_paths", ())
-        if not isinstance(changed_paths, tuple | list):
+        if not isinstance(changed_paths, tuple | list) or any(
+            not _valid_relative_path(path) for path in changed_paths
+        ):
             issues.append("changed_paths_invalid")
         elif any(
             not any(_path_matches(path, pattern) for pattern in contract.scope)
@@ -185,9 +214,31 @@ def compile_plan(
             if isinstance(path, str)
         ):
             issues.append("change_scope_exceeded")
-    return PlanIR(nodes=nodes, validation_issues=tuple(dict.fromkeys(issues)))
+    return PlanIR(
+        contract_digest=contract.digest(),
+        facts_digest=facts.digest(),
+        policy_digest=policy_digest,
+        permissions=contract.permissions,
+        facts=facts.model_dump(mode="json", exclude={"observed_at"}),
+        nodes=nodes,
+        validation_issues=tuple(dict.fromkeys(issues)),
+    )
 
 
 def _path_matches(path: str, pattern: str) -> bool:
+    if pattern == "**":
+        return True
     prefix = pattern.removesuffix("/**")
-    return path == prefix or (pattern.endswith("/**") and path.startswith(f"{prefix}/"))
+    if pattern.endswith("/**"):
+        return path == prefix or path.startswith(f"{prefix}/")
+    return fnmatch.fnmatchcase(path, pattern)
+
+
+def _valid_relative_path(path: object) -> bool:
+    return (
+        isinstance(path, str)
+        and bool(path)
+        and "\\" not in path
+        and not PurePosixPath(path).is_absolute()
+        and ".." not in PurePosixPath(path).parts
+    )

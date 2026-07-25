@@ -34,15 +34,23 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import shutil
+from datetime import datetime
 from itertools import chain
 from pathlib import Path
 from typing import Any
 
+from ethos.adapters.repo.git import current_tree
+from ethos.adapters.repo.git import git_common_dir
+from ethos.contracts.plan import PlanIR
+from ethos.contracts.plan import compile_plan
+from ethos.contracts.semantic import RepositoryFacts
+from ethos.domain.plan import load_proof_contract
+from ethos.domain.plan import load_repository_contract
 from ethos.repository.policy.gates import adopter_code_correctness_gaps
 from ethos.repository.policy.gates import adopter_gate_descriptor_gaps
 from ethos.repository.policy.gates import committed_product_default_gate_ids
 from ethos.repository.policy.gates import default_gate_ids
+from ethos.repository.policy.gates import gate_nodes
 from ethos.repository.policy.gates import gate_policy_conformance_gaps
 from ethos.repository.policy.gates import gate_policy_digest
 
@@ -70,8 +78,13 @@ def proof_state_dir(root: Path) -> Path:
     override = os.environ.get(_TEST_PROOF_STATE_DIR_ENV, "").strip()
     if override and _pytest_state_active():
         path = Path(override).expanduser()
-        return path if path.is_absolute() else root / path
-    return root / _DEFAULT_PROOF_DIR
+        if path.is_absolute():
+            return path
+        common = git_common_dir(root)
+        base = Path(common).parent if common else root
+        return base / path
+    common = git_common_dir(root)
+    return Path(common).parent / _DEFAULT_PROOF_DIR if common else root / _DEFAULT_PROOF_DIR
 
 
 def _proof_path(root: Path, head: str) -> Path:
@@ -141,18 +154,43 @@ def _merge_same_head_evidence(existing: dict[str, Any], incoming: dict[str, Any]
     return merged
 
 
-def proof_plan_digest(root: Path) -> str:
-    """Compile the exact gate PlanIR whose execution the proof records."""
-    from ethos.repository.policy.gates import gate_plan
-
-    return gate_plan(root=root).digest()
+def proof_plan(
+    root: Path,
+    *,
+    head: str,
+    gate_ids: tuple[str, ...] = (),
+    full: bool = False,
+    changed_paths: tuple[str, ...] = (),
+) -> PlanIR:
+    """Compile the exact contract-, fact-, and policy-bound proof plan."""
+    contract = load_proof_contract(root, tree_ref=head)
+    repository = load_repository_contract(root, tree_ref=head)
+    nodes, validation_issues = gate_nodes(gate_ids, full=full, root=root, tree_ref=head)
+    facts = RepositoryFacts(
+        repository=repository.id,
+        head=head,
+        tree=current_tree(root, head),
+        observed_at=datetime.now().astimezone(),
+        values={
+            "changed_paths": changed_paths,
+            "gate_ids": tuple(node.id for node in nodes),
+        },
+        source_refs=("git:HEAD", "git:HEAD^{tree}"),
+    )
+    return compile_plan(
+        contract,
+        facts,
+        nodes,
+        policy_digest=gate_policy_digest(root, tree_ref=head),
+        validation_issues=validation_issues,
+    )
 
 
 def record_executed_proof(
     root: Path,
     evidence: dict[str, Any],
     *,
-    plan_digest: str = "",
+    plan: PlanIR | None = None,
 ) -> Path:
     """Persist or extend the executed EvidenceSet for a single HEAD.
 
@@ -162,14 +200,28 @@ def record_executed_proof(
     runs into it. This lets agents build promotion-complete proof from short,
     restartable gate batches without weakening the land completeness check.
     """
+    if plan is None:
+        message = "proof_plan_digest_required"
+        raise ValueError(message)
     head = str(evidence.get("head", ""))
+    if plan.facts.get("head") != head:
+        message = "proof_plan_head_mismatch"
+        raise ValueError(message)
+    if plan.verdict != "pass":
+        message = "proof_plan_not_admitted"
+        raise ValueError(message)
+    if not _proof_plan_matches(root, head, plan):
+        message = "proof_plan_binding_mismatch"
+        raise ValueError(message)
     proof_dir = proof_state_dir(root)
     proof_dir.mkdir(parents=True, exist_ok=True)
     path = proof_dir / f"{head}.json"
     existing_record = executed_proof_record(root, head)
     existing_evidence = (
         existing_record.get("evidence")
-        if isinstance(existing_record, dict) and isinstance(existing_record.get("evidence"), dict)
+        if isinstance(existing_record, dict)
+        and existing_record.get("plan_digest") == plan.digest()
+        and isinstance(existing_record.get("evidence"), dict)
         else None
     )
     sealed_evidence = (
@@ -178,12 +230,13 @@ def record_executed_proof(
         else {**evidence, "digest": _evidence_digest(evidence)}
     )
     record = {
-        "schema_version": 3,
+        "schema_version": 4,
         "head": head,
         "state": "proven",
         "evidence": sealed_evidence,
         "evidence_digest": sealed_evidence.get("digest", ""),
-        "plan_digest": plan_digest or proof_plan_digest(root),
+        "plan": plan.model_dump(mode="json"),
+        "plan_digest": plan.digest(),
         # Stamp the policy digest against head's COMMITTED tree so it is a pure function of
         # the proven commit, matching what the reference-transaction hook recomputes when
         # it validates a move to this head from a worktree still holding a different tree.
@@ -299,6 +352,14 @@ def executed_proof_record(root: Path, head: str) -> dict[str, Any] | None:
     if record is None or record.get("state") != "proven" or record.get("head") != head:
         return None
     evidence = record.get("evidence")
+    try:
+        plan = PlanIR.model_validate_json(_stable_json(record.get("plan")))
+    except ValueError:
+        return None
+    if plan.facts.get("head") != head:
+        return None
+    if not _proof_plan_matches(root, head, plan):
+        return None
     # (a) the digest must be reproducible from the sealed body. This is tamper-EVIDENCE
     # (a partial edit / wrong-HEAD copy / truncation fails to recompute), NOT tamper-proof:
     # a same-UID forger authoring the whole body computes this sha256 themselves. Unkeyed
@@ -309,7 +370,7 @@ def executed_proof_record(root: Path, head: str) -> dict[str, Any] | None:
     if (
         not isinstance(evidence, dict)
         or evidence.get("head") != head
-        or ("plan_digest" in record and len(str(record.get("plan_digest"))) != 64)
+        or record.get("plan_digest") != plan.digest()
         or not (sealed := str(evidence.get("digest", "")))
         or _evidence_digest(evidence) != sealed
         or not _runs_prove_head(evidence.get("runs"))
@@ -318,67 +379,22 @@ def executed_proof_record(root: Path, head: str) -> dict[str, Any] | None:
     return record
 
 
-def _carry_result(
-    base: dict[str, Any], state: str, *, reason: str = "", **extra: object
-) -> dict[str, Any]:
-    gaps = [] if state == "carried" else ["proof_not_proven"]
-    return {
-        "ok": not gaps,
-        "state": state,
-        **({"reason": reason} if reason else {}),
-        **base,
-        **extra,
-        "required_gaps": gaps,
-    }
-
-
-def carry_executed_proof_record(
-    *, source_root: Path, target_root: Path, head: str
-) -> dict[str, Any]:
-    """Carry a verified HEAD-bound proof record between local roots.
-
-    This is a projection of an already self-authenticating proof record, not a new
-    proof minting path: the source record must verify first, and the target copy is
-    re-read through the same verifier after writing.
-    """
-    source_record = executed_proof_record(source_root, head)
-    source_path = _proof_path(source_root, head)
-    target_path = _proof_path(target_root, head)
-    base = {
-        "head": head,
-        "source_root": source_root.resolve().as_posix(),
-        "target_root": target_root.resolve().as_posix(),
-        "truth_boundary": "local-proof-state-projection",
-        "mints_proof": False,
-        "same_head_only": True,
-        "source_verified": source_record is not None,
-        "target_verified": False,
-    }
-
-    if source_record is None:
-        return _carry_result(
-            base,
-            "skipped",
-            reason="source-proof-missing-or-invalid",
-        )
-    try:
-        target_path.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(source_path, target_path)
-    except OSError as exc:
-        return _carry_result(base, "failed", reason=exc.__class__.__name__)
-    if executed_proof_record(target_root, head) is None:
-        return _carry_result(
-            base,
-            "failed",
-            reason="target-proof-invalid-after-copy",
-        )
-    return _carry_result(
-        base,
-        "carried",
-        target_verified=True,
-        source_path=source_path.as_posix(),
-        target_path=target_path.as_posix(),
+def _proof_plan_matches(root: Path, head: str, plan: PlanIR) -> bool:
+    values = plan.facts.get("values")
+    changed = values.get("changed_paths", ()) if isinstance(values, dict) else ()
+    changed_paths = (
+        tuple(str(path) for path in changed) if isinstance(changed, list | tuple) else ()
     )
+    try:
+        expected = proof_plan(
+            root,
+            head=head,
+            gate_ids=tuple(node.id for node in plan.nodes),
+            changed_paths=changed_paths,
+        )
+    except ValueError:
+        return False
+    return expected.digest() == plan.digest()
 
 
 def proof_retention_inventory(

@@ -21,13 +21,17 @@ import pytest
 
 import ethos.adapters.admission.transitions as transitions
 from ethos.adapters.admission.closeout_intent.core import CloseoutTransition
+from ethos.adapters.admission.closeout_intent.core import _marker_dir
 from ethos.adapters.admission.closeout_intent.core import write_closeout_intent
 from ethos.adapters.admission.core import push_admission_report
 from ethos.adapters.admission.core import ref_move_admission_report
 from ethos.adapters.admission.transitions import work_lane_ref_transition_report
 from ethos.adapters.mutation.proof import _promotion_required_gate_ids
 from ethos.adapters.mutation.proof import executed_proof_record
+from ethos.adapters.mutation.proof import proof_plan
 from ethos.adapters.mutation.proof import record_executed_proof
+from ethos.adapters.store.state.lease.lifecycle.core import acquire_lease
+from ethos.repository.adoption.planner import adoption_plan
 from ethos.repository.evidence.core import EvidenceSet
 from ethos.repository.policy.gates import gate_policy_digest
 from tests.support.contract_helpers import conformant_proof_run
@@ -120,8 +124,6 @@ def test_work_lane_ref_transition_prepared_checks_holder_generation_and_old_head
     lane = tmp_path / "repo-work-current"
     git(repo, "worktree", "add", "-b", "work/current", lane.as_posix(), "dev")
     head = git(lane, "rev-parse", "HEAD")
-    from ethos.adapters.store.state.lease.lifecycle.core import acquire_lease
-
     acquire_lease(
         repo / ".ethos" / "state" / "state.sqlite",
         subject="work/current",
@@ -168,8 +170,6 @@ def test_work_lane_ref_transition_committed_advances_local_lease_head(
     git(repo, "worktree", "add", "-b", "work/current", lane.as_posix(), "dev")
     head = git(lane, "rev-parse", "HEAD")
     new_head = "b" * 40
-    from ethos.adapters.store.state.lease.lifecycle.core import acquire_lease
-
     acquire_lease(
         repo / ".ethos" / "state" / "state.sqlite",
         subject="work/current",
@@ -205,6 +205,14 @@ def _complete_proof_evidence(head: str, root: Path) -> dict[str, object]:
     return EvidenceSet.from_runs(evidence_id="proof", head=head, runs=runs).to_dict()
 
 
+def _record_complete_proof(root: Path, head: str) -> None:
+    record_executed_proof(
+        root,
+        _complete_proof_evidence(head, root),
+        plan=proof_plan(root, head=head),
+    )
+
+
 def _accepted_boundary_repo(tmp_path: Path) -> tuple[Path, str]:
     """A repo on dev with a candidate/dev branch; return (root, base_head).
 
@@ -220,7 +228,42 @@ def _accepted_boundary_repo(tmp_path: Path) -> tuple[Path, str]:
     g("init", "-q", "-b", "dev")
     g("config", "user.name", "t")
     g("config", "user.email", "t@e.x")
-    g("commit", "--allow-empty", "-q", "-m", "base")
+    adoption_plan(tmp_path, apply=True)
+    profile = tmp_path / ".ethos" / "profile.toml"
+    profile.write_text(
+        profile.read_text(encoding="utf-8")
+        + """
+[proof]
+code_correctness_gates = ["sample-tests", "sample-static"]
+
+[proof.code_correctness_map]
+behavior = "sample-tests"
+static-analysis = "sample-static"
+
+[[proof.gates]]
+id = "sample-tests"
+kind = "test"
+command = ["sample", "test"]
+dimensions = ["test", "coverage"]
+execution_mode = "subprocess"
+evidence_class = "proof"
+trust_bearing = true
+tool_adapter = "repository-native"
+
+[[proof.gates]]
+id = "sample-static"
+kind = "typing"
+command = ["sample", "typecheck"]
+dimensions = ["static-analysis"]
+execution_mode = "subprocess"
+evidence_class = "contract"
+trust_bearing = true
+tool_adapter = "repository-native"
+""",
+        encoding="utf-8",
+    )
+    g("add", ".")
+    g("commit", "-q", "-m", "base")
     base = g("rev-parse", "HEAD")
     g("branch", "candidate/dev")
     g("checkout", "-q", "candidate/dev")
@@ -328,7 +371,7 @@ def test_ref_move_admission_blocks_rollback_to_old_proven_commit(tmp_path: Path)
     repo, _base = _accepted_boundary_repo(tmp_path)
     c1 = _advance_candidate(repo, "c1")
     c2 = _advance_candidate(repo, "c2")
-    record_executed_proof(repo, _complete_proof_evidence(c1, repo))  # c1 proven + contained
+    _record_complete_proof(repo, c1)  # c1 proven + contained
 
     report = ref_move_admission_report(
         root=repo, ref_name="refs/heads/dev", old_value=c2, new_value=c1
@@ -345,7 +388,7 @@ def test_ref_move_admission_blocks_advance_to_non_head_intermediate(tmp_path: Pa
     repo, base = _accepted_boundary_repo(tmp_path)
     c1 = _advance_candidate(repo, "c1")
     _c2 = _advance_candidate(repo, "c2")  # live candidate head is now c2
-    record_executed_proof(repo, _complete_proof_evidence(c1, repo))  # c1 proven, FF, != head
+    _record_complete_proof(repo, c1)  # c1 proven, FF, != head
 
     report = ref_move_admission_report(
         root=repo, ref_name="refs/heads/dev", old_value=base, new_value=c1
@@ -383,7 +426,7 @@ def test_ref_move_admission_admits_official_closeout_with_intent_marker(
     moat would deadlock the sanctioned path."""
     repo, base = _accepted_boundary_repo(tmp_path)
     candidate_head = _advance_candidate(repo, "c1")  # c1 IS the live candidate head
-    record_executed_proof(repo, _complete_proof_evidence(candidate_head, repo))
+    _record_complete_proof(repo, candidate_head)
     _write_matching_intent(repo, old_value=base, new_value=candidate_head)
 
     report = ref_move_admission_report(
@@ -401,7 +444,7 @@ def test_ref_move_admission_blocks_raw_move_without_closeout_intent(tmp_path: Pa
     must block, or raw git could promote a proven candidate head bypassing closeout."""
     repo, base = _accepted_boundary_repo(tmp_path)
     candidate_head = _advance_candidate(repo, "c1")
-    record_executed_proof(repo, _complete_proof_evidence(candidate_head, repo))
+    _record_complete_proof(repo, candidate_head)
 
     report = ref_move_admission_report(
         root=repo, ref_name="refs/heads/dev", old_value=base, new_value=candidate_head
@@ -416,7 +459,7 @@ def test_ref_move_admission_blocks_reused_closeout_intent(tmp_path: Path) -> Non
     finds no marker and blocks — a nonce cannot authorize two promotions."""
     repo, base = _accepted_boundary_repo(tmp_path)
     candidate_head = _advance_candidate(repo, "c1")
-    record_executed_proof(repo, _complete_proof_evidence(candidate_head, repo))
+    _record_complete_proof(repo, candidate_head)
     _write_matching_intent(repo, old_value=base, new_value=candidate_head)
 
     first = ref_move_admission_report(
@@ -436,7 +479,7 @@ def test_ref_move_admission_blocks_mismatched_closeout_intent(tmp_path: Path) ->
     (a marker minted for a different transition cannot authorize this one)."""
     repo, base = _accepted_boundary_repo(tmp_path)
     candidate_head = _advance_candidate(repo, "c1")
-    record_executed_proof(repo, _complete_proof_evidence(candidate_head, repo))
+    _record_complete_proof(repo, candidate_head)
     # Marker binds a different old_value than the actual move.
     _write_matching_intent(repo, old_value="0" * 40, new_value=candidate_head)
 
@@ -453,7 +496,7 @@ def test_ref_move_admission_blocks_stale_closeout_intent(tmp_path: Path) -> None
     admissible, so a crashed closeout's residue cannot be reused later)."""
     repo, base = _accepted_boundary_repo(tmp_path)
     candidate_head = _advance_candidate(repo, "c1")
-    record_executed_proof(repo, _complete_proof_evidence(candidate_head, repo))
+    _record_complete_proof(repo, candidate_head)
     _write_matching_intent(repo, old_value=base, new_value=candidate_head)
     _backdate_markers(repo)
 
@@ -467,8 +510,6 @@ def test_ref_move_admission_blocks_stale_closeout_intent(tmp_path: Path) -> None
 
 def _backdate_markers(repo: Path) -> None:
     """Expire every closeout-intent marker by rewriting expires_at into the past."""
-    from ethos.adapters.admission.closeout_intent.core import _marker_dir
-
     marker_dir = _marker_dir(repo)
     for path in marker_dir.glob("*.json"):
         marker = json.loads(path.read_text(encoding="utf-8"))
@@ -591,7 +632,7 @@ def test_push_admission_blocks_off_train_proven_head(tmp_path: Path) -> None:
     _advance_candidate(repo, "c1")
     git(repo, "checkout", "-q", "-b", "work/x")
     off_train = _advance_candidate(repo, "d")  # commit on work/x, never on candidate
-    record_executed_proof(repo, _complete_proof_evidence(off_train, repo))
+    _record_complete_proof(repo, off_train)
 
     report = push_admission_report(
         root=repo, target_ref="refs/heads/dev", pushed_head=off_train, remote_head=base
@@ -606,7 +647,7 @@ def test_push_admission_blocks_non_head_intermediate(tmp_path: Path) -> None:
     repo, base = _accepted_boundary_repo(tmp_path)
     c1 = _advance_candidate(repo, "c1")
     _advance_candidate(repo, "c2")  # live candidate head is c2
-    record_executed_proof(repo, _complete_proof_evidence(c1, repo))
+    _record_complete_proof(repo, c1)
 
     report = push_admission_report(
         root=repo, target_ref="refs/heads/dev", pushed_head=c1, remote_head=base
@@ -622,7 +663,7 @@ def test_push_admission_blocks_rollback(tmp_path: Path) -> None:
     repo, _base = _accepted_boundary_repo(tmp_path)
     c1 = _advance_candidate(repo, "c1")
     c2 = _advance_candidate(repo, "c2")
-    record_executed_proof(repo, _complete_proof_evidence(c1, repo))
+    _record_complete_proof(repo, c1)
 
     report = push_admission_report(
         root=repo, target_ref="refs/heads/dev", pushed_head=c1, remote_head=c2
@@ -638,7 +679,7 @@ def test_push_admission_requires_local_closeout_before_protected_publication(
     """A proven candidate head is publishable only after local accepted closeout."""
     repo, base = _accepted_boundary_repo(tmp_path)
     candidate_head = _advance_candidate(repo, "c1")
-    record_executed_proof(repo, _complete_proof_evidence(candidate_head, repo))
+    _record_complete_proof(repo, candidate_head)
 
     blocked = push_admission_report(
         root=repo, target_ref="refs/heads/dev", pushed_head=candidate_head, remote_head=base

@@ -1,14 +1,12 @@
 from __future__ import annotations
 
 import ast
-from collections import defaultdict
+import tomllib
 from typing import TYPE_CHECKING
 from typing import Any
 
 from ethos.measure import effective_code_lines
-from ethos.repository.policy.layout.policy import DEFAULT_FLAT_DIRECTORY_LIMIT
-from ethos.repository.policy.layout.policy import DEFAULT_SUFFIX_GROUP_MIN
-from ethos.repository.policy.layout.policy import python_files
+from ethos.repository.policy.layout.policy import semantic_python_files
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -50,30 +48,55 @@ def ambiguous_module_findings(root: Path, policy: dict[str, Any]) -> list[dict[s
     }
     roles = _ambiguous_module_roles(root, policy)
     findings: list[dict[str, object]] = []
-    for path in python_files(root, policy):
-        if path.stem not in names:
+    for path in semantic_python_files(root, policy):
+        module = path.stem.lstrip("_")
+        if module not in names:
             continue
         relative = path.relative_to(root).as_posix()
         role = roles.get(relative)
-        reasons = _role_reasons(root, path, role)
+        reasons = _role_reasons(path, role)
         if not reasons:
             continue
         findings.append(
             {
                 "gap": f"module_layout_ambiguous_module_role:{relative}:{','.join(reasons)}",
                 "path": relative,
-                "module": path.stem,
+                "module": module,
                 "reasons": reasons,
             }
         )
     return findings
 
 
+def ambiguous_package_findings(root: Path, policy: dict[str, Any]) -> list[dict[str, object]]:
+    """Find generic package-directory names that conceal semantic ownership."""
+    names = {
+        str(name)
+        for name in policy.get("ambiguous_module_names", DEFAULT_AMBIGUOUS_MODULE_NAMES)
+        if isinstance(name, str) and name
+    }
+    directories = {
+        parent
+        for path in semantic_python_files(root, policy)
+        for parent in path.parents
+        if parent != root and root in parent.parents
+    }
+    return [
+        {
+            "gap": f"module_layout_ambiguous_package:{directory.relative_to(root).as_posix()}",
+            "path": directory.relative_to(root).as_posix(),
+            "package": directory.name.lstrip("_"),
+        }
+        for directory in sorted(directories)
+        if directory.name.lstrip("_") in names
+    ]
+
+
 def surface_core_command_findings(root: Path, policy: dict[str, Any]) -> list[dict[str, object]]:
     """Reject command definitions and declaration targets in CLI ``core.py`` files."""
     declared = _declared_command_modules(root)
     findings: list[dict[str, object]] = []
-    for path in python_files(root, policy):
+    for path in semantic_python_files(root, policy):
         relative = path.relative_to(root).as_posix()
         if path.name != "core.py" or "/surface/cli/" not in f"/{relative}":
             continue
@@ -91,12 +114,10 @@ def surface_core_command_findings(root: Path, policy: dict[str, Any]) -> list[di
 
 
 def multiple_command_owner_findings(root: Path, policy: dict[str, Any]) -> list[dict[str, object]]:
-    """Reject one command module that registers commands on multiple Cyclopts apps."""
+    """Reject a module that registers commands on multiple Cyclopts apps."""
     findings: list[dict[str, object]] = []
-    for path in python_files(root, policy):
+    for path in semantic_python_files(root, policy):
         relative = path.relative_to(root).as_posix()
-        if "/surface/cli/" not in f"/{relative}":
-            continue
         try:
             tree = ast.parse(path.read_text(encoding="utf-8"))
         except SyntaxError:
@@ -137,7 +158,7 @@ def _ambiguous_module_roles(root: Path, policy: dict[str, Any]) -> dict[str, dic
     return roles
 
 
-def _role_reasons(root: Path, path: Path, role: dict[str, object] | None) -> list[str]:
+def _role_reasons(path: Path, role: dict[str, object] | None) -> list[str]:
     if role is None:
         return ["contract_missing"]
     reasons: list[str] = []
@@ -163,13 +184,18 @@ def _role_reasons(root: Path, path: Path, role: dict[str, object] | None) -> lis
 
 def _role_list_reasons(role: dict[str, object]) -> list[str]:
     reasons: list[str] = []
-    for field in ("authority_refs", "public_symbols", "allowed_import_roots"):
+    for field in ("public_symbols", "allowed_import_roots"):
         value = role.get(field)
-        valid = (
-            isinstance(value, list) and bool(value) and all(isinstance(item, str) for item in value)
-        )
+        valid = isinstance(value, list) and all(isinstance(item, str) for item in value)
         if not valid:
             reasons.append(f"{field}_invalid")
+    authority_refs = role.get("authority_refs")
+    if not (
+        isinstance(authority_refs, list)
+        and bool(authority_refs)
+        and all(isinstance(item, str) for item in authority_refs)
+    ):
+        reasons.append("authority_refs_invalid")
     return reasons
 
 
@@ -200,8 +226,6 @@ def _imported_modules(path: Path) -> set[str]:
 
 def _declared_command_modules(root: Path) -> set[str]:
     try:
-        import tomllib
-
         payload = tomllib.loads((root / "system/commands.toml").read_text(encoding="utf-8"))
     except (OSError, tomllib.TOMLDecodeError):
         return set()
@@ -225,54 +249,3 @@ def _command_owner(decorator: ast.expr) -> str:
     if not isinstance(target, ast.Attribute) or target.attr != "command":
         return ""
     return target.value.id if isinstance(target.value, ast.Name) else ""
-
-
-def suffix_module_findings(root: Path, policy: dict[str, Any]) -> list[dict[str, object]]:
-    """Find suffix-flat module names such as `foo_report.py`."""
-    findings: list[dict[str, object]] = []
-    for path in python_files(root, policy):
-        if path.name == "__init__.py" or path.stem.startswith("_") or "_" not in path.stem:
-            continue
-        rel = path.relative_to(root).as_posix()
-        gap = f"module_layout_suffix_module:{rel}:{path.stem}"
-        findings.append({"gap": gap, "path": rel, "module": path.stem})
-    return findings
-
-
-def suffix_group_findings(root: Path, policy: dict[str, Any]) -> list[dict[str, object]]:
-    """Find grouped suffix-flat modules sharing one prefix."""
-    minimum = int(policy.get("suffix_flat_group_min", DEFAULT_SUFFIX_GROUP_MIN))
-    grouped: dict[Path, dict[str, list[str]]] = defaultdict(lambda: defaultdict(list))
-    for path in python_files(root, policy):
-        if path.name == "__init__.py" or path.stem.startswith("_") or "_" not in path.stem:
-            continue
-        prefix, _suffix = path.stem.split("_", maxsplit=1)
-        grouped[path.parent.relative_to(root)][prefix].append(path.name)
-    findings: list[dict[str, object]] = []
-    for parent, groups in sorted(grouped.items()):
-        parent_text = parent.as_posix()
-        for prefix, names in sorted(groups.items()):
-            if len(names) < minimum:
-                continue
-            gap = f"module_layout_suffix_flat:{parent_text}:{prefix}:{len(names)}"
-            findings.append(
-                {"gap": gap, "directory": parent_text, "prefix": prefix, "files": names}
-            )
-    return findings
-
-
-def flat_directory_findings(root: Path, policy: dict[str, Any]) -> list[dict[str, object]]:
-    """Find directories with too many direct governed Python modules."""
-    limit = int(policy.get("flat_directory_limit", DEFAULT_FLAT_DIRECTORY_LIMIT))
-    counts: dict[Path, int] = defaultdict(int)
-    for path in python_files(root, policy):
-        if path.name != "__init__.py":
-            counts[path.parent.relative_to(root)] += 1
-    findings: list[dict[str, object]] = []
-    for directory, count in sorted(counts.items()):
-        directory_text = directory.as_posix()
-        if count <= limit:
-            continue
-        gap = f"module_layout_flat_directory:{directory_text}:{count}>{limit}"
-        findings.append({"gap": gap, "directory": directory_text, "module_count": count})
-    return findings

@@ -25,14 +25,25 @@
 
 - [x] 3.1 Refresh generic parity evidence if the changed carrier set requires it.
 - [ ] 3.2 Run exact-HEAD `ethos prove --execute` and require every gate to pass.
-- [ ] 3.3 Complete evidence-backed tasks, officially archive this Change, and
-  rerun exact-HEAD proof on the archive commit.
-- [ ] 3.4 Land to candidate, perform accepted-root closeout, pass repo-family
-  lane closeout, and retire the owned Lane.
-- [ ] 3.5 Publish GitHub `dev` and `main` serially, then perform at most one
-  failed-job rerun for main and record exact hosted outcomes.
-- [ ] 3.6 Create immutable metadata-only closeout evidence, preserve `CURRENT`,
-  refresh the records index, and remove only task-owned temporary files.
+- [ ] 3.3 Complete only evidence-backed active tasks and validate the carrier
+  for official archive.
+
+## Post-archive transition boundary
+
+Official archive, archive-HEAD parity and proof, current-base refresh if
+necessary, candidate land, accepted-root closeout, repo-family closeout, and
+owned-Lane retirement are later lifecycle transitions rather than unfinished
+active Change tasks.
+
+After accepted local closeout, publish GitHub `dev` and `main` serially and
+observe their exact hosted outcomes. A failed main repository-proof job permits
+at most one failed-job rerun after host pressure is clear; it does not permit an
+automatic retry loop or convert a failure into a pass.
+
+Create the immutable metadata-only closeout record only after those local and
+hosted transitions have current evidence. Preserve `CURRENT`, refresh the
+records index, and remove only task-owned temporary files. GitLab remains
+outside the transition set while intranet access is unavailable.
 
 ## Post-change boundary
 

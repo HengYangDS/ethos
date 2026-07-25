@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-_accepted_chronicle = lane_adapter._accepted_chronicle
+_accepted_chronicle = lane_adapter._accepted_chronicle  # noqa: SLF001, RUF100 - dedicated private-gate coverage
 
 
 def _commit_bytes(repo: Path, relative: str, raw: bytes, *, executable: bool = False) -> None:

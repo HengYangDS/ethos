@@ -531,9 +531,9 @@ def test_clear_core_mapping_and_validation_edges(
         == "lane_resolution_clear_quarantine_path_unsafe"
     )
     assert [
-        clear_core._move_gap(state)
+        clear_core._move_gap(state)  # noqa: SLF001, RUF100 - coverage probes the internal gap table
         for state in ("moved", "collision", "identity_mismatch", "failed")
-    ] == [  # noqa: SLF001, RUF100
+    ] == [
         "",
         "lane_resolution_clear_quarantine_collision",
         "lane_resolution_clear_package_identity_mismatch",

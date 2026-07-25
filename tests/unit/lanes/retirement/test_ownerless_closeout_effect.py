@@ -19,6 +19,7 @@ from ethos.adapters.mutation.resolution.records.core import receipt_path
 from ethos.adapters.mutation.resolution.records.roots import current_record_root
 from ethos.adapters.store.state.closeout import get_closeout_fence
 from ethos.adapters.store.state.schema import state_database
+from ethos_core.contracts.resolution.lane import LaneObservation
 from ethos_core.contracts.resolution.lane import LaneResolutionDecision
 from tests.support.lane_helpers import git
 from tests.support.lane_helpers import init_repo
@@ -203,6 +204,134 @@ def test_ownerless_registration_probe_has_explicit_three_state_contract(
 
     assert closeout_git.probe_ownerless_worktree_registration(tmp_path, "/target") == expected
     assert calls == [(("worktree", "list", "--porcelain", "-z"), {"check": False})]
+
+
+@pytest.mark.parametrize("mutation", ["non_retire", "dirty", "not_orphan", "held"])
+def test_pre_admission_skips_non_ownerless_candidates(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, mutation: str
+) -> None:
+    scenario = _scenario(tmp_path)
+    observation = LaneObservation.model_validate(scenario.decision["observation"])
+    disposition = "retire"
+    if mutation == "non_retire":
+        disposition = "preserve-retire"
+    elif mutation == "dirty":
+        observation = observation.model_copy(update={"dirty": True})
+    elif mutation == "not_orphan":
+        observation = observation.model_copy(update={"orphan": False})
+    else:
+        observation = observation.model_copy(update={"holder_ref": "agent:test:holder"})
+    monkeypatch.setattr(
+        effect,
+        "admit_clean_ownerless_lane",
+        lambda **_kwargs: pytest.fail("non-ownerless candidates must not be admitted"),
+    )
+
+    admission, gap = effect.pre_admit_ownerless_lane(
+        root=scenario.repo,
+        decision_path=scenario.decision_path,
+        decision=scenario.decision,
+        observation=observation,
+        disposition=disposition,
+    )
+
+    assert (admission, gap) == (None, "")
+
+
+def test_pre_admission_requires_actor_and_preserves_admission_gap(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    scenario = _scenario(tmp_path)
+    observation = LaneObservation.model_validate(scenario.decision["observation"])
+    monkeypatch.delenv("ETHOS_ACTOR", raising=False)
+
+    admission, gap = effect.pre_admit_ownerless_lane(
+        root=scenario.repo,
+        decision_path=scenario.decision_path,
+        decision=scenario.decision,
+        observation=observation,
+        disposition="retire",
+    )
+
+    assert (admission, gap) == (None, "lane_resolution_ownerless_executor_required")
+    monkeypatch.setenv("ETHOS_ACTOR", _EXECUTOR)
+    monkeypatch.setattr(
+        effect,
+        "admit_clean_ownerless_lane",
+        lambda **_kwargs: (_ for _ in ()).throw(
+            effect.OwnerlessCloseoutError("lane_resolution_ownerless_decision_stale")
+        ),
+    )
+    admission, gap = effect.pre_admit_ownerless_lane(
+        root=scenario.repo,
+        decision_path=scenario.decision_path,
+        decision=scenario.decision,
+        observation=observation,
+        disposition="retire",
+    )
+    assert (admission, gap) == (None, "lane_resolution_ownerless_decision_stale")
+
+
+@pytest.mark.parametrize(
+    ("error", "expected"),
+    [
+        (ValueError("lane_resolution_receipt_competing"), "lane_resolution_receipt_competing"),
+        (ValueError("unclassified"), "lane_resolution_receipt_invalid"),
+        (FileExistsError("exists"), "lane_resolution_receipt_path_exists"),
+        (OSError("unsafe"), "lane_resolution_receipt_path_unsafe"),
+    ],
+)
+def test_receipt_reservation_claim_maps_storage_failures(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    error: Exception,
+    expected: str,
+) -> None:
+    def fail_claim(**_kwargs: object) -> object:
+        raise error
+
+    monkeypatch.setattr(closeout_receipt, "claim_resolution_receipt_reservation", fail_claim)
+    with ExitStack() as stack:
+        assert closeout_receipt.claim_receipt_reservation(
+            stack,
+            tmp_path,
+            tmp_path / "records",
+            _DECISION_ID,
+            mode="create",
+        ) == (False, None, expected)
+
+
+@pytest.mark.parametrize(
+    ("error", "expected"),
+    [
+        (ValueError("lane_closeout_fence_held"), "lane_closeout_fence_held"),
+        (OSError("database unavailable"), "lane_resolution_ownerless_fence_failed"),
+    ],
+)
+def test_fresh_fence_acquisition_preserves_stable_or_fail_closed_gap(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    error: Exception,
+    expected: str,
+) -> None:
+    scenario = _scenario(tmp_path)
+    admission = effect.admit_clean_ownerless_lane(
+        root=scenario.repo,
+        decision_path=scenario.decision_path,
+        decision=scenario.decision,
+        executor_ref=_EXECUTOR,
+    )
+    monkeypatch.setattr(
+        effect,
+        "acquire_closeout_fence",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(error),
+    )
+
+    with pytest.raises(effect.OwnerlessCloseoutError) as raised:
+        effect._acquire_fresh_fence(  # noqa: SLF001, RUF100
+            admission, state_database(scenario.repo)
+        )
+    assert str(raised.value) == expected
 
 
 def test_fresh_fence_acquisition_failure_blocks_before_reservation_or_effect(

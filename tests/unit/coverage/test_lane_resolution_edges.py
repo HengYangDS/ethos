@@ -193,9 +193,9 @@ def test_resolution_missing_dirty_and_invalid_decisions(tmp_path: Path, monkeypa
     decision_path = record_root / "decisions" / "missing.json"
     monkeypatch.setattr(resolution, "canonical_record_path", lambda *_args: True)
     monkeypatch.setattr(resolution, "current_record_root", lambda _root: record_root)
-    assert resolution._read_decision(decision_path, root=tmp_path)[1] == [
-        "lane_resolution_decision_invalid"
-    ]
+    assert resolution._read_decision(  # noqa: SLF001, RUF100 - coverage probes the private decision reader boundary
+        decision_path, root=tmp_path
+    )[1] == ["lane_resolution_decision_invalid"]
 
     observation = _observation(tmp_path, dirty=True)
     decision = {
@@ -253,7 +253,7 @@ def test_resolution_read_decision_schema_and_digest_edges(tmp_path: Path, monkey
 
 
 def test_resolution_chronicle_command_failures(tmp_path: Path) -> None:
-    accepted_chronicle = resolution._accepted_chronicle
+    accepted_chronicle = resolution._accepted_chronicle  # noqa: SLF001, RUF100 - coverage probes the private chronicle gate
     outside = tmp_path.parent / "outside.md"
     assert accepted_chronicle(tmp_path, chronicle_ref=outside.as_posix(), disposition="block")[
         2
@@ -479,7 +479,7 @@ def test_resolution_shared_path_and_chronicle_failure_edges(
 
     def fail_destination_resolve(path, *args, **kwargs):
         if path == destination.absolute():
-            raise OSError("unavailable")
+            raise OSError("unavailable")  # noqa: EM101, RUF100 - fault injection needs the exact boundary error
         return original_resolve(path, *args, **kwargs)
 
     with monkeypatch.context() as scoped:

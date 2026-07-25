@@ -24,8 +24,8 @@
 ## 3. Proof and closeout
 
 - [x] 3.1 Refresh generic parity evidence if the changed carrier set requires it.
-- [ ] 3.2 Run exact-HEAD `ethos prove --execute` and require every gate to pass.
-- [ ] 3.3 Complete only evidence-backed active tasks and validate the carrier
+- [x] 3.2 Run exact-HEAD `ethos prove --execute` and require every gate to pass.
+- [x] 3.3 Complete only evidence-backed active tasks and validate the carrier
   for official archive.
 
 ## Post-archive transition boundary

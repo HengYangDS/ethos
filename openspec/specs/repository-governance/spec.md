@@ -144,13 +144,13 @@ input contract, output contract, fallback, and exit strategy.
   fallback, and retirement behavior
 
 ### Requirement: Product Design Contract
-ETHOS SHALL define product truth, adopter boundaries, package ontology, and
-migration safety before code migration.
+ETHOS SHALL define product truth, adopter boundaries, and transition safety
+before governed change.
 
 #### Scenario: Design contract is audited
 - **WHEN** architecture tests inspect ETHOS current governance docs
-- **THEN** the product design contract, package ontology, boundary convergence
-  policy, and capability parity ledger are present
+- **THEN** the product design contract, boundary convergence policy, and
+  capability parity ledger are present
 - **AND** a reference-adopter embedded governance implementation is treated as a
   migration oracle and rollback anchor rather than deleted automatically
 

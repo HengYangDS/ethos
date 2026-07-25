@@ -23,7 +23,6 @@ Start with [Start](start/quickstart.md), then read
 [Tooling Adoption Roadmap](plans/tooling-adoption-roadmap.md),
 [Complete Implementation Roadmap](plans/complete-implementation-roadmap.md),
 [Mechanism Comparison Audit](reference/mechanism-comparison-audit.md),
-[Package Ontology](architecture/package-ontology.md),
 [Product Boundary Convergence](governance/product-boundary-convergence.md),
 [Enterprise Readiness Closeout](governance/enterprise-readiness-closeout.md),
 [Capability Parity Ledger](governance/capability-parity-ledger.md),
@@ -79,7 +78,6 @@ or maintainer break-glass evidence.
 - Mechanism comparison audit: [Mechanism Comparison Audit](reference/mechanism-comparison-audit.md)
 - Rule system: [Rules System](../rules/README.md)
 - Skills: [Skills](../.agents/skills/README.md)
-- Target package ontology: [Package Ontology](architecture/package-ontology.md)
 - Boundary convergence: [Product Boundary Convergence](governance/product-boundary-convergence.md)
 - Enterprise readiness: [Enterprise Readiness Closeout](governance/enterprise-readiness-closeout.md)
 - Capability parity: [Capability Parity Ledger](governance/capability-parity-ledger.md)
@@ -89,7 +87,6 @@ or maintainer break-glass evidence.
 - Config boundary model: [Config Boundary Model](governance/config-boundary-model.md)
 - Post-publication governance: [Post-Publication Governance Plan](plans/post-publication-governance-plan.md)
 - Adopter boundary and retirement: [Adopter Boundary And Retirement](governance/adopter-boundary-and-retirement.md)
-- Product ontology and package migration status: [Product Ontology](architecture/product-ontology.md)
 - Distribution: [Distribution](architecture/distribution.md)
 - Workflow runtime: [Workflow Runtime](architecture/workflow-runtime.md)
 - Protocol contracts: [Protocol Contracts](architecture/protocol-contracts.md)

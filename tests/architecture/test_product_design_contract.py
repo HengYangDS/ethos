@@ -2,10 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ethos.contracts.package.ontology import package_ontology_report
-from ethos.repository.audit import REQUIRED_DOCS
-from ethos.repository.audit import repository_audit
-
 ROOT = Path(__file__).resolve().parents[2]
 PROVIDER_NEUTRAL_CANONICAL_DOCS = (
     "docs/governance/product-design-contract.md",
@@ -320,16 +316,6 @@ def test_canonical_product_docs_do_not_expose_predecessor_compatibility_language
                 assert phrase not in text, path.relative_to(ROOT)
 
 
-def test_package_ontology_declares_target_mece_packages_and_migration_hosts() -> None:
-    text = read("docs/architecture/package-ontology.md")
-
-    assert "`src/ethos`" in text
-    assert "one buildable Python product package" in text
-    assert "not separately versioned products" in text
-    assert "distributions/npm" in text
-    assert "Python product package ontology" in text
-
-
 def test_canonical_kernel_surfaces_do_not_promote_retired_chain_terms() -> None:
     retired_phrases = (
         "Constitution, Subject",
@@ -338,7 +324,7 @@ def test_canonical_kernel_surfaces_do_not_promote_retired_chain_terms() -> None:
         "Chronicle, Evolution",
     )
     canonical_surfaces = (
-        "docs/architecture/package-ontology.md",
+        "docs/concepts/kernel-model.md",
         "docs/reference/glossary.md",
         "README.md",
         "openspec/specs/kernel/spec.md",
@@ -443,64 +429,9 @@ def test_capability_parity_ledger_classifies_required_capabilities() -> None:
     assert "shadow-parity.schema.json" in text
 
 
-def test_product_design_contract_is_repository_audited_with_target_ontology() -> None:
-    for doc in (
-        "docs/governance/product-design-contract.md",
-        "docs/architecture/package-ontology.md",
-        "docs/governance/product-boundary-convergence.md",
-        "docs/governance/capability-parity-ledger.md",
-        "docs/governance/repository-profile-contract.md",
-        "docs/governance/config-boundary-model.md",
-        "docs/governance/adopter-boundary-and-retirement.md",
-    ):
-        assert doc in REQUIRED_DOCS
-
-    report = repository_audit(ROOT, openspec_mode="shape")
-    target = report["target_package_ontology"]
-
-    assert target["ok"] is True
-    assert target["contract_ok"] is True
-    assert target["physical_target_homes_present"] is True
-    assert target["migration_complete"] is True
-    assert target["migration_status"] == "complete"
-    assert target["target_packages"] == ["ethos"]
-    assert target["migration_hosts"] == []
-    assert target["target_distribution_adapters"] == ["distributions/npm"]
-    assert target["distribution_migration_hosts"] == []
-
-
-def test_repository_audit_uses_canonical_package_ontology_contract() -> None:
-    contract = package_ontology_report()
-    audit = repository_audit(ROOT, openspec_mode="shape")
-
-    assert audit["package_ontology"]["target_package_contract"] == contract["target_packages"]
-    assert audit["package_ontology"]["migration_host_packages"] == contract["migration_hosts"]
-    assert audit["target_package_ontology"]["target_packages"] == contract["target_packages"]
-    assert audit["target_package_ontology"]["migration_hosts"] == contract["migration_hosts"]
-    assert audit["target_package_ontology"]["distribution_status"] == {
-        "distributions/npm": {
-            "state": "migrated",
-            "home": "distributions/npm",
-        }
-    }
-
-
-def test_product_package_and_migration_host_sets_are_disjoint() -> None:
-    report = repository_audit(ROOT, openspec_mode="shape")
-    ontology = report["package_ontology"]
-
-    target_packages = set(ontology["target_package_contract"])
-    migration_hosts = set(ontology["migration_host_packages"])
-
-    assert target_packages.isdisjoint(migration_hosts)
-    assert "ethos" in target_packages
-    assert "ethos" not in migration_hosts
-    assert ontology["migration_host_lifecycle"] == {}
-
-
 def test_low_level_active_surfaces_do_not_use_philosophy_labels() -> None:
     scanned_roots = (
-        ROOT / "packages",
+        ROOT / "src",
         ROOT / "system",
         ROOT / ".config",
         ROOT / ".githooks",

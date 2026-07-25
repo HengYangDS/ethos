@@ -73,7 +73,7 @@ subjects = [
   "evidence",
 ]
 path_globs = [
-  "packages/**",
+  "src/**",
   "docs/**",
   "system/**",
   "openspec/**",

@@ -16,14 +16,14 @@ define independent governance behavior.
 - **AND** the Node package remains a launcher-only adapter
 
 ### Requirement: Package Manager Isolation
-Distribution adapters SHALL be excluded from Python workspace package discovery
-unless they are Python packages themselves.
+Distribution adapters SHALL remain outside the Python distribution declared by
+the repository-root `pyproject.toml`.
 
 #### Scenario: uv workspace remains Python-only
 - **WHEN** the repository contains a Node distribution adapter under
   `distributions/npm`
-- **THEN** uv workspace members list the Python packages explicitly
-- **AND** package-manager metadata does not break Python builds
+- **THEN** the wheel package remains `src/ethos`
+- **AND** Node package-manager metadata does not alter Python builds
 
 ### Requirement: Published Distribution Boundary
 Distribution manifests SHALL publish only neutral launcher assets and SHALL NOT
@@ -44,7 +44,7 @@ the Python package workspace.
 #### Scenario: npm launcher is checked
 - **WHEN** npm workspace metadata is inspected
 - **THEN** it references `distributions/npm`
-- **AND** it does not reference `packages/ethos-node`
+- **AND** it is not included in the Python wheel
 - **AND** the launcher forwards to the Python ETHOS command plane
 
 ### Requirement: Exact Node Runtime Compatibility Policy

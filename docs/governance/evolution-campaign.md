@@ -39,7 +39,7 @@ through source, schema, docs, OpenSpec, claims, evidence, and Chronicle;
 obsolete, false, redundant, stale, misbounded, or overreaching practices must be
 retired, rejected, or archived instead of preserved as process residue.
 
-Repository audit checks command-plane growth, package ontology drift, docs metadata,
+Repository audit checks command-plane growth, distribution metadata, docs metadata,
 schema coverage, profile leakage, and adapter boundaries. Evolution records
 must either canonize a proven improvement or retire it.
 

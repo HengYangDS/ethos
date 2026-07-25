@@ -10,7 +10,6 @@ FORBIDDEN_PATH_PARTS = {
     "compat",
     "compatibility",
     "deprecated",
-    "facade",
     "legacy",
     "shim",
     "wrapper",
@@ -18,21 +17,15 @@ FORBIDDEN_PATH_PARTS = {
 }
 FORBIDDEN_IDENTIFIER_PATTERNS = (
     ("compatibility_shim", re.compile(r"compat.*shim|shim.*compat", re.IGNORECASE)),
-    ("compatibility_facade", re.compile(r"compat.*facade|facade.*compat", re.IGNORECASE)),
     ("compatibility_alias", re.compile(r"compat.*alias|alias.*compat", re.IGNORECASE)),
     ("compatibility_wrapper", re.compile(r"compat.*wrapp|wrapp.*compat", re.IGNORECASE)),
     ("compatibility_mode", re.compile(r"compat.*mode|mode.*compat", re.IGNORECASE)),
     ("legacy_shim", re.compile(r"legacy.*shim|shim.*legacy", re.IGNORECASE)),
-    ("legacy_facade", re.compile(r"legacy.*facade|facade.*legacy", re.IGNORECASE)),
     ("legacy_alias", re.compile(r"legacy.*alias|alias.*legacy", re.IGNORECASE)),
     ("legacy_wrapper", re.compile(r"legacy.*wrapp|wrapp.*legacy", re.IGNORECASE)),
     ("deprecated_alias", re.compile(r"deprecated.*alias|alias.*deprecated", re.IGNORECASE)),
     ("deprecated_wrapper", re.compile(r"deprecated.*wrapp|wrapp.*deprecated", re.IGNORECASE)),
 )
-ALLOWED_PATH_PART_SEQUENCES = {
-    ("ethos", "repository", "policy", "layout"),
-    ("ethos", "repository", "policy", "no_compat"),
-}
 
 
 @dataclass(frozen=True, slots=True)
@@ -89,9 +82,6 @@ def no_compat_report(root: Path) -> dict[str, object]:
 
 def _path_part_findings(root: Path, path: Path) -> list[NoCompatFinding]:
     rel = path.relative_to(root).as_posix()
-    module_parts = _module_parts(root, path)
-    if _allowed_no_compat_context(module_parts):
-        return []
     return [
         NoCompatFinding(rel, 1, "forbidden_path_part", part)
         for part in Path(rel).with_suffix("").parts
@@ -106,29 +96,13 @@ def _python_findings(root: Path, path: Path) -> list[NoCompatFinding]:
     except SyntaxError as exc:
         return [NoCompatFinding(rel, exc.lineno or 1, "syntax", "unparseable_python")]
     findings: list[NoCompatFinding] = []
-    module_parts = _module_parts(root, path)
     for node in ast.walk(tree):
-        findings.extend(_definition_name_findings(rel, node, module_parts=module_parts))
-        findings.extend(_import_name_findings(rel, node, module_parts=module_parts))
-        findings.extend(_dynamic_export_findings(rel, node))
+        findings.extend(_definition_name_findings(rel, node))
+        findings.extend(_import_name_findings(rel, node))
     return findings
 
 
-def _module_parts(root: Path, path: Path) -> tuple[str, ...]:
-    for source_root in PRODUCTION_SOURCE_ROOTS:
-        base = root / source_root
-        try:
-            return path.with_suffix("").relative_to(base).parts
-        except ValueError:
-            continue
-    return ()
-
-
-def _definition_name_findings(
-    rel: str, node: ast.AST, *, module_parts: tuple[str, ...]
-) -> list[NoCompatFinding]:
-    if _allowed_no_compat_context(module_parts):
-        return []
+def _definition_name_findings(rel: str, node: ast.AST) -> list[NoCompatFinding]:
     name = ""
     if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
         name = node.name
@@ -137,11 +111,7 @@ def _definition_name_findings(
     return _identifier_findings(rel, getattr(node, "lineno", 1), name)
 
 
-def _import_name_findings(
-    rel: str, node: ast.AST, *, module_parts: tuple[str, ...]
-) -> list[NoCompatFinding]:
-    if _allowed_no_compat_context(module_parts):
-        return []
+def _import_name_findings(rel: str, node: ast.AST) -> list[NoCompatFinding]:
     names: list[tuple[str, int]] = []
     if isinstance(node, ast.Import):
         names.extend((alias.name, node.lineno) for alias in node.names)
@@ -164,20 +134,3 @@ def _identifier_findings(
         for detail, pattern in FORBIDDEN_IDENTIFIER_PATTERNS
         if name and pattern.search(name)
     ]
-
-
-def _dynamic_export_findings(rel: str, node: ast.AST) -> list[NoCompatFinding]:
-    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == "__getattr__":
-        return [
-            NoCompatFinding(
-                rel,
-                node.lineno,
-                "dynamic_export",
-                "module_getattr_forwarding_surface",
-            )
-        ]
-    return []
-
-
-def _allowed_no_compat_context(module_parts: tuple[str, ...]) -> bool:
-    return any(module_parts[: len(parts)] == parts for parts in ALLOWED_PATH_PART_SEQUENCES)

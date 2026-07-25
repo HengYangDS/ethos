@@ -1,1 +1,0 @@
-"""Package ontology contract modules."""

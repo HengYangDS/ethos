@@ -22,9 +22,7 @@ def _exceptions_path(root: Path) -> Path:
 
 
 def _is_product_root(root: Path) -> bool:
-    return (root / "packages" / "ethos" / "README.md").exists() and (
-        root / "schemas" / "ethos"
-    ).exists()
+    return (root / "pyproject.toml").exists() and (root / "system" / "commands.toml").exists()
 
 
 def date_or_none(value: str) -> date | None:

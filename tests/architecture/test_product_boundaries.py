@@ -10,9 +10,11 @@ from pathlib import Path
 
 from ethos.repository.policy.boundary.product import contributor_policy_report
 from ethos.repository.policy.boundary.product import product_boundary_report
+from ethos.repository.policy.coupling.execution.audit import subprocess_execution_calls
 from ethos_core.contracts.package.ontology import RETIRED_PRODUCT_FAMILIES
 from ethos_core.contracts.package.ontology import RETIRED_PRODUCT_FAMILY_TOKENS
 from ethos_core.contracts.package.ontology import package_ontology_report
+from ethos_core.contracts.registry.declarations import load_coupling_declaration
 
 ROOT = Path(__file__).resolve().parents[2]
 RETIRED_PUBLIC_ROOTS = {
@@ -54,7 +56,6 @@ HOST_PROJECTION_LABELS = (
     "Open Worktree",
     "Checkout",
 )
-
 
 CURRENT_COMPATIBILITY_RESIDUE = (
     "legacy",
@@ -98,6 +99,11 @@ def imported_modules(path: Path) -> set[str]:
     return modules
 
 
+def directly_executes_subprocess(path: Path) -> bool:
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    return bool(subprocess_execution_calls(tree))
+
+
 def test_kernel_has_no_side_effect_or_profile_imports() -> None:
     forbidden = {
         "ethos.repository",
@@ -139,6 +145,55 @@ def test_semantic_target_packages_do_not_import_provider_execution() -> None:
         assert any(source.rglob("*.py")), f"no modules under {source_rel} — vacuous scan"
         for path in source.rglob("*.py"):
             assert imported_modules(path).isdisjoint(forbidden), path
+
+
+def test_coupling_execution_package_initializer_is_docstring_only() -> None:
+    initializer = ROOT / "packages/ethos/src/ethos/repository/policy/coupling/execution/__init__.py"
+
+    tree = ast.parse(initializer.read_text(encoding="utf-8"))
+
+    assert ast.get_docstring(tree) == "Mandatory executable coupling audit package."
+    assert len(tree.body) == 1
+
+
+def test_direct_subprocess_scanner_recognizes_imported_function_alias(tmp_path: Path) -> None:
+    source = tmp_path / "boundary.py"
+    source.write_text(
+        "from subprocess import run as invoke\ninvoke(['git', 'status'])\n",
+        encoding="utf-8",
+    )
+
+    assert directly_executes_subprocess(source) is True
+
+
+def test_lane_resolution_declares_all_current_direct_execution_boundaries() -> None:
+    resolution_root = ROOT / "packages/ethos/src/ethos/adapters/mutation/resolution"
+    shared_git_owner = Path("packages/ethos/src/ethos/adapters/mutation/lane_lifecycle/core.py")
+    direct_resolution = {
+        path.relative_to(ROOT).as_posix()
+        for path in resolution_root.rglob("*.py")
+        if directly_executes_subprocess(path)
+    }
+    expected = tuple(sorted({shared_git_owner.as_posix(), *direct_resolution}))
+    binding = load_coupling_declaration().binding("work_lane_lifecycle_command_contract")
+    optional_adapters = {
+        "packages/ethos/src/ethos/adapters/admission/control/replacement.py",
+        "packages/ethos/src/ethos/repository/evidence/attestation.py",
+    }
+
+    assert directly_executes_subprocess(ROOT / shared_git_owner) is True
+    assert expected == (
+        "packages/ethos/src/ethos/adapters/mutation/lane_lifecycle/core.py",
+        "packages/ethos/src/ethos/adapters/mutation/resolution/_effects.py",
+        "packages/ethos/src/ethos/adapters/mutation/resolution/observation.py",
+        "packages/ethos/src/ethos/adapters/mutation/resolution/preservation/core.py",
+        "packages/ethos/src/ethos/adapters/mutation/resolution/records/roots.py",
+    )
+    assert binding.mandatory_paths == expected
+    assert binding.declared_executables == ("git",)
+    assert binding.audit_root_bound is True
+    assert set(binding.mandatory_paths).isdisjoint(optional_adapters)
+    assert all("*" not in relative for relative in binding.mandatory_paths)
 
 
 def test_product_surfaces_are_author_and_adopter_neutral() -> None:

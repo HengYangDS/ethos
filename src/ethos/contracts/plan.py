@@ -12,6 +12,8 @@ from typing import Literal
 from pydantic import BaseModel
 from pydantic import ConfigDict
 
+PlanVerdict = Literal["pass", "block", "unknown"]
+
 
 def _stable_json(value: object) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"))
@@ -76,6 +78,7 @@ class PlanIR(_PlanModel):
     """Hashable transient plan; it owns no repository truth or mutation."""
 
     nodes: tuple[PlanNode, ...] = ()
+    initial_verdict: PlanVerdict = "pass"
     validation_issues: tuple[str, ...] = ()
 
     def gaps(self) -> tuple[str, ...]:
@@ -84,7 +87,12 @@ class PlanIR(_PlanModel):
 
     @property
     def ok(self) -> bool:
-        return not self.gaps()
+        return self.verdict == "pass"
+
+    @property
+    def verdict(self) -> PlanVerdict:
+        """Return the closed transition verdict; hard gaps always block."""
+        return "block" if self.gaps() else self.initial_verdict
 
     def ordered_nodes(self) -> tuple[PlanNode, ...]:
         ordered, _ = _ordered_ids(self.nodes)
@@ -95,12 +103,15 @@ class PlanIR(_PlanModel):
         return {
             "schema_version": 1,
             "nodes": [node.to_dict() for node in self.ordered_nodes()],
-            "validation": {"ok": self.ok, "gaps": list(self.gaps())},
+            "verdict": self.verdict,
+            "required_gaps": list(self.gaps()),
             "digest": self.digest(),
         }
 
     def digest(self) -> str:
         payload: dict[str, Any] = {"nodes": [node.normalized() for node in self.ordered_nodes()]}
+        if self.initial_verdict != "pass":
+            payload["initial_verdict"] = self.initial_verdict
         if self.validation_issues:
             payload["validation_issues"] = list(self.validation_issues)
         return hashlib.sha256(_stable_json(payload).encode()).hexdigest()

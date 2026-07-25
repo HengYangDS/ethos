@@ -28,7 +28,7 @@ def test_workflow_contract_is_frozen_typed_declaration() -> None:
         item["id"] for item in load_system_contract(Path(), "workflows")["lease_transition"]
     )
     assert contract.to_report()["node_count"] >= 6
-    assert contract.to_projection(changed_paths=("docs/a.md",))["plan_ir"]["validation"]["ok"]
+    assert contract.to_projection(changed_paths=("docs/a.md",))["plan_ir"]["verdict"] == "pass"
 
     with pytest.raises(ValidationError) as frozen_error:
         contract.runtime.truth_boundary = "mutable"
@@ -217,7 +217,7 @@ def test_planned_transition_projection_includes_changed_paths_and_plan_ir() -> N
     assert projection["changed_paths"] == ["docs/a.md"]
     assert projection["transitions"]
     assert any(node["id"] == "handoff" for node in projection["nodes"])
-    assert projection["plan_ir"]["validation"]["ok"]
+    assert projection["plan_ir"]["verdict"] == "pass"
     assert [node["id"] for node in projection["plan_ir"]["nodes"]] == [
         "handoff",
         "status",
@@ -469,7 +469,8 @@ def test_planned_transition_projection_skips_anonymous_nodes_and_self_requiremen
         }
     )
 
-    assert projection["plan_ir"]["validation"] == {"ok": True, "gaps": []}
+    assert projection["plan_ir"]["verdict"] == "pass"
+    assert projection["plan_ir"]["required_gaps"] == []
     assert [node["id"] for node in projection["plan_ir"]["nodes"]] == [
         "self-contained",
         "consumer",

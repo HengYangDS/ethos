@@ -396,20 +396,6 @@ def test_preservation_package_verifier_keeps_v1_packages_compatible(tmp_path: Pa
         verify_preservation_package(root=repo, package={"path": package.as_posix()})
 
 
-def test_preservation_byte_command_surfaces_failure(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.setattr(
-        effect_adapter.subprocess,
-        "run",
-        lambda *args, **_kwargs: subprocess.CompletedProcess(
-            args[0], 1, stdout=b"", stderr=b"bad bytes"
-        ),
-    )
-    with pytest.raises(ValueError, match="bad bytes"):
-        effect_adapter.run_command_bytes(tmp_path, "false")
-
-
 def test_preserve_retire_rechecks_the_source_after_package_verification(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

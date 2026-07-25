@@ -18,6 +18,8 @@ from ethos.adapters.mutation.resolution._shared import canonical_package_path
 from ethos.adapters.mutation.resolution._shared import display_path
 from ethos.adapters.mutation.resolution._shared import sha256_digest
 from ethos.adapters.mutation.resolution.closeout.wcp.core import run_worktree_closeout_check
+from ethos.adapters.mutation.resolution.preservation.core import write_git_preservation_payloads
+from ethos.adapters.mutation.resolution.preservation.core import write_untracked_archive
 from ethos.adapters.mutation.resolution.receipts import verify_preservation_package
 from ethos.adapters.mutation.resolution.records.reservations import (
     ownerless_closeout_reservation_path,
@@ -139,23 +141,18 @@ def preserve_package(
         package / "untracked.tar",
     )
     source = Path(observation.path)
-    run_command(source, "git", "bundle", "create", bundle.as_posix(), observation.lane_ref)
-    patch.write_bytes(run_command_bytes(source, "git", "diff", "--binary", "HEAD", "--"))
-    index_patch.write_bytes(
-        run_command_bytes(source, "git", "diff", "--cached", "--binary", "HEAD", "--")
+    write_git_preservation_payloads(
+        source=source,
+        bundle=bundle,
+        tracked_patch=patch,
+        index_patch=index_patch,
+        lane_ref=observation.lane_ref,
     )
     inventory = untracked_files(source)
     if inventory is None:
         raise ValueError("lane_resolution_untracked_inventory_failed")  # noqa: EM101, RUF100
     if inventory:
-        run_command(
-            source,
-            "tar",
-            "-cf",
-            archive.as_posix(),
-            "--",
-            *(item.decode(errors="surrogateescape") for item in inventory),
-        )
+        write_untracked_archive(source=source, archive=archive, inventory=inventory)
     manifest = {
         "package_format_version": "v2",
         "decision_id": decision["decision_id"],
@@ -478,22 +475,3 @@ def completion_receipt(
         preservation_manifest_sha256=str(package.get("manifest_sha256") or ""),
         mints_authority=False,
     ).to_payload()
-
-
-def run_command(root: Path, *args: str) -> None:
-    """Run one required preservation command and fail with its diagnostic."""
-    _run_required_command(root, *args, text=True)
-
-
-def run_command_bytes(root: Path, *args: str) -> bytes:
-    """Run one byte-preserving command and fail with its diagnostic."""
-    return cast("bytes", _run_required_command(root, *args, text=False).stdout)
-
-
-def _run_required_command(root: Path, *args: str, text: bool) -> subprocess.CompletedProcess[Any]:
-    completed = subprocess.run(args, cwd=root, check=False, capture_output=True, text=text)
-    if completed.returncode:
-        stderr = completed.stderr
-        detail = stderr.decode(errors="replace") if isinstance(stderr, bytes) else str(stderr or "")
-        raise ValueError(detail.strip() or "command_failed")
-    return completed

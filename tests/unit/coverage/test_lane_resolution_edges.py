@@ -13,6 +13,7 @@ import ethos.adapters.mutation.resolution._effects as resolution_effects
 import ethos.adapters.mutation.resolution._observation as resolution_observation
 import ethos.adapters.mutation.resolution.closeout.recovery as resolution_recovery
 import ethos.adapters.mutation.resolution.lane as resolution
+import ethos.adapters.mutation.resolution.preservation.core as resolution_preservation
 import ethos.adapters.mutation.resolution.receipts as resolution_receipts
 import ethos.surface.cli.lane.resolution as resolution_cli
 from ethos_core.contracts.resolution.lane import LaneObservation
@@ -321,33 +322,24 @@ def test_resolution_untracked_chronicle_and_command_failures(tmp_path: Path, mon
         tmp_path, chronicle_ref="evidence/chronicle/x.md", disposition="block"
     )[2] == ["lane_resolution_chronicle_disposition_mismatch"]
 
-    monkeypatch.setattr(
-        resolution_effects.subprocess,
-        "run",
-        lambda *args, **kwargs: subprocess.CompletedProcess(args[0], 1, stdout="", stderr="bad"),
-    )
-    with pytest.raises(ValueError, match="bad"):
-        resolution_effects.run_command(tmp_path, "false")
-
 
 def test_resolution_preserve_inventory_and_retire_failures(tmp_path: Path, monkeypatch) -> None:
     observation = _observation(tmp_path)
     decision = {"decision_id": "decision:one"}
-    monkeypatch.setattr(resolution_effects, "run_command", lambda *args, **kwargs: None)
-    responses = iter(
-        (
-            subprocess.CompletedProcess(["git"], 0, stdout=b"patch"),
-            subprocess.CompletedProcess(["git"], 0, stdout=b"index patch"),
-            subprocess.CompletedProcess(["git"], 1, stdout=b""),
-        )
-    )
-    monkeypatch.setattr(
-        resolution_effects.subprocess,
-        "run",
-        lambda *args, **kwargs: next(responses),
-    )
     package = tmp_path / "package"
     package.mkdir()
+
+    def fixed_git(_root: Path, *args: str, **_kwargs: object):
+        if args[:2] == ("bundle", "create"):
+            (package / "repository.bundle").write_bytes(b"bundle")
+        return subprocess.CompletedProcess(["git", *args], 0, stdout="", stderr="")
+
+    def fixed_git_bytes(_root: Path, *args: str):
+        return subprocess.CompletedProcess(["git", *args], 0, stdout=b"patch", stderr=b"")
+
+    monkeypatch.setattr(resolution_preservation, "run_git", fixed_git)
+    monkeypatch.setattr(resolution_preservation, "run_git_bytes", fixed_git_bytes)
+    monkeypatch.setattr(resolution_effects, "untracked_files", lambda _source: None)
     with pytest.raises(ValueError, match="lane_resolution_untracked_inventory_failed"):
         resolution_effects.preserve_package(tmp_path, package, observation, decision)
 

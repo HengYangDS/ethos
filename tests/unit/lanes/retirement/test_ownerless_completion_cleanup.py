@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import pytest
@@ -22,6 +23,17 @@ class _CompletionDecision:
 
     def current_gap(self) -> str:
         return next(self._gaps)
+
+
+@dataclass(frozen=True)
+class _CompletedReceiptCase:
+    effect_gaps: tuple[str, ...]
+    decision_gaps: tuple[str, ...]
+    write_fails: bool
+    cleanup_gap: str
+    expected_result: bool
+    expected_calls: list[str]
+    expected_gaps: list[str]
 
 
 def _completion_binding() -> dict[str, object]:
@@ -52,73 +64,59 @@ def _completion_observation(tmp_path: Path) -> LaneObservation:
 
 
 @pytest.mark.parametrize(
-    (
-        "effect_gaps",
-        "decision_gaps",
-        "write_fails",
-        "cleanup_gap",
-        "expected_result",
-        "expected_calls",
-        "expected_gaps",
-    ),
+    "case",
     [
-        (
-            ("lane_resolution_effect_failed",),
-            (),
-            False,
-            "",
-            False,
-            [],
-            ["lane_resolution_effect_failed"],
+        _CompletedReceiptCase(
+            effect_gaps=("lane_resolution_effect_failed",),
+            decision_gaps=(),
+            write_fails=False,
+            cleanup_gap="",
+            expected_result=False,
+            expected_calls=[],
+            expected_gaps=["lane_resolution_effect_failed"],
         ),
-        (
-            (),
-            ("lane_resolution_ownerless_decision_stale",),
-            False,
-            "",
-            False,
-            [],
-            ["lane_resolution_ownerless_decision_stale"],
+        _CompletedReceiptCase(
+            effect_gaps=(),
+            decision_gaps=("lane_resolution_ownerless_decision_stale",),
+            write_fails=False,
+            cleanup_gap="",
+            expected_result=False,
+            expected_calls=[],
+            expected_gaps=["lane_resolution_ownerless_decision_stale"],
         ),
-        (
-            (),
-            ("",),
-            True,
-            "",
-            False,
-            ["write"],
-            ["lane_resolution_receipt_write_failed_after_effect"],
+        _CompletedReceiptCase(
+            effect_gaps=(),
+            decision_gaps=("",),
+            write_fails=True,
+            cleanup_gap="",
+            expected_result=False,
+            expected_calls=["write"],
+            expected_gaps=["lane_resolution_receipt_write_failed_after_effect"],
         ),
-        (
-            (),
-            ("", "lane_resolution_ownerless_decision_stale"),
-            False,
-            "",
-            True,
-            ["write"],
-            ["lane_resolution_ownerless_decision_stale"],
+        _CompletedReceiptCase(
+            effect_gaps=(),
+            decision_gaps=("", "lane_resolution_ownerless_decision_stale"),
+            write_fails=False,
+            cleanup_gap="",
+            expected_result=True,
+            expected_calls=["write"],
+            expected_gaps=["lane_resolution_ownerless_decision_stale"],
         ),
-        (
-            (),
-            ("", ""),
-            False,
-            "lane_resolution_ownerless_cleanup_failed",
-            True,
-            ["write", "cleanup"],
-            ["lane_resolution_ownerless_cleanup_failed"],
+        _CompletedReceiptCase(
+            effect_gaps=(),
+            decision_gaps=("", ""),
+            write_fails=False,
+            cleanup_gap="lane_resolution_ownerless_cleanup_failed",
+            expected_result=True,
+            expected_calls=["write", "cleanup"],
+            expected_gaps=["lane_resolution_ownerless_cleanup_failed"],
         ),
     ],
 )
 def test_completed_receipt_finalization_fails_closed_at_each_boundary(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
-    effect_gaps: tuple[str, ...],
-    decision_gaps: tuple[str, ...],
-    write_fails,
-    cleanup_gap: str,
-    expected_result,
-    expected_calls: list[str],
-    expected_gaps: list[str],
+    case: _CompletedReceiptCase,
 ) -> None:
     calls: list[str] = []
     report: dict[str, object] = {"ok": True, "state": "effect", "required_gaps": []}
@@ -127,19 +125,19 @@ def test_completed_receipt_finalization_fails_closed_at_each_boundary(
     def prepare_resolution(
         **_kwargs: object,
     ) -> tuple[dict[str, object], dict[str, object], str, tuple[str, ...]]:
-        return {"package": "exact"}, {"state": "retired"}, "retired", effect_gaps
+        return {"package": "exact"}, {"state": "retired"}, "retired", case.effect_gaps
 
     def write_receipt(**_kwargs: object) -> str:
         calls.append("write")
-        if write_fails:
-            raise OSError("writer interrupted")
+        if case.write_fails:
+            raise OSError
         return "receipts/ownerless.json"
 
     monkeypatch.setattr(completion_adapter, "chronicle_event", lambda *_args: {"event": "exact"})
     monkeypatch.setattr(
         completion_adapter.cleanup,
         "release_ownerless_closeout_resources",
-        lambda **_kwargs: calls.append("cleanup") or cleanup_gap,
+        lambda **_kwargs: calls.append("cleanup") or case.cleanup_gap,
     )
 
     outcome = completion_adapter._write_completed_receipt(  # noqa: SLF001, RUF100
@@ -149,15 +147,15 @@ def test_completed_receipt_finalization_fails_closed_at_each_boundary(
         observation=_completion_observation(tmp_path),
         report=report,
         binding=_completion_binding(),
-        current_decision=_CompletionDecision(decision_gaps),
+        current_decision=_CompletionDecision(case.decision_gaps),
         prepare_resolution=prepare_resolution,
         write_receipt=write_receipt,
     )
 
-    assert outcome is expected_result
-    assert calls == expected_calls
+    assert outcome is case.expected_result
+    assert calls == case.expected_calls
     assert report["state"] == "partial_transition"
-    assert report["required_gaps"] == expected_gaps
+    assert report["required_gaps"] == case.expected_gaps
 
 
 @pytest.mark.parametrize(

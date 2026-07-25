@@ -11,6 +11,7 @@ from typing import Any
 from typing import cast
 
 from ethos.adapters.mutation.decision import mutation_envelope
+from ethos.adapters.mutation.resolution._shared import accepted_preserve_retire_chronicle
 from ethos.adapters.mutation.resolution._shared import valid_decision_id
 from ethos.adapters.mutation.resolution.closeout.recovery import apply_resolution
 from ethos.adapters.mutation.resolution.closeout.recovery import ownerless_recovery_context
@@ -26,6 +27,7 @@ from ethos.adapters.mutation.resolution.records.core import write_json_atomic
 from ethos.adapters.mutation.resolution.records.current.core import current_record_integrity_gap
 from ethos.adapters.mutation.resolution.records.current.snapshot import read_current_record_path
 from ethos.adapters.mutation.resolution.records.inventory import lane_resolution_inventory
+from ethos.adapters.mutation.resolution.records.roots import accepted_control_root
 from ethos.adapters.mutation.resolution.records.roots import canonical_record_path
 from ethos.adapters.mutation.resolution.records.roots import current_record_root
 from ethos.repository.policy.schema import validate_schema_instance
@@ -57,7 +59,10 @@ def plan_lane_resolution(  # noqa: PLR0913, RUF100 - exact request envelope pres
     """Create the first-phase exceptional judgment; no lane effect occurs."""
     observation, gaps = observe_lane(root, branch)
     chronicle, chronicle_digest, chronicle_gaps = _accepted_chronicle(
-        root, chronicle_ref=chronicle_ref, disposition=disposition
+        root,
+        chronicle_ref=chronicle_ref,
+        disposition=disposition,
+        observation=observation,
     )
     evaluation = reduce_guards(
         apply=apply,
@@ -215,9 +220,20 @@ def apply_lane_resolution(
             confirmation=confirm_irreversible,
         )
     observation, observation_gaps = observe_lane(root, branch)
+    chronicle_gaps: tuple[str, ...] = ()
+    if disposition == "preserve-retire":
+        _, chronicle_digest, current_chronicle_gaps = _accepted_chronicle(
+            root,
+            chronicle_ref=str(decision.get("chronicle_ref") or ""),
+            disposition=disposition,
+            observation=observation,
+        )
+        chronicle_gaps = tuple(current_chronicle_gaps)
+        if not chronicle_gaps and chronicle_digest != str(decision.get("chronicle_digest") or ""):
+            chronicle_gaps = ("lane_resolution_chronicle_stale",)
     evaluation = reduce_guards(
         apply=apply,
-        initial_gaps=(*gaps, *observation_gaps),
+        initial_gaps=(*gaps, *observation_gaps, *chronicle_gaps),
         checks=(
             (
                 not decision
@@ -305,19 +321,53 @@ def _read_decision(path: Path, *, root: Path) -> tuple[dict[str, Any], list[str]
 
 
 def _accepted_chronicle(
-    root: Path, *, chronicle_ref: str, disposition: str
+    root: Path,
+    *,
+    chronicle_ref: str,
+    disposition: str,
+    observation: LaneObservation | None = None,
 ) -> tuple[str, str, list[str]]:
     if not chronicle_ref.strip():
         return "", "", ["lane_resolution_chronicle_required"]
     relative, gap = _chronicle_reference(chronicle_ref)
     if gap:
         return relative, "", [gap]
+    if disposition == "preserve-retire":
+        digest, gaps = _preserve_retire_chronicle_digest(root, relative, observation)
+        return relative, digest, gaps
     working, gap = _chronicle_working(root, relative, disposition)
     if gap or working is None:
         return relative, "", [gap or "lane_resolution_chronicle_invalid"]
     if not _accepted_chronicle_matches(root, relative, working):
         return relative, "", ["lane_resolution_chronicle_invalid"]
     return relative, hashlib.sha256(working.raw).hexdigest(), []
+
+
+def _preserve_retire_chronicle_digest(
+    root: Path,
+    relative: str,
+    observation: LaneObservation | None,
+) -> tuple[str, list[str]]:
+    if observation is None:
+        return "", ["lane_resolution_chronicle_invalid"]
+    try:
+        control_root = accepted_control_root(root)
+    except ValueError as error:
+        control_gap = str(error).strip()
+        return "", [
+            control_gap
+            if control_gap.startswith("lane_resolution_")
+            else "lane_resolution_chronicle_invalid"
+        ]
+    working, gap = accepted_preserve_retire_chronicle(
+        control_root,
+        chronicle_ref=relative,
+        target_branch=observation.lane_ref,
+        target_head=observation.head,
+    )
+    if gap or working is None:
+        return "", [gap or "lane_resolution_chronicle_invalid"]
+    return hashlib.sha256(working).hexdigest(), []
 
 
 def _chronicle_reference(chronicle_ref: str) -> tuple[str, str]:

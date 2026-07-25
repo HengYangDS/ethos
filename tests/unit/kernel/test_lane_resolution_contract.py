@@ -100,6 +100,48 @@ def _receipt(**overrides: object) -> dict[str, object]:
     } | overrides
 
 
+def _blocked_preservation_receipt(**overrides: object) -> dict[str, object]:
+    return (
+        _receipt(
+            state="preserved_retirement_blocked",
+            preservation_package="build/artifacts/lane-resolution/lane-decision:one",
+            preservation_manifest_sha256="e" * 64,
+            retirement_blocked_reason="lane_resolution_chronicle_stale",
+        )
+        | overrides
+    )
+
+
+def test_lane_resolution_receipt_models_explicit_preserved_retirement_blocked_outcome() -> None:
+    payload = _blocked_preservation_receipt()
+    receipt = LaneResolutionReceipt.model_validate(payload).to_payload()
+
+    assert receipt["state"] == "preserved_retirement_blocked"
+    assert receipt["retirement_blocked_reason"] == "lane_resolution_chronicle_stale"
+    assert validate_schema_instance("lane-resolution-receipt.schema.json", payload)["ok"] is True
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {
+            key: value
+            for key, value in _blocked_preservation_receipt().items()
+            if key != "retirement_blocked_reason"
+        },
+        _receipt(retirement_blocked_reason="lane_resolution_chronicle_stale"),
+    ],
+    ids=("blocked-state-requires-reason", "ordinary-state-forbids-reason"),
+)
+def test_lane_resolution_receipt_rejects_invalid_retirement_blocked_reason_shape(
+    payload: dict[str, object],
+) -> None:
+    with pytest.raises(ValidationError):
+        LaneResolutionReceipt.model_validate(payload)
+
+    assert validate_schema_instance("lane-resolution-receipt.schema.json", payload)["ok"] is False
+
+
 def test_closeout_contracts_live_in_their_defining_module_only() -> None:
     assert tuple(OwnerlessCloseoutBinding.model_fields) == (
         "executor_ref",

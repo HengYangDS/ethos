@@ -6,6 +6,7 @@ import stat
 from contextlib import contextmanager
 from pathlib import Path
 from types import SimpleNamespace
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -13,16 +14,59 @@ import ethos.adapters.mutation.resolution.records.io.core as record_io
 import ethos.adapters.mutation.resolution.records.io.posix as record_posix
 import ethos.adapters.mutation.resolution.records.roots as resolution_roots
 
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
-def test_record_io_sidecar_and_descriptor_fail_closed_edges(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+_BINDING_LOST = "binding lost"
+_CLOSE_FAILURE = "close"
+_DIRECTORY_SYNC_FAILURE = "directory sync"
+
+
+def _sidecar_paths(tmp_path: Path) -> tuple[Path, Path, Path, Path]:
     record_root = tmp_path / "records"
     destination = record_root / "reservations" / "record.json"
     destination.parent.mkdir(parents=True)
     destination.write_bytes(b"expected")
+    reservation = record_root / "receipts" / ".receipt.receipt-reservation"
+    blocker = record_root / "receipts" / "receipt.json"
+    reservation.parent.mkdir(exist_ok=True)
+    reservation.write_bytes(b"expected")
+    return record_root, destination, reservation, blocker
 
+
+def _record_parent(record_root: Path) -> SimpleNamespace:
+    return SimpleNamespace(
+        parent_descriptor=1,
+        destination=Path("record.json"),
+        name="record.json",
+        record_root=record_root,
+        category="receipts",
+        root_identity=(1, 2, stat.S_IFDIR),
+        parent_identity=(1, 3, stat.S_IFDIR),
+    )
+
+
+@contextmanager
+def _opened_parent(parent: SimpleNamespace) -> Iterator[SimpleNamespace]:
+    yield parent
+
+
+@contextmanager
+def _open_record_directory(tmp_path: Path) -> Iterator[tuple[Path, int]]:
+    directory = tmp_path / "records"
+    directory.mkdir()
+    descriptor = os.open(directory, record_posix.directory_flags())
+    try:
+        yield directory, descriptor
+    finally:
+        os.close(descriptor)
+
+
+def test_record_io_read_lock_and_reserve_fail_closed_edges(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    record_root, destination, reservation, blocker = _sidecar_paths(tmp_path)
     with monkeypatch.context() as scoped:
         scoped.setattr(record_posix, "descriptor_matches_entry", lambda *_args: False)
         with pytest.raises(OSError, match="lane_resolution_record_path_unsafe"):
@@ -35,11 +79,6 @@ def test_record_io_sidecar_and_descriptor_fail_closed_edges(
             record_io.lock_record(destination, record_root=record_root),
         ):
             pass
-
-    reservation = record_root / "receipts" / ".receipt.receipt-reservation"
-    blocker = record_root / "receipts" / "receipt.json"
-    reservation.parent.mkdir(exist_ok=True)
-    reservation.write_bytes(b"expected")
     with monkeypatch.context() as scoped:
         scoped.setattr(
             record_io,
@@ -54,12 +93,17 @@ def test_record_io_sidecar_and_descriptor_fail_closed_edges(
                 record_root=record_root,
             )
 
+
+def test_record_io_sidecar_recovery_fail_closed_edges(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    record_root, _destination, reservation, blocker = _sidecar_paths(tmp_path)
     locked = tmp_path / "locked"
     locked.write_bytes(b"locked")
     descriptor = os.open(locked, os.O_RDONLY)
     original_identity = record_posix.entry_file_identity
     removed: list[tuple[object, ...]] = []
-    sidecar_identity = (1, 2, stat.S_IFREG, 3, 4, 5)
     try:
         for mode, expected_error in (("recover", FileExistsError), ("recover_completed", None)):
             calls = 0
@@ -94,6 +138,21 @@ def test_record_io_sidecar_and_descriptor_fail_closed_edges(
                     with manager as held:
                         assert held == descriptor
 
+    finally:
+        os.close(descriptor)
+    assert removed
+
+
+def test_record_io_sidecar_collision_and_recovery_cleanup_edges(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    record_root, _destination, reservation, blocker = _sidecar_paths(tmp_path)
+    locked = tmp_path / "locked"
+    locked.write_bytes(b"locked")
+    descriptor = os.open(locked, os.O_RDONLY)
+    sidecar_identity = (1, 2, stat.S_IFREG, 3, 4, 5)
+    try:
         with monkeypatch.context() as scoped:
             scoped.setattr(
                 record_posix,
@@ -111,7 +170,6 @@ def test_record_io_sidecar_and_descriptor_fail_closed_edges(
                 ),
             ):
                 pass
-
         with monkeypatch.context() as scoped:
             scoped.setattr(record_posix, "entry_file_identity", lambda *_args: None)
             scoped.setattr(
@@ -130,7 +188,6 @@ def test_record_io_sidecar_and_descriptor_fail_closed_edges(
                 ),
             ):
                 pass
-
         blocker_checks = 0
 
         def blocker_after_create(_directory: int, name: str) -> object:
@@ -166,13 +223,12 @@ def test_record_io_sidecar_and_descriptor_fail_closed_edges(
                 ),
             ):
                 pass
-        assert skipped_removals == []
     finally:
         os.close(descriptor)
-    assert removed
+    assert skipped_removals == []
 
 
-def test_record_io_cas_cleanup_and_staging_fail_closed_edges(
+def test_record_io_write_bytes_failure_cleanup_edges(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -200,15 +256,13 @@ def test_record_io_cas_cleanup_and_staging_fail_closed_edges(
             record_io.write_record_bytes(destination, b"content", record_root=record_root)
     assert list(destination.parent.glob("*.tmp")) == []
 
-    parent = SimpleNamespace(
-        parent_descriptor=1,
-        destination=Path("record.json"),
-        name="record.json",
-        record_root=record_root,
-        category="receipts",
-        root_identity=(1, 2, stat.S_IFDIR),
-        parent_identity=(1, 3, stat.S_IFDIR),
-    )
+
+def test_record_io_create_locked_cleanup_and_content_validation_edges(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    record_root = tmp_path / "records"
+    parent = _record_parent(record_root)
     identity = (1, 2, stat.S_IFREG, 3, 4, 5)
     removed: list[tuple[object, ...]] = []
     unlocked: list[int] = []
@@ -238,21 +292,29 @@ def test_record_io_cas_cleanup_and_staging_fail_closed_edges(
         with pytest.raises(ValueError, match="lane_resolution_current_record_changed"):
             record_io._require_locked_record_content(parent, 7, b"expected")  # noqa: SLF001, RUF100
 
-    @contextmanager
-    def opened_parent(*_args: object, **_kwargs: object):
-        yield parent
 
+def test_record_io_replace_cleans_up_when_parent_binding_is_lost(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    record_root = tmp_path / "records"
+    parent = _record_parent(record_root)
+    identity = (1, 2, stat.S_IFREG, 3, 4, 5)
     calls = 0
 
     def require_parent(_parent: object) -> None:
         nonlocal calls
         calls += 1
         if calls == 3:
-            raise RuntimeError("binding lost")
+            raise RuntimeError(_BINDING_LOST)
 
     cleanup: list[tuple[object, ...]] = []
     with monkeypatch.context() as scoped:
-        scoped.setattr(resolution_roots, "open_record_parent", opened_parent)
+        scoped.setattr(
+            resolution_roots,
+            "open_record_parent",
+            lambda *_args, **_kwargs: _opened_parent(parent),
+        )
         scoped.setattr(record_posix, "prepare_bound_file", lambda *_args: ("temporary", identity))
         scoped.setattr(record_posix, "staging_name", lambda *_args: "staging")
         scoped.setattr(record_io, "_stage_expected_record", lambda *_args: identity)
@@ -271,7 +333,7 @@ def test_record_io_cas_cleanup_and_staging_fail_closed_edges(
             lambda *args, **_kwargs: cleanup.append(args),
         )
         scoped.setattr(resolution_roots, "directory_binding_matches", lambda *_args: False)
-        with pytest.raises(RuntimeError, match="binding lost"):
+        with pytest.raises(RuntimeError, match=_BINDING_LOST):
             record_io._replace_record_bytes(  # noqa: SLF001, RUF100
                 Path("record.json"),
                 b"replacement",
@@ -281,8 +343,20 @@ def test_record_io_cas_cleanup_and_staging_fail_closed_edges(
             )
     assert any(args[1] == "record.json" for args in cleanup)
 
+
+def test_record_io_remove_cleans_up_when_parent_binding_is_lost(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    record_root = tmp_path / "records"
+    parent = _record_parent(record_root)
+    identity = (1, 2, stat.S_IFREG, 3, 4, 5)
     with monkeypatch.context() as scoped:
-        scoped.setattr(resolution_roots, "open_record_parent", opened_parent)
+        scoped.setattr(
+            resolution_roots,
+            "open_record_parent",
+            lambda *_args, **_kwargs: _opened_parent(parent),
+        )
         scoped.setattr(record_io, "_stage_expected_record", lambda *_args: identity)
         scoped.setattr(resolution_roots, "require_parent_identity", lambda *_args: None)
         scoped.setattr(record_posix, "remove_owned_entry", lambda *_args, **_kwargs: None)
@@ -301,12 +375,16 @@ def test_record_io_cas_cleanup_and_staging_fail_closed_edges(
         nonlocal parent_identity_checks
         parent_identity_checks += 1
         if parent_identity_checks == 2:
-            raise RuntimeError("binding lost")
+            raise RuntimeError(_BINDING_LOST)
 
     removed_after_delete: list[tuple[object, ...]] = []
     restored_after_delete: list[tuple[object, ...]] = []
     with monkeypatch.context() as scoped:
-        scoped.setattr(resolution_roots, "open_record_parent", opened_parent)
+        scoped.setattr(
+            resolution_roots,
+            "open_record_parent",
+            lambda *_args, **_kwargs: _opened_parent(parent),
+        )
         scoped.setattr(record_io, "_stage_expected_record", lambda *_args: identity)
         scoped.setattr(resolution_roots, "require_parent_identity", fail_after_delete)
         scoped.setattr(
@@ -319,7 +397,7 @@ def test_record_io_cas_cleanup_and_staging_fail_closed_edges(
             "restore_staged_file",
             lambda *args: restored_after_delete.append(args),
         )
-        with pytest.raises(RuntimeError, match="binding lost"):
+        with pytest.raises(RuntimeError, match=_BINDING_LOST):
             record_io._remove_record_bytes(  # noqa: SLF001, RUF100
                 Path("record.json"),
                 expected=b"expected",
@@ -329,6 +407,14 @@ def test_record_io_cas_cleanup_and_staging_fail_closed_edges(
     assert removed_after_delete
     assert restored_after_delete == []
 
+
+def test_record_io_stage_rejects_changed_record_and_restores_staging(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    record_root = tmp_path / "records"
+    parent = _record_parent(record_root)
+    identity = (1, 2, stat.S_IFREG, 3, 4, 5)
     with monkeypatch.context() as scoped:
         scoped.setattr(resolution_roots, "require_parent_identity", lambda *_args: None)
         scoped.setattr(record_io, "read_descriptor_bytes", lambda _descriptor: b"expected")
@@ -353,17 +439,14 @@ def test_record_io_cas_cleanup_and_staging_fail_closed_edges(
     assert restored
 
 
-def test_posix_cleanup_and_identity_fail_closed_edges(
+def test_posix_prepare_and_create_locked_file_cleanup_edges(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    directory = tmp_path / "records"
-    directory.mkdir()
-    directory_descriptor = os.open(directory, record_posix.directory_flags())
     original_close = os.close
     descriptor_holder: dict[str, int] = {}
     removed: list[tuple[object, ...]] = []
-    try:
+    with _open_record_directory(tmp_path) as (directory, directory_descriptor):
         original_create = record_posix.create_bound_file
 
         def create(directory_fd: int, name: str) -> int:
@@ -372,7 +455,7 @@ def test_posix_cleanup_and_identity_fail_closed_edges(
 
         def close_with_failure(descriptor: int) -> None:
             if descriptor == descriptor_holder.get("value"):
-                raise RuntimeError("close")
+                raise RuntimeError(_CLOSE_FAILURE)
             original_close(descriptor)
 
         with monkeypatch.context() as scoped:
@@ -383,7 +466,7 @@ def test_posix_cleanup_and_identity_fail_closed_edges(
                 "remove_owned_entry",
                 lambda *args, **_kwargs: removed.append(args),
             )
-            with pytest.raises(RuntimeError, match="close"):
+            with pytest.raises(RuntimeError, match=_CLOSE_FAILURE):
                 record_posix.prepare_bound_file(directory_descriptor, "target", b"content")
         original_close(descriptor_holder["value"])
         for path in directory.iterdir():
@@ -408,17 +491,23 @@ def test_posix_cleanup_and_identity_fail_closed_edges(
             nonlocal fsync_calls
             fsync_calls += 1
             if fsync_calls == 2:
-                raise RuntimeError("directory sync")
+                raise RuntimeError(_DIRECTORY_SYNC_FAILURE)
             original_fsync(descriptor)
 
         with monkeypatch.context() as scoped:
             scoped.setattr(record_posix.os, "fsync", fail_second_fsync)
             scoped.setattr(record_posix, "remove_owned_entry", lambda *_args, **_kwargs: None)
-            with pytest.raises(RuntimeError, match="directory sync"):
+            with pytest.raises(RuntimeError, match=_DIRECTORY_SYNC_FAILURE):
                 record_posix.create_locked_file_link(directory_descriptor, "target", b"content")
         for path in directory.iterdir():
             path.unlink()
 
+
+def test_posix_lock_and_stable_read_fail_closed_edges(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with _open_record_directory(tmp_path) as (directory, directory_descriptor):
         locked = directory / "locked"
         locked.write_bytes(b"content")
         with monkeypatch.context() as scoped:
@@ -445,6 +534,14 @@ def test_posix_cleanup_and_identity_fail_closed_edges(
         finally:
             os.close(descriptor)
 
+
+def test_posix_stage_locked_file_restoration_edges(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with _open_record_directory(tmp_path) as (directory, directory_descriptor):
+        locked = directory / "locked"
+        locked.write_bytes(b"content")
         descriptor = os.open(locked, os.O_RDONLY)
         identity = (1, 2, stat.S_IFREG, 3, 4, 5)
         restored: list[tuple[object, ...]] = []
@@ -499,7 +596,14 @@ def test_posix_cleanup_and_identity_fail_closed_edges(
             os.close(descriptor)
         assert restore_before_rename == []
 
-        restored.clear()
+
+def test_posix_remove_owned_entry_restoration_edges(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with _open_record_directory(tmp_path) as (_directory, directory_descriptor):
+        identity = (1, 2, stat.S_IFREG, 3, 4, 5)
+        restored: list[tuple[object, ...]] = []
         with monkeypatch.context() as scoped:
             scoped.setattr(record_posix.fcntl, "flock", lambda *_args: None)
             scoped.setattr(record_posix, "open_identity_bound_file", lambda *_args: 7)
@@ -538,5 +642,3 @@ def test_posix_cleanup_and_identity_fail_closed_edges(
             with pytest.raises(OSError, match=os.strerror(errno.ESTALE)):
                 record_posix.remove_owned_entry(directory_descriptor, "target", identity)
         assert restored
-    finally:
-        os.close(directory_descriptor)

@@ -338,6 +338,18 @@ canonical owner. A pre-existing package directory blocks with
 `lane_resolution_preservation_package_exists` instead of overwriting recovery
 bytes.
 
+For `preserve-retire`, `<accepted-chronicle>` is read from the configured
+accepted control checkout, never from the invoking Work Lane. Its working bytes
+must equal the accepted-tree blob and the decision digest. Its UTF-8 front
+matter must contain `event: lane_resolution/preserve-retire`, one exact
+`target_head`, and exactly one of `target_branch` or `target_branch_sha256`
+(the SHA-256 of the target branch UTF-8 bytes). Apply checks this binding before
+receipt reservation or package creation and again after package verification
+before worktree/ref removal. A mismatch blocks retirement; a mismatch found
+after preservation leaves the source intact, retains the package for governed
+recovery, and writes only a `preserved_retirement_blocked` receipt with the
+exact Chronicle or observation blocker.
+
 Before package creation or any destructive effect, apply reserves the
 deterministic completion-receipt path with a hidden non-JSON sidecar created by
 exclusive filesystem creation. An existing final receipt or existing reservation

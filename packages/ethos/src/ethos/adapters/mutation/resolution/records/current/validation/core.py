@@ -70,7 +70,7 @@ def validate_receipt(
     state = str(canonical["state"])
     package_present = bool(canonical["preservation_package"])
     manifest_present = bool(canonical["preservation_manifest_sha256"])
-    preserved = state in {"preserved", "preserved_and_retired"}
+    preserved = state in {"preserved", "preserved_retirement_blocked", "preserved_and_retired"}
     expected_package = display_path(root, record_root / str(canonical["decision_id"]))
     binding = canonical.get("ownerless_closeout_binding")
     binding_valid = not isinstance(binding, dict) or (

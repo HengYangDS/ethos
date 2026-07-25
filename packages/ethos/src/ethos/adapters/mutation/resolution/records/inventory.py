@@ -58,7 +58,12 @@ def _lane_resolution_inventory(*, root: Path) -> dict[str, object]:
         reservation = reservations.get(decision_id, {}) or receipt_reservations.get(decision_id, {})
         manifest_sha256 = str(manifest.get("manifest_sha256") or "")
         receipt_manifest_sha256 = str(receipt.get("preservation_manifest_sha256") or "")
-        preserved = str(receipt.get("state") or "") in {"preserved", "preserved_and_retired"}
+        receipt_state = str(receipt.get("state") or "")
+        preserved = receipt_state in {
+            "preserved",
+            "preserved_retirement_blocked",
+            "preserved_and_retired",
+        }
         has_package = bool(manifest or quarantine)
         inconsistent = bool(
             receipt
@@ -81,6 +86,8 @@ def _lane_resolution_inventory(*, root: Path) -> dict[str, object]:
             if reservation and recovery_state != "reserved_no_effect"
             else "inflight"
             if reservation
+            else "preserved_retirement_blocked"
+            if receipt_state == "preserved_retirement_blocked"
             else "retained"
             if manifest and receipt
             else "receipt_only"
@@ -130,6 +137,8 @@ def _lane_resolution_inventory(*, root: Path) -> dict[str, object]:
                 phase=str(reservation.get("phase") or "unknown"),
                 recovery_state=recovery_state or "transition_unknown",
             )
+        if receipt_state == "preserved_retirement_blocked":
+            entry["retirement_blocked_reason"] = str(receipt.get("retirement_blocked_reason") or "")
         entries.append(entry)
     inflight_count = len(reservations) + len(receipt_reservations)
     partial_count = sum(

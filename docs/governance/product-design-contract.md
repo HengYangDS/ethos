@@ -34,16 +34,10 @@ ethos land
 ethos publish
 ```
 
-`ethos status` is a read-only first-glance reader view over `status` and
-`report`. It helps humans and agents see where they are, what they may do, who
-else is present, what remains gapped, and what should run next. It is not a
-transition verb and does not mint repository truth.
-
-`ethos status` is a read-only quality_summary. It is a payoff view over readiness,
-hard quality-floor verdicts, proof, parity, and release policy; it is not a
-sixth transition verb. A hard quality gap that would block proof or local
-publication must appear as a blocking report gap rather than being hidden
-behind a green quality_summary.
+`ethos status` is the single bounded read-only view. It helps humans and agents
+see where they are, what they may do, who else is present, what remains gapped,
+and what should run next without minting repository truth. A hard quality gap
+that blocks proof or local publication must appear as a blocking status gap.
 
 Setup and onboarding commands are outside the transition loop:
 
@@ -210,14 +204,13 @@ with that adopter's own evidence root.
 
 Command payloads that audit or summarize repository governance expose
 `governance_context`. That context records the profile, repository subject,
-single-kernel flag, kernel chain, shared transition commands, reader-view
-commands, quality_summary commands, repository truth boundary, and profile or adapter
+single-kernel flag, kernel chain, shared lifecycle commands, reader projection,
+repository truth boundary, and profile or adapter
 boundary.
-The shared transition semantics are exposed as `shared_commands` and
+The shared lifecycle semantics are exposed as `shared_commands` and
 `transition_commands`: `ethos status`, `ethos plan`, `ethos prove`,
 `ethos land`, and `ethos publish`. Read-only first-glance semantics are exposed
-as `reader_projection_commands`: `ethos status`. Read-only quality_summary semantics are
-exposed as `quality_summary_commands`: `ethos status`. `ethos audit --mode shape` and
+as `reader_projection_commands`: `ethos status`. `ethos audit --mode shape` and
 `ethos audit --mode deep` select proof depth for the same governed repository
 contract.
 

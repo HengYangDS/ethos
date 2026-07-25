@@ -204,7 +204,7 @@ def test_first_hour_docs_keep_advanced_workflows_out_of_primary_path() -> None:
         "planned_files",
         "apply criteria",
         "rollback",
-        "report is the payoff view",
+        "single bounded reader",
     ):
         assert phrase in first_hour
 
@@ -411,7 +411,6 @@ def test_capability_parity_ledger_classifies_required_capabilities() -> None:
         "prove",
         "land",
         "publish",
-        "report",
         "SQLite state",
         "OpenSpec",
         "Backlog / intake",

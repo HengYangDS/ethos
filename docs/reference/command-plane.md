@@ -26,8 +26,8 @@ ethos land
 ethos publish
 ```
 
-`ethos status` is a read-only first-glance orientation view over `status` and
-`report`: it tells a human or agent where it is, what it may do, which foreign
+`ethos status` is the single bounded read-only view: it tells a human or agent
+where it is, what it may do, which foreign
 Work Lanes and unbound Work Lane refs are visible, what remains gapped, and
 which command should run next. It is a projection (`truth_boundary =
 repository-reader-view`, `mints_truth = false`), not a transition verb and not a
@@ -35,24 +35,9 @@ truth store. Its current HEAD field is the repository HEAD that `status` reports
 the top level (resolved via `git rev-parse HEAD`, so it is correct even on a detached
 HEAD); a workspace-status branch binding serves only as a fallback.
 
-`ethos status` is the read-only quality_summary over that workflow. It is not a
-transition command:
-
-```bash
-ethos status
-ethos status --json
-ethos status --json --compact
-```
-
-Use `--json --compact` when an agent, CI summary, or constrained context window
-needs the same top-level verdict, summary, required gaps, and next actions
-without the heavyweight audit bodies carried by full JSON. Compact report output
-keeps machine-stable counts and score data; it does not mint a separate truth
-source or bypass `ethos prove` / `ethos land`.
-
-This is the command grammar. `status`, `plan`, `prove`, `land`, and `publish`
-are the transition verbs; `report` is the payoff view. The same transition
-command semantics apply in the product repository and in adopted repositories.
+This is the command grammar. `status` reads bounded current facts; `plan`,
+`prove`, `land`, and `publish` advance the lifecycle. The same command semantics
+apply in the product repository and in adopted repositories.
 Every maintainer, quality, parity, assistant, playbook, fleet, hook, lane, or
 docs command is a domain lens or repair surface over that grammar. It must
 project a kernel object, expose its boundary, and reduce its decision back to one of the
@@ -285,12 +270,11 @@ blocked only when a required coordination gap is present, such as unknown
 current scope. Unknown foreign scope and same-file or ancestor-scope overlap are
 surfaced as advisory contention through `coordination_gap:*` entries, so Git's
 fast-forward land remains the mutation arbiter without serializing unrelated
-agents that share a directory. Across product and adopter profiles,
-`ethos status --json` mirrors status-required coordination gaps into report
-`required_gaps` and `data.gap_layers.coordination_risk.required_gaps`; advisory
-coordination signals stay advisory, classify into the same invalid-state
-taxonomy, and never grant cleanup authority. If the quality_summary has no blocking
-`required_gaps` but does have advisory signals, the top-level command remains
+agents that share a directory. Across product and adopter profiles, `ethos
+status --json` includes required coordination gaps in top-level
+`required_gaps`; advisory coordination signals stay advisory, classify into the
+same invalid-state taxonomy, and never grant cleanup authority. If status has
+no blocking `required_gaps` but does have advisory signals, the top-level command remains
 `ok=true` while reporting `state=advisory`; in that state, top-level
 `next_actions` mirror the bounded advisory inspection or repair actions instead
 of implying that full proof alone will erase the advisory layer.
@@ -670,26 +654,24 @@ publication remains a separate deferred state. The command-surface gate still
 verifies that `publish` is publicly available.
 
 ETHOS primary command payloads use a governed repository contract. Every
-primary command result (`status`, `plan`, `prove`, `land`, `publish`, `orient`,
-and `report`) exposes a top-level `governance_context` so consumers can read the
+primary command result (`status`, `plan`, `prove`, `land`, and `publish`)
+exposes a top-level `governance_context` so consumers can read the
 same command semantics without inferring product truth from a special branch,
 private command plane, or command-specific payload shape. Domain payloads may
-repeat the same context when their nested report already owns it, but pure data
+repeat the same context when their nested result already owns it, but pure data
 contracts such as `status.data` remain schema-valid source payloads rather than
-being polluted by envelope metadata. The context records the profile, repository
-subject, kernel chain, shared transition commands, reader-view commands,
-quality_summary commands, repository truth boundary, and profile or adapter boundary.
+being polluted by envelope metadata. The context records the profile,
+repository subject, kernel chain, shared lifecycle commands, reader projection,
+repository truth boundary, and profile or adapter boundary.
 `shared_commands` and `transition_commands` list the five-command transition
 loop: `ethos status`, `ethos plan`, `ethos prove`, `ethos land`, and
-`ethos publish`. `reader_projection_commands` lists the read-only first-glance view:
-`ethos status`. `quality_summary_commands` lists the read-only payoff view:
-`ethos status`. `ethos status --json` projects required gaps through
-repository-neutral layers: `governance_audit` for the active repository governance
-verdict, `capability_parity` for migration or adopter parity, and
-`playbook_projection` for assistant-facing projection proof. Advisory signals
-are a visible, non-blocking layer: `ok=true` means they do not block transitions,
-while `state=advisory` distinguishes them from a fully ready quality_summary. Each
-layer exposes
+`ethos publish`. `reader_projection_commands` lists the single bounded reader:
+`ethos status`. Status projects required gaps through repository-neutral layers:
+`governance_audit` for active repository governance, `capability_parity` for
+migration or adopter parity, and assistant-facing projection proof. Advisory
+signals remain visible and non-blocking: `ok=true`
+means they do not block transitions, while `state=advisory` distinguishes them
+from a fully ready result. Each layer exposes
 `invalid_states`, a reduction of its `required_gaps` onto the governed taxonomy in
 `system/invalid_states.toml`; the top-level `data.invalid_states` is the same
 projection across all reported layers. Its summary uses `governance_gap_count`
@@ -767,9 +749,8 @@ Historical playbook payloads remain archive or adopter evidence, not current
 route contract. `ethos playbooks route --changed --json` selects records via the
 explicit `changed-scope` route and path-glob metadata.
 
-`ethos status --json` includes `data.quality_summarys[]` with the `skills-v2`
-quality_summary and `data.gap_layers.playbook_projection` for blocking Skills V2
-gaps. `ethos prove --execute --gate playbooks-v2 --json` executes the strict
+`ethos status --json` includes blocking Skills V2 gaps in its bounded readiness
+projection. `ethos prove --execute --gate playbooks-v2 --json` executes the strict
 playbook gate. `ethos quality projection-drift --json` reports package drift,
 the normalized registry digest, the expected registry digest, the playbook
 generator digest, the expected generator digest, and activation input digests.

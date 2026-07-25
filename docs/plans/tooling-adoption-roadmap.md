@@ -237,7 +237,7 @@ Primary-source anchors: [Aqua](https://aquaproj.github.io/),
 | sbomqs | A standard SBOM exists and a concrete field defect escapes SPDX validation | Aggregated quality scores must not become a parallel release authority. |
 | Spectral | OpenAPI or AsyncAPI enters the repository | There is no API-description carrier today. |
 | diffoscope | Two clean builds produce different hashes | Failure diagnosis only. |
-| `git fsck --strict` or git-sizer | Object integrity or repository-history growth becomes an observed risk | Native/diagnostic repository health is separate from source correctness and must not become a parallel quality_summary. |
+| `git fsck --strict` or git-sizer | Object integrity or repository-history growth becomes an observed risk | Native/diagnostic repository health is separate from source correctness and must not become a parallel readiness authority. |
 | LikeC4, CUE, TLA+, or Apalache | Model/query or state-space scale proves current declarations and Hypothesis insufficient | A second modeling or proof language needs a bounded invariant and deletion payoff. |
 | Copier or Cruft | Multiple adopters share an updateable scaffold contract | Scaffolding cannot become a parallel source of repository truth. |
 | Nox, Pixi, Pants | An adopter profile proves a bounded need | Optional adapters, never ETHOS core runtime. |

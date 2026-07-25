@@ -6,14 +6,14 @@ ETHOS SHALL expose the public command plane without owning repository lifecycle
 semantics.
 ## Requirements
 ### Requirement: Public Command Plane
-ETHOS SHALL keep the normal user workflow under five transition commands:
+ETHOS SHALL keep the normal user workflow under five public commands:
 `ethos status`, `ethos plan`, `ethos prove`, `ethos land`, and
 `ethos publish`.
 
 #### Scenario: Command surface is classified
 - **WHEN** `ethos quality command-registry --json` runs
 - **THEN** it reports five public workflow commands
-- **AND** it reports `ethos status` as a quality_summary command
+- **AND** it reports `ethos status` as the single bounded reader
 - **AND** maintainer/reference commands are not counted as advanced public
   workflow commands
 
@@ -23,12 +23,12 @@ ETHOS SHALL keep the normal user workflow under five transition commands:
 - **AND** it does not add a new public lifecycle command
 - **AND** it references the same transition commands, guards, and evidence boundaries as the ETHOS command plane
 
-#### Scenario: Compact quality_summary preserves verdict semantics
-- **WHEN** `ethos status --json --compact` runs
-- **THEN** it preserves the top-level quality_summary verdict, summary, required gaps, and next actions from `ethos status --json`
-- **AND** it omits heavyweight audit bodies from `data`
-- **AND** it keeps score, gap-layer, advisory, and parity information as token-friendly counts or compact objects
-- **AND** it remains a quality_summary projection rather than a transition command or separate truth source
+#### Scenario: Default payloads stay bounded
+- **WHEN** `ethos status --json` or `ethos plan --json` would exceed its declared
+  default payload budget
+- **THEN** the command preserves verdict, summary, required gaps, and next actions
+- **AND** oversized detail is replaced by a digest-bound artifact reference
+- **AND** no alternate reader command or truth source is introduced
 
 ### Requirement: CLI Surface Delegation
 The CLI SHALL compose output and UX while delegating semantics to core,
@@ -135,7 +135,7 @@ projection for governance gaps and advisory signals.
 
 ETHOS transition commands that gate proof, land, or publish SHALL expose blocking
 verdicts through both command JSON and non-zero process exit status unless the
-command is explicitly documented as a read-only quality_summary or reader view.
+command is explicitly documented as a read-only reader view.
 
 #### Scenario: gapped proof refuses through process status
 

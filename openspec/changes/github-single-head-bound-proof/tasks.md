@@ -23,7 +23,7 @@
 
 ## 3. Proof and closeout
 
-- [ ] 3.1 Refresh generic parity evidence if the changed carrier set requires it.
+- [x] 3.1 Refresh generic parity evidence if the changed carrier set requires it.
 - [ ] 3.2 Run exact-HEAD `ethos prove --execute` and require every gate to pass.
 - [ ] 3.3 Complete evidence-backed tasks, officially archive this Change, and
   rerun exact-HEAD proof on the archive commit.

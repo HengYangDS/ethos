@@ -237,7 +237,9 @@ persistence, effect, or retired-provider cleanup in this commit.
 - Test: `tests/unit/coverage/test_lane_resolution_reservation_edges.py`
 - Test: `tests/unit/lanes/test_lane_resolution_clear_quarantine.py`
 - Test: `tests/unit/lanes/test_lane_resolution_current_enumeration.py`
-- Test: `tests/unit/lanes/test_lane_resolution_record_roots.py`
+- Test package: `tests/unit/lanes/resolution/record_roots/`
+- Test: `tests/unit/lanes/resolution/record_roots/test_roots_and_bound_snapshots.py`
+- Test: `tests/unit/lanes/resolution/record_roots/test_atomic_record_transactions.py`
 - Create declaration-only: `tests/unit/lanes/resolution/__init__.py`
 - Create test support owner: `tests/unit/lanes/resolution/records.py`
 - Test: `tests/unit/lanes/retirement/test_ownerless_closeout_records.py`
@@ -296,7 +298,8 @@ lane_resolution_inventory(*, root: Path) -> dict[str, object]
      tests/unit/coverage/test_lane_resolution_reservation_edges.py \
      tests/unit/lanes/test_lane_resolution_clear_quarantine.py \
      tests/unit/lanes/test_lane_resolution_current_enumeration.py \
-     tests/unit/lanes/test_lane_resolution_record_roots.py \
+     tests/unit/lanes/resolution/record_roots/test_roots_and_bound_snapshots.py \
+     tests/unit/lanes/resolution/record_roots/test_atomic_record_transactions.py \
      tests/unit/lanes/retirement/test_ownerless_closeout_records.py \
      tests/unit/lanes/retirement/test_ownerless_closeout_receipt_edges.py
    ```

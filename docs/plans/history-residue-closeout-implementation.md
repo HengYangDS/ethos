@@ -65,6 +65,6 @@ See also: the
 ## Phase 5: Separate Publication Evidence
 
 - [ ] Refresh remote topology and tracking state.
-- [ ] Publish only the configured submit/protected branch permitted by policy.
+- [ ] Publish only the configured proposal/protected branch permitted by policy.
 - [ ] Verify hosted CI without treating local fallback as hosted execution.
 - [ ] Retire the successor-v3 lane through the official lifecycle.

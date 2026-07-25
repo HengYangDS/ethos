@@ -27,7 +27,7 @@ product modes.
 GitLab is the organization-collaboration plane and GitHub is the public-distribution
 plane. Both carry the same repository, CI/CD, and publication capabilities; neither
 is a fallback for, or authority above, the other. Hosted CI accepts only `dev`,
-`main`, and `submit/*`; `candidate/dev` and `work/*` remain local-only.
+`main`, and `proposal/*`; `candidate/dev` and `work/*` remain local-only.
 
 The provider contract is:
 
@@ -72,7 +72,7 @@ ETHOS lifecycle state.
 | Syntax gate | `actionlint` | YAML/config lint plus GitLab template checks | Provider syntax, not repository proof |
 | Local emulator | `act` wrapper | `gitlab-ci-local` wrapper | Local provider emulation only |
 | Hosted observation | GitHub Checks / Actions artifacts | GitLab pipeline/job/artifacts | Hosted provider evidence only |
-| ETHOS gate | `ethos prove`, `ethos report`, owner scripts | Same | Repository governance truth |
+| ETHOS gate | `ethos prove`, `ethos status`, owner scripts | Same | Repository governance truth |
 
 ## Evidence Classes
 

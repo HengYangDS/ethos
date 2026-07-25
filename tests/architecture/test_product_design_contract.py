@@ -186,7 +186,7 @@ def test_first_hour_docs_keep_advanced_workflows_out_of_primary_path() -> None:
 
     assert "First Hour" in readme
     assert "status -> plan -> prove -> land -> publish" in readme
-    assert "report is a read-only scorecard" in readme
+    assert "status is the read-only readiness view" in readme
     assert "Advanced workflow:" not in readme
 
     first_hour = quickstart.split("## Maintainer Reference", 1)[0]
@@ -217,7 +217,7 @@ def test_product_design_contract_defines_configured_role_and_binding_contracts()
     adapters_spec = read("openspec/specs/adapters/spec.md")
 
     for text in (product, command_plane, schema):
-        assert "release_root -> accepted_root -> candidate -> work_lane -> submit_lane" in text
+        assert "release_root -> accepted_root -> candidate -> work_lane -> proposal_lane" in text
         assert "`role_policy`" in text
         assert "`binding_registry`" in text
 
@@ -247,17 +247,12 @@ def test_product_design_contract_defines_governed_repository() -> None:
     assert "single built-in personal name" in product
     assert "do not create separate command planes" in product
     assert "`transition_commands`" in product
-    assert "`reader_view_commands`" in product
-    assert "`scorecard_commands`" in product
     assert "`transition_commands`" in command_plane
-    assert "`reader_view_commands`" in command_plane
-    assert "`scorecard_commands`" in command_plane
     assert "governance_audit" in command_plane
     assert "capability_parity" in command_plane
     assert "same transition command semantics" in repository_spec
-    assert "read-only reader-view" in repository_spec
-    assert "read-only scorecard command" in repository_spec
-    assert "transition, reader-view, and scorecard command semantics" in contracts_spec
+    assert "status is the singular reader" in repository_spec
+    assert "singular lifecycle command semantics" in contracts_spec
     assert "shared governance context contract" in contracts_spec
 
 

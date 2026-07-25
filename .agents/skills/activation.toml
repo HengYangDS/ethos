@@ -1,7 +1,7 @@
 [meta]
 version = 2
 source_of_truth = "repository"
-expected_registry_digest = "sha256:2bb25019aadb7d9ae35fa917927a6bb704322b25e1a6b752d9543358bd4c4cfb"
+expected_registry_digest = "sha256:8048aa923781ec0524c651f2d334f8a05b5c7d3023da4d9c24e36b046368e6b9"
 expected_generator_digest = "sha256:8eca948c2d864dd5da0f6ca29b34e37cc3a44e95ad3ce7ade6a0c4305d0ccb69"
 
 [coverage]
@@ -50,9 +50,9 @@ during_rules = [
 ]
 post_checks = [
   "ethos playbooks check --mode v2-strict --json",
-  "ethos report --json",
+  "ethos status --json",
 ]
-commands = ["ethos status", "ethos plan", "ethos prove", "ethos report"]
+commands = ["ethos status", "ethos plan", "ethos prove"]
 boundary = "workflow-package-projection"
 
 [[skill]]
@@ -97,7 +97,7 @@ during_rules = [
   "read the decision verdict; never assume success",
   "dry-run readiness is not executed proof",
 ]
-post_checks = ["ethos status --json", "ethos report --json"]
+post_checks = ["ethos status --json"]
 commands = [
   "ethos status",
   "ethos plan",
@@ -226,7 +226,7 @@ post_checks = [
   "ethos prove --json",
 ]
 may_coactivate = ["ethos-change-lifecycle"]
-commands = ["ethos quality", "ethos prove", "ethos report"]
+commands = ["ethos quality", "ethos prove", "ethos status"]
 boundary = "workflow-package-projection"
 
 [[skill]]
@@ -276,14 +276,13 @@ during_rules = [
 ]
 post_checks = [
   "ethos playbooks check --mode v2-strict --json",
-  "ethos report --json",
+  "ethos status --json",
 ]
 may_coactivate = ["ethos-repository-governance"]
 commands = [
   "ethos adopt",
   "ethos status",
   "ethos playbooks check",
-  "ethos report",
   "ethos prove",
 ]
 boundary = "workflow-package-projection"

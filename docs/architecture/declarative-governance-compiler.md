@@ -11,121 +11,66 @@ relations:
 
 Status: canonical.
 
-Purpose: define the target architecture that lets ETHOS become more
-declaration-first, functional, low-code, and reusable while preserving repository
-truth and lifecycle authority.
+Purpose: explain the declaration-first, functional center that compiles an
+intended repository change into a deterministic, evidence-bearing transition.
 
 See also: [DR-0005](../decisions/accepted/DR-0005-declarative-runtime-spine.md),
-[Workflow Runtime](workflow-runtime.md), [Action Graph](action-graph.md), and
-[Declarative Runtime Spine Modernization](../plans/declarative-runtime-spine-modernization.md).
+[PlanIR](plan-ir.md), and
+[Terminal Governance Product Design](../plans/terminal-governance-product-design.md).
 
 ## Boundary
 
-ETHOS is not adopting an external workflow engine as its center. The compiler
-reads tracked repository declarations and lower-authority facts, then emits
-plans, decisions, evidence, and projections. It does not mint truth by itself.
+ETHOS is a compiler over repository truth, not a workflow engine or private
+state authority:
 
 ```text
-Repository truth
-  Git + source + tests + schemas + docs + OpenSpec + evidence + claims
-        ↓
-Typed fact collection
-        ↓
-Contract validation
-        ↓
-Policy evaluation
-        ↓
-Graph compilation
-        ↓
-Projection and command execution
-        ↓
-Evidence, claims, reports, and chronicle entries
+ChangeContract + RepositoryFacts
+              -> PlanIR
+              -> verdict
+              -> admitted effects
+              -> Attestation
 ```
 
-The imperative shell owns Git, filesystem, subprocesses, clocks, network, host
-providers, and mutation. The functional core owns contracts, reducers, policy
-decisions, graph compilation, and projection models.
+Git, filesystems, subprocesses, clocks, networks, and provider APIs remain at
+explicit adapter boundaries. Contracts, policy decisions, plan compilation,
+and reducers are deterministic transformations over supplied values.
 
-## Spine Components
+## Spine
 
-| Layer | Declaration | Runtime mechanism | Output |
-| --- | --- | --- | --- |
-| Contracts | Pydantic models and generated/checked JSON Schema | strict validation and serialization | typed payloads and schemas |
-| Facts | fact collectors plus immutable fact maps | IO adapters at shell boundary | typed fact snapshots |
-| Policies | `system/policies/*.toml` with CEL predicates | CEL evaluator | decisions and gap records |
-| Graphs | graph/gate/workflow declarations | ETHOS GraphKernel + `graphlib` | deterministic plans |
-| Commands | `system/commands.toml` | Cyclopts registry compiler | CLI, JSON envelope, docs, smoke tests |
-| Serialization | strict typed declarations | native serializers at unavoidable external leaves | tracked binding and projection leaves |
-| Read models | projection declarations | pure projection reducers | status, orient, report, evidence freshness |
+| Concern | Sole mechanism | Output |
+| --- | --- | --- |
+| Persisted contracts | strict frozen Pydantic v2 models | validated values and checked JSON Schema |
+| Transient values | tuples, mappings, enums, and small frozen stdlib values | immutable facts and decisions |
+| Predicates | typed facts plus CEL where plain declarations are insufficient | explained `pass`, `block`, or `unknown` verdicts |
+| Dependency order | `PlanIR` and direct `graphlib.TopologicalSorter` | deterministic `Check`, `Decision`, and `Effect` order |
+| CLI | Cyclopts declarations at the composition root | one human and machine command surface |
+| Projections | pure reducers and native serializers | bounded status, protocol, and external carrier views |
 
-## Functional Core Contract
+Schemas may generate language bindings and externally required projections when
+the schema is the sole owner and drift is checked. Generated output never
+becomes a parallel hand-edited truth source.
 
-Core functions should have the following shape:
+## Functional Contract
 
 ```text
-InputModel -> DecisionModel
-Facts + PolicySet -> PolicyDecision
-GraphDecl -> GraphPlan
-Events + ProjectionDecl -> ReadModel
+observe(root) -> RepositoryFacts
+compile(ChangeContract, RepositoryFacts) -> PlanIR
+judge(PlanIR, attestations) -> verdict
+execute(admitted Effect) -> Attestation
 ```
 
-They should not read files, spawn subprocesses, inspect Git, consult current
-time, print output, or mutate state. Those operations belong to adapters and
-command surfaces.
+Core transformations do not read files, spawn processes, inspect ambient Git
+state, consult the clock, print output, or mutate hidden state. An adapter may
+perform those effects only after receiving an explicit root, authority,
+precondition, and permission boundary.
 
-## Declarations
+## Declaration Rule
 
-The target declaration homes are:
+A declaration must identify its authority, inputs, output contract, and proof
+surface. Python is reserved for composition, I/O, mutation, and an algorithmic
+primitive that cannot be expressed safely by the selected declaration or
+standard-library mechanism.
 
-```text
-system/commands.toml
-system/gates.toml
-system/workflows.toml
-system/policies/*.toml
-system/projections/*.toml
-```
-
-Adoption is the first minimal serialization slice. One frozen Pydantic v2
-declaration owns validation and `tomli-w` owns the unavoidable TOML leaf. There
-is no template manifest, renderer taxonomy, profile family, or compatibility
-generator. Other carriers are interpreted at runtime or created explicitly by
-the capability that owns them.
-
-A declaration must name its authority, expected inputs, emitted output model,
-and proof surface. A declaration that changes lifecycle behavior must be backed
-by OpenSpec and evidence in the same way as Python code.
-
-## Exception Rule
-
-Python remains appropriate when the logic is:
-
-- IO or mutation;
-- a boundary adapter for Git, OpenSpec, subprocesses, or host providers;
-- an algorithmic primitive not safely expressible in the DSL;
-- an explicitly accepted escape hatch with tests and an owner.
-
-The exception must be narrower than the declaration it replaces. It must not
-become a hidden second rule system.
-
-## Heavy Framework Boundary
-
-The following are not ETHOS truth centers: workflow engines, build systems,
-policy servers, task ledgers, board tools, TUI apps, MCP servers, hosted CI, and
-agent platforms. They may be observed or adapted only through typed evidence and
-claim boundaries.
-
-```text
-External engine result -> adapter observation -> ETHOS evidence -> claim review
-```
-
-Never:
-
-```text
-External engine state = ETHOS lifecycle truth
-```
-
-## Completion Shape
-
-The architecture is realized when new rules, commands, gates, bindings,
-read-model fields, and graph plans are added by declaration first; Python code
-only compiles, validates, evaluates, executes adapters, and projects results.
+No wrapper, registry, graph layer, event bus, DI container, or state-machine
+framework is admitted merely to rename a mature owner. A new layer must carry a
+distinct semantic obligation and prove a net reduction in total maintenance.

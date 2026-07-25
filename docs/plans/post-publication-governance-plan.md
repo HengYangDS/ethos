@@ -52,7 +52,7 @@ Required evidence:
 
 1. `git status --short --branch` shows a clean accepted root.
 2. `git rev-parse HEAD dev candidate/dev origin/dev` is recorded in the handoff.
-3. `ethos status --json`, `ethos report --json`, and `ethos parity gaps --json`
+3. `ethos status --json`, `ethos status --json`, and `ethos parity gaps --json`
    have no required gaps.
 4. `tools/ci/scripts/run-local-ci.sh` writes
    `build/evidence/local-ci/fallback.json` for the current HEAD.

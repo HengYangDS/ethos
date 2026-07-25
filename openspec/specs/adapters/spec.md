@@ -29,7 +29,7 @@ Lanes without entering their file trees.
   workspace topology
 - **THEN** the payload includes `role_policy`
 - **AND** the role order is
-  `release_root -> accepted_root -> candidate -> work_lane -> submit_lane`
+  `release_root -> accepted_root -> candidate -> work_lane -> proposal_lane`
 - **AND** `branch_bindings` follow that semantic order before branch name
 - **AND** host navigation labels are not product state
 - **AND** adapters derive presentation from `worktree_binding` rather than
@@ -52,7 +52,7 @@ root binding before files are edited.
 
 #### Scenario: Protected root write is requested
 - **WHEN** `ethos lane prewrite` checks tracked candidate paths from an accepted
-  root, candidate, submit lane, detached checkout, or unknown lane
+  root, candidate, proposal lane, detached checkout, or unknown lane
 - **THEN** ETHOS blocks the request with `protected_lane_prewrite_blocked`
 
 #### Scenario: Owned Work Lane write is requested

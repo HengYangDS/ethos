@@ -21,6 +21,6 @@ Purpose: route ETHOS durable rulings.
 | [DR-0005](accepted/DR-0005-declarative-runtime-spine.md) | Declarative Runtime Spine | accepted | architecture | Declaration-first contracts, policy DSL, graph compiler, command registry, scaffold projection, and anti-regression modernization. |
 | [DR-0006](accepted/DR-0006-proof-trust-boundary.md) | Proof Trust Boundary and Optional Independent-Identity Verification | accepted | architecture | Local proof is a readiness claim not enforcement; no local MAC; genuine trust root is independent-identity re-execution via an optional default-off verifier plug (lightweight local daemon or hosted forge). |
 | [DR-0007](superseded/DR-0007-docs-kernel-invariance-and-adopter-parity-locus.md) | Docs Kernel Form-Invariance and Adopter-Parity Evidence Locus | superseded | architecture | Combined ruling split into DR-0004 v2 for docs topology and existing product/parity authority documents for evidence locus. |
-| [DR-0008](accepted/DR-0008-metric-domain-budget-contract.md) | Metric-Domain Budget Contract | accepted | architecture | Versioned native metric domains, non-compensating vectors, per-file ELOC retention, and separation of repository source from agent-token budgets. |
+| [DR-0008](superseded/DR-0008-metric-domain-budget-contract.md) | Metric-Domain Budget Contract | superseded | architecture | Superseded private vector/worker/replay design; terminal policy uses direct canonical ELOC plus `scc` cross-check. |
 
 See also: [Decision Records](README.md), [Accepted Decisions](accepted/README.md).

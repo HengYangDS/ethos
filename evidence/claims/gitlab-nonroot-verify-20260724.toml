@@ -1,7 +1,7 @@
 [claim]
 id = "gitlab-nonroot-verify-20260724"
 subject = "quality:gitlab-nonroot-verify"
-state = "active"
+state = "superseded"
 change_id = "gitlab-nonroot-verify"
 summary = "ETHOS preserves GitLab root bootstrap while running the complete Python verify gate as an admitted unprivileged identity, retaining fail-closed worker isolation, independent emulator materialization, and 100% cross-platform coverage."
 

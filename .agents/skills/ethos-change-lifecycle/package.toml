@@ -11,7 +11,7 @@ include = [
 ]
 exclude = [".DS_Store"]
 required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
-expected_digest = "sha256:36c9e747f5c49c963b2308d34bdf40e1f213368f1c74b4ddddab772daf7253e9"
+expected_digest = "sha256:82519179f46f244df470b1aebaebe7295dd3013e7fb00785027fd6c517410b81"
 
 [quality]
 placeholder_allowed = false
@@ -60,8 +60,3 @@ id = "ethos.publish"
 kind = "command_mutation_guarded"
 command = ["ethos", "publish", "--json"]
 guard = "local publication readiness only; remote push is a deferred human-authorized step"
-
-[[capability]]
-id = "ethos.report"
-kind = "command_readonly"
-command = ["ethos", "report", "--json"]

@@ -206,13 +206,13 @@ def publication_readiness(
     action = (
         "remote tracking ref is synchronized; no push was performed"
         if synchronized
-        else "create configured submit branch when remote publication is available"
+        else "create configured proposal branch when remote publication is available"
         if available
         else str(evidence.get("next_action") or _FALLBACK)
         if isinstance(evidence, dict)
         else _FALLBACK
     )
-    submit = policy.submit_branch_for_source(branch)
+    proposal = policy.proposal_branch_for_source(branch)
     return {
         "mode": "local_readiness",
         "remote_push": "not_performed",
@@ -222,24 +222,24 @@ def publication_readiness(
         "remote_topology": topology if isinstance(topology, dict) else {"state": "unspecified"},
         "remote_observations": observations,
         "fallback_evidence": fallback,
-        "submit_branch": submit,
-        "local_submit_package": _submit_package(branch, submit, availability, fallback),
+        "proposal_branch": proposal,
+        "local_proposal_package": _proposal_package(branch, proposal, availability, fallback),
         "required_gaps": [] if local_ok else ["local_publish_readiness_blocked"],
         "next_actions": [action] if local_ok else ["resolve local publish readiness gaps"],
     }
 
 
-def _submit_package(
+def _proposal_package(
     branch: str,
-    submit: str,
+    proposal: str,
     availability: dict[str, object],
     fallback: dict[str, object],
 ) -> dict[str, object]:
-    """Return the local plan for a future configured submit branch."""
+    """Return the local plan for a future configured proposal branch."""
     return {
-        "kind": "submit_branch_plan",
+        "kind": "proposal_branch_plan",
         "source_branch": branch,
-        "submit_branch": submit,
+        "proposal_branch": proposal,
         "remote_push": "not_performed",
         "remote_state": "deferred",
         "blocking": False,
@@ -249,22 +249,22 @@ def _submit_package(
             "land work lane to candidate role",
             "fast-forward accepted root from candidate role",
             "run local-ci fallback when remote publication is unavailable",
-            "create configured submit branch when remote publication is available",
+            "create configured proposal branch when remote publication is available",
         ],
     }
 
 
-def local_submit_package(
+def local_proposal_package(
     *,
     branch: str,
-    submit_branch: str,
+    proposal_branch: str,
     remote_availability: dict[str, object] | None = None,
     local_ci_fallback: dict[str, object] | None = None,
 ) -> dict[str, object]:
-    """Return the public compatibility projection of the local submit plan."""
+    """Return the public compatibility projection of the local proposal plan."""
     availability = remote_availability or dict(_NOT_PROBED)
     fallback = local_ci_fallback or local_ci_fallback_package(remote_availability=availability)
-    return _submit_package(branch, submit_branch, availability, fallback)
+    return _proposal_package(branch, proposal_branch, availability, fallback)
 
 
 def _object(value: object, fallback: dict[str, object] | None = None) -> dict[str, object]:
@@ -279,7 +279,7 @@ def publication_with_remote_matrix(
     return (
         {
             **publication,
-            "next_actions": ["reconcile diverged remotes before creating a submit branch"],
+            "next_actions": ["reconcile diverged remotes before creating a proposal branch"],
         }
         if remote_available and matrix.get("state") == "reconciliation_required"
         else publication

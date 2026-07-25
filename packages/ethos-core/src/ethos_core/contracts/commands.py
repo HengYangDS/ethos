@@ -25,8 +25,6 @@ class CommandSets(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     public_workflow: tuple[str, ...]
-    reader_view: tuple[str, ...]
-    scorecard: tuple[str, ...]
     setup: tuple[str, ...]
     maintainer_reference: tuple[str, ...]
     governance_gate: tuple[str, ...]

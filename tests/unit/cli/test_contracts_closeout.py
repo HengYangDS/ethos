@@ -43,7 +43,7 @@ def test_land_closeout_apply_fast_forwards_accepted_root_from_candidate(tmp_path
     assert git(repo, 'rev-parse', 'dev') == candidate_head
     assert git(repo, 'rev-parse', 'HEAD') == candidate_head
 
-def test_land_closeout_defers_control_replacement_without_incumbent_receipt(tmp_path: Path) -> None:
+def test_land_closeout_defers_control_replacement_without_signed_receipt(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / 'repo')
     adopt_and_commit(repo)
     candidate = tmp_path / 'repo-candidate-dev'
@@ -61,16 +61,14 @@ def test_land_closeout_defers_control_replacement_without_incumbent_receipt(tmp_
     assert control['verdict'] == 'defer'
     assert payload['state'] == 'deferred'
     assert payload['data']['mutation']['decision']['verdict'] == 'defer'
-    assert 'incumbent_or_bootstrap_verifier_required' in payload['required_gaps']
+    assert 'independent_verification_receipt_required' in payload['required_gaps']
     bootstrap = payload['data']['closeout_bootstrap']
-    verifier = bootstrap['control_verifier']
-    assert verifier['required'] is True
-    assert verifier['provenance_boundary'] == 'candidate-external'
-    assert verifier['bootstrap_contract']['accepted_head'] == git(repo, 'rev-parse', 'HEAD')
-    assert verifier['bootstrap_contract']['candidate_head'] == candidate_head
-    assert verifier['bootstrap_contract']['mints_authority'] is False
-    assert verifier['bootstrap_contract']['reusable_authorization'] is False
-    assert payload['next_actions'] == ['use data.closeout_bootstrap.control_verifier to mint a candidate-external one-shot receipt, then rerun ethos land --closeout --control-verifier-receipt <absolute-path> --json']
+    verification = bootstrap['independent_verification']
+    assert verification['required'] is True
+    assert verification['proof_floor_id'] == 'ethos:control-replacement:v1'
+    assert verification['receipt_option'] == '--independent-verification-receipt <absolute-path>'
+    assert verification['trust_boundary'] == 'protected-provider'
+    assert verification['mints_authority'] is False
     assert git(repo, 'rev-parse', 'HEAD') != candidate_head
 
 def test_land_closeout_audits_candidate_content_before_fast_forward(tmp_path: Path, monkeypatch) -> None:
@@ -207,15 +205,12 @@ def test_land_closeout_exposes_bootstrap_package_for_current_runner(tmp_path: Pa
     assert bootstrap['accepted_head'] == accepted_head
     assert bootstrap['candidate_head'] == candidate_head
     assert bootstrap['proof_target']['root'] == candidate.resolve().as_posix()
-    verifier = bootstrap['control_verifier']
-    assert verifier['required'] is False
-    assert verifier['provenance_boundary'] == 'candidate-external'
-    contract = verifier['bootstrap_contract']
-    assert contract['accepted_head'] == accepted_head
-    assert contract['candidate_head'] == candidate_head
-    assert contract['candidate_proof'] == bootstrap['proof_target']
-    assert contract['mints_authority'] is False
-    assert contract['reusable_authorization'] is False
+    verification = bootstrap['independent_verification']
+    assert verification['required'] is False
+    assert verification['proof_floor_id'] == 'ethos:control-replacement:v1'
+    assert verification['receipt_option'] == '--independent-verification-receipt <absolute-path>'
+    assert verification['trust_boundary'] == 'protected-provider'
+    assert verification['mints_authority'] is False
 
 def test_land_closeout_bootstrap_proof_target_stays_candidate_when_blocked(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / 'repo')

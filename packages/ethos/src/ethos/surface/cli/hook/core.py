@@ -171,14 +171,14 @@ def pre_push(
 
 @hook_app.command(name="reconciliation-receipt")
 def reconciliation_receipt_command(
-    submit_branch: str,
+    proposal_branch: str,
     source_head: str,
     write_receipt: Annotated[pathlib.Path, Parameter(name="--write-receipt")],
     *,
     root: RootOption | None = None,
     json_output: JsonFlag = False,
 ) -> None:
-    """Record exact local observations before a one-shot dual-remote submit push."""
+    """Record exact local observations before a one-shot dual-remote proposal push."""
     repo = resolve_root(root)
     target = write_receipt.expanduser().resolve()
     if target.is_relative_to(repo):
@@ -199,7 +199,7 @@ def reconciliation_receipt_command(
         if not refs[remote]
     )
     receipt = reconciliation_receipt_payload(
-        submit_branch=submit_branch,
+        proposal_branch=proposal_branch,
         source_head=source_head,
         origin_head=refs["origin/dev"],
         github_head=refs["github/dev"],
@@ -212,7 +212,7 @@ def reconciliation_receipt_command(
         command="hook reconciliation-receipt",
         ok=not gaps,
         state="observed" if not gaps else "blocked",
-        summary={"submit_branch": submit_branch, "source_head": source_head},
+        summary={"proposal_branch": proposal_branch, "source_head": source_head},
         required_gaps=gaps,
         next_actions=(),
         data={"receipt": receipt, "path": str(target)},

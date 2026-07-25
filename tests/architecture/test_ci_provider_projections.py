@@ -83,16 +83,16 @@ def test_gitlab_verify_reclones_full_history_for_replay() -> None:
         assert payload["ethos:verify"]["variables"]["GIT_STRATEGY"] == "clone"
 
 
-def test_remote_provider_ci_excludes_local_candidate_and_includes_submit() -> None:
+def test_remote_provider_ci_excludes_local_candidate_and_includes_proposal() -> None:
     github = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
     gitlab = (ROOT / ".gitlab-ci.yml").read_text(encoding="utf-8")
 
     assert "candidate/dev" not in github
-    assert "submit/**" in github
+    assert "proposal/**" in github
     assert "workflow:" in gitlab
     assert 'CI_COMMIT_BRANCH == "dev"' in gitlab
     assert 'CI_COMMIT_BRANCH == "main"' in gitlab
-    assert "submit\\/.+$" in gitlab
+    assert "proposal\\/.+$" in gitlab
 
 
 def test_provider_yaml_invokes_owner_scripts_not_inline_policy() -> None:
@@ -282,7 +282,7 @@ def test_hosted_proof_receipt_is_owner_scripted_and_retained() -> None:
         ],
     }
     assert "ethos audit --json" in script
-    assert "ethos report --json" in script
+    assert "ethos status --json" in script
     assert "ethos prove --execute --expect-head" in script
     assert "executed-proof.json" in script
     assert "ethos_hosted_readiness_receipt" in script

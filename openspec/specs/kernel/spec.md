@@ -57,13 +57,13 @@ ETHOS SHALL emit stable JSON result envelopes with `ok`, `summary`,
 - **WHEN** an automation consumer requests JSON output from an ETHOS command
 - **THEN** the response is one parseable object with the stable result fields
 
-### Requirement: Deterministic Action Graph
-ETHOS SHALL serialize action graphs deterministically, including validation gaps
-for invalid graphs.
+### Requirement: Deterministic PlanIR
+ETHOS SHALL serialize PlanIR deterministically, including validation gaps
+for invalid dependency sets.
 
 #### Scenario: Proof readiness is planned
 - **WHEN** ETHOS plans or runs proof gates
-- **THEN** selected gates are represented as ordered action graph nodes with
+- **THEN** selected gates are represented as ordered PlanIR nodes with
   explicit dependencies and validation gaps
 
 ### Requirement: Physical Target Product Homes

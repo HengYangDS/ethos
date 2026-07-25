@@ -2,10 +2,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from ethos.repository.profile import INVALID_PROFILE_ERROR
 from ethos.repository.profile import load_repository_profile
 from ethos.repository.registry.commands import PUBLIC_WORKFLOW_COMMANDS
-from ethos.repository.registry.commands import READER_VIEW_COMMANDS
-from ethos.repository.registry.commands import SCORECARD_COMMANDS
 from ethos_core.contracts.system.contracts import load_system_contract
 from ethos_core.kernel import KERNEL_CHAIN
 from ethos_core.models import Authority
@@ -47,7 +46,10 @@ def governance_profile(root: Path) -> str:
     """Return the profile for a governed repository without changing command semantics."""
     if is_product_root(root):
         return "product"
-    return "adopter" if load_repository_profile(root).state == "valid" else "unbound"
+    state = load_repository_profile(root).state
+    if state == "invalid":
+        raise ValueError(INVALID_PROFILE_ERROR)
+    return "adopter" if state == "valid" else "unbound"
 
 
 def context_for_root(root: Path) -> dict[str, object]:
@@ -84,8 +86,6 @@ def governance_context(root: Path, *, profile: str) -> dict[str, object]:
         "kernel_chain": list(KERNEL_CHAIN),
         "shared_commands": list(PUBLIC_WORKFLOW_COMMANDS),
         "transition_commands": list(PUBLIC_WORKFLOW_COMMANDS),
-        "reader_view_commands": list(READER_VIEW_COMMANDS),
-        "scorecard_commands": list(SCORECARD_COMMANDS),
         "truth_boundary": "repository",
         "profile_boundary": "profile_or_adapter",
     }

@@ -13,8 +13,6 @@ authoritative.
 | `prove` | readiness; `prove --execute` mints HEAD-bound executed proof | only `--execute` writes a proof record |
 | `land` | fast-forward the work lane to the candidate role | `--apply` mutates (enforced) |
 | `publish` | local publication readiness | `--apply` mutates (enforced) |
-| `report` | read-only scorecard across all governed checks | no |
-
 ## Governance surfaces (read-only reports)
 
 | command | governs |

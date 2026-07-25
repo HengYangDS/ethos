@@ -14,7 +14,7 @@ layout changes and implementation refactors.
 
 | Capability | Family | Owner package | Boundary |
 | --- | --- | --- | --- |
-| `kernel` | `kernel` | `ethos-core` | Kernel chain, result envelope, action graph. |
+| `kernel` | `kernel` | `ethos` | Kernel chain, result envelope, PlanIR. |
 | `contracts` | `contracts` | `ethos-core` | Schemas, TOML contracts, command JSON, evidence envelopes. |
 | `repository-governance` | `repository-governance` | `ethos` | Git-native lifecycle, Work Lanes, claims, evidence, chronicle, evolution. |
 | `adapters` | `adapters` | `ethos` | Git, process, OpenSpec, hosted CI, MCP, and host protocol adapters. |

@@ -22,7 +22,7 @@ not replace those surfaces as authority.
 Always start from repository state, then select the smallest matching skill:
 
 ```bash
-ethos orient --json
+ethos status --json
 ethos status --json
 ```
 

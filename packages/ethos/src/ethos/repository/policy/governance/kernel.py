@@ -5,8 +5,6 @@ from typing import TYPE_CHECKING
 from ethos.repository.adoption.planner import adoption_plan
 from ethos.repository.context import context_for_root
 from ethos.repository.registry.commands import PUBLIC_WORKFLOW_COMMANDS
-from ethos.repository.registry.commands import READER_VIEW_COMMANDS
-from ethos.repository.registry.commands import SCORECARD_COMMANDS
 from ethos.repository.registry.profiles import governance_profile_report
 from ethos_core.kernel import KERNEL_CHAIN
 from ethos_core.normalization.core import string_mapping
@@ -53,8 +51,6 @@ REQUIRED_PRODUCT_DOC_PHRASE_GROUPS: Mapping[str, tuple[tuple[str, ...], ...]] = 
     "docs/reference/command-plane.md": (
         ("same transition", "command semantics"),
         ("`transition_commands`",),
-        ("`reader_view_commands`",),
-        ("`scorecard_commands`",),
         ("profile", "adapter boundary"),
     ),
     "docs/reference/glossary.md": (
@@ -66,11 +62,10 @@ REQUIRED_PRODUCT_DOC_PHRASE_GROUPS: Mapping[str, tuple[tuple[str, ...], ...]] = 
     "openspec/specs/repository-governance/spec.md": (
         ("same transition command semantics",),
         ("not a second command plane",),
-        ("read-only reader-view",),
-        ("read-only scorecard command",),
+        ("status is the singular reader",),
     ),
     "openspec/specs/contracts/spec.md": (
-        ("transition, reader-view, and scorecard command semantics",),
+        ("singular lifecycle command semantics",),
         ("shared governance context contract",),
     ),
 }
@@ -124,8 +119,6 @@ def governance_kernel_report(root: Path) -> dict[str, object]:
             "subject_kind": "repository",
             "product_and_adopters": "same_kernel_profile_or_adapter_differences_only",
             "transition_commands": list(PUBLIC_WORKFLOW_COMMANDS),
-            "reader_view_commands": list(READER_VIEW_COMMANDS),
-            "scorecard_commands": list(SCORECARD_COMMANDS),
             "forbidden": [
                 "second_command_plane",
                 "product_cloning",
@@ -165,16 +158,6 @@ def _runtime_context_check(context: Mapping[str, object]) -> dict[str, object]:
                 value=context.get("shared_commands"),
                 expected=PUBLIC_WORKFLOW_COMMANDS,
                 gap="governance_kernel_shared_commands_mismatch",
-            ),
-            *_list_field_gaps(
-                value=context.get("reader_view_commands"),
-                expected=READER_VIEW_COMMANDS,
-                gap="governance_kernel_reader_views_mismatch",
-            ),
-            *_list_field_gaps(
-                value=context.get("scorecard_commands"),
-                expected=SCORECARD_COMMANDS,
-                gap="governance_kernel_scorecards_mismatch",
             ),
             *_field_gaps(
                 value=subject.get("kind"),

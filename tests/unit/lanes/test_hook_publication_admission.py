@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import ethos.adapters.admission.core as admission_core
 from ethos.adapters.admission.core import push_admission_report
 from ethos.surface.cli.hook import core as hook_cli
 from tests.support.lane_helpers import git
@@ -13,11 +14,14 @@ if TYPE_CHECKING:
     import pytest
 
 
-def test_push_admission_keeps_campaign_progress_out_of_required_gaps(
+def test_push_admission_propagates_campaign_hard_gaps_only_to_protected_roles(
+    monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
     repo = init_repo(tmp_path / "repo")
     head = git(repo, "rev-parse", "HEAD")
+    monkeypatch.setattr(admission_core.mutation_core, "proof_gaps", lambda *_args: [])
+    monkeypatch.setattr(admission_core, "accepted_advance_gaps", lambda *_args, **_kwargs: [])
     campaign_publication = {
         "remote_publication_admission": "blocked",
         "required_gaps": ["campaign_publication_campaign_active:compression"],
@@ -32,12 +36,14 @@ def test_push_admission_keeps_campaign_progress_out_of_required_gaps(
         root=repo,
         target_ref="refs/heads/work/compression",
         pushed_head=head,
+        campaign_publication=campaign_publication,
     )
 
     assert protected["ok"] is False
-    assert protected["decision"]["reason"] == "push_to_protected_role_not_proven"
-    assert "campaign_publication_campaign_active:compression" not in protected["required_gaps"]
+    assert protected["decision"]["reason"] == "campaign_publication_not_terminal"
+    assert protected["required_gaps"] == ["campaign_publication_campaign_active:compression"]
     assert lane["ok"] is True
+    assert lane["required_gaps"] == []
 
 
 def test_pre_push_forwards_named_remote_to_both_admission_evaluations(

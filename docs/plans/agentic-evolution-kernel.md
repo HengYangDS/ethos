@@ -473,7 +473,7 @@ prove, land, publish, or chronicle by itself.
 Current and future sources:
 
 ```bash
-ETHOS_ACTOR=codex uv run --package ethos ethos report --root <target-root> --json
+ETHOS_ACTOR=codex uv run --package ethos ethos status --root <target-root> --json
 ETHOS_ACTOR=codex uv run --package ethos ethos quality evidence-freshness --root <target-root> --json
 ETHOS_ACTOR=codex uv run --package ethos ethos quality claims --root <target-root> --json
 ETHOS_ACTOR=codex uv run --package ethos ethos lane status --root <target-root> --json

@@ -39,7 +39,7 @@ installation_command = "tools/ci/scripts/run-local-install-smoke.sh"
 
 [publication.branch_admission]
 candidate_role = "local_only"
-remote_branches = "accepted_release_submit_only"
+remote_branches = "accepted_release_proposal_only"
 
 [[publication.remote]]
 id = "gitlab"
@@ -572,7 +572,7 @@ def test_push_identity_policy_matches_configured_user(
 
 
 @pytest.mark.parametrize("baseline", ["valid", "missing", "diverged"])
-def test_new_submit_push_validates_origin_accepted_baseline(
+def test_new_proposal_push_validates_origin_accepted_baseline(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, baseline: str
 ) -> None:
     repo = _identity_repo(tmp_path / "repo")
@@ -593,14 +593,14 @@ def test_new_submit_push_validates_origin_accepted_baseline(
     pushed_head = _identity_commit(repo, monkeypatch)
     identity = push_admission_report(
         root=repo,
-        target_ref="refs/heads/submit/identity-baseline",
+        target_ref="refs/heads/proposal/identity-baseline",
         pushed_head=pushed_head,
         remote_head="0" * 40,
     )["identity_policy"]
     expected_gap = {
         "valid": "",
-        "missing": "push_identity_submit_baseline_missing:origin/dev",
-        "diverged": "push_identity_submit_baseline_not_ancestor:origin/dev",
+        "missing": "push_identity_proposal_baseline_missing:origin/dev",
+        "diverged": "push_identity_proposal_baseline_not_ancestor:origin/dev",
     }[baseline]
     assert identity["checked_commit_count"] == (1 if baseline == "valid" else 0)
     assert expected_gap in identity["required_gaps"] if expected_gap else identity["ok"] is True

@@ -12,8 +12,6 @@ if TYPE_CHECKING:
 
 _DECLARATION = load_command_registry_declaration()
 PUBLIC_WORKFLOW_COMMANDS = _DECLARATION.sets.public_workflow
-READER_VIEW_COMMANDS = _DECLARATION.sets.reader_view
-SCORECARD_COMMANDS = _DECLARATION.sets.scorecard
 SETUP_COMMANDS = _DECLARATION.sets.setup
 MAINTAINER_REFERENCE_COMMANDS = _DECLARATION.sets.maintainer_reference
 GOVERNANCE_GATE_COMMANDS = _DECLARATION.sets.governance_gate
@@ -22,8 +20,6 @@ EVIDENCE_REFRESH_COMMANDS = _DECLARATION.sets.evidence_refresh
 PUBLIC_COMMANDS = (*PUBLIC_WORKFLOW_COMMANDS,)
 KNOWN_COMMANDS = (
     *PUBLIC_WORKFLOW_COMMANDS,
-    *READER_VIEW_COMMANDS,
-    *SCORECARD_COMMANDS,
     *SETUP_COMMANDS,
     *MAINTAINER_REFERENCE_COMMANDS,
 )
@@ -142,11 +138,7 @@ def _scan_retired_public_command_prefixes(root: Path) -> list[str]:
 
 def command_registry_report(root: Path | None = None) -> dict[str, object]:
     classified = (
-        set(PUBLIC_WORKFLOW_COMMANDS)
-        | set(READER_VIEW_COMMANDS)
-        | set(SCORECARD_COMMANDS)
-        | set(SETUP_COMMANDS)
-        | set(MAINTAINER_REFERENCE_COMMANDS)
+        set(PUBLIC_WORKFLOW_COMMANDS) | set(SETUP_COMMANDS) | set(MAINTAINER_REFERENCE_COMMANDS)
     )
     advanced_public_commands = [command for command in PUBLIC_COMMANDS if command not in classified]
     leaked = [
@@ -169,8 +161,6 @@ def command_registry_report(root: Path | None = None) -> dict[str, object]:
         "known_commands": list(KNOWN_COMMANDS),
         "actions": {key: list(value) for key, value in _DECLARATION.actions.items()},
         "public_workflow_commands": list(PUBLIC_WORKFLOW_COMMANDS),
-        "reader_view_commands": list(READER_VIEW_COMMANDS),
-        "scorecard_commands": list(SCORECARD_COMMANDS),
         "setup_commands": list(SETUP_COMMANDS),
         "maintainer_reference_commands": list(MAINTAINER_REFERENCE_COMMANDS),
         "governance_gate_commands": list(GOVERNANCE_GATE_COMMANDS),
@@ -178,8 +168,6 @@ def command_registry_report(root: Path | None = None) -> dict[str, object]:
         "evidence_refresh_commands": list(EVIDENCE_REFRESH_COMMANDS),
         "advanced_public_commands": advanced_public_commands,
         "public_workflow_count": len(PUBLIC_WORKFLOW_COMMANDS),
-        "reader_view_count": len(READER_VIEW_COMMANDS),
-        "scorecard_count": len(SCORECARD_COMMANDS),
         "setup_count": len(SETUP_COMMANDS),
         "known_command_count": len(KNOWN_COMMANDS),
         "maintainer_reference_count": len(MAINTAINER_REFERENCE_COMMANDS),

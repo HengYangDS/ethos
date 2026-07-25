@@ -65,7 +65,7 @@ config_keys = [
   "accepted_branch",
   "candidate_branch",
   "work_branch_prefix",
-  "submit_branch_prefix",
+  "proposal_branch_prefix",
 ]
 required_for = ["semantic role classification", "mutation admission"]
 replaceability = "hard-bound"
@@ -255,7 +255,7 @@ adapter_replaceable = true
 required_for = ["historical auditability"]
 replaceability = "historical"
 degradation_state = "nonblocking:historical_evidence_absent"
-proof_gate = "ethos report --json"
+proof_gate = "ethos status --json"
 surfaces = ["archived evidence", "migration oracle records"]
 
 [[binding]]

@@ -20,7 +20,7 @@ budgets or the vendor-neutral product boundary.
   stack and retain one direct deterministic measurement path.
 - **BREAKING** Remove all WCP code, schema, test, documentation, and evidence
   coupling; ETHOS remains independently installable and operable.
-- **BREAKING** Replace `submit/*` with provider-neutral `proposal/*`; keep
+- **BREAKING** Replace `proposal/*` with provider-neutral `proposal/*`; keep
   `candidate/dev` and `work/*` local-only and publish only `main`, `dev`, and
   `proposal/*`.
 - Replace custom graph layers with direct `graphlib.TopologicalSorter` and cut
@@ -48,7 +48,7 @@ than creating a parallel capability family.
 ### Modified Capabilities
 
 - `kernel`: subject=terminal-semantic-kernel; reuse=extend; change=modify; facet:lifecycle=authoring,validation,runtime,archive; facet:surface=source,schema,test,openspec; facet:authority=source,test,schema,docs,openspec,evidence. Reduce the semantic center to the two persistent entities and one deterministic PlanIR transition algebra.
-- `command-plane`: subject=terminal-command-plane; reuse=extend; change=modify; facet:lifecycle=runtime,validation,release; facet:surface=cli,schema,docs,test; facet:authority=source,test,schema,docs,openspec,evidence. Remove scorecard/orient duplication and enforce compact, truthful lifecycle outputs.
+- `command-plane`: subject=terminal-command-plane; reuse=extend; change=modify; facet:lifecycle=runtime,validation,release; facet:surface=cli,schema,docs,test; facet:authority=source,test,schema,docs,openspec,evidence. Remove quality_summary/orient duplication and enforce compact, truthful lifecycle outputs.
 - `contracts`: subject=terminal-contracts; reuse=extend; change=modify; facet:lifecycle=authoring,validation,runtime; facet:surface=source,schema,docs,test; facet:authority=source,test,schema,docs,openspec. Establish language- and vendor-neutral ChangeContract, Attestation, PlanIR, actor, permission, and pack schemas.
 - `repository-governance`: subject=terminal-repository-governance; reuse=extend; change=modify; facet:lifecycle=authoring,runtime,archive,closeout; facet:surface=cli,source,schema,docs,openspec,evidence; facet:authority=source,test,schema,docs,openspec,claim,evidence. Add Worktree Family, intent continuity, cooperative/competitive selection, recovery, adaptive backpressure, and proposal branch semantics.
 - `quality`: subject=terminal-quality-floor; reuse=extend; change=modify; facet:lifecycle=validation,release; facet:surface=ci,source,test,config,docs; facet:authority=source,test,config,docs,openspec,evidence. Replace the self-referential budget runtime with direct measurement and enforce singular tools, warning zero, suppression zero, and terminal ELOC budgets.

@@ -2,15 +2,7 @@ id = "ethos-command-registry"
 schema_version = 1
 source_refs = ["docs/governance/product-design-contract.md", "docs/architecture/declarative-governance-compiler.md", "openspec/specs/command-plane/spec.md"]
 actions = { campaign_continuation = ["ethos campaign status --json"], campaign_hypotheses = ["ethos audit --mode shape"], head_bound_proof = ["ethos prove --execute --expect-head <head>"], lane_prewrite = ["ethos lane prewrite <path>"], protected_publication = ["ethos publish --json"] }
-sets = { public_workflow = ["ethos status", "ethos plan", "ethos prove", "ethos land", "ethos publish"], reader_view = ["ethos orient"], scorecard = ["ethos report"], setup = ["ethos adopt", "ethos doctor"], maintainer_reference = ["ethos audit", "ethos openspec", "ethos campaign", "ethos intake", "ethos intake status", "ethos intake mine", "ethos quality", "ethos assistants", "ethos playbooks", "ethos fleet", "ethos fleet retirement-readiness", "ethos lane", "ethos lane housekeeping", "ethos lane lease", "ethos lane handoff", "ethos lane resolution", "ethos lane retire", "ethos lane retire landed", "ethos lane retire superseded", "ethos lane retire unbound", "ethos hook", "ethos parity", "ethos explain", "ethos docs"], governance_gate = ["openspec validate --all --strict --json"], local_closeout = ["ethos land --closeout --apply --authorize --expect-head <HEAD>"], evidence_refresh = ["ethos parity shadow --adopter <adopter-id> --target <repo> --execute --write-evidence"], retired_public_roots = ["wt", "proof", "mission", "skill-evolution", "agent-surface-contract"], retired_public_command_prefixes = ["ethos kernel", "ethos governance", "ethos workspace", "ethos agent", "ethos project", "ethos node"], historical_exempt_roots = ["evidence", "docs/archive"] }
-
-[[commands]]
-name = "orient"
-group = "root"
-import_path = "ethos.surface.cli.root.inspection:orient"
-help = "Orient a human or agent without minting repository truth."
-show = true
-report_handler = { provider = "ethos.surface.cli.root.inspection:_orient_report", summary = [{ name = "role", path = ["orientation", "where", "role"] }, { name = "candidate_action", path = ["orientation", "capability", "candidate_action"] }, { name = "foreign_work_lane_count", path = ["orientation", "coordination", "foreign_work_lane_count"] }, { name = "unbound_work_lane_count", path = ["orientation", "coordination", "unbound_work_lane_count"] }, { name = "missing_lease_count", path = ["orientation", "coordination", "missing_lease_count"], default = 0 }, { name = "dirty_foreign_work_lane_count", path = ["orientation", "coordination", "dirty_foreign_work_lane_count"] }, { name = "coordination_detail_state", path = ["orientation", "coordination", "detail_state"], default = "exact" }, { name = "coordination_advisory_count", path = ["orientation", "coordination", "advisory_items"], reducer = "count" }, { name = "coordination_blocking", path = ["orientation", "coordination", "blocking"], default = false }, { name = "governance_gap_count", path = ["orientation", "readiness", "governance_gap_count"] }, { name = "parity_pending_count", path = ["orientation", "readiness", "parity_pending_count"] }, { name = "advisory_gap_count", path = ["orientation", "readiness", "advisory_gap_count"] }], data_fields = [{ name = "orientation", path = ["orientation"] }], governance_context_path = ["governance_context"], next_actions_path = ["next_actions"], enforce = false, bind_root = true }
+sets = { public_workflow = ["ethos status", "ethos plan", "ethos prove", "ethos land", "ethos publish"], setup = ["ethos adopt", "ethos doctor"], maintainer_reference = ["ethos audit", "ethos openspec", "ethos campaign", "ethos intake", "ethos intake status", "ethos intake mine", "ethos quality", "ethos assistants", "ethos playbooks", "ethos fleet", "ethos fleet retirement-readiness", "ethos lane", "ethos lane housekeeping", "ethos lane lease", "ethos lane handoff", "ethos lane resolution", "ethos lane retire", "ethos lane retire landed", "ethos lane retire superseded", "ethos lane retire unbound", "ethos hook", "ethos parity", "ethos explain", "ethos docs"], governance_gate = ["openspec validate --all --strict --json"], local_closeout = ["ethos land --closeout --apply --authorize --expect-head <HEAD>"], evidence_refresh = ["ethos parity shadow --adopter <adopter-id> --target <repo> --execute --write-evidence"], retired_public_roots = ["wt", "proof", "mission", "skill-evolution", "agent-surface-contract"], retired_public_command_prefixes = ["ethos kernel", "ethos governance", "ethos workspace", "ethos agent", "ethos project", "ethos node"], historical_exempt_roots = ["evidence", "docs/archive"] }
 
 [[commands]]
 name = "status"
@@ -18,15 +10,7 @@ group = "root"
 import_path = "ethos.surface.cli.root.inspection:status"
 help = "Inspect repository state."
 show = true
-report_handler = { provider = "ethos.surface.cli.root.inspection:_status_report", summary = [{ name = "root", path = ["status", "root"] }, { name = "branch", path = ["status", "branch"] }, { name = "role", path = ["status", "role"], default = "" }, { name = "dirty", path = ["status", "dirty"] }, { name = "changed_path_count", path = ["status", "changed_paths"], reducer = "count" }, { name = "foreign_work_lane_count", path = ["status", "coordination", "foreign_work_lane_count"], default = 0 }, { name = "unbound_work_lane_count", path = ["status", "coordination", "unbound_work_lane_count"], default = 0 }, { name = "missing_lease_count", path = ["status", "coordination", "missing_lease_count"], default = 0 }, { name = "dirty_foreign_work_lane_count", path = ["orientation", "coordination", "dirty_foreign_work_lane_count"] }, { name = "coordination_detail_state", path = ["orientation", "coordination", "detail_state"], default = "exact" }, { name = "coordination_advisory_count", path = ["status", "coordination", "advisory_gaps"], reducer = "count" }, { name = "coordination_blocking", path = ["status", "coordination", "blocking"], default = false }], diagnostics_path = ["diagnostics"], data_path = ["status"], governance_context_path = ["governance_context"], next_actions_path = ["next_actions"], enforce = false, bind_root = true }
-
-[[commands]]
-name = "report"
-group = "root"
-import_path = "ethos.surface.cli.root.inspection:report"
-help = "Emit a concise scorecard."
-show = true
-report_handler = { provider = "ethos.surface.cli.root.inspection:_scorecard_reader_report", data_path = ["data"], governance_context_path = ["data", "governance_context"], next_actions_path = ["next_actions"], enforce = false, bind_root = true }
+report_handler = { provider = "ethos.surface.cli.root.inspection:_status_report", summary = [{ name = "root", path = ["status", "root"] }, { name = "branch", path = ["status", "branch"] }, { name = "role", path = ["status", "role"], default = "" }, { name = "dirty", path = ["status", "dirty"] }, { name = "changed_path_count", path = ["status", "changed_path_count"] }, { name = "foreign_work_lane_count", path = ["status", "coordination", "foreign_work_lane_count"], default = 0 }, { name = "unbound_work_lane_count", path = ["status", "coordination", "unbound_work_lane_count"], default = 0 }, { name = "missing_lease_count", path = ["status", "coordination", "missing_lease_count"], default = 0 }, { name = "coordination_detail_state", path = ["status", "coordination", "detail_state"], default = "exact" }, { name = "coordination_advisory_count", path = ["status", "coordination", "advisory_count"] }, { name = "coordination_blocking", path = ["status", "coordination", "blocking"], default = false }], diagnostics_path = ["diagnostics"], data_path = ["status"], governance_context_path = ["governance_context"], next_actions_path = ["next_actions"], enforce = false, bind_root = true }
 
 [[commands]]
 name = "doctor"
@@ -39,7 +23,7 @@ show = false
 name = "plan"
 group = "root"
 import_path = "ethos.surface.cli.root.planning:plan"
-help = "Plan deterministic action graph."
+help = "Compile deterministic PlanIR."
 show = true
 
 [[commands]]
@@ -205,9 +189,9 @@ report_handler = { provider = "ethos.domain.prove:code_size_report", enforce = f
 name = "source-budget"
 group = "quality"
 import_path = "ethos.surface.cli.quality.core:source_budget"
-help = "Report global executable-source budget and compression debt."
+help = "Report the terminal owned-source budget."
 show = true
-report_handler = { provider = "ethos.domain.source_budget.core:source_budget_report", state_mode = "advisory_gaps", enforce = true, bind_root = true }
+report_handler = { provider = "ethos.domain.source_budget.core:source_budget_report", enforce = true, bind_root = true }
 
 [[commands]]
 name = "module-layout"

@@ -1,1 +1,0 @@
-"""Governance validation contract tests."""

@@ -114,27 +114,12 @@ def closeout_bootstrap_package(
         "accepted_head": accepted_head,
         "candidate_head": candidate_head,
         "proof_target": proof_target,
-        "control_verifier": {
-            "required": "incumbent_or_bootstrap_verifier_required" in required_gaps,
-            "provenance_boundary": "candidate-external",
-            "receipt_option": "--control-verifier-receipt <absolute-path>",
-            "bootstrap_contract": {
-                "kind": "control-replacement-bootstrap-decision",
-                "decision": "bootstrap/control-replacement",
-                "accepted_head": accepted_head,
-                "candidate_head": candidate_head,
-                "candidate_proof": proof_target,
-                "one_shot": True,
-                "mints_authority": False,
-                "reusable_authorization": False,
-            },
-            "required_order": [
-                "place verifier, decision, proof, and receipt outside candidate_root",
-                "bind the bootstrap decision to the exact accepted and candidate heads",
-                "bind it to the immutable verifier digest and candidate proof digest",
-                "run the candidate-external verifier to mint one receipt",
-                "pass that receipt explicitly to accepted-root closeout",
-            ],
+        "independent_verification": {
+            "required": "independent_verification_receipt_required" in required_gaps,
+            "proof_floor_id": "ethos:control-replacement:v1",
+            "receipt_option": "--independent-verification-receipt <absolute-path>",
+            "trust_boundary": "protected-provider",
+            "mints_authority": False,
         },
         "blocking": bool(required_gaps),
         "required_gaps": list(required_gaps),
@@ -144,7 +129,7 @@ def closeout_bootstrap_package(
             "bind --root to the clean accepted_root checkout",
             "audit the configured candidate worktree before accepted-root movement",
             "prove the configured candidate head before accepted-root movement",
-            "for a control replacement, obtain a candidate-external receipt for those heads",
+            "for a control replacement, obtain the exact protected-provider signed receipt",
             "fast-forward accepted_root from candidate only after proof and lifecycle gates pass",
             "defer remote push until remote publication is available",
         ],
@@ -189,11 +174,11 @@ def closeout_next_actions(
             "ethos lane candidate --refresh-from-accepted "
             f"--apply --authorize --expect-head {current_head} --json",
         )
-    if "incumbent_or_bootstrap_verifier_required" in gaps:
+    if "independent_verification_receipt_required" in gaps:
         return (
-            "use data.closeout_bootstrap.control_verifier to mint a candidate-external "
-            "one-shot receipt, then rerun ethos land --closeout "
-            "--control-verifier-receipt <absolute-path> --json",
+            "obtain the signed receipt described by "
+            "data.control_replacement.verification_request, then rerun ethos land --closeout "
+            "--independent-verification-receipt <absolute-path> --json",
         )
     return ("ethos prove --json",)
 

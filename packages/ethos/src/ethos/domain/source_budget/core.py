@@ -1,458 +1,644 @@
-"""Source-budget reducers over repository inventory and policy."""
+"""Direct deterministic owned-source measurement."""
 
+from __future__ import annotations
+
+import configparser
 import fnmatch
 import hashlib
 import json
+import math
+import shutil
+import subprocess
+import tomllib
 from collections import Counter
-from collections.abc import Mapping
-from datetime import UTC
-from datetime import date
-from datetime import datetime
 from pathlib import Path
-from pathlib import PurePosixPath
 from typing import Annotated
-from typing import Any
 from typing import Literal
-from typing import Self
+from typing import cast
 
+import yaml
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
-from pydantic import StrictStr
 from pydantic import ValidationError
-from pydantic import field_validator
 from pydantic import model_validator
 
 import ethos.adapters.repo.git as git_adapter
-import ethos.adapters.repo.source_budget.core as source_budget_adapter
-from ethos.adapters.config import source_budget_policy
-from ethos.adapters.config import source_budget_taxonomy
-from ethos_core.contracts.source_budget.core import SourceBudgetCarrier
-from ethos_core.contracts.source_budget.core import SourceBudgetTaxonomy
+from ethos_core.contracts.branch.roles import load_branch_role_policy
 from ethos_core.measure import effective_code_lines_for_source
 
-_LIFECYCLE_FIELDS = {"owner", "replacement", "expiry", "allowance", "expected_net_deletion"}
-_PATH_CONTENT_PAIR_SIZE = 2
-_GIT_OID = r"^[0-9a-f]{40}(?:[0-9a-f]{24})?$"
-_SHA256 = r"^[0-9a-f]{64}$"
-_NONSPACE_PATTERN = r"^\S+$"
-_SHADOW_TAXONOMY_PATH_INVALID = "shadow taxonomy path invalid"
-_SHADOW_INVENTORY_COUNT_INVALID = "shadow inventory count invalid"
-_SHADOW_V1_TOTALS_INVALID = "shadow v1 totals invalid"
-_SHADOW_V2_COORDINATES_INVALID = "shadow v2 coordinates invalid"
-_SHADOW_TOKENS_NOT_UNIQUE = "shadow tokens must be unique"
-_SHADOW_COMPARISON_STATE_INVALID = "shadow comparison state invalid"
-_ShadowToken = Annotated[StrictStr, Field(min_length=1, pattern=_NONSPACE_PATTERN)]
-_ShadowGitOid = Annotated[StrictStr, Field(pattern=_GIT_OID)]
-_ShadowSha256 = Annotated[StrictStr, Field(pattern=_SHA256)]
-_ShadowCount = Annotated[int, Field(strict=True, ge=0)]
+_POLICY = Path(".config/checks/format/selection.toml")
+_TOTALS = ("python_total", "global_total")
 
 
-class _ShadowStrict(BaseModel):
-    model_config = ConfigDict(extra="forbid", frozen=True, strict=True)
+class _Contract(BaseModel):
+    model_config = ConfigDict(frozen=True, strict=True, extra="forbid")
 
 
-class _ShadowObserver(_ShadowStrict):
-    profile_id: _ShadowToken
-    commit_sha: _ShadowGitOid
-    tree_sha: _ShadowGitOid
-    taxonomy_path: StrictStr
-    taxonomy_blob: _ShadowGitOid
-    taxonomy_content_sha256: _ShadowSha256
-    taxonomy_semantic_sha256: _ShadowSha256
+class Totals(_Contract):
+    python_total: Annotated[int, Field(ge=0)]
+    global_total: Annotated[int, Field(ge=0)]
 
-    @field_validator("taxonomy_path")
-    @classmethod
-    def validate_path(cls, value: str) -> str:
-        path = PurePosixPath(value)
-        if (
-            not value
-            or "\x00" in value
-            or "\\" in value
-            or path.is_absolute()
-            or str(path) != value
-            or any(part in {"", ".", ".."} for part in path.parts)
+
+class CrossCheck(_Contract):
+    command: Annotated[str, Field(min_length=1)]
+    args: tuple[str, ...]
+    timeout_seconds: Annotated[int, Field(gt=0, le=300)]
+    tolerance: Totals
+
+
+class Carrier(_Contract):
+    category: Annotated[str, Field(min_length=1)]
+    extensions: tuple[str, ...]
+    paths: tuple[str, ...] = ()
+    shebangs: tuple[str, ...] = ()
+    comment_prefixes: tuple[str, ...] = ()
+    comment_wrappers: tuple[tuple[str, str], ...] = ()
+    measure: Literal["lines", "python_ast", "structured"] = "lines"
+    baseline_measure: Literal["", "lines"] = ""
+    baseline_comment_prefixes: tuple[str, ...] = ()
+    baseline_comment_wrappers: tuple[tuple[str, str], ...] = ()
+
+    @model_validator(mode="after")
+    def validate_shape(self) -> Carrier:
+        if not self.extensions or any(not value.startswith(".") for value in self.extensions):
+            msg = "carrier extensions must be non-empty dotted suffixes"
+            raise ValueError(msg)
+        for values in (
+            self.extensions,
+            self.paths,
+            self.shebangs,
+            self.comment_prefixes,
+            self.baseline_comment_prefixes,
         ):
-            raise ValueError(_SHADOW_TAXONOMY_PATH_INVALID)
-        return value
-
-
-class _ShadowSubject(_ShadowStrict):
-    commit_sha: _ShadowGitOid
-    tree_sha: _ShadowGitOid
-    snapshot_digest: _ShadowSha256
-
-
-class _ShadowInventory(_ShadowStrict):
-    file_count: _ShadowCount
-    digest: _ShadowSha256
-    category_counts: dict[_ShadowToken, _ShadowCount]
-
-    @model_validator(mode="after")
-    def validate_file_count(self) -> Self:
-        if self.file_count != sum(self.category_counts.values()):
-            raise ValueError(_SHADOW_INVENTORY_COUNT_INVALID)
+            if any(not value for value in values) or len(values) != len(set(values)):
+                msg = "carrier string lists must contain unique non-empty values"
+                raise ValueError(msg)
         return self
 
+    @property
+    def scope(self) -> tuple[str, tuple[str, ...], tuple[str, ...]]:
+        return self.category, self.extensions, self.paths
 
-class _ShadowV1(_ShadowStrict):
-    declaration_commit: _ShadowGitOid
-    declared_total: _ShadowCount
-    replay_total: _ShadowCount
-    drift: int = Field(strict=True)
-    metrics: dict[_ShadowToken, _ShadowCount]
-    category_deltas: dict[_ShadowToken, int]
-    inventory: _ShadowInventory
+
+class Policy(_Contract):
+    contract_version: Literal[1]
+    terminal: Totals
+    cross_check: CrossCheck
+    aggregates: dict[str, tuple[str, ...]]
+    exclude: tuple[str, ...] = ()
+    line_width: Annotated[int, Field(gt=0, le=200)]
+    carriers: tuple[Carrier, ...]
 
     @model_validator(mode="after")
-    def validate_totals(self) -> Self:
-        if (
-            self.drift != self.replay_total - self.declared_total
-            or self.metrics.get("global_total") != self.replay_total
+    def validate_ownership(self) -> Policy:
+        categories = {carrier.category for carrier in self.carriers}
+        python_categories = {
+            carrier.category for carrier in self.carriers if carrier.measure == "python_ast"
+        }
+        if set(self.aggregates) != set(_TOTALS):
+            msg = "source-budget aggregates must contain exactly the terminal totals"
+            raise ValueError(msg)
+        if set(self.aggregates["global_total"]) != categories:
+            msg = "global_total must own every carrier category exactly once"
+            raise ValueError(msg)
+        if set(self.aggregates["python_total"]) != python_categories:
+            msg = "python_total must own every Python carrier category exactly once"
+            raise ValueError(msg)
+        if any(
+            not values or len(values) != len(set(values)) for values in self.aggregates.values()
         ):
-            raise ValueError(_SHADOW_V1_TOTALS_INVALID)
+            msg = "aggregate members must be non-empty and unique"
+            raise ValueError(msg)
         return self
 
 
-class _ShadowCoordinate(_ShadowStrict):
-    scope_id: _ShadowToken
-    metric_id: _ShadowToken
-    unit: Literal[
-        "lexical_token",
-        "semantic_node",
-        "normalized_byte",
-        "normalized_scalar_byte",
-        "template_dynamic_byte",
-        "template_dynamic_unit",
-        "template_static_byte",
-    ]
-    value: _ShadowCount
+def _table(value: object) -> dict[str, object]:
+    if not isinstance(value, dict):
+        raise TypeError
+    return {str(key): item for key, item in value.items()}
 
 
-class _ShadowV2(_ShadowStrict):
-    manifest_digest: _ShadowSha256
-    inventory_digest: _ShadowSha256
-    contract_set_digest: _ShadowSha256
-    provider_coverage: dict[_ShadowToken, _ShadowCount]
-    coordinates: list[_ShadowCoordinate]
-    vector_digest: _ShadowSha256
-    snapshot_digest: _ShadowSha256
-
-    @model_validator(mode="after")
-    def validate_snapshot_state(self) -> Self:
-        keys = tuple((item.scope_id, item.metric_id, item.unit) for item in self.coordinates)
-        if keys != tuple(sorted(set(keys))):
-            raise ValueError(_SHADOW_V2_COORDINATES_INVALID)
-        return self
+def _sequence(value: object) -> list[object]:
+    if not isinstance(value, list):
+        raise TypeError
+    return cast("list[object]", value)
 
 
-class SourceBudgetShadowObservation(_ShadowStrict):
-    """Reviewed Task 4 replay observation consumed by later pure reducers."""
-
-    observer: _ShadowObserver
-    subject: _ShadowSubject
-    v1: _ShadowV1
-    v2: _ShadowV2 | None
-    disagreements: list[_ShadowToken]
-    required_gaps: list[_ShadowToken]
-    comparison_state: Literal["blocked", "unresolved", "reviewed_observation"]
-
-    @field_validator("disagreements", "required_gaps")
-    @classmethod
-    def validate_unique_tokens(cls, values: list[str]) -> list[str]:
-        if len(values) != len(set(values)):
-            raise ValueError(_SHADOW_TOKENS_NOT_UNIQUE)
-        return values
-
-    @model_validator(mode="after")
-    def validate_state(self) -> Self:
-        if (self.comparison_state == "reviewed_observation" and self.required_gaps) or (
-            self.comparison_state != "reviewed_observation"
-            and not (self.required_gaps or self.disagreements)
-        ):
-            raise ValueError(_SHADOW_COMPARISON_STATE_INVALID)
-        return self
+def _strings(value: object, *, empty: bool = False) -> tuple[str, ...]:
+    values = _sequence(value)
+    if (not empty and not values) or any(not isinstance(item, str) or not item for item in values):
+        raise TypeError
+    return tuple(cast("str", item) for item in values)
 
 
-def _data(**values: Any) -> dict[str, Any]:
-    return values
+def _string(value: object) -> str:
+    if not isinstance(value, str) or not value:
+        raise TypeError
+    return value
 
 
-def _source_budget_carrier(
-    relative: str, taxonomy: SourceBudgetTaxonomy
-) -> SourceBudgetCarrier | None:
-    path = relative.lower()
-    if path.startswith("openspec/changes/archive/") and path.endswith("/.openspec.yaml"):
+def _integer(value: object) -> int:
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise TypeError
+    return value
+
+
+def _pairs(value: object) -> tuple[tuple[str, str], ...]:
+    pairs: list[tuple[str, str]] = []
+    for raw in _sequence(value):
+        values = _strings(raw)
+        if len(values) != 2:
+            raise TypeError
+        pairs.append((values[0], values[1]))
+    return tuple(pairs)
+
+
+def _blocked(*gaps: str) -> dict[str, object]:
+    return {
+        "ok": False,
+        "state": "blocked",
+        "terminal": {},
+        "metrics": {},
+        "enforced_metrics": {},
+        "inventory": {"file_count": 0},
+        "cross_check": {},
+        "required_gaps": list(gaps),
+        "advisory_gaps": [],
+    }
+
+
+def _raw_carriers(payload: dict[str, object]) -> tuple[Carrier, ...]:
+    carriers: list[Carrier] = []
+    for raw_format in _sequence(payload.get("format")):
+        format_record = _table(raw_format)
+        extensions = _strings(format_record.get("extensions"))
+        shebangs = _strings(format_record.get("shebangs", []), empty=True)
+        for raw_budget in _sequence(format_record.get("budget", [])):
+            budget = _table(raw_budget)
+            carriers.append(
+                Carrier(
+                    category=_string(budget.get("category")),
+                    extensions=extensions,
+                    paths=_strings(budget.get("paths", []), empty=True),
+                    shebangs=shebangs,
+                    comment_prefixes=_strings(budget.get("comment_prefixes", []), empty=True),
+                    comment_wrappers=_pairs(budget.get("comment_wrappers", [])),
+                    measure=cast(
+                        "Literal['lines', 'python_ast', 'structured']",
+                        budget.get("measure", "lines"),
+                    ),
+                    baseline_measure=cast(
+                        "Literal['', 'lines']", budget.get("baseline_measure", "")
+                    ),
+                    baseline_comment_prefixes=_strings(
+                        budget.get("baseline_comment_prefixes", []), empty=True
+                    ),
+                    baseline_comment_wrappers=_pairs(budget.get("baseline_comment_wrappers", [])),
+                )
+            )
+    return tuple(carriers)
+
+
+def _policy_contract(payload: dict[str, object]) -> Policy | None:
+    try:
+        source = _table(payload.get("source_budget"))
+        terminal = Totals.model_validate(_table(source.get("terminal")))
+        cross = _table(source.get("cross_check"))
+        tolerance = Totals.model_validate(_table(cross.get("tolerance")))
+        aggregates = {
+            name: _strings(value) for name, value in _table(source.get("aggregates")).items()
+        }
+        return Policy(
+            contract_version=cast("Literal[1]", _integer(source.get("contract_version"))),
+            terminal=terminal,
+            cross_check=CrossCheck(
+                command=_string(cross.get("command")),
+                args=_strings(cross.get("args")),
+                timeout_seconds=_integer(cross.get("timeout_seconds")),
+                tolerance=tolerance,
+            ),
+            aggregates=aggregates,
+            exclude=_strings(source.get("exclude", []), empty=True),
+            line_width=_integer(source.get("line_width")),
+            carriers=_raw_carriers(payload),
+        )
+    except (TypeError, ValidationError, ValueError):
         return None
+
+
+def _policy(root: Path) -> tuple[Policy | None, tuple[str, ...]]:
+    try:
+        payload = tomllib.loads((root / _POLICY).read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, tomllib.TOMLDecodeError) as exc:
+        return None, (f"source_budget_policy_invalid:{type(exc).__name__}",)
+    current = _policy_contract(payload)
+    if current is None:
+        return None, ("source_budget_policy_invalid:shape",)
+    accepted, gaps = _accepted_policy(root, current)
+    if gaps:
+        return None, gaps
+    if accepted is not None and _relaxed(current, accepted):
+        return None, ("source_budget_policy_relaxed",)
+    return current, ()
+
+
+def _accepted_policy(root: Path, current: Policy) -> tuple[Policy | None, tuple[str, ...]]:
+    head, gaps = _accepted_head(root)
+    if gaps:
+        return None, gaps
+    text, gaps = _committed_text(root, head, _POLICY.as_posix())
+    if gaps or text is None:
+        return None, gaps
+    try:
+        payload = tomllib.loads(text)
+    except tomllib.TOMLDecodeError:
+        return None, ("source_budget_accepted_policy_invalid",)
+    source = payload.get("source_budget")
+    if not isinstance(source, dict) or source.get("contract_version") != 1:
+        return None, ("source_budget_accepted_policy_invalid",)
+    policy = _policy_contract(payload)
+    return (policy, ()) if policy else (None, ("source_budget_accepted_policy_invalid",))
+
+
+def _accepted_head(root: Path) -> tuple[str, tuple[str, ...]]:
+    branch = load_branch_role_policy(root).accepted_branch
+    try:
+        head = git_adapter.git_stdout_checked(
+            root, "rev-parse", "--verify", f"refs/heads/{branch}^{{commit}}"
+        )
+    except (OSError, subprocess.CalledProcessError):
+        head = ""
+    return (head, ()) if head else ("", ("source_budget_accepted_ref_unavailable",))
+
+
+def _committed_text(root: Path, head: str, path: str) -> tuple[str | None, tuple[str, ...]]:
+    try:
+        return git_adapter.git_stdout_checked(root, "show", f"{head}:{path}"), ()
+    except (OSError, subprocess.CalledProcessError):
+        return None, (f"source_budget_accepted_file_unavailable:{path}",)
+
+
+def _relaxed(current: Policy, accepted: Policy) -> bool:
+    fixed = current.model_copy(
+        update={
+            "terminal": accepted.terminal,
+            "line_width": accepted.line_width,
+            "cross_check": current.cross_check.model_copy(
+                update={"tolerance": accepted.cross_check.tolerance}
+            ),
+        }
+    )
+    return (
+        fixed != accepted
+        or any(
+            getattr(current.terminal, name) > getattr(accepted.terminal, name)
+            or getattr(current.cross_check.tolerance, name)
+            > getattr(accepted.cross_check.tolerance, name)
+            for name in _TOTALS
+        )
+        or current.line_width > accepted.line_width
+    )
+
+
+def _paths(root: Path) -> tuple[tuple[tuple[str, bool], ...] | None, tuple[str, ...]]:
+    tracked = git_adapter.git_stdout(root, "ls-files", "--stage", "--cached")
+    if not tracked:
+        return None, ("source_budget_inventory_unavailable",)
+    resolved = root.resolve()
+    paths: dict[str, bool] = {}
+    for line in tracked.splitlines():
+        try:
+            metadata, relative = line.split("\t", 1)
+        except ValueError:
+            return None, ("source_budget_inventory_unavailable",)
+        path = (resolved / relative).resolve()
+        if path.is_relative_to(resolved) and path.is_file():
+            paths[relative] = metadata.startswith("100755 ")
+    for relative in git_adapter.git_files(root, "--others", "--exclude-standard"):
+        path = (resolved / relative).resolve()
+        if path.is_relative_to(resolved) and path.is_file():
+            paths[relative] = bool(path.stat().st_mode & 0o111)
+    return tuple(sorted(paths.items())), ()
+
+
+def _carrier(
+    relative: str,
+    *,
+    executable: bool,
+    root: Path,
+    carriers: tuple[Carrier, ...],
+    source: bytes | None = None,
+) -> Carrier | None:
+    lowered = relative.lower()
+    if lowered.startswith("openspec/changes/archive/") and lowered.endswith("/.openspec.yaml"):
+        return None
+    interpreter = (
+        _interpreter_source(
+            source.decode("utf-8", errors="replace")
+            if source is not None
+            else (root / relative).read_text(encoding="utf-8", errors="replace")
+        )
+        if executable and not Path(lowered).suffix
+        else ""
+    )
     return next(
         (
             item
-            for item in taxonomy.carrier
-            if path.endswith(item.extensions)
-            and (not item.paths or any(fnmatch.fnmatchcase(path, rule) for rule in item.paths))
+            for item in carriers
+            if (lowered.endswith(item.extensions) or interpreter in item.shebangs)
+            and (
+                not item.paths
+                or any(fnmatch.fnmatchcase(lowered, pattern) for pattern in item.paths)
+            )
         ),
         None,
     )
 
 
-def source_budget_carrier_effective_lines(content: bytes, carrier: SourceBudgetCarrier) -> int:
-    """Measure one v1 carrier from immutable bytes with canonical semantics."""
-    errors = "strict" if carrier.measure == "python_ast" else "replace"
-    source = content.decode("utf-8", errors=errors)
+def _interpreter_source(source: str) -> str:
+    first = next(iter(source.splitlines()), "")
+    if not first.startswith("#!"):
+        return ""
+    parts = first[2:].split()
+    if parts and Path(parts[0]).name == "env":
+        parts = parts[2:] if len(parts) > 1 and parts[1] == "-S" else parts[1:]
+    return Path(parts[0]).name if parts else ""
+
+
+def _effective(path: Path, carrier: Carrier, line_width: int) -> int:
+    return _effective_source(
+        path.read_text(
+            encoding="utf-8",
+            errors="strict" if carrier.measure == "python_ast" else "replace",
+        ),
+        path.suffix.lower(),
+        carrier,
+        line_width,
+    )
+
+
+def _effective_source(source: str, suffix: str, carrier: Carrier, line_width: int) -> int:
     if carrier.measure == "python_ast":
         return effective_code_lines_for_source(source)
-    return sum(
-        not text.startswith(carrier.comment_prefixes)
-        and not any(text.startswith(a) and text.endswith(b) for a, b in carrier.comment_wrappers)
+    if carrier.measure == "structured":
+        canonical = json.dumps(
+            _structured_value(source, suffix),
+            separators=(",", ":"),
+            ensure_ascii=False,
+            default=str,
+        )
+        measured = math.ceil(sum(not char.isspace() for char in canonical) / line_width)
+        return (
+            max(
+                measured,
+                _line_measurement(
+                    source,
+                    carrier.baseline_comment_prefixes,
+                    carrier.baseline_comment_wrappers,
+                ),
+            )
+            if carrier.baseline_measure == "lines"
+            else measured
+        )
+    return _line_measurement(source, carrier.comment_prefixes, carrier.comment_wrappers)
+
+
+def _line_measurement(
+    source: str,
+    prefixes: tuple[str, ...],
+    wrappers: tuple[tuple[str, str], ...],
+    line_width: int = 100,
+) -> int:
+    lines = (
+        text
         for line in source.splitlines()
         if (text := line.strip())
+        and not text.startswith(prefixes)
+        and not any(text.startswith(start) and text.endswith(end) for start, end in wrappers)
     )
+    return math.ceil(sum(not char.isspace() for text in lines for char in text) / line_width)
 
 
-def _carrier_effective_lines(path: Path, carrier: SourceBudgetCarrier) -> int:
-    return source_budget_carrier_effective_lines(path.read_bytes(), carrier)
-
-
-def source_budget_carrier_report(path: Path, relative: str) -> dict[str, object]:
-    """Return category and effective lines for one carrier."""
-    carrier = _source_budget_carrier(relative, source_budget_taxonomy(Path.cwd()))
-    return _data(
-        category=carrier.category if carrier else None,
-        effective_lines=_carrier_effective_lines(path, carrier) if carrier else 0,
-    )
-
-
-def source_budget_taxonomy_digest(taxonomy: SourceBudgetTaxonomy) -> str:
-    """Return the canonical semantic digest of one typed v1 taxonomy."""
-    payload = taxonomy.model_dump(mode="json")
-    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
-    return hashlib.sha256(encoded).hexdigest()
-
-
-def source_budget_metrics_from_bytes(
-    contents: tuple[tuple[str, bytes], ...],
-    taxonomy: SourceBudgetTaxonomy,
-) -> tuple[dict[str, int], dict[str, object]]:
-    """Replay v1 category metrics from ordered immutable path/bytes pairs."""
-    if type(contents) is not tuple or type(taxonomy) is not SourceBudgetTaxonomy:
-        message = "source-budget replay inputs invalid"
-        raise ValueError(message)
-    if not all(
-        type(item) is tuple
-        and len(item) == _PATH_CONTENT_PAIR_SIZE
-        and type(item[0]) is str
-        and type(item[1]) is bytes
-        for item in contents
-    ):
-        message = "source-budget replay inputs invalid"
-        raise ValueError(message)
-    paths = tuple(item[0] for item in contents)
-    if paths != tuple(sorted(set(paths))):
-        message = "source-budget replay paths must be unique and ordered"
-        raise ValueError(message)
-    metrics = dict.fromkeys((item.category for item in taxonomy.carrier), 0)
-    records: list[dict[str, object]] = []
-    counts: dict[str, int] = {}
-    for relative, content in contents:
-        carrier = _source_budget_carrier(relative, taxonomy)
-        if carrier is None:
-            continue
-        category = carrier.category
-        lines = source_budget_carrier_effective_lines(content, carrier)
-        metrics[category] += lines
-        counts[category] = counts.get(category, 0) + 1
-        records.append(_data(path=relative, category=category, effective_lines=lines))
-    metrics.update(
-        {
-            name: sum(metrics[item] for item in members)
-            for name, members in taxonomy.aggregates.items()
+def _structured_value(source: str, suffix: str) -> object:
+    if suffix == ".json":
+        return json.loads(source)
+    if suffix == ".toml":
+        return tomllib.loads(source)
+    if suffix in {".yaml", ".yml"}:
+        documents = list(yaml.safe_load_all(source))
+        return _normalize_yaml(documents[0] if len(documents) == 1 else documents)
+    if suffix in {".ini", ".cfg"}:
+        parser = configparser.ConfigParser(interpolation=None)
+        parser.read_string(source)
+        return {
+            "DEFAULT": dict(parser.defaults()),
+            **{section: dict(parser.items(section, raw=True)) for section in parser.sections()},
         }
-    )
-    digest = hashlib.sha256(json.dumps(records, sort_keys=True, separators=(",", ":")).encode())
-    return metrics, _data(
-        digest=digest.hexdigest(),
-        file_count=len(records),
-        category_counts=dict(sorted(counts.items())),
-    )
+    message = f"unsupported structured suffix: {suffix}"
+    raise ValueError(message)
 
 
-def _source_budget_metrics(
-    root: Path, taxonomy: SourceBudgetTaxonomy
-) -> tuple[dict[str, int], dict[str, object]]:
-    metrics = dict.fromkeys((item.category for item in taxonomy.carrier), 0)
-    records: list[dict[str, object]] = []
-    counts: dict[str, int] = {}
-    for relative in source_budget_adapter.present_worktree_paths(root):
-        carrier = _source_budget_carrier(relative, taxonomy)
-        if carrier is None:
-            continue
-        category, lines = carrier.category, _carrier_effective_lines(root / relative, carrier)
-        metrics[category] += lines
-        counts[category] = counts.get(category, 0) + 1
-        records.append(_data(path=relative, category=category, effective_lines=lines))
-    metrics.update(
-        {
-            name: sum(metrics[item] for item in members)
-            for name, members in taxonomy.aggregates.items()
-        }
-    )
-    digest = hashlib.sha256(json.dumps(records, sort_keys=True, separators=(",", ":")).encode())
-    return metrics, _data(
-        digest=digest.hexdigest(),
-        file_count=len(records),
-        category_counts=dict(sorted(counts.items())),
-    )
-
-
-def _blocked_shadow(gap: str) -> dict[str, object]:
-    return {
-        "mode": "v1_authoritative_v2_shadow",
-        "authoritative": "v1",
-        "observer": None,
-        "subject": None,
-        "v1": None,
-        "v2": None,
-        "disagreements": [],
-        "required_gaps": [gap],
-        "comparison_state": "blocked",
-    }
-
-
-def source_budget_shadow_report(
-    v1_report: Mapping[str, object],
-    observation: Mapping[str, object] | None,
-) -> dict[str, object]:
-    """Attach a fail-closed inactive-v2 observer without changing v1 authority."""
-    report = dict(v1_report)
-    if observation is None:
-        report["v2_shadow"] = _blocked_shadow("source_budget_v2_shadow_observation_missing")
-        return report
-    if type(observation) is not dict:
-        report["v2_shadow"] = _blocked_shadow("source_budget_v2_shadow_observation_invalid")
-        return report
-    try:
-        shadow = SourceBudgetShadowObservation.model_validate(observation).model_dump(mode="json")
-    except (AttributeError, TypeError, ValueError, ValidationError):
-        report["v2_shadow"] = _blocked_shadow("source_budget_v2_shadow_observation_invalid")
-        return report
-    report["v2_shadow"] = {
-        "mode": "v1_authoritative_v2_shadow",
-        "authoritative": "v1",
-        **shadow,
-    }
-    return report
-
-
-def _source_budget_today() -> date:
-    return datetime.now(UTC).date()
-
-
-def source_budget_report(
-    root: Path, shadow_observation: Mapping[str, object] | None = None
-) -> dict[str, object]:
-    """Measure global executable source and reject undeclared growth."""
-    loaded = source_budget_policy(root)
-    if loaded.policy is None:
-        return source_budget_shadow_report(
-            _data(
-                ok=False,
-                state="blocked",
-                metrics={},
-                inventory={"file_count": 0},
-                terminal_target_met=False,
-                required_gaps=list(loaded.required_gaps),
-            ),
-            shadow_observation,
-        )
-    policy, taxonomy = loaded.policy, source_budget_taxonomy(root)
-    metrics, inventory = _source_budget_metrics(root, taxonomy)
-    records = policy.debt.records
-    debt = sum((Counter(record.allowance_by_category) for record in records), Counter())
-    debt_total = sum(record.allowance for record in records)
-    overages = [
-        (category, current, allowed)
-        for category, baseline in sorted(policy.baseline.items())
-        if (current := metrics.get(category)) is not None
-        if current
-        > (
-            allowed := baseline
-            + sum(debt.get(item, 0) for item in taxonomy.aggregates.get(category, (category,)))
-        )
-    ]
-
-    def messages(prefix: str) -> list[str]:
+def _normalize_yaml(value: object) -> object:
+    if isinstance(value, dict):
         return [
-            f"{prefix}:{category}:{current}>{allowed}" for category, current, allowed in overages
+            [_normalize_yaml(key), _normalize_yaml(item)]
+            for key, item in sorted(value.items(), key=lambda pair: _yaml_key(pair[0]))
         ]
+    if isinstance(value, (list, tuple)):
+        return [_normalize_yaml(item) for item in value]
+    return value
 
-    terminal_met = all(
-        metrics.get(category, 0) <= target for category, target in policy.terminal.items()
-    )
-    verdict = (
-        [f"source_budget_debt_exceeded:{debt_total}>{policy.debt.maximum_total}"]
-        if debt_total > policy.debt.maximum_total
-        else []
-    )
-    if policy.enforcement == "transition":
-        verdict += messages("source_budget_exceeded")
-    elif policy.enforcement in {"campaign_terminal", "terminal"} and not terminal_met:
-        verdict += [
-            f"source_budget_terminal_exceeded:{category}:{metrics.get(category, 0)}>{target}"
-            for category, target in policy.terminal.items()
-            if metrics.get(category, 0) > target
-        ]
-    resolved = bool(
-        git_adapter.git_stdout(root, "rev-parse", "--verify", f"{policy.baseline_head}^{{commit}}")
-    )
-    required = (
-        [] if resolved else [f"source_budget_baseline_head_unresolved:{policy.baseline_head}"]
-    )
-    waves, lifecycle, today = (
-        {wave.id: wave for wave in policy.debt.waves},
-        [],
-        _source_budget_today(),
-    )
-    for record in records:
-        wave = waves[record.deletion_wave]
-        status = (
-            "expired"
-            if date.fromisoformat(record.expiry) < today
-            else "stale"
-            if wave.state == "settled"
-            else "active"
+
+def _yaml_key(value: object) -> tuple[str, str]:
+    return type(value).__name__, json.dumps(value, separators=(",", ":"), default=str)
+
+
+def _measure(
+    root: Path,
+    paths: tuple[tuple[str, bool], ...],
+    policy: Policy,
+    *,
+    contents: dict[str, bytes] | None = None,
+    classify_executables: bool = True,
+) -> tuple[dict[str, int], dict[str, object], dict[str, dict[str, object]], tuple[str, ...]]:
+    metrics: Counter[str] = Counter({carrier.category: 0 for carrier in policy.carriers})
+    records: dict[str, dict[str, object]] = {}
+    gaps: list[str] = []
+    for relative, executable in paths:
+        if any(fnmatch.fnmatchcase(relative, pattern) for pattern in policy.exclude):
+            continue
+        source = contents.get(relative) if contents is not None else None
+        if contents is not None and source is None:
+            gaps.append(f"source_budget_carrier_unreadable:{relative}")
+            continue
+        carrier = _carrier(
+            relative,
+            executable=executable,
+            root=root,
+            carriers=policy.carriers,
+            source=source,
         )
-        gaps = [f"source_budget_debt_{status}:{record.id}"] if status != "active" else []
-        lifecycle.append(
-            _data(
-                id=record.id,
-                wave=record.deletion_wave,
-                wave_due_on=wave.due_on,
-                wave_state=wave.state,
+        if carrier is None:
+            if executable and classify_executables:
+                gaps.append(f"source_budget_executable_unclassified:{relative}")
+            continue
+        try:
+            count = (
+                _effective_source(
+                    source.decode(
+                        "utf-8", errors="strict" if carrier.measure == "python_ast" else "replace"
+                    ),
+                    Path(relative).suffix.lower(),
+                    carrier,
+                    policy.line_width,
+                )
+                if source is not None
+                else _effective(root / relative, carrier, policy.line_width)
             )
-            | record.model_dump(include=_LIFECYCLE_FIELDS)
-            | _data(status=status, required_gaps=gaps)
+        except (
+            OSError,
+            TypeError,
+            UnicodeError,
+            SyntaxError,
+            ValueError,
+            configparser.Error,
+            yaml.YAMLError,
+        ):
+            gaps.append(f"source_budget_carrier_unreadable:{relative}")
+            continue
+        metrics[carrier.category] += count
+        records[relative] = {"category": carrier.category, "effective_lines": count}
+    for name, members in policy.aggregates.items():
+        metrics[name] = sum(metrics[member] for member in members)
+    encoded = json.dumps(records, sort_keys=True, separators=(",", ":")).encode()
+    inventory = {
+        "digest": hashlib.sha256(encoded).hexdigest(),
+        "file_count": len(records),
+        "category_counts": dict(
+            sorted(Counter(str(item["category"]) for item in records.values()).items())
+        ),
+    }
+    return dict(metrics), inventory, records, tuple(gaps)
+
+
+def _relative(root: Path, location: object) -> str | None:
+    if not isinstance(location, str) or not location:
+        return None
+    path = Path(location)
+    try:
+        return (path if path.is_absolute() else root / path).resolve().relative_to(root).as_posix()
+    except (OSError, ValueError):
+        return None
+
+
+def _scc_counts(
+    root: Path,
+    policy: Policy,
+    records: dict[str, dict[str, object]],
+) -> tuple[dict[str, int] | None, tuple[str, ...]]:
+    config, executable = policy.cross_check, shutil.which(policy.cross_check.command)
+    if executable is None:
+        return None, (f"source_budget_scc_unavailable:{config.command}",)
+    try:
+        completed = subprocess.run(
+            [executable, *config.args],
+            cwd=root,
+            text=True,
+            capture_output=True,
+            check=False,
+            timeout=config.timeout_seconds,
         )
-        required.extend(gaps)
-    required.extend(verdict)
-    advisory = (
-        messages("source_budget_campaign_growth_overage")
-        if policy.enforcement == "campaign_terminal"
-        else []
+        payload = _table(json.loads(completed.stdout))
+        counts: dict[str, int] = {}
+        for raw_language in _sequence(payload.get("languageSummary")):
+            language = _table(raw_language)
+            for raw_file in _sequence(language.get("Files", [])):
+                item = _table(raw_file)
+                relative = _relative(root.resolve(), item.get("Location"))
+                if relative not in records:
+                    continue
+                code = item.get("Code")
+                if relative in counts or not isinstance(code, int) or isinstance(code, bool):
+                    return None, ("source_budget_scc_invalid",)
+                counts[relative] = code
+    except (
+        OSError,
+        TypeError,
+        ValueError,
+        json.JSONDecodeError,
+        subprocess.SubprocessError,
+    ):
+        return None, ("source_budget_scc_invalid",)
+    if completed.returncode or completed.stderr:
+        return None, ("source_budget_scc_invalid",)
+    return counts, ()
+
+
+def _cross_check(
+    root: Path,
+    policy: Policy,
+    records: dict[str, dict[str, object]],
+    canonical: dict[str, int],
+) -> tuple[dict[str, object], tuple[str, ...]]:
+    counts, invalid = _scc_counts(root, policy, records)
+    if counts is None:
+        return {}, invalid
+    observed: dict[str, object] = {
+        "command": policy.cross_check.command,
+        "python_total": sum(
+            count
+            for relative, count in counts.items()
+            if str(records[relative]["category"]).startswith("python_")
+        ),
+        "global_total": sum(counts.values()),
+        "file_count": len(counts),
+    }
+    gaps = [
+        f"source_budget_scc_file_missing:{relative}"
+        for relative in sorted(set(records) - set(counts))
+    ]
+    for name in _TOTALS:
+        observed_count = observed[name]
+        if not isinstance(observed_count, int):
+            return {}, ("source_budget_scc_invalid",)
+        if abs(observed_count - canonical[name]) > getattr(policy.cross_check.tolerance, name):
+            gaps.append(f"source_budget_scc_{name}_disagrees:{observed_count}!={canonical[name]}")
+    return observed, tuple(gaps)
+
+
+def source_budget_report(root: Path) -> dict[str, object]:
+    """Measure every owned executable carrier and enforce terminal limits."""
+    policy, gaps = _policy(root)
+    if policy is None:
+        return _blocked(*gaps)
+    paths, gaps = _paths(root)
+    if paths is None:
+        return _blocked(*gaps)
+    metrics, inventory, records, measure_gaps = _measure(root, paths, policy)
+    cross_check, cross_gaps = _cross_check(root, policy, records, metrics)
+    enforced = {
+        name: max(
+            metrics[name],
+            value if isinstance(value := cross_check.get(name), int) else metrics[name],
+        )
+        for name in _TOTALS
+    }
+    terminal = policy.terminal.model_dump()
+    terminal_gaps = tuple(
+        f"source_budget_terminal_exceeded:{name}:{enforced[name]}>{terminal[name]}"
+        for name in _TOTALS
+        if enforced[name] > terminal[name]
     )
-    result = policy.model_dump(include={"baseline", "terminal", "enforcement", "campaign_id"})
-    result |= _data(ok=not required, state="clean" if not required else "blocked")
-    result |= _data(
-        baseline_head={"value": policy.baseline_head, "resolved": resolved},
-        campaign_id=getattr(policy, "campaign_id", ""),
-    )
-    result |= _data(metrics=metrics, inventory=inventory, debt_lifecycle=lifecycle)
-    result |= _data(
-        active_debt={
-            "allowance": debt_total,
-            "ids": [record.id for record in records],
-            "maximum": policy.debt.maximum_total,
-        },
-        terminal_target_met=terminal_met,
-    )
-    result |= _data(advisory_gaps=advisory, required_gaps=required)
-    return source_budget_shadow_report(result, shadow_observation)
+    required = list(dict.fromkeys((*measure_gaps, *cross_gaps, *terminal_gaps)))
+    return {
+        "ok": not required,
+        "state": "clean" if not required else "blocked",
+        "terminal": terminal,
+        "metrics": metrics,
+        "enforced_metrics": enforced,
+        "inventory": inventory,
+        "cross_check": cross_check,
+        "required_gaps": required,
+        "advisory_gaps": [],
+    }

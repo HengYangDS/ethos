@@ -18,7 +18,7 @@ OpenSpec records, adoption profiles, or proof gates.
    write-readiness gaps.
 3. Route changed work through `ethos playbooks route --changed --json` or use
    `ethos plan --changed --json` for broader planning.
-4. Run focused proof first; use `ethos report --json` before claiming
+4. Run focused proof first; use `ethos status --json` before claiming
    readiness.
 5. Keep repository source, tests, schemas, docs, OpenSpec records, claims,
    evidence, and command JSON above skill projections.
@@ -31,13 +31,12 @@ Use the `ethos ...` public command plane first:
 ethos status --json
 ethos plan --changed --json
 ethos prove --json
-ethos report --json
 ```
 
 ## Bundled Resources
 
 - `scripts/govern_check.py` — deterministic read-only governance summary: runs
-  status -> audit (shape) -> report, parses each verdict, prints a gap scorecard.
+  status -> audit (shape), parses each verdict, and prints the first gaps.
   Never mutates. Run it for a one-pass health read.
 - `references/governance-map.md` — which ETHOS command governs which concern (loop,
   surfaces, lane lifecycle, authority order). A skill-specific lookup for choosing

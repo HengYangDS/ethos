@@ -101,7 +101,7 @@ Evidence:
 ```bash
 ethos status --json
 ethos lane status --json
-ethos report --json
+ethos status --json
 ethos publish --json
 ```
 
@@ -161,7 +161,7 @@ Evidence:
 
 ```bash
 ethos quality claims --json
-ethos report --json
+ethos status --json
 ethos assistants doctor --json
 ```
 
@@ -248,7 +248,7 @@ The program is complete for a reviewed HEAD only when all of the following are
 true for that HEAD:
 
 - `ethos status --json` has no required gaps for the target checkout.
-- `ethos report --json` distinguishes required gaps, hard quality gaps,
+- `ethos status --json` distinguishes required gaps, hard quality gaps,
   advisory coordination risk, local publication state, and hosted observation
   state.
 - `ethos openspec --lifecycle --json` has no completed-but-unarchived residue.

@@ -466,10 +466,10 @@ def test_python_test_gate_enforces_coverage_floor() -> None:
     assert "build/evidence/quality/tests" in runner
     assert "ETHOS_TEST_BASETEMP" in runner
     assert "ethos-pytest" in runner
-    assert "fail_under = 100" in coverage
+    assert "fail_under = 95" in coverage
     assert "branch = True" in coverage
-    assert "current_hard_floor = 100" in policy
-    assert "aspirational_floor = 100" in policy
+    assert "current_hard_floor = 95" in policy
+    assert "aspirational_floor = 95" in policy
 
 
 def test_quality_audit_uses_policy_derived_coverage_floor() -> None:

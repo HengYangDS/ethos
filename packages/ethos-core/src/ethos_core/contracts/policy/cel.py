@@ -10,6 +10,11 @@ from typing import cast
 
 import celpy
 from celpy.celtypes import BoolType
+from celpy.evaluation import CELEvalError
+
+
+class CelEvaluationError(RuntimeError):
+    """Stable kernel boundary for CEL runtime failures."""
 
 
 class CelRule(Protocol):
@@ -30,9 +35,12 @@ def evaluate_cel_predicate(
     rule: dict[str, object],
 ) -> bool:
     """Evaluate one declaration-owned CEL boolean over typed fact maps."""
-    result = _cel_program(expression).evaluate(
-        cast("Any", celpy.json_to_cel({"facts": facts, "policy": policy, "rule": rule}))
-    )
+    try:
+        result = _cel_program(expression).evaluate(
+            cast("Any", celpy.json_to_cel({"facts": facts, "policy": policy, "rule": rule}))
+        )
+    except CELEvalError as exc:
+        raise CelEvaluationError(str(exc)) from exc
     if not isinstance(result, BoolType):
         msg = "CEL predicate must return a boolean"
         raise TypeError(msg)
@@ -47,9 +55,12 @@ def evaluate_cel_value(
     rule: dict[str, object],
 ) -> object:
     """Evaluate one declaration-owned CEL projection to native JSON values."""
-    result = _cel_program(expression).evaluate(
-        cast("Any", celpy.json_to_cel({"facts": facts, "policy": policy, "rule": rule}))
-    )
+    try:
+        result = _cel_program(expression).evaluate(
+            cast("Any", celpy.json_to_cel({"facts": facts, "policy": policy, "rule": rule}))
+        )
+    except CELEvalError as exc:
+        raise CelEvaluationError(str(exc)) from exc
     return json.loads(celpy.CELJSONEncoder().encode(result))
 
 

@@ -116,18 +116,18 @@ ETHOS adaptation:
 
 Primary source: <https://git-scm.com/docs/githooks>
 
-### GitHub / GitLab / Gerrit ownership and submit gates
+### GitHub / GitLab / Gerrit ownership and proposal gates
 
 Hosted code collaboration systems converge on three ideas: code ownership,
-protected refs, and submit / merge gates. GitHub CODEOWNERS and branch
-protection/rulesets, GitLab Code Owners and approvals, and Gerrit submit
+protected refs, and proposal / merge gates. GitHub CODEOWNERS and branch
+protection/rulesets, GitLab Code Owners and approvals, and Gerrit proposal
 requirements all separate authorship from authority to integrate.
 
 ETHOS adaptation:
 
 - Map code ownership to lane scope and claim ownership, not to hosted PRs as the
   local truth source.
-- Treat closeout as a submit gate: owner / proof / candidate / overlap checks
+- Treat closeout as a proposal gate: owner / proof / candidate / overlap checks
   must pass before integration.
 - Hosted PR/MR systems are publication surfaces, not the local source of truth
   for Work Lane lifecycle.
@@ -137,7 +137,7 @@ Primary sources:
 - <https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners>
 - <https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/managing-a-merge-queue>
 - <https://docs.gitlab.com/user/project/codeowners/>
-- <https://gerrit-review.googlesource.com/Documentation/config-submit-requirements.html>
+- <https://gerrit-review.googlesource.com/Documentation/config-proposal-requirements.html>
 
 ### OpenTelemetry
 
@@ -196,7 +196,7 @@ Primary sources:
 - <https://slsa.dev/spec/v1.1/about>
 - <https://in-toto.io/>
 - <https://docs.sigstore.dev/>
-- <https://scorecard.dev/>
+- <https://quality_summary.dev/>
 
 ### OpenFeature and feature-flag discipline
 
@@ -285,7 +285,7 @@ Primary sources:
 | ZooKeeper sequential session | Borrow | ordered explicit adoption |
 | Redis Redlock | Do not adopt | cautionary TTL-only anti-pattern |
 | Git reference-transaction | Adopt | protected ref gate |
-| GitHub/GitLab/Gerrit ownership gates | Borrow | owner-only closeout and protected submit |
+| GitHub/GitLab/Gerrit ownership gates | Borrow | owner-only closeout and protected proposal |
 | OpenTelemetry | Borrow | trace/log/metric signal model |
 | CloudEvents | Likely adopt lightly | lane event envelope |
 | CDEvents | Borrow selectively | delivery lifecycle event vocabulary |
@@ -338,12 +338,12 @@ common-dir state.
 
 Hosted collaboration systems separate authorship, ownership, and integration.
 ETHOS should mirror that split locally: an agent may author in its owned lane,
-but integration into candidate / accepted root is a submit-like action requiring
+but integration into candidate / accepted root is a proposal-like action requiring
 proof, scope checks, and owner authority. CODEOWNERS-style ownership should
 inform scope and review, but hosted PR/MR state must not become the local source
 of truth.
 
-Decision: borrow owner-only closeout, protected refs, submit queue semantics;
+Decision: borrow owner-only closeout, protected refs, proposal queue semantics;
 keep local Work Lane lifecycle as authority.
 
 ### Observability chair
@@ -386,7 +386,7 @@ for material and destructive changes, not routine edits.
 | ZooKeeper locks | No | No | Useful session ordering pattern, but too heavy and not aligned with local Git common-dir. |
 | Redis Redlock | No | No | TTL-only locking is a cautionary anti-pattern without fencing. |
 | Git reference-transaction | Existing substrate | Yes | Best low-level guard for protected refs. |
-| GitHub/GitLab/Gerrit | No | Yes | Useful submit and ownership semantics; hosted systems remain publication surfaces. |
+| GitHub/GitLab/Gerrit | No | Yes | Useful proposal and ownership semantics; hosted systems remain publication surfaces. |
 | OpenTelemetry | No | Partial vocabulary | Signals taxonomy is useful; collector is premature. |
 | CloudEvents | No runtime | Yes | Good envelope for lane log events. |
 | CDEvents | No | Selective vocabulary | Useful for delivery lifecycle names; ETHOS lane semantics remain primary. |

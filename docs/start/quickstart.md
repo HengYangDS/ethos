@@ -21,10 +21,10 @@ See also: [Command Plane](../reference/command-plane.md) and
 Start with read-only orientation:
 
 ```bash
-ethos orient
+ethos status
 ```
 
-`ethos orient` is a first-glance projection for humans and agents. It answers
+`ethos status` is a first-glance projection for humans and agents. It answers
 where you are, what you may do, which foreign Work Lanes and unbound Work Lane
 refs are visible, whether readiness is gapped, and which command should run
 next. It reads `status` and `report`; it is not a transition verb and does not
@@ -58,7 +58,7 @@ After the binding is applied, re-orient and use the five-command transition
 loop:
 
 ```bash
-ethos orient
+ethos status
 ethos status
 ethos plan --changed
 ethos prove
@@ -78,7 +78,7 @@ Use `--json` for stable machine output. report is the payoff view, not a
 transition:
 
 ```bash
-ethos report
+ethos status
 ```
 
 Common next actions:
@@ -91,7 +91,7 @@ Common next actions:
 - `expected_head_mismatch`: refresh the plan against the current HEAD.
 - hosted CI unavailable: keep the claim local-ready only.
 - domain gates: declare them in the adopter profile, let `ethos plan` select
-  the mapped proof gates, and use `ethos report` to keep local evidence separate
+  the mapped proof gates, and use `ethos status` to keep local evidence separate
   from hosted or domain-specific proof. Product core must not hardcode domain
   names.
 
@@ -103,7 +103,7 @@ are not part of the first-hour path:
 First validation path:
 
 ```bash
-ethos orient --json
+ethos status --json
 ethos status --json
 ethos prove --execute
 ethos quality command-examples

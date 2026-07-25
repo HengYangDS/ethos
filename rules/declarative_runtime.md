@@ -1,39 +1,37 @@
 # Declarative Runtime Rules
 
-Purpose: keep ETHOS moving toward declaration-first, functional, low-code
-mechanisms instead of accumulating hand-written procedural governance code.
+Purpose: keep ETHOS declaration-first, functional, and small without replacing
+repository truth with framework state.
 
 | Field | Rule |
 | --- | --- |
-| Authority | [DR-0005](../docs/decisions/accepted/DR-0005-declarative-runtime-spine.md), [Declarative Governance Compiler](../docs/architecture/declarative-governance-compiler.md), [Declarative Runtime Spine Modernization](../docs/plans/declarative-runtime-spine-modernization.md) |
-| Trigger | Adding or changing public payloads, policy checks, gates, workflows, CLI commands, bindings, projections, read models, or graph planning logic. |
-| Action | Prefer a typed contract, declaration, graph, native serializer, or policy expression before adding imperative Python. |
-| Evidence | Model/schema tests, declaration validation, parity fixture, generated surface check, focused command JSON, and HEAD-bound proof for the touched surface. |
-| Stop | New hand-written Python duplicates a declaration-capable surface without an exception record and focused evidence. |
+| Authority | [DR-0005](../docs/decisions/accepted/DR-0005-declarative-runtime-spine.md), [Declarative Governance Compiler](../docs/architecture/declarative-governance-compiler.md), [PlanIR](../docs/architecture/plan-ir.md) |
+| Trigger | Adding or changing contracts, facts, rules, plans, commands, effects, projections, or protocol payloads. |
+| Action | Select one typed declaration or mature native mechanism before writing procedural Python. |
+| Evidence | Contract/schema checks, deterministic and property tests, projection drift checks, focused command JSON, and HEAD-bound proof. |
+| Stop | A new implementation duplicates an existing semantic owner or adds a wrapper without distinct meaning and measured net benefit. |
 
 ## Rules
 
-- Public command payloads, persisted evidence envelopes, registry entries, graph
-  declarations, gate declarations, and projection declarations must have typed
-  contract models before they become stable surfaces.
-- New governance rules and admission checks must be declaration-first. Use the
-  policy declaration surface and CEL expression path when the rule is a predicate
-  over typed facts. Add Python only for IO, mutation, adapter boundaries, or logic
-  that cannot be safely expressed by the DSL.
-- New command surfaces must be registry-first. A manual command handler may only
-  bind a declared command to an adapter or preserve compatibility during a bounded
-  migration.
-- New bindings and host projections must be declaration-first. Interpret facts
-  at runtime; generate only externally required leaves through the carrier's
-  native serializer. Multi-file scaffolds require proof of net deletion.
-- New graph ordering, dependency, gate, workflow, claim, evidence, or projection
-  logic must use the shared graph kernel once available. Do not add another
-  bespoke topological sorter, cycle detector, or dependency walker.
-- Read models must remain projections over lower-authority facts. A declaration,
-  query, generated table, or rendered file does not mint repository truth.
-- Heavy frameworks and hosted tools are mechanism providers only. Their state may
-  become ETHOS evidence only after adapter observation, typed evidence binding,
-  and claim review.
-- Every exception must name the owner, boundary, why declaration is insufficient,
-  the rollback path, and the proof command that keeps the exception from becoming
-  hidden architecture.
+- Persisted and external contracts use strict frozen Pydantic v2 models. Small
+  transient values use frozen standard-library types; do not introduce a second
+  model framework.
+- Rules are predicates over typed facts. Use plain declarations first and CEL
+  when an expression language is necessary. Python is reserved for fact
+  collection, composition, I/O, mutation, or logic the DSL cannot express
+  safely.
+- Plans use `PlanIR`. Dependency order and cycle detection call
+  `graphlib.TopologicalSorter` directly; do not introduce a graph wrapper,
+  framework, or second dependency walker.
+- Cyclopts declarations own CLI names, parameters, and help. Machine metadata,
+  docs, schemas, tests, MCP, and SDK views derive from that owner rather than a
+  parallel command registry.
+- Effects are explicit, permission-bounded adapter calls with current-state and
+  compare-and-swap preconditions. They return attestations; they do not publish
+  hidden in-process events.
+- Projections are pure reducers over lower-authority facts and attestations.
+  Generated leaves are never hand-edited and must pass drift checks.
+- A framework, generator, or abstraction is admitted only for a real consumer
+  and only when it deletes more total maintenance than it introduces.
+- Every exception names its semantic owner, boundary, why the selected mechanism
+  is insufficient, deletion condition, and proof command.

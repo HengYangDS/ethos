@@ -19,9 +19,9 @@ if TYPE_CHECKING:
 ALLOWED_NON_ETHOS_ROOTS = ("git", "npm", "npx", "pip", "python", "uv")
 ALLOWED_REPOSITORY_COMMAND_PATTERNS = ("tools/ci/scripts/*.sh",)
 REQUIRED_COMMAND_EXAMPLES = (
+    "ethos status",
     "ethos land",
     "ethos publish",
-    "ethos report",
 )
 ENV_ASSIGNMENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 KNOWN_ETHOS_COMMANDS = {
@@ -32,7 +32,6 @@ KNOWN_ETHOS_COMMANDS = {
     "ethos publish",
     "ethos adopt",
     "ethos doctor",
-    "ethos report",
     "ethos explain",
     "ethos docs",
     "ethos campaign",

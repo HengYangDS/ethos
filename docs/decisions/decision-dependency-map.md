@@ -25,7 +25,7 @@ Purpose: show dependencies between ETHOS durable rulings.
 - DR-0007 is superseded: DR-0004 v2 owns strict docs-topology semantics, while
   the Product Design Contract and Capability Parity Ledger own the locus of
   external-adopter parity evidence.
-- DR-0008 depends on DR-0005 for the declarative contract and command-registry spine used by metric and carrier contracts.
-- Future decisions that alter source-budget metric domains, cross-coordinate compensation, global LOC retirement, or repository-versus-agent token boundaries must cite DR-0008.
+- DR-0008 is superseded; the terminal design owns direct source measurement and
+  the hard repository ELOC limits without a private vector runtime.
 
 See also: [Decision Index](decision-index.md).

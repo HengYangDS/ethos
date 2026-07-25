@@ -245,7 +245,7 @@ The runtime is exposed through existing command payloads:
 
 - `ethos plan --json` includes `data.workflow_runtime` for planned transitions,
   guards, required facts, changed-path context, and linked evolution state.
-- `ethos report --json` includes a workflow runtime scorecard layer and evolution bridge.
+- `ethos status --json` includes a workflow runtime quality_summary layer and evolution bridge.
 - `ethos prove`, `land`, and `publish` continue to be the trust-bearing
   lifecycle commands.
 
@@ -280,6 +280,6 @@ Status: see front matter.
 
 Purpose: explain the repository truth represented by this ETHOS document.
 
-See also: [Documentation Index](../index.md), [Action Graph](action-graph.md),
+See also: [Documentation Index](../index.md), [PlanIR](plan-ir.md),
 [Local State](local-state.md), [OpenSpec Governance](../governance/openspec-governance.md),
 and [Workflow Runtime Framework Research](../research/workflow-runtime-frameworks-20260709.md).

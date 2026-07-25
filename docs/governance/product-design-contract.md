@@ -34,16 +34,16 @@ ethos land
 ethos publish
 ```
 
-`ethos orient` is a read-only first-glance reader view over `status` and
+`ethos status` is a read-only first-glance reader view over `status` and
 `report`. It helps humans and agents see where they are, what they may do, who
 else is present, what remains gapped, and what should run next. It is not a
 transition verb and does not mint repository truth.
 
-`ethos report` is a read-only scorecard. It is a payoff view over readiness,
+`ethos status` is a read-only quality_summary. It is a payoff view over readiness,
 hard quality-floor verdicts, proof, parity, and release policy; it is not a
 sixth transition verb. A hard quality gap that would block proof or local
 publication must appear as a blocking report gap rather than being hidden
-behind a green scorecard.
+behind a green quality_summary.
 
 Setup and onboarding commands are outside the transition loop:
 
@@ -211,13 +211,13 @@ with that adopter's own evidence root.
 Command payloads that audit or summarize repository governance expose
 `governance_context`. That context records the profile, repository subject,
 single-kernel flag, kernel chain, shared transition commands, reader-view
-commands, scorecard commands, repository truth boundary, and profile or adapter
+commands, quality_summary commands, repository truth boundary, and profile or adapter
 boundary.
 The shared transition semantics are exposed as `shared_commands` and
 `transition_commands`: `ethos status`, `ethos plan`, `ethos prove`,
 `ethos land`, and `ethos publish`. Read-only first-glance semantics are exposed
-as `reader_view_commands`: `ethos orient`. Read-only scorecard semantics are
-exposed as `scorecard_commands`: `ethos report`. `ethos audit --mode shape` and
+as `reader_projection_commands`: `ethos status`. Read-only quality_summary semantics are
+exposed as `quality_summary_commands`: `ethos status`. `ethos audit --mode shape` and
 `ethos audit --mode deep` select proof depth for the same governed repository
 contract.
 
@@ -264,7 +264,7 @@ configured branch roles are product semantics, not a generic VCS abstraction.
 Hosted forges, review systems, and CI surfaces may project those Git facts, but
 they do not replace them.
 Configured branch roles are reported through `role_policy` and ordered as
-release_root -> accepted_root -> candidate -> work_lane -> submit_lane. The
+release_root -> accepted_root -> candidate -> work_lane -> proposal_lane. The
 branch names and prefixes are configurable, but the roles are product semantics.
 The configured role policy is auditable through its configuration source,
 configuration keys, default-policy state, semantic role order, and configured
@@ -392,7 +392,7 @@ projections, command runtimes, Python/uv/node launchers, or local state cannot b
 trusted enough to execute the chain. Projection drift and adapter bypass reduce
 there; they do not become new truth centers.
 
-`system/invalid_states.toml` is the machine contract. `ethos report --json`
+`system/invalid_states.toml` is the machine contract. `ethos status --json`
 projects the taxonomy over current gap layers so humans and agents see whether a
 failure is an authority, subject, commitment, change, carrier, evidence, claim,
 chronicle, or substrate problem before choosing a repair.

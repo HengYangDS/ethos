@@ -1,5 +1,5 @@
 [families.kernel]
-description = "Pure ETHOS kernel contracts, result envelopes, action graphs, and provider-neutral semantics."
+description = "Pure ETHOS kernel contracts, result envelopes, PlanIR, and provider-neutral semantics."
 
 [families.contracts]
 description = "Schemas, TOML contracts, evidence envelopes, projection contracts, and command JSON contracts."

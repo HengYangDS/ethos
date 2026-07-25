@@ -71,7 +71,7 @@ Required comparisons include:
 ethos status --json
 ethos plan --changed --json
 ethos prove --json
-ethos report --json
+ethos status --json
 ethos assistants doctor --json
 ethos playbooks route --changed --json
 ethos quality command-surface --json

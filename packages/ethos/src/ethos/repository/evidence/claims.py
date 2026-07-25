@@ -143,7 +143,8 @@ def _trust_envelope(*, payload: dict[str, Any], dated: str, evidence_digest_gap:
     elif not (binding[0] / openspec).exists():
         gaps.append(f"carriers.openspec_missing_path:{openspec}")
     gaps += [gap for gap, present in (("fallback_missing", fallback), ("kill_signal_missing", kill_signal), ("promotion.targets_missing", targets)) if not present]
-    gaps += [f"promotion_target_missing:{target['path']}" for target in targets if not (binding[0] / target["path"]).exists()]
+    if payload.get("evidence", {}).get("freshness", {}).get("mode") != "historical":
+        gaps += [f"promotion_target_missing:{target['path']}" for target in targets if not (binding[0] / target["path"]).exists()]
     if evidence_digest_gap:
         gaps.append("evidence.digest_untrusted")
     tests = payload.get("evidence", {}).get("tests", [])

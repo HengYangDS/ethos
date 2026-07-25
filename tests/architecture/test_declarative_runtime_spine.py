@@ -27,29 +27,14 @@ def _read(relative: str) -> str:
     return (ROOT / relative).read_text(encoding="utf-8")
 
 
-def test_graph_and_workflow_projections_use_the_shared_kernel() -> None:
-    source = _read("packages/ethos-core/src/ethos_core/action_graph/core.py")
-    forbidden_tokens = (
-        "visiting",
-        "visited",
-        "remaining =",
-        "while remaining",
-        "ready =",
-        "def visit(",
-    )
-
-    for token in forbidden_tokens:
-        assert token not in source
-    assert "GraphKernel" in source
-    source = _read("packages/ethos-core/src/ethos_core/graph/core.py")
+def test_plan_ir_uses_stdlib_graphlib_without_parallel_graph_owners() -> None:
+    source = _read("packages/ethos-core/src/ethos_core/contracts/plan.py")
     assert "from graphlib import" in source
     assert "TopologicalSorter" in source
-    source = _read("packages/ethos-core/src/ethos_core/contracts/workflow.py")
-    assert "GraphKernel" in source
-    assert "GraphNode" in source
-    assert "TopologicalSorter" not in source
-    for token in ("visiting", "visited", "while remaining", "def visit("):
-        assert token not in source
+    assert "GraphKernel" not in source
+    assert "ActionGraph" not in source
+    assert not (CORE_SOURCE / "graph").exists()
+    assert not (CORE_SOURCE / "action_graph").exists()
 
 
 def test_wheel_resources_and_build_hook_are_projections(monkeypatch) -> None:

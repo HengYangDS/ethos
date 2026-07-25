@@ -7,7 +7,7 @@ summary = "ETHOS makes the hosted readiness report observe coverage and proof st
 
 [evidence]
 dated = "evidence/chronicle/github-proof-report-after-execution-20260725/2026-07-25.md"
-sha256 = "7ef0cceb29be8e5c39a173c035feb992a261a1c7817155fad7a177f156844b38"
+sha256 = "76b8d94c71a3a056c67455bf4a4a0aa620e6e2255e4e70d8119fa2c8234dceea"
 evidence_ids = ["evidence:github-proof-report-after-execution-20260725"]
 binding = "GitHub dev run 30172606031, its retained audit/report/proof/JUnit/coverage artifacts, exact source order, the OpenSpec carrier, and the dated Chronicle bind this post-proof reporting claim."
 verifier = "digest_only"

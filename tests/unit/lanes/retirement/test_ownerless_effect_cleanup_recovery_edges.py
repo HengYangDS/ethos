@@ -264,24 +264,24 @@ def test_ownerless_effect_receipt_admission_maps_unverifiable(
     tmp_path: Path,
 ) -> None:
     receipt_reservation = SimpleNamespace()
-    expected = SimpleNamespace()
     observed: list[dict[str, object]] = []
 
-    def admit(**kwargs: object) -> SimpleNamespace:
+    def admit(**kwargs: object) -> None:
         observed.append(kwargs)
-        return expected
+        raise RuntimeError("admission unavailable")
 
     monkeypatch.setattr(closeout_effect, "admit_ownerless_closeout_facts", admit)
-    assert (
-        closeout_effect._admit_ownerless_effect_target(  # noqa: SLF001, RUF100
+    with pytest.raises(
+        closeout_effect.OwnerlessCloseoutError,
+        match=r"^lane_resolution_ownerless_admission_unverifiable$",
+    ):
+        closeout_effect.retire_clean_ownerless_lane(
             root=tmp_path,
             decision_path=tmp_path / "decision.json",
             decision={"decision_id": _DECISION_ID},
             executor_ref=_EXECUTOR,
             receipt_reservation=receipt_reservation,
         )
-        is expected
-    )
     assert observed == [
         {
             "root": tmp_path,
@@ -292,33 +292,27 @@ def test_ownerless_effect_receipt_admission_maps_unverifiable(
         }
     ]
 
-    monkeypatch.setattr(
-        closeout_effect,
-        "admit_ownerless_closeout_facts",
-        lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("admission unavailable")),
-    )
-    with pytest.raises(
-        closeout_effect.OwnerlessCloseoutError,
-        match=r"^lane_resolution_ownerless_admission_unverifiable$",
-    ):
-        closeout_effect._admit_ownerless_effect_target(  # noqa: SLF001, RUF100
-            root=tmp_path,
-            decision_path=tmp_path / "decision.json",
-            decision={},
-            executor_ref=_EXECUTOR,
-            receipt_reservation=receipt_reservation,
-        )
-
 
 def test_ownerless_effect_releases_unreserved_fence_after_unexpected_reobservation(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
     fence = {"target_binding_digest": "1" * 64}
-    admission = SimpleNamespace(root=tmp_path, existing_reservation=None)
-    released: list[object] = []
+    observation = _observation(tmp_path)
+    admission = SimpleNamespace(
+        root=tmp_path,
+        existing_reservation=None,
+        observation=observation,
+        decision=SimpleNamespace(decision_id=_DECISION_ID, chronicle_digest="d" * 64),
+        executor_ref=_EXECUTOR,
+        accepted_branch="dev",
+        accepted_head="f" * 40,
+        decision_sha256="e" * 64,
+        target_digest="0" * 64,
+    )
+    released: list[dict[str, object]] = []
     monkeypatch.setattr(closeout_effect, "state_database", lambda _root: tmp_path / "state.sqlite")
-    monkeypatch.setattr(closeout_effect, "_acquire_fresh_fence", lambda *_args: fence)
+    monkeypatch.setattr(closeout_effect, "acquire_closeout_fence", lambda *_args, **_kwargs: fence)
     monkeypatch.setattr(
         closeout_effect,
         "reobserve_ownerless_closeout_under_fence",
@@ -326,8 +320,8 @@ def test_ownerless_effect_releases_unreserved_fence_after_unexpected_reobservati
     )
     monkeypatch.setattr(
         closeout_effect,
-        "_release_unreserved_fence",
-        lambda *_args: released.append("released"),
+        "release_closeout_fence",
+        lambda _database, **kwargs: released.append(kwargs),
     )
 
     with pytest.raises(
@@ -343,7 +337,13 @@ def test_ownerless_effect_releases_unreserved_fence_after_unexpected_reobservati
             admission=admission,
         )
 
-    assert released == ["released"]
+    assert released == [
+        {
+            "subject": observation.lane_ref,
+            "decision_id": _DECISION_ID,
+            "target_binding_digest": "1" * 64,
+        }
+    ]
 
 
 def test_ownerless_effect_fence_release_failure_is_explicit_transition_unknown(
@@ -669,85 +669,104 @@ def test_recovery_preserve_retire_guards_receipt_and_chronicle(
     tmp_path: Path,
 ) -> None:
     observation = _observation(tmp_path)
-    decision = {"decision_id": _DECISION_ID}
-    report: dict[str, object] = {}
-    chronicle_gap = recovery._preserve_retire_chronicle_gap  # noqa: SLF001, RUF100 - dedicated helper boundary coverage
-    monkeypatch.setattr(
-        recovery,
-        "_resolution_roots",
-        lambda _root: (tmp_path, tmp_path / "records", ""),
-    )
-    monkeypatch.setattr(
-        recovery,
-        "_preserve_retire_chronicle_gap",
-        lambda **_kwargs: "lane_resolution_chronicle_stale",
-    )
-    recovery.apply_resolution(
-        root=tmp_path,
-        decision_path=tmp_path / "decision.json",
-        decision=decision,
-        observation=observation,
-        disposition="preserve-retire",
-        report=report,
-    )
-    assert report == {
-        "ok": False,
-        "state": "blocked",
-        "required_gaps": ["lane_resolution_chronicle_stale"],
+    chronicle = b"fresh"
+    decision = {
+        "decision_id": _DECISION_ID,
+        "chronicle_ref": "evidence/chronicle/preserve-retire.md",
+        "chronicle_digest": hashlib.sha256(chronicle).hexdigest(),
     }
 
-    monkeypatch.setattr(
-        recovery,
-        "write_resolution_receipt",
-        lambda **_kwargs: (_ for _ in ()).throw(OSError("receipt unavailable")),
-    )
-    retained, receipt_path, receipt_gap = recovery._write_retained_preservation_receipt(  # noqa: SLF001, RUF100
-        control_root=tmp_path,
-        artifact_root=tmp_path / "records",
-        receipt={"state": "ready"},
-        retire_gap="lane_resolution_chronicle_stale",
-    )
-    assert retained == {
-        "state": "preserved_retirement_blocked",
-        "retirement_blocked_reason": "lane_resolution_chronicle_stale",
-    }
-    assert (receipt_path, receipt_gap) == ("", "lane_resolution_receipt_write_failed")
-
-    monkeypatch.setattr(
-        recovery,
-        "_write_retained_preservation_receipt",
-        lambda **_kwargs: (retained, "", "lane_resolution_receipt_write_failed"),
-    )
-    report = {}
-    assert not recovery._report_retire_gap(  # noqa: SLF001, RUF100
-        control_root=tmp_path,
-        artifact_root=tmp_path / "records",
-        decision=decision,
-        disposition="preserve-retire",
-        package={"package": "retained"},
-        receipt={"state": "ready"},
-        retire_gap="lane_resolution_chronicle_stale",
-        report=report,
-    )
-    assert report == {
-        "ok": False,
-        "state": "partial_transition",
-        "required_gaps": ["lane_resolution_receipt_write_failed"],
-    }
-
-    monkeypatch.setattr(
-        recovery,
-        "accepted_preserve_retire_chronicle",
-        lambda *_args, **_kwargs: (None, ""),
-    )
-    assert (
-        chronicle_gap(
-            control_root=tmp_path,
-            decision=decision,
-            observation=observation,
+    with monkeypatch.context() as patch:
+        patch.setattr(recovery, "accepted_control_root", lambda _root: tmp_path)
+        patch.setattr(recovery, "current_record_root", lambda _root: tmp_path / "records")
+        patch.setattr(
+            recovery,
+            "accepted_preserve_retire_chronicle",
+            lambda *_args, **_kwargs: (chronicle, ""),
         )
-        == "lane_resolution_chronicle_invalid"
-    )
+        report: dict[str, object] = {}
+        recovery.apply_resolution(
+            root=tmp_path,
+            decision={**decision, "chronicle_digest": "stale"},
+            decision_path=tmp_path / "decision.json",
+            observation=observation,
+            disposition="preserve-retire",
+            report=report,
+        )
+        assert report == {
+            "ok": False,
+            "state": "blocked",
+            "required_gaps": ["lane_resolution_chronicle_stale"],
+        }
+
+    with monkeypatch.context() as patch:
+        patch.setattr(recovery, "accepted_control_root", lambda _root: tmp_path)
+        patch.setattr(recovery, "current_record_root", lambda _root: tmp_path / "records")
+        patch.setattr(
+            recovery,
+            "accepted_preserve_retire_chronicle",
+            lambda *_args, **_kwargs: (chronicle, ""),
+        )
+        patch.setattr(
+            recovery,
+            "claim_resolution_effect_attempt",
+            lambda **_kwargs: (None, 1, None, ()),
+        )
+        patch.setattr(
+            recovery,
+            "prepare_resolution_effect",
+            lambda **_kwargs: ({"package": "retained"}, {"state": "ready"}, "preserved", ""),
+        )
+        patch.setattr(recovery, "observe_lane", lambda *_args: (observation, []))
+        patch.setattr(
+            recovery,
+            "retire_lane",
+            lambda **_kwargs: (_ for _ in ()).throw(ValueError("lane_resolution_chronicle_stale")),
+        )
+        patch.setattr(
+            recovery,
+            "write_resolution_receipt",
+            lambda **_kwargs: (_ for _ in ()).throw(OSError("receipt unavailable")),
+        )
+        patch.setattr(recovery.cleanup, "release_receipt_reservation", lambda **_kwargs: "")
+        report = {}
+        recovery.apply_resolution(
+            root=tmp_path,
+            decision=decision,
+            decision_path=tmp_path / "decision.json",
+            observation=observation.model_copy(update={"orphan": False}),
+            disposition="preserve-retire",
+            report=report,
+        )
+        assert report == {
+            "ok": False,
+            "state": "partial_transition",
+            "required_gaps": ["lane_resolution_receipt_write_failed"],
+            "preservation_package": {"package": "retained"},
+        }
+
+    with monkeypatch.context() as patch:
+        patch.setattr(recovery, "accepted_control_root", lambda _root: tmp_path)
+        patch.setattr(recovery, "current_record_root", lambda _root: tmp_path / "records")
+        patch.setattr(
+            recovery,
+            "accepted_preserve_retire_chronicle",
+            lambda *_args, **_kwargs: (None, ""),
+        )
+        report = {}
+        recovery.apply_resolution(
+            root=tmp_path,
+            decision=decision,
+            decision_path=tmp_path / "decision.json",
+            observation=observation,
+            disposition="preserve-retire",
+            report=report,
+        )
+        assert report == {
+            "ok": False,
+            "state": "blocked",
+            "required_gaps": ["lane_resolution_chronicle_invalid"],
+        }
 
 
 def test_recovery_context_and_retirement_effects_preserve_fail_closed_boundaries(

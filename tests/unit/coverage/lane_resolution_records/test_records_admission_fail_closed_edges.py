@@ -15,6 +15,7 @@ import ethos.adapters.mutation.resolution.records.reservations as reservation_st
 from ethos_core.contracts.resolution.closeout import OwnerlessCloseoutReservation
 
 _DECISION_ID = "lane-decision:00000000-0000-4000-8000-000000000201"
+_REJECTED = "rejected"
 
 
 def _expected_ownerless_reservation() -> OwnerlessCloseoutReservation:
@@ -132,7 +133,7 @@ def test_record_claim_coordination_and_liveness_fail_closed_edges(
 
     @contextmanager
     def rejected_claim(*_args: object, **_kwargs: object):
-        raise ValueError("rejected")
+        raise ValueError(_REJECTED)
         yield None
 
     with monkeypatch.context() as scoped:

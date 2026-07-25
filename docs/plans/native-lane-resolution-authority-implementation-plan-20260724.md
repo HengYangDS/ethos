@@ -1051,6 +1051,20 @@ is dry-run only, or archive proof is bound to a pre-archive HEAD.
    `preserve-retire` decisions after accepted truth contains the exact targets,
    heads, reasons, and recovery boundary:
 
+   For every later `preserve-retire` target, create one separate Chronicle only
+   after accepted truth contains it. The Chronicle must be read from the accepted
+   control checkout and begin with UTF-8 front matter containing
+   `event: lane_resolution/preserve-retire`, the exact observed `target_head`,
+   and exactly one selector: literal `target_branch` or
+   `target_branch_sha256`, computed from the branch UTF-8 bytes with no newline.
+   Its working bytes, accepted-tree blob, and decision digest must match. Recheck
+   the binding before receipt reservation/package creation and again after package
+   verification before source removal. A later target, Chronicle, lease, Claim,
+   dirt, inventory, or HEAD drift stops that target only. If the final Chronicle
+   or observation check blocks retirement after package verification, retain the
+   source and package under a `preserved_retirement_blocked` receipt containing
+   the exact permitted blocker; do not record retirement.
+
    ```text
    work/20260724-native-lane-resolution-authority-successor
    work/20260724-native-lane-resolution-authority

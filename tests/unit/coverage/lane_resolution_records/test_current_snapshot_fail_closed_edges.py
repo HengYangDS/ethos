@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 _DECISION_ID = "lane-decision:00000000-0000-4000-8000-000000000201"
+_UNSTABLE = "unstable"
 
 
 def _clear_receipt() -> dict[str, object]:
@@ -256,12 +257,12 @@ def test_current_snapshot_move_and_quarantine_open_fail_closed_edges(
             nonlocal fstat_calls
             fstat_calls += 1
             if fstat_calls == 2:
-                raise RuntimeError("unstable")
+                raise RuntimeError(_UNSTABLE)
             return original_fstat(_descriptor)
 
         with monkeypatch.context() as scoped:
             scoped.setattr(current_snapshot.os, "fstat", fail_after_open)
-            with pytest.raises(RuntimeError, match="unstable"):
+            with pytest.raises(RuntimeError, match=_UNSTABLE):
                 current_snapshot._open_quarantined_package(  # noqa: SLF001, RUF100
                     descriptor,
                     package.name,
@@ -271,35 +272,45 @@ def test_current_snapshot_move_and_quarantine_open_fail_closed_edges(
         os.close(descriptor)
 
 
-def test_current_snapshot_deletion_fail_closed_matrix(
+def _remove_bound_child(
+    tmp_path: Path,
+    directory_identity: tuple[int, ...],
+    identity: tuple[int, ...],
+) -> bool:
+    return current_snapshot._remove_bound_child(  # noqa: SLF001, RUF100
+        tmp_path,
+        1,
+        directory_identity,
+        2,
+        "quarantine",
+        directory_identity,
+        "payload",
+        identity,
+        "a" * 64,
+    )
+
+
+def test_current_snapshot_remove_bound_child_rejects_unsafe_preconditions(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     identity = (1, 2, stat.S_IFREG, 3, 4, 5)
     directory_identity = (1, 2, stat.S_IFDIR)
-
-    def remove_child() -> bool:
-        return current_snapshot._remove_bound_child(  # noqa: SLF001, RUF100
-            tmp_path,
-            1,
-            directory_identity,
-            2,
-            "quarantine",
-            directory_identity,
-            "payload",
-            identity,
-            "a" * 64,
-        )
-
     with monkeypatch.context() as scoped:
         scoped.setattr(current_snapshot.posix, "child_directory_is_live", lambda *_args: False)
-        assert remove_child() is False
-
+        assert _remove_bound_child(tmp_path, directory_identity, identity) is False
     with monkeypatch.context() as scoped:
         scoped.setattr(current_snapshot.posix, "child_directory_is_live", lambda *_args: True)
         scoped.setattr(current_snapshot, "_entry_identity_at", lambda *_args: identity)
-        assert remove_child() is False
+        assert _remove_bound_child(tmp_path, directory_identity, identity) is False
 
+
+def test_current_snapshot_remove_bound_child_closes_after_rename_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    identity = (1, 2, stat.S_IFREG, 3, 4, 5)
+    directory_identity = (1, 2, stat.S_IFDIR)
     closed: list[int] = []
     with monkeypatch.context() as scoped:
         scoped.setattr(current_snapshot.posix, "child_directory_is_live", lambda *_args: True)
@@ -311,9 +322,16 @@ def test_current_snapshot_deletion_fail_closed_matrix(
             lambda *_args: (_ for _ in ()).throw(OSError("rename")),
         )
         scoped.setattr(current_snapshot.os, "close", closed.append)
-        assert remove_child() is False
+        assert _remove_bound_child(tmp_path, directory_identity, identity) is False
     assert closed == [7]
 
+
+def test_current_snapshot_remove_bound_child_restores_on_identity_change(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    identity = (1, 2, stat.S_IFREG, 3, 4, 5)
+    directory_identity = (1, 2, stat.S_IFDIR)
     restored: list[tuple[object, ...]] = []
     with monkeypatch.context() as scoped:
         scoped.setattr(current_snapshot.posix, "child_directory_is_live", lambda *_args: True)
@@ -333,10 +351,17 @@ def test_current_snapshot_deletion_fail_closed_matrix(
         )
         scoped.setattr(current_snapshot.os, "fstat", lambda _descriptor: object())
         scoped.setattr(current_snapshot.os, "close", lambda _descriptor: None)
-        assert remove_child() is False
+        assert _remove_bound_child(tmp_path, directory_identity, identity) is False
     assert restored
 
-    restored.clear()
+
+def test_current_snapshot_remove_bound_child_restores_on_content_mismatch(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    identity = (1, 2, stat.S_IFREG, 3, 4, 5)
+    directory_identity = (1, 2, stat.S_IFDIR)
+    restored: list[tuple[object, ...]] = []
     with monkeypatch.context() as scoped:
         scoped.setattr(current_snapshot.posix, "child_directory_is_live", lambda *_args: True)
         scoped.setattr(current_snapshot, "_entry_identity_at", lambda *_args: None)
@@ -352,10 +377,17 @@ def test_current_snapshot_deletion_fail_closed_matrix(
         )
         scoped.setattr(current_snapshot.os, "fstat", lambda _descriptor: object())
         scoped.setattr(current_snapshot.os, "close", lambda _descriptor: None)
-        assert remove_child() is False
+        assert _remove_bound_child(tmp_path, directory_identity, identity) is False
     assert restored
 
-    restored.clear()
+
+def test_current_snapshot_remove_bound_child_restores_then_propagates_removal_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    identity = (1, 2, stat.S_IFREG, 3, 4, 5)
+    directory_identity = (1, 2, stat.S_IFDIR)
+    restored: list[tuple[object, ...]] = []
     with monkeypatch.context() as scoped:
         scoped.setattr(current_snapshot.posix, "child_directory_is_live", lambda *_args: True)
         scoped.setattr(current_snapshot, "_entry_identity_at", lambda *_args: None)
@@ -377,10 +409,17 @@ def test_current_snapshot_deletion_fail_closed_matrix(
         scoped.setattr(current_snapshot.os, "fstat", lambda _descriptor: object())
         scoped.setattr(current_snapshot.os, "close", lambda _descriptor: None)
         with pytest.raises(RuntimeError, match="remove"):
-            remove_child()
+            _remove_bound_child(tmp_path, directory_identity, identity)
     assert restored
 
-    restored.clear()
+
+def test_current_snapshot_remove_bound_child_rejects_lost_liveness_without_restore(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    identity = (1, 2, stat.S_IFREG, 3, 4, 5)
+    directory_identity = (1, 2, stat.S_IFDIR)
+    restored: list[tuple[object, ...]] = []
     live_checks = iter((True, True, False))
     with monkeypatch.context() as scoped:
         scoped.setattr(
@@ -404,12 +443,17 @@ def test_current_snapshot_deletion_fail_closed_matrix(
         scoped.setattr(current_snapshot.os, "fsync", lambda _descriptor: None)
         scoped.setattr(current_snapshot.os, "close", lambda _descriptor: None)
         with pytest.raises(OSError, match="lane_resolution_record_path_unsafe"):
-            remove_child()
+            _remove_bound_child(tmp_path, directory_identity, identity)
     assert restored == []
 
+
+def test_current_snapshot_delete_utility_fail_closed_edges(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    directory_identity = (1, 2, stat.S_IFDIR)
     with pytest.raises(OSError, match="lane_resolution_record_path_unsafe"):
         current_snapshot._require_safe(condition=False)  # noqa: SLF001, RUF100
-
     with monkeypatch.context() as scoped:
         scoped.setattr(current_snapshot.os, "fsync", lambda _descriptor: None)
         scoped.setattr(current_snapshot.posix, "child_directory_is_live", lambda *_args: False)
@@ -424,7 +468,6 @@ def test_current_snapshot_deletion_fail_closed_matrix(
             )
             is False
         )
-
     entries = tmp_path / "entries"
     entries.mkdir()
     (entries / "payload").write_text("payload", encoding="utf-8")
@@ -436,6 +479,11 @@ def test_current_snapshot_deletion_fail_closed_matrix(
     finally:
         os.close(descriptor)
 
+
+def test_current_snapshot_restore_staged_entry_handles_missing_staging(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    identity = (1, 2, stat.S_IFREG, 3, 4, 5)
     with monkeypatch.context() as scoped:
         scoped.setattr(current_snapshot.posix, "entry_file_identity", lambda *_args: None)
         current_snapshot._restore_staged_entry(  # noqa: SLF001, RUF100
@@ -445,33 +493,45 @@ def test_current_snapshot_deletion_fail_closed_matrix(
             identity,
         )
 
-    staged = (9, 2, stat.S_IFREG, 3, 4, 5)
-    for canonical_exists in (False, True):
-        renamed: list[tuple[object, ...]] = []
-        with monkeypatch.context() as scoped:
-            scoped.setattr(current_snapshot.posix, "entry_file_identity", lambda *_args: staged)
-            scoped.setattr(
-                current_snapshot,
-                "_entry_identity_at",
-                lambda *_args, canonical_exists=canonical_exists: (
-                    identity if canonical_exists else None
-                ),
-            )
-            scoped.setattr(
-                current_snapshot.posix,
-                "rename_no_replace",
-                lambda *args, renamed=renamed: renamed.append(args),
-            )
-            scoped.setattr(current_snapshot.os, "fsync", lambda _descriptor: None)
-            with pytest.raises(OSError, match="lane_resolution_record_path_unsafe"):
-                current_snapshot._restore_staged_entry(  # noqa: SLF001, RUF100
-                    1,
-                    "staging",
-                    "payload",
-                    identity,
-                )
-        assert bool(renamed) == (not canonical_exists)
 
+@pytest.mark.parametrize(
+    "canonical_identity",
+    [None, (1, 2, stat.S_IFREG, 3, 4, 5)],
+)
+def test_current_snapshot_restore_staged_entry_rejects_conflicting_canonical(
+    monkeypatch: pytest.MonkeyPatch,
+    canonical_identity: tuple[int, ...] | None,
+) -> None:
+    identity = (1, 2, stat.S_IFREG, 3, 4, 5)
+    staged = (9, 2, stat.S_IFREG, 3, 4, 5)
+    renamed: list[tuple[object, ...]] = []
+    with monkeypatch.context() as scoped:
+        scoped.setattr(current_snapshot.posix, "entry_file_identity", lambda *_args: staged)
+        scoped.setattr(
+            current_snapshot,
+            "_entry_identity_at",
+            lambda *_args: canonical_identity,
+        )
+        scoped.setattr(
+            current_snapshot.posix,
+            "rename_no_replace",
+            lambda *args: renamed.append(args),
+        )
+        scoped.setattr(current_snapshot.os, "fsync", lambda _descriptor: None)
+        with pytest.raises(OSError, match="lane_resolution_record_path_unsafe"):
+            current_snapshot._restore_staged_entry(  # noqa: SLF001, RUF100
+                1,
+                "staging",
+                "payload",
+                identity,
+            )
+    assert bool(renamed) == (canonical_identity is None)
+
+
+def test_current_snapshot_restore_staged_entry_removes_matching_staging(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    identity = (1, 2, stat.S_IFREG, 3, 4, 5)
     removed: list[tuple[object, ...]] = []
     with monkeypatch.context() as scoped:
         scoped.setattr(current_snapshot.posix, "entry_file_identity", lambda *_args: identity)

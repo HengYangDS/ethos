@@ -45,6 +45,37 @@ root, or compatibility alias SHALL be required for current authority.
 - **THEN** ETHOS SHALL reject the transition before any new Git, worktree,
   fence, reservation, cleanup, or receipt effect.
 
+### Requirement: Preserve-retire consumes one accepted target-bound Chronicle
+
+For `lane_resolution/preserve-retire`, ETHOS SHALL read the Chronicle from the
+configured accepted control checkout, not the invoking Work Lane. Its root-bound
+working bytes SHALL be byte-identical to the exact accepted-tree regular blob and
+to the decision digest. Its UTF-8 front matter SHALL contain exactly one
+`event: lane_resolution/preserve-retire`, exactly one `target_head` equal to the
+observed target HEAD, and exactly one target selector: either `target_branch`
+equal to the observed branch or `target_branch_sha256` equal to the SHA-256 of
+that branch's UTF-8 bytes. ETHOS SHALL revalidate those facts before receipt
+reservation or preservation and again after package verification before worktree
+or ref removal.
+
+#### Scenario: one accepted preserve-retire Chronicle binds one target
+
+- **GIVEN** a caller requests `preserve-retire` for one exact Work Lane
+- **WHEN** the Chronicle lacks, replaces, duplicates, or mismatches its required
+  event, selector, target HEAD, accepted bytes, or decision digest
+- **THEN** ETHOS SHALL block the decision or apply before destructive retirement
+- **AND** the Chronicle SHALL NOT authorize another branch or HEAD.
+
+#### Scenario: post-preservation Chronicle drift blocks removal
+
+- **GIVEN** ETHOS has verified one preservation package for an admitted target
+- **WHEN** the target-bound Chronicle or target observation differs before
+  worktree or ref removal
+- **THEN** ETHOS SHALL retain the source branch and worktree
+- **AND** it SHALL retain the verified package as governed recovery material
+- **AND** it SHALL write only a `preserved_retirement_blocked` receipt with the
+  exact permitted blocker and SHALL NOT record retirement.
+
 #### Scenario: configured Work Lane role is authoritative
 
 - **GIVEN** repository policy configures a Work Lane branch prefix other than

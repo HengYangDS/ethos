@@ -116,22 +116,7 @@ def test_prepare_resolution_preserves_effect_and_observation_boundaries(
             **inputs, disposition="retire"
         ) == ({}, {}, "blocked", ("lane_resolution_effect_exact",))
 
-    for disposition, current, current_gaps, expected_gaps in (
-        ("retire", observation, (), ()),
-        ("preserve-retire", observation, (), ()),
-        (
-            "preserve-retire",
-            observation,
-            ("lane_resolution_observe_failed",),
-            ("lane_resolution_observe_failed", "lane_resolution_observation_stale"),
-        ),
-        (
-            "preserve-retire",
-            observation.model_copy(update={"head": "d" * 40}),
-            (),
-            ("lane_resolution_observation_stale",),
-        ),
-    ):
+    for disposition in ("retire", "preserve-retire"):
         calls: list[str] = []
         with monkeypatch.context() as patch:
             patch.setattr(
@@ -139,18 +124,6 @@ def test_prepare_resolution_preserves_effect_and_observation_boundaries(
                 "prepare_resolution_effect",
                 lambda **_kwargs: ({"package": "exact"}, {"receipt": "exact"}, "ready", ""),
             )
-
-            def observe(
-                *_args: object,
-                observed: LaneObservation = current,
-                observed_gaps: tuple[str, ...] = current_gaps,
-                events: list[str] = calls,
-                **_kwargs: object,
-            ) -> tuple[LaneObservation, tuple[str, ...]]:
-                events.append("observe")
-                return observed, observed_gaps
-
-            patch.setattr(recovery, "observe_lane", observe)
             package, receipt, state, gaps = recovery._prepare_resolution(  # noqa: SLF001, RUF100
                 **inputs, disposition=disposition
             )
@@ -158,9 +131,63 @@ def test_prepare_resolution_preserves_effect_and_observation_boundaries(
             {"package": "exact"},
             {"receipt": "exact"},
             "ready",
-            expected_gaps,
+            (),
         )
-        assert calls == ([] if disposition == "retire" else ["observe"])
+        assert calls == []
+
+
+def test_preserve_retire_rechecks_target_then_chronicle_immediately_before_retirement(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    observation = _observation(tmp_path)
+    cases = (
+        (observation, (), "", ""),
+        (observation, ("lane_resolution_observe_failed",), "", "lane_resolution_observation_stale"),
+        (
+            observation.model_copy(update={"head": "d" * 40}),
+            (),
+            "",
+            "lane_resolution_observation_stale",
+        ),
+        (observation, (), "lane_resolution_chronicle_stale", "lane_resolution_chronicle_stale"),
+    )
+    for observed, current_gaps, chronicle_gap, expected_gap in cases:
+        events: list[str] = []
+
+        def observe(
+            *_args: object,
+            observed_lane: LaneObservation = observed,
+            observed_gaps: tuple[str, ...] = current_gaps,
+            event_log: list[str] = events,
+            **_kwargs: object,
+        ) -> tuple[LaneObservation, tuple[str, ...]]:
+            event_log.append("observe")
+            return observed_lane, observed_gaps
+
+        def retire(*, event_log: list[str] = events, **_kwargs: object) -> None:
+            event_log.append("retire")
+
+        with monkeypatch.context() as patch:
+            patch.setattr(recovery, "observe_lane", observe)
+            patch.setattr(
+                recovery,
+                "_preserve_retire_chronicle_gap",
+                lambda _gap=chronicle_gap, **_kwargs: _gap,
+            )
+            patch.setattr(recovery, "retire_lane", retire)
+            retained, gap, binding = recovery._retire_resolution(  # noqa: SLF001, RUF100
+                root=tmp_path,
+                control_root=tmp_path,
+                decision_path=tmp_path / "decision.json",
+                decision={},
+                observation=observation,
+                disposition="preserve-retire",
+                artifact_root=tmp_path / "records",
+            )
+
+        assert (retained, gap, binding) == (not expected_gap, expected_gap, {})
+        assert events == ["observe", *(["retire"] if not expected_gap else [])]
 
 
 def test_claim_effect_attempt_preserves_every_fail_closed_claim_gap(

@@ -216,7 +216,7 @@ def test_completed_decision_binding_preserves_classified_and_translated_lock_err
             record_root=tmp_path / "records",
         ),
     ):
-        raise AssertionError("context must not enter")
+        raise AssertionError
 
 
 def test_enter_completed_decision_returns_a_classified_gap(

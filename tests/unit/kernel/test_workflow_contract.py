@@ -189,13 +189,7 @@ def test_workflow_contract_declares_runtime_nodes_and_evolution_bridge() -> None
 
     assert report["ok"] is True
     assert report["node_count"] >= 6
-    assert {node["kind"] for node in report["nodes"]} >= {
-        "control",
-        "producer",
-        "action",
-        "handoff",
-        "guardrail",
-    }
+    assert {node["kind"] for node in report["nodes"]} == {"check", "decision", "effect"}
     assert report["runtime"]["truth_boundary"] == "derived_repository_projection"
     assert report["evolution"]["selection_policy"] == "evidence_weighted_candidate_comparison"
     assert (
@@ -252,9 +246,17 @@ def test_plan_ir_from_workflow_contract_compiles_requested_declared_nodes() -> N
     assert plan.nodes[2].depends_on == ("plan",)
 
 
+def test_workflow_nodes_use_plan_ir_kinds_without_heuristic_mapping() -> None:
+    source = Path("src/ethos/contracts/workflow.py").read_text(encoding="utf-8")
+    declaration = load_system_contract(Path(), "workflows")
+
+    assert "if self.kind ==" not in source
+    assert {node["kind"] for node in declaration["node"]} == {"check", "decision", "effect"}
+
+
 def test_plan_ir_from_workflow_contract_reports_missing_requested_nodes() -> None:
     plan = WorkflowContract.model_validate(
-        {"node": [{"id": "status", "kind": "control", "command": "ethos status --json"}]}
+        {"node": [{"id": "status", "kind": "check", "command": "ethos status --json"}]}
     ).plan(node_ids=("status", "missing"))
 
     assert plan.ok is False
@@ -265,10 +267,10 @@ def test_plan_ir_from_workflow_contract_ignores_anonymous_selected_nodes() -> No
     plan = WorkflowContract.model_validate(
         {
             "node": [
-                {"kind": "control", "command": "ethos anonymous --json"},
+                {"kind": "check", "command": "ethos anonymous --json"},
                 {
                     "id": "status",
-                    "kind": "control",
+                    "kind": "check",
                     "command": "ethos status --json",
                     "produces": ["workspace_status"],
                 },
@@ -353,17 +355,17 @@ def test_workflow_contract_reports_invalid_transition_node_eval_and_evolution_ed
                 }
             ],
             "node": [
-                {"kind": "unknown", "enforcement": "unknown"},
-                {"id": "duplicate", "kind": "control", "enforcement": "guarded"},
-                {"id": "duplicate", "kind": "producer", "enforcement": "guarded"},
+                {"enforcement": "unknown"},
+                {"id": "duplicate", "kind": "check", "enforcement": "guarded"},
+                {"id": "duplicate", "kind": "decision", "enforcement": "guarded"},
                 {
-                    "id": "handoff-mismatch",
-                    "kind": "control",
+                    "id": "effect-advisory",
+                    "kind": "effect",
                     "enforcement": "handoff-guarded",
                 },
                 {
-                    "id": "advisory-guardrail",
-                    "kind": "guardrail",
+                    "id": "decision-advisory",
+                    "kind": "decision",
                     "enforcement": "advisory",
                 },
             ],
@@ -404,10 +406,9 @@ def test_workflow_contract_reports_invalid_transition_node_eval_and_evolution_ed
         "workflow_transition_invalid_state_unknown:0:other-unknown-state",
         "workflow_node_id_missing:0",
         "workflow_node_id_duplicate:duplicate",
-        "workflow_node_kind_unknown:0:unknown",
         "workflow_node_enforcement_unknown:0:unknown",
-        "workflow_node_handoff_enforcement_kind_mismatch:handoff-mismatch",
-        "workflow_guardrail_advisory:advisory-guardrail",
+        "workflow_effect_enforcement_invalid:effect-advisory",
+        "workflow_decision_advisory:decision-advisory",
         "workflow_eval_metric_unknown:unknown_metric",
         "workflow_eval_truth_boundary_invalid",
         "workflow_evolution_selection_policy_invalid",
@@ -452,13 +453,18 @@ def test_planned_transition_projection_skips_anonymous_nodes_and_self_requiremen
     projection = planned_transition_projection(
         {
             "node": [
-                {"produces": ["anonymous_fact"]},
+                {"kind": "check", "produces": ["anonymous_fact"]},
                 {
                     "id": "self-contained",
+                    "kind": "decision",
                     "requires": ["self_fact"],
                     "produces": ["self_fact"],
                 },
-                {"id": "consumer", "requires": ["self_fact", "external_fact"]},
+                {
+                    "id": "consumer",
+                    "kind": "effect",
+                    "requires": ["self_fact", "external_fact"],
+                },
             ]
         }
     )

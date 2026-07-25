@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-07-25
+goal: Reduce nondeterministic subprocess and Git contention in GitHub macOS
+  repository proof without weakening timeout observability or other providers.

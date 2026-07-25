@@ -49,6 +49,7 @@ Chronicle evidence, Python focused tests, and repository-family governance.
 ### Task 1: Freeze the exact source observation
 
 **Files:**
+
 - Runtime evidence: build/evidence/snapshot-replay-shadow-successor-absorption/
 
 - [x] Capture source HEAD, candidate HEAD, merge base, status-v2, dirty paths,
@@ -65,6 +66,7 @@ Chronicle evidence, Python focused tests, and repository-family governance.
 ### Task 2: Promote the semantic judgment
 
 **Files:**
+
 - Modify: docs/plans/README.md
 - Create: docs/plans/budget-contract-v2-snapshot-replay-shadow-successor-absorption-design-20260725.md
 - Create: docs/plans/budget-contract-v2-snapshot-replay-shadow-successor-absorption-implementation-plan-20260725.md

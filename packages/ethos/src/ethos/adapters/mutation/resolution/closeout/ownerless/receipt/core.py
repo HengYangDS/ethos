@@ -23,7 +23,9 @@ if TYPE_CHECKING:
     from pathlib import Path
     from typing import Literal
 
-    from ethos.adapters.mutation.resolution.closeout.admission import OwnerlessCloseoutAdmission
+    from ethos.adapters.mutation.resolution.closeout.ownerless.admission.core import (
+        OwnerlessCloseoutAdmission,
+    )
     from ethos_core.contracts.resolution.closeout import OwnerlessCloseoutReservation
 
 _OWNERLESS_RESERVATION_COMPETING = "lane_resolution_ownerless_reservation_competing"

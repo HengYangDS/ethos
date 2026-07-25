@@ -73,6 +73,116 @@ def test_declared_literal_git_is_allowed_through_aliases_and_args_keyword(
     assert _gaps(tmp_path, _declaration(relative)) == []
 
 
+@pytest.mark.parametrize(
+    "source",
+    [
+        "import os\nos.system('git status')\n",
+        "from os import system\nsystem('git status')\n",
+    ],
+)
+def test_os_shell_execution_apis_are_rejected(tmp_path: Path, source: str) -> None:
+    relative = "mandatory/effect.py"
+    _write(tmp_path, relative, source)
+
+    _assert_gap(
+        _gaps(tmp_path, _declaration(relative)),
+        "mandatory_executable_shell_true",
+        relative,
+    )
+
+
+def test_assigned_subprocess_execution_alias_is_audited(tmp_path: Path) -> None:
+    relative = "mandatory/effect.py"
+    _write(
+        tmp_path,
+        relative,
+        "import subprocess\ninvoke = subprocess.run\ninvoke(['tar', '--version'])\n",
+    )
+
+    gaps = _gaps(tmp_path, _declaration(relative))
+
+    _assert_gap(gaps, "mandatory_executable_undeclared", relative)
+    assert gaps[0].endswith(":tar")
+
+
+@pytest.mark.timeout(1)
+def test_reassigned_execution_alias_terminates_and_fails_closed(tmp_path: Path) -> None:
+    relative = "mandatory/effect.py"
+    _write(
+        tmp_path,
+        relative,
+        "import subprocess\n"
+        "invoke = subprocess.run\n"
+        "invoke = subprocess.Popen\n"
+        "invoke(['tar', '--version'])\n",
+    )
+
+    gaps = _gaps(tmp_path, _declaration(relative))
+
+    _assert_gap(gaps, "mandatory_executable_undeclared", relative)
+    assert gaps[0].endswith(":tar")
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "import subprocess\ninvoke = subprocess.run\ninvoke(['git', 'status'])\n",
+        "import asyncio\nasyncio.create_subprocess_exec('git', 'status')\n",
+    ],
+)
+def test_declared_literal_git_is_allowed_through_new_execution_boundaries(
+    tmp_path: Path, source: str
+) -> None:
+    relative = "mandatory/effect.py"
+    _write(tmp_path, relative, source)
+
+    assert _gaps(tmp_path, _declaration(relative)) == []
+
+
+def test_asyncio_exec_rejects_undeclared_executable(tmp_path: Path) -> None:
+    relative = "mandatory/effect.py"
+    _write(
+        tmp_path,
+        relative,
+        "import asyncio\nasyncio.create_subprocess_exec('tar', '--version')\n",
+    )
+
+    gaps = _gaps(tmp_path, _declaration(relative))
+
+    _assert_gap(gaps, "mandatory_executable_undeclared", relative)
+    assert gaps[0].endswith(":tar")
+
+
+def test_asyncio_exec_rejects_dynamic_argv_zero(tmp_path: Path) -> None:
+    relative = "mandatory/effect.py"
+    _write(
+        tmp_path,
+        relative,
+        "import asyncio\ncommand = 'git'\nasyncio.create_subprocess_exec(command, 'status')\n",
+    )
+
+    _assert_gap(
+        _gaps(tmp_path, _declaration(relative)),
+        "mandatory_executable_dynamic_argv0",
+        relative,
+    )
+
+
+def test_asyncio_shell_execution_is_rejected(tmp_path: Path) -> None:
+    relative = "mandatory/effect.py"
+    _write(
+        tmp_path,
+        relative,
+        "from asyncio import create_subprocess_shell as spawn\nspawn('git status')\n",
+    )
+
+    _assert_gap(
+        _gaps(tmp_path, _declaration(relative)),
+        "mandatory_executable_shell_true",
+        relative,
+    )
+
+
 def test_undeclared_literal_executable_is_rejected(tmp_path: Path) -> None:
     relative = "mandatory/effect.py"
     _write(tmp_path, relative, "import subprocess\nsubprocess.run(['tar', '--version'])\n")

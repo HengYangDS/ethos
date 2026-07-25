@@ -954,15 +954,28 @@ or the test split changes semantics instead of file ownership.
    git commit -S -m 'test(parity): refresh native lane resolution evidence'
    ```
 
-4. Update only checklist items proved by fresh evidence, then update Claim and
-   Chronicle digests. Commit and run exact-HEAD proof:
+4. Check only implementation tasks `2.x` through `10.x` and proof inputs
+   `11.1` through `11.2` that are backed by fresh evidence. Update the
+   Chronicle and active native Claim without claiming archive, land, accepted
+   closeout, or publication, then commit those evidence inputs.
+5. Execute the final exact-HEAD pre-archive proof and confirm the isolated
+   archive preflight on that proven HEAD:
 
    ```text
    tools/ci/scripts/run-ethos-lane.sh prove \
      --execute --expect-head "$(git rev-parse HEAD)" --json
+   tools/ci/scripts/run-ethos-lane.sh openspec \
+     --change native-lane-resolution-authority --lifecycle --json
    ```
 
-5. Officially archive and update the Claim carrier to the dated archive:
+6. In one evidence-only commit, record the proof HEAD/receipt and check the
+   rewritten `11.3`. Do not claim or attempt a second self-referential
+   pre-archive proof for that checklist-only commit. Immediately archive; if the
+   calendar date changed from 2026-07-25, first update scope to the actual dated
+   archive create path and rerun prewrite.
+7. Officially archive, read the actual archive path from JSON, migrate the native
+   Claim carrier to that dated path, keep the native Claim active, and mark the
+   predecessor Claim superseded in the same signed commit:
 
    ```text
    openspec archive native-lane-resolution-authority --yes --json
@@ -971,8 +984,8 @@ or the test split changes semantics instead of file ownership.
    git commit -S -m 'docs(openspec): archive native lane resolution authority'
    ```
 
-6. Because archive changed HEAD, rerun Claim validation, the zero-residue scan,
-   report, and exact-HEAD proof:
+8. Because archive and carrier migration changed HEAD, rerun Claim validation,
+   the zero-residue scan, report, and exact-HEAD proof:
 
    ```text
    tools/ci/scripts/run-ethos-lane.sh quality claims --json
@@ -982,8 +995,8 @@ or the test split changes semantics instead of file ownership.
    ```
 
 **Stop conditions:** HEAD moves inside a gate bundle, parity remains pending,
-archive validation fails, proof is dry-run only, or proof is bound to a pre-
-archive HEAD.
+the checklist claims archive/post-archive work, archive validation fails, proof
+is dry-run only, or archive proof is bound to a pre-archive HEAD.
 
 ## Task 13: Final refresh, land, accepted closeout, publish readiness, housekeeping
 
@@ -1006,14 +1019,21 @@ archive HEAD.
      --apply --authorize --expect-head "$(git rev-parse HEAD)" --json
    ```
 
-3. From `<accepted-root>`, run accepted-root closeout as a distinct
-   audited transition after candidate/accepted facts are current:
+3. From `<accepted-root>`, run accepted-root closeout dry-run as a distinct
+   audited transition after candidate/accepted facts are current. When control
+   paths changed, ETHOS MUST defer with
+   `incumbent_or_bootstrap_verifier_required`; obtain a candidate-external
+   one-shot control-replacement verifier receipt and supply its absolute path.
+   The product repository does not mint that external receipt:
 
    ```text
    cd <accepted-root>
    tools/ci/scripts/run-ethos-lane.sh status --json
    tools/ci/scripts/run-ethos-lane.sh land \
-     --closeout --apply --authorize --expect-head "$(git rev-parse HEAD)" --json
+     --closeout --control-verifier-receipt <absolute-path> --json
+   tools/ci/scripts/run-ethos-lane.sh land \
+     --closeout --control-verifier-receipt <absolute-path> \
+     --apply --authorize --expect-head "$(git rev-parse HEAD)" --json
    ```
 
 4. Report local publication readiness only:
@@ -1025,8 +1045,11 @@ archive HEAD.
    Do not run `git push`.
 
 5. Re-observe live ownership and absorption before each retirement. Retire the
-   landed successor and these task-owned predecessor mistake lanes only when the
-   native command proves exact absorption:
+   landed successor through holder-bound landed retirement. The three clean,
+   missing-lease predecessor mistake lanes below are currently diverged and do
+   not have exact absorption; they require one-at-a-time Chronicle-bound
+   `preserve-retire` decisions after accepted truth contains the exact targets,
+   heads, reasons, and recovery boundary:
 
    ```text
    work/20260724-native-lane-resolution-authority-successor
@@ -1037,18 +1060,13 @@ archive HEAD.
    work/20260723-legacy-lane-resolution-record-freeze-capability
    ```
 
-   Capture exact heads before removal and retire each admitted branch explicitly:
+   Retire the successor only after a fresh preview proves it is landed:
 
    ```text
-   for branch in \
-     work/20260724-native-lane-resolution-authority-successor \
-     work/20260724-native-lane-resolution-authority \
-     work/20260723-legacy-lane-resolution-record-freeze-capability
-   do
-     head="$(git rev-parse --verify "$branch")"
-     tools/ci/scripts/run-ethos-lane.sh lane retire landed \
-       --branch "$branch" --expect-head "$head" --apply --json
-   done
+   branch=work/20260724-native-lane-resolution-authority-successor
+   head="$(git rev-parse --verify "$branch")"
+   tools/ci/scripts/run-ethos-lane.sh lane retire landed \
+     --branch "$branch" --expect-head "$head" --apply --json
 
    predecessor_branch="$(
      git for-each-ref --format='%(refname:short)' refs/heads/work/ |
@@ -1063,15 +1081,15 @@ archive HEAD.
    test "$(printf '%s\n' "$predecessor_branch" | wc -l | tr -d ' ')" = 1
    head="$(git rev-parse --verify "$predecessor_branch")"
    test "$head" = c3075ebc6cd581212e2c2ff138fbd2c4e7df9cc8
-   tools/ci/scripts/run-ethos-lane.sh lane retire landed \
-     --branch "$predecessor_branch" --expect-head "$head" --apply --json
    ```
 
-   Run each transition one branch at a time after a fresh
-   `lane status --json`; stop on the first branch whose native preview does
-   not prove absorption. If absorption is not provable, create and apply a Chronicle-bound
-   `preserve-retire` decision through `ethos lane resolution`; do not invent a
-   supersession relationship.
+   Run `lane status --json` and resolution inventory before every predecessor.
+   For each exact branch/HEAD, create and apply a Chronicle-bound
+   `preserve-retire` decision through `ethos lane resolution` with required
+   break-glass and irreversible confirmation. Stop on any active lease/Claim,
+   dirt, stale observation, invalid/pending/partial state, or changed HEAD. Do
+   not route these diverged predecessors through `lane retire landed`, and do
+   not invent a supersession or absorption relationship.
 
 6. Remove only task-created review packets, scratch files, `__pycache__`, pytest
    caches, and temporary proof output. Leave foreign lanes, `.venv`, historical

@@ -91,25 +91,22 @@ def digest_untracked_inventory(*, source: Path, inventory: bytes) -> str:
     if not members:
         return hashlib.sha256(b"").hexdigest()
     digest = hashlib.sha256(inventory)
-    try:
-        with _bound_source(source) as (root_descriptor, root_identity):
-            for raw_name in members:
-                with _capture_member(
-                    source=source,
-                    root_descriptor=root_descriptor,
-                    root_identity=root_identity,
-                    relative=_relative_member(raw_name),
-                ) as (info, payload):
-                    digest.update(info.type)
-                    if payload is None:
-                        target = os.fsencode(info.linkname)
-                        digest.update(len(target).to_bytes(8, "big") + target)
-                    else:
-                        digest.update(info.size.to_bytes(8, "big"))
-                        while chunk := payload.read(_READ_SIZE):
-                            digest.update(chunk)
-    except OSError as error:
-        raise ValueError(_MEMBER_UNVERIFIABLE) from error
+    with _bound_source(source) as (root_descriptor, root_identity):
+        for raw_name in members:
+            with _capture_member(
+                source=source,
+                root_descriptor=root_descriptor,
+                root_identity=root_identity,
+                relative=_relative_member(raw_name),
+            ) as (info, payload):
+                digest.update(info.type)
+                if payload is None:
+                    target = os.fsencode(info.linkname)
+                    digest.update(len(target).to_bytes(8, "big") + target)
+                else:
+                    digest.update(info.size.to_bytes(8, "big"))
+                    while chunk := payload.read(_READ_SIZE):
+                        digest.update(chunk)
     return digest.hexdigest()
 
 

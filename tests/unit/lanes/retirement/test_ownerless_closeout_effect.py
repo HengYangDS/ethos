@@ -9,9 +9,9 @@ from typing import TYPE_CHECKING
 import pytest
 
 import ethos.adapters.mutation.resolution._effects as closeout_git
-import ethos.adapters.mutation.resolution.closeout.admission as closeout_admission
 import ethos.adapters.mutation.resolution.closeout.effect as effect
-import ethos.adapters.mutation.resolution.closeout.receipt as closeout_receipt
+import ethos.adapters.mutation.resolution.closeout.ownerless.admission.core as closeout_admission
+import ethos.adapters.mutation.resolution.closeout.ownerless.receipt.core as closeout_receipt
 import ethos.adapters.mutation.resolution.records.reservations as reservations
 from ethos.adapters.mutation.resolution.observation import observe_ownerless_git
 from ethos.adapters.mutation.resolution.records.core import canonical_current_record_bytes
@@ -140,10 +140,46 @@ def test_ownerless_ref_probe_has_explicit_three_state_contract(
     ("response", "expected"),
     [
         (
-            subprocess.CompletedProcess([], 0, "worktree /other\nworktree /target\n", ""),
+            subprocess.CompletedProcess(
+                [],
+                0,
+                "worktree /other\0HEAD "
+                + "a" * 40
+                + "\0branch refs/heads/dev\0\0worktree /target\0HEAD "
+                + "b" * 40
+                + "\0branch refs/heads/work/orphan\0\0",
+                "",
+            ),
             "present",
         ),
-        (subprocess.CompletedProcess([], 0, "worktree /other\n", ""), "absent"),
+        (
+            subprocess.CompletedProcess(
+                [],
+                0,
+                "worktree /other\0HEAD " + "a" * 40 + "\0branch refs/heads/dev\0\0",
+                "",
+            ),
+            "absent",
+        ),
+        (subprocess.CompletedProcess([], 0, "worktree /other\0\0", ""), "unverifiable"),
+        (
+            subprocess.CompletedProcess(
+                [],
+                0,
+                2 * ("worktree /other\0HEAD " + "a" * 40 + "\0branch refs/heads/dev\0\0"),
+                "",
+            ),
+            "unverifiable",
+        ),
+        (
+            subprocess.CompletedProcess(
+                [],
+                0,
+                "worktree /other\0HEAD " + "a" * 40 + "\0branch refs/heads/dev\0\0",
+                "warning",
+            ),
+            "unverifiable",
+        ),
         (subprocess.CompletedProcess([], 128, "", "fatal"), "unverifiable"),
         (OSError("registration probe failed"), "unverifiable"),
         (subprocess.SubprocessError("registration probe failed"), "unverifiable"),
@@ -166,7 +202,7 @@ def test_ownerless_registration_probe_has_explicit_three_state_contract(
     monkeypatch.setattr(closeout_git, "run_git", run)
 
     assert closeout_git.probe_ownerless_worktree_registration(tmp_path, "/target") == expected
-    assert calls == [(("worktree", "list", "--porcelain"), {"check": False})]
+    assert calls == [(("worktree", "list", "--porcelain", "-z"), {"check": False})]
 
 
 def test_fresh_fence_acquisition_failure_blocks_before_reservation_or_effect(

@@ -33,6 +33,9 @@ if TYPE_CHECKING:
 
 
 _OWNERLESS_ACCEPTED_HEAD_STALE = "lane_resolution_ownerless_accepted_head_stale"
+_WORKTREE_VALUE_FIELDS = {"worktree", "HEAD", "branch"}
+_WORKTREE_MARKER_FIELDS = {"detached", "bare"}
+_WORKTREE_OPTIONAL_VALUE_FIELDS = {"locked", "prunable"}
 
 
 class OwnerlessCloseoutError(ValueError):
@@ -142,12 +145,64 @@ def probe_ownerless_ref(root: Path, branch: str) -> tuple[str, str]:
 def probe_ownerless_worktree_registration(root: Path, path: str) -> str:
     """Return present, absent, or unverifiable for one exact registration."""
     try:
-        result = run_git(root, "worktree", "list", "--porcelain", check=False)
+        result = run_git(root, "worktree", "list", "--porcelain", "-z", check=False)
     except (OSError, subprocess.SubprocessError):
         return "unverifiable"
-    if result.returncode:
+    if result.returncode or result.stderr or not isinstance(result.stdout, str):
         return "unverifiable"
-    return "present" if f"worktree {path}" in result.stdout.splitlines() else "absent"
+    records = _strict_worktree_records(result.stdout)
+    if records is None or not _absolute_worktree_path(path):
+        return "unverifiable"
+    return "present" if any(record["worktree"] == path for record in records) else "absent"
+
+
+def _strict_worktree_records(output: str) -> tuple[dict[str, str], ...] | None:
+    if not output or not output.endswith("\0\0"):
+        return None
+    records: list[dict[str, str]] = []
+    paths: set[str] = set()
+    allowed = _WORKTREE_VALUE_FIELDS | _WORKTREE_MARKER_FIELDS | _WORKTREE_OPTIONAL_VALUE_FIELDS
+    for raw_record in output[:-2].split("\0\0"):
+        fields = raw_record.split("\0")
+        if not fields or any(not field for field in fields):
+            return None
+        record: dict[str, str] = {}
+        for field in fields:
+            key, separator, value = field.partition(" ")
+            if key not in allowed or key in record:
+                return None
+            if key in _WORKTREE_VALUE_FIELDS and (not separator or not value):
+                return None
+            if key in _WORKTREE_MARKER_FIELDS and separator:
+                return None
+            record[key] = value
+        raw_path = record.get("worktree", "")
+        head = record.get("HEAD", "")
+        branch = record.get("branch", "")
+        registration_kinds = int(bool(branch)) + int("detached" in record) + int("bare" in record)
+        if (
+            not _absolute_worktree_path(raw_path)
+            or raw_path in paths
+            or not _valid_oid(head)
+            or registration_kinds != 1
+            or (
+                branch
+                and (not branch.startswith("refs/heads/") or not branch.removeprefix("refs/heads/"))
+            )
+        ):
+            return None
+        paths.add(raw_path)
+        records.append(record)
+    return tuple(records)
+
+
+def _absolute_worktree_path(raw: str) -> bool:
+    path = Path(raw)
+    return bool(raw) and path.is_absolute() and ".." not in path.parts
+
+
+def _valid_oid(value: str) -> bool:
+    return len(value) in {40, 64} and set(value) <= set("0123456789abcdef")
 
 
 def probe_ownerless_path(path: str) -> str:

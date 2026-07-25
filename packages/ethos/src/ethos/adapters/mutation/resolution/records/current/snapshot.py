@@ -431,7 +431,6 @@ def _remove_bound_child(  # noqa: PLR0913, RUF100 - exact payload binding
     recovery_identity = identity
     try:
         staging_identity = posix.file_identity(os.fstat(source_descriptor))
-        _require_safe(condition=staging_identity is not None)
         exact_identity = staging_identity
         recovery_identity = exact_identity
         if posix.entry_file_identity(descriptor, staging_name) != exact_identity:

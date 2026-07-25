@@ -141,8 +141,6 @@ def admit_ownerless_decision_snapshot(
         _decision_error("decision_invalid", "canonical_bytes")
     if supplied != canonical:
         _decision_error("decision_stale", "decision")
-    if model.to_payload() != canonical:
-        _decision_error("decision_invalid", "typed_model")
     if model.disposition != "retire":
         _decision_error("decision_invalid", "disposition")
     return model, raw

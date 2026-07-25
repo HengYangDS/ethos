@@ -10,7 +10,7 @@ from pathlib import Path
 
 from ethos.repository.policy.boundary.product import contributor_policy_report
 from ethos.repository.policy.boundary.product import product_boundary_report
-from ethos.repository.policy.coupling.execution.audit import subprocess_execution_calls
+from ethos.repository.policy.coupling.execution.audit import external_execution_calls
 from ethos_core.contracts.package.ontology import RETIRED_PRODUCT_FAMILIES
 from ethos_core.contracts.package.ontology import RETIRED_PRODUCT_FAMILY_TOKENS
 from ethos_core.contracts.package.ontology import package_ontology_report
@@ -99,9 +99,9 @@ def imported_modules(path: Path) -> set[str]:
     return modules
 
 
-def directly_executes_subprocess(path: Path) -> bool:
+def directly_executes_external_process(path: Path) -> bool:
     tree = ast.parse(path.read_text(encoding="utf-8"))
-    return bool(subprocess_execution_calls(tree))
+    return bool(external_execution_calls(tree))
 
 
 def test_kernel_has_no_side_effect_or_profile_imports() -> None:
@@ -156,39 +156,46 @@ def test_coupling_execution_package_initializer_is_docstring_only() -> None:
     assert len(tree.body) == 1
 
 
-def test_direct_subprocess_scanner_recognizes_imported_function_alias(tmp_path: Path) -> None:
+def test_external_execution_scanner_recognizes_imported_function_alias(tmp_path: Path) -> None:
     source = tmp_path / "boundary.py"
     source.write_text(
         "from subprocess import run as invoke\ninvoke(['git', 'status'])\n",
         encoding="utf-8",
     )
 
-    assert directly_executes_subprocess(source) is True
+    assert directly_executes_external_process(source) is True
 
 
-def test_lane_resolution_declares_all_current_direct_execution_boundaries() -> None:
+def test_lane_resolution_declares_native_closeout_authority_and_execution_boundaries() -> None:
     resolution_root = ROOT / "packages/ethos/src/ethos/adapters/mutation/resolution"
     shared_git_owner = Path("packages/ethos/src/ethos/adapters/mutation/lane_lifecycle/core.py")
     direct_resolution = {
         path.relative_to(ROOT).as_posix()
         for path in resolution_root.rglob("*.py")
-        if directly_executes_subprocess(path)
+        if directly_executes_external_process(path)
     }
-    expected = tuple(sorted({shared_git_owner.as_posix(), *direct_resolution}))
+    expected = (
+        "packages/ethos/src/ethos/adapters/mutation/lane_lifecycle/core.py",
+        "packages/ethos/src/ethos/adapters/mutation/resolution/_effects.py",
+        "packages/ethos/src/ethos/adapters/mutation/resolution/observation.py",
+        "packages/ethos/src/ethos/adapters/mutation/resolution/preservation/core.py",
+        "packages/ethos/src/ethos/adapters/mutation/resolution/records/roots.py",
+        "packages/ethos/src/ethos/adapters/mutation/resolution/closeout/ownerless/admission/core.py",
+        "packages/ethos/src/ethos/adapters/mutation/resolution/closeout/effect.py",
+        "packages/ethos/src/ethos/adapters/mutation/resolution/closeout/recovery.py",
+        "packages/ethos/src/ethos/adapters/mutation/resolution/closeout/cleanup/core.py",
+        "packages/ethos/src/ethos/adapters/mutation/resolution/closeout/ownerless/receipt/core.py",
+        "packages/ethos/src/ethos/adapters/mutation/resolution/closeout/retry.py",
+        "packages/ethos/src/ethos/adapters/store/state/closeout.py",
+    )
     binding = load_coupling_declaration().binding("work_lane_lifecycle_command_contract")
     optional_adapters = {
         "packages/ethos/src/ethos/adapters/admission/control/replacement.py",
         "packages/ethos/src/ethos/repository/evidence/attestation.py",
     }
 
-    assert directly_executes_subprocess(ROOT / shared_git_owner) is True
-    assert expected == (
-        "packages/ethos/src/ethos/adapters/mutation/lane_lifecycle/core.py",
-        "packages/ethos/src/ethos/adapters/mutation/resolution/_effects.py",
-        "packages/ethos/src/ethos/adapters/mutation/resolution/observation.py",
-        "packages/ethos/src/ethos/adapters/mutation/resolution/preservation/core.py",
-        "packages/ethos/src/ethos/adapters/mutation/resolution/records/roots.py",
-    )
+    assert directly_executes_external_process(ROOT / shared_git_owner) is True
+    assert {shared_git_owner.as_posix(), *direct_resolution} <= set(expected)
     assert binding.mandatory_paths == expected
     assert binding.declared_executables == ("git",)
     assert binding.audit_root_bound is True

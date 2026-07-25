@@ -706,6 +706,63 @@ def test_completed_recovery_rejects_chronicle_drift_before_receipt_write_or_clea
     assert get_closeout_fence(state_database(repo), subject="work/orphan") is not None
 
 
+@pytest.mark.parametrize(
+    ("replacement_point", "receipt_state"),
+    [("before_receipt", "absent"), ("before_cleanup", "present")],
+)
+def test_completed_recovery_keeps_resources_when_exact_decision_path_is_replaced(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    replacement_point: str,
+    receipt_state: str,
+) -> None:
+    repo, decision_path, _decision, ownerless_reservation, receipt = _setup(tmp_path, monkeypatch)
+    real_write = recovery_adapter.write_resolution_receipt
+    monkeypatch.setattr(
+        recovery_adapter,
+        "write_resolution_receipt",
+        lambda **_kwargs: (_ for _ in ()).throw(OSError("receipt write interrupted")),
+    )
+    first = _apply(repo, decision_path)
+    assert first["required_gaps"] == ["lane_resolution_receipt_write_failed_after_effect"]
+    original = decision_path.read_bytes()
+    monkeypatch.setattr(recovery_adapter, "write_resolution_receipt", real_write)
+
+    def replace_decision() -> None:
+        replacement = decision_path.with_name("replacement.json")
+        replacement.write_bytes(original)
+        replacement.replace(decision_path)
+
+    if replacement_point == "before_receipt":
+        real_prepare = recovery_adapter._prepare_resolution
+
+        def prepare_then_replace(**kwargs: Any):
+            prepared = real_prepare(**kwargs)
+            replace_decision()
+            return prepared
+
+        monkeypatch.setattr(recovery_adapter, "_prepare_resolution", prepare_then_replace)
+    else:
+
+        def write_then_replace(**kwargs: Any) -> str:
+            written = real_write(**kwargs)
+            replace_decision()
+            return written
+
+        monkeypatch.setattr(recovery_adapter, "write_resolution_receipt", write_then_replace)
+
+    blocked = _apply(repo, decision_path)
+
+    assert (blocked["ok"], blocked["state"], blocked["required_gaps"]) == (
+        False,
+        "partial_transition",
+        ["lane_resolution_ownerless_decision_stale"],
+    )
+    assert receipt.exists() is (receipt_state == "present")
+    assert ownerless_reservation.is_file()
+    assert get_closeout_fence(state_database(repo), subject="work/orphan") is not None
+
+
 def test_current_chronicle_match_rejects_fifo_without_blocking(tmp_path: Path) -> None:
     root = tmp_path / "repo"
     chronicle = root / "evidence/chronicle/fifo.md"

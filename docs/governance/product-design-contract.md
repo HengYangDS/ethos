@@ -232,6 +232,13 @@ source and cannot override it.
 Folders and packages follow the kernel chain. Package names do not create
 separate truth centers.
 
+Logical and physical architecture are isomorphic. Every active module represents
+one narrow concept, one authoritative owner, and one primary reason to change.
+Generic catch-all modules, mixed command registries, and coincidence-based shared
+helpers are rejected unless a closed machine contract proves a genuine kernel or
+report-aggregation role. Remediation absorbs, precisely renames, semantically
+splits, or deletes the owner; it never preserves the old path as a facade.
+
 ### Creative change with net gain
 
 ETHOS does not preserve inherited shape for its own sake. Creative, destructive,

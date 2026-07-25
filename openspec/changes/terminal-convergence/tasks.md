@@ -37,6 +37,9 @@
 - [ ] 4.4 Add bounded mutmut gates for critical pure reducers and advisory AST-aware duplicate investigation.
 - [ ] 4.5 Add Aqua-managed CI binaries, Syft SPDX SBOM, in-toto DSSE/SLSA provenance, bump-my-version, and bounded act replay.
 - [ ] 4.6 Enforce Python ELOC <=54,000, global owned-source ELOC <=68,000, payload caps, and no hard-gap green verdict.
+- [ ] 4.7 Enforce semantic/physical isomorphism: eliminate ambiguous modules,
+  make command declarations singular, and block concept, authority, public-symbol,
+  import-root, and role-size drift without compatibility facades.
 
 ## 5. Product Homomorphism
 

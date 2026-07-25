@@ -12,7 +12,7 @@ Status: approved for implementation after successor-lane baseline convergence.
 
 Purpose: define the self-contained ETHOS authority, observation, record, effect,
 recovery, coupling, proof, and closeout boundaries for Work Lane resolution while
-removing the unrelated workstation control plane from current product truth.
+removing an unrelated provider from current product truth.
 
 See also: [Implementation Plan](native-lane-resolution-authority-implementation-plan-20260724.md),
 [Product Design Contract](../governance/product-design-contract.md), and
@@ -40,11 +40,12 @@ exact decision and Chronicle snapshot
 -> reservation removal
 ```
 
-WCP is not an ETHOS subsystem, dependency, adapter, authority source, runtime
-requirement, or compatibility boundary. The final current tracked tree contains
-no WCP token, path, response field, test fixture, Claim wording, Chronicle
-wording, or archived OpenSpec wording. Git history and ignored or external local
-records are evidence history and are not rewritten.
+No out-of-process admission provider is an ETHOS subsystem, dependency, adapter,
+authority source, runtime requirement, or compatibility boundary. The final
+current tracked tree contains no retired-provider identity, executable call,
+adapter path, response field, fixture, or active guidance. Historical carriers
+retain only provider-neutral semantics; Git history and ignored or external
+local records are not rewritten.
 
 ## Baseline convergence and successor authority
 
@@ -314,7 +315,7 @@ A declaration-driven AST audit scans only those mandatory paths and blocks:
 
 Optional semantic-attestation, control-replacement, release-profile, and policy
 adapters remain outside this mandatory-path audit unless separately declared.
-The audit is generic; no permanent WCP-name blacklist, source constant, or
+The audit is generic; no permanent provider-name blacklist, source constant, or
 special-case rule is added.
 
 ## Module and quality boundaries

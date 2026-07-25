@@ -1,5 +1,5 @@
 schema: spec-driven
 created: 2026-07-22
 goal: Close the ownerless retirement time-of-check/time-of-effect gap with an
-  effect-side target fence, exact WCP bindings, compare-and-swap effects, and
-  recoverable completion evidence.
+  effect-side target fence, exact retired external-verifier bindings,
+  compare-and-swap effects, and recoverable completion evidence.

@@ -1,6 +1,7 @@
 ## Context
 
-WCP worktree-closeout-check is a read-only verifier. Its result binds one lane
+The retired external-verifier worktree-closeout check is read-only. Its result
+binds one lane
 branch, head, path, decision, executor, accepted control head, missing
 lease/Claim projection, clear path occupancy, and accepted-ancestor relation.
 ETHOS owns the destructive effect and therefore must consume that admission at
@@ -19,12 +20,14 @@ Three different coordination artifacts must not be conflated:
 
 Use a two-owner protocol:
 
-1. WCP recomputes and returns exact read-only admission bindings.
+1. The retired external verifier recomputes and returns exact read-only
+   admission bindings.
 2. ETHOS reads and strictly parses one decision-file snapshot. The canonical
    payload from those bytes must equal the already admitted decision object;
-   all WCP, fence, reservation, and receipt fields derive from that single
-   snapshot.
-3. ETHOS validates the whole WCP response, then performs a SQLite
+   all external-verifier, fence, reservation, and receipt fields derive from
+   that single snapshot.
+3. ETHOS validates the complete external-verifier response, then performs a
+   SQLite
    BEGIN IMMEDIATE target-fence acquisition that atomically verifies no lease
    exists and reserves the lane/head for one decision and executor.
 4. ETHOS re-reads decision bytes, accepted head, lane observation, lease/Claim
@@ -50,12 +53,14 @@ Use a two-owner protocol:
    re-reads one canonical decision snapshot, and re-verifies all effect
    postconditions. Explicit fence absence is accepted only when the exact
    immutable receipt authorizes cleanup; an unverifiable or different fence
-   blocks. Recovery performs no WCP or Git effect and never rewrites the receipt.
+   blocks. Recovery invokes neither the retired external verifier nor a Git
+   effect and never rewrites the receipt.
 10. Receipt-first cleanup remains convergent when reservation unlink completed
     before a crash. The exact receipt supplies only the cleanup binding; it does
     not recreate effect authority or permit a new destructive transition.
 
-The WCP wire contract is the shape currently published by WCP main@5137759:
+The retired external-verifier wire contract is the shape published by the
+verifier main branch at `5137759`:
 the coordination object contains exactly lease_state, claim_binding, claim_id,
 and binding_digest. ETHOS validates every field and rejects unpublished
 additions such as lease_id, holder_ref, or a nested lease object rather than
@@ -77,8 +82,8 @@ invalid.
 ## Recovery states
 
 - reserved_no_effect: the target and decision still match and ref,
-  registration, and path are all unchanged; the same decision may recompute WCP
-  admission and continue.
+  registration, and path are all unchanged; the same decision may recompute
+  external-verifier admission and continue.
 - effect_complete_receipt_missing: exact postconditions hold; before ordinary
   lane observation, the same decision may write the pre-bound receipt. If that
   receipt is already durable, retry validates it and performs cleanup only,
@@ -95,8 +100,8 @@ it is never silently downgraded to no effect.
 
 ## Module boundaries
 
-- resolution/closeout/wcp/core.py: bounded read-only WCP process and response
-  contract.
+- the retired external-verifier adapter: bounded read-only process and
+  response contract, removed from current source.
 - resolution/closeout/effect.py: ownerless target reservation, fence-aware
   effect orchestration, and postcondition validation over one canonical
   decision snapshot.
@@ -110,8 +115,8 @@ it is never silently downgraded to no effect.
   inspection.
 - receipts.py owns strict canonical decision parsing plus immutable receipt
   validation while retaining its pre-existing receipt and inventory entrypoints.
-  _effects.py remains the concrete Git/worktree/WCP/state adapter and
-  compatibility seam; lane.py keeps the pre-existing plan/apply entrypoints.
+  `_effects.py` remains the concrete Git/worktree/external-verifier/state
+  adapter and compatibility seam; lane.py keeps the pre-existing plan/apply entrypoints.
   This is a current dependency boundary, not a claim that newly added ownerless
   helpers were historical public APIs. Package __init__.py files remain
   declaration-only.
@@ -132,7 +137,7 @@ proof-harness isolation contract, not a product-routing semantic.
 | --- | --- |
 | Asset | Exact worktree path and work/* ref at one HEAD |
 | Actor | Explicit executor ref; never promoted to owner |
-| External verifier | WCP source/host adapter at the deployed contract |
+| External verifier | Retired source/host adapter at the deployed contract |
 | Local exclusion | Git-common-directory SQLite target fence |
 | Git effect | Accepted-ref verify plus exact target-ref delete CAS |
 | Decision | One strictly parsed file snapshot used by every later binding |
@@ -141,8 +146,8 @@ proof-harness isolation contract, not a product-routing semantic.
 
 The fence is local coordination, not distributed consensus. Safety comes from
 atomic competition with the lease writer, full response validation, Git CAS,
-post-effect verification, and visible crash recovery. WCP unavailability,
-malformed output, field drift, active lease/Claim, dirty state, occupancy,
+post-effect verification, and visible crash recovery. Retired-verifier
+unavailability, malformed output, field drift, active lease/Claim, dirty state, occupancy,
 unverifiable ref or fence state, decision replacement, reservation drift,
 postcondition drift, or receipt mismatch fails closed.
 

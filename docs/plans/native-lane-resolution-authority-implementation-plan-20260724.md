@@ -24,8 +24,9 @@ See also: [Design](native-lane-resolution-authority-design-20260724.md),
 > a signed commit plus an independent Important/Critical review gate.
 
 **Goal:** Make ETHOS the sole owner of Work Lane observation, admission, records,
-effect, retry, recovery, and cleanup; remove WCP from current tracked product
-truth without rewriting history or local predecessor records.
+effect, retry, recovery, and cleanup; remove retired-provider authority residue
+from current tracked product truth without rewriting history or local predecessor
+records.
 
 **Architecture:** Continue from a successor Work Lane based on current
 `candidate/dev`. Replay old-lane work by semantic slice, never by bulk production
@@ -206,7 +207,7 @@ historical_record_roots(root: Path) -> tuple[Path, ...]
    ```
 
 **Review boundary:** contract/schema/root shape only; no inventory, reservation
-persistence, effect, or WCP deletion in this commit.
+persistence, effect, or retired-provider cleanup in this commit.
 
 ## Task 3: Replay strict current records, inventory, clear, and reservations
 
@@ -609,8 +610,8 @@ or mutable/callable admission state.
 - Modify: `packages/ethos/src/ethos/adapters/mutation/resolution/lane.py`
 - Modify: `packages/ethos/src/ethos/adapters/mutation/resolution/receipts.py`
 - Modify: `packages/ethos/src/ethos/adapters/store/state/closeout.py`
-- Delete: `packages/ethos/src/ethos/adapters/mutation/resolution/closeout/wcp/`
-- Delete: `tests/unit/lanes/retirement/test_ownerless_closeout_wcp_edges.py`
+- Delete the retired external-verifier adapter package under ownerless closeout.
+- Delete the retired provider-response edge test.
 - Modify all ownerless effect/retry/recovery/cleanup tests under
   `tests/unit/lanes/retirement/` and final-edge tests under `tests/unit/coverage/`
 
@@ -743,7 +744,7 @@ mandatory_executable_gaps(
 **Stop conditions:** whole-repository overreach, optional-adapter false positives,
 dynamic executable acceptance, shell acceptance, or provider-specific blacklist.
 
-## Task 10: Converge current tracked truth to zero WCP residue
+## Task 10: Converge current tracked truth to zero retired-provider residue
 
 **OpenSpec alignment:** section 9.
 
@@ -752,12 +753,44 @@ source, tests, schemas, canonical specs, command reference, active plans,
 Claims, Chronicle, and archived OpenSpec carriers. Git history and local records
 are excluded.
 
-1. Capture the live tracked set:
+1. Build the complete provider-identity inventory in an ignored task-local file.
+   Include the acronym, expanded names, wire/schema identity, executable command,
+   adapter path, response fields, and retired test/path identities. Never persist
+   the inventory values in tracked source. Fail closed when the inventory path is
+   missing, empty, contains a sentinel, or contains a blank entry:
 
    ```text
-   retired_token="$(printf '%s%s' w cp)"
-   git grep -l -I -i "$retired_token" -- . | sort
-   git ls-files | rg -i "$retired_token" | sort
+   set -euo pipefail
+   : "${RETIRED_PROVIDER_IDENTITIES_FILE:?set ignored inventory path}"
+   test -s "$RETIRED_PROVIDER_IDENTITIES_FILE"
+
+   allow_match_or_no_match() {
+     if "$@"; then
+       rc=0
+     else
+       rc=$?
+     fi
+     case "$rc" in
+       0|1) return 0 ;;
+       *) return "$rc" ;;
+     esac
+   }
+
+   if rg -n '(^[[:space:]]*$|task-local|placeholder|sentinel)' \
+     "$RETIRED_PROVIDER_IDENTITIES_FILE"; then
+     inventory_guard_rc=0
+   else
+     inventory_guard_rc=$?
+   fi
+   test "$inventory_guard_rc" -eq 1
+   tracked_paths="$(mktemp)"
+   trap 'rm -f "$tracked_paths"' EXIT
+   git ls-files > "$tracked_paths"
+   while IFS= read -r identity; do
+     test -n "$identity"
+     allow_match_or_no_match git grep -l -I -i -F -- "$identity" .
+     allow_match_or_no_match rg -i -F -- "$identity" "$tracked_paths"
+   done < "$RETIRED_PROVIDER_IDENTITIES_FILE"
    ```
 
 2. Delete the retired adapter package and provider-response test. Replace every
@@ -774,12 +807,44 @@ are excluded.
    openspec validate native-lane-resolution-authority --strict --json
    ```
 
-5. Prove zero current tracked residue:
+5. Prove zero current tracked residue for every frozen identity and require both
+   tracked-content and tracked-filename scans to remain empty:
 
    ```text
-   retired_token="$(printf '%s%s' w cp)"
-   test -z "$(git grep -n -I -i "$retired_token" -- . || true)"
-   test -z "$(git ls-files | rg -i "$retired_token" || true)"
+   set -euo pipefail
+   : "${RETIRED_PROVIDER_IDENTITIES_FILE:?set ignored inventory path}"
+   test -s "$RETIRED_PROVIDER_IDENTITIES_FILE"
+
+   require_no_match() {
+     output="$1"
+     shift
+     if "$@" > "$output" 2>&1; then
+       rc=0
+     else
+       rc=$?
+     fi
+     case "$rc" in
+       1) return 0 ;;
+       0) cat "$output" >&2; return 1 ;;
+       *) cat "$output" >&2; return "$rc" ;;
+     esac
+   }
+
+   scan_dir="$(mktemp -d)"
+   trap 'rm -rf "$scan_dir"' EXIT
+   require_no_match "$scan_dir/inventory-guard" \
+     rg -n '(^[[:space:]]*$|task-local|placeholder|sentinel)' \
+     "$RETIRED_PROVIDER_IDENTITIES_FILE"
+   git ls-files > "$scan_dir/tracked-paths"
+   ordinal=0
+   while IFS= read -r identity; do
+     test -n "$identity"
+     ordinal=$((ordinal + 1))
+     require_no_match "$scan_dir/content-$ordinal" \
+       git grep -n -I -i -F -- "$identity" .
+     require_no_match "$scan_dir/filename-$ordinal" \
+       rg -n -i -F -- "$identity" "$scan_dir/tracked-paths"
+   done < "$RETIRED_PROVIDER_IDENTITIES_FILE"
    ```
 
 6. Commit:
@@ -966,7 +1031,9 @@ archive HEAD.
    ```text
    work/20260724-native-lane-resolution-authority-successor
    work/20260724-native-lane-resolution-authority
-   work/20260723-native-worktree-authority-wcp-zero-coupling
+   task-owned retired-provider predecessor at head
+     c3075ebc6cd581212e2c2ff138fbd2c4e7df9cc8, identified by branch-ref
+     SHA-256 dda7e65c0339a066f31c46ddecdb103b254a71061d730d8c71b9b08d2f613911
    work/20260723-legacy-lane-resolution-record-freeze-capability
    ```
 
@@ -976,18 +1043,33 @@ archive HEAD.
    for branch in \
      work/20260724-native-lane-resolution-authority-successor \
      work/20260724-native-lane-resolution-authority \
-     work/20260723-native-worktree-authority-wcp-zero-coupling \
      work/20260723-legacy-lane-resolution-record-freeze-capability
    do
      head="$(git rev-parse --verify "$branch")"
      tools/ci/scripts/run-ethos-lane.sh lane retire landed \
        --branch "$branch" --expect-head "$head" --apply --json
    done
+
+   predecessor_branch="$(
+     git for-each-ref --format='%(refname:short)' refs/heads/work/ |
+     while IFS= read -r branch; do
+       digest="$(printf '%s' "$branch" | shasum -a 256 | awk '{print $1}')"
+       if [ "$digest" = "dda7e65c0339a066f31c46ddecdb103b254a71061d730d8c71b9b08d2f613911" ]; then
+         printf '%s\n' "$branch"
+       fi
+     done
+   )"
+   test -n "$predecessor_branch"
+   test "$(printf '%s\n' "$predecessor_branch" | wc -l | tr -d ' ')" = 1
+   head="$(git rev-parse --verify "$predecessor_branch")"
+   test "$head" = c3075ebc6cd581212e2c2ff138fbd2c4e7df9cc8
+   tools/ci/scripts/run-ethos-lane.sh lane retire landed \
+     --branch "$predecessor_branch" --expect-head "$head" --apply --json
    ```
 
-   Run the loop one branch at a time after a fresh `lane status --json`; stop the
-   loop on the first branch whose native preview does not prove absorption. If
-   absorption is not provable, create and apply a Chronicle-bound
+   Run each transition one branch at a time after a fresh
+   `lane status --json`; stop on the first branch whose native preview does
+   not prove absorption. If absorption is not provable, create and apply a Chronicle-bound
    `preserve-retire` decision through `ethos lane resolution`; do not invent a
    supersession relationship.
 

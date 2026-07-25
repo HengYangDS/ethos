@@ -46,8 +46,8 @@ default_effective_max_lines = 500
 # (bind-args -> domain call -> emit), bounded but not held to the logic limit.
 surface_effective_max_lines = 800
 surface_path_globs = [
-  "packages/ethos/src/ethos/cli.py",
-  "packages/ethos/src/ethos/surface/**",
+  "src/ethos/cli.py",
+  "src/ethos/surface/**",
 ]
 # Test files carry broad contract coverage; capped at the same category limit as
 # surface (still bounded to prevent unbounded growth), not the product limit.

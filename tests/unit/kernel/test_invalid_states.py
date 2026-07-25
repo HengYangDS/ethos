@@ -11,13 +11,13 @@ from pathlib import Path
 
 import jsonschema
 
-import ethos_core.state.invalid as invalid_states_module
-from ethos_core.state.invalid import NODE_ORDER
-from ethos_core.state.invalid import UNCLASSIFIED
-from ethos_core.state.invalid import classify
-from ethos_core.state.invalid import classify_all
-from ethos_core.state.invalid import invalid_state_categories
-from ethos_core.state.invalid import invalid_state_projection
+import ethos.state.invalid as invalid_states_module
+from ethos.state.invalid import NODE_ORDER
+from ethos.state.invalid import UNCLASSIFIED
+from ethos.state.invalid import classify
+from ethos.state.invalid import classify_all
+from ethos.state.invalid import invalid_state_categories
+from ethos.state.invalid import invalid_state_projection
 
 ROOT = Path(__file__).resolve().parents[3]
 
@@ -59,7 +59,7 @@ _GAP_RE = re.compile(
 
 def _emitted_gap_stems() -> set[str]:
     stems: set[str] = set()
-    for src in (ROOT / "packages/ethos/src", ROOT / "packages/ethos-core/src"):
+    for src in (ROOT / "src/ethos",):
         for path in src.rglob("*.py"):
             for match in _GAP_RE.findall(path.read_text(encoding="utf-8")):
                 stem = match.split(":", 1)[0]
@@ -95,7 +95,7 @@ def test_taxonomy_loads_from_packaged_resource_outside_checkout(
     monkeypatch.setattr(
         invalid_states_module,
         "__file__",
-        str(tmp_path / "site-packages" / "ethos_core" / "state" / "invalid.py"),
+        str(tmp_path / "site-packages" / "ethos" / "state" / "invalid.py"),
     )
     invalid_states_module.invalid_state_categories.cache_clear()
 

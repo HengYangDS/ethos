@@ -58,9 +58,9 @@ unknown writer.
 | `tools/ci/scripts/run-*.sh`, `.githooks/*` | Consumers of the adapter; no root env fallback. |
 | `.config/ci/templates/hosted/*`, `.github/workflows/ci.yml`, `.gitlab-ci.yml` | Provider templates and checked projections; all Python/uv producers invoke the adapter. |
 | `system/policies/generated-artifact-topology.toml` + packaged mirror | Runtime lifecycle and entrypoint policy. |
-| `packages/ethos/src/ethos/repository/policy/artifacts.py` | Executable-path audit. |
+| `src/ethos/repository/policy/artifacts.py` | Executable-path audit. |
 | `.config/checks/local-state/audit.toml`, `tools/ci/local_state_audit.py` | Migration-residue observation. |
-| `packages/ethos/src/ethos/adapters/mutation/lanes.py` | Work Lane bootstrap contract. |
+| `src/ethos/adapters/mutation/lanes.py` | Work Lane bootstrap contract. |
 | tests, docs, OpenSpec | Contract proof and explainability. |
 
 ## 1. Runtime bootstrap contract

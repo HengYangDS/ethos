@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from ethos_core.contracts.plan import PlanIR
-from ethos_core.contracts.plan import PlanNode
+from ethos.contracts.plan import PlanIR
+from ethos.contracts.plan import PlanNode
 
 
 def test_plan_ir_orders_dependencies_before_dependents() -> None:

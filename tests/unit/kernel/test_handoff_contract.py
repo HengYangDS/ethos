@@ -6,8 +6,8 @@ import pytest
 from pydantic import ValidationError
 
 from ethos.adapters.mutation.lane_lifecycle.handoff import package as handoff_package
-from ethos_core.contracts.coordination import CrossHostHandoff
-from ethos_core.contracts.coordination import HolderRef
+from ethos.contracts.coordination import CrossHostHandoff
+from ethos.contracts.coordination import HolderRef
 
 
 @pytest.mark.parametrize("width", [40, 64])

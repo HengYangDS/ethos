@@ -5,6 +5,8 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from pathlib import Path
 
+from ethos.contracts.rules import RuleEvalRequest
+from ethos.contracts.rules import RuleFactSnapshot
 from ethos.repository.policy.rules.check import rules_layer_report
 from ethos.repository.policy.rules.evaluation import active_valid_exceptions
 from ethos.repository.policy.rules.evaluation import fact_gaps
@@ -14,8 +16,6 @@ from ethos.repository.policy.rules.evaluation import rules_evaluation_report
 from ethos.repository.policy.rules.evaluation import scope_matches_path
 from ethos.repository.policy.rules.exceptions import rules_docs_manifest_report
 from ethos.repository.policy.schema import validate_schema_instance
-from ethos_core.contracts.rules import RuleEvalRequest
-from ethos_core.contracts.rules import RuleFactSnapshot
 from tests.unit.kernel.rules.snapshots import complete_snapshot
 from tests.unit.kernel.rules.snapshots import fact
 

@@ -4,4 +4,4 @@ set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-exec "${script_dir}/with-python-runtime.sh" -- uv run --package ethos python tools/ci/ci_templates.py check-templates --json
+exec "${script_dir}/with-python-runtime.sh" -- uv run python tools/ci/ci_templates.py check-templates --json

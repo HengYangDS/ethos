@@ -4,10 +4,10 @@ from pathlib import Path
 
 import pytest
 
-from ethos_core.contracts.admission import AdmissionDecision
-from ethos_core.contracts.admission import DecisionBasis
-from ethos_core.contracts.admission import HookAdmissionRequest
-from ethos_core.contracts.admission import MutationSubject
+from ethos.contracts.admission import AdmissionDecision
+from ethos.contracts.admission import DecisionBasis
+from ethos.contracts.admission import HookAdmissionRequest
+from ethos.contracts.admission import MutationSubject
 
 
 def test_admission_decision_is_exact_request_bound_and_non_reusable() -> None:

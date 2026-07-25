@@ -2,14 +2,14 @@
 # Execute proof into generated evidence and print its head-bound receipt.
 set -euo pipefail
 dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [[ "${ETHOS_RUNTIME_BOOTSTRAPPED:-}" != 1 ]]; then exec "${dir}/with-python-runtime.sh" -- uv run --all-packages --group dev env ETHOS_RUNTIME_BOOTSTRAPPED=1 "$0" "$@"; fi
+if [[ "${ETHOS_RUNTIME_BOOTSTRAPPED:-}" != 1 ]]; then exec "${dir}/with-python-runtime.sh" -- uv run --group dev env ETHOS_RUNTIME_BOOTSTRAPPED=1 "$0" "$@"; fi
 cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 [[ $# -le 1 ]] || { echo "usage: $0 [expected-head]" >&2; exit 2; }
 head="${1:-$(git rev-parse HEAD)}"; out="${ETHOS_PROOF_EVIDENCE_DIR:-build/evidence/quality/proof}"; readiness="${ETHOS_READINESS_EVIDENCE_DIR:-build/evidence/quality/readiness}"
 receipt="${out}/executed-proof.json"; stderr="${out}/executed-proof.stderr.log"; audit="${readiness}/audit.json"; report="${readiness}/report.json"
 mkdir -p "${out}" "${readiness}"; rm -f "${receipt}" "${stderr}" "${audit}" "${report}"
-uv run --package ethos ethos audit --json >"${audit}"; uv run --package ethos ethos status --json >"${report}"
-set +e; uv run --package ethos ethos prove --execute --expect-head "${head}" --json >"${receipt}" 2>"${stderr}"; proof_status=$?; set -e
+uv run ethos audit --json >"${audit}"; uv run ethos status --json >"${report}"
+set +e; uv run ethos prove --execute --expect-head "${head}" --json >"${receipt}" 2>"${stderr}"; proof_status=$?; set -e
 set +e
 python3 - "${audit}" "${report}" "${receipt}" <<'PY'
 import hashlib, json, sys

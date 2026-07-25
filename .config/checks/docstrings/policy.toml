@@ -1,7 +1,7 @@
 # Docstring policy for ETHOS Python product surfaces.
 # Owned by .config/checks/docstrings/; CI invokes the ETHOS quality command.
 
-paths = ["packages/ethos/src", "packages/ethos-core/src"]
+paths = ["src/ethos"]
 fail_under = 100
 skip_private = true
 skip_init = false

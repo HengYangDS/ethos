@@ -453,7 +453,7 @@ The first implementation slice is now read-only intake mining.
 Current command:
 
 ```bash
-ETHOS_ACTOR=codex uv run --package ethos ethos intake mine --json
+ETHOS_ACTOR=codex uv run ethos intake mine --json
 ```
 
 As of the current implementation, this command reads repository claim evidence
@@ -473,11 +473,11 @@ prove, land, publish, or chronicle by itself.
 Current and future sources:
 
 ```bash
-ETHOS_ACTOR=codex uv run --package ethos ethos status --root <target-root> --json
-ETHOS_ACTOR=codex uv run --package ethos ethos quality evidence-freshness --root <target-root> --json
-ETHOS_ACTOR=codex uv run --package ethos ethos quality claims --root <target-root> --json
-ETHOS_ACTOR=codex uv run --package ethos ethos lane status --root <target-root> --json
-ETHOS_ACTOR=codex uv run --package ethos ethos campaign hypotheses --root <target-root> --json
+ETHOS_ACTOR=codex uv run ethos status --root <target-root> --json
+ETHOS_ACTOR=codex uv run ethos quality evidence-freshness --root <target-root> --json
+ETHOS_ACTOR=codex uv run ethos quality claims --root <target-root> --json
+ETHOS_ACTOR=codex uv run ethos lane status --root <target-root> --json
+ETHOS_ACTOR=codex uv run ethos campaign hypotheses --root <target-root> --json
 ```
 
 The current machine output lives in command JSON under `intake_envelopes` and

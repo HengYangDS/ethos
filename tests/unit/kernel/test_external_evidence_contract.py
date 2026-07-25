@@ -6,8 +6,8 @@ from datetime import timedelta
 
 import pytest
 
-from ethos_core.contracts.evidence.external import EnforcementReceipt
-from ethos_core.contracts.evidence.external import IdentityAssertion
+from ethos.contracts.evidence.external import EnforcementReceipt
+from ethos.contracts.evidence.external import IdentityAssertion
 
 
 def test_identity_assertion_is_bounded_evidence_not_authority() -> None:

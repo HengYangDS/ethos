@@ -26,4 +26,4 @@ printf '%s\n' '#!/usr/bin/env bash' 'exec npx --yes @fission-ai/openspec@1.6.0 "
 chmod +x "${openspec_shim}"
 if [[ -n "${GITHUB_PATH:-}" ]]; then printf '%s\n' "${bootstrap_venv}/bin" >> "${GITHUB_PATH}"; fi
 uv --version
-uv sync --all-packages --group dev
+uv sync --group dev

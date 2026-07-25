@@ -7,9 +7,9 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from ethos.contracts.evidence.semantic import SemanticAttestationReceipt
 from ethos.repository.evidence.claims import claims_report
 from ethos.repository.policy.schema import validate_schema_instance
-from ethos_core.contracts.evidence.semantic import SemanticAttestationReceipt
 
 if TYPE_CHECKING:
     from pathlib import Path

@@ -1,11 +1,11 @@
 from __future__ import annotations
 
+from ethos.contracts.rules import PolicyException
+from ethos.contracts.rules import Rule
+from ethos.contracts.rules import RuleAttestation
+from ethos.contracts.rules import RuleEvalRequest
+from ethos.contracts.rules import RuleSet
 from ethos.repository.policy.schema import validate_schema_instance
-from ethos_core.contracts.rules import PolicyException
-from ethos_core.contracts.rules import Rule
-from ethos_core.contracts.rules import RuleAttestation
-from ethos_core.contracts.rules import RuleEvalRequest
-from ethos_core.contracts.rules import RuleSet
 
 
 def test_rule_contract_schemas_validate_minimal_payloads() -> None:

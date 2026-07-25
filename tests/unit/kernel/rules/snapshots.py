@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ethos_core.contracts.rules import RuleFactSnapshot
+from ethos.contracts.rules import RuleFactSnapshot
 
 READY_FACT_OWNERS = {
     "worktree": "ethos-adapters.status",

@@ -9,7 +9,7 @@ from ethos.repository.policy.coupling.core import coupling_audit_report
 from ethos.repository.policy.schema import schema_validation_report
 from ethos.repository.policy.schema import validate_ethos_result
 from ethos.repository.policy.schema import validate_schema_instance
-from ethos_core.result import EthosResult
+from ethos.result import EthosResult
 
 ROLE_POLICY_SAMPLE = {
     "release_branch": "main",
@@ -420,7 +420,7 @@ def test_trust_envelope_contract_requires_complete_carriers() -> None:
             "targets": [
                 {
                     "kind": "source",
-                    "path": "packages/ethos/src/ethos/repository/evidence/claims.py",
+                    "path": "src/ethos/repository/evidence/claims.py",
                 },
                 {
                     "kind": "openspec",

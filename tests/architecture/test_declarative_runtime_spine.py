@@ -1,13 +1,10 @@
 from __future__ import annotations
 
-import importlib.util
-import sys
 import tomllib
-import types
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-CORE_SOURCE = ROOT / "packages/ethos-core/src/ethos_core"
+CORE_SOURCE = ROOT / "src/ethos"
 WHEEL_PROJECTIONS = (
     ("system/commands.toml", "commands.toml"),
     ("system/gates.toml", "gates.toml"),
@@ -28,7 +25,7 @@ def _read(relative: str) -> str:
 
 
 def test_plan_ir_uses_stdlib_graphlib_without_parallel_graph_owners() -> None:
-    source = _read("packages/ethos-core/src/ethos_core/contracts/plan.py")
+    source = _read("src/ethos/contracts/plan.py")
     assert "from graphlib import" in source
     assert "TopologicalSorter" in source
     assert "GraphKernel" not in source
@@ -37,58 +34,24 @@ def test_plan_ir_uses_stdlib_graphlib_without_parallel_graph_owners() -> None:
     assert not (CORE_SOURCE / "action_graph").exists()
 
 
-def test_wheel_resources_and_build_hook_are_projections(monkeypatch) -> None:
-    package_config = tomllib.loads(_read("packages/ethos-core/pyproject.toml"))
+def test_wheel_resources_are_native_projections_without_a_build_hook() -> None:
+    package_config = tomllib.loads(_read("pyproject.toml"))
     build = package_config["tool"]["hatch"]["build"]
     wheel = build["targets"]["wheel"]["force-include"]
-    sdist = build["targets"]["sdist"]["force-include"]
+    sdist = build["targets"]["sdist"]["include"]
 
-    assert build["hooks"]["custom"]["path"] == "build_hook.py"
-    checkout_loader = _read("packages/ethos-core/build_hook.py")
-    assert "exec(" not in checkout_loader
-    interface = types.ModuleType("hatchling.builders.hooks.plugin.interface")
-    interface.BuildHookInterface = type("Hook", (), {"root": property(lambda self: self._root)})
-    monkeypatch.setitem(sys.modules, interface.__name__, interface)
-    isolated_path = ROOT / "packages/ethos-core/build_hook.py"
-    isolated_spec = importlib.util.spec_from_file_location(
-        "isolated_checkout_loader", isolated_path
-    )
-    assert isolated_spec is not None
-    assert isolated_spec.loader is not None
-    isolated_module = importlib.util.module_from_spec(isolated_spec)
-    original_sys_path = list(sys.path)
-    sys.path[:] = [entry for entry in sys.path if Path(entry or ".").resolve() != ROOT]
-    try:
-        isolated_spec.loader.exec_module(isolated_module)
-    finally:
-        sys.path[:] = original_sys_path
+    assert "hooks" not in build
+    assert "/src" in sdist
+    assert "/system" in sdist
     for canonical, resource in WHEEL_PROJECTIONS:
         assert (ROOT / canonical).is_file()
         assert not (CORE_SOURCE / "data" / resource).exists()
-        assert sdist[f"../../{canonical}"] == f"src/ethos_core/data/{resource}"
-        assert wheel[f"src/ethos_core/data/{resource}"] == f"ethos_core/data/{resource}"
-    assert sdist["../../tools/ci/ethos_core_build_hook.py"] == "build_hook.py"
-    path = ROOT / "packages/ethos-core/build_hook.py"
-    spec = importlib.util.spec_from_file_location("ethos_core_build_hook", path)
-    assert spec is not None
-    assert spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    hook = object.__new__(module.CustomBuildHook)
-    object.__setattr__(hook, "_root", (ROOT / "packages/ethos-core").as_posix())
-    build_data: dict[str, object] = {}
-    hook.initialize("standard", build_data)
-    hook.finalize("standard", build_data, "unused")
-    hook.initialize("editable", build_data)
-    for canonical, resource in WHEEL_PROJECTIONS:
-        assert build_data["force_include_editable"][(ROOT / canonical).as_posix()] == (
-            f"ethos_core/data/{resource}"
-        )
+        assert wheel[canonical] == f"ethos/data/{resource}"
 
 
 def test_declaration_backed_runtime_policies_are_first_class() -> None:
     declaration = ROOT / "system/policies/generated-artifact-topology.toml"
-    source = _read("packages/ethos-core/src/ethos_core/contracts/artifacts/topology.py")
+    source = _read("src/ethos/contracts/artifacts/topology.py")
 
     assert declaration.exists()
     for token in (
@@ -106,12 +69,12 @@ def test_declaration_backed_runtime_policies_are_first_class() -> None:
         "_generated_denial_policy",
     ):
         assert token not in source
-    cel = _read("packages/ethos-core/src/ethos_core/contracts/policy/cel.py")
+    cel = _read("src/ethos/contracts/policy/cel.py")
     assert "evaluate_cel_predicate" in cel
     assert "celpy.Environment" in cel
     declaration = ROOT / "system/policies/evidence-layout.toml"
-    source = _read("packages/ethos-core/src/ethos_core/contracts/evidence/layout.py")
-    runtime = _read("packages/ethos/src/ethos/repository/evidence/topology.py")
+    source = _read("src/ethos/contracts/evidence/layout.py")
+    runtime = _read("src/ethos/repository/evidence/topology.py")
 
     assert declaration.exists()
     assert "EvidenceLayoutDeclaration" in source
@@ -120,16 +83,16 @@ def test_declaration_backed_runtime_policies_are_first_class() -> None:
     assert "data/evidence_layout.toml" in source
     assert "_ALLOWED_ROOT_DIRS" not in runtime
     assert "_CURATED_PROFILE_ALLOWED_ROOT_FILES" not in runtime
-    freshness = _read("packages/ethos/src/ethos/repository/evidence/freshness.py")
+    freshness = _read("src/ethos/repository/evidence/freshness.py")
     assert "freshness_ok" in freshness
     assert "and bool(" not in freshness
     assert 'allowed_root_dirs = ["claims", "chronicle", "parity"]' in declaration.read_text(
         encoding="utf-8"
     )
     declaration = ROOT / "system/gates.toml"
-    contract = _read("packages/ethos-core/src/ethos_core/contracts/gates.py")
-    runtime = _read("packages/ethos/src/ethos/repository/policy/gates.py")
-    quality = _read("packages/ethos-core/src/ethos_core/quality/gates.py")
+    contract = _read("src/ethos/contracts/gates.py")
+    runtime = _read("src/ethos/repository/policy/gates.py")
+    quality = _read("src/ethos/quality/gates.py")
 
     assert declaration.exists()
     assert "GateRegistryDeclaration" in contract
@@ -139,13 +102,13 @@ def test_declaration_backed_runtime_policies_are_first_class() -> None:
     assert "PRODUCT_DEFAULT_GATE_IDS = (" not in runtime
     assert "QualityGateDescriptor(" not in quality
     declaration = ROOT / "system/commands.toml"
-    contract = _read("packages/ethos-core/src/ethos_core/contracts/commands.py")
-    registry = _read("packages/ethos/src/ethos/surface/cli/quality/registry.py")
+    contract = _read("src/ethos/contracts/commands.py")
+    registry = _read("src/ethos/surface/cli/quality/registry.py")
     handler_paths = (
-        "packages/ethos/src/ethos/surface/cli/quality/core.py",
-        "packages/ethos/src/ethos/surface/cli/quality/cutover/core.py",
-        "packages/ethos/src/ethos/surface/cli/boundary/product.py",
-        "packages/ethos/src/ethos/surface/cli/boundary/readiness.py",
+        "src/ethos/surface/cli/quality/core.py",
+        "src/ethos/surface/cli/quality/cutover/core.py",
+        "src/ethos/surface/cli/boundary/product.py",
+        "src/ethos/surface/cli/boundary/readiness.py",
     )
 
     assert declaration.exists()

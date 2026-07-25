@@ -8,12 +8,12 @@ schema = "system/schemas/contracts/surfaces.schema.json"
 [[surface]]
 name = "cli"
 purpose = "Human and script workflow."
-carrier = "packages/ethos"
+carrier = "src/ethos"
 
 [[surface]]
 name = "mcp"
 purpose = "Agent resource, prompt, and guarded tool surface."
-carrier = "packages/ethos"
+carrier = "src/ethos"
 contract = "system/surfaces.toml"
 
 [[surface]]

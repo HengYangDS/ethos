@@ -1,0 +1,112 @@
+"""Prove-stage domain reducers — pure report logic fed by adapters.
+
+The code-size report is a pure reducer over (role-based policy, tracked files,
+per-file effective LOC): it classifies each file into a role (surface / test /
+logic), applies that role's limit (capped by a global hard ceiling), and derives
+the gate verdict. Policy is loaded by adapters.config, the file list by
+adapters.git, the metric by the kernel measure.
+"""
+
+from __future__ import annotations
+
+import fnmatch
+from typing import TYPE_CHECKING
+from typing import cast
+
+import ethos.adapters.repo.git as git_adapter
+from ethos.adapters.config import code_size_policy
+from ethos.measure import effective_code_lines
+from ethos.repository.policy.schema import validate_schema_instance
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+
+def _role_for(relative: str, surface_globs: tuple[str, ...]) -> str:
+    """Classify a tracked file into its size-policy role."""
+    if relative.startswith("tests/") or "/tests/" in relative:
+        return "test"
+    if any(fnmatch.fnmatchcase(relative, pattern) for pattern in surface_globs):
+        return "surface"
+    return "logic"
+
+
+def code_size_report(root: Path) -> dict[str, object]:
+    """Derive the code-size gate verdict against the role-based limits."""
+    policy = code_size_policy(root)
+    default_limit = int(cast("int | None", policy.get("default_effective_max_lines")) or 400)
+    test_limit = int(cast("int | None", policy.get("test_effective_max_lines")) or default_limit)
+    surface_limit = int(
+        cast("int | None", policy.get("surface_effective_max_lines")) or default_limit
+    )
+    surface_globs = tuple(
+        str(pattern)
+        for pattern in cast("list[object]", policy.get("surface_path_globs", []))
+        if pattern
+    )
+    role_limits = {"test": test_limit, "surface": surface_limit, "logic": default_limit}
+    records: list[dict[str, object]] = []
+    gaps: list[str] = []
+    for relative in git_adapter.git_files(root, "*.py"):
+        path = root / relative
+        if not path.exists():
+            continue
+        effective = effective_code_lines(path)
+        role = _role_for(relative, surface_globs)
+        # One limit per role, no per-file exemption: a governance runtime that
+        # forbids `# pragma: no cover` cannot ship a size-exemption table either.
+        # An over-limit file is decomposed into a semantic sub-package, not frozen.
+        limit = role_limits[role]
+        ok = effective <= limit
+        records.append(
+            {
+                "path": relative,
+                "effective_lines": effective,
+                "limit": limit,
+                "role": role,
+                "category": "test" if role == "test" else "product",
+                "ok": ok,
+            }
+        )
+        if not ok:
+            gaps.append(f"code_size_exceeded:{relative}:{effective}>{limit}")
+    return {
+        "ok": not gaps,
+        "default_effective_max_lines": default_limit,
+        "surface_effective_max_lines": surface_limit,
+        "test_effective_max_lines": test_limit,
+        "required_gaps": gaps,
+        "files": records,
+    }
+
+
+def command_data_validation(
+    repo: Path,
+    *,
+    schema_name: str,
+    payload: dict[str, object],
+) -> dict[str, object]:
+    """Validate a command's data payload against a named schema."""
+    validation = validate_schema_instance(schema_name, payload, root=repo)
+    return {
+        "kind": "schema_validation",
+        "target": "data",
+        "schema": schema_name,
+        "ok": bool(validation["ok"]),
+        "required_gaps": list(cast("list[object]", validation["required_gaps"])),
+    }
+
+
+def workspace_status_validation(repo: Path, payload: dict[str, object]) -> dict[str, object]:
+    """Validate a workspace-status payload against its schema."""
+    return command_data_validation(
+        repo, schema_name="workspace-status.schema.json", payload=payload
+    )
+
+
+def workspace_status_validation_gaps(validation: dict[str, object]) -> tuple[str, ...]:
+    """Prefix workspace-status schema gaps for surfacing in required_gaps."""
+    return tuple(
+        f"workspace_status_schema:{gap}"
+        for gap in cast("list[object]", validation["required_gaps"])
+    )

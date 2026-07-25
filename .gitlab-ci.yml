@@ -69,7 +69,7 @@ ethos:types:
     # `ethos quality types` requires zero diagnostics for every declared package.
     # Unavailable or indeterminate ty execution also blocks through verdict-to-exit
     # binding, so the pipeline cannot pass on an unverified type result.
-    - tools/ci/scripts/with-python-runtime.sh -- uv run --all-packages --group dev ethos quality types --json
+    - tools/ci/scripts/with-python-runtime.sh -- uv run --group dev ethos quality types --json
 
 ethos:architecture:
   <<: *python_setup
@@ -147,7 +147,7 @@ ethos:docs-links:
   stage: quality
   script:
     - tools/ci/scripts/install-lychee.sh
-    - tools/ci/scripts/with-python-runtime.sh -- uv run --package ethos ethos quality markdown-links --json
+    - tools/ci/scripts/with-python-runtime.sh -- uv run ethos quality markdown-links --json
 
 ethos:markdown:
   <<: *python_setup
@@ -247,7 +247,7 @@ ethos:verify:
     # write-admission, so the dogfood signature/audit/prove gates and tests see the
     # same setup a developer's checkout has.
     - tools/ci/scripts/configure-git-checkout.sh
-    - tools/ci/scripts/with-python-runtime.sh -- uv run --package ethos ethos hook install --json
+    - tools/ci/scripts/with-python-runtime.sh -- uv run ethos hook install --json
     - openspec --version
     - tools/ci/scripts/run-python-tests.sh
     - openspec validate --all --strict --json
@@ -277,7 +277,7 @@ ethos:package:
   <<: *python_setup
   stage: package
   script:
-    - tools/ci/scripts/with-python-runtime.sh -- uv build --all-packages --out-dir build/artifacts/python --clear --no-create-gitignore
+    - tools/ci/scripts/with-python-runtime.sh -- uv build --out-dir build/artifacts/python --clear --no-create-gitignore
   artifacts:
     when: always
     paths:

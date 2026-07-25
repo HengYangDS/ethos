@@ -45,7 +45,7 @@ config_key = "proposal_branch_prefix"
 
 # Subject resolution: map tracked paths to their governing package/domain.
 # Mirrors .ethos/workspace.toml [[package]] until the 8->2 collapse (Phase F),
-# after which this resolves to ethos-core / ethos.
+# after which this resolves to the sole ethos package.
 [subject_resolution]
 strategy = "path_prefix_to_package_domain"
 source = ".ethos/workspace.toml"

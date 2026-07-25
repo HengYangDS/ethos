@@ -105,16 +105,16 @@ governed object. `Commitment` collects contracts, policies, specs, and decisions
 evidence and does not own lifecycle state. `Chronicle` records judged history,
 decisions, supersession, and current-state movement.
 
-## Packages
+## Product Shape
 
 ```text
-packages/ethos-core/        pure kernel, contracts, and quality semantics
-packages/ethos/             runtime, CLI, repository orchestration, adapters, assistants, and testing
-distributions/npm/          npm launcher adapter
+src/ethos/          one cohesive Python product package
+distributions/npm/  thin npm launcher adapter
 ```
 
-These packages are the current product topology. The canonical ontology is
-defined in `docs/architecture/package-ontology.md`.
+The package contains the semantic kernel, contracts, command plane, repository
+orchestration, adapters, and projections. Internal module boundaries protect
+meaning; a second distribution package is not needed to express them.
 
 The npm package is a thin launcher over the Python command plane:
 
@@ -150,7 +150,7 @@ GitLab-visible project governance is tracked in `LICENSE`, `CONTRIBUTING.md`,
 ```bash
 tools/ci/scripts/run-python-tests.sh
 tools/ci/scripts/run-python-lint.sh
-uv run --package ethos ethos status --json
-uv run --package ethos ethos status --json
-uv run --package ethos ethos status --json
+uv run ethos status --json
+uv run ethos status --json
+uv run ethos status --json
 ```

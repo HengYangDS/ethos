@@ -17,9 +17,9 @@ from ethos.adapters.mutation.proof import _promotion_required_gate_ids
 from ethos.adapters.mutation.proof import executed_proof_record
 from ethos.adapters.mutation.proof import proof_state_dir
 from ethos.adapters.mutation.proof import record_executed_proof
+from ethos.contracts.admission import HookAdmissionRequest
 from ethos.repository.evidence.core import EvidenceSet
 from ethos.repository.evidence.core import ProofRun
-from ethos_core.contracts.admission import HookAdmissionRequest
 from tests.support.contract_helpers import conformant_proof_run
 from tests.support.lane_helpers import git
 from tests.support.lane_helpers import init_repo

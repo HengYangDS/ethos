@@ -10,7 +10,7 @@ import pytest
 import ethos.adapters.mutation.resolution._effects as effects
 import ethos.adapters.mutation.resolution.lane as lane_adapter
 import ethos.adapters.mutation.resolution.records.reservations as reservation_store
-from ethos.adapters.mutation.resolution._observation import observe_lane
+from ethos.adapters.mutation.resolution.observation import observe_lane
 from ethos.adapters.mutation.resolution.records.roots import current_record_root
 from ethos.adapters.store.state.closeout import get_closeout_fence
 from ethos.adapters.store.state.closeout import release_closeout_fence

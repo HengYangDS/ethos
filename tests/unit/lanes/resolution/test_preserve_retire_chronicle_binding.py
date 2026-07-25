@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -15,10 +16,12 @@ from ethos.adapters.mutation.resolution.records.clear.core import clear_lane_res
 from ethos.adapters.mutation.resolution.records.inventory import lane_resolution_inventory
 from ethos.adapters.mutation.resolution.records.roots import accepted_control_root
 from ethos.surface.cli.lane.resolution import _default_decision_path
-from ethos_core.contracts.resolution.lane import LaneObservation
 from tests.support.contract_helpers import commit_fixture_file
 from tests.support.lane_helpers import git
 from tests.support.lane_helpers import orphan_work_lane
+
+if TYPE_CHECKING:
+    from ethos_core.contracts.resolution.lane import LaneObservation
 
 
 @dataclass(frozen=True)

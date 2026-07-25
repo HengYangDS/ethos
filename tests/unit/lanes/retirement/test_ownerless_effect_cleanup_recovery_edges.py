@@ -259,6 +259,93 @@ def test_ownerless_effect_releases_unreserved_fence_after_reobservation_failure(
     assert released == ["released"]
 
 
+def test_ownerless_effect_receipt_admission_maps_unverifiable(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    receipt_reservation = SimpleNamespace()
+    expected = SimpleNamespace()
+    observed: list[dict[str, object]] = []
+
+    def admit(**kwargs: object) -> SimpleNamespace:
+        observed.append(kwargs)
+        return expected
+
+    monkeypatch.setattr(closeout_effect, "admit_ownerless_closeout_facts", admit)
+    assert (
+        closeout_effect._admit_ownerless_effect_target(  # noqa: SLF001, RUF100
+            root=tmp_path,
+            decision_path=tmp_path / "decision.json",
+            decision={"decision_id": _DECISION_ID},
+            executor_ref=_EXECUTOR,
+            receipt_reservation=receipt_reservation,
+        )
+        is expected
+    )
+    assert observed == [
+        {
+            "root": tmp_path,
+            "decision_path": tmp_path / "decision.json",
+            "decision": {"decision_id": _DECISION_ID},
+            "executor_ref": _EXECUTOR,
+            "receipt_reservation": receipt_reservation,
+        }
+    ]
+
+    monkeypatch.setattr(
+        closeout_effect,
+        "admit_ownerless_closeout_facts",
+        lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("admission unavailable")),
+    )
+    with pytest.raises(
+        closeout_effect.OwnerlessCloseoutError,
+        match=r"^lane_resolution_ownerless_admission_unverifiable$",
+    ):
+        closeout_effect._admit_ownerless_effect_target(  # noqa: SLF001, RUF100
+            root=tmp_path,
+            decision_path=tmp_path / "decision.json",
+            decision={},
+            executor_ref=_EXECUTOR,
+            receipt_reservation=receipt_reservation,
+        )
+
+
+def test_ownerless_effect_releases_unreserved_fence_after_unexpected_reobservation(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    fence = {"target_binding_digest": "1" * 64}
+    admission = SimpleNamespace(root=tmp_path, existing_reservation=None)
+    released: list[object] = []
+    monkeypatch.setattr(closeout_effect, "state_database", lambda _root: tmp_path / "state.sqlite")
+    monkeypatch.setattr(closeout_effect, "_acquire_fresh_fence", lambda *_args: fence)
+    monkeypatch.setattr(
+        closeout_effect,
+        "reobserve_ownerless_closeout_under_fence",
+        lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("reobserve unavailable")),
+    )
+    monkeypatch.setattr(
+        closeout_effect,
+        "_release_unreserved_fence",
+        lambda *_args: released.append("released"),
+    )
+
+    with pytest.raises(
+        closeout_effect.OwnerlessCloseoutError,
+        match=r"^lane_resolution_ownerless_admission_unverifiable$",
+    ):
+        closeout_effect.retire_clean_ownerless_lane(
+            root=tmp_path,
+            decision_path=tmp_path / "decision.json",
+            decision={},
+            executor_ref=_EXECUTOR,
+            artifact_root=tmp_path / "records",
+            admission=admission,
+        )
+
+    assert released == ["released"]
+
+
 def test_ownerless_effect_fence_release_failure_is_explicit_transition_unknown(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -575,6 +662,92 @@ def test_cleanup_existing_receipt_retains_partial_state_for_all_nonfinalizable_p
     report = {}
     assert cleanup.recover_existing_ownerless_receipt(report=report, **inputs) is True
     assert report["required_gaps"] == ["lane_resolution_ownerless_cleanup_failed"]
+
+
+def test_recovery_preserve_retire_guards_receipt_and_chronicle(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    observation = _observation(tmp_path)
+    decision = {"decision_id": _DECISION_ID}
+    report: dict[str, object] = {}
+    chronicle_gap = recovery._preserve_retire_chronicle_gap  # noqa: SLF001, RUF100 - dedicated helper boundary coverage
+    monkeypatch.setattr(
+        recovery,
+        "_resolution_roots",
+        lambda _root: (tmp_path, tmp_path / "records", ""),
+    )
+    monkeypatch.setattr(
+        recovery,
+        "_preserve_retire_chronicle_gap",
+        lambda **_kwargs: "lane_resolution_chronicle_stale",
+    )
+    recovery.apply_resolution(
+        root=tmp_path,
+        decision_path=tmp_path / "decision.json",
+        decision=decision,
+        observation=observation,
+        disposition="preserve-retire",
+        report=report,
+    )
+    assert report == {
+        "ok": False,
+        "state": "blocked",
+        "required_gaps": ["lane_resolution_chronicle_stale"],
+    }
+
+    monkeypatch.setattr(
+        recovery,
+        "write_resolution_receipt",
+        lambda **_kwargs: (_ for _ in ()).throw(OSError("receipt unavailable")),
+    )
+    retained, receipt_path, receipt_gap = recovery._write_retained_preservation_receipt(  # noqa: SLF001, RUF100
+        control_root=tmp_path,
+        artifact_root=tmp_path / "records",
+        receipt={"state": "ready"},
+        retire_gap="lane_resolution_chronicle_stale",
+    )
+    assert retained == {
+        "state": "preserved_retirement_blocked",
+        "retirement_blocked_reason": "lane_resolution_chronicle_stale",
+    }
+    assert (receipt_path, receipt_gap) == ("", "lane_resolution_receipt_write_failed")
+
+    monkeypatch.setattr(
+        recovery,
+        "_write_retained_preservation_receipt",
+        lambda **_kwargs: (retained, "", "lane_resolution_receipt_write_failed"),
+    )
+    report = {}
+    assert not recovery._report_retire_gap(  # noqa: SLF001, RUF100
+        control_root=tmp_path,
+        artifact_root=tmp_path / "records",
+        decision=decision,
+        disposition="preserve-retire",
+        package={"package": "retained"},
+        receipt={"state": "ready"},
+        retire_gap="lane_resolution_chronicle_stale",
+        report=report,
+    )
+    assert report == {
+        "ok": False,
+        "state": "partial_transition",
+        "required_gaps": ["lane_resolution_receipt_write_failed"],
+    }
+
+    monkeypatch.setattr(
+        recovery,
+        "accepted_preserve_retire_chronicle",
+        lambda *_args, **_kwargs: (None, ""),
+    )
+    assert (
+        chronicle_gap(
+            control_root=tmp_path,
+            decision=decision,
+            observation=observation,
+        )
+        == "lane_resolution_chronicle_invalid"
+    )
 
 
 def test_recovery_context_and_retirement_effects_preserve_fail_closed_boundaries(

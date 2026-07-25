@@ -12,12 +12,12 @@
 
 ## 2. Contract and implementation
 
-- [ ] 2.1 Add a behavioral contract requiring report to observe the proof attempt
+- [x] 2.1 Add a behavioral contract requiring report to observe the proof attempt
   from the same owner-script execution; observe the expected RED failure.
-- [ ] 2.2 Move only the report invocation after the proof attempt.
-- [ ] 2.3 Observe focused GREEN and run the complete provider projection test
+- [x] 2.2 Move only the report invocation after the proof attempt.
+- [x] 2.3 Observe focused GREEN and run the complete provider projection test
   module.
-- [ ] 2.4 Pass shell lint, quality audit, strict OpenSpec, Claim, and changed-scope
+- [x] 2.4 Pass shell lint, quality audit, strict OpenSpec, Claim, and changed-scope
   checks.
 
 ## 3. Proof and closeout

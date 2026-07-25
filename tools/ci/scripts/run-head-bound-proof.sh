@@ -8,8 +8,9 @@ cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 head="${1:-$(git rev-parse HEAD)}"; out="${ETHOS_PROOF_EVIDENCE_DIR:-build/evidence/quality/proof}"; readiness="${ETHOS_READINESS_EVIDENCE_DIR:-build/evidence/quality/readiness}"
 receipt="${out}/executed-proof.json"; stderr="${out}/executed-proof.stderr.log"; audit="${readiness}/audit.json"; report="${readiness}/report.json"
 mkdir -p "${out}" "${readiness}"; rm -f "${receipt}" "${stderr}" "${audit}" "${report}"
-uv run --package ethos ethos audit --json >"${audit}"; uv run --package ethos ethos report --json >"${report}"
+uv run --package ethos ethos audit --json >"${audit}"
 set +e; uv run --package ethos ethos prove --execute --expect-head "${head}" --json >"${receipt}" 2>"${stderr}"; proof_status=$?; set -e
+uv run --package ethos ethos report --json >"${report}"
 set +e
 python3 - "${audit}" "${report}" "${receipt}" <<'PY'
 import hashlib, json, sys

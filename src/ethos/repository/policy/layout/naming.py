@@ -6,9 +6,9 @@ from typing import TYPE_CHECKING
 from typing import Any
 
 from ethos.measure import effective_code_lines
-from ethos.repository.policy.layout.filesystem.core import DEFAULT_FLAT_DIRECTORY_LIMIT
-from ethos.repository.policy.layout.filesystem.core import DEFAULT_SUFFIX_GROUP_MIN
-from ethos.repository.policy.layout.filesystem.core import python_files
+from ethos.repository.policy.layout.policy import DEFAULT_FLAT_DIRECTORY_LIMIT
+from ethos.repository.policy.layout.policy import DEFAULT_SUFFIX_GROUP_MIN
+from ethos.repository.policy.layout.policy import python_files
 
 if TYPE_CHECKING:
     from pathlib import Path

@@ -199,7 +199,7 @@ group = "quality"
 import_path = "ethos.surface.cli.quality.core:module_layout"
 help = "Check semantic subpackage and import-layout discipline."
 show = true
-report_handler = { provider = "ethos.repository.policy.layout.core:module_layout_report", enforce = true, bind_root = true }
+report_handler = { provider = "ethos.repository.policy.layout.report:module_layout_report", enforce = true, bind_root = true }
 
 [[commands]]
 name = "npm"

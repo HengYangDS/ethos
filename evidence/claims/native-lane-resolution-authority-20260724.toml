@@ -2,11 +2,11 @@
 id = "native-lane-resolution-authority-20260724"
 subject = "ethos:worktree-retirement:native-lane-resolution-authority"
 state = "active"
-summary = "The active successor Claim authorizes implementation of an ETHOS-native decision, admission, fence, reservation, Git CAS, receipt, recovery, and versioned-current-record chain that will supersede the predecessor only after implementation, full proof, and official archive evidence exist."
+summary = "The active successor Claim authorizes implementation of an ETHOS-native decision, admission, fence, reservation, Git CAS, receipt, recovery, versioned-current-record chain, target-bound accepted-Chronicle validation, and explicit preserved-retirement-blocked outcome for later preserve-retire that will supersede the predecessor only after implementation, full proof, and official archive evidence exist."
 
 [evidence]
 dated = "evidence/chronicle/native-lane-resolution-authority-20260724/2026-07-24.md"
-sha256 = "a20a0ac787db5e8c93938f1226faeb1261dd5dd5650a878027e1a8e233fb3472"
+sha256 = "3f615da8c5069c2e12109d42419ff7d8971a870b4042be261a1dbcad6b98f2aa"
 evidence_ids = ["evidence:native-lane-resolution-authority-20260724"]
 binding = "The approved design, non-destructive authority cut, live zero-inflight and zero-fence baseline, owned successor lane, active OpenSpec carrier, and read-only predecessor rollback carrier authorize implementation. The predecessor Claim remains active; this Claim will supersede it only after replacement behavior has implementation evidence, full proof, official archive evidence, and refreshed Claim/Chronicle binding. This initial binding does not claim completed code, passing gates, exact-HEAD proof, archive, supersession, land, accepted closeout, task-lane retirement, publication, or hosted execution."
 verifier = "digest_only"
@@ -30,12 +30,12 @@ mode = "historical"
 
 [boundary]
 owner = "ethos-repository"
-scope = "Clean linked ownerless Work Lane native admission, effect, current records, recovery, configured-role enforcement, and generic undeclared-executable prevention; no workspace-key migration, lane-start change, real foreign-lane retirement, predecessor-record mutation, remote publication, hosted mutation, distributed lock, or filesystem-lock claim."
+scope = "Clean linked ownerless Work Lane native admission, effect, current records, recovery, configured-role enforcement, generic undeclared-executable prevention, and later exceptional preserve-retire validation of one accepted-control-root Chronicle with an exact event, target head, and one branch selector before and after preservation, including only the explicit preserved-retirement-blocked outcome when final validation stops source removal; no workspace-key migration, lane-start change, real foreign-lane retirement, predecessor-record mutation, remote publication, hosted mutation, distributed lock, or filesystem-lock claim."
 
 [carriers]
 openspec = "openspec/changes/native-lane-resolution-authority"
 fallback = "Leave the exact lane, ref, worktree registration, path, fence, reservation, decision, and records untouched whenever any native binding or postcondition cannot be proved."
-kill_signal = "Current effect authority consults predecessor records, requires an undeclared external verifier, accepts provider-specific contract fields, skips an invalid current payload, hard-codes the Work Lane prefix, or performs an unbound Git/worktree effect."
+kill_signal = "Current effect authority consults predecessor records, requires an undeclared external verifier, accepts provider-specific contract fields, skips an invalid current payload, hard-codes the Work Lane prefix, performs an unbound Git/worktree effect, accepts a preserve-retire Chronicle whose accepted-control-root bytes, event, exact selector/head, or decision digest differs, removes a source after post-preservation Chronicle or target drift, or records that blocked outcome as ordinary preserved or retired state without its exact permitted blocker."
 
 [promotion]
 targets = [

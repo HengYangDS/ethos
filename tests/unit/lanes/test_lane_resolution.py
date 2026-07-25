@@ -13,15 +13,36 @@ import ethos.adapters.mutation.resolution.closeout.cleanup.core as cleanup_adapt
 import ethos.adapters.mutation.resolution.closeout.recovery as recovery_adapter
 from ethos.adapters.mutation.resolution.lane import apply_lane_resolution
 from ethos.adapters.mutation.resolution.lane import plan_lane_resolution
+from ethos.adapters.mutation.resolution.observation import observe_lane
 from ethos.adapters.mutation.resolution.receipts import verify_preservation_package
 from ethos.adapters.mutation.resolution.records.inventory import lane_resolution_inventory
+from ethos.adapters.mutation.resolution.records.roots import accepted_control_root
 from ethos.adapters.mutation.resolution.records.roots import current_record_root
 from ethos.repository.policy.schema import validate_schema_instance
 from ethos.surface.cli.lane.resolution import _default_decision_path
+from tests.support.contract_helpers import commit_fixture_file
 from tests.support.contract_helpers import write_chronicle_decision
 from tests.support.lane_helpers import git
 from tests.support.lane_helpers import init_repo
 from tests.support.lane_helpers import orphan_work_lane
+
+
+def _write_preserve_retire_chronicle(root: Path, branch: str) -> str:
+    control_root = accepted_control_root(root)
+    observation, gaps = observe_lane(control_root, branch)
+    assert gaps == []
+    relative = "evidence/chronicle/lane-resolution-test/preserve-retire.md"
+    commit_fixture_file(
+        control_root,
+        relative,
+        "---\n"
+        "event: lane_resolution/preserve-retire\n"
+        f"target_branch: {observation.lane_ref}\n"
+        f"target_head: {observation.head}\n"
+        "---\n",
+        "record target-bound preserve-retire decision",
+    )
+    return relative
 
 
 def _decide(
@@ -40,7 +61,11 @@ def _decide(
         reason="Exercise the bounded lane-resolution transition.",
         evidence_refs=(("evidence:maintainer-decision",) if exceptional else ("evidence:review",)),
         chronicle_ref=chronicle_ref
-        or write_chronicle_decision(root, topic="lane-resolution-test", token=disposition),
+        or (
+            _write_preserve_retire_chronicle(root, "work/orphan")
+            if disposition == "preserve-retire"
+            else write_chronicle_decision(root, topic="lane-resolution-test", token=disposition)
+        ),
         recovery_plan="Preserve exact observed state or block before effect.",
         decision_path=decision_path,
         break_glass=exceptional if break_glass is None else break_glass,
@@ -411,9 +436,7 @@ def test_preserve_retire_records_survive_resolution_carrier_removal(
 ) -> None:
     repo, lane = orphan_work_lane(tmp_path)
     (lane / "README.md").write_text("# retained after carrier removal\n", encoding="utf-8")
-    chronicle_ref = write_chronicle_decision(
-        repo, topic="lane-resolution-test", token="preserve-retire"
-    )
+    chronicle_ref = _write_preserve_retire_chronicle(repo, "work/orphan")
     carrier = tmp_path / "repo-work-carrier"
     git(repo, "worktree", "add", "-b", "work/carrier", carrier.as_posix(), "dev")
     decision_path = _default_decision_path(carrier, "work/orphan")
@@ -451,11 +474,9 @@ def test_preserve_retire_from_target_lane_uses_pinned_records_owner(
     tmp_path: Path,
 ) -> None:
     repo = init_repo(tmp_path / "repo")
-    chronicle_ref = write_chronicle_decision(
-        repo, topic="lane-resolution-test", token="preserve-retire"
-    )
     lane = tmp_path / "repo-work-self"
     git(repo, "worktree", "add", "-b", "work/self", lane.as_posix(), "dev")
+    chronicle_ref = _write_preserve_retire_chronicle(repo, "work/self")
     (lane / "README.md").write_text("# self-retiring lane\n", encoding="utf-8")
     decision_path = _default_decision_path(lane, "work/self")
     plan_lane_resolution(

@@ -62,7 +62,7 @@ def test_public_admission_translates_an_unclassified_failure(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     def unexpected(**_kwargs: object) -> object:
-        raise RuntimeError("unclassified")
+        raise RuntimeError
 
     monkeypatch.setattr(admission, "_admit", unexpected)
 
@@ -87,7 +87,7 @@ def test_native_admission_maps_untyped_decision_snapshot_failure(
     monkeypatch.setattr(admission, "current_record_root", lambda _root: tmp_path / "records")
 
     def invalid_snapshot(**_kwargs: object) -> object:
-        raise RuntimeError("snapshot unavailable")
+        raise RuntimeError
 
     monkeypatch.setattr(admission.validation, "admit_ownerless_decision_snapshot", invalid_snapshot)
 

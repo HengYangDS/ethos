@@ -1,5 +1,3 @@
-# ruff: noqa: INP001
-
 from __future__ import annotations
 
 import hashlib
@@ -88,10 +86,10 @@ def test_ownerless_cas_classifies_subprocess_transition_failures(
 
     def run(_root: Path, *args: str, **_kwargs: object) -> subprocess.CompletedProcess[str]:
         if stage == "worktree_remove":
-            raise OSError("worktree unavailable")
+            raise OSError
         if args[:2] == ("worktree", "remove"):
             return subprocess.CompletedProcess(args, 0, "", "")
-        raise subprocess.SubprocessError("update-ref unavailable")
+        raise subprocess.SubprocessError
 
     monkeypatch.setattr(effects, "run_git", run)
     monkeypatch.setattr(effects, "_classified_transition", lambda *_args, **_kwargs: expected)

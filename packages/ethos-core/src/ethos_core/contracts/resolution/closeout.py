@@ -16,7 +16,18 @@ from pydantic import model_validator
 from ethos_core.contracts.coordination import HolderRef
 
 LaneResolutionState = Literal[
-    "blocked_by_decision", "preserved", "retired", "preserved_and_retired"
+    "blocked_by_decision",
+    "preserved",
+    "preserved_retirement_blocked",
+    "retired",
+    "preserved_and_retired",
+]
+RetirementBlockedReason = Literal[
+    "lane_resolution_chronicle_disposition_mismatch",
+    "lane_resolution_chronicle_invalid",
+    "lane_resolution_chronicle_missing",
+    "lane_resolution_chronicle_stale",
+    "lane_resolution_observation_stale",
 ]
 OwnerlessCloseoutPhase = Literal["reserved", "effect", "postcondition", "receipt", "unknown"]
 OwnerlessCloseoutRecoveryState = Literal[
@@ -39,6 +50,7 @@ _SHA256_PATTERN = r"^[a-f0-9]{64}$"
 _OPTIONAL_SHA256_PATTERN = r"^(?:[a-f0-9]{64})?$"
 _RECEIPT_INCOMPLETE = "lane-resolution receipt must be completed"
 _RECEIPT_AUTHORITATIVE = "lane-resolution receipt cannot mint authority"
+_RETIREMENT_BLOCKED_REASON_INVALID = "retirement-blocked receipt reason must match outcome"
 _DECISION_ID_INVALID = "invalid lane-resolution decision id"
 _TARGET_DIGEST_MISMATCH = "ownerless closeout target digest mismatch"
 _RECOVERY_STATE_MISMATCH = "ownerless closeout phase and recovery state mismatch"
@@ -83,6 +95,7 @@ class LaneResolutionReceipt(BaseModel):
     head: str = Field(pattern=_GIT_OID_PATTERN)
     preservation_package: str
     preservation_manifest_sha256: str = Field(pattern=_OPTIONAL_SHA256_PATTERN)
+    retirement_blocked_reason: RetirementBlockedReason | None = None
     ownerless_closeout_binding: OwnerlessCloseoutBinding | None = None
     mints_authority: bool = Field(strict=True)
 
@@ -101,6 +114,14 @@ class LaneResolutionReceipt(BaseModel):
         if value is not False:
             raise ValueError(_RECEIPT_AUTHORITATIVE)
         return False
+
+    @model_validator(mode="after")
+    def validate_retirement_blocked_reason(self) -> Self:
+        """Require a precise durable blocker only for retained retirement attempts."""
+        blocked = self.state == "preserved_retirement_blocked"
+        if blocked != (self.retirement_blocked_reason is not None):
+            raise ValueError(_RETIREMENT_BLOCKED_REASON_INVALID)
+        return self
 
     def to_payload(self) -> dict[str, object]:
         """Return the canonical JSON-compatible receipt payload."""

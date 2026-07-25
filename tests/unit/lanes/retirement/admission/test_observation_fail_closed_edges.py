@@ -20,6 +20,67 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
+def _assert_git_ancestry_failures(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    for factory in (
+        lambda: (_ for _ in ()).throw(OSError("git unavailable")),
+        lambda: subprocess.CompletedProcess(["git"], 0, "not-bytes", b""),
+        lambda: subprocess.CompletedProcess(["git"], 2, b"", b""),
+    ):
+        with monkeypatch.context() as scoped:
+            scoped.setattr(
+                observation_adapter,
+                "_git_run",
+                lambda *_args, factory=factory: factory(),
+            )
+            assert git_ancestry(tmp_path, "ancestor", "descendant") == "unverifiable"
+
+
+def _assert_untracked_file_observations(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    with monkeypatch.context() as scoped:
+        scoped.setattr(
+            observation_adapter,
+            "_git_bytes",
+            lambda *_args, **_kwargs: (_ for _ in ()).throw(
+                OwnerlessGitObservationError("unverifiable", "untracked")
+            ),
+        )
+        assert observation_adapter.untracked_files(tmp_path) is None
+    with monkeypatch.context() as scoped:
+        scoped.setattr(observation_adapter, "_git_bytes", lambda *_args, **_kwargs: b"unterminated")
+        assert observation_adapter.untracked_files(tmp_path) is None
+    with monkeypatch.context() as scoped:
+        scoped.setattr(observation_adapter, "_git_bytes", lambda *_args, **_kwargs: b"b\0a\0\0")
+        assert observation_adapter.untracked_files(tmp_path) == [b"a", b"b"]
+
+
+def _assert_registration_token_reraises_target_error(
+    *,
+    path: Path,
+    common: Path,
+    identity: DescriptorIdentity,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with monkeypatch.context() as scoped:
+        scoped.setattr(
+            observation_adapter.posix,
+            "open_directory_path",
+            lambda *_args, **_kwargs: 1,
+        )
+        scoped.setattr(observation_adapter.os, "fstat", lambda _descriptor: object())
+        scoped.setattr(observation_adapter, "_identity", lambda _metadata: identity)
+        scoped.setattr(
+            observation_adapter,
+            "_bound_snapshot",
+            lambda *_args: (_ for _ in ()).throw(
+                OwnerlessGitObservationError("registration", "target")
+            ),
+        )
+        scoped.setattr(observation_adapter.os, "close", lambda _descriptor: None)
+        with pytest.raises(OwnerlessGitObservationError) as reraise:
+            observation_adapter._registration_token(path, common)  # noqa: SLF001, RUF100
+    assert (reraise.value.kind, reraise.value.detail) == ("registration", "target")
+
+
 def test_observation_low_level_git_and_path_fail_closed_matrix(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -66,34 +127,9 @@ def test_observation_low_level_git_and_path_fail_closed_matrix(
         scoped.setattr(observation_adapter, "_git_bytes", exact_object_bytes)
         assert git_object_bytes(tmp_path, "HEAD:file") == b"exact bytes"
 
-    for factory in (
-        lambda: (_ for _ in ()).throw(OSError("git unavailable")),
-        lambda: subprocess.CompletedProcess(["git"], 0, "not-bytes", b""),
-        lambda: subprocess.CompletedProcess(["git"], 2, b"", b""),
-    ):
-        with monkeypatch.context() as scoped:
-            scoped.setattr(
-                observation_adapter,
-                "_git_run",
-                lambda *_args, factory=factory: factory(),
-            )
-            assert git_ancestry(tmp_path, "ancestor", "descendant") == "unverifiable"
+    _assert_git_ancestry_failures(tmp_path, monkeypatch)
 
-    with monkeypatch.context() as scoped:
-        scoped.setattr(
-            observation_adapter,
-            "_git_bytes",
-            lambda *_args, **_kwargs: (_ for _ in ()).throw(
-                OwnerlessGitObservationError("unverifiable", "untracked")
-            ),
-        )
-        assert observation_adapter.untracked_files(tmp_path) is None
-    with monkeypatch.context() as scoped:
-        scoped.setattr(observation_adapter, "_git_bytes", lambda *_args, **_kwargs: b"unterminated")
-        assert observation_adapter.untracked_files(tmp_path) is None
-    with monkeypatch.context() as scoped:
-        scoped.setattr(observation_adapter, "_git_bytes", lambda *_args, **_kwargs: b"b\0a\0\0")
-        assert observation_adapter.untracked_files(tmp_path) == [b"a", b"b"]
+    _assert_untracked_file_observations(tmp_path, monkeypatch)
 
     with pytest.raises(OwnerlessGitObservationError) as bad_limit:
         read_root_bound_regular_file(tmp_path, "file", maximum_bytes=-1)
@@ -289,25 +325,12 @@ def test_observation_target_and_registration_token_fail_closed_matrix(
             observation_adapter._registration_token(path, common)  # noqa: SLF001, RUF100
     assert (bad_backlink.value.kind, bad_backlink.value.detail) == ("registration", "target")
 
-    with monkeypatch.context() as scoped:
-        scoped.setattr(
-            observation_adapter.posix,
-            "open_directory_path",
-            lambda *_args, **_kwargs: 1,
-        )
-        scoped.setattr(observation_adapter.os, "fstat", lambda _descriptor: object())
-        scoped.setattr(observation_adapter, "_identity", lambda _metadata: identity)
-        scoped.setattr(
-            observation_adapter,
-            "_bound_snapshot",
-            lambda *_args: (_ for _ in ()).throw(
-                OwnerlessGitObservationError("registration", "target")
-            ),
-        )
-        scoped.setattr(observation_adapter.os, "close", lambda _descriptor: None)
-        with pytest.raises(OwnerlessGitObservationError) as reraise:
-            observation_adapter._registration_token(path, common)  # noqa: SLF001, RUF100
-    assert (reraise.value.kind, reraise.value.detail) == ("registration", "target")
+    _assert_registration_token_reraises_target_error(
+        path=path,
+        common=common,
+        identity=identity,
+        monkeypatch=monkeypatch,
+    )
 
 
 def test_observation_root_and_bound_snapshot_fail_closed_edges(

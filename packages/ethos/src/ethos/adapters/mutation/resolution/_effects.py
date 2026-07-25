@@ -33,9 +33,15 @@ if TYPE_CHECKING:
 
 
 _OWNERLESS_ACCEPTED_HEAD_STALE = "lane_resolution_ownerless_accepted_head_stale"
+_OWNERLESS_UNTRACKED_INVENTORY_FAILED = "lane_resolution_untracked_inventory_failed"
+_OWNERLESS_BRANCH_DELETE_FAILED = "lane_resolution_branch_delete_failed"
+_OWNERLESS_WORKTREE_REMOVE_FAILED = "lane_resolution_worktree_remove_failed"
 _WORKTREE_VALUE_FIELDS = {"worktree", "HEAD", "branch"}
 _WORKTREE_MARKER_FIELDS = {"detached", "bare"}
 _WORKTREE_OPTIONAL_VALUE_FIELDS = {"locked", "prunable"}
+_WORKTREE_ALLOWED_FIELDS = (
+    _WORKTREE_VALUE_FIELDS | _WORKTREE_MARKER_FIELDS | _WORKTREE_OPTIONAL_VALUE_FIELDS
+)
 
 
 class OwnerlessCloseoutError(ValueError):
@@ -156,46 +162,52 @@ def probe_ownerless_worktree_registration(root: Path, path: str) -> str:
     return "present" if any(record["worktree"] == path for record in records) else "absent"
 
 
-def _strict_worktree_records(  # noqa: PLR0911, RUF100 - each malformed record shape fails closed
-    output: str,
-) -> tuple[dict[str, str], ...] | None:
+def _strict_worktree_records(output: str) -> tuple[dict[str, str], ...] | None:
     if not output or not output.endswith("\0\0"):
         return None
     records: list[dict[str, str]] = []
     paths: set[str] = set()
-    allowed = _WORKTREE_VALUE_FIELDS | _WORKTREE_MARKER_FIELDS | _WORKTREE_OPTIONAL_VALUE_FIELDS
     for raw_record in output[:-2].split("\0\0"):
-        fields = raw_record.split("\0")
-        if not fields or any(not field for field in fields):
+        record = _parse_worktree_record(raw_record)
+        if record is None or not _valid_worktree_registration(record, paths):
             return None
-        record: dict[str, str] = {}
-        for field in fields:
-            key, separator, value = field.partition(" ")
-            if key not in allowed or key in record:
-                return None
-            if key in _WORKTREE_VALUE_FIELDS and (not separator or not value):
-                return None
-            if key in _WORKTREE_MARKER_FIELDS and separator:
-                return None
-            record[key] = value
-        raw_path = record.get("worktree", "")
-        head = record.get("HEAD", "")
-        branch = record.get("branch", "")
-        registration_kinds = int(bool(branch)) + int("detached" in record) + int("bare" in record)
-        if (
-            not _absolute_worktree_path(raw_path)
-            or raw_path in paths
-            or not _valid_oid(head)
-            or registration_kinds != 1
-            or (
-                branch
-                and (not branch.startswith("refs/heads/") or not branch.removeprefix("refs/heads/"))
-            )
-        ):
-            return None
-        paths.add(raw_path)
+        paths.add(record["worktree"])
         records.append(record)
     return tuple(records)
+
+
+def _parse_worktree_record(raw_record: str) -> dict[str, str] | None:
+    fields = raw_record.split("\0")
+    if not fields or any(not field for field in fields):
+        return None
+    record: dict[str, str] = {}
+    for field in fields:
+        key, separator, value = field.partition(" ")
+        if key not in _WORKTREE_ALLOWED_FIELDS or key in record:
+            return None
+        if key in _WORKTREE_VALUE_FIELDS and (not separator or not value):
+            return None
+        if key in _WORKTREE_MARKER_FIELDS and separator:
+            return None
+        record[key] = value
+    return record
+
+
+def _valid_worktree_registration(record: dict[str, str], paths: set[str]) -> bool:
+    raw_path = record.get("worktree", "")
+    head = record.get("HEAD", "")
+    branch = record.get("branch", "")
+    registration_kinds = int(bool(branch)) + int("detached" in record) + int("bare" in record)
+    return (
+        _absolute_worktree_path(raw_path)
+        and raw_path not in paths
+        and _valid_oid(head)
+        and registration_kinds == 1
+        and (
+            not branch
+            or (branch.startswith("refs/heads/") and bool(branch.removeprefix("refs/heads/")))
+        )
+    )
 
 
 def _absolute_worktree_path(raw: str) -> bool:
@@ -363,7 +375,7 @@ def preserve_package(
     )
     inventory = untracked_files(source)
     if inventory is None:
-        raise ValueError("lane_resolution_untracked_inventory_failed")  # noqa: EM101, RUF100
+        raise ValueError(_OWNERLESS_UNTRACKED_INVENTORY_FAILED)
     if inventory:
         write_untracked_archive(source=source, archive=archive, inventory=inventory)
     manifest = {
@@ -404,7 +416,7 @@ def retire_lane(*, root: Path, observation: LaneObservation, force: bool = False
         ) as transaction:
             stdin, stdout = transaction.stdin, transaction.stdout
             if stdin is None or stdout is None or transaction.stderr is None:
-                raise ValueError("lane_resolution_branch_delete_failed")  # noqa: EM101, RUF100
+                raise ValueError(_OWNERLESS_BRANCH_DELETE_FAILED)
             stdin.write("start\n")
             stdin.flush()
             started = stdout.readline() == "start: ok\n"
@@ -414,12 +426,12 @@ def retire_lane(*, root: Path, observation: LaneObservation, force: bool = False
             if not (started and prepared):
                 stdin.write("abort\n")
                 stdin.close()
-                raise ValueError("lane_resolution_branch_delete_failed")  # noqa: EM101, RUF100
+                raise ValueError(_OWNERLESS_BRANCH_DELETE_FAILED)
             remove = ("worktree", "remove", *(("--force",) if force else ()), observation.path)
             if run_git(root, *remove, check=False).returncode:
                 stdin.write("abort\n")
                 stdin.close()
-                raise ValueError("lane_resolution_worktree_remove_failed")  # noqa: EM101, RUF100
+                raise ValueError(_OWNERLESS_WORKTREE_REMOVE_FAILED)
             removed = True
             stdin.write("commit\n")
             stdin.close()

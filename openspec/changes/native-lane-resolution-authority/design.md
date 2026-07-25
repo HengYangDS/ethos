@@ -282,6 +282,8 @@ identifier/path/field/test residue,
 including current Claims, Chronicle, active plans, canonical specs, and archived
 OpenSpec carriers. Dates, actions, decisions, evidence digests, limitations, and
 chronology remain. Git history and local predecessor records are untouched.
+The convergence verifier enumerates tracked current paths; ignored runtime caches
+cannot redefine the product surface or race that scan.
 
 When a dated current retention projection contains the retired identifier only
 as a historical branch label, it is normalized rather than deleted: the

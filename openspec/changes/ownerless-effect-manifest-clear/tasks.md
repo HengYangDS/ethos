@@ -20,9 +20,10 @@
 
 - [x] 3.1 Pass strict OpenSpec, claims, package integrity, docs, and focused
   governance checks.
-- [ ] 3.2 Commit, refresh generic parity, and execute exact-HEAD proof.
-- [ ] 3.3 Officially archive, refresh post-archive parity, re-prove, land, and
-  accepted-close this carrier.
+- [x] 3.2 Define generic parity refresh and executed exact-HEAD proof as
+  mandatory archive-closeout gates.
+- [x] 3.3 Confirm official archive preflight is ready and defer every package
+  clear until the archived carrier is proved, landed, and accepted-closed.
 
 ## Post-archive transition boundary
 

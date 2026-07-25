@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import json
 import sys
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
 
 from ethos.cli import _command
 from ethos.cli import main
+from ethos.result import EthosResult
+from ethos.result import apply_payload_budget
 from tests.support.contract_helpers import init_repo_with_candidate
 
 if TYPE_CHECKING:
@@ -26,6 +29,31 @@ def test_invalid_profile_command_detection_uses_declared_root_commands(
     argv: list[str], expected: str
 ) -> None:
     assert _command(argv) == expected
+
+
+def test_plan_payload_budget_externalizes_oversized_detail(tmp_path: Path) -> None:
+    result = EthosResult(
+        command="plan",
+        ok=False,
+        state="gapped",
+        summary={"required_gate_count": 1},
+        required_gaps=("example_gap",),
+        next_actions=("repair example",),
+        data={"verbose": "x" * 40_000},
+    )
+
+    bounded = apply_payload_budget(result, root=tmp_path)
+
+    assert len(bounded.to_json().encode()) <= 32 * 1024
+    assert bounded.ok is False
+    assert bounded.required_gaps == result.required_gaps
+    assert bounded.next_actions == result.next_actions
+    reference = bounded.data["artifact_reference"]
+    artifact = tmp_path / reference["path"]
+    assert artifact.is_file()
+    assert reference["sha256"].startswith("sha256:")
+    assert reference["size_bytes"] == artifact.stat().st_size
+    assert json.loads(artifact.read_text(encoding="utf-8"))["data"] == result.data
 
 
 @pytest.mark.parametrize("command", ["status", "plan", "openspec"])

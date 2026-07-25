@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import hashlib
 import json
+from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel
@@ -8,6 +10,8 @@ from pydantic import ConfigDict
 from pydantic import Field
 
 SCHEMA_VERSION = 1
+PAYLOAD_BUDGETS = {"status": 16 * 1024, "plan": 32 * 1024}
+_ARTIFACT_HOME = Path("build/ethos/payloads")
 
 
 class EthosResult(BaseModel):
@@ -41,3 +45,32 @@ class EthosResult(BaseModel):
 
     def to_json(self) -> str:
         return json.dumps(self.to_dict(), indent=2, sort_keys=False)
+
+
+def apply_payload_budget(result: EthosResult, *, root: Path) -> EthosResult:
+    """Externalize oversized command detail while preserving the verdict."""
+    limit = PAYLOAD_BUDGETS.get(result.command)
+    payload = result.to_json().encode()
+    if limit is None or len(payload) <= limit:
+        return result
+    digest = hashlib.sha256(payload).hexdigest()
+    relative = _ARTIFACT_HOME / result.command / f"{digest}.json"
+    artifact = root / relative
+    artifact.parent.mkdir(parents=True, exist_ok=True)
+    artifact.write_bytes(payload)
+    bounded = result.model_copy(
+        update={
+            "data": {
+                "artifact_reference": {
+                    "path": relative.as_posix(),
+                    "sha256": f"sha256:{digest}",
+                    "size_bytes": len(payload),
+                    "media_type": "application/json",
+                }
+            }
+        }
+    )
+    if len(bounded.to_json().encode()) > limit:
+        msg = f"bounded {result.command} payload exceeds {limit} bytes"
+        raise ValueError(msg)
+    return bounded

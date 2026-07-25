@@ -71,4 +71,4 @@ def plan(
             "openspec_lifecycle": openspec_lifecycle,
         },
     )
-    emit(result, json_output=json_output, enforce=False)
+    emit(result, json_output=json_output, enforce=False, artifact_root=repo)

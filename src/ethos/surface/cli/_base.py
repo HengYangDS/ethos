@@ -20,6 +20,7 @@ from cyclopts import App
 from cyclopts import Parameter
 
 from ethos.result import EthosResult
+from ethos.result import apply_payload_budget
 from ethos.surface.cli.quality.registry import register_declared_group
 
 # ---- App objects (one per command group; commands register onto these) ----
@@ -108,7 +109,13 @@ def sha256_file(path: Path) -> str:
     return f"sha256:{digest.hexdigest()}"
 
 
-def emit(result: EthosResult, *, json_output: bool, enforce: bool = True) -> None:
+def emit(
+    result: EthosResult,
+    *,
+    json_output: bool,
+    enforce: bool = True,
+    artifact_root: Path | None = None,
+) -> None:
     """Print an EthosResult as JSON or a short human line, then enforce the verdict.
 
     Fail-CLOSED by default: a blocked verdict (result.ok is False) exits the process
@@ -123,6 +130,8 @@ def emit(result: EthosResult, *, json_output: bool, enforce: bool = True) -> Non
     inherits fail-closed by default, so a future verdict command cannot silently
     exit 0 on a block.
     """
+    if json_output and artifact_root is not None:
+        result = apply_payload_budget(result, root=artifact_root)
     try:
         if json_output:
             sys.stdout.write(f"{result.to_json()}\n")

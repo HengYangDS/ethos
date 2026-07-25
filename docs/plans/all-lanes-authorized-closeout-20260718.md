@@ -50,8 +50,8 @@ preserve-or-replay work; it is never a raw ref-deletion candidate.
 ## Phase A — Promote the Decision Carrier
 
 1. Re-run full lane status immediately before every tracked decision update.
-   Use compact `status` and `orient` only for root readiness; they defer foreign
-   path/dirty expansion and cannot certify a foreign worktree clean.
+   Use bounded `status` only for root readiness; it defers foreign path/dirty
+   expansion and cannot certify a foreign worktree clean.
 2. Bind the matrix, semantic audit, OpenSpec scope, claim, dated Chronicle, and
    this plan to the current owned lane.
 3. Run strict OpenSpec lifecycle, claim/schema checks, changed-scope planning,

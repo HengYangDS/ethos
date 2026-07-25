@@ -23,7 +23,7 @@ practice claim** is the evolution carrier for that passage. It names the
 subject, question, claim, boundary, falsifiers, relation to incumbents,
 candidate set, experiment, evaluation, commitment targets, commitment effect,
 and fate records. Hypotheses, candidate sets, experiments, evaluations, practice
-changes, campaign steps, runtime nodes, and quality_summarys are projections that help
+changes, campaign steps, and runtime nodes are projections that help
 test and promote that claim. They are not the center.
 
 The root discipline is:

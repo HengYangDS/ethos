@@ -245,7 +245,7 @@ The runtime is exposed through existing command payloads:
 
 - `ethos plan --json` includes `data.workflow_runtime` for planned transitions,
   guards, required facts, changed-path context, and linked evolution state.
-- `ethos status --json` includes a workflow runtime quality_summary layer and evolution bridge.
+- `ethos status --json` includes bounded current workflow facts and evolution state.
 - `ethos prove`, `land`, and `publish` continue to be the trust-bearing
   lifecycle commands.
 
@@ -268,7 +268,7 @@ lifecycle truth by default:
 The workflow runtime is acceptable when:
 
 1. the workflow contract validates against schema and graph rules;
-1. `plan` and `report` project runtime readiness without adding lifecycle
+1. `status` and `plan` project runtime readiness without adding lifecycle
    commands;
 1. handoff and run-state schemas are present;
 1. skill eval metadata validates without replacing proof;

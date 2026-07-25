@@ -67,7 +67,7 @@ boundary, routing, and proof metadata.
 ### Requirement: Governed Repository Context Contract
 ETHOS SHALL define a governed repository context contract for every repository
 subject. This is the shared governance context contract for repository audit,
-proof, and report payloads.
+proof and command payloads.
 
 #### Scenario: Governance context is provider-neutral
 - **WHEN** ETHOS emits `governance_context`
@@ -77,7 +77,6 @@ proof, and report payloads.
 - **AND** `shared_commands` and `transition_commands` contain the five transition
   commands
 - **AND** `reader_projection_commands` contains `ethos status`
-- **AND** `quality_summary_commands` contains `ethos status`
 - **AND** provider, host, editor, model, and toolchain choices remain outside
   product semantics
 

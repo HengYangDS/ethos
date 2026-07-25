@@ -550,8 +550,8 @@ policy organization-native rather than person-native or adopter-private.
 - **WHEN** `ethos quality enterprise-readiness --json` runs
 - **THEN** ETHOS reports every enterprise closeout planning layer from L0
   through L8
-- **AND** the report lifts required gaps from workspace status, report
-  quality_summary, product boundary, docs topology, contributor policy, governance
+- **AND** the result lifts required gaps from workspace status, product
+  boundary, docs topology, contributor policy, governance
   context, generic parity, generated artifacts, release policy, and
   claim-carrier checks
 - **AND** the report is clean only when every layer is clean
@@ -559,7 +559,7 @@ policy organization-native rather than person-native or adopter-private.
   retirement, and foreign Work Lane cleanup are outside the local closeout claim
   unless separately authorized
 - **AND** the enterprise-readiness aggregator belongs to the domain layer because
-  it composes status, report, policy, parity, claims, and release checks rather
+  it composes status, policy, parity, claims, and release checks rather
   than owning repository truth directly
 - **AND** repository policy modules do not import domain or adapter modules to
   make the enterprise-readiness result pass import-linter
@@ -660,28 +660,27 @@ freshness to current Git HEAD before treating them as current truth.
 
 #### Scenario: active claim was proven against another head
 
-- **WHEN** status, plan, report, or quality freshness reads active claim evidence
+- **WHEN** status, plan, or quality freshness reads active claim evidence
 - **THEN** the read model compares the claim head to current repository HEAD
 - **AND** stale evidence is surfaced as a gap rather than reused as current proof
 
-### Requirement: Scorecards expose hard-floor and coordination risk
+### Requirement: Status exposes hard-floor and coordination risk
 
-ETHOS report quality_summarys SHALL expose nominal score, effective score, read-model
-identity, hard-quality gaps, and coordination risk separately.
+ETHOS status SHALL expose hard-quality gaps and coordination risk separately
+without deriving readiness from a score.
 
 #### Scenario: hard quality or coordination risk exists
 
 - **WHEN** `ethos status --json` summarizes repository readiness
-- **THEN** the summary identifies the governed report read model
+- **THEN** the summary identifies the governed status read model
 - **AND** hard quality gaps and coordination risk are counted explicitly
 - **AND** product and adopter profiles expose status-required coordination gaps
-  in report `required_gaps` and `gap_layers.coordination_risk.required_gaps`
+  in top-level `required_gaps`
 - **AND** advisory coordination signals stay advisory and do not authorize foreign
   Work Lane cleanup
-- **AND** advisory-only quality_summarys report `state=advisory` with `ok=true` rather
+- **AND** advisory-only status results use `state=advisory` with `ok=true` rather
   than collapsing advisory visibility into `state=ready`
-- **AND** effective score reflects hard floors and required coordination risk
-  rather than presenting a misleading green nominal score alone
+- **AND** no nominal or effective score can override a hard gap
 
 ### Requirement: Local-ci fallback projects owner scripts from target root
 
@@ -772,7 +771,7 @@ shadow, worker, or cross-language compensation path.
 - **THEN** the report is blocked and returns stable required gaps
 - **AND** status, proof, campaign or accepted closeout, land, protected
   publication admission, and publish remain blocked
-- **AND** no reader view, quality_summary, allowance, or advisory classification can
+- **AND** no reader view, allowance, or advisory classification can
   convert those gaps into a green state.
 
 #### Scenario: Intermediate campaign growth is observed
@@ -1128,7 +1127,7 @@ hard coverage floor.
 ### Requirement: Product hard-quality floor covers current generated state
 
 ETHOS SHALL include generated-artifact topology in the product hard-quality
-floor consumed by quality_summary and local publication readiness.
+floor consumed by status and local publication readiness.
 
 #### Scenario: Current generated-artifact drift blocks green readiness
 

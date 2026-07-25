@@ -17,7 +17,7 @@ product_adopter_root_prefixes = ["adopters", "profiles", "tests/fixtures/adopter
 
 [[cel_rule]]
 id = "generated"
-expression = "!(policy.source_metadata_filenames.contains(facts.name) || facts.name.endsWith(policy.source_schema_suffix)) && (policy.generated_filenames.contains(facts.name) || policy.generated_suffixes.contains(facts.suffix) || policy.generated_filename_prefixes.exists(prefix, facts.name.startsWith(prefix)))"
+expression = "!(facts.name in policy.source_metadata_filenames || facts.name.endsWith(policy.source_schema_suffix)) && (facts.name in policy.generated_filenames || facts.suffix in policy.generated_suffixes || policy.generated_filename_prefixes.exists(prefix, facts.name.startsWith(prefix)))"
 decision = "classify"
 
 [[cel_rule]]

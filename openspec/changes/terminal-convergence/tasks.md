@@ -15,9 +15,9 @@
 
 ## 2. Semantic Kernel Cutover
 
-- [ ] 2.1 Add failing contract, determinism, replay, authority, and hash tests for ChangeContract, Attestation, RepositoryFacts, and PlanIR.
-- [ ] 2.2 Implement the strict frozen Pydantic contracts, pure reducers, and direct graphlib ordering.
-- [ ] 2.3 Bake off the existing CEL engine against official cel-expr-python, select one, and delete the loser and all dual-run code.
+- [x] 2.1 Add failing contract, determinism, replay, authority, and hash tests for ChangeContract, Attestation, RepositoryFacts, and PlanIR.
+- [x] 2.2 Implement the strict frozen Pydantic contracts, pure reducers, and direct graphlib ordering.
+- [x] 2.3 Bake off the existing CEL engine against official cel-expr-python, select one, and delete the loser and all dual-run code.
 - [ ] 2.4 Merge ethos-core into the ethos distribution and delete superseded packages, models, schemas, graphs, adapters, tests, and imports in the same cutover.
 
 ## 3. Lifecycle, Collaboration, And Integration Train

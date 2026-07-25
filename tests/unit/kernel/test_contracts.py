@@ -158,22 +158,24 @@ def test_amendment_attestations_fold_in_sequence_and_bind_prior_digest() -> None
         subjects=("repository:ethos",),
         acceptance=("base",),
     )
-    first = Attestation.amendment(
-        attestation_id="attestation:first",
+    first = Attestation(
+        id="attestation:first",
+        kind="amendment",
         issuer="agent:local:task:one",
         subject=base.id,
         issued_at=datetime(2026, 7, 25, 1, tzinfo=UTC),
         prior_digest=base.digest(),
-        patch={"acceptance": ["base", "deterministic"]},
+        content={"patch": {"acceptance": ["base", "deterministic"]}},
     )
     after_first = apply_amendments(base, (first,))
-    second = Attestation.amendment(
-        attestation_id="attestation:second",
+    second = Attestation(
+        id="attestation:second",
+        kind="amendment",
         issuer="human:local:shell:owner",
         subject=base.id,
         issued_at=datetime(2026, 7, 25, 2, tzinfo=UTC),
         prior_digest=after_first.digest(),
-        patch={"intent": "Establish the smallest deterministic terminal kernel."},
+        content={"patch": {"intent": "Establish the smallest deterministic terminal kernel."}},
     )
 
     effective = apply_amendments(base, (second, first))
@@ -185,13 +187,14 @@ def test_amendment_attestations_fold_in_sequence_and_bind_prior_digest() -> None
 
 def test_amendment_fold_rejects_digest_break_or_non_amendment_attestation() -> None:
     base = ChangeContract(id="change:terminal-kernel", intent="Base", subjects=("repo",))
-    broken = Attestation.amendment(
-        attestation_id="attestation:broken",
+    broken = Attestation(
+        id="attestation:broken",
+        kind="amendment",
         issuer="agent:local:task:one",
         subject=base.id,
         issued_at=datetime(2026, 7, 25, tzinfo=UTC),
         prior_digest="0" * 64,
-        patch={"intent": "Unbound"},
+        content={"patch": {"intent": "Unbound"}},
     )
     observation = Attestation(
         id="attestation:observation",
@@ -208,40 +211,44 @@ def test_amendment_fold_rejects_digest_break_or_non_amendment_attestation() -> N
         apply_amendments(base, (observation,))
 
 
-def test_amendment_rejects_unknown_contract_fields_at_construction() -> None:
+def test_amendment_fold_rejects_unknown_contract_fields() -> None:
     base = ChangeContract(id="change:terminal-kernel", intent="Base", subjects=("repo",))
+    amendment = Attestation(
+        id="attestation:unknown-field",
+        kind="amendment",
+        issuer="agent:local:task:one",
+        subject=base.id,
+        issued_at=datetime(2026, 7, 25, tzinfo=UTC),
+        prior_digest=base.digest(),
+        content={"patch": {"invented": "parallel ontology"}},
+    )
 
     with pytest.raises(ValueError, match="amendment_field_unknown:invented"):
-        Attestation.amendment(
-            attestation_id="attestation:unknown-field",
-            issuer="agent:local:task:one",
-            subject=base.id,
-            issued_at=datetime(2026, 7, 25, tzinfo=UTC),
-            prior_digest=base.digest(),
-            patch={"invented": "parallel ontology"},
-        )
+        apply_amendments(base, (amendment,))
 
 
 def test_amendment_fold_rejects_ambiguous_equal_sequence() -> None:
     base = ChangeContract(id="change:terminal-kernel", intent="Base", subjects=("repo",))
     issued_at = datetime(2026, 7, 25, tzinfo=UTC)
-    first = Attestation.amendment(
-        attestation_id="attestation:first",
+    first = Attestation(
+        id="attestation:first",
+        kind="amendment",
         issuer="agent:local:task:one",
         subject=base.id,
         issued_at=issued_at,
         sequence=1,
         prior_digest=base.digest(),
-        patch={"intent": "First"},
+        content={"patch": {"intent": "First"}},
     )
-    second = Attestation.amendment(
-        attestation_id="attestation:second",
+    second = Attestation(
+        id="attestation:second",
+        kind="amendment",
         issuer="agent:local:task:two",
         subject=base.id,
         issued_at=issued_at,
         sequence=1,
         prior_digest=base.digest(),
-        patch={"intent": "Second"},
+        content={"patch": {"intent": "Second"}},
     )
 
     with pytest.raises(ValueError, match="amendment_order_ambiguous"):

@@ -171,7 +171,7 @@ Terminal choices are singular:
 | Temporary internal values | tuples, mappings, enums, small frozen stdlib values | a second model framework |
 | CLI | Cyclopts declarations as command SSOT | argparse and parallel registries |
 | DAG | direct `graphlib.TopologicalSorter` | custom graph layers, NetworkX core dependency |
-| Guard DSL | CEL through official `cel-expr-python` after parity bake-off | celpy dual-run, CUE/Rego/Cedar core |
+| Guard DSL | CEL through official `cel-expr-python` | celpy dual-run, CUE/Rego/Cedar core |
 | Dependency composition | explicit constructor/function arguments and Protocols | DI container or service locator |
 | Events | returned attestations and external streams | in-process event bus |
 | State transitions | declarative PlanIR plus pure reducers | state-machine framework |

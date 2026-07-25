@@ -16,7 +16,7 @@ mkdir -p "$(dirname "${output}")"
 uv run --group dev deptry src/ethos \
   --config pyproject.toml \
   --known-first-party ethos \
-  --package-module-name-map cel-python=celpy,pyyaml=yaml \
+  --package-module-name-map cel-expr-python=cel_expr_python,pyyaml=yaml \
   --json-output "${output}" \
   --no-ansi
 

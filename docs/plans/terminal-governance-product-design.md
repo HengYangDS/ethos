@@ -80,7 +80,7 @@ ETHOS does not become:
   releases;
 - a universal physical repository layout;
 - a compatibility museum for previous ETHOS designs;
-- a product coupled to WCP or any other workstation-specific control plane.
+- a product coupled to any workstation-specific control plane.
 
 ## Minimal Semantic Kernel
 
@@ -205,7 +205,7 @@ that declaration rather than maintained as command-shaped copies.
 ## Self/Adopter Homomorphism
 
 The universal kernel knows no OpenSpec, Python, GitHub, GitLab, Codex, Claude,
-JetBrains, WCP, or fixed directory grammar. An adoption profile maps native
+JetBrains or fixed directory grammar. An adoption profile maps native
 repository facts into kernel roles:
 
 - change carrier and intent source;
@@ -451,7 +451,7 @@ campaigns remain outside the local kernel.
 | Candidate throughput/races | parallel proof plus serialized CAS | contention and stale-head tests |
 | Worktree Family and records | self-profile projections and attestations | repo-family audit and record verify |
 | Vendor neutrality | opaque actor refs and adapter profiles | three unlike reference adopters |
-| WCP independence | zero active literals/imports/contracts | repository-wide zero-coupling scan |
+| Workstation-control-plane independence | zero active dependencies | repository-wide zero-coupling scan |
 | Local/GitLab/GitHub separation | three authority planes | independent immutable receipts |
 | Branch semantics | main/dev/candidate/work/proposal roles | policy and remote-ref tests |
 | OpenSpec shape/archive naming | self-profile carrier and one grammar | official strict validation and archive audit |
@@ -472,7 +472,7 @@ The campaign is complete only when all are true:
    cannot emit a green state with a hard gap.
 2. `report`, standalone `orient`, parallel command registries, custom graph
    layers, source-budget worker/protocol/replay/shadow stacks, empty template
-   machinery, WCP coupling, and compatibility residue are absent.
+   machinery, workstation-control-plane coupling, and compatibility residue are absent.
 3. ChangeContract, Attestation, RepositoryFacts, and PlanIR own the semantic
    center; old package/model/schema owners are deleted in the same cutover.
 4. Python ELOC is <=54,000 and global owned-source ELOC is <=68,000.
@@ -493,7 +493,8 @@ One campaign, deletion first, no repeated remote closeout:
 1. **Restore truth**: fix false-green verdicts, bound outputs, bind concern
    coverage, and classify existing Work Lanes.
 2. **Delete self-defeating surfaces**: source-budget private runtime, empty
-   templates, copied CI/C4/config parsers, command/schema dual truth, WCP,
+   templates, copied CI/C4/config parsers, command/schema dual truth, external
+   workstation coupling,
    compatibility paths, and coverage-only tests.
 3. **Cut over the semantic kernel**: introduce the four minimal runtime values,
    direct graphlib, official CEL, and one distribution; delete old owners at the

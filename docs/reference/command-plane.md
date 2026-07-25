@@ -347,8 +347,9 @@ successful final receipt removes the sidecar. A final write failure after the
 effect retains the sidecar for reconciliation, while the final receipt writer
 still performs its own no-symlink and no-clobber check.
 
-Clean ownerless retire is a stricter effect-boundary protocol. ETHOS validates
-the complete WCP response, strictly re-parses the current decision bytes and
+Clean ownerless retire is a stricter effect-boundary protocol. ETHOS independently
+recomputes native repository, lease, decision, and Chronicle bindings, strictly
+re-parses the current decision bytes, and
 requires their canonical payload to equal the admitted decision, acquires a
 Git-common-directory SQLite target fence that competes with lease acquisition,
 re-observes the target, and prepares accepted-ref verification plus exact
@@ -360,7 +361,7 @@ counts as absence.
 
 The ownerless target reservation is a visible JSON record separate from the
 hidden receipt sidecar. reserved_no_effect may retry only the same decision
-after fresh WCP admission. If accepted history advanced, the old accepted head
+after fresh native authority evaluation. If accepted history advanced, the old accepted head
 must remain an ancestor of the newly admitted head. ETHOS then re-verifies the
 same decision, target, executor, observation, and coordination, releases the
 exact old SQLite fence, exact-compare-deletes the zero-effect reservation, and
@@ -371,14 +372,15 @@ unverifiable fence, or any decision, target, executor, or coordination drift
 blocks without effect.
 
 effect_complete_receipt_missing is handled before ordinary lane observation
-and does not rerun WCP. If the exact immutable receipt is already durable after
+and does not rerun admission. If the exact immutable receipt is already durable after
 a crash or cleanup failure, retry validates its schema and decision, lane,
 head, and ownerless binding, re-verifies the effect postconditions, and performs
 cleanup without rewriting the receipt or repeating a Git/worktree effect.
 Receipt-first cleanup remains available when reservation unlink completed
 before the crash. Fence inspection is three-state: ordinary pre-effect requires
 the exact present fence; zero-effect reset accepts explicit absence only with
-the exact reserved_no_effect record plus fresh WCP and unchanged-target proof;
+the exact reserved_no_effect record plus fresh native authority evaluation and
+unchanged-target proof;
 completed-effect recovery accepts explicit absence only with the exact receipt;
 and unverifiable state blocks. Cleanup releases the exact SQLite fence first and
 only then deletes the visible reservation. worktree_removed_ref_present,
@@ -392,18 +394,15 @@ completes but immutable receipt materialization fails, apply returns
 `lane_resolution_receipt_write_failed_after_effect`; the stable decision and
 package remain available for reconciliation.
 
-When the repository-family worktree profile is enabled, a clean `retire`
-decision for an ownerless lane performs a read-only repository-family preflight
-immediately before the native effect. It binds the exact decision, Chronicle,
-branch, head, path, accepted control branch, and executor reference. A failed,
-malformed, or non-ownerless response blocks with an
-`lane_resolution_ownerless_wcp_rejected` gap and leaves the worktree and ref
-untouched. The WCP adapter independently classifies unavailable, malformed,
-oversized, stale, and mismatched responses before that fail-closed boundary.
-The executor is recorded for that effect only; it does not become a lane owner.
+Before a clean ownerless `retire` effect, ETHOS performs one read-only native
+authority evaluation over the exact decision, Chronicle, branch, head, path,
+accepted control branch, lease state, and executor reference. Missing, malformed,
+stale, or mismatched bindings block with the corresponding native field-specific
+gap and leave the worktree and ref untouched. The executor is recorded for that
+effect only; it does not become a lane owner.
 Canonical date-bound lanes are admitted directly. A pre-existing linked `work/*` lane
 may use this route only when the same exact clean ownerless decision binds its
-registered sibling path; this compatibility route cannot create, take over, or
+registered sibling path; this route cannot create, take over, or
 reclassify a lane.
 
 `ethos lane resolution inventory` derives retained, cleared, and unindexed

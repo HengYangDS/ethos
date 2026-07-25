@@ -2,7 +2,7 @@
 
 The accepted repository has a five-command public loop but also retains a
 quality_summary, a separate orient reader, parallel command/schema ownership, custom
-graph and source-measurement runtimes, WCP-specific ownerless closeout logic,
+graph and source-measurement runtimes, external ownerless-closeout coupling,
 large JSON projections, extensive suppression regions, and a package/test
 surface far above the declared terminal limits. Multiple historical campaigns
 optimized local slices without one terminal campaign controlling preservation,
@@ -48,7 +48,8 @@ only active implementation carrier for that design.
    `pass | block | unknown`. This keeps extension flexible without making
    mutation semantics unbounded.
 4. **Deletion-first cutover.** False-green verdicts and oversized outputs are
-   fixed first; then private source-budget, WCP, custom graph, command registry,
+   fixed first; then private source-budget, workstation-control-plane coupling,
+   custom graph, command registry,
    empty template, compatibility, and coverage-only surfaces are deleted before
    broader ecosystem work.
 5. **Direct mature mechanisms.** Use Pydantic v2 for persisted contracts,

@@ -47,6 +47,7 @@ Python topology tests, repository-family governance.
 ### Task 1: Freeze the source observation
 
 **Files:**
+
 - Temporary evidence: `build/evidence/artifact-topology-detached-residue/`
 
 - [x] Capture worktree registration, detached reflog, status-v2, dirty patch,
@@ -62,6 +63,7 @@ Python topology tests, repository-family governance.
 ### Task 2: Promote the semantic judgment
 
 **Files:**
+
 - Create: `docs/plans/artifact-topology-detached-residue-absorption-design-20260724.md`
 - Create: `docs/plans/artifact-topology-detached-residue-absorption-implementation-plan-20260724.md`
 - Create: `evidence/claims/artifact-topology-detached-residue-absorption-20260724.toml`
@@ -81,6 +83,7 @@ Python topology tests, repository-family governance.
 ### Task 3: Archive and prove the carrier
 
 **Files:**
+
 - Modify: the active OpenSpec carrier and Claim paths produced by official archive.
 
 - [x] Complete only checkboxes backed by fresh evidence.

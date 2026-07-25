@@ -1,10 +1,11 @@
 ## ADDED Requirements
 
 ### Requirement: Workstation-independent Product Kernel
-ETHOS source, schemas, tests, docs, install, lifecycle, and recovery MUST have zero dependency on WCP or another workstation-specific control plane.
+ETHOS source, schemas, tests, docs, install, lifecycle, and recovery MUST have zero dependency on a workstation-specific control plane.
 
 #### Scenario: ETHOS runs on a clean supported host
-- **WHEN** no WCP executable, package, schema, environment variable, or endpoint exists
+- **WHEN** no external workstation-control executable, package, schema,
+  environment variable, or endpoint exists
 - **THEN** local adoption, status, planning, proof, lane lifecycle, recovery, and installation remain functional
 
 ### Requirement: Explicit Adapter Classes

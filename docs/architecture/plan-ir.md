@@ -17,9 +17,12 @@ Each node is one of three kinds:
 - `decision`: apply declared policy to facts and prior results;
 - `effect`: describe an operation that still requires current admission before execution.
 
-Nodes declare only identity, kind, operation, and dependencies. Verdicts belong
-to decision results; permissions belong to admission; evidence and artifacts
-belong to attestations. PlanIR does not duplicate those owners.
+Nodes declare only identity, kind, operation, and dependencies. The plan exposes
+one closed aggregate verdict, `pass | block | unknown`; node observations and
+judgments still belong to attestations. Permissions belong to admission, while
+evidence and artifacts belong to attestations. PlanIR does not duplicate those
+owners. Any structural or compilation gap forces `block`; `unknown` is reserved
+for a structurally valid plan whose required proposition cannot yet be proved.
 
 Python's `graphlib.TopologicalSorter` is the sole ordering and cycle-detection
 mechanism. Missing dependencies, duplicate node identities, and cycles block the

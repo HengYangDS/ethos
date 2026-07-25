@@ -48,7 +48,7 @@ def test_land_closeout_defers_control_replacement_without_signed_receipt(tmp_pat
     adopt_and_commit(repo)
     candidate = tmp_path / 'repo-candidate-dev'
     git(repo, 'worktree', 'add', '-b', 'candidate/dev', candidate.as_posix(), 'dev')
-    path = candidate / 'packages' / 'ethos' / 'src' / 'ethos' / 'adapters' / 'admission'
+    path = candidate / 'src' / 'ethos' / 'adapters' / 'admission'
     path.mkdir(parents=True, exist_ok=True)
     (path / 'new_control.py').write_text("CONTROL = 'candidate'\n", encoding='utf-8')
     git(candidate, 'add', '.')

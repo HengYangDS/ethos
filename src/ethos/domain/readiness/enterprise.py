@@ -199,10 +199,7 @@ def _simple_report_check(report: dict[str, object]) -> dict[str, object]:
 
 def _governance_context_check(context: dict[str, object]) -> dict[str, object]:
     required_gaps: list[str] = []
-    subject = string_mapping(context.get("subject"))
-    if context.get("single_kernel") is not True:
-        required_gaps.append("enterprise_readiness_single_kernel_missing")
-    if subject.get("kind") != "repository":
+    if not context.get("repository"):
         required_gaps.append("enterprise_readiness_subject_not_repository")
     transition = string_sequence(context.get("transition_commands"))
     expected = list(PUBLIC_WORKFLOW_COMMANDS)
@@ -214,8 +211,7 @@ def _governance_context_check(context: dict[str, object]) -> dict[str, object]:
         "required_gaps": required_gaps,
         "summary": {
             "profile": context.get("profile"),
-            "single_kernel": context.get("single_kernel"),
-            "subject_kind": subject.get("kind"),
+            "repository": context.get("repository"),
         },
     }
 

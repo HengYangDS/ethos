@@ -1,17 +1,34 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from datetime import UTC
+from datetime import datetime
 from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
 
+from ethos.contracts.semantic import ChangeContract
+from ethos.contracts.semantic import RepositoryFacts
 from ethos.contracts.system.contracts import load_system_contract
 from ethos.contracts.workflow import WorkflowContract
 from ethos.contracts.workflow import load_workflow_contract_declaration
 from ethos.contracts.workflow import planned_transition_projection
 from ethos.contracts.workflow import workflow_contract_report
 from ethos.repository.workflow import runtime as workflow_runtime_model
+
+_CONTRACT = ChangeContract(id="change:test", intent="test", subjects=("repository:test",))
+_FACTS = RepositoryFacts(
+    repository="repository:test",
+    head="a" * 40,
+    tree="b" * 40,
+    observed_at=datetime(2026, 7, 25, tzinfo=UTC),
+    values={"changed_paths": ()},
+)
+
+
+def _facts(*paths: str) -> RepositoryFacts:
+    return _FACTS.model_copy(update={"values": {"changed_paths": paths}})
 
 
 def test_workflow_contract_is_frozen_typed_declaration() -> None:
@@ -28,7 +45,10 @@ def test_workflow_contract_is_frozen_typed_declaration() -> None:
         item["id"] for item in load_system_contract(Path(), "workflows")["lease_transition"]
     )
     assert contract.to_report()["node_count"] >= 6
-    assert contract.to_projection(changed_paths=("docs/a.md",))["plan_ir"]["verdict"] == "pass"
+    assert (
+        contract.to_projection(contract=_CONTRACT, facts=_facts("docs/a.md"))["plan_ir"]["verdict"]
+        == "pass"
+    )
 
     with pytest.raises(ValidationError) as frozen_error:
         contract.runtime.truth_boundary = "mutable"
@@ -166,10 +186,12 @@ def test_workflow_contract_loader_returns_typed_declaration() -> None:
 
     assert isinstance(declaration, WorkflowContract)
     assert workflow_contract_report(declaration)["ok"] is True
-    assert planned_transition_projection(declaration)["truth_boundary"] == (
-        "derived_repository_projection"
-    )
-    assert declaration.plan().ok is True
+    assert planned_transition_projection(
+        declaration,
+        change_contract=_CONTRACT,
+        repository_facts=_FACTS,
+    )["truth_boundary"] == ("derived_repository_projection")
+    assert declaration.plan(contract=_CONTRACT, facts=_FACTS).ok is True
 
 
 def test_workflow_contract_rejects_invalid_campaign_cel_projection() -> None:
@@ -211,7 +233,11 @@ def test_workflow_contract_declares_runtime_nodes_and_evolution_bridge() -> None
 def test_planned_transition_projection_includes_changed_paths_and_plan_ir() -> None:
     contract = load_system_contract(Path(), "workflows")
 
-    projection = planned_transition_projection(contract, changed_paths=("docs/a.md",))
+    projection = planned_transition_projection(
+        contract,
+        change_contract=_CONTRACT,
+        repository_facts=_facts("docs/a.md"),
+    )
 
     assert projection["truth_boundary"] == "derived_repository_projection"
     assert projection["changed_paths"] == ["docs/a.md"]
@@ -238,7 +264,11 @@ def test_planned_transition_projection_includes_changed_paths_and_plan_ir() -> N
 def test_plan_ir_from_workflow_contract_compiles_requested_declared_nodes() -> None:
     contract = load_system_contract(Path(), "workflows")
 
-    plan = WorkflowContract.model_validate(contract).plan(node_ids=("status", "plan", "prove"))
+    plan = WorkflowContract.model_validate(contract).plan(
+        contract=_CONTRACT,
+        facts=_FACTS,
+        node_ids=("status", "plan", "prove"),
+    )
 
     assert plan.ok is True
     assert [node.id for node in plan.nodes] == ["status", "plan", "prove"]
@@ -257,7 +287,7 @@ def test_workflow_nodes_use_plan_ir_kinds_without_heuristic_mapping() -> None:
 def test_plan_ir_from_workflow_contract_reports_missing_requested_nodes() -> None:
     plan = WorkflowContract.model_validate(
         {"node": [{"id": "status", "kind": "check", "command": "ethos status --json"}]}
-    ).plan(node_ids=("status", "missing"))
+    ).plan(contract=_CONTRACT, facts=_FACTS, node_ids=("status", "missing"))
 
     assert plan.ok is False
     assert plan.gaps() == ("workflow_plan_node_missing:missing",)
@@ -276,7 +306,7 @@ def test_plan_ir_from_workflow_contract_ignores_anonymous_selected_nodes() -> No
                 },
             ]
         }
-    ).plan(node_ids=("", "status"))
+    ).plan(contract=_CONTRACT, facts=_FACTS, node_ids=("", "status"))
 
     assert plan.ok is True
     assert [node.id for node in plan.nodes] == ["status"]
@@ -466,7 +496,9 @@ def test_planned_transition_projection_skips_anonymous_nodes_and_self_requiremen
                     "requires": ["self_fact", "external_fact"],
                 },
             ]
-        }
+        },
+        change_contract=_CONTRACT,
+        repository_facts=_FACTS,
     )
 
     assert projection["plan_ir"]["verdict"] == "pass"

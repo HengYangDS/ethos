@@ -93,13 +93,18 @@ must remain subordinate to this contract.
 Engineering names therefore stay ordinary: kernel, evidence, claim, chronicle,
 adapter, profile, transition loop, and axiom mean what they say.
 
-## Kernel Chain
+## Semantic Kernel
 
-ETHOS is kernel-first. The product model is:
+ETHOS is kernel-first. The executable product model is:
 
 ```text
-Authority -> Subject -> Commitment -> Change -> Evidence -> Claim -> Chronicle
+ChangeContract + Attestation -> RepositoryFacts -> PlanIR
 ```
+
+Only `ChangeContract` and `Attestation` are persistent semantic entities.
+`RepositoryFacts` is freshly observed and `PlanIR` is transient. Authority,
+subject, commitment, evidence, claim, and chronicle remain duties expressed by
+their fields and attestations; they are not additional object models or schemas.
 
 The center is the **governed passage** from question to repository law: a
 question is bounded to a subject, tested through evidence, judged as a change to

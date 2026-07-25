@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from ethos.kernel import KERNEL_CHAIN
 from ethos.normalization.core import string_mapping
 from ethos.normalization.core import string_sequence
 from ethos.repository.adoption.planner import adoption_plan
@@ -15,7 +14,8 @@ if TYPE_CHECKING:
     from collections.abc import Mapping
     from pathlib import Path
 
-KERNEL_CHAIN_TEXT = "Authority -> Subject -> Commitment -> Change -> Evidence -> Claim -> Chronicle"
+KERNEL_CHAIN = ("ChangeContract", "Attestation", "RepositoryFacts", "PlanIR")
+KERNEL_CHAIN_TEXT = "ChangeContract + Attestation -> RepositoryFacts -> PlanIR"
 REQUIRED_PRODUCT_DOCS: tuple[str, ...] = (
     "README.md",
     "docs/governance/product-design-contract.md",
@@ -130,24 +130,12 @@ def governance_kernel_report(root: Path) -> dict[str, object]:
 
 
 def _runtime_context_check(context: Mapping[str, object]) -> dict[str, object]:
-    subject = string_mapping(context.get("subject"))
-    authority = string_mapping(context.get("authority"))
     required_gaps = _dedupe(
         [
             *_field_gaps(
                 value=context.get("contract"),
                 expected="governed_repository",
                 gap="governance_kernel_contract_mismatch",
-            ),
-            *_field_gaps(
-                value=context.get("single_kernel"),
-                expected=True,
-                gap="governance_kernel_single_kernel_missing",
-            ),
-            *_list_field_gaps(
-                value=context.get("kernel_chain"),
-                expected=KERNEL_CHAIN,
-                gap="governance_kernel_chain_mismatch",
             ),
             *_list_field_gaps(
                 value=context.get("transition_commands"),
@@ -159,11 +147,7 @@ def _runtime_context_check(context: Mapping[str, object]) -> dict[str, object]:
                 expected=PUBLIC_WORKFLOW_COMMANDS,
                 gap="governance_kernel_shared_commands_mismatch",
             ),
-            *_field_gaps(
-                value=subject.get("kind"),
-                expected="repository",
-                gap="governance_kernel_subject_not_repository",
-            ),
+            *([] if context.get("repository") else ["governance_kernel_subject_not_repository"]),
             *_field_gaps(
                 value=context.get("truth_boundary"),
                 expected="repository",
@@ -176,7 +160,7 @@ def _runtime_context_check(context: Mapping[str, object]) -> dict[str, object]:
             ),
             *(
                 []
-                if authority.get("policy_refs")
+                if context.get("authority_refs")
                 else ["governance_kernel_authority_policy_refs_missing"]
             ),
         ]
@@ -188,8 +172,7 @@ def _runtime_context_check(context: Mapping[str, object]) -> dict[str, object]:
         "summary": {
             "contract": context.get("contract"),
             "profile": context.get("profile"),
-            "subject_kind": subject.get("kind"),
-            "single_kernel": context.get("single_kernel"),
+            "repository": context.get("repository"),
         },
     }
 

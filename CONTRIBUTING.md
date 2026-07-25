@@ -31,7 +31,7 @@ Use Conventional Commits:
 
 ```text
 feat: add evidence gate runner
-fix: reject invalid action graph cycles
+fix: reject cyclic PlanIR dependencies
 docs: refine command-plane reference
 ci: add GitLab verification pipeline
 ```
@@ -46,7 +46,7 @@ Before proposing a change:
 tools/ci/scripts/run-python-tests.sh
 tools/ci/scripts/run-python-lint.sh
 uv run --package ethos ethos audit --mode shape --json
-uv run --package ethos ethos report --json
+uv run --package ethos ethos status --json
 ```
 
 Changes that affect package metadata should also run:

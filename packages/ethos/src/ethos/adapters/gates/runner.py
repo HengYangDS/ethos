@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from ethos_core.action_graph.core import ActionNode
+from ethos_core.contracts.plan import PlanNode
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,7 +52,7 @@ def _ethos_result_diagnostics(stdout: str) -> tuple[dict[str, Any], ...]:
 
 
 class DryRunRunner:
-    def run(self, node: ActionNode, *, root: Path) -> ActionRunResult:
+    def run(self, node: PlanNode, *, root: Path) -> ActionRunResult:
         root.resolve(strict=True)
         return ActionRunResult(
             action_id=node.id,
@@ -62,14 +62,14 @@ class DryRunRunner:
         )
 
 
-InProcessHandler = Callable[[ActionNode, Path], ActionRunResult | None]
+InProcessHandler = Callable[[PlanNode, Path], ActionRunResult | None]
 
 
 class LocalSubprocessRunner:
     def __init__(self, *, inprocess_handler: InProcessHandler | None = None) -> None:
         self._inprocess_handler = inprocess_handler
 
-    def run(self, node: ActionNode, *, root: Path) -> ActionRunResult:
+    def run(self, node: PlanNode, *, root: Path) -> ActionRunResult:
         if self._inprocess_handler is not None:
             inprocess = self._inprocess_handler(node, root)
             if inprocess is not None:

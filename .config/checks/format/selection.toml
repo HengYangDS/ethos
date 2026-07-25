@@ -4,7 +4,12 @@ summary = "Fail-closed executable-carrier admission audit."
 runner = "tools/ci/scripts/run-format-selection.sh"
 
 [source_budget]
+contract_version = 1
+cross_check = { command = "scc", args = ["--no-cocomo", "--no-complexity", "--by-file", "--format", "json2", "--count-as", "c4:md,mmd:md", "."], timeout_seconds = 30, tolerance = { python_total = 2000, global_total = 3000 } }
+terminal = { python_total = 54000, global_total = 68000 }
 aggregates = { python_total = ["python_product", "python_tests", "python_tools", "python_other"], global_total = ["python_product", "python_tests", "python_tools", "python_other", "shell", "js", "toml", "yaml", "json", "ini", "diagram"] }
+exclude = ["package-lock.json"]
+line_width = 100
 
 [[format]]
 extensions = [".py", ".pyi"]
@@ -39,7 +44,7 @@ carrier = "TOML"
 owner = ".config/checks/taplo/taplo.toml"
 execution = "tools/ci/scripts/run-config-lint.sh"
 truth_boundary = "hand-authored config"
-budget = [{ category = "toml", comment_prefixes = ["#"] }]
+budget = [{ category = "toml", measure = "structured", baseline_measure = "lines", baseline_comment_prefixes = ["#"] }]
 
 [[format]]
 extensions = [".yml", ".yaml"]
@@ -47,7 +52,7 @@ carrier = "YAML"
 owner = ".config/checks/yaml/yamllint.yaml"
 execution = "tools/ci/scripts/run-config-lint.sh"
 truth_boundary = "ecosystem-native projections only"
-budget = [{ category = "yaml", comment_prefixes = ["#"] }]
+budget = [{ category = "yaml", measure = "structured", baseline_measure = "lines", baseline_comment_prefixes = ["#"] }]
 
 [[format]]
 extensions = [".json"]
@@ -55,7 +60,7 @@ carrier = "JSON"
 owner = ".config/checks/json/format.toml"
 execution = "tools/ci/scripts/run-config-lint.sh"
 truth_boundary = "machine output, schemas, and external standards"
-budget = [{ category = "json" }]
+budget = [{ category = "json", measure = "structured", baseline_measure = "lines" }]
 
 [[format]]
 extensions = [".jsonl"]
@@ -66,6 +71,7 @@ truth_boundary = "generated append-only streams, not tracked source of truth"
 
 [[format]]
 extensions = [".sh", ".bash", ".zsh"]
+shebangs = ["sh", "bash", "zsh"]
 carrier = "Shell"
 owner = ".config/checks/shell/.shellcheckrc"
 execution = "tools/ci/scripts/run-shell-lint.sh"
@@ -78,7 +84,7 @@ carrier = "INI"
 owner = "tool-native config owner"
 execution = "tools/ci/scripts/run-config-lint.sh or tool-specific gate"
 truth_boundary = "tool-native config"
-budget = [{ category = "ini", comment_prefixes = ["#", ";"] }]
+budget = [{ category = "ini", measure = "structured", baseline_measure = "lines", baseline_comment_prefixes = ["#", ";"] }]
 
 [[format]]
 extensions = [".lock"]
@@ -131,7 +137,6 @@ yaml_allowed_roots = [
   "evidence/parity/",
   "distributions/npm/",
   "tests/fixtures/container-contract/",
-  "tests/fixtures/source-budget-v2/",
 ], files = [
   "package.json",
   "package-lock.json",

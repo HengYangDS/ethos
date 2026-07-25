@@ -35,7 +35,7 @@ multi-contributor enterprise adopters.
 
 | Mechanism family | Common external pattern | ETHOS product stance | ETHOS action |
 | --- | --- | --- | --- |
-| Git lifecycle and closeout | Accepted root, candidate train, work lanes, submit/review boundaries, closeout commands, delivery evidence. | `status -> plan -> prove -> land -> publish`, Work Lanes, candidate train, accepted-root closeout, lane leases. | Keep the ETHOS kernel. Map adopter branch names through profiles only. |
+| Git lifecycle and closeout | Accepted root, candidate train, work lanes, proposal/review boundaries, closeout commands, delivery evidence. | `status -> plan -> prove -> land -> publish`, Work Lanes, candidate train, accepted-root closeout, lane leases. | Keep the ETHOS kernel. Map adopter branch names through profiles only. |
 | Command runner and environment | Environment managers, matrix runners, graph tools, and recipe files provide operator convenience. | uv workspace, Hatchling packages, `ethos ...`, and owner scripts under `tools/ci/scripts/`. | Keep one command plane. Admit runners only as adapters. |
 | Hosted CI providers | Multiple hosted providers use checked templates and local syntax validation. | GitHub/GitLab templates, tracked projections, CI drift gate, actionlint, local emulator wrappers. | Keep provider mirror semantics; never claim hosted status from local emulators. |
 | Local CI emulation | Local provider emulators support dry-run, run, doctor, and handoff evidence. | GitHub and GitLab emulator wrappers plus local-CI owner bundle. | Adopt the minimum emulator contract; deepen handoff and hosted observation later. |

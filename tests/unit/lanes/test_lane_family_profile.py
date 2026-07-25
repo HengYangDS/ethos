@@ -29,8 +29,8 @@ def test_family_profile_uses_date_bound_identity(
     repo = init_repo(tmp_path / "repo")
     _enable(repo)
     monkeypatch.setattr(lanes, "utc_now", lambda: datetime(2026, 7, 22, tzinfo=UTC))
-    report = start_work_lane(root=repo, name="ownerless closeout admission", holder_ref=_HOLDER)
-    lane_id = "20260722-ownerless-closeout-admission"
+    report = start_work_lane(root=repo, name="retired lane admission", holder_ref=_HOLDER)
+    lane_id = "20260722-retired-lane-admission"
     assert report["branch"] == f"work/{lane_id}"
     assert report["path"] == (tmp_path / "repo-worktrees" / lane_id).as_posix()
 

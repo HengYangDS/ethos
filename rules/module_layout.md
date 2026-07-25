@@ -60,7 +60,7 @@ general module-layout boundary study and `system/axioms.md`.
 ### Import discipline
 
 - Import concrete submodules, never through package-root facades:
-  `from ethos.domain.plan import graph_for_paths`, not a re-export shell.
+  `from ethos.domain.plan import matching_rule_gates`, not a re-export shell.
 - Package-root `__init__.py` files stay declaration-only (a docstring). No
   re-export barrels, no `__all__` piled with forwarded names, no alias shims
   (`from x import y as main`). Compatibility residue is a cost center.

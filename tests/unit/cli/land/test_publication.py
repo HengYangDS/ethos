@@ -42,7 +42,7 @@ def test_publish_reports_invalid_local_ci_fallback_evidence_manifest(
 def test_publish_reports_local_readiness_without_remote_push() -> None:
     payload = run_ethos("publish", "--json")
     branch = git(Path.cwd(), "branch", "--show-current") or "detached"
-    submit_branch = load_branch_role_policy(Path.cwd()).submit_branch_for_source(branch)
+    proposal_branch = load_branch_role_policy(Path.cwd()).proposal_branch_for_source(branch)
 
     assert payload["summary"]["remote_push"] == "not_performed"
     assert (
@@ -53,12 +53,12 @@ def test_publish_reports_local_readiness_without_remote_push() -> None:
     )
 
     publication = payload["data"]["publication"]
-    assert publication["submit_branch"] == submit_branch
-    assert publication["local_submit_package"]["source_branch"] == branch
-    assert publication["local_submit_package"]["submit_branch"] == submit_branch
+    assert publication["proposal_branch"] == proposal_branch
+    assert publication["local_proposal_package"]["source_branch"] == branch
+    assert publication["local_proposal_package"]["proposal_branch"] == proposal_branch
     assert (
         "run local-ci fallback when remote publication is unavailable"
-        in publication["local_submit_package"]["required_steps"]
+        in publication["local_proposal_package"]["required_steps"]
     )
     assert payload["next_actions"]
 
@@ -142,7 +142,7 @@ def test_publication_readiness_uses_local_fallback_when_fallback_omits_evidence_
         ]
 
 
-def test_publish_uses_configured_submit_branch_role_policy(tmp_path: Path) -> None:
+def test_publish_uses_configured_proposal_branch_role_policy(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / "repo")
     write_role_policy(repo)
     git(repo, "checkout", "-b", "lane/topic")
@@ -150,5 +150,5 @@ def test_publish_uses_configured_submit_branch_role_policy(tmp_path: Path) -> No
     payload = run_ethos("publish", "--root", repo.as_posix(), "--json", cwd=repo)
 
     publication = payload["data"]["publication"]
-    assert publication["local_submit_package"]["source_branch"] == "lane/topic"
-    assert publication["local_submit_package"]["submit_branch"] == "review/topic"
+    assert publication["local_proposal_package"]["source_branch"] == "lane/topic"
+    assert publication["local_proposal_package"]["proposal_branch"] == "review/topic"

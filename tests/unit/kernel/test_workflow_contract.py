@@ -9,7 +9,6 @@ from pydantic import ValidationError
 from ethos.repository.workflow import runtime as workflow_runtime_model
 from ethos_core.contracts.system.contracts import load_system_contract
 from ethos_core.contracts.workflow import WorkflowContract
-from ethos_core.contracts.workflow import action_graph_from_workflow_contract
 from ethos_core.contracts.workflow import load_workflow_contract_declaration
 from ethos_core.contracts.workflow import planned_transition_projection
 from ethos_core.contracts.workflow import workflow_contract_report
@@ -29,7 +28,7 @@ def test_workflow_contract_is_frozen_typed_declaration() -> None:
         item["id"] for item in load_system_contract(Path(), "workflows")["lease_transition"]
     )
     assert contract.to_report()["node_count"] >= 6
-    assert contract.to_projection(changed_paths=("docs/a.md",))["graph"]["ok"] is True
+    assert contract.to_projection(changed_paths=("docs/a.md",))["plan_ir"]["validation"]["ok"]
 
     with pytest.raises(ValidationError) as frozen_error:
         contract.runtime.truth_boundary = "mutable"
@@ -170,7 +169,7 @@ def test_workflow_contract_loader_returns_typed_declaration() -> None:
     assert planned_transition_projection(declaration)["truth_boundary"] == (
         "derived_repository_projection"
     )
-    assert action_graph_from_workflow_contract(declaration).validate().ok is True
+    assert declaration.plan().ok is True
 
 
 def test_workflow_contract_rejects_invalid_campaign_cel_projection() -> None:
@@ -215,7 +214,7 @@ def test_workflow_contract_declares_runtime_nodes_and_evolution_bridge() -> None
     assert report["evolution"]["truth_boundary"] == "evolution_ledger_claim_evidence_chronicle"
 
 
-def test_planned_transition_projection_includes_changed_paths_and_graph_plan() -> None:
+def test_planned_transition_projection_includes_changed_paths_and_plan_ir() -> None:
     contract = load_system_contract(Path(), "workflows")
 
     projection = planned_transition_projection(contract, changed_paths=("docs/a.md",))
@@ -224,12 +223,14 @@ def test_planned_transition_projection_includes_changed_paths_and_graph_plan() -
     assert projection["changed_paths"] == ["docs/a.md"]
     assert projection["transitions"]
     assert any(node["id"] == "handoff" for node in projection["nodes"])
-    assert projection["graph"]["ok"] is True
-    assert projection["graph"]["edges"] == [
-        {"source": "status", "target": "plan", "relation": "depends_on"},
-        {"source": "plan", "target": "prove", "relation": "depends_on"},
-        {"source": "prove", "target": "land", "relation": "depends_on"},
-        {"source": "land", "target": "publish", "relation": "depends_on"},
+    assert projection["plan_ir"]["validation"]["ok"]
+    assert [node["id"] for node in projection["plan_ir"]["nodes"]] == [
+        "handoff",
+        "status",
+        "plan",
+        "prove",
+        "land",
+        "publish",
     ]
     assert projection["external_requirements"] == [
         {"node": "plan", "requires": ["openspec_carrier"]},
@@ -240,36 +241,28 @@ def test_planned_transition_projection_includes_changed_paths_and_graph_plan() -
     ]
 
 
-def test_action_graph_from_workflow_contract_compiles_requested_declared_nodes() -> None:
+def test_plan_ir_from_workflow_contract_compiles_requested_declared_nodes() -> None:
     contract = load_system_contract(Path(), "workflows")
 
-    graph = action_graph_from_workflow_contract(
-        contract,
-        changed_paths=("b.py", "a.py"),
-        node_ids=("status", "plan", "prove"),
-    )
+    plan = WorkflowContract.model_validate(contract).plan(node_ids=("status", "plan", "prove"))
 
-    assert graph.validate().ok is True
-    assert [node.id for node in graph.nodes] == ["status", "plan", "prove"]
-    assert graph.nodes[0].inputs == ("a.py", "b.py")
-    assert graph.nodes[1].command == ("ethos", "plan", "--json")
-    assert graph.nodes[1].outputs == ("action_graph", "workflow_runtime_read_model")
-    assert graph.nodes[2].depends_on == ("plan",)
-    assert graph.nodes[2].metadata["requires"] == ["action_graph", "gate_results"]
+    assert plan.ok is True
+    assert [node.id for node in plan.nodes] == ["status", "plan", "prove"]
+    assert plan.nodes[1].command == ("ethos", "plan", "--json")
+    assert plan.nodes[2].depends_on == ("plan",)
 
 
-def test_action_graph_from_workflow_contract_reports_missing_requested_nodes() -> None:
-    graph = action_graph_from_workflow_contract(
-        {"node": [{"id": "status", "kind": "control", "command": "ethos status --json"}]},
-        node_ids=("status", "missing"),
-    )
+def test_plan_ir_from_workflow_contract_reports_missing_requested_nodes() -> None:
+    plan = WorkflowContract.model_validate(
+        {"node": [{"id": "status", "kind": "control", "command": "ethos status --json"}]}
+    ).plan(node_ids=("status", "missing"))
 
-    assert graph.validate().ok is False
-    assert graph.validate().gaps == ("workflow_plan_node_missing:missing",)
+    assert plan.ok is False
+    assert plan.gaps() == ("workflow_plan_node_missing:missing",)
 
 
-def test_action_graph_from_workflow_contract_ignores_anonymous_selected_nodes() -> None:
-    graph = action_graph_from_workflow_contract(
+def test_plan_ir_from_workflow_contract_ignores_anonymous_selected_nodes() -> None:
+    plan = WorkflowContract.model_validate(
         {
             "node": [
                 {"kind": "control", "command": "ethos anonymous --json"},
@@ -280,12 +273,11 @@ def test_action_graph_from_workflow_contract_ignores_anonymous_selected_nodes() 
                     "produces": ["workspace_status"],
                 },
             ]
-        },
-        node_ids=("", "status"),
-    )
+        }
+    ).plan(node_ids=("", "status"))
 
-    assert graph.validate().ok is True
-    assert [node.id for node in graph.nodes] == ["status"]
+    assert plan.ok is True
+    assert [node.id for node in plan.nodes] == ["status"]
 
 
 def test_workflow_contract_rejects_invalid_public_command_boundary() -> None:
@@ -471,18 +463,12 @@ def test_planned_transition_projection_skips_anonymous_nodes_and_self_requiremen
         }
     )
 
-    assert projection["graph"] == {
-        "ok": True,
-        "ordered_ids": ["self-contained", "consumer"],
-        "edges": [
-            {
-                "source": "self-contained",
-                "target": "consumer",
-                "relation": "depends_on",
-            },
-        ],
-        "gaps": [],
-    }
+    assert projection["plan_ir"]["validation"] == {"ok": True, "gaps": []}
+    assert [node["id"] for node in projection["plan_ir"]["nodes"]] == [
+        "self-contained",
+        "consumer",
+    ]
+    assert projection["plan_ir"]["nodes"][1]["depends_on"] == ["self-contained"]
     assert projection["external_requirements"] == [
         {"node": "consumer", "requires": ["external_fact"]},
     ]

@@ -32,7 +32,7 @@ npm ci --ignore-scripts
 npm run ethos -- --version
 npm run test:npm
 ethos audit --mode deep
-ethos report
+ethos status
 ```
 
 The commands above are the current product-toolchain toolchain profile for proving
@@ -58,7 +58,7 @@ See also: [Documentation Index](../index.md), [Command Plane](../reference/comma
 
 `candidate/dev` and every `work/*` branch are local-only integration state and
 MUST NOT be pushed to either declared remote. Remote admission is explicit by
-remote name and permits only `dev`, `main`, and `submit/*`. `ethos publish`
+remote name and permits only `dev`, `main`, and `proposal/*`. `ethos publish`
 observes each configured remote independently and never pushes or claims hosted
 CI success; local proof, candidate landing, accepted closeout, and each remote
 publication remain separate evidence states.

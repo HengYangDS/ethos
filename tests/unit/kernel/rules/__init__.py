@@ -1,1 +1,0 @@
-"""Semantic rule-kernel tests."""

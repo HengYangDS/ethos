@@ -156,10 +156,10 @@ def _lane_status_next_actions(status_payload: dict[str, object]) -> tuple[str, .
     raw_gaps = status_payload.get("required_gaps", ())
     gap_items = raw_gaps if isinstance(raw_gaps, list | tuple) else ()
     if gap_items:
-        return ("ethos orient --json",)
+        return ("ethos status --json",)
     coordination = cast("dict[str, object]", status_payload.get("coordination", {}))
     if coordination.get("advisory_gaps"):
-        return ("ethos orient --json", "ethos lane status --json")
+        return ("ethos status --json", "ethos lane status --json")
     return ("ethos lane start <name> --path <path> --holder-ref <holder-ref> --apply --json",)
 
 

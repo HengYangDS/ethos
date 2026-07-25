@@ -6,20 +6,21 @@ relations:
   canonical_for: declarative runtime spine
   informs:
     - docs/architecture/declarative-governance-compiler.md
-    - docs/plans/declarative-runtime-spine-modernization.md
+    - docs/architecture/plan-ir.md
+    - docs/plans/terminal-governance-product-design.md
 ---
 
 # DR-0005: Declarative Runtime Spine
 
 Status: accepted.
 
-Purpose: establish the durable modernization ruling that moves ETHOS away from
-procedure-heavy Python surfaces toward a declaration-first governance compiler
-without ceding lifecycle truth to an external runtime.
+Purpose: establish the singular declaration-first runtime spine for ETHOS
+without ceding repository truth or lifecycle authority to a framework.
 
 See also: [Decision Records](../README.md), [Decision Index](../decision-index.md),
 [Declarative Governance Compiler](../../architecture/declarative-governance-compiler.md),
-and [Declarative Runtime Spine Modernization](../../plans/declarative-runtime-spine-modernization.md).
+[PlanIR](../../architecture/plan-ir.md), and
+[Terminal Governance Product Design](../../plans/terminal-governance-product-design.md).
 
 ## Record
 
@@ -27,114 +28,56 @@ and [Declarative Runtime Spine Modernization](../../plans/declarative-runtime-sp
 | --- | --- |
 | Decision ID | DR-0005 |
 | Kind | architecture |
-| Decision Makers | ETHOS maintainer and Codex work lane |
+| Decision Makers | ETHOS maintainer and authorized work lane |
 | Status | accepted |
 | Decision Date | 2026-07-10 |
-| Decision Version | 1 |
-| Decision Change Date | 2026-07-10 |
+| Decision Version | 2 |
+| Decision Change Date | 2026-07-25 |
 | Record Review Date | 2026-10-10 |
-| Supersedes | None |
+| Supersedes | DR-0005 version 1 graph-wrapper and parallel-registry choices |
 | Superseded By | None |
-| Scope | Contract models, policy evaluation, graph planning, CLI projection, binding serialization, evidence projection, and anti-regression gates. |
-| Boundary | ETHOS owns repository truth and lifecycle semantics; external frameworks provide replaceable mechanisms only. |
-| Context | ETHOS has grown effective Python code around imperative policy checks, dict payload normalization, hand-written command glue, binding generation, and repeated graph concepts. The repository already states that `system/workflows.toml` should declare lifecycle states and that mature libraries are acceptable where they reduce total code. |
-| Decision | Adopt a declarative runtime spine: Pydantic v2 as the primary contract model layer, CEL as the first policy expression DSL, an ETHOS GraphKernel backed by Python `graphlib`, Cyclopts command registry generation, native serializers for unavoidable external leaves, immutable facts by default, and JSON Schema/reference validation as external contract support. |
-| Consequences | New public payloads, rules, commands, bindings, gates, and graph plans must be declaration-first unless an explicit exception proves that a Python adapter is necessary. Heavy workflow runtimes remain adapters only. |
-| Proof or Evidence | Architecture and modernization plan in this work lane; subsequent lanes must prove equivalence with focused command JSON, unit tests, `ethos report --json`, and HEAD-bound `ethos prove`. |
-| Revisit Trigger | Revisit if declaration-first surfaces increase code volume, obscure authority, break command JSON compatibility, or require a long-lived external runtime to mint lifecycle truth. |
+| Scope | Contract models, policy evaluation, PlanIR, CLI composition, serialization, projections, and anti-regression gates. |
+| Boundary | ETHOS owns repository truth and transition semantics; frameworks and tools provide replaceable mechanisms only. |
+| Decision | Use strict frozen Pydantic v2 models for persisted and external contracts, small frozen stdlib values internally, CEL for typed guard expressions after parity, direct `graphlib.TopologicalSorter` for PlanIR order, Cyclopts declarations as CLI truth, and checked JSON Schema for language-neutral contracts. |
+| Consequences | Public contracts, rules, commands, projections, and plans are declaration-first. Python remains for pure compilation or explicit I/O and mutation adapters. Parallel registries, graph wrappers, compatibility layers, DI containers, and in-process event buses are not admitted without unique semantics and measured net benefit. |
+| Proof or Evidence | The `terminal-convergence` OpenSpec change owns implementation and deletion proof; focused contract, determinism, schema, command, and HEAD-bound proof must pass before closeout. |
+| Revisit Trigger | Revisit when declarations increase total maintenance, obscure authority, prevent explanation, or require an external runtime to own lifecycle truth. |
 
-## Context
+## Rationale
 
-The current repository has a healthy governance kernel, but several mechanisms
-are still encoded as imperative Python repetition:
+ETHOS had accumulated procedural gap collection, dictionary normalization,
+hand-written command glue, repeated dependency walkers, and generated surfaces
+with overlapping ownership. The corrective principle is not “replace Python
+with frameworks.” It is one semantic obligation, one owner, and the smallest
+mature mechanism that preserves meaning.
 
-- public command payloads often travel as untyped dictionaries;
-- policy checks append gap strings through procedural branches;
-- graph concepts appear as action graphs, gate graphs, workflow transitions,
-  evidence dependencies, and projection order without a shared graph kernel;
-- CLI commands repeat argument, envelope, help, JSON, and docs glue;
-- adoption and projections contain generation paths where runtime interpretation
-  or one typed serializer leaf would be smaller and easier to audit.
+The runtime spine is therefore:
 
-The modernization question is not whether ETHOS should become Pydantic, CEL,
-OPA, Dagster, Temporal, Pants, or any other framework. ETHOS is a repository
-trust-transition system. Its authority still comes from user instruction,
-source, tests, schemas, docs, OpenSpec records, evidence, claims, rules, and
-tracked repository facts. Frameworks may reduce mechanism code; they must not
-become the truth center.
+1. **Contracts:** Pydantic v2 only at persisted or external boundaries.
+2. **Facts:** freshly observed and passed explicitly; no ambient mutable truth.
+3. **Rules:** declarations first, CEL only for predicates that need an expression
+   language, and one selected CEL implementation after parity.
+4. **Plans:** `PlanIR` contains `Check`, `Decision`, and `Effect` nodes; Python
+   `graphlib` directly supplies cycle detection and topological order.
+5. **Commands:** Cyclopts declarations own the command surface; documentation,
+   schemas, and protocol metadata are derived rather than separately registered.
+6. **Effects:** adapters execute admitted operations with explicit roots,
+   permissions, expected state, and compare-and-swap preconditions.
+7. **Evidence:** execution returns immutable attestations instead of publishing
+   hidden events or mutating a second truth store.
 
-## Decision
+Heavy workflow engines, policy servers, graph frameworks, state-machine
+frameworks, DI containers, and event buses remain outside the kernel. They may
+become optional adapters only after a real consumer proves that the existing
+contracts and adapter protocol cannot express the requirement more simply.
 
-ETHOS adopts the following primary spine:
+## Proof
 
-1. **Pydantic v2 contract models** for public and persisted command payloads,
-   evidence envelopes, command registry entries, policy declarations, graph
-   declarations, and projection declarations.
-2. **CEL policy expressions** for first-line guard and rule predicates over
-   typed fact models.
-3. **ETHOS GraphKernel plus Python `graphlib`** for deterministic graph
-   validation, cycle detection, topological planning, and relation filtering.
-4. **Cyclopts registry generation** so command declarations generate CLI
-   surfaces, JSON envelopes, help metadata, docs tables, and smoke tests.
-5. **Interpret-first, generate-last projection discipline**: native serializers
-   write only externally required leaves; adoption writes one TOML binding.
-6. **Immutable fact discipline**: tuples, frozensets, frozen models, and a
-   persistent map abstraction for shared fact and metadata maps.
-7. **JSON Schema plus reference validation** as the external contract boundary,
-   generated or checked from the model spine instead of maintained as a parallel
-   unchecked truth store.
+Completion requires:
 
-The following are explicitly not the first-line ETHOS core:
-
-- msgspec as the primary contract spine;
-- attrs as the primary public model layer;
-- Rego/OPA as the initial policy engine;
-- CUE, Dhall, or Jsonnet as the primary ETHOS DSL;
-- Dagster, Prefect, Airflow, Temporal, Pants, or Bazel as lifecycle authority;
-- Typer or Click migration away from the existing Cyclopts command plane;
-- a functional-programming dependency as a substitute for pure reducers and
-  explicit result models.
-
-These tools may still appear as optional adapters or future experiments when a
-bounded practice claim proves net benefit without violating repository truth.
-
-## Consequences
-
-New work must prefer declaration-first forms:
-
-| Concern | Preferred form | Python role |
-| --- | --- | --- |
-| Payload shape | Pydantic model | Validate, dump, schema-generate. |
-| Rule/guard | CEL-backed rule declaration | Collect typed facts and evaluate. |
-| Gate/workflow order | Graph declaration | Compile to GraphKernel and sort. |
-| CLI command | Command registry entry | Generate Cyclopts binding and envelope. |
-| Binding/projection | Typed declaration plus native serializer | Emit only unavoidable external leaves after authorization. |
-| Report/read model | Projection declaration | Evaluate over fact/event models. |
-
-A Python adapter remains valid when it isolates IO, subprocess, Git, OpenSpec,
-filesystem mutation, host APIs, or an algorithm that cannot be safely expressed
-in the declaration surface. The adapter must still return typed results.
-
-## Proof Or Evidence
-
-The first proof is this decision plus the companion architecture and plan. Later
-implementation lanes must add stronger evidence:
-
-- command JSON equivalence fixtures before and after each migration;
-- schema generation or schema conformance checks for every public model;
-- CEL policy parity fixtures against incumbent Python checkers;
-- graph digest and ordering stability tests;
-- command registry generated docs/tests checks;
-- binding plan and apply tests;
-- `ethos report --json` and HEAD-bound `ethos prove` at each lane head.
-
-## Revisit Trigger
-
-Reopen this decision if any of the following occur:
-
-- declaration files become less reviewable than the Python they replace;
-- generated surfaces drift from tracked truth;
-- external frameworks start storing lifecycle truth;
-- policy evaluation cannot explain gaps in ETHOS terms;
-- the effective Python code budget stops decreasing after migration lanes;
-- command JSON compatibility breaks without an accepted migration record.
+- contract and JSON Schema conformance;
+- deterministic PlanIR digest, ordering, cycle, and replay properties;
+- CEL parity before deleting the incumbent predicate path;
+- one Cyclopts-owned command surface with projection drift checks;
+- zero production graph wrappers or parallel command registries;
+- terminal source budgets and a HEAD-bound complete proof.

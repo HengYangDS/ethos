@@ -22,7 +22,7 @@ _BASELINE_GAPS = {
 class ReconciliationObservation:
     """Observed heads and exact receipt for one reconciliation attempt."""
 
-    submit_branch: str = ""
+    proposal_branch: str = ""
     receipt_path: str = ""
     origin_head: str = ""
     origin_main_head: str = ""
@@ -80,15 +80,15 @@ def _range_base(root: Path, pushed: str, remote: str, trusted: str) -> tuple[str
     if remote != _ZERO or not trusted:
         return remote, []
     if not _exists(root, trusted):
-        return "", [f"push_identity_submit_baseline_missing:{trusted}"]
+        return "", [f"push_identity_proposal_baseline_missing:{trusted}"]
     if not _exists(root, pushed) or commit_contained_in(root, trusted, pushed):
         return trusted, []
-    return "", [f"push_identity_submit_baseline_not_ancestor:{trusted}"]
+    return "", [f"push_identity_proposal_baseline_not_ancestor:{trusted}"]
 
 
 def reconciliation_receipt_payload(
     *,
-    submit_branch: str,
+    proposal_branch: str,
     source_head: str,
     origin_head: str,
     github_head: str,
@@ -97,8 +97,8 @@ def reconciliation_receipt_payload(
     """Build the deterministic non-authorizing reconciliation observation."""
     payload: dict[str, object] = {
         "schema_version": 1,
-        "kind": "submit-reconciliation",
-        "submit_branch": submit_branch,
+        "kind": "proposal-reconciliation",
+        "proposal_branch": proposal_branch,
         "source_head": source_head,
         "origin_ref": "origin/dev",
         "origin_head": origin_head,
@@ -131,7 +131,7 @@ def _reconciliation_baselines(
     primary_baseline: str,
     observation: ReconciliationObservation,
 ) -> tuple[tuple[str, ...], list[str]]:
-    if (not observation.submit_branch and not observation.receipt_path) or not _exists(
+    if (not observation.proposal_branch and not observation.receipt_path) or not _exists(
         root, pushed_head
     ):
         return (), []
@@ -148,7 +148,7 @@ def _reconciliation_baselines(
     if receipt is None:
         return (), ["push_identity_reconciliation_receipt_invalid"]
     expected = reconciliation_receipt_payload(
-        submit_branch=observation.submit_branch or str(receipt.get("submit_branch") or ""),
+        proposal_branch=observation.proposal_branch or str(receipt.get("proposal_branch") or ""),
         source_head=pushed_head,
         origin_head=str(receipt.get("origin_head") or ""),
         github_head=str(receipt.get("github_head") or ""),

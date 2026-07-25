@@ -221,8 +221,6 @@ otherwise preserve the repository-wide pytest defaults and caller identity.
   remain unprivileged without attempting a second root-only drop
 - **AND** the test process retains only exact safe-directory overlays for the
   checkout root and `.git`, plus the fsmonitor-disable overlay
-- **AND** the source-budget worker still fails closed if UID 0 or prohibited
-  capabilities remain
 - **AND** a missing, partial, zero, non-decimal, non-root, or unavailable-`setpriv`
   identity request fails before pytest execution
 - **AND** the complete Linux gate SHALL independently exercise platform adapter
@@ -289,8 +287,8 @@ same owner scripts SHALL participate in the default ETHOS proof floor.
 
 #### Scenario: Default proof consumes the active quality floor
 
-- **WHEN** `ethos prove --json` builds its default action graph
-- **THEN** the graph includes TOML, YAML, shell, Python lint, Python type,
+- **WHEN** `ethos prove --json` builds its default PlanIR
+- **THEN** the plan includes TOML, YAML, shell, Python lint, Python type,
   docstring, module-layout, Python size, unit/coverage, and format-policy gates
 - **AND** CI, pre-commit, and proof invoke reusable owner scripts instead of
   copying tool command policy into provider projections
@@ -299,7 +297,7 @@ same owner scripts SHALL participate in the default ETHOS proof floor.
 
 - **WHEN** a product hard quality gate such as Python size, module layout,
   coverage, type policy, or public-surface docstrings reports required gaps
-- **THEN** `ethos report --json` includes those gaps in its blocking
+- **THEN** `ethos status --json` includes those gaps in its blocking
   `required_gaps`
 - **AND** the report state is not ready
 - **AND** the report payload includes a `hard_quality_floor` read model with the
@@ -553,7 +551,7 @@ policy organization-native rather than person-native or adopter-private.
 - **THEN** ETHOS reports every enterprise closeout planning layer from L0
   through L8
 - **AND** the report lifts required gaps from workspace status, report
-  scorecard, product boundary, docs topology, contributor policy, governance
+  quality_summary, product boundary, docs topology, contributor policy, governance
   context, generic parity, generated artifacts, release policy, and
   claim-carrier checks
 - **AND** the report is clean only when every layer is clean
@@ -668,19 +666,19 @@ freshness to current Git HEAD before treating them as current truth.
 
 ### Requirement: Scorecards expose hard-floor and coordination risk
 
-ETHOS report scorecards SHALL expose nominal score, effective score, read-model
+ETHOS report quality_summarys SHALL expose nominal score, effective score, read-model
 identity, hard-quality gaps, and coordination risk separately.
 
 #### Scenario: hard quality or coordination risk exists
 
-- **WHEN** `ethos report --json` summarizes repository readiness
+- **WHEN** `ethos status --json` summarizes repository readiness
 - **THEN** the summary identifies the governed report read model
 - **AND** hard quality gaps and coordination risk are counted explicitly
 - **AND** product and adopter profiles expose status-required coordination gaps
   in report `required_gaps` and `gap_layers.coordination_risk.required_gaps`
 - **AND** advisory coordination signals stay advisory and do not authorize foreign
   Work Lane cleanup
-- **AND** advisory-only scorecards report `state=advisory` with `ok=true` rather
+- **AND** advisory-only quality_summarys report `state=advisory` with `ok=true` rather
   than collapsing advisory visibility into `state=ready`
 - **AND** effective score reflects hard floors and required coordination risk
   rather than presenting a misleading green nominal score alone
@@ -694,7 +692,7 @@ actual target repository's local-ci script.
 
 - **WHEN** `ethos publish --root <repo> --json` assembles local-ci fallback
 - **THEN** owner scripts come from `<repo>/.config/ci/scripts/run-local-ci.sh`
-- **AND** the local-submit package and fallback evidence agree
+- **AND** the local-proposal package and fallback evidence agree
 - **AND** hosted CI status remains unclaimed
 
 #### Scenario: local-ci fallback evidence is stale, missing, invalid, or current
@@ -726,85 +724,63 @@ truth.
 - **AND** the Git history scan invokes `gitleaks git` with the repository path as
   the command argument rather than the removed `--source` flag
 
-### Requirement: Global Executable Source Budget And Compression Debt
+### Requirement: Direct Terminal Source Budget
 
-ETHOS SHALL measure executable source across product code, tests, tools,
-scripts, declarations, schemas, templates, and tracked projections. Unbounded
-growth requires explicit compression debt. Default fine-grained proof may omit
-source-budget; full proof and campaign closeout may not. Successor reconstruction
-SHALL preserve candidate debt and immutable targets, bind each active debt to one
-ISO-8601 deletion wave and expiry, settle only its allowance, and regenerate
-evidence at successor HEAD.
+ETHOS SHALL measure every Git-present owned executable carrier through one
+direct repository owner using canonical measurement plus an independent `scc`
+check. It SHALL enforce immutable terminal ceilings of 54,000 Python ELOC and
+68,000 global owned-source ELOC without a baseline, allowance, debt, replay,
+shadow, worker, or cross-language compensation path.
 
-#### Scenario: A fine-grained Change and a global compression debt coexist
-
-- **WHEN** a fine-grained Change runs the default executed promotion proof
-- **THEN** the proof SHALL not fail only because `ethos quality source-budget
-  --json` reports a current global compression gap
-- **AND** `ethos report --json` SHALL expose that gap in a distinct advisory
-  global-compression layer with a direct source-budget action
-- **AND** `ethos prove --full` and global compression closeout SHALL still
-  require a clean source-budget report before claiming program completion.
-
-Source-budget measurement is repository-wide compression governance. It SHALL
-remain independently invocable and visible, but SHALL NOT be embedded in the
-default proof floor or used as a correctness proxy for an unrelated,
-fine-grained OpenSpec Change. The full proof and terminal compression closeout
-SHALL include it. A source-budget breach requires its own
-compression-program carrier and cannot be silently waived by a feature Change.
-
-#### Scenario: A migration reports global source deltas
+#### Scenario: Repository source is measured
 
 - **WHEN** `ethos quality source-budget --json` evaluates a governed repository
-- **THEN** it reports the baseline identity, current HEAD, global and carrier
-  metrics, independent inventory status, terminal budgets, and active debt
-- **AND** the metric does not exclude a tracked executable carrier merely because
-  its logic moved from Python into TOML, CEL, Jinja, generated output, tests, or
-  tools
-- **AND** each active debt record names the added surface, owner, replacement,
-  expiry, deletion wave, and expected net deletion
-- **AND** a stale, missing, expired, or over-budget debt record is a required gap.
+- **THEN** it classifies Git-present tracked and non-ignored untracked files from
+  `.config/checks/format/selection.toml`
+- **AND** it classifies an extensionless executable by an admitted shebang and
+  reports an unclassified executable as a required gap instead of omitting it
+- **AND** Python uses `ethos_core.measure.effective_code_lines_for_source` while
+  every other admitted carrier uses its declared canonicalization and a fixed
+  line-width floor so formatting, reflow, minification, or carrier movement
+  cannot manufacture deletion credit
+- **AND** every admitted category appears exactly once in `global_total`, every
+  admitted Python category appears exactly once in `python_total`, and no
+  category is hidden by an incomplete or compensating aggregate
+- **AND** it reports all category totals, `python_total`, `global_total`, a stable
+  inventory digest, terminal ceilings, and independent `scc` observations
+- **AND** archived OpenSpec `.openspec.yaml` metadata MAY be excluded while every
+  other admitted executable carrier remains counted.
 
-#### Scenario: A fine-grained Change retains its semantic proof boundary
+#### Scenario: The terminal policy cannot weaken the quality floor
 
-- **WHEN** a Change modifies a bounded product capability unrelated to the
-  repository-wide compression program
-- **THEN** its default `ethos prove` gate set SHALL omit `source-budget`
-- **AND** `ethos quality source-budget --json` SHALL remain independently
-  available and report any repository-wide compression debt or breach
-- **AND** the Change SHALL NOT label source-budget output as code correctness,
-  lifecycle validity, or a substitute for its own semantic regressions.
+- **WHEN** a proposed policy raises either terminal ceiling, widens a
+  measurement tolerance or fixed canonicalization line width, or omits an admitted
+  category from its exact aggregate
+- **THEN** policy loading fails closed before measurement
+- **AND** the first versioned policy is a control replacement that requires the
+  existing candidate-external bootstrap verifier before accepted promotion
+- **AND** later policies compare against the accepted versioned policy and no
+  partial metrics, clean state, replacement baseline, or parallel budget SSOT is emitted.
 
-#### Scenario: Archived OpenSpec metadata remains historical evidence
+#### Scenario: Terminal limits or measurement integrity fail
 
-- **WHEN** `ethos quality source-budget --json` evaluates archived OpenSpec
-  change records
-- **THEN** it SHALL exclude only the `.openspec.yaml` metadata file beneath
-  `openspec/changes/archive/`
-- **AND** active OpenSpec metadata and every other tracked YAML carrier SHALL
-  remain in the source-budget inventory
-- **AND** the exclusion SHALL not broaden to archived proposals, designs, tasks,
-  specification deltas, or arbitrary YAML paths.
+- **WHEN** Python ELOC exceeds 54,000, global owned-source ELOC exceeds 68,000,
+  policy or inventory is invalid, an admitted carrier is unreadable or an
+  executable is unclassified, `scc` is unavailable or invalid, the independent
+  file set is incomplete, or either independent total differs from canonical
+  measurement in either direction beyond its declared tolerance
+- **THEN** the report is blocked and returns stable required gaps
+- **AND** status, proof, campaign or accepted closeout, land, protected
+  publication admission, and publish remain blocked
+- **AND** no reader view, quality_summary, allowance, or advisory classification can
+  convert those gaps into a green state.
 
-#### Scenario: Successor reconstruction preserves candidate debt and settled deletion
+#### Scenario: Intermediate campaign growth is observed
 
-- **GIVEN** a source-budget Work Lane is stale behind `candidate/dev`
-- **AND** candidate has added valid debt records while the stale Lane has measured settlement of a distinct record
-- **WHEN** ETHOS reconstructs source-budget behavior in a new candidate-based Work Lane
-- **THEN** the resulting policy retains candidate-only records with explicit lifecycle fields
-- **AND** it removes only the settled record's allowance
-- **AND** its aggregate allowance equals the sum of all retained active records
-- **AND** it preserves the declared baseline and terminal limits
-- **AND** stale parity, proof, and claim artifacts are regenerated rather than replayed as evidence
-
-#### Scenario: Active debt rollover remains bounded and explicit
-
-- **GIVEN** inherited active debt waves and matching record expiries are dated July 17, 2026
-- **AND** the candidate train advances before the successor can produce clean proof
-- **WHEN** the successor records its one-time lifecycle rollover
-- **THEN** the inherited active waves and matching expiries move to July 18, 2026
-- **AND** no record ID, expected deletion, allowance, aggregate cap, baseline, terminal limit, or settled deletion changes
-- **AND** a later rollover requires a new recorded decision rather than an implicit extension
+- **WHEN** a non-terminal local campaign iteration is above a terminal limit
+- **THEN** the iteration MAY remain an unfinished local recovery anchor
+- **AND** no proof, closeout, publication, or terminal-completion claim may call
+  that state ready or successful.
 
 ### Requirement: Executable Carrier Admission
 
@@ -851,22 +827,6 @@ non-excluded repository paths.
 - **AND** the command SHALL remain finite and read-only
 - **AND** adjacent non-excluded generated-artifact drift SHALL remain subject to
   the existing policy.
-
-### Requirement: Bounded evidence-carrier debt remains explicit
-
-ETHOS SHALL account for a temporary active evidence-carrier footprint through a
-named source-budget debt record rather than a per-file exemption or baseline
-reset.
-
-#### Scenario: A compact active claim is introduced
-
-- **WHEN** an active claim and its mandatory carrier metadata exceed the
-  currently available source-budget slack
-- **THEN** any temporary allowance SHALL name its owner, replacement, deletion
-  wave, expiry, and exact allowance
-- **AND** it SHALL remain within the existing maximum debt
-- **AND** formatting policy MAY keep declarative arrays compact without changing
-  the claim schema or its trust boundary.
 
 ### Requirement: Zero-Tolerance Python Type Policy
 
@@ -1132,45 +1092,6 @@ HEAD-stability check as its unsharded execution.
   declared coverage floor
 - **AND** it leaves no trust-bearing claim that a hosted provider ran.
 
-### Requirement: Campaign-terminal source-budget enforcement
-
-ETHOS SHALL permit a campaign to defer terminal source-budget settlement across
-multiple locally closed Changes while retaining explicit measurement and debt
-lifecycle truth. Source-budget terminal progress and active debt SHALL remain
-advisory for ordinary protected remote publication after local closeout; full
-proof and global compression closeout SHALL still require terminal settlement.
-
-#### Scenario: Campaign binding is exact
-
-- **GIVEN** source-budget enforcement is `campaign_terminal`
-- **WHEN** the policy is validated through the typed contract or published JSON
-  Schema
-- **THEN** exactly one non-empty external `campaign_id` SHALL be required
-- **AND** `transition` and `terminal` policies SHALL reject `campaign_id`.
-
-#### Scenario: Campaign-local growth remains explicit
-
-- **GIVEN** source-budget enforcement is `campaign_terminal`
-- **WHEN** the current maintained executable surface is measured
-- **THEN** growth above baseline plus declared allowance SHALL appear as a
-  `source_budget_campaign_growth_overage` advisory
-- **AND** current-size and terminal-target non-attainment SHALL NOT by themselves
-  block a Campaign-local Change
-- **AND** invalid policy, aggregate declared-debt overflow, expired debt, and
-  stale debt SHALL remain local blocking gaps
-- **AND** terminal-target non-attainment and active debt SHALL be reported as
-  campaign publication advisories rather than ordinary protected-push blockers.
-
-#### Scenario: Full proof retains terminal compression settlement
-
-- **GIVEN** a campaign has unresolved terminal source-budget or active-debt
-  progress
-- **WHEN** ETHOS executes full proof or global compression closeout
-- **THEN** source-budget settlement SHALL remain required for the terminal
-  program claim
-- **AND** ordinary local-closeout publication SHALL not claim that terminal
-  program completion.
-
 ### Requirement: Coverage writer evidence is fail-closed
 
 ETHOS SHALL report Python coverage policy, configuration, current artifact, and
@@ -1207,12 +1128,12 @@ hard coverage floor.
 ### Requirement: Product hard-quality floor covers current generated state
 
 ETHOS SHALL include generated-artifact topology in the product hard-quality
-floor consumed by scorecard and local publication readiness.
+floor consumed by quality_summary and local publication readiness.
 
 #### Scenario: Current generated-artifact drift blocks green readiness
 
 - **WHEN** `ethos quality generated-artifacts --json` reports required gaps
-- **THEN** `ethos report --json` SHALL include those gaps in the hard-quality
+- **THEN** `ethos status --json` SHALL include those gaps in the hard-quality
   layer
 - **AND** product `ethos publish --json` SHALL report local readiness blocked
 - **AND** an earlier HEAD-bound proof SHALL NOT override the current local-state
@@ -1266,48 +1187,6 @@ network, scan history, or write quality evidence.
 - **THEN** it MUST continue through the existing full secret gate and evidence path
 - **AND** the commit-time runner MUST NOT claim that full-tree or history proof occurred.
 
-### Requirement: Budget Contract v2 Migration Integrity
-
-ETHOS SHALL preserve Budget v1 baselines, thresholds, debt lifecycle, inventory
-rules, and HEAD-bound historical/current verdicts during v2 migration. V2 SHALL
-become authoritative only after a typed carrier inventory and versioned,
-non-compensating native metric vector exist. ELOC remains the per-file
-readability ceiling; repository-wide LOC retirement requires a later accepted
-calibration and supersession decision.
-
-#### Scenario: Foundation extraction preserves v1 behavior
-
-- **GIVEN** the v1 source-budget command is evaluated at a stable HEAD, whether
-  its policy projects blocking required gaps or campaign-terminal advisories
-- **WHEN** its domain implementation moves from `ethos.domain.prove` to
-  `ethos.domain.source_budget.core`
-- **THEN** controlled inputs SHALL preserve taxonomy, policy facts, command
-  state and exit status, baseline identity, metric classification, debt
-  lifecycle, campaign binding, and required/advisory-gap semantics
-- **AND** the command registry and scorecard SHALL use the new owner directly
-- **AND** `ethos.domain.prove` SHALL not retain a compatibility forwarder.
-
-#### Scenario: Migration cannot launder existing debt
-
-- **WHEN** v2 shadow, dual control, or cutover evaluates an existing v1
-  obligation
-- **THEN** the v1 baseline SHALL remain
-  `2dab77f169eceb2d45f917358c2a7487e7ac8db6`
-- **AND** expired debt SHALL remain expired
-- **AND** no average LOC-to-token conversion, allowance increase, expiry
-  extension, or current-HEAD baseline reset SHALL be accepted
-- **AND** a v1 required gap SHALL disappear only after settlement evidence or an
-  equal-or-stronger named v2 successor obligation exists.
-
-#### Scenario: Migration and compression completion remain distinct
-
-- **WHEN** v2 becomes authoritative and repository-wide v1 LOC is retired
-- **THEN** ETHOS MAY report Budget Contract v2 migration complete while terminal
-  compression remains blocked
-- **AND** compression completion SHALL additionally require every terminal
-  vector to pass and active, expired, unmapped, and unclassified debt counts to
-  be zero.
-
 ### Requirement: Rules V2 migration is lossless for active policy
 
 ETHOS SHALL expose the advertised Rules V2 migration through the public command
@@ -1317,7 +1196,7 @@ plane and SHALL preserve active non-legacy policy, including the complete
 #### Scenario: A mixed-generation rules file is migrated
 
 - **WHEN** `ethos rules migrate` evaluates a file containing legacy rules and
-  active quality, source-budget, and gate policy
+  active quality and gate policy
 - **THEN** dry-run reports the complete target without modifying the file
 - **AND** authorized apply with the expected current HEAD preserves the parsed
   active policy and converts `paths`, `requires`, and `evidence` to V2 keys.
@@ -1389,46 +1268,6 @@ claims.
 - **AND** `system/gates.toml` SHALL register one trust-bearing, file-writing,
   offline `local-install-smoke` gate in `product_full` after `build`
 - **AND** only an executed full proof SHALL claim that full-proof gate ran.
-
-### Requirement: History-residue closeout removes every active campaign growth overage
-
-The system SHALL settle the successor's live source-budget overages through real
-carrier deletion or consolidation without changing baseline, active limit,
-debt, expiry, or terminal-target values.
-
-#### Scenario: All active category limits pass
-
-- **WHEN** the successor reaches its final authoring HEAD
-- **THEN** `python_product` is at most 35675
-- **AND** `python_tests` is at most 46865
-- **AND** `python_total` is at most 84024
-- **AND** `shell` is at most 1552
-- **AND** `toml` is at most 11633
-- **AND** `ethos quality source-budget --json` reports no campaign growth overage
-
-#### Scenario: Local settlement does not overclaim terminal completion
-
-- **WHEN** all active campaign growth overages are absent
-- **THEN** the successor MAY claim local category settlement
-- **BUT** it SHALL NOT claim global campaign terminal completion unless `terminal_target_met=true` and active debt is zero
-
-### Requirement: Dynamic parser dependency hygiene is explicit
-
-ETHOS SHALL keep a direct parser dependency visible to dependency hygiene when
-the provider is loaded lazily to preserve a stable unavailable-provider result.
-The declaration SHALL be exact, package-scoped, and justified by the runtime
-boundary rather than by a broad unused-dependency waiver.
-
-#### Scenario: Parse-only Jinja remains lazy and dependency-clean
-
-- **WHEN** the Budget Contract v2 Jinja provider is admitted as a direct package
-  dependency and loaded only when native measurement selects it
-- **THEN** the deptry policy and owner runner SHALL both declare only
-  `DEP002=jinja2` for the `ethos` distribution
-- **AND** the policy SHALL explain that lazy loading preserves stable provider
-  gaps without restoring adoption rendering
-- **AND** every other unused or transitive dependency finding SHALL remain
-  enforced normally.
 
 ### Requirement: Declarative Adoption-Retirement Test Partitions
 
@@ -1578,135 +1417,3 @@ audit cannot produce a valid passing result.
   malformed JSON, or any execution failure
 - **THEN** the owner script SHALL return a nonzero result
 - **AND** it SHALL NOT emit a passing vulnerability-audit summary.
-
-### Requirement: Historical Source Budget Replay
-
-ETHOS SHALL replay selected source-budget history from immutable Git blobs and
-preserve declared history separately from observed current semantics.
-
-#### Scenario: Immutable v1 baseline drift remains explicit
-
-- **WHEN** the baseline entry is replayed with observer profile
-  `v1-continuation-20260719`
-- **THEN** the replay subject SHALL be commit
-  `2dab77f169eceb2d45f917358c2a7487e7ac8db6` and tree
-  `075da5ad45be962e9f5e775b3f050cab4023ea0d`
-- **AND** provenance beginning `540e06d5` SHALL NOT be substituted as the replay
-  treeish
-- **AND** the observer taxonomy SHALL bind commit
-  `604934c7afe244caf5b671423f108823a7753a98`, Git blob
-  `51a3931b43aa9030e166309289d6d85a80831526`, and content SHA-256
-  `b5dfc532586b0e1f3c3f614ce34e70cd9e817b84adfeabfbda266adf19d07a3d`
-- **AND** the governed inventory SHALL contain exactly 933 files with SHA-256
-  `f8e85ace7648b60592fbe6e678f78169afa98c6289b0e8bb7d7fbc3961fa1c8d`
-- **AND** declared v1 total SHALL remain `105342`, replay total SHALL be `105060`,
-  and replay drift SHALL be `-282`
-- **AND** only JavaScript `89 -> 90`, YAML `1082 -> 800`, and diagram
-  `24 -> 23` SHALL differ by category
-- **AND** the declaration and historical archive SHALL NOT be rewritten.
-
-#### Scenario: Live Task 4 taxonomy remains a separate unresolved observation
-
-- **WHEN** the same baseline subject is replayed with observer profile
-  `v1-live-at-task4-start`
-- **THEN** the observer taxonomy SHALL bind commit
-  `fe94c0268d060742e808770d4d65d554709af0dd`, Git blob
-  `280f4ff640b0d6088c6fc819bebca2c6a7de5fea`, and content SHA-256
-  `3180f9739fc254c29fa6ca6924818a2c3eb5d1ccedd0fe1916e88a05e1b41983`
-- **AND** the governed inventory SHALL contain exactly 888 files with SHA-256
-  `d48fca7255274216d029c600b98972f00bd367b91979441b4d6512a857fb7a5c`
-- **AND** global replay SHALL be `104389` with no Jinja coordinate
-- **AND** the difference from `v1-continuation-20260719` SHALL be surfaced as an
-  unresolved taxonomy-profile disagreement
-- **AND** Task 4 SHALL NOT restore live Jinja classification, rewrite the
-  historical `-282` correction, or classify the two profiles as clean.
-
-#### Scenario: Selected C1 replay preserves its known blocker
-
-- **WHEN** checkpoint `c1-static-hybrid-accepted` is replayed
-- **THEN** its subject SHALL be exact commit
-  `3468ce78e2b636b9c0516904aa73cde2eb30fa62`
-- **AND** its known YAML adapter gap SHALL remain visible as blocked/unresolved
-- **AND** no absent v2 snapshot or provider coverage SHALL be manufactured.
-
-### Requirement: V1 Authoritative V2 Shadow
-
-ETHOS SHALL keep v1 authoritative and v2 inactive while projecting a
-fail-closed observer comparison.
-
-#### Scenario: Shadow extends but does not replace v1 report authority
-
-- **WHEN** source-budget reporting includes `v2_shadow`
-- **THEN** existing top-level `ok`, `state`, and `required_gaps` SHALL retain
-  current v1 semantics
-- **AND** `v2_shadow.mode` SHALL equal `v1_authoritative_v2_shadow` and
-  `v2_shadow.authoritative` SHALL equal `v1`
-- **AND** the shadow SHALL bind observer identity/digests, subject commit/tree and
-  snapshot digest, declared/replayed v1 values, v2 coordinates/digests/provider
-  coverage or null, disagreements, required gaps, and comparison state
-- **AND** any missing observation, adapter failure, provider gap, identity drift,
-  replay mismatch, or unresolved disagreement SHALL be classified only as
-  `blocked`, `unresolved`, or `reviewed_observation`
-- **AND** no Task 4 output SHALL describe v2 as clean, enforced, authoritative,
-  cut over, debt-settled, or terminally settled.
-
-### Requirement: Replay Artifact And Tool Boundary
-
-ETHOS SHALL keep raw replay/shadow observations outside tracked repository truth
-while providing one declared repository-owned replay command.
-
-#### Scenario: CLI writes ignored raw artifacts and truthful exit status
-
-- **WHEN** the replay CLI executes a configured history entry
-- **THEN** history coordinates SHALL come from
-  `.config/checks/source-budget/history.toml`
-- **AND** raw JSON SHALL be written only under ignored
-  `build/evidence/quality/source-budget-v2/replay/`
-- **AND** the default output name SHALL be the validated payload digest, and
-  publication SHALL use no-follow directory handles plus no-replace linking so
-  identical bytes are idempotent while conflicting bytes are rejected
-- **AND** if the opened artifact parent no longer matches the configured path
-  before completion, any newly published name SHALL be removed and the command
-  SHALL fail rather than return a stale path
-- **AND** `system/tools.toml` SHALL register the shell owner script rather than
-  duplicate command policy
-- **AND** default execution SHALL return zero for configured expected transport
-  states, including expected `reviewed_observation`, `unresolved`, or `blocked`,
-  but invalid config, identity/count/digest mismatch, load/measurement failure,
-  or an unexpected comparison state SHALL exit non-zero
-- **AND** explicit `--require-clean` SHALL exit non-zero unless every selected
-  entry is `reviewed_observation` with no required gaps
-- **AND** tracked Claim/Chronicle evidence SHALL contain only reviewed summaries
-  and digests.
-
-### Requirement: Budget Contract v2 verdicts are pure and non-compensating
-
-ETHOS SHALL compile Budget Contract v2 verdicts from typed observations, typed
-policy, and an explicit calendar date without filesystem, Git, configuration,
-environment, or clock reads.
-
-#### Scenario: One coordinate breach blocks transition policy
-
-- **WHEN** one observed coordinate exceeds its same-coordinate allowance while
-  another coordinate is below its allowance
-- **THEN** the exceeded coordinate SHALL remain blocking
-- **AND** no surplus, different unit, or different scope SHALL compensate it.
-
-#### Scenario: Invalid debt contributes zero allowance
-
-- **WHEN** debt is unmapped, expired, overdue, stale, replay-mismatched, or invalid
-- **THEN** it SHALL contribute zero allowance
-- **AND** the verdict SHALL contain a stable blocking gap.
-
-### Requirement: Repository Budget Contract v2 activation is explicit
-
-ETHOS SHALL keep the tracked v2 repository policy inactive until complete
-immutable baseline/terminal vectors and replay bindings exist.
-
-#### Scenario: Node-runtime successor remains unmapped
-
-- **WHEN** the historical node-runtime record lacks exact admitted HEAD, scope,
-  inventory, baseline-snapshot, or historical-replay binding
-- **THEN** its v2 successor SHALL use `mapping_state = "unmapped"`
-- **AND** the missing bindings SHALL remain explicit and blocking
-- **AND** v1 authority SHALL remain unchanged.

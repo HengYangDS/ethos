@@ -26,7 +26,7 @@ ethos land
 ethos publish
 ```
 
-`ethos orient` is a read-only first-glance orientation view over `status` and
+`ethos status` is a read-only first-glance orientation view over `status` and
 `report`: it tells a human or agent where it is, what it may do, which foreign
 Work Lanes and unbound Work Lane refs are visible, what remains gapped, and
 which command should run next. It is a projection (`truth_boundary =
@@ -35,13 +35,13 @@ truth store. Its current HEAD field is the repository HEAD that `status` reports
 the top level (resolved via `git rev-parse HEAD`, so it is correct even on a detached
 HEAD); a workspace-status branch binding serves only as a fallback.
 
-`ethos report` is the read-only scorecard over that workflow. It is not a
+`ethos status` is the read-only quality_summary over that workflow. It is not a
 transition command:
 
 ```bash
-ethos report
-ethos report --json
-ethos report --json --compact
+ethos status
+ethos status --json
+ethos status --json --compact
 ```
 
 Use `--json --compact` when an agent, CI summary, or constrained context window
@@ -135,7 +135,7 @@ ethos parity gaps --adopter <adopter-id>
 ethos parity gaps --adopter <adopter-id> --target <repo>
 ethos parity shadow --target <repo>
 ethos parity shadow --adopter <adopter-id> --target <repo>
-ethos report
+ethos status
 ethos docs
 ethos explain <gap-or-signal>
 ```
@@ -241,7 +241,7 @@ schema source, and audited root are not the same product checkout.
 contract under `data.role_policy` and role-policy branch bindings under
 `data.branch_bindings`. The `role_policy` field is the configured product
 contract for branch names, prefixes, and semantic role order. The role order is
-release_root -> accepted_root -> candidate -> work_lane -> submit_lane. Exact
+release_root -> accepted_root -> candidate -> work_lane -> proposal_lane. Exact
 branches and prefixes are configurable, but the role vocabulary is product
 state. Bindings are ordered by this semantic role order before branch name. Each
 binding reports
@@ -264,11 +264,11 @@ first-glance coordination state into `summary.foreign_work_lane_count`,
 Those summary fields are derived visibility signals for humans and agents; they
 do not replace `data.coordination`, do not add cleanup authority, and do not
 change whether a coordination signal is advisory or required.
-`ethos orient --json` projects `data.coordination.next_action` into
+`ethos status --json` projects `data.coordination.next_action` into
 `data.orientation.coordination.next_action` for first-glance coordination
 guidance. That field is distinct from the top-level transition `next_actions`:
 it explains how to inspect coordination signals, not which transition command
-must run next. Human `ethos orient` output renders coordination as one concise
+must run next. Human `ethos status` output renders coordination as one concise
 line when coordination signals are present.
 The `data.closeout_support` object reports whether the current checkout can land
 to the configured candidate branch, which target path would be updated, the
@@ -286,10 +286,10 @@ current scope. Unknown foreign scope and same-file or ancestor-scope overlap are
 surfaced as advisory contention through `coordination_gap:*` entries, so Git's
 fast-forward land remains the mutation arbiter without serializing unrelated
 agents that share a directory. Across product and adopter profiles,
-`ethos report --json` mirrors status-required coordination gaps into report
+`ethos status --json` mirrors status-required coordination gaps into report
 `required_gaps` and `data.gap_layers.coordination_risk.required_gaps`; advisory
 coordination signals stay advisory, classify into the same invalid-state
-taxonomy, and never grant cleanup authority. If the scorecard has no blocking
+taxonomy, and never grant cleanup authority. If the quality_summary has no blocking
 `required_gaps` but does have advisory signals, the top-level command remains
 `ok=true` while reporting `state=advisory`; in that state, top-level
 `next_actions` mirror the bounded advisory inspection or repair actions instead
@@ -565,7 +565,7 @@ status-exposed, accepted-policy-bound unbound residue through the fully
 confirmed `ethos lane retire unbound` route. Raw Git
 worktree creation is an observable repository fact, but it is not admitted as
 the standard ETHOS workflow state because it has no ETHOS lease or claim
-boundary. `ethos orient --json` provides a derived reader view for human/agent discoverability;
+boundary. `ethos status --json` provides a derived reader view for human/agent discoverability;
 `ethos status --json` remains the pure machine contract for role, dirtiness,
 branch bindings, candidate state, and coordination.
 
@@ -601,7 +601,7 @@ publication remains an adapter responsibility. `publish --json` reports
 independent `data.remote_observations` targets. It does not infer one target
 from the other, push either target, or claim hosted CI; the remote publication
 state may remain `deferred` or report observed synchronization while preserving
-that no-push boundary. The command still exposes the configured submit branch
+that no-push boundary. The command still exposes the configured proposal branch
 plan. Remote reachability is separate and appears under
 `data.remote_availability.state` and `data.publication.remote_availability.state`.
 The local fallback package also reports
@@ -679,17 +679,17 @@ repeat the same context when their nested report already owns it, but pure data
 contracts such as `status.data` remain schema-valid source payloads rather than
 being polluted by envelope metadata. The context records the profile, repository
 subject, kernel chain, shared transition commands, reader-view commands,
-scorecard commands, repository truth boundary, and profile or adapter boundary.
+quality_summary commands, repository truth boundary, and profile or adapter boundary.
 `shared_commands` and `transition_commands` list the five-command transition
 loop: `ethos status`, `ethos plan`, `ethos prove`, `ethos land`, and
-`ethos publish`. `reader_view_commands` lists the read-only first-glance view:
-`ethos orient`. `scorecard_commands` lists the read-only payoff view:
-`ethos report`. `ethos report --json` projects required gaps through
+`ethos publish`. `reader_projection_commands` lists the read-only first-glance view:
+`ethos status`. `quality_summary_commands` lists the read-only payoff view:
+`ethos status`. `ethos status --json` projects required gaps through
 repository-neutral layers: `governance_audit` for the active repository governance
 verdict, `capability_parity` for migration or adopter parity, and
 `playbook_projection` for assistant-facing projection proof. Advisory signals
 are a visible, non-blocking layer: `ok=true` means they do not block transitions,
-while `state=advisory` distinguishes them from a fully ready scorecard. Each
+while `state=advisory` distinguishes them from a fully ready quality_summary. Each
 layer exposes
 `invalid_states`, a reduction of its `required_gaps` onto the governed taxonomy in
 `system/invalid_states.toml`; the top-level `data.invalid_states` is the same
@@ -752,7 +752,7 @@ native protocols; and hosted forge, editor, model, and current proof toolchain
 terms as non-product-semantic bindings.
 The branch role policy entry also reports its configuration source, config
 keys, default-policy state, semantic role order, and configured patterns so
-release_root, accepted_root, candidate, work_lane, and submit_lane remain
+release_root, accepted_root, candidate, work_lane, and proposal_lane remain
 distinct configured roles rather than hard-coded branch names.
 The registry also names the official OpenSpec CLI, uv workspace orchestration,
 Hatchling build backend, pytest, Ruff, the configured GitLab release profile,
@@ -768,8 +768,8 @@ Historical playbook payloads remain archive or adopter evidence, not current
 route contract. `ethos playbooks route --changed --json` selects records via the
 explicit `changed-scope` route and path-glob metadata.
 
-`ethos report --json` includes `data.scorecards[]` with the `skills-v2`
-scorecard and `data.gap_layers.playbook_projection` for blocking Skills V2
+`ethos status --json` includes `data.quality_summarys[]` with the `skills-v2`
+quality_summary and `data.gap_layers.playbook_projection` for blocking Skills V2
 gaps. `ethos prove --execute --gate playbooks-v2 --json` executes the strict
 playbook gate. `ethos quality projection-drift --json` reports package drift,
 the normalized registry digest, the expected registry digest, the playbook

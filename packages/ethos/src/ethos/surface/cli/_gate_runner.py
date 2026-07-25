@@ -21,7 +21,7 @@ from ethos.surface.cli._base import app
 from ethos.surface.cli._base import load_command_groups
 
 if TYPE_CHECKING:
-    from ethos_core.action_graph.core import ActionNode
+    from ethos_core.contracts.plan import PlanNode
 
 
 def _current_cwd() -> Path | None:
@@ -45,8 +45,8 @@ def _restore_cwd(previous_cwd: Path | None, root: Path) -> None:
             return
 
 
-def run_inprocess_cli_gate(node: ActionNode, root: Path) -> ActionRunResult | None:
-    """Run an `ethos ... --json` action node in-process; None if not such a node."""
+def run_inprocess_cli_gate(node: PlanNode, root: Path) -> ActionRunResult | None:
+    """Run an `ethos ... --json` PlanIR node in-process; None if not such a node."""
     if "--json" not in node.command:
         return None
     if len(node.command) >= 4 and node.command[1:3] == ("-m", "ethos.cli"):

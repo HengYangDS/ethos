@@ -36,7 +36,7 @@ def publication_branch_admission(
     """Allow only declared targets and remote-eligible branches."""
     accepted_branch = str(policy.get("accepted_branch") or "dev")
     release_branch = str(policy.get("release_branch") or "main")
-    submit_branch_prefix = str(policy.get("submit_branch_prefix") or "submit/")
+    proposal_branch_prefix = str(policy.get("proposal_branch_prefix") or "proposal/")
     remote_name = str(policy["remote_name"]) if "remote_name" in policy else "origin"
     enforce = bool(policy.get("enforce", True))
     legacy = bool(topology.get("legacy"))
@@ -46,7 +46,7 @@ def publication_branch_admission(
     elif (
         not legacy
         and branch not in {accepted_branch, release_branch}
-        and not branch.startswith(submit_branch_prefix)
+        and not branch.startswith(proposal_branch_prefix)
     ):
         gaps.append(f"publication_remote_branch_forbidden:{branch}")
     elif not remote_name:
@@ -139,7 +139,7 @@ def _topology(
         },
         "branch_admission": {
             "candidate_role": "local_only",
-            "remote_branches": "accepted_release_submit_only",
+            "remote_branches": "accepted_release_proposal_only",
         },
         "remotes": [{"id": "origin", "git_remote": "origin"}] if legacy else list(peers.values()),
         "gitlab": peers["gitlab"] if not legacy else {},

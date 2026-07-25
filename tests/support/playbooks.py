@@ -26,7 +26,7 @@ Use this skill for sample governance work.
 
 ## Evidence
 
-Run `ethos report --json` and keep the output with the delivery note.
+Run `ethos status --json` and keep the output with the delivery note.
 
 ## Trust Boundary
 

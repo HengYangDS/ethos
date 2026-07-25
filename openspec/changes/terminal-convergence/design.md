@@ -1,7 +1,7 @@
 ## Context
 
 The accepted repository has a five-command public loop but also retains a
-scorecard, a separate orient reader, parallel command/schema ownership, custom
+quality_summary, a separate orient reader, parallel command/schema ownership, custom
 graph and source-measurement runtimes, WCP-specific ownerless closeout logic,
 large JSON projections, extensive suppression regions, and a package/test
 surface far above the declared terminal limits. Multiple historical campaigns

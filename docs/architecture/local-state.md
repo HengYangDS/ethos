@@ -14,7 +14,7 @@ live under ignored `build/runtime/tool-cache/`, not under `.config/`, because
 configuration policy and runtime working state are different subjects.
 
 SQLite records coordination and replay aids. It does not pre-create
-speculative cache stores; action cache keys stay in action-graph contracts
+speculative cache stores; transient PlanIR state is recomputed from repository declarations
 until a concrete runtime cache earns its own owner and lifecycle.
 
 - `leases`

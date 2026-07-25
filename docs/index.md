@@ -20,7 +20,6 @@ Start with [Start](start/quickstart.md), then read
 [Kernel Model](concepts/kernel-model.md),
 [Product Design Contract](governance/product-design-contract.md),
 [Terminal Governance Product Design](plans/terminal-governance-product-design.md),
-[Global Declarative Compression Program](plans/global-declarative-compression-program.md),
 [Tooling Adoption Roadmap](plans/tooling-adoption-roadmap.md),
 [Complete Implementation Roadmap](plans/complete-implementation-roadmap.md),
 [Mechanism Comparison Audit](reference/mechanism-comparison-audit.md),
@@ -36,8 +35,7 @@ Start with [Start](start/quickstart.md), then read
 [Distribution](architecture/distribution.md),
 [Workflow Runtime](architecture/workflow-runtime.md),
 [Declarative Governance Compiler](architecture/declarative-governance-compiler.md),
-[Declarative Runtime Spine Modernization](plans/declarative-runtime-spine-modernization.md),
-[Action Graph](architecture/action-graph.md), and
+[PlanIR](architecture/plan-ir.md), and
 [Evolution](governance/evolution-campaign.md). Product gaps captured
 from the design conversation are tracked in the
 [Conversation Ledger](governance/conversation-ledger.md).
@@ -51,9 +49,9 @@ humans and agents can navigate without treating historical or planned material a
 
 | Audience | Start here | Then run | Boundary |
 | --- | --- | --- | --- |
-| Human operator | [Quickstart](start/quickstart.md) | `ethos orient` | Reader view first; mutation only after an explicit Work Lane or authorized apply path. |
-| Coding agent | [AGENTS.md](../AGENTS.md) and the matching [rule](../rules/README.md) | `ethos orient --json` | Repository truth outranks host memory, chat context, and generated projections. |
-| Maintainer | [Command Plane](reference/command-plane.md) | `ethos report --json` and HEAD-bound `ethos prove` | Scorecards explain readiness; executed proof supports claims. |
+| Human operator | [Quickstart](start/quickstart.md) | `ethos status` | Reader view first; mutation only after an explicit Work Lane or authorized apply path. |
+| Coding agent | [AGENTS.md](../AGENTS.md) and the matching [rule](../rules/README.md) | `ethos status --json` | Repository truth outranks host memory, chat context, and generated projections. |
+| Maintainer | [Command Plane](reference/command-plane.md) | `ethos status --json` and HEAD-bound `ethos prove` | Scorecards explain readiness; executed proof supports claims. |
 | Adopter | [Adoption Binding](architecture/adoption-profiles.md) | `ethos adopt --json` | One typed binding selects repository facts; optional capabilities remain explicit. |
 
 In multi-agent work, visible foreign Work Lanes and unbound Work Lane refs are
@@ -76,7 +74,6 @@ or maintainer break-glass evidence.
 - Plans docs: [Plans Documentation](plans/README.md)
 - History docs: [History Documentation](history/README.md)
 - Terminal target design: [Terminal Governance Product Design](plans/terminal-governance-product-design.md)
-- Global compression program: [Global Declarative Compression Program](plans/global-declarative-compression-program.md)
 - Tooling adoption roadmap: [Tooling Adoption Roadmap](plans/tooling-adoption-roadmap.md)
 - Complete implementation roadmap: [Complete Implementation Roadmap](plans/complete-implementation-roadmap.md)
 - Mechanism comparison audit: [Mechanism Comparison Audit](reference/mechanism-comparison-audit.md)

@@ -1,6 +1,6 @@
 family = "kernel"
-primary_invariant = "The kernel capability protects pure kernel chain and deterministic action-graph semantics."
-routing_question = "Does this change alter the provider-neutral kernel chain, result envelope, or action graph?"
+primary_invariant = "The kernel capability protects pure kernel chain and deterministic PlanIR semantics."
+routing_question = "Does this change alter the provider-neutral kernel chain, result envelope, or PlanIR?"
 decision_axes = ["lifecycle", "surface", "authority"]
 boundary_rules = [
   "Capability IDs name stable product semantics, not implementation package names.",
@@ -11,7 +11,7 @@ aliases = []
 
 [owner]
 package = "ethos-core"
-scope = "pure kernel chain and deterministic action-graph semantics"
+scope = "pure kernel chain and deterministic PlanIR semantics"
 
 [recommended_facets]
 lifecycle = ["authoring", "validation", "runtime", "archive", "release"]

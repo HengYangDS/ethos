@@ -117,8 +117,8 @@ def emit(result: EthosResult, *, json_output: bool, enforce: bool = True) -> Non
     readable as JSON. This is the edge that turns "reports a verdict" into "a process
     that refuses" (failure-blocking moves upstream).
 
-    Read-only / report commands that legitimately return a non-ok scorecard WITHOUT
-    refusing (status, plan, report, rules listing) must pass enforce=False EXPLICITLY
+    Read-only commands that legitimately return a non-ok result WITHOUT refusing
+    (status, plan, rules listing) must pass enforce=False EXPLICITLY
     — fail-open is the thing you opt into, in the open, per command. A new command
     inherits fail-closed by default, so a future verdict command cannot silently
     exit 0 on a block.

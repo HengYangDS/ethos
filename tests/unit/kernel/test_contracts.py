@@ -3,11 +3,12 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import jsonschema
 import pytest
 
 from ethos_core import models
-from ethos_core.action_graph.core import ActionGraph
-from ethos_core.action_graph.core import ActionNode
+from ethos_core.contracts.plan import PlanIR
+from ethos_core.contracts.plan import PlanNode
 from ethos_core.contracts.system.contracts import load_system_contract
 from ethos_core.contracts.system.contracts import system_contracts_report
 from ethos_core.result import EthosResult
@@ -57,51 +58,23 @@ def test_digest_only_claims_reject_generic_semantic_overclaim() -> None:
         )
 
 
-def test_action_graph_is_deterministic_and_digest_bound() -> None:
-    first = ActionNode(
+def test_plan_ir_is_deterministic_and_digest_bound() -> None:
+    first = PlanNode(
         id="prove",
-        kind="proof",
+        kind="check",
         command=("ethos", "prove", "--json"),
-        inputs=("pyproject.toml", "packages/ethos/src/ethos/cli.py"),
-        outputs=("evidence/proof.json",),
-        policy="required",
-        tool="ethos",
-        tool_version="0.1.0",
     )
-    second = ActionNode(
+    second = PlanNode(
         id="status",
-        kind="inspection",
+        kind="check",
         command=("ethos", "status", "--json"),
-        inputs=("packages/ethos/src/ethos/cli.py", "pyproject.toml"),
-        outputs=(),
-        policy="required",
-        tool="ethos",
-        tool_version="0.1.0",
     )
 
-    graph = ActionGraph(nodes=(first, second))
-    serialized = graph.to_dict()
+    plan = PlanIR(nodes=(first, second))
+    serialized = plan.to_dict()
 
     assert [node["id"] for node in serialized["nodes"]] == ["prove", "status"]
-    assert graph.digest() == ActionGraph(nodes=(second, first)).digest()
-    assert first.cache_key() != second.cache_key()
-
-
-def test_action_node_cache_key_binds_metadata() -> None:
-    base = ActionNode(
-        id="ruff",
-        kind="lint",
-        command=("ruff", "check", "."),
-        metadata={"trust_bearing": False},
-    )
-    changed = ActionNode(
-        id="ruff",
-        kind="lint",
-        command=("ruff", "check", "."),
-        metadata={"trust_bearing": True},
-    )
-
-    assert base.cache_key() != changed.cache_key()
+    assert plan.digest() == PlanIR(nodes=(second, first)).digest()
 
 
 def test_result_contract_has_stable_top_level_fields() -> None:
@@ -138,14 +111,13 @@ def test_json_schemas_are_declared_for_kernel_protocols() -> None:
         "subject.schema.json",
         "commitment.schema.json",
         "change.schema.json",
-        "action.schema.json",
+        "plan-ir.schema.json",
         "evidence.schema.json",
         "proof-run.schema.json",
         "evidence-set.schema.json",
         "provenance.schema.json",
         "chronicle.schema.json",
         "semantic-attestation-receipt.schema.json",
-        "control-replacement-verifier-receipt.schema.json",
         "evolution.schema.json",
         "docs-registry.schema.json",
         "evolution-ledger.schema.json",
@@ -166,6 +138,21 @@ def test_json_schemas_are_valid_json_documents() -> None:
         payload = json.loads(path.read_text(encoding="utf-8"))
         assert payload["$schema"] == "https://json-schema.org/draft/2020-12/schema"
         assert payload["title"].startswith("ETHOS")
+
+
+def test_plan_ir_schema_accepts_the_python_projection() -> None:
+    schema = json.loads(Path("system/schemas/kernel/plan-ir.schema.json").read_text())
+    plan = PlanIR(
+        nodes=(
+            PlanNode(
+                id="land",
+                kind="effect",
+                command=("ethos", "land"),
+            ),
+        )
+    )
+
+    jsonschema.Draft202012Validator(schema).validate(plan.to_dict())
 
 
 def test_system_contracts_all_load() -> None:
@@ -299,8 +286,6 @@ def test_governance_context_head_is_a_real_authority_with_authority() -> None:
     the authority order (not an inline dict) — the chain's production constructor."""
     from ethos.repository.context import governance_context
     from ethos.repository.registry.commands import PUBLIC_WORKFLOW_COMMANDS
-    from ethos.repository.registry.commands import READER_VIEW_COMMANDS
-    from ethos.repository.registry.commands import SCORECARD_COMMANDS
 
     context = governance_context(Path.cwd(), profile="product")
     assert context["kernel_chain"][0] == "Authority"
@@ -310,8 +295,6 @@ def test_governance_context_head_is_a_real_authority_with_authority() -> None:
     assert context["subject"]["kind"] == "repository"
     assert context["shared_commands"] == list(PUBLIC_WORKFLOW_COMMANDS)
     assert context["transition_commands"] == list(PUBLIC_WORKFLOW_COMMANDS)
-    assert context["reader_view_commands"] == list(READER_VIEW_COMMANDS)
-    assert context["scorecard_commands"] == list(SCORECARD_COMMANDS)
 
 
 def test_kernel_nodes_do_not_own_forbidden_downstream_duties() -> None:

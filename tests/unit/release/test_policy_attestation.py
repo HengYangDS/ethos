@@ -343,7 +343,7 @@ def test_release_policy_uses_configured_branch_roles_for_protected_refs(
         encoding="utf-8",
     )
     (root / ".ethos" / "workspace.toml").write_text(
-        '[branch_roles]\nrelease_branch = "release"\naccepted_branch = "integration"\ncandidate_branch = "stage/integration"\nwork_branch_prefix = "lane/"\nsubmit_branch_prefix = "review/"\n',
+        '[branch_roles]\nrelease_branch = "release"\naccepted_branch = "integration"\ncandidate_branch = "stage/integration"\nwork_branch_prefix = "lane/"\nproposal_branch_prefix = "review/"\n',
         encoding="utf-8",
     )
     (root / ".ethos" / "release.toml").write_text(

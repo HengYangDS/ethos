@@ -125,6 +125,7 @@ def init_git_repo(path: Path, *, object_format: str = "sha1") -> Path:
     path.mkdir(parents=True)
     git(path, "init", "--object-format=" + object_format, "-b", "dev")
     git(path, "config", "commit.gpgsign", "false")
+    git(path, "config", "core.hooksPath", ".git/test-hooks")
     (path / ".gitignore").write_text(".ethos/state/*\n!.ethos/state/.gitignore\n", encoding="utf-8")
     (path / "README.md").write_text("# sample\n", encoding="utf-8")
     (path / ".ethos" / "state").mkdir(parents=True)
@@ -158,7 +159,7 @@ def write_role_policy(
     accepted_branch: str = "dev",
     candidate_branch: str = "stage/dev",
     work_branch_prefix: str = "lane/",
-    submit_branch_prefix: str = "review/",
+    proposal_branch_prefix: str = "review/",
 ) -> None:
     """Write and commit a branch-role policy fixture."""
     workspace_path = repo / ".ethos" / "workspace.toml"
@@ -170,7 +171,7 @@ def write_role_policy(
                 f'accepted_branch = "{accepted_branch}"',
                 f'candidate_branch = "{candidate_branch}"',
                 f'work_branch_prefix = "{work_branch_prefix}"',
-                f'submit_branch_prefix = "{submit_branch_prefix}"',
+                f'proposal_branch_prefix = "{proposal_branch_prefix}"',
                 "",
             )
         ),

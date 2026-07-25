@@ -13,22 +13,22 @@ ETHOS SHALL keep the normal user workflow under five transition commands:
 #### Scenario: Command surface is classified
 - **WHEN** `ethos quality command-registry --json` runs
 - **THEN** it reports five public workflow commands
-- **AND** it reports `ethos report` as a scorecard command
+- **AND** it reports `ethos status` as a quality_summary command
 - **AND** maintainer/reference commands are not counted as advanced public
   workflow commands
 
 #### Scenario: Workflow runtime projection is reported
-- **WHEN** `ethos plan --json` or `ethos report --json` projects workflow runtime state
+- **WHEN** `ethos plan --json` or `ethos status --json` projects workflow runtime state
 - **THEN** the projection is nested under existing command payloads
 - **AND** it does not add a new public lifecycle command
 - **AND** it references the same transition commands, guards, and evidence boundaries as the ETHOS command plane
 
-#### Scenario: Compact scorecard preserves verdict semantics
-- **WHEN** `ethos report --json --compact` runs
-- **THEN** it preserves the top-level scorecard verdict, summary, required gaps, and next actions from `ethos report --json`
+#### Scenario: Compact quality_summary preserves verdict semantics
+- **WHEN** `ethos status --json --compact` runs
+- **THEN** it preserves the top-level quality_summary verdict, summary, required gaps, and next actions from `ethos status --json`
 - **AND** it omits heavyweight audit bodies from `data`
 - **AND** it keeps score, gap-layer, advisory, and parity information as token-friendly counts or compact objects
-- **AND** it remains a scorecard projection rather than a transition command or separate truth source
+- **AND** it remains a quality_summary projection rather than a transition command or separate truth source
 
 ### Requirement: CLI Surface Delegation
 The CLI SHALL compose output and UX while delegating semantics to core,
@@ -135,7 +135,7 @@ projection for governance gaps and advisory signals.
 
 ETHOS transition commands that gate proof, land, or publish SHALL expose blocking
 verdicts through both command JSON and non-zero process exit status unless the
-command is explicitly documented as a read-only scorecard or reader view.
+command is explicitly documented as a read-only quality_summary or reader view.
 
 #### Scenario: gapped proof refuses through process status
 

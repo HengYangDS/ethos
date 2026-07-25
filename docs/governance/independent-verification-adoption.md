@@ -102,7 +102,7 @@ For an actual external repository, create a clean checkout and run:
 ethos adopt --root <adopter> --json
 ethos status --root <adopter> --json
 ethos prove --root <adopter> --json
-ethos report --root <adopter> --json
+ethos status --root <adopter> --json
 ```
 
 Then set the desired policy mode in that adopter, run its provider-owned

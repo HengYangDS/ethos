@@ -1,4 +1,4 @@
-"""Two-phase exceptional Work Lane resolution with preservation-first effects."""
+"""Two-phase exceptional Work Lane resolution."""
 
 from __future__ import annotations
 
@@ -13,20 +13,15 @@ from pydantic import ValidationError
 
 from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.mutation.resolution._effects import prepare_resolution_effect
-from ethos.adapters.mutation.resolution._effects import retire_clean_ownerless_lane
+from ethos.adapters.mutation.resolution._effects import retire_lane
 from ethos.adapters.mutation.resolution._observation import observe_lane
 from ethos.adapters.mutation.resolution._shared import accepted_control_root
 from ethos.adapters.mutation.resolution._shared import canonical_record_path
 from ethos.adapters.mutation.resolution._shared import records_artifact_root
 from ethos.adapters.mutation.resolution._shared import valid_decision_id
-from ethos.adapters.mutation.resolution.closeout.recovery import ResolutionRuntime
-from ethos.adapters.mutation.resolution.closeout.recovery import apply_resolution
-from ethos.adapters.mutation.resolution.closeout.recovery import ownerless_recovery_context
-from ethos.adapters.mutation.resolution.closeout.recovery import recover_ownerless_resolution
 from ethos.adapters.mutation.resolution.receipts import write_resolution_receipt
 from ethos.adapters.mutation.resolution.records.core import release_resolution_receipt_reservation
 from ethos.adapters.mutation.resolution.records.core import reserve_resolution_receipt
-from ethos.adapters.store.state.closeout import release_closeout_fence
 from ethos.repository.policy.schema import validate_schema_instance
 from ethos_core.contracts.lifecycle.core import MutationRequest
 from ethos_core.contracts.lifecycle.core import reduce_guards
@@ -37,9 +32,10 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 _DISPOSITIONS = {"block", "preserve", "retire", "preserve-retire"}
+_DESTRUCTIVE = {"retire", "preserve-retire"}
 
 
-def plan_lane_resolution(  # noqa: PLR0913, RUF100 - exact request envelope preserves bound state dimensions
+def plan_lane_resolution(
     *,
     root: Path,
     branch: str,
@@ -52,7 +48,7 @@ def plan_lane_resolution(  # noqa: PLR0913, RUF100 - exact request envelope pres
     break_glass: bool,
     apply: bool,
 ) -> dict[str, object]:
-    """Create the first-phase exceptional judgment; no lane effect occurs."""
+    """Record one immutable decision; no lane effect occurs in this phase."""
     observation, gaps = observe_lane(root, branch)
     chronicle, chronicle_digest, chronicle_gaps = _accepted_chronicle(
         root, chronicle_ref=chronicle_ref, disposition=disposition
@@ -68,7 +64,7 @@ def plan_lane_resolution(  # noqa: PLR0913, RUF100 - exact request envelope pres
         checks=(
             (bool(recovery_plan.strip()), "lane_resolution_recovery_plan_required"),
             (
-                disposition not in {"retire", "preserve-retire"} or break_glass,
+                disposition not in _DESTRUCTIVE or break_glass,
                 "retire_exception_requires_break_glass",
             ),
             (
@@ -94,27 +90,31 @@ def plan_lane_resolution(  # noqa: PLR0913, RUF100 - exact request envelope pres
             "lane-resolution-decision.schema.json", decision, root=root
         )["ok"]:
             report.update(
-                ok=False, state="blocked", required_gaps=["lane_resolution_decision_invalid"]
-            )
-            return report
-        destination = decision_path.resolve()
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        try:
-            with destination.open("x", encoding="utf-8") as handle:
-                handle.write(json.dumps(decision, indent=2, sort_keys=True) + "\n")
-        except FileExistsError:
-            report.update(
                 ok=False,
                 state="blocked",
-                required_gaps=["lane_resolution_decision_path_exists"],
+                required_gaps=["lane_resolution_decision_invalid"],
             )
         else:
-            report.update(
-                state="decision_recorded",
-                decision=decision,
-                decision_path=destination.as_posix(),
-                chronicle_event=_chronicle_event(decision),
-            )
+            destination = decision_path.resolve()
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            if destination.exists():
+                report.update(
+                    ok=False,
+                    state="blocked",
+                    required_gaps=["lane_resolution_decision_path_exists"],
+                )
+            else:
+                destination.write_text(
+                    json.dumps(decision, indent=2, sort_keys=True) + "\n",
+                    encoding="utf-8",
+                    errors="strict",
+                )
+                report.update(
+                    state="decision_recorded",
+                    decision=decision,
+                    decision_path=destination.as_posix(),
+                    chronicle_event=_chronicle_event(decision),
+                )
     return _finish(
         report,
         command="lane-resolution-plan",
@@ -128,70 +128,12 @@ def plan_lane_resolution(  # noqa: PLR0913, RUF100 - exact request envelope pres
 def apply_lane_resolution(
     *, root: Path, decision_path: Path, confirm_irreversible: bool, apply: bool
 ) -> dict[str, object]:
-    """Recompute the decision observation, then apply the bounded disposition."""
+    """Recompute facts and apply one bounded native resolution effect."""
     decision, gaps = _read_decision(decision_path, root=root)
-    branch = str(decision.get("observation", {}).get("lane_ref") or "")
+    branch = str(cast("dict[str, object]", decision.get("observation") or {}).get("lane_ref") or "")
     disposition = str(decision.get("disposition") or "")
-    expected_state: dict[str, object] = {
-        "decision_id": str(decision.get("decision_id") or ""),
-        "observation_digest": str(decision.get("observation_digest") or ""),
-        "confirm_irreversible": confirm_irreversible,
-    }
-    runtime = _resolution_runtime()
-    recovery, control_root, artifact_root, recovery_gap = (
-        ownerless_recovery_context(
-            root=root,
-            decision=decision,
-            disposition=disposition,
-            runtime=runtime,
-        )
-        if not gaps
-        else ({}, None, None, "")
-    )
-    if recovery_gap:
-        evaluation = reduce_guards(apply=apply, initial_gaps=(*gaps, recovery_gap))
-        report = _report(branch, evaluation)
-        if recovery_gap.startswith(("lane_resolution_ownerless_", "lane_resolution_receipt_")):
-            _block_resolution_report(report, recovery_gap, state="partial_transition")
-        return _finish(
-            report,
-            command="lane-resolution-apply",
-            action=f"lane.resolution.{disposition or 'unknown'}",
-            resource=branch or decision_path.resolve().as_posix(),
-            expected_state=expected_state,
-            apply=apply,
-            confirmation=confirm_irreversible,
-        )
-    if recovery and str(recovery["recovery_state"]) == "effect_complete_receipt_missing":
-        observation = LaneObservation.model_validate(decision["observation"])
-        evaluation = reduce_guards(
-            apply=apply,
-            initial_gaps=tuple(gaps),
-            checks=((confirm_irreversible, "irreversible_confirmation_required"),),
-        )
-        report = _report(branch, evaluation)
-        if apply and evaluation.ok and control_root is not None and artifact_root is not None:
-            recover_ownerless_resolution(
-                control_root=control_root,
-                artifact_root=artifact_root,
-                decision_path=decision_path,
-                decision=decision,
-                observation=observation,
-                reservation=recovery,
-                report=report,
-                runtime=runtime,
-                chronicle_event=_chronicle_event,
-            )
-        return _finish(
-            report,
-            command="lane-resolution-apply",
-            action=f"lane.resolution.{disposition or 'unknown'}",
-            resource=branch or decision_path.resolve().as_posix(),
-            expected_state=expected_state,
-            apply=apply,
-            confirmation=confirm_irreversible,
-        )
     observation, observation_gaps = observe_lane(root, branch)
+    handoff_required = bool(decision and disposition in _DESTRUCTIVE and observation.holder_ref)
     evaluation = reduce_guards(
         apply=apply,
         initial_gaps=(*gaps, *observation_gaps),
@@ -202,66 +144,165 @@ def apply_lane_resolution(
                 "lane_resolution_observation_stale",
             ),
             (
-                disposition not in {"retire", "preserve-retire"} or confirm_irreversible,
+                disposition not in _DESTRUCTIVE or confirm_irreversible,
                 "irreversible_confirmation_required",
             ),
             (disposition != "retire" or not observation.dirty, "dirty_lane_retirement_blocked"),
+            (not handoff_required, "lane_resolution_handoff_required"),
         ),
     )
     report = _report(branch, evaluation)
     if apply and evaluation.ok:
-        apply_resolution(
+        _apply_resolution(
             root=root,
-            decision_path=decision_path,
             decision=decision,
             observation=observation,
             disposition=disposition,
             report=report,
-            runtime=runtime,
-            chronicle_event=_chronicle_event,
         )
     return _finish(
         report,
         command="lane-resolution-apply",
         action=f"lane.resolution.{disposition or 'unknown'}",
         resource=branch or decision_path.resolve().as_posix(),
-        expected_state=expected_state,
+        expected_state={
+            "decision_id": str(decision.get("decision_id") or ""),
+            "observation_digest": str(decision.get("observation_digest") or ""),
+            "confirm_irreversible": confirm_irreversible,
+        },
         apply=apply,
         confirmation=confirm_irreversible,
     )
 
 
-def _resolution_runtime() -> ResolutionRuntime:
-    return ResolutionRuntime(
-        accepted_control_root=accepted_control_root,
-        records_artifact_root=records_artifact_root,
-        observe_lane=observe_lane,
-        prepare_resolution_effect=prepare_resolution_effect,
-        reserve_resolution_receipt=reserve_resolution_receipt,
-        release_resolution_receipt_reservation=release_resolution_receipt_reservation,
-        retire_clean_ownerless_lane=retire_clean_ownerless_lane,
-        write_resolution_receipt=write_resolution_receipt,
-        release_closeout_fence=release_closeout_fence,
-        block_resolution_report=_block_resolution_report,
-        ownerless_closeout_candidate=_ownerless_closeout_candidate,
+def _apply_resolution(
+    *,
+    root: Path,
+    decision: dict[str, Any],
+    observation: LaneObservation,
+    disposition: str,
+    report: dict[str, object],
+) -> None:
+    try:
+        control_root = accepted_control_root(root)
+        artifact_root = records_artifact_root(root)
+    except ValueError as error:
+        _block(report, _gap(error, "lane_resolution_control_root_unavailable"))
+        return
+    if not _reserve_receipt(control_root, artifact_root, str(decision["decision_id"]), report):
+        return
+    _execute_resolution(
+        control_root=control_root,
+        artifact_root=artifact_root,
+        decision=decision,
+        observation=observation,
+        disposition=disposition,
+        report=report,
     )
 
 
-def _ownerless_closeout_candidate(disposition: str, observation: LaneObservation) -> bool:
-    return (
-        disposition == "retire"
-        and not observation.dirty
-        and observation.orphan
-        and not observation.holder_ref
-    )
+def _reserve_receipt(
+    control_root: Path,
+    artifact_root: Path,
+    decision_id: str,
+    report: dict[str, object],
+) -> bool:
+    try:
+        reserve_resolution_receipt(
+            root=control_root,
+            decision_id=decision_id,
+            artifact_root=artifact_root,
+        )
+    except FileExistsError:
+        _block(report, "lane_resolution_receipt_path_exists")
+        return False
+    except OSError:
+        _block(report, "lane_resolution_receipt_path_unsafe")
+        return False
+    except ValueError as error:
+        _block(report, _gap(error, "lane_resolution_receipt_path_unsafe"))
+        return False
+    return True
 
 
-def _block_resolution_report(report: dict[str, object], *gaps: str, state: str = "blocked") -> None:
-    report.update(
-        ok=False,
-        state=state,
-        required_gaps=list(dict.fromkeys(gap for gap in gaps if gap)),
-    )
+def _execute_resolution(
+    *,
+    control_root: Path,
+    artifact_root: Path,
+    decision: dict[str, Any],
+    observation: LaneObservation,
+    disposition: str,
+    report: dict[str, object],
+) -> None:
+    decision_id = str(decision["decision_id"])
+    completed = False
+    effect_applied = False
+    destructive = disposition in _DESTRUCTIVE
+    try:
+        try:
+            package, receipt, state, gap = prepare_resolution_effect(
+                control_root=control_root,
+                artifact_root=artifact_root,
+                decision=decision,
+                observation=observation,
+                disposition=disposition,
+            )
+        except (OSError, ValueError) as error:
+            _block(report, _gap(error, "lane_resolution_effect_failed"))
+            return
+        if gap:
+            _block(report, gap)
+            return
+        report.update(state=state, preservation_package=package)
+        if disposition == "preserve-retire":
+            current, current_gaps = observe_lane(control_root, observation.lane_ref)
+            if current_gaps or current.digest() != observation.digest():
+                _block(report, *current_gaps, "lane_resolution_observation_stale")
+                return
+        if destructive:
+            try:
+                retire_lane(
+                    root=control_root,
+                    observation=observation,
+                    force=disposition == "preserve-retire" and observation.dirty,
+                )
+            except ValueError as error:
+                _block(report, _gap(error, "lane_resolution_branch_delete_failed"))
+                return
+            effect_applied = True
+        try:
+            receipt_path = write_resolution_receipt(
+                root=control_root, receipt=receipt, artifact_root=artifact_root
+            )
+        except (OSError, ValueError):
+            _block(
+                report,
+                "lane_resolution_receipt_write_failed_after_effect"
+                if destructive
+                else "lane_resolution_receipt_write_failed",
+                state="partial_transition" if destructive else "blocked",
+            )
+            return
+        completed = True
+        report.update(
+            receipt=receipt,
+            receipt_path=receipt_path,
+            chronicle_event=_chronicle_event(decision, receipt),
+        )
+    finally:
+        if not (effect_applied and not completed):
+            try:
+                release_resolution_receipt_reservation(
+                    root=control_root,
+                    decision_id=decision_id,
+                    artifact_root=artifact_root,
+                )
+            except OSError:
+                _block(
+                    report,
+                    "lane_resolution_receipt_reservation_release_failed",
+                    state="partial_transition" if completed else "blocked",
+                )
 
 
 def _read_decision(path: Path, *, root: Path) -> tuple[dict[str, Any], list[str]]:
@@ -280,12 +321,12 @@ def _read_decision(path: Path, *, root: Path) -> tuple[dict[str, Any], list[str]
         return cast("dict[str, Any]", payload), ["lane_resolution_decision_invalid"]
     if not valid_decision_id(str(payload.get("decision_id") or "")):
         return cast("dict[str, Any]", payload), ["lane_resolution_decision_invalid"]
-    gaps = (
+    return (
+        cast("dict[str, Any]", payload),
         []
         if decision.observation.digest() == payload.get("observation_digest")
-        else ["lane_resolution_decision_digest_invalid"]
+        else ["lane_resolution_decision_digest_invalid"],
     )
-    return cast("dict[str, Any]", payload), gaps
 
 
 def _accepted_chronicle(
@@ -312,9 +353,9 @@ def _chronicle_event(
         "event_type": "state_change" if receipt else "decision",
         "subject_id": str(decision["observation"]["lane_ref"]),
         "decision": str(decision["disposition"]),
-        "evidence_ids": [str(receipt["receipt_id"])]
-        if receipt
-        else list(decision["evidence_refs"]),
+        "evidence_ids": (
+            [str(receipt["receipt_id"])] if receipt else list(decision["evidence_refs"])
+        ),
         "current_state_delta": str(receipt["state"])
         if receipt
         else "exceptional resolution accepted; effect pending recomputation",
@@ -331,13 +372,28 @@ def _report(branch: str, evaluation: Any) -> dict[str, object]:
         "preservation_package": {},
         "receipt": {},
         "receipt_path": "",
-        "ownerless_closeout_binding": {},
         "chronicle_event": {},
         "required_gaps": list(evaluation.gaps),
     }
 
 
-def _finish(  # noqa: PLR0913, RUF100
+def _block(report: dict[str, object], *gaps: str, state: str = "blocked") -> None:
+    current = cast("list[object]", report.get("required_gaps") or [])
+    report.update(
+        ok=False,
+        state=state,
+        required_gaps=list(
+            dict.fromkeys([*(str(gap) for gap in current), *(gap for gap in gaps if gap)])
+        ),
+    )
+
+
+def _gap(error: Exception, fallback: str) -> str:
+    message = str(error).strip()
+    return message if message.startswith("lane_resolution_") else fallback
+
+
+def _finish(
     report: dict[str, object],
     *,
     command: str,

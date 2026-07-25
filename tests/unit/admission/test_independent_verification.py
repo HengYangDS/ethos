@@ -415,9 +415,9 @@ def test_provider_configuration_helpers_fail_closed_on_invalid_inputs(
     fallback = tmp_path / "fallback.toml"
     fallback.write_text("", encoding="utf-8")
     monkeypatch.setattr(external, "_SYSTEM_PROVIDER_CONFIGS", (missing, fallback))
-    assert external._default_provider_config_path() == fallback  # noqa: RUF100, SLF001 - provider defaults are an explicit host boundary
+    assert external.default_provider_config_path() == fallback  # noqa: RUF100, SLF001 - provider defaults are an explicit host boundary
     fallback.unlink()
-    assert external._default_provider_config_path() == missing  # noqa: RUF100, SLF001 - provider defaults are an explicit host boundary
+    assert external.default_provider_config_path() == missing  # noqa: RUF100, SLF001 - provider defaults are an explicit host boundary
 
 
 def test_receipt_mapping_rejects_non_object_payload(tmp_path) -> None:
@@ -473,14 +473,14 @@ def test_receipt_negative_paths_remain_local_readiness(tmp_path, monkeypatch) ->
         implementation_digest="e" * 64,
     )
     monkeypatch.setattr(external, "_SSH_KEYGEN", tmp_path / "missing-keygen")
-    assert external._verify_independent_receipt_signature(receipt, provider) is False  # noqa: RUF100, SLF001 - coverage exercises fail-closed verifier availability
+    assert external.verify_independent_receipt_signature(receipt, provider) is False  # noqa: RUF100, SLF001 - coverage exercises fail-closed verifier availability
     monkeypatch.setattr(external, "_SSH_KEYGEN", external.Path("/usr/bin/true"))
 
     def raise_os_error(*_args, **_kwargs):
         raise OSError
 
     monkeypatch.setattr(external.subprocess, "run", raise_os_error)
-    assert external._verify_independent_receipt_signature(receipt, provider) is False  # noqa: RUF100, SLF001 - coverage exercises fail-closed verifier errors
+    assert external.verify_independent_receipt_signature(receipt, provider) is False  # noqa: RUF100, SLF001 - coverage exercises fail-closed verifier errors
 
 
 def test_request_without_head_and_missing_provider_config_are_fail_closed(

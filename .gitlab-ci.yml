@@ -8,13 +8,11 @@ stages:
 workflow:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
-    - if: '$CI_COMMIT_BRANCH == "dev" || $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH =~ /^submit\/.+$/'
+    - if: '$CI_COMMIT_BRANCH == "dev" || $CI_COMMIT_BRANCH == "main" || $CI_COMMIT_BRANCH =~ /^proposal\/.+$/'
     - when: never
 
 variables:
-  # Source-budget policy binds to a historical baseline commit. Retain the
-  # complete graph so its object remains available; a shallow checkout would
-  # make that pinned policy identity spuriously unresolved.
+  # Full history keeps Git-derived ancestry and evidence checks available.
   GIT_DEPTH: "0"
   PYTHONWARNINGS: error
   UV_LINK_MODE: copy

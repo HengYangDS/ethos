@@ -1,4 +1,4 @@
-"""Plan-stage domain reducers — action-graph, rule→gate matching, rule-fact snapshot.
+"""Plan-stage domain reducers — PlanIR, rule→gate matching, rule-fact snapshot.
 
 Pure logic fed by adapters (rules config, workspace status) and the kernel (action
 graph types). The rule-fact snapshot composes governance facts from lower-layer
@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import fnmatch
 import tomllib
-from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
@@ -28,12 +27,10 @@ from ethos_core.contracts.context.projection import ASSISTANT_TRUTH_BOUNDARY
 from ethos_core.contracts.rules import RuleAttestation
 from ethos_core.contracts.rules import RuleFactSnapshot
 from ethos_core.contracts.rules import stable_digest
-from ethos_core.contracts.system.contracts import load_system_contract
-from ethos_core.contracts.workflow import action_graph_from_workflow_contract
 from ethos_core.normalization.core import string_list
 
 if TYPE_CHECKING:
-    from ethos_core.action_graph.core import ActionGraph
+    from pathlib import Path
 
 
 def path_matches(path: str, pattern: str) -> bool:
@@ -156,15 +153,6 @@ def contract_profile_matches(root: Path, paths: tuple[str, ...]) -> list[dict[st
 def workflow_runtime_report(root: Path, *, changed_paths: tuple[str, ...] = ()) -> dict[str, Any]:
     """Return workflow runtime projection for plan-stage callers."""
     return workflow_runtime.workflow_runtime_report(root, changed_paths=changed_paths)
-
-
-def graph_for_paths(paths: tuple[str, ...]) -> ActionGraph:
-    """Build the plan action graph from the declared workflow runtime contract."""
-    return action_graph_from_workflow_contract(
-        load_system_contract(Path(), "workflows"),
-        changed_paths=paths,
-        node_ids=("status", "plan", "prove"),
-    )
 
 
 def rule_fact(

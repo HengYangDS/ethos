@@ -41,7 +41,7 @@ ethos plan --changed --json
 ethos prove --execute --expect-head "$(git rev-parse HEAD)" --json
 ethos land --json
 ethos parity shadow --adopter generic --target . --execute --write-evidence --json
-ethos report --json
+ethos status --json
 ```
 
 Evidence boundaries (enforced in `system/evidence_boundaries.toml`): dry-run

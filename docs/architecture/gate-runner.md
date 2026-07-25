@@ -8,7 +8,7 @@ relations:
 
 # Gate Runner
 
-ETHOS proof is an action graph plus evidence, not a shell-script alias.
+ETHOS proof executes a validated PlanIR and records evidence; it is not a shell-script alias.
 
 `ethos quality gates --json` exposes the available gate registry. `ethos prove
 --json` plans the graph and reports readiness only. A readiness result has

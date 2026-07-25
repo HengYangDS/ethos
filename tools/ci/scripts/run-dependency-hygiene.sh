@@ -19,7 +19,6 @@ mkdir -p build/evidence/quality/dependency
 uv run --group dev deptry packages/ethos/src/ethos \
   --config packages/ethos/pyproject.toml \
   --known-first-party ethos \
-  --per-rule-ignores DEP002=jinja2 \
   --json-output build/evidence/quality/dependency/deptry-ethos.json \
   --no-ansi
 

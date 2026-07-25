@@ -6,7 +6,7 @@ from typing import cast
 
 import ethos.adapters.repo.git as git_adapter
 from ethos.adapters.repo.status.core import workspace_status
-from ethos.domain.report import scorecard_report
+from ethos.domain.readiness.quality import hard_quality_floor_report
 from ethos.repository.context import context_for_root
 from ethos.repository.evidence.claims import claims_report
 from ethos.repository.evidence.parity.core import parity_gaps_report
@@ -32,7 +32,7 @@ PLANNING_LAYERS: tuple[dict[str, object], ...] = (
             "accepted repository state is clean, local closeout is separate from "
             "remote publication, and foreign lanes stay observe-only"
         ),
-        "checks": ("workspace-status", "scorecard"),
+        "checks": ("workspace-status", "quality"),
     },
     {
         "id": "L1-product-boundary-neutrality",
@@ -62,7 +62,7 @@ PLANNING_LAYERS: tuple[dict[str, object], ...] = (
         "id": "L4-shared-command-plane",
         "requirement": (
             "product and adopter repositories use one status/plan/prove/land/publish "
-            "command loop with orient/report as read-only projections"
+            "command loop without parallel reader projections"
         ),
         "checks": ("governance-context", "governance-kernel"),
     },
@@ -84,11 +84,8 @@ PLANNING_LAYERS: tuple[dict[str, object], ...] = (
     },
     {
         "id": "L7-enterprise-operability",
-        "requirement": (
-            "reporting exposes hard quality floors instead of hiding product-boundary "
-            "or identity gaps behind scorecards"
-        ),
-        "checks": ("scorecard",),
+        "requirement": ("status and lifecycle commands expose hard quality floors without scores"),
+        "checks": ("quality",),
     },
     {
         "id": "L8-self-improvement-loop",
@@ -112,7 +109,7 @@ CLOSURE_CLAIMS: tuple[str, ...] = (
 def enterprise_readiness_report(root: Path) -> dict[str, object]:
     """Aggregate the enterprise-neutrality completion plan into executable checks."""
     status = workspace_status(root)
-    scorecard = scorecard_report(root)
+    quality = hard_quality_floor_report(root)
     product_boundary = product_boundary_report(root)
     docs_topology = docs_topology_report(root)
     contributor_policy = contributor_policy_report(root)
@@ -133,7 +130,7 @@ def enterprise_readiness_report(root: Path) -> dict[str, object]:
     governance_kernel = governance_kernel_report(root)
     checks: dict[str, dict[str, object]] = {
         "workspace-status": _workspace_status_check(status),
-        "scorecard": _scorecard_check(scorecard),
+        "quality": _simple_report_check(quality),
         "product-boundary": _simple_report_check(product_boundary),
         "docs-topology": _simple_report_check(docs_topology),
         "contributor-policy": _simple_report_check(contributor_policy),
@@ -172,20 +169,6 @@ def enterprise_readiness_report(root: Path) -> dict[str, object]:
     }
 
 
-def _int_field(mapping: dict[str, object], key: str) -> int:
-    value = mapping.get(key)
-    if isinstance(value, bool):
-        return int(value)
-    if isinstance(value, int):
-        return value
-    if isinstance(value, str):
-        try:
-            return int(value)
-        except ValueError:
-            return 0
-    return 0
-
-
 def _workspace_status_check(status: dict[str, object]) -> dict[str, object]:
     coordination = string_mapping(status.get("coordination"))
     required_gaps = string_sequence(status.get("required_gaps"))
@@ -201,23 +184,6 @@ def _workspace_status_check(status: dict[str, object]) -> dict[str, object]:
             "coordination_blocking": coordination.get("blocking", False),
             "foreign_work_lane_count": len(object_sequence(status.get("foreign_work_lanes"))),
         },
-    }
-
-
-def _scorecard_check(scorecard: dict[str, object]) -> dict[str, object]:
-    summary = string_mapping(scorecard.get("summary"))
-    required_gaps = string_sequence(scorecard.get("required_gaps"))
-    parity_pending_count = _int_field(summary, "parity_pending_count")
-    governance_gap_count = _int_field(summary, "governance_gap_count")
-    if parity_pending_count:
-        required_gaps.append(f"enterprise_readiness_parity_pending:{parity_pending_count}")
-    if governance_gap_count:
-        required_gaps.append(f"enterprise_readiness_governance_gaps:{governance_gap_count}")
-    return {
-        "ok": bool(scorecard.get("ok")) and not required_gaps,
-        "state": "clean" if bool(scorecard.get("ok")) and not required_gaps else "blocked",
-        "required_gaps": required_gaps,
-        "summary": summary,
     }
 
 
@@ -242,10 +208,6 @@ def _governance_context_check(context: dict[str, object]) -> dict[str, object]:
     expected = list(PUBLIC_WORKFLOW_COMMANDS)
     if transition != expected:
         required_gaps.append("enterprise_readiness_transition_commands_mismatch")
-    if "ethos orient" not in string_sequence(context.get("reader_view_commands")):
-        required_gaps.append("enterprise_readiness_orient_reader_view_missing")
-    if "ethos report" not in string_sequence(context.get("scorecard_commands")):
-        required_gaps.append("enterprise_readiness_report_scorecard_missing")
     return {
         "ok": not required_gaps,
         "state": "clean" if not required_gaps else "blocked",

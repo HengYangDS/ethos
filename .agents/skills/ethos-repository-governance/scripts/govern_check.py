@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Deterministic governance-health summary for an ETHOS repository.
 
-Runs the read-only governance triad — status -> audit (shape) -> report — in order,
-parses each JSON verdict, and prints a compact scorecard: role, the number of
+Runs the read-only governance checks — status -> audit (shape) — in order,
+parses each JSON verdict, and prints a compact summary: role, the number of
 required gaps per surface, and the first few blockers. It does NOT mutate and does
 not run deep OpenSpec validation. It is a lens over the public command plane; the
 live command JSON remains authoritative.
@@ -10,7 +10,7 @@ live command JSON remains authoritative.
 Usage:
     govern_check.py [--root PATH]
 
-Exit status: 0 when status+audit+report are all ok, 1 when any reports a gap, 2 on a
+Exit status: 0 when status+audit are all ok, 1 when any reports a gap, 2 on a
 harness error.
 """
 
@@ -25,7 +25,6 @@ from cyclopts import App
 STEPS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("status", ("status", "--json")),
     ("audit", ("audit", "--mode", "shape", "--json")),
-    ("report", ("report", "--json")),
 )
 
 

@@ -12,7 +12,7 @@ ROLE_RELEASE_ROOT = "release_root"
 ROLE_ACCEPTED_ROOT = "accepted_root"
 ROLE_CANDIDATE = "candidate"
 ROLE_WORK_LANE = "work_lane"
-ROLE_SUBMIT_LANE = "submit_lane"
+ROLE_PROPOSAL_LANE = "proposal_lane"
 ROLE_DETACHED = "detached"
 ROLE_OTHER = "other"
 
@@ -23,7 +23,7 @@ PROTECTED_WRITE_ROLES = frozenset(
         ROLE_RELEASE_ROOT,
         ROLE_ACCEPTED_ROOT,
         ROLE_CANDIDATE,
-        ROLE_SUBMIT_LANE,
+        ROLE_PROPOSAL_LANE,
         ROLE_DETACHED,
         ROLE_OTHER,
     }
@@ -36,7 +36,7 @@ class BranchRolePolicy:
     accepted_branch: str = "dev"
     candidate_branch: str = "candidate/dev"
     work_branch_prefix: str = "work/"
-    submit_branch_prefix: str = "submit/"
+    proposal_branch_prefix: str = "proposal/"
     release_mirror: str = "independent"
     repository_family_worktrees: bool = False
 
@@ -52,7 +52,7 @@ class BranchRolePolicy:
                 return role
         prefix_roles = (
             (self.work_branch_prefix, ROLE_WORK_LANE),
-            (self.submit_branch_prefix, ROLE_SUBMIT_LANE),
+            (self.proposal_branch_prefix, ROLE_PROPOSAL_LANE),
         )
         return next(
             (role for prefix, role in prefix_roles if prefix and branch.startswith(prefix)),
@@ -62,10 +62,10 @@ class BranchRolePolicy:
     def work_branch(self, slug: str) -> str:
         return f"{self.work_branch_prefix}{slug}"
 
-    def submit_branch_for_source(self, branch: str) -> str:
+    def proposal_branch_for_source(self, branch: str) -> str:
         if not self.work_branch_prefix or not branch.startswith(self.work_branch_prefix):
             return ""
-        return f"{self.submit_branch_prefix}{branch.removeprefix(self.work_branch_prefix)}"
+        return f"{self.proposal_branch_prefix}{branch.removeprefix(self.work_branch_prefix)}"
 
     @property
     def protected_branches(self) -> tuple[str, ...]:
@@ -103,10 +103,10 @@ class BranchRolePolicy:
                 "pattern": f"{self.work_branch_prefix}*",
             },
             {
-                "role": ROLE_SUBMIT_LANE,
+                "role": ROLE_PROPOSAL_LANE,
                 "kind": "branch_prefix",
-                "config_key": "submit_branch_prefix",
-                "pattern": f"{self.submit_branch_prefix}*",
+                "config_key": "proposal_branch_prefix",
+                "pattern": f"{self.proposal_branch_prefix}*",
             },
         )
 
@@ -116,7 +116,7 @@ class BranchRolePolicy:
             "accepted_branch": self.accepted_branch,
             "candidate_branch": self.candidate_branch,
             "work_branch_prefix": self.work_branch_prefix,
-            "submit_branch_prefix": self.submit_branch_prefix,
+            "proposal_branch_prefix": self.proposal_branch_prefix,
             "release_mirror": self.release_mirror,
             "semantic_order": [dict(record) for record in self.semantic_order()],
         }
@@ -141,8 +141,8 @@ def branch_role_policy_from_text(text: str) -> BranchRolePolicy:
         work_branch_prefix=_string_value(
             raw_policy.get("work_branch_prefix"), default.work_branch_prefix
         ),
-        submit_branch_prefix=_string_value(
-            raw_policy.get("submit_branch_prefix"), default.submit_branch_prefix
+        proposal_branch_prefix=_string_value(
+            raw_policy.get("proposal_branch_prefix"), default.proposal_branch_prefix
         ),
         release_mirror=RELEASE_MIRROR_ACCEPTED_FF
         if raw_policy.get("release_mirror") == RELEASE_MIRROR_ACCEPTED_FF

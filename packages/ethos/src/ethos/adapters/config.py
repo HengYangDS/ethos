@@ -10,15 +10,6 @@ import tomllib
 from typing import TYPE_CHECKING
 from typing import cast
 
-from pydantic import ValidationError
-
-from ethos_core.contracts.source_budget.core import SourceBudgetPolicyLoad
-from ethos_core.contracts.source_budget.core import SourceBudgetTaxonomy
-from ethos_core.contracts.source_budget.core import validate_source_budget_policy
-from ethos_core.contracts.source_budget.core import validate_source_budget_taxonomy
-from ethos_core.contracts.source_budget.policy.core import SourceBudgetPolicyV2Load
-from ethos_core.contracts.source_budget.policy.core import validate_source_budget_policy_v2
-
 if TYPE_CHECKING:
     from pathlib import Path
 
@@ -39,72 +30,3 @@ def code_size_policy(root: Path) -> dict[str, object]:
         return {}
     code_size = quality.get("code_size")
     return cast("dict[str, object]", code_size) if isinstance(code_size, dict) else {}
-
-
-def source_budget_policy(root: Path) -> SourceBudgetPolicyLoad:
-    """Load the global source-budget contract without dropping malformed data."""
-    rules = rules_config(root)
-    quality = rules.get("quality")
-    if not isinstance(quality, dict):
-        return SourceBudgetPolicyLoad(policy=None, required_gaps=("source_budget_policy_missing",))
-    budget = quality.get("source_budget")
-    if not isinstance(budget, dict):
-        return SourceBudgetPolicyLoad(policy=None, required_gaps=("source_budget_policy_missing",))
-    try:
-        policy = validate_source_budget_policy(budget)
-    except ValidationError as exc:
-        gaps = tuple(
-            "source_budget_policy_invalid:"
-            + ".".join(map(str, error["loc"][1:] if len(error["loc"]) > 1 else error["loc"]))
-            for error in exc.errors()
-        )
-        return SourceBudgetPolicyLoad(policy=None, required_gaps=gaps)
-    return SourceBudgetPolicyLoad(policy=policy, required_gaps=())
-
-
-def source_budget_policy_v2(root: Path) -> SourceBudgetPolicyV2Load:
-    """Load the sibling Budget Contract v2 policy without changing v1 behavior."""
-    rules = rules_config(root)
-    quality = rules.get("quality")
-    if not isinstance(quality, dict):
-        return SourceBudgetPolicyV2Load(
-            policy=None, required_gaps=("source_budget_policy_v2_missing",)
-        )
-    budget = quality.get("source_budget_v2")
-    if not isinstance(budget, dict):
-        return SourceBudgetPolicyV2Load(
-            policy=None, required_gaps=("source_budget_policy_v2_missing",)
-        )
-    try:
-        policy = validate_source_budget_policy_v2(budget)
-    except ValidationError as exc:
-        gaps = tuple(
-            "source_budget_policy_v2_invalid:" + _v2_error_location(error["loc"])
-            for error in exc.errors()
-        )
-        return SourceBudgetPolicyV2Load(policy=None, required_gaps=gaps)
-    return SourceBudgetPolicyV2Load(policy=policy, required_gaps=())
-
-
-def _v2_error_location(location: tuple[object, ...]) -> str:
-    parts = location[1:] if location and location[0] in {"inactive", "shadow"} else location
-    return ".".join(map(str, parts))
-
-
-def source_budget_taxonomy_from_bytes(content: bytes) -> SourceBudgetTaxonomy:
-    """Compile one exact format-selection blob into the v1 taxonomy contract."""
-    payload = tomllib.loads(content.decode("utf-8"))
-    carrier = [
-        {"extensions": item["extensions"], **budget}
-        for item in payload["format"]
-        for budget in item.get("budget", [])
-    ]
-    return validate_source_budget_taxonomy(
-        {"carrier": carrier, "aggregates": payload["source_budget"]["aggregates"]}
-    )
-
-
-def source_budget_taxonomy(root: Path) -> SourceBudgetTaxonomy:
-    """Load the source carrier taxonomy from the format-selection SSOT."""
-    path = root / ".config" / "checks" / "format" / "selection.toml"
-    return source_budget_taxonomy_from_bytes(path.read_bytes())

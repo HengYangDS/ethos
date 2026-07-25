@@ -17,7 +17,7 @@ from ethos.adapters.mutation.proof import record_executed_proof
 from ethos.adapters.openspec.core import openspec_governance_report
 from ethos.adapters.repo.dirty.core import change_scope_paths_from_status
 from ethos.adapters.repo.status.core import workspace_status
-from ethos.domain.source_budget.core import source_budget_report
+from ethos.domain.campaign.closeout import campaign_publication_report
 from ethos.repository.context import is_product_root
 from ethos.repository.evidence.core import AdapterProofResult
 from ethos.repository.evidence.core import EvidenceSet
@@ -25,7 +25,7 @@ from ethos.repository.evidence.core import ProofRun
 from ethos.repository.evidence.core import provenance_envelope
 from ethos.repository.evidence.core import trim_output
 from ethos.repository.policy.gates import adopter_code_correctness_gaps
-from ethos.repository.policy.gates import gate_graph
+from ethos.repository.policy.gates import gate_plan
 from ethos.repository.policy.gates import gate_registry
 from ethos.surface.cli._base import JsonFlag
 from ethos.surface.cli._base import RootOption
@@ -146,8 +146,8 @@ def prove(
         repo, lifecycle=True, changed_paths=changed_paths, require_workspace=False
     )
     lifecycle_gaps = tuple(str(gap) for gap in openspec_lifecycle.get("required_gaps", []))
-    graph = gate_graph(options.gate, full=options.full, root=repo)
-    graph_validation = graph.validate()
+    plan = gate_plan(options.gate, full=options.full, root=repo)
+    plan_gaps = plan.gaps()
     correctness_gaps = adopter_code_correctness_gaps(repo)
     gates_by_id = gate_registry(repo)
     runner = (
@@ -169,7 +169,7 @@ def prove(
                 diagnostics=run_result.diagnostics,
             )
         )
-        for run_result in (runner.run(node, root=repo) for node in graph.ordered_nodes())
+        for run_result in (runner.run(node, root=repo) for node in plan.ordered_nodes())
     )
     evidence = EvidenceSet.from_runs(
         evidence_id=f"ethos:{options.objective}",
@@ -210,7 +210,7 @@ def prove(
     host_probe = host_probe_boundary(host=options.host, probe=options.probe)
     focused = bool(options.gate) or scope_binding["scope"] != "repository"
     terminal_gaps = (
-        tuple(string_sequence(source_budget_report(repo).get("required_gaps")))
+        tuple(string_sequence(campaign_publication_report(repo).get("required_gaps")))
         if is_product_root(repo) and not focused
         else ()
     )
@@ -218,7 +218,7 @@ def prove(
         dict.fromkeys(
             tuple(string_sequence(audit.get("required_gaps")))
             + lifecycle_gaps
-            + tuple(graph_validation.gaps)
+            + plan_gaps
             + correctness_gaps
             + failed_gate_gaps
             + proof_gaps
@@ -232,7 +232,7 @@ def prove(
         bool(audit["ok"])
         and bool(openspec_lifecycle.get("ok"))
         and runs_ok
-        and graph_validation.ok
+        and not plan_gaps
         and not required_gaps
     )
     result_state = "proven" if ok and options.execute else "ready" if ok else "gapped"
@@ -240,7 +240,7 @@ def prove(
         record_executed_proof(repo, evidence.to_dict())
     dependency_next_actions = missing_gate_dependency_next_actions(
         selected_gate_ids=options.gate,
-        validation_gaps=graph_validation.gaps,
+        validation_gaps=plan_gaps,
         current_head=current_head,
         root=repo,
     )
@@ -251,7 +251,7 @@ def prove(
         if result_state == "proven"
         else ("ethos prove --execute",)
         if result_state == "ready"
-        else ("ethos quality source-budget --json",)
+        else ("ethos campaign status --json",)
         if terminal_gaps
         else ("ethos audit --mode deep",)
     )
@@ -259,6 +259,7 @@ def prove(
     boundary = "focused" if focused else "repository"
     audit_openspec = cast("dict[str, object]", audit.get("openspec") or {})
     lifecycle_summary = cast("dict[str, object]", openspec_lifecycle.get("summary") or {})
+    lifecycle_change_count = lifecycle_summary.get("change_count")
     data = (
         {
             "governance_context": audit["governance_context"],
@@ -270,7 +271,7 @@ def prove(
             "scope": scope_binding["scope"],
             "scope_binding": scope_binding,
             "host_probe": host_probe,
-            "action_graph": graph.to_dict(),
+            "plan_ir": plan.to_dict(),
             "evidence": evidence.to_dict(),
             "provenance": provenance_envelope(evidence),
             "expected_head": {
@@ -298,7 +299,9 @@ def prove(
                 "ok": bool(openspec_lifecycle.get("ok")),
                 "change": str(openspec_lifecycle.get("change") or ""),
                 "schema_name": str(openspec_lifecycle.get("schema_name") or ""),
-                "change_count": int(lifecycle_summary.get("change_count") or 0),
+                "change_count": (
+                    lifecycle_change_count if isinstance(lifecycle_change_count, int) else 0
+                ),
                 "required_gaps": list(string_sequence(openspec_lifecycle.get("required_gaps"))),
             },
             "evidence": {

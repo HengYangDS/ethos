@@ -7,19 +7,18 @@ import subprocess
 import sys
 import tomllib
 from collections.abc import Mapping
-from dataclasses import replace
 from pathlib import Path
 from typing import cast
 
 from ethos.repository.context import is_product_root
 from ethos.repository.profile import RepositoryProfileDeclaration
 from ethos.repository.profile import load_repository_profile
-from ethos_core.action_graph.core import ActionGraph
-from ethos_core.action_graph.core import ActionNode
 from ethos_core.contracts.gates import DECLARATION_PATH
 from ethos_core.contracts.gates import GateDescriptor
 from ethos_core.contracts.gates import GateRegistryDeclaration
 from ethos_core.contracts.gates import load_gate_registry_declaration
+from ethos_core.contracts.plan import PlanIR
+from ethos_core.contracts.plan import PlanNode
 from ethos_core.normalization.core import string_mapping
 
 _GATE_DECLARATION = load_gate_registry_declaration()
@@ -272,7 +271,7 @@ def default_gate_ids(
         # promotion completeness requires them. The "declared none" case, and the
         # axis-coverage/equivalence checks, are enforced by adopter_code_correctness_gaps
         # (completeness gaps), NOT by a non-executable sentinel here — this set must stay
-        # registry-executable for gate_graph.
+        # registry-executable for gate_plan.
         assert root is not None
         profile = load_repository_profile(root, tree_ref=tree_ref)
         native = cast(
@@ -536,18 +535,18 @@ def effective_gate_dependencies(
     return gate.depends_on
 
 
-def gate_graph(
+def gate_plan(
     gate_ids: tuple[str, ...] = (),
     *,
     full: bool = False,
     root: Path | None = None,
-) -> ActionGraph:
+) -> PlanIR:
     registry = gate_registry(root)
     selected = gate_ids or default_gate_ids(full=full, root=root)
     selected_ids = set(selected)
     product = root is None or is_product_root(root)
     declaration_gaps = list(adopter_gate_descriptor_gaps(root))
-    nodes: list[ActionNode] = []
+    nodes: list[PlanNode] = []
     for gate_id in selected:
         gate = registry.get(gate_id)
         if gate is None:
@@ -555,12 +554,17 @@ def gate_graph(
             if expected_gap not in declaration_gaps:
                 declaration_gaps.append(f"unknown_gate:{gate_id}")
             continue
-        node = gate.to_node()
+        node = PlanNode(
+            id=gate.id,
+            kind="check",
+            command=gate.command,
+            depends_on=gate.depends_on,
+        )
         effective_dependencies = effective_gate_dependencies(gate, selected_ids, product=product)
         if effective_dependencies != node.depends_on:
-            node = replace(node, depends_on=effective_dependencies)
+            node = node.model_copy(update={"depends_on": effective_dependencies})
         nodes.append(node)
-    return ActionGraph(
+    return PlanIR(
         nodes=tuple(nodes),
         validation_issues=tuple(dict.fromkeys(declaration_gaps)),
     )

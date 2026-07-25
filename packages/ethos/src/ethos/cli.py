@@ -27,8 +27,7 @@ def main() -> None:
 def _command(argv: list[str]) -> str:
     """Return the declared root command without mistaking an option value for it."""
     root_commands = {
-        "orient",
-        "report",
+        "status",
         "plan",
         "prove",
         "land",

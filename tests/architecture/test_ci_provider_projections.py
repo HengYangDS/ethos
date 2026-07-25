@@ -166,7 +166,7 @@ def test_github_repository_proof_projects_parallel_worker_stability() -> None:
     github = yaml.safe_load((ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8"))
 
     assert github["jobs"]["verify"]["env"] == {
-        "ETHOS_TEST_WORKERS": "4",
+        "ETHOS_TEST_WORKERS": "2",
         "ETHOS_TEST_TIMEOUT_SECONDS": "300",
         "ETHOS_TEST_TIMEOUT_METHOD": "signal",
     }

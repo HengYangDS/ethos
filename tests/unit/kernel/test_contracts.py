@@ -322,6 +322,7 @@ def test_result_contract_has_stable_top_level_fields() -> None:
         "schema_version",
         "command",
         "ok",
+        "verdict",
         "state",
         "summary",
         "diagnostics",

@@ -7,7 +7,7 @@ summary = "ETHOS makes the GitHub repository-proof job execute one trust-bearing
 
 [evidence]
 dated = "evidence/chronicle/github-single-head-bound-proof-20260725/2026-07-25.md"
-sha256 = "b3b330a9589064f2a73fa6293a923484335c1abfbafa685fd87d8e173330ac9f"
+sha256 = "e307708085377a59c3a17deba281e54219e36f79f1a7a2130d92db82b3f6de3b"
 evidence_ids = ["evidence:github-single-head-bound-proof-20260725"]
 binding = "The exact failed GitHub main run, successful first test step, failed duplicate proof step, local/dev evidence, provider data flow, OpenSpec carrier, and dated Chronicle bind this minimum single-execution claim."
 verifier = "digest_only"
@@ -29,7 +29,7 @@ owner = "quality"
 scope = "The GitHub repository-proof step graph, canonical GitHub template, generated workflow, direct provider-script inventory, provider architecture contract, quality requirement, and bounded evidence only; no proof-command change, timeout weakening, worker-count change, GitLab mutation or observation, host-global scheduling, retry admission, foreign Work Lane action, or all-green hosted claim."
 
 [carriers]
-openspec = "openspec/changes/github-single-head-bound-proof"
+openspec = "openspec/changes/archive/2026-07-25-github-single-head-bound-proof"
 fallback = "Restore the direct GitHub test step only if the single proof entrypoint fails to produce required JUnit, coverage, or proof/readiness artifacts; keep hosted readiness blocked until re-proven."
 kill_signal = "The proof no longer executes the unit gate, HEAD binding or artifact retention weakens, GitLab changes, timeouts or coverage weaken, a retry becomes automatic acceptance, or failed hosted evidence is described as passing."
 
@@ -41,7 +41,7 @@ targets = [
   "tests/architecture/test_ci_provider_projections.py",
   "openspec/specs/quality/spec.md",
   "evidence/parity/generic-shadow.json",
-  "openspec/changes/github-single-head-bound-proof",
+  "openspec/changes/archive/2026-07-25-github-single-head-bound-proof",
   "evidence/chronicle/github-single-head-bound-proof-20260725/2026-07-25.md",
   "evidence/claims/github-single-head-bound-proof-20260725.toml",
 ]

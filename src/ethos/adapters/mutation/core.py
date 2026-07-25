@@ -10,8 +10,6 @@ from ethos.adapters.admission.closeout_intent.core import sweep_stale_closeout_i
 from ethos.adapters.admission.evidence.external import independent_verification_admission_report
 from ethos.adapters.admission.evidence.external import independent_verification_request
 from ethos.adapters.mutation.carriers import openspec_carrier_gaps
-from ethos.adapters.mutation.lane_lifecycle.core import is_ancestor
-from ethos.adapters.mutation.lane_lifecycle.core import run_git
 from ethos.adapters.mutation.proof import carry_executed_proof_record
 from ethos.adapters.mutation.proof import executed_proof_record
 from ethos.adapters.mutation.proof import gate_policy_gaps
@@ -22,7 +20,9 @@ from ethos.adapters.repo.git import execute_git_effect
 from ethos.adapters.repo.git import git_effect_attestations
 from ethos.adapters.repo.git import git_effect_plan_digest
 from ethos.adapters.repo.git import git_ref_effect
+from ethos.adapters.repo.git import is_ancestor
 from ethos.adapters.repo.git import reference_transaction_hook_changed
+from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.git import sync_current_worktree
 from ethos.adapters.repo.git import sync_linked_ref_worktree
 from ethos.adapters.repo.status.core import workspace_status

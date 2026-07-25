@@ -4,12 +4,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import cast
 
-from ethos.adapters.mutation.lane_lifecycle.core import default_candidate_path
-from ethos.adapters.mutation.lane_lifecycle.core import is_ancestor
-from ethos.adapters.mutation.lane_lifecycle.core import repo_root
-from ethos.adapters.mutation.lane_lifecycle.core import run_git
 from ethos.adapters.mutation.lane_lifecycle.projection_rebase.core import resolve_projection_rebase
+from ethos.adapters.mutation.lanes import default_candidate_path
 from ethos.adapters.repo.dirty.core import changed_paths
+from ethos.adapters.repo.git import is_ancestor
+from ethos.adapters.repo.git import repository_root
+from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
@@ -31,7 +31,7 @@ def bootstrap_candidate(
     expect_head: str | None = None,
     apply: bool = False,
 ) -> dict[str, object]:
-    repo = repo_root(root)
+    repo = repository_root(root)
     policy = load_branch_role_policy(repo)
     status = workspace_status(repo)
     current_head = run_git(repo, "rev-parse", "HEAD").stdout.strip()
@@ -149,7 +149,7 @@ def refresh_candidate_from_accepted(
     authorized: bool = False,
     expect_head: str | None = None,
 ) -> dict[str, object]:
-    repo = repo_root(root)
+    repo = repository_root(root)
     policy = load_branch_role_policy(repo)
     status = workspace_status(repo)
     current_head = run_git(repo, "rev-parse", "HEAD").stdout.strip()

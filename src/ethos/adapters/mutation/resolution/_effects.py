@@ -9,12 +9,12 @@ from pathlib import Path
 from typing import Any
 from typing import cast
 
-from ethos.adapters.mutation.lane_lifecycle.core import run_git
 from ethos.adapters.mutation.resolution._observation import untracked_files
 from ethos.adapters.mutation.resolution._shared import canonical_package_path
 from ethos.adapters.mutation.resolution._shared import display_path
 from ethos.adapters.mutation.resolution._shared import sha256_digest
 from ethos.adapters.mutation.resolution.receipts import verify_preservation_package
+from ethos.adapters.repo.git import run_git
 from ethos.contracts.resolution.lane import LaneObservation
 from ethos.contracts.resolution.lane import LaneResolutionReceipt
 from ethos.contracts.resolution.lane import LaneResolutionState

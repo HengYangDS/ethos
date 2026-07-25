@@ -15,8 +15,8 @@ import ethos.adapters.mutation.lane_retirement.unbound.observation.core as obser
 import ethos.adapters.mutation.lane_retirement.unbound.policy.core as policy
 import ethos.adapters.mutation.lane_retirement.unbound.records.core as records
 import ethos.adapters.mutation.lane_retirement.unbound.reporting.core as reporting
-from ethos.adapters.mutation.lane_lifecycle.core import repo_root
-from ethos.adapters.mutation.lane_lifecycle.core import run_git
+from ethos.adapters.repo.git import repository_root
+from ethos.adapters.repo.git import run_git
 from ethos.adapters.store.state.lease.lifecycle.effects import revoke_lease_from_connection
 from ethos.adapters.store.state.schema import state_database
 
@@ -68,7 +68,7 @@ def retire_unbound_work_lane_ref(  # noqa: PLR0913, RUF100 - exact retirement pr
     owner_unavailable_recovery: bool = False,
 ) -> dict[str, object]:
     """Retire exactly one accepted-policy-bound unbound ``work/*`` ref."""
-    repo = repo_root(root)
+    repo = repository_root(root)
     branch, expected = branch.strip(), (expect_head or "").strip()
     reason, chronicle_ref = reason.strip(), chronicle_ref.strip()
     controls: _Controls = {

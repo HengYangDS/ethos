@@ -2,7 +2,7 @@
 # Run the Python trust-bearing test gate with coverage.
 set -euo pipefail
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [[ "${ETHOS_RUNTIME_BOOTSTRAPPED:-}" != "1" ]]; then exec "${script_dir}/with-python-runtime.sh" -- uv run --all-packages --group dev env ETHOS_RUNTIME_BOOTSTRAPPED=1 "$0" "$@"; fi
+if [[ "${ETHOS_RUNTIME_BOOTSTRAPPED:-}" != "1" ]]; then exec "${script_dir}/with-python-runtime.sh" -- uv run --group dev env ETHOS_RUNTIME_BOOTSTRAPPED=1 "$0" "$@"; fi
 run_as_uid="${ETHOS_TEST_RUN_AS_UID:-}"; run_as_gid="${ETHOS_TEST_RUN_AS_GID:-}"
 repo_root_from_script="$(cd "${script_dir}/../../.." && pwd)"
 export GIT_CONFIG_COUNT="${GIT_CONFIG_COUNT:-0}"; git_config_count="${GIT_CONFIG_COUNT}"
@@ -131,12 +131,12 @@ print(f"{value:g}")
 PY
 )"
 pytest_targets=(tests/unit tests/architecture)
-pytest_common_args=(-c "${pytest_config_path}" -W error --rootdir=. --cov-config="${coverage_config_dir}/coverage.ini" --cov=ethos --cov=ethos_core --basetemp="${pytest_tmp_dir}" --durations="${durations}" --dist=loadscope)
+pytest_common_args=(-c "${pytest_config_path}" -W error --rootdir=. --cov-config="${coverage_config_dir}/coverage.ini" --cov=ethos --basetemp="${pytest_tmp_dir}" --durations="${durations}" --dist=loadscope)
 if [[ -n "${timeout_seconds}" ]]; then pytest_common_args+=(--timeout="${timeout_seconds}" --timeout-method="${timeout_method}"); fi
 pytest_junit_arg=(--junitxml="${pytest_evidence_dir}/junit.xml")
 pytest_report_args=(--cov-report=term-missing --cov-report="xml:${coverage_evidence_dir}/coverage.xml" "--cov-fail-under=${coverage_hard_floor}")
 pytest_runner=("${ethos_python}" -m pytest); coverage_runner=("${ethos_python}" -m coverage)
-if ! "${ethos_python}" -m pytest --version >/dev/null 2>&1; then pytest_runner=(uv run --all-packages --group dev pytest); coverage_runner=(uv run --all-packages --group dev coverage); fi
+if ! "${ethos_python}" -m pytest --version >/dev/null 2>&1; then pytest_runner=(uv run --group dev pytest); coverage_runner=(uv run --group dev coverage); fi
 if [[ "${workers}" != "1" && "${workers}" != "serial" ]]; then pytest_common_args=(-n "${workers}" "${pytest_common_args[@]}"); fi
 export GIT_CONFIG_GLOBAL="${GIT_CONFIG_GLOBAL:-/dev/null}" GIT_CONFIG_NOSYSTEM="${GIT_CONFIG_NOSYSTEM:-1}"
 run_pytest() {

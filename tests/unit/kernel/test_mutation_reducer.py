@@ -2,15 +2,15 @@ from __future__ import annotations
 
 import pytest
 
-from ethos_core.contracts.lifecycle.core import CLOSEOUT_MUTATION
-from ethos_core.contracts.lifecycle.core import WORK_LANE_MUTATION
-from ethos_core.contracts.lifecycle.core import LeaseFacts
-from ethos_core.contracts.lifecycle.core import MutationFacts
-from ethos_core.contracts.lifecycle.core import MutationRequest
-from ethos_core.contracts.lifecycle.core import reduce_guards
-from ethos_core.contracts.lifecycle.core import reduce_lease_request
-from ethos_core.contracts.lifecycle.core import reduce_mutation
-from ethos_core.contracts.workflow import load_workflow_contract_declaration
+from ethos.contracts.lifecycle.core import CLOSEOUT_MUTATION
+from ethos.contracts.lifecycle.core import WORK_LANE_MUTATION
+from ethos.contracts.lifecycle.core import LeaseFacts
+from ethos.contracts.lifecycle.core import MutationFacts
+from ethos.contracts.lifecycle.core import MutationRequest
+from ethos.contracts.lifecycle.core import reduce_guards
+from ethos.contracts.lifecycle.core import reduce_lease_request
+from ethos.contracts.lifecycle.core import reduce_mutation
+from ethos.contracts.workflow import load_workflow_contract_declaration
 
 LEASE_TRANSITIONS = {
     item.id: item for item in load_workflow_contract_declaration().lease_transition

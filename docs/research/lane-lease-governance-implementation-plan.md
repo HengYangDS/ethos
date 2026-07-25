@@ -100,7 +100,7 @@ for both humans and agents.
 
 Candidate files after scope review:
 
-- `packages/ethos/src/ethos/adapters/repo/coordination.py`
+- `src/ethos/adapters/repo/coordination.py`
 - workspace status schema
 - lane status tests
 - CLI contract tests

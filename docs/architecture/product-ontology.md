@@ -11,24 +11,23 @@ relations:
 
 Status: canonical.
 
-Purpose: summarize the current physical product packages and distribution
+Purpose: summarize the current physical product package and distribution
 adapters. The detailed package boundary is [Package Ontology](package-ontology.md).
 
-Current Python product packages are:
+The Python product package is:
 
 ```text
-ethos-core
-ethos
+src/ethos
 ```
 
-`ethos-core` owns pure kernel, contract, quality, and proof-policy semantics.
-`ethos` owns the public runtime, command plane, repository orchestration,
-adapters, and assistant projections. Test fixtures remain under `tests/`,
-outside the shipped product package.
+It owns the semantic kernel, contracts, quality policy, command plane,
+repository orchestration, adapters, and assistant projections. Those concerns
+remain internally bounded but share one version and one distribution identity.
+Test fixtures remain under `tests/`, outside the shipped product package.
 
 Retired names such as `ethos-contracts`, `ethos-quality`, `ethos-repository`,
 `ethos-assistants`, `ethos-adapters`, and `ethos-test` now describe semantic
-areas inside the two package homes; they are not active package homes.
+areas inside the product package; they are not active package homes.
 
 Non-Python distribution adapters are separate projections:
 

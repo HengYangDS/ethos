@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.domain.land.publication import local_ci_owner_scripts
 from ethos.domain.land.publication import publication_readiness
-from ethos_core.contracts.branch.roles import load_branch_role_policy
 from tests.support.contract_helpers import adopt_and_commit
 from tests.support.contract_helpers import git
 from tests.support.contract_helpers import init_git_repo

@@ -53,7 +53,7 @@ immutable typed contract, and compile it through Cyclopts native lazy loading.
 #### Scenario: Packaged command declaration is used
 - **WHEN** ETHOS runs outside a repository checkout
 - **THEN** the wheel projection built from `system/commands.toml` by
-  `packages/ethos-core/pyproject.toml` supplies the same validated command declaration
+  `pyproject.toml` supplies the same validated command declaration
 
 ### Requirement: Retired Family Command Vocabulary
 ETHOS SHALL reject retired family-style command prefixes from governed docs.

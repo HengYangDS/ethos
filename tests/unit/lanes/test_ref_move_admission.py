@@ -563,7 +563,7 @@ def test_reference_transaction_hook_fails_closed_on_empty_release_mirror_verdict
     runtime.parent.mkdir(parents=True)
     runtime.write_text("#!/bin/sh\nexit 97\n", encoding="utf-8")
     runtime.chmod(0o755)
-    for package in ("ethos", "ethos-core"):
+    for package in ("ethos",):
         (candidate / "packages" / package / "src").mkdir(parents=True)
     workspace = repo / ".ethos/workspace.toml"
     workspace.write_text('[branch_roles]\nrelease_mirror = "accepted_ff"\n', encoding="utf-8")

@@ -6,13 +6,6 @@ resolution-markers = [
     "python_full_version != '3.13.*'",
 ]
 
-[manifest]
-members = [
-    "ethos",
-    "ethos-core",
-    "ethos-product-monorepo",
-]
-
 [[package]]
 name = "annotated-types"
 version = "0.7.0"
@@ -309,59 +302,25 @@ wheels = [
 [[package]]
 name = "ethos"
 version = "0.1.0a2"
-source = { editable = "packages/ethos" }
+source = { editable = "." }
 dependencies = [
+    { name = "cel-python" },
     { name = "cyclopts" },
     { name = "defusedxml" },
-    { name = "ethos-core" },
     { name = "jsonschema" },
     { name = "pydantic" },
     { name = "pyyaml" },
     { name = "tomli-w" },
 ]
 
-[package.metadata]
-requires-dist = [
-    { name = "cyclopts", specifier = ">=3.20" },
-    { name = "defusedxml", specifier = ">=0.7" },
-    { name = "ethos-core", editable = "packages/ethos-core" },
-    { name = "jsonschema", specifier = ">=4.23" },
-    { name = "pydantic", specifier = ">=2.12,<3" },
-    { name = "pyyaml", specifier = ">=6.0,<7" },
-    { name = "tomli-w", specifier = ">=1.2,<2" },
-]
-
-[[package]]
-name = "ethos-core"
-version = "0.1.0a2"
-source = { editable = "packages/ethos-core" }
-dependencies = [
-    { name = "cel-python" },
-    { name = "pydantic" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "cel-python", specifier = ">=0.5,<0.6" },
-    { name = "pydantic", specifier = ">=2.12,<3" },
-]
-
-[[package]]
-name = "ethos-product-monorepo"
-version = "0.1.0a2"
-source = { virtual = "." }
-
 [package.dev-dependencies]
 dev = [
     { name = "check-jsonschema" },
     { name = "codespell" },
-    { name = "cyclopts" },
     { name = "deptry" },
     { name = "hypothesis" },
     { name = "import-linter" },
-    { name = "jsonschema" },
     { name = "pre-commit" },
-    { name = "pydantic" },
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "pytest-timeout" },
@@ -371,18 +330,24 @@ dev = [
 ]
 
 [package.metadata]
+requires-dist = [
+    { name = "cel-python", specifier = ">=0.5,<0.6" },
+    { name = "cyclopts", specifier = ">=3.20" },
+    { name = "defusedxml", specifier = ">=0.7" },
+    { name = "jsonschema", specifier = ">=4.23" },
+    { name = "pydantic", specifier = ">=2.12,<3" },
+    { name = "pyyaml", specifier = ">=6.0,<7" },
+    { name = "tomli-w", specifier = ">=1.2,<2" },
+]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "check-jsonschema", specifier = ">=0.37.4" },
     { name = "codespell", specifier = ">=2.4.2" },
-    { name = "cyclopts", specifier = ">=3.20" },
     { name = "deptry", specifier = ">=0.25.1" },
     { name = "hypothesis", specifier = ">=6.0,<7" },
     { name = "import-linter", specifier = ">=2.12" },
-    { name = "jsonschema", specifier = ">=4.23" },
     { name = "pre-commit", specifier = ">=4.6.1" },
-    { name = "pydantic", specifier = ">=2.12,<3" },
     { name = "pytest", specifier = ">=8.0" },
     { name = "pytest-cov", specifier = ">=7.0" },
     { name = "pytest-timeout", specifier = ">=2.4" },

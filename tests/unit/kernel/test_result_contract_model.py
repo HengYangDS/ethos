@@ -5,7 +5,7 @@ import json
 import pytest
 from pydantic import ValidationError
 
-from ethos_core.result import EthosResult
+from ethos.result import EthosResult
 
 
 def test_ethos_result_is_frozen_strict_schema_model() -> None:

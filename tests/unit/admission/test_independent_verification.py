@@ -14,8 +14,8 @@ from ethos.adapters.admission.evidence.external import independent_verification_
 from ethos.adapters.admission.evidence.external import independent_verification_report
 from ethos.adapters.admission.evidence.external import independent_verification_request
 from ethos.adapters.admission.evidence.external import load_independent_verification_provider
+from ethos.contracts.evidence.external import IndependentVerificationReceipt
 from ethos.repository.profile import IndependentVerificationPolicy
-from ethos_core.contracts.evidence.external import IndependentVerificationReceipt
 from tests.support.contract_helpers import write_test_profile
 
 

@@ -6,12 +6,12 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
+from ethos.contracts.system.contracts import load_system_contract
+from ethos.contracts.workflow import WorkflowContract
+from ethos.contracts.workflow import load_workflow_contract_declaration
+from ethos.contracts.workflow import planned_transition_projection
+from ethos.contracts.workflow import workflow_contract_report
 from ethos.repository.workflow import runtime as workflow_runtime_model
-from ethos_core.contracts.system.contracts import load_system_contract
-from ethos_core.contracts.workflow import WorkflowContract
-from ethos_core.contracts.workflow import load_workflow_contract_declaration
-from ethos_core.contracts.workflow import planned_transition_projection
-from ethos_core.contracts.workflow import workflow_contract_report
 
 
 def test_workflow_contract_is_frozen_typed_declaration() -> None:

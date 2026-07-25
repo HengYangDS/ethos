@@ -29,22 +29,21 @@ def test_local_install_smoke_is_offline_isolated_and_head_bound() -> None:
     assert "build/artifacts/python" in owner
     assert "build/runtime/work/local-install-smoke" in owner
     assert "build/evidence/local-install/smoke.json" in owner
-    assert (
-        'env -u VIRTUAL_ENV UV_PROJECT_ENVIRONMENT="${venv_dir}" '
-        "uv sync --locked --offline --all-packages --no-dev --no-install-workspace"
-    ) in owner
-    assert "uv pip install --offline --no-deps" in owner
-    assert "uv pip check" in owner
-    assert "ethos_core" in owner
+    assert 'uv build --offline --wheel --out-dir "${artifact_dir}"' in owner
+    assert "uv export --locked --offline --no-dev --no-emit-project" in owner
+    assert 'printf \'%s\\n\' "${source_site}" > "${smoke_site}/ethos-locked-runtime.pth"' in owner
+    assert 'uv pip install --offline --no-deps --python "${smoke_python}" "${wheel}"' in owner
+    assert 'uv pip check --python "${source_python}"' in owner
+    assert "ethos" in owner
     assert "ethos.__file__" in owner
-    assert "ethos_core.__file__" in owner
+    assert "ethos.__file__" in owner
     assert "uv cache dir" not in owner
     assert "ETHOS_LOCAL_INSTALL_UV_CACHE_DIR" not in owner
-    assert '"${smoke_ethos}" --help' in owner
-    assert '"${smoke_ethos}" --version' in owner
+    assert '"${venv_dir}/bin/ethos" --help' in owner
+    assert '"${venv_dir}/bin/ethos" --version' in owner
     assert owner.count("require-stable-head.sh") == 2
     assert " capture)" in owner
-    assert " verify \\" in owner
+    assert ' verify "${head}" "$0"' in owner
     assert '"hosted_ci_status_claimed": False' in owner
     assert '"remote_publication_claimed": False' in owner
 

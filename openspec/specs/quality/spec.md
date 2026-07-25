@@ -121,8 +121,8 @@ registries.
 
 - **WHEN** runtime proof planning or quality-gate reporting loads the gate registry
 - **THEN** `system/gates.toml` is the repository declaration owner
-- **AND** `packages/ethos-core/pyproject.toml` projects it into the wheel as
-  `ethos_core/data/gates.toml`
+- **AND** `pyproject.toml` projects it into the wheel as
+  `ethos/data/gates.toml`
 - **AND** frozen Pydantic v2 contracts reject unknown fields, empty commands,
   duplicate gate ids per view, unavailable dependencies, and unknown proof-set ids
 - **AND** Python compiles the declaration to runtime and quality projections but
@@ -739,7 +739,7 @@ shadow, worker, or cross-language compensation path.
   `.config/checks/format/selection.toml`
 - **AND** it classifies an extensionless executable by an admitted shebang and
   reports an unclassified executable as a required gap instead of omitting it
-- **AND** Python uses `ethos_core.measure.effective_code_lines_for_source` while
+- **AND** Python uses `ethos.measure.effective_code_lines_for_source` while
   every other admitted carrier uses its declared canonicalization and a fixed
   line-width floor so formatting, reflow, minification, or carrier movement
   cannot manufacture deletion credit
@@ -863,7 +863,7 @@ exception once a package is governed by this requirement.
 
 - **WHEN** `ethos quality types --json` checks a governed package from a Work Lane
 - **THEN** the type adapter invokes the checkout-local runtime wrapper before
-  `uv run --locked --all-packages --group dev python -m ty`
+  `uv run --locked --group dev python -m ty`
 - **AND** the wrapper binds the runtime to `build/runtime/venv` for that checkout
 - **AND** an inherited `VIRTUAL_ENV` neither redirects resolution nor emits a
   false active-environment mismatch warning
@@ -1246,7 +1246,7 @@ claims.
   `build/runtime/work/local-install-smoke/**`
 - **AND** installation SHALL run offline into a newly created virtual
   environment
-- **AND** both `ethos` and `ethos_core` module origins SHALL resolve inside that
+- **AND** both `ethos` and `ethos` module origins SHALL resolve inside that
   environment rather than the source checkout
 - **AND** the installed `ethos --help` and `ethos --version` commands SHALL
   succeed.

@@ -15,13 +15,13 @@ layout changes and implementation refactors.
 | Capability | Family | Owner package | Boundary |
 | --- | --- | --- | --- |
 | `kernel` | `kernel` | `ethos` | Kernel chain, result envelope, PlanIR. |
-| `contracts` | `contracts` | `ethos-core` | Schemas, TOML contracts, command JSON, evidence envelopes. |
+| `contracts` | `contracts` | `ethos` | Schemas, TOML contracts, command JSON, evidence envelopes. |
 | `repository-governance` | `repository-governance` | `ethos` | Git-native lifecycle, Work Lanes, claims, evidence, chronicle, evolution. |
 | `adapters` | `adapters` | `ethos` | Git, process, OpenSpec, hosted CI, MCP, and host protocol adapters. |
 | `command-plane` | `surfaces` | `ethos` | Public transition and reader commands. |
 | `assistant-projections` | `surfaces` | `ethos` | Skills, agent context, assistant and host projections. |
 | `distribution` | `surfaces` | `ethos` | Launchers, package-manager and distribution surfaces. |
-| `quality` | `quality` | `ethos-core` | Quality policy, deterministic proof, docs profile, gate descriptors. |
+| `quality` | `quality` | `ethos` | Quality policy, deterministic proof, docs profile, gate descriptors. |
 | `proof-hosts` | `proof` | `ethos` | Conformance, fixtures, parity, replay, sample repositories. |
 
 This set is MECE by primary invariant. A change that touches multiple

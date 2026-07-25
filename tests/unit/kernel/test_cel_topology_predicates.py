@@ -6,14 +6,14 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-import ethos_core.contracts.artifacts.topology as topology_contract
-from ethos_core.contracts.artifacts.topology import GeneratedArtifactTopologyDeclaration
-from ethos_core.contracts.artifacts.topology import load_generated_artifact_topology_declaration
-from ethos_core.contracts.artifacts.topology import path_policy_from_declaration
-from ethos_core.contracts.policy.cel import evaluate_cel_gap_groups
-from ethos_core.contracts.policy.cel import evaluate_cel_predicate
-from ethos_core.contracts.policy.cel import evaluate_cel_value
-from ethos_core.contracts.workflow import CampaignGapGroup
+import ethos.contracts.artifacts.topology as topology_contract
+from ethos.contracts.artifacts.topology import GeneratedArtifactTopologyDeclaration
+from ethos.contracts.artifacts.topology import load_generated_artifact_topology_declaration
+from ethos.contracts.artifacts.topology import path_policy_from_declaration
+from ethos.contracts.policy.cel import evaluate_cel_gap_groups
+from ethos.contracts.policy.cel import evaluate_cel_predicate
+from ethos.contracts.policy.cel import evaluate_cel_value
+from ethos.contracts.workflow import CampaignGapGroup
 
 _PREFIX_RULE = 'facts.path == rule.prefix || facts.path.startsWith(rule.prefix + "/")'
 

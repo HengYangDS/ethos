@@ -6,12 +6,12 @@ from pathlib import Path
 import jsonschema
 import pytest
 
-from ethos_core import models
-from ethos_core.contracts.plan import PlanIR
-from ethos_core.contracts.plan import PlanNode
-from ethos_core.contracts.system.contracts import load_system_contract
-from ethos_core.contracts.system.contracts import system_contracts_report
-from ethos_core.result import EthosResult
+from ethos import models
+from ethos.contracts.plan import PlanIR
+from ethos.contracts.plan import PlanNode
+from ethos.contracts.system.contracts import load_system_contract
+from ethos.contracts.system.contracts import system_contracts_report
+from ethos.result import EthosResult
 
 
 def test_digest_only_claims_reject_semantic_conclusions() -> None:
@@ -183,7 +183,7 @@ def test_evidence_boundary_contract_exposes_decision_and_boundaries() -> None:
 
 
 def test_system_contracts_have_real_validating_schemas() -> None:
-    from ethos_core.contracts.system.contracts import system_contracts_report
+    from ethos.contracts.system.contracts import system_contracts_report
 
     report = system_contracts_report(Path())
 
@@ -195,7 +195,7 @@ def test_system_contracts_have_real_validating_schemas() -> None:
 
 
 def test_system_contract_schema_violation_blocks() -> None:
-    from ethos_core.contracts.system.contracts import _schema_validation_gaps
+    from ethos.contracts.system.contracts import _schema_validation_gaps
 
     schema_path = Path("system/schemas/contracts/authority.schema.json")
     # An authority contract missing its required `order` violates the schema.
@@ -210,7 +210,7 @@ def test_authority_does_not_own_downstream_node_duties() -> None:
     boundary so it cannot silently absorb a sibling node's duty."""
     from dataclasses import fields
 
-    from ethos_core.models import Authority
+    from ethos.models import Authority
 
     field_names = {f.name for f in fields(Authority)}
     forbidden = {
@@ -233,9 +233,9 @@ def test_governance_context_uses_authority_as_only_kernel_head() -> None:
     No superseded head model, payload key, schema, or chain term remains as a
     compatibility surface.
     """
+    from ethos import models
+    from ethos.kernel import KERNEL_CHAIN
     from ethos.repository.context import governance_context
-    from ethos_core import models
-    from ethos_core.kernel import KERNEL_CHAIN
 
     context = governance_context(Path.cwd(), profile="product")
 
@@ -305,7 +305,7 @@ def test_kernel_nodes_do_not_own_forbidden_downstream_duties() -> None:
     KERNEL_CHAIN (no typed shadow), so only the three constructed nodes are pinned."""
     from dataclasses import fields
 
-    from ethos_core import models
+    from ethos import models
 
     forbidden_per_node = {
         # Authority: authority anchor only — no downstream lifecycle/evidence.
@@ -323,7 +323,7 @@ def test_kernel_nodes_do_not_own_forbidden_downstream_duties() -> None:
 
 
 def test_workflow_transitions_bind_to_invalid_state_taxonomy() -> None:
-    from ethos_core.state.invalid import NODE_ORDER
+    from ethos.state.invalid import NODE_ORDER
 
     contract = load_system_contract(Path(), "workflows")
     states = set(contract["lifecycle"]["states"])

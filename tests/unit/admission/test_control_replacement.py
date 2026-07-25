@@ -10,8 +10,8 @@ from typing import cast
 from ethos.adapters.admission.control import replacement
 from ethos.adapters.admission.evidence import external
 from ethos.adapters.mutation.proof import executed_proof_record
-from ethos_core.contracts.evidence.external import IndependentVerificationReceipt
-from ethos_core.contracts.rules import stable_digest
+from ethos.contracts.evidence.external import IndependentVerificationReceipt
+from ethos.contracts.rules import stable_digest
 from tests.support.contract_helpers import commit_fixture_file
 from tests.support.contract_helpers import git
 from tests.support.contract_helpers import init_git_repo
@@ -240,14 +240,14 @@ def test_missing_executed_proof_and_untrusted_receipt_location_fail_closed(
 
 def test_control_surface_uses_few_broad_prefixes_and_binds_git_mode(tmp_path: Path) -> None:
     required = {
-        "packages/ethos/src/ethos/repository/adoption/evolution.py",
-        "packages/ethos/src/ethos/repository/context.py",
-        "packages/ethos-core/src/ethos_core/contracts/workflow.py",
-        "packages/ethos-core/src/ethos_core/contracts/policy/cel.py",
-        "packages/ethos/src/ethos/adapters/repo/git.py",
+        "src/ethos/repository/adoption/evolution.py",
+        "src/ethos/repository/context.py",
+        "src/ethos/contracts/workflow.py",
+        "src/ethos/contracts/policy/cel.py",
+        "src/ethos/adapters/repo/git.py",
     }
     assert all(replacement._is_control_path(path) for path in required)
-    assert replacement._is_control_path("packages/ethos/README.md") is False
+    assert replacement._is_control_path("README.md") is False
 
     repo = init_git_repo(tmp_path / "mode")
     control = repo / "system" / "gates.toml"

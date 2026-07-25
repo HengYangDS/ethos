@@ -291,7 +291,7 @@ group = "quality"
 import_path = "ethos.surface.cli.quality.core:release"
 help = "Report product release surface and host-profile readiness."
 show = true
-report_handler = { provider = "ethos.surface.cli.quality.core:_release_file_report", data_fields = [{ name = "release_files", path = ["release_files"] }, { name = "host_profile", path = ["host_profile"] }], next_actions = ["uv build --all-packages --out-dir build/artifacts/python --clear --no-create-gitignore"], enforce = false, bind_root = true }
+report_handler = { provider = "ethos.surface.cli.quality.core:_release_file_report", data_fields = [{ name = "release_files", path = ["release_files"] }, { name = "host_profile", path = ["host_profile"] }], next_actions = ["uv build --out-dir build/artifacts/python --clear --no-create-gitignore"], enforce = false, bind_root = true }
 
 [[commands]]
 name = "release-policy"

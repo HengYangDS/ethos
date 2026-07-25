@@ -5,9 +5,9 @@ summary = "Release-profile evidence uses ETHOS-native SBOM, attestation, and pol
 output = "build/evidence/release/supply-chain.json"
 
 commands = [
-  "uv run --package ethos ethos quality sbom --json",
-  "uv run --package ethos ethos quality release-attestation --json",
-  "uv run --package ethos ethos quality release-policy --json",
+  "uv run ethos quality sbom --json",
+  "uv run ethos quality release-attestation --json",
+  "uv run ethos quality release-policy --json",
 ]
 
 [boundary]

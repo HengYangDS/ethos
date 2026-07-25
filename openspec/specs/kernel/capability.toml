@@ -10,7 +10,7 @@ boundary_rules = [
 aliases = []
 
 [owner]
-package = "ethos-core"
+package = "ethos"
 scope = "pure kernel chain and deterministic PlanIR semantics"
 
 [recommended_facets]

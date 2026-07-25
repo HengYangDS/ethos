@@ -25,6 +25,9 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
+_UNAVAILABLE_ERROR = "unavailable"
+
+
 def _observation(tmp_path: Path, *, dirty: bool = False) -> LaneObservation:
     return LaneObservation(
         lane_ref="work/example",
@@ -322,7 +325,7 @@ def test_resolution_retire_pre_effect_failure_edges(
     monkeypatch.setattr(
         resolution_effects.subprocess,
         "Popen",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("unavailable")),
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError(_UNAVAILABLE_ERROR)),
     )
     with pytest.raises(ValueError, match="lane_resolution_branch_delete_failed"):
         resolution_effects.retire_lane(root=tmp_path, observation=observation)
@@ -479,7 +482,7 @@ def test_resolution_shared_path_and_chronicle_failure_edges(
 
     def fail_destination_resolve(path, *args, **kwargs):
         if path == destination.absolute():
-            raise OSError("unavailable")  # noqa: EM101, RUF100 - fault injection needs the exact boundary error
+            raise OSError(_UNAVAILABLE_ERROR)
         return original_resolve(path, *args, **kwargs)
 
     with monkeypatch.context() as scoped:
@@ -506,7 +509,7 @@ def test_resolution_shared_path_and_chronicle_failure_edges(
         scoped.setattr(
             resolution_shared.record_posix,
             "open_directory_path",
-            lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("unavailable")),
+            lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError(_UNAVAILABLE_ERROR)),
         )
         assert not resolution_shared.current_chronicle_matches(root, decision)
     assert not resolution_shared.current_chronicle_matches(root, decision)
@@ -600,7 +603,7 @@ def test_resolution_lane_write_and_recovery_edges(
     monkeypatch.setattr(
         resolution,
         "write_json_atomic",
-        lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("unavailable")),
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError(_UNAVAILABLE_ERROR)),
     )
     planned = resolution.plan_lane_resolution(
         root=tmp_path,

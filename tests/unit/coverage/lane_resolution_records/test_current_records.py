@@ -33,6 +33,7 @@ from tests.support.lane_helpers import init_repo
 from tests.support.lane_helpers import orphan_work_lane
 
 _DECISION_ID = "lane-decision:00000000-0000-4000-8000-000000000201"
+_REBOUND_ERROR = "rebound"
 
 
 def _canonical_json(payload: object) -> str:
@@ -589,7 +590,7 @@ def test_current_snapshot_accessor_failure_edges(
         assert snapshot.open_directory("receipts") == (("receipt.json",), "valid")
 
         def fail_directory(*_args: object) -> None:
-            raise OSError("rebound")  # noqa: EM101, RUF100 - fault injection needs the exact boundary error
+            raise OSError(_REBOUND_ERROR)
 
         monkeypatch.setattr(snapshot, "_require_directory", fail_directory)
         assert snapshot.open_directory("receipts") == ((), "invalid")
@@ -607,7 +608,7 @@ def test_current_snapshot_open_and_path_failure_edges(
         scoped.setattr(
             current_snapshot.posix,
             "directory_path_identity",
-            lambda _root: (_ for _ in ()).throw(OSError("rebound")),
+            lambda _root: (_ for _ in ()).throw(OSError(_REBOUND_ERROR)),
         )
         assert current_snapshot.open_current_record_snapshot(record_root) == (None, "invalid")
     assert current_snapshot.read_current_record_path(

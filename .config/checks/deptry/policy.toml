@@ -8,4 +8,4 @@ id = "ethos"
 root = "src/ethos"
 config = "pyproject.toml"
 known_first_party = ["ethos"]
-package_module_name_map = ["cel-python=celpy", "pyyaml=yaml"]
+package_module_name_map = ["cel-expr-python=cel_expr_python", "pyyaml=yaml"]

@@ -293,7 +293,7 @@ profile = "product"
 
 [[tool]]
 concern = "generated_artifact_topology"
-tool = "cel-python + ethos-generated-artifacts"
+tool = "cel-expr-python + ethos-generated-artifacts"
 config = "system/policies/generated-artifact-topology.toml + src/ethos/contracts/artifacts/topology.py"
 artifacts = "build/evidence/generated-artifacts/"
 gate = "ethos quality generated-artifacts --json"

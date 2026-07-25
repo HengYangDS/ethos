@@ -31,6 +31,10 @@ control plane.
   implementation, full proof, and official archive evidence. Normalize retired
   provider vocabulary from the current tracked tree while preserving chronology
   and meaning.
+- Normalize the final dated historical-retention projection that still spells a
+  retired control-plane identifier. Preserve its exact heads, commits,
+  dispositions, and source blob/digest provenance in the current projection;
+  do not rewrite the historical Git objects.
 
 ## Capabilities
 
@@ -52,7 +56,8 @@ None.
 - Ownerless resolution admission/effect/recovery, record roots, inventory,
   state fencing, and CLI projection.
 - Canonical repository-governance requirements, command reference, design and
-  implementation plans, Claims, Chronicle, and parity evidence.
+  implementation plans, Claims, Chronicle, retention evidence, and parity
+  evidence.
 - The current tracked tree no longer contains or depends on the retired
   provider. Historical local records and Git history are not rewritten.
 

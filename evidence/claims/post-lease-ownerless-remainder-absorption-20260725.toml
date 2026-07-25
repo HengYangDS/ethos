@@ -26,7 +26,7 @@ owner = "ethos-repository"
 scope = "Exactly four missing-lease and missing-Claim Work Lanes observed on 2026-07-25; valid-owner lanes are read-only semantic receivers and no remote publication is authorized."
 
 [carriers]
-openspec = "openspec/changes/post-lease-ownerless-remainder-absorption"
+openspec = "openspec/changes/archive/2026-07-25-post-lease-ownerless-remainder-absorption"
 fallback = "Retain any target branch, worktree, dirty byte, or preservation package whenever identity, ownerlessness, semantic absorption, Chronicle, proof, or exact manifest cannot be re-proved."
 kill_signal = "A valid-owner lane is mutated; old code is replayed without a current gap; a clean lane is preserved merely for convenience; dirty bytes are deleted before exact preservation; or a package is cleared without a separate accepted exact-manifest decision."
 
@@ -35,6 +35,6 @@ targets = [
   "evidence/claims/post-lease-ownerless-remainder-absorption-20260725.toml",
   "evidence/chronicle/post-lease-ownerless-remainder-absorption-20260725/2026-07-25.md",
   "evidence/chronicle/post-lease-ownerless-remainder-absorption-20260725/lane-dispositions.json",
-  "openspec/changes/post-lease-ownerless-remainder-absorption",
+  "openspec/changes/archive/2026-07-25-post-lease-ownerless-remainder-absorption",
   "openspec/specs/repository-governance/spec.md",
 ]

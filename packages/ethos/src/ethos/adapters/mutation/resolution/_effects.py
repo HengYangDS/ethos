@@ -156,7 +156,9 @@ def probe_ownerless_worktree_registration(root: Path, path: str) -> str:
     return "present" if any(record["worktree"] == path for record in records) else "absent"
 
 
-def _strict_worktree_records(output: str) -> tuple[dict[str, str], ...] | None:
+def _strict_worktree_records(  # noqa: PLR0911, RUF100 - each malformed record shape fails closed
+    output: str,
+) -> tuple[dict[str, str], ...] | None:
     if not output or not output.endswith("\0\0"):
         return None
     records: list[dict[str, str]] = []

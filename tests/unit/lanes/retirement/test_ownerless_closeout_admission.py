@@ -15,6 +15,7 @@ from typing import Any
 import pytest
 
 import ethos.adapters.mutation.resolution.closeout.ownerless.admission.core as native_admission
+import ethos.adapters.mutation.resolution.closeout.ownerless.admission.policy as native_policy
 import ethos.adapters.mutation.resolution.observation as resolution_observation
 from ethos.adapters.mutation.resolution.records.core import canonical_current_record_bytes
 from ethos.adapters.mutation.resolution.records.reservations import target_digest
@@ -345,6 +346,99 @@ def test_absent_policy_alone_uses_defaults(tmp_path: Path) -> None:
     admission = _native_admit(scenario)
     assert admission.policy.work_branch_prefix == "work/"
     assert admission.accepted_branch == "dev"
+
+
+@pytest.mark.parametrize(
+    ("setup", "relative_path", "maximum_bytes", "expected"),
+    [
+        ("missing_parent", ".ethos/workspace.toml", 1024, None),
+        ("missing_file", ".ethos/workspace.toml", 1024, None),
+        ("directory", ".ethos/workspace.toml", 1024, ("unverifiable", "root_bound_file")),
+        ("invalid_limit", ".ethos/workspace.toml", -1, ("unverifiable", "root_bound_file")),
+        ("unsafe_path", "../workspace.toml", 1024, ("unverifiable", "path")),
+    ],
+)
+def test_root_bound_optional_policy_reader_is_fail_closed(
+    tmp_path: Path,
+    setup: str,
+    relative_path: str,
+    maximum_bytes: int,
+    expected: tuple[str, str] | None,
+) -> None:
+    root = tmp_path / "root"
+    root.mkdir()
+    if setup != "missing_parent":
+        (root / ".ethos").mkdir()
+    if setup == "directory":
+        (root / ".ethos" / "workspace.toml").mkdir()
+
+    if expected is None:
+        assert (
+            native_policy.read_optional_root_bound_regular_file(
+                root, relative_path, maximum_bytes=maximum_bytes
+            )
+            is None
+        )
+        return
+
+    with pytest.raises(resolution_observation.OwnerlessGitObservationError) as raised:
+        native_policy.read_optional_root_bound_regular_file(
+            root, relative_path, maximum_bytes=maximum_bytes
+        )
+    assert (raised.value.kind, raised.value.detail) == expected
+
+
+@pytest.mark.parametrize(
+    ("observed", "expected", "supplied", "gap"),
+    [
+        (("unverifiable", None), {"binding": "exact"}, None, "fence_unverifiable"),
+        (("absent", None), {"binding": "exact"}, None, "fence_mismatch"),
+        (
+            ("present", {"binding": "different"}),
+            {"binding": "exact"},
+            None,
+            "fence_mismatch",
+        ),
+        (
+            ("present", {"binding": "exact"}),
+            {"binding": "exact"},
+            {"binding": "supplied-drift"},
+            "fence_mismatch",
+        ),
+    ],
+)
+def test_native_fence_helpers_require_one_exact_observation(
+    observed: tuple[str, dict[str, object] | None],
+    expected: dict[str, object],
+    supplied: dict[str, object] | None,
+    gap: str,
+) -> None:
+    _native_gap(
+        lambda: native_admission._exact_fence(  # noqa: SLF001, RUF100
+            observed, expected, "probe", supplied=supplied
+        ),
+        f"lane_resolution_ownerless_{gap}",
+        "probe",
+    )
+
+
+@pytest.mark.parametrize(
+    ("observed", "gap"),
+    [
+        (("unverifiable", None), "fence_unverifiable"),
+        (("absent", None), "fence_mismatch"),
+        (("present", {"payload": {}}), "fence_mismatch"),
+        (("present", {"payload": {"acquisition_id": 7}}), "fence_mismatch"),
+    ],
+)
+def test_native_fence_acquisition_id_is_canonical_text(
+    observed: tuple[str, dict[str, object] | None], gap: str
+) -> None:
+    _native_gap(
+        lambda: native_admission._acquisition_id(observed, "probe"),  # noqa: SLF001, RUF100
+        f"lane_resolution_ownerless_{gap}",
+        "probe",
+    )
 
 
 @pytest.mark.parametrize("executor", [" agent:codex:thread:executor", False])

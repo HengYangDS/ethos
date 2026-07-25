@@ -198,6 +198,7 @@ def _replace_lease_payload(db_path: Path, *, subject: str, field: str, value: ob
         ("path_scope", "README.md"),
         ("path_scope", [1]),
         ("mints_authority", "false"),
+        ("mints_authority", True),
         ("filesystem_fence", 0),
         ("distributed_lock", None),
     ],
@@ -296,3 +297,161 @@ def test_ownerless_state_rejects_raw_fence_tuple_coercion(tmp_path: Path) -> Non
         )
 
     assert raised.value.kind == "fence_unverifiable"
+
+
+def test_closeout_fence_internal_scalar_and_payload_validation_edges() -> None:
+    with pytest.raises(ValueError, match="lane_closeout_fence_binding_invalid:unknown"):
+        closeout._record(("incomplete",))  # noqa: SLF001, RUF100
+
+    malformed_payload = {
+        "acquisition_id": "00000000-0000-4000-8000-000000000001",
+        "target_path": 1,
+        "lane_incarnation_id": "lane-incarnation:edge",
+        "observation_digest": "a" * 64,
+        "decision_sha256": "b" * 64,
+        "chronicle_digest": "c" * 64,
+    }
+    row = (
+        "work/edge",
+        "d" * 40,
+        "lane-decision:00000000-0000-4000-8000-000000000303",
+        "agent:codex:thread:edge",
+        "dev",
+        "e" * 40,
+        "f" * 64,
+        json.dumps(malformed_payload),
+    )
+    with pytest.raises(ValueError, match="lane_closeout_fence_binding_invalid:work/edge"):
+        closeout._record(row)  # noqa: SLF001, RUF100
+
+    class StringSubclass(str):
+        __slots__ = ()
+
+    with pytest.raises(ValueError, match="lane_closeout_fence_binding_invalid:work/edge"):
+        closeout._canonical_holder(StringSubclass("agent:codex:thread:edge"), "work/edge")  # noqa: SLF001, RUF100
+    with pytest.raises(ValueError, match="lane_closeout_fence_binding_invalid:work/edge"):
+        closeout._canonical_holder("not-a-holder", "work/edge")  # noqa: SLF001, RUF100
+
+    for value in (
+        False,
+        StringSubclass("00000000-0000-4000-8000-000000000001"),
+        "not-a-uuid",
+        "00000000-0000-4000-8000-0000000000AA",
+    ):
+        with pytest.raises(ValueError, match="lane_closeout_fence_binding_invalid:work/edge"):
+            closeout._validated_acquisition_id(value, "work/edge")  # noqa: SLF001, RUF100
+
+
+def test_ownerless_state_snapshot_and_fence_observation_fail_closed_edges(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    database_directory = tmp_path / "state-directory"
+    database_directory.mkdir()
+    with pytest.raises(closeout.OwnerlessCloseoutStateError) as directory_error:
+        closeout.observe_ownerless_closeout_state(database_directory, subject="work/edge")
+    assert (directory_error.value.kind, directory_error.value.detail) == (
+        "state_unverifiable",
+        "database",
+    )
+
+    plain = tmp_path / "plain.sqlite"
+    with closing(sqlite3.connect(plain)) as connection:
+        connection.execute("create table unrelated(value text)")
+    with pytest.raises(closeout.OwnerlessCloseoutStateError) as schema_error:
+        closeout.observe_ownerless_closeout_state(plain, subject="work/edge")
+    assert (schema_error.value.kind, schema_error.value.detail) == (
+        "state_unverifiable",
+        "database",
+    )
+
+    broken = tmp_path / "broken.sqlite"
+    broken.touch()
+    with monkeypatch.context() as scoped:
+        scoped.setattr(
+            closeout,
+            "validate_current_lease_schema",
+            lambda _connection: (_ for _ in ()).throw(RuntimeError("broken schema")),
+        )
+        with pytest.raises(closeout.OwnerlessCloseoutStateError) as broken_error:
+            closeout.observe_ownerless_closeout_state(broken, subject="work/edge")
+    assert (broken_error.value.kind, broken_error.value.detail) == (
+        "state_unverifiable",
+        "database",
+    )
+
+    with monkeypatch.context() as scoped:
+        scoped.setattr(closeout, "_closeout_state_snapshot", lambda _path: ([], True))
+        scoped.setattr(
+            closeout, "probe_closeout_fence", lambda *_args, **_kwargs: ("unverifiable", None)
+        )
+        with pytest.raises(closeout.OwnerlessCloseoutStateError) as fence_error:
+            closeout.observe_ownerless_closeout_state(
+                tmp_path / "state.sqlite", subject="work/edge"
+            )
+    assert (fence_error.value.kind, fence_error.value.detail) == ("fence_unverifiable", "state")
+
+    with pytest.raises(closeout.OwnerlessCloseoutStateError) as tuple_error:
+        closeout._validated_observed_fence(("absent", None, None))  # noqa: SLF001, RUF100
+    assert (tuple_error.value.kind, tuple_error.value.detail) == ("fence_unverifiable", "state")
+    assert closeout._validated_observed_fence(("absent", None)) == ("absent", None)  # noqa: SLF001, RUF100
+
+    with pytest.raises(closeout.OwnerlessCloseoutStateError) as shape_error:
+        closeout._validated_observed_fence(("present", {"subject": "work/edge"}))  # noqa: SLF001, RUF100
+    assert (shape_error.value.kind, shape_error.value.detail) == ("fence_unverifiable", "state")
+
+    invalid_fence = {
+        "subject": "work/edge",
+        "expected_head": "a" * 40,
+        "decision_id": "lane-decision:00000000-0000-4000-8000-000000000303",
+        "executor_ref": False,
+        "accepted_branch": "dev",
+        "accepted_head": "b" * 40,
+        "payload": {},
+        "target_binding_digest": "c" * 64,
+    }
+    with pytest.raises(closeout.OwnerlessCloseoutStateError) as invalid_error:
+        closeout._validated_observed_fence(("present", invalid_fence))  # noqa: SLF001, RUF100
+    assert (invalid_error.value.kind, invalid_error.value.detail) == ("fence_unverifiable", "state")
+
+
+def test_validated_lease_rejects_raw_rows_and_invalid_bound_head() -> None:
+    with pytest.raises(ValueError, match="lease_invalid"):
+        closeout._validated_lease(("incomplete",))  # noqa: SLF001, RUF100
+    with pytest.raises(TypeError, match="lease_invalid"):
+        closeout._validated_lease(  # noqa: SLF001, RUF100
+            (
+                "lease:edge",
+                "work/edge",
+                "agent:codex:thread:edge",
+                "2026-07-25T00:00:00+00:00",
+                "[]",
+            )
+        )
+
+    payload = {
+        "lane_incarnation_id": "lane-incarnation:edge",
+        "lease_id": "lease:edge",
+        "lane_ref": "work/edge",
+        "holder_ref": "agent:codex:thread:edge",
+        "epoch": 1,
+        "issued_at": "2026-07-25T00:00:00+00:00",
+        "renewed_at": "2026-07-25T00:00:00+00:00",
+        "expected_head": "not-a-git-oid",
+        "claim_id": "",
+        "coordination_scope": "git_common_directory",
+        "path_scope": [],
+        "mints_authority": False,
+        "filesystem_fence": False,
+        "distributed_lock": False,
+    }
+    with pytest.raises(ValueError, match="lease_invalid"):
+        closeout._validated_lease(  # noqa: SLF001, RUF100
+            (
+                payload["lease_id"],
+                payload["lane_ref"],
+                payload["holder_ref"],
+                "2026-07-25T01:00:00+00:00",
+                json.dumps(payload),
+            )
+        )

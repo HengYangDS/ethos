@@ -589,7 +589,7 @@ def test_current_snapshot_accessor_failure_edges(
         assert snapshot.open_directory("receipts") == (("receipt.json",), "valid")
 
         def fail_directory(*_args: object) -> None:
-            raise OSError("rebound")
+            raise OSError("rebound")  # noqa: EM101, RUF100 - fault injection needs the exact boundary error
 
         monkeypatch.setattr(snapshot, "_require_directory", fail_directory)
         assert snapshot.open_directory("receipts") == ((), "invalid")

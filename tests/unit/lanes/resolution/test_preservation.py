@@ -662,7 +662,8 @@ def test_archive_and_digest_translate_boundary_io_failures(
     source.mkdir()
 
     def fail_tar(*_args: object, **_kwargs: object) -> tarfile.TarFile:
-        raise tarfile.TarError("broken archive")
+        message = "broken archive"
+        raise tarfile.TarError(message)
 
     monkeypatch.setattr(preservation.tarfile, "open", fail_tar)
     with pytest.raises(ValueError, match="lane_resolution_untracked_member_unverifiable"):

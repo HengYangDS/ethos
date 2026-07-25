@@ -734,7 +734,7 @@ def test_completed_recovery_keeps_resources_when_exact_decision_path_is_replaced
         replacement.replace(decision_path)
 
     if replacement_point == "before_receipt":
-        real_prepare = recovery_adapter._prepare_resolution
+        real_prepare = recovery_adapter._prepare_resolution  # noqa: SLF001, RUF100 - replacement race targets the private preparation boundary
 
         def prepare_then_replace(**kwargs: Any):
             prepared = real_prepare(**kwargs)

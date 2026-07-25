@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -278,18 +279,27 @@ def test_superseded_authority_head_name_has_no_current_truth_surface() -> None:
         Path("openspec/specs"),
         Path("README.md"),
     )
+    repo_root = Path(__file__).resolve().parents[3]
+    tracked = subprocess.run(
+        ("git", "ls-files", "-z"),
+        cwd=repo_root,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.split("\0")
     offenders: list[str] = []
-    for root in scanned_roots:
-        paths = root.rglob("*") if root.is_dir() else (root,)
-        for path in paths:
-            if not path.is_file():
-                continue
-            try:
-                text = path.read_text(encoding="utf-8")
-            except UnicodeDecodeError:
-                continue
-            if old_entity_pattern.search(path.as_posix()) or old_entity_pattern.search(text):
-                offenders.append(path.as_posix())
+    for raw in tracked:
+        relative = Path(raw)
+        if not raw or not any(
+            relative == root or root in relative.parents for root in scanned_roots
+        ):
+            continue
+        try:
+            text = (repo_root / relative).read_text(encoding="utf-8")
+        except UnicodeDecodeError:
+            continue
+        if old_entity_pattern.search(relative.as_posix()) or old_entity_pattern.search(text):
+            offenders.append(relative.as_posix())
 
     assert offenders == []
 

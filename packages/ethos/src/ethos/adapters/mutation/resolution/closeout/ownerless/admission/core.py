@@ -12,6 +12,9 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
+_OWNERLESS_ADMISSION_UNVERIFIABLE = "lane_resolution_ownerless_admission_unverifiable"
+
+
 def admit_ownerless_closeout(
     *,
     root: Path,
@@ -32,7 +35,7 @@ def admit_ownerless_closeout(
         raise
     except Exception as error:
         raise admission_fence.OwnerlessCloseoutAdmissionError(
-            "lane_resolution_ownerless_admission_unverifiable", error.__class__.__name__
+            _OWNERLESS_ADMISSION_UNVERIFIABLE, error.__class__.__name__
         ) from error
 
 
@@ -50,5 +53,5 @@ def reobserve_ownerless_closeout_under_fence(
         raise
     except Exception as error:
         raise admission_fence.OwnerlessCloseoutAdmissionError(
-            "lane_resolution_ownerless_admission_unverifiable", error.__class__.__name__
+            _OWNERLESS_ADMISSION_UNVERIFIABLE, error.__class__.__name__
         ) from error

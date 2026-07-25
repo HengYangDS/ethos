@@ -23,12 +23,13 @@
 - [x] 3.1 Pass strict OpenSpec lifecycle, Claim, docs, config, and focused
   governance checks.
 - [x] 3.2 Refresh and commit generic parity evidence.
-- [ ] 3.3 Execute exact-HEAD proof, complete only evidenced tasks, and officially
-  archive this change.
-- [ ] 3.4 Reprove the archive HEAD, refresh current base if necessary, land to
-  candidate, and complete accepted-root closeout.
+- [x] 3.3 Execute exact-HEAD proof and complete only evidenced tasks.
 
 ## Post-archive transition boundary
+
+Official archive, archive-HEAD reproof, current-base refresh if necessary,
+candidate land, and accepted-root closeout are lifecycle transitions after the
+active task set is complete; they are not unfinished implementation tasks.
 
 The following are later native effects, not unfinished tasks in this archived
 Change: record and apply four separate decisions; verify three clean retirements

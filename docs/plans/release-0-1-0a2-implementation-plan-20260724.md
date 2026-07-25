@@ -254,8 +254,10 @@ CLI, GitHub CLI, GitLab CLI, repo-family governance.
       resources, and explicit deferred-channel limits.
 - [ ] Run `record-verify`, then update the records index only after strict
       verification succeeds.
-- [ ] Run `worktree-closeout-check` with the exact lane path, branch, holder,
-      and expected release HEAD.
+- [ ] Before applying retirement, dry-run native landed retirement for
+      `work/20260724-release-0-1-0a2` at the exact release HEAD; rely on the
+      holder-bound lifecycle admission to verify the registered worktree and
+      owner binding.
 - [ ] Retire only `work/20260724-release-0-1-0a2` through the owner-bound landed
       path and verify branch ref, worktree path, and registration absence.
 - [ ] Re-run accepted-root status, report, publish probe, hosted observation,

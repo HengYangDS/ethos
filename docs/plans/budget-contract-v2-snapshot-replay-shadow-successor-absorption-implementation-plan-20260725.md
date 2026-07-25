@@ -118,8 +118,9 @@ Chronicle evidence, Python focused tests, and repository-family governance.
 
 ### Task 7: Retire owned carriers and housekeep
 
-- [ ] Run worktree-closeout-check for each owned carrier with its exact branch,
-      path, owner task, and expected HEAD.
+- [ ] For each owned carrier, dry-run native landed retirement with its exact
+      branch and expected HEAD; rely on the holder-bound lifecycle admission to
+      verify the registered worktree and owner binding.
 - [ ] Retire only exactly absorbed owned carriers through native landed
       retirement.
 - [ ] Run lane status, resolution inventory, repo-family audit, Git fsck,

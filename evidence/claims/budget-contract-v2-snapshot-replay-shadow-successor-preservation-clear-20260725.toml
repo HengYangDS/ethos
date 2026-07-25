@@ -7,7 +7,7 @@ summary = "One minimum-scope carrier binds native clearance of one exact-manifes
 
 [evidence]
 dated = "evidence/chronicle/budget-contract-v2-snapshot-replay-shadow-successor-preservation-clear-20260725/2026-07-25.md"
-sha256 = "00cf081789a5af244f6b5b582ae79b16c5094041e00f1500966a39f5db25dad5"
+sha256 = "e7bcea8f8f1acec896ba0e40387cbca75080b1aa7ea9a5a64499570c96f15e0f"
 evidence_ids = ["evidence:budget-contract-v2-snapshot-replay-shadow-successor-preservation-clear-20260725"]
 binding = "This Claim binds only decision lane-decision:f912ef18-c897-481b-b3b1-d8e48de61e2e, manifest b4477425826dbd214ea4cf3796bf288fe8b8cf6b769b70d77c79a049e2ae40b4, native tracked patch a28501235292ff13f76aea6e385c436206e7c6586361b534f30d434af0127e69, reconstructed full-index patch 63a72e73f2d9719724f1ce04c39ae451be70789578ed971fac017d546b05dd94, prior completion receipt 1286e83871b9fdc7574ad1adb3b0f9ea53849e4493d8f7822a5609fe43e38369, and one later native clear-preservation transition. It authorizes no other package, receipt removal, raw filesystem deletion, source reconstruction, or Work Lane effect."
 verifier = "digest_only"
@@ -29,7 +29,7 @@ owner = "ethos-repository"
 scope = "One retained snapshot-replay recovery package and one exact-manifest native clear transition only."
 
 [carriers]
-openspec = "openspec/changes/budget-contract-v2-snapshot-replay-shadow-successor-preservation-clear"
+openspec = "openspec/changes/archive/2026-07-25-budget-contract-v2-snapshot-replay-shadow-successor-preservation-clear"
 fallback = "Keep the package, decision, receipt, and every unrelated retained package intact if the manifest, accepted behavior basis, Chronicle, inventory, or native clear admission drifts."
 kill_signal = "A broad package sweep, raw deletion, receipt deletion, source reconstruction, another Work Lane effect, remote mutation, hosted claim, or clearance without the exact manifest."
 
@@ -40,6 +40,6 @@ targets = [
   "docs/plans/budget-contract-v2-snapshot-replay-shadow-successor-preservation-clear-20260725.md",
   "evidence/claims/budget-contract-v2-snapshot-replay-shadow-successor-preservation-clear-20260725.toml",
   "evidence/chronicle/budget-contract-v2-snapshot-replay-shadow-successor-preservation-clear-20260725/2026-07-25.md",
-  "openspec/changes/budget-contract-v2-snapshot-replay-shadow-successor-preservation-clear",
+  "openspec/changes/archive/2026-07-25-budget-contract-v2-snapshot-replay-shadow-successor-preservation-clear",
   "openspec/specs/repository-governance/spec.md",
 ]

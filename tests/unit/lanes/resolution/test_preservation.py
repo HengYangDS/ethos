@@ -63,20 +63,16 @@ def test_git_payloads_keep_exact_worktree_and_index_bytes(
     index_patch = tmp_path / "index.patch"
     calls: list[tuple[str, ...]] = []
 
-    def fixed_git(root: Path, *args: str, **_kwargs: object):
-        assert root == source
-        calls.append(args)
-        assert args == ("bundle", "create", bundle.as_posix(), "work/example")
-        bundle.write_bytes(b"bundle")
-        return subprocess.CompletedProcess(["git", *args], 0, stdout="", stderr="")
-
     def fixed_git_bytes(root: Path, *args: str):
         assert root == source
         calls.append(args)
+        if args[:2] == ("bundle", "create"):
+            assert args == ("bundle", "create", bundle.as_posix(), "work/example")
+            bundle.write_bytes(b"bundle")
+            return subprocess.CompletedProcess(["git", *args], 0, stdout=b"", stderr=b"")
         payload = b"index\x00patch\xff" if "--cached" in args else b"tracked\x00patch\xfe"
         return subprocess.CompletedProcess(["git", *args], 0, stdout=payload, stderr=b"")
 
-    monkeypatch.setattr(preservation, "run_git", fixed_git)
     monkeypatch.setattr(preservation, "run_git_bytes", fixed_git_bytes)
 
     preservation.write_git_preservation_payloads(
@@ -94,6 +90,47 @@ def test_git_payloads_keep_exact_worktree_and_index_bytes(
     ]
     assert tracked_patch.read_bytes() == b"tracked\x00patch\xfe"
     assert index_patch.read_bytes() == b"index\x00patch\xff"
+
+
+def test_git_payloads_ignore_hostile_git_environment(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = _repository(tmp_path / "source")
+    hostile = _repository(tmp_path / "hostile")
+    (hostile / "attacker.txt").write_bytes(b"attacker\n")
+    _git(hostile, "add", "attacker.txt")
+    _git(hostile, "commit", "-m", "attacker")
+    (source / "tracked.txt").write_bytes(b"source index change\n")
+    _git(source, "add", "tracked.txt")
+    (source / "tracked.txt").write_bytes(b"source worktree change\n")
+    source_head = _git(source, "rev-parse", "work/example").stdout.strip()
+    hostile_head = _git(hostile, "rev-parse", "work/example").stdout.strip()
+    assert source_head != hostile_head
+
+    bundle = tmp_path / "repository.bundle"
+    tracked_patch = tmp_path / "tracked.patch"
+    index_patch = tmp_path / "index.patch"
+    hostile_git_dir = hostile / ".git"
+    monkeypatch.setenv("GIT_DIR", hostile_git_dir.as_posix())
+    monkeypatch.setenv("GIT_WORK_TREE", hostile.as_posix())
+    monkeypatch.setenv("GIT_INDEX_FILE", (hostile_git_dir / "index").as_posix())
+
+    preservation.write_git_preservation_payloads(
+        source=source,
+        bundle=bundle,
+        tracked_patch=tracked_patch,
+        index_patch=index_patch,
+        lane_ref="work/example",
+    )
+
+    monkeypatch.delenv("GIT_DIR")
+    monkeypatch.delenv("GIT_WORK_TREE")
+    monkeypatch.delenv("GIT_INDEX_FILE")
+    bundle_head = _git(source, "bundle", "list-heads", bundle).stdout.split()[0]
+
+    assert bundle_head == source_head
+    assert b"source worktree change" in tracked_patch.read_bytes()
+    assert b"source index change" in index_patch.read_bytes()
 
 
 @pytest.mark.parametrize("driver", ["textconv", "external"])
@@ -140,7 +177,7 @@ def test_git_payloads_bypass_repository_diff_drivers(
         ("index", "index diff failed"),
     ],
 )
-def test_git_payloads_fail_closed_before_manifest_on_byte_command_failure(
+def test_git_payloads_fail_closed_before_manifest_on_command_failure(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     failed_command: str,
@@ -152,20 +189,17 @@ def test_git_payloads_fail_closed_before_manifest_on_byte_command_failure(
     tracked_patch = tmp_path / "tracked.patch"
     index_patch = tmp_path / "index.patch"
 
-    def fixed_git(root: Path, *args: str, **_kwargs: object):
-        assert root == source
-        if failed_command != "bundle":
-            bundle.write_bytes(b"bundle")
-        return subprocess.CompletedProcess(
-            ["git", *args],
-            int(failed_command == "bundle"),
-            stdout="",
-            stderr=diagnostic if failed_command == "bundle" else "",
-        )
-
     def fixed_git_bytes(root: Path, *args: str):
         assert root == source
-        command = "index" if "--cached" in args else "tracked"
+        command = (
+            "bundle"
+            if args[:2] == ("bundle", "create")
+            else "index"
+            if "--cached" in args
+            else "tracked"
+        )
+        if command == "bundle" and failed_command != command:
+            Path(args[2]).write_bytes(b"bundle")
         return subprocess.CompletedProcess(
             ["git", *args],
             int(command == failed_command),
@@ -173,7 +207,6 @@ def test_git_payloads_fail_closed_before_manifest_on_byte_command_failure(
             stderr=diagnostic.encode() if command == failed_command else b"",
         )
 
-    monkeypatch.setattr(preservation, "run_git", fixed_git)
     monkeypatch.setattr(preservation, "run_git_bytes", fixed_git_bytes)
 
     with pytest.raises(ValueError, match=diagnostic):
@@ -184,6 +217,72 @@ def test_git_payloads_fail_closed_before_manifest_on_byte_command_failure(
             index_patch=index_patch,
             lane_ref="work/example",
         )
+
+
+@pytest.mark.parametrize(
+    ("failed_command", "diagnostic"),
+    [
+        ("bundle", "bundle warning"),
+        ("tracked", "tracked diff warning"),
+        ("index", "index diff warning"),
+    ],
+)
+def test_git_payloads_fail_closed_on_stderr_with_success_status(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    failed_command: str,
+    diagnostic: str,
+) -> None:
+    source = tmp_path / "source"
+    source.mkdir()
+    bundle = tmp_path / "repository.bundle"
+    tracked_patch = tmp_path / "tracked.patch"
+    index_patch = tmp_path / "index.patch"
+    generic_calls: list[tuple[str, ...]] = []
+
+    def fixed_git(root: Path, *args: str, **_kwargs: object):
+        assert root == source
+        generic_calls.append(args)
+        if args[:2] == ("bundle", "create") and failed_command != "bundle":
+            bundle.write_bytes(b"bundle")
+        return subprocess.CompletedProcess(
+            ["git", *args],
+            0,
+            stdout="",
+            stderr=diagnostic if failed_command == "bundle" else "",
+        )
+
+    def fixed_git_bytes(root: Path, *args: str):
+        assert root == source
+        command = (
+            "bundle"
+            if args[:2] == ("bundle", "create")
+            else "index"
+            if "--cached" in args
+            else "tracked"
+        )
+        if command == "bundle" and failed_command != command:
+            Path(args[2]).write_bytes(b"bundle")
+        return subprocess.CompletedProcess(
+            ["git", *args],
+            0,
+            stdout=b"patch",
+            stderr=diagnostic.encode() if command == failed_command else b"",
+        )
+
+    monkeypatch.setattr(preservation, "run_git", fixed_git, raising=False)
+    monkeypatch.setattr(preservation, "run_git_bytes", fixed_git_bytes)
+
+    with pytest.raises(ValueError, match=diagnostic):
+        preservation.write_git_preservation_payloads(
+            source=source,
+            bundle=bundle,
+            tracked_patch=tracked_patch,
+            index_patch=index_patch,
+            lane_ref="work/example",
+        )
+
+    assert generic_calls == []
 
 
 def test_binary_git_runner_uses_literal_git_and_retains_byte_diagnostic(
@@ -576,20 +675,15 @@ def test_preserve_package_uses_fixed_git_stdlib_tar_and_v2_payloads(
     package.mkdir()
     calls: list[tuple[str, ...]] = []
 
-    def fixed_git(root: Path, *args: str, **_kwargs: object):
-        assert root == source
-        calls.append(args)
-        assert args[:2] == ("bundle", "create")
-        Path(args[2]).write_bytes(b"bundle")
-        return subprocess.CompletedProcess(["git", *args], 0, stdout="", stderr="")
-
     def fixed_git_bytes(root: Path, *args: str):
         assert root == source
         calls.append(args)
+        if args[:2] == ("bundle", "create"):
+            Path(args[2]).write_bytes(b"bundle")
+            return subprocess.CompletedProcess(["git", *args], 0, stdout=b"", stderr=b"")
         payload = b"index patch\n" if "--cached" in args else b"tracked patch\n"
         return subprocess.CompletedProcess(["git", *args], 0, stdout=payload, stderr=b"")
 
-    monkeypatch.setattr(preservation, "run_git", fixed_git)
     monkeypatch.setattr(preservation, "run_git_bytes", fixed_git_bytes)
     monkeypatch.setattr(
         resolution_effects,

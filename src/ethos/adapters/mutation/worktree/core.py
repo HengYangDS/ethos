@@ -8,14 +8,14 @@ import os
 import tempfile
 from pathlib import Path
 
-from ethos.adapters.mutation.lane_lifecycle.core import repo_root
-from ethos.adapters.mutation.lane_lifecycle.core import run_git
+from ethos.adapters.repo.git import repository_root
+from ethos.adapters.repo.git import run_git
 
 # fmt: off
 
 def housekeeping_worktrees(*, root: Path, temporary_roots: tuple[Path, ...] | None = None, authorized: bool = False, apply: bool = False) -> dict[str, object]:
     """Inventory worktrees and remove only clean detached temporary entries."""
-    repo, roots = repo_root(root), _temporary_roots(temporary_roots)
+    repo, roots = repository_root(root), _temporary_roots(temporary_roots)
     entries = _inventory(repo, roots)
     if entries is None:
         return _report([], roots, [], ["housekeeping_inventory_failed"], apply=apply)

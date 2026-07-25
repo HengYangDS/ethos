@@ -8,6 +8,7 @@ installs the local admission entrance.
 
 from __future__ import annotations
 
+import os
 import subprocess
 from datetime import UTC
 from datetime import datetime
@@ -16,6 +17,37 @@ from pathlib import Path
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
 from ethos.contracts.semantic import Attestation
+
+
+def run_git(
+    root: Path,
+    *args: str,
+    check: bool = True,
+    env: dict[str, str] | None = None,
+    stdin: str | None = None,
+) -> subprocess.CompletedProcess[str]:
+    """Run one Git command and preserve the complete subprocess result."""
+    effective_env = None if env is None else {**os.environ, **env}
+    return subprocess.run(
+        ["git", *args],
+        cwd=root,
+        check=check,
+        text=True,
+        capture_output=True,
+        env=effective_env,
+        input=stdin,
+    )
+
+
+def repository_root(root: Path) -> Path:
+    """Return the resolved Git worktree root for ``root``."""
+    return Path(run_git(root, "rev-parse", "--show-toplevel").stdout.strip()).resolve()
+
+
+def is_ancestor(root: Path, ancestor: str, descendant: str) -> bool:
+    """Return whether ``ancestor`` reaches ``descendant`` in Git history."""
+    completed = run_git(root, "merge-base", "--is-ancestor", ancestor, descendant, check=False)
+    return completed.returncode == 0
 
 
 def current_head(root: Path) -> str:

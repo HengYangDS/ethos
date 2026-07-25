@@ -1,18 +1,15 @@
 from __future__ import annotations
 
 import os
+import re
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
 from typing import cast
 
-from ethos.adapters.mutation.lane_lifecycle.core import canonical_lane_identity
-from ethos.adapters.mutation.lane_lifecycle.core import canonical_lane_path
-from ethos.adapters.mutation.lane_lifecycle.core import default_candidate_path
-from ethos.adapters.mutation.lane_lifecycle.core import repo_root
-from ethos.adapters.mutation.lane_lifecycle.core import run_git
-from ethos.adapters.mutation.lane_lifecycle.core import slug
 from ethos.adapters.repo.dirty.core import changed_paths
+from ethos.adapters.repo.git import repository_root
+from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.status.bindings import ref_head
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.adapters.store.state.lease.lifecycle.core import acquire_lease
@@ -28,6 +25,27 @@ from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.coordination import HolderRef
 
 
+def slug(name: str) -> str:
+    """Normalize one human lane name into its branch/path component."""
+    return re.sub(r"[^A-Za-z0-9._-]+", "-", name.strip().lower()).strip("-") or "work"
+
+
+def canonical_lane_identity(name: str, *, observed_at: datetime) -> tuple[str, str]:
+    """Return the repository-family lane id and Work Lane branch."""
+    lane_id = f"{observed_at.astimezone(UTC):%Y%m%d}-{slug(name)}"
+    return lane_id, f"work/{lane_id}"
+
+
+def canonical_lane_path(repo: Path, lane_id: str) -> Path:
+    """Return the canonical linked-worktree path for one lane id."""
+    return repo.parent / f"{repo.name}-worktrees" / lane_id
+
+
+def default_candidate_path(repo: Path, candidate_branch: str) -> Path:
+    """Return the default local worktree path for a branch role."""
+    return repo.with_name(f"{repo.name}-{slug(candidate_branch)}")
+
+
 def utc_now() -> datetime:
     return datetime.now(UTC)
 
@@ -41,7 +59,7 @@ def start_work_lane(  # noqa: C901, PLR0913, RUF100 - exact start saga dimension
     claim_id: str | None = None,
     apply: bool = False,
 ) -> dict[str, object]:
-    repo = repo_root(root)
+    repo = repository_root(root)
     policy = load_branch_role_policy(repo)
     branch, target, profile_block = _lane_start_target(repo, policy, name=name, path=path)
     if profile_block:
@@ -304,7 +322,7 @@ def bind_work_lane_claim(
     branch: str | None = None,
     apply: bool = False,
 ) -> dict[str, object]:
-    repo = repo_root(root)
+    repo = repository_root(root)
     status = workspace_status(repo)
     target_branch = branch or str(status["branch"])
     gaps: list[str] = []

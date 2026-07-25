@@ -10,9 +10,9 @@ from typing import cast
 
 import ethos.adapters.mutation.lane_lifecycle.handoff.package as handoff_package
 from ethos.adapters.mutation.decision import mutation_envelope
-from ethos.adapters.mutation.lane_lifecycle.core import repo_root
-from ethos.adapters.mutation.lane_lifecycle.core import run_git
 from ethos.adapters.repo.dirty.core import changed_paths
+from ethos.adapters.repo.git import repository_root
+from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.adapters.store.retrieval.common import sha256_text
@@ -50,7 +50,7 @@ def export_cross_host_handoff(  # noqa: PLR0913, RUF100 - exact request envelope
     apply: bool,
 ) -> dict[str, object]:
     """Create a portable Git/context package without copying local lease state."""
-    repo = repo_root(root)
+    repo = repository_root(root)
     status = workspace_status(repo)
     head = _git_value(repo, "rev-parse", "HEAD")
     tree = _git_value(repo, "rev-parse", "HEAD^{tree}")
@@ -139,7 +139,7 @@ def import_cross_host_handoff(
     apply: bool,
 ) -> dict[str, object]:
     """Import a verified package and create destination-local coordination."""
-    destination = repo_root(root)
+    destination = repository_root(root)
     status = workspace_status(destination)
     manifest, gaps = handoff_package.verified_handoff_manifest(package=package, root=destination)
     expected_state: dict[str, object] = {
@@ -217,7 +217,7 @@ def revoke_cross_host_source(  # noqa: PLR0913, RUF100 - exact request envelope 
     apply: bool,
 ) -> dict[str, object]:
     """Revoke the exact source lease only after destination acknowledgement."""
-    repo = repo_root(root)
+    repo = repository_root(root)
     status = workspace_status(repo)
     manifest, gaps = handoff_package.verified_handoff_manifest(package=package, root=repo)
     ack, acknowledgement_gaps = handoff_package.verified_handoff_acknowledgement(

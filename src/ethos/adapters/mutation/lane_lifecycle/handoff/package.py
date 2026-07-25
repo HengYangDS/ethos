@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
 
-from ethos.adapters.mutation.lane_lifecycle.core import run_git
+from ethos.adapters.repo.git import run_git
 from ethos.adapters.store.retrieval.common import sha256_bytes
 from ethos.adapters.store.state.lease.lifecycle.core import acquire_lease
 from ethos.adapters.store.state.lease.lifecycle.core import expected_current_lease

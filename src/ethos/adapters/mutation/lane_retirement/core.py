@@ -7,13 +7,13 @@ from pathlib import Path
 from typing import Literal
 from typing import cast
 
-from ethos.adapters.mutation.lane_lifecycle.core import is_ancestor
-from ethos.adapters.mutation.lane_lifecycle.core import repo_root
-from ethos.adapters.mutation.lane_lifecycle.core import run_git
 from ethos.adapters.mutation.lane_retirement.shared.core import current_holder_ref
 from ethos.adapters.mutation.lane_retirement.shared.core import retire_mutation_envelope
 from ethos.adapters.mutation.resolution._shared import LEGACY_ARTIFACT_ROOT
 from ethos.adapters.repo.coordination import lease_summary
+from ethos.adapters.repo.git import is_ancestor
+from ethos.adapters.repo.git import repository_root
+from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.status.bindings import accepted_worktree_root
 from ethos.adapters.repo.status.bindings import has_changed_paths
 from ethos.adapters.repo.status.bindings import leases_by_branch
@@ -47,7 +47,7 @@ def retire_linked_work_lane(
     request: LinkedRetirementRequest,
 ) -> dict[str, object]:
     """Plan or execute one holder-bound linked-lane retirement."""
-    repo = repo_root(root)
+    repo = repository_root(root)
     status = workspace_status(repo)
     worktrees = cast("list[dict[str, object]]", status["worktrees"])
     policy = load_branch_role_policy(repo)

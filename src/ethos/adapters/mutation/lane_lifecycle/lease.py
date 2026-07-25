@@ -7,8 +7,8 @@ from typing import TYPE_CHECKING
 from typing import Any
 
 from ethos.adapters.mutation.decision import mutation_envelope
-from ethos.adapters.mutation.lane_lifecycle.core import repo_root
-from ethos.adapters.mutation.lane_lifecycle.core import run_git
+from ethos.adapters.repo.git import repository_root
+from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.adapters.store.state.lease.lifecycle.core import accept_lease_handoff
 from ethos.adapters.store.state.lease.lifecycle.core import offer_lease_handoff
@@ -40,7 +40,7 @@ _LEASE_EFFECTS: dict[str, Callable[..., dict[str, Any]]] = {
 
 def execute_lease_operation(*, root: Path, request: LeaseOperationRequest) -> dict[str, object]:
     """Evaluate and optionally execute one declaration-owned lease transition."""
-    repo = repo_root(root)
+    repo = repository_root(root)
     status = workspace_status(repo)
     database = state_database(repo)
     expected_state, holder_gaps = _lease_expected_state(repo, request)

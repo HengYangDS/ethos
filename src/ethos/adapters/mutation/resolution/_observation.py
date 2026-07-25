@@ -7,7 +7,7 @@ import subprocess
 from pathlib import Path
 from typing import cast
 
-from ethos.adapters.mutation.lane_lifecycle.core import run_git
+from ethos.adapters.repo.git import run_git
 from ethos.adapters.repo.status.bindings import leases_by_branch
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.contracts.resolution.lane import LaneObservation

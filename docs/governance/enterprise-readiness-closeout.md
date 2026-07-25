@@ -38,14 +38,14 @@ The gate aggregates existing owner checks rather than replacing them:
 
 | Layer | Owner checks | Boundary |
 | --- | --- | --- |
-| L0 local-state baseline | `ethos status`, `ethos report` | Foreign Work Lanes remain observe-only without handoff or break-glass evidence. |
+| L0 local-state baseline | `ethos status`, `ethos status` | Foreign Work Lanes remain observe-only without handoff or break-glass evidence. |
 | L1 product-boundary neutrality | `ethos quality product-boundary` | Product surfaces and release-visible historical provenance must not ship personal, workstation, named private-adopter, private-reference, or session-authority defaults. |
 | L2 semantic docs topology | `ethos quality docs-topology` | Present truth is HEAD/evidence/authority-bound, not `docs/current`; intent is OpenSpec/plans/research, not `docs/future`. |
 | L3 organization-native identity | `ethos quality contributor-policy` | Git identity is provenance; authority is role, team, maintainer, bot, service, and adopter-owner policy. |
 | L4 shared command plane | governance context on command payloads | Product and adopter repositories share `status -> plan -> prove -> land -> publish`; `orient` and `report` remain read-only. |
 | L5 profile and parity boundary | `ethos parity gaps --adopter generic` | Profiles and adapters tune gates; they do not create a second command plane. |
 | L6 release/distribution boundary | `ethos quality release-policy`, `ethos quality generated-artifacts` | Distribution assets are neutral launcher/package metadata only; remote publication is separate. |
-| L7 enterprise operability | `ethos report` hard quality floor | Product-boundary and identity failures must appear as required gaps, not hidden by a green scorecard. |
+| L7 enterprise operability | `ethos status` hard quality floor | Product-boundary and identity failures must appear as required gaps, not hidden by a green quality_summary. |
 | L8 self-improvement loop | claims and chronicles | Repeated late failures become rules, gates, tests, evidence, and claims. |
 
 ## Completion Rule

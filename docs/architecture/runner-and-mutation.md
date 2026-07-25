@@ -8,7 +8,7 @@ relations:
 
 # Runner And Mutation Boundary
 
-ETHOS separates planning from execution. The kernel emits an action graph; the
+ETHOS separates planning from execution. The kernel emits PlanIR; the
 workspace layer chooses a runner.
 
 Initial runners are deliberately small:
@@ -16,7 +16,7 @@ Initial runners are deliberately small:
 - `DryRunRunner` records the action without side effects.
 - `LocalSubprocessRunner` executes a node in a chosen repository root.
 - Future Dagger, hosted CI, Temporal, or remote agent runners must consume the
-  same action graph contract.
+  same PlanIR contract.
 
 Tracked mutation is gated by a mutation decision. `ethos land --apply` and
 `ethos publish --apply` require explicit authorization and an expected HEAD.
@@ -49,7 +49,7 @@ accepted root diverge before accepted-root closeout, closeout reports
 so the train can be reset deliberately before the Work Lane is replayed.
 Status output reports configured `role_policy` and role-policy
 `branch_bindings` in semantic order:
-release_root -> accepted_root -> candidate -> work_lane -> submit_lane.
+release_root -> accepted_root -> candidate -> work_lane -> proposal_lane.
 Existing linked worktrees report `worktree_binding = "linked"` as product
 state; host-specific navigation labels are adapter projections, not workspace
 semantics. Adapters derive presentation from `worktree_binding`; they do not
@@ -92,7 +92,7 @@ exist as a repository fact, but it is not standard ETHOS workflow state.
 
 Status output also carries `closeout_support`. Only the current clean
 Work Lane checkout can advertise `operation = "land_to_candidate"`. Release
-roots, accepted roots, candidate branches, submit lanes, detached heads, and
+roots, accepted roots, candidate branches, proposal lanes, detached heads, and
 foreign Work Lanes remain observe-only and report blocking gaps such as
 `protected_root_mutation`, `work_lane_dirty`, `candidate_worktree_missing`, or
 `candidate_worktree_dirty`.
@@ -130,13 +130,12 @@ not a proof record. This keeps the bootstrap adapter bound to the product proof
 contract without adding a profile, provider, or adopter-specific branch.
 
 ETHOS does not ship the executable that makes this operator decision. The
-operator places the verifier executable, native proof JSON, bootstrap Chronicle
-decision, and resulting receipt outside the candidate worktree. The executable
-checks the proposed control change and emits a receipt conforming to
-`system/schemas/kernel/control-replacement-verifier-receipt.schema.json`; the
-receipt is then supplied explicitly through `--control-verifier-receipt`. Product
-admission rechecks the exact accepted and candidate HEADs, changed control paths,
-both control-tree digests, verifier digest, proof digest and native proof envelope,
+the independent provider emits the signed
+`system/schemas/kernel/independent-verification-receipt.schema.json` receipt into
+its protected receipt store. The receipt is supplied explicitly through
+`--independent-verification-receipt`. Product admission rechecks the exact
+accepted and candidate HEADs, changed control paths, both control-tree digests,
+the executed-proof digest, provider implementation digest, and signature,
 and bootstrap decision bindings before allowing closeout. The receipt is one-shot,
 mints no authority, and does not claim cryptographic independence from the local
 OS identity boundary described in DR-0006; stronger trust anchors remain an
@@ -153,17 +152,17 @@ promoted.
 `ethos publish` is a local readiness command until a remote publication adapter
 is available. It reports `remote_push = "not_performed"`,
 `summary.remote_publication_state = "deferred"`, and a
-`publication.mode = "local_readiness"` package with the planned submit branch
-under the configured submit prefix. Remote reachability is reported separately
+`publication.mode = "local_readiness"` package with the planned proposal branch
+under the configured proposal prefix. Remote reachability is reported separately
 under `remote_availability.state`; an available remote does not mean remote push
 or hosted CI has been performed. Remote push is deliberately deferred; local
 proof and candidate closeout are still the required preparation.
 
-The publication payload also carries `publication.local_submit_package`, a
-non-blocking package that records the source branch, planned submit branch,
+The publication payload also carries `publication.local_proposal_package`, a
+non-blocking package that records the source branch, planned proposal branch,
 deferred remote state, and required local steps: land the Work Lane to the
 candidate branch, fast-forward the accepted root from the candidate branch, then
-create and push the configured submit branch when remote publication is
+create and push the configured proposal branch when remote publication is
 available. `ethos campaign closeout` aggregates this package with workspace
 closeout support, release policy, parity backlog, and shadow parity execution
 packages, but it remains read-only; actual mutation still goes through

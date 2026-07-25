@@ -16,7 +16,7 @@ ROLE_POLICY_SAMPLE = {
     "accepted_branch": "dev",
     "candidate_branch": "candidate/dev",
     "work_branch_prefix": "work/",
-    "submit_branch_prefix": "submit/",
+    "proposal_branch_prefix": "proposal/",
     "release_mirror": "independent",
     "semantic_order": [
         {
@@ -44,10 +44,10 @@ ROLE_POLICY_SAMPLE = {
             "pattern": "work/*",
         },
         {
-            "role": "submit_lane",
+            "role": "proposal_lane",
             "kind": "branch_prefix",
-            "config_key": "submit_branch_prefix",
-            "pattern": "submit/*",
+            "config_key": "proposal_branch_prefix",
+            "pattern": "proposal/*",
         },
     ],
 }
@@ -72,9 +72,6 @@ def test_schema_validation_report_covers_all_ethos_schemas() -> None:
     assert report["schemas"]["campaign-closeout.schema.json"]["ok"] is True
     assert report["schemas"]["trust-envelope.schema.json"]["ok"] is True
     assert report["schemas"]["promotion-target.schema.json"]["ok"] is True
-    assert report["schemas"]["source-budget-carriers.schema.json"]["ok"] is True
-    assert report["schemas"]["source-budget-metrics.schema.json"]["ok"] is True
-    assert report["schemas"]["source-budget-worker-protocol.schema.json"]["ok"] is True
     assert report["schemas"]["capability-profile.schema.json"]["ok"] is True
     assert report["schemas"]["skill-activation.schema.json"]["ok"] is True
     assert report["schemas"]["skill-registry.schema.json"]["ok"] is True
@@ -202,8 +199,6 @@ def test_result_payload_accepts_governed_repository_context() -> None:
                 "ethos land",
                 "ethos publish",
             ],
-            "reader_view_commands": ["ethos orient"],
-            "scorecard_commands": ["ethos report"],
             "truth_boundary": "repository",
             "profile_boundary": "profile_or_adapter",
         },

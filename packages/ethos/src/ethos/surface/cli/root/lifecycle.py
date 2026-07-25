@@ -26,9 +26,9 @@ from ethos.adapters.mutation.core import proof_readiness_report
 from ethos.adapters.mutation.decision import mutation_envelope
 from ethos.adapters.openspec.metadata.core import completed_active_changes_report
 from ethos.adapters.repo.status.core import workspace_status
-from ethos.domain.reporting.scoring import adopter_quality_floor_report
-from ethos.domain.reporting.scoring import hard_quality_floor_report
-from ethos.domain.source_budget.core import source_budget_report
+from ethos.domain.campaign.closeout import campaign_publication_report
+from ethos.domain.readiness.quality import adopter_quality_floor_report
+from ethos.domain.readiness.quality import hard_quality_floor_report
 from ethos.repository.context import context_for_root
 from ethos.repository.context import is_product_root
 from ethos.repository.openspec.audit import protected_branch_active_change_required_gaps
@@ -164,7 +164,7 @@ def _publish_next_actions(*, ok: bool, publication: dict[str, object]) -> tuple[
         return ("ethos land --json",)
 
     actions = string_sequence(publication.get("next_actions"))
-    actions.append("ethos report")
+    actions.append("ethos status")
     return tuple(dict.fromkeys(actions))
 
 
@@ -219,7 +219,7 @@ def _publish_expected_state(
     remote_observations: Mapping[str, object],
     branch_admission: Mapping[str, object],
 ) -> dict[str, object]:
-    target_branch = str(publication.get("submit_branch") or branch)
+    target_branch = str(publication.get("proposal_branch") or branch)
     observations = {key: _object_mapping(value) for key, value in remote_observations.items()}
     primary = observations.get("gitlab", {})
     availability = _object_mapping(primary.get("availability"))
@@ -284,7 +284,7 @@ def _stable_control_replacement(
     audit_root: Path,
     accepted_head: str,
     candidate_head: str,
-    external_receipt: Path | None,
+    independent_verification_receipt: Path | None,
 ) -> tuple[dict[str, object], tuple[str, ...]]:
     if _observed_candidate_head(repo, accepted_head) != candidate_head:
         gaps = ("candidate_head_changed_after_closeout_audit",)
@@ -293,7 +293,7 @@ def _stable_control_replacement(
         candidate_root=audit_root,
         accepted_head=accepted_head,
         candidate_head=candidate_head,
-        external_receipt=external_receipt,
+        independent_verification_receipt=independent_verification_receipt,
     )
     return report, tuple(string_sequence(report.get("required_gaps")))
 
@@ -304,8 +304,8 @@ def land(
     authorize: bool = False,
     expect_head: str | None = None,
     closeout: bool = False,
-    control_verifier_receipt: Annotated[
-        Path | None, Parameter(name="--control-verifier-receipt")
+    independent_verification_receipt: Annotated[
+        Path | None, Parameter(name="--independent-verification-receipt")
     ] = None,
     root: RootOption | None = None,
     json_output: JsonFlag = False,
@@ -337,10 +337,10 @@ def land(
             audit_root=audit_root,
             accepted_head=current_head,
             candidate_head=audited_candidate_head,
-            external_receipt=control_verifier_receipt,
+            independent_verification_receipt=independent_verification_receipt,
         )
         terminal_gaps = (
-            tuple(string_sequence(source_budget_report(audit_root).get("required_gaps")))
+            tuple(string_sequence(campaign_publication_report(audit_root).get("required_gaps")))
             if is_product_root(audit_root)
             else ()
         )
@@ -365,7 +365,7 @@ def land(
                 audit_root=audit_root,
                 accepted_head=current_head,
                 candidate_head=audited_candidate_head,
-                external_receipt=control_verifier_receipt,
+                independent_verification_receipt=independent_verification_receipt,
             )
             gaps = (*gaps, *fresh_control_gaps)
             ok = not fresh_control_gaps
@@ -410,13 +410,25 @@ def land(
     )
     audit = land_core.repository_audit_after_admission(repo, decision)
     lifecycle = completed_active_changes_report(repo)
+    terminal_gaps = (
+        tuple(string_sequence(campaign_publication_report(repo).get("required_gaps")))
+        if is_product_root(repo)
+        else ()
+    )
     gaps = (
         tuple(string_sequence(audit.get("required_gaps")))
         + decision.gaps
         + closeout_gaps
         + tuple(string_sequence(lifecycle.get("required_gaps")))
+        + terminal_gaps
     )
-    ok = bool(audit["ok"]) and decision.ok and bool(lifecycle["ok"]) and not closeout_gaps
+    ok = (
+        bool(audit["ok"])
+        and decision.ok
+        and bool(lifecycle["ok"])
+        and not closeout_gaps
+        and not terminal_gaps
+    )
     update: dict[str, object] = {}
     if ok and apply:
         update = apply_land_to_candidate(
@@ -502,6 +514,7 @@ def publish(
         if governance.get("profile") == "product"
         else adopter_quality_floor_report()
     )
+    quality_gates = cast("dict[str, dict[str, object]]", hard_quality_floor.get("gates") or {})
     independent_verification = independent_verification_admission_report(
         root=repo,
         action="publish",
@@ -511,12 +524,27 @@ def publish(
     release_carrier_gaps = tuple(
         protected_branch_active_change_required_gaps(repo, current_branch=str(branch))
     )
-    gaps = (
-        tuple(string_sequence(audit.get("required_gaps")))
-        + decision.gaps
-        + tuple(string_sequence(hard_quality_floor.get("required_gaps")))
-        + release_carrier_gaps
-        + tuple(string_sequence(independent_verification.get("required_gaps")))
+    terminal_gaps = (
+        tuple(
+            string_sequence(
+                campaign_publication_report(
+                    repo,
+                    budget=quality_gates.get("source-budget"),
+                ).get("required_gaps")
+            )
+        )
+        if is_product_root(repo)
+        else ()
+    )
+    gaps = tuple(
+        dict.fromkeys(
+            tuple(string_sequence(audit.get("required_gaps")))
+            + decision.gaps
+            + tuple(string_sequence(hard_quality_floor.get("required_gaps")))
+            + release_carrier_gaps
+            + tuple(string_sequence(independent_verification.get("required_gaps")))
+            + terminal_gaps
+        )
     )
     ok = (
         bool(audit["ok"])
@@ -524,13 +552,14 @@ def publish(
         and bool(hard_quality_floor.get("ok"))
         and not release_carrier_gaps
         and bool(independent_verification.get("ok"))
+        and not terminal_gaps
     )
     remote_topology = publication_topology(release_config(repo))
     raw_topology_gaps = remote_topology.get("required_gaps", [])
     topology_gaps = (
         tuple(str(gap) for gap in raw_topology_gaps) if isinstance(raw_topology_gaps, list) else ()
     )
-    gaps = gaps + topology_gaps
+    gaps = tuple(dict.fromkeys((*gaps, *topology_gaps)))
     ok = ok and not topology_gaps
     policy = load_branch_role_policy(repo)
     configured_remotes = topology_remotes(remote_topology)
@@ -542,7 +571,7 @@ def publish(
         candidate_branch=str(getattr(policy, "candidate_branch", "candidate/dev")),
         accepted_branch=str(getattr(policy, "accepted_branch", "dev")),
         release_branch=str(getattr(policy, "release_branch", "main")),
-        submit_branch_prefix=str(getattr(policy, "submit_branch_prefix", "submit/")),
+        proposal_branch_prefix=str(getattr(policy, "proposal_branch_prefix", "proposal/")),
         remote_name=options.remote or "origin",
     )
     remote_observations = _remote_observations(
@@ -594,7 +623,7 @@ def publish(
         "independent_verification": str(
             independent_verification.get("evidence_class") or "local_readiness"
         ),
-        "submit_branch": str(publication.get("submit_branch") or ""),
+        "proposal_branch": str(publication.get("proposal_branch") or ""),
         "next_publication_action": next(iter(string_sequence(publication.get("next_actions"))), ""),
     }
     publish_next_actions = _publish_next_actions(ok=ok, publication=publication)

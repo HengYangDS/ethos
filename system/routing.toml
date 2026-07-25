@@ -8,7 +8,7 @@ schema = "system/schemas/contracts/routing.schema.json"
 # The one product loop.
 [loop]
 stages = ["status", "plan", "prove", "land", "publish"]
-read_only = ["status", "report"]
+read_only = ["status"]
 
 # Branch roles are product semantics (names configurable, roles are not).
 [branch_roles]
@@ -16,7 +16,7 @@ release_branch = "main"
 accepted_branch = "dev"
 candidate_branch = "candidate/dev"
 work_branch_prefix = "work/"
-submit_branch_prefix = "submit/"
+proposal_branch_prefix = "proposal/"
 
 [[role_order]]
 role = "release_root"
@@ -39,9 +39,9 @@ kind = "branch_prefix"
 config_key = "work_branch_prefix"
 
 [[role_order]]
-role = "submit_lane"
+role = "proposal_lane"
 kind = "branch_prefix"
-config_key = "submit_branch_prefix"
+config_key = "proposal_branch_prefix"
 
 # Subject resolution: map tracked paths to their governing package/domain.
 # Mirrors .ethos/workspace.toml [[package]] until the 8->2 collapse (Phase F),

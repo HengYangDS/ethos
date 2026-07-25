@@ -1,12 +1,12 @@
 ## 0. Truth And Campaign Binding
 
-- [ ] 0.1 Bind the Work Lane, exact accepted/candidate heads, foreign lane dispositions, canonical design, concern matrix, and this OpenSpec change.
-- [ ] 0.2 Add failing tests that hard source-budget gaps force `block`, `ok=false`, and non-ready lifecycle states.
+- [x] 0.1 Bind the Work Lane, exact accepted/candidate heads, foreign lane dispositions, canonical design, concern matrix, and this OpenSpec change.
+- [x] 0.2 Add failing tests that hard source-budget gaps force `block`, `ok=false`, and non-ready lifecycle states.
 - [ ] 0.3 Remove score-derived readiness, fold orient facts into status, delete report, and enforce default payload caps.
 
 ## 1. Deletion-First Surface Collapse
 
-- [ ] 1.1 Replace source-budget worker/protocol/parser/replay/shadow paths with one direct deterministic measurement owner and delete superseded tests and schemas.
+- [x] 1.1 Replace source-budget worker/protocol/parser/replay/shadow paths with one direct deterministic measurement owner and delete superseded tests and schemas.
 - [ ] 1.2 Delete empty Jinja/template machinery, copied CI/C4/config parsers, command/schema dual truth, compatibility normalizers, wrappers, aliases, re-exports, and coverage-only tests.
 - [ ] 1.3 Remove every active WCP literal, import, schema, test, document, and evidence dependency while preserving native fail-closed lane authority.
 - [ ] 1.4 Measure and record product/test/tool/document/config deletion by canonical ELOC ownership class.

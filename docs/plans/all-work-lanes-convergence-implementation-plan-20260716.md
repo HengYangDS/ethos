@@ -23,7 +23,7 @@ See also: [Convergence Program](all-work-lanes-convergence-program-20260716.md),
 
 ## Phase 0 — Freeze and admit the carrier
 
-1. Re-run `ethos orient --json`, `ethos status --json`, Git ref/worktree
+1. Re-run `ethos status --json`, `ethos status --json`, Git ref/worktree
    inventory, lease inventory, dirty digests, and process audit.
 2. Merge the live snapshot with the graph/semantic audit; verify that the 36
    graph closeout candidates and 24 graph implementation refs are disjoint and

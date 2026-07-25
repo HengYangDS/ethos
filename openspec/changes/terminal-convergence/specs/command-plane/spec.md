@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Singular Lifecycle Surface
-The public lifecycle MUST be `status -> plan -> prove -> land -> publish`; status MUST contain first-glance orientation facts and no independent scorecard or orient command may own readiness semantics.
+The public lifecycle MUST be `status -> plan -> prove -> land -> publish`; status MUST contain first-glance orientation facts and no independent quality_summary or orient command may own readiness semantics.
 
 #### Scenario: A caller requests repository readiness
 - **WHEN** the caller invokes status

@@ -83,7 +83,7 @@ not normal user workflow vocabulary.
 | CL-008 | Implement official OpenSpec lifecycle including proposal, delta validation, delta-to-canonical sync, archive, and repository-audit. | OpenSpec may be present but not deeply governed. | OpenSpec strict validation plus lifecycle tests. |
 | CL-009 | Maintain MECE spec families aligned with product package families. | Specs can drift into duplicate or missing capabilities. | Spec family test and product ontology cross-check. |
 | CL-010 | Build real evolution, including opportunities, hypotheses, exhaustion challenge, closeout, and retirement. | Evolution can become a static document. | Evolution ledger state machine and CLI/report tests. |
-| CL-011 | Build a real gate runner that plans, executes, records, and explains gates. | Proof can remain a summary wrapper. | Gate schema, action graph execution tests, evidence output. |
+| CL-011 | Build a real gate runner that plans, executes, records, and explains gates. | Proof can remain a summary wrapper. | Gate schema, PlanIR execution tests, evidence output. |
 | CL-012 | Enforce format, artifact, and evidence governance. | Generated state and durable truth can blur. | Format policy, artifact policy, and location checks. |
 | CL-013 | Keep reference adopters as profile-bound fixtures with their own evidence. | Core can accidentally hardcode one adopter or domain. | Reference adoption fixture and boundary tests. |
 | CL-014 | Express domain contracts through generic contract-profile mechanisms. | Domain rules can become product-private code. | Contract profile schema and adopter proof mapping. |

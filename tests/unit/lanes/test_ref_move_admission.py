@@ -631,20 +631,26 @@ def test_push_admission_blocks_rollback(tmp_path: Path) -> None:
     assert "accepted_ref_move_not_fast_forward" in report["required_gaps"]
 
 
-def test_push_admission_admits_fast_forward_to_proven_candidate_head(tmp_path: Path) -> None:
-    """A fast-forward push of dev to the live candidate head carrying a complete proof is
-    the sanctioned publish — it must be admitted (no marker needed: a push carries no
-    in-process closeout-intent, only the topology + proof gates apply)."""
+def test_push_admission_requires_local_closeout_before_protected_publication(
+    tmp_path: Path,
+) -> None:
+    """A proven candidate head is publishable only after local accepted closeout."""
     repo, base = _accepted_boundary_repo(tmp_path)
     candidate_head = _advance_candidate(repo, "c1")
     record_executed_proof(repo, _complete_proof_evidence(candidate_head, repo))
 
-    report = push_admission_report(
+    blocked = push_admission_report(
+        root=repo, target_ref="refs/heads/dev", pushed_head=candidate_head, remote_head=base
+    )
+    git(repo, "update-ref", "refs/heads/dev", candidate_head, base)
+    admitted = push_admission_report(
         root=repo, target_ref="refs/heads/dev", pushed_head=candidate_head, remote_head=base
     )
 
-    assert report["ok"] is True
-    assert report["required_gaps"] == []
+    assert blocked["ok"] is False
+    assert "push_to_protected_role_not_proven:local_ref_mismatch:dev" in blocked["required_gaps"]
+    assert admitted["ok"] is True
+    assert admitted["required_gaps"] == []
 
 
 def test_push_admission_leaves_work_lane_push_untouched(tmp_path: Path) -> None:

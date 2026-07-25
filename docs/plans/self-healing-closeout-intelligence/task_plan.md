@@ -60,5 +60,5 @@ The original lane followed these constraints:
 4. Add coverage policy record and architecture test binding the hard and
    aspirational floors.
 5. Add focused ref-transaction official closeout regression.
-6. Validate with focused tests, `ethos status`, `ethos report`, `ethos prove`,
+6. Validate with focused tests, `ethos status`, `ethos status`, `ethos prove`,
    land/closeout/publish.

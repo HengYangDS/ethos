@@ -8,8 +8,6 @@ id = "ethos"
 root = "packages/ethos/src/ethos"
 config = "packages/ethos/pyproject.toml"
 known_first_party = ["ethos"]
-per_rule_ignores = ["DEP002=jinja2"]
-justification = "ethos loads Jinja2 lazily only for the parse-only source-budget provider so missing providers produce stable measurement gaps; this exact package-scoped ignore does not cover any other dependency."
 
 [[package]]
 id = "ethos-core"

@@ -1,10 +1,19 @@
 ---
 subject: ethos:terminal-governance-product-design
-role: design
+role: plan
 state: canonical
 relations:
   canonical_for: terminal product architecture and terminal-convergence campaign
 ---
+
+Status: canonical product design; implementation is tracked by the active
+`terminal-convergence` OpenSpec change.
+
+Purpose: define ETHOS's smallest vendor-neutral semantic kernel, product boundary, and
+terminal transition model.
+
+See also: [Product Design Contract](../governance/product-design-contract.md) and
+[Terminal Convergence](../../openspec/changes/terminal-convergence/proposal.md).
 
 # Terminal Governance Product Design
 

@@ -1,1 +1,0 @@
-"""Worker protocol contract declarations."""

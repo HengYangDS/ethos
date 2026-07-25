@@ -25,10 +25,7 @@ claims, or evidence.
 
 ## Planned Work
 
-- [Budget Contract v2 Design](budget-contract-v2-design.md)
-- [Budget Contract v2 Implementation](budget-contract-v2-implementation.md)
 - [Terminal Governance Product Design](terminal-governance-product-design.md)
-- [Global Declarative Compression Program](global-declarative-compression-program.md)
 - [Tooling Adoption Roadmap](tooling-adoption-roadmap.md)
 - [Complete Implementation Roadmap](complete-implementation-roadmap.md)
 

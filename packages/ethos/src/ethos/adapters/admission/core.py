@@ -135,7 +135,7 @@ def push_admission_report(
         candidate_branch=policy.candidate_branch,
         accepted_branch=policy.accepted_branch,
         release_branch=policy.release_branch,
-        submit_branch_prefix=policy.submit_branch_prefix,
+        proposal_branch_prefix=policy.proposal_branch_prefix,
         remote_name=remote_name,
         enforce=not bool(topology.get("legacy")),
     )
@@ -143,9 +143,9 @@ def push_admission_report(
     reconcile = (
         replace(
             reconciliation,
-            submit_branch=branch if role == "submit_lane" else reconciliation.submit_branch,
+            proposal_branch=branch if role == "proposal_lane" else reconciliation.proposal_branch,
         )
-        if (role == "submit_lane" and remote_head == _ZERO_OID)
+        if (role == "proposal_lane" and remote_head == _ZERO_OID)
         or (role in PROTECTED_WRITE_ROLES and reconciliation.receipt_path)
         else _NO_RECONCILIATION
     )
@@ -154,7 +154,7 @@ def push_admission_report(
         pushed_head,
         remote_head,
         f"{remote_name}/{policy.accepted_branch}"
-        if role == "submit_lane" and remote_head == _ZERO_OID
+        if role == "proposal_lane" and remote_head == _ZERO_OID
         else "",
         reconciliation=reconcile,
     )
@@ -178,7 +178,33 @@ def push_admission_report(
         if branch == policy.accepted_branch
         else []
     )
-    gaps = [*branch_gaps, *identity_gaps, *proof_gaps, *topology_gaps]
+    local_protected_head = (
+        git_stdout(repo, "rev-parse", "--verify", "--quiet", branch)
+        if branch in policy.protected_branches
+        else ""
+    )
+    local_closeout_gaps = (
+        []
+        if branch not in policy.protected_branches or local_protected_head == pushed_head
+        else [f"push_to_protected_role_not_proven:local_ref_mismatch:{branch}"]
+    )
+    campaign_gaps = (
+        string_sequence(campaign_publication.get("required_gaps"), drop_empty=True)
+        if role in PROTECTED_WRITE_ROLES and campaign_publication
+        else []
+    )
+    gaps = list(
+        dict.fromkeys(
+            (
+                *campaign_gaps,
+                *branch_gaps,
+                *identity_gaps,
+                *proof_gaps,
+                *topology_gaps,
+                *local_closeout_gaps,
+            )
+        )
+    )
     if not gaps:
         return base
     reason = (
@@ -191,7 +217,9 @@ def push_admission_report(
         else "publication_remote_target_unknown"
         if any(gap.startswith("publication_remote_target_unknown:") for gap in branch_gaps)
         else "push_to_protected_role_not_proven"
-        if proof_gaps or topology_gaps
+        if proof_gaps or topology_gaps or local_closeout_gaps
+        else "campaign_publication_not_terminal"
+        if campaign_gaps
         else "pushed_commit_identity_not_allowed"
     )
     return _verdict(base, "blocked", "block", reason, gaps)

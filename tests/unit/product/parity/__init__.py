@@ -1,1 +1,0 @@
-"""Parity product behavior tests."""

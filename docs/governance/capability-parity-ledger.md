@@ -107,7 +107,7 @@ separately when the embedded command has no corresponding gap, so shadow parity
 does not mistake ETHOS product-repository maturation work for an adopter backend
 mismatch. Changed-scope playbook route gaps, including strict activation-version
 gaps, are classified only when the embedded route confirms
-`changed_path_count=0`. `ethos report` parity freshness gaps are classified only
+`changed_path_count=0`. `ethos status` parity freshness gaps are classified only
 for the evidence-refresh bootstrap case, where the current shadow run is the
 operation that can replace stale tracked evidence. Any non-repository-audit
 proof gap, mutation/admission gap, embedded gap, command failure, or
@@ -173,7 +173,7 @@ reusing a stale path from old evidence.
 | land | Git/lane transition paths | `ethos-repository` Git-native semantics + execution adapter | split | dry-run and apply-admission tests | same authorization, expect-head, lane, and candidate transition decision | embedded land disabled unless selected |
 | publish | release and remote publication paths | `ethos-repository` Git-native semantics + hosted-provider adapters | split | readiness and no-push tests | same review export, protected mirror, break-glass, tag, and hosted CI requirements | embedded publish remains fallback |
 | independent proof re-execution | provider-local receipt and verifier boundary | adopter profile plus provider-local adapter | adopter-profile-only | policy fixtures, exact-receipt tests, and external-adopter shadow | same action-bound local-readiness or independently-reexecuted projection; generic self-shadow is insufficient | disabling the action policy restores local-first publish readiness |
-| report | product report and embedded scorecards | `ethos-repository` | migrate-to-product | scorecard golden output | same governance, evidence, command-surface, and projection health verdicts | embedded report used for diff |
+| report | product report and embedded quality_summarys | `ethos-repository` | migrate-to-product | quality_summary golden output | same governance, evidence, command-surface, and projection health verdicts | embedded report used for diff |
 | SQLite state | product local state and embedded host/runtime state | `ethos-adapters` SQLite + repository logical model | split | migration and ignored-state tests | same leases, events, gate runs, sessions, and ignored truth boundary | state stays host-local |
 | OpenSpec | product `openspec/` and embedded spec adapter | `ethos-adapters` official OpenSpec + `ethos-contracts` | split | official CLI validation and lifecycle fixtures | official CLI validates specs and changes; no ad hoc replacement | embedded adapter remains reference |
 | Backlog / intake | embedded intake/backlog adapters | `ethos-repository` + Backlog adapter | migrate-to-product | backlog fixture and adapter contract tests | same intake status, task mapping, and board projection | embedded intake remains oracle |

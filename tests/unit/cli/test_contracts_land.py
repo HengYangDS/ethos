@@ -236,7 +236,7 @@ def test_configured_branch_roles_drive_local_lifecycle_commands(monkeypatch, tmp
     adopt_and_commit(repo)
     git(repo, 'branch', 'integration', 'dev')
     git(repo, 'checkout', 'integration')
-    write_role_policy(repo, release_branch='release', accepted_branch='integration', candidate_branch='stage/integration', work_branch_prefix='lane/', submit_branch_prefix='review/')
+    write_role_policy(repo, release_branch='release', accepted_branch='integration', candidate_branch='stage/integration', work_branch_prefix='lane/', proposal_branch_prefix='review/')
     git(repo, 'branch', 'release', 'integration')
     accepted_head = git(repo, 'rev-parse', 'HEAD')
     seed_executed_proof(repo, accepted_head)
@@ -267,20 +267,20 @@ def test_configured_branch_roles_drive_local_lifecycle_commands(monkeypatch, tmp
     assert publish_payload['summary']['remote_push'] == 'not_performed'
     assert publish_payload['summary']['remote_publication_state'] == 'deferred'
     assert publish_payload['summary']['hosted_ci_status_claimed'] is False
-    assert publish_payload['summary']['submit_branch'] == 'review/configured'
-    assert publish_payload['data']['publication']['submit_branch'] == 'review/configured'
-    local_submit = publish_payload['data']['publication']['local_submit_package']
-    assert local_submit['kind'] == 'submit_branch_plan'
-    assert local_submit['source_branch'] == 'lane/configured'
-    assert local_submit['submit_branch'] == 'review/configured'
-    assert local_submit['remote_push'] == 'not_performed'
-    assert local_submit['remote_state'] == 'deferred'
+    assert publish_payload['summary']['proposal_branch'] == 'review/configured'
+    assert publish_payload['data']['publication']['proposal_branch'] == 'review/configured'
+    local_proposal = publish_payload['data']['publication']['local_proposal_package']
+    assert local_proposal['kind'] == 'proposal_branch_plan'
+    assert local_proposal['source_branch'] == 'lane/configured'
+    assert local_proposal['proposal_branch'] == 'review/configured'
+    assert local_proposal['remote_push'] == 'not_performed'
+    assert local_proposal['remote_state'] == 'deferred'
     assert publish_payload['data']['publication']['remote_state'] == 'deferred'
-    assert local_submit['blocking'] is False
-    assert local_submit['remote_availability']['blocking'] is False
-    assert local_submit['local_ci_fallback']['kind'] == 'local_ci_fallback'
-    assert local_submit['local_ci_fallback']['hosted_ci_status_claimed'] is False
-    assert local_submit['required_steps'] == ['land work lane to candidate role', 'fast-forward accepted root from candidate role', 'run local-ci fallback when remote publication is unavailable', 'create configured submit branch when remote publication is available']
+    assert local_proposal['blocking'] is False
+    assert local_proposal['remote_availability']['blocking'] is False
+    assert local_proposal['local_ci_fallback']['kind'] == 'local_ci_fallback'
+    assert local_proposal['local_ci_fallback']['hosted_ci_status_claimed'] is False
+    assert local_proposal['required_steps'] == ['land work lane to candidate role', 'fast-forward accepted root from candidate role', 'run local-ci fallback when remote publication is unavailable', 'create configured proposal branch when remote publication is available']
     land_payload = run_ethos('land', '--apply', '--authorize', '--expect-head', work_head, '--json', cwd=worktree)
     assert land_payload['ok'] is True
     assert land_payload['data']['candidate_update']['branch'] == 'stage/integration'
@@ -338,7 +338,7 @@ def test_publish_reports_current_local_ci_fallback_evidence_when_manifest_matche
     assert evidence_status['evidence_head'] == head
     assert evidence_status['path'] == 'build/evidence/local-ci/fallback.json'
     assert payload['summary']['next_publication_action'] == 'remote unavailable; local-ci fallback evidence is current at HEAD'
-    assert payload['next_actions'] == ['remote unavailable; local-ci fallback evidence is current at HEAD', 'ethos report']
+    assert payload['next_actions'] == ['remote unavailable; local-ci fallback evidence is current at HEAD', 'ethos status']
 
 def test_publish_reports_stale_local_ci_fallback_evidence_when_manifest_head_differs(tmp_path: Path) -> None:
     repo = init_git_repo(tmp_path / 'repo')
@@ -354,3 +354,45 @@ def test_publish_reports_stale_local_ci_fallback_evidence_when_manifest_head_dif
     assert evidence_status['current_head'] == head
     assert evidence_status['evidence_head'] == 'stale-head'
     assert payload['summary']['next_publication_action'] == 'run tools/ci/scripts/run-local-ci.sh as local fallback evidence'
+
+
+def test_land_blocks_campaign_terminal_gaps(tmp_path: Path, monkeypatch) -> None:
+    _repo, _candidate, worktree = start_adopted_work_lane(tmp_path)
+    commit_fixture_file(worktree, "FEATURE.md", "# feature\n", "feature work")
+    seed_executed_proof(worktree, git(worktree, "rev-parse", "HEAD"))
+    monkeypatch.setattr(lifecycle_cli, "is_product_root", lambda _repo: True)
+    monkeypatch.setattr(
+        lifecycle_cli,
+        "campaign_publication_report",
+        lambda _repo: {"required_gaps": ["campaign_publication_campaign_active"]},
+    )
+
+    payload = run_ethos("land", "--root", worktree.as_posix(), "--json", cwd=worktree)
+
+    assert payload["ok"] is False
+    assert "campaign_publication_campaign_active" in payload["required_gaps"]
+
+
+def test_publish_blocks_campaign_terminal_gaps(tmp_path: Path, monkeypatch) -> None:
+    repo = init_git_repo(tmp_path / "repo")
+    adopt_and_commit(repo)
+    seed_executed_proof(repo, git(repo, "rev-parse", "HEAD"))
+    monkeypatch.setattr(lifecycle_cli, "is_product_root", lambda _repo: True)
+    monkeypatch.setattr(
+        lifecycle_cli,
+        "campaign_publication_report",
+        lambda _repo, **_kwargs: {
+            "required_gaps": [
+                "campaign_publication_campaign_active",
+                "source_budget_terminal_exceeded:python_total:2>1",
+            ]
+        },
+    )
+
+    payload = run_ethos("publish", "--json", cwd=repo)
+
+    assert payload["ok"] is False
+    assert "campaign_publication_campaign_active" in payload["required_gaps"]
+    assert payload["required_gaps"].count(
+        "source_budget_terminal_exceeded:python_total:2>1"
+    ) == 1

@@ -39,7 +39,7 @@ extensions/<extension-id>/
 ### `ethos-core`
 
 Pure kernel and product contracts. Owns Authority, Subject, Commitment,
-Change, Evidence, Claim, Chronicle, action graph primitives, state machine
+Change, Evidence, Claim, Chronicle, PlanIR contracts, state-machine
 primitives, result envelope primitives, schema contracts, rule contracts,
 quality semantics, determinism semantics, gate semantics, and proof-policy
 semantics.
@@ -88,7 +88,7 @@ Earlier product designs used separate Python package homes such as
 inside the two-package topology; they are not active package homes.
 
 Historical references to those package names are stale unless explicitly marked
-as history. Promoted docs, tests, scorecards, and release checks should use the
+as history. Promoted docs, tests, quality_summarys, and release checks should use the
 active topology above.
 
 ## Boundary Rule

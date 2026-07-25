@@ -15,7 +15,9 @@ closeout and per-lane lifecycle effects pending.
 Purpose: reduce recovered `work/*` topology by proving semantic absorption
 before, rather than instead of, retirement.
 
-See also: [Global Declarative Compression Program](global-declarative-compression-program.md), [Mutation Rules](../../rules/mutation.md), and [Evidence Rules](../../rules/evidence.md).
+See also: [Terminal Governance Product Design](terminal-governance-product-design.md),
+[Mutation Rules](../../rules/mutation.md), and
+[Evidence Rules](../../rules/evidence.md).
 
 ## Rule
 

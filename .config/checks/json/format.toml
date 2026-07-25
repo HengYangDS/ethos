@@ -6,5 +6,4 @@ indent = 2
 
 rule = [
   { globs = ["system/schemas/**/*.json", "evidence/**/*.json"], mode = "compact" },
-  { globs = ["tests/fixtures/source-budget-v2/*.json"], mode = "compact" },
 ]

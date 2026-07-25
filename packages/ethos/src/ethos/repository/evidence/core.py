@@ -82,9 +82,11 @@ class ProofRun:
             message = f"invalid proof run state: {self.state}"
             raise ValueError(message)
         if self.state == "proven" and not self.trust_bearing:
-            raise ValueError("proven proof run must be trust_bearing")
+            msg = "proven proof run must be trust_bearing"
+            raise ValueError(msg)
         if self.trust_bearing and self.state != "proven":
-            raise ValueError("trust_bearing proof run must be proven")
+            msg = "trust_bearing proof run must be proven"
+            raise ValueError(msg)
         if self.state in {"accepted-risk", "waived_nonblocking"} and not self.governance_ref:
             message = f"{self.state} proof run requires governance_ref"
             raise ValueError(message)

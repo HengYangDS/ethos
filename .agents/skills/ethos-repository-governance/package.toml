@@ -11,7 +11,7 @@ include = [
 ]
 exclude = [".DS_Store"]
 required_sections = ["When to Use", "Workflow", "Evidence", "Trust Boundary"]
-expected_digest = "sha256:3614897c698a82b0b99b1abe48a1398098ed2424138961dae999558f67e0ac42"
+expected_digest = "sha256:3cf7f20551cbf2f5331eee9c2c905d4fadb5e28f056fc49e320723bbf228feec"
 
 [quality]
 placeholder_allowed = false
@@ -31,8 +31,3 @@ command = ["ethos", "plan", "--changed"]
 id = "ethos.prove"
 kind = "command_proof"
 command = ["ethos", "prove", "--json"]
-
-[[capability]]
-id = "ethos.report"
-kind = "command_readonly"
-command = ["ethos", "report", "--json"]

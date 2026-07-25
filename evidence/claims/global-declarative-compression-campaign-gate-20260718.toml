@@ -2,7 +2,7 @@
 id = "global-declarative-compression-campaign-gate-20260718"
 subject = "quality:campaign-terminal-publication"
 change_id = "global-declarative-compression-campaign-gate"
-state = "active"
+state = "superseded"
 summary = "ETHOS defers protected publication to the compression Campaign terminal while retaining Campaign-local source measurement and debt-lifecycle enforcement."
 
 [evidence]

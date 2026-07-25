@@ -40,7 +40,6 @@ _READONLY_ETHOS_COMMANDS = {
     "plan",
     "playbooks",
     "quality",
-    "report",
     "status",
 }
 

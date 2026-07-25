@@ -1,1 +1,0 @@
-"""Scorecard report helper package."""

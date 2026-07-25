@@ -1,7 +1,7 @@
 [claim]
 id = "source-budget-successor-reconstruction-20260717"
 subject = "quality:source-budget-successor-reconstruction"
-state = "active"
+state = "superseded"
 summary = "Active carrier for bounded source-budget reconstruction; partial local evidence only."
 
 [evidence]

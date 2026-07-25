@@ -22,11 +22,33 @@ from ethos.repository.evidence.parity.core import parity_gaps_report
 from ethos.repository.evidence.parity.core import shadow_parity_report
 from ethos.repository.release.core import release_policy_report
 from ethos_core.contracts.branch.roles import load_branch_role_policy
+from ethos_core.contracts.policy.cel import CelEvaluationError
 from ethos_core.contracts.policy.cel import evaluate_cel_gap_groups
 from ethos_core.contracts.policy.cel import evaluate_cel_value
+from ethos_core.normalization.core import string_sequence
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
     from pathlib import Path
+
+
+def _required_gaps(*values: object) -> list[str]:
+    """Return one ordered hard-gap set for every campaign projection."""
+    return list(dict.fromkeys(gap for value in values for gap in string_sequence(value)))
+
+
+def campaign_status_report(repo: Path, *, campaign_id: str | None = None) -> dict[str, object]:
+    """Return the canonical campaign status and its repository publication verdict."""
+    report = campaign_report(repo, campaign_id=campaign_id)
+    publication = campaign_publication_report(repo)
+    required_gaps = _required_gaps(report.get("required_gaps"), publication.get("required_gaps"))
+    report.update(
+        publication=publication,
+        required_gaps=required_gaps,
+        ok=not required_gaps,
+        state="active" if not required_gaps else "gapped",
+    )
+    return report
 
 
 def campaign_closeout_report(
@@ -49,7 +71,15 @@ def campaign_closeout_report(
     campaign = campaign_report(repo, campaign_id=campaign_id)
     repository_campaign = campaign_report(repo)
     campaign_publication = campaign_publication_report(repo, campaigns=repository_campaign)
-    campaign["publication"] = campaign_publication
+    campaign_gaps = _required_gaps(
+        campaign.get("required_gaps"),
+        campaign_publication.get("required_gaps"),
+    )
+    campaign.update(
+        publication=campaign_publication,
+        required_gaps=campaign_gaps,
+        ok=not campaign_gaps,
+    )
     release = release_policy_report(repo)
     current_target_head = git_adapter.current_tracked_head(target)
     current_product_head = git_adapter.current_tracked_head(repo)
@@ -130,10 +160,20 @@ def campaign_closeout_report(
             "publication": campaign_publication,
         },
     }
-    ok = local_ready and bool(campaign["ok"]) and not trust_closeout["required_gaps"]
+    required_gaps = _required_gaps(
+        evolution.get("required_gaps"),
+        release.get("required_gaps"),
+        campaign.get("required_gaps"),
+        local_closeout.get("required_gaps"),
+        trust_closeout.get("required_gaps"),
+        publication.get("required_gaps"),
+        intake_projection.get("required_gaps") if intake_projection.get("blocking") else (),
+    )
+    ok = not required_gaps
     return {
         "ok": ok,
         "state": "local_ready" if ok else "gapped",
+        "required_gaps": required_gaps,
         "workspace": status_payload,
         "claims": claim_report,
         "intake_projection": intake_projection,
@@ -154,11 +194,21 @@ def campaign_publication_report(
     repo: Path,
     *,
     campaigns: dict[str, object] | None = None,
+    budget: dict[str, object] | None = None,
 ) -> dict[str, object]:
     """Project whether declared campaigns permit the terminal remote publication."""
-    report = campaigns or campaign_report(repo)
+    report = campaign_report(repo) if campaigns is None else campaigns
     policy = campaign_policy(repo)
-    campaign_items = cast("list[dict[str, object]]", report["campaigns"])
+    report_valid = isinstance(report, dict) and "required_gaps" in report
+    campaign_items = report.get("campaigns") if report_valid else None
+    if not isinstance(campaign_items, list):
+        gap = (
+            "campaign_publication_report_field_invalid:campaigns"
+            if report_valid
+            else "campaign_publication_report_field_missing"
+        )
+        return _invalid_publication(policy, [gap])
+    campaign_items = cast("list[dict[str, object]]", campaign_items)
     terminal_campaigns = [
         item
         for item in campaign_items
@@ -166,7 +216,19 @@ def campaign_publication_report(
         == policy.publication_terminal_mode
     ]
 
-    budget = source_budget_report(repo)
+    budget = source_budget_report(repo) if budget is None else budget
+    budget_gaps = (
+        ["campaign_publication_budget_invalid"]
+        if not isinstance(budget, dict)
+        else [
+            f"campaign_publication_budget_field_missing:{field}"
+            for field in ("required_gaps", "advisory_gaps")
+            if field not in budget
+        ]
+    )
+    if budget_gaps:
+        return _invalid_publication(policy, budget_gaps)
+    budget = cast("dict[str, object]", budget)
     policy_facts = policy.model_dump(
         mode="json",
         exclude={"rules", "publication", "publication_projection"},
@@ -176,28 +238,79 @@ def campaign_publication_report(
         "campaigns": terminal_campaigns,
         "budget": budget,
     }
-    facts["required_gaps"] = [
-        *policy.evaluate("publication", facts=facts),
-        *evaluate_cel_gap_groups(
-            policy.publication.gap_groups,
-            facts=facts,
-            policy=policy_facts,
-        ),
-    ]
-    facts["advisory_gaps"] = [
-        *policy.evaluate("publication_advisory", facts=facts),
-        *evaluate_cel_gap_groups(
-            policy.publication.advisory_gap_groups,
-            facts=facts,
-            policy=policy_facts,
-        ),
-    ]
-    return cast(
-        "dict[str, object]",
-        evaluate_cel_value(
+    try:
+        facts["required_gaps"] = _required_gaps(
+            policy.evaluate("publication", facts=facts),
+            evaluate_cel_gap_groups(
+                policy.publication.gap_groups,
+                facts=facts,
+                policy=policy_facts,
+            ),
+        )
+        facts["advisory_gaps"] = _required_gaps(
+            policy.evaluate("publication_advisory", facts=facts),
+            evaluate_cel_gap_groups(
+                policy.publication.advisory_gap_groups,
+                facts=facts,
+                policy=policy_facts,
+            ),
+        )
+        projected = evaluate_cel_value(
             policy.publication_projection,
             facts=facts,
             policy=policy_facts,
             rule={},
-        ),
+        )
+    except (CelEvaluationError, KeyError, TypeError, ValueError) as exc:
+        return _invalid_publication(
+            policy,
+            [f"campaign_publication_evaluation_invalid:{type(exc).__name__}"],
+        )
+    required = (
+        "kind",
+        "scope",
+        "mode",
+        "campaign_count",
+        "terminal_ready",
+        "local_change_closeout",
+        "remote_publication_admission",
+        "required_gaps",
+        "advisory_gaps",
+        "next_action_id",
     )
+    projection = (
+        {str(key): value for key, value in projected.items()}
+        if isinstance(projected, dict) and all(isinstance(key, str) for key in projected)
+        else {}
+    )
+    projection_gaps = (
+        ["campaign_publication_projection_invalid"]
+        if not projection
+        else [
+            f"campaign_publication_projection_field_missing:{field}"
+            for field in required
+            if field not in projection
+        ]
+    )
+    if projection_gaps:
+        return _invalid_publication(policy, projection_gaps)
+    projection["required_gaps"] = _required_gaps(projection["required_gaps"])
+    projection["advisory_gaps"] = _required_gaps(projection["advisory_gaps"])
+    return projection
+
+
+def _invalid_publication(policy: object, gaps: Sequence[str]) -> dict[str, object]:
+    """Return one closed, minimal projection when declaration facts are malformed."""
+    action = getattr(policy, "continuation_action_id", "campaign_continuation")
+    return {
+        "kind": "campaign_publication",
+        "scope": "repository",
+        "mode": "invalid",
+        "campaign_count": 0,
+        "terminal_ready": False,
+        "local_change_closeout": "blocked",
+        "remote_publication_admission": "blocked",
+        "required_gaps": list(dict.fromkeys(gaps)),
+        "advisory_gaps": [],
+        "next_action_id": action,
+    }

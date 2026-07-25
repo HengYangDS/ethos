@@ -14,7 +14,6 @@ from pydantic import model_validator
 
 from ethos_core._resources import declaration_text
 from ethos_core._resources import resolve_declaration_path
-from ethos_core.action_graph.core import ActionNode
 
 DECLARATION_PATH = Path("system/gates.toml")
 _DECLARATION_RESOURCE = "data/gates.toml"
@@ -60,28 +59,6 @@ class GateDescriptor(BaseModel):
     def to_dict(self) -> dict[str, object]:
         """Project the descriptor to the stable public quality-gate shape."""
         return self.model_dump(mode="json")
-
-    def to_node(self) -> ActionNode:
-        """Compile this declaration into its ActionGraph node projection."""
-        return ActionNode(
-            id=self.id,
-            kind=self.kind,
-            command=self.command,
-            policy=self.policy,
-            tool="ethos",
-            depends_on=self.depends_on,
-            metadata={
-                "asset_classes": list(self.asset_classes),
-                "dimensions": list(self.dimensions),
-                "execution_mode": self.execution_mode,
-                "evidence_class": self.evidence_class,
-                "trust_bearing": self.trust_bearing,
-                "tool_adapter": self.tool_adapter,
-                "writes_files": self.writes_files,
-                "network_policy": self.network_policy,
-                "version_source": self.version_source,
-            },
-        )
 
 
 class GateEntry(GateDescriptor):

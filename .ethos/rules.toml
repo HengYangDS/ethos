@@ -10,7 +10,7 @@ mcp = "agent-projection"
 
 [determinism]
 kernel_io = "forbidden"
-action_graph = "required"
+plan_ir = "required"
 stable_json = "required"
 sqlite_state = "local-only"
 
@@ -52,78 +52,6 @@ surface_path_globs = [
 # Test files carry broad contract coverage; capped at the same category limit as
 # surface (still bounded to prevent unbounded growth), not the product limit.
 test_effective_max_lines = 800
-
-[quality.source_budget]
-# The parent of the global-declarative-compression Work Lane. This baseline is
-# never reset by a migration; every tracked executable carrier remains visible.
-baseline_head = "2dab77f169eceb2d45f917358c2a7487e7ac8db6"
-enforcement = "campaign_terminal"
-campaign_id = "global-declarative-compression-program"
-
-[quality.source_budget.baseline]
-python_product = 35675
-python_tests = 46730
-python_tools = 1038
-python_other = 446
-shell = 1445
-js = 89
-toml = 11633
-yaml = 1082
-json = 6439
-ini = 70
-jinja = 671
-diagram = 24
-python_total = 83889
-global_total = 105342
-
-[quality.source_budget.terminal]
-python_total = 58722
-global_total = 73739
-
-[quality.source_budget.debt]
-maximum_total = 165
-waves = [
-  { id = "node-runtime-compatibility-compression", due_on = "2026-10-28", state = "active" },
-]
-
-[[quality.source_budget.debt.records]]
-id = "node-runtime-compatibility-20260716"
-owner = "node-runtime-compatibility-20260716"
-replacement = "consolidate fake-process fixtures, checksum-policy parsing, and installer validation without removing the exact Node matrix contract"
-deletion_wave = "node-runtime-compatibility-compression"
-expiry = "2026-10-28"
-allowance = 165
-expected_net_deletion = 165
-allowance_by_category = { python_tests = 135, shell = 107 }
-
-[quality.source_budget_v2]
-schema = "ethos-source-budget-policy-v2"
-contract_version = 2
-state = "inactive"
-baseline_head = "2dab77f169eceb2d45f917358c2a7487e7ac8db6"
-enforcement = "campaign_terminal"
-campaign_id = "global-declarative-compression-program"
-
-[[quality.source_budget_v2.debt.waves]]
-id = "node-runtime-compatibility-compression"
-due_on = "2026-10-28"
-state = "active"
-
-[[quality.source_budget_v2.debt.records]]
-mapping_state = "unmapped"
-id = "node-runtime-compatibility-20260716"
-origin_change = "node-runtime-compatibility-20260716"
-owner = "node-runtime-compatibility-20260716"
-replacement = "consolidate fake-process fixtures, checksum-policy parsing, and installer validation without removing the exact Node matrix contract"
-deletion_wave = "node-runtime-compatibility-compression"
-expiry = "2026-10-28"
-missing_bindings = [
-  "admitted_head",
-  "scope_digest",
-  "inventory_digest",
-  "baseline_snapshot",
-  "historical_replay",
-]
 
 [gates.local-state-audit]
 command = "tools/ci/scripts/run-local-state-audit.sh"

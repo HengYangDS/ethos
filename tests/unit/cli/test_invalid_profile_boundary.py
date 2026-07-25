@@ -7,20 +7,21 @@ from typing import TYPE_CHECKING
 import pytest
 
 from ethos.cli import main
+from tests.support.contract_helpers import init_repo_with_candidate
 
 if TYPE_CHECKING:
     from pathlib import Path
 
 
-@pytest.mark.parametrize("command", ["orient", "report", "plan", "openspec"])
+@pytest.mark.parametrize("command", ["status", "plan", "openspec"])
 def test_invalid_profile_reader_commands_emit_json_result(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
     command: str,
 ) -> None:
-    profile = tmp_path / ".ethos" / "profile.toml"
-    profile.parent.mkdir(exist_ok=True)
+    repo, _ = init_repo_with_candidate(tmp_path)
+    profile = repo / ".ethos" / "profile.toml"
     profile.write_text(
         'profile_id = "invalid"\n'
         "[openspec]\n"
@@ -29,7 +30,7 @@ def test_invalid_profile_reader_commands_emit_json_result(
         'rules = "."\n',
         encoding="utf-8",
     )
-    args = ["ethos", command, "--root", tmp_path.as_posix(), "--json"]
+    args = ["ethos", command, "--root", repo.as_posix(), "--json"]
     if command == "openspec":
         args.insert(2, "--lifecycle")
     monkeypatch.setattr(sys, "argv", args)

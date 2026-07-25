@@ -129,14 +129,14 @@ def load_independent_verification_provider(
     )
 
 
-def _default_provider_config_path() -> Path:
+def default_provider_config_path() -> Path:
     return next(
         (path for path in _SYSTEM_PROVIDER_CONFIGS if path.exists()),
         _SYSTEM_PROVIDER_CONFIGS[0],
     )
 
 
-def _is_within(path: Path, root: Path) -> bool:
+def path_is_within(path: Path, root: Path) -> bool:
     try:
         path.resolve().relative_to(root.resolve())
     except ValueError:
@@ -144,7 +144,7 @@ def _is_within(path: Path, root: Path) -> bool:
     return True
 
 
-def _verify_independent_receipt_signature(
+def verify_independent_receipt_signature(
     receipt: IndependentVerificationReceipt,
     provider: IndependentVerificationProvider,
 ) -> bool:
@@ -320,7 +320,7 @@ def independent_verification_admission_report(
             receipt_path=None,
         )
     provider, provider_gaps = load_independent_verification_provider(
-        provider_config_path or _default_provider_config_path()
+        provider_config_path or default_provider_config_path()
     )
     if provider is None:
         return {
@@ -333,7 +333,7 @@ def independent_verification_admission_report(
             "state": "blocked" if policy.mode == "required" else "invalid",
             "required_gaps": provider_gaps,
         }
-    if not _is_within(path, provider.receipt_store):
+    if not path_is_within(path, provider.receipt_store):
         return {
             "root": root.resolve().as_posix(),
             "mode": policy.mode,
@@ -349,5 +349,5 @@ def independent_verification_admission_report(
         policy=policy,
         request={**request, "implementation_digest": provider.implementation_digest},
         receipt_path=path,
-        signature_verifier=lambda receipt: _verify_independent_receipt_signature(receipt, provider),
+        signature_verifier=lambda receipt: verify_independent_receipt_signature(receipt, provider),
     )

@@ -38,11 +38,11 @@ kind = "command_readonly"
 command = ["ethos", "quality", "coverage", "--json"]
 
 [[capability]]
+id = "ethos.status"
+kind = "command_readonly"
+command = ["ethos", "status", "--json"]
+
+[[capability]]
 id = "ethos.prove"
 kind = "command_proof"
 command = ["ethos", "prove", "--execute", "--json"]
-
-[[capability]]
-id = "ethos.report"
-kind = "command_readonly"
-command = ["ethos", "report", "--json"]

@@ -93,7 +93,7 @@ def audit(
         state="clean" if audit_payload["ok"] else "gapped",
         summary={"openspec_mode": mode},
         required_gaps=tuple(string_sequence(audit_payload.get("required_gaps"))),
-        next_actions=("ethos report",) if audit_payload["ok"] else ("ethos audit --mode deep",),
+        next_actions=("ethos status",) if audit_payload["ok"] else ("ethos audit --mode deep",),
         data=audit_payload,
     )
     emit(result, json_output=json_output, enforce=False)

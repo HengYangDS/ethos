@@ -15,16 +15,14 @@ from pydantic import ConfigDict
 from pydantic import Field
 from pydantic import field_validator
 
-from ethos_core.action_graph.core import ActionGraph
-from ethos_core.action_graph.core import ActionNode
 from ethos_core.contracts.lifecycle.core import (
     LeaseTransition,  # noqa: TC001, RUF100 - Pydantic resolves this annotation at runtime
 )
+from ethos_core.contracts.plan import PlanIR
+from ethos_core.contracts.plan import PlanNode
 from ethos_core.contracts.policy.cel import evaluate_cel_rules
 from ethos_core.contracts.policy.cel import validate_cel_expression
 from ethos_core.contracts.system.contracts import load_system_contract
-from ethos_core.graph.core import GraphKernel
-from ethos_core.graph.core import GraphNode
 from ethos_core.state.invalid import NODE_ORDER
 
 _LEASE_TRANSITION_MATRIX_INVALID = "lease_transition_matrix_invalid"
@@ -113,7 +111,7 @@ class WorkflowRuntimeDeclaration(_WorkflowModel):
 
 
 class WorkflowNode(_WorkflowModel):
-    """One declared workflow node used to compile graph projections."""
+    """One declared workflow node used to compile PlanIR."""
 
     id: str = ""
     kind: str = ""
@@ -122,11 +120,20 @@ class WorkflowNode(_WorkflowModel):
     requires: tuple[str, ...] = ()
     produces: tuple[str, ...] = ()
 
-    def graph_node(self, producer_by_fact: dict[str, str]) -> GraphNode | None:
-        """Compile this node into the shared graph kernel input."""
+    def to_plan_node(
+        self,
+        *,
+        producer_by_fact: dict[str, str],
+    ) -> PlanNode | None:
+        """Compile this declaration into one PlanIR node."""
         if not self.id:
             return None
-        return GraphNode(id=self.id, depends_on=self.dependencies(producer_by_fact))
+        return PlanNode(
+            id=self.id,
+            kind={"producer": "decision", "action": "effect"}.get(self.kind, "check"),
+            command=tuple(shlex.split(self.command)),
+            depends_on=self.dependencies(producer_by_fact),
+        )
 
     def dependencies(self, producer_by_fact: dict[str, str]) -> tuple[str, ...]:
         """Return declared node dependencies via produced facts."""
@@ -139,7 +146,7 @@ class WorkflowNode(_WorkflowModel):
         )
 
     def external_requirements(self, producer_by_fact: dict[str, str]) -> tuple[str, ...]:
-        """Return facts required by this node that are produced outside the graph."""
+        """Return facts required by this node that are produced outside the plan."""
         return tuple(
             dict.fromkeys(
                 requirement for requirement in self.requires if requirement not in producer_by_fact
@@ -155,29 +162,6 @@ class WorkflowNode(_WorkflowModel):
             "requires": list(self.requires),
             "produces": list(self.produces),
         }
-
-    def to_action_node(
-        self,
-        *,
-        inputs: tuple[str, ...],
-        producer_by_fact: dict[str, str],
-    ) -> ActionNode:
-        """Compile this workflow declaration into an ActionGraph node."""
-        return ActionNode(
-            id=self.id,
-            kind=str(self.kind),
-            command=tuple(shlex.split(self.command)),
-            inputs=inputs,
-            outputs=self.produces,
-            policy="required",
-            depends_on=self.dependencies(producer_by_fact),
-            metadata={
-                "enforcement": str(self.enforcement),
-                "requires": list(self.requires),
-                "produces": list(self.produces),
-                "source": "system/workflows.toml",
-            },
-        )
 
 
 class WorkflowEvalDeclaration(_WorkflowModel):
@@ -335,17 +319,6 @@ class WorkflowContract(_WorkflowModel):
         requested = set(node_ids)
         return tuple(item for item in self.node if item.id in requested)
 
-    def graph_plan(self, nodes: tuple[WorkflowNode, ...] | None = None) -> dict[str, Any]:
-        """Compile declared workflow nodes through the shared GraphKernel."""
-        selected = self.node if nodes is None else nodes
-        producer_by_fact = self.producer_by_fact()
-        graph_nodes = tuple(
-            graph_node
-            for item in selected
-            if (graph_node := item.graph_node(producer_by_fact)) is not None
-        )
-        return GraphKernel(nodes=graph_nodes).plan().to_dict()
-
     def external_requirements(
         self,
         nodes: tuple[WorkflowNode, ...] | None = None,
@@ -359,35 +332,30 @@ class WorkflowContract(_WorkflowModel):
             if item.id and (external := item.external_requirements(producer_by_fact))
         ]
 
-    def action_graph(
+    def plan(
         self,
         *,
-        changed_paths: tuple[str, ...] = (),
-        node_ids: tuple[str, ...] = ("status", "plan", "prove"),
-    ) -> ActionGraph:
-        """Compile a workflow node subset into an ActionGraph."""
-        inputs = tuple(sorted(changed_paths)) or ("pyproject.toml",)
-        selected = self.selected_nodes(node_ids)
+        node_ids: tuple[str, ...] | None = None,
+    ) -> PlanIR:
+        """Compile a workflow node subset into PlanIR."""
+        selected = self.node if node_ids is None else self.selected_nodes(node_ids)
         selected_ids = {item.id for item in selected}
-        missing = tuple(
-            f"workflow_plan_node_missing:{node_id}"
-            for node_id in node_ids
-            if node_id not in selected_ids
+        missing = (
+            ()
+            if node_ids is None
+            else tuple(
+                f"workflow_plan_node_missing:{node_id}"
+                for node_id in node_ids
+                if node_id not in selected_ids
+            )
         )
         producer_by_fact = self.producer_by_fact()
-        graph_nodes = tuple(
-            graph_node
-            for item in selected
-            if (graph_node := item.graph_node(producer_by_fact)) is not None
-        )
-        ordered_ids = GraphKernel(nodes=graph_nodes).ordered_ids()
-        by_id = {item.id: item for item in selected if item.id}
         nodes = tuple(
-            by_id[node_id].to_action_node(inputs=inputs, producer_by_fact=producer_by_fact)
-            for node_id in ordered_ids
-            if node_id in by_id
+            plan_node
+            for item in selected
+            if (plan_node := item.to_plan_node(producer_by_fact=producer_by_fact)) is not None
         )
-        return ActionGraph(nodes=nodes, validation_issues=missing)
+        return PlanIR(nodes=nodes, validation_issues=missing)
 
     def to_report(self) -> dict[str, Any]:
         """Validate and summarize the declared workflow runtime contract."""
@@ -421,21 +389,11 @@ class WorkflowContract(_WorkflowModel):
             "truth_boundary": "derived_repository_projection",
             "changed_path_count": len(changed_paths),
             "changed_paths": list(changed_paths),
-            "graph": self.graph_plan(),
+            "plan_ir": self.plan().to_dict(),
             "external_requirements": self.external_requirements(),
             "transitions": [item.to_projection() for item in self.transition],
             "nodes": [item.to_summary() for item in self.node],
         }
-
-
-def action_graph_from_workflow_contract(
-    contract: WorkflowContract | dict[str, Any],
-    *,
-    changed_paths: tuple[str, ...] = (),
-    node_ids: tuple[str, ...] = ("status", "plan", "prove"),
-) -> ActionGraph:
-    """Compile a workflow ``[[node]]`` declaration subset into an ActionGraph."""
-    return _workflow_contract(contract).action_graph(changed_paths=changed_paths, node_ids=node_ids)
 
 
 def workflow_contract_report(

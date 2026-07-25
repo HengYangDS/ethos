@@ -4,7 +4,7 @@ Purpose: define what can support a repository truth claim.
 
 | Field | Rule |
 | --- | --- |
-| Authority | `ethos prove --json`, `ethos report --json`, docs registry, OpenSpec records, Git facts |
+| Authority | `ethos prove --json`, `ethos status --json`, docs registry, OpenSpec records, Git facts |
 | Trigger | Claiming readiness, parity, proof, completion, landability, or publishability. |
 | Action | Bind the claim to command output, HEAD, scope, and evidence location. |
 | Evidence | Passing command JSON or tracked evidence manifest. |

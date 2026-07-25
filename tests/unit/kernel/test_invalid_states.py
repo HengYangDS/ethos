@@ -25,7 +25,7 @@ ROOT = Path(__file__).resolve().parents[3]
 # emitted gap strings. Retired category ids are also excluded from the scanner.
 _NON_GAP_TOKENS = {
     *(
-        "required_gaps enforcement_gaps advisory_gaps observation_gaps "
+        "required_gaps required_gap_count enforcement_gaps advisory_gaps observation_gaps "
         "observation_gap_count waived_gaps coordination_gaps validation_gaps "
         "branch_coverage_required blocking_gap_count advisory_missing_count args_missing "
         "args_extra governance_gap_count advisory_gap_count adopter_gap_count adopter_gaps "

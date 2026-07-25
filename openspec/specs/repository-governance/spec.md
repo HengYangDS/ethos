@@ -92,6 +92,7 @@ spec-driven planning and change records while preserving `ethos ...` as the
 public product command plane.
 
 OpenSpec remains mandatory governance, not a product substrate and not a second command plane.
+ETHOS status is the singular reader for repository readiness.
 
 #### Scenario: OpenSpec validation is used
 - **WHEN** ETHOS audits OpenSpec repository governance
@@ -183,7 +184,7 @@ matches.
 #### Scenario: presence-only playbooks do not close report scoring
 
 - **GIVEN** a repository only has a placeholder playbook projection
-- **WHEN** `ethos report --json` runs
+- **WHEN** `ethos status --json` runs
 - **THEN** ETHOS does not give the playbook capability full score from file
   presence alone
 
@@ -249,16 +250,14 @@ deep OpenSpec validation.
 
 ETHOS SHALL govern repositories through one governed repository semantic model.
 
-#### Scenario: Governance context is shared in audit, proof, and report payloads
+#### Scenario: Governance context is shared in audit and proof payloads
 
-- **WHEN** ETHOS emits audit, proof, or report payloads for any governed repository
+- **WHEN** ETHOS emits audit or proof payloads for any governed repository
 - **THEN** the payload includes `governance_context`
 - **AND** the context identifies the subject as a repository
 - **AND** every profile uses the same transition command semantics for status,
   plan, prove, land, and publish
-- **AND** every profile classifies orient as a separate read-only reader-view
-  command
-- **AND** every profile classifies report as a separate read-only scorecard command
+- **AND** `status` is the singular read-only readiness command
 - **AND** profile or adapter differences do not create a second product command
   plane
 - **AND** first-glance product docs name this as Isomorphic Governance without
@@ -266,16 +265,13 @@ ETHOS SHALL govern repositories through one governed repository semantic model.
 
 #### Scenario: Primary command results expose the shared governance context
 
-- **WHEN** ETHOS emits `status`, `plan`, `prove`, `land`, `publish`, `orient`, or
-  `report` JSON for any governed repository
+- **WHEN** ETHOS emits `status`, `plan`, `prove`, `land`, or `publish` JSON for any
+  governed repository
 - **THEN** the top-level result includes `governance_context`
 - **AND** the context identifies the subject as a repository
 - **AND** every profile uses the same transition command semantics for status,
   plan, prove, land, and publish
-- **AND** every profile classifies orient as a separate read-only reader-view
-  command
-- **AND** every profile classifies report as a separate read-only scorecard
-  command
+- **AND** `status` remains the singular read-only readiness command
 - **AND** profile or adapter differences do not create a second product command
   plane
 - **AND** command-specific `data` payloads remain governed by their own native
@@ -664,7 +660,7 @@ repository truth surfaces.
   `head-name` only when it names a configured `work/*` branch
 - **AND** the hook still checks the same repository root, editor root, runtime
   binding, and target paths
-- **AND** detached replay for accepted, candidate, submit, other, or unknown
+- **AND** detached replay for accepted, candidate, proposal, other, or unknown
   branches remains protected and fails closed
 
 #### Scenario: Sanctioned Work Lane replay binds its named ref
@@ -680,7 +676,7 @@ repository truth surfaces.
   with the lease's `expected_head`
 - **AND** ordinary writes bind the lease to current `HEAD`
 - **AND** missing named refs, mismatched lease heads, accepted, candidate,
-  submit, other, and unknown detached branches remain protected and fail closed
+  proposal, other, and unknown detached branches remain protected and fail closed
 
 #### Scenario: refresh-base resolves parity projection-only conflicts as stale projection
 
@@ -696,22 +692,6 @@ repository truth surfaces.
   regenerate parity evidence before head-bound proof
 - **AND** ETHOS does not report the Work Lane as ready to land until fresh proof
   admits the regenerated evidence
-
-#### Scenario: refresh-base merges independent source-budget debt additions
-
-- **GIVEN** a clean Work Lane is stale behind the configured candidate branch
-- **AND** replay conflicts only on `.ethos/rules.toml`
-- **AND** both sides retain every base source-budget debt record byte-for-byte,
-  preserve all content outside that debt section, and add only distinct valid
-  debt record identifiers with non-negative allowances
-- **WHEN** `ethos lane refresh-base --apply --authorize --expect-head <head>
-  --json` runs
-- **THEN** ETHOS writes the candidate-side record order followed by the Work Lane
-  additions, recomputes `maximum_total`, and returns `state = "base_refreshed"`
-- **AND** it reports `semantic_ledger_merged:source_budget_debt` without marking
-  parity projection refresh as required
-- **AND** duplicate additions, malformed records, changed base records, changed
-  adjacent content, or any additional conflict path remain fail-closed
 
 #### Scenario: refresh-base keeps semantic conflicts blocked
 
@@ -940,7 +920,7 @@ inventory may report `exact`.
 
 #### Scenario: bounded readers defer foreign path scopes
 
-- **WHEN** a bounded status, planning, proof, landing, publication, or scorecard
+- **WHEN** a bounded status, planning, proof, landing, publication, or quality_summary
   reader needs local state and aggregate lane signals but not a coordination
   inventory
 - **THEN** ETHOS MAY defer foreign Work Lane path scopes instead of running one
@@ -963,18 +943,6 @@ inventory may report `exact`.
 - **AND** a full coordination inventory MAY expose `detail_state=exact` and
   integer detail counts only after computing that full inventory
 - **AND** neither state grants foreign Work Lane mutation authority.
-#### Scenario: bounded-reader regression debt is explicit and temporary
-
-- **WHEN** the bounded status read model introduces a focused regression carrier
-  before its full and bounded fixtures can share a smaller harness
-- **THEN** any source-budget allowance names that exact carrier, owner,
-  replacement, and deletion wave
-- **AND** its allowance is limited to the measured temporary carrier cost
-- **AND** the ledger's aggregate maximum equals the sum of its append-only
-  records
-- **AND** later fixture consolidation removes the allowance rather than making
-  it permanent.
-
 #### Scenario: normalized lease has one concrete current holder
 
 - **WHEN** a lane lease is created, renewed, resumed, or handed off
@@ -1233,7 +1201,7 @@ reader views without treating them as transition-blocking required gaps.
 
 #### Scenario: Report exposes advisory signal count and layer
 
-- **WHEN** `ethos report --json` runs
+- **WHEN** `ethos status --json` runs
 - **THEN** the summary includes `advisory_gap_count`
 - **AND** `gap_layers.advisory_signals` lists non-blocking advisory gaps
 - **AND** when there are advisory gaps but no required gaps the report remains
@@ -1242,13 +1210,13 @@ reader views without treating them as transition-blocking required gaps.
 
 #### Scenario: Orient carries advisory readiness signals
 
-- **WHEN** `ethos orient --json` runs with report payload available
+- **WHEN** `ethos status --json` runs with report payload available
 - **THEN** orientation readiness includes advisory signal count and items
 - **AND** the human orientation output can mention advisory signals without granting mutation authority
 
 #### Scenario: Report exposes advisory signal count, layer, and bounded next actions
 
-- **WHEN** `ethos report --json` runs
+- **WHEN** `ethos status --json` runs
 - **THEN** the summary includes `advisory_gap_count`
 - **AND** `gap_layers.advisory_signals` lists non-blocking advisory gaps
 - **AND** `gap_layers.advisory_signals.next_actions` lists bounded inspection or explanation actions for known advisory signals
@@ -1256,14 +1224,14 @@ reader views without treating them as transition-blocking required gaps.
 
 #### Scenario: Orient carries advisory readiness signals and actions
 
-- **WHEN** `ethos orient --json` runs with report payload available
+- **WHEN** `ethos status --json` runs with report payload available
 - **THEN** orientation readiness includes advisory signal count and items
 - **AND** orientation readiness includes advisory next actions derived from report
 - **AND** the human orientation output can mention advisory signals without granting mutation authority
 
 #### Scenario: Report carries Work Lane coordination advisories
 
-- **WHEN** `ethos report --json` runs and workspace status contains Work Lane coordination advisory gaps
+- **WHEN** `ethos status --json` runs and workspace status contains Work Lane coordination advisory gaps
 - **THEN** the report summary includes those gaps in `advisory_gap_count`
 - **AND** `gap_layers.advisory_signals.advisory_gaps` includes the Work Lane coordination advisories
 - **AND** `gap_layers.advisory_signals.next_actions` routes to read-only coordination inspection commands
@@ -1273,12 +1241,12 @@ reader views without treating them as transition-blocking required gaps.
 
 #### Scenario: Report carries Work Lane coordination blockers
 
-- **WHEN** `ethos report --json` runs for a product or adopter profile and workspace status contains required Work Lane coordination gaps
+- **WHEN** `ethos status --json` runs for a product or adopter profile and workspace status contains required Work Lane coordination gaps
 - **THEN** those required coordination gaps appear in report `required_gaps`
 - **AND** `gap_layers.coordination_risk.required_gaps` carries the required coordination gaps
 - **AND** `gap_layers.coordination_risk.advisory_gaps` carries advisory coordination signals without making them required
 - **AND** product and adopter profiles both surface required coordination gaps as blockers
-- **AND** the scorecard remains read-only and does not authorize foreign Work Lane cleanup
+- **AND** the quality_summary remains read-only and does not authorize foreign Work Lane cleanup
 
 ### Requirement: Generated Evidence Boundary
 Generated proof artifacts SHALL remain outside repository truth, with
@@ -1326,12 +1294,12 @@ GitHub and GitLab SHALL independently project the same `status -> plan -> prove
 -> land -> publish` contract. Each has equal `repository`, `ci_cd`, and
 `publication` capability; differing collaboration/distribution roles create no
 precedence, failover, or replacement. Hosted CI accepts only `dev`, `main`, and
-`submit/*`; `candidate/dev` and `work/*` remain local.
+`proposal/*`; `candidate/dev` and `work/*` remain local.
 
 #### Scenario: Dual provider templates mirror one gate contract
 
 - **WHEN** the provider templates and projections are inspected
-- **THEN** GitHub and GitLab SHALL include `dev`, `main`, and `submit/*`
+- **THEN** GitHub and GitLab SHALL include `dev`, `main`, and `proposal/*`
 - **AND** neither SHALL include `candidate/dev`
 - **AND** each SHALL invoke repository-owned gate scripts or `ethos ...`
   command surfaces rather than duplicating policy inline.
@@ -1339,7 +1307,7 @@ precedence, failover, or replacement. Hosted CI accepts only `dev`, `main`, and
 #### Scenario: Local candidate is excluded from hosted providers
 
 - **WHEN** the provider templates and projections are inspected
-- **THEN** GitHub and GitLab SHALL include `dev`, `main`, and `submit/*`
+- **THEN** GitHub and GitLab SHALL include `dev`, `main`, and `proposal/*`
 - **AND** neither SHALL include `candidate/dev`
 - **AND** each SHALL invoke repository-owned gate scripts or `ethos ...`
   command surfaces rather than duplicating policy inline.
@@ -1365,7 +1333,7 @@ precedence, failover, or replacement. Hosted CI accepts only `dev`, `main`, and
 Publication SHALL comprise local verification/install plus independent GitLab
 organization and GitHub public targets. The remotes have equal `repository`,
 `ci_cd`, and `publication` capability and no authority ordering. Admission
-permits only `dev`, `main`, and `submit/*`; local branches remain excluded.
+permits only `dev`, `main`, and `proposal/*`; local branches remain excluded.
 `ethos publish` only observes targets. Compact declarations SHALL still accept
 valid former verbose remote records.
 
@@ -1953,7 +1921,7 @@ retire, or clean another lane.
 
 #### Scenario: Accepted root receives explicit remediation
 
-- **WHEN** `ethos orient --json` reads an accepted root with classified
+- **WHEN** `ethos status --json` reads an accepted root with classified
   temporary probes
 - **THEN** its candidate action names temporary-probe removal or migration
 - **AND** its reason and next actions identify removal or migration into an
@@ -2428,7 +2396,7 @@ remote probe or minting proof, hosted-success, or publication authority.
 
 #### Scenario: Current hosted observation is projected
 
-- **WHEN** ethos report runs and the configured hosted observation artifact
+- **WHEN** ethos status runs and the configured hosted observation artifact
   binds the current tracked head
 - **THEN** report data SHALL include hosted_observation state, freshness,
   provider-state summary, and bounded observation gaps
@@ -2445,11 +2413,11 @@ remote probe or minting proof, hosted-success, or publication authority.
   state
 - **AND** it SHALL provide a bounded next action to rerun the observation owner
   script
-- **AND** the scorecard SHALL remain read-only
+- **AND** the quality_summary SHALL remain read-only
 
 #### Scenario: Local publication readiness is projected
 
-- **WHEN** ethos report summarizes current blockers and proof readiness
+- **WHEN** ethos status summarizes current blockers and proof readiness
 - **THEN** report data SHALL include a local_publication projection that
   distinguishes ready from blocked local state
 - **AND** the projection SHALL list its local blockers
@@ -2510,7 +2478,8 @@ accepted-root closeout evaluates an exact candidate advance before the accepted
 worktree has reset to that candidate commit.  The implementation of this policy
 SHALL remain subject to the active proof floor; a proof failure SHALL be
 remediated in a separately active Change without weakening closeout policy,
-source-budget limits, evidence binding, or the raw-reference-move guard.
+direct source-measurement ceilings or integrity, evidence binding, or the
+raw-reference-move guard.
 
 #### Scenario: candidate proof policy is evaluated during accepted-root closeout
 
@@ -2532,8 +2501,10 @@ source-budget limits, evidence binding, or the raw-reference-move guard.
 - **WHEN** it is prepared for candidate landing
 - **THEN** it SHALL preserve candidate-tree policy resolution and the
   raw-reference-move guard
-- **AND** it SHALL pass the existing proof floor without adding source-budget
-  debt, allowance, or an exclusion for the remediation
+- **AND** it SHALL pass the existing proof floor without raising either terminal
+  ceiling, narrowing Git-present or extensionless-executable carrier coverage,
+  weakening canonicalization or independent disagreement checks, or
+  reclassifying a required direct source-measurement gap
 - **AND** regenerated evidence and later proof SHALL bind the corrective HEAD.
 
 ### Requirement: Maintainer remote reconciliation preserves observed protected history
@@ -2703,31 +2674,31 @@ have an external command failure.
 - **AND** it can produce current parity evidence instead of reporting an
   `external_command_failed` gap solely because of the stale root environment.
 
-### Requirement: Final dual-remote submit absorption is proof-bound and non-destructive
+### Requirement: Final dual-remote proposal absorption is proof-bound and non-destructive
 
-When configured GitLab and GitHub submit refs carry a final divergent patch,
-ETHOS SHALL retain each exact observed submit tip through ordinary merge
+When configured GitLab and GitHub proposal refs carry a final divergent patch,
+ETHOS SHALL retain each exact observed proposal tip through ordinary merge
 ancestry, execute local proof and governed local closeout before a protected
-update, and delete a submit ref only after its tip is an ancestor of accepted
+update, and delete a proposal ref only after its tip is an ancestor of accepted
 truth and its own normal deletion dry-run is accepted.
 
 #### Scenario: Inputs move after a historical carrier archive
 
 - **WHEN** a historical carrier has been archived but the candidate or a
-  configured submit ref advances before its unresolved lifecycle stages run
+  configured proposal ref advances before its unresolved lifecycle stages run
 - **THEN** ETHOS SHALL preserve that archive as historical evidence
 - **AND** bind an active continuation to the same episode claim before a new
-  merge, proof, closeout, remote update, or submit deletion is attempted
+  merge, proof, closeout, remote update, or proposal deletion is attempted
 - **AND** the continuation SHALL re-observe the current inputs and retain its
-  newly observed submit tip through ordinary merge ancestry.
+  newly observed proposal tip through ordinary merge ancestry.
 
-#### Scenario: Divergent submit patch is reconciled
+#### Scenario: Divergent proposal patch is reconciled
 
-- **WHEN** a configured remote submit ref is not an ancestor of the current
+- **WHEN** a configured remote proposal ref is not an ancestor of the current
   candidate head
 - **THEN** an owner-bound, claim-bound Work Lane records its exact tip and
   integrates it with an ordinary merge
-- **AND** the resulting proposed head retains both the candidate and submit
+- **AND** the resulting proposed head retains both the candidate and proposal
   histories as ancestors
 - **AND** no force update, rebase, reset-based ref movement, or stash bypass is
   used.
@@ -2740,93 +2711,67 @@ truth and its own normal deletion dry-run is accepted.
   before update
 - **AND** remote ref observation and hosted-provider observation remain distinct
   from the local proof result
-- **AND** a submit ref is deleted only after accepted ancestry and its own
+- **AND** a proposal ref is deleted only after accepted ancestry and its own
   deletion dry-run are verified.
 
 ### Requirement: Campaign-terminal protected publication admission
 
-For `publication.mode = "campaign_terminal"`, ETHOS SHALL separate structural
-publication validity from terminal-progress advisories. Malformed or unbound
-contracts block protected push. Active state, unfinished steps, budget or debt
-gaps, and compression progress remain explicit advisories and do not block an
-ordinary non-force protected update after executed proof and candidate/accepted
-closeout. Receiving-branch protection remains authoritative.
+For `publication.mode = "campaign_terminal"`, ETHOS SHALL block terminal remote
+publication until every campaign is terminal, every step and closeout is retired,
+and the direct terminal source-measurement report has no required gap. Local
+recovery anchors MAY exist while the campaign is unfinished, but they SHALL NOT
+authorize protected publication or a terminal-completion claim.
 
-#### Scenario: Non-terminal compression campaign blocks protected push
+#### Scenario: A campaign remains unfinished
 
-- **GIVEN** an active `campaign_terminal` campaign has planned, active, or
-  non-retired steps, unmet terminal source budget, or active temporary debt
-- **AND** the pushed `dev` or `main` head has executed local proof and governed
-  candidate/accepted closeout
-- **WHEN** pre-push admission evaluates a configured protected destination
-- **THEN** campaign progress SHALL appear in `campaign_publication.advisory_gaps`
-- **AND** it SHALL add no campaign-progress item to pre-push `required_gaps`
-- **AND** pushes to `work/*` remain governed by ordinary remote branch policy.
+- **WHEN** a campaign is active, a step or closeout is not retired, or the terminal
+  source measurement exceeds a ceiling or is unverifiable
+- **THEN** status, proof, campaign and accepted closeout, land, pre-push, and
+  publish propagate those facts in `required_gaps`
+- **AND** protected publication blocks before remote mutation rather than
+  reclassifying terminal progress as advisory or a green score.
 
-#### Scenario: Terminal campaign admits ordinary protected-push checks
+#### Scenario: The campaign terminal is ready
 
-- **GIVEN** every active `campaign_terminal` campaign is closed, every step is
-  archive-complete and retired, terminal source-budget targets are met, and no
-  temporary debt record remains active
-- **WHEN** pre-push admission evaluates a protected destination
-- **THEN** the campaign publication report SHALL add no required or advisory gap
-- **AND** identity, executed-proof, candidate-topology, reconciliation, and
-  provider-specific checks SHALL remain independently enforced.
-
-#### Scenario: Per-Change temporary debt does not block local progression
-
-- **GIVEN** a `campaign_terminal` campaign is active and source-budget
-  enforcement is `campaign_terminal` with declared unexpired temporary debt
-- **WHEN** a bounded Change completes its local proof and closeout lifecycle
-- **THEN** campaign reporting SHALL expose the debt as terminal-progress advice
-- **AND** it SHALL not classify the Change or an ordinary protected push as
-  blocked solely because the campaign terminal target is not yet met.
-
-#### Scenario: Campaign terminal budget keeps debt lifecycle local
-
-- **GIVEN** source-budget enforcement is `campaign_terminal`
-- **WHEN** a local Change increases effective source while declared debt remains
-  within its maximum and active lifecycle
-- **THEN** source-budget validation SHALL not block that local Change solely for
-  current-size or terminal-target non-attainment
-- **AND** invalid policy, debt-cap overflow, expired debt, and stale debt SHALL
-  remain local blocking gaps
-- **AND** full proof and terminal compression closeout SHALL still require
-  terminal targets and no active debt.
+- **WHEN** every terminal campaign and step is retired and direct source
+  measurement is clean
+- **THEN** the campaign publication report adds no campaign or direct
+  source-measurement gap
+- **AND** identity, executed proof, candidate topology, reconciliation, and
+  provider-specific checks remain independently enforced
+- **AND** a protected remote ref is publishable only when its proposed head is
+  already the current head of the same local protected ref after governed local
+  closeout; a proven candidate head cannot bypass that closeout by direct push.
 
 #### Scenario: Invalid Campaign declaration fails closed
 
-- **GIVEN** a Campaign TOML file exists but violates
-  `system/schemas/kernel/campaign.schema.json`
-- **WHEN** Campaign status or protected-publication admission reads the manifest
-- **THEN** the reader SHALL expose a `campaign_manifest_schema_invalid` gap
-- **AND** protected publication SHALL be blocked instead of treating the
-  Campaign as unconfigured.
+- **WHEN** a Campaign TOML file violates its schema
+- **THEN** the reader exposes a `campaign_manifest_schema_invalid` required gap
+- **AND** protected publication is blocked instead of treating it as unconfigured.
 
 #### Scenario: Campaign action commands remain external
 
 - **WHEN** Campaign publication projection selects local continuation or
   protected publication
-- **THEN** the domain projection SHALL return a stable action identifier
-- **AND** CLI command text SHALL be resolved through `system/commands.toml`
-- **AND** Python SHALL NOT encode a Campaign name, provider topology, or parallel
-  action vocabulary.
+- **THEN** the domain projection returns a stable action identifier
+- **AND** CLI command text is resolved through `system/commands.toml`.
 
 #### Scenario: Filtered Campaign status preserves repository scope
 
 - **WHEN** `ethos campaign status --campaign <id> --json` selects one Campaign
-- **THEN** `data.campaigns` SHALL contain the selected Campaign view
-- **AND** `data.publication.scope` SHALL remain `repository`
-- **AND** filtering SHALL NOT omit another Campaign or source-budget binding from
-  structural publication admission or terminal-progress advice.
+- **THEN** `data.campaigns` contains the selected Campaign view
+- **AND** `data.publication.scope` remains `repository`
+- **AND** filtering does not omit another Campaign or direct source-measurement
+  required gap from terminal publication admission.
 
-#### Scenario: Hook evaluates the named remote
+#### Scenario: Hook evaluates the named remote and branch policy
 
-- **WHEN** the Git pre-push hook receives `github` as its remote name
-- **THEN** both its base and enriched push-admission evaluations SHALL receive
-  `remote_name = "github"`
-- **AND** emitted remote diagnostics and branch admission SHALL describe GitHub,
-  not the default `origin`.
+- **WHEN** the Git pre-push hook receives a named remote such as `github`
+- **THEN** every push-admission evaluation receives that exact remote name
+- **AND** emitted diagnostics describe that provider rather than a default
+  remote
+- **AND** receiving-branch protection and ordinary `work/*` remote policy remain
+  independently authoritative.
 
 ### Requirement: Detached temporary worktree housekeeping is fail-closed
 
@@ -3275,7 +3220,7 @@ adopter profile is invalid. The result SHALL contain the stable invalid-profile
 gap and SHALL not emit an uncaught traceback as its command result.
 
 #### Scenario: JSON reader observes an invalid profile
-- **WHEN** `ethos orient --json` or `ethos report --json` targets an invalid
+- **WHEN** `ethos status --json` or `ethos status --json` targets an invalid
   adopter profile
 - **THEN** it SHALL emit parseable JSON with `ok = false`
 - **AND** `required_gaps` SHALL contain
@@ -3323,14 +3268,6 @@ capability that owns them.
 - **AND** no adoption-scaffold packaged template, renderer manifest, profile
   registry, family registry, skill registry, digest snapshot, or Jinja render
   environment SHALL be required.
-
-#### Scenario: Parse-only Jinja measurement does not restore adoption rendering
-
-- **WHEN** the product package includes Jinja2 for Budget Contract v2 source
-  measurement
-- **THEN** adoption SHALL still plan only `.ethos/profile.toml`
-- **AND** no Jinja template resource, render environment, or adoption scaffold
-  authority SHALL be restored.
 
 #### Scenario: Existing bootstrap content differs
 
@@ -3569,8 +3506,8 @@ committed repository role.
 
 ETHOS SHALL NOT hard-code one archived Claim ID, dated archive carrier, or fixed
 historical file set into Work Lane rebase execution. It SHALL resolve generated
-parity conflicts through the parity projection path and declarative source-budget
-ledger conflicts through the generic semantic ledger path.
+parity conflicts through the parity projection path; every other semantic conflict
+remains blocked for explicit resolution.
 
 #### Scenario: Historical one-off conflict shape reappears
 

@@ -86,28 +86,28 @@ Chronicle evidence, Python focused tests, and repository-family governance.
 - [x] Run generic shadow parity and commit the refreshed evidence.
 - [x] Officially archive the OpenSpec change and update the Claim carrier.
 - [x] Run exact-HEAD executed proof and report with no required gap.
-- [ ] Refresh immediately before land and rerun proof if the carrier HEAD changes.
+- [x] Refresh immediately before land and rerun proof after the carrier HEAD changed.
 
 ### Task 4: Land and close out accepted state
 
-- [ ] Land the exact proven carrier to candidate/dev.
-- [ ] Run accepted-root closeout as a separate audited transition.
-- [ ] Verify accepted, candidate, and main refs are clean and locally aligned.
-- [ ] Report local publish readiness without remote push.
+- [x] Land the exact proven carrier to candidate/dev.
+- [x] Run accepted-root closeout as a separate audited transition.
+- [x] Verify accepted, candidate, and main refs are clean and locally aligned.
+- [x] Report local publish readiness without remote push.
 
 ### Task 5: Preserve-retire the ownerless source
 
-- [ ] Re-observe the exact source and confirm no valid owner, lease, Claim,
+- [x] Re-observe the exact source and confirm no valid owner, lease, Claim,
       process occupancy, source change, or accepted-basis drift appeared.
-- [ ] Record a native preserve-retire decision bound to the accepted Chronicle.
-- [ ] Dry-run apply, then apply with exact decision path and irreversible
+- [x] Record a native preserve-retire decision bound to the accepted Chronicle.
+- [x] Dry-run apply, then apply with exact decision path and irreversible
       confirmation.
-- [ ] Verify manifest, receipt, patch digest, source branch absence, worktree
+- [x] Verify manifest, receipt, patch digest, source branch absence, worktree
       absence, and accepted-root cleanliness.
 
 ### Task 6: Clear only the exact retained package
 
-- [ ] Compare the package manifest and payload to the accepted semantic map.
+- [x] Compare the package manifest and payload to the accepted semantic map.
 - [ ] Create, prove, archive, land, and close out a separate exact-manifest clear
       carrier.
 - [ ] Dry-run then apply native clear for only the exact decision and manifest.

@@ -27,7 +27,7 @@ owner = "ethos-repository"
 scope = "Exactly three retained clean ownerless effect-bridge packages and three individually manifest-bound native clear transitions only."
 
 [carriers]
-openspec = "openspec/changes/ownerless-effect-manifest-clear"
+openspec = "openspec/changes/archive/2026-07-25-ownerless-effect-manifest-clear"
 fallback = "Keep a package, decision, completion receipt, and every unrelated record intact whenever inventory, exact manifest, bundle, Chronicle, accepted authority, or native clear admission drifts."
 kill_signal = "A wildcard or batch clear, raw deletion, receipt deletion, source reconstruction, valid-owner mutation, fourth package effect, remote mutation, hosted claim, or clearance without the exact accepted manifest."
 
@@ -36,6 +36,6 @@ targets = [
   "evidence/claims/ownerless-effect-manifest-clear-20260725.toml",
   "evidence/chronicle/ownerless-effect-manifest-clear-20260725/2026-07-25.md",
   "evidence/chronicle/ownerless-effect-manifest-clear-20260725/retained-packages.json",
-  "openspec/changes/ownerless-effect-manifest-clear",
+  "openspec/changes/archive/2026-07-25-ownerless-effect-manifest-clear",
   "openspec/specs/repository-governance/spec.md",
 ]

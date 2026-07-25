@@ -36,7 +36,7 @@ accepted="$(git config --get ethos.acceptedBranch 2>/dev/null)"
 
 runtime_runner="${repo_root}/tools/ci/scripts/with-python-runtime.sh"
 runtime_python="${ETHOS_PYTHON:-${PYTHON:-${repo_root}/build/runtime/venv/bin/python}}"
-ethos_pythonpath="$repo_root/packages/ethos/src:$repo_root/packages/ethos-core/src"
+ethos_pythonpath="$repo_root/src"
 
 # The accepted checkout owns this shell/CAS boundary.  On its prepared advance,
 # however, semantic admission must run from the exact clean candidate checkout being
@@ -67,10 +67,7 @@ resolve_candidate_runner() {
     for candidate_path in \
         pyproject.toml \
         uv.lock \
-        packages/ethos/pyproject.toml \
-        packages/ethos/src/ethos/__init__.py \
-        packages/ethos-core/pyproject.toml \
-        packages/ethos-core/src/ethos_core/__init__.py \
+        src/ethos/__init__.py \
         tools/ci/scripts/with-python-runtime.sh
     do
         [ -f "$candidate_root/$candidate_path" ] || return 1

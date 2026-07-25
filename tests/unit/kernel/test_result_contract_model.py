@@ -15,9 +15,31 @@ def test_ethos_result_is_frozen_strict_schema_model() -> None:
         result.state = "dirty"  # type: ignore[misc]
 
     assert exc_info.value.errors()[0]["type"] == "frozen_instance"
-    schema = EthosResult.model_json_schema()
+    schema = EthosResult.model_json_schema(mode="serialization")
+    assert schema["properties"]["schema_version"] == {
+        "const": 1,
+        "default": 1,
+        "title": "Schema Version",
+        "type": "integer",
+    }
     assert schema["properties"]["command"]["type"] == "string"
     assert schema["properties"]["ok"]["type"] == "boolean"
+    assert schema["properties"]["verdict"]["enum"] == ["pass", "block", "unknown"]
+
+
+def test_ethos_result_derives_closed_verdict_without_false_green() -> None:
+    assert EthosResult(command="status", ok=True, state="ready").verdict == "pass"
+    assert EthosResult(command="status", ok=False, state="blocked").verdict == "block"
+    assert EthosResult(command="status", ok=False, state="unknown").verdict == "unknown"
+    assert (
+        EthosResult(
+            command="status",
+            ok=True,
+            state="ready",
+            required_gaps=("hard_gap",),
+        ).verdict
+        == "block"
+    )
 
 
 @pytest.mark.parametrize(
@@ -51,6 +73,7 @@ def test_ethos_result_json_contract_stays_compatible() -> None:
         "schema_version": 1,
         "command": "plan",
         "ok": True,
+        "verdict": "block",
         "state": "planned",
         "summary": {"changed": True},
         "diagnostics": [{"kind": "probe", "ok": True}],

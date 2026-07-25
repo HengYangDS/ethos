@@ -558,13 +558,14 @@ def test_reference_transaction_hook_fails_closed_on_empty_release_mirror_verdict
     exclude = repo / git(repo, "rev-parse", "--git-path", "info/exclude")
     exclude.parent.mkdir(parents=True, exist_ok=True)
     with exclude.open("a", encoding="utf-8") as excluded:
-        excluded.write("build/\npackages/\ntools/\n")
+        excluded.write("build/\nsrc/\ntools/\n")
     runtime = candidate / "tools/ci/scripts/with-python-runtime.sh"
     runtime.parent.mkdir(parents=True)
     runtime.write_text("#!/bin/sh\nexit 97\n", encoding="utf-8")
     runtime.chmod(0o755)
-    for package in ("ethos",):
-        (candidate / "packages" / package / "src").mkdir(parents=True)
+    package = candidate / "src/ethos"
+    package.mkdir(parents=True)
+    (package / "__init__.py").write_text("", encoding="utf-8")
     workspace = repo / ".ethos/workspace.toml"
     workspace.write_text('[branch_roles]\nrelease_mirror = "accepted_ff"\n', encoding="utf-8")
     hook = Path(__file__).resolve().parents[3] / ".githooks/reference-transaction"

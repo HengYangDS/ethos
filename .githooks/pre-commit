@@ -42,7 +42,7 @@ if [ "${#staged_python[@]}" -gt 0 ]; then
   fi
 fi
 
-ethos_pythonpath="$repo_root/packages/ethos/src:$repo_root/packages/ethos-core/src"
+ethos_pythonpath="$repo_root/src"
 PYTHONPATH="$ethos_pythonpath${PYTHONPATH:+:$PYTHONPATH}" \
   "${runtime_runner}" -- "${runtime_python}" -m ethos.cli hook admit pre-tool "${staged[@]}" \
   --root "$repo_root" --editor-root "$repo_root" --json

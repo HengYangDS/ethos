@@ -22,8 +22,8 @@
 - [x] 3.1 Run generic shadow parity and exact-HEAD proof.
 - [x] 3.2 Complete only tasks backed by fresh evidence and update Claim and
   Chronicle bindings.
-- [ ] 3.3 Officially archive the change and rerun archive-HEAD proof.
-- [ ] 3.4 Refresh the current base and establish exact proof-backed land
+- [x] 3.3 Officially archive the change and rerun archive-HEAD proof.
+- [x] 3.4 Refresh the current base and establish exact proof-backed land
   readiness without remote push.
 
 ## Post-archive transition boundary

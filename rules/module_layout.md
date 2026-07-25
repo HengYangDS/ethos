@@ -30,11 +30,45 @@ general module-layout boundary study and `system/axioms.md`.
 - **Anti-pattern — suffix-flat**: `foo_report.py`, `foo_native.py`, `foo_index.py`
   side by side is forbidden as steady state. Prefer `foo/report.py`,
   `foo/native.py`, `foo/index.py` — a `foo/` sub-package with a semantic interior.
-- The canonical entry module of a sub-package is `<pkg>/core.py` (or the concept
-  name); siblings are named by their role slice (`normalize.py`, `report.py`).
+- A module name states one narrow domain concept or role slice (`transition.py`,
+  `measurement.py`, `report.py`). Generic entry names are not a default.
 - **Ratchet baseline is debt, not permission**: baseline entries in
   `.config/checks/module-layout/policy.toml` may shrink only. Adding a new
   `allowed_*` entry or raising `baseline_gap_limit` is a gate failure.
+
+### 1.1 Semantic and physical isomorphism
+
+Physical structure follows actual semantics, not line-count targets or inherited
+folder shape. Every governed module MUST have:
+
+1. one explicit, narrow concept;
+2. one authoritative truth or effect owner;
+3. one primary reason to change;
+4. inputs and outputs that do not silently claim another module's authority; and
+5. a path whose words state that concept and role.
+
+`core.py`, `common.py`, `shared.py`, `utils.py`, `helpers.py`, `misc.py`,
+`base.py`, `manager.py`, and `service.py` are ambiguous by default. They are
+blocked unless `.config/checks/module-layout/policy.toml` contains a closed role
+contract proving that the module is either an irreducible semantic kernel or a
+report aggregator. Such a contract declares the exact path, role, concept,
+authority references, public symbols, effective-LOC ceiling, and allowed import
+roots. Wildcards, free-text exemptions, and baseline suppression are forbidden.
+
+An ambiguous or mixed module has exactly one terminal disposition:
+
+- **absorb** it into the existing authority;
+- **rename** it to its precise concept;
+- **split** it along distinct truth owners or independent change reasons; or
+- **delete** it when it carries no unique semantics.
+
+Splitting to game ELOC, moving the same mixture under several files, or retaining
+the old path as a facade is not remediation. "As few entities as necessary"
+means few semantic entities, not few files.
+
+Command ownership follows the same rule. `system/commands.toml` is the command
+registry SSOT. A `surface/cli/**/core.py` command owner, or one module that owns
+more than one Cyclopts application, is a hard layout defect.
 
 ## 2. Logical organization — public vs private
 

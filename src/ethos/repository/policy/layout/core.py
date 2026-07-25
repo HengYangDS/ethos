@@ -23,9 +23,12 @@ from ethos.repository.policy.layout.filesystem.core import load_policy
 from ethos.repository.policy.layout.growth.core import flat_growth_findings
 from ethos.repository.policy.layout.imports.core import package_root_submodule_import_findings
 from ethos.repository.policy.layout.imports.core import private_from_import_regression_findings
+from ethos.repository.policy.layout.naming.core import ambiguous_module_findings
 from ethos.repository.policy.layout.naming.core import flat_directory_findings
+from ethos.repository.policy.layout.naming.core import multiple_command_owner_findings
 from ethos.repository.policy.layout.naming.core import suffix_group_findings
 from ethos.repository.policy.layout.naming.core import suffix_module_findings
+from ethos.repository.policy.layout.naming.core import surface_core_command_findings
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -50,6 +53,9 @@ def module_layout_report(root: Path) -> dict[str, object]:
     suffix_modules = suffix_module_findings(root, policy)
     suffix_groups = suffix_group_findings(root, policy)
     flat_directories = flat_directory_findings(root, policy)
+    ambiguous_modules = ambiguous_module_findings(root, policy)
+    surface_core_commands = surface_core_command_findings(root, policy)
+    multiple_command_owners = multiple_command_owner_findings(root, policy)
     private_aliases = private_alias_findings(root, policy)
     package_init_facades = package_init_facade_findings(root, policy)
     module_facades = module_facade_findings(root, policy)
@@ -63,6 +69,9 @@ def module_layout_report(root: Path) -> dict[str, object]:
         *suffix_modules,
         *suffix_groups,
         *flat_directories,
+        *ambiguous_modules,
+        *surface_core_commands,
+        *multiple_command_owners,
         *private_aliases,
         *package_init_facades,
         *module_facades,
@@ -85,6 +94,9 @@ def module_layout_report(root: Path) -> dict[str, object]:
         "suffix_module_count": len(suffix_modules),
         "suffix_flat_count": len(suffix_groups),
         "flat_directory_count": len(flat_directories),
+        "ambiguous_module_count": len(ambiguous_modules),
+        "surface_core_command_count": len(surface_core_commands),
+        "multiple_command_owner_count": len(multiple_command_owners),
         "private_alias_count": len(private_aliases),
         "package_init_facade_count": len(package_init_facades),
         "module_facade_count": len(module_facades),
@@ -138,6 +150,9 @@ def module_layout_report(root: Path) -> dict[str, object]:
         "suffix_module_findings": suffix_modules,
         "suffix_flat_findings": suffix_groups,
         "flat_directory_findings": flat_directories,
+        "ambiguous_module_findings": ambiguous_modules,
+        "surface_core_command_findings": surface_core_commands,
+        "multiple_command_owner_findings": multiple_command_owners,
         "private_alias_findings": private_aliases,
         "package_init_facade_findings": package_init_facades,
         "module_facade_findings": module_facades,

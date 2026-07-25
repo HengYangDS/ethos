@@ -76,6 +76,11 @@ only active implementation carrier for that design.
 10. **Ecosystem last.** Language-neutral schemas, TCK, data/subprocess packs,
     MCP/A2A adapters, and optional Copier/Jinja scaffolds ship only after the
     kernel passes three adopter profiles.
+11. **Semantic and physical isomorphism.** Every module has one narrow concept,
+    one authority owner, and one primary change reason. Ambiguous module names
+    require a closed machine role contract; otherwise the module is absorbed,
+    precisely renamed, split by real semantic axes, or deleted. ELOC-only splits,
+    compatibility facades, and duplicate command ownership are rejected.
 
 ## Risks / Trade-offs
 

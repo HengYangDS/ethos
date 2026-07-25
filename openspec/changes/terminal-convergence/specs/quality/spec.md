@@ -27,3 +27,14 @@ Global branch coverage MUST be at least 95%, authority/CAS/transition reducers M
 #### Scenario: A test raises coverage without asserting behavior
 - **WHEN** deletion of the test leaves all contract, property, mutation, and adopter proofs unchanged
 - **THEN** the test is classified as removable rather than product evidence
+
+### Requirement: Semantic Module Boundaries
+Every governed module MUST state one narrow concept, one authority owner, and one
+primary reason to change through its name, path, symbols, and dependencies.
+Ambiguous names MUST fail unless a closed machine role contract proves an
+irreducible kernel or report aggregator. CLI commands MUST have one declaration
+owner, and compatibility facades MUST NOT satisfy this requirement.
+
+#### Scenario: A mixed or ambiguously named module is introduced
+- **WHEN** a changed module uses an ambiguous catch-all name without an exact role contract, owns multiple command applications, or drifts from its declared public symbols, authority references, import roots, or effective-LOC ceiling
+- **THEN** the module-layout gate blocks with a semantic-boundary gap and requires absorb, precise rename, semantic split, or deletion

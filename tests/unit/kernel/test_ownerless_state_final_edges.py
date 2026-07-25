@@ -121,15 +121,13 @@ def test_closeout_fence_rejects_provider_field_with_rebound_digest(tmp_path: Pat
         closeout.acquire_closeout_fence(db_path, **_fence_kwargs())
 
 
-@pytest.mark.parametrize("provider_field", ["wcp_binding_digest", "provider_binding_digest"])
 def test_closeout_fence_probe_maps_provider_prefixed_payload_to_unverifiable(
     tmp_path: Path,
-    provider_field: str,
 ) -> None:
-    db_path = tmp_path / f"{provider_field}.sqlite"
+    db_path = tmp_path / "provider_binding_digest.sqlite"
     fence = closeout.acquire_closeout_fence(db_path, **_fence_kwargs())
     payload = dict(fence["payload"])
-    payload[provider_field] = "f" * 64
+    payload["provider_binding_digest"] = "f" * 64
     _replace_fence_payload(db_path, fence=fence, payload=payload)
 
     assert closeout.probe_closeout_fence(db_path, subject=_fence_kwargs()["subject"]) == (

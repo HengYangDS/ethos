@@ -156,9 +156,6 @@ def _replay_or_read_reservation(
         {"phase": "invalid"},
         {"postcondition_digest": None},
         {"phase": "unknown", "recovery_state": "transition_unknown"},
-        {"wcp_schema_version": "workstation.repo-family-governance.v1"},
-        {"wcp_decision_sha256": "b" * 64},
-        {"wcp_binding_digest": "c" * 64},
     ],
 )
 def test_ownerless_reservation_rejects_invalid_identity_or_state(

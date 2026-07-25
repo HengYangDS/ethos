@@ -347,86 +347,65 @@ successful final receipt removes the sidecar. A final write failure after the
 effect retains the sidecar for reconciliation, while the final receipt writer
 still performs its own no-symlink and no-clobber check.
 
-Clean ownerless retire is a stricter effect-boundary protocol. ETHOS validates
-the complete WCP response, strictly re-parses the current decision bytes and
-requires their canonical payload to equal the admitted decision, acquires a
-Git-common-directory SQLite target fence that competes with lease acquisition,
-re-observes the target, and prepares accepted-ref verification plus exact
-target-ref deletion. It removes the registered worktree without force. A
-non-zero worktree-remove result triggers an exact ref, registration, and path
-re-observation; only a fully unchanged target remains a zero-effect retry.
-Target-ref postconditions use a three-state probe, so an inspection error never
-counts as absence.
+Clean ownerless retire is a strict native effect-boundary protocol. ETHOS
+strictly parses the current decision and Chronicle, validates configured Work
+Lane policy, executor identity, accepted and target Git facts, exact worktree
+registration and incarnation, clean ownerless coordination, current-record
+integrity, accepted ancestry, and exact reservation classification. It then
+acquires the Git-common-directory SQLite target fence, repeats the complete
+observation while the fence is held, persists the typed reservation, removes
+the registered worktree without force, verifies the accepted ref, exact-deletes
+the target ref through CAS, verifies postconditions, writes the immutable
+receipt, releases the fence through exact CAS, and finally removes the visible
+reservation. Any unverifiable fact blocks before new effect authority is minted.
 
-The ownerless target reservation is a visible JSON record separate from the
-hidden receipt sidecar. reserved_no_effect may retry only the same decision
-after fresh WCP admission. If accepted history advanced, the old accepted head
-must remain an ancestor of the newly admitted head. ETHOS then re-verifies the
-same decision, target, executor, observation, and coordination, releases the
-exact old SQLite fence, exact-compare-deletes the zero-effect reservation, and
-acquires fresh bindings before any Git/worktree effect. An explicitly absent
-old fence is accepted only for the crash window after that exact release and
-before reservation unlink; a divergent accepted head, different or
-unverifiable fence, or any decision, target, executor, or coordination drift
-blocks without effect.
+The visible ownerless reservation is separate from the hidden receipt sidecar.
+A `reserved_no_effect` retry first completes exact pre-fence admission and
+classifies the old reservation. Only an exact same-decision, zero-effect state
+may release the old fence and reservation; ETHOS then acquires a fresh fence and
+repeats the full under-fence observation before persisting a new reservation or
+starting effect. An accepted HEAD may advance only when the reserved accepted
+HEAD remains its ancestor. Divergence, registration drift, target drift,
+decision drift, Chronicle drift, executor drift, or unverifiable state blocks.
 
-effect_complete_receipt_missing is handled before ordinary lane observation
-and does not rerun WCP. If the exact immutable receipt is already durable after
-a crash or cleanup failure, retry validates its schema and decision, lane,
-head, and ownerless binding, re-verifies the effect postconditions, and performs
-cleanup without rewriting the receipt or repeating a Git/worktree effect.
-Receipt-first cleanup remains available when reservation unlink completed
-before the crash. Fence inspection is three-state: ordinary pre-effect requires
-the exact present fence; zero-effect reset accepts explicit absence only with
-the exact reserved_no_effect record plus fresh WCP and unchanged-target proof;
-completed-effect recovery accepts explicit absence only with the exact receipt;
-and unverifiable state blocks. Cleanup releases the exact SQLite fence first and
-only then deletes the visible reservation. worktree_removed_ref_present,
-postcondition_failed, and transition_unknown require explicit reconciliation.
+`effect_complete_receipt_missing` recovery is evaluated before ordinary lane
+observation because the completed effect may already have removed the worktree.
+Recovery validates the exact decision and Chronicle, proves postconditions,
+recovers or validates the immutable receipt, and performs only idempotent
+cleanup. Receipt-first cleanup also converges when reservation unlink completed
+before a crash. Fence inspection is three-state: pre-effect requires the exact
+present fence; zero-effect reset accepts explicit absence only with the exact
+reservation and unchanged-target proof; completed-effect recovery accepts
+explicit absence only with the exact receipt; unverifiable state always blocks.
+Cleanup releases the exact fence before deleting the visible reservation.
 
-The command requires `--break-glass` at decision time and
-`--confirm-irreversible` at apply time. Plain `retire` remains blocked for a
-dirty lane; `preserve` remains non-destructive. If the destructive effect
-completes but immutable receipt materialization fails, apply returns
-`ok=false`, `state=partial_transition`, and
-`lane_resolution_receipt_write_failed_after_effect`; the stable decision and
-package remain available for reconciliation.
+Current admission is repository-native and consumes no external provider
+response. The executor is recorded for the effect only and never becomes a lane
+owner. Canonical date-bound lanes are admitted directly. A pre-existing linked
+`work/*` lane may use this route only when the same exact clean ownerless
+decision binds its registered sibling path; this route cannot create, take over,
+or reclassify a lane.
 
-When the repository-family worktree profile is enabled, a clean `retire`
-decision for an ownerless lane performs a read-only repository-family preflight
-immediately before the native effect. It binds the exact decision, Chronicle,
-branch, head, path, accepted control branch, and executor reference. A failed,
-malformed, or non-ownerless response blocks with an
-`lane_resolution_ownerless_wcp_rejected` gap and leaves the worktree and ref
-untouched. The WCP adapter independently classifies unavailable, malformed,
-oversized, stale, and mismatched responses before that fail-closed boundary.
-The executor is recorded for that effect only; it does not become a lane owner.
-Canonical date-bound lanes are admitted directly. A pre-existing linked `work/*` lane
-may use this route only when the same exact clean ownerless decision binds its
-registered sibling path; this compatibility route cannot create, take over, or
-reclassify a lane.
-
-`ethos lane resolution inventory` derives retained, cleared, and unindexed
-package state from the canonical records owner plus read-only predecessor
-`build/artifacts/lane-resolution/` stores across registered worktrees. Conflicting
-canonical and predecessor records for one decision block inventory and clear with
+`ethos lane resolution inventory` derives retained, cleared, pending, and
+inflight state only from the versioned current records root. Historical accepted
+or predecessor worktree roots remain explicit recovery history and never feed
+current decide, apply, effect, retry, recovery, clear, or inventory authority.
+Conflicting current records for one decision block inventory and clear with
 `lane_resolution_decision_record_conflict`; scan order never selects a winner.
 Byte-identical package copies make clear ambiguous and block with
-`lane_resolution_clear_package_ambiguous`. Inventory also compares the actual
+`lane_resolution_clear_package_ambiguous`. Inventory compares the actual
 manifest digest with the immutable receipt and blocks on
 `lane_resolution_manifest_receipt_mismatch`; verification rereads the durable
-manifest rather than trusting a stale in-memory copy.
-Symlinked package or record paths block with
-`lane_resolution_package_path_unsafe` or `lane_resolution_record_path_unsafe`;
-completion-receipt destinations are checked before destructive effect and again
-at write time, so a category symlink cannot redirect evidence outside the pinned
-owner.
-Ordinary linked-lane retirement also blocks while the selected worktree
-still contains a retained predecessor manifest. Recovery package deletion is never a cache
-cleanup: `clear` requires an exact manifest SHA-256, an accepted Chronicle
-containing `lane_resolution/clear-preservation`, a reason, break-glass, and an
-irreversible confirmation; it leaves the original resolution receipt and
-Chronicle intact.
+manifest rather than trusting stale in-memory bytes. Symlinked package or record
+paths block with `lane_resolution_package_path_unsafe` or
+`lane_resolution_record_path_unsafe`; completion-receipt destinations are
+checked before destructive effect and again at write time, so a category symlink
+cannot redirect evidence outside the pinned owner. Ordinary linked-lane
+retirement also blocks while the selected worktree still contains a retained
+historical manifest. Recovery package deletion is never cache cleanup: `clear`
+requires an exact manifest SHA-256, an accepted Chronicle containing
+`lane_resolution/clear-preservation`, a reason, break-glass, and an irreversible
+confirmation; it leaves the original resolution receipt and Chronicle intact.
 `ethos lane start --json` returns `data.worktree` and
 `data.runner_bootstrap` in apply mode. The first `next_actions` entry changes
 to the new Work Lane and invokes `tools/ci/scripts/run-ethos-lane.sh`; that

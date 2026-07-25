@@ -5,7 +5,6 @@ import json
 import subprocess
 import uuid
 from pathlib import Path
-from typing import Any
 
 import pytest
 
@@ -47,25 +46,6 @@ def _decide(
         break_glass=exceptional if break_glass is None else break_glass,
         apply=True,
     )
-
-
-def _ownerless_preflight(*, expected: Any, **_kwargs: object) -> dict[str, object]:
-    decision = json.loads(expected.decision_bytes)
-    return {
-        "schema_version": "workstation.repo-family-governance.v1",
-        "decision_sha256": hashlib.sha256(expected.decision_bytes).hexdigest(),
-        "executor_ref": expected.executor_ref,
-        "observation_digest": hashlib.sha256(
-            json.dumps(
-                expected.observation,
-                sort_keys=True,
-                separators=(",", ":"),
-            ).encode()
-        ).hexdigest(),
-        "chronicle_digest": decision["chronicle_digest"],
-        "source": {"head": expected.accepted_head},
-        "coordination": {"binding_digest": "d" * 64},
-    }
 
 
 def test_resolution_decision_default_path_is_a_valid_local_artifact_home(

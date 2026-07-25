@@ -1,87 +1,66 @@
 ---
 subject: ethos:ownerless-closeout-admission-design-20260722
 role: plan
-state: active
+state: archived
 relations:
   derives_from: ownerless-first-batch-retirement-20260722
+  superseded_by: native-lane-resolution-authority-design-20260724
 ---
 
 # Ownerless Closeout Admission Design — 2026-07-22
 
-Status: approved design; the WCP-based ownerless-closeout core is present in
-the candidate baseline, and repository-family lane-start integration is in
-progress.
+Status: archived historical design, superseded by
+[Native Lane Resolution Authority](native-lane-resolution-authority-design-20260724.md).
+It is not an executable implementation or operational authority.
 
-Purpose: define the fail-closed repair that permits semantically absorbed, clean ownerless lanes to retire without inventing ownership or bypassing repository-family checks.
+## Historical problem
 
-## Problem
+A clean ownerless lane could have accepted semantic-absorption evidence while
+remaining unable to use the then-current closeout route without inventing an
+owner. Lane creation could also produce branch and sibling-worktree identities
+that later closeout policy rejected. Raw Git deletion was correctly forbidden,
+but no complete native transition existed.
 
-A clean ownerless lane may have an accepted Chronicle that proves semantic
-absorption, yet its native retirement remains blocked because the repository
-family closeout check requires an historical owner-task. Separately, native lane
-start can create a branch that cannot satisfy the date-bound worktree-family
-naming rule during later closeout. These failures leave clean, absorbed residue
-without a legal transition while correctly blocking raw deletion.
+## Durable decisions retained
 
-## Decision
+The useful decisions survived the retirement of the original approach:
 
-Introduce a narrow accepted-decision closeout mode and align lane creation with
-the repository-family grammar.
+1. Never synthesize historical ownership; record the acting principal only as
+   the executor of one exact effect.
+2. Bind retirement to one immutable decision and Chronicle, exact branch, HEAD,
+   registered path and incarnation, clean coordination, accepted ancestry, and
+   current record integrity.
+3. Keep the effect no-force and delete only the exact observed ref through
+   compare-and-swap after accepted-ref verification.
+4. Write a completion receipt only after explicit ref, registration, path,
+   coordination, decision, and fence postconditions pass.
+5. Create new Work Lanes with one canonical date-bound branch and matching
+   sibling-worktree identity; route older layouts through explicit migration or
+   resolution rather than silent reclassification.
 
-1. The pre-effect closeout admission accepts an explicit ownerless-resolution
-   decision, rather than inventing an owner task.
-2. It validates the exact branch, HEAD, registered linked path, accepted
-   Chronicle digest, decision/receipt identity, cleanliness, missing lease and
-   claim binding, and accepted-ancestor relation immediately before effect.
-3. The acting operator is recorded as executor only; it never becomes the
-   historical lane owner and cannot satisfy valid-owner cases.
-4. Lane creation emits `work/YYYYMMDD-slug` and a matching sibling-worktree
-   directory. Pre-existing names require an explicit non-destructive migration
-   route.
+## Superseded approach
 
-## Rejected approaches
+The 2026-07-22 design attempted to obtain pre-effect admission from an
+out-of-process provider-specific verifier. That split authority across products,
+duplicated Git and worktree observation, introduced provider vocabulary into
+ETHOS contracts, and left retry and recovery coupled to an unrelated runtime.
+The approach, its wire shape, executable path, deployment steps, adapter, and
+compatibility route are retired and are intentionally not reproduced here as
+current guidance.
 
-- **Raw deletion after a manual inspection:** loses fail-closed admission and is
-  forbidden.
-- **Synthetic owner-task:** misstates ownership and could authorize valid-owner
-  cleanup.
-- **One-off exception records for each lane:** duplicates policy and leaves the
-  same systemic defect.
+## Current authority
 
-## Transition flow
+ETHOS now owns observation, admission, current records, fencing, reservation,
+effect, retry, completed-effect recovery, cleanup, and receipts. The complete
+current design and implementation sequence live in:
 
-1. A current accepted carrier records one target-specific semantic decision.
-2. `lane resolution decide` re-observes and writes its local decision record.
-3. Before any destructive effect, `lane resolution apply` passes that exact
-   decision to repository-family closeout admission in ownerless mode.
-4. Admission verifies all bindings, then the native effect removes the linked
-   worktree without force and deletes only the exact observed ref.
-5. Only after the native postconditions pass is a receipt written. It records
-   the executor, target, old head, Chronicle, decision and retirement result.
-   Any mismatch preserves the lane.
+- [Native Lane Resolution Authority Design](native-lane-resolution-authority-design-20260724.md)
+- [Native Lane Resolution Authority Implementation Plan](native-lane-resolution-authority-implementation-plan-20260724.md)
+- [Command Plane](../reference/command-plane.md)
 
-## Error handling and boundaries
+## Historical boundary
 
-- Dirty, diverged, valid-lease, claim-bound, absent-path, stale-head, Chronicle
-  drift, malformed pre-existing layout, or receipt mismatch all stop without deletion.
-- Dirty ownerless lanes remain preservation-first and are out of this clean-lane
-  transition.
-- Valid-owner lanes remain holder-bound and out of scope.
-- Existing malformed records and old worktree layouts are inventoried and
-  migrated only through a separately admitted, recoverable path.
-
-## Verification
-
-Required regression coverage proves:
-
-1. a clean ownerless accepted ancestor with a matching accepted decision can
-   close;
-2. a dirty or diverged target cannot use the clean ownerless path;
-3. a valid lease or claim cannot use it;
-4. a stale Chronicle, decision, head, path, or postcondition blocks;
-5. lane start emits grammar-compliant branch/path pairs; and
-6. pre-existing naming is reported as migration-required rather than deleted.
-
-## See Also
-
-See also: [Ownerless First-Batch Retirement](ownerless-first-batch-retirement-20260722.md), [Authorized Work Lane Cohort Closeout](all-lanes-authorized-closeout-20260718.md), and [Detached Worktree Housekeeping](detached-worktree-housekeeping-20260719.md).
+This archived document preserves why synthetic ownership, raw deletion, force,
+and late unbound checks were rejected. It does not authorize an external
+dependency, command invocation, adapter, schema, deployment, compatibility
+surface, or Work Lane transition.

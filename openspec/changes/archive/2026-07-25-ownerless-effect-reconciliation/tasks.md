@@ -2,7 +2,7 @@
 
 - [x] 1.1 Re-observe the three clean ownerless branches, exact heads, missing
   lease/Claim state, clean worktrees, and empty path occupancy.
-- [x] 1.2 Run direct WCP checks for all three recorded retire decisions and bind
+- [x] 1.2 Run direct native accepted-ancestor checks for all three recorded retire decisions and bind
   the identical `ownerless lane is not an accepted ancestor` refusal.
 - [x] 1.3 Verify that every clean branch, worktree, and ref remains unchanged.
 

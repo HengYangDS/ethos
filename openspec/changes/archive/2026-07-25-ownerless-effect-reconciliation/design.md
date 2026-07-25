@@ -2,17 +2,18 @@
 
 The accepted absorption carrier selected direct `retire` for three clean
 ownerless lanes and `preserve-retire` for one dirty lane. The dirty effect
-completed with an exact verified package. Each clean effect reached WCP and was
-rejected before mutation because the source is diverged rather than an accepted
-ancestor. Branches, worktrees, and refs therefore remain unchanged.
+completed with an exact verified package. Each clean effect reached native
+accepted-ancestor admission and was rejected before mutation because the source
+is diverged rather than an accepted ancestor. Branches, worktrees, and refs
+therefore remain unchanged.
 
 ## Decisions
 
-### 1. Preserve the WCP fail-closed boundary
+### 1. Preserve the native accepted-ancestor fail-closed boundary
 
 The reconciliation does not reinterpret semantic absorption as Git ancestry.
-It does not alter WCP, manufacture an ancestor relation, or use raw worktree/ref
-deletion. The three direct-retire decisions remain truthful no-effect records.
+It does not manufacture an ancestor relation or use raw worktree/ref deletion.
+The three direct-retire decisions remain truthful no-effect records.
 
 ### 2. Use transient preservation as an effect bridge
 
@@ -24,7 +25,7 @@ remain empty.
 
 ### 3. Use separate authority and exact-manifest carriers
 
-This authority carrier records the WCP boundary, authorizes the three exact
+This authority carrier records the no-effect accepted-ancestor boundary, authorizes the three exact
 bridge effects, and binds the already-known dirty manifest clear. It must be
 officially archived, re-proved at its archive HEAD, landed, and accepted-closed
 before native effects run outside tracked source. After effects produce exact

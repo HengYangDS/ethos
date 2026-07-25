@@ -189,6 +189,43 @@ def sweep_stale_closeout_intents(root: Path, *, now: datetime | None = None) -> 
     return swept
 
 
+def execute_closeout_effect(
+    *,
+    root: Path,
+    effect: object,
+    transitions: tuple[object, ...],
+    evidence_digest: str,
+    gate_policy_digest: str,
+    issuer: str,
+) -> object:
+    """Execute one effect while its exact closeout intents are live."""
+    from ethos.adapters.repo.git import execute_git_effect
+    from ethos.adapters.repo.git import git_effect_attestations
+
+    intents = []
+    try:
+        for transition in transitions:
+            intents.append(
+                write_closeout_intent(
+                    root=root,
+                    transition=transition,
+                    evidence_digest=evidence_digest,
+                    gate_policy_digest=gate_policy_digest,
+                )
+            )
+        attestation = execute_git_effect(
+            root,
+            effect,
+            issuer=issuer,
+            attestations=git_effect_attestations(root, effect.id),
+        )
+        git_effect_attestations(root, effect.id, attestation)
+        return attestation
+    finally:
+        for intent in intents:
+            clear_closeout_intent(root, str(intent["nonce"]))
+
+
 def consume_closeout_intent(
     *,
     root: Path,

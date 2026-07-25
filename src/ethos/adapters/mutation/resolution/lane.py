@@ -22,10 +22,12 @@ from ethos.adapters.mutation.resolution._shared import valid_decision_id
 from ethos.adapters.mutation.resolution.receipts import write_resolution_receipt
 from ethos.adapters.mutation.resolution.records.core import release_resolution_receipt_reservation
 from ethos.adapters.mutation.resolution.records.core import reserve_resolution_receipt
-from ethos.contracts.lifecycle.core import MutationRequest
-from ethos.contracts.lifecycle.core import reduce_guards
 from ethos.contracts.resolution.lane import LaneObservation
 from ethos.contracts.resolution.lane import LaneResolutionDecision
+from ethos.contracts.transitions import GUARDED_TRANSITION
+from ethos.contracts.transitions import TransitionFacts
+from ethos.contracts.transitions import TransitionRequest
+from ethos.contracts.transitions import reduce_transition
 from ethos.repository.policy.schema import validate_schema_instance
 
 if TYPE_CHECKING:
@@ -53,23 +55,33 @@ def plan_lane_resolution(
     chronicle, chronicle_digest, chronicle_gaps = _accepted_chronicle(
         root, chronicle_ref=chronicle_ref, disposition=disposition
     )
-    evaluation = reduce_guards(
-        apply=apply,
-        initial_gaps=(*gaps, *chronicle_gaps),
-        prefix_checks=(
-            (disposition in _DISPOSITIONS, "lane_resolution_disposition_invalid"),
-            (bool(reason.strip()), "lane_resolution_reason_required"),
-            (bool(evidence_refs), "lane_resolution_evidence_required"),
-        ),
-        checks=(
-            (bool(recovery_plan.strip()), "lane_resolution_recovery_plan_required"),
-            (
-                disposition not in _DESTRUCTIVE or break_glass,
-                "retire_exception_requires_break_glass",
+    evaluation = reduce_transition(
+        GUARDED_TRANSITION,
+        TransitionRequest(apply=apply),
+        TransitionFacts(
+            initial_gaps=(
+                *(
+                    gap
+                    for ok, gap in (
+                        (disposition in _DISPOSITIONS, "lane_resolution_disposition_invalid"),
+                        (bool(reason.strip()), "lane_resolution_reason_required"),
+                        (bool(evidence_refs), "lane_resolution_evidence_required"),
+                    )
+                    if not ok
+                ),
+                *gaps,
+                *chronicle_gaps,
             ),
-            (
-                canonical_record_path(root, decision_path),
-                "lane_resolution_decision_path_not_local_artifact",
+            checks=(
+                (bool(recovery_plan.strip()), "lane_resolution_recovery_plan_required"),
+                (
+                    disposition not in _DESTRUCTIVE or break_glass,
+                    "retire_exception_requires_break_glass",
+                ),
+                (
+                    canonical_record_path(root, decision_path),
+                    "lane_resolution_decision_path_not_local_artifact",
+                ),
             ),
         ),
     )
@@ -134,21 +146,24 @@ def apply_lane_resolution(
     disposition = str(decision.get("disposition") or "")
     observation, observation_gaps = observe_lane(root, branch)
     handoff_required = bool(decision and disposition in _DESTRUCTIVE and observation.holder_ref)
-    evaluation = reduce_guards(
-        apply=apply,
-        initial_gaps=(*gaps, *observation_gaps),
-        checks=(
-            (
-                not decision
-                or observation.digest() == str(decision.get("observation_digest") or ""),
-                "lane_resolution_observation_stale",
+    evaluation = reduce_transition(
+        GUARDED_TRANSITION,
+        TransitionRequest(apply=apply),
+        TransitionFacts(
+            initial_gaps=(*gaps, *observation_gaps),
+            checks=(
+                (
+                    not decision
+                    or observation.digest() == str(decision.get("observation_digest") or ""),
+                    "lane_resolution_observation_stale",
+                ),
+                (
+                    disposition not in _DESTRUCTIVE or confirm_irreversible,
+                    "irreversible_confirmation_required",
+                ),
+                (disposition != "retire" or not observation.dirty, "dirty_lane_retirement_blocked"),
+                (not handoff_required, "lane_resolution_handoff_required"),
             ),
-            (
-                disposition not in _DESTRUCTIVE or confirm_irreversible,
-                "irreversible_confirmation_required",
-            ),
-            (disposition != "retire" or not observation.dirty, "dirty_lane_retirement_blocked"),
-            (not handoff_required, "lane_resolution_handoff_required"),
         ),
     )
     report = _report(branch, evaluation)
@@ -405,7 +420,7 @@ def _finish(
 ) -> dict[str, object]:
     gaps = tuple(str(gap) for gap in cast("list[object]", report["required_gaps"]))
     report["mutation"] = mutation_envelope(
-        MutationRequest(command=command, apply=apply, authorized=confirmation, expect_head=None),
+        TransitionRequest(command=command, apply=apply, authorized=confirmation, expect_head=None),
         action=action,
         resource=resource,
         expected_state=expected_state,

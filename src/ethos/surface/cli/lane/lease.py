@@ -14,7 +14,7 @@ from ethos.adapters.mutation.lane_lifecycle.handoff.core import export_cross_hos
 from ethos.adapters.mutation.lane_lifecycle.handoff.core import import_cross_host_handoff
 from ethos.adapters.mutation.lane_lifecycle.handoff.core import revoke_cross_host_source
 from ethos.adapters.mutation.lane_lifecycle.lease import execute_lease_operation
-from ethos.contracts.lifecycle.core import LeaseOperationRequest
+from ethos.contracts.transitions import LeaseOperationRequest
 from ethos.normalization.core import integer
 from ethos.normalization.core import string_sequence
 from ethos.result import EthosResult

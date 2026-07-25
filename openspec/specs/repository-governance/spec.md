@@ -3548,7 +3548,8 @@ remains blocked for explicit resolution.
 ### Requirement: Ownerless closeout admission is consumed at the effect boundary
 
 ETHOS SHALL retire a clean linked ownerless Work Lane only when the effect
-executor validates every WCP admission binding, atomically fences the exact
+executor independently recomputes and validates every native authority binding,
+atomically fences the exact
 target against lease acquisition, re-observes the admitted target after the
 fence is held, and executes an accepted-ref-bound exact deletion CAS without a
 force flag. It SHALL issue a completion receipt only after all native
@@ -3558,7 +3559,7 @@ postconditions are verified.
 
 - **GIVEN** an accepted clean ownerless work/* lane and immutable resolution
   decision name the same branch, head, path, Chronicle, and observation
-- **AND** WCP returns the same executor, accepted head, decision digest,
+- **AND** the native authority evaluation binds the same executor, accepted head, decision digest,
   coordination binding, accepted-ancestor relation, and clear occupancy
 - **WHEN** ETHOS atomically acquires the exact target fence and all bindings
   remain unchanged
@@ -3572,7 +3573,8 @@ postconditions are verified.
 
 - **GIVEN** effect or completed-effect recovery already admitted decision
   payload A
-- **WHEN** the decision path contains a different valid payload B before WCP,
+- **WHEN** the decision path contains a different valid payload B before native
+  authority validation,
   fence acquisition, or recovery postcondition verification
 - **THEN** ETHOS SHALL reject the effect before Git, worktree, fence, or
   reservation mutation
@@ -3581,7 +3583,7 @@ postconditions are verified.
 
 #### Scenario: late coordination or competing decision blocks zero-effect
 
-- **GIVEN** WCP returned an ownerless admission
+- **GIVEN** native authority evaluation admitted the exact ownerless target
 - **WHEN** a lease, Claim, accepted-head drift, decision drift, path drift, or
   another target reservation wins before ETHOS acquires or consumes the fence
 - **THEN** ETHOS SHALL perform no Git or worktree effect
@@ -3601,7 +3603,8 @@ postconditions are verified.
 
 - **GIVEN** one exact reservation remains in reserved_no_effect for the same
   decision, target, and executor, and no Git or worktree effect occurred
-- **WHEN** fresh WCP admits the unchanged target against an accepted head that is
+- **WHEN** fresh native authority evaluation admits the unchanged target against
+  an accepted head that is
   equal to or a descendant of the reservation's accepted head
 - **THEN** ETHOS SHALL re-verify the decision, observation, coordination,
   accepted ancestry, and exact old fence when present
@@ -3610,7 +3613,7 @@ postconditions are verified.
   reservation before any effect
 - **AND** an explicitly absent old fence MAY converge only as the crash window
   after exact fence release and before reservation unlink, with the same fresh
-  WCP and zero-effect proof
+  native authority evaluation and zero-effect proof
 - **AND** a divergent accepted head, different or unverifiable fence, executor
   drift, target drift, decision drift, or coordination drift SHALL block without
   Git or worktree effect.
@@ -3644,7 +3647,7 @@ postconditions are verified.
 - **THEN** ETHOS SHALL validate the receipt schema and exact
   decision/lane/head/ownerless binding, re-verify effect postconditions, and
   perform only idempotent cleanup
-- **AND** it SHALL NOT rerun WCP, repeat a Git/worktree effect, recreate effect
+- **AND** it SHALL NOT rerun admission, repeat a Git/worktree effect, recreate effect
   authority, or rewrite the immutable receipt
 - **AND** a mismatched receipt, different fence, or unverifiable fence state
   SHALL block.
@@ -3655,7 +3658,8 @@ postconditions are verified.
 - **WHEN** the fence is exactly present, explicitly absent, or cannot be verified
 - **THEN** pre-effect SHALL require the exact present fence
 - **AND** zero-effect retry reset MAY accept explicit absence only with the exact
-  reserved_no_effect record, fresh WCP, and unchanged target proof
+  reserved_no_effect record, fresh native authority evaluation, and unchanged
+  target proof
 - **AND** completed-effect recovery MAY accept explicit absence only with the
   exact immutable receipt and matching non-fence postconditions
 - **AND** an unreadable, malformed, missing-store, or otherwise unverifiable
@@ -3687,9 +3691,10 @@ postconditions are verified.
 - **AND** the exception SHALL become transition_unknown with explicit
   reconciliation required.
 
-#### Scenario: published WCP coordination shape is exact
+#### Scenario: native ownerless authority binding is exact
 
-- **GIVEN** WCP returns the currently published ownerless coordination object
+- **GIVEN** ETHOS derives the ownerless authority binding from current repository,
+  lease, decision, and Chronicle facts
 - **WHEN** a required coordination field is missing, has the wrong type or
   value, or an unpublished field such as lease_id, holder_ref, or lease is
   present

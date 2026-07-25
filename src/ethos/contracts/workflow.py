@@ -39,7 +39,7 @@ _LEASE_EFFECT_FIELDS = frozenset(
         "ttl_seconds",
     }
 )
-_ALLOWED_NODE_KINDS = {"control", "producer", "action", "handoff", "guardrail"}
+_ALLOWED_NODE_KINDS = {"check", "decision", "effect"}
 _ALLOWED_ENFORCEMENT = {"guarded", "handoff-guarded", "evidence-only", "advisory"}
 _ALLOWED_METRICS = {"pass_at_k", "pass_power_k", "weighted_score", "instability_gap"}
 _EXPECTED_TRANSITION_COMMANDS = (
@@ -115,7 +115,7 @@ class WorkflowNode(_WorkflowModel):
     """One declared workflow node used to compile PlanIR."""
 
     id: str = ""
-    kind: str = ""
+    kind: Literal["check", "decision", "effect"] = "check"
     command: str = ""
     enforcement: str = ""
     requires: tuple[str, ...] = ()
@@ -129,14 +129,9 @@ class WorkflowNode(_WorkflowModel):
         """Compile this declaration into one PlanIR node."""
         if not self.id:
             return None
-        kind: Literal["check", "decision", "effect"] = "check"
-        if self.kind == "producer":
-            kind = "decision"
-        elif self.kind == "action":
-            kind = "effect"
         return PlanNode(
             id=self.id,
-            kind=kind,
+            kind=self.kind,
             command=tuple(shlex.split(self.command)),
             depends_on=self.dependencies(producer_by_fact),
         )
@@ -471,14 +466,12 @@ def _node_gaps(nodes: tuple[WorkflowNode, ...]) -> list[str]:
         elif item.id in ids:
             gaps.append(f"workflow_node_id_duplicate:{item.id}")
         ids.add(item.id)
-        if item.kind not in _ALLOWED_NODE_KINDS:
-            gaps.append(f"workflow_node_kind_unknown:{node_key}:{item.kind}")
         if item.enforcement not in _ALLOWED_ENFORCEMENT:
             gaps.append(f"workflow_node_enforcement_unknown:{node_key}:{item.enforcement}")
-        if item.enforcement == "handoff-guarded" and item.kind != "handoff":
-            gaps.append(f"workflow_node_handoff_enforcement_kind_mismatch:{item.id}")
-        if item.kind == "guardrail" and item.enforcement == "advisory":
-            gaps.append(f"workflow_guardrail_advisory:{item.id}")
+        if item.kind == "effect" and item.enforcement not in {"guarded", "evidence-only"}:
+            gaps.append(f"workflow_effect_enforcement_invalid:{item.id}")
+        if item.kind == "decision" and item.enforcement == "advisory":
+            gaps.append(f"workflow_decision_advisory:{item.id}")
     return gaps
 
 

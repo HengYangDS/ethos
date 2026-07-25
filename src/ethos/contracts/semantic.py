@@ -7,7 +7,6 @@ import json
 import math
 from collections.abc import Mapping
 from types import MappingProxyType
-from typing import TYPE_CHECKING
 from typing import Annotated
 from typing import Any
 from typing import Literal
@@ -22,9 +21,6 @@ from pydantic import PlainSerializer
 from pydantic import WithJsonSchema
 from pydantic import model_validator
 
-if TYPE_CHECKING:
-    from datetime import datetime
-
 
 def _mutable_json(value: object) -> object:
     if isinstance(value, Mapping):
@@ -35,9 +31,7 @@ def _mutable_json(value: object) -> object:
 
 
 def _immutable_json(value: object) -> object:
-    if isinstance(value, Mapping):
-        if not all(isinstance(key, str) for key in value):
-            raise TypeError("json_object_key_invalid")
+    if isinstance(value, dict):
         return MappingProxyType({key: _immutable_json(item) for key, item in value.items()})
     if isinstance(value, tuple | list):
         return tuple(_immutable_json(item) for item in value)
@@ -45,13 +39,18 @@ def _immutable_json(value: object) -> object:
         return value
     if isinstance(value, float) and math.isfinite(value):
         return value
-    raise TypeError("json_value_invalid")
+    message = "json_value_invalid"
+    raise TypeError(message)
 
 
 def _immutable_json_object(value: object) -> object:
     if not isinstance(value, Mapping):
-        raise TypeError("json_object_invalid")
-    return _immutable_json(value)
+        message = "json_object_invalid"
+        raise TypeError(message)
+    if not all(isinstance(key, str) for key in value):
+        message = "json_object_key_invalid"
+        raise TypeError(message)
+    return _immutable_json(dict(value))
 
 
 JsonObject = Annotated[
@@ -122,40 +121,11 @@ class Attestation(_SemanticModel):
         """Bind content to an explicit digest and reject forged bindings."""
         digest = _digest(self.content)
         if self.content_digest and self.content_digest != digest:
-            raise ValueError("attestation_content_digest_mismatch")
+            message = "attestation_content_digest_mismatch"
+            raise ValueError(message)
         if not self.content_digest:
             object.__setattr__(self, "content_digest", digest)
         return self
-
-    @classmethod
-    def amendment(
-        cls,
-        *,
-        attestation_id: str,
-        issuer: str,
-        subject: str,
-        issued_at: datetime,
-        sequence: int = 0,
-        prior_digest: str,
-        patch: dict[str, Any],
-        evidence_refs: tuple[str, ...] = (),
-    ) -> Self:
-        """Create an intent amendment bound to the prior effective digest."""
-        for key in patch:
-            if key not in ChangeContract.model_fields:
-                message = f"amendment_field_unknown:{key}"
-                raise ValueError(message)
-        return cls(
-            id=attestation_id,
-            kind="amendment",
-            issuer=issuer,
-            subject=subject,
-            issued_at=issued_at,
-            sequence=sequence,
-            content={"patch": patch},
-            evidence_refs=evidence_refs,
-            prior_digest=prior_digest,
-        )
 
 
 class RepositoryFacts(_SemanticModel):
@@ -196,17 +166,22 @@ def apply_amendments(
     ordered = sorted(attestations, key=lambda item: (item.issued_at, item.sequence, item.id))
     order_keys = [(item.issued_at, item.sequence) for item in ordered]
     if len(order_keys) != len(set(order_keys)):
-        raise ValueError("amendment_order_ambiguous")
+        message = "amendment_order_ambiguous"
+        raise ValueError(message)
     for attestation in ordered:
         if attestation.kind != "amendment":
-            raise ValueError("attestation_not_amendment")
+            message = "attestation_not_amendment"
+            raise ValueError(message)
         if attestation.subject != contract.id:
-            raise ValueError("amendment_subject_mismatch")
+            message = "amendment_subject_mismatch"
+            raise ValueError(message)
         if attestation.prior_digest != effective.digest():
-            raise ValueError("amendment_prior_digest_mismatch")
+            message = "amendment_prior_digest_mismatch"
+            raise ValueError(message)
         patch = attestation.content.get("patch")
         if not isinstance(patch, Mapping):
-            raise TypeError("amendment_patch_invalid")
+            message = "amendment_patch_invalid"
+            raise TypeError(message)
         payload = effective.model_dump()
         for key, value in patch.items():
             field = ChangeContract.model_fields.get(key)

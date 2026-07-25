@@ -2,15 +2,10 @@
 
 from __future__ import annotations
 
-import json
 from functools import lru_cache
-from typing import Any
 from typing import Protocol
-from typing import cast
 
-import celpy
-from celpy.celtypes import BoolType
-from celpy.evaluation import CELEvalError
+from cel_expr_python import cel
 
 
 class CelEvaluationError(RuntimeError):
@@ -27,6 +22,10 @@ class CelGapGroup(Protocol):
     prefix: str
 
 
+_CEL_VARIABLES = {"facts": cel.Type.DYN, "policy": cel.Type.DYN, "rule": cel.Type.DYN}
+_CEL_ENVIRONMENT = cel.NewEnv(variables=_CEL_VARIABLES)
+
+
 def evaluate_cel_predicate(
     expression: str,
     *,
@@ -35,16 +34,11 @@ def evaluate_cel_predicate(
     rule: dict[str, object],
 ) -> bool:
     """Evaluate one declaration-owned CEL boolean over typed fact maps."""
-    try:
-        result = _cel_program(expression).evaluate(
-            cast("Any", celpy.json_to_cel({"facts": facts, "policy": policy, "rule": rule}))
-        )
-    except CELEvalError as exc:
-        raise CelEvaluationError(str(exc)) from exc
-    if not isinstance(result, BoolType):
+    result = _evaluate(expression, facts=facts, policy=policy, rule=rule)
+    if result.type() != cel.Type.BOOL:
         msg = "CEL predicate must return a boolean"
         raise TypeError(msg)
-    return bool(result)
+    return bool(result.plain_value())
 
 
 def evaluate_cel_value(
@@ -54,14 +48,8 @@ def evaluate_cel_value(
     policy: dict[str, object],
     rule: dict[str, object],
 ) -> object:
-    """Evaluate one declaration-owned CEL projection to native JSON values."""
-    try:
-        result = _cel_program(expression).evaluate(
-            cast("Any", celpy.json_to_cel({"facts": facts, "policy": policy, "rule": rule}))
-        )
-    except CELEvalError as exc:
-        raise CelEvaluationError(str(exc)) from exc
-    return json.loads(celpy.CELJSONEncoder().encode(result))
+    """Evaluate one declaration-owned CEL projection to native values."""
+    return _evaluate(expression, facts=facts, policy=policy, rule=rule).plain_value()
 
 
 def evaluate_cel_rules(
@@ -100,14 +88,31 @@ def validate_cel_expression(expression: str) -> str:
     """Compile one declaration-owned CEL expression and return it unchanged."""
     try:
         _cel_program(expression)
-    except Exception as exc:
+    except RuntimeError as exc:
         message = "invalid CEL expression"
         raise ValueError(message) from exc
     return expression
 
 
+def _evaluate(
+    expression: str,
+    *,
+    facts: dict[str, object],
+    policy: dict[str, object],
+    rule: dict[str, object],
+) -> cel.Value:
+    try:
+        result = _cel_program(expression).eval(
+            data={"facts": facts, "policy": policy, "rule": rule}
+        )
+    except RuntimeError as exc:
+        raise CelEvaluationError(str(exc)) from exc
+    if result.type() == cel.Type.ERROR:
+        raise CelEvaluationError(str(result.value()))
+    return result
+
+
 @lru_cache
-def _cel_program(expression: str) -> Any:
-    """Compile and cache one declaration-owned CEL predicate."""
-    environment = celpy.Environment()
-    return environment.program(environment.compile(expression))
+def _cel_program(expression: str) -> cel.Expression:
+    """Compile and cache one declaration-owned CEL expression."""
+    return _CEL_ENVIRONMENT.compile(expression)

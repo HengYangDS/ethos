@@ -71,7 +71,8 @@ def test_declaration_backed_runtime_policies_are_first_class() -> None:
         assert token not in source
     cel = _read("src/ethos/contracts/policy/cel.py")
     assert "evaluate_cel_predicate" in cel
-    assert "celpy.Environment" in cel
+    assert "cel.NewEnv" in cel
+    assert "celpy" not in cel
     declaration = ROOT / "system/policies/evidence-layout.toml"
     source = _read("src/ethos/contracts/evidence/layout.py")
     runtime = _read("src/ethos/repository/evidence/topology.py")

@@ -18,8 +18,9 @@ budgets or the vendor-neutral product boundary.
   `pass | block | unknown` with hard gaps never coexisting with a green state.
 - **BREAKING** Delete the private source-budget worker/protocol/replay/shadow
   stack and retain one direct deterministic measurement path.
-- **BREAKING** Remove all WCP code, schema, test, documentation, and evidence
-  coupling; ETHOS remains independently installable and operable.
+- **BREAKING** Remove all workstation-specific control-plane code, schema, test,
+  documentation, and evidence coupling; ETHOS remains independently installable
+  and operable.
 - **BREAKING** Replace `proposal/*` with provider-neutral `proposal/*`; keep
   `candidate/dev` and `work/*` local-only and publish only `main`, `dev`, and
   `proposal/*`.
@@ -52,7 +53,7 @@ than creating a parallel capability family.
 - `contracts`: subject=terminal-contracts; reuse=extend; change=modify; facet:lifecycle=authoring,validation,runtime; facet:surface=source,schema,docs,test; facet:authority=source,test,schema,docs,openspec. Establish language- and vendor-neutral ChangeContract, Attestation, PlanIR, actor, permission, and pack schemas.
 - `repository-governance`: subject=terminal-repository-governance; reuse=extend; change=modify; facet:lifecycle=authoring,runtime,archive,closeout; facet:surface=cli,source,schema,docs,openspec,evidence; facet:authority=source,test,schema,docs,openspec,claim,evidence. Add Worktree Family, intent continuity, cooperative/competitive selection, recovery, adaptive backpressure, and proposal branch semantics.
 - `quality`: subject=terminal-quality-floor; reuse=extend; change=modify; facet:lifecycle=validation,release; facet:surface=ci,source,test,config,docs; facet:authority=source,test,config,docs,openspec,evidence. Replace the self-referential budget runtime with direct measurement and enforce singular tools, warning zero, suppression zero, and terminal ELOC budgets.
-- `adapters`: subject=terminal-adapter-boundary; reuse=extend; change=modify; facet:lifecycle=authoring,runtime,validation; facet:surface=source,schema,test,docs; facet:authority=source,test,schema,docs,openspec. Remove WCP and isolate Git, forge, carrier, gate, effect, and attestation integrations behind explicit profile contracts.
+- `adapters`: subject=terminal-adapter-boundary; reuse=extend; change=modify; facet:lifecycle=authoring,runtime,validation; facet:surface=source,schema,test,docs; facet:authority=source,test,schema,docs,openspec. Remove workstation-specific control-plane coupling and isolate Git, forge, carrier, gate, effect, and attestation integrations behind explicit profile contracts.
 - `distribution`: subject=terminal-distribution-topology; reuse=extend; change=modify; facet:lifecycle=validation,release; facet:surface=ci,package,docs,schema; facet:authority=source,test,config,docs,openspec,evidence. Preserve offline local installation while making GitLab and GitHub independent full release planes over identical artifacts.
 - `proof-hosts`: subject=terminal-conformance-proof; reuse=extend; change=modify; facet:lifecycle=validation,release; facet:surface=test,ci,evidence,docs; facet:authority=test,config,docs,openspec,evidence. Prove three unlike adopters, concurrency invariants, offline behavior, and independent provider evidence.
 - `assistant-projections`: subject=terminal-agent-projections; reuse=extend; change=modify; facet:lifecycle=authoring,runtime,validation; facet:surface=mcp,skill,schema,docs,test; facet:authority=source,test,schema,docs,openspec. Derive compact MCP/A2A/skill/inbox/handoff surfaces from repository truth without vendor-session dependence.

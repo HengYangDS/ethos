@@ -8,7 +8,9 @@
 
 - [x] 1.1 Replace source-budget worker/protocol/parser/replay/shadow paths with one direct deterministic measurement owner and delete superseded tests and schemas.
 - [ ] 1.2 Delete empty Jinja/template machinery, copied CI/C4/config parsers, command/schema dual truth, compatibility normalizers, wrappers, aliases, re-exports, and coverage-only tests.
-- [ ] 1.3 Remove every active WCP literal, import, schema, test, document, and evidence dependency while preserving native fail-closed lane authority.
+- [x] 1.3 Remove every active workstation-control-plane literal, import, schema,
+  test, document, and evidence dependency while preserving native fail-closed
+  lane authority.
 - [ ] 1.4 Measure and record product/test/tool/document/config deletion by canonical ELOC ownership class.
 
 ## 2. Semantic Kernel Cutover

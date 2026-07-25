@@ -116,6 +116,9 @@ def test_declaration_backed_runtime_policies_are_first_class() -> None:
     assert "system/commands.toml" in contract
     assert "data/commands.toml" in contract
     assert ".command(command.import_path" in registry
+    cli = _read("src/ethos/cli.py")
+    assert "root_commands = {" not in cli
+    assert "known_root_command_names" in cli
     for relative in handler_paths:
         source = _read(relative)
         assert "@quality_app.command" not in source

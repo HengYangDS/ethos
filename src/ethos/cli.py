@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sys
 
+from ethos.repository.registry.commands import known_root_command_names
 from ethos.surface.cli._base import app
 from ethos.surface.cli._base import emit_invalid_adopter_profile
 from ethos.surface.cli._base import load_command_groups
@@ -26,15 +27,19 @@ def main() -> None:
 
 def _command(argv: list[str]) -> str:
     """Return the declared root command without mistaking an option value for it."""
-    root_commands = {
-        "status",
-        "plan",
-        "prove",
-        "land",
-        "publish",
-        "openspec",
-    }
-    return next((argument for argument in argv if argument in root_commands), "ethos")
+    root_commands = known_root_command_names()
+    skip_value = False
+    for argument in argv:
+        if skip_value:
+            skip_value = False
+            continue
+        if argument == "--root":
+            skip_value = True
+            continue
+        if argument.startswith("-"):
+            continue
+        return argument if argument in root_commands else "ethos"
+    return "ethos"
 
 
 def _emit_invalid_profile(command: str, argv: list[str]) -> None:

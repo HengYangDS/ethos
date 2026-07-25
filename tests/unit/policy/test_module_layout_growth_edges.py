@@ -4,6 +4,7 @@ import textwrap
 from typing import TYPE_CHECKING
 
 from ethos.repository.policy.layout.core import module_layout_report
+from ethos.repository.policy.layout.growth.core import flat_growth_findings
 from tests.unit.policy.test_module_layout import _write
 
 if TYPE_CHECKING:
@@ -127,6 +128,103 @@ def test_module_layout_facade_type_checking_and_private_alias_edges(tmp_path: Pa
         item["path"] != "packages/ethos/src/ethos/sample/debug_guard.py"
         for item in report["module_facade_findings"]
     )
+
+
+def test_flat_growth_allows_single_rename_in_existing_five_module_directory(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    relative_directory = "packages/ethos/src/ethos/sample"
+    source = tmp_path / relative_directory
+    for name in ("b.py", "c.py", "d.py", "e.py", "renamed.py"):
+        _write(source / name)
+
+    previous = "\n".join(f"{relative_directory}/{name}.py" for name in "abcde")
+
+    def fake_git(_root: Path, *args: str) -> str | None:
+        if args[:5] == ("ls-tree", "-r", "--name-only", "HEAD", "--"):
+            return previous
+        return None
+
+    monkeypatch.setattr(
+        "ethos.repository.policy.layout.git.core.layout_reference",
+        lambda _root: "HEAD",
+    )
+    monkeypatch.setattr("ethos.repository.policy.layout.git.core.run_git", fake_git)
+
+    assert flat_growth_findings(tmp_path, {"paths": ["packages/ethos/src"]}) == []
+
+
+def test_flat_growth_blocks_existing_five_modules_growing_to_six(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    relative_directory = "packages/ethos/src/ethos/sample"
+    source = tmp_path / relative_directory
+    for name in "abcdef":
+        _write(source / f"{name}.py")
+
+    previous = "\n".join(f"{relative_directory}/{name}.py" for name in "abcde")
+
+    def fake_git(_root: Path, *args: str) -> str | None:
+        if args[:5] == ("ls-tree", "-r", "--name-only", "HEAD", "--"):
+            return previous
+        return None
+
+    monkeypatch.setattr(
+        "ethos.repository.policy.layout.git.core.layout_reference",
+        lambda _root: "HEAD",
+    )
+    monkeypatch.setattr("ethos.repository.policy.layout.git.core.run_git", fake_git)
+
+    assert flat_growth_findings(tmp_path, {"paths": ["packages/ethos/src"]}) == [
+        {
+            "gap": f"module_layout_flat_growth:{relative_directory}:5+1=6",
+            "directory": relative_directory,
+            "previous_module_count": 5,
+            "added_module_count": 1,
+            "module_count": 6,
+            "files": [f"{relative_directory}/f.py"],
+        }
+    ]
+
+
+def test_flat_growth_preserves_existing_and_new_directory_burst_results(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    existing_directory = "packages/ethos/src/ethos/existing"
+    new_directory = "packages/ethos/src/ethos/new_axis"
+    _write(tmp_path / existing_directory / "old.py")
+    for directory in (existing_directory, new_directory):
+        for name in "abc":
+            _write(tmp_path / directory / f"{name}.py")
+
+    def fake_git(_root: Path, *args: str) -> str | None:
+        if args[:5] == ("ls-tree", "-r", "--name-only", "HEAD", "--"):
+            return f"{existing_directory}/old.py"
+        return None
+
+    monkeypatch.setattr(
+        "ethos.repository.policy.layout.git.core.layout_reference",
+        lambda _root: "HEAD",
+    )
+    monkeypatch.setattr("ethos.repository.policy.layout.git.core.run_git", fake_git)
+
+    assert flat_growth_findings(tmp_path, {"paths": ["packages/ethos/src"]}) == [
+        {
+            "gap": f"module_layout_flat_growth_burst:{existing_directory}:3>2",
+            "directory": existing_directory,
+            "added_module_count": 3,
+            "files": [f"{existing_directory}/{name}.py" for name in "abc"],
+        },
+        {
+            "gap": f"module_layout_new_directory_burst:{new_directory}:3>2",
+            "directory": new_directory,
+            "added_module_count": 3,
+            "files": [f"{new_directory}/{name}.py" for name in "abc"],
+        },
+    ]
 
 
 def test_module_layout_growth_edges_and_git_helpers(tmp_path: Path, monkeypatch) -> None:

@@ -110,7 +110,7 @@ def _flat_growth_records(
             if len(files) > context.added_limit:
                 findings.append(_new_directory_burst_record(directory, files, context.added_limit))
             continue
-        if previous_count >= context.existing_limit:
+        if previous_count >= context.existing_limit and current_count > previous_count:
             findings.append(_flat_growth_record(directory, files, previous_count, current_count))
         if len(files) > context.added_limit:
             findings.append(_flat_burst_record(directory, files, context.added_limit))

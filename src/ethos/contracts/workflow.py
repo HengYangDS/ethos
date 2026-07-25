@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import shlex
 from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import Literal
 
@@ -21,10 +22,15 @@ from ethos.contracts.lifecycle.core import (
 )
 from ethos.contracts.plan import PlanIR
 from ethos.contracts.plan import PlanNode
+from ethos.contracts.plan import compile_plan
 from ethos.contracts.policy.cel import evaluate_cel_rules
 from ethos.contracts.policy.cel import validate_cel_expression
 from ethos.contracts.system.contracts import load_system_contract
 from ethos.state.invalid import NODE_ORDER
+
+if TYPE_CHECKING:
+    from ethos.contracts.semantic import ChangeContract
+    from ethos.contracts.semantic import RepositoryFacts
 
 _LEASE_TRANSITION_MATRIX_INVALID = "lease_transition_matrix_invalid"
 _LEASE_EFFECT_FIELDS = frozenset(
@@ -336,6 +342,8 @@ class WorkflowContract(_WorkflowModel):
     def plan(
         self,
         *,
+        contract: ChangeContract,
+        facts: RepositoryFacts,
         node_ids: tuple[str, ...] | None = None,
     ) -> PlanIR:
         """Compile a workflow node subset into PlanIR."""
@@ -356,7 +364,7 @@ class WorkflowContract(_WorkflowModel):
             for item in selected
             if (plan_node := item.to_plan_node(producer_by_fact=producer_by_fact)) is not None
         )
-        return PlanIR(nodes=nodes, validation_issues=missing)
+        return compile_plan(contract, facts, nodes, validation_issues=missing)
 
     def to_report(self) -> dict[str, Any]:
         """Validate and summarize the declared workflow runtime contract."""
@@ -383,14 +391,21 @@ class WorkflowContract(_WorkflowModel):
             "required_gaps": list(dict.fromkeys(gaps)),
         }
 
-    def to_projection(self, *, changed_paths: tuple[str, ...] = ()) -> dict[str, Any]:
+    def to_projection(
+        self,
+        *,
+        contract: ChangeContract,
+        facts: RepositoryFacts,
+    ) -> dict[str, Any]:
         """Return deterministic transition projection data for `ethos plan`."""
         return {
             "kind": "workflow_runtime_plan",
             "truth_boundary": "derived_repository_projection",
-            "changed_path_count": len(changed_paths),
-            "changed_paths": list(changed_paths),
-            "plan_ir": self.plan().to_dict(),
+            "changed_path_count": len(facts.values.get("changed_paths", ())),
+            "changed_paths": list(facts.values.get("changed_paths", ())),
+            "change_contract_digest": contract.digest(),
+            "repository_facts_digest": facts.digest(),
+            "plan_ir": self.plan(contract=contract, facts=facts).to_dict(),
             "external_requirements": self.external_requirements(),
             "transitions": [item.to_projection() for item in self.transition],
             "nodes": [item.to_summary() for item in self.node],
@@ -407,10 +422,14 @@ def workflow_contract_report(
 def planned_transition_projection(
     contract: WorkflowContract | dict[str, Any],
     *,
-    changed_paths: tuple[str, ...] = (),
+    change_contract: ChangeContract,
+    repository_facts: RepositoryFacts,
 ) -> dict[str, Any]:
     """Return deterministic transition projection data for `ethos plan`."""
-    return _workflow_contract(contract).to_projection(changed_paths=changed_paths)
+    return _workflow_contract(contract).to_projection(
+        contract=change_contract,
+        facts=repository_facts,
+    )
 
 
 def load_workflow_contract_declaration(

@@ -10,18 +10,21 @@ from __future__ import annotations
 
 import fnmatch
 import tomllib
+from datetime import UTC
+from datetime import datetime
 from typing import TYPE_CHECKING
-from typing import Any
 from typing import cast
 
-import ethos.repository.workflow.runtime as workflow_runtime
 from ethos.adapters.config import rules_config
+from ethos.adapters.repo.git import current_tree
 from ethos.adapters.repo.status.core import workspace_status
 from ethos.assistants.projections import projection_contract
 from ethos.contracts.context.projection import ASSISTANT_TRUTH_BOUNDARY
 from ethos.contracts.rules import RuleAttestation
 from ethos.contracts.rules import RuleFactSnapshot
 from ethos.contracts.rules import stable_digest
+from ethos.contracts.semantic import ChangeContract
+from ethos.contracts.semantic import RepositoryFacts
 from ethos.domain.status import audit_for_root
 from ethos.domain.status import status_worktree_gaps
 from ethos.normalization.core import string_list
@@ -39,6 +42,40 @@ def path_matches(path: str, pattern: str) -> bool:
         prefix = pattern[:-3]
         return path == prefix or path.startswith(f"{prefix}/")
     return fnmatch.fnmatchcase(path, pattern)
+
+
+def planning_inputs(
+    repo: Path,
+    *,
+    status: dict[str, object],
+    changed_paths: tuple[str, ...],
+    authority_refs: tuple[str, ...],
+) -> tuple[ChangeContract, RepositoryFacts]:
+    """Derive the effective change contract and current repository fact snapshot."""
+    head = str(status.get("head") or "")
+    tree = current_tree(repo, head)
+    subjects = (repo.resolve().as_posix(),)
+    return (
+        ChangeContract(
+            id=f"change:{status.get('branch') or 'detached'!s}",
+            intent="Compile the current repository change into an executable plan.",
+            subjects=subjects,
+            authority_refs=authority_refs,
+        ),
+        RepositoryFacts(
+            repository=subjects[0],
+            head=head,
+            tree=tree,
+            observed_at=datetime.now(UTC),
+            values={
+                "branch": status.get("branch", ""),
+                "role": status.get("role", ""),
+                "dirty": status.get("dirty", False),
+                "changed_paths": changed_paths,
+            },
+            source_refs=("git:HEAD", "git:HEAD^{tree}", "ethos:status"),
+        ),
+    )
 
 
 def matching_rule_gates(
@@ -148,11 +185,6 @@ def contract_profile_matches(root: Path, paths: tuple[str, ...]) -> list[dict[st
                 }
             )
     return matches
-
-
-def workflow_runtime_report(root: Path, *, changed_paths: tuple[str, ...] = ()) -> dict[str, Any]:
-    """Return workflow runtime projection for plan-stage callers."""
-    return workflow_runtime.workflow_runtime_report(root, changed_paths=changed_paths)
 
 
 def rule_fact(

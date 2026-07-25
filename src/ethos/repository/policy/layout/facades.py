@@ -4,7 +4,7 @@ import ast
 from typing import TYPE_CHECKING
 from typing import Any
 
-from ethos.repository.policy.layout.filesystem.core import python_files
+from ethos.repository.policy.layout.policy import python_files
 
 if TYPE_CHECKING:
     from pathlib import Path

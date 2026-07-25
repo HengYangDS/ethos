@@ -4,9 +4,9 @@ import tomllib
 from typing import TYPE_CHECKING
 from typing import Any
 
-import ethos.repository.policy.layout.git.core as layout_git
+import ethos.repository.policy.layout.reference as layout_git
 from ethos.normalization.core import string_list
-from ethos.repository.policy.layout.filesystem.core import POLICY_PATH
+from ethos.repository.policy.layout.policy import POLICY_PATH
 
 if TYPE_CHECKING:
     from pathlib import Path

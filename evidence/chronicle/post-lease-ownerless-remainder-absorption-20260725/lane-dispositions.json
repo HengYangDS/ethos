@@ -1,0 +1,397 @@
+{
+  "accepted_head_at_analysis": "a8e53eedd0bcc8240f5d14a1589ff2cd788aee47",
+  "freeze_observed_at": "2026-07-25T13:20:31.533967+00:00",
+  "freeze_sha256": "fdfc372eebedb274a339c733a10d5e622857d5d37072508df352b5f654a780a9",
+  "generated_at": "2026-07-25T13:54:11.560521+00:00",
+  "lanes": [
+    {
+      "absorbed_invariants": [
+        "Dynamic legacy record-root candidates, including absent candidates, must be re-observed before any destructive effect.",
+        "Unknown, aliased, recurrent, partially examined, or integrity-invalid legacy carriers are blockers rather than silent omissions.",
+        "Historical migration evidence remains non-authorizing and is never rewritten merely to match a newer record topology."
+      ],
+      "accepted_head": "a8e53eedd0bcc8240f5d14a1589ff2cd788aee47",
+      "actual_branch": "work/20260723-legacy-lane-resolution-record-freeze-capability",
+      "artifacts": {
+        "branch-vs-merge-base.name-status": {
+          "bytes": 1390,
+          "sha256": "724bfd8dbde4f1a592708034b1783859b81a84661aeae280f9a3662b6a1cbfde"
+        },
+        "cached.patch": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "full-index.patch": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "lane-vs-accepted.name-status": {
+          "bytes": 20444,
+          "sha256": "940b410306d837c40854adc372284187cafbde66e70dd65cab8d58ec5abdc71a"
+        },
+        "status.bin": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "status.txt": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "untracked.bin": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "working.patch": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      "branch": "work/20260723-legacy-lane-resolution-record-freeze-capability",
+      "dirty": false,
+      "exclusive_commit_count": 4,
+      "exclusive_commits": [
+        "e81603cb595991e992e039796fe700389f03cbe0",
+        "e08ffabed271e82e4f289b107178e293bca753a8",
+        "df30739ae7573409fc821fdaa6ebb29acd7f5eb6",
+        "c3fe82f441beeeccb6a5caae15546ac6356db930"
+      ],
+      "head": "c3fe82f441beeeccb6a5caae15546ac6356db930",
+      "lsof_bytes": 0,
+      "lsof_returncode": 1,
+      "lsof_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "merge_base": "edc53df142d03c0ac2211b151f85bd904ca23cf3",
+      "planned_disposition": "retire",
+      "registered_ref_head": "c3fe82f441beeeccb6a5caae15546ac6356db930",
+      "rejected_replay": [
+        "The 4310-line provisional freeze implementation is not replayed because OpenSpec tasks 2 through 5 remain incomplete and no exact-HEAD proof or accepted effect exists.",
+        "Darwin exchange, fullfsync journal, and migration-stage code are not introduced beside the valid-owner native-resolution successor."
+      ],
+      "semantic_classification": "invariants_absorbed_implementation_rejected_as_unproven_migration_scaffold",
+      "semantic_receiver": {
+        "authority": "observe_only_non_authorizing",
+        "branch": "work/20260724-native-lane-resolution-authority-successor",
+        "evidence": "The successor owns current record roots, strict inventory, native preservation, and ownerless closeout in its declared scope; this carrier does not mutate it.",
+        "head": "2fc8601467cb7ca826979c3bf0efd90a28dcfb73",
+        "kind": "valid_owner_successor_observation"
+      },
+      "status_entries": 0,
+      "tree": "7a29ffe6ad36cdbec716bc6c722819a0b5941c12",
+      "untracked_entries": 0
+    },
+    {
+      "absorbed_invariants": [
+        "ETHOS completion must be self-contained and must not wait on external owner receipts or controller completion.",
+        "Local proof, archive, land, accepted closeout, record activation, cleanup, remote publication, and hosted observation remain separate claims.",
+        "Historical external-closeout carriers remain truthful but non-authorizing."
+      ],
+      "accepted_head": "a8e53eedd0bcc8240f5d14a1589ff2cd788aee47",
+      "actual_branch": "work/20260723-native-worktree-authority-wcp-zero-coupling",
+      "artifacts": {
+        "branch-vs-merge-base.name-status": {
+          "bytes": 955,
+          "sha256": "e38900dfc23c7df1ddcf41f937960cdf9a5c9d18698960c8a873f47860b0d33c"
+        },
+        "cached.patch": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "full-index.patch": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "lane-vs-accepted.name-status": {
+          "bytes": 20009,
+          "sha256": "84270cfd2e8cbc787f2b480130f4d2b786911017fc32a3f968895c2f45e5a8dc"
+        },
+        "status.bin": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "status.txt": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "untracked.bin": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "working.patch": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      "branch": "work/20260723-native-worktree-authority-wcp-zero-coupling",
+      "dirty": false,
+      "exclusive_commit_count": 7,
+      "exclusive_commits": [
+        "0f70c6c098059fe7145d5b2cf6fba46eafe268c8",
+        "08febe7c7c31b409e0b510b7bf79d4df1b7eca7a",
+        "55c286559cc786ebfdf8b2ac4ce69bc4a5773382",
+        "f0fe35e317aee47eceb61e3c0a9cb4b36cb50592",
+        "ca48b0d42ef0cd660321df31df478a94bca00d7f",
+        "c2fc704a8d8f52db95fc87c76c8483aea202c4db",
+        "c3075ebc6cd581212e2c2ff138fbd2c4e7df9cc8"
+      ],
+      "head": "c3075ebc6cd581212e2c2ff138fbd2c4e7df9cc8",
+      "lsof_bytes": 0,
+      "lsof_returncode": 1,
+      "lsof_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "merge_base": "edc53df142d03c0ac2211b151f85bd904ca23cf3",
+      "planned_disposition": "retire",
+      "registered_ref_head": "c3075ebc6cd581212e2c2ff138fbd2c4e7df9cc8",
+      "rejected_replay": [
+        "The intent-only change completed only Task 1; Tasks 2 through 5 and every post-archive outcome remain incomplete.",
+        "The extra work_lanes.layout workspace table is not replayed because current lane start already enforces the dated sibling layout and current accepted configuration does not declare that legacy projection."
+      ],
+      "semantic_classification": "intent_absorbed_into_current_successor_boundaries_without_replaying_stale_config",
+      "semantic_receiver": {
+        "authority": "observe_only_non_authorizing",
+        "branch": "work/20260724-native-lane-resolution-authority-successor",
+        "head": "2fc8601467cb7ca826979c3bf0efd90a28dcfb73",
+        "kind": "valid_owner_successor_observation"
+      },
+      "status_entries": 0,
+      "tree": "3b6ce31bece0b8feb561bc36ba04695747c50b15",
+      "untracked_entries": 0
+    },
+    {
+      "absorbed_invariants": [
+        "Authority-bearing ownerless closeout shapes use strict frozen typed contracts.",
+        "Recovery exposes the five durable states reserved_no_effect, worktree_removed_ref_present, effect_complete_receipt_missing, postcondition_failed, and transition_unknown.",
+        "Effects remain at Git, SQLite, subprocess, immutable-record, and filesystem boundaries; state classification is deterministic from explicit facts.",
+        "Compression must delete repetition only when exact command, receipt, reservation, fence, postcondition, crash, retry, and coverage semantics remain proved."
+      ],
+      "accepted_head": "a8e53eedd0bcc8240f5d14a1589ff2cd788aee47",
+      "actual_branch": "work/20260723-ownerless-closeout-compression",
+      "artifacts": {
+        "branch-vs-merge-base.name-status": {
+          "bytes": 2429,
+          "sha256": "69bb8b894f6fee449b9ed75739edb79dd85ce303bba56f79bbdd988ecf95e485"
+        },
+        "cached.patch": {
+          "bytes": 541764,
+          "sha256": "91771dc10855d853d029a8de351be76033bd7a6114c38ac64f9f6e08c56c45c7"
+        },
+        "full-index.patch": {
+          "bytes": 590649,
+          "sha256": "039beee7a8f79efa0c7cb96c27b4f7634f32ccc981b899674cdfd4443e11b3f2"
+        },
+        "lane-vs-accepted.name-status": {
+          "bytes": 21573,
+          "sha256": "6e9c446538f6cd91674769e4d3616ac4b92a3e4dcdb4da4111c9a3e84fcc3fbf"
+        },
+        "status.bin": {
+          "bytes": 2809,
+          "sha256": "f7419fdedabe96d659ac6be5e0c5b46e22ff2590796820bf988244b3ce39129b"
+        },
+        "status.txt": {
+          "bytes": 2809,
+          "sha256": "065d3102663e94b0b3fce2d6c6a7305703b2da2ebcccc7c52c8093e77f3bc09f"
+        },
+        "untracked.bin": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "working.patch": {
+          "bytes": 127839,
+          "sha256": "43bb6b28628e3d92847fec34f9b9561417e2115fbdc83963873348d0b98e9c4f"
+        }
+      },
+      "branch": "work/20260723-ownerless-closeout-compression",
+      "dirty": true,
+      "exclusive_commit_count": 8,
+      "exclusive_commits": [
+        "4adab54c0906e178fd1f8b7a002d45409a169998",
+        "3d10f285d1a9787b83636cb35bcd82cd0aa30418",
+        "34e326cde9ad44ef9b2ad22c601f27e337db5cb0",
+        "0a50a768b26f66421842a545c9ffbd8ab6279f3b",
+        "6e3fd7ab650d4c08f49be805ad5022743ed9c60a",
+        "e73311cfc8d82e9eb3336a978ecf3fdbdc153000",
+        "81f090bf1591bfd47d9f19a8a9f19e6a37facd00",
+        "21a915996201a07e9a515ebec1e6ce922212230e"
+      ],
+      "head": "21a915996201a07e9a515ebec1e6ce922212230e",
+      "lsof_bytes": 0,
+      "lsof_returncode": 1,
+      "lsof_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "merge_base": "2c8a2055707aef12d29f535effd46b770496406e",
+      "planned_disposition": "preserve-retire",
+      "reconstruction": {
+        "cached_patch_sha256": "91771dc10855d853d029a8de351be76033bd7a6114c38ac64f9f6e08c56c45c7",
+        "exact": true,
+        "full_index_patch_sha256": "039beee7a8f79efa0c7cb96c27b4f7634f32ccc981b899674cdfd4443e11b3f2",
+        "method": "detached local clone plus exact cached patch and working patch application",
+        "status_entry_count": 43,
+        "status_sha256": "f7419fdedabe96d659ac6be5e0c5b46e22ff2590796820bf988244b3ce39129b",
+        "untracked_entry_count": 0,
+        "working_patch_sha256": "43bb6b28628e3d92847fec34f9b9561417e2115fbdc83963873348d0b98e9c4f"
+      },
+      "registered_ref_head": "21a915996201a07e9a515ebec1e6ce922212230e",
+      "rejected_replay": [
+        "The dirty snapshot deletes accepted safety tests and production modules before completing OpenSpec Tasks 2.4 through 5.3.",
+        "The reconstructed snapshot leaves decision_invalid unclassified and carries stale parity; it is not proof-ready.",
+        "Direct replay would overlap the valid-owner native-resolution successor and terminal-convergence scopes and would reintroduce an obsolete branch topology."
+      ],
+      "semantic_classification": "typed_closeout_invariants_absorbed_exact_dirty_implementation_preserved_then_retired",
+      "semantic_receiver": {
+        "authority": "observe_only_non_authorizing",
+        "branch": "work/20260724-native-lane-resolution-authority-successor",
+        "dirty_path_count": 0,
+        "head": "2fc8601467cb7ca826979c3bf0efd90a28dcfb73",
+        "kind": "valid_owner_successor_observation",
+        "observed_equivalents": [
+          "strict frozen Pydantic LaneObservation, LaneResolutionDecision, OwnerlessCloseoutBinding, LaneResolutionReceipt, and OwnerlessCloseoutReservation contracts",
+          "the same five durable ownerless recovery states",
+          "native observation, current record roots, native preservation, exact effect and completion paths"
+        ],
+        "tree": "0631e1a0344f45abb997609ff503e27400085ce8"
+      },
+      "status_entries": 43,
+      "tree": "616da3e0b9f81c41b19f4f92e0d0e5104b747fdb",
+      "untracked_entries": 0,
+      "verification": {
+        "accepted_control_same_environment_comparison": "3 passed, 20 failed in 24.13s",
+        "dirty_specific_failures": [
+          "quality evidence-freshness reports stale parity for the historical branch",
+          "quality determinism aggregate fails through that stale parity result",
+          "decision_invalid is not classified by the historical invalid-state registry"
+        ],
+        "focused_ownerless_contract_effect_recovery": "156 passed in 39.21s",
+        "full_unit_architecture_without_coverage": "2722 passed, 23 failed in 274.51s",
+        "official_gate": "non-trust-bearing: reached 99 percent, then one xdist worker exited under concurrent foreign-lane test pressure; only this carrier-owned test session was interrupted"
+      }
+    },
+    {
+      "absorbed_invariants": [
+        "Strict closeout contracts and strict resolution digests.",
+        "Current record-root ownership, fail-closed inventory, reservations, native preservation, exact ownerless admission, and typed preserved payloads."
+      ],
+      "accepted_head": "a8e53eedd0bcc8240f5d14a1589ff2cd788aee47",
+      "actual_branch": "work/20260724-native-lane-resolution-authority",
+      "artifacts": {
+        "branch-vs-merge-base.name-status": {
+          "bytes": 4587,
+          "sha256": "e32168cf31026df70c1927fe984d7521848890afe3c285212708b02100f3d923"
+        },
+        "cached.patch": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "full-index.patch": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "lane-vs-accepted.name-status": {
+          "bytes": 22233,
+          "sha256": "b6cc1d2486b337dc68c9c68badaaf0c02fd4eb73b818ea9772f79a7a3706d21e"
+        },
+        "status.bin": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "status.txt": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "untracked.bin": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "working.patch": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      "branch": "work/20260724-native-lane-resolution-authority",
+      "dirty": false,
+      "exclusive_commit_count": 15,
+      "exclusive_commits": [
+        "543425f16c02c0e07cd9d5d3192aea3115835bb1",
+        "7d4205da40613cb4a363a741b9a07e823b173fd6",
+        "05917ad800ac9d6ba910c3e986d6bc9ce5e7914e",
+        "30a9ce89ec682a44fcf2a29ce28b4ed95afe0800",
+        "f530e5c077ff191eea4a72e87299f37e82884fc2",
+        "14d339be7c0c59425dce92703f9eedf0005bc084",
+        "4ae2487705ec05fa7fa18fd162578b4c09c6def7",
+        "cfc9802b4002d64313087381c6585b0b205e5332",
+        "95ebd352bae5a073c894036833671566fbe0d84d",
+        "ee7bc9bf1fd204de13b6d6c6e17f0e2bbf99f713",
+        "21142430c1c4029224a41ac1696c5f2ecbaa9470",
+        "53ca29ad427ae039a31c09a402de694593e00f59",
+        "9dbba7ada07c6a1980f05d73712fdbd9ef643ad3",
+        "7f6c2cae4854403e4d0b6952c24dc6c2d7c45d26",
+        "0b795ab24a49dd8a8b65120a59df12722dc90bf2"
+      ],
+      "head": "0b795ab24a49dd8a8b65120a59df12722dc90bf2",
+      "lsof_bytes": 0,
+      "lsof_returncode": 1,
+      "lsof_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "merge_base": "266018e9832866c00499bd5bcbf4dfa9cc831d89",
+      "planned_disposition": "retire",
+      "registered_ref_head": "0b795ab24a49dd8a8b65120a59df12722dc90bf2",
+      "semantic_classification": "exact_and_stronger_replay_present_in_valid_owner_successor",
+      "status_entries": 0,
+      "successor_replay": {
+        "authority": "observe_only_non_authorizing",
+        "branch": "work/20260724-native-lane-resolution-authority-successor",
+        "exact_patch_id_or_cherry_pick_matches": [
+          [
+            "543425f16c02c0e07cd9d5d3192aea3115835bb1",
+            "def6c0be145086bbc9cf542cc76f5bb2856cc6f0"
+          ],
+          [
+            "7d4205da40613cb4a363a741b9a07e823b173fd6",
+            "0f0e0ab13150a9b7e4324b2b6e4711d8cdecaadf"
+          ],
+          [
+            "05917ad800ac9d6ba910c3e986d6bc9ce5e7914e",
+            "cfd5395e54b2ba63ce7fe31c5d453a1ff43b0bf5"
+          ],
+          [
+            "30a9ce89ec682a44fcf2a29ce28b4ed95afe0800",
+            "a9891bf34763900a210beefae32b787a4d3b6d40"
+          ]
+        ],
+        "head": "2fc8601467cb7ca826979c3bf0efd90a28dcfb73",
+        "stronger_replay_commit_subjects": [
+          "define current record roots",
+          "cut record authority to current root",
+          "own native reservation persistence",
+          "bind current record CAS to descriptors",
+          "preserve recovery packages natively",
+          "observe ownerless targets exactly",
+          "admit ownerless closeout natively",
+          "make ownerless effect native",
+          "converge native ownerless closeout"
+        ]
+      },
+      "tree": "6d47df1070ca9474d7e698cd1cf947f26236fcf8",
+      "untracked_entries": 0
+    }
+  ],
+  "resolution_policy": {
+    "clean_lane_default": "retire only after accepted semantic absorption evidence",
+    "dirty_lane_default": "preserve-retire only after exact byte and semantic analysis",
+    "ownerless_only": true,
+    "raw_git_delete_forbidden": true,
+    "remote_publication_authorized": false,
+    "valid_owner_lanes": "observe_only"
+  },
+  "schema_version": 1,
+  "successor_observation": {
+    "branch": "work/20260724-native-lane-resolution-authority-successor",
+    "dirty_path_count": 0,
+    "head": "2fc8601467cb7ca826979c3bf0efd90a28dcfb73",
+    "mints_authority": false,
+    "tree": "0631e1a0344f45abb997609ff503e27400085ce8"
+  },
+  "summary": {
+    "clean_retire_count": 3,
+    "dirty_preserve_retire_count": 1,
+    "lane_count": 4,
+    "native_effects_pending_until_accepted_chronicle": true,
+    "semantic_absorption_complete": true,
+    "untracked_entry_count": 0,
+    "valid_owner_lane_mutation_count": 0
+  }
+}

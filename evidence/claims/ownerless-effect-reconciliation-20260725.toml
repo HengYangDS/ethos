@@ -3,13 +3,13 @@ id = "ownerless-effect-reconciliation-20260725"
 subject = "ethos:work-lanes:ownerless-effect-reconciliation"
 state = "active"
 change_id = "ownerless-effect-reconciliation"
-summary = "Three clean diverged ownerless lanes use transient exact preserve-retire after zero-effect WCP refusal, while all four retained packages remain exact-manifest clear bound."
+summary = "Three clean diverged ownerless lanes use transient exact preserve-retire after native accepted-ancestor refusal, while all four retained packages remain exact-manifest clear bound."
 
 [evidence]
 dated = "evidence/chronicle/ownerless-effect-reconciliation-20260725/2026-07-25.md"
-sha256 = "f75c8e29c5e6c47b173ad26e0e686de946edf009d1ede411a9719f94ef63c819"
+sha256 = "ba71548f3c3ab350b687d59238eb898a4c67cd543b60e0c7c3d04ce656a05c56"
 evidence_ids = ["evidence:ownerless-effect-reconciliation-20260725"]
-binding = "This Claim binds the exact three clean WCP no-effect targets, the existing dirty decision lane-decision:4f0f0ee2-7907-438f-acf1-91729d14796a and manifest 16c9f2e10bf2a9fde432eb543b15eef780cf786e83f679be2fa36b74909635d6, transient preserve-retire bridge authority, a separate exact-manifest successor for later clean package clear, and no valid-owner mutation."
+binding = "This Claim binds the exact three clean native accepted-ancestor no-effect targets, the existing dirty decision lane-decision:4f0f0ee2-7907-438f-acf1-91729d14796a and manifest 16c9f2e10bf2a9fde432eb543b15eef780cf786e83f679be2fa36b74909635d6, superseded Chronicle blob 53a3086c0befec089abaf4815dae746b9b8024a8 and SHA-256 f75c8e29c5e6c47b173ad26e0e686de946edf009d1ede411a9719f94ef63c819, normalized Chronicle SHA-256 ba71548f3c3ab350b687d59238eb898a4c67cd543b60e0c7c3d04ce656a05c56, transient preserve-retire bridge authority, a separate exact-manifest successor for later clean package clear, and no valid-owner mutation."
 verifier = "digest_only"
 tests = [
   "tools/ci/scripts/run-ethos-lane.sh openspec --lifecycle --json",
@@ -28,7 +28,7 @@ scope = "Exactly three clean missing-owner diverged Work Lanes, one already reta
 [carriers]
 openspec = "openspec/changes/archive/2026-07-25-ownerless-effect-reconciliation"
 fallback = "Leave any branch, worktree, or package intact whenever ownerlessness, exact head, empty occupancy, accepted Chronicle bytes, receipt integrity, or manifest binding cannot be re-proved."
-kill_signal = "Any WCP bypass, raw Git deletion, valid-owner mutation, historical implementation replay, convenience retention, or package clear without an accepted exact decision ID and manifest SHA-256."
+kill_signal = "Any bypass of native accepted-ancestor admission, raw Git deletion, valid-owner mutation, historical implementation replay, convenience retention, or package clear without an accepted exact decision ID and manifest SHA-256."
 
 [promotion]
 targets = [

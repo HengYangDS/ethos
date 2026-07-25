@@ -7,7 +7,7 @@ summary = "ETHOS makes the hosted readiness report observe coverage and proof st
 
 [evidence]
 dated = "evidence/chronicle/github-proof-report-after-execution-20260725/2026-07-25.md"
-sha256 = "76b8d94c71a3a056c67455bf4a4a0aa620e6e2255e4e70d8119fa2c8234dceea"
+sha256 = "34a03aadc5d189208adbab0fad56affc9a6d030f59029b7fdd6797fc78a3e396"
 evidence_ids = ["evidence:github-proof-report-after-execution-20260725"]
 binding = "GitHub dev run 30172606031, its retained audit/report/proof/JUnit/coverage artifacts, exact source order, the OpenSpec carrier, and the dated Chronicle bind this post-proof reporting claim."
 verifier = "digest_only"
@@ -30,7 +30,7 @@ owner = "quality"
 scope = "The hosted proof owner-script producer order, one behavioral provider contract, one quality requirement, and bounded evidence only; no duplicate test restoration, proof-graph change, timeout weakening, worker change, retry admission, GitLab mutation or observation, foreign Work Lane action, or hosted-green claim without a fresh exact-SHA run."
 
 [carriers]
-openspec = "openspec/changes/github-proof-report-after-execution"
+openspec = "openspec/changes/archive/2026-07-25-github-proof-report-after-execution"
 fallback = "Revert the command reorder only if post-proof reporting damages proof evidence; do not restore a separate full-test producer, and keep hosted readiness blocked until re-proven."
 kill_signal = "Report again executes before proof, the proof executes more than once, receipt conjunction weakens, diagnostics or artifacts disappear, GitLab changes, timeouts or coverage weaken, or failed hosted evidence is described as passing."
 
@@ -40,7 +40,7 @@ targets = [
   "tests/architecture/test_ci_provider_projections.py",
   "openspec/specs/quality/spec.md",
   "evidence/parity/generic-shadow.json",
-  "openspec/changes/github-proof-report-after-execution",
+  "openspec/changes/archive/2026-07-25-github-proof-report-after-execution",
   "evidence/chronicle/github-proof-report-after-execution-20260725/2026-07-25.md",
   "evidence/claims/github-proof-report-after-execution-20260725.toml",
 ]

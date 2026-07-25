@@ -21,7 +21,7 @@
 
 ## 3. Proof and closeout
 
-- [ ] 3.1 Run the complete owner-script Python test gate with two workers and
+- [x] 3.1 Run the complete owner-script Python test gate with two workers and
   the GitHub timeout inputs after Claim binding.
 - [ ] 3.2 Refresh generic parity evidence and run exact-HEAD ETHOS proof.
 - [ ] 3.3 Complete only tasks backed by fresh evidence and officially archive

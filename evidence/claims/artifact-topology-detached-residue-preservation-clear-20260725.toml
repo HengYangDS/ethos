@@ -28,7 +28,7 @@ owner = "ethos-repository"
 scope = "One retained detached-residue recovery package and one exact-manifest native clear transition only."
 
 [carriers]
-openspec = "openspec/changes/artifact-topology-detached-residue-preservation-clear"
+openspec = "openspec/changes/archive/2026-07-25-artifact-topology-detached-residue-preservation-clear"
 fallback = "Keep the package, decision, receipt, and every unrelated retained package intact if the manifest, accepted behavior basis, Chronicle, inventory, or native clear admission drifts."
 kill_signal = "A broad package sweep, raw deletion, receipt deletion, another Work Lane effect, remote mutation, hosted claim, or clearance without the exact manifest."
 
@@ -38,6 +38,6 @@ targets = [
   "docs/plans/artifact-topology-detached-residue-preservation-clear-20260725.md",
   "evidence/claims/artifact-topology-detached-residue-preservation-clear-20260725.toml",
   "evidence/chronicle/artifact-topology-detached-residue-preservation-clear-20260725/2026-07-25.md",
-  "openspec/changes/artifact-topology-detached-residue-preservation-clear",
+  "openspec/changes/archive/2026-07-25-artifact-topology-detached-residue-preservation-clear",
   "openspec/specs/repository-governance/spec.md",
 ]

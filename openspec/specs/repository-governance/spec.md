@@ -1729,6 +1729,21 @@ but conflicting records for one decision SHALL fail closed.
   reconciliation
 - **AND** the command SHALL not report ordinary success.
 
+#### Scenario: one absorbed detached-residue package is cleared by exact manifest
+
+- **GIVEN** an accepted Chronicle selects
+  `lane_resolution/clear-preservation` for one exact decision id and manifest
+- **AND** the retained tracked patch matches the pre-effect capture, the index
+  patch is empty, no untracked archive exists, and accepted behavior contains
+  no missing capability from that package
+- **WHEN** a maintainer invokes native clear with the matching manifest,
+  non-empty reason, break-glass, and irreversible confirmation
+- **THEN** ETHOS SHALL re-read inventory and manifest bytes before removing only
+  that package and emitting a clear receipt
+- **AND** the original decision and completion receipt SHALL remain
+- **AND** another package, a changed manifest, raw deletion, or batch clear
+  SHALL remain blocked.
+
 ### Requirement: Evidence-bound preservation-package clearing
 
 ETHOS SHALL remove a retained recovery package only after a manifest-bound,

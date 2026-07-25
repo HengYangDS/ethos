@@ -5,6 +5,7 @@ state: active
 relations:
   source_decision: lane-decision:56a318b4-18e5-4a73-9051-80202eb99576
   source_claim: artifact-topology-detached-residue-absorption-20260724
+  change: openspec/changes/archive/2026-07-25-artifact-topology-detached-residue-preservation-clear
 ---
 
 # Artifact-Topology Detached Residue Preservation Clear — 2026-07-25

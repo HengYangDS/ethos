@@ -3881,3 +3881,20 @@ lane-specific semantic judgment before any native retirement effect.
   semantic evidence
 - **THEN** the citation SHALL mint no ownership, mutation, land, retirement,
   cleanup, or completion authority over the valid-owner lane.
+
+#### Scenario: transient clean bridge packages are cleared only by accepted exact manifests
+
+- **GIVEN** accepted reconciliation authorized transient
+  `lane_resolution/preserve-retire` for exact clean ownerless lanes only after
+  direct retirement reached a WCP no-effect boundary
+- **AND** native effects removed the exact branches and worktrees while retaining
+  verified packages with empty tracked and index patches
+- **WHEN** a separate accepted successor binds each exact decision ID,
+  completion receipt, manifest SHA-256, and repository bundle SHA-256
+- **THEN** each package MAY be cleared only through its own native
+  `lane_resolution/clear-preservation` invocation
+- **AND** native clear SHALL re-read inventory and manifest bytes, remove only
+  the named package, retain the immutable decision and completion receipt, and
+  emit a durable clear receipt
+- **AND** a changed manifest, duplicate package, missing receipt, wildcard clear,
+  raw deletion, fourth package, or valid-owner mutation SHALL remain blocked.

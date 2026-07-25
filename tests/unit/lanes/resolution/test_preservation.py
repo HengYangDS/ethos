@@ -88,11 +88,47 @@ def test_git_payloads_keep_exact_worktree_and_index_bytes(
 
     assert calls == [
         ("bundle", "create", bundle.as_posix(), "work/example"),
-        ("diff", "--binary", "HEAD", "--"),
-        ("diff", "--cached", "--binary", "HEAD", "--"),
+        ("diff", "--no-ext-diff", "--no-textconv", "--binary", "HEAD", "--"),
+        ("diff", "--cached", "--no-ext-diff", "--no-textconv", "--binary", "HEAD", "--"),
     ]
     assert tracked_patch.read_bytes() == b"tracked\x00patch\xfe"
     assert index_patch.read_bytes() == b"index\x00patch\xff"
+
+
+@pytest.mark.parametrize("driver", ["textconv", "external"])
+@pytest.mark.parametrize("scope", ["tracked", "index"])
+def test_git_payloads_bypass_repository_diff_drivers(
+    tmp_path: Path, driver: str, scope: str
+) -> None:
+    source = _repository(tmp_path / "source")
+    if driver == "textconv":
+        (source / ".gitattributes").write_text("tracked.txt diff=constant\n", encoding="utf-8")
+        _git(source, "add", ".gitattributes")
+        _git(source, "commit", "-m", "configure textconv")
+        _git(source, "config", "diff.constant.textconv", "sed -e 's/.*/constant/'")
+    else:
+        _git(source, "config", "diff.external", "true")
+
+    def capture(name: str, raw: bytes) -> bytes:
+        (source / "tracked.txt").write_bytes(raw)
+        if scope == "index":
+            _git(source, "add", "tracked.txt")
+        package = tmp_path / name
+        package.mkdir()
+        preservation.write_git_preservation_payloads(
+            source=source,
+            bundle=package / "repository.bundle",
+            tracked_patch=package / "tracked.patch",
+            index_patch=package / "index.patch",
+            lane_ref="work/example",
+        )
+        return (package / f"{scope}.patch").read_bytes()
+
+    first = capture("first", b"bravo\n")
+    second = capture("second", b"cello\n")
+
+    assert first
+    assert first != second
 
 
 @pytest.mark.parametrize(
@@ -153,6 +189,18 @@ def test_binary_git_runner_uses_literal_git_and_retains_byte_diagnostic(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     calls: list[tuple[list[str], dict[str, object]]] = []
+    for name in (
+        "GIT_DIR",
+        "GIT_WORK_TREE",
+        "GIT_INDEX_FILE",
+        "GIT_CONFIG_COUNT",
+        "GIT_OBJECT_DIRECTORY",
+        "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+        "GIT_REPLACE_REF_BASE",
+        "GIT_NO_REPLACE_OBJECTS",
+        "XDG_CONFIG_HOME",
+    ):
+        monkeypatch.setenv(name, "/hostile/inherited/value")
 
     def run(command: list[str], **kwargs: object):
         calls.append((command, kwargs))
@@ -171,6 +219,16 @@ def test_binary_git_runner_uses_literal_git_and_retains_byte_diagnostic(
                 "cwd": tmp_path,
                 "check": False,
                 "capture_output": True,
+                "env": {
+                    "GIT_ATTR_NOSYSTEM": "1",
+                    "GIT_CONFIG_GLOBAL": os.devnull,
+                    "GIT_CONFIG_NOSYSTEM": "1",
+                    "GIT_NO_REPLACE_OBJECTS": "1",
+                    "GIT_OPTIONAL_LOCKS": "0",
+                    "LC_ALL": "C",
+                    "PATH": os.environ.get("PATH", os.defpath),
+                },
+                "shell": False,
             },
         )
     ]
@@ -526,8 +584,8 @@ def test_preserve_package_uses_fixed_git_stdlib_tar_and_v2_payloads(
 
     assert calls == [
         ("bundle", "create", (package / "repository.bundle").as_posix(), "work/example"),
-        ("diff", "--binary", "HEAD", "--"),
-        ("diff", "--cached", "--binary", "HEAD", "--"),
+        ("diff", "--no-ext-diff", "--no-textconv", "--binary", "HEAD", "--"),
+        ("diff", "--cached", "--no-ext-diff", "--no-textconv", "--binary", "HEAD", "--"),
     ]
     with tarfile.open(package / "untracked.tar", "r") as archive:
         assert archive.getnames() == ["listed-link", "listed.bin", "nested/listed.bin"]

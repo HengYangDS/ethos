@@ -39,10 +39,7 @@ def _digest(value: object) -> str:
 
 
 def _fixture(*, lane_path: str = _PATH) -> tuple[WCPCloseoutExpectation, dict[str, object]]:
-    incarnation = (
-        "decision-incarnation:"
-        + hashlib.sha256(f"{_BRANCH}\0{_HEAD}\0{lane_path}".encode()).hexdigest()
-    )
+    incarnation = 'git-worktree-registration:v1:{"fixture":"wcp"}'
     empty_digest = hashlib.sha256(b"").hexdigest()
     observation = {
         "lane_ref": _BRANCH,

@@ -12,12 +12,12 @@ from typing import cast
 
 import ethos.adapters.mutation.resolution.closeout.effect as ownerless_effect
 from ethos.adapters.mutation.lane_lifecycle.core import run_git
-from ethos.adapters.mutation.resolution._observation import observe_lane
-from ethos.adapters.mutation.resolution._observation import untracked_files
 from ethos.adapters.mutation.resolution._shared import canonical_package_path
 from ethos.adapters.mutation.resolution._shared import display_path
 from ethos.adapters.mutation.resolution._shared import sha256_digest
 from ethos.adapters.mutation.resolution.closeout.wcp.core import run_worktree_closeout_check
+from ethos.adapters.mutation.resolution.observation import observe_lane
+from ethos.adapters.mutation.resolution.observation import untracked_files
 from ethos.adapters.mutation.resolution.preservation.core import write_git_preservation_payloads
 from ethos.adapters.mutation.resolution.preservation.core import write_untracked_archive
 from ethos.adapters.mutation.resolution.receipts import verify_preservation_package

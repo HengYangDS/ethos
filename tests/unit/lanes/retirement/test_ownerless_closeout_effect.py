@@ -10,9 +10,9 @@ import pytest
 
 import ethos.adapters.mutation.resolution._effects as closeout_git
 import ethos.adapters.mutation.resolution.closeout.effect as effect
-import ethos.adapters.mutation.resolution.closeout.ownerless.admission.core as closeout_admission_api  # noqa: E501
-import ethos.adapters.mutation.resolution.closeout.ownerless.admission.facts.core as closeout_admission  # noqa: E501
-import ethos.adapters.mutation.resolution.closeout.ownerless.admission.facts.fence as closeout_admission_fence  # noqa: E501
+import ethos.adapters.mutation.resolution.closeout.ownerless.admission.core as closeout_admission_api
+import ethos.adapters.mutation.resolution.closeout.ownerless.admission.facts.core as closeout_admission
+import ethos.adapters.mutation.resolution.closeout.ownerless.admission.facts.fence as closeout_admission_fence
 import ethos.adapters.mutation.resolution.closeout.ownerless.effect as admission_runtime
 import ethos.adapters.mutation.resolution.closeout.ownerless.receipt.core as closeout_receipt
 import ethos.adapters.mutation.resolution.records.reservations as reservations

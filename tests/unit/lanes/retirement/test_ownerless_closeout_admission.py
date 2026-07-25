@@ -16,8 +16,8 @@ from typing import Any
 import pytest
 
 import ethos.adapters.mutation.resolution.closeout.ownerless.admission.core as native_admission_api
-import ethos.adapters.mutation.resolution.closeout.ownerless.admission.facts.core as native_admission  # noqa: E501
-import ethos.adapters.mutation.resolution.closeout.ownerless.admission.facts.fence as native_admission_fence  # noqa: E501
+import ethos.adapters.mutation.resolution.closeout.ownerless.admission.facts.core as native_admission
+import ethos.adapters.mutation.resolution.closeout.ownerless.admission.facts.fence as native_admission_fence
 import ethos.adapters.mutation.resolution.closeout.ownerless.workspace as native_policy
 import ethos.adapters.mutation.resolution.observation as resolution_observation
 from ethos.adapters.mutation.resolution.records.core import canonical_current_record_bytes

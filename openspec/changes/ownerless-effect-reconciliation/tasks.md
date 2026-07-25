@@ -17,28 +17,21 @@
 - [x] 2.3 Select exact dirty-package
   `lane_resolution/clear-preservation` after Stage 1 accepted closeout.
 
-## 3. Stage 1 accepted authority
+## 3. Accepted authority closeout
 
 - [x] 3.1 Pass strict OpenSpec lifecycle, Claim, documentation, and focused
   governance checks.
-- [ ] 3.2 Refresh and commit generic parity evidence.
-- [ ] 3.3 Execute exact-HEAD proof, land Stage 1, and accepted-close it while
-  this Change remains active and incomplete.
+- [x] 3.2 Refresh and commit generic parity evidence.
+- [x] 3.3 Execute the exact-HEAD proof and confirm that native effects remain
+  deferred until this Change is officially archived, landed, and
+  accepted-closed.
 
-## 4. Execute and capture native effects
+## Post-archive transition boundary
 
-- [ ] 4.1 Dry-run and clear only the exact dirty retained package.
-- [ ] 4.2 Record and apply three new exact clean `preserve-retire` decisions.
-- [ ] 4.3 Verify all three branches and paths are absent and every package is
-  retained with empty staged/working patches.
-- [ ] 4.4 Append exact decision IDs, receipt IDs, manifest SHA-256 values, and
-  package digests to the Chronicle and refresh the Claim digest.
-
-## 5. Stage 2 final closeout
-
-- [ ] 5.1 Select `lane_resolution/clear-preservation` for the three exact clean
-  manifests, complete all tasks, and archive this Change officially.
-- [ ] 5.2 Refresh parity, execute final exact-HEAD proof, land, and
-  accepted-close the archived carrier.
-- [ ] 5.3 Dry-run and clear each exact clean package, retire this owned carrier,
-  and run final lane housekeeping and readiness reports.
+After this Change is archived and accepted, execution continues outside this
+completed checklist: clear the exact dirty package; record and apply the three
+exact clean `preserve-retire` decisions; verify absent branches and paths plus
+empty patch payloads; create a separate exact-manifest successor Change; bind
+the three resulting decision, receipt, manifest, and package digests; archive,
+prove, land, and accepted-close that successor; clear the three exact packages;
+then retire owned carriers and run final housekeeping and readiness reports.

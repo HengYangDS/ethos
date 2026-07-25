@@ -7,9 +7,9 @@ summary = "Three clean diverged ownerless lanes use transient exact preserve-ret
 
 [evidence]
 dated = "evidence/chronicle/ownerless-effect-reconciliation-20260725/2026-07-25.md"
-sha256 = "04aef67dc49b3e8726d2dbf6c149c0710897d323b034fb36262b0486748176fc"
+sha256 = "f75c8e29c5e6c47b173ad26e0e686de946edf009d1ede411a9719f94ef63c819"
 evidence_ids = ["evidence:ownerless-effect-reconciliation-20260725"]
-binding = "This Claim binds the exact three clean WCP no-effect targets, the existing dirty decision lane-decision:4f0f0ee2-7907-438f-acf1-91729d14796a and manifest 16c9f2e10bf2a9fde432eb543b15eef780cf786e83f679be2fa36b74909635d6, transient preserve-retire bridge authority, later exact-manifest clear, and no valid-owner mutation."
+binding = "This Claim binds the exact three clean WCP no-effect targets, the existing dirty decision lane-decision:4f0f0ee2-7907-438f-acf1-91729d14796a and manifest 16c9f2e10bf2a9fde432eb543b15eef780cf786e83f679be2fa36b74909635d6, transient preserve-retire bridge authority, a separate exact-manifest successor for later clean package clear, and no valid-owner mutation."
 verifier = "digest_only"
 tests = [
   "tools/ci/scripts/run-ethos-lane.sh openspec --lifecycle --json",

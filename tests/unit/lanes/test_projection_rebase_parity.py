@@ -73,6 +73,36 @@ def test_projection_rebase_skips_empty_patch_after_parity_resolution(
     assert ("rebase", "--skip") in calls
 
 
+def test_projection_rebase_skips_empty_patch_reported_on_stdout(
+    monkeypatch, tmp_path: Path
+) -> None:
+    calls: list[tuple[str, ...]] = []
+    diff_calls = 0
+
+    def run_git(_root: Path, *args: str, check: bool = True):
+        nonlocal diff_calls
+        del check
+        calls.append(args)
+        if args[:3] == ("diff", "--name-only", "--diff-filter=U"):
+            diff_calls += 1
+            return cp(stdout="evidence/parity/generic-shadow.json\n" if diff_calls == 1 else "")
+        if args[:1] in {("checkout",), ("add",)}:
+            return cp(returncode=0)
+        if args == ("-c", "core.editor=true", "rebase", "--continue"):
+            return cp(returncode=1, stdout="The previous cherry-pick is now empty.\n")
+        if args == ("rebase", "--skip"):
+            return cp(returncode=0)
+        return cp(returncode=1, stderr="unexpected git call")
+
+    monkeypatch.setattr(projection_rebase, "run_git", run_git)
+    resolved = projection_rebase.resolve_projection_rebase(
+        tmp_path, cp(returncode=1, stderr="projection conflict")
+    )
+
+    assert resolved["ok"] is True
+    assert ("rebase", "--skip") in calls
+
+
 def test_projection_rebase_reports_failed_continue_for_caller_abort(
     monkeypatch, tmp_path: Path
 ) -> None:

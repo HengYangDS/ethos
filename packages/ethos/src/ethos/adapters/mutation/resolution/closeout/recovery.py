@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-import os
 from contextlib import ExitStack
 from typing import TYPE_CHECKING
 from typing import Any
@@ -11,14 +10,16 @@ from typing import cast
 
 import ethos.adapters.mutation.resolution.closeout.cleanup.core as cleanup
 import ethos.adapters.mutation.resolution.closeout.ownerless.receipt.completion as completion
-from ethos.adapters.mutation.resolution._effects import OwnerlessCloseoutError
 from ethos.adapters.mutation.resolution._effects import prepare_resolution_effect
 from ethos.adapters.mutation.resolution._effects import retire_lane
 from ethos.adapters.mutation.resolution._shared import accepted_preserve_retire_chronicle
 from ethos.adapters.mutation.resolution._shared import transition_gap
 from ethos.adapters.mutation.resolution._shared import valid_decision_id
 from ethos.adapters.mutation.resolution.closeout.effect import pre_admit_ownerless_lane
-from ethos.adapters.mutation.resolution.closeout.effect import retire_clean_ownerless_lane
+from ethos.adapters.mutation.resolution.closeout.ownerless.effect import (
+    is_ownerless_closeout_candidate,
+)
+from ethos.adapters.mutation.resolution.closeout.ownerless.effect import retire_ownerless_resolution
 from ethos.adapters.mutation.resolution.closeout.ownerless.receipt.core import (
     claim_effect_receipt_reservation,
 )
@@ -486,8 +487,8 @@ def _retire_resolution(  # noqa: PLR0913, RUF100 - exact resolution context
         )
     ):
         return False, preservation_gap, {}
-    if _ownerless_closeout_candidate(disposition, observation):
-        return _retire_ownerless_resolution(
+    if is_ownerless_closeout_candidate(disposition, observation):
+        return retire_ownerless_resolution(
             control_root=control_root,
             decision_path=decision_path,
             decision=decision,
@@ -514,36 +515,6 @@ def _retire_resolution(  # noqa: PLR0913, RUF100 - exact resolution context
     return True, "", {}
 
 
-def _retire_ownerless_resolution(
-    *,
-    control_root: Path,
-    decision_path: Path,
-    decision: dict[str, Any],
-    artifact_root: Path,
-    ownerless_admission: OwnerlessCloseoutAdmission | None,
-) -> tuple[bool, str, dict[str, object]]:
-    """Run the native ownerless effect and classify its durable recovery state."""
-    executor_ref = os.environ.get("ETHOS_ACTOR", "").strip()
-    if not executor_ref:
-        return False, "lane_resolution_ownerless_executor_required", {}
-    try:
-        binding = retire_clean_ownerless_lane(
-            root=control_root,
-            decision_path=decision_path,
-            decision=decision,
-            executor_ref=executor_ref,
-            artifact_root=artifact_root,
-            admission=ownerless_admission,
-        )
-    except OwnerlessCloseoutError as error:
-        return (
-            error.phase not in {None, "reserved"},
-            transition_gap(error, "lane_resolution_ownerless_transition_unknown"),
-            {},
-        )
-    return True, "", binding
-
-
 def _preserve_retire_pre_retirement_gap(
     *, control_root: Path, decision: dict[str, Any], observation: LaneObservation
 ) -> str:
@@ -555,13 +526,4 @@ def _preserve_retire_pre_retirement_gap(
         control_root=control_root,
         decision=decision,
         observation=observation,
-    )
-
-
-def _ownerless_closeout_candidate(disposition: str, observation: LaneObservation) -> bool:
-    return (
-        disposition == "retire"
-        and not observation.dirty
-        and observation.orphan
-        and not observation.holder_ref
     )

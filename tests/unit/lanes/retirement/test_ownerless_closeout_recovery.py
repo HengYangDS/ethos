@@ -9,6 +9,7 @@ import pytest
 
 import ethos.adapters.mutation.resolution.closeout.cleanup.core as cleanup_adapter
 import ethos.adapters.mutation.resolution.closeout.effect as effect_adapter
+import ethos.adapters.mutation.resolution.closeout.ownerless.effect as ownerless_effect_adapter
 import ethos.adapters.mutation.resolution.closeout.recovery as recovery_adapter
 import ethos.adapters.mutation.resolution.lane as lane_adapter
 import ethos.adapters.mutation.resolution.records.reservations as reservation_store
@@ -138,7 +139,7 @@ def test_resolution_retains_reservation_for_partial_ref_outcome(  # noqa: PLR091
     _decide(repo, decision_path, "retire")
     monkeypatch.setenv("ETHOS_ACTOR", "agent:codex:thread:executor")
     monkeypatch.setattr(
-        recovery_adapter,
+        ownerless_effect_adapter,
         "retire_clean_ownerless_lane",
         lambda **_kwargs: (_ for _ in ()).throw(
             effect_adapter.OwnerlessCloseoutError(

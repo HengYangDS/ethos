@@ -284,6 +284,7 @@ def test_configured_branch_roles_drive_local_lifecycle_commands(monkeypatch, tmp
     land_payload = run_ethos('land', '--apply', '--authorize', '--expect-head', work_head, '--json', cwd=worktree)
     assert land_payload['ok'] is True
     assert land_payload['data']['candidate_update']['branch'] == 'stage/integration'
+    assert land_payload['data']['candidate_update']['attestation']['kind'] == 'git-effect'
     assert git(candidate_path, 'rev-parse', 'HEAD') == work_head
     assert git(repo, 'rev-parse', 'integration') == accepted_head
     seed_executed_proof(candidate_path, work_head)
@@ -297,10 +298,8 @@ def test_configured_branch_roles_drive_local_lifecycle_commands(monkeypatch, tmp
     assert accepted_update['head'] == work_head
     assert accepted_update['previous_head'] == accepted_head
     assert accepted_update['required_gaps'] == []
-    assert accepted_update['proof_carry']['state'] == 'carried'
-    assert accepted_update['proof_carry']['source_verified'] is True
-    assert accepted_update['proof_carry']['target_verified'] is True
-    assert accepted_update['proof_carry']['same_head_only'] is True
+    assert accepted_update['attestation']['kind'] == 'git-effect'
+    assert accepted_update['attestation']['content']['state'] == 'applied'
     retire_payload = run_ethos('lane', 'retire', 'landed', '--branch', 'lane/configured', '--expect-head', work_head, '--apply', '--root', repo.as_posix(), '--json', cwd=repo)
     assert retire_payload['ok'] is True
     assert retire_payload['summary'] == {'landed_lane_count': 1, 'selected_branch': 'lane/configured', 'selected_retire_ready': True, 'selected_blockers': []}

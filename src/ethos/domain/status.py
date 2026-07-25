@@ -1,6 +1,6 @@
 """Status-stage domain reducers and audit orchestration.
 
-Pure reducers (string_list, adoption_mutation_gaps, status_worktree_gaps) plus the
+Pure reducers plus the
 repository/adopter audit composition (audit_for_root and friends), which orchestrate
 lower-layer reports. Imports flow downward only (ethos.repository/ethos.adapters/
 ethos.contracts), keeping the surface→domain→... layering acyclic.
@@ -19,28 +19,6 @@ from ethos.repository.context import is_product_root
 
 if TYPE_CHECKING:
     from pathlib import Path
-
-
-def adoption_mutation_gaps(
-    *,
-    apply: bool,
-    authorize: bool,
-    expect_head: str | None,
-    current_head: str,
-) -> tuple[str, ...]:
-    """Derive adoption-mutation precondition gaps (empty when not applying)."""
-    if not apply:
-        return ()
-    gaps: list[str] = []
-    if not authorize:
-        gaps.append("authorization_required")
-    if current_head == "untracked":
-        gaps.append("git_repository_missing")
-    if not expect_head:
-        gaps.append("expect_head_required")
-    elif expect_head != current_head:
-        gaps.append("expected_head_mismatch")
-    return tuple(gaps)
 
 
 def audit_for_root(

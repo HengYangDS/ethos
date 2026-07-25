@@ -23,8 +23,10 @@ from ethos.contracts.branch.roles import ROLE_ACCEPTED_ROOT
 from ethos.contracts.branch.roles import ROLE_WORK_LANE
 from ethos.contracts.coordination import CrossHostHandoff
 from ethos.contracts.coordination import HolderRef
-from ethos.contracts.lifecycle.core import MutationRequest
-from ethos.contracts.lifecycle.core import reduce_guards
+from ethos.contracts.transitions import GUARDED_TRANSITION
+from ethos.contracts.transitions import TransitionFacts
+from ethos.contracts.transitions import TransitionRequest
+from ethos.contracts.transitions import reduce_transition
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -92,7 +94,11 @@ def export_cross_host_handoff(  # noqa: PLR0913, RUF100 - exact request envelope
             + [gap for ok, gap in checks if not ok]
         )
     )
-    evaluation = reduce_guards(apply=apply, initial_gaps=tuple(gaps))
+    evaluation = reduce_transition(
+        GUARDED_TRANSITION,
+        TransitionRequest(apply=apply),
+        TransitionFacts(initial_gaps=tuple(gaps)),
+    )
     report = _handoff_report(branch=branch, evaluation=evaluation)
     if apply and evaluation.ok:
         _apply_report(
@@ -168,10 +174,10 @@ def import_cross_host_handoff(
             "handoff_destination_branch_exists",
         ),
     )
-    evaluation = reduce_guards(
-        apply=apply,
-        initial_gaps=tuple(gaps),
-        checks=checks,
+    evaluation = reduce_transition(
+        GUARDED_TRANSITION,
+        TransitionRequest(apply=apply),
+        TransitionFacts(initial_gaps=tuple(gaps), checks=checks),
     )
     report = _handoff_report(branch=branch, evaluation=evaluation)
     if apply and evaluation.ok:
@@ -317,10 +323,10 @@ def revoke_cross_host_source(  # noqa: PLR0913, RUF100 - exact request envelope 
         ),
     )
 
-    evaluation = reduce_guards(
-        apply=apply,
-        initial_gaps=tuple(gaps),
-        checks=checks,
+    evaluation = reduce_transition(
+        GUARDED_TRANSITION,
+        TransitionRequest(apply=apply),
+        TransitionFacts(initial_gaps=tuple(gaps), checks=checks),
     )
     report = _handoff_report(branch=branch, evaluation=evaluation)
     if apply and evaluation.ok:
@@ -410,7 +416,7 @@ def _finish_report(
     command, action, resource = envelope
     gaps = tuple(str(gap) for gap in cast("list[object]", report["required_gaps"]))
     report["mutation"] = mutation_envelope(
-        MutationRequest(command=command, apply=apply, authorized=False, expect_head=None),
+        TransitionRequest(command=command, apply=apply, authorized=False, expect_head=None),
         action=action,
         resource=resource,
         expected_state=expected_state,

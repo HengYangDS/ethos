@@ -9,9 +9,12 @@ from graphlib import TopologicalSorter
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Literal
+from typing import Self
 
 from pydantic import BaseModel
 from pydantic import ConfigDict
+from pydantic import Field
+from pydantic import model_validator
 
 if TYPE_CHECKING:
     from ethos.contracts.semantic import ChangeContract
@@ -46,6 +49,45 @@ class PlanNode(_PlanModel):
 
     def to_dict(self) -> dict[str, Any]:
         return self.normalized()
+
+
+class GitRefUpdate(_PlanModel):
+    """One exact compare-and-swap ref transition."""
+
+    expected: str = Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
+    desired: str = Field(pattern=r"^(?:[a-f0-9]{40}|[a-f0-9]{64})$")
+
+
+class GitEffect(_PlanModel):
+    """One typed, permission-bounded Git ref transaction."""
+
+    id: str = Field(min_length=1)
+    plan_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
+    updates: dict[str, GitRefUpdate] = Field(min_length=1)
+    assertions: dict[str, str] = Field(default_factory=dict)
+
+    @property
+    def permissions(self) -> tuple[str, ...]:
+        """Derive the exact permission set from the mutated refs."""
+        return tuple(f"git.ref.update:{ref}" for ref in self.updates)
+
+    @model_validator(mode="after")
+    def bind_permissions(self) -> Self:
+        refs_valid = all(
+            ref.startswith("refs/") and not any(char.isspace() or ord(char) < 32 for char in ref)
+            for ref in (*self.updates, *self.assertions)
+        )
+        assertions_valid = all(
+            len(value) in {40, 64} and not set(value) - set("0123456789abcdef")
+            for value in self.assertions.values()
+        )
+        if not refs_valid or set(self.assertions) & set(self.updates) or not assertions_valid:
+            raise ValueError("git_effect_permissions_invalid")
+        return self
+
+    def digest(self) -> str:
+        """Return the deterministic identity of this exact effect content."""
+        return hashlib.sha256(_stable_json(self.model_dump(mode="json")).encode()).hexdigest()
 
 
 def _ordered_ids(nodes: tuple[PlanNode, ...]) -> tuple[tuple[str, ...], tuple[str, ...]]:

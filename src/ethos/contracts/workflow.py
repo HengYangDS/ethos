@@ -17,15 +17,15 @@ from pydantic import ConfigDict
 from pydantic import Field
 from pydantic import field_validator
 
-from ethos.contracts.lifecycle.core import (
-    LeaseTransition,  # noqa: TC001, RUF100 - Pydantic resolves this annotation at runtime
-)
 from ethos.contracts.plan import PlanIR
 from ethos.contracts.plan import PlanNode
 from ethos.contracts.plan import compile_plan
 from ethos.contracts.policy.cel import evaluate_cel_rules
 from ethos.contracts.policy.cel import validate_cel_expression
 from ethos.contracts.system.contracts import load_system_contract
+from ethos.contracts.transitions import (
+    TransitionDeclaration,  # noqa: TC001, RUF100 - Pydantic resolves this annotation at runtime
+)
 from ethos.state.invalid import NODE_ORDER
 
 if TYPE_CHECKING:
@@ -277,7 +277,7 @@ class WorkflowContract(_WorkflowModel):
     schema_path: str = Field(default="", alias="schema")
     lifecycle: LifecycleDeclaration = Field(default_factory=lambda: LifecycleDeclaration(states=()))
     transition: tuple[WorkflowTransition, ...] = ()
-    lease_transition: tuple[LeaseTransition, ...] = ()
+    lease_transition: tuple[TransitionDeclaration, ...] = ()
     guards: tuple[str, ...] = ()
     runtime: WorkflowRuntimeDeclaration = Field(default_factory=WorkflowRuntimeDeclaration)
     node: tuple[WorkflowNode, ...] = ()
@@ -288,8 +288,8 @@ class WorkflowContract(_WorkflowModel):
     @field_validator("lease_transition")
     @classmethod
     def compile_lease_transition_matrix(
-        cls, value: tuple[LeaseTransition, ...]
-    ) -> tuple[LeaseTransition, ...]:
+        cls, value: tuple[TransitionDeclaration, ...]
+    ) -> tuple[TransitionDeclaration, ...]:
         operations = tuple(item.id for item in value)
         if len(operations) != len(set(operations)):
             raise ValueError(_LEASE_TRANSITION_MATRIX_INVALID)

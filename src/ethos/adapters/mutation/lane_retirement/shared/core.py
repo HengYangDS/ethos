@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 
 from ethos.adapters.mutation.decision import mutation_envelope
-from ethos.contracts.lifecycle.core import MutationRequest
+from ethos.contracts.transitions import TransitionRequest
 
 
 def current_holder_ref() -> str:
@@ -30,7 +30,7 @@ def retire_mutation_envelope(  # noqa: PLR0913, RUF100 - exact state-bound decis
     expected = (expect_head or "").strip()
     ref = f"refs/heads/{branch}" if branch else ""
     return mutation_envelope(
-        MutationRequest(
+        TransitionRequest(
             command=command,
             apply=apply,
             authorized=confirmed,

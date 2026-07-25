@@ -69,8 +69,10 @@ cannot be created from ambiguous local candidate state. When a Work Lane lands
 to the candidate train, ETHOS carries the already verified HEAD-bound executed
 proof record into the candidate worktree's local proof state. This carry-forward
 is not a new proof minting path: the source record must verify before copying,
-and the target copy is re-verified after writing. The reported `proof_carry`
-package exposes `truth_boundary = "local-proof-state-projection"`,
+and the target copy is re-verified after writing. This projection is internal;
+the public mutation result returns the Git-effect attestation rather than a
+second proof-carry receipt. The projection exposes
+`truth_boundary = "local-proof-state-projection"`,
 `mints_proof = false`, `same_head_only = true`, and source/target verification
 flags. It simply keeps Evidence with the same promoted HEAD so accepted-root
 closeout can prove the candidate head without requiring a redundant runner pass.

@@ -185,6 +185,7 @@ def _expected_fence(
             "observation_digest": observation.digest(),
             "decision_sha256": hashlib.sha256(raw).hexdigest(),
             "chronicle_digest": str(decision["chronicle_digest"]),
+            "acquisition_id": "00000000-0000-4000-8000-000000000002",
         },
     }
 

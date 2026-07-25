@@ -10,12 +10,16 @@ from ethos.adapters.mutation.resolution.records.current.core import (
     read_current_lane_resolution_records,
 )
 from ethos.adapters.mutation.resolution.records.roots import current_record_root
+from ethos_core.contracts.resolution.closeout import OwnerlessCloseoutReservation
 
 if TYPE_CHECKING:
     from pathlib import Path
 
 
 _CURRENT_RECORD_INVALID = "lane_resolution_current_record_invalid"
+_DECISION_RECORD_CONFLICT = "lane_resolution_decision_record_conflict"
+_OWNERLESS_DECISION_STALE = "lane_resolution_ownerless_decision_stale"
+_OWNERLESS_RESERVATION_COMPETING = "lane_resolution_ownerless_reservation_competing"
 
 
 def _lane_resolution_inventory(*, root: Path) -> dict[str, object]:
@@ -198,3 +202,55 @@ def lane_resolution_inventory(*, root: Path) -> dict[str, object]:
             "invalid_current_record_paths": [],
             "required_gaps": [gap],
         }
+
+
+def ownerless_closeout_reservation_admission(
+    *,
+    root: Path,
+    record_root: Path,
+    decision_path: Path,
+    decision_sha256: str,
+    expected: OwnerlessCloseoutReservation,
+) -> OwnerlessCloseoutReservation | None:
+    """Classify absence or one exact zero-effect retry reservation."""
+    try:
+        records = read_current_lane_resolution_records(root=root, record_root=record_root)
+    except (OSError, RuntimeError, TypeError, ValueError) as error:
+        raise ValueError(_CURRENT_RECORD_INVALID) from error
+    if records.invalid_count:
+        raise ValueError(_CURRENT_RECORD_INVALID)
+    if records.conflicts:
+        raise ValueError(_DECISION_RECORD_CONFLICT)
+    current = records.decisions.get(expected.decision_id)
+    if (
+        not current
+        or current.get("content_sha256") != decision_sha256
+        or current.get("physical_path") != decision_path.absolute()
+    ):
+        raise ValueError(_OWNERLESS_DECISION_STALE)
+    if records.receipt_reservations:
+        raise ValueError(_OWNERLESS_RESERVATION_COMPETING)
+    exact: OwnerlessCloseoutReservation | None = None
+    compared = (
+        "decision_id",
+        "lane_ref",
+        "head",
+        "executor_ref",
+        "decision_sha256",
+        "accepted_branch",
+        "target_digest",
+        "phase",
+        "recovery_state",
+        "postcondition_digest",
+    )
+    for projected in records.reservations.values():
+        payload = {field: projected[field] for field in OwnerlessCloseoutReservation.model_fields}
+        reservation = OwnerlessCloseoutReservation.model_validate(payload, strict=True)
+        if reservation.lane_ref != expected.lane_ref:
+            continue
+        if exact is not None or any(
+            getattr(reservation, field) != getattr(expected, field) for field in compared
+        ):
+            raise ValueError(_OWNERLESS_RESERVATION_COMPETING)
+        exact = reservation
+    return exact

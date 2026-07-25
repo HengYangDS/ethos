@@ -1592,6 +1592,35 @@ bound the exact resolution.
   absorption, rejected historical behavior, preservation, retirement, and later
   package clearing before any destructive effect.
 
+#### Scenario: expired dirty successor is semantically absorbed before closeout
+
+- **GIVEN** a linked Work Lane has an expired or missing lease, no valid Claim,
+  no process or open-file user, and dirty tracked or untracked bytes
+- **AND** an accepted target-specific Chronicle binds its exact head, merge
+  base, worktree registration, dirty paths, patch digest, and ownerless state
+- **WHEN** current accepted source and tests prove every useful hunk exact or
+  stronger, while rejected historical behavior is named explicitly
+- **THEN** semantic absorption SHALL be distinct from byte preservation
+- **AND** historical product code SHALL NOT be replayed merely to clean the lane
+- **AND** native preserve-retire SHALL re-observe the complete source before
+  preserving its exact bytes and removing only the named branch and worktree
+- **AND** any newly valid owner, source drift, Chronicle drift, process
+  occupancy, preservation failure, or accepted-basis drift SHALL block the
+  effect
+- **AND** recovery-package clear SHALL remain blocked until a separate accepted
+  exact-manifest decision proves no unique behavior remains.
+
+#### Scenario: overlapping valid-owner lanes remain protected
+
+- **GIVEN** valid-owner foreign lanes overlap source or test paths mentioned by
+  the ownerless semantic judgment
+- **WHEN** the ownerless authority carrier is authored, proved, landed, or
+  applied
+- **THEN** visibility and overlap SHALL NOT authorize writes, tests, land,
+  retirement, cleanup, or ownership transfer for those foreign lanes
+- **AND** the effect SHALL be limited to the exact ownerless source named by the
+  accepted Chronicle.
+
 ### Requirement: Durable exceptional-resolution recovery inventory
 
 ETHOS SHALL materialize successful exceptional-resolution decisions, receipts,

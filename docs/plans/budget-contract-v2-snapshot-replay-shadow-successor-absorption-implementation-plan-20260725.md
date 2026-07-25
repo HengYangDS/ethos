@@ -84,7 +84,7 @@ Chronicle evidence, Python focused tests, and repository-family governance.
 
 - [x] Complete only tasks backed by fresh evidence.
 - [x] Run generic shadow parity and commit the refreshed evidence.
-- [ ] Officially archive the OpenSpec change and update the Claim carrier.
+- [x] Officially archive the OpenSpec change and update the Claim carrier.
 - [x] Run exact-HEAD executed proof and report with no required gap.
 - [ ] Refresh immediately before land and rerun proof if the carrier HEAD changes.
 

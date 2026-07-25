@@ -196,7 +196,9 @@ otherwise preserve the repository-wide pytest defaults and caller identity.
 - **GIVEN** the repository-wide pytest default remains 120 seconds with thread
   timeout handling
 - **WHEN** the self-hosted macOS GitHub repository-proof job invokes the Python
-  test owner script with four workers
+  test owner script
+- **THEN** the provider projection uses two workers to bound simultaneous
+  subprocess and Git pressure while preserving parallel execution
 - **THEN** the provider projection sets a 300-second signal timeout through the
   validated paired owner-script inputs
 - **AND** a timeout is reported as a pytest test failure rather than an abrupt

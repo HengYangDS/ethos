@@ -95,10 +95,10 @@ jobs:
     runs-on: [self-hosted, macOS, ARM64, "${{ vars.ETHOS_GITHUB_RUNNER_LABEL }}"]
     needs: quality
     env:
-      # A single worker protects correctness but exceeds the 120s per-test timeout
-      # on the repository's large isolated lane/closeout test groups. Four workers
-      # preserve the same owner-script coverage gate while isolating test state.
-      ETHOS_TEST_WORKERS: "4"
+      # A single worker protects correctness but makes the isolated lane/closeout
+      # groups unnecessarily slow. Two workers preserve parallel proof while
+      # capping subprocess and temporary-Git pressure observed with four workers.
+      ETHOS_TEST_WORKERS: "2"
       # pytest-timeout thread mode ends a timed-out xdist worker with os._exit(1).
       # This macOS-only projection keeps a finite bound while preserving a normal
       # pytest failure and teardown path for diagnosis.

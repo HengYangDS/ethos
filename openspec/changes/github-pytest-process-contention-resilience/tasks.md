@@ -7,15 +7,15 @@
 - [x] 1.3 Freeze GitLab mutation and observation while outside the intranet.
 - [x] 1.4 Observe the two accepted MD032 failures and bind the remediation to
   exactly two blank-line insertions with no prose change.
-- [ ] 1.5 Commit this carrier and bind the owned Work Lane to its Claim.
+- [x] 1.5 Commit this carrier and bind the owned Work Lane to its Claim.
 
 ## 2. Contract and implementation
 
-- [ ] 2.1 Change the GitHub provider architecture expectation from four workers
+- [x] 2.1 Change the GitHub provider architecture expectation from four workers
   to two and observe the focused RED failure.
-- [ ] 2.2 Update the canonical GitHub Actions template and generated workflow to
+- [x] 2.2 Update the canonical GitHub Actions template and generated workflow to
   two workers without changing timeout inputs.
-- [ ] 2.3 Update the current quality specification and pass focused provider,
+- [x] 2.3 Update the current quality specification and pass focused provider,
   template-drift, actionlint, and OpenSpec checks.
 - [x] 2.4 Pass the Markdown owner gate after the two exact blank-line repairs.
 

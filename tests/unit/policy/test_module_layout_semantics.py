@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from ethos.repository.policy.layout.naming.core import ambiguous_module_findings
-from ethos.repository.policy.layout.naming.core import multiple_command_owner_findings
-from ethos.repository.policy.layout.naming.core import surface_core_command_findings
+from ethos.repository.policy.layout.naming import ambiguous_module_findings
+from ethos.repository.policy.layout.naming import multiple_command_owner_findings
+from ethos.repository.policy.layout.naming import surface_core_command_findings
 
 
 def _write(root, relative, source):

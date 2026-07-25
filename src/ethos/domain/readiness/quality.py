@@ -13,7 +13,7 @@ from ethos.repository.policy.boundary.product import contributor_policy_report
 from ethos.repository.policy.boundary.product import product_boundary_report
 from ethos.repository.policy.coverage import coverage_quality_report
 from ethos.repository.policy.docstrings.core import docstring_coverage_report
-from ethos.repository.policy.layout.core import module_layout_report
+from ethos.repository.policy.layout.report import module_layout_report
 
 if TYPE_CHECKING:
     from pathlib import Path

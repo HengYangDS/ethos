@@ -4,15 +4,13 @@ import hashlib
 import json
 import sqlite3
 from contextlib import closing
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 import pytest
 
 from ethos.adapters.store.state import closeout
 from ethos.adapters.store.state import schema
-
-if TYPE_CHECKING:
-    from pathlib import Path
+from ethos.adapters.store.state.lease.lifecycle.core import acquire_lease
 
 
 def _fence_kwargs() -> dict[str, str]:
@@ -174,3 +172,129 @@ def test_closeout_fence_schema_initialization_requires_a_writer_transaction() ->
         pytest.raises(RuntimeError, match="state_schema_transaction_required"),
     ):
         schema.initialize_closeout_fence_connection(connection)
+
+
+def _replace_lease_payload(db_path: Path, *, subject: str, field: str, value: object) -> None:
+    with closing(sqlite3.connect(db_path)) as connection, connection:
+        raw = connection.execute(
+            "select payload_json from leases where subject = ?", (subject,)
+        ).fetchone()[0]
+        payload = json.loads(raw)
+        payload[field] = value
+        connection.execute(
+            "update leases set payload_json = ? where subject = ?",
+            (json.dumps(payload, sort_keys=True), subject),
+        )
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("holder_ref", False),
+        ("epoch", True),
+        ("epoch", "1"),
+        ("issued_at", 1),
+        ("renewed_at", False),
+        ("expected_head", 7),
+        ("claim_id", False),
+        ("path_scope", "README.md"),
+        ("path_scope", [1]),
+        ("mints_authority", "false"),
+        ("filesystem_fence", 0),
+        ("distributed_lock", None),
+    ],
+)
+def test_ownerless_state_rejects_every_raw_lease_coercion(
+    tmp_path: Path, field: str, value: object
+) -> None:
+    db_path = tmp_path / "state.sqlite"
+    subject = "work/raw-state"
+    acquire_lease(
+        db_path,
+        subject=subject,
+        holder_ref="agent:test:case:raw-state",
+        ttl_seconds=-1,
+    )
+    _replace_lease_payload(db_path, subject=subject, field=field, value=value)
+
+    with pytest.raises(closeout.OwnerlessCloseoutStateError) as raised:
+        closeout.observe_ownerless_closeout_state(db_path, subject=subject)
+
+    assert raised.value.kind == "state_unverifiable"
+    assert raised.value.detail == "lease"
+
+
+def test_raw_holder_type_is_rejected_before_holder_ref_parsing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    db_path = tmp_path / "state.sqlite"
+    subject = "work/raw-holder"
+    acquire_lease(
+        db_path,
+        subject=subject,
+        holder_ref="agent:test:case:raw-holder",
+        ttl_seconds=-1,
+    )
+    _replace_lease_payload(db_path, subject=subject, field="holder_ref", value=False)
+
+    def forbidden_parse(cls: type[object], value: object) -> object:
+        del cls, value
+        raise AssertionError(forbidden_parse.__name__)
+
+    monkeypatch.setattr(closeout.HolderRef, "parse", classmethod(forbidden_parse))
+
+    with pytest.raises(closeout.OwnerlessCloseoutStateError):
+        closeout.observe_ownerless_closeout_state(db_path, subject=subject)
+
+
+def test_raw_epoch_type_is_rejected_before_strict_lane_lease_validation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    db_path = tmp_path / "state.sqlite"
+    subject = "work/raw-epoch"
+    acquire_lease(
+        db_path,
+        subject=subject,
+        holder_ref="agent:test:case:raw-epoch",
+        ttl_seconds=-1,
+    )
+    _replace_lease_payload(db_path, subject=subject, field="epoch", value=True)
+
+    def forbidden_validate(cls: type[object], value: object, **kwargs: object) -> object:
+        del cls, value, kwargs
+        raise AssertionError(forbidden_validate.__name__)
+
+    monkeypatch.setattr(
+        closeout.LaneLease,
+        "model_validate",
+        classmethod(forbidden_validate),
+    )
+
+    with pytest.raises(closeout.OwnerlessCloseoutStateError):
+        closeout.observe_ownerless_closeout_state(db_path, subject=subject)
+
+
+@pytest.mark.parametrize("suffix", ["-wal", "-shm"])
+def test_ownerless_state_rejects_sidecar_without_database(tmp_path: Path, suffix: str) -> None:
+    db_path = tmp_path / "state.sqlite"
+    Path(f"{db_path}{suffix}").write_bytes(b"orphan sidecar")
+
+    with pytest.raises(closeout.OwnerlessCloseoutStateError) as raised:
+        closeout.observe_ownerless_closeout_state(db_path, subject="work/sidecar")
+
+    assert raised.value.kind == "state_unverifiable"
+    assert raised.value.detail == "sidecar"
+
+
+def test_ownerless_state_rejects_raw_fence_tuple_coercion(tmp_path: Path) -> None:
+    db_path = tmp_path / "state.sqlite"
+    schema.initialize_state(db_path)
+
+    with pytest.raises(closeout.OwnerlessCloseoutStateError) as raised:
+        closeout.observe_ownerless_closeout_state(
+            db_path,
+            subject="work/fence",
+            observed_fence=("present", {"subject": False}),
+        )
+
+    assert raised.value.kind == "fence_unverifiable"

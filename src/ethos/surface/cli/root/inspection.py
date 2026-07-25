@@ -131,10 +131,11 @@ def status(
     json_output: JsonFlag = False,
 ) -> None:
     """Inspect bounded truth, authority, gaps, coordination, and next action."""
+    repo = resolve_root(root)
     handler, _report_payload, result = declared_report_result(
-        module_name=__name__, function_name="status", target=resolve_root(root), group="root"
+        module_name=__name__, function_name="status", target=repo, group="root"
     )
-    emit(result, json_output=json_output, enforce=handler.enforce)
+    emit(result, json_output=json_output, enforce=handler.enforce, artifact_root=repo)
 
 
 def _count_sequence(value: object) -> int:

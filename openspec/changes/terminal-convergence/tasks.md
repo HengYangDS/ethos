@@ -2,7 +2,7 @@
 
 - [x] 0.1 Bind the Work Lane, exact accepted/candidate heads, foreign lane dispositions, canonical design, concern matrix, and this OpenSpec change.
 - [x] 0.2 Add failing tests that hard source-budget gaps force `block`, `ok=false`, and non-ready lifecycle states.
-- [ ] 0.3 Remove score-derived readiness, fold orient facts into status, delete report, and enforce default payload caps.
+- [x] 0.3 Remove score-derived readiness, fold orient facts into status, delete report, and enforce default payload caps.
 
 ## 1. Deletion-First Surface Collapse
 

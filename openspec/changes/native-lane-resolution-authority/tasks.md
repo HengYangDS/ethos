@@ -123,8 +123,9 @@
 - [ ] 9.1 Enumerate every current tracked retired-provider identifier
   text/path match and delete the retired adapter and provider-response test.
 - [ ] 9.2 Normalize source, tests, schemas, canonical specs, command reference,
-  active plans, Claims, Chronicle, and archived OpenSpec wording while preserving
-  dates, decisions, actions, evidence digests, limitations, and chronology.
+  active plans, Claims, Chronicle, dated retention projections, and archived
+  OpenSpec wording while preserving dates, decisions, actions, evidence digests,
+  limitations, original-object provenance, and chronology.
 - [ ] 9.3 Remove the literal token from this active Change before final scan;
   prevention remains generic through closed contracts and executable coupling.
 - [ ] 9.4 Recompute only stale tracked evidence digests and pass Claim/OpenSpec

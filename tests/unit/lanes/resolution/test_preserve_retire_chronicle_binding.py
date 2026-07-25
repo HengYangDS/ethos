@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from ethos_core.contracts.resolution.lane import LaneObservation
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class _ChronicleBinding:
     target_branch: str | None = None
     target_branch_sha256: str | None = None

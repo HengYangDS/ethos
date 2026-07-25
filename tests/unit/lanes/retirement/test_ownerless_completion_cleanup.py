@@ -25,7 +25,7 @@ class _CompletionDecision:
         return next(self._gaps)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class _CompletedReceiptCase:
     effect_gaps: tuple[str, ...]
     decision_gaps: tuple[str, ...]

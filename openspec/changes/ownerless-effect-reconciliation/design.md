@@ -22,13 +22,15 @@ The bundle exists only to make removal recoverable under the currently supported
 native effect path. Because the lanes are clean, staged and working patches must
 remain empty.
 
-### 3. Reuse one staged carrier
+### 3. Use separate authority and exact-manifest carriers
 
-Stage 1 records the WCP boundary, authorizes the three exact bridge effects, and
-binds the already-known dirty manifest clear. After Stage 1 is proved, landed,
-and accepted, native effects run outside tracked source. The same Work Lane then
-records the resulting exact decision IDs and manifest SHA-256 values, completes
-its active tasks, archives, re-proves, lands, and accepted-closes Stage 2.
+This authority carrier records the WCP boundary, authorizes the three exact
+bridge effects, and binds the already-known dirty manifest clear. It must be
+officially archived, re-proved at its archive HEAD, landed, and accepted-closed
+before native effects run outside tracked source. After effects produce exact
+decision IDs and manifest SHA-256 values, a separate successor carrier records
+those immutable bindings, authorizes the three clean package clears, and closes
+the remaining housekeeping. An active Change is never staged-landed.
 
 ### 4. Clear only exact accepted manifests
 

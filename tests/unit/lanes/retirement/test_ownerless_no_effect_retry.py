@@ -459,6 +459,53 @@ def test_retry_reset_requires_the_full_retained_fence(
         )
 
 
+@pytest.mark.parametrize(
+    ("fence_response", "expected"),
+    [
+        (("unverifiable", None), "lane_resolution_ownerless_fence_unverifiable"),
+        (("present", {"payload": {"acquisition_id": 1}}), "lane_resolution_ownerless_fence_stale"),
+    ],
+)
+def test_retry_reset_rejects_unverifiable_or_malformed_fence(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    fence_response: tuple[str, dict[str, object] | None],
+    expected: str,
+) -> None:
+    scenario = _scenario(tmp_path)
+    _start_reserved_no_effect(scenario, monkeypatch)
+    retry_admission = admission_runtime.admit_clean_ownerless_lane(
+        root=scenario.repo,
+        decision_path=scenario.decision_path,
+        decision=scenario.decision,
+        executor_ref="agent:codex:thread:executor",
+    )
+    monkeypatch.setattr(
+        retry,
+        "probe_closeout_fence",
+        lambda _database, **_kwargs: fence_response,
+    )
+    monkeypatch.setattr(
+        retry,
+        "release_closeout_fence",
+        lambda **_kwargs: pytest.fail("an unverifiable or malformed fence must not be released"),
+    )
+    monkeypatch.setattr(
+        retry,
+        "release_ownerless_no_effect_reservation",
+        lambda **_kwargs: pytest.fail(
+            "an unverifiable or malformed fence must retain its reservation"
+        ),
+    )
+
+    with pytest.raises(ValueError, match=rf"^{expected}$"):
+        retry.reset_reserved_no_effect_retry(
+            admission=retry_admission,
+            database=state_database(scenario.repo),
+            record_root=current_record_root(scenario.repo),
+        )
+
+
 def test_ownerless_no_effect_reservation_release_is_exact_compare_and_delete(
     tmp_path: Path,
 ) -> None:

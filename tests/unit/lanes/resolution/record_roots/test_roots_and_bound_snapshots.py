@@ -109,6 +109,11 @@ def test_record_root_parser_and_shared_path_edges(
     assert resolution_roots._registered_worktrees(tmp_path) == [  # noqa: SLF001, RUF100
         {"worktree": tmp_path.as_posix(), "HEAD": "a" * 40, "branch": "refs/heads/dev"}
     ]
+    parse_registered = resolution_roots._parse_registered_worktrees  # noqa: SLF001, RUF100 - parser boundary coverage
+    bare_record = (
+        b"worktree " + tmp_path.as_posix().encode() + b"\nHEAD " + b"a" * 40 + b"\nbare\n\n"
+    )
+    assert parse_registered(bare_record) == [{"worktree": tmp_path.as_posix(), "HEAD": "a" * 40}]
     assert resolution_shared.canonical_package_path(tmp_path, "invalid") is None
     outside = tmp_path.parent / "outside-record"
     assert resolution_shared.display_path(tmp_path, outside) == outside.resolve().as_posix()
@@ -168,8 +173,28 @@ def test_registered_worktrees_uses_hardened_byte_git_observation(
             + b"\nbranch refs/heads/dev\nunexpected value\n\n",
             b"",
         ),
+        (b"worktree /tmp/accepted\nHEAD " + b"a" * 40 + b"\nbranch refs/heads/dev\n", b""),
+        (b"\n\n", b""),
+        (b"worktree /tmp/accepted\n\n", b""),
+        (b"worktree\nHEAD " + b"a" * 40 + b"\n\n", b""),
+        (b"worktree /tmp/accepted\nHEAD " + b"a" * 40 + b"\nbare unexpected\n\n", b""),
+        (b"worktree /tmp/accepted\nHEAD " + b"z" * 40 + b"\n\n", b""),
+        (b"worktree /tmp/accepted\nHEAD " + b"a" * 40 + b"\nbranch refs/tags/dev\n\n", b""),
+        (b"worktree /tmp/\0accepted\nHEAD " + b"a" * 40 + b"\n\n", b""),
     ],
-    ids=("stderr", "duplicate-field", "unknown-field"),
+    ids=(
+        "stderr",
+        "duplicate-field",
+        "unknown-field",
+        "missing-record-terminator",
+        "empty-record",
+        "missing-required-head",
+        "missing-value",
+        "flag-with-payload",
+        "invalid-head",
+        "non-head-branch",
+        "nul-value",
+    ),
 )
 def test_registered_worktrees_rejects_untrusted_porcelain(
     tmp_path: Path,
@@ -187,6 +212,35 @@ def test_registered_worktrees_rejects_untrusted_porcelain(
 
     with pytest.raises(ValueError, match="lane_resolution_accepted_control_root_unavailable"):
         resolution_roots._registered_worktrees(tmp_path)  # noqa: SLF001, RUF100
+
+
+def test_git_observation_runner_and_output_fail_closed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registered_worktrees = resolution_roots._registered_worktrees  # noqa: SLF001, RUF100 - hardened Git boundary coverage
+    git_output = resolution_roots._git_output  # noqa: SLF001, RUF100 - hardened Git boundary coverage
+
+    def unavailable(*_args: object) -> subprocess.CompletedProcess[bytes]:
+        raise OSError("unavailable")
+
+    monkeypatch.setattr(resolution_roots, "_git_run", unavailable)
+
+    with pytest.raises(ValueError, match="lane_resolution_accepted_control_root_unavailable"):
+        registered_worktrees(tmp_path)
+    assert git_output(tmp_path, "rev-parse", "HEAD") == ""
+
+    monkeypatch.setattr(
+        resolution_roots,
+        "_git_run",
+        lambda *_args: subprocess.CompletedProcess(
+            ["git"],
+            0,
+            stdout=b"unterminated",
+            stderr=b"",
+        ),
+    )
+    assert git_output(tmp_path, "rev-parse", "HEAD") == ""
 
 
 def test_current_record_create_rejects_intermediate_root_rebind(

@@ -50,6 +50,7 @@ paths = [
   "tests/unit/governance/test_coupling_executables.py",
   "tests/unit/governance/validation/test_schemas.py",
   "tests/unit/kernel/test_coupling_declaration.py",
+  "tests/unit/kernel/test_contracts.py",
   "tests/unit/kernel/test_invalid_states.py",
   "tests/unit/kernel/test_lane_resolution_contract.py",
   "tests/unit/kernel/test_ownerless_receipt_canonical_final_edges.py",

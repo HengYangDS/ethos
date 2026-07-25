@@ -58,7 +58,7 @@ targets = [
   "openspec/specs/repository-governance/spec.md",
   "packages/ethos/src/ethos/adapters/mutation/lane_retirement/shared/core.py",
   "packages/ethos/src/ethos/adapters/mutation/resolution/_effects.py",
-  "packages/ethos/src/ethos/adapters/mutation/resolution/_observation.py",
+  "packages/ethos/src/ethos/adapters/mutation/resolution/observation.py",
   "packages/ethos/src/ethos/adapters/mutation/resolution/_shared.py",
   "packages/ethos/src/ethos/adapters/mutation/resolution/lane.py",
   "packages/ethos/src/ethos/adapters/mutation/resolution/receipts.py",

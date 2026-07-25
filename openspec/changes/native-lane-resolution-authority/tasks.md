@@ -120,8 +120,8 @@
 
 ## 9. Current tracked truth convergence
 
-- [ ] 9.1 Enumerate every current tracked WCP text/path match and delete the
-  retired adapter and provider-response test.
+- [ ] 9.1 Enumerate every current tracked retired-provider identifier
+  text/path match and delete the retired adapter and provider-response test.
 - [ ] 9.2 Normalize source, tests, schemas, canonical specs, command reference,
   active plans, Claims, Chronicle, and archived OpenSpec wording while preserving
   dates, decisions, actions, evidence digests, limitations, and chronology.
@@ -130,7 +130,8 @@
 - [ ] 9.4 Recompute only stale tracked evidence digests and pass Claim/OpenSpec
   validation.
 - [ ] 9.5 Prove both tracked content search and tracked filename search return no
-  WCP result without rewriting Git history or local predecessor records.
+  retired-provider identifier result without rewriting Git history or local
+  predecessor records.
 
 ## 10. Branch-owned quality debt and independent review
 

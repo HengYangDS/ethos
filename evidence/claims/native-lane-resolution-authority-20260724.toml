@@ -6,7 +6,7 @@ summary = "The active successor Claim authorizes implementation of an ETHOS-nati
 
 [evidence]
 dated = "evidence/chronicle/native-lane-resolution-authority-20260724/2026-07-24.md"
-sha256 = "7c42a910d7f1641a81848e67e4a5f800f8b4f8adbd850c79480199c44ec70354"
+sha256 = "a20a0ac787db5e8c93938f1226faeb1261dd5dd5650a878027e1a8e233fb3472"
 evidence_ids = ["evidence:native-lane-resolution-authority-20260724"]
 binding = "The approved design, non-destructive authority cut, live zero-inflight and zero-fence baseline, owned successor lane, active OpenSpec carrier, and read-only predecessor rollback carrier authorize implementation. The predecessor Claim remains active; this Claim will supersede it only after replacement behavior has implementation evidence, full proof, official archive evidence, and refreshed Claim/Chronicle binding. This initial binding does not claim completed code, passing gates, exact-HEAD proof, archive, supersession, land, accepted closeout, task-lane retirement, publication, or hosted execution."
 verifier = "digest_only"

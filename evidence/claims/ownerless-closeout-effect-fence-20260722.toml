@@ -7,7 +7,7 @@ summary = "The active archived Claim continues to bind the implemented effect-si
 
 [evidence]
 dated = "evidence/chronicle/ownerless-closeout-effect-fence-20260722/2026-07-22.md"
-sha256 = "b746a323453486b9819720a6c880bfe23c9121670f9e6e1ae82ec89a6156d920"
+sha256 = "1a49312ad77f783f60a26d6fd1dcc23895b7b34fe014df9571ed35a645fc46eb"
 evidence_ids = ["evidence:ownerless-closeout-effect-fence-20260722"]
 binding = "This active Claim binds the authored implementation, staged-snapshot verification, pre-archive exact-HEAD proof, isolated preflight, and official 2026-07-23 OpenSpec archive and canonical-fusion receipt recorded in the Chronicle. It does not claim archive-HEAD proof, land, accepted closeout, external publication, or a predecessor-lane outcome before those transitions produce their own current receipts."
 verifier = "digest_only"
@@ -34,8 +34,8 @@ scope = "Clean linked ownerless Work Lane effect fencing and completion evidence
 
 [carriers]
 openspec = "openspec/changes/archive/2026-07-23-ownerless-closeout-effect-fence"
-fallback = "Keep the exact lane, ref, worktree, and any partial fence/reservation intact whenever WCP, lease/Claim, accepted-head, decision, path, CAS, postcondition, or receipt binding cannot be proved."
-kill_signal = "ETHOS trusts a partial WCP response, permits a late lease or competing decision, force-removes the ownerless worktree, deletes a ref without accepted-head CAS, hides a partial transition, or writes an unbound completion receipt."
+fallback = "Keep the exact lane, ref, worktree, and any partial fence/reservation intact whenever retired external verifier, lease/Claim, accepted-head, decision, path, CAS, postcondition, or receipt binding cannot be proved."
+kill_signal = "ETHOS trusts a partial retired external verifier response, permits a late lease or competing decision, force-removes the ownerless worktree, deletes a ref without accepted-head CAS, hides a partial transition, or writes an unbound completion receipt."
 
 [promotion]
 targets = [
@@ -63,7 +63,6 @@ targets = [
   { kind = "test", path = "tests/unit/lanes/retirement/test_ownerless_closeout_fence.py" },
   { kind = "test", path = "tests/unit/lanes/retirement/test_ownerless_closeout_records.py" },
   { kind = "test", path = "tests/unit/lanes/retirement/test_ownerless_closeout_recovery.py" },
-  { kind = "test", path = "tests/unit/lanes/retirement/test_ownerless_closeout_wcp_edges.py" },
   { kind = "test", path = "tests/unit/lanes/retirement/test_ownerless_closeout_receipt_edges.py" },
   { kind = "test", path = "tests/unit/coverage/test_lane_resolution_record_edges.py" },
   { kind = "test", path = "tests/unit/lanes/retirement/test_ownerless_closeout_effect_final_edges.py" },

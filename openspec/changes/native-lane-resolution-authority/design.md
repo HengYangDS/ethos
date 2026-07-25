@@ -3,7 +3,7 @@
 ETHOS already owns the irreversible ownerless-retirement effect: decision and
 Chronicle records, SQLite exclusion, durable reservation, no-force worktree
 removal, exact Git ref CAS, postconditions, immutable receipts, and crash
-recovery. A workstation control-plane verifier and mixed predecessor record roots
+recovery. An unrelated out-of-process verifier and mixed predecessor record roots
 were later placed inside that authority path. The result is split authority,
 provider vocabulary in kernel contracts, historical records influencing current
 effects, and callback/runtime bags that hide the concrete owner of behavior.
@@ -40,8 +40,8 @@ replayed as a whole.
 - Remove runtime/callback bags and import concrete owners directly.
 - Prevent undeclared mandatory lifecycle executables through generic,
   declaration-driven coupling audit.
-- Remove WCP from the current tracked tree without rewriting Git history or local
-  predecessor records.
+- Remove retired-provider authority residue from the current tracked tree without
+  rewriting Git history or local predecessor records.
 - Pay branch-owned Ruff, module-layout, and code-size debt without baseline
   expansion.
 
@@ -260,7 +260,7 @@ A declaration-driven AST audit scans only mandatory paths and rejects undeclared
 executables, dynamic `argv[0]`, command strings, `shell=True`, executable
 overrides, and path escapes. Optional semantic-attestation, control-replacement,
 release-profile, and policy adapters outside the mandatory path remain unaffected.
-No WCP-name blacklist is added.
+No provider-name blacklist is added.
 
 ### 11. Module and quality governance
 
@@ -277,7 +277,8 @@ baselines.
 
 ### 12. Current truth, proof, archive, land, and housekeeping
 
-The current tracked tree is normalized to zero WCP token/path/field/test residue,
+The current tracked tree is normalized to zero retired-provider
+identifier/path/field/test residue,
 including current Claims, Chronicle, active plans, canonical specs, and archived
 OpenSpec carriers. Dates, actions, decisions, evidence digests, limitations, and
 chronology remain. Git history and local predecessor records are untouched.

@@ -34,13 +34,16 @@ from ethos.contracts.branch.roles import branch_role_policy_from_text
 from ethos.contracts.branch.roles import load_branch_role_policy
 from ethos.contracts.plan import GitEffect
 from ethos.contracts.plan import GitRefUpdate
-from ethos.contracts.transitions import CLOSEOUT_TRANSITION
-from ethos.contracts.transitions import WORK_LANE_TRANSITION
-from ethos.contracts.transitions import TransitionDecision
-from ethos.contracts.transitions import TransitionFacts
-from ethos.contracts.transitions import TransitionRequest
-from ethos.contracts.transitions import reduce_transition
+from ethos.contracts.transition import TransitionDecision
+from ethos.contracts.transition import TransitionFacts
+from ethos.contracts.transition import TransitionRequest
+from ethos.contracts.transition import reduce_transition
+from ethos.contracts.workflow import load_workflow_contract_declaration
 from ethos.repository.policy.gates import gate_policy_digest
+
+
+def _transition_policy(root: Path, identifier: str):
+    return load_workflow_contract_declaration(root).policy(identifier)
 
 
 def proof_gaps(root, current_head):
@@ -96,14 +99,14 @@ def _closeout_candidate_gaps(root, candidate, current_head, *, require_proof=Tru
 def evaluate_mutation(request, *, root, current_head, status=None):
     if not request.apply and request.command != "land":
         return reduce_transition(
-            WORK_LANE_TRANSITION,
+            _transition_policy(root, "work_lane"),
             request,
             TransitionFacts(current_head=current_head),
         )
     status = status if status is not None else workspace_status(root)
     closeout = cast("dict[str, object]", status.get("closeout_support", {}))
     return reduce_transition(
-        WORK_LANE_TRANSITION,
+        _transition_policy(root, "work_lane"),
         request,
         TransitionFacts(
             current_head=current_head,
@@ -125,7 +128,7 @@ def evaluate_closeout_mutation(request, *, root, current_head):
     status = workspace_status(root)
     candidate = cast("dict[str, object]", status["candidate"])
     return reduce_transition(
-        CLOSEOUT_TRANSITION,
+        _transition_policy(root, "closeout"),
         request,
         TransitionFacts(
             current_head=current_head,

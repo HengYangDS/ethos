@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 
 from ethos.adapters.mutation.decision import mutation_envelope
-from ethos.contracts.transitions import TransitionRequest
+from ethos.contracts.transition import TransitionRequest
 
 
 def current_holder_ref() -> str:

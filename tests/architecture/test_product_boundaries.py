@@ -180,7 +180,7 @@ def test_lane_resolution_declares_native_closeout_authority_and_execution_bounda
         "packages/ethos/src/ethos/adapters/mutation/resolution/observation.py",
         "packages/ethos/src/ethos/adapters/mutation/resolution/preservation/core.py",
         "packages/ethos/src/ethos/adapters/mutation/resolution/records/roots.py",
-        "packages/ethos/src/ethos/adapters/mutation/resolution/closeout/ownerless/admission/core.py",
+        "packages/ethos/src/ethos/adapters/mutation/resolution/closeout/ownerless/admission/facts/core.py",
         "packages/ethos/src/ethos/adapters/mutation/resolution/closeout/effect.py",
         "packages/ethos/src/ethos/adapters/mutation/resolution/closeout/recovery.py",
         "packages/ethos/src/ethos/adapters/mutation/resolution/closeout/cleanup/core.py",
@@ -201,6 +201,30 @@ def test_lane_resolution_declares_native_closeout_authority_and_execution_bounda
     assert binding.audit_root_bound is True
     assert set(binding.mandatory_paths).isdisjoint(optional_adapters)
     assert all("*" not in relative for relative in binding.mandatory_paths)
+
+
+def test_ownerless_admission_core_has_only_canonical_public_functions() -> None:
+    core = ROOT / Path(
+        "packages/ethos/src/ethos/adapters/mutation/resolution/closeout/ownerless/admission/core.py"
+    )
+    tree = ast.parse(core.read_text(encoding="utf-8"))
+    public_functions = {
+        node.name
+        for node in tree.body
+        if isinstance(node, (ast.AsyncFunctionDef, ast.FunctionDef))
+        and not node.name.startswith("_")
+    }
+    public_classes = {
+        node.name
+        for node in tree.body
+        if isinstance(node, ast.ClassDef) and not node.name.startswith("_")
+    }
+
+    assert public_functions == {
+        "admit_ownerless_closeout",
+        "reobserve_ownerless_closeout_under_fence",
+    }
+    assert public_classes == set()
 
 
 def test_product_surfaces_are_author_and_adopter_neutral() -> None:

@@ -19,12 +19,12 @@ from ethos.adapters.mutation.resolution.closeout.ownerless.effect import (
     OwnerlessCloseoutEffectContext,
 )
 from ethos.adapters.mutation.resolution.closeout.ownerless.effect import (
+    claim_resolution_effect_attempt,
+)
+from ethos.adapters.mutation.resolution.closeout.ownerless.effect import (
     is_ownerless_closeout_candidate,
 )
 from ethos.adapters.mutation.resolution.closeout.ownerless.effect import retire_ownerless_resolution
-from ethos.adapters.mutation.resolution.closeout.ownerless.receipt.attempt import (
-    claim_resolution_effect_attempt,
-)
 from ethos.adapters.mutation.resolution.observation import observe_lane
 from ethos.adapters.mutation.resolution.receipts import chronicle_event
 from ethos.adapters.mutation.resolution.receipts import write_resolution_receipt

@@ -7,8 +7,8 @@ import pytest
 
 import ethos.adapters.mutation.resolution.closeout.cleanup.core as cleanup
 import ethos.adapters.mutation.resolution.closeout.effect as effect
-import ethos.adapters.mutation.resolution.closeout.ownerless.admission.runtime as admission_runtime
-import ethos.adapters.mutation.resolution.closeout.ownerless.receipt.attempt as receipt_attempt
+import ethos.adapters.mutation.resolution.closeout.ownerless.effect as admission_runtime
+import ethos.adapters.mutation.resolution.closeout.ownerless.effect as receipt_attempt
 import ethos.adapters.mutation.resolution.closeout.retry as retry
 import ethos.adapters.mutation.resolution.records.reservations as reservation_store
 from ethos.adapters.mutation.resolution.lane import apply_lane_resolution

@@ -1,4 +1,4 @@
-"""Descriptor-bound observation for optional repository-root files."""
+"""Descriptor-bound observation for optional repository-root workspace files."""
 
 from __future__ import annotations
 

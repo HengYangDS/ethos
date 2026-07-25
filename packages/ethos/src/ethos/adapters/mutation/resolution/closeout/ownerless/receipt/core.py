@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from pathlib import Path
     from typing import Literal
 
-    from ethos.adapters.mutation.resolution.closeout.ownerless.admission.core import (
+    from ethos.adapters.mutation.resolution.closeout.ownerless.admission.facts.fence import (
         OwnerlessCloseoutAdmission,
     )
     from ethos_core.contracts.resolution.closeout import OwnerlessCloseoutReservation

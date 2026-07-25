@@ -11,7 +11,7 @@ import ethos.adapters.mutation.resolution._effects as effects
 import ethos.adapters.mutation.resolution.closeout.cleanup.core as cleanup
 import ethos.adapters.mutation.resolution.closeout.effect as closeout_effect
 import ethos.adapters.mutation.resolution.closeout.recovery as recovery
-from ethos.adapters.mutation.resolution.closeout.ownerless.admission.core import (
+from ethos.adapters.mutation.resolution.closeout.ownerless.admission.facts.fence import (
     OwnerlessCloseoutAdmissionError,
 )
 from ethos_core.contracts.resolution.lane import LaneObservation

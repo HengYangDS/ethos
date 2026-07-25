@@ -1,0 +1,5 @@
+schema: spec-driven
+created: 2026-07-25
+goal: Run the GitHub repository-proof job through exactly one HEAD-bound full
+  proof while preserving two-worker timeout policy, GitLab behavior, and hosted
+  evidence boundaries.

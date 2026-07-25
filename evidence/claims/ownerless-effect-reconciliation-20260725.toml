@@ -26,7 +26,7 @@ owner = "ethos-repository"
 scope = "Exactly three clean missing-owner diverged Work Lanes, one already retained dirty package, their local decision/receipt/manifest artifacts, and no valid-owner or remote mutation."
 
 [carriers]
-openspec = "openspec/changes/ownerless-effect-reconciliation"
+openspec = "openspec/changes/archive/2026-07-25-ownerless-effect-reconciliation"
 fallback = "Leave any branch, worktree, or package intact whenever ownerlessness, exact head, empty occupancy, accepted Chronicle bytes, receipt integrity, or manifest binding cannot be re-proved."
 kill_signal = "Any WCP bypass, raw Git deletion, valid-owner mutation, historical implementation replay, convenience retention, or package clear without an accepted exact decision ID and manifest SHA-256."
 
@@ -34,6 +34,6 @@ kill_signal = "Any WCP bypass, raw Git deletion, valid-owner mutation, historica
 targets = [
   "evidence/claims/ownerless-effect-reconciliation-20260725.toml",
   "evidence/chronicle/ownerless-effect-reconciliation-20260725/2026-07-25.md",
-  "openspec/changes/ownerless-effect-reconciliation",
+  "openspec/changes/archive/2026-07-25-ownerless-effect-reconciliation",
   "openspec/specs/repository-governance/spec.md",
 ]

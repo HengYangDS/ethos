@@ -12,13 +12,13 @@
 
 ## 2. Contract and implementation
 
-- [ ] 2.1 Add a provider architecture contract requiring exactly one GitHub
+- [x] 2.1 Add a provider architecture contract requiring exactly one GitHub
   HEAD-bound proof entrypoint and no separate full test step; observe RED.
-- [ ] 2.2 Remove the direct GitHub test step from the canonical template and
+- [x] 2.2 Remove the direct GitHub test step from the canonical template and
   generated workflow.
-- [ ] 2.3 Remove the test owner script from GitHub's direct provider inventory
+- [x] 2.3 Remove the test owner script from GitHub's direct provider inventory
   while leaving GitLab unchanged.
-- [ ] 2.4 Pass focused provider, template-consistency, Actionlint, strict
+- [x] 2.4 Pass focused provider, template-consistency, Actionlint, strict
   OpenSpec, Claim, and quality-audit checks.
 
 ## 3. Proof and closeout

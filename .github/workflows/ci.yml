@@ -122,8 +122,6 @@ jobs:
         run: tools/ci/scripts/configure-git-checkout.sh
       - name: Arm write admission
         run: tools/ci/scripts/with-python-runtime.sh -- uv run --package ethos ethos hook install --json
-      - name: Unit and architecture tests
-        run: tools/ci/scripts/run-python-tests.sh
       - name: OpenSpec strict validation
         run: openspec validate --all --strict --json
       - name: HEAD-bound proof receipt

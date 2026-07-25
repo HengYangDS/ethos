@@ -9,17 +9,23 @@ from typing import Any
 from typing import cast
 
 import ethos.adapters.mutation.resolution.closeout.cleanup.core as cleanup
+import ethos.adapters.mutation.resolution.closeout.ownerless.receipt.completion as completion
 from ethos.adapters.mutation.resolution._effects import OwnerlessCloseoutError
 from ethos.adapters.mutation.resolution._effects import prepare_resolution_effect
 from ethos.adapters.mutation.resolution._effects import retire_lane
 from ethos.adapters.mutation.resolution._shared import transition_gap
 from ethos.adapters.mutation.resolution._shared import valid_decision_id
 from ethos.adapters.mutation.resolution.closeout.effect import pre_admit_ownerless_lane
-from ethos.adapters.mutation.resolution.closeout.effect import recover_completed_ownerless_closeout
 from ethos.adapters.mutation.resolution.closeout.effect import retire_clean_ownerless_lane
-from ethos.adapters.mutation.resolution.closeout.receipt import claim_effect_receipt_reservation
-from ethos.adapters.mutation.resolution.closeout.receipt import claim_receipt_reservation
-from ethos.adapters.mutation.resolution.closeout.receipt import ownerless_receipt_reservation_token
+from ethos.adapters.mutation.resolution.closeout.ownerless.receipt.core import (
+    claim_effect_receipt_reservation,
+)
+from ethos.adapters.mutation.resolution.closeout.ownerless.receipt.core import (
+    claim_receipt_reservation,
+)
+from ethos.adapters.mutation.resolution.closeout.ownerless.receipt.core import (
+    ownerless_receipt_reservation_token,
+)
 from ethos.adapters.mutation.resolution.observation import observe_lane
 from ethos.adapters.mutation.resolution.receipts import chronicle_event
 from ethos.adapters.mutation.resolution.receipts import write_resolution_receipt
@@ -31,7 +37,9 @@ from ethos_core.contracts.resolution.lane import LaneObservation
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from ethos.adapters.mutation.resolution.closeout.admission import OwnerlessCloseoutAdmission
+    from ethos.adapters.mutation.resolution.closeout.ownerless.admission.core import (
+        OwnerlessCloseoutAdmission,
+    )
 
 _OWNERLESS_RECEIPT_FIELDS = tuple(OwnerlessCloseoutBinding.model_fields)
 
@@ -95,120 +103,17 @@ def recover_ownerless_resolution(  # noqa: PLR0913, RUF100 - exact recovery inpu
     report: dict[str, object],
 ) -> None:
     """Finalize a completed ownerless effect before ordinary target observation."""
-    decision_id = str(decision.get("decision_id") or "")
-    reservation_stack = ExitStack()
-    reservation_claimed, reservation_descriptor, reservation_gap = claim_receipt_reservation(
-        reservation_stack,
-        control_root,
-        artifact_root,
-        decision_id,
-        mode="recover_completed",
+    completion.recover_ownerless_resolution(
+        control_root=control_root,
+        artifact_root=artifact_root,
+        decision_path=decision_path,
+        decision=decision,
+        observation=observation,
+        reservation=reservation,
+        report=report,
+        prepare_resolution=_prepare_resolution,
+        write_receipt=write_resolution_receipt,
     )
-    if reservation_gap or not reservation_claimed:
-        reservation_stack.close()
-        _block(report, reservation_gap, state="partial_transition")
-        return
-    receipt_written = False
-    release_descriptor: int | None = None
-    try:
-        if cleanup.recover_existing_ownerless_receipt(
-            control_root=control_root,
-            artifact_root=artifact_root,
-            decision_path=decision_path,
-            decision=decision,
-            observation=observation,
-            reservation=reservation,
-            report=report,
-        ):
-            receipt_written = bool(report.get("receipt"))
-            release_descriptor = reservation_descriptor if receipt_written else None
-            return
-        executor_ref = os.environ.get("ETHOS_ACTOR", "").strip()
-        if reservation_descriptor is None or not executor_ref:
-            gap = (
-                "lane_resolution_ownerless_receipt_mismatch"
-                if reservation_descriptor is None
-                else "lane_resolution_ownerless_executor_required"
-            )
-            _block(report, gap, state="partial_transition")
-            return
-        try:
-            binding = recover_completed_ownerless_closeout(
-                root=control_root,
-                decision_path=decision_path,
-                decision=decision,
-                executor_ref=executor_ref,
-                reservation=reservation,
-            )
-        except OwnerlessCloseoutError as error:
-            _block(
-                report,
-                transition_gap(error, "lane_resolution_ownerless_recovery_not_finalizable"),
-                state="partial_transition",
-            )
-            return
-        package, receipt, state, effect_gaps = _prepare_resolution(
-            control_root=control_root,
-            artifact_root=artifact_root,
-            decision=decision,
-            observation=observation,
-            disposition="retire",
-        )
-        if effect_gaps:
-            _block(report, *effect_gaps, state="partial_transition")
-            return
-        receipt_binding = {field: binding[field] for field in _OWNERLESS_RECEIPT_FIELDS}
-        receipt["ownerless_closeout_binding"] = receipt_binding
-        try:
-            receipt_path = write_resolution_receipt(
-                root=control_root,
-                receipt=receipt,
-                artifact_root=artifact_root,
-                require_ownerless_closeout_binding=True,
-            )
-        except (OSError, ValueError):
-            _block(
-                report,
-                "lane_resolution_receipt_write_failed_after_effect",
-                state="partial_transition",
-            )
-            return
-        receipt_written = True
-        release_descriptor = reservation_descriptor
-        report.update(
-            state=state,
-            preservation_package=package,
-            receipt=receipt,
-            receipt_path=receipt_path,
-            ownerless_closeout_binding=receipt_binding,
-            chronicle_event=chronicle_event(decision, receipt),
-        )
-        if cleanup_gap := cleanup.release_ownerless_closeout_resources(
-            control_root=control_root,
-            artifact_root=artifact_root,
-            decision=decision,
-            observation=observation,
-            binding=binding,
-        ):
-            _block(report, cleanup_gap, state="partial_transition")
-    finally:
-        try:
-            cleanup_gap = cleanup.release_receipt_reservation(
-                control_root=control_root,
-                artifact_root=artifact_root,
-                decision_id=decision_id,
-                locked_descriptor=release_descriptor,
-            )
-        finally:
-            reservation_stack.close()
-        if cleanup_gap:
-            current_gaps = cast("list[str]", report["required_gaps"])
-            _block(
-                report,
-                *current_gaps,
-                cleanup_gap,
-                state="partial_transition" if receipt_written else "blocked",
-            )
 
 
 def apply_resolution(  # noqa: PLR0913, RUF100 - exact effect inputs

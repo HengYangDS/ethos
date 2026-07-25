@@ -4,8 +4,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 import ethos_core.contracts.system.contracts as system_contracts
 from ethos_core.contracts import rules
+from ethos_core.contracts.branch.roles import strict_branch_role_policy_from_text
 from ethos_core.contracts.package.ontology import workspace_package_config_report
 from ethos_core.state.invalid import UNCLASSIFIED
 from ethos_core.state.invalid import classify
@@ -49,6 +52,22 @@ def test_load_system_contract_returns_payload(tmp_path: Path) -> None:
     )
 
     assert system_contracts.load_system_contract(tmp_path, "tools")["name"] == "tools"
+
+
+def test_strict_branch_role_policy_rejects_unknown_release_mirror() -> None:
+    source = """
+[branch_roles]
+release_branch = "main"
+accepted_branch = "dev"
+candidate_branch = "candidate/dev"
+work_branch_prefix = "work/"
+submit_branch_prefix = "submit/"
+release_mirror = "unknown"
+repository_family_worktrees = false
+"""
+
+    with pytest.raises(ValueError, match="branch_roles release_mirror is invalid"):
+        strict_branch_role_policy_from_text(source)
 
 
 def test_workspace_package_config_report_edges(tmp_path: Path) -> None:

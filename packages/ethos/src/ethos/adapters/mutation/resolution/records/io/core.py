@@ -224,15 +224,6 @@ def claim_record_sidecar(
             posix.unlock_close(descriptor)
 
 
-def record_entry_exists(destination: Path, *, record_root: Path) -> bool:
-    """Return whether one descriptor-bound record entry currently exists."""
-    with roots.open_record_parent(record_root, destination, create=False) as parent:
-        roots.require_parent_identity(parent)
-        exists = posix.entry_file_identity(parent.parent_descriptor, parent.name) is not None
-        roots.require_parent_identity(parent)
-        return exists
-
-
 def _write_bound_bytes(parent: roots.RecordParent, content: bytes) -> None:
     roots.require_parent_identity(parent)
     if posix.entry_file_identity(parent.parent_descriptor, parent.name) is not None:

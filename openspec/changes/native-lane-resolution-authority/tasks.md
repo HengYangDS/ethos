@@ -151,26 +151,28 @@
   Markdown, format, types, schemas, module-layout, code-size, no-compat, import,
   coupling, Claim, docs, OpenSpec, residue, and diff gates on one stable HEAD.
 - [ ] 11.2 Execute generic shadow parity in the admitted successor, commit the
-  evidence, and run exact-HEAD `ethos prove --execute` with no required gaps.
-- [ ] 11.3 Check only tasks backed by fresh evidence, update Claim/Chronicle
-  digests, and rerun exact-HEAD proof after that commit.
-- [ ] 11.4 Officially archive the Change, update the Claim carrier, validate all
-  specs, and rerun Claim, report, residue, and archive-HEAD executed proof.
+  evidence, and close only checklist items backed by fresh gate/parity evidence.
+- [ ] 11.3 After every implementation and parity input is committed, execute the
+  final exact-HEAD pre-archive proof, confirm isolated archive preflight is ready,
+  and close this checklist in an evidence-only commit. This item does not claim a
+  second self-referential proof for the checklist-only commit.
 
-## 12. Final refresh, land, accepted closeout, and housekeeping
+## Post-archive transition boundary
 
-- [ ] 12.1 Run native refresh immediately before land; if HEAD changes, rerun the
-  complete proof bundle; if refresh conflicts, stop without hand-resolving the
-  proven HEAD.
-- [ ] 12.2 Land the exact proven HEAD to candidate and perform audited accepted-
-  root closeout as a separate transition.
-- [ ] 12.3 Report local publish readiness without remote push.
-- [ ] 12.4 Retire only the exactly absorbed successor and task-owned predecessor
-  mistake lanes through native landed retirement or Chronicle-bound
-  preserve-retire when absorption cannot be proved.
-- [ ] 12.5 Remove only task scratch, review packets, bytecode, caches, and temporary
-  proof output; leave foreign lanes, virtual environments, Git history, local
-  records, SQLite history, and session metadata untouched.
-- [ ] 12.6 Finish with clean accepted/candidate roots, no live task-owned lease or
-  registered task worktree, and truthful separate reports for land, accepted
-  closeout, and local publish readiness.
+The following are audited transitions after this checklist is complete. They are
+not pre-archive tasks and MUST NOT be checked or claimed before their own
+receipts exist:
+
+- officially archive the Change, use the dated path returned by OpenSpec,
+  migrate the native Claim carrier, supersede the predecessor Claim, validate
+  all specs, and execute proof on the archive commit;
+- refresh the archive-proven HEAD and land that exact HEAD to candidate;
+- obtain a candidate-external one-shot control-replacement verifier receipt when
+  required, then perform accepted-root closeout as a separate transition;
+- report local publish readiness without remote push;
+- retire the landed successor only through holder-bound landed retirement, and
+  judge diverged predecessor mistake lanes one at a time through Chronicle-bound
+  preserve-retire rather than invented absorption;
+- remove only task scratch, review packets, bytecode, caches, and temporary
+  proof output while leaving foreign lanes, virtual environments, Git history,
+  historical records, SQLite state, and session metadata untouched.

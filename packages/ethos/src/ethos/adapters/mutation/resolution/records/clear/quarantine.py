@@ -173,9 +173,6 @@ def clear_quarantines(
             or digests is None
             or identities is None
             or bool(names)
-            or not names <= _PRESERVATION_PACKAGE_NAMES
-            or any(digests.get(name) is None for name in names)
-            or any(identities.get(name) is None for name in names)
         ):
             invalid_paths.append(source.path)
             continue

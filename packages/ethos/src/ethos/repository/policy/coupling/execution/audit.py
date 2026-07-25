@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from ethos_core.contracts.registry.declarations import CouplingBinding
     from ethos_core.contracts.registry.declarations import CouplingDeclaration
 
-_EXECUTION_FUNCTIONS = frozenset(
+_SUBPROCESS_EXECUTION_FUNCTIONS = frozenset(
     {
         "Popen",
         "call",
@@ -21,7 +21,20 @@ _EXECUTION_FUNCTIONS = frozenset(
         "run",
     }
 )
-_IMPLICIT_SHELL_FUNCTIONS = frozenset({"getoutput", "getstatusoutput"})
+_EXECUTION_FUNCTIONS_BY_MODULE = {
+    "asyncio": frozenset({"create_subprocess_exec", "create_subprocess_shell"}),
+    "os": frozenset({"system"}),
+    "subprocess": _SUBPROCESS_EXECUTION_FUNCTIONS,
+}
+_ASYNCIO_EXEC_FUNCTION = "asyncio.create_subprocess_exec"
+_IMPLICIT_SHELL_FUNCTIONS = frozenset(
+    {
+        "asyncio.create_subprocess_shell",
+        "os.system",
+        "subprocess.getoutput",
+        "subprocess.getstatusoutput",
+    }
+)
 _POPEN_EXECUTABLE_POSITION = 2
 _POPEN_SHELL_POSITION = 8
 
@@ -60,14 +73,14 @@ def _source_gaps(path: Path, relative: str, binding: CouplingBinding) -> list[st
     except (OSError, SyntaxError, UnicodeError):
         return [_path_gap(binding, relative, "mandatory_executable_source_unavailable")]
     gaps: list[str] = []
-    for node, function in subprocess_execution_calls(tree):
+    for node, function in external_execution_calls(tree):
         gaps.extend(_call_gaps(node, function, relative, binding))
     return gaps
 
 
-def subprocess_execution_calls(tree: ast.AST) -> tuple[tuple[ast.Call, str], ...]:
-    """Return subprocess execution calls paired with their canonical function names."""
-    module_aliases, function_aliases = _subprocess_aliases(tree)
+def external_execution_calls(tree: ast.AST) -> tuple[tuple[ast.Call, str], ...]:
+    """Return external execution calls paired with canonical qualified names."""
+    module_aliases, function_aliases = _execution_aliases(tree)
     calls: list[tuple[ast.Call, str]] = []
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call):
@@ -78,39 +91,71 @@ def subprocess_execution_calls(tree: ast.AST) -> tuple[tuple[ast.Call, str], ...
     return tuple(calls)
 
 
-def _subprocess_aliases(tree: ast.AST) -> tuple[set[str], dict[str, str]]:
-    module_aliases: set[str] = set()
+def _execution_aliases(tree: ast.AST) -> tuple[dict[str, str], dict[str, str]]:
+    module_aliases: dict[str, str] = {}
     function_aliases: dict[str, str] = {}
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
-            module_aliases.update(
-                alias.asname or alias.name for alias in node.names if alias.name == "subprocess"
-            )
-        elif isinstance(node, ast.ImportFrom) and node.module == "subprocess":
-            function_aliases.update(
-                {
-                    alias.asname or alias.name: alias.name
-                    for alias in node.names
-                    if alias.name in _EXECUTION_FUNCTIONS
-                }
-            )
+            for alias in node.names:
+                if alias.name in _EXECUTION_FUNCTIONS_BY_MODULE:
+                    module_aliases[alias.asname or alias.name] = alias.name
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            for alias in node.names:
+                function = _canonical_execution_function(node.module, alias.name)
+                if function is not None:
+                    function_aliases[alias.asname or alias.name] = function
+    _assigned_function_aliases(tree, module_aliases, function_aliases)
     return module_aliases, function_aliases
 
 
+def _assigned_function_aliases(
+    tree: ast.AST,
+    module_aliases: dict[str, str],
+    function_aliases: dict[str, str],
+) -> None:
+    assignments = tuple(node for node in ast.walk(tree) if isinstance(node, ast.Assign))
+    changed = True
+    while changed:
+        changed = False
+        for assignment in assignments:
+            function = _execution_reference(
+                assignment.value,
+                module_aliases,
+                function_aliases,
+            )
+            if function is None:
+                continue
+            for target in assignment.targets:
+                if isinstance(target, ast.Name) and target.id not in function_aliases:
+                    function_aliases[target.id] = function
+                    changed = True
+
+
 def _execution_function(
-    node: ast.Call, module_aliases: set[str], function_aliases: dict[str, str]
+    node: ast.Call,
+    module_aliases: dict[str, str],
+    function_aliases: dict[str, str],
 ) -> str | None:
-    function = node.func
+    return _execution_reference(node.func, module_aliases, function_aliases)
+
+
+def _execution_reference(
+    function: ast.expr,
+    module_aliases: dict[str, str],
+    function_aliases: dict[str, str],
+) -> str | None:
     if isinstance(function, ast.Name):
         return function_aliases.get(function.id)
-    if (
-        isinstance(function, ast.Attribute)
-        and isinstance(function.value, ast.Name)
-        and function.value.id in module_aliases
-        and function.attr in _EXECUTION_FUNCTIONS
-    ):
-        return function.attr
+    if isinstance(function, ast.Attribute) and isinstance(function.value, ast.Name):
+        module = module_aliases.get(function.value.id)
+        if module is not None:
+            return _canonical_execution_function(module, function.attr)
     return None
+
+
+def _canonical_execution_function(module: str, function: str) -> str | None:
+    declared = _EXECUTION_FUNCTIONS_BY_MODULE.get(module)
+    return f"{module}.{function}" if declared is not None and function in declared else None
 
 
 def _call_gaps(node: ast.Call, function: str, relative: str, binding: CouplingBinding) -> list[str]:
@@ -127,6 +172,8 @@ def _call_gaps(node: ast.Call, function: str, relative: str, binding: CouplingBi
         ]
     if any(keyword.arg is None for keyword in node.keywords):
         return [_call_gap(binding, relative, node, "mandatory_executable_expanded_keywords")]
+    if function == _ASYNCIO_EXEC_FUNCTION:
+        return _asyncio_exec_gaps(node, relative, binding)
     gaps: list[str] = []
     if _unsafe_option(
         node,
@@ -142,17 +189,44 @@ def _call_gaps(node: ast.Call, function: str, relative: str, binding: CouplingBi
         safe_values={None},
     ):
         gaps.append(_call_gap(binding, relative, node, "mandatory_executable_override"))
-    gaps.extend(_argv_gaps(node, relative, binding))
+    gaps.extend(_subprocess_argv_gaps(node, relative, binding))
     return gaps
 
 
-def _argv_gaps(node: ast.Call, relative: str, binding: CouplingBinding) -> list[str]:
+def _asyncio_exec_gaps(
+    node: ast.Call,
+    relative: str,
+    binding: CouplingBinding,
+) -> list[str]:
+    gaps: list[str] = []
+    if _unsafe_keyword_option(node, "shell", safe_values={False, None}):
+        gaps.append(_call_gap(binding, relative, node, "mandatory_executable_shell_true"))
+    if _unsafe_keyword_option(node, "executable", safe_values={None}):
+        gaps.append(_call_gap(binding, relative, node, "mandatory_executable_override"))
+    executable = node.args[0] if node.args else _keyword_value(node, "program")
+    gaps.extend(_executable_gaps(executable, node, relative, binding))
+    return gaps
+
+
+def _subprocess_argv_gaps(
+    node: ast.Call,
+    relative: str,
+    binding: CouplingBinding,
+) -> list[str]:
     argv = node.args[0] if node.args else _keyword_value(node, "args")
     if isinstance(argv, ast.Constant) and isinstance(argv.value, str):
         return [_call_gap(binding, relative, node, "mandatory_executable_command_string")]
     if not isinstance(argv, (ast.List, ast.Tuple)) or not argv.elts:
         return [_call_gap(binding, relative, node, "mandatory_executable_dynamic_argv0")]
-    executable = argv.elts[0]
+    return _executable_gaps(argv.elts[0], node, relative, binding)
+
+
+def _executable_gaps(
+    executable: ast.expr | None,
+    node: ast.Call,
+    relative: str,
+    binding: CouplingBinding,
+) -> list[str]:
     if not isinstance(executable, ast.Constant) or not isinstance(executable.value, str):
         return [_call_gap(binding, relative, node, "mandatory_executable_dynamic_argv0")]
     if executable.value not in binding.declared_executables:
@@ -180,6 +254,13 @@ def _unsafe_option(
         values.append(keyword)
     return any(
         not (isinstance(value, ast.Constant) and value.value in safe_values) for value in values
+    )
+
+
+def _unsafe_keyword_option(node: ast.Call, name: str, *, safe_values: set[object]) -> bool:
+    value = _keyword_value(node, name)
+    return value is not None and not (
+        isinstance(value, ast.Constant) and value.value in safe_values
     )
 
 

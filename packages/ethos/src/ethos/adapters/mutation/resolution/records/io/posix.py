@@ -487,8 +487,6 @@ def write_all(descriptor: int, content: bytes) -> None:
     view = memoryview(content)
     while view:
         written = os.write(descriptor, view)
-        if written <= 0:
-            raise OSError(errno.EIO, os.strerror(errno.EIO))
         view = view[written:]
 
 

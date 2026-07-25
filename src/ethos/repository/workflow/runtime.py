@@ -6,10 +6,14 @@ It does not persist lifecycle state or execute an orchestration engine.
 
 from __future__ import annotations
 
+from datetime import UTC
+from datetime import datetime
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
 
+from ethos.contracts.semantic import ChangeContract
+from ethos.contracts.semantic import RepositoryFacts
 from ethos.contracts.workflow import load_workflow_contract_declaration
 from ethos.contracts.workflow import planned_transition_projection
 from ethos.contracts.workflow import workflow_contract_report
@@ -50,7 +54,22 @@ def workflow_runtime_report(root: Path, *, changed_paths: tuple[str, ...] = ()) 
         "kind": "workflow_runtime_read_model",
         "truth_boundary": "derived_repository_projection",
         "contract": contract_report,
-        "plan": planned_transition_projection(contract, changed_paths=changed_paths),
+        "plan": planned_transition_projection(
+            contract,
+            change_contract=ChangeContract(
+                id="change:workflow-runtime",
+                intent="Project the declared lifecycle.",
+                subjects=(root.resolve().as_posix(),),
+            ),
+            repository_facts=RepositoryFacts(
+                repository=root.resolve().as_posix(),
+                head="0" * 40,
+                tree="0" * 40,
+                observed_at=datetime.now(UTC),
+                values={"changed_paths": changed_paths},
+                source_refs=("workflow-runtime-projection",),
+            ),
+        ),
         "evolution_bridge": {
             "truth_boundary": "evolution_ledger_claim_evidence_chronicle",
             "active_hypothesis_count": len(active_hypotheses),

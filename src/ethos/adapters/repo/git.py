@@ -37,6 +37,11 @@ def current_tracked_head(root: Path) -> str:
     return "" if head == "untracked" else head
 
 
+def current_tree(root: Path, head: str = "HEAD") -> str:
+    """Return the exact tree for a Git revision, or an empty string on failure."""
+    return git_stdout(root, "rev-parse", f"{head}^{{tree}}")
+
+
 def git_stdout_checked(root: Path, *args: str) -> str:
     """Run `git <args>` in root and return stdout, raising on failure."""
     completed = subprocess.run(

@@ -8,6 +8,8 @@ from ethos.adapters.repo.status.core import workspace_status
 from ethos.contracts.workflow import load_workflow_contract_declaration
 from ethos.domain.plan import contract_profile_matches
 from ethos.domain.plan import matching_rule_gates
+from ethos.domain.plan import planning_inputs
+from ethos.normalization.core import string_sequence
 from ethos.repository.context import context_for_root
 from ethos.repository.workflow.runtime import workflow_runtime_report
 from ethos.result import EthosResult
@@ -28,7 +30,17 @@ def plan(
     status_payload = workspace_status(repo, include_foreign_path_scope=False)
     governance = context_for_root(repo)
     paths = change_scope_paths_from_status(repo, status_payload) if changed else ()
-    plan = load_workflow_contract_declaration(repo).plan(node_ids=("status", "plan", "prove"))
+    contract, facts = planning_inputs(
+        repo,
+        status=status_payload,
+        changed_paths=paths,
+        authority_refs=tuple(string_sequence(governance.get("authority_refs"))),
+    )
+    plan = load_workflow_contract_declaration(repo).plan(
+        contract=contract,
+        facts=facts,
+        node_ids=("status", "plan", "prove"),
+    )
     matched_rules, required_gates, rule_validation_gaps = matching_rule_gates(repo, paths)
     domain_contracts = contract_profile_matches(repo, paths)
     workflow_runtime = workflow_runtime_report(repo, changed_paths=paths)
@@ -66,6 +78,8 @@ def plan(
             "required_gates": required_gates,
             "rule_validation_gaps": rule_validation_gaps,
             "domain_contracts": domain_contracts,
+            "change_contract": contract.model_dump(mode="json"),
+            "repository_facts_digest": facts.digest(),
             "plan_ir": plan.to_dict(),
             "workflow_runtime": workflow_runtime,
             "openspec_lifecycle": openspec_lifecycle,

@@ -6,11 +6,16 @@ import hashlib
 import json
 from graphlib import CycleError
 from graphlib import TopologicalSorter
+from typing import TYPE_CHECKING
 from typing import Any
 from typing import Literal
 
 from pydantic import BaseModel
 from pydantic import ConfigDict
+
+if TYPE_CHECKING:
+    from ethos.contracts.semantic import ChangeContract
+    from ethos.contracts.semantic import RepositoryFacts
 
 PlanVerdict = Literal["pass", "block", "unknown"]
 
@@ -115,3 +120,32 @@ class PlanIR(_PlanModel):
         if self.validation_issues:
             payload["validation_issues"] = list(self.validation_issues)
         return hashlib.sha256(_stable_json(payload).encode()).hexdigest()
+
+
+def compile_plan(
+    contract: ChangeContract,
+    facts: RepositoryFacts,
+    nodes: tuple[PlanNode, ...],
+    *,
+    validation_issues: tuple[str, ...] = (),
+) -> PlanIR:
+    """Compile one effective contract and current fact snapshot into PlanIR."""
+    issues = list(validation_issues)
+    if contract.subjects and facts.repository not in contract.subjects:
+        issues.append("repository_subject_mismatch")
+    if contract.scope:
+        changed_paths = facts.values.get("changed_paths", ())
+        if not isinstance(changed_paths, tuple | list):
+            issues.append("changed_paths_invalid")
+        elif any(
+            not any(_path_matches(path, pattern) for pattern in contract.scope)
+            for path in changed_paths
+            if isinstance(path, str)
+        ):
+            issues.append("change_scope_exceeded")
+    return PlanIR(nodes=nodes, validation_issues=tuple(dict.fromkeys(issues)))
+
+
+def _path_matches(path: str, pattern: str) -> bool:
+    prefix = pattern.removesuffix("/**")
+    return path == prefix or (pattern.endswith("/**") and path.startswith(f"{prefix}/"))

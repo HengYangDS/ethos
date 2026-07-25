@@ -1,8 +1,14 @@
 from __future__ import annotations
 
+from datetime import UTC
+from datetime import datetime
+
 from ethos.contracts.plan import PlanIR
 from ethos.contracts.plan import PlanNode
 from ethos.contracts.plan import PlanVerdict
+from ethos.contracts.plan import compile_plan
+from ethos.contracts.semantic import ChangeContract
+from ethos.contracts.semantic import RepositoryFacts
 
 
 def test_plan_ir_orders_dependencies_before_dependents() -> None:
@@ -106,3 +112,38 @@ def test_plan_ir_unknown_verdict_is_explicit_and_cannot_hide_hard_gaps() -> None
 
 def test_plan_verdict_algebra_is_closed() -> None:
     assert PlanVerdict.__args__ == ("pass", "block", "unknown")
+
+
+def test_compile_plan_binds_contract_subject_and_scope_to_current_facts() -> None:
+    facts = RepositoryFacts(
+        repository="repository:test",
+        head="a" * 40,
+        tree="b" * 40,
+        observed_at=datetime(2026, 7, 25, tzinfo=UTC),
+        values={"changed_paths": ("src/ethos/result.py",)},
+    )
+    node = PlanNode(id="status", kind="check", command=("ethos", "status"))
+
+    assert (
+        compile_plan(
+            ChangeContract(
+                id="change:test",
+                intent="test",
+                subjects=("repository:test",),
+                scope=("src/**",),
+            ),
+            facts,
+            (node,),
+        ).verdict
+        == "pass"
+    )
+    assert compile_plan(
+        ChangeContract(
+            id="change:test",
+            intent="test",
+            subjects=("repository:other",),
+            scope=("docs/**",),
+        ),
+        facts,
+        (node,),
+    ).gaps() == ("repository_subject_mismatch", "change_scope_exceeded")

@@ -6,12 +6,11 @@ relations:
   canonical_for: kernel model
 ---
 
-# Kernel Model
+# Semantic Kernel
 
 Status: canonical.
 
-Purpose: define the ETHOS kernel chain that higher-level command and quality
-surfaces project from.
+Purpose: define the smallest executable ETHOS semantic kernel.
 
 See also: [Package Ontology](../architecture/package-ontology.md) and
 [Glossary](../reference/glossary.md).
@@ -19,7 +18,7 @@ See also: [Package Ontology](../architecture/package-ontology.md) and
 ETHOS reduces repository operation to:
 
 ```text
-Authority -> Subject -> Commitment -> Change -> Evidence -> Claim -> Chronicle
+ChangeContract + Attestation -> RepositoryFacts -> PlanIR
 ```
 
 ## Root Interpretation Boundary
@@ -29,16 +28,10 @@ chain is not a translation of that text and not a philosophical subsystem. It is
 the engineering compression ETHOS uses so the root constraint can govern actual
 repository transitions without becoming a second truth center.
 
-The kernel is compatible with the root text when it preserves these boundaries:
-
-1. `Authority` keeps authority deeper than named tools, vendors, commands,
-   models, editors, hosts, and generated projections.
-2. `Subject`, `Commitment`, and `Change` separate the governed object, its
-   promises, and the lifecycle of modification without multiplying truth stores.
-3. `Evidence` and `Claim` make hidden state inspectable while preventing metrics,
-   digests, or reader projections from asserting more than their verifier proved.
-4. `Chronicle` records judged movement so accepted truth changes through a visible
-   loop rather than through host-side memory or overwrite races.
+The kernel is compatible with the root text when immutable intent, current facts,
+evidence-bearing attestations, and executable plans remain distinct. Authority,
+subject, commitment, evidence, claim, and chronicle are duties encoded in these
+two persistent entities and their projections, not additional truth stores.
 
 A future surface is valid only when it can state which kernel object it projects,
 which boundary it occupies, and which evidence proves its claims. `system/axioms.md`

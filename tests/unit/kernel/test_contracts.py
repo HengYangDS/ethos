@@ -10,7 +10,6 @@ from types import MappingProxyType
 import jsonschema
 import pytest
 
-from ethos import models
 from ethos.contracts.plan import PlanIR
 from ethos.contracts.plan import PlanNode
 from ethos.contracts.semantic import Attestation
@@ -21,50 +20,6 @@ from ethos.contracts.semantic import semantic_schema_documents
 from ethos.contracts.system.contracts import load_system_contract
 from ethos.contracts.system.contracts import system_contracts_report
 from ethos.result import EthosResult
-
-
-def test_digest_only_claims_reject_semantic_conclusions() -> None:
-    assert hasattr(models, "EvidenceClaim")
-    with pytest.raises(ValueError, match="digest_only does not permit semantic"):
-        models.EvidenceClaim(
-            id="claim:overreach",
-            change_id="change:example",
-            evidence_ids=("evidence:example",),
-            binding="semantic truth is proven",
-            verifier="digest_only",
-        )
-
-
-def test_core_claim_model_does_not_embed_profile_or_host_policy_terms() -> None:
-    policy_terms = "\n".join(getattr(models, "CLAIM_OVERCLAIM_PHRASES", ())).lower()
-
-    assert "adopter-domain storage" not in policy_terms
-    assert "hosted ci" not in policy_terms
-    assert "remote publication" not in policy_terms
-    assert "backend retirement" not in policy_terms
-
-
-def test_core_claim_model_allows_policy_specific_digest_phrasing() -> None:
-    claim = models.EvidenceClaim(
-        id="claim:policy-specific",
-        change_id="change:example",
-        evidence_ids=("evidence:example",),
-        binding="hosted CI result and adopter-domain storage parity observation",
-        verifier="digest_only",
-    )
-
-    assert claim.binding == "hosted CI result and adopter-domain storage parity observation"
-
-
-def test_digest_only_claims_reject_generic_semantic_overclaim() -> None:
-    with pytest.raises(ValueError, match="digest_only does not permit semantic"):
-        models.EvidenceClaim(
-            id="claim:overreach",
-            change_id="change:example",
-            evidence_ids=("evidence:example",),
-            binding="semantic truth is proven",
-            verifier="digest_only",
-        )
 
 
 def test_plan_ir_is_deterministic_and_digest_bound() -> None:
@@ -342,15 +297,10 @@ def test_json_schemas_are_declared_for_kernel_protocols() -> None:
         "repository-facts.schema.json",
         "claim.schema.json",
         "commit-policy.schema.json",
-        "subject.schema.json",
-        "commitment.schema.json",
-        "change.schema.json",
         "plan-ir.schema.json",
-        "evidence.schema.json",
         "proof-run.schema.json",
         "evidence-set.schema.json",
         "provenance.schema.json",
-        "chronicle.schema.json",
         "semantic-attestation-receipt.schema.json",
         "evolution.schema.json",
         "docs-registry.schema.json",
@@ -438,50 +388,6 @@ def test_system_contract_schema_violation_blocks() -> None:
     assert any("schema_violation" in g for g in gaps)
 
 
-def test_authority_does_not_own_downstream_node_duties() -> None:
-    """Authority is the authority-order anchor — it must NOT own lifecycle, evidence,
-    or history (those belong to Change / Claim / Chronicle). Pins the head-of-chain
-    boundary so it cannot silently absorb a sibling node's duty."""
-    from dataclasses import fields
-
-    from ethos.models import Authority
-
-    field_names = {f.name for f in fields(Authority)}
-    forbidden = {
-        "state",
-        "lifecycle",
-        "transition",
-        "change_id",
-        "evidence_ids",
-        "verifier",
-        "chronicle",
-        "events",
-    }
-    leaked = field_names & forbidden
-    assert not leaked, f"Authority must not own downstream duties: {leaked}"
-
-
-def test_governance_context_uses_authority_as_only_kernel_head() -> None:
-    """The current governance truth uses Authority only.
-
-    No superseded head model, payload key, schema, or chain term remains as a
-    compatibility surface.
-    """
-    from ethos import models
-    from ethos.kernel import KERNEL_CHAIN
-    from ethos.repository.context import governance_context
-
-    context = governance_context(Path.cwd(), profile="product")
-
-    assert KERNEL_CHAIN[0] == "Authority"
-    assert context["kernel_chain"][0] == "Authority"
-    assert "authority" in context
-    assert context["authority"]["order_ref"] == "system/authority.toml"
-    assert "user_instruction" in context["authority"]["policy_refs"]
-    old_prefix = "Judgment"
-    assert not hasattr(models, f"{old_prefix}Source")
-
-
 def test_superseded_authority_head_name_has_no_current_truth_surface() -> None:
     """The former head-node vocabulary must not re-enter current truth surfaces.
 
@@ -515,45 +421,16 @@ def test_superseded_authority_head_name_has_no_current_truth_surface() -> None:
     assert offenders == []
 
 
-def test_governance_context_head_is_a_real_authority_with_authority() -> None:
-    """The governed-repository context must anchor on a real Authority carrying
-    the authority order (not an inline dict) — the chain's production constructor."""
+def test_governance_context_projects_repository_authority_without_shadow_models() -> None:
     from ethos.repository.context import governance_context
     from ethos.repository.registry.commands import PUBLIC_WORKFLOW_COMMANDS
 
     context = governance_context(Path.cwd(), profile="product")
-    assert context["kernel_chain"][0] == "Authority"
-    assert context["authority"]["order_ref"] == "system/authority.toml"
-    # The authority order is surfaced (head-of-chain hole filled).
-    assert "user_instruction" in context["authority"]["policy_refs"]
-    assert context["subject"]["kind"] == "repository"
+    assert context["repository"] == str(Path.cwd().resolve())
+    assert "user_instruction" in context["authority_refs"]
     assert context["shared_commands"] == list(PUBLIC_WORKFLOW_COMMANDS)
     assert context["transition_commands"] == list(PUBLIC_WORKFLOW_COMMANDS)
-
-
-def test_kernel_nodes_do_not_own_forbidden_downstream_duties() -> None:
-    """Each kernel-chain node owns exactly one duty. This pins the must-not-own
-    boundary for the nodes that have a live typed model, so a future field addition
-    that lets one node absorb a sibling's duty fails a test rather than drifting
-    silently. Commitment/Change/Evidence/Chronicle are represented by name in
-    KERNEL_CHAIN (no typed shadow), so only the three constructed nodes are pinned."""
-    from dataclasses import fields
-
-    from ethos import models
-
-    forbidden_per_node = {
-        # Authority: authority anchor only — no downstream lifecycle/evidence.
-        "Authority": {"state", "lifecycle", "transition", "evidence_ids", "verifier"},
-        # Subject: identity+scope only — no state/obligation/authority.
-        "Subject": {"state", "lifecycle", "transition", "authority", "evidence_ids"},
-        # Claim: verifier-capped binding — does NOT own lifecycle state or a verdict.
-        "EvidenceClaim": {"state", "lifecycle", "transition", "verdict", "trust_bearing"},
-    }
-    for node_name, forbidden in forbidden_per_node.items():
-        model = getattr(models, node_name)
-        field_names = {f.name for f in fields(model)}
-        leaked = field_names & forbidden
-        assert not leaked, f"{node_name} must not own downstream duties: {leaked}"
+    assert context["reader_projection_commands"] == ["ethos status"]
 
 
 def test_workflow_transitions_bind_to_invalid_state_taxonomy() -> None:

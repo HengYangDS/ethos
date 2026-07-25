@@ -2,22 +2,19 @@
 
 ## Purpose
 
-ETHOS SHALL model repository operation through Authority, Subject,
-Commitment, Change, Evidence, Claim, and Chronicle.
+ETHOS SHALL persist only ChangeContract and Attestation semantic entities and
+derive RepositoryFacts and PlanIR.
 ## Requirements
-### Requirement: Kernel Chain
+### Requirement: Minimal Semantic Kernel
 
-ETHOS SHALL model repository operation through Authority, Subject, Commitment,
-Change, Evidence, Claim, and Chronicle. Commitment SHALL remain the governed
-promise that may become repository law; practice claims and workflow runtime
-facts SHALL remain subordinate carriers or projections that propose, test, or
-inspect commitment effects.
+ETHOS SHALL model repository operation through ChangeContract, Attestation,
+RepositoryFacts, and PlanIR without parallel semantic entity owners.
 
 #### Scenario: Repository operation is represented
 - **WHEN** ETHOS records a repository operation
-- **THEN** the operation is expressible through kernel objects without depending
+- **THEN** the operation is expressible through the minimal kernel without depending
   on repository, assistant, adapter, adopter, or hosted-runner packages
-- **AND** Claim binds evidence rather than owning lifecycle state
+- **AND** attestations bind evidence without owning reusable authority
 - **AND** semantic claims require a current, candidate-external semantic attestation receipt
 
 #### Scenario: semantic attestation remains optional and bounded

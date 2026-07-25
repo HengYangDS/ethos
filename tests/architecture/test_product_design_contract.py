@@ -43,7 +43,7 @@ def test_product_design_contract_canonizes_kernel_first_principles() -> None:
     text = read("docs/governance/product-design-contract.md")
 
     assert "Evidence-grounded Trust for Human-Agent Operational Stewardship" in text
-    kernel_chain = "Authority -> Subject -> Commitment -> Change -> Evidence -> Claim -> Chronicle"
+    kernel_chain = "ChangeContract + Attestation -> RepositoryFacts -> PlanIR"
     assert kernel_chain in text
     assert "North Star is a derived reader view, not the authority" in text
     assert "Claim binds evidence; it does not own the Change lifecycle" in text

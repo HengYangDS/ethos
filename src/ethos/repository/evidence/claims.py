@@ -8,7 +8,6 @@ from pathlib import Path  # noqa: TC003 - runtime audit paths remain part of thi
 from typing import Any
 
 from ethos.contracts.package.ontology import RETIRED_PRODUCT_FAMILY_TOKENS
-from ethos.models import EvidenceClaim
 from ethos.normalization.core import string_list
 from ethos.repository.evidence.attestation import AttestationBinding
 from ethos.repository.evidence.attestation import semantic_attestation
@@ -25,6 +24,14 @@ ACTIVE_PRODUCT_CLAIM_PRIVATE_PATTERNS = (
 )
 _HISTORICAL_CARRIER_PREFIXES = ("evidence/chronicle/", "openspec/changes/archive/")
 _PROMOTION_KINDS = (("evidence/", "evidence"), ("docs/", "docs"), ("schemas/", "schema"), ("openspec/", "openspec"), ("tests/", "tests"))
+_ASSURANCE_CLASSES = frozenset({"digest_only", "semantic_attested", "independently_reviewed", "independently_reexecuted", "formally_proven"})
+_ASSURANCE_FORBIDDEN_PHRASES = {
+    "digest_only": ("semantic", "verified", "validates", "enforces", "guarantees", "proves"),
+    "semantic_attested": ("verified", "validates", "enforces", "guarantees"),
+    "independently_reviewed": ("verified", "semantic correctness", "guarantees"),
+    "independently_reexecuted": ("semantic correctness", "verified", "guarantees"),
+    "formally_proven": (),
+}
 
 
 def _sha256(path: Path) -> str:
@@ -110,6 +117,12 @@ def _has_repository_overclaim(claim_text: str, verifier: str) -> bool:
     return verifier != "formally_proven" and any(phrase in claim_text.lower() for phrase in REPOSITORY_OVERCLAIM_PHRASES)
 
 
+def _assurance_invalid(claim_text: str, verifier: str) -> bool:
+    return verifier not in _ASSURANCE_CLASSES or any(
+        phrase in claim_text.lower() for phrase in _ASSURANCE_FORBIDDEN_PHRASES[verifier]
+    )
+
+
 def _active_claim_gaps(claim_id: str, path: Path, payload: dict[str, Any], evidence: dict[str, Any]) -> list[str]:
     """Return required trust-envelope gaps intrinsic to one active product claim."""
     claim = payload.get("claim", {})
@@ -121,9 +134,7 @@ def _active_claim_gaps(claim_id: str, path: Path, payload: dict[str, Any], evide
     if not isinstance(evidence_ids, list) or not binding or not verifier:
         return gaps
     claim_text = "\n".join((str(claim.get("summary", "")), str(binding)))
-    try:
-        EvidenceClaim(id=claim_id, change_id=str(claim.get("change_id") or claim_id), evidence_ids=tuple(map(str, evidence_ids)), binding=claim_text, verifier=str(verifier))
-    except ValueError:
+    if _assurance_invalid(claim_text, str(verifier)):
         gaps.append(f"{claim_id}:claim_assurance_invalid")
     if _has_repository_overclaim(claim_text, str(verifier)):
         gaps.append(f"{claim_id}:claim_assurance_invalid")

@@ -1,0 +1,41 @@
+[claim]
+id = "ownerless-effect-manifest-clear-20260725"
+subject = "ethos:lane-resolution:ownerless-clean-effect-bridge-packages"
+state = "active"
+change_id = "ownerless-effect-manifest-clear"
+summary = "One bounded successor binds native clearance of three exact retained clean ownerless effect-bridge packages after their branches and worktrees were safely retired."
+
+[evidence]
+dated = "evidence/chronicle/ownerless-effect-manifest-clear-20260725/2026-07-25.md"
+sha256 = "3d696fb0b5a49f8c8f823c2ca8096cdaa47ad4033439db760711bdea3992f4c0"
+evidence_ids = ["evidence:ownerless-effect-manifest-clear-20260725"]
+binding = "This Claim binds retained-packages.json SHA-256 defae249be8568954fb872546619023bd5f4a43724103da095de2c9b94bed082, accepted authority head 2fb3f86c575aa0f67a464d93c9bf0e657eeb7087, decisions lane-decision:96e8f4cb-6d9f-46c9-900a-e7a9e3cf8af1, lane-decision:19f824d3-8cc9-47ef-a224-8b154fbdc7ea, and lane-decision:c1bd5914-ee5c-48fa-be36-d956a38e272d to manifests e4fd9ad24f593715fd551be3292bc18f5ba61cc5645db1c64043e93573233c12, 71af0ad007b29f783823c4aaeafb35488627138f40e459610016ffe45b7e242d, and ee4d5cdb6d2d12c8a1a6f3adc7783e197cf6bcd66e89acb7616834bde41a2727 respectively, plus three later one-package native clear-preservation transitions. It authorizes no fourth package, receipt removal, raw deletion, reconstruction, or valid-owner Work Lane effect."
+verifier = "digest_only"
+tests = [
+  "tools/ci/scripts/run-ethos-lane.sh lane resolution inventory --json",
+  "git bundle verify <each-exact-package>/repository.bundle",
+  "openspec validate ownerless-effect-manifest-clear --strict --json",
+  "tools/ci/scripts/run-ethos-lane.sh quality claims --json",
+  "tools/ci/scripts/run-ethos-lane.sh prove --execute --expect-head HEAD --json",
+]
+
+[evidence.freshness]
+mode = "historical"
+
+[boundary]
+owner = "ethos-repository"
+scope = "Exactly three retained clean ownerless effect-bridge packages and three individually manifest-bound native clear transitions only."
+
+[carriers]
+openspec = "openspec/changes/ownerless-effect-manifest-clear"
+fallback = "Keep a package, decision, completion receipt, and every unrelated record intact whenever inventory, exact manifest, bundle, Chronicle, accepted authority, or native clear admission drifts."
+kill_signal = "A wildcard or batch clear, raw deletion, receipt deletion, source reconstruction, valid-owner mutation, fourth package effect, remote mutation, hosted claim, or clearance without the exact accepted manifest."
+
+[promotion]
+targets = [
+  "evidence/claims/ownerless-effect-manifest-clear-20260725.toml",
+  "evidence/chronicle/ownerless-effect-manifest-clear-20260725/2026-07-25.md",
+  "evidence/chronicle/ownerless-effect-manifest-clear-20260725/retained-packages.json",
+  "openspec/changes/ownerless-effect-manifest-clear",
+  "openspec/specs/repository-governance/spec.md",
+]

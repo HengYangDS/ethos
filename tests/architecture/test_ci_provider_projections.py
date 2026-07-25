@@ -314,6 +314,80 @@ def test_hosted_proof_receipt_is_owner_scripted_and_retained() -> None:
     assert "proof_evidence_digest" in script
 
 
+
+def test_hosted_proof_receipt_reports_post_execution_readiness(tmp_path: Path) -> None:
+    runner = ROOT / "tools/ci/scripts/run-head-bound-proof.sh"
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    fake_uv = fake_bin / "uv"
+    fake_uv.write_text(
+        """#!/usr/bin/env bash
+set -euo pipefail
+case "$*" in
+  *"ethos audit --json")
+    printf '%s\\n' audit >>"${ETHOS_FAKE_CALLS}"
+    printf '%s\\n' '{"ok":true,"state":"clean"}'
+    ;;
+  *"ethos prove --execute --expect-head ${ETHOS_FAKE_EXPECTED_HEAD} --json")
+    printf '%s\\n' prove >>"${ETHOS_FAKE_CALLS}"
+    printf '%s\\n' proven >"${ETHOS_FAKE_STATE}"
+    printf '{"ok":true,"state":"proven","data":{"expected_head":{"current":"%s","ok":true}},"summary":{"gate_count":1,"evidence_digest":"fake-digest"}}\\n' "${ETHOS_FAKE_EXPECTED_HEAD}"
+    ;;
+  *"ethos report --json")
+    printf '%s\\n' report >>"${ETHOS_FAKE_CALLS}"
+    if [[ -f "${ETHOS_FAKE_STATE}" ]]; then
+      printf '%s\\n' '{"ok":true,"state":"ready"}'
+    else
+      printf '%s\\n' '{"ok":false,"state":"gapped"}'
+    fi
+    ;;
+  *)
+    printf 'unexpected fake uv command: %s\\n' "$*" >&2
+    exit 64
+    ;;
+esac
+""",
+        encoding="utf-8",
+    )
+    fake_uv.chmod(fake_uv.stat().st_mode | stat.S_IXUSR)
+    expected_head = "1111111111111111111111111111111111111111"
+    calls = tmp_path / "calls.log"
+    env = os.environ.copy()
+    env.update(
+        {
+            "ETHOS_FAKE_CALLS": str(calls),
+            "ETHOS_FAKE_EXPECTED_HEAD": expected_head,
+            "ETHOS_FAKE_STATE": str(tmp_path / "proof-state"),
+            "ETHOS_PROOF_EVIDENCE_DIR": str(tmp_path / "proof"),
+            "ETHOS_READINESS_EVIDENCE_DIR": str(tmp_path / "readiness"),
+            "ETHOS_RUNTIME_BOOTSTRAPPED": "1",
+            "PATH": f"{fake_bin}{os.pathsep}{env['PATH']}",
+        }
+    )
+
+    completed = subprocess.run(
+        [str(runner), expected_head],
+        cwd=ROOT,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 0, completed.stderr or completed.stdout
+    assert calls.read_text(encoding="utf-8").splitlines() == [
+        "audit",
+        "prove",
+        "report",
+    ]
+    receipt = json.loads(completed.stdout)
+    assert receipt["ok"] is True
+    assert receipt["head"] == expected_head
+    assert receipt["head_matches_expected"] is True
+    assert receipt["report_state"] == "ready"
+    assert receipt["proof_state"] == "proven"
+
+
 def test_local_ci_fails_on_python_warnings() -> None:
     assert "export PYTHONWARNINGS=error" in (
         ROOT / "tools/ci/scripts/run-local-ci.sh"

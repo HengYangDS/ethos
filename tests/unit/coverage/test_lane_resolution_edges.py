@@ -531,6 +531,81 @@ def test_resolution_shared_path_and_chronicle_failure_edges(
         assert not resolution_shared.current_chronicle_matches(root, decision)
 
 
+def test_resolution_shared_preserve_retire_chronicle_fail_closed_edges(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    target_branch = "work/example"
+    target_head = "a" * 40
+    relative = "evidence/chronicle/preserve-retire.md"
+    identity = resolution_observation.DescriptorIdentity(1, 2, 3, 4, 5, 6)
+    working = resolution_observation.ExactFileSnapshot(b"working", identity)
+    accepted_bytes = resolution_shared._accepted_chronicle_bytes  # noqa: SLF001, RUF100 - dedicated helper boundary coverage
+    target_matches = resolution_shared._preserve_retire_chronicle_target_matches  # noqa: SLF001, RUF100 - dedicated helper boundary coverage
+    front_matter_fields = resolution_shared._front_matter_fields  # noqa: SLF001, RUF100 - dedicated helper boundary coverage
+
+    assert resolution_shared.accepted_preserve_retire_chronicle(
+        tmp_path,
+        chronicle_ref="",
+        target_branch=target_branch,
+        target_head=target_head,
+    ) == (None, "lane_resolution_chronicle_outside_repository")
+
+    monkeypatch.setattr(
+        resolution_shared,
+        "read_root_bound_regular_file",
+        lambda *_args, **_kwargs: working,
+    )
+    monkeypatch.setattr(resolution_shared, "git_object_bytes", lambda *_args: None)
+    assert resolution_shared.accepted_preserve_retire_chronicle(
+        tmp_path,
+        chronicle_ref=relative,
+        target_branch=target_branch,
+        target_head=target_head,
+    ) == (None, "lane_resolution_chronicle_invalid")
+
+    non_utf8 = resolution_observation.ExactFileSnapshot(b"\xff", identity)
+    monkeypatch.setattr(
+        resolution_shared,
+        "read_root_bound_regular_file",
+        lambda *_args, **_kwargs: non_utf8,
+    )
+    monkeypatch.setattr(
+        resolution_shared,
+        "git_object_bytes",
+        lambda *_args: non_utf8.raw,
+    )
+    assert resolution_shared.accepted_preserve_retire_chronicle(
+        tmp_path,
+        chronicle_ref=relative,
+        target_branch=target_branch,
+        target_head=target_head,
+    ) == (None, "lane_resolution_chronicle_invalid")
+
+    monkeypatch.setattr(
+        resolution_shared,
+        "git_object_bytes",
+        lambda *_args: (_ for _ in ()).throw(
+            resolution_observation.OwnerlessGitObservationError("unverifiable", "git_object")
+        ),
+    )
+    assert accepted_bytes(tmp_path, relative) is None
+
+    assert not target_matches(
+        (
+            "---\n"
+            "event: lane_resolution/preserve-retire\n"
+            f"target_head: {target_head}\n"
+            f"target_branch: {target_branch}\n"
+            f"target_branch_sha256: {'b' * 64}\n"
+            "---\n"
+        ),
+        target_branch,
+        target_head,
+    )
+    assert front_matter_fields("---\nmalformed\n---\n") is None
+    assert front_matter_fields("---\nevent: value\n") is None
+
+
 def test_resolution_shared_cross_record_binding_edges() -> None:
     decision_id = "lane-decision:00000000-0000-4000-8000-000000000090"
     observation = {"lane_ref": "work/example", "head": "a" * 40}
@@ -695,6 +770,72 @@ def test_resolution_lane_malformed_decision_and_chronicle_observation_edges(
         ),
     )
     assert not resolution._accepted_chronicle_matches(tmp_path, "evidence/chronicle/x.md", working)
+
+
+def test_resolution_lane_preserve_retire_chronicle_gate_edges(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    observation = _observation(tmp_path)
+    decision = {
+        "decision_id": "lane-decision:00000000-0000-4000-8000-000000000093",
+        "disposition": "preserve-retire",
+        "observation": observation.model_dump(mode="json"),
+        "observation_digest": observation.digest(),
+        "chronicle_ref": "evidence/chronicle/preserve-retire.md",
+        "chronicle_digest": "old-digest",
+    }
+    chronicle_digest = resolution._preserve_retire_chronicle_digest  # noqa: SLF001, RUF100 - dedicated helper boundary coverage
+
+    monkeypatch.setattr(resolution, "_read_decision", lambda *_args, **_kwargs: (decision, []))
+    monkeypatch.setattr(resolution, "lane_resolution_inventory", lambda **_kwargs: {})
+    monkeypatch.setattr(resolution, "current_record_integrity_gap", lambda **_kwargs: "")
+    monkeypatch.setattr(
+        resolution,
+        "ownerless_recovery_context",
+        lambda **_kwargs: ({}, None, None, ""),
+    )
+    monkeypatch.setattr(resolution, "observe_lane", lambda *_args: (observation, []))
+    monkeypatch.setattr(
+        resolution,
+        "_accepted_chronicle",
+        lambda *_args, **_kwargs: (
+            "evidence/chronicle/preserve-retire.md",
+            "fresh-digest",
+            [],
+        ),
+    )
+
+    report = resolution.apply_lane_resolution(
+        root=tmp_path,
+        decision_path=tmp_path / "decision.json",
+        confirm_irreversible=True,
+        apply=False,
+    )
+
+    assert report["required_gaps"] == ["lane_resolution_chronicle_stale"]
+    assert chronicle_digest(
+        tmp_path,
+        "evidence/chronicle/preserve-retire.md",
+        None,
+    ) == ("", ["lane_resolution_chronicle_invalid"])
+
+    for message, expected in (
+        (
+            "lane_resolution_accepted_control_root_unavailable",
+            "lane_resolution_accepted_control_root_unavailable",
+        ),
+        ("untrusted-control-root", "lane_resolution_chronicle_invalid"),
+    ):
+        monkeypatch.setattr(
+            resolution,
+            "accepted_control_root",
+            lambda _root, message=message: (_ for _ in ()).throw(ValueError(message)),
+        )
+        assert chronicle_digest(
+            tmp_path,
+            "evidence/chronicle/preserve-retire.md",
+            observation,
+        ) == ("", [expected])
 
 
 def test_resolution_receipt_rejects_explicit_noncanonical_default(tmp_path: Path) -> None:

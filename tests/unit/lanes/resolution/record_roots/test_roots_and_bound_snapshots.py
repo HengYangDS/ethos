@@ -109,14 +109,47 @@ def test_record_root_parser_and_shared_path_edges(
     assert resolution_roots._registered_worktrees(tmp_path) == [  # noqa: SLF001, RUF100
         {"worktree": tmp_path.as_posix(), "HEAD": "a" * 40, "branch": "refs/heads/dev"}
     ]
-    parse_registered = resolution_roots._parse_registered_worktrees  # noqa: SLF001, RUF100 - parser boundary coverage
-    bare_record = (
-        b"worktree " + tmp_path.as_posix().encode() + b"\nHEAD " + b"a" * 40 + b"\nbare\n\n"
-    )
-    assert parse_registered(bare_record) == [{"worktree": tmp_path.as_posix(), "HEAD": "a" * 40}]
     assert resolution_shared.canonical_package_path(tmp_path, "invalid") is None
     outside = tmp_path.parent / "outside-record"
     assert resolution_shared.display_path(tmp_path, outside) == outside.resolve().as_posix()
+
+
+def test_accepted_control_root_accepts_bare_registered_record(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    head = b"a" * 40
+    worktrees = (
+        b"worktree "
+        + tmp_path.as_posix().encode()
+        + b"\nHEAD "
+        + head
+        + b"\nbranch refs/heads/dev\nbare\n\n"
+    )
+
+    def run(*args: object, **_kwargs: object) -> subprocess.CompletedProcess[bytes]:
+        command = args[0]
+        assert isinstance(command, list)
+        if command[1:] == ["rev-parse", "--git-common-dir"]:
+            return subprocess.CompletedProcess(
+                command, 0, stdout=(tmp_path / ".git").as_posix().encode() + b"\n", stderr=b""
+            )
+        if command[1:] == ["rev-parse", "--verify", "refs/heads/dev"]:
+            return subprocess.CompletedProcess(command, 0, stdout=head + b"\n", stderr=b"")
+        if command[1:] == ["worktree", "list", "--porcelain"]:
+            return subprocess.CompletedProcess(command, 0, stdout=worktrees, stderr=b"")
+        if command[1:] == ["rev-parse", "HEAD"]:
+            return subprocess.CompletedProcess(command, 0, stdout=head + b"\n", stderr=b"")
+        pytest.fail(f"unexpected Git command: {command}")
+
+    monkeypatch.setattr(resolution_roots.subprocess, "run", run)
+    monkeypatch.setattr(
+        resolution_roots,
+        "load_branch_role_policy",
+        lambda _root: SimpleNamespace(accepted_branch="dev"),
+    )
+
+    assert resolution_roots.accepted_control_root(tmp_path) == tmp_path
 
 
 def test_registered_worktrees_uses_hardened_byte_git_observation(
@@ -214,33 +247,48 @@ def test_registered_worktrees_rejects_untrusted_porcelain(
         resolution_roots._registered_worktrees(tmp_path)  # noqa: SLF001, RUF100
 
 
-def test_git_observation_runner_and_output_fail_closed(
+def test_accepted_control_root_fails_closed_for_unavailable_or_unterminated_git_output(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    registered_worktrees = resolution_roots._registered_worktrees  # noqa: SLF001, RUF100 - hardened Git boundary coverage
-    git_output = resolution_roots._git_output  # noqa: SLF001, RUF100 - hardened Git boundary coverage
+    head = b"a" * 40
 
-    def unavailable(*_args: object) -> subprocess.CompletedProcess[bytes]:
-        raise OSError("unavailable")
+    def worktree_unavailable(
+        *args: object, **_kwargs: object
+    ) -> subprocess.CompletedProcess[bytes]:
+        command = args[0]
+        assert isinstance(command, list)
+        if command[1:] == ["rev-parse", "--git-common-dir"]:
+            return subprocess.CompletedProcess(
+                command, 0, stdout=(tmp_path / ".git").as_posix().encode() + b"\n", stderr=b""
+            )
+        if command[1:] == ["rev-parse", "--verify", "refs/heads/dev"]:
+            return subprocess.CompletedProcess(command, 0, stdout=head + b"\n", stderr=b"")
+        if command[1:] == ["worktree", "list", "--porcelain"]:
+            raise OSError("unavailable")
+        pytest.fail(f"unexpected Git command: {command}")
 
-    monkeypatch.setattr(resolution_roots, "_git_run", unavailable)
-
-    with pytest.raises(ValueError, match="lane_resolution_accepted_control_root_unavailable"):
-        registered_worktrees(tmp_path)
-    assert git_output(tmp_path, "rev-parse", "HEAD") == ""
-
+    monkeypatch.setattr(resolution_roots.subprocess, "run", worktree_unavailable)
     monkeypatch.setattr(
         resolution_roots,
-        "_git_run",
-        lambda *_args: subprocess.CompletedProcess(
-            ["git"],
+        "load_branch_role_policy",
+        lambda _root: SimpleNamespace(accepted_branch="dev"),
+    )
+    with pytest.raises(ValueError, match="lane_resolution_accepted_control_root_unavailable"):
+        resolution_roots.accepted_control_root(tmp_path)
+
+    monkeypatch.setattr(
+        resolution_roots.subprocess,
+        "run",
+        lambda *args, **_kwargs: subprocess.CompletedProcess(
+            args[0],
             0,
             stdout=b"unterminated",
             stderr=b"",
         ),
     )
-    assert git_output(tmp_path, "rev-parse", "HEAD") == ""
+    with pytest.raises(ValueError, match="lane_resolution_accepted_control_root_unavailable"):
+        resolution_roots.accepted_control_root(tmp_path)
 
 
 def test_current_record_create_rejects_intermediate_root_rebind(

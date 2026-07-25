@@ -7,7 +7,7 @@ summary = "ETHOS makes the GitHub repository-proof job execute one trust-bearing
 
 [evidence]
 dated = "evidence/chronicle/github-single-head-bound-proof-20260725/2026-07-25.md"
-sha256 = "e23187fa111401986a12118ca8f5a339e462f85faf0c5538770d3d9c45c17b76"
+sha256 = "870a3a50295dc14f59422aad6c64438647aeeedd206042b6479641878e1ff6ed"
 evidence_ids = ["evidence:github-single-head-bound-proof-20260725"]
 binding = "The exact failed GitHub main run, successful first test step, failed duplicate proof step, local/dev evidence, provider data flow, OpenSpec carrier, and dated Chronicle bind this minimum single-execution claim."
 verifier = "digest_only"

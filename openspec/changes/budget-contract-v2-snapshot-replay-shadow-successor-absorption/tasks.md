@@ -15,12 +15,12 @@
   Chronicle, OpenSpec change, and repository-governance delta.
 - [x] 2.3 Validate strict OpenSpec, Claim digest, docs, provenance, and focused
   source-budget behavior.
-- [ ] 2.4 Commit the carrier with a verified signature and bind the Claim.
+- [x] 2.4 Commit the carrier with a verified signature and bind the Claim.
 
 ## 3. Proof and archive closeout
 
-- [ ] 3.1 Run generic shadow parity and exact-HEAD proof.
-- [ ] 3.2 Complete only tasks backed by fresh evidence and update Claim and
+- [x] 3.1 Run generic shadow parity and exact-HEAD proof.
+- [x] 3.2 Complete only tasks backed by fresh evidence and update Claim and
   Chronicle bindings.
 - [ ] 3.3 Officially archive the change and rerun archive-HEAD proof.
 - [ ] 3.4 Refresh the current base and establish exact proof-backed land

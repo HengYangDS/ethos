@@ -7,9 +7,9 @@ summary = "Current accepted source and canonical specifications absorb the usefu
 
 [evidence]
 dated = "evidence/chronicle/budget-contract-v2-snapshot-replay-shadow-successor-absorption-20260725/2026-07-25.md"
-sha256 = "3429a1f863059a3efe14526e93898979afb3fe6270fd2c01f052ade454223d0f"
+sha256 = "8324ca35a4ad8b5b508c3fba3f632233385f99383febabf3a7d09668d5a026cd"
 evidence_ids = ["evidence:budget-contract-v2-snapshot-replay-shadow-successor-absorption-20260725"]
-binding = "This active Claim binds only work/20260724-budget-contract-v2-snapshot-replay-shadow-successor at fb9f8348559c0e881bfe9692988f59c3bf9dd85a, its exact ten-path dirty patch SHA-256 63a72e73f2d9719724f1ce04c39ae451be70789578ed971fac017d546b05dd94, the accepted behavioral replacements named in the Chronicle, and one later native preserve-retire transition after exact local proof and accepted closeout."
+binding = "This active Claim binds only work/20260724-budget-contract-v2-snapshot-replay-shadow-successor at fb9f8348559c0e881bfe9692988f59c3bf9dd85a, its exact ten-path dirty patch SHA-256 63a72e73f2d9719724f1ce04c39ae451be70789578ed971fac017d546b05dd94, the accepted behavioral replacements named in the Chronicle, signed carrier commits through 9ff095aaa597c785988396708880576d495bd4db, exact-HEAD proof digest 55ba51e9e2f237d46487433bf82b49f44f3227ac5982f85e3817100d10c82213, and one later native preserve-retire transition after archive, current-base proof, land, and accepted closeout."
 verifier = "digest_only"
 tests = [
   "tools/ci/scripts/run-ethos-lane.sh openspec --change budget-contract-v2-snapshot-replay-shadow-successor-absorption --lifecycle --json",

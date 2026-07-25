@@ -78,14 +78,14 @@ Chronicle evidence, Python focused tests, and repository-family governance.
       accepted behavior or an explicit rejection.
 - [x] Validate strict OpenSpec, Claim digest, docs registry, provenance, and
       focused source-budget behavior.
-- [ ] Commit the authority carrier with a verified signature and bind the Claim.
+- [x] Commit the authority carrier with a verified signature and bind the Claim.
 
 ### Task 3: Archive and prove the carrier
 
-- [ ] Complete only tasks backed by fresh evidence.
-- [ ] Run generic shadow parity and commit the refreshed evidence.
+- [x] Complete only tasks backed by fresh evidence.
+- [x] Run generic shadow parity and commit the refreshed evidence.
 - [ ] Officially archive the OpenSpec change and update the Claim carrier.
-- [ ] Run exact-HEAD executed proof and report with no required gap.
+- [x] Run exact-HEAD executed proof and report with no required gap.
 - [ ] Refresh immediately before land and rerun proof if the carrier HEAD changes.
 
 ### Task 4: Land and close out accepted state

@@ -7,7 +7,8 @@ import pytest
 
 import ethos.adapters.mutation.resolution.closeout.cleanup.core as cleanup
 import ethos.adapters.mutation.resolution.closeout.effect as effect
-import ethos.adapters.mutation.resolution.closeout.recovery as recovery
+import ethos.adapters.mutation.resolution.closeout.ownerless.admission.runtime as admission_runtime
+import ethos.adapters.mutation.resolution.closeout.ownerless.receipt.attempt as receipt_attempt
 import ethos.adapters.mutation.resolution.closeout.retry as retry
 import ethos.adapters.mutation.resolution.records.reservations as reservation_store
 from ethos.adapters.mutation.resolution.lane import apply_lane_resolution
@@ -107,8 +108,8 @@ def test_reserved_no_effect_retry_recovers_exact_existing_sidecar(
 
     monkeypatch.setattr(cleanup, "release_receipt_reservation", real_release)
     events: list[str] = []
-    real_claim = recovery.claim_receipt_reservation
-    real_admit = recovery.pre_admit_ownerless_lane
+    real_claim = receipt_attempt.claim_receipt_reservation
+    real_admit = receipt_attempt.pre_admit_ownerless_lane
 
     def claim(*args: object, mode: str, **kwargs: object):
         events.append(f"claim:{mode}")
@@ -116,19 +117,19 @@ def test_reserved_no_effect_retry_recovers_exact_existing_sidecar(
 
     def admit(**kwargs: object):
         events.append(
-            "admit:token"
-            if kwargs.get("receipt_reservation_token") is not None
-            else "admit:tokenless"
+            "admit:context"
+            if kwargs.get("receipt_reservation") is not None
+            else "admit:contextless"
         )
         return real_admit(**kwargs)
 
-    monkeypatch.setattr(recovery, "claim_receipt_reservation", claim)
-    monkeypatch.setattr(recovery, "pre_admit_ownerless_lane", admit)
+    monkeypatch.setattr(receipt_attempt, "claim_receipt_reservation", claim)
+    monkeypatch.setattr(receipt_attempt, "pre_admit_ownerless_lane", admit)
     recovered = _apply_top_level(scenario)
 
     assert recovered["ok"] is True
     assert recovered["state"] == "retired"
-    assert events[:2] == ["claim:recover", "admit:token"]
+    assert events[:2] == ["claim:recover", "admit:context"]
     assert attempts["count"] == 2
     assert not scenario.target.exists()
     assert not sidecar.exists()
@@ -264,26 +265,20 @@ def test_retry_with_absent_old_fence_releases_reservation_then_reobserves(
     )
     events: list[str] = []
     real_release = retry.release_ownerless_no_effect_reservation
-    real_admit = effect.admit_ownerless_closeout
     real_reobserve = effect.reobserve_ownerless_closeout_under_fence
 
     def release(**kwargs: object) -> None:
         events.append("release_reservation")
         real_release(**kwargs)
 
-    def admit(**kwargs: object):
-        events.append("admit")
-        return real_admit(**kwargs)
-
     def reobserve(**kwargs: object):
         events.append("reobserve")
         return real_reobserve(**kwargs)
 
     monkeypatch.setattr(retry, "release_ownerless_no_effect_reservation", release)
-    monkeypatch.setattr(effect, "admit_ownerless_closeout", admit)
     monkeypatch.setattr(effect, "reobserve_ownerless_closeout_under_fence", reobserve)
     _apply(scenario)
-    assert events == ["admit", "release_reservation", "reobserve"]
+    assert events == ["release_reservation", "reobserve"]
 
 
 def test_descendant_classification_precedes_competition_rejection(
@@ -368,7 +363,7 @@ def test_retry_reset_noops_without_reservation_and_releases_absent_fence_retry(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     scenario = _scenario(tmp_path)
-    fresh = effect.admit_clean_ownerless_lane(
+    fresh = admission_runtime.admit_clean_ownerless_lane(
         root=scenario.repo,
         decision_path=scenario.decision_path,
         decision=scenario.decision,
@@ -390,14 +385,13 @@ def test_retry_reset_noops_without_reservation_and_releases_absent_fence_retry(
         decision_id=str(old_reservation["decision_id"]),
         target_binding_digest=str(old_reservation["target_binding_digest"]),
     )
-    retry_admission = effect.admit_clean_ownerless_lane(
+    retry_admission = admission_runtime.admit_clean_ownerless_lane(
         root=scenario.repo,
         decision_path=scenario.decision_path,
         decision=scenario.decision,
         executor_ref="agent:codex:thread:executor",
     )
     assert retry_admission.existing_reservation is not None
-    assert retry_admission.retry_fence_acquisition_id is None
     events: list[str] = []
     real_release_reservation = retry.release_ownerless_no_effect_reservation
     monkeypatch.setattr(
@@ -425,6 +419,44 @@ def test_retry_reset_noops_without_reservation_and_releases_absent_fence_retry(
         artifact_root=current_record_root(scenario.repo),
     )
     assert not reservation_path.exists()
+
+
+def test_retry_reset_requires_the_full_retained_fence(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    scenario = _scenario(tmp_path)
+    _start_reserved_no_effect(scenario, monkeypatch)
+    retry_admission = admission_runtime.admit_clean_ownerless_lane(
+        root=scenario.repo,
+        decision_path=scenario.decision_path,
+        decision=scenario.decision,
+        executor_ref="agent:codex:thread:executor",
+    )
+    observed = get_closeout_fence(state_database(scenario.repo), subject="work/orphan")
+    assert observed is not None
+    malformed = {**observed, "accepted_head": "f" * 40}
+    monkeypatch.setattr(
+        retry,
+        "probe_closeout_fence",
+        lambda _database, **_kwargs: ("present", malformed),
+    )
+    monkeypatch.setattr(
+        retry,
+        "release_closeout_fence",
+        lambda **_kwargs: pytest.fail("a non-exact fence must not be released"),
+    )
+    monkeypatch.setattr(
+        retry,
+        "release_ownerless_no_effect_reservation",
+        lambda **_kwargs: pytest.fail("a non-exact fence must retain its reservation"),
+    )
+
+    with pytest.raises(ValueError, match=r"^lane_resolution_ownerless_fence_stale$"):
+        retry.reset_reserved_no_effect_retry(
+            admission=retry_admission,
+            database=state_database(scenario.repo),
+            record_root=current_record_root(scenario.repo),
+        )
 
 
 def test_ownerless_no_effect_reservation_release_is_exact_compare_and_delete(

@@ -57,9 +57,7 @@ class OwnerlessCloseoutAdmission:
     accepted_head: str
     target_digest: str
     target_binding_digest: str
-    retry_fence_acquisition_id: str | None
     existing_reservation: OwnerlessCloseoutReservation | None
-    receipt_reservation_token: receipt.OwnerlessReceiptReservationToken | None
 
 
 def admit_ownerless_closeout(
@@ -68,16 +66,15 @@ def admit_ownerless_closeout(
     decision_path: Path,
     decision: dict[str, Any],
     executor_ref: str,
-    receipt_reservation_token: receipt.OwnerlessReceiptReservationToken | None = None,
 ) -> OwnerlessCloseoutAdmission:
     """Admit one exact clean ownerless target using native repository facts."""
     try:
-        return _admit(
+        return admit_ownerless_closeout_facts(
             root=root,
             decision_path=decision_path,
             decision=decision,
             executor_ref=executor_ref,
-            receipt_reservation_token=receipt_reservation_token,
+            receipt_reservation=None,
         )
     except OwnerlessCloseoutAdmissionError:
         raise
@@ -90,22 +87,27 @@ def reobserve_ownerless_closeout_under_fence(
 ) -> OwnerlessCloseoutAdmission:
     """Require the exact fence before and after complete native re-observation."""
     try:
-        return _reobserve(admission, fence)
+        return reobserve_ownerless_closeout_facts(
+            admission=admission,
+            fence=fence,
+            receipt_reservation=None,
+        )
     except OwnerlessCloseoutAdmissionError:
         raise
     except Exception as error:
         raise _error(_ADMISSION_UNVERIFIABLE, error.__class__.__name__) from error
 
 
-def _admit(  # noqa: PLR0913, RUF100 - exact native admission facts
+def admit_ownerless_closeout_facts(  # noqa: PLR0913, RUF100 - exact native admission facts
     *,
     root: Path,
     decision_path: Path,
     decision: dict[str, Any],
     executor_ref: str,
     fence_observation: tuple[str, dict[str, object] | None] | None = None,
-    receipt_reservation_token: receipt.OwnerlessReceiptReservationToken | None = None,
+    receipt_reservation: receipt.OwnerlessReceiptReservationContext | None = None,
 ) -> OwnerlessCloseoutAdmission:
+    """Build one native fact snapshot with an optional locally held receipt reservation."""
     control = root.absolute()
     policy, executor = _authority_context(control, executor_ref)
     try:
@@ -152,7 +154,7 @@ def _admit(  # noqa: PLR0913, RUF100 - exact native admission facts
         decision_path=decision_path,
         decision_sha256=decision_sha256,
         expected=expected,
-        token=receipt_reservation_token,
+        receipt_reservation=receipt_reservation,
     )
     if reservation_gap:
         detail = "reservation" if reservation_gap.endswith("reservation_competing") else "records"
@@ -160,7 +162,6 @@ def _admit(  # noqa: PLR0913, RUF100 - exact native admission facts
     if existing is not None:
         _require_ancestor(control, existing.accepted_head, facts.accepted_head, target=False)
     observed_fence = _state(control, facts.observation.lane_ref, fence_observation)
-    retry_fence_acquisition_id = None
     if fence_observation is not None or observed_fence[0] == "present":
         if fence_observation is None and existing is None:
             _fail("fence_mismatch", "competition")
@@ -175,7 +176,6 @@ def _admit(  # noqa: PLR0913, RUF100 - exact native admission facts
             and existing.target_binding_digest != retry_fence["target_binding_digest"]
         ):
             _fail("reservation_competing", "reservation")
-        retry_fence_acquisition_id = acquisition_id if existing is not None else None
     _require_ancestor(control, facts.observation.head, facts.accepted_head, target=True)
     return OwnerlessCloseoutAdmission(
         root=control,
@@ -191,54 +191,44 @@ def _admit(  # noqa: PLR0913, RUF100 - exact native admission facts
         accepted_head=facts.accepted_head,
         target_digest=target,
         target_binding_digest=binding_digest,
-        retry_fence_acquisition_id=retry_fence_acquisition_id,
         existing_reservation=existing,
-        receipt_reservation_token=receipt_reservation_token,
     )
 
 
-def _reobserve(
-    admission: OwnerlessCloseoutAdmission, supplied_fence: dict[str, object]
+def reobserve_ownerless_closeout_facts(
+    *,
+    admission: OwnerlessCloseoutAdmission,
+    fence: dict[str, object],
+    receipt_reservation: receipt.OwnerlessReceiptReservationContext | None,
 ) -> OwnerlessCloseoutAdmission:
+    """Reobserve exact facts under one fence and optional locally held receipt reservation."""
     try:
-        with receipt.ownerless_receipt_reservation_guard(admission):
+        with receipt.ownerless_receipt_reservation_guard(receipt_reservation):
             database = _database(admission.root)
             before = state_closeout.probe_closeout_fence(
                 database, subject=admission.observation.lane_ref
             )
             acquisition_id = _acquisition_id(before, "before")
             expected = _admission_fence(admission, acquisition_id)
-            _exact_fence(before, expected, "before", supplied=supplied_fence)
+            _exact_fence(before, expected, "before", supplied=fence)
             try:
-                fresh = _admit(
+                fresh = admit_ownerless_closeout_facts(
                     root=admission.root,
                     decision_path=admission.decision_path,
                     decision=admission.decision.to_payload(),
                     executor_ref=admission.executor_ref,
                     fence_observation=before,
-                    receipt_reservation_token=admission.receipt_reservation_token,
+                    receipt_reservation=receipt_reservation,
                 )
-                reset = (
-                    admission.existing_reservation is not None
-                    and fresh.existing_reservation is None
-                )
-                if reset and (
-                    admission.retry_fence_acquisition_id is None
-                    or acquisition_id == admission.retry_fence_acquisition_id
-                ):
-                    _fail("reobservation_stale", "existing_reservation")
-                allowed = {"existing_reservation", "retry_fence_acquisition_id"} if reset else set()
                 for field in fields(OwnerlessCloseoutAdmission):
-                    if field.name not in allowed and getattr(fresh, field.name) != getattr(
-                        admission, field.name
-                    ):
+                    if getattr(fresh, field.name) != getattr(admission, field.name):
                         _fail("reobservation_stale", field.name)
                 return fresh
             finally:
                 after = state_closeout.probe_closeout_fence(
                     database, subject=admission.observation.lane_ref
                 )
-                _exact_fence(after, expected, "after", supplied=supplied_fence)
+                _exact_fence(after, expected, "after", supplied=fence)
     except receipt.OwnerlessReceiptReservationError as error:
         _raise("reservation_competing", "receipt_reservation", error)
 
@@ -390,17 +380,27 @@ def _fence(
 def _admission_fence(
     admission: OwnerlessCloseoutAdmission, acquisition_id: str
 ) -> dict[str, object]:
-    accepted_head = (
-        admission.existing_reservation.accepted_head
-        if admission.existing_reservation is not None
-        and acquisition_id == admission.retry_fence_acquisition_id
-        else admission.accepted_head
-    )
     authority = (
         admission.executor_ref,
         admission.accepted_branch,
-        accepted_head,
+        admission.accepted_head,
         admission.decision_sha256,
+    )
+    return _fence(admission.decision, admission.observation, authority, acquisition_id)
+
+
+def ownerless_retry_fence(
+    *,
+    admission: OwnerlessCloseoutAdmission,
+    reservation: OwnerlessCloseoutReservation,
+    acquisition_id: str,
+) -> dict[str, object]:
+    """Render the exact retained no-effect fence from durable reservation facts."""
+    authority = (
+        reservation.executor_ref,
+        reservation.accepted_branch,
+        reservation.accepted_head,
+        reservation.decision_sha256,
     )
     return _fence(admission.decision, admission.observation, authority, acquisition_id)
 

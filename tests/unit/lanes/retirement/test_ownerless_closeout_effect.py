@@ -11,6 +11,7 @@ import pytest
 import ethos.adapters.mutation.resolution._effects as closeout_git
 import ethos.adapters.mutation.resolution.closeout.effect as effect
 import ethos.adapters.mutation.resolution.closeout.ownerless.admission.core as closeout_admission
+import ethos.adapters.mutation.resolution.closeout.ownerless.admission.runtime as admission_runtime
 import ethos.adapters.mutation.resolution.closeout.ownerless.receipt.core as closeout_receipt
 import ethos.adapters.mutation.resolution.records.reservations as reservations
 from ethos.adapters.mutation.resolution.observation import observe_ownerless_git
@@ -222,12 +223,12 @@ def test_pre_admission_skips_non_ownerless_candidates(
     else:
         observation = observation.model_copy(update={"holder_ref": "agent:test:holder"})
     monkeypatch.setattr(
-        effect,
+        admission_runtime,
         "admit_clean_ownerless_lane",
         lambda **_kwargs: pytest.fail("non-ownerless candidates must not be admitted"),
     )
 
-    admission, gap = effect.pre_admit_ownerless_lane(
+    admission, gap = admission_runtime.pre_admit_ownerless_lane(
         root=scenario.repo,
         decision_path=scenario.decision_path,
         decision=scenario.decision,
@@ -245,7 +246,7 @@ def test_pre_admission_requires_actor_and_preserves_admission_gap(
     observation = LaneObservation.model_validate(scenario.decision["observation"])
     monkeypatch.delenv("ETHOS_ACTOR", raising=False)
 
-    admission, gap = effect.pre_admit_ownerless_lane(
+    admission, gap = admission_runtime.pre_admit_ownerless_lane(
         root=scenario.repo,
         decision_path=scenario.decision_path,
         decision=scenario.decision,
@@ -256,13 +257,13 @@ def test_pre_admission_requires_actor_and_preserves_admission_gap(
     assert (admission, gap) == (None, "lane_resolution_ownerless_executor_required")
     monkeypatch.setenv("ETHOS_ACTOR", _EXECUTOR)
     monkeypatch.setattr(
-        effect,
+        admission_runtime,
         "admit_clean_ownerless_lane",
         lambda **_kwargs: (_ for _ in ()).throw(
             effect.OwnerlessCloseoutError("lane_resolution_ownerless_decision_stale")
         ),
     )
-    admission, gap = effect.pre_admit_ownerless_lane(
+    admission, gap = admission_runtime.pre_admit_ownerless_lane(
         root=scenario.repo,
         decision_path=scenario.decision_path,
         decision=scenario.decision,
@@ -315,7 +316,7 @@ def test_fresh_fence_acquisition_preserves_stable_or_fail_closed_gap(
     expected: str,
 ) -> None:
     scenario = _scenario(tmp_path)
-    admission = effect.admit_clean_ownerless_lane(
+    admission = admission_runtime.admit_clean_ownerless_lane(
         root=scenario.repo,
         decision_path=scenario.decision_path,
         decision=scenario.decision,
@@ -516,18 +517,15 @@ def test_fence_reobservation_rejects_receipt_reservation_drift(
         assert claimed is True
         assert descriptor is not None
         assert gap == ""
-        binder = getattr(closeout_receipt, "bind_ownerless_receipt_reservation", None)
-        assert binder is not None
-        admission = binder(
-            admission=admission,
+        receipt_reservation = closeout_receipt.ownerless_receipt_reservation_context(
             control_root=scenario.repo,
             artifact_root=record_root,
+            decision_id=_DECISION_ID,
             descriptor=descriptor,
         )
         database = state_database(scenario.repo)
         fence = effect._acquire_fresh_fence(admission, database)  # noqa: SLF001, RUF100
-        token = admission.receipt_reservation_token
-        assert token is not None
+        token = receipt_reservation.token
         if mutation == "replacement_identity":
             token.path.unlink()
             token.path.write_bytes(token.raw)
@@ -543,9 +541,10 @@ def test_fence_reobservation_rejects_receipt_reservation_drift(
             ).write_bytes(f"{competitor_id}\n".encode())
         try:
             with pytest.raises(closeout_admission.OwnerlessCloseoutAdmissionError) as raised:
-                closeout_admission.reobserve_ownerless_closeout_under_fence(
+                closeout_admission.reobserve_ownerless_closeout_facts(
                     admission=admission,
                     fence=fence,
+                    receipt_reservation=receipt_reservation,
                 )
             assert raised.value.gap == "lane_resolution_ownerless_reservation_competing"
         finally:

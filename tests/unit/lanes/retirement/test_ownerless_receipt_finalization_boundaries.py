@@ -79,7 +79,7 @@ def test_effect_receipt_claim_preserves_the_first_claim_gap(
             _DECISION_ID,
             mode="create",
             admission=None,
-        ) == (None, None, "lane_resolution_receipt_path_exists")
+        ) == (None, None, None, "lane_resolution_receipt_path_exists")
 
 
 def test_receipt_token_rejects_changed_bytes_and_descriptor_identity(
@@ -119,28 +119,89 @@ def test_receipt_token_rejects_changed_bytes_and_descriptor_identity(
                 )
 
 
-def test_receipt_binding_translates_sidecar_errors_and_revalidates_tokens(
+def test_receipt_context_guard_revalidates_the_held_sidecar(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    assert receipt.bind_ownerless_receipt_reservation_or_gap(
-        admission=None,
-        control_root=tmp_path,
-        artifact_root=tmp_path / "records",
-        descriptor=7,
-    ) == (None, "")
-
+    token = _token(tmp_path / "exact-sidecar", b"exact\n")
     monkeypatch.setattr(
         receipt,
-        "bind_ownerless_receipt_reservation",
-        lambda **_kwargs: (_ for _ in ()).throw(OSError("sidecar unavailable")),
+        "ownerless_receipt_reservation_token",
+        lambda **_kwargs: token,
     )
-    bound, gap = receipt.bind_ownerless_receipt_reservation_or_gap(
-        admission=object(),
+    context = receipt.ownerless_receipt_reservation_context(
         control_root=tmp_path,
         artifact_root=tmp_path / "records",
+        decision_id=_DECISION_ID,
         descriptor=7,
     )
-    assert (bound, gap) == (None, "lane_resolution_receipt_invalid")
+    calls: list[str] = []
+    monkeypatch.setattr(
+        receipt,
+        "require_locked_record_identity",
+        lambda *_args, **_kwargs: calls.append("identity"),
+    )
+    monkeypatch.setattr(
+        receipt,
+        "require_ownerless_receipt_reservation_token",
+        lambda **_kwargs: calls.append("token"),
+    )
+
+    with receipt.ownerless_receipt_reservation_guard(context):
+        calls.append("body")
+
+    assert calls == [
+        "identity",
+        "token",
+        "identity",
+        "body",
+        "identity",
+        "token",
+        "identity",
+    ]
+
+
+@pytest.mark.parametrize("binding", ["control_root", "artifact_root", "decision_id"])
+def test_receipt_context_must_match_the_admission_scope(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, binding: str
+) -> None:
+    record_root = tmp_path / "records"
+    context_fields: dict[str, object] = {
+        "control_root": tmp_path.absolute(),
+        "artifact_root": record_root.absolute(),
+        "decision_id": _DECISION_ID,
+        "descriptor": 7,
+        "token": _token(tmp_path / "exact-sidecar", b"exact\n"),
+    }
+    context_fields[binding] = (
+        "lane-decision:00000000-0000-4000-8000-000000000223"
+        if binding == "decision_id"
+        else (tmp_path / f"other-{binding}").absolute()
+    )
+    context = receipt.OwnerlessReceiptReservationContext(**context_fields)
+    monkeypatch.setattr(
+        receipt, "require_ownerless_receipt_reservation_context", lambda _context: None
+    )
+    monkeypatch.setattr(
+        receipt.inventory,
+        "ownerless_closeout_reservation_admission",
+        lambda **_kwargs: pytest.fail("a mismatched context must not reach inventory"),
+    )
+
+    reservation, gap = receipt.ownerless_reservation_admission_or_gap(
+        root=tmp_path,
+        record_root=record_root,
+        decision_path=record_root / "decisions" / "decision.json",
+        decision_sha256="a" * 64,
+        expected=SimpleNamespace(decision_id=_DECISION_ID),
+        receipt_reservation=context,
+    )
+
+    assert (reservation, gap) == (None, _COMPETING)
+
+
+def test_receipt_token_validation_rejects_wrong_or_unverifiable_sidecars(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
 
     with pytest.raises(ValueError, match=f"^{_COMPETING}$"):
         receipt.require_ownerless_receipt_reservation_token(

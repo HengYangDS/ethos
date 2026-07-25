@@ -13,7 +13,7 @@ paths = [
   "pyproject.toml",
   "uv.lock",
   "package.json",
-  "packages/**",
+  "src/**",
   "tests/**",
   "tools/**",
   "extensions/**",

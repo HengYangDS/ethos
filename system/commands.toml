@@ -249,13 +249,6 @@ show = true
 report_handler = { provider = "ethos.surface.cli.quality.core:_standards_report", provider_mode = "payload", data_path = ["payload"], enforce = false, bind_root = false }
 
 [[commands]]
-name = "package-ontology"
-group = "quality"
-import_path = "ethos.surface.cli.quality.core:package_ontology"
-help = "Report target package ontology and migration-host state."
-show = true
-
-[[commands]]
 name = "schemas"
 group = "quality"
 import_path = "ethos.surface.cli.quality.core:schemas"

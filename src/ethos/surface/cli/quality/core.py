@@ -21,8 +21,6 @@ from ethos.adapters.config import rules_config
 from ethos.adapters.gates.signature import signature_policy_report
 from ethos.contracts.commands import ReportHandlerDeclaration
 from ethos.contracts.commands import load_command_registry_declaration
-from ethos.contracts.package.ontology import package_ontology_report
-from ethos.contracts.package.ontology import workspace_package_config_report
 from ethos.quality.docs.profile import docs_quality_profile
 from ethos.quality.profiles import product_quality_profile
 from ethos.quality.profiles import tool_profiles
@@ -134,53 +132,6 @@ def format_policy(*, root: RootOption | None = None, json_output: JsonFlag = Fal
     gaps = () if policy else ("format_policy_missing:.ethos/rules.toml",)
     data = {"source": ".ethos/rules.toml"} | {key: policy.get(key, {}) for key in _FORMAT_KEYS}
     _finish("quality format-policy", data, json_output, ok=not gaps, required_gaps=gaps)
-
-
-def package_ontology(*, root: RootOption | None = None, json_output: JsonFlag = False) -> None:
-    """Report target package ontology and migration-host state."""
-    repo = resolve_root(root)
-    contract = package_ontology_report()
-    target_packages = cast("list[str]", contract["target_packages"])
-    migration_hosts = cast("list[str]", contract["migration_hosts"])
-    target_distributions = cast("list[str]", contract["target_distributions"])
-    migration_distributions = cast("dict[str, object]", contract["migration_distributions"])
-    target_missing = [
-        package for package in target_packages if not (repo / "src" / package).is_dir()
-    ]
-    host_missing = [
-        package for package in migration_hosts if (repo / "packages" / package).exists()
-    ]
-    distribution_missing = _missing(repo, target_distributions)
-    workspace_config = workspace_package_config_report(repo)
-    workspace_config_gaps = list(cast("list[str]", workspace_config["required_gaps"]))
-    migration_complete = not migration_hosts and all(
-        item.get("state") == "migrated"
-        for item in migration_distributions.values()
-        if isinstance(item, dict)
-    )
-    physical_missing = target_missing + host_missing + distribution_missing
-    data = {
-        **contract,
-        "physical_target_homes_present": not target_missing and not distribution_missing,
-        "migration_complete": migration_complete,
-        "migration_status": "complete" if migration_complete else "in_progress",
-        "missing": physical_missing + workspace_config_gaps,
-        "distribution_status": migration_distributions,
-        "workspace_config": workspace_config,
-    }
-    summary = {
-        "target_package_count": len(target_packages),
-        "migration_host_count": len(migration_hosts),
-        "migration_status": data["migration_status"],
-    }
-    gaps = tuple(
-        [f"package_ontology_missing:{item}" for item in physical_missing] + workspace_config_gaps
-    )
-    projection = (
-        *(not data["missing"], "tracked" if not data["missing"] else "gapped", summary, gaps),
-        ("ethos repository audit",),
-    )
-    _finish("quality package-ontology", data, json_output, projection)
 
 
 def coupling_audit(*, root: RootOption | None = None, json_output: JsonFlag = False) -> None:

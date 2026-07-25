@@ -444,16 +444,11 @@ def test_sbom_projection_handles_missing_and_irregular_lockfile_packages(
     tmp_path: Path,
 ) -> None:
     root = tmp_path / "repo"
-    (root / "packages" / "sample").mkdir(parents=True)
+    root.mkdir(parents=True)
     (root / "pyproject.toml").write_text(
         '[project]\nname = "sample-root"\nversion = "1.0.0"\n',
         encoding="utf-8",
     )
-    (root / "packages" / "sample" / "pyproject.toml").write_text(
-        '[project]\nname = "sample"\nversion = "1.0.0"\n',
-        encoding="utf-8",
-    )
-
     without_lock = sbom_projection(root)
     assert without_lock["lockfile"]["digest"] == ""
     assert without_lock["package_layers"]["lockfile_transitive"] == 0

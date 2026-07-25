@@ -7,7 +7,6 @@ import tomllib
 from pathlib import Path  # noqa: TC003 - runtime audit paths remain part of this public boundary
 from typing import Any
 
-from ethos.contracts.package.ontology import RETIRED_PRODUCT_FAMILY_TOKENS
 from ethos.normalization.core import string_list
 from ethos.repository.evidence.attestation import AttestationBinding
 from ethos.repository.evidence.attestation import semantic_attestation
@@ -123,12 +122,10 @@ def _assurance_invalid(claim_text: str, verifier: str) -> bool:
     )
 
 
-def _active_claim_gaps(claim_id: str, path: Path, payload: dict[str, Any], evidence: dict[str, Any]) -> list[str]:
+def _active_claim_gaps(claim_id: str, payload: dict[str, Any], evidence: dict[str, Any]) -> list[str]:
     """Return required trust-envelope gaps intrinsic to one active product claim."""
     claim = payload.get("claim", {})
     gaps = _active_product_claim_private_gaps(claim_id, payload)
-    identity = "\n".join((path.stem, str(claim.get("id", "")), str(claim.get("subject", ""))))
-    gaps += [f"{claim_id}:retired_product_family:{token}" for token in RETIRED_PRODUCT_FAMILY_TOKENS if token in identity]
     evidence_ids, binding, verifier = evidence.get("evidence_ids"), evidence.get("binding"), evidence.get("verifier")
     gaps += [gap for gap, valid in ((f"{claim_id}:evidence_ids_missing", isinstance(evidence_ids, list) and bool(evidence_ids)), (f"{claim_id}:binding_missing", isinstance(binding, str) and bool(binding)), (f"{claim_id}:verifier_missing", isinstance(verifier, str) and bool(verifier))) if not valid]
     if not isinstance(evidence_ids, list) or not binding or not verifier:
@@ -181,7 +178,7 @@ def claims_report(root: Path, *, current_head: str = "", adopter_mode: bool = Fa
             continue
         active = claim.get("state") == "active"
         if active:
-            gaps += _active_claim_gaps(claim_id, path, payload, evidence)
+            gaps += _active_claim_gaps(claim_id, payload, evidence)
         targets, evidence_path = _promotion_targets(payload.get("promotion", {})), root / str(dated)
         if not evidence_path.exists():
             gaps.append(f"{claim_id}:evidence_file_missing:{dated}")

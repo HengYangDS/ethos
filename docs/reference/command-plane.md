@@ -83,7 +83,6 @@ ethos quality asset-policy
 ethos quality docs
 ethos quality proof-policy
 ethos quality tool-profiles
-ethos quality package-ontology
 ethos quality enterprise-readiness
 ethos quality claims
 ethos quality docs-registry

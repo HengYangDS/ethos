@@ -49,7 +49,6 @@ KNOWN_ETHOS_COMMANDS = {
     "ethos quality format-policy",
     "ethos quality projection-drift",
     "ethos quality standards",
-    "ethos quality package-ontology",
     "ethos quality schemas",
     "ethos quality gates",
     "ethos quality generated-artifacts",

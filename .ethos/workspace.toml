@@ -30,19 +30,3 @@ email = "contributors@example.invalid"
 role = "bot"
 name = "ETHOS Automation"
 email = "ethos-bot@example.invalid"
-
-[[package]]
-name = "ethos"
-path = "."
-domains = [
-  "kernel",
-  "contracts",
-  "quality",
-  "cli",
-  "adapters",
-  "repository-lifecycle",
-  "assistants",
-  "execution",
-  "local-state",
-  "conformance",
-]

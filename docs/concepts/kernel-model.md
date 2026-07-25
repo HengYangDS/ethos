@@ -12,7 +12,7 @@ Status: canonical.
 
 Purpose: define the smallest executable ETHOS semantic kernel.
 
-See also: [Package Ontology](../architecture/package-ontology.md) and
+See also: [Product Design Contract](../governance/product-design-contract.md) and
 [Glossary](../reference/glossary.md).
 
 ETHOS reduces repository operation to:

@@ -8,9 +8,6 @@ import subprocess
 import tomllib
 from pathlib import Path
 
-from ethos.contracts.package.ontology import RETIRED_PRODUCT_FAMILIES
-from ethos.contracts.package.ontology import RETIRED_PRODUCT_FAMILY_TOKENS
-from ethos.contracts.package.ontology import package_ontology_report
 from ethos.repository.policy.boundary.product import contributor_policy_report
 from ethos.repository.policy.boundary.product import product_boundary_report
 
@@ -119,11 +116,11 @@ def test_kernel_has_no_side_effect_or_profile_imports() -> None:
 
 
 def test_target_product_packages_exist_with_build_metadata() -> None:
-    assert package_ontology_report()["target_packages"] == ["ethos"]
     assert (ROOT / "src/ethos").is_dir()
-    pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    assert 'name = "ethos"' in pyproject
-    assert 'build-backend = "hatchling.build"' in pyproject
+    pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    assert pyproject["project"]["name"] == "ethos"
+    assert pyproject["build-system"]["build-backend"] == "hatchling.build"
+    assert pyproject["tool"]["hatch"]["build"]["targets"]["wheel"]["packages"] == ["src/ethos"]
 
 
 def test_semantic_target_packages_do_not_import_provider_execution() -> None:
@@ -262,76 +259,9 @@ def test_active_openspec_changes_do_not_expose_compatibility_residue() -> None:
     assert findings == []
 
 
-def test_target_packages_do_not_import_migration_hosts() -> None:
-    contract = package_ontology_report()
-    migration_imports = {package.replace("-", "_") for package in contract["migration_hosts"]}
-
-    for path in (ROOT / "src/ethos").rglob("*.py"):
-        assert imported_modules(path).isdisjoint(migration_imports), path
-
-
-def test_product_workspace_has_no_migration_host_packages() -> None:
-    contract = package_ontology_report()
-    pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-
-    assert contract["migration_hosts"] == []
-    for package in RETIRED_PRODUCT_FAMILIES:
-        assert f"packages/{package}" not in pyproject
-        assert not (ROOT / "packages" / package).exists()
-
-
-def test_ethos_workspace_config_uses_target_product_packages() -> None:
-    workspace = tomllib.loads((ROOT / ".ethos" / "workspace.toml").read_text())
-    packages = workspace.get("package", [])
-    names = {package["name"] for package in packages}
-    paths = {package["path"] for package in packages}
-
-    assert names == set(package_ontology_report()["target_packages"])
-    ethos_domains = {
-        domain
-        for package in packages
-        if package["name"] == "ethos"
-        for domain in package.get("domains", [])
-    }
-    assert paths == {"."}
-    assert ethos_domains >= {
-        "kernel",
-        "contracts",
-        "quality",
-        "cli",
-        "adapters",
-        "repository-lifecycle",
-        "assistants",
-    }
-    for retired in RETIRED_PRODUCT_FAMILY_TOKENS:
-        assert retired not in names
-        assert f"packages/{retired}" not in paths
-
-
-def test_active_claims_do_not_use_retired_product_family_subjects() -> None:
-    for path in sorted((ROOT / "evidence" / "claims").glob("*.toml")):
-        payload = tomllib.loads(path.read_text(encoding="utf-8"))
-        claim = payload.get("claim", {})
-        if claim.get("state") != "active":
-            continue
-        text = "\n".join(
-            [path.stem]
-            + [
-                str(claim.get(field, ""))
-                for field in (
-                    "id",
-                    "subject",
-                )
-            ]
-        )
-        for retired in RETIRED_PRODUCT_FAMILIES:
-            assert retired not in text, path
-
-
 def test_npm_distribution_lives_outside_python_packages() -> None:
     assert (ROOT / "distributions" / "npm" / "package.json").exists()
     assert (ROOT / "distributions" / "npm" / "bin" / "ethos.mjs").exists()
-    assert not (ROOT / "packages" / "ethos-node").exists()
 
 
 def test_cli_uses_cyclopts_not_legacy_parser() -> None:
@@ -528,7 +458,6 @@ def test_repo_local_skills_are_thin_playbook_projection() -> None:
 
 def test_product_package_has_one_canonical_readme() -> None:
     assert (ROOT / "README.md").is_file()
-    assert not (ROOT / "packages").exists()
 
 
 def test_npm_launcher_is_distribution_adapter_not_python_family() -> None:
@@ -546,9 +475,6 @@ def test_npm_launcher_is_distribution_adapter_not_python_family() -> None:
 
     root_manifest = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))
     assert root_manifest["packageManager"] == "npm@11.12.1"
-
-    pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    assert '"packages/ethos-node"' not in pyproject
 
 
 def test_npm_launcher_runs_source_checkout_command_plane() -> None:
@@ -621,12 +547,9 @@ def test_npm_launcher_does_not_execute_untrusted_cwd_source_checkout(
         encoding="utf-8",
     )
     fake_repo = tmp_path / "untrusted-repo"
-    (fake_repo / "packages" / "ethos").mkdir(parents=True)
+    (fake_repo / "src" / "ethos").mkdir(parents=True)
     (fake_repo / "pyproject.toml").write_text("[project]\nname='fake'\n", encoding="utf-8")
-    (fake_repo / "packages" / "ethos" / "pyproject.toml").write_text(
-        "[project]\nname='fake-ethos'\n",
-        encoding="utf-8",
-    )
+    (fake_repo / "src" / "ethos" / "__init__.py").write_text("", encoding="utf-8")
     fake_bin = tmp_path / "fake-bin"
     fake_bin.mkdir()
     marker = tmp_path / "uv-was-called"

@@ -38,11 +38,6 @@ reason = "kernel model"
 freeze_level = "hard"
 
 [[stable_path]]
-path = "docs/architecture/product-ontology.md"
-reason = "package ontology"
-freeze_level = "hard"
-
-[[stable_path]]
 path = "docs/decisions/README.md"
 reason = "durable decision records index"
 freeze_level = "hard"

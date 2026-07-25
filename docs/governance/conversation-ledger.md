@@ -6,7 +6,6 @@ relations:
   canonical_for: conversation-derived product gaps
   informs:
     - ethos:evolution
-    - ethos:product-ontology
     - ethos:adoption
 ---
 

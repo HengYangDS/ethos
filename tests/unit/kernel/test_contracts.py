@@ -406,7 +406,7 @@ def test_superseded_authority_head_name_has_no_current_truth_surface() -> None:
 
     old_entity_pattern = re.compile(r"judg(?:e)?ment[ _-]*source", re.IGNORECASE)
     scanned_roots = (
-        Path("packages"),
+        Path("src"),
         Path("system"),
         Path("docs"),
         Path("openspec/specs"),

@@ -64,8 +64,8 @@ export GIT_CONFIG_KEY_"${git_config_fsmonitor_index}"=core.fsmonitor
 export GIT_CONFIG_VALUE_"${git_config_fsmonitor_index}"=false
 export GIT_CONFIG_COUNT="$((git_config_count + 1))"
 cleanup_source_bytecode_caches() {
-  find packages -type d -name "__pycache__" -prune -exec rm -rf {} +
-  find packages -depth -type d -empty -delete
+  find src -type d -name "__pycache__" -prune -exec rm -rf {} +
+  find src -depth -type d -empty -delete
 }
 cleanup_denied_runtime_residue() {
   rm -rf .pytest_cache .ruff_cache build/runtime/gitlab-ci-local

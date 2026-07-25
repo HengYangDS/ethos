@@ -6,7 +6,6 @@ product_semantic_docs = [
   "docs/governance/product-design-contract.md",
   "docs/reference/command-plane.md",
   "docs/architecture/runner-and-mutation.md",
-  "docs/architecture/package-ontology.md",
   "docs/governance/release-governance.md",
   "docs/architecture/gate-runner.md",
 ]

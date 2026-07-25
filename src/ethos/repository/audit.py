@@ -6,8 +6,6 @@ from pathlib import Path
 from typing import cast
 
 from ethos.assistants.playbooks import playbooks_report
-from ethos.contracts.package.ontology import package_ontology_report
-from ethos.contracts.package.ontology import workspace_package_config_report
 from ethos.contracts.system.contracts import system_contracts_report
 from ethos.repository.adoption.evolution import evolution_report
 from ethos.repository.context import governance_context
@@ -24,31 +22,7 @@ from ethos.repository.release.core import REQUIRED_RELEASE_FILES as PRODUCT_RELE
 
 OpenSpecReporter = Callable[[Path], dict[str, object]]
 
-_PACKAGE_ONTOLOGY = package_ontology_report()
-TARGET_PRODUCT_PACKAGES = tuple(
-    str(item) for item in cast("list[str]", _PACKAGE_ONTOLOGY["target_packages"])
-)
-MIGRATION_HOST_PACKAGES = tuple(
-    str(item) for item in cast("list[str]", _PACKAGE_ONTOLOGY["migration_hosts"])
-)
-MIGRATION_HOST_LIFECYCLE = {
-    str(key): str(value)
-    for key, value in cast("dict[str, str]", _PACKAGE_ONTOLOGY["migration_host_lifecycle"]).items()
-}
-TARGET_DISTRIBUTION_ADAPTERS = tuple(
-    str(item) for item in cast("list[str]", _PACKAGE_ONTOLOGY["target_distributions"])
-)
-DISTRIBUTION_MIGRATION_HOSTS = tuple(
-    str(item["migration_host"])
-    for item in cast(
-        "dict[str, dict[str, str]]", _PACKAGE_ONTOLOGY["migration_distributions"]
-    ).values()
-    if "migration_host" in item
-)
-
 REQUIRED_DOCS = (
-    "docs/architecture/product-ontology.md",
-    "docs/architecture/package-ontology.md",
     "docs/architecture/distribution.md",
     "docs/concepts/kernel-model.md",
     "docs/architecture/plan-ir.md",
@@ -181,29 +155,6 @@ def repository_audit(
     openspec_reporter: OpenSpecReporter | None = None,
     current_head: str = "",
 ) -> dict[str, object]:
-    package_missing = [
-        f"packages/{package}"
-        for package in MIGRATION_HOST_PACKAGES
-        if (root / "packages" / package).exists()
-    ]
-    target_package_missing = [
-        f"src/{package}"
-        for package in TARGET_PRODUCT_PACKAGES
-        if not (root / "src" / package).is_dir()
-    ]
-    distribution_missing = [
-        adapter
-        for adapter in DISTRIBUTION_MIGRATION_HOSTS
-        if not (
-            (root / adapter / "README.md").exists()
-            and (root / adapter / "package.json").exists()
-            and (root / adapter / "bin" / "ethos.mjs").exists()
-        )
-    ]
-    target_distribution_missing = [
-        adapter for adapter in TARGET_DISTRIBUTION_ADAPTERS if not (root / adapter).exists()
-    ]
-    physical_target_homes_present = not target_package_missing and not target_distribution_missing
     docs_missing = [doc for doc in REQUIRED_DOCS if not (root / doc).exists()]
     docs_without_front_matter = [
         doc for doc in REQUIRED_DOCS if (root / doc).exists() and not front_matter_ok(root / doc)
@@ -224,7 +175,6 @@ def repository_audit(
     command_report = command_registry_report(root)
     authority_graph = authority_graph_report(root)
     claim_report = claims_report(root, current_head=current_head)
-    workspace_config = workspace_package_config_report(root)
     schema_report = schema_validation_report(root)
     evolution = evolution_report(root)
     coupling = coupling_audit_report(root)
@@ -245,9 +195,6 @@ def repository_audit(
     openspec_gaps = [str(gap) for gap in cast("list[str]", openspec["required_gaps"])]
     command_gaps = [str(gap) for gap in cast("list[str]", command_report["required_gaps"])]
     authority_graph_gaps = [str(gap) for gap in cast("list[str]", authority_graph["required_gaps"])]
-    workspace_config_gaps = [
-        str(gap) for gap in cast("list[str]", workspace_config["required_gaps"])
-    ]
     playbook_report = playbooks_report(root, mode="v2-strict")
     playbook_gaps = [str(gap) for gap in cast("list[str]", playbook_report["required_gaps"])]
     system_contracts = system_contracts_report(root)
@@ -255,9 +202,7 @@ def repository_audit(
         str(gap) for gap in cast("list[str]", system_contracts["required_gaps"])
     ]
     gaps = (
-        package_missing
-        + [f"distribution_adapter_missing:{adapter}" for adapter in distribution_missing]
-        + docs_missing
+        docs_missing
         + docs_without_front_matter
         + schemas_missing
         + release_files_missing
@@ -271,7 +216,6 @@ def repository_audit(
         + openspec_gaps
         + command_gaps
         + authority_graph_gaps
-        + workspace_config_gaps
         + playbook_gaps
         + system_contract_gaps
         + _write_admission_armed_gaps(root)
@@ -283,35 +227,6 @@ def repository_audit(
             root,
             profile="product",
         ),
-        "package_ontology": {
-            "ok": not package_missing and not distribution_missing,
-            "stage": "complete",
-            "migration_host_packages": list(MIGRATION_HOST_PACKAGES),
-            "migration_host_lifecycle": dict(MIGRATION_HOST_LIFECYCLE),
-            "target_package_contract": list(TARGET_PRODUCT_PACKAGES),
-            "target_distribution_contract": list(TARGET_DISTRIBUTION_ADAPTERS),
-            "distribution_migration_hosts": list(DISTRIBUTION_MIGRATION_HOSTS),
-            "missing": package_missing,
-            "adapter_missing": distribution_missing,
-        },
-        "target_package_ontology": {
-            "ok": not target_package_missing and not target_distribution_missing,
-            "contract_ok": True,
-            "physical_target_homes_present": physical_target_homes_present,
-            "migration_complete": not MIGRATION_HOST_PACKAGES and not DISTRIBUTION_MIGRATION_HOSTS,
-            "migration_status": "complete"
-            if not MIGRATION_HOST_PACKAGES and not DISTRIBUTION_MIGRATION_HOSTS
-            else "in_progress",
-            "target_packages": list(TARGET_PRODUCT_PACKAGES),
-            "migration_hosts": list(MIGRATION_HOST_PACKAGES),
-            "target_distribution_adapters": list(TARGET_DISTRIBUTION_ADAPTERS),
-            "distribution_status": dict(
-                cast("dict[str, dict[str, str]]", _PACKAGE_ONTOLOGY["migration_distributions"])
-            ),
-            "distribution_migration_hosts": list(DISTRIBUTION_MIGRATION_HOSTS),
-            "missing": target_package_missing,
-            "adapter_missing": target_distribution_missing,
-        },
         "docs": {
             "ok": not docs_missing and not docs_without_front_matter,
             "missing": docs_missing,
@@ -338,7 +253,6 @@ def repository_audit(
         },
         "command_registry": command_report,
         "authority_graph": authority_graph,
-        "workspace_config": workspace_config,
         "claims": claim_report,
         "evolution": evolution,
         "coupling": coupling,

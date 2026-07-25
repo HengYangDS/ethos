@@ -323,7 +323,7 @@ def test_policy_rejects_measurement_contract_rewrites(
     assert gaps == ("source_budget_policy_relaxed",)
 
 
-def test_policy_rejects_non_v1_accepted_policy(tmp_path: Path) -> None:
+def test_first_versioned_policy_uses_candidate_control_replacement(tmp_path: Path) -> None:
     selection, _ = _repo(tmp_path)
     current = selection.read_text(encoding="utf-8")
     accepted = (
@@ -352,8 +352,9 @@ def test_policy_rejects_non_v1_accepted_policy(tmp_path: Path) -> None:
 
     policy, gaps = source_budget._policy(tmp_path)
 
-    assert policy is None
-    assert gaps == ("source_budget_accepted_policy_invalid",)
+    assert policy is not None
+    assert gaps == ()
+    assert policy.contract_version == 1
 
 
 def test_accepted_ref_and_files_fail_closed(tmp_path: Path) -> None:

@@ -255,7 +255,11 @@ def _accepted_policy(root: Path, current: Policy) -> tuple[Policy | None, tuple[
     except tomllib.TOMLDecodeError:
         return None, ("source_budget_accepted_policy_invalid",)
     source = payload.get("source_budget")
-    if not isinstance(source, dict) or source.get("contract_version") != 1:
+    if not isinstance(source, dict):
+        return None, ("source_budget_accepted_policy_invalid",)
+    if "contract_version" not in source:
+        return current, ()
+    if source.get("contract_version") != 1:
         return None, ("source_budget_accepted_policy_invalid",)
     policy = _policy_contract(payload)
     return (policy, ()) if policy else (None, ("source_budget_accepted_policy_invalid",))

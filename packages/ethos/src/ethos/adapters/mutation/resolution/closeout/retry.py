@@ -12,7 +12,9 @@ from ethos.adapters.store.state.closeout import release_closeout_fence
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from ethos.adapters.mutation.resolution.closeout.admission import OwnerlessCloseoutAdmission
+    from ethos.adapters.mutation.resolution.closeout.ownerless.admission.core import (
+        OwnerlessCloseoutAdmission,
+    )
 
 
 def reset_reserved_no_effect_retry(

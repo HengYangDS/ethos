@@ -264,6 +264,49 @@ def test_ownerless_reservation_rejects_invalid_phase_recovery_combinations(
         )
 
 
+@pytest.mark.parametrize(
+    "decision_id",
+    [
+        "lane-decision:not-a-uuid",
+        "lane-decision:00000000-0000-4000-8000-00000000000A",
+    ],
+)
+def test_ownerless_reservation_rejects_invalid_or_noncanonical_decision_id(
+    decision_id: str,
+) -> None:
+    with pytest.raises(ValidationError, match="invalid lane-resolution decision id"):
+        OwnerlessCloseoutReservation.model_validate(_reservation(decision_id=decision_id))
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("completed", False, "lane-resolution clear receipt must be completed"),
+        ("mints_authority", True, "lane-resolution clear receipt cannot mint authority"),
+    ],
+)
+def test_clear_receipt_requires_completed_non_authoritative_evidence(
+    field: str,
+    value: object,
+    message: str,
+) -> None:
+    payload = {
+        "schema_version": 1,
+        "clear_receipt_id": "lane-resolution-clear-receipt:one",
+        "decision_id": _DECISION_ID,
+        "manifest_sha256": "a" * 64,
+        "chronicle_ref": "evidence/chronicle/lane-resolution/clear.md",
+        "chronicle_digest": "b" * 64,
+        "reason": "The exact recovery package was reviewed and cleared.",
+        "completed": True,
+        "mints_authority": False,
+        field: value,
+    }
+
+    with pytest.raises(ValidationError, match=message):
+        LaneResolutionClearReceipt.model_validate(payload)
+
+
 def test_ownerless_closeout_contracts_reject_provider_fields_and_target_drift() -> None:
     with pytest.raises(ValidationError):
         OwnerlessCloseoutBinding.model_validate(_binding(adapter_binding_digest="f" * 64))

@@ -107,6 +107,9 @@ def current_chronicle_matches(root: Path, decision: Mapping[str, object]) -> boo
         ):
             return False
         parent = record_posix.open_directory_path(candidate.parent, create=False)
+    except (OSError, ValueError):
+        return False
+    try:
         parent_identity = record_posix.directory_identity(os.fstat(parent))
         identity = record_posix.entry_file_identity(parent, candidate.name)
         content = (
@@ -127,8 +130,7 @@ def current_chronicle_matches(root: Path, decision: Mapping[str, object]) -> boo
     except (OSError, UnicodeDecodeError, ValueError):
         return False
     finally:
-        if "parent" in locals():
-            os.close(parent)
+        os.close(parent)
     return f"lane_resolution/{decision.get('disposition')}" in text and hashlib.sha256(
         content
     ).hexdigest() == decision.get("chronicle_digest")

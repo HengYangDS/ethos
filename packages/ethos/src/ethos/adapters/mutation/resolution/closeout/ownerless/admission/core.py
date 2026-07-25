@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 from dataclasses import dataclass
 from dataclasses import fields
 from pathlib import Path
@@ -12,7 +11,8 @@ from pathlib import PurePosixPath
 from typing import Any
 from typing import NoReturn
 
-import ethos.adapters.mutation.resolution.closeout.receipt as receipt
+import ethos.adapters.mutation.resolution.closeout.ownerless.admission.policy as policy_reader
+import ethos.adapters.mutation.resolution.closeout.ownerless.receipt.core as receipt
 import ethos.adapters.mutation.resolution.observation as git
 import ethos.adapters.mutation.resolution.records.current.validation.core as validation
 import ethos.adapters.store.state.closeout as state_closeout
@@ -247,14 +247,14 @@ def _authority_context(root: Path, executor_ref: str) -> tuple[roles.BranchRoleP
     if type(executor_ref) is not str:
         _fail("policy_invalid", "executor_ref")
     try:
-        policy_path = root / _POLICY_PATH
-        if os.path.lexists(policy_path):
-            snapshot = git.read_root_bound_regular_file(
-                root, _POLICY_PATH, maximum_bytes=_MAX_POLICY_BYTES
-            )
-            policy = roles.strict_branch_role_policy_from_text(snapshot.raw.decode("utf-8"))
-        else:
-            policy = roles.BranchRolePolicy()
+        snapshot = policy_reader.read_optional_root_bound_regular_file(
+            root, _POLICY_PATH, maximum_bytes=_MAX_POLICY_BYTES
+        )
+        policy = (
+            roles.BranchRolePolicy()
+            if snapshot is None
+            else roles.strict_branch_role_policy_from_text(snapshot.raw.decode("utf-8"))
+        )
         executor = HolderRef.parse(executor_ref).serialize()
     except OwnerlessCloseoutAdmissionError:
         raise

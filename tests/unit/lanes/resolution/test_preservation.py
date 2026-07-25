@@ -6,6 +6,7 @@ import subprocess
 import tarfile
 from pathlib import Path
 from typing import BinaryIO
+from typing import cast
 
 import pytest
 
@@ -285,6 +286,34 @@ def test_untracked_archive_preserves_raw_non_utf8_member_name(
         stored = archive.extractfile(member_name)
         assert stored is not None
         assert stored.read() == b"raw member bytes\x00\xff"
+
+
+def test_untracked_inventory_digest_binds_empty_regular_and_symlink_payloads(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "source"
+    source.mkdir()
+    content = b"listed bytes\n"
+    (source / "listed.bin").write_bytes(content)
+    (source / "listed-link").symlink_to("listed.bin")
+    inventory = b"listed.bin\0listed-link\0"
+    expected = hashlib.sha256(inventory)
+    expected.update(tarfile.REGTYPE)
+    expected.update(len(content).to_bytes(8, "big"))
+    expected.update(content)
+    target = b"listed.bin"
+    expected.update(tarfile.SYMTYPE)
+    expected.update(len(target).to_bytes(8, "big"))
+    expected.update(target)
+
+    assert (
+        preservation.digest_untracked_inventory(source=source, inventory=b"")
+        == hashlib.sha256(b"").hexdigest()
+    )
+    assert (
+        preservation.digest_untracked_inventory(source=source, inventory=inventory)
+        == expected.hexdigest()
+    )
 
 
 def test_untracked_archive_fails_closed_on_parent_symlink_swap(
@@ -623,3 +652,216 @@ def test_untracked_archive_rejects_inventory_outside_source(
             archive=tmp_path / "untracked.tar",
             inventory=inventory,
         )
+
+
+def test_archive_and_digest_translate_boundary_io_failures(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "source"
+    source.mkdir()
+
+    def fail_tar(*_args: object, **_kwargs: object) -> tarfile.TarFile:
+        raise tarfile.TarError("broken archive")
+
+    monkeypatch.setattr(preservation.tarfile, "open", fail_tar)
+    with pytest.raises(ValueError, match="lane_resolution_untracked_member_unverifiable"):
+        preservation.write_untracked_archive(
+            source=source,
+            archive=tmp_path / "untracked.tar",
+            inventory=[b"listed.bin"],
+        )
+
+
+@pytest.mark.parametrize("inventory", ["not-bytes", b"listed.bin", b"\0", b"a\0\0"])
+def test_inventory_digest_rejects_nonbytes_or_noncanonical_inventory(
+    tmp_path: Path,
+    inventory: object,
+) -> None:
+    with pytest.raises(ValueError, match="lane_resolution_untracked_path_invalid"):
+        preservation.digest_untracked_inventory(
+            source=tmp_path,
+            inventory=cast("bytes", inventory),
+        )
+
+
+def test_bound_source_rejects_non_directory_missing_and_rebound_roots(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    regular = tmp_path / "regular"
+    regular.write_bytes(b"x")
+    with pytest.raises(ValueError, match="lane_resolution_untracked_member_unsupported"):
+        preservation.digest_untracked_inventory(source=regular, inventory=b"x\0")
+
+    with pytest.raises(ValueError, match="lane_resolution_untracked_member_unverifiable"):
+        preservation.digest_untracked_inventory(source=tmp_path / "missing", inventory=b"x\0")
+
+    source = tmp_path / "source"
+    rebound = tmp_path / "rebound"
+    source.mkdir()
+    rebound.mkdir()
+    (rebound / "x").write_bytes(b"x")
+    real_open = os.open
+
+    def rebound_open(
+        path: str | bytes | os.PathLike[str] | os.PathLike[bytes],
+        flags: int,
+        mode: int = 0o777,
+        *,
+        dir_fd: int | None = None,
+    ) -> int:
+        if Path(path) == source and dir_fd is None:
+            return real_open(rebound, flags, mode)
+        return real_open(path, flags, mode, dir_fd=dir_fd)
+
+    monkeypatch.setattr(os, "open", rebound_open)
+    with pytest.raises(ValueError, match="lane_resolution_untracked_member_changed"):
+        preservation.digest_untracked_inventory(source=source, inventory=b"x\0")
+
+
+@pytest.mark.parametrize(
+    ("setup", "inventory", "message"),
+    [
+        ("parent-file", b"parent/member\0", "lane_resolution_untracked_member_unsupported"),
+        ("missing-member", b"missing\0", "lane_resolution_untracked_member_unverifiable"),
+    ],
+)
+def test_member_capture_rejects_non_directory_parent_or_missing_member(
+    tmp_path: Path,
+    setup: str,
+    inventory: bytes,
+    message: str,
+) -> None:
+    source = tmp_path / "source"
+    source.mkdir()
+    if setup == "parent-file":
+        (source / "parent").write_bytes(b"not a directory")
+
+    with pytest.raises(ValueError, match=message):
+        preservation.digest_untracked_inventory(source=source, inventory=inventory)
+
+
+def test_regular_short_read_and_symlink_replacement_fail_closed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "source"
+    source.mkdir()
+    (source / "listed.bin").write_bytes(b"listed")
+    monkeypatch.setattr(preservation.os, "read", lambda _descriptor, _size: b"")
+    with pytest.raises(ValueError, match="lane_resolution_untracked_member_changed"):
+        preservation.digest_untracked_inventory(source=source, inventory=b"listed.bin\0")
+
+    monkeypatch.undo()
+    target = source / "target"
+    target.write_bytes(b"target")
+    link = source / "listed-link"
+    link.symlink_to("target")
+    real_readlink = os.readlink
+
+    def replace_link(
+        path: str | bytes | os.PathLike[str] | os.PathLike[bytes],
+        *,
+        dir_fd: int | None = None,
+    ) -> str | bytes:
+        value = real_readlink(path, dir_fd=dir_fd)
+        link.unlink()
+        link.symlink_to("replacement")
+        return value
+
+    monkeypatch.setattr(os, "readlink", replace_link)
+    with pytest.raises(ValueError, match="lane_resolution_untracked_member_changed"):
+        preservation.digest_untracked_inventory(source=source, inventory=b"listed-link\0")
+
+
+def test_directory_and_root_identity_rechecks_fail_closed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "source"
+    parent = source / "parent"
+    parent.mkdir(parents=True)
+    (parent / "listed.bin").write_bytes(b"listed")
+    other = tmp_path / "other"
+    other.mkdir()
+    real_stat = os.stat
+    parent_stats = 0
+
+    def drifting_stat(
+        path: str | bytes | os.PathLike[str] | os.PathLike[bytes],
+        *,
+        dir_fd: int | None = None,
+        follow_symlinks: bool = True,
+    ) -> os.stat_result:
+        nonlocal parent_stats
+        if path in {"parent", b"parent"} and dir_fd is not None:
+            parent_stats += 1
+            if parent_stats > 1:
+                return real_stat(other, follow_symlinks=False)
+        return real_stat(path, dir_fd=dir_fd, follow_symlinks=follow_symlinks)
+
+    monkeypatch.setattr(os, "stat", drifting_stat)
+    with pytest.raises(ValueError, match="lane_resolution_untracked_member_changed"):
+        preservation.digest_untracked_inventory(
+            source=source,
+            inventory=b"parent/listed.bin\0",
+        )
+
+    monkeypatch.undo()
+    real_path_stat = Path.stat
+    source_stats = 0
+
+    def drifting_root_stat(
+        path: Path,
+        *,
+        follow_symlinks: bool = True,
+    ) -> os.stat_result:
+        nonlocal source_stats
+        if path == source:
+            source_stats += 1
+            if source_stats > 1:
+                return real_path_stat(other, follow_symlinks=False)
+        return real_path_stat(path, follow_symlinks=follow_symlinks)
+
+    monkeypatch.setattr(Path, "stat", drifting_root_stat)
+    with pytest.raises(ValueError, match="lane_resolution_untracked_member_changed"):
+        preservation.digest_untracked_inventory(
+            source=source,
+            inventory=b"parent/listed.bin\0",
+        )
+
+
+def test_descriptor_contexts_close_only_descriptors_they_acquired(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "source"
+    source.mkdir()
+    listed = source / "listed.bin"
+    listed.write_bytes(b"x")
+    directory_metadata = source.stat(follow_symlinks=False)
+    file_metadata = listed.stat(follow_symlinks=False)
+    closed: list[int] = []
+    bound_source = preservation._bound_source  # noqa: SLF001, RUF100 - context edge
+    capture_regular = preservation._capture_regular  # noqa: SLF001, RUF100 - context edge
+
+    monkeypatch.setattr(preservation.os, "open", lambda *_args, **_kwargs: -1)
+    monkeypatch.setattr(preservation.os, "fstat", lambda _descriptor: directory_metadata)
+    monkeypatch.setattr(preservation.os, "close", closed.append)
+    with bound_source(source) as (descriptor, _identity):
+        assert descriptor == -1
+    assert closed == []
+
+    monkeypatch.setattr(preservation.os, "fstat", lambda _descriptor: file_metadata)
+    monkeypatch.setattr(preservation.os, "read", lambda _descriptor, _size: b"x")
+    monkeypatch.setattr(preservation.os, "stat", lambda *_args, **_kwargs: file_metadata)
+    with capture_regular(
+        parent_descriptor=-1,
+        name="listed.bin",
+        archive_name="listed.bin",
+        visible=file_metadata,
+    ) as (info, payload):
+        assert info.size == 1
+        assert payload.read() == b"x"
+    assert closed == []

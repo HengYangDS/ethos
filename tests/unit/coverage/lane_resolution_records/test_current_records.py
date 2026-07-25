@@ -8,6 +8,9 @@ from pathlib import Path
 import pytest
 
 import ethos.adapters.mutation.resolution.records.core as record_store
+import ethos.adapters.mutation.resolution.records.current.core as current_store
+import ethos.adapters.mutation.resolution.records.current.snapshot as current_snapshot
+import ethos.adapters.mutation.resolution.records.current.validation.core as current_validation
 import ethos.adapters.mutation.resolution.records.io.core as record_io
 import ethos.adapters.mutation.resolution.records.reservations as reservation_store
 import ethos.adapters.mutation.resolution.records.roots as resolution_roots
@@ -560,3 +563,152 @@ def test_resolution_record_storage_write_edges(
             decision_id="invalid",
             artifact_root=record_root,
         )
+
+
+def test_record_io_does_not_expose_an_unused_entry_probe() -> None:
+    assert not hasattr(record_io, "record_entry_exists")
+
+
+def test_current_snapshot_accessor_failure_edges(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    record_root = tmp_path / "records"
+    category = record_root / "receipts"
+    category.mkdir(parents=True)
+    (category / "receipt.json").write_text("{}\n", encoding="utf-8")
+    snapshot, state = current_snapshot.open_current_record_snapshot(record_root)
+    assert state == "valid"
+    assert snapshot is not None
+    with snapshot:
+        assert snapshot.root_entry_identity("missing") is None
+        assert snapshot.file_identity("receipts", "receipt.json") is None
+        assert snapshot.read_file("receipts", "receipt.json") is None
+        assert snapshot.digest_file("receipts", "receipt.json") is None
+        assert snapshot.open_directory("missing") == ((), "missing")
+        assert snapshot.open_directory("receipts") == (("receipt.json",), "valid")
+
+        def fail_directory(*_args: object) -> None:
+            raise OSError("rebound")
+
+        monkeypatch.setattr(snapshot, "_require_directory", fail_directory)
+        assert snapshot.open_directory("receipts") == ((), "invalid")
+        assert snapshot.file_identity("receipts", "receipt.json") is None
+        assert snapshot.digest_file("receipts", "receipt.json") is None
+
+
+def test_current_snapshot_open_and_path_failure_edges(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    record_root = tmp_path / "records"
+    record_root.mkdir()
+    with monkeypatch.context() as scoped:
+        scoped.setattr(
+            current_snapshot.posix,
+            "directory_path_identity",
+            lambda _root: (_ for _ in ()).throw(OSError("rebound")),
+        )
+        assert current_snapshot.open_current_record_snapshot(record_root) == (None, "invalid")
+    assert current_snapshot.read_current_record_path(
+        record_root, record_root / "receipts/not-a-decision.json"
+    ) == (None, "invalid")
+    assert current_snapshot.read_current_record_path(
+        record_root, record_root / "decisions/missing.json"
+    ) == (None, "missing")
+
+
+@pytest.mark.parametrize(
+    ("raw", "detail"),
+    [
+        (b"[]", "payload"),
+        (b'{"observation":[]}', "observation_digest"),
+        (b'{"observation":{},"observation_digest":"wrong"}', "model"),
+    ],
+)
+def test_ownerless_decision_parser_failure_edges(
+    tmp_path: Path,
+    raw: bytes,
+    detail: str,
+) -> None:
+    with pytest.raises(current_validation.OwnerlessDecisionAdmissionError) as captured:
+        current_validation._typed_ownerless_decision(tmp_path, raw)  # noqa: SLF001, RUF100
+    assert captured.value.detail == detail
+
+
+def test_ownerless_decision_snapshot_path_and_read_edges(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    record_root = tmp_path / "records"
+    with pytest.raises(current_validation.OwnerlessDecisionAdmissionError) as outside:
+        current_validation.admit_ownerless_decision_snapshot(
+            root=tmp_path,
+            record_root=record_root,
+            decision_path=tmp_path / "outside.json",
+            supplied={},
+        )
+    assert outside.value.detail == "path"
+    monkeypatch.setattr(
+        current_validation, "read_current_record_path", lambda *_args: (None, "missing")
+    )
+    with pytest.raises(current_validation.OwnerlessDecisionAdmissionError) as missing:
+        current_validation.admit_ownerless_decision_snapshot(
+            root=tmp_path,
+            record_root=record_root,
+            decision_path=record_root / "decisions/missing.json",
+            supplied={},
+        )
+    assert missing.value.detail == "descriptor_missing"
+    cause = ValueError("bad model")
+    with pytest.raises(current_validation.OwnerlessDecisionAdmissionError) as chained:
+        current_validation._decision_error("decision_invalid", "model", cause)  # noqa: SLF001, RUF100
+    assert chained.value.__cause__ is cause
+
+
+def test_current_manifest_rejection_and_receipt_sidecar_edges(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    decision_id = _DECISION_ID
+    paths = tuple(tmp_path / f"copy-{index}" / decision_id / "manifest.json" for index in range(3))
+    sources = tuple(
+        current_store._CurrentPayload(  # noqa: SLF001, RUF100
+            path,
+            b"{}",
+            payload_sha256={},
+            package_names=set(),
+            payload_identities={},
+            entry_identity=(1, index, 0o40700),
+        )
+        for index, path in enumerate(paths)
+    )
+    payload = {
+        "decision_id": decision_id,
+        "lane_ref": "work/example",
+        "head": "a" * 40,
+        "observation_digest": "b" * 64,
+    }
+    reads = iter((payload, digest) for digest in ("c" * 64, "d" * 64, "e" * 64))
+    monkeypatch.setattr(current_store, "_read_current_payload", lambda *_args: next(reads))
+    monkeypatch.setattr(current_store, "preservation_payloads_match", lambda *_args: True)
+    records, conflicts, invalid = current_store._manifests_with_conflicts(  # noqa: SLF001, RUF100
+        tmp_path,
+        sources,
+        {},
+    )
+    assert records == {}
+    assert conflicts == {decision_id}
+    assert invalid == [*paths]
+
+    invalid_source = current_store._CurrentPayload(  # noqa: SLF001, RUF100
+        tmp_path / "receipts/.invalid.receipt-reservation",
+        b"\xff",
+    )
+    reservations, invalid_paths = current_store._receipt_reservations(  # noqa: SLF001, RUF100
+        tmp_path,
+        tmp_path / "records",
+        (invalid_source,),
+    )
+    assert reservations == {}
+    assert invalid_paths == [invalid_source.path]

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import subprocess
 from copy import deepcopy
 from dataclasses import FrozenInstanceError
@@ -13,7 +14,7 @@ from typing import Any
 
 import pytest
 
-import ethos.adapters.mutation.resolution.closeout.admission as native_admission
+import ethos.adapters.mutation.resolution.closeout.ownerless.admission.core as native_admission
 import ethos.adapters.mutation.resolution.observation as resolution_observation
 from ethos.adapters.mutation.resolution.records.core import canonical_current_record_bytes
 from ethos.adapters.mutation.resolution.records.reservations import target_digest
@@ -322,6 +323,20 @@ def test_present_policy_is_strict_and_never_falls_back_to_defaults(
     _native_gap(
         lambda: _native_admit(scenario),
         "lane_resolution_ownerless_policy_invalid",
+    )
+
+
+def test_present_policy_cannot_be_hidden_by_a_racing_existence_precheck(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    scenario = _native_new_scenario(tmp_path)
+    (scenario.repo / ".ethos" / "workspace.toml").write_text("[branch_roles\n", encoding="utf-8")
+    monkeypatch.setattr(os.path, "lexists", lambda _path: False)
+
+    _native_gap(
+        lambda: _native_admit(scenario),
+        "lane_resolution_ownerless_policy_invalid",
+        "workspace",
     )
 
 

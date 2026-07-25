@@ -10,6 +10,7 @@ from unittest.mock import MagicMock
 import pytest
 
 import ethos.adapters.mutation.resolution._effects as resolution_effects
+import ethos.adapters.mutation.resolution._shared as resolution_shared
 import ethos.adapters.mutation.resolution.closeout.cleanup.core as resolution_cleanup
 import ethos.adapters.mutation.resolution.closeout.recovery as resolution_recovery
 import ethos.adapters.mutation.resolution.lane as resolution
@@ -462,3 +463,250 @@ def test_resolution_receipt_and_manifest_validation_edges(tmp_path: Path) -> Non
     manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
     with pytest.raises(ValueError, match="lane_resolution_preservation_package_invalid"):
         resolution_receipts.verify_preservation_package(package=stored_package, **verification)
+
+
+def test_resolution_shared_path_and_chronicle_failure_edges(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = tmp_path / "root"
+    root.mkdir()
+    assert not resolution_shared.record_destination_safe(root, tmp_path / "outside.json")
+    assert not resolution_shared.record_destination_safe(root, root / "nested/../record.json")
+
+    destination = root / "record.json"
+    path_type = type(destination)
+    original_resolve = path_type.resolve
+
+    def fail_destination_resolve(path, *args, **kwargs):
+        if path == destination.absolute():
+            raise OSError("unavailable")
+        return original_resolve(path, *args, **kwargs)
+
+    with monkeypatch.context() as scoped:
+        scoped.setattr(path_type, "resolve", fail_destination_resolve)
+        assert not resolution_shared.record_destination_safe(root, destination)
+
+    base_decision = {
+        "disposition": "block",
+        "chronicle_digest": hashlib.sha256(b"lane_resolution/block\n").hexdigest(),
+    }
+    for reference in (
+        (tmp_path / "absolute.md").as_posix(),
+        "evidence/chronicle/../outside.md",
+        "docs/chronicle/event.md",
+        "evidence/chronicle",
+    ):
+        assert not resolution_shared.current_chronicle_matches(
+            root, base_decision | {"chronicle_ref": reference}
+        )
+
+    chronicle_ref = "evidence/chronicle/event.md"
+    decision = base_decision | {"chronicle_ref": chronicle_ref}
+    with monkeypatch.context() as scoped:
+        scoped.setattr(
+            resolution_shared.record_posix,
+            "open_directory_path",
+            lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("unavailable")),
+        )
+        assert not resolution_shared.current_chronicle_matches(root, decision)
+    assert not resolution_shared.current_chronicle_matches(root, decision)
+    chronicle = root / chronicle_ref
+    chronicle.parent.mkdir(parents=True)
+    assert not resolution_shared.current_chronicle_matches(root, decision)
+    chronicle.write_bytes(b"lane_resolution/block\n")
+    with monkeypatch.context() as scoped:
+        scoped.setattr(
+            resolution_shared.record_posix,
+            "directory_descriptor_is_live",
+            lambda *_args: False,
+        )
+        assert not resolution_shared.current_chronicle_matches(root, decision)
+
+
+def test_resolution_shared_cross_record_binding_edges() -> None:
+    decision_id = "lane-decision:00000000-0000-4000-8000-000000000090"
+    observation = {"lane_ref": "work/example", "head": "a" * 40}
+    decision = {
+        "observation": observation,
+        "observation_digest": "b" * 64,
+        "content_sha256": "c" * 64,
+        "disposition": "block",
+        "break_glass": False,
+    }
+    reservation_record = {
+        "lane_ref": "work/other",
+        "head": observation["head"],
+        "decision_sha256": decision["content_sha256"],
+        "physical_path": "reservation.json",
+    }
+    assert resolution_shared.cross_record_invalid_paths(
+        decisions={decision_id: decision},
+        manifests={},
+        receipts={},
+        clears={},
+        reservations={decision_id: reservation_record},
+    ) == ["reservation.json"]
+
+    receipt = {
+        "state": "preserved",
+        "preservation_manifest_sha256": "d" * 64,
+        "physical_path": "receipt.json",
+    }
+    manifest = {
+        "manifest_sha256": "d" * 64,
+        "physical_path": "manifest.json",
+    }
+    clear = {"manifest_sha256": "e" * 64, "physical_path": "clear.json"}
+    assert resolution_shared.cross_record_invalid_paths(
+        decisions={},
+        manifests={decision_id: manifest},
+        receipts={decision_id: receipt},
+        clears={decision_id: clear},
+        reservations={},
+    ) == ["clear.json"]
+
+    quarantined = manifest | {"quarantined": True}
+    assert resolution_shared.cross_record_invalid_paths(
+        decisions={},
+        manifests={decision_id: quarantined},
+        receipts={decision_id: receipt},
+        clears={},
+        reservations={},
+    ) == ["manifest.json"]
+    assert resolution_shared.cross_record_invalid_paths(
+        decisions={},
+        manifests={},
+        receipts={},
+        clears={decision_id: clear},
+        reservations={},
+    ) == ["clear.json"]
+
+
+def test_resolution_lane_write_and_recovery_edges(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    observation = _observation(tmp_path)
+    monkeypatch.setattr(resolution, "observe_lane", lambda *_args: (observation, []))
+    monkeypatch.setattr(
+        resolution,
+        "_accepted_chronicle",
+        lambda *_args, **_kwargs: ("evidence/chronicle/x.md", "d" * 64, []),
+    )
+    monkeypatch.setattr(
+        resolution, "validate_schema_instance", lambda *_args, **_kwargs: {"ok": True}
+    )
+    monkeypatch.setattr(resolution, "canonical_record_path", lambda *_args: True)
+    monkeypatch.setattr(resolution, "current_record_root", lambda _root: tmp_path / "records")
+    monkeypatch.setattr(
+        resolution,
+        "write_json_atomic",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("unavailable")),
+    )
+    planned = resolution.plan_lane_resolution(
+        root=tmp_path,
+        branch=observation.lane_ref,
+        disposition="block",
+        reason="reason",
+        evidence_refs=("evidence:review",),
+        chronicle_ref="evidence/chronicle/x.md",
+        recovery_plan="recover",
+        decision_path=tmp_path / "decision.json",
+        break_glass=False,
+        apply=True,
+    )
+    assert planned["required_gaps"] == ["lane_resolution_decision_path_not_local_artifact"]
+
+    decision = {
+        "decision_id": "lane-decision:00000000-0000-4000-8000-000000000091",
+        "disposition": "retire",
+        "observation": observation.model_dump(mode="json"),
+        "observation_digest": observation.digest(),
+    }
+    monkeypatch.setattr(resolution, "_read_decision", lambda *_args, **_kwargs: (decision, []))
+    monkeypatch.setattr(resolution, "lane_resolution_inventory", lambda **_kwargs: {})
+    monkeypatch.setattr(resolution, "current_record_integrity_gap", lambda **_kwargs: "")
+    monkeypatch.setattr(
+        resolution,
+        "ownerless_recovery_context",
+        lambda **_kwargs: ({}, None, None, "lane_resolution_recovery_unavailable"),
+    )
+    blocked = resolution.apply_lane_resolution(
+        root=tmp_path,
+        decision_path=tmp_path / "decision.json",
+        confirm_irreversible=True,
+        apply=True,
+    )
+    assert blocked["state"] == "blocked"
+    assert blocked["required_gaps"] == ["lane_resolution_recovery_unavailable"]
+
+    monkeypatch.setattr(
+        resolution,
+        "ownerless_recovery_context",
+        lambda **_kwargs: (
+            {"recovery_state": "effect_complete_receipt_missing"},
+            tmp_path / "control",
+            tmp_path / "records",
+            "",
+        ),
+    )
+    monkeypatch.setattr(
+        resolution,
+        "recover_ownerless_resolution",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("must not recover in dry run")),
+    )
+    dry_run = resolution.apply_lane_resolution(
+        root=tmp_path,
+        decision_path=tmp_path / "decision.json",
+        confirm_irreversible=True,
+        apply=False,
+    )
+    assert dry_run["ok"] is True
+
+
+def test_resolution_lane_malformed_decision_and_chronicle_observation_edges(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(resolution, "canonical_record_path", lambda *_args: True)
+    monkeypatch.setattr(resolution, "current_record_root", lambda _root: tmp_path / "records")
+    monkeypatch.setattr(
+        resolution,
+        "read_current_record_path",
+        lambda *_args, **_kwargs: (b"{", "current"),
+    )
+    assert resolution._read_decision(tmp_path / "decision.json", root=tmp_path)[1] == [
+        "lane_resolution_decision_invalid"
+    ]
+
+    identity = resolution_observation.DescriptorIdentity(1, 2, 3, 4, 5, 6)
+    working = resolution_observation.ExactFileSnapshot(b"chronicle", identity)
+    monkeypatch.setattr(
+        resolution,
+        "git_object_bytes",
+        lambda *_args: (_ for _ in ()).throw(
+            resolution_observation.OwnerlessGitObservationError("unverifiable", "git_object")
+        ),
+    )
+    assert not resolution._accepted_chronicle_matches(tmp_path, "evidence/chronicle/x.md", working)
+
+
+def test_resolution_receipt_rejects_explicit_noncanonical_default(tmp_path: Path) -> None:
+    observation = _observation(tmp_path)
+    decision = {
+        "decision_id": "lane-decision:00000000-0000-4000-8000-000000000092",
+        "disposition": "retire",
+        "break_glass": False,
+    }
+    receipt = resolution_effects.completion_receipt(decision, observation, "retired", {})
+    receipt["ownerless_closeout_binding"] = None
+    assert not resolution_receipts.exact_ownerless_resolution_receipt(
+        receipt=receipt,
+        decision=decision,
+        observation=observation,
+        expected_binding={},
+    )
+    with pytest.raises(ValueError, match="lane_resolution_receipt_invalid"):
+        resolution_receipts._validated_resolution_receipt(
+            root=tmp_path,
+            receipt=receipt,
+            require_ownerless_closeout_binding=True,
+        )

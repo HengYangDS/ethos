@@ -15,10 +15,16 @@ from ethos.adapters.mutation.resolution._effects import ref_head
 from ethos.adapters.mutation.resolution._effects import retire_clean_ownerless_cas
 from ethos.adapters.mutation.resolution._effects import verify_ownerless_postconditions
 from ethos.adapters.mutation.resolution._shared import current_chronicle_matches
-from ethos.adapters.mutation.resolution.closeout.admission import OwnerlessCloseoutAdmission
-from ethos.adapters.mutation.resolution.closeout.admission import OwnerlessCloseoutAdmissionError
-from ethos.adapters.mutation.resolution.closeout.admission import admit_ownerless_closeout
-from ethos.adapters.mutation.resolution.closeout.admission import (
+from ethos.adapters.mutation.resolution.closeout.ownerless.admission.core import (
+    OwnerlessCloseoutAdmission,
+)
+from ethos.adapters.mutation.resolution.closeout.ownerless.admission.core import (
+    OwnerlessCloseoutAdmissionError,
+)
+from ethos.adapters.mutation.resolution.closeout.ownerless.admission.core import (
+    admit_ownerless_closeout,
+)
+from ethos.adapters.mutation.resolution.closeout.ownerless.admission.core import (
     reobserve_ownerless_closeout_under_fence,
 )
 from ethos.adapters.mutation.resolution.closeout.retry import reset_reserved_no_effect_retry
@@ -41,7 +47,9 @@ from ethos_core.contracts.resolution.closeout import OwnerlessCloseoutReservatio
 from ethos_core.contracts.resolution.lane import LaneObservation
 
 if TYPE_CHECKING:
-    from ethos.adapters.mutation.resolution.closeout.receipt import OwnerlessReceiptReservationToken
+    from ethos.adapters.mutation.resolution.closeout.ownerless.receipt.core import (
+        OwnerlessReceiptReservationToken,
+    )
 
 _OWNERLESS_ACCEPTED_HEAD_STALE = "lane_resolution_ownerless_accepted_head_stale"
 _OWNERLESS_CHRONICLE_STALE = "lane_resolution_ownerless_chronicle_stale"
@@ -303,16 +311,18 @@ def recover_completed_ownerless_closeout(  # noqa: PLR0913, RUF100 - exact recov
     executor_ref: str,
     reservation: dict[str, object],
     receipt: dict[str, object] | None = None,
+    decision_bytes: bytes | None = None,
 ) -> dict[str, object]:
     """Validate decision and Chronicle before completed-effect postconditions."""
-    try:
-        decision_bytes = decision_path.read_bytes()
-    except OSError as error:
-        raise OwnerlessCloseoutError(
-            _OWNERLESS_DECISION_STALE,
-            phase="receipt",
-            recovery_state="effect_complete_receipt_missing",
-        ) from error
+    if decision_bytes is None:
+        try:
+            decision_bytes = decision_path.read_bytes()
+        except OSError as error:
+            raise OwnerlessCloseoutError(
+                _OWNERLESS_DECISION_STALE,
+                phase="receipt",
+                recovery_state="effect_complete_receipt_missing",
+            ) from error
     snapshot, gap = canonical_resolution_decision_snapshot(
         decision_bytes=decision_bytes,
         decision=decision,

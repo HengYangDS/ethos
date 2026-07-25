@@ -30,6 +30,7 @@ from ethos.adapters.store.state.schema import state_database
 from ethos_core.contracts.resolution.closeout import OwnerlessCloseoutBinding
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
 
     from ethos_core.contracts.resolution.lane import LaneObservation
@@ -135,6 +136,8 @@ def recover_existing_ownerless_receipt(  # noqa: PLR0913, RUF100 - exact recover
     observation: LaneObservation,
     reservation: dict[str, object],
     report: dict[str, object],
+    decision_bytes: bytes,
+    require_decision_current: Callable[[], None],
 ) -> bool:
     """Validate one durable receipt and perform only idempotent cleanup."""
     decision_id = str(decision.get("decision_id") or "")
@@ -180,7 +183,9 @@ def recover_existing_ownerless_receipt(  # noqa: PLR0913, RUF100 - exact recover
             executor_ref=executor_ref,
             reservation=reservation,
             receipt=receipt,
+            decision_bytes=decision_bytes,
         )
+        require_decision_current()
     except OwnerlessCloseoutError as error:
         _block(
             report,

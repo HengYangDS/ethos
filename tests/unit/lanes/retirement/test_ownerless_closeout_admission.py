@@ -15,8 +15,10 @@ from typing import Any
 
 import pytest
 
-import ethos.adapters.mutation.resolution.closeout.ownerless.admission.core as native_admission
-import ethos.adapters.mutation.resolution.closeout.ownerless.admission.policy as native_policy
+import ethos.adapters.mutation.resolution.closeout.ownerless.admission.core as native_admission_api
+import ethos.adapters.mutation.resolution.closeout.ownerless.admission.facts.core as native_admission  # noqa: E501
+import ethos.adapters.mutation.resolution.closeout.ownerless.admission.facts.fence as native_admission_fence  # noqa: E501
+import ethos.adapters.mutation.resolution.closeout.ownerless.workspace as native_policy
 import ethos.adapters.mutation.resolution.observation as resolution_observation
 from ethos.adapters.mutation.resolution.records.core import canonical_current_record_bytes
 from ethos.adapters.mutation.resolution.records.reservations import target_digest
@@ -140,12 +142,11 @@ def _native_admit(scenario: _NativeScenario, **overrides: Any) -> Any:
         "executor_ref": _NATIVE_EXECUTOR,
     }
     values.update(overrides)
-    return native_admission.admit_ownerless_closeout(**values)
+    return native_admission_api.admit_ownerless_closeout(**values)
 
 
 def _native_gap(call: Any, expected: str, detail: str | None = None) -> None:
-    module = native_admission
-    with pytest.raises(module.OwnerlessCloseoutAdmissionError) as raised:
+    with pytest.raises(native_admission_fence.OwnerlessCloseoutAdmissionError) as raised:
         call()
     assert raised.value.gap == expected
     if detail is not None:
@@ -218,14 +219,14 @@ def test_native_admission_is_frozen_slots_only_fact_state(tmp_path: Path) -> Non
         "target_binding_digest",
         "existing_reservation",
     )
-    assert tuple(inspect.signature(native_admission.admit_ownerless_closeout).parameters) == (
+    assert tuple(inspect.signature(native_admission_api.admit_ownerless_closeout).parameters) == (
         "root",
         "decision_path",
         "decision",
         "executor_ref",
     )
     assert tuple(
-        inspect.signature(native_admission.reobserve_ownerless_closeout_under_fence).parameters
+        inspect.signature(native_admission_api.reobserve_ownerless_closeout_under_fence).parameters
     ) == ("admission", "fence")
     assert not hasattr(admission, "__dict__")
     assert not any(callable(getattr(admission, field.name)) for field in fields(admission))
@@ -593,7 +594,7 @@ def test_fence_held_reobservation_returns_the_same_fact_snapshot(tmp_path: Path)
     scenario = _native_new_scenario(tmp_path)
     admission = _native_admit(scenario)
     fence = _native_acquire_fence(scenario, admission)
-    observed = native_admission.reobserve_ownerless_closeout_under_fence(
+    observed = native_admission_api.reobserve_ownerless_closeout_under_fence(
         admission=admission, fence=fence
     )
     assert observed == admission
@@ -610,7 +611,7 @@ def test_fence_reobservation_allows_exact_retry_reservation_reset(tmp_path: Path
     retry = _native_admit(scenario)
     reservation_path.unlink()
     _native_gap(
-        lambda: native_admission.reobserve_ownerless_closeout_under_fence(
+        lambda: native_admission_api.reobserve_ownerless_closeout_under_fence(
             admission=retry, fence=old_fence
         ),
         "lane_resolution_ownerless_reobservation_stale",
@@ -625,7 +626,7 @@ def test_fence_reobservation_allows_exact_retry_reservation_reset(tmp_path: Path
     reset = replace(retry, existing_reservation=None)
     fresh_fence = _native_acquire_fence(scenario, reset)
 
-    observed = native_admission.reobserve_ownerless_closeout_under_fence(
+    observed = native_admission_api.reobserve_ownerless_closeout_under_fence(
         admission=reset, fence=fresh_fence
     )
 
@@ -651,7 +652,9 @@ def test_registration_token_drift_blocks_even_when_observation_is_unchanged(
         ),
     )
     _native_gap(
-        lambda: module.reobserve_ownerless_closeout_under_fence(admission=admission, fence=fence),
+        lambda: native_admission_api.reobserve_ownerless_closeout_under_fence(
+            admission=admission, fence=fence
+        ),
         "lane_resolution_ownerless_reobservation_stale",
         "registration_token",
     )
@@ -681,7 +684,7 @@ def test_after_fence_probe_runs_from_finally_for_every_exception_path(
 
     def fail(*_args: Any, **_kwargs: Any) -> Any:
         if error_kind == "classified":
-            raise module.OwnerlessCloseoutAdmissionError(expected, "decision")
+            raise native_admission_fence.OwnerlessCloseoutAdmissionError(expected, "decision")
         if error_kind == "unexpected":
             raise RuntimeError(error_kind)
         raise KeyboardInterrupt
@@ -690,10 +693,12 @@ def test_after_fence_probe_runs_from_finally_for_every_exception_path(
     monkeypatch.setattr(module, "admit_ownerless_closeout_facts", fail)
     if error_kind == "base":
         with pytest.raises(KeyboardInterrupt):
-            module.reobserve_ownerless_closeout_under_fence(admission=admission, fence=fence)
+            native_admission_api.reobserve_ownerless_closeout_under_fence(
+                admission=admission, fence=fence
+            )
     else:
         _native_gap(
-            lambda: module.reobserve_ownerless_closeout_under_fence(
+            lambda: native_admission_api.reobserve_ownerless_closeout_under_fence(
                 admission=admission, fence=fence
             ),
             expected,
@@ -722,7 +727,9 @@ def test_after_fence_mismatch_overrides_a_pending_reobservation_error(
     monkeypatch.setattr(module.state_closeout, "probe_closeout_fence", probe)
     monkeypatch.setattr(module, "admit_ownerless_closeout_facts", fail)
     _native_gap(
-        lambda: module.reobserve_ownerless_closeout_under_fence(admission=admission, fence=fence),
+        lambda: native_admission_api.reobserve_ownerless_closeout_under_fence(
+            admission=admission, fence=fence
+        ),
         "lane_resolution_ownerless_fence_mismatch",
         "after",
     )

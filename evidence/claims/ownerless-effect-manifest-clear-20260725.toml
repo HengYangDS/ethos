@@ -7,9 +7,9 @@ summary = "One bounded successor binds native clearance of three exact retained 
 
 [evidence]
 dated = "evidence/chronicle/ownerless-effect-manifest-clear-20260725/2026-07-25.md"
-sha256 = "be54769a7b3950038666e34b24119c919b58a21eb8c04a971e86f09110507ef1"
+sha256 = "7b824004a922126b21be9d4f77cd4227188ecf5fcd4b057269533403a1f33ea5"
 evidence_ids = ["evidence:ownerless-effect-manifest-clear-20260725"]
-binding = "This Claim binds retained-packages.json SHA-256 333367fc3f6b038125ec8e612fba5e47252802eaad02a8ae699446f873cd2283, accepted authority head 2fb3f86c575aa0f67a464d93c9bf0e657eeb7087, decisions lane-decision:96e8f4cb-6d9f-46c9-900a-e7a9e3cf8af1, lane-decision:19f824d3-8cc9-47ef-a224-8b154fbdc7ea, and lane-decision:c1bd5914-ee5c-48fa-be36-d956a38e272d to manifests e4fd9ad24f593715fd551be3292bc18f5ba61cc5645db1c64043e93573233c12, 71af0ad007b29f783823c4aaeafb35488627138f40e459610016ffe45b7e242d, and ee4d5cdb6d2d12c8a1a6f3adc7783e197cf6bcd66e89acb7616834bde41a2727 respectively, plus three later one-package native clear-preservation transitions. It authorizes no fourth package, receipt removal, raw deletion, reconstruction, or valid-owner Work Lane effect."
+binding = "This Claim binds retained-packages.toml SHA-256 5dbd6e190fd25195b47fab070e8ec5f66e8d01b382a9bcad09e5215aa3f76a00, accepted authority head 2fb3f86c575aa0f67a464d93c9bf0e657eeb7087, decisions lane-decision:96e8f4cb-6d9f-46c9-900a-e7a9e3cf8af1, lane-decision:19f824d3-8cc9-47ef-a224-8b154fbdc7ea, and lane-decision:c1bd5914-ee5c-48fa-be36-d956a38e272d to manifests e4fd9ad24f593715fd551be3292bc18f5ba61cc5645db1c64043e93573233c12, 71af0ad007b29f783823c4aaeafb35488627138f40e459610016ffe45b7e242d, and ee4d5cdb6d2d12c8a1a6f3adc7783e197cf6bcd66e89acb7616834bde41a2727 respectively, plus three later one-package native clear-preservation transitions. It authorizes no fourth package, receipt removal, raw deletion, reconstruction, or valid-owner Work Lane effect."
 verifier = "digest_only"
 tests = [
   "tools/ci/scripts/run-ethos-lane.sh lane resolution inventory --json",
@@ -35,7 +35,7 @@ kill_signal = "A wildcard or batch clear, raw deletion, receipt deletion, source
 targets = [
   "evidence/claims/ownerless-effect-manifest-clear-20260725.toml",
   "evidence/chronicle/ownerless-effect-manifest-clear-20260725/2026-07-25.md",
-  "evidence/chronicle/ownerless-effect-manifest-clear-20260725/retained-packages.json",
+  "evidence/chronicle/ownerless-effect-manifest-clear-20260725/retained-packages.toml",
   "openspec/changes/archive/2026-07-25-ownerless-effect-manifest-clear",
   "openspec/specs/repository-governance/spec.md",
 ]

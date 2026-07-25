@@ -11,10 +11,7 @@ from typing import Any
 from typing import cast
 
 from ethos.adapters.mutation.decision import mutation_envelope
-from ethos.adapters.mutation.resolution._effects import prepare_resolution_effect
-from ethos.adapters.mutation.resolution._effects import retire_clean_ownerless_lane
 from ethos.adapters.mutation.resolution._shared import valid_decision_id
-from ethos.adapters.mutation.resolution.closeout.recovery import ResolutionRuntime
 from ethos.adapters.mutation.resolution.closeout.recovery import apply_resolution
 from ethos.adapters.mutation.resolution.closeout.recovery import ownerless_recovery_context
 from ethos.adapters.mutation.resolution.closeout.recovery import recover_ownerless_resolution
@@ -23,17 +20,14 @@ from ethos.adapters.mutation.resolution.observation import OwnerlessGitObservati
 from ethos.adapters.mutation.resolution.observation import git_object_bytes
 from ethos.adapters.mutation.resolution.observation import observe_lane
 from ethos.adapters.mutation.resolution.observation import read_root_bound_regular_file
-from ethos.adapters.mutation.resolution.receipts import write_resolution_receipt
+from ethos.adapters.mutation.resolution.receipts import chronicle_event
 from ethos.adapters.mutation.resolution.records.core import canonical_current_record_bytes
-from ethos.adapters.mutation.resolution.records.core import release_resolution_receipt_reservation
 from ethos.adapters.mutation.resolution.records.core import write_json_atomic
 from ethos.adapters.mutation.resolution.records.current.core import current_record_integrity_gap
 from ethos.adapters.mutation.resolution.records.current.snapshot import read_current_record_path
 from ethos.adapters.mutation.resolution.records.inventory import lane_resolution_inventory
-from ethos.adapters.mutation.resolution.records.roots import accepted_control_root
 from ethos.adapters.mutation.resolution.records.roots import canonical_record_path
 from ethos.adapters.mutation.resolution.records.roots import current_record_root
-from ethos.adapters.store.state.closeout import release_closeout_fence
 from ethos.repository.policy.schema import validate_schema_instance
 from ethos_core.contracts.lifecycle.core import MutationRequest
 from ethos_core.contracts.lifecycle.core import reduce_guards
@@ -129,7 +123,7 @@ def plan_lane_resolution(  # noqa: PLR0913, RUF100 - exact request envelope pres
                 state="decision_recorded",
                 decision=decision,
                 decision_path=destination.as_posix(),
-                chronicle_event=_chronicle_event(decision),
+                chronicle_event=chronicle_event(decision),
             )
     return _finish(
         report,
@@ -170,13 +164,11 @@ def apply_lane_resolution(
             apply=apply,
             confirmation=confirm_irreversible,
         )
-    runtime = _resolution_runtime()
     recovery, control_root, artifact_root, recovery_gap = (
         ownerless_recovery_context(
             root=root,
             decision=decision,
             disposition=disposition,
-            runtime=runtime,
         )
         if not gaps
         else ({}, None, None, "")
@@ -212,8 +204,6 @@ def apply_lane_resolution(
                 observation=observation,
                 reservation=recovery,
                 report=report,
-                runtime=runtime,
-                chronicle_event=_chronicle_event,
             )
         return _finish(
             report,
@@ -250,8 +240,6 @@ def apply_lane_resolution(
             observation=observation,
             disposition=disposition,
             report=report,
-            runtime=runtime,
-            chronicle_event=_chronicle_event,
             recover_receipt_reservation=bool(
                 recovery and str(recovery["recovery_state"]) == "reserved_no_effect"
             ),
@@ -264,30 +252,6 @@ def apply_lane_resolution(
         expected_state=expected_state,
         apply=apply,
         confirmation=confirm_irreversible,
-    )
-
-
-def _resolution_runtime() -> ResolutionRuntime:
-    return ResolutionRuntime(
-        accepted_control_root=accepted_control_root,
-        current_record_root=current_record_root,
-        observe_lane=observe_lane,
-        prepare_resolution_effect=prepare_resolution_effect,
-        release_resolution_receipt_reservation=release_resolution_receipt_reservation,
-        retire_clean_ownerless_lane=retire_clean_ownerless_lane,
-        write_resolution_receipt=write_resolution_receipt,
-        release_closeout_fence=release_closeout_fence,
-        block_resolution_report=_block_resolution_report,
-        ownerless_closeout_candidate=_ownerless_closeout_candidate,
-    )
-
-
-def _ownerless_closeout_candidate(disposition: str, observation: LaneObservation) -> bool:
-    return (
-        disposition == "retire"
-        and not observation.dirty
-        and observation.orphan
-        and not observation.holder_ref
     )
 
 
@@ -398,22 +362,6 @@ def _accepted_chronicle_matches(root: Path, relative: str, working: ExactFileSna
     except OwnerlessGitObservationError:
         return False
     return accepted == working.raw and current == working
-
-
-def _chronicle_event(
-    decision: dict[str, Any], receipt: dict[str, object] | None = None
-) -> dict[str, object]:
-    return {
-        "event_type": "state_change" if receipt else "decision",
-        "subject_id": str(decision["observation"]["lane_ref"]),
-        "decision": str(decision["disposition"]),
-        "evidence_ids": [str(receipt["receipt_id"])]
-        if receipt
-        else list(decision["evidence_refs"]),
-        "current_state_delta": str(receipt["state"])
-        if receipt
-        else "exceptional resolution accepted; effect pending recomputation",
-    }
 
 
 def _report(branch: str, evaluation: Any) -> dict[str, object]:

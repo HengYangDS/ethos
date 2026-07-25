@@ -8,32 +8,45 @@ from typing import Any
 from typing import cast
 
 from ethos.adapters.mutation.resolution._effects import OwnerlessCloseoutError
-from ethos.adapters.mutation.resolution._effects import recover_completed_ownerless_closeout
 from ethos.adapters.mutation.resolution._shared import transition_gap
+from ethos.adapters.mutation.resolution.closeout.effect import recover_completed_ownerless_closeout
+from ethos.adapters.mutation.resolution.receipts import chronicle_event
 from ethos.adapters.mutation.resolution.receipts import exact_ownerless_resolution_receipt
 from ethos.adapters.mutation.resolution.receipts import read_resolution_receipt
+from ethos.adapters.mutation.resolution.records.core import release_resolution_receipt_reservation
 from ethos.adapters.mutation.resolution.records.reservations import (
     ownerless_closeout_reservation_path,
 )
 from ethos.adapters.mutation.resolution.records.reservations import (
+    read_ownerless_closeout_reservation,
+)
+from ethos.adapters.mutation.resolution.records.reservations import (
     release_ownerless_closeout_reservation,
 )
+from ethos.adapters.mutation.resolution.records.reservations import target_digest
 from ethos.adapters.store.state.closeout import probe_closeout_fence
+from ethos.adapters.store.state.closeout import release_closeout_fence
 from ethos.adapters.store.state.schema import state_database
 from ethos_core.contracts.resolution.closeout import OwnerlessCloseoutBinding
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
     from pathlib import Path
 
-    from ethos.adapters.mutation.resolution.closeout.recovery import ResolutionRuntime
     from ethos_core.contracts.resolution.lane import LaneObservation
 
 _OWNERLESS_RECEIPT_FIELDS = tuple(OwnerlessCloseoutBinding.model_fields)
 _RECEIPT_MISMATCH = "lane_resolution_ownerless_receipt_mismatch"
 
 
-def ownerless_receipt_recovery_context(  # noqa: PLR0913, RUF100 - exact receipt carrier
+def _block(report: dict[str, object], *gaps: str, state: str) -> None:
+    report.update(
+        ok=False,
+        state=state,
+        required_gaps=list(dict.fromkeys(gap for gap in gaps if gap)),
+    )
+
+
+def ownerless_receipt_recovery_context(
     *,
     control_root: Path,
     artifact_root: Path,
@@ -75,7 +88,45 @@ def ownerless_receipt_recovery_context(  # noqa: PLR0913, RUF100 - exact receipt
     }, ""
 
 
-def recover_existing_ownerless_receipt(  # noqa: PLR0913, RUF100 - exact recovery envelope
+def ownerless_reservation_recovery_context(
+    *,
+    control_root: Path,
+    artifact_root: Path,
+    decision: dict[str, Any],
+    observation: LaneObservation,
+    receipt_recovery: dict[str, object],
+) -> tuple[dict[str, object], str]:
+    """Reconcile one exact typed reservation with optional receipt recovery."""
+    reservation_path = ownerless_closeout_reservation_path(
+        control_root,
+        target_digest(observation.lane_ref, observation.head),
+        artifact_root=artifact_root,
+    )
+    if not reservation_path.exists() and not reservation_path.is_symlink():
+        return receipt_recovery, ""
+    try:
+        reservation = read_ownerless_closeout_reservation(
+            record_root=artifact_root,
+            path=reservation_path,
+        )
+    except (OSError, TypeError, ValueError) as error:
+        return {}, transition_gap(error, "lane_resolution_ownerless_reservation_invalid")
+    exact = (
+        reservation.get("decision_id") == decision.get("decision_id")
+        and reservation.get("lane_ref") == observation.lane_ref
+        and reservation.get("head") == observation.head
+    )
+    if not exact:
+        return reservation, "lane_resolution_ownerless_recovery_binding_mismatch"
+    if receipt_recovery and reservation != receipt_recovery:
+        return reservation, "lane_resolution_ownerless_receipt_mismatch"
+    recovery_state = str(reservation["recovery_state"])
+    if recovery_state not in {"reserved_no_effect", "effect_complete_receipt_missing"}:
+        return reservation, f"lane_resolution_ownerless_reconciliation_required:{recovery_state}"
+    return reservation, ""
+
+
+def recover_existing_ownerless_receipt(  # noqa: PLR0913, RUF100 - exact recovery inputs
     *,
     control_root: Path,
     artifact_root: Path,
@@ -84,10 +135,8 @@ def recover_existing_ownerless_receipt(  # noqa: PLR0913, RUF100 - exact recover
     observation: LaneObservation,
     reservation: dict[str, object],
     report: dict[str, object],
-    runtime: ResolutionRuntime,
-    chronicle_event: Callable[[dict[str, Any], dict[str, object] | None], dict[str, object]],
 ) -> bool:
-    """Converge cleanup around one already durable exact receipt."""
+    """Validate one durable receipt and perform only idempotent cleanup."""
     decision_id = str(decision.get("decision_id") or "")
     try:
         current = read_resolution_receipt(
@@ -97,7 +146,7 @@ def recover_existing_ownerless_receipt(  # noqa: PLR0913, RUF100 - exact recover
             require_ownerless_closeout_binding=True,
         )
     except (OSError, TypeError, ValueError) as error:
-        runtime.block_resolution_report(
+        _block(
             report,
             transition_gap(error, "lane_resolution_receipt_invalid"),
             state="partial_transition",
@@ -113,11 +162,11 @@ def recover_existing_ownerless_receipt(  # noqa: PLR0913, RUF100 - exact recover
         observation=observation,
         expected_binding=expected_binding,
     ):
-        runtime.block_resolution_report(report, _RECEIPT_MISMATCH, state="partial_transition")
+        _block(report, _RECEIPT_MISMATCH, state="partial_transition")
         return True
     executor_ref = os.environ.get("ETHOS_ACTOR", "").strip()
     if not executor_ref:
-        runtime.block_resolution_report(
+        _block(
             report,
             "lane_resolution_ownerless_executor_required",
             state="partial_transition",
@@ -128,20 +177,19 @@ def recover_existing_ownerless_receipt(  # noqa: PLR0913, RUF100 - exact recover
             root=control_root,
             decision_path=decision_path,
             decision=decision,
-            observation=observation,
             executor_ref=executor_ref,
             reservation=reservation,
             receipt=receipt,
         )
     except OwnerlessCloseoutError as error:
-        runtime.block_resolution_report(
+        _block(
             report,
             transition_gap(error, "lane_resolution_ownerless_recovery_not_finalizable"),
             state="partial_transition",
         )
         return True
     if binding != expected_binding:
-        runtime.block_resolution_report(report, _RECEIPT_MISMATCH, state="partial_transition")
+        _block(report, _RECEIPT_MISMATCH, state="partial_transition")
     else:
         report.update(
             state=receipt["state"],
@@ -151,29 +199,26 @@ def recover_existing_ownerless_receipt(  # noqa: PLR0913, RUF100 - exact recover
             ownerless_closeout_binding=expected_binding,
             chronicle_event=chronicle_event(decision, receipt),
         )
-        cleanup_gap = release_ownerless_closeout_resources(
+        if cleanup_gap := release_ownerless_closeout_resources(
             control_root=control_root,
             artifact_root=artifact_root,
             decision=decision,
             observation=observation,
             binding=binding,
-            runtime=runtime,
-        )
-        if cleanup_gap:
-            runtime.block_resolution_report(report, cleanup_gap, state="partial_transition")
+        ):
+            _block(report, cleanup_gap, state="partial_transition")
     return True
 
 
-def release_ownerless_closeout_resources(  # noqa: PLR0913, RUF100 - exact CAS envelope
+def release_ownerless_closeout_resources(
     *,
     control_root: Path,
     artifact_root: Path,
     decision: dict[str, Any],
     observation: LaneObservation,
     binding: dict[str, object],
-    runtime: ResolutionRuntime,
 ) -> str:
-    """Release an exact fence then its visible reservation; tolerate an absent fence."""
+    """Release the exact fence before removing the visible reservation."""
     expected = {
         "schema_version": 2,
         "decision_id": str(decision.get("decision_id") or ""),
@@ -191,7 +236,7 @@ def release_ownerless_closeout_resources(  # noqa: PLR0913, RUF100 - exact CAS e
     database = state_database(control_root)
     try:
         try:
-            runtime.release_closeout_fence(
+            release_closeout_fence(
                 database,
                 subject=observation.lane_ref,
                 decision_id=str(decision.get("decision_id") or ""),
@@ -224,14 +269,13 @@ def release_receipt_reservation(
     control_root: Path,
     artifact_root: Path,
     decision_id: str,
-    runtime: ResolutionRuntime,
     locked_descriptor: int | None,
 ) -> str:
     """Release the exact descriptor-bound receipt sidecar."""
     if locked_descriptor is None:
         return ""
     try:
-        runtime.release_resolution_receipt_reservation(
+        release_resolution_receipt_reservation(
             root=control_root,
             decision_id=decision_id,
             artifact_root=artifact_root,

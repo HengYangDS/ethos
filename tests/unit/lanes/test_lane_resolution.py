@@ -10,6 +10,8 @@ from typing import Any
 import pytest
 
 import ethos.adapters.mutation.resolution._effects as effect_adapter
+import ethos.adapters.mutation.resolution.closeout.cleanup.core as cleanup_adapter
+import ethos.adapters.mutation.resolution.closeout.recovery as recovery_adapter
 from ethos.adapters.mutation.resolution.lane import apply_lane_resolution
 from ethos.adapters.mutation.resolution.lane import plan_lane_resolution
 from ethos.adapters.mutation.resolution.receipts import verify_preservation_package
@@ -553,9 +555,7 @@ def test_receipt_failure_is_classified_by_effect_boundary(
         message = "receipt unavailable"
         raise OSError(message)
 
-    monkeypatch.setitem(
-        apply_lane_resolution.__globals__, "write_resolution_receipt", fail_receipt_write
-    )
+    monkeypatch.setattr(recovery_adapter, "write_resolution_receipt", fail_receipt_write)
     report = apply_lane_resolution(
         root=repo,
         decision_path=decision_path,
@@ -580,8 +580,8 @@ def test_resolution_reports_reservation_cleanup_failure_after_receipt(
     repo, _lane = orphan_work_lane(tmp_path)
     decision_path = _default_decision_path(repo, "work/orphan")
     _decide(repo, decision_path)
-    monkeypatch.setitem(
-        apply_lane_resolution.__globals__,
+    monkeypatch.setattr(
+        cleanup_adapter,
         "release_resolution_receipt_reservation",
         lambda **_kwargs: (_ for _ in ()).throw(OSError("cleanup failed")),
     )

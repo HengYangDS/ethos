@@ -4,11 +4,12 @@ import hashlib
 import json
 import subprocess
 from pathlib import Path
-from typing import Any
 
 import pytest
 
-import ethos.adapters.mutation.resolution._effects as effect_adapter
+import ethos.adapters.mutation.resolution.closeout.cleanup.core as cleanup_adapter
+import ethos.adapters.mutation.resolution.closeout.effect as effect_adapter
+import ethos.adapters.mutation.resolution.closeout.recovery as recovery_adapter
 import ethos.adapters.mutation.resolution.lane as lane_adapter
 import ethos.adapters.mutation.resolution.records.reservations as reservation_store
 from ethos.adapters.mutation.resolution.lane import apply_lane_resolution
@@ -19,13 +20,31 @@ from ethos.adapters.mutation.resolution.records.roots import current_record_root
 from ethos.adapters.store.state.closeout import get_closeout_fence
 from ethos.adapters.store.state.schema import state_database
 from ethos.surface.cli.lane.resolution import _default_decision_path
-from tests.support.contract_helpers import write_chronicle_decision
 from tests.support.lane_helpers import git
 from tests.support.lane_helpers import init_repo
 from tests.support.lane_helpers import orphan_work_lane
 
 _OWNERLESS_DECISION_ID = "lane-decision:00000000-0000-4000-8000-000000000004"
 _COMPETING_DECISION_ID = "lane-decision:00000000-0000-4000-8000-000000000005"
+
+
+def _write_native_chronicle(root: Path, *, topic: str, token: str) -> str:
+    relative = Path("evidence") / "chronicle" / topic / f"{token}.md"
+    chronicle = root / relative
+    chronicle.parent.mkdir(parents=True, exist_ok=True)
+    chronicle.write_text(f"lane_resolution/{token}\n", encoding="utf-8")
+    git(root, "add", relative.as_posix())
+    git(
+        root,
+        "-c",
+        "user.name=Test User",
+        "-c",
+        "user.email=test@example.com",
+        "commit",
+        "-m",
+        f"record {token} decision",
+    )
+    return relative.as_posix()
 
 
 def _decide(
@@ -40,7 +59,7 @@ def _decide(
         disposition=disposition,
         reason="Exercise the bounded lane-resolution transition.",
         evidence_refs=(("evidence:maintainer-decision",) if exceptional else ("evidence:review",)),
-        chronicle_ref=write_chronicle_decision(
+        chronicle_ref=_write_native_chronicle(
             root, topic="lane-resolution-test", token=disposition
         ),
         recovery_plan="Preserve exact observed state or block before effect.",
@@ -48,25 +67,6 @@ def _decide(
         break_glass=exceptional,
         apply=True,
     )
-
-
-def _ownerless_preflight(*, expected: Any, **_kwargs: object) -> dict[str, object]:
-    decision = json.loads(expected.decision_bytes)
-    return {
-        "schema_version": "workstation.repo-family-governance.v1",
-        "decision_sha256": hashlib.sha256(expected.decision_bytes).hexdigest(),
-        "executor_ref": expected.executor_ref,
-        "observation_digest": hashlib.sha256(
-            json.dumps(
-                expected.observation,
-                sort_keys=True,
-                separators=(",", ":"),
-            ).encode()
-        ).hexdigest(),
-        "chronicle_digest": decision["chronicle_digest"],
-        "source": {"head": expected.accepted_head},
-        "coordination": {"binding_digest": "d" * 64},
-    }
 
 
 def _ownerless_reservation(*, decision_id: str = _OWNERLESS_DECISION_ID) -> dict[str, object]:
@@ -109,33 +109,43 @@ def _ownerless_receipt(binding: dict[str, object] | None) -> dict[str, object]:
 
 
 @pytest.mark.parametrize(
-    ("gap", "state"),
+    ("gap", "state", "phase", "recovery_state"),
     [
         (
             "lane_resolution_ownerless_worktree_removed_ref_present",
             "ownerless_worktree_removed_ref_present",
+            "effect",
+            "worktree_removed_ref_present",
         ),
         (
             "lane_resolution_ownerless_transition_unknown",
             "ownerless_transition_unknown",
+            "unknown",
+            "transition_unknown",
         ),
     ],
 )
-def test_resolution_retains_reservation_for_partial_ref_outcome(
+def test_resolution_retains_reservation_for_partial_ref_outcome(  # noqa: PLR0913, RUF100
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     gap: str,
     state: str,
+    phase: str,
+    recovery_state: str,
 ) -> None:
     repo, _lane = orphan_work_lane(tmp_path)
     decision_path = _default_decision_path(repo, "work/orphan")
     _decide(repo, decision_path, "retire")
     monkeypatch.setenv("ETHOS_ACTOR", "agent:codex:thread:executor")
-    monkeypatch.setitem(
-        apply_lane_resolution.__globals__,
+    monkeypatch.setattr(
+        recovery_adapter,
         "retire_clean_ownerless_lane",
         lambda **_kwargs: (_ for _ in ()).throw(
-            effect_adapter.OwnerlessCloseoutError(gap, fence_acquired=True)
+            effect_adapter.OwnerlessCloseoutError(
+                gap,
+                phase=phase,
+                recovery_state=recovery_state,
+            )
         ),
     )
 
@@ -156,20 +166,21 @@ def test_resolution_retains_reservation_for_partial_ref_outcome(
     assert len(tuple((current_record_root(repo) / "receipts").glob(".*.receipt-reservation"))) == 1
 
 
-def test_resolution_retains_reservation_when_ownerless_worktree_remove_fails(
+def test_zero_effect_remove_failure_releases_receipt_sidecar_but_retains_target_reservation(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo, lane = orphan_work_lane(tmp_path)
     decision_path = _default_decision_path(repo, "work/orphan")
-    _decide(repo, decision_path, "retire")
+    planned = _decide(repo, decision_path, "retire")
     monkeypatch.setenv("ETHOS_ACTOR", "agent:codex:thread:executor")
-    monkeypatch.setitem(
-        apply_lane_resolution.__globals__,
-        "retire_clean_ownerless_lane",
+    monkeypatch.setattr(
+        effect_adapter,
+        "retire_clean_ownerless_cas",
         lambda **_kwargs: (_ for _ in ()).throw(
             effect_adapter.OwnerlessCloseoutError(
                 "lane_resolution_ownerless_worktree_remove_failed",
-                fence_acquired=True,
+                phase="reserved",
+                recovery_state="reserved_no_effect",
             )
         ),
     )
@@ -190,7 +201,12 @@ def test_resolution_retains_reservation_when_ownerless_worktree_remove_fails(
     assert git(repo, "show-ref", "--verify", "refs/heads/work/orphan")
     assert report["receipt"] == {}
     assert report["receipt_path"] == ""
-    assert len(tuple((current_record_root(repo) / "receipts").glob(".*.receipt-reservation"))) == 1
+    assert not tuple((current_record_root(repo) / "receipts").glob(".*.receipt-reservation"))
+    target = reservation_store.target_digest(
+        "work/orphan",
+        str(planned["decision"]["observation"]["head"]),
+    )
+    assert reservation_store.ownerless_closeout_reservation_path(repo, target).is_file()
 
 
 def test_ownerless_effect_complete_retry_finalizes_receipt_before_observation(
@@ -200,18 +216,13 @@ def test_ownerless_effect_complete_retry_finalizes_receipt_before_observation(
     decision_path = _default_decision_path(repo, "work/orphan")
     planned = _decide(repo, decision_path, "retire")
     monkeypatch.setenv("ETHOS_ACTOR", "agent:codex:thread:executor")
-    monkeypatch.setattr(
-        effect_adapter,
-        "run_worktree_closeout_check",
-        _ownerless_preflight,
-    )
-    real_write = lane_adapter.write_resolution_receipt
+    real_write = recovery_adapter.write_resolution_receipt
 
     def fail_receipt_write(**_kwargs: object) -> str:
         message = "receipt unavailable"
         raise OSError(message)
 
-    monkeypatch.setattr(lane_adapter, "write_resolution_receipt", fail_receipt_write)
+    monkeypatch.setattr(recovery_adapter, "write_resolution_receipt", fail_receipt_write)
     first = apply_lane_resolution(
         root=repo,
         decision_path=decision_path,
@@ -233,11 +244,13 @@ def test_ownerless_effect_complete_retry_finalizes_receipt_before_observation(
         )["recovery_state"]
         == "effect_complete_receipt_missing"
     )
-    monkeypatch.setattr(lane_adapter, "write_resolution_receipt", real_write)
+    monkeypatch.setattr(recovery_adapter, "write_resolution_receipt", real_write)
     monkeypatch.setattr(
-        effect_adapter,
-        "run_worktree_closeout_check",
-        lambda **_kwargs: pytest.fail("completed effect recovery must not rerun WCP"),
+        lane_adapter,
+        "observe_lane",
+        lambda *_args, **_kwargs: pytest.fail(
+            "completed effect recovery must precede ordinary target observation"
+        ),
     )
 
     recovered = apply_lane_resolution(
@@ -302,9 +315,11 @@ def test_ownerless_other_partial_retry_requires_explicit_reconciliation(
     )
     monkeypatch.setenv("ETHOS_ACTOR", "agent:codex:thread:executor")
     monkeypatch.setattr(
-        effect_adapter,
-        "run_worktree_closeout_check",
-        lambda **_kwargs: pytest.fail("partial recovery must block before WCP"),
+        lane_adapter,
+        "observe_lane",
+        lambda *_args, **_kwargs: pytest.fail(
+            "partial recovery must block before ordinary target observation"
+        ),
     )
 
     report = apply_lane_resolution(
@@ -329,12 +344,7 @@ def test_ownerless_cleanup_keeps_visible_reservation_when_fence_release_fails(
     planned = _decide(repo, decision_path, "retire")
     monkeypatch.setenv("ETHOS_ACTOR", "agent:codex:thread:executor")
     monkeypatch.setattr(
-        effect_adapter,
-        "run_worktree_closeout_check",
-        _ownerless_preflight,
-    )
-    monkeypatch.setattr(
-        lane_adapter,
+        cleanup_adapter,
         "release_closeout_fence",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("fence retained")),
     )
@@ -367,26 +377,6 @@ def test_retire_resolution_requires_clean_target_and_irreversible_confirmation(
     decision_path = _default_decision_path(repo, "work/orphan")
     _decide(repo, decision_path, "retire")
     monkeypatch.setenv("ETHOS_ACTOR", "agent:codex:thread:executor")
-
-    def preflight(*, expected, **_kwargs):
-        decision = json.loads(expected.decision_bytes)
-        return {
-            "schema_version": "workstation.repo-family-governance.v1",
-            "decision_sha256": hashlib.sha256(expected.decision_bytes).hexdigest(),
-            "executor_ref": expected.executor_ref,
-            "observation_digest": hashlib.sha256(
-                json.dumps(
-                    expected.observation,
-                    sort_keys=True,
-                    separators=(",", ":"),
-                ).encode()
-            ).hexdigest(),
-            "chronicle_digest": decision["chronicle_digest"],
-            "source": {"head": expected.accepted_head},
-            "coordination": {"binding_digest": "d" * 64},
-        }
-
-    monkeypatch.setattr(effect_adapter, "run_worktree_closeout_check", preflight)
 
     blocked = apply_lane_resolution(
         root=repo,

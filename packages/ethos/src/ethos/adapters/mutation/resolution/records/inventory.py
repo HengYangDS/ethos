@@ -204,13 +204,14 @@ def lane_resolution_inventory(*, root: Path) -> dict[str, object]:
         }
 
 
-def ownerless_closeout_reservation_admission(
+def ownerless_closeout_reservation_admission(  # noqa: PLR0913, RUF100 - exact record binding
     *,
     root: Path,
     record_root: Path,
     decision_path: Path,
     decision_sha256: str,
     expected: OwnerlessCloseoutReservation,
+    receipt_reservation_decision_id: str | None = None,
 ) -> OwnerlessCloseoutReservation | None:
     """Classify absence or one exact zero-effect retry reservation."""
     try:
@@ -228,7 +229,12 @@ def ownerless_closeout_reservation_admission(
         or current.get("physical_path") != decision_path.absolute()
     ):
         raise ValueError(_OWNERLESS_DECISION_STALE)
-    if records.receipt_reservations:
+    receipt_reservation_ids = set(records.receipt_reservations)
+    if (
+        receipt_reservation_ids
+        if receipt_reservation_decision_id is None
+        else receipt_reservation_ids != {receipt_reservation_decision_id}
+    ):
         raise ValueError(_OWNERLESS_RESERVATION_COMPETING)
     exact: OwnerlessCloseoutReservation | None = None
     compared = (

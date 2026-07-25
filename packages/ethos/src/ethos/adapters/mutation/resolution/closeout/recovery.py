@@ -1,72 +1,51 @@
-"""Crash recovery and effect orchestration for exceptional lane resolution."""
+"""Crash recovery and direct effect orchestration for exceptional lane resolution."""
 
 from __future__ import annotations
 
 import os
 from contextlib import ExitStack
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import cast
 
 import ethos.adapters.mutation.resolution.closeout.cleanup.core as cleanup
-from ethos.adapters.mutation.lane_lifecycle.core import run_git
 from ethos.adapters.mutation.resolution._effects import OwnerlessCloseoutError
-from ethos.adapters.mutation.resolution._effects import recover_completed_ownerless_closeout
+from ethos.adapters.mutation.resolution._effects import prepare_resolution_effect
 from ethos.adapters.mutation.resolution._effects import retire_lane
 from ethos.adapters.mutation.resolution._shared import transition_gap
 from ethos.adapters.mutation.resolution._shared import valid_decision_id
+from ethos.adapters.mutation.resolution.closeout.effect import pre_admit_ownerless_lane
+from ethos.adapters.mutation.resolution.closeout.effect import recover_completed_ownerless_closeout
+from ethos.adapters.mutation.resolution.closeout.effect import retire_clean_ownerless_lane
+from ethos.adapters.mutation.resolution.closeout.receipt import claim_effect_receipt_reservation
 from ethos.adapters.mutation.resolution.closeout.receipt import claim_receipt_reservation
-from ethos.adapters.mutation.resolution.records.reservations import (
-    ownerless_closeout_reservation_path,
-)
-from ethos.adapters.mutation.resolution.records.reservations import (
-    read_ownerless_closeout_reservation,
-)
-from ethos.adapters.mutation.resolution.records.reservations import target_digest
-from ethos_core.contracts.branch.roles import load_branch_role_policy
+from ethos.adapters.mutation.resolution.closeout.receipt import ownerless_receipt_reservation_token
+from ethos.adapters.mutation.resolution.observation import observe_lane
+from ethos.adapters.mutation.resolution.receipts import chronicle_event
+from ethos.adapters.mutation.resolution.receipts import write_resolution_receipt
+from ethos.adapters.mutation.resolution.records.roots import accepted_control_root
+from ethos.adapters.mutation.resolution.records.roots import current_record_root
 from ethos_core.contracts.resolution.closeout import OwnerlessCloseoutBinding
 from ethos_core.contracts.resolution.lane import LaneObservation
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
     from pathlib import Path
+
+    from ethos.adapters.mutation.resolution.closeout.admission import OwnerlessCloseoutAdmission
 
 _OWNERLESS_RECEIPT_FIELDS = tuple(OwnerlessCloseoutBinding.model_fields)
 
 
-@dataclass(frozen=True, slots=True)
-class ResolutionRuntime:
-    """Mutation seams supplied by the public lane adapter at call time."""
-
-    accepted_control_root: Callable[[Path], Path]
-    current_record_root: Callable[[Path], Path]
-    observe_lane: Callable[[Path, str], tuple[LaneObservation, list[str]]]
-    prepare_resolution_effect: Callable[
-        ...,
-        tuple[dict[str, object], dict[str, object], str, str],
-    ]
-    release_resolution_receipt_reservation: Callable[..., None]
-    retire_clean_ownerless_lane: Callable[..., dict[str, object]]
-    write_resolution_receipt: Callable[..., str]
-    release_closeout_fence: Callable[..., None]
-    block_resolution_report: Callable[..., None]
-    ownerless_closeout_candidate: Callable[[str, LaneObservation], bool]
+def _block(report: dict[str, object], *gaps: str, state: str = "blocked") -> None:
+    report.update(
+        ok=False,
+        state=state,
+        required_gaps=list(dict.fromkeys(gap for gap in gaps if gap)),
+    )
 
 
-@dataclass(frozen=True, slots=True)
-class _ResolutionContext:
-    control_root: Path
-    artifact_root: Path
-    runtime: ResolutionRuntime
-
-
-def ownerless_recovery_context(  # noqa: PLR0911, RUF100 - fail-closed states
-    *,
-    root: Path,
-    decision: dict[str, Any],
-    disposition: str,
-    runtime: ResolutionRuntime,
+def ownerless_recovery_context(
+    *, root: Path, decision: dict[str, Any], disposition: str
 ) -> tuple[dict[str, object], Path | None, Path | None, str]:
     """Return an exact resumable ownerless transition, or its blocking gap."""
     if disposition != "retire" or not decision:
@@ -79,7 +58,7 @@ def ownerless_recovery_context(  # noqa: PLR0911, RUF100 - fail-closed states
         or bool(observation.get("holder_ref"))
     ):
         return {}, None, None, ""
-    control_root, artifact_root, root_gap = _resolution_roots(root, runtime)
+    control_root, artifact_root, root_gap = _resolution_roots(root)
     if root_gap or control_root is None or artifact_root is None:
         return {}, control_root, artifact_root, root_gap
     lane_ref = str(observation.get("lane_ref") or "")
@@ -95,7 +74,7 @@ def ownerless_recovery_context(  # noqa: PLR0911, RUF100 - fail-closed states
     )
     if receipt_gap:
         return {}, control_root, artifact_root, receipt_gap
-    reservation, reservation_gap = _ownerless_reservation_context(
+    reservation, reservation_gap = cleanup.ownerless_reservation_recovery_context(
         control_root=control_root,
         artifact_root=artifact_root,
         decision=decision,
@@ -105,45 +84,7 @@ def ownerless_recovery_context(  # noqa: PLR0911, RUF100 - fail-closed states
     return reservation, control_root, artifact_root, reservation_gap
 
 
-def _ownerless_reservation_context(
-    *,
-    control_root: Path,
-    artifact_root: Path,
-    decision: dict[str, Any],
-    observation: LaneObservation,
-    receipt_recovery: dict[str, object],
-) -> tuple[dict[str, object], str]:
-    """Resolve the target reservation without weakening receipt-first recovery."""
-    reservation_path = ownerless_closeout_reservation_path(
-        control_root,
-        target_digest(observation.lane_ref, observation.head),
-        artifact_root=artifact_root,
-    )
-    if not reservation_path.exists() and not reservation_path.is_symlink():
-        return receipt_recovery, ""
-    try:
-        reservation = read_ownerless_closeout_reservation(
-            record_root=artifact_root,
-            path=reservation_path,
-        )
-    except (OSError, TypeError, ValueError) as error:
-        return {}, transition_gap(error, "lane_resolution_ownerless_reservation_invalid")
-    exact = (
-        reservation.get("decision_id") == decision.get("decision_id")
-        and reservation.get("lane_ref") == observation.lane_ref
-        and reservation.get("head") == observation.head
-    )
-    if not exact:
-        return reservation, "lane_resolution_ownerless_recovery_binding_mismatch"
-    if receipt_recovery and reservation != receipt_recovery:
-        return reservation, "lane_resolution_ownerless_receipt_mismatch"
-    recovery_state = str(reservation["recovery_state"])
-    if recovery_state not in {"reserved_no_effect", "effect_complete_receipt_missing"}:
-        return reservation, f"lane_resolution_ownerless_reconciliation_required:{recovery_state}"
-    return reservation, ""
-
-
-def recover_ownerless_resolution(  # noqa: PLR0911, PLR0913, RUF100 - exact fail-closed recovery envelope
+def recover_ownerless_resolution(  # noqa: PLR0913, RUF100 - exact recovery inputs
     *,
     control_root: Path,
     artifact_root: Path,
@@ -152,11 +93,8 @@ def recover_ownerless_resolution(  # noqa: PLR0911, PLR0913, RUF100 - exact fail
     observation: LaneObservation,
     reservation: dict[str, object],
     report: dict[str, object],
-    runtime: ResolutionRuntime,
-    chronicle_event: Callable[[dict[str, Any], dict[str, object] | None], dict[str, object]],
 ) -> None:
-    """Finalize a completed ownerless effect without re-observing its removed lane."""
-    context = _ResolutionContext(control_root, artifact_root, runtime)
+    """Finalize a completed ownerless effect before ordinary target observation."""
     decision_id = str(decision.get("decision_id") or "")
     reservation_stack = ExitStack()
     reservation_claimed, reservation_descriptor, reservation_gap = claim_receipt_reservation(
@@ -168,7 +106,7 @@ def recover_ownerless_resolution(  # noqa: PLR0911, PLR0913, RUF100 - exact fail
     )
     if reservation_gap or not reservation_claimed:
         reservation_stack.close()
-        runtime.block_resolution_report(report, reservation_gap, state="partial_transition")
+        _block(report, reservation_gap, state="partial_transition")
         return
     receipt_written = False
     release_descriptor: int | None = None
@@ -181,63 +119,55 @@ def recover_ownerless_resolution(  # noqa: PLR0911, PLR0913, RUF100 - exact fail
             observation=observation,
             reservation=reservation,
             report=report,
-            runtime=runtime,
-            chronicle_event=chronicle_event,
         ):
             receipt_written = bool(report.get("receipt"))
             release_descriptor = reservation_descriptor if receipt_written else None
             return
-        if reservation_descriptor is None:
-            runtime.block_resolution_report(
-                report,
-                "lane_resolution_ownerless_receipt_mismatch",
-                state="partial_transition",
-            )
-            return
         executor_ref = os.environ.get("ETHOS_ACTOR", "").strip()
-        if not executor_ref:
-            runtime.block_resolution_report(
-                report,
-                "lane_resolution_ownerless_executor_required",
-                state="partial_transition",
+        if reservation_descriptor is None or not executor_ref:
+            gap = (
+                "lane_resolution_ownerless_receipt_mismatch"
+                if reservation_descriptor is None
+                else "lane_resolution_ownerless_executor_required"
             )
+            _block(report, gap, state="partial_transition")
             return
         try:
             binding = recover_completed_ownerless_closeout(
                 root=control_root,
                 decision_path=decision_path,
                 decision=decision,
-                observation=observation,
                 executor_ref=executor_ref,
                 reservation=reservation,
             )
         except OwnerlessCloseoutError as error:
-            runtime.block_resolution_report(
+            _block(
                 report,
                 transition_gap(error, "lane_resolution_ownerless_recovery_not_finalizable"),
                 state="partial_transition",
             )
             return
         package, receipt, state, effect_gaps = _prepare_resolution(
-            context=context,
+            control_root=control_root,
+            artifact_root=artifact_root,
             decision=decision,
             observation=observation,
             disposition="retire",
         )
         if effect_gaps:
-            runtime.block_resolution_report(report, *effect_gaps, state="partial_transition")
+            _block(report, *effect_gaps, state="partial_transition")
             return
         receipt_binding = {field: binding[field] for field in _OWNERLESS_RECEIPT_FIELDS}
         receipt["ownerless_closeout_binding"] = receipt_binding
         try:
-            receipt_path = runtime.write_resolution_receipt(
+            receipt_path = write_resolution_receipt(
                 root=control_root,
                 receipt=receipt,
                 artifact_root=artifact_root,
                 require_ownerless_closeout_binding=True,
             )
         except (OSError, ValueError):
-            runtime.block_resolution_report(
+            _block(
                 report,
                 "lane_resolution_receipt_write_failed_after_effect",
                 state="partial_transition",
@@ -253,30 +183,27 @@ def recover_ownerless_resolution(  # noqa: PLR0911, PLR0913, RUF100 - exact fail
             ownerless_closeout_binding=receipt_binding,
             chronicle_event=chronicle_event(decision, receipt),
         )
-        cleanup_gap = cleanup.release_ownerless_closeout_resources(
+        if cleanup_gap := cleanup.release_ownerless_closeout_resources(
             control_root=control_root,
             artifact_root=artifact_root,
             decision=decision,
             observation=observation,
             binding=binding,
-            runtime=runtime,
-        )
-        if cleanup_gap:
-            runtime.block_resolution_report(report, cleanup_gap, state="partial_transition")
+        ):
+            _block(report, cleanup_gap, state="partial_transition")
     finally:
         try:
             cleanup_gap = cleanup.release_receipt_reservation(
                 control_root=control_root,
                 artifact_root=artifact_root,
                 decision_id=decision_id,
-                runtime=runtime,
                 locked_descriptor=release_descriptor,
             )
         finally:
             reservation_stack.close()
         if cleanup_gap:
             current_gaps = cast("list[str]", report["required_gaps"])
-            runtime.block_resolution_report(
+            _block(
                 report,
                 *current_gaps,
                 cleanup_gap,
@@ -284,7 +211,7 @@ def recover_ownerless_resolution(  # noqa: PLR0911, PLR0913, RUF100 - exact fail
             )
 
 
-def apply_resolution(  # noqa: PLR0913, RUF100 - exact effect binding envelope
+def apply_resolution(  # noqa: PLR0913, RUF100 - exact effect inputs
     *,
     root: Path,
     decision_path: Path,
@@ -292,42 +219,42 @@ def apply_resolution(  # noqa: PLR0913, RUF100 - exact effect binding envelope
     observation: LaneObservation,
     disposition: str,
     report: dict[str, object],
-    runtime: ResolutionRuntime,
-    chronicle_event: Callable[[dict[str, Any], dict[str, object] | None], dict[str, object]],
     recover_receipt_reservation: bool = False,
 ) -> None:
     """Apply one bounded resolution effect and retain partial-transition evidence."""
-    control_root, artifact_root, root_gap = _resolution_roots(root, runtime)
+    control_root, artifact_root, root_gap = _resolution_roots(root)
     if root_gap or control_root is None or artifact_root is None:
-        runtime.block_resolution_report(report, root_gap)
+        _block(report, root_gap)
         return
-    context = _ResolutionContext(control_root, artifact_root, runtime)
     decision_id = str(decision.get("decision_id") or "")
     reservation_stack = ExitStack()
-    reservation_claimed, reservation_descriptor, reservation_gap = claim_receipt_reservation(
-        reservation_stack,
-        control_root,
-        artifact_root,
-        decision_id,
-        mode="recover" if recover_receipt_reservation else "create",
+    ownerless_admission, reservation_descriptor, claim_gaps = _claim_effect_attempt(
+        stack=reservation_stack,
+        control_root=control_root,
+        artifact_root=artifact_root,
+        decision_path=decision_path,
+        decision=decision,
+        observation=observation,
+        disposition=disposition,
+        recover=recover_receipt_reservation,
     )
-    if reservation_gap or not reservation_claimed or reservation_descriptor is None:
+    if claim_gaps or reservation_descriptor is None:
         reservation_stack.close()
-        runtime.block_resolution_report(report, reservation_gap)
+        _block(report, *(claim_gaps or ("lane_resolution_receipt_invalid",)))
         return
-
     retain_reservation = False
     receipt_written = False
     release_descriptor: int | None = reservation_descriptor
     try:
         package, receipt, state, effect_gaps = _prepare_resolution(
-            context=context,
+            control_root=control_root,
+            artifact_root=artifact_root,
             decision=decision,
             observation=observation,
             disposition=disposition,
         )
         if effect_gaps:
-            runtime.block_resolution_report(report, *effect_gaps)
+            _block(report, *effect_gaps)
             return
         report.update(state=state, preservation_package=package)
         retain_reservation, retire_gap, ownerless_binding = _retire_resolution(
@@ -338,7 +265,7 @@ def apply_resolution(  # noqa: PLR0913, RUF100 - exact effect binding envelope
             observation=observation,
             disposition=disposition,
             artifact_root=artifact_root,
-            runtime=runtime,
+            ownerless_admission=ownerless_admission,
         )
         release_descriptor = None if retain_reservation else reservation_descriptor
         if ownerless_binding:
@@ -348,22 +275,18 @@ def apply_resolution(  # noqa: PLR0913, RUF100 - exact effect binding envelope
             receipt["ownerless_closeout_binding"] = receipt_binding
             report["ownerless_closeout_binding"] = receipt_binding
         if retire_gap:
-            runtime.block_resolution_report(
-                report,
-                retire_gap,
-                state=retire_gap.removeprefix("lane_resolution_"),
-            )
+            _block(report, retire_gap, state=retire_gap.removeprefix("lane_resolution_"))
             return
         destructive_effect = disposition in {"retire", "preserve-retire"}
         try:
-            receipt_path = runtime.write_resolution_receipt(
+            receipt_path = write_resolution_receipt(
                 root=control_root,
                 receipt=receipt,
                 artifact_root=artifact_root,
                 require_ownerless_closeout_binding=bool(ownerless_binding),
             )
         except (OSError, ValueError):
-            runtime.block_resolution_report(
+            _block(
                 report,
                 "lane_resolution_receipt_write_failed_after_effect"
                 if destructive_effect
@@ -378,32 +301,29 @@ def apply_resolution(  # noqa: PLR0913, RUF100 - exact effect binding envelope
             receipt_path=receipt_path,
             chronicle_event=chronicle_event(decision, receipt),
         )
-        if ownerless_binding:
-            cleanup_gap = cleanup.release_ownerless_closeout_resources(
+        if ownerless_binding and (
+            cleanup_gap := cleanup.release_ownerless_closeout_resources(
                 control_root=control_root,
                 artifact_root=artifact_root,
                 decision=decision,
                 observation=observation,
                 binding=ownerless_binding,
-                runtime=runtime,
             )
-            if cleanup_gap:
-                runtime.block_resolution_report(report, cleanup_gap, state="partial_transition")
-                return
+        ):
+            _block(report, cleanup_gap, state="partial_transition")
     finally:
         try:
             cleanup_gap = cleanup.release_receipt_reservation(
                 control_root=control_root,
                 artifact_root=artifact_root,
                 decision_id=decision_id,
-                runtime=runtime,
                 locked_descriptor=release_descriptor,
             )
         finally:
             reservation_stack.close()
         if cleanup_gap:
             current_gaps = cast("list[str]", report["required_gaps"])
-            runtime.block_resolution_report(
+            _block(
                 report,
                 *current_gaps,
                 cleanup_gap,
@@ -411,26 +331,102 @@ def apply_resolution(  # noqa: PLR0913, RUF100 - exact effect binding envelope
             )
 
 
-def _resolution_roots(
-    root: Path, runtime: ResolutionRuntime
-) -> tuple[Path | None, Path | None, str]:
+def _claim_effect_attempt(  # noqa: PLR0913, RUF100 - exact claim/admission inputs
+    *,
+    stack: ExitStack,
+    control_root: Path,
+    artifact_root: Path,
+    decision_path: Path,
+    decision: dict[str, Any],
+    observation: LaneObservation,
+    disposition: str,
+    recover: bool,
+) -> tuple[OwnerlessCloseoutAdmission | None, int | None, tuple[str, ...]]:
+    decision_id = str(decision.get("decision_id") or "")
+    if recover:
+        claimed, descriptor, gap = claim_receipt_reservation(
+            stack,
+            control_root,
+            artifact_root,
+            decision_id,
+            mode="recover",
+        )
+        if gap or not claimed or descriptor is None:
+            return None, descriptor, (gap or "lane_resolution_receipt_invalid",)
+        try:
+            token = ownerless_receipt_reservation_token(
+                control_root=control_root,
+                artifact_root=artifact_root,
+                decision_id=decision_id,
+                descriptor=descriptor,
+            )
+        except (OSError, TypeError, ValueError) as error:
+            return (
+                None,
+                descriptor,
+                (transition_gap(error, "lane_resolution_receipt_invalid"),),
+            )
+        admission, admission_gap = pre_admit_ownerless_lane(
+            root=control_root,
+            decision_path=decision_path,
+            decision=decision,
+            observation=observation,
+            disposition=disposition,
+            receipt_reservation_token=token,
+        )
+        return admission, descriptor, ((admission_gap,) if admission_gap else ())
+    admission, admission_gap = pre_admit_ownerless_lane(
+        root=control_root,
+        decision_path=decision_path,
+        decision=decision,
+        observation=observation,
+        disposition=disposition,
+        receipt_reservation_token=None,
+    )
+    if admission_gap:
+        return None, None, (admission_gap,)
+    admission, descriptor, claim_gap = claim_effect_receipt_reservation(
+        stack,
+        control_root,
+        artifact_root,
+        decision_id,
+        mode="create",
+        admission=admission,
+    )
+    if not claim_gap:
+        return admission, descriptor, ()
+    release_gap = (
+        cleanup.release_receipt_reservation(
+            control_root=control_root,
+            artifact_root=artifact_root,
+            decision_id=decision_id,
+            locked_descriptor=descriptor,
+        )
+        if descriptor is not None
+        else ""
+    )
+    return None, descriptor, tuple(gap for gap in (claim_gap, release_gap) if gap)
+
+
+def _resolution_roots(root: Path) -> tuple[Path | None, Path | None, str]:
     try:
-        return runtime.accepted_control_root(root), runtime.current_record_root(root), ""
+        return accepted_control_root(root), current_record_root(root), ""
     except ValueError as error:
         return None, None, transition_gap(error, "lane_resolution_control_root_unavailable")
 
 
 def _prepare_resolution(
     *,
-    context: _ResolutionContext,
+    control_root: Path,
+    artifact_root: Path,
     decision: dict[str, Any],
     observation: LaneObservation,
     disposition: str,
 ) -> tuple[dict[str, object], dict[str, object], str, tuple[str, ...]]:
     try:
-        package, receipt, state, effect_gap = context.runtime.prepare_resolution_effect(
-            control_root=context.control_root,
-            artifact_root=context.artifact_root,
+        package, receipt, state, effect_gap = prepare_resolution_effect(
+            control_root=control_root,
+            artifact_root=artifact_root,
             decision=decision,
             observation=observation,
             disposition=disposition,
@@ -441,7 +437,7 @@ def _prepare_resolution(
         return package, receipt, state, (effect_gap,)
     if disposition != "preserve-retire":
         return package, receipt, state, ()
-    current, current_gaps = context.runtime.observe_lane(context.control_root, observation.lane_ref)
+    current, current_gaps = observe_lane(control_root, observation.lane_ref)
     if current_gaps or current.digest() != observation.digest():
         return (
             package,
@@ -452,7 +448,7 @@ def _prepare_resolution(
     return package, receipt, state, ()
 
 
-def _retire_resolution(  # noqa: PLR0911, PLR0913, RUF100 - fail-closed branches
+def _retire_resolution(  # noqa: PLR0913, RUF100 - exact resolution context
     *,
     root: Path,
     control_root: Path,
@@ -461,39 +457,26 @@ def _retire_resolution(  # noqa: PLR0911, PLR0913, RUF100 - fail-closed branches
     observation: LaneObservation,
     disposition: str,
     artifact_root: Path,
-    runtime: ResolutionRuntime,
+    ownerless_admission: OwnerlessCloseoutAdmission | None = None,
 ) -> tuple[bool, str, dict[str, object]]:
     if disposition not in {"retire", "preserve-retire"}:
         return False, "", {}
-    if runtime.ownerless_closeout_candidate(disposition, observation):
+    if _ownerless_closeout_candidate(disposition, observation):
         executor_ref = os.environ.get("ETHOS_ACTOR", "").strip()
         if not executor_ref:
             return False, "lane_resolution_ownerless_executor_required", {}
-        accepted_branch = load_branch_role_policy(control_root).accepted_branch
-        accepted = run_git(
-            control_root,
-            "rev-parse",
-            "--verify",
-            f"refs/heads/{accepted_branch}",
-            check=False,
-        )
-        accepted_head = accepted.stdout.strip() if accepted.returncode == 0 else ""
-        if not accepted_head:
-            return False, "lane_resolution_ownerless_accepted_head_unavailable", {}
         try:
-            binding = runtime.retire_clean_ownerless_lane(
+            binding = retire_clean_ownerless_lane(
                 root=control_root,
                 decision_path=decision_path,
                 decision=decision,
-                observation=observation,
                 executor_ref=executor_ref,
-                accepted_branch=accepted_branch,
-                accepted_head=accepted_head,
                 artifact_root=artifact_root,
+                admission=ownerless_admission,
             )
         except OwnerlessCloseoutError as error:
             return (
-                error.fence_acquired,
+                error.phase not in {None, "reserved"},
                 transition_gap(error, "lane_resolution_ownerless_transition_unknown"),
                 {},
             )
@@ -516,3 +499,12 @@ def _retire_resolution(  # noqa: PLR0911, PLR0913, RUF100 - fail-closed branches
             {},
         )
     return True, "", {}
+
+
+def _ownerless_closeout_candidate(disposition: str, observation: LaneObservation) -> bool:
+    return (
+        disposition == "retire"
+        and not observation.dirty
+        and observation.orphan
+        and not observation.holder_ref
+    )

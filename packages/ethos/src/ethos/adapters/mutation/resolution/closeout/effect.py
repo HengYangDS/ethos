@@ -15,19 +15,22 @@ from ethos.adapters.mutation.resolution._effects import retire_clean_ownerless_c
 from ethos.adapters.mutation.resolution._effects import verify_ownerless_postconditions
 from ethos.adapters.mutation.resolution._shared import current_chronicle_matches
 from ethos.adapters.mutation.resolution.closeout.ownerless.admission.core import (
-    OwnerlessCloseoutAdmission,
-)
-from ethos.adapters.mutation.resolution.closeout.ownerless.admission.core import (
-    OwnerlessCloseoutAdmissionError,
-)
-from ethos.adapters.mutation.resolution.closeout.ownerless.admission.core import (
-    reobserve_ownerless_closeout_facts,
+    admit_ownerless_closeout,
 )
 from ethos.adapters.mutation.resolution.closeout.ownerless.admission.core import (
     reobserve_ownerless_closeout_under_fence,
 )
-from ethos.adapters.mutation.resolution.closeout.ownerless.admission.runtime import (
-    admit_ownerless_effect_target,
+from ethos.adapters.mutation.resolution.closeout.ownerless.admission.facts.core import (
+    admit_ownerless_closeout_facts,
+)
+from ethos.adapters.mutation.resolution.closeout.ownerless.admission.facts.core import (
+    reobserve_ownerless_closeout_facts,
+)
+from ethos.adapters.mutation.resolution.closeout.ownerless.admission.facts.fence import (
+    OwnerlessCloseoutAdmission,
+)
+from ethos.adapters.mutation.resolution.closeout.ownerless.admission.facts.fence import (
+    OwnerlessCloseoutAdmissionError,
 )
 from ethos.adapters.mutation.resolution.closeout.retry import reset_reserved_no_effect_retry
 from ethos.adapters.mutation.resolution.receipts import canonical_resolution_decision_snapshot
@@ -65,6 +68,35 @@ def _ownerless_gap(suffix: str) -> str:
     return f"lane_resolution_ownerless_{suffix}"
 
 
+def _admit_ownerless_effect_target(
+    *,
+    root: Path,
+    decision_path: Path,
+    decision: dict[str, Any],
+    executor_ref: str,
+    receipt_reservation: OwnerlessReceiptReservationContext | None,
+) -> OwnerlessCloseoutAdmission:
+    try:
+        if receipt_reservation is not None:
+            return admit_ownerless_closeout_facts(
+                root=root,
+                decision_path=decision_path,
+                decision=decision,
+                executor_ref=executor_ref,
+                receipt_reservation=receipt_reservation,
+            )
+        return admit_ownerless_closeout(
+            root=root,
+            decision_path=decision_path,
+            decision=decision,
+            executor_ref=executor_ref,
+        )
+    except OwnerlessCloseoutAdmissionError as error:
+        raise OwnerlessCloseoutError(error.gap) from error
+    except Exception as error:
+        raise OwnerlessCloseoutError(_ownerless_gap("admission_unverifiable")) from error
+
+
 def retire_clean_ownerless_lane(  # noqa: PLR0913, RUF100 - exact effect bindings
     *,
     root: Path,
@@ -77,7 +109,7 @@ def retire_clean_ownerless_lane(  # noqa: PLR0913, RUF100 - exact effect binding
 ) -> dict[str, object]:
     """Admit, fence, reobserve, reserve, retire, and bind one exact target."""
     if admission is None:
-        admission = admit_ownerless_effect_target(
+        admission = _admit_ownerless_effect_target(
             root=root,
             decision_path=decision_path,
             decision=decision,

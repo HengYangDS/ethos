@@ -9,8 +9,10 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-import ethos.adapters.mutation.resolution.closeout.ownerless.admission.core as admission
-import ethos.adapters.mutation.resolution.closeout.ownerless.admission.policy as policy
+import ethos.adapters.mutation.resolution.closeout.ownerless.admission.core as admission_api
+import ethos.adapters.mutation.resolution.closeout.ownerless.admission.facts.core as admission
+import ethos.adapters.mutation.resolution.closeout.ownerless.admission.facts.fence as admission_fence  # noqa: E501
+import ethos.adapters.mutation.resolution.closeout.ownerless.workspace as policy
 import ethos.adapters.mutation.resolution.observation as observation
 import ethos_core.contracts.branch.roles as roles
 import ethos_core.contracts.resolution.lane as lane
@@ -45,7 +47,7 @@ def _exact_observation(root: Path, *, head: str = "a" * 40) -> lane.LaneObservat
 
 
 def _assert_admission_gap(call: Callable[[], object], gap: str, detail: str | None = None) -> None:
-    with pytest.raises(admission.OwnerlessCloseoutAdmissionError) as raised:
+    with pytest.raises(admission_fence.OwnerlessCloseoutAdmissionError) as raised:
         call()
     assert raised.value.gap == gap
     if detail is not None:
@@ -67,7 +69,7 @@ def test_public_admission_translates_an_unclassified_failure(
     monkeypatch.setattr(admission, "admit_ownerless_closeout_facts", unexpected)
 
     _assert_admission_gap(
-        lambda: admission.admit_ownerless_closeout(
+        lambda: admission_api.admit_ownerless_closeout(
             root=tmp_path,
             decision_path=tmp_path / "decision.json",
             decision={},
@@ -180,18 +182,18 @@ def test_native_admission_rejects_a_competing_fence_without_a_retry_reservation(
 def test_authority_context_preserves_classified_errors_and_rejects_rewritten_executors(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    classified = admission.OwnerlessCloseoutAdmissionError("exact", "detail")
+    classified = admission_fence.OwnerlessCloseoutAdmissionError("exact", "detail")
     monkeypatch.setattr(
-        admission.policy_reader,
+        admission.workspace,
         "read_optional_root_bound_regular_file",
         lambda *_args, **_kwargs: (_ for _ in ()).throw(classified),
     )
-    with pytest.raises(admission.OwnerlessCloseoutAdmissionError) as raised:
+    with pytest.raises(admission_fence.OwnerlessCloseoutAdmissionError) as raised:
         admission._authority_context(tmp_path, _EXECUTOR)  # noqa: SLF001, RUF100
     assert raised.value is classified
 
     monkeypatch.setattr(
-        admission.policy_reader,
+        admission.workspace,
         "read_optional_root_bound_regular_file",
         lambda *_args, **_kwargs: None,
     )

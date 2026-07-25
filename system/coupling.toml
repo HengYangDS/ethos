@@ -96,7 +96,7 @@ mandatory_paths = [
   "packages/ethos/src/ethos/adapters/mutation/resolution/observation.py",
   "packages/ethos/src/ethos/adapters/mutation/resolution/preservation/core.py",
   "packages/ethos/src/ethos/adapters/mutation/resolution/records/roots.py",
-  "packages/ethos/src/ethos/adapters/mutation/resolution/closeout/ownerless/admission/core.py",
+  "packages/ethos/src/ethos/adapters/mutation/resolution/closeout/ownerless/admission/facts/core.py",
   "packages/ethos/src/ethos/adapters/mutation/resolution/closeout/effect.py",
   "packages/ethos/src/ethos/adapters/mutation/resolution/closeout/recovery.py",
   "packages/ethos/src/ethos/adapters/mutation/resolution/closeout/cleanup/core.py",

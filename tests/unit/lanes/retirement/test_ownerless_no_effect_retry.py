@@ -364,6 +364,69 @@ def test_crash_after_old_fence_release_recovers_on_next_retry(
     assert attempts["count"] == 2
 
 
+def test_retry_reset_noops_without_reservation_and_releases_absent_fence_retry(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    scenario = _scenario(tmp_path)
+    fresh = effect.admit_clean_ownerless_lane(
+        root=scenario.repo,
+        decision_path=scenario.decision_path,
+        decision=scenario.decision,
+        executor_ref="agent:codex:thread:executor",
+    )
+
+    retry.reset_reserved_no_effect_retry(
+        admission=fresh,
+        database=state_database(scenario.repo),
+        record_root=current_record_root(scenario.repo),
+    )
+
+    old_reservation, _attempts = _start_reserved_no_effect(scenario, monkeypatch)
+    old_fence = get_closeout_fence(state_database(scenario.repo), subject="work/orphan")
+    assert old_fence is not None
+    release_closeout_fence(
+        state_database(scenario.repo),
+        subject="work/orphan",
+        decision_id=str(old_reservation["decision_id"]),
+        target_binding_digest=str(old_reservation["target_binding_digest"]),
+    )
+    retry_admission = effect.admit_clean_ownerless_lane(
+        root=scenario.repo,
+        decision_path=scenario.decision_path,
+        decision=scenario.decision,
+        executor_ref="agent:codex:thread:executor",
+    )
+    assert retry_admission.existing_reservation is not None
+    assert retry_admission.retry_fence_acquisition_id is None
+    events: list[str] = []
+    real_release_reservation = retry.release_ownerless_no_effect_reservation
+    monkeypatch.setattr(
+        retry,
+        "release_closeout_fence",
+        lambda **_kwargs: pytest.fail("an absent old fence must not be released again"),
+    )
+
+    def release_reservation(**kwargs: object) -> None:
+        events.append("reservation")
+        real_release_reservation(**kwargs)
+
+    monkeypatch.setattr(retry, "release_ownerless_no_effect_reservation", release_reservation)
+    retry.reset_reserved_no_effect_retry(
+        admission=retry_admission,
+        database=state_database(scenario.repo),
+        record_root=current_record_root(scenario.repo),
+    )
+
+    assert events == ["reservation"]
+    assert get_closeout_fence(state_database(scenario.repo), subject="work/orphan") is None
+    reservation_path = reservation_store.ownerless_closeout_reservation_path(
+        scenario.repo,
+        str(old_reservation["target_digest"]),
+        artifact_root=current_record_root(scenario.repo),
+    )
+    assert not reservation_path.exists()
+
+
 def test_ownerless_no_effect_reservation_release_is_exact_compare_and_delete(
     tmp_path: Path,
 ) -> None:

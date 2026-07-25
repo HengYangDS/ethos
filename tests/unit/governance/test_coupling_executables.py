@@ -168,6 +168,26 @@ def test_asyncio_exec_rejects_dynamic_argv_zero(tmp_path: Path) -> None:
     )
 
 
+@pytest.mark.parametrize(
+    ("keyword", "value", "kind"),
+    [
+        ("shell", "True", "mandatory_executable_shell_true"),
+        ("executable", "'/bin/git'", "mandatory_executable_override"),
+    ],
+)
+def test_asyncio_exec_unsafe_keyword_options_fail_closed(
+    tmp_path: Path, keyword: str, value: str, kind: str
+) -> None:
+    relative = "mandatory/effect.py"
+    _write(
+        tmp_path,
+        relative,
+        f"import asyncio\nasyncio.create_subprocess_exec('git', 'status', {keyword}={value})\n",
+    )
+
+    _assert_gap(_gaps(tmp_path, _declaration(relative)), kind, relative)
+
+
 def test_asyncio_shell_execution_is_rejected(tmp_path: Path) -> None:
     relative = "mandatory/effect.py"
     _write(
@@ -199,6 +219,21 @@ def test_dynamic_argv_zero_is_rejected(tmp_path: Path) -> None:
         tmp_path,
         relative,
         "import subprocess\ncommand = 'git'\nsubprocess.run([command, 'status'])\n",
+    )
+
+    _assert_gap(
+        _gaps(tmp_path, _declaration(relative)),
+        "mandatory_executable_dynamic_argv0",
+        relative,
+    )
+
+
+def test_subprocess_keyword_dynamic_args_fail_closed(tmp_path: Path) -> None:
+    relative = "mandatory/effect.py"
+    _write(
+        tmp_path,
+        relative,
+        "import subprocess\ncommand = ['git', 'status']\nsubprocess.run(args=command)\n",
     )
 
     _assert_gap(
@@ -373,6 +408,17 @@ def test_symlink_audit_root_escape_is_rejected(tmp_path: Path) -> None:
     _assert_gap(
         _gaps(tmp_path, _declaration(relative)),
         "mandatory_executable_path_escape",
+        relative,
+    )
+
+
+def test_unparseable_mandatory_source_fails_closed(tmp_path: Path) -> None:
+    relative = "mandatory/effect.py"
+    _write(tmp_path, relative, "def incomplete(:\n")
+
+    _assert_gap(
+        _gaps(tmp_path, _declaration(relative)),
+        "mandatory_executable_source_unavailable",
         relative,
     )
 

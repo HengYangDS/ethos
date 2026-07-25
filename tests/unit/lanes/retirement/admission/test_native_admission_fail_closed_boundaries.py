@@ -11,7 +11,7 @@ import pytest
 
 import ethos.adapters.mutation.resolution.closeout.ownerless.admission.core as admission_api
 import ethos.adapters.mutation.resolution.closeout.ownerless.admission.facts.core as admission
-import ethos.adapters.mutation.resolution.closeout.ownerless.admission.facts.fence as admission_fence  # noqa: E501
+import ethos.adapters.mutation.resolution.closeout.ownerless.admission.facts.fence as admission_fence
 import ethos.adapters.mutation.resolution.closeout.ownerless.workspace as policy
 import ethos.adapters.mutation.resolution.observation as observation
 import ethos_core.contracts.branch.roles as roles

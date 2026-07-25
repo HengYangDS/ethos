@@ -108,8 +108,8 @@ def parity_adopter(path: str) -> str:
     return adopter or ""
 
 
-def empty_projection_patch(stderr: str) -> bool:
-    lowered = stderr.lower()
+def empty_projection_patch(output: str) -> bool:
+    lowered = output.lower()
     return (
         "no changes" in lowered
         or "nothing to commit" in lowered
@@ -148,7 +148,8 @@ def resolve_projection_rebase(
             append_unique(next_actions, projection_result["next_actions"])
             completed = run_git(root, "-c", "core.editor=true", "rebase", "--continue", check=False)
             continue
-        if paths and empty_projection_patch(str(getattr(completed, "stderr", ""))):
+        output = "\n".join(str(getattr(completed, field, "")) for field in ("stdout", "stderr"))
+        if paths and empty_projection_patch(output):
             completed = run_git(root, "rebase", "--skip", check=False)
             continue
         return projection_rebase_resolution(

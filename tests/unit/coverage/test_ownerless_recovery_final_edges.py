@@ -3,6 +3,7 @@ from __future__ import annotations
 from contextlib import ExitStack
 from typing import TYPE_CHECKING
 
+import ethos.adapters.mutation.resolution.closeout.ownerless.effect as ownerless_effect
 import ethos.adapters.mutation.resolution.closeout.recovery as recovery
 from ethos.adapters.mutation.resolution.closeout.effect import OwnerlessCloseoutError
 from ethos_core.contracts.resolution.lane import LaneObservation
@@ -47,7 +48,7 @@ def test_ownerless_retire_uses_explicit_reservation_visibility(
     observation = _observation(tmp_path)
     monkeypatch.setenv("ETHOS_ACTOR", "agent:codex:thread:executor")
     monkeypatch.setattr(
-        recovery,
+        ownerless_effect,
         "retire_clean_ownerless_lane",
         lambda **_kwargs: (_ for _ in ()).throw(
             OwnerlessCloseoutError(
@@ -77,7 +78,7 @@ def test_ownerless_retire_pre_admission_failure_does_not_claim_reservation(
     observation = _observation(tmp_path)
     monkeypatch.setenv("ETHOS_ACTOR", "agent:codex:thread:executor")
     monkeypatch.setattr(
-        recovery,
+        ownerless_effect,
         "retire_clean_ownerless_lane",
         lambda **_kwargs: (_ for _ in ()).throw(
             OwnerlessCloseoutError("lane_resolution_ownerless_decision_stale")

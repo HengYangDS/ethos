@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from ethos.contracts.plan import PlanIR
 from ethos.contracts.plan import PlanNode
+from ethos.contracts.plan import PlanVerdict
 
 
 def test_plan_ir_orders_dependencies_before_dependents() -> None:
@@ -82,4 +83,26 @@ def test_invalid_plan_ir_still_serializes_without_recursion() -> None:
     payload = plan.to_dict()
 
     assert payload["nodes"][0]["id"] == "prove"
-    assert payload["validation"]["ok"] is False
+    assert payload["verdict"] == "block"
+    assert payload["required_gaps"] == ["missing_dependency:prove->status"]
+
+
+def test_valid_plan_ir_has_pass_verdict() -> None:
+    plan = PlanIR(nodes=(PlanNode(id="status", kind="check", command=("ethos", "status")),))
+
+    assert plan.verdict == "pass"
+    assert plan.to_dict()["verdict"] == "pass"
+
+
+def test_plan_ir_unknown_verdict_is_explicit_and_cannot_hide_hard_gaps() -> None:
+    unknown = PlanIR(initial_verdict="unknown")
+    blocked = PlanIR(initial_verdict="unknown", validation_issues=("facts_unavailable",))
+
+    assert unknown.ok is False
+    assert unknown.to_dict()["verdict"] == "unknown"
+    assert blocked.verdict == "block"
+    assert blocked.to_dict()["verdict"] == "block"
+
+
+def test_plan_verdict_algebra_is_closed() -> None:
+    assert PlanVerdict.__args__ == ("pass", "block", "unknown")

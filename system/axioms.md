@@ -26,7 +26,7 @@ does not restate the verse and does not create a second truth center.
    test, or change that commitment.
 5. **Evidence before claim.** A claim is valid only within the authority, subject,
    scope, verifier, evidence digest, and HEAD binding that proved it. Metrics and
-   quality_summarys explain readiness; they do not become authority.
+   reader projections explain readiness; they do not become authority.
 6. **Parsimony before expansion.** An entity is justified only when it owns a
    distinct semantic obligation. Otherwise merge it, project it, archive it, or
    delete it.

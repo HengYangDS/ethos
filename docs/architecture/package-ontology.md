@@ -64,8 +64,8 @@ Earlier product designs used separate Python package homes. Their concerns now
 live as internal modules under `src/ethos`; they are not active package homes.
 
 Historical references to those package names are stale unless explicitly marked
-as history. Promoted docs, tests, quality_summarys, and release checks should use the
-active topology above.
+as history. Promoted docs, tests, status projections, and release checks should
+use the active topology above.
 
 ## Boundary Rule
 

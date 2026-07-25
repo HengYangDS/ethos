@@ -196,7 +196,6 @@ Primary sources:
 - <https://slsa.dev/spec/v1.1/about>
 - <https://in-toto.io/>
 - <https://docs.sigstore.dev/>
-- <https://quality_summary.dev/>
 
 ### OpenFeature and feature-flag discipline
 

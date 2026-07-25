@@ -910,7 +910,7 @@ inventory may report `exact`.
 
 #### Scenario: foreign lane preview remains observe-only
 
-- **WHEN** status or orientation reports a linked foreign Work Lane
+- **WHEN** status reports a linked foreign Work Lane
 - **THEN** its action preview lists `observe` as the only candidate action and
   blocks `write`, `land`, and `retire`
 - **AND** it states `mints_authority=false` and `recheck_required=true`
@@ -920,7 +920,7 @@ inventory may report `exact`.
 
 #### Scenario: bounded readers defer foreign path scopes
 
-- **WHEN** a bounded status, planning, proof, landing, publication, or quality_summary
+- **WHEN** a bounded status, planning, proof, landing, or publication
   reader needs local state and aggregate lane signals but not a coordination
   inventory
 - **THEN** ETHOS MAY defer foreign Work Lane path scopes instead of running one
@@ -1196,25 +1196,19 @@ accepted truth horizon.
 
 ### Requirement: Advisory governance signals are visible in reader views
 
-ETHOS SHALL expose non-blocking advisory governance signals in report and orient
-reader views without treating them as transition-blocking required gaps.
+ETHOS SHALL expose non-blocking advisory governance signals in the bounded
+status reader without treating them as transition-blocking required gaps.
 
-#### Scenario: Report exposes advisory signal count and layer
+#### Scenario: Status exposes advisory signal count and layer
 
 - **WHEN** `ethos status --json` runs
 - **THEN** the summary includes `advisory_gap_count`
 - **AND** `gap_layers.advisory_signals` lists non-blocking advisory gaps
-- **AND** when there are advisory gaps but no required gaps the report remains
+- **AND** when there are advisory gaps but no required gaps status remains
   `ok=true` and reports `state=advisory` rather than `state=ready`
 - **AND** required gaps remain reserved for blocking transition failures
 
-#### Scenario: Orient carries advisory readiness signals
-
-- **WHEN** `ethos status --json` runs with report payload available
-- **THEN** orientation readiness includes advisory signal count and items
-- **AND** the human orientation output can mention advisory signals without granting mutation authority
-
-#### Scenario: Report exposes advisory signal count, layer, and bounded next actions
+#### Scenario: Status exposes advisory signal count, layer, and bounded next actions
 
 - **WHEN** `ethos status --json` runs
 - **THEN** the summary includes `advisory_gap_count`
@@ -1222,31 +1216,24 @@ reader views without treating them as transition-blocking required gaps.
 - **AND** `gap_layers.advisory_signals.next_actions` lists bounded inspection or explanation actions for known advisory signals
 - **AND** required gaps remain reserved for blocking transition failures
 
-#### Scenario: Orient carries advisory readiness signals and actions
-
-- **WHEN** `ethos status --json` runs with report payload available
-- **THEN** orientation readiness includes advisory signal count and items
-- **AND** orientation readiness includes advisory next actions derived from report
-- **AND** the human orientation output can mention advisory signals without granting mutation authority
-
-#### Scenario: Report carries Work Lane coordination advisories
+#### Scenario: Status carries Work Lane coordination advisories
 
 - **WHEN** `ethos status --json` runs and workspace status contains Work Lane coordination advisory gaps
-- **THEN** the report summary includes those gaps in `advisory_gap_count`
+- **THEN** the status summary includes those gaps in `advisory_gap_count`
 - **AND** `gap_layers.advisory_signals.advisory_gaps` includes the Work Lane coordination advisories
 - **AND** `gap_layers.advisory_signals.next_actions` routes to read-only coordination inspection commands
 - **AND** top-level `next_actions` mirrors those advisory inspection commands when
   no blocking gap is present
-- **AND** the advisories do not become report `required_gaps`
+- **AND** the advisories do not become status `required_gaps`
 
-#### Scenario: Report carries Work Lane coordination blockers
+#### Scenario: Status carries Work Lane coordination blockers
 
 - **WHEN** `ethos status --json` runs for a product or adopter profile and workspace status contains required Work Lane coordination gaps
-- **THEN** those required coordination gaps appear in report `required_gaps`
+- **THEN** those required coordination gaps appear in status `required_gaps`
 - **AND** `gap_layers.coordination_risk.required_gaps` carries the required coordination gaps
 - **AND** `gap_layers.coordination_risk.advisory_gaps` carries advisory coordination signals without making them required
 - **AND** product and adopter profiles both surface required coordination gaps as blockers
-- **AND** the quality_summary remains read-only and does not authorize foreign Work Lane cleanup
+- **AND** status remains read-only and does not authorize foreign Work Lane cleanup
 
 ### Requirement: Generated Evidence Boundary
 Generated proof artifacts SHALL remain outside repository truth, with
@@ -2418,9 +2405,9 @@ session instruction as reusable wildcard authority.
 - **AND** local completion does not claim remote push, hosted execution, or
   distribution publication.
 
-### Requirement: Report distinguishes local publication and hosted observation state
+### Requirement: Status distinguishes local publication and hosted observation state
 
-ETHOS report SHALL expose local publication readiness and hosted provider
+ETHOS status SHALL expose local publication readiness and hosted provider
 observation status as separate read-only projections without performing a
 remote probe or minting proof, hosted-success, or publication authority.
 
@@ -2428,7 +2415,7 @@ remote probe or minting proof, hosted-success, or publication authority.
 
 - **WHEN** ethos status runs and the configured hosted observation artifact
   binds the current tracked head
-- **THEN** report data SHALL include hosted_observation state, freshness,
+- **THEN** status data SHALL include hosted_observation state, freshness,
   provider-state summary, and bounded observation gaps
 - **AND** those gaps SHALL remain advisory rather than repository proof
   required_gaps
@@ -2439,16 +2426,16 @@ remote probe or minting proof, hosted-success, or publication authority.
 
 - **WHEN** the hosted observation artifact is missing, malformed, or bound to a
   different tracked head
-- **THEN** report SHALL expose missing, invalid, or stale hosted observation
+- **THEN** status SHALL expose missing, invalid, or stale hosted observation
   state
 - **AND** it SHALL provide a bounded next action to rerun the observation owner
   script
-- **AND** the quality_summary SHALL remain read-only
+- **AND** status SHALL remain read-only
 
 #### Scenario: Local publication readiness is projected
 
 - **WHEN** ethos status summarizes current blockers and proof readiness
-- **THEN** report data SHALL include a local_publication projection that
+- **THEN** status data SHALL include a local_publication projection that
   distinguishes ready from blocked local state
 - **AND** the projection SHALL list its local blockers
 - **AND** remote publication claimed SHALL remain false
@@ -3244,13 +3231,13 @@ a directory.
 - **AND** it SHALL keep `roots.rules` as an ordinary safe repository path.
 
 ### Requirement: Invalid adopter profile commands return structured blocks
-Every public ETHOS reader, planning, proof, landing, report, and OpenSpec
+Every public ETHOS reader, planning, proof, landing, publication, and OpenSpec
 lifecycle command SHALL return a structured `EthosResult` when the target
 adopter profile is invalid. The result SHALL contain the stable invalid-profile
 gap and SHALL not emit an uncaught traceback as its command result.
 
 #### Scenario: JSON reader observes an invalid profile
-- **WHEN** `ethos status --json` or `ethos status --json` targets an invalid
+- **WHEN** `ethos status --json` targets an invalid
   adopter profile
 - **THEN** it SHALL emit parseable JSON with `ok = false`
 - **AND** `required_gaps` SHALL contain

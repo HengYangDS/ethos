@@ -36,7 +36,7 @@ The kernel is compatible with the root text when it preserves these boundaries:
 2. `Subject`, `Commitment`, and `Change` separate the governed object, its
    promises, and the lifecycle of modification without multiplying truth stores.
 3. `Evidence` and `Claim` make hidden state inspectable while preventing metrics,
-   digests, or quality_summarys from asserting more than their verifier proved.
+   digests, or reader projections from asserting more than their verifier proved.
 4. `Chronicle` records judged movement so accepted truth changes through a visible
    loop rather than through host-side memory or overwrite races.
 

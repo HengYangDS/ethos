@@ -37,8 +37,8 @@ depth, while adapters project local providers without becoming truth stores.
 
 ## First Hour
 
-The first hour is deliberately small. Start with a first-glance orientation,
-then run the transition loop:
+The first hour is deliberately small. Start with the single bounded reader,
+then run the lifecycle loop:
 
 status is the read-only readiness view.
 
@@ -48,24 +48,15 @@ status -> plan -> prove -> land -> publish
 
 ```bash
 ethos status
-ethos status
 ethos plan
 ethos prove
 ethos land
 ethos publish
 ```
 
-`ethos status` is read-only UX for humans and agents: where am I, what can I do,
-who else is present, what remains gapped, and what runs next. It projects
-`status` and `report`; it is not a transition verb and does not mint repository
+`ethos status` is the single bounded reader for current repository facts,
+authority, gaps, coordination, and the next action. It does not mint repository
 truth.
-
-report is a read-only quality_summary. It shows the payoff after the loop, but
-it is not another transition verb:
-
-```bash
-ethos status
-```
 
 Start read-only with `ethos adopt --json`. Review the exact one-file binding
 plan, apply only when conflicts are empty and rollback is clear, then use the
@@ -76,7 +67,7 @@ five-command loop above.
 Use one discovery path, then branch by audience:
 
 ```text
-README / docs index / AGENTS.md -> ethos status -> status -> plan -> prove -> land -> publish
+README / docs index / AGENTS.md -> status -> plan -> prove -> land -> publish
 ```
 
 - Humans start from this README, then the [docs index](docs/index.md) and
@@ -151,6 +142,6 @@ GitLab-visible project governance is tracked in `LICENSE`, `CONTRIBUTING.md`,
 tools/ci/scripts/run-python-tests.sh
 tools/ci/scripts/run-python-lint.sh
 uv run ethos status --json
-uv run ethos status --json
-uv run ethos status --json
+uv run ethos plan --changed --json
+uv run ethos prove --json
 ```

@@ -18,17 +18,16 @@ See also: [Command Plane](../reference/command-plane.md) and
 
 ## First Hour
 
-Start with read-only orientation:
+Start with the single bounded reader:
 
 ```bash
 ethos status
 ```
 
-`ethos status` is a first-glance projection for humans and agents. It answers
+`ethos status` is the single bounded reader for humans and agents. It answers
 where you are, what you may do, which foreign Work Lanes and unbound Work Lane
 refs are visible, whether readiness is gapped, and which command should run
-next. It reads `status` and `report`; it is not a transition verb and does not
-mint repository truth.
+next without minting repository truth.
 
 Use `--json` when an agent or script needs stable evidence. Adoption has one
 read-only plan and one binding carrier:
@@ -54,11 +53,9 @@ ethos adopt --root <repo> --apply --authorize --expect-head <git-head> --json
 If the repository is not tracked by Git yet, initialize Git first or use the
 dry-run plan as a review artifact without claiming HEAD-bound adoption.
 
-After the binding is applied, re-orient and use the five-command transition
-loop:
+After the binding is applied, use the five-command lifecycle loop:
 
 ```bash
-ethos status
 ethos status
 ethos plan --changed
 ethos prove
@@ -73,13 +70,6 @@ count, dirty foreign Work Lane count, advisory coordination count, and whether
 coordination is currently blocking. Treat those fields as visibility only;
 inspect `data.coordination` before any handoff, merge, land, retirement, or
 cleanup decision.
-
-Use `--json` for stable machine output. report is the payoff view, not a
-transition:
-
-```bash
-ethos status
-```
 
 Common next actions:
 
@@ -104,7 +94,7 @@ First validation path:
 
 ```bash
 ethos status --json
-ethos status --json
+ethos plan --changed --json
 ethos prove --execute
 ethos quality command-examples
 ```

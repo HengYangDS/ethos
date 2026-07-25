@@ -25,6 +25,11 @@ Python's `graphlib.TopologicalSorter` is the sole ordering and cycle-detection
 mechanism. Missing dependencies, duplicate node identities, and cycles block the
 plan. No graph wrapper, alternate graph model, or durable plan database exists.
 
+Status: canonical.
+
+Purpose: define the transient planning algebra without creating another truth
+store or lifecycle owner.
+
 See also: [Terminal Governance Product Design](../plans/terminal-governance-product-design.md),
 [Runner And Mutation Boundary](runner-and-mutation.md), and
 [Command Plane](../reference/command-plane.md).

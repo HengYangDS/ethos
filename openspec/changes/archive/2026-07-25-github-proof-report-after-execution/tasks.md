@@ -22,10 +22,10 @@
 
 ## 3. Proof and closeout
 
-- [ ] 3.1 Refresh generic parity evidence after overlapping foreign activity is
+- [x] 3.1 Refresh generic parity evidence after overlapping foreign activity is
   clear and require zero parity gaps.
-- [ ] 3.2 Run exact-HEAD `ethos prove --execute` and require every gate to pass.
-- [ ] 3.3 Complete only evidence-backed active tasks and validate the carrier for
+- [x] 3.2 Run exact-HEAD `ethos prove --execute` and require every gate to pass.
+- [x] 3.3 Complete only evidence-backed active tasks and validate the carrier for
   official archive.
 
 ## Post-archive transition boundary
